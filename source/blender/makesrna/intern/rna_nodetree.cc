@@ -10750,6 +10750,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeBoundBox");
   define("GeometryNode", "GeometryNodeCameraInfo");
   define("GeometryNode", "GeometryNodeCaptureAttribute", rna_def_geo_capture_attribute);
+  define("GeometryNode", "GeometryNodeClipGeometry");
   define("GeometryNode", "GeometryNodeClosureInput", def_geo_closure_input);
   define("GeometryNode", "GeometryNodeClosureOutput", def_geo_closure_output);
   define("GeometryNode", "GeometryNodeCollectionInfo");
