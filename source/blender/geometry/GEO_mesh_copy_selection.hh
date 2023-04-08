@@ -22,6 +22,12 @@ enum class AttrDomain : int8_t;
 
 namespace blender::geometry {
 
+std::optional<Mesh *> mesh_copy_by_mask(const Mesh &src_mesh,
+                                        const IndexMask vert_mask,
+                                        const IndexMask edge_mask,
+                                        const IndexMask face_mask,
+                                        const bke::AttributeFilter &attribute_filter);
+
 std::optional<Mesh *> mesh_copy_selection(const Mesh &src_mesh,
                                           const VArray<bool> &selection,
                                           bke::AttrDomain selection_domain,
