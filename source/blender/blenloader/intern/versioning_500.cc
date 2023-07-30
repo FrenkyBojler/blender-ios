@@ -18,6 +18,8 @@
 
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 
 #include "readfile.hh"
 
@@ -95,6 +97,13 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       rename_mesh_uv_seam_attribute(*mesh);
     }
   }
+
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
+      version_node_socket_name(ntree, CMP_NODE_ROTATE, "Degr", "Angle");
+    }
+  }
+  FOREACH_NODETREE_END;
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
