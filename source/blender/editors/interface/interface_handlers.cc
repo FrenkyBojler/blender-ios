@@ -7073,6 +7073,7 @@ static int ui_do_but_HSVCUBE(
 
   return WM_UI_HANDLER_CONTINUE;
 }
+
 void ui_hsv_rgb_vals_from_pos(uiBut *but, float mx, float my, const enum eSnapType snap)
 {
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
