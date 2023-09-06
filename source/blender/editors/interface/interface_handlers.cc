@@ -7111,14 +7111,14 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
                                      float my,
                                      const enum eSnapType snap,
                                      const bool shift,
-                                     const bool use_continous_grab)
+                                     const bool use_continuous_grab)
 {
   const bool changed = true;
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
   float *hsv = cpicker->hsv_perceptual;
 
   float mx_fl, my_fl;
-  if (use_continous_grab) {
+  if (use_continuous_grab) {
     rcti rect;
     BLI_rcti_rctf_copy(&rect, &but->rect);
 
@@ -7258,7 +7258,7 @@ static int ui_do_but_HSVCIRCLE(
   float *hsv = cpicker->hsv_perceptual;
   int mx = event->xy[0];
   int my = event->xy[1];
-  const bool use_continuos_grab = ui_but_is_cursor_warp(but) &&
+  const bool use_continuous_grab = ui_but_is_cursor_warp(but) &&
                                   event->tablet.active == EVT_TABLET_NONE;
   const bool shift = event->modifier & KM_SHIFT;
   ui_window_to_block(data->region, block, &mx, &my);
@@ -7274,7 +7274,7 @@ static int ui_do_but_HSVCIRCLE(
       button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 
       /* also do drag the first time */
-      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, use_continuos_grab)) {
+      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, use_continuous_grab)) {
         ui_numedit_apply(C, block, but, data);
       }
 
@@ -7347,7 +7347,7 @@ static int ui_do_but_HSVCIRCLE(
       if (mx != data->draglastx || my != data->draglasty || event->type != MOUSEMOVE) {
         const enum eSnapType snap = ui_event_to_snap(event);
 
-        if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, use_continuos_grab)) {
+        if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, use_continuous_grab)) {
           ui_numedit_apply(C, block, but, data);
         }
       }
