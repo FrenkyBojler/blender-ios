@@ -7086,11 +7086,13 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
   float *hsv = cpicker->hsv_perceptual;
 
-  float mx_fl, my_fl;
+  /* If `use_continuous_grab = false` stores the absolute mouse position of the mouse.
+   * If `use_continuous_grab = true` stores relative mouse position within the `HSVCIRCLE`, this
+   * position will depend on mouse movement rather than the absolute mouse position.
+   */
+  static float mval[2];
 
   rcti rect;
-  /* Workaround for snapping. */
-  static float mval[2];
   BLI_rcti_rctf_copy(&rect, &but->rect);
 
   if (use_continuous_grab) {
@@ -7105,29 +7107,17 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
     if (len > radius) {
       dist_ensure_v2_v2fl(mval, cent, radius);
     }
-    mx_fl = mval[0];
-    my_fl = mval[1];
   }
   else {
-    mx_fl = mx;
-    my_fl = my;
-    mval[0] = mx_fl;
-    mval[1] = my_fl;
+    mval[0] = mx;
+    mval[1] = my;
   }
 
 #ifdef USE_CONT_MOUSE_CORRECT
-  if (ui_but_is_cursor_warp(but)) {
+  if (use_continuous_grab) {
     /* OK but can go outside bounds */
-    data->ungrab_mval[0] = mx_fl;
-    data->ungrab_mval[1] = my_fl;
-    { /* clamp */
-      const float radius = min_ff(BLI_rctf_size_x(&but->rect), BLI_rctf_size_y(&but->rect)) / 2.0f;
-      const float cent[2] = {BLI_rctf_cent_x(&but->rect), BLI_rctf_cent_y(&but->rect)};
-      const float len = len_v2v2(cent, data->ungrab_mval);
-      if (len > radius) {
-        dist_ensure_v2_v2fl(data->ungrab_mval, cent, radius);
-      }
-    }
+    data->ungrab_mval[0] = mval[0];
+    data->ungrab_mval[1] = mval[1];
   }
 #endif
   /* exception, when using color wheel in 'locked' value state:
@@ -7146,7 +7136,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
     }
   }
 
-  ui_hsvcircle_vals_from_pos(&rect, mx_fl, my_fl, hsv, hsv + 1);
+  ui_hsvcircle_vals_from_pos(&rect, mval[0], mval[1], hsv, hsv + 1);
 
   if ((cpicker->use_color_cubic) && (U.color_picker_type == USER_CP_CIRCLE_HSV)) {
     hsv[1] = 1.0f - sqrt3f(1.0f - hsv[1]);
@@ -7272,9 +7262,9 @@ static int ui_do_but_HSVCIRCLE(
       data->draglasty = my;
       button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 
-      /* also do drag the first time */
       /* On KM_PRESS the mouse is within the circle, use `use_continuous_grab = false` to pick
-       * colot at mouse position. */
+       * color at mouse position. */
+      /* also do drag the first time */
       if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, false)) {
         ui_numedit_apply(C, block, but, data);
       }
