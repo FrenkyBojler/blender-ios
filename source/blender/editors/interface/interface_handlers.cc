@@ -7087,19 +7087,32 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   float *hsv = cpicker->hsv_perceptual;
 
   float mx_fl, my_fl;
+
+  rcti rect;
+  /* Workaround for snapping. */
+  static float mval[2];
+  BLI_rcti_rctf_copy(&rect, &but->rect);
+
   if (use_continuous_grab) {
-    rcti rect;
-    BLI_rcti_rctf_copy(&rect, &but->rect);
-
-    ui_hsvcircle_pos_from_vals(cpicker, &rect, hsv, &mx_fl, &my_fl);
-
     const float fac = ui_mouse_scale_warp_factor(shift);
-    mx_fl = (mx - float(data->draglastx)) * fac + mx_fl;
-    my_fl = (my - float(data->draglasty)) * fac + my_fl;
+    mval[0] = (mx - float(data->draglastx)) * fac + mval[0];
+    mval[1] = (my - float(data->draglasty)) * fac + mval[1];
+
+    const float radius = min_ff(BLI_rctf_size_x(&but->rect), BLI_rctf_size_y(&but->rect)) / 2.0f;
+    const float cent[2] = {BLI_rctf_cent_x(&but->rect), BLI_rctf_cent_y(&but->rect)};
+    const float len = len_v2v2(cent, mval);
+
+    if (len > radius) {
+      dist_ensure_v2_v2fl(mval, cent, radius);
+    }
+    mx_fl = mval[0];
+    my_fl = mval[1];
   }
   else {
     mx_fl = mx;
     my_fl = my;
+    mval[0] = mx_fl;
+    mval[1] = my_fl;
   }
 
 #ifdef USE_CONT_MOUSE_CORRECT
@@ -7117,7 +7130,6 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
     }
   }
 #endif
-
   /* exception, when using color wheel in 'locked' value state:
    * allow choosing a hue for black values, by giving a tiny increment */
   if (cpicker->use_color_lock) {
@@ -7133,9 +7145,6 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
       hsv[2] = std::min(hsv[2], 0.9999f);
     }
   }
-
-  rcti rect;
-  BLI_rcti_rctf_copy(&rect, &but->rect);
 
   ui_hsvcircle_vals_from_pos(&rect, mx_fl, my_fl, hsv, hsv + 1);
 
