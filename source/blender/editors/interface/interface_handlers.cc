@@ -7074,37 +7074,6 @@ static int ui_do_but_HSVCUBE(
   return WM_UI_HANDLER_CONTINUE;
 }
 
-void ui_hsv_rgb_vals_from_pos(uiBut *but, float mx, float my, const enum eSnapType snap)
-{
-  ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
-  float *hsv = cpicker->hsv_perceptual;
-
-  rcti rect;
-  BLI_rcti_rctf_copy(&rect, &but->rect);
-
-  ui_hsvcircle_vals_from_pos(&rect, mx, my, cpicker->hsv_perceptual, hsv + 1);
-
-  if ((cpicker->use_color_cubic) && (U.color_picker_type == USER_CP_CIRCLE_HSV)) {
-    hsv[1] = 1.0f - sqrt3f(1.0f - hsv[1]);
-  }
-
-  if (snap != SNAP_OFF) {
-    ui_color_snap_hue(snap, &hsv[0]);
-  }
-
-  float rgb[3];
-  ui_color_picker_hsv_to_rgb(hsv, rgb);
-
-  if (cpicker->use_luminosity_lock) {
-    if (!is_zero_v3(rgb)) {
-      normalize_v3_length(rgb, cpicker->luminosity_lock_value);
-    }
-  }
-
-  ui_perceptual_to_scene_linear_space(but, rgb);
-  ui_but_v3_set(but, rgb);
-}
-
 static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
                                      uiHandleButtonData *data,
                                      float mx,
@@ -7165,7 +7134,30 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
     }
   }
 
-  ui_hsv_rgb_vals_from_pos(but, mx_fl, my_fl, snap);
+  rcti rect;
+  BLI_rcti_rctf_copy(&rect, &but->rect);
+
+  ui_hsvcircle_vals_from_pos(&rect, mx_fl, my_fl, hsv, hsv + 1);
+
+  if ((cpicker->use_color_cubic) && (U.color_picker_type == USER_CP_CIRCLE_HSV)) {
+    hsv[1] = 1.0f - sqrt3f(1.0f - hsv[1]);
+  }
+
+  if (snap != SNAP_OFF) {
+    ui_color_snap_hue(snap, &hsv[0]);
+  }
+
+  float rgb[3];
+  ui_color_picker_hsv_to_rgb(hsv, rgb);
+
+  if (cpicker->use_luminosity_lock) {
+    if (!is_zero_v3(rgb)) {
+      normalize_v3_length(rgb, cpicker->luminosity_lock_value);
+    }
+  }
+
+  ui_perceptual_to_scene_linear_space(but, rgb);
+  ui_but_v3_set(but, rgb);
 
   data->draglastx = mx;
   data->draglasty = my;
@@ -7258,8 +7250,7 @@ static int ui_do_but_HSVCIRCLE(
   float *hsv = cpicker->hsv_perceptual;
   int mx = event->xy[0];
   int my = event->xy[1];
-  const bool use_continuous_grab = ui_but_is_cursor_warp(but) &&
-                                  event->tablet.active == EVT_TABLET_NONE;
+
   const bool shift = event->modifier & KM_SHIFT;
   ui_window_to_block(data->region, block, &mx, &my);
 
@@ -7270,11 +7261,12 @@ static int ui_do_but_HSVCIRCLE(
       data->dragstarty = my;
       data->draglastx = mx;
       data->draglasty = my;
-      ui_hsv_rgb_vals_from_pos(but, mx, my, snap);
       button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 
       /* also do drag the first time */
-      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, use_continuous_grab)) {
+      /* On KM_PRESS the mouse is within the circle, use `use_continuous_grab = false` to pick
+       * colot at mouse position. */
+      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, false)) {
         ui_numedit_apply(C, block, but, data);
       }
 
@@ -7346,7 +7338,8 @@ static int ui_do_but_HSVCIRCLE(
     else if ((event->type == MOUSEMOVE) || ui_event_is_snap(event)) {
       if (mx != data->draglastx || my != data->draglasty || event->type != MOUSEMOVE) {
         const enum eSnapType snap = ui_event_to_snap(event);
-
+        const bool use_continuous_grab = ui_but_is_cursor_warp(but) &&
+                                         event->tablet.active == EVT_TABLET_NONE;
         if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, use_continuous_grab)) {
           ui_numedit_apply(C, block, but, data);
         }
