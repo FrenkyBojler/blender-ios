@@ -43,8 +43,6 @@
 
 using blender::StringRef;
 
-#define MENU_BORDER int(0.3f * U.widget_unit)
-
 /* -------------------------------------------------------------------- */
 /** \name Search Box Creation
  * \{ */
@@ -71,6 +69,8 @@ struct uiSearchItems {
 struct uiSearchboxData {
   rcti bbox;
   uiFontStyle fstyle;
+  /** Region zoom level. */
+  float zoom;
   uiSearchItems items;
   bool size_set;
   ARegion *butregion;
@@ -168,7 +168,7 @@ bool UI_search_item_add(uiSearchItems *items,
 
 int UI_searchbox_size_y()
 {
-  return SEARCH_ITEMS * UI_UNIT_Y + 2 * UI_POPUP_MENU_TOP;
+  return SEARCH_ITEMS * UI_UNIT_Y + 2 * UI_SEARCHBOX_TRIA_H;
 }
 
 int UI_searchbox_size_x()
@@ -233,32 +233,34 @@ static void ui_searchbox_select(bContext *C, ARegion *region, uiBut *but, int st
 
 static void ui_searchbox_butrect(rcti *r_rect, uiSearchboxData *data, int itemnr)
 {
+  const float zoom = data->zoom;
+  const float tria_h = zoom * UI_SEARCHBOX_TRIA_H;
+
   /* thumbnail preview */
   if (data->preview) {
-    const int butw = (BLI_rcti_size_x(&data->bbox) - 2 * MENU_BORDER) / data->prv_cols;
-    const int buth = (BLI_rcti_size_y(&data->bbox) - 2 * MENU_BORDER) / data->prv_rows;
-    int row, col;
+    const int butw = BLI_rcti_size_x(&data->bbox) / data->prv_cols;
+    const int buth = (BLI_rcti_size_y(&data->bbox) - 2.0f * tria_h) / data->prv_rows;
+    const int col = itemnr % data->prv_cols;
+    const int row = itemnr / data->prv_cols;
 
     *r_rect = data->bbox;
 
-    col = itemnr % data->prv_cols;
-    row = itemnr / data->prv_cols;
-
-    r_rect->xmin += MENU_BORDER + (col * butw);
+    r_rect->xmin += col * butw;
     r_rect->xmax = r_rect->xmin + butw;
 
-    r_rect->ymax -= MENU_BORDER + (row * buth);
+    r_rect->ymax -= tria_h + row * buth;
     r_rect->ymin = r_rect->ymax - buth;
   }
   /* list view */
   else {
-    const int buth = (BLI_rcti_size_y(&data->bbox) - 2 * UI_POPUP_MENU_TOP) / SEARCH_ITEMS;
+    const int buth = (BLI_rcti_size_y(&data->bbox) - 2.0f * tria_h) / SEARCH_ITEMS;
 
     *r_rect = data->bbox;
-    r_rect->xmin = data->bbox.xmin + 3.0f;
-    r_rect->xmax = data->bbox.xmax - 3.0f;
 
-    r_rect->ymax = data->bbox.ymax - UI_POPUP_MENU_TOP - itemnr * buth;
+    r_rect->xmin = data->bbox.xmin;
+    r_rect->xmax = data->bbox.xmax;
+
+    r_rect->ymax = data->bbox.ymax - tria_h - itemnr * buth;
     r_rect->ymin = r_rect->ymax - buth;
   }
 }
@@ -546,9 +548,46 @@ int ui_searchbox_autocomplete(bContext *C, ARegion *region, uiBut *but, char *st
   return match;
 }
 
+static void ui_searchbox_draw_clip_tri_down(rcti *rect, const float zoom)
+{
+  const float x = BLI_rcti_cent_x(rect) - 0.5f * zoom * UI_ICON_SIZE;
+  const float y = rect->ymin - zoom * UI_ICON_SIZE -
+                  0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) + U.pixelsize;
+  GPU_blend(GPU_BLEND_ALPHA);
+  UI_icon_draw_ex(x,
+                  y,
+                  ICON_TRIA_DOWN,
+                  U.inv_scale_factor / zoom,
+                  1.0f,
+                  0.0f,
+                  NULL,
+                  false,
+                  UI_NO_ICON_OVERLAY_TEXT);
+  GPU_blend(GPU_BLEND_NONE);
+}
+
+static void ui_searchbox_draw_clip_tri_up(rcti *rect, const float zoom)
+{
+  const float x = BLI_rcti_cent_x(rect) - 0.5f * zoom * UI_ICON_SIZE;
+  const float y = rect->ymax + 0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize;
+  GPU_blend(GPU_BLEND_ALPHA);
+  UI_icon_draw_ex(x,
+                  y,
+                  ICON_TRIA_UP,
+                  U.inv_scale_factor / zoom,
+                  1.0f,
+                  0.0f,
+                  NULL,
+                  false,
+                  UI_NO_ICON_OVERLAY_TEXT);
+  GPU_blend(GPU_BLEND_NONE);
+}
+
 static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
 {
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
+  const float zoom = data->zoom;
+  const bool use_unpadded = data->noback;
 
   /* pixel space */
   wmOrtho2_region_pixelspace(region);
@@ -574,24 +613,29 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
         /* widget itself */
         ui_draw_preview_item(&data->fstyle,
                              &rect,
+                             zoom,
                              data->items.names[a],
                              data->items.icons[a],
                              but_flag,
                              UI_STYLE_TEXT_LEFT);
       }
 
-      /* indicate more */
-      if (data->items.more) {
-        ui_searchbox_butrect(&rect, data, data->items.maxitem - 1);
-        GPU_blend(GPU_BLEND_ALPHA);
-        UI_icon_draw(rect.xmax - 18, rect.ymin - 7, ICON_TRIA_DOWN);
-        GPU_blend(GPU_BLEND_NONE);
-      }
-      if (data->items.offset) {
-        ui_searchbox_butrect(&rect, data, 0);
-        GPU_blend(GPU_BLEND_ALPHA);
-        UI_icon_draw(rect.xmin, rect.ymax - 9, ICON_TRIA_UP);
-        GPU_blend(GPU_BLEND_NONE);
+      /* Indicate more. */
+      if (data->items.more || data->items.offset) {
+        rcti rect_min;
+        ui_searchbox_butrect(&rect_min, data, 0);
+        rcti rect_max;
+        ui_searchbox_butrect(&rect_max, data, data->items.maxitem - 1);
+
+        if (data->items.offset) {
+          rect_min.xmax = rect_max.xmax;
+          ui_searchbox_draw_clip_tri_up(&rect_min, zoom);
+        }
+
+        if (data->items.more) {
+          rect_max.xmin = rect_min.xmin;
+          ui_searchbox_draw_clip_tri_down(&rect_max, zoom);
+        }
       }
     }
     else {
@@ -624,7 +668,16 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
           }
 
           /* Simple menu item. */
-          ui_draw_menu_item(&data->fstyle, &rect, name, icon, but_flag, separator_type, nullptr);
+          ui_draw_menu_item(&data->fstyle,
+                            &rect,
+                            &rect,
+                            zoom,
+                            use_unpadded,
+                            name,
+                            icon,
+                            but_flag,
+                            separator_type,
+                            nullptr);
         }
         else {
           /* Split menu item, faded text before the separator. */
@@ -640,8 +693,11 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
           int name_width = 0;
           ui_draw_menu_item(&data->fstyle,
                             &rect,
+                            &rect,
+                            zoom,
+                            use_unpadded,
                             name,
-                            0,
+                            ICON_NONE,
                             but_flag | UI_BUT_INACTIVE,
                             UI_MENU_ITEM_SEPARATOR_NONE,
                             &name_width);
@@ -651,26 +707,32 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
 
           if (icon == ICON_BLANK1) {
             icon = ICON_NONE;
-            rect.xmin -= UI_ICON_SIZE / 4;
+          }
+          if (icon != ICON_NONE) {
+            rect.xmin += UI_UNIT_X / 8;
           }
 
           /* The previous menu item draws the active selection. */
-          ui_draw_menu_item(
-              &data->fstyle, &rect, name_sep, icon, but_flag, separator_type, nullptr);
+          ui_draw_menu_item(&data->fstyle,
+                            &rect,
+                            nullptr,
+                            zoom,
+                            use_unpadded,
+                            name_sep,
+                            icon,
+                            but_flag,
+                            separator_type,
+                            nullptr);
         }
       }
       /* indicate more */
       if (data->items.more) {
         ui_searchbox_butrect(&rect, data, data->items.maxitem - 1);
-        GPU_blend(GPU_BLEND_ALPHA);
-        UI_icon_draw(BLI_rcti_size_x(&rect) / 2, rect.ymin - 9, ICON_TRIA_DOWN);
-        GPU_blend(GPU_BLEND_NONE);
+        ui_searchbox_draw_clip_tri_down(&rect, zoom);
       }
       if (data->items.offset) {
         ui_searchbox_butrect(&rect, data, 0);
-        GPU_blend(GPU_BLEND_ALPHA);
-        UI_icon_draw(BLI_rcti_size_x(&rect) / 2, rect.ymax - 7, ICON_TRIA_UP);
-        GPU_blend(GPU_BLEND_NONE);
+        ui_searchbox_draw_clip_tri_up(&rect, zoom);
       }
     }
   }
@@ -748,17 +810,19 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
 
   /* compute position */
   if (but->block->flag & UI_BLOCK_SEARCH_MENU) {
-    const int search_but_h = BLI_rctf_size_y(&but->rect) + 10;
-    /* this case is search menu inside other menu */
-    /* we copy region size */
+    /* Align menu items with the search button. */
+    const float zoom = data->zoom;
+    const int padding = zoom * UI_SEARCHBOX_BOUNDS - (data->preview ? 0 : U.pixelsize);
+    const int search_but_h = BLI_rctf_size_y(&but->rect) + zoom * UI_SEARCHBOX_BOUNDS;
 
+    /* This case is search menu inside other menu, we copy region size. */
     region->winrct = butregion->winrct;
 
-    /* widget rect, in region coords */
-    data->bbox.xmin = margin;
-    data->bbox.xmax = BLI_rcti_size_x(&region->winrct) - margin;
+    /* Widget rect, in region coordinates. */
+    data->bbox.xmin = margin + padding;
+    data->bbox.xmax = BLI_rcti_size_x(&region->winrct) - margin - padding;
     data->bbox.ymin = margin;
-    data->bbox.ymax = BLI_rcti_size_y(&region->winrct) - margin;
+    data->bbox.ymax = BLI_rcti_size_y(&region->winrct) - UI_POPUP_MENU_TOP;
 
     /* check if button is lower half */
     if (but->rect.ymax < BLI_rctf_cent_y(&but->block->rect)) {
@@ -777,8 +841,8 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
     }
 
     rctf rect_fl;
-    rect_fl.xmin = but->rect.xmin - 5; /* align text with button */
-    rect_fl.xmax = but->rect.xmax + 5; /* symmetrical */
+    rect_fl.xmin = but->rect.xmin;
+    rect_fl.xmax = but->rect.xmax;
     rect_fl.ymax = but->rect.ymin;
     rect_fl.ymin = rect_fl.ymax - UI_searchbox_size_y();
 
@@ -883,6 +947,8 @@ static ARegion *ui_searchbox_create_generic_ex(bContext *C,
   ui_fontscale(&data->fstyle.points, aspect);
   UI_fontstyle_set(&data->fstyle);
 
+  data->zoom = 1.0f / aspect;
+
   region->regiondata = data;
 
   /* Special case, hard-coded feature, not draw backdrop when called from menus,
@@ -962,6 +1028,8 @@ static void str_tolower_titlecaps_ascii(char *str, const size_t len)
 static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegion *region)
 {
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
+  const float zoom = data->zoom;
+  const bool use_unpadded = data->noback;
 
   /* pixel space */
   wmOrtho2_region_pixelspace(region);
@@ -1005,9 +1073,11 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
           str_tolower_titlecaps_ascii(text_pre, sizeof(text_pre));
         }
 
-        rect_pre.xmax += 4; /* sneaky, avoid showing ugly margin */
         ui_draw_menu_item(&data->fstyle,
                           &rect_pre,
+                          &rect,
+                          zoom,
+                          use_unpadded,
                           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, text_pre),
                           data->items.icons[a],
                           but_flag,
@@ -1015,6 +1085,9 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
                           nullptr);
         ui_draw_menu_item(&data->fstyle,
                           &rect_post,
+                          nullptr,
+                          zoom,
+                          use_unpadded,
                           data->items.names[a],
                           0,
                           but_flag,
@@ -1026,15 +1099,11 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
     /* indicate more */
     if (data->items.more) {
       ui_searchbox_butrect(&rect, data, data->items.maxitem - 1);
-      GPU_blend(GPU_BLEND_ALPHA);
-      UI_icon_draw(BLI_rcti_size_x(&rect) / 2, rect.ymin - 9, ICON_TRIA_DOWN);
-      GPU_blend(GPU_BLEND_NONE);
+      ui_searchbox_draw_clip_tri_down(&rect, zoom);
     }
     if (data->items.offset) {
       ui_searchbox_butrect(&rect, data, 0);
-      GPU_blend(GPU_BLEND_ALPHA);
-      UI_icon_draw(BLI_rcti_size_x(&rect) / 2, rect.ymax - 7, ICON_TRIA_UP);
-      GPU_blend(GPU_BLEND_NONE);
+      ui_searchbox_draw_clip_tri_up(&rect, zoom);
     }
   }
   else {

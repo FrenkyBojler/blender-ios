@@ -1371,8 +1371,8 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
                        0,
                        ICON_VIEWZOOM,
                        sizeof(search),
-                       10,
-                       10,
+                       0,
+                       0,
                        UI_searchbox_size_x(),
                        UI_UNIT_Y,
                        "");
@@ -1381,14 +1381,15 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button holds space for search items. */
+  const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
            UI_BTYPE_LABEL,
            0,
            "",
-           10,
-           10 - UI_searchbox_size_y(),
+           0,
+           -height,
            UI_searchbox_size_x(),
-           UI_searchbox_size_y(),
+           height,
            nullptr,
            0,
            0,
@@ -1396,7 +1397,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};
-  UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, bounds_offset.data());
+  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, bounds_offset.data());
 
   return block;
 }

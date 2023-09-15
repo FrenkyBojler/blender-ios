@@ -1134,8 +1134,10 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
   wmOperator *op = search_menu->op;
   /* `template_ID` uses `4 * widget_unit` for width,
    * we use a bit more, some items may have a suffix to show. */
-  const int width = UI_searchbox_size_x();
-  const int height = UI_searchbox_size_y();
+  const int width = search_menu->use_previews ? 5 * U.widget_unit * search_menu->prv_cols :
+                                                UI_searchbox_size_x();
+  const int height = search_menu->use_previews ? 5 * U.widget_unit * search_menu->prv_rows :
+                                                 UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
   static char search[256] = "";
 
   uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
@@ -1170,22 +1172,11 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
                                    UI_UNIT_Y,
                                    "");
 
-  /* Fake button, it holds space for search items. */
-  uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
-           "",
-           10,
-           10 - UI_searchbox_size_y(),
-           width,
-           height,
-           nullptr,
-           0,
-           0,
-           std::nullopt);
+  /* Fake button holds space for search items. */
+  uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
-  UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, blender::int2{0, -UI_UNIT_Y});
+  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, blender::int2{0, -UI_UNIT_Y});
 
   UI_but_focus_on_enter_event(win, but);
 
@@ -1998,8 +1989,8 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
                               0,
                               ICON_VIEWZOOM,
                               sizeof(g_search_text),
-                              10,
-                              10,
+                              0,
+                              0,
                               init_data->size[0],
                               UI_UNIT_Y,
                               "");
@@ -2020,22 +2011,23 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
 
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
-  /* Fake button, it holds space for search items. */
+  /* Fake button holds space for search items. */
+  const int height = init_data->size[1] - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
            UI_BTYPE_LABEL,
            0,
            "",
-           10,
-           10 - init_data->size[1],
+           0,
+           -height,
            init_data->size[0],
-           init_data->size[1],
+           height,
            nullptr,
            0,
            0,
            std::nullopt);
 
   /* Move it downwards, mouse over button. */
-  UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, blender::int2{0, -UI_UNIT_Y});
+  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, blender::int2{0, -UI_UNIT_Y});
 
   return block;
 }
