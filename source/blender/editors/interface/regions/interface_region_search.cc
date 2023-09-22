@@ -551,8 +551,8 @@ int ui_searchbox_autocomplete(bContext *C, ARegion *region, uiBut *but, char *st
 static void ui_searchbox_draw_clip_tri_down(rcti *rect, const float zoom)
 {
   const float x = BLI_rcti_cent_x(rect) - 0.5f * zoom * UI_ICON_SIZE;
-  const float y = rect->ymin - zoom * UI_ICON_SIZE -
-                  0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) + U.pixelsize;
+  const float y = rect->ymin - (0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize) -
+                  zoom * UI_ICON_SIZE;
   GPU_blend(GPU_BLEND_ALPHA);
   UI_icon_draw_ex(x,
                   y,
@@ -569,7 +569,7 @@ static void ui_searchbox_draw_clip_tri_down(rcti *rect, const float zoom)
 static void ui_searchbox_draw_clip_tri_up(rcti *rect, const float zoom)
 {
   const float x = BLI_rcti_cent_x(rect) - 0.5f * zoom * UI_ICON_SIZE;
-  const float y = rect->ymax + 0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize;
+  const float y = rect->ymax + (0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize);
   GPU_blend(GPU_BLEND_ALPHA);
   UI_icon_draw_ex(x,
                   y,
@@ -622,19 +622,21 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
 
       /* Indicate more. */
       if (data->items.more || data->items.offset) {
-        rcti rect_min;
-        ui_searchbox_butrect(&rect_min, data, 0);
-        rcti rect_max;
-        ui_searchbox_butrect(&rect_max, data, data->items.maxitem - 1);
+        rcti rect_first_item;
+        ui_searchbox_butrect(&rect_first_item, data, 0);
+        rcti rect_max_item;
+        ui_searchbox_butrect(&rect_max_item, data, data->items.maxitem - 1);
 
         if (data->items.offset) {
-          rect_min.xmax = rect_max.xmax;
-          ui_searchbox_draw_clip_tri_up(&rect_min, zoom);
+          /* The first item is in the top left corner. Adjust width so the icon is centered. */
+          rect_first_item.xmax = rect_max_item.xmax;
+          ui_searchbox_draw_clip_tri_up(&rect_first_item, zoom);
         }
 
         if (data->items.more) {
-          rect_max.xmin = rect_min.xmin;
-          ui_searchbox_draw_clip_tri_down(&rect_max, zoom);
+          /* The last item is in the bottom right corner. Adjust width so the icon is centered. */
+          rect_max_item.xmin = rect_first_item.xmin;
+          ui_searchbox_draw_clip_tri_down(&rect_max_item, zoom);
         }
       }
     }
@@ -820,7 +822,7 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
 
     /* Widget rect, in region coordinates. */
     data->bbox.xmin = margin + padding;
-    data->bbox.xmax = BLI_rcti_size_x(&region->winrct) - margin - padding;
+    data->bbox.xmax = BLI_rcti_size_x(&region->winrct) - (margin + padding);
     data->bbox.ymin = margin;
     data->bbox.ymax = BLI_rcti_size_y(&region->winrct) - UI_POPUP_MENU_TOP;
 
