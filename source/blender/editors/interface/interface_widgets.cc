@@ -5549,7 +5549,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                        int *r_xmax)
 {
   uiWidgetType *wt = widget_type(use_unpadded ? UI_WTYPE_MENU_ITEM_UNPADDED : UI_WTYPE_MENU_ITEM);
-
+  const rcti _rect = *rect;
   const int row_height = BLI_rcti_size_y(rect);
   int max_hint_width = INT_MAX;
   int padding = 0.25f * row_height;
@@ -5562,9 +5562,6 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   if (back_rect != nullptr) {
     wt->draw(&wt->wcol, back_rect, &STATE_INFO_NULL, 0, zoom);
   }
-
-  /* Draw first, in case UI_WTYPE_MENU_ITEM padding will be added, rect = back_rect. */
-  const rcti _rect = *rect;
 
   UI_fontstyle_set(fstyle);
 
