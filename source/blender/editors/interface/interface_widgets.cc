@@ -5640,7 +5640,6 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
     const int ys = rect->ymin + 0.5f * (BLI_rcti_size_y(rect) - UI_ICON_SIZE * zoom);
 
     GPU_blend(GPU_BLEND_ALPHA);
-    /* XXX scale weak get from fstyle? */
     UI_icon_draw_ex(xs,
                     ys,
                     iconid,
