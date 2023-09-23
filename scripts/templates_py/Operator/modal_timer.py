@@ -7,6 +7,7 @@ class ModalTimerOperator(bpy.types.Operator):
     bl_label = "Modal Timer Operator"
 
     _timer = None
+    original_color: bpy.props.FloatVectorProperty(name="Original Color", default=(1.0, 0.0, 0.0), subtype="COLOR")
 
     def modal(self, context, event):
         if event.type in {'RIGHTMOUSE', 'ESC'}:
@@ -22,6 +23,8 @@ class ModalTimerOperator(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
+        # Store the original color to avoid altering user settings
+        self.original_color = context.preferences.themes[0].view_3d.space.gradients.high_gradient
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
@@ -30,6 +33,7 @@ class ModalTimerOperator(bpy.types.Operator):
     def cancel(self, context):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
+        context.preferences.themes[0].view_3d.space.gradients.high_gradient = self.original_color
 
 
 def menu_func(self, context):
