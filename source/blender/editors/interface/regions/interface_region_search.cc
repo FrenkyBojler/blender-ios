@@ -256,7 +256,7 @@ static void ui_searchbox_butrect(rcti *r_rect, uiSearchboxData *data, int itemnr
   }
   /* list view */
   else {
-    const int buth = (BLI_rcti_size_y(&data->bbox) - 2.0f * tria_h) / SEARCH_ITEMS;
+    const float buth = (BLI_rcti_size_y(&data->bbox) - 2.0f * tria_h) / SEARCH_ITEMS;
 
     *r_rect = data->bbox;
 
