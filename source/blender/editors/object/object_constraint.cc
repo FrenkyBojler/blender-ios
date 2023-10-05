@@ -957,6 +957,32 @@ static wmOperatorStatus childof_clear_inverse_invoke(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
+static bool childof_clear_inverse_poll(bContext *C)
+{
+  if (!edit_constraint_liboverride_allowed_poll(C))
+    return false;
+
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  bConstraint *con = static_cast<bConstraint *>(ptr.data);
+  if (con == nullptr)
+    return true;
+
+  bChildOfConstraint *data = (bChildOfConstraint *)con->data;
+  if (data->tar == nullptr) {
+    CTX_wm_operator_poll_msg_set(C, "No target object set");
+    return false;
+  }
+
+  for (int row = 0; row < 4; row++) {
+    for (int col = 0; col < 4; col++) {
+      if (data->invmat[row][col] != ((row == col) ? 1.0f : 0.0f))
+        return true;
+    }
+  }
+  CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
+  return false;
+}
+
 void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
 {
   /* identifiers */
@@ -967,7 +993,7 @@ void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = childof_clear_inverse_invoke;
   ot->exec = childof_clear_inverse_exec;
-  ot->poll = edit_constraint_liboverride_allowed_poll;
+  ot->poll = childof_clear_inverse_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
