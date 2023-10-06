@@ -1242,6 +1242,32 @@ static wmOperatorStatus objectsolver_clear_inverse_invoke(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
+static bool objectsolver_clear_inverse_poll(bContext *C)
+{
+  if (!edit_constraint_poll(C))
+    return false;
+
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  bConstraint *con = static_cast<bConstraint *>(ptr.data);
+  if (con == nullptr)
+    return true;
+
+  bObjectSolverConstraint *data = (bObjectSolverConstraint *)con->data;
+  if (data->camera == nullptr) {
+    CTX_wm_operator_poll_msg_set(C, "No camera set");
+    return false;
+  }
+
+  for (int row = 0; row < 4; row++) {
+    for (int col = 0; col < 4; col++) {
+      if (data->invmat[row][col] != ((row == col) ? 1.0f : 0.0f))
+        return true;
+    }
+  }
+  CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
+  return false;
+}
+
 void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1252,7 +1278,7 @@ void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = objectsolver_clear_inverse_invoke;
   ot->exec = objectsolver_clear_inverse_exec;
-  ot->poll = edit_constraint_poll;
+  ot->poll = objectsolver_clear_inverse_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
