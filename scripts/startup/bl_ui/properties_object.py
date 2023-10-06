@@ -120,7 +120,13 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
         ob = context.object
 
         col = flow.column()
-        col.prop(ob, "parent")
+        row = col.row(align=True)
+        row.prop(ob, "parent")
+        
+        row.context_pointer_set("object_check_parent_inverse", ob)
+        op = row.operator("object.parent_clear", text="", icon="LOOP_BACK")
+        op.type = "CLEAR_INVERSE"
+
         sub = col.column()
         sub.prop(ob, "parent_type")
         parent = ob.parent
