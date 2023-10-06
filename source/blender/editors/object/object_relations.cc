@@ -447,14 +447,11 @@ static bool parent_clear_poll(bContext *C)
     return false;
   }
 
-  for (int row = 0; row < 4; row++) {
-    for (int col = 0; col < 4; col++) {
-      if (ob->parentinv[row][col] != ((row == col) ? 1.0f : 0.0f))
-        return true;
-    }
+  if (is_identity_m4(ob->parentinv)) {
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
+    return false;
   }
-  CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
-  return false;
+  return true;
 }
 
 void OBJECT_OT_parent_clear(wmOperatorType *ot)

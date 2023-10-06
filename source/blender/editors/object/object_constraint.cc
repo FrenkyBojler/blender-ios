@@ -973,14 +973,11 @@ static bool childof_clear_inverse_poll(bContext *C)
     return false;
   }
 
-  for (int row = 0; row < 4; row++) {
-    for (int col = 0; col < 4; col++) {
-      if (data->invmat[row][col] != ((row == col) ? 1.0f : 0.0f))
-        return true;
-    }
+  if (is_identity_m4(data->invmat)) {
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
+    return false;
   }
-  CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
-  return false;
+  return true;
 }
 
 void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
@@ -1258,14 +1255,11 @@ static bool objectsolver_clear_inverse_poll(bContext *C)
     return false;
   }
 
-  for (int row = 0; row < 4; row++) {
-    for (int col = 0; col < 4; col++) {
-      if (data->invmat[row][col] != ((row == col) ? 1.0f : 0.0f))
-        return true;
-    }
+  if (is_identity_m4(data->invmat)) {
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
+    return false;
   }
-  CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
-  return false;
+  return true;
 }
 
 void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot)
