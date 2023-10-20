@@ -80,7 +80,6 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
 
 #include "ED_armature.hh"
 #include "ED_curve.hh"
@@ -434,26 +433,6 @@ static wmOperatorStatus parent_clear_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool parent_clear_poll(bContext *C)
-{
-  PointerRNA rna_ptr = CTX_data_pointer_get_type(C, "object_check_parent_inverse", &RNA_Object);
-  const Object *ob = static_cast<const Object *>(rna_ptr.data);
-
-  if (ob == nullptr)
-    return true;
-
-  if (ob->parent == nullptr) {
-    CTX_wm_operator_poll_msg_set(C, "No parent object set");
-    return false;
-  }
-
-  if (is_identity_m4(ob->parentinv)) {
-    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
-    return false;
-  }
-  return true;
-}
-
 void OBJECT_OT_parent_clear(wmOperatorType *ot)
 {
   /* identifiers */
@@ -464,7 +443,6 @@ void OBJECT_OT_parent_clear(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = parent_clear_exec;
-  ot->poll = parent_clear_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

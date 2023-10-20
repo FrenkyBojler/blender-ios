@@ -122,10 +122,11 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
         col = flow.column()
         row = col.row(align=True)
         row.prop(ob, "parent")
-        
-        row.context_pointer_set("object_check_parent_inverse", ob)
+
+        row = row.row(align=True)
         op = row.operator("object.parent_clear", text="", icon="LOOP_BACK")
         op.type = "CLEAR_INVERSE"
+        row.enabled = bool(ob.parent and not ob.matrix_parent_inverse.is_identity)
 
         sub = col.column()
         sub.prop(ob, "parent_type")
