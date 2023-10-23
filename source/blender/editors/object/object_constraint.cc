@@ -969,12 +969,12 @@ static bool childof_clear_inverse_poll(bContext *C)
 
   bChildOfConstraint *data = (bChildOfConstraint *)con->data;
   if (data->tar == nullptr) {
-    CTX_wm_operator_poll_msg_set(C, "No target object set");
+    CTX_wm_operator_poll_msg_set(C, "No target object set, so there is nothing to clear");
     return false;
   }
 
   if (is_identity_m4(data->invmat)) {
-    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set, so there is nothing to clear");
     return false;
   }
   return true;
@@ -1251,12 +1251,12 @@ static bool objectsolver_clear_inverse_poll(bContext *C)
 
   bObjectSolverConstraint *data = (bObjectSolverConstraint *)con->data;
   if (data->camera == nullptr) {
-    CTX_wm_operator_poll_msg_set(C, "No camera set");
+    CTX_wm_operator_poll_msg_set(C, "No camera set, so there is nothing to clear");
     return false;
   }
 
   if (is_identity_m4(data->invmat)) {
-    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set");
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set, so there is nothing to clear");
     return false;
   }
   return true;
