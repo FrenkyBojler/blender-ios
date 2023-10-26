@@ -2,6 +2,7 @@
 #
 #
 
+
 set(INC
   .
   ../blenlib
@@ -28,12 +29,16 @@ foreach(source ${sources})
 endforeach()
 
 # Generate a Definition for each found patch
-file(GLOB patches "patches/*.h")
+file(GLOB patches "patches/*")
  foreach(patch ${patches})
   get_filename_component(def ${patch} NAME_WE)
   get_filename_component(name ${patch} NAME)
-  add_definitions(-D${def})
-  # list(APPEND SRC "patches/${name}")
+  if (${name} MATCHES "^MB_[0-9][0-9][0-9][0-9]\.h$" )
+    add_definitions(-D${def})
+    list(APPEND SRC "patches/${name}")
+  else()
+    message (FATAL_ERROR  "invalid patch file ${name}")
+  endif ()
 endforeach()
 
 

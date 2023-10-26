@@ -37,28 +37,28 @@
 #endif
 
 #ifdef MB_0006
-#  include "patches/MB_0005.h"
+#  include "patches/MB_0006.h"
 #  define MB_0006_APPLIED 1
 #else
 #  define MB_0006_APPLIED 0
 #endif
 
 #ifdef MB_0007
-#  include "patches/MB_0005.h"
+#  include "patches/MB_0007.h"
 #  define MB_0007_APPLIED 1
 #else
 #  define MB_0007_APPLIED 0
 #endif
 
 #ifdef MB_0008
-#  include "patches/MB_0005.h"
+#  include "patches/MB_0008.h"
 #  define MB_0008_APPLIED 1
 #else
 #  define MB_0008_APPLIED 0
 #endif
 
 #ifdef MB_0009
-#  include "patches/MB_0005.h"
+#  include "patches/MB_0009.h"
 #  define MB_0009_APPLIED 1
 #else
 #  define MB_0009_APPLIED 0
