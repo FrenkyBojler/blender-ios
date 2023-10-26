@@ -22,7 +22,6 @@ Blender Convenience Targets
    * developer:     Enable faster builds, error checking and tests, recommended for developers.
    * ninja:         Use ninja build tool for faster builds.
    * ccache:        Use ccache for faster rebuilds.
-   * mblender:      Applies mechanical Blender patches
 
    Note: when passing in multiple targets their order is not important.
    So for a fast build you can for e.g. run 'make lite ccache ninja'.
@@ -575,9 +574,6 @@ format: .FORCE
 	@PATH="${LIBDIR}/llvm/bin/:$(PATH)" $(PYTHON) tools/utils_maintenance/clang_format_paths.py $(PATHS)
 	@$(PYTHON) tools/utils_maintenance/autopep8_format_paths.py --autopep8-command="$(AUTOPEP8)" $(PATHS)
 
-
-mblender: .FORCE
-	@$(PYTHON) ./build_files/utils/apply_mblender_patches.py
 
 # -----------------------------------------------------------------------------
 # Documentation

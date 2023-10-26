@@ -65,8 +65,8 @@ set(SRC
   intern/easing.c
   intern/endian_switch.c
   intern/expr_pylike_eval.c
-  intern/fileops_c.cc
   intern/fileops.cc
+  intern/fileops_c.cc
   intern/filereader_file.c
   intern/filereader_gzip.c
   intern/filereader_memory.c
@@ -550,6 +550,7 @@ if(WITH_GTESTS)
     tests/BLI_string_search_test.cc
     tests/BLI_string_test.cc
     tests/BLI_string_utf8_test.cc
+    tests/BLI_string_utils_test.cc
     tests/BLI_task_graph_test.cc
     tests/BLI_task_test.cc
     tests/BLI_tempfile_test.cc

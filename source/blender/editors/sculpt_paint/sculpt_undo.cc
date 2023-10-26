@@ -507,7 +507,7 @@ static bool sculpt_undo_restore_hidden(bContext *C, SculptUndoNode *unode, bool 
   if (unode->maxvert) {
     for (int i = 0; i < unode->totvert; i++) {
       const int vert_index = unode->index[i];
-      if ((BLI_BITMAP_TEST(unode->vert_hidden, i) != 0) != hide_vert[vert_index]) {
+      if (unode->vert_hidden[i].test() != hide_vert[vert_index]) {
         unode->vert_hidden[i].set(!unode->vert_hidden[i].test());
         hide_vert[vert_index] = !hide_vert[vert_index];
         modified_vertices[vert_index] = true;
@@ -1766,7 +1766,7 @@ static void sculpt_undo_set_active_layer(bContext *C, SculptAttrRef *attr)
    * domain and just unconvert it.
    */
   if (!layer) {
-    layer = BKE_id_attribute_search(&me->id, attr->name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
+    layer = BKE_id_attribute_search_for_write(&me->id, attr->name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
     if (layer) {
       if (ED_geometry_attribute_convert(
               me, attr->name, eCustomDataType(attr->type), attr->domain, nullptr))

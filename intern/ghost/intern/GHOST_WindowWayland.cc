@@ -73,6 +73,8 @@ struct WGL_LibDecor_Window {
 
   /** The window has been configured (see #xdg_surface_ack_configure). */
   bool initial_configure_seen = false;
+  /** The window state has been configured. */
+  bool initial_state_seen = false;
 };
 
 static void gwl_libdecor_window_destroy(WGL_LibDecor_Window *decor)
@@ -128,6 +130,14 @@ static void gwl_round_int2_by(int value_p[2], const int round_value)
   GHOST_ASSERT(round_value > 0, "Invalid rounding value!");
   value_p[0] = (value_p[0] / round_value) * round_value;
   value_p[1] = (value_p[1] / round_value) * round_value;
+}
+
+/**
+ * Return true if the value is already rounded by `round_value`.
+ */
+static bool gwl_round_int_test(int value, const int round_value)
+{
+  return value == ((value / round_value) * round_value);
 }
 
 /** \} */
@@ -1160,6 +1170,11 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
     const int fractional_scale = win->frame.fractional_scale ?
                                      win->frame.fractional_scale :
                                      win->libdecor->scale_fractional_from_output;
+    /* It's important `fractional_scale` has a fractional component or rounding up will fail
+     * to produce the correct whole-number scale. */
+    GHOST_ASSERT((fractional_scale == 0) ||
+                     (gwl_round_int_test(fractional_scale, FRACTIONAL_DENOMINATOR) == false),
+                 "Fractional scale has no fractional component!");
     /* The size from LIBDECOR wont use the GHOST windows buffer size.
      * so it's important to calculate the buffer size that would have been used
      * if fractional scaling wasn't supported. */
@@ -1256,7 +1271,19 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
     libdecor_state *state = libdecor_state_new(UNPACK2(size_next));
     libdecor_frame_commit(frame, state, configuration);
     libdecor_state_free(state);
-    decor.initial_configure_seen = true;
+
+    /* Only ever use this once, after initial creation:
+     * #wp_fractional_scale_v1_listener::preferred_scale provides fractional scaling values. */
+    decor.scale_fractional_from_output = 0;
+
+    if (decor.initial_configure_seen == false) {
+      decor.initial_configure_seen = true;
+    }
+    else {
+      if (decor.initial_state_seen == false) {
+        decor.initial_state_seen = true;
+      }
+    }
   }
 }
 
@@ -1579,7 +1606,9 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
     WGL_LibDecor_Window &decor = *window_->libdecor;
-    if (fractional_scale_manager) {
+    if (fractional_scale_manager &&
+        (gwl_round_int_test(scale_fractional_from_output, FRACTIONAL_DENOMINATOR) == false))
+    {
       decor.scale_fractional_from_output = scale_fractional_from_output;
     }
 
@@ -1594,7 +1623,21 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     }
 
     xdg_toplevel *toplevel = libdecor_frame_get_xdg_toplevel(decor.frame);
-    gwl_window_state_set_for_xdg(toplevel, state, GHOST_kWindowStateNormal);
+    gwl_window_state_set_for_xdg(toplevel, state, gwl_window_state_get(window_));
+
+    /* Needed for maximize to use the size of the maximized frame instead of the size
+     * from `width` & `height`, see #113961 (follow up comments). */
+    int roundtrip_count = 0;
+    while (!decor.initial_state_seen) {
+      /* Use round-trip so as not to block in the case setting
+       * the state is ignored by the compositor. */
+      wl_display_roundtrip(system_->wl_display_get());
+      /* Avoid waiting continuously if the requested state is ignored
+       * (2x round-trips should be enough). */
+      if (++roundtrip_count >= 2) {
+        break;
+      }
+    }
   }
   else
 #endif /* WITH_GHOST_WAYLAND_LIBDECOR */

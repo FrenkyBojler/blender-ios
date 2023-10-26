@@ -583,8 +583,8 @@ static void rna_MeshPolygon_use_smooth_set(PointerRNA *ptr, bool value)
         &mesh->face_data, CD_PROP_BOOL, CD_SET_DEFAULT, mesh->faces_num, "sharp_face"));
   }
   const int index = rna_MeshPolygon_index_get(ptr);
-  if (value != sharp_faces[index]) {
-    sharp_faces[index] = value;
+  if (value == sharp_faces[index]) {
+    sharp_faces[index] = !value;
     BKE_mesh_tag_sharpness_changed(mesh);
   }
 }
@@ -1080,7 +1080,7 @@ DEFINE_CUSTOMDATA_LAYER_COLLECTION(vertex_color, ldata, CD_PROP_BYTE_COLOR)
 static PointerRNA rna_Mesh_vertex_color_active_get(PointerRNA *ptr)
 {
   Mesh *mesh = (Mesh *)ptr->data;
-  CustomDataLayer *layer = BKE_id_attribute_search(
+  CustomDataLayer *layer = BKE_id_attribute_search_for_write(
       &mesh->id, mesh->active_color_attribute, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_CORNER);
   return rna_pointer_inherit_refine(ptr, &RNA_MeshLoopColorLayer, layer);
 }
@@ -1102,7 +1102,7 @@ static void rna_Mesh_vertex_color_active_set(PointerRNA *ptr,
 static int rna_Mesh_vertex_color_active_index_get(PointerRNA *ptr)
 {
   Mesh *mesh = (Mesh *)ptr->data;
-  CustomDataLayer *layer = BKE_id_attribute_search(
+  const CustomDataLayer *layer = BKE_id_attribute_search(
       &mesh->id, mesh->active_color_attribute, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_CORNER);
   if (!layer) {
     return 0;
@@ -3014,7 +3014,7 @@ static void rna_def_mesh(BlenderRNA *brna)
       "Normal Domain",
       "The attribute domain that gives enough information to represent the mesh's normals");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_enum_funcs(prop, "rna_Mesh_normals_domain_get", NULL, NULL);
+  RNA_def_property_enum_funcs(prop, "rna_Mesh_normals_domain_get", nullptr, nullptr);
 
   prop = RNA_def_property(srna, "vertex_normals", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "MeshNormalValue");
