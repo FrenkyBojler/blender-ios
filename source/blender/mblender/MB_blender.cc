@@ -10,7 +10,7 @@
 #include <string.h>
 
 char patches[MAX_MB_PATCHES][8] = {0};
- 
+
 void MB_patches_discover()
 {
   int i = 0;
@@ -32,7 +32,7 @@ void MB_patches_discover()
 void MB_init(void) {
   MB_patches_discover();
 }
-  
+
 char** MB_patches_get() {
   return (char**) patches;
 }

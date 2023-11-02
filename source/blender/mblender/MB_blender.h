@@ -11,5 +11,3 @@ void MB_patches_get(void);
 void MB_print_info(void);
 
 #endif
-	
-	

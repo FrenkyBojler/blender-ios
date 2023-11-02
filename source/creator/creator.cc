@@ -286,7 +286,7 @@ int main(int argc,
 )
 {
   bContext *C;
-	
+
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
 #endif
