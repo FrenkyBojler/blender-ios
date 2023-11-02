@@ -57,6 +57,8 @@
 #include "BKE_vfont.h"
 #include "BKE_volume.h"
 
+#include "MB_blender.h"
+
 #ifndef WITH_PYTHON_MODULE
 #  include "BLI_args.h"
 #endif
@@ -488,6 +490,8 @@ int main(int argc,
 
   /* Initialize sub-systems that use `BKE_appdir.h`. */
   IMB_init();
+
+  MB_init();
 
 #ifndef WITH_PYTHON_MODULE
   /* First test for background-mode (#Global.background) */
