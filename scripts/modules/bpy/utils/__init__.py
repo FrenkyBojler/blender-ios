@@ -308,6 +308,10 @@ def load_scripts(*, reload_scripts=False, refresh_scripts=False, extensions=True
                         for mod in modules_from_path(path, loaded_modules):
                             test_register(mod)
 
+                    if path_subdir == "mblender":
+                        for mod in modules_from_path(path, loaded_modules):
+                            test_register(mod)
+
     if reload_scripts:
         # Update key-maps for key-map items referencing operators defined in "startup".
         # Without this, key-map items wont be set properly, see: #113309.
