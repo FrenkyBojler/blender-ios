@@ -143,7 +143,7 @@
 
 #ifndef MB_0021
 #define MAX_MB_PATCHES 21
-#endif  
+#endif
 
 
 #endif // !MB_BLENDER_PATCHES_H
