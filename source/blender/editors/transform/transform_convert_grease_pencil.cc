@@ -26,32 +26,45 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
 {
   Scene *scene = CTX_data_scene(C);
   MutableSpan<TransDataContainer> trans_data_contrainers(t->data_container, t->data_container_len);
-  IndexMaskMemory memory;
-  Array<IndexMask> selection_per_layer_per_object(t->data_container_len);
   const bool use_proportional_edit = (t->flag & T_PROP_EDIT_ALL) != 0;
   const bool use_connected_only = (t->flag & T_PROP_CONNECTED) != 0;
+
+  int total_number_of_drawings = 0;
+  Vector<Array<ed::greasepencil::MutableDrawingInfo>> all_drawings;
+  /* Count the number layers in all objects. */
+  for (const int i : trans_data_contrainers.index_range()) {
+    TransDataContainer &tc = trans_data_contrainers[i];
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(tc.obedit->data);
+
+    const Array<ed::greasepencil::MutableDrawingInfo> drawings =
+        ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
+    all_drawings.append(drawings);
+    total_number_of_drawings += drawings.size();
+  }
+
   int layer_offset = 0;
+  IndexMaskMemory memory;
+  Array<IndexMask> selection_per_layer_per_object(total_number_of_drawings);
 
   /* Count selected elements per layer per object and create TransData structs. */
   for (const int i : trans_data_contrainers.index_range()) {
     TransDataContainer &tc = trans_data_contrainers[i];
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(tc.obedit->data);
 
-    grease_pencil.foreach_editable_drawing(
-        scene->r.cfra, [&](int /*layer_index*/, blender::bke::greasepencil::Drawing &drawing) {
-          const bke::CurvesGeometry &curves = drawing.strokes();
+    const Array<ed::greasepencil::MutableDrawingInfo> drawings = all_drawings[i];
+    for (ed::greasepencil::MutableDrawingInfo info : drawings) {
+      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      if (use_proportional_edit) {
+        tc.data_len += curves.point_num;
+      }
+      else {
+        selection_per_layer_per_object[layer_offset] = ed::curves::retrieve_selected_points(
+            curves, memory);
+        tc.data_len += selection_per_layer_per_object[layer_offset].size();
+      }
 
-          if (use_proportional_edit) {
-            tc.data_len += curves.point_num;
-          }
-          else {
-            selection_per_layer_per_object[i + layer_offset] =
-                ed::curves::retrieve_selected_points(curves, memory);
-            tc.data_len += selection_per_layer_per_object[i + layer_offset].size();
-          }
-
-          layer_offset++;
-        });
+      layer_offset++;
+    }
 
     if (tc.data_len > 0) {
       tc.data = MEM_cnew_array<TransData>(tc.data_len, __func__);
@@ -75,39 +88,37 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
 
     int layer_points_offset = 0;
 
-    grease_pencil.foreach_editable_drawing(
-        scene->r.cfra, [&](int /*layer_index*/, blender::bke::greasepencil::Drawing &drawing) {
-          bke::CurvesGeometry &curves = drawing.strokes_for_write();
+    const Array<ed::greasepencil::MutableDrawingInfo> drawings = all_drawings[i];
+    for (ed::greasepencil::MutableDrawingInfo info : drawings) {
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      const IndexMask selected_indices = selection_per_layer_per_object[layer_offset];
 
-          const IndexMask selected_indices = selection_per_layer_per_object[i + layer_offset];
+      std::optional<MutableSpan<float>> value_attribute;
+      if (t->mode == TFM_CURVE_SHRINKFATTEN) {
+        MutableSpan<float> radii = info.drawing.radii_for_write();
+        value_attribute = radii;
+      }
+      else if (t->mode == TFM_GPENCIL_OPACITY) {
+        MutableSpan<float> opacities = info.drawing.opacities_for_write();
+        value_attribute = opacities;
+      }
 
-          std::optional<MutableSpan<float>> value_attribute;
+      curve_populate_trans_data_structs(tc,
+                                        curves,
+                                        value_attribute,
+                                        selected_indices,
+                                        use_proportional_edit,
+                                        use_connected_only,
+                                        layer_points_offset);
 
-          if (t->mode == TFM_CURVE_SHRINKFATTEN) {
-            MutableSpan<float> radii = drawing.radii_for_write();
-            value_attribute = radii;
-          }
-          else if (t->mode == TFM_GPENCIL_OPACITY) {
-            MutableSpan<float> opacities = drawing.opacities_for_write();
-            value_attribute = opacities;
-          }
-
-          curve_populate_trans_data_structs(tc,
-                                            curves,
-                                            value_attribute,
-                                            selected_indices,
-                                            use_proportional_edit,
-                                            use_connected_only,
-                                            layer_points_offset);
-
-          if (use_proportional_edit) {
-            layer_points_offset += curves.points_num();
-          }
-          else {
-            layer_points_offset += selected_indices.size();
-          }
-          layer_offset++;
-        });
+      if (use_proportional_edit) {
+        layer_points_offset += curves.points_num();
+      }
+      else {
+        layer_points_offset += selected_indices.size();
+      }
+      layer_offset++;
+    }
   }
 }
 
@@ -120,14 +131,15 @@ static void recalcData_grease_pencil(TransInfo *t)
   for (const TransDataContainer &tc : trans_data_contrainers) {
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(tc.obedit->data);
 
-    grease_pencil.foreach_editable_drawing(
-        scene->r.cfra, [&](int /*layer_index*/, bke::greasepencil::Drawing &drawing) {
-          bke::CurvesGeometry &curves = drawing.strokes_for_write();
+    const Array<ed::greasepencil::MutableDrawingInfo> drawings =
+        ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
+    for (ed::greasepencil::MutableDrawingInfo info : drawings) {
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
-          curves.calculate_bezier_auto_handles();
-          curves.tag_positions_changed();
-          drawing.tag_positions_changed();
-        });
+      curves.calculate_bezier_auto_handles();
+      curves.tag_positions_changed();
+      info.drawing.tag_positions_changed();
+    }
 
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   }

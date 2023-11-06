@@ -56,7 +56,7 @@ void VKImmediate::end()
   context.bind_graphics_pipeline(prim_type, vertex_attributes_);
   vertex_attributes_.bind(context);
 
-  context.command_buffer_get().draw(0, vertex_idx, 0, 1);
+  context.command_buffers_get().draw(0, vertex_idx, 0, 1);
 
   buffer_offset_ += current_subbuffer_len_;
   current_subbuffer_len_ = 0;
@@ -83,8 +83,7 @@ std::unique_ptr<VKBuffer> VKImmediate::create_resource(VKContext & /*context*/)
   std::unique_ptr<VKBuffer> result = std::make_unique<VKBuffer>();
   result->create(new_buffer_size(bytes_needed),
                  GPU_USAGE_DYNAMIC,
-                 static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT));
+                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
   debug::object_label(result->vk_handle(), "Immediate");
   buffer_offset_ = 0;
   return result;

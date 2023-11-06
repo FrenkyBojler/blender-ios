@@ -146,8 +146,8 @@ void VKFrameBuffer::clear(const Vector<VkClearAttachment> &attachments) const
   clear_rect.layerCount = 1;
 
   VKContext &context = *VKContext::get();
-  VKCommandBuffer &command_buffer = context.command_buffer_get();
-  command_buffer.clear(attachments, Span<VkClearRect>(&clear_rect, 1));
+  VKCommandBuffers &command_buffers = context.command_buffers_get();
+  command_buffers.clear(attachments, Span<VkClearRect>(&clear_rect, 1));
 }
 
 void VKFrameBuffer::clear(const eGPUFrameBufferBits buffers,
@@ -241,16 +241,18 @@ void VKFrameBuffer::read(eGPUFrameBufferBits plane,
                          void *r_data)
 {
   VKContext &context = *VKContext::get();
-  VKTexture *texture = nullptr;
+  GPUAttachment *attachment = nullptr;
   switch (plane) {
     case GPU_COLOR_BIT:
+      attachment = &attachments_[GPU_FB_COLOR_ATTACHMENT0 + slot];
       color_attachment_layout_ensure(context, slot, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-      texture = unwrap(unwrap(color_tex(slot)));
       break;
 
     case GPU_DEPTH_BIT:
+      attachment = attachments_[GPU_FB_DEPTH_ATTACHMENT].tex ?
+                       &attachments_[GPU_FB_DEPTH_ATTACHMENT] :
+                       &attachments_[GPU_FB_DEPTH_STENCIL_ATTACHMENT];
       depth_attachment_layout_ensure(context, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-      texture = unwrap(unwrap(depth_tex()));
       break;
 
     default:
@@ -258,10 +260,16 @@ void VKFrameBuffer::read(eGPUFrameBufferBits plane,
       return;
   }
 
+  VKTexture *texture = unwrap(unwrap(attachment->tex));
   BLI_assert_msg(texture,
                  "Trying to read back texture from framebuffer, but no texture is available in "
                  "requested slot.");
-  texture->read_sub(0, format, area, r_data);
+  if (texture == nullptr) {
+    return;
+  }
+
+  IndexRange layers(max_ii(attachment->layer, 0), 1);
+  texture->read_sub(0, format, area, layers, r_data);
 }
 
 /** \} */
@@ -270,12 +278,12 @@ void VKFrameBuffer::read(eGPUFrameBufferBits plane,
 /** \name Blit operations
  * \{ */
 
-static void blit_aspect(VKCommandBuffer &command_buffer,
+static void blit_aspect(VKCommandBuffers &command_buffer,
                         VKTexture &dst_texture,
                         VKTexture &src_texture,
                         int dst_offset_x,
                         int dst_offset_y,
-                        VkImageAspectFlagBits image_aspect)
+                        VkImageAspectFlags image_aspect)
 {
   /* Prefer texture copy, as some platforms don't support using D32_SFLOAT_S8_UINT to be used as
    * a blit destination. */
@@ -329,7 +337,7 @@ void VKFrameBuffer::blit_to(eGPUFrameBufferBits planes,
   UNUSED_VARS_NDEBUG(planes);
 
   VKContext &context = *VKContext::get();
-  VKCommandBuffer &command_buffer = context.command_buffer_get();
+  VKCommandBuffers &command_buffers = context.command_buffers_get();
   if (!context.has_active_framebuffer()) {
     BLI_assert_unreachable();
     return;
@@ -347,7 +355,7 @@ void VKFrameBuffer::blit_to(eGPUFrameBufferBits planes,
       dst_framebuffer.color_attachment_layout_ensure(
           context, dst_slot, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-      blit_aspect(command_buffer,
+      blit_aspect(command_buffers,
                   dst_texture,
                   src_texture,
                   dst_offset_x,
@@ -372,7 +380,7 @@ void VKFrameBuffer::blit_to(eGPUFrameBufferBits planes,
       dst_framebuffer.depth_attachment_layout_ensure(context,
                                                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-      blit_aspect(command_buffer,
+      blit_aspect(command_buffers,
                   dst_texture,
                   src_texture,
                   dst_offset_x,
@@ -380,7 +388,6 @@ void VKFrameBuffer::blit_to(eGPUFrameBufferBits planes,
                   VK_IMAGE_ASPECT_DEPTH_BIT);
     }
   }
-  command_buffer.submit();
 }
 
 /** \} */

@@ -24,29 +24,24 @@ bool VKBuffer::is_allocated() const
   return allocation_ != VK_NULL_HANDLE;
 }
 
-static VmaAllocationCreateFlagBits vma_allocation_flags(GPUUsageType usage)
+static VmaAllocationCreateFlags vma_allocation_flags(GPUUsageType usage)
 {
   switch (usage) {
     case GPU_USAGE_STATIC:
     case GPU_USAGE_DYNAMIC:
     case GPU_USAGE_STREAM:
-      return static_cast<VmaAllocationCreateFlagBits>(
-          VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+      return VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
     case GPU_USAGE_DEVICE_ONLY:
-      return static_cast<VmaAllocationCreateFlagBits>(
-          VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
-          VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT);
+      return VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
+             VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
     case GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY:
       break;
   }
   BLI_assert_msg(false, "Unimplemented GPUUsageType");
-  return static_cast<VmaAllocationCreateFlagBits>(VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
-                                                  VMA_ALLOCATION_CREATE_MAPPED_BIT);
+  return VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 }
 
-bool VKBuffer::create(int64_t size_in_bytes,
-                      GPUUsageType usage,
-                      VkBufferUsageFlagBits buffer_usage)
+bool VKBuffer::create(int64_t size_in_bytes, GPUUsageType usage, VkBufferUsageFlags buffer_usage)
 {
   BLI_assert(!is_allocated());
   BLI_assert(vk_buffer_ == VK_NULL_HANDLE);
@@ -98,8 +93,8 @@ void VKBuffer::update(const void *data) const
 
 void VKBuffer::clear(VKContext &context, uint32_t clear_value)
 {
-  VKCommandBuffer &command_buffer = context.command_buffer_get();
-  command_buffer.fill(*this, clear_value);
+  VKCommandBuffers &command_buffers = context.command_buffers_get();
+  command_buffers.fill(*this, clear_value);
 }
 
 void VKBuffer::read(void *data) const
