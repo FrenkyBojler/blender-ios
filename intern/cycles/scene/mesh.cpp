@@ -20,7 +20,7 @@
 #include "util/log.h"
 #include "util/set.h"
 
-#include "mikktspace.hh"
+#include "mikktspace_ref.hh"
 
 CCL_NAMESPACE_BEGIN
 
@@ -172,7 +172,7 @@ static void mikk_compute_tangents(Attribute *attr_uv,
 
   MikkMeshWrapper userdata(mesh, vertex_normal, corner_normal, uv, tangent, tangent_sign);
   /* Compute tangents. */
-  mikk::Mikktspace(userdata).genTangSpace();
+  mikk::RefMikktspace(userdata).genTangSpace();
 }
 
 /* Triangle */

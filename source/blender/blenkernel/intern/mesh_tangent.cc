@@ -18,6 +18,7 @@
 #include "BKE_report.hh"
 
 #include "mikktspace.hh"
+#include "mikktspace_ref.hh"
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
@@ -90,7 +91,7 @@ void calc_uv_tangent_tris_quads(const Span<float3> vert_positions,
   mesh_to_tangent.uv_map = uv_map;
   mesh_to_tangent.tangents = results;
 
-  mikk::Mikktspace<MeshToTangentQuadsTris> mikk(mesh_to_tangent);
+  mikk::RefMikktspace<MeshToTangentQuadsTris> mikk(mesh_to_tangent);
 
   /* First check we do have a tris/quads only mesh. */
   for (const int64_t i : faces.index_range()) {
@@ -190,6 +191,68 @@ struct SGLSLMeshToTangent {
 #ifdef __GNUC__
 #  pragma GCC diagnostic pop
 #endif
+  }
+
+  mikk::float3 GetPositionDirect(const uint loop_index)
+  {
+    return mikk::float3(positions[corner_verts[loop_index]]);
+  }
+
+  inline mikk::float3 GetTexCoordDirect(const uint loop_index)
+  {
+    if (has_uv()) {
+      const float2 &uv = uv_map[loop_index];
+      return mikk::float3(uv[0], uv[1], 1.0f);
+    }
+    const float *l_orco = orco[corner_verts[loop_index]];
+    float u, v;
+    map_to_sphere(&u, &v, l_orco[0], l_orco[1], l_orco[2]);
+    return mikk::float3(u, v, 1.0f);
+  }
+
+  inline mikk::float3 GetNormalDirect(const int face_index, const uint loop_index)
+  {
+    blender::int3 tri;
+    if (!corner_normals.is_empty()) {
+      return mikk::float3(corner_normals[loop_index]);
+    }
+    if (!sharp_faces.is_empty() && sharp_faces[face_index]) { /* flat */
+      if (!face_normals.is_empty()) {
+        return mikk::float3(face_normals[face_index]);
+      }
+#ifdef USE_TRI_DETECT_QUADS
+      const blender::IndexRange face = faces[face_index];
+      float normal[3];
+      if (face.size() == 4) {
+        normal_quad_v3(normal,
+                       positions[corner_verts[face[0]]],
+                       positions[corner_verts[face[1]]],
+                       positions[corner_verts[face[2]]],
+                       positions[corner_verts[face[3]]]);
+      }
+      else
+#endif
+      {
+        normal_tri_v3(normal,
+                      positions[corner_verts[tri[0]]],
+                      positions[corner_verts[tri[1]]],
+                      positions[corner_verts[tri[2]]]);
+      }
+      return mikk::float3(normal);
+    }
+    return mikk::float3(vert_normals[corner_verts[loop_index]]);
+  }
+
+  uint GetStoreIndex(const uint face_num, const uint vert_num)
+  {
+    blender::int3 tri;
+    int face_index;
+    return GetLoop(face_num, vert_num, tri, face_index);
+  }
+
+  void SetTangentSpaceDirect(const uint loop_index, mikk::float3 T, bool orientation)
+  {
+    copy_v4_fl4(this->tangents[loop_index], T.x, T.y, T.z, orientation ? 1.0f : -1.0f);
   }
 
   mikk::float3 GetPosition(const uint face_num, const uint vert_num)

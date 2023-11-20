@@ -21,6 +21,7 @@
 
 /* interface */
 #include "mikktspace.hh"
+#include "mikktspace_ref.hh"
 
 namespace blender {
 
@@ -218,9 +219,9 @@ Array<Array<float4>> BKE_editmesh_uv_tangents_calc(BMEditMesh *em,
 
       mesh2tangent.looptris = em->looptris;
       result[n].reinitialize(bm->totloop);
-      mesh2tangent.tangent = reinterpret_cast<float (*)[4]>(result[n].data());
+      mesh2tangent.tangent = reinterpret_cast<float(*)[4]>(result[n].data());
 
-      mikk::Mikktspace<SGLSLEditMeshToTangent> mikk(mesh2tangent);
+      mikk::RefMikktspace<SGLSLEditMeshToTangent> mikk(mesh2tangent);
       mikk.genTangSpace();
     }
   });
@@ -270,8 +271,8 @@ Array<float4> BKE_editmesh_orco_tangents_calc(BMEditMesh *em,
   mesh2tangent.orco = vert_orco;
 
   mesh2tangent.looptris = em->looptris;
-  mesh2tangent.tangent = reinterpret_cast<float (*)[4]>(result.data());
-  mikk::Mikktspace<SGLSLEditMeshToTangent> mikk(mesh2tangent);
+  mesh2tangent.tangent = reinterpret_cast<float(*)[4]>(result.data());
+  mikk::RefMikktspace<SGLSLEditMeshToTangent> mikk(mesh2tangent);
   mikk.genTangSpace();
 
   MEM_SAFE_DELETE(face_as_quad_map);
