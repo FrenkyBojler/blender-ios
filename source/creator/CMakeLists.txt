@@ -479,6 +479,13 @@ install(
   DESTINATION ${TARGETDIR_VER}/datafiles
 )
 
+#mblender
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/mblender
+  DESTINATION ${TARGETDIR_VER}/datafiles
+)
+
+
 # localization
 if(WITH_INTERNATIONAL)
   set(_locale_dir "${CMAKE_SOURCE_DIR}/locale")
