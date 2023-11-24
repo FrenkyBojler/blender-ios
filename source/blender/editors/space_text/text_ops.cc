@@ -4194,7 +4194,22 @@ static bool text_resolve_conflict_poll(bContext *C)
     return false;
   }
 
-  return ((text->filepath != nullptr) && !(text->flags & TXT_ISMEM));
+  const bool rv = ((text->filepath != nullptr) && !(text->flags & TXT_ISMEM));
+  if (rv) {
+    /* If auto reload is on, */
+    if (CTX_wm_space_text(C)->auto_reload
+        /* and the file is modified outside Blender, */
+        && BKE_text_file_modified_check(text) == 1
+        /* but not inside Blender, */
+        && !(text->flags & TXT_ISDIRTY))
+    {
+      /* automatically reload it without prompting the user. */
+      BKE_text_reload(text);
+      text->flags &= ~TXT_ISDIRTY;
+      return false;
+    }
+  }
+  return rv;
 }
 
 static wmOperatorStatus text_resolve_conflict_exec(bContext *C, wmOperator *op)

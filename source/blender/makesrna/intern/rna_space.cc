@@ -6742,6 +6742,12 @@ static void rna_def_space_text(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Live Edit", "Run Python while editing");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_TEXT, nullptr);
 
+  prop = RNA_def_property(srna, "use_auto_reload", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "auto_reload", 0);
+  RNA_def_property_ui_text(
+      prop, "Auto Reload", "Automatically reload when file is modified outside Blender");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_TEXT, nullptr);
+
   /* find */
   prop = RNA_def_property(srna, "use_find_all", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", ST_FIND_ALL);
