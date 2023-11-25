@@ -1,6 +1,6 @@
-*Mechanical Blender
+# Mechanical Blender
 
-This branch 
+This branch:
 
 - Sets up folders were specific to Mechanical Blender files will be located.
 - Adds Mechanical Blender's patches functionality.
