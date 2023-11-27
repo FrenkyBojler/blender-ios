@@ -6,6 +6,8 @@
 
 #include <boost/preprocessor/if.hpp>
 
+#include <BLI_assert.h>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -36,6 +38,9 @@ void MB_patches_discover()
     BOOST_PP_IF(MB_0019_APPLIED, strcpy(patches[i++], "MB_0019"), );
     BOOST_PP_IF(MB_0020_APPLIED, strcpy(patches[i++], "MB_0020"), );
 
+    // Not necessary becuase initialitzed to {0}
+    strcpy(patches[i++], "\0");
+
     return;
 }
 
@@ -43,8 +48,9 @@ void MB_init(void) {
     MB_patches_discover();
 }
 
-char** MB_patches_get() {
-    return (char**) patches;
+const char* MB_patch_get(int pos) {
+  BLI_assert(pos < MAX_MB_PATCHES);
+  return *patches[pos] == '\0' ? nullptr : patches[pos];
 }
 
 void MB_print_info()
@@ -52,9 +58,10 @@ void MB_print_info()
     printf("%s", "Mechanical Blender Info\n");
     printf("%s", "---------------------\n");
     for (int i = 0; i < MAX_MB_PATCHES; i++) {
-        if (*patches[i] != '\0') {
-            printf("Applied Patch %s\n", patches[i]);
+        if (*patches[i] == '\0') {
+            break;
         }
+        printf("Applied Patch %s\n", patches[i]);
     }
     printf("%s", "---------------------\n");
 }

@@ -7,7 +7,7 @@
 
 void MB_init(void);
 void MB_patches_discover(void);
-void MB_patches_get(void);
+const char* MB_patch_get(int pos);
 void MB_print_info(void);
 
 #endif
