@@ -18,7 +18,7 @@ if(WITH_BOOST)
     ${BOOST_INCLUDE_DIR}
   )
 else()
-	message (FATAL_ERROR "mblender requires WITH_BOOST")
+	message (FATAL_ERROR "tornavis requires WITH_BOOST")
 endif()
 
 # Auto fill source files, so patches will not touch that file
@@ -42,4 +42,4 @@ file(GLOB patches "patches/*")
 endforeach()
 
 
-blender_add_lib(mblender "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(tornavis "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

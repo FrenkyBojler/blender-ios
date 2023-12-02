@@ -55,7 +55,7 @@ char* MB_patch_get(int pos) {
 
 void MB_print_info()
 {
-    printf("%s", "Mechanical Blender Info\n");
+    printf("%s", "Tornavis Info\n");
     printf("%s", "---------------------\n");
     for (int i = 0; i < MAX_MB_PATCHES; i++) {
         if (*patches[i] == '\0') {

@@ -23,7 +23,7 @@
 #include "bpy_app_openvdb.h"
 #include "bpy_app_sdl.h"
 #include "bpy_app_usd.h"
-#include "bpy_app_mblender.h"
+#include "bpy_app_tornavis.h"
 
 #include "bpy_app_translations.h"
 
@@ -117,7 +117,7 @@ static PyStructSequence_Field app_info_fields[] = {
     {"build_options", "A set containing most important enabled optional build features"},
     {"handlers", "Application handler callbacks"},
     {"translations", "Application and addons internationalization API"},
-    {"mblender", "Mechanical Blender"},
+    {"tornavis", "Tornavis options"},
 
     /* Modules (not struct sequence). */
     {"icons", "Manage custom icons"},
@@ -202,7 +202,7 @@ static PyObject *make_app_info()
   SetObjItem(BPY_app_build_options_struct());
   SetObjItem(BPY_app_handlers_struct());
   SetObjItem(BPY_app_translations_struct());
-  SetObjItem(BPY_app_mblender_struct());
+  SetObjItem(BPY_app_tornavis_struct());
 
   /* modules */
   SetObjItem(BPY_app_icons_module());

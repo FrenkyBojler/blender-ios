@@ -57,7 +57,7 @@
 #include "BKE_vfont.h"
 #include "BKE_volume.hh"
 
-#include "MB_blender.h"
+#include "MB_tornavis.h"
 
 #ifndef WITH_PYTHON_MODULE
 #  include "BLI_args.h"

@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-PyObject *BPY_app_mblender_struct(void);
+PyObject *BPY_app_tornavis_struct(void);
 
 #ifdef __cplusplus
 }

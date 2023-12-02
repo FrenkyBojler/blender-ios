@@ -47,7 +47,7 @@
 
 #  include "GPU_context.h"
 
-#  include "MB_blender.h"
+#  include "MB_tornavis.h"
 
 #  ifdef WITH_FFMPEG
 #    include "IMB_imbuf.h"
@@ -1481,10 +1481,10 @@ static int arg_handle_start_with_console(int /*argc*/, const char ** /*argv*/, v
 }
 
 
-static const char arg_handle_mblender_info_doc[] =
+static const char arg_handle_tornavis_info_doc[] =
     "\n\t"
-    "Shows Mechanical Blender info on loading.";
-static int arg_handle_mblender_info(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+    "Shows Tornavis project info on loading.";
+static int arg_handle_tornavis_info(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   MB_print_info();
   return 0;
@@ -2534,7 +2534,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
 
   BLI_args_add(ba, nullptr, "--open-last", CB(arg_handle_load_last_file), C);
 
-  BLI_args_add(ba, nullptr, "--mblender-info", CB(arg_handle_mblender_info), nullptr);
+  BLI_args_add(ba, nullptr, "--tornavis-info", CB(arg_handle_tornavis_info), nullptr);
 
 #  undef CB
 #  undef CB_EX

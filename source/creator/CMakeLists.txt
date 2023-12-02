@@ -13,7 +13,7 @@ set(INC
   ../blender/makesrna
   ../blender/render
   ../blender/windowmanager
-  ../blender/mblender
+  ../blender/tornavis
 )
 
 set(LIB
@@ -22,7 +22,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_windowmanager
-  mblender
+  tornavis
 )
 
 if(HAVE_FEENABLEEXCEPT)
@@ -479,9 +479,9 @@ install(
   DESTINATION ${TARGETDIR_VER}/datafiles
 )
 
-#mblender
+#tornavis
 install(
-  DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/mblender
+  DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/tornavis
   DESTINATION ${TARGETDIR_VER}/datafiles
 )
 
