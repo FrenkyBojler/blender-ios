@@ -33,7 +33,7 @@ static PyObject *make_mblender_info()
   PyObject *mblender_info;
   PyObject *list;
   int pos=0;
-  char **patches;
+  char *patch = nullptr;
   
   mblender_info = PyStructSequence_New(&BlenderAppMblenderType);
   if (mblender_info == nullptr) {
@@ -45,8 +45,8 @@ static PyObject *make_mblender_info()
   PyStructSequence_SET_ITEM(mblender_info, pos++, list);
   
   
-  for (char** p = MB_patches_get();  *p ;p++) {
-    PyList_Append(list, PyUnicode_FromString(*p));
+  for (int i =0 ; (patch = MB_patch_get(i)); i++) {
+    PyList_Append(list, PyUnicode_FromString(patch));
   }
   
 

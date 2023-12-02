@@ -48,7 +48,7 @@ void MB_init(void) {
     MB_patches_discover();
 }
 
-const char* MB_patch_get(int pos) {
+char* MB_patch_get(int pos) {
   BLI_assert(pos < MAX_MB_PATCHES);
   return *patches[pos] == '\0' ? nullptr : patches[pos];
 }
