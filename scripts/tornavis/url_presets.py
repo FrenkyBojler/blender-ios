@@ -1,15 +1,15 @@
 import bpy
 
 def register ():
-    # bpy.ops.wm.url_open_preset(type="MBLENDER")
+    # bpy.ops.wm.url_open_preset(type="TORNAVIS")
 
     bpy.types.WM_OT_url_open_preset.preset_items.append(
-        (('MBLENDER', "Mechanicalblender.org",  "Mechanical blender's official web-site"),
-        "https://www.mechanicalblender.org")
+        (('TORNAVIS', "Tornavis.org",  "Tornavis project official web-site"),
+        "https://www.tornavis.org")
         )
     bpy.types.WM_OT_url_open_preset.preset_items.append(
-        (('MBLENDER_DOC', "Mechanicalblender Doc",  "Mechanical blender's documentation"),
-        "https://www.mechanicalblender.org/#documentation")
+        (('TORNAVIS_DOC', "Tornavis Doc",  "Tornavis project documentation"),
+        "https://www.tornavis.org/#documentation")
         )
 
 def unregister():
