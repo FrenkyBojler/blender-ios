@@ -1,5 +1,13 @@
+diff --git a/release/datafiles/tornavis/info.txt b/release/datafiles/tornavis/info.txt
+new file mode 100644
+index 00000000000..08d69b99de4
+--- /dev/null
++++ b/release/datafiles/tornavis/info.txt
+@@ -0,0 +1 @@
++Binary data like icons or images related to mechanical blender
+\ No newline at end of file
 diff --git a/scripts/modules/bpy/utils/__init__.py b/scripts/modules/bpy/utils/__init__.py
-index 94b7394971b..81a438ce8ac 100644
+index 94b7394971b..d5d172e8d40 100644
 --- a/scripts/modules/bpy/utils/__init__.py
 +++ b/scripts/modules/bpy/utils/__init__.py
 @@ -66,7 +66,7 @@ _preferences = _bpy.context.preferences
@@ -7,7 +15,7 @@ index 94b7394971b..81a438ce8ac 100644
  
  # Directories added to the start of `sys.path` for all of Blender's "scripts" directories.
 -_script_module_dirs = "startup", "modules"
-+_script_module_dirs = "startup", "modules","mblender"
++_script_module_dirs = "startup", "modules","tornavis"
  
  # Base scripts, this points to the directory containing: "modules" & "startup" (see `_script_module_dirs`).
  # In Blender's code-base this is `./scripts`.
@@ -15,7 +23,7 @@ index 94b7394971b..81a438ce8ac 100644
                          for mod in modules_from_path(path, loaded_modules):
                              test_register(mod)
  
-+                    if path_subdir == "mblender":
++                    if path_subdir == "tornavis":
 +                        for mod in modules_from_path(path, loaded_modules):
 +                            test_register(mod)
 +

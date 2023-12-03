@@ -66,7 +66,7 @@ _preferences = _bpy.context.preferences
 _is_factory_startup = _bpy.app.factory_startup
 
 # Directories added to the start of `sys.path` for all of Blender's "scripts" directories.
-_script_module_dirs = "startup", "modules","mblender"
+_script_module_dirs = "startup", "modules","tornavis"
 
 # Base scripts, this points to the directory containing: "modules" & "startup" (see `_script_module_dirs`).
 # In Blender's code-base this is `./scripts`.
@@ -308,7 +308,7 @@ def load_scripts(*, reload_scripts=False, refresh_scripts=False, extensions=True
                         for mod in modules_from_path(path, loaded_modules):
                             test_register(mod)
 
-                    if path_subdir == "mblender":
+                    if path_subdir == "tornavis":
                         for mod in modules_from_path(path, loaded_modules):
                             test_register(mod)
 
