@@ -6,9 +6,11 @@
  * \ingroup bke
  */
 
+#include <iostream>
+
 #include "BKE_anim_data.h"
 #include "BKE_curves.hh"
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
@@ -16,8 +18,9 @@
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_material.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 
 #include "BLI_bounds.hh"
 #include "BLI_map.hh"
@@ -1210,7 +1213,7 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
 
   /* Assign evaluated object. */
   BKE_object_eval_assign_data(object, &grease_pencil_eval->id, false);
-  object->runtime.geometry_set_eval = new GeometrySet(std::move(geometry_set));
+  object->runtime->geometry_set_eval = new GeometrySet(std::move(geometry_set));
 }
 
 void BKE_grease_pencil_duplicate_drawing_array(const GreasePencil *grease_pencil_src,
@@ -1386,6 +1389,55 @@ void BKE_grease_pencil_material_remap(GreasePencil *grease_pencil, const uint *r
     }
     material_indices.finish();
   }
+}
+
+void BKE_grease_pencil_material_index_remove(GreasePencil *grease_pencil, int index)
+{
+  using namespace blender;
+  using namespace blender::bke;
+
+  for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+    if (base->type != GP_DRAWING) {
+      continue;
+    }
+
+    greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+    MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+    AttributeWriter<int> material_indices = attributes.lookup_for_write<int>("material_index");
+    if (!material_indices) {
+      return;
+    }
+
+    MutableVArraySpan<int> indices_span(material_indices.varray);
+    for (const int i : indices_span.index_range()) {
+      if (indices_span[i] > 0 && indices_span[i] >= index) {
+        indices_span[i]--;
+      }
+    }
+    indices_span.save();
+    material_indices.finish();
+  }
+}
+
+bool BKE_grease_pencil_material_index_used(GreasePencil *grease_pencil, int index)
+{
+  using namespace blender;
+  using namespace blender::bke;
+
+  for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+    if (base->type != GP_DRAWING) {
+      continue;
+    }
+    greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+    AttributeAccessor attributes = drawing.strokes().attributes();
+    const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
+        "material_index", ATTR_DOMAIN_CURVE, 0);
+
+    if (material_indices.contains(index)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** \} */
@@ -1823,101 +1875,23 @@ blender::bke::greasepencil::Drawing *GreasePencil::get_editable_drawing_at(
   return &drawing->wrap();
 }
 
-enum ForeachDrawingMode {
-  VISIBLE,
-  EDITABLE,
-};
-
-static void foreach_drawing_ex(
-    const GreasePencil &grease_pencil,
-    const int frame,
-    const ForeachDrawingMode mode,
-    blender::FunctionRef<void(const int, const blender::bke::greasepencil::Drawing &)> function)
-{
-  using namespace blender::bke::greasepencil;
-
-  blender::Span<const GreasePencilDrawingBase *> drawings = grease_pencil.drawings();
-  blender::Span<const Layer *> layers = grease_pencil.layers();
-  for (const int layer_i : layers.index_range()) {
-    const Layer *layer = layers[layer_i];
-    switch (mode) {
-      case VISIBLE: {
-        if (!layer->is_visible()) {
-          continue;
-        }
-        break;
-      }
-      case EDITABLE: {
-        if (!layer->is_editable()) {
-          continue;
-        }
-        break;
-      }
-    }
-
-    int index = layer->drawing_index_at(frame);
-    if (index == -1) {
-      continue;
-    }
-    const GreasePencilDrawingBase *drawing_base = drawings[index];
-    if (drawing_base->type == GP_DRAWING) {
-      const GreasePencilDrawing *drawing = reinterpret_cast<const GreasePencilDrawing *>(
-          drawing_base);
-      function(layer_i, drawing->wrap());
-    }
-    else if (drawing_base->type == GP_DRAWING_REFERENCE) {
-      /* TODO: Drawing references are not implemented yet. */
-      BLI_assert_unreachable();
-    }
-  }
-}
-
-void GreasePencil::foreach_visible_drawing(
-    const int frame,
-    blender::FunctionRef<void(const int, blender::bke::greasepencil::Drawing &)> function)
-{
-  foreach_drawing_ex(
-      *this,
-      frame,
-      VISIBLE,
-      [&](const int layer_index, const blender::bke::greasepencil::Drawing &drawing) {
-        /* We const_cast here to be able to implement `foreach_drawing_ex` only once. */
-        function(layer_index, const_cast<blender::bke::greasepencil::Drawing &>(drawing));
-      });
-}
-
-void GreasePencil::foreach_visible_drawing(
-    const int frame,
-    blender::FunctionRef<void(const int, const blender::bke::greasepencil::Drawing &)> function)
-    const
-{
-  foreach_drawing_ex(*this, frame, VISIBLE, function);
-}
-
-void GreasePencil::foreach_editable_drawing(
-    const int frame,
-    blender::FunctionRef<void(const int, blender::bke::greasepencil::Drawing &)> function)
-{
-  foreach_drawing_ex(
-      *this,
-      frame,
-      EDITABLE,
-      [&](const int layer_index, const blender::bke::greasepencil::Drawing &drawing) {
-        /* We const_cast here to be able to implement `foreach_drawing_ex` only once. */
-        function(layer_index, const_cast<blender::bke::greasepencil::Drawing &>(drawing));
-      });
-}
-
 std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max() const
 {
   using namespace blender;
   std::optional<Bounds<float3>> bounds;
-  this->foreach_visible_drawing(
-      this->runtime->eval_frame,
-      [&](const int /*layer_index*/, const bke::greasepencil::Drawing &drawing) {
-        const bke::CurvesGeometry &curves = drawing.strokes();
-        bounds = bounds::merge(bounds, curves.bounds_min_max());
-      });
+  const Span<const bke::greasepencil::Layer *> layers = this->layers();
+  for (const int layer_i : layers.index_range()) {
+    const bke::greasepencil::Layer *layer = layers[layer_i];
+    if (!layer->is_visible()) {
+      continue;
+    }
+    if (const bke::greasepencil::Drawing *drawing = this->get_drawing_at(
+            layer, this->runtime->eval_frame))
+    {
+      const bke::CurvesGeometry &curves = drawing->strokes();
+      bounds = bounds::merge(bounds, curves.bounds_min_max());
+    }
+  }
   return bounds;
 }
 
@@ -2017,7 +1991,7 @@ static std::string unique_node_name(const GreasePencil &grease_pencil,
 {
   using namespace blender;
   char unique_name[MAX_NAME];
-  BLI_strncpy(unique_name, name.c_str(), MAX_NAME);
+  STRNCPY(unique_name, name.c_str());
   VectorSet<StringRefNull> names = get_node_names(grease_pencil);
   unique_node_name_ex(names, default_name, unique_name);
   return unique_name;
@@ -2026,13 +2000,13 @@ static std::string unique_node_name(const GreasePencil &grease_pencil,
 static std::string unique_layer_name(const GreasePencil &grease_pencil,
                                      blender::StringRefNull name)
 {
-  return unique_node_name(grease_pencil, DATA_("GP_Layer"), name);
+  return unique_node_name(grease_pencil, DATA_("Layer"), name);
 }
 
 static std::string unique_layer_group_name(const GreasePencil &grease_pencil,
                                            blender::StringRefNull name)
 {
-  return unique_node_name(grease_pencil, DATA_("GP_Group"), name);
+  return unique_node_name(grease_pencil, DATA_("Group"), name);
 }
 
 blender::bke::greasepencil::Layer &GreasePencil::add_layer(const blender::StringRefNull name)

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Beta (b'd2b86610f058')\n"
+"Project-Id-Version: Blender 4.1.0 Alpha (b'7ce745a76b47')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-10-23 09:18:46\n"
+"POT-Creation-Date: 2023-11-20 11:21:26\n"
 "PO-Revision-Date: 2018-01-03 14:47+0000\n"
 "Last-Translator: Lockal <lockalsash@gmail.com>, 2023\n"
 "Language-Team: Russian (https://app.transifex.com/translateblender/teams/82039/ru/)\n"
@@ -342,20 +342,16 @@ msgid "Optimize all kernels. Fastest rendering, may result in extra background C
 msgstr "Оптимизировать все ядра. Самый быстрый рендеринг, может привести к дополнительной загрузке процессора в фоновом режиме."
 
 
+msgid "Auto"
+msgstr "Авто"
+
+
 msgid "Distribute memory across devices"
 msgstr "Распределить память между устройствами"
 
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "Освободите место для больших сцен, распределяя память между взаимосвязанными устройствами (например, через NVLink), а не дублируя ее"
-
-
-msgid "MetalRT (Experimental)"
-msgstr "MetalRT (экспериментально)"
-
-
-msgid "MetalRT for ray tracing uses less memory for scenes which use curves extensively, and can give better performance in specific cases. However this support is experimental and some scenes may render incorrectly"
-msgstr "MetalRT для трассировки лучей использует меньше памяти для сцен, в которых широко используются кривые, и может обеспечить более высокую производительность в определённых случаях. Однако эта поддержка является экспериментальной, и некоторые сцены могут отображаться неправильно"
 
 
 msgid "KHR_materials_variants_ui"
@@ -1487,6 +1483,10 @@ msgid "Attribute on instance"
 msgstr "Атрибут экземпляра"
 
 
+msgid "Layer"
+msgstr "Слой"
+
+
 msgid "Is Internal"
 msgstr "Является внутренним"
 
@@ -1869,10 +1869,6 @@ msgstr "Свободный"
 
 msgid "Aligned"
 msgstr "С выравниванием"
-
-
-msgid "Auto"
-msgstr "Авто"
 
 
 msgid "Handle 2"
@@ -14712,10 +14708,6 @@ msgid "Invert mask"
 msgstr "Инвертировать маску"
 
 
-msgid "Layer"
-msgstr "Слой"
-
-
 msgid "Mask layer name"
 msgstr "Имя слоя маски"
 
@@ -20108,6 +20100,10 @@ msgid "Offset amount when drawing in surface mode"
 msgstr "Величина смещения при рисовании в режиме поверхности"
 
 
+msgid "Grease Pencil data-block"
+msgstr "Датаблок Grease Pencil"
+
+
 msgid "Image data-block referencing an external or packed image"
 msgstr "Датаблок изображения, ссылающийся на внешнее или упакованное изображение"
 
@@ -20963,14 +20959,6 @@ msgid "Show the clipping distances in the 3D view"
 msgstr "Показать расстояния отсечения в 3D-виде"
 
 
-msgid "Show Preview Plane"
-msgstr "Отображать плоскость предпросмотра"
-
-
-msgid "Show captured lighting data into the 3D view for debugging purpose"
-msgstr "Показать захваченные данные освещения в 3D-виде для отладки"
-
-
 msgid "Show the influence volume in the 3D view"
 msgstr "Показать объём влияния в 3D-виде"
 
@@ -20985,26 +20973,6 @@ msgstr "Показать корректирующий объём паралла�
 
 msgid "Type of light probe"
 msgstr "Тип зонда освещения"
-
-
-msgid "Reflection Cubemap"
-msgstr "Отражающая кубическая текстура"
-
-
-msgid "Capture reflections"
-msgstr "Захватывать отражения"
-
-
-msgid "Reflection Plane"
-msgstr "Плоскость отражения"
-
-
-msgid "Irradiance Volume"
-msgstr "Объём интенсивностей освещённости"
-
-
-msgid "Volume used for precomputing indirect lighting"
-msgstr "Использовать объём для предвычисления непрямого освещения"
 
 
 msgid "Use Custom Parallax"
@@ -21295,14 +21263,6 @@ msgid "Use the current world background to light the preview render"
 msgstr "Использовать текущий фон мира для освещения предпросмотра рендера"
 
 
-msgid "Screen Space Refraction"
-msgstr "Преломление в пространстве экрана"
-
-
-msgid "Use raytraced screen space refractions"
-msgstr "Использовать преломление в пространстве экрана с помощью трассировки лучей"
-
-
 msgid "Subsurface Translucency"
 msgstr "Подповерхностная просвечиваемость"
 
@@ -21311,16 +21271,24 @@ msgid "Add translucency effect to subsurface"
 msgstr "Добавить эффект просвечиваемости для подповерхности"
 
 
+msgid "Transparent Shadows"
+msgstr "Прозрачные тени"
+
+
+msgid "Use transparent shadows for this material if it contains a Transparent BSDF, disabling will render faster but not give accurate shadows"
+msgstr "Использовать прозрачные тени для этого материала, если он содержит прозрачный BSDF; отключение ускорит рендеринг, но тени станут неточными"
+
+
+msgid "Fast"
+msgstr "Быстро"
+
+
+msgid "Accurate"
+msgstr "Точно"
+
+
 msgid "Mesh data-block defining geometric surfaces"
 msgstr "Датаблок меша, определяющий геометрические поверхности"
-
-
-msgid "Auto Smooth Angle"
-msgstr "Угол автосглаживания"
-
-
-msgid "Maximum angle between face normals that will be considered as smooth (unused if custom split normals data are available)"
-msgstr "Максимальный угол между нормалями граней, который считается гладким (не используется, если есть настраиваемые разделённые нормали)"
 
 
 msgid "Edges"
@@ -21349,6 +21317,10 @@ msgstr "Замощение полигонов меша треугольника�
 
 msgid "Loops"
 msgstr "Циклы"
+
+
+msgid "Corner"
+msgstr "Угол"
 
 
 msgid "Polygons"
@@ -21445,14 +21417,6 @@ msgstr "Количество выделенных граней в режиме �
 
 msgid "Selected vertex count in editmode"
 msgstr "Количество выделенных вершин в режиме редактирования"
-
-
-msgid "Auto Smooth"
-msgstr "Автосглаживание"
-
-
-msgid "Auto smooth (based on smooth/sharp faces/edges and angle between faces), or use custom split normals data if available"
-msgstr "Сглаживать автоматически (на основе гладких/острых гранях/рёбер и углов между гранями) или использовать настраиваемые разделённые нормали"
 
 
 msgid "Topology Mirror"
@@ -21599,10 +21563,6 @@ msgid "While editing, update metaball in half resolution"
 msgstr "Обновление метасферы в половинном разрешении при редактировании"
 
 
-msgid "Fast"
-msgstr "Быстро"
-
-
 msgid "While editing, update metaball without polygonization"
 msgstr "Обновлять метасферу без полигонализации при редактировании"
 
@@ -21685,10 +21645,6 @@ msgstr "Метка нодовой системы"
 
 msgid "Grease Pencil Data"
 msgstr "Данные Grease Pencil"
-
-
-msgid "Grease Pencil data-block"
-msgstr "Датаблок Grease Pencil"
 
 
 msgid "Interface"
@@ -29746,10 +29702,6 @@ msgid "Split Normals"
 msgstr "Разделённые нормали"
 
 
-msgid "Local space unit length split normals vectors of the vertices of this triangle (must be computed beforehand using calc_normals_split or calc_tangents)"
-msgstr "Единичные вектора разделённых нормалей в локальном пространстве для вершин этого треугольника (должны быть рассчитаны заранее с помощью calc_normals_split или calc_tangents)"
-
-
 msgid "Indices of triangle vertices"
 msgstr "Индексы вершин треугольника"
 
@@ -35670,10 +35622,6 @@ msgid "Denoise"
 msgstr "Шумоподавление"
 
 
-msgid "Accurate"
-msgstr "Точно"
-
-
 msgid "HDR"
 msgstr "HDR"
 
@@ -37450,10 +37398,6 @@ msgstr "Величина смешения между сторонами при �
 
 msgid "Level of detail in the added turbulent noise"
 msgstr "Уровень детализации в добавленном турбулентном шуме"
-
-
-msgid "Musgrave Texture"
-msgstr "Текстура «Масгрейв»"
 
 
 msgid "Use the scalar value W as input"
@@ -42961,10 +42905,6 @@ msgid "Export cameras"
 msgstr "Экспортировать камеры"
 
 
-msgid "Export vertex colors with meshes"
-msgstr "Экспортировать цвета вершин вместе с мешами"
-
-
 msgid "Legal rights and conditions for the model"
 msgstr "Условия использования модели"
 
@@ -45681,6 +45621,10 @@ msgstr "Обратить действие кисти во время выпол�
 
 msgid "Switch brush to smooth mode for duration of stroke"
 msgstr "Переключить кисть в режим сглаживания во время выполнения штриха"
+
+
+msgid "Flat"
+msgstr "Плоский"
 
 
 msgctxt "Operator"
@@ -49857,15 +49801,6 @@ msgstr "Ключевые кадры из итоговых трансформац
 
 
 msgctxt "Operator"
-msgid "Mouse Click on NLA Channels"
-msgstr "Нажатие мыши по каналам НЛА"
-
-
-msgid "Handle clicks to select NLA channels"
-msgstr "Обработать нажатие мыши для выделения каналов НЛА"
-
-
-msgctxt "Operator"
 msgid "Clear Scale"
 msgstr "Сбросить масштаб"
 
@@ -51127,6 +51062,15 @@ msgid "Toggle object's force field"
 msgstr "Включить/выключить силовое поле объекта"
 
 
+msgctxt "Operator"
+msgid "Add Grease Pencil"
+msgstr "Добавить Grease Pencil"
+
+
+msgid "Add a Grease Pencil object to the scene"
+msgstr "Добавить объект Grease Pencil в сцену"
+
+
 msgid "Create an empty grease pencil object"
 msgstr "Создать пустой объект Grease Pencil"
 
@@ -51227,15 +51171,6 @@ msgstr "Удалить модификатор Grease Pencil"
 
 msgid "Remove a modifier from the active grease pencil object"
 msgstr "Удалить модификатор у активного объекта Grease Pencil"
-
-
-msgctxt "Operator"
-msgid "Add Grease Pencil"
-msgstr "Добавить Grease Pencil"
-
-
-msgid "Add a Grease Pencil object to the scene"
-msgstr "Добавить объект Grease Pencil в сцену"
 
 
 msgctxt "Operator"
@@ -51428,18 +51363,6 @@ msgid "Add a light probe object"
 msgstr "Добавить объект зонда освещения"
 
 
-msgid "Reflection probe with spherical or cubic attenuation"
-msgstr "Зонд карты отражения с сферической или кубической формой"
-
-
-msgid "Planar reflection probe"
-msgstr "Плоский зонд карты отражения"
-
-
-msgid "Irradiance probe to capture diffuse indirect lighting"
-msgstr "Зонд освещённости для фиксирования отражённого диффузного света"
-
-
 msgctxt "Operator"
 msgid "Bake Light Cache"
 msgstr "Запечь кэш освещения"
@@ -51455,10 +51378,6 @@ msgstr "Подмножество"
 
 msgid "Subset of probes to update"
 msgstr "Блок зондов для обновления"
-
-
-msgid "Dirty Only"
-msgstr "Только грязные"
 
 
 msgid "Selected Only"
@@ -55838,6 +55757,10 @@ msgstr "Запечь освещение в активном слое визуа�
 
 msgid "Bake both irradiance grids and reflection cubemaps"
 msgstr "Запечь и сетки освещённости, и кубические карты отражения"
+
+
+msgid "Dirty Only"
+msgstr "Только грязные"
 
 
 msgid "Cubemaps Only"
@@ -63216,6 +63139,10 @@ msgid "Shadows"
 msgstr "Тени"
 
 
+msgid "Screen Space Reflections"
+msgstr "Отражение в пространстве экрана"
+
+
 msgid "Volumetrics"
 msgstr "Волюметрики"
 
@@ -63226,10 +63153,6 @@ msgstr "Объёмное освещение"
 
 msgid "Volumetric Shadows"
 msgstr "Объёмные тени"
-
-
-msgid "Screen Space Reflections"
-msgstr "Отражение в пространстве экрана"
 
 
 msgid "Encoding"
@@ -66901,14 +66824,6 @@ msgstr "Однородный объём"
 
 msgid "When using volume rendering, assume volume has the same density everywhere (not using any textures), for faster rendering"
 msgstr "Считать плотность объёма одинаковой во всех местах (текстуры не используются) для ускорения рендеринга объёма"
-
-
-msgid "Transparent Shadows"
-msgstr "Прозрачные тени"
-
-
-msgid "Use transparent shadows for this material if it contains a Transparent BSDF, disabling will render faster but not give accurate shadows"
-msgstr "Использовать прозрачные тени для этого материала, если он содержит прозрачный BSDF; отключение ускорит рендеринг, но тени станут неточными"
 
 
 msgid "Volume Interpolation"
@@ -73809,10 +73724,6 @@ msgid "Get the node tree path as a string"
 msgstr "Получить адрес нодовой системы в виде строки"
 
 
-msgid "Flat"
-msgstr "Плоский"
-
-
 msgid "Space UV Editor"
 msgstr "Пространство UV-редактора"
 
@@ -73844,10 +73755,6 @@ msgstr "Ограничение на границы изображения"
 
 msgid "Constraint to stay within the image bounds while editing"
 msgstr "Ограничение на пребывание внутри границ изображения при редактировании"
-
-
-msgid "Corner"
-msgstr "Угол"
 
 
 msgid "Display Faces"
@@ -75017,10 +74924,6 @@ msgid "Face Dot Selected"
 msgstr "Точка выделенной грани"
 
 
-msgid "Face Selected"
-msgstr "Выделенная грань"
-
-
 msgid "Face Dot Size"
 msgstr "Размер точки грани"
 
@@ -75963,14 +75866,6 @@ msgid "Type of element to snap to"
 msgstr "Тип элемента, к которому осуществлять привязку"
 
 
-msgid "Second"
-msgstr "Второй"
-
-
-msgid "Nearest Marker"
-msgstr "Ближайший маркер"
-
-
 msgid "Snap to nearest marker"
 msgstr "Переместить к ближайшему маркеру"
 
@@ -76772,10 +76667,6 @@ msgstr "Отобразить швы UV-развёртки"
 
 msgid "Display sharp edges, used with the Edge Split modifier"
 msgstr "Отображать острые грани, используемые для модификатора разделения рёбер"
-
-
-msgid "Highlight selected edges"
-msgstr "Подсвечивать выделенные рёбра"
 
 
 msgid "Display selected edge angle, using global values when set in the transform panel"
@@ -78001,11 +77892,6 @@ msgstr "Экспозиционный лист: общее"
 msgctxt "WindowManager"
 msgid "NLA Editor"
 msgstr "Редактор НЛА"
-
-
-msgctxt "WindowManager"
-msgid "NLA Channels"
-msgstr "НЛА-каналы"
 
 
 msgctxt "WindowManager"
@@ -80101,6 +79987,10 @@ msgstr "Торможение перемещения"
 
 msgid "Velocity Linear"
 msgstr "Линейная скорость"
+
+
+msgid "Second"
+msgstr "Второй"
 
 
 msgid "X Stiffness"
@@ -82852,6 +82742,16 @@ msgstr "Очистить остроту из вершин"
 
 
 msgctxt "Operator"
+msgid "Extrude Faces"
+msgstr "Экструдировать грани"
+
+
+msgctxt "Operator"
+msgid "Extrude Faces Along Normals"
+msgstr "Экструдировать грани вдоль нормалей"
+
+
+msgctxt "Operator"
 msgid "Solidify Faces"
 msgstr "Объёмность граней"
 
@@ -83125,11 +83025,6 @@ msgstr "Экземпляр коллекции"
 
 
 msgctxt "Operator"
-msgid "Shade Auto Smooth"
-msgstr "Автоматическое гладкое затенение"
-
-
-msgctxt "Operator"
 msgid "Delete Global"
 msgstr "Удалить глобально"
 
@@ -83259,16 +83154,6 @@ msgstr "Очистить остроту"
 msgctxt "Operator"
 msgid "Mark Sharp from Vertices"
 msgstr "Установить остроту из вершин"
-
-
-msgctxt "Operator"
-msgid "Extrude Faces"
-msgstr "Экструдировать грани"
-
-
-msgctxt "Operator"
-msgid "Extrude Faces Along Normals"
-msgstr "Экструдировать грани вдоль нормалей"
 
 
 msgctxt "Operator"
@@ -83730,6 +83615,58 @@ msgid "Add UVs"
 msgstr "Добавить UV"
 
 
+msgid "<No ID pointer>"
+msgstr "<Нет ID-указателя>"
+
+
+msgid "<Missing ID block>"
+msgstr "<Отсутствующий ID-блок>"
+
+
+msgid "No F-Curve to add keyframes to"
+msgstr "Нет F-кривой для добавления ключевых кадров"
+
+
+msgid "No RNA pointer available to retrieve values for keyframing from"
+msgstr "Нет доступного RNA-указателя для получения значений ключевых кадров"
+
+
+msgid "No ID block and/or AnimData to delete keyframe from"
+msgstr "Нет ID-блока и/или данных анимации, для которых необходимо удалить ключевой кадр"
+
+
+msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Невозможно вставить ключевой кадр, поскольку RNA-путь недопустим для данного ID (ID = %s, путь = %s)"
+
+
+msgid "No ID block to insert keyframe in (path = %s)"
+msgstr "Нет ID-блока, в который вставляется ключевой кадр (путь = %s)"
+
+
+msgid "Could not insert keyframe, as this type does not support animation data (ID = %s, path = %s)"
+msgstr "Не удалось вставить ключевой кадр, поскольку этот тип не поддерживает данные анимации (ID = %s, путь = %s)"
+
+
+msgid "Could not delete keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Ключевой кадр не может быть удалён, поскольку RNA-путь недопустим для данного ID (ID = %s, путь = %s)"
+
+
+msgid "No action to delete keyframes from for ID = %s"
+msgstr "Нет действия, для которого необходимо удалить ключевые кадры у ID = %s"
+
+
+msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
+msgstr "Ключевой кадр для заблокированной F-кривой «%s» (%s «%s») не удалён"
+
+
+msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Невозможно очистить ключевой кадр, поскольку RNA-путь недопустим для данного ID (ID = %s, путь = %s)"
+
+
+msgid "Not clearing all keyframes from locked F-Curve '%s' for %s '%s'"
+msgstr "Не подчищены ключевые кадры для заблокированной F-кривой «%s» для %s «%s»"
+
+
 msgid "No AnimData to set action on"
 msgstr "Нет данных анимации, над которыми устанавливается действие"
 
@@ -83960,12 +83897,12 @@ msgid "MaskLayer"
 msgstr "СлойМаски"
 
 
+msgid "Auto Smooth"
+msgstr "Автосглаживание"
+
+
 msgid "Tangent space can only be computed for tris/quads, aborting"
 msgstr "Пространство касательных можно рассчитать только для треугольников/четырёхугольников, операция отменена"
-
-
-msgid "Tangent space computation needs loop normals, none found, aborting"
-msgstr "Для расчёта пространства касательных необходимы нормали к петлям, но они не найдены; операция остановлена"
 
 
 msgid "NlaTrack"
@@ -84517,26 +84454,6 @@ msgid "Delete envelope control point"
 msgstr "Удалить контрольную точку оболочки"
 
 
-msgid "<No ID pointer>"
-msgstr "<Нет ID-указателя>"
-
-
-msgid "<Missing ID block>"
-msgstr "<Отсутствующий ID-блок>"
-
-
-msgid "No F-Curve to add keyframes to"
-msgstr "Нет F-кривой для добавления ключевых кадров"
-
-
-msgid "No RNA pointer available to retrieve values for keyframing from"
-msgstr "Нет доступного RNA-указателя для получения значений ключевых кадров"
-
-
-msgid "No ID block and/or AnimData to delete keyframe from"
-msgstr "Нет ID-блока и/или данных анимации, для которых необходимо удалить ключевой кадр"
-
-
 msgid "No suitable context info for active keying set"
 msgstr "Нет подходящей информации о контексте для активного ключевого набора"
 
@@ -84559,42 +84476,6 @@ msgstr "Не удалось разрешить путь к свойству, п�
 
 msgid "No active Keying Set"
 msgstr "Нет активного ключевого набора"
-
-
-msgid "F-Curve with path '%s[%d]' cannot be keyframed, ensure that it is not locked or sampled, and try removing F-Modifiers"
-msgstr "F-кривая с путём «%s[%d]» не может быть раскадрована, убедитесь, что она не заблокирована или не основана на выборке, а также попробуйте удалить F-модификаторы"
-
-
-msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Невозможно вставить ключевой кадр, поскольку RNA-путь недопустим для данного ID (ID = %s, путь = %s)"
-
-
-msgid "No ID block to insert keyframe in (path = %s)"
-msgstr "Нет ID-блока, в который вставляется ключевой кадр (путь = %s)"
-
-
-msgid "Could not insert keyframe, as this type does not support animation data (ID = %s, path = %s)"
-msgstr "Не удалось вставить ключевой кадр, поскольку этот тип не поддерживает данные анимации (ID = %s, путь = %s)"
-
-
-msgid "Could not delete keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Ключевой кадр не может быть удалён, поскольку RNA-путь недопустим для данного ID (ID = %s, путь = %s)"
-
-
-msgid "No action to delete keyframes from for ID = %s"
-msgstr "Нет действия, для которого необходимо удалить ключевые кадры у ID = %s"
-
-
-msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
-msgstr "Ключевой кадр для заблокированной F-кривой «%s» (%s «%s») не удалён"
-
-
-msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Невозможно очистить ключевой кадр, поскольку RNA-путь недопустим для данного ID (ID = %s, путь = %s)"
-
-
-msgid "Not clearing all keyframes from locked F-Curve '%s' for %s '%s'"
-msgstr "Не подчищены ключевые кадры для заблокированной F-кривой «%s» для %s «%s»"
 
 
 msgid "Keying set '%s' - successfully added %d keyframes"
@@ -84649,12 +84530,12 @@ msgid "No active Keying Set to add empty path to"
 msgstr "Нет активного ключевого набора для добавления пустого пути"
 
 
-msgid "No active Keying Set path to remove"
-msgstr "Нет активного ключевого набора для удаления"
-
-
 msgid "No active Keying Set to remove a path from"
 msgstr "Нет активного ключевого набора для удаления пути"
+
+
+msgid "No active Keying Set path to remove"
+msgstr "Нет активного ключевого набора для удаления"
 
 
 msgid "Cannot add property to built in keying set"
@@ -85690,6 +85571,10 @@ msgid "Browse Particle Settings to be linked"
 msgstr "Выбор связываемых настроек частиц"
 
 
+msgid "Browse Grease Pencil Data to be linked"
+msgstr "Выбор связываемых данных Grease Pencil"
+
+
 msgid "Browse Movie Clip to be linked"
 msgstr "Выбор связываемого видеофрагмента"
 
@@ -85716,10 +85601,6 @@ msgstr "Выбрать рабочее пространство для созда
 
 msgid "Browse LightProbe to be linked"
 msgstr "Выбор связываемого зонда освещения"
-
-
-msgid "Browse Grease Pencil Data to be linked"
-msgstr "Выбор связываемых данных Grease Pencil"
 
 
 msgid "Browse ID data to be linked"
@@ -86238,21 +86119,6 @@ msgstr "Результат объединения состоит из %d вер�
 
 msgid "SoundTrack"
 msgstr "Звуковой клип"
-
-
-msgctxt "Light"
-msgid "IrradianceVolume"
-msgstr "Объём интенсивностей освещённости"
-
-
-msgctxt "Light"
-msgid "ReflectionPlane"
-msgstr "Плоскость отражения"
-
-
-msgctxt "Light"
-msgid "ReflectionCubemap"
-msgstr "Кубическая карта отражения"
 
 
 msgctxt "Light"

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Beta (b'd2b86610f058')\n"
+"Project-Id-Version: Blender 4.1.0 Alpha (b'7ce745a76b47')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-10-23 09:18:46\n"
+"POT-Creation-Date: 2023-11-20 11:21:26\n"
 "PO-Revision-Date: 2017-08-26 11:13+0200\n"
 "Last-Translator: Mikołaj Juda <mikolaj.juda@gmail.com>\n"
 "Language: pl\n"
@@ -196,6 +196,10 @@ msgstr "Hasło"
 
 msgid "Message"
 msgstr "Komunikat"
+
+
+msgid "Auto"
+msgstr "Automatyczny"
 
 
 msgid "Fribidi Library"
@@ -686,6 +690,10 @@ msgid "Point"
 msgstr "Punkt"
 
 
+msgid "Layer"
+msgstr "Warstwa"
+
+
 msgid "Bake Data"
 msgstr "Wylicz dane"
 
@@ -896,10 +904,6 @@ msgstr "Swobodny"
 
 msgid "Aligned"
 msgstr "Wyrównany"
-
-
-msgid "Auto"
-msgstr "Automatyczny"
 
 
 msgid "Handle 2"
@@ -6028,10 +6032,6 @@ msgid "Onion Skinning"
 msgstr "Pokrywanie wielowarstwowe"
 
 
-msgid "Layer"
-msgstr "Warstwa"
-
-
 msgid "Window"
 msgstr "Okno"
 
@@ -6407,6 +6407,10 @@ msgid "Sigma"
 msgstr "Sigma"
 
 
+msgid "Flat"
+msgstr "Płaskie"
+
+
 msgid "Add a constraint to the active object"
 msgstr "Dodaj ogranicznik do aktywnego obiektu"
 
@@ -6546,10 +6550,6 @@ msgid "3D"
 msgstr "3D"
 
 
-msgid "Flat"
-msgstr "Płaskie"
-
-
 msgid "Animated"
 msgstr "Animowana"
 
@@ -6618,6 +6618,54 @@ msgstr "Płaskie"
 
 msgid "Layer:"
 msgstr "Warstwa:"
+
+
+msgid "<No ID pointer>"
+msgstr "<Brak wskaźników ID>"
+
+
+msgid "<Missing ID block>"
+msgstr "<Brak bloku ID>"
+
+
+msgid "No F-Curve to add keyframes to"
+msgstr "Brak krzywej-F, do której można dodać klatki kluczowe"
+
+
+msgid "No RNA pointer available to retrieve values for keyframing from"
+msgstr "Brak dostępnego wskaźnika RNA, z którego można odzyskać wartości kluczowania"
+
+
+msgid "No ID block and/or AnimData to delete keyframe from"
+msgstr "Brak bloku ID i/lub AnimData, z którego można usunąć klatki kluczowe"
+
+
+msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Nie można było wstawić klatki kluczowej ponieważ ścieżka ID jest nieprawidłowa dla danego ID (ID = %s, path = %s)"
+
+
+msgid "No ID block to insert keyframe in (path = %s)"
+msgstr "Brak bloku ID, w którym można wstawić klatkę kluczową (path = %s)"
+
+
+msgid "Could not insert keyframe, as this type does not support animation data (ID = %s, path = %s)"
+msgstr "Nie można było wstawić klatki kluczowej ponieważ ten typ nie obsługuje danych animacji (ID = %s, path = %s)"
+
+
+msgid "Could not delete keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Nie można było usunąć klatki kluczowej, ścieżka RNA jest nieprawidłowa dla podanego ID (ID = %s, path = %s)"
+
+
+msgid "No action to delete keyframes from for ID = %s"
+msgstr "Brak akcji do usunięcia klatek kluczowych dla ID = %s"
+
+
+msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
+msgstr "Nie można usunąć klatki kluczowej dla zablokowanej krzywej-F '%s' dla %s '%s'"
+
+
+msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Nie można było wyczyścić klatki kluczowej, ścieżka RNA jest nieprawidłowa dla podanego ID (ID = %s, path = %s)"
 
 
 msgid "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will be done! You may want to re-save your lib file with current Blender"
@@ -6736,10 +6784,6 @@ msgstr "WarstwaMaski"
 
 msgid "Tangent space can only be computed for tris/quads, aborting"
 msgstr "Przestrzeń styczna może być wyliczona jedynie dla trójkątów/czworokątów, przerywam"
-
-
-msgid "Tangent space computation needs loop normals, none found, aborting"
-msgstr "Kalkulacja przestrzeni stycznej wymaga pętli normalnych, żadna nie odnaleziona, przerywam"
 
 
 msgid "NlaTrack"
@@ -7107,26 +7151,6 @@ msgid "Delete envelope control point"
 msgstr "Usuń punkt kontrolny otoczki"
 
 
-msgid "<No ID pointer>"
-msgstr "<Brak wskaźników ID>"
-
-
-msgid "<Missing ID block>"
-msgstr "<Brak bloku ID>"
-
-
-msgid "No F-Curve to add keyframes to"
-msgstr "Brak krzywej-F, do której można dodać klatki kluczowe"
-
-
-msgid "No RNA pointer available to retrieve values for keyframing from"
-msgstr "Brak dostępnego wskaźnika RNA, z którego można odzyskać wartości kluczowania"
-
-
-msgid "No ID block and/or AnimData to delete keyframe from"
-msgstr "Brak bloku ID i/lub AnimData, z którego można usunąć klatki kluczowe"
-
-
 msgid "No suitable context info for active keying set"
 msgstr "Brak pasującej informacji kontekstu dla aktywnego zestawu kluczowania"
 
@@ -7145,38 +7169,6 @@ msgstr "Ustanowienie ścieżki do właściwości nie powiodło się, spróbuj r�
 
 msgid "No active Keying Set"
 msgstr "Brak aktywnego Zestawu Kluczowania"
-
-
-msgid "F-Curve with path '%s[%d]' cannot be keyframed, ensure that it is not locked or sampled, and try removing F-Modifiers"
-msgstr "Na krzywej-F ze ścieżką '%s[%d]' nie można wstawiać klatek kluczowych, upewnij się, że nie jest ona zablokowana lub próbkowana i spróbuj usunąć Modyfikatory-F"
-
-
-msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Nie można było wstawić klatki kluczowej ponieważ ścieżka ID jest nieprawidłowa dla danego ID (ID = %s, path = %s)"
-
-
-msgid "No ID block to insert keyframe in (path = %s)"
-msgstr "Brak bloku ID, w którym można wstawić klatkę kluczową (path = %s)"
-
-
-msgid "Could not insert keyframe, as this type does not support animation data (ID = %s, path = %s)"
-msgstr "Nie można było wstawić klatki kluczowej ponieważ ten typ nie obsługuje danych animacji (ID = %s, path = %s)"
-
-
-msgid "Could not delete keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Nie można było usunąć klatki kluczowej, ścieżka RNA jest nieprawidłowa dla podanego ID (ID = %s, path = %s)"
-
-
-msgid "No action to delete keyframes from for ID = %s"
-msgstr "Brak akcji do usunięcia klatek kluczowych dla ID = %s"
-
-
-msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
-msgstr "Nie można usunąć klatki kluczowej dla zablokowanej krzywej-F '%s' dla %s '%s'"
-
-
-msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Nie można było wyczyścić klatki kluczowej, ścieżka RNA jest nieprawidłowa dla podanego ID (ID = %s, path = %s)"
 
 
 msgid "Keying set '%s' - successfully added %d keyframes"
@@ -7812,6 +7804,10 @@ msgid "Browse Particle Settings to be linked"
 msgstr "Przeglądaj dane cząstek do powiązania"
 
 
+msgid "Browse Grease Pencil Data to be linked"
+msgstr "Przeglądaj dane szkicownika do powiązania"
+
+
 msgid "Browse Movie Clip to be linked"
 msgstr "Przeglądaj klipy filmowe do powiązania"
 
@@ -7826,10 +7822,6 @@ msgstr "Przeglądaj dane palety do powiązania"
 
 msgid "Browse Paint Curve Data to be linked"
 msgstr "Przeglądaj dane krzywej malowania do powiązania"
-
-
-msgid "Browse Grease Pencil Data to be linked"
-msgstr "Przeglądaj dane szkicownika do powiązania"
 
 
 msgid "Browse ID data to be linked"

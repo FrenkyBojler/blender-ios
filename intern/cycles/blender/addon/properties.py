@@ -222,7 +222,8 @@ enum_guiding_directional_sampling_types = (
 def enum_openimagedenoise_denoiser(self, context):
     import _cycles
     if _cycles.with_openimagedenoise:
-        return [('OPENIMAGEDENOISE', "OpenImageDenoise", "Use Intel OpenImageDenoise AI denoiser running on the CPU", 4)]
+        return [('OPENIMAGEDENOISE', "OpenImageDenoise",
+                 "Use Intel OpenImageDenoise AI denoiser", 4)]
     return []
 
 
@@ -1013,12 +1014,6 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
         default="AUTO",
     )
 
-    use_transparent_shadow: BoolProperty(
-        name="Transparent Shadows",
-        description="Use transparent shadows for this material if it contains a Transparent BSDF, "
-        "disabling will render faster but not give accurate shadows",
-        default=True,
-    )
     use_bump_map_correction: BoolProperty(
         name="Bump Map Correction",
         description="Apply corrections to solve shadow terminator artifacts caused by bump mapping",
@@ -1480,7 +1475,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     metalrt: EnumProperty(
         name="MetalRT",
         description="MetalRT for ray tracing uses less memory for scenes which use curves extensively, and can give better "
-                    "performance in specific cases.",
+                    "performance in specific cases",
         default='AUTO',
         items=(
             ('OFF', "Off", "Disable MetalRT (uses BVH2 layout for intersection queries)"),

@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Beta (b'd2b86610f058')\n"
+"Project-Id-Version: Blender 4.1.0 Alpha (b'7ce745a76b47')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-10-23 09:18:46\n"
-"PO-Revision-Date: 2023-10-19 17:54+0000\n"
+"POT-Creation-Date: 2023-11-20 11:21:26\n"
+"PO-Revision-Date: 2023-11-16 03:55+0000\n"
 "Last-Translator: Isaac Gicheha <shwaky3@gmail.com>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
 "Language: sw\n"
@@ -315,14 +315,6 @@ msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader f
 msgstr "HIP RT huwezesha ufuatiliaji wa miale ya maunzi ya AMD kwenye RDNA2 na hapo juu, na urejesho wa shader kwenye kadi za zamani. Kipengele hiki ni cha majaribio na baadhi ya matukio yanaweza kutoa kimakosa"
 
 
-msgid "MetalRT (Experimental)"
-msgstr "MetalRT (Majaribio)"
-
-
-msgid "MetalRT for ray tracing uses less memory for scenes which use curves extensively, and can give better performance in specific cases. However this support is experimental and some scenes may render incorrectly"
-msgstr "MetalRT kwa ufuatiliaji wa miale hutumia kumbukumbu kidogo kwa matukio ambayo hutumia mikunjo sana, na inaweza kutoa utendakazi bora katika matukio mahususi. Hata hivyo usaidizi huu ni wa majaribio na baadhi ya matukio yanaweza kutoa kimakosa"
-
-
 msgid "Embree on GPU"
 msgstr "Embree kwenye GPU"
 
@@ -511,6 +503,10 @@ msgid "All Add-ons"
 msgstr "Viongezi vyote"
 
 
+msgid "Rotates each hair curve around an axis"
+msgstr "Huzungusha kila curve ya nywele kuzunguka mhimili"
+
+
 msgid "Smooth Hair Curves"
 msgstr "Lainisha nywele"
 
@@ -533,4 +529,8 @@ msgstr "Punguza mikunjo ya Nywele"
 
 msgid "Trims or scales hair curves to a certain length"
 msgstr "Hupunguza nywele kwa urefu fulani"
+
+
+msgid "Smooth by Angle"
+msgstr "Lainisha kwa Pembe"
 

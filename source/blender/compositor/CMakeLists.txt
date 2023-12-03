@@ -22,7 +22,6 @@ if(WITH_COMPOSITOR_CPU)
     ../render
     ../render/intern
     ../../../extern/clew/include
-    ../../../intern/clog
 
     # RNA_prototypes.h
     ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -359,6 +358,8 @@ if(WITH_COMPOSITOR_CPU)
     operations/COM_PosterizeOperation.h
     operations/COM_SMAAOperation.cc
     operations/COM_SMAAOperation.h
+    operations/COM_SummedAreaTableOperation.cc
+    operations/COM_SummedAreaTableOperation.h
     operations/COM_VariableSizeBokehBlurOperation.cc
     operations/COM_VariableSizeBokehBlurOperation.h
 
@@ -599,6 +600,7 @@ if(WITH_COMPOSITOR_CPU)
     bf_blenkernel
     PRIVATE bf::blenlib
     PRIVATE bf::dna
+    PRIVATE bf::intern::clog
     PRIVATE bf::intern::guardedalloc
     extern_clew
     PRIVATE bf::intern::atomic
@@ -664,6 +666,7 @@ if(WITH_COMPOSITOR_CPU)
       tests/COM_BufferArea_test.cc
       tests/COM_BufferRange_test.cc
       tests/COM_BuffersIterator_test.cc
+      tests/COM_ComputeSummedAreaTableOperation_test.cc
       tests/COM_NodeOperation_test.cc
     )
     set(TEST_INC
