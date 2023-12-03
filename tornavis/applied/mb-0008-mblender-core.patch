@@ -1,0 +1,603 @@
+diff --git a/scripts/modules/bpy/utils/__init__.py b/scripts/modules/bpy/utils/__init__.py
+index 94b7394971b..81a438ce8ac 100644
+--- a/scripts/modules/bpy/utils/__init__.py
++++ b/scripts/modules/bpy/utils/__init__.py
+@@ -66,7 +66,7 @@ _preferences = _bpy.context.preferences
+ _is_factory_startup = _bpy.app.factory_startup
+ 
+ # Directories added to the start of `sys.path` for all of Blender's "scripts" directories.
+-_script_module_dirs = "startup", "modules"
++_script_module_dirs = "startup", "modules","mblender"
+ 
+ # Base scripts, this points to the directory containing: "modules" & "startup" (see `_script_module_dirs`).
+ # In Blender's code-base this is `./scripts`.
+@@ -308,6 +308,10 @@ def load_scripts(*, reload_scripts=False, refresh_scripts=False, extensions=True
+                         for mod in modules_from_path(path, loaded_modules):
+                             test_register(mod)
+ 
++                    if path_subdir == "mblender":
++                        for mod in modules_from_path(path, loaded_modules):
++                            test_register(mod)
++
+     if reload_scripts:
+         # Update key-maps for key-map items referencing operators defined in "startup".
+         # Without this, key-map items wont be set properly, see: #113309.
+diff --git a/source/blender/CMakeLists.txt b/source/blender/CMakeLists.txt
+index b6aa0d1d8b8..16fe066cfd5 100644
+--- a/source/blender/CMakeLists.txt
++++ b/source/blender/CMakeLists.txt
+@@ -159,6 +159,7 @@ add_subdirectory(functions)
+ add_subdirectory(makesdna)
+ add_subdirectory(makesrna)
+ add_subdirectory(compositor)
++add_subdirectory(tornavis)
+ 
+ if(WITH_BLENDER_THUMBNAILER)
+   add_subdirectory(blendthumb)
+diff --git a/source/blender/python/intern/CMakeLists.txt b/source/blender/python/intern/CMakeLists.txt
+index c1877cbef78..9211756128f 100644
+--- a/source/blender/python/intern/CMakeLists.txt
++++ b/source/blender/python/intern/CMakeLists.txt
+@@ -16,6 +16,7 @@ set(INC
+   ../../windowmanager
+   ../../../../intern/mantaflow/extern
+   ../../../../intern/opencolorio
++  ../../tornavis
+   # RNA_prototypes.h
+   ${CMAKE_BINARY_DIR}/source/blender/makesrna
+ )
+@@ -40,6 +41,7 @@ set(SRC
+   bpy_app_timers.cc
+   bpy_app_translations.cc
+   bpy_app_usd.cc
++  bpy_app_tornavis.cc
+   bpy_capi_utils.cc
+   bpy_driver.cc
+   bpy_gizmo_wrap.cc
+@@ -87,6 +89,7 @@ set(SRC
+   bpy_app_timers.h
+   bpy_app_translations.h
+   bpy_app_usd.h
++  bpy_app_tornavis.h
+   bpy_capi_utils.h
+   bpy_driver.h
+   bpy_gizmo_wrap.h
+@@ -128,6 +131,7 @@ set(LIB
+   PRIVATE bf::intern::guardedalloc
+   PRIVATE bf::animrig
+   bf_python_gpu
++  tornavis
+ 
+   ${PYTHON_LINKFLAGS}
+   ${PYTHON_LIBRARIES}
+diff --git a/source/blender/python/intern/bpy_app.cc b/source/blender/python/intern/bpy_app.cc
+index 8de87fba1be..d8f3751aeed 100644
+--- a/source/blender/python/intern/bpy_app.cc
++++ b/source/blender/python/intern/bpy_app.cc
+@@ -23,6 +23,7 @@
+ #include "bpy_app_openvdb.h"
+ #include "bpy_app_sdl.h"
+ #include "bpy_app_usd.h"
++#include "bpy_app_tornavis.h"
+ 
+ #include "bpy_app_translations.h"
+ 
+@@ -116,6 +117,7 @@ static PyStructSequence_Field app_info_fields[] = {
+     {"build_options", "A set containing most important enabled optional build features"},
+     {"handlers", "Application handler callbacks"},
+     {"translations", "Application and addons internationalization API"},
++    {"tornavis", "Tornavis options"},
+ 
+     /* Modules (not struct sequence). */
+     {"icons", "Manage custom icons"},
+@@ -200,6 +202,7 @@ static PyObject *make_app_info()
+   SetObjItem(BPY_app_build_options_struct());
+   SetObjItem(BPY_app_handlers_struct());
+   SetObjItem(BPY_app_translations_struct());
++  SetObjItem(BPY_app_tornavis_struct());
+ 
+   /* modules */
+   SetObjItem(BPY_app_icons_module());
+diff --git a/source/blender/python/intern/bpy_app_tornavis.cc b/source/blender/python/intern/bpy_app_tornavis.cc
+new file mode 100644
+index 00000000000..7ce746e3c27
+--- /dev/null
++++ b/source/blender/python/intern/bpy_app_tornavis.cc
+@@ -0,0 +1,71 @@
++/* SPDX-FileCopyrightText: 2023 Blender Authors
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later */
++
++/** \file
++ * \ingroup pythonintern
++ */
++
++#include <Python.h>
++
++#include "BLI_utildefines.h"
++
++#include "bpy_app_tornavis.h"
++
++#include "MB_tornavis.h"
++
++static PyTypeObject BlenderAppTornavisType;
++
++static PyStructSequence_Field app_tornavis_info_fields[] = {
++    {"patches", nullptr},
++    {nullptr},
++};
++
++static PyStructSequence_Desc app_tornavis_info_desc = {
++    "bpy.app.tornavis",                                                /* name */
++    "This module contains options about tornavis project", /* doc */
++    app_tornavis_info_fields,                                              /* fields */
++    ARRAY_SIZE(app_tornavis_info_fields) - 1,
++};
++
++static PyObject *make_tornavis_info()
++{
++  PyObject *tornavis_info;
++  PyObject *list;
++  int pos=0;
++  char *patch = nullptr;
++  
++  tornavis_info = PyStructSequence_New(&BlenderAppTornavisType);
++  if (tornavis_info == nullptr) {
++    return nullptr;
++  }
++  
++  list = PyList_New(0);
++  
++  PyStructSequence_SET_ITEM(tornavis_info, pos++, list);
++  
++  
++  for (int i =0 ; (patch = MB_patch_get(i)); i++) {
++    PyList_Append(list, PyUnicode_FromString(patch));
++  }
++  
++
++  return tornavis_info;
++}
++
++PyObject *BPY_app_tornavis_struct()
++{
++  PyObject *ret;
++
++  PyStructSequence_InitType(&BlenderAppTornavisType, &app_tornavis_info_desc);
++
++  ret = make_tornavis_info();
++
++  /* prevent user from creating new instances */
++  BlenderAppTornavisType.tp_init = nullptr;
++  BlenderAppTornavisType.tp_new = nullptr;
++  /* Without this we can't do `set(sys.modules)` #29635. */
++  BlenderAppTornavisType.tp_hash = (hashfunc)_Py_HashPointer;
++
++  return ret;
++}
+diff --git a/source/blender/python/intern/bpy_app_tornavis.h b/source/blender/python/intern/bpy_app_tornavis.h
+new file mode 100644
+index 00000000000..9ba8fb5bccc
+--- /dev/null
++++ b/source/blender/python/intern/bpy_app_tornavis.h
+@@ -0,0 +1,19 @@
++/* SPDX-FileCopyrightText: 2023 Blender Authors
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later */
++
++/** \file
++ * \ingroup pythonintern
++ */
++
++#pragma once
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++PyObject *BPY_app_tornavis_struct(void);
++
++#ifdef __cplusplus
++}
++#endif
+diff --git a/source/blender/tornavis/CMakeLists.txt b/source/blender/tornavis/CMakeLists.txt
+new file mode 100644
+index 00000000000..c71ba11d11f
+--- /dev/null
++++ b/source/blender/tornavis/CMakeLists.txt
+@@ -0,0 +1,45 @@
++#
++#
++#
++
++
++set(INC
++  .
++  ../blenlib
++)
++
++set(LIB
++  PRIVATE bf::blenlib
++)
++
++
++if(WITH_BOOST)
++  list(APPEND INC_SYS
++    ${BOOST_INCLUDE_DIR}
++  )
++else()
++	message (FATAL_ERROR "tornavis requires WITH_BOOST")
++endif()
++
++# Auto fill source files, so patches will not touch that file
++file(GLOB sources "MB_*")
++foreach(source ${sources})
++  get_filename_component(name ${source} NAME)
++  list(APPEND SRC "${name}")
++endforeach()
++
++# Generate a Definition for each found patch
++file(GLOB patches "patches/*")
++ foreach(patch ${patches})
++  get_filename_component(def ${patch} NAME_WE)
++  get_filename_component(name ${patch} NAME)
++  if (${name} MATCHES "^MB_[0-9][0-9][0-9][0-9]\.h$" )
++    add_definitions(-D${def})
++    list(APPEND SRC "patches/${name}")
++  else()
++    message (FATAL_ERROR  "invalid patch file ${name}")
++  endif ()
++endforeach()
++
++
++blender_add_lib(tornavis "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+diff --git a/source/blender/tornavis/MB_patches.h b/source/blender/tornavis/MB_patches.h
+new file mode 100644
+index 00000000000..874202928dc
+--- /dev/null
++++ b/source/blender/tornavis/MB_patches.h
+@@ -0,0 +1,149 @@
++#ifndef MB_BLENDER_PATCHES_H
++#define MB_BLENDER_PATCHES_H
++
++#ifdef MB_0001
++#include "patches/MB_0001.h"
++#define MB_0001_APPLIED 1
++#else
++#define MB_0001_APPLIED 0
++#endif
++
++#ifdef MB_0002
++#include "patches/MB_0002.h"
++#define MB_0002_APPLIED 1
++#else
++#define MB_0002_APPLIED 0
++#endif
++
++#ifdef MB_0003
++#include "patches/MB_0003.h"
++#define MB_0003_APPLIED 1
++#else
++#  define MB_0003_APPLIED 0
++#endif
++
++#ifdef MB_0004
++#include "patches/MB_0004.h"
++#define MB_0004_APPLIED 1
++#else
++#  define MB_0004_APPLIED 0
++#endif
++
++#ifdef MB_0005
++#include "patches/MB_0005.h"
++#define MB_0005_APPLIED 1
++#else
++# define MB_0005_APPLIED 0
++#endif
++
++#ifdef MB_0006
++#include "patches/MB_0006.h"
++#define MB_0006_APPLIED 1
++#else
++#define MB_0006_APPLIED 0
++#endif
++
++#ifdef MB_0007
++#include "patches/MB_0007.h"
++#define MB_0007_APPLIED 1
++#else
++#define MB_0007_APPLIED 0
++#endif
++
++#ifdef MB_0008
++#include "patches/MB_0008.h"
++#define MB_0008_APPLIED 1
++#else
++#define MB_0008_APPLIED 0
++#endif
++
++#ifdef MB_0009
++#include "patches/MB_0009.h"
++#define MB_0009_APPLIED 1
++#else
++#define MB_0009_APPLIED 0
++#endif
++
++#ifdef MB_0010
++#include "patches/MB_0010.h"
++#define MB_0010_APPLIED 1
++#else
++#define MB_0010_APPLIED 0
++#endif
++
++#ifdef MB_0011
++#include "patches/MB_0011.h"
++#define MB_0011_APPLIED 1
++#else
++#define MB_0011_APPLIED 0
++#endif
++
++#ifdef MB_0012
++#include "patches/MB_0012.h"
++#define MB_0012_APPLIED 1
++#else
++#define MB_0012_APPLIED 0
++#endif
++
++#ifdef MB_0013
++#include "patches/MB_0013.h"
++#define MB_0013_APPLIED 1
++#else
++#define MB_0013_APPLIED 0
++#endif
++
++#ifdef MB_0014
++#include "patches/MB_0014.h"
++#define MB_0014_APPLIED 1
++#else
++#define MB_0014_APPLIED 0
++#endif
++
++#ifdef MB_0015
++#include "patches/MB_0015.h"
++#define MB_0015_APPLIED 1
++#else
++#define MB_0015_APPLIED 0
++#endif
++
++#ifdef MB_0016
++#include "patches/MB_0016.h"
++#define MB_0016_APPLIED 1
++#else
++#define MB_0016_APPLIED 0
++#endif
++
++#ifdef MB_0017
++#include "patches/MB_0017.h"
++#define MB_0017_APPLIED 1
++#else
++#define MB_0017_APPLIED 0
++#endif
++
++#ifdef MB_0018
++#include "patches/MB_0018.h"
++#define MB_0018_APPLIED 1
++#else
++#define MB_0018_APPLIED 0
++#endif
++
++#ifdef MB_0019
++#include "patches/MB_0019.h"
++#define MB_0019_APPLIED 1
++#else
++#define MB_0019_APPLIED 0
++#endif
++
++#ifdef MB_0020
++#include "patches/MB_0020.h"
++#define MB_0020_APPLIED 1
++#else
++#define MB_0020_APPLIED 0
++#endif
++
++#ifndef MB_0021
++#define MAX_MB_PATCHES 21
++#endif
++
++
++#endif // !MB_BLENDER_PATCHES_H
+diff --git a/source/blender/tornavis/MB_tornavis.cc b/source/blender/tornavis/MB_tornavis.cc
+new file mode 100644
+index 00000000000..6133a748795
+--- /dev/null
++++ b/source/blender/tornavis/MB_tornavis.cc
+@@ -0,0 +1,68 @@
++/**
++ *
++ */
++
++#include "MB_patches.h"
++
++#include <boost/preprocessor/if.hpp>
++
++#include <BLI_assert.h>
++
++#include <stdio.h>
++#include <string.h>
++
++char patches[MAX_MB_PATCHES][8] = {0};
++
++void MB_patches_discover()
++{
++    int i = 0;
++
++    BOOST_PP_IF(MB_0001_APPLIED, strcpy(patches[i++], "MB_0001"), );
++    BOOST_PP_IF(MB_0002_APPLIED, strcpy(patches[i++], "MB_0002"), );
++    BOOST_PP_IF(MB_0003_APPLIED, strcpy(patches[i++], "MB_0003"), );
++    BOOST_PP_IF(MB_0004_APPLIED, strcpy(patches[i++], "MB_0004"), );
++    BOOST_PP_IF(MB_0005_APPLIED, strcpy(patches[i++], "MB_0005"), );
++    BOOST_PP_IF(MB_0006_APPLIED, strcpy(patches[i++], "MB_0006"), );
++    BOOST_PP_IF(MB_0007_APPLIED, strcpy(patches[i++], "MB_0007"), );
++    BOOST_PP_IF(MB_0008_APPLIED, strcpy(patches[i++], "MB_0008"), );
++    BOOST_PP_IF(MB_0009_APPLIED, strcpy(patches[i++], "MB_0009"), );
++    BOOST_PP_IF(MB_0010_APPLIED, strcpy(patches[i++], "MB_0010"), );
++    BOOST_PP_IF(MB_0011_APPLIED, strcpy(patches[i++], "MB_0011"), );
++    BOOST_PP_IF(MB_0012_APPLIED, strcpy(patches[i++], "MB_0012"), );
++    BOOST_PP_IF(MB_0013_APPLIED, strcpy(patches[i++], "MB_0013"), );
++    BOOST_PP_IF(MB_0014_APPLIED, strcpy(patches[i++], "MB_0014"), );
++    BOOST_PP_IF(MB_0015_APPLIED, strcpy(patches[i++], "MB_0015"), );
++    BOOST_PP_IF(MB_0016_APPLIED, strcpy(patches[i++], "MB_0016"), );
++    BOOST_PP_IF(MB_0017_APPLIED, strcpy(patches[i++], "MB_0017"), );
++    BOOST_PP_IF(MB_0018_APPLIED, strcpy(patches[i++], "MB_0018"), );
++    BOOST_PP_IF(MB_0019_APPLIED, strcpy(patches[i++], "MB_0019"), );
++    BOOST_PP_IF(MB_0020_APPLIED, strcpy(patches[i++], "MB_0020"), );
++
++    // Not necessary becuase initialitzed to {0}
++    strcpy(patches[i++], "\0");
++
++    return;
++}
++
++void MB_init(void) {
++    MB_patches_discover();
++}
++
++char* MB_patch_get(int pos) {
++  BLI_assert(pos < MAX_MB_PATCHES);
++  return *patches[pos] == '\0' ? nullptr : patches[pos];
++}
++
++void MB_print_info()
++{
++    printf("%s", "Tornavis Info\n");
++    printf("%s", "---------------------\n");
++    for (int i = 0; i < MAX_MB_PATCHES; i++) {
++        if (*patches[i] == '\0') {
++            break;
++        }
++        printf("Applied Patch %s\n", patches[i]);
++    }
++    printf("%s", "---------------------\n");
++}
++
+diff --git a/source/blender/tornavis/MB_tornavis.h b/source/blender/tornavis/MB_tornavis.h
+new file mode 100644
+index 00000000000..48600d9aada
+--- /dev/null
++++ b/source/blender/tornavis/MB_tornavis.h
+@@ -0,0 +1,13 @@
++/**
++ *
++ */
++
++#ifndef MB_BLENDER_H
++#define MB_BLENDER_H
++
++void MB_init(void);
++void MB_patches_discover(void);
++char* MB_patch_get(int pos);
++void MB_print_info(void);
++
++#endif
+diff --git a/source/blender/tornavis/patches/MB_0008.h b/source/blender/tornavis/patches/MB_0008.h
+new file mode 100644
+index 00000000000..8ac91a5f12f
+--- /dev/null
++++ b/source/blender/tornavis/patches/MB_0008.h
+@@ -0,0 +1 @@
++/* Empty file */
+diff --git a/source/creator/CMakeLists.txt b/source/creator/CMakeLists.txt
+index ec755cb3f46..ea59b5b6148 100644
+--- a/source/creator/CMakeLists.txt
++++ b/source/creator/CMakeLists.txt
+@@ -13,6 +13,7 @@ set(INC
+   ../blender/makesrna
+   ../blender/render
+   ../blender/windowmanager
++  ../blender/tornavis
+ )
+ 
+ set(LIB
+@@ -21,6 +22,7 @@ set(LIB
+   PRIVATE bf::intern::clog
+   PRIVATE bf::intern::guardedalloc
+   bf_windowmanager
++  tornavis
+ )
+ 
+ if(HAVE_FEENABLEEXCEPT)
+@@ -477,6 +479,13 @@ install(
+   DESTINATION ${TARGETDIR_VER}/datafiles
+ )
+ 
++#tornavis
++install(
++  DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/tornavis
++  DESTINATION ${TARGETDIR_VER}/datafiles
++)
++
++
+ # localization
+ if(WITH_INTERNATIONAL)
+   set(_locale_dir "${CMAKE_SOURCE_DIR}/locale")
+diff --git a/source/creator/creator.cc b/source/creator/creator.cc
+index 70c7003661d..1cba21fbaaf 100644
+--- a/source/creator/creator.cc
++++ b/source/creator/creator.cc
+@@ -57,6 +57,8 @@
+ #include "BKE_vfont.h"
+ #include "BKE_volume.hh"
+ 
++#include "MB_tornavis.h"
++
+ #ifndef WITH_PYTHON_MODULE
+ #  include "BLI_args.h"
+ #endif
+@@ -486,6 +488,8 @@ int main(int argc,
+   /* After parsing number of threads argument. */
+   BLI_task_scheduler_init();
+ 
++  MB_init();
++
+ #ifndef WITH_PYTHON_MODULE
+   /* The settings pass includes:
+    * - Background-mode assignment (#Global.background), checked by other subsystems
+diff --git a/source/creator/creator_args.cc b/source/creator/creator_args.cc
+index b13875d19de..7d19eac80f1 100644
+--- a/source/creator/creator_args.cc
++++ b/source/creator/creator_args.cc
+@@ -47,6 +47,8 @@
+ 
+ #  include "GPU_context.h"
+ 
++#  include "MB_tornavis.h"
++
+ #  ifdef WITH_FFMPEG
+ #    include "IMB_imbuf.h"
+ #  endif
+@@ -1478,6 +1480,16 @@ static int arg_handle_start_with_console(int /*argc*/, const char ** /*argv*/, v
+   return 0;
+ }
+ 
++
++static const char arg_handle_tornavis_info_doc[] =
++    "\n\t"
++    "Shows Tornavis project info on loading.";
++static int arg_handle_tornavis_info(int /*argc*/, const char ** /*argv*/, void * /*data*/)
++{
++  MB_print_info();
++  return 0;
++}
++
+ static const char arg_handle_register_extension_doc[] =
+     "\n\t"
+     "Register blend-file extension for current user, then exit (Windows only).";
+@@ -2522,6 +2534,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
+ 
+   BLI_args_add(ba, nullptr, "--open-last", CB(arg_handle_load_last_file), C);
+ 
++  BLI_args_add(ba, nullptr, "--tornavis-info", CB(arg_handle_tornavis_info), nullptr);
++
+ #  undef CB
+ #  undef CB_EX
+ #  undef CB_ALL

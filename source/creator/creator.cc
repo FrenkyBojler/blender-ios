@@ -57,6 +57,8 @@
 #include "BKE_vfont.h"
 #include "BKE_volume.hh"
 
+#include "MB_tornavis.h"
+
 #ifndef WITH_PYTHON_MODULE
 #  include "BLI_args.h"
 #endif
@@ -485,6 +487,8 @@ int main(int argc,
 
   /* After parsing number of threads argument. */
   BLI_task_scheduler_init();
+
+  MB_init();
 
 #ifndef WITH_PYTHON_MODULE
   /* The settings pass includes:

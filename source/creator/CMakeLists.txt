@@ -13,6 +13,7 @@ set(INC
   ../blender/makesrna
   ../blender/render
   ../blender/windowmanager
+  ../blender/tornavis
 )
 
 set(LIB
@@ -21,6 +22,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_windowmanager
+  tornavis
 )
 
 if(HAVE_FEENABLEEXCEPT)
@@ -476,6 +478,13 @@ install(
   DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/fonts
   DESTINATION ${TARGETDIR_VER}/datafiles
 )
+
+#tornavis
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/tornavis
+  DESTINATION ${TARGETDIR_VER}/datafiles
+)
+
 
 # localization
 if(WITH_INTERNATIONAL)
