@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include "BLI_math_bits.h"
+
 #include "DRW_render.h"
 #include "draw_shader_shared.h"
 
@@ -175,6 +177,10 @@ struct DeferredLayerBase {
   PassMain::Sub *prepass_double_sided_moving_ps_ = nullptr;
 
   PassMain gbuffer_ps_ = {"Shading"};
+  /* Shaders that use the ClosureToRGBA node needs to be rendered first.
+   * Consider they hybrid forward and deferred. */
+  PassMain::Sub *gbuffer_single_sided_hybrid_ps_ = nullptr;
+  PassMain::Sub *gbuffer_double_sided_hybrid_ps_ = nullptr;
   PassMain::Sub *gbuffer_single_sided_ps_ = nullptr;
   PassMain::Sub *gbuffer_double_sided_ps_ = nullptr;
 
@@ -184,16 +190,18 @@ struct DeferredLayerBase {
   /* Return the amount of gbuffer layer needed. */
   int closure_layer_count() const
   {
-    return count_bits_i(closure_bits_ &
-                        (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_DIFFUSE | CLOSURE_SSS));
+    return count_bits_i(closure_bits_ & (CLOSURE_REFRACTION | CLOSURE_REFLECTION |
+                                         CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT | CLOSURE_SSS));
   }
 
   /* Return the amount of gbuffer layer needed. */
   int color_layer_count() const
   {
-    return count_bits_i(closure_bits_ &
-                        (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_DIFFUSE));
+    return count_bits_i(closure_bits_ & (CLOSURE_REFRACTION | CLOSURE_REFLECTION |
+                                         CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
   }
+
+  void gbuffer_pass_sync(Instance &inst);
 };
 
 class DeferredPipeline;
@@ -544,8 +552,11 @@ class PlanarProbePipeline : DeferredLayerBase {
   PassMain::Sub *prepass_add(::Material *material, GPUMaterial *gpumat);
   PassMain::Sub *material_add(::Material *material, GPUMaterial *gpumat);
 
-  void render(
-      View &view, Framebuffer &gbuffer, Framebuffer &combined_fb, int layer_id, int2 extent);
+  void render(View &view,
+              GPUTexture *depth_layer_tx,
+              Framebuffer &gbuffer,
+              Framebuffer &combined_fb,
+              int2 extent);
 };
 
 /** \} */
@@ -688,6 +699,7 @@ class PipelineModule {
 
   void begin_sync()
   {
+    data.is_probe_reflection = false;
     probe.begin_sync();
     planar.begin_sync();
     deferred.begin_sync();

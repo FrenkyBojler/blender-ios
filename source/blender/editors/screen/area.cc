@@ -985,10 +985,10 @@ static bool region_background_is_transparent(const ScrArea *area, const ARegion 
   return back[3] < 50;
 }
 
-#define AZONEPAD_EDGE (0.1f * U.widget_unit)
-#define AZONEPAD_ICON (0.45f * U.widget_unit)
 static void region_azone_edge(const ScrArea *area, AZone *az, const ARegion *region)
 {
+  const int azonepad_edge = (0.1f * U.widget_unit);
+
   /* If there is no visible region background, users typically expect the #AZone to be closer to
    * the content, so move it a bit. */
   const int overlap_padding =
@@ -1004,26 +1004,26 @@ static void region_azone_edge(const ScrArea *area, AZone *az, const ARegion *reg
   switch (az->edge) {
     case AE_TOP_TO_BOTTOMRIGHT:
       az->x1 = region->winrct.xmin;
-      az->y1 = region->winrct.ymax - AZONEPAD_EDGE - overlap_padding;
+      az->y1 = region->winrct.ymax - azonepad_edge - overlap_padding;
       az->x2 = region->winrct.xmax;
-      az->y2 = region->winrct.ymax + AZONEPAD_EDGE - overlap_padding;
+      az->y2 = region->winrct.ymax + azonepad_edge - overlap_padding;
       break;
     case AE_BOTTOM_TO_TOPLEFT:
       az->x1 = region->winrct.xmin;
-      az->y1 = region->winrct.ymin + AZONEPAD_EDGE + overlap_padding;
+      az->y1 = region->winrct.ymin + azonepad_edge + overlap_padding;
       az->x2 = region->winrct.xmax;
-      az->y2 = region->winrct.ymin - AZONEPAD_EDGE + overlap_padding;
+      az->y2 = region->winrct.ymin - azonepad_edge + overlap_padding;
       break;
     case AE_LEFT_TO_TOPRIGHT:
-      az->x1 = region->winrct.xmin - AZONEPAD_EDGE + overlap_padding;
+      az->x1 = region->winrct.xmin - azonepad_edge + overlap_padding;
       az->y1 = region->winrct.ymin;
-      az->x2 = region->winrct.xmin + AZONEPAD_EDGE + overlap_padding;
+      az->x2 = region->winrct.xmin + azonepad_edge + overlap_padding;
       az->y2 = region->winrct.ymax;
       break;
     case AE_RIGHT_TO_TOPLEFT:
-      az->x1 = region->winrct.xmax + AZONEPAD_EDGE - overlap_padding;
+      az->x1 = region->winrct.xmax + azonepad_edge - overlap_padding;
       az->y1 = region->winrct.ymin;
-      az->x2 = region->winrct.xmax - AZONEPAD_EDGE - overlap_padding;
+      az->x2 = region->winrct.xmax - azonepad_edge - overlap_padding;
       az->y2 = region->winrct.ymax;
       break;
   }
@@ -1072,6 +1072,13 @@ static void region_azone_tab_plus(ScrArea *area, AZone *az, ARegion *region)
 static bool region_azone_edge_poll(const ARegion *region, const bool is_fullscreen)
 {
   if (region->flag & RGN_FLAG_POLL_FAILED) {
+    return false;
+  }
+
+  /* Don't use edge if the region hides with previous region which is now hidden. See #116196. */
+  if ((region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV) && region->prev) &&
+      region->prev->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL))
+  {
     return false;
   }
 

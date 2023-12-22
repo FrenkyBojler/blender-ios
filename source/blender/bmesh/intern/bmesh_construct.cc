@@ -18,7 +18,6 @@
 #include "BKE_customdata.hh"
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
@@ -319,25 +318,29 @@ void BM_verts_sort_radial_plane(BMVert **vert_arr, int len)
 
 void BM_elem_attrs_copy(BMesh *bm, const BMCustomDataCopyMap &map, const BMVert *src, BMVert *dst)
 {
+  BLI_assert(src != dst);
   CustomData_bmesh_copy_block(bm->vdata, map, src->head.data, &dst->head.data);
   dst->head.hflag = src->head.hflag & ~BM_ELEM_SELECT;
   copy_v3_v3(dst->no, src->no);
 }
 void BM_elem_attrs_copy(BMesh *bm, const BMCustomDataCopyMap &map, const BMEdge *src, BMEdge *dst)
 {
-  CustomData_bmesh_copy_block(bm->vdata, map, src->head.data, &dst->head.data);
+  BLI_assert(src != dst);
+  CustomData_bmesh_copy_block(bm->edata, map, src->head.data, &dst->head.data);
   dst->head.hflag = src->head.hflag & ~BM_ELEM_SELECT;
 }
 void BM_elem_attrs_copy(BMesh *bm, const BMCustomDataCopyMap &map, const BMFace *src, BMFace *dst)
 {
-  CustomData_bmesh_copy_block(bm->vdata, map, src->head.data, &dst->head.data);
+  BLI_assert(src != dst);
+  CustomData_bmesh_copy_block(bm->pdata, map, src->head.data, &dst->head.data);
   dst->head.hflag = src->head.hflag & ~BM_ELEM_SELECT;
   copy_v3_v3(dst->no, src->no);
   dst->mat_nr = src->mat_nr;
 }
 void BM_elem_attrs_copy(BMesh *bm, const BMCustomDataCopyMap &map, const BMLoop *src, BMLoop *dst)
 {
-  CustomData_bmesh_copy_block(bm->vdata, map, src->head.data, &dst->head.data);
+  BLI_assert(src != dst);
+  CustomData_bmesh_copy_block(bm->ldata, map, src->head.data, &dst->head.data);
   dst->head.hflag = src->head.hflag & ~BM_ELEM_SELECT;
 }
 
@@ -415,7 +418,7 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
   /* use totface in case adding some faces fails */
   BM_elem_index_set(f_new, (bm_new->totface - 1)); /* set_inline */
 
-  CustomData_bmesh_copy_block(bm_new->vdata, face_map, f->head.data, &f_new->head.data);
+  CustomData_bmesh_copy_block(bm_new->pdata, face_map, f->head.data, &f_new->head.data);
   copy_v3_v3(f_new->no, f->no);
   f_new->mat_nr = f->mat_nr;
   f_new->head.hflag = f->head.hflag; /* low level! don't do this for normal api use */
@@ -423,7 +426,7 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
   j = 0;
   l_iter = l_first = BM_FACE_FIRST_LOOP(f_new);
   do {
-    CustomData_bmesh_copy_block(bm_new->vdata, loop_map, loops[j]->head.data, &l_iter->head.data);
+    CustomData_bmesh_copy_block(bm_new->ldata, loop_map, loops[j]->head.data, &l_iter->head.data);
     l_iter->head.hflag = loops[j]->head.hflag & ~BM_ELEM_SELECT;
     j++;
   } while ((l_iter = l_iter->next) != l_first);
@@ -450,7 +453,7 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
     CustomData mesh_pdata = CustomData_shallow_copy_remove_non_bmesh_attributes(
         &me_src->face_data, CD_MASK_BMESH.pmask);
     CustomData mesh_ldata = CustomData_shallow_copy_remove_non_bmesh_attributes(
-        &me_src->loop_data, CD_MASK_BMESH.lmask);
+        &me_src->corner_data, CD_MASK_BMESH.lmask);
 
     if (i == 0) {
       CustomData_copy_layout(&mesh_vdata, &bm_dst->vdata, CD_MASK_BMESH.vmask, CD_SET_DEFAULT, 0);
