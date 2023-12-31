@@ -3861,6 +3861,8 @@ void BKE_image_backup_render(Scene *scene, Image *ima, bool free_current_slot, b
   if (last_slot && ima->render_slot != ima->last_render_slot) {
     last_slot->render = nullptr;
     RE_SwapResult(re, &last_slot->render);
+    //! save last slot to file, create BKE_renderslot_backup_to_file or something , probably using BKE_image_render_write_exr
+
 
     if (cur_slot->render) {
       if (free_current_slot) {
@@ -5609,6 +5611,8 @@ bool BKE_image_clear_renderslot(Image *ima, ImageUser *iuser, int slot)
   }
 
   RenderSlot *render_slot = static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, slot));
+
+  //! delete cache if it exists
   if (!render_slot) {
     return false;
   }
@@ -5622,7 +5626,13 @@ bool BKE_image_clear_renderslot(Image *ima, ImageUser *iuser, int slot)
 RenderSlot *BKE_image_get_renderslot(Image *ima, int index)
 {
   /* Can be null for images without render slots. */
-  return static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
+  RenderSlot *slot = static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
+
+  if (slot && !slot->render) {
+    //! load from exr file if it exists
+  }
+
+  return slot;
 }
 
 /** \} */
