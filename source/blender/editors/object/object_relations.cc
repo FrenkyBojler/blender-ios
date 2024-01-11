@@ -3181,7 +3181,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
         ob->data = nullptr;
       }
       else {
-        BKE_report(op->reports, RPT_ERROR, "Can't unlink this object data");
+        BKE_report(op->reports, RPT_ERROR, "Cannot unlink this object data");
         return OPERATOR_CANCELLED;
       }
     }
