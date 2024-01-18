@@ -3865,6 +3865,19 @@ void BKE_image_backup_render(Scene *scene, Image *ima, bool free_current_slot, b
     RE_SwapResult(re, &last_slot->render);
     //! save last slot to file, create BKE_renderslot_backup_to_file or something , probably using BKE_image_render_write_exr
 
+    // placeholder. abstract this away and generate name based on project name + slot
+    char buffer[1024];
+    sprintf(buffer, "/tmp/renderslot%d.exr", ima->last_render_slot);
+
+    //! need format from imagesaveopts BKE_image_save_options_init(&opts, bmain, scene, image, nullptr, false, true))  (so need bmain)
+    BKE_image_render_write_exr(NULL,
+                               last_slot->render,
+                               buffer,
+                                const ImageFormatData *imf,
+                                true,
+                                NULL,
+                                -1)
+
 
     if (cur_slot->render) {
       if (free_current_slot) {
