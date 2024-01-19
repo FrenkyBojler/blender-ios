@@ -71,9 +71,9 @@ TEST(imbuf_transform, nearest_subsample3_2x_smaller)
 {
   ImBuf *res = transform_2x_smaller(IMB_FILTER_NEAREST, 3);
   const ColorTheme4b *got = reinterpret_cast<ColorTheme4b *>(res->byte_buffer.data);
-  EXPECT_EQ(got[0], ColorTheme4b(226, 168, 113, 255));
-  EXPECT_EQ(got[1], ColorTheme4b(133, 55, 31, 16));
-  EXPECT_EQ(got[2], ColorTheme4b(55, 22, 64, 254));
+  EXPECT_EQ(got[0], ColorTheme4b(227, 170, 113, 255));
+  EXPECT_EQ(got[1], ColorTheme4b(133, 55, 31, 17));
+  EXPECT_EQ(got[2], ColorTheme4b(56, 22, 64, 253));
   IMB_freeImBuf(res);
 }
 
@@ -133,7 +133,7 @@ TEST(imbuf_transform, nearest_very_large_scale)
 
   /* Check result: leftmost red, middle green, two rightmost pixels blue and black.
    * If the transform code internally does not have enough precision while stepping
-   * through the scanline, the rightmost side will not come out correctly. */
+   * through the scan-line, the rightmost side will not come out correctly. */
   const ColorTheme4b *got = reinterpret_cast<ColorTheme4b *>(res->byte_buffer.data);
   EXPECT_EQ(got[0], col_r);
   EXPECT_EQ(got[res->x / 2], col_g);

@@ -44,6 +44,7 @@
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
 #include "BLT_translation.h"
@@ -63,7 +64,7 @@
 #include "BKE_idtype.h"
 #include "BKE_image_format.h"
 #include "BKE_lib_id.hh"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -94,8 +95,6 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "BLO_read_write.hh"
-
-#include "PIL_time.h"
 
 #define NODE_DEFAULT_MAX_WIDTH 700
 
@@ -400,7 +399,7 @@ static void node_foreach_cache(ID *id,
   bNodeTree *nodetree = reinterpret_cast<bNodeTree *>(id);
   IDCacheKey key = {0};
   key.id_session_uuid = id->session_uuid;
-  key.offset_in_ID = offsetof(bNodeTree, previews);
+  key.identifier = offsetof(bNodeTree, previews);
 
   /* TODO: see also `direct_link_nodetree()` in `readfile.cc`. */
 #if 0
@@ -410,7 +409,7 @@ static void node_foreach_cache(ID *id,
   if (nodetree->type == NTREE_COMPOSIT) {
     for (bNode *node : nodetree->all_nodes()) {
       if (node->type == CMP_NODE_MOVIEDISTORTION) {
-        key.offset_in_ID = size_t(BLI_ghashutil_strhash_p(node->name));
+        key.identifier = size_t(BLI_ghashutil_strhash_p(node->name));
         function_callback(id, &key, static_cast<void **>(&node->storage), 0, user_data);
       }
     }
@@ -2508,7 +2507,7 @@ void nodeUniqueName(bNodeTree *ntree, bNode *node)
 void nodeUniqueID(bNodeTree *ntree, bNode *node)
 {
   /* Use a pointer cast to avoid overflow warnings. */
-  const double time = PIL_check_seconds_timer() * 1000000.0;
+  const double time = BLI_check_seconds_timer() * 1000000.0;
   blender::RandomNumberGenerator id_rng{*reinterpret_cast<const uint32_t *>(&time)};
 
   /* In the unlikely case that the random ID doesn't match, choose a new one until it does. */
@@ -2529,6 +2528,7 @@ bNode *nodeAddNode(const bContext *C, bNodeTree *ntree, const char *idname)
   node->runtime = MEM_new<bNodeRuntime>(__func__);
   BLI_addtail(&ntree->nodes, node);
   nodeUniqueID(ntree, node);
+  node->ui_order = ntree->all_nodes().size();
 
   STRNCPY(node->idname, idname);
   blender::bke::node_set_typeinfo(C, ntree, node, nodeTypeFind(idname));
