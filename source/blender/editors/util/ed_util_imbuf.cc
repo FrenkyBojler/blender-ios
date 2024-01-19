@@ -11,7 +11,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_main.hh"
@@ -24,9 +24,9 @@
 #include "GPU_immediate.h"
 #include "GPU_state.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"

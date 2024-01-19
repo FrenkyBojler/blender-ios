@@ -44,7 +44,7 @@
 
 #include "GPU_select.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
 #include "ANIM_bonecolor.hh"
 
 #include "armature_intern.h"
@@ -434,7 +434,8 @@ static bool armature_select_linked_impl(Object *ob, const bool select, const boo
 
     /* We have an un-touched link. */
     for (EditBone *ebone = ebone_iter; ebone;
-         ebone = CHECK_PARENT(ebone) ? ebone->parent : nullptr) {
+         ebone = CHECK_PARENT(ebone) ? ebone->parent : nullptr)
+    {
       ED_armature_ebone_select_set(ebone, select);
       changed = true;
 
@@ -464,7 +465,8 @@ static bool armature_select_linked_impl(Object *ob, const bool select, const boo
     /* First check if we're marked. */
     EditBone *ebone_touched_parent = nullptr;
     for (EditBone *ebone = ebone_iter; ebone;
-         ebone = CHECK_PARENT(ebone) ? ebone->parent : nullptr) {
+         ebone = CHECK_PARENT(ebone) ? ebone->parent : nullptr)
+    {
       if (ebone->temp.i & TOUCH) {
         ebone_touched_parent = ebone;
         break;
@@ -517,7 +519,8 @@ static int armature_select_linked_exec(bContext *C, wmOperator *op)
     bool found = false;
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
       if (EBONE_VISIBLE(arm, ebone) &&
-          (ebone->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL))) {
+          (ebone->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)))
+      {
         ebone->flag |= BONE_DONE;
         found = true;
       }
@@ -975,7 +978,8 @@ bool ED_armature_edit_select_pick_bone(
 
   if (params->sel_op == SEL_OP_SET) {
     if ((found && params->select_passthrough) &&
-        (ED_armature_ebone_selectflag_get(ebone) & selmask)) {
+        (ED_armature_ebone_selectflag_get(ebone) & selmask))
+    {
       found = false;
     }
     else if (found || params->deselect_all) {
@@ -1350,7 +1354,7 @@ static int armature_de_select_all_exec(bContext *C, wmOperator *op)
       case SEL_SELECT:
         if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
           ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-          if (ebone->parent) {
+          if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
             ebone->parent->flag |= BONE_TIPSEL;
           }
         }
@@ -1365,7 +1369,7 @@ static int armature_de_select_all_exec(bContext *C, wmOperator *op)
         else {
           if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
             ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-            if (ebone->parent) {
+            if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
               ebone->parent->flag |= BONE_TIPSEL;
             }
           }

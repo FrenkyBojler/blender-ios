@@ -478,7 +478,7 @@ static const Mesh *mesh_data_from_duplicator_object(Object *ob,
      * We could change this but it matches 2.7x behavior. */
     me_eval = BKE_object_get_editmesh_eval_cage(ob);
     if ((me_eval == nullptr) || (me_eval->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH)) {
-      blender::bke::EditMeshData *emd = me_eval ? me_eval->runtime->edit_data : nullptr;
+      blender::bke::EditMeshData *emd = me_eval ? me_eval->runtime->edit_data.get() : nullptr;
 
       /* Only assign edit-mesh in the case we can't use `me_eval`. */
       *r_em = em;
@@ -487,7 +487,7 @@ static const Mesh *mesh_data_from_duplicator_object(Object *ob,
       if ((emd != nullptr) && !emd->vertexCos.is_empty()) {
         *r_vert_coords = reinterpret_cast<const float(*)[3]>(emd->vertexCos.data());
         if (r_vert_normals != nullptr) {
-          BKE_editmesh_cache_ensure_vert_normals(em, emd);
+          BKE_editmesh_cache_ensure_vert_normals(*em, *emd);
           *r_vert_normals = reinterpret_cast<const float(*)[3]>(emd->vertexNos.data());
         }
       }
@@ -744,7 +744,7 @@ static void make_duplis_verts(const DupliContext *ctx)
   else {
     VertexDupliData_Mesh vdd{};
     vdd.params = vdd_params;
-    vdd.totvert = me_eval->totvert;
+    vdd.totvert = me_eval->verts_num;
     vdd.vert_positions = me_eval->vert_positions();
     vdd.vert_normals = me_eval->vert_normals();
     vdd.orco = (const float(*)[3])CustomData_get_layer(&me_eval->vert_data, CD_ORCO);
@@ -1329,7 +1329,7 @@ static void make_duplis_faces(const DupliContext *ctx)
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_editmesh);
   }
   else {
-    const int uv_idx = CustomData_get_render_layer(&me_eval->loop_data, CD_PROP_FLOAT2);
+    const int uv_idx = CustomData_get_render_layer(&me_eval->corner_data, CD_PROP_FLOAT2);
     FaceDupliData_Mesh fdd{};
     fdd.params = fdd_params;
     fdd.totface = me_eval->faces_num;
@@ -1337,7 +1337,7 @@ static void make_duplis_faces(const DupliContext *ctx)
     fdd.corner_verts = me_eval->corner_verts();
     fdd.vert_positions = me_eval->vert_positions();
     fdd.mloopuv = (uv_idx != -1) ? (const float2 *)CustomData_get_layer_n(
-                                       &me_eval->loop_data, CD_PROP_FLOAT2, uv_idx) :
+                                       &me_eval->corner_data, CD_PROP_FLOAT2, uv_idx) :
                                    nullptr;
     fdd.orco = (const float(*)[3])CustomData_get_layer(&me_eval->vert_data, CD_ORCO);
 
@@ -1464,7 +1464,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         psys_find_group_weights(part);
         LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
           FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
-              part->instance_collection, object, mode) {
+              part->instance_collection, object, mode)
+          {
             if (dw->ob == object) {
               totcollection += dw->count;
               break;
@@ -1489,7 +1490,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         a = 0;
         LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
           FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
-              part->instance_collection, object, mode) {
+              part->instance_collection, object, mode)
+          {
             if (dw->ob == object) {
               for (b = 0; b < dw->count; b++, a++) {
                 oblist[a] = dw->ob;

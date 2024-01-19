@@ -20,8 +20,8 @@
 
 #include "BLT_translation.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_material_types.h"
@@ -31,7 +31,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_brush.hh"
-#include "BKE_colorband.h"
+#include "BKE_colorband.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
@@ -52,6 +52,7 @@
 #include "UI_interface.hh"
 #include "UI_view2d.hh"
 
+#include "ED_grease_pencil.hh"
 #include "ED_image.hh"
 #include "ED_object.hh"
 #include "ED_paint.hh"
@@ -59,13 +60,13 @@
 
 #include "WM_api.hh"
 #include "WM_message.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
 
 #include "paint_intern.hh"
 
@@ -297,7 +298,8 @@ static bool image_paint_poll_ex(bContext *C, bool check_tool)
 
     if (sima) {
       if (sima->image != nullptr &&
-          (ID_IS_LINKED(sima->image) || ID_IS_OVERRIDE_LIBRARY(sima->image))) {
+          (ID_IS_LINKED(sima->image) || ID_IS_OVERRIDE_LIBRARY(sima->image)))
+      {
         return false;
       }
       if (sima->mode == SI_MODE_PAINT) {
@@ -629,9 +631,9 @@ static void sample_color_update_header(SampleColorData *data, bContext *C)
 
   if (area) {
     SNPRINTF(msg,
-             TIP_("Sample color for %s"),
-             !data->sample_palette ? TIP_("Brush. Use Left Click to sample for palette instead") :
-                                     TIP_("Palette. Use Left Click to sample more colors"));
+             RPT_("Sample color for %s"),
+             !data->sample_palette ? RPT_("Brush. Use Left Click to sample for palette instead") :
+                                     RPT_("Palette. Use Left Click to sample more colors"));
     ED_workspace_status_text(C, msg);
   }
 }
@@ -760,7 +762,8 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 static bool sample_color_poll(bContext *C)
 {
-  return (image_paint_poll_ignore_tool(C) || vertex_paint_poll_ignore_tool(C));
+  return (image_paint_poll_ignore_tool(C) || vertex_paint_poll_ignore_tool(C) ||
+          blender::ed::greasepencil::grease_pencil_painting_poll(C));
 }
 
 void PAINT_OT_sample_color(wmOperatorType *ot)
@@ -815,16 +818,23 @@ static blender::float3 paint_init_pivot_mesh(Object *ob)
 static blender::float3 paint_init_pivot_curves(Object *ob)
 {
   const Curves &curves = *static_cast<const Curves *>(ob->data);
-  const blender::Bounds<blender::float3> bounds = *curves.geometry.wrap().bounds_min_max();
-  return blender::math::midpoint(bounds.min, bounds.max);
+  const std::optional<blender::Bounds<blender::float3>> bounds =
+      curves.geometry.wrap().bounds_min_max();
+  if (bounds.has_value()) {
+    return blender::math::midpoint(bounds->min, bounds->max);
+  }
+  return blender::float3(0);
 }
 
 static blender::float3 paint_init_pivot_grease_pencil(Object *ob, const int frame)
 {
   using namespace blender;
   const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(ob->data);
-  const blender::Bounds<blender::float3> bounds = *grease_pencil.bounds_min_max(frame);
-  return blender::math::midpoint(bounds.min, bounds.max);
+  const std::optional<Bounds<float3>> bounds = grease_pencil.bounds_min_max(frame);
+  if (bounds.has_value()) {
+    return blender::math::midpoint(bounds->min, bounds->max);
+  }
+  return float3(0.0f);
 }
 
 void paint_init_pivot(Object *ob, Scene *scene)
@@ -899,9 +909,9 @@ void ED_object_texture_paint_mode_enter_ex(Main *bmain,
 
   toggle_paint_cursor(scene, true);
 
-  Mesh *me = BKE_mesh_from_object(ob);
-  BLI_assert(me != nullptr);
-  DEG_id_tag_update(&me->id, ID_RECALC_COPY_ON_WRITE);
+  Mesh *mesh = BKE_mesh_from_object(ob);
+  BLI_assert(mesh != nullptr);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_COPY_ON_WRITE);
 
   /* Ensure we have evaluated data for bounding box. */
   BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
@@ -933,9 +943,9 @@ void ED_object_texture_paint_mode_exit_ex(Main *bmain, Scene *scene, Object *ob)
   BKE_image_paint_set_mipmap(bmain, true);
   toggle_paint_cursor(scene, false);
 
-  Mesh *me = BKE_mesh_from_object(ob);
-  BLI_assert(me != nullptr);
-  DEG_id_tag_update(&me->id, ID_RECALC_COPY_ON_WRITE);
+  Mesh *mesh = BKE_mesh_from_object(ob);
+  BLI_assert(mesh != nullptr);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_COPY_ON_WRITE);
   WM_main_add_notifier(NC_SCENE | ND_MODE, scene);
 }
 

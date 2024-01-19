@@ -32,8 +32,8 @@
 #include "BKE_fcurve.h"
 #include "BKE_idprop.h"
 #include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_library.h"
+#include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 
 #include "RNA_access.hh"
@@ -47,7 +47,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -533,7 +533,8 @@ static void updateDuplicateActionConstraintSettings(
         const size_t slength = strlen(new_curve->rna_path);
         bool flip = false;
         if (BLI_strn_endswith(new_curve->rna_path, "location", slength) &&
-            new_curve->array_index == 0) {
+            new_curve->array_index == 0)
+        {
           flip = true;
         }
         else if (BLI_strn_endswith(new_curve->rna_path, "rotation_quaternion", slength) &&

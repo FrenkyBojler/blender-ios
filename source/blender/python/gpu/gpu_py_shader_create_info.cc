@@ -38,7 +38,7 @@ using blender::gpu::shader::Qualifier;
     "      - ``NO_RESTRICT``\n" \
     "      - ``READ``\n" \
     "      - ``WRITE``\n"
-static const struct PyC_FlagSet pygpu_qualifiers[] = {
+static const PyC_FlagSet pygpu_qualifiers[] = {
     {int(Qualifier::NO_RESTRICT), "NO_RESTRICT"},
     {int(Qualifier::READ), "READ"},
     {int(Qualifier::WRITE), "WRITE"},
@@ -131,6 +131,9 @@ static const PyC_StringEnumItems pygpu_imagetype_items[] = {
     {int(ImageType::INT_3D), "INT_3D"},
     {int(ImageType::INT_CUBE), "INT_CUBE"},
     {int(ImageType::INT_CUBE_ARRAY), "INT_CUBE_ARRAY"},
+    {int(ImageType::INT_2D_ATOMIC), "INT_2D_ATOMIC"},
+    {int(ImageType::INT_2D_ARRAY_ATOMIC), "INT_2D_ARRAY_ATOMIC"},
+    {int(ImageType::INT_3D_ATOMIC), "INT_3D_ATOMIC"},
     {int(ImageType::UINT_BUFFER), "UINT_BUFFER"},
     {int(ImageType::UINT_1D), "UINT_1D"},
     {int(ImageType::UINT_1D_ARRAY), "UINT_1D_ARRAY"},
@@ -139,6 +142,9 @@ static const PyC_StringEnumItems pygpu_imagetype_items[] = {
     {int(ImageType::UINT_3D), "UINT_3D"},
     {int(ImageType::UINT_CUBE), "UINT_CUBE"},
     {int(ImageType::UINT_CUBE_ARRAY), "UINT_CUBE_ARRAY"},
+    {int(ImageType::UINT_2D_ATOMIC), "UINT_2D_ATOMIC"},
+    {int(ImageType::UINT_2D_ARRAY_ATOMIC), "UINT_2D_ARRAY_ATOMIC"},
+    {int(ImageType::UINT_3D_ATOMIC), "UINT_3D_ATOMIC"},
     {int(ImageType::SHADOW_2D), "SHADOW_2D"},
     {int(ImageType::SHADOW_2D_ARRAY), "SHADOW_2D_ARRAY"},
     {int(ImageType::SHADOW_CUBE), "SHADOW_CUBE"},
@@ -674,8 +680,8 @@ static PyObject *pygpu_shader_info_image(BPyGPUShaderCreateInfo *self,
                                          PyObject *kwds)
 {
   int slot;
-  struct PyC_StringEnum pygpu_texformat = {pygpu_textureformat_items};
-  struct PyC_StringEnum pygpu_imagetype = {pygpu_imagetype_items};
+  PyC_StringEnum pygpu_texformat = {pygpu_textureformat_items};
+  PyC_StringEnum pygpu_imagetype = {pygpu_imagetype_items};
   const char *name;
   PyObject *py_qualifiers = nullptr;
   Qualifier qualifier = Qualifier::NO_RESTRICT;
@@ -751,7 +757,8 @@ static PyObject *pygpu_shader_info_sampler(BPyGPUShaderCreateInfo *self, PyObjec
   const char *name;
 
   if (!PyArg_ParseTuple(
-          args, "iO&s:sampler", &slot, PyC_ParseStringEnum, &pygpu_samplertype, &name)) {
+          args, "iO&s:sampler", &slot, PyC_ParseStringEnum, &pygpu_samplertype, &name))
+  {
     return nullptr;
   }
 
@@ -909,23 +916,22 @@ static PyObject *pygpu_shader_info_push_constant(BPyGPUShaderCreateInfo *self,
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(
-    pygpu_shader_info_vertex_source_doc,
-    ".. method:: vertex_source(source)\n"
-    "\n"
-    "   Vertex shader source code written in GLSL.\n"
-    "\n"
-    "   Example:\n"
-    "\n"
-    "   .. code-block:: python\n"
-    "\n"
-    "      \"void main {gl_Position = vec4(pos, 1.0);}\"\n"
-    "\n"
-    "   :arg source: The vertex shader source code.\n"
-    "   :type source: str\n"
-    "\n"
-    "   .. seealso:: `GLSL Cross Compilation "
-    "<https://wiki.blender.org/wiki/EEVEE_%26_Viewport/GPU_Module/GLSL_Cross_Compilation>`__\n");
+PyDoc_STRVAR(pygpu_shader_info_vertex_source_doc,
+             ".. method:: vertex_source(source)\n"
+             "\n"
+             "   Vertex shader source code written in GLSL.\n"
+             "\n"
+             "   Example:\n"
+             "\n"
+             "   .. code-block:: python\n"
+             "\n"
+             "      \"void main {gl_Position = vec4(pos, 1.0);}\"\n"
+             "\n"
+             "   :arg source: The vertex shader source code.\n"
+             "   :type source: str\n"
+             "\n"
+             "   .. seealso:: `GLSL Cross Compilation "
+             "<https://developer.blender.org/docs/features/gpu/glsl_cross_compilation/>`__\n");
 static PyObject *pygpu_shader_info_vertex_source(BPyGPUShaderCreateInfo *self, PyObject *o)
 {
   const char *vertex_source = PyUnicode_AsUTF8(o);
@@ -950,27 +956,26 @@ static PyObject *pygpu_shader_info_vertex_source(BPyGPUShaderCreateInfo *self, P
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(
-    pygpu_shader_info_compute_source_doc,
-    ".. method:: compute_source(source)\n"
-    "\n"
-    "   compute shader source code written in GLSL.\n"
-    "\n"
-    "   Example:\n"
-    "\n"
-    "   .. code-block:: python\n"
-    "\n"
-    "      \"\"\"void main() {\n"
-    "         int2 index = int2(gl_GlobalInvocationID.xy);\n"
-    "         vec4 color = vec4(0.0, 0.0, 0.0, 1.0);\n"
-    "         imageStore(img_output, index, color);\n"
-    "      }\"\"\"\n"
-    "\n"
-    "   :arg source: The compute shader source code.\n"
-    "   :type source: str\n"
-    "\n"
-    "   .. seealso:: `GLSL Cross Compilation "
-    "<https://wiki.blender.org/wiki/EEVEE_%26_Viewport/GPU_Module/GLSL_Cross_Compilation>`__\n");
+PyDoc_STRVAR(pygpu_shader_info_compute_source_doc,
+             ".. method:: compute_source(source)\n"
+             "\n"
+             "   compute shader source code written in GLSL.\n"
+             "\n"
+             "   Example:\n"
+             "\n"
+             "   .. code-block:: python\n"
+             "\n"
+             "      \"\"\"void main() {\n"
+             "         int2 index = int2(gl_GlobalInvocationID.xy);\n"
+             "         vec4 color = vec4(0.0, 0.0, 0.0, 1.0);\n"
+             "         imageStore(img_output, index, color);\n"
+             "      }\"\"\"\n"
+             "\n"
+             "   :arg source: The compute shader source code.\n"
+             "   :type source: str\n"
+             "\n"
+             "   .. seealso:: `GLSL Cross Compilation "
+             "<https://developer.blender.org/docs/features/gpu/glsl_cross_compilation/>`__\n");
 static PyObject *pygpu_shader_info_compute_source(BPyGPUShaderCreateInfo *self, PyObject *o)
 {
   const char *compute_source = PyUnicode_AsUTF8(o);
@@ -995,23 +1000,22 @@ static PyObject *pygpu_shader_info_compute_source(BPyGPUShaderCreateInfo *self, 
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(
-    pygpu_shader_info_fragment_source_doc,
-    ".. method:: fragment_source(source)\n"
-    "\n"
-    "   Fragment shader source code written in GLSL.\n"
-    "\n"
-    "   Example:\n"
-    "\n"
-    "   .. code-block:: python\n"
-    "\n"
-    "      \"void main {fragColor = vec4(0.0, 0.0, 0.0, 1.0);}\"\n"
-    "\n"
-    "   :arg source: The fragment shader source code.\n"
-    "   :type source: str\n"
-    "\n"
-    "   .. seealso:: `GLSL Cross Compilation "
-    "<https://wiki.blender.org/wiki/EEVEE_%26_Viewport/GPU_Module/GLSL_Cross_Compilation>`__\n");
+PyDoc_STRVAR(pygpu_shader_info_fragment_source_doc,
+             ".. method:: fragment_source(source)\n"
+             "\n"
+             "   Fragment shader source code written in GLSL.\n"
+             "\n"
+             "   Example:\n"
+             "\n"
+             "   .. code-block:: python\n"
+             "\n"
+             "      \"void main {fragColor = vec4(0.0, 0.0, 0.0, 1.0);}\"\n"
+             "\n"
+             "   :arg source: The fragment shader source code.\n"
+             "   :type source: str\n"
+             "\n"
+             "   .. seealso:: `GLSL Cross Compilation "
+             "<https://developer.blender.org/docs/features/gpu/glsl_cross_compilation/>`__\n");
 static PyObject *pygpu_shader_info_fragment_source(BPyGPUShaderCreateInfo *self, PyObject *o)
 {
   const char *fragment_source = PyUnicode_AsUTF8(o);

@@ -56,8 +56,7 @@
 #include "BLI_memarena.h"
 #include "BLI_mempool.h"
 #include "BLI_threads.h"
-
-#include "PIL_time.h"
+#include "BLI_time.h"
 
 #include "BLT_translation.h"
 
@@ -70,9 +69,9 @@
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
 #include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh" /* for Main */
 #include "BKE_main_idmap.hh"
@@ -86,10 +85,10 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.hh"
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 #include "BKE_workspace.h"
 
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -99,7 +98,6 @@
 #include "BLO_readfile.h"
 #include "BLO_undofile.hh"
 
-#include "SEQ_clipboard.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
 #include "SEQ_sequencer.hh"
@@ -1114,7 +1112,7 @@ static bool is_minversion_older_than_blender(FileData *fd, ReportList *reports)
       }
       BKE_reportf(reports,
                   RPT_ERROR,
-                  TIP_("The file was saved by a newer version, open it with Blender %s or later"),
+                  "The file was saved by a newer version, open it with Blender %s or later",
                   min_reader_ver_str);
       CLOG_WARN(&LOG,
                 "%s: File saved by a newer version of Blender (%s), Blender %s or later is "
@@ -1173,7 +1171,7 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
                 RPT_WARNING,
                 "Unable to read '%s': %s",
                 filepath,
-                errno ? strerror(errno) : TIP_("insufficient content"));
+                errno ? strerror(errno) : RPT_("insufficient content"));
     if (rawfile) {
       rawfile->close(rawfile);
     }
@@ -1233,7 +1231,7 @@ static FileData *blo_filedata_from_file_open(const char *filepath, BlendFileRead
                 RPT_WARNING,
                 "Unable to open '%s': %s",
                 filepath,
-                errno ? strerror(errno) : TIP_("unknown error reading file"));
+                errno ? strerror(errno) : RPT_("unknown error reading file"));
     return nullptr;
   }
   return blo_filedata_from_file_descriptor(filepath, reports, file);
@@ -1273,7 +1271,7 @@ FileData *blo_filedata_from_memory(const void *mem, int memsize, BlendFileReadRe
 {
   if (!mem || memsize < SIZEOFBLENDERHEADER) {
     BKE_report(
-        reports->reports, RPT_WARNING, (mem) ? TIP_("Unable to read") : TIP_("Unable to open"));
+        reports->reports, RPT_WARNING, (mem) ? RPT_("Unable to read") : RPT_("Unable to open"));
     return nullptr;
   }
 
@@ -1411,6 +1409,17 @@ BlendThumbnail *BLO_thumbnail_from_file(const char *filepath)
   blo_filedata_free(fd);
 
   return data;
+}
+
+short BLO_version_from_file(const char *filepath)
+{
+  short version = 0;
+  FileData *fd = blo_filedata_from_file_minimal(filepath);
+  if (fd) {
+    version = fd->fileversion;
+    blo_filedata_free(fd);
+  }
+  return version;
 }
 
 /** \} */
@@ -2265,7 +2274,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
       if (BLI_path_cmp(newmain->curlib->filepath_abs, lib->filepath_abs) == 0) {
         BLO_reportf_wrap(fd->reports,
                          RPT_WARNING,
-                         TIP_("Library '%s', '%s' had multiple instances, save and reload!"),
+                         RPT_("Library '%s', '%s' had multiple instances, save and reload!"),
                          lib->filepath,
                          lib->filepath_abs);
 
@@ -3309,7 +3318,8 @@ static void lib_link_all(FileData *fd, Main *bmain)
     const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
 
     if ((id->tag & (LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED | LIB_TAG_UNDO_OLD_ID_REUSED_NOUNDO)) !=
-        0) {
+        0)
+    {
       BLI_assert(fd->flags & FD_FLAGS_IS_MEMFILE);
       /* This ID has been re-used from 'old' bmain. Since it was therefore unchanged across
        * current undo step, and old IDs re-use their old memory address, we do not need to liblink
@@ -3712,7 +3722,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   }
 
   if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
-    fd->reports->duration.libraries = PIL_check_seconds_timer();
+    fd->reports->duration.libraries = BLI_check_seconds_timer();
     read_libraries(fd, &mainlist);
 
     blo_join_main(&mainlist);
@@ -3727,7 +3737,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       read_undo_remap_noundo_data(fd);
     }
 
-    fd->reports->duration.libraries = PIL_check_seconds_timer() - fd->reports->duration.libraries;
+    fd->reports->duration.libraries = BLI_check_seconds_timer() - fd->reports->duration.libraries;
 
     /* Skip in undo case. */
     if ((fd->flags & FD_FLAGS_IS_MEMFILE) == 0) {
@@ -3785,7 +3795,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
      * we can re-generate overrides from their references. */
     if ((fd->flags & FD_FLAGS_IS_MEMFILE) == 0) {
       /* Do not apply in undo case! */
-      fd->reports->duration.lib_overrides = PIL_check_seconds_timer();
+      fd->reports->duration.lib_overrides = BLI_check_seconds_timer();
 
       std::string cur_view_layer_name = bfd->cur_view_layer != nullptr ?
                                             bfd->cur_view_layer->name :
@@ -3806,7 +3816,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
        * Proper fix involves first addressing #90610. */
       BKE_main_collections_parent_relations_rebuild(bfd->main);
 
-      fd->reports->duration.lib_overrides = PIL_check_seconds_timer() -
+      fd->reports->duration.lib_overrides = BLI_check_seconds_timer() -
                                             fd->reports->duration.lib_overrides;
     }
 
@@ -4021,7 +4031,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
 
       BLO_reportf_wrap(fd->reports,
                        RPT_WARNING,
-                       TIP_("LIB: Data refers to main .blend file: '%s' from %s"),
+                       RPT_("LIB: Data refers to main .blend file: '%s' from %s"),
                        idname,
                        mainvar->curlib->filepath_abs);
       return;
@@ -4535,7 +4545,7 @@ static void read_library_linked_id(
   if (!is_valid) {
     BLO_reportf_wrap(basefd->reports,
                      RPT_ERROR,
-                     TIP_("LIB: %s: '%s' is directly linked from '%s' (parent '%s'), but is a "
+                     RPT_("LIB: %s: '%s' is directly linked from '%s' (parent '%s'), but is a "
                           "non-linkable data type"),
                      BKE_idtype_idcode_to_name(GS(id->name)),
                      id->name + 2,
@@ -4554,7 +4564,7 @@ static void read_library_linked_id(
   else {
     BLO_reportf_wrap(basefd->reports,
                      RPT_INFO,
-                     TIP_("LIB: %s: '%s' missing from '%s', parent '%s'"),
+                     RPT_("LIB: %s: '%s' missing from '%s', parent '%s'"),
                      BKE_idtype_idcode_to_name(GS(id->name)),
                      id->name + 2,
                      mainvar->curlib->filepath_abs,
@@ -4668,7 +4678,7 @@ static FileData *read_library_file_data(FileData *basefd,
 
     BLO_reportf_wrap(basefd->reports,
                      RPT_INFO,
-                     TIP_("Read packed library:  '%s', parent '%s'"),
+                     RPT_("Read packed library:  '%s', parent '%s'"),
                      mainptr->curlib->filepath,
                      library_parent_filepath(mainptr->curlib));
     fd = blo_filedata_from_memory(pf->data, pf->size, basefd->reports);
@@ -4680,7 +4690,7 @@ static FileData *read_library_file_data(FileData *basefd,
     /* Read file on disk. */
     BLO_reportf_wrap(basefd->reports,
                      RPT_INFO,
-                     TIP_("Read library:  '%s', '%s', parent '%s'"),
+                     RPT_("Read library:  '%s', '%s', parent '%s'"),
                      mainptr->curlib->filepath_abs,
                      mainptr->curlib->filepath,
                      library_parent_filepath(mainptr->curlib));
@@ -4721,7 +4731,7 @@ static FileData *read_library_file_data(FileData *basefd,
 
   if (fd == nullptr) {
     BLO_reportf_wrap(
-        basefd->reports, RPT_INFO, TIP_("Cannot find lib '%s'"), mainptr->curlib->filepath_abs);
+        basefd->reports, RPT_INFO, RPT_("Cannot find lib '%s'"), mainptr->curlib->filepath_abs);
     basefd->reports->count.missing_libraries++;
   }
 

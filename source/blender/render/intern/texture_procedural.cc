@@ -20,15 +20,14 @@
 #include "DNA_image_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_texture_types.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "BKE_colorband.h"
+#include "BKE_colorband.hh"
 #include "BKE_image.h"
 #include "BKE_material.h"
 #include "BKE_node.h"

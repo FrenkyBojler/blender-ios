@@ -22,7 +22,7 @@
 #include "BLI_task.h"
 
 #include "BKE_brush.hh"
-#include "BKE_colorband.h"
+#include "BKE_colorband.hh"
 #include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_paint.hh"
@@ -33,9 +33,9 @@
 #include "ED_paint.hh"
 #include "ED_screen.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

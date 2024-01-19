@@ -58,8 +58,8 @@
 #include "BKE_fcurve_driver.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_movieclip.h"
@@ -288,7 +288,8 @@ void BKE_constraint_mat_convertspace(Object *ob,
           if (ELEM(to,
                    CONSTRAINT_SPACE_LOCAL,
                    CONSTRAINT_SPACE_PARLOCAL,
-                   CONSTRAINT_SPACE_OWNLOCAL)) {
+                   CONSTRAINT_SPACE_OWNLOCAL))
+          {
             /* Call self with slightly different values. */
             BKE_constraint_mat_convertspace(
                 ob, pchan, cob, mat, CONSTRAINT_SPACE_POSE, to, keep_scale);
@@ -5077,7 +5078,7 @@ static void followtrack_project_to_depth_object_if_needed(FollowTrackContext *co
   normalize_v3(ray_direction);
 
   BVHTreeFromMesh tree_data = NULL_BVHTreeFromMesh;
-  BKE_bvhtree_from_mesh_get(&tree_data, depth_mesh, BVHTREE_FROM_LOOPTRI, 4);
+  BKE_bvhtree_from_mesh_get(&tree_data, depth_mesh, BVHTREE_FROM_CORNER_TRIS, 4);
 
   BVHTreeRayHit hit;
   hit.dist = BVH_RAYCAST_DIST_MAX;
@@ -5615,12 +5616,12 @@ bool BKE_constraint_remove(ListBase *list, bConstraint *con)
   return false;
 }
 
-bool BKE_constraint_remove_ex(ListBase *list, Object *ob, bConstraint *con, bool clear_dep)
+bool BKE_constraint_remove_ex(ListBase *list, Object *ob, bConstraint *con)
 {
   const short type = con->type;
   if (BKE_constraint_remove(list, con)) {
     /* ITASC needs to be rebuilt once a constraint is removed #26920. */
-    if (clear_dep && ELEM(type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
+    if (ELEM(type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
       BIK_clear_data(ob->pose);
     }
     return true;
@@ -5680,7 +5681,7 @@ bool BKE_constraint_apply_and_remove_for_object(Depsgraph *depsgraph,
     return false;
   }
 
-  return BKE_constraint_remove_ex(constraints, ob, con, true);
+  return BKE_constraint_remove_ex(constraints, ob, con);
 }
 
 bool BKE_constraint_apply_for_pose(
@@ -5743,7 +5744,7 @@ bool BKE_constraint_apply_and_remove_for_pose(Depsgraph *depsgraph,
     return false;
   }
 
-  return BKE_constraint_remove_ex(constraints, ob, con, true);
+  return BKE_constraint_remove_ex(constraints, ob, con);
 }
 
 void BKE_constraint_panel_expand(bConstraint *con)

@@ -47,9 +47,9 @@
 #include "BKE_preview_image.hh"
 #include "BKE_studiolight.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_thumbs.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_thumbs.hh"
 
 #include "BIF_glutil.hh"
 
@@ -2144,7 +2144,8 @@ static int ui_id_brush_get_icon(const bContext *C, ID *id)
 
     /* reset the icon */
     if ((ob != nullptr) && (ob->mode & OB_MODE_ALL_PAINT_GPENCIL) &&
-        (br->gpencil_settings != nullptr)) {
+        (br->gpencil_settings != nullptr))
+    {
       switch (br->gpencil_settings->icon_id) {
         case GP_BRUSH_ICON_PENCIL:
           br->id.icon_id = ICON_GPBRUSH_PENCIL;

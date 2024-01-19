@@ -31,8 +31,8 @@
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "bmesh.h"
-#include "tools/bmesh_wireframe.h"
+#include "bmesh.hh"
+#include "tools/bmesh_wireframe.hh"
 
 static void init_data(ModifierData *md)
 {
@@ -196,4 +196,5 @@ ModifierTypeInfo modifierType_Wireframe = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

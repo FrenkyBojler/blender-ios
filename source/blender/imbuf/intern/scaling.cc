@@ -9,15 +9,15 @@
 #include <cmath>
 
 #include "BLI_math_color.h"
-#include "BLI_math_interp.h"
+#include "BLI_math_interp.hh"
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "imbuf.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "imbuf.hh"
 
-#include "IMB_filter.h"
+#include "IMB_filter.hh"
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 
@@ -1762,7 +1762,7 @@ static void *do_scale_thread(void *data_v)
 
       if (data->byte_buffer) {
         uchar *pixel = data->byte_buffer + 4 * offset;
-        BLI_bilinear_interpolation_char(ibuf->byte_buffer.data, pixel, ibuf->x, ibuf->y, 4, u, v);
+        BLI_bilinear_interpolation_char(ibuf->byte_buffer.data, pixel, ibuf->x, ibuf->y, u, v);
       }
 
       if (data->float_buffer) {

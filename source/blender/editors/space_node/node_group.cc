@@ -22,14 +22,12 @@
 #include "BLI_string.h"
 #include "BLI_vector.hh"
 
-#include "PIL_time.h"
-
 #include "BLT_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
@@ -415,7 +413,8 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
 
         /* find internal links to this output */
         for (bNodeLink *tlink = glinks_first->next; tlink != glinks_last->next;
-             tlink = tlink->next) {
+             tlink = tlink->next)
+        {
           /* only use active output node */
           if (tlink->tonode->type == NODE_GROUP_OUTPUT && (tlink->tonode->flag & NODE_DO_OUTPUT)) {
             if (STREQ(tlink->tosock->identifier, identifier)) {
@@ -736,7 +735,8 @@ static bool node_group_make_test_selected(bNodeTree &ntree,
   for (bNode *node : nodes_to_group) {
     const char *disabled_hint = nullptr;
     if (node->typeinfo->poll_instance &&
-        !node->typeinfo->poll_instance(node, ngroup, &disabled_hint)) {
+        !node->typeinfo->poll_instance(node, ngroup, &disabled_hint))
+    {
       if (disabled_hint) {
         BKE_reportf(&reports,
                     RPT_WARNING,
@@ -882,7 +882,7 @@ static void update_nested_node_refs_after_moving_nodes_into_group(
     const Map<int32_t, int32_t> &node_identifier_map)
 {
   /* Update nested node references in the parent and child node tree. */
-  RandomNumberGenerator rng(PIL_check_seconds_timer_i() & UINT_MAX);
+  RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
   Vector<bNestedNodeRef> new_nested_node_refs;
   /* Keep all nested node references that were in the group before. */
   for (const bNestedNodeRef &ref : group.nested_node_refs_span()) {

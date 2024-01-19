@@ -30,8 +30,8 @@
 
 #include "WM_types.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #ifdef RNA_RUNTIME
 
@@ -317,7 +317,8 @@ static MaskSpline *mask_spline_from_point(Mask *mask, MaskSplinePoint *point)
   {
     MaskSpline *spline;
     for (spline = static_cast<MaskSpline *>(mask_layer->splines.first); spline;
-         spline = spline->next) {
+         spline = spline->next)
+    {
       if (point >= spline->points && point < spline->points + spline->tot_point) {
         return spline;
       }

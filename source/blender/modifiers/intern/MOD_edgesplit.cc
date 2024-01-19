@@ -32,8 +32,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -192,4 +192,5 @@ ModifierTypeInfo modifierType_EdgeSplit = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

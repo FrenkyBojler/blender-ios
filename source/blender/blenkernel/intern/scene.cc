@@ -46,6 +46,7 @@
 #include "BLI_string_utils.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BLO_readfile.h"
@@ -59,7 +60,7 @@
 #include "BKE_bpath.h"
 #include "BKE_cachefile.h"
 #include "BKE_collection.h"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_curveprofile.h"
 #include "BKE_duplilist.h"
 #include "BKE_editmesh.hh"
@@ -72,8 +73,8 @@
 #include "BKE_image.h"
 #include "BKE_image_format.h"
 #include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_linestyle.h"
 #include "BKE_main.hh"
@@ -109,14 +110,12 @@
 
 #include "engines/eevee/eevee_lightcache.h"
 
-#include "PIL_time.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
+#include "DRW_engine.hh"
 
-#include "DRW_engine.h"
-
-#include "bmesh.h"
+#include "bmesh.hh"
 
 CurveMapping *BKE_sculpt_default_cavity_curve()
 
@@ -502,7 +501,11 @@ static void scene_foreach_toolsettings_id_pointer_process(
       ID *id_old_new = id_old != nullptr ? BLO_read_get_new_id_address_from_session_uuid(
                                                reader, id_old->session_uuid) :
                                            nullptr;
-      if (!ELEM(id_old_new, id_old, nullptr)) {
+      /* The new address may be the same as the old one, in which case there is nothing to do. */
+      if (id_old_new == id_old) {
+        break;
+      }
+      if (id_old_new != nullptr) {
         BLI_assert(id_old == id_old_new->orig_id);
         *id_old_p = id_old_new;
         if (cb_flag & IDWALK_CB_USER) {
@@ -518,7 +521,7 @@ static void scene_foreach_toolsettings_id_pointer_process(
        * There is a nasty twist here though: a previous call to 'undo_preserve' on the Scene ID may
        * have modified it, even though the undo step detected it as unmodified. In such case, the
        * value of `*id_p` may end up also pointing to an invalid (no more in newly read Main) ID,
-       * se it also needs to be checked from its `session_uuid`. */
+       * so it also needs to be checked from its `session_uuid`. */
       ID *id = *id_p;
       ID *id_new = id != nullptr ?
                        BLO_read_get_new_id_address_from_session_uuid(reader, id->session_uuid) :
@@ -962,7 +965,7 @@ static void scene_foreach_cache(ID *id,
   Scene *scene = (Scene *)id;
   IDCacheKey key{};
   key.id_session_uuid = id->session_uuid;
-  key.offset_in_ID = offsetof(Scene, eevee.light_cache_data);
+  key.identifier = offsetof(Scene, eevee.light_cache_data);
 
   function_callback(id,
                     &key,
@@ -1543,7 +1546,7 @@ static void scene_blend_read_after_liblink(BlendLibReader *reader, ID *id)
     if (base_legacy->object == nullptr) {
       BLO_reportf_wrap(BLO_read_lib_reports(reader),
                        RPT_WARNING,
-                       TIP_("LIB: object lost from scene: '%s'"),
+                       RPT_("LIB: object lost from scene: '%s'"),
                        sce->id.name + 2);
       BLI_remlink(&sce->base, base_legacy);
       if (base_legacy == sce->basact) {
@@ -2351,7 +2354,7 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
   for (a = 0, sce_iter = sce; sce_iter->set; sce_iter = sce_iter->set, a++) {
     /* more iterations than scenes means we have a cycle */
     if (a > totscene) {
-      /* the tested scene gets zero'ed, that's typically current scene */
+      /* The tested scene gets zeroed, that's typically current scene. */
       sce->set = nullptr;
       return false;
     }

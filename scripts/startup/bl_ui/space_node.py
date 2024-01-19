@@ -705,31 +705,7 @@ class NODE_PT_active_node_properties(Panel):
     def draw(self, context):
         layout = self.layout
         node = context.active_node
-        # set "node" context pointer for the panel layout
-        layout.context_pointer_set("node", node)
-
-        if hasattr(node, "draw_buttons_ext"):
-            node.draw_buttons_ext(context, layout)
-        elif hasattr(node, "draw_buttons"):
-            node.draw_buttons(context, layout)
-
-        # XXX this could be filtered further to exclude socket types
-        # which don't have meaningful input values (e.g. cycles shader)
-        value_inputs = [socket for socket in node.inputs if self.show_socket_input(socket)]
-        if value_inputs:
-            layout.separator()
-            layout.label(text="Inputs:")
-            for socket in value_inputs:
-                row = layout.row()
-                socket.draw(
-                    context,
-                    row,
-                    node,
-                    iface_(socket.label if socket.label else socket.name, socket.bl_rna.translation_context),
-                )
-
-    def show_socket_input(self, socket):
-        return hasattr(socket, "draw") and socket.enabled and not socket.is_linked
+        layout.template_node_inputs(node)
 
 
 class NODE_PT_texture_mapping(Panel):
@@ -952,7 +928,8 @@ class NODE_PT_node_tree_interface(Panel):
                         if 'OUTPUT' in active_item.in_out:
                             layout.prop(active_item, "attribute_domain")
                         layout.prop(active_item, "default_attribute_name")
-                active_item.draw(context, layout)
+                if hasattr(active_item, 'draw'):
+                    active_item.draw(context, layout)
 
             if active_item.item_type == 'PANEL':
                 layout.prop(active_item, "description")
@@ -1071,7 +1048,7 @@ class NODE_PT_simulation_zone_items(Panel):
             layout.use_property_split = True
             layout.use_property_decorate = False
             layout.prop(active_item, "socket_type")
-            if active_item.socket_type in {'VECTOR', 'INT', 'BOOLEAN', 'FLOAT', 'RGBA'}:
+            if active_item.socket_type in {'VECTOR', 'INT', 'BOOLEAN', 'FLOAT', 'RGBA', 'ROTATION'}:
                 layout.prop(active_item, "attribute_domain")
 
 
@@ -1143,6 +1120,65 @@ class NODE_PT_repeat_zone_items(Panel):
             layout.prop(active_item, "socket_type")
 
         layout.prop(output_node, "inspection_index")
+
+
+class NODE_UL_bake_node_items(bpy.types.UIList):
+    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
+        draw_socket_item_in_list(self, layout, item, icon)
+
+
+class NODE_PT_bake_node_items(bpy.types.Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Node"
+    bl_label = "Bake Items"
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        if snode is None:
+            return False
+        node = context.active_node
+        if node is None:
+            return False
+        if node.bl_idname != "GeometryNodeBake":
+            return False
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        node = context.active_node
+        split = layout.row()
+        split.template_list(
+            "NODE_UL_bake_node_items",
+            "",
+            node,
+            "bake_items",
+            node,
+            "active_index")
+
+        ops_col = split.column()
+
+        add_remove_col = ops_col.column(align=True)
+        add_remove_col.operator("node.bake_node_item_add", icon='ADD', text="")
+        add_remove_col.operator("node.bake_node_item_remove", icon='REMOVE', text="")
+
+        ops_col.separator()
+
+        up_down_col = ops_col.column(align=True)
+        props = up_down_col.operator("node.bake_node_item_move", icon='TRIA_UP', text="")
+        props.direction = 'UP'
+        props = up_down_col.operator("node.bake_node_item_move", icon='TRIA_DOWN', text="")
+        props.direction = 'DOWN'
+
+        active_item = node.active_item
+        if active_item is not None:
+            layout.use_property_split = True
+            layout.use_property_decorate = False
+            layout.prop(active_item, "socket_type")
+            if active_item.socket_type in {'VECTOR', 'INT', 'BOOLEAN', 'FLOAT', 'RGBA', 'ROTATION'}:
+                layout.prop(active_item, "attribute_domain")
+                layout.prop(active_item, "is_attribute")
 
 
 class NODE_PT_index_switch_node_items(Panel):
@@ -1240,6 +1276,8 @@ classes = (
     NODE_UL_simulation_zone_items,
     NODE_PT_simulation_zone_items,
     NODE_UL_repeat_zone_items,
+    NODE_UL_bake_node_items,
+    NODE_PT_bake_node_items,
     NODE_PT_index_switch_node_items,
     NODE_PT_repeat_zone_items,
     NODE_PT_active_node_properties,

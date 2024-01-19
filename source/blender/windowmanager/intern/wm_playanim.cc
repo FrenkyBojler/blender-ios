@@ -28,8 +28,6 @@
 #endif
 #include "MEM_guardedalloc.h"
 
-#include "PIL_time.h"
-
 #include "CLG_log.h"
 
 #include "BLI_fileops.h"
@@ -39,11 +37,12 @@
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_system.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "BKE_image.h"
 
@@ -64,7 +63,7 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "wm_window_private.h"
+#include "wm_window_private.hh"
 
 #include "WM_api.hh" /* Only for #WM_main_playanim. */
 
@@ -351,7 +350,7 @@ struct PlayAnimPict {
 /**
  * Various globals relating to playback.
  * \note Avoid adding members here where possible,
- * prefer #PlayState or one of it's members where possible.
+ * prefer #PlayState or one of its members where possible.
  */
 static struct {
   bool from_disk;
@@ -487,7 +486,7 @@ static int pupdate_time()
 {
   static double time_last;
 
-  double time = PIL_check_seconds_timer();
+  double time = BLI_check_seconds_timer();
 
   g_playanim.total_time += (time - time_last);
   time_last = time;
@@ -920,7 +919,8 @@ static void build_pict_list_from_image_sequence(ListBase *picsbase,
     void *mem = nullptr;
     size_t size = -1;
     if (!buffer_from_filepath(
-            filepath, g_playanim.from_disk ? nullptr : &mem, &size, &error_message)) {
+            filepath, g_playanim.from_disk ? nullptr : &mem, &size, &error_message))
+    {
       has_error = true;
       size = 0;
     }
@@ -1065,7 +1065,7 @@ static void playanim_change_frame(PlayState *ps)
   int sizex, sizey;
   playanim_window_get_size(ps->ghost_data.window, &sizex, &sizey);
   const int i_last = static_cast<PlayAnimPict *>(ps->picsbase.last)->frame;
-  /* Without this the frame-indicator location isn't closest to the cursor.  */
+  /* Without this the frame-indicator location isn't closest to the cursor. */
   const int correct_rounding = (sizex / i_last) / 2;
   const int i = clamp_i((i_last * (ps->frame_cursor_x + correct_rounding)) / sizex, 0, i_last);
 
@@ -1143,11 +1143,11 @@ static void playanim_audio_stop(PlayState * /*ps*/)
 #endif
 }
 
-static bool ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
+static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr ps_void_ptr)
 {
-  PlayState *ps = static_cast<PlayState *>(ps_void);
-  const GHOST_TEventType type = GHOST_GetEventType(evt);
-  GHOST_TEventDataPtr data = GHOST_GetEventData(evt);
+  PlayState *ps = static_cast<PlayState *>(ps_void_ptr);
+  const GHOST_TEventType type = GHOST_GetEventType(ghost_event);
+  GHOST_TEventDataPtr data = GHOST_GetEventData(ghost_event);
   /* Convert ghost event into value keyboard or mouse. */
   const int val = ELEM(type, GHOST_kEventKeyDown, GHOST_kEventButtonDown);
   GHOST_SystemHandle ghost_system = ps->ghost_data.system;
@@ -2022,7 +2022,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 #endif
 
         while (pupdate_time()) {
-          PIL_sleep_ms(1);
+          BLI_sleep_ms(1);
         }
         g_playanim.total_time -= g_playanim.swap_time;
         playanim_toscreen(&ps, ps.picture, ibuf);
@@ -2053,7 +2053,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
       }
       playanim_change_frame(&ps);
       if (!has_event) {
-        PIL_sleep_ms(1);
+        BLI_sleep_ms(1);
       }
       if (ps.wait) {
         continue;

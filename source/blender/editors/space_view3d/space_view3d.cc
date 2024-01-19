@@ -42,8 +42,8 @@
 #include "BKE_idprop.h"
 #include "BKE_lattice.hh"
 #include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_mball.h"
@@ -67,11 +67,11 @@
 
 #include "GPU_matrix.h"
 
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "RE_engine.h"
@@ -154,7 +154,7 @@ void ED_view3d_init_mats_rv3d_gl(const Object *ob, RegionView3D *rv3d)
   GPU_matrix_mul(ob->object_to_world);
 }
 
-#ifdef DEBUG
+#ifndef NDEBUG
 void ED_view3d_clear_mats_rv3d(RegionView3D *rv3d)
 {
   zero_m4(rv3d->viewmatob);
@@ -590,10 +590,10 @@ static bool view3d_mat_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
   return view3d_drop_id_in_main_region_poll(C, drag, event, ID_MA);
 }
 
-static char *view3d_mat_drop_tooltip(bContext *C,
-                                     wmDrag *drag,
-                                     const int xy[2],
-                                     wmDropBox * /*drop*/)
+static std::string view3d_mat_drop_tooltip(bContext *C,
+                                           wmDrag *drag,
+                                           const int xy[2],
+                                           wmDropBox * /*drop*/)
 {
   const char *name = WM_drag_get_item_name(drag);
   ARegion *region = CTX_wm_region(C);
@@ -618,12 +618,12 @@ static bool view3d_object_data_drop_poll(bContext *C, wmDrag *drag, const wmEven
   return false;
 }
 
-static char *view3d_object_data_drop_tooltip(bContext * /*C*/,
-                                             wmDrag * /*drag*/,
-                                             const int /*xy*/[2],
-                                             wmDropBox * /*drop*/)
+static std::string view3d_object_data_drop_tooltip(bContext * /*C*/,
+                                                   wmDrag * /*drag*/,
+                                                   const int /*xy*/[2],
+                                                   wmDropBox * /*drop*/)
 {
-  return BLI_strdup(TIP_("Create object instance from object-data"));
+  return TIP_("Create object instance from object-data");
 }
 
 static bool view3d_ima_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
@@ -726,10 +726,10 @@ static bool view3d_geometry_nodes_drop_poll(bContext *C, wmDrag *drag, const wmE
   return true;
 }
 
-static char *view3d_geometry_nodes_drop_tooltip(bContext *C,
-                                                wmDrag * /*drag*/,
-                                                const int xy[2],
-                                                wmDropBox *drop)
+static std::string view3d_geometry_nodes_drop_tooltip(bContext *C,
+                                                      wmDrag * /*drag*/,
+                                                      const int xy[2],
+                                                      wmDropBox *drop)
 {
   ARegion *region = CTX_wm_region(C);
   int mval[2] = {xy[0] - region->winrct.xmin, xy[1] - region->winrct.ymin};
@@ -893,7 +893,7 @@ static void view3d_id_path_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
     RNA_struct_property_unset(drop->ptr, "filepath");
     return;
   }
-  const char *path = WM_drag_get_path(drag);
+  const char *path = WM_drag_get_single_path(drag);
   if (path) {
     RNA_string_set(drop->ptr, "filepath", path);
     RNA_struct_property_unset(drop->ptr, "image");

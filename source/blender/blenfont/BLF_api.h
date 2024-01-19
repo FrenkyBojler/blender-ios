@@ -345,7 +345,7 @@ int BLF_load_default(bool unique);
 int BLF_load_mono_default(bool unique);
 void BLF_load_font_stack(void);
 
-#ifdef DEBUG
+#ifndef NDEBUG
 void BLF_state_print(int fontid);
 #endif
 
@@ -375,7 +375,11 @@ enum {
   BLF_BAD_FONT = 1 << 16,
   /** This font is managed by the FreeType cache subsystem. */
   BLF_CACHED = 1 << 17,
-  /** At small sizes glyphs are rendered at multiple sub-pixel positions. */
+  /**
+   * At small sizes glyphs are rendered at multiple sub-pixel positions.
+   *
+   * \note Can be checked without checking #BLF_MONOSPACED which can be assumed to be disabled.
+   */
   BLF_RENDER_SUBPIXELAA = 1 << 18,
 };
 

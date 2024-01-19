@@ -39,11 +39,10 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
-
-#include "PIL_time.h"
 
 #include "BKE_appdir.h"
 #include "BKE_cloth.hh"
@@ -51,7 +50,7 @@
 #include "BKE_dynamicpaint.h"
 #include "BKE_fluid.h"
 #include "BKE_global.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
@@ -93,7 +92,7 @@
 #define PTCACHE_DATA_TO(data, type, index, to) \
   if (data[type]) { \
     memcpy(to, \
-           (char *)(data)[type] + ((index) ? (index)*ptcache_data_size[type] : 0), \
+           (char *)(data)[type] + ((index) ? (index) * ptcache_data_size[type] : 0), \
            ptcache_data_size[type]); \
   } \
   (void)0
@@ -1651,7 +1650,8 @@ static int ptcache_file_data_write(PTCacheFile *pf)
 
   for (i = 0; i < BPHYS_TOT_DATA; i++) {
     if ((pf->data_types & (1 << i)) &&
-        !ptcache_file_write(pf, pf->cur[i], 1, ptcache_data_size[i])) {
+        !ptcache_file_write(pf, pf->cur[i], 1, ptcache_data_size[i]))
+    {
       return 0;
     }
   }
@@ -2993,7 +2993,8 @@ int BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
       FluidModifierData *fmd = (FluidModifierData *)md;
       FluidDomainSettings *fds = fmd->domain;
       if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fds &&
-          fds->cache_type == FLUID_DOMAIN_CACHE_REPLAY) {
+          fds->cache_type == FLUID_DOMAIN_CACHE_REPLAY)
+      {
         BKE_ptcache_id_from_smoke(&pid, ob, fmd);
         reset |= BKE_ptcache_id_reset(scene, &pid, mode);
       }
@@ -3293,7 +3294,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
   char run[32], cur[32], etd[32];
   int cancel = 0;
 
-  stime = ptime = PIL_check_seconds_timer();
+  stime = ptime = BLI_check_seconds_timer();
 
   for (int fr = scene->r.cfra; fr <= endframe; fr += baker->quick_step, scene->r.cfra = fr) {
     BKE_scene_graph_update_for_newframe(depsgraph);
@@ -3307,7 +3308,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
       printf("bake: frame %d :: %d\n", scene->r.cfra, endframe);
     }
     else {
-      ctime = PIL_check_seconds_timer();
+      ctime = BLI_check_seconds_timer();
 
       fetd = (ctime - ptime) * (endframe - scene->r.cfra) / baker->quick_step;
 
@@ -3339,7 +3340,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 
   if (use_timer) {
     /* start with newline because of \r above */
-    ptcache_dt_to_str(run, sizeof(run), PIL_check_seconds_timer() - stime);
+    ptcache_dt_to_str(run, sizeof(run), BLI_check_seconds_timer() - stime);
     printf("\nBake %s %s (%i frames simulated).\n",
            (cancel ? "canceled after" : "finished in"),
            run,
@@ -3689,13 +3690,13 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 
     /* smoke doesn't use frame 0 as info frame so can't check based on totpoint */
     if (pid->type == PTCACHE_TYPE_SMOKE_DOMAIN && totframes) {
-      SNPRINTF(cache->info, TIP_("%i frames found!"), totframes);
+      SNPRINTF(cache->info, RPT_("%i frames found!"), totframes);
     }
     else if (totframes && cache->totpoint) {
-      SNPRINTF(cache->info, TIP_("%i points found!"), cache->totpoint);
+      SNPRINTF(cache->info, RPT_("%i points found!"), cache->totpoint);
     }
     else {
-      STRNCPY(cache->info, TIP_("No valid data to read!"));
+      STRNCPY(cache->info, RPT_("No valid data to read!"));
     }
     return;
   }
@@ -3705,10 +3706,10 @@ void BKE_ptcache_update_info(PTCacheID *pid)
       int totpoint = pid->totpoint(pid->calldata, 0);
 
       if (cache->totpoint > totpoint) {
-        SNPRINTF(mem_info, TIP_("%i cells + High Resolution cached"), totpoint);
+        SNPRINTF(mem_info, RPT_("%i cells + High Resolution cached"), totpoint);
       }
       else {
-        SNPRINTF(mem_info, TIP_("%i cells cached"), totpoint);
+        SNPRINTF(mem_info, RPT_("%i cells cached"), totpoint);
       }
     }
     else {
@@ -3720,7 +3721,7 @@ void BKE_ptcache_update_info(PTCacheID *pid)
         }
       }
 
-      SNPRINTF(mem_info, TIP_("%i frames on disk"), totframes);
+      SNPRINTF(mem_info, RPT_("%i frames on disk"), totframes);
     }
   }
   else {
@@ -3748,14 +3749,14 @@ void BKE_ptcache_update_info(PTCacheID *pid)
     BLI_str_format_int_grouped(formatted_tot, totframes);
     BLI_str_format_byte_unit(formatted_mem, bytes, false);
 
-    SNPRINTF(mem_info, TIP_("%s frames in memory (%s)"), formatted_tot, formatted_mem);
+    SNPRINTF(mem_info, RPT_("%s frames in memory (%s)"), formatted_tot, formatted_mem);
   }
 
   if (cache->flag & PTCACHE_OUTDATED) {
-    SNPRINTF(cache->info, TIP_("%s, cache is outdated!"), mem_info);
+    SNPRINTF(cache->info, RPT_("%s, cache is outdated!"), mem_info);
   }
   else if (cache->flag & PTCACHE_FRAMES_SKIPPED) {
-    SNPRINTF(cache->info, TIP_("%s, not exact since frame %i"), mem_info, cache->last_exact);
+    SNPRINTF(cache->info, RPT_("%s, not exact since frame %i"), mem_info, cache->last_exact);
   }
   else {
     SNPRINTF(cache->info, "%s.", mem_info);
@@ -3835,7 +3836,8 @@ static void direct_link_pointcache_cb(BlendDataReader *reader, void *data)
 
     /* the cache saves non-struct data without DNA */
     if (pm->data[i] && ptcache_data_struct[i][0] == '\0' &&
-        BLO_read_requires_endian_switch(reader)) {
+        BLO_read_requires_endian_switch(reader))
+    {
       /* data_size returns bytes. */
       int tot = (BKE_ptcache_data_size(i) * pm->totpoint) / sizeof(int);
 

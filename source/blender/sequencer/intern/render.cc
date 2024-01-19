@@ -33,7 +33,7 @@
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_movieclip.h"
@@ -43,10 +43,10 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_metadata.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_metadata.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
@@ -238,6 +238,7 @@ void SEQ_render_new_render_data(Main *bmain,
   r_context->is_proxy_render = false;
   r_context->view_id = 0;
   r_context->gpu_offscreen = nullptr;
+  r_context->gpu_viewport = nullptr;
   r_context->task_id = SEQ_TASK_MAIN_RENDER;
   r_context->is_prefetch_render = false;
 }
@@ -535,16 +536,17 @@ static void sequencer_preprocess_transform_crop(
   sequencer_image_crop_init(seq, in, crop_scale_factor, &source_crop);
 
   const StripTransform *transform = seq->strip->transform;
-  eIMBInterpolationFilterMode filter;
+  eIMBInterpolationFilterMode filter = IMB_FILTER_NEAREST;
   int num_subsamples = 1;
   switch (transform->filter) {
     case SEQ_TRANSFORM_FILTER_NEAREST:
       filter = IMB_FILTER_NEAREST;
-      num_subsamples = 1;
       break;
     case SEQ_TRANSFORM_FILTER_BILINEAR:
       filter = IMB_FILTER_BILINEAR;
-      num_subsamples = 1;
+      break;
+    case SEQ_TRANSFORM_FILTER_BICUBIC:
+      filter = IMB_FILTER_BICUBIC;
       break;
     case SEQ_TRANSFORM_FILTER_NEAREST_3x3:
       filter = IMB_FILTER_NEAREST;
@@ -697,7 +699,8 @@ static ImBuf *seq_render_preprocess_ibuf(const SeqRenderData *context,
                                          const bool is_proxy_image)
 {
   if (context->is_proxy_render == false &&
-      (ibuf->x != context->rectx || ibuf->y != context->recty)) {
+      (ibuf->x != context->rectx || ibuf->y != context->recty))
+  {
     use_preprocess = true;
   }
 
@@ -1534,6 +1537,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
         scene->r.alphamode,
         viewname,
         context->gpu_offscreen,
+        context->gpu_viewport,
         err_out);
     if (ibuf == nullptr) {
       fprintf(stderr, "seq_render_scene_strip failed to get opengl buffer: %s\n", err_out);
@@ -1594,11 +1598,14 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
         /* float buffers in the sequencer are not linear */
         seq_imbuf_to_sequencer_space(context->scene, ibufs_arr[view_id], false);
       }
-      else if (rres.ibuf->byte_buffer.data) {
+      else if (rres.ibuf && rres.ibuf->byte_buffer.data) {
         ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rect);
         memcpy(ibufs_arr[view_id]->byte_buffer.data,
                rres.ibuf->byte_buffer.data,
                4 * rres.rectx * rres.recty);
+      }
+      else {
+        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rect);
       }
 
       if (view_id != context->view_id) {

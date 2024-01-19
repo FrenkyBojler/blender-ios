@@ -149,7 +149,7 @@ typedef struct bNodeSocket {
   short stack_index;
   char display_shape;
 
-  /* #eAttrDomain used when the geometry nodes modifier creates an attribute for a group
+  /* #AttrDomain used when the geometry nodes modifier creates an attribute for a group
    * output. */
   char attribute_domain;
 
@@ -728,10 +728,10 @@ typedef struct bNodeTree {
   const bNestedNodeRef *nested_node_ref_from_node_id_path(blender::Span<int> node_ids) const;
   [[nodiscard]] bool node_id_path_from_nested_node_ref(const int32_t nested_node_id,
                                                        blender::Vector<int32_t> &r_node_ids) const;
-  const bNode *find_nested_node(int32_t nested_node_id) const;
+  const bNode *find_nested_node(int32_t nested_node_id, const bNodeTree **r_tree = nullptr) const;
 
   /**
-   * Update a run-time cache for the node tree based on it's current state. This makes many methods
+   * Update a run-time cache for the node tree based on its current state. This makes many methods
    * available which allow efficient lookup for topology information (like neighboring sockets).
    */
   void ensure_topology_cache() const;
@@ -786,7 +786,7 @@ typedef struct bNodeTree {
   const blender::bke::bNodeTreeZones *zones() const;
 
   /**
-   * Update a run-time cache for the node tree interface based on it's current state.
+   * Update a run-time cache for the node tree interface based on its current state.
    * This should be done before accessing interface item spans below.
    */
   void ensure_interface_cache() const;
@@ -1034,7 +1034,7 @@ typedef struct NodeImageLayer {
   /** Index in the `image->layers->passes` lists. */
   int pass_index DNA_DEPRECATED;
   /* render pass name */
-  /** Amount defined in IMB_openexr.h. */
+  /** Amount defined in IMB_openexr.hh. */
   char pass_name[64];
 } NodeImageLayer;
 
@@ -1067,6 +1067,8 @@ typedef struct NodeKuwaharaData {
   int uniformity;
   float sharpness;
   float eccentricity;
+  char high_precision;
+  char _pad[3];
 } NodeKuwaharaData;
 
 typedef struct NodeAntiAliasingData {
@@ -1515,7 +1517,7 @@ typedef struct NodeRandomValue {
 typedef struct NodeAccumulateField {
   /** #eCustomDataType. */
   uint8_t data_type;
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   uint8_t domain;
 } NodeAccumulateField;
 
@@ -1696,7 +1698,7 @@ typedef struct NodeGeometryCurveSample {
 typedef struct NodeGeometryTransferAttribute {
   /** #eCustomDataType. */
   int8_t data_type;
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   int8_t domain;
   /** #GeometryNodeAttributeTransferMode. */
   uint8_t mode;
@@ -1706,7 +1708,7 @@ typedef struct NodeGeometryTransferAttribute {
 typedef struct NodeGeometrySampleIndex {
   /** #eCustomDataType. */
   int8_t data_type;
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   int8_t domain;
   int8_t clamp;
   char _pad[1];
@@ -1732,14 +1734,14 @@ typedef struct NodeGeometryMeshToPoints {
 typedef struct NodeGeometryAttributeCapture {
   /** #eCustomDataType. */
   int8_t data_type;
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   int8_t domain;
 } NodeGeometryAttributeCapture;
 
 typedef struct NodeGeometryStoreNamedAttribute {
   /** #eCustomDataType. */
   int8_t data_type;
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   int8_t domain;
 } NodeGeometryStoreNamedAttribute;
 
@@ -1760,19 +1762,19 @@ typedef struct NodeGeometryStringToCurves {
 } NodeGeometryStringToCurves;
 
 typedef struct NodeGeometryDeleteGeometry {
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   int8_t domain;
   /** #GeometryNodeDeleteGeometryMode. */
   int8_t mode;
 } NodeGeometryDeleteGeometry;
 
 typedef struct NodeGeometryDuplicateElements {
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   int8_t domain;
 } NodeGeometryDuplicateElements;
 
 typedef struct NodeGeometrySeparateGeometry {
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   int8_t domain;
 } NodeGeometrySeparateGeometry;
 
@@ -1784,7 +1786,7 @@ typedef struct NodeGeometryImageTexture {
 typedef struct NodeGeometryViewer {
   /** #eCustomDataType. */
   int8_t data_type;
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   int8_t domain;
 } NodeGeometryViewer;
 
@@ -1797,7 +1799,7 @@ typedef struct NodeSimulationItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
-  /** #eAttrDomain. */
+  /** #AttrDomain. */
   short attribute_domain;
   /**
    * Generates unique identifier for sockets which stays the same even when the item order or
@@ -1907,6 +1909,27 @@ typedef struct NodeShaderMix {
   int8_t blend_type;
   char _pad[3];
 } NodeShaderMix;
+
+typedef struct NodeGeometryBakeItem {
+  char *name;
+  int16_t socket_type;
+  int16_t attribute_domain;
+  int identifier;
+  int32_t flag;
+  char _pad[4];
+} NodeGeometryBakeItem;
+
+typedef enum NodeGeometryBakeItemFlag {
+  GEO_NODE_BAKE_ITEM_IS_ATTRIBUTE = (1 << 0),
+} NodeGeometryBakeItemFlag;
+
+typedef struct NodeGeometryBake {
+  NodeGeometryBakeItem *items;
+  int items_num;
+  int next_identifier;
+  int active_index;
+  char _pad[4];
+} NodeGeometryBake;
 
 /* script node mode */
 enum {
@@ -2365,11 +2388,11 @@ enum {
   CMP_NODE_OUTPUT_IGNORE_ALPHA = 1,
 };
 
-/** Split Viewer Node. Stored in `custom2`. */
-typedef enum CMPNodeSplitViewerAxis {
-  CMP_NODE_SPLIT_VIEWER_HORIZONTAL = 0,
-  CMP_NODE_SPLIT_VIEWER_VERTICAL = 1,
-} CMPNodeSplitViewerAxis;
+/** Split Node. Stored in `custom2`. */
+typedef enum CMPNodeSplitAxis {
+  CMP_NODE_SPLIT_HORIZONTAL = 0,
+  CMP_NODE_SPLIT_VERTICAL = 1,
+} CMPNodeSplitAxis;
 
 /** Color Balance Node. Stored in `custom1`. */
 typedef enum CMPNodeColorBalanceMethod {
@@ -2517,6 +2540,20 @@ typedef enum CMPNodeCombSepColorMode {
   CMP_NODE_COMBSEP_COLOR_YCC = 3,
   CMP_NODE_COMBSEP_COLOR_YUV = 4,
 } CMPNodeCombSepColorMode;
+
+/* Filtering modes Compositor MapUV node, stored in custom2. */
+typedef enum CMPNodeMapUVFiltering {
+  CMP_NODE_MAP_UV_FILTERING_NEAREST = 0,
+  CMP_NODE_MAP_UV_FILTERING_BILINEAR = 1,
+  CMP_NODE_MAP_UV_FILTERING_BICUBIC = 2,
+  CMP_NODE_MAP_UV_FILTERING_ANISOTROPIC = 3,
+} CMPNodeMapUVFiltering;
+
+/* Cryptomatte node source. */
+typedef enum CMPNodeCryptomatteSource {
+  CMP_NODE_CRYPTOMATTE_SOURCE_RENDER = 0,
+  CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE = 1,
+} CMPNodeCryptomatteSource;
 
 /* Point Density shader node */
 

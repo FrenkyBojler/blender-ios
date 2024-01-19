@@ -33,7 +33,7 @@
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_idtype.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_nla.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -46,7 +46,8 @@
 #include "ED_screen.hh"
 
 #include "ANIM_animdata.hh"
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
+#include "ANIM_driver.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_rna.hh"
@@ -75,38 +76,23 @@ static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *k
 /* ************************************************** */
 /* Keyframing Setting Wrangling */
 
-eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene, const bool use_autokey_mode)
+eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene)
 {
   using namespace blender::animrig;
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
 
-  /* standard flags */
-  {
-    /* visual keying */
-    if (is_autokey_flag(scene, AUTOKEY_FLAG_VISUALKEY)) {
-      flag |= INSERTKEY_MATRIX;
-    }
-
-    /* only needed */
-    if (is_autokey_flag(scene, AUTOKEY_FLAG_INSERTNEEDED)) {
-      flag |= INSERTKEY_NEEDED;
-    }
+  /* Visual keying. */
+  if (is_keying_flag(scene, KEYING_FLAG_VISUALKEY)) {
+    flag |= INSERTKEY_MATRIX;
   }
 
-  /* only if including settings from the autokeying mode... */
-  /* TODO: The fact that this flag needs to be passed as true is confusing because it is not clear
-   * why those two flags would be exclusive to autokeying. Refactor flags so they are separate
-   * between normal keying and autokeying. */
-  if (use_autokey_mode) {
-    /* keyframing mode - only replace existing keyframes */
-    if (is_autokey_mode(scene, AUTOKEY_MODE_EDITKEYS)) {
-      flag |= INSERTKEY_REPLACE;
-    }
+  /* Cycle-aware keyframe insertion - preserve cycle period and flow. */
+  if (is_keying_flag(scene, KEYING_FLAG_CYCLEAWARE)) {
+    flag |= INSERTKEY_CYCLE_AWARE;
+  }
 
-    /* cycle-aware keyframe insertion - preserve cycle period and flow */
-    if (is_autokey_flag(scene, AUTOKEY_FLAG_CYCLEAWARE)) {
-      flag |= INSERTKEY_CYCLE_AWARE;
-    }
+  if (is_keying_flag(scene, MANUALKEY_FLAG_INSERTNEEDED)) {
+    flag |= INSERTKEY_NEEDED;
   }
 
   return flag;
@@ -114,70 +100,6 @@ eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene, const bool use_autokey_m
 
 /* ******************************************* */
 /* Animation Data Validation */
-
-bAction *ED_id_action_ensure(Main *bmain, ID *id)
-{
-  AnimData *adt;
-
-  /* init animdata if none available yet */
-  adt = BKE_animdata_from_id(id);
-  if (adt == nullptr) {
-    adt = BKE_animdata_ensure_id(id);
-  }
-  if (adt == nullptr) {
-    /* if still none (as not allowed to add, or ID doesn't have animdata for some reason) */
-    printf("ERROR: Couldn't add AnimData (ID = %s)\n", (id) ? (id->name) : "<None>");
-    return nullptr;
-  }
-
-  /* init action if none available yet */
-  /* TODO: need some wizardry to handle NLA stuff correct */
-  if (adt->action == nullptr) {
-    /* init action name from name of ID block */
-    char actname[sizeof(id->name) - 2];
-    SNPRINTF(actname, "%sAction", id->name + 2);
-
-    /* create action */
-    adt->action = BKE_action_add(bmain, actname);
-
-    /* set ID-type from ID-block that this is going to be assigned to
-     * so that users can't accidentally break actions by assigning them
-     * to the wrong places
-     */
-    BKE_animdata_action_ensure_idroot(id, adt->action);
-
-    /* Tag depsgraph to be rebuilt to include time dependency. */
-    DEG_relations_tag_update(bmain);
-  }
-
-  DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
-
-  /* return the action */
-  return adt->action;
-}
-
-/** Helper for #update_autoflags_fcurve(). */
-void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop)
-{
-  /* set additional flags for the F-Curve (i.e. only integer values) */
-  fcu->flag &= ~(FCURVE_INT_VALUES | FCURVE_DISCRETE_VALUES);
-  switch (RNA_property_type(prop)) {
-    case PROP_FLOAT:
-      /* do nothing */
-      break;
-    case PROP_INT:
-      /* do integer (only 'whole' numbers) interpolation between all points */
-      fcu->flag |= FCURVE_INT_VALUES;
-      break;
-    default:
-      /* do 'discrete' (i.e. enum, boolean values which cannot take any intermediate
-       * values at all) interpolation between all points
-       *    - however, we must also ensure that evaluated values are only integers still
-       */
-      fcu->flag |= (FCURVE_DISCRETE_VALUES | FCURVE_INT_VALUES);
-      break;
-  }
-}
 
 void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, PointerRNA *ptr)
 {
@@ -193,7 +115,7 @@ void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, Poin
   /* try to get property we should be affecting */
   if (RNA_path_resolve_property(ptr, fcu->rna_path, &tmp_ptr, &prop) == false) {
     /* property not found... */
-    const char *idname = (ptr->owner_id) ? ptr->owner_id->name : TIP_("<No ID pointer>");
+    const char *idname = (ptr->owner_id) ? ptr->owner_id->name : RPT_("<No ID pointer>");
 
     BKE_reportf(reports,
                 RPT_ERROR,
@@ -205,7 +127,7 @@ void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, Poin
   }
 
   /* update F-Curve flags */
-  update_autoflags_fcurve_direct(fcu, prop);
+  blender::animrig::update_autoflags_fcurve_direct(fcu, prop);
 
   if (old_flag != fcu->flag) {
     /* Same as if keyframes had been changed */
@@ -425,9 +347,7 @@ static int insert_key(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   const float scene_frame = BKE_scene_frame_get(scene);
 
-  /* Passing autokey mode as true because that is needed to get the cycle aware keying flag. */
-  const bool use_autokey_mode = true;
-  const eInsertKeyFlags insert_key_flags = ANIM_get_keyframing_flags(scene, use_autokey_mode);
+  const eInsertKeyFlags insert_key_flags = ANIM_get_keyframing_flags(scene);
   const eBezTriple_KeyframeType key_type = eBezTriple_KeyframeType(
       scene->toolsettings->keyframe_type);
 
@@ -959,8 +879,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
   const bool all = RNA_boolean_get(op->ptr, "all");
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
 
-  /* flags for inserting keyframes */
-  flag = ANIM_get_keyframing_flags(scene, true);
+  flag = ANIM_get_keyframing_flags(scene);
 
   if (!(but = UI_context_active_but_prop_get(C, &ptr, &prop, &index))) {
     /* pass event on if no active button found */
@@ -1002,15 +921,19 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
           C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
 
       if (fcu && driven) {
+        const float driver_frame = blender::animrig::evaluate_driver_from_rna_pointer(
+            &anim_eval_context, &ptr, prop, fcu);
+        AnimationEvalContext remapped_context = BKE_animsys_eval_context_construct(
+            CTX_data_depsgraph_pointer(C), driver_frame);
         changed = blender::animrig::insert_keyframe_direct(
             op->reports,
             ptr,
             prop,
             fcu,
-            &anim_eval_context,
+            &remapped_context,
             eBezTriple_KeyframeType(ts->keyframe_type),
             nullptr,
-            INSERTKEY_DRIVER);
+            INSERTKEY_NOFLAGS);
       }
     }
     else {

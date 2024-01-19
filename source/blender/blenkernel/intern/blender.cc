@@ -18,14 +18,14 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_moviecache.h"
+#include "IMB_imbuf.hh"
+#include "IMB_moviecache.hh"
 
 #include "BKE_addon.h"
 #include "BKE_blender.h" /* own include */
 #include "BKE_blender_user_menu.h"
 #include "BKE_blender_version.h" /* own include */
-#include "BKE_blendfile.h"
+#include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
 #include "BKE_cachefile.h"
 #include "BKE_callbacks.h"
@@ -323,7 +323,8 @@ static void userdef_free_addons(UserDef *userdef)
 void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
 {
 #define U BLI_STATIC_ASSERT(false, "Global 'U' not allowed, only use arguments passed in!")
-#ifdef U /* quiet warning */
+#ifdef U
+  /* Quiet warning. */
 #endif
 
   userdef_free_keymaps(userdef);

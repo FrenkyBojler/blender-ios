@@ -58,7 +58,7 @@ struct MainIDRelationsEntryItem {
   /* Session uuid of the `id_pointer`. */
   uint session_uuid;
 
-  int usage_flag; /* Using IDWALK_ enums, defined in BKE_lib_query.h */
+  int usage_flag; /* Using IDWALK_ enums, defined in BKE_lib_query.hh */
 };
 
 struct MainIDRelationsEntry {
@@ -465,14 +465,14 @@ const char *BKE_main_blendfile_path(const Main *bmain) ATTR_NONNULL();
  * \warning Usage is not recommended,
  * you should always try to get a valid Main pointer from context.
  */
-const char *BKE_main_blendfile_path_from_global(void);
+const char *BKE_main_blendfile_path_from_global();
 
 /**
  * \return A pointer to the \a ListBase of given \a bmain for requested \a type ID type.
  */
 ListBase *which_libbase(Main *bmain, short type);
 
-//#define INDEX_ID_MAX 41
+// #define INDEX_ID_MAX 41
 /**
  * Put the pointers to all the #ListBase structs in given `bmain` into the `*lb[INDEX_ID_MAX]`
  * array, and return the number of those for convenience.
