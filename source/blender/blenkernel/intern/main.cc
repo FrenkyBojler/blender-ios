@@ -26,7 +26,7 @@
 
 #include "BKE_bpath.h"
 #include "BKE_global.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
@@ -35,8 +35,8 @@
 #include "BKE_main_namemap.hh"
 #include "BKE_report.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 static CLG_LogRef LOG = {"bke.main"};
 

@@ -39,7 +39,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_icons.h"
@@ -47,9 +47,9 @@
 #include "BKE_preview_image.hh"
 #include "BKE_studiolight.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_thumbs.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_thumbs.hh"
 
 #include "BIF_glutil.hh"
 

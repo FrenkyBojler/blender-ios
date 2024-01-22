@@ -32,7 +32,7 @@
 #  include "BLI_threads.h"
 #  include "BLI_utildefines.h"
 
-#  include "BKE_appdir.h"
+#  include "BKE_appdir.hh"
 #  include "BKE_blender_version.h"
 #  include "BKE_blendfile.hh"
 #  include "BKE_context.hh"
@@ -48,7 +48,7 @@
 #  include "GPU_context.h"
 
 #  ifdef WITH_FFMPEG
-#    include "IMB_imbuf.h"
+#    include "IMB_imbuf.hh"
 #  endif
 
 #  ifdef WITH_PYTHON

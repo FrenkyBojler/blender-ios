@@ -27,8 +27,8 @@
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
 
-#include "BKE_appdir.h"
-#include "BKE_blender_copybuffer.h"
+#include "BKE_appdir.hh"
+#include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.h"

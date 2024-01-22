@@ -27,7 +27,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -36,8 +36,8 @@
 
 #include "BLF_api.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "ED_datafiles.h"
 #include "ED_screen.hh"

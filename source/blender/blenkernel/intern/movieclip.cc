@@ -48,7 +48,7 @@
 #include "BKE_bpath.h"
 #include "BKE_colortools.hh"
 #include "BKE_global.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_image.h" /* openanim */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -58,10 +58,10 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_tracking.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_moviecache.h"
-#include "IMB_openexr.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_moviecache.hh"
+#include "IMB_openexr.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"

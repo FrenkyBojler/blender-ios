@@ -9,6 +9,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "BLI_compiler_attrs.h"
@@ -3171,7 +3172,7 @@ void UI_fontstyle_draw_simple(
 void UI_fontstyle_draw_simple_backdrop(const uiFontStyle *fs,
                                        float x,
                                        float y,
-                                       const char *str,
+                                       blender::StringRef str,
                                        const float col_fg[4],
                                        const float col_bg[4]);
 

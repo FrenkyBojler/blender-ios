@@ -27,10 +27,10 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
 
 #include "BKE_addon.h"
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_blender.h"
 #include "BKE_blender_version.h"
 #include "BKE_blendfile.hh"
@@ -38,7 +38,7 @@
 #include "BKE_colorband.hh"
 #include "BKE_context.hh"
 #include "BKE_global.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_ipo.h"
 #include "BKE_keyconfig.h"
 #include "BKE_layer.h"

@@ -49,7 +49,7 @@
 #include "BLI_vector_set.hh"
 #include "BLT_translation.h"
 
-#include "IMB_imbuf.h"
+#include "IMB_imbuf.hh"
 
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
@@ -61,7 +61,7 @@
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_idprop.hh"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_image_format.h"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
