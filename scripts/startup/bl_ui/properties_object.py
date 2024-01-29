@@ -146,35 +146,23 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         if not inverse_matrix.to_3x3().is_orthogonal_axis_vectors:
             self.layout.label(text="Parent Inverse Matrix has a shear", icon="ERROR")
 
-        layout = self.layout
-        row = layout.row()
+        col = self.layout.column(align=False)
+        grid = col.grid_flow(row_major=True, columns=4, align=True)
 
-        cols = [row.column() for i in range(4)]
-        def label(col, text):
-            r = cols[col].row()
-            r.alignment = 'CENTER'
-            r.label(text=text)
-            r = cols[col].row()
+        grid.label(text="Translation")
+        grid.label(text=self.format_value(trans.x, "translation"))
+        grid.label(text=self.format_value(trans.y, "translation"))
+        grid.label(text=self.format_value(trans.z, "translation"))
 
-        label(0, "")
-        label(0, "Translation")
-        label(0, "Rotation, °")
-        label(0, "Scale")
+        grid.label(text="Rotation, °")
+        grid.label(text=self.format_value(rot.x, "rotation"))
+        grid.label(text=self.format_value(rot.y, "rotation"))
+        grid.label(text=self.format_value(rot.z, "rotation"))
 
-        label(1, "X")
-        label(1, self.format_value(trans.x, "translation"))
-        label(1, self.format_value(rot.x, "rotation"))
-        label(1, self.format_value(scale.x, "scale"))
-
-        label(2, "Y")
-        label(2, self.format_value(trans.y, "translation"))
-        label(2, self.format_value(rot.y, "rotation"))
-        label(2, self.format_value(scale.y, "scale"))
-
-        label(3, "Z")
-        label(3, self.format_value(trans.z, "translation"))
-        label(3, self.format_value(rot.z, "rotation"))
-        label(3, self.format_value(scale.z, "scale"))
+        grid.label(text="Scale")
+        grid.label(text=self.format_value(scale.x, "scale"))
+        grid.label(text=self.format_value(scale.y, "scale"))
+        grid.label(text=self.format_value(scale.z, "scale"))
 
         op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform", icon="LOOP_BACK")
         op.type = "CLEAR_INVERSE"
