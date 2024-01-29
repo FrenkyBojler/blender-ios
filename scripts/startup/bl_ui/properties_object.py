@@ -10,6 +10,7 @@ import bpy
 from bpy.types import Panel, Menu
 from rna_prop_ui import PropertyPanel
 from bl_ui.space_properties import PropertiesAnimationMixin
+from math import pi
 
 
 class ObjectButtonsPanel:
@@ -108,6 +109,77 @@ class OBJECT_PT_delta_transform(ObjectButtonsPanel, Panel):
         col.prop(ob, "delta_scale", text="Scale")
 
 
+class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
+    bl_label = "Parent Inverse Transform"
+    bl_parent_id = "OBJECT_PT_transform"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object and context.active_object.parent
+
+    @staticmethod
+    def format_value(num: float, value_type: str) -> str:
+        match value_type:
+            case "translation":
+                if abs(num) < 1e-3:
+                    return "-"
+            case "scale":
+                if abs(1.0 - num) < 1e-3:
+                    return "-"
+            case "rotation":
+                num = num / pi * 180
+                if abs(num) < 1e-3:
+                    return "-"
+        return f"{num:.3f}"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        ob = context.active_object
+        inverse_matrix = ob.matrix_parent_inverse
+        (trans, rot, scale) = inverse_matrix.decompose()
+        rot = rot.to_euler()
+
+        # we use 3x3 matrix because we don't care about translation-shear
+        if not inverse_matrix.to_3x3().is_orthogonal_axis_vectors:
+            self.layout.label(text="Parent Inverse Matrix has a shear", icon="ERROR")
+
+        layout = self.layout
+        row = layout.row()
+
+        cols = [row.column() for i in range(4)]
+        def label(col, text):
+            r = cols[col].row()
+            r.alignment = 'CENTER'
+            r.label(text=text)
+            r = cols[col].row()
+
+        label(0, "")
+        label(0, "Translation")
+        label(0, "Rotation, °")
+        label(0, "Scale")
+
+        label(1, "X")
+        label(1, self.format_value(trans.x, "translation"))
+        label(1, self.format_value(rot.x, "rotation"))
+        label(1, self.format_value(scale.x, "scale"))
+
+        label(2, "Y")
+        label(2, self.format_value(trans.y, "translation"))
+        label(2, self.format_value(rot.y, "rotation"))
+        label(2, self.format_value(scale.y, "scale"))
+
+        label(3, "Z")
+        label(3, self.format_value(trans.z, "translation"))
+        label(3, self.format_value(rot.z, "rotation"))
+        label(3, self.format_value(scale.z, "scale"))
+
+        op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform", icon="LOOP_BACK")
+        op.type = "CLEAR_INVERSE"
+
+
 class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
     bl_label = "Relations"
     bl_options = {'DEFAULT_CLOSED'}
@@ -120,14 +192,7 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
         ob = context.object
 
         col = flow.column()
-        row = col.row(align=True)
-        row.prop(ob, "parent")
-
-        row = row.row(align=True)
-        op = row.operator("object.parent_clear", text="", icon="LOOP_BACK")
-        op.type = "CLEAR_INVERSE"
-        row.enabled = bool(ob.parent and not ob.matrix_parent_inverse.is_identity)
-
+        col.prop(ob, "parent")
         sub = col.column()
         sub.prop(ob, "parent_type")
         parent = ob.parent
@@ -612,6 +677,7 @@ classes = (
     OBJECT_PT_context_object,
     OBJECT_PT_transform,
     OBJECT_PT_delta_transform,
+    OBJECT_PT_parent_inverse_transform,
     OBJECT_PT_relations,
     COLLECTION_MT_context_menu,
     OBJECT_PT_collections,
