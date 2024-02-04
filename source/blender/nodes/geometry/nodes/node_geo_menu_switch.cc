@@ -122,8 +122,10 @@ static void node_enum_definition_copy(NodeEnumDefinition &dst_enum_def,
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeMenuSwitch *data = MEM_cnew<NodeMenuSwitch>(__func__);
-  node_enum_definition_init(data->enum_definition);
   data->data_type = SOCK_GEOMETRY;
+  node_enum_definition_init(data->enum_definition);
+  data->enum_definition.add_item("A");
+  data->enum_definition.add_item("B");
   node->storage = data;
 }
 
@@ -144,8 +146,6 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
 
   dst_node->storage = dst_storage;
 }
-
-static void node_update(bNodeTree * /*ntree*/, bNode * /*node*/) {}
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
@@ -168,8 +168,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 }
 
 /**
- * Multifunction which evaluates the switch input for each enum item and partially fills the output
- * array with values from the input array where the identifier matches.
+ * Multi-function which evaluates the switch input for each enum item and partially fills the
+ * output array with values from the input array where the identifier matches.
  */
 class MenuSwitchFn : public mf::MultiFunction {
   const NodeEnumDefinition &enum_def_;
@@ -403,7 +403,6 @@ static void register_node()
   geo_node_type_base(&ntype, GEO_NODE_MENU_SWITCH, "Menu Switch", NODE_CLASS_CONVERTER);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  ntype.updatefunc = node_update;
   node_type_storage(&ntype, "NodeMenuSwitch", node_free_storage, node_copy_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.draw_buttons = node_layout;
