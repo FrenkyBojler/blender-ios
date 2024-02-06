@@ -7,10 +7,12 @@ from bl_ui.properties_animviz import (
     MotionPathButtonsPanel_display,
 )
 import bpy
-from bpy.types import Panel, Menu
+from bpy.types import Panel, Menu, PropertyGroup
 from rna_prop_ui import PropertyPanel
 from bl_ui.space_properties import PropertiesAnimationMixin
-from math import pi
+from bpy.props import FloatVectorProperty, PointerProperty, EnumProperty
+from mathutils import Vector, Quaternion
+from typing import Tuple
 
 
 class ObjectButtonsPanel:
@@ -118,20 +120,10 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
     def poll(cls, context):
         return context.active_object and context.active_object.parent
 
-    @staticmethod
-    def format_value(num: float, value_type: str) -> str:
-        match value_type:
-            case "translation":
-                if abs(num) < 1e-3:
-                    return "-"
-            case "scale":
-                if abs(1.0 - num) < 1e-3:
-                    return "-"
-            case "rotation":
-                num = num / pi * 180
-                if abs(num) < 1e-3:
-                    return "-"
-        return f"{num:.3f}"
+    def draw_property_lock(self, row):
+        col = row.column()
+        for _ in range(3):
+            col.label(text="", icon="LOCKED")
 
     def draw(self, context):
         layout = self.layout
@@ -139,30 +131,26 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
 
         ob = context.active_object
         inverse_matrix = ob.matrix_parent_inverse
-        (trans, rot, scale) = inverse_matrix.decompose()
-        rot = rot.to_euler()
+        inverse_props = ob.parent_inverse_transform
 
         # we use 3x3 matrix because we don't care about translation-shear
         if not inverse_matrix.to_3x3().is_orthogonal_axis_vectors:
             self.layout.label(text="Parent Inverse Matrix has a shear", icon="ERROR")
 
-        col = self.layout.column(align=False)
-        grid = col.grid_flow(row_major=True, columns=4, align=True)
+        # keep props enabled so it will be possible to copy data
+        # but add the locks to indicate that they are read-only
+        row = layout.row(align=True)
+        row.prop(inverse_props, "location")
+        self.draw_property_lock(row)
 
-        grid.label(text="Translation")
-        grid.label(text=self.format_value(trans.x, "translation"))
-        grid.label(text=self.format_value(trans.y, "translation"))
-        grid.label(text=self.format_value(trans.z, "translation"))
+        row = layout.row(align=True)
+        row.prop(inverse_props, "rotation_euler", text="Rotation")
+        self.draw_property_lock(row)
+        layout.prop(inverse_props, "rotation_mode", text="Mode")
 
-        grid.label(text="Rotation, °")
-        grid.label(text=self.format_value(rot.x, "rotation"))
-        grid.label(text=self.format_value(rot.y, "rotation"))
-        grid.label(text=self.format_value(rot.z, "rotation"))
-
-        grid.label(text="Scale")
-        grid.label(text=self.format_value(scale.x, "scale"))
-        grid.label(text=self.format_value(scale.y, "scale"))
-        grid.label(text=self.format_value(scale.z, "scale"))
+        row = layout.row(align=True)
+        row.prop(inverse_props, "scale")
+        self.draw_property_lock(row)
 
         op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform", icon="LOOP_BACK")
         op.type = "CLEAR_INVERSE"
@@ -661,6 +649,42 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
     _property_type = bpy.types.Object
 
 
+class TransformAttributes(PropertyGroup):
+    def set_read_only_prop(self, value):
+        pass
+
+    def get_matrix_components(self) -> Tuple[Vector, Quaternion, Vector]:
+        return self.id_data.matrix_parent_inverse.decompose()
+
+    def get_location(self):
+        return self.get_matrix_components()[0]
+
+    def get_rotation_euler(self):
+        return self.get_matrix_components()[1].to_euler(self.rotation_mode)
+
+    def get_scale(self):
+        return self.get_matrix_components()[2]
+
+    # we implement only euler rotation as it should cover most of the cases
+    rotation_mode_enum = (
+        ('XYZ', 'XYZ Euler', ''),
+        ('XZY', 'XZY Euler', ''),
+        ('YXZ', 'YXZ Euler', ''),
+        ('YZX', 'YZX Euler', ''),
+        ('ZXY', 'ZXY Euler', ''),
+        ('ZYX', 'ZYX Euler', ''),
+    )
+
+    location: FloatVectorProperty(
+        name="Location", get=get_location, set=set_read_only_prop, options=set(), subtype="TRANSLATION"
+    )
+    rotation_euler: FloatVectorProperty(
+        name="Rotation (Euler)", get=get_rotation_euler, set=set_read_only_prop, options=set(), subtype="EULER"
+    )
+    rotation_mode: EnumProperty(name="Rotation Mode (Euler)", items=rotation_mode_enum, default="XYZ")
+    scale: FloatVectorProperty(name="Scale", get=get_scale, set=set_read_only_prop, options=set(), subtype="XYZ")
+
+
 classes = (
     OBJECT_PT_context_object,
     OBJECT_PT_transform,
@@ -684,7 +708,12 @@ classes = (
     OBJECT_PT_lineart,
     OBJECT_PT_animation,
     OBJECT_PT_custom_props,
+    TransformAttributes
 )
+
+def register_props():
+    bpy.types.Object.parent_inverse_transform = PointerProperty(type=TransformAttributes)
+
 
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class

@@ -119,7 +119,9 @@ def register():
         for cls in mod.classes:
             register_class(cls)
 
+    # NOTE: modules imported dynamically using __import__
     space_filebrowser.register_props()
+    properties_object.register_props()
 
     from bpy.props import (
         EnumProperty,
