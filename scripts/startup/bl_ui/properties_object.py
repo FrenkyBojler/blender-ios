@@ -676,13 +676,20 @@ class TransformAttributes(PropertyGroup):
     )
 
     location: FloatVectorProperty(
-        name="Location", get=get_location, set=set_read_only_prop, options=set(), subtype="TRANSLATION"
+        name="Location", get=get_location, set=set_read_only_prop, options=set(), subtype="TRANSLATION", precision=5
     )
     rotation_euler: FloatVectorProperty(
-        name="Rotation (Euler)", get=get_rotation_euler, set=set_read_only_prop, options=set(), subtype="EULER"
+        name="Rotation (Euler)",
+        get=get_rotation_euler,
+        set=set_read_only_prop,
+        options=set(),
+        subtype="EULER",
+        precision=3,
     )
     rotation_mode: EnumProperty(name="Rotation Mode (Euler)", items=rotation_mode_enum, default="XYZ")
-    scale: FloatVectorProperty(name="Scale", get=get_scale, set=set_read_only_prop, options=set(), subtype="XYZ")
+    scale: FloatVectorProperty(
+        name="Scale", get=get_scale, set=set_read_only_prop, options=set(), subtype="XYZ", precision=3
+    )
 
 
 classes = (
