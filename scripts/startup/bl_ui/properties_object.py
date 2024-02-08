@@ -118,7 +118,7 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.active_object and context.active_object.parent
+        return context.object and context.object.parent
 
     def draw_property_lock(self, row):
         col = row.column()
