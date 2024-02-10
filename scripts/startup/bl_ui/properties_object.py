@@ -138,7 +138,6 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
 
         row = layout.row(align=True)
         row.prop(inverse_props, "rotation_mode", text="Mode")
-        row.active = False
 
         row = layout.row(align=True)
         row.prop(inverse_props, "rotation_euler", text="Rotation")
