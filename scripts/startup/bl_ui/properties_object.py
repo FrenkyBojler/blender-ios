@@ -684,7 +684,7 @@ class TransformAttributes(PropertyGroup):
         set=set_read_only_prop,
         options=set(),
         subtype="EULER",
-        precision=3,
+        precision=5,
     )
     rotation_mode: EnumProperty(name="Rotation Mode (Euler)", items=rotation_mode_enum, default="XYZ")
     scale: FloatVectorProperty(
