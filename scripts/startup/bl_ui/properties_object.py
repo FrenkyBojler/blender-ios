@@ -120,11 +120,6 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
     def poll(cls, context):
         return context.object and context.object.parent
 
-    def draw_property_lock(self, row):
-        col = row.column()
-        for _ in range(3):
-            col.label(text="", icon="LOCKED")
-
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
@@ -137,20 +132,21 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         if not inverse_matrix.to_3x3().is_orthogonal_axis_vectors:
             self.layout.label(text="Parent Inverse Matrix has a shear", icon="ERROR")
 
-        # keep props enabled so it will be possible to copy data
-        # but add the locks to indicate that they are read-only
         row = layout.row(align=True)
+        row.active = False
         row.prop(inverse_props, "location")
-        self.draw_property_lock(row)
+
+        row = layout.row(align=True)
+        row.prop(inverse_props, "rotation_mode", text="Mode")
+        row.active = False
 
         row = layout.row(align=True)
         row.prop(inverse_props, "rotation_euler", text="Rotation")
-        self.draw_property_lock(row)
-        layout.prop(inverse_props, "rotation_mode", text="Mode")
+        row.active = False
 
         row = layout.row(align=True)
+        row.active = False
         row.prop(inverse_props, "scale")
-        self.draw_property_lock(row)
 
         op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform", icon="LOOP_BACK")
         op.type = "CLEAR_INVERSE"
