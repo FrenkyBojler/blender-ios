@@ -129,7 +129,7 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         layout = self.layout
         layout.use_property_split = True
 
-        ob = context.active_object
+        ob = context.object
         inverse_matrix = ob.matrix_parent_inverse
         inverse_props = ob.parent_inverse_transform
 
