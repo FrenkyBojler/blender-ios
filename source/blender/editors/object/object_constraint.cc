@@ -959,13 +959,15 @@ static wmOperatorStatus childof_clear_inverse_invoke(bContext *C,
 
 static bool childof_clear_inverse_poll(bContext *C)
 {
-  if (!edit_constraint_liboverride_allowed_poll(C))
+  if (!edit_constraint_liboverride_allowed_poll(C)) {
     return false;
+  }
 
   PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
-  if (con == nullptr)
+  if (con == nullptr) {
     return true;
+  }
 
   bChildOfConstraint *data = (bChildOfConstraint *)con->data;
   if (data->tar == nullptr) {
@@ -1241,13 +1243,15 @@ static wmOperatorStatus objectsolver_clear_inverse_invoke(bContext *C,
 
 static bool objectsolver_clear_inverse_poll(bContext *C)
 {
-  if (!edit_constraint_poll(C))
+  if (!edit_constraint_poll(C)) {
     return false;
+  }
 
   PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
-  if (con == nullptr)
+  if (con == nullptr) {
     return true;
+  }
 
   bObjectSolverConstraint *data = (bObjectSolverConstraint *)con->data;
   if (data->camera == nullptr) {
