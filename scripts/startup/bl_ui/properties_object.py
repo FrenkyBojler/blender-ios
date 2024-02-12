@@ -133,7 +133,7 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
             self.layout.label(text="Parent Inverse Matrix has a shear", icon="ERROR")
 
         row = layout.row(align=True)
-        row.active = False
+        row.enabled = False
         row.prop(inverse_props, "location")
 
         row = layout.row(align=True)
@@ -141,10 +141,10 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
 
         row = layout.row(align=True)
         row.prop(inverse_props, "rotation_euler", text="Rotation")
-        row.active = False
+        row.enabled = False
 
         row = layout.row(align=True)
-        row.active = False
+        row.enabled = False
         row.prop(inverse_props, "scale")
 
         op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform", icon="LOOP_BACK")
