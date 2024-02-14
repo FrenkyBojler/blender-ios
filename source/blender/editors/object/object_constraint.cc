@@ -36,7 +36,7 @@
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_tracking.h"
 
 #include "DEG_depsgraph.hh"
@@ -56,7 +56,6 @@
 #include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
-#include "ED_keyframing.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 

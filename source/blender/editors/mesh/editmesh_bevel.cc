@@ -20,12 +20,9 @@
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_unit.hh"
-
-#include "DNA_curveprofile_types.h"
-#include "DNA_mesh_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"

@@ -9,7 +9,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_math_rotation.h"
 
@@ -23,11 +22,10 @@
 #include "BKE_duplilist.h"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_layer.hh"
-#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_object.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"

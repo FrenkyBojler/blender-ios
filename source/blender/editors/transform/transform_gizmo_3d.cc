@@ -25,14 +25,14 @@
 #include "BKE_crazyspace.hh"
 #include "BKE_curve.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_pointcache.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -815,7 +815,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
           mat_local = float4x4(obedit->world_to_object) * float4x4(ob_iter->object_to_world);
         }
 
-        const Array<ed::greasepencil::MutableDrawingInfo> drawings =
+        const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
             ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
         threading::parallel_for_each(
             drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {

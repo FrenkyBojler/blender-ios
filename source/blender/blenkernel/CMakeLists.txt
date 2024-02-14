@@ -397,7 +397,7 @@ set(SRC
   BKE_geometry_fields.hh
   BKE_geometry_set.hh
   BKE_geometry_set_instances.hh
-  BKE_global.h
+  BKE_global.hh
   BKE_gpencil_curve_legacy.h
   BKE_gpencil_geom_legacy.h
   BKE_gpencil_legacy.h
@@ -484,9 +484,9 @@ set(SRC
   BKE_pose_backup.h
   BKE_preferences.h
   BKE_preview_image.hh
-  BKE_report.h
+  BKE_report.hh
   BKE_rigidbody.h
-  BKE_scene.h
+  BKE_scene.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
   BKE_sequencer_offscreen.h
@@ -522,6 +522,7 @@ set(SRC
   BKE_volume_openvdb.hh
   BKE_volume_render.hh
   BKE_volume_to_mesh.hh
+  BKE_wm_runtime.hh
   BKE_workspace.h
   BKE_world.h
   BKE_writeavi.h

@@ -43,7 +43,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_workspace.h"
 
 #include "DEG_depsgraph.hh"
@@ -2284,8 +2284,6 @@ static void outliner_orphans_purge_ui(bContext * /*C*/, wmOperator *op)
     op->customdata = MEM_new<LibQueryUnusedIDsData>(__func__);
   }
   LibQueryUnusedIDsData &data = *static_cast<LibQueryUnusedIDsData *>(op->customdata);
-
-  uiItemS_ex(layout, 0.5f);
 
   std::string unused_message = "";
   unused_message_gen(unused_message, data.num_local);

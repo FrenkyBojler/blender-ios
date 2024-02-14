@@ -26,14 +26,13 @@
 #include "BLI_memarena.h"
 #include "BLI_multi_value_map.hh"
 #include "BLI_polyfill_2d.h"
-#include "BLI_resource_scope.hh"
 #include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
@@ -41,7 +40,6 @@
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_node.hh"
-#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "BLT_translation.hh"

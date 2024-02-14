@@ -13,7 +13,7 @@
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "ED_view3d.hh"
 
@@ -23,8 +23,6 @@
 #include "BLI_task.hh"
 
 #include "DEG_depsgraph_query.hh"
-
-#include "BLT_translation.hh"
 
 #include "GEO_curve_constraints.hh"
 

@@ -22,12 +22,10 @@
 #include "BKE_key.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 
-#include "RNA_access.hh"
-#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "WM_api.hh"
@@ -39,8 +37,6 @@
 #include "ED_object.hh"
 #include "ED_paint.hh"
 #include "ED_screen.hh"
-#include "ED_uvedit.hh"
-#include "ED_view3d.hh"
 
 #include "GEO_mesh_split_edges.hh"
 

@@ -20,7 +20,6 @@
 #include "DNA_text_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_mempool.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -43,7 +42,7 @@
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_particle.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -70,7 +69,6 @@
 #include "RNA_access.hh"
 
 #include "outliner_intern.hh"
-#include "tree/tree_display.hh"
 #include "tree/tree_element.hh"
 #include "tree/tree_element_grease_pencil_node.hh"
 #include "tree/tree_element_id.hh"

@@ -15,7 +15,7 @@
  * its type. Passes are shared between views.
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "DRW_render.hh"
 
 #include "eevee_instance.hh"
@@ -282,6 +282,11 @@ void CaptureView::render_probes()
     GPU_debug_group_begin("Probe.Capture");
     do_update_mipmap_chain = true;
 
+    if (inst_.pipelines.data.is_probe_reflection != true) {
+      inst_.pipelines.data.is_probe_reflection = true;
+      inst_.uniform_data.push_update();
+    }
+
     int2 extent = int2(update_info->resolution);
     inst_.render_buffers.acquire(extent);
 
@@ -323,6 +328,11 @@ void CaptureView::render_probes()
     inst_.gbuffer.release();
     GPU_debug_group_end();
     inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord);
+  }
+
+  if (inst_.pipelines.data.is_probe_reflection != false) {
+    inst_.pipelines.data.is_probe_reflection = false;
+    inst_.uniform_data.push_update();
   }
 
   if (do_update_mipmap_chain) {

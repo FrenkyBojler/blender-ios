@@ -10,19 +10,15 @@
 #include <fmt/format.h>
 
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
 #include "BLI_task.h"
 
-#include "BKE_context.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-
-#include "UI_interface.hh"
 
 #include "BLT_translation.hh"
 

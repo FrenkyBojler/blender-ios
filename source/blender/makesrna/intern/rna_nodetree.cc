@@ -77,6 +77,7 @@ const EnumPropertyItem rna_enum_node_socket_data_type_items[] = {
     {SOCK_BOOLEAN, "BOOLEAN", 0, "Boolean", ""},
     {SOCK_VECTOR, "VECTOR", 0, "Vector", ""},
     {SOCK_ROTATION, "ROTATION", 0, "Rotation", ""},
+    {SOCK_MATRIX, "MATRIX", 0, "Matrix", ""},
     {SOCK_STRING, "STRING", 0, "String", ""},
     {SOCK_MENU, "MENU", 0, "Menu", ""},
     {SOCK_RGBA, "RGBA", 0, "Color", ""},
@@ -595,7 +596,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "BKE_context.hh"
 #  include "BKE_idprop.h"
 
-#  include "BKE_global.h"
+#  include "BKE_global.hh"
 
 #  include "ED_node.hh"
 #  include "ED_render.hh"
@@ -1894,7 +1895,8 @@ static bool generic_attribute_type_supported(const EnumPropertyItem *item)
               CD_PROP_BOOL,
               CD_PROP_INT32,
               CD_PROP_BYTE_COLOR,
-              CD_PROP_QUATERNION);
+              CD_PROP_QUATERNION,
+              CD_PROP_FLOAT4X4);
 }
 
 static bool generic_attribute_type_supported_with_socket(const EnumPropertyItem *item)
@@ -2232,7 +2234,8 @@ static bNodeSocket *rna_Node_inputs_new(ID *id,
                                         ReportList *reports,
                                         const char *type,
                                         const char *name,
-                                        const char *identifier)
+                                        const char *identifier,
+                                        const bool use_multi_input)
 {
   if (!allow_changing_sockets(node)) {
     BKE_report(reports, RPT_ERROR, "Cannot add socket to built-in node");
@@ -2246,6 +2249,9 @@ static bNodeSocket *rna_Node_inputs_new(ID *id,
     BKE_report(reports, RPT_ERROR, "Unable to create socket");
   }
   else {
+    if (use_multi_input) {
+      sock->flag |= SOCK_MULTI_INPUT;
+    }
     ED_node_tree_propagate_change(nullptr, bmain, ntree);
     WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
   }
@@ -2259,10 +2265,16 @@ static bNodeSocket *rna_Node_outputs_new(ID *id,
                                          ReportList *reports,
                                          const char *type,
                                          const char *name,
-                                         const char *identifier)
+                                         const char *identifier,
+                                         const bool use_multi_input)
 {
   if (!allow_changing_sockets(node)) {
     BKE_report(reports, RPT_ERROR, "Cannot add socket to built-in node");
+    return nullptr;
+  }
+
+  if (use_multi_input) {
+    BKE_report(reports, RPT_ERROR, "Output sockets cannot be multi-input");
     return nullptr;
   }
 
@@ -9929,6 +9941,8 @@ static void rna_def_node_sockets_api(BlenderRNA *brna, PropertyRNA *cprop, int i
   parm = RNA_def_string(func, "name", nullptr, MAX_NAME, "Name", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_string(func, "identifier", nullptr, MAX_NAME, "Identifier", "Unique socket identifier");
+  RNA_def_boolean(
+      func, "use_multi_input", false, "", "Make the socket a multi-input. Only valid for inputs");
   /* return value */
   parm = RNA_def_pointer(func, "socket", "NodeSocket", "", "New socket");
   RNA_def_function_return(func, parm);
