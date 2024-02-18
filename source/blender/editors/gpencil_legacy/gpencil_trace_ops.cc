@@ -11,21 +11,20 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_image.h"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_main.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -177,7 +176,7 @@ static void trace_initialize_job_data(TraceJob *trace_job)
   /* Create a new grease pencil object. */
   if (trace_job->ob_gpencil == nullptr) {
     ushort local_view_bits = (trace_job->v3d && trace_job->v3d->localvd) ?
-                                 trace_job->v3d->local_view_uuid :
+                                 trace_job->v3d->local_view_uid :
                                  0;
     trace_job->ob_gpencil = ED_gpencil_add_object(
         trace_job->C, trace_job->ob_active->loc, local_view_bits);

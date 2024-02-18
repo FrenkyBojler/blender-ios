@@ -42,7 +42,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_anim_data.h"
 #include "BKE_attribute.hh"
@@ -53,7 +53,7 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_icons.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_image.h"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -65,14 +65,14 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_preview_image.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #include "BKE_vfont.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "GPU_material.h"
+#include "GPU_material.hh"
 
 #include "NOD_shader.h"
 
@@ -231,6 +231,7 @@ static void material_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_MA = {
     /*id_code*/ ID_MA,
     /*id_filter*/ FILTER_ID_MA,
+    /*dependencies_id_types*/ FILTER_ID_TE | FILTER_ID_GR,
     /*main_listbase_index*/ INDEX_ID_MA,
     /*struct_size*/ sizeof(Material),
     /*name*/ "Material",

@@ -30,13 +30,13 @@
 
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -96,8 +96,6 @@ void ED_file_path_button(bScreen *screen,
                   0,
                   0.0f,
                   float(FILE_MAX),
-                  0.0f,
-                  0.0f,
                   TIP_("File path"));
 
   BLI_assert(!UI_but_flag_is_set(but, UI_BUT_UNDO));
@@ -283,7 +281,7 @@ static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, 
                                           day_string,
                                           (is_today || is_yesterday) ? "" : date_st,
                                           (is_today || is_yesterday) ? time_st : ""),
-                              nullptr,
+                              {},
                               UI_TIP_STYLE_NORMAL,
                               UI_TIP_LC_NORMAL);
 
@@ -311,7 +309,7 @@ static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, 
   }
 
   if (thumb && params->display != FILE_IMGDISPLAY) {
-    float scale = (96.0f * UI_SCALE_FAC) / float(MAX2(thumb->x, thumb->y));
+    float scale = (96.0f * UI_SCALE_FAC) / float(std::max(thumb->x, thumb->y));
     short size[2] = {short(float(thumb->x) * scale), short(float(thumb->y) * scale)};
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
@@ -323,7 +321,7 @@ static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, 
   }
 }
 
-static char *file_draw_asset_tooltip_func(bContext * /*C*/, void *argN, const char * /*tip*/)
+static std::string file_draw_asset_tooltip_func(bContext * /*C*/, void *argN, const char * /*tip*/)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
   std::string complete_string = asset->get_name();
@@ -332,7 +330,7 @@ static char *file_draw_asset_tooltip_func(bContext * /*C*/, void *argN, const ch
     complete_string += '\n';
     complete_string += meta_data.description;
   }
-  return BLI_strdupn(complete_string.c_str(), complete_string.size());
+  return complete_string;
 }
 
 static void draw_tile_background(const rcti *draw_rect, int colorid, int shade)
@@ -1281,7 +1279,8 @@ void file_draw_list(const bContext *C, ARegion *region)
       if (do_drag) {
         const uiStyle *style = UI_style_get();
         const int str_width = UI_fontstyle_string_width(&style->widget, file->name);
-        const int drag_width = MIN2(str_width + icon_ofs, column_width - ATTRIBUTE_COLUMN_PADDING);
+        const int drag_width = std::min(str_width + icon_ofs,
+                                        int(column_width - ATTRIBUTE_COLUMN_PADDING));
         if (drag_width > 0) {
           uiBut *drag_but = uiDefBut(block,
                                      UI_BTYPE_LABEL,
@@ -1422,7 +1421,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
                                                  ARegion *region,
                                                  FileAssetSelectParams *asset_params)
 {
-  char library_ui_path[PATH_MAX];
+  char library_ui_path[FILE_MAX_LIBEXTRA];
   file_path_to_ui_path(asset_params->base_params.dir, library_ui_path, sizeof(library_ui_path));
 
   uchar text_col[4];
@@ -1457,18 +1456,19 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
         sx + UI_UNIT_X, sy, suggestion, width - UI_UNIT_X, line_height, text_col, nullptr, &sy);
 
     uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
-    uiBut *but = uiDefIconTextButO(block,
-                                   UI_BTYPE_BUT,
-                                   "SCREEN_OT_userpref_show",
-                                   WM_OP_INVOKE_DEFAULT,
-                                   ICON_PREFERENCES,
-                                   nullptr,
-                                   sx + UI_UNIT_X,
-                                   sy - line_height - UI_UNIT_Y * 1.2f,
-                                   UI_UNIT_X * 8,
-                                   UI_UNIT_Y,
-                                   nullptr);
-    PointerRNA *but_opptr = UI_but_operator_ptr_get(but);
+    wmOperatorType *ot = WM_operatortype_find("SCREEN_OT_userpref_show", false);
+    uiBut *but = uiDefIconTextButO_ptr(block,
+                                       UI_BTYPE_BUT,
+                                       ot,
+                                       WM_OP_INVOKE_DEFAULT,
+                                       ICON_PREFERENCES,
+                                       WM_operatortype_name(ot, nullptr),
+                                       sx + UI_UNIT_X,
+                                       sy - line_height - UI_UNIT_Y * 1.2f,
+                                       UI_UNIT_X * 8,
+                                       UI_UNIT_Y,
+                                       nullptr);
+    PointerRNA *but_opptr = UI_but_operator_ptr_ensure(but);
     RNA_enum_set(but_opptr, "section", USER_SECTION_FILE_PATHS);
 
     UI_block_end(C, block);

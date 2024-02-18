@@ -26,7 +26,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_paint.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -692,7 +692,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
   Brush *brush = painter->brush;
   BrushPainterCache *cache = &tile->cache;
   /* Adding 4 pixels of padding for brush anti-aliasing. */
-  const int diameter = MAX2(1, size * 2) + 4;
+  const int diameter = std::max(1, int(size * 2)) + 4;
 
   bool do_random = false;
   bool do_partial_update = false;

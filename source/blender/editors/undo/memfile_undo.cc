@@ -21,14 +21,13 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_blender_undo.h"
+#include "BKE_blender_undo.hh"
 #include "BKE_context.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_preview_image.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #include "BKE_undo_system.hh"
 
 #include "../depsgraph/DEG_depsgraph.hh"
@@ -36,7 +35,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_object.hh"
 #include "ED_render.hh"
 #include "ED_undo.hh"
 #include "ED_util.hh"
@@ -375,7 +373,7 @@ void ED_undosys_stack_memfile_id_changed_tag(UndoStack *ustack, ID *id)
 
   MemFile *memfile = &((MemFileUndoStep *)us)->data->memfile;
   LISTBASE_FOREACH (MemFileChunk *, mem_chunk, &memfile->chunks) {
-    if (mem_chunk->id_session_uuid == id->session_uuid) {
+    if (mem_chunk->id_session_uid == id->session_uid) {
       mem_chunk->is_identical_future = false;
       break;
     }

@@ -38,15 +38,15 @@
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "GPU_batch.h"
 #include "GPU_matrix.h"
 
-#include "blf_internal.h"
-#include "blf_internal_types.h"
+#include "blf_internal.hh"
+#include "blf_internal_types.hh"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 #ifdef WIN32
 #  define FT_New_Face FT_New_Face__win32_compat

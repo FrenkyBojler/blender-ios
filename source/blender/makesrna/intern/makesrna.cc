@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <algorithm>
 #include <cerrno>
 #include <cfloat>
 #include <cinttypes>
@@ -27,7 +28,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "CLG_log.h"
 
@@ -85,7 +86,7 @@ static const char *path_basename(const char *path)
     lfslash++;
   }
 
-  return MAX3(path, lfslash, lbslash);
+  return std::max({path, lfslash, lbslash});
 }
 
 /* forward declarations */
@@ -1100,10 +1101,10 @@ static void rna_clamp_value(FILE *f, PropertyRNA *prop, int array)
 
     if (iprop->hardmin != INT_MIN || iprop->hardmax != INT_MAX || iprop->range) {
       if (array) {
-        fprintf(f, "CLAMPIS(values[i], ");
+        fprintf(f, "std::clamp(values[i], ");
       }
       else {
-        fprintf(f, "CLAMPIS(value, ");
+        fprintf(f, "std::clamp(value, ");
       }
       if (iprop->range) {
         fprintf(f, "prop_clamp_min, prop_clamp_max);\n");
@@ -1122,10 +1123,10 @@ static void rna_clamp_value(FILE *f, PropertyRNA *prop, int array)
 
     if (fprop->hardmin != -FLT_MAX || fprop->hardmax != FLT_MAX || fprop->range) {
       if (array) {
-        fprintf(f, "CLAMPIS(values[i], ");
+        fprintf(f, "std::clamp(values[i], ");
       }
       else {
-        fprintf(f, "CLAMPIS(value, ");
+        fprintf(f, "std::clamp(value, ");
       }
       if (fprop->range) {
         fprintf(f, "prop_clamp_min, prop_clamp_max);\n");
@@ -1168,11 +1169,10 @@ static char *rna_def_property_search_func(
           "PointerRNA *ptr, "
           "PropertyRNA *prop, "
           "const char *edit_text, "
-          "StringPropertySearchVisitFunc visit_fn, "
-          "void *visit_user_data)\n",
+          "blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)\n",
           func);
   fprintf(f, "{\n");
-  fprintf(f, "\n    %s(C, ptr, prop, edit_text, visit_fn, visit_user_data);\n", manualfunc);
+  fprintf(f, "\n    %s(C, ptr, prop, edit_text, visit_fn);\n", manualfunc);
   fprintf(f, "}\n\n");
   return func;
 }
@@ -1465,7 +1465,7 @@ static char *rna_def_property_set_func(
             /* C++ may require casting to an enum type. */
             fprintf(f, "#ifdef __cplusplus\n");
             fprintf(f,
-                    /* If #rna_clamp_value() adds an expression like `CLAMPIS(...)`
+                    /* If #rna_clamp_value() adds an expression like `std::clamp(...)`
                      * (instead of an `lvalue`), #decltype() yields a reference,
                      * so that has to be removed. */
                     "    data->%s = %s(std::remove_reference_t<decltype(data->%s)>)",
@@ -4847,6 +4847,7 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
   fprintf(f, "#include <limits>\n");
   fprintf(f, "#include <string.h>\n\n");
   fprintf(f, "#include <stddef.h>\n\n");
+  fprintf(f, "#include <algorithm>\n\n");
 
   fprintf(f, "#include \"MEM_guardedalloc.h\"\n\n");
 
@@ -4860,11 +4861,11 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
   fprintf(f, "#include \"BKE_context.hh\"\n");
   fprintf(f, "#include \"BKE_lib_id.hh\"\n");
   fprintf(f, "#include \"BKE_main.hh\"\n");
-  fprintf(f, "#include \"BKE_report.h\"\n");
+  fprintf(f, "#include \"BKE_report.hh\"\n");
 
   fprintf(f, "#include \"RNA_define.hh\"\n");
   fprintf(f, "#include \"RNA_types.hh\"\n");
-  fprintf(f, "#include \"rna_internal.h\"\n\n");
+  fprintf(f, "#include \"rna_internal.hh\"\n\n");
 
   /* include the generated prototypes header */
   fprintf(f, "#include \"rna_prototypes_gen.h\"\n\n");

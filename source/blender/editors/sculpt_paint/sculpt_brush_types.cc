@@ -20,14 +20,12 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_customdata_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_brush.hh"
 #include "BKE_ccg.h"
 #include "BKE_colortools.hh"
-#include "BKE_context.hh"
 #include "BKE_kelvinlet.h"
 #include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
@@ -799,10 +797,10 @@ static void calc_clay_surface_task_cb(Object *ob,
     float plane_dist = dist_signed_to_plane_v3(vd.co, plane);
     float plane_dist_abs = fabsf(plane_dist);
     if (plane_dist > 0.0f) {
-      csd->plane_dist[0] = MIN2(csd->plane_dist[0], plane_dist_abs);
+      csd->plane_dist[0] = std::min(csd->plane_dist[0], plane_dist_abs);
     }
     else {
-      csd->plane_dist[1] = MIN2(csd->plane_dist[1], plane_dist_abs);
+      csd->plane_dist[1] = std::min(csd->plane_dist[1], plane_dist_abs);
     }
     BKE_pbvh_vertex_iter_end;
   }

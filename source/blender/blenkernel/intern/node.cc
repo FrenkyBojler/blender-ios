@@ -47,26 +47,27 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "IMB_imbuf.hh"
 
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_asset.hh"
-#include "BKE_bpath.h"
+#include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.h"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_idprop.h"
 #include "BKE_idprop.hh"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_image_format.h"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+#include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_anonymous_attributes.hh"
 #include "BKE_node_tree_interface.hh"
@@ -352,11 +353,13 @@ static void library_foreach_node_socket(LibraryForeachIDData *data, bNodeSocket 
     case SOCK_RGBA:
     case SOCK_BOOLEAN:
     case SOCK_ROTATION:
+    case SOCK_MATRIX:
     case SOCK_INT:
     case SOCK_STRING:
     case SOCK_CUSTOM:
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
+    case SOCK_MENU:
       break;
   }
 }
@@ -398,7 +401,7 @@ static void node_foreach_cache(ID *id,
 {
   bNodeTree *nodetree = reinterpret_cast<bNodeTree *>(id);
   IDCacheKey key = {0};
-  key.id_session_uuid = id->session_uuid;
+  key.id_session_uid = id->session_uid;
   key.identifier = offsetof(bNodeTree, previews);
 
   /* TODO: see also `direct_link_nodetree()` in `readfile.cc`. */
@@ -701,6 +704,12 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
     case SOCK_ROTATION:
       BLO_write_struct(writer, bNodeSocketValueRotation, sock->default_value);
       break;
+    case SOCK_MENU:
+      BLO_write_struct(writer, bNodeSocketValueMenu, sock->default_value);
+      break;
+    case SOCK_MATRIX:
+      /* Matrix sockets currently have no default value. */
+      break;
     case SOCK_CUSTOM:
       /* Custom node sockets where default_value is defined uses custom properties for storage. */
       break;
@@ -853,6 +862,17 @@ void ntreeBlendWrite(BlendWriter *writer, bNodeTree *ntree)
     if (node->type == GEO_NODE_BAKE) {
       blender::nodes::BakeItemsAccessor::blend_write(writer, *node);
     }
+    if (node->type == GEO_NODE_MENU_SWITCH) {
+      const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(node->storage);
+      BLO_write_struct_array(writer,
+                             NodeEnumItem,
+                             storage.enum_definition.items_num,
+                             storage.enum_definition.items_array);
+      for (const NodeEnumItem &item : storage.enum_definition.items()) {
+        BLO_write_string(writer, item.name);
+        BLO_write_string(writer, item.description);
+      }
+    }
   }
 
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
@@ -921,6 +941,8 @@ static bool is_node_socket_supported(const bNodeSocket *sock)
     case SOCK_TEXTURE:
     case SOCK_MATERIAL:
     case SOCK_ROTATION:
+    case SOCK_MENU:
+    case SOCK_MATRIX:
       return true;
   }
   return false;
@@ -937,6 +959,18 @@ static void direct_link_node_socket(BlendDataReader *reader, bNodeSocket *sock)
   BLO_read_data_address(reader, &sock->default_value);
   BLO_read_data_address(reader, &sock->default_attribute_name);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
+
+  switch (eNodeSocketDatatype(sock->type)) {
+    case SOCK_MENU: {
+      bNodeSocketValueMenu &default_value = *sock->default_value_typed<bNodeSocketValueMenu>();
+      /* Clear runtime data. */
+      default_value.enum_items = nullptr;
+      default_value.runtime_flag = 0;
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 static void direct_link_node_socket_list(BlendDataReader *reader, ListBase *socket_list)
@@ -1099,6 +1133,15 @@ void ntreeBlendReadData(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree)
           blender::nodes::BakeItemsAccessor::blend_read_data(reader, *node);
           break;
         }
+        case GEO_NODE_MENU_SWITCH: {
+          NodeMenuSwitch &storage = *static_cast<NodeMenuSwitch *>(node->storage);
+          BLO_read_data_address(reader, &storage.enum_definition.items_array);
+          for (const NodeEnumItem &item : storage.enum_definition.items()) {
+            BLO_read_data_address(reader, &item.name);
+            BLO_read_data_address(reader, &item.description);
+          }
+          break;
+        }
 
         default:
           break;
@@ -1229,6 +1272,8 @@ static AssetTypeInfo AssetType_NT = {
 IDTypeInfo IDType_ID_NT = {
     /*id_code*/ ID_NT,
     /*id_filter*/ FILTER_ID_NT,
+    /* IDProps of nodes, and #bNode.id, can use any type of ID. */
+    /*dependencies_id_types*/ FILTER_ID_ALL,
     /*main_listbase_index*/ INDEX_ID_NT,
     /*struct_size*/ sizeof(bNodeTree),
     /*name*/ "NodeTree",
@@ -1362,29 +1407,6 @@ static void ntree_set_typeinfo(bNodeTree *ntree, bNodeTreeType *typeinfo)
   BKE_ntree_update_tag_all(ntree);
 }
 
-/* Build a set of built-in node types to check for known types. */
-static blender::Set<int> get_known_node_types_set()
-{
-  blender::Set<int> result;
-  NODE_TYPES_BEGIN (ntype) {
-    result.add(ntype->type);
-  }
-  NODE_TYPES_END;
-  return result;
-}
-
-static bool can_read_node_type(const int type)
-{
-  /* Can always read custom node types. */
-  if (type == NODE_CUSTOM) {
-    return true;
-  }
-
-  /* Check known built-in types. */
-  static blender::Set<int> known_types = get_known_node_types_set();
-  return known_types.contains(type);
-}
-
 static void node_set_typeinfo(const bContext *C,
                               bNodeTree *ntree,
                               bNode *node,
@@ -1392,19 +1414,6 @@ static void node_set_typeinfo(const bContext *C,
 {
   /* for nodes saved in older versions storage can get lost, make undefined then */
   if (node->flag & NODE_INIT) {
-    /* If the integer type is unknown then this is a node from a newer Blender version.
-     * These cannot be read reliably so replace the idname with an undefined type. This keeps links
-     * and socket names but discards storage and other type-specific data.
-     */
-    if (!can_read_node_type(node->type)) {
-      node->type = NODE_CUSTOM;
-      /* This type name is arbitrary, it just has to be unique enough to not match a future node
-       * idname. Includes the old type identifier for debugging purposes. */
-      const std::string old_idname = node->idname;
-      BLI_snprintf(node->idname, sizeof(node->idname), "Undefined[%s]", old_idname.c_str());
-      typeinfo = nullptr;
-    }
-
     if (typeinfo && typeinfo->storagename[0] && !node->storage) {
       typeinfo = nullptr;
     }
@@ -1860,8 +1869,10 @@ static void socket_id_user_increment(bNodeSocket *sock)
     case SOCK_RGBA:
     case SOCK_BOOLEAN:
     case SOCK_ROTATION:
+    case SOCK_MATRIX:
     case SOCK_INT:
     case SOCK_STRING:
+    case SOCK_MENU:
     case SOCK_CUSTOM:
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
@@ -1906,8 +1917,10 @@ static bool socket_id_user_decrement(bNodeSocket *sock)
     case SOCK_RGBA:
     case SOCK_BOOLEAN:
     case SOCK_ROTATION:
+    case SOCK_MATRIX:
     case SOCK_INT:
     case SOCK_STRING:
+    case SOCK_MENU:
     case SOCK_CUSTOM:
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
@@ -1960,6 +1973,7 @@ void nodeModifySocketType(bNodeTree *ntree,
         case SOCK_SHADER:
         case SOCK_BOOLEAN:
         case SOCK_ROTATION:
+        case SOCK_MATRIX:
         case SOCK_CUSTOM:
         case SOCK_OBJECT:
         case SOCK_IMAGE:
@@ -1967,6 +1981,7 @@ void nodeModifySocketType(bNodeTree *ntree,
         case SOCK_COLLECTION:
         case SOCK_TEXTURE:
         case SOCK_MATERIAL:
+        case SOCK_MENU:
           break;
       }
     }
@@ -2065,6 +2080,8 @@ const char *nodeStaticSocketType(const int type, const int subtype)
       return "NodeSocketBool";
     case SOCK_ROTATION:
       return "NodeSocketRotation";
+    case SOCK_MATRIX:
+      return "NodeSocketMatrix";
     case SOCK_VECTOR:
       switch (PropertySubType(subtype)) {
         case PROP_TRANSLATION:
@@ -2101,6 +2118,8 @@ const char *nodeStaticSocketType(const int type, const int subtype)
       return "NodeSocketTexture";
     case SOCK_MATERIAL:
       return "NodeSocketMaterial";
+    case SOCK_MENU:
+      return "NodeSocketMenu";
     case SOCK_CUSTOM:
       break;
   }
@@ -2146,6 +2165,8 @@ const char *nodeStaticSocketInterfaceTypeNew(const int type, const int subtype)
       return "NodeTreeInterfaceSocketBool";
     case SOCK_ROTATION:
       return "NodeTreeInterfaceSocketRotation";
+    case SOCK_MATRIX:
+      return "NodeTreeInterfaceSocketMatrix";
     case SOCK_VECTOR:
       switch (PropertySubType(subtype)) {
         case PROP_TRANSLATION:
@@ -2182,6 +2203,8 @@ const char *nodeStaticSocketInterfaceTypeNew(const int type, const int subtype)
       return "NodeTreeInterfaceSocketTexture";
     case SOCK_MATERIAL:
       return "NodeTreeInterfaceSocketMaterial";
+    case SOCK_MENU:
+      return "NodeTreeInterfaceSocketMenu";
     case SOCK_CUSTOM:
       break;
   }
@@ -2199,6 +2222,8 @@ const char *nodeStaticSocketLabel(const int type, const int /*subtype*/)
       return "Boolean";
     case SOCK_ROTATION:
       return "Rotation";
+    case SOCK_MATRIX:
+      return "Matrix";
     case SOCK_VECTOR:
       return "Vector";
     case SOCK_RGBA:
@@ -2219,6 +2244,8 @@ const char *nodeStaticSocketLabel(const int type, const int /*subtype*/)
       return "Texture";
     case SOCK_MATERIAL:
       return "Material";
+    case SOCK_MENU:
+      return "Menu";
     case SOCK_CUSTOM:
       break;
   }
@@ -2257,6 +2284,13 @@ static void node_socket_free(bNodeSocket *sock, const bool do_id_user)
   if (sock->default_value) {
     if (do_id_user) {
       socket_id_user_decrement(sock);
+    }
+    if (sock->type == SOCK_MENU) {
+      auto &default_value_menu = *sock->default_value_typed<bNodeSocketValueMenu>();
+      if (default_value_menu.enum_items) {
+        /* Release shared data pointer. */
+        default_value_menu.enum_items->remove_user_and_delete_if_last();
+      }
     }
     MEM_freeN(sock->default_value);
   }
@@ -2507,7 +2541,7 @@ void nodeUniqueName(bNodeTree *ntree, bNode *node)
 void nodeUniqueID(bNodeTree *ntree, bNode *node)
 {
   /* Use a pointer cast to avoid overflow warnings. */
-  const double time = BLI_check_seconds_timer() * 1000000.0;
+  const double time = BLI_time_now_seconds() * 1000000.0;
   blender::RandomNumberGenerator id_rng{*reinterpret_cast<const uint32_t *>(&time)};
 
   /* In the unlikely case that the random ID doesn't match, choose a new one until it does. */
@@ -2586,6 +2620,14 @@ static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src,
 
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
       socket_id_user_increment(sock_dst);
+    }
+
+    if (sock_src->type == SOCK_MENU) {
+      auto &default_value_menu = *sock_dst->default_value_typed<bNodeSocketValueMenu>();
+      if (default_value_menu.enum_items) {
+        /* Copy of shared data pointer. */
+        default_value_menu.enum_items->add_user();
+      }
     }
   }
 
@@ -2727,6 +2769,11 @@ static void *socket_value_storage(bNodeSocket &socket)
       return &socket.default_value_typed<bNodeSocketValueMaterial>()->value;
     case SOCK_ROTATION:
       return &socket.default_value_typed<bNodeSocketValueRotation>()->value_euler;
+    case SOCK_MENU:
+      return &socket.default_value_typed<bNodeSocketValueMenu>()->value;
+    case SOCK_MATRIX:
+      /* Matrix sockets currently have no default value. */
+      return nullptr;
     case SOCK_STRING:
       /* We don't want do this now! */
       return nullptr;
@@ -4094,8 +4141,57 @@ void BKE_node_instance_hash_remove_untagged(bNodeInstanceHash *hash,
 
 namespace blender::bke {
 
+/* Build a set of built-in node types to check for known types. */
+static blender::Set<int> get_known_node_types_set()
+{
+  blender::Set<int> result;
+  NODE_TYPES_BEGIN (ntype) {
+    result.add(ntype->type);
+  }
+  NODE_TYPES_END;
+  return result;
+}
+
+static bool can_read_node_type(const int type)
+{
+  /* Can always read custom node types. */
+  if (type == NODE_CUSTOM) {
+    return true;
+  }
+
+  /* Check known built-in types. */
+  static blender::Set<int> known_types = get_known_node_types_set();
+  return known_types.contains(type);
+}
+
+static void node_replace_undefined_types(bNode *node)
+{
+  /* If the integer type is unknown then this node cannot be read. */
+  if (!can_read_node_type(node->type)) {
+    node->type = NODE_CUSTOM;
+    /* This type name is arbitrary, it just has to be unique enough to not match a future node
+     * idname. Includes the old type identifier for debugging purposes. */
+    const std::string old_idname = node->idname;
+    SNPRINTF(node->idname, "Undefined[%s]", old_idname.c_str());
+    node->typeinfo = &NodeTypeUndefined;
+  }
+}
+
 void ntreeUpdateAllNew(Main *main)
 {
+  /* Replace unknown node types with "Undefined".
+   * This happens when loading files from newer Blender versions. Such nodes cannot be read
+   * reliably so replace the idname with an undefined type. This keeps links and socket names but
+   * discards storage and other type-specific data.
+   *
+   * Replacement has to happen after after-liblink-versioning, since some node types still get
+   * replaced in those late versioning steps. */
+  FOREACH_NODETREE_BEGIN (main, ntree, owner_id) {
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      node_replace_undefined_types(node);
+    }
+  }
+  FOREACH_NODETREE_END;
   /* Update all new node trees on file read or append, to add/remove sockets
    * in groups nodes if the group changed, and handle any update flags that
    * might have been set in file reading or versioning. */
@@ -4266,6 +4362,8 @@ std::optional<eCustomDataType> socket_type_to_custom_data_type(eNodeSocketDataty
       return CD_PROP_BOOL;
     case SOCK_ROTATION:
       return CD_PROP_QUATERNION;
+    case SOCK_MATRIX:
+      return CD_PROP_FLOAT4X4;
     case SOCK_INT:
       return CD_PROP_INT32;
     case SOCK_STRING:
@@ -4294,6 +4392,8 @@ std::optional<eNodeSocketDatatype> custom_data_type_to_socket_type(eCustomDataTy
       return SOCK_RGBA;
     case CD_PROP_QUATERNION:
       return SOCK_ROTATION;
+    case CD_PROP_FLOAT4X4:
+      return SOCK_MATRIX;
     default:
       return std::nullopt;
   }
@@ -4355,6 +4455,9 @@ std::optional<eNodeSocketDatatype> geo_nodes_base_cpp_type_to_socket_type(const 
   }
   if (type.is<math::Quaternion>()) {
     return SOCK_ROTATION;
+  }
+  if (type.is<float4x4>()) {
+    return SOCK_MATRIX;
   }
   if (type.is<std::string>()) {
     return SOCK_STRING;

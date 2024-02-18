@@ -60,13 +60,13 @@
 #include "BKE_armature.hh"
 #include "BKE_asset.hh"
 #include "BKE_attribute.hh"
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_fcurve.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_idprop.h"
@@ -86,7 +86,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.h"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
 #include "readfile.hh"
 

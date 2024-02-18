@@ -58,20 +58,21 @@
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_armature.hh"
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_collision.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_gpencil_modifier_legacy.h"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
-#include "BKE_key.h"
-#include "BKE_layer.h"
+#include "BKE_key.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_material.h"
-#include "BKE_mball.h"
+#include "BKE_mball.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -2489,7 +2490,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
   /* Special case: modifiers evaluation queries scene for various things like
    * data mask to be used. We add relation here to ensure object is never
    * evaluated prior to Scene's CoW is ready. */
-  OperationKey scene_key(&scene_->id, NodeType::PARAMETERS, OperationCode::SCENE_EVAL);
+  ComponentKey scene_key(&scene_->id, NodeType::SCENE);
   add_relation(scene_key, obdata_ubereval_key, "CoW Relation", RELATION_FLAG_NO_FLUSH);
   /* Relation to the instance, so that instancer can use geometry of this object. */
   add_relation(ComponentKey(&object->id, NodeType::GEOMETRY),
@@ -2728,9 +2729,32 @@ void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
       break;
     }
     case ID_GP: {
+      GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(obdata);
+
+      /* Update geometry when time is changed. */
       TimeSourceKey time_key;
-      ComponentKey geometry_key(obdata, NodeType::GEOMETRY);
+      ComponentKey geometry_key(&grease_pencil.id, NodeType::GEOMETRY);
       add_relation(time_key, geometry_key, "Grease Pencil Frame Change");
+
+      /* Add relations for layer parents. */
+      for (const bke::greasepencil::Layer *layer : grease_pencil.layers()) {
+        Object *parent = layer->parent;
+        if (parent == nullptr) {
+          continue;
+        }
+        if (parent->type == OB_ARMATURE && !layer->parent_bone_name().is_empty()) {
+          ComponentKey bone_key(&parent->id, NodeType::BONE, layer->parent_bone_name().c_str());
+          OperationKey armature_key(
+              &parent->id, NodeType::TRANSFORM, OperationCode::TRANSFORM_FINAL);
+
+          add_relation(bone_key, geometry_key, "Grease Pencil Layer Bone Parent");
+          add_relation(armature_key, geometry_key, "Grease Pencil Layer Armature Parent");
+        }
+        else {
+          ComponentKey transform_key(&parent->id, NodeType::TRANSFORM);
+          add_relation(transform_key, geometry_key, "Grease Pencil Layer Object Parent");
+        }
+      }
       break;
     }
     default:
@@ -3427,19 +3451,12 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
       rel_flag &= ~RELATION_FLAG_NO_FLUSH;
     }
     /* Notes on exceptions:
-     * - Parameters component is where drivers are living. Changing any
-     *   of the (custom) properties in the original datablock (even the
-     *   ones which do not imply other component update) need to make
-     *   sure drivers are properly updated.
-     *   This way, for example, changing ID property will properly poke
-     *   all drivers to be updated.
-     *
      * - View layers have cached array of bases in them, which is not
      *   copied by copy-on-write, and not preserved. PROBABLY it is better
      *   to preserve that cache in copy-on-write, but for the time being
      *   we allow flush to layer collections component which will ensure
      *   that cached array of bases exists and is up-to-date. */
-    if (ELEM(comp_node->type, NodeType::PARAMETERS, NodeType::LAYER_COLLECTIONS)) {
+    if (ELEM(comp_node->type, NodeType::LAYER_COLLECTIONS)) {
       rel_flag &= ~RELATION_FLAG_NO_FLUSH;
     }
     /* Compatibility with the legacy tagging: groups are only tagged for Copy-on-Write when their

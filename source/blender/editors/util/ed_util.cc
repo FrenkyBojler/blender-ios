@@ -16,11 +16,11 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_collection.h"
-#include "BKE_global.h"
-#include "BKE_layer.h"
+#include "BKE_collection.hh"
+#include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
@@ -75,6 +75,7 @@ void ED_editors_init_for_undo(Main *bmain)
 
 void ED_editors_init(bContext *C)
 {
+  using namespace blender::ed;
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -84,7 +85,7 @@ void ED_editors_init(bContext *C)
   ReportList *reports = CTX_wm_reports(C);
   int reports_flag_prev = reports->flag & ~RPT_STORE;
 
-  SWAP(int, reports->flag, reports_flag_prev);
+  std::swap(reports->flag, reports_flag_prev);
 
   /* Don't do undo pushes when calling an operator. */
   wm->op_undo_depth++;
@@ -205,9 +206,9 @@ void ED_editors_init(bContext *C)
     }
   }
 
-  ED_assetlist_storage_tag_main_data_dirty();
+  asset::list::storage_tag_main_data_dirty();
 
-  SWAP(int, reports->flag, reports_flag_prev);
+  std::swap(reports->flag, reports_flag_prev);
   wm->op_undo_depth--;
 }
 
@@ -463,7 +464,9 @@ void unpack_menu(bContext *C,
   UI_popup_menu_end(C, pup);
 }
 
-void ED_spacedata_id_remap(ScrArea *area, SpaceLink *sl, const IDRemapper *mappings)
+void ED_spacedata_id_remap(ScrArea *area,
+                           SpaceLink *sl,
+                           const blender::bke::id::IDRemapper &mappings)
 {
   SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
   if (st && st->id_remap) {
@@ -476,9 +479,8 @@ void ED_spacedata_id_remap_single(ScrArea *area, SpaceLink *sl, ID *old_id, ID *
   SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
 
   if (st && st->id_remap) {
-    IDRemapper *mappings = BKE_id_remapper_create();
-    BKE_id_remapper_add(mappings, old_id, new_id);
+    blender::bke::id::IDRemapper mappings;
+    mappings.add(old_id, new_id);
     st->id_remap(area, sl, mappings);
-    BKE_id_remapper_free(mappings);
   }
 }

@@ -29,7 +29,7 @@
 #ifdef WITH_FFMPEG
 #  include "BLI_string.h" /* BLI_vsnprintf */
 
-#  include "BKE_global.h" /* G.debug */
+#  include "BKE_global.hh" /* G.debug */
 
 extern "C" {
 #  include <libavcodec/avcodec.h>
@@ -37,7 +37,7 @@ extern "C" {
 #  include <libavformat/avformat.h>
 #  include <libavutil/log.h>
 
-#  include "ffmpeg_compat.h"
+#  include "ffmpeg_compat.h" /* Keep for compatibility. */
 }
 
 #endif
@@ -66,7 +66,7 @@ const char *imb_ext_image[] = {
 const char *imb_ext_movie[] = {
     ".avi",  ".flc", ".mov", ".movie", ".mp4",  ".m4v",  ".m2v", ".m2t",  ".m2ts", ".mts",
     ".ts",   ".mv",  ".avs", ".wmv",   ".ogv",  ".ogg",  ".r3d", ".dv",   ".mpeg", ".mpg",
-    ".mpg2", ".vob", ".mkv", ".flv",   ".divx", ".xvid", ".mxf", ".webm", nullptr,
+    ".mpg2", ".vob", ".mkv", ".flv",   ".divx", ".xvid", ".mxf", ".webm", ".gif",  nullptr,
 };
 
 /** Sort of wrong having audio extensions in imbuf. */
@@ -86,6 +86,7 @@ const char *imb_ext_audio[] = {
     ".aiff",
     ".m4a",
     ".mka",
+    ".opus",
     nullptr,
 };
 

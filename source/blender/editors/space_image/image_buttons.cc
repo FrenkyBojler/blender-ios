@@ -17,13 +17,12 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
 #include "BKE_node.h"
-#include "BKE_scene.h"
 #include "BKE_screen.hh"
 
 #include "RE_pipeline.h"
@@ -32,7 +31,6 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "ED_gpencil_legacy.hh"
 #include "ED_image.hh"
 #include "ED_screen.hh"
 
@@ -1242,7 +1240,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
     int duration = 0;
 
     if (ima->source == IMA_SRC_MOVIE && BKE_image_has_anim(ima)) {
-      anim *anim = ((ImageAnim *)ima->anims.first)->anim;
+      ImBufAnim *anim = ((ImageAnim *)ima->anims.first)->anim;
       if (anim) {
         duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
       }
