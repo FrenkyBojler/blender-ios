@@ -1543,6 +1543,11 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   /* Title. */
   if (!data->title.empty()) {
     uiItemL_ex(layout, data->title.c_str(), ICON_NONE, true, false);
+
+    /* Line under the title if there are properties but no message body. */
+    if (data->include_properties && message_lines.size() == 0) {
+      uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
+    };
   }
 
   /* Message lines. */
@@ -1551,6 +1556,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   }
 
   if (data->include_properties) {
+    uiItemS_ex(layout, 0.5f);
     uiTemplateOperatorPropertyButs(C, layout, op, UI_BUT_LABEL_ALIGN_SPLIT_COLUMN, 0);
   }
 
@@ -3606,7 +3612,7 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 
   WM_cursor_wait(true);
 
-  double time_start = BLI_check_seconds_timer();
+  double time_start = BLI_time_now_seconds();
 
   wm_window_make_drawable(wm, win);
 
@@ -3616,14 +3622,14 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
     iter_steps += 1;
 
     if (time_limit != 0.0) {
-      if ((BLI_check_seconds_timer() - time_start) > time_limit) {
+      if ((BLI_time_now_seconds() - time_start) > time_limit) {
         break;
       }
       a = 0;
     }
   }
 
-  double time_delta = (BLI_check_seconds_timer() - time_start) * 1000;
+  double time_delta = (BLI_time_now_seconds() - time_start) * 1000;
 
   RNA_enum_description(redraw_timer_type_items, type, &infostr);
 
