@@ -147,7 +147,7 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         row.enabled = False
         row.prop(inverse_props, "scale")
 
-        op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform", icon="LOOP_BACK")
+        op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform")
         op.type = "CLEAR_INVERSE"
 
 
