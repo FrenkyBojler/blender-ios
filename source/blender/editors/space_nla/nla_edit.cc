@@ -16,25 +16,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_action.h"
 #include "BKE_context.hh"
 #include "BKE_fcurve.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_nla.h"
-#include "BKE_report.h"
-#include "BKE_screen.hh"
+#include "BKE_report.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
-#include "ED_transform.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -46,7 +42,6 @@
 
 #include "DEG_depsgraph_build.hh"
 
-#include "UI_interface.hh"
 #include "UI_view2d.hh"
 
 #include "nla_intern.hh"
@@ -2164,7 +2159,8 @@ static int nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*/)
        * (transitions don't have scale) */
       if ((strip->flag & NLASTRIP_FLAG_SELECT) && (strip->type == NLASTRIP_TYPE_CLIP)) {
         if (strip->act == nullptr || ID_IS_OVERRIDE_LIBRARY(strip->act) ||
-            ID_IS_LINKED(strip->act)) {
+            ID_IS_LINKED(strip->act))
+        {
           continue;
         }
         /* if the referenced action is used by other strips,

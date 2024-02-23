@@ -4,7 +4,6 @@
 
 set(INC
   ../blender/blenkernel
-  ../blender/depsgraph
   ../blender/editors/include
   ../blender/gpu
   ../blender/imbuf
@@ -18,6 +17,7 @@ set(INC
 
 set(LIB
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
@@ -329,6 +329,31 @@ if(WITH_PYTHON_MODULE)
 
 else()
   add_executable(blender ${EXETYPE} ${SRC})
+  if(WITH_CPU_CHECK)
+    target_compile_definitions(blender PRIVATE WITH_CPU_CHECK)
+    # we cannot directly link against any blender libraries for the cpu_check module
+    # as they may have been build for an ISA that is unsupported by the CPU
+    # running this code.
+    add_library(blender_cpu_check SHARED
+      creator_cpu_check.cc
+    )
+    target_link_libraries(blender_cpu_check
+      PRIVATE ${PLATFORM_LINKLIBS}
+    )
+    # blender_cpu_check *NEEDS* to be linked first, there can be no exceptions
+    # to this, this is to ensure this will be the first code to run once the
+    # blender binary has been loaded by the OS.
+    target_link_libraries(blender PRIVATE blender_cpu_check)
+    if(NOT WIN32)
+      set(_LIB_SUB_FOLDER "lib/")
+    endif()
+    set_target_properties(blender_cpu_check
+      PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${_LIB_SUB_FOLDER}"
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${_LIB_SUB_FOLDER}"
+    )
+    unset(_LIB_SUB_FOLDER)
+  endif()
   if(WIN32)
     add_executable(blender-launcher WIN32
       blender_launcher_win32.c
@@ -536,6 +561,22 @@ if(WITH_OPENCOLORIO)
   )
 endif()
 if(WIN32)
+  if(EXISTS ${LIBDIR}/osl/bin/oslquery.dll) # 4.1+
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/osl/bin/oslquery.dll
+            ${LIBDIR}/osl/bin/oslcomp.dll
+            ${LIBDIR}/osl/bin/oslexec.dll
+            ${LIBDIR}/osl/bin/oslnoise.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/osl/bin/oslquery_d.dll
+            ${LIBDIR}/osl/bin/oslcomp_d.dll
+            ${LIBDIR}/osl/bin/oslexec_d.dll
+            ${LIBDIR}/osl/bin/oslnoise_d.dll
+      DEBUG
+    )
+  endif()
   if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_2.dll) # 3.5
     windows_install_shared_manifest(
       FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_2.dll
@@ -556,6 +597,26 @@ if(WIN32)
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
   endif()
+  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll) # 4.1
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_3.dll
+      DEBUG
+    )
+    install(
+      DIRECTORY ${LIBDIR}/opencolorio/lib/site-packages-debug/PyOpenColorIO
+      DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
+      CONFIGURATIONS Debug
+    )
+    install(
+      DIRECTORY ${LIBDIR}/opencolorio/lib/site-packages/PyOpenColorIO
+      DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
+      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+    )
+  endif()
   if(EXISTS ${LIBDIR}/OpenImageDenoise/bin/openimagedenoise.dll) # 4.0
     windows_install_shared_manifest(
       FILES
@@ -563,6 +624,18 @@ if(WIN32)
         ${LIBDIR}/OpenImageDenoise/bin/OpenImageDenoise_core.dll
         ${LIBDIR}/OpenImageDenoise/bin/OpenImageDenoise_device_cpu.dll
         ${LIBDIR}/OpenImageDenoise/bin/OpenImageDenoise_device_sycl.dll
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/OpenImageDenoise/bin/OpenImageDenoise_device_hip.dll) # 4.1
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/OpenImageDenoise/bin/OpenImageDenoise_device_hip.dll
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/OpenImageDenoise/bin/OpenImageDenoise_device_cuda.dll) # 4.1
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/OpenImageDenoise/bin/OpenImageDenoise_device_cuda.dll
     )
   endif()
 endif()
@@ -651,6 +724,13 @@ if(UNIX AND NOT APPLE)
       DESTINATION "."
     )
 
+    if(WITH_CPU_CHECK)
+      install(
+        TARGETS blender_cpu_check
+        DESTINATION "./lib"
+      )
+    endif()
+
     install(
       FILES
         ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
@@ -671,7 +751,8 @@ if(UNIX AND NOT APPLE)
       # Pass.
     elseif(EXISTS ${LIBDIR}/mesa)
       install(
-        DIRECTORY ${LIBDIR}/mesa/lib
+        # Trailing slash is needed to install contents instead of directory itself.
+        DIRECTORY ${LIBDIR}/mesa/lib/
         DESTINATION "./lib/mesa"
       )
 
@@ -705,7 +786,6 @@ file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so.0.0.0)\n
       TARGETS blender
       DESTINATION "./bin"
     )
-
     # Misc files.
     install(
       FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
@@ -1070,22 +1150,6 @@ elseif(WIN32)
     DEBUG
   )
 
-  # This will not exist for 3.4 and earlier lib folders
-  # to ease the transition, support both 3.4 and 3.5 lib
-  # folders.
-  if(EXISTS ${LIBDIR}/openvdb/python/pyopenvdb_d.pyd)
-    install(
-      FILES ${LIBDIR}/openvdb/python/pyopenvdb_d.pyd
-      DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
-      CONFIGURATIONS Debug
-    )
-    install(
-      FILES ${LIBDIR}/openvdb/python/pyopenvdb.pyd
-      DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
-      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-    )
-  endif()
-
   windows_install_shared_manifest(
     FILES
       ${LIBDIR}/materialx/bin/MaterialXCore.dll
@@ -1111,6 +1175,18 @@ elseif(WIN32)
         ${LIBDIR}/materialx/bin/MaterialXRenderGlsl_d.dll
         ${LIBDIR}/materialx/bin/MaterialXRenderHw_d.dll
         ${LIBDIR}/materialx/bin/MaterialXRenderOsl_d.dll
+      DEBUG
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/materialx/bin/MaterialXGenMsl.dll) # 4.1+
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/materialx/bin/MaterialXGenMsl.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/materialx/bin/MaterialXGenMsl_d.dll
       DEBUG
     )
   endif()
@@ -1251,6 +1327,36 @@ elseif(WIN32)
           PATTERN "__pycache__" EXCLUDE           # * any cache *
           PATTERN "*.pyc" EXCLUDE                 # * any cache *
           PATTERN "*.pyo" EXCLUDE                 # * any cache *
+        )
+      endif()
+
+      # This will not exist for 3.4 and earlier lib folders
+      # to ease the transition, support both 3.4 and 3.5 lib
+      # folders.
+      if(EXISTS ${LIBDIR}/openvdb/python/pyopenvdb_d.pyd)
+        install(
+          FILES ${LIBDIR}/openvdb/python/pyopenvdb_d.pyd
+          DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
+          CONFIGURATIONS Debug
+        )
+        install(
+          FILES ${LIBDIR}/openvdb/python/pyopenvdb.pyd
+          DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
+          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+        )
+      endif()
+
+      # this will exist for 4.1 lib folders
+      if(EXISTS ${LIBDIR}/openvdb/python/pyopenvdb_d.cp${_PYTHON_VERSION_NO_DOTS}-win_amd64.pyd)
+        install(
+          FILES ${LIBDIR}/openvdb/python/pyopenvdb_d.cp${_PYTHON_VERSION_NO_DOTS}-win_amd64.pyd
+          DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
+          CONFIGURATIONS Debug
+        )
+        install(
+          FILES ${LIBDIR}/openvdb/python/pyopenvdb.cp${_PYTHON_VERSION_NO_DOTS}-win_amd64.pyd
+          DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
+          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
         )
       endif()
 
@@ -1606,10 +1712,6 @@ install(
 
 set(ASSET_BUNDLE_DIR ${CMAKE_SOURCE_DIR}/release/datafiles/assets/publish/)
 
-if(NOT EXISTS "${ASSET_BUNDLE_DIR}")
-  set(ASSET_BUNDLE_DIR ${CMAKE_SOURCE_DIR}/../lib/assets/publish/)
-endif()
-
 if(EXISTS "${ASSET_BUNDLE_DIR}")
   install(
     DIRECTORY ${ASSET_BUNDLE_DIR}
@@ -1784,6 +1886,13 @@ if(WIN32 AND NOT WITH_PYTHON_MODULE)
     COMPONENT Blender
     DESTINATION "."
   )
+  if(WITH_CPU_CHECK)
+    install(
+      TARGETS blender_cpu_check
+      COMPONENT Blender
+      DESTINATION "."
+    )
+  endif()
   set_target_properties(
     blender
     PROPERTIES
@@ -1814,6 +1923,7 @@ if(UNIX AND NOT APPLE)
       install(
         CODE "\
 set(BLENDER_BIN \"${CMAKE_INSTALL_PREFIX}/${BLENDER_BIN}\")\n\
+set(PYTHON_EXECUTABLE \"${PYTHON_EXECUTABLE}\")\n\
 set(MANPAGE_GEN \"${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py\")\n\
 set(MANPAGE_OUT \"${CMAKE_CURRENT_BINARY_DIR}/blender.1\")\n\
 if(\n\
@@ -1827,12 +1937,9 @@ strict_init_order=0:\
 detect_leaks=0\"\n\
   )\n\
   execute_process(\n\
-    OUTPUT_QUIET\n\
-    COMMAND $\{BLENDER_BIN\}\n\
-    --background\n\
-    --factory-startup\n\
-    --python $\{MANPAGE_GEN\}\n\
-    --\n\
+    COMMAND\n\
+    $\{PYTHON_EXECUTABLE\} $\{MANPAGE_GEN\}\n\
+    --blender $\{BLENDER_BIN\}\n\
     --output $\{MANPAGE_OUT\}\n\
   )\n\
 endif()\n\

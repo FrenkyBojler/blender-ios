@@ -52,8 +52,7 @@ class AssetCatalogService {
  public:
   static const CatalogFilePath DEFAULT_CATALOG_FILENAME;
 
-  struct read_only_tag {
-  };
+  struct read_only_tag {};
 
  public:
   AssetCatalogService();
@@ -85,8 +84,13 @@ class AssetCatalogService {
   /**
    * Duplicate the catalogs from \a other_service into this one. Does not rebuild the tree, this
    * needs to be done by the caller (call #rebuild_tree()!).
+   *
+   * \note If a catalog from \a other already exists in this collection (identified by catalog ID),
+   * it will be skipped and \a on_duplicate_items will be called.
    */
-  void add_from_existing(const AssetCatalogService &other_service);
+  void add_from_existing(const AssetCatalogService &other_service,
+                         FunctionRef<void(const AssetCatalog &existing,
+                                          const AssetCatalog &to_be_ignored)> on_duplicate_items);
 
   /**
    * Write the catalog definitions to disk.
@@ -179,7 +183,7 @@ class AssetCatalogService {
    */
   void update_catalog_path(CatalogID catalog_id, const AssetCatalogPath &new_catalog_path);
 
-  AssetCatalogTree *get_catalog_tree();
+  const AssetCatalogTree *get_catalog_tree() const;
 
   /** Return true only if there are no catalogs known. */
   bool is_empty() const;
@@ -240,7 +244,7 @@ class AssetCatalogService {
    * Construct an in-memory catalog definition file (CDF) from the currently known catalogs.
    * This object can then be processed further before saving to disk. */
   std::unique_ptr<AssetCatalogDefinitionFile> construct_cdf_in_memory(
-      const CatalogFilePath &file_path);
+      const CatalogFilePath &file_path) const;
 
   /**
    * Find a suitable path to write a CDF to.
@@ -251,7 +255,7 @@ class AssetCatalogService {
   static CatalogFilePath find_suitable_cdf_path_for_writing(
       const CatalogFilePath &blend_file_path);
 
-  std::unique_ptr<AssetCatalogTree> read_into_tree();
+  std::unique_ptr<AssetCatalogTree> read_into_tree() const;
 
   /**
    * For every catalog, ensure that its parent path also has a known catalog.
@@ -264,9 +268,9 @@ class AssetCatalogService {
   void tag_all_catalogs_as_unsaved_changes();
 
   /* For access by subclasses, as those will not be marked as friend by #AssetCatalogCollection. */
-  AssetCatalogDefinitionFile *get_catalog_definition_file();
-  OwningAssetCatalogMap &get_catalogs();
-  OwningAssetCatalogMap &get_deleted_catalogs();
+  AssetCatalogDefinitionFile *get_catalog_definition_file() const;
+  OwningAssetCatalogMap &get_catalogs() const;
+  OwningAssetCatalogMap &get_deleted_catalogs() const;
 };
 
 /**
@@ -299,19 +303,27 @@ class AssetCatalogCollection {
   AssetCatalogCollection(AssetCatalogCollection &&other) noexcept = default;
 
   std::unique_ptr<AssetCatalogCollection> deep_copy() const;
+  using OnDuplicateCatalogIdFn =
+      FunctionRef<void(const AssetCatalog &existing, const AssetCatalog &to_be_ignored)>;
   /**
    * Copy the catalogs from \a other and append them to this collection. Copies no other data
    * otherwise.
+   *
+   * \note If a catalog from \a other already exists in this collection (identified by catalog ID),
+   * it will be skipped and \a on_duplicate_items will be called.
    */
-  void add_catalogs_from_existing(const AssetCatalogCollection &other);
+  void add_catalogs_from_existing(const AssetCatalogCollection &other,
+                                  OnDuplicateCatalogIdFn on_duplicate_items);
 
  protected:
   static OwningAssetCatalogMap copy_catalog_map(const OwningAssetCatalogMap &orig);
 };
 
-/** Keeps track of which catalogs are defined in a certain file on disk.
+/**
+ * Keeps track of which catalogs are defined in a certain file on disk.
  * Only contains non-owning pointers to the #AssetCatalog instances, so ensure the lifetime of this
- * class is shorter than that of the #`AssetCatalog`s themselves. */
+ * class is shorter than that of the #`AssetCatalog`s themselves.
+ */
 class AssetCatalogDefinitionFile {
  protected:
   /* Catalogs stored in this file. They are mapped by ID to make it possible to query whether a

@@ -79,21 +79,21 @@ void VKCommandBuffers::init_command_pool(const VKDevice &device)
 void VKCommandBuffers::init_command_buffers(const VKDevice &device)
 {
   BLI_assert(vk_command_pool_ != VK_NULL_HANDLE);
-  VkCommandBuffer vk_command_buffers[(uint32_t)Type::Max] = {VK_NULL_HANDLE};
+  VkCommandBuffer vk_command_buffers[uint32_t(Type::Max)] = {VK_NULL_HANDLE};
   VkCommandBufferAllocateInfo alloc_info = {};
   alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   alloc_info.commandPool = vk_command_pool_;
   alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  alloc_info.commandBufferCount = (uint32_t)Type::Max;
+  alloc_info.commandBufferCount = uint32_t(Type::Max);
   vkAllocateCommandBuffers(device.device_get(), &alloc_info, vk_command_buffers);
 
   init_command_buffer(command_buffer_get(Type::DataTransferCompute),
                       vk_command_pool_,
-                      vk_command_buffers[(int)Type::DataTransferCompute],
+                      vk_command_buffers[int(Type::DataTransferCompute)],
                       "Data Transfer Compute Command Buffer");
   init_command_buffer(command_buffer_get(Type::Graphics),
                       vk_command_pool_,
-                      vk_command_buffers[(int)Type::Graphics],
+                      vk_command_buffers[int(Type::Graphics)],
                       "Graphics Command Buffer");
 }
 
@@ -116,7 +116,7 @@ void VKCommandBuffers::submit_command_buffers(VKDevice &device,
 
   VkTimelineSemaphoreSubmitInfo timelineInfo;
   timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-  timelineInfo.pNext = NULL;
+  timelineInfo.pNext = nullptr;
   timelineInfo.waitSemaphoreValueCount = 1;
   timelineInfo.pWaitSemaphoreValues = wait_value;
   timelineInfo.signalSemaphoreValueCount = 1;
@@ -235,6 +235,10 @@ void VKCommandBuffers::bind(const VKPipeline &vk_pipeline, VkPipelineBindPoint b
   else if (bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS) {
     type = Type::Graphics;
   }
+  else {
+    BLI_assert_unreachable();
+    return;
+  }
 
   VKCommandBuffer &command_buffer = command_buffer_get(type);
   vkCmdBindPipeline(command_buffer.vk_command_buffer(), bind_point, vk_pipeline.vk_handle());
@@ -250,8 +254,12 @@ void VKCommandBuffers::bind(const VKDescriptorSet &descriptor_set,
     ensure_no_draw_commands();
     type = Type::DataTransferCompute;
   }
-  if (bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+  else if (bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS) {
     type = Type::Graphics;
+  }
+  else {
+    BLI_assert_unreachable();
+    return;
   }
 
   VKCommandBuffer &command_buffer = command_buffer_get(type);
@@ -263,7 +271,7 @@ void VKCommandBuffers::bind(const VKDescriptorSet &descriptor_set,
                           1,
                           &vk_descriptor_set,
                           0,
-                          0);
+                          nullptr);
   command_buffer.command_recorded();
 }
 
@@ -554,31 +562,29 @@ void VKCommandBuffers::draw_indexed(
   command_buffer.command_recorded();
 }
 
-void VKCommandBuffers::draw_indirect(const VKStorageBuffer &buffer,
-                                     VkDeviceSize offset,
-                                     uint32_t draw_count,
-                                     uint32_t stride)
+void VKCommandBuffers::draw_indirect(const VkBuffer buffer,
+                                     const VkDeviceSize offset,
+                                     const uint32_t draw_count,
+                                     const uint32_t stride)
 {
   validate_framebuffer_exists();
   ensure_active_framebuffer();
 
   VKCommandBuffer &command_buffer = command_buffer_get(Type::Graphics);
-  vkCmdDrawIndirect(
-      command_buffer.vk_command_buffer(), buffer.vk_handle(), offset, draw_count, stride);
+  vkCmdDrawIndirect(command_buffer.vk_command_buffer(), buffer, offset, draw_count, stride);
   command_buffer.command_recorded();
 }
 
-void VKCommandBuffers::draw_indexed_indirect(const VKStorageBuffer &buffer,
-                                             VkDeviceSize offset,
-                                             uint32_t draw_count,
-                                             uint32_t stride)
+void VKCommandBuffers::draw_indexed_indirect(const VkBuffer buffer,
+                                             const VkDeviceSize offset,
+                                             const uint32_t draw_count,
+                                             const uint32_t stride)
 {
   validate_framebuffer_exists();
   ensure_active_framebuffer();
 
   VKCommandBuffer &command_buffer = command_buffer_get(Type::Graphics);
-  vkCmdDrawIndexedIndirect(
-      command_buffer.vk_command_buffer(), buffer.vk_handle(), offset, draw_count, stride);
+  vkCmdDrawIndexedIndirect(command_buffer.vk_command_buffer(), buffer, offset, draw_count, stride);
   command_buffer.command_recorded();
 }
 

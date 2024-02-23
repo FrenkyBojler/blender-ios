@@ -17,7 +17,7 @@
 namespace blender {
 namespace gpu {
 
-typedef enum eGPUTextureFormatFlag {
+enum eGPUTextureFormatFlag {
   /* The format has a depth component and can be used as depth attachment. */
   GPU_FORMAT_DEPTH = (1 << 0),
   /* The format has a stencil component and can be used as stencil attachment. */
@@ -36,7 +36,7 @@ typedef enum eGPUTextureFormatFlag {
   GPU_FORMAT_SIGNED = (1 << 7),
 
   GPU_FORMAT_DEPTH_STENCIL = (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL),
-} eGPUTextureFormatFlag;
+};
 
 ENUM_OPERATORS(eGPUTextureFormatFlag, GPU_FORMAT_SIGNED)
 
@@ -68,7 +68,7 @@ enum eGPUSamplerFormat {
 
 ENUM_OPERATORS(eGPUSamplerFormat, GPU_SAMPLER_TYPE_UINT)
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #  define DEBUG_NAME_LEN 64
 #else
 #  define DEBUG_NAME_LEN 8

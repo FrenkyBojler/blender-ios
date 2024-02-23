@@ -14,9 +14,15 @@
  * \todo document
  */
 
-#include "BLI_compiler_attrs.h"
-#include "BLI_sys_types.h"
+#include <optional>
+#include <string>
+
 #include "DNA_windowmanager_types.h"
+
+#include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
+#include "BLI_sys_types.h"
+
 #include "WM_keymap.hh"
 #include "WM_types.hh"
 
@@ -25,7 +31,6 @@ struct GHashIterator;
 struct GPUViewport;
 struct ID;
 struct IDProperty;
-struct IDRemapper;
 struct ImBuf;
 struct ImageFormatData;
 struct Main;
@@ -37,6 +42,7 @@ struct View3D;
 struct ViewLayer;
 struct bContext;
 struct rcti;
+struct uiListType;
 struct WorkSpace;
 struct WorkSpaceLayout;
 struct wmDrag;
@@ -66,6 +72,10 @@ struct wmNDOFMotionData;
 struct wmXrRuntimeData;
 struct wmXrSessionState;
 #endif
+
+namespace blender::bke::id {
+class IDRemapper;
+}
 
 namespace blender::asset_system {
 class AssetRepresentation;
@@ -581,7 +591,7 @@ void WM_main_add_notifier(unsigned int type, void *reference);
  * Clear notifiers by reference, Used so listeners don't act on freed data.
  */
 void WM_main_remove_notifier_reference(const void *reference);
-void WM_main_remap_editor_id_reference(const IDRemapper *mappings);
+void WM_main_remap_editor_id_reference(const blender::bke::id::IDRemapper &mappings);
 
 /* reports */
 /**
@@ -593,7 +603,8 @@ void WM_report_banner_show(wmWindowManager *wm, wmWindow *win) ATTR_NONNULL(1);
  * Hide all currently displayed banners and abort their timer.
  */
 void WM_report_banners_cancel(Main *bmain);
-/** Move a whole list of reports to the WM ReportList, and show the banner.
+/**
+ * Move a whole list of reports to the WM ReportList, and show the banner.
  *
  * \note In case the given \a reports is a `nullptr`, or has its #RPT_OP_HOLD flag set, this
  * function does nothing.
@@ -604,7 +615,8 @@ void WM_report_banners_cancel(Main *bmain);
  *
  * \params reports The #ReportList from which to move reports to the WM one, may be `nullptr`.
  * \params wm the WindowManager to add given \a reports to. If `nullptr`, the first WM of current
- * #G_MAIN will be used. */
+ * #G_MAIN will be used.
+ */
 void WM_reports_from_reports_move(wmWindowManager *wm, ReportList *reports);
 void WM_report(eReportType type, const char *message);
 void WM_reportf(eReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(2, 3);
@@ -616,12 +628,14 @@ wmEvent *wm_event_add(wmWindow *win, const wmEvent *event_to_add) ATTR_NONNULL(1
 
 void wm_event_init_from_window(wmWindow *win, wmEvent *event);
 
-/* at maximum, every timestep seconds it triggers event_type events */
-wmTimer *WM_event_timer_add(wmWindowManager *wm, wmWindow *win, int event_type, double timestep);
+/**
+ * At maximum, every time_step seconds it triggers `event_type` events.
+ */
+wmTimer *WM_event_timer_add(wmWindowManager *wm, wmWindow *win, int event_type, double time_step);
 wmTimer *WM_event_timer_add_notifier(wmWindowManager *wm,
                                      wmWindow *win,
                                      unsigned int type,
-                                     double timestep);
+                                     double time_step);
 
 void WM_event_timer_free_data(wmTimer *timer);
 /**
@@ -632,8 +646,10 @@ void WM_event_timer_free_data(wmTimer *timer);
  */
 void WM_event_timers_free_all(wmWindowManager *wm);
 
-/** Mark the given `timer` to be removed, actual removal and deletion is deferred and handled
- * internally by the window manager code. */
+/**
+ * Mark the given `timer` to be removed, actual removal and deletion is deferred and handled
+ * internally by the window manager code.
+ */
 void WM_event_timer_remove(wmWindowManager *wm, wmWindow *win, wmTimer *timer);
 void WM_event_timer_remove_notifier(wmWindowManager *wm, wmWindow *win, wmTimer *timer);
 /**
@@ -681,6 +697,18 @@ int WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event);
  */
 int WM_operator_confirm(bContext *C, wmOperator *op, const wmEvent *event);
 int WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const wmEvent *event);
+
+/**
+ * Like WM_operator_confirm, but with more options and can't be used as an invoke directly.
+ */
+int WM_operator_confirm_ex(bContext *C,
+                           wmOperator *op,
+                           const char *title = nullptr,
+                           const char *message = nullptr,
+                           const char *confirm_text = nullptr,
+                           int icon = 0, /* ALERT_ICON_WARNING. */
+                           bool cancel_default = false);
+
 /**
  * Invoke callback, file selector "filepath" unset + exec.
  *
@@ -704,7 +732,13 @@ int WM_operator_props_popup_confirm(bContext *C, wmOperator *op, const wmEvent *
  */
 int WM_operator_props_popup_call(bContext *C, wmOperator *op, const wmEvent *event);
 int WM_operator_props_popup(bContext *C, wmOperator *op, const wmEvent *event);
-int WM_operator_props_dialog_popup(bContext *C, wmOperator *op, int width);
+
+int WM_operator_props_dialog_popup(bContext *C,
+                                   wmOperator *op,
+                                   int width,
+                                   std::optional<std::string> title = std::nullopt,
+                                   std::optional<std::string> confirm_text = std::nullopt);
+
 int WM_operator_redo_popup(bContext *C, wmOperator *op);
 int WM_operator_ui_popup(bContext *C, wmOperator *op, int width);
 
@@ -897,33 +931,33 @@ void WM_operator_properties_filesel(wmOperatorType *ot,
                                     short sort);
 
 /**
- * Tries to pass \a id to an operator via either a "session_uuid" or a "name" property defined in
+ * Tries to pass \a id to an operator via either a "session_uid" or a "name" property defined in
  * the properties of \a ptr. The former is preferred, since it works properly with linking and
  * library overrides (which may both result in multiple IDs with the same name and type).
  *
  * Also see #WM_operator_properties_id_lookup() and
- * #WM_operator_properties_id_lookup_from_name_or_session_uuid()
+ * #WM_operator_properties_id_lookup_from_name_or_session_uid()
  */
 void WM_operator_properties_id_lookup_set_from_id(PointerRNA *ptr, const ID *id);
 /**
- * Tries to find an ID in \a bmain. There needs to be either a "session_uuid" int or "name" string
+ * Tries to find an ID in \a bmain. There needs to be either a "session_uid" int or "name" string
  * property defined and set. The former has priority. See #WM_operator_properties_id_lookup() for a
  * helper to add the properties.
  */
-ID *WM_operator_properties_id_lookup_from_name_or_session_uuid(Main *bmain,
-                                                               PointerRNA *ptr,
-                                                               enum ID_Type type);
+ID *WM_operator_properties_id_lookup_from_name_or_session_uid(Main *bmain,
+                                                              PointerRNA *ptr,
+                                                              enum ID_Type type);
 /**
- * Check if either the "session_uuid" or "name" property is set inside \a ptr. If this is the case
- * the ID can be looked up by #WM_operator_properties_id_lookup_from_name_or_session_uuid().
+ * Check if either the "session_uid" or "name" property is set inside \a ptr. If this is the case
+ * the ID can be looked up by #WM_operator_properties_id_lookup_from_name_or_session_uid().
  */
 bool WM_operator_properties_id_lookup_is_set(PointerRNA *ptr);
 /**
- * Adds "name" and "session_uuid" properties so the caller can tell the operator which ID to act
- * on. See #WM_operator_properties_id_lookup_from_name_or_session_uuid(). Both properties will be
+ * Adds "name" and "session_uid" properties so the caller can tell the operator which ID to act
+ * on. See #WM_operator_properties_id_lookup_from_name_or_session_uid(). Both properties will be
  * hidden in the UI and not be saved over consecutive operator calls.
  *
- * \note New operators should probably use "session_uuid" only (set \a add_name_prop to #false),
+ * \note New operators should probably use "session_uid" only (set \a add_name_prop to #false),
  * since this works properly with linked data and/or library overrides (in both cases, multiple IDs
  * with the same name and type may be present). The "name" property is only kept to not break
  * compatibility with old scripts using some previously existing operators.
@@ -1023,9 +1057,9 @@ bool WM_operator_properties_checker_interval_test(const CheckerIntervalParams *o
                                                   int depth);
 
 /**
- * Operator as a Python command (resulting string must be freed).
+ * Operator as a Python command.
  *
- * Print a string representation of the operator,
+ * Return a string representation of the operator,
  * with the arguments that it runs so Python can run it again.
  *
  * When calling from an existing #wmOperator, better to use simple version:
@@ -1033,18 +1067,20 @@ bool WM_operator_properties_checker_interval_test(const CheckerIntervalParams *o
  *
  * \note Both \a op and \a opptr may be `NULL` (\a op is only used for macro operators).
  */
-char *WM_operator_pystring_ex(bContext *C,
-                              wmOperator *op,
-                              bool all_args,
-                              bool macro_args,
-                              wmOperatorType *ot,
-                              PointerRNA *opptr);
-char *WM_operator_pystring(bContext *C, wmOperator *op, bool all_args, bool macro_args);
-/**
- * \return true if the string was shortened.
- */
-bool WM_operator_pystring_abbreviate(char *str, int str_len_max);
-char *WM_prop_pystring_assign(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index);
+std::string WM_operator_pystring_ex(bContext *C,
+                                    wmOperator *op,
+                                    bool all_args,
+                                    bool macro_args,
+                                    wmOperatorType *ot,
+                                    PointerRNA *opptr);
+std::string WM_operator_pystring(bContext *C, wmOperator *op, bool all_args, bool macro_args);
+
+std::string WM_operator_pystring_abbreviate(std::string str, int str_len_max);
+
+std::optional<std::string> WM_prop_pystring_assign(bContext *C,
+                                                   PointerRNA *ptr,
+                                                   PropertyRNA *prop,
+                                                   int index);
 /**
  * Convert: `some.op` -> `SOME_OT_op` or leave as-is.
  * \return the length of `dst`.
@@ -1065,11 +1101,11 @@ bool WM_operator_py_idname_ok_or_report(ReportList *reports,
 /**
  * Calculate the path to `ptr` from context `C`, or return NULL if it can't be calculated.
  */
-char *WM_context_path_resolve_property_full(const bContext *C,
-                                            const PointerRNA *ptr,
-                                            PropertyRNA *prop,
-                                            int index);
-char *WM_context_path_resolve_full(bContext *C, const PointerRNA *ptr);
+std::optional<std::string> WM_context_path_resolve_property_full(const bContext *C,
+                                                                 const PointerRNA *ptr,
+                                                                 PropertyRNA *prop,
+                                                                 int index);
+std::optional<std::string> WM_context_path_resolve_full(bContext *C, const PointerRNA *ptr);
 
 /* `wm_operator_type.cc` */
 
@@ -1078,9 +1114,11 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet);
  * \note Caller must free.
  */
 void WM_operatortype_iter(GHashIterator *ghi);
-void WM_operatortype_append(void (*opfunc)(wmOperatorType *));
-void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *userdata);
-void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *, void *), void *userdata);
+void WM_operatortype_append(void (*opfunc)(wmOperatorType *ot));
+void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *ot, void *userdata),
+                                void *userdata);
+void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *userdata),
+                                      void *userdata);
 /**
  * Called on initialize WM_exit().
  */
@@ -1091,12 +1129,12 @@ bool WM_operatortype_remove(const char *idname);
  */
 void WM_operatortype_last_properties_clear_all();
 
-void WM_operatortype_idname_visit_for_search(const bContext *C,
-                                             PointerRNA *ptr,
-                                             PropertyRNA *prop,
-                                             const char *edit_text,
-                                             StringPropertySearchVisitFunc visit_fn,
-                                             void *visit_user_data);
+void WM_operatortype_idname_visit_for_search(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA *prop,
+    const char *edit_text,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
 /**
  * Tag all operator-properties of \a ot defined after calling this, until
@@ -1198,12 +1236,12 @@ void WM_menutype_freelink(MenuType *mt);
 void WM_menutype_free();
 bool WM_menutype_poll(bContext *C, MenuType *mt);
 
-void WM_menutype_idname_visit_for_search(const bContext *C,
-                                         PointerRNA *ptr,
-                                         PropertyRNA *prop,
-                                         const char *edit_text,
-                                         StringPropertySearchVisitFunc visit_fn,
-                                         void *visit_user_data);
+void WM_menutype_idname_visit_for_search(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA *prop,
+    const char *edit_text,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
 /* `wm_panel_type.cc` */
 
@@ -1216,12 +1254,12 @@ PanelType *WM_paneltype_find(const char *idname, bool quiet);
 bool WM_paneltype_add(PanelType *pt);
 void WM_paneltype_remove(PanelType *pt);
 
-void WM_paneltype_idname_visit_for_search(const bContext *C,
-                                          PointerRNA *ptr,
-                                          PropertyRNA *prop,
-                                          const char *edit_text,
-                                          StringPropertySearchVisitFunc visit_fn,
-                                          void *visit_user_data);
+void WM_paneltype_idname_visit_for_search(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA *prop,
+    const char *edit_text,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
 /* `wm_gesture_ops.cc` */
 
@@ -1335,7 +1373,7 @@ int WM_operator_flag_only_pass_through_on_press(int retval, const wmEvent *event
  * Note that \a poin should be valid allocated and not on stack.
  */
 void WM_event_start_drag(
-    bContext *C, int icon, eWM_DragDataType type, void *poin, double value, unsigned int flags);
+    bContext *C, int icon, eWM_DragDataType type, void *poin, unsigned int flags);
 /**
  * Create and fill the dragging data, but don't start dragging just yet (unlike
  * #WM_event_start_drag()). Must be followed up by #WM_event_start_prepared_drag(), otherwise the
@@ -1344,21 +1382,26 @@ void WM_event_start_drag(
  * Note that \a poin should be valid allocated and not on stack.
  */
 wmDrag *WM_drag_data_create(
-    bContext *C, int icon, eWM_DragDataType type, void *poin, double value, unsigned int flags);
+    bContext *C, int icon, eWM_DragDataType type, void *poin, unsigned int flags);
 /**
  * Invoke dragging using the given \a drag data.
  */
 void WM_event_start_prepared_drag(bContext *C, wmDrag *drag);
-void WM_event_drag_image(wmDrag *, const ImBuf *, float scale);
+void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
 void WM_drag_free_list(ListBase *lb);
 wmDropBox *WM_dropbox_add(ListBase *lb,
                           const char *idname,
-                          bool (*poll)(bContext *, wmDrag *, const wmEvent *event),
-                          void (*copy)(bContext *, wmDrag *, wmDropBox *),
-                          void (*cancel)(Main *, wmDrag *, wmDropBox *),
+                          bool (*poll)(bContext *C, wmDrag *drag, const wmEvent *event),
+                          void (*copy)(bContext *C, wmDrag *drag, wmDropBox *drop),
+                          void (*cancel)(Main *bmain, wmDrag *drag, wmDropBox *drop),
                           WMDropboxTooltipFunc tooltip);
+/**
+ * Ensure operator pointers & properties are valid after operators have been added/removed.
+ */
+void WM_dropbox_update_ot();
+
 void WM_drag_draw_item_name_fn(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
 void WM_drag_draw_default_fn(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
 /**
@@ -1420,18 +1463,41 @@ const ListBase *WM_drag_asset_list_get(const wmDrag *drag);
 
 const char *WM_drag_get_item_name(wmDrag *drag);
 
-/* Path drag and drop. */
+/* Paths drag and drop. */
 /**
- * \param path: The path to drag. Value will be copied into the drag data so the passed string may
- *              be destructed.
+ * \param paths: The paths to drag. Values will be copied into the drag data so the passed strings
+ * may be destructed.
  */
-wmDragPath *WM_drag_create_path_data(const char *path);
-const char *WM_drag_get_path(const wmDrag *drag);
+wmDragPath *WM_drag_create_path_data(blender::Span<const char *> paths);
+/**
+ *  If `drag` contains path data, returns the first path int he path list.
+ */
+const char *WM_drag_get_single_path(const wmDrag *drag);
+/**
+ * If `drag` contains path data, returns the first path in the path list that matches a
+ * a `file_type`.
+ *
+ * \param drag: The drag that could contain drag path data.
+ * \param file_type: #eFileSel_File_Types bit flag.
+ */
+const char *WM_drag_get_single_path(const wmDrag *drag, int file_type);
+blender::Span<std::string> WM_drag_get_paths(const wmDrag *drag);
+/**
+ * If `drag` contains path data, returns if any file path match a `file_type`.
+ *
+ * \param drag: The drag that could contain drag path data.
+ * \param file_type: #eFileSel_File_Types bit flag.
+ */
+bool WM_drag_has_path_file_type(const wmDrag *drag, int file_type);
 /**
  * Note that even though the enum return type uses bit-flags, this should never have multiple
- * type-bits set, so `ELEM()` like comparison is possible.
+ * type-bits set, so `ELEM()` like comparison is possible. To check all paths or to do a bit-flag
+ * check use `WM_drag_has_path_file_type(drag, file_type)` instead.
  */
-int /* eFileSel_File_Types */ WM_drag_get_path_file_type(const wmDrag *drag);
+int /* #eFileSel_File_Types */ WM_drag_get_path_file_type(const wmDrag *drag);
+
+const std::string &WM_drag_get_string(const wmDrag *drag);
+std::string WM_drag_get_string_firstline(const wmDrag *drag);
 
 /* Set OpenGL viewport and scissor */
 void wmViewport(const rcti *winrct);
@@ -1458,11 +1524,12 @@ enum eWM_JobFlag {
 ENUM_OPERATORS(eWM_JobFlag, WM_JOB_PROGRESS);
 
 /**
- * Identifying jobs by owner alone is unreliable, this isn't saved,
- * order can change (keep 0 for 'any').
+ * Identifying jobs by owner alone is unreliable, this isn't saved, order can change.
  */
 enum eWM_JobType {
+  /** Not a real type, use for querying any type. */
   WM_JOB_TYPE_ANY = 0,
+
   WM_JOB_TYPE_COMPOSITE,
   WM_JOB_TYPE_RENDER,
   WM_JOB_TYPE_RENDER_PREVIEW, /* UI preview */
@@ -1492,7 +1559,7 @@ enum eWM_JobType {
   WM_JOB_TYPE_SEQ_DRAW_THUMBNAIL,
   WM_JOB_TYPE_SEQ_DRAG_DROP_PREVIEW,
   WM_JOB_TYPE_CALCULATE_SIMULATION_NODES,
-  WM_JOB_TYPE_BAKE_SIMULATION_NODES,
+  WM_JOB_TYPE_BAKE_GEOMETRY_NODES,
   WM_JOB_TYPE_UV_PACK,
   /* add as needed, bake, seq proxy build
    * if having hard coded values is a problem */
@@ -1525,13 +1592,13 @@ void *WM_jobs_customdata_from_type(wmWindowManager *wm, const void *owner, int j
 
 bool WM_jobs_is_running(const wmJob *wm_job);
 bool WM_jobs_is_stopped(const wmWindowManager *wm, const void *owner);
-void *WM_jobs_customdata_get(wmJob *);
-void WM_jobs_customdata_set(wmJob *, void *customdata, void (*free)(void *));
-void WM_jobs_timer(wmJob *, double timestep, unsigned int note, unsigned int endnote);
-void WM_jobs_delay_start(wmJob *, double delay_time);
+void *WM_jobs_customdata_get(wmJob *wm_job);
+void WM_jobs_customdata_set(wmJob *wm_job, void *customdata, void (*free)(void *));
+void WM_jobs_timer(wmJob *wm_job, double time_step, unsigned int note, unsigned int endnote);
+void WM_jobs_delay_start(wmJob *wm_job, double delay_time);
 
 using wm_jobs_start_callback = void (*)(void *custom_data, wmJobWorkerStatus *worker_status);
-void WM_jobs_callbacks(wmJob *,
+void WM_jobs_callbacks(wmJob *wm_job,
                        wm_jobs_start_callback startjob,
                        void (*initjob)(void *),
                        void (*update)(void *),
@@ -1547,9 +1614,9 @@ void WM_jobs_callbacks_ex(wmJob *wm_job,
 
 /**
  * If job running, the same owner gave it a new job.
- * if different owner starts existing startjob, it suspends itself
+ * if different owner starts existing #wmJob::startjob, it suspends itself.
  */
-void WM_jobs_start(wmWindowManager *wm, wmJob *);
+void WM_jobs_start(wmWindowManager *wm, wmJob *wm_job);
 /**
  * Signal job(s) from this owner or callback to stop, timer is required to get handled.
  */
@@ -1571,8 +1638,8 @@ void WM_jobs_kill_type(wmWindowManager *wm, const void *owner, int job_type);
 bool WM_jobs_has_running(const wmWindowManager *wm);
 bool WM_jobs_has_running_type(const wmWindowManager *wm, int job_type);
 
-void WM_job_main_thread_lock_acquire(wmJob *job);
-void WM_job_main_thread_lock_release(wmJob *job);
+void WM_job_main_thread_lock_acquire(wmJob *wm_job);
+void WM_job_main_thread_lock_release(wmJob *wm_job);
 
 /* Clipboard. */
 
@@ -1595,20 +1662,17 @@ void WM_clipboard_text_set(const char *buf, bool selection);
 bool WM_clipboard_image_available();
 
 /**
- * Get image data from the Clipboard
- * \param r_width: the returned image width in pixels.
- * \param r_height: the returned image height in pixels.
- * \return pointer uint array in RGBA byte order. Caller must free.
+ * Get image data from the clipboard.
+ * \return The image or null when not found. Caller must free.
  */
 ImBuf *WM_clipboard_image_get();
 
 /**
- * Put image data to the Clipboard
- * \param rgba: uint array in RGBA byte order.
- * \param width: the image width in pixels.
- * \param height: the image height in pixels.
+ * Put image data to the clipboard.
+ *
+ * \param ibuf: the image to set the clipboard to.
  */
-bool WM_clipboard_image_set(ImBuf *ibuf);
+bool WM_clipboard_image_set(ImBuf *ibuf) ATTR_NONNULL(1);
 
 /* progress */
 
@@ -1617,7 +1681,9 @@ void WM_progress_clear(wmWindow *win);
 
 /* Draw (for screenshot) */
 
-void *WM_draw_cb_activate(wmWindow *win, void (*draw)(const wmWindow *, void *), void *customdata);
+void *WM_draw_cb_activate(wmWindow *win,
+                          void (*draw)(const wmWindow *win, void *customdata),
+                          void *customdata);
 void WM_draw_cb_exit(wmWindow *win, void *handle);
 /**
  * High level function to redraw windows.
@@ -1754,7 +1820,7 @@ bool WM_event_is_xr(const wmEvent *event);
  * If this is a tablet event, return tablet pressure and set `*pen_flip`
  * to 1 if the eraser tool is being used, 0 otherwise.
  */
-float WM_event_tablet_data(const wmEvent *event, int *pen_flip, float tilt[2]);
+float WM_event_tablet_data(const wmEvent *event, bool *r_pen_flip, float r_tilt[2]);
 bool WM_event_is_tablet(const wmEvent *event);
 
 int WM_event_absolute_delta_x(const wmEvent *event);

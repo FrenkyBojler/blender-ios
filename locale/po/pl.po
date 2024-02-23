@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.1.0 Alpha (b'7ce745a76b47')\n"
+"Project-Id-Version: Blender 4.1.0 Beta (b'09ff1b1f7e3f')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-11-20 11:21:26\n"
+"POT-Creation-Date: 2024-02-19 09:41+0000\n"
 "PO-Revision-Date: 2017-08-26 11:13+0200\n"
 "Last-Translator: Mikołaj Juda <mikolaj.juda@gmail.com>\n"
 "Language: pl\n"
@@ -682,6 +682,10 @@ msgid "Description"
 msgstr "Opis"
 
 
+msgid "All"
+msgstr "Wszystko"
+
+
 msgid "Vector"
 msgstr "Wektorowy"
 
@@ -864,14 +868,6 @@ msgstr "Podziel zewnętrzne obrazy według materiału (tylko pliki zewnętrzne)"
 
 msgid "Horizontal dimension of the baking map"
 msgstr "Poziomy rozmiar wyliczanej mapy"
-
-
-msgid "Bezier Curve Point"
-msgstr "Punkt krzywej Beziera"
-
-
-msgid "Bezier curve point with two handles"
-msgstr "Punkt krzywej Beziera z dwoma uchwytami"
 
 
 msgid "Control Point"
@@ -1590,14 +1586,6 @@ msgid "Volume"
 msgstr "Objętość"
 
 
-msgid "Length of first Bezier Handle (for B-Bones only)"
-msgstr "Długość pierwszego uchwytu Beziera (wyłącznie dla B-kości)"
-
-
-msgid "Length of second Bezier Handle (for B-Bones only)"
-msgstr "Długość drugiego uchwytu Beziera dla B-kości"
-
-
 msgid "B-Bone Segments"
 msgstr "Segmenty B-kości"
 
@@ -1786,6 +1774,10 @@ msgid "Object children will use relative transform, like deform"
 msgstr "Obiekty potomne będą używać transformacji względnych, takich jak deformacje"
 
 
+msgid "Index"
+msgstr "Indeks"
+
+
 msgid "Visible"
 msgstr "Widoczny"
 
@@ -1832,10 +1824,6 @@ msgstr "Materiał"
 
 msgid "Direction"
 msgstr "Kierunek"
-
-
-msgid "All"
-msgstr "Wszystko"
 
 
 msgid "Threshold"
@@ -3075,10 +3063,6 @@ msgid "Floor"
 msgstr "Podłoga"
 
 
-msgid "Use position (and optionally rotation) of target to define a 'wall' or 'floor' that the owner can not cross"
-msgstr "Użyj położenia (i opcjonalnie rotacji) obiektu docelowego aby zdefiniować 'ścianę' lub 'podłogę', której posiadacz nie będzie przecinał"
-
-
 msgid "Follow Path"
 msgstr "Podążaj za ścieżką"
 
@@ -3609,10 +3593,6 @@ msgstr "W jaki sposób materiał filmowy dopasowany jest do rozmiarów kadru"
 
 msgid "Movie tracking object to follow (if empty, camera object is used)"
 msgstr "Obiekt śledzący do podążania za nim (gdy brak, używana jest kamera)"
-
-
-msgid "Track"
-msgstr "Ścieżka"
 
 
 msgid "Movie tracking track to follow"
@@ -4487,10 +4467,6 @@ msgid "Handle Type"
 msgstr "Rodzaj uchwytu"
 
 
-msgid "Curve interpolation at this point: Bezier or vector"
-msgstr "Rodzaj interpolacji krzywej w tym punkcie - Bezier lub wektor"
-
-
 msgid "Auto Handle"
 msgstr "Uchwyt automatyczny"
 
@@ -4569,10 +4545,6 @@ msgstr "Głębia"
 
 msgid "Plane"
 msgstr "Płaszczyzna"
-
-
-msgid "Index"
-msgstr "Indeks"
 
 
 msgid "Scene"
@@ -6056,8 +6028,60 @@ msgid "Fixed"
 msgstr "Stałe"
 
 
+msgid "Brush"
+msgstr "Pędzel"
+
+
+msgid "Font"
+msgstr "Czcionka"
+
+
+msgid "Key"
+msgstr "Klucz"
+
+
 msgid "Library"
 msgstr "Biblioteka"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Mesh"
+msgstr "Siatka"
+
+
+msgid "Paint Curve"
+msgstr "Krzywa graficzna"
+
+
+msgid "Palette"
+msgstr "Paleta"
+
+
+msgid "Particle"
+msgstr "Cząstka"
+
+
+msgid "Sound"
+msgstr "Dźwięk"
+
+
+msgid "Speaker"
+msgstr "Głośnik"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Window Manager"
+msgstr "Zarządca okien"
+
+
+msgid "World"
+msgstr "Świat"
 
 
 msgid "Groups"
@@ -6066,14 +6090,6 @@ msgstr "Grupy"
 
 msgid "Local"
 msgstr "Lokalnie"
-
-
-msgid "Brush"
-msgstr "Pędzel"
-
-
-msgid "Paint Curve"
-msgstr "Krzywa graficzna"
 
 
 msgid "Laplacian"
@@ -6090,10 +6106,6 @@ msgstr "Początek przycinania"
 
 msgid "Dimensions"
 msgstr "Wymiary"
-
-
-msgid "Font"
-msgstr "Czcionka"
 
 
 msgid "X Offset"
@@ -6132,10 +6144,6 @@ msgid "Edit"
 msgstr "Edytuj"
 
 
-msgid "Mesh"
-msgstr "Siatka"
-
-
 msgid "Faces"
 msgstr "Ściany"
 
@@ -6152,10 +6160,6 @@ msgid "Mass"
 msgstr "Masa"
 
 
-msgid "Particle"
-msgstr "Cząstka"
-
-
 msgid "Reference Distance"
 msgstr "Odległość odniesienia"
 
@@ -6165,20 +6169,12 @@ msgid "Pitch"
 msgstr "Wysokość"
 
 
-msgid "Sound"
-msgstr "Dźwięk"
-
-
 msgid "Blend"
 msgstr "Mieszanie"
 
 
 msgid "Filter"
 msgstr "Filtr"
-
-
-msgid "Window Manager"
-msgstr "Zarządca okien"
 
 
 msgid "Operation"
@@ -6213,16 +6209,8 @@ msgid "ID Type"
 msgstr "Typ ID"
 
 
-msgid "Mask"
-msgstr "Maska"
-
-
-msgid "Key"
-msgstr "Klucz"
-
-
-msgid "Text"
-msgstr "Tekst"
+msgid "Track"
+msgstr "Ścieżka"
 
 
 msgid "Distort"
@@ -6259,10 +6247,6 @@ msgstr "Nadpisz"
 
 msgid "Copy"
 msgstr "Skopiuj"
-
-
-msgid "World"
-msgstr "Świat"
 
 
 msgid "Smooth Shading"
@@ -6427,10 +6411,6 @@ msgid "Reset"
 msgstr "Zresetuj"
 
 
-msgid "Palette"
-msgstr "Paleta"
-
-
 msgid "Hinge"
 msgstr "Zawias"
 
@@ -6464,10 +6444,6 @@ msgstr "Obróć zaznaczone obiekty"
 
 msgid "Pinned"
 msgstr "Przypięty"
-
-
-msgid "Speaker"
-msgstr "Głośnik"
 
 
 msgid "Property Name"
@@ -6684,10 +6660,6 @@ msgid "Col"
 msgstr "Kol"
 
 
-msgid "PreviewCol"
-msgstr "KolorPodglądu"
-
-
 msgid "TexturedCol"
 msgstr "TeksturowanyKolor"
 
@@ -6710,10 +6682,6 @@ msgstr "KluczKształtu"
 
 msgid "OS Loop"
 msgstr "OS Loop"
-
-
-msgid "PreviewLoopCol"
-msgstr "PreviewLoopCol"
 
 
 msgid "Not enough free memory"
@@ -7107,6 +7075,10 @@ msgid "Display action without any time remapping (when unpinned)"
 msgstr "Wyświetl akcję bez jakiegokolwiek przemapowania czasu (gdy odpięta)"
 
 
+msgid "Nothing selected"
+msgstr "Nic nie zaznaczono"
+
+
 msgid "<invalid>"
 msgstr "<nieprawidłowy>"
 
@@ -7348,16 +7320,6 @@ msgstr "Aktywny obiekt nie jest zaznaczoną krzywą"
 
 
 msgctxt "Curve"
-msgid "BezierCurve"
-msgstr "BezierKrzywa"
-
-
-msgctxt "Curve"
-msgid "BezierCircle"
-msgstr "BezierOkrąg"
-
-
-msgctxt "Curve"
 msgid "CurvePath"
 msgstr "KrzywaŚcieżka"
 
@@ -7459,20 +7421,12 @@ msgid "No strokes to paste, select and copy some points before trying again"
 msgstr "Brak kresek do wklejenia, zaznacz i skopiuj jakiekolwiek punkty i spróbuj ponownie"
 
 
-msgid "Can not paste strokes when active layer is hidden or locked"
-msgstr "Nie mogę wkleić kresek gdy aktywna warstwa jest ukryta lub zablokowana"
-
-
 msgid "No grease pencil data"
 msgstr "Brak danych szkicownika"
 
 
 msgid "No active frame to delete"
 msgstr "Brak aktywnej klatki do usunięcia"
-
-
-msgid "Nothing selected"
-msgstr "Nic nie zaznaczono"
 
 
 msgid "No active area"
@@ -7608,40 +7562,8 @@ msgid "Menu \"%s\" not found"
 msgstr "Nie odnaleziono menu \"%s\""
 
 
-msgid "Shortcut: %s"
-msgstr "Skrót: %s"
-
-
-msgid "Python: %s"
-msgstr "Python: %s"
-
-
 msgid "(Shift-Click/Drag to select multiple)"
 msgstr "(Shift klik/ciągnij by zaznaczyć wiele)"
-
-
-msgid "Value: %s"
-msgstr "Wartość: %s"
-
-
-msgid "Radians: %f"
-msgstr "Radiany: %f"
-
-
-msgid "Expression: %s"
-msgstr "Wyrażenie: %s"
-
-
-msgid "Library: %s"
-msgstr "Biblioteka: %s"
-
-
-msgid "Disabled: %s"
-msgstr "Wyłączone: %s"
-
-
-msgid "Python: %s.%s"
-msgstr "Python: %s.%s"
 
 
 msgid "ID-Block:"
@@ -7935,6 +7857,10 @@ msgid "Can't overwrite export file"
 msgstr "Nie mogę nadpisać pliku do eksportu"
 
 
+msgid "Rigging"
+msgstr "Rigowanie"
+
+
 msgctxt "Mesh"
 msgid "Plane"
 msgstr "Prostokąt"
@@ -7998,10 +7924,6 @@ msgstr "Brak prawidłowego zaznaczenia do wytłoczenia"
 
 msgid "You have to select a string of connected vertices too"
 msgstr "Musisz również zaznaczyć sznur połączonych wierzchołków"
-
-
-msgid "Confirm: Enter/LClick, Cancel: (Esc/RClick), Thickness: %s, Depth (Ctrl to tweak): %s (%s), Outset (O): (%s), Boundary (B): (%s), Individual (I): (%s)"
-msgstr "Potwierdź: Enter/LPM, Rezygnuj: (Esc/PPM), Grubość: %s, Głębokość (Ctrl): %s (%s), Outset (O): (%s), Granica (B): (%s), Indywidualny (I): (%s)"
 
 
 msgid "No intersections found"
@@ -9266,6 +9188,10 @@ msgid "Update Dependencies"
 msgstr "Odśwież Zależności"
 
 
+msgid "Delete target variable"
+msgstr "Usuń docelową zmienną"
+
+
 msgid "F-Curve only has F-Modifiers"
 msgstr "Krzywa F ma tylko modyfikatory F"
 
@@ -9312,10 +9238,6 @@ msgstr "PODPOWIEDŹ: Użyj w zamian krzywych F dla animacji proceduralnych"
 
 msgid "F-Modifiers can generate curves for those too"
 msgstr "Modyfikatory-F mogą również tworzyć krzywe dla tych"
-
-
-msgid "Delete target variable"
-msgstr "Usuń docelową zmienną"
 
 
 msgid "<No ID>"
@@ -9478,30 +9400,6 @@ msgid "Now"
 msgstr "Teraz"
 
 
-msgid "Internal Error - AnimData block is not valid"
-msgstr "Błąd wewnętrzny - AnimData block jest nieprawidłowy"
-
-
-msgid "Cannot push down actions while tweaking a strip's action, exit tweak mode first"
-msgstr "Nie można pchnąć w dół akcji gdy manipulujesz (tweak) akcją paska, najpierw wyjdź z trybu tweak"
-
-
-msgid "No active action to push down"
-msgstr "Brak aktywnej akcji do pchnięcia w dół"
-
-
-msgid "Select an existing NLA Track or an empty action line first"
-msgstr "Zaznacz najpierw istniejącą ścieżkę NLA lub pustą linię akcji."
-
-
-msgid "No animation channel found at index %d"
-msgstr "Pod indeksem %d nie odnaleziono kanału animacji"
-
-
-msgid "Animation channel at index %d is not a NLA 'Active Action' channel"
-msgstr "Kanał animacji w indeksie %d nie jest kanałem NLA aktywnej akcji (NLA 'Active Action')"
-
-
 msgid "No AnimData blocks to enter tweak mode for"
 msgstr "Brak AnimData blocks dla których można uruchomić tryb tweak"
 
@@ -9550,6 +9448,22 @@ msgid "Modifier could not be added to (%s : %s) (see console for details)"
 msgstr "Modyfikator nie mógł być dodany to (%s : %s) (szczegóły w konsoli)"
 
 
+msgid "Internal Error - AnimData block is not valid"
+msgstr "Błąd wewnętrzny - AnimData block jest nieprawidłowy"
+
+
+msgid "Cannot push down actions while tweaking a strip's action, exit tweak mode first"
+msgstr "Nie można pchnąć w dół akcji gdy manipulujesz (tweak) akcją paska, najpierw wyjdź z trybu tweak"
+
+
+msgid "No active action to push down"
+msgstr "Brak aktywnej akcji do pchnięcia w dół"
+
+
+msgid "Select an existing NLA Track or an empty action line first"
+msgstr "Zaznacz najpierw istniejącą ścieżkę NLA lub pustą linię akcji."
+
+
 msgid "Library path '%s' does not exist, correct this before saving"
 msgstr "Ścieżka biblioteki '%s' nie istnieje, popraw to zanim zapiszesz"
 
@@ -9586,6 +9500,10 @@ msgid "File '%s' could not be loaded"
 msgstr "Plik '%s' nie mógł być załadowany"
 
 
+msgid "Please select all related strips"
+msgstr "Proszę zaznaczyć wszystkie powiązane paski"
+
+
 msgid "Cannot apply effects to audio sequence strips"
 msgstr "Nie można zaaplikować efektów na dźwiękowe paski sekwencji"
 
@@ -9608,10 +9526,6 @@ msgstr "TODO: w jakich przypadkach tak się dzieje?"
 
 msgid "No valid inputs to swap"
 msgstr "Brak prawidłowych wejść do zamiany"
-
-
-msgid "Please select all related strips"
-msgstr "Proszę zaznaczyć wszystkie powiązane paski"
 
 
 msgid "Please select two strips"
@@ -9866,10 +9780,6 @@ msgid "No active camera"
 msgstr "Brak aktywnej kamery"
 
 
-msgid "Auto Keying On"
-msgstr "Automatyczne kluczowanie WŁ"
-
-
 msgid "along X"
 msgstr "wzdłuż X"
 
@@ -9908,6 +9818,10 @@ msgstr "blokada Z - %s"
 
 msgid "along local Z"
 msgstr "wzdłuż lokalnej Z"
+
+
+msgid "Auto Keying On"
+msgstr "Automatyczne kluczowanie WŁ"
 
 
 msgid " along Y axis"
@@ -10040,10 +9954,6 @@ msgstr "SkalaB: %s : %s : %s%s %s"
 
 msgid "ScaleB X: %s  Y: %s  Z: %s%s %s"
 msgstr "SkalaB X: %s  Y: %s  Z: %s%s %s"
-
-
-msgid "Bend Angle: %.3f Radius: %.4f, Alt, Clamp %s"
-msgstr "Kąt wygięcia: %.3f Promień: %.4f, Alt, Ogranicz %s"
 
 
 msgid "Envelope: %s"
@@ -10239,10 +10149,6 @@ msgid "Object has negative scale, unwrap will operate on a non-flipped version o
 msgstr "Obiekt posiada ujemną skalę, odwijanie (unwrap) będzie używało nie odwróconej wersji siatki"
 
 
-msgid "Cannot open file: %s"
-msgstr "Nie można otworzyć pliku: %s"
-
-
 msgctxt "Action"
 msgid "Group"
 msgstr "Grupa"
@@ -10354,14 +10260,6 @@ msgstr "Niemożliwe dodanie elementu colorband (limit %d)"
 
 msgid "Relationship"
 msgstr "Zależność"
-
-
-msgid "Bezier spline cannot have points added"
-msgstr "Splajn Bezier nie pozwala na dodanie punktów"
-
-
-msgid "Only Bezier splines can be added"
-msgstr "Tylko splajny Bezier mogą być dodane"
 
 
 msgid "Curve '%s' does not contain spline given"
@@ -11127,10 +11025,6 @@ msgstr "Dodaj Siatkę"
 
 msgid "Import-Export"
 msgstr "Import-Eksport"
-
-
-msgid "Rigging"
-msgstr "Rigowanie"
 
 
 msgid "English (English)"

@@ -266,23 +266,23 @@ if(NOT DEFINED LIBDIR)
   # Setup 64bit and 64bit windows systems
   if(CMAKE_CL_64)
     message(STATUS "64 bit compiler detected.")
-    set(LIBDIR_BASE "win64")
+    set(LIBDIR_BASE "windows_x64")
   else()
     message(FATAL_ERROR "32 bit compiler detected, blender no longer provides pre-build libraries for 32 bit windows, please set the LIBDIR cmake variable to your own library folder")
   endif()
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     message(STATUS "Visual Studio 2022 detected.")
-    set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_BASE}_vc15)
+    set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/${LIBDIR_BASE})
   elseif(MSVC_VERSION GREATER 1919)
     message(STATUS "Visual Studio 2019 detected.")
-    set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_BASE}_vc15)
+    set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/${LIBDIR_BASE})
   endif()
 else()
   if(FIRST_RUN)
     message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
   endif()
 endif()
-if(NOT EXISTS "${LIBDIR}/")
+if(NOT EXISTS "${LIBDIR}/.git")
   message(FATAL_ERROR "\n\nWindows requires pre-compiled libs at: '${LIBDIR}'. Please run `make update` in the blender source folder to obtain them.")
 endif()
 
@@ -553,8 +553,20 @@ if(WITH_JACK)
   set(JACK_LIBRARIES optimized ${LIBDIR}/jack/lib/libjack.lib debug ${LIBDIR}/jack/lib/libjack_d.lib)
 endif()
 
-set(_PYTHON_VERSION "3.10")
+set(_PYTHON_VERSION "3.11")
 string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${_PYTHON_VERSION})
+
+# Enable for a short time when bumping to the next Python version.
+if(FALSE)
+  if(NOT EXISTS ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS})
+    set(_PYTHON_VERSION "3.12")
+    string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${_PYTHON_VERSION})
+    if(NOT EXISTS ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS})
+      message(FATAL_ERROR "Missing python libraries! Neither 3.12 nor 3.11 are found in ${LIBDIR}/python")
+    endif()
+  endif()
+endif()
+
 # Python executable is needed as part of the build-process,
 # note that building without Python is quite unusual.
 set(PYTHON_EXECUTABLE ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python$<$<CONFIG:Debug>:_d>.exe)
@@ -574,8 +586,6 @@ if(WITH_PYTHON)
   set(PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIR}")
   set(PYTHON_LIBRARIES debug "${PYTHON_LIBRARY_DEBUG}" optimized "${PYTHON_LIBRARY}" )
 endif()
-unset(_PYTHON_VERSION)
-unset(_PYTHON_VERSION_NO_DOTS)
 
 if(NOT WITH_WINDOWS_FIND_MODULES)
   # even if boost is off, we still need to install the dlls when we use our lib folder since
@@ -615,7 +625,7 @@ if(WITH_BOOST)
   if(NOT Boost_FOUND)
     warn_hardcoded_paths(BOOST)
     # This is file new in 3.4 if it does not exist, assume we are building against 3.3 libs
-    set(BOOST_34_TRIGGER_FILE ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python310-${BOOST_DEBUG_POSTFIX}.lib)
+    set(BOOST_34_TRIGGER_FILE ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python${_PYTHON_VERSION_NO_DOTS}-${BOOST_DEBUG_POSTFIX}.lib)
     if(NOT EXISTS ${BOOST_34_TRIGGER_FILE})
       set(BOOST_DEBUG_POSTFIX "vc142-mt-gd-x64-${BOOST_VERSION}")
       set(BOOST_PREFIX "lib")
@@ -637,8 +647,8 @@ if(WITH_BOOST)
     if(EXISTS ${BOOST_34_TRIGGER_FILE})
       if(WITH_USD)
         set(BOOST_PYTHON_LIBRARIES
-          debug ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python310-${BOOST_DEBUG_POSTFIX}.lib
-          optimized ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python310-${BOOST_POSTFIX}.lib
+          debug ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python${_PYTHON_VERSION_NO_DOTS}-${BOOST_DEBUG_POSTFIX}.lib
+          optimized ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python${_PYTHON_VERSION_NO_DOTS}-${BOOST_POSTFIX}.lib
         )
       endif()
     endif()
@@ -662,6 +672,8 @@ if(WITH_BOOST)
 
   set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
 endif()
+unset(_PYTHON_VERSION)
+unset(_PYTHON_VERSION_NO_DOTS)
 
 windows_find_package(OpenImageIO)
 if(NOT OpenImageIO_FOUND)
@@ -672,9 +684,8 @@ if(NOT OpenImageIO_FOUND)
   set(OIIO_OPTIMIZED optimized ${OPENIMAGEIO_LIBPATH}/OpenImageIO.lib optimized ${OPENIMAGEIO_LIBPATH}/OpenImageIO_Util.lib)
   set(OIIO_DEBUG debug ${OPENIMAGEIO_LIBPATH}/OpenImageIO_d.lib debug ${OPENIMAGEIO_LIBPATH}/OpenImageIO_Util_d.lib)
   set(OPENIMAGEIO_LIBRARIES ${OIIO_OPTIMIZED} ${OIIO_DEBUG})
-  set(OPENIMAGEIO_IDIFF "${OPENIMAGEIO}/bin/idiff.exe")
+  set(OPENIMAGEIO_TOOL "${OPENIMAGEIO}/bin/oiiotool.exe")
 endif()
-add_definitions(-DOIIO_NO_SSE=1)
 
 if(WITH_LLVM)
   set(LLVM_ROOT_DIR ${LIBDIR}/llvm CACHE PATH "Path to the LLVM installation")
@@ -1203,7 +1214,7 @@ endif()
 
 # Environment variables to run precompiled executables that needed libraries.
 list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ";" _library_paths)
-set(PLATFORM_ENV_BUILD_DIRS "${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/bin\;${LIBDIR}/OpenImageIO/bin\;${LIBDIR}/boost/lib\;${LIBDIR}/openexr/bin\;${LIBDIR}/imath/bin\;${PATH}")
+set(PLATFORM_ENV_BUILD_DIRS "${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/bin\;${LIBDIR}/OpenImageIO/bin\;${LIBDIR}/boost/lib\;${LIBDIR}/openexr/bin\;${LIBDIR}/imath/bin\;${LIBDIR}/shaderc/bin\;${PATH}")
 set(PLATFORM_ENV_BUILD "PATH=${PLATFORM_ENV_BUILD_DIRS}")
 # Install needs the additional folders from PLATFORM_ENV_BUILD_DIRS as well, as tools like idiff and abcls use the release mode dlls
 set(PLATFORM_ENV_INSTALL "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/\;${PLATFORM_ENV_BUILD_DIRS}\;$ENV{PATH}")

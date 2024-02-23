@@ -14,9 +14,9 @@
 
 #include "BKE_curve.hh"
 #include "BKE_displist.h"
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
@@ -24,7 +24,7 @@
 #include "BLI_hash.h"
 #include "BLI_math_base.hh"
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 #include "GPU_shader.h"
 
 #include "ED_view3d.hh"
@@ -141,12 +141,12 @@ static void wireframe_hair_cache_populate(OVERLAY_Data *vedata, Object *ob, Part
       if (collection != nullptr) {
         sub_v3_v3(dupli_mat[3], collection->instance_offset);
       }
-      mul_m4_m4m4(dupli_mat, dupli_parent->object_to_world, dupli_mat);
+      mul_m4_m4m4(dupli_mat, dupli_parent->object_to_world().ptr(), dupli_mat);
     }
     else {
-      copy_m4_m4(dupli_mat, dupli_object->ob->object_to_world);
+      copy_m4_m4(dupli_mat, dupli_object->ob->object_to_world().ptr());
       invert_m4(dupli_mat);
-      mul_m4_m4m4(dupli_mat, ob->object_to_world, dupli_mat);
+      mul_m4_m4m4(dupli_mat, ob->object_to_world().ptr(), dupli_mat);
     }
   }
   else {
@@ -176,17 +176,17 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
   bool is_mesh_verts_only = false;
   if (is_mesh) {
     /* TODO: Should be its own function. */
-    Mesh *me = static_cast<Mesh *>(ob->data);
+    Mesh *mesh = static_cast<Mesh *>(ob->data);
     if (is_edit_mode) {
-      BLI_assert(me->edit_mesh);
+      BLI_assert(mesh->edit_mesh);
       Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
       Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(ob);
       has_edit_mesh_cage = editmesh_eval_cage && (editmesh_eval_cage != editmesh_eval_final);
       if (editmesh_eval_final) {
-        me = editmesh_eval_final;
+        mesh = editmesh_eval_final;
       }
     }
-    is_mesh_verts_only = me->totedge == 0 && me->totvert > 0;
+    is_mesh_verts_only = mesh->edges_num == 0 && mesh->verts_num > 0;
   }
 
   const bool use_wire = !is_mesh_verts_only && ((pd->overlay.flag & V3D_OVERLAY_WIREFRAMES) ||
@@ -227,7 +227,7 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
     }
 
     if (geom) {
-      OVERLAY_extra_wire(cb, geom, ob->object_to_world, color);
+      OVERLAY_extra_wire(cb, geom, ob->object_to_world().ptr(), color);
     }
   }
 
@@ -240,12 +240,12 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
         if (dupli->wire_shgrp == cb->extra_loose_points) {
           float *color;
           DRW_object_wire_theme_get(ob, draw_ctx->view_layer, &color);
-          OVERLAY_extra_loose_points(cb, dupli->wire_geom, ob->object_to_world, color);
+          OVERLAY_extra_loose_points(cb, dupli->wire_geom, ob->object_to_world().ptr(), color);
         }
         else if (dupli->wire_shgrp == cb->extra_wire) {
           float *color;
           DRW_object_wire_theme_get(ob, draw_ctx->view_layer, &color);
-          OVERLAY_extra_wire(cb, dupli->wire_geom, ob->object_to_world, color);
+          OVERLAY_extra_wire(cb, dupli->wire_geom, ob->object_to_world().ptr(), color);
         }
         else {
           DRW_shgroup_call(dupli->wire_shgrp, dupli->wire_geom, ob);
@@ -274,7 +274,7 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
 
       GPUBatch *geom = DRW_cache_object_face_wireframe_get(ob);
       if (geom) {
-        OVERLAY_extra_loose_points(cb, geom, ob->object_to_world, color);
+        OVERLAY_extra_loose_points(cb, geom, ob->object_to_world().ptr(), color);
       }
       return;
     }
@@ -328,14 +328,14 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
     if (is_mesh_verts_only) {
       geom = DRW_cache_mesh_all_verts_get(ob);
       if (geom) {
-        OVERLAY_extra_loose_points(cb, geom, ob->object_to_world, color);
+        OVERLAY_extra_loose_points(cb, geom, ob->object_to_world().ptr(), color);
         shgrp = cb->extra_loose_points;
       }
     }
     else {
       geom = DRW_cache_mesh_loose_edges_get(ob);
       if (geom) {
-        OVERLAY_extra_wire(cb, geom, ob->object_to_world, color);
+        OVERLAY_extra_wire(cb, geom, ob->object_to_world().ptr(), color);
         shgrp = cb->extra_wire;
       }
     }

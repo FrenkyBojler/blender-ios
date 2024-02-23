@@ -37,19 +37,19 @@
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
-#include "BKE_key.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_global.hh"
+#include "BKE_key.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
 
 #include "ED_node.hh"
 #include "ED_object.hh"
@@ -58,8 +58,8 @@
 #include "WM_api.hh" /* XXX hrm, see if we can do without this */
 #include "WM_types.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -135,7 +135,9 @@ bool bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
   const bool keep_transform = false;
 
   if (par && is_parent_space) {
-    mul_m4_m4m4(ob->object_to_world, par->object_to_world, ob->object_to_world);
+    mul_m4_m4m4(ob->runtime->object_to_world.ptr(),
+                par->object_to_world().ptr(),
+                ob->object_to_world().ptr());
   }
 
   bool ok = ED_object_parent_set(
@@ -226,10 +228,10 @@ static void bc_add_armature_collections(COLLADAFW::Node *node,
   for (const std::string &name : collection_names) {
     BoneCollection *bcoll = ANIM_armature_bonecoll_new(arm, name.c_str());
     if (visible_names_set.find(name) == visible_names_set.end()) {
-      ANIM_bonecoll_hide(bcoll);
+      ANIM_bonecoll_hide(arm, bcoll);
     }
     else {
-      ANIM_bonecoll_show(bcoll);
+      ANIM_bonecoll_show(arm, bcoll);
     }
   }
 
@@ -364,8 +366,8 @@ bool bc_is_root_bone(Bone *aBone, bool deform_bones_only)
 
 int bc_get_active_UVLayer(Object *ob)
 {
-  Mesh *me = (Mesh *)ob->data;
-  return CustomData_get_active_layer_index(&me->loop_data, CD_PROP_FLOAT2);
+  Mesh *mesh = (Mesh *)ob->data;
+  return CustomData_get_active_layer_index(&mesh->corner_data, CD_PROP_FLOAT2);
 }
 
 std::string bc_url_encode(std::string data)
@@ -391,10 +393,12 @@ std::string bc_replace_string(std::string data,
 void bc_match_scale(Object *ob, UnitConverter &bc_unit, bool scale_to_scene)
 {
   if (scale_to_scene) {
-    mul_m4_m4m4(ob->object_to_world, bc_unit.get_scale(), ob->object_to_world);
+    mul_m4_m4m4(
+        ob->runtime->object_to_world.ptr(), bc_unit.get_scale(), ob->object_to_world().ptr());
   }
-  mul_m4_m4m4(ob->object_to_world, bc_unit.get_rotation(), ob->object_to_world);
-  BKE_object_apply_mat4(ob, ob->object_to_world, false, false);
+  mul_m4_m4m4(
+      ob->runtime->object_to_world.ptr(), bc_unit.get_rotation(), ob->object_to_world().ptr());
+  BKE_object_apply_mat4(ob, ob->object_to_world().ptr(), false, false);
 }
 
 void bc_match_scale(std::vector<Object *> *objects_done,
@@ -444,7 +448,7 @@ void bc_rotate_from_reference_quat(float quat_to[4], float quat_from[4], float m
   mul_qt_qtqt(quat_to, qd, quat_from); /* rot is the final rotation corresponding to mat_to */
 }
 
-void bc_triangulate_mesh(Mesh *me)
+void bc_triangulate_mesh(Mesh *mesh)
 {
   bool use_beauty = false;
   bool tag_only = false;
@@ -457,12 +461,12 @@ void bc_triangulate_mesh(Mesh *me)
   BMeshFromMeshParams bm_from_me_params{};
   bm_from_me_params.calc_face_normal = true;
   bm_from_me_params.calc_vert_normal = true;
-  BM_mesh_bm_from_me(bm, me, &bm_from_me_params);
+  BM_mesh_bm_from_me(bm, mesh, &bm_from_me_params);
   BM_mesh_triangulate(bm, quad_method, use_beauty, 4, tag_only, nullptr, nullptr, nullptr);
 
   BMeshToMeshParams bm_to_me_params{};
   bm_to_me_params.calc_object_remap = false;
-  BM_mesh_bm_to_me(nullptr, bm, me, &bm_to_me_params);
+  BM_mesh_bm_to_me(nullptr, bm, mesh, &bm_to_me_params);
   BM_mesh_free(bm);
 }
 
@@ -1064,11 +1068,12 @@ void bc_copy_m4d_v44(double (&r)[4][4], std::vector<std::vector<double>> &a)
 /**
  * Returns name of Active UV Layer or empty String if no active UV Layer defined
  */
-static std::string bc_get_active_uvlayer_name(Mesh *me)
+static std::string bc_get_active_uvlayer_name(Mesh *mesh)
 {
-  int num_layers = CustomData_number_of_layers(&me->loop_data, CD_PROP_FLOAT2);
+  int num_layers = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
   if (num_layers) {
-    const char *layer_name = bc_CustomData_get_active_layer_name(&me->loop_data, CD_PROP_FLOAT2);
+    const char *layer_name = bc_CustomData_get_active_layer_name(&mesh->corner_data,
+                                                                 CD_PROP_FLOAT2);
     if (layer_name) {
       return std::string(layer_name);
     }
@@ -1082,18 +1087,19 @@ static std::string bc_get_active_uvlayer_name(Mesh *me)
  */
 static std::string bc_get_active_uvlayer_name(Object *ob)
 {
-  Mesh *me = (Mesh *)ob->data;
-  return bc_get_active_uvlayer_name(me);
+  Mesh *mesh = (Mesh *)ob->data;
+  return bc_get_active_uvlayer_name(mesh);
 }
 
 /**
  * Returns UV Layer name or empty string if layer index is out of range
  */
-static std::string bc_get_uvlayer_name(Mesh *me, int layer)
+static std::string bc_get_uvlayer_name(Mesh *mesh, int layer)
 {
-  int num_layers = CustomData_number_of_layers(&me->loop_data, CD_PROP_FLOAT2);
+  int num_layers = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
   if (num_layers && layer < num_layers) {
-    const char *layer_name = bc_CustomData_get_layer_name(&me->loop_data, CD_PROP_FLOAT2, layer);
+    const char *layer_name = bc_CustomData_get_layer_name(
+        &mesh->corner_data, CD_PROP_FLOAT2, layer);
     if (layer_name) {
       return std::string(layer_name);
     }

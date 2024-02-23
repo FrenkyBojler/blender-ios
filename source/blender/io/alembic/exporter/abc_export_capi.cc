@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "ABC_alembic.h"
+#include "IO_subdiv_disabler.hh"
 #include "abc_archive.h"
 #include "abc_hierarchy_iterator.h"
-#include "abc_subdiv_disabler.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -18,9 +18,9 @@
 
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"

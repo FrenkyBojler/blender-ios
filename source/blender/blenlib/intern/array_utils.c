@@ -17,11 +17,12 @@
 
 #include "BLI_alloca.h"
 #include "BLI_math_base.h"
-#include "BLI_strict_flags.h"
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_array_utils.h"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 void _bli_array_reverse(void *arr_v, uint arr_len, size_t arr_stride)
 {
@@ -241,7 +242,8 @@ bool _bli_array_iter_span(const void *arr,
       else {
         uint i_step = i_curr + 1;
         while ((i_step != arr_len) &&
-               test_fn(POINTER_OFFSET(arr, i_step * arr_stride_uint), user_data)) {
+               test_fn(POINTER_OFFSET(arr, i_step * arr_stride_uint), user_data))
+        {
           i_step_prev = i_step;
           i_step++;
         }

@@ -35,7 +35,7 @@
 #include "BKE_action.h"
 #include "BKE_armature.hh"
 #include "BKE_customdata.hh"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lattice.hh"
 #include "BKE_mesh.hh"
@@ -436,7 +436,7 @@ static void armature_vert_task(void *__restrict userdata,
   const MDeformVert *dvert;
   if (data->use_dverts || data->armature_def_nr != -1) {
     if (data->me_target) {
-      BLI_assert(i < data->me_target->totvert);
+      BLI_assert(i < data->me_target->verts_num);
       if (data->dverts != nullptr) {
         dvert = data->dverts + i;
       }
@@ -519,10 +519,10 @@ static void armature_deform_coords_impl(const Object *ob_arm,
     if (ob_target->type == OB_MESH) {
       target_data_id = me_target == nullptr ? (const ID *)ob_target->data : &me_target->id;
       if (em_target == nullptr) {
-        const Mesh *me = (const Mesh *)target_data_id;
-        dverts = BKE_mesh_deform_verts(me);
+        const Mesh *mesh = (const Mesh *)target_data_id;
+        dverts = mesh->deform_verts().data();
         if (dverts) {
-          dverts_len = me->totvert;
+          dverts_len = mesh->verts_num;
         }
       }
     }
@@ -555,7 +555,7 @@ static void armature_deform_coords_impl(const Object *ob_arm,
         use_dverts = (cd_dvert_offset != -1);
       }
       else if (me_target) {
-        use_dverts = (BKE_mesh_deform_verts(me_target) != nullptr);
+        use_dverts = !me_target->deform_verts().is_empty();
       }
       else if (dverts) {
         use_dverts = true;
@@ -600,9 +600,9 @@ static void armature_deform_coords_impl(const Object *ob_arm,
   data.bmesh.cd_dvert_offset = cd_dvert_offset;
 
   float obinv[4][4];
-  invert_m4_m4(obinv, ob_target->object_to_world);
+  invert_m4_m4(obinv, ob_target->object_to_world().ptr());
 
-  mul_m4_m4m4(data.postmat, obinv, ob_arm->object_to_world);
+  mul_m4_m4m4(data.postmat, obinv, ob_arm->object_to_world().ptr());
   invert_m4_m4(data.premat, data.postmat);
 
   if (em_target != nullptr) {

@@ -8,8 +8,8 @@
  * Engine for drawing a selection map where the pixels indicate the selection indices.
  */
 
-#include "DRW_engine.h"
-#include "DRW_render.h"
+#include "DRW_engine.hh"
+#include "DRW_render.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -17,7 +17,7 @@
 
 #include "UI_interface.hh"
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 

@@ -21,7 +21,7 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_threads.h"
@@ -29,11 +29,10 @@
 
 #include "BKE_context.hh"
 #include "BKE_icons.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_material.h"
-#include "BKE_node.hh"
 #include "BKE_paint.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "NOD_composite.hh"
 
@@ -208,7 +207,7 @@ void ED_render_engine_changed(Main *bmain, const bool update_scene_data)
      * We do not use #BKE_cachefile_uses_render_procedural here as we need to update regardless of
      * the current engine or its settings. */
     if (cachefile->use_render_procedural) {
-      DEG_id_tag_update(&cachefile->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&cachefile->id, ID_RECALC_SYNC_TO_EVAL);
       /* Rebuild relations so that modifiers are reconnected to or disconnected from the
        * cache-file. */
       DEG_relations_tag_update(bmain);
@@ -286,7 +285,8 @@ static void image_changed(Main *bmain, Image *ima)
 
   /* textures */
   for (tex = static_cast<Tex *>(bmain->textures.first); tex;
-       tex = static_cast<Tex *>(tex->id.next)) {
+       tex = static_cast<Tex *>(tex->id.next))
+  {
     if (tex->type == TEX_IMAGE && tex->ima == ima) {
       texture_changed(bmain, tex);
     }
@@ -299,7 +299,8 @@ static void scene_changed(Main *bmain, Scene *scene)
 
   /* glsl */
   for (ob = static_cast<Object *>(bmain->objects.first); ob;
-       ob = static_cast<Object *>(ob->id.next)) {
+       ob = static_cast<Object *>(ob->id.next))
+  {
     if (ob->mode & OB_MODE_TEXTURE_PAINT) {
       BKE_texpaint_slots_refresh_object(scene, ob);
       ED_paint_proj_mesh_data_check(scene, ob, nullptr, nullptr, nullptr, nullptr);

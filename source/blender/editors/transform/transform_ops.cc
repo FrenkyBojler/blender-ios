@@ -8,19 +8,19 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_editmesh.hh"
-#include "BKE_global.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_global.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -28,7 +28,7 @@
 
 #include "WM_api.hh"
 #include "WM_message.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
@@ -567,7 +567,8 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
         /* Special case: show constraint axis if we don't have values,
          * needed for mirror operator. */
         if (STREQ(prop_id, "constraint_axis") &&
-            (RNA_struct_find_property(op->ptr, "value") == nullptr)) {
+            (RNA_struct_find_property(op->ptr, "value") == nullptr))
+        {
           return true;
         }
 
@@ -960,6 +961,22 @@ static void TRANSFORM_OT_rotate(wmOperatorType *ot)
                            P_GEO_SNAP | P_GPENCIL_EDIT | P_CENTER);
 }
 
+static bool tilt_poll(bContext *C)
+{
+  Object *obedit = CTX_data_edit_object(C);
+  if (!obedit) {
+    return false;
+  }
+  if (obedit->type == OB_CURVES_LEGACY) {
+    Curve *cu = (Curve *)obedit->data;
+    return (cu->flag & CU_3D) && (nullptr != cu->editnurb);
+  }
+  if (obedit->type == OB_CURVES) {
+    return true;
+  }
+  return true;
+}
+
 static void TRANSFORM_OT_tilt(wmOperatorType *ot)
 {
   /* identifiers */
@@ -976,7 +993,7 @@ static void TRANSFORM_OT_tilt(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_editcurve_3d;
+  ot->poll = tilt_poll;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_rotation(

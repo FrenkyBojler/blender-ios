@@ -12,7 +12,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 
 namespace blender::deg {
 
@@ -33,7 +33,7 @@ RuntimeBackup::RuntimeBackup(const Depsgraph *depsgraph)
 
 void RuntimeBackup::init_from_id(ID *id)
 {
-  if (!deg_copy_on_write_is_expanded(id)) {
+  if (!deg_eval_copy_is_expanded(id)) {
     return;
   }
   have_backup = true;

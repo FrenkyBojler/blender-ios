@@ -17,7 +17,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -33,10 +33,10 @@
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_fcurve.h"
-#include "BKE_layer.h"
-#include "BKE_main.h"
+#include "BKE_layer.hh"
+#include "BKE_main.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_tracking.h"
 
 #include "DEG_depsgraph.hh"
@@ -56,11 +56,11 @@
 #include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
-#include "ED_keyframing.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_animdata.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -237,9 +237,9 @@ static void update_pyconstraint_cb(void *arg1, void *arg2)
   if (owner && con) {
     BPY_pyconstraint_update(owner, con);
   }
-#  endif
+#  endif /* WITH_PYTHON */
 }
-#endif /* UNUSED */
+#endif   /* UNUSED */
 
 /** \} */
 
@@ -499,7 +499,8 @@ static void test_constraint(
       if (ELEM(con->type,
                CONSTRAINT_TYPE_FOLLOWPATH,
                CONSTRAINT_TYPE_CLAMPTO,
-               CONSTRAINT_TYPE_SPLINEIK)) {
+               CONSTRAINT_TYPE_SPLINEIK))
+      {
         if (ct->tar) {
           /* The object type check is only needed here in case we have a placeholder
            * object assigned (because the library containing the curve is missing).
@@ -1072,7 +1073,7 @@ static int followpath_path_animate_exec(bContext *C, wmOperator *op)
         (BKE_fcurve_find(&cu->adt->action->curves, "eval_time", 0) == nullptr))
     {
       /* create F-Curve for path animation */
-      act = ED_id_action_ensure(bmain, &cu->id);
+      act = blender::animrig::id_action_ensure(bmain, &cu->id);
       fcu = blender::animrig::action_fcurve_ensure(bmain, act, nullptr, nullptr, "eval_time", 0);
 
       /* standard vertical range - 1:1 = 100 frames */
@@ -1087,28 +1088,22 @@ static int followpath_path_animate_exec(bContext *C, wmOperator *op)
   else {
     /* animate constraint's "fixed offset" */
     PropertyRNA *prop;
-    char *path;
 
     /* get RNA pointer to constraint's "offset_factor" property - to build RNA path */
     PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_FollowPathConstraint, con);
     prop = RNA_struct_find_property(&ptr, "offset_factor");
 
-    path = RNA_path_from_ID_to_property(&ptr, prop);
+    const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop);
 
     /* create F-Curve for constraint */
-    act = ED_id_action_ensure(bmain, &ob->id);
-    fcu = blender::animrig::action_fcurve_ensure(bmain, act, nullptr, nullptr, path, 0);
+    act = blender::animrig::id_action_ensure(bmain, &ob->id);
+    fcu = blender::animrig::action_fcurve_ensure(bmain, act, nullptr, nullptr, path->c_str(), 0);
 
     /* standard vertical range - 0.0 to 1.0 */
     standardRange = 1.0f;
 
     /* enable "Use Fixed Position" so that animating this has effect */
     data->followflag |= FOLLOWPATH_STATIC;
-
-    /* path needs to be freed */
-    if (path) {
-      MEM_freeN(path);
-    }
   }
 
   /* setup dummy 'generator' modifier here to get 1-1 correspondence still working
@@ -1367,7 +1362,7 @@ void ED_object_constraint_tag_update(Main *bmain, Object *ob, bConstraint *con)
   /* Do Copy-on-Write tag here too, otherwise constraint
    * influence/mute buttons in UI have no effect
    */
-  DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 void ED_object_constraint_dependency_tag_update(Main *bmain, Object *ob, bConstraint *con)
@@ -1450,7 +1445,7 @@ static int constraint_delete_exec(bContext *C, wmOperator *op)
   STRNCPY(name, con->name);
 
   /* free the constraint */
-  if (BKE_constraint_remove_ex(lb, ob, con, true)) {
+  if (BKE_constraint_remove_ex(lb, ob, con)) {
     /* Needed to set the flags on pose-bones correctly. */
     ED_object_constraint_update(bmain, ob);
 
@@ -2291,7 +2286,8 @@ static bool get_new_constraint_target(
           break;
         }
         if (((!only_curve) || (ob->type == OB_CURVES_LEGACY)) &&
-            ((!only_mesh) || (ob->type == OB_MESH))) {
+            ((!only_mesh) || (ob->type == OB_MESH)))
+        {
           /* set target */
           *tar_ob = ob;
           found = true;
@@ -2328,14 +2324,14 @@ static bool get_new_constraint_target(
       /* Since by default, IK targets the tip of the last bone,
        * use the tip of the active PoseChannel if adding a target for an IK Constraint. */
       if (con_type == CONSTRAINT_TYPE_KINEMATIC) {
-        mul_v3_m4v3(obt->loc, obact->object_to_world, pchanact->pose_tail);
+        mul_v3_m4v3(obt->loc, obact->object_to_world().ptr(), pchanact->pose_tail);
       }
       else {
-        mul_v3_m4v3(obt->loc, obact->object_to_world, pchanact->pose_head);
+        mul_v3_m4v3(obt->loc, obact->object_to_world().ptr(), pchanact->pose_head);
       }
     }
     else {
-      copy_v3_v3(obt->loc, obact->object_to_world[3]);
+      copy_v3_v3(obt->loc, obact->object_to_world().location());
     }
 
     /* restore, BKE_object_add sets active */

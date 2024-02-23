@@ -22,7 +22,6 @@
 #include "BKE_nla.h"
 
 #include "ED_anim_api.hh"
-#include "ED_markers.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -32,8 +31,6 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
-#include "transform_mode.hh"
-#include "transform_snap.hh"
 
 /** Used for NLA transform (stored in #TransData.extra pointer). */
 struct TransDataNla {
@@ -333,10 +330,12 @@ static void nlastrip_overlap_reorder(TransDataNla *tdn, NlaStrip *strip)
   }
 }
 
-/** Flag overlaps with adjacent strips.
+/**
+ * Flag overlaps with adjacent strips.
  *
  * Since the strips are re-ordered as they're transformed, we only have to check adjacent
- * strips for overlap instead of all of them. */
+ * strips for overlap instead of all of them.
+ */
 static void nlastrip_flag_overlaps(NlaStrip *strip)
 {
 

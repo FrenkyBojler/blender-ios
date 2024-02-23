@@ -5,14 +5,13 @@
 /** \file
  * \ingroup blenloader
  */
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_string.h"
 
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_main.hh"
 
 #include "DNA_ID.h"
 

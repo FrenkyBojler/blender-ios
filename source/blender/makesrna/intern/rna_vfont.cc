@@ -10,7 +10,7 @@
 
 #include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "DNA_vfont_types.h"
 
@@ -18,7 +18,7 @@
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_vfont.h"
+#  include "BKE_vfont.hh"
 #  include "DNA_object_types.h"
 
 #  include "DEG_depsgraph.hh"

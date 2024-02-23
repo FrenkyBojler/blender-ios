@@ -7,7 +7,6 @@
  */
 
 #include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -15,35 +14,25 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 
-#include "BLT_translation.h"
-
-#include "BKE_armature.hh"
 #include "BKE_context.hh"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
-#include "BKE_vfont.h"
+#include "BKE_vfont.hh"
 
 #include "DEG_depsgraph_query.hh"
 
-#include "ED_mesh.hh"
-#include "ED_particle.hh"
 #include "ED_screen.hh"
 #include "ED_transform.hh"
 
 #include "WM_api.hh"
-#include "WM_message.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-
-#include "UI_resources.hh"
 
 #include "view3d_intern.h"
 
@@ -252,6 +241,14 @@ void ViewOpsData::init_navigation(bContext *C,
            &ViewOpsType_ndof_all))
   {
     calc_rv3d_dist = false;
+
+    /* When using "Free" NDOF navigation, ignore "Orbit Around Selected" preference.
+     * Logically it doesn't make sense to use the selection as a pivot when the first-person
+     * navigation pivots from the view-point. This also interferes with zoom-speed,
+     * causing zoom-speed scale based on the distance to the selection center, see: #115253. */
+    if ((U.ndof_flag & NDOF_MODE_ORBIT) == 0) {
+      viewops_flag &= ~VIEWOPS_FLAG_ORBIT_SELECT;
+    }
   }
 #endif
 
@@ -443,16 +440,8 @@ struct ViewOpsData_Utility : ViewOpsData {
         if (kmi_merge->oskey == 1 || ELEM(kmi_merge->type, EVT_OSKEY)) {
           kmi_cpy->oskey = 1;
         }
-        if (!ELEM(kmi_merge->type,
-                  EVT_LEFTCTRLKEY,
-                  EVT_LEFTALTKEY,
-                  EVT_RIGHTALTKEY,
-                  EVT_RIGHTCTRLKEY,
-                  EVT_RIGHTSHIFTKEY,
-                  EVT_LEFTSHIFTKEY,
-                  EVT_OSKEY))
-        {
-          kmi_cpy->keymodifier |= kmi_merge->type;
+        if (!ISKEYMODIFIER(kmi_merge->type)) {
+          kmi_cpy->keymodifier = kmi_merge->type;
         }
       }
     }
@@ -819,31 +808,29 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
     }
     mul_v2_fl(lastofs, 1.0f / 4.0f);
 
-    mul_m4_v3(ob_act_eval->object_to_world, lastofs);
+    mul_m4_v3(ob_act_eval->object_to_world().ptr(), lastofs);
 
     is_set = true;
   }
   else if (ob_act == nullptr || ob_act->mode == OB_MODE_OBJECT) {
-    /* object mode use boundbox centers */
+    /* Object mode uses bounding-box centers. */
     uint tot = 0;
     float select_center[3];
 
     zero_v3(select_center);
     LISTBASE_FOREACH (Base *, base_eval, BKE_view_layer_object_bases_get(view_layer_eval)) {
       if (BASE_SELECTED(v3d, base_eval)) {
-        /* use the boundbox if we can */
+        /* Use the bounding-box if we can. */
         Object *ob_eval = base_eval->object;
 
-        if (ob_eval->runtime->bb && !(ob_eval->runtime->bb->flag & BOUNDBOX_DIRTY)) {
-          float cent[3];
-
-          BKE_boundbox_calc_center_aabb(ob_eval->runtime->bb, cent);
-
-          mul_m4_v3(ob_eval->object_to_world, cent);
+        if (ob_eval->runtime->bounds_eval) {
+          blender::float3 cent = blender::math::midpoint(ob_eval->runtime->bounds_eval->min,
+                                                         ob_eval->runtime->bounds_eval->max);
+          mul_m4_v3(ob_eval->object_to_world().ptr(), cent);
           add_v3_v3(select_center, cent);
         }
         else {
-          add_v3_v3(select_center, ob_eval->object_to_world[3]);
+          add_v3_v3(select_center, ob_eval->object_to_world().location());
         }
         tot++;
       }
@@ -1134,7 +1121,7 @@ bool ED_view3d_navigation_do(bContext *C,
 
     return true;
   }
-  else if (vod->rv3d->rflag & RV3D_NAVIGATING) {
+  if (vod->rv3d->rflag & RV3D_NAVIGATING) {
     /* Add a fake confirmation. */
     vod->rv3d->rflag &= ~RV3D_NAVIGATING;
     return true;

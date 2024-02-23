@@ -8,33 +8,28 @@
 
 #include <cfloat>
 
-#include "PIL_time.h"
-
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 #include "GPU_state.h"
 
-#include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "RNA_access.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_gizmo_library.hh"
-#include "ED_markers.hh"
 #include "ED_node.hh"
 #include "ED_transform_snap_object_context.hh"
 #include "ED_uvedit.hh"
@@ -43,9 +38,7 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -164,6 +157,10 @@ bool transform_snap_is_active(const TransInfo *t)
 
 bool transformModeUseSnap(const TransInfo *t)
 {
+  /* The animation editors should not depend on the snapping options of the 3D viewport. */
+  if (ELEM(t->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA)) {
+    return true;
+  }
   ToolSettings *ts = t->settings;
   if (t->mode == TFM_TRANSLATION) {
     return (ts->snap_transform_mode_flag & SCE_SNAP_TRANSFORM_MODE_TRANSLATE) != 0;
@@ -174,7 +171,13 @@ bool transformModeUseSnap(const TransInfo *t)
   if (t->mode == TFM_RESIZE) {
     return (ts->snap_transform_mode_flag & SCE_SNAP_TRANSFORM_MODE_SCALE) != 0;
   }
-  if (ELEM(t->mode, TFM_VERT_SLIDE, TFM_EDGE_SLIDE, TFM_SEQ_SLIDE, TFM_TIME_TRANSLATE)) {
+  if (ELEM(t->mode,
+           TFM_VERT_SLIDE,
+           TFM_EDGE_SLIDE,
+           TFM_SEQ_SLIDE,
+           TFM_TIME_TRANSLATE,
+           TFM_TIME_EXTEND))
+  {
     return true;
   }
 
@@ -270,7 +273,7 @@ void drawSnapping(TransInfo *t)
         rv3d, source_loc, target_loc, t->tsnap.source_type, t->tsnap.target_type, col, activeCol);
 
     /* Draw normal if needed. */
-    if (usingSnappingNormal(t) && validSnappingNormal(t)) {
+    if (target_loc && usingSnappingNormal(t) && validSnappingNormal(t)) {
       uint pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
 
@@ -392,11 +395,12 @@ static bool applyFaceProject(TransInfo *t, TransDataContainer *tc, TransData *td
   }
   else if (t->options & CTX_OBJECT) {
     BKE_object_eval_transform_all(t->depsgraph, t->scene, td->ob);
-    copy_v3_v3(iloc, td->ob->object_to_world[3]);
+    copy_v3_v3(iloc, td->ob->object_to_world().location());
   }
 
   if (ED_view3d_project_float_global(t->region, iloc, mval_fl, V3D_PROJ_TEST_NOP) !=
-      V3D_PROJ_RET_OK) {
+      V3D_PROJ_RET_OK)
+  {
     return false;
   }
 
@@ -460,7 +464,7 @@ static void applyFaceNearest(TransInfo *t, TransDataContainer *tc, TransData *td
   }
   else if (t->options & CTX_OBJECT) {
     BKE_object_eval_transform_all(t->depsgraph, t->scene, td->ob);
-    copy_v3_v3(init_loc, td->ob->object_to_world[3]);
+    copy_v3_v3(init_loc, td->ob->object_to_world().location());
   }
 
   SnapObjectParams snap_object_params{};
@@ -558,7 +562,7 @@ void transform_snap_mixed_apply(TransInfo *t, float *vec)
   }
 
   if (t->tsnap.mode & ~(SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID)) {
-    double current = PIL_check_seconds_timer();
+    double current = BLI_time_now_seconds();
 
     /* Time base quirky code to go around find-nearest slowness. */
     /* TODO: add exception for object mode, no need to slow it down then. */
@@ -836,7 +840,8 @@ void initSnapping(TransInfo *t, wmOperator *op)
   /* if snap property exists */
   PropertyRNA *prop;
   if (op && (prop = RNA_struct_find_property(op->ptr, "snap")) &&
-      RNA_property_is_set(op->ptr, prop)) {
+      RNA_property_is_set(op->ptr, prop))
+  {
     if (RNA_property_boolean_get(op->ptr, prop)) {
       t->modifiers |= MOD_SNAP;
 
@@ -856,7 +861,8 @@ void initSnapping(TransInfo *t, wmOperator *op)
       }
 
       if ((prop = RNA_struct_find_property(op->ptr, "snap_point")) &&
-          RNA_property_is_set(op->ptr, prop)) {
+          RNA_property_is_set(op->ptr, prop))
+      {
         RNA_property_float_get_array(op->ptr, prop, t->tsnap.snap_target);
         t->modifiers |= MOD_SNAP_FORCED;
         t->tsnap.status |= SNAP_TARGET_FOUND;
@@ -864,7 +870,8 @@ void initSnapping(TransInfo *t, wmOperator *op)
 
       /* snap align only defined in specific cases */
       if ((prop = RNA_struct_find_property(op->ptr, "snap_align")) &&
-          RNA_property_is_set(op->ptr, prop)) {
+          RNA_property_is_set(op->ptr, prop))
+      {
         SET_FLAG_FROM_TEST(
             t->tsnap.flag, RNA_property_boolean_get(op->ptr, prop), SCE_SNAP_ROTATE);
 
@@ -1167,15 +1174,14 @@ static void snap_target_uv_fn(TransInfo *t, float * /*vec*/)
 {
   BLI_assert(t->spacetype == SPACE_IMAGE);
   if (t->tsnap.mode & SCE_SNAP_TO_VERTEX) {
-    uint objects_len = 0;
-    Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-        t->scene, t->view_layer, nullptr, &objects_len);
+    const Vector<Object *> objects =
+        BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+            t->scene, t->view_layer, nullptr);
 
     float dist_sq = square_f(float(SNAP_MIN_DISTANCE));
     if (ED_uvedit_nearest_uv_multi(&t->region->v2d,
                                    t->scene,
                                    objects,
-                                   objects_len,
                                    t->mval,
                                    t->tsnap.target_operation & SCE_SNAP_TARGET_NOT_SELECTED,
                                    &dist_sq,
@@ -1189,7 +1195,6 @@ static void snap_target_uv_fn(TransInfo *t, float * /*vec*/)
     else {
       t->tsnap.status &= ~SNAP_TARGET_FOUND;
     }
-    MEM_freeN(objects);
   }
 }
 
@@ -1351,27 +1356,30 @@ static void snap_source_closest_fn(TransInfo *t)
       FOREACH_TRANS_DATA_CONTAINER (t, tc) {
         TransData *td;
         for (td = tc->data, i = 0; i < tc->data_len && td->flag & TD_SELECTED; i++, td++) {
-          std::optional<BoundBox> bb;
+          std::optional<blender::Bounds<blender::float3>> bounds;
 
           if ((t->options & CTX_OBMODE_XFORM_OBDATA) == 0) {
-            bb = BKE_object_boundbox_get(td->ob);
+            bounds = BKE_object_boundbox_get(td->ob);
           }
 
           /* use boundbox if possible */
-          if (bb) {
+          if (bounds) {
+            BoundBox bb;
+            BKE_boundbox_init_from_minmax(&bb, bounds->min, bounds->max);
             int j;
 
             for (j = 0; j < 8; j++) {
               float loc[3];
               float dist;
 
-              copy_v3_v3(loc, bb->vec[j]);
+              copy_v3_v3(loc, bb.vec[j]);
               mul_m4_v3(td->ext->obmat, loc);
 
               dist = t->mode_info->snap_distance_fn(t, loc, t->tsnap.snap_target);
 
               if ((dist != TRANSFORM_DIST_INVALID) &&
-                  (closest == nullptr || fabsf(dist) < fabsf(dist_closest))) {
+                  (closest == nullptr || fabsf(dist) < fabsf(dist_closest)))
+              {
                 copy_v3_v3(t->tsnap.snap_source, loc);
                 closest = td;
                 dist_closest = dist;
@@ -1388,7 +1396,8 @@ static void snap_source_closest_fn(TransInfo *t)
             dist = t->mode_info->snap_distance_fn(t, loc, t->tsnap.snap_target);
 
             if ((dist != TRANSFORM_DIST_INVALID) &&
-                (closest == nullptr || fabsf(dist) < fabsf(dist_closest))) {
+                (closest == nullptr || fabsf(dist) < fabsf(dist_closest)))
+            {
               copy_v3_v3(t->tsnap.snap_source, loc);
               closest = td;
             }
@@ -1413,7 +1422,8 @@ static void snap_source_closest_fn(TransInfo *t)
           dist = t->mode_info->snap_distance_fn(t, loc, t->tsnap.snap_target);
 
           if ((dist != TRANSFORM_DIST_INVALID) &&
-              (closest == nullptr || fabsf(dist) < fabsf(dist_closest))) {
+              (closest == nullptr || fabsf(dist) < fabsf(dist_closest)))
+          {
             copy_v3_v3(t->tsnap.snap_source, loc);
             closest = td;
             dist_closest = dist;

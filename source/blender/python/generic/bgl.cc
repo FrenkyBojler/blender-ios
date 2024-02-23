@@ -24,7 +24,7 @@
 
 #include "py_capi_utils.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "../generic/py_capi_utils.h"
 
@@ -686,7 +686,7 @@ PyTypeObject BGL_bufferType = {
 };
 
 static Buffer *BGL_MakeBuffer_FromData(
-    PyObject *parent, int type, int ndimensions, int *dimensions, void *buf)
+    PyObject *parent, int type, int ndimensions, const int *dimensions, void *buf)
 {
   Buffer *buffer = (Buffer *)PyObject_NEW(Buffer, &BGL_bufferType);
 
@@ -702,7 +702,7 @@ static Buffer *BGL_MakeBuffer_FromData(
   return buffer;
 }
 
-Buffer *BGL_MakeBuffer(int type, int ndimensions, int *dimensions, void *initbuffer)
+Buffer *BGL_MakeBuffer(int type, int ndimensions, const int *dimensions, const void *initbuffer)
 {
   Buffer *buffer;
   void *buf = nullptr;

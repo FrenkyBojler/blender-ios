@@ -27,7 +27,7 @@
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_matrix.h"
-#include "GPU_select.h"
+#include "GPU_select.hh"
 #include "GPU_state.h"
 
 #include "RNA_access.hh"
@@ -38,15 +38,11 @@
 #include "WM_types.hh"
 
 #include "ED_gizmo_library.hh"
-#include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
-#include "UI_resources.hh"
 
 /* own includes */
-#include "../gizmo_geometry.h"
 #include "../gizmo_library_intern.h"
 
 /* -------------------------------------------------------------------- */

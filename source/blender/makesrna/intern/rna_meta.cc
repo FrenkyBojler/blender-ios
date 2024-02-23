@@ -19,18 +19,20 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #ifdef RNA_RUNTIME
+
+#  include <fmt/format.h>
 
 #  include "MEM_guardedalloc.h"
 
 #  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"
 
-#  include "BKE_main.h"
-#  include "BKE_mball.h"
-#  include "BKE_scene.h"
+#  include "BKE_main.hh"
+#  include "BKE_mball.hh"
+#  include "BKE_scene.hh"
 
 #  include "DEG_depsgraph.hh"
 
@@ -79,7 +81,7 @@ static void rna_MetaBall_redraw_data(Main * /*bmain*/, Scene * /*scene*/, Pointe
 {
   ID *id = ptr->owner_id;
 
-  DEG_id_tag_update(id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
 }
 
@@ -156,7 +158,7 @@ static bool rna_Meta_is_editmode_get(PointerRNA *ptr)
   return (mb->editelems != nullptr);
 }
 
-static char *rna_MetaElement_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_MetaElement_path(const PointerRNA *ptr)
 {
   const MetaBall *mb = (MetaBall *)ptr->owner_id;
   const MetaElem *ml = static_cast<MetaElem *>(ptr->data);
@@ -169,10 +171,10 @@ static char *rna_MetaElement_path(const PointerRNA *ptr)
     index = BLI_findindex(&mb->elems, ml);
   }
   if (index == -1) {
-    return nullptr;
+    return std::nullopt;
   }
 
-  return BLI_sprintfN("elements[%d]", index);
+  return fmt::format("elements[{}]", index);
 }
 
 #else

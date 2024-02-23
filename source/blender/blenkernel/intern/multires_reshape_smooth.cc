@@ -11,8 +11,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -27,9 +25,8 @@
 #include "BKE_subdiv_foreach.hh"
 #include "BKE_subdiv_mesh.hh"
 
-#include "opensubdiv_converter_capi.h"
-#include "opensubdiv_evaluator_capi.h"
-#include "opensubdiv_topology_refiner_capi.h"
+#include "opensubdiv_converter_capi.hh"
+#include "opensubdiv_evaluator_capi.hh"
 
 #include "atomic_ops.h"
 #include "subdiv_converter.hh"
@@ -852,7 +849,7 @@ static void geometry_init_loose_information(MultiresReshapeSmoothContext *reshap
   reshape_smooth_context->loose_base_edges = loose_edges.is_loose_bits;
 
   int num_used_edges = 0;
-  for (const int edge : blender::IndexRange(base_mesh->totedge)) {
+  for (const int edge : blender::IndexRange(base_mesh->edges_num)) {
     if (loose_edges.count > 0 && loose_edges.is_loose_bits[edge]) {
       continue;
     }

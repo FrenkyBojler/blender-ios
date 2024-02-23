@@ -15,19 +15,17 @@
 
 #include "BKE_context.hh"
 #include "BKE_image.h"
-#include "BKE_main.h"
 
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
 
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf_types.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "node_intern.hh"
@@ -103,7 +101,7 @@ static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = nodeGetActive(snode->edittree);
 
-    if (node && ELEM(node->type, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER)) {
+    if (node && ELEM(node->type, CMP_NODE_VIEWER)) {
       return true;
     }
   }

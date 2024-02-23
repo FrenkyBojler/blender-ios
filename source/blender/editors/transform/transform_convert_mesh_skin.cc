@@ -15,14 +15,7 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-#include "BKE_crazyspace.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_modifier.hh"
-#include "BKE_scene.h"
-
-#include "ED_mesh.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 #include "transform.hh"
 #include "transform_orientations.hh"
@@ -74,7 +67,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
   BLI_assert(t->mode == TFM_SKIN_RESIZE);
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
-    Mesh *me = static_cast<Mesh *>(tc->obedit->data);
+    Mesh *mesh = static_cast<Mesh *>(tc->obedit->data);
     BMesh *bm = em->bm;
     BMVert *eve;
     BMIter iter;
@@ -134,7 +127,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
           em, calc_single_islands, calc_island_center, calc_island_axismtx, &island_data);
     }
 
-    copy_m3_m4(mtx, tc->obedit->object_to_world);
+    copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
     /* we use a pseudo-inverse so that when one of the axes is scaled to 0,
      * matrix inversion still works and we can still moving along the other */
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
@@ -153,7 +146,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
 
     /* Create TransDataMirror. */
     if (tc->use_mirror_axis_any) {
-      bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+      bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
       bool use_select = (t->flag & T_PROP_EDIT) == 0;
       const bool mirror_axis[3] = {
           bool(tc->use_mirror_axis_x), bool(tc->use_mirror_axis_y), bool(tc->use_mirror_axis_z)};
@@ -289,7 +282,7 @@ static void recalcData_mesh_skin(TransInfo *t)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     DEG_id_tag_update(static_cast<ID *>(tc->obedit->data), ID_RECALC_GEOMETRY);
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
-    BKE_editmesh_looptri_and_normals_calc(em);
+    BKE_editmesh_looptris_and_normals_calc(em);
   }
 }
 

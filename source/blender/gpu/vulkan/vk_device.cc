@@ -6,18 +6,24 @@
  * \ingroup gpu
  */
 
-#include "vk_device.hh"
+#include <sstream>
+
 #include "vk_backend.hh"
 #include "vk_context.hh"
+#include "vk_device.hh"
 #include "vk_memory.hh"
 #include "vk_state_manager.hh"
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
 #include "vk_vertex_buffer.hh"
 
+#include "GPU_capabilities.h"
+
 #include "BLI_math_matrix_types.hh"
 
 #include "GHOST_C-api.h"
+
+extern "C" char datatoc_glsl_shader_defines_glsl[];
 
 namespace blender::gpu {
 
@@ -48,6 +54,7 @@ void VKDevice::deinit()
   vk_queue_family_ = 0;
   vk_queue_ = VK_NULL_HANDLE;
   vk_physical_device_properties_ = {};
+  glsl_patch_.clear();
 }
 
 bool VKDevice::is_initialized() const
@@ -79,6 +86,7 @@ void VKDevice::init(void *ghost_context)
 
   debug::object_label(device_get(), "LogicalDevice");
   debug::object_label(queue_get(), "GenericQueue");
+  init_glsl_patch();
 }
 
 void VKDevice::init_debug_callbacks()
@@ -161,6 +169,44 @@ void VKDevice::init_dummy_color_attachment()
   dummy_color_attachment_ = std::make_optional(std::reference_wrapper(vk_texture));
 }
 
+void VKDevice::init_glsl_patch()
+{
+  std::stringstream ss;
+
+  ss << "#version 450\n";
+  if (GPU_shader_draw_parameters_support()) {
+    ss << "#extension GL_ARB_shader_draw_parameters : enable\n";
+    ss << "#define GPU_ARB_shader_draw_parameters\n";
+    ss << "#define gpu_BaseInstance (gl_BaseInstanceARB)\n";
+  }
+
+  ss << "#define gl_VertexID gl_VertexIndex\n";
+  ss << "#define gpu_InstanceIndex (gl_InstanceIndex)\n";
+  ss << "#define gl_InstanceID (gpu_InstanceIndex - gpu_BaseInstance)\n";
+
+  /* TODO(fclem): This creates a validation error and should be already part of Vulkan 1.2. */
+  ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
+  if (!workarounds_.shader_output_layer) {
+    ss << "#define gpu_Layer gl_Layer\n";
+  }
+  if (!workarounds_.shader_output_viewport_index) {
+    ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
+  }
+
+  ss << "#define DFDX_SIGN 1.0\n";
+  ss << "#define DFDY_SIGN 1.0\n";
+
+  /* GLSL Backend Lib. */
+  ss << datatoc_glsl_shader_defines_glsl;
+  glsl_patch_ = ss.str();
+}
+
+const char *VKDevice::glsl_patch_get() const
+{
+  BLI_assert(!glsl_patch_.empty());
+  return glsl_patch_.c_str();
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Platform/driver/device information
  * \{ */
@@ -169,6 +215,7 @@ constexpr int32_t PCI_ID_NVIDIA = 0x10de;
 constexpr int32_t PCI_ID_INTEL = 0x8086;
 constexpr int32_t PCI_ID_AMD = 0x1002;
 constexpr int32_t PCI_ID_ATI = 0x1022;
+constexpr int32_t PCI_ID_APPLE = 0x106b;
 
 eGPUDeviceType VKDevice::device_type() const
 {
@@ -186,6 +233,8 @@ eGPUDeviceType VKDevice::device_type() const
     case PCI_ID_AMD:
     case PCI_ID_ATI:
       return GPU_DEVICE_ATI;
+    case PCI_ID_APPLE:
+      return GPU_DEVICE_APPLE;
     default:
       break;
   }
@@ -205,12 +254,14 @@ std::string VKDevice::vendor_name() const
   /* Below 0x10000 are the PCI vendor IDs (https://pcisig.com/membership/member-companies) */
   if (vk_physical_device_properties_.vendorID < 0x10000) {
     switch (vk_physical_device_properties_.vendorID) {
-      case 0x1022:
+      case PCI_ID_AMD:
         return "Advanced Micro Devices";
-      case 0x10DE:
+      case PCI_ID_NVIDIA:
         return "NVIDIA Corporation";
-      case 0x8086:
+      case PCI_ID_INTEL:
         return "Intel Corporation";
+      case PCI_ID_APPLE:
+        return "Apple";
       default:
         return std::to_string(vk_physical_device_properties_.vendorID);
     }
@@ -270,7 +321,7 @@ void VKDevice::context_unregister(VKContext &context)
 {
   contexts_.remove(contexts_.first_index_of(std::reference_wrapper(context)));
 }
-const Vector<std::reference_wrapper<VKContext>> &VKDevice::contexts_get() const
+Span<std::reference_wrapper<VKContext>> VKDevice::contexts_get() const
 {
   return contexts_;
 };

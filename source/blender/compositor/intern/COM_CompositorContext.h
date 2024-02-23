@@ -12,6 +12,10 @@
 
 struct bNodeInstanceHash;
 
+namespace blender::realtime_compositor {
+class RenderContext;
+}
+
 namespace blender::compositor {
 
 /**
@@ -69,6 +73,12 @@ class CompositorContext {
    * \brief active rendering view name
    */
   const char *view_name_;
+
+  /**
+   * \brief Render context that contains information about active render. Can be null if the
+   * compositor is not executing as part of the render pipeline.
+   */
+  realtime_compositor::RenderContext *render_context_;
 
  public:
   /**
@@ -193,6 +203,22 @@ class CompositorContext {
   }
 
   /**
+   * \brief get the render context
+   */
+  realtime_compositor::RenderContext *get_render_context() const
+  {
+    return render_context_;
+  }
+
+  /**
+   * \brief set the render context
+   */
+  void set_render_context(realtime_compositor::RenderContext *render_context)
+  {
+    render_context_ = render_context;
+  }
+
+  /**
    * \brief get the active rendering view
    */
   const char *get_view_name() const
@@ -210,7 +236,7 @@ class CompositorContext {
 
   int get_chunksize() const
   {
-    return this->get_bnodetree()->chunksize;
+    return 256;
   }
 
   void set_fast_calculation(bool fast_calculation)
@@ -223,7 +249,7 @@ class CompositorContext {
   }
   bool is_groupnode_buffer_enabled() const
   {
-    return (this->get_bnodetree()->flag & NTREE_COM_GROUPNODE_BUFFER) != 0;
+    return false;
   }
 
   /**

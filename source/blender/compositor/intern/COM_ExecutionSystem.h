@@ -20,7 +20,13 @@
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 
+namespace blender::realtime_compositor {
+class RenderContext;
+}
+
 namespace blender::compositor {
+
+class ProfilerData;
 
 /**
  * \page execution Execution model
@@ -148,6 +154,8 @@ class ExecutionSystem {
   ThreadMutex work_mutex_;
   ThreadCondition work_finished_cond_;
 
+  ProfilerData &profiler_data_;
+
  public:
   /**
    * \brief Create a new ExecutionSystem and initialize it with the
@@ -161,15 +169,16 @@ class ExecutionSystem {
                   bNodeTree *editingtree,
                   bool rendering,
                   bool fastcalculation,
-                  const char *view_name);
+                  const char *view_name,
+                  realtime_compositor::RenderContext *render_context,
+                  ProfilerData &profiler_data);
 
   /**
    * Destructor
    */
   ~ExecutionSystem();
 
-  void set_operations(const Vector<NodeOperation *> &operations,
-                      const Vector<ExecutionGroup *> &groups);
+  void set_operations(Span<NodeOperation *> operations, Span<ExecutionGroup *> groups);
 
   /**
    * \brief execute this system

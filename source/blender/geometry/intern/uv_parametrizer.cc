@@ -164,7 +164,7 @@ static int PHashSizes[] = {
 };
 
 #define PHASH_hash(ph, item) (uintptr_t(item) % uint((ph)->cursize))
-#define PHASH_edge(v1, v2) (((v1) < (v2)) ? ((v1)*39) ^ ((v2)*31) : ((v1)*31) ^ ((v2)*39))
+#define PHASH_edge(v1, v2) (((v1) < (v2)) ? ((v1) * 39) ^ ((v2) * 31) : ((v1) * 31) ^ ((v2) * 39))
 
 static PHash *phash_new(PHashLink **list, int sizehint)
 {
@@ -789,11 +789,13 @@ static bool p_edge_has_pair(ParamHandle *handle, PEdge *e, bool topology_from_uv
       v2 = pe->next->vert;
 
       if (((v1->u.key == key1) && (v2->u.key == key2)) ||
-          ((v1->u.key == key2) && (v2->u.key == key1))) {
+          ((v1->u.key == key2) && (v2->u.key == key1)))
+      {
 
         /* don't connect seams and t-junctions */
         if ((pe->flag & PEDGE_SEAM) || *r_pair ||
-            (topology_from_uvs && p_edge_implicit_seam(e, pe))) {
+            (topology_from_uvs && p_edge_implicit_seam(e, pe)))
+        {
           *r_pair = nullptr;
           return false;
         }
@@ -1386,7 +1388,7 @@ static void p_polygon_kernel_center(float (*points)[2], int npoints, float *cent
 
 /* Simplify/Complexity
  *
- * This is currently used for elminating degenerate vertex coordinates.
+ * This is currently used for eliminating degenerate vertex coordinates.
  * In the future this can be used for efficient unwrapping of high resolution
  * charts at lower resolution. */
 

@@ -29,7 +29,7 @@
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_matrix.h"
-#include "GPU_select.h"
+#include "GPU_select.hh"
 #include "GPU_state.h"
 
 #include "MEM_guardedalloc.h"
@@ -43,8 +43,6 @@
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
-
-#include "UI_interface.hh"
 
 /* own includes */
 #include "../gizmo_geometry.h"
@@ -342,7 +340,7 @@ static int gizmo_arrow_modal(bContext *C,
     blender::float2 mval;
     float ray_origin[3], ray_direction[3];
     float location[3];
-  } proj[2]{};
+  } proj[2] = {};
 
   proj[0].mval = {UNPACK2(inter->init_mval)};
   proj[1].mval = {float(event->mval[0]), float(event->mval[1])};
@@ -365,14 +363,11 @@ static int gizmo_arrow_modal(bContext *C,
 
     float arrow_no_proj[3];
     project_plane_v3_v3v3(arrow_no_proj, arrow_no, proj[j].ray_direction);
-
     normalize_v3(arrow_no_proj);
 
-    float plane[4];
-    plane_from_point_normal_v3(plane, proj[j].ray_origin, arrow_no_proj);
-
     float lambda;
-    if (isect_ray_plane_v3(arrow_co, arrow_no, plane, &lambda, false)) {
+    if (isect_ray_plane_v3_factor(arrow_co, arrow_no, proj[j].ray_origin, arrow_no_proj, &lambda))
+    {
       madd_v3_v3v3fl(proj[j].location, arrow_co, arrow_no, lambda);
       ok++;
     }

@@ -39,7 +39,7 @@ static int node_shader_gpu_tex_coord(GPUMaterial *mat,
   /* Use special matrix to let the shader branch to using the render object's matrix. */
   float dummy_matrix[4][4];
   dummy_matrix[3][3] = 0.0f;
-  GPUNodeLink *inv_obmat = (ob != nullptr) ? GPU_uniform(&ob->world_to_object[0][0]) :
+  GPUNodeLink *inv_obmat = (ob != nullptr) ? GPU_uniform(&ob->world_to_object()[0][0]) :
                                              GPU_uniform(&dummy_matrix[0][0]);
 
   /* Optimization: don't request orco if not needed. */
@@ -74,7 +74,7 @@ static int node_shader_gpu_tex_coord(GPUMaterial *mat,
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  /* NOTE: Some outputs aren't supported by MaterialX.*/
+  /* NOTE: Some outputs aren't supported by MaterialX. */
   NodeItem res = empty();
   std::string name = socket_out_->name;
 

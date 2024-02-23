@@ -844,13 +844,15 @@ class PrincipledHairBsdfNode : public BsdfBaseNode {
   NODE_SOCKET_API(float, random)
   /* Selected coloring parametrization. */
   NODE_SOCKET_API(NodePrincipledHairParametrization, parametrization)
-  /* Selected scattering model (near-/far-field). */
+  /* Selected scattering model (chiang/huang). */
   NODE_SOCKET_API(NodePrincipledHairModel, model)
 
   virtual int get_feature()
   {
     return ShaderNode::get_feature() | KERNEL_FEATURE_NODE_PRINCIPLED_HAIR;
   }
+
+  bool has_surface_transparent();
 };
 
 class HairBsdfNode : public BsdfNode {

@@ -23,11 +23,10 @@
 #include "BKE_action.h"
 #include "BKE_armature.hh"
 #include "BKE_camera.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -322,7 +321,7 @@ static int render_border_exec(bContext *C, wmOperator *op)
   }
 
   if (rv3d->persp == RV3D_CAMOB) {
-    DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   }
   return OPERATOR_FINISHED;
 }
@@ -340,7 +339,7 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
   ot->modal = WM_gesture_box_modal;
   ot->cancel = WM_gesture_box_cancel;
 
-  ot->poll = ED_operator_view3d_active;
+  ot->poll = ED_operator_region_view3d_active;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -382,7 +381,7 @@ static int clear_render_border_exec(bContext *C, wmOperator * /*op*/)
   border->ymax = 1.0f;
 
   if (rv3d->persp == RV3D_CAMOB) {
-    DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   }
   return OPERATOR_FINISHED;
 }
@@ -586,7 +585,7 @@ static int background_image_add_invoke(bContext *C, wmOperator *op, const wmEven
   cam->flag |= CAM_SHOW_BG_IMAGE;
 
   WM_event_add_notifier(C, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
-  DEG_id_tag_update(&cam->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&cam->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
 }
@@ -638,7 +637,8 @@ static int background_image_remove_exec(bContext *C, wmOperator *op)
 
   if (bgpic_rem) {
     if (ID_IS_OVERRIDE_LIBRARY(cam) &&
-        (bgpic_rem->flag & CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL) == 0) {
+        (bgpic_rem->flag & CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL) == 0)
+    {
       BKE_reportf(op->reports,
                   RPT_WARNING,
                   "Cannot remove background image %d from camera '%s', as it is from the linked "
@@ -654,7 +654,7 @@ static int background_image_remove_exec(bContext *C, wmOperator *op)
     BKE_camera_background_image_remove(cam, bgpic_rem);
 
     WM_event_add_notifier(C, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
-    DEG_id_tag_update(&cam->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&cam->id, ID_RECALC_SYNC_TO_EVAL);
 
     return OPERATOR_FINISHED;
   }
@@ -691,7 +691,7 @@ static int drop_world_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
-  World *world = (World *)WM_operator_properties_id_lookup_from_name_or_session_uuid(
+  World *world = (World *)WM_operator_properties_id_lookup_from_name_or_session_uid(
       bmain, op->ptr, ID_WO);
   if (world == nullptr) {
     return OPERATOR_CANCELLED;
@@ -701,7 +701,7 @@ static int drop_world_exec(bContext *C, wmOperator *op)
   id_us_plus(&world->id);
   scene->world = world;
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
 
   WM_event_add_notifier(C, NC_SCENE | ND_WORLD, scene);
@@ -1057,7 +1057,7 @@ void ED_view3d_cursor3d_update(bContext *C,
     WM_msg_publish_rna_params(mbus, &msg_key_params);
   }
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 static int view3d_cursor3d_invoke(bContext *C, wmOperator *op, const wmEvent *event)

@@ -13,9 +13,9 @@
 #include "BLI_math_matrix.h"
 #include "BLI_string.h"
 
-#include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_unit.h"
+#include "BKE_object_types.hh"
+#include "BKE_unit.hh"
 
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
@@ -31,7 +31,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_constraints.hh"
@@ -58,12 +58,11 @@ struct TransDataVertSlideVert {
 };
 
 struct VertSlideData {
+  /* result of ED_view3d_ob_project_mat_get */
+  float4x4 proj_mat;
   TransDataVertSlideVert *sv;
   int totsv;
   int curr_sv_index;
-
-  /* result of ED_view3d_ob_project_mat_get */
-  float proj_mat[4][4];
 };
 
 struct VertSlideParams {
@@ -83,12 +82,10 @@ static void vert_slide_update_input(TransInfo *t)
   const float *co_orig_3d = sv->co_orig_3d;
   const float *co_curr_3d = sv->co_link_orig_3d[sv->co_link_curr];
 
-  float co_curr_2d[2], co_orig_2d[2];
-
   int mval_ofs[2], mval_start[2], mval_end[2];
 
-  ED_view3d_project_float_v2_m4(t->region, co_orig_3d, co_orig_2d, sld->proj_mat);
-  ED_view3d_project_float_v2_m4(t->region, co_curr_3d, co_curr_2d, sld->proj_mat);
+  const float2 co_orig_2d = ED_view3d_project_float_v2_m4(t->region, co_orig_3d, sld->proj_mat);
+  const float2 co_curr_2d = ED_view3d_project_float_v2_m4(t->region, co_curr_3d, sld->proj_mat);
 
   ARRAY_SET_ITEMS(mval_ofs, t->mouse.imval[0] - co_orig_2d[0], t->mouse.imval[1] - co_orig_2d[1]);
   ARRAY_SET_ITEMS(mval_start, co_orig_2d[0] + mval_ofs[0], co_orig_2d[1] + mval_ofs[1]);
@@ -123,16 +120,13 @@ static void calcVertSlideMouseActiveVert(TransInfo *t, const float2 &mval_fl)
   TransDataVertSlideVert *sv;
 
   /* set the vertex to use as a reference for the mouse direction 'curr_sv_index' */
-  float dist_sq = 0.0f;
   float dist_min_sq = FLT_MAX;
   int i;
 
   for (i = 0, sv = sld->sv; i < sld->totsv; i++, sv++) {
-    float co_2d[2];
+    const float2 co_2d = ED_view3d_project_float_v2_m4(t->region, sv->co_orig_3d, sld->proj_mat);
 
-    ED_view3d_project_float_v2_m4(t->region, sv->co_orig_3d, co_2d, sld->proj_mat);
-
-    dist_sq = len_squared_v2v2(mval_fl, co_2d);
+    const float dist_sq = len_squared_v2v2(mval_fl, co_2d);
     if (dist_sq < dist_min_sq) {
       dist_min_sq = dist_sq;
       sld->curr_sv_index = i;
@@ -172,7 +166,7 @@ static void calcVertSlideMouseActiveEdges(TransInfo *t, const float2 &mval_fl)
         float dir_dot;
 
         sub_v3_v3v3(tdir, sv->co_orig_3d, sv->co_link_orig_3d[j]);
-        mul_mat3_m4_v3(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world, tdir);
+        mul_mat3_m4_v3(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world().ptr(), tdir);
         project_plane_v3_v3v3(tdir, tdir, t->viewinv[2]);
 
         normalize_v3(tdir);
@@ -199,7 +193,7 @@ static VertSlideData *createVertSlideVerts(TransInfo *t, const TransDataContaine
   BMEdge *e;
   BMVert *v;
   TransDataVertSlideVert *sv_array;
-  VertSlideData *sld = static_cast<VertSlideData *>(MEM_callocN(sizeof(*sld), "sld"));
+  VertSlideData *sld = MEM_new<VertSlideData>(__func__);
   int j;
 
   sld->curr_sv_index = 0;
@@ -267,7 +261,7 @@ static VertSlideData *createVertSlideVerts(TransInfo *t, const TransDataContaine
   sld->totsv = j;
 
   /* most likely will be set below */
-  unit_m4(sld->proj_mat);
+  sld->proj_mat = blender::float4x4::identity();
 
   if (t->spacetype == SPACE_VIEW3D) {
     /* view vars */
@@ -276,7 +270,7 @@ static VertSlideData *createVertSlideVerts(TransInfo *t, const TransDataContaine
 
     rv3d = static_cast<RegionView3D *>(region ? region->regiondata : nullptr);
     if (rv3d) {
-      ED_view3d_ob_project_mat_get(rv3d, tc->obedit, sld->proj_mat);
+      sld->proj_mat = ED_view3d_ob_project_mat_get(rv3d, tc->obedit);
     }
   }
 
@@ -375,7 +369,7 @@ static void drawVertSlide(TransInfo *t)
       GPU_blend(GPU_BLEND_ALPHA);
 
       GPU_matrix_push();
-      GPU_matrix_mul(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world);
+      GPU_matrix_mul(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world().ptr());
 
       GPU_line_width(line_size);
 
@@ -429,16 +423,17 @@ static void drawVertSlide(TransInfo *t)
         float2 xy_delta = t->mval - t->mouse.imval;
 
         mul_v3_m4v3(co_orig_3d,
-                    TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world,
+                    TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world().ptr(),
                     curr_sv->co_orig_3d);
         zfac = ED_view3d_calc_zfac(static_cast<const RegionView3D *>(t->region->regiondata),
                                    co_orig_3d);
 
         ED_view3d_win_to_delta(t->region, xy_delta, zfac, co_dest_3d);
 
-        invert_m4_m4(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->world_to_object,
-                     TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world);
-        mul_mat3_m4_v3(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->world_to_object, co_dest_3d);
+        invert_m4_m4(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->runtime->world_to_object.ptr(),
+                     TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world().ptr());
+        mul_mat3_m4_v3(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->world_to_object().ptr(),
+                       co_dest_3d);
 
         add_v3_v3(co_dest_3d, curr_sv->co_orig_3d);
 
@@ -586,7 +581,7 @@ static void applyVertSlide(TransInfo *t)
   t->values_final[0] = final;
 
   /* header string */
-  ofs += BLI_strncpy_rlen(str + ofs, TIP_("Vertex Slide: "), sizeof(str) - ofs);
+  ofs += BLI_strncpy_rlen(str + ofs, IFACE_("Vertex Slide: "), sizeof(str) - ofs);
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
     outputNumInput(&(t->num), c, &t->scene->unit);
@@ -596,13 +591,13 @@ static void applyVertSlide(TransInfo *t)
     ofs += BLI_snprintf_rlen(str + ofs, sizeof(str) - ofs, "%.4f ", final);
   }
   ofs += BLI_snprintf_rlen(
-      str + ofs, sizeof(str) - ofs, TIP_("(E)ven: %s, "), WM_bool_as_string(use_even));
+      str + ofs, sizeof(str) - ofs, IFACE_("(E)ven: %s, "), WM_bool_as_string(use_even));
   if (use_even) {
     ofs += BLI_snprintf_rlen(
-        str + ofs, sizeof(str) - ofs, TIP_("(F)lipped: %s, "), WM_bool_as_string(flipped));
+        str + ofs, sizeof(str) - ofs, IFACE_("(F)lipped: %s, "), WM_bool_as_string(flipped));
   }
   ofs += BLI_snprintf_rlen(
-      str + ofs, sizeof(str) - ofs, TIP_("Alt or (C)lamp: %s"), WM_bool_as_string(is_clamp));
+      str + ofs, sizeof(str) - ofs, IFACE_("Alt or (C)lamp: %s"), WM_bool_as_string(is_clamp));
   /* done with header string */
 
   /* do stuff here */
@@ -718,7 +713,7 @@ void transform_mode_vert_slide_reproject_input(TransInfo *t)
     RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
-      ED_view3d_ob_project_mat_get(rv3d, tc->obedit, sld->proj_mat);
+      sld->proj_mat = ED_view3d_ob_project_mat_get(rv3d, tc->obedit);
     }
   }
 

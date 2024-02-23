@@ -5,8 +5,8 @@
 #include "abc_archive.h"
 
 #include "BKE_blender_version.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
+#include "BKE_main.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph_query.hh"
 

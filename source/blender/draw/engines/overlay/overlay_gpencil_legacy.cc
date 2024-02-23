@@ -6,7 +6,7 @@
  * \ingroup draw_engine
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "BKE_gpencil_legacy.h"
 
@@ -21,7 +21,7 @@
 #include "overlay_private.hh"
 
 #include "draw_common.h"
-#include "draw_manager_text.h"
+#include "draw_manager_text.hh"
 
 void OVERLAY_edit_gpencil_legacy_cache_init(OVERLAY_Data *vedata)
 {
@@ -246,7 +246,7 @@ void OVERLAY_gpencil_legacy_cache_init(OVERLAY_Data *vedata)
     copy_v3_v3(col_grid, gpd->grid.color);
     col_grid[3] = max_ff(v3d->overlay.gpencil_grid_opacity, 0.01f);
 
-    copy_m4_m4(mat, ob->object_to_world);
+    copy_m4_m4(mat, ob->object_to_world().ptr());
 
     /* Rotate and scale except align to cursor. */
     bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
@@ -289,7 +289,7 @@ void OVERLAY_gpencil_legacy_cache_init(OVERLAY_Data *vedata)
       copy_v3_v3(mat[3], cursor->location);
     }
     else if (ts->gpencil_v3d_align & GP_PROJECT_VIEWSPACE) {
-      copy_v3_v3(mat[3], ob->object_to_world[3]);
+      copy_v3_v3(mat[3], ob->object_to_world().location());
     }
 
     translate_m4(mat, gpd->grid.offset[0], gpd->grid.offset[1], 0.0f);
@@ -324,6 +324,7 @@ void OVERLAY_gpencil_legacy_cache_init(OVERLAY_Data *vedata)
 
 static void OVERLAY_edit_gpencil_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
+  using namespace blender::draw;
   OVERLAY_PrivateData *pd = vedata->stl->pd;
   bGPdata *gpd = (bGPdata *)ob->data;
   const DRWContextState *draw_ctx = DRW_context_state_get();
@@ -400,7 +401,7 @@ static void overlay_gpencil_draw_stroke_color_name(bGPDlayer * /*gpl*/,
         UI_GetThemeColor4ubv(theme_id, color);
 
         float fpt[3];
-        mul_v3_m4v3(fpt, ob->object_to_world, &pt->x);
+        mul_v3_m4v3(fpt, ob->object_to_world().ptr(), &pt->x);
 
         DRWTextStore *dt = DRW_text_cache_ensure();
         DRW_text_cache_add(dt,

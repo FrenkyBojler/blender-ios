@@ -28,12 +28,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_metadata.h"
-#include "IMB_moviecache.h"
-#include "IMB_openexr.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_metadata.hh"
+#include "IMB_moviecache.hh"
+#include "IMB_openexr.hh"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -44,7 +44,6 @@
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
@@ -57,44 +56,45 @@
 #include "BLI_system.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 #include "BLI_timecode.h" /* For stamp time-code format. */
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_bpath.h"
-#include "BKE_colortools.h"
-#include "BKE_global.h"
+#include "BKE_bpath.hh"
+#include "BKE_colortools.hh"
+#include "BKE_global.hh"
 #include "BKE_icons.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_packedFile.h"
 #include "BKE_preview_image.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_workspace.h"
 
-#include "BLF_api.h"
-
-#include "PIL_time.h"
+#include "BLF_api.hh"
 
 #include "RE_pipeline.h"
 
 #include "SEQ_utils.hh" /* SEQ_get_topmost_sequence() */
 
-#include "GPU_material.h"
+#include "GPU_material.hh"
 #include "GPU_texture.h"
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "DRW_engine.hh"
 
 #include "BLO_read_write.hh"
 
@@ -180,6 +180,7 @@ static void image_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, cons
   }
 
   BLI_listbase_clear(&image_dst->anims);
+  BLI_listbase_clear(reinterpret_cast<ListBase *>(&image_dst->drawdata));
 
   BLI_duplicatelist(&image_dst->tiles, &image_src->tiles);
 
@@ -223,6 +224,7 @@ static void image_free_data(ID *id)
   BKE_previewimg_free(&image->preview);
 
   BLI_freelistN(&image->tiles);
+  DRW_drawdata_free(id);
 
   image_runtime_free_data(image);
 }
@@ -233,13 +235,13 @@ static void image_foreach_cache(ID *id,
 {
   Image *image = (Image *)id;
   IDCacheKey key;
-  key.id_session_uuid = id->session_uuid;
-  key.offset_in_ID = offsetof(Image, cache);
+  key.id_session_uid = id->session_uid;
+  key.identifier = offsetof(Image, cache);
   function_callback(id, &key, (void **)&image->cache, 0, user_data);
 
-  key.offset_in_ID = offsetof(Image, anims.first);
+  key.identifier = offsetof(Image, anims.first);
   function_callback(id, &key, (void **)&image->anims.first, 0, user_data);
-  key.offset_in_ID = offsetof(Image, anims.last);
+  key.identifier = offsetof(Image, anims.last);
   function_callback(id, &key, (void **)&image->anims.last, 0, user_data);
 
   auto gputexture_offset = [image](int target, int eye) {
@@ -255,16 +257,16 @@ static void image_foreach_cache(ID *id,
       if (texture == nullptr) {
         continue;
       }
-      key.offset_in_ID = gputexture_offset(a, eye);
+      key.identifier = gputexture_offset(a, eye);
       function_callback(id, &key, (void **)&image->gputexture[a][eye], 0, user_data);
     }
   }
 
-  key.offset_in_ID = offsetof(Image, rr);
+  key.identifier = offsetof(Image, rr);
   function_callback(id, &key, (void **)&image->rr, 0, user_data);
 
   LISTBASE_FOREACH (RenderSlot *, slot, &image->renderslots) {
-    key.offset_in_ID = size_t(BLI_ghashutil_strhash_p(slot->name));
+    key.identifier = size_t(BLI_ghashutil_strhash_p(slot->name));
     function_callback(id, &key, (void **)&slot->render, 0, user_data);
   }
 }
@@ -438,6 +440,7 @@ constexpr IDTypeInfo get_type_info()
   IDTypeInfo info{};
   info.id_code = ID_IM;
   info.id_filter = FILTER_ID_IM;
+  info.dependencies_id_types = 0;
   info.main_listbase_index = INDEX_ID_IM;
   info.struct_size = sizeof(Image);
   info.name = "Image";
@@ -773,7 +776,7 @@ void BKE_image_merge(Main *bmain, Image *dest, Image *source)
   }
 }
 
-bool BKE_image_scale(Image *image, int width, int height)
+bool BKE_image_scale(Image *image, int width, int height, ImageUser *iuser)
 {
   /* NOTE: We could be clever and scale all imbuf's
    * but since some are mipmaps its not so simple. */
@@ -781,7 +784,7 @@ bool BKE_image_scale(Image *image, int width, int height)
   ImBuf *ibuf;
   void *lock;
 
-  ibuf = BKE_image_acquire_ibuf(image, nullptr, &lock);
+  ibuf = BKE_image_acquire_ibuf(image, iuser, &lock);
 
   if (ibuf) {
     IMB_scaleImBuf(ibuf, width, height);
@@ -1418,9 +1421,19 @@ bool BKE_image_memorypack(Image *ima)
     ima->views_format = R_IMF_VIEWS_INDIVIDUAL;
   }
 
-  if (ok && ima->source == IMA_SRC_GENERATED) {
-    ima->source = IMA_SRC_FILE;
-    ima->type = IMA_TYPE_IMAGE;
+  /* Images which were "generated" before packing should now be
+   * treated as if they were saved as real files. */
+  if (ok) {
+    if (ima->source == IMA_SRC_GENERATED) {
+      ima->source = IMA_SRC_FILE;
+      ima->type = IMA_TYPE_IMAGE;
+    }
+
+    /* Clear the per-tile generated flag if all tiles were ok.
+     * Mirrors similar processing inside #BKE_image_save. */
+    LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
+      tile->gen_flag &= ~IMA_GEN_TILE;
+    }
   }
 
   return ok;
@@ -1482,7 +1495,7 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
 
 void BKE_image_tag_time(Image *ima)
 {
-  ima->lastused = PIL_check_seconds_timer_i();
+  ima->lastused = BLI_time_now_seconds_i();
 }
 
 static uintptr_t image_mem_size(Image *image)
@@ -1570,7 +1583,8 @@ void BKE_image_free_all_textures(Main *bmain)
   }
 
   for (tex = static_cast<Tex *>(bmain->textures.first); tex;
-       tex = static_cast<Tex *>(tex->id.next)) {
+       tex = static_cast<Tex *>(tex->id.next))
+  {
     if (tex->ima) {
       tex->ima->id.tag |= LIB_TAG_DOIT;
     }
@@ -2623,20 +2637,23 @@ int BKE_imbuf_write_stamp(const Scene *scene,
   return BKE_imbuf_write(ibuf, filepath, imf);
 }
 
-anim *openanim_noload(const char *filepath,
-                      int flags,
-                      int streamindex,
-                      char colorspace[IMA_MAX_SPACE])
+ImBufAnim *openanim_noload(const char *filepath,
+                           int flags,
+                           int streamindex,
+                           char colorspace[IMA_MAX_SPACE])
 {
-  anim *anim;
+  ImBufAnim *anim;
 
   anim = IMB_open_anim(filepath, flags, streamindex, colorspace);
   return anim;
 }
 
-anim *openanim(const char *filepath, int flags, int streamindex, char colorspace[IMA_MAX_SPACE])
+ImBufAnim *openanim(const char *filepath,
+                    int flags,
+                    int streamindex,
+                    char colorspace[IMA_MAX_SPACE])
 {
-  anim *anim;
+  ImBufAnim *anim;
   ImBuf *ibuf;
 
   anim = IMB_open_anim(filepath, flags, streamindex, colorspace);
@@ -2979,8 +2996,8 @@ static void image_tag_frame_recalc(Image *ima, ID *iuser_id, ImageUser *iuser, v
     iuser->flag |= IMA_NEED_FRAME_RECALC;
 
     if (iuser_id) {
-      /* Must copy image user changes to CoW data-block. */
-      DEG_id_tag_update(iuser_id, ID_RECALC_COPY_ON_WRITE);
+      /* Must copy image user changes to evaluated data-block. */
+      DEG_id_tag_update(iuser_id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
 }
@@ -2994,8 +3011,8 @@ static void image_tag_reload(Image *ima, ID *iuser_id, ImageUser *iuser, void *c
       image_update_views_format(ima, iuser);
     }
     if (iuser_id) {
-      /* Must copy image user changes to CoW data-block. */
-      DEG_id_tag_update(iuser_id, ID_RECALC_COPY_ON_WRITE);
+      /* Must copy image user changes to evaluated data-block. */
+      DEG_id_tag_update(iuser_id, ID_RECALC_SYNC_TO_EVAL);
     }
     BKE_image_partial_update_mark_full_update(ima);
   }
@@ -3708,7 +3725,8 @@ void BKE_image_multiview_index(const Image *ima, ImageUser *iuser)
     }
     else {
       if ((iuser->view < 0) ||
-          (iuser->view >= BLI_listbase_count_at_most(&ima->views, iuser->view + 1))) {
+          (iuser->view >= BLI_listbase_count_at_most(&ima->views, iuser->view + 1)))
+      {
         iuser->multi_index = iuser->view = 0;
       }
       else {
@@ -4828,17 +4846,16 @@ void BKE_image_pool_free(ImagePool *pool)
 }
 
 BLI_INLINE ImBuf *image_pool_find_item(
-    ImagePool *pool, Image *image, int entry, int index, bool *found)
+    ImagePool *pool, Image *image, int entry, int index, bool *r_found)
 {
-  *found = false;
-
   LISTBASE_FOREACH (ImagePoolItem *, item, &pool->image_buffers) {
     if (item->image == image && item->entry == entry && item->index == index) {
-      *found = true;
+      *r_found = true;
       return item->ibuf;
     }
   }
 
+  *r_found = false;
   return nullptr;
 }
 

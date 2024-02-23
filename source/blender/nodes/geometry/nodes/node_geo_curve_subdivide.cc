@@ -7,7 +7,6 @@
 
 #include "GEO_subdivide_curves.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -29,7 +28,7 @@ static Curves *subdivide_curves(const Curves &src_curves_id,
 {
   const bke::CurvesGeometry &src_curves = src_curves_id.geometry.wrap();
 
-  const bke::CurvesFieldContext field_context{src_curves, ATTR_DOMAIN_POINT};
+  const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Point};
   fn::FieldEvaluator evaluator{field_context, src_curves.points_num()};
   evaluator.add(cuts_field);
   evaluator.evaluate();
@@ -62,7 +61,7 @@ static void subdivide_grease_pencil_curves(
 
     const bke::CurvesGeometry &src_curves = drawing->strokes();
     const bke::GreasePencilLayerFieldContext field_context{
-        grease_pencil, ATTR_DOMAIN_POINT, layer_index};
+        grease_pencil, AttrDomain::Point, layer_index};
 
     fn::FieldEvaluator evaluator{field_context, src_curves.points_num()};
     evaluator.add(cuts_field);

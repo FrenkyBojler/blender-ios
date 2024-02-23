@@ -23,7 +23,7 @@
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_light_types.h"
@@ -40,14 +40,14 @@
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_fcurve.h"
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_nla.h"
-#include "BKE_node.h"
-#include "BKE_report.h"
+#include "BKE_node.hh"
+#include "BKE_report.hh"
 #include "BKE_texture.h"
 
 #include "DEG_depsgraph.hh"
@@ -604,7 +604,8 @@ static int animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
 
   int fcurve_offset = 0;
   for (; fcurve_offset < 4 && quat_curve_fcu;
-       ++fcurve_offset, quat_curve_fcu = quat_curve_fcu->next) {
+       ++fcurve_offset, quat_curve_fcu = quat_curve_fcu->next)
+  {
     if (!STREQ(quat_curve_fcu->rna_path, first_fcurve->rna_path)) {
       /* This should never happen when the quaternion is fully keyed. Some
        * people do use half-keyed quaternions, though, so better to check. */
@@ -3234,7 +3235,7 @@ static void animsys_create_action_track_strip(const AnimData *adt,
   /* Must set NLASTRIP_FLAG_USR_INFLUENCE, or else the default setting overrides, and influence
    * doesn't work.
    */
-  r_action_strip->flag |= NLASTRIP_FLAG_USR_INFLUENCE;
+  r_action_strip->flag |= NLASTRIP_FLAG_USR_INFLUENCE | NLASTRIP_FLAG_NO_TIME_MAP;
 
   const bool tweaking = (adt->flag & ADT_NLA_EDIT_ON) != 0;
   const bool soloing = (adt->flag & ADT_NLA_SOLO_TRACK) != 0;
@@ -4115,7 +4116,7 @@ void BKE_animsys_update_driver_array(ID *id)
   AnimData *adt = BKE_animdata_from_id(id);
 
   /* Runtime driver map to avoid O(n^2) lookups in BKE_animsys_eval_driver.
-   * Ideally the depsgraph could pass a pointer to the COW driver directly,
+   * Ideally the depsgraph could pass a pointer to the evaluated driver directly,
    * but this is difficult in the current design. */
   if (adt && adt->drivers.first) {
     BLI_assert(!adt->driver_array);
@@ -4167,7 +4168,7 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
 
       PathResolvedRNA anim_rna;
       if (BKE_animsys_rna_path_resolve(&id_ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
-        /* Evaluate driver, and write results to COW-domain destination */
+        /* Evaluate driver, and write results to copy-on-eval-domain destination */
         const float ctime = DEG_get_ctime(depsgraph);
         const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
             depsgraph, ctime);

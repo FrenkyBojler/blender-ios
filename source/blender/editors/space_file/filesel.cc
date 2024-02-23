@@ -37,17 +37,17 @@
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_readfile.h"
+#include "BLO_userdef_default.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_context.hh"
-#include "BKE_idtype.h"
-#include "BKE_main.h"
+#include "BKE_idtype.hh"
+#include "BKE_main.hh"
 #include "BKE_preferences.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
@@ -469,7 +469,7 @@ bool ED_fileselect_is_asset_browser(const SpaceFile *sfile)
   return (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
 }
 
-AssetLibrary *ED_fileselect_active_asset_library_get(const SpaceFile *sfile)
+blender::asset_system::AssetLibrary *ED_fileselect_active_asset_library_get(const SpaceFile *sfile)
 {
   if (!ED_fileselect_is_asset_browser(sfile) || !sfile->files) {
     return nullptr;
@@ -623,15 +623,15 @@ void ED_fileselect_deselect_all(SpaceFile *sfile)
  * may also be remembered, but only conditionally. */
 #define PARAMS_FLAGS_REMEMBERED (FILE_HIDE_DOT)
 
-void ED_fileselect_window_params_get(const wmWindow *win, int win_size[2], bool *is_maximized)
+void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized)
 {
   /* Get DPI/pixel-size independent size to be stored in preferences. */
   WM_window_set_dpi(win); /* Ensure the DPI is taken from the right window. */
 
-  win_size[0] = WM_window_pixels_x(win) / UI_SCALE_FAC;
-  win_size[1] = WM_window_pixels_y(win) / UI_SCALE_FAC;
+  r_win_size[0] = WM_window_pixels_x(win) / UI_SCALE_FAC;
+  r_win_size[1] = WM_window_pixels_y(win) / UI_SCALE_FAC;
 
-  *is_maximized = WM_window_is_maximized(win);
+  *r_is_maximized = WM_window_is_maximized(win);
 }
 
 static bool file_select_use_default_display_type(const SpaceFile *sfile)

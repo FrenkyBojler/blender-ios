@@ -20,13 +20,10 @@
 #include "BLI_lasso_2d.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.hh"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "wm.hh"
-#include "wm_draw.hh"
 
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
@@ -56,7 +53,8 @@ wmGesture *WM_gesture_new(wmWindow *window, const ARegion *region, const wmEvent
            WM_GESTURE_RECT,
            WM_GESTURE_CROSS_RECT,
            WM_GESTURE_CIRCLE,
-           WM_GESTURE_STRAIGHTLINE)) {
+           WM_GESTURE_STRAIGHTLINE))
+  {
     rcti *rect = static_cast<rcti *>(MEM_callocN(sizeof(rcti), "gesture rect new"));
 
     gesture->customdata = rect;

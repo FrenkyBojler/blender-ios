@@ -19,7 +19,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -30,22 +30,17 @@
 #include "DNA_lattice_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
-#include "BKE_anim_data.h"
 #include "BKE_curve.hh"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_displist.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 #include "BLO_read_write.hh"
 
@@ -163,6 +158,7 @@ static void lattice_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_LT = {
     /*id_code*/ ID_LT,
     /*id_filter*/ FILTER_ID_LT,
+    /*dependencies_id_types*/ FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_LT,
     /*struct_size*/ sizeof(Lattice),
     /*name*/ "Lattice",
@@ -343,10 +339,10 @@ void BKE_lattice_resize(Lattice *lt, int uNew, int vNew, int wNew, Object *ltOb)
       BKE_displist_free(&ltOb->runtime->curve_cache->disp);
     }
 
-    copy_m4_m4(mat, ltOb->object_to_world);
-    unit_m4(ltOb->object_to_world);
+    copy_m4_m4(mat, ltOb->object_to_world().ptr());
+    unit_m4(ltOb->runtime->object_to_world.ptr());
     BKE_lattice_deform_coords(ltOb, nullptr, vert_coords, uNew * vNew * wNew, 0, nullptr, 1.0f);
-    copy_m4_m4(ltOb->object_to_world, mat);
+    copy_m4_m4(ltOb->runtime->object_to_world.ptr(), mat);
 
     lt->typeu = typeu;
     lt->typev = typev;
@@ -417,7 +413,8 @@ void outside_lattice(Lattice *lt)
 
         for (u = 0; u < lt->pntsu; u++, bp++) {
           if (u == 0 || v == 0 || w == 0 || u == lt->pntsu - 1 || v == lt->pntsv - 1 ||
-              w == lt->pntsw - 1) {
+              w == lt->pntsw - 1)
+          {
             /* pass */
           }
           else {
@@ -606,57 +603,7 @@ void BKE_lattice_center_median(Lattice *lt, float cent[3])
   mul_v3_fl(cent, 1.0f / float(numVerts));
 }
 
-static void boundbox_lattice(Object *ob)
-{
-  BoundBox *bb;
-  Lattice *lt;
-  float min[3], max[3];
-
-  if (ob->runtime->bb == nullptr) {
-    ob->runtime->bb = static_cast<BoundBox *>(MEM_callocN(sizeof(BoundBox), "Lattice boundbox"));
-  }
-
-  bb = ob->runtime->bb;
-  lt = static_cast<Lattice *>(ob->data);
-
-  INIT_MINMAX(min, max);
-  BKE_lattice_minmax_dl(ob, lt, min, max);
-  BKE_boundbox_init_from_minmax(bb, min, max);
-
-  bb->flag &= ~BOUNDBOX_DIRTY;
-}
-
-BoundBox *BKE_lattice_boundbox_get(Object *ob)
-{
-  boundbox_lattice(ob);
-
-  return ob->runtime->bb;
-}
-
-void BKE_lattice_minmax_dl(Object *ob, Lattice *lt, float min[3], float max[3])
-{
-  DispList *dl = ob->runtime->curve_cache ?
-                     BKE_displist_find(&ob->runtime->curve_cache->disp, DL_VERTS) :
-                     nullptr;
-
-  if (!dl) {
-    BKE_lattice_minmax(lt, min, max);
-  }
-  else {
-    int i, numVerts;
-
-    if (lt->editlatt) {
-      lt = lt->editlatt->latt;
-    }
-    numVerts = lt->pntsu * lt->pntsv * lt->pntsw;
-
-    for (i = 0; i < numVerts; i++) {
-      minmax_v3v3_v3(min, max, &dl->verts[i * 3]);
-    }
-  }
-}
-
-void BKE_lattice_minmax(Lattice *lt, float min[3], float max[3])
+std::optional<blender::Bounds<blender::float3>> BKE_lattice_minmax(const Lattice *lt)
 {
   int i, numVerts;
 
@@ -664,20 +611,16 @@ void BKE_lattice_minmax(Lattice *lt, float min[3], float max[3])
     lt = lt->editlatt->latt;
   }
   numVerts = lt->pntsu * lt->pntsv * lt->pntsw;
+  if (numVerts == 0) {
+    return std::nullopt;
+  }
 
+  blender::float3 min = lt->def[0].vec;
+  blender::float3 max = lt->def[0].vec;
   for (i = 0; i < numVerts; i++) {
     minmax_v3v3_v3(min, max, lt->def[i].vec);
   }
-}
-
-void BKE_lattice_center_bounds(Lattice *lt, float cent[3])
-{
-  float min[3], max[3];
-
-  INIT_MINMAX(min, max);
-
-  BKE_lattice_minmax(lt, min, max);
-  mid_v3_v3v3(cent, min, max);
+  return blender::Bounds<blender::float3>{min, max};
 }
 
 void BKE_lattice_transform(Lattice *lt, const float mat[4][4], bool do_keys)

@@ -8,14 +8,14 @@
  * Gather all screen space effects technique such as Bloom, Motion Blur, DoF, SSAO, SSR, ...
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "BLI_rand.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_animsys.h"
 #include "BKE_camera.h"
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BKE_object.hh"
 #include "BKE_screen.hh"
 
@@ -52,7 +52,7 @@ int EEVEE_motion_blur_init(EEVEE_ViewLayerData * /*sldata*/, EEVEE_Data *vedata)
 
   effects->motion_blur_max = max_ii(0, scene->eevee.motion_blur_max);
 
-  if ((effects->motion_blur_max > 0) && (scene->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED)) {
+  if ((effects->motion_blur_max > 0) && (scene->r.mode & R_MBLUR)) {
     if (DRW_state_is_scene_render()) {
       int mb_step = effects->motion_blur_step;
       DRW_view_viewmat_get(nullptr, effects->motion_blur.camera[mb_step].viewmat, false);
@@ -278,6 +278,7 @@ void EEVEE_motion_blur_curves_cache_populate(EEVEE_ViewLayerData * /*sldata*/,
                                              EEVEE_Data *vedata,
                                              Object *ob)
 {
+  using namespace blender::draw;
   EEVEE_PassList *psl = vedata->psl;
   EEVEE_StorageList *stl = vedata->stl;
   EEVEE_EffectsInfo *effects = stl->effects;
@@ -295,7 +296,7 @@ void EEVEE_motion_blur_curves_cache_populate(EEVEE_ViewLayerData * /*sldata*/,
 
   int mb_step = effects->motion_blur_step;
   /* Store transform. */
-  copy_m4_m4(mb_data->obmat[mb_step], ob->object_to_world);
+  copy_m4_m4(mb_data->obmat[mb_step], ob->object_to_world().ptr());
 
   EEVEE_HairMotionData *mb_curves = EEVEE_motion_blur_curves_data_get(mb_data);
 
@@ -366,7 +367,7 @@ void EEVEE_motion_blur_cache_populate(EEVEE_ViewLayerData * /*sldata*/,
   if (mb_data) {
     int mb_step = effects->motion_blur_step;
     /* Store transform. */
-    copy_m4_m4(mb_data->obmat[mb_step], ob->object_to_world);
+    copy_m4_m4(mb_data->obmat[mb_step], ob->object_to_world().ptr());
 
     EEVEE_GeometryMotionData *mb_geom = EEVEE_motion_blur_geometry_data_get(mb_data);
 
@@ -433,6 +434,7 @@ static void motion_blur_remove_vbo_reference_from_batch(GPUBatch *batch,
 
 void EEVEE_motion_blur_cache_finish(EEVEE_Data *vedata)
 {
+  using namespace blender::draw;
   EEVEE_StorageList *stl = vedata->stl;
   EEVEE_EffectsInfo *effects = stl->effects;
   GHashIterator ghi;

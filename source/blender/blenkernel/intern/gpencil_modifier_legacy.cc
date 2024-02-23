@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cstdio>
 
 #include "MEM_guardedalloc.h"
@@ -17,7 +18,7 @@
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_armature_types.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -29,20 +30,20 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_colortools.h"
-#include "BKE_deform.h"
+#include "BKE_colortools.hh"
+#include "BKE_deform.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_lattice.hh"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_material.h"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_screen.hh"
-#include "BKE_shrinkwrap.h"
+#include "BKE_shrinkwrap.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -104,7 +105,8 @@ void BKE_gpencil_cache_data_init(Depsgraph *depsgraph, Object *ob)
         mmd->cache_data = static_cast<ShrinkwrapTreeData *>(
             MEM_callocN(sizeof(ShrinkwrapTreeData), __func__));
         if (BKE_shrinkwrap_init_tree(
-                mmd->cache_data, target, mmd->shrink_type, mmd->shrink_mode, false)) {
+                mmd->cache_data, target, mmd->shrink_type, mmd->shrink_mode, false))
+        {
         }
         else {
           MEM_SAFE_FREE(mmd->cache_data);
@@ -226,12 +228,13 @@ GpencilLineartLimitInfo BKE_gpencil_get_lineart_modifier_limits(const Object *ob
     if (md->type == eGpencilModifierType_Lineart) {
       LineartGpencilModifierData *lmd = (LineartGpencilModifierData *)md;
       if (is_first || (lmd->flags & LRT_GPENCIL_USE_CACHE)) {
-        info.min_level = MIN2(info.min_level, lmd->level_start);
-        info.max_level = MAX2(info.max_level,
-                              (lmd->use_multiple_levels ? lmd->level_end : lmd->level_start));
+        info.min_level = std::min<char>(info.min_level, lmd->level_start);
+        info.max_level = std::max<char>(
+            info.max_level, (lmd->use_multiple_levels ? lmd->level_end : lmd->level_start));
         info.edge_types |= lmd->edge_types;
-        info.shadow_selection = MAX2(lmd->shadow_selection, info.shadow_selection);
-        info.silhouette_selection = MAX2(lmd->silhouette_selection, info.silhouette_selection);
+        info.shadow_selection = std::max<char>(lmd->shadow_selection, info.shadow_selection);
+        info.silhouette_selection = std::max<char>(lmd->silhouette_selection,
+                                                   info.silhouette_selection);
         is_first = false;
       }
     }
@@ -327,7 +330,7 @@ void BKE_gpencil_frame_active_set(Depsgraph *depsgraph, bGPdata *gpd)
     bGPdata *gpd_orig = (bGPdata *)DEG_get_original_id(&gpd->id);
 
     /* sync "actframe" changes back to main-db too,
-     * so that editing tools work with copy-on-write
+     * so that editing tools work with copy-on-evaluation
      * when the current frame changes
      */
     LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd_orig->layers) {
@@ -541,7 +544,7 @@ void BKE_gpencil_modifier_set_error(GpencilModifierData *md, const char *format,
 {
   char buffer[512];
   va_list ap;
-  const char *format_tip = TIP_(format);
+  const char *format_tip = RPT_(format);
 
   va_start(ap, format);
   vsnprintf(buffer, sizeof(buffer), format_tip, ap);
@@ -637,13 +640,13 @@ bGPDframe *BKE_gpencil_frame_retime_get(Depsgraph *depsgraph,
 
 static void gpencil_assign_object_eval(Object *object)
 {
-  BLI_assert(object->id.tag & LIB_TAG_COPIED_ON_WRITE);
+  BLI_assert(object->id.tag & LIB_TAG_COPIED_ON_EVAL);
 
   bGPdata *gpd_eval = object->runtime->gpd_eval;
 
-  gpd_eval->id.tag |= LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT;
+  gpd_eval->id.tag |= LIB_TAG_COPIED_ON_EVAL_FINAL_RESULT;
 
-  if (object->id.tag & LIB_TAG_COPIED_ON_WRITE) {
+  if (object->id.tag & LIB_TAG_COPIED_ON_EVAL) {
     object->data = gpd_eval;
   }
 }
@@ -960,6 +963,7 @@ void BKE_gpencil_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb,
       BLO_read_data_address(reader, &hmd->curfalloff);
       if (hmd->curfalloff) {
         BKE_curvemapping_blend_read(reader, hmd->curfalloff);
+        BKE_curvemapping_init(hmd->curfalloff);
       }
     }
     else if (md->type == eGpencilModifierType_Noise) {

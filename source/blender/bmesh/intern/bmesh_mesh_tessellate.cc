@@ -11,13 +11,9 @@
  * \see mesh_tessellate.cc for the #Mesh equivalent of this file.
  */
 
-#include "DNA_meshdata_types.h"
-
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
 #include "BLI_heap.h"
-#include "BLI_linklist.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_memarena.h"
@@ -25,8 +21,7 @@
 #include "BLI_polyfill_2d_beautify.h"
 #include "BLI_task.h"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
 
 /**
  * On systems with 32+ cores,
@@ -49,7 +44,7 @@ BLI_INLINE void bmesh_calc_tessellation_for_face_impl(BMLoop *(*looptris)[3],
                                                       MemArena **pf_arena_p,
                                                       const bool face_normal)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
   /* The face normal is used for projecting faces into 2D space for tessellation.
    * Invalid normals may result in invalid tessellation.
    * Either `face_normal` should be true or normals should be updated first. */

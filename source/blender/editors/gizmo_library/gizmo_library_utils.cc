@@ -14,8 +14,8 @@
 #include "DNA_view3d_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
 
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"

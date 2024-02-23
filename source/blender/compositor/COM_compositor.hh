@@ -7,6 +7,13 @@
 #include "DNA_color_types.h"
 #include "DNA_node_types.h"
 
+namespace blender::realtime_compositor {
+class RenderContext;
+}
+namespace blender::compositor {
+class ProfilerData;
+}
+
 struct Render;
 
 /* Keep ascii art. */
@@ -292,17 +299,13 @@ struct Render;
  * It can be executed during editing (`blenkernel/node.cc`) or rendering
  * (`renderer/pipeline.cc`).
  *
- * \param render: [struct Render]
- *   Render instance for GPU context.
+ * \param render: Render instance for GPU context.
  *
- * \param render_data: [struct RenderData]
- *   Render data for this composite, this won't always belong to a scene.
+ * \param render_data: Render data for this composite, this won't always belong to a scene.
  *
- * \param node_tree: [struct bNodeTree]
- *   reference to the compositor editing tree
+ * \param node_tree: Reference to the compositor editing tree
  *
- * \param rendering: [true false]
- *    This parameter determines whether the function is called from rendering
+ * \param rendering: This parameter determines whether the function is called from rendering
  *    (true) or editing (false).
  *    based on this setting the system will work differently:
  *     - during rendering only Composite & the File output node will be calculated
@@ -325,14 +328,16 @@ struct Render;
  *            should be checked further, probably it'll be also needed for preview
  *            generation in display space
  */
-/* clang-format off */
+/* clang-format on */
 
 void COM_execute(Render *render,
                  RenderData *render_data,
                  Scene *scene,
                  bNodeTree *node_tree,
                  bool rendering,
-                 const char *view_name);
+                 const char *view_name,
+                 blender::realtime_compositor::RenderContext *render_context,
+                 blender::compositor::ProfilerData &profiler_data);
 
 /**
  * \brief Deinitialize the compositor caches and allocated memory.

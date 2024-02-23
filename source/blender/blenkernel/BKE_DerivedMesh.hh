@@ -58,23 +58,11 @@ struct CCGElem;
 struct CCGKey;
 struct CustomData_MeshMasks;
 struct Depsgraph;
-struct vec2i;
 struct MFace;
 struct Mesh;
 struct ModifierData;
 struct Object;
 struct Scene;
-
-/*
- * NOTE: all #MFace interfaces now officially operate on tessellated data.
- *       Also, the #MFace orig-index layer indexes polys, not #MFace.
- */
-
-/* keep in sync with MFace type */
-struct DMFlagMat {
-  short mat_nr;
-  bool sharp;
-};
 
 enum DerivedMeshType {
   DM_TYPE_CDDM,
@@ -108,7 +96,7 @@ struct DerivedMesh {
    * \warning The real return type is `float(*)[3]`.
    */
   float *(*getVertArray)(DerivedMesh *dm);
-  vec2i *(*getEdgeArray)(DerivedMesh *dm);
+  blender::int2 *(*getEdgeArray)(DerivedMesh *dm);
   int *(*getCornerVertArray)(DerivedMesh *dm);
   int *(*getCornerEdgeArray)(DerivedMesh *dm);
   int *(*getPolyArray)(DerivedMesh *dm);
@@ -117,7 +105,7 @@ struct DerivedMesh {
    * *{vert/edge/face}_r (must point to a buffer large enough)
    */
   void (*copyVertArray)(DerivedMesh *dm, float (*r_positions)[3]);
-  void (*copyEdgeArray)(DerivedMesh *dm, struct vec2i *r_edge);
+  void (*copyEdgeArray)(DerivedMesh *dm, blender::int2 *r_edge);
   void (*copyCornerVertArray)(DerivedMesh *dm, int *r_corner_verts);
   void (*copyCornerEdgeArray)(DerivedMesh *dm, int *r_corner_edges);
   void (*copyPolyArray)(DerivedMesh *dm, int *r_face_offsets);
@@ -134,11 +122,9 @@ struct DerivedMesh {
   /** Optional grid access for subsurf */
   int (*getNumGrids)(DerivedMesh *dm);
   int (*getGridSize)(DerivedMesh *dm);
-  struct CCGElem **(*getGridData)(DerivedMesh *dm);
+  CCGElem **(*getGridData)(DerivedMesh *dm);
   int *(*getGridOffset)(DerivedMesh *dm);
-  void (*getGridKey)(DerivedMesh *dm, struct CCGKey *key);
-  DMFlagMat *(*getGridFlagMats)(DerivedMesh *dm);
-  unsigned int **(*getGridHidden)(DerivedMesh *dm);
+  void (*getGridKey)(DerivedMesh *dm, CCGKey *key);
 
   /* Direct Access Operations
    * - Can be undefined

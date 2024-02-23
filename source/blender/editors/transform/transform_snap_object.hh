@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_map.hh"
 #include "BLI_math_geom.h"
 
 #define MAX_CLIPPLANE_LEN 6
@@ -22,7 +23,7 @@ struct SnapObjectContext {
   struct SnapCache {
     virtual ~SnapCache(){};
   };
-  blender::Map<const BMEditMesh *, std::unique_ptr<SnapCache>> editmesh_caches;
+  blender::Map<const ID *, std::unique_ptr<SnapCache>> editmesh_caches;
 
   /* Filter data, returns true to check this value */
   struct {
@@ -209,20 +210,6 @@ eSnapMode snap_object_editmesh(SnapObjectContext *sctx,
                                eSnapMode snap_to_flag,
                                bool use_hide);
 
-eSnapMode snap_polygon_editmesh(SnapObjectContext *sctx,
-                                Object *ob_eval,
-                                const ID *id,
-                                const blender::float4x4 &obmat,
-                                eSnapMode snap_to_flag,
-                                int polygon);
-
-eSnapMode snap_edge_points_editmesh(SnapObjectContext *sctx,
-                                    Object *ob_eval,
-                                    const ID *id,
-                                    const blender::float4x4 &obmat,
-                                    float dist_px_sq_orig,
-                                    int edge);
-
 /* transform_snap_object_mesh.cc */
 
 eSnapMode snap_object_mesh(SnapObjectContext *sctx,
@@ -237,7 +224,7 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
                             const ID *id,
                             const blender::float4x4 &obmat,
                             eSnapMode snap_to_flag,
-                            int polygon);
+                            int face);
 
 eSnapMode snap_edge_points_mesh(SnapObjectContext *sctx,
                                 Object *ob_eval,

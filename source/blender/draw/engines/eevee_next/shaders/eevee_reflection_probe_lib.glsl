@@ -5,15 +5,21 @@
 #pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_octahedron_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_spherical_harmonics_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_reflection_probe_mapping_lib.glsl)
 
-#ifdef REFLECTION_PROBE
-vec4 reflection_probes_sample(vec3 L, float lod, ReflectionProbeAtlasCoordinate atlas_coord)
+#ifdef SPHERE_PROBE
+vec4 reflection_probes_sample(vec3 L, float lod, SphereProbeUvArea uv_area)
 {
-  vec2 octahedral_uv_packed = octahedral_uv_from_direction(L);
-  vec2 texel_size = vec2(1.0 / float(1 << (11 - atlas_coord.layer_subdivision)));
-  vec2 octahedral_uv = octahedral_uv_to_layer_texture_coords(
-      octahedral_uv_packed, atlas_coord, texel_size);
-  return textureLod(reflection_probes_tx, vec3(octahedral_uv, atlas_coord.layer), lod);
+  float lod_min = floor(lod);
+  float lod_max = ceil(lod);
+  float mix_fac = lod - lod_min;
+
+  vec2 altas_uv_min, altas_uv_max;
+  sphere_probe_direction_to_uv(L, lod_min, lod_max, uv_area, altas_uv_min, altas_uv_max);
+
+  vec4 color_min = textureLod(reflection_probes_tx, vec3(altas_uv_min, uv_area.layer), lod_min);
+  vec4 color_max = textureLod(reflection_probes_tx, vec3(altas_uv_max, uv_area.layer), lod_max);
+  return mix(color_min, color_max, mix_fac);
 }
 #endif
 

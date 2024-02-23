@@ -13,10 +13,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_idprop.h"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -78,21 +78,6 @@ void ensure_id_properties_freed(const Object *dupli_object, Object *temp_dupli_o
   temp_dupli_object->id.properties = nullptr;
 }
 
-void ensure_boundbox_freed(const Object *dupli_object, Object *temp_dupli_object)
-{
-  if (temp_dupli_object->runtime->bb == nullptr) {
-    /* No Bounding Box in temp data-block -- no leak is possible. */
-    return;
-  }
-  if (temp_dupli_object->runtime->bb == dupli_object->runtime->bb) {
-    /* Temp copy of object did not modify Bounding Box. */
-    return;
-  }
-  /* Free memory which is owned by temporary storage which is about to get overwritten. */
-  MEM_freeN(temp_dupli_object->runtime->bb);
-  temp_dupli_object->runtime->bb = nullptr;
-}
-
 void free_owned_memory(DEGObjectIterData *data)
 {
   if (data->dupli_object_current == nullptr) {
@@ -104,7 +89,6 @@ void free_owned_memory(DEGObjectIterData *data)
   Object *temp_dupli_object = &data->temp_dupli_object;
 
   ensure_id_properties_freed(dupli_object, temp_dupli_object);
-  ensure_boundbox_freed(dupli_object, temp_dupli_object);
 }
 
 bool deg_object_hide_original(eEvaluationMode eval_mode, Object *ob, DupliObject *dob)
@@ -180,8 +164,6 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     copy_v4_v4(temp_dupli_object->color, dupli_parent->color);
     temp_dupli_object->runtime->select_id = dupli_parent->runtime->select_id;
     if (dob->ob->data != dob->ob_data) {
-      /* Do not modify the original boundbox. */
-      temp_dupli_object->runtime->bb = nullptr;
       BKE_object_replace_data_on_shallow_copy(temp_dupli_object, dob->ob_data);
     }
 
@@ -198,10 +180,11 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     bool is_neg_scale = is_negative_m4(dob->mat);
     SET_FLAG_FROM_TEST(data->temp_dupli_object.transflag, is_neg_scale, OB_NEG_SCALE);
 
-    copy_m4_m4(data->temp_dupli_object.object_to_world, dob->mat);
-    invert_m4_m4(data->temp_dupli_object.world_to_object, data->temp_dupli_object.object_to_world);
+    copy_m4_m4(data->temp_dupli_object.runtime->object_to_world.ptr(), dob->mat);
+    invert_m4_m4(data->temp_dupli_object.runtime->world_to_object.ptr(),
+                 data->temp_dupli_object.object_to_world().ptr());
     data->next_object = &data->temp_dupli_object;
-    BLI_assert(deg::deg_validate_copy_on_write_datablock(&data->temp_dupli_object.id));
+    BLI_assert(deg::deg_validate_eval_copy_datablock(&data->temp_dupli_object.id));
     return true;
   }
 
@@ -255,7 +238,7 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
 
     Object *object = (Object *)id_node->id_cow;
     Object *object_orig = DEG_get_original_object(object);
-    BLI_assert(deg::deg_validate_copy_on_write_datablock(&object->id));
+    BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
     object->runtime->select_id = object_orig->runtime->select_id;
 
     const bool use_preview = object_orig == data->object_orig_with_preview;

@@ -16,13 +16,13 @@ else()
     set(LIBDIR_NATIVE_ABI ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_NAME})
 
     # Path to precompiled libraries with known glibc 2.28 ABI.
-    set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/../lib/linux_x86_64_glibc_228)
+    set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_x64)
 
     # Choose the best suitable libraries.
     if(EXISTS ${LIBDIR_NATIVE_ABI})
       set(LIBDIR ${LIBDIR_NATIVE_ABI})
       set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
-    elseif(EXISTS ${LIBDIR_GLIBC228_ABI})
+    elseif(EXISTS "${LIBDIR_GLIBC228_ABI}/.git")
       set(LIBDIR ${LIBDIR_GLIBC228_ABI})
       if(WITH_MEM_JEMALLOC)
         # jemalloc provides malloc hooks.
@@ -114,6 +114,10 @@ find_package_wrapper(Epoxy REQUIRED)
 # XXX Linking errors with debian static tiff :/
 # find_package_wrapper(TIFF REQUIRED)
 find_package(TIFF)
+# CMake 3.28.1 defines this, it doesn't seem to be used, hide by default in the UI.
+if(DEFINED tiff_DIR)
+  mark_as_advanced(tiff_DIR)
+endif()
 
 if(WITH_VULKAN_BACKEND)
   if((DEFINED LIBDIR) AND (EXISTS "${LIBDIR}/vulkan") AND (EXISTS "${LIBDIR}/shaderc"))
@@ -156,6 +160,11 @@ endfunction()
 if(NOT WITH_SYSTEM_FREETYPE)
   # FreeType compiled with Brotli compression for woff2.
   find_package_wrapper(Freetype REQUIRED)
+  # CMake 3.28.1 defines this, it doesn't seem to be used, hide by default in the UI.
+  if(DEFINED freetype_DIR)
+    mark_as_advanced(freetype_DIR)
+  endif()
+
   if(DEFINED LIBDIR)
     find_package_wrapper(Brotli REQUIRED)
 
@@ -355,6 +364,7 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
     endif()
   endif()
 endif()
+add_bundled_libraries(osl/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_DEVICE_ONEAPI)
   set(CYCLES_LEVEL_ZERO ${LIBDIR}/level-zero CACHE PATH "Path to Level Zero installation")

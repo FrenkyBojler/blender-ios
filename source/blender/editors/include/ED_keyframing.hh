@@ -44,15 +44,7 @@ struct NlaKeyframingContext;
  * \param use_autokey_mode: include settings from key-framing mode in the result
  * (i.e. replace only).
  */
-eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene, bool use_autokey_mode);
-
-/* -------- */
-
-/**
- * Get (or add relevant data to be able to do so) the Active Action for the given
- * Animation Data block, given an ID block where the Animation Data should reside.
- */
-bAction *ED_id_action_ensure(Main *bmain, ID *id);
+eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene);
 
 /* -------- */
 
@@ -63,7 +55,6 @@ bAction *ED_id_action_ensure(Main *bmain, ID *id);
  * but also through RNA when editing an ID prop, see #37103).
  */
 void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, PointerRNA *ptr);
-void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop);
 
 /* -------- */
 
@@ -234,19 +225,19 @@ int ANIM_scene_get_keyingset_index(Scene *scene, KeyingSet *ks);
  */
 KeyingSet *ANIM_get_keyingset_for_autokeying(const Scene *scene, const char *transformKSName);
 
-void ANIM_keyingset_visit_for_search(const bContext *C,
-                                     PointerRNA *ptr,
-                                     PropertyRNA *prop,
-                                     const char *edit_text,
-                                     StringPropertySearchVisitFunc visit_fn,
-                                     void *visit_user_data);
+void ANIM_keyingset_visit_for_search(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA *prop,
+    const char *edit_text,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
-void ANIM_keyingset_visit_for_search_no_poll(const bContext *C,
-                                             PointerRNA *ptr,
-                                             PropertyRNA *prop,
-                                             const char *edit_text,
-                                             StringPropertySearchVisitFunc visit_fn,
-                                             void *visit_user_data);
+void ANIM_keyingset_visit_for_search_no_poll(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA *prop,
+    const char *edit_text,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 /**
  * Dynamically populate an enum of Keying Sets.
  */

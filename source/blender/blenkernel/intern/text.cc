@@ -22,23 +22,16 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_constraint_types.h"
-#include "DNA_material_types.h"
-#include "DNA_node_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 #include "DNA_text_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_bpath.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_bpath.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_text.h"
 
 #include "BLO_read_write.hh"
@@ -57,6 +50,8 @@ static void txt_delete_line(Text *text, TextLine *line);
 static void txt_delete_sel(Text *text);
 static void txt_make_dirty(Text *text);
 
+static TextLine *txt_line_malloc() ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -66,7 +61,6 @@ static void txt_make_dirty(Text *text);
 static void text_init_data(ID *id)
 {
   Text *text = (Text *)id;
-  TextLine *tmp;
 
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(text, id));
 
@@ -79,7 +73,7 @@ static void text_init_data(ID *id)
 
   BLI_listbase_clear(&text->lines);
 
-  tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
+  TextLine *tmp = txt_line_malloc();
   tmp->line = (char *)MEM_mallocN(1, "textline_string");
   tmp->format = nullptr;
 
@@ -105,7 +99,7 @@ static void text_init_data(ID *id)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
 static void text_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int /*flag*/)
 {
@@ -125,7 +119,7 @@ static void text_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const
 
   /* Walk down, reconstructing. */
   LISTBASE_FOREACH (TextLine *, line_src, &text_src->lines) {
-    TextLine *line_dst = static_cast<TextLine *>(MEM_mallocN(sizeof(*line_dst), __func__));
+    TextLine *line_dst = txt_line_malloc();
 
     line_dst->line = BLI_strdupn(line_src->line, line_src->len);
     line_dst->len = line_src->len;
@@ -228,6 +222,7 @@ static void text_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_TXT = {
     /*id_code*/ ID_TXT,
     /*id_filter*/ FILTER_ID_TXT,
+    /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_TXT,
     /*struct_size*/ sizeof(Text),
     /*name*/ "Text",
@@ -362,9 +357,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
   lines_count = 0;
   for (i = 0; i < len; i++) {
     if (buffer[i] == '\n') {
-      TextLine *tmp;
-
-      tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
+      TextLine *tmp = txt_line_malloc();
       tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
       tmp->format = nullptr;
 
@@ -392,9 +385,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
    * - last character in buffer is \n. in this case new line is needed to
    *   deal with newline at end of file. (see #28087) (sergey) */
   if (llen != 0 || lines_count == 0 || buffer[len - 1] == '\n') {
-    TextLine *tmp;
-
-    tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
+    TextLine *tmp = txt_line_malloc();
     tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
     tmp->format = nullptr;
 
@@ -591,6 +582,14 @@ void BKE_text_file_modified_ignore(Text *text)
 /** \name Editing Utility Functions
  * \{ */
 
+static TextLine *txt_line_malloc()
+{
+  TextLine *l = static_cast<TextLine *>(MEM_mallocN(sizeof(TextLine), "textline"));
+  /* Quiet VALGRIND warning, may avoid unintended differences with MEMFILE undo as well. */
+  memset(l->_pad0, 0, sizeof(l->_pad0));
+  return l;
+}
+
 static void make_new_line(TextLine *line, char *newline)
 {
   if (line->line) {
@@ -607,9 +606,7 @@ static void make_new_line(TextLine *line, char *newline)
 
 static TextLine *txt_new_linen(const char *str, int str_len)
 {
-  TextLine *tmp;
-
-  tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
+  TextLine *tmp = txt_line_malloc();
   tmp->line = static_cast<char *>(MEM_mallocN(str_len + 1, "textline_string"));
   tmp->format = nullptr;
 
@@ -1280,7 +1277,6 @@ void txt_sel_line(Text *text)
 void txt_sel_set(Text *text, int startl, int startc, int endl, int endc)
 {
   TextLine *froml, *tol;
-  int fromllen, tollen;
 
   /* Support negative indices. */
   if (startl < 0 || endl < 0) {
@@ -1309,19 +1305,15 @@ void txt_sel_set(Text *text, int startl, int startc, int endl, int endc)
     }
   }
 
-  fromllen = BLI_strlen_utf8(froml->line);
-  tollen = BLI_strlen_utf8(tol->line);
-
   /* Support negative indices. */
   if (startc < 0) {
-    startc = fromllen + startc + 1;
+    const int fromllen = BLI_strlen_utf8(froml->line);
+    startc = std::max(0, fromllen + startc + 1);
   }
   if (endc < 0) {
-    endc = tollen + endc + 1;
+    const int tollen = BLI_strlen_utf8(tol->line);
+    endc = std::max(0, tollen + endc + 1);
   }
-
-  CLAMP(startc, 0, fromllen);
-  CLAMP(endc, 0, tollen);
 
   text->curl = froml;
   text->curc = BLI_str_utf8_offset_from_index(froml->line, froml->len, startc);
@@ -1406,7 +1398,7 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
     const char *buf_step_next = strchr(buf_step, '\n');
     const int len = buf_step_next - buf_step;
 
-    TextLine *l = static_cast<TextLine *>(MEM_mallocN(sizeof(TextLine), "textline"));
+    TextLine *l = txt_line_malloc();
     l->line = static_cast<char *>(MEM_mallocN(len + 1, "textline_string"));
     l->len = len;
     l->format = nullptr;
@@ -1681,7 +1673,7 @@ void txt_split_curline(Text *text)
 
   /* Make the new TextLine */
 
-  ins = static_cast<TextLine *>(MEM_mallocN(sizeof(TextLine), "textline"));
+  ins = txt_line_malloc();
   ins->line = left;
   ins->format = nullptr;
   ins->len = text->curc;
@@ -2367,7 +2359,7 @@ int text_check_identifier_nodigit_unicode(const uint ch)
 {
   return (ch < 255 && text_check_identifier_nodigit(char(ch)));
 }
-#endif /* WITH_PYTHON */
+#endif /* !WITH_PYTHON */
 
 bool text_check_whitespace(const char ch)
 {

@@ -11,7 +11,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "BLI_blenlib.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -20,11 +19,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
 
-#include "BKE_action.h"
 #include "BKE_anim_data.h"
-#include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_fcurve.h"
 #include "BKE_nla.h"
@@ -309,7 +305,8 @@ static void draw_fcurve_selected_handle_vertices(
      */
     if (!sel_handle_only || BEZT_ISSEL_ANY(bezt)) {
       if ((!prevbezt && (bezt->ipo == BEZT_IPO_BEZ)) ||
-          (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ))) {
+          (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ)))
+      {
         if ((bezt->f1 & SELECT) == sel
             /* && v2d->cur.xmin < bezt->vec[0][0] < v2d->cur.xmax) */)
         {
@@ -482,7 +479,8 @@ static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, FCurve *fcu)
       if ((bezt->f2 & SELECT) == sel) {
         /* only draw first handle if previous segment had handles */
         if ((!prevbezt && (bezt->ipo == BEZT_IPO_BEZ)) ||
-            (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ))) {
+            (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ)))
+        {
           UI_GetThemeColor3ubv(basecol + bezt->h1, col);
           col[3] = fcurve_display_alpha(fcu) * 255;
           immAttr4ubv(color, col);
@@ -666,7 +664,7 @@ static void draw_fcurve_curve(bAnimContext *ac,
 
     /* Account for reversed NLA strip effect. */
     if (fcu_end < fcu_start) {
-      SWAP(float, fcu_start, fcu_end);
+      std::swap(fcu_start, fcu_end);
     }
 
     /* Clamp to graph editor rendering bounds. */
@@ -1252,7 +1250,8 @@ static void draw_fcurve(bAnimContext *ac, SpaceGraph *sipo, ARegion *region, bAn
    *   we must obey this.
    */
   if (!(U.animation_flag & USER_ANIM_ONLY_SHOW_SELECTED_CURVE_KEYS) ||
-      (fcu->flag & FCURVE_SELECTED)) {
+      (fcu->flag & FCURVE_SELECTED))
+  {
     if (!BKE_fcurve_are_keyframes_usable(fcu) && !(fcu->fpt && fcu->totvert)) {
       /* only draw controls if this is the active modifier */
       if ((fcu->flag & FCURVE_ACTIVE) && (fcm)) {
@@ -1553,7 +1552,8 @@ void graph_draw_channel_names(bContext *C, bAnimContext *ac, ARegion *region)
 
       /* check if visible */
       if (IN_RANGE(ymin, v2d->cur.ymin, v2d->cur.ymax) ||
-          IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax)) {
+          IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax))
+      {
         /* draw all channels using standard channel-drawing API */
         ANIM_channel_draw(ac, ale, ymin, ymax, channel_index);
       }
@@ -1574,7 +1574,8 @@ void graph_draw_channel_names(bContext *C, bAnimContext *ac, ARegion *region)
 
       /* check if visible */
       if (IN_RANGE(ymin, v2d->cur.ymin, v2d->cur.ymax) ||
-          IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax)) {
+          IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax))
+      {
         /* draw all channels using standard channel-drawing API */
         rctf channel_rect;
         BLI_rctf_init(&channel_rect, 0, v2d->cur.xmax - V2D_SCROLL_WIDTH, ymin, ymax);

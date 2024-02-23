@@ -6,10 +6,10 @@
  * \ingroup bke
  */
 
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_main_namemap.h"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_main_namemap.hh"
 
 #include "BLI_assert.h"
 #include "BLI_bitmap.h"
@@ -30,7 +30,7 @@
 
 static CLG_LogRef LOG = {"bke.main_namemap"};
 
-//#define DEBUG_PRINT_MEMORY_USAGE
+// #define DEBUG_PRINT_MEMORY_USAGE
 
 using namespace blender;
 
@@ -597,7 +597,7 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
     return is_valid;
   }
 
-  /* Clear all existing namemaps. */
+  /* Clear all existing name-maps. */
   BKE_main_namemap_clear(bmain);
 
   return is_valid;

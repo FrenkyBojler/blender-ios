@@ -6,7 +6,6 @@ set(INC
   ../include
   ../../blenkernel
   ../../blentranslation
-  ../../depsgraph
   ../../gpu
   ../../makesrna
   ../../sequencer
@@ -45,6 +44,7 @@ set(LIB
   bf_blenkernel
   PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
@@ -71,6 +71,5 @@ if(WITH_GTESTS)
   )
   set(TEST_LIB
   )
-  include(GTestTesting)
-  blender_add_test_lib(bf_editor_animation_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+  blender_add_test_suite_lib(editor_animation "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
 endif()

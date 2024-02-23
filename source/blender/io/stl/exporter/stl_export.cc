@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup stl
@@ -66,7 +68,7 @@ void export_frame(Depsgraph *depsgraph,
       /* Include object name in the exported file name. */
       std::string suffix = object_name + ".stl";
       char filepath[FILE_MAX];
-      BLI_strncpy(filepath, export_params.filepath, FILE_MAX);
+      STRNCPY(filepath, export_params.filepath);
       BLI_path_extension_replace(filepath, FILE_MAX, suffix.c_str());
       writer = std::make_unique<FileWriter>(export_params.filepath, export_params.ascii_format);
     }
@@ -83,18 +85,18 @@ void export_frame(Depsgraph *depsgraph,
     /* +Y-forward and +Z-up are the default Blender axis settings. */
     mat3_from_axis_conversion(
         export_params.forward_axis, export_params.up_axis, IO_AXIS_Y, IO_AXIS_Z, axes_transform);
-    mul_m4_m3m4(xform, axes_transform, obj_eval->object_to_world);
+    mul_m4_m3m4(xform, axes_transform, obj_eval->object_to_world().ptr());
     /* mul_m4_m3m4 does not transform last row of obmat, i.e. location data. */
-    mul_v3_m3v3(xform[3], axes_transform, obj_eval->object_to_world[3]);
-    xform[3][3] = obj_eval->object_to_world[3][3];
+    mul_v3_m3v3(xform[3], axes_transform, obj_eval->object_to_world().location());
+    xform[3][3] = obj_eval->object_to_world().location()[3];
 
     /* Write triangles. */
     const Span<float3> positions = mesh->vert_positions();
     const blender::Span<int> corner_verts = mesh->corner_verts();
-    for (const MLoopTri &loop_tri : mesh->looptris()) {
+    for (const int3 &tri : mesh->corner_tris()) {
       Triangle t;
       for (int i = 0; i < 3; i++) {
-        float3 pos = positions[corner_verts[loop_tri.tri[i]]];
+        float3 pos = positions[corner_verts[tri[i]]];
         mul_m4_v3(xform, pos);
         pos *= global_scale;
         t.vertices[i] = pos;

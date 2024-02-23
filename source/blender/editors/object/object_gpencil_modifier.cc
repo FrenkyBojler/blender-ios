@@ -26,16 +26,13 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
-#include "DEG_depsgraph_query.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -45,7 +42,7 @@
 #include "ED_object.hh"
 #include "ED_screen.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "UI_interface.hh"
 
@@ -990,7 +987,7 @@ static int time_segment_add_exec(bContext *C, wmOperator *op)
   gpmd->segments_len++;
   gpmd->segment_active_index++;
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -1061,7 +1058,7 @@ static int time_segment_remove_exec(bContext *C, wmOperator *op)
 
   gpmd->segments_len--;
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -1120,9 +1117,8 @@ static int time_segment_move_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    SWAP(TimeGpencilModifierSegment,
-         gpmd->segments[gpmd->segment_active_index],
-         gpmd->segments[gpmd->segment_active_index - 1]);
+    std::swap(gpmd->segments[gpmd->segment_active_index],
+              gpmd->segments[gpmd->segment_active_index - 1]);
 
     gpmd->segment_active_index--;
   }
@@ -1131,9 +1127,8 @@ static int time_segment_move_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    SWAP(TimeGpencilModifierSegment,
-         gpmd->segments[gpmd->segment_active_index],
-         gpmd->segments[gpmd->segment_active_index + 1]);
+    std::swap(gpmd->segments[gpmd->segment_active_index],
+              gpmd->segments[gpmd->segment_active_index + 1]);
 
     gpmd->segment_active_index++;
   }
@@ -1141,7 +1136,7 @@ static int time_segment_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -1233,7 +1228,7 @@ static int dash_segment_add_exec(bContext *C, wmOperator *op)
   dmd->segments_len++;
   dmd->segment_active_index++;
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -1305,7 +1300,7 @@ static int dash_segment_remove_exec(bContext *C, wmOperator *op)
 
   dmd->segments_len--;
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -1365,9 +1360,8 @@ static int dash_segment_move_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    SWAP(DashGpencilModifierSegment,
-         dmd->segments[dmd->segment_active_index],
-         dmd->segments[dmd->segment_active_index - 1]);
+    std::swap(dmd->segments[dmd->segment_active_index],
+              dmd->segments[dmd->segment_active_index - 1]);
 
     dmd->segment_active_index--;
   }
@@ -1376,9 +1370,8 @@ static int dash_segment_move_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    SWAP(DashGpencilModifierSegment,
-         dmd->segments[dmd->segment_active_index],
-         dmd->segments[dmd->segment_active_index + 1]);
+    std::swap(dmd->segments[dmd->segment_active_index],
+              dmd->segments[dmd->segment_active_index + 1]);
 
     dmd->segment_active_index++;
   }
@@ -1386,7 +1379,7 @@ static int dash_segment_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;

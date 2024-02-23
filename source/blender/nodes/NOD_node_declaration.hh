@@ -12,7 +12,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_node_types.h"
 
@@ -179,6 +179,8 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_unavailable = false;
   bool is_attribute_name = false;
   bool is_default_link_socket = false;
+  /** Puts this socket on the same line as the previous one in the UI. */
+  bool align_with_previous_socket = false;
 
   InputSocketFieldType input_field_type = InputSocketFieldType::None;
   OutputFieldDependency output_field_dependency;
@@ -303,7 +305,7 @@ class BaseSocketDeclarationBuilder {
 
   /** The input is evaluated on a subset of the geometry inputs. */
   BaseSocketDeclarationBuilder &implicit_field_on(ImplicitInputValueFn fn,
-                                                  const Span<int> input_indices);
+                                                  Span<int> input_indices);
 
   /** For inputs that are evaluated or available on a subset of the geometry sockets. */
   BaseSocketDeclarationBuilder &field_on(Span<int> indices);
@@ -356,6 +358,12 @@ class BaseSocketDeclarationBuilder {
    */
   BaseSocketDeclarationBuilder &make_available(std::function<void(bNode &)> fn);
 
+  /**
+   * Puts this socket on the same row as the previous socket. This only works when one of them is
+   * an input and the other is an output.
+   */
+  BaseSocketDeclarationBuilder &align_with_previous(bool value = true);
+
   int input_index() const
   {
     BLI_assert(decl_in_base_ != nullptr);
@@ -387,7 +395,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
 
-typedef void (*PanelDrawButtonsFunction)(uiLayout *, bContext *, PointerRNA *);
+using PanelDrawButtonsFunction = void (*)(uiLayout *, bContext *, PointerRNA *);
 
 /**
  * Describes a panel containing sockets or other panels.
@@ -459,6 +467,10 @@ class NodeDeclaration {
    * outputs | buttons | inputs order. Panels are only supported when using custom socket order. */
   bool use_custom_socket_order = false;
 
+  /** Usually output sockets come before input sockets currently. Only some specific nodes are
+   * exempt from that rule for now. */
+  bool allow_any_socket_order = false;
+
   /**
    * True if any context was used to build this declaration.
    */
@@ -521,6 +533,7 @@ class NodeDeclarationBuilder {
   void finalize();
 
   void use_custom_socket_order(bool enable = true);
+  void allow_any_socket_order(bool enable = true);
 
   template<typename DeclType>
   typename DeclType::Builder &add_input(StringRef name, StringRef identifier = "");

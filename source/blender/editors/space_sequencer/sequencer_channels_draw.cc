@@ -19,15 +19,9 @@
 
 #include "ED_screen.hh"
 
-#include "GPU_framebuffer.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
 #include "GPU_matrix.h"
-#include "GPU_state.h"
 #include "GPU_vertex_buffer.h"
-#include "GPU_viewport.h"
 
-#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "SEQ_channels.hh"
@@ -92,10 +86,10 @@ static void displayed_channel_range_get(const SeqChannelDrawContext *context,
   CLAMP(r_channel_range[1], strip_boundbox.ymin, MAXSEQ);
 }
 
-static char *draw_channel_widget_tooltip(bContext * /*C*/, void *argN, const char * /*tip*/)
+static std::string draw_channel_widget_tooltip(bContext * /*C*/, void *argN, const char * /*tip*/)
 {
   char *dyn_tooltip = static_cast<char *>(argN);
-  return BLI_strdup(dyn_tooltip);
+  return dyn_tooltip;
 }
 
 static float draw_channel_widget_mute(const SeqChannelDrawContext *context,
@@ -123,8 +117,6 @@ static float draw_channel_widget_mute(const SeqChannelDrawContext *context,
                                   width,
                                   &ptr,
                                   hide_prop,
-                                  0,
-                                  0,
                                   0,
                                   0,
                                   0,
@@ -166,8 +158,6 @@ static float draw_channel_widget_lock(const SeqChannelDrawContext *context,
                                   0,
                                   0,
                                   0,
-                                  0,
-                                  0,
                                   "");
 
   char *tooltip = BLI_sprintfN(
@@ -179,7 +169,7 @@ static float draw_channel_widget_lock(const SeqChannelDrawContext *context,
 
 static bool channel_is_being_renamed(const SpaceSeq *sseq, const int channel_index)
 {
-  return sseq->runtime.rename_channel_index == channel_index;
+  return sseq->runtime->rename_channel_index == channel_index;
 }
 
 static float text_size_get(const SeqChannelDrawContext *context)
@@ -244,13 +234,11 @@ static void draw_channel_labels(const SeqChannelDrawContext *context,
                            -1,
                            0,
                            0,
-                           0,
-                           0,
                            nullptr);
     UI_block_emboss_set(block, UI_EMBOSS_NONE);
 
     if (UI_but_active_only(context->C, context->region, block, but) == false) {
-      sseq->runtime.rename_channel_index = 0;
+      sseq->runtime->rename_channel_index = 0;
     }
 
     WM_event_add_notifier(context->C, NC_SCENE | ND_SEQUENCER, context->scene);

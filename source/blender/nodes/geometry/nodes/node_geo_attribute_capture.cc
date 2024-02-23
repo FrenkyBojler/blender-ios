@@ -7,8 +7,6 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "BKE_attribute_math.hh"
-
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
@@ -48,7 +46,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryAttributeCapture *data = MEM_cnew<NodeGeometryAttributeCapture>(__func__);
   data->data_type = CD_PROP_FLOAT;
-  data->domain = ATTR_DOMAIN_POINT;
+  data->domain = int8_t(AttrDomain::Point);
 
   node->storage = data;
 }
@@ -116,13 +114,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!params.output_is_required("Geometry")) {
     params.error_message_add(
         NodeWarningType::Info,
-        TIP_("The attribute output can not be used without the geometry output"));
+        TIP_("The attribute output cannot be used without the geometry output"));
     params.set_default_remaining_outputs();
     return;
   }
 
   const NodeGeometryAttributeCapture &storage = node_storage(params.node());
-  const eAttrDomain domain = eAttrDomain(storage.domain);
+  const AttrDomain domain = AttrDomain(storage.domain);
 
   AnonymousAttributeIDPtr attribute_id = params.get_output_anonymous_attribute_id_if_needed(
       "Attribute");
@@ -143,7 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   };
 
   /* Run on the instances component separately to only affect the top level of instances. */
-  if (domain == ATTR_DOMAIN_INSTANCE) {
+  if (domain == AttrDomain::Instance) {
     if (geometry_set.has_instances()) {
       capture_on(geometry_set.get_component_for_write(GeometryComponent::Type::Instance));
     }
@@ -183,7 +181,7 @@ static void node_rna(StructRNA *srna)
                     "Which domain to store the data in",
                     rna_enum_attribute_domain_items,
                     NOD_storage_enum_accessors(domain),
-                    ATTR_DOMAIN_POINT,
+                    int8_t(AttrDomain::Point),
                     enums::domain_experimental_grease_pencil_version3_fn);
 }
 

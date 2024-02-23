@@ -25,6 +25,10 @@
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus
+#  include "BLI_math_matrix_types.hh"
+#endif
+
+#ifdef __cplusplus
 namespace blender::bke {
 struct ObjectRuntime;
 }
@@ -100,17 +104,7 @@ enum {
  */
 typedef struct BoundBox {
   float vec[8][3];
-  int flag;
-  char _pad0[4];
 } BoundBox;
-
-/** #BoundBox.flag */
-enum {
-  /* BOUNDBOX_DISABLED = (1 << 0), */ /* UNUSED */
-  BOUNDBOX_DIRTY = (1 << 1),
-};
-
-struct CustomData_MeshMasks;
 
 typedef struct ObjectLineArt {
   short usage;
@@ -284,9 +278,6 @@ typedef struct Object {
   float rotAxis[3], drotAxis[3];
   /** Axis angle rotation - angle part. */
   float rotAngle, drotAngle;
-  /** Final transformation matrices with constraints & animsys applied. */
-  float object_to_world[4][4];
-  float world_to_object[4][4];
   /** Inverse result of parent, so that object doesn't 'stick' to parent. */
   float parentinv[4][4];
   /** Inverse result of constraints.
@@ -409,6 +400,11 @@ typedef struct Object {
   struct LightProbeObjectCache *lightprobe_cache;
 
   ObjectRuntimeHandle *runtime;
+
+#ifdef __cplusplus
+  const blender::float4x4 &object_to_world() const;
+  const blender::float4x4 &world_to_object() const;
+#endif
 } Object;
 
 /** DEPRECATED: this is not used anymore because hooks are now modifiers. */
@@ -485,8 +481,10 @@ typedef enum ObjectType {
 #define OB_TYPE_SUPPORT_MATERIAL(_type) \
   (((_type) >= OB_MESH && (_type) <= OB_MBALL) || \
    ((_type) >= OB_GPENCIL_LEGACY && (_type) <= OB_GREASE_PENCIL))
-/** Does the object have some render-able geometry (unlike empties, cameras, etc.). True for
- * #OB_CURVES_LEGACY, since these often evaluate to objects with geometry. */
+/**
+ * Does the object have some render-able geometry (unlike empties, cameras, etc.). True for
+ * #OB_CURVES_LEGACY, since these often evaluate to objects with geometry.
+ */
 #define OB_TYPE_IS_GEOMETRY(_type) \
   (ELEM(_type, \
         OB_MESH, \
@@ -499,7 +497,8 @@ typedef enum ObjectType {
         OB_POINTCLOUD, \
         OB_VOLUME, \
         OB_GREASE_PENCIL))
-#define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL_LEGACY))
+#define OB_TYPE_SUPPORT_VGROUP(_type) \
+  (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL))
 #define OB_TYPE_SUPPORT_EDITMODE(_type) \
   (ELEM(_type, \
         OB_MESH, \

@@ -15,19 +15,18 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_bpath.h"
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_image.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_packedFile.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -88,8 +87,13 @@ static int unpack_libraries_exec(bContext *C, wmOperator *op)
 
 static int unpack_libraries_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  return WM_operator_confirm_message(
-      C, op, "Unpack Linked Libraries - creates directories, all new paths should work");
+  return WM_operator_confirm_ex(C,
+                                op,
+                                IFACE_("Restore Packed Linked Data to Their Original Locations"),
+                                IFACE_("Will create directories so that all paths are valid."),
+                                IFACE_("Unpack"),
+                                ALERT_ICON_INFO,
+                                false);
 }
 
 void FILE_OT_unpack_libraries(wmOperatorType *ot)

@@ -12,24 +12,16 @@
 #include <cmath>
 #include <cstring>
 
-#include "atomic_ops.h"
-
 #include "BLI_utildefines.h"
 
 #include "BKE_DerivedMesh.hh"
 #include "BKE_cdderivedmesh.h"
-#include "BKE_curve.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
-#include "BKE_object.hh"
-#include "BKE_paint.hh"
 #include "BKE_pbvh.hh"
 
 #include "DNA_curve_types.h" /* for Curve */
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -39,7 +31,7 @@ struct CDDerivedMesh {
   /* these point to data in the DerivedMesh custom data layers,
    * they are only here for efficiency and convenience */
   float (*vert_positions)[3];
-  vec2i *medge;
+  blender::int2 *medge;
   MFace *mface;
   int *corner_verts;
   int *corner_edges;
@@ -80,7 +72,7 @@ static void cdDM_copyVertArray(DerivedMesh *dm, float (*r_positions)[3])
   memcpy(r_positions, cddm->vert_positions, sizeof(float[3]) * dm->numVertData);
 }
 
-static void cdDM_copyEdgeArray(DerivedMesh *dm, vec2i *r_edge)
+static void cdDM_copyEdgeArray(DerivedMesh *dm, blender::int2 *r_edge)
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
   memcpy(r_edge, cddm->medge, sizeof(*r_edge) * dm->numEdgeData);
@@ -159,29 +151,29 @@ static DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh, const CustomData_MeshMasks *ma
 
   DM_init(dm,
           DM_TYPE_CDDM,
-          mesh->totvert,
-          mesh->totedge,
+          mesh->verts_num,
+          mesh->edges_num,
           0 /* `mesh->totface` */,
-          mesh->totloop,
+          mesh->corners_num,
           mesh->faces_num);
 
-  CustomData_merge(&mesh->vert_data, &dm->vertData, cddata_masks.vmask, mesh->totvert);
-  CustomData_merge(&mesh->edge_data, &dm->edgeData, cddata_masks.emask, mesh->totedge);
+  CustomData_merge(&mesh->vert_data, &dm->vertData, cddata_masks.vmask, mesh->verts_num);
+  CustomData_merge(&mesh->edge_data, &dm->edgeData, cddata_masks.emask, mesh->edges_num);
   CustomData_merge(&mesh->fdata_legacy,
                    &dm->faceData,
                    cddata_masks.fmask | CD_MASK_ORIGINDEX,
                    0 /* `mesh->totface` */);
-  CustomData_merge(&mesh->loop_data, &dm->loopData, cddata_masks.lmask, mesh->totloop);
+  CustomData_merge(&mesh->corner_data, &dm->loopData, cddata_masks.lmask, mesh->corners_num);
   CustomData_merge(&mesh->face_data, &dm->polyData, cddata_masks.pmask, mesh->faces_num);
 
   cddm->vert_positions = static_cast<float(*)[3]>(CustomData_get_layer_named_for_write(
-      &dm->vertData, CD_PROP_FLOAT3, "position", mesh->totvert));
-  cddm->medge = static_cast<vec2i *>(CustomData_get_layer_named_for_write(
-      &dm->edgeData, CD_PROP_INT32_2D, ".edge_verts", mesh->totedge));
+      &dm->vertData, CD_PROP_FLOAT3, "position", mesh->verts_num));
+  cddm->medge = static_cast<blender::int2 *>(CustomData_get_layer_named_for_write(
+      &dm->edgeData, CD_PROP_INT32_2D, ".edge_verts", mesh->edges_num));
   cddm->corner_verts = static_cast<int *>(CustomData_get_layer_named_for_write(
-      &dm->loopData, CD_PROP_INT32, ".corner_vert", mesh->totloop));
+      &dm->loopData, CD_PROP_INT32, ".corner_vert", mesh->corners_num));
   cddm->corner_edges = static_cast<int *>(CustomData_get_layer_named_for_write(
-      &dm->loopData, CD_PROP_INT32, ".corner_edge", mesh->totloop));
+      &dm->loopData, CD_PROP_INT32, ".corner_edge", mesh->corners_num));
   dm->face_offsets = static_cast<int *>(MEM_dupallocN(mesh->face_offset_indices));
 #if 0
   cddm->mface = CustomData_get_layer(&dm->faceData, CD_MFACE);

@@ -21,7 +21,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_armature_types.h"
 #include "DNA_collection_types.h"
@@ -30,7 +30,6 @@
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
@@ -38,33 +37,33 @@
 #include "DNA_vfont_types.h"
 #include "DNA_workspace_types.h"
 
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf_types.hh"
 
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.hh"
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_editlattice.h"
 #include "BKE_editmesh.hh"
 #include "BKE_effect.h"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_image.h"
 #include "BKE_lattice.hh"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_material.h"
-#include "BKE_mball.h"
+#include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_softbody.h"
 #include "BKE_workspace.h"
 
@@ -101,10 +100,12 @@
 
 #include "WM_api.hh"
 #include "WM_message.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "object_intern.h" /* own include */
+
+using blender::Vector;
 
 static CLG_LogRef LOG = {"ed.object.edit"};
 
@@ -134,10 +135,8 @@ Object *ED_object_active_context(const bContext *C)
   return ob;
 }
 
-Object **ED_object_array_in_mode_or_selected(bContext *C,
-                                             bool (*filter_fn)(const Object *ob, void *user_data),
-                                             void *filter_user_data,
-                                             uint *r_objects_len)
+Vector<Object *> ED_object_array_in_mode_or_selected(
+    bContext *C, bool (*filter_fn)(const Object *ob, void *user_data), void *filter_user_data)
 {
   ScrArea *area = CTX_wm_area(C);
   const Scene *scene = CTX_data_scene(C);
@@ -148,7 +147,6 @@ Object **ED_object_array_in_mode_or_selected(bContext *C,
   const bool use_objects_in_mode = (ob_active != nullptr) &&
                                    (ob_active->mode & (OB_MODE_EDIT | OB_MODE_POSE));
   const eSpace_Type space_type = area ? eSpace_Type(area->spacetype) : SPACE_EMPTY;
-  Object **objects;
 
   Object *ob = nullptr;
   bool use_ob = true;
@@ -186,37 +184,28 @@ Object **ED_object_array_in_mode_or_selected(bContext *C,
     if ((ob != nullptr) && !filter_fn(ob, filter_user_data)) {
       ob = nullptr;
     }
-    *r_objects_len = (ob != nullptr) ? 1 : 0;
-    objects = static_cast<Object **>(MEM_mallocN(sizeof(*objects) * *r_objects_len, __func__));
-    if (ob != nullptr) {
-      objects[0] = ob;
-    }
+    return ob ? Vector<Object *>({ob}) : Vector<Object *>();
   }
-  else {
-    const View3D *v3d = (space_type == SPACE_VIEW3D) ?
-                            static_cast<const View3D *>(area->spacedata.first) :
-                            nullptr;
-    /* When in a mode that supports multiple active objects, use "objects in mode"
-     * instead of the object's selection. */
-    if (use_objects_in_mode) {
-      ObjectsInModeParams params = {0};
-      params.object_mode = ob_active->mode;
-      params.no_dup_data = true;
-      params.filter_fn = filter_fn;
-      params.filter_userdata = filter_user_data;
-      objects = BKE_view_layer_array_from_objects_in_mode_params(
-          scene, view_layer, v3d, r_objects_len, &params);
-    }
-    else {
-      ObjectsInViewLayerParams params{};
-      params.no_dup_data = true;
-      params.filter_fn = filter_fn;
-      params.filter_userdata = filter_user_data;
-      objects = BKE_view_layer_array_selected_objects_params(
-          view_layer, v3d, r_objects_len, &params);
-    }
+  const View3D *v3d = (space_type == SPACE_VIEW3D) ?
+                          static_cast<const View3D *>(area->spacedata.first) :
+                          nullptr;
+
+  /* When in a mode that supports multiple active objects, use "objects in mode"
+   * instead of the object's selection. */
+  if (use_objects_in_mode) {
+    ObjectsInModeParams params = {0};
+    params.object_mode = ob_active->mode;
+    params.no_dup_data = true;
+    params.filter_fn = filter_fn;
+    params.filter_userdata = filter_user_data;
+    return BKE_view_layer_array_from_objects_in_mode_params(scene, view_layer, v3d, &params);
   }
-  return objects;
+
+  ObjectsInViewLayerParams params{};
+  params.no_dup_data = true;
+  params.filter_fn = filter_fn;
+  params.filter_userdata = filter_user_data;
+  return BKE_view_layer_array_selected_objects_params(view_layer, v3d, &params);
 }
 
 /** \} */
@@ -416,7 +405,7 @@ static int object_hide_collection_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
     if (toggle) {
-      lc->local_collections_bits ^= v3d->local_collections_uuid;
+      lc->local_collections_bits ^= v3d->local_collections_uid;
       BKE_layer_collection_local_sync(scene, view_layer, v3d);
     }
     else {
@@ -536,17 +525,17 @@ void OBJECT_OT_hide_collection(wmOperatorType *ot)
 /** \name Toggle Edit-Mode Operator
  * \{ */
 
-static bool mesh_needs_keyindex(Main *bmain, const Mesh *me)
+static bool mesh_needs_keyindex(Main *bmain, const Mesh *mesh)
 {
-  if (me->key) {
+  if (mesh->key) {
     return false; /* will be added */
   }
 
   LISTBASE_FOREACH (const Object *, ob, &bmain->objects) {
-    if ((ob->parent) && (ob->parent->data == me) && ELEM(ob->partype, PARVERT1, PARVERT3)) {
+    if ((ob->parent) && (ob->parent->data == mesh) && ELEM(ob->partype, PARVERT1, PARVERT3)) {
       return true;
     }
-    if (ob->data == me) {
+    if (ob->data == mesh) {
       LISTBASE_FOREACH (const ModifierData *, md, &ob->modifiers) {
         if (md->type == eModifierType_Hook) {
           return true;
@@ -575,17 +564,17 @@ static bool ED_object_editmode_load_free_ex(Main *bmain,
   }
 
   if (obedit->type == OB_MESH) {
-    Mesh *me = static_cast<Mesh *>(obedit->data);
-    if (me->edit_mesh == nullptr) {
+    Mesh *mesh = static_cast<Mesh *>(obedit->data);
+    if (mesh->edit_mesh == nullptr) {
       return false;
     }
 
-    if (me->edit_mesh->bm->totvert > MESH_MAX_VERTS) {
+    if (mesh->edit_mesh->bm->totvert > MESH_MAX_VERTS) {
       /* This used to be warned int the UI, we could warn again although it's quite rare. */
       CLOG_WARN(&LOG,
                 "Too many vertices for mesh '%s' (%d)",
-                me->id.name + 2,
-                me->edit_mesh->bm->totvert);
+                mesh->id.name + 2,
+                mesh->edit_mesh->bm->totvert);
       return false;
     }
 
@@ -594,9 +583,9 @@ static bool ED_object_editmode_load_free_ex(Main *bmain,
     }
 
     if (free_data) {
-      EDBM_mesh_free_data(me->edit_mesh);
-      MEM_freeN(me->edit_mesh);
-      me->edit_mesh = nullptr;
+      EDBM_mesh_free_data(mesh->edit_mesh);
+      MEM_freeN(mesh->edit_mesh);
+      mesh->edit_mesh = nullptr;
     }
     /* will be recalculated as needed. */
     {
@@ -829,7 +818,7 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
 
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     if (LIKELY(em)) {
-      BKE_editmesh_looptri_and_normals_calc(em);
+      BKE_editmesh_looptris_and_normals_calc(em);
     }
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_MESH, nullptr);
@@ -1275,13 +1264,13 @@ void ED_objects_recalculate_paths(bContext *C,
   BLI_freelistN(&targets);
 
   if (range != OBJECT_PATH_CALC_RANGE_CURRENT_FRAME) {
-    /* Tag objects for copy on write - so paths will draw/redraw
+    /* Tag objects for copy-on-eval - so paths will draw/redraw
      * For currently frame only we update evaluated object directly. */
     LISTBASE_FOREACH (LinkData *, link, ld_objects) {
       Object *ob = static_cast<Object *>(link->data);
 
       if (has_object_motion_paths(ob) || has_pose_motion_paths(ob)) {
-        DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+        DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
       }
     }
   }
@@ -1487,8 +1476,8 @@ static void object_clear_mpath(Object *ob)
     ob->mpath = nullptr;
     ob->avs.path_bakeflag &= ~MOTIONPATH_BAKE_HAS_PATHS;
 
-    /* tag object for copy on write - so removed paths don't still show */
-    DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+    /* tag object for copy-on-eval - so removed paths don't still show */
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
   }
 }
 
@@ -1566,6 +1555,7 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot)
 
 static int shade_smooth_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender;
   const bool use_smooth = STREQ(op->idname, "OBJECT_OT_shade_smooth");
   const bool use_smooth_by_angle = STREQ(op->idname, "OBJECT_OT_shade_smooth_by_angle");
   bool changed_multi = false;
@@ -1616,12 +1606,12 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
 
     bool changed = false;
     if (ob->type == OB_MESH) {
-      BKE_mesh_smooth_flag_set(static_cast<Mesh *>(ob->data), use_smooth || use_smooth_by_angle);
-      if (use_smooth || use_smooth_by_angle) {
-        if (use_smooth_by_angle) {
-          const float angle = RNA_float_get(op->ptr, "angle");
-          BKE_mesh_sharp_edges_set_from_angle(static_cast<Mesh *>(ob->data), angle);
-        }
+      Mesh &mesh = *static_cast<Mesh *>(ob->data);
+      const bool keep_sharp_edges = RNA_boolean_get(op->ptr, "keep_sharp_edges");
+      bke::mesh_smooth_set(mesh, use_smooth || use_smooth_by_angle, keep_sharp_edges);
+      if (use_smooth_by_angle) {
+        const float angle = RNA_float_get(op->ptr, "angle");
+        bke::mesh_sharp_edges_set_from_angle(mesh, angle, keep_sharp_edges);
       }
       BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
       changed = true;
@@ -1671,7 +1661,7 @@ void OBJECT_OT_shade_flat(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Shade Flat";
-  ot->description = "Render and display faces uniform, using Face Normals";
+  ot->description = "Render and display faces uniform, using face normals";
   ot->idname = "OBJECT_OT_shade_flat";
 
   /* api callbacks */
@@ -1680,13 +1670,19 @@ void OBJECT_OT_shade_flat(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "keep_sharp_edges",
+                  true,
+                  "Keep Sharp Edges",
+                  "Don't remove sharp edges, which are redundant with faces shaded smooth");
 }
 
 void OBJECT_OT_shade_smooth(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Shade Smooth";
-  ot->description = "Render and display faces smooth, using interpolated Vertex Normals";
+  ot->description = "Render and display faces smooth, using interpolated vertex normals";
   ot->idname = "OBJECT_OT_shade_smooth";
 
   /* api callbacks */
@@ -1695,6 +1691,12 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "keep_sharp_edges",
+                  true,
+                  "Keep Sharp Edges",
+                  "Don't remove sharp edges. Tagged edges will remain sharp");
 }
 
 void OBJECT_OT_shade_smooth_by_angle(wmOperatorType *ot)
@@ -1714,6 +1716,12 @@ void OBJECT_OT_shade_smooth_by_angle(wmOperatorType *ot)
   RNA_def_property_float_default(prop, DEG2RADF(30.0f));
   RNA_def_property_ui_text(
       prop, "Angle", "Maximum angle between face normals that will be considered as smooth");
+
+  RNA_def_boolean(ot->srna,
+                  "keep_sharp_edges",
+                  true,
+                  "Keep Sharp Edges",
+                  "Only add sharp edges instead of clearing existing tags first");
 }
 
 /** \} */
@@ -1967,7 +1975,8 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
                               nullptr;
 
   if ((single_object != nullptr) && is_link &&
-      BKE_collection_has_object(collection, single_object)) {
+      BKE_collection_has_object(collection, single_object))
+  {
     BKE_reportf(op->reports,
                 RPT_ERROR,
                 "%s already in %s",
@@ -2017,7 +2026,7 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
   }
 
   DEG_relations_tag_update(bmain);
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE | ID_RECALC_SELECT);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
 
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);

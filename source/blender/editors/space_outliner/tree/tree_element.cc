@@ -10,13 +10,10 @@
 #include <string>
 #include <string_view>
 
-#include "DNA_anim_types.h"
 #include "DNA_listBase.h"
 #include "DNA_space_types.h"
 
 #include "UI_resources.hh"
-
-#include "BLT_translation.h"
 
 #include "tree_display.hh"
 #include "tree_element_anim_data.hh"
@@ -198,7 +195,9 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
           legacy_te, *reinterpret_cast<bArmature *>(owner_id));
     case TSE_BONE_COLLECTION:
       return std::make_unique<TreeElementBoneCollection>(
-          legacy_te, *static_cast<BoneCollection *>(create_data));
+          legacy_te,
+          *reinterpret_cast<bArmature *>(owner_id),
+          *static_cast<BoneCollection *>(create_data));
 
     default:
       break;

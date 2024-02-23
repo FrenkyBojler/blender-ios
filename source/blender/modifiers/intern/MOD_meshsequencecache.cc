@@ -13,7 +13,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_cachefile_types.h"
 #include "DNA_defaults.h"
@@ -25,21 +25,15 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_cachefile.h"
-#include "BKE_context.hh"
-#include "BKE_lib_query.h"
+#include "BKE_cachefile.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_object.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
-
-#include "BLO_read_write.hh"
 
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
@@ -50,8 +44,7 @@
 #include "MOD_ui_common.hh"
 
 #if defined(WITH_USD) || defined(WITH_ALEMBIC)
-#  include "BKE_global.h"
-#  include "BKE_lib_id.h"
+#  include "BKE_lib_id.hh"
 #endif
 
 #ifdef WITH_ALEMBIC
@@ -59,7 +52,7 @@
 #endif
 
 #ifdef WITH_USD
-#  include "usd.h"
+#  include "usd.hh"
 #endif
 
 using blender::float3;
@@ -136,7 +129,9 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
       break;
     case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
-      if (!USD_mesh_topology_changed(mcmd->reader, ctx->object, mesh, time, err_str)) {
+      if (!blender::io::usd::USD_mesh_topology_changed(
+              mcmd->reader, ctx->object, mesh, time, err_str))
+      {
         return true;
       }
 #  endif
@@ -174,7 +169,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   MeshSeqCacheModifierData *mcmd = reinterpret_cast<MeshSeqCacheModifierData *>(md);
 
   /* Only used to check whether we are operating on org data or not... */
-  Mesh *me = (ctx->object->type == OB_MESH) ? static_cast<Mesh *>(ctx->object->data) : nullptr;
+  Mesh *object_mesh = (ctx->object->type == OB_MESH) ? static_cast<Mesh *>(ctx->object->data) :
+                                                       nullptr;
   Mesh *org_mesh = mesh;
 
   Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
@@ -205,17 +201,17 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     return mesh;
   }
 
-  if (me != nullptr) {
+  if (object_mesh != nullptr) {
     const Span<float3> mesh_positions = mesh->vert_positions();
     const Span<blender::int2> mesh_edges = mesh->edges();
     const blender::OffsetIndices mesh_faces = mesh->faces();
-    const Span<float3> me_positions = me->vert_positions();
-    const Span<blender::int2> me_edges = me->edges();
-    const blender::OffsetIndices me_faces = me->faces();
+    const Span<float3> me_positions = object_mesh->vert_positions();
+    const Span<blender::int2> me_edges = object_mesh->edges();
+    const blender::OffsetIndices me_faces = object_mesh->faces();
 
     /* TODO(sybren+bastien): possibly check relevant custom data layers (UV/color depending on
      * flags) and duplicate those too.
-     * XXX(Hans): This probably isn't true anymore with various CoW improvements, etc. */
+     * XXX(Hans): This probably isn't true anymore with various copy-on-eval improvements, etc. */
     if ((me_positions.data() == mesh_positions.data()) || (me_edges.data() == mesh_edges.data()) ||
         (me_faces.data() == mesh_faces.data()))
     {
@@ -253,8 +249,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
     case CACHEFILE_TYPE_USD: {
 #  ifdef WITH_USD
-      const USDMeshReadParams params = create_mesh_read_params(time * FPS, mcmd->read_flag);
-      result = USD_read_mesh(mcmd->reader, ctx->object, mesh, params, &err_str);
+      const blender::io::usd::USDMeshReadParams params = blender::io::usd::create_mesh_read_params(
+          time * FPS, mcmd->read_flag);
+      result = blender::io::usd::USD_read_mesh(mcmd->reader, ctx->object, mesh, params, &err_str);
 #  endif
       break;
     }
@@ -461,4 +458,5 @@ ModifierTypeInfo modifierType_MeshSequenceCache = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

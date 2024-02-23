@@ -14,23 +14,18 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_context.hh"
-
 #include "BIF_glutil.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "GPU_context.h"
 #include "GPU_immediate.h"
-#include "GPU_matrix.h"
 #include "GPU_texture.h"
 
 #ifdef __APPLE__
 #  include "GPU_state.h"
 #endif
-
-#include "UI_interface.hh"
 
 /* ******************************************** */
 
@@ -232,7 +227,8 @@ void immDrawPixelsTexTiled_scaling_clipping(IMMDrawPixelsTexState *state,
 
       if (use_clipping) {
         if (rast_x + right * xzoom * scaleX < clip_min_x ||
-            rast_y + top * yzoom * scaleY < clip_min_y) {
+            rast_y + top * yzoom * scaleY < clip_min_y)
+        {
           continue;
         }
         if (rast_x + left * xzoom > clip_max_x || rast_y + bottom * yzoom > clip_max_y) {

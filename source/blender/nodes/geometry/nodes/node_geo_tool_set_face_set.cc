@@ -4,7 +4,6 @@
 
 #include "BKE_mesh.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -45,7 +44,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       else {
         bke::try_capture_field_on_geometry(geometry.get_component_for_write<MeshComponent>(),
                                            ".sculpt_face_set",
-                                           ATTR_DOMAIN_FACE,
+                                           AttrDomain::Face,
                                            selection,
                                            face_set);
       }

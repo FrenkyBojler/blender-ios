@@ -8,7 +8,6 @@ set(INC
   ../../blenkernel
   ../../blenloader
   ../../blentranslation
-  ../../depsgraph
   ../../gpu
   ../../makesrna
   ../../windowmanager
@@ -39,7 +38,7 @@ set(SRC
   pose_transform.cc
   pose_utils.cc
 
-  armature_intern.h
+  armature_intern.hh
   meshlaplacian.h
 )
 
@@ -48,6 +47,7 @@ set(LIB
   PRIVATE bf::blenfont
   bf_blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc

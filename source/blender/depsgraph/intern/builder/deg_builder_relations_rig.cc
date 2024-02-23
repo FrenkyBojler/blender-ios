@@ -29,7 +29,7 @@
 #include "BKE_action.h"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 
 #include "RNA_prototypes.h"
 
@@ -95,10 +95,12 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
     if (data->tar != object) {
       ComponentKey target_key(&data->tar->id, NodeType::TRANSFORM);
       add_relation(target_key, target_dependent_key, con->name);
-      /* Ensure target CoW is ready by the time IK tree is built just in case. */
-      ComponentKey target_cow_key(&data->tar->id, NodeType::COPY_ON_WRITE);
-      add_relation(
-          target_cow_key, init_ik_key, "IK Target CoW -> Init IK Tree", RELATION_CHECK_BEFORE_ADD);
+      /* Ensure target evaluated copy is ready by the time IK tree is built just in case. */
+      ComponentKey target_cow_key(&data->tar->id, NodeType::COPY_ON_EVAL);
+      add_relation(target_cow_key,
+                   init_ik_key,
+                   "IK Target Copy-on-Eval -> Init IK Tree",
+                   RELATION_CHECK_BEFORE_ADD);
     }
     /* Subtarget references: */
     if ((data->tar->type == OB_ARMATURE) && (data->subtarget[0])) {
@@ -128,10 +130,12 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
     if (data->poletar != object) {
       ComponentKey target_key(&data->poletar->id, NodeType::TRANSFORM);
       add_relation(target_key, target_dependent_key, con->name);
-      /* Ensure target CoW is ready by the time IK tree is built just in case. */
-      ComponentKey target_cow_key(&data->poletar->id, NodeType::COPY_ON_WRITE);
-      add_relation(
-          target_cow_key, init_ik_key, "IK Target CoW -> Init IK Tree", RELATION_CHECK_BEFORE_ADD);
+      /* Ensure target evaluated copy is ready by the time IK tree is built just in case. */
+      ComponentKey target_cow_key(&data->poletar->id, NodeType::COPY_ON_EVAL);
+      add_relation(target_cow_key,
+                   init_ik_key,
+                   "IK Target Copy-on-Eval -> Init IK Tree",
+                   RELATION_CHECK_BEFORE_ADD);
     }
     /* Subtarget references: */
     if ((data->poletar->type == OB_ARMATURE) && (data->polesubtarget[0])) {
@@ -306,6 +310,11 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
   add_relation(armature_key, pose_init_key, "Data dependency");
   /* Run cleanup even when there are no bones. */
   add_relation(pose_init_key, pose_cleanup_key, "Init -> Cleanup");
+  /* Relation to the instance, so that instancer can use pose of this object. */
+  add_relation(ComponentKey(&object->id, NodeType::EVAL_POSE),
+               OperationKey{&object->id, NodeType::INSTANCING, OperationCode::INSTANCE},
+               "Transform -> Instance");
+
   /* IK Solvers.
    *
    * - These require separate processing steps are pose-level to be executed

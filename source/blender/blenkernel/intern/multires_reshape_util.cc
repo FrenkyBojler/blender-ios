@@ -14,21 +14,17 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_math_matrix.h"
 #include "BLI_task.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_multires.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subdiv_eval.hh"
-#include "BKE_subdiv_foreach.hh"
-#include "BKE_subdiv_mesh.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -109,9 +105,9 @@ static void context_init_grid_pointers(MultiresReshapeContext *reshape_context)
 {
   Mesh *base_mesh = reshape_context->base_mesh;
   reshape_context->mdisps = static_cast<MDisps *>(
-      CustomData_get_layer_for_write(&base_mesh->loop_data, CD_MDISPS, base_mesh->totloop));
+      CustomData_get_layer_for_write(&base_mesh->corner_data, CD_MDISPS, base_mesh->corners_num));
   reshape_context->grid_paint_masks = static_cast<GridPaintMask *>(CustomData_get_layer_for_write(
-      &base_mesh->loop_data, CD_GRID_PAINT_MASK, base_mesh->totloop));
+      &base_mesh->corner_data, CD_GRID_PAINT_MASK, base_mesh->corners_num));
 }
 
 static void context_init_commoon(MultiresReshapeContext *reshape_context)
@@ -187,6 +183,7 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
                                                  MultiresModifierData *mmd)
 {
   using namespace blender;
+  using namespace blender::bke;
   context_zero(reshape_context);
 
   const bool use_render_params = false;
@@ -216,8 +213,8 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   reshape_context->top.grid_size = BKE_subdiv_grid_size_from_level(reshape_context->top.level);
 
   const bke::AttributeAccessor attributes = base_mesh->attributes();
-  reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", ATTR_DOMAIN_POINT);
-  reshape_context->cd_edge_crease = *attributes.lookup<float>("crease_edge", ATTR_DOMAIN_EDGE);
+  reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", AttrDomain::Point);
+  reshape_context->cd_edge_crease = *attributes.lookup<float>("crease_edge", AttrDomain::Edge);
 
   context_init_commoon(reshape_context);
 
@@ -275,6 +272,7 @@ bool multires_reshape_context_create_from_subdiv(MultiresReshapeContext *reshape
                                                  int top_level)
 {
   using namespace blender;
+  using namespace blender::bke;
   context_zero(reshape_context);
 
   Mesh *base_mesh = (Mesh *)object->data;
@@ -288,7 +286,7 @@ bool multires_reshape_context_create_from_subdiv(MultiresReshapeContext *reshape
   reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   const bke::AttributeAccessor attributes = base_mesh->attributes();
-  reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", ATTR_DOMAIN_POINT);
+  reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", AttrDomain::Point);
 
   reshape_context->subdiv = subdiv;
   reshape_context->need_free_subdiv = false;
@@ -573,9 +571,9 @@ static void ensure_displacement_grid(MDisps *displacement_grid, const int level)
 
 static void ensure_displacement_grids(Mesh *mesh, const int grid_level)
 {
-  const int num_grids = mesh->totloop;
+  const int num_grids = mesh->corners_num;
   MDisps *mdisps = static_cast<MDisps *>(
-      CustomData_get_layer_for_write(&mesh->loop_data, CD_MDISPS, mesh->totloop));
+      CustomData_get_layer_for_write(&mesh->corner_data, CD_MDISPS, mesh->corners_num));
   for (int grid_index = 0; grid_index < num_grids; grid_index++) {
     ensure_displacement_grid(&mdisps[grid_index], grid_level);
   }
@@ -584,11 +582,11 @@ static void ensure_displacement_grids(Mesh *mesh, const int grid_level)
 static void ensure_mask_grids(Mesh *mesh, const int level)
 {
   GridPaintMask *grid_paint_masks = static_cast<GridPaintMask *>(
-      CustomData_get_layer_for_write(&mesh->loop_data, CD_GRID_PAINT_MASK, mesh->totloop));
+      CustomData_get_layer_for_write(&mesh->corner_data, CD_GRID_PAINT_MASK, mesh->corners_num));
   if (grid_paint_masks == nullptr) {
     return;
   }
-  const int num_grids = mesh->totloop;
+  const int num_grids = mesh->corners_num;
   const int grid_size = BKE_subdiv_grid_size_from_level(level);
   const int grid_area = grid_size * grid_size;
   for (int grid_index = 0; grid_index < num_grids; grid_index++) {

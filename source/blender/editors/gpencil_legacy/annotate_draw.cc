@@ -20,11 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_api.h"
-#include "BLT_translation.h"
-
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -32,7 +28,7 @@
 #include "DNA_view3d_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_gpencil_legacy.h"
 
 #include "WM_api.hh"
@@ -43,11 +39,7 @@
 
 #include "ED_gpencil_legacy.hh"
 #include "ED_screen.hh"
-#include "ED_space_api.hh"
 #include "ED_view3d.hh"
-
-#include "UI_interface_icons.hh"
-#include "UI_resources.hh"
 
 /* ************************************************** */
 /* GREASE PENCIL DRAWING */
@@ -211,7 +203,8 @@ static void annotation_draw_stroke_buffer(bGPdata *gps,
   if (totpoints > 1) {
     /* Draw ending arrow stroke. */
     if ((sflag & GP_STROKE_USE_ARROW_END) &&
-        (runtime.arrow_end_style != GP_STROKE_ARROWSTYLE_NONE)) {
+        (runtime.arrow_end_style != GP_STROKE_ARROWSTYLE_NONE))
+    {
       float end[2];
       copy_v2_v2(end, points[1].m_xy);
       annotation_draw_stroke_arrow_buffer(pos, end, runtime.arrow_end, runtime.arrow_end_style);
@@ -703,7 +696,8 @@ static void annotation_draw_data_layers(
      * that is being edited. (Stroke buffer is currently stored in gp-data)
      */
     if (ED_gpencil_session_active() && (gpl->flag & GP_LAYER_ACTIVE) &&
-        (gpf->flag & GP_FRAME_PAINT)) {
+        (gpf->flag & GP_FRAME_PAINT))
+    {
       /* Buffer stroke needs to be drawn with a different line-style
        * to help differentiate them from normal strokes.
        *

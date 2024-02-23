@@ -8,11 +8,9 @@
 
 #include "DNA_texture_types.h"
 
-#include "BKE_colorband.h"
+#include "BKE_colorband.hh"
 
 #include "BLI_color.hh"
-
-#include "FN_multi_function_builder.hh"
 
 #include "NOD_multi_function.hh"
 

@@ -6,18 +6,18 @@
  * \ingroup bli
  */
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/types.h>
 
 #ifndef WIN32
 #  include <dirent.h>
 #endif
 
-#include <string.h>
+#include <cstring>
+#include <ctime>
 #include <sys/stat.h>
-#include <time.h>
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -41,8 +41,6 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
-
-#include "../imbuf/IMB_imbuf.h"
 
 /*
  * Ordering function for sorting lists of files/directories. Returns -1 if

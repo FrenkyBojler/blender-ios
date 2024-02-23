@@ -6,19 +6,20 @@
  * \ingroup draw_engine
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "UI_resources.hh"
 
 #include "BLI_math_color.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.hh"
 
 #include "BKE_anim_path.h"
 #include "BKE_camera.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.hh"
-#include "BKE_global.h"
-#include "BKE_mball.h"
+#include "BKE_global.hh"
+#include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_movieclip.h"
@@ -47,7 +48,7 @@
 #include "overlay_private.hh"
 
 #include "draw_common.h"
-#include "draw_manager_text.h"
+#include "draw_manager_text.hh"
 
 void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
 {
@@ -341,7 +342,8 @@ void OVERLAY_empty_cache_populate(OVERLAY_Data *vedata, Object *ob)
     case OB_EMPTY_CONE:
     case OB_ARROWS:
       DRW_object_wire_theme_get(ob, view_layer, &color);
-      OVERLAY_empty_shape(cb, ob->object_to_world, ob->empty_drawsize, ob->empty_drawtype, color);
+      OVERLAY_empty_shape(
+          cb, ob->object_to_world().ptr(), ob->empty_drawsize, ob->empty_drawtype, color);
       break;
     case OB_EMPTY_IMAGE:
       OVERLAY_image_empty_cache_populate(vedata, ob);
@@ -355,34 +357,24 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
                            char boundtype,
                            bool around_origin)
 {
-  float center[3], size[3], tmp[4][4], final_mat[4][4];
+  using namespace blender;
+  float tmp[4][4], final_mat[4][4];
 
   if (ob->type == OB_MBALL && !BKE_mball_is_basis(ob)) {
     return;
   }
 
-  std::optional<BoundBox> bb = BKE_object_boundbox_get(ob);
-  BoundBox bb_local;
-  if (!bb) {
-    const float min[3] = {-1.0f, -1.0f, -1.0f}, max[3] = {1.0f, 1.0f, 1.0f};
-    BKE_boundbox_init_from_minmax(&bb_local, min, max);
-    bb.emplace(bb_local);
-  }
+  const Bounds<float3> bounds = BKE_object_boundbox_get(ob).value_or(
+      Bounds(float3(-1.0f), float3(1.0f)));
 
-  BKE_boundbox_calc_size_aabb(&*bb, size);
-
-  if (around_origin) {
-    zero_v3(center);
-  }
-  else {
-    BKE_boundbox_calc_center_aabb(&*bb, center);
-  }
+  float3 size = (bounds.max - bounds.min) * 0.5f;
+  const float3 center = around_origin ? float3(0) : math::midpoint(bounds.min, bounds.max);
 
   switch (boundtype) {
     case OB_BOUND_BOX:
       size_to_mat4(tmp, size);
       copy_v3_v3(tmp[3], center);
-      mul_m4_m4m4(tmp, ob->object_to_world, tmp);
+      mul_m4_m4m4(tmp, ob->object_to_world().ptr(), tmp);
       DRW_buffer_add_entry(cb->empty_cube, color, tmp);
       break;
     case OB_BOUND_SPHERE:
@@ -390,7 +382,7 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
       size[1] = size[2] = size[0];
       size_to_mat4(tmp, size);
       copy_v3_v3(tmp[3], center);
-      mul_m4_m4m4(tmp, ob->object_to_world, tmp);
+      mul_m4_m4m4(tmp, ob->object_to_world().ptr(), tmp);
       DRW_buffer_add_entry(cb->empty_sphere, color, tmp);
       break;
     case OB_BOUND_CYLINDER:
@@ -398,7 +390,7 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
       size[1] = size[0];
       size_to_mat4(tmp, size);
       copy_v3_v3(tmp[3], center);
-      mul_m4_m4m4(tmp, ob->object_to_world, tmp);
+      mul_m4_m4m4(tmp, ob->object_to_world().ptr(), tmp);
       DRW_buffer_add_entry(cb->empty_cylinder, color, tmp);
       break;
     case OB_BOUND_CONE:
@@ -409,7 +401,7 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
       /* Cone batch has base at 0 and is pointing towards +Y. */
       swap_v3_v3(tmp[1], tmp[2]);
       tmp[3][2] -= size[2];
-      mul_m4_m4m4(tmp, ob->object_to_world, tmp);
+      mul_m4_m4m4(tmp, ob->object_to_world().ptr(), tmp);
       DRW_buffer_add_entry(cb->empty_cone, color, tmp);
       break;
     case OB_BOUND_CAPSULE:
@@ -418,14 +410,14 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
       scale_m4_fl(tmp, size[0]);
       copy_v2_v2(tmp[3], center);
       tmp[3][2] = center[2] + max_ff(0.0f, size[2] - size[0]);
-      mul_m4_m4m4(final_mat, ob->object_to_world, tmp);
+      mul_m4_m4m4(final_mat, ob->object_to_world().ptr(), tmp);
       DRW_buffer_add_entry(cb->empty_capsule_cap, color, final_mat);
       negate_v3(tmp[2]);
       tmp[3][2] = center[2] - max_ff(0.0f, size[2] - size[0]);
-      mul_m4_m4m4(final_mat, ob->object_to_world, tmp);
+      mul_m4_m4m4(final_mat, ob->object_to_world().ptr(), tmp);
       DRW_buffer_add_entry(cb->empty_capsule_cap, color, final_mat);
       tmp[2][2] = max_ff(0.0f, size[2] * 2.0f - size[0] * 2.0f);
-      mul_m4_m4m4(final_mat, ob->object_to_world, tmp);
+      mul_m4_m4m4(final_mat, ob->object_to_world().ptr(), tmp);
       DRW_buffer_add_entry(cb->empty_capsule_body, color, final_mat);
       break;
   }
@@ -499,7 +491,7 @@ static void OVERLAY_texture_space(OVERLAY_ExtraCallBuffers *cb, Object *ob, cons
     unit_m4(mat);
   }
 
-  mul_m4_m4m4(mat, ob->object_to_world, mat);
+  mul_m4_m4m4(mat, ob->object_to_world().ptr(), mat);
 
   DRW_buffer_add_entry(cb->empty_cube, color, mat);
 }
@@ -521,7 +513,7 @@ static void OVERLAY_forcefield(OVERLAY_ExtraCallBuffers *cb, Object *ob, ViewLay
     };
   } instdata;
 
-  copy_m4_m4(instdata.mat, ob->object_to_world);
+  copy_m4_m4(instdata.mat, ob->object_to_world().ptr());
   instdata.size_x = instdata.size_y = instdata.size_z = ob->empty_drawsize;
 
   switch (pd->forcefield) {
@@ -541,16 +533,16 @@ static void OVERLAY_forcefield(OVERLAY_ExtraCallBuffers *cb, Object *ob, ViewLay
         instdata.size_x = instdata.size_y = instdata.size_z = pd->f_strength;
         float pos[4];
         BKE_where_on_path(ob, 0.0f, pos, nullptr, nullptr, nullptr, nullptr);
-        copy_v3_v3(instdata.pos, ob->object_to_world[3]);
+        copy_v3_v3(instdata.pos, ob->object_to_world().location());
         translate_m4(instdata.mat, pos[0], pos[1], pos[2]);
         DRW_buffer_add_entry(cb->field_curve, color, &instdata);
 
         BKE_where_on_path(ob, 1.0f, pos, nullptr, nullptr, nullptr, nullptr);
-        copy_v3_v3(instdata.pos, ob->object_to_world[3]);
+        copy_v3_v3(instdata.pos, ob->object_to_world().location());
         translate_m4(instdata.mat, pos[0], pos[1], pos[2]);
         DRW_buffer_add_entry(cb->field_sphere_limit, color, &instdata);
         /* Restore */
-        copy_v3_v3(instdata.pos, ob->object_to_world[3]);
+        copy_v3_v3(instdata.pos, ob->object_to_world().location());
       }
       break;
   }
@@ -636,7 +628,7 @@ void OVERLAY_light_cache_populate(OVERLAY_Data *vedata, Object *ob)
     };
   } instdata;
 
-  copy_m4_m4(instdata.mat, ob->object_to_world);
+  copy_m4_m4(instdata.mat, ob->object_to_world().ptr());
   /* FIXME / TODO: clip_end has no meaning nowadays.
    * In EEVEE, Only clip_sta is used shadow-mapping.
    * Clip end is computed automatically based on light power.
@@ -735,7 +727,7 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
     };
   } instdata;
 
-  copy_m4_m4(instdata.mat, ob->object_to_world);
+  copy_m4_m4(instdata.mat, ob->object_to_world().ptr());
 
   switch (prb->type) {
     case LIGHTPROBE_TYPE_SPHERE:
@@ -747,15 +739,15 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
       if (show_influence) {
         char shape = (prb->attenuation_type == LIGHTPROBE_SHAPE_BOX) ? OB_CUBE : OB_EMPTY_SPHERE;
         float f = 1.0f - prb->falloff;
-        OVERLAY_empty_shape(cb, ob->object_to_world, prb->distinf, shape, color_p);
-        OVERLAY_empty_shape(cb, ob->object_to_world, prb->distinf * f, shape, color_p);
+        OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), prb->distinf, shape, color_p);
+        OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), prb->distinf * f, shape, color_p);
       }
 
       if (show_parallax) {
         char shape = (prb->parallax_type == LIGHTPROBE_SHAPE_BOX) ? OB_CUBE : OB_EMPTY_SPHERE;
         float dist = ((prb->flag & LIGHTPROBE_FLAG_CUSTOM_PARALLAX) != 0) ? prb->distpar :
                                                                             prb->distinf;
-        OVERLAY_empty_shape(cb, ob->object_to_world, dist, shape, color_p);
+        OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), dist, shape, color_p);
       }
       break;
     case LIGHTPROBE_TYPE_VOLUME:
@@ -765,8 +757,9 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
       if (show_influence) {
         float f = 1.0f - prb->falloff;
-        OVERLAY_empty_shape(cb, ob->object_to_world, 1.0 + prb->distinf, OB_CUBE, color_p);
-        OVERLAY_empty_shape(cb, ob->object_to_world, 1.0 + prb->distinf * f, OB_CUBE, color_p);
+        OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), 1.0 + prb->distinf, OB_CUBE, color_p);
+        OVERLAY_empty_shape(
+            cb, ob->object_to_world().ptr(), 1.0 + prb->distinf * f, OB_CUBE, color_p);
       }
 
       /* Data dots */
@@ -804,7 +797,7 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
       zero_v3(instdata.mat[2]);
       DRW_buffer_add_entry(cb->empty_cube, color_p, &instdata);
 
-      normalize_m4_m4(instdata.mat, ob->object_to_world);
+      normalize_m4_m4(instdata.mat, ob->object_to_world().ptr());
       OVERLAY_empty_shape(cb, instdata.mat, ob->empty_drawsize, OB_SINGLE_ARROW, color_p);
       break;
   }
@@ -824,7 +817,7 @@ void OVERLAY_speaker_cache_populate(OVERLAY_Data *vedata, Object *ob)
   float *color_p;
   DRW_object_wire_theme_get(ob, view_layer, &color_p);
 
-  DRW_buffer_add_entry(cb->speaker, color_p, ob->object_to_world);
+  DRW_buffer_add_entry(cb->speaker, color_p, ob->object_to_world().ptr());
 }
 
 /** \} */
@@ -917,7 +910,7 @@ static void camera_view3d_reconstruction(
       float object_imat[4][4];
       invert_m4_m4(object_imat, object_mat);
 
-      mul_m4_m4m4(tracking_object_mat, ob->object_to_world, object_imat);
+      mul_m4_m4m4(tracking_object_mat, ob->object_to_world().ptr(), object_imat);
     }
 
     LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
@@ -1160,7 +1153,7 @@ void OVERLAY_camera_cache_populate(OVERLAY_Data *vedata, Object *ob)
   DRW_object_wire_theme_get(ob, view_layer, &color_p);
   copy_v4_v4(instdata.color, color_p);
 
-  normalize_m4_m4(instdata.mat, ob->object_to_world);
+  normalize_m4_m4(instdata.mat, ob->object_to_world().ptr());
 
   /* BKE_camera_multiview_model_matrix already accounts for scale, don't do it here. */
   if (is_selection_camera_stereo) {
@@ -1168,9 +1161,9 @@ void OVERLAY_camera_cache_populate(OVERLAY_Data *vedata, Object *ob)
   }
   else {
     copy_v3_fl3(scale,
-                len_v3(ob->object_to_world[0]),
-                len_v3(ob->object_to_world[1]),
-                len_v3(ob->object_to_world[2]));
+                len_v3(ob->object_to_world().ptr()[0]),
+                len_v3(ob->object_to_world().ptr()[1]),
+                len_v3(ob->object_to_world().ptr()[2]));
     /* Avoid division by 0. */
     if (ELEM(0.0f, scale[0], scale[1], scale[2])) {
       return;
@@ -1286,7 +1279,7 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
 
   if (ob->parent && (DRW_object_visibility_in_active_context(ob->parent) & OB_VISIBLE_SELF)) {
     float *parent_pos = ob->runtime->parent_display_origin;
-    OVERLAY_extra_line_dashed(cb, parent_pos, ob->object_to_world[3], relation_color);
+    OVERLAY_extra_line_dashed(cb, parent_pos, ob->object_to_world().location(), relation_color);
   }
 
   /* Drawing the hook lines. */
@@ -1294,9 +1287,10 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
     if (md->type == eModifierType_Hook) {
       HookModifierData *hmd = (HookModifierData *)md;
       float center[3];
-      mul_v3_m4v3(center, ob->object_to_world, hmd->cent);
+      mul_v3_m4v3(center, ob->object_to_world().ptr(), hmd->cent);
       if (hmd->object) {
-        OVERLAY_extra_line_dashed(cb, hmd->object->object_to_world[3], center, relation_color);
+        OVERLAY_extra_line_dashed(
+            cb, hmd->object->object_to_world().location(), center, relation_color);
       }
       OVERLAY_extra_point(cb, center, relation_color);
     }
@@ -1305,9 +1299,10 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
     if (md->type == eGpencilModifierType_Hook) {
       HookGpencilModifierData *hmd = (HookGpencilModifierData *)md;
       float center[3];
-      mul_v3_m4v3(center, ob->object_to_world, hmd->cent);
+      mul_v3_m4v3(center, ob->object_to_world().ptr(), hmd->cent);
       if (hmd->object) {
-        OVERLAY_extra_line_dashed(cb, hmd->object->object_to_world[3], center, relation_color);
+        OVERLAY_extra_line_dashed(
+            cb, hmd->object->object_to_world().location(), center, relation_color);
       }
       OVERLAY_extra_point(cb, center, relation_color);
     }
@@ -1317,12 +1312,16 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
     Object *rbc_ob1 = ob->rigidbody_constraint->ob1;
     Object *rbc_ob2 = ob->rigidbody_constraint->ob2;
     if (rbc_ob1 && (DRW_object_visibility_in_active_context(rbc_ob1) & OB_VISIBLE_SELF)) {
-      OVERLAY_extra_line_dashed(
-          cb, rbc_ob1->object_to_world[3], ob->object_to_world[3], relation_color);
+      OVERLAY_extra_line_dashed(cb,
+                                rbc_ob1->object_to_world().location(),
+                                ob->object_to_world().location(),
+                                relation_color);
     }
     if (rbc_ob2 && (DRW_object_visibility_in_active_context(rbc_ob2) & OB_VISIBLE_SELF)) {
-      OVERLAY_extra_line_dashed(
-          cb, rbc_ob2->object_to_world[3], ob->object_to_world[3], relation_color);
+      OVERLAY_extra_line_dashed(cb,
+                                rbc_ob2->object_to_world().location(),
+                                ob->object_to_world().location(),
+                                relation_color);
     }
   }
 
@@ -1349,8 +1348,10 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
         }
 
         if (camob) {
-          OVERLAY_extra_line_dashed(
-              cb, camob->object_to_world[3], ob->object_to_world[3], constraint_color);
+          OVERLAY_extra_line_dashed(cb,
+                                    camob->object_to_world().location(),
+                                    ob->object_to_world().location(),
+                                    constraint_color);
         }
       }
       else {
@@ -1371,7 +1372,8 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
             else {
               unit_m4(ct->matrix);
             }
-            OVERLAY_extra_line_dashed(cb, ct->matrix[3], ob->object_to_world[3], constraint_color);
+            OVERLAY_extra_line_dashed(
+                cb, ct->matrix[3], ob->object_to_world().location(), constraint_color);
           }
 
           BKE_constraint_targets_flush(curcon, &targets, true);
@@ -1428,7 +1430,7 @@ static void OVERLAY_volume_extra(OVERLAY_ExtraCallBuffers *cb,
     copy_v3_v3(voxel_cubemat[3], min);
     /* move small cube into the domain (otherwise its centered on vertex of domain object) */
     translate_m4(voxel_cubemat, 1.0f, 1.0f, 1.0f);
-    mul_m4_m4m4(voxel_cubemat, ob->object_to_world, voxel_cubemat);
+    mul_m4_m4m4(voxel_cubemat, ob->object_to_world().ptr(), voxel_cubemat);
 
     DRW_buffer_add_entry(cb->empty_cube, color, voxel_cubemat);
   }
@@ -1534,15 +1536,15 @@ static void OVERLAY_object_center(OVERLAY_ExtraCallBuffers *cb,
   const bool is_library = ID_REAL_USERS(&ob->id) > 1 || ID_IS_LINKED(ob);
   BKE_view_layer_synced_ensure(scene, view_layer);
   if (ob == BKE_view_layer_active_object_get(view_layer)) {
-    DRW_buffer_add_entry(cb->center_active, ob->object_to_world[3]);
+    DRW_buffer_add_entry(cb->center_active, ob->object_to_world().location());
   }
   else if (ob->base_flag & BASE_SELECTED) {
     DRWCallBuffer *cbuf = (is_library) ? cb->center_selected_lib : cb->center_selected;
-    DRW_buffer_add_entry(cbuf, ob->object_to_world[3]);
+    DRW_buffer_add_entry(cbuf, ob->object_to_world().location());
   }
   else if (pd->v3d_flag & V3D_DRAW_CENTERS) {
     DRWCallBuffer *cbuf = (is_library) ? cb->center_deselected_lib : cb->center_deselected;
-    DRW_buffer_add_entry(cbuf, ob->object_to_world[3]);
+    DRW_buffer_add_entry(cbuf, ob->object_to_world().location());
   }
 }
 
@@ -1554,7 +1556,7 @@ static void OVERLAY_object_name(Object *ob, int theme_id)
   UI_GetThemeColor4ubv(theme_id, color);
 
   DRW_text_cache_add(dt,
-                     ob->object_to_world[3],
+                     ob->object_to_world().location(),
                      ob->id.name + 2,
                      strlen(ob->id.name + 2),
                      10,
@@ -1613,7 +1615,7 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
   /* Helpers for when we're transforming origins. */
   if (draw_xform) {
     const float color_xform[4] = {0.15f, 0.15f, 0.15f, 0.7f};
-    DRW_buffer_add_entry(cb->origin_xform, color_xform, ob->object_to_world);
+    DRW_buffer_add_entry(cb->origin_xform, color_xform, ob->object_to_world().ptr());
   }
   /* don't show object extras in set's */
   if (!from_dupli) {
@@ -1633,7 +1635,7 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
       OVERLAY_collision(cb, ob, color);
     }
     if (ob->dtx & OB_AXIS) {
-      DRW_buffer_add_entry(cb->empty_axes, color, ob->object_to_world);
+      DRW_buffer_add_entry(cb->empty_axes, color, ob->object_to_world().ptr());
     }
     if (draw_volume) {
       OVERLAY_volume_extra(cb, vedata, ob, md, scene, color);

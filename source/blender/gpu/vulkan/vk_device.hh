@@ -104,6 +104,8 @@ class VKDevice : public NonCopyable {
   Vector<VkFramebuffer> discarded_frame_buffers_;
   Vector<VkImageView> discarded_image_views_;
 
+  std::string glsl_patch_;
+
  public:
   VkPhysicalDevice physical_device_get() const
   {
@@ -196,13 +198,16 @@ class VKDevice : public NonCopyable {
     return workarounds_;
   }
 
+  const char *glsl_patch_get() const;
+  void init_glsl_patch();
+
   /* -------------------------------------------------------------------- */
   /** \name Resource management
    * \{ */
 
   void context_register(VKContext &context);
   void context_unregister(VKContext &context);
-  const Vector<std::reference_wrapper<VKContext>> &contexts_get() const;
+  Span<std::reference_wrapper<VKContext>> contexts_get() const;
 
   const VKBuffer &dummy_buffer_get() const
   {

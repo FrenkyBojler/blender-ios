@@ -9,7 +9,7 @@
 #include <cstdio>
 
 #include "BKE_customdata.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 
@@ -94,7 +94,7 @@ void importer_main(Main *bmain,
 
   if (import_params.use_mesh_validate) {
     bool verbose_validate = false;
-#ifdef DEBUG
+#ifndef NDEBUG
     verbose_validate = true;
 #endif
     BKE_mesh_validate(mesh, verbose_validate, false);
@@ -127,7 +127,7 @@ void importer_main(Main *bmain,
   rescale_m4(obmat4x4, scale_vec);
   BKE_object_apply_mat4(obj, obmat4x4, true, false);
 
-  DEG_id_tag_update(&lc->collection->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&lc->collection->id, ID_RECALC_SYNC_TO_EVAL);
   int flags = ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION |
               ID_RECALC_BASE_FLAGS;
   DEG_id_tag_update_ex(bmain, &obj->id, flags);

@@ -26,7 +26,7 @@
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_matrix.h"
-#include "GPU_select.h"
+#include "GPU_select.hh"
 #include "GPU_state.h"
 
 #include "RNA_access.hh"
@@ -41,7 +41,6 @@
 #include "ED_view3d.hh"
 
 /* own includes */
-#include "../gizmo_geometry.h"
 #include "../gizmo_library_intern.h"
 
 #define MVAL_MAX_PX_DIST 12.0f
