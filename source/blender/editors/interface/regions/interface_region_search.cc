@@ -756,6 +756,9 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
     ui_searchbox_butrect(&rect, data, 0);
     ui_draw_menu_item(&data->fstyle,
                       &rect,
+                      &rect,
+                      zoom,
+                      use_unpadded,
                       IFACE_("No results found"),
                       0,
                       0,
@@ -1126,6 +1129,9 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
     ui_searchbox_butrect(&rect, data, 0);
     ui_draw_menu_item(&data->fstyle,
                       &rect,
+                      &rect,
+                      zoom,
+                      use_unpadded,
                       IFACE_("No results found"),
                       0,
                       0,
