@@ -15,6 +15,7 @@ set(INC
   ../../windowmanager
   ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
+  ../../tornavis
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -39,6 +40,7 @@ set(SRC
   bpy_app_timers.cc
   bpy_app_translations.cc
   bpy_app_usd.cc
+  bpy_app_tornavis.cc
   bpy_capi_utils.cc
   bpy_driver.cc
   bpy_gizmo_wrap.cc
@@ -86,6 +88,7 @@ set(SRC
   bpy_app_timers.h
   bpy_app_translations.h
   bpy_app_usd.h
+  bpy_app_tornavis.h
   bpy_capi_utils.h
   bpy_driver.h
   bpy_gizmo_wrap.h
@@ -128,6 +131,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   bf_python_gpu
+  tornavis
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
