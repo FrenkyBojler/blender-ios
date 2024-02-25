@@ -159,7 +159,6 @@ add_subdirectory(functions)
 add_subdirectory(makesdna)
 add_subdirectory(makesrna)
 add_subdirectory(compositor)
-add_subdirectory(tornavis)
 
 if(WITH_BLENDER_THUMBNAILER)
   add_subdirectory(blendthumb)
