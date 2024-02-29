@@ -288,6 +288,33 @@ void ED_operatormacros_mesh()
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 
+   ot = WM_operatortype_append_macro("MESH_OT_extrude_context_rotate",
+                                    "Extrude Region and Rotate",
+                                    "Extrude region together along the average normal",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_extrude_context");
+  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_rotate");
+  RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
+  RNA_boolean_set(otmacro->ptr, "mirror", false);
+
+  ot = WM_operatortype_append_macro("MESH_OT_extrude_context_trackball",
+                                    "Extrude Region and Rotate (Trackball)",
+                                    "Extrude region together along the average normal",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_extrude_context");
+  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_trackball");
+  RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
+  RNA_boolean_set(otmacro->ptr, "mirror", false);
+
+  ot = WM_operatortype_append_macro("MESH_OT_extrude_context_resize",
+                                    "Extrude Region and Resize",
+                                    "Extrude region together along the average normal",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_extrude_context");
+  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_resize");
+  RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
+  RNA_boolean_set(otmacro->ptr, "mirror", false);
+
   ot = WM_operatortype_append_macro("MESH_OT_extrude_region_shrink_fatten",
                                     "Extrude Region and Shrink/Fatten",
                                     "Extrude region together along local normals",
