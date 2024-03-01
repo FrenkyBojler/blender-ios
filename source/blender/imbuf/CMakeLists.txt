@@ -30,6 +30,7 @@ set(SRC
   intern/format_hdr.cc
   intern/format_iris.cc
   intern/format_jpeg.cc
+  intern/format_jxl.cc
   intern/format_png.cc
   intern/format_psd.cc
   intern/format_svg.cc

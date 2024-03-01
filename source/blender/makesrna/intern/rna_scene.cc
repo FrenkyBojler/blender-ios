@@ -268,6 +268,8 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
   {R_IMF_IMTYPE_PNG, "PNG", ICON_FILE_IMAGE, "PNG", "Output image in PNG format"},
 #define R_IMF_ENUM_JPEG \
   {R_IMF_IMTYPE_JPEG90, "JPEG", ICON_FILE_IMAGE, "JPEG", "Output image in JPEG format"},
+#define R_IMF_ENUM_JXL \
+  {R_IMF_IMTYPE_JXL, "JXL", ICON_FILE_IMAGE, "JPEG XL", "Output image in JPEG XL format"},
 #define R_IMF_ENUM_TAGA \
   {R_IMF_IMTYPE_TARGA, "TARGA", ICON_FILE_IMAGE, "Targa", "Output image in Targa format"},
 #define R_IMF_ENUM_TAGA_RAW \
@@ -345,6 +347,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
   R_IMF_ENUM_PNG \
   R_IMF_ENUM_JPEG \
   R_IMF_ENUM_JPEG2K \
+  R_IMF_ENUM_JXL \
   R_IMF_ENUM_TAGA \
   R_IMF_ENUM_TAGA_RAW \
   RNA_ENUM_ITEM_SEPR_COLUMN, R_IMF_ENUM_CINEON R_IMF_ENUM_DPX R_IMF_ENUM_EXR_MULTILAYER \

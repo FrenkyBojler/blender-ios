@@ -35,6 +35,8 @@ const char *imb_ext_image[] = {
     /* #IMB_FTYPE_JPG */
     ".jpg",
     ".jpeg",
+    /* #IMB_FTYPE_JXL */
+    ".jxl",
     /* #IMB_FTYPE_IRIS */
     ".sgi",
     ".rgb",
