@@ -236,6 +236,9 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_WEBP;
   }
 #endif
+  if (imtype == R_IMF_IMTYPE_JXL) {
+    return IMB_FTYPE_JXL;
+  }
 
   r_options->quality = 90;
   return IMB_FTYPE_JPG;
@@ -292,6 +295,9 @@ char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
     return R_IMF_IMTYPE_WEBP;
   }
 #endif
+  if (ftype == IMB_FTYPE_JXL) {
+    return R_IMF_IMTYPE_JXL;
+  }
 
   return R_IMF_IMTYPE_JPEG90;
 }
@@ -341,6 +347,7 @@ bool BKE_imtype_supports_quality(const char imtype)
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_AVIJPEG:
     case R_IMF_IMTYPE_WEBP:
+    case R_IMF_IMTYPE_JXL:
       return true;
   }
   return false;
@@ -354,6 +361,7 @@ bool BKE_imtype_requires_linear_float(const char imtype)
     case R_IMF_IMTYPE_RADHDR:
     case R_IMF_IMTYPE_OPENEXR:
     case R_IMF_IMTYPE_MULTILAYER:
+    case R_IMF_IMTYPE_JXL:
       return true;
   }
   return false;
@@ -377,6 +385,7 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_DPX:
     case R_IMF_IMTYPE_WEBP:
+    case R_IMF_IMTYPE_JXL:
       chan_flag |= IMA_CHAN_FLAG_RGBA;
       break;
   }
@@ -391,6 +400,7 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_TIFF:
     case R_IMF_IMTYPE_IRIS:
     case R_IMF_IMTYPE_OPENEXR:
+    case R_IMF_IMTYPE_JXL:
       chan_flag |= IMA_CHAN_FLAG_BW;
       break;
   }
@@ -418,6 +428,8 @@ char BKE_imtype_valid_depths(const char imtype)
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16;
     case R_IMF_IMTYPE_PNG:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_16;
+    case R_IMF_IMTYPE_JXL:
+      return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32;
     /* Most formats are 8bit only. */
     default:
       return R_IMF_CHAN_DEPTH_8;
@@ -471,6 +483,9 @@ char BKE_imtype_from_arg(const char *imtype_arg)
   }
   if (STREQ(imtype_arg, "JPEG")) {
     return R_IMF_IMTYPE_JPEG90;
+  }
+  if (STREQ(imtype_arg, "JXL")) {
+    return R_IMF_IMTYPE_JXL;
   }
   if (STREQ(imtype_arg, "RAWTGA")) {
     return R_IMF_IMTYPE_RAWTGA;
@@ -614,6 +629,9 @@ static int image_path_ext_from_imformat_impl(const char imtype,
     r_ext[ext_num++] = ".webp";
   }
 #endif
+  else if (imtype == R_IMF_IMTYPE_JXL) {
+    r_ext[ext_num++] = ".jxl";
+  }
   else {
     /* Handles: #R_IMF_IMTYPE_AVIRAW, #R_IMF_IMTYPE_AVIJPEG, #R_IMF_IMTYPE_JPEG90 etc. */
     r_ext[ext_num++] = ".jpg";
@@ -910,6 +928,10 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     ibuf->foptions.quality = quality;
   }
 #endif
+  else if (imtype == R_IMF_IMTYPE_JXL) {
+    ibuf->ftype = IMB_FTYPE_JXL;
+    ibuf->foptions.quality = quality;
+  }
   else {
     /* #R_IMF_IMTYPE_JPEG90, etc. default to JPEG. */
     if (quality < 10) {
@@ -1088,6 +1110,10 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     im_format->quality = quality;
   }
 #endif
+  else if (ftype == IMB_FTYPE_JXL) {
+    im_format->imtype = R_IMF_IMTYPE_JXL;
+    im_format->quality = quality;
+  }
 
   else {
     im_format->imtype = R_IMF_IMTYPE_JPEG90;

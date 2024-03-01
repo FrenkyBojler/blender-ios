@@ -37,6 +37,18 @@ const ImFileType IMB_FILE_TYPES[] = {
     {
         /*init*/ nullptr,
         /*exit*/ nullptr,
+        /*is_a*/ imb_is_a_jxl,
+        /*load*/ imb_load_jxl,
+        /*load_filepath*/ nullptr,
+        /*load_filepath_thumbnail*/ nullptr,
+        /*save*/ imb_save_jxl,
+        /*flag*/ IM_FTYPE_FLOAT,
+        /*filetype*/ IMB_FTYPE_JXL,
+        /*default_save_role*/ COLOR_ROLE_DEFAULT_FLOAT,
+    },
+    {
+        /*init*/ nullptr,
+        /*exit*/ nullptr,
         /*is_a*/ imb_is_a_png,
         /*load*/ imb_load_png,
         /*load_filepath*/ nullptr,
