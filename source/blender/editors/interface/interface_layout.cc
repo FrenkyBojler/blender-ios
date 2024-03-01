@@ -3413,25 +3413,11 @@ void uiItemV(uiLayout *layout, const char *name, int icon, int argval)
   const int w = ui_text_icon_width(layout, name, icon, false);
 
   if (icon && name[0]) {
-    uiDefIconTextButI(block,
-                      UI_BTYPE_BUT,
-                      argval,
-                      icon,
-                      name,
-                      0,
-                      0,
-                      w,
-                      UI_UNIT_Y,
-                      retvalue,
-                      0.0,
-                      0.0,
-                      0,
-                      -1,
-                      "");
+    uiDefIconTextButI(
+        block, UI_BTYPE_BUT, argval, icon, name, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, "");
   }
   else if (icon) {
-    uiDefIconButI(
-        block, UI_BTYPE_BUT, argval, icon, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, 0, -1, "");
+    uiDefIconButI(block, UI_BTYPE_BUT, argval, icon, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, "");
   }
   else {
     uiDefButI(
@@ -3466,20 +3452,25 @@ void uiItemS_ex(uiLayout *layout, float factor, const LayoutSeparatorType type)
   bool is_vertical_bar = (layout->w == 0) && but_type == UI_BTYPE_SEPR_LINE;
 
   UI_block_layout_set_current(block, layout);
-  uiDefBut(block,
-           but_type,
-           0,
-           "",
-           0,
-           0,
-           space,
-           is_vertical_bar ? UI_UNIT_Y : space,
-           nullptr,
-           0.0,
-           0.0,
-           is_vertical_bar ? 1.0f : 0.0f,
-           0,
-           "");
+  uiBut *but = uiDefBut(block,
+                        but_type,
+                        0,
+                        "",
+                        0,
+                        0,
+                        space,
+                        is_vertical_bar ? UI_UNIT_Y : space,
+                        nullptr,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0,
+                        "");
+
+  if (but_type == UI_BTYPE_SEPR_LINE) {
+    uiButSeparatorLine *but_line = static_cast<uiButSeparatorLine *>(but);
+    but_line->is_vertical = is_vertical_bar;
+  }
 }
 
 void uiItemS(uiLayout *layout)

@@ -260,18 +260,8 @@ static uiBlock *template_common_search_menu(const bContext *C,
     /* fake button, it holds space for search items */
     uiDefBut(block, UI_BTYPE_LABEL, 0, "", 10, 26, w, h, nullptr, 0, 0, 0, 0, nullptr);
 
-    but = uiDefSearchBut(block,
-                         search,
-                         0,
-                         ICON_VIEWZOOM,
-                         sizeof(search),
-                         10,
-                         0,
-                         w,
-                         UI_UNIT_Y,
-                         preview_rows,
-                         preview_cols,
-                         "");
+    but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 0, w, UI_UNIT_Y, "");
+    UI_but_search_preview_grid_size_set(but, preview_rows, preview_cols);
   }
   /* list view */
   else {
@@ -302,8 +292,6 @@ static uiBlock *template_common_search_menu(const bContext *C,
                          0,
                          searchbox_width,
                          UI_UNIT_Y - 1,
-                         0,
-                         0,
                          "");
   }
   UI_but_func_search_set(but,
@@ -640,9 +628,6 @@ static void template_id_liboverride_hierarchy_collections_tag_recursive(
        iter != nullptr;
        iter = iter->next)
   {
-    if (iter->collection->id.lib != root_collection->id.lib && ID_IS_LINKED(root_collection)) {
-      continue;
-    }
     if (ID_IS_LINKED(iter->collection) && iter->collection->id.lib != target_id->lib) {
       continue;
     }
@@ -717,7 +702,8 @@ ID *ui_template_id_liboverride_hierarchy_make(
     }
   }
 
-  Collection *collection_active = CTX_data_collection(C);
+  Collection *collection_active_context = CTX_data_collection(C);
+  Collection *collection_active = collection_active_context;
   if (collection_active == nullptr && GS(owner_id->name) == ID_GR) {
     collection_active = (Collection *)owner_id;
   }
@@ -749,7 +735,10 @@ ID *ui_template_id_liboverride_hierarchy_make(
     /* If we failed to find a valid 'active' collection so far for our override hierarchy, but do
      * have a valid 'active' object, try to find a collection from that object. */
     LISTBASE_FOREACH (Collection *, collection_iter, &bmain->collections) {
-      if (!(ID_IS_LINKED(collection_iter) || ID_IS_OVERRIDE_LIBRARY_REAL(collection_iter))) {
+      if (ID_IS_LINKED(collection_iter) && collection_iter->id.lib != id->lib) {
+        continue;
+      }
+      if (!ID_IS_OVERRIDE_LIBRARY_REAL(collection_iter)) {
         continue;
       }
       if (!BKE_collection_has_object_recursive(collection_iter, object_active)) {
@@ -896,6 +885,33 @@ ID *ui_template_id_liboverride_hierarchy_make(
 
   if (id_override != nullptr) {
     id_override->override_library->flag &= ~LIBOVERRIDE_FLAG_SYSTEM_DEFINED;
+
+    /* Ensure that the hierarchy root of the newly overridden data is instantiated in the scene, in
+     * case it's a collection or object. */
+    ID *hierarchy_root = id_override->override_library->hierarchy_root;
+    if (GS(hierarchy_root->name) == ID_OB) {
+      Object *object_hierarchy_root = reinterpret_cast<Object *>(hierarchy_root);
+      if (!BKE_scene_has_object(scene, object_hierarchy_root)) {
+        if (!ID_IS_LINKED(collection_active_context)) {
+          BKE_collection_object_add(bmain, collection_active_context, object_hierarchy_root);
+        }
+        else {
+          BKE_collection_object_add(bmain, scene->master_collection, object_hierarchy_root);
+        }
+      }
+    }
+    else if (GS(hierarchy_root->name) == ID_GR) {
+      Collection *collection_hierarchy_root = reinterpret_cast<Collection *>(hierarchy_root);
+      if (!BKE_collection_has_collection(scene->master_collection, collection_hierarchy_root)) {
+        if (!ID_IS_LINKED(collection_active_context)) {
+          BKE_collection_child_add(bmain, collection_active_context, collection_hierarchy_root);
+        }
+        else {
+          BKE_collection_child_add(bmain, scene->master_collection, collection_hierarchy_root);
+        }
+      }
+    }
+
     *r_undo_push_label = "Make Library Override Hierarchy";
 
     /* In theory we could rely on setting/updating the RNA ID pointer property (as done by calling
@@ -3227,8 +3243,6 @@ void uiTemplatePreview(uiLayout *layout,
                 &ui_preview->height,
                 UI_UNIT_Y,
                 UI_UNIT_Y * 50.0f,
-                0.0f,
-                0.0f,
                 "");
 
   /* add buttons */
@@ -3272,8 +3286,6 @@ void uiTemplatePreview(uiLayout *layout,
                 pr_texture,
                 10,
                 TEX_PR_TEXTURE,
-                0,
-                0,
                 "");
       if (GS(parent->name) == ID_MA) {
         uiDefButS(block,
@@ -3287,8 +3299,6 @@ void uiTemplatePreview(uiLayout *layout,
                   pr_texture,
                   10,
                   TEX_PR_OTHER,
-                  0,
-                  0,
                   "");
       }
       else if (GS(parent->name) == ID_LA) {
@@ -3303,8 +3313,6 @@ void uiTemplatePreview(uiLayout *layout,
                   pr_texture,
                   10,
                   TEX_PR_OTHER,
-                  0,
-                  0,
                   "");
       }
       else if (GS(parent->name) == ID_WO) {
@@ -3319,8 +3327,6 @@ void uiTemplatePreview(uiLayout *layout,
                   pr_texture,
                   10,
                   TEX_PR_OTHER,
-                  0,
-                  0,
                   "");
       }
       else if (GS(parent->name) == ID_LS) {
@@ -3335,8 +3341,6 @@ void uiTemplatePreview(uiLayout *layout,
                   pr_texture,
                   10,
                   TEX_PR_OTHER,
-                  0,
-                  0,
                   "");
       }
       uiDefButS(block,
@@ -3350,8 +3354,6 @@ void uiTemplatePreview(uiLayout *layout,
                 pr_texture,
                 10,
                 TEX_PR_BOTH,
-                0,
-                0,
                 "");
 
       /* Alpha button for texture preview */
@@ -3710,8 +3712,6 @@ static void colorband_buttons_layout(uiLayout *layout,
                      &coba->cur,
                      0.0,
                      float(std::max(0, coba->tot - 1)),
-                     0,
-                     0,
                      TIP_("Choose active color stop"));
       UI_but_number_step_size_set(bt, 1);
 
@@ -3737,8 +3737,6 @@ static void colorband_buttons_layout(uiLayout *layout,
                      &coba->cur,
                      0.0,
                      float(std::max(0, coba->tot - 1)),
-                     0,
-                     0,
                      TIP_("Choose active color stop"));
       UI_but_number_step_size_set(bt, 1);
 
@@ -4011,8 +4009,6 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname
                 &hist->height,
                 UI_UNIT_Y,
                 UI_UNIT_Y * 20.0f,
-                0.0f,
-                0.0f,
                 "");
 }
 
@@ -4073,8 +4069,6 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
                 &scopes->wavefrm_height,
                 UI_UNIT_Y,
                 UI_UNIT_Y * 20.0f,
-                0.0f,
-                0.0f,
                 "");
 }
 
@@ -4135,8 +4129,6 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propna
                 &scopes->vecscope_height,
                 UI_UNIT_Y,
                 UI_UNIT_Y * 20.0f,
-                0.0f,
-                0.0f,
                 "");
 }
 
@@ -5603,7 +5595,6 @@ void uiTemplateColorPicker(uiLayout *layout,
   if (lock_luminosity) {
     float color[4]; /* in case of alpha */
     RNA_property_float_get_array(ptr, prop, color);
-    but->a2 = len_v3(color);
     cpicker->luminosity_lock_value = len_v3(color);
   }
 

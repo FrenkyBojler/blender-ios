@@ -197,7 +197,6 @@ struct uiBut {
    * For #uiBut.type:
    * - UI_BTYPE_LABEL:        Use `(a1 == 1.0f)` to use a2 as a blending factor (imaginative!).
    * - UI_BTYPE_SCROLL:       Use as scroll size.
-   * - UI_BTYPE_SEARCH_MENU:  Use as number or rows.
    * - UI_BTYPE_SEPR_LINE:    1.0 = vertical
    */
   float a1 = 0;
@@ -206,7 +205,6 @@ struct uiBut {
    * For #uiBut.type:
    * - UI_BTYPE_HSVCIRCLE:    Use to store the luminosity.
    * - UI_BTYPE_LABEL:        If `(a1 == 1.0f)` use a2 as a blending factor.
-   * - UI_BTYPE_SEARCH_MENU:  Use as number or columns.
    */
   float a2 = 0;
 
@@ -363,6 +361,9 @@ struct uiButSearch : public uiBut {
   PointerRNA rnasearchpoin = {};
   PropertyRNA *rnasearchprop = nullptr;
 
+  int preview_rows = 0;
+  int preview_cols = 0;
+
   /**
    * The search box only provides suggestions, it does not force
    * the string to match one of the search items when applying.
@@ -386,6 +387,11 @@ struct uiButProgress : public uiBut {
   float progress_factor = 0.0f;
   /** The display style (bar, pie... etc). */
   eButProgressType progress_type = UI_BUT_PROGRESS_TYPE_BAR;
+};
+
+/** Derived struct for #UI_BTYPE_SEPR_LINE. */
+struct uiButSeparatorLine : public uiBut {
+  bool is_vertical;
 };
 
 struct uiButViewItem : public uiBut {
