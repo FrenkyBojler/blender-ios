@@ -132,20 +132,10 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         if not inverse_matrix.to_3x3().is_orthogonal_axis_vectors:
             self.layout.label(text="Parent Inverse Matrix has a shear", icon="ERROR")
 
-        row = layout.row(align=True)
-        row.enabled = False
-        row.prop(inverse_props, "location")
-
-        row = layout.row(align=True)
-        row.prop(inverse_props, "rotation_mode", text="Mode")
-
-        row = layout.row(align=True)
-        row.prop(inverse_props, "rotation_euler", text="Rotation")
-        row.enabled = False
-
-        row = layout.row(align=True)
-        row.enabled = False
-        row.prop(inverse_props, "scale")
+        layout.prop(inverse_props, "location")
+        layout.prop(inverse_props, "rotation_mode", text="Mode")
+        layout.prop(inverse_props, "rotation_euler", text="Rotation")
+        layout.prop(inverse_props, "scale")
 
         op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform")
         op.type = "CLEAR_INVERSE"
@@ -648,9 +638,6 @@ class ReadOnlyMatrixDecomposition(PropertyGroup):
     """An utility property group for bpy.types.Object
     for accessing read-only parent inverse matrix decomposition properties,
     such as location, rotation and scale."""
-    def set_read_only_prop(self, value):
-        pass
-
     def _get_matrix(self) -> Matrix:
         return self.id_data.matrix_parent_inverse
 
@@ -675,19 +662,18 @@ class ReadOnlyMatrixDecomposition(PropertyGroup):
     )
 
     location: FloatVectorProperty(
-        name="Location", get=_get_location, set=set_read_only_prop, options=set(), subtype="TRANSLATION", precision=5
+        name="Location", get=_get_location, set=None, subtype="TRANSLATION", precision=5
     )
     rotation_euler: FloatVectorProperty(
         name="Rotation (Euler)",
         get=_get_rotation_euler,
-        set=set_read_only_prop,
-        options=set(),
+        set=None,
         subtype="EULER",
         precision=5,
     )
     rotation_mode: EnumProperty(name="Rotation Mode (Euler)", items=rotation_mode_enum, default="XYZ")
     scale: FloatVectorProperty(
-        name="Scale", get=_get_scale, set=set_read_only_prop, options=set(), subtype="XYZ", precision=3
+        name="Scale", get=_get_scale, set=None, subtype="XYZ", precision=3
     )
 
 
