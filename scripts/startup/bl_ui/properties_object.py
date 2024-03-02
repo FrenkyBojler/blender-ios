@@ -11,7 +11,7 @@ from bpy.types import Panel, Menu, PropertyGroup
 from rna_prop_ui import PropertyPanel
 from bl_ui.space_properties import PropertiesAnimationMixin
 from bpy.props import FloatVectorProperty, PointerProperty, EnumProperty
-from mathutils import Vector, Quaternion
+from mathutils import Vector, Quaternion, Matrix
 from typing import Tuple
 
 
@@ -644,23 +644,27 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
     _property_type = bpy.types.Object
 
 
-class TransformAttributes(PropertyGroup):
+class ReadOnlyMatrixDecomposition(PropertyGroup):
+    """An utility property group for bpy.types.Object
+    for accessing read-only parent inverse matrix decomposition properties,
+    such as location, rotation and scale."""
     def set_read_only_prop(self, value):
         pass
 
-    def get_matrix_components(self) -> Tuple[Vector, Quaternion, Vector]:
-        return self.id_data.matrix_parent_inverse.decompose()
+    def _get_matrix(self) -> Matrix:
+        return self.id_data.matrix_parent_inverse
 
-    def get_location(self):
-        return self.get_matrix_components()[0]
+    def _get_location(self):
+        return self._get_matrix().to_translation()
 
-    def get_rotation_euler(self):
-        return self.get_matrix_components()[1].to_euler(self.rotation_mode)
+    def _get_rotation_euler(self):
+        return self._get_matrix().to_euler(self.rotation_mode)
 
-    def get_scale(self):
-        return self.get_matrix_components()[2]
+    def _get_scale(self):
+        return self._get_matrix().to_scale()
 
-    # we implement only euler rotation as it should cover most of the cases
+    # We limit implementation to only Euler rotation as it's generally easier
+    # for users to make sense of the rotation by understanding it's Euler angles.
     rotation_mode_enum = (
         ('XYZ', 'XYZ Euler', ''),
         ('XZY', 'XZY Euler', ''),
@@ -671,11 +675,11 @@ class TransformAttributes(PropertyGroup):
     )
 
     location: FloatVectorProperty(
-        name="Location", get=get_location, set=set_read_only_prop, options=set(), subtype="TRANSLATION", precision=5
+        name="Location", get=_get_location, set=set_read_only_prop, options=set(), subtype="TRANSLATION", precision=5
     )
     rotation_euler: FloatVectorProperty(
         name="Rotation (Euler)",
-        get=get_rotation_euler,
+        get=_get_rotation_euler,
         set=set_read_only_prop,
         options=set(),
         subtype="EULER",
@@ -683,7 +687,7 @@ class TransformAttributes(PropertyGroup):
     )
     rotation_mode: EnumProperty(name="Rotation Mode (Euler)", items=rotation_mode_enum, default="XYZ")
     scale: FloatVectorProperty(
-        name="Scale", get=get_scale, set=set_read_only_prop, options=set(), subtype="XYZ", precision=3
+        name="Scale", get=_get_scale, set=set_read_only_prop, options=set(), subtype="XYZ", precision=3
     )
 
 
@@ -710,11 +714,12 @@ classes = (
     OBJECT_PT_lineart,
     OBJECT_PT_animation,
     OBJECT_PT_custom_props,
-    TransformAttributes
+    ReadOnlyMatrixDecomposition,
 )
 
 def register_props():
-    bpy.types.Object.parent_inverse_transform = PointerProperty(type=TransformAttributes)
+    # Property is used to present parent inverse matrix in UI as it's decomposed properties.
+    bpy.types.Object.parent_inverse_transform = PointerProperty(type=ReadOnlyMatrixDecomposition)
 
 
 if __name__ == "__main__":  # only for live edit.
