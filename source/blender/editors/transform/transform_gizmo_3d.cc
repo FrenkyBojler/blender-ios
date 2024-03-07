@@ -1809,19 +1809,21 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           ot_store.translate = WM_operatortype_find("TRANSFORM_OT_translate", true);
         }
         if (ot_store.extra_translate == NULL) {
-            switch (mode) {
-                default: break;
-                case CTX_MODE_OBJECT:
-                    ot_store.extra_translate = WM_operatortype_find("OBJECT_OT_duplicate_move", true);
-                    break;
-                case CTX_MODE_EDIT_MESH:
-                    ot_store.extra_translate = WM_operatortype_find("MESH_OT_extrude_context_move", true);
-                    break;
-            }
+          switch (mode) {
+            default:
+              break;
+            case CTX_MODE_OBJECT:
+              ot_store.extra_translate = WM_operatortype_find("OBJECT_OT_duplicate_move", true);
+              break;
+            case CTX_MODE_EDIT_MESH:
+              ot_store.extra_translate = WM_operatortype_find("MESH_OT_extrude_context_move",
+                                                              true);
+              break;
+          }
         }
 
         if (ot_store.extra_translate) {
-            ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_translate, NULL);
+          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_translate, NULL);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.translate, nullptr);
         break;
@@ -1834,13 +1836,16 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           }
           if (ot_store.extra_trackball == NULL) {
             switch (mode) {
-                default: break;
-                case CTX_MODE_OBJECT:
-                    ot_store.extra_trackball = WM_operatortype_find("OBJECT_OT_duplicate_trackball", true);
-                    break;
-                case CTX_MODE_EDIT_MESH:
-                    ot_store.extra_trackball = WM_operatortype_find("MESH_OT_extrude_context_trackball", true);
-                    break;
+              default:
+                break;
+              case CTX_MODE_OBJECT:
+                ot_store.extra_trackball = WM_operatortype_find("OBJECT_OT_duplicate_trackball",
+                                                                true);
+                break;
+              case CTX_MODE_EDIT_MESH:
+                ot_store.extra_trackball = WM_operatortype_find(
+                    "MESH_OT_extrude_context_trackball", true);
+                break;
             }
           }
           ot_rotate = ot_store.trackball;
@@ -1852,13 +1857,15 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           }
           if (ot_store.extra_rotate == NULL) {
             switch (mode) {
-                default: break;
-                case CTX_MODE_OBJECT:
-                    ot_store.extra_rotate = WM_operatortype_find("OBJECT_OT_duplicate_rotate", true);
-                    break;
-                case CTX_MODE_EDIT_MESH:
-                    ot_store.extra_rotate = WM_operatortype_find("MESH_OT_extrude_context_rotate", true);
-                    break;
+              default:
+                break;
+              case CTX_MODE_OBJECT:
+                ot_store.extra_rotate = WM_operatortype_find("OBJECT_OT_duplicate_rotate", true);
+                break;
+              case CTX_MODE_EDIT_MESH:
+                ot_store.extra_rotate = WM_operatortype_find("MESH_OT_extrude_context_rotate",
+                                                             true);
+                break;
             }
           }
           ot_rotate = ot_store.rotate;
@@ -1866,7 +1873,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         }
 
         if (ot_rotate_extra) {
-            ptr_extra = WM_gizmo_operator_set(axis, 16, ot_rotate_extra, NULL);
+          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_rotate_extra, NULL);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_rotate, nullptr);
         break;
@@ -1876,18 +1883,19 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           ot_store.resize = WM_operatortype_find("TRANSFORM_OT_resize", true);
         }
         if (ot_store.extra_resize == NULL) {
-            switch (mode) {
-                default: break;
-                case CTX_MODE_OBJECT:
-                    ot_store.extra_resize = WM_operatortype_find("OBJECT_OT_duplicate_resize", true);
-                    break;
-                case CTX_MODE_EDIT_MESH:
-                    ot_store.extra_resize = WM_operatortype_find("MESH_OT_extrude_context_resize", true);
-                    break;
-            }
+          switch (mode) {
+            default:
+              break;
+            case CTX_MODE_OBJECT:
+              ot_store.extra_resize = WM_operatortype_find("OBJECT_OT_duplicate_resize", true);
+              break;
+            case CTX_MODE_EDIT_MESH:
+              ot_store.extra_resize = WM_operatortype_find("MESH_OT_extrude_context_resize", true);
+              break;
+          }
         }
         if (ot_store.extra_resize) {
-            ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_resize, NULL);
+          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_resize, NULL);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.resize, nullptr);
         break;
@@ -1895,22 +1903,22 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
     }
 
     if (ptr_extra) {
-        RNA_STRUCT_BEGIN(ptr_extra, prop) {
-            if (RNA_property_type(prop) != PROP_POINTER)
-                continue;
-            PointerRNA propptr = RNA_property_pointer_get(ptr_extra, prop);
-            if (!propptr.data || !RNA_struct_is_a(propptr.type, &RNA_OperatorProperties))
-                continue;
-            PropertyRNA *constr = NULL;
-            if (ELEM(true, UNPACK3(constraint_axis))) {
-              if ((constr = RNA_struct_find_property(&propptr, "constraint_axis"))) {
-                RNA_property_boolean_set_array(&propptr, constr, constraint_axis);
-              }
-            }
-            if (constr)
-                RNA_boolean_set(&propptr, "release_confirm", 1);
+      RNA_STRUCT_BEGIN (ptr_extra, prop) {
+        if (RNA_property_type(prop) != PROP_POINTER)
+          continue;
+        PointerRNA propptr = RNA_property_pointer_get(ptr_extra, prop);
+        if (!propptr.data || !RNA_struct_is_a(propptr.type, &RNA_OperatorProperties))
+          continue;
+        PropertyRNA *constr = NULL;
+        if (ELEM(true, UNPACK3(constraint_axis))) {
+          if ((constr = RNA_struct_find_property(&propptr, "constraint_axis"))) {
+            RNA_property_boolean_set_array(&propptr, constr, constraint_axis);
+          }
         }
-        RNA_STRUCT_END;
+        if (constr)
+          RNA_boolean_set(&propptr, "release_confirm", 1);
+      }
+      RNA_STRUCT_END;
     }
 
     if (ptr) {

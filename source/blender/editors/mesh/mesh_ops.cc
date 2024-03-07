@@ -288,7 +288,7 @@ void ED_operatormacros_mesh()
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 
-   ot = WM_operatortype_append_macro("MESH_OT_extrude_context_rotate",
+  ot = WM_operatortype_append_macro("MESH_OT_extrude_context_rotate",
                                     "Extrude Region and Rotate",
                                     "Extrude region together along the average normal",
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
