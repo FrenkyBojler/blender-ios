@@ -2273,42 +2273,7 @@ static void WIDGETGROUP_gizmo_invoke_prepare(const bContext *C,
     }
   }
 
-  /* Support shift click to constrain axis. */
-  int axis = -1;
-  switch (axis_idx) {
-    case MAN_AXIS_TRANS_X:
-    case MAN_AXIS_TRANS_Y:
-    case MAN_AXIS_TRANS_Z:
-      axis = axis_idx - MAN_AXIS_TRANS_X;
-      break;
-    case MAN_AXIS_SCALE_X:
-    case MAN_AXIS_SCALE_Y:
-    case MAN_AXIS_SCALE_Z:
-      axis = axis_idx - MAN_AXIS_SCALE_X;
-      break;
-  }
 
-  if (axis != -1) {
-    /* Swap single axis for two-axis constraint. */
-    const bool flip = (event->modifier & KM_SHIFT) != 0;
-    BLI_assert(axis_idx != -1);
-    const short axis_type = gizmo_get_axis_type(axis_idx);
-    if (axis_type != MAN_AXES_ROTATE) {
-      wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, 0);
-      PointerRNA *ptr = &gzop->ptr;
-      PropertyRNA *prop_constraint_axis = RNA_struct_find_property(ptr, "constraint_axis");
-      if (prop_constraint_axis) {
-        bool constraint[3] = {false};
-        constraint[axis] = true;
-        if (flip) {
-          for (int i = 0; i < ARRAY_SIZE(constraint); i++) {
-            constraint[i] = !constraint[i];
-          }
-        }
-        RNA_property_boolean_set_array(ptr, prop_constraint_axis, constraint);
-      }
-    }
-  }
 }
 
 static bool WIDGETGROUP_gizmo_poll_generic(View3D *v3d)
