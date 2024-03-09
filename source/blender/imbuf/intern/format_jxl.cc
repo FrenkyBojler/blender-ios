@@ -39,7 +39,7 @@ ImBuf *imb_load_jxl(const uchar *mem, size_t size, int flags, char colorspace[IM
 
 bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags)
 {
-  const int file_channels = 3;
+  const int file_channels = ibuf->planes >> 3;
   const TypeDesc data_format = TypeDesc::FLOAT;
 
   WriteContext ctx = imb_create_write_context("jxl", ibuf, flags);
