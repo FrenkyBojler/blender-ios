@@ -43,7 +43,7 @@
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
@@ -147,6 +147,7 @@ static void get_element_operation_type(
       case ID_KE:
       case ID_WO:
       case ID_AC:
+      case ID_AN:
       case ID_TXT:
       case ID_GR:
       case ID_LS:
@@ -854,8 +855,6 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *d
            menu_width,
            UI_searchbox_size_y(),
            nullptr,
-           0,
-           0,
            0,
            0,
            nullptr);
@@ -3213,6 +3212,7 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that things have changed */
+  DEG_id_tag_update(te->store_elem->id, ID_RECALC_ANIMATION);
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   ED_undo_push(C, "Set action");
 

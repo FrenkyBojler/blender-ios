@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <utility>
+
 #include "BLI_function_ref.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_math_rotation.h"
@@ -1285,6 +1287,22 @@ static bool rna_NodeLink_is_hidden_get(PointerRNA *ptr)
   return nodeLinkIsHidden(link);
 }
 
+static void rna_NodeLink_swap_multi_input_sort_id(
+    ID *id, bNodeLink *self, Main *bmain, ReportList *reports, bNodeLink *other)
+{
+  if (self->tosock != other->tosock) {
+    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "The links must be siblings");
+    return;
+  }
+
+  std::swap(self->multi_input_socket_index, other->multi_input_socket_index);
+
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
+  BKE_ntree_update_tag_link_changed(ntree);
+  ED_node_tree_propagate_change(nullptr, bmain, ntree);
+  WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
+}
+
 /* ******** Node ******** */
 
 static StructRNA *rna_Node_refine(PointerRNA *ptr)
@@ -2141,7 +2159,7 @@ void rna_Node_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   ED_node_tree_propagate_change(nullptr, bmain, ntree);
 }
 
-static void rna_Node_update_relations(Main *bmain, Scene *scene, PointerRNA *ptr)
+void rna_Node_update_relations(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   rna_Node_update(bmain, scene, ptr);
   DEG_relations_tag_update(bmain);
@@ -4527,7 +4545,7 @@ static void def_fn_input_color(StructRNA *srna)
 
   RNA_def_struct_sdna_from(srna, "NodeInputColor", "storage");
 
-  prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
+  prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_array(prop, 4);
   RNA_def_property_float_sdna(prop, nullptr, "color");
   RNA_def_property_ui_text(prop, "Color", "");
@@ -5837,7 +5855,8 @@ static void def_sh_output_aov(StructRNA *srna)
 
   RNA_def_struct_sdna_from(srna, "NodeShaderOutputAOV", "storage");
 
-  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  prop = RNA_def_property(srna, "aov_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "name");
   RNA_def_property_ui_text(prop, "Name", "Name of the AOV that this output writes to");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
@@ -7315,10 +7334,11 @@ static void def_cmp_glare(StructRNA *srna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem type_items[] = {
-      {3, "GHOSTS", 0, "Ghosts", ""},
-      {2, "STREAKS", 0, "Streaks", ""},
-      {1, "FOG_GLOW", 0, "Fog Glow", ""},
-      {0, "SIMPLE_STAR", 0, "Simple Star", ""},
+      {CMP_NODE_GLARE_BLOOM, "BLOOM", 0, "Bloom", ""},
+      {CMP_NODE_GLARE_GHOST, "GHOSTS", 0, "Ghosts", ""},
+      {CMP_NODE_GLARE_STREAKS, "STREAKS", 0, "Streaks", ""},
+      {CMP_NODE_GLARE_FOG_GLOW, "FOG_GLOW", 0, "Fog Glow", ""},
+      {CMP_NODE_GLARE_SIMPLE_STAR, "SIMPLE_STAR", 0, "Simple Star", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7835,14 +7855,14 @@ static void def_cmp_boxmask(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Y", "Y position of the middle of the box");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "width", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "mask_width", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "width");
   RNA_def_property_float_default(prop, 0.3f);
   RNA_def_property_range(prop, 0.0f, 2.0f);
   RNA_def_property_ui_text(prop, "Width", "Width of the box");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "height", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "mask_height", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "height");
   RNA_def_property_float_default(prop, 0.2f);
   RNA_def_property_range(prop, 0.0f, 2.0f);
@@ -7882,14 +7902,14 @@ static void def_cmp_ellipsemask(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Y", "Y position of the middle of the ellipse");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "width", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "mask_width", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "width");
   RNA_def_property_float_default(prop, 0.3f);
   RNA_def_property_range(prop, 0.0f, 2.0f);
   RNA_def_property_ui_text(prop, "Width", "Width of the ellipse");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "height", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "mask_height", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "height");
   RNA_def_property_float_default(prop, 0.2f);
   RNA_def_property_range(prop, 0.0f, 2.0f);
@@ -9395,7 +9415,7 @@ static void def_fn_rotate_euler(StructRNA *srna)
 
   PropertyRNA *prop;
 
-  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "rotation_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, type_items);
   RNA_def_property_ui_text(prop, "Type", "Method used to describe the rotation");
@@ -10243,6 +10263,8 @@ static void rna_def_node_link(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
+  FunctionRNA *func;
+  PropertyRNA *parm;
 
   srna = RNA_def_struct(brna, "NodeLink", nullptr);
   RNA_def_struct_ui_text(srna, "NodeLink", "Link between nodes in a node tree");
@@ -10297,6 +10319,26 @@ static void rna_def_node_link(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_PTR_NO_OWNERSHIP);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Is Hidden", "Link is hidden due to invisible sockets");
+
+  prop = RNA_def_property(srna, "multi_input_sort_id", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "multi_input_socket_index");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Multi Input Sort ID",
+      "Used to sort multiple links coming into the same input. The highest ID is at the top");
+
+  func = RNA_def_function(
+      srna, "swap_multi_input_sort_id", "rna_NodeLink_swap_multi_input_sort_id");
+  RNA_def_function_ui_description(
+      func, "Swap the order of two links connected to the same multi-input socket");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func,
+                         "other",
+                         "NodeLink",
+                         "Other",
+                         "The other link. Must link to the same multi input socket");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 }
 
 static void rna_def_nodetree_nodes_api(BlenderRNA *brna, PropertyRNA *cprop)
