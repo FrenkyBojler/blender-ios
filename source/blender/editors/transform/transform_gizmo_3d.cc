@@ -1821,7 +1821,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
             case CTX_MODE_EDIT_MESH:
               ot_store.extra_translate = WM_operatortype_find("MESH_OT_extrude_context_move",
                                                               true);
-              ot_store.extra_translate2 = WM_operatortype_find("MESH_OT_split",
+              ot_store.extra_translate2 = WM_operatortype_find("MESH_OT_split_move",
                                                               true);
               break;
           }
@@ -1914,7 +1914,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
               break;
             case CTX_MODE_EDIT_MESH:
               ot_store.extra_resize = WM_operatortype_find("MESH_OT_extrude_context_resize", true);
-              ot_store.extra_resize2 = WM_operatortype_find("MESH_OT_split_context_scale", true);
+              ot_store.extra_resize2 = WM_operatortype_find("MESH_OT_context_split_scale", true);
               break;
           }
         }

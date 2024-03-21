@@ -397,7 +397,7 @@ void ED_operatormacros_mesh()
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 
-    ot = WM_operatortype_append_macro("MESH_OT_context_split_rotate",
+  ot = WM_operatortype_append_macro("MESH_OT_context_split_rotate",
                                     "Split Region and Rotate",
                                      nullptr,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
@@ -415,7 +415,7 @@ void ED_operatormacros_mesh()
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 
-    ot = WM_operatortype_append_macro("MESH_OT_context_split_scale",
+  ot = WM_operatortype_append_macro("MESH_OT_context_split_scale",
                                     "Split Region and Scale",
                                    nullptr,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
