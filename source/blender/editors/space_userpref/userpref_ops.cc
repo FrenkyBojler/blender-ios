@@ -406,7 +406,7 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
   static const EnumPropertyItem repo_type_items[] = {
       {int(bUserExtensionRepoAddType::Remote),
        "REMOTE",
-       ICON_NETWORK_DRIVE,
+       ICON_INTERNET,
        "Add Remote Repository",
        "Add a repository referencing an remote repository "
        "with support for listing and updating extensions"},
@@ -489,12 +489,14 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
 /** \name Generic Extension Repository Utilities
  * \{ */
 
-static bool preferences_extension_repo_active_enabled_poll(bContext *C)
+static bool preferences_extension_repo_remote_active_enabled_poll(bContext *C)
 {
   const bUserExtensionRepo *repo = BKE_preferences_extension_repo_find_index(
       &U, U.active_extension_repo);
-  if (repo == nullptr || (repo->flag & USER_EXTENSION_REPO_FLAG_DISABLED)) {
-    CTX_wm_operator_poll_msg_set(C, "An enabled repository must be selected");
+  if (repo == nullptr || (repo->flag & USER_EXTENSION_REPO_FLAG_DISABLED) ||
+      !(repo->flag & USER_EXTENSION_REPO_FLAG_USE_REMOTE_PATH))
+  {
+    CTX_wm_operator_poll_msg_set(C, "An enabled remote repository must be selected");
     return false;
   }
   return true;
@@ -576,10 +578,26 @@ static int preferences_extension_repo_remove_exec(bContext *C, wmOperator *op)
     char dirpath[FILE_MAX];
     BKE_preferences_extension_repo_dirpath_get(repo, dirpath, sizeof(dirpath));
     if (dirpath[0] && BLI_is_dir(dirpath)) {
-      if (BLI_delete(dirpath, true, true) != 0) {
+
+      /* Removing custom directories has the potential to remove user data
+       * if users accidentally point this to their home directory or similar.
+       * Even though the UI shows a warning, we better prevent any accidents
+       * caused by recursive removal, see #119481.
+       * Only check custom directories because the non-custom directory is always
+       * a specific location under Blender's local extensions directory. */
+      const bool recursive = (repo->flag & USER_EXTENSION_REPO_FLAG_USE_CUSTOM_DIRECTORY) == 0;
+
+      /* Perform package manager specific clear operations,
+       * needed when `recursive` is false so the empty directory can be removed.
+       * If it's not empty there will be a warning that the directory couldn't be removed.
+       * The user will have to do this manually which is good since unknown files
+       * could be user data. */
+      BKE_callback_exec_string(bmain, BKE_CB_EVT_EXTENSION_REPOS_FILES_CLEAR, dirpath);
+
+      if (BLI_delete(dirpath, true, recursive) != 0) {
         BKE_reportf(op->reports,
-                    RPT_ERROR,
-                    "Error removing directory: %s",
+                    RPT_WARNING,
+                    "Unable to remove directory: %s",
                     errno ? strerror(errno) : "unknown");
       }
     }
@@ -649,7 +667,7 @@ static void PREFERENCES_OT_extension_repo_sync(wmOperatorType *ot)
   ot->description = "Synchronize the active extension repository with its remote URL";
 
   ot->exec = preferences_extension_repo_sync_exec;
-  ot->poll = preferences_extension_repo_active_enabled_poll;
+  ot->poll = preferences_extension_repo_remote_active_enabled_poll;
 
   ot->flag = OPTYPE_INTERNAL;
 }
@@ -675,7 +693,7 @@ static void PREFERENCES_OT_extension_repo_upgrade(wmOperatorType *ot)
   ot->description = "Update any outdated extensions for the active extension repository";
 
   ot->exec = preferences_extension_repo_upgrade_exec;
-  ot->poll = preferences_extension_repo_active_enabled_poll;
+  ot->poll = preferences_extension_repo_remote_active_enabled_poll;
 
   ot->flag = OPTYPE_INTERNAL;
 }
@@ -686,12 +704,31 @@ static void PREFERENCES_OT_extension_repo_upgrade(wmOperatorType *ot)
 /** \name Drop Extension Operator
  * \{ */
 
-static int preferences_extension_url_drop_exec(bContext *C, wmOperator *op)
+static int preferences_extension_url_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   char *url = RNA_string_get_alloc(op->ptr, "url", nullptr, 0, nullptr);
-  BKE_callback_exec_string(CTX_data_main(C), BKE_CB_EVT_EXTENSION_DROP_URL, url);
+  const bool url_is_remote = STRPREFIX(url, "http://") || STRPREFIX(url, "https://") ||
+                             STRPREFIX(url, "file://");
+
+  /* NOTE: searching for hard-coded add-on name isn't great.
+   * Needed since #WM_dropbox_add expects the operator to exist on startup. */
+  const char *idname_external = url_is_remote ? "bl_pkg.pkg_install" : "bl_pkg.pkg_install_files";
+  wmOperatorType *ot = WM_operatortype_find(idname_external, true);
+  int retval;
+  if (ot) {
+    PointerRNA props_ptr;
+    WM_operator_properties_create_ptr(&props_ptr, ot);
+    RNA_string_set(&props_ptr, "url", url);
+    WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, event);
+    WM_operator_properties_free(&props_ptr);
+    retval = OPERATOR_FINISHED;
+  }
+  else {
+    BKE_reportf(op->reports, RPT_ERROR, "Extension operator not found \"%s\"", idname_external);
+    retval = OPERATOR_CANCELLED;
+  }
   MEM_freeN(url);
-  return OPERATOR_FINISHED;
+  return retval;
 }
 
 static void PREFERENCES_OT_extension_url_drop(wmOperatorType *ot)
@@ -702,7 +739,7 @@ static void PREFERENCES_OT_extension_url_drop(wmOperatorType *ot)
   ot->idname = "PREFERENCES_OT_extension_url_drop";
 
   /* api callbacks */
-  ot->exec = preferences_extension_url_drop_exec;
+  ot->invoke = preferences_extension_url_drop_invoke;
 
   RNA_def_string(ot->srna, "url", nullptr, 0, "URL", "Location of the extension to install");
 }

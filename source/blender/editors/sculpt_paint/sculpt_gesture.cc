@@ -36,7 +36,7 @@
 
 namespace blender::ed::sculpt_paint::gesture {
 
-void operator_properties(wmOperatorType *ot)
+void operator_properties(wmOperatorType *ot, ShapeType shapeType)
 {
   RNA_def_boolean(ot->srna,
                   "use_front_faces_only",
@@ -44,12 +44,14 @@ void operator_properties(wmOperatorType *ot)
                   "Front Faces Only",
                   "Affect only faces facing towards the view");
 
-  RNA_def_boolean(ot->srna,
-                  "use_limit_to_segment",
-                  false,
-                  "Limit to Segment",
-                  "Apply the gesture action only to the area that is contained within the "
-                  "segment without extending its effect to the entire line");
+  if (shapeType == ShapeType::Line) {
+    RNA_def_boolean(ot->srna,
+                    "use_limit_to_segment",
+                    false,
+                    "Limit to Segment",
+                    "Apply the gesture action only to the area that is contained within the "
+                    "segment without extending its effect to the entire line");
+  }
 }
 
 static void init_common(bContext *C, wmOperator *op, GestureData &gesture_data)
@@ -60,7 +62,6 @@ static void init_common(bContext *C, wmOperator *op, GestureData &gesture_data)
 
   /* Operator properties. */
   gesture_data.front_faces_only = RNA_boolean_get(op->ptr, "use_front_faces_only");
-  gesture_data.line.use_side_planes = RNA_boolean_get(op->ptr, "use_limit_to_segment");
   gesture_data.selection_type = SelectionType::Inside;
 
   /* SculptSession */
@@ -219,6 +220,7 @@ std::unique_ptr<GestureData> init_from_line(bContext *C, wmOperator *op)
 {
   std::unique_ptr<GestureData> gesture_data = std::make_unique<GestureData>();
   gesture_data->shape_type = ShapeType::Line;
+  gesture_data->line.use_side_planes = RNA_boolean_get(op->ptr, "use_limit_to_segment");
 
   init_common(C, op, *gesture_data);
 
@@ -338,6 +340,12 @@ static void update_affected_nodes_by_clip_planes(GestureData &gesture_data)
       case SelectionType::Inside:
         return BKE_pbvh_node_frustum_contain_AABB(&node, &frustum);
       case SelectionType::Outside:
+        /* Certain degenerate cases of a lasso shape can cause the resulting
+         * frustum planes to enclose a node's AABB, therefore we must submit it
+         * to be more thoroughly evaluated. */
+        if (gesture_data.shape_type == ShapeType::Lasso) {
+          return true;
+        }
         return BKE_pbvh_node_frustum_exclude_AABB(&node, &frustum);
       default:
         BLI_assert_unreachable();
@@ -376,13 +384,21 @@ static bool is_affected_lasso(GestureData &gesture_data, const float co[3])
   /* Clip against lasso boundbox. */
   LassoData *lasso = &gesture_data.lasso;
   if (!BLI_rcti_isect_pt(&lasso->boundbox, scr_co_s[0], scr_co_s[1])) {
-    return false;
+    return gesture_data.selection_type == SelectionType::Outside;
   }
 
   scr_co_s[0] -= lasso->boundbox.xmin;
   scr_co_s[1] -= lasso->boundbox.ymin;
 
-  return lasso->mask_px[scr_co_s[1] * lasso->width + scr_co_s[0]].test();
+  const bool bitmap_result = lasso->mask_px[scr_co_s[1] * lasso->width + scr_co_s[0]].test();
+  switch (gesture_data.selection_type) {
+    case SelectionType::Inside:
+      return bitmap_result;
+    case SelectionType::Outside:
+      return !bitmap_result;
+  }
+  BLI_assert_unreachable();
+  return false;
 }
 
 bool is_affected(GestureData &gesture_data, const float3 &co, const float3 &vertex_normal)

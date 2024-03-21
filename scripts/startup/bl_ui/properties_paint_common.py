@@ -391,8 +391,7 @@ class SmoothStrokePanel(BrushPanel):
         brush = settings.brush
 
         self.layout.use_property_split = False
-        self.layout.prop(brush, "use_smooth_stroke",
-                         text=self.bl_label if self.is_popover else "")
+        self.layout.prop(brush, "use_smooth_stroke", text=self.bl_label if self.is_popover else "")
 
     def draw(self, context):
         layout = self.layout
@@ -1344,8 +1343,7 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
 
         if gp_settings.use_pressure and not compact:
             col = layout.column()
-            col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True,
-                                       use_negative_slope=True)
+            col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True, use_negative_slope=True)
 
         row = layout.row(align=True)
         row.prop(gp_settings, "pen_strength", slider=True)
@@ -1353,8 +1351,7 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
 
         if gp_settings.use_strength_pressure and not compact:
             col = layout.column()
-            col.template_curve_mapping(gp_settings, "curve_strength", brush=True,
-                                       use_negative_slope=True)
+            col.template_curve_mapping(gp_settings, "curve_strength", brush=True, use_negative_slope=True)
 
         if brush.gpencil_tool == 'TINT':
             row = layout.row(align=True)
@@ -1415,8 +1412,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, *, compact=
 
     if brush.use_pressure_size and not compact:
         col = layout.column()
-        col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True,
-                                   use_negative_slope=True)
+        col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True, use_negative_slope=True)
 
     UnifiedPaintPanel.prop_unified(
         layout,
@@ -1431,8 +1427,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, *, compact=
 
     if brush.use_pressure_strength and not compact:
         col = layout.column()
-        col.template_curve_mapping(gp_settings, "curve_strength", brush=True,
-                                   use_negative_slope=True)
+        col.template_curve_mapping(gp_settings, "curve_strength", brush=True, use_negative_slope=True)
 
     if grease_pencil_tool == 'DRAW':
         layout.prop(gp_settings, "active_smooth_factor")
@@ -1469,20 +1464,12 @@ def brush_basic_gpencil_sculpt_settings(layout, _context, brush, *, compact=Fals
     if compact:
         if tool in {'THICKNESS', 'STRENGTH', 'PINCH', 'TWIST'}:
             row.separator()
-            row.prop(gp_settings, "direction", expand=True, text="")
+            row.prop(brush, "direction", expand=True, text="")
     else:
         use_property_split_prev = layout.use_property_split
         layout.use_property_split = False
-        if tool in {'THICKNESS', 'STRENGTH'}:
-            layout.row().prop(gp_settings, "direction", expand=True)
-        elif tool == 'PINCH':
-            row = layout.row(align=True)
-            row.prop_enum(gp_settings, "direction", value='ADD', text="Pinch")
-            row.prop_enum(gp_settings, "direction", value='SUBTRACT', text="Inflate")
-        elif tool == 'TWIST':
-            row = layout.row(align=True)
-            row.prop_enum(gp_settings, "direction", value='ADD', text="CCW")
-            row.prop_enum(gp_settings, "direction", value='SUBTRACT', text="CW")
+        if tool in {'THICKNESS', 'STRENGTH', 'PINCH', 'TWIST'}:
+            layout.row().prop(brush, "direction", expand=True)
         layout.use_property_split = use_property_split_prev
 
 
@@ -1496,8 +1483,7 @@ def brush_basic_gpencil_weight_settings(layout, _context, brush, *, compact=Fals
     if brush.gpencil_weight_tool in {'WEIGHT'}:
         layout.prop(brush, "weight", slider=True)
 
-        gp_settings = brush.gpencil_settings
-        layout.prop(gp_settings, "direction", expand=True, text="" if compact else "Direction")
+        layout.prop(brush, "direction", expand=True, text="" if compact else "Direction")
 
 
 def brush_basic_gpencil_vertex_settings(layout, _context, brush, *, compact=False):

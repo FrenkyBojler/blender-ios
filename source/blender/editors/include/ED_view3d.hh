@@ -188,7 +188,7 @@ enum eV3DDepthOverrideMode {
 };
 /**
  * Redraw the viewport depth buffer.
- * Call #view3d_has_depth_buffer_being_used if you want to check if the viewport already has depth
+ * Call #ED_view3d_has_depth_buffer_updated if you want to check if the viewport already has depth
  * buffer updated.
  */
 void ED_view3d_depth_override(Depsgraph *depsgraph,
@@ -211,7 +211,7 @@ bool ED_view3d_depth_unproject_v3(const ARegion *region,
                                   double depth,
                                   float r_location_world[3]);
 
-bool ED_view3d_has_depth_buffer_being_used(const Depsgraph *depsgraph, const View3D *v3d);
+bool ED_view3d_has_depth_buffer_updated(const Depsgraph *depsgraph, const View3D *v3d);
 
 /**
  * Utilities to perform navigation.
@@ -1224,9 +1224,9 @@ void ED_view3d_grid_steps(const Scene *scene,
  * The actual code is seen in `object_grid_frag.glsl` (see `grid_res`).
  * Currently the simulation is only done when RV3D_VIEW_IS_AXIS.
  */
-float ED_view3d_grid_view_scale(Scene *scene,
-                                View3D *v3d,
-                                ARegion *region,
+float ED_view3d_grid_view_scale(const Scene *scene,
+                                const View3D *v3d,
+                                const ARegion *region,
                                 const char **r_grid_unit);
 
 /**
@@ -1287,8 +1287,8 @@ void ED_view3d_draw_bgpic_test(const Scene *scene,
 
 /* view3d_gizmo_preselect_type.cc */
 
-void ED_view3d_gizmo_mesh_preselect_get_active(bContext *C,
-                                               wmGizmo *gz,
+void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
+                                               const wmGizmo *gz,
                                                Base **r_base,
                                                BMElem **r_ele);
 void ED_view3d_gizmo_mesh_preselect_clear(wmGizmo *gz);
@@ -1305,8 +1305,8 @@ void ED_view3d_buttons_region_layout_ex(const bContext *C,
  * See if current UUID is valid, otherwise set a valid UUID to v3d,
  * Try to keep the same UUID previously used to allow users to quickly toggle back and forth.
  */
-bool ED_view3d_local_collections_set(Main *bmain, View3D *v3d);
-void ED_view3d_local_collections_reset(bContext *C, bool reset_all);
+bool ED_view3d_local_collections_set(const Main *bmain, View3D *v3d);
+void ED_view3d_local_collections_reset(const bContext *C, bool reset_all);
 
 #ifdef WITH_XR_OPENXR
 void ED_view3d_xr_mirror_update(const ScrArea *area, const View3D *v3d, bool enable);

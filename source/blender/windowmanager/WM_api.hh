@@ -1190,6 +1190,9 @@ std::string WM_operatortype_description_or_name(bContext *C,
                                                 wmOperatorType *ot,
                                                 PointerRNA *properties);
 
+/** Check the #OPTYPE_DEPENDS_ON_CURSOR flag and the callback. */
+bool WM_operator_depends_on_cursor(bContext &C, wmOperatorType &ot, PointerRNA *properties);
+
 /* `wm_operator_utils.cc` */
 
 /**
@@ -1212,8 +1215,8 @@ void WM_uilisttype_free();
 /**
  * The "full" list-ID is an internal name used for storing and identifying a list. It is built like
  * this:
- * "{uiListType.idname}_{list_id}", whereby "list_id" is an optional parameter passed to
- * `UILayout.template_list()`. If it is not set, the full list-ID is just "{uiListType.idname}_".
+ * `{uiListType.idname}_{list_id}`, whereby `list_id` is an optional parameter passed to
+ * `UILayout.template_list()`. If it is not set, the full list-ID is just `{uiListType.idname}_`.
  *
  * Note that whenever the Python API refers to the list-ID, it's the short, "non-full" one it
  * passed to `UILayout.template_list()`. C code can query that through
