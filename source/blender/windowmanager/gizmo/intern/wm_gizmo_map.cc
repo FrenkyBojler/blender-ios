@@ -1136,6 +1136,10 @@ void wm_gizmomap_modal_set(
       gzop = WM_gizmo_operator_get(gz, 16);
     }
 
+    if (event->modifier & KM_ALT) {
+      gzop = WM_gizmo_operator_get(gz, 15);
+    }
+
     if (!gzop) {
       gzop = WM_gizmo_operator_get(gz, gz->highlight_part);
     }
