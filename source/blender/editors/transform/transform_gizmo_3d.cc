@@ -1821,7 +1821,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
             case CTX_MODE_EDIT_MESH:
               ot_store.extra_translate = WM_operatortype_find("MESH_OT_extrude_context_move",
                                                               true);
-              ot_store.extra_translate2 = WM_operatortype_find("MESH_OT_split_move",
+              ot_store.extra_translate2 = WM_operatortype_find("MESH_OT_duplicate_move",
                                                               true);
               break;
           }
@@ -1858,7 +1858,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
                 ot_store.extra_trackball = WM_operatortype_find(
                     "MESH_OT_extrude_context_trackball", true);
                  ot_store.extra_trackball2  = WM_operatortype_find(
-                    "MESH_OT_context_split_trackball", true);
+                    "MESH_OT_context_duplicate_trackball", true);
                 break;
             }
           }
@@ -1881,7 +1881,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
               case CTX_MODE_EDIT_MESH:
                 ot_store.extra_rotate = WM_operatortype_find("MESH_OT_extrude_context_rotate",
                                                              true);
-                ot_store.extra_rotate2 = WM_operatortype_find("MESH_OT_context_split_rotate",
+                ot_store.extra_rotate2 = WM_operatortype_find("MESH_OT_context_duplicate_rotate",
                                                              true);
                 break;
             }
@@ -1914,7 +1914,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
               break;
             case CTX_MODE_EDIT_MESH:
               ot_store.extra_resize = WM_operatortype_find("MESH_OT_extrude_context_resize", true);
-              ot_store.extra_resize2 = WM_operatortype_find("MESH_OT_context_split_scale", true);
+              ot_store.extra_resize2 = WM_operatortype_find("MESH_OT_context_duplicate_scale", true);
               break;
           }
         }

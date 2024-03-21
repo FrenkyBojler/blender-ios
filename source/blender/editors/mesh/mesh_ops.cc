@@ -388,39 +388,39 @@ void ED_operatormacros_mesh()
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 
-  ot = WM_operatortype_append_macro("MESH_OT_split_move",
-                                    "Split and Move",
+  ot = WM_operatortype_append_macro("MESH_OT_duplicate_move",
+                                    "Duplicate and Move",
                                     nullptr,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
-  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_split");
+  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_duplicate");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 
-  ot = WM_operatortype_append_macro("MESH_OT_context_split_rotate",
-                                    "Split Region and Rotate",
+  ot = WM_operatortype_append_macro("MESH_OT_context_duplicate_rotate",
+                                    "Duplicate Region and Rotate",
                                      nullptr,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
-  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_split");
+  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_duplicate");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_rotate");
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 
-   ot = WM_operatortype_append_macro("MESH_OT_context_split_trackball",
-                                    "Split Region and Rotate(Trackball)",
+   ot = WM_operatortype_append_macro("MESH_OT_context_duplicate_trackball",
+                                    "Duplicate Region and Rotate(Trackball)",
                                    nullptr,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
-  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_split");
+  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_duplicate");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_trackball");
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 
-  ot = WM_operatortype_append_macro("MESH_OT_context_split_scale",
-                                    "Split Region and Scale",
+  ot = WM_operatortype_append_macro("MESH_OT_context_duplicate_scale",
+                                    "Duplicate Region and Scale",
                                    nullptr,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
-  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_split");
-  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_scale");
+  otmacro = WM_operatortype_macro_define(ot, "MESH_OT_duplicate");
+  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_resize");
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 }
