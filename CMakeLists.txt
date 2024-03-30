@@ -317,6 +317,7 @@ endif()
 unset(_option_default)
 
 option(WITH_GMP "Enable features depending on GMP (Exact Boolean)" ON)
+option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean)" ON)
 
 # Compositor
 option(WITH_COMPOSITOR_CPU "Enable the tile based CPU nodal compositor" ON)
@@ -2384,6 +2385,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_INPUT_NDOF)
   info_cfg_option(WITH_INPUT_IME)
   info_cfg_option(WITH_INTERNATIONAL)
+  info_cfg_options(WITH_MANIFOLD)
   info_cfg_option(WITH_OPENCOLLADA)
   info_cfg_option(WITH_OPENCOLORIO)
   info_cfg_option(WITH_OPENIMAGEDENOISE)

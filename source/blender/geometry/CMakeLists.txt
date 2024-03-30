@@ -22,6 +22,7 @@ set(SRC
   intern/fillet_curves.cc
   intern/join_geometries.cc
   intern/mesh_boolean.cc
+  intern/mesh_boolean_manifold.cc
   intern/mesh_copy_selection.cc
   intern/mesh_merge_by_distance.cc
   intern/mesh_primitive_cuboid.cc
@@ -85,6 +86,8 @@ set(SRC
   GEO_trim_curves.hh
   GEO_uv_pack.hh
   GEO_uv_parametrizer.hh
+
+  intern/mesh_boolean_manifold.hh
 )
 
 set(LIB
@@ -131,6 +134,17 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
+endif()
+
+if(WITH_MANIFOLD)
+  add_definitions(-DWITH_MANIFOLD)
+#TODO -- do this properly
+  list (APPEND INC_SYS
+    "/usr/local/include/manifold"
+    "/usr/local/include"
+  )
+#TODO -- append to LIB the libraries that actually work
+  
 endif()
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

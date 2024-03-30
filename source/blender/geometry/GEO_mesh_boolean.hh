@@ -21,6 +21,8 @@ enum class Solver {
   MeshArr = 0,
   /** The original BMesh floating point solver. */
   Float = 1,
+  /** The Manifold library fast robust floating point solver. */
+  Manifold = 2,
 };
 
 enum class Operation {

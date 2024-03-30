@@ -248,6 +248,11 @@ static void node_rna(StructRNA *srna)
        0,
        "Float",
        "Simple solver for the best performance, without support for overlapping geometry"},
+      {int(geometry::boolean::Solver::Manifold),
+        "MANIFOLD",
+        0,
+        "Manifold",
+        "Very fast and robust solver (best with manifold input)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

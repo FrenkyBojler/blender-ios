@@ -24,6 +24,7 @@
 #include "DNA_node_types.h"
 
 #include "GEO_mesh_boolean.hh"
+#include "mesh_boolean_manifold.hh"
 
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
@@ -1171,6 +1172,16 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                                    !op_params.watertight,
                                    operation_to_mesh_arr_mode(op_params.boolean_mode),
                                    r_intersecting_edges);
+#else
+      return nullptr;
+#endif
+    case Solver::Manifold:
+#ifdef WITH_MANIFOLD
+      return mesh_boolean_manifold(meshes,
+                                   transforms,
+                                   target_transform,
+                                   material_remaps,
+                                   op_params);
 #else
       return nullptr;
 #endif
