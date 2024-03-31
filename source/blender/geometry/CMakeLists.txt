@@ -140,10 +140,14 @@ if(WITH_MANIFOLD)
   add_definitions(-DWITH_MANIFOLD)
 #TODO -- do this properly
   list (APPEND INC_SYS
-    "/usr/local/include/manifold"
-    "/usr/local/include"
+    "/Users/howardtrickey/my_manifold/include/manifold"
+    "/Users/howardtrickey/my_manifold/include"
   )
 #TODO -- append to LIB the libraries that actually work
+  list (APPEND LIB
+    "/Users/howardtrickey/my_manifold/lib/libmanifold.a"
+    "/Users/howardtrickey/my_manifold/lib/libClipper2.a"
+  )
   
 endif()
 

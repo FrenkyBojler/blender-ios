@@ -78,18 +78,8 @@ static void triangulate_mesh_faces(std::vector<uint32_t> &tri_verts,
   });
 }
 
-static Manifold manifold_from_mesh(const Mesh *mesh,
-                                   const float4x4 &transform)
+static void dump_meshgl(const MeshGL &mgl)
 {
-  timeit::ScopedTimer timer("manifold from mesh");
-  const int num_verts = mesh->verts_num;
-  MeshGL mgl;
-  /* TODO: add the props for all the Mesh attributes. For now, just x,y,z. */
-  mgl.numProp = 3;
-  mgl.vertProperties.resize(mgl.numProp * num_verts);
-  transform_mesh_verts(mgl.vertProperties, mgl.numProp, mesh, transform);
-  triangulate_mesh_faces(mgl.triVerts, mgl.faceID, mesh, math::is_negative(transform));
-  /* DEBUG!! */
   std::cout << "\nMeshGL\n" << "num verts = " << mgl.NumVert()
   << "\nnum triangles = " << mgl.NumTri() << "\n"
   << "\nverts: ";
@@ -105,7 +95,52 @@ static Manifold manifold_from_mesh(const Mesh *mesh,
     std::cout << mgl.faceID[m] << " ";
   }
   std::cout << "\n";
-  /* end DEBUG!! */
+}
+
+template<typename T> static void dump_span(Span<T> span, const std::string &name)
+{
+  std::cout << name << ":";
+  for (const int i : span.index_range()) {
+    if (i % 10 == 0) {
+      std::cout << "\n[" << i << "] ";
+    }
+    std::cout << span[i] << " ";
+  }
+  std::cout << "\n";
+}
+
+static void dump_mesh(const Mesh *mesh)
+{
+  std::cout << "\nMesh\n" << "verts_num = " << mesh->verts_num
+    << "\nfaces_num = " << mesh->faces_num
+    << "\nedges_num = " << mesh->edges_num
+    << "\ncorners_num = " << mesh->corners_num << "\n";
+  dump_span(mesh->vert_positions(), "verts");
+  dump_span(mesh->edges(), "edges");
+  dump_span(mesh->corner_verts(), "corner_verts");
+  dump_span(mesh->corner_edges(), "corner_edges");
+  dump_span(mesh->face_offsets(), "face_offsets");
+}
+
+static Manifold manifold_from_mesh(const Mesh *mesh,
+                                   const float4x4 &transform)
+{
+  constexpr int dbg_level = 0;
+  if (dbg_level > 0) {
+    std::cout << "\nMANIFOLD_FROM_MESH\n";
+    dump_mesh(mesh);
+  }
+  timeit::ScopedTimer timer("manifold from mesh");
+  const int num_verts = mesh->verts_num;
+  MeshGL mgl;
+  /* TODO: add the props for all the Mesh attributes. For now, just x,y,z. */
+  mgl.numProp = 3;
+  mgl.vertProperties.resize(mgl.numProp * num_verts);
+  transform_mesh_verts(mgl.vertProperties, mgl.numProp, mesh, transform);
+  triangulate_mesh_faces(mgl.triVerts, mgl.faceID, mesh, math::is_negative(transform));
+  if (dbg_level > 0) {
+    dump_meshgl(mgl);
+  }
   return Manifold(mgl);
 }
 
@@ -113,6 +148,11 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps)
 {
+  constexpr int dbg_level = 0;
+  if (dbg_level > 0) {
+    std::cout << "\nMESHGL_TO_MESH\n";
+    dump_meshgl(mgl);
+  }
   timeit::ScopedTimer timer("manifold to mesh");
   /* TODO: dissolve unnecessary triangle faces. */
   int tot_positions = mgl.NumVert();
@@ -147,16 +187,25 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     for (const int face_index : range) {
       int corner_index = 3 * face_index;
       face_offsets[face_index] = corner_index;
-      corner_verts[corner_index] = mgl.vertProperties[num_props * face_index];
-      corner_verts[corner_index + 1] = mgl.vertProperties[num_props * face_index + 1];
-      corner_verts[corner_index + 2] = mgl.vertProperties[num_props * face_index + 2];
+      corner_verts[corner_index] = mgl.triVerts[corner_index];
+      corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
+      corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
     }
   });
   face_offsets[tot_faces] = 3 * tot_faces;
+  if (dbg_level > 1) {
+    std::cout << "\nbefore mesh_calc_edges\n";
+    dump_mesh(mesh);
+  }
   /* TODO: apply material_remaps. */
   UNUSED_VARS(material_remaps);
   bke::mesh_smooth_set(*mesh, false);
   bke::mesh_calc_edges(*mesh, false, false);
+  if (dbg_level > 0) {
+    std::cout << "\nAfter mesh_calc_edgs\n";
+    dump_mesh(mesh);
+  }
+  BKE_mesh_validate(mesh, true, true);
   return mesh;
 }
 
