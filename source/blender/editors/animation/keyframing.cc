@@ -9,6 +9,8 @@
 #include <cstddef>
 #include <cstdio>
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -60,7 +62,7 @@
 #include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
-#include "anim_intern.h"
+#include "anim_intern.hh"
 
 static KeyingSet *keyingset_get_from_op_with_error(wmOperator *op,
                                                    PropertyRNA *prop,
@@ -198,7 +200,7 @@ static int insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
    * updated since the last switching to the edit mode will be keyframed correctly
    */
   if (obedit && ANIM_keyingset_find_id(ks, (ID *)obedit->data)) {
-    ED_object_mode_set(C, OB_MODE_OBJECT);
+    blender::ed::object::mode_set(C, OB_MODE_OBJECT);
     ob_edit_mode = true;
   }
 
@@ -214,7 +216,7 @@ static int insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
 
   /* restore the edit mode if necessary */
   if (ob_edit_mode) {
-    ED_object_mode_set(C, OB_MODE_EDIT);
+    blender::ed::object::mode_set(C, OB_MODE_EDIT);
   }
 
   /* report failure or do updates? */
@@ -298,17 +300,17 @@ static blender::Vector<std::string> construct_rna_paths(PointerRNA *ptr)
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES) {
     if (properties) {
       LISTBASE_FOREACH (IDProperty *, prop, &properties->data.group) {
-        std::string name = prop->name;
-        std::string rna_path = "[\"" + name + "\"]";
-        paths.append(rna_path);
+        char name_escaped[MAX_IDPROP_NAME * 2];
+        BLI_str_escape(name_escaped, prop->name, sizeof(name_escaped));
+        paths.append(fmt::format("[\"{}\"]", name_escaped));
       }
     }
   }
   return paths;
 }
 
-/* Fill the list with CollectionPointerLink depending on the mode of the context. */
-static bool get_selection(bContext *C, ListBase *r_selection)
+/* Fill the list with items depending on the mode of the context. */
+static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
 {
   const eContextObjectMode context_mode = CTX_data_mode_enum(C);
 
@@ -332,7 +334,7 @@ static int insert_key(bContext *C, wmOperator *op)
 {
   using namespace blender;
 
-  ListBase selection = {nullptr, nullptr};
+  blender::Vector<PointerRNA> selection;
   const bool found_selection = get_selection(C, &selection);
   if (!found_selection) {
     BKE_reportf(op->reports, RPT_ERROR, "Unsupported context mode");
@@ -349,14 +351,13 @@ static int insert_key(bContext *C, wmOperator *op)
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, BKE_scene_frame_get(scene));
 
-  LISTBASE_FOREACH (CollectionPointerLink *, collection_ptr_link, &selection) {
-    ID *selected_id = collection_ptr_link->ptr.owner_id;
+  for (PointerRNA &id_ptr : selection) {
+    ID *selected_id = id_ptr.owner_id;
     if (!BKE_id_is_editable(bmain, selected_id)) {
       BKE_reportf(op->reports, RPT_ERROR, "'%s' is not editable", selected_id->name + 2);
       continue;
     }
-    PointerRNA id_ptr = collection_ptr_link->ptr;
-    Vector<std::string> rna_paths = construct_rna_paths(&collection_ptr_link->ptr);
+    Vector<std::string> rna_paths = construct_rna_paths(&id_ptr);
 
     animrig::insert_key_rna(&id_ptr,
                             rna_paths.as_span(),
@@ -369,7 +370,6 @@ static int insert_key(bContext *C, wmOperator *op)
   }
 
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
-  BLI_freelistN(&selection);
 
   return OPERATOR_FINISHED;
 }
@@ -1010,7 +1010,6 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
         changed = (blender::animrig::insert_keyframe(bmain,
                                                      op->reports,
                                                      ptr.owner_id,
-                                                     nullptr,
                                                      group,
                                                      path->c_str(),
                                                      index,

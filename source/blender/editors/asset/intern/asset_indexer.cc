@@ -547,7 +547,7 @@ class AssetIndexFile : public AbstractFile {
   /**
    * Returns whether the index file is older than the given asset file.
    */
-  bool is_older_than(BlendFile &asset_file) const
+  bool is_older_than(const BlendFile &asset_file) const
   {
     return BLI_file_older(this->get_file_path(), asset_file.get_file_path());
   }
@@ -632,8 +632,8 @@ int AssetLibraryIndex::remove_broken_index_files()
   }
 
   int num_files_deleted = 0;
-  for (StringRef files_to_remove : files_to_remove) {
-    if (delete_file_index(files_to_remove)) {
+  for (StringRef filepath : files_to_remove) {
+    if (delete_file_index(filepath)) {
       num_files_deleted++;
     }
   }

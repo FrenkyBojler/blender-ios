@@ -21,7 +21,7 @@ struct ShadowSampleParams {
   float z_range;
 };
 
-ShadowTileData shadow_tile_data_get(usampler2D tilemaps_tx, ShadowSampleParams params)
+ShadowSamplingTile shadow_tile_data_get(usampler2D tilemaps_tx, ShadowSampleParams params)
 {
   /* Prevent out of bound access. Assumes the input is already non negative. */
   vec2 tilemap_uv = min(params.uv.xy, vec2(0.99999));
@@ -46,9 +46,9 @@ float shadow_read_depth(SHADOW_ATLAS_TYPE atlas_tx,
   const int page_shift = SHADOW_PAGE_LOD;
 
   ivec2 tile_coord = texel_coord >> page_shift;
-  ShadowTileData tile = shadow_tile_load(tilemaps_tx, tile_coord, params.tilemap_index);
+  ShadowSamplingTile tile = shadow_tile_load(tilemaps_tx, tile_coord, params.tilemap_index);
 
-  if (!tile.is_allocated) {
+  if (!tile.is_valid) {
     return -1.0;
   }
 
@@ -127,7 +127,7 @@ mat4 shadow_punctual_projection_perspective(LightData light)
   /* Face Local (View) Space > Clip Space. */
   float clip_far = intBitsToFloat(light.clip_far);
   float clip_near = intBitsToFloat(light.clip_near);
-  float clip_side = light.clip_side;
+  float clip_side = light_local_data_get(light).clip_side;
   return shadow_projection_perspective(clip_side, clip_near, clip_far);
 }
 
@@ -136,7 +136,7 @@ mat4 shadow_punctual_projection_perspective_inverse(LightData light)
   /* Face Local (View) Space > Clip Space. */
   float clip_far = intBitsToFloat(light.clip_far);
   float clip_near = intBitsToFloat(light.clip_near);
-  float clip_side = light.clip_side;
+  float clip_side = light_local_data_get(light).clip_side;
   return shadow_projection_perspective_inverse(clip_side, clip_near, clip_far);
 }
 
@@ -205,12 +205,16 @@ ShadowDirectionalSampleInfo shadow_directional_sample_info_get(LightData light, 
   int level = shadow_directional_level(light, lP - light._position);
   /* This difference needs to be less than 32 for the later shift to be valid.
    * This is ensured by ShadowDirectional::clipmap_level_range(). */
-  info.level_relative = level - light.clipmap_lod_min;
-  info.lod_relative = (light.type == LIGHT_SUN_ORTHO) ? light.clipmap_lod_min : level;
+  info.level_relative = level - light_sun_data_get(light).clipmap_lod_min;
+  info.lod_relative = (light.type == LIGHT_SUN_ORTHO) ? light_sun_data_get(light).clipmap_lod_min :
+                                                        level;
 
   info.clipmap_offset = shadow_decompress_grid_offset(
-      light.type, light.clipmap_base_offset, info.level_relative);
-  info.clipmap_origin = vec2(light._clipmap_origin_x, light._clipmap_origin_y);
+      light.type,
+      light_sun_data_get(light).clipmap_base_offset_neg,
+      light_sun_data_get(light).clipmap_base_offset_pos,
+      info.level_relative);
+  info.clipmap_origin = light_sun_data_get(light).clipmap_origin;
 
   return info;
 }

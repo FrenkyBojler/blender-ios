@@ -17,7 +17,7 @@
 #include "BLI_string_ref.hh"
 #include "DRW_render.hh"
 #include "GPU_material.hh"
-#include "GPU_shader.h"
+#include "GPU_shader.hh"
 
 #include "eevee_material.hh"
 #include "eevee_sync.hh"
@@ -120,6 +120,7 @@ enum eShaderType {
   SHADOW_PAGE_MASK,
   SHADOW_PAGE_TILE_CLEAR,
   SHADOW_PAGE_TILE_STORE,
+  SHADOW_TILEMAP_AMEND,
   SHADOW_TILEMAP_BOUNDS,
   SHADOW_TILEMAP_FINALIZE,
   SHADOW_TILEMAP_INIT,

@@ -1281,6 +1281,9 @@ void update_normals(PBVH &pbvh, SubdivCCG *subdiv_ccg)
 {
   Vector<PBVHNode *> nodes = search_gather(
       &pbvh, [&](PBVHNode &node) { return update_search(&node, PBVH_UpdateNormals); });
+  if (nodes.is_empty()) {
+    return;
+  }
 
   if (pbvh.header.type == PBVH_BMESH) {
     bmesh_normals_update(nodes);
@@ -2284,7 +2287,7 @@ void clip_ray_ortho(
   axis_dominant_v3_to_m3(mat, ray_normal);
   float a[3], b[3], min[3] = {FLT_MAX, FLT_MAX, FLT_MAX}, max[3] = {FLT_MIN, FLT_MIN, FLT_MIN};
 
-  /* Compute AABB bounds rotated along ray_normal.*/
+  /* Compute AABB bounds rotated along ray_normal. */
   copy_v3_v3(a, bb_root.min);
   copy_v3_v3(b, bb_root.max);
   mul_m3_v3(mat, a);

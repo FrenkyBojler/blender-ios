@@ -65,7 +65,7 @@
 
 #include "DRW_engine.hh"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
 #include "BLO_read_write.hh"
 
@@ -1804,7 +1804,7 @@ void BKE_movieclip_build_proxy_frame(MovieClip *clip,
                                      int clip_flag,
                                      MovieDistortion *distortion,
                                      int cfra,
-                                     int *build_sizes,
+                                     const int *build_sizes,
                                      int build_count,
                                      bool undistorted)
 {
@@ -1845,7 +1845,7 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip,
                                               ImBuf *ibuf,
                                               MovieDistortion *distortion,
                                               int cfra,
-                                              int *build_sizes,
+                                              const int *build_sizes,
                                               int build_count,
                                               bool undistorted)
 {

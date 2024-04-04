@@ -33,7 +33,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
 
 #include "gpencil_engine.h"
@@ -357,7 +357,7 @@ struct gpIterPopulateData {
   int stroke_index_last;
   int stroke_index_offset;
   /* Infos for call batching. */
-  GPUBatch *geom;
+  blender::gpu::Batch *geom;
   int vfirst, vcount;
 };
 
@@ -378,7 +378,7 @@ static void gpencil_drawcall_flush(gpIterPopulateData *iter)
 
 /* Group draw-calls that are consecutive and with the same type. Reduces GPU driver overhead. */
 static void gpencil_drawcall_add(gpIterPopulateData *iter,
-                                 GPUBatch *geom,
+                                 blender::gpu::Batch *geom,
                                  int v_first,
                                  int v_count)
 {
@@ -524,18 +524,19 @@ static void gpencil_stroke_cache_populate(bGPDlayer *gpl,
 
   bool do_sbuffer = (iter->do_sbuffer_call == DRAW_NOW);
 
-  GPUBatch *geom = do_sbuffer ? DRW_cache_gpencil_sbuffer_get(iter->ob, show_fill) :
-                                DRW_cache_gpencil_get(iter->ob, iter->pd->cfra);
+  blender::gpu::Batch *geom = do_sbuffer ? DRW_cache_gpencil_sbuffer_get(iter->ob, show_fill) :
+                                           DRW_cache_gpencil_get(iter->ob, iter->pd->cfra);
   if (geom != iter->geom) {
     gpencil_drawcall_flush(iter);
 
-    GPUVertBuf *position_tx = do_sbuffer ?
-                                  DRW_cache_gpencil_sbuffer_position_buffer_get(iter->ob,
-                                                                                show_fill) :
-                                  DRW_cache_gpencil_position_buffer_get(iter->ob, iter->pd->cfra);
-    GPUVertBuf *color_tx = do_sbuffer ?
-                               DRW_cache_gpencil_sbuffer_color_buffer_get(iter->ob, show_fill) :
-                               DRW_cache_gpencil_color_buffer_get(iter->ob, iter->pd->cfra);
+    blender::gpu::VertBuf *position_tx =
+        do_sbuffer ? DRW_cache_gpencil_sbuffer_position_buffer_get(iter->ob, show_fill) :
+                     DRW_cache_gpencil_position_buffer_get(iter->ob, iter->pd->cfra);
+    blender::gpu::VertBuf *color_tx = do_sbuffer ?
+                                          DRW_cache_gpencil_sbuffer_color_buffer_get(iter->ob,
+                                                                                     show_fill) :
+                                          DRW_cache_gpencil_color_buffer_get(iter->ob,
+                                                                             iter->pd->cfra);
     DRW_shgroup_buffer_texture(iter->grp, "gp_pos_tx", position_tx);
     DRW_shgroup_buffer_texture(iter->grp, "gp_col_tx", color_tx);
   }
@@ -613,6 +614,9 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
   const blender::Bounds<float3> bounds = grease_pencil.bounds_min_max_eval().value_or(
       blender::Bounds(float3(0)));
 
+  const bool do_onion = !pd->is_render && pd->do_onion;
+  const bool do_multi_frame = (pd->scene->toolsettings->gpencil_flags &
+                               GP_USE_MULTI_FRAME_EDITING) != 0;
   const bool use_stroke_order_3d = (grease_pencil.flag & GREASE_PENCIL_STROKE_ORDER_3D) != 0;
   GPENCIL_tObject *tgp_ob = gpencil_object_cache_add(pd, ob, use_stroke_order_3d, bounds);
 
@@ -622,7 +626,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
   GPUTexture *tex_fill = txl->dummy_texture;
   GPUTexture *tex_stroke = txl->dummy_texture;
 
-  GPUBatch *iter_geom = nullptr;
+  blender::gpu::Batch *iter_geom = nullptr;
   DRWShadingGroup *grp;
   int vfirst = 0;
   int vcount = 0;
@@ -638,32 +642,36 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
     vcount = 0;
   };
 
-  const auto drawcall_add = [&](GPUBatch *draw_geom, int v_first, int v_count) {
+  const auto drawcall_add =
+      [&](blender::gpu::Batch *draw_geom, const int v_first, const int v_count) {
 #if DISABLE_BATCHING
-    DRW_shgroup_call_range(grp, ob, geom, v_first, v_count);
-    return;
+        DRW_shgroup_call_range(grp, ob, geom, v_first, v_count);
+        return;
 #endif
-    int last = vfirst + vcount;
-    /* Interrupt draw-call grouping if the sequence is not consecutive. */
-    if ((draw_geom != iter_geom) || (v_first - last > 0)) {
-      drawcall_flush();
-    }
-    iter_geom = draw_geom;
-    if (vfirst == -1) {
-      vfirst = v_first;
-    }
-    vcount = v_first + v_count - vfirst;
-  };
+        int last = vfirst + vcount;
+        /* Interrupt draw-call grouping if the sequence is not consecutive. */
+        if ((draw_geom != iter_geom) || (v_first - last > 0)) {
+          drawcall_flush();
+        }
+        iter_geom = draw_geom;
+        if (vfirst == -1) {
+          vfirst = v_first;
+        }
+        vcount = v_first + v_count - vfirst;
+      };
 
   int t_offset = 0;
-  const Vector<DrawingInfo> drawings = retrieve_visible_drawings(*pd->scene, grease_pencil);
+  /* Note that we loop over all the drawings (including the onion skinned ones) to make sure we
+   * match the offsets of the batch cache. */
+  const Vector<DrawingInfo> drawings = retrieve_visible_drawings(*pd->scene, grease_pencil, true);
   const Span<const Layer *> layers = grease_pencil.layers();
   for (const DrawingInfo info : drawings) {
     const Layer &layer = *layers[info.layer_index];
 
     drawcall_flush();
 
-    GPENCIL_tLayer *tgp_layer = grease_pencil_layer_cache_add(pd, ob, layer, {}, tgp_ob);
+    GPENCIL_tLayer *tgp_layer = grease_pencil_layer_cache_add(
+        pd, ob, layer, info.onion_id, tgp_ob);
 
     const bool use_lights = pd->use_lighting &&
                             ((layer.base.flag & GP_LAYER_TREE_NODE_USE_LIGHTS) != 0) &&
@@ -700,7 +708,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
     visible_strokes.foreach_index([&](const int stroke_i) {
       const IndexRange points = points_by_curve[stroke_i];
       const int material_index = stroke_materials[stroke_i];
-      MaterialGPencilStyle *gp_style = BKE_object_material_get(ob, material_index + 1)->gp_style;
+      const MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
 
       const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
       const bool show_stroke = ((gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0);
@@ -712,9 +720,9 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
                                     OB_MODE_WEIGHT_PAINT,
                                     OB_MODE_VERTEX_PAINT) &&
                               info.frame_number != pd->cfra && pd->use_multiedit_lines_only;
-      /* bool is_onion = gpl && gpf && gpf->runtime.onion_id != 0; */
-      const bool is_onion = false;
-      const bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0);
+      const bool is_onion = info.onion_id != 0;
+      const bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0 ||
+                                           (!do_onion && !do_multi_frame));
 
       const int num_stroke_triangles = (points.size() >= 3) ? (points.size() - 2) : 0;
       const int num_stroke_vertices = (points.size() +
@@ -735,9 +743,9 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
       gpencil_material_resources_get(
           matpool, mat_ofs + material_index, &new_tex_stroke, &new_tex_fill, &new_ubo_mat);
 
-      bool resource_changed = (ubo_mat != new_ubo_mat) ||
-                              (new_tex_fill && (new_tex_fill != tex_fill)) ||
-                              (new_tex_stroke && (new_tex_stroke != tex_stroke));
+      const bool resource_changed = (ubo_mat != new_ubo_mat) ||
+                                    (new_tex_fill && (new_tex_fill != tex_fill)) ||
+                                    (new_tex_stroke && (new_tex_stroke != tex_stroke));
 
       if (resource_changed) {
         drawcall_flush();
@@ -757,27 +765,29 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
         }
       }
 
-      GPUBatch *geom = draw::DRW_cache_grease_pencil_get(pd->scene, ob);
+      blender::gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(pd->scene, ob);
       if (iter_geom != geom) {
         drawcall_flush();
 
-        GPUVertBuf *position_tx = draw::DRW_cache_grease_pencil_position_buffer_get(pd->scene, ob);
-        GPUVertBuf *color_tx = draw::DRW_cache_grease_pencil_color_buffer_get(pd->scene, ob);
+        blender::gpu::VertBuf *position_tx = draw::DRW_cache_grease_pencil_position_buffer_get(
+            pd->scene, ob);
+        blender::gpu::VertBuf *color_tx = draw::DRW_cache_grease_pencil_color_buffer_get(pd->scene,
+                                                                                         ob);
         DRW_shgroup_buffer_texture(grp, "gp_pos_tx", position_tx);
         DRW_shgroup_buffer_texture(grp, "gp_col_tx", color_tx);
       }
 
       if (show_fill) {
-        int v_first = t_offset * 3;
-        int v_count = num_stroke_triangles * 3;
+        const int v_first = t_offset * 3;
+        const int v_count = num_stroke_triangles * 3;
         drawcall_add(geom, v_first, v_count);
       }
 
       t_offset += num_stroke_triangles;
 
       if (show_stroke) {
-        int v_first = t_offset * 3;
-        int v_count = num_stroke_vertices * 2 * 3;
+        const int v_first = t_offset * 3;
+        const int v_count = num_stroke_vertices * 2 * 3;
         drawcall_add(geom, v_first, v_count);
       }
 

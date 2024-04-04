@@ -1087,7 +1087,7 @@ static void rna_BrushGpencilSettings_default_eraser_update(Main *bmain,
 {
   ToolSettings *ts = scene->toolsettings;
   Paint *paint = &ts->gp_paint->paint;
-  Brush *brush_cur = paint->brush;
+  Brush *brush_cur = BKE_paint_brush(paint);
 
   /* disable default eraser in all brushes */
   for (Brush *brush = static_cast<Brush *>(bmain->brushes.first); brush;
@@ -1127,7 +1127,7 @@ static void rna_BrushGpencilSettings_eraser_mode_update(Main * /*bmain*/,
 {
   ToolSettings *ts = scene->toolsettings;
   Paint *paint = &ts->gp_paint->paint;
-  Brush *brush = paint->brush;
+  Brush *brush = BKE_paint_brush(paint);
 
   /* set eraser icon */
   if ((brush) && (brush->gpencil_tool == GPAINT_TOOL_ERASE)) {
@@ -1459,14 +1459,14 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   PropertyRNA *prop;
 
   /* modes */
-  static EnumPropertyItem gppaint_mode_types_items[] = {
+  static const EnumPropertyItem gppaint_mode_types_items[] = {
       {GPPAINT_MODE_STROKE, "STROKE", 0, "Stroke", "Vertex Color affects to Stroke only"},
       {GPPAINT_MODE_FILL, "FILL", 0, "Fill", "Vertex Color affects to Fill only"},
       {GPPAINT_MODE_BOTH, "BOTH", 0, "Stroke & Fill", "Vertex Color affects to Stroke and Fill"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem rna_enum_gpencil_brush_caps_types_items[] = {
+  static const EnumPropertyItem rna_enum_gpencil_brush_caps_types_items[] = {
       {GP_STROKE_CAP_ROUND, "ROUND", ICON_GP_CAPS_ROUND, "Round", ""},
       {GP_STROKE_CAP_FLAT, "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
       {0, nullptr, 0, nullptr, nullptr},

@@ -1804,7 +1804,7 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
   PropertyRNA *lprop;
   bool success = false;
 
-  ListBase lb = {nullptr};
+  blender::Vector<PointerRNA> lb;
 
   PointerRNA ptr = but->rnapoin;
   PropertyRNA *prop = but->rnaprop;
@@ -1825,19 +1825,17 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
 
     std::optional<std::string> path;
     if (UI_context_copy_to_selected_list(C, &ptr, prop, &lb, &use_path_from_id, &path) &&
-        !BLI_listbase_is_empty(&lb))
+        !lb.is_empty())
     {
-      selctx_data->elems_len = BLI_listbase_count(&lb);
+      selctx_data->elems_len = lb.size();
       selctx_data->elems = static_cast<uiSelectContextElem *>(
           MEM_mallocN(sizeof(uiSelectContextElem) * selctx_data->elems_len, __func__));
-      int i;
-      LISTBASE_FOREACH_INDEX (CollectionPointerLink *, link, &lb, i) {
-        if (i >= selctx_data->elems_len) {
-          break;
-        }
 
+      int i;
+      PointerRNA *link;
+      for (i = 0, link = lb.data(); i < selctx_data->elems_len; i++, link++) {
         if (!UI_context_copy_to_selected_check(&ptr,
-                                               &link->ptr,
+                                               link,
                                                prop,
                                                path.has_value() ? path->c_str() : nullptr,
                                                use_path_from_id,
@@ -1890,8 +1888,6 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
   if (selctx_data->elems_len == 0) {
     MEM_SAFE_FREE(selctx_data->elems);
   }
-
-  BLI_freelistN(&lb);
 
   /* caller can clear */
   selctx_data->do_free = true;
@@ -4992,7 +4988,7 @@ static float ui_numedit_apply_snapf(
     float fac = 1.0f;
 
     if (ui_but_is_unit(but)) {
-      UnitSettings *unit = but->block->unit;
+      const UnitSettings *unit = but->block->unit;
       const int unit_type = RNA_SUBTYPE_UNIT_VALUE(UI_but_unit_type_get(but));
 
       if (BKE_unit_is_valid(unit->system, unit_type)) {
@@ -5015,7 +5011,7 @@ static float ui_numedit_apply_snapf(
     /* snapping by 10's for float buttons is quite annoying (location, scale...),
      * but allow for rotations */
     if (softrange >= 21.0f) {
-      UnitSettings *unit = but->block->unit;
+      const UnitSettings *unit = but->block->unit;
       const int unit_type = UI_but_unit_type_get(but);
       if ((unit_type == PROP_UNIT_ROTATION) && (unit->system_rotation != USER_UNIT_ROT_RADIANS)) {
         /* Pass (degrees). */
@@ -6013,7 +6009,7 @@ static int ui_do_but_SCROLL(
       button_activate_state(C, but, BUTTON_STATE_EXIT);
     }
     else if (event->type == MOUSEMOVE) {
-      const bool is_motion = (event->type == MOUSEMOVE);
+      const bool is_motion = true;
       if (ui_numedit_but_SLI(
               but, data, (horizontal) ? mx : my, horizontal, is_motion, false, false))
       {
@@ -6286,7 +6282,7 @@ static void ui_palette_set_active(uiButColor *color_but)
 {
   if (color_but->is_pallete_color) {
     Palette *palette = (Palette *)color_but->rnapoin.owner_id;
-    PaletteColor *color = static_cast<PaletteColor *>(color_but->rnapoin.data);
+    const PaletteColor *color = static_cast<const PaletteColor *>(color_but->rnapoin.data);
     palette->active_color = BLI_findindex(&palette->colors, color);
   }
 }
@@ -9755,12 +9751,9 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *regi
         const int *new_order = dyn_data->items_filter_neworder;
         int org_idx = -1, len = dyn_data->items_len;
         int current_idx = -1;
-        const int filter_exclude = ui_list->filter_flag & UILST_FLT_EXCLUDE;
 
         for (int i = 0; i < len; i++) {
-          if (!dyn_data->items_filter_flags ||
-              ((dyn_data->items_filter_flags[i] & UILST_FLT_ITEM) ^ filter_exclude))
-          {
+          if (UI_list_item_index_is_filtered_visible(ui_list, i)) {
             org_order[new_order ? new_order[++org_idx] : ++org_idx] = i;
             if (i == value) {
               current_idx = new_order ? new_order[org_idx] : org_idx;

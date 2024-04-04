@@ -769,15 +769,15 @@ static Mesh *mesh_new_from_mball_object(Object *object)
   return BKE_mesh_copy_for_eval(mesh_eval);
 }
 
-static Mesh *mesh_new_from_mesh(Object *object, Mesh *mesh)
+static Mesh *mesh_new_from_mesh(Object *object, const Mesh *mesh)
 {
   /* While we could copy this into the new mesh,
    * add the data to 'mesh' so future calls to this function don't need to re-convert the data. */
   if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    BKE_mesh_wrapper_ensure_mdata(mesh);
+    BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(mesh));
   }
   else {
-    mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
+    mesh = BKE_mesh_wrapper_ensure_subdivision(const_cast<Mesh *>(mesh));
   }
 
   Mesh *mesh_result = (Mesh *)BKE_id_copy_ex(
@@ -828,12 +828,11 @@ static Mesh *mesh_new_from_mesh_object(Depsgraph *depsgraph,
   if (preserve_all_data_layers || preserve_origindex) {
     return mesh_new_from_mesh_object_with_layers(depsgraph, object, preserve_origindex);
   }
-  Mesh *mesh_input = (Mesh *)object->data;
+  const Mesh *mesh_input = (const Mesh *)object->data;
   /* If we are in edit mode, use evaluated mesh from edit structure, matching to what
    * viewport is using for visualization. */
-  if (mesh_input->edit_mesh != nullptr) {
-    Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(object);
-    if (editmesh_eval_final != nullptr) {
+  if (mesh_input->runtime->edit_mesh != nullptr) {
+    if (const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(object)) {
       mesh_input = editmesh_eval_final;
     }
   }
@@ -880,7 +879,7 @@ Mesh *BKE_mesh_new_from_object(Depsgraph *depsgraph,
    * Here we are constructing a mesh which is supposed to be independent, which means no shared
    * ownership is allowed, so we make sure edit mesh is reset to nullptr (which is similar to as if
    * one duplicates the objects and applies all the modifiers). */
-  new_mesh->edit_mesh = nullptr;
+  new_mesh->runtime->edit_mesh = nullptr;
 
   return new_mesh;
 }

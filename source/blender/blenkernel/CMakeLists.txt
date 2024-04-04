@@ -412,7 +412,6 @@ set(SRC
   BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
   BKE_icons.h
-  BKE_idprop.h
   BKE_idprop.hh
   BKE_idtype.hh
   BKE_image.h
@@ -580,6 +579,7 @@ set(LIB
   bf_shader_fx
   bf_simulation
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::xxhash
   PRIVATE bf::intern::atomic
   # For `vfontdata_freetype.c`.
   ${FREETYPE_LIBRARIES} ${BROTLI_LIBRARIES}

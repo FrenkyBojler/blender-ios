@@ -32,6 +32,7 @@
 
 #include "bmesh.hh"
 #include "tools/bmesh_boolean.hh"
+#include "tools/bmesh_intersect.hh"
 
 #include "paint_intern.hh"
 #include "sculpt_intern.hh"
@@ -90,6 +91,17 @@ static EnumPropertyItem extrude_modes[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+enum class SolverMode {
+  Exact = 0,
+  Fast = 1,
+};
+
+static EnumPropertyItem solver_modes[] = {
+    {int(SolverMode::Exact), "EXACT", 0, "Exact", "Use the exact boolean solver"},
+    {int(SolverMode::Fast), "FAST", 0, "Fast", "Use the fast float boolean solver"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 struct TrimOperation {
   gesture::Operation op;
 
@@ -102,6 +114,7 @@ struct TrimOperation {
   bool use_cursor_depth;
 
   OperationType mode;
+  SolverMode solver_mode;
   OrientationType orientation;
   ExtrudeMode extrude_mode;
 };
@@ -454,8 +467,7 @@ static void apply_trim(gesture::GestureData &gesture_data)
   BM_mesh_bm_from_me(bm, sculpt_mesh, &bm_from_me_params);
 
   const int corner_tris_tot = poly_to_tri_count(bm->totface, bm->totloop);
-  BMLoop *(*corner_tris)[3] = static_cast<BMLoop *(*)[3]>(
-      MEM_malloc_arrayN(corner_tris_tot, sizeof(*corner_tris), __func__));
+  Array<std::array<BMLoop *, 3>> corner_tris(corner_tris_tot);
   BM_mesh_calc_tessellation_beauty(bm, corner_tris);
 
   BMIter iter;
@@ -503,19 +515,26 @@ static void apply_trim(gesture::GestureData &gesture_data)
         BLI_assert(false);
         break;
     }
-    BM_mesh_boolean(bm,
-                    corner_tris,
-                    corner_tris_tot,
-                    bm_face_isect_pair,
-                    nullptr,
-                    2,
-                    true,
-                    true,
-                    false,
-                    boolean_mode);
-  }
 
-  MEM_freeN(corner_tris);
+    if (trim_operation->solver_mode == SolverMode::Exact) {
+      BM_mesh_boolean(
+          bm, corner_tris, bm_face_isect_pair, nullptr, 2, true, true, false, boolean_mode);
+    }
+    else {
+      BM_mesh_intersect(bm,
+                        corner_tris,
+                        bm_face_isect_pair,
+                        nullptr,
+                        false,
+                        false,
+                        true,
+                        true,
+                        false,
+                        false,
+                        boolean_mode,
+                        1e-6f);
+    }
+  }
 
   BMeshToMeshParams convert_params{};
   convert_params.calc_object_remap = false;
@@ -584,6 +603,7 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator &op)
   trim_operation->use_cursor_depth = RNA_boolean_get(op.ptr, "use_cursor_depth");
   trim_operation->orientation = OrientationType(RNA_enum_get(op.ptr, "trim_orientation"));
   trim_operation->extrude_mode = ExtrudeMode(RNA_enum_get(op.ptr, "trim_extrude_mode"));
+  trim_operation->solver_mode = SolverMode(RNA_enum_get(op.ptr, "trim_solver"));
 
   /* If the cursor was not over the mesh, force the orientation to view. */
   if (!gesture_data.ss->gesture_initial_hit) {
@@ -617,19 +637,59 @@ static void operator_properties(wmOperatorType *ot)
                int(ExtrudeMode::Fixed),
                "Extrude Mode",
                nullptr);
+
+  RNA_def_enum(ot->srna, "trim_solver", solver_modes, int(SolverMode::Fast), "Solver", nullptr);
+}
+
+static bool can_invoke(const bContext &C)
+{
+  const View3D &v3d = *CTX_wm_view3d(&C);
+  const Base &base = *CTX_data_active_base(&C);
+  if (!BKE_base_is_visible(&v3d, &base)) {
+    return false;
+  }
+
+  return true;
+}
+
+static bool can_exec(const bContext &C)
+{
+  const Object &object = *CTX_data_active_object(&C);
+  const SculptSession &ss = *object.sculpt;
+  if (BKE_pbvh_type(ss.pbvh) != PBVH_FACES) {
+    /* Not supported in Multires and Dyntopo. */
+    return false;
+  }
+
+  if (ss.totvert == 0) {
+    /* No geometry to trim or to detect a valid position for the trimming shape. */
+    return false;
+  }
+
+  return true;
+}
+
+static void initialize_cursor_info(bContext &C, const wmEvent *event)
+{
+  const Object &ob = *CTX_data_active_object(&C);
+  SculptSession &ss = *ob.sculpt;
+
+  SCULPT_vertex_random_access_ensure(&ss);
+
+  SculptCursorGeometryInfo sgi;
+  const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
+
+  /* TODO: Remove gesture_* properties from SculptSession */
+  ss.gesture_initial_hit = SCULPT_cursor_geometry_info_update(&C, &sgi, mval_fl, false);
+  if (ss.gesture_initial_hit) {
+    copy_v3_v3(ss.gesture_initial_location, sgi.location);
+    copy_v3_v3(ss.gesture_initial_normal, sgi.normal);
+  }
 }
 
 static int gesture_box_exec(bContext *C, wmOperator *op)
 {
-  Object *object = CTX_data_active_object(C);
-  SculptSession *ss = object->sculpt;
-  if (BKE_pbvh_type(ss->pbvh) != PBVH_FACES) {
-    /* Not supported in Multires and Dyntopo. */
-    return OPERATOR_CANCELLED;
-  }
-
-  if (ss->totvert == 0) {
-    /* No geometry to trim or to detect a valid position for the trimming shape. */
+  if (!can_exec(*C)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -645,42 +705,18 @@ static int gesture_box_exec(bContext *C, wmOperator *op)
 
 static int gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Object *ob = CTX_data_active_object(C);
-  SculptSession *ss = ob->sculpt;
-
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
-  if (!BKE_base_is_visible(v3d, base)) {
+  if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;
   }
 
-  SculptCursorGeometryInfo sgi;
-  const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  SCULPT_vertex_random_access_ensure(ss);
-  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
-  if (ss->gesture_initial_hit) {
-    copy_v3_v3(ss->gesture_initial_location, sgi.location);
-    copy_v3_v3(ss->gesture_initial_normal, sgi.normal);
-  }
+  initialize_cursor_info(*C, event);
 
   return WM_gesture_box_invoke(C, op, event);
 }
 
 static int gesture_lasso_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object *object = CTX_data_active_object(C);
-
-  BKE_sculpt_update_object_for_edit(depsgraph, object, false);
-
-  SculptSession *ss = object->sculpt;
-  if (BKE_pbvh_type(ss->pbvh) != PBVH_FACES) {
-    /* Not supported in Multires and Dyntopo. */
-    return OPERATOR_CANCELLED;
-  }
-
-  if (ss->totvert == 0) {
-    /* No geometry to trim or to detect a valid position for the trimming shape. */
+  if (!can_exec(*C)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -695,23 +731,11 @@ static int gesture_lasso_exec(bContext *C, wmOperator *op)
 
 static int gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Object *ob = CTX_data_active_object(C);
-  SculptSession *ss = ob->sculpt;
-
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
-  if (!BKE_base_is_visible(v3d, base)) {
+  if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;
   }
 
-  SculptCursorGeometryInfo sgi;
-  const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  SCULPT_vertex_random_access_ensure(ss);
-  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
-  if (ss->gesture_initial_hit) {
-    copy_v3_v3(ss->gesture_initial_location, sgi.location);
-    copy_v3_v3(ss->gesture_initial_normal, sgi.normal);
-  }
+  initialize_cursor_info(*C, event);
 
   return WM_gesture_lasso_invoke(C, op, event);
 }

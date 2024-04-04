@@ -271,7 +271,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
     if ((object_mode & OB_MODE_ALL_PAINT) || (object_mode & OB_MODE_SCULPT_CURVES)) {
       Paint *p = BKE_paint_get_active_from_context(C);
-      if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
+      Brush *brush = (p) ? BKE_paint_brush(p) : nullptr;
+      if (brush && (brush->flag & BRUSH_CURVE)) {
         t->options |= CTX_PAINT_CURVE;
       }
     }
@@ -303,7 +304,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     }
     else if (sima->mode == SI_MODE_PAINT) {
       Paint *p = &sce->toolsettings->imapaint.paint;
-      if (p->brush && (p->brush->flag & BRUSH_CURVE)) {
+      Brush *brush = (p) ? BKE_paint_brush(p) : nullptr;
+      if (brush && (brush->flag & BRUSH_CURVE)) {
         t->options |= CTX_PAINT_CURVE;
       }
     }
@@ -1095,7 +1097,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
     return false;
   }
   if (tc->obedit) {
-    if (ED_object_calc_active_center_for_editmode(tc->obedit, select_only, r_center)) {
+    if (blender::ed::object::calc_active_center_for_editmode(tc->obedit, select_only, r_center)) {
       mul_m4_v3(tc->obedit->object_to_world().ptr(), r_center);
       return true;
     }
@@ -1103,14 +1105,14 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
   else if (t->options & CTX_POSE_BONE) {
     BKE_view_layer_synced_ensure(t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
-    if (ED_object_calc_active_center_for_posemode(ob, select_only, r_center)) {
+    if (blender::ed::object::calc_active_center_for_posemode(ob, select_only, r_center)) {
       mul_m4_v3(ob->object_to_world().ptr(), r_center);
       return true;
     }
   }
   else if (t->options & CTX_PAINT_CURVE) {
     Paint *p = BKE_paint_get_active(t->scene, t->view_layer);
-    Brush *br = p->brush;
+    Brush *br = BKE_paint_brush(p);
     PaintCurve *pc = br->paint_curve;
     copy_v3_v3(r_center, pc->points[pc->add_index - 1].bez.vec[1]);
     r_center[2] = 0.0f;

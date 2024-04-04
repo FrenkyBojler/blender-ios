@@ -18,7 +18,7 @@ GPU_SHADER_CREATE_INFO(eevee_ray_tile_classify)
     .do_static_compilation(true)
     .local_group_size(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)
     .additional_info("eevee_shared", "eevee_gbuffer_data", "eevee_global_ubo")
-    .typedef_source("draw_shader_shared.h")
+    .typedef_source("draw_shader_shared.hh")
     .image_out(0, RAYTRACE_TILEMASK_FORMAT, ImageType::UINT_2D_ARRAY, "tile_raytrace_denoise_img")
     .image_out(1, RAYTRACE_TILEMASK_FORMAT, ImageType::UINT_2D_ARRAY, "tile_raytrace_tracing_img")
     .image_out(2, RAYTRACE_TILEMASK_FORMAT, ImageType::UINT_2D_ARRAY, "tile_horizon_denoise_img")
@@ -29,7 +29,7 @@ GPU_SHADER_CREATE_INFO(eevee_ray_tile_compact)
     .do_static_compilation(true)
     .local_group_size(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)
     .additional_info("eevee_shared", "eevee_global_ubo")
-    .typedef_source("draw_shader_shared.h")
+    .typedef_source("draw_shader_shared.hh")
     .image_in(0, RAYTRACE_TILEMASK_FORMAT, ImageType::UINT_2D_ARRAY, "tile_raytrace_denoise_img")
     .image_in(1, RAYTRACE_TILEMASK_FORMAT, ImageType::UINT_2D_ARRAY, "tile_raytrace_tracing_img")
     .storage_buf(0, Qualifier::READ_WRITE, "DispatchCommand", "raytrace_tracing_dispatch_buf")
@@ -203,6 +203,8 @@ GPU_SHADER_CREATE_INFO(eevee_horizon_scan)
     .image(4, GPU_RGBA8, Qualifier::WRITE, ImageType::FLOAT_2D, "horizon_radiance_2_img")
     .image(5, GPU_RGBA8, Qualifier::WRITE, ImageType::FLOAT_2D, "horizon_radiance_3_img")
     .storage_buf(7, Qualifier::READ, "uint", "tiles_coord_buf[]")
+    /* Metal: Provide compiler with hint to tune per-thread resource allocation. */
+    .mtl_max_total_threads_per_threadgroup(400)
     .compute_source("eevee_horizon_scan_comp.glsl");
 
 GPU_SHADER_CREATE_INFO(eevee_horizon_denoise)
@@ -241,6 +243,8 @@ GPU_SHADER_CREATE_INFO(eevee_horizon_resolve)
     .image(4, RAYTRACE_RADIANCE_FORMAT, Qualifier::READ_WRITE, ImageType::FLOAT_2D, "closure1_img")
     .image(5, RAYTRACE_RADIANCE_FORMAT, Qualifier::READ_WRITE, ImageType::FLOAT_2D, "closure2_img")
     .storage_buf(7, Qualifier::READ, "uint", "tiles_coord_buf[]")
+    /* Metal: Provide compiler with hint to tune per-thread resource allocation. */
+    .mtl_max_total_threads_per_threadgroup(400)
     .compute_source("eevee_horizon_resolve_comp.glsl");
 
 #undef image_out

@@ -18,9 +18,9 @@
 
 #include "BLF_api.hh"
 
-#include "GPU_batch.h"
-#include "GPU_immediate.h"
-#include "GPU_state.h"
+#include "GPU_batch.hh"
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -509,7 +509,7 @@ static size_t label_str_get(const Sequence *seq,
 static bool label_rect_get(const bContext *C,
                            const Sequence *seq,
                            const SeqRetimingKey *key,
-                           char *label_str,
+                           const char *label_str,
                            const size_t label_len,
                            rctf *rect)
 {

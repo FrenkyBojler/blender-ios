@@ -36,6 +36,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
@@ -181,7 +182,7 @@ static BlendHandle *link_append_context_library_blohandle_ensure(
     lib_context->bf_reports.reports = reports;
   }
 
-  char *libname = lib_context->path;
+  const char *libname = lib_context->path;
   BlendHandle *blo_handle = lib_context->blo_handle;
   if (blo_handle == nullptr) {
     if (STREQ(libname, BLO_EMBEDDED_STARTUP_BLEND)) {
@@ -1379,6 +1380,14 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
 
   blendfile_link_append_proxies_convert(bmain, reports);
   BKE_main_mesh_legacy_convert_auto_smooth(*bmain);
+
+  if (U.experimental.use_grease_pencil_version3 &&
+      U.experimental.use_grease_pencil_version3_convert_on_load)
+  {
+    BlendFileReadReport bf_reports{};
+    bf_reports.reports = reports;
+    blender::bke::greasepencil::convert::legacy_main(*bmain, bf_reports);
+  }
 }
 
 void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *reports)
@@ -1401,7 +1410,7 @@ void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *re
   {
     BlendfileLinkAppendContextLibrary *lib_context =
         static_cast<BlendfileLinkAppendContextLibrary *>(liblink->link);
-    char *libname = lib_context->path;
+    const char *libname = lib_context->path;
     BlendHandle *blo_handle = link_append_context_library_blohandle_ensure(
         lapp_context, lib_context, reports);
 
@@ -1496,6 +1505,14 @@ void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *re
   if ((lapp_context->params->flag & FILE_LINK) != 0) {
     blendfile_link_append_proxies_convert(lapp_context->params->bmain, reports);
     BKE_main_mesh_legacy_convert_auto_smooth(*lapp_context->params->bmain);
+
+    if (U.experimental.use_grease_pencil_version3 &&
+        U.experimental.use_grease_pencil_version3_convert_on_load)
+    {
+      BlendFileReadReport bf_reports{};
+      bf_reports.reports = reports;
+      blender::bke::greasepencil::convert::legacy_main(*lapp_context->params->bmain, bf_reports);
+    }
   }
 
   BKE_main_namemap_clear(lapp_context->params->bmain);
@@ -1705,7 +1722,7 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
     const short idcode = id ? GS(id->name) : 0;
 
     if (!id || !BKE_idtype_idcode_is_linkable(idcode)) {
-      /* No need to reload non-linkable datatypes,
+      /* No need to reload non-linkable data-types,
        * those will get relinked with their 'users ID'. */
       continue;
     }

@@ -24,11 +24,11 @@
 
 #include "BKE_context.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
 #include "GPU_select.hh"
-#include "GPU_state.h"
+#include "GPU_state.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -42,7 +42,7 @@
 #include "ED_view3d.hh"
 
 /* own includes */
-#include "../gizmo_library_intern.h"
+#include "../gizmo_library_intern.hh"
 
 // /** To use custom dials exported to `geom_dial_gizmo.cc`. */
 // #define USE_GIZMO_CUSTOM_DIAL
@@ -682,7 +682,7 @@ static void GIZMO_GT_dial_3d(wmGizmoType *gzt)
   gzt->struct_size = sizeof(wmGizmo);
 
   /* rna */
-  static EnumPropertyItem rna_enum_draw_options[] = {
+  static const EnumPropertyItem rna_enum_draw_options[] = {
       {ED_GIZMO_DIAL_DRAW_FLAG_CLIP, "CLIP", 0, "Clipped", ""},
       {ED_GIZMO_DIAL_DRAW_FLAG_FILL, "FILL", 0, "Filled", ""},
       {ED_GIZMO_DIAL_DRAW_FLAG_FILL_SELECT, "FILL_SELECT", 0, "Use fill for selection test", ""},

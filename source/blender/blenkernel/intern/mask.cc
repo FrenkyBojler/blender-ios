@@ -136,7 +136,6 @@ static void mask_blend_write(BlendWriter *writer, ID *id, const void *id_address
 static void mask_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Mask *mask = (Mask *)id;
-  BLO_read_data_address(reader, &mask->adt);
 
   BLO_read_list(reader, &mask->masklayers);
 
@@ -341,7 +340,10 @@ void BKE_mask_layer_unique_name(Mask *mask, MaskLayer *masklay)
                  sizeof(masklay->name));
 }
 
-void BKE_mask_layer_rename(Mask *mask, MaskLayer *masklay, char *oldname, char *newname)
+void BKE_mask_layer_rename(Mask *mask,
+                           MaskLayer *masklay,
+                           const char *oldname,
+                           const char *newname)
 {
   STRNCPY(masklay->name, newname);
 
