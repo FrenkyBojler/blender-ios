@@ -84,6 +84,8 @@ class UnifiedPaintPanel:
             return tool_settings.curves_sculpt
         elif mode == 'PAINT_GREASE_PENCIL':
             return tool_settings.gpencil_paint
+        elif mode == 'SCULPT_GREASE_PENCIL':
+            return tool_settings.gpencil_sculpt_paint
         return None
 
     @staticmethod
@@ -816,6 +818,27 @@ def brush_settings(layout, context, brush, popover=False):
             col.active = not brush.curves_sculpt_settings.use_point_count_interpolate
             col.prop(brush.curves_sculpt_settings, "points_per_curve", text="Points")
 
+        if brush.curves_sculpt_tool == 'DENSITY':
+            col = layout.column()
+            col.prop(brush.curves_sculpt_settings, "density_add_attempts", text="Count Max")
+            col = layout.column(heading="Interpolate", align=True)
+            col.prop(brush.curves_sculpt_settings, "use_length_interpolate", text="Length")
+            col.prop(brush.curves_sculpt_settings, "use_radius_interpolate", text="Radius")
+            col.prop(brush.curves_sculpt_settings, "use_shape_interpolate", text="Shape")
+            col.prop(brush.curves_sculpt_settings, "use_point_count_interpolate", text="Point Count")
+
+            col = layout.column()
+            col.active = not brush.curves_sculpt_settings.use_length_interpolate
+            col.prop(brush.curves_sculpt_settings, "curve_length", text="Length")
+
+            col = layout.column()
+            col.active = not brush.curves_sculpt_settings.use_radius_interpolate
+            col.prop(brush.curves_sculpt_settings, "curve_radius", text="Radius")
+
+            col = layout.column()
+            col.active = not brush.curves_sculpt_settings.use_point_count_interpolate
+            col.prop(brush.curves_sculpt_settings, "points_per_curve", text="Points")
+
         elif brush.curves_sculpt_tool == 'GROW_SHRINK':
             layout.prop(brush.curves_sculpt_settings, "use_uniform_scale")
             layout.prop(brush.curves_sculpt_settings, "minimum_length")
@@ -882,6 +905,11 @@ def brush_shared_settings(layout, context, brush, popover=False):
 
     # Grease Pencil #
     if mode == 'PAINT_GREASE_PENCIL':
+        size = True
+        strength = True
+
+    # Grease Pencil #
+    if mode == 'SCULPT_GREASE_PENCIL':
         size = True
         strength = True
 
@@ -1031,6 +1059,17 @@ def brush_settings_advanced(layout, context, brush, popover=False):
             col.prop(brush, "use_original_normal", text="Normal")
             col.prop(brush, "use_original_plane", text="Plane")
             layout.separator()
+
+    elif mode == 'SCULPT_GREASE_PENCIL':
+        tool = brush.gpencil_sculpt_tool
+        gp_settings = brush.gpencil_settings
+
+        if tool in {'SMOOTH', 'RANDOMIZE'}:
+            col = layout.column(heading="Affect", align=True)
+            col.prop(gp_settings, "use_edit_position", text="Position")
+            col.prop(gp_settings, "use_edit_strength", text="Strength")
+            col.prop(gp_settings, "use_edit_thickness", text="Thickness")
+            col.prop(gp_settings, "use_edit_uv", text="UV")
 
     # 3D and 2D Texture Paint.
     elif mode in {'PAINT_TEXTURE', 'PAINT_2D'}:
@@ -1441,6 +1480,10 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, *, compact=
         if gp_settings.eraser_mode == "HARD":
             layout.prop(gp_settings, "use_keep_caps_eraser")
         layout.prop(gp_settings, "use_active_layer_only")
+    elif grease_pencil_tool == 'TINT':
+        layout.prop(gp_settings, "vertex_mode", text="Mode")
+        layout.popover("VIEW3D_PT_tools_brush_settings_advanced", text="Brush")
+        layout.popover("VIEW3D_PT_tools_brush_falloff")
 
 
 def brush_basic_gpencil_sculpt_settings(layout, _context, brush, *, compact=False):

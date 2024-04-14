@@ -35,7 +35,7 @@
 #include "BKE_node.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_debug.hh"
@@ -531,8 +531,8 @@ void deg_graph_tag_parameters_if_needed(Main *bmain,
   }
 
   /* Clear flags which are known to not affect parameters usable by drivers. */
-  const uint clean_flags = flags &
-                           ~(ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT | ID_RECALC_BASE_FLAGS);
+  const uint clean_flags = flags & ~(ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT |
+                                     ID_RECALC_BASE_FLAGS | ID_RECALC_SHADING);
 
   if (clean_flags == 0) {
     /* Changes are limited to only things which are not usable by drivers. */

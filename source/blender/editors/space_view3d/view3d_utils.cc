@@ -983,9 +983,9 @@ void ED_view3d_quadview_update(ScrArea *area, ARegion *region, bool do_clip)
   /* ensure locked regions have an axis, locked user views don't make much sense */
   if (viewlock & RV3D_LOCK_ROTATION) {
     int index_qsplit = 0;
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (region->alignment == RGN_ALIGN_QSPLIT) {
-        rv3d = static_cast<RegionView3D *>(region->regiondata);
+    LISTBASE_FOREACH (ARegion *, region_iter, &area->regionbase) {
+      if (region_iter->alignment == RGN_ALIGN_QSPLIT) {
+        rv3d = static_cast<RegionView3D *>(region_iter->regiondata);
         if (rv3d->viewlock) {
           if (!RV3D_VIEW_IS_AXIS(rv3d->view) || (rv3d->view_axis_roll != RV3D_VIEW_AXIS_ROLL_0)) {
             rv3d->view = ED_view3d_lock_view_from_index(index_qsplit);
@@ -1709,13 +1709,13 @@ bool ED_view3d_depth_read_cached(const ViewDepths *vd,
                                  int margin,
                                  float *r_depth)
 {
-  BLI_assert(1.0 <= vd->depth_range[1]);
   *r_depth = 1.0f;
 
   if (!vd || !vd->depths) {
     return false;
   }
 
+  BLI_assert(1.0 <= vd->depth_range[1]);
   int x = mval[0];
   int y = mval[1];
   if (x < 0 || y < 0 || x >= vd->w || y >= vd->h) {

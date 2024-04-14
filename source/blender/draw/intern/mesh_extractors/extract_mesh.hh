@@ -80,7 +80,6 @@ struct MeshRenderData {
   Span<float3> bm_vert_coords;
   Span<float3> bm_vert_normals;
   Span<float3> bm_face_normals;
-  Span<float3> bm_face_centers;
   Array<float3> bm_loop_normals;
 
   const int *v_origindex, *e_origindex, *p_origindex;
@@ -90,7 +89,7 @@ struct MeshRenderData {
   int freestyle_edge_ofs;
   int freestyle_face_ofs;
   /** Mesh */
-  Mesh *mesh;
+  const Mesh *mesh;
   Span<float3> vert_positions;
   Span<int2> edges;
   OffsetIndices<int> faces;
@@ -321,9 +320,7 @@ struct EditLoopData {
 
 void *mesh_extract_buffer_get(const MeshExtract *extractor, MeshBufferList *mbuflist);
 eMRIterType mesh_extract_iter_type(const MeshExtract *ext);
-const MeshExtract *mesh_extract_override_get(const MeshExtract *extractor,
-                                             bool do_hq_normals,
-                                             bool do_single_mat);
+const MeshExtract *mesh_extract_override_get(const MeshExtract *extractor, bool do_hq_normals);
 void mesh_render_data_face_flag(const MeshRenderData &mr,
                                 const BMFace *efa,
                                 BMUVOffsets offsets,
@@ -341,7 +338,6 @@ template<typename GPUType>
 void extract_vert_normals(const MeshRenderData &mr, MutableSpan<GPUType> normals);
 
 extern const MeshExtract extract_tris;
-extern const MeshExtract extract_tris_single_mat;
 extern const MeshExtract extract_lines;
 extern const MeshExtract extract_lines_with_lines_loose;
 extern const MeshExtract extract_lines_loose_only;

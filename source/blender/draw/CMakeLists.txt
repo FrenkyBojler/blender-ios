@@ -237,17 +237,17 @@ set(SRC
   intern/draw_cache_inline.hh
   intern/draw_color_management.hh
   intern/draw_command.hh
-  intern/draw_common_c.hh
   intern/draw_common.hh
+  intern/draw_common_c.hh
   intern/draw_common_shader_shared.hh
   intern/draw_curves_private.hh
-  intern/draw_debug_c.hh
   intern/draw_debug.hh
+  intern/draw_debug_c.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
   intern/draw_instance_data.hh
-  intern/draw_manager_c.hh
   intern/draw_manager.hh
+  intern/draw_manager_c.hh
   intern/draw_manager_profiling.hh
   intern/draw_manager_testing.hh
   intern/draw_manager_text.hh
@@ -260,8 +260,8 @@ set(SRC
   intern/draw_state.hh
   intern/draw_subdivision.hh
   intern/draw_texture_pool.hh
-  intern/draw_view_c.hh
   intern/draw_view.hh
+  intern/draw_view_c.hh
   intern/draw_view_data.hh
   intern/mesh_extractors/extract_mesh.hh
   engines/basic/basic_engine.h
@@ -586,6 +586,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_shadow_tag_usage_vert.glsl
   engines/eevee_next/shaders/eevee_shadow_tag_usage_volume_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_test.glsl
+  engines/eevee_next/shaders/eevee_shadow_tilemap_amend_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_tilemap_bounds_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_tilemap_finalize_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_tilemap_init_comp.glsl
@@ -602,6 +603,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_surf_lib.glsl
   engines/eevee_next/shaders/eevee_surf_occupancy_frag.glsl
   engines/eevee_next/shaders/eevee_surf_shadow_frag.glsl
+  engines/eevee_next/shaders/eevee_surf_volume_frag.glsl
   engines/eevee_next/shaders/eevee_shadow_page_tile_vert.glsl
   engines/eevee_next/shaders/eevee_shadow_page_tile_frag.glsl
   engines/eevee_next/shaders/eevee_surf_world_frag.glsl
@@ -611,13 +613,13 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_surfel_list_lib.glsl
   engines/eevee_next/shaders/eevee_surfel_list_sort_comp.glsl
   engines/eevee_next/shaders/eevee_surfel_ray_comp.glsl
+  engines/eevee_next/shaders/eevee_thickness_amend_lib.glsl
   engines/eevee_next/shaders/eevee_thickness_lib.glsl
   engines/eevee_next/shaders/eevee_transparency_lib.glsl
   engines/eevee_next/shaders/eevee_velocity_lib.glsl
   engines/eevee_next/shaders/eevee_vertex_copy_comp.glsl
   engines/eevee_next/shaders/eevee_volume_integration_comp.glsl
   engines/eevee_next/shaders/eevee_volume_lib.glsl
-  engines/eevee_next/shaders/eevee_volume_material_comp.glsl
   engines/eevee_next/shaders/eevee_volume_resolve_frag.glsl
   engines/eevee_next/shaders/eevee_volume_scatter_comp.glsl
 

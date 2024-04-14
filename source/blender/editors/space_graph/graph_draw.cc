@@ -203,28 +203,23 @@ static void draw_cross(float position[2], const float scale[2], uint attr_id)
   GPU_matrix_pop();
 }
 
-static void draw_fcurve_selected_keyframe_vertices(FCurve *fcu, View2D *v2d, bool sel, uint pos)
+static void draw_fcurve_selected_keyframe_vertices(FCurve *fcu,
+                                                   bool sel,
+                                                   uint pos,
+                                                   const blender::int2 &bounding_indices)
 {
-  const float fac = 0.05f * BLI_rctf_size_x(&v2d->cur);
-
   set_fcurve_vertex_color(fcu, sel);
 
   immBeginAtMost(GPU_PRIM_POINTS, fcu->totvert);
 
-  BezTriple *bezt = fcu->bezt;
-  for (int i = 0; i < fcu->totvert; i++, bezt++) {
-    /* As an optimization step, only draw those in view
-     * - We apply a correction factor to ensure that points
-     *   don't pop in/out due to slight twitches of view size.
+  for (int i = bounding_indices[0]; i <= bounding_indices[1]; i++) {
+    BezTriple *bezt = &fcu->bezt[i];
+    /* 'Keyframe' vertex only, as handle lines and handles have already been drawn
+     * - only draw those with correct selection state for the current drawing color
+     * -
      */
-    if (IN_RANGE(bezt->vec[1][0], (v2d->cur.xmin - fac), (v2d->cur.xmax + fac))) {
-      /* 'Keyframe' vertex only, as handle lines and handles have already been drawn
-       * - only draw those with correct selection state for the current drawing color
-       * -
-       */
-      if ((bezt->f2 & SELECT) == sel) {
-        immVertex2fv(pos, bezt->vec[1]);
-      }
+    if ((bezt->f2 & SELECT) == sel) {
+      immVertex2fv(pos, bezt->vec[1]);
     }
   }
 
@@ -270,8 +265,10 @@ static void draw_fcurve_keyframe_vertices(FCurve *fcu, View2D *v2d, const uint p
     immUniform1f("size", (UI_GetThemeValuef(TH_VERTEX_SIZE) * UI_SCALE_FAC) * 0.8f);
   }
 
-  draw_fcurve_selected_keyframe_vertices(fcu, v2d, false, pos);
-  draw_fcurve_selected_keyframe_vertices(fcu, v2d, true, pos);
+  const blender::int2 bounding_indices = get_bounding_bezt_indices(
+      fcu, v2d->cur.xmin, v2d->cur.xmax);
+  draw_fcurve_selected_keyframe_vertices(fcu, false, pos, bounding_indices);
+  draw_fcurve_selected_keyframe_vertices(fcu, true, pos, bounding_indices);
   draw_fcurve_active_vertex(fcu, v2d, pos);
 
   immUnbindProgram();
@@ -858,7 +855,7 @@ static void add_bezt_vertices(BezTriple *bezt,
   }
 
   /* If the resolution goes too high the line will not end exactly at the keyframe. Probably due to
-   * accumulating floating point issues in BKE_curve_forward_diff_bezier.*/
+   * accumulating floating point issues in BKE_curve_forward_diff_bezier. */
   resolution = min_ii(64, resolution);
 
   float prev_key[2], prev_handle[2], bez_handle[2], bez_key[2];

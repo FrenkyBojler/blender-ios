@@ -2860,7 +2860,7 @@ const EnumPropertyItem *rna_UnitSettings_length_unit_itemf(bContext * /*C*/,
                                                            PropertyRNA * /*prop*/,
                                                            bool *r_free)
 {
-  UnitSettings *units = static_cast<UnitSettings *>(ptr->data);
+  const UnitSettings *units = static_cast<const UnitSettings *>(ptr->data);
   return rna_UnitSettings_itemf_wrapper(units->system, B_UNIT_LENGTH, r_free);
 }
 
@@ -2869,7 +2869,7 @@ const EnumPropertyItem *rna_UnitSettings_mass_unit_itemf(bContext * /*C*/,
                                                          PropertyRNA * /*prop*/,
                                                          bool *r_free)
 {
-  UnitSettings *units = static_cast<UnitSettings *>(ptr->data);
+  const UnitSettings *units = static_cast<const UnitSettings *>(ptr->data);
   return rna_UnitSettings_itemf_wrapper(units->system, B_UNIT_MASS, r_free);
 }
 
@@ -2878,7 +2878,7 @@ const EnumPropertyItem *rna_UnitSettings_time_unit_itemf(bContext * /*C*/,
                                                          PropertyRNA * /*prop*/,
                                                          bool *r_free)
 {
-  UnitSettings *units = static_cast<UnitSettings *>(ptr->data);
+  const UnitSettings *units = static_cast<const UnitSettings *>(ptr->data);
   return rna_UnitSettings_itemf_wrapper(units->system, B_UNIT_TIME, r_free);
 }
 
@@ -2887,7 +2887,7 @@ const EnumPropertyItem *rna_UnitSettings_temperature_unit_itemf(bContext * /*C*/
                                                                 PropertyRNA * /*prop*/,
                                                                 bool *r_free)
 {
-  UnitSettings *units = static_cast<UnitSettings *>(ptr->data);
+  const UnitSettings *units = static_cast<const UnitSettings *>(ptr->data);
   return rna_UnitSettings_itemf_wrapper(units->system, B_UNIT_TEMPERATURE, r_free);
 }
 
@@ -6333,7 +6333,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
       {AV_CODEC_ID_MPEG2VIDEO, "MPEG2", 0, "MPEG-2", ""},
       {AV_CODEC_ID_MPEG4, "MPEG4", 0, "MPEG-4 (divx)", ""},
       {AV_CODEC_ID_PNG, "PNG", 0, "PNG", ""},
-      {AV_CODEC_ID_QTRLE, "QTRLE", 0, "QT rle / QT Animation", ""},
+      {AV_CODEC_ID_QTRLE, "QTRLE", 0, "QuickTime Animation", ""},
       {AV_CODEC_ID_THEORA, "THEORA", 0, "Theora", ""},
       {AV_CODEC_ID_VP9, "WEBM", 0, "WebM / VP9", ""},
       {AV_CODEC_ID_AV1, "AV1", 0, "AV1", ""},

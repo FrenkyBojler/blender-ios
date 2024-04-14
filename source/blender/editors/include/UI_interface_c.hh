@@ -842,6 +842,11 @@ bool UI_block_is_search_only(const uiBlock *block);
 void UI_block_set_search_only(uiBlock *block, bool search_only);
 
 /**
+ * Used for operator presets.
+ */
+void UI_block_set_active_operator(uiBlock *block, wmOperator *op, const bool free);
+
+/**
  * Can be called with C==NULL.
  */
 void UI_block_free(const bContext *C, uiBlock *block);
@@ -2703,6 +2708,8 @@ void uiTemplateNodeTreeInterface(uiLayout *layout, PointerRNA *ptr);
  * Draw all node buttons and socket default values with the same panel structure used by the node.
  */
 void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr);
+
+void uiTemplateCollectionExporters(uiLayout *layout, bContext *C);
 
 /**
  * \return: True if the list item with unfiltered, unordered index \a item_idx is visible given the

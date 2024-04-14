@@ -1105,20 +1105,6 @@ void UI_widgetbase_draw_cache_end()
   GPU_blend(GPU_BLEND_NONE);
 }
 
-/* Disable cached/instanced drawing and enforce single widget drawing pipeline.
- * Works around interface artifacts happening on certain driver and hardware
- * configurations. */
-static bool draw_widgetbase_batch_skip_draw_cache()
-{
-  /* MacOS is known to have issues on Mac Mini and MacBook Pro with Intel Iris GPU.
-   * For example, #78307. */
-  if (GPU_type_matches_ex(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-    return true;
-  }
-
-  return false;
-}
-
 static void draw_widgetbase_batch(uiWidgetBase *wtb)
 {
   wtb->uniform_params.tria_type = wtb->tria1.type;
@@ -1127,7 +1113,7 @@ static void draw_widgetbase_batch(uiWidgetBase *wtb)
   copy_v2_v2(wtb->uniform_params.tria1_center, wtb->tria1.center);
   copy_v2_v2(wtb->uniform_params.tria2_center, wtb->tria2.center);
 
-  if (g_widget_base_batch.enabled && !draw_widgetbase_batch_skip_draw_cache()) {
+  if (g_widget_base_batch.enabled) {
     g_widget_base_batch.params[g_widget_base_batch.count] = wtb->uniform_params;
     g_widget_base_batch.count++;
 
@@ -1582,8 +1568,8 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
    * probably reduce this to one pixel if we consolidate text output with length measuring. But
    * our text string lengths include the last character's right-side bearing anyway, so a string
    * can be longer by that amount and still fit visibly in the required space. */
-
   BLI_assert((strwidth <= (okwidth + 2)) || (okwidth <= 0.0f));
+  UNUSED_VARS_NDEBUG(okwidth);
 
   return strwidth;
 }
@@ -2568,9 +2554,7 @@ static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEm
 
     copy_v3_v3_uchar(wt->wcol.text, wt->wcol.text_sel);
 
-    if (state->but_flag & UI_SELECT) {
-      std::swap(wt->wcol.shadetop, wt->wcol.shadedown);
-    }
+    std::swap(wt->wcol.shadetop, wt->wcol.shadedown);
   }
   else {
     if (state->but_flag & UI_BUT_ACTIVE_DEFAULT) {
@@ -2780,6 +2764,7 @@ static void widget_state_menu_item(uiWidgetType *wt,
     /* Inactive. */
     if (state->but_flag & UI_HOVER) {
       color_blend_v3_v3(wt->wcol.inner, wt->wcol.text, 0.2f);
+      copy_v3_v3_uchar(wt->wcol.text, wt->wcol.text_sel);
       wt->wcol.inner[3] = 255;
     }
     color_blend_v3_v3(wt->wcol.text, wt->wcol.inner, 0.5f);

@@ -597,9 +597,15 @@ class PREFERENCES_OT_addon_install(Operator):
     )
 
     def _target_path_items(_self, context):
+        default_item = ('DEFAULT', "Default", "")
+        if context is None:
+            return (
+                default_item,
+            )
+
         paths = context.preferences.filepaths
         return (
-            ('DEFAULT', "Default", ""),
+            default_item,
             None,
             *[(item.name, item.name, "") for index, item in enumerate(paths.script_directories) if item.directory],
         )
@@ -674,7 +680,7 @@ class PREFERENCES_OT_addon_install(Operator):
         # check to see if the file is in compressed format (.zip)
         if zipfile.is_zipfile(pyfile):
             try:
-                file_to_extract = zipfile.ZipFile(pyfile, 'r')
+                file_to_extract = zipfile.ZipFile(pyfile, "r")
             except BaseException:
                 traceback.print_exc()
                 return {'CANCELLED'}
@@ -926,7 +932,7 @@ class PREFERENCES_OT_app_template_install(Operator):
         # check to see if the file is in compressed format (.zip)
         if zipfile.is_zipfile(filepath):
             try:
-                file_to_extract = zipfile.ZipFile(filepath, 'r')
+                file_to_extract = zipfile.ZipFile(filepath, "r")
             except BaseException:
                 traceback.print_exc()
                 return {'CANCELLED'}

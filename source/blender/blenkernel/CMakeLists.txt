@@ -525,7 +525,7 @@ set(SRC
   BKE_volume_render.hh
   BKE_volume_to_mesh.hh
   BKE_wm_runtime.hh
-  BKE_workspace.h
+  BKE_workspace.hh
   BKE_world.h
   BKE_writemovie.hh
 
@@ -579,6 +579,7 @@ set(LIB
   bf_shader_fx
   bf_simulation
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::xxhash
   PRIVATE bf::intern::atomic
   # For `vfontdata_freetype.c`.
   ${FREETYPE_LIBRARIES} ${BROTLI_LIBRARIES}

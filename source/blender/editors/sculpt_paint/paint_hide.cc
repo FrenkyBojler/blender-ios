@@ -609,24 +609,27 @@ void PAINT_OT_hide_show_all(wmOperatorType *ot)
 
 static void invert_visibility_mesh(Object &object, const Span<PBVHNode *> nodes)
 {
+  PBVH &pbvh = *object.sculpt->pbvh;
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  bke::SpanAttributeWriter<bool> hide_vert = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_vert", bke::AttrDomain::Point);
+  bke::SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
+      ".hide_poly", bke::AttrDomain::Face);
 
+  threading::EnumerableThreadSpecific<Vector<int>> all_index_data;
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    Vector<int> &faces = all_index_data.local();
     for (PBVHNode *node : nodes.slice(range)) {
-      undo::push_node(&object, node, undo::Type::HideVert);
-      for (const int vert : BKE_pbvh_node_get_unique_vert_indices(node)) {
-        hide_vert.span[vert] = !hide_vert.span[vert];
+      undo::push_node(&object, node, undo::Type::HideFace);
+      bke::pbvh::node_face_indices_calc_mesh(pbvh, *node, faces);
+      for (const int face : faces) {
+        hide_poly.span[face] = !hide_poly.span[face];
       }
       BKE_pbvh_node_mark_update_visibility(node);
-      bke::pbvh::node_update_visibility_mesh(hide_vert.span, *node);
     }
   });
 
-  hide_vert.finish();
-  bke::mesh_hide_vert_flush(mesh);
+  hide_poly.finish();
+  bke::mesh_hide_face_flush(mesh);
 }
 
 static void invert_visibility_grids(Depsgraph &depsgraph,
@@ -866,6 +869,17 @@ static int hide_show_gesture_lasso_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int hide_show_gesture_line_exec(bContext *C, wmOperator *op)
+{
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
+  if (!gesture_data) {
+    return OPERATOR_CANCELLED;
+  }
+  hide_show_init_properties(*C, *gesture_data, *op);
+  gesture::apply(*C, *gesture_data, *op);
+  return OPERATOR_FINISHED;
+}
+
 static void hide_show_operator_gesture_properties(wmOperatorType *ot)
 {
   static const EnumPropertyItem area_items[] = {
@@ -928,6 +942,26 @@ void PAINT_OT_hide_show_lasso_gesture(wmOperatorType *ot)
   hide_show_operator_properties(ot);
   hide_show_operator_gesture_properties(ot);
   gesture::operator_properties(ot, gesture::ShapeType::Lasso);
+}
+
+void PAINT_OT_hide_show_line_gesture(wmOperatorType *ot)
+{
+  ot->name = "Hide/Show Line";
+  ot->idname = "PAINT_OT_hide_show_line_gesture";
+  ot->description = "Hide/show some vertices";
+
+  ot->invoke = WM_gesture_straightline_active_side_invoke;
+  ot->modal = WM_gesture_straightline_oneshot_modal;
+  ot->exec = hide_show_gesture_line_exec;
+  /* Sculpt-only for now. */
+  ot->poll = SCULPT_mode_poll_view3d;
+
+  ot->flag = OPTYPE_REGISTER;
+
+  WM_operator_properties_gesture_straightline(ot, WM_CURSOR_EDIT);
+  hide_show_operator_properties(ot);
+  hide_show_operator_gesture_properties(ot);
+  gesture::operator_properties(ot, gesture::ShapeType::Line);
 }
 
 /** \} */

@@ -2290,7 +2290,7 @@ static bool is_auto_smooth_node_tree(const bNodeTree &group)
   }
   if (static_cast<bNodeSocket *>(nodes[4]->inputs.last)
           ->default_value_typed<bNodeSocketValueBoolean>()
-          ->value != true)
+          ->value != 1)
   {
     return false;
   }
@@ -2429,6 +2429,16 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
         if ((nmd->flag & MOD_WEIGHTEDNORMAL_KEEP_SHARP) != 0) {
           ModifierData *new_md = create_auto_smooth_modifier(*object, add_node_group, angle);
           BLI_insertlinkbefore(&object->modifiers, object->modifiers.last, new_md);
+        }
+      }
+      if (md->type == eModifierType_Nodes) {
+        NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
+        if (nmd->node_group && is_auto_smooth_node_tree(*nmd->node_group)) {
+          /* This object has already been processed by versioning. If the mesh is linked from
+           * another file its auto-smooth flag may not be cleared, so this check is necessary to
+           * avoid adding a duplicate modifier. */
+          has_custom_normals = true;
+          break;
         }
       }
     }

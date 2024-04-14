@@ -87,6 +87,7 @@
 #include "DNA_curves_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_image_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
@@ -120,6 +121,7 @@
 #include "DNA_curves_defaults.h"
 #include "DNA_fluid_defaults.h"
 #include "DNA_gpencil_modifier_defaults.h"
+#include "DNA_grease_pencil_defaults.h"
 #include "DNA_image_defaults.h"
 #include "DNA_lattice_defaults.h"
 #include "DNA_light_defaults.h"
@@ -180,6 +182,9 @@ SDNA_DEFAULT_DECL_STRUCT(Image);
 
 /* DNA_curves_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(Curves);
+
+/* DNA_grease_pencil_defaults.h */
+SDNA_DEFAULT_DECL_STRUCT(GreasePencil);
 
 /* DNA_lattice_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(Lattice);
@@ -360,6 +365,7 @@ SDNA_DEFAULT_DECL_STRUCT(GreasePencilSimplifyModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilEnvelopeModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilOutlineModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilShrinkwrapModifierData);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilTextureModifierData);
 
 #undef SDNA_DEFAULT_DECL_STRUCT
 
@@ -427,6 +433,9 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
 
     /* DNA_curves_defaults.h */
     SDNA_DEFAULT_DECL(Curves),
+
+    /* DNA_grease_pencil_defaults.h */
+    SDNA_DEFAULT_DECL(GreasePencil),
 
     /* DNA_lattice_defaults.h */
     SDNA_DEFAULT_DECL(Lattice),
@@ -637,6 +646,7 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL(GreasePencilEnvelopeModifierData),
     SDNA_DEFAULT_DECL(GreasePencilOutlineModifierData),
     SDNA_DEFAULT_DECL(GreasePencilShrinkwrapModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilTextureModifierData),
 };
 #undef SDNA_DEFAULT_DECL
 #undef SDNA_DEFAULT_DECL_EX

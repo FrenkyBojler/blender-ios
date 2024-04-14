@@ -21,7 +21,7 @@ struct ShadowSampleParams {
   float z_range;
 };
 
-ShadowTileData shadow_tile_data_get(usampler2D tilemaps_tx, ShadowSampleParams params)
+ShadowSamplingTile shadow_tile_data_get(usampler2D tilemaps_tx, ShadowSampleParams params)
 {
   /* Prevent out of bound access. Assumes the input is already non negative. */
   vec2 tilemap_uv = min(params.uv.xy, vec2(0.99999));
@@ -46,9 +46,9 @@ float shadow_read_depth(SHADOW_ATLAS_TYPE atlas_tx,
   const int page_shift = SHADOW_PAGE_LOD;
 
   ivec2 tile_coord = texel_coord >> page_shift;
-  ShadowTileData tile = shadow_tile_load(tilemaps_tx, tile_coord, params.tilemap_index);
+  ShadowSamplingTile tile = shadow_tile_load(tilemaps_tx, tile_coord, params.tilemap_index);
 
-  if (!tile.is_allocated) {
+  if (!tile.is_valid) {
     return -1.0;
   }
 
@@ -117,8 +117,11 @@ float shadow_linear_occluder_distance(LightData light,
 
   float occluder_z = (is_directional) ? (occluder * (far - near) + near) :
                                         ((near * far) / (occluder * (near - far) + far));
-  float receiver_z = (is_directional) ? -lP.z : max(abs(lP.x), max(abs(lP.y), abs(lP.z)));
-
+  float receiver_z = (is_directional) ? -lP.z : reduce_max(abs(lP));
+  if (!is_directional) {
+    float lP_len = length(lP);
+    return lP_len - lP_len * (occluder_z / receiver_z);
+  }
   return receiver_z - occluder_z;
 }
 

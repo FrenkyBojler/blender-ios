@@ -943,6 +943,7 @@ static const PaintMode brush_select_paint_modes[] = {
     PaintMode::SculptGPencil,
     PaintMode::WeightGPencil,
     PaintMode::SculptCurves,
+    PaintMode::SculptGreasePencil,
 };
 
 static int brush_select_exec(bContext *C, wmOperator *op)
@@ -1551,6 +1552,7 @@ void ED_operatortypes_paint()
   WM_operatortype_append(hide::PAINT_OT_hide_show_masked);
   WM_operatortype_append(hide::PAINT_OT_hide_show);
   WM_operatortype_append(hide::PAINT_OT_hide_show_lasso_gesture);
+  WM_operatortype_append(hide::PAINT_OT_hide_show_line_gesture);
   WM_operatortype_append(hide::PAINT_OT_visibility_invert);
 
   /* paint masking */

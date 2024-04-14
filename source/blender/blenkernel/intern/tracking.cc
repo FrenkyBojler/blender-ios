@@ -367,7 +367,7 @@ void BKE_tracking_settings_init(MovieTracking *tracking)
   BKE_tracking_object_add(tracking, DATA_("Camera"));
 }
 
-void BKE_tracking_get_camera_object_matrix(Object *camera_object, float mat[4][4])
+void BKE_tracking_get_camera_object_matrix(const Object *camera_object, float mat[4][4])
 {
   BLI_assert(camera_object != nullptr);
   /* NOTE: Construct matrix from scratch rather than using obmat because the camera object here
@@ -2158,7 +2158,7 @@ void BKE_tracking_camera_get_reconstructed_interpolate(MovieTracking * /*trackin
     return;
   }
 
-  if (cameras[a].framenr != framenr && a < reconstruction->camnr - 1) {
+  if ((a < reconstruction->camnr - 1) && (cameras[a].framenr != framenr)) {
     float t = (float(framenr) - cameras[a].framenr) /
               (cameras[a + 1].framenr - cameras[a].framenr);
     blend_m4_m4m4(mat, cameras[a].mat, cameras[a + 1].mat, t);

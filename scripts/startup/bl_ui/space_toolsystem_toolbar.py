@@ -1417,6 +1417,21 @@ class _defs_sculpt:
         )
 
     @ToolDef.from_fn
+    def hide_line():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("paint.hide_show_line_gesture")
+            layout.prop(props, "use_limit_to_segment", expand=False)
+
+        return dict(
+            idname="builtin.line_hide",
+            label="Line Hide",
+            icon="ops.sculpt.line_hide",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
     def mask_border():
         def draw_settings(_context, layout, tool):
             props = tool.operator_properties("paint.mask_box_gesture")
@@ -1814,6 +1829,15 @@ class _defs_paint_grease_pencil:
             label="Erase",
             icon="brush.gpencil_draw.erase",
             data_block='ERASE',
+        )
+
+    @ToolDef.from_fn
+    def tint():
+        return dict(
+            idname="builtin_brush.Tint",
+            label="Tint",
+            icon="brush.gpencil_draw.tint",
+            data_block='TINT',
         )
 
 
@@ -2432,6 +2456,37 @@ class _defs_gpencil_sculpt:
             attr="gpencil_sculpt_tool",
             tooldef_keywords=dict(
                 operator="gpencil.sculpt_paint",
+            ),
+        )
+
+
+class _defs_grease_pencil_sculpt:
+    @staticmethod
+    def poll_select_mask(context):
+        if context is None:
+            return True
+        ob = context.active_object
+        tool_settings = context.scene.tool_settings
+        return (
+            ob is not None and
+            ob.type in {'GPENCIL', 'GREASE_PENCIL'} and (
+                tool_settings.use_gpencil_select_mask_point or
+                tool_settings.use_gpencil_select_mask_stroke or
+                tool_settings.use_gpencil_select_mask_segment
+            )
+        )
+
+    @staticmethod
+    def generate_from_brushes(context):
+        return generate_from_enum_ex(
+            context,
+            idname_prefix="builtin_brush.",
+            icon_prefix="ops.gpencil.sculpt_",
+            type=bpy.types.Brush,
+            # Uses GPv2 tool settings
+            attr="gpencil_sculpt_tool",
+            tooldef_keywords=dict(
+                operator="grease_pencil.sculpt_paint",
             ),
         )
 
@@ -3108,7 +3163,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             ),
             (
                 _defs_sculpt.hide_border,
-                _defs_sculpt.hide_lasso
+                _defs_sculpt.hide_lasso,
+                _defs_sculpt.hide_line,
             ),
             (
                 _defs_sculpt.face_set_box,
@@ -3133,6 +3189,16 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_transform.transform,
             None,
             *_tools_annotate,
+        ],
+        'SCULPT_GREASE_PENCIL': [
+            _defs_grease_pencil_sculpt.generate_from_brushes,
+            None,
+            *_tools_annotate,
+            lambda context: (
+                VIEW3D_PT_tools_active._tools_gpencil_select
+                if _defs_grease_pencil_sculpt.poll_select_mask(context)
+                else ()
+            ),
         ],
         'PAINT_TEXTURE': [
             _defs_texture_paint.generate_from_brushes,
@@ -3181,6 +3247,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             _defs_paint_grease_pencil.draw,
             _defs_paint_grease_pencil.erase,
+            _defs_paint_grease_pencil.tint,
         ],
         'PAINT_GPENCIL': [
             _defs_view3d_generic.cursor,

@@ -431,9 +431,7 @@ static void layer_aov_copy_data(ViewLayer *view_layer_dst,
                                 ListBase *aovs_dst,
                                 const ListBase *aovs_src)
 {
-  if (aovs_src != nullptr) {
-    BLI_duplicatelist(aovs_dst, aovs_src);
-  }
+  BLI_duplicatelist(aovs_dst, aovs_src);
 
   ViewLayerAOV *aov_dst = static_cast<ViewLayerAOV *>(aovs_dst->first);
   const ViewLayerAOV *aov_src = static_cast<const ViewLayerAOV *>(aovs_src->first);
@@ -1221,6 +1219,10 @@ static void layer_collection_sync(ViewLayer *view_layer,
     {
       child_layer->runtime_flag |= LAYER_COLLECTION_VISIBLE_VIEW_LAYER;
     }
+
+    if (!BLI_listbase_is_empty(&child_collection->exporters)) {
+      view_layer->flag |= VIEW_LAYER_HAS_EXPORT_COLLECTIONS;
+    }
   }
 
   /* Replace layer collection list with new one. */
@@ -1357,6 +1359,9 @@ void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
       nullptr,
       static_cast<LayerCollection *>(view_layer->layer_collections.first),
       layer_resync_mempool);
+
+  /* Clear the cached flag indicating if the view layer has a collection exporter set. */
+  view_layer->flag &= ~VIEW_LAYER_HAS_EXPORT_COLLECTIONS;
 
   /* Generate new layer connections and object bases when collections changed. */
   ListBase new_object_bases{};

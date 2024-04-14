@@ -409,27 +409,27 @@ class USERPREF_PT_edit_objects_duplicate_data(EditingPanel, CenterAlignMixIn, Pa
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=True)
 
         datablock_types = (
-            ("use_duplicate_action", "Action", 'ACTION', ''),
-            ("use_duplicate_armature", "Armature", 'OUTLINER_DATA_ARMATURE', ''),
-            ("use_duplicate_camera", "Camera", 'OUTLINER_DATA_CAMERA', ''),
-            ("use_duplicate_curve", "Curve", 'OUTLINER_DATA_CURVE', ''),
-            ("use_duplicate_curves", "Curves", 'OUTLINER_DATA_CURVES', ''),
-            ("use_duplicate_grease_pencil", "Grease Pencil", 'OUTLINER_OB_GREASEPENCIL', ''),
-            ("use_duplicate_lattice", "Lattice", 'OUTLINER_DATA_LATTICE', ''),
+            ("use_duplicate_action", "Action", 'ACTION', ""),
+            ("use_duplicate_armature", "Armature", 'OUTLINER_DATA_ARMATURE', ""),
+            ("use_duplicate_camera", "Camera", 'OUTLINER_DATA_CAMERA', ""),
+            ("use_duplicate_curve", "Curve", 'OUTLINER_DATA_CURVE', ""),
+            ("use_duplicate_curves", "Curves", 'OUTLINER_DATA_CURVES', ""),
+            ("use_duplicate_grease_pencil", "Grease Pencil", 'OUTLINER_OB_GREASEPENCIL', ""),
+            ("use_duplicate_lattice", "Lattice", 'OUTLINER_DATA_LATTICE', ""),
             (None, None, None, None),
-            ("use_duplicate_light", "Light", 'OUTLINER_DATA_LIGHT', ''),
-            ("use_duplicate_lightprobe", "Light Probe", 'OUTLINER_DATA_LIGHTPROBE', ''),
-            ("use_duplicate_material", "Material", 'MATERIAL_DATA', ''),
-            ("use_duplicate_mesh", "Mesh", 'OUTLINER_DATA_MESH', ''),
-            ("use_duplicate_metaball", "Metaball", 'OUTLINER_DATA_META', ''),
-            ("use_duplicate_node_tree", "Node Tree", 'NODETREE', ''),
-            ("use_duplicate_particle", "Particle", 'PARTICLES', ''),
+            ("use_duplicate_light", "Light", 'OUTLINER_DATA_LIGHT', ""),
+            ("use_duplicate_lightprobe", "Light Probe", 'OUTLINER_DATA_LIGHTPROBE', ""),
+            ("use_duplicate_material", "Material", 'MATERIAL_DATA', ""),
+            ("use_duplicate_mesh", "Mesh", 'OUTLINER_DATA_MESH', ""),
+            ("use_duplicate_metaball", "Metaball", 'OUTLINER_DATA_META', ""),
+            ("use_duplicate_node_tree", "Node Tree", 'NODETREE', ""),
+            ("use_duplicate_particle", "Particle", 'PARTICLES', ""),
             (None, None, None, None),
-            ("use_duplicate_pointcloud", "Point Cloud", 'OUTLINER_DATA_POINTCLOUD', ''),
-            ("use_duplicate_speaker", "Speaker", 'OUTLINER_DATA_SPEAKER', ''),
-            ("use_duplicate_surface", "Surface", 'OUTLINER_DATA_SURFACE', ''),
-            ("use_duplicate_text", "Text", 'OUTLINER_DATA_FONT', ''),
-            ("use_duplicate_volume", "Volume", 'OUTLINER_DATA_VOLUME', 'i18n_contexts.id_id'),
+            ("use_duplicate_pointcloud", "Point Cloud", 'OUTLINER_DATA_POINTCLOUD', ""),
+            ("use_duplicate_speaker", "Speaker", 'OUTLINER_DATA_SPEAKER', ""),
+            ("use_duplicate_surface", "Surface", 'OUTLINER_DATA_SURFACE', ""),
+            ("use_duplicate_text", "Text", 'OUTLINER_DATA_FONT', ""),
+            ("use_duplicate_volume", "Volume", 'OUTLINER_DATA_VOLUME', "i18n_contexts.id_id"),
         )
 
         col = flow.column()
@@ -671,8 +671,8 @@ class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
         import sys
         return sys.platform[:3] == "win"
 
-    def draw_centered(self, _context, layout):
-        if _context.preferences.system.is_microsoft_store_install:
+    def draw_centered(self, context, layout):
+        if context.preferences.system.is_microsoft_store_install:
             layout.label(text="Microsoft Store installation")
             layout.label(text="Use Windows 'Default Apps' to associate with blend files")
         else:
@@ -860,21 +860,37 @@ class USERPREF_MT_interface_theme_presets(Menu):
     draw = Menu.draw_preset
 
     @staticmethod
-    def reset_cb(context):
+    def reset_cb(_context, _filepath):
         bpy.ops.preferences.reset_default_theme()
+
+    @staticmethod
+    def post_cb(context, filepath):
+        context.preferences.themes[0].filepath = filepath
 
 
 class USERPREF_PT_theme(ThemePanel, Panel):
     bl_label = "Themes"
     bl_options = {'HIDE_HEADER'}
 
-    def draw(self, _context):
+    def draw(self, context):
+        import os
+
         layout = self.layout
 
         split = layout.split(factor=0.6)
 
         row = split.row(align=True)
-        row.menu("USERPREF_MT_interface_theme_presets", text=USERPREF_MT_interface_theme_presets.bl_label)
+
+        # Unlike most presets (which use the classes bl_label),
+        # themes store the path, use this when set.
+        if filepath := context.preferences.themes[0].filepath:
+            preset_label = bpy.path.display_name(os.path.basename(filepath))
+        else:
+            preset_label = USERPREF_MT_interface_theme_presets.bl_label
+
+        row.menu("USERPREF_MT_interface_theme_presets", text=preset_label)
+        del filepath, preset_label
+
         row.operator("wm.interface_theme_preset_add", text="", icon='ADD')
         row.operator("wm.interface_theme_preset_remove", text="", icon='REMOVE')
         row.operator("wm.interface_theme_preset_save", text="", icon='FILE_TICK')
@@ -1796,9 +1812,7 @@ class USERPREF_PT_input_ndof(InputPanel, CenterAlignMixIn, Panel):
 
     @classmethod
     def poll(cls, context):
-        prefs = context.preferences
-        inputs = prefs.inputs
-        return inputs.use_ndof
+        return bpy.app.build_options.input_ndof
 
     def draw_centered(self, context, layout):
         prefs = context.preferences
@@ -2053,8 +2067,6 @@ class USERPREF_PT_extensions_repos(Panel):
         paths = context.preferences.filepaths
         active_repo_index = paths.active_extension_repo
 
-        layout.label(text="Repositories")
-
         row = layout.row()
 
         row.template_list(
@@ -2090,7 +2102,7 @@ class USERPREF_PT_extensions_repos(Panel):
             split = row.split(factor=0.936)
             if active_repo.remote_path == "":
                 split.alert = True
-            split.prop(active_repo, "remote_path", text="URL")
+            split.prop(active_repo, "remote_path", text="", icon="URL", placeholder="Repository URL")
             split = row.split()
 
         layout_header, layout_panel = layout.panel("advanced", default_closed=True)
@@ -2110,11 +2122,10 @@ class USERPREF_PT_extensions_repos(Panel):
                 # valid UTF-8 which will raise a Python exception when passed in as text.
                 row.prop(active_repo, "directory", text="")
 
+            layout_panel.prop(active_repo, "use_cache")
             layout_panel.separator()
 
-            row = layout_panel.row()
-            row.prop(active_repo, "use_cache")
-            row.prop(active_repo, "module")
+            layout_panel.prop(active_repo, "module")
 
 
 # -----------------------------------------------------------------------------
@@ -2680,6 +2691,7 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
                 ({"property": "enable_overlay_next"}, ("blender/blender/issues/102179", "#102179")),
                 ({"property": "use_extension_repos"}, ("/blender/blender/issues/117286", "#117286")),
                 ({"property": "use_extension_utils"}, ("/blender/blender/issues/117286", "#117286")),
+                ({"property": "use_animation_baklava"}, ("/blender/blender/issues/120406", "#120406")),
             ),
         )
 
@@ -2726,7 +2738,7 @@ class USERPREF_PT_experimental_debugging(ExperimentalPanel, Panel):
 # Class Registration
 
 # Order of registration defines order in UI,
-# so dynamically generated classes are 'injected' in the intended order.
+# so dynamically generated classes are "injected" in the intended order.
 classes = (
     USERPREF_PT_theme_user_interface,
     *ThemeGenericClassGenerator.generate_panel_classes_for_wcols(),

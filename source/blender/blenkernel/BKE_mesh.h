@@ -199,7 +199,7 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
 void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob);
 void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb);
 
-/* vertex level transformations & checks (no derived mesh) */
+/* Vertex level transformations & checks (no evaluated mesh). */
 
 /* basic vertex data functions */
 void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys);
@@ -493,9 +493,6 @@ bool BKE_mesh_validate_all_customdata(CustomData *vert_data,
                                       bool *r_change);
 
 void BKE_mesh_strip_loose_faces(Mesh *mesh);
-
-/* In DerivedMesh.cc */
-void BKE_mesh_wrapper_deferred_finalize_mdata(Mesh *mesh_eval);
 
 /* **** Depsgraph evaluation **** */
 

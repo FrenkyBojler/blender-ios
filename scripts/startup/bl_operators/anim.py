@@ -71,7 +71,6 @@ class ANIM_OT_keying_set_export(Operator):
 
         f.write("ks.use_insertkey_needed = %s\n" % ks.use_insertkey_needed)
         f.write("ks.use_insertkey_visual = %s\n" % ks.use_insertkey_visual)
-        f.write("ks.use_insertkey_xyz_to_rgb = %s\n" % ks.use_insertkey_xyz_to_rgb)
         f.write("\n")
 
         # --------------------------------------------------------
@@ -530,11 +529,12 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
 
 
 def _armature_from_context(context):
-    pin_armature = getattr(context, 'armature', None)
+    pin_armature = getattr(context, "armature", None)
     if pin_armature:
         return pin_armature
-    if context.object and context.object.type == 'ARMATURE':
-        return context.object.data
+    ob = context.object
+    if ob and ob.type == 'ARMATURE':
+        return ob.data
     return None
 
 

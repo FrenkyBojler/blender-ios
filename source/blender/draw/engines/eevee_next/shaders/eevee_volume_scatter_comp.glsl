@@ -14,6 +14,7 @@
 #pragma BLENDER_REQUIRE(eevee_lightprobe_eval_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_volume_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_colorspace_lib.glsl)
 
 #pragma BLENDER_REQUIRE(eevee_volume_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
@@ -25,6 +26,7 @@ vec3 volume_scatter_light_eval(
 {
   LightData light = light_buf[l_idx];
 
+  /* TODO(fclem): Own light list for volume without lights that have 0 volume influence. */
   if (light.power[LIGHT_VOLUME] == 0.0) {
     return vec3(0);
   }
@@ -41,14 +43,15 @@ vec3 volume_scatter_light_eval(
     visibility *= shadow_sample(is_directional, shadow_atlas_tx, shadow_tilemaps_tx, light, P)
                       .light_visibilty;
   }
-
+  visibility *= volume_phase_function(-V, lv.L, s_anisotropy);
   if (visibility < LIGHT_ATTENUATION_THRESHOLD) {
     return vec3(0);
   }
 
-  vec3 Li = volume_light(light, is_directional, lv) *
+  vec3 Li = volume_light(light, is_directional, lv) * visibility *
             volume_shadow(light, is_directional, P, lv, extinction_tx);
-  return Li * visibility * volume_phase_function(-V, lv.L, s_anisotropy);
+
+  return colorspace_brightness_clamp_max(Li, uniform_buf.volumes.light_clamp);
 }
 
 #endif
@@ -66,10 +69,10 @@ void main()
   vec3 extinction = imageLoad(in_extinction_img, froxel).rgb;
   vec3 s_scattering = imageLoad(in_scattering_img, froxel).rgb;
 
-  vec3 jitter = sampling_rng_3D_get(SAMPLING_VOLUME_U);
-  vec3 volume_screen = volume_to_screen((vec3(froxel) + jitter) *
-                                        uniform_buf.volumes.inv_tex_size);
-  vec3 vP = drw_point_screen_to_view(volume_screen);
+  float offset = sampling_rng_1D_get(SAMPLING_VOLUME_W);
+  float jitter = volume_froxel_jitter(froxel.xy, offset);
+  vec3 uvw = (vec3(froxel) + vec3(0.5, 0.5, 0.5 - jitter)) * uniform_buf.volumes.inv_tex_size;
+  vec3 vP = volume_jitter_to_view(uvw);
   vec3 P = drw_point_view_to_world(vP);
   vec3 V = drw_world_incident_vector(P);
 
@@ -88,8 +91,8 @@ void main()
   }
   LIGHT_FOREACH_END
 
-  vec2 pixel = (vec2(froxel.xy) + vec2(0.5)) / vec2(uniform_buf.volumes.tex_size.xy) /
-               uniform_buf.volumes.viewport_size_inv;
+  vec2 pixel = ((vec2(froxel.xy) + 0.5) * uniform_buf.volumes.inv_tex_size.xy) *
+               uniform_buf.volumes.main_view_extent;
 
   LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, pixel, vP.z, l_idx) {
     light_scattering += volume_scatter_light_eval(false, P, V, l_idx, s_anisotropy);
@@ -98,6 +101,17 @@ void main()
 
   scattering += light_scattering * s_scattering;
 #endif
+
+  if (uniform_buf.volumes.history_opacity > 0.0) {
+    /* Temporal reprojection. */
+    vec3 uvw_history = volume_history_uvw_get(froxel);
+    if (uvw_history.x != -1.0) {
+      vec3 scattering_history = texture(scattering_history_tx, uvw_history).rgb;
+      vec3 extinction_history = texture(extinction_history_tx, uvw_history).rgb;
+      scattering = mix(scattering, scattering_history, uniform_buf.volumes.history_opacity);
+      extinction = mix(extinction, extinction_history, uniform_buf.volumes.history_opacity);
+    }
+  }
 
   /* Catch NaNs. */
   if (any(isnan(scattering)) || any(isnan(extinction))) {

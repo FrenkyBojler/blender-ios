@@ -435,6 +435,7 @@ void BKE_crazyspace_build_sculpt(Depsgraph *depsgraph,
     VirtualModifierData virtual_modifier_data;
     Object object_eval;
     crazyspace_init_object_for_eval(depsgraph, object, &object_eval);
+    BLI_SCOPED_DEFER([&]() { MEM_delete(object_eval.runtime); });
     ModifierData *md = BKE_modifiers_get_virtual_modifierlist(&object_eval,
                                                               &virtual_modifier_data);
     const ModifierEvalContext mectx = {depsgraph, &object_eval, ModifierApplyFlag(0)};
@@ -599,9 +600,9 @@ GeometryDeformation get_evaluated_curves_deformation(const Object *ob_eval, cons
   if (edit_component_eval != nullptr) {
     const CurvesEditHints *edit_hints = edit_component_eval->curves_edit_hints_.get();
     if (edit_hints != nullptr && &edit_hints->curves_id_orig == &curves_id_orig) {
-      if (edit_hints->positions.has_value()) {
-        BLI_assert(edit_hints->positions->size() == points_num);
-        deformation.positions = *edit_hints->positions;
+      if (const std::optional<Span<float3>> positions = edit_hints->positions()) {
+        BLI_assert(positions->size() == points_num);
+        deformation.positions = *positions;
         uses_extra_positions = true;
       }
       if (edit_hints->deform_mats.has_value()) {
@@ -677,8 +678,8 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object
     BLI_assert(edit_hints->drawing_hints->size() == layers_orig.size());
     const GreasePencilDrawingEditHints &drawing_hints =
         edit_hints->drawing_hints.value()[layer_index];
-    if (drawing_hints.positions.has_value()) {
-      deformation.positions = *drawing_hints.positions;
+    if (const std::optional<Span<float3>> positions = drawing_hints.positions()) {
+      deformation.positions = *positions;
       return deformation;
     }
   }

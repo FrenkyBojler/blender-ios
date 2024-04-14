@@ -563,7 +563,7 @@ static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
 #  include "BKE_preferences.h"
 #  include "BKE_scene.hh"
 #  include "BKE_screen.hh"
-#  include "BKE_workspace.h"
+#  include "BKE_workspace.hh"
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
@@ -2847,7 +2847,7 @@ static PointerRNA rna_FileAssetSelectParams_filter_id_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_FileAssetSelectIDFilter, ptr->data);
 }
 
-static PointerRNA rna_FileBrowser_FileSelectEntry_asset_data_get(const PointerRNA *ptr)
+static PointerRNA rna_FileBrowser_FileSelectEntry_asset_data_get_impl(const PointerRNA *ptr)
 {
   const FileDirEntry *entry = static_cast<const FileDirEntry *>(ptr->data);
 
@@ -2879,12 +2879,17 @@ static int rna_FileBrowser_FileSelectEntry_name_editable(const PointerRNA *ptr,
    * message returned to `r_info` in some cases. */
 
   if (entry->asset) {
-    PointerRNA asset_data_ptr = rna_FileBrowser_FileSelectEntry_asset_data_get(ptr);
+    PointerRNA asset_data_ptr = rna_FileBrowser_FileSelectEntry_asset_data_get_impl(ptr);
     /* Get disabled hint from asset metadata polling. */
     rna_AssetMetaData_editable(&asset_data_ptr, r_info);
   }
 
   return 0;
+}
+
+static PointerRNA rna_FileBrowser_FileSelectEntry_asset_data_get(PointerRNA *ptr)
+{
+  return rna_FileBrowser_FileSelectEntry_asset_data_get_impl(ptr);
 }
 
 static void rna_FileBrowser_FileSelectEntry_name_get(PointerRNA *ptr, char *value)
@@ -3436,7 +3441,11 @@ static const EnumPropertyItem dt_uv_items[] = {
 static IDFilterEnumPropertyItem rna_enum_space_file_id_filter_categories[] = {
     /* Categories */
     {FILTER_ID_SCE, "category_scene", ICON_SCENE_DATA, "Scenes", "Show scenes"},
-    {FILTER_ID_AC, "category_animation", ICON_ANIM_DATA, "Animations", "Show animation data"},
+    {FILTER_ID_AC | FILTER_ID_AN,
+     "category_animation",
+     ICON_ANIM_DATA,
+     "Animations",
+     "Show animation data"},
     {FILTER_ID_OB | FILTER_ID_GR,
      "category_object",
      ICON_OUTLINER_COLLECTION,
