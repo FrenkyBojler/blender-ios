@@ -16,9 +16,8 @@
 #include "BLI_timeit.hh"
 #include "BLI_vector.hh"
 
-#include "GEO_join_geometries.hh"
-#include "GEO_realize_instances.hh"
-
+#include "BKE_attribute.hh"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
@@ -155,166 +154,6 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   }
 }
 
-/* Class to keep track of offsets into the fundamental arrays
- * when a sequence of Meshes is joined. */
-class JoinedMeshOffsets {
-  Array<int> vert_offsets_data_;
-  Array<int> edge_offsets_data_;
-  Array<int> face_offsets_data_;
-  Array<int> corner_offsets_data_;
-
- public:
-  JoinedMeshOffsets() {}
-  JoinedMeshOffsets(Span<const Mesh *> meshes);
-
-  OffsetIndices<int> vert_offsets;
-  OffsetIndices<int> edge_offsets;
-  OffsetIndices<int> face_offsets;
-  OffsetIndices<int> corner_offsets;
-};
-
-/* Build a structure to hold the OffsetIndices representing the index
- * ranges for each of the meshes when the are concatenated in the given
- * order.  Get ranges for each of verts, edges, faces, and corners. */
-JoinedMeshOffsets::JoinedMeshOffsets(Span<const Mesh *> meshes)
-{
-  const int num_meshes = meshes.size();
-  vert_offsets_data_.reinitialize(num_meshes + 1);
-  edge_offsets_data_.reinitialize(num_meshes + 1);
-  face_offsets_data_.reinitialize(num_meshes + 1);
-  corner_offsets_data_.reinitialize(num_meshes + 1);
-  vert_offsets_data_[0] = 0;
-  edge_offsets_data_[0] = 0;
-  face_offsets_data_[0] = 0;
-  corner_offsets_data_[0] = 0;
-  for (const int i : IndexRange(num_meshes)) {
-    vert_offsets_data_[i + 1] = vert_offsets_data_[i] + meshes[i]->verts_num;
-    edge_offsets_data_[i + 1] = edge_offsets_data_[i] + meshes[i]->edges_num;
-    face_offsets_data_[i + 1] = face_offsets_data_[i] + meshes[i]->faces_num;
-    corner_offsets_data_[i + 1] = corner_offsets_data_[i] + meshes[i]->corners_num;
-  }
-  vert_offsets = OffsetIndices<int>(vert_offsets_data_);
-  edge_offsets = OffsetIndices<int>(edge_offsets_data_);
-  face_offsets = OffsetIndices<int>(face_offsets_data_);
-  corner_offsets = OffsetIndices<int>(corner_offsets_data_);
-}
-
-/* It is not yet clear whether or not we are better off using
- * manifold::MeshGL or manifold::Mesh to construct our Manifolds.
- * Leave both code paths here for nowl
- */
-
-// #define USE_MESHGL_INPUT
-
-#ifdef USE_MESHGL_INPUT
-static void transform_mesh_verts(std::vector<float> &vert_props,
-                                 int num_prop,
-                                 const Mesh *mesh,
-                                 const float4x4 &transform)
-{
-  const int num_verts = mesh->verts_num;
-  BLI_assert(num_prop >= 3 && vert_props.size() >= num_prop * num_verts);
-  Span<float3> vpos = mesh->vert_positions();
-  if (math::is_identity(transform)) {
-    const int grain_size = 100000;
-    threading::parallel_for(IndexRange(num_verts), grain_size, [&](const IndexRange range) {
-      for (const int i : range) {
-        const float3 &pos = vpos[i];
-        int offset = i * num_prop;
-        vert_props[offset] = pos[0];
-        vert_props[offset + 1] = pos[1];
-        vert_props[offset + 2] = pos[2];
-      }
-    });
-  }
-  else {
-    const int grain_size = 50000;
-
-    threading::parallel_for(IndexRange(num_verts), grain_size, [&](const IndexRange range) {
-      for (const int i : range) {
-        float3 transformed_pos = math::transform_point(transform, vpos[i]);
-        int offset = i * num_prop;
-        vert_props[offset] = transformed_pos[0];
-        vert_props[offset + 1] = transformed_pos[1];
-        vert_props[offset + 2] = transformed_pos[2];
-      }
-    });
-  }
-}
-
-/* Triangulate the faces in mesh and store the vertex indices of the
- * triangles in tri_verts.
- * Record the original mesh face index, added to face_id_offset, in
- * the face_ids argument
- * Blender's Mesh triangulation may be cached, so maybe faster to use.
- * Downside is that it is not guaranteed to make a manifold triangulation,
- * though in usual cases we should be fine.
- * TODO: experiment with using manifold's triangulator.
- */
-static void triangulate_mesh_faces(std::vector<uint32_t> &tri_verts,
-                                   std::vector<uint32_t> &face_ids,
-                                   int face_id_offset,
-                                   const Mesh *mesh,
-                                   bool reverse_order)
-{
-  Span<int3> corner_tris = mesh->corner_tris();
-  Span<int> tri_faces = mesh->corner_tri_faces();
-  Span<int> corner_verts = mesh->corner_verts();
-  tri_verts.resize(3 * corner_tris.size());
-  face_ids.resize(corner_tris.size());
-  /* Order to take triangle vertices depends on whether the transform
-   * matrix applied after the triangulation was negative or not.
-   */
-  int tri_1_index = reverse_order ? 2 : 1;
-  int tri_2_index = reverse_order ? 1 : 2;
-  const int grain_size = 100000;
-  threading::parallel_for(corner_tris.index_range(), grain_size, [&](const IndexRange range) {
-    for (const int i : range) {
-      const int3 &ctri = corner_tris[i];
-      int offset = i * 3;
-      tri_verts[offset] = corner_verts[ctri[0]];
-      tri_verts[offset + 1] = corner_verts[ctri[tri_1_index]];
-      tri_verts[offset + 2] = corner_verts[ctri[tri_2_index]];
-      face_ids[i] = tri_faces[i] + face_id_offset;
-    }
-  });
-}
-
-/* Convert mesh into a manifold. Apply the transform to all vertices
- * (usually it will be the identity matrix).
- * Store the original vertex id in the mesh, plus vert_id_offset, as the fourth
- * vertex property in meshGL.
- * When setting faceID, add the face_id_offset to the original face ids in menns.
- */
-static Manifold manifold_from_mesh(const Mesh *mesh,
-                                   const float4x4 &transform,
-                                   int mesh_id,
-                                   int face_id_offset)
-{
-  constexpr int dbg_level = 0;
-  if (dbg_level > 0) {
-    std::cout << "\nMANIFOLD_FROM_MESH\n";
-    std::cout << "face_id_offset = " << face_id_offset << "\n";
-    dump_mesh(mesh, "mesh to convert");
-  }
-  timeit::ScopedTimer timer("manifold from mesh");
-  const int num_verts = mesh->verts_num;
-  MeshGL mgl;
-  /* Vertex props will be x,y,z. */
-  mgl.numProp = 3;
-  mgl.vertProperties.resize(mgl.numProp * num_verts);
-  transform_mesh_verts(mgl.vertProperties, mgl.numProp, mesh, transform);
-  triangulate_mesh_faces(
-      mgl.triVerts, mgl.faceID, face_id_offset, mesh, math::is_negative(transform));
-  mgl.runOriginalID.push_back(mesh_id);
-  if (dbg_level > 0) {
-    dump_meshgl(mgl, "manifold_from_mesh result");
-  }
-  return Manifold(mgl);
-}
-
-#else
-
 static Manifold manifold_from_mesh_via_mesh(const Mesh *mesh)
 {
   constexpr int dbg_level = 0;
@@ -350,40 +189,6 @@ static Manifold manifold_from_mesh_via_mesh(const Mesh *mesh)
   }
   return Manifold(manifold_mesh);
 }
-#endif
-
-/* Get a  Mesh that is the join of each of the argument meshes. The main reason
- * to do this is that the joined result will have the merger of all needed attributes
- * and materials, and proper assignment of attributes values to each element.
- * Return the GeometrySet that contains the Mesh; its destructor will free
- * the Mesh.
- */
-static bke::GeometrySet joined_meshes(Span<const Mesh *> meshes)
-{
-  constexpr int dbg_level = 0;
-  if (dbg_level > 0) {
-    std::cout << "\JOINED_MESHES\n";
-    if (dbg_level > 1) {
-      int k = 0;
-      for (const Mesh *m : meshes) {
-        dump_mesh(m, "join argument " + std::to_string(k++));
-      }
-    }
-  }
-  Array<bke::GeometrySet> geometries(meshes.size());
-  for (const int i : meshes.index_range()) {
-    Mesh *mesh = const_cast<Mesh *>(meshes[i]);
-    geometries[i] = bke::GeometrySet::from_mesh(mesh, bke::GeometryOwnershipType::ReadOnly);
-  }
-  /* For now, propagate all anonymous attributes. TODO: what should we really do? */
-  const bke::AnonymousAttributePropagationInfo propagation_info;
-  bke::GeometrySet join_result = geometry::join_geometries(geometries, propagation_info);
-  geometry::RealizeInstancesOptions options;
-  options.keep_original_ids = false;
-  options.realize_instance_attributes = true;
-  options.propagation_info = propagation_info;
-  return geometry::realize_instances(join_result, options);
-}
 
 /* Find the index in offset_indices that the first place
  * with a value >= x. Return -1 if there is no such index.
@@ -403,15 +208,11 @@ template<typename T> static int which_offset_index(T x, Span<T> offset_indices)
 }
 
 /* Given an output triangle index \a output_tri in \a output_mesh_gl,
- * what is the corresponding face index in the joined mesh that is the
- * result of joining all the \a input_meshees ?
- * The \a join_offsets argument has precalculated the IndexRanges where
- * each element type of an input mesh lies in the joined mesh. */
-static int join_mesh_face(int output_tri,
-                          const MeshGL &output_meshgl,
-                          Span<const Mesh *> input_meshes,
-                          const JoinedMeshOffsets &join_offsets,
-                          int original_id_offset)
+ * what is the corresponding input mesh index and face index? */
+static std::pair<int, int> mesh_and_face(int output_tri,
+                                         const MeshGL &output_meshgl,
+                                         Span<const Mesh *> input_meshes,
+                                         int original_id_offset)
 
 {
   /* First find the index for the original input_mesh that contains the output_tri. */
@@ -423,32 +224,176 @@ static int join_mesh_face(int output_tri,
   int input_mesh_index = output_meshgl.runOriginalID[output_run_index] - original_id_offset;
   BLI_assert(input_mesh_index >= 0 && input_mesh_index < input_meshes.size());
 
-  /* Now find the face index in the joined mesh, given the triangle index in the output meshgl. */
+  /* Now find the face index in the input mesh, given the triangle index in the output meshgl. */
   int face_in_triangulated_input = output_meshgl.faceID[output_tri];
   int face_in_input_mesh =
       input_meshes[input_mesh_index]->corner_tri_faces()[face_in_triangulated_input];
-  int face_in_joined_mesh = join_offsets.face_offsets[input_mesh_index][face_in_input_mesh];
-  return face_in_joined_mesh;
+  return {input_mesh_index, face_in_input_mesh};
+}
+
+#if 0
+/* Copy face attributes (custom data) from face \a index_in_orig_me in \a orig_me
+ * to face \a face_index in \a dest_mesh.
+ * Material indices ineed special hanlding (remapping).
+ * TODO: perhaps change all this to use new Attribute interface.
+ * At least, avoid need to lookup src_material_indices each time.
+ */
+static void copy_face_attributes(Mesh *dest_mesh,
+                                 const Mesh *orig_me,
+                                 int face_index,
+                                 int index_in_orig_me,
+                                 Span<short> material_remap,
+                                 MutableSpan<int> dst_material_indices)
+{
+  CustomData *target_cd = &dest_mesh->face_data;
+  const CustomData *source_cd = &orig_me->face_data;
+  for (int source_layer_i = 0; source_layer_i < source_cd->totlayer; ++source_layer_i) {
+    const eCustomDataType ty = eCustomDataType(source_cd->layers[source_layer_i].type);
+    const char *name = source_cd->layers[source_layer_i].name;
+    int target_layer_i = CustomData_get_named_layer_index(target_cd, ty, name);
+    if (target_layer_i != -1) {
+      CustomData_copy_data_layer(
+          source_cd, target_cd, source_layer_i, target_layer_i, index_in_orig_me, face_index, 1);
+    }
+  }
+
+  /* Fix material indices after they have been transferred as a generic attribute. */
+  const VArray<int> src_material_indices = *orig_me->attributes().lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Face, 0);
+  const int src_index = src_material_indices[index_in_orig_me];
+  if (material_remap.index_range().contains(src_index)) {
+    const int remapped_index = material_remap[src_index];
+    dst_material_indices[face_index] = remapped_index >= 0 ? remapped_index : src_index;
+  }
+  else {
+    dst_material_indices[face_index] = src_index;
+  }
+  BLI_assert(dst_material_indices[face_index] >= 0);
+}
+#endif
+
+class GAttributeReadWriteSpans {
+public:
+  /* A set of attributes we want copied. */
+  Vector<bke::AttributeIDRef> attrs;
+  /* Parallel array of data_type. */
+  Vector<eCustomDataType> data_types;
+  /* Destination attribute data, one span per attribute we want copied. */
+  Vector<GMutableSpan> dest;
+  /* Correpsonding AttributeWriters. */
+  Vector<bke::GSpanAttributeWriter> dest_writers;
+  /* For each input mesh, the source attribute data parallel to dest. */
+  Array<Vector<std::optional<GVArraySpan>>> sources;
+
+  GAttributeReadWriteSpans(Span<const Mesh *> input_meshes,
+                                 Mesh *output_mesh,
+                                 bke::AttrDomain domain);
+  ~GAttributeReadWriteSpans();
+
+  int find_attr_index(const char *name) const;
+};
+
+GAttributeReadWriteSpans::GAttributeReadWriteSpans(
+        Span<const Mesh *> input_meshes,
+        Mesh *output_mesh,
+        bke::AttrDomain domain)
+{
+  const int num_mesh = input_meshes.size();
+  Vector<bke::AttributeAccessor> input_accessors;
+  this->sources.reinitialize(num_mesh);
+  for (int i : IndexRange(num_mesh)) {
+    input_accessors.append(input_meshes[i]->attributes());
+  }
+  bke::MutableAttributeAccessor output_accessor = output_mesh->attributes_for_write();
+  output_accessor.for_all([&](const bke::AttributeIDRef &id,
+                              const bke::AttributeMetaData &metadata) {
+    if (metadata.domain != domain) {
+      return true;
+    }
+    this->attrs.append(id);
+    this->data_types.append(metadata.data_type);
+    this->dest_writers.append(output_accessor.lookup_or_add_for_write_only_span(id, metadata.domain, metadata.data_type));
+    this->dest.append(this->dest_writers.last().span);
+    for (int i : IndexRange(num_mesh)) {
+      this->sources[i].append(*input_accessors[i].lookup_or_default(id, domain, metadata.data_type));
+    }
+    return true;
+  });
+}
+
+GAttributeReadWriteSpans::~GAttributeReadWriteSpans()
+{
+  for (bke::GSpanAttributeWriter& w : dest_writers) {
+    w.finish();
+  }
+}
+
+int GAttributeReadWriteSpans::find_attr_index(const char *name) const
+{
+  for (int i : this->attrs.index_range()) {
+    if (this->attrs[i].name() == name) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
+                            int input_mesh_index,
+                            int input_face,
+                            int output_face,
+                            int material_span_index,
+                            Span<Array<short>> material_remaps)
+{
+  constexpr int dbg_level = 0;
+  if (dbg_level > 0) {
+    std::cout << "copy_face_attrs, input mesh "
+      << input_mesh_index << ", face " << input_face
+    << " to  output face " << output_face << "\n";
+  }
+  for (const int i : rw_spans.attrs.index_range()) {
+    std::optional<GVArraySpan> &src = rw_spans.sources[input_mesh_index][i];
+    GMutableSpan &dst = rw_spans.dest[i];
+    if (src.has_value()) {
+      /* rw_spans.dest[output_face] = src[input_face] */
+      dst.type().copy_assign(src.value()[input_face], dst[output_face]);
+      /* Special additional handling for maetrial_index property. */
+      if (i == material_span_index) {
+        BLI_assert(dst.type().size() == sizeof(int32_t));
+        int32_t src_mat;
+        Span<short> remap = material_remaps[input_mesh_index];
+        dst.type().copy_assign(src.value()[input_face], &src_mat);
+        if (remap.index_range().contains(src_mat)) {
+          int remapped_index = remap[src_mat];
+          if (remapped_index >= 0) {
+            dst.type().copy_assign(&remapped_index, dst[output_face]);
+          }
+        }
+      }
+    }
+  }
 }
 
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
- * The joined_mesh argument contains the input Meshes joined together,
- * and the mesh_offsets argument tells us where each argument mesh's
- * elements are in joined_mesh.
  * The original_id_offset says what OriginalID the first argument
  * mesh has. We assume the others are sequential from there.
+ * Note: the caller of mesh_boolean_manifold will fix the returned
+ * mesh's mat[] array to hold materials approprite for the material_remaps.
  */
 static Mesh *meshgl_to_mesh(const MeshGL &mgl,
-                            const Mesh *join_mesh,
                             Span<const Mesh *> meshes,
-                            const JoinedMeshOffsets &mesh_offsets,
+                            Span<Array<short>> material_remaps,
                             int original_id_offset)
 {
-  constexpr int dbg_level = 0;
+  constexpr int dbg_level = 2;
   if (dbg_level > 0) {
     std::cout << "\nMESHGL_TO_MESH\n";
     dump_meshgl(mgl, "meshgl_to_mesh argument");
+    std::cout << "material_remaps:\n";
+    for (int i : material_remaps.index_range()) {
+      dump_span(material_remaps[i].as_span(), std::to_string(i));
+    }
   }
   timeit::ScopedTimer timer("manifold to mesh");
   /* TODO: dissolve unnecessary triangle faces. */
@@ -461,7 +406,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   }
   /* We will use Blender's parallelized fundiont to calculate edges later. */
   Mesh *mesh = BKE_mesh_new_nomain_from_template(
-      join_mesh, tot_positions, 0, tot_faces, tot_corners);
+      meshes[0], tot_positions, 0, tot_faces, tot_corners);
   int num_props = mgl.numProp;
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   int grain_size = 100000;
@@ -474,11 +419,11 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       positions[i] = pos;
     }
   });
+  GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
+  int material_span_index = face_attrs.find_attr_index("material_index");
   /* TODO: following is very specific to all-triangle output, */
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  bke::MutableAttributeAccessor mesh_attrs = mesh->attributes_for_write();
-  bke::AttributeAccessor join_mesh_attrs = join_mesh->attributes();
   grain_size = 50000;
   threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
     for (const int face_index : range) {
@@ -487,41 +432,15 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       corner_verts[corner_index] = mgl.triVerts[corner_index];
       corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
       corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
-      int jface = join_mesh_face(face_index, mgl, meshes, mesh_offsets, original_id_offset);
-      if (dbg_level > 1) {
-        std::cout << "output tri " << face_index << " -> joined face index " << jface << "\n";
-      }
-      mesh_attrs.for_all(
-          [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData &meta_data) {
-            if (meta_data.domain == bke::AttrDomain::Face) {
-              /* TODO: speed up by moving these lookups out of the loop.
-               * and do the finish outside the loop at the end.
-               * Perhaps use realize_instances for inspiration. */
-              if (dbg_level > 1) {
-                std::cout << "do face attr " << id.name() << "\n";
-              }
-              bke::GAttributeReader reader = join_mesh_attrs.lookup(id);
-              bke::GAttributeWriter writer = mesh_attrs.lookup_for_write(id);
-              if (reader && writer) {
-                const CPPType &type = reader.varray.type();
-                BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
-                reader.varray.get_to_uninitialized(jface, buffer);
-                /* HACK: I don't understand what is going on here, but this makes the materials work. */
-                if (id.name() == "material_index") {
-                  int32_t *p = static_cast<int32_t *>(buffer);
-                  *p -= 1;
-                }
-                /* end HACK */
-                writer.varray.set_by_copy(face_index, buffer);
-                writer.finish();
-              }
-            }
-            return true;
-          });
+      std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, meshes,  original_id_offset);
+      int input_mesh_index = m_and_f.first;
+      int input_face_index = m_and_f.second;
+      copy_face_attrs(face_attrs, input_mesh_index, input_face_index, face_index, material_span_index, material_remaps);
     }
   });
   face_offsets[tot_faces] = 3 * tot_faces;
-  bke::mesh_smooth_set(*mesh, false);
+  // mesh_material_indices.finish();
+  // bke::mesh_smooth_set(*mesh, false);
   bke::mesh_calc_edges(*mesh, false, false);
   if (dbg_level > 0) {
     dump_mesh(mesh, "output mesh");
@@ -533,7 +452,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<float4x4> transforms,
                             const float4x4 &target_transform,
-                            Span<Array<short>> /* material_remaps */,
+                            Span<Array<short>> material_remaps,
                             BooleanOpParameters op_params)
 {
   constexpr int dbg_level = 0;
@@ -552,18 +471,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       std::cout << "IMPLEMENT ME: mesh_boolean_manifold with transforms\n";
       return nullptr;
     }
-    bke::GeometrySet join_set = joined_meshes(meshes);
-    JoinedMeshOffsets jmo(meshes);
-    const Mesh *join_mesh = join_set.get_mesh();
-    if (dbg_level > 1) {
-      dump_mesh(join_mesh, "join_mesh");
-    }
     for (const int i : IndexRange(num_meshes)) {
-#ifdef USE_MESHGL_INPUT
-      manifolds[i] = manifold_from_mesh(meshes[i], transforms[i], i, jmo.face_offsets[i].start());
-#else
       manifolds[i] = manifold_from_mesh_via_mesh(meshes[i]);
-#endif
       if (manifolds[i].Status() != Manifold::Error::NoError) {
         std::cout << "Cannot convert Mesh to Manifold, so manifold solver fails\n";
         return nullptr;
@@ -580,7 +489,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     if (dbg_level > 0) {
       std::cout << "boolean result has " << meshgl_result.NumTri() << " tris\n";
     }
-    Mesh *mesh_result = meshgl_to_mesh(meshgl_result, join_mesh, meshes, jmo, originalID0);
+    Mesh *mesh_result = meshgl_to_mesh(meshgl_result, meshes, material_remaps, originalID0);
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
     UNUSED_VARS(target_transform);
     return mesh_result;
