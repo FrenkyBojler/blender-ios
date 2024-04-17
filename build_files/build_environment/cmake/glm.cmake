@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2024 Blender Authors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+set(GLM_EXTRA_ARGS
+  -DGLM_BUILD_TESTS=OFF
+  -DBUILD_SHARED_LIBS=OFF
+)
+
+ExternalProject_Add(external_glm
+  URL file://${PACKAGE_DIR}/${GLM_FILE}
+  DOWNLOAD_DIR ${DOWNLOAD_DIR}
+  URL_HASH ${GLM_HASH_TYPE}=${GLM_HASH}
+  PREFIX ${BUILD_DIR}/glm
+  CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/glm
+    ${DEFAULT_CMAKE_FLAGS}
+    ${GLM_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/glm
+)

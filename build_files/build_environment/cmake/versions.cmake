@@ -855,3 +855,38 @@ set(PYBIND11_URI https://github.com/pybind/pybind11/archive/refs/tags/v${PYBIND1
 set(PYBIND11_HASH ce07bfd5089245da7807b3faf6cbc878)
 set(PYBIND11_HASH_TYPE MD5)
 set(PYBIND11_FILE pybind-v${PYBIND11_VERSION}.tar.gz)
+
+set(MANIFOLD_VERSION 2.4.5)
+set(MANIFOLD_URI https://github.com/elalish/manifold/archive/refs/tags/v${MANIFOLD_VERSION}.tar.gz)
+set(MANIFOLD_HASH 29d4cd01ffc77eae4d0ce08b191d41b4b0e5099e4a918cae0123b49087b17140)
+set(MANIFOLD_HASH_TYPE SHA256)
+set(MANIFOLD_FILE manifold-${MANIFOLD_VERSION}.tar.gz)
+
+# the manifold tarball doesn't include their submodues, look up the hash you need on 
+# https://github.com/elalish/manifold/tree/master/src/third_party 
+
+set(QUICKHULL_VERSION 1ffbc6f884ea1da89e104a5996cf8a726db673d5)
+set(QUICKHULL_URI https://github.com/akuukka/quickhull/archive/${QUICKHULL_VERSION}.tar.gz)
+set(QUICKHULL_HASH 55c87e78bf990509ff35e3e039213ca6e3890ce988c2891647d65079696ae3a9)
+set(QUICKHULL_HASH_TYPE SHA256)
+set(QUICKHULL_FILE quickhull-${QUICKHULL_VERSION}.tar.gz)
+
+set(CLIPPER2_VERSION 1.3.0)
+set(CLIPPER2_URI https://github.com/AngusJohnson/Clipper2/archive/refs/tags/Clipper2_${CLIPPER2_VERSION}.tar.gz)
+set(CLIPPER2_HASH 8e537ec320e140afaa8fba1f23120416693cc1d71b0f76ad801d24b88b5e0b3c)
+set(CLIPPER2_HASH_TYPE SHA256)
+set(CLIPPER2_FILE clipper2-${CLIPPER2_VERSION}.tar.gz)
+
+# Check manifolds manifoldDeps.cmake for the exact hash they want 
+set(GLM_VERSION b06b775c1c80af51a1183c0e167f9de3b2351a79)
+set(GLM_URI https://github.com/g-truc/glm/archive/${GLM_VERSION}.tar.gz)
+set(GLM_HASH 9dc8c27c2b00d44a0b9d4a619b13848f1092914e7ec60447ac3db528a8e9ba8a)
+set(GLM_HASH_TYPE SHA256)
+set(GLM_FILE GLM-${GLM_VERSION}.tar.gz)
+
+set(CCCL_VERSION 2.3.0)
+set(CCCL_URI https://github.com/NVIDIA/cccl/archive/refs/tags/v${CCCL_VERSION}.tar.gz)
+set(CCCL_HASH 922c9e72a7d6d91ef6a1421f2545a947529a179d307853be1b1615c02241c271)
+set(CCCL_HASH_TYPE SHA256)
+set(CCCL_FILE CCCL-${CCCL_VERSION}.tar.gz)
+

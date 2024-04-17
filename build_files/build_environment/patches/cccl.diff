@@ -1,0 +1,14 @@
+diff -Naur cccl-2.3.0/CMakeLists.txt external_cccl/CMakeLists.txt
+--- cccl-2.3.0/CMakeLists.txt	2023-12-15 16:34:29 -0700
++++ external_cccl/CMakeLists.txt	2024-04-16 09:42:25 -0600
+@@ -42,7 +42,9 @@
+ enable_testing()
+ 
+ include(cmake/CCCLUtilities.cmake) # include this first
+-include(cmake/CCCLClangdCompileInfo.cmake)
++# Blender: this symlinks some json file we don't need and symlinking is 
++# problematic on windows. 
++#include(cmake/CCCLClangdCompileInfo.cmake)
+ 
+ if (CCCL_ENABLE_LIBCUDACXX)
+   set(LIBCUDACXX_TOPLEVEL_PROJECT ON)

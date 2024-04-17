@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2024 Blender Authors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+set(CLIPPER2_EXTRA_ARGS
+  -DCLIPPER2_UTILS=OFF
+  -DCLIPPER2_EXAMPLES=OFF
+  -DCLIPPER2_TESTS=OFF
+  -DCLIPPER2_USINGZ=OFF
+)
+
+ExternalProject_Add(external_clipper2
+  URL file://${PACKAGE_DIR}/${CLIPPER2_FILE}
+  DOWNLOAD_DIR ${DOWNLOAD_DIR}
+  URL_HASH ${CLIPPER2_HASH_TYPE}=${CLIPPER2_HASH}
+  PREFIX ${BUILD_DIR}/clipper2
+  CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
+  SOURCE_SUBDIR cpp
+  PATCH_COMMAND
+    ${PATCH_CMD} -p 1 -N -d
+      ${BUILD_DIR}/clipper2/src/external_clipper2/ <
+      ${PATCH_DIR}/clipper2_447.diff 
+  
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/clipper2
+    ${DEFAULT_CMAKE_FLAGS}
+    ${CLIPPER2_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/clipper2
+)

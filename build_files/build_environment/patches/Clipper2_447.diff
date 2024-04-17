@@ -1,0 +1,92 @@
+diff -Naur Clipper2-Clipper2_1.3.0/CPP/CMakeLists.txt external_clipper2/CPP/CMakeLists.txt
+--- Clipper2-Clipper2_1.3.0/CPP/CMakeLists.txt	2023-11-28 04:48:04 -0700
++++ external_clipper2/CPP/CMakeLists.txt	2024-04-02 17:16:36 -0600
+@@ -57,7 +57,9 @@
+   )
+ 
+   target_include_directories(Clipper2
+-    PUBLIC Clipper2Lib/include
++    PUBLIC
++      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Clipper2Lib/include>
++      $<INSTALL_INTERFACE:include>
+   )
+ 
+   if (MSVC)
+@@ -79,7 +81,9 @@
+   )  
+ 
+   target_include_directories(Clipper2Z
+-    PUBLIC Clipper2Lib/include
++    PUBLIC 
++      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Clipper2Lib/include>
++      $<INSTALL_INTERFACE:include>
+   )
+ 
+   if (MSVC)
+@@ -263,6 +267,46 @@
+   add_subdirectory(BenchMark)
+ endif()
+ 
++# create package config file
++include(CMakePackageConfigHelpers)
++include(GNUInstallDirs)
++
++write_basic_package_version_file("${PROJECT_BINARY_DIR}/Clipper2ConfigVersion.cmake" COMPATIBILITY ExactVersion)
++
++configure_package_config_file(
++    "Clipper2Config.cmake.in" 
++    "${PROJECT_BINARY_DIR}/Clipper2Config.cmake"
++    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/clipper2
++)
++
++export(TARGETS ${CLIPPER2_LIBS} FILE "${PROJECT_BINARY_DIR}/Clipper2Targets.cmake")
++
++# installation
++install(TARGETS ${CLIPPER2_LIBS} EXPORT Clipper2-targets
++        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/clipper2
++        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++)
++
++install(
++    FILES 
++        ${PROJECT_BINARY_DIR}/Clipper2Config.cmake 
++        ${PROJECT_BINARY_DIR}/Clipper2ConfigVersion.cmake 
++    DESTINATION 
++        ${CMAKE_INSTALL_LIBDIR}/cmake/clipper2
++)
++
++install(
++    EXPORT 
++        Clipper2-targets
++    NAMESPACE 
++        Clipper2:: 
++    FILE 
++        Clipper2Targets.cmake 
++    DESTINATION 
++        ${CMAKE_INSTALL_LIBDIR}/cmake/clipper2
++)
++
++
+ set(CLIPPER2_PCFILES "")
+ foreach(lib ${CLIPPER2_LIBS})
+   set(pc "${CMAKE_CURRENT_BINARY_DIR}/${lib}.pc")
+@@ -270,9 +314,6 @@
+   CONFIGURE_FILE(Clipper2.pc.cmakein "${pc}" @ONLY)
+ endforeach()
+ 
+-install(TARGETS ${CLIPPER2_LIBS}
+-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/clipper2
+-)
+ install(FILES ${CLIPPER2_PCFILES} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+ 
+ # disable exceptions
+diff -Naur Clipper2-Clipper2_1.3.0/CPP/Clipper2Config.cmake.in external_clipper2/CPP/Clipper2Config.cmake.in
+--- Clipper2-Clipper2_1.3.0/CPP/Clipper2Config.cmake.in	1969-12-31 17:00:00 -0700
++++ external_clipper2/CPP/Clipper2Config.cmake.in	2024-04-02 17:15:07 -0600
+@@ -0,0 +1,6 @@
++@PACKAGE_INIT@
++
++# Provide all our library targets to users.
++include("${CMAKE_CURRENT_LIST_DIR}/Clipper2Targets.cmake")
++
++check_required_components(Clipper2)
