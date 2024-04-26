@@ -174,20 +174,24 @@ static Manifold manifold_from_mesh_via_mesh(const Mesh *mesh)
     }
   });
   Span<int3> corner_tris = mesh->corner_tris();
-  // Span<int> tri_faces = mesh->corner_tri_faces();
   Span<int> corner_verts = mesh->corner_verts();
   manifold_mesh.triVerts.resize(corner_tris.size());
   threading::parallel_for(corner_tris.index_range(), grain_size, [&](const IndexRange range) {
-    for (const int i : range) {
-      const int3 &ctri = corner_tris[i];
-      manifold_mesh.triVerts[i] = glm::ivec3(
-          corner_verts[ctri[0]], corner_verts[ctri[1]], corner_verts[ctri[2]]);
-    }
+      for (const int i : range) {
+        const int3 &ctri = corner_tris[i];
+        manifold_mesh.triVerts[i] = glm::ivec3(
+                                               corner_verts[ctri[0]], corner_verts[ctri[1]], corner_verts[ctri[2]]);
+      }
   });
   if (dbg_level > 0) {
     dump_manmesh(manifold_mesh, "converted result");
   }
-  return Manifold(manifold_mesh);
+  Manifold ans;
+  {
+    timeit::ScopedTimer mtimer("manifold constructor from mesh");
+    ans = Manifold(manifold_mesh);
+  }
+  return ans;
 }
 
 /* Find the index in offset_indices that the first place
@@ -386,7 +390,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<Array<short>> material_remaps,
                             int original_id_offset)
 {
-  constexpr int dbg_level = 2;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMESHGL_TO_MESH\n";
     dump_meshgl(mgl, "meshgl_to_mesh argument");
@@ -411,13 +415,13 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   int grain_size = 100000;
   threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
-    for (const int i : range) {
-      int offset = num_props * i;
-      float3 pos(mgl.vertProperties[offset],
-                 mgl.vertProperties[offset + 1],
-                 mgl.vertProperties[offset + 2]);
-      positions[i] = pos;
-    }
+      for (const int i : range) {
+        int offset = num_props * i;
+        float3 pos(mgl.vertProperties[offset],
+                   mgl.vertProperties[offset + 1],
+                   mgl.vertProperties[offset + 2]);
+        positions[i] = pos;
+      }
   });
   GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
   int material_span_index = face_attrs.find_attr_index("material_index");
@@ -426,26 +430,31 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   grain_size = 50000;
   threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
-    for (const int face_index : range) {
-      int corner_index = 3 * face_index;
-      face_offsets[face_index] = corner_index;
-      corner_verts[corner_index] = mgl.triVerts[corner_index];
-      corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
-      corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
-      std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, meshes,  original_id_offset);
-      int input_mesh_index = m_and_f.first;
-      int input_face_index = m_and_f.second;
-      copy_face_attrs(face_attrs, input_mesh_index, input_face_index, face_index, material_span_index, material_remaps);
-    }
+      for (const int face_index : range) {
+        int corner_index = 3 * face_index;
+        face_offsets[face_index] = corner_index;
+        corner_verts[corner_index] = mgl.triVerts[corner_index];
+        corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
+        corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
+        std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, meshes,  original_id_offset);
+        int input_mesh_index = m_and_f.first;
+        int input_face_index = m_and_f.second;
+        copy_face_attrs(face_attrs, input_mesh_index, input_face_index, face_index, material_span_index, material_remaps);
+      }
   });
   face_offsets[tot_faces] = 3 * tot_faces;
   // mesh_material_indices.finish();
   // bke::mesh_smooth_set(*mesh, false);
-  bke::mesh_calc_edges(*mesh, false, false);
+  {
+    timeit::ScopedTimer("calculating edges");
+    bke::mesh_calc_edges(*mesh, false, false);
+  }
   if (dbg_level > 0) {
     dump_mesh(mesh, "output mesh");
   }
-  BKE_mesh_validate(mesh, true, true);
+  if (dbg_level > 1) {
+    BKE_mesh_validate(mesh, true, true);
+  }
   return mesh;
 }
 
@@ -463,6 +472,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     timeit::ScopedTimer timer("manifold boolean");
     const int num_meshes = meshes.size();
     std::vector<Manifold> manifolds(num_meshes);
+    std::vector<bool> manifold_ok(num_meshes);
     bool no_transforms = math::is_identity(target_transform);
     no_transforms &= std::all_of(transforms.begin(), transforms.end(), [](const float4x4 &t) {
       return math::is_identity(t);
@@ -471,12 +481,13 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       std::cout << "IMPLEMENT ME: mesh_boolean_manifold with transforms\n";
       return nullptr;
     }
-    for (const int i : IndexRange(num_meshes)) {
+    threading::parallel_for_each(IndexRange(num_meshes), [&](int i) {
       manifolds[i] = manifold_from_mesh_via_mesh(meshes[i]);
-      if (manifolds[i].Status() != Manifold::Error::NoError) {
-        std::cout << "Cannot convert Mesh to Manifold, so manifold solver fails\n";
-        return nullptr;
-      }
+      manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
+    });
+    if (std::any_of(manifold_ok.begin(), manifold_ok.end(), [](bool v) { return !v; })) {
+      std::cout << "Cannot convert Mesh to Manifold, so manifold solver fails\n";
+      return nullptr;
     }
     int originalID0 = manifolds[0].OriginalID();
     Operation op = op_params.boolean_mode;
@@ -484,10 +495,14 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                                manifold::OpType::Intersect :
                                (op == Operation::Union ? manifold::OpType::Add :
                                                          manifold::OpType::Subtract);
-    Manifold man_result = Manifold::BatchBoolean(manifolds, mop);
-    MeshGL meshgl_result = man_result.GetMeshGL();
-    if (dbg_level > 0) {
-      std::cout << "boolean result has " << meshgl_result.NumTri() << " tris\n";
+    MeshGL meshgl_result;
+    {
+      timeit::ScopedTimer("doing boolean and getting meshgl result");
+      Manifold man_result = Manifold::BatchBoolean(manifolds, mop);
+      meshgl_result = man_result.GetMeshGL();
+      if (dbg_level > 0) {
+        std::cout << "boolean result has " << meshgl_result.NumTri() << " tris\n";
+      }
     }
     Mesh *mesh_result = meshgl_to_mesh(meshgl_result, meshes, material_remaps, originalID0);
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
