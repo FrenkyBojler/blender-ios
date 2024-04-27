@@ -457,6 +457,15 @@ void ntreeSetTypes(const bContext *C, bNodeTree *ntree);
 bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname);
 
 /**
+ * Add a new (non-embedded) node tree, like #ntreeAddTree, but allows to create it inside a given
+ * library. Used mainly by readfile code when versioning linked data.
+ */
+bNodeTree *BKE_node_tree_add_in_lib(Main *bmain,
+                                    Library *owner_library,
+                                    const char *name,
+                                    const char *idname);
+
+/**
  * Free tree which is embedded into another data-block.
  */
 void ntreeFreeEmbeddedTree(bNodeTree *ntree);
@@ -1268,6 +1277,9 @@ void BKE_nodetree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index
 #define GEO_NODE_POINTS_TO_SDF_GRID 2128
 #define GEO_NODE_GRID_TO_MESH 2129
 #define GEO_NODE_DISTRIBUTE_POINTS_IN_GRID 2130
+#define GEO_NODE_SDF_GRID_BOOLEAN 2131
+#define GEO_NODE_TOOL_VIEWPORT_TRANSFORM 2132
+#define GEO_NODE_TOOL_MOUSE_POSITION 2133
 
 /** \} */
 
@@ -1310,6 +1322,7 @@ void BKE_nodetree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index
 #define FN_NODE_SEPARATE_TRANSFORM 1236
 #define FN_NODE_INVERT_MATRIX 1237
 #define FN_NODE_TRANSPOSE_MATRIX 1238
+#define FN_NODE_PROJECT_POINT 1239
 
 /** \} */
 

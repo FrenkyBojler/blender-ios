@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'cb66cc3028dd')\n"
+"Project-Id-Version: Blender 4.2.0 Alpha (b'7b7e9f224c89')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-05 01:39+0000\n"
+"POT-Creation-Date: 2024-04-22 07:36+0000\n"
 "PO-Revision-Date: 2024-03-01 16:11+0000\n"
 "Last-Translator: Alessandro Vecchio <alessandrovecchio1907@gmail.com>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
@@ -595,6 +595,10 @@ msgid "Slot to temporarily hold the main action while in tweak mode"
 msgstr "Slot per trattenere temporaneamente l'azione principale mentre sei in modalità tweak"
 
 
+msgid "Animation"
+msgstr "Animazione"
+
+
 msgid "Drivers"
 msgstr "Guide (drivers)"
 
@@ -683,32 +687,16 @@ msgid "After Current"
 msgstr "Dopo Corrente"
 
 
-msgid "Number of frames to show after the current frame (only for 'Around Current Frame' Onion-skinning method)"
-msgstr "Numero di fotogrammi da mostrare dopo quello corrente (solo per il metodo Onion-skinning 'Per Fotogramma Corrente')"
-
-
 msgid "Before Current"
 msgstr "Prima Corrente"
-
-
-msgid "Number of frames to show before the current frame (only for 'Around Current Frame' Onion-skinning method)"
-msgstr "Numero di fotogrammi da mostrare prima di quello corrente (solo per il metodo Onion-skinning 'Per Fotogramma Corrente')"
 
 
 msgid "End Frame"
 msgstr "Ultimo Fotogramma"
 
 
-msgid "End frame of range of paths to display/calculate (not for 'Around Current Frame' Onion-skinning method)"
-msgstr "Fotogramma finale dell'intervallo dei percorsi da mostrare/calcolare (non per il metodo Onion-skinning 'Per Fotogramma Corrente')"
-
-
 msgid "Start Frame"
 msgstr "Primo Fotogramma"
-
-
-msgid "Starting frame of range of paths to display/calculate (not for 'Around Current Frame' Onion-skinning method)"
-msgstr "Fotogramma iniziale dell'intervallo dei percorsi da mostrare/calcolare (non per il metodo Onion-skinning 'Per Fotogramma Corrente')"
 
 
 msgid "Frame Step"
@@ -829,6 +817,30 @@ msgstr "Bake sulla Camera Attiva"
 
 msgid "Motion path points will be baked into the camera space of the active camera. This means they will only look right when looking through that camera. Switching cameras using markers is not supported"
 msgstr "I punti del percorso di movimento verranno inseriti nello spazio della camera attiva. Ciò significa che sembreranno giusti solo quando guarderanno attraverso quella camera. Il passaggio da una camera all'altra utilizzando i marcatori non è supportato"
+
+
+msgid "F-Curves"
+msgstr "Curve-F"
+
+
+msgid "Influence"
+msgstr "Influenza"
+
+
+msgid "Mix Mode"
+msgstr "Modalità Miscela"
+
+
+msgid "Offset"
+msgstr "Scostamento"
+
+
+msgid "Strips"
+msgstr "Spezzoni"
+
+
+msgid "Keyframe"
+msgstr "Fotogramma Chiave"
 
 
 msgid "Any Type"
@@ -3936,16 +3948,8 @@ msgid "Curve used for the strength"
 msgstr "Curva usata per la forza"
 
 
-msgid "Dissolve"
-msgstr "Dissolvi"
-
-
 msgid "Erase stroke points"
 msgstr "Cancella i punti del tratto"
-
-
-msgid "Stroke"
-msgstr "Tratto"
 
 
 msgid "Erase entire strokes"
@@ -4292,6 +4296,10 @@ msgid "Mode Type"
 msgstr "Tipo di Modalità"
 
 
+msgid "Stroke"
+msgstr "Tratto"
+
+
 msgid "RGBA color in sRGB color space"
 msgstr "Colore RGBA nello spazio colore sRGB"
 
@@ -4430,10 +4438,6 @@ msgstr "Sovrascrivi Immagine di Sfondo"
 
 msgid "In a local override camera, whether this background image comes from the linked reference camera, or is local to the override"
 msgstr "In una camera di sostituzione locale, se questa immagine di sfondo proviene dalla camera di riferimento collegata o se è locale rispetto a quella di sostituzione"
-
-
-msgid "Offset"
-msgstr "Scostamento"
 
 
 msgid "Rotation"
@@ -4594,10 +4598,6 @@ msgstr "Camere parallele senza convergenza"
 
 msgid "Toe-in"
 msgstr "Convergenti"
-
-
-msgid "Rotated cameras, looking at the convergence distance"
-msgstr "Camere ruotate, che puntano alla distanza di convergenza"
 
 
 msgid "Interocular Distance"
@@ -5517,10 +5517,6 @@ msgid "Amount of residual error in radians for constraints that work on orientat
 msgstr "Quantità di errore residuo in radianti per i vincoli che lavorano sull'orientamento"
 
 
-msgid "Influence"
-msgstr "Influenza"
-
-
 msgid "Amount of influence constraint will have on the final solution"
 msgstr "Ammontare dell'influenza che il vincolo avrà sulla soluzione finale"
 
@@ -5851,10 +5847,6 @@ msgstr "Minimo"
 
 msgid "Minimum value for target channel range"
 msgstr "Valore minimo per l'intervallo del canale obiettivo"
-
-
-msgid "Mix Mode"
-msgstr "Modalità Miscela"
 
 
 msgid "Before Original (Full)"
@@ -9432,10 +9424,6 @@ msgid "MPEG-4 (divx)"
 msgstr "MPEG-4 (divx)"
 
 
-msgid "QT rle / QT Animation"
-msgstr "QT rle / QT Animation"
-
-
 msgid "Theora"
 msgstr "Theora"
 
@@ -10443,6 +10431,10 @@ msgid "Which asset types to show/hide, when browsing an asset library"
 msgstr "Quali tipi di risorse mostrare/nascondere quando si sfoglia una libreria di risorse"
 
 
+msgid "Animations"
+msgstr "Animazioni"
+
+
 msgid "Show Armature data-blocks"
 msgstr "Mostra i blocchi-dati Armatura"
 
@@ -10603,12 +10595,12 @@ msgid "Save"
 msgstr "Salva"
 
 
-msgid "File Extensions"
-msgstr "Estensioni File"
-
-
 msgid "Operator"
 msgstr "Operatore"
+
+
+msgid "File Extensions"
+msgstr "Estensioni File"
 
 
 msgid "Label"
@@ -10625,10 +10617,6 @@ msgstr "Percorso Relativo"
 
 msgid "Which ID types to show/hide, when browsing a library"
 msgstr "Che tipi di ID mostrare/nascondere, mentre si naviga una libreria"
-
-
-msgid "Animations"
-msgstr "Animazioni"
 
 
 msgid "Show animation data"
@@ -11896,10 +11884,6 @@ msgid "Keyframe Type"
 msgstr "Tipo Fotogramma Chiave"
 
 
-msgid "Keyframe"
-msgstr "Fotogramma Chiave"
-
-
 msgid "Normal keyframe, e.g. for key poses"
 msgstr "Fotogramma chiave normale, per es. per pose chiave"
 
@@ -12130,10 +12114,6 @@ msgstr "Imposta la Visibilità della maschera"
 
 msgid "Invert mask"
 msgstr "Inverti maschera"
-
-
-msgid "GPencil Sculpt Guide"
-msgstr "Guida alla Scultura GPencil"
 
 
 msgid "Direction of lines"
@@ -12440,8 +12420,16 @@ msgid "The size of the geometry will determine the distance between arrayed item
 msgstr "La dimensione della geometria determinerà la distanza tra gli elementi duplicati"
 
 
+msgid "Add another object's transformation to the total offset"
+msgstr "Aggiunge la trasformazione di un altro oggetto allo scostamento totale"
+
+
 msgid "Shift"
 msgstr "Shift"
+
+
+msgid "Add an offset relative to the object's bounding box"
+msgstr "Aggiunge uno scostamento basato sulla gabbia d'inviluppo dell'oggetto"
 
 
 msgid "Uniform Scale"
@@ -12838,24 +12826,12 @@ msgid "Red Green Blue"
 msgstr "Rosso Verde Blu"
 
 
-msgid "R"
-msgstr "R"
-
-
 msgid "Red"
 msgstr "Rosso"
 
 
-msgid "G"
-msgstr "G"
-
-
 msgid "Green"
 msgstr "Verde"
-
-
-msgid "B"
-msgstr "B"
 
 
 msgid "Blue"
@@ -12872,10 +12848,6 @@ msgstr "Mostra linee anziché forme piene"
 
 msgid "Base type for data-blocks, defining a unique name, linking from other libraries and garbage collection"
 msgstr "Tipo di base per i blocchi-dati, che definisce un nome unico, collegamenti da altre librerie e la garbage collection"
-
-
-msgid "Animation"
-msgstr "Animazione"
 
 
 msgid "Brush"
@@ -12986,10 +12958,6 @@ msgid "A collection of F-Curves for animation"
 msgstr "Collezione di Curve-F per l'animazione"
 
 
-msgid "F-Curves"
-msgstr "Curve-F"
-
-
 msgid "Frame Range"
 msgstr "Intervallo Fotogrammi"
 
@@ -13009,6 +12977,10 @@ msgstr "Marcatori Posa"
 
 msgid "Cyclic Animation"
 msgstr "Animazione ciclica"
+
+
+msgid "Layers"
+msgstr "Livelli"
 
 
 msgid "Armature data-block containing a hierarchy of bones, usually used for rigging characters"
@@ -14597,10 +14569,6 @@ msgstr "Impostazioni Griglia"
 
 msgid "Settings for grid and canvas in the 3D viewport"
 msgstr "Impostazioni per la griglia e la tela nella vista 3D"
-
-
-msgid "Layers"
-msgstr "Livelli"
 
 
 msgid "Filter by Type"
@@ -20554,10 +20522,6 @@ msgid "Falloff"
 msgstr "Decadimento"
 
 
-msgid "Falloff type the feather"
-msgstr "Tipo decadimento sfumatura"
-
-
 msgid "Smooth falloff"
 msgstr "Decadimento levigato"
 
@@ -21753,14 +21717,6 @@ msgid "Merge vertices in first and last duplicates"
 msgstr "Unisce i vertici del primo e dell'ultimo duplicato"
 
 
-msgid "Add another object's transformation to the total offset"
-msgstr "Aggiunge la trasformazione di un altro oggetto allo scostamento totale"
-
-
-msgid "Add an offset relative to the object's bounding box"
-msgstr "Aggiunge uno scostamento basato sulla gabbia d'inviluppo dell'oggetto"
-
-
 msgid "Bevel Modifier"
 msgstr "Modificatore Smusso"
 
@@ -22457,24 +22413,12 @@ msgid "Only dissolve angles below this (planar only)"
 msgstr "Dissolve solo gli angoli al di sotto di questo (solo planare)"
 
 
-msgid "Collapse"
-msgstr "Collassa"
-
-
 msgid "Use edge collapsing"
 msgstr "Usa collassatura spigolo"
 
 
-msgid "Un-Subdivide"
-msgstr "De-Suddividi"
-
-
 msgid "Use un-subdivide face reduction"
 msgstr "Usa la riduzione facce mediante de-suddivisione"
-
-
-msgid "Planar"
-msgstr "Planare"
 
 
 msgid "Dissolve geometry to form planar polygons"
@@ -24153,10 +24097,6 @@ msgid "Remove original geometry"
 msgstr "Rimuove la geometria originale"
 
 
-msgid "Custom color for motion path"
-msgstr "Colore personalizzato per il percorso di movimento"
-
-
 msgid "Edit Path"
 msgstr "Modifica percorso"
 
@@ -25167,10 +25107,6 @@ msgstr "Spazio Colore RGB"
 
 msgid "YCbCr"
 msgstr "YCbCr"
-
-
-msgid "Limit Channel"
-msgstr "Limita Canale"
 
 
 msgid "Values higher than this setting are 100% opaque"
@@ -29524,6 +29460,11 @@ msgstr "Crea Nuova Raccolta"
 
 
 msgctxt "Operator"
+msgid "Export"
+msgstr "Esporta"
+
+
+msgctxt "Operator"
 msgid "Console Autocomplete"
 msgstr "Autocompletamento Console"
 
@@ -29845,6 +29786,27 @@ msgid "Reset original length of bone for Stretch To Constraint"
 msgstr "Ripristina la lunghezza originale dell'osso per il vincolo Stira A"
 
 
+msgid "Align the new object to the view"
+msgstr "Allinea il nuovo oggetto alla vista"
+
+
+msgid "Enter Edit Mode"
+msgstr "Entra In Modalità Modifica"
+
+
+msgid "Location for the newly added object"
+msgstr "Posizione per il nuovo oggetto aggiunto"
+
+
+msgid "Rotation for the newly added object"
+msgstr "Rotazione per il nuovo oggetto aggiunto"
+
+
+msgctxt "Operator"
+msgid "Add Circle"
+msgstr "Aggiungi Cerchio"
+
+
 msgctxt "Operator"
 msgid "Toggle Cyclic"
 msgstr "Alterna Ciclico"
@@ -29869,6 +29831,11 @@ msgstr "Estrudi Curva e Muovi"
 
 msgid "Extrude curve and move result"
 msgstr "Estrude la curva e la muove"
+
+
+msgctxt "Operator"
+msgid "Set Handle Type"
+msgstr "Imposta Tipo Maniglia"
 
 
 msgid "(De)select all control points"
@@ -30008,11 +29975,6 @@ msgid "Sequence Slide"
 msgstr "Scorri Sequenza"
 
 
-msgctxt "Operator"
-msgid "Set Handle Type"
-msgstr "Imposta Tipo Maniglia"
-
-
 msgid "Set type of handles for selected control points"
 msgstr "Imposta il tipo dei manipolatori per i punti di controllo selezionati"
 
@@ -30065,22 +30027,6 @@ msgstr "Cambia selezionato"
 
 msgid "Toggle the selection"
 msgstr "Cambia la selezionabilità"
-
-
-msgid "Align the new object to the view"
-msgstr "Allinea il nuovo oggetto alla vista"
-
-
-msgid "Enter Edit Mode"
-msgstr "Entra In Modalità Modifica"
-
-
-msgid "Location for the newly added object"
-msgstr "Posizione per il nuovo oggetto aggiunto"
-
-
-msgid "Rotation for the newly added object"
-msgstr "Rotazione per il nuovo oggetto aggiunto"
 
 
 msgctxt "Operator"
@@ -33074,11 +33020,6 @@ msgstr "Incolla Splines"
 
 
 msgctxt "Operator"
-msgid "Add Circle"
-msgstr "Aggiungi Cerchio"
-
-
-msgctxt "Operator"
 msgid "Add Square"
 msgstr "Aggiungi Quadrato"
 
@@ -34020,6 +33961,10 @@ msgstr "Al Centro"
 
 msgid "At Cursor"
 msgstr "Al Cursore"
+
+
+msgid "Collapse"
+msgstr "Collassa"
 
 
 msgid "At First"
@@ -35517,10 +35462,6 @@ msgstr "Sollega e redireziona le connessioni esistenti"
 msgctxt "Operator"
 msgid "Make Links"
 msgstr "Crea Connessioni"
-
-
-msgid "Makes a link between selected output in input sockets"
-msgstr "Crea una connessione tra l'uscita selezionata ed i connettori d'ingresso"
 
 
 msgid "Replace socket connections with the new links"
@@ -44233,10 +44174,6 @@ msgid "Effects"
 msgstr "Effetti"
 
 
-msgid "Spot Shape"
-msgstr "Forma Spot"
-
-
 msgid "Text Boxes"
 msgstr "Caselle di Testo"
 
@@ -44895,6 +44832,16 @@ msgstr "Maschera Lazo"
 
 
 msgctxt "Operator"
+msgid "Thickness"
+msgstr "Spessore"
+
+
+msgctxt "Operator"
+msgid "Strength"
+msgstr "Forza"
+
+
+msgctxt "Operator"
 msgid "Blur"
 msgstr "Sfocatura"
 
@@ -44932,16 +44879,6 @@ msgstr "Cerchio"
 msgctxt "Operator"
 msgid "Interpolate"
 msgstr "Interpola"
-
-
-msgctxt "Operator"
-msgid "Thickness"
-msgstr "Spessore"
-
-
-msgctxt "Operator"
-msgid "Strength"
-msgstr "Forza"
 
 
 msgctxt "Operator"
@@ -50579,14 +50516,6 @@ msgid "Show overexposed areas with zebra stripes"
 msgstr "Mostra aree sovraesposte con una zebratura"
 
 
-msgid "Separate Colors"
-msgstr "Separa Colori"
-
-
-msgid "Separate color channels in preview"
-msgstr "Separa i canali colore nell'anteprima"
-
-
 msgid "View Type"
 msgstr "Tipo Vista"
 
@@ -51409,10 +51338,6 @@ msgstr "Impostazioni per dispositivi di input"
 
 msgid "Settings for space list"
 msgstr "Impostazioni per la fisica delle particelle dei fluidi"
-
-
-msgid "Strips"
-msgstr "Spezzoni"
 
 
 msgid "Strips Selected"
@@ -53448,11 +53373,6 @@ msgid "Bounds"
 msgstr "Confini"
 
 
-msgctxt "Operator"
-msgid "Export"
-msgstr "Esporta"
-
-
 msgid "Generate Settings:"
 msgstr "Impostazioni di Generazione:"
 
@@ -53698,6 +53618,10 @@ msgid "+ Non-Grouped Keyframes"
 msgstr "+ Fotogrammi Chiave Non Raggruppati"
 
 
+msgid "Before"
+msgstr "Prima"
+
+
 msgctxt "Operator"
 msgid "Add Object Constraint"
 msgstr "Aggiungi Vincoli Oggetto"
@@ -53787,10 +53711,6 @@ msgstr "Personalizzato..."
 msgctxt "Operator"
 msgid "Lock All"
 msgstr "Blocca Tutto"
-
-
-msgid "Before"
-msgstr "Prima"
 
 
 msgctxt "Operator"
@@ -55616,6 +55536,10 @@ msgid "Axis X"
 msgstr "Asse X"
 
 
+msgid "B"
+msgstr "B"
+
+
 msgid "Shadow Offset X"
 msgstr "Offset X Ombra"
 
@@ -57097,14 +57021,6 @@ msgstr "Impossibile aprire"
 
 msgid "Library '%s', '%s' had multiple instances, save and reload!"
 msgstr "La libreria '%s', '%s' ha istanze multiple, salva e ricarica!"
-
-
-msgid "Read packed library:  '%s', parent '%s'"
-msgstr "Lettura libreria incorporata: '%s', parentela '%s'"
-
-
-msgid "Read library:  '%s', '%s', parent '%s'"
-msgstr "Lettura libreria: '%s', '%s', parentela '%s'"
 
 
 msgid "Cannot find lib '%s'"
@@ -59553,18 +59469,6 @@ msgid "Copy to object"
 msgstr "Copia a oggetto"
 
 
-msgid "Number of users of this data-block"
-msgstr "Numero di utilizzatori di questo Blocco-dati"
-
-
-msgid "Data-block will be retained using a fake user"
-msgstr "Il Blocco-Dati sarà conservato usando un utilizzatore fittizio"
-
-
-msgid "Data-block has no users and will be deleted"
-msgstr "Il Blocco-Dati non ha un utilizzatore e sarà cancellato"
-
-
 msgid "Library path '%s' does not exist, correct this before saving"
 msgstr "Il percorso '%s' della libreria non esiste, correggi prima di salvare"
 
@@ -60752,10 +60656,6 @@ msgid "Val"
 msgstr "Valore"
 
 
-msgid "Speed:"
-msgstr "Velocità:"
-
-
 msgid "Line Break"
 msgstr "Interruzione Linea"
 
@@ -60878,6 +60778,10 @@ msgstr "Posizione 1"
 
 msgid "Position 2"
 msgstr "Posizione 2"
+
+
+msgid "Planar"
+msgstr "Planare"
 
 
 msgid "Vertex Count"

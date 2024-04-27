@@ -316,10 +316,10 @@ typedef struct ThemeSpace {
   unsigned char ds_channel[4], ds_subchannel[4], ds_ipoline[4];
   /** Keytypes. */
   unsigned char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4],
-      keytype_movehold[4];
+      keytype_movehold[4], keytype_generated[4];
   /** Keytypes. */
   unsigned char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4],
-      keytype_jitter_select[4], keytype_movehold_select[4];
+      keytype_jitter_select[4], keytype_movehold_select[4], keytype_generated_select[4];
   unsigned char keyborder[4], keyborder_select[4];
   char _pad4[3];
 
@@ -729,7 +729,6 @@ typedef struct UserDef_Experimental {
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
   char use_grease_pencil_version3;
-  char use_new_matrix_socket;
   char enable_overlay_next;
   char use_new_volume_nodes;
   char use_shader_node_previews;
@@ -737,7 +736,7 @@ typedef struct UserDef_Experimental {
   char use_extension_utils;
   char use_grease_pencil_version3_convert_on_load;
   char use_animation_baklava;
-
+  char _pad[1];
   /** `makesdna` does not allow empty structs. */
 } UserDef_Experimental;
 
@@ -775,7 +774,12 @@ typedef struct UserDef {
   char pref_flag;
   char savetime;
   char mouse_emulate_3_button_modifier;
-  char _pad4[1];
+  /**
+   * Workaround for WAYLAND (at time of writing compositors don't support this info).
+   * #eUserpref_TrackpadScrollDir type
+   * TODO: Remove this once this API is better supported by Wayland compositors, see #107676.
+   */
+  char trackpad_scroll_direction;
   /** FILE_MAXDIR length. */
   char tempdir[768];
   char fontdir[768];
@@ -1518,6 +1522,11 @@ typedef enum eUserpref_EmulateMMBMod {
   USER_EMU_MMB_MOD_ALT = 0,
   USER_EMU_MMB_MOD_OSKEY = 1,
 } eUserpref_EmulateMMBMod;
+
+typedef enum eUserpref_TrackpadScrollDir {
+  USER_TRACKPAD_SCROLL_DIR_TRADITIONAL = 0,
+  USER_TRACKPAD_SCROLL_DIR_NATURAL = 1,
+} eUserpref_TrackpadScrollDir;
 
 typedef enum eUserpref_DiskCacheCompression {
   USER_SEQ_DISK_CACHE_COMPRESSION_NONE = 0,

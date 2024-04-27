@@ -121,12 +121,6 @@ struct SculptOrigFaceData {
   int face_set;
 };
 
-/* Flood Fill. */
-struct SculptFloodFill {
-  std::queue<PBVHVertRef> queue;
-  blender::BitVector<> visited_verts;
-};
-
 enum eBoundaryAutomaskMode {
   AUTOMASK_INIT_BOUNDARY_EDGES = 1,
   AUTOMASK_INIT_BOUNDARY_FACE_SETS = 2,
@@ -170,7 +164,7 @@ struct Node {
   Type type;
 
   char idname[MAX_ID_NAME]; /* Name instead of pointer. */
-  void *node;               /* only during push, not valid afterwards! */
+  const void *node;         /* only during push, not valid afterwards! */
 
   Array<float3> position;
   Array<float3> orig_position;
@@ -482,7 +476,7 @@ struct StrokeCache {
   } paint_brush;
 
   /* Pose brush */
-  SculptPoseIKChain *pose_ik_chain;
+  std::unique_ptr<SculptPoseIKChain> pose_ik_chain;
 
   /* Enhance Details. */
   float (*detail_directions)[3];
@@ -578,7 +572,7 @@ struct Cache {
 
   /* Indexed by vertex index, precalculated falloff value of that vertex (without any falloff
    * editing modification applied). */
-  float *vert_falloff;
+  Array<float> vert_falloff;
   /* Max falloff value in *vert_falloff. */
   float max_vert_falloff;
 
@@ -890,7 +884,7 @@ float *SCULPT_brush_deform_target_vertex_co_get(SculptSession *ss,
                                                 int deform_target,
                                                 PBVHVertexIter *iter);
 
-void SCULPT_vertex_neighbors_get(SculptSession *ss,
+void SCULPT_vertex_neighbors_get(const SculptSession *ss,
                                  PBVHVertRef vertex,
                                  bool include_duplicates,
                                  SculptVertexNeighborIter *iter);
@@ -958,7 +952,7 @@ namespace hide {
 
 bool vert_visible_get(const SculptSession *ss, PBVHVertRef vertex);
 bool vert_all_faces_visible_get(const SculptSession *ss, PBVHVertRef vertex);
-bool vert_any_face_visible_get(SculptSession *ss, PBVHVertRef vertex);
+bool vert_any_face_visible_get(const SculptSession *ss, PBVHVertRef vertex);
 
 }
 
@@ -970,11 +964,11 @@ bool vert_any_face_visible_get(SculptSession *ss, PBVHVertRef vertex);
 
 namespace face_set {
 
-int active_face_set_get(SculptSession *ss);
-int vert_face_set_get(SculptSession *ss, PBVHVertRef vertex);
+int active_face_set_get(const SculptSession *ss);
+int vert_face_set_get(const SculptSession *ss, PBVHVertRef vertex);
 
-bool vert_has_face_set(SculptSession *ss, PBVHVertRef vertex, int face_set);
-bool vert_has_unique_face_set(SculptSession *ss, PBVHVertRef vertex);
+bool vert_has_face_set(const SculptSession *ss, PBVHVertRef vertex, int face_set);
+bool vert_has_unique_face_set(const SculptSession *ss, PBVHVertRef vertex);
 
 bke::SpanAttributeWriter<int> ensure_face_sets_mesh(Object &object);
 int ensure_face_sets_bmesh(Object &object);
@@ -1175,20 +1169,20 @@ void SCULPT_tilt_effective_normal_get(const SculptSession *ss, const Brush *brus
 
 namespace blender::ed::sculpt_paint::flood_fill {
 
-void init_fill(SculptSession *ss, SculptFloodFill *flood);
-void add_active(Object *ob, SculptSession *ss, SculptFloodFill *flood, float radius);
+struct FillData {
+  std::queue<PBVHVertRef> queue;
+  blender::BitVector<> visited_verts;
+};
+
+FillData init_fill(SculptSession *ss);
+void add_active(Object *ob, SculptSession *ss, FillData *flood, float radius);
 void add_initial_with_symmetry(
-    Object *ob, SculptSession *ss, SculptFloodFill *flood, PBVHVertRef vertex, float radius);
-void add_initial(SculptFloodFill *flood, PBVHVertRef vertex);
-void add_and_skip_initial(SculptFloodFill *flood, PBVHVertRef vertex);
+    Object *ob, SculptSession *ss, FillData *flood, PBVHVertRef vertex, float radius);
+void add_initial(FillData *flood, PBVHVertRef vertex);
+void add_and_skip_initial(FillData *flood, PBVHVertRef vertex);
 void execute(SculptSession *ss,
-             SculptFloodFill *flood,
-             bool (*func)(SculptSession *ss,
-                          PBVHVertRef from_v,
-                          PBVHVertRef to_v,
-                          bool is_duplicate,
-                          void *userdata),
-             void *userdata);
+             FillData *flood,
+             FunctionRef<bool(PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate)> func);
 
 }
 
@@ -1319,7 +1313,7 @@ NodeData node_begin(Object &object, const Cache *automasking, PBVHNode &node);
 /* Call before factor_get and SCULPT_brush_strength_factor. */
 void node_update(NodeData &automask_data, PBVHVertexIter &vd);
 
-float factor_get(Cache *automasking,
+float factor_get(const Cache *automasking,
                  SculptSession *ss,
                  PBVHVertRef vertex,
                  const NodeData *automask_data);
@@ -1362,8 +1356,10 @@ namespace blender::ed::sculpt_paint::geodesic {
  * Geodesic distances will only work when used with PBVH_FACES, for other types of PBVH it will
  * fallback to euclidean distances to one of the initial vertices in the set.
  */
-float *distances_create(Object *ob, GSet *initial_verts, float limit_radius);
-float *distances_create_from_vert_and_symm(Object *ob, PBVHVertRef vertex, float limit_radius);
+Array<float> distances_create(Object *ob, const Set<int> &initial_verts, float limit_radius);
+Array<float> distances_create_from_vert_and_symm(Object *ob,
+                                                 PBVHVertRef vertex,
+                                                 float limit_radius);
 
 }
 
@@ -1614,8 +1610,8 @@ void SCULPT_cache_free(blender::ed::sculpt_paint::StrokeCache *cache);
 
 namespace blender::ed::sculpt_paint::undo {
 
-undo::Node *push_node(Object *ob, PBVHNode *node, undo::Type type);
-undo::Node *get_node(PBVHNode *node, undo::Type type);
+undo::Node *push_node(const Object &object, const PBVHNode *node, undo::Type type);
+undo::Node *get_node(const PBVHNode *node, undo::Type type);
 
 /**
  * Pushes an undo step using the operator name. This is necessary for
@@ -1804,14 +1800,21 @@ void SCULPT_OT_face_sets_edit(wmOperatorType *ot);
 
 void SCULPT_OT_face_set_lasso_gesture(wmOperatorType *ot);
 void SCULPT_OT_face_set_box_gesture(wmOperatorType *ot);
+
 }
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Transform Operators
  * \{ */
 
+namespace blender::ed::sculpt_paint {
+
 void SCULPT_OT_set_pivot_position(wmOperatorType *ot);
+
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1886,15 +1889,14 @@ void do_pose_brush(Sculpt *sd, Object *ob, blender::Span<PBVHNode *> nodes);
  */
 void calc_pose_data(Object *ob,
                     SculptSession *ss,
-                    float initial_location[3],
+                    const float3 &initial_location,
                     float radius,
                     float pose_offset,
-                    float *r_pose_origin,
-                    float *r_pose_factor);
+                    float3 &r_pose_origin,
+                    MutableSpan<float> r_pose_factor);
 void pose_brush_init(Object *ob, SculptSession *ss, Brush *br);
-SculptPoseIKChain *ik_chain_init(
-    Object *ob, SculptSession *ss, Brush *br, const float initial_location[3], float radius);
-void ik_chain_free(SculptPoseIKChain *ik_chain);
+std::unique_ptr<SculptPoseIKChain> ik_chain_init(
+    Object *ob, SculptSession *ss, Brush *br, const float3 &initial_location, float radius);
 
 }
 

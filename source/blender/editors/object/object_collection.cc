@@ -546,7 +546,8 @@ static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
 static int collection_exporter_export(bContext *C,
                                       wmOperator *op,
                                       CollectionExport *data,
-                                      Collection *collection)
+                                      Collection *collection,
+                                      const bool report_success)
 {
   using namespace blender;
   bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
@@ -576,8 +577,7 @@ static int collection_exporter_export(bContext *C,
         filepath, sizeof(filepath), "//", fh->get_default_filename(collection_name).c_str());
   }
   else {
-    char filename[FILENAME_MAX];
-    BLI_path_split_file_part(filepath, filename, sizeof(filename));
+    const char *filename = BLI_path_basename(filepath);
     if (!filename[0] || !BLI_path_extension(filename)) {
       BKE_reportf(op->reports, RPT_ERROR, "File path '%s' is not a valid file", filepath);
 
@@ -594,6 +594,11 @@ static int collection_exporter_export(bContext *C,
   int op_result = WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &properties, nullptr);
 
   IDP_FreeProperty(op_props);
+
+  if (report_success && op_result == OPERATOR_FINISHED) {
+    BKE_reportf(op->reports, RPT_INFO, "Exported '%s'", filepath);
+  }
+
   return op_result;
 }
 
@@ -608,7 +613,7 @@ static int collection_exporter_export_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  return collection_exporter_export(C, op, data, collection);
+  return collection_exporter_export(C, op, data, collection, true);
 }
 
 static void COLLECTION_OT_exporter_export(wmOperatorType *ot)
@@ -631,12 +636,20 @@ static void COLLECTION_OT_exporter_export(wmOperatorType *ot)
 static int collection_export(bContext *C, wmOperator *op, Collection *collection)
 {
   ListBase *exporters = &collection->exporters;
+  int num_files = 0;
 
   LISTBASE_FOREACH (CollectionExport *, data, exporters) {
-    if (collection_exporter_export(C, op, data, collection) != OPERATOR_FINISHED) {
+    if (collection_exporter_export(C, op, data, collection, false) != OPERATOR_FINISHED) {
       /* Do not continue calling exporters if we encounter one that fails. */
       return OPERATOR_CANCELLED;
     }
+    else {
+      num_files++;
+    }
+  }
+
+  if (num_files) {
+    BKE_reportf(op->reports, RPT_INFO, "Exported %d files", num_files);
   }
 
   return OPERATOR_FINISHED;

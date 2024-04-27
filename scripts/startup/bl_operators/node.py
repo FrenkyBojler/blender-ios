@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import bpy
 from bpy.types import (
+    FileHandler,
     Operator,
     PropertyGroup,
 )
@@ -23,6 +24,7 @@ from mathutils import (
 from bpy.app.translations import (
     pgettext_tip as tip_,
     pgettext_rpt as rpt_,
+    pgettext_data as data_,
 )
 
 
@@ -394,7 +396,7 @@ class NODE_OT_enum_definition_item_add(Operator):
     def execute(self, context):
         node = context.active_node
         enum_def = node.enum_definition
-        item = enum_def.enum_items.new("Item")
+        item = enum_def.enum_items.new(data_("Item"))
         enum_def.active_index = enum_def.enum_items[:].index(item)
         return {'FINISHED'}
 
@@ -440,8 +442,26 @@ class NODE_OT_enum_definition_item_move(Operator):
         return {'FINISHED'}
 
 
+class NODE_FH_image_node(FileHandler):
+    bl_idname = "NODE_FH_image_node"
+    bl_label = "Image node"
+    bl_import_operator = "node.add_file"
+    bl_file_extensions = ";".join((*bpy.path.extensions_image, *bpy.path.extensions_movie))
+
+    @classmethod
+    def poll_drop(cls, context):
+        return (
+            (context.area is not None) and
+            (context.area.type == 'NODE_EDITOR') and
+            (context.region is not None) and
+            (context.region.type == 'WINDOW')
+        )
+
+
 classes = (
     NodeSetting,
+
+    NODE_FH_image_node,
 
     NODE_OT_add_node,
     NODE_OT_add_simulation_zone,

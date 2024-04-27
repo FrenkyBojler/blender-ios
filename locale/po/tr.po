@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'cb66cc3028dd')\n"
+"Project-Id-Version: Blender 4.2.0 Alpha (b'7b7e9f224c89')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-05 01:39+0000\n"
+"POT-Creation-Date: 2024-04-22 07:36+0000\n"
 "PO-Revision-Date: 2024-01-18 08:08+0000\n"
 "Last-Translator: Emre İnan <emre4321a@gmail.com>\n"
 "Language-Team: Turkish <https://translate.blender.org/projects/blender-ui/ui/tr/>\n"
@@ -583,6 +583,10 @@ msgid "Slot to temporarily hold the main action while in tweak mode"
 msgstr "İnce ayar kipindeyken ana eylemin geçici olarak tutulacağı yuva"
 
 
+msgid "Animation"
+msgstr "Canlandırma"
+
+
 msgid "Drivers"
 msgstr "Sürücüler"
 
@@ -671,32 +675,16 @@ msgid "After Current"
 msgstr "Geçerliden Sonra"
 
 
-msgid "Number of frames to show after the current frame (only for 'Around Current Frame' Onion-skinning method)"
-msgstr "Geçerli kareden sonra gösterilecek kare sayısı (yalnızca 'Geçerli Kare Çevresi' soğan zarı soyma yöntemi)"
-
-
 msgid "Before Current"
 msgstr "Geçerliden Önce"
-
-
-msgid "Number of frames to show before the current frame (only for 'Around Current Frame' Onion-skinning method)"
-msgstr "Geçerli kareden önce gösterilecek kare sayısı (yalnızca 'Geçerli Kare Çevresi' soğan zarı soyma yöntemi)"
 
 
 msgid "End Frame"
 msgstr "Bitiş Karesi"
 
 
-msgid "End frame of range of paths to display/calculate (not for 'Around Current Frame' Onion-skinning method)"
-msgstr "Görüntülenecek/hesaplanacak yol eriminin bitiş karesi ('Geçerli Kare Çevresi' soğan zarı soyma yöntemi için değil)"
-
-
 msgid "Start Frame"
 msgstr "Başlangıç Karesi"
-
-
-msgid "Starting frame of range of paths to display/calculate (not for 'Around Current Frame' Onion-skinning method)"
-msgstr "Görüntülenecek/hesaplanacak yol eriminin başlangıç karesi ('Geçerli Kare Çevresi' soğan zarı soyma yöntemi için değil)"
 
 
 msgid "Frame Step"
@@ -809,6 +797,14 @@ msgstr "Erim İçinde"
 
 msgid "Display Paths of poses within specified range"
 msgstr "Pozların yollarını belirtilen erimde görüntüle"
+
+
+msgid "Offset"
+msgstr "Ofset"
+
+
+msgid "Keyframe"
+msgstr "Anahtar Kare"
 
 
 msgid "Any Type"
@@ -4342,20 +4338,12 @@ msgid "Eraser Mode"
 msgstr "Silgi Kipi"
 
 
-msgid "Dissolve"
-msgstr "Erit"
-
-
 msgid "Erase strokes, fading their points strength and thickness"
 msgstr "Nokta gücünü ve kalınlığını soldurarak vuruşları sil"
 
 
 msgid "Erase stroke points"
 msgstr "Vuruş noktalarını sil"
-
-
-msgid "Stroke"
-msgstr "Vuruş"
 
 
 msgid "Erase entire strokes"
@@ -4978,6 +4966,10 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Tepecik renginin vuruşlara nasıl etki ettiğini tanımlar"
 
 
+msgid "Stroke"
+msgstr "Vuruş"
+
+
 msgid "Vertex Color affects to Stroke only"
 msgstr "Tepecik Rengi, yalnızca vuruşa etki eder"
 
@@ -5170,10 +5162,6 @@ msgid "In a local override camera, whether this background image comes from the 
 msgstr "Yerel bir geçersiz kılma kamerasında, bu arka plan görselinin bağlantılı başvuru kamerasından mı geldiği veya geçersiz kılmaya yerel mi olduğu"
 
 
-msgid "Offset"
-msgstr "Ofset"
-
-
 msgid "Rotation"
 msgstr "Döndürme"
 
@@ -5356,10 +5344,6 @@ msgstr "Yakınsamasız paralel kameralar"
 
 msgid "Toe-in"
 msgstr "Ayak Ucu"
-
-
-msgid "Rotated cameras, looking at the convergence distance"
-msgstr "Yakınsama uzaklığına bakan döndürülmüş kameralar"
 
 
 msgid "Interocular Distance"
@@ -6714,10 +6698,6 @@ msgid "Python Scripting"
 msgstr "Python Betiği Yazımı"
 
 
-msgid "Keyframe"
-msgstr "Anahtar Kare"
-
-
 msgid "Frame is selected for editing in the Dope Sheet"
 msgstr "Kare, Döküm Kağıdı'nda düzenleme için seçili"
 
@@ -6736,10 +6716,6 @@ msgstr "Katman, Döküm Kağıdı'nda düzenleme için seçili"
 
 msgid "ViewLayer"
 msgstr "Görünüm Katmanı"
-
-
-msgid "GPencil Sculpt Guide"
-msgstr "Gres Kalemiyle Yontma Kılavuzu"
 
 
 msgid "GPencil Sculpt Settings"
@@ -6795,10 +6771,6 @@ msgid "Lattice Modifier"
 msgstr "Dış Kafes Değiştiricisi"
 
 
-msgid "Change stroke using lattice to deform modifier"
-msgstr "Değiştiriciyi deforme etmek için vuruşu dış kafes kullanarak değiştir"
-
-
 msgid "Lattice object to deform with"
 msgstr "Birlikte deforme edilecek dış kafes nesnesi"
 
@@ -6819,10 +6791,6 @@ msgid "Translation"
 msgstr "Taşıma"
 
 
-msgid "R"
-msgstr "R"
-
-
 msgid "Red"
 msgstr "Kırmızı"
 
@@ -6833,10 +6801,6 @@ msgstr "Yeşil"
 
 msgid "Blue"
 msgstr "Mavi"
-
-
-msgid "Animation"
-msgstr "Canlandırma"
 
 
 msgid "Font"
@@ -6897,6 +6861,10 @@ msgstr "Dünya"
 
 msgid "Save this data-block even if it has no users"
 msgstr "Kullanıcısı olmasa bile bu veri blokunu kaydet"
+
+
+msgid "Layers"
+msgstr "Katmanlar"
 
 
 msgid "Box"
@@ -7269,10 +7237,6 @@ msgstr "Çizgi Rengini Düzenle"
 
 msgid "Stroke Sculpt Mode"
 msgstr "Vuruş Yontma Kipi"
-
-
-msgid "Layers"
-msgstr "Katmanlar"
 
 
 msgid "2D Layers"
@@ -8777,6 +8741,10 @@ msgid "Report"
 msgstr "Raporla"
 
 
+msgid "Enter Edit Mode"
+msgstr "Düzenleme Kipine Gir"
+
+
 msgctxt "Operator"
 msgid "Set Attribute"
 msgstr "Öznitelik Ayarla"
@@ -8788,10 +8756,6 @@ msgstr "Küreselleştir"
 
 msgid "Push/Pull"
 msgstr "İtme/Çekme"
-
-
-msgid "Enter Edit Mode"
-msgstr "Düzenleme Kipine Gir"
 
 
 msgctxt "Operator"
@@ -10442,10 +10406,6 @@ msgid "Filter Settings"
 msgstr "Süzgeç Ayarları"
 
 
-msgid "Notes"
-msgstr "Notlar"
-
-
 msgid "Active Tool"
 msgstr "Etkin Araç"
 
@@ -11507,6 +11467,10 @@ msgid "Compositing Nodes:"
 msgstr "Bileşikleştirme Düğümleri:"
 
 
+msgid "Notes"
+msgstr "Notlar"
+
+
 msgid "Animation UI"
 msgstr "Canlandırma Arayüzü"
 
@@ -11633,15 +11597,6 @@ msgstr "%d / %d %s yeniden adlandırıldı"
 msgctxt "Operator"
 msgid "Open..."
 msgstr "Aç…"
-
-
-msgid "Create New Settings"
-msgstr "Yeni Ayarlar Oluştur"
-
-
-msgctxt "Operator"
-msgid "Save New Settings"
-msgstr "Yeni Ayarları Kaydet"
 
 
 msgctxt "Operator"
@@ -11793,6 +11748,10 @@ msgid "After"
 msgstr "Sonra"
 
 
+msgid "Before"
+msgstr "Önce"
+
+
 msgid "Bone Colors"
 msgstr "Kemik Renkleri"
 
@@ -11808,10 +11767,6 @@ msgstr "Ayarlı Değil"
 msgctxt "Operator"
 msgid "Bold"
 msgstr "Kalın"
-
-
-msgid "Before"
-msgstr "Önce"
 
 
 msgctxt "Operator"

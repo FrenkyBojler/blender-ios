@@ -7,12 +7,15 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "NOD_geo_index_switch.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
-#include "NOD_zone_socket_items.hh"
 
 #include "RNA_enum_types.hh"
+#include "RNA_prototypes.h"
+
+#include "BLO_read_write.hh"
 
 #include "BKE_node_socket_value.hh"
 
@@ -290,9 +293,6 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(rna_enum_node_socket_data_type_items,
                                  [](const EnumPropertyItem &item) -> bool {
-                                   if (item.value == SOCK_MATRIX) {
-                                     return U.experimental.use_new_matrix_socket;
-                                   }
                                    return ELEM(item.value,
                                                SOCK_FLOAT,
                                                SOCK_INT,
@@ -360,6 +360,21 @@ std::unique_ptr<LazyFunction> get_index_switch_node_lazy_function(
   using namespace node_geo_index_switch_cc;
   BLI_assert(node.type == GEO_NODE_INDEX_SWITCH);
   return std::make_unique<LazyFunctionForIndexSwitchNode>(node, lf_graph_info);
+}
+
+StructRNA *IndexSwitchItemsAccessor::item_srna = &RNA_IndexSwitchItem;
+int IndexSwitchItemsAccessor::node_type = GEO_NODE_INDEX_SWITCH;
+
+void IndexSwitchItemsAccessor::blend_write(BlendWriter *writer, const bNode &node)
+{
+  const auto &storage = *static_cast<const NodeIndexSwitch *>(node.storage);
+  BLO_write_struct_array(writer, IndexSwitchItem, storage.items_num, storage.items);
+}
+
+void IndexSwitchItemsAccessor::blend_read_data(BlendDataReader *reader, bNode &node)
+{
+  auto &storage = *static_cast<NodeIndexSwitch *>(node.storage);
+  BLO_read_struct_array(reader, IndexSwitchItem, storage.items_num, &storage.items);
 }
 
 }  // namespace blender::nodes

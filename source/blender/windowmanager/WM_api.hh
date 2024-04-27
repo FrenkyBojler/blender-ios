@@ -186,10 +186,12 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_DESKTOP_SAMPLE = (1 << 5),
   /** Support for IME input methods. */
   WM_CAPABILITY_INPUT_IME = (1 << 6),
+  /** Trackpad physical scroll detection. */
+  WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION = (1 << 7),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
-ENUM_OPERATORS(eWM_CapabilitiesFlag, WM_CAPABILITY_CLIPBOARD_IMAGES)
+ENUM_OPERATORS(eWM_CapabilitiesFlag, WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION)
 
 eWM_CapabilitiesFlag WM_capabilities_flag();
 
@@ -1873,6 +1875,13 @@ void WM_generic_callback_free(wmGenericCallback *callback);
 void WM_generic_user_data_free(wmGenericUserData *wm_userdata);
 
 bool WM_region_use_viewport(ScrArea *area, ARegion *region);
+
+/* `wm_platform.cc` */
+
+/**
+ * \return Success.
+ */
+bool WM_platform_assosiate_set(bool do_register, bool all_users, char **r_error_msg);
 
 #ifdef WITH_XR_OPENXR
 /* `wm_xr_session.cc` */
