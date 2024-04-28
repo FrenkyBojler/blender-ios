@@ -140,15 +140,17 @@ endif()
 if(WITH_MANIFOLD)
   add_definitions(-DWITH_MANIFOLD)
 #TODO -- do this properly
+  list (APPEND INC
+    "../../../extern/manifold/src/manifold/include"
+    "../../../extern/manifold/src/utilities/include"
+  )
   list (APPEND INC_SYS
-    "/Users/howardtrickey/blender-git/lib/darwin_arm64/manifold/include/manifold"
-    "/Users/howardtrickey/blender-git/lib/darwin_arm64/glm/include"
-    "/Users/howardtrickey/blender-git/lib/darwin_arm64/manifold/clipper2/include"
+    "../../../extern/manifold/src/third_party/glm/"
+    "../../../extern/manifold/src/third_party/thrust/"
   )
 #TODO -- append to LIB the libraries that actually work
   list (APPEND LIB
-    "/Users/howardtrickey/blender-git/lib/darwin_arm64/manifold/lib/libmanifold.a"
-    "/Users/howardtrickey/blender-git/lib/darwin_arm64/clipper2/lib/libClipper2.a"
+    extern_manifold
   )
   
 endif()

@@ -108,3 +108,7 @@ endif()
 if(WITH_VULKAN_BACKEND)
   add_subdirectory(vulkan_memory_allocator)
 endif()
+
+if (WITH_MANIFOLD)
+  add_subdirectory(manifold)
+endif()
