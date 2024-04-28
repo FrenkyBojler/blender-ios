@@ -39,12 +39,12 @@ namespace blender::ed::sculpt_paint {
 
 static bool stroke_get_location(bContext * /*C*/,
                                 float out[3],
-                                const float mouse[2],
+                                const float mouse[3],
                                 bool /*force_original*/)
 {
   out[0] = mouse[0];
   out[1] = mouse[1];
-  out[2] = 0;
+  out[2] = mouse[2];
   return true;
 }
 
@@ -131,11 +131,12 @@ static GreasePencilStrokeOperation *grease_pencil_brush_stroke_operation(bContex
 
 static bool grease_pencil_brush_stroke_test_start(bContext *C,
                                                   wmOperator *op,
-                                                  const float mouse[2])
+                                                  const float mouse[3])
 {
   GreasePencilStrokeOperation *operation = grease_pencil_brush_stroke_operation(*C);
   if (operation) {
-    stroke_start(*C, *op, float2(mouse), *operation);
+    float mouse_[2] = {mouse[0], mouse[1]};
+    stroke_start(*C, *op, float2(mouse_), *operation);
     return true;
   }
   return false;

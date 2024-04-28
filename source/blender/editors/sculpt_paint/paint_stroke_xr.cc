@@ -52,82 +52,6 @@
 
 namespace blender::ed::sculpt_paint {
 
-struct PaintSample {
-  float2 mouse;
-  float3 controller;
-  float pressure;
-};
-
-struct PaintStroke {
-  void *mode_data;
-  void *stroke_cursor;
-  wmTimer *timer;
-  std::optional<RandomNumberGenerator> rng;
-
-  /* Cached values */
-  ViewContext vc;
-  Brush *brush;
-  UnifiedPaintSettings *ups;
-
-  /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
-   * to smooth the stroke */
-  PaintSample samples[PAINT_MAX_INPUT_SAMPLES];
-  int num_samples;
-  int cur_sample;
-  int tot_samples;
-
-  float2 last_mouse_position;
-  float3 last_controller_position;
-  float3 last_world_space_position;
-  float3 last_scene_spacing_delta;
-
-  bool stroke_over_mesh;
-  /* space distance covered so far */
-  float stroke_distance;
-
-  /* Set whether any stroke step has yet occurred
-   * e.g. in sculpt mode, stroke doesn't start until cursor
-   * passes over the mesh */
-  bool stroke_started;
-  /* Set when enough motion was found for rake rotation */
-  bool rake_started;
-  /* event that started stroke, for modal() return */
-  int event_type;
-  /* check if stroke variables have been initialized */
-  bool stroke_init;
-  /* check if various brush mapping variables have been initialized */
-  bool brush_init;
-  float2 initial_mouse;
-  /* cached_pressure stores initial pressure for size pressure influence mainly */
-  float cached_size_pressure;
-  /* last pressure will store last pressure value for use in interpolation for space strokes */
-  float last_pressure;
-  int stroke_mode;
-
-  float last_tablet_event_pressure;
-
-  float zoom_2d;
-  bool pen_flip;
-
-  /* Tilt, as read from the event. */
-  float x_tilt;
-  float y_tilt;
-
-  /* line constraint */
-  bool constrain_line;
-  float2 constrained_pos;
-
-  StrokeGetLocation get_location;
-  StrokeTestStart test_start;
-  StrokeUpdateStep update_step;
-  StrokeRedraw redraw;
-  StrokeDone done;
-
-  bool original; /* Ray-cast original mesh at start of stroke. */
-
-  bool is_xr;
-};
-
 /*** Cursors ***/
 static void paint_draw_smooth_cursor(bContext *C, int x, int y, void *customdata)
 {
@@ -883,10 +807,10 @@ static int paint_space_stroke(bContext *C,
 
 /**** Public API ****/
 
-PaintStroke *paint_stroke_new(bContext *C,
+PaintStroke *paint_stroke_new_xr(bContext *C,
                               wmOperator *op,
                               StrokeGetLocation get_location,
-                              StrokeTestStart test_start,
+                              StrokeTestStartXR test_start,
                               StrokeUpdateStep update_step,
                               StrokeRedraw redraw,
                               StrokeDone done,
@@ -1382,7 +1306,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
                       stroke->last_world_space_position);
           }
 
-          stroke->stroke_started = stroke->test_start(C, op, stroke->last_mouse_position);
+          stroke->stroke_started = stroke->test_start(C, op, stroke->last_controller_position);
 
           if (stroke->stroke_started) {
             paint_brush_stroke_add_step(C, op, stroke, data + 2 * j, 1.0);
@@ -1438,7 +1362,7 @@ static void paint_stroke_line_constrain(PaintStroke *stroke, float mouse[2])
   }
 }
 
-int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p)
+int paint_stroke_modal_xr(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p)
 {
   Scene *scene = CTX_data_scene(C);
   Paint *p = BKE_paint_get_active_from_context(C);
@@ -1471,7 +1395,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
   }
 
   int input_samples = BKE_brush_input_samples_get(scene, br);
-  if (is_xr) {
+  if (event->type == EVT_XR_ACTION) {
     /* handle pressure sensitivity (which is supplied by xr controller) */
     const wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
     paint_stroke_add_sample(stroke,
@@ -1528,7 +1452,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
           C, stroke->last_world_space_position, sample_average.mouse, stroke->original);
       mul_m4_v3(stroke->vc.obact->object_to_world().ptr(), stroke->last_world_space_position);
     }
-    stroke->stroke_started = stroke->test_start(C, op, sample_average.mouse);
+    stroke->stroke_started = stroke->test_start(C, op, sample_average.controller);
 
     if (stroke->stroke_started) {
       if (br->flag & BRUSH_AIRBRUSH) {
@@ -1652,12 +1576,14 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
     PropertyRNA *strokeprop;
     PointerRNA firstpoint;
     float mouse[2];
+    float controller[3];
 
     strokeprop = RNA_struct_find_property(op->ptr, "stroke");
 
     if (RNA_property_collection_lookup_int(op->ptr, strokeprop, 0, &firstpoint)) {
-      RNA_float_get_array(&firstpoint, "mouse", mouse);
-      stroke->stroke_started = stroke->test_start(C, op, mouse);
+      // RNA_float_get_array(&firstpoint, "mouse", mouse);
+      RNA_float_get_array(&firstpoint, "xrcontroller", controller);
+      stroke->stroke_started = stroke->test_start(C, op, controller);
     }
   }
 

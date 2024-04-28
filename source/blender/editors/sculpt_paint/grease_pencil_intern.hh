@@ -21,6 +21,8 @@ namespace blender::ed::sculpt_paint {
 
 struct InputSample {
   float2 mouse_position;
+  float3 controller_position;
+  bool is_xr;
   float pressure;
 };
 

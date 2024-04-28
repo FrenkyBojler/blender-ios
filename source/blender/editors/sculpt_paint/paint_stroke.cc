@@ -54,6 +54,7 @@ namespace blender::ed::sculpt_paint {
 
 struct PaintSample {
   float2 mouse;
+  float3 controller;
   float pressure;
 };
 
@@ -76,6 +77,7 @@ struct PaintStroke {
   int tot_samples;
 
   float2 last_mouse_position;
+  float3 last_controller_position;
   float3 last_world_space_position;
   float3 last_scene_spacing_delta;
 
@@ -388,7 +390,8 @@ static bool paint_brush_update(bContext *C,
       halfway[1] = dy * 0.5f + stroke->initial_mouse[1];
 
       if (stroke->get_location) {
-        if (stroke->get_location(C, r_location, halfway, stroke->original)) {
+        float halfway3[3] = {halfway[0], halfway[1], 0.0f};
+        if (stroke->get_location(C, r_location, halfway3, stroke->original)) {
           hit = true;
           location_sampled = true;
           location_success = true;
@@ -460,7 +463,8 @@ static bool paint_brush_update(bContext *C,
 
   if (!location_sampled) {
     if (stroke->get_location) {
-      if (stroke->get_location(C, r_location, mouse, stroke->original)) {
+      float mouse3[3] = {mouse[0], mouse[1], 0.0f};
+      if (stroke->get_location(C, r_location, mouse3, stroke->original)) {
         location_success = true;
         *r_location_is_set = true;
       }
@@ -1373,7 +1377,9 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
                       stroke->last_world_space_position);
           }
 
-          stroke->stroke_started = stroke->test_start(C, op, stroke->last_mouse_position);
+          float3 last_mouse_position_ = {
+              stroke->last_mouse_position[0], stroke->last_mouse_position[1], 0.0f};
+          stroke->stroke_started = stroke->test_start(C, op, last_mouse_position_);
 
           if (stroke->stroke_started) {
             paint_brush_stroke_add_step(C, op, stroke, data + 2 * j, 1.0);
@@ -1506,7 +1512,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
           C, stroke->last_world_space_position, sample_average.mouse, stroke->original);
       mul_m4_v3(stroke->vc.obact->object_to_world().ptr(), stroke->last_world_space_position);
     }
-    stroke->stroke_started = stroke->test_start(C, op, sample_average.mouse);
+    float3 mouse_ = {sample_average.mouse[0], sample_average.mouse[1], 0.0f};
+    stroke->stroke_started = stroke->test_start(C, op, mouse_);
 
     if (stroke->stroke_started) {
       if (br->flag & BRUSH_AIRBRUSH) {
@@ -1635,7 +1642,8 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 
     if (RNA_property_collection_lookup_int(op->ptr, strokeprop, 0, &firstpoint)) {
       RNA_float_get_array(&firstpoint, "mouse", mouse);
-      stroke->stroke_started = stroke->test_start(C, op, mouse);
+      float3 mouse_ = {mouse[0], mouse[1], 0.0f};
+      stroke->stroke_started = stroke->test_start(C, op, mouse_);
     }
   }
 
