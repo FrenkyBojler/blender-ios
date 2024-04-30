@@ -149,6 +149,7 @@ set(SRC
   nodes/node_geo_mesh_topology_face_of_corner.cc
   nodes/node_geo_mesh_topology_offset_corner_in_face.cc
   nodes/node_geo_mesh_topology_vertex_of_corner.cc
+  nodes/node_geo_mouse_position.cc
   nodes/node_geo_object_info.cc
   nodes/node_geo_offset_point_in_curve.cc
   nodes/node_geo_points.cc
@@ -211,6 +212,7 @@ set(SRC
 
   include/NOD_geo_bake.hh
   include/NOD_geo_index_switch.hh
+  include/NOD_geo_menu_switch.hh
   include/NOD_geo_repeat.hh
   include/NOD_geo_simulation.hh
 

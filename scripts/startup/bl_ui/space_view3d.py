@@ -1186,24 +1186,28 @@ class VIEW3D_HT_header(Header):
 
     @staticmethod
     def _sculpt_automasking_icon(sculpt):
-        automask_enabled = (sculpt.use_automasking_topology or
-                            sculpt.use_automasking_face_sets or
-                            sculpt.use_automasking_boundary_edges or
-                            sculpt.use_automasking_boundary_face_sets or
-                            sculpt.use_automasking_cavity or
-                            sculpt.use_automasking_cavity_inverted or
-                            sculpt.use_automasking_start_normal or
-                            sculpt.use_automasking_view_normal)
+        automask_enabled = (
+            sculpt.use_automasking_topology or
+            sculpt.use_automasking_face_sets or
+            sculpt.use_automasking_boundary_edges or
+            sculpt.use_automasking_boundary_face_sets or
+            sculpt.use_automasking_cavity or
+            sculpt.use_automasking_cavity_inverted or
+            sculpt.use_automasking_start_normal or
+            sculpt.use_automasking_view_normal
+        )
 
         return "CLIPUV_DEHLT" if automask_enabled else "CLIPUV_HLT"
 
     @staticmethod
     def _gpencil_sculpt_automasking_icon(gpencil_sculpt):
-        automask_enabled = (gpencil_sculpt.use_automasking_stroke or
-                            gpencil_sculpt.use_automasking_layer_stroke or
-                            gpencil_sculpt.use_automasking_material_stroke or
-                            gpencil_sculpt.use_automasking_material_active or
-                            gpencil_sculpt.use_automasking_layer_active)
+        automask_enabled = (
+            gpencil_sculpt.use_automasking_stroke or
+            gpencil_sculpt.use_automasking_layer_stroke or
+            gpencil_sculpt.use_automasking_material_stroke or
+            gpencil_sculpt.use_automasking_material_active or
+            gpencil_sculpt.use_automasking_layer_active
+        )
 
         return "CLIPUV_DEHLT" if automask_enabled else "CLIPUV_HLT"
 
@@ -1252,7 +1256,7 @@ class VIEW3D_MT_editor_menus(Menu):
             elif mesh.use_paint_mask_vertex and mode_string in {'PAINT_WEIGHT', 'PAINT_VERTEX'}:
                 layout.menu("VIEW3D_MT_select_paint_mask_vertex")
         elif mode_string not in {'SCULPT', 'SCULPT_CURVES', 'PAINT_GREASE_PENCIL', 'SCULPT_GREASE_PENCIL'}:
-            layout.menu("VIEW3D_MT_select_%s" % mode_string.lower())
+            layout.menu("VIEW3D_MT_select_" + mode_string.lower())
 
         if gp_edit:
             pass
@@ -1284,7 +1288,7 @@ class VIEW3D_MT_editor_menus(Menu):
                 layout.menu("VIEW3D_MT_paint_gpencil")
 
         elif edit_object:
-            layout.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
+            layout.menu("VIEW3D_MT_edit_" + edit_object.type.lower())
 
             if mode_string == 'EDIT_MESH':
                 layout.menu("VIEW3D_MT_edit_mesh_vertices")
@@ -1305,7 +1309,7 @@ class VIEW3D_MT_editor_menus(Menu):
 
         elif obj:
             if mode_string not in {'PAINT_TEXTURE', 'SCULPT_CURVES', 'SCULPT_GREASE_PENCIL'}:
-                layout.menu("VIEW3D_MT_%s" % mode_string.lower())
+                layout.menu("VIEW3D_MT_" + mode_string.lower())
             if mode_string == 'SCULPT':
                 layout.menu("VIEW3D_MT_mask")
                 layout.menu("VIEW3D_MT_face_sets")
@@ -1335,9 +1339,9 @@ class ShowHideMenu:
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("%s.reveal" % self._operator_name)
-        layout.operator("%s.hide" % self._operator_name, text="Hide Selected").unselected = False
-        layout.operator("%s.hide" % self._operator_name, text="Hide Unselected").unselected = True
+        layout.operator("{:s}.reveal".format(self._operator_name))
+        layout.operator("{:s}.hide".format(self._operator_name), text="Hide Selected").unselected = False
+        layout.operator("{:s}.hide".format(self._operator_name), text="Hide Unselected").unselected = True
 
 
 # Standard transforms which apply to all cases (mix-in class, not used directly).
@@ -1465,7 +1469,7 @@ class VIEW3D_MT_mirror(Menu):
         for (space_name, space_id) in (("Global", 'GLOBAL'), ("Local", 'LOCAL')):
             for axis_index, axis_name in enumerate("XYZ"):
                 props = layout.operator("transform.mirror",
-                                        text="%s %s" % (axis_name, iface_(space_name)),
+                                        text="{:s} {:s}".format(axis_name, iface_(space_name)),
                                         translate=False)
                 props.constraint_axis[axis_index] = True
                 props.orient_type = space_id
@@ -2552,8 +2556,10 @@ class VIEW3D_MT_surface_add(Menu):
         layout.operator("surface.primitive_nurbs_surface_curve_add", text="Nurbs Curve", icon='SURFACE_NCURVE')
         layout.operator("surface.primitive_nurbs_surface_circle_add", text="Nurbs Circle", icon='SURFACE_NCIRCLE')
         layout.operator("surface.primitive_nurbs_surface_surface_add", text="Nurbs Surface", icon='SURFACE_NSURFACE')
-        layout.operator("surface.primitive_nurbs_surface_cylinder_add",
-                        text="Nurbs Cylinder", icon='SURFACE_NCYLINDER')
+        layout.operator(
+            "surface.primitive_nurbs_surface_cylinder_add",
+            text="Nurbs Cylinder", icon='SURFACE_NCYLINDER',
+        )
         layout.operator("surface.primitive_nurbs_surface_sphere_add", text="Nurbs Sphere", icon='SURFACE_NSPHERE')
         layout.operator("surface.primitive_nurbs_surface_torus_add", text="Nurbs Torus", icon='SURFACE_NTORUS')
 
@@ -2682,9 +2688,11 @@ class VIEW3D_MT_volume_add(Menu):
     def draw(self, _context):
         layout = self.layout
         layout.operator("object.volume_import", text="Import OpenVDB...", icon='OUTLINER_DATA_VOLUME')
-        layout.operator("object.volume_add", text="Empty",
-                        text_ctxt=i18n_contexts.id_volume,
-                        icon='OUTLINER_DATA_VOLUME')
+        layout.operator(
+            "object.volume_add", text="Empty",
+            text_ctxt=i18n_contexts.id_volume,
+            icon='OUTLINER_DATA_VOLUME',
+        )
 
 
 class VIEW3D_MT_grease_pencil_add(Menu):
@@ -2757,9 +2765,11 @@ class VIEW3D_MT_add(Menu):
 
         layout.separator()
 
-        layout.operator_menu_enum("object.empty_add", "type", text="Empty",
-                                  text_ctxt=i18n_contexts.id_id,
-                                  icon='OUTLINER_OB_EMPTY')
+        layout.operator_menu_enum(
+            "object.empty_add", "type", text="Empty",
+            text_ctxt=i18n_contexts.id_id,
+            icon='OUTLINER_OB_EMPTY',
+        )
         layout.menu("VIEW3D_MT_image_add", text="Image", icon='OUTLINER_OB_IMAGE')
 
         layout.separator()
@@ -3720,6 +3730,12 @@ class VIEW3D_MT_sculpt(Menu):
         props.action = 'HIDE'
 
         props = layout.operator("paint.hide_show_line_gesture", text="Line Show")
+        props.action = 'SHOW'
+
+        props = layout.operator("paint.hide_show_polyline_gesture", text="Polyline Hide")
+        props.action = 'HIDE'
+
+        props = layout.operator("paint.hide_show_polyline_gesture", text="Polyline Show")
         props.action = 'SHOW'
 
         layout.separator()
@@ -8396,8 +8412,8 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.separator()
 
             # Copy/paste
-            col.operator("grease_pencil.copy", text="Copy", icon="COPYDOWN")
-            col.operator("grease_pencil.paste", text="Paste", icon="PASTEDOWN")
+            col.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
+            col.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN')
 
             col.separator()
 
@@ -8440,8 +8456,8 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.separator()
 
             # Copy/paste
-            col.operator("grease_pencil.copy", text="Copy", icon="COPYDOWN")
-            col.operator("grease_pencil.paste", text="Paste", icon="PASTEDOWN")
+            col.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
+            col.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN')
 
             col.separator()
 
