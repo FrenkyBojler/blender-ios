@@ -48,7 +48,7 @@ static bool stroke_get_location(bContext * /*C*/,
   return true;
 }
 
-static void stroke_start(bContext &C,
+static void stroke_start_xr(bContext &C,
                          wmOperator &op,
                          const float3 &controller,
                          GreasePencilStrokeOperation &operation)
@@ -57,7 +57,9 @@ static void stroke_start(bContext &C,
 
   InputSample start_sample;
   start_sample.controller_position = float3(controller);
-  start_sample.pressure = 0.0f;
+  start_sample.mouse_position = float2(controller); // Leave this set for now
+  start_sample.pressure = 0.0f; // Bring trigger pressure here?
+  start_sample.is_xr = true;
 
   paint_stroke_set_mode_data(paint_stroke, &operation);
   operation.on_stroke_begin(C, start_sample);
@@ -73,6 +75,7 @@ static void stroke_update_step(bContext *C,
 
   InputSample extension_sample;
   RNA_float_get_array(stroke_element, "mouse", extension_sample.mouse_position);
+  RNA_float_get_array(stroke_element, "controller", extension_sample.controller_position);
   extension_sample.pressure = RNA_float_get(stroke_element, "pressure");
 
   if (operation) {
@@ -82,6 +85,7 @@ static void stroke_update_step(bContext *C,
 
 static void stroke_redraw(const bContext *C, PaintStroke * /*stroke*/, bool /*final*/)
 {
+  // C will probably not have ARegion, get it somewhere else
   ED_region_tag_redraw(CTX_wm_region(C));
 }
 
@@ -153,7 +157,7 @@ static bool grease_pencil_brush_stroke_test_start(bContext *C,
 {
   GreasePencilStrokeOperation *operation = grease_pencil_brush_stroke_operation(*C);
   if (operation) {
-    stroke_start(*C, *op, float3(controller), *operation);
+    stroke_start_xr(*C, *op, float3(controller), *operation);
     return true;
   }
   return false;

@@ -58,6 +58,7 @@ static void stroke_start(bContext &C,
   InputSample start_sample;
   start_sample.mouse_position = float2(mouse);
   start_sample.pressure = 0.0f;
+  start_sample.is_xr = false;
 
   paint_stroke_set_mode_data(paint_stroke, &operation);
   operation.on_stroke_begin(C, start_sample);

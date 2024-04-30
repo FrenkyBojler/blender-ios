@@ -1582,7 +1582,7 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 
     if (RNA_property_collection_lookup_int(op->ptr, strokeprop, 0, &firstpoint)) {
       // RNA_float_get_array(&firstpoint, "mouse", mouse);
-      RNA_float_get_array(&firstpoint, "xrcontroller", controller);
+      RNA_float_get_array(&firstpoint, "controller", controller);
       stroke->stroke_started = stroke->test_start(C, op, controller);
     }
   }

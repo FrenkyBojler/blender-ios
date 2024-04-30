@@ -225,12 +225,14 @@ struct PaintOperationExecutor {
                             const InputSample &start_sample,
                             const int material_index)
   {
+    // Use Controller coords if is_xr
     const float2 start_coords = start_sample.mouse_position;
     ViewContext vc = ED_view3d_viewcontext_init(const_cast<bContext *>(&C),
                                                 CTX_data_depsgraph_pointer(&C));
     const float start_radius = ed::greasepencil::radius_from_input_sample(
         start_sample.pressure,
-        self.placement_.project(start_sample.mouse_position),
+        start_sample.is_xr ? self.placement_.project(start_sample.mouse_position) :
+                             start_sample.controller_position,
         vc,
         brush_,
         scene_,
@@ -393,12 +395,14 @@ struct PaintOperationExecutor {
                                 const bContext &C,
                                 const InputSample &extension_sample)
   {
+    // Use Controller coords if is_xr
     const float2 coords = extension_sample.mouse_position;
     ViewContext vc = ED_view3d_viewcontext_init(const_cast<bContext *>(&C),
                                                 CTX_data_depsgraph_pointer(&C));
     const float radius = ed::greasepencil::radius_from_input_sample(
         extension_sample.pressure,
-        self.placement_.project(extension_sample.mouse_position),
+        extension_sample.is_xr ? self.placement_.project(extension_sample.mouse_position) :
+                                 extension_sample.controller_position,
         vc,
         brush_,
         scene_,
@@ -409,6 +413,7 @@ struct PaintOperationExecutor {
     bke::CurvesGeometry &curves = drawing_->strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
+    //  self.screen_space_coords_orig_ for controller?
     const float2 prev_coords = self.screen_space_coords_orig_.last();
     const float prev_radius = drawing_->radii().last();
     const float prev_opacity = drawing_->opacities().last();
@@ -417,7 +422,8 @@ struct PaintOperationExecutor {
     /* Overwrite last point if it's very close. */
     const IndexRange points_range = curves.points_by_curve()[curves.curves_range().last()];
     const bool is_first_sample = (points_range.size() == 1);
-    if (math::distance(coords, prev_coords) < POINT_OVERRIDE_THRESHOLD_PX) {
+    //  Avoid for XR for now. TODO
+    if (!extension_sample.is_xr && math::distance(coords, prev_coords) < POINT_OVERRIDE_THRESHOLD_PX) {
       /* Don't move the first point of the stroke. */
       if (!is_first_sample) {
         curves.positions_for_write().last() = self.placement_.project(coords);
@@ -430,6 +436,7 @@ struct PaintOperationExecutor {
     /* If the next sample is far away, we subdivide the segment to add more points. */
     int new_points_num = 1;
     const float distance_px = math::distance(coords, prev_coords);
+    // Change MIN SAMPLE threshold for XR
     if (distance_px > POINT_RESAMPLE_MIN_DISTANCE_PX) {
       const int subdivisions = int(math::floor(distance_px / POINT_RESAMPLE_MIN_DISTANCE_PX)) - 1;
       new_points_num += subdivisions;
@@ -442,6 +449,7 @@ struct PaintOperationExecutor {
 
     /* Subdivide stroke in new_points. */
     const IndexRange new_points = curve_points.take_back(new_points_num);
+    //  new_screen_space_coords for controller?
     Array<float2> new_screen_space_coords(new_points_num);
     MutableSpan<float3> positions = curves.positions_for_write();
     MutableSpan<float3> new_positions = positions.slice(new_points);
@@ -533,8 +541,16 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
   float3 u_dir;
   float3 v_dir;
+  float3 origin;
   /* Set the texture space origin to be the first point. */
-  float3 origin = placement_.project(start_sample.mouse_position);
+  if (start_sample.is_xr) {
+    origin = {start_sample.controller_position[0],
+              start_sample.controller_position[1],
+              start_sample.controller_position[2]};
+  }
+  else {
+    origin = placement_.project(start_sample.mouse_position);
+  }
   /* Align texture with the drawing plane. */
   switch (scene->toolsettings->gp_sculpt.lock_axis) {
     case GP_LOCKAXIS_VIEW:
@@ -563,6 +579,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
       origin = float3(scene->cursor.location);
       break;
     }
+    // case GP_LOCKAXIS_CONTROLLER
   }
 
   this->texture_space_ = math::transpose(float2x4(float4(u_dir, -math::dot(u_dir, origin)),
