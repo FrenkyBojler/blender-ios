@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "BLI_array.hh"
+#include "BLI_map.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
@@ -149,8 +150,7 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   });
   std::cout << "materials:\n";
   for (int i = 0; i < mesh->totcol; i++) {
-    std::cout << "[" << i << "]: " << (mesh->mat[i] ? mesh->mat[i]->id.name + 2 : "none")
-    << "\n";
+    std::cout << "[" << i << "]: " << (mesh->mat[i] ? mesh->mat[i]->id.name + 2 : "none") << "\n";
   }
 }
 
@@ -177,11 +177,11 @@ static Manifold manifold_from_mesh_via_mesh(const Mesh *mesh)
   Span<int> corner_verts = mesh->corner_verts();
   manifold_mesh.triVerts.resize(corner_tris.size());
   threading::parallel_for(corner_tris.index_range(), grain_size, [&](const IndexRange range) {
-      for (const int i : range) {
-        const int3 &ctri = corner_tris[i];
-        manifold_mesh.triVerts[i] = glm::ivec3(
-                                               corner_verts[ctri[0]], corner_verts[ctri[1]], corner_verts[ctri[2]]);
-      }
+    for (const int i : range) {
+      const int3 &ctri = corner_tris[i];
+      manifold_mesh.triVerts[i] = glm::ivec3(
+          corner_verts[ctri[0]], corner_verts[ctri[1]], corner_verts[ctri[2]]);
+    }
   });
   if (dbg_level > 0) {
     dump_manmesh(manifold_mesh, "converted result");
@@ -216,7 +216,7 @@ template<typename T> static int which_offset_index(T x, Span<T> offset_indices)
 static std::pair<int, int> mesh_and_face(int output_tri,
                                          const MeshGL &output_meshgl,
                                          Span<const Mesh *> input_meshes,
-                                         int original_id_offset)
+                                         const Map<int, int> &original_id_to_mesh_index)
 
 {
   /* First find the index for the original input_mesh that contains the output_tri. */
@@ -225,7 +225,8 @@ static std::pair<int, int> mesh_and_face(int output_tri,
   BLI_assert(output_run_index != -1);
   /* We assume that the auto-supplied runOriginalIDs start at some number and go up consecutively.
    */
-  int input_mesh_index = output_meshgl.runOriginalID[output_run_index] - original_id_offset;
+  int orig_id = output_meshgl.runOriginalID[output_run_index];
+  int input_mesh_index = original_id_to_mesh_index.lookup_default(orig_id, -1);
   BLI_assert(input_mesh_index >= 0 && input_mesh_index < input_meshes.size());
 
   /* Now find the face index in the input mesh, given the triangle index in the output meshgl. */
@@ -277,7 +278,7 @@ static void copy_face_attributes(Mesh *dest_mesh,
 #endif
 
 class GAttributeReadWriteSpans {
-public:
+ public:
   /* A set of attributes we want copied. */
   Vector<bke::AttributeIDRef> attrs;
   /* Parallel array of data_type. */
@@ -290,17 +291,16 @@ public:
   Array<Vector<std::optional<GVArraySpan>>> sources;
 
   GAttributeReadWriteSpans(Span<const Mesh *> input_meshes,
-                                 Mesh *output_mesh,
-                                 bke::AttrDomain domain);
+                           Mesh *output_mesh,
+                           bke::AttrDomain domain);
   ~GAttributeReadWriteSpans();
 
   int find_attr_index(const char *name) const;
 };
 
-GAttributeReadWriteSpans::GAttributeReadWriteSpans(
-        Span<const Mesh *> input_meshes,
-        Mesh *output_mesh,
-        bke::AttrDomain domain)
+GAttributeReadWriteSpans::GAttributeReadWriteSpans(Span<const Mesh *> input_meshes,
+                                                   Mesh *output_mesh,
+                                                   bke::AttrDomain domain)
 {
   const int num_mesh = input_meshes.size();
   Vector<bke::AttributeAccessor> input_accessors;
@@ -309,25 +309,27 @@ GAttributeReadWriteSpans::GAttributeReadWriteSpans(
     input_accessors.append(input_meshes[i]->attributes());
   }
   bke::MutableAttributeAccessor output_accessor = output_mesh->attributes_for_write();
-  output_accessor.for_all([&](const bke::AttributeIDRef &id,
-                              const bke::AttributeMetaData &metadata) {
-    if (metadata.domain != domain) {
-      return true;
-    }
-    this->attrs.append(id);
-    this->data_types.append(metadata.data_type);
-    this->dest_writers.append(output_accessor.lookup_or_add_for_write_only_span(id, metadata.domain, metadata.data_type));
-    this->dest.append(this->dest_writers.last().span);
-    for (int i : IndexRange(num_mesh)) {
-      this->sources[i].append(*input_accessors[i].lookup_or_default(id, domain, metadata.data_type));
-    }
-    return true;
-  });
+  output_accessor.for_all(
+      [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData &metadata) {
+        if (metadata.domain != domain) {
+          return true;
+        }
+        this->attrs.append(id);
+        this->data_types.append(metadata.data_type);
+        this->dest_writers.append(output_accessor.lookup_or_add_for_write_only_span(
+            id, metadata.domain, metadata.data_type));
+        this->dest.append(this->dest_writers.last().span);
+        for (int i : IndexRange(num_mesh)) {
+          this->sources[i].append(
+              *input_accessors[i].lookup_or_default(id, domain, metadata.data_type));
+        }
+        return true;
+      });
 }
 
 GAttributeReadWriteSpans::~GAttributeReadWriteSpans()
 {
-  for (bke::GSpanAttributeWriter& w : dest_writers) {
+  for (bke::GSpanAttributeWriter &w : dest_writers) {
     w.finish();
   }
 }
@@ -351,9 +353,8 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
-    std::cout << "copy_face_attrs, input mesh "
-      << input_mesh_index << ", face " << input_face
-    << " to  output face " << output_face << "\n";
+    std::cout << "copy_face_attrs, input mesh " << input_mesh_index << ", face " << input_face
+              << " to  output face " << output_face << "\n";
   }
   for (const int i : rw_spans.attrs.index_range()) {
     std::optional<GVArraySpan> &src = rw_spans.sources[input_mesh_index][i];
@@ -380,15 +381,15 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
 
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
- * The original_id_offset says what OriginalID the first argument
- * mesh has. We assume the others are sequential from there.
+ * The original_id_to_mesh_index maps manifold's OriginalIDs to mesh
+ * argument indices.
  * Note: the caller of mesh_boolean_manifold will fix the returned
  * mesh's mat[] array to hold materials approprite for the material_remaps.
  */
 static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps,
-                            int original_id_offset)
+                            const Map<int, int> &original_id_to_mesh_index)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -415,13 +416,13 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   int grain_size = 100000;
   threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
-      for (const int i : range) {
-        int offset = num_props * i;
-        float3 pos(mgl.vertProperties[offset],
-                   mgl.vertProperties[offset + 1],
-                   mgl.vertProperties[offset + 2]);
-        positions[i] = pos;
-      }
+    for (const int i : range) {
+      int offset = num_props * i;
+      float3 pos(mgl.vertProperties[offset],
+                 mgl.vertProperties[offset + 1],
+                 mgl.vertProperties[offset + 2]);
+      positions[i] = pos;
+    }
   });
   GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
   int material_span_index = face_attrs.find_attr_index("material_index");
@@ -430,17 +431,23 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   grain_size = 50000;
   threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
-      for (const int face_index : range) {
-        int corner_index = 3 * face_index;
-        face_offsets[face_index] = corner_index;
-        corner_verts[corner_index] = mgl.triVerts[corner_index];
-        corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
-        corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
-        std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, meshes,  original_id_offset);
-        int input_mesh_index = m_and_f.first;
-        int input_face_index = m_and_f.second;
-        copy_face_attrs(face_attrs, input_mesh_index, input_face_index, face_index, material_span_index, material_remaps);
-      }
+    for (const int face_index : range) {
+      int corner_index = 3 * face_index;
+      face_offsets[face_index] = corner_index;
+      corner_verts[corner_index] = mgl.triVerts[corner_index];
+      corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
+      corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
+      std::pair<int, int> m_and_f = mesh_and_face(
+          face_index, mgl, meshes, original_id_to_mesh_index);
+      int input_mesh_index = m_and_f.first;
+      int input_face_index = m_and_f.second;
+      copy_face_attrs(face_attrs,
+                      input_mesh_index,
+                      input_face_index,
+                      face_index,
+                      material_span_index,
+                      material_remaps);
+    }
   });
   face_offsets[tot_faces] = 3 * tot_faces;
   // mesh_material_indices.finish();
@@ -472,7 +479,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     timeit::ScopedTimer timer("manifold boolean");
     const int num_meshes = meshes.size();
     std::vector<Manifold> manifolds(num_meshes);
-    std::vector<bool> manifold_ok(num_meshes);
+    Array<bool> manifold_ok(num_meshes);
+    Map<int, int> original_id_to_mesh_index;
     bool no_transforms = math::is_identity(target_transform);
     no_transforms &= std::all_of(transforms.begin(), transforms.end(), [](const float4x4 &t) {
       return math::is_identity(t);
@@ -489,7 +497,9 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       std::cout << "Cannot convert Mesh to Manifold, so manifold solver fails\n";
       return nullptr;
     }
-    int originalID0 = manifolds[0].OriginalID();
+    for (const int i : IndexRange(num_meshes)) {
+      original_id_to_mesh_index.add_new(manifolds[i].OriginalID(), i);
+    }
     Operation op = op_params.boolean_mode;
     manifold::OpType mop = op == Operation::Intersect ?
                                manifold::OpType::Intersect :
@@ -504,7 +514,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
         std::cout << "boolean result has " << meshgl_result.NumTri() << " tris\n";
       }
     }
-    Mesh *mesh_result = meshgl_to_mesh(meshgl_result, meshes, material_remaps, originalID0);
+    Mesh *mesh_result = meshgl_to_mesh(
+        meshgl_result, meshes, material_remaps, original_id_to_mesh_index);
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
     UNUSED_VARS(target_transform);
     return mesh_result;
