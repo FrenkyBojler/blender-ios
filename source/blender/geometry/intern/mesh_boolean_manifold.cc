@@ -400,7 +400,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       dump_span(material_remaps[i].as_span(), std::to_string(i));
     }
   }
-  timeit::ScopedTimer timer("manifold to mesh");
+  timeit::ScopedTimer timer("meshgl to mesh");
   /* TODO: dissolve unnecessary triangle faces. */
   int tot_positions = mgl.NumVert();
   int tot_faces = mgl.NumTri();
@@ -409,7 +409,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     /* TODO: handle vertex merging */
     std::cout << "IMPLEMENT ME: handle vertex merging\n";
   }
-  /* We will use Blender's parallelized fundiont to calculate edges later. */
+  /* We will use Blender's parallelized function to calculate edges later. */
   Mesh *mesh = BKE_mesh_new_nomain_from_template(
       meshes[0], tot_positions, 0, tot_faces, tot_corners);
   int num_props = mgl.numProp;
