@@ -154,42 +154,56 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   }
 }
 
-static Manifold manifold_from_mesh_via_mesh(const Mesh *mesh)
+static Manifold manifold_from_mesh_via_meshgl(const Mesh *mesh, int mesh_index, int faceID_offset)
 {
-  constexpr int dbg_level = 0;
+  constexpr int dbg_level = 1;
   if (dbg_level > 0) {
-    std::cout << "\nMANIFOLD_FROM_MESH_VIA_MESH\n";
-    dump_mesh(mesh, "mesh to convert");
+    std::cout << "\nMANIFOLD_FRON_MESH_VIA_MESHGL\n";
+    dump_mesh(mesh, "mesh " + std::to_string(mesh_index));
   }
-  timeit::ScopedTimer timer("manifold from mesh via mesh");
+  timeit::ScopedTimer timer("manifold from mesh via meshgl");
   const int num_verts = mesh->verts_num;
-  manifold::Mesh manifold_mesh;
-  manifold_mesh.vertPos.resize(num_verts);
+  MeshGL meshgl;
+  meshgl.numProp = 3;
+  meshgl.vertProperties.resize(num_verts * meshgl.numProp);
   Span<float3> vpos = mesh->vert_positions();
   const int grain_size = 10000;
   threading::parallel_for(IndexRange(num_verts), grain_size, [&](const IndexRange range) {
     for (const int i : range) {
       const float3 &pos = vpos[i];
-      manifold_mesh.vertPos[i] = glm::vec3(pos[0], pos[1], pos[2]);
+      meshgl.vertProperties[3 * i] = pos[0];
+      meshgl.vertProperties[3 * i + 1] = pos[1];
+      meshgl.vertProperties[3 * i + 2] = pos[2];
     }
   });
+
   Span<int3> corner_tris = mesh->corner_tris();
   Span<int> corner_verts = mesh->corner_verts();
-  manifold_mesh.triVerts.resize(corner_tris.size());
+  Span<int> corner_tri_faces = mesh->corner_tri_faces();
+  const int num_tris = corner_tris.size();
+  meshgl.triVerts.resize(3 * num_tris);
+  meshgl.faceID.resize(num_tris);
   threading::parallel_for(corner_tris.index_range(), grain_size, [&](const IndexRange range) {
     for (const int i : range) {
       const int3 &ctri = corner_tris[i];
-      manifold_mesh.triVerts[i] = glm::ivec3(
-          corner_verts[ctri[0]], corner_verts[ctri[1]], corner_verts[ctri[2]]);
+      meshgl.triVerts[3 * i] = corner_verts[ctri[0]];
+      meshgl.triVerts[3 * i + 1] = corner_verts[ctri[1]];
+      meshgl.triVerts[3 * i + 2] = corner_verts[ctri[2]];
+      meshgl.faceID[i] = faceID_offset + corner_tri_faces[i];
     }
   });
+  meshgl.runIndex.resize(2);
+  meshgl.runOriginalID.resize(1);
+  meshgl.runIndex[0] = 0;
+  meshgl.runIndex[1] = 3 * num_tris;
+  meshgl.runOriginalID[0] = mesh_index;
   if (dbg_level > 0) {
-    dump_manmesh(manifold_mesh, "converted result");
+    dump_meshgl(meshgl, "converted result");
   }
   Manifold ans;
   {
-    timeit::ScopedTimer mtimer("manifold constructor from mesh");
-    ans = Manifold(manifold_mesh);
+    timeit::ScopedTimer mtimer("manifold constructor from meshgl");
+    ans = Manifold(meshgl);
   }
   return ans;
 }
@@ -235,47 +249,6 @@ static std::pair<int, int> mesh_and_face(int output_tri,
       input_meshes[input_mesh_index]->corner_tri_faces()[face_in_triangulated_input];
   return {input_mesh_index, face_in_input_mesh};
 }
-
-#if 0
-/* Copy face attributes (custom data) from face \a index_in_orig_me in \a orig_me
- * to face \a face_index in \a dest_mesh.
- * Material indices ineed special hanlding (remapping).
- * TODO: perhaps change all this to use new Attribute interface.
- * At least, avoid need to lookup src_material_indices each time.
- */
-static void copy_face_attributes(Mesh *dest_mesh,
-                                 const Mesh *orig_me,
-                                 int face_index,
-                                 int index_in_orig_me,
-                                 Span<short> material_remap,
-                                 MutableSpan<int> dst_material_indices)
-{
-  CustomData *target_cd = &dest_mesh->face_data;
-  const CustomData *source_cd = &orig_me->face_data;
-  for (int source_layer_i = 0; source_layer_i < source_cd->totlayer; ++source_layer_i) {
-    const eCustomDataType ty = eCustomDataType(source_cd->layers[source_layer_i].type);
-    const char *name = source_cd->layers[source_layer_i].name;
-    int target_layer_i = CustomData_get_named_layer_index(target_cd, ty, name);
-    if (target_layer_i != -1) {
-      CustomData_copy_data_layer(
-          source_cd, target_cd, source_layer_i, target_layer_i, index_in_orig_me, face_index, 1);
-    }
-  }
-
-  /* Fix material indices after they have been transferred as a generic attribute. */
-  const VArray<int> src_material_indices = *orig_me->attributes().lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
-  const int src_index = src_material_indices[index_in_orig_me];
-  if (material_remap.index_range().contains(src_index)) {
-    const int remapped_index = material_remap[src_index];
-    dst_material_indices[face_index] = remapped_index >= 0 ? remapped_index : src_index;
-  }
-  else {
-    dst_material_indices[face_index] = src_index;
-  }
-  BLI_assert(dst_material_indices[face_index] >= 0);
-}
-#endif
 
 class GAttributeReadWriteSpans {
  public:
@@ -379,6 +352,35 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
   }
 }
 
+struct NewFace {
+  /* Vertex ids in meshgl indexing space. */
+  Vector<int, 8> verts;
+  /* Corresponding orignal offset vert ids (in combined input mesh indexing space). */
+  Vector<int, 8> orig_verts;
+  /* The faceID input to manifold, i.e. original face id in combined input mesh indexing space.
+   */
+  int face_id;
+};
+
+/* Data needed to build the final output Mesh. */
+struct MeshAssembly {
+  /* Vertex positions, linearized (use vertpos_stride to multiply index). */
+  Span<float> vertpos;
+  int vertpos_stride = 3;
+  /* Offset face ids (i.e., offset by cumulative face count in input meshes) direct to output. */
+  Vector<int> input_faces_to_output;
+  /* New faces to output, as list of vertex indices making up the face. */
+  Vector<NewFace> new_face_verts;
+};
+
+MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl)
+{
+  MeshAssembly ma;
+  ma.vertpos = Span<float>(&*mgl.vertProperties.begin(), mgl.vertProperties.size());
+  const int num_propos = mgl.numProp;
+  return ma;
+}
+
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
  * The original_id_to_mesh_index maps manifold's OriginalIDs to mesh
@@ -437,6 +439,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       corner_verts[corner_index] = mgl.triVerts[corner_index];
       corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
       corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
+      /* Will do this another way soon.
       std::pair<int, int> m_and_f = mesh_and_face(
           face_index, mgl, meshes, original_id_to_mesh_index);
       int input_mesh_index = m_and_f.first;
@@ -447,10 +450,10 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                       face_index,
                       material_span_index,
                       material_remaps);
+      */
     }
   });
   face_offsets[tot_faces] = 3 * tot_faces;
-  // mesh_material_indices.finish();
   // bke::mesh_smooth_set(*mesh, false);
   {
     timeit::ScopedTimer("calculating edges");
@@ -471,7 +474,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps,
                             BooleanOpParameters op_params)
 {
-  constexpr int dbg_level = 0;
+  constexpr int dbg_level = 1;
   if (dbg_level > 0) {
     std::cout << "\nMESH_BOOLEAN_MANIFOLD with " << meshes.size() << " args\n";
   }
@@ -489,16 +492,28 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       std::cout << "IMPLEMENT ME: mesh_boolean_manifold with transforms\n";
       return nullptr;
     }
-    threading::parallel_for_each(IndexRange(num_meshes), [&](int i) {
-      manifolds[i] = manifold_from_mesh_via_mesh(meshes[i]);
-      manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
-    });
+    Array<int> face_offsets(num_meshes);
+    for (const int i : IndexRange(num_meshes)) {
+      face_offsets[i] = (i == 0) ? 0 : face_offsets[i - 1] + meshes[i - 1]->faces_num;
+      if (dbg_level > 0) {
+        std::cout << "face_offsets[" << i << "] = " << face_offsets[i] << "\n";
+      }
+    }
+    if (dbg_level > 0) {
+      for (const int i : IndexRange(num_meshes)) {
+        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, face_offsets[i]);
+        manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
+      }
+    }
+    else {
+      threading::parallel_for_each(IndexRange(num_meshes), [&](int i) {
+        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, face_offsets[i]);
+        manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
+      });
+    }
     if (std::any_of(manifold_ok.begin(), manifold_ok.end(), [](bool v) { return !v; })) {
       std::cout << "Cannot convert Mesh to Manifold, so manifold solver fails\n";
       return nullptr;
-    }
-    for (const int i : IndexRange(num_meshes)) {
-      original_id_to_mesh_index.add_new(manifolds[i].OriginalID(), i);
     }
     Operation op = op_params.boolean_mode;
     manifold::OpType mop = op == Operation::Intersect ?
@@ -512,6 +527,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       meshgl_result = man_result.GetMeshGL();
       if (dbg_level > 0) {
         std::cout << "boolean result has " << meshgl_result.NumTri() << " tris\n";
+        dump_meshgl(meshgl_result, "boolean result meshgl");
       }
     }
     Mesh *mesh_result = meshgl_to_mesh(
