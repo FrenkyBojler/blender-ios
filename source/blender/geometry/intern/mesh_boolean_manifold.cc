@@ -229,24 +229,19 @@ template<typename T> static int which_offset_index(T x, Span<T> offset_indices)
  * what is the corresponding input mesh index and face index? */
 static std::pair<int, int> mesh_and_face(int output_tri,
                                          const MeshGL &output_meshgl,
-                                         Span<const Mesh *> input_meshes,
-                                         const Map<int, int> &original_id_to_mesh_index)
+                                         Span<int> mesh_face_offsets)
 
 {
   /* First find the index for the original input_mesh that contains the output_tri. */
   int output_run_index = which_offset_index(uint32_t(3 * output_tri),
                                             Span<uint32_t>(output_meshgl.runIndex));
   BLI_assert(output_run_index != -1);
-  /* We assume that the auto-supplied runOriginalIDs start at some number and go up consecutively.
-   */
-  int orig_id = output_meshgl.runOriginalID[output_run_index];
-  int input_mesh_index = original_id_to_mesh_index.lookup_default(orig_id, -1);
-  BLI_assert(input_mesh_index >= 0 && input_mesh_index < input_meshes.size());
+  int input_mesh_index = output_meshgl.runOriginalID[output_run_index];
+  BLI_assert(input_mesh_index >= 0 && input_mesh_index < mesh_face_offsets.size());
 
   /* Now find the face index in the input mesh, given the triangle index in the output meshgl. */
-  int face_in_triangulated_input = output_meshgl.faceID[output_tri];
-  int face_in_input_mesh =
-      input_meshes[input_mesh_index]->corner_tri_faces()[face_in_triangulated_input];
+  int tri_faceid = output_meshgl.faceID[output_tri];
+  int face_in_input_mesh = tri_faceid - mesh_face_offsets[input_mesh_index];
   return {input_mesh_index, face_in_input_mesh};
 }
 
@@ -383,15 +378,13 @@ MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl)
 
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
- * The original_id_to_mesh_index maps manifold's OriginalIDs to mesh
- * argument indices.
  * Note: the caller of mesh_boolean_manifold will fix the returned
  * mesh's mat[] array to hold materials approprite for the material_remaps.
  */
 static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps,
-                            const Map<int, int> &original_id_to_mesh_index)
+                            Span<int> mesh_face_offsets)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -439,9 +432,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       corner_verts[corner_index] = mgl.triVerts[corner_index];
       corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
       corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
-      /* Will do this another way soon.
-      std::pair<int, int> m_and_f = mesh_and_face(
-          face_index, mgl, meshes, original_id_to_mesh_index);
+      std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, mesh_face_offsets);
       int input_mesh_index = m_and_f.first;
       int input_face_index = m_and_f.second;
       copy_face_attrs(face_attrs,
@@ -450,7 +441,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                       face_index,
                       material_span_index,
                       material_remaps);
-      */
     }
   });
   face_offsets[tot_faces] = 3 * tot_faces;
@@ -483,7 +473,6 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     const int num_meshes = meshes.size();
     std::vector<Manifold> manifolds(num_meshes);
     Array<bool> manifold_ok(num_meshes);
-    Map<int, int> original_id_to_mesh_index;
     bool no_transforms = math::is_identity(target_transform);
     no_transforms &= std::all_of(transforms.begin(), transforms.end(), [](const float4x4 &t) {
       return math::is_identity(t);
@@ -492,22 +481,22 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       std::cout << "IMPLEMENT ME: mesh_boolean_manifold with transforms\n";
       return nullptr;
     }
-    Array<int> face_offsets(num_meshes);
+    Array<int> mesh_face_offsets(num_meshes);
     for (const int i : IndexRange(num_meshes)) {
-      face_offsets[i] = (i == 0) ? 0 : face_offsets[i - 1] + meshes[i - 1]->faces_num;
+      mesh_face_offsets[i] = (i == 0) ? 0 : mesh_face_offsets[i - 1] + meshes[i - 1]->faces_num;
       if (dbg_level > 0) {
-        std::cout << "face_offsets[" << i << "] = " << face_offsets[i] << "\n";
+        std::cout << "face_offsets[" << i << "] = " << mesh_face_offsets[i] << "\n";
       }
     }
     if (dbg_level > 0) {
       for (const int i : IndexRange(num_meshes)) {
-        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, face_offsets[i]);
+        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, mesh_face_offsets[i]);
         manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
       }
     }
     else {
       threading::parallel_for_each(IndexRange(num_meshes), [&](int i) {
-        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, face_offsets[i]);
+        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, mesh_face_offsets[i]);
         manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
       });
     }
@@ -531,7 +520,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       }
     }
     Mesh *mesh_result = meshgl_to_mesh(
-        meshgl_result, meshes, material_remaps, original_id_to_mesh_index);
+        meshgl_result, meshes, material_remaps, mesh_face_offsets);
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
     UNUSED_VARS(target_transform);
     return mesh_result;
