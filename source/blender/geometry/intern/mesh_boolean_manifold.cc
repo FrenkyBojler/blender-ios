@@ -368,11 +368,44 @@ struct MeshAssembly {
   Vector<NewFace> new_face_verts;
 };
 
-MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl)
+constexpr int face_group_inline = 4;
+
+static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
+                                     int input_faces_num)
 {
+  constexpr int dbg_level = 0;
+  Array<Vector<int, face_group_inline>> fg(input_faces_num);
+  const int tris_num = mgl.NumTri();
+  BLI_assert(mgl.faceID.size() == tris_num);
+  for (const int t : IndexRange(tris_num)) {
+    const int faceid = mgl.faceID[t];
+    fg[faceid].append(t);
+  }
+  if (dbg_level > 0) {
+    std::cout << "face_groups\n";
+    for (const int i : fg.index_range()) {
+      std::cout << "orig face " << i;
+      dump_span(fg[i].as_span(), "");
+    }
+  }
+  return fg;
+}
+
+MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
+                                       Span<const Mesh *> meshes,
+                                       Span<int> mesh_face_offsets)
+{
+  constexpr int dbg_level = 1;
+  if (dbg_level > 0) {
+    std::cout << "assemble_mesh_from_meshgl\n";
+  }
   MeshAssembly ma;
   ma.vertpos = Span<float>(&*mgl.vertProperties.begin(), mgl.vertProperties.size());
-  const int num_propos = mgl.numProp;
+  ma.vertpos_stride = mgl.numProp;
+  const int meshes_num = meshes.size();
+  const int input_faces_num = mesh_face_offsets.last() + meshes.last()->faces_num;
+  /* For each offset input mesh face, what mgl triangles have it as id? */
+  Array<Vector<int, face_group_inline>> face_groups = get_face_groups(mgl, input_faces_num);
   return ma;
 }
 
@@ -397,6 +430,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   }
   timeit::ScopedTimer timer("meshgl to mesh");
   /* TODO: dissolve unnecessary triangle faces. */
+  MeshAssembly ma = assemble_mesh_from_meshgl(mgl, meshes, mesh_face_offsets);
   int tot_positions = mgl.NumVert();
   int tot_faces = mgl.NumTri();
   int tot_corners = tot_faces * 3;
