@@ -7,6 +7,7 @@
  */
 
 #include "BLI_path_util.h"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "ED_curves.hh"
@@ -460,7 +461,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *active_object = CTX_data_active_object(C);
-  /* Note: `region` and `rv3d` may be null when called from a script. */
+  /* NOTE: `region` and `rv3d` may be null when called from a script. */
   const ARegion *region = CTX_wm_region(C);
   const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (!active_object) {
@@ -538,7 +539,13 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
     operator_eval_data.self_object_orig = object;
     operator_eval_data.scene_orig = scene;
     RNA_int_get_array(op->ptr, "mouse_position", operator_eval_data.mouse_position);
-    operator_eval_data.region_size = region ? int2(region->sizex, region->sizey) : int2(0);
+    if (region) {
+      operator_eval_data.region_size = int2(BLI_rcti_size_x(&region->winrct),
+                                            BLI_rcti_size_y(&region->winrct));
+    }
+    else {
+      operator_eval_data.region_size = int2(0);
+    }
     operator_eval_data.rv3d = rv3d;
 
     nodes::GeoNodesCallData call_data{};
@@ -1284,21 +1291,19 @@ void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext
     *tree = build_catalog_tree(C, *active_object);
   }
 
-  asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
-      asset_system::all_library_reference());
-  if (!all_library) {
-    return;
+  if (asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
+          asset_system::all_library_reference()))
+  {
+    const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
+                                                             eObjectMode(active_object->mode));
+
+    tree->catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
+      if (!builtin_menus.contains_as(item.catalog_path().str())) {
+        asset::draw_menu_for_catalog(
+            screen, *all_library, item, "GEO_MT_node_operator_catalog_assets", layout);
+      }
+    });
   }
-
-  const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                           eObjectMode(active_object->mode));
-
-  tree->catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
-    if (!builtin_menus.contains_as(item.catalog_path().str())) {
-      asset::draw_menu_for_catalog(
-          screen, *all_library, item, "GEO_MT_node_operator_catalog_assets", layout);
-    }
-  });
 
   if (!tree->unassigned_assets.is_empty() || unassigned_local_poll(C)) {
     uiItemM(&layout, "GEO_MT_node_operator_unassigned", "", ICON_FILE_HIDDEN);

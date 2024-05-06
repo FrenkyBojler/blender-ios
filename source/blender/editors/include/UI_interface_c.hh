@@ -1679,7 +1679,7 @@ int UI_searchbox_size_x();
 /**
  * Check if a string is in an existing search box.
  */
-int UI_search_items_find_index(uiSearchItems *items, const char *name);
+int UI_search_items_find_index(const uiSearchItems *items, const char *name);
 
 /**
  * Adds a hint to the button which draws right aligned, grayed out and never clipped.
@@ -3394,4 +3394,4 @@ blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region, const i
 blender::ui::AbstractViewItem *UI_region_views_find_item_at(const ARegion &region,
                                                             const int xy[2]);
 blender::ui::AbstractViewItem *UI_region_views_find_active_item(const ARegion *region);
-uiBut *UI_region_views_find_active_item_but(const ARegion *region);
+uiBut *UI_region_views_find_mouse_over_but(const wmWindow *win, const ARegion *region);

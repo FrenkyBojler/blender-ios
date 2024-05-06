@@ -517,7 +517,7 @@ void multiresModifier_set_levels_from_disps(MultiresModifierData *mmd, Object *o
 
   if (mdisp) {
     mmd->totlvl = get_levels_from_disps(ob);
-    mmd->lvl = std::min(mmd->sculptlvl, mmd->totlvl);
+    mmd->lvl = std::min(mmd->lvl, mmd->totlvl);
     mmd->sculptlvl = std::min(mmd->sculptlvl, mmd->totlvl);
     mmd->renderlvl = std::min(mmd->renderlvl, mmd->totlvl);
   }
@@ -1337,7 +1337,7 @@ void old_mdisps_bilinear(float out[3], float (*disps)[3], const int st, float u,
 }
 
 void multiresModifier_sync_levels_ex(Object *ob_dst,
-                                     MultiresModifierData *mmd_src,
+                                     const MultiresModifierData *mmd_src,
                                      MultiresModifierData *mmd_dst)
 {
   if (mmd_src->totlvl == mmd_dst->totlvl) {
