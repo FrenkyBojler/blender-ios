@@ -489,7 +489,7 @@ struct PaintOperationExecutor {
       self.screen_space_curve_fitted_coords_.remove(0, num_converged);
     }
   }
-
+// Convert
   void process_extension_sample(PaintOperation &self,
                                 const bContext &C,
                                 const InputSample &extension_sample)
@@ -537,6 +537,7 @@ struct PaintOperationExecutor {
       drawing_->opacities_for_write()[last_active_point] = math::max(opacity, prev_opacity);
       return;
     }
+    // INVOKE STOPS
 
     /* If the next sample is far away, we subdivide the segment to add more points. */
     int new_points_num = 1;
