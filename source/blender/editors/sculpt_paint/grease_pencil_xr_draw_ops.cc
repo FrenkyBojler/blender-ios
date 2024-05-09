@@ -60,8 +60,8 @@ static void stroke_start_xr(bContext &C,
   InputSample start_sample;
   start_sample.controller_position = float3(controller);
   // Debug winrct
-  mouse_xr[0] = 2.0f * ((double)controller[0] / region.winx) - 1.0f;
-  mouse_xr[1] = (2.0f * ((double)(region.winy - controller[1]) / region.winy)) - 1.0f;
+  mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
+  mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
   // start_sample.mouse_position = float2(controller); 
   start_sample.mouse_position = mouse_xr;
   start_sample.pressure = 0.0f; // Bring trigger pressure here?

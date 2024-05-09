@@ -925,7 +925,7 @@ static int paint_space_stroke(bContext *C,
                                                            spacing / no_pressure_spacing);
 
       stroke->stroke_distance += spacing / stroke->zoom_2d;
-      paint_brush_stroke_add_step(C, op, stroke, mouse, pressure);
+      paint_brush_stroke_add_step(C, op, stroke, mouse, stroke->last_controller_position, pressure);
 
       length -= spacing;
       pressure = stroke->last_pressure;
@@ -1344,7 +1344,7 @@ static void paint_line_strokes_spacing(bContext *C,
       ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, 1.0);
 
       stroke->stroke_distance += spacing / stroke->zoom_2d;
-      paint_brush_stroke_add_step(C, op, stroke, mouse, 1.0);
+      paint_brush_stroke_add_step(C, op, stroke, mouse, stroke->last_controller_position, 1.0);
 
       length -= spacing;
       spacing_final = spacing;
@@ -1366,7 +1366,7 @@ static void paint_stroke_line_end(bContext *C,
   if (stroke->stroke_started && (br->flag & BRUSH_LINE)) {
     stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
 
-    paint_brush_stroke_add_step(C, op, stroke, stroke->last_mouse_position, 1.0);
+    paint_brush_stroke_add_step(C, op, stroke, stroke->last_mouse_position, stroke->last_controller_position, 1.0);
     paint_space_stroke(C, op, stroke, mouse, 1.0);
   }
 }
@@ -1449,7 +1449,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
           stroke->stroke_started = stroke->test_start(C, op, last_mouse_position_);
 
           if (stroke->stroke_started) {
-            paint_brush_stroke_add_step(C, op, stroke, data + 2 * j, 1.0);
+            paint_brush_stroke_add_step(C, op, stroke, data + 2 * j, {}, 1.0);
             paint_line_strokes_spacing(
                 C, op, stroke, spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
           }

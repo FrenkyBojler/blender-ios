@@ -112,6 +112,14 @@ set(SRC
   sculpt_intern.hh
 )
 
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
+
+  list(APPEND SRC
+    grease_pencil_xr_draw_ops.cc
+  )
+endif()
+
 set(LIB
   bf_blenkernel
   PRIVATE bf::animrig
