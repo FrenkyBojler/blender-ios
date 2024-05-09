@@ -265,6 +265,7 @@ DefNode(TextureNode,    TEX_NODE_PROC+TEX_DISTNOISE, 0,                  "TEX_DI
 
 DefNode(FunctionNode, FN_NODE_ALIGN_EULER_TO_VECTOR, 0, "ALIGN_EULER_TO_VECTOR", AlignEulerToVector, "Align Euler to Vector", "")
 DefNode(FunctionNode, FN_NODE_ALIGN_ROTATION_TO_VECTOR, 0, "ALIGN_ROTATION_TO_VECTOR", AlignRotationToVector, "Align Rotation to Vector", "")
+DefNode(FunctionNode, FN_NODE_AXES_TO_ROTATION, 0, "AXES_TO_ROTATION", AxesToRotation, "Axes to Rotation", "Create a rotation from a primary and (ideally orthogonal) secondary axis")
 DefNode(FunctionNode, FN_NODE_AXIS_ANGLE_TO_ROTATION, 0, "AXIS_ANGLE_TO_ROTATION", AxisAngleToRotation, "Axis Angle to Rotation", "")
 DefNode(FunctionNode, FN_NODE_BOOLEAN_MATH, 0, "BOOLEAN_MATH", BooleanMath, "Boolean Math", "")
 DefNode(FunctionNode, FN_NODE_COMBINE_COLOR, 0, "COMBINE_COLOR", CombineColor, "Combine Color", "")
@@ -277,6 +278,7 @@ DefNode(FunctionNode, FN_NODE_FLOAT_TO_INT, def_float_to_int, "FLOAT_TO_INT", Fl
 DefNode(FunctionNode, FN_NODE_INPUT_BOOL, def_fn_input_bool, "INPUT_BOOL", InputBool, "Boolean", "")
 DefNode(FunctionNode, FN_NODE_INPUT_COLOR, def_fn_input_color, "INPUT_COLOR", InputColor, "Color", "")
 DefNode(FunctionNode, FN_NODE_INPUT_INT, def_fn_input_int, "INPUT_INT", InputInt, "Integer", "")
+DefNode(FunctionNode, FN_NODE_INPUT_ROTATION, def_fn_input_rotation, "INPUT_ROTATION", InputRotation, "Rotation", "")
 DefNode(FunctionNode, FN_NODE_INPUT_SPECIAL_CHARACTERS, 0, "INPUT_SPECIAL_CHARACTERS", InputSpecialCharacters, "Special Characters", "")
 DefNode(FunctionNode, FN_NODE_INPUT_STRING, def_fn_input_string, "INPUT_STRING", InputString, "String", "")
 DefNode(FunctionNode, FN_NODE_INPUT_VECTOR, def_fn_input_vector, "INPUT_VECTOR", InputVector, "Vector", "")
@@ -433,6 +435,7 @@ DefNode(GeometryNode, GEO_NODE_REVERSE_CURVE, 0, "REVERSE_CURVE", ReverseCurve, 
 DefNode(GeometryNode, GEO_NODE_ROTATE_INSTANCES, 0, "ROTATE_INSTANCES", RotateInstances, "Rotate Instances", "Rotate geometry instances in local or global space")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_CURVE, def_geo_curve_sample, "SAMPLE_CURVE", SampleCurve, "Sample Curve", "Retrieve data from a point on a curve at a certain distance from its start")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_GRID, 0, "SAMPLE_GRID", SampleGrid, "Sample Grid", "")
+DefNode(GeometryNode, GEO_NODE_SAMPLE_GRID_INDEX, 0, "SAMPLE_GRID_INDEX", SampleGridIndex, "Sample Grid Index", "Retrieve volume grid values at specific voxels")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_INDEX, def_geo_sample_index, "SAMPLE_INDEX", SampleIndex, "Sample Index", "Retrieve values from specific geometry elements")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_NEAREST_SURFACE, 0, "SAMPLE_NEAREST_SURFACE", SampleNearestSurface, "Sample Nearest Surface", "Calculate the interpolated value of a mesh attribute on the closest point of its surface")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_NEAREST, 0, "SAMPLE_NEAREST", SampleNearest, "Sample Nearest", "Find the element of a geometry closest to a position. Similar to the \"Index of Nearest\" node")
