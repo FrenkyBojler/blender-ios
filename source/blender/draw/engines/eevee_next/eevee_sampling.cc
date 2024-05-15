@@ -63,7 +63,7 @@ void Sampling::init(const Scene *scene)
 
   auto clamp_value_load = [](float value) { return (value > 0.0) ? value : 1e20; };
 
-  clamp_data_.world = clamp_value_load(scene->eevee.clamp_world);
+  clamp_data_.sun_threshold = clamp_value_load(inst_.world.sun_threshold());
   clamp_data_.surface_direct = clamp_value_load(scene->eevee.clamp_surface_direct);
   clamp_data_.surface_indirect = clamp_value_load(scene->eevee.clamp_surface_indirect);
   clamp_data_.volume_direct = clamp_value_load(scene->eevee.clamp_volume_direct);
@@ -317,14 +317,12 @@ void Sampling::cdf_from_curvemapping(const CurveMapping &curve, Vector<float> &c
  * Output vector is expected to already be sized according to the wanted resolution. */
 void Sampling::cdf_invert(Vector<float> &cdf, Vector<float> &inverted_cdf)
 {
+  BLI_assert(cdf.first() == 0.0f && cdf.last() == 1.0f);
   for (int u : inverted_cdf.index_range()) {
-    float x = float(u) / float(inverted_cdf.size() - 1);
-    for (int i : cdf.index_range()) {
-      if (i == cdf.size() - 1) {
-        inverted_cdf[u] = 1.0f;
-      }
-      else if (cdf[i] >= x) {
-        float t = (x - cdf[i]) / (cdf[i + 1] - cdf[i]);
+    float x = clamp_f(u / float(inverted_cdf.size() - 1), 1e-5f, 1.0f - 1e-5f);
+    for (int i : cdf.index_range().drop_front(1)) {
+      if (cdf[i] >= x) {
+        float t = (x - cdf[i]) / (cdf[i] - cdf[i - 1]);
         inverted_cdf[u] = (float(i) + t) / float(cdf.size() - 1);
         break;
       }

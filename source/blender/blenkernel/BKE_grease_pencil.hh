@@ -57,6 +57,10 @@ class DrawingRuntime {
    */
   mutable SharedCache<Vector<float3>> curve_plane_normals_cache;
 
+  /*
+   * Matrices that transform from a 3D point in layer-space to a 2D point in texture-space. This is
+   * stored per curve.
+   */
   mutable SharedCache<Vector<float4x2>> curve_texture_matrices;
 
   /**
@@ -71,8 +75,8 @@ class Drawing : public ::GreasePencilDrawing {
  public:
   Drawing();
   Drawing(const Drawing &other);
-  Drawing &operator=(const Drawing &other);
   Drawing(Drawing &&other);
+  Drawing &operator=(const Drawing &other);
   Drawing &operator=(Drawing &&other);
   ~Drawing();
 
@@ -462,8 +466,10 @@ class Layer : public ::GreasePencilLayer {
   GreasePencilFrame *frame_at(const int frame_number);
 
   /**
-   * \returns the frame duration of the active frame at \a frame_number or -1 if there is no active
-   * frame or the active frame is the last frame.
+   * \returns the frame duration of the keyframe at \a frame_number.
+   * If there is no keyframe at \a frame_number it \returns -1.
+   * If the keyframe is an implicit hold, \returns 0.
+   * if the keyframe is the last one, \returns -1.
    */
   int get_frame_duration_at(const int frame_number) const;
 
@@ -580,6 +586,11 @@ class LayerGroup : public ::GreasePencilLayerTreeGroup {
   TreeNode &as_node();
 
   /**
+   * Returns true if the group is empty.
+   */
+  bool is_empty() const;
+
+  /**
    * Returns the number of direct nodes in this group.
    */
   int64_t num_direct_nodes() const;
@@ -630,15 +641,6 @@ class LayerGroup : public ::GreasePencilLayerTreeGroup {
 
  protected:
   /**
-   * Adds a new layer named \a name at the end of this group and returns it.
-   */
-  Layer &add_layer(StringRefNull name);
-  Layer &add_layer(const Layer &duplicate_layer);
-  /**
-   * Adds a new group named \a name at the end of this group and returns it.
-   */
-  LayerGroup &add_group(StringRefNull name);
-  /**
    * Adds an existing \a node at the end of this group.
    */
   TreeNode &add_node(TreeNode &node);
@@ -667,7 +669,7 @@ class LayerGroup : public ::GreasePencilLayerTreeGroup {
    * Unlink the node from the list of nodes in this group.
    * \returns true, if the node was successfully unlinked.
    */
-  bool unlink_node(TreeNode &link);
+  bool unlink_node(TreeNode &link, bool keep_children = false);
 
  private:
   void ensure_nodes_cache() const;
@@ -762,6 +764,10 @@ inline const TreeNode &LayerGroup::as_node() const
 inline TreeNode &LayerGroup::as_node()
 {
   return *reinterpret_cast<TreeNode *>(this);
+}
+inline bool LayerGroup::is_empty() const
+{
+  return BLI_listbase_is_empty(&this->children);
 }
 
 inline const TreeNode &Layer::as_node() const
@@ -938,6 +944,11 @@ inline blender::bke::greasepencil::LayerGroup &GreasePencil::root_group()
 inline bool GreasePencil::has_active_layer() const
 {
   return (this->active_node != nullptr) && (this->active_node->wrap().is_layer());
+}
+
+inline bool GreasePencil::has_active_group() const
+{
+  return (this->active_node != nullptr) && (this->active_node->wrap().is_group());
 }
 
 void *BKE_grease_pencil_add(Main *bmain, const char *name);

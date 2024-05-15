@@ -67,6 +67,13 @@ typedef struct World {
    * Resolution of the world probe when baked to a texture. Contains `eLightProbeResolution`.
    */
   int probe_resolution;
+  /** Threshold for sun extraction. */
+  float sun_threshold;
+  /** Angle for sun extraction. */
+  float sun_angle;
+  /** Maximum resolution for extracted sun shadow. */
+  float sun_shadow_maximum_resolution;
+  char _pad4[4];
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
@@ -115,6 +122,15 @@ enum {
    * otherwise anim-editors will not read correctly.
    */
   WO_DS_SHOW_TEXS = 1 << 2,
+  /**
+   * World uses volume that is created in old version of EEVEE (<4.2). These volumes should be
+   * converted manually. (Ref: #119734).
+   */
+  WO_USE_EEVEE_FINITE_VOLUME = 1 << 3,
+  /**
+   * Use shadowing from the extracted sun light.
+   */
+  WO_USE_SUN_SHADOW = 1 << 4,
 };
 
 /** #World::probe_resolution. */

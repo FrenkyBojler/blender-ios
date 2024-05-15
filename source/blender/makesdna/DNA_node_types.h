@@ -39,6 +39,10 @@ struct bNodeTreeInterfaceCache;
 namespace blender::bke {
 class bNodeTreeZones;
 class bNodeTreeZone;
+struct bNodeInstanceHash;
+struct bNodeTreeType;
+struct bNodeType;
+struct bNodeSocketType;
 }  // namespace blender::bke
 namespace blender::bke {
 struct RuntimeNodeEnumItems;
@@ -47,11 +51,19 @@ using bNodeTreeRuntimeHandle = blender::bke::bNodeTreeRuntime;
 using bNodeRuntimeHandle = blender::bke::bNodeRuntime;
 using bNodeSocketRuntimeHandle = blender::bke::bNodeSocketRuntime;
 using RuntimeNodeEnumItemsHandle = blender::bke::RuntimeNodeEnumItems;
+using NodeInstanceHashHandle = blender::bke::bNodeInstanceHash;
+using bNodeTreeTypeHandle = blender::bke::bNodeTreeType;
+using bNodeTypeHandle = blender::bke::bNodeType;
+using bNodeSocketTypeHandle = blender::bke::bNodeSocketType;
 #else
 typedef struct bNodeTreeRuntimeHandle bNodeTreeRuntimeHandle;
 typedef struct bNodeRuntimeHandle bNodeRuntimeHandle;
 typedef struct bNodeSocketRuntimeHandle bNodeSocketRuntimeHandle;
 typedef struct RuntimeNodeEnumItemsHandle RuntimeNodeEnumItemsHandle;
+typedef struct NodeInstanceHashHandle NodeInstanceHashHandle;
+typedef struct bNodeTreeTypeHandle bNodeTreeTypeHandle;
+typedef struct bNodeTypeHandle bNodeTypeHandle;
+typedef struct bNodeSocketTypeHandle bNodeSocketTypeHandle;
 #endif
 
 struct AnimData;
@@ -65,10 +77,8 @@ struct Material;
 struct PreviewImage;
 struct Tex;
 struct bGPdata;
-struct bNodeInstanceHash;
 struct bNodeLink;
 struct bNodePreview;
-struct bNodeType;
 struct bNode;
 struct NodeEnumDefinition;
 
@@ -140,7 +150,7 @@ typedef struct bNodeSocket {
   /** Input/output type. */
   short in_out;
   /** Runtime type information. */
-  struct bNodeSocketType *typeinfo;
+  bNodeSocketTypeHandle *typeinfo;
   /** Runtime type identifier. */
   char idname[64];
 
@@ -365,7 +375,7 @@ typedef struct bNode {
   char idname[64];
 
   /** Type information retrieved from the #idname. TODO: Move to runtime data. */
-  struct bNodeType *typeinfo;
+  bNodeTypeHandle *typeinfo;
 
   /**
    * Integer type used for builtin nodes, allowing cheaper lookup and changing ID names with
@@ -653,7 +663,7 @@ typedef struct bNodeTree {
   ID *owner_id;
 
   /** Runtime type information. */
-  struct bNodeTreeType *typeinfo;
+  bNodeTreeTypeHandle *typeinfo;
   /** Runtime type identifier. */
   char idname[64];
   /** User-defined description of the node tree. */
@@ -678,11 +688,11 @@ typedef struct bNodeTree {
   /** Tile size for compositor engine. */
   int chunksize DNA_DEPRECATED;
   /** Execution mode to use for compositor engine. */
-  int execution_mode;
-  /** Execution mode to use for compositor engine. */
-  int precision;
+  int execution_mode DNA_DEPRECATED;
+  /** Precision used by the GPU execution of the compositor tree. */
+  int precision DNA_DEPRECATED;
 
-  /** #NodeGroupColorTag. */
+  /** #blender::bke::NodeGroupColorTag. */
   int color_tag;
   char _pad[4];
 
@@ -701,7 +711,7 @@ typedef struct bNodeTree {
    * Node preview hash table.
    * Only available in base node trees (e.g. scene->node_tree).
    */
-  struct bNodeInstanceHash *previews;
+  NodeInstanceHashHandle *previews;
   /**
    * Defines the node tree instance to use for the "active" context,
    * in case multiple different editors are used and make context ambiguous.
@@ -841,18 +851,6 @@ enum {
    */
   // NTREE_IS_LOCALIZED = 1 << 5,
 };
-
-/* tree->execution_mode */
-typedef enum eNodeTreeExecutionMode {
-  NTREE_EXECUTION_MODE_CPU = 0,
-  NTREE_EXECUTION_MODE_GPU = 2,
-} eNodeTreeExecutionMode;
-
-/* tree->precision */
-typedef enum eNodeTreePrecision {
-  NODE_TREE_COMPOSITOR_PRECISION_AUTO = 0,
-  NODE_TREE_COMPOSITOR_PRECISION_FULL = 1,
-} eNodeTreePrecision;
 
 typedef enum eNodeTreeRuntimeFlag {
   /** There is a node that references an image with animation. */
@@ -1342,7 +1340,7 @@ typedef struct NodeTexMagic {
 } NodeTexMagic;
 
 typedef struct NodeShaderAttribute {
-  char name[64];
+  char name[256];
   int type;
   char _pad[4];
 } NodeShaderAttribute;
@@ -2869,3 +2867,8 @@ typedef enum NodeCombSepColorMode {
   NODE_COMBSEP_COLOR_HSV = 1,
   NODE_COMBSEP_COLOR_HSL = 2,
 } NodeCombSepColorMode;
+
+typedef enum NodeGeometryTransformMode {
+  GEO_NODE_TRANSFORM_MODE_COMPONENTS = 0,
+  GEO_NODE_TRANSFORM_MODE_MATRIX = 1,
+} NodeGeometryTransformMode;

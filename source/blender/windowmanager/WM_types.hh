@@ -98,7 +98,7 @@ struct ImBuf;
 struct bContext;
 struct bContextStore;
 struct GreasePencil;
-struct GreasePencilLayer;
+struct GreasePencilLayerTreeNode;
 struct ReportList;
 struct wmDrag;
 struct wmDropBox;
@@ -1165,6 +1165,7 @@ enum eWM_DragDataType {
   WM_DRAG_DATASTACK,
   WM_DRAG_ASSET_CATALOG,
   WM_DRAG_GREASE_PENCIL_LAYER,
+  WM_DRAG_GREASE_PENCIL_GROUP,
   WM_DRAG_NODE_TREE_INTERFACE,
   WM_DRAG_BONE_COLLECTION,
 };
@@ -1222,7 +1223,7 @@ struct wmDragPath {
 
 struct wmDragGreasePencilLayer {
   GreasePencil *grease_pencil;
-  GreasePencilLayer *layer;
+  GreasePencilLayerTreeNode *node;
 };
 
 using WMDropboxTooltipFunc = std::string (*)(bContext *C,
