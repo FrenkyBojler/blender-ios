@@ -106,7 +106,6 @@ bool paint_supports_texture(PaintMode mode);
  */
 wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf);
 int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p);
-int paint_stroke_modal_xr(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p);
 int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke);
 void paint_stroke_cancel(bContext *C, wmOperator *op, PaintStroke *stroke);
 bool paint_stroke_flipped(PaintStroke *stroke);

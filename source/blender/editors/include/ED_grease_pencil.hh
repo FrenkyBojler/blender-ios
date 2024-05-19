@@ -112,7 +112,6 @@ class DrawingPlacement {
 
   void cache_viewport_depths(Depsgraph *depsgraph, ARegion *region, View3D *view3d);
   void set_origin_to_nearest_stroke(float2 co);
-  void set_origin_to_nearest_stroke_xr(float3 co);
 
   /**
    * Projects a screen space coordinate to the local drawing space.

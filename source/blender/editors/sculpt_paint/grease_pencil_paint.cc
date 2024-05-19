@@ -325,8 +325,8 @@ struct PaintOperationExecutor {
                                                 CTX_data_depsgraph_pointer(&C));
     const float start_radius = ed::greasepencil::radius_from_input_sample(
         start_sample.pressure,
-        start_sample.is_xr ? self.placement_.project(start_sample.mouse_position) :
-                             start_sample.controller_position,
+        start_sample.is_xr ? start_sample.controller_position :
+                             self.placement_.project(start_sample.mouse_position),
         vc,
         brush_,
         scene_,
@@ -487,7 +487,7 @@ struct PaintOperationExecutor {
       self.screen_space_curve_fitted_coords_.remove(0, num_converged);
     }
   }
-// Convert
+
   void process_extension_sample(PaintOperation &self,
                                 const bContext &C,
                                 const InputSample &extension_sample)
@@ -498,8 +498,8 @@ struct PaintOperationExecutor {
                                                 CTX_data_depsgraph_pointer(&C));
     const float radius = ed::greasepencil::radius_from_input_sample(
         extension_sample.pressure,
-        extension_sample.is_xr ? self.placement_.project(extension_sample.mouse_position) :
-                                 extension_sample.controller_position,
+        extension_sample.is_xr ? extension_sample.controller_position :
+                                 self.placement_.project(extension_sample.mouse_position),
         vc,
         brush_,
         scene_,
