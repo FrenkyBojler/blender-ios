@@ -51,6 +51,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curve.hh"
+#include "BKE_customdata.hh"
 #include "BKE_effect.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
@@ -2028,6 +2029,29 @@ static void versioning_nodes_dynamic_sockets_2(bNodeTree &ntree)
   }
 }
 
+static void convert_grease_pencil_stroke_hardness_to_softness(GreasePencil *grease_pencil)
+{
+  using namespace blender;
+  for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+    if (base->type != GP_DRAWING) {
+      continue;
+    }
+    bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+    const int layer_index = CustomData_get_named_layer_index(
+        &drawing.geometry.curve_data, CD_PROP_FLOAT, "hardness");
+    if (layer_index == -1) {
+      continue;
+    }
+    float *data = static_cast<float *>(CustomData_get_layer_named_for_write(
+        &drawing.geometry.curve_data, CD_PROP_FLOAT, "hardness", drawing.geometry.curve_num));
+    for (const int i : IndexRange(drawing.geometry.curve_num)) {
+      data[i] = 1.0f - data[i];
+    }
+    /* Rename the layer. */
+    STRNCPY(drawing.geometry.curve_data.layers[layer_index].name, "softness");
+  }
+}
+
 static void versioning_grease_pencil_stroke_radii_scaling(GreasePencil *grease_pencil)
 {
   using namespace blender;
@@ -3573,6 +3597,46 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       world->sun_angle = default_world->sun_angle;
       world->sun_shadow_maximum_resolution = default_world->sun_shadow_maximum_resolution;
       world->flag |= WO_USE_SUN_SHADOW;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 38)) {
+    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+      convert_grease_pencil_stroke_hardness_to_softness(grease_pencil);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 39)) {
+    /* Unify cast shadow property with Cycles. */
+    Scene *scene = static_cast<Scene *>(bmain->scenes.first);
+    /* Be conservative, if there is no scene, still try to do the conversion as that can happen for
+     * append and linking. We prefer breaking EEVEE rather than breaking Cycles here. */
+    bool is_eevee = scene && STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
+    if (!is_eevee) {
+      const Light *default_light = DNA_struct_default_get(Light);
+      LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+        IDProperty *clight = version_cycles_properties_from_ID(&light->id);
+        if (clight) {
+          bool value = version_cycles_property_boolean(
+              clight, "use_shadow", default_light->mode & LA_SHADOW);
+          SET_FLAG_FROM_TEST(light->mode, value, LA_SHADOW);
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 40)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      version_node_input_socket_name(ntree, FN_NODE_COMBINE_TRANSFORM, "Location", "Translation");
+      version_node_output_socket_name(
+          ntree, FN_NODE_SEPARATE_TRANSFORM, "Location", "Translation");
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 41)) {
+    const Light *default_light = DNA_struct_default_get(Light);
+    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+      light->shadow_jitter_overblur = default_light->shadow_jitter_overblur;
     }
   }
 
