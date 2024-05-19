@@ -101,6 +101,8 @@ static void stroke_update_step(bContext *C,
   InputSample extension_sample;
   RNA_float_get_array(stroke_element, "mouse", extension_sample.mouse_position);
   extension_sample.pressure = RNA_float_get(stroke_element, "pressure");
+  extension_sample.is_xr = false;
+  extension_sample.controller_position = {0.0, 0.0, 0.0};
 
   if (operation) {
     operation->on_stroke_extended(*C, extension_sample);
