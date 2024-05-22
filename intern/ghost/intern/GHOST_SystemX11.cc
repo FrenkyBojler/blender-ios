@@ -67,6 +67,11 @@
 #include <cstdlib> /* for exit */
 #include <iostream>
 #include <vector>
+#include <climits>
+
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
 
 /* For debugging, so we can break-point X11 errors. */
 // #define USE_X11_ERROR_HANDLERS
@@ -96,6 +101,11 @@ static GHOST_TKey ghost_key_from_keysym_or_keycode(const KeySym key_sym,
 /* these are for copy and select copy */
 static char *txt_cut_buffer = nullptr;
 static char *txt_select_buffer = nullptr;
+
+static uint8_t *img_cut_buffer = nullptr;
+static size_t img_cut_buffer_size = 0;
+static uint8_t *img_select_buffer = nullptr;
+static size_t img_select_buffer_size = 0;
 
 #ifdef WITH_XWAYLAND_HACK
 static bool use_xwayland_hack = false;
@@ -1464,8 +1474,16 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
     case ReparentNotify:
       break;
     case SelectionRequest: {
-      XEvent nxe;
-      XSelectionRequestEvent *xse = &xe->xselectionrequest;
+        XEvent nxe;
+        Atom target, utf8_string, string, compound_text, c_string, image_png;
+        XSelectionRequestEvent *xse = &xe->xselectionrequest;
+
+        target = XInternAtom(m_display, "TARGETS", False);
+        utf8_string = XInternAtom(m_display, "UTF8_STRING", False);
+        string = XInternAtom(m_display, "STRING", False);
+        compound_text = XInternAtom(m_display, "COMPOUND_TEXT", False);
+        c_string = XInternAtom(m_display, "C_STRING", False);
+        image_png = XInternAtom(m_display, "image/png", False);
 
       /* support obsolete clients */
       if (xse->property == None) {
@@ -1497,15 +1515,79 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
                           (uchar *)txt_select_buffer,
                           strlen(txt_select_buffer));
         }
-        else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
-          XChangeProperty(m_display,
-                          xse->requestor,
-                          xse->property,
-                          xse->target,
-                          8,
-                          PropModeReplace,
-                          (uchar *)txt_cut_buffer,
-                          strlen(txt_cut_buffer));
+
+        nxe.xselection.type = SelectionNotify;
+        nxe.xselection.requestor = xse->requestor;
+        nxe.xselection.property = xse->property;
+        nxe.xselection.display = xse->display;
+        nxe.xselection.selection = xse->selection;
+        nxe.xselection.target = xse->target;
+        nxe.xselection.time = xse->time;
+        
+        /* Check to see if the requester is asking for String */
+        if (ELEM(xse->target, utf8_string, string, compound_text, c_string)) {
+            if (xse->selection == XInternAtom(m_display, "PRIMARY", False)) {
+                XChangeProperty(m_display,
+                                xse->requestor,
+                                xse->property,
+                                xse->target,
+                                8,
+                                PropModeReplace,
+                                (uchar *)txt_select_buffer,
+                                strlen(txt_select_buffer));
+            }
+            else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
+                XChangeProperty(m_display,
+                                xse->requestor,
+                                xse->property,
+                                xse->target,
+                                8,
+                                PropModeReplace,
+                                (uchar *)txt_cut_buffer,
+                                strlen(txt_cut_buffer));
+            }
+        } else if (xse->target == image_png) {
+            if (xse->selection == XInternAtom(m_display, "PRIMARY", False)) {
+                XChangeProperty(m_display,
+                                xse->requestor,
+                                xse->property,
+                                xse->target,
+                                8,
+                                PropModeReplace,
+                                (unsigned char *)img_select_buffer,
+                                img_select_buffer_size);
+            } else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
+                XChangeProperty(m_display,
+                                xse->requestor,
+                                xse->property,
+                                xse->target,
+                                8,
+                                PropModeReplace,
+                                (unsigned char *)img_cut_buffer,
+                                img_cut_buffer_size);
+            }
+        } 
+        else if (xse->target == target) {
+            Atom alist[6];
+            alist[0] = target;
+            alist[1] = utf8_string;
+            alist[2] = string;
+            alist[3] = compound_text;
+            alist[4] = c_string;
+            alist[5] = image_png;
+            XChangeProperty(m_display,
+                            xse->requestor,
+                            xse->property,
+                            xse->target,
+                            32,
+                            PropModeReplace,
+                            (uchar *)alist,
+                            6);
+            XFlush(m_display);
+        } 
+        else {
+          /* Change property to None because we do not support anything but STRING */
+            nxe.xselection.property = None;
         }
       }
       else if (xse->target == m_atom.TARGETS) {
@@ -1530,10 +1612,10 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
       }
 
       /* Send the event to the client 0 0 == False, #SelectionNotify */
-      XSendEvent(m_display, xse->requestor, 0, 0, &nxe);
-      XFlush(m_display);
-      break;
-    }
+        XSendEvent(m_display, xse->requestor, 0, 0, &nxe);
+        XFlush(m_display);
+        break;
+    }    
 
     default: {
 #ifdef WITH_X11_XINPUT
@@ -1814,8 +1896,6 @@ GHOST_TCapabilityFlag GHOST_SystemX11::getCapabilities() const
 {
   return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
                                ~(
-                                   /* No support yet for image copy/paste. */
-                                   GHOST_kCapabilityClipboardImages |
                                    /* No support yet for IME input methods. */
                                    GHOST_kCapabilityInputIME |
                                    /* No support for window decoration styles. */
@@ -2382,6 +2462,65 @@ void GHOST_SystemX11::putClipboard(const char *buffer, bool selection) const
   }
 }
 
+
+GHOST_TSuccess GHOST_SystemX11::hasClipboardImage(void) const
+{
+  return GHOST_kSuccess;
+}
+
+uint *GHOST_SystemX11::getClipboardImage(int *r_width, int *r_height) const
+{
+  return nullptr;
+}
+
+GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int height) const {
+    Window m_window, owner;
+    Atom selectionAtom = m_atom.PRIMARY;
+    uint8_t **targetBuffer = &img_select_buffer;
+    size_t *targetBufferSize = &img_select_buffer_size;
+
+    // Get the first window
+    const vector<GHOST_IWindow *> &win_vec = m_windowManager->getWindows();
+    vector<GHOST_IWindow *>::const_iterator win_it = win_vec.begin();
+    GHOST_WindowX11 *window = static_cast<GHOST_WindowX11 *>(*win_it);
+    m_window = window->getXWindow();
+
+    // Convert the RGBA buffer to PNG using ImBuf
+    ImBuf *ibuf = IMB_allocFromBuffer(reinterpret_cast<uint8_t *>(rgba), nullptr, width, height, 32);
+    if (!ibuf) {
+        return GHOST_kFailure;
+    }
+
+    ibuf->ftype = IMB_FTYPE_PNG;
+    ibuf->foptions.quality = 15;
+    if (!IMB_saveiff(ibuf, "<memory>", IB_rect | IB_mem)) {
+        IMB_freeImBuf(ibuf);
+        return GHOST_kFailure;
+    }
+
+    // Get the encoded PNG data
+    uint8_t *png_data = ibuf->encoded_buffer.data;
+    size_t png_size = ibuf->encoded_buffer_size;
+
+    // Set the selection owner and store the image data
+    XSetSelectionOwner(m_display, selectionAtom, m_window, CurrentTime);
+    owner = XGetSelectionOwner(m_display, selectionAtom);
+
+    if (*targetBuffer) {
+        free((void *)*targetBuffer);
+    }
+    *targetBuffer = (uint8_t *)malloc(png_size);
+    memcpy(*targetBuffer, png_data, png_size);
+    *targetBufferSize = png_size;
+
+    if (owner != m_window) {
+        fprintf(stderr, "failed to own primary\n");
+    }
+
+    // Cleanup
+    IMB_freeImBuf(ibuf);
+    return GHOST_kSuccess;
+}
 /* -------------------------------------------------------------------- */
 /** \name Message Box
  * \{ */

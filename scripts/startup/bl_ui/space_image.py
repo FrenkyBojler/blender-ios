@@ -221,6 +221,8 @@ class IMAGE_MT_image(Menu):
             from _bpy import _ghost_backend
             if _ghost_backend() == 'WAYLAND':
                 has_image_clipboard = True
+            if _ghost_backend() == 'X11':
+                has_image_clipboard = True
             del _ghost_backend
 
         if has_image_clipboard:
