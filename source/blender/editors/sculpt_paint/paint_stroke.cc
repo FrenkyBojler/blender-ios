@@ -1710,7 +1710,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
   // NO PASS - Invoke Modal
   if (first_dab && paint_space_stroke_enabled(*br, mode) && !(br->flag & BRUSH_SMOOTH_STROKE)) {
     stroke->ups->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
-    paint_brush_stroke_add_step(C, op, stroke, sample_average.mouse, sample_average.pressure);
+    paint_brush_stroke_add_step(C, op, stroke, sample_average.mouse, sample_average.controller, sample_average.pressure);
     redraw = true;
   }
 
