@@ -1251,10 +1251,12 @@ static void paint_stroke_sample_average(const PaintStroke *stroke, PaintSample *
 
   for (int i = 0; i < stroke->num_samples; i++) {
     add_v2_v2(average->mouse, stroke->samples[i].mouse);
+    add_v3_v3(average->controller, stroke->samples[i].controller);
     average->pressure += stroke->samples[i].pressure;
   }
 
   mul_v2_fl(average->mouse, 1.0f / stroke->num_samples);
+  mul_v3_fl(average->controller, 1.0f / stroke->num_samples);
   average->pressure /= stroke->num_samples;
 
   // printf("avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);

@@ -64,7 +64,7 @@ void ED_primitivetool_modal_keymap(wmKeyConfig *keyconf);
 void ED_filltool_modal_keymap(wmKeyConfig *keyconf);
 
 void GREASE_PENCIL_OT_stroke_cutter(wmOperatorType *ot);
-void GREASE_PENCIL_XR_OT_brush_stroke(wmOperatorType *ot);
+void GREASE_PENCIL_XR_OT_brush_stroke_xr(wmOperatorType *ot);
 
 void ED_undosys_type_grease_pencil(UndoType *undo_type);
 

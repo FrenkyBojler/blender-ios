@@ -61,8 +61,10 @@ static void stroke_start_xr(bContext &C,
   InputSample start_sample;
   start_sample.controller_position = float3(controller);
   // Debug winrct
-  mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
-  mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
+//   mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
+//   mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
+  mouse_xr[0] = 2.0f * ((double)controller[0] / 2110) - 1.0f;
+  mouse_xr[1] = (2.0f * ((double)(1200 - controller[1]) / 1200)) - 1.0f;
   // start_sample.mouse_position = float2(controller); 
   start_sample.mouse_position = mouse_xr;
   start_sample.pressure = 0.0f; // Bring trigger pressure here?
@@ -218,12 +220,12 @@ static void grease_pencil_xr_brush_stroke_cancel(bContext *C, wmOperator *op)
 
 }  // namespace blender::ed::sculpt_paint
 
-void GREASE_PENCIL_XR_OT_brush_stroke(wmOperatorType *ot)
+void GREASE_PENCIL_XR_OT_brush_stroke_xr(wmOperatorType *ot)
 {
   using namespace blender::ed::sculpt_paint::greasepencil;
   ot->name = "Grease Pencil XR Draw";
-  ot->idname = "GREASE_PENCIL_XR_OT_brush_stroke";
-  ot->description = "Draw a new stroke in the active Grease Pencil object";
+  ot->idname = "GREASE_PENCIL_XR_OT_brush_stroke_xr";
+  ot->description = "Draw a new XR stroke in the active Grease Pencil object";
 
   ot->poll = grease_pencil_xr_brush_stroke_poll;
   ot->invoke = grease_pencil_xr_brush_stroke_invoke;
