@@ -103,7 +103,7 @@ class DrawingPlacement {
                    const ARegion &region,
                    const View3D &view3d,
                    const Object &eval_object,
-                   const bke::greasepencil::Layer &layer);
+                   const bke::greasepencil::Layer *layer);
   ~DrawingPlacement();
 
  public:
@@ -118,6 +118,8 @@ class DrawingPlacement {
    */
   float3 project(float2 co) const;
   void project(Span<float2> src, MutableSpan<float3> dst) const;
+
+  float4x4 to_world_space() const;
 };
 
 void set_selected_frames_type(bke::greasepencil::Layer &layer,
@@ -147,7 +149,7 @@ void select_layer_channel(GreasePencil &grease_pencil, bke::greasepencil::Layer 
 struct KeyframeClipboard {
   /* Datatype for use in copy/paste buffer. */
   struct DrawingBufferItem {
-    blender::bke::greasepencil::FramesMapKey frame_number;
+    blender::bke::greasepencil::FramesMapKeyT frame_number;
     bke::greasepencil::Drawing drawing;
     int duration;
     eBezTriple_KeyframeType keytype;
@@ -155,8 +157,8 @@ struct KeyframeClipboard {
 
   struct LayerBufferItem {
     Vector<DrawingBufferItem> drawing_buffers;
-    blender::bke::greasepencil::FramesMapKey first_frame;
-    blender::bke::greasepencil::FramesMapKey last_frame;
+    blender::bke::greasepencil::FramesMapKeyT first_frame;
+    blender::bke::greasepencil::FramesMapKeyT last_frame;
   };
 
   Map<std::string, LayerBufferItem> copy_buffer{};
@@ -233,11 +235,13 @@ float opacity_from_input_sample(const float pressure,
                                 const Brush *brush,
                                 const Scene *scene,
                                 const BrushGpencilSettings *settings);
-float radius_from_input_sample(const float pressure,
-                               const float3 location,
-                               ViewContext vc,
-                               const Brush *brush,
+float radius_from_input_sample(const RegionView3D *rv3d,
+                               const ARegion *region,
                                const Scene *scene,
+                               const Brush *brush,
+                               float pressure,
+                               float3 location,
+                               float4x4 to_world,
                                const BrushGpencilSettings *settings);
 int grease_pencil_draw_operator_invoke(bContext *C, wmOperator *op);
 
@@ -471,11 +475,11 @@ RegionViewData region_init(ARegion &region, const int2 &win_size);
 void region_reset(ARegion &region, const RegionViewData &data);
 
 /**
- * Create and offscreen buffer for rendering.
+ * Create and off-screen buffer for rendering.
  */
 GPUOffScreen *image_render_begin(const int2 &win_size);
 /**
- * Finish rendering and convert the offscreen buffer into an image.
+ * Finish rendering and convert the off-screen buffer into an image.
  */
 Image *image_render_end(Main &bmain, GPUOffScreen *buffer);
 
@@ -545,8 +549,7 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
                                 const VArray<ColorGeometry4f> &colors,
                                 const float4x4 &layer_to_world,
                                 int mode,
-                                bool use_xray,
-                                bool fill_strokes);
+                                bool use_xray);
 
 }  // namespace image_render
 

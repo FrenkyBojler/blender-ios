@@ -473,10 +473,10 @@ static int node_add_group_asset_invoke(bContext *C, wmOperator *op, const wmEven
 
 static std::string node_add_group_asset_get_description(bContext *C,
                                                         wmOperatorType * /*ot*/,
-                                                        PointerRNA *values)
+                                                        PointerRNA *ptr)
 {
   const asset_system::AssetRepresentation *asset =
-      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *values, nullptr);
+      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *ptr, nullptr);
   if (!asset) {
     return "";
   }
@@ -1070,6 +1070,10 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
     /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
      * user. */
     id_us_min(&ntree->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, ntree->id, *ptr.owner_id);
+    }
 
     PointerRNA idptr = RNA_id_pointer_create(&ntree->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
