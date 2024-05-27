@@ -965,6 +965,9 @@ static bool childof_clear_inverse_poll(bContext *C)
 
   PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
+
+  // Allow workflows with unset context's constraint
+  // (constraint also can be provided as an operator's property).
   if (con == nullptr) {
     return true;
   }

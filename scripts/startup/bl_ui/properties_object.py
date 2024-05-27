@@ -128,7 +128,7 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         inverse_matrix = ob.matrix_parent_inverse
         inverse_props = ob.parent_inverse_transform
 
-        # we use 3x3 matrix because we don't care about translation-shear
+        # Use the 3x3 matrix, as shear in the 4x4 homogeneous matrix is expected due to the translation component.
         if not inverse_matrix.to_3x3().is_orthogonal_axis_vectors:
             self.layout.label(text="Parent Inverse Matrix has a shear", icon="ERROR")
 
@@ -137,8 +137,8 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         layout.prop(inverse_props, "rotation_euler", text="Rotation")
         layout.prop(inverse_props, "scale")
 
-        op = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform")
-        op.type = "CLEAR_INVERSE"
+        props = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform")
+        props.type = "CLEAR_INVERSE"
 
 
 class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
@@ -635,20 +635,24 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
 
 
 class ReadOnlyMatrixDecomposition(PropertyGroup):
-    """An utility property group for bpy.types.Object
-    for accessing read-only parent inverse matrix decomposition properties,
-    such as location, rotation and scale."""
-    def _get_matrix(self) -> Matrix:
+    """Read-only utility property group for decomposing parent inverse matrices.
+
+    Provides read-only access to the for a bpy.types.Object parent inverse
+    matrix decomposition properties, such as location, rotation, and scale.
+    """
+
+    @property
+    def matrix(self) -> Matrix:
         return self.id_data.matrix_parent_inverse
 
     def _get_location(self):
-        return self._get_matrix().to_translation()
+        return self.matrix.to_translation()
 
     def _get_rotation_euler(self):
-        return self._get_matrix().to_euler(self.rotation_mode)
+        return self.matrix.to_euler(self.rotation_mode)
 
     def _get_scale(self):
-        return self._get_matrix().to_scale()
+        return self.matrix.to_scale()
 
     # We limit implementation to only Euler rotation as it's generally easier
     # for users to make sense of the rotation by understanding it's Euler angles.

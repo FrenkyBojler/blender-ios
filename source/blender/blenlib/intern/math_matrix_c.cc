@@ -1676,7 +1676,7 @@ bool is_identity_m4(const float m[4][4])
 {
   for (int row = 0; row < 4; row++) {
     for (int col = 0; col < 4; col++) {
-      if (m[row][col] != ((row == col) ? 1.0f : 0.0f)) {
+      if (m[row][col] != (row == col ? 1.0f : 0.0f)) {
         return false;
       }
     }
