@@ -19,5 +19,5 @@
 - Obj 'cube4m_clamp_05' MESH data:'cube4m_clamp_05'
   - pos 0.000, 0.000, 0.000
   - rot 1.571, 0.000, 0.000 (XYZ)
-  - scl 1.000, 1.000, 1.000
+  - scl 0.100, 0.100, 0.100
 
