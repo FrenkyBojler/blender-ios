@@ -362,16 +362,21 @@ struct MeshAssembly {
   /* Vertex positions, linearized (use vertpos_stride to multiply index). */
   Span<float> vertpos;
   int vertpos_stride = 3;
-  /* Offset face ids (i.e., offset by cumulative face count in input meshes) direct to output. */
+  /* Offset face ids. i.e., offset by cumulative face count in input meshes) direct to output. */
   Vector<int> input_faces_to_output;
   /* New faces to output, as list of vertex indices making up the face. */
   Vector<NewFace> new_face_verts;
 };
 
+/* Most input faces should mape to face_group_inline or fewer output triangles. */
 constexpr int face_group_inline = 4;
 
+/* Return an array of length \a input_faces_num, where the ith entry
+ * is a Vector of the \a mgl triangles that derive from the ith input
+ * face (where i is an index in the concatenated input mesh face space.
+ */
 static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
-                                     int input_faces_num)
+                                                             int input_faces_num)
 {
   constexpr int dbg_level = 0;
   Array<Vector<int, face_group_inline>> fg(input_faces_num);
@@ -391,21 +396,117 @@ static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
   return fg;
 }
 
+/* Return the mesh index and face index within that mesh corresponding to offset-face,
+ * a face index in the concatenated index space of all mesh faces. */
+static std::pair<int, int> offset_face_to_mesh_face(int offset_face, Span<int> mesh_face_offsets)
+{
+  for (int i = 1; i < mesh_face_offsets.size(); i++) {
+    if (offset_face < mesh_face_offsets[i]) {
+      return {i - 1, offset_face - mesh_face_offsets[i - 1]};
+    }
+  }
+  return {mesh_face_offsets.size() - 1, offset_face - mesh_face_offsets.last()};
+}
+
+/* Return 1 if \a group is just the same oas the original face \a face_index
+ * in \a mesh.
+ * Return 2 if it is the same but with the noraal reversed.
+ * Return 0 otherwise. */
+static uchar check_original_face(const Vector<int, face_group_inline> &group,
+                                 const MeshGL &mgl,
+                                 const Mesh *mesh,
+                                 int face_index)
+{
+  BLI_assert(0 <= face_index && face_index < mesh->faces_num);
+  const IndexRange orig_face = mesh->faces()[face_index];
+  /* The face can't be original if the number of triangles isn't equal
+   * to the original face size minus 2. */
+  int orig_face_size = orig_face.size();
+  if (orig_face_size != group.size() + 2) {
+    return 0;
+  }
+  Span<int> orig_face_verts = mesh->corner_verts().slice(mesh->faces()[face_index]);
+  /* edge_value[i] will be 1 if that edge is identical to an output edge,
+   * and -1 if it is the reverse of an output edge. */
+  Array<uchar, 20> edge_value(orig_face_size, 0);
+  int stride = mgl.numProp;
+  for (const int t : group) {
+    /* face_vert_index[i] will hold the position in input face face_index
+     * where the ith vertex of triangle t is (assuming that no position
+     * is exactly repeated in an output face). -1 if there is no such. */
+    Array<int, 3> face_vert_index(3);
+    for (const int i : IndexRange(3)) {
+      int v = mgl.triVerts[3 * t + i];
+      int prop_offset = v * stride;
+      float3 pos(mgl.vertProperties[prop_offset],
+                 mgl.vertProperties[prop_offset + 1],
+                 mgl.vertProperties[prop_offset + 2]);
+      auto it = std::find_if(orig_face_verts.begin(), orig_face_verts.end(), [&](int orig_v) {
+        return pos == mesh->vert_positions()[orig_v];
+      });
+      face_vert_index[i] = it == orig_face_verts.end() ?
+                               -1 :
+                               std::distance(orig_face_verts.begin(), it);
+    }
+    /* Now we can tell which original edges are covered by t. */
+    for (const int i : IndexRange(3)) {
+      const int a = face_vert_index[i];
+      const int b = face_vert_index[(i + 1) % 3];
+      if (a != -1 && b != -1) {
+        if ((a + 1) % orig_face_size == b) {
+          edge_value[a] = 1;
+        }
+        else if ((b + 1) % orig_face_size == a) {
+          edge_value[b] = -1;
+        }
+      }
+    }
+  }
+  if (std::all_of(edge_value.begin(), edge_value.end(), [](int x) { return x == 1; })) {
+    return 1;
+  }
+  else if (std::all_of(edge_value.begin(), edge_value.end(), [](int x) { return x == -1; })) {
+    return 2;
+  }
+  return 0;
+}
+
 MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
                                        Span<const Mesh *> meshes,
                                        Span<int> mesh_face_offsets)
 {
-  constexpr int dbg_level = 1;
+  constexpr int dbg_level = 2;
   if (dbg_level > 0) {
     std::cout << "assemble_mesh_from_meshgl\n";
   }
   MeshAssembly ma;
   ma.vertpos = Span<float>(&*mgl.vertProperties.begin(), mgl.vertProperties.size());
   ma.vertpos_stride = mgl.numProp;
-  const int meshes_num = meshes.size();
   const int input_faces_num = mesh_face_offsets.last() + meshes.last()->faces_num;
   /* For each offset input mesh face, what mgl triangles have it as id? */
   Array<Vector<int, face_group_inline>> face_groups = get_face_groups(mgl, input_faces_num);
+  if (dbg_level > 1) {
+    std::cout << "groups:\n";
+    for (const int i : face_groups.index_range()) {
+      std::cout << "orig (offset) face " << i << ": ";
+      dump_span(face_groups[i].as_span(), "");
+    }
+  }
+  /* Which groups are just original faces? Some might be original but with reversed normals.
+   * Use 0 for groups that aren't original, 1 for faces that are with same normals, 2 for those
+   * that have reversed normals. */
+  Array<uchar> group_is_original_face(input_faces_num);
+  for (const int f : IndexRange(input_faces_num)) {
+    auto [mesh_index, face_in_mesh] = offset_face_to_mesh_face(f, mesh_face_offsets);
+    group_is_original_face[f] = check_original_face(
+        face_groups[f], mgl, meshes[mesh_index], face_in_mesh);
+    if (dbg_level > 1) {
+      std::cout << "f = " << f << "; mesh_index = " << mesh_index
+                << "; face_in_mesh = " << face_in_mesh << "\n";
+      std::cout << "group_is_original_face[" << f << "] = " << int(group_is_original_face[f])
+                << "\n";
+    }
+  }
   return ma;
 }
 
@@ -553,8 +654,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
         dump_meshgl(meshgl_result, "boolean result meshgl");
       }
     }
-    Mesh *mesh_result = meshgl_to_mesh(
-        meshgl_result, meshes, material_remaps, mesh_face_offsets);
+    Mesh *mesh_result = meshgl_to_mesh(meshgl_result, meshes, material_remaps, mesh_face_offsets);
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
     UNUSED_VARS(target_transform);
     return mesh_result;
