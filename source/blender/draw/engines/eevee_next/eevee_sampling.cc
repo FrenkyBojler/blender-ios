@@ -63,6 +63,7 @@ void Sampling::init(const Scene *scene)
 
   auto clamp_value_load = [](float value) { return (value > 0.0) ? value : 1e20; };
 
+  clamp_data_.sun_threshold = clamp_value_load(inst_.world.sun_threshold());
   clamp_data_.surface_direct = clamp_value_load(scene->eevee.clamp_surface_direct);
   clamp_data_.surface_indirect = clamp_value_load(scene->eevee.clamp_surface_indirect);
   clamp_data_.volume_direct = clamp_value_load(scene->eevee.clamp_volume_direct);
@@ -164,6 +165,16 @@ void Sampling::step()
     data_.dimensions[SAMPLING_RAYTRACE_U] = r[0];
     data_.dimensions[SAMPLING_RAYTRACE_V] = r[1];
     data_.dimensions[SAMPLING_RAYTRACE_W] = r[2];
+  }
+  {
+    double3 r, offset = {0, 0, 0};
+    uint3 primes = {2, 3, 5};
+    BLI_halton_3d(primes, offset, sample_ + 1, r);
+    /* WORKAROUND: We offset the distribution to make the first sample (0,0,0). */
+    /* TODO de-correlate. */
+    data_.dimensions[SAMPLING_SHADOW_I] = fractf(r[0] + (1.0 / 2.0));
+    data_.dimensions[SAMPLING_SHADOW_J] = fractf(r[1] + (2.0 / 3.0));
+    data_.dimensions[SAMPLING_SHADOW_K] = fractf(r[2] + (4.0 / 5.0));
   }
   {
     uint64_t sample_volume = sample_;
@@ -316,14 +327,12 @@ void Sampling::cdf_from_curvemapping(const CurveMapping &curve, Vector<float> &c
  * Output vector is expected to already be sized according to the wanted resolution. */
 void Sampling::cdf_invert(Vector<float> &cdf, Vector<float> &inverted_cdf)
 {
+  BLI_assert(cdf.first() == 0.0f && cdf.last() == 1.0f);
   for (int u : inverted_cdf.index_range()) {
-    float x = float(u) / float(inverted_cdf.size() - 1);
-    for (int i : cdf.index_range()) {
-      if (i == cdf.size() - 1) {
-        inverted_cdf[u] = 1.0f;
-      }
-      else if (cdf[i] >= x) {
-        float t = (x - cdf[i]) / (cdf[i + 1] - cdf[i]);
+    float x = clamp_f(u / float(inverted_cdf.size() - 1), 1e-5f, 1.0f - 1e-5f);
+    for (int i : cdf.index_range().drop_front(1)) {
+      if (cdf[i] >= x) {
+        float t = (x - cdf[i]) / (cdf[i] - cdf[i - 1]);
         inverted_cdf[u] = (float(i) + t) / float(cdf.size() - 1);
         break;
       }

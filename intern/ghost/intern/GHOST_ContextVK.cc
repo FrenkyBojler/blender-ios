@@ -265,6 +265,13 @@ class GHOST_DeviceVK {
     shader_draw_parameters.pNext = device_create_info_p_next;
     device_create_info_p_next = &shader_draw_parameters;
 
+    /* Enable dynamic rendering. */
+    VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
+    dynamic_rendering.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+    dynamic_rendering.dynamicRendering = true;
+    dynamic_rendering.pNext = device_create_info_p_next;
+    device_create_info_p_next = &dynamic_rendering;
+
     /* Query for Mainenance4 (core in Vulkan 1.3). */
     VkPhysicalDeviceMaintenance4FeaturesKHR maintenance_4 = {};
     maintenance_4.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
@@ -1008,6 +1015,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   }
   extensions_device.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
   extensions_device.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+  extensions_device.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
 
   /* Enable MoltenVK required instance extensions. */
 #ifdef __APPLE__
@@ -1104,6 +1112,11 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     return GHOST_kFailure;
   }
 
+  vulkan_device->users++;
+  /* Register optional device extensions */
+  if (vulkan_device->has_extensions({VK_KHR_MAINTENANCE_4_EXTENSION_NAME})) {
+    extensions_device.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+  }
 #ifdef VK_MVK_MOLTENVK_EXTENSION_NAME
   /* According to the Vulkan specs, when `VK_KHR_portability_subset` is available it should be
    * enabled. See
@@ -1112,7 +1125,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     extensions_device.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
   }
 #endif
-  vulkan_device->users++;
   vulkan_device->ensure_device(layers_enabled, extensions_device);
 
   vkGetDeviceQueue(

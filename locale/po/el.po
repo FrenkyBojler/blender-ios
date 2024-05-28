@@ -1,16 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'7b7e9f224c89')\n"
+"Project-Id-Version: Blender 4.2.0 Alpha (b'a367cf664e0d')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-22 07:36+0000\n"
-"PO-Revision-Date: 2008-03-23 12:20+0200\n"
-"Last-Translator: Kostas Karvouniaris <neogen556@yahoo.gr>\n"
-"Language-Team: \n"
+"POT-Creation-Date: 2024-05-27 12:52+0000\n"
+"PO-Revision-Date: 2024-04-29 13:44+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
 "Language: el\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
-"Content-Transfer-Encoding: 8bit"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.0.1"
 
 
 msgid "Name"
@@ -33,8 +35,12 @@ msgid "Select"
 msgstr "Επιλογή"
 
 
-msgid "Message"
-msgstr "Μήνυμα"
+msgid "Add"
+msgstr "Προσθήκη"
+
+
+msgid "Subtract"
+msgstr "Αφαίρεση"
 
 
 msgid "On"
@@ -45,12 +51,8 @@ msgid "Action"
 msgstr "Δράση"
 
 
-msgid "Add"
-msgstr "Προσθήκη"
-
-
-msgid "Subtract"
-msgstr "Αφαίρεση"
+msgid "New"
+msgstr "Νέο"
 
 
 msgid "Hold"
@@ -545,6 +547,10 @@ msgid "Sharp"
 msgstr "Απότομο"
 
 
+msgid "Themes"
+msgstr "Θέματα"
+
+
 msgid "Mist"
 msgstr "Ομίχλη"
 
@@ -639,10 +645,6 @@ msgstr "Δίνη"
 
 msgid "Wave"
 msgstr "Κύμα"
-
-
-msgid "New"
-msgstr "Νέο"
 
 
 msgid "Lines"
@@ -893,10 +895,6 @@ msgid "Sync"
 msgstr "Συγχρον"
 
 
-msgid "Themes"
-msgstr "Θέματα"
-
-
 msgctxt "Operator"
 msgid "Save"
 msgstr "Αποθήκευση"
@@ -942,10 +940,6 @@ msgstr "Polar ZY"
 
 msgid "Pan"
 msgstr "Ολίσθηση προβολής"
-
-
-msgid "Pause"
-msgstr "Παύση"
 
 
 msgctxt "Operator"
@@ -1040,12 +1034,12 @@ msgid "Layer:"
 msgstr "Στρώμα"
 
 
-msgid "Fields"
-msgstr "Πεδία"
-
-
 msgid "Cancel"
 msgstr "Ακύρωση"
+
+
+msgid "Fields"
+msgstr "Πεδία"
 
 
 msgid "Life"

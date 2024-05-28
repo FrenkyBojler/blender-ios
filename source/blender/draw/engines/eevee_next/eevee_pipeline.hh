@@ -193,6 +193,22 @@ struct DeferredLayerBase {
   /* Maximum closure count considering all material in this pass. */
   int closure_count_ = 0;
 
+  /* Stencil values used during the deferred pipeline. */
+  enum class StencilBits : uint8_t {
+    /* Bits 0 to 1 are reserved for closure count [0..3]. */
+    CLOSURE_COUNT_0 = (1u << 0u),
+    CLOSURE_COUNT_1 = (1u << 1u),
+    /* Set for pixels have a transmission closure. */
+    TRANSMISSION = (1u << 2u),
+    /** Bits set by the StencilClassify pass. Set per pixel from gbuffer header data. */
+    HEADER_BITS = CLOSURE_COUNT_0 | CLOSURE_COUNT_1 | TRANSMISSION,
+
+    /* Set for materials that uses the shadow amend pass. */
+    THICKNESS_FROM_SHADOW = (1u << 3u),
+    /** Bits set by the material gbuffer pass. Set per materials. */
+    MATERIAL_BITS = THICKNESS_FROM_SHADOW,
+  };
+
   /* Return the amount of gbuffer layer needed. */
   int closure_layer_count() const
   {
@@ -292,7 +308,7 @@ class DeferredLayer : DeferredLayerBase {
 
   bool is_empty() const
   {
-    return closure_count_ != 0;
+    return closure_count_ == 0;
   }
 
   /* Returns the radiance buffer to feed the next layer. */
@@ -352,6 +368,11 @@ class DeferredPipeline {
   }
 
   void debug_draw(draw::View &view, GPUFrameBuffer *combined_fb);
+
+  bool is_empty() const
+  {
+    return opaque_layer_.is_empty() && refraction_layer_.is_empty();
+  }
 
  private:
   void debug_pass_sync();

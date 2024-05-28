@@ -6,11 +6,12 @@
  * \ingroup stl
  */
 
-#include <cstring>
+#include <cstdio>
 #include <memory>
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -30,6 +31,7 @@
 
 #include "IO_stl.hh"
 
+#include "stl_data.hh"
 #include "stl_export.hh"
 #include "stl_export_writer.hh"
 
@@ -84,7 +86,7 @@ void export_frame(Depsgraph *depsgraph,
       char filepath[FILE_MAX];
       STRNCPY(filepath, export_params.filepath);
       BLI_path_suffix(filepath, FILE_MAX, object_name, "");
-      /* Make sure we have .stl extension (case insensitive). */
+      /* Make sure we have `.stl` extension (case insensitive). */
       if (!BLI_path_extension_check(filepath, ".stl")) {
         BLI_path_extension_ensure(filepath, FILE_MAX, ".stl");
       }
@@ -104,6 +106,9 @@ void export_frame(Depsgraph *depsgraph,
     Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
                                                  BKE_object_get_pre_modified_mesh(obj_eval);
 
+    /* Ensure data exists if currently in edit mode. */
+    BKE_mesh_wrapper_ensure_mdata(mesh);
+
     /* Calculate transform. */
     float global_scale = export_params.global_scale * scene_unit_scale;
     float axes_transform[3][3];
@@ -119,23 +124,23 @@ void export_frame(Depsgraph *depsgraph,
 
     /* Write triangles. */
     const Span<float3> positions = mesh->vert_positions();
-    const blender::Span<int> corner_verts = mesh->corner_verts();
+    const Span<int> corner_verts = mesh->corner_verts();
     for (const int3 &tri : mesh->corner_tris()) {
-      Triangle t;
+      PackedTriangle data{};
       for (int i = 0; i < 3; i++) {
         float3 pos = positions[corner_verts[tri[i]]];
         mul_m4_v3(xform, pos);
         pos *= global_scale;
-        t.vertices[i] = pos;
+        data.vertices[i] = pos;
       }
-      t.normal = math::normal_tri(t.vertices[0], t.vertices[1], t.vertices[2]);
-      writer->write_triangle(t);
+      data.normal = math::normal_tri(data.vertices[0], data.vertices[1], data.vertices[2]);
+      writer->write_triangle(data);
     }
   }
   DEG_OBJECT_ITER_END;
 }
 
-void exporter_main(bContext *C, const STLExportParams &export_params)
+void exporter_main(const bContext *C, const STLExportParams &export_params)
 {
   Depsgraph *depsgraph = nullptr;
   bool needs_free = false;

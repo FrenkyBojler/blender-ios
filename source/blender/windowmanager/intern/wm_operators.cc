@@ -1149,7 +1149,9 @@ int WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/
 {
   static EnumSearchMenu search_menu;
   search_menu.op = op;
-  UI_popup_block_invoke(C, wm_enum_search_menu, &search_menu, nullptr);
+  /* Refreshing not supported, because operator might get freed. */
+  const bool can_refresh = false;
+  UI_popup_block_invoke_ex(C, wm_enum_search_menu, &search_menu, nullptr, can_refresh);
   return OPERATOR_INTERFACE;
 }
 
@@ -1631,6 +1633,8 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *region, void *user_d
   UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_REGULAR);
 
+  UI_popup_dummy_panel_set(region, block);
+
   uiLayout *layout = UI_block_layout(
       block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, 0, 0, style);
 
@@ -1725,7 +1729,9 @@ int WM_operator_ui_popup(bContext *C, wmOperator *op, int width)
 static int wm_operator_props_popup_ex(bContext *C,
                                       wmOperator *op,
                                       const bool do_call,
-                                      const bool do_redo)
+                                      const bool do_redo,
+                                      std::optional<std::string> title = std::nullopt,
+                                      std::optional<std::string> confirm_text = std::nullopt)
 {
   if ((op->type->flag & OPTYPE_REGISTER) == 0) {
     BKE_reportf(op->reports,
@@ -1748,7 +1754,7 @@ static int wm_operator_props_popup_ex(bContext *C,
   /* If we don't have global undo, we can't do undo push for automatic redo,
    * so we require manual OK clicking in this popup. */
   if (!do_redo || !(U.uiflag & USER_GLOBALUNDO)) {
-    return WM_operator_props_dialog_popup(C, op, 300);
+    return WM_operator_props_dialog_popup(C, op, 300, title, confirm_text);
   }
 
   UI_popup_block_ex(C, wm_block_create_redo, nullptr, wm_block_redo_cancel_cb, op, op);
@@ -1760,9 +1766,18 @@ static int wm_operator_props_popup_ex(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
+int WM_operator_props_popup_confirm_ex(bContext *C,
+                                       wmOperator *op,
+                                       const wmEvent * /*event*/,
+                                       std::optional<std::string> title,
+                                       std::optional<std::string> confirm_text)
+{
+  return wm_operator_props_popup_ex(C, op, false, false, title, confirm_text);
+}
+
 int WM_operator_props_popup_confirm(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  return wm_operator_props_popup_ex(C, op, false, false);
+  return wm_operator_props_popup_ex(C, op, false, false, {}, {});
 }
 
 int WM_operator_props_popup_call(bContext *C, wmOperator *op, const wmEvent * /*event*/)
@@ -1818,7 +1833,9 @@ int WM_operator_redo_popup(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  UI_popup_block_invoke(C, wm_block_create_redo, op, nullptr);
+  /* Refreshing not supported, because operator might get freed. */
+  const bool can_refresh = false;
+  UI_popup_block_invoke_ex(C, wm_block_create_redo, op, nullptr, can_refresh);
 
   return OPERATOR_CANCELLED;
 }
@@ -3459,7 +3476,7 @@ static void redraw_timer_window_swap(bContext *C)
   wmWindow *win = CTX_wm_window(C);
   bScreen *screen = CTX_wm_screen(C);
 
-  CTX_wm_menu_set(C, nullptr);
+  CTX_wm_region_popup_set(C, nullptr);
 
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     ED_area_tag_redraw(area);
@@ -3505,7 +3522,7 @@ static void redraw_timer_step(bContext *C,
     }
   }
   else if (type == eRTDrawRegionSwap) {
-    CTX_wm_menu_set(C, nullptr);
+    CTX_wm_region_popup_set(C, nullptr);
 
     ED_region_tag_redraw(region);
     wm_draw_update(C);
@@ -3515,7 +3532,7 @@ static void redraw_timer_step(bContext *C,
   else if (type == eRTDrawWindow) {
     bScreen *screen = WM_window_get_active_screen(win);
 
-    CTX_wm_menu_set(C, nullptr);
+    CTX_wm_region_popup_set(C, nullptr);
 
     LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
       CTX_wm_area_set(C, area_iter);
@@ -3693,7 +3710,7 @@ static void previews_id_ensure(bContext *C, Scene *scene, ID *id)
 
   /* Only preview non-library datablocks, lib ones do not pertain to this .blend file!
    * Same goes for ID with no user. */
-  if (!ID_IS_LINKED(id) && (id->us != 0)) {
+  if (ID_IS_EDITABLE(id) && (id->us != 0)) {
     UI_icon_render_id(C, scene, id, ICON_SIZE_ICON, false);
     UI_icon_render_id(C, scene, id, ICON_SIZE_PREVIEW, false);
   }
@@ -4135,6 +4152,8 @@ static void gesture_straightline_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "PAINT_OT_weight_gradient");
   WM_modalkeymap_assign(keymap, "MESH_OT_bisect");
   WM_modalkeymap_assign(keymap, "PAINT_OT_mask_line_gesture");
+  WM_modalkeymap_assign(keymap, "SCULPT_OT_face_set_line_gesture");
+  WM_modalkeymap_assign(keymap, "SCULPT_OT_trim_line_gesture");
   WM_modalkeymap_assign(keymap, "SCULPT_OT_project_line_gesture");
   WM_modalkeymap_assign(keymap, "PAINT_OT_hide_show_line_gesture");
 }
@@ -4229,6 +4248,33 @@ static void gesture_lasso_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "PAINT_OT_hide_show_lasso_gesture");
 }
 
+/* Polyline modal operators */
+static void gesture_polyline_modal_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+      {GESTURE_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+      {GESTURE_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+      {GESTURE_MODAL_SELECT, "SELECT", 0, "Select", ""},
+      {GESTURE_MODAL_MOVE, "MOVE", 0, "Move", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Gesture Polyline");
+
+  /* This function is called for each space-type, only needs to add map once. */
+  if (keymap && keymap->modal_items) {
+    return;
+  }
+
+  keymap = WM_modalkeymap_ensure(keyconf, "Gesture Polyline", modal_items);
+
+  /* assign map to operators */
+  WM_modalkeymap_assign(keymap, "PAINT_OT_hide_show_polyline_gesture");
+  WM_modalkeymap_assign(keymap, "PAINT_OT_mask_polyline_gesture");
+  WM_modalkeymap_assign(keymap, "SCULPT_OT_face_set_polyline_gesture");
+  WM_modalkeymap_assign(keymap, "SCULPT_OT_trim_polyline_gesture");
+}
+
 /* Zoom to border modal operators. */
 static void gesture_zoom_border_modal_keymap(wmKeyConfig *keyconf)
 {
@@ -4265,6 +4311,7 @@ void wm_window_keymap(wmKeyConfig *keyconf)
   gesture_zoom_border_modal_keymap(keyconf);
   gesture_straightline_modal_keymap(keyconf);
   gesture_lasso_modal_keymap(keyconf);
+  gesture_polyline_modal_keymap(keyconf);
 
   WM_keymap_fix_linking();
 }

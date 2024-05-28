@@ -42,6 +42,8 @@ struct PointerRNA {
   void *data;
 };
 
+constexpr PointerRNA PointerRNA_NULL{nullptr, nullptr, nullptr};
+
 struct PropertyPointerRNA {
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -545,6 +547,8 @@ struct StringPropertySearchVisitParams {
   std::string text;
   /** Additional information to display. */
   std::optional<std::string> info;
+  /* Optional icon instead of #ICON_NONE. */
+  std::optional<int> icon_id;
 };
 
 enum eStringPropertySearchFlag {

@@ -102,6 +102,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
                                 SEQ_TIMELINE_SHOW_STRIP_DURATION | SEQ_TIMELINE_SHOW_GRID |
                                 SEQ_TIMELINE_SHOW_FCURVES | SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG |
                                 SEQ_TIMELINE_SHOW_STRIP_RETIMING | SEQ_TIMELINE_ALL_WAVEFORMS;
+  sseq->cache_overlay.flag = SEQ_CACHE_SHOW | SEQ_CACHE_SHOW_FINAL_OUT;
 
   /* Header. */
   region = MEM_cnew<ARegion>("header for sequencer");
@@ -919,7 +920,7 @@ static void sequencer_id_remap(ScrArea * /*area*/,
 static void sequencer_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
 {
   SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(space_link);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sseq->gpd, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sseq->gpd, IDWALK_CB_USER | IDWALK_CB_DIRECT_WEAK_LINK);
 }
 
 /* ************************************* */

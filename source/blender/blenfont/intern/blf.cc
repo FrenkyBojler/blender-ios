@@ -346,15 +346,6 @@ void BLF_aspect(int fontid, float x, float y, float z)
   }
 }
 
-void BLF_matrix(int fontid, const float m[16])
-{
-  FontBLF *font = blf_get(fontid);
-
-  if (font) {
-    memcpy(font->m, m, sizeof(font->m));
-  }
-}
-
 void BLF_position(int fontid, float x, float y, float z)
 {
   FontBLF *font = blf_get(fontid);
@@ -418,17 +409,6 @@ void BLF_size(int fontid, float size)
     blf_font_size(font, size);
   }
 }
-
-#if BLF_BLUR_ENABLE
-void BLF_blur(int fontid, int size)
-{
-  FontBLF *font = blf_get(fontid);
-
-  if (font) {
-    font->blur = size;
-  }
-}
-#endif
 
 void BLF_color4ubv(int fontid, const uchar rgba[4])
 {
@@ -539,15 +519,11 @@ static void blf_draw_gpu__start(const FontBLF *font)
    * in BLF_position (old ui_rasterpos_safe).
    */
 
-  if ((font->flags & (BLF_ROTATION | BLF_MATRIX | BLF_ASPECT)) == 0) {
+  if ((font->flags & (BLF_ROTATION | BLF_ASPECT)) == 0) {
     return; /* glyphs will be translated individually and batched. */
   }
 
   GPU_matrix_push();
-
-  if (font->flags & BLF_MATRIX) {
-    GPU_matrix_mul(font->m);
-  }
 
   GPU_matrix_translate_3f(font->pos[0], font->pos[1], font->pos[2]);
 
@@ -562,7 +538,7 @@ static void blf_draw_gpu__start(const FontBLF *font)
 
 static void blf_draw_gpu__end(const FontBLF *font)
 {
-  if ((font->flags & (BLF_ROTATION | BLF_MATRIX | BLF_ASPECT)) != 0) {
+  if ((font->flags & (BLF_ROTATION | BLF_ASPECT)) != 0) {
     GPU_matrix_pop();
   }
 }
@@ -660,6 +636,16 @@ int BLF_str_offset_to_cursor(
     return blf_str_offset_to_cursor(font, str, str_len, str_offset, cursor_width);
   }
   return 0;
+}
+
+blender::Vector<blender::Bounds<int>> BLF_str_selection_boxes(
+    int fontid, const char *str, size_t str_len, size_t sel_start, size_t sel_length)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return blf_str_selection_boxes(font, str, str_len, sel_start, sel_length);
+  }
+  return {};
 }
 
 size_t BLF_width_to_strlen(
@@ -847,13 +833,15 @@ void BLF_wordwrap(int fontid, int wrap_width)
   }
 }
 
-void BLF_shadow(int fontid, int level, const float rgba[4])
+void BLF_shadow(int fontid, FontShadowType type, const float rgba[4])
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->shadow = level;
-    rgba_float_to_uchar(font->shadow_color, rgba);
+    font->shadow = type;
+    if (rgba) {
+      rgba_float_to_uchar(font->shadow_color, rgba);
+    }
   }
 }
 
@@ -867,8 +855,7 @@ void BLF_shadow_offset(int fontid, int x, int y)
   }
 }
 
-void BLF_buffer(
-    int fontid, float *fbuf, uchar *cbuf, int w, int h, int nch, ColorManagedDisplay *display)
+void BLF_buffer(int fontid, float *fbuf, uchar *cbuf, int w, int h, ColorManagedDisplay *display)
 {
   FontBLF *font = blf_get(fontid);
 
@@ -877,7 +864,6 @@ void BLF_buffer(
     font->buf_info.cbuf = cbuf;
     font->buf_info.dims[0] = w;
     font->buf_info.dims[1] = h;
-    font->buf_info.ch = nch;
     font->buf_info.display = display;
   }
 }

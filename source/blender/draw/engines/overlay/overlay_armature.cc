@@ -842,12 +842,12 @@ BLI_INLINE DRWCallBuffer *custom_bone_instance_shgroup(const ArmatureDrawContext
 }
 
 static void drw_shgroup_bone_custom_solid_mesh(const ArmatureDrawContext *ctx,
-                                               Mesh *mesh,
+                                               Mesh &mesh,
                                                const float (*bone_mat)[4],
                                                const float bone_color[4],
                                                const float hint_color[4],
                                                const float outline_color[4],
-                                               Object *custom)
+                                               Object &custom)
 {
   using namespace blender::draw;
   /* TODO(fclem): arg... less than ideal but we never iter on this object
@@ -885,14 +885,14 @@ static void drw_shgroup_bone_custom_solid_mesh(const ArmatureDrawContext *ctx,
   }
 
   /* TODO(fclem): needs to be moved elsewhere. */
-  drw_batch_cache_generate_requested_delayed(custom);
+  drw_batch_cache_generate_requested_delayed(&custom);
 }
 
 static void drw_shgroup_bone_custom_mesh_wire(const ArmatureDrawContext *ctx,
-                                              Mesh *mesh,
+                                              Mesh &mesh,
                                               const float (*bone_mat)[4],
                                               const float color[4],
-                                              Object *custom)
+                                              Object &custom)
 {
   using namespace blender::draw;
   /* TODO(fclem): arg... less than ideal but we never iter on this object
@@ -910,7 +910,7 @@ static void drw_shgroup_bone_custom_mesh_wire(const ArmatureDrawContext *ctx,
   }
 
   /* TODO(fclem): needs to be moved elsewhere. */
-  drw_batch_cache_generate_requested_delayed(custom);
+  drw_batch_cache_generate_requested_delayed(&custom);
 }
 
 static void drw_shgroup_custom_bone_curve(const ArmatureDrawContext *ctx,
@@ -962,7 +962,7 @@ static void drw_shgroup_bone_custom_solid(const ArmatureDrawContext *ctx,
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(custom);
   if (mesh != nullptr) {
     drw_shgroup_bone_custom_solid_mesh(
-        ctx, mesh, bone_mat, bone_color, hint_color, outline_color, custom);
+        ctx, *mesh, bone_mat, bone_color, hint_color, outline_color, *custom);
     return;
   }
 
@@ -980,7 +980,7 @@ static void drw_shgroup_bone_custom_wire(const ArmatureDrawContext *ctx,
   /* See comments in #drw_shgroup_bone_custom_solid. */
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(custom);
   if (mesh != nullptr) {
-    drw_shgroup_bone_custom_mesh_wire(ctx, mesh, bone_mat, color, custom);
+    drw_shgroup_bone_custom_mesh_wire(ctx, *mesh, bone_mat, color, *custom);
     return;
   }
 
@@ -1137,8 +1137,10 @@ static void cp_shade_color3ub(uchar cp[3], const int offset)
  */
 static void use_bone_color(float *r_color, const uint8_t *color_from_theme, const int shade_offset)
 {
-  uint8_t srgb_color[4];
-  copy_v4_v4_uchar(srgb_color, color_from_theme);
+  uint8_t srgb_color[4] = {255, 255, 255, 255};
+  /* Only copy RGB, not alpha.  The "alpha" channel in the bone theme colors is
+   * essentially just padding, and should be ignored. */
+  copy_v3_v3_uchar(srgb_color, color_from_theme);
   if (shade_offset != 0) {
     cp_shade_color3ub(srgb_color, shade_offset);
   }

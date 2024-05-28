@@ -362,7 +362,7 @@ static bool palette_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
 
-  if (paint && paint->palette != nullptr && !ID_IS_LINKED(paint->palette) &&
+  if (paint && paint->palette != nullptr && ID_IS_EDITABLE(paint->palette) &&
       !ID_IS_OVERRIDE_LIBRARY(paint->palette))
   {
     return true;
@@ -1559,13 +1559,16 @@ void ED_operatortypes_paint()
   WM_operatortype_append(hide::PAINT_OT_hide_show);
   WM_operatortype_append(hide::PAINT_OT_hide_show_lasso_gesture);
   WM_operatortype_append(hide::PAINT_OT_hide_show_line_gesture);
+  WM_operatortype_append(hide::PAINT_OT_hide_show_polyline_gesture);
   WM_operatortype_append(hide::PAINT_OT_visibility_invert);
+  WM_operatortype_append(hide::PAINT_OT_visibility_filter);
 
   /* paint masking */
   WM_operatortype_append(mask::PAINT_OT_mask_flood_fill);
   WM_operatortype_append(mask::PAINT_OT_mask_lasso_gesture);
   WM_operatortype_append(mask::PAINT_OT_mask_box_gesture);
   WM_operatortype_append(mask::PAINT_OT_mask_line_gesture);
+  WM_operatortype_append(mask::PAINT_OT_mask_polyline_gesture);
 }
 
 void ED_keymap_paint(wmKeyConfig *keyconf)

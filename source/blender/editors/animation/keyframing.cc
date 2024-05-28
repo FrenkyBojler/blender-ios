@@ -48,6 +48,7 @@
 #include "ANIM_driver.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 #include "ANIM_rna.hh"
 
 #include "UI_interface.hh"
@@ -180,7 +181,8 @@ static int insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
   }
 
   /* try to insert keyframes for the channels specified by KeyingSet */
-  const int num_channels = ANIM_apply_keyingset(C, nullptr, ks, MODIFYKEY_MODE_INSERT, cfra);
+  const int num_channels = ANIM_apply_keyingset(
+      C, nullptr, ks, blender::animrig::ModifyKeyMode::INSERT, cfra);
   if (G.debug & G_DEBUG) {
     BKE_reportf(op->reports,
                 RPT_INFO,
@@ -222,13 +224,16 @@ static int insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
   return OPERATOR_FINISHED;
 }
 
-static bool is_idproperty_keyable(IDProperty *prop, const PropertyRNA *property_rna)
+static bool is_idproperty_keyable(IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)
 {
-  if (RNA_property_is_runtime(property_rna)) {
+  /* While you can cast the IDProperty* to a PropertyRNA* and pass it to the functions, this
+   * does not work because it will not have the right flags set. Instead the resolved
+   * PointerRNA and PropertyRNA need to be passed. */
+  if (!RNA_property_anim_editable(ptr, prop)) {
     return false;
   }
 
-  if (ELEM(prop->type,
+  if (ELEM(id_prop->type,
            eIDPropertyType::IDP_BOOLEAN,
            eIDPropertyType::IDP_INT,
            eIDPropertyType::IDP_FLOAT,
@@ -237,8 +242,8 @@ static bool is_idproperty_keyable(IDProperty *prop, const PropertyRNA *property_
     return true;
   }
 
-  if (prop->type == eIDPropertyType::IDP_ARRAY) {
-    if (ELEM(prop->subtype,
+  if (id_prop->type == eIDPropertyType::IDP_ARRAY) {
+    if (ELEM(id_prop->subtype,
              eIDPropertyType::IDP_BOOLEAN,
              eIDPropertyType::IDP_INT,
              eIDPropertyType::IDP_FLOAT,
@@ -251,11 +256,11 @@ static bool is_idproperty_keyable(IDProperty *prop, const PropertyRNA *property_
   return false;
 }
 
-static blender::Vector<std::string> construct_rna_paths(PointerRNA *ptr)
+static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
 {
   eRotationModes rotation_mode;
   IDProperty *properties;
-  blender::Vector<std::string> paths;
+  blender::Vector<RNAPath> paths;
 
   if (ptr->type == &RNA_PoseBone) {
     bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
@@ -274,15 +279,15 @@ static blender::Vector<std::string> construct_rna_paths(PointerRNA *ptr)
 
   eKeyInsertChannels insert_channel_flags = eKeyInsertChannels(U.key_insert_channels);
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_LOCATION) {
-    paths.append("location");
+    paths.append({"location"});
   }
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION) {
     switch (rotation_mode) {
       case ROT_MODE_QUAT:
-        paths.append("rotation_quaternion");
+        paths.append({"rotation_quaternion"});
         break;
       case ROT_MODE_AXISANGLE:
-        paths.append("rotation_axis_angle");
+        paths.append({"rotation_axis_angle"});
         break;
       case ROT_MODE_XYZ:
       case ROT_MODE_XZY:
@@ -290,32 +295,41 @@ static blender::Vector<std::string> construct_rna_paths(PointerRNA *ptr)
       case ROT_MODE_YZX:
       case ROT_MODE_ZXY:
       case ROT_MODE_ZYX:
-        paths.append("rotation_euler");
+        paths.append({"rotation_euler"});
       default:
         break;
     }
   }
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_SCALE) {
-    paths.append("scale");
+    paths.append({"scale"});
   }
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION_MODE) {
-    paths.append("rotation_mode");
+    paths.append({"rotation_mode"});
   }
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES) {
     if (properties) {
-      LISTBASE_FOREACH (IDProperty *, prop, &properties->data.group) {
-        char name_escaped[MAX_IDPROP_NAME * 2];
-        BLI_str_escape(name_escaped, prop->name, sizeof(name_escaped));
-        std::string path = fmt::format("[\"{}\"]", name_escaped);
+      LISTBASE_FOREACH (IDProperty *, id_prop, &properties->data.group) {
         PointerRNA resolved_ptr;
         PropertyRNA *resolved_prop;
-        const bool is_resolved = RNA_path_resolve_property(
+        std::string path = id_prop->name;
+        /* Resolving the path twice, once as RNA property (without brackets, `"propname"`),
+         * and once as ID property (with brackets, `["propname"]`).
+         * This is required to support IDProperties that have been defined as part of an add-on.
+         * Those need to be animated through an RNA path without the brackets. */
+        bool is_resolved = RNA_path_resolve_property(
             ptr, path.c_str(), &resolved_ptr, &resolved_prop);
+        if (!is_resolved) {
+          char name_escaped[MAX_IDPROP_NAME * 2];
+          BLI_str_escape(name_escaped, id_prop->name, sizeof(name_escaped));
+          path = fmt::format("[\"{}\"]", name_escaped);
+          is_resolved = RNA_path_resolve_property(
+              ptr, path.c_str(), &resolved_ptr, &resolved_prop);
+        }
         if (!is_resolved) {
           continue;
         }
-        if (is_idproperty_keyable(prop, resolved_prop)) {
-          paths.append(path);
+        if (is_idproperty_keyable(id_prop, &resolved_ptr, resolved_prop)) {
+          paths.append({path});
         }
       }
     }
@@ -386,7 +400,7 @@ static int insert_key(bContext *C, wmOperator *op)
       BKE_reportf(op->reports, RPT_ERROR, "'%s' is not editable", selected_id->name + 2);
       continue;
     }
-    Vector<std::string> rna_paths = construct_rna_paths(&id_ptr);
+    Vector<RNAPath> rna_paths = construct_rna_paths(&id_ptr);
 
     combined_result.merge(animrig::insert_key_rna(&id_ptr,
                                                   rna_paths.as_span(),
@@ -594,7 +608,8 @@ static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *k
   const bool confirm = op->flag & OP_IS_INVOKE;
 
   /* try to delete keyframes for the channels specified by KeyingSet */
-  num_channels = ANIM_apply_keyingset(C, nullptr, ks, MODIFYKEY_MODE_DELETE, cfra);
+  num_channels = ANIM_apply_keyingset(
+      C, nullptr, ks, blender::animrig::ModifyKeyMode::DELETE, cfra);
   if (G.debug & G_DEBUG) {
     printf("KeyingSet '%s' - Successfully removed %d Keyframes\n", ks->name, num_channels);
   }
@@ -1010,28 +1025,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
       /* standard properties */
       if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
         const char *identifier = RNA_property_identifier(prop);
-        const char *group = nullptr;
-
-        /* Special exception for keyframing transforms:
-         * Set "group" for this manually, instead of having them appearing at the bottom
-         * (ungrouped) part of the channels list.
-         * Leaving these ungrouped is not a nice user behavior in this case.
-         *
-         * TODO: Perhaps we can extend this behavior in future for other properties...
-         */
-        if (ptr.type == &RNA_PoseBone) {
-          bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
-          group = pchan->name;
-        }
-        else if ((ptr.type == &RNA_Object) &&
-                 (strstr(identifier, "location") || strstr(identifier, "rotation") ||
-                  strstr(identifier, "scale")))
-        {
-          /* NOTE: Keep this label in sync with the "ID" case in
-           * keyingsets_utils.py :: get_transform_generators_base_info()
-           */
-          group = "Object Transforms";
-        }
+        const char *group = default_channel_group_for_path(&ptr, identifier);
 
         if (all) {
           /* -1 indicates operating on the entire array (or the property itself otherwise) */

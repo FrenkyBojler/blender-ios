@@ -22,15 +22,17 @@
 #ifdef __cplusplus
 namespace blender::bke {
 class bNodeTreeInterfaceRuntime;
-}
+struct bNodeSocketType;
+}  // namespace blender::bke
 using bNodeTreeInterfaceRuntimeHandle = blender::bke::bNodeTreeInterfaceRuntime;
+using bNodeSocketTypeHandle = blender::bke::bNodeSocketType;
 #else
 typedef struct bNodeTreeInterfaceRuntimeHandle bNodeTreeInterfaceRuntimeHandle;
+typedef struct bNodeSocketTypeHandle bNodeSocketTypeHandle;
 #endif
 
 struct bContext;
 struct bNodeSocket;
-struct bNodeSocketType;
 struct bNodeTreeInterfaceItem;
 struct bNodeTreeInterfacePanel;
 struct bNodeTreeInterfaceSocket;
@@ -65,8 +67,10 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_COMPACT = 1 << 4,
   NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY = 1 << 5,
   NODE_INTERFACE_SOCKET_LAYER_SELECTION = 1 << 6,
+  /* INSPECT is used by Connect to Output operator to ensure socket that exits from node group. */
+  NODE_INTERFACE_SOCKET_INSPECT = 1 << 7,
 } NodeTreeInterfaceSocketFlag;
-ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_LAYER_SELECTION);
+ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_INSPECT);
 
 typedef struct bNodeTreeInterfaceSocket {
   bNodeTreeInterfaceItem item;
@@ -93,7 +97,7 @@ typedef struct bNodeTreeInterfaceSocket {
   IDProperty *properties;
 
 #ifdef __cplusplus
-  bNodeSocketType *socket_typeinfo() const;
+  bNodeSocketTypeHandle *socket_typeinfo() const;
   blender::ColorGeometry4f socket_color() const;
 
   /**

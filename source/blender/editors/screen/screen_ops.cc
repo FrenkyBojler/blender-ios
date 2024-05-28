@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -187,7 +188,7 @@ bool ED_operator_objectmode(bContext *C)
   Scene *scene = CTX_data_scene(C);
   Object *obact = CTX_data_active_object(C);
 
-  if (scene == nullptr || ID_IS_LINKED(scene)) {
+  if (scene == nullptr || !ID_IS_EDITABLE(scene)) {
     return false;
   }
   if (CTX_data_edit_object(C)) {
@@ -450,21 +451,21 @@ bool ED_operator_object_active_local_editable(bContext *C)
 bool ED_operator_object_active_editable_mesh(bContext *C)
 {
   Object *ob = blender::ed::object::context_active_object(C);
-  return ((ob != nullptr) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_MESH) &&
-          !ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
+  return ((ob != nullptr) && ID_IS_EDITABLE(ob) && !ed_object_hidden(ob) &&
+          (ob->type == OB_MESH) && ID_IS_EDITABLE(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
 bool ED_operator_object_active_editable_font(bContext *C)
 {
   Object *ob = blender::ed::object::context_active_object(C);
-  return ((ob != nullptr) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_FONT) &&
-          !ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
+  return ((ob != nullptr) && ID_IS_EDITABLE(ob) && !ed_object_hidden(ob) &&
+          (ob->type == OB_FONT) && ID_IS_EDITABLE(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
 bool ED_operator_editable_mesh(bContext *C)
 {
   Mesh *mesh = ED_mesh_context(C);
-  return (mesh != nullptr) && !ID_IS_LINKED(mesh) && !ID_IS_OVERRIDE_LIBRARY(mesh);
+  return (mesh != nullptr) && ID_IS_EDITABLE(mesh) && !ID_IS_OVERRIDE_LIBRARY(mesh);
 }
 
 bool ED_operator_editmesh(bContext *C)
@@ -690,7 +691,7 @@ bool ED_operator_editmball(bContext *C)
 bool ED_operator_camera_poll(bContext *C)
 {
   Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
-  return (cam != nullptr && !ID_IS_LINKED(cam));
+  return (cam != nullptr && ID_IS_EDITABLE(cam));
 }
 
 /** \} */
@@ -3026,6 +3027,14 @@ static void SCREEN_OT_region_scale(wmOperatorType *ot)
 /** \name Frame Change Operator
  * \{ */
 
+static bool screen_animation_region_supports_time_follow(eSpace_Type spacetype,
+                                                         eRegion_Type regiontype)
+{
+  return (regiontype == RGN_TYPE_WINDOW &&
+          ELEM(spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
+         (spacetype == SPACE_CLIP && regiontype == RGN_TYPE_PREVIEW);
+}
+
 static void areas_do_frame_follow(bContext *C, bool middle)
 {
   bScreen *screen_ctx = CTX_wm_screen(C);
@@ -3037,29 +3046,26 @@ static void areas_do_frame_follow(bContext *C, bool middle)
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
         /* do follow here if editor type supports it */
-        if (screen_ctx->redraws_flag & TIME_FOLLOW) {
-          if ((region->regiontype == RGN_TYPE_WINDOW &&
-               ELEM(area->spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
-              (area->spacetype == SPACE_CLIP && region->regiontype == RGN_TYPE_PREVIEW))
-          {
-            float w = BLI_rctf_size_x(&region->v2d.cur);
+        if ((screen_ctx->redraws_flag & TIME_FOLLOW) &&
+            screen_animation_region_supports_time_follow(eSpace_Type(area->spacetype),
+                                                         eRegion_Type(region->regiontype)))
+        {
+          float w = BLI_rctf_size_x(&region->v2d.cur);
 
-            if (middle) {
-              if ((scene->r.cfra < region->v2d.cur.xmin) || (scene->r.cfra > region->v2d.cur.xmax))
-              {
-                region->v2d.cur.xmax = scene->r.cfra + (w / 2);
-                region->v2d.cur.xmin = scene->r.cfra - (w / 2);
-              }
+          if (middle) {
+            if ((scene->r.cfra < region->v2d.cur.xmin) || (scene->r.cfra > region->v2d.cur.xmax)) {
+              region->v2d.cur.xmax = scene->r.cfra + (w / 2);
+              region->v2d.cur.xmin = scene->r.cfra - (w / 2);
             }
-            else {
-              if (scene->r.cfra < region->v2d.cur.xmin) {
-                region->v2d.cur.xmax = scene->r.cfra;
-                region->v2d.cur.xmin = region->v2d.cur.xmax - w;
-              }
-              else if (scene->r.cfra > region->v2d.cur.xmax) {
-                region->v2d.cur.xmin = scene->r.cfra;
-                region->v2d.cur.xmax = region->v2d.cur.xmin + w;
-              }
+          }
+          else {
+            if (scene->r.cfra < region->v2d.cur.xmin) {
+              region->v2d.cur.xmax = scene->r.cfra;
+              region->v2d.cur.xmin = region->v2d.cur.xmax - w;
+            }
+            else if (scene->r.cfra > region->v2d.cur.xmax) {
+              region->v2d.cur.xmin = scene->r.cfra;
+              region->v2d.cur.xmax = region->v2d.cur.xmin + w;
             }
           }
         }
@@ -4542,14 +4548,6 @@ static void SCREEN_OT_region_context_menu(wmOperatorType *ot)
  * Animation Step.
  * \{ */
 
-static bool screen_animation_region_supports_time_follow(eSpace_Type spacetype,
-                                                         eRegion_Type regiontype)
-{
-  return (regiontype == RGN_TYPE_WINDOW &&
-          ELEM(spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
-         (spacetype == SPACE_CLIP && regiontype == RGN_TYPE_PREVIEW);
-}
-
 static bool match_region_with_redraws(const ScrArea *area,
                                       eRegion_Type regiontype,
                                       eScreen_Redraws_Flag redraws,
@@ -5257,6 +5255,22 @@ static int userpref_show_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
+static std::string userpref_show_get_description(bContext *C,
+                                                 wmOperatorType * /*ot*/,
+                                                 PointerRNA *ptr)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, "section");
+  if (RNA_property_is_set(ptr, prop)) {
+    int section = RNA_property_enum_get(ptr, prop);
+    const char *section_name;
+    if (RNA_property_enum_name_gettexted(C, ptr, prop, section, &section_name)) {
+      return fmt::format(TIP_("Show {} preferences"), section_name);
+    }
+  }
+  /* Fallback to default. */
+  return "";
+}
+
 static void SCREEN_OT_userpref_show(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -5269,6 +5283,7 @@ static void SCREEN_OT_userpref_show(wmOperatorType *ot)
   /* api callbacks */
   ot->exec = userpref_show_exec;
   ot->poll = ED_operator_screenactive_nobackground; /* Not in background as this opens a window. */
+  ot->get_description = userpref_show_get_description;
 
   prop = RNA_def_enum(ot->srna,
                       "section",

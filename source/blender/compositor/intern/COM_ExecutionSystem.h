@@ -22,11 +22,10 @@
 
 namespace blender::realtime_compositor {
 class RenderContext;
-}
+class Profiler;
+}  // namespace blender::realtime_compositor
 
 namespace blender::compositor {
-
-class ProfilerData;
 
 /**
  * \page execution Execution model
@@ -122,8 +121,6 @@ class ExecutionSystem {
   ThreadMutex work_mutex_;
   ThreadCondition work_finished_cond_;
 
-  ProfilerData &profiler_data_;
-
  public:
   /**
    * \brief Create a new ExecutionSystem and initialize it with the
@@ -136,10 +133,9 @@ class ExecutionSystem {
                   Scene *scene,
                   bNodeTree *editingtree,
                   bool rendering,
-                  bool fastcalculation,
                   const char *view_name,
                   realtime_compositor::RenderContext *render_context,
-                  ProfilerData &profiler_data);
+                  realtime_compositor::Profiler *profiler);
 
   /**
    * Destructor

@@ -417,7 +417,7 @@ bool keyframe_region_circle_test(const KeyframeEdit_CircleData *data_circle, con
 /* Destructive Editing API `keyframes_general.cc`. */
 
 bool duplicate_fcurve_keys(FCurve *fcu);
-float get_default_rna_value(FCurve *fcu, PropertyRNA *prop, PointerRNA *ptr);
+float get_default_rna_value(const FCurve *fcu, PropertyRNA *prop, PointerRNA *ptr);
 
 struct FCurveSegment {
   FCurveSegment *next, *prev;
@@ -511,24 +511,6 @@ void blend_to_default_fcurve(PointerRNA *id_ptr, FCurve *fcu, float factor);
  * Use a weighted moving-means method to reduce intensity of fluctuations.
  */
 void smooth_fcurve(FCurve *fcu);
-void bake_fcurve_segments(FCurve *fcu);
-/**
- * \param sample_rate: indicates how many samples per frame should be generated.
- */
-void sample_fcurve_segment(
-    FCurve *fcu, float start_frame, float sample_rate, float *r_samples, int sample_count);
-
-enum class BakeCurveRemove {
-  REMOVE_NONE = 0,
-  REMOVE_IN_RANGE = 1,
-  REMOVE_OUT_RANGE = 2,
-  REMOVE_ALL = 3,
-};
-/** Creates keyframes in the given range at the given step interval.
- * \param range: start and end frame to bake. Is inclusive on both ends.
- * \param remove_existing: choice which keys to remove in relation to the given range.
- */
-void bake_fcurve(FCurve *fcu, blender::int2 range, float step, BakeCurveRemove remove_existing);
 
 /* ----------- */
 

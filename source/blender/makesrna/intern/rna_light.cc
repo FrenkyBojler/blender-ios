@@ -163,6 +163,10 @@ static void rna_def_light(BlenderRNA *brna)
       prop, "Cutoff Distance", "Distance at which the light influence will be set to 0");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
+  prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "mode", LA_SHADOW);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
   /* nodes */
   prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "nodetree");
@@ -229,10 +233,6 @@ static void rna_def_light_shadow(StructRNA *srna, bool sun)
 {
   PropertyRNA *prop;
 
-  prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "mode", LA_SHADOW);
-  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
-
   prop = RNA_def_property(srna, "shadow_buffer_clip_start", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, nullptr, "clipsta");
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
@@ -297,12 +297,6 @@ static void rna_def_light_shadow(StructRNA *srna, bool sun)
       prop, "Contact Shadow Thickness", "Pixel thickness used to detect occlusion");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
-  prop = RNA_def_property(srna, "shadow_softness_factor", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_text(
-      prop, "Shadow Softness Factor", "Scale light shape for smaller penumbra");
-  RNA_def_property_update(prop, 0, "rna_Light_update");
-
   prop = RNA_def_property(srna, "shadow_filter_radius", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0f, 5.0f, 1.0f, 2);
@@ -311,14 +305,33 @@ static void rna_def_light_shadow(StructRNA *srna, bool sun)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
-  prop = RNA_def_property(srna, "shadow_resolution_scale", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_range(prop, 0.0f, 2.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 2.0f, 0.25f, 2);
+  prop = RNA_def_property(srna, "shadow_maximum_resolution", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0001f, 0.020f, 0.05f, 4);
+  RNA_def_property_ui_text(prop,
+                           "Shadows Resolution Limit",
+                           "Minimum size of a shadow map pixel. Higher values use less memory at "
+                           "the cost of shadow quality");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "use_shadow_jitter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "mode", LA_SHADOW_JITTER);
   RNA_def_property_ui_text(
       prop,
-      "Shadow Resolution Scale",
-      "Scale the Shadow Map target resolution, where 1.0 tries to match shadow map and screen "
-      "pixel density. (The scale is applied on top of the scene Simplify Shadow Resolution)");
+      "Shadow Jitter",
+      "Enable jittered soft shadows to increase shadow precision (disabled in viewport unless "
+      "enabled in the render settings). Has a high performance impact");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "shadow_jitter_overblur", PROP_FLOAT, PROP_PERCENTAGE);
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 20.0f, 10.0f, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Shadow Jitter Overblur",
+      "Apply shadow tracing to each jittered sample to reduce under-sampling artifacts");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
@@ -352,13 +365,15 @@ static void rna_def_light_shadow(StructRNA *srna, bool sun)
     RNA_def_property_ui_text(
         prop, "Cascade Fade", "How smooth is the transition between each cascade");
     RNA_def_property_update(prop, 0, "rna_Light_update");
-
-    prop = RNA_def_property(srna, "shadow_trace_distance", PROP_FLOAT, PROP_DISTANCE);
-    RNA_def_property_range(prop, 0.0f, FLT_MAX);
-    RNA_def_property_ui_range(prop, 0, 100, 0.1, 3);
+  }
+  else {
+    prop = RNA_def_property(srna, "use_absolute_resolution", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "mode", LA_SHAD_RES_ABSOLUTE);
     RNA_def_property_ui_text(prop,
-                             "Shadow Tracing Max Distance",
-                             "Maximum distance a shadow map tracing ray can travel");
+                             "Absolute Resolution Limit",
+                             "Limit the resolution at 1 unit from the light origin instead of "
+                             "relative to the shadowed pixel");
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     RNA_def_property_update(prop, 0, "rna_Light_update");
   }
 }

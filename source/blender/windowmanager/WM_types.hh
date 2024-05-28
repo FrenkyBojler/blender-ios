@@ -98,7 +98,7 @@ struct ImBuf;
 struct bContext;
 struct bContextStore;
 struct GreasePencil;
-struct GreasePencilLayer;
+struct GreasePencilLayerTreeNode;
 struct ReportList;
 struct wmDrag;
 struct wmDropBox;
@@ -196,6 +196,9 @@ enum {
    * Even so, accessing from the menu should behave usefully.
    */
   OPTYPE_DEPENDS_ON_CURSOR = (1 << 11),
+
+  /** Handle events before modal operators without this flag. */
+  OPTYPE_MODAL_PRIORITY = (1 << 12),
 };
 
 /** For #WM_cursor_grab_enable wrap axis. */
@@ -556,6 +559,10 @@ struct wmNotifier {
 
 /* ************** Gesture Manager data ************** */
 
+namespace blender::wm::gesture {
+constexpr float POLYLINE_CLICK_RADIUS = 15.0f;
+}
+
 /** #wmGesture::type */
 #define WM_GESTURE_LINES 1
 #define WM_GESTURE_RECT 2
@@ -563,6 +570,7 @@ struct wmNotifier {
 #define WM_GESTURE_LASSO 4
 #define WM_GESTURE_CIRCLE 5
 #define WM_GESTURE_STRAIGHTLINE 6
+#define WM_GESTURE_POLYLINE 7
 
 /**
  * wmGesture is registered to #wmWindow.gesture, handled by operator callbacks.
@@ -1158,6 +1166,7 @@ enum eWM_DragDataType {
   WM_DRAG_DATASTACK,
   WM_DRAG_ASSET_CATALOG,
   WM_DRAG_GREASE_PENCIL_LAYER,
+  WM_DRAG_GREASE_PENCIL_GROUP,
   WM_DRAG_NODE_TREE_INTERFACE,
   WM_DRAG_BONE_COLLECTION,
 };
@@ -1215,7 +1224,7 @@ struct wmDragPath {
 
 struct wmDragGreasePencilLayer {
   GreasePencil *grease_pencil;
-  GreasePencilLayer *layer;
+  GreasePencilLayerTreeNode *node;
 };
 
 using WMDropboxTooltipFunc = std::string (*)(bContext *C,

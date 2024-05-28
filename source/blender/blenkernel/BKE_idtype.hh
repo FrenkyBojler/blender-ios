@@ -48,6 +48,20 @@ enum {
    * data-blocks.
    */
   IDTYPE_FLAGS_NO_MEMFILE_UNDO = 1 << 5,
+  /**
+   * Indicates that the given IDType is considered as unused.
+   *
+   * This is used for some 'root' ID types which typically do not have any actual user (WM.
+   * Scene...). It prevents e.g. their deletion through the 'Purge' operation.
+   *
+   * \note This applies to local IDs. Linked data should essentially ignore this flag. In practice,
+   * currently, only the Scene ID can be linked among the `never unused` types.
+   *
+   * \note The implementation of the expected behaviors related to this characteristic is somewhat
+   * fragile and inconsistent currently. In most case though, code is expected to ensure that such
+   * IDs have at least an 'extra user' (#LIB_TAG_EXTRAUSER).
+   */
+  IDTYPE_FLAGS_NEVER_UNUSED = 1 << 6,
 };
 
 struct IDCacheKey {
@@ -89,7 +103,15 @@ using IDTypeForeachCacheFunction = void (*)(ID *id,
 
 using IDTypeForeachPathFunction = void (*)(ID *id, BPathForeachPathData *bpath_data);
 
-using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID *id);
+/**
+ * Callback returning the address of the pointer to the owner ID,
+ * for embedded (and Shape-key) ones.
+ *
+ * \param debug_relationship_assert: usually the owner <-> embedded relation pointers should be
+ * fully valid, and can be asserted on. But in some cases, they are not (fully) valid, e.g when
+ * copying an ID and all of its embedded data.
+ */
+using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID *id, bool debug_relationship_assert);
 
 using IDTypeBlendWriteFunction = void (*)(BlendWriter *writer, ID *id, const void *id_address);
 using IDTypeBlendReadDataFunction = void (*)(BlendDataReader *reader, ID *id);
@@ -273,7 +295,6 @@ extern IDTypeInfo IDType_ID_CV;
 extern IDTypeInfo IDType_ID_PT;
 extern IDTypeInfo IDType_ID_VO;
 extern IDTypeInfo IDType_ID_GP;
-extern IDTypeInfo IDType_ID_AN;
 
 /** Empty shell mostly, but needed for read code. */
 extern IDTypeInfo IDType_ID_LINK_PLACEHOLDER;

@@ -9,6 +9,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.h"
+#include "BKE_paint.hh"
 
 #include "BLI_bounds.hh"
 #include "BLI_length_parameterize.hh"
@@ -105,7 +106,7 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
     const int drawing_index = (&drawing_info - drawings_.data());
 
     bke::CurvesGeometry &strokes = drawing_info.drawing.strokes_for_write();
-    const Layer &layer = *grease_pencil.layers()[drawing_info.layer_index];
+    const Layer &layer = *grease_pencil.layer(drawing_info.layer_index);
 
     screen_positions_per_drawing_[drawing_index].reinitialize(strokes.points_num());
 

@@ -115,21 +115,22 @@ class IMAGE_MT_view(Menu):
 class IMAGE_MT_view_zoom(Menu):
     bl_label = "Zoom"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         from math import isclose
 
-        current_zoom = _context.space_data.zoom_percentage
+        current_zoom = context.space_data.zoom_percentage
         ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
 
-        for i, (a, b) in enumerate(ratios):
-            percent = a / b * 100
+        for (a, b) in ratios:
+            ratio = a / b
+            percent = ratio * 100.0
             layout.operator(
                 "image.view_zoom_ratio",
-                text=iface_("%g%% (%d:%d)") % (percent, a, b),
+                text="{:g}% ({:d}:{:d})".format(percent, a, b),
                 translate=False,
-                icon=('NONE', 'LAYER_ACTIVE')[isclose(percent, current_zoom, abs_tol=0.5)]
-            ).ratio = a / b
+                icon='LAYER_ACTIVE' if isclose(percent, current_zoom, abs_tol=0.5) else 'NONE',
+            ).ratio = ratio
 
         layout.separator()
         layout.operator("image.view_zoom_in")
@@ -153,20 +154,21 @@ class IMAGE_MT_select(Menu):
         layout.operator("uv.select_box").pinned = False
         layout.operator("uv.select_box", text="Box Select Pinned").pinned = True
         layout.operator("uv.select_circle")
+        layout.operator_menu_enum("uv.select_lasso", "mode", text="Lasso Select")
 
         layout.separator()
 
-        layout.operator("uv.select_less", text="Less")
         layout.operator("uv.select_more", text="More")
+        layout.operator("uv.select_less", text="Less")
 
         layout.separator()
 
-        layout.operator("uv.select_pinned")
+        layout.operator_menu_enum("uv.select_similar", "type", text="Select Similar")
         layout.menu("IMAGE_MT_select_linked")
-        layout.operator("uv.select_similar")
 
         layout.separator()
 
+        layout.operator("uv.select_pinned", text="Select Pinned")
         layout.operator("uv.select_split")
         layout.operator("uv.select_overlap")
 
@@ -1021,9 +1023,14 @@ class IMAGE_PT_snapping(Panel):
 
         col.label(text="Affect")
         row = col.row(align=True)
-        row.prop(tool_settings, "use_snap_translate", text="Move", toggle=True)
-        row.prop(tool_settings, "use_snap_rotate", text="Rotate", toggle=True)
-        row.prop(tool_settings, "use_snap_scale", text="Scale", toggle=True)
+        row.prop(
+            tool_settings,
+            "use_snap_translate",
+            text="Move",
+            text_ctxt=i18n_contexts.operator_default,
+            toggle=True)
+        row.prop(tool_settings, "use_snap_rotate", text="Rotate", text_ctxt=i18n_contexts.operator_default, toggle=True)
+        row.prop(tool_settings, "use_snap_scale", text="Scale", text_ctxt=i18n_contexts.operator_default, toggle=True)
         col.label(text="Rotation Increment")
         row = col.row(align=True)
         row.prop(tool_settings, "snap_angle_increment_2d", text="")

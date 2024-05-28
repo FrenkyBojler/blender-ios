@@ -22,6 +22,7 @@
 #include "BLI_array.hh"
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
+#include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
 
@@ -574,6 +575,9 @@ void WM_event_modal_handler_area_replace(wmWindow *win,
 void WM_event_modal_handler_region_replace(wmWindow *win,
                                            const ARegion *old_region,
                                            ARegion *new_region);
+void WM_event_ui_handler_region_popup_replace(wmWindow *win,
+                                              const ARegion *old_region,
+                                              ARegion *new_region);
 
 /**
  * Called on exit or remove area, only here call cancel callback.
@@ -732,6 +736,13 @@ bool WM_operator_winactive(bContext *C);
  * just wraps #WM_operator_props_dialog_popup.
  */
 int WM_operator_props_popup_confirm(bContext *C, wmOperator *op, const wmEvent *event);
+
+int WM_operator_props_popup_confirm_ex(bContext *C,
+                                       wmOperator *op,
+                                       const wmEvent *event,
+                                       std::optional<std::string> title = std::nullopt,
+                                       std::optional<std::string> confirm_text = std::nullopt);
+
 /**
  * Same as #WM_operator_props_popup but call the operator first,
  * This way - the button values correspond to the result of the operator.
@@ -991,6 +1002,10 @@ void WM_operator_properties_gesture_box_zoom(wmOperatorType *ot);
  */
 void WM_operator_properties_gesture_lasso(wmOperatorType *ot);
 /**
+ * Use with #WM_gesture_polyline_invoke
+ */
+void WM_operator_properties_gesture_polyline(wmOperatorType *ot);
+/**
  * Use with #WM_gesture_straightline_invoke
  */
 void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor);
@@ -1118,10 +1133,8 @@ std::optional<std::string> WM_context_path_resolve_full(bContext *C, const Point
 /* `wm_operator_type.cc` */
 
 wmOperatorType *WM_operatortype_find(const char *idname, bool quiet);
-/**
- * \note Caller must free.
- */
-void WM_operatortype_iter(GHashIterator *ghi);
+using wmOperatorTypeMap = blender::Map<std::string, wmOperatorType *>;
+const wmOperatorTypeMap &WM_operatortype_map();
 void WM_operatortype_append(void (*opfunc)(wmOperatorType *ot));
 void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *ot, void *userdata),
                                 void *userdata);
@@ -1286,6 +1299,9 @@ void WM_gesture_lines_cancel(bContext *C, wmOperator *op);
 int WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 int WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEvent *event);
 void WM_gesture_lasso_cancel(bContext *C, wmOperator *op);
+int WM_gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event);
+int WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wmEvent *event);
+void WM_gesture_polyline_cancel(bContext *C, wmOperator *op);
 /**
  * helper function, we may want to add options for conversion to view space
  */

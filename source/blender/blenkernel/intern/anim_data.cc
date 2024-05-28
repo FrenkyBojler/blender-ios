@@ -10,7 +10,7 @@
 #include <cstring>
 #include <optional>
 
-#include "ANIM_animation.hh"
+#include "ANIM_action.hh"
 
 #include "BKE_action.h"
 #include "BKE_anim_data.hh"
@@ -280,16 +280,14 @@ bool BKE_animdata_id_is_animated(const ID *id)
     return false;
   }
 
-  /* If an Animation is assigned, it takes precedence over the Action, even when
-   * this Animation has no F-Curves and the Action does. */
-  if (adt->animation) {
-    const blender::animrig::Animation &anim = adt->animation->wrap();
-    if (anim.is_binding_animated(adt->binding_handle)) {
+  if (adt->action) {
+    const blender::animrig::Action &action = adt->action->wrap();
+    if (action.is_action_layered() && action.is_binding_animated(adt->binding_handle)) {
       return true;
     }
-  }
-  else if (adt->action != nullptr && !BLI_listbase_is_empty(&adt->action->curves)) {
-    return true;
+    if (action.is_action_legacy() && !BLI_listbase_is_empty(&action.curves)) {
+      return true;
+    }
   }
 
   return !BLI_listbase_is_empty(&adt->drivers) || !BLI_listbase_is_empty(&adt->nla_tracks) ||
@@ -302,7 +300,6 @@ void BKE_animdata_foreach_id(AnimData *adt, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_fcurve_foreach_id(fcu, data));
   }
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, adt->animation, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, adt->action, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, adt->tmpact, IDWALK_CB_USER);
 
@@ -348,10 +345,20 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
                                  flag;
     BLI_assert(bmain != nullptr);
     BLI_assert(dadt->action == nullptr || dadt->action != dadt->tmpact);
-    dadt->action = reinterpret_cast<bAction *>(BKE_id_copy_in_lib(
-        bmain, owner_library, reinterpret_cast<ID *>(dadt->action), nullptr, id_copy_flag));
-    dadt->tmpact = reinterpret_cast<bAction *>(BKE_id_copy_in_lib(
-        bmain, owner_library, reinterpret_cast<ID *>(dadt->tmpact), nullptr, id_copy_flag));
+    dadt->action = reinterpret_cast<bAction *>(
+        BKE_id_copy_in_lib(bmain,
+                           owner_library,
+                           reinterpret_cast<ID *>(dadt->action),
+                           nullptr,
+                           nullptr,
+                           id_copy_flag));
+    dadt->tmpact = reinterpret_cast<bAction *>(
+        BKE_id_copy_in_lib(bmain,
+                           owner_library,
+                           reinterpret_cast<ID *>(dadt->tmpact),
+                           nullptr,
+                           nullptr,
+                           id_copy_flag));
   }
   else if (do_id_user) {
     id_us_plus((ID *)dadt->action);
@@ -416,7 +423,7 @@ static void animdata_copy_id_action(Main *bmain,
                       BKE_id_copy(bmain, &adt->tmpact->id));
     }
   }
-  bNodeTree *ntree = ntreeFromID(id);
+  bNodeTree *ntree = blender::bke::ntreeFromID(id);
   if (ntree) {
     animdata_copy_id_action(bmain, &ntree->id, set_newid, do_linked_id);
   }

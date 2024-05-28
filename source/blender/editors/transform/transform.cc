@@ -21,6 +21,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BKE_mask.h"
+#include "BKE_workspace.hh"
 
 #include "GPU_state.hh"
 
@@ -540,6 +541,10 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 static void viewRedrawPost(bContext *C, TransInfo *t)
 {
   ED_area_status_text(t->area, nullptr);
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  if (workspace) {
+    BKE_workspace_status_clear(workspace);
+  }
 
   if (t->spacetype == SPACE_VIEW3D) {
     /* If auto-keying is enabled, send notifiers that keyframes were added. */
@@ -988,7 +993,7 @@ static bool transform_event_modal_constraint(TransInfo *t, short modal_type)
   return true;
 }
 
-int transformEvent(TransInfo *t, const wmEvent *event)
+int transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
 {
   bool handled = false;
   bool is_navigating = t->vod ? ((RegionView3D *)t->region->regiondata)->rflag & RV3D_NAVIGATING :
@@ -1096,7 +1101,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         }
         else {
           /* First try Edge Slide. */
-          transform_mode_init(t, nullptr, TFM_EDGE_SLIDE);
+          transform_mode_init(t, op, TFM_EDGE_SLIDE);
           /* If that fails, try Vertex Slide. */
           if (t->state == TRANS_CANCEL) {
             resetTransModal(t);
@@ -1431,6 +1436,11 @@ int transformEvent(TransInfo *t, const wmEvent *event)
     WM_window_status_area_tag_redraw(CTX_wm_window(t->context));
   }
 
+  WorkSpace *workspace = CTX_wm_workspace(t->context);
+  if (workspace) {
+    BKE_workspace_status_clear(workspace);
+  }
+
   if (!is_navigating && (handled || t->redraw)) {
     return 0;
   }
@@ -1552,8 +1562,10 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
   const rcti *rect = ED_region_visible_rect(region);
 
   View3D *v3d = nullptr;
+  Scene *scene = nullptr;
   if (t->spacetype == SPACE_VIEW3D) {
     v3d = static_cast<View3D *>(t->view);
+    scene = static_cast<Scene *>(t->scene);
   }
 
   const int font_id = BLF_set_default();
@@ -1562,7 +1574,6 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
 
   /* Check to see if the Navigation Gizmo is enabled. */
   if ((t->spacetype != SPACE_VIEW3D) || (v3d == nullptr) ||
-      ((U.uiflag & USER_SHOW_GIZMO_NAVIGATE) == 0) ||
       (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)))
   {
     offset = 10;
@@ -1590,10 +1601,18 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
   /* Warning text (to clarify meaning of overlays)
    * - Original color was red to match the icon, but that clashes badly with a less nasty border.
    */
-  uchar color[3];
-  UI_GetThemeColorShade3ubv(TH_TEXT_HI, -50, color);
-  BLF_color3ubv(font_id, color);
-  BLF_draw_default_shadowed(xco, yco, 0.0f, printable, BLF_DRAW_STR_DUMMY_MAX);
+
+  float text_color[4], shadow_color[4];
+  if (v3d && scene) {
+    ED_view3d_text_colors_get(scene, v3d, text_color, shadow_color);
+  }
+  else {
+    UI_GetThemeColor4fv(TH_TEXT_HI, text_color);
+    UI_GetThemeColor4fv(TH_BACK, text_color);
+  }
+  BLF_color4fv(BLF_default(), text_color);
+  BLF_shadow(BLF_default(), FontShadowType::Outline, shadow_color);
+  BLF_draw_default(xco, yco, 0.0f, printable, BLF_DRAW_STR_DUMMY_MAX);
 
   /* Auto-key recording icon. */
   GPU_blend(GPU_BLEND_ALPHA);

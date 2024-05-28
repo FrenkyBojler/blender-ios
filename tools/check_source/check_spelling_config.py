@@ -176,6 +176,7 @@ dict_custom = {
     "imbricated",
     "impactful",
     "incrementation",
+    "indexable",
     "inferencing",
     "initializations",
     "initializer",
@@ -275,6 +276,7 @@ dict_custom = {
     "precomputed",
     "precomputing",
     "prefetch",
+    "prefetched",
     "prefetching",
     "prefilter",
     "prefiltered",
@@ -344,6 +346,7 @@ dict_custom = {
     "retarget",
     "retiming",
     "reusability",
+    "rotationally",
     "saveable",
     "schemas",
     "scrollable",
@@ -387,6 +390,7 @@ dict_custom = {
     "teleporting",
     "templating",
     "tertiarily",
+    "testability",
     "thumbstick",
     "tokenize",
     "tokenizing",
@@ -869,5 +873,5 @@ files_ignore = {
 
 directories_ignore = {
     "scripts/addons",
-    "scripts/addons_contrib",
+    "scripts/addons_core",
 }

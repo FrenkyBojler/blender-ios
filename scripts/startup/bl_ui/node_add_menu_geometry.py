@@ -187,6 +187,7 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_READ(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeInputRadius")
         if context.space_data.geometry_nodes_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolSelection")
+            node_add_menu.add_node_type(layout, "GeometryNodeToolActiveElement")
         node_add_menu.draw_assets_for_catalog(layout, "Geometry/Read")
 
 
@@ -262,6 +263,7 @@ class NODE_MT_geometry_node_GEO_INPUT_CONSTANT(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeInputImage")
         node_add_menu.add_node_type(layout, "FunctionNodeInputInt")
         node_add_menu.add_node_type(layout, "GeometryNodeInputMaterial")
+        node_add_menu.add_node_type(layout, "FunctionNodeInputRotation")
         node_add_menu.add_node_type(layout, "FunctionNodeInputString")
         node_add_menu.add_node_type(layout, "ShaderNodeValue")
         node_add_menu.add_node_type(layout, "FunctionNodeInputVector")
@@ -315,6 +317,7 @@ class NODE_MT_geometry_node_GEO_INSTANCE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeRotateInstances")
         node_add_menu.add_node_type(layout, "GeometryNodeScaleInstances")
         node_add_menu.add_node_type(layout, "GeometryNodeTranslateInstances")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetInstanceTransform")
         layout.separator()
         node_add_menu.add_node_type(layout, "GeometryNodeInputInstanceRotation")
         node_add_menu.add_node_type(layout, "GeometryNodeInputInstanceScale")
@@ -571,6 +574,7 @@ class NODE_MT_category_GEO_UTILITIES_DEPRECATED(Menu):
 
     def draw(self, context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "FunctionNodeAlignEulerToVector")
         node_add_menu.add_node_type(layout, "FunctionNodeRotateEuler")
 
 
@@ -592,7 +596,8 @@ class NODE_MT_category_GEO_UTILITIES_ROTATION(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "FunctionNodeAlignEulerToVector")
+        node_add_menu.add_node_type(layout, "FunctionNodeAlignRotationToVector")
+        node_add_menu.add_node_type(layout, "FunctionNodeAxesToRotation")
         node_add_menu.add_node_type(layout, "FunctionNodeAxisAngleToRotation")
         node_add_menu.add_node_type(layout, "FunctionNodeEulerToRotation")
         node_add_menu.add_node_type(layout, "FunctionNodeInvertRotation")
@@ -611,10 +616,12 @@ class NODE_MT_category_utilities_matrix(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "FunctionNodeCombineMatrix")
         node_add_menu.add_node_type(layout, "FunctionNodeCombineTransform")
         node_add_menu.add_node_type(layout, "FunctionNodeInvertMatrix")
         node_add_menu.add_node_type(layout, "FunctionNodeMatrixMultiply")
         node_add_menu.add_node_type(layout, "FunctionNodeProjectPoint")
+        node_add_menu.add_node_type(layout, "FunctionNodeSeparateMatrix")
         node_add_menu.add_node_type(layout, "FunctionNodeSeparateTransform")
         node_add_menu.add_node_type(layout, "FunctionNodeTransformDirection")
         node_add_menu.add_node_type(layout, "FunctionNodeTransformPoint")
@@ -713,6 +720,7 @@ class NODE_MT_geometry_node_volume_sample(Menu):
     def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeSampleGrid")
+        node_add_menu.add_node_type(layout, "GeometryNodeSampleGridIndex")
         node_add_menu.draw_assets_for_catalog(layout, "Volume/Sample")
 
 

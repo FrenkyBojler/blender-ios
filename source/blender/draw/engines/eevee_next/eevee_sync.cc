@@ -191,7 +191,7 @@ bool SyncModule::sync_sculpt(Object *ob,
    * when switching from eevee to workbench).
    */
   if (ob_ref.object->sculpt && ob_ref.object->sculpt->pbvh) {
-    BKE_pbvh_is_drawing_set(ob_ref.object->sculpt->pbvh, pbvh_draw);
+    BKE_pbvh_is_drawing_set(*ob_ref.object->sculpt->pbvh, pbvh_draw);
   }
 
   if (!pbvh_draw) {
@@ -314,8 +314,7 @@ void SyncModule::sync_point_cloud(Object *ob,
   drawcall_add(material.reflection_probe_shading);
 
   inst_.cryptomatte.sync_object(ob, res_handle);
-  GPUMaterial *gpu_material =
-      inst_.materials.material_array_get(ob, has_motion).gpu_materials[material_slot - 1];
+  GPUMaterial *gpu_material = material.shading.gpumat;
   ::Material *mat = GPU_material_get_material(gpu_material);
   inst_.cryptomatte.sync_material(mat);
 
@@ -579,8 +578,7 @@ void SyncModule::sync_curves(Object *ob,
   drawcall_add(material.reflection_probe_shading);
 
   inst_.cryptomatte.sync_object(ob, res_handle);
-  GPUMaterial *gpu_material =
-      inst_.materials.material_array_get(ob, has_motion).gpu_materials[mat_nr - 1];
+  GPUMaterial *gpu_material = material.shading.gpumat;
   ::Material *mat = GPU_material_get_material(gpu_material);
   inst_.cryptomatte.sync_material(mat);
 

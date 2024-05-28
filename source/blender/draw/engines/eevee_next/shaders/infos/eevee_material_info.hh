@@ -232,6 +232,7 @@ GPU_SHADER_INTERFACE_INFO(eevee_surf_shadow_atomic_iface, "shadow_iface")
     .flat(Type::INT, "shadow_view_id");
 
 GPU_SHADER_INTERFACE_INFO(eevee_surf_shadow_clipping_iface, "shadow_clip")
+    .smooth(Type::VEC3, "position")
     .smooth(Type::VEC3, "vector");
 
 GPU_SHADER_CREATE_INFO(eevee_surf_shadow)

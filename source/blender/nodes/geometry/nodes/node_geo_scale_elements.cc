@@ -225,7 +225,7 @@ static void scale_uniformly(const GroupedSpan<int> elem_islands,
                             Mesh &mesh)
 {
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
-  threading::parallel_for_weighted(
+  threading::parallel_for(
       elem_islands.index_range(),
       512,
       [&](const IndexRange range) {
@@ -243,7 +243,9 @@ static void scale_uniformly(const GroupedSpan<int> elem_islands,
           });
         }
       },
-      [&](const int64_t i) { return vert_islands[i].size(); });
+      threading::accumulated_task_sizes([&](const IndexRange range) {
+        return elem_islands.offsets[range].size() + vert_islands.offsets[range].size();
+      }));
 }
 
 static float4x4 create_single_axis_transform(const float3 &center,
@@ -294,7 +296,7 @@ static void scale_on_axis(const GroupedSpan<int> elem_islands,
                           Mesh &mesh)
 {
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
-  threading::parallel_for_weighted(
+  threading::parallel_for(
       elem_islands.index_range(),
       512,
       [&](const IndexRange range) {
@@ -315,7 +317,9 @@ static void scale_on_axis(const GroupedSpan<int> elem_islands,
           });
         }
       },
-      [&](const int64_t i) { return vert_islands[i].size(); });
+      threading::accumulated_task_sizes([&](const IndexRange range) {
+        return vert_islands.offsets[range].size() + elem_islands.offsets[range].size();
+      }));
 }
 
 static int face_to_vert_islands(const Mesh &mesh,
@@ -566,7 +570,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_SCALE_ELEMENTS, "Scale Elements", NODE_CLASS_GEOMETRY);
   ntype.geometry_node_execute = node_geo_exec;
@@ -574,7 +578,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.updatefunc = node_update;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

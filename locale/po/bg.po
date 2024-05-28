@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'7b7e9f224c89')\n"
+"Project-Id-Version: Blender 4.2.0 Alpha (b'a367cf664e0d')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-22 07:36+0000\n"
-"PO-Revision-Date: 2023-09-26 10:37+0000\n"
+"POT-Creation-Date: 2024-05-27 12:52+0000\n"
+"PO-Revision-Date: 2024-04-29 13:31+0000\n"
 "Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
 "Language: bg\n"
@@ -36,18 +36,6 @@ msgid "Select"
 msgstr "Избор"
 
 
-msgid "Module"
-msgstr "Модул"
-
-
-msgid "On"
-msgstr "Върху"
-
-
-msgid "Action"
-msgstr "Действие"
-
-
 msgid "Replace"
 msgstr "Замени"
 
@@ -62,6 +50,22 @@ msgstr "Основа"
 
 msgid "Multiply"
 msgstr "Умножение"
+
+
+msgid "Module"
+msgstr "Модул"
+
+
+msgid "On"
+msgstr "Върху"
+
+
+msgid "Action"
+msgstr "Действие"
+
+
+msgid "New"
+msgstr "Нов"
 
 
 msgid "Nothing"
@@ -632,6 +636,10 @@ msgid "Sharp"
 msgstr "Рязък"
 
 
+msgid "Themes"
+msgstr "Теми"
+
+
 msgid "Mist"
 msgstr "Мъгла"
 
@@ -786,10 +794,6 @@ msgstr "Извиване"
 
 msgid "Warp"
 msgstr "Изкр"
-
-
-msgid "New"
-msgstr "Нов"
 
 
 msgid "Randomize"
@@ -1002,6 +1006,10 @@ msgid "Report"
 msgstr "Докладвай"
 
 
+msgid "Handles"
+msgstr "Дръжки"
+
+
 msgid "Shrink/Fatten"
 msgstr "Смали/Удебели"
 
@@ -1037,10 +1045,6 @@ msgid "Spin"
 msgstr "Завъртане"
 
 
-msgid "Handles"
-msgstr "Дръжки"
-
-
 msgid "Item"
 msgstr "Артикул"
 
@@ -1051,14 +1055,6 @@ msgstr "Лампа"
 
 msgid "Other"
 msgstr "Колеб"
-
-
-msgid "Compress"
-msgstr "Компресирай"
-
-
-msgid "End frame for baking"
-msgstr "Краен кадър за изпичане"
 
 
 msgid "Open"
@@ -1121,10 +1117,6 @@ msgstr "X Начало"
 
 msgid "Y Start"
 msgstr "Y Начало"
-
-
-msgid "Shadeless"
-msgstr "Без сенки"
 
 
 msgctxt "Operator"
@@ -1211,6 +1203,10 @@ msgstr "Ограничение·на·въртенето·по·вертикал
 
 msgid "Smooth along the Z axis"
 msgstr "Ограничение на въртенето по дълбочинната ос"
+
+
+msgid "End frame for baking"
+msgstr "Краен кадър за изпичане"
 
 
 msgctxt "Operator"
@@ -1395,10 +1391,6 @@ msgstr "Синх"
 msgctxt "Operator"
 msgid "Toggle Quad View"
 msgstr "Превключване на Четворен Иглед"
-
-
-msgid "Themes"
-msgstr "Теми"
 
 
 msgid "Editing"
@@ -1620,6 +1612,10 @@ msgid "Save the current file in the desired location"
 msgstr "Запазва текущия файл в желаната директория"
 
 
+msgid "Compress"
+msgstr "Компресирай"
+
+
 msgid "Write compressed .blend file"
 msgstr "Запиши компресиран .blend файл"
 
@@ -1771,6 +1767,14 @@ msgid "Animated"
 msgstr "Анимирани"
 
 
+msgid "Missing script files"
+msgstr "Липсват скриптови файлове"
+
+
+msgid "Author:"
+msgstr "Автор"
+
+
 msgid "Torus"
 msgstr "Тороид"
 
@@ -1816,14 +1820,6 @@ msgid "Invert Wheel Zoom Direction"
 msgstr "Обърни посоката на увеличение"
 
 
-msgid "Missing script files"
-msgstr "Липсват скриптови файлове"
-
-
-msgid "Author:"
-msgstr "Автор"
-
-
 msgid "Layer:"
 msgstr "Слой"
 
@@ -1836,16 +1832,16 @@ msgid "Stop this job"
 msgstr "Спри тази задача"
 
 
+msgid "Cancel"
+msgstr "Отказ"
+
+
 msgid "OK"
 msgstr "ОК"
 
 
 msgid "Fields"
 msgstr "Полета"
-
-
-msgid "Cancel"
-msgstr "Отказ"
 
 
 msgid "{} (String)"

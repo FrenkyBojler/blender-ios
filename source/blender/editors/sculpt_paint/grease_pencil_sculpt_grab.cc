@@ -67,11 +67,15 @@ void GrabOperation::foreach_grabbed_drawing(
         const GreasePencilStrokeParams &params, const IndexMask &mask, Span<float> weights)> fn)
     const
 {
+  using bke::greasepencil::Drawing;
+  using bke::greasepencil::Layer;
+
   const Scene &scene = *CTX_data_scene(&C);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  const ARegion &region = *CTX_wm_region(&C);
-  const View3D &view3d = *CTX_wm_view3d(&C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
+  ARegion &region = *CTX_wm_region(&C);
+  View3D &view3d = *CTX_wm_view3d(&C);
   Object &object = *CTX_data_active_object(&C);
+  Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   bool changed = false;
@@ -80,29 +84,32 @@ void GrabOperation::foreach_grabbed_drawing(
     if (data.point_mask.is_empty()) {
       return;
     }
-    const bke::greasepencil::Layer &layer = *grease_pencil.layers()[data.layer_index];
+    const Layer &layer = *grease_pencil.layer(data.layer_index);
     /* If a new frame is created, could be impossible find the stroke. */
-    const int drawing_index = layer.drawing_index_at(data.frame_number);
-    if (drawing_index < 0) {
+    bke::greasepencil::Drawing *drawing = grease_pencil.get_drawing_at(layer, data.frame_number);
+    if (drawing == nullptr) {
       return;
     }
-    GreasePencilDrawingBase &drawing_base = *grease_pencil.drawing(drawing_index);
-    if (drawing_base.type != GP_DRAWING) {
-      return;
+
+    ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
+    if (placement.use_project_to_surface()) {
+      placement.cache_viewport_depths(&depsgraph, &region, &view3d);
     }
-    bke::greasepencil::Drawing &drawing =
-        reinterpret_cast<GreasePencilDrawing &>(drawing_base).wrap();
+    else if (placement.use_project_to_nearest_stroke()) {
+      placement.cache_viewport_depths(&depsgraph, &region, &view3d);
+      placement.set_origin_to_nearest_stroke(this->start_mouse_position);
+    }
 
     GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
         scene,
         depsgraph,
         region,
-        view3d,
         object,
         data.layer_index,
         data.frame_number,
         data.multi_frame_falloff,
-        drawing);
+        std::move(placement),
+        *drawing);
     if (fn(params, data.point_mask, data.weights)) {
       changed = true;
     }
@@ -138,11 +145,10 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
     BLI_assert(info.layer_index >= 0);
     PointWeights &data = this->drawing_data[i];
 
-    const bke::greasepencil::Layer &layer = *grease_pencil.layers()[info.layer_index];
-    BLI_assert(layer.drawing_index_at(info.frame_number) >= 0);
+    const bke::greasepencil::Layer &layer = *grease_pencil.layer(info.layer_index);
     BLI_assert(grease_pencil.get_drawing_at(layer, info.frame_number) == &info.drawing);
 
-    ed::greasepencil::DrawingPlacement placement(scene, region, view3d, ob_eval, layer);
+    ed::greasepencil::DrawingPlacement placement(scene, region, view3d, ob_eval, &layer);
     GreasePencilStrokeParams params = {*scene.toolsettings,
                                        region,
                                        ob_orig,
@@ -164,7 +170,7 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
     IndexMask point_mask = brush_influence_mask(scene,
                                                 brush,
                                                 start_sample.mouse_position,
-                                                start_sample.pressure,
+                                                1.0f,
                                                 info.multi_frame_falloff,
                                                 selection,
                                                 view_positions,
@@ -196,7 +202,7 @@ void GrabOperation::on_stroke_extended(const bContext &C, const InputSample &ext
       [&](const GreasePencilStrokeParams &params,
           const IndexMask &mask,
           const Span<float> weights) {
-        /* Crazyspace deformation. */
+        /* Crazy-space deformation. */
         bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
 
         /* Transform mouse delta into layer space. */

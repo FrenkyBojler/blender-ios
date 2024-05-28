@@ -9,10 +9,16 @@
 #include <pxr/usd/usdGeom/curves.h>
 #include <pxr/usd/usdGeom/nurbsCurves.h>
 
+namespace blender::bke {
+class AttributeIDRef;
+struct AttributeMetaData;
+class CurvesGeometry;
+}  // namespace blender::bke
+
 namespace blender::io::usd {
 
 /* Writer for writing Curves data as USD curves. */
-class USDCurvesWriter : public USDAbstractWriter {
+class USDCurvesWriter final : public USDAbstractWriter {
  public:
   USDCurvesWriter(const USDExporterContext &ctx) : USDAbstractWriter(ctx) {}
   ~USDCurvesWriter() final = default;
@@ -38,6 +44,18 @@ class USDCurvesWriter : public USDAbstractWriter {
                                        const pxr::VtArray<double> &knots,
                                        const pxr::VtArray<int> &orders,
                                        const pxr::UsdTimeCode timecode);
+
+  void write_generic_data(const bke::CurvesGeometry &curves,
+                          const bke::AttributeIDRef &attribute_id,
+                          const bke::AttributeMetaData &meta_data,
+                          const pxr::UsdGeomCurves &usd_curves);
+
+  void write_uv_data(const bke::CurvesGeometry &curves,
+                     const bke::AttributeIDRef &attribute_id,
+                     const pxr::UsdGeomCurves &usd_curves);
+
+  void write_custom_data(const blender::bke::CurvesGeometry &curves,
+                         pxr::UsdGeomCurves &usd_curves);
 };
 
 }  // namespace blender::io::usd

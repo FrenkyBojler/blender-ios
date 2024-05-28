@@ -24,6 +24,7 @@ from bpy.props import (
     StringProperty,
 )
 from bpy.app.translations import (
+    contexts as i18n_contexts,
     pgettext_iface as iface_,
     pgettext_data as data_,
 )
@@ -112,10 +113,12 @@ class ImportHelper:
             if len(self.files) > 1:
                 title = iface_("Import {} files").format(len(self.files))
 
-            if not confirm_text:
-                confirm_text = self.bl_label
+            if confirm_text:
+                confirm_text = iface_(confirm_text)
+            else:
+                # Use the operator's bl_label, extracted with an "Operator" translation context.
+                confirm_text = iface_(self.bl_label, i18n_contexts.operator_default)
 
-            confirm_text = iface_(confirm_text)
             return context.window_manager.invoke_props_dialog(
                 self, confirm_text=confirm_text, title=title, translate=False)
 
@@ -505,7 +508,7 @@ def path_reference(
         filepath_abs = filepath_cpy
         mode = 'RELATIVE'
     else:
-        raise Exception("invalid mode given %r" % mode)
+        raise Exception("invalid mode given {!r}".format(mode))
 
     if mode == 'ABSOLUTE':
         return filepath_abs
@@ -537,7 +540,7 @@ def path_reference_copy(copy_set, report=print):
 
     for file_src, file_dst in copy_set:
         if not os.path.exists(file_src):
-            report("missing %r, not copying" % file_src)
+            report("missing {!r}, not copying".format(file_src))
         elif os.path.exists(file_dst) and os.path.samefile(file_src, file_dst):
             pass
         else:
@@ -588,7 +591,7 @@ def unique_name(key, name, name_dict, name_max=-1, clean_func=None, sep="."):
 
         if name_max == -1:
             while name_new in name_dict_values:
-                name_new = "%s%s%03d" % (
+                name_new = "{:s}{:s}{:03d}".format(
                     name_new_orig,
                     sep,
                     count,
@@ -597,10 +600,10 @@ def unique_name(key, name, name_dict, name_max=-1, clean_func=None, sep="."):
         else:
             name_new = name_new[:name_max]
             while name_new in name_dict_values:
-                count_str = "%03d" % count
-                name_new = "%.*s%s%s" % (
-                    name_max - (len(count_str) + 1),
+                count_str = "{:03d}".format(count)
+                name_new = "{:.{:d}s}{:s}{:s}".format(
                     name_new_orig,
+                    name_max - (len(count_str) + 1),
                     sep,
                     count_str,
                 )

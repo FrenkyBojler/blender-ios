@@ -2252,7 +2252,7 @@ static void ui_apply_but(
         if (data->select_others.elems_len == 0)
     {
       wmWindow *win = CTX_wm_window(C);
-      wmEvent *event = win->eventstate;
+      const wmEvent *event = win->eventstate;
       /* May have been enabled before activating, don't do for array pasting. */
       if (data->select_others.is_enabled || IS_ALLSELECT_EVENT(event)) {
         /* See comment for #IS_ALLSELECT_EVENT why this needs to be filtered here. */
@@ -2311,6 +2311,7 @@ static void ui_apply_but(
   switch (but_type) {
     case UI_BTYPE_BUT:
     case UI_BTYPE_DECORATOR:
+    case UI_BTYPE_PREVIEW_TILE:
       ui_apply_but_BUT(C, but, data);
       break;
     case UI_BTYPE_TEXT:
@@ -3113,8 +3114,9 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
   }
   /* mouse inside the widget, mouse coords mapped in widget space */
   else {
-    but->pos = but->ofs + BLF_str_offset_from_cursor_position(
-                              fstyle.uifont_id, str + but->ofs, INT_MAX, int(x - startx));
+    but->pos = but->ofs +
+               BLF_str_offset_from_cursor_position(
+                   fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs), int(x - startx));
   }
 
   ui_but_text_password_hide(password_str, but, true);
@@ -4047,6 +4049,11 @@ static void ui_do_but_textedit(
 
   if (changed || (retval == WM_UI_HANDLER_BREAK)) {
     ED_region_tag_redraw(data->region);
+    if (!data->searchbox) {
+      /* In case of popup regions, tag for popup refreshing too (contents may have changed). Not
+       * done for search-boxes, since they have their own update handling. */
+      ED_region_tag_refresh_ui(data->region);
+    }
   }
 }
 
@@ -4335,7 +4342,8 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
   }
 
   if (func || handlefunc) {
-    data->menu = ui_popup_block_create(C, data->region, but, func, handlefunc, arg, nullptr);
+    data->menu = ui_popup_block_create(
+        C, data->region, but, func, handlefunc, arg, nullptr, false);
     if (but->block->handle) {
       data->menu->popup = but->block->handle->popup;
     }
@@ -8905,10 +8913,10 @@ uiBut *UI_context_active_but_get(const bContext *C)
   return ui_context_button_active(CTX_wm_region(C), nullptr);
 }
 
-uiBut *UI_context_active_but_get_respect_menu(const bContext *C)
+uiBut *UI_context_active_but_get_respect_popup(const bContext *C)
 {
-  ARegion *region_menu = CTX_wm_menu(C);
-  return ui_context_button_active(region_menu ? region_menu : CTX_wm_region(C), nullptr);
+  ARegion *region_popup = CTX_wm_region_popup(C);
+  return ui_context_button_active(region_popup ? region_popup : CTX_wm_region(C), nullptr);
 }
 
 uiBut *UI_region_active_but_get(const ARegion *region)
@@ -8952,14 +8960,14 @@ uiBut *UI_context_active_but_prop_get(const bContext *C,
                                       PropertyRNA **r_prop,
                                       int *r_index)
 {
-  ARegion *region_menu = CTX_wm_menu(C);
+  ARegion *region_popup = CTX_wm_region_popup(C);
   return UI_region_active_but_prop_get(
-      region_menu ? region_menu : CTX_wm_region(C), r_ptr, r_prop, r_index);
+      region_popup ? region_popup : CTX_wm_region(C), r_ptr, r_prop, r_index);
 }
 
 void UI_context_active_but_prop_handle(bContext *C, const bool handle_undo)
 {
-  uiBut *activebut = UI_context_active_but_get_respect_menu(C);
+  uiBut *activebut = UI_context_active_but_get_respect_popup(C);
   if (activebut) {
     /* TODO(@ideasman42): look into a better way to handle the button change
      * currently this is mainly so reset defaults works for the
@@ -10119,7 +10127,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, uiBlock *block, float
   /* remember scroll offset for refreshes */
   block->handle->scrolloffset += dy;
   /* Apply popup scroll delta to layout panels too. */
-  UI_layout_panel_popup_scroll_apply(block->panel, dy);
+  ui_layout_panel_popup_scroll_apply(block->panel, dy);
 
   /* apply scroll offset */
   LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
@@ -11424,7 +11432,7 @@ static int ui_handle_menus_recursive(bContext *C,
           C, event, submenu, level + 1, is_parent_inside || inside, is_menu, false);
     }
   }
-  else if (event->val == KM_PRESS && event->type == LEFTMOUSE) {
+  else if (!but && event->val == KM_PRESS && event->type == LEFTMOUSE) {
     LISTBASE_FOREACH (uiBlock *, block, &menu->region->uiblocks) {
       if (block->panel) {
         int mx = event->xy[0];
@@ -11433,11 +11441,16 @@ static int ui_handle_menus_recursive(bContext *C,
         if (!IN_RANGE(float(mx), block->rect.xmin, block->rect.xmax)) {
           break;
         }
-        LayoutPanelHeader *header = UI_layout_panel_header_under_mouse(*block->panel, my);
+        LayoutPanelHeader *header = ui_layout_panel_header_under_mouse(*block->panel, my);
         if (header) {
           ED_region_tag_redraw(menu->region);
           ED_region_tag_refresh_ui(menu->region);
-          UI_panel_drag_collapse_handler_add(C, !UI_layout_panel_toggle_open(C, header));
+          ARegion *prev_region_popup = CTX_wm_region_popup(C);
+          /* Set the current context popup region so the handler context can access to it. */
+          CTX_wm_region_popup_set(C, menu->region);
+          ui_panel_drag_collapse_handler_add(C, !ui_layout_panel_toggle_open(C, header));
+          /* Restore previous popup region. */
+          CTX_wm_region_popup_set(C, prev_region_popup);
           retval = WM_UI_HANDLER_BREAK;
         }
       }
@@ -11502,6 +11515,8 @@ static int ui_handle_menus_recursive(bContext *C,
   if (!menu->retvalue) {
     ui_handle_viewlist_items_hover(event, menu->region);
   }
+  /* Handle mouse clicks on overlapping view item button. */
+  ui_handle_view_item_event(C, event, but, menu->region);
 
   if (do_towards_reinit) {
     ui_mouse_motion_towards_reinit(menu, event->xy);
@@ -11605,8 +11620,8 @@ static void ui_region_handler_remove(bContext *C, void * /*userdata*/)
  * number sliding, text editing, or when a menu block is open */
 static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*userdata*/)
 {
-  ARegion *menu_region = CTX_wm_menu(C);
-  ARegion *region = menu_region ? menu_region : CTX_wm_region(C);
+  ARegion *region_popup = CTX_wm_region_popup(C);
+  ARegion *region = region_popup ? region_popup : CTX_wm_region(C);
   int retval = WM_UI_HANDLER_CONTINUE;
 
   uiBut *but = ui_region_find_active_but(region);
@@ -11674,16 +11689,16 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
   }
 
   if (but && but->active && but->active->menu) {
-    /* Set correct context menu-region. The handling button above breaks if we set the region
-     * first, so only set it for executing the after-funcs. */
-    CTX_wm_menu_set(C, but->active->menu->region);
+    /* Set correct context popup-region. The handling button above breaks if we set the region
+     * first, so only set it for executing the #uiAfterFunc. */
+    CTX_wm_region_popup_set(C, but->active->menu->region);
   }
 
   /* delayed apply callbacks */
   ui_apply_but_funcs_after(C);
 
   /* Reset to previous context region. */
-  CTX_wm_menu_set(C, menu_region);
+  CTX_wm_region_popup_set(C, region_popup);
 
   /* Don't handle double-click events,
    * these will be converted into regular clicks which we handle. */
@@ -11706,8 +11721,8 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
   int retval = WM_UI_HANDLER_BREAK;
   bool reset_pie = false;
 
-  ARegion *menu_region = CTX_wm_menu(C);
-  CTX_wm_menu_set(C, menu->region);
+  ARegion *region_popup = CTX_wm_region_popup(C);
+  CTX_wm_region_popup_set(C, menu->region);
 
   if (event->type == EVT_DROP || event->val == KM_DBL_CLICK) {
     /* EVT_DROP:
@@ -11739,7 +11754,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
 
     ui_popup_block_free(C, menu);
     UI_popup_handlers_remove(&win->modalhandlers, menu);
-    CTX_wm_menu_set(C, nullptr);
+    CTX_wm_region_popup_set(C, nullptr);
 
 #ifdef USE_DRAG_TOGGLE
     {
@@ -11782,7 +11797,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
     }
   }
 
-  CTX_wm_region_set(C, menu_region);
+  CTX_wm_region_set(C, region_popup);
 
   return retval;
 }

@@ -91,14 +91,12 @@ static bool grease_pencil_layer_initialize_trans_data(blender::bke::greasepencil
   trans_data.frames_destination.clear();
 
   for (const auto [frame_number, frame] : layer.frames().items()) {
-    if (frame.is_null()) {
+    if (frame.is_end()) {
       continue;
     }
 
     /* Store frames' duration to keep them visually correct while moving the frames. */
-    if (!frame.is_implicit_hold()) {
-      trans_data.frames_duration.add(frame_number, layer.get_frame_duration_at(frame_number));
-    }
+    trans_data.frames_duration.add(frame_number, layer.get_frame_duration_at(frame_number));
   }
 
   trans_data.status = LayerTransformData::TRANS_INIT;
@@ -154,8 +152,7 @@ static bool grease_pencil_layer_update_trans_data(blender::bke::greasepencil::La
 
   layer.remove_frame(dst_frame_number);
 
-  GreasePencilFrame *frame = layer.add_frame(
-      dst_frame_number, src_frame.drawing_index, src_duration);
+  GreasePencilFrame *frame = layer.add_frame(dst_frame_number, src_duration);
   *frame = src_frame;
 
   trans_data.frames_destination.add_overwrite(src_frame_number, dst_frame_number);
@@ -998,7 +995,7 @@ static void recalcData_actedit(TransInfo *t)
       ANIM_animdata_freelist(&anim_data);
     }
 
-    if (ac.datatype == ANIMCONT_GPENCIL) {
+    {
       filter = ANIMFILTER_DATA_VISIBLE;
       ANIM_animdata_filter(
           &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
@@ -1200,7 +1197,15 @@ static void special_aftertrans_update__actedit(bContext *C, TransInfo *t)
           }
           break;
         }
-
+        case ALE_GREASE_PENCIL_CEL: {
+          GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
+          grease_pencil_layer_apply_trans_data(
+              *grease_pencil,
+              *static_cast<blender::bke::greasepencil::Layer *>(ale->data),
+              canceled,
+              duplicate);
+          break;
+        }
         default:
           BLI_assert_msg(false, "Keys cannot be transformed into this animation type.");
       }

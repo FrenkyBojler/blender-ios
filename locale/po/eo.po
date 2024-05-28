@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'7b7e9f224c89')\n"
+"Project-Id-Version: Blender 4.2.0 Alpha (b'a367cf664e0d')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-22 07:36+0000\n"
-"PO-Revision-Date: 2024-03-25 00:51+0000\n"
+"POT-Creation-Date: 2024-05-27 12:52+0000\n"
+"PO-Revision-Date: 2024-04-29 13:46+0000\n"
 "Last-Translator: william sélifet <williamselifet@live.be>\n"
 "Language-Team: Esperanto <https://translate.blender.org/projects/blender-ui/ui/eo/>\n"
 "Language: eo\n"
@@ -19,6 +19,10 @@ msgid "Name"
 msgstr "Nomo"
 
 
+msgid "F-Curves"
+msgstr "F-Kurbecoj"
+
+
 msgid "Select"
 msgstr "Elektu"
 
@@ -27,8 +31,8 @@ msgid "Add"
 msgstr "Aldonia"
 
 
-msgid "F-Curves"
-msgstr "F-Kurbecoj"
+msgid "New"
+msgstr "Nova"
 
 
 msgid "Cache Files"
@@ -63,6 +67,10 @@ msgid "B-Bone"
 msgstr "B-osto"
 
 
+msgid "Attribute"
+msgstr "Atributo"
+
+
 msgid "Links"
 msgstr "Ligiloj"
 
@@ -75,20 +83,12 @@ msgid "Sculpt Mode"
 msgstr "Skulptaĵo Modo"
 
 
-msgid "Attribute"
-msgstr "Atributo"
-
-
 msgid "File"
 msgstr "Dosiero"
 
 
 msgid "Help"
 msgstr "Helpo"
-
-
-msgid "New"
-msgstr "Nova"
 
 
 msgctxt "Operator"

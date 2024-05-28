@@ -791,8 +791,6 @@ typedef struct RenderData {
   float simplify_particles;
   float simplify_particles_render;
   float simplify_volumes;
-  float simplify_shadows;
-  float simplify_shadows_render;
 
   /** Freestyle line thickness options. */
   int line_thickness_mode;
@@ -827,6 +825,12 @@ typedef struct RenderData {
   float motion_blur_shutter;
   int motion_blur_position;
   struct CurveMapping mblur_shutter_curve;
+
+  /** Device to use for compositor engine. */
+  int compositor_device; /* eCompositorDevice */
+
+  /** Precision used by the GPU execution of the compositor tree. */
+  int compositor_precision; /* eCompositorPrecision */
 } RenderData;
 
 /** #RenderData::quality_flag */
@@ -846,6 +850,18 @@ enum {
   SCE_MB_START = 1,
   SCE_MB_END = 2,
 };
+
+/** #RenderData::compositor_device */
+typedef enum eCompositorDevice {
+  SCE_COMPOSITOR_DEVICE_CPU = 0,
+  SCE_COMPOSITOR_DEVICE_GPU = 1,
+} eCompositorDevice;
+
+/** #RenderData::compositor_precision */
+typedef enum eCompositorPrecision {
+  SCE_COMPOSITOR_PRECISION_AUTO = 0,
+  SCE_COMPOSITOR_PRECISION_FULL = 1,
+} eCompositorPrecision;
 
 /** \} */
 
@@ -1416,6 +1432,7 @@ enum {
   CURVE_PAINT_FLAG_PRESSURE_RADIUS = (1 << 1),
   CURVE_PAINT_FLAG_DEPTH_STROKE_ENDPOINTS = (1 << 2),
   CURVE_PAINT_FLAG_DEPTH_STROKE_OFFSET_ABS = (1 << 3),
+  CURVE_PAINT_FLAG_DEPTH_ONLY_SELECTED = (1 << 4),
 };
 
 /** #CurvePaintSettings::fit_method */
@@ -1847,6 +1864,14 @@ typedef struct SceneEEVEE {
   float gtao_focus;
   int gtao_resolution;
 
+  int fast_gi_step_count;
+  int fast_gi_ray_count;
+  float fast_gi_distance;
+  float fast_gi_thickness_near;
+  float fast_gi_thickness_far;
+  char fast_gi_method;
+  char _pad0[3];
+
   float bokeh_overblur;
   float bokeh_max_size;
   float bokeh_threshold;
@@ -1873,7 +1898,7 @@ typedef struct SceneEEVEE {
   int shadow_pool_size;
   int shadow_ray_count;
   int shadow_step_count;
-  float shadow_normal_bias;
+  float shadow_resolution_scale;
 
   float clamp_surface_direct;
   float clamp_surface_indirect;
@@ -2274,7 +2299,7 @@ extern const char *RE_engine_id_CYCLES;
    (((base)->flag & BASE_SELECTABLE) != 0))
 #define BASE_SELECTED(v3d, base) (BASE_VISIBLE(v3d, base) && (((base)->flag & BASE_SELECTED) != 0))
 #define BASE_EDITABLE(v3d, base) \
-  (BASE_VISIBLE(v3d, base) && !ID_IS_LINKED((base)->object) && \
+  (BASE_VISIBLE(v3d, base) && ID_IS_EDITABLE((base)->object) && \
    (!ID_IS_OVERRIDE_LIBRARY_REAL((base)->object) || \
     ((base)->object->id.override_library->flag & LIBOVERRIDE_FLAG_SYSTEM_DEFINED) == 0))
 #define BASE_SELECTED_EDITABLE(v3d, base) \
@@ -2536,31 +2561,6 @@ typedef enum ePaintFlags {
 } ePaintFlags;
 
 /**
- * #Paint::symmetry_flags
- * (for now just a duplicate of sculpt symmetry flags).
- */
-typedef enum ePaintSymmetryFlags {
-  PAINT_SYMM_NONE = 0,
-  PAINT_SYMM_X = (1 << 0),
-  PAINT_SYMM_Y = (1 << 1),
-  PAINT_SYMM_Z = (1 << 2),
-  PAINT_SYMMETRY_FEATHER = (1 << 3),
-  PAINT_TILE_X = (1 << 4),
-  PAINT_TILE_Y = (1 << 5),
-  PAINT_TILE_Z = (1 << 6),
-} ePaintSymmetryFlags;
-ENUM_OPERATORS(ePaintSymmetryFlags, PAINT_TILE_Z);
-#define PAINT_SYMM_AXIS_ALL (PAINT_SYMM_X | PAINT_SYMM_Y | PAINT_SYMM_Z)
-
-#ifdef __cplusplus
-inline ePaintSymmetryFlags operator++(ePaintSymmetryFlags &flags, int)
-{
-  flags = ePaintSymmetryFlags(char(flags) + 1);
-  return flags;
-}
-#endif
-
-/**
  * #Sculpt::flags
  * These can eventually be moved to paint flags?
  */
@@ -2734,6 +2734,9 @@ typedef enum eGPencil_Placement_Flags {
   GP_PROJECT_DEPTH_STROKE_ENDPOINTS = (1 << 4),
   GP_PROJECT_CURSOR = (1 << 5),
   GP_PROJECT_DEPTH_STROKE_FIRST = (1 << 6),
+
+  /** Surface project, "Only project on selected objects". */
+  GP_PROJECT_DEPTH_ONLY_SELECTED = (1 << 7),
 } eGPencil_Placement_Flags;
 
 /** #ToolSettings::gpencil_selectmode */
@@ -2864,6 +2867,11 @@ typedef enum RaytraceEEVEE_Method {
   /* TODO(fclem): Hardware ray-tracing. */
   // RAYTRACE_EEVEE_METHOD_HARDWARE = 2,
 } RaytraceEEVEE_Method;
+
+typedef enum FastGI_Method {
+  FAST_GI_FULL = 0,
+  FAST_GI_AO_ONLY = 1,
+} FastGI_Method;
 
 /** #SceneEEVEE::shadow_method */
 enum {

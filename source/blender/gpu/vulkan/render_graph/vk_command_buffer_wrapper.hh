@@ -114,9 +114,12 @@ class VKCommandBufferInterface {
                               uint32_t offset,
                               uint32_t size,
                               const void *p_values) = 0;
-  virtual void begin_render_pass(const VkRenderPassBeginInfo *p_render_pass_begin,
-                                 VkSubpassContents contents) = 0;
-  virtual void end_render_pass() = 0;
+  /* VK_KHR_dynamic_rendering */
+  virtual void begin_rendering(const VkRenderingInfo *p_rendering_info) = 0;
+  virtual void end_rendering() = 0;
+  /* VK_EXT_debug_utils */
+  virtual void begin_debug_utils_label(const VkDebugUtilsLabelEXT *vk_debug_utils_label) = 0;
+  virtual void end_debug_utils_label() = 0;
 };
 
 class VKCommandBufferWrapper : public VKCommandBufferInterface {
@@ -231,9 +234,10 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
                       uint32_t offset,
                       uint32_t size,
                       const void *p_values) override;
-  void begin_render_pass(const VkRenderPassBeginInfo *p_render_pass_begin,
-                         VkSubpassContents contents) override;
-  void end_render_pass() override;
+  void begin_rendering(const VkRenderingInfo *p_rendering_info) override;
+  void end_rendering() override;
+  void begin_debug_utils_label(const VkDebugUtilsLabelEXT *vk_debug_utils_label) override;
+  void end_debug_utils_label() override;
 };
 
 }  // namespace blender::gpu::render_graph

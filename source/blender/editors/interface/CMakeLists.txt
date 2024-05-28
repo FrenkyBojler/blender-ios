@@ -5,6 +5,7 @@
 set(INC
   .
   ../include
+  ../asset
   ../../asset_system
   ../../blenkernel
   ../../blenloader
@@ -64,6 +65,7 @@ set(SRC
   regions/interface_regions.cc
   interface_string_search.cc
   interface_style.cc
+  templates/interface_template_asset_shelf_popover.cc
   templates/interface_template_asset_view.cc
   templates/interface_template_attribute_search.cc
   templates/interface_template_bone_collection_tree.cc
@@ -134,3 +136,17 @@ blender_add_lib(bf_editor_interface "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.h
 add_dependencies(bf_editor_interface bf_rna)
+
+if(WITH_GTESTS)
+  set(TEST_INC
+  )
+  set(TEST_SRC
+    interface_ops_test.cc
+  )
+
+  set(TEST_LIB
+    PRIVATE bf::intern::clog
+  )
+
+  blender_add_test_suite_lib(interface "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+endif()

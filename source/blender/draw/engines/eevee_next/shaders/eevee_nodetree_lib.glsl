@@ -370,10 +370,13 @@ float ambient_occlusion_eval(vec3 normal,
                     noise,
                     uniform_buf.ao.pixel_size,
                     max_distance,
-                    uniform_buf.ao.thickness,
+                    uniform_buf.ao.thickness_near,
+                    uniform_buf.ao.thickness_far,
                     uniform_buf.ao.angle_bias,
+                    2,
                     10,
-                    inverted != 0.0);
+                    inverted != 0.0,
+                    true);
 
   return saturate(ctx.occlusion_result.r);
 #  else
@@ -587,6 +590,7 @@ vec2 bsdf_lut(float cos_theta, float roughness, float ior, bool do_multiscatter)
 #  define nodetree_surface(closure_rand) Closure(0)
 #  define nodetree_volume() Closure(0)
 #  define nodetree_thickness() 0.1
+#  define thickness_mode 1.0
 #endif
 
 #ifdef GPU_VERTEX_SHADER
@@ -632,7 +636,7 @@ vec3 displacement_bump()
 void fragment_displacement()
 {
 #ifdef MAT_DISPLACEMENT_BUMP
-  g_data.N = displacement_bump();
+  g_data.N = g_data.Ni = displacement_bump();
 #endif
 }
 

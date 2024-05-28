@@ -38,9 +38,8 @@ enum eShaderType {
   DEFERRED_LIGHT_DOUBLE,
   DEFERRED_LIGHT_TRIPLE,
   DEFERRED_PLANAR_EVAL,
+  DEFERRED_THICKNESS_AMEND,
   DEFERRED_TILE_CLASSIFY,
-  DEFERRED_TILE_COMPACT,
-  DEFERRED_TILE_STENCIL,
 
   DEBUG_GBUFFER,
   DEBUG_SURFELS,
@@ -82,6 +81,7 @@ enum eShaderType {
   LIGHT_CULLING_SORT,
   LIGHT_CULLING_TILE,
   LIGHT_CULLING_ZBIN,
+  LIGHT_SHADOW_SETUP,
 
   LIGHTPROBE_IRRADIANCE_BOUNDS,
   LIGHTPROBE_IRRADIANCE_OFFSET,
@@ -107,9 +107,10 @@ enum eShaderType {
   RAY_TRACE_SCREEN,
 
   SPHERE_PROBE_CONVOLVE,
+  SPHERE_PROBE_IRRADIANCE,
   SPHERE_PROBE_REMAP,
   SPHERE_PROBE_SELECT,
-  SPHERE_PROBE_IRRADIANCE,
+  SPHERE_PROBE_SUNLIGHT,
 
   SHADOW_CLIPMAP_CLEAR,
   SHADOW_DEBUG,
@@ -165,6 +166,8 @@ class ShaderModule {
   ~ShaderModule();
 
   GPUShader *static_shader_get(eShaderType shader_type);
+  GPUMaterial *material_default_shader_get(eMaterialPipeline pipeline_type,
+                                           eMaterialGeometry geometry_type);
   GPUMaterial *material_shader_get(::Material *blender_mat,
                                    bNodeTree *nodetree,
                                    eMaterialPipeline pipeline_type,

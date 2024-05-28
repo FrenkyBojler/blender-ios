@@ -50,6 +50,7 @@
 #include "BKE_material.h"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_preview_image.hh"
 #include "BKE_tracking.h"
 
 #include "WM_api.hh"
@@ -445,7 +446,7 @@ const EnumPropertyItem *ED_gpencil_material_enum_itemf(bContext *C,
       item_tmp.identifier = ma->id.name + 2;
       item_tmp.name = ma->id.name + 2;
       item_tmp.value = i;
-      item_tmp.icon = ma->preview ? ma->preview->icon_id : ICON_NONE;
+      item_tmp.icon = ma->preview ? ma->preview->runtime->icon_id : ICON_NONE;
 
       RNA_enum_item_add(&item, &totitem, &item_tmp);
     }
@@ -1428,7 +1429,7 @@ void ED_gpencil_add_defaults(bContext *C, Object *ob)
   Main *bmain = CTX_data_main(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
 
-  BKE_paint_ensure(ts, (Paint **)&ts->gp_paint);
+  BKE_paint_ensure(bmain, ts, (Paint **)&ts->gp_paint);
   Paint *paint = &ts->gp_paint->paint;
   Brush *brush = BKE_paint_brush(paint);
   /* if not exist, create a new one */

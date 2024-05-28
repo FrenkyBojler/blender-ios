@@ -79,7 +79,7 @@ enum class ControlPointType : int8_t {
   HandlePoint = 1,
 };
 
-enum class ModelKeyMode : int8_t {
+enum class ModalKeyMode : int8_t {
   Cancel = 1,
   Confirm,
   Extrude,
@@ -456,8 +456,14 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
       pressure = BKE_curvemapping_evaluateF(gset->cur_primitive, 0, t);
     }
 
-    const float radius = ed::greasepencil::radius_from_input_sample(
-        pressure, positions_3d[point], ptd.vc, ptd.brush, ptd.vc.scene, ptd.settings);
+    const float radius = ed::greasepencil::radius_from_input_sample(ptd.vc.rv3d,
+                                                                    ptd.region,
+                                                                    ptd.vc.scene,
+                                                                    ptd.brush,
+                                                                    pressure,
+                                                                    positions_3d[point],
+                                                                    ptd.placement.to_world_space(),
+                                                                    ptd.settings);
     const float opacity = ed::greasepencil::opacity_from_input_sample(
         pressure, ptd.brush, ptd.vc.scene, ptd.settings);
 
@@ -481,10 +487,8 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
       "material_index", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
       "cyclic", bke::AttrDomain::Curve);
-  bke::SpanAttributeWriter<float> hardnesses = attributes.lookup_or_add_for_write_span<float>(
-      "hardness",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num())));
+  bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
+      "softness", bke::AttrDomain::Curve);
 
   /* Only set the attribute if the type is not the default or if it already exists. */
   if (ptd.settings->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("start_cap")) {
@@ -504,11 +508,11 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   const bool is_cyclic = ELEM(ptd.type, PrimitiveType::Box, PrimitiveType::Circle);
   cyclic.span.last() = is_cyclic;
   materials.span.last() = ptd.material_index;
-  hardnesses.span.last() = ptd.hardness;
+  softness.span.last() = 1.0f - ptd.hardness;
 
   cyclic.finish();
   materials.finish();
-  hardnesses.finish();
+  softness.finish();
 
   curves.curve_types_for_write().last() = CURVE_TYPE_POLY;
   curves.update_curve_types();
@@ -521,7 +525,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   bke::fill_attribute_range_default(
       attributes,
       bke::AttrDomain::Curve,
-      {"curve_type", "material_index", "cyclic", "hardness", "start_cap", "end_cap"},
+      {"curve_type", "material_index", "cyclic", "softness", "start_cap", "end_cap"},
       curves.curves_range().take_back(1));
 
   grease_pencil_primitive_update_curves(ptd);
@@ -568,17 +572,17 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
     }
   }
 
-  auto get_modal_key_str = [&](ModelKeyMode id) {
+  auto get_modal_key_str = [&](ModalKeyMode id) {
     return WM_modalkeymap_operator_items_to_string(op->type, int(id), true).value_or("");
   };
 
   header += fmt::format(IFACE_("{}: confirm, {}: cancel, Shift: align"),
-                        get_modal_key_str(ModelKeyMode::Confirm),
-                        get_modal_key_str(ModelKeyMode::Cancel));
+                        get_modal_key_str(ModalKeyMode::Confirm),
+                        get_modal_key_str(ModalKeyMode::Cancel));
 
   header += fmt::format(IFACE_(", {}/{}: adjust subdivisions: {}"),
-                        get_modal_key_str(ModelKeyMode::IncreaseSubdivision),
-                        get_modal_key_str(ModelKeyMode::DecreaseSubdivision),
+                        get_modal_key_str(ModalKeyMode::IncreaseSubdivision),
+                        get_modal_key_str(ModalKeyMode::DecreaseSubdivision),
                         int(ptd.subdivision));
 
   if (ptd.segments == 1) {
@@ -591,13 +595,13 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
            PrimitiveType::Arc,
            PrimitiveType::Curve))
   {
-    header += fmt::format(IFACE_(", {}: extrude"), get_modal_key_str(ModelKeyMode::Extrude));
+    header += fmt::format(IFACE_(", {}: extrude"), get_modal_key_str(ModalKeyMode::Extrude));
   }
 
   header += fmt::format(IFACE_(", {}: grab, {}: rotate, {}: scale"),
-                        get_modal_key_str(ModelKeyMode::Grab),
-                        get_modal_key_str(ModelKeyMode::Rotate),
-                        get_modal_key_str(ModelKeyMode::Scale));
+                        get_modal_key_str(ModalKeyMode::Grab),
+                        get_modal_key_str(ModalKeyMode::Rotate),
+                        get_modal_key_str(ModalKeyMode::Scale));
 
   ED_workspace_status_text(C, header.c_str());
 }
@@ -646,7 +650,7 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
 
   /* Initialize helper class for projecting screen space coordinates. */
   DrawingPlacement placement = DrawingPlacement(
-      *vc.scene, *vc.region, *view3d, *vc.obact, *grease_pencil->get_active_layer());
+      *vc.scene, *vc.region, *view3d, *vc.obact, grease_pencil->get_active_layer());
   if (placement.use_project_to_surface()) {
     placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
   }
@@ -1000,24 +1004,24 @@ static void grease_pencil_primitive_cursor_update(bContext *C,
   return;
 }
 
-static int grease_pencil_primitive_event_model_map(bContext *C,
+static int grease_pencil_primitive_event_modal_map(bContext *C,
                                                    wmOperator *op,
                                                    PrimitiveToolOperation &ptd,
                                                    const wmEvent *event)
 {
   switch (event->val) {
-    case int(ModelKeyMode::Cancel): {
+    case int(ModalKeyMode::Cancel): {
       grease_pencil_primitive_undo_curves(ptd);
       grease_pencil_primitive_exit(C, op);
 
       return OPERATOR_CANCELLED;
     }
-    case int(ModelKeyMode::Confirm): {
+    case int(ModalKeyMode::Confirm): {
       grease_pencil_primitive_exit(C, op);
 
       return OPERATOR_FINISHED;
     }
-    case int(ModelKeyMode::Extrude): {
+    case int(ModalKeyMode::Extrude): {
       if (ptd.mode == OperatorMode::Idle &&
           ELEM(ptd.type, PrimitiveType::Line, PrimitiveType::Arc, PrimitiveType::Curve))
       {
@@ -1063,7 +1067,7 @@ static int grease_pencil_primitive_event_model_map(bContext *C,
 
       return OPERATOR_RUNNING_MODAL;
     }
-    case int(ModelKeyMode::Grab): {
+    case int(ModalKeyMode::Grab): {
       if (ptd.mode == OperatorMode::Idle) {
         ptd.start_position_2d = float2(event->mval);
         ptd.mode = OperatorMode::DragAll;
@@ -1072,7 +1076,7 @@ static int grease_pencil_primitive_event_model_map(bContext *C,
       }
       return OPERATOR_RUNNING_MODAL;
     }
-    case int(ModelKeyMode::Rotate): {
+    case int(ModalKeyMode::Rotate): {
       if (ptd.mode == OperatorMode::Idle) {
         ptd.start_position_2d = float2(event->mval);
         ptd.mode = OperatorMode::RotateAll;
@@ -1081,7 +1085,7 @@ static int grease_pencil_primitive_event_model_map(bContext *C,
       }
       return OPERATOR_RUNNING_MODAL;
     }
-    case int(ModelKeyMode::Scale): {
+    case int(ModalKeyMode::Scale): {
       if (ptd.mode == OperatorMode::Idle) {
         ptd.start_position_2d = float2(event->mval);
         ptd.mode = OperatorMode::ScaleAll;
@@ -1090,14 +1094,14 @@ static int grease_pencil_primitive_event_model_map(bContext *C,
       }
       return OPERATOR_RUNNING_MODAL;
     }
-    case int(ModelKeyMode::IncreaseSubdivision): {
+    case int(ModalKeyMode::IncreaseSubdivision): {
       if (event->val != KM_RELEASE) {
         ptd.subdivision++;
         RNA_int_set(op->ptr, "subdivision", ptd.subdivision);
       }
       return OPERATOR_RUNNING_MODAL;
     }
-    case int(ModelKeyMode::DecreaseSubdivision): {
+    case int(ModalKeyMode::DecreaseSubdivision): {
       if (event->val != KM_RELEASE) {
         ptd.subdivision--;
         ptd.subdivision = std::max(ptd.subdivision, 0);
@@ -1227,7 +1231,7 @@ static int grease_pencil_primitive_modal(bContext *C, wmOperator *op, const wmEv
   grease_pencil_primitive_cursor_update(C, ptd, event);
 
   if (event->type == EVT_MODAL_MAP) {
-    const int return_val = grease_pencil_primitive_event_model_map(C, op, ptd, event);
+    const int return_val = grease_pencil_primitive_event_modal_map(C, op, ptd, event);
     if (return_val != OPERATOR_RUNNING_MODAL) {
       return return_val;
     }
@@ -1443,19 +1447,19 @@ void ED_primitivetool_modal_keymap(wmKeyConfig *keyconf)
 {
   using namespace blender::ed::greasepencil;
   static const EnumPropertyItem modal_items[] = {
-      {int(ModelKeyMode::Cancel), "CANCEL", 0, "Cancel", ""},
-      {int(ModelKeyMode::Confirm), "CONFIRM", 0, "Confirm", ""},
-      {int(ModelKeyMode::Panning), "PANNING", 0, "Panning", ""},
-      {int(ModelKeyMode::Extrude), "EXTRUDE", 0, "Extrude", ""},
-      {int(ModelKeyMode::Grab), "GRAB", 0, "Grab", ""},
-      {int(ModelKeyMode::Rotate), "ROTATE", 0, "Rotate", ""},
-      {int(ModelKeyMode::Scale), "SCALE", 0, "Scale", ""},
-      {int(ModelKeyMode::IncreaseSubdivision),
+      {int(ModalKeyMode::Cancel), "CANCEL", 0, "Cancel", ""},
+      {int(ModalKeyMode::Confirm), "CONFIRM", 0, "Confirm", ""},
+      {int(ModalKeyMode::Panning), "PANNING", 0, "Panning", ""},
+      {int(ModalKeyMode::Extrude), "EXTRUDE", 0, "Extrude", ""},
+      {int(ModalKeyMode::Grab), "GRAB", 0, "Grab", ""},
+      {int(ModalKeyMode::Rotate), "ROTATE", 0, "Rotate", ""},
+      {int(ModalKeyMode::Scale), "SCALE", 0, "Scale", ""},
+      {int(ModalKeyMode::IncreaseSubdivision),
        "INCREASE_SUBDIVISION",
        0,
        "increase_subdivision",
        ""},
-      {int(ModelKeyMode::DecreaseSubdivision),
+      {int(ModalKeyMode::DecreaseSubdivision),
        "DECREASE_SUBDIVISION",
        0,
        "decrease_subdivision",

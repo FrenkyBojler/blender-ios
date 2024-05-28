@@ -10,6 +10,7 @@
 #include "NOD_geo_index_switch.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items_ops.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
@@ -63,6 +64,38 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+  bNode &node = *static_cast<bNode *>(ptr->data);
+  NodeIndexSwitch &storage = node_storage(node);
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "index_switch_items", false, TIP_("Items"))) {
+    uiItemO(panel, "Add Item", ICON_ADD, "node.index_switch_item_add");
+    uiLayout *col = uiLayoutColumn(panel, false);
+    for (const int i : IndexRange(storage.items_num)) {
+      uiLayout *row = uiLayoutRow(col, false);
+      uiItemL(row, node.input_socket(i + 1).name, ICON_NONE);
+      uiItemIntO(row, "", ICON_REMOVE, "node.index_switch_item_remove", "index", i);
+    }
+  }
+}
+
+static void NODE_OT_index_switch_item_add(wmOperatorType *ot)
+{
+  socket_items::ops::add_item<IndexSwitchItemsAccessor>(ot, "Add Item", __func__, "Add bake item");
+}
+
+static void NODE_OT_index_switch_item_remove(wmOperatorType *ot)
+{
+  socket_items::ops::remove_item_by_index<IndexSwitchItemsAccessor>(
+      ot, "Remove Item", __func__, "Remove an item from the index switch");
+}
+
+static void node_operators()
+{
+  WM_operatortype_append(NODE_OT_index_switch_item_add);
+  WM_operatortype_append(NODE_OT_index_switch_item_remove);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -335,16 +368,18 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 
 static void register_node()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_INDEX_SWITCH, "Index Switch", NODE_CLASS_CONVERTER);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;
-  node_type_storage(&ntype, "NodeIndexSwitch", node_free_storage, node_copy_storage);
+  blender::bke::node_type_storage(&ntype, "NodeIndexSwitch", node_free_storage, node_copy_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  ntype.draw_buttons_ex = node_layout_ex;
+  ntype.register_operators = node_operators;
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

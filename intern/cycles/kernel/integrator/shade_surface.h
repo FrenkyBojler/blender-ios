@@ -59,6 +59,13 @@ ccl_device_forceinline float3 integrate_surface_ray_offset(KernelGlobals kg,
    *   or dot(sd->Ng, ray_D)  is small. Detect such cases and skip test?
    * - Instead of ray offset, can we tweak P to lie within the triangle?
    */
+
+#ifndef __METALRT__
+  /* MetalRT and Cycles triangle tests aren't numerically identical, meaning this method
+   * isn't robust for MetalRT. In this case, just applying the ray offset uniformly gives
+   * identical looking results.
+   */
+
   float3 verts[3];
   if (sd->type == PRIMITIVE_TRIANGLE) {
     triangle_vertices(kg, sd->prim, verts);
@@ -80,7 +87,9 @@ ccl_device_forceinline float3 integrate_surface_ray_offset(KernelGlobals kg,
   if (ray_triangle_intersect_self(local_ray_P, local_ray_D, verts)) {
     return ray_P;
   }
-  else {
+  else
+#endif
+  {
     return ray_offset(ray_P, sd->Ng);
   }
 }
@@ -146,6 +155,50 @@ ccl_device_forceinline void integrate_surface_emission(KernelGlobals kg,
       kg, state, L, mis_weight, render_buffer, object_lightgroup(kg, sd->object));
 }
 
+ccl_device int integrate_surface_ray_portal(KernelGlobals kg,
+                                            IntegratorState state,
+                                            ccl_private ShaderData *sd,
+                                            ccl_private const ShaderClosure *sc)
+{
+  ccl_private const RayPortalClosure *pc = (ccl_private const RayPortalClosure *)sc;
+
+  float sum_sample_weight = 0.0f;
+  for (int i = 0; i < sd->num_closure; i++) {
+    ccl_private const ShaderClosure *sc = &sd->closure[i];
+
+    if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
+      sum_sample_weight += sc->sample_weight;
+    }
+  }
+  if (sum_sample_weight <= 0.0f) {
+    return LABEL_NONE;
+  }
+
+  if (len_squared(sd->P - pc->P) > 1e-9f) {
+    /* if the ray origin is changed, unset the current object,
+     * so we can potentially hit the same polygon again */
+    INTEGRATOR_STATE_WRITE(state, isect, object) = OBJECT_NONE;
+    INTEGRATOR_STATE_WRITE(state, ray, P) = pc->P;
+  }
+  else {
+    INTEGRATOR_STATE_WRITE(state, ray, P) = integrate_surface_ray_offset(kg, sd, pc->P, pc->D);
+  }
+  INTEGRATOR_STATE_WRITE(state, ray, D) = pc->D;
+  INTEGRATOR_STATE_WRITE(state, ray, tmin) = 0.0f;
+  INTEGRATOR_STATE_WRITE(state, ray, tmax) = FLT_MAX;
+#ifdef __RAY_DIFFERENTIALS__
+  INTEGRATOR_STATE_WRITE(state, ray, dP) = differential_make_compact(sd->dP);
+#endif
+
+  const float pick_pdf = pc->sample_weight / sum_sample_weight;
+  INTEGRATOR_STATE_WRITE(state, path, throughput) *= pc->weight / pick_pdf;
+
+  int label = LABEL_TRANSMIT | LABEL_RAY_PORTAL;
+  path_state_next(kg, state, label, sd->flag);
+
+  return label;
+}
+
 /* Branch off a shadow path and initialize common part of it.
  * THe common is between the surface shading and configuration of a special shadow ray for the
  * shadow linking. */
@@ -162,8 +215,10 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
   IntegratorShadowState shadow_state = integrator_shadow_path_init(
       kg, state, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW, false);
 
+#ifdef __VOLUME__
   /* Copy volume stack and enter/exit volume. */
   integrator_state_copy_volume_stack_to_shadow(kg, shadow_state, state);
+#endif
 
   /* Write shadow ray and associated state to global memory. */
   integrator_state_write_shadow_ray(shadow_state, ray);
@@ -400,6 +455,9 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
     return subsurface_bounce(kg, state, sd, sc);
   }
 #endif
+  if (CLOSURE_IS_RAY_PORTAL(sc->type)) {
+    return integrate_surface_ray_portal(kg, state, sd, sc);
+  }
 
   /* BSDF closure, sample direction. */
   float bsdf_pdf = 0.0f, unguided_bsdf_pdf = 0.0f;
@@ -597,8 +655,10 @@ ccl_device_forceinline void integrate_surface_ao(KernelGlobals kg,
   IntegratorShadowState shadow_state = integrator_shadow_path_init(
       kg, state, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW, true);
 
+#  ifdef __VOLUME__
   /* Copy volume stack and enter/exit volume. */
   integrator_state_copy_volume_stack_to_shadow(kg, shadow_state, state);
+#  endif
 
   /* Write shadow ray and associated state to global memory. */
   integrator_state_write_shadow_ray(shadow_state, &ray);

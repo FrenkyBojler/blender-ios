@@ -54,8 +54,9 @@ if(WIN32)
   remove_cc_flag("/w34100")
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
     # USD currently does not support the new preprocessor,
-    # and does not use sse2neon, so we can remove it here
+    # so we remove it here and disable sse2neon
     remove_cc_flag("/Zc:preprocessor")
+    add_definitions(-DDISABLE_SSE2NEON)
   endif()
 endif()
 
@@ -88,6 +89,7 @@ set(INC_SYS
 set(SRC
   intern/usd_armature_utils.cc
   intern/usd_asset_utils.cc
+  intern/usd_attribute_utils.cc
   intern/usd_blend_shape_utils.cc
   intern/usd_capi_export.cc
   intern/usd_capi_import.cc
@@ -115,13 +117,14 @@ set(SRC
   intern/usd_reader_mesh.cc
   intern/usd_reader_nurbs.cc
   intern/usd_reader_pointinstancer.cc
+  intern/usd_reader_points.cc
   intern/usd_reader_prim.cc
   intern/usd_reader_shape.cc
   intern/usd_reader_skeleton.cc
   intern/usd_reader_stage.cc
+  intern/usd_reader_utils.cc
   intern/usd_reader_volume.cc
   intern/usd_reader_xform.cc
-  intern/usd_reader_utils.cc
   intern/usd_skel_convert.cc
   intern/usd_skel_root_utils.cc
 
@@ -130,6 +133,7 @@ set(SRC
 
   intern/usd_armature_utils.hh
   intern/usd_asset_utils.hh
+  intern/usd_attribute_utils.hh
   intern/usd_blend_shape_utils.hh
   intern/usd_exporter_context.hh
   intern/usd_hash_types.hh
@@ -157,13 +161,14 @@ set(SRC
   intern/usd_reader_mesh.hh
   intern/usd_reader_nurbs.hh
   intern/usd_reader_pointinstancer.hh
+  intern/usd_reader_points.hh
   intern/usd_reader_prim.hh
   intern/usd_reader_shape.hh
   intern/usd_reader_skeleton.hh
   intern/usd_reader_stage.hh
+  intern/usd_reader_utils.hh
   intern/usd_reader_volume.hh
   intern/usd_reader_xform.hh
-  intern/usd_reader_utils.hh
   intern/usd_skel_convert.hh
   intern/usd_skel_root_utils.hh
 )

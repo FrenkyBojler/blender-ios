@@ -226,10 +226,13 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, int orig_flag
  * \param owner_library: the Library to 'assign' the newly created ID to. Use `nullptr` to make ID
  * not use any library (i.e. become a local ID). Use std::nullopt for default behavior (i.e.
  * behavior of the #BKE_libblock_copy_ex function).
+ * \param new_owner_id: When copying an embedded ID, the owner ID of the new copy. Should be
+ * `nullptr` for regular ID copying, or in case the owner ID is not (yet) known.
  */
 void BKE_libblock_copy_in_lib(Main *bmain,
                               std::optional<Library *> owner_library,
                               const ID *id,
+                              const ID *new_owner_id,
                               ID **r_newid,
                               int orig_flag);
 
@@ -245,6 +248,12 @@ void BKE_libblock_copy_in_lib(Main *bmain,
 void *BKE_libblock_copy(Main *bmain, const ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 /**
+ * For newly created IDs, move it into same library as owner ID.
+ * This assumes the ID is local.
+ */
+void BKE_id_move_to_same_lib(Main &bmain, ID &id, const ID &owner_id);
+
+/**
  * Sets the name of a block to name, suitably adjusted for uniqueness.
  */
 void BKE_libblock_rename(Main *bmain, ID *id, const char *name) ATTR_NONNULL();
@@ -256,6 +265,11 @@ ID *BKE_libblock_find_name_and_library(Main *bmain,
                                        short type,
                                        const char *name,
                                        const char *lib_name);
+ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
+                                                short type,
+                                                const char *name,
+                                                const char *lib_filepath_abs);
+
 /**
  * Duplicate (a.k.a. deep copy) common processing options.
  * See also eDupli_ID_Flags for options controlling what kind of IDs to duplicate.
@@ -504,9 +518,15 @@ ID *BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, int flag);
  * \param owner_library: the Library to 'assign' the newly created ID to. Use `nullptr` to make ID
  * not use any library (i.e. become a local ID). Use std::nullopt for default behavior (i.e.
  * behavior of the #BKE_id_copy_ex function).
+ * \param new_owner_id: When copying an embedded ID, the owner ID of the new copy. Should be
+ * `nullptr` for regular ID copying, or in case the owner ID is not (yet) known.
  */
-struct ID *BKE_id_copy_in_lib(
-    Main *bmain, std::optional<Library *> owner_library, const ID *id, ID **r_newid, int flag);
+struct ID *BKE_id_copy_in_lib(Main *bmain,
+                              std::optional<Library *> owner_library,
+                              const ID *id,
+                              const ID *new_owner_id,
+                              ID **r_newid,
+                              int flag);
 /**
  * Invoke the appropriate copy method for the block and return the new id as result.
  *
@@ -692,16 +712,22 @@ char *BKE_id_to_unique_string_key(const ID *id);
  * #LIB_TAG_PRE_EXISTING.
  * \param set_fake: If true, set fake user on all localized data-blocks
  * (except group and objects ones).
+ * \param clear_asset_data: If true, clear the asset metadata on all localized data-blocks, making
+ * them normal non-asset data-blocks.
  */
-void BKE_library_make_local(
-    Main *bmain, const Library *lib, GHash *old_to_new_ids, bool untagged_only, bool set_fake);
+void BKE_library_make_local(Main *bmain,
+                            const Library *lib,
+                            GHash *old_to_new_ids,
+                            bool untagged_only,
+                            bool set_fake,
+                            bool clear_asset_data);
 
 void BKE_id_tag_set_atomic(ID *id, int tag);
 void BKE_id_tag_clear_atomic(ID *id, int tag);
 
 /**
  * Check that given ID pointer actually is in G_MAIN.
- * Main intended use is for debug asserts in places we cannot easily get rid of #G_Main.
+ * Main intended use is for debug asserts in places we cannot easily get rid of #G_MAIN.
  */
 bool BKE_id_is_in_global_main(ID *id);
 
@@ -711,20 +737,27 @@ bool BKE_id_can_be_asset(const ID *id);
  * Return the owner ID of the given `id`, if any.
  *
  * \note This will only return non-NULL for embedded IDs (master collections etc.), and shape-keys.
+ *
+ * \param debug_relationship_assert: True by default, whether to perform debug checks on validity
+ * of the pointers between owner and embedded IDs. In some cases, these relations are not yet
+ * (fully) valid, e.g. during ID copying.
  */
-ID *BKE_id_owner_get(ID *id);
+ID *BKE_id_owner_get(ID *id, const bool debug_relationship_assert = true);
 
 /**
  * Check if that ID can be considered as editable from a high-level (editor) perspective.
  *
- * NOTE: This used to be done with a check on whether ID was linked or not, but now with system
- * overrides this is not enough anymore.
- *
- * NOTE: Execution of this function can be somewhat expensive currently. If this becomes an issue,
- * we should either cache that status info also in virtual override IDs, or address the
- * long-standing TODO of getting an efficient 'owner_id' access for all embedded ID types.
+ * \note Unlike the #ID_IS_EDITABLE macro, this also take into account higher-level aspects, e.g.
+ * it checks if the given ID is a system overrides (which should not be editable from the UI).
  */
 bool BKE_id_is_editable(const Main *bmain, const ID *id);
+
+/**
+ * Check that a pointer from one ID to another is possible.
+ *
+ * Taking into account lib linking and main database membership.
+ */
+bool BKE_id_can_use_id(const ID &id_from, const ID &id_to);
 
 /**
  * Returns ordered list of data-blocks for display in the UI.

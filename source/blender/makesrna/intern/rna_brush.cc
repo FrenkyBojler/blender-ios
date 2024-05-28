@@ -108,7 +108,7 @@ const EnumPropertyItem rna_enum_brush_curve_preset_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-/* Note: we don't actually turn these into a single enum bit-mask property,
+/* NOTE: we don't actually turn these into a single enum bit-mask property,
  * instead we construct individual boolean properties. */
 const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
     {BRUSH_AUTOMASKING_TOPOLOGY,
@@ -335,27 +335,19 @@ const EnumPropertyItem rna_enum_brush_gpencil_weight_types_items[] = {
 };
 
 const EnumPropertyItem rna_enum_brush_curves_sculpt_tool_items[] = {
-    {CURVES_SCULPT_TOOL_SELECTION_PAINT,
-     "SELECTION_PAINT",
-     ICON_BRUSH_PAINT_SELECT,
-     "Paint Selection",
-     ""},
+    {CURVES_SCULPT_TOOL_SELECTION_PAINT, "SELECTION_PAINT", 0, "Paint Selection", ""},
     RNA_ENUM_ITEM_SEPR,
-    {CURVES_SCULPT_TOOL_ADD, "ADD", ICON_BRUSH_CURVES_ADD, "Add", ""},
-    {CURVES_SCULPT_TOOL_DELETE, "DELETE", ICON_BRUSH_CURVES_DELETE, "Delete", ""},
-    {CURVES_SCULPT_TOOL_DENSITY, "DENSITY", ICON_BRUSH_CURVES_DENSITY, "Density", ""},
+    {CURVES_SCULPT_TOOL_ADD, "ADD", 0, "Add", ""},
+    {CURVES_SCULPT_TOOL_DELETE, "DELETE", 0, "Delete", ""},
+    {CURVES_SCULPT_TOOL_DENSITY, "DENSITY", 0, "Density", ""},
     RNA_ENUM_ITEM_SEPR,
-    {CURVES_SCULPT_TOOL_COMB, "COMB", ICON_BRUSH_CURVES_COMB, "Comb", ""},
-    {CURVES_SCULPT_TOOL_SNAKE_HOOK, "SNAKE_HOOK", ICON_BRUSH_CURVES_SNAKE_HOOK, "Snake Hook", ""},
-    {CURVES_SCULPT_TOOL_GROW_SHRINK,
-     "GROW_SHRINK",
-     ICON_BRUSH_CURVES_GROW_SHRINK,
-     "Grow / Shrink",
-     ""},
-    {CURVES_SCULPT_TOOL_PINCH, "PINCH", ICON_BRUSH_CURVES_PINCH, "Pinch", ""},
-    {CURVES_SCULPT_TOOL_PUFF, "PUFF", ICON_BRUSH_CURVES_PUFF, "Puff", ""},
-    {CURVES_SCULPT_TOOL_SMOOTH, "SMOOTH", ICON_BRUSH_CURVES_SMOOTH, "Smooth", ""},
-    {CURVES_SCULPT_TOOL_SLIDE, "SLIDE", ICON_BRUSH_CURVES_SLIDE, "Slide", ""},
+    {CURVES_SCULPT_TOOL_COMB, "COMB", 0, "Comb", ""},
+    {CURVES_SCULPT_TOOL_SNAKE_HOOK, "SNAKE_HOOK", 0, "Snake Hook", ""},
+    {CURVES_SCULPT_TOOL_GROW_SHRINK, "GROW_SHRINK", 0, "Grow / Shrink", ""},
+    {CURVES_SCULPT_TOOL_PINCH, "PINCH", 0, "Pinch", ""},
+    {CURVES_SCULPT_TOOL_PUFF, "PUFF", 0, "Puff", ""},
+    {CURVES_SCULPT_TOOL_SMOOTH, "SMOOTH", 0, "Smooth", ""},
+    {CURVES_SCULPT_TOOL_SLIDE, "SLIDE", 0, "Slide", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

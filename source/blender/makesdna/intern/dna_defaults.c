@@ -110,7 +110,7 @@
 #include "DNA_volume_types.h"
 #include "DNA_world_types.h"
 
-#include "DNA_anim_defaults.h"
+#include "DNA_action_defaults.h"
 #include "DNA_armature_defaults.h"
 #include "DNA_asset_defaults.h"
 #include "DNA_brush_defaults.h"
@@ -146,9 +146,9 @@
 #define SDNA_DEFAULT_DECL_STRUCT(struct_name) \
   static const struct_name DNA_DEFAULT_##struct_name = _DNA_DEFAULT_##struct_name
 
-/* DNA_anim_defaults.h */
-SDNA_DEFAULT_DECL_STRUCT(AnimationLayer);
-SDNA_DEFAULT_DECL_STRUCT(AnimationStrip);
+/* DNA_action_defaults.h */
+SDNA_DEFAULT_DECL_STRUCT(ActionLayer);
+SDNA_DEFAULT_DECL_STRUCT(ActionStrip);
 
 /* DNA_asset_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(AssetMetaData);
@@ -238,6 +238,7 @@ SDNA_DEFAULT_DECL_STRUCT(Tex);
 /* DNA_userdef_types.h */
 SDNA_DEFAULT_DECL_STRUCT(bUserAssetLibrary);
 SDNA_DEFAULT_DECL_STRUCT(bUserExtensionRepo);
+SDNA_DEFAULT_DECL_STRUCT(bUserAssetShelfSettings);
 
 /* DNA_view3d_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(View3D);
@@ -396,8 +397,8 @@ extern const bTheme U_theme_default;
 const void *DNA_default_table[SDNA_TYPE_MAX] = {
 
     /* DNA_anim_defaults.h */
-    SDNA_DEFAULT_DECL(AnimationLayer),
-    SDNA_DEFAULT_DECL(AnimationStrip),
+    SDNA_DEFAULT_DECL(ActionLayer),
+    SDNA_DEFAULT_DECL(ActionStrip),
 
     /* DNA_asset_defaults.h */
     SDNA_DEFAULT_DECL(AssetMetaData),
@@ -517,6 +518,7 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL_EX(WalkNavigation, UserDef.walk_navigation),
     SDNA_DEFAULT_DECL(bUserAssetLibrary),
     SDNA_DEFAULT_DECL(bUserExtensionRepo),
+    SDNA_DEFAULT_DECL(bUserAssetShelfSettings),
 
     /* DNA_view3d_defaults.h */
     SDNA_DEFAULT_DECL(View3D),

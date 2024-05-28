@@ -12,24 +12,6 @@
 
 shared vec4 local_sh_coefs[gl_WorkGroupSize.x][4];
 
-void spherical_harmonic_lds_store(uint index, SphericalHarmonicL1 sh)
-{
-  local_sh_coefs[index][0] = sh.L0.M0;
-  local_sh_coefs[index][1] = sh.L1.Mn1;
-  local_sh_coefs[index][2] = sh.L1.M0;
-  local_sh_coefs[index][3] = sh.L1.Mp1;
-}
-
-SphericalHarmonicL1 spherical_harmonic_lds_load(uint index)
-{
-  SphericalHarmonicL1 sh;
-  sh.L0.M0 = local_sh_coefs[index][0];
-  sh.L1.Mn1 = local_sh_coefs[index][1];
-  sh.L1.M0 = local_sh_coefs[index][2];
-  sh.L1.Mp1 = local_sh_coefs[index][3];
-  return sh;
-}
-
 void main()
 {
   SphericalHarmonicL1 sh;
@@ -63,13 +45,15 @@ void main()
 
   /* Parallel sum. */
   const uint group_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
-  for (uint stride = group_size / 2; stride > 0; stride /= 2) {
+  uint stride = group_size / 2;
+  for (int i = 0; i < 10; i++) {
     barrier();
     if (local_index < stride) {
       for (int i = 0; i < 4; i++) {
         local_sh_coefs[local_index][i] += local_sh_coefs[local_index + stride][i];
       }
     }
+    stride /= 2;
   }
 
   barrier();

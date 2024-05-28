@@ -113,7 +113,7 @@ PointerRNA *modifier_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_
   }
 
   uiBlock *block = uiLayoutGetBlock(panel->layout);
-  UI_block_lock_set(block, ID_IS_LINKED((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
+  UI_block_lock_set(block, !ID_IS_EDITABLE((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
 
   UI_panel_context_pointer_set(panel, "modifier", ptr);
 
@@ -284,6 +284,10 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
               UI_ITEM_NONE,
               &op_ptr);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->modifiers) - 1);
+
+  uiItemS(layout);
+
+  uiItemR(layout, &ptr, "use_pin_to_last", UI_ITEM_NONE, nullptr, ICON_NONE);
 
   if (md->type == eModifierType_Nodes) {
     uiItemS(layout);
@@ -465,6 +469,7 @@ PanelType *modifier_panel_register(ARegionType *region_type, ModifierType type, 
   STRNCPY(panel_type->context, "modifier");
   STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   STRNCPY(panel_type->active_property, "is_active");
+  STRNCPY(panel_type->pin_to_last_property, "use_pin_to_last");
 
   panel_type->draw_header = modifier_panel_header;
   panel_type->draw = draw;

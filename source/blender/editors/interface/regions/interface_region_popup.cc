@@ -393,6 +393,8 @@ static void ui_popup_block_position(wmWindow *window,
 
 static void ui_block_region_refresh(const bContext *C, ARegion *region)
 {
+  BLI_assert(region->regiontype == RGN_TYPE_TEMPORARY);
+
   ScrArea *ctx_area = CTX_wm_area(C);
   ARegion *ctx_region = CTX_wm_region(C);
 
@@ -576,7 +578,7 @@ static void ui_popup_block_remove(bContext *C, uiPopupBlockHandle *handle)
   }
 }
 
-void UI_layout_panel_popup_scroll_apply(Panel *panel, const float dy)
+void ui_layout_panel_popup_scroll_apply(Panel *panel, const float dy)
 {
   if (!panel || dy == 0.0f) {
     return;
@@ -649,7 +651,19 @@ uiBlock *ui_popup_block_refresh(bContext *C,
   /* callbacks _must_ leave this for us, otherwise we can't call UI_block_update_from_old */
   BLI_assert(!block->endblock);
 
-  /* ensure we don't use mouse coords here! */
+  /* Ensure we don't use mouse coords here.
+   *
+   * NOTE(@ideasman42): Important because failing to do will cause glitches refreshing the popup.
+   *
+   * - Many popups use #wmEvent::xy to position them.
+   * - Refreshing a pop-up must only ever change it's contents. Consider that refreshing
+   *   might be used to show a menu item as grayed out, or change a text label,
+   *   we *never* want the popup to move based on the cursor location while refreshing.
+   * - The location of the cursor at the time of creation is stored in:
+   *   `handle->popup_create_vars.event_xy` which must be used instead.
+   *
+   * Since it's difficult to control logic which is called indirectly here,
+   * clear the `eventstate` entirely to ensure it's never used when refreshing a popup. */
 #ifndef NDEBUG
   window->eventstate = nullptr;
 #endif
@@ -802,7 +816,7 @@ uiBlock *ui_popup_block_refresh(bContext *C,
     }
   }
   /* Apply popup scroll offset to layout panels. */
-  UI_layout_panel_popup_scroll_apply(block->panel, handle->scrolloffset);
+  ui_layout_panel_popup_scroll_apply(block->panel, handle->scrolloffset);
 
   if (block_old) {
     block->oldblock = block_old;
@@ -838,7 +852,8 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
                                           uiBlockCreateFunc create_func,
                                           uiBlockHandleCreateFunc handle_create_func,
                                           void *arg,
-                                          uiFreeArgFunc arg_free)
+                                          uiFreeArgFunc arg_free,
+                                          const bool can_refresh)
 {
   wmWindow *window = CTX_wm_window(C);
   uiBut *activebut = UI_context_active_but_get(C);
@@ -856,6 +871,7 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
   /* store context for operator */
   handle->ctx_area = CTX_wm_area(C);
   handle->ctx_region = CTX_wm_region(C);
+  handle->can_refresh = can_refresh;
 
   /* store vars to refresh popup (RGN_REFRESH_UI) */
   handle->popup_create_vars.create_func = create_func;
@@ -865,9 +881,6 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
   handle->popup_create_vars.but = but;
   handle->popup_create_vars.butregion = but ? butregion : nullptr;
   copy_v2_v2_int(handle->popup_create_vars.event_xy, window->eventstate->xy);
-
-  /* don't allow by default, only if popup type explicitly supports it */
-  handle->can_refresh = false;
 
   /* create area region */
   ARegion *region = ui_region_temp_add(CTX_wm_screen(C));
@@ -882,8 +895,36 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
 
   UI_region_handlers_add(&region->handlers);
 
+  /* Note that this will be set in the code-path that typically calls refreshing
+   * (that loops over #Screen::regionbase and refreshes regions tagged with #RGN_REFRESH_UI).
+   * Whereas this only runs on initial creation.
+   * Set the region here so drawing logic can rely on it being set.
+   * Note that restoring the previous value may not be needed, it just avoids potential
+   * problems caused by popups manipulating the context which created them.
+   *
+   * The check for `can_refresh` exists because the context when refreshing sets the "region_popup"
+   * so failing to do so here would cause callbacks draw function to have a different context
+   * the first time it's called. Setting this in every context causes button context menus to
+   * fail because setting the "region_popup" causes poll functions to reference the popup region
+   * instead of the region where the button was created, see #121728.
+   *
+   * NOTE(@ideasman42): the logic for which popups run with their region set to
+   * #bContext::wm::region_popup could be adjusted, making this context member depend on
+   * the ability to refresh seems somewhat arbitrary although it does make *some* sense
+   * because accessing the region later (to tag for refreshing for example)
+   * only makes sense if that region supports refreshing. */
+  ARegion *region_popup_prev = nullptr;
+  if (can_refresh) {
+    region_popup_prev = CTX_wm_region_popup(C);
+    CTX_wm_region_popup_set(C, region);
+  }
+
   uiBlock *block = ui_popup_block_refresh(C, handle, butregion, but);
   handle = block->handle;
+
+  if (can_refresh) {
+    CTX_wm_region_popup_set(C, region_popup_prev);
+  }
 
   /* keep centered on window resizing */
   if (block->bounds_type == UI_BLOCK_BOUNDS_POPUP_CENTER) {

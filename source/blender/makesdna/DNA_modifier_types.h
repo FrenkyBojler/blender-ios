@@ -191,6 +191,11 @@ typedef enum {
    * to the modifier which might invalidate simulation caches.
    */
   eModifierFlag_UserModified = (1 << 3),
+  /**
+   * New modifiers are added before this modifier, and dragging non-pinned modifiers after is
+   * disabled.
+   */
+  eModifierFlag_PinLast = (1 << 4),
 } ModifierFlag;
 
 /**
@@ -1893,12 +1898,11 @@ typedef struct TriangulateModifierData {
 } TriangulateModifierData;
 
 /** #TriangulateModifierData.flag */
-enum {
 #ifdef DNA_DEPRECATED_ALLOW
+enum {
   MOD_TRIANGULATE_BEAUTY = (1 << 0), /* deprecated */
-#endif
-  MOD_TRIANGULATE_KEEP_CUSTOMLOOP_NORMALS = 1 << 1,
 };
+#endif
 
 /** #TriangulateModifierData.ngon_method triangulate method (N-gons). */
 enum {

@@ -651,13 +651,13 @@ int UI_icon_from_event_type(short event_type, short event_value)
   } while ((di = di->data.input.next));
 
   if (event_type == LEFTMOUSE) {
-    return ELEM(event_value, KM_CLICK, KM_PRESS) ? ICON_MOUSE_LMB : ICON_MOUSE_LMB_DRAG;
+    return (event_value == KM_CLICK_DRAG) ? ICON_MOUSE_LMB_DRAG : ICON_MOUSE_LMB;
   }
   if (event_type == MIDDLEMOUSE) {
-    return ELEM(event_value, KM_CLICK, KM_PRESS) ? ICON_MOUSE_MMB : ICON_MOUSE_MMB_DRAG;
+    return (event_value == KM_CLICK_DRAG) ? ICON_MOUSE_MMB_DRAG : ICON_MOUSE_MMB;
   }
   if (event_type == RIGHTMOUSE) {
-    return ELEM(event_value, KM_CLICK, KM_PRESS) ? ICON_MOUSE_RMB : ICON_MOUSE_RMB_DRAG;
+    return (event_value == KM_CLICK_DRAG) ? ICON_MOUSE_MMB_DRAG : ICON_MOUSE_RMB;
   }
 
   return ICON_NONE;
@@ -1517,7 +1517,7 @@ void ui_icon_ensure_deferred(const bContext *C, const int icon_id, const bool bi
       if (prv) {
         const int size = big ? ICON_SIZE_PREVIEW : ICON_SIZE_ICON;
 
-        if (id || (prv->tag & PRV_TAG_DEFFERED) != 0) {
+        if (id || prv->runtime->deferred_loading_data) {
           ui_id_preview_image_render_size(C, nullptr, id, prv, size, use_jobs);
         }
       }
@@ -1985,7 +1985,8 @@ static void icon_draw_size(float x,
                            const float desaturate,
                            const uchar mono_rgba[4],
                            const bool mono_border,
-                           const IconTextOverlay *text_overlay)
+                           const IconTextOverlay *text_overlay,
+                           const bool inverted = false)
 {
   bTheme *btheme = UI_GetTheme();
   const float fdraw_size = float(draw_size);
@@ -2059,7 +2060,7 @@ static void icon_draw_size(float x,
   else if (di->type == ICON_TYPE_EVENT) {
     const short event_type = di->data.input.event_type;
     const short event_value = di->data.input.event_value;
-    icon_draw_rect_input(x, y, w, h, alpha, event_type, event_value);
+    icon_draw_rect_input(x, y, w, h, alpha, event_type, event_value, inverted);
   }
   else if (di->type == ICON_TYPE_COLOR_TEXTURE) {
     /* texture image use premul alpha for correct scaling */
@@ -2518,8 +2519,6 @@ int UI_icon_from_idcode(const int idcode)
   switch ((ID_Type)idcode) {
     case ID_AC:
       return ICON_ACTION;
-    case ID_AN:
-      return ICON_ACTION; /* TODO: give Animation its own icon. */
     case ID_AR:
       return ICON_ARMATURE_DATA;
     case ID_BR:
@@ -2676,7 +2675,8 @@ void UI_icon_draw_ex(float x,
                      float desaturate,
                      const uchar mono_color[4],
                      const bool mono_border,
-                     const IconTextOverlay *text_overlay)
+                     const IconTextOverlay *text_overlay,
+                     const bool inverted)
 {
   const int draw_size = get_draw_size(ICON_SIZE_ICON);
   icon_draw_size(x,
@@ -2689,7 +2689,8 @@ void UI_icon_draw_ex(float x,
                  desaturate,
                  mono_color,
                  mono_border,
-                 text_overlay);
+                 text_overlay,
+                 inverted);
 }
 
 void UI_icon_draw_mono_rect(

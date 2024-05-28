@@ -275,10 +275,10 @@ static void scene_copy_data(Main *bmain,
   if (scene_src->master_collection) {
     BKE_id_copy_in_lib(bmain,
                        owner_library,
-                       reinterpret_cast<ID *>(scene_src->master_collection),
+                       &scene_src->master_collection->id,
+                       &scene_dst->id,
                        reinterpret_cast<ID **>(&scene_dst->master_collection),
                        flag_private_id_data);
-    scene_dst->master_collection->owner_id = &scene_dst->id;
   }
 
   /* View Layers */
@@ -303,15 +303,17 @@ static void scene_copy_data(Main *bmain,
   if (scene_src->nodetree) {
     BKE_id_copy_in_lib(bmain,
                        owner_library,
-                       (ID *)scene_src->nodetree,
-                       (ID **)&scene_dst->nodetree,
+                       &scene_src->nodetree->id,
+                       &scene_dst->id,
+                       reinterpret_cast<ID **>(&scene_dst->nodetree),
                        flag_private_id_data);
+    /* TODO this should not be needed anymore? Should be handled by generic remapping code in
+     * #BKE_id_copy_in_lib. */
     BKE_libblock_relink_ex(bmain,
                            scene_dst->nodetree,
                            (void *)(&scene_src->id),
                            &scene_dst->id,
                            ID_REMAP_SKIP_NEVER_NULL_USAGE | ID_REMAP_SKIP_USER_CLEAR);
-    scene_dst->nodetree->owner_id = &scene_dst->id;
   }
 
   if (scene_src->rigidbody_world) {
@@ -390,7 +392,7 @@ static void scene_free_data(ID *id)
 
   /* is no lib link block, but scene extension */
   if (scene->nodetree) {
-    ntreeFreeEmbeddedTree(scene->nodetree);
+    blender::bke::ntreeFreeEmbeddedTree(scene->nodetree);
     MEM_freeN(scene->nodetree);
     scene->nodetree = nullptr;
   }
@@ -1133,7 +1135,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     /* Set deprecated chunksize for forward compatibility. */
     temp_nodetree->chunksize = 256;
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
-    ntreeBlendWrite(writer, temp_nodetree);
+    blender::bke::ntreeBlendWrite(writer, temp_nodetree);
   }
 
   BKE_color_managed_view_settings_blend_write(writer, &sce->view_settings);
@@ -1592,7 +1594,7 @@ constexpr IDTypeInfo get_type_info()
   info.name = "Scene";
   info.name_plural = "scenes";
   info.translation_context = BLT_I18NCONTEXT_ID_SCENE;
-  info.flags = 0;
+  info.flags = IDTYPE_FLAGS_NEVER_UNUSED;
   info.asset_type_info = nullptr;
 
   info.init_data = scene_init_data;

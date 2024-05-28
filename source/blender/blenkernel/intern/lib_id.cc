@@ -219,6 +219,12 @@ void BKE_lib_id_clear_library_data(Main *bmain, ID *id, const int flags)
 
   if (ID_IS_ASSET(id)) {
     if ((flags & LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR) != 0) {
+      const IDTypeInfo *idtype_info = BKE_idtype_get_info_from_id(id);
+      if (idtype_info && idtype_info->asset_type_info &&
+          idtype_info->asset_type_info->on_clear_asset_fn)
+      {
+        idtype_info->asset_type_info->on_clear_asset_fn(id, id->asset_data);
+      }
       BKE_asset_metadata_free(&id->asset_data);
     }
     else {
@@ -391,7 +397,7 @@ void BKE_id_newptr_and_tag_clear(ID *id)
   if (key != nullptr) {
     BKE_id_newptr_and_tag_clear(&key->id);
   }
-  bNodeTree *ntree = ntreeFromID(id);
+  bNodeTree *ntree = blender::bke::ntreeFromID(id);
   if (ntree != nullptr) {
     BKE_id_newptr_and_tag_clear(&ntree->id);
   }
@@ -534,7 +540,8 @@ void BKE_lib_id_make_local_generic(Main *bmain, ID *id, const int flags)
       if (key && key_new) {
         ID_NEW_SET(key, key_new);
       }
-      bNodeTree *ntree = ntreeFromID(id), *ntree_new = ntreeFromID(id_new);
+      bNodeTree *ntree = blender::bke::ntreeFromID(id),
+                *ntree_new = blender::bke::ntreeFromID(id_new);
       if (ntree && ntree_new) {
         ID_NEW_SET(ntree, ntree_new);
       }
@@ -629,6 +636,7 @@ bool BKE_id_copy_is_allowed(const ID *id)
 ID *BKE_id_copy_in_lib(Main *bmain,
                        std::optional<Library *> owner_library,
                        const ID *id,
+                       const ID *new_owner_id,
                        ID **r_newid,
                        const int flag)
 {
@@ -662,7 +670,7 @@ ID *BKE_id_copy_in_lib(Main *bmain,
       return nullptr;
     }
 
-    BKE_libblock_copy_in_lib(bmain, owner_library, id, &newid, flag);
+    BKE_libblock_copy_in_lib(bmain, owner_library, id, new_owner_id, &newid, flag);
 
     if (idtype_info->copy_data != nullptr) {
       idtype_info->copy_data(bmain, owner_library, newid, id, flag);
@@ -688,7 +696,9 @@ ID *BKE_id_copy_in_lib(Main *bmain,
    * XXX TODO: is this behavior OK, or should we need a separate flag to control that? */
   if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
     BLI_assert(!owner_library || newid->lib == *owner_library);
-    if (!ID_IS_LINKED(newid)) {
+    /* Expanding local linked ID usages should never be needed with embedded IDs - this will be
+     * handled together with their owner ID copying code. */
+    if (!ID_IS_LINKED(newid) && (newid->flag & LIB_EMBEDDED_DATA) == 0) {
       lib_id_copy_ensure_local(bmain, id, newid, 0);
     }
   }
@@ -712,12 +722,12 @@ ID *BKE_id_copy_in_lib(Main *bmain,
 
 ID *BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int flag)
 {
-  return BKE_id_copy_in_lib(bmain, std::nullopt, id, r_newid, flag);
+  return BKE_id_copy_in_lib(bmain, std::nullopt, id, nullptr, r_newid, flag);
 }
 
 ID *BKE_id_copy(Main *bmain, const ID *id)
 {
-  return BKE_id_copy_in_lib(bmain, std::nullopt, id, nullptr, LIB_ID_COPY_DEFAULT);
+  return BKE_id_copy_in_lib(bmain, std::nullopt, id, nullptr, nullptr, LIB_ID_COPY_DEFAULT);
 }
 
 ID *BKE_id_copy_for_duplicate(Main *bmain,
@@ -812,6 +822,21 @@ ID *BKE_id_copy_for_use_in_bmain(Main *bmain, const ID *id)
   return newid;
 }
 
+void BKE_id_move_to_same_lib(Main &bmain, ID &id, const ID &owner_id)
+{
+  BLI_assert(id.lib == nullptr);
+  if (owner_id.lib == nullptr) {
+    return;
+  }
+
+  id.lib = owner_id.lib;
+  id.tag |= LIB_TAG_INDIRECT;
+
+  BKE_main_namemap_remove_name(&bmain, &id, id.name + 2);
+  ListBase *lb = which_libbase(&bmain, GS(id.name));
+  BKE_id_new_name_validate(&bmain, lb, &id, id.name + 2, true);
+}
+
 static void id_embedded_swap(ID **embedded_id_a,
                              ID **embedded_id_b,
                              const bool do_full_id,
@@ -870,8 +895,8 @@ static void id_swap(Main *bmain,
     id_b->recalc = id_a_back.recalc;
   }
 
-  id_embedded_swap((ID **)BKE_ntree_ptr_from_id(id_a),
-                   (ID **)BKE_ntree_ptr_from_id(id_b),
+  id_embedded_swap((ID **)blender::bke::BKE_ntree_ptr_from_id(id_a),
+                   (ID **)blender::bke::BKE_ntree_ptr_from_id(id_b),
                    do_full_id,
                    remapper_id_a,
                    remapper_id_b);
@@ -1433,6 +1458,7 @@ void *BKE_id_new_nomain(const short type, const char *name)
 void BKE_libblock_copy_in_lib(Main *bmain,
                               std::optional<Library *> owner_library,
                               const ID *id,
+                              const ID *new_owner_id,
                               ID **r_newid,
                               const int orig_flag)
 {
@@ -1490,9 +1516,20 @@ void BKE_libblock_copy_in_lib(Main *bmain,
 
   new_id->flag = (new_id->flag & ~copy_idflag_mask) | (id->flag & copy_idflag_mask);
 
-  /* 'Private ID' data handling. */
+  /* Embedded ID data handling. */
   if (is_embedded_id && (orig_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
     new_id->tag &= ~LIB_TAG_NO_MAIN;
+  }
+  /* NOTE: This also needs to run for ShapeKeys, which are not (yet) actual embedded IDs.
+   * NOTE: for now, keep existing owner ID (i.e. owner of the source embedded ID) if no new one
+   * is given. In some cases (e.g. depsgraph), this is important for later remapping to work
+   * properly.
+   */
+  if (new_owner_id) {
+    const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(new_id);
+    BLI_assert(idtype->owner_pointer_get != nullptr);
+    ID **owner_id_pointer = idtype->owner_pointer_get(new_id, false);
+    *owner_id_pointer = const_cast<ID *>(new_owner_id);
   }
 
   /* We do not want any handling of user-count in code duplicating the data here, we do that all
@@ -1544,14 +1581,14 @@ void BKE_libblock_copy_in_lib(Main *bmain,
 
 void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int orig_flag)
 {
-  BKE_libblock_copy_in_lib(bmain, std::nullopt, id, r_newid, orig_flag);
+  BKE_libblock_copy_in_lib(bmain, std::nullopt, id, nullptr, r_newid, orig_flag);
 }
 
 void *BKE_libblock_copy(Main *bmain, const ID *id)
 {
   ID *idn;
 
-  BKE_libblock_copy_in_lib(bmain, std::nullopt, id, &idn, 0);
+  BKE_libblock_copy_in_lib(bmain, std::nullopt, id, nullptr, &idn, 0);
 
   return idn;
 }
@@ -1594,10 +1631,35 @@ ID *BKE_libblock_find_name_and_library(Main *bmain,
       }
       return nullptr;
     }
+    if (id->lib == nullptr) {
+      return nullptr;
+    }
     if (!STREQ(id->lib->id.name + 2, lib_name)) {
       continue;
     }
     return id;
+  }
+  return nullptr;
+}
+
+ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
+                                                short type,
+                                                const char *name,
+                                                const char *lib_filepath_abs)
+{
+  ListBase *lb = which_libbase(bmain, type);
+  BLI_assert(lb != nullptr);
+  LISTBASE_FOREACH (ID *, id, lb) {
+    if (!STREQ(id->name + 2, name)) {
+      continue;
+    }
+    if (id->lib == nullptr && lib_filepath_abs == nullptr) {
+      return id;
+    }
+    else if (id->lib && lib_filepath_abs && STREQ(id->lib->runtime.filepath_abs, lib_filepath_abs))
+    {
+      return id;
+    }
   }
   return nullptr;
 }
@@ -1887,7 +1949,8 @@ void BKE_library_make_local(Main *bmain,
                             const Library *lib,
                             GHash *old_to_new_ids,
                             const bool untagged_only,
-                            const bool set_fake)
+                            const bool set_fake,
+                            const bool clear_asset_data)
 {
   /* NOTE: Old (2.77) version was simply making (tagging) data-blocks as local,
    * without actually making any check whether they were also indirectly used or not...
@@ -1925,7 +1988,7 @@ void BKE_library_make_local(Main *bmain,
     const bool do_skip = (id && !BKE_idtype_idcode_is_linkable(GS(id->name)));
 
     for (; id; id = static_cast<ID *>(id->next)) {
-      ID *ntree = (ID *)ntreeFromID(id);
+      ID *ntree = (ID *)blender::bke::ntreeFromID(id);
 
       id->tag &= ~LIB_TAG_DOIT;
       if (ntree != nullptr) {
@@ -2002,6 +2065,8 @@ void BKE_library_make_local(Main *bmain,
   TIMEIT_VALUE_PRINT(make_local);
 #endif
 
+  const int make_local_flags = clear_asset_data ? LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR : 0;
+
   /* Step 3: Make IDs local, either directly (quick and simple), or using generic process,
    * which involves more complex checks and might instead
    * create a local copy of original linked ID. */
@@ -2014,7 +2079,7 @@ void BKE_library_make_local(Main *bmain,
        * currently there are some indirect usages. So instead of making a copy that we'll likely
        * get rid of later, directly make that data block local.
        * Saves a tremendous amount of time with complex scenes... */
-      BKE_lib_id_clear_library_data(bmain, id, 0);
+      BKE_lib_id_clear_library_data(bmain, id, make_local_flags);
       BKE_lib_id_expand_local(bmain, id, 0);
       id->tag &= ~LIB_TAG_DOIT;
 
@@ -2024,7 +2089,7 @@ void BKE_library_make_local(Main *bmain,
     }
     else {
       /* In this specific case, we do want to make ID local even if it has no local usage yet... */
-      BKE_lib_id_make_local(bmain, id, LIB_ID_MAKELOCAL_FULL_LIBRARY);
+      BKE_lib_id_make_local(bmain, id, make_local_flags | LIB_ID_MAKELOCAL_FULL_LIBRARY);
 
       if (id->newid) {
         if (GS(id->newid->name) == ID_OB) {
@@ -2123,13 +2188,13 @@ void BKE_library_make_local(Main *bmain,
 
 void BKE_libblock_rename(Main *bmain, ID *id, const char *name)
 {
-  BLI_assert(!ID_IS_LINKED(id));
+  BLI_assert(ID_IS_EDITABLE(id));
   if (STREQ(id->name + 2, name)) {
     return;
   }
   BKE_main_namemap_remove_name(bmain, id, id->name + 2);
   ListBase *lb = which_libbase(bmain, GS(id->name));
-  if (BKE_id_new_name_validate(bmain, lb, id, name, false)) {
+  if (BKE_id_new_name_validate(bmain, lb, id, name, true)) {
     bmain->is_memfile_undo_written = false;
   }
 }
@@ -2203,15 +2268,15 @@ bool BKE_id_is_in_global_main(ID *id)
 
 bool BKE_id_can_be_asset(const ID *id)
 {
-  return !ID_IS_LINKED(id) && !ID_IS_OVERRIDE_LIBRARY(id) &&
+  return ID_IS_EDITABLE(id) && !ID_IS_OVERRIDE_LIBRARY(id) &&
          BKE_idtype_idcode_is_linkable(GS(id->name));
 }
 
-ID *BKE_id_owner_get(ID *id)
+ID *BKE_id_owner_get(ID *id, const bool debug_relationship_assert)
 {
   const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(id);
   if (idtype->owner_pointer_get != nullptr) {
-    ID **owner_id_pointer = idtype->owner_pointer_get(id);
+    ID **owner_id_pointer = idtype->owner_pointer_get(id, debug_relationship_assert);
     if (owner_id_pointer != nullptr) {
       return *owner_id_pointer;
     }
@@ -2221,7 +2286,21 @@ ID *BKE_id_owner_get(ID *id)
 
 bool BKE_id_is_editable(const Main *bmain, const ID *id)
 {
-  return !(ID_IS_LINKED(id) || BKE_lib_override_library_is_system_defined(bmain, id));
+  return ID_IS_EDITABLE(id) && !BKE_lib_override_library_is_system_defined(bmain, id);
+}
+
+bool BKE_id_can_use_id(const ID &id_from, const ID &id_to)
+{
+  /* Can't point from linked to local. */
+  if (id_from.lib && !id_to.lib) {
+    return false;
+  }
+  /* Can't point from ID in main database to one outside of it. */
+  if (!(id_from.tag & LIB_TAG_NO_MAIN) && (id_to.tag & LIB_TAG_NO_MAIN)) {
+    return false;
+  }
+
+  return true;
 }
 
 /************************* Datablock order in UI **************************/

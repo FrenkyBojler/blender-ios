@@ -161,7 +161,7 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
   }
 
   /* Determine the descriptor set locations after the inputs have been sorted. */
-  /* Note: input_tot_len is sometimes more than we need. */
+  /* NOTE: input_tot_len is sometimes more than we need. */
   const uint32_t resources_len = input_tot_len;
 
   /* Initialize the descriptor set layout. */
@@ -227,8 +227,8 @@ void VKShaderInterface::descriptor_set_location_update(
       case shader::ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
         vk_access_flags |= VK_ACCESS_UNIFORM_READ_BIT;
         break;
+
       case shader::ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
-      case shader::ShaderCreateInfo::Resource::BindType::IMAGE:
         if (bool(resource->storagebuf.qualifiers & shader::Qualifier::READ) == true) {
           vk_access_flags |= VK_ACCESS_SHADER_READ_BIT;
         }
@@ -236,6 +236,16 @@ void VKShaderInterface::descriptor_set_location_update(
           vk_access_flags |= VK_ACCESS_SHADER_WRITE_BIT;
         }
         break;
+
+      case shader::ShaderCreateInfo::Resource::BindType::IMAGE:
+        if (bool(resource->image.qualifiers & shader::Qualifier::READ) == true) {
+          vk_access_flags |= VK_ACCESS_SHADER_READ_BIT;
+        }
+        if (bool(resource->image.qualifiers & shader::Qualifier::WRITE) == true) {
+          vk_access_flags |= VK_ACCESS_SHADER_WRITE_BIT;
+        }
+        break;
+
       case shader::ShaderCreateInfo::Resource::BindType::SAMPLER:
         vk_access_flags |= VK_ACCESS_SHADER_READ_BIT;
         break;

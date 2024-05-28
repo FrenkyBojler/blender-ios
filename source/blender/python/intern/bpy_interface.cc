@@ -385,7 +385,12 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
     PyStatus status;
     bool has_python_executable = false;
 
-    PyConfig_InitPythonConfig(&config);
+    if (py_use_system_env) {
+      PyConfig_InitPythonConfig(&config);
+    }
+    else {
+      PyConfig_InitIsolatedConfig(&config);
+    }
 
     /* Suppress error messages when calculating the module search path.
      * While harmless, it's noisy. */
@@ -553,7 +558,9 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
 
 void BPY_python_end(const bool do_python_exit)
 {
+#ifndef WITH_PYTHON_MODULE
   BLI_assert_msg(Py_IsInitialized() != 0, "Python must be initialized");
+#endif
 
   PyGILState_STATE gilstate;
 

@@ -220,6 +220,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   GreasePencilLineartModifierData *lmd = (GreasePencilLineartModifierData *)md;
 
+  walk(user_data, ob, (ID **)&lmd->target_material, IDWALK_CB_USER);
   walk(user_data, ob, (ID **)&lmd->source_collection, IDWALK_CB_NOP);
 
   walk(user_data, ob, (ID **)&lmd->source_object, IDWALK_CB_NOP);
@@ -770,9 +771,10 @@ static void generate_strokes(ModifierData &md,
                              GreasePencil &grease_pencil,
                              GreasePencilLineartModifierData &first_lineart)
 {
+  using namespace bke::greasepencil;
   auto &lmd = reinterpret_cast<GreasePencilLineartModifierData &>(md);
 
-  bke::greasepencil::TreeNode *node = grease_pencil.find_node_by_name(lmd.target_layer);
+  TreeNode *node = grease_pencil.find_node_by_name(lmd.target_layer);
   if (!node || !node->is_layer()) {
     return;
   }
@@ -790,16 +792,13 @@ static void generate_strokes(ModifierData &md,
   const int current_frame = grease_pencil.runtime->eval_frame;
 
   /* Ensure we have a frame in the selected layer to put line art result in. */
-  bke::greasepencil::Layer &layer = node->as_layer();
+  Layer &layer = node->as_layer();
 
-  bke::greasepencil::Drawing &drawing = [&]() -> bke::greasepencil::Drawing & {
-    if (bke::greasepencil::Drawing *drawing = grease_pencil.get_editable_drawing_at(layer,
-                                                                                    current_frame))
-    {
+  Drawing &drawing = [&]() -> Drawing & {
+    if (Drawing *drawing = grease_pencil.get_editable_drawing_at(layer, current_frame)) {
       return *drawing;
     }
-    grease_pencil.insert_blank_frame(layer, current_frame, 0, BEZT_KEYTYPE_KEYFRAME);
-    return *grease_pencil.get_editable_drawing_at(layer, current_frame);
+    return *grease_pencil.insert_frame(layer, current_frame);
   }();
 
   const float4x4 &mat = ctx.object->world_to_object();
@@ -828,7 +827,7 @@ static void generate_strokes(ModifierData &md,
       lmd.flags,
       lmd.calculation_flags);
 
-  if (!(lmd.flags & MOD_LINEART_USE_CACHE)) {
+  if ((!(lmd.flags & MOD_LINEART_USE_CACHE)) && (&first_lineart != &lmd)) {
     /* Clear local cache. */
     if (local_lc != first_lineart.shared_cache) {
       MOD_lineart_clear_cache(&local_lc);

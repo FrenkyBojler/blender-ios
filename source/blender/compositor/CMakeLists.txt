@@ -34,7 +34,6 @@ if(WITH_COMPOSITOR_CPU)
   set(SRC
     COM_compositor.hh
     COM_defines.h
-    COM_profile.hh
 
     intern/COM_BufferArea.h
     intern/COM_BufferRange.h
@@ -83,10 +82,6 @@ if(WITH_COMPOSITOR_CPU)
     intern/COM_WorkScheduler.cc
     intern/COM_WorkScheduler.h
     intern/COM_compositor.cc
-    intern/COM_profile.cc
-
-    operations/COM_QualityStepHelper.cc
-    operations/COM_QualityStepHelper.h
 
     # Internal nodes
     nodes/COM_SocketProxyNode.cc
@@ -482,8 +477,6 @@ if(WITH_COMPOSITOR_CPU)
     # Distort operation
     operations/COM_DisplaceOperation.cc
     operations/COM_DisplaceOperation.h
-    operations/COM_DisplaceSimpleOperation.cc
-    operations/COM_DisplaceSimpleOperation.h
     operations/COM_FlipOperation.cc
     operations/COM_FlipOperation.h
     operations/COM_MapUVOperation.cc
@@ -580,6 +573,18 @@ if(WITH_COMPOSITOR_CPU)
     PRIVATE bf::intern::atomic
   )
 
+  if(WITH_TBB)
+    list(APPEND INC_SYS
+      ${TBB_INCLUDE_DIRS}
+    )
+    add_definitions(-DWITH_TBB)
+    if(WIN32)
+      # TBB includes Windows.h which will define min/max macros
+      # that will collide with the stl versions.
+      add_definitions(-DNOMINMAX)
+    endif()
+  endif()
+
   if(WITH_OPENIMAGEDENOISE)
     add_definitions(-DWITH_OPENIMAGEDENOISE)
     add_definitions(-DOIDN_STATIC_LIB)
@@ -591,6 +596,16 @@ if(WITH_COMPOSITOR_CPU)
       ${OPENIMAGEDENOISE_LIBRARIES}
       ${TBB_LIBRARIES}
     )
+  endif()
+
+  if(WITH_FFTW3)
+    list(APPEND INC_SYS
+      ${FFTW3_INCLUDE_DIRS}
+    )
+    list(APPEND LIB
+      ${FFTW3_LIBRARIES}
+    )
+    add_definitions(-DWITH_FFTW3)
   endif()
 
   blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

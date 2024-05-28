@@ -194,11 +194,13 @@ static void mesh_copy_data(Main *bmain,
 
   mesh_dst->mselect = (MSelect *)MEM_dupallocN(mesh_dst->mselect);
 
-  /* TODO: Do we want to add flag to prevent this? */
   if (mesh_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-    BKE_id_copy_in_lib(bmain, owner_library, &mesh_src->key->id, (ID **)&mesh_dst->key, flag);
-    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
-    mesh_dst->key->from = &mesh_dst->id;
+    BKE_id_copy_in_lib(bmain,
+                       owner_library,
+                       &mesh_src->key->id,
+                       &mesh_dst->id,
+                       reinterpret_cast<ID **>(&mesh_dst->key),
+                       flag);
   }
 }
 
@@ -840,10 +842,10 @@ Mesh *BKE_mesh_new_nomain_from_template(const Mesh *me_src,
       me_src, verts_num, edges_num, 0, faces_num, corners_num, CD_MASK_EVERYTHING);
 }
 
-Mesh *BKE_mesh_copy_for_eval(const Mesh *source)
+Mesh *BKE_mesh_copy_for_eval(const Mesh &source)
 {
   return reinterpret_cast<Mesh *>(
-      BKE_id_copy_ex(nullptr, &source->id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &source.id, nullptr, LIB_ID_COPY_LOCALIZE));
 }
 
 BMesh *BKE_mesh_to_bmesh_ex(const Mesh *mesh,
@@ -987,25 +989,20 @@ void BKE_mesh_texspace_get_reference(Mesh *mesh,
   }
 }
 
-float (*BKE_mesh_orco_verts_get(const Object *ob))[3]
+blender::Array<float3> BKE_mesh_orco_verts_get(const Object *ob)
 {
   const Mesh *mesh = static_cast<const Mesh *>(ob->data);
   const Mesh *tme = mesh->texcomesh ? mesh->texcomesh : mesh;
 
-  /* Get appropriate vertex coordinates */
-  float(*vcos)[3] = (float(*)[3])MEM_calloc_arrayN(mesh->verts_num, sizeof(*vcos), "orco mesh");
+  blender::Array<float3> result(mesh->verts_num);
   const Span<float3> positions = tme->vert_positions();
+  result.as_mutable_span().take_front(positions.size()).copy_from(positions);
+  result.as_mutable_span().drop_front(positions.size()).fill(float3(0));
 
-  int totvert = min_ii(tme->verts_num, mesh->verts_num);
-
-  for (int a = 0; a < totvert; a++) {
-    copy_v3_v3(vcos[a], positions[a]);
-  }
-
-  return vcos;
+  return result;
 }
 
-void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, const bool invert)
+void BKE_mesh_orco_verts_transform(Mesh *mesh, MutableSpan<float3> orco, const bool invert)
 {
   float texspace_location[3], texspace_size[3];
 
@@ -1013,19 +1010,24 @@ void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, co
       mesh->texcomesh ? mesh->texcomesh : mesh, texspace_location, texspace_size);
 
   if (invert) {
-    for (int a = 0; a < totvert; a++) {
-      float *co = orco[a];
+    for (const int a : orco.index_range()) {
+      float3 &co = orco[a];
       madd_v3_v3v3v3(co, texspace_location, co, texspace_size);
     }
   }
   else {
-    for (int a = 0; a < totvert; a++) {
-      float *co = orco[a];
+    for (const int a : orco.index_range()) {
+      float3 &co = orco[a];
       co[0] = (co[0] - texspace_location[0]) / texspace_size[0];
       co[1] = (co[1] - texspace_location[1]) / texspace_size[1];
       co[2] = (co[2] - texspace_location[2]) / texspace_size[2];
     }
   }
+}
+
+void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, bool invert)
+{
+  BKE_mesh_orco_verts_transform(mesh, {reinterpret_cast<float3 *>(orco), totvert}, invert);
 }
 
 void BKE_mesh_orco_ensure(Object *ob, Mesh *mesh)
@@ -1035,9 +1037,11 @@ void BKE_mesh_orco_ensure(Object *ob, Mesh *mesh)
   }
 
   /* Orcos are stored in normalized 0..1 range by convention. */
-  float(*orcodata)[3] = BKE_mesh_orco_verts_get(ob);
-  BKE_mesh_orco_verts_transform(mesh, orcodata, mesh->verts_num, false);
-  CustomData_add_layer_with_data(&mesh->vert_data, CD_ORCO, orcodata, mesh->verts_num, nullptr);
+  blender::Array<float3> orcodata = BKE_mesh_orco_verts_get(ob);
+  BKE_mesh_orco_verts_transform(mesh, orcodata, false);
+  float3 *data = static_cast<float3 *>(
+      CustomData_add_layer(&mesh->vert_data, CD_ORCO, CD_CONSTRUCT, mesh->verts_num));
+  MutableSpan(data, mesh->verts_num).copy_from(orcodata);
 }
 
 Mesh *BKE_mesh_from_object(Object *ob)
@@ -1376,7 +1380,7 @@ void BKE_mesh_mselect_validate(Mesh *mesh)
   mesh->mselect = mselect_dst;
 }
 
-int BKE_mesh_mselect_find(Mesh *mesh, int index, int type)
+int BKE_mesh_mselect_find(const Mesh *mesh, int index, int type)
 {
   BLI_assert(ELEM(type, ME_VSEL, ME_ESEL, ME_FSEL));
 
@@ -1389,7 +1393,7 @@ int BKE_mesh_mselect_find(Mesh *mesh, int index, int type)
   return -1;
 }
 
-int BKE_mesh_mselect_active_get(Mesh *mesh, int type)
+int BKE_mesh_mselect_active_get(const Mesh *mesh, int type)
 {
   BLI_assert(ELEM(type, ME_VSEL, ME_ESEL, ME_FSEL));
 

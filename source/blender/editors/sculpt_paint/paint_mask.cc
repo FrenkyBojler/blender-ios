@@ -39,6 +39,7 @@
 #include "WM_types.hh"
 
 #include "ED_sculpt.hh"
+#include "ED_select_utils.hh"
 
 #include "bmesh.hh"
 
@@ -46,10 +47,15 @@
 #include "sculpt_intern.hh"
 
 namespace blender::ed::sculpt_paint::mask {
+
+/* -------------------------------------------------------------------- */
+/** \name Public API
+ * \{ */
+
 Array<float> duplicate_mask(const Object &object)
 {
   const SculptSession &ss = *object.sculpt;
-  switch (BKE_pbvh_type(ss.pbvh)) {
+  switch (BKE_pbvh_type(*ss.pbvh)) {
     case PBVH_FACES: {
       const Mesh &mesh = *static_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
@@ -95,6 +101,13 @@ Array<float> duplicate_mask(const Object &object)
   return {};
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Global Mask Operators
+ * Operators that act upon the entirety of a given object's mesh.
+ * \{ */
+
 /* The gesture API doesn't write to this enum type,
  * it writes to eSelectOp from ED_select_utils.hh.
  * We must thus map the modes here to the desired
@@ -102,41 +115,25 @@ Array<float> duplicate_mask(const Object &object)
  *
  * Fixes #102349.
  */
-enum PaintMaskFloodMode {
-  PAINT_MASK_FLOOD_VALUE = SEL_OP_SUB,
-  PAINT_MASK_FLOOD_VALUE_INVERSE = SEL_OP_ADD,
-  PAINT_MASK_INVERT = SEL_OP_XOR,
+enum class FloodFillMode {
+  Value = SEL_OP_SUB,
+  InverseValue = SEL_OP_ADD,
+  InverseMeshValue = SEL_OP_XOR,
 };
 
 static const EnumPropertyItem mode_items[] = {
-    {PAINT_MASK_FLOOD_VALUE,
+    {int(FloodFillMode::Value),
      "VALUE",
      0,
      "Value",
      "Set mask to the level specified by the 'value' property"},
-    {PAINT_MASK_FLOOD_VALUE_INVERSE,
+    {int(FloodFillMode::InverseValue),
      "VALUE_INVERSE",
      0,
      "Value Inverted",
      "Set mask to the level specified by the inverted 'value' property"},
-    {PAINT_MASK_INVERT, "INVERT", 0, "Invert", "Invert the mask"},
+    {int(FloodFillMode::InverseMeshValue), "INVERT", 0, "Invert", "Invert the mask"},
     {0}};
-
-static float mask_flood_fill_get_new_value_for_elem(const float elem,
-                                                    PaintMaskFloodMode mode,
-                                                    float value)
-{
-  switch (mode) {
-    case PAINT_MASK_FLOOD_VALUE:
-      return value;
-    case PAINT_MASK_FLOOD_VALUE_INVERSE:
-      return 1.0f - value;
-    case PAINT_MASK_INVERT:
-      return 1.0f - elem;
-  }
-  BLI_assert_unreachable();
-  return 0.0f;
-}
 
 static Span<int> get_visible_verts(const PBVHNode &node,
                                    const Span<bool> hide_vert,
@@ -360,8 +357,8 @@ static void fill_mask(
     Main &bmain, const Scene &scene, Depsgraph &depsgraph, Object &object, const float value)
 {
   PBVH &pbvh = *object.sculpt->pbvh;
-  Vector<PBVHNode *> nodes = bke::pbvh::search_gather(&pbvh, {});
-  switch (BKE_pbvh_type(&pbvh)) {
+  Vector<PBVHNode *> nodes = bke::pbvh::search_gather(pbvh, {});
+  switch (BKE_pbvh_type(pbvh)) {
     case PBVH_FACES:
       fill_mask_mesh(object, value, nodes);
       break;
@@ -472,8 +469,8 @@ static void invert_mask_bmesh(Object &object, const Span<PBVHNode *> nodes)
 
 static void invert_mask(Main &bmain, const Scene &scene, Depsgraph &depsgraph, Object &object)
 {
-  Vector<PBVHNode *> nodes = bke::pbvh::search_gather(object.sculpt->pbvh, {});
-  switch (BKE_pbvh_type(object.sculpt->pbvh)) {
+  Vector<PBVHNode *> nodes = bke::pbvh::search_gather(*object.sculpt->pbvh, {});
+  switch (BKE_pbvh_type(*object.sculpt->pbvh)) {
     case PBVH_FACES:
       invert_mask_mesh(object, nodes);
       break;
@@ -493,25 +490,25 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
   Object &object = *CTX_data_active_object(C);
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
 
-  const PaintMaskFloodMode mode = PaintMaskFloodMode(RNA_enum_get(op->ptr, "mode"));
+  const FloodFillMode mode = FloodFillMode(RNA_enum_get(op->ptr, "mode"));
   const float value = RNA_float_get(op->ptr, "value");
 
   BKE_sculpt_update_object_for_edit(&depsgraph, &object, false);
 
-  undo::push_begin(&object, op);
+  undo::push_begin(object, op);
   switch (mode) {
-    case PAINT_MASK_FLOOD_VALUE:
+    case FloodFillMode::Value:
       fill_mask(bmain, scene, depsgraph, object, value);
       break;
-    case PAINT_MASK_FLOOD_VALUE_INVERSE:
+    case FloodFillMode::InverseValue:
       fill_mask(bmain, scene, depsgraph, object, 1.0f - value);
       break;
-    case PAINT_MASK_INVERT:
+    case FloodFillMode::InverseMeshValue:
       invert_mask(bmain, scene, depsgraph, object);
       break;
   }
 
-  undo::push_end(&object);
+  undo::push_end(object);
 
   SCULPT_tag_update_overlays(C);
 
@@ -532,7 +529,7 @@ void PAINT_OT_mask_flood_fill(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER;
 
   /* RNA. */
-  RNA_def_enum(ot->srna, "mode", mode_items, PAINT_MASK_FLOOD_VALUE, "Mode", nullptr);
+  RNA_def_enum(ot->srna, "mode", mode_items, int(FloodFillMode::Value), "Mode", nullptr);
   RNA_def_float(
       ot->srna,
       "value",
@@ -545,39 +542,58 @@ void PAINT_OT_mask_flood_fill(wmOperatorType *ot)
       1.0f);
 }
 
-/* Mask Gesture Operation. */
+/** \} */
 
-struct SculptGestureMaskOperation {
+/* -------------------------------------------------------------------- */
+/** \name Gesture-based Mask Operators
+ * Operators that act upon a user-selected area.
+ * \{ */
+
+struct MaskOperation {
   gesture::Operation op;
 
-  PaintMaskFloodMode mode;
+  FloodFillMode mode;
   float value;
 };
 
-static void sculpt_gesture_mask_begin(bContext &C, gesture::GestureData &gesture_data)
+static void gesture_begin(bContext &C, gesture::GestureData &gesture_data)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
   BKE_sculpt_update_object_for_edit(depsgraph, gesture_data.vc.obact, false);
 }
 
-static void mask_gesture_apply_task(gesture::GestureData &gesture_data,
-                                    const SculptMaskWriteInfo mask_write,
-                                    PBVHNode *node)
+static float mask_flood_fill_get_new_value_for_elem(const float elem,
+                                                    FloodFillMode mode,
+                                                    float value)
 {
-  SculptGestureMaskOperation *mask_operation = (SculptGestureMaskOperation *)
-                                                   gesture_data.operation;
+  switch (mode) {
+    case FloodFillMode::Value:
+      return value;
+    case FloodFillMode::InverseValue:
+      return 1.0f - value;
+    case FloodFillMode::InverseMeshValue:
+      return 1.0f - elem;
+  }
+  BLI_assert_unreachable();
+  return 0.0f;
+}
+
+static void gesture_apply_task(gesture::GestureData &gesture_data,
+                               const SculptMaskWriteInfo mask_write,
+                               PBVHNode *node)
+{
+  MaskOperation *mask_operation = (MaskOperation *)gesture_data.operation;
   Object *ob = gesture_data.vc.obact;
 
-  const bool is_multires = BKE_pbvh_type(gesture_data.ss->pbvh) == PBVH_GRIDS;
+  const bool is_multires = BKE_pbvh_type(*gesture_data.ss->pbvh) == PBVH_GRIDS;
 
   PBVHVertexIter vd;
   bool any_masked = false;
   bool redraw = false;
 
-  BKE_pbvh_vertex_iter_begin (gesture_data.ss->pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    float vertex_normal[3];
-    const float *co = SCULPT_vertex_co_get(gesture_data.ss, vd.vertex);
-    SCULPT_vertex_normal_get(gesture_data.ss, vd.vertex, vertex_normal);
+  BKE_pbvh_vertex_iter_begin (*gesture_data.ss->pbvh, node, vd, PBVH_ITER_UNIQUE) {
+    const float *co = SCULPT_vertex_co_get(*gesture_data.ss, vd.vertex);
+    const float3 vertex_normal = SCULPT_vertex_normal_get(*gesture_data.ss, vd.vertex);
 
     if (gesture::is_affected(gesture_data, co, vertex_normal)) {
       float prevmask = vd.mask;
@@ -593,7 +609,7 @@ static void mask_gesture_apply_task(gesture::GestureData &gesture_data,
       const float new_mask = mask_flood_fill_get_new_value_for_elem(
           prevmask, mask_operation->mode, mask_operation->value);
       if (prevmask != new_mask) {
-        SCULPT_mask_vert_set(BKE_pbvh_type(ob->sculpt->pbvh), mask_write, new_mask, vd);
+        SCULPT_mask_vert_set(BKE_pbvh_type(*ob->sculpt->pbvh), mask_write, new_mask, vd);
         redraw = true;
       }
     }
@@ -605,52 +621,48 @@ static void mask_gesture_apply_task(gesture::GestureData &gesture_data,
   }
 }
 
-static void sculpt_gesture_mask_apply_for_symmetry_pass(bContext & /*C*/,
-                                                        gesture::GestureData &gesture_data)
+static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureData &gesture_data)
 {
-  const SculptMaskWriteInfo mask_write = SCULPT_mask_get_for_write(gesture_data.ss);
+  const SculptMaskWriteInfo mask_write = SCULPT_mask_get_for_write(*gesture_data.ss);
   threading::parallel_for(gesture_data.nodes.index_range(), 1, [&](const IndexRange range) {
     for (const int i : range) {
-      mask_gesture_apply_task(gesture_data, mask_write, gesture_data.nodes[i]);
+      gesture_apply_task(gesture_data, mask_write, gesture_data.nodes[i]);
     }
   });
 }
 
-static void sculpt_gesture_mask_end(bContext &C, gesture::GestureData &gesture_data)
+static void gesture_end(bContext &C, gesture::GestureData &gesture_data)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-  if (BKE_pbvh_type(gesture_data.ss->pbvh) == PBVH_GRIDS) {
+  if (BKE_pbvh_type(*gesture_data.ss->pbvh) == PBVH_GRIDS) {
     multires_mark_as_modified(depsgraph, gesture_data.vc.obact, MULTIRES_COORDS_MODIFIED);
   }
   blender::bke::pbvh::update_mask(*gesture_data.ss->pbvh);
 }
 
-static void sculpt_gesture_init_mask_properties(bContext &C,
-                                                gesture::GestureData &gesture_data,
-                                                wmOperator &op)
+static void init_operation(bContext &C, gesture::GestureData &gesture_data, wmOperator &op)
 {
   gesture_data.operation = reinterpret_cast<gesture::Operation *>(
-      MEM_cnew<SculptGestureMaskOperation>(__func__));
+      MEM_cnew<MaskOperation>(__func__));
 
-  SculptGestureMaskOperation *mask_operation = (SculptGestureMaskOperation *)
-                                                   gesture_data.operation;
+  MaskOperation *mask_operation = (MaskOperation *)gesture_data.operation;
 
   Object *object = gesture_data.vc.obact;
   MultiresModifierData *mmd = BKE_sculpt_multires_active(gesture_data.vc.scene, object);
   BKE_sculpt_mask_layers_ensure(
       CTX_data_depsgraph_pointer(&C), CTX_data_main(&C), gesture_data.vc.obact, mmd);
 
-  mask_operation->op.begin = sculpt_gesture_mask_begin;
-  mask_operation->op.apply_for_symmetry_pass = sculpt_gesture_mask_apply_for_symmetry_pass;
-  mask_operation->op.end = sculpt_gesture_mask_end;
+  mask_operation->op.begin = gesture_begin;
+  mask_operation->op.apply_for_symmetry_pass = gesture_apply_for_symmetry_pass;
+  mask_operation->op.end = gesture_end;
 
-  mask_operation->mode = PaintMaskFloodMode(RNA_enum_get(op.ptr, "mode"));
+  mask_operation->mode = FloodFillMode(RNA_enum_get(op.ptr, "mode"));
   mask_operation->value = RNA_float_get(op.ptr, "value");
 }
 
-static void paint_mask_gesture_operator_properties(wmOperatorType *ot)
+static void gesture_operator_properties(wmOperatorType *ot)
 {
-  RNA_def_enum(ot->srna, "mode", mode_items, PAINT_MASK_FLOOD_VALUE, "Mode", nullptr);
+  RNA_def_enum(ot->srna, "mode", mode_items, int(FloodFillMode::Value), "Mode", nullptr);
   RNA_def_float(
       ot->srna,
       "value",
@@ -663,35 +675,46 @@ static void paint_mask_gesture_operator_properties(wmOperatorType *ot)
       1.0f);
 }
 
-static int paint_mask_gesture_box_exec(bContext *C, wmOperator *op)
+static int gesture_box_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  sculpt_gesture_init_mask_properties(*C, *gesture_data, *op);
+  init_operation(*C, *gesture_data, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
 
-static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
+static int gesture_lasso_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  sculpt_gesture_init_mask_properties(*C, *gesture_data, *op);
+  init_operation(*C, *gesture_data, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
 
-static int paint_mask_gesture_line_exec(bContext *C, wmOperator *op)
+static int gesture_line_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  sculpt_gesture_init_mask_properties(*C, *gesture_data, *op);
+  init_operation(*C, *gesture_data, *op);
+  gesture::apply(*C, *gesture_data, *op);
+  return OPERATOR_FINISHED;
+}
+
+static int gesture_polyline_exec(bContext *C, wmOperator *op)
+{
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
+  if (!gesture_data) {
+    return OPERATOR_CANCELLED;
+  }
+  init_operation(*C, *gesture_data, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -700,11 +723,11 @@ void PAINT_OT_mask_lasso_gesture(wmOperatorType *ot)
 {
   ot->name = "Mask Lasso Gesture";
   ot->idname = "PAINT_OT_mask_lasso_gesture";
-  ot->description = "Add mask within the lasso as you move the brush";
+  ot->description = "Mask within a shape defined by the cursor";
 
   ot->invoke = WM_gesture_lasso_invoke;
   ot->modal = WM_gesture_lasso_modal;
-  ot->exec = paint_mask_gesture_lasso_exec;
+  ot->exec = gesture_lasso_exec;
 
   ot->poll = SCULPT_mode_poll_view3d;
 
@@ -713,18 +736,18 @@ void PAINT_OT_mask_lasso_gesture(wmOperatorType *ot)
   WM_operator_properties_gesture_lasso(ot);
   gesture::operator_properties(ot, gesture::ShapeType::Lasso);
 
-  paint_mask_gesture_operator_properties(ot);
+  gesture_operator_properties(ot);
 }
 
 void PAINT_OT_mask_box_gesture(wmOperatorType *ot)
 {
   ot->name = "Mask Box Gesture";
   ot->idname = "PAINT_OT_mask_box_gesture";
-  ot->description = "Add mask within the box as you move the brush";
+  ot->description = "Mask within a rectangle defined by the cursor";
 
   ot->invoke = WM_gesture_box_invoke;
   ot->modal = WM_gesture_box_modal;
-  ot->exec = paint_mask_gesture_box_exec;
+  ot->exec = gesture_box_exec;
 
   ot->poll = SCULPT_mode_poll_view3d;
 
@@ -733,18 +756,18 @@ void PAINT_OT_mask_box_gesture(wmOperatorType *ot)
   WM_operator_properties_border(ot);
   gesture::operator_properties(ot, gesture::ShapeType::Box);
 
-  paint_mask_gesture_operator_properties(ot);
+  gesture_operator_properties(ot);
 }
 
 void PAINT_OT_mask_line_gesture(wmOperatorType *ot)
 {
   ot->name = "Mask Line Gesture";
   ot->idname = "PAINT_OT_mask_line_gesture";
-  ot->description = "Add mask to the right of a line as you move the brush";
+  ot->description = "Mask to one side of a line defined by the cursor";
 
   ot->invoke = WM_gesture_straightline_active_side_invoke;
   ot->modal = WM_gesture_straightline_oneshot_modal;
-  ot->exec = paint_mask_gesture_line_exec;
+  ot->exec = gesture_line_exec;
 
   ot->poll = SCULPT_mode_poll_view3d;
 
@@ -753,7 +776,29 @@ void PAINT_OT_mask_line_gesture(wmOperatorType *ot)
   WM_operator_properties_gesture_straightline(ot, WM_CURSOR_EDIT);
   gesture::operator_properties(ot, gesture::ShapeType::Line);
 
-  paint_mask_gesture_operator_properties(ot);
+  gesture_operator_properties(ot);
 }
+
+void PAINT_OT_mask_polyline_gesture(wmOperatorType *ot)
+{
+  ot->name = "Mask Polyline Gesture";
+  ot->idname = "PAINT_OT_mask_polyline_gesture";
+  ot->description = "Mask within a shape defined by the cursor";
+
+  ot->invoke = WM_gesture_polyline_invoke;
+  ot->modal = WM_gesture_polyline_modal;
+  ot->exec = gesture_polyline_exec;
+
+  ot->poll = SCULPT_mode_poll_view3d;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_DEPENDS_ON_CURSOR;
+
+  WM_operator_properties_gesture_polyline(ot);
+  gesture::operator_properties(ot, gesture::ShapeType::Lasso);
+
+  gesture_operator_properties(ot);
+}
+
+/** \} */
 
 }  // namespace blender::ed::sculpt_paint::mask

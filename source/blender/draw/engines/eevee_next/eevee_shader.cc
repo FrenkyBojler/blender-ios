@@ -105,12 +105,10 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_deferred_capture_eval";
     case DEFERRED_PLANAR_EVAL:
       return "eevee_deferred_planar_eval";
+    case DEFERRED_THICKNESS_AMEND:
+      return "eevee_deferred_thickness_amend";
     case DEFERRED_TILE_CLASSIFY:
       return "eevee_deferred_tile_classify";
-    case DEFERRED_TILE_COMPACT:
-      return "eevee_deferred_tile_compact";
-    case DEFERRED_TILE_STENCIL:
-      return "eevee_deferred_tile_stencil";
     case HIZ_DEBUG:
       return "eevee_hiz_debug";
     case HIZ_UPDATE:
@@ -191,6 +189,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_light_culling_tile";
     case LIGHT_CULLING_ZBIN:
       return "eevee_light_culling_zbin";
+    case LIGHT_SHADOW_SETUP:
+      return "eevee_light_shadow_setup";
     case RAY_DENOISE_SPATIAL:
       return "eevee_ray_denoise_spatial";
     case RAY_DENOISE_TEMPORAL:
@@ -227,6 +227,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_reflection_probe_irradiance";
     case SPHERE_PROBE_SELECT:
       return "eevee_reflection_probe_select";
+    case SPHERE_PROBE_SUNLIGHT:
+      return "eevee_reflection_probe_sunlight";
     case SHADOW_CLIPMAP_CLEAR:
       return "eevee_shadow_clipmap_clear";
     case SHADOW_DEBUG:
@@ -327,9 +329,14 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
   eMaterialPipeline pipeline_type;
   eMaterialGeometry geometry_type;
   eMaterialDisplacement displacement_type;
+  eMaterialThickness thickness_type;
   bool transparent_shadows;
-  material_type_from_shader_uuid(
-      shader_uuid, pipeline_type, geometry_type, displacement_type, transparent_shadows);
+  material_type_from_shader_uuid(shader_uuid,
+                                 pipeline_type,
+                                 geometry_type,
+                                 displacement_type,
+                                 thickness_type,
+                                 transparent_shadows);
 
   GPUCodegenOutput &codegen = *codegen_;
   ShaderCreateInfo &info = *reinterpret_cast<ShaderCreateInfo *>(codegen.create_info);
@@ -635,6 +642,9 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
     frag_gen << (!codegen.surface.empty() ? codegen.surface : "return Closure(0);\n");
     frag_gen << "}\n\n";
 
+    /* TODO(fclem): Find a way to pass material parameters inside the material UBO. */
+    info.define("thickness_mode", thickness_type == MAT_THICKNESS_SLAB ? "-1.0" : "1.0");
+
     frag_gen << "float nodetree_thickness()\n";
     frag_gen << "{\n";
     if (codegen.thickness.empty()) {
@@ -764,6 +774,65 @@ static void codegen_callback(void *thunk, GPUMaterial *mat, GPUCodegenOutput *co
   reinterpret_cast<ShaderModule *>(thunk)->material_create_info_ammend(mat, codegen);
 }
 
+static GPUPass *pass_replacement_cb(void *thunk, GPUMaterial *mat)
+{
+  using namespace blender::gpu::shader;
+
+  const ::Material *blender_mat = GPU_material_get_material(mat);
+
+  uint64_t shader_uuid = GPU_material_uuid_get(mat);
+
+  eMaterialPipeline pipeline_type;
+  eMaterialGeometry geometry_type;
+  eMaterialDisplacement displacement_type;
+  eMaterialThickness thickness_type;
+  bool transparent_shadows;
+  material_type_from_shader_uuid(shader_uuid,
+                                 pipeline_type,
+                                 geometry_type,
+                                 displacement_type,
+                                 thickness_type,
+                                 transparent_shadows);
+
+  bool is_shadow_pass = pipeline_type == eMaterialPipeline::MAT_PIPE_SHADOW;
+  bool is_prepass = ELEM(pipeline_type,
+                         eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED,
+                         eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
+                         eMaterialPipeline::MAT_PIPE_PREPASS_OVERLAP,
+                         eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD,
+                         eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_VELOCITY,
+                         eMaterialPipeline::MAT_PIPE_PREPASS_PLANAR);
+
+  bool has_vertex_displacement = GPU_material_has_displacement_output(mat) &&
+                                 displacement_type != eMaterialDisplacement::MAT_DISPLACEMENT_BUMP;
+  bool has_transparency = GPU_material_flag_get(mat, GPU_MATFLAG_TRANSPARENT);
+  bool has_shadow_transparency = has_transparency && transparent_shadows;
+  bool has_raytraced_transmission = blender_mat && (blender_mat->blend_flag & MA_BL_SS_REFRACTION);
+
+  bool can_use_default = (is_shadow_pass &&
+                          (!has_vertex_displacement && !has_shadow_transparency)) ||
+                         (is_prepass && (!has_vertex_displacement && !has_transparency &&
+                                         !has_raytraced_transmission));
+  if (can_use_default) {
+    GPUMaterial *mat = reinterpret_cast<ShaderModule *>(thunk)->material_default_shader_get(
+        pipeline_type, geometry_type);
+    return GPU_material_get_pass(mat);
+  }
+
+  return nullptr;
+}
+
+GPUMaterial *ShaderModule::material_default_shader_get(eMaterialPipeline pipeline_type,
+                                                       eMaterialGeometry geometry_type)
+{
+  bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_MATERIAL, MAT_PIPE_VOLUME_OCCUPANCY);
+  ::Material *blender_mat = (is_volume) ? BKE_material_default_volume() :
+                                          BKE_material_default_surface();
+
+  return material_shader_get(
+      blender_mat, blender_mat->nodetree, pipeline_type, geometry_type, false);
+}
+
 GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
                                                bNodeTree *nodetree,
                                                eMaterialPipeline pipeline_type,
@@ -773,18 +842,25 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
   bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_MATERIAL, MAT_PIPE_VOLUME_OCCUPANCY);
 
   eMaterialDisplacement displacement_type = to_displacement_type(blender_mat->displacement_method);
+  eMaterialThickness thickness_type = to_thickness_type(blender_mat->thickness_mode);
 
   uint64_t shader_uuid = shader_uuid_from_material_type(
-      pipeline_type, geometry_type, displacement_type, blender_mat->blend_flag);
+      pipeline_type, geometry_type, displacement_type, thickness_type, blender_mat->blend_flag);
 
-  return DRW_shader_from_material(blender_mat,
-                                  nodetree,
-                                  GPU_MAT_EEVEE,
-                                  shader_uuid,
-                                  is_volume,
-                                  deferred_compilation,
-                                  codegen_callback,
-                                  this);
+  bool is_default_material = ELEM(
+      blender_mat, BKE_material_default_surface(), BKE_material_default_volume());
+
+  GPUMaterial *mat = DRW_shader_from_material(blender_mat,
+                                              nodetree,
+                                              GPU_MAT_EEVEE,
+                                              shader_uuid,
+                                              is_volume,
+                                              deferred_compilation,
+                                              codegen_callback,
+                                              this,
+                                              is_default_material ? nullptr : pass_replacement_cb);
+
+  return mat;
 }
 
 GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,

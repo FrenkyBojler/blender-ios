@@ -43,13 +43,13 @@ static const char *try_get_supported_socket_type(const StringRef socket_type)
 {
   /* Make a copy of the string for `.c_str()` until the socket type map uses C++ types. */
   const std::string idname(socket_type);
-  const bNodeSocketType *typeinfo = nodeSocketTypeFind(idname.c_str());
+  const blender::bke::bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(idname.c_str());
   if (typeinfo == nullptr) {
     return nullptr;
   }
   /* For builtin socket types only the base type is supported. */
   if (nodeIsStaticSocketType(typeinfo)) {
-    return nodeStaticSocketType(typeinfo->type, PROP_NONE);
+    return bke::nodeStaticSocketType(typeinfo->type, PROP_NONE);
   }
   return typeinfo->idname;
 }
@@ -276,7 +276,7 @@ static void socket_data_copy_ptr(bNodeTreeInterfaceSocket &dst,
 /** \name Write Socket Data to Blend File
  * \{ */
 
-/* Note: no default implementation, every used type must write at least the base struct. */
+/* NOTE: no default implementation, every used type must write at least the base struct. */
 
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueFloat &data)
 {
@@ -645,14 +645,14 @@ static Span<bNodeTreeInterfaceItem *> item_children(bNodeTreeInterfaceItem &item
 
 using namespace blender::bke::node_interface;
 
-bNodeSocketType *bNodeTreeInterfaceSocket::socket_typeinfo() const
+blender::bke::bNodeSocketType *bNodeTreeInterfaceSocket::socket_typeinfo() const
 {
-  return nodeSocketTypeFind(socket_type);
+  return blender::bke::nodeSocketTypeFind(socket_type);
 }
 
 blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
 {
-  bNodeSocketType *typeinfo = this->socket_typeinfo();
+  blender::bke::bNodeSocketType *typeinfo = this->socket_typeinfo();
   if (typeinfo && typeinfo->draw_color_simple) {
     float color[4];
     typeinfo->draw_color_simple(typeinfo, color);
@@ -1070,7 +1070,7 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
   if (iosock == nullptr) {
     return nullptr;
   }
-  const bNodeSocketType *typeinfo = iosock->socket_typeinfo();
+  const blender::bke::bNodeSocketType *typeinfo = iosock->socket_typeinfo();
   if (typeinfo->interface_from_socket) {
     typeinfo->interface_from_socket(&ntree.id, iosock, &from_node, &from_sock);
     UNUSED_VARS(from_sock);
@@ -1393,7 +1393,7 @@ bool bNodeTreeInterface::move_item_to_parent(bNodeTreeInterfaceItem &item,
     }
   }
   else {
-    /* Note: only remove and reinsert when parents different, otherwise removing the item can
+    /* NOTE: only remove and reinsert when parents different, otherwise removing the item can
      * change the desired target position! */
     if (parent->remove_item(item, false)) {
       new_parent->insert_item(item, new_position);
