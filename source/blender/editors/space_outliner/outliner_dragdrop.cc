@@ -975,10 +975,13 @@ static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
       else if (drop_data->ob_parent->type != OB_GPENCIL_LEGACY &&
                ob_dst->type != OB_GPENCIL_LEGACY)
       {
-        object::modifier_copy_to_object(C,
-                                        ob_dst,
-                                        drop_data->ob_parent,
-                                        static_cast<ModifierData *>(drop_data->drag_directdata));
+        object::modifier_copy_to_object(
+            bmain,
+            CTX_data_scene(C),
+            drop_data->ob_parent,
+            static_cast<const ModifierData *>(drop_data->drag_directdata),
+            ob_dst,
+            CTX_wm_reports(C));
       }
       break;
     case TSE_CONSTRAINT:
@@ -1115,7 +1118,7 @@ struct CollectionDrop {
 static Collection *collection_parent_from_ID(ID *id)
 {
   /* Can't change linked or override parent collections. */
-  if (!id || ID_IS_LINKED(id) || ID_IS_OVERRIDE_LIBRARY(id)) {
+  if (!id || !ID_IS_EDITABLE(id) || ID_IS_OVERRIDE_LIBRARY(id)) {
     return nullptr;
   }
 
@@ -1140,7 +1143,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
   }
 
   Collection *to_collection = outliner_collection_from_tree_element(te);
-  if (ID_IS_LINKED(to_collection) || ID_IS_OVERRIDE_LIBRARY(to_collection)) {
+  if (!ID_IS_EDITABLE(to_collection) || ID_IS_OVERRIDE_LIBRARY(to_collection)) {
     return false;
   }
 

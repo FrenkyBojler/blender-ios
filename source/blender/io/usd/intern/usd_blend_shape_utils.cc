@@ -70,7 +70,7 @@ std::string add_unique_name(blender::Set<std::string> &names, const std::string 
   return unique_name;
 }
 
-}  // End anonymous namespace.
+}  // namespace
 
 namespace blender::io::usd {
 
@@ -505,7 +505,7 @@ Mesh *get_shape_key_basis_mesh(Object *obj)
   }
 
   /* Make a copy of the mesh so we can update the verts to the basis shape. */
-  Mesh *temp_mesh = BKE_mesh_copy_for_eval(mesh);
+  Mesh *temp_mesh = BKE_mesh_copy_for_eval(*mesh);
 
   /* Update the verts. */
   BKE_keyblock_convert_to_mesh(

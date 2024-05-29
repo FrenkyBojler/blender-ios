@@ -4,6 +4,7 @@
 
 set(INC
   PUBLIC .
+  ../animrig
   ../blenkernel
   ../bmesh
   ../draw
@@ -165,6 +166,10 @@ if(WITH_PYTHON)
   list(APPEND INC
     ../python
   )
+endif()
+
+if(WITH_EXPERIMENTAL_FEATURES)
+  add_definitions(-DWITH_ANIM_BAKLAVA)
 endif()
 
 blender_add_lib(bf_depsgraph "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

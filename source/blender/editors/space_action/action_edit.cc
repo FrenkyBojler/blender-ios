@@ -576,6 +576,12 @@ static eKeyPasteError paste_action_keys(bAnimContext *ac,
 
 /* ------------------- */
 
+static blender::ed::greasepencil::KeyframeClipboard &get_grease_pencil_keyframe_clipboard()
+{
+  static blender::ed::greasepencil::KeyframeClipboard clipboard;
+  return clipboard;
+}
+
 static int actkeys_copy_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
@@ -587,7 +593,10 @@ static int actkeys_copy_exec(bContext *C, wmOperator *op)
 
   /* copy keyframes */
   if (ac.datatype == ANIMCONT_GPENCIL) {
-    if (ED_gpencil_anim_copybuf_copy(&ac) == false) {
+    if (ED_gpencil_anim_copybuf_copy(&ac) == false &&
+        blender::ed::greasepencil::grease_pencil_copy_keyframes(
+            &ac, get_grease_pencil_keyframe_clipboard()) == false)
+    {
       /* check if anything ended up in the buffer */
       BKE_report(op->reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
       return OPERATOR_CANCELLED;
@@ -601,7 +610,9 @@ static int actkeys_copy_exec(bContext *C, wmOperator *op)
   else {
     /* Both copy function needs to be evaluated to account for mixed selection */
     const short kf_empty = copy_action_keys(&ac);
-    const bool gpf_ok = ED_gpencil_anim_copybuf_copy(&ac);
+    const bool gpf_ok = ED_gpencil_anim_copybuf_copy(&ac) ||
+                        blender::ed::greasepencil::grease_pencil_copy_keyframes(
+                            &ac, get_grease_pencil_keyframe_clipboard());
 
     if (kf_empty && !gpf_ok) {
       BKE_report(op->reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
@@ -647,7 +658,10 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
 
   /* paste keyframes */
   if (ac.datatype == ANIMCONT_GPENCIL) {
-    if (ED_gpencil_anim_copybuf_paste(&ac, offset_mode) == false) {
+    if (ED_gpencil_anim_copybuf_paste(&ac, offset_mode) == false &&
+        blender::ed::greasepencil::grease_pencil_paste_keyframes(
+            &ac, offset_mode, merge_mode, get_grease_pencil_keyframe_clipboard()) == false)
+    {
       BKE_report(op->reports, RPT_ERROR, "No data in the internal clipboard to paste");
       return OPERATOR_CANCELLED;
     }
@@ -663,7 +677,9 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
     /* Both paste function needs to be evaluated to account for mixed selection */
     const eKeyPasteError kf_empty = paste_action_keys(&ac, offset_mode, merge_mode, flipped);
     /* non-zero return means an error occurred while trying to paste */
-    gpframes_inbuf = ED_gpencil_anim_copybuf_paste(&ac, offset_mode);
+    gpframes_inbuf = ED_gpencil_anim_copybuf_paste(&ac, offset_mode) ||
+                     blender::ed::greasepencil::grease_pencil_paste_keyframes(
+                         &ac, offset_mode, merge_mode, get_grease_pencil_keyframe_clipboard());
 
     /* Only report an error if nothing was pasted, i.e. when both FCurve and GPencil failed. */
     if (!gpframes_inbuf) {
@@ -693,9 +709,9 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static std::string actkeys_paste_description(bContext * /*C*/,
-                                             wmOperatorType * /*ot*/,
-                                             PointerRNA *ptr)
+static std::string actkeys_paste_get_description(bContext * /*C*/,
+                                                 wmOperatorType * /*ot*/,
+                                                 PointerRNA *ptr)
 {
   /* Custom description if the 'flipped' option is used. */
   if (RNA_boolean_get(ptr, "flipped")) {
@@ -719,7 +735,7 @@ void ACTION_OT_paste(wmOperatorType *ot)
 
   /* api callbacks */
   //  ot->invoke = WM_operator_props_popup; /* Better wait for action redo panel. */
-  ot->get_description = actkeys_paste_description;
+  ot->get_description = actkeys_paste_get_description;
   ot->exec = actkeys_paste_exec;
   ot->poll = ED_operator_action_active;
 
@@ -790,13 +806,11 @@ static void insert_grease_pencil_key(bAnimContext *ac,
 
   bool changed = false;
   if (hold_previous) {
-    const std::optional<FramesMapKey> active_frame_number = layer->frame_key_at(
-        current_frame_number);
-    if (!active_frame_number || layer->frames().lookup(*active_frame_number).is_null()) {
-      /* There is no active frame to hold to, or it's a null frame. Therefore just insert a blank
+    const std::optional<int> active_frame_number = layer->start_frame_at(current_frame_number);
+    if (!active_frame_number) {
+      /* There is no active frame to hold to, or it's an end frame. Therefore just insert a blank
        * frame. */
-      changed = grease_pencil->insert_blank_frame(
-          *layer, current_frame_number, 0, BEZT_KEYTYPE_KEYFRAME);
+      changed |= grease_pencil->insert_frame(*layer, current_frame_number) != nullptr;
     }
     else {
       /* Duplicate the active frame. */
@@ -806,8 +820,7 @@ static void insert_grease_pencil_key(bAnimContext *ac,
   }
   else {
     /* Insert a blank frame. */
-    changed = grease_pencil->insert_blank_frame(
-        *layer, current_frame_number, 0, BEZT_KEYTYPE_KEYFRAME);
+    changed |= grease_pencil->insert_frame(*layer, current_frame_number) != nullptr;
   }
 
   if (changed) {
@@ -837,15 +850,17 @@ static void insert_fcurve_key(bAnimContext *ac,
    *   (TODO: add the full-blown PointerRNA relative parsing case here...)
    */
   if (ale->id && !ale->owner) {
-    insert_keyframe(ac->bmain,
-                    reports,
-                    ale->id,
-                    ((fcu->grp) ? (fcu->grp->name) : (nullptr)),
-                    fcu->rna_path,
-                    fcu->array_index,
-                    &anim_eval_context,
-                    eBezTriple_KeyframeType(ts->keyframe_type),
-                    flag);
+    CombinedKeyingResult result = insert_keyframe(ac->bmain,
+                                                  *ale->id,
+                                                  ((fcu->grp) ? (fcu->grp->name) : (nullptr)),
+                                                  fcu->rna_path,
+                                                  fcu->array_index,
+                                                  &anim_eval_context,
+                                                  eBezTriple_KeyframeType(ts->keyframe_type),
+                                                  flag);
+    if (result.get_count(SingleKeyingResult::SUCCESS) == 0) {
+      result.generate_reports(reports);
+    }
   }
   else {
     AnimData *adt = ANIM_nla_mapping_get(ac, ale);
@@ -891,7 +906,7 @@ static void insert_action_keys(bAnimContext *ac, short mode)
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
   /* Init keyframing flag. */
-  flag = ANIM_get_keyframing_flags(scene);
+  flag = blender::animrig::get_keyframing_flags(scene);
 
   /* GPLayers specific flags */
   if (ts->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST) {
@@ -1282,7 +1297,7 @@ static void bake_action_keys(bAnimContext *ac)
 
   /* Loop through filtered data and add keys between selected keyframes on every frame. */
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    bake_fcurve_segments((FCurve *)ale->key_data);
+    blender::animrig::bake_fcurve_segments((FCurve *)ale->key_data);
 
     ale->update |= ANIM_UPDATE_DEPS;
   }
@@ -1673,7 +1688,7 @@ void ACTION_OT_handle_type(wmOperatorType *ot)
  * \{ */
 
 /* this function is responsible for setting keyframe type for keyframes */
-static void setkeytype_action_keys(bAnimContext *ac, short mode)
+static void setkeytype_action_keys(bAnimContext *ac, eBezTriple_KeyframeType mode)
 {
   ListBase anim_data = {nullptr, nullptr};
   eAnimFilter_Flags filter;
@@ -1722,7 +1737,6 @@ static void setkeytype_action_keys(bAnimContext *ac, short mode)
 static int actkeys_keytype_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
-  short mode;
 
   /* get editor data */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -1734,11 +1748,8 @@ static int actkeys_keytype_exec(bContext *C, wmOperator *op)
     return OPERATOR_PASS_THROUGH;
   }
 
-  /* get handle setting mode */
-  mode = RNA_enum_get(op->ptr, "type");
-
-  /* set handle type */
-  setkeytype_action_keys(&ac, mode);
+  const int mode = RNA_enum_get(op->ptr, "type");
+  setkeytype_action_keys(&ac, eBezTriple_KeyframeType(mode));
 
   /* set notifier that keyframe properties have changed */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);

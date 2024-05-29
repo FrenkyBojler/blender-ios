@@ -12,6 +12,10 @@ endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(MSVC_CLANG ON)
+  if(NOT WITH_WINDOWS_EXTERNAL_MANIFEST AND CMAKE_GENERATOR MATCHES "Visual Studio")
+    message(WARNING "WITH_WINDOWS_EXTERNAL_MANIFEST is required for clang and the visual studio generator, turning ON")
+    set(WITH_WINDOWS_EXTERNAL_MANIFEST ON)
+  endif()
   set(VC_TOOLS_DIR $ENV{VCToolsRedistDir} CACHE STRING "Location of the msvc redistributables")
   set(MSVC_REDIST_DIR ${VC_TOOLS_DIR})
   if(DEFINED MSVC_REDIST_DIR)
@@ -86,6 +90,10 @@ add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 string(APPEND CMAKE_EXE_LINKER_FLAGS " /SAFESEH:NO /ignore:4099")
 string(APPEND CMAKE_SHARED_LINKER_FLAGS " /SAFESEH:NO /ignore:4099")
 string(APPEND CMAKE_MODULE_LINKER_FLAGS " /SAFESEH:NO /ignore:4099")
+
+if(WITH_WINDOWS_EXTERNAL_MANIFEST)
+  string(APPEND CMAKE_EXE_LINKER_FLAGS " /manifest:no")
+endif()
 
 list(APPEND PLATFORM_LINKLIBS
   ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 Comctl32 version
@@ -432,12 +440,16 @@ endif()
 
 if(WITH_FFTW3)
   set(FFTW3 ${LIBDIR}/fftw3)
-  if(EXISTS ${FFTW3}/lib/libfftw3-3.lib) # 3.6 libraries
-    set(FFTW3_LIBRARIES ${FFTW3}/lib/libfftw3-3.lib ${FFTW3}/lib/libfftw3f.lib)
-  elseif(EXISTS ${FFTW3}/lib/libfftw.lib)
-    set(FFTW3_LIBRARIES ${FFTW3}/lib/libfftw.lib) # 3.5 Libraries
-  else()
-    set(FFTW3_LIBRARIES ${FFTW3}/lib/fftw3.lib ${FFTW3}/lib/fftw3f.lib) # msys2+MSVC Libraries
+  set(FFTW3_LIBRARIES
+    ${FFTW3}/lib/fftw3.lib
+    ${FFTW3}/lib/fftw3f.lib
+  )
+  if(EXISTS ${FFTW3}/lib/fftw3_threads.lib)
+    list(APPEND FFTW3_LIBRARIES
+      ${FFTW3}/lib/fftw3_threads.lib
+      ${FFTW3}/lib/fftw3f_threads.lib
+    )
+    set(WITH_FFTW3_THREADS_SUPPORT ON)
   endif()
   set(FFTW3_INCLUDE_DIRS ${FFTW3}/include)
   set(FFTW3_LIBPATH ${FFTW3}/lib)
@@ -681,7 +693,7 @@ if(WITH_BOOST)
     # This is file new in 3.4 if it does not exist, assume we are building against 3.3 libs
     # Note, as ARM64 was introduced in 4.x, this check is not needed
     set(BOOST_34_TRIGGER_FILE ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python${_PYTHON_VERSION_NO_DOTS}-${BOOST_DEBUG_POSTFIX}.lib)
-    if (NOT EXISTS ${BOOST_34_TRIGGER_FILE})
+    if(NOT EXISTS ${BOOST_34_TRIGGER_FILE})
       set(BOOST_DEBUG_POSTFIX "vc142-mt-gd-x64-${BOOST_VERSION}")
       set(BOOST_PREFIX "lib")
     endif()
@@ -1311,12 +1323,15 @@ if(WITH_CYCLES AND (WITH_CYCLES_DEVICE_ONEAPI OR (WITH_CYCLES_EMBREE AND EMBREE_
   )
 endif()
 
-
+# Add the msvc directory to the path so when building with ASAN enabled tools such as
+# msgfmt which run before the install phase can find the asan shared libraries.
+get_filename_component(_msvc_path ${CMAKE_C_COMPILER} DIRECTORY)
 # Environment variables to run precompiled executables that needed libraries.
 list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ";" _library_paths)
-set(PLATFORM_ENV_BUILD_DIRS "${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/bin\;${LIBDIR}/OpenImageIO/bin\;${LIBDIR}/boost/lib\;${LIBDIR}/openexr/bin\;${LIBDIR}/imath/bin\;${LIBDIR}/shaderc/bin\;${PATH}")
+set(PLATFORM_ENV_BUILD_DIRS "${_msvc_path}\;${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/bin\;${LIBDIR}/OpenImageIO/bin\;${LIBDIR}/boost/lib\;${LIBDIR}/openexr/bin\;${LIBDIR}/imath/bin\;${LIBDIR}/shaderc/bin\;${PATH}")
 set(PLATFORM_ENV_BUILD "PATH=${PLATFORM_ENV_BUILD_DIRS}")
 # Install needs the additional folders from PLATFORM_ENV_BUILD_DIRS as well, as tools like:
 # `idiff` and `abcls` use the release mode dlls.
 set(PLATFORM_ENV_INSTALL "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/\;${PLATFORM_ENV_BUILD_DIRS}\;$ENV{PATH}")
 unset(_library_paths)
+unset(_msvc_path)

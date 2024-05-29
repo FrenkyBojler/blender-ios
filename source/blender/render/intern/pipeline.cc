@@ -6,6 +6,8 @@
  * \ingroup render
  */
 
+#include <fmt/format.h>
+
 #include <cerrno>
 #include <climits>
 #include <cmath>
@@ -63,7 +65,6 @@
 
 #include "NOD_composite.hh"
 
-#include "COM_profile.hh"
 #include "COM_render_context.hh"
 
 #include "DEG_depsgraph.hh"
@@ -136,12 +137,12 @@ static struct {
 /** \name Callbacks
  * \{ */
 
-static void render_callback_exec_null(Render *re, Main *bmain, eCbEvent evt)
+static void render_callback_exec_string(Render *re, Main *bmain, eCbEvent evt, const char *str)
 {
   if (re->r.scemode & R_BUTS_PREVIEW) {
     return;
   }
-  BKE_callback_exec_null(bmain, evt);
+  BKE_callback_exec_string(bmain, evt, str);
 }
 
 static void render_callback_exec_id(Render *re, Main *bmain, ID *id, eCbEvent evt)
@@ -206,27 +207,33 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
   static ThreadMutex mutex = BLI_MUTEX_INITIALIZER;
   BLI_mutex_lock(&mutex);
 
-  fprintf(stdout,
-          RPT_("Fra:%d Mem:%.2fM (Peak %.2fM) "),
-          rs->cfra,
-          megs_used_memory,
-          megs_peak_memory);
-
-  fprintf(stdout, RPT_("| Time:%s | "), info_time_str);
-
-  fprintf(stdout, "%s", rs->infostr);
+  char *message = BLI_sprintfN(RPT_("Fra:%d Mem:%.2fM (Peak %.2fM) | Time:%s | %s"),
+                               rs->cfra,
+                               megs_used_memory,
+                               megs_peak_memory,
+                               info_time_str,
+                               rs->infostr);
+  fprintf(stdout, "%s\n", message);
 
   /* Flush stdout to be sure python callbacks are printing stuff after blender. */
   fflush(stdout);
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  BKE_callback_exec_null(G_MAIN, BKE_CB_EVT_RENDER_STATS);
+  BKE_callback_exec_string(G_MAIN, BKE_CB_EVT_RENDER_STATS, message);
 
-  fputc('\n', stdout);
   fflush(stdout);
 
+  MEM_freeN(message);
+
   BLI_mutex_unlock(&mutex);
+}
+
+void RE_ReferenceRenderResult(RenderResult *rr)
+{
+  /* There is no need to lock as the user-counted render results are protected by mutex at the
+   * higher call stack level. */
+  ++rr->user_counter;
 }
 
 void RE_FreeRenderResult(RenderResult *rr)
@@ -667,7 +674,7 @@ void RE_FreeUnusedGPUResources()
       /* Detect if scene is using GPU compositing, and if either a node editor is
        * showing the nodes, or an image editor is showing the render result or viewer. */
       if (!(scene->use_nodes && scene->nodetree &&
-            scene->nodetree->execution_mode == NTREE_EXECUTION_MODE_GPU))
+            scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU))
       {
         continue;
       }
@@ -826,6 +833,9 @@ void RE_InitState(Render *re,
   if (single_layer) {
     STRNCPY(re->single_view_layer, single_layer->name);
     re->r.scemode |= R_SINGLE_LAYER;
+  }
+  else {
+    re->r.scemode &= ~R_SINGLE_LAYER;
   }
 
   /* if preview render, we try to keep old result */
@@ -1299,17 +1309,14 @@ static void do_render_compositor(Render *re)
         }
 
         blender::realtime_compositor::RenderContext compositor_render_context;
-        blender::compositor::ProfilerData profiler_data;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           ntreeCompositExecTree(re,
                                 re->pipeline_scene_eval,
                                 ntree,
                                 &re->r,
-                                true,
-                                G.background == 0,
                                 rv->name,
                                 &compositor_render_context,
-                                profiler_data);
+                                nullptr);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
 
@@ -1358,12 +1365,11 @@ static void renderresult_stampinfo(Render *re)
     Object *ob_camera_eval = DEG_get_evaluated_object(re->pipeline_depsgraph, RE_GetCamera(re));
     BKE_image_stamp_buf(re->scene,
                         ob_camera_eval,
-                        (re->r.stamp & R_STAMP_STRIPMETA) ? rres.stamp_data : nullptr,
+                        (re->scene->r.stamp & R_STAMP_STRIPMETA) ? rres.stamp_data : nullptr,
                         rres.ibuf->byte_buffer.data,
                         rres.ibuf->float_buffer.data,
                         rres.rectx,
-                        rres.recty,
-                        4);
+                        rres.recty);
     RE_ReleaseResultImage(re);
     nr++;
   }
@@ -1456,7 +1462,7 @@ static void do_render_sequencer(Render *re)
       /* copy ibuf into combined pixel rect */
       RE_render_result_rect_from_ibuf(rr, ibuf_arr[view_id], view_id);
 
-      if (ibuf_arr[view_id]->metadata && (re->r.stamp & R_STAMP_STRIPMETA)) {
+      if (ibuf_arr[view_id]->metadata && (re->scene->r.stamp & R_STAMP_STRIPMETA)) {
         /* ensure render stamp info first */
         BKE_render_result_stamp_info(nullptr, nullptr, rr, true);
         BKE_stamp_info_from_imbuf(rr, ibuf_arr[view_id]);
@@ -1537,7 +1543,7 @@ static void do_render_full_pipeline(Render *re)
   /* save render result stamp if needed */
   if (re->result != nullptr) {
     /* sequence rendering should have taken care of that already */
-    if (!(render_seq && (re->r.stamp & R_STAMP_STRIPMETA))) {
+    if (!(render_seq && (re->scene->r.stamp & R_STAMP_STRIPMETA))) {
       Object *ob_camera_eval = DEG_get_evaluated_object(re->pipeline_depsgraph, RE_GetCamera(re));
       BKE_render_result_stamp_info(re->scene, ob_camera_eval, re->result, false);
     }
@@ -1545,7 +1551,7 @@ static void do_render_full_pipeline(Render *re)
     renderresult_set_passes_metadata(re);
 
     /* stamp image info here */
-    if ((re->r.stamp & R_STAMP_ALL) && (re->r.stamp & R_STAMP_DRAW)) {
+    if ((re->scene->r.stamp & R_STAMP_ALL) && (re->scene->r.stamp & R_STAMP_DRAW)) {
       renderresult_stampinfo(re);
       re->display_update(re->result, nullptr);
     }
@@ -1694,9 +1700,7 @@ static int check_compositor_output(Scene *scene)
 static bool is_compositing_possible_on_gpu(Scene *scene, ReportList *reports)
 {
   /* CPU compositor can always run. */
-  if (!U.experimental.use_full_frame_compositor ||
-      scene->nodetree->execution_mode != NTREE_EXECUTION_MODE_GPU)
-  {
+  if (scene->r.compositor_device != SCE_COMPOSITOR_DEVICE_GPU) {
     return true;
   }
 
@@ -2213,20 +2217,20 @@ static bool do_write_image_or_movie(Render *re,
   re->i.lastframetime = BLI_time_now_seconds() - re->i.starttime;
 
   BLI_timecode_string_from_time_simple(filepath, sizeof(filepath), re->i.lastframetime);
-  printf("Time: %s", filepath);
+  std::string message = fmt::format("Time: {}", filepath);
 
+  if (do_write_file) {
+    BLI_timecode_string_from_time_simple(
+        filepath, sizeof(filepath), re->i.lastframetime - render_time);
+    message = fmt::format("{} (Saving: {})", message, filepath);
+  }
+  printf("%s\n", message.c_str());
   /* Flush stdout to be sure python callbacks are printing stuff after blender. */
   fflush(stdout);
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  render_callback_exec_null(re, G_MAIN, BKE_CB_EVT_RENDER_STATS);
-
-  if (do_write_file) {
-    BLI_timecode_string_from_time_simple(
-        filepath, sizeof(filepath), re->i.lastframetime - render_time);
-    printf(" (Saving: %s)\n", filepath);
-  }
+  render_callback_exec_string(re, G_MAIN, BKE_CB_EVT_RENDER_STATS, message.c_str());
 
   fputc('\n', stdout);
   fflush(stdout);

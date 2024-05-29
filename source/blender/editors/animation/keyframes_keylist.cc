@@ -36,6 +36,8 @@
 #include "ED_anim_api.hh"
 #include "ED_keyframes_keylist.hh"
 
+#include "ANIM_action.hh"
+
 /* *************************** Keyframe Processing *************************** */
 
 /* ActKeyColumns (Keyframe Columns) ------------------------------------------ */
@@ -518,7 +520,7 @@ static ActKeyColumn *nalloc_ak_cel(void *data)
   /* Store settings based on state of BezTriple */
   ak->cfra = cel.frame_number;
   ak->sel = (cel.frame.flag & SELECT) != 0;
-  ak->key_type = cel.frame.type;
+  ak->key_type = eBezTriple_KeyframeType(cel.frame.type);
 
   /* Count keyframes in this column */
   ak->totkey = 1;
@@ -559,7 +561,7 @@ static ActKeyColumn *nalloc_ak_gpframe(void *data)
   /* store settings based on state of BezTriple */
   ak->cfra = gpf->framenum;
   ak->sel = (gpf->flag & GP_FRAME_SELECT) ? SELECT : 0;
-  ak->key_type = gpf->key_type;
+  ak->key_type = eBezTriple_KeyframeType(gpf->key_type);
 
   /* Count keyframes in this column. */
   ak->totkey = 1;
@@ -1166,17 +1168,31 @@ void action_group_to_keylist(AnimData *adt,
 }
 
 void action_to_keylist(AnimData *adt,
-                       bAction *act,
+                       bAction *dna_action,
                        AnimKeylist *keylist,
                        const int saction_flag,
                        blender::float2 range)
 {
-  if (!act) {
+  if (!dna_action) {
     return;
   }
 
-  LISTBASE_FOREACH (FCurve *, fcu, &act->curves) {
-    fcurve_to_keylist(adt, fcu, keylist, saction_flag, range);
+  blender::animrig::Action &action = dna_action->wrap();
+
+  /* TODO: move this into fcurves_for_animation(). */
+  if (action.is_action_legacy()) {
+    LISTBASE_FOREACH (FCurve *, fcu, &action.curves) {
+      fcurve_to_keylist(adt, fcu, keylist, saction_flag, range);
+    }
+    return;
+  }
+
+  /**
+   * Assumption: the animation is bound to adt->binding_handle. This assumption will break when we
+   * have things like reference strips, where the strip can reference another binding handle.
+   */
+  for (FCurve *fcurve : fcurves_for_animation(action, adt->binding_handle)) {
+    fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range);
   }
 }
 

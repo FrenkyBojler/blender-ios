@@ -553,6 +553,18 @@ static void set_panels_list_data_expand_flag(const bContext *C, const ARegion *r
 /** \name Panels
  * \{ */
 
+static bool panel_custom_pin_to_last_get(const Panel *panel)
+{
+  if (panel->type->pin_to_last_property[0] != '\0') {
+    PointerRNA *ptr = UI_panel_custom_data_get(panel);
+    if (ptr != nullptr && !RNA_pointer_is_null(ptr)) {
+      return RNA_boolean_get(ptr, panel->type->pin_to_last_property);
+    }
+  }
+
+  return false;
+}
+
 static bool panel_custom_data_active_get(const Panel *panel)
 {
   /* The caller should make sure the panel is active and has a type. */
@@ -1137,7 +1149,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   }
 
   /* Draw drag widget. */
-  if (!is_subpanel && show_background) {
+  if (!is_subpanel && show_background && !panel_custom_pin_to_last_get(panel)) {
     const int drag_widget_size = header_height * 0.7f;
     GPU_matrix_push();
     /* The magic numbers here center the widget vertically and offset it to the left.
@@ -1163,7 +1175,7 @@ static int layout_panel_y_offset()
   return UI_style_get_dpi()->panelspace;
 }
 
-void UI_draw_layout_panels_backdrop(const ARegion *region,
+void ui_draw_layout_panels_backdrop(const ARegion *region,
                                     const Panel *panel,
                                     const float radius,
                                     float subpanel_backcolor[4])
@@ -1176,6 +1188,14 @@ void UI_draw_layout_panels_backdrop(const ARegion *region,
     panel_blockspace.ymin = panel->runtime->block->rect.ymax + body.start_y;
     BLI_rctf_translate(&panel_blockspace, 0, -layout_panel_y_offset());
 
+    if (panel_blockspace.ymax <= panel->runtime->block->rect.ymin) {
+      /* Layout panels no longer fits in block rectangle, stop drawing backdrops. */
+      break;
+    }
+    if (panel_blockspace.ymin >= panel->runtime->block->rect.ymax) {
+      /* Skip layout panels that scrolled to the top of the block rectangle. */
+      continue;
+    }
     /* If the layout panel is at the end of the root panel, it's bottom corners are rounded. */
     const bool is_main_panel_end = panel_blockspace.ymin - panel->runtime->block->rect.ymin < 10;
     if (is_main_panel_end) {
@@ -1185,6 +1205,7 @@ void UI_draw_layout_panels_backdrop(const ARegion *region,
     else {
       UI_draw_roundbox_corner_set(UI_CNR_NONE);
     }
+    panel_blockspace.ymax = std::min(panel_blockspace.ymax, panel->runtime->block->rect.ymax);
 
     rcti panel_pixelspace = ui_to_pixelrect(region, panel->runtime->block, &panel_blockspace);
     rctf panel_pixelspacef;
@@ -1233,7 +1254,7 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
 
     float subpanel_backcolor[4];
     UI_GetThemeColor4fv(TH_PANEL_SUB_BACK, subpanel_backcolor);
-    UI_draw_layout_panels_backdrop(region, panel, radius, subpanel_backcolor);
+    ui_draw_layout_panels_backdrop(region, panel, radius, subpanel_backcolor);
   }
 
   /* Panel header backdrops for non sub-panels. */
@@ -1616,6 +1637,15 @@ static int find_highest_panel(const void *a, const void *b)
     return 1;
   }
 
+  const bool pin_last_a = panel_custom_pin_to_last_get(panel_a);
+  const bool pin_last_b = panel_custom_pin_to_last_get(panel_b);
+  if (pin_last_a && !pin_last_b) {
+    return 1;
+  }
+  if (!pin_last_a && pin_last_b) {
+    return -1;
+  }
+
   if (panel_a->ofsy + panel_a->sizey < panel_b->ofsy + panel_b->sizey) {
     return 1;
   }
@@ -1940,7 +1970,7 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 /** \name Region Level Panel Interaction
  * \{ */
 
-LayoutPanelHeader *UI_layout_panel_header_under_mouse(const Panel &panel, const int my)
+LayoutPanelHeader *ui_layout_panel_header_under_mouse(const Panel &panel, const int my)
 {
   for (LayoutPanelHeader &header : panel.runtime->layout_panels.headers) {
     if (IN_RANGE(float(my - panel.runtime->block->rect.ymax + layout_panel_y_offset()),
@@ -1965,7 +1995,7 @@ static uiPanelMouseState ui_panel_mouse_state_get(const uiBlock *block,
   if (IN_RANGE(float(my), block->rect.ymax, block->rect.ymax + PNL_HEADER)) {
     return PANEL_MOUSE_INSIDE_HEADER;
   }
-  if (UI_layout_panel_header_under_mouse(*panel, my) != nullptr) {
+  if (ui_layout_panel_header_under_mouse(*panel, my) != nullptr) {
     return PANEL_MOUSE_INSIDE_LAYOUT_PANEL_HEADER;
   }
 
@@ -1993,7 +2023,7 @@ static void ui_panel_drag_collapse(const bContext *C,
                                    const uiPanelDragCollapseHandle *dragcol_data,
                                    const int xy_dst[2])
 {
-  ARegion *region = CTX_wm_menu(C);
+  ARegion *region = CTX_wm_region_popup(C);
   if (!region) {
     region = CTX_wm_region(C);
   }
@@ -2092,7 +2122,7 @@ static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, voi
   return retval;
 }
 
-void UI_panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
+void ui_panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
 {
   wmWindow *win = CTX_wm_window(C);
   const wmEvent *event = win->eventstate;
@@ -2109,7 +2139,7 @@ void UI_panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
                           eWM_EventHandlerFlag(0));
 }
 
-bool UI_layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header)
+bool ui_layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header)
 {
   const bool is_open = RNA_boolean_get(&header->open_owner_ptr, header->open_prop_name.c_str());
   RNA_boolean_set(&header->open_owner_ptr, header->open_prop_name.c_str(), !is_open);
@@ -2126,15 +2156,15 @@ static void ui_handle_layout_panel_header(
   Panel *panel = block->panel;
   BLI_assert(panel->type != nullptr);
 
-  LayoutPanelHeader *header = UI_layout_panel_header_under_mouse(*panel, my);
+  LayoutPanelHeader *header = ui_layout_panel_header_under_mouse(*panel, my);
   if (header == nullptr) {
     return;
   }
-  const bool new_state = UI_layout_panel_toggle_open(C, header);
+  const bool new_state = ui_layout_panel_toggle_open(C, header);
   ED_region_tag_redraw(CTX_wm_region(C));
 
   if (event_type == LEFTMOUSE) {
-    UI_panel_drag_collapse_handler_add(C, !new_state);
+    ui_panel_drag_collapse_handler_add(C, !new_state);
   }
 }
 
@@ -2200,7 +2230,7 @@ static void ui_handle_panel_header(const bContext *C,
     SET_FLAG_FROM_TEST(panel->flag, !UI_panel_is_closed(panel), PNL_CLOSED);
 
     if (event_type == LEFTMOUSE) {
-      UI_panel_drag_collapse_handler_add(C, UI_panel_is_closed(panel));
+      ui_panel_drag_collapse_handler_add(C, UI_panel_is_closed(panel));
     }
 
     /* Set panel custom data (modifier) active when expanding sub-panels, but not top-level
@@ -2216,6 +2246,9 @@ static void ui_handle_panel_header(const bContext *C,
 
   /* Handle panel dragging. For now don't allow dragging in floating regions. */
   if (show_drag && !(region->alignment == RGN_ALIGN_FLOAT)) {
+    if (panel_custom_pin_to_last_get(panel)) {
+      return;
+    }
     const float drag_area_xmin = block->rect.xmax - (PNL_ICON * 1.5f);
     const float drag_area_xmax = block->rect.xmax;
     if (IN_RANGE(mx, drag_area_xmin, drag_area_xmax)) {

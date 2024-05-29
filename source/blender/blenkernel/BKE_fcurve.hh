@@ -9,6 +9,7 @@
  */
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_string_ref.hh"
 #include "DNA_curve_types.h"
 
 struct ChannelDriver;
@@ -75,10 +76,10 @@ struct FModifierTypeInfo {
   /* evaluation */
   /** Evaluate time that the modifier requires the F-Curve to be evaluated at */
   float (*evaluate_modifier_time)(
-      FCurve *fcu, FModifier *fcm, float cvalue, float evaltime, void *storage);
+      const FCurve *fcu, const FModifier *fcm, float cvalue, float evaltime, void *storage);
   /** Evaluate the modifier for the given time and 'accumulated' value */
   void (*evaluate_modifier)(
-      FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime, void *storage);
+      const FCurve *fcu, const FModifier *fcm, float *cvalue, float evaltime, void *storage);
 };
 
 /* Values which describe the behavior of a FModifier Type */
@@ -164,7 +165,7 @@ struct FModifiersStackStorage {
   void *buffer;
 };
 
-uint evaluate_fmodifiers_storage_size_per_modifier(ListBase *modifiers);
+uint evaluate_fmodifiers_storage_size_per_modifier(const ListBase *modifiers);
 /**
  * Evaluate time modifications imposed by some F-Curve Modifiers.
  *
@@ -179,8 +180,8 @@ uint evaluate_fmodifiers_storage_size_per_modifier(ListBase *modifiers);
  * \param fcu: Can be NULL.
  */
 float evaluate_time_fmodifiers(FModifiersStackStorage *storage,
-                               ListBase *modifiers,
-                               FCurve *fcu,
+                               const ListBase *modifiers,
+                               const FCurve *fcu,
                                float cvalue,
                                float evaltime);
 /**
@@ -188,8 +189,8 @@ float evaluate_time_fmodifiers(FModifiersStackStorage *storage,
  * Should only be called after evaluate_time_fmodifiers() has been called.
  */
 void evaluate_value_fmodifiers(FModifiersStackStorage *storage,
-                               ListBase *modifiers,
-                               FCurve *fcu,
+                               const ListBase *modifiers,
+                               const FCurve *fcu,
                                float *cvalue,
                                float evaltime);
 
@@ -228,6 +229,11 @@ void BKE_fcurves_free(ListBase *list);
  * Duplicate a list of F-Curves.
  */
 void BKE_fcurves_copy(ListBase *dst, ListBase *src);
+
+/**
+ * Set the RNA path of a F-Curve.
+ */
+void BKE_fcurve_rnapath_set(FCurve &fcu, blender::StringRef rna_path);
 
 /* Set fcurve modifier name and ensure uniqueness.
  * Pass new name string when it's been edited otherwise pass empty string. */
@@ -292,8 +298,10 @@ int BKE_fcurves_filter(ListBase *dst, ListBase *src, const char *dataPrefix, con
 /**
  * Find an F-Curve from its rna path and index.
  *
- * If there is an action assigned to the `animdata`, it will be searched for a matching F-curve
- * first. Drivers are searched only if no valid action F-curve could be found.
+ * The search order is as follows. The first match will be returned:
+ *   - Animation
+ *   - Action
+ *   - Drivers
  *
  * \note Typically, indices in RNA arrays are stored separately in F-curves, so the rna_path
  * should not include them (e.g. `rna_path='location[0]'` will not match any F-Curve on an Object,
@@ -301,6 +309,10 @@ int BKE_fcurves_filter(ListBase *dst, ListBase *src, const char *dataPrefix, con
  *
  * \note Return pointer parameters (`r_action`, `r_driven` and `r_special`) are all optional and
  * may be NULL.
+ *
+ * \note since Animation data-blocks may have multiple layers all containing an F-Curve for this
+ * property, what is returned is a best-effort guess. The topmost layer has priority, and it is
+ * assumed that when it has a strip, it's infinite.
  */
 FCurve *BKE_animadata_fcurve_find_by_rna_path(AnimData *animdata,
                                               const char *rna_path,
@@ -586,8 +598,8 @@ void BKE_fcurve_correct_bezpart(const float v1[2], float v2[2], float v3[2], con
 /* -------- Evaluation -------- */
 
 /* evaluate fcurve */
-float evaluate_fcurve(FCurve *fcu, float evaltime);
-float evaluate_fcurve_only_curve(FCurve *fcu, float evaltime);
+float evaluate_fcurve(const FCurve *fcu, float evaltime);
+float evaluate_fcurve_only_curve(const FCurve *fcu, float evaltime);
 float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,
                              FCurve *fcu,
                              ChannelDriver *driver_orig,

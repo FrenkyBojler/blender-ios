@@ -19,6 +19,7 @@
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
+#include "COM_algorithm_recursive_gaussian_blur.hh"
 #include "COM_algorithm_symmetric_separable_blur.hh"
 #include "COM_node_operation.hh"
 #include "COM_symmetric_blur_weights.hh"
@@ -106,7 +107,11 @@ class BlurOperation : public NodeOperation {
       return;
     }
 
-    if (use_variable_size()) {
+    if (node_storage(bnode()).filtertype == R_FILTER_FAST_GAUSS) {
+      recursive_gaussian_blur(
+          context(), get_input("Image"), get_result("Image"), compute_blur_radius());
+    }
+    else if (use_variable_size()) {
       execute_variable_size();
     }
     else if (use_separable_filter()) {
@@ -293,16 +298,16 @@ void register_node_type_cmp_blur()
 {
   namespace file_ns = blender::nodes::node_composite_blur_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_BLUR, "Blur", NODE_CLASS_OP_FILTER);
   ntype.declare = file_ns::cmp_node_blur_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_blur;
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_blur;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeBlurData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

@@ -142,6 +142,9 @@ static void drw_text_cache_draw_ex(DRWTextStore *dt, ARegion *region)
   BLF_default_size(UI_style_get()->widgetlabel.points);
   const int font_id = BLF_set_default();
 
+  float shadow_color[4] = {0, 0, 0, 0.8f};
+  UI_GetThemeColor3fv(TH_BACK, shadow_color);
+
   BLI_memiter_iter_init(dt->cache_strings, &it);
   while ((vos = static_cast<ViewCachedString *>(BLI_memiter_iter_step(&it)))) {
     if (vos->sco[0] != IS_CLIPPED) {
@@ -163,22 +166,21 @@ static void drw_text_cache_draw_ex(DRWTextStore *dt, ARegion *region)
         vos->yoffs -= short(height / 2.0f);
       }
 
+      const int font_id = BLF_default();
       if (vos->shadow) {
-        BLF_draw_default_shadowed(
-            float(vos->sco[0] + vos->xoffs),
-            float(vos->sco[1] + vos->yoffs),
-            2.0f,
-            (vos->flag & DRW_TEXT_CACHE_STRING_PTR) ? *((const char **)vos->str) : vos->str,
-            vos->str_len);
+        BLF_enable(font_id, BLF_SHADOW);
+        BLF_shadow(font_id, FontShadowType::Outline, shadow_color);
+        BLF_shadow_offset(font_id, 0, 0);
       }
       else {
-        BLF_draw_default(float(vos->sco[0] + vos->xoffs),
-                         float(vos->sco[1] + vos->yoffs),
-                         2.0f,
-                         (vos->flag & DRW_TEXT_CACHE_STRING_PTR) ? *((const char **)vos->str) :
-                                                                   vos->str,
-                         vos->str_len);
+        BLF_disable(font_id, BLF_SHADOW);
       }
+      BLF_draw_default(float(vos->sco[0] + vos->xoffs),
+                       float(vos->sco[1] + vos->yoffs),
+                       2.0f,
+                       (vos->flag & DRW_TEXT_CACHE_STRING_PTR) ? *((const char **)vos->str) :
+                                                                 vos->str,
+                       vos->str_len);
     }
   }
 
@@ -259,7 +261,7 @@ void DRW_text_edit_mesh_measure_stats(ARegion *region,
   DRWTextStore *dt = DRW_text_cache_ensure();
   const short txt_flag = DRW_TEXT_CACHE_GLOBALSPACE;
   const Mesh *mesh = BKE_object_get_editmesh_eval_cage(ob);
-  BMEditMesh *em = mesh->runtime->edit_mesh;
+  BMEditMesh *em = mesh->runtime->edit_mesh.get();
   float v1[3], v2[3], v3[3], vmid[3], fvec[3];
   char numstr[32]; /* Stores the measurement display text here */
   size_t numstr_len;

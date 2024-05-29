@@ -274,6 +274,21 @@ enum_denoising_prefilter = (
      3),
 )
 
+enum_denoising_quality = (
+    ('HIGH',
+     "High",
+     "High quality",
+     1),
+    ('BALANCED',
+     "Balanced",
+     "Balanced between performance and quality",
+     2),
+    ('FAST',
+     "Fast",
+     "High performance",
+     3),
+)
+
 enum_direct_light_sampling_type = (
     ('MULTIPLE_IMPORTANCE_SAMPLING',
      "Multiple Importance Sampling",
@@ -342,9 +357,15 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
     denoising_prefilter: EnumProperty(
         name="Denoising Prefilter",
-        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoiser",
+        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoise",
         items=enum_denoising_prefilter,
         default='ACCURATE',
+    )
+    denoising_quality: EnumProperty(
+        name="Denoising Quality",
+        description="Overall denoising quality when using OpenImageDenoise",
+        items=enum_denoising_quality,
+        default='HIGH',
     )
     denoising_input_passes: EnumProperty(
         name="Denoising Input Passes",
@@ -371,9 +392,15 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
     preview_denoising_prefilter: EnumProperty(
         name="Viewport Denoising Prefilter",
-        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoiser",
+        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoise",
         items=enum_denoising_prefilter,
         default='FAST',
+    )
+    preview_denoising_quality: EnumProperty(
+        name="Viewport Denoising Quality",
+        description="Overall denoising quality when using OpenImageDenoise",
+        items=enum_denoising_quality,
+        default='BALANCED',
     )
     preview_denoising_input_passes: EnumProperty(
         name="Viewport Denoising Input Passes",
@@ -1054,11 +1081,6 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
 
 class CyclesLightSettings(bpy.types.PropertyGroup):
 
-    cast_shadow: BoolProperty(
-        name="Cast Shadow",
-        description="Light casts shadows",
-        default=True,
-    )
     max_bounces: IntProperty(
         name="Max Bounces",
         description="Maximum number of bounces the light will contribute to the render",
@@ -1425,6 +1447,15 @@ class CyclesDeviceSettings(bpy.types.PropertyGroup):
 class CyclesPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
+    @staticmethod
+    def default_device():
+        import platform
+        # Default to selecting the Metal compute device on Apple Silicon GPUs
+        # (drivers are tightly integrated with macOS so pose no stability risk)
+        if (platform.system() == 'Darwin') and (platform.machine() == 'arm64'):
+            return 5
+        return 0
+
     def get_device_types(self, context):
         import _cycles
         has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
@@ -1446,6 +1477,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     compute_device_type: EnumProperty(
         name="Compute Device Type",
         description="Device to use for computation (rendering with Cycles)",
+        default=CyclesPreferences.default_device(),
         items=CyclesPreferences.get_device_types,
     )
 
@@ -1651,7 +1683,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
-                    driver_version = "XX.X.101.5186"
+                    driver_version = "XX.X.101.5518"
                     col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
                     col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,
                               icon='BLANK1', translate=False)

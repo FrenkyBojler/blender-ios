@@ -58,18 +58,9 @@ static void node_composit_init_vecblur(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_vecblur(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayout *col;
-
-  col = uiLayoutColumn(layout, false);
+  uiLayout *col = uiLayoutColumn(layout, false);
   uiItemR(col, ptr, "samples", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
   uiItemR(col, ptr, "factor", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Blur"), ICON_NONE);
-
-  col = uiLayoutColumn(layout, true);
-  uiItemL(col, IFACE_("Speed:"), ICON_NONE);
-  uiItemR(col, ptr, "speed_min", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Min"), ICON_NONE);
-  uiItemR(col, ptr, "speed_max", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Max"), ICON_NONE);
-
-  uiItemR(layout, ptr, "use_curved", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
 }
 
 using namespace blender::realtime_compositor;
@@ -204,15 +195,15 @@ void register_node_type_cmp_vecblur()
 {
   namespace file_ns = blender::nodes::node_composite_vec_blur_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_VECBLUR, "Vector Blur", NODE_CLASS_OP_FILTER);
   ntype.declare = file_ns::cmp_node_vec_blur_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_vecblur;
   ntype.initfunc = file_ns::node_composit_init_vecblur;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeBlurData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

@@ -51,12 +51,13 @@
 #include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_node.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_texture.h"
 #include "BKE_vfont.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 #include "BKE_world.h"
 
 #include "NOD_composite.hh"
@@ -167,7 +168,7 @@ static bool object_materials_supported_poll_ex(bContext *C, const Object *ob)
 
   /* Material linked to obdata. */
   const ID *data = static_cast<ID *>(ob->data);
-  return (data && !ID_IS_LINKED(data) && !ID_IS_OVERRIDE_LIBRARY(data));
+  return (data && ID_IS_EDITABLE(data) && !ID_IS_OVERRIDE_LIBRARY(data));
 }
 
 static bool object_materials_supported_poll(bContext *C)
@@ -195,7 +196,7 @@ static int material_slot_add_exec(bContext *C, wmOperator * /*op*/)
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
-    ED_paint_proj_mesh_data_check(scene, ob, nullptr, nullptr, nullptr, nullptr);
+    ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
@@ -245,7 +246,7 @@ static int material_slot_remove_exec(bContext *C, wmOperator *op)
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
-    ED_paint_proj_mesh_data_check(scene, ob, nullptr, nullptr, nullptr, nullptr);
+    ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
@@ -711,7 +712,7 @@ static int material_slot_remove_unused_exec(bContext *C, wmOperator *op)
 
   if (ob_active->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
-    ED_paint_proj_mesh_data_check(scene, ob_active, nullptr, nullptr, nullptr, nullptr);
+    ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
@@ -788,6 +789,10 @@ static int new_material_exec(bContext *C, wmOperator * /*op*/)
      * pointer use also increases user, so this compensates it */
     id_us_min(&ma->id);
 
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, ma->id, *ptr.owner_id);
+    }
+
     PointerRNA idptr = RNA_id_pointer_create(&ma->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
     RNA_property_update(C, &ptr, prop);
@@ -841,6 +846,10 @@ static int new_texture_exec(bContext *C, wmOperator * /*op*/)
     /* when creating new ID blocks, use is already 1, but RNA
      * pointer use also increases user, so this compensates it */
     id_us_min(&tex->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, tex->id, *ptr.owner_id);
+    }
 
     PointerRNA idptr = RNA_id_pointer_create(&tex->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
@@ -898,6 +907,10 @@ static int new_world_exec(bContext *C, wmOperator * /*op*/)
     /* when creating new ID blocks, use is already 1, but RNA
      * pointer use also increases user, so this compensates it */
     id_us_min(&wo->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, wo->id, *ptr.owner_id);
+    }
 
     PointerRNA idptr = RNA_id_pointer_create(&wo->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
@@ -1830,12 +1843,16 @@ static bool render_view_remove_poll(bContext *C)
 
 static int render_view_add_exec(bContext *C, wmOperator * /*op*/)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
   BKE_scene_add_render_view(scene, nullptr);
   scene->r.actview = BLI_listbase_count(&scene->r.views) - 1;
 
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  ED_node_tree_propagate_change(C, bmain, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1862,6 +1879,7 @@ void SCENE_OT_render_view_add(wmOperatorType *ot)
 
 static int render_view_remove_exec(bContext *C, wmOperator * /*op*/)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   SceneRenderView *rv = static_cast<SceneRenderView *>(
       BLI_findlink(&scene->r.views, scene->r.actview));
@@ -1871,6 +1889,9 @@ static int render_view_remove_exec(bContext *C, wmOperator * /*op*/)
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  ED_node_tree_propagate_change(C, bmain, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2950,7 +2971,7 @@ static int paste_material_exec(bContext *C, wmOperator *op)
     BKE_library_foreach_ID_link(
         bmain, &nodetree->id, paste_material_nodetree_ids_decref, nullptr, IDWALK_NOP);
 
-    ntreeFreeEmbeddedTree(nodetree);
+    blender::bke::ntreeFreeEmbeddedTree(nodetree);
     MEM_freeN(nodetree);
     ma->nodetree = nullptr;
   }

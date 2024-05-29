@@ -266,7 +266,7 @@ static void deformVerts_do(HookModifierData *hmd,
                            const ModifierEvalContext * /*ctx*/,
                            Object *ob,
                            Mesh *mesh,
-                           BMEditMesh *em,
+                           const BMEditMesh *em,
                            blender::MutableSpan<blender::float3> positions)
 {
   Object *ob_target = hmd->object;
@@ -430,7 +430,7 @@ static void deform_verts(ModifierData *md,
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh *em,
+                            const BMEditMesh *em,
                             Mesh *mesh,
                             blender::MutableSpan<blender::float3> positions)
 {
@@ -529,7 +529,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   HookModifierData *hmd = (HookModifierData *)md;
 
-  BLO_read_data_address(reader, &hmd->curfalloff);
+  BLO_read_struct(reader, CurveMapping, &hmd->curfalloff);
   if (hmd->curfalloff) {
     BKE_curvemapping_blend_read(reader, hmd->curfalloff);
   }

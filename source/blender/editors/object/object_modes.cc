@@ -9,6 +9,7 @@
  * actual mode switching logic is per-object type.
  */
 
+#include "DNA_object_enums.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -81,9 +82,6 @@ static const char *object_mode_op_string(eObjectMode mode)
   if (mode == OB_MODE_EDIT_GPENCIL_LEGACY) {
     return "GPENCIL_OT_editmode_toggle";
   }
-  if (mode == OB_MODE_PAINT_GREASE_PENCIL) {
-    return "GREASE_PENCIL_OT_draw_mode_toggle";
-  }
   if (mode == OB_MODE_PAINT_GPENCIL_LEGACY) {
     return "GPENCIL_OT_paintmode_toggle";
   }
@@ -147,7 +145,9 @@ bool mode_compat_test(const Object *ob, eObjectMode mode)
       }
       break;
     case OB_GREASE_PENCIL:
-      if (mode & (OB_MODE_EDIT | OB_MODE_PAINT_GREASE_PENCIL | OB_MODE_WEIGHT_PAINT)) {
+      if (mode & (OB_MODE_EDIT | OB_MODE_PAINT_GPENCIL_LEGACY | OB_MODE_SCULPT_GPENCIL_LEGACY |
+                  OB_MODE_WEIGHT_GPENCIL_LEGACY))
+      {
         return true;
       }
       break;
@@ -257,7 +257,7 @@ static bool ed_object_mode_generic_exit_ex(
       if (only_test) {
         return true;
       }
-      ED_object_vpaintmode_exit_ex(ob);
+      ED_object_vpaintmode_exit_ex(*ob);
     }
   }
   else if (ob->mode & OB_MODE_WEIGHT_PAINT) {
@@ -265,7 +265,7 @@ static bool ed_object_mode_generic_exit_ex(
       if (only_test) {
         return true;
       }
-      ED_object_wpaintmode_exit_ex(ob);
+      ED_object_wpaintmode_exit_ex(*ob);
     }
   }
   else if (ob->mode & OB_MODE_SCULPT) {
@@ -273,7 +273,7 @@ static bool ed_object_mode_generic_exit_ex(
       if (only_test) {
         return true;
       }
-      ED_object_sculptmode_exit_ex(bmain, depsgraph, scene, ob);
+      ED_object_sculptmode_exit_ex(*bmain, *depsgraph, *scene, *ob);
     }
   }
   else if (ob->mode & OB_MODE_POSE) {
@@ -288,7 +288,7 @@ static bool ed_object_mode_generic_exit_ex(
     if (only_test) {
       return true;
     }
-    ED_object_texture_paint_mode_exit_ex(bmain, scene, ob);
+    ED_object_texture_paint_mode_exit_ex(*bmain, *scene, *ob);
   }
   else if (ob->mode & OB_MODE_PARTICLE_EDIT) {
     if (only_test) {
@@ -304,10 +304,17 @@ static bool ed_object_mode_generic_exit_ex(
     }
     ED_object_gpencil_exit(bmain, ob);
   }
-  else if (ob->mode & OB_MODE_PAINT_GREASE_PENCIL) {
-    ob->mode &= ~OB_MODE_PAINT_GREASE_PENCIL;
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
-    WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
+  else if (ob->type == OB_GREASE_PENCIL) {
+    BLI_assert((ob->mode & OB_MODE_OBJECT) == 0);
+    if (only_test) {
+      return true;
+    }
+    ob->restore_mode = ob->mode;
+    ob->mode &= ~(OB_MODE_PAINT_GPENCIL_LEGACY | OB_MODE_EDIT | OB_MODE_SCULPT_GPENCIL_LEGACY |
+                  OB_MODE_WEIGHT_GPENCIL_LEGACY | OB_MODE_VERTEX_GPENCIL_LEGACY);
+
+    /* Inform all evaluated versions that we changed the mode. */
+    DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_SYNC_TO_EVAL);
   }
   else {
     if (only_test) {
@@ -499,7 +506,7 @@ static int object_transfer_mode_invoke(bContext *C, wmOperator *op, const wmEven
   Base *base_dst = ED_view3d_give_base_under_cursor(C, event->mval);
 
   if ((base_dst != nullptr) &&
-      (ID_IS_LINKED(base_dst->object) || ID_IS_OVERRIDE_LIBRARY(base_dst->object)))
+      (!ID_IS_EDITABLE(base_dst->object) || ID_IS_OVERRIDE_LIBRARY(base_dst->object)))
   {
     BKE_reportf(op->reports,
                 RPT_ERROR,

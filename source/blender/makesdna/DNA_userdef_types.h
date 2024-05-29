@@ -316,10 +316,10 @@ typedef struct ThemeSpace {
   unsigned char ds_channel[4], ds_subchannel[4], ds_ipoline[4];
   /** Keytypes. */
   unsigned char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4],
-      keytype_movehold[4];
+      keytype_movehold[4], keytype_generated[4];
   /** Keytypes. */
   unsigned char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4],
-      keytype_jitter_select[4], keytype_movehold_select[4];
+      keytype_jitter_select[4], keytype_movehold_select[4], keytype_generated_select[4];
   unsigned char keyborder[4], keyborder_select[4];
   char _pad4[3];
 
@@ -483,12 +483,25 @@ typedef struct ThemeStripColor {
 /**
  * A theme.
  *
- * \note Currently only a single theme is ever used at once.
+ * \note Currently only the first theme is used at once.
  * Different theme presets are stored as external files now.
  */
 typedef struct bTheme {
   struct bTheme *next, *prev;
-  char name[32];
+  /** #MAX_NAME. */
+  char name[64];
+
+  /* NOTE: Values after `name` are copied when resetting the default theme. */
+
+  /**
+   * The file-path for the preset that was loaded into this theme.
+   *
+   * This is needed so it's possible to know if updating or removing a theme preset
+   * should apply changes to the current theme.
+   *
+   * #FILE_MAX.
+   */
+  char filepath[1024];
 
   ThemeUI tui;
 
@@ -624,11 +637,17 @@ typedef struct bUserExtensionRepo {
   char module[48];
 
   /**
+   * Secret access token for remote repositories (allocated).
+   * Only use when #USER_EXTENSION_REPO_FLAG_USE_ACCESS_TOKEN is set.
+   */
+  char *access_token;
+
+  /**
    * The "local" directory where extensions are stored.
    * When unset, use `{BLENDER_USER_EXTENSIONS}/{bUserExtensionRepo::module}`.
    */
   char custom_dirpath[1024]; /* FILE_MAX */
-  char remote_path[1024];    /* FILE_MAX */
+  char remote_url[1024];     /* FILE_MAX */
 
   int flag;
   char _pad0[4];
@@ -639,7 +658,9 @@ typedef enum eUserExtensionRepo_Flag {
   USER_EXTENSION_REPO_FLAG_NO_CACHE = 1 << 0,
   USER_EXTENSION_REPO_FLAG_DISABLED = 1 << 1,
   USER_EXTENSION_REPO_FLAG_USE_CUSTOM_DIRECTORY = 1 << 2,
-  USER_EXTENSION_REPO_FLAG_USE_REMOTE_PATH = 1 << 3,
+  USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL = 1 << 3,
+  USER_EXTENSION_REPO_FLAG_SYNC_ON_STARTUP = 1 << 4,
+  USER_EXTENSION_REPO_FLAG_USE_ACCESS_TOKEN = 1 << 5,
 } eUserExtensionRepo_Flag;
 
 typedef struct SolidLight {
@@ -711,20 +732,17 @@ typedef struct UserDef_Experimental {
    * when the release cycle is not alpha. */
   char use_new_curves_tools;
   char use_new_point_cloud_type;
-  char use_full_frame_compositor;
   char use_sculpt_tools_tilt;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
   char use_grease_pencil_version3;
-  char use_new_matrix_socket;
   char enable_overlay_next;
   char use_new_volume_nodes;
   char use_shader_node_previews;
-  char use_extension_repos;
   char use_extension_utils;
   char use_grease_pencil_version3_convert_on_load;
-
-  char _pad[1];
+  char use_animation_baklava;
+  char _pad[3];
   /** `makesdna` does not allow empty structs. */
 } UserDef_Experimental;
 
@@ -741,6 +759,20 @@ typedef struct bUserScriptDirectory {
   char name[64];      /* MAX_NAME */
   char dir_path[768]; /* FILE_MAXDIR */
 } bUserScriptDirectory;
+
+/**
+ * Settings for an asset shelf, stored in the Preferences. Most settings are still stored in the
+ * asset shelf instance in #AssetShelfSettings. This is just for the options that should be shared
+ * as Preferences.
+ */
+typedef struct bUserAssetShelfSettings {
+  struct bUserAssetShelfSettings *next, *prev;
+
+  /** Identifier that matches the #AssetShelfType.idname of the shelf these settings apply to. */
+  char shelf_idname[64]; /* MAX_NAME */
+
+  ListBase enabled_catalog_paths; /* #AssetCatalogPathLink */
+} bUserAssetShelfSettings;
 
 /**
  * Main user preferences data, typically accessed from #U.
@@ -762,7 +794,12 @@ typedef struct UserDef {
   char pref_flag;
   char savetime;
   char mouse_emulate_3_button_modifier;
-  char _pad4[1];
+  /**
+   * Workaround for WAYLAND (at time of writing compositors don't support this info).
+   * #eUserpref_TrackpadScrollDir type
+   * TODO: Remove this once this API is better supported by Wayland compositors, see #107676.
+   */
+  char trackpad_scroll_direction;
   /** FILE_MAXDIR length. */
   char tempdir[768];
   char fontdir[768];
@@ -840,6 +877,10 @@ typedef struct UserDef {
   /** Startup application template. */
   char app_template[64];
 
+  /**
+   * A list of themes (#bTheme), the first is only used currently.
+   * But there may be multiple themes in the list.
+   */
   struct ListBase themes;
   struct ListBase uifonts;
   struct ListBase uistyles;
@@ -870,6 +911,7 @@ typedef struct UserDef {
   struct ListBase asset_libraries;
   /** #bUserExtensionRepo */
   struct ListBase extension_repos;
+  struct ListBase asset_shelves_settings; /* #bUserAssetShelfSettings */
 
   char keyconfigstr[64];
 
@@ -878,8 +920,10 @@ typedef struct UserDef {
 
   /** Index of the extension repo in the Preferences UI. */
   short active_extension_repo;
+  /** Flag for all extensions (#eUserPref_ExtensionFlag).  */
+  char extension_flag;
 
-  char _pad14[6];
+  char _pad14[5];
 
   short undosteps;
   int undomemory;
@@ -1077,7 +1121,7 @@ typedef enum eUserPref_Section {
   USER_SECTION_SYSTEM = 3,
   USER_SECTION_THEME = 4,
   USER_SECTION_INPUT = 5,
-  USER_SECTION_ADDONS = 6,
+  USER_SECTION_EXTENSIONS = 6,
   USER_SECTION_LIGHT = 7,
   USER_SECTION_KEYMAP = 8,
 #ifdef WITH_USERDEF_WORKSPACES
@@ -1090,7 +1134,6 @@ typedef enum eUserPref_Section {
   USER_SECTION_NAVIGATION = 14,
   USER_SECTION_FILE_PATHS = 15,
   USER_SECTION_EXPERIMENTAL = 16,
-  USER_SECTION_EXTENSIONS = 17,
 } eUserPref_Section;
 
 /** #UserDef_SpaceData.flag (State of the user preferences UI). */
@@ -1111,7 +1154,7 @@ typedef enum eUserPref_Flag {
   USER_FLAG_UNUSED_6 = (1 << 6), /* cleared */
   USER_FLAG_UNUSED_7 = (1 << 7), /* cleared */
   USER_MAT_ON_OB = (1 << 8),
-  USER_FLAG_UNUSED_9 = (1 << 9), /* cleared */
+  USER_INTERNET_ALLOW = (1 << 9),
   USER_DEVELOPER_UI = (1 << 10),
   USER_TOOLTIPS = (1 << 11),
   USER_TWOBUTTONMOUSE = (1 << 12),
@@ -1131,6 +1174,11 @@ typedef enum eUserPref_Flag {
   USER_TOOLTIPS_PYTHON = (1 << 26),
   USER_FLAG_UNUSED_27 = (1 << 27), /* dirty */
 } eUserPref_Flag;
+
+/** #UserDef.extension_flag */
+typedef enum eUserPref_ExtensionFlag {
+  USER_EXTENSION_FLAG_ONLINE_ACCESS_HANDLED = 1 << 0,
+} eUserPref_ExtensionFlag;
 
 /** #UserDef.file_preview_type */
 typedef enum eUserpref_File_Preview_Type {
@@ -1501,6 +1549,11 @@ typedef enum eUserpref_EmulateMMBMod {
   USER_EMU_MMB_MOD_ALT = 0,
   USER_EMU_MMB_MOD_OSKEY = 1,
 } eUserpref_EmulateMMBMod;
+
+typedef enum eUserpref_TrackpadScrollDir {
+  USER_TRACKPAD_SCROLL_DIR_TRADITIONAL = 0,
+  USER_TRACKPAD_SCROLL_DIR_NATURAL = 1,
+} eUserpref_TrackpadScrollDir;
 
 typedef enum eUserpref_DiskCacheCompression {
   USER_SEQ_DISK_CACHE_COMPRESSION_NONE = 0,

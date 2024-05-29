@@ -39,8 +39,9 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mask.h"
 #include "BKE_nla.h"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -56,6 +57,7 @@
 #include "ED_select_utils.hh"
 
 #include "ANIM_animdata.hh"
+#include "ANIM_fcurve.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -138,7 +140,7 @@ static bool get_grease_pencil_layer_bounds(const GreasePencilLayer *gplayer,
   int start_frame = 0;
   int end_frame = 1;
 
-  for (const FramesMapKey key : layer.sorted_keys()) {
+  for (const FramesMapKeyT key : layer.sorted_keys()) {
     if (key < range[0]) {
       continue;
     }
@@ -254,8 +256,9 @@ void ANIM_set_active_channel(bAnimContext *ac,
         ACHANNEL_SET_FLAG(nlt, ACHANNEL_SETFLAG_CLEAR, NLATRACK_ACTIVE);
         break;
       }
-      case ANIMTYPE_FILLACTD: /* Action Expander */
-      case ANIMTYPE_DSMAT:    /* Datablock AnimData Expanders */
+      case ANIMTYPE_FILLACTD:        /* Action Expander */
+      case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
+      case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
       case ANIMTYPE_DSLAM:
       case ANIMTYPE_DSCAM:
       case ANIMTYPE_DSCACHEFILE:
@@ -310,8 +313,9 @@ void ANIM_set_active_channel(bAnimContext *ac,
         nlt->flag |= NLATRACK_ACTIVE;
         break;
       }
-      case ANIMTYPE_FILLACTD: /* Action Expander */
-      case ANIMTYPE_DSMAT:    /* Datablock AnimData Expanders */
+      case ANIMTYPE_FILLACTD:        /* Action Expander */
+      case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
+      case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
       case ANIMTYPE_DSLAM:
       case ANIMTYPE_DSCAM:
       case ANIMTYPE_DSCACHEFILE:
@@ -363,8 +367,9 @@ void ANIM_set_active_channel(bAnimContext *ac,
 bool ANIM_is_active_channel(bAnimListElem *ale)
 {
   switch (ale->type) {
-    case ANIMTYPE_FILLACTD: /* Action Expander */
-    case ANIMTYPE_DSMAT:    /* Datablock AnimData Expanders */
+    case ANIMTYPE_FILLACTD:        /* Action Expander */
+    case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
+    case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
     case ANIMTYPE_DSLAM:
     case ANIMTYPE_DSCAM:
     case ANIMTYPE_DSCACHEFILE:
@@ -499,8 +504,9 @@ static eAnimChannels_SetFlag anim_channels_selection_flag_for_toggle(const ListB
         }
         break;
 
-      case ANIMTYPE_FILLACTD: /* Action Expander */
-      case ANIMTYPE_DSMAT:    /* Datablock AnimData Expanders */
+      case ANIMTYPE_FILLACTD:        /* Action Expander */
+      case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
+      case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
       case ANIMTYPE_DSLAM:
       case ANIMTYPE_DSCAM:
       case ANIMTYPE_DSCACHEFILE:
@@ -613,8 +619,9 @@ static void anim_channels_select_set(bAnimContext *ac,
         nlt->flag &= ~NLATRACK_ACTIVE;
         break;
       }
-      case ANIMTYPE_FILLACTD: /* Action Expander */
-      case ANIMTYPE_DSMAT:    /* Datablock AnimData Expanders */
+      case ANIMTYPE_FILLACTD:        /* Action Expander */
+      case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
+      case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
       case ANIMTYPE_DSLAM:
       case ANIMTYPE_DSCAM:
       case ANIMTYPE_DSCACHEFILE:
@@ -3137,13 +3144,13 @@ static bool rename_anim_channels(bAnimContext *ac, int channel_index)
 
   /* Don't allow renaming linked/liboverride channels. */
   if (ale->fcurve_owner_id != nullptr &&
-      (ID_IS_LINKED(ale->fcurve_owner_id) || ID_IS_OVERRIDE_LIBRARY(ale->fcurve_owner_id)))
+      (!ID_IS_EDITABLE(ale->fcurve_owner_id) || ID_IS_OVERRIDE_LIBRARY(ale->fcurve_owner_id)))
   {
     ANIM_animdata_freelist(&anim_data);
     return false;
   }
   if (ale->id != nullptr) {
-    if (ID_IS_LINKED(ale->id)) {
+    if (!ID_IS_EDITABLE(ale->id)) {
       ANIM_animdata_freelist(&anim_data);
       return false;
     }
@@ -3830,8 +3837,9 @@ static int mouse_anim_channels(bContext *C,
     case ANIMTYPE_OBJECT:
       notifierFlags |= click_select_channel_object(C, ac, ale, selectmode);
       break;
-    case ANIMTYPE_FILLACTD: /* Action Expander */
-    case ANIMTYPE_DSMAT:    /* Datablock AnimData Expanders */
+    case ANIMTYPE_FILLACTD:        /* Action Expander */
+    case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
+    case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
     case ANIMTYPE_DSLAM:
     case ANIMTYPE_DSCAM:
     case ANIMTYPE_DSCACHEFILE:
@@ -4326,6 +4334,7 @@ static const EnumPropertyItem channel_bake_key_options[] = {
 
 static int channels_bake_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender::animrig;
   bAnimContext ac;
 
   /* Get editor data. */
@@ -4366,8 +4375,8 @@ static int channels_bake_exec(bContext *C, wmOperator *op)
   }
 
   const bool remove_outside_range = RNA_boolean_get(op->ptr, "remove_outside_range");
-  const BakeCurveRemove remove_existing = remove_outside_range ? BakeCurveRemove::REMOVE_ALL :
-                                                                 BakeCurveRemove::REMOVE_IN_RANGE;
+  const BakeCurveRemove remove_existing = remove_outside_range ? BakeCurveRemove::ALL :
+                                                                 BakeCurveRemove::IN_RANGE;
   const int interpolation_type = RNA_enum_get(op->ptr, "interpolation_type");
   const bool bake_modifiers = RNA_boolean_get(op->ptr, "bake_modifiers");
 

@@ -59,7 +59,7 @@
 #include "BKE_object.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "BLO_read_write.hh"
 
@@ -803,7 +803,7 @@ static void check_property_socket_sync(const Object *ob, ModifierData *md)
   nmd->node_group->ensure_interface_cache();
   for (const int i : nmd->node_group->interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket *socket = nmd->node_group->interface_inputs()[i];
-    const bNodeSocketType *typeinfo = socket->socket_typeinfo();
+    const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
     const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
     /* The first socket is the special geometry socket for the modifier object. */
     if (i == 0 && type == SOCK_GEOMETRY) {
@@ -834,7 +834,7 @@ static void check_property_socket_sync(const Object *ob, ModifierData *md)
 
   if (geometry_socket_count == 1) {
     const bNodeTreeInterfaceSocket *first_socket = nmd->node_group->interface_inputs()[0];
-    const bNodeSocketType *typeinfo = first_socket->socket_typeinfo();
+    const bke::bNodeSocketType *typeinfo = first_socket->socket_typeinfo();
     const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
     if (type != SOCK_GEOMETRY) {
       BKE_modifier_set_error(ob, md, "Node group's geometry input must be the first");
@@ -1719,7 +1719,7 @@ static void modifyGeometry(ModifierData *md,
     nmd_orig->runtime->eval_log = std::move(eval_log);
   }
 
-  if (DEG_is_active(ctx->depsgraph)) {
+  if (DEG_is_active(ctx->depsgraph) && !(ctx->flag & MOD_APPLY_TO_BASE_MESH)) {
     add_data_block_items_writeback(*ctx, *nmd, *nmd_orig, simulation_params, bake_params);
   }
 
@@ -1949,7 +1949,7 @@ static void add_attribute_search_or_value_buttons(const bContext &C,
                                                   const bNodeTreeInterfaceSocket &socket)
 {
   const StringRefNull identifier = socket.identifier;
-  const bNodeSocketType *typeinfo = socket.socket_typeinfo();
+  const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
   char socket_id_esc[MAX_NAME * 2];
   BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
@@ -2037,7 +2037,7 @@ static void draw_property_for_socket(const bContext &C,
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
    * information about what type of ID to select for editing the values. This is because
    * pointer IDProperties contain no information about their type. */
-  const bNodeSocketType *typeinfo = socket.socket_typeinfo();
+  const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
   const char *name = socket.name ? IFACE_(socket.name) : "";
   switch (type) {
@@ -2152,7 +2152,7 @@ static bool has_output_attribute(const NodesModifierData &nmd)
     return false;
   }
   for (const bNodeTreeInterfaceSocket *interface_socket : nmd.node_group->interface_outputs()) {
-    const bNodeSocketType *typeinfo = interface_socket->socket_typeinfo();
+    const bke::bNodeSocketType *typeinfo = interface_socket->socket_typeinfo();
     const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
     if (nodes::socket_type_has_attribute_toggle(type)) {
       return true;
@@ -2168,7 +2168,7 @@ static void draw_output_attributes_panel(const bContext *C,
 {
   if (nmd.node_group != nullptr && nmd.settings.properties != nullptr) {
     for (const bNodeTreeInterfaceSocket *socket : nmd.node_group->interface_outputs()) {
-      const bNodeSocketType *typeinfo = socket->socket_typeinfo();
+      const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
       const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
                                                   SOCK_CUSTOM;
       if (nodes::socket_type_has_attribute_toggle(type)) {
@@ -2384,27 +2384,27 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-  BLO_read_data_address(reader, &nmd->bake_directory);
+  BLO_read_string(reader, &nmd->bake_directory);
   if (nmd->node_group == nullptr) {
     nmd->settings.properties = nullptr;
   }
   else {
-    BLO_read_data_address(reader, &nmd->settings.properties);
+    BLO_read_struct(reader, IDProperty, &nmd->settings.properties);
     IDP_BlendDataRead(reader, &nmd->settings.properties);
   }
 
-  BLO_read_data_address(reader, &nmd->bakes);
+  BLO_read_struct_array(reader, NodesModifierBake, nmd->bakes_num, &nmd->bakes);
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
-    BLO_read_data_address(reader, &bake.directory);
+    BLO_read_string(reader, &bake.directory);
 
-    BLO_read_data_address(reader, &bake.data_blocks);
+    BLO_read_struct_array(reader, NodesModifierDataBlock, bake.data_blocks_num, &bake.data_blocks);
     for (NodesModifierDataBlock &data_block : MutableSpan(bake.data_blocks, bake.data_blocks_num))
     {
-      BLO_read_data_address(reader, &data_block.id_name);
-      BLO_read_data_address(reader, &data_block.lib_name);
+      BLO_read_string(reader, &data_block.id_name);
+      BLO_read_string(reader, &data_block.lib_name);
     }
   }
-  BLO_read_data_address(reader, &nmd->panels);
+  BLO_read_struct_array(reader, NodesModifierPanel, nmd->panels_num, &nmd->panels);
 
   nmd->runtime = MEM_new<NodesModifierRuntime>(__func__);
   nmd->runtime->cache = std::make_shared<bake::ModifierCache>();

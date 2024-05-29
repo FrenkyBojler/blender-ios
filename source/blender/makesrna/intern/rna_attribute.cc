@@ -111,6 +111,13 @@ const EnumPropertyItem rna_enum_attribute_domain_only_mesh_no_edge_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_attribute_domain_only_mesh_no_corner_items[] = {
+    {int(AttrDomain::Point), "POINT", 0, "Point", "Attribute on point"},
+    {int(AttrDomain::Edge), "EDGE", 0, "Edge", "Attribute on mesh edge"},
+    {int(AttrDomain::Face), "FACE", 0, "Face", "Attribute on mesh faces"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_attribute_domain_point_face_curve_items[] = {
     {int(AttrDomain::Point), "POINT", 0, "Point", "Attribute on point"},
     {int(AttrDomain::Face), "FACE", 0, "Face", "Attribute on mesh faces"},
@@ -434,13 +441,13 @@ static void rna_AttributeGroup_remove(ID *id, ReportList *reports, PointerRNA *a
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
 }
 
-static int rna_Attributes_layer_skip(CollectionPropertyIterator * /*iter*/, void *data)
+static bool rna_Attributes_layer_skip(CollectionPropertyIterator * /*iter*/, void *data)
 {
   CustomDataLayer *layer = (CustomDataLayer *)data;
   return !(CD_TYPE_AS_MASK(layer->type) & CD_MASK_PROP_ALL);
 }
 
-static int rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, void *data)
+static bool rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, void *data)
 {
   CustomDataLayer *layer = (CustomDataLayer *)data;
 
@@ -448,7 +455,7 @@ static int rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, 
   ID *id = iter->parent.owner_id;
   const AttrDomain domain = BKE_id_attribute_domain(id, layer);
   if (!(ATTR_DOMAIN_AS_MASK(domain) & ATTR_DOMAIN_MASK_COLOR)) {
-    return 1;
+    return true;
   }
 
   return !(CD_TYPE_AS_MASK(layer->type) & CD_MASK_COLOR_ALL) || (layer->flag & CD_FLAG_TEMPORARY);
@@ -458,7 +465,8 @@ static int rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, 
  * array iterators to loop over all. */
 static void rna_AttributeGroup_next_domain(ID *id,
                                            CollectionPropertyIterator *iter,
-                                           int(skip)(CollectionPropertyIterator *iter, void *data))
+                                           bool(skip)(CollectionPropertyIterator *iter,
+                                                      void *data))
 {
   do {
     CustomDataLayer *prev_layers = (iter->internal.array.endptr == nullptr) ?

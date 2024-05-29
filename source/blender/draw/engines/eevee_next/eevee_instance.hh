@@ -22,16 +22,16 @@
 #include "eevee_film.hh"
 #include "eevee_gbuffer.hh"
 #include "eevee_hizbuffer.hh"
-#include "eevee_irradiance_cache.hh"
 #include "eevee_light.hh"
 #include "eevee_lightprobe.hh"
+#include "eevee_lightprobe_planar.hh"
+#include "eevee_lightprobe_sphere.hh"
+#include "eevee_lightprobe_volume.hh"
 #include "eevee_lookdev.hh"
 #include "eevee_material.hh"
 #include "eevee_motion_blur.hh"
 #include "eevee_pipeline.hh"
-#include "eevee_planar_probes.hh"
 #include "eevee_raytrace.hh"
-#include "eevee_reflection_probes.hh"
 #include "eevee_renderbuffers.hh"
 #include "eevee_sampling.hh"
 #include "eevee_shader.hh"
@@ -73,7 +73,7 @@ class Instance {
   static void *debug_scope_irradiance_sample;
 
   uint64_t depsgraph_last_update_ = 0;
-  bool overlays_enabled_;
+  bool overlays_enabled_ = false;
 
  public:
   ShaderModule &shaders;
@@ -154,7 +154,7 @@ class Instance {
         depth_of_field(*this),
         cryptomatte(*this),
         hiz_buffer(*this, uniform_data.data.hiz),
-        sampling(*this),
+        sampling(*this, uniform_data.data.clamp),
         camera(*this, uniform_data.data.camera),
         film(*this, uniform_data.data.film),
         render_buffers(*this, uniform_data.data.render_pass),
@@ -192,7 +192,7 @@ class Instance {
   /**
    * Return true when probe pipeline is used during this sample.
    */
-  bool do_reflection_probe_sync() const;
+  bool do_lightprobe_sphere_sync() const;
   bool do_planar_probe_sync() const;
 
   /* Render. */

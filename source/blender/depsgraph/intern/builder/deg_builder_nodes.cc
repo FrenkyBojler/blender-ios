@@ -406,6 +406,12 @@ void DepsgraphNodeBuilder::begin_build()
     saved_entry_tags_.append_as(op_node);
   }
 
+  for (const OperationNode *op_node : graph_->operations) {
+    if (op_node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+      needs_update_operations_.append_as(op_node);
+    }
+  }
+
   /* Make sure graph has no nodes left from previous state. */
   graph_->clear_all_nodes();
   graph_->operations.clear();
@@ -537,6 +543,16 @@ void DepsgraphNodeBuilder::tag_previously_tagged_nodes()
      * that originally node was explicitly tagged for user update. */
     operation_node->tag_update(graph_, DEG_UPDATE_SOURCE_USER_EDIT);
   }
+
+  /* Restore needs-update flags since the previous state of the dependency graph, ensuring the
+   * previously-skipped operations are properly re-evaluated when needed. */
+  for (const OperationKey &operation_key : needs_update_operations_) {
+    OperationNode *operation_node = find_operation_node(operation_key);
+    if (operation_node == nullptr) {
+      continue;
+    }
+    operation_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
+  }
 }
 
 void DepsgraphNodeBuilder::end_build()
@@ -556,10 +572,6 @@ void DepsgraphNodeBuilder::build_id(ID *id, const bool force_be_visible)
   switch (id_type) {
     case ID_AC:
       build_action((bAction *)id);
-      break;
-    case ID_AN:
-      /* TODO: actually handle this ID type properly, will be done in a followup commit. */
-      build_generic_id(id);
       break;
     case ID_AR:
       build_armature((bArmature *)id);
@@ -953,7 +965,13 @@ void DepsgraphNodeBuilder::build_object_modifiers(Object *object)
 
   BuilderWalkUserData data;
   data.builder = this;
+
+  /* Temporarily set the collection visibility to false, relying on the visibility flushing code
+   * to flush the visibility from a modifier into collections it depends on. */
+  const bool is_current_parent_collection_visible = is_parent_collection_visible_;
+  is_parent_collection_visible_ = false;
   BKE_modifiers_foreach_ID_link(object, modifier_walk, &data);
+  is_parent_collection_visible_ = is_current_parent_collection_visible;
 }
 
 void DepsgraphNodeBuilder::build_object_data(Object *object)
@@ -1264,7 +1282,7 @@ void DepsgraphNodeBuilder::build_animation_images(ID *id)
    * we have to check if they might be created during evaluation. */
   bool has_image_animation = false;
   if (ELEM(GS(id->name), ID_MA, ID_WO)) {
-    bNodeTree *ntree = *BKE_ntree_ptr_from_id(id);
+    bNodeTree *ntree = *bke::BKE_ntree_ptr_from_id(id);
     if (ntree != nullptr && ntree->runtime->runtime_flag & NTREE_RUNTIME_FLAG_HAS_IMAGE_ANIMATION)
     {
       has_image_animation = true;

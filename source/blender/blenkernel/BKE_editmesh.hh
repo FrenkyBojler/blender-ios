@@ -40,6 +40,7 @@ struct Scene;
  * #Mesh.runtime.edit_mesh stores a pointer to this structure.
  */
 struct BMEditMesh {
+  /* Always owned by an original mesh in edit mode. */
   BMesh *bm;
 
   /**
@@ -57,11 +58,6 @@ struct BMEditMesh {
 
   /** Temp variables for x-mirror editing (-1 when the layer does not exist). */
   int mirror_cdlayer;
-
-  /**
-   * Enable for evaluated copies, causes the edit-mesh to free the memory, not its contents.
-   */
-  char is_shallow_copy;
 
   /**
    * ID data is older than edit-mode data.

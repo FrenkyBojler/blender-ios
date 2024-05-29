@@ -48,6 +48,7 @@
 
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -417,7 +418,7 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
   if (use_selected) {
     CTX_data_selected_pose_bones(C, &selected_bones);
 
-    if (!selected_bones.is_empty()) {
+    if (selected_bones.is_empty()) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -1228,7 +1229,8 @@ static int pose_clear_transform_generic_exec(bContext *C,
         KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, default_ksName);
 
         /* insert keyframes */
-        ANIM_apply_keyingset(C, &sources, ks, MODIFYKEY_MODE_INSERT, float(scene->r.cfra));
+        ANIM_apply_keyingset(
+            C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, float(scene->r.cfra));
 
         /* now recalculate paths */
         if (ob_iter->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {

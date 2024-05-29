@@ -242,8 +242,10 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
     graph_draw_curves(&ac, sipo, region, 1);
 
     /* XXX(ton): the slow way to set tot rect... but for nice sliders needed. */
+    /* Excluding handles from the calculation to save performance. This cuts the time it takes for
+     * this function to run in half which is a major performance bottleneck on heavy scenes.  */
     get_graph_keyframe_extents(
-        &ac, &v2d->tot.xmin, &v2d->tot.xmax, &v2d->tot.ymin, &v2d->tot.ymax, false, true);
+        &ac, &v2d->tot.xmin, &v2d->tot.xmax, &v2d->tot.ymin, &v2d->tot.ymax, false, false);
     /* extra offset so that these items are visible */
     v2d->tot.xmin -= 10.0f;
     v2d->tot.xmax += 10.0f;
@@ -836,8 +838,8 @@ static void graph_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
     return;
   }
 
-  BKE_LIB_FOREACHID_PROCESS_ID(data, sgraph->ads->source, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sgraph->ads->filter_grp, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, sgraph->ads->source, IDWALK_CB_DIRECT_WEAK_LINK);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sgraph->ads->filter_grp, IDWALK_CB_DIRECT_WEAK_LINK);
 
   if (!is_readonly) {
     /* Force recalc of list of channels (i.e. including calculating F-Curve colors) to
@@ -869,7 +871,7 @@ static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceGraph *sipo = (SpaceGraph *)sl;
 
-  BLO_read_data_address(reader, &sipo->ads);
+  BLO_read_struct(reader, bDopeSheet, &sipo->ads);
   memset(&sipo->runtime, 0x0, sizeof(sipo->runtime));
 }
 

@@ -169,7 +169,7 @@ struct bAnimListElem {
    */
   /** ID block that channel is attached to */
   ID *id;
-  /** source of the animation data attached to ID block (for convenience) */
+  /** source of the animation data attached to ID block */
   AnimData *adt;
 
   /**
@@ -212,7 +212,8 @@ enum eAnim_ChannelType {
   ANIMTYPE_NLACONTROLS,
   ANIMTYPE_NLACURVE,
 
-  ANIMTYPE_FILLACTD,
+  ANIMTYPE_FILLACT_LAYERED, /* Layered Actions. */
+  ANIMTYPE_FILLACTD,        /* Legacy Actions. */
   ANIMTYPE_FILLDRIVERS,
 
   ANIMTYPE_DSMAT,
@@ -266,11 +267,12 @@ enum eAnim_KeyType {
   ALE_MASKLAY,  /* Mask */
   ALE_NLASTRIP, /* NLA Strips */
 
-  ALE_ALL,   /* All channels summary */
-  ALE_SCE,   /* Scene summary */
-  ALE_OB,    /* Object summary */
-  ALE_ACT,   /* Action summary */
-  ALE_GROUP, /* Action Group summary */
+  ALE_ALL,            /* All channels summary */
+  ALE_SCE,            /* Scene summary */
+  ALE_OB,             /* Object summary */
+  ALE_ACT,            /* Action summary (legacy). */
+  ALE_GROUP,          /* Action Group summary (legacy). */
+  ALE_ACTION_LAYERED, /* Action summary (layered). */
 
   ALE_GREASE_PENCIL_CEL,   /* Grease Pencil Cels. */
   ALE_GREASE_PENCIL_DATA,  /* Grease Pencil Cels summary. */
@@ -404,6 +406,7 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 #define EXPANDED_ACTC(actc) ((actc->flag & ACT_COLLAPSED) == 0)
 /* 'Sub-AnimData' channels */
 #define EXPANDED_DRVD(adt) ((adt->flag & ADT_DRIVERS_COLLAPSED) == 0)
+#define EXPANDED_ADT(adt) ((adt->flag & ADT_UI_EXPANDED) != 0)
 
 /* Actions (also used for Dopesheet) */
 /** Action Channel Group. */

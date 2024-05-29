@@ -1173,7 +1173,7 @@ float BKE_tracking_track_get_weight_for_marker(MovieClip *clip,
                                                MovieTrackingTrack *track,
                                                MovieTrackingMarker *marker)
 {
-  FCurve *weight_fcurve;
+  const FCurve *weight_fcurve;
   float weight = track->weight;
 
   weight_fcurve = id_data_find_fcurve(
@@ -1574,7 +1574,7 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking,
   plane_track = MEM_cnew<MovieTrackingPlaneTrack>("new plane track");
 
   /* Use some default name. */
-  STRNCPY(plane_track->name, "Plane Track");
+  STRNCPY(plane_track->name, DATA_("Plane Track"));
 
   plane_track->image_opacity = 1.0f;
 

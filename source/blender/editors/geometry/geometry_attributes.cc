@@ -44,6 +44,7 @@
 #include "ED_geometry.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_sculpt.hh"
 
 #include "geometry_intern.hh"
 
@@ -278,7 +279,7 @@ static int geometry_attribute_add_invoke(bContext *C, wmOperator *op, const wmEv
   if (!RNA_property_is_set(op->ptr, prop)) {
     RNA_property_string_set(op->ptr, prop, DATA_("Attribute"));
   }
-  return WM_operator_props_popup_confirm(C, op, event);
+  return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Add Attribute"), IFACE_("Add"));
 }
 
 void GEOMETRY_OT_attribute_add(wmOperatorType *ot)
@@ -383,7 +384,7 @@ static int geometry_color_attribute_add_exec(bContext *C, wmOperator *op)
     BKE_id_attributes_default_color_set(id, layer->name);
   }
 
-  BKE_object_attributes_active_color_fill(ob, color, false);
+  sculpt_paint::object_active_color_fill(*ob, color, false);
 
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
@@ -398,7 +399,8 @@ static int geometry_color_attribute_add_invoke(bContext *C, wmOperator *op, cons
   if (!RNA_property_is_set(op->ptr, prop)) {
     RNA_property_string_set(op->ptr, prop, DATA_("Color"));
   }
-  return WM_operator_props_popup_confirm(C, op, event);
+  return WM_operator_props_popup_confirm_ex(
+      C, op, event, IFACE_("Add Color Attribute"), IFACE_("Add"));
 }
 
 enum class ConvertAttributeMode {

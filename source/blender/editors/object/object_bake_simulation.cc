@@ -254,7 +254,6 @@ static void bake_geometry_nodes_startjob(void *customdata, wmJobWorkerStatus *wo
   BakeGeometryNodesJob &job = *static_cast<BakeGeometryNodesJob *>(customdata);
   G.is_rendering = true;
   G.is_break = false;
-  WM_set_locked_interface(job.wm, true);
 
   int global_bake_start_frame = INT32_MAX;
   int global_bake_end_frame = INT32_MIN;
@@ -359,7 +358,17 @@ static void bake_geometry_nodes_endjob(void *customdata)
   WM_main_add_notifier(NC_SPACE | ND_SPACE_VIEW3D | NS_VIEW3D_SHADING, nullptr);
 }
 
-static void reset_old_bake(NodeBakeRequest &request)
+static void clear_data_block_references(NodesModifierBake &bake)
+{
+  dna::array::clear<NodesModifierDataBlock>(&bake.data_blocks,
+                                            &bake.data_blocks_num,
+                                            &bake.active_data_block,
+                                            [](NodesModifierDataBlock *data_block) {
+                                              nodes_modifier_data_block_destruct(data_block, true);
+                                            });
+}
+
+static void reset_old_bake_cache(NodeBakeRequest &request)
 {
   switch (request.node_type) {
     case GEO_NODE_SIMULATION_OUTPUT: {
@@ -398,7 +407,10 @@ static int start_bake_job(bContext *C,
                           const BakeRequestsMode mode)
 {
   for (NodeBakeRequest &request : requests) {
-    reset_old_bake(request);
+    reset_old_bake_cache(request);
+    if (NodesModifierBake *bake = request.nmd->find_bake(request.bake_id)) {
+      clear_data_block_references(*bake);
+    }
   }
 
   BakeGeometryNodesJob *job = MEM_new<BakeGeometryNodesJob>(__func__);
@@ -407,6 +419,7 @@ static int start_bake_job(bContext *C,
   job->depsgraph = CTX_data_depsgraph_pointer(C);
   job->scene = CTX_data_scene(C);
   job->bake_requests = std::move(requests);
+  WM_set_locked_interface(job->wm, true);
 
   if (mode == BakeRequestsMode::Sync) {
     wmJobWorkerStatus worker_status{};
@@ -704,12 +717,7 @@ static void try_delete_bake(
   if (!bake) {
     return;
   }
-  dna::array::clear<NodesModifierDataBlock>(&bake->data_blocks,
-                                            &bake->data_blocks_num,
-                                            &bake->active_data_block,
-                                            [](NodesModifierDataBlock *data_block) {
-                                              nodes_modifier_data_block_destruct(data_block, true);
-                                            });
+  clear_data_block_references(*bake);
 
   const std::optional<bake::BakePath> bake_path = bake::get_node_bake_path(
       *bmain, object, nmd, bake_id);

@@ -48,6 +48,7 @@
 #include "ANIM_driver.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 #include "ANIM_rna.hh"
 
 #include "UI_interface.hh"
@@ -69,31 +70,6 @@ static KeyingSet *keyingset_get_from_op_with_error(wmOperator *op,
                                                    Scene *scene);
 
 static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *ks);
-
-/* ************************************************** */
-/* Keyframing Setting Wrangling */
-
-eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene)
-{
-  using namespace blender::animrig;
-  eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
-
-  /* Visual keying. */
-  if (is_keying_flag(scene, KEYING_FLAG_VISUALKEY)) {
-    flag |= INSERTKEY_MATRIX;
-  }
-
-  /* Cycle-aware keyframe insertion - preserve cycle period and flow. */
-  if (is_keying_flag(scene, KEYING_FLAG_CYCLEAWARE)) {
-    flag |= INSERTKEY_CYCLE_AWARE;
-  }
-
-  if (is_keying_flag(scene, MANUALKEY_FLAG_INSERTNEEDED)) {
-    flag |= INSERTKEY_NEEDED;
-  }
-
-  return flag;
-}
 
 /* ******************************************* */
 /* Animation Data Validation */
@@ -205,7 +181,8 @@ static int insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
   }
 
   /* try to insert keyframes for the channels specified by KeyingSet */
-  const int num_channels = ANIM_apply_keyingset(C, nullptr, ks, MODIFYKEY_MODE_INSERT, cfra);
+  const int num_channels = ANIM_apply_keyingset(
+      C, nullptr, ks, blender::animrig::ModifyKeyMode::INSERT, cfra);
   if (G.debug & G_DEBUG) {
     BKE_reportf(op->reports,
                 RPT_INFO,
@@ -247,11 +224,43 @@ static int insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
   return OPERATOR_FINISHED;
 }
 
-static blender::Vector<std::string> construct_rna_paths(PointerRNA *ptr)
+static bool is_idproperty_keyable(IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)
+{
+  /* While you can cast the IDProperty* to a PropertyRNA* and pass it to the functions, this
+   * does not work because it will not have the right flags set. Instead the resolved
+   * PointerRNA and PropertyRNA need to be passed. */
+  if (!RNA_property_anim_editable(ptr, prop)) {
+    return false;
+  }
+
+  if (ELEM(id_prop->type,
+           eIDPropertyType::IDP_BOOLEAN,
+           eIDPropertyType::IDP_INT,
+           eIDPropertyType::IDP_FLOAT,
+           eIDPropertyType::IDP_DOUBLE))
+  {
+    return true;
+  }
+
+  if (id_prop->type == eIDPropertyType::IDP_ARRAY) {
+    if (ELEM(id_prop->subtype,
+             eIDPropertyType::IDP_BOOLEAN,
+             eIDPropertyType::IDP_INT,
+             eIDPropertyType::IDP_FLOAT,
+             eIDPropertyType::IDP_DOUBLE))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
 {
   eRotationModes rotation_mode;
   IDProperty *properties;
-  blender::Vector<std::string> paths;
+  blender::Vector<RNAPath> paths;
 
   if (ptr->type == &RNA_PoseBone) {
     bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
@@ -270,15 +279,15 @@ static blender::Vector<std::string> construct_rna_paths(PointerRNA *ptr)
 
   eKeyInsertChannels insert_channel_flags = eKeyInsertChannels(U.key_insert_channels);
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_LOCATION) {
-    paths.append("location");
+    paths.append({"location"});
   }
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION) {
     switch (rotation_mode) {
       case ROT_MODE_QUAT:
-        paths.append("rotation_quaternion");
+        paths.append({"rotation_quaternion"});
         break;
       case ROT_MODE_AXISANGLE:
-        paths.append("rotation_axis_angle");
+        paths.append({"rotation_axis_angle"});
         break;
       case ROT_MODE_XYZ:
       case ROT_MODE_XZY:
@@ -286,23 +295,42 @@ static blender::Vector<std::string> construct_rna_paths(PointerRNA *ptr)
       case ROT_MODE_YZX:
       case ROT_MODE_ZXY:
       case ROT_MODE_ZYX:
-        paths.append("rotation_euler");
+        paths.append({"rotation_euler"});
       default:
         break;
     }
   }
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_SCALE) {
-    paths.append("scale");
+    paths.append({"scale"});
   }
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION_MODE) {
-    paths.append("rotation_mode");
+    paths.append({"rotation_mode"});
   }
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES) {
     if (properties) {
-      LISTBASE_FOREACH (IDProperty *, prop, &properties->data.group) {
-        char name_escaped[MAX_IDPROP_NAME * 2];
-        BLI_str_escape(name_escaped, prop->name, sizeof(name_escaped));
-        paths.append(fmt::format("[\"{}\"]", name_escaped));
+      LISTBASE_FOREACH (IDProperty *, id_prop, &properties->data.group) {
+        PointerRNA resolved_ptr;
+        PropertyRNA *resolved_prop;
+        std::string path = id_prop->name;
+        /* Resolving the path twice, once as RNA property (without brackets, `"propname"`),
+         * and once as ID property (with brackets, `["propname"]`).
+         * This is required to support IDProperties that have been defined as part of an add-on.
+         * Those need to be animated through an RNA path without the brackets. */
+        bool is_resolved = RNA_path_resolve_property(
+            ptr, path.c_str(), &resolved_ptr, &resolved_prop);
+        if (!is_resolved) {
+          char name_escaped[MAX_IDPROP_NAME * 2];
+          BLI_str_escape(name_escaped, id_prop->name, sizeof(name_escaped));
+          path = fmt::format("[\"{}\"]", name_escaped);
+          is_resolved = RNA_path_resolve_property(
+              ptr, path.c_str(), &resolved_ptr, &resolved_prop);
+        }
+        if (!is_resolved) {
+          continue;
+        }
+        if (is_idproperty_keyable(id_prop, &resolved_ptr, resolved_prop)) {
+          paths.append({path});
+        }
       }
     }
   }
@@ -338,35 +366,53 @@ static int insert_key(bContext *C, wmOperator *op)
   const bool found_selection = get_selection(C, &selection);
   if (!found_selection) {
     BKE_reportf(op->reports, RPT_ERROR, "Unsupported context mode");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (selection.is_empty()) {
+    BKE_reportf(op->reports, RPT_WARNING, "Nothing selected to key");
+    return OPERATOR_CANCELLED;
   }
 
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   const float scene_frame = BKE_scene_frame_get(scene);
 
-  const eInsertKeyFlags insert_key_flags = ANIM_get_keyframing_flags(scene);
+  const eInsertKeyFlags insert_key_flags = animrig::get_keyframing_flags(scene);
   const eBezTriple_KeyframeType key_type = eBezTriple_KeyframeType(
       scene->toolsettings->keyframe_type);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, BKE_scene_frame_get(scene));
 
+  animrig::CombinedKeyingResult combined_result;
   for (PointerRNA &id_ptr : selection) {
     ID *selected_id = id_ptr.owner_id;
+    if (!id_can_have_animdata(selected_id)) {
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Could not insert keyframe, as this type does not support animation data (ID = "
+                  "%s)",
+                  selected_id->name);
+      continue;
+    }
     if (!BKE_id_is_editable(bmain, selected_id)) {
       BKE_reportf(op->reports, RPT_ERROR, "'%s' is not editable", selected_id->name + 2);
       continue;
     }
-    Vector<std::string> rna_paths = construct_rna_paths(&id_ptr);
+    Vector<RNAPath> rna_paths = construct_rna_paths(&id_ptr);
 
-    animrig::insert_key_rna(&id_ptr,
-                            rna_paths.as_span(),
-                            scene_frame,
-                            insert_key_flags,
-                            key_type,
-                            bmain,
-                            op->reports,
-                            anim_eval_context);
+    combined_result.merge(animrig::insert_key_rna(&id_ptr,
+                                                  rna_paths.as_span(),
+                                                  scene_frame,
+                                                  insert_key_flags,
+                                                  key_type,
+                                                  bmain,
+                                                  anim_eval_context));
+  }
+
+  if (combined_result.get_count(animrig::SingleKeyingResult::SUCCESS) == 0) {
+    combined_result.generate_reports(op->reports);
   }
 
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
@@ -562,7 +608,8 @@ static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *k
   const bool confirm = op->flag & OP_IS_INVOKE;
 
   /* try to delete keyframes for the channels specified by KeyingSet */
-  num_channels = ANIM_apply_keyingset(C, nullptr, ks, MODIFYKEY_MODE_DELETE, cfra);
+  num_channels = ANIM_apply_keyingset(
+      C, nullptr, ks, blender::animrig::ModifyKeyMode::DELETE, cfra);
   if (G.debug & G_DEBUG) {
     printf("KeyingSet '%s' - Successfully removed %d Keyframes\n", ks->name, num_channels);
   }
@@ -905,6 +952,7 @@ void ANIM_OT_keyframe_delete_v3d(wmOperatorType *ot)
 
 static int insert_key_button_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender::animrig;
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
@@ -918,7 +966,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
   const bool all = RNA_boolean_get(op->ptr, "all");
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
 
-  flag = ANIM_get_keyframing_flags(scene);
+  flag = get_keyframing_flags(scene);
 
   if (!(but = UI_context_active_but_prop_get(C, &ptr, &prop, &index))) {
     /* pass event on if no active button found */
@@ -935,15 +983,14 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
       FCurve *fcu = BKE_fcurve_find(&strip->fcurves, RNA_property_identifier(prop), index);
 
       if (fcu) {
-        changed = blender::animrig::insert_keyframe_direct(
-            op->reports,
-            ptr,
-            prop,
-            fcu,
-            &anim_eval_context,
-            eBezTriple_KeyframeType(ts->keyframe_type),
-            nullptr,
-            eInsertKeyFlags(0));
+        changed = insert_keyframe_direct(op->reports,
+                                         ptr,
+                                         prop,
+                                         fcu,
+                                         &anim_eval_context,
+                                         eBezTriple_KeyframeType(ts->keyframe_type),
+                                         nullptr,
+                                         eInsertKeyFlags(0));
       }
       else {
         BKE_report(op->reports,
@@ -960,62 +1007,40 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
           C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
 
       if (fcu && driven) {
-        const float driver_frame = blender::animrig::evaluate_driver_from_rna_pointer(
+        const float driver_frame = evaluate_driver_from_rna_pointer(
             &anim_eval_context, &ptr, prop, fcu);
         AnimationEvalContext remapped_context = BKE_animsys_eval_context_construct(
             CTX_data_depsgraph_pointer(C), driver_frame);
-        changed = blender::animrig::insert_keyframe_direct(
-            op->reports,
-            ptr,
-            prop,
-            fcu,
-            &remapped_context,
-            eBezTriple_KeyframeType(ts->keyframe_type),
-            nullptr,
-            INSERTKEY_NOFLAGS);
+        changed = insert_keyframe_direct(op->reports,
+                                         ptr,
+                                         prop,
+                                         fcu,
+                                         &remapped_context,
+                                         eBezTriple_KeyframeType(ts->keyframe_type),
+                                         nullptr,
+                                         INSERTKEY_NOFLAGS);
       }
     }
     else {
       /* standard properties */
       if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
         const char *identifier = RNA_property_identifier(prop);
-        const char *group = nullptr;
-
-        /* Special exception for keyframing transforms:
-         * Set "group" for this manually, instead of having them appearing at the bottom
-         * (ungrouped) part of the channels list.
-         * Leaving these ungrouped is not a nice user behavior in this case.
-         *
-         * TODO: Perhaps we can extend this behavior in future for other properties...
-         */
-        if (ptr.type == &RNA_PoseBone) {
-          bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
-          group = pchan->name;
-        }
-        else if ((ptr.type == &RNA_Object) &&
-                 (strstr(identifier, "location") || strstr(identifier, "rotation") ||
-                  strstr(identifier, "scale")))
-        {
-          /* NOTE: Keep this label in sync with the "ID" case in
-           * keyingsets_utils.py :: get_transform_generators_base_info()
-           */
-          group = "Object Transforms";
-        }
+        const char *group = default_channel_group_for_path(&ptr, identifier);
 
         if (all) {
           /* -1 indicates operating on the entire array (or the property itself otherwise) */
           index = -1;
         }
 
-        changed = (blender::animrig::insert_keyframe(bmain,
-                                                     op->reports,
-                                                     ptr.owner_id,
-                                                     group,
-                                                     path->c_str(),
-                                                     index,
-                                                     &anim_eval_context,
-                                                     eBezTriple_KeyframeType(ts->keyframe_type),
-                                                     flag) != 0);
+        CombinedKeyingResult result = insert_keyframe(bmain,
+                                                      *ptr.owner_id,
+                                                      group,
+                                                      path->c_str(),
+                                                      index,
+                                                      &anim_eval_context,
+                                                      eBezTriple_KeyframeType(ts->keyframe_type),
+                                                      flag);
+        changed = result.get_count(SingleKeyingResult::SUCCESS) != 0;
       }
       else {
         BKE_report(op->reports,

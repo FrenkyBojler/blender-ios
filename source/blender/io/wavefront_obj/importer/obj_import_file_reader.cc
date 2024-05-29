@@ -358,9 +358,8 @@ static void geom_add_curve_vertex_indices(Geometry *geom,
                                           const char *end,
                                           const GlobalVertices &global_vertices)
 {
-  /* Curve lines always have "0.0" and "1.0", skip over them. */
-  float dummy[2];
-  p = parse_floats(p, end, 0, dummy, 2);
+  /* Parse curve parameter range. */
+  p = parse_floats(p, end, 0, geom->nurbs_element_.range, 2);
   /* Parse indices. */
   while (p < end) {
     int index;
@@ -849,8 +848,8 @@ void OBJParser::add_mtl_library(StringRef path)
 
 void OBJParser::add_default_mtl_library()
 {
-  /* Add any existing .mtl file that's with the same base name as the .obj file
-   * into candidate .mtl files to search through. This is not technically following the
+  /* Add any existing `.mtl` file that's with the same base name as the `.obj` file
+   * into candidate `.mtl` files to search through. This is not technically following the
    * spec, but the old python importer was doing it, and there are user files out there
    * that contain "mtllib bar.mtl" for a foo.obj, and depend on finding materials
    * from foo.mtl (see #97757). */

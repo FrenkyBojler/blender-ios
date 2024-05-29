@@ -180,10 +180,7 @@ class MTLComputeState {
                             bool use_argument_buffer_for_samplers,
                             uint slot);
   /* Buffer binding (ComputeCommandEncoder). */
-  void bind_compute_buffer(id<MTLBuffer> buffer,
-                           uint64_t buffer_offset,
-                           uint index,
-                           bool writeable = false);
+  void bind_compute_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
   void bind_compute_bytes(const void *bytes, uint64_t length, uint index);
 };
 
@@ -785,6 +782,9 @@ class MTLContext : public Context {
   void *debug_capture_scope_create(const char *name) override;
   bool debug_capture_scope_begin(void *scope) override;
   void debug_capture_scope_end(void *scope) override;
+
+  void debug_unbind_all_ubo() override{};
+  void debug_unbind_all_ssbo() override{};
 
   /*** MTLContext Utility functions. */
   /*

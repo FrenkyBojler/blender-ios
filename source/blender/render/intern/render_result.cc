@@ -65,6 +65,15 @@ void render_result_free(RenderResult *rr)
     return;
   }
 
+  /* Only actually free when RenderResult when the render result has zero users which is its
+   * default state.
+   * There is no need to lock as the user-counted render results are protected by mutex at the
+   * higher call stack level. */
+  if (rr->user_counter > 0) {
+    --rr->user_counter;
+    return;
+  }
+
   while (rr->layers.first) {
     RenderLayer *rl = static_cast<RenderLayer *>(rr->layers.first);
 
@@ -396,8 +405,8 @@ void render_result_clone_passes(Render *re, RenderResult *rr, const char *viewna
         continue;
       }
 
-      /* Compare fullname to make sure that the view also is equal. */
-      RenderPass *rp = static_cast<RenderPass *>(
+      /* Compare `fullname` to make sure that the view also is equal. */
+      const RenderPass *rp = static_cast<const RenderPass *>(
           BLI_findstring(&rl->passes, main_rp->fullname, offsetof(RenderPass, fullname)));
       if (!rp) {
         render_layer_add_pass(
@@ -643,8 +652,8 @@ static void *ml_addview_cb(void *base, const char *str)
 static int order_render_passes(const void *a, const void *b)
 {
   /* 1 if `a` is after `b`. */
-  RenderPass *rpa = (RenderPass *)a;
-  RenderPass *rpb = (RenderPass *)b;
+  const RenderPass *rpa = (const RenderPass *)a;
+  const RenderPass *rpb = (const RenderPass *)b;
   uint passtype_a = passtype_from_name(rpa->name);
   uint passtype_b = passtype_from_name(rpb->name);
 
@@ -1194,25 +1203,26 @@ void render_result_rect_get_pixels(RenderResult *rr,
                                    const int view_id)
 {
   RenderView *rv = RE_RenderViewGetById(rr, view_id);
-  ImBuf *ibuf = rv ? rv->ibuf : nullptr;
+  if (ImBuf *ibuf = rv ? rv->ibuf : nullptr) {
+    if (ibuf->byte_buffer.data) {
+      memcpy(rect, ibuf->byte_buffer.data, sizeof(int) * rr->rectx * rr->recty);
+      return;
+    }
+    if (ibuf->float_buffer.data) {
+      IMB_display_buffer_transform_apply((uchar *)rect,
+                                         ibuf->float_buffer.data,
+                                         rr->rectx,
+                                         rr->recty,
+                                         4,
+                                         view_settings,
+                                         display_settings,
+                                         true);
+      return;
+    }
+  }
 
-  if (ibuf->byte_buffer.data) {
-    memcpy(rect, ibuf->byte_buffer.data, sizeof(int) * rr->rectx * rr->recty);
-  }
-  else if (ibuf->float_buffer.data) {
-    IMB_display_buffer_transform_apply((uchar *)rect,
-                                       ibuf->float_buffer.data,
-                                       rr->rectx,
-                                       rr->recty,
-                                       4,
-                                       view_settings,
-                                       display_settings,
-                                       true);
-  }
-  else {
-    /* else fill with black */
-    memset(rect, 0, sizeof(int) * rectx * recty);
-  }
+  /* Fill with black as a fallback. */
+  memset(rect, 0, sizeof(int) * rectx * recty);
 }
 
 /** \} */

@@ -78,6 +78,7 @@ class USDMeshReader : public USDGeomReader {
 
   void read_mpolys(Mesh *mesh);
   void read_vertex_creases(Mesh *mesh, double motionSampleTime);
+  void read_velocities(Mesh *mesh, double motionSampleTime);
 
   void read_mesh_sample(ImportSettings *settings,
                         Mesh *mesh,
@@ -93,22 +94,12 @@ class USDMeshReader : public USDGeomReader {
                         double motionSampleTime,
                         bool new_mesh);
 
-  void read_color_data_primvar(Mesh *mesh,
-                               const pxr::UsdGeomPrimvar &color_primvar,
-                               const double motionSampleTime);
-
   void read_uv_data_primvar(Mesh *mesh,
                             const pxr::UsdGeomPrimvar &primvar,
                             const double motionSampleTime);
   void read_generic_data_primvar(Mesh *mesh,
                                  const pxr::UsdGeomPrimvar &primvar,
                                  const double motionSampleTime);
-
-  template<typename USDT, typename BlenderT>
-  void copy_prim_array_to_blender_attribute(const Mesh *mesh,
-                                            const pxr::UsdGeomPrimvar &primvar,
-                                            const double motionSampleTime,
-                                            MutableSpan<BlenderT> attribute);
 
   /**
    * Override transform computation to account for the binding

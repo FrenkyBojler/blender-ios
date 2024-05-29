@@ -26,7 +26,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_DerivedMesh.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
 #include "BKE_displist.h"
@@ -707,7 +706,7 @@ static const Curves *get_evaluated_curves_from_object(const Object *object)
 static Mesh *mesh_new_from_evaluated_curve_type_object(const Object *evaluated_object)
 {
   if (const Mesh *mesh = BKE_object_get_evaluated_mesh(evaluated_object)) {
-    return BKE_mesh_copy_for_eval(mesh);
+    return BKE_mesh_copy_for_eval(*mesh);
   }
   if (const Curves *curves = get_evaluated_curves_from_object(evaluated_object)) {
     const blender::bke::AnonymousAttributePropagationInfo propagation_info;
@@ -766,7 +765,7 @@ static Mesh *mesh_new_from_mball_object(Object *object)
     return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
   }
 
-  return BKE_mesh_copy_for_eval(mesh_eval);
+  return BKE_mesh_copy_for_eval(*mesh_eval);
 }
 
 static Mesh *mesh_new_from_mesh(Object *object, const Mesh *mesh)
@@ -816,7 +815,7 @@ static Mesh *mesh_new_from_mesh_object_with_layers(Depsgraph *depsgraph,
     mask.lmask |= CD_MASK_ORIGINDEX;
     mask.pmask |= CD_MASK_ORIGINDEX;
   }
-  Mesh *result = mesh_create_eval_final(depsgraph, scene, &object_for_eval, &mask);
+  Mesh *result = blender::bke::mesh_create_eval_final(depsgraph, scene, &object_for_eval, &mask);
   return BKE_mesh_wrapper_ensure_subdivision(result);
 }
 
@@ -929,27 +928,26 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
     return mesh_in_bmain;
   }
 
-  /* Make sure mesh only points original data-blocks, also increase users of materials and other
-   * possibly referenced data-blocks.
+  /* Make sure mesh only points to original data-blocks. Also increase user count of materials and
+   * other possibly referenced data-blocks.
    *
-   * Going to original data-blocks is required to have bmain in a consistent state, where
+   * Changing to original data-blocks is required to have bmain in a consistent state, where
    * everything is only allowed to reference original data-blocks.
    *
-   * Note that user-count updates has to be done *after* mesh has been transferred to Main database
-   * (since doing reference-counting on non-Main IDs is forbidden). */
+   * Note that user-count updates have to be done *after* the mesh has been transferred to Main
+   * database (since doing reference-counting on non-Main IDs is forbidden). */
   BKE_library_foreach_ID_link(
       nullptr, &mesh->id, foreach_libblock_make_original_callback, nullptr, IDWALK_NOP);
 
-  /* Append the mesh to 'bmain'.
-   * We do it a bit longer way since there is no simple and clear way of adding existing data-block
-   * to the 'bmain'. So we allocate new empty mesh in the 'bmain' (which guarantees all the naming
-   * and orders and flags) and move the temporary mesh in place there. */
+  /* Add the mesh to 'bmain'. We do it in a bit longer way since there is no simple and clear way
+   * of adding existing data-blocks to the 'bmain'. So we create new empty mesh (which guarantees
+   * all the naming and order and flags) and move the temporary mesh in place there. */
   Mesh *mesh_in_bmain = BKE_mesh_add(bmain, mesh->id.name + 2);
 
-  /* NOTE: BKE_mesh_nomain_to_mesh() does not copy materials and instead it preserves them in the
+  /* NOTE: BKE_mesh_nomain_to_mesh() does not copy materials and instead preserves them in the
    * destination mesh. So we "steal" materials before calling it.
    *
-   * TODO(sergey): We really better have a function which gets and ID and accepts it for the bmain.
+   * TODO(sergey): We really ought to have a function which gets an ID and accepts it into #Main.
    */
   mesh_in_bmain->mat = mesh->mat;
   mesh_in_bmain->totcol = mesh->totcol;

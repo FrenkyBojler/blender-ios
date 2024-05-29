@@ -92,16 +92,16 @@ static void texture_copy_data(Main *bmain,
     }
 
     if (is_localized) {
-      texture_dst->nodetree = ntreeLocalize(texture_src->nodetree);
+      texture_dst->nodetree = blender::bke::ntreeLocalize(texture_src->nodetree, &texture_dst->id);
     }
     else {
       BKE_id_copy_in_lib(bmain,
                          owner_library,
-                         (ID *)texture_src->nodetree,
-                         (ID **)&texture_dst->nodetree,
+                         &texture_src->nodetree->id,
+                         &texture_dst->id,
+                         reinterpret_cast<ID **>(&texture_dst->nodetree),
                          flag_private_id_data);
     }
-    texture_dst->nodetree->owner_id = &texture_dst->id;
   }
 
   BLI_listbase_clear((ListBase *)&texture_dst->drawdata);
@@ -122,7 +122,7 @@ static void texture_free_data(ID *id)
 
   /* is no lib link block, but texture extension */
   if (texture->nodetree) {
-    ntreeFreeEmbeddedTree(texture->nodetree);
+    blender::bke::ntreeFreeEmbeddedTree(texture->nodetree);
     MEM_freeN(texture->nodetree);
     texture->nodetree = nullptr;
   }
@@ -172,7 +172,7 @@ static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_addr
                                 bNodeTree,
                                 tex->nodetree,
                                 BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
-    ntreeBlendWrite(
+    blender::bke::ntreeBlendWrite(
         writer,
         reinterpret_cast<bNodeTree *>(BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer)));
     BLO_write_destroy_id_buffer(&temp_embedded_id_buffer);
@@ -185,9 +185,9 @@ static void texture_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Tex *tex = (Tex *)id;
 
-  BLO_read_data_address(reader, &tex->coba);
+  BLO_read_struct(reader, ColorBand, &tex->coba);
 
-  BLO_read_data_address(reader, &tex->preview);
+  BLO_read_struct(reader, PreviewImage, &tex->preview);
   BKE_previewimg_blend_read(reader, tex->preview);
 
   tex->iuser.scene = nullptr;

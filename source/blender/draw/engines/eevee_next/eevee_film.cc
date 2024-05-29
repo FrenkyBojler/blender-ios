@@ -458,6 +458,9 @@ void Film::sync()
   accumulate_ps_.specialize_constant(sh, "samples_len", &data_.samples_len);
   accumulate_ps_.specialize_constant(sh, "use_reprojection", &use_reprojection_);
   accumulate_ps_.specialize_constant(sh, "scaling_factor", data_.scaling_factor);
+  accumulate_ps_.specialize_constant(sh, "combined_id", &data_.combined_id);
+  accumulate_ps_.specialize_constant(sh, "display_id", &data_.display_id);
+  accumulate_ps_.specialize_constant(sh, "normal_id", &data_.normal_id);
   accumulate_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
   accumulate_ps_.shader_set(sh);
   accumulate_ps_.bind_resources(inst_.uniform_data);
@@ -503,6 +506,7 @@ void Film::sync()
     cryptomatte_post_ps_.push_constant("cryptomatte_samples_per_layer",
                                        inst_.view_layer->cryptomatte_levels);
     int2 dispatch_size = math::divide_ceil(int2(cryptomatte_tx_.size()), int2(FILM_GROUP_SIZE));
+    cryptomatte_post_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
     cryptomatte_post_ps_.dispatch(int3(UNPACK2(dispatch_size), 1));
   }
 }

@@ -41,7 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Is Valid")
       .dependent_field({2, 3})
       .description(
-          "Whether the sampling was successfull. It can fail when the sampled group is empty");
+          "Whether the sampling was successful. It can fail when the sampled group is empty");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -123,7 +123,7 @@ class ProximityFunction : public mf::MultiFunction {
 
     /* Construct BVH tree for each group. */
     bvh_trees_.resize(groups_num);
-    threading::parallel_for_weighted(
+    threading::parallel_for(
         IndexRange(groups_num),
         512,
         [&](const IndexRange range) {
@@ -136,7 +136,8 @@ class ProximityFunction : public mf::MultiFunction {
             BKE_bvhtree_from_pointcloud_get(pointcloud, group_mask, bvh);
           }
         },
-        [&](const int group_i) { return group_masks[group_i].size(); });
+        threading::individual_task_sizes(
+            [&](const int group_i) { return group_masks[group_i].size(); }, pointcloud.totpoint));
   }
 
   void init_for_mesh(const Mesh &mesh, const Field<int> &group_id_field)
@@ -156,7 +157,7 @@ class ProximityFunction : public mf::MultiFunction {
 
     /* Construct BVH tree for each group. */
     bvh_trees_.resize(groups_num);
-    threading::parallel_for_weighted(
+    threading::parallel_for(
         IndexRange(groups_num),
         512,
         [&](const IndexRange range) {
@@ -182,7 +183,8 @@ class ProximityFunction : public mf::MultiFunction {
             }
           }
         },
-        [&](const int group_i) { return group_masks[group_i].size(); });
+        threading::individual_task_sizes(
+            [&](const int group_i) { return group_masks[group_i].size(); }, domain_size));
   }
 
   bke::AttrDomain get_domain_on_mesh() const
@@ -318,16 +320,16 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_PROXIMITY, "Geometry Proximity", NODE_CLASS_GEOMETRY);
   ntype.initfunc = geo_proximity_init;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeGeometryProximity", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -65,9 +65,7 @@ Fence *MTLBackend::fence_alloc()
 
 FrameBuffer *MTLBackend::framebuffer_alloc(const char *name)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(
-      reinterpret_cast<Context *>(GPU_context_active_get()));
-  return new MTLFrameBuffer(mtl_context, name);
+  return new MTLFrameBuffer(MTLContext::get(), name);
 };
 
 IndexBuf *MTLBackend::indexbuf_alloc()
@@ -87,8 +85,7 @@ QueryPool *MTLBackend::querypool_alloc()
 
 Shader *MTLBackend::shader_alloc(const char *name)
 {
-  MTLContext *mtl_context = MTLContext::get();
-  return new MTLShader(mtl_context, name);
+  return new MTLShader(MTLContext::get(), name);
 };
 
 Texture *MTLBackend::texture_alloc(const char *name)
@@ -427,7 +424,6 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
 
   /* Feature support */
   GCaps.mem_stats_support = false;
-  GCaps.compute_shader_support = true;
   GCaps.shader_draw_parameters_support = true;
   GCaps.hdr_viewport_support = true;
 
@@ -438,21 +434,18 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.max_shader_storage_buffer_bindings = 14;
   GCaps.max_storage_buffer_size = size_t(ctx->device.maxBufferLength);
 
-  if (GCaps.compute_shader_support) {
-    GCaps.max_work_group_count[0] = 65535;
-    GCaps.max_work_group_count[1] = 65535;
-    GCaps.max_work_group_count[2] = 65535;
-
-    /* In Metal, total_thread_count is 512 or 1024, such that
-     * threadgroup `width*height*depth <= total_thread_count` */
-    uint max_threads_per_threadgroup_per_dim = ([device supportsFamily:MTLGPUFamilyApple4] ||
-                                                MTLBackend::capabilities.supports_family_mac1) ?
-                                                   1024 :
-                                                   512;
-    GCaps.max_work_group_size[0] = max_threads_per_threadgroup_per_dim;
-    GCaps.max_work_group_size[1] = max_threads_per_threadgroup_per_dim;
-    GCaps.max_work_group_size[2] = max_threads_per_threadgroup_per_dim;
-  }
+  GCaps.max_work_group_count[0] = 65535;
+  GCaps.max_work_group_count[1] = 65535;
+  GCaps.max_work_group_count[2] = 65535;
+  /* In Metal, total_thread_count is 512 or 1024, such that
+   * threadgroup `width*height*depth <= total_thread_count` */
+  uint max_threads_per_threadgroup_per_dim = ([device supportsFamily:MTLGPUFamilyApple4] ||
+                                              MTLBackend::capabilities.supports_family_mac1) ?
+                                                 1024 :
+                                                 512;
+  GCaps.max_work_group_size[0] = max_threads_per_threadgroup_per_dim;
+  GCaps.max_work_group_size[1] = max_threads_per_threadgroup_per_dim;
+  GCaps.max_work_group_size[2] = max_threads_per_threadgroup_per_dim;
 
   GCaps.transform_feedback_support = true;
   GCaps.stencil_export_support = true;

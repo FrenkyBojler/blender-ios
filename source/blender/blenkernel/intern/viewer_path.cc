@@ -102,9 +102,9 @@ void BKE_viewer_path_blend_write(BlendWriter *writer, const ViewerPath *viewer_p
 
 void BKE_viewer_path_blend_read_data(BlendDataReader *reader, ViewerPath *viewer_path)
 {
-  BLO_read_list(reader, &viewer_path->path);
+  BLO_read_struct_list(reader, ViewerPathElem, &viewer_path->path);
   LISTBASE_FOREACH (ViewerPathElem *, elem, &viewer_path->path) {
-    BLO_read_data_address(reader, &elem->ui_name);
+    BLO_read_string(reader, &elem->ui_name);
     switch (ViewerPathElemType(elem->type)) {
       case VIEWER_PATH_ELEM_TYPE_GROUP_NODE:
       case VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE:
@@ -115,7 +115,7 @@ void BKE_viewer_path_blend_read_data(BlendDataReader *reader, ViewerPath *viewer
       }
       case VIEWER_PATH_ELEM_TYPE_MODIFIER: {
         auto *typed_elem = reinterpret_cast<ModifierViewerPathElem *>(elem);
-        BLO_read_data_address(reader, &typed_elem->modifier_name);
+        BLO_read_string(reader, &typed_elem->modifier_name);
         break;
       }
     }
@@ -128,7 +128,7 @@ void BKE_viewer_path_foreach_id(LibraryForeachIDData *data, ViewerPath *viewer_p
     switch (ViewerPathElemType(elem->type)) {
       case VIEWER_PATH_ELEM_TYPE_ID: {
         auto *typed_elem = reinterpret_cast<IDViewerPathElem *>(elem);
-        BKE_LIB_FOREACHID_PROCESS_ID(data, typed_elem->id, IDWALK_CB_NOP);
+        BKE_LIB_FOREACHID_PROCESS_ID(data, typed_elem->id, IDWALK_CB_DIRECT_WEAK_LINK);
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_MODIFIER:

@@ -242,7 +242,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   Object *surface_ob_orig = DEG_get_original_object(surface_ob_eval);
   Mesh &surface_object_data = *static_cast<Mesh *>(surface_ob_orig->data);
 
-  if (BMEditMesh *em = surface_object_data.runtime->edit_mesh) {
+  if (BMEditMesh *em = surface_object_data.runtime->edit_mesh.get()) {
     surface_mesh_orig = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, nullptr, &surface_object_data);
     free_suface_mesh_orig = true;
   }
@@ -393,13 +393,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_DEFORM_CURVES_ON_SURFACE, "Deform Curves on Surface", NODE_CLASS_GEOMETRY);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_type_size(&ntype, 170, 120, 700);
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

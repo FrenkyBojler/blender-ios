@@ -139,7 +139,6 @@ struct TreeElementIcon {
         ID_GR, \
         ID_AR, \
         ID_AC, \
-        ID_AN, \
         ID_BR, \
         ID_PA, \
         ID_GD_LEGACY, \
@@ -203,8 +202,7 @@ enum eOLSetState {
 /* size constants */
 #define OL_Y_OFFSET 2
 
-#define OL_TOG_USER_BUTS_USERS (UI_UNIT_X * 2.0f + V2D_SCROLL_WIDTH)
-#define OL_TOG_USER_BUTS_STATUS (UI_UNIT_X + V2D_SCROLL_WIDTH)
+#define OL_TOG_USER_BUTS_USERS (UI_UNIT_X * 1.2f + V2D_SCROLL_WIDTH)
 
 #define OL_RNA_COLX (UI_UNIT_X * 15)
 #define OL_RNA_COL_SIZEX (UI_UNIT_X * 7.5f)
@@ -498,6 +496,8 @@ void OUTLINER_OT_select_walk(wmOperatorType *ot);
 
 void OUTLINER_OT_select_all(wmOperatorType *ot);
 void OUTLINER_OT_expanded_toggle(wmOperatorType *ot);
+void OUTLINER_OT_start_filter(wmOperatorType *ot);
+void OUTLINER_OT_clear_filter(wmOperatorType *ot);
 
 void OUTLINER_OT_scroll_page(wmOperatorType *ot);
 

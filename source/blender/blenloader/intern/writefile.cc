@@ -100,6 +100,7 @@
 
 #include "MEM_guardedalloc.h" /* MEM_freeN */
 
+#include "BKE_asset.hh"
 #include "BKE_blender_version.h"
 #include "BKE_bpath.hh"
 #include "BKE_global.hh" /* For #Global `G`. */
@@ -113,8 +114,9 @@
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
 #include "BKE_packedFile.h"
+#include "BKE_preferences.h"
 #include "BKE_report.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "BLO_blend_defs.hh"
 #include "BLO_blend_validate.hh"
@@ -617,13 +619,13 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
 
     /* If current next memchunk does not match the ID we are about to write, or is not the _first_
      * one for said ID, try to find the correct memchunk in the mapping using ID's session_uid. */
-    MemFileChunk *curr_memchunk = wd->mem.reference_current_chunk;
-    MemFileChunk *prev_memchunk = curr_memchunk != nullptr ?
-                                      static_cast<MemFileChunk *>(curr_memchunk->prev) :
-                                      nullptr;
-    if ((curr_memchunk == nullptr || curr_memchunk->id_session_uid != id->session_uid ||
-         (prev_memchunk != nullptr &&
-          (prev_memchunk->id_session_uid == curr_memchunk->id_session_uid))))
+    const MemFileChunk *curr_memchunk = wd->mem.reference_current_chunk;
+    const MemFileChunk *prev_memchunk = curr_memchunk != nullptr ?
+                                            static_cast<MemFileChunk *>(curr_memchunk->prev) :
+                                            nullptr;
+    if (curr_memchunk == nullptr || curr_memchunk->id_session_uid != id->session_uid ||
+        (prev_memchunk != nullptr &&
+         (prev_memchunk->id_session_uid == curr_memchunk->id_session_uid)))
     {
       if (MemFileChunk *ref = wd->mem.id_session_uid_mapping.lookup_default(id->session_uid,
                                                                             nullptr))
@@ -933,6 +935,13 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
 
   LISTBASE_FOREACH (const bUserExtensionRepo *, repo_ref, &userdef->extension_repos) {
     BLO_write_struct(writer, bUserExtensionRepo, repo_ref);
+    BKE_preferences_extension_repo_write_data(writer, repo_ref);
+  }
+  LISTBASE_FOREACH (
+      const bUserAssetShelfSettings *, shelf_settings, &userdef->asset_shelves_settings)
+  {
+    BLO_write_struct(writer, bUserAssetShelfSettings, shelf_settings);
+    BKE_asset_catalog_path_list_blend_write(writer, shelf_settings->enabled_catalog_paths);
   }
 
   LISTBASE_FOREACH (const uiStyle *, style, &userdef->uistyles) {
@@ -1008,7 +1017,7 @@ static void write_libraries(WriteData *wd, Main *main)
                          "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
                          "directly linked",
                          id->name,
-                         main->curlib->filepath_abs);
+                         main->curlib->runtime.filepath_abs);
             }
             writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
           }
@@ -1185,6 +1194,14 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
     return IDWALK_RET_NOP;
   }
 
+  if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
+    /* Usages of unlinkable IDs (aka ShapeKeys and some UI IDs) should never cause them to be
+     * considered as directly linked. This can often happen e.g. from UI data (the Outliner will
+     * have links to most IDs).
+     */
+    return IDWALK_RET_NOP;
+  }
+
   if (cb_flag & IDWALK_CB_DIRECT_WEAK_LINK) {
     id_lib_indirect_weak_link(id);
   }
@@ -1302,10 +1319,11 @@ static bool write_file_handle(Main *mainvar,
 
         /* We only write unused IDs in undo case. */
         if (!wd->use_memfile) {
-          /* NOTE: All Scenes, WindowManagers and WorkSpaces should always be written to disk, so
-           * their user-count should never be zero currently. */
+          /* NOTE: All 'never unused' local IDs (Scenes, WindowManagers, ...) should always be
+           * written to disk, so their user-count should never be zero currently. Note that
+           * libraries have already been skipped above, as they need a specific handling. */
           if (id->us == 0) {
-            BLI_assert(!ELEM(GS(id->name), ID_SCE, ID_WM, ID_WS));
+            BLI_assert((id_type->flags & IDTYPE_FLAGS_NEVER_UNUSED) == 0);
             continue;
           }
 
@@ -1338,8 +1356,11 @@ static bool write_file_handle(Main *mainvar,
 
         /* If not writing undo data, properly set directly linked IDs as `LIB_TAG_EXTERN`. */
         if (!wd->use_memfile) {
-          BKE_library_foreach_ID_link(
-              bmain, id, write_id_direct_linked_data_process_cb, nullptr, IDWALK_READONLY);
+          BKE_library_foreach_ID_link(bmain,
+                                      id,
+                                      write_id_direct_linked_data_process_cb,
+                                      nullptr,
+                                      IDWALK_READONLY | IDWALK_INCLUDE_UI);
         }
 
         if (do_override) {
@@ -1783,9 +1804,19 @@ int BLO_get_struct_id_by_name(BlendWriter *writer, const char *struct_name)
   return struct_id;
 }
 
+void BLO_write_char_array(BlendWriter *writer, uint num, const char *data_ptr)
+{
+  BLO_write_raw(writer, sizeof(char) * size_t(num), data_ptr);
+}
+
 void BLO_write_int8_array(BlendWriter *writer, uint num, const int8_t *data_ptr)
 {
   BLO_write_raw(writer, sizeof(int8_t) * size_t(num), data_ptr);
+}
+
+void BLO_write_uint8_array(BlendWriter *writer, uint num, const uint8_t *data_ptr)
+{
+  BLO_write_raw(writer, sizeof(uint8_t) * size_t(num), data_ptr);
 }
 
 void BLO_write_int32_array(BlendWriter *writer, uint num, const int32_t *data_ptr)

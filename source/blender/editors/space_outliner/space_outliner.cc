@@ -472,6 +472,8 @@ static void outliner_foreach_id(SpaceLink *space_link, LibraryForeachIDData *dat
   while (TreeStoreElem *tselem = static_cast<TreeStoreElem *>(BLI_mempool_iterstep(&iter))) {
     /* Do not try to restore non-ID pointers (drivers/sequence/etc.). */
     if (TSE_IS_REAL_ID(tselem)) {
+      /* NOTE: Outliner ID pointers are never `IDWALK_CB_DIRECT_WEAK_LINK`, they should never
+       * enforce keeping a reference to some linked data. */
       const int cb_flag = (tselem->id != nullptr && allow_pointer_access &&
                            (tselem->id->flag & LIB_EMBEDDED_DATA) != 0) ?
                               IDWALK_CB_EMBEDDED_NOT_OWNING :
@@ -505,11 +507,11 @@ static void outliner_space_blend_read_data(BlendDataReader *reader, SpaceLink *s
    * bug fixed in revision 58959 where the treestore memory address
    * was not unique */
   TreeStore *ts = static_cast<TreeStore *>(
-      BLO_read_get_new_data_address_no_us(reader, space_outliner->treestore));
+      BLO_read_get_new_data_address_no_us(reader, space_outliner->treestore, sizeof(TreeStore)));
   space_outliner->treestore = nullptr;
   if (ts) {
-    TreeStoreElem *elems = static_cast<TreeStoreElem *>(
-        BLO_read_get_new_data_address_no_us(reader, ts->data));
+    TreeStoreElem *elems = static_cast<TreeStoreElem *>(BLO_read_get_new_data_address_no_us(
+        reader, ts->data, sizeof(TreeStoreElem) * ts->usedelem));
 
     space_outliner->treestore = BLI_mempool_create(
         sizeof(TreeStoreElem), ts->usedelem, 512, BLI_MEMPOOL_ALLOW_ITER);

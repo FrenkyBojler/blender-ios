@@ -287,8 +287,11 @@ static void print_ps(PlayState *ps)
 static void playanim_window_get_size(GHOST_WindowHandle ghost_window, int *r_width, int *r_height)
 {
   GHOST_RectangleHandle bounds = GHOST_GetClientBounds(ghost_window);
-  *r_width = GHOST_GetWidthRectangle(bounds);
-  *r_height = GHOST_GetHeightRectangle(bounds);
+  float native_pixel_size = GHOST_GetNativePixelSize(ghost_window);
+
+  *r_width = GHOST_GetWidthRectangle(bounds) * native_pixel_size;
+  *r_height = GHOST_GetHeightRectangle(bounds) * native_pixel_size;
+
   GHOST_DisposeRectangle(bounds);
 }
 
@@ -604,13 +607,11 @@ static void draw_display_buffer(const PlayDisplayContext *display_ctx,
 
   rctf preview;
   BLI_rctf_init(&preview, 0.0f, 1.0f, 0.0f, 1.0f);
-  if (draw_flip) {
-    if (draw_flip[0]) {
-      std::swap(preview.xmin, preview.xmax);
-    }
-    if (draw_flip[1]) {
-      std::swap(preview.ymin, preview.ymax);
-    }
+  if (draw_flip[0]) {
+    std::swap(preview.xmin, preview.xmax);
+  }
+  if (draw_flip[1]) {
+    std::swap(preview.ymin, preview.ymax);
   }
 
   immAttr2f(texCoord, preview.xmin, preview.ymin);
@@ -788,7 +789,7 @@ static void playanim_toscreen_on_load(GhostData *ghost_data,
   const int frame_step = -1;
   const float zoom = 1.0f;
   const float frame_indicator_factor = -1.0f;
-  const bool *draw_flip = nullptr;
+  const bool draw_flip[2] = {false, false};
 
   playanim_toscreen_ex(ghost_data,
                        display_ctx,
@@ -1848,6 +1849,8 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
     }
 
     GHOST_AddEventConsumer(ps.ghost_data.system, ghost_event_consumer);
+
+    GHOST_UseNativePixels();
 
     ps.ghost_data.window = playanim_window_open(ps.ghost_data.system,
                                                 "Blender Animation Player",

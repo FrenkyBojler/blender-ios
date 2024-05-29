@@ -22,6 +22,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_span.hh"
@@ -97,7 +98,7 @@ static void armature_init_data(ID *id)
  * Copies the bone collection in `bcoll_src` to `bcoll_dst`, re-hooking up all
  * of the bone relationships to the bones in `armature_dst`.
  *
- * Note: this function's use case is narrow in scope, intended only for use in
+ * \note this function's use case is narrow in scope, intended only for use in
  * `armature_copy_data()` below.  You probably don't want to use this otherwise.
  *
  * \param lib_id_flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
@@ -359,16 +360,16 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
 
 static void direct_link_bones(BlendDataReader *reader, Bone *bone)
 {
-  BLO_read_data_address(reader, &bone->parent);
-  BLO_read_data_address(reader, &bone->prop);
+  BLO_read_struct(reader, Bone, &bone->parent);
+  BLO_read_struct(reader, IDProperty, &bone->prop);
   IDP_BlendDataRead(reader, &bone->prop);
 
-  BLO_read_data_address(reader, &bone->bbone_next);
-  BLO_read_data_address(reader, &bone->bbone_prev);
+  BLO_read_struct(reader, Bone, &bone->bbone_next);
+  BLO_read_struct(reader, Bone, &bone->bbone_prev);
 
   bone->flag &= ~(BONE_DRAW_ACTIVE | BONE_DRAW_LOCKED_WEIGHT);
 
-  BLO_read_list(reader, &bone->childbase);
+  BLO_read_struct_list(reader, Bone, &bone->childbase);
 
   LISTBASE_FOREACH (Bone *, child, &bone->childbase) {
     direct_link_bones(reader, child);
@@ -379,19 +380,19 @@ static void direct_link_bones(BlendDataReader *reader, Bone *bone)
 
 static void direct_link_bone_collection(BlendDataReader *reader, BoneCollection *bcoll)
 {
-  BLO_read_data_address(reader, &bcoll->prop);
+  BLO_read_struct(reader, IDProperty, &bcoll->prop);
   IDP_BlendDataRead(reader, &bcoll->prop);
 
-  BLO_read_list(reader, &bcoll->bones);
+  BLO_read_struct_list(reader, BoneCollectionMember, &bcoll->bones);
   LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
-    BLO_read_data_address(reader, &member->bone);
+    BLO_read_struct(reader, Bone, &member->bone);
   }
 }
 
 static void read_bone_collections(BlendDataReader *reader, bArmature *arm)
 {
   /* Read as listbase, but convert to an array on the armature. */
-  BLO_read_list(reader, &arm->collections_legacy);
+  BLO_read_struct_list(reader, BoneCollection, &arm->collections_legacy);
   arm->collection_array_num = BLI_listbase_count(&arm->collections_legacy);
   arm->collection_array = (BoneCollection **)MEM_malloc_arrayN(
       arm->collection_array_num, sizeof(BoneCollection *), __func__);
@@ -444,7 +445,7 @@ static void read_bone_collections(BlendDataReader *reader, bArmature *arm)
 static void armature_blend_read_data(BlendDataReader *reader, ID *id)
 {
   bArmature *arm = (bArmature *)id;
-  BLO_read_list(reader, &arm->bonebase);
+  BLO_read_struct_list(reader, Bone, &arm->bonebase);
   arm->bonehash = nullptr;
   arm->edbo = nullptr;
   /* Must always be cleared (armatures don't have their own edit-data). */
@@ -456,7 +457,7 @@ static void armature_blend_read_data(BlendDataReader *reader, ID *id)
 
   read_bone_collections(reader, arm);
 
-  BLO_read_data_address(reader, &arm->act_bone);
+  BLO_read_struct(reader, Bone, &arm->act_bone);
   arm->act_edbone = nullptr;
 
   BKE_armature_bone_hash_make(arm);
@@ -3020,21 +3021,20 @@ void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
 /** \name Calculate Bounding Box (Armature & Pose)
  * \{ */
 
-std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const bPose *pose)
+std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const Object *ob)
 {
-  if (BLI_listbase_is_empty(&pose->chanbase)) {
+  std::optional<blender::Bounds<blender::float3>> bounds_world = BKE_pose_minmax(ob, false);
+
+  if (!bounds_world) {
     return std::nullopt;
   }
-  blender::float3 min(std::numeric_limits<float>::max());
-  blender::float3 max(std::numeric_limits<float>::lowest());
-  /* For now, we assume BKE_pose_where_is has already been called
-   * (hence we have valid data in pachan). */
-  LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
-    minmax_v3v3_v3(min, max, pchan->pose_head);
-    minmax_v3v3_v3(min, max, pchan->pose_tail);
-  }
 
-  return blender::Bounds<blender::float3>{min, max};
+  /* NOTE: this is not correct (after rotation the AABB may not be the smallest enclosing AABB any
+   * more), but acceptable because this is called via BKE_object_boundbox_get(), which is called by
+   * BKE_object_minmax(), which does the opposite transform. */
+  return blender::Bounds<blender::float3>{
+      math::transform_point(ob->world_to_object(), bounds_world->min),
+      math::transform_point(ob->world_to_object(), bounds_world->max)};
 }
 
 void BKE_pchan_minmax(const Object *ob,
@@ -3085,27 +3085,42 @@ void BKE_pchan_minmax(const Object *ob,
   }
 }
 
-bool BKE_pose_minmax(Object *ob, float r_min[3], float r_max[3], bool use_hidden, bool use_select)
+std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob,
+                                                                const bool use_select)
 {
-  bool changed = false;
-
-  if (ob->pose) {
-    bArmature *arm = static_cast<bArmature *>(ob->data);
-
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-      /* XXX pchan->bone may be nullptr for duplicated bones, see duplicateEditBoneObjects()
-       * comment (editarmature.c:2592)... Skip in this case too! */
-      if (pchan->bone && (!((use_hidden == false) && (PBONE_VISIBLE(arm, pchan->bone) == false)) &&
-                          !((use_select == true) && ((pchan->bone->flag & BONE_SELECTED) == 0))))
-      {
-
-        BKE_pchan_minmax(ob, pchan, false, r_min, r_max);
-        changed = true;
-      }
-    }
+  if (!ob->pose) {
+    return std::nullopt;
   }
 
-  return changed;
+  blender::float3 min(std::numeric_limits<float>::max());
+  blender::float3 max(std::numeric_limits<float>::lowest());
+
+  BLI_assert(ob->type == OB_ARMATURE);
+  const bArmature *arm = static_cast<const bArmature *>(ob->data);
+
+  bool found_pchan = false;
+  LISTBASE_FOREACH (const bPoseChannel *, pchan, &ob->pose->chanbase) {
+    /* XXX pchan->bone may be nullptr for duplicated bones, see duplicateEditBoneObjects()
+     * comment (editarmature.c:2592)... Skip in this case too! */
+    if (!pchan->bone) {
+      continue;
+    }
+    if (!PBONE_VISIBLE(arm, pchan->bone)) {
+      continue;
+    }
+    if (use_select && !(pchan->bone->flag & BONE_SELECTED)) {
+      continue;
+    }
+
+    BKE_pchan_minmax(ob, pchan, false, &min[0], &max[0]);
+    found_pchan = true;
+  }
+
+  if (!found_pchan) {
+    return std::nullopt;
+  }
+
+  return blender::Bounds<blender::float3>(min, max);
 }
 
 /** \} */

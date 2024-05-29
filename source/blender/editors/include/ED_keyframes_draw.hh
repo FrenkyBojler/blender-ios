@@ -10,6 +10,10 @@
 
 #include "BLI_sys_types.h"
 
+#include "DNA_curve_types.h"
+
+#include "ED_keyframes_keylist.hh"
+
 struct AnimData;
 struct ChannelDrawList;
 struct FCurve;
@@ -44,8 +48,8 @@ void draw_keyframe_shape(float x,
                          float y,
                          float size,
                          bool sel,
-                         short key_type,
-                         short mode,
+                         eBezTriple_KeyframeType key_type,
+                         eKeyframeShapeDrawOpts mode,
                          float alpha,
                          const KeyframeShaderBindings *sh_bindings,
                          short handle_type,
@@ -68,7 +72,14 @@ void ED_add_action_group_channel(ChannelDrawList *draw_list,
                                  float ypos,
                                  float yscale_fac,
                                  int saction_flag);
-/* Action Summary */
+/* Layered Action Summary.*/
+void ED_add_action_layered_channel(ChannelDrawList *channel_list,
+                                   AnimData *adt,
+                                   bAction *action,
+                                   const float ypos,
+                                   const float yscale_fac,
+                                   int saction_flag);
+/* Legacy Action Summary */
 void ED_add_action_channel(ChannelDrawList *draw_list,
                            AnimData *adt,
                            bAction *act,

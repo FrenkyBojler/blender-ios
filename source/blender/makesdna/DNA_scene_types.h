@@ -791,8 +791,6 @@ typedef struct RenderData {
   float simplify_particles;
   float simplify_particles_render;
   float simplify_volumes;
-  float simplify_shadows;
-  float simplify_shadows_render;
 
   /** Freestyle line thickness options. */
   int line_thickness_mode;
@@ -827,6 +825,12 @@ typedef struct RenderData {
   float motion_blur_shutter;
   int motion_blur_position;
   struct CurveMapping mblur_shutter_curve;
+
+  /** Device to use for compositor engine. */
+  int compositor_device; /* eCompositorDevice */
+
+  /** Precision used by the GPU execution of the compositor tree. */
+  int compositor_precision; /* eCompositorPrecision */
 } RenderData;
 
 /** #RenderData::quality_flag */
@@ -847,39 +851,29 @@ enum {
   SCE_MB_END = 2,
 };
 
+/** #RenderData::compositor_device */
+typedef enum eCompositorDevice {
+  SCE_COMPOSITOR_DEVICE_CPU = 0,
+  SCE_COMPOSITOR_DEVICE_GPU = 1,
+} eCompositorDevice;
+
+/** #RenderData::compositor_precision */
+typedef enum eCompositorPrecision {
+  SCE_COMPOSITOR_PRECISION_AUTO = 0,
+  SCE_COMPOSITOR_PRECISION_FULL = 1,
+} eCompositorPrecision;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Render Conversion/Simplification Settings
  * \{ */
 
-/** Control render convert and shading engine. */
-typedef struct RenderProfile {
-  struct RenderProfile *next, *prev;
-  char name[32];
-
-  short particle_perc;
-  short subsurf_max;
-  short shadbufsample_max;
-  char _pad1[2];
-
-  float ao_error;
-  char _pad2[4];
-
-} RenderProfile;
-
 /* UV Paint. */
 /** #ToolSettings::uv_sculpt_settings */
 enum {
   UV_SCULPT_LOCK_BORDERS = 1,
   UV_SCULPT_ALL_ISLANDS = 2,
-};
-
-/** #ToolSettings::uv_relax_method */
-enum {
-  UV_SCULPT_TOOL_RELAX_LAPLACIAN = 1,
-  UV_SCULPT_TOOL_RELAX_HC = 2,
-  UV_SCULPT_TOOL_RELAX_COTAN = 3,
 };
 
 /* Stereo Flags. */
@@ -1115,7 +1109,11 @@ typedef struct CurvesSculpt {
 } CurvesSculpt;
 
 typedef struct UvSculpt {
-  Paint paint;
+  struct CurveMapping *strength_curve;
+  int size;
+  float strength;
+  int8_t curve_preset; /* #eBrushCurvePreset. */
+  char _pad[7];
 } UvSculpt;
 
 /** Grease pencil drawing brushes. */
@@ -1434,6 +1432,7 @@ enum {
   CURVE_PAINT_FLAG_PRESSURE_RADIUS = (1 << 1),
   CURVE_PAINT_FLAG_DEPTH_STROKE_ENDPOINTS = (1 << 2),
   CURVE_PAINT_FLAG_DEPTH_STROKE_OFFSET_ABS = (1 << 3),
+  CURVE_PAINT_FLAG_DEPTH_ONLY_SELECTED = (1 << 4),
 };
 
 /** #CurvePaintSettings::fit_method */
@@ -1528,7 +1527,7 @@ typedef struct ToolSettings {
   VPaint *wpaint;
   Sculpt *sculpt;
   /** UV smooth. */
-  UvSculpt *uvsculpt;
+  UvSculpt uvsculpt;
   /** Gpencil paint. */
   GpPaint *gp_paint;
   /** Gpencil vertex paint. */
@@ -1680,9 +1679,10 @@ typedef struct ToolSettings {
 
   /* UV painting. */
   char uv_sculpt_settings;
-  char uv_relax_method;
 
   char workspace_tool_type;
+
+  char _pad5[1];
 
   /**
    * XXX: these `sculpt_paint_*` fields are deprecated, use the
@@ -1815,17 +1815,13 @@ typedef struct RaytraceEEVEE {
   /** Thickness in world space each surface will have during screen space tracing. */
   float screen_trace_thickness;
   /** Maximum roughness before using horizon scan. */
-  float screen_trace_max_roughness;
+  float trace_max_roughness;
   /** Resolution downscale factor. */
   int resolution_scale;
-  /** Maximum intensity a ray can have. */
-  float sample_clamp;
   /** #RaytraceEEVEE_Flag. */
   int flag;
   /** #RaytraceEEVEE_DenoiseStages. */
   int denoise_stages;
-
-  char _pad0[4];
 } RaytraceEEVEE;
 
 typedef struct SceneEEVEE {
@@ -1868,6 +1864,14 @@ typedef struct SceneEEVEE {
   float gtao_focus;
   int gtao_resolution;
 
+  int fast_gi_step_count;
+  int fast_gi_ray_count;
+  float fast_gi_distance;
+  float fast_gi_thickness_near;
+  float fast_gi_thickness_far;
+  char fast_gi_method;
+  char _pad0[3];
+
   float bokeh_overblur;
   float bokeh_max_size;
   float bokeh_threshold;
@@ -1894,7 +1898,12 @@ typedef struct SceneEEVEE {
   int shadow_pool_size;
   int shadow_ray_count;
   int shadow_step_count;
-  float shadow_normal_bias;
+  float shadow_resolution_scale;
+
+  float clamp_surface_direct;
+  float clamp_surface_indirect;
+  float clamp_volume_direct;
+  float clamp_volume_indirect;
 
   int ray_tracing_method;
 
@@ -2290,7 +2299,7 @@ extern const char *RE_engine_id_CYCLES;
    (((base)->flag & BASE_SELECTABLE) != 0))
 #define BASE_SELECTED(v3d, base) (BASE_VISIBLE(v3d, base) && (((base)->flag & BASE_SELECTED) != 0))
 #define BASE_EDITABLE(v3d, base) \
-  (BASE_VISIBLE(v3d, base) && !ID_IS_LINKED((base)->object) && \
+  (BASE_VISIBLE(v3d, base) && ID_IS_EDITABLE((base)->object) && \
    (!ID_IS_OVERRIDE_LIBRARY_REAL((base)->object) || \
     ((base)->object->id.override_library->flag & LIBOVERRIDE_FLAG_SYSTEM_DEFINED) == 0))
 #define BASE_SELECTED_EDITABLE(v3d, base) \
@@ -2431,6 +2440,7 @@ enum {
   SEQ_SNAP_TO_STRIPS = 1 << 0,
   SEQ_SNAP_TO_CURRENT_FRAME = 1 << 1,
   SEQ_SNAP_TO_STRIP_HOLD = 1 << 2,
+  SEQ_SNAP_TO_MARKERS = 1 << 3,
 };
 
 /** #SequencerToolSettings::snap_flag */
@@ -2549,31 +2559,6 @@ typedef enum ePaintFlags {
   PAINT_USE_CAVITY_MASK = (1 << 3),
   PAINT_SCULPT_DELAY_UPDATES = (1 << 4),
 } ePaintFlags;
-
-/**
- * #Paint::symmetry_flags
- * (for now just a duplicate of sculpt symmetry flags).
- */
-typedef enum ePaintSymmetryFlags {
-  PAINT_SYMM_NONE = 0,
-  PAINT_SYMM_X = (1 << 0),
-  PAINT_SYMM_Y = (1 << 1),
-  PAINT_SYMM_Z = (1 << 2),
-  PAINT_SYMMETRY_FEATHER = (1 << 3),
-  PAINT_TILE_X = (1 << 4),
-  PAINT_TILE_Y = (1 << 5),
-  PAINT_TILE_Z = (1 << 6),
-} ePaintSymmetryFlags;
-ENUM_OPERATORS(ePaintSymmetryFlags, PAINT_TILE_Z);
-#define PAINT_SYMM_AXIS_ALL (PAINT_SYMM_X | PAINT_SYMM_Y | PAINT_SYMM_Z)
-
-#ifdef __cplusplus
-inline ePaintSymmetryFlags operator++(ePaintSymmetryFlags &flags, int)
-{
-  flags = ePaintSymmetryFlags(char(flags) + 1);
-  return flags;
-}
-#endif
 
 /**
  * #Sculpt::flags
@@ -2749,6 +2734,9 @@ typedef enum eGPencil_Placement_Flags {
   GP_PROJECT_DEPTH_STROKE_ENDPOINTS = (1 << 4),
   GP_PROJECT_CURSOR = (1 << 5),
   GP_PROJECT_DEPTH_STROKE_FIRST = (1 << 6),
+
+  /** Surface project, "Only project on selected objects". */
+  GP_PROJECT_DEPTH_ONLY_SELECTED = (1 << 7),
 } eGPencil_Placement_Flags;
 
 /** #ToolSettings::gpencil_selectmode */
@@ -2859,6 +2847,7 @@ enum {
   SCE_EEVEE_SHADOW_ENABLED = (1 << 24),
   SCE_EEVEE_RAYTRACE_OPTIONS_SPLIT = (1 << 25),
   SCE_EEVEE_SHADOW_JITTERED_VIEWPORT = (1 << 26),
+  SCE_EEVEE_VOLUME_CUSTOM_RANGE = (1 << 27),
 };
 
 typedef enum RaytraceEEVEE_Flag {
@@ -2872,11 +2861,17 @@ typedef enum RaytraceEEVEE_DenoiseStages {
 } RaytraceEEVEE_DenoiseStages;
 
 typedef enum RaytraceEEVEE_Method {
-  RAYTRACE_EEVEE_METHOD_NONE = 0,
+  /* NOTE: Each method contains the previous one. */
+  RAYTRACE_EEVEE_METHOD_PROBE = 0,
   RAYTRACE_EEVEE_METHOD_SCREEN = 1,
   /* TODO(fclem): Hardware ray-tracing. */
   // RAYTRACE_EEVEE_METHOD_HARDWARE = 2,
 } RaytraceEEVEE_Method;
+
+typedef enum FastGI_Method {
+  FAST_GI_FULL = 0,
+  FAST_GI_AO_ONLY = 1,
+} FastGI_Method;
 
 /** #SceneEEVEE::shadow_method */
 enum {

@@ -724,7 +724,7 @@ static int apply_objects_internal(bContext *C,
         changed = false;
       }
 
-      if (ID_IS_LINKED(obdata) || ID_IS_OVERRIDE_LIBRARY(obdata)) {
+      if (!ID_IS_EDITABLE(obdata) || ID_IS_OVERRIDE_LIBRARY(obdata)) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     R"(Cannot apply to library or override data: Object "%s", %s "%s", aborting)",
@@ -1316,7 +1316,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
   if (obedit) {
     if (obedit->type == OB_MESH) {
       Mesh *mesh = static_cast<Mesh *>(obedit->data);
-      BMEditMesh *em = mesh->runtime->edit_mesh;
+      BMEditMesh *em = mesh->runtime->edit_mesh.get();
       BMVert *eve;
       BMIter iter;
 
@@ -1424,7 +1424,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
         }
       }
     }
-    else if (ID_IS_LINKED(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
+    else if (!ID_IS_EDITABLE(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
       tot_lib_error++;
     }
     else if (ob->type == OB_MESH) {

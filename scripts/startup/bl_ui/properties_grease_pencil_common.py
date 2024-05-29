@@ -70,7 +70,7 @@ class GreasePencilDisplayPanel:
     def poll(cls, context):
         ob = context.active_object
         brush = context.tool_settings.gpencil_paint.brush
-        if ob and ob.type == 'GPENCIL' and brush:
+        if ob and ob.type in {'GPENCIL', 'GREASEPENCIL'} and brush:
             return True
 
         return False
@@ -84,7 +84,7 @@ class GreasePencilDisplayPanel:
             settings = tool_settings.gpencil_paint
         elif context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL':
+        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
             settings = tool_settings.gpencil_weight_paint
         elif context.mode == 'VERTEX_GPENCIL':
             settings = tool_settings.gpencil_vertex_paint
@@ -102,7 +102,7 @@ class GreasePencilDisplayPanel:
             settings = tool_settings.gpencil_paint
         elif context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL':
+        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
             settings = tool_settings.gpencil_weight_paint
         elif context.mode == 'VERTEX_GPENCIL':
             settings = tool_settings.gpencil_vertex_paint
@@ -156,7 +156,7 @@ class GreasePencilBrushFalloff:
             settings = tool_settings.gpencil_paint
         if context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL':
+        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
             settings = tool_settings.gpencil_weight_paint
         elif context.mode == 'VERTEX_GPENCIL':
             settings = tool_settings.gpencil_vertex_paint
@@ -291,7 +291,7 @@ class GREASE_PENCIL_MT_move_to_layer(Menu):
 
         for i in range(len(grease_pencil.layers) - 1, -1, -1):
             layer = grease_pencil.layers[i]
-            if layer == grease_pencil.layers.active:
+            if layer == grease_pencil.layers.active_layer:
                 icon = 'GREASEPENCIL'
             else:
                 icon = 'NONE'
@@ -316,7 +316,7 @@ class GREASE_PENCIL_MT_layer_active(Menu):
 
         for i in range(len(obd.layers) - 1, -1, -1):
             layer = obd.layers[i]
-            if layer == obd.layers.active:
+            if layer == obd.layers.active_layer:
                 icon = 'GREASEPENCIL'
             else:
                 icon = 'NONE'
@@ -468,8 +468,10 @@ class AnnotationDataPanel:
             layer_rows = 5
         else:
             layer_rows = 3
-        col.template_list("GPENCIL_UL_annotation_layer", "", gpd, "layers", gpd.layers, "active_index",
-                          rows=layer_rows, sort_reverse=True, sort_lock=True)
+        col.template_list(
+            "GPENCIL_UL_annotation_layer", "", gpd, "layers", gpd.layers, "active_index",
+            rows=layer_rows, sort_reverse=True, sort_lock=True,
+        )
 
         col = row.column()
 
@@ -500,7 +502,7 @@ class AnnotationDataPanel:
 
             if gpl.active_frame:
                 lock_status = iface_("Locked") if gpl.lock_frame else iface_("Unlocked")
-                lock_label = iface_("Frame: %d (%s)") % (gpl.active_frame.frame_number, lock_status)
+                lock_label = iface_("Frame: {:d} ({:s})").format(gpl.active_frame.frame_number, lock_status)
             else:
                 lock_label = iface_("Lock Frame")
             row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED')
@@ -931,7 +933,7 @@ class GreasePencilFlipTintColors(Operator):
             settings = tool_settings.gpencil_paint
         if context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL':
+        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
             settings = tool_settings.gpencil_weight_paint
         elif context.mode == 'VERTEX_GPENCIL':
             settings = tool_settings.gpencil_vertex_paint
@@ -945,7 +947,7 @@ class GreasePencilFlipTintColors(Operator):
             settings = tool_settings.gpencil_paint
         if context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL':
+        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
             settings = tool_settings.gpencil_weight_paint
         elif context.mode == 'VERTEX_GPENCIL':
             settings = tool_settings.gpencil_vertex_paint
@@ -960,6 +962,48 @@ class GreasePencilFlipTintColors(Operator):
         color.hsv = orig_sec
         secondary_color.hsv = orig_prim
         return {'FINISHED'}
+
+
+class GREASE_PENCIL_MT_snap(Menu):
+    bl_label = "Snap"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("grease_pencil.snap_to_grid", text="Selection to Grid")
+        layout.operator("grease_pencil.snap_to_cursor", text="Selection to Cursor").use_offset = False
+        layout.operator("grease_pencil.snap_to_cursor", text="Selection to Cursor (Keep Offset)").use_offset = True
+
+        layout.separator()
+
+        layout.operator("grease_pencil.snap_cursor_to_selected", text="Cursor to Selected")
+        layout.operator("view3d.snap_cursor_to_center", text="Cursor to World Origin")
+        layout.operator("view3d.snap_cursor_to_grid", text="Cursor to Grid")
+
+
+class GREASE_PENCIL_MT_snap_pie(Menu):
+    bl_label = "Snap"
+
+    def draw(self, _context):
+        layout = self.layout
+        pie = layout.menu_pie()
+
+        pie.operator("view3d.snap_cursor_to_grid", text="Cursor to Grid", icon='CURSOR')
+        pie.operator("grease_pencil.snap_to_grid", text="Selection to Grid", icon='RESTRICT_SELECT_OFF')
+        pie.operator("grease_pencil.snap_cursor_to_selected", text="Cursor to Selected", icon='CURSOR')
+        pie.operator(
+            "grease_pencil.snap_to_cursor",
+            text="Selection to Cursor",
+            icon='RESTRICT_SELECT_OFF',
+        ).use_offset = False
+        pie.operator(
+            "grease_pencil.snap_to_cursor",
+            text="Selection to Cursor (Keep Offset)",
+            icon='RESTRICT_SELECT_OFF',
+        ).use_offset = True
+        pie.separator()
+        pie.operator("view3d.snap_cursor_to_center", text="Cursor to World Origin", icon='CURSOR')
+        pie.separator()
 
 
 classes = (
@@ -979,6 +1023,9 @@ classes = (
 
     GREASE_PENCIL_MT_move_to_layer,
     GREASE_PENCIL_MT_layer_active,
+
+    GREASE_PENCIL_MT_snap,
+    GREASE_PENCIL_MT_snap_pie,
 
     GreasePencilFlipTintColors,
 )

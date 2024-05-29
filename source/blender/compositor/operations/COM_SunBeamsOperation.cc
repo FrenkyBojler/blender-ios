@@ -32,6 +32,11 @@ void SunBeamsOperation::update_memory_buffer_partial(MemoryBuffer *output,
 
   for (int y = area.ymin; y < area.ymax; y++) {
     for (int x = area.xmin; x < area.xmax; x++) {
+      if (max_steps == 0) {
+        copy_v4_v4(output->get_elem(x, y), input->get_elem(x, y));
+        continue;
+      }
+
       const float2 texel = float2(x, y);
 
       /* The number of steps is the distance in pixels from the source to the current texel. With
@@ -64,7 +69,7 @@ void SunBeamsOperation::update_memory_buffer_partial(MemoryBuffer *output,
         /* Attenuate the contributions of pixels that are further away from the source using a
          * quadratic falloff. Also weight by the alpha to give more significance to opaque pixels.
          */
-        const float weight = (math::square(1.0f - i / float(steps))) * sample_color.w;
+        const float weight = math::square(1.0f - i / float(steps)) * sample_color.w;
 
         accumulated_weight += weight;
         accumulated_color += sample_color * weight;

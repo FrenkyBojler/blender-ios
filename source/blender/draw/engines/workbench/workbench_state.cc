@@ -244,7 +244,8 @@ ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
   }
 
   if (sculpt_pbvh) {
-    if (color_type == V3D_SHADING_TEXTURE_COLOR && BKE_pbvh_type(ob->sculpt->pbvh) != PBVH_FACES) {
+    if (color_type == V3D_SHADING_TEXTURE_COLOR && BKE_pbvh_type(*ob->sculpt->pbvh) != PBVH_FACES)
+    {
       /* Force use of material color for sculpt. */
       color_type = V3D_SHADING_MATERIAL_COLOR;
     }
@@ -254,7 +255,7 @@ ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
     bContext *C = (bContext *)DRW_context_state_get()->evil_C;
     if (C != nullptr) {
       color_type = ED_paint_shading_color_override(
-          C, &scene_state.scene->toolsettings->paint_mode, ob, color_type);
+          C, &scene_state.scene->toolsettings->paint_mode, *ob, color_type);
     }
   }
   else if (ob->type == OB_MESH && !DRW_state_is_scene_render()) {
