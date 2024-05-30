@@ -4049,8 +4049,11 @@ static void ui_do_but_textedit(
 
   if (changed || (retval == WM_UI_HANDLER_BREAK)) {
     ED_region_tag_redraw(data->region);
-    /* In case of popup regions, tag for popup refreshing too (contents may have changed). */
-    ED_region_tag_refresh_ui(data->region);
+    if (!data->searchbox) {
+      /* In case of popup regions, tag for popup refreshing too (contents may have changed). Not
+       * done for search-boxes, since they have their own update handling. */
+      ED_region_tag_refresh_ui(data->region);
+    }
   }
 }
 
@@ -4746,7 +4749,7 @@ static int ui_do_but_TEX(
         /* Pass, allow file-selector, enter to execute. */
       }
       else if (ELEM(but->emboss, UI_EMBOSS_NONE, UI_EMBOSS_NONE_OR_STATUS) &&
-               ((event->modifier & KM_CTRL) == 0))
+               ((event->modifier & (KM_CTRL | KM_SHIFT | KM_ALT)) != KM_CTRL))
       {
         /* Pass. */
       }

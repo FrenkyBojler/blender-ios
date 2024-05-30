@@ -6,8 +6,8 @@
  * Dispatch only one thread-group that sums. */
 
 #pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_reflection_probe_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_reflection_probe_mapping_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_lightprobe_sphere_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_lightprobe_sphere_mapping_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_spherical_harmonics_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
 
@@ -39,12 +39,14 @@ void main()
 
   /* Parallel sum. */
   const uint group_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
-  for (uint stride = group_size / 2; stride > 0; stride /= 2) {
+  uint stride = group_size / 2;
+  for (int i = 0; i < 10; i++) {
     barrier();
     if (local_index < stride) {
       local_radiance[local_index] += local_radiance[local_index + stride];
       local_direction[local_index] += local_direction[local_index + stride];
     }
+    stride /= 2;
   }
 
   barrier();

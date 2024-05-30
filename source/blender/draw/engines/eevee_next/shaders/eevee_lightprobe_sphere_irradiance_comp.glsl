@@ -5,8 +5,8 @@
 /* Sum all spherical harmonic coefficients extracting during remapping to octahedral map.
  * Dispatch only one thread-group that sums. */
 
-#pragma BLENDER_REQUIRE(eevee_reflection_probe_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_reflection_probe_mapping_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_lightprobe_sphere_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_lightprobe_sphere_mapping_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_spherical_harmonics_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
 
@@ -45,13 +45,15 @@ void main()
 
   /* Parallel sum. */
   const uint group_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
-  for (uint stride = group_size / 2; stride > 0; stride /= 2) {
+  uint stride = group_size / 2;
+  for (int i = 0; i < 10; i++) {
     barrier();
     if (local_index < stride) {
       for (int i = 0; i < 4; i++) {
         local_sh_coefs[local_index][i] += local_sh_coefs[local_index + stride][i];
       }
     }
+    stride /= 2;
   }
 
   barrier();
