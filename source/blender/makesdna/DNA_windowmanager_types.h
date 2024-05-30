@@ -136,6 +136,8 @@ typedef struct wmXrData {
   /** Permanent session settings (draw mode, feature toggles, etc). Stored in files and accessible
    * even before the session runs. */
   XrSessionSettings session_settings;
+  /** Somehoy we need to get a valid region to use. */
+  ARegion *xr_region;
 } wmXrData;
 // #endif
 

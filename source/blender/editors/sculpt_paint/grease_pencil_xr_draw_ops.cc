@@ -19,6 +19,7 @@
 #include "ED_image.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "ANIM_keyframing.hh"
 
@@ -49,29 +50,36 @@ static bool stroke_get_location(bContext * /*C*/,
   return true;
 }
 
-static void stroke_start_xr(bContext &C,
+static void stroke_start_xr(bContext *C,
                          wmOperator &op,
                          const float3 &controller,
                          GreasePencilStrokeOperation &operation)
 {
   PaintStroke *paint_stroke = static_cast<PaintStroke *>(op.customdata);
   float2 mouse_xr;
-  ARegion *region = CTX_wm_region(&C);
-
+  float mval_prj[2];
   InputSample start_sample;
   start_sample.controller_position = float3(controller);
-  // Debug winrct
 //   mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
 //   mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
-  mouse_xr[0] = 2.0f * ((double)controller[0] / 2110) - 1.0f;
-  mouse_xr[1] = (2.0f * ((double)(1200 - controller[1]) / 1200)) - 1.0f;
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr_data = &wm->xr;
+  /*
+   * we need a region type RGN_TYPE_WINDOW 0 to get the winx and winy. This we suppose, is View3D main.
+  */
+  ARegion *region = WM_xr_get_xr_region(xr_data);
+  mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
+  mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
+  ED_view3d_project_float_global(region, controller, mval_prj, V3D_PROJ_TEST_NOP);
+  printf("Invoke: Projected X: %f, Projected Y: %f, win X: %d, M win Y: %d\n", mval_prj[0], mval_prj[1], region->winx, region->winy);
+
   // start_sample.mouse_position = float2(controller); 
   start_sample.mouse_position = mouse_xr;
   start_sample.pressure = 0.0f; // Bring trigger pressure here?
   start_sample.is_xr = true;
 
   paint_stroke_set_mode_data(paint_stroke, &operation);
-  operation.on_stroke_begin(C, start_sample);
+  operation.on_stroke_begin(*C, start_sample);
 }
 
 static void stroke_update_step(bContext *C,
@@ -166,7 +174,7 @@ static bool grease_pencil_brush_stroke_test_start(bContext *C,
 {
   GreasePencilStrokeOperation *operation = grease_pencil_brush_stroke_operation(*C);
   if (operation) {
-    stroke_start_xr(*C, *op, float3(controller), *operation);
+    stroke_start_xr(C, *op, float3(controller), *operation);
     return true;
   }
   return false;

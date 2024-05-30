@@ -1220,13 +1220,13 @@ wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf)
 }
 
 static void paint_stroke_add_sample(
-    PaintStroke *stroke, int input_samples, float x, float y, float z, float pressure)
+    PaintStroke *stroke, int input_samples, float cval_x, float cval_y, float x, float y, float z, float pressure)
 {
   PaintSample *sample = &stroke->samples[stroke->cur_sample];
   int max_samples = std::clamp(input_samples, 1, PAINT_MAX_INPUT_SAMPLES);
 
-  sample->mouse[0] = x;
-  sample->mouse[1] = y;
+  sample->mouse[0] = cval_x;
+  sample->mouse[1] = cval_y;
 
   sample->controller[0] = x;
   sample->controller[1] = y;
@@ -1545,15 +1545,23 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
   if (is_xr) {
     /* handle pressure sensitivity (which is supplied by xr controller) */
     const wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
+    float mval_prj[2];
+    wmWindowManager *wm = CTX_wm_manager(C);
+    wmXrData *xr_data = &wm->xr;
+    ARegion *region = WM_xr_get_xr_region(xr_data);
+    ED_view3d_project_float_global(region, event->cval, mval_prj, V3D_PROJ_TEST_NOP);
+    printf("Modal: Projected X: %f, Projected Y: %f, win X: %d, M win Y: %d\n", mval_prj[0], mval_prj[1], region->winx, region->winy);
     paint_stroke_add_sample(stroke,
                             input_samples,
+                            mval_prj[0],
+                            mval_prj[1],
                             event->cval[0],
                             event->cval[1],
                             event->cval[2],
                             actiondata->state[0]);
   }
   else {
-    paint_stroke_add_sample(stroke, input_samples, event->mval[0], event->mval[1], 0, pressure);
+    paint_stroke_add_sample(stroke, input_samples, event->mval[0], event->mval[1], 0.0f, 0.0f, 0.0f, pressure);
   }
 
   paint_stroke_sample_average(stroke, &sample_average);
@@ -1637,6 +1645,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
 
   if (event->type == stroke->event_type && !first_modal) { // NO PASS - Modal
     if (event->val == KM_RELEASE) {
+      printf("mouse up\n");
       copy_v2_fl2(mouse, event->mval[0], event->mval[1]);
       copy_v3_fl3(controller, event->cval[0], event->cval[1], event->cval[2]);
       paint_stroke_line_constrain(stroke, mouse);
@@ -1698,11 +1707,12 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
       }
     }
     if (is_xr) {
+      // Continue
       copy_v3_v3(controller, sample_average.controller);
       float dcontroller[3];
       sub_v3_v3v3(dcontroller, controller, stroke->last_controller_position);
       stroke->stroke_distance += len_v3(dcontroller);
-      paint_brush_stroke_add_step(C, op, stroke, mouse, controller, pressure); // Continue
+      paint_brush_stroke_add_step(C, op, stroke, stroke->last_mouse_position, controller, pressure);
       redraw = true;
     }
   }
