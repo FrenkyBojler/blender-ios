@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include <optional>
+
 #include "MEM_guardedalloc.h"
 
 /* Allow using deprecated functionality for .blend file I/O. */
@@ -42,7 +44,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_attribute.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_bpath.hh"
@@ -99,7 +101,11 @@ static void mesh_init_data(ID *id)
   mesh->face_sets_color_seed = BLI_hash_int(BLI_time_now_seconds_i() & UINT_MAX);
 }
 
-static void mesh_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+static void mesh_copy_data(Main *bmain,
+                           std::optional<Library *> owner_library,
+                           ID *id_dst,
+                           const ID *id_src,
+                           const int flag)
 {
   Mesh *mesh_dst = reinterpret_cast<Mesh *>(id_dst);
   const Mesh *mesh_src = reinterpret_cast<const Mesh *>(id_src);
@@ -107,7 +113,6 @@ static void mesh_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int 
   mesh_dst->runtime = new blender::bke::MeshRuntime();
   mesh_dst->runtime->deformed_only = mesh_src->runtime->deformed_only;
   mesh_dst->runtime->wrapper_type = mesh_src->runtime->wrapper_type;
-  mesh_dst->runtime->wrapper_type_finalize = mesh_src->runtime->wrapper_type_finalize;
   mesh_dst->runtime->subsurf_runtime_data = mesh_src->runtime->subsurf_runtime_data;
   mesh_dst->runtime->cd_mask_extra = mesh_src->runtime->cd_mask_extra;
   /* Copy face dot tags and edge tags, since meshes may be duplicated after a subsurf modifier or
@@ -187,29 +192,21 @@ static void mesh_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int 
     mesh_tessface_clear_intern(mesh_dst, false);
   }
 
-  mesh_dst->edit_mesh = nullptr;
-
   mesh_dst->mselect = (MSelect *)MEM_dupallocN(mesh_dst->mselect);
 
-  /* TODO: Do we want to add flag to prevent this? */
   if (mesh_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-    BKE_id_copy_ex(bmain, &mesh_src->key->id, (ID **)&mesh_dst->key, flag);
-    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
-    mesh_dst->key->from = &mesh_dst->id;
+    BKE_id_copy_in_lib(bmain,
+                       owner_library,
+                       &mesh_src->key->id,
+                       &mesh_dst->id,
+                       reinterpret_cast<ID **>(&mesh_dst->key),
+                       flag);
   }
 }
 
 void BKE_mesh_free_editmesh(Mesh *mesh)
 {
-  if (mesh->edit_mesh == nullptr) {
-    return;
-  }
-
-  if (mesh->edit_mesh->is_shallow_copy == false) {
-    BKE_editmesh_free_data(mesh->edit_mesh);
-  }
-  MEM_freeN(mesh->edit_mesh);
-  mesh->edit_mesh = nullptr;
+  mesh->runtime->edit_mesh.reset();
 }
 
 static void mesh_free_data(ID *id)
@@ -292,6 +289,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     }
   }
 
+  const blender::bke::MeshRuntime *mesh_runtime = mesh->runtime;
   mesh->runtime = nullptr;
 
   BLO_write_id_struct(writer, Mesh, id_address, &mesh->id);
@@ -317,7 +315,12 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
       writer, &mesh->face_data, face_layers, mesh->faces_num, CD_MASK_MESH.pmask, &mesh->id);
 
   if (mesh->face_offset_indices) {
-    BLO_write_int32_array(writer, mesh->faces_num + 1, mesh->face_offset_indices);
+    BLO_write_shared(
+        writer,
+        mesh->face_offset_indices,
+        sizeof(int) * mesh->faces_num,
+        mesh_runtime->face_offsets_sharing_info,
+        [&]() { BLO_write_int32_array(writer, mesh->faces_num + 1, mesh->face_offset_indices); });
   }
 }
 
@@ -332,17 +335,17 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
 
   /* Deprecated pointers to custom data layers are read here for backward compatibility
    * with files where these were owning pointers rather than a view into custom data. */
-  BLO_read_data_address(reader, &mesh->mvert);
-  BLO_read_data_address(reader, &mesh->medge);
-  BLO_read_data_address(reader, &mesh->mface);
-  BLO_read_data_address(reader, &mesh->mtface);
-  BLO_read_data_address(reader, &mesh->dvert);
-  BLO_read_data_address(reader, &mesh->tface);
-  BLO_read_data_address(reader, &mesh->mcol);
+  BLO_read_struct_array(reader, MVert, mesh->verts_num, &mesh->mvert);
+  BLO_read_struct_array(reader, MEdge, mesh->edges_num, &mesh->medge);
+  BLO_read_struct_array(reader, MFace, mesh->totface_legacy, &mesh->mface);
+  BLO_read_struct_array(reader, MTFace, mesh->totface_legacy, &mesh->mtface);
+  BLO_read_struct_array(reader, MDeformVert, mesh->verts_num, &mesh->dvert);
+  BLO_read_struct_array(reader, TFace, mesh->totface_legacy, &mesh->tface);
+  BLO_read_struct_array(reader, MCol, mesh->totface_legacy, &mesh->mcol);
 
-  BLO_read_data_address(reader, &mesh->mselect);
+  BLO_read_struct_array(reader, MSelect, mesh->totselect, &mesh->mselect);
 
-  BLO_read_list(reader, &mesh->vertex_group_names);
+  BLO_read_struct_list(reader, bDeformGroup, &mesh->vertex_group_names);
 
   CustomData_blend_read(reader, &mesh->vert_data, mesh->verts_num);
   CustomData_blend_read(reader, &mesh->edge_data, mesh->edges_num);
@@ -354,18 +357,19 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
      * Don't read them again if they were read as part of #CustomData. */
     BKE_defvert_blend_read(reader, mesh->verts_num, mesh->dvert);
   }
-  BLO_read_data_address(reader, &mesh->active_color_attribute);
-  BLO_read_data_address(reader, &mesh->default_color_attribute);
+  BLO_read_string(reader, &mesh->active_color_attribute);
+  BLO_read_string(reader, &mesh->default_color_attribute);
 
   mesh->texspace_flag &= ~ME_TEXSPACE_FLAG_AUTO_EVALUATED;
-  mesh->edit_mesh = nullptr;
 
   mesh->runtime = new blender::bke::MeshRuntime();
 
   if (mesh->face_offset_indices) {
-    BLO_read_int32_array(reader, mesh->faces_num + 1, &mesh->face_offset_indices);
-    mesh->runtime->face_offsets_sharing_info = blender::implicit_sharing::info_for_mem_free(
-        mesh->face_offset_indices);
+    mesh->runtime->face_offsets_sharing_info = BLO_read_shared(
+        reader, &mesh->face_offset_indices, [&]() {
+          BLO_read_int32_array(reader, mesh->faces_num + 1, &mesh->face_offset_indices);
+          return blender::implicit_sharing::info_for_mem_free(mesh->face_offset_indices);
+        });
   }
 
   if (mesh->mselect == nullptr) {
@@ -417,7 +421,7 @@ bool BKE_mesh_attribute_required(const char *name)
 
 void BKE_mesh_ensure_skin_customdata(Mesh *mesh)
 {
-  BMesh *bm = mesh->edit_mesh ? mesh->edit_mesh->bm : nullptr;
+  BMesh *bm = mesh->runtime->edit_mesh ? mesh->runtime->edit_mesh->bm : nullptr;
   MVertSkin *vs;
 
   if (bm) {
@@ -450,12 +454,47 @@ void BKE_mesh_ensure_skin_customdata(Mesh *mesh)
 
 bool BKE_mesh_has_custom_loop_normals(Mesh *mesh)
 {
-  if (mesh->edit_mesh) {
-    return CustomData_has_layer(&mesh->edit_mesh->bm->ldata, CD_CUSTOMLOOPNORMAL);
+  if (mesh->runtime->edit_mesh) {
+    return CustomData_has_layer(&mesh->runtime->edit_mesh->bm->ldata, CD_CUSTOMLOOPNORMAL);
   }
 
   return CustomData_has_layer(&mesh->corner_data, CD_CUSTOMLOOPNORMAL);
 }
+
+namespace blender::bke {
+
+void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
+                                                const AttributeIDRef &id,
+                                                AttrDomain domain,
+                                                eCustomDataType data_type)
+{
+  if (id.is_anonymous()) {
+    return;
+  }
+  if (!(CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) ||
+      !(ATTR_DOMAIN_AS_MASK(domain) & ATTR_DOMAIN_MASK_COLOR))
+  {
+    return;
+  }
+  if (mesh.default_color_attribute) {
+    return;
+  }
+  mesh.default_color_attribute = BLI_strdupn(id.name().data(), id.name().size());
+}
+
+void mesh_ensure_required_data_layers(Mesh &mesh)
+{
+  MutableAttributeAccessor attributes = mesh.attributes_for_write();
+  AttributeInitConstruct attribute_init;
+
+  /* Try to create attributes if they do not exist. */
+  attributes.add("position", AttrDomain::Point, CD_PROP_FLOAT3, attribute_init);
+  attributes.add(".edge_verts", AttrDomain::Edge, CD_PROP_INT32_2D, attribute_init);
+  attributes.add(".corner_vert", AttrDomain::Corner, CD_PROP_INT32, attribute_init);
+  attributes.add(".corner_edge", AttrDomain::Corner, CD_PROP_INT32, attribute_init);
+}
+
+}  // namespace blender::bke
 
 void BKE_mesh_free_data_for_undo(Mesh *mesh)
 {
@@ -648,41 +687,6 @@ MutableSpan<MDeformVert> Mesh::deform_verts_for_write()
           this->verts_num};
 }
 
-namespace blender::bke {
-
-void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
-                                                const AttributeIDRef &id,
-                                                AttrDomain domain,
-                                                eCustomDataType data_type)
-{
-  if (id.is_anonymous()) {
-    return;
-  }
-  if (!(CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) ||
-      !(ATTR_DOMAIN_AS_MASK(domain) & ATTR_DOMAIN_MASK_COLOR))
-  {
-    return;
-  }
-  if (mesh.default_color_attribute) {
-    return;
-  }
-  mesh.default_color_attribute = BLI_strdupn(id.name().data(), id.name().size());
-}
-
-static void mesh_ensure_cdlayers_primary(Mesh &mesh)
-{
-  MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  AttributeInitConstruct attribute_init;
-
-  /* Try to create attributes if they do not exist. */
-  attributes.add("position", AttrDomain::Point, CD_PROP_FLOAT3, attribute_init);
-  attributes.add(".edge_verts", AttrDomain::Edge, CD_PROP_INT32_2D, attribute_init);
-  attributes.add(".corner_vert", AttrDomain::Corner, CD_PROP_INT32, attribute_init);
-  attributes.add(".corner_edge", AttrDomain::Corner, CD_PROP_INT32, attribute_init);
-}
-
-}  // namespace blender::bke
-
 Mesh *BKE_mesh_new_nomain(const int verts_num,
                           const int edges_num,
                           const int faces_num,
@@ -697,7 +701,7 @@ Mesh *BKE_mesh_new_nomain(const int verts_num,
   mesh->faces_num = faces_num;
   mesh->corners_num = corners_num;
 
-  blender::bke::mesh_ensure_cdlayers_primary(*mesh);
+  blender::bke::mesh_ensure_required_data_layers(*mesh);
   BKE_mesh_face_offsets_ensure_alloc(mesh);
 
   return mesh;
@@ -819,7 +823,7 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
 
   /* The destination mesh should at least have valid primary CD layers,
    * even in cases where the source mesh does not. */
-  blender::bke::mesh_ensure_cdlayers_primary(*me_dst);
+  blender::bke::mesh_ensure_required_data_layers(*me_dst);
   BKE_mesh_face_offsets_ensure_alloc(me_dst);
   if (do_tessface && !CustomData_get_layer(&me_dst->fdata_legacy, CD_MFACE)) {
     CustomData_add_layer(&me_dst->fdata_legacy, CD_MFACE, CD_SET_DEFAULT, me_dst->totface_legacy);
@@ -838,19 +842,10 @@ Mesh *BKE_mesh_new_nomain_from_template(const Mesh *me_src,
       me_src, verts_num, edges_num, 0, faces_num, corners_num, CD_MASK_EVERYTHING);
 }
 
-void BKE_mesh_eval_delete(Mesh *mesh_eval)
-{
-  /* Evaluated mesh may point to edit mesh, but never owns it. */
-  mesh_eval->edit_mesh = nullptr;
-  mesh_free_data(&mesh_eval->id);
-  BKE_libblock_free_data(&mesh_eval->id, false);
-  MEM_freeN(mesh_eval);
-}
-
-Mesh *BKE_mesh_copy_for_eval(const Mesh *source)
+Mesh *BKE_mesh_copy_for_eval(const Mesh &source)
 {
   return reinterpret_cast<Mesh *>(
-      BKE_id_copy_ex(nullptr, &source->id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &source.id, nullptr, LIB_ID_COPY_LOCALIZE));
 }
 
 BMesh *BKE_mesh_to_bmesh_ex(const Mesh *mesh,
@@ -994,25 +989,20 @@ void BKE_mesh_texspace_get_reference(Mesh *mesh,
   }
 }
 
-float (*BKE_mesh_orco_verts_get(Object *ob))[3]
+blender::Array<float3> BKE_mesh_orco_verts_get(const Object *ob)
 {
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
-  Mesh *tme = mesh->texcomesh ? mesh->texcomesh : mesh;
+  const Mesh *mesh = static_cast<const Mesh *>(ob->data);
+  const Mesh *tme = mesh->texcomesh ? mesh->texcomesh : mesh;
 
-  /* Get appropriate vertex coordinates */
-  float(*vcos)[3] = (float(*)[3])MEM_calloc_arrayN(mesh->verts_num, sizeof(*vcos), "orco mesh");
+  blender::Array<float3> result(mesh->verts_num);
   const Span<float3> positions = tme->vert_positions();
+  result.as_mutable_span().take_front(positions.size()).copy_from(positions);
+  result.as_mutable_span().drop_front(positions.size()).fill(float3(0));
 
-  int totvert = min_ii(tme->verts_num, mesh->verts_num);
-
-  for (int a = 0; a < totvert; a++) {
-    copy_v3_v3(vcos[a], positions[a]);
-  }
-
-  return vcos;
+  return result;
 }
 
-void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, const bool invert)
+void BKE_mesh_orco_verts_transform(Mesh *mesh, MutableSpan<float3> orco, const bool invert)
 {
   float texspace_location[3], texspace_size[3];
 
@@ -1020,19 +1010,24 @@ void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, co
       mesh->texcomesh ? mesh->texcomesh : mesh, texspace_location, texspace_size);
 
   if (invert) {
-    for (int a = 0; a < totvert; a++) {
-      float *co = orco[a];
+    for (const int a : orco.index_range()) {
+      float3 &co = orco[a];
       madd_v3_v3v3v3(co, texspace_location, co, texspace_size);
     }
   }
   else {
-    for (int a = 0; a < totvert; a++) {
-      float *co = orco[a];
+    for (const int a : orco.index_range()) {
+      float3 &co = orco[a];
       co[0] = (co[0] - texspace_location[0]) / texspace_size[0];
       co[1] = (co[1] - texspace_location[1]) / texspace_size[1];
       co[2] = (co[2] - texspace_location[2]) / texspace_size[2];
     }
   }
+}
+
+void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, bool invert)
+{
+  BKE_mesh_orco_verts_transform(mesh, {reinterpret_cast<float3 *>(orco), totvert}, invert);
 }
 
 void BKE_mesh_orco_ensure(Object *ob, Mesh *mesh)
@@ -1042,9 +1037,11 @@ void BKE_mesh_orco_ensure(Object *ob, Mesh *mesh)
   }
 
   /* Orcos are stored in normalized 0..1 range by convention. */
-  float(*orcodata)[3] = BKE_mesh_orco_verts_get(ob);
-  BKE_mesh_orco_verts_transform(mesh, orcodata, mesh->verts_num, false);
-  CustomData_add_layer_with_data(&mesh->vert_data, CD_ORCO, orcodata, mesh->verts_num, nullptr);
+  blender::Array<float3> orcodata = BKE_mesh_orco_verts_get(ob);
+  BKE_mesh_orco_verts_transform(mesh, orcodata, false);
+  float3 *data = static_cast<float3 *>(
+      CustomData_add_layer(&mesh->vert_data, CD_ORCO, CD_CONSTRUCT, mesh->verts_num));
+  MutableSpan(data, mesh->verts_num).copy_from(orcodata);
 }
 
 Mesh *BKE_mesh_from_object(Object *ob)
@@ -1145,8 +1142,7 @@ void BKE_mesh_material_remap(Mesh *mesh, const uint *remap, uint remap_len)
   } \
   ((void)0)
 
-  if (mesh->edit_mesh) {
-    BMEditMesh *em = mesh->edit_mesh;
+  if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
     BMIter iter;
     BMFace *efa;
 
@@ -1227,7 +1223,8 @@ std::optional<blender::Bounds<blender::float3>> Mesh::bounds_min_max() const
   this->runtime->bounds_cache.ensure([&](Bounds<float3> &r_bounds) {
     switch (this->runtime->wrapper_type) {
       case ME_WRAPPER_TYPE_BMESH:
-        r_bounds = *BKE_editmesh_cache_calc_minmax(*this->edit_mesh, *this->runtime->edit_data);
+        r_bounds = *BKE_editmesh_cache_calc_minmax(*this->runtime->edit_mesh,
+                                                   *this->runtime->edit_data);
         break;
       case ME_WRAPPER_TYPE_MDATA:
       case ME_WRAPPER_TYPE_SUBD:
@@ -1383,7 +1380,7 @@ void BKE_mesh_mselect_validate(Mesh *mesh)
   mesh->mselect = mselect_dst;
 }
 
-int BKE_mesh_mselect_find(Mesh *mesh, int index, int type)
+int BKE_mesh_mselect_find(const Mesh *mesh, int index, int type)
 {
   BLI_assert(ELEM(type, ME_VSEL, ME_ESEL, ME_FSEL));
 
@@ -1396,7 +1393,7 @@ int BKE_mesh_mselect_find(Mesh *mesh, int index, int type)
   return -1;
 }
 
-int BKE_mesh_mselect_active_get(Mesh *mesh, int type)
+int BKE_mesh_mselect_active_get(const Mesh *mesh, int type)
 {
   BLI_assert(ELEM(type, ME_VSEL, ME_ESEL, ME_FSEL));
 
@@ -1432,8 +1429,8 @@ void BKE_mesh_mselect_active_set(Mesh *mesh, int index, int type)
 void BKE_mesh_count_selected_items(const Mesh *mesh, int r_count[3])
 {
   r_count[0] = r_count[1] = r_count[2] = 0;
-  if (mesh->edit_mesh) {
-    BMesh *bm = mesh->edit_mesh->bm;
+  if (mesh->runtime->edit_mesh) {
+    BMesh *bm = mesh->runtime->edit_mesh->bm;
     r_count[0] = bm->totvertsel;
     r_count[1] = bm->totedgesel;
     r_count[2] = bm->totfacesel;
@@ -1451,7 +1448,6 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
    * evaluated mesh, and we don't know what parts of the mesh did change. So we simply delete the
    * evaluated mesh and let objects to re-create it with updated settings. */
   if (mesh->runtime->mesh_eval != nullptr) {
-    mesh->runtime->mesh_eval->edit_mesh = nullptr;
     BKE_id_free(nullptr, mesh->runtime->mesh_eval);
     mesh->runtime->mesh_eval = nullptr;
   }

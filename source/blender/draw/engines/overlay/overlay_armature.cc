@@ -42,7 +42,7 @@
 
 #include "UI_resources.hh"
 
-#include "draw_common.h"
+#include "draw_common_c.hh"
 #include "draw_manager_text.hh"
 
 #include "overlay_private.hh"
@@ -829,7 +829,7 @@ static void drw_shgroup_bone_envelope(const ArmatureDrawContext *ctx,
 
 BLI_INLINE DRWCallBuffer *custom_bone_instance_shgroup(const ArmatureDrawContext *ctx,
                                                        DRWShadingGroup *grp,
-                                                       GPUBatch *custom_geom)
+                                                       blender::gpu::Batch *custom_geom)
 {
   DRWCallBuffer *buf = static_cast<DRWCallBuffer *>(
       BLI_ghash_lookup(ctx->custom_shapes_ghash, custom_geom));
@@ -842,21 +842,21 @@ BLI_INLINE DRWCallBuffer *custom_bone_instance_shgroup(const ArmatureDrawContext
 }
 
 static void drw_shgroup_bone_custom_solid_mesh(const ArmatureDrawContext *ctx,
-                                               Mesh *mesh,
+                                               Mesh &mesh,
                                                const float (*bone_mat)[4],
                                                const float bone_color[4],
                                                const float hint_color[4],
                                                const float outline_color[4],
-                                               Object *custom)
+                                               Object &custom)
 {
   using namespace blender::draw;
   /* TODO(fclem): arg... less than ideal but we never iter on this object
    * to assure batch cache is valid. */
   DRW_mesh_batch_cache_validate(custom, mesh);
 
-  GPUBatch *surf = DRW_mesh_batch_cache_get_surface(mesh);
-  GPUBatch *edges = DRW_mesh_batch_cache_get_edge_detection(mesh, nullptr);
-  GPUBatch *loose_edges = DRW_mesh_batch_cache_get_loose_edges(mesh);
+  blender::gpu::Batch *surf = DRW_mesh_batch_cache_get_surface(mesh);
+  blender::gpu::Batch *edges = DRW_mesh_batch_cache_get_edge_detection(mesh, nullptr);
+  blender::gpu::Batch *loose_edges = DRW_mesh_batch_cache_get_loose_edges(mesh);
   BoneInstanceData inst_data;
   DRWCallBuffer *buf;
 
@@ -885,21 +885,21 @@ static void drw_shgroup_bone_custom_solid_mesh(const ArmatureDrawContext *ctx,
   }
 
   /* TODO(fclem): needs to be moved elsewhere. */
-  drw_batch_cache_generate_requested_delayed(custom);
+  drw_batch_cache_generate_requested_delayed(&custom);
 }
 
 static void drw_shgroup_bone_custom_mesh_wire(const ArmatureDrawContext *ctx,
-                                              Mesh *mesh,
+                                              Mesh &mesh,
                                               const float (*bone_mat)[4],
                                               const float color[4],
-                                              Object *custom)
+                                              Object &custom)
 {
   using namespace blender::draw;
   /* TODO(fclem): arg... less than ideal but we never iter on this object
    * to assure batch cache is valid. */
   DRW_mesh_batch_cache_validate(custom, mesh);
 
-  GPUBatch *geom = DRW_mesh_batch_cache_get_all_edges(mesh);
+  blender::gpu::Batch *geom = DRW_mesh_batch_cache_get_all_edges(mesh);
   if (geom) {
     DRWCallBuffer *buf = custom_bone_instance_shgroup(ctx, ctx->custom_wire, geom);
     BoneInstanceData inst_data;
@@ -910,7 +910,7 @@ static void drw_shgroup_bone_custom_mesh_wire(const ArmatureDrawContext *ctx,
   }
 
   /* TODO(fclem): needs to be moved elsewhere. */
-  drw_batch_cache_generate_requested_delayed(custom);
+  drw_batch_cache_generate_requested_delayed(&custom);
 }
 
 static void drw_shgroup_custom_bone_curve(const ArmatureDrawContext *ctx,
@@ -926,7 +926,7 @@ static void drw_shgroup_custom_bone_curve(const ArmatureDrawContext *ctx,
 
   /* This only handles curves without any surface. The other curve types should have been converted
    * to meshes and rendered in the mesh drawing function. */
-  GPUBatch *loose_edges = nullptr;
+  blender::gpu::Batch *loose_edges = nullptr;
   if (custom->type == OB_FONT) {
     loose_edges = DRW_cache_text_edge_wire_get(custom);
   }
@@ -962,7 +962,7 @@ static void drw_shgroup_bone_custom_solid(const ArmatureDrawContext *ctx,
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(custom);
   if (mesh != nullptr) {
     drw_shgroup_bone_custom_solid_mesh(
-        ctx, mesh, bone_mat, bone_color, hint_color, outline_color, custom);
+        ctx, *mesh, bone_mat, bone_color, hint_color, outline_color, *custom);
     return;
   }
 
@@ -980,7 +980,7 @@ static void drw_shgroup_bone_custom_wire(const ArmatureDrawContext *ctx,
   /* See comments in #drw_shgroup_bone_custom_solid. */
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(custom);
   if (mesh != nullptr) {
-    drw_shgroup_bone_custom_mesh_wire(ctx, mesh, bone_mat, color, custom);
+    drw_shgroup_bone_custom_mesh_wire(ctx, *mesh, bone_mat, color, *custom);
     return;
   }
 
@@ -1137,8 +1137,10 @@ static void cp_shade_color3ub(uchar cp[3], const int offset)
  */
 static void use_bone_color(float *r_color, const uint8_t *color_from_theme, const int shade_offset)
 {
-  uint8_t srgb_color[4];
-  copy_v4_v4_uchar(srgb_color, color_from_theme);
+  uint8_t srgb_color[4] = {255, 255, 255, 255};
+  /* Only copy RGB, not alpha.  The "alpha" channel in the bone theme colors is
+   * essentially just padding, and should be ignored. */
+  copy_v3_v3_uchar(srgb_color, color_from_theme);
   if (shade_offset != 0) {
     cp_shade_color3ub(srgb_color, shade_offset);
   }
@@ -1754,7 +1756,7 @@ static void draw_bone_degrees_of_freedom(const ArmatureDrawContext *ctx, const b
     zero_v3(tmp[3]);
     mul_m4_m4m4(posetrans, posetrans, tmp);
   }
-  /* ... but own rest-space. */
+  /* ... but its own rest-space. */
   mul_m4_m4m3(posetrans, posetrans, pchan->bone->bone_mat);
 
   float scale = pchan->bone->length * pchan->size[1];
@@ -2851,7 +2853,7 @@ void OVERLAY_pose_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
   OVERLAY_PrivateData *pd = vedata->stl->pd;
 
-  GPUBatch *geom = DRW_cache_object_surface_get(ob);
+  blender::gpu::Batch *geom = DRW_cache_object_surface_get(ob);
   if (geom) {
     if (POSE_is_driven_by_active_armature(ob)) {
       DRW_shgroup_call(pd->armature_bone_select_act_grp, geom, ob);

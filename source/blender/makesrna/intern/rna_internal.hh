@@ -259,7 +259,7 @@ void rna_def_mtex_common(BlenderRNA *brna,
 void rna_def_texpaint_slots(BlenderRNA *brna, StructRNA *srna);
 void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, bool scene);
 
-int rna_AssetMetaData_editable(PointerRNA *ptr, const char **r_info);
+int rna_AssetMetaData_editable(const PointerRNA *ptr, const char **r_info);
 /**
  * \note the UI text and updating has to be set by the caller.
  */
@@ -552,7 +552,7 @@ void rna_builtin_properties_begin(CollectionPropertyIterator *iter, PointerRNA *
 void rna_builtin_properties_next(CollectionPropertyIterator *iter);
 PointerRNA rna_builtin_properties_get(CollectionPropertyIterator *iter);
 PointerRNA rna_builtin_type_get(PointerRNA *ptr);
-int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);
+bool rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);
 
 /* Iterators */
 
@@ -596,7 +596,7 @@ PropertyDefRNA *rna_find_struct_property_def(StructRNA *srna, PropertyRNA *prop)
 
 /* Pointer Handling */
 
-PointerRNA rna_pointer_inherit_refine(PointerRNA *ptr, StructRNA *type, void *data);
+PointerRNA rna_pointer_inherit_refine(const PointerRNA *ptr, StructRNA *type, void *data);
 
 /* Functions */
 
@@ -608,7 +608,7 @@ MTex *rna_mtex_texture_slots_add(ID *self, bContext *C, ReportList *reports);
 MTex *rna_mtex_texture_slots_create(ID *self, bContext *C, ReportList *reports, int index);
 void rna_mtex_texture_slots_clear(ID *self, bContext *C, ReportList *reports, int index);
 
-int rna_IDMaterials_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr);
+bool rna_IDMaterials_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr);
 
 const char *rna_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, bool translate);

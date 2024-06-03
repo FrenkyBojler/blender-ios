@@ -36,16 +36,16 @@
 #include "ED_physics.hh"
 #include "ED_screen.hh"
 
-#include "physics_intern.h"
+#include "physics_intern.hh"
 
 /* ********************************************** */
 /* Helper API's for RigidBody Constraint Editing */
 
 static bool operator_rigidbody_constraints_editable_poll(Scene *scene)
 {
-  if (scene == nullptr || ID_IS_LINKED(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
+  if (scene == nullptr || !ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
       (scene->rigidbody_world != nullptr && scene->rigidbody_world->constraints != nullptr &&
-       (ID_IS_LINKED(scene->rigidbody_world->constraints) ||
+       (!ID_IS_EDITABLE(scene->rigidbody_world->constraints) ||
         ID_IS_OVERRIDE_LIBRARY(scene->rigidbody_world->constraints))))
   {
     return false;
@@ -61,7 +61,7 @@ static bool ED_operator_rigidbody_con_active_poll(bContext *C)
   }
 
   if (ED_operator_object_active_editable(C)) {
-    Object *ob = ED_object_active_context(C);
+    Object *ob = blender::ed::object::context_active_object(C);
     return (ob && ob->rigidbody_constraint);
   }
   return false;

@@ -9,6 +9,7 @@ set(INC
   ../../blentranslation
   ../../bmesh
   ../../functions
+  ../../geometry
   ../../gpencil_modifiers_legacy
   ../../gpu
   ../../ikplugin
@@ -56,7 +57,7 @@ set(SRC
   object_volume.cc
   object_warp.cc
 
-  object_intern.h
+  object_intern.hh
 )
 
 set(LIB

@@ -57,12 +57,13 @@ set(SRC
   intern/mesh_extractors/extract_mesh_vbo_lnor.cc
   intern/mesh_extractors/extract_mesh_vbo_mesh_analysis.cc
   intern/mesh_extractors/extract_mesh_vbo_orco.cc
-  intern/mesh_extractors/extract_mesh_vbo_pos_nor.cc
+  intern/mesh_extractors/extract_mesh_vbo_pos.cc
   intern/mesh_extractors/extract_mesh_vbo_sculpt_data.cc
   intern/mesh_extractors/extract_mesh_vbo_select_idx.cc
   intern/mesh_extractors/extract_mesh_vbo_skin_roots.cc
   intern/mesh_extractors/extract_mesh_vbo_tan.cc
   intern/mesh_extractors/extract_mesh_vbo_uv.cc
+  intern/mesh_extractors/extract_mesh_vbo_vnor.cc
   intern/mesh_extractors/extract_mesh_vbo_weights.cc
   intern/draw_attributes.cc
   intern/draw_cache_impl_curve.cc
@@ -142,7 +143,7 @@ set(SRC
   engines/eevee_next/eevee_film.cc
   engines/eevee_next/eevee_hizbuffer.cc
   engines/eevee_next/eevee_instance.cc
-  engines/eevee_next/eevee_irradiance_cache.cc
+  engines/eevee_next/eevee_lightprobe_volume.cc
   engines/eevee_next/eevee_light.cc
   engines/eevee_next/eevee_lightcache.cc
   engines/eevee_next/eevee_lightprobe.cc
@@ -151,10 +152,10 @@ set(SRC
   engines/eevee_next/eevee_material.cc
   engines/eevee_next/eevee_motion_blur.cc
   engines/eevee_next/eevee_pipeline.cc
-  engines/eevee_next/eevee_planar_probes.cc
+  engines/eevee_next/eevee_lightprobe_planar.cc
   engines/eevee_next/eevee_precompute.cc
   engines/eevee_next/eevee_raytrace.cc
-  engines/eevee_next/eevee_reflection_probes.cc
+  engines/eevee_next/eevee_lightprobe_sphere.cc
   engines/eevee_next/eevee_renderbuffers.cc
   engines/eevee_next/eevee_sampling.cc
   engines/eevee_next/eevee_shader.cc
@@ -181,10 +182,8 @@ set(SRC
   engines/gpencil/gpencil_antialiasing.cc
   engines/gpencil/gpencil_cache_utils.cc
   engines/gpencil/gpencil_draw_data.cc
-  engines/gpencil/gpencil_engine.cc
   engines/gpencil/gpencil_engine_c.cc
   engines/gpencil/gpencil_render.cc
-  engines/gpencil/gpencil_shader.cc
   engines/gpencil/gpencil_shader_c.cc
   engines/gpencil/gpencil_shader_fx.cc
   engines/select/select_draw_utils.cc
@@ -236,41 +235,41 @@ set(SRC
   intern/draw_cache_extract.hh
   intern/draw_cache_impl.hh
   intern/draw_cache_inline.hh
-  intern/draw_color_management.h
+  intern/draw_color_management.hh
   intern/draw_command.hh
-  intern/draw_common.h
   intern/draw_common.hh
-  intern/draw_common_shader_shared.h
+  intern/draw_common_c.hh
+  intern/draw_common_shader_shared.hh
   intern/draw_curves_private.hh
-  intern/draw_debug.h
   intern/draw_debug.hh
-  intern/draw_hair_private.h
+  intern/draw_debug_c.hh
+  intern/draw_hair_private.hh
   intern/draw_handle.hh
-  intern/draw_instance_data.h
-  intern/draw_manager.h
+  intern/draw_instance_data.hh
   intern/draw_manager.hh
+  intern/draw_manager_c.hh
   intern/draw_manager_profiling.hh
-  intern/draw_manager_testing.h
+  intern/draw_manager_testing.hh
   intern/draw_manager_text.hh
   intern/draw_pass.hh
   intern/draw_pbvh.hh
   intern/draw_resource.hh
   intern/draw_sculpt.hh
   intern/draw_shader.hh
-  intern/draw_shader_shared.h
-  intern/draw_state.h
+  intern/draw_shader_shared.hh
+  intern/draw_state.hh
   intern/draw_subdivision.hh
-  intern/draw_texture_pool.h
-  intern/draw_view.h
+  intern/draw_texture_pool.hh
   intern/draw_view.hh
-  intern/draw_view_data.h
+  intern/draw_view_c.hh
+  intern/draw_view_data.hh
   intern/mesh_extractors/extract_mesh.hh
   engines/basic/basic_engine.h
   engines/basic/basic_private.h
   engines/compositor/compositor_engine.h
   engines/eevee/eevee_engine.h
   engines/eevee/eevee_lightcache.h
-  engines/eevee/eevee_private.h
+  engines/eevee/eevee_private.hh
   engines/eevee/engine_eevee_shared_defines.h
   engines/eevee_next/eevee_ambient_occlusion.hh
   engines/eevee_next/eevee_camera.hh
@@ -281,7 +280,7 @@ set(SRC
   engines/eevee_next/eevee_gbuffer.hh
   engines/eevee_next/eevee_hizbuffer.hh
   engines/eevee_next/eevee_instance.hh
-  engines/eevee_next/eevee_irradiance_cache.hh
+  engines/eevee_next/eevee_lightprobe_volume.hh
   engines/eevee_next/eevee_light.hh
   engines/eevee_next/eevee_lightcache.hh
   engines/eevee_next/eevee_lightprobe.hh
@@ -290,10 +289,10 @@ set(SRC
   engines/eevee_next/eevee_material.hh
   engines/eevee_next/eevee_motion_blur.hh
   engines/eevee_next/eevee_pipeline.hh
-  engines/eevee_next/eevee_planar_probes.hh
+  engines/eevee_next/eevee_lightprobe_planar.hh
   engines/eevee_next/eevee_precompute.hh
   engines/eevee_next/eevee_raytrace.hh
-  engines/eevee_next/eevee_reflection_probes.hh
+  engines/eevee_next/eevee_lightprobe_sphere.hh
   engines/eevee_next/eevee_renderbuffers.hh
   engines/eevee_next/eevee_sampling.hh
   engines/eevee_next/eevee_shader.hh
@@ -305,14 +304,7 @@ set(SRC
   engines/eevee_next/eevee_volume.hh
   engines/eevee_next/eevee_world.hh
   engines/external/external_engine.h
-  engines/gpencil/gpencil_antialiasing.hh
   engines/gpencil/gpencil_engine.h
-  engines/gpencil/gpencil_layer.hh
-  engines/gpencil/gpencil_light.hh
-  engines/gpencil/gpencil_material.hh
-  engines/gpencil/gpencil_object.hh
-  engines/gpencil/gpencil_shader.hh
-  engines/gpencil/gpencil_vfx.hh
   engines/image/image_batches.hh
   engines/image/image_buffer_cache.hh
   engines/image/image_drawing_mode.hh
@@ -463,6 +455,8 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_ambient_occlusion_pass_comp.glsl
   engines/eevee_next/shaders/eevee_attributes_lib.glsl
   engines/eevee_next/shaders/eevee_bxdf_lib.glsl
+  engines/eevee_next/shaders/eevee_bxdf_microfacet_lib.glsl
+  engines/eevee_next/shaders/eevee_bxdf_diffuse_lib.glsl
   engines/eevee_next/shaders/eevee_bxdf_sampling_lib.glsl
   engines/eevee_next/shaders/eevee_camera_lib.glsl
   engines/eevee_next/shaders/eevee_closure_lib.glsl
@@ -475,12 +469,10 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_debug_irradiance_grid_frag.glsl
   engines/eevee_next/shaders/eevee_deferred_capture_frag.glsl
   engines/eevee_next/shaders/eevee_deferred_combine_frag.glsl
+  engines/eevee_next/shaders/eevee_deferred_thickness_amend_frag.glsl
   engines/eevee_next/shaders/eevee_deferred_light_frag.glsl
   engines/eevee_next/shaders/eevee_deferred_planar_frag.glsl
   engines/eevee_next/shaders/eevee_deferred_tile_classify_frag.glsl
-  engines/eevee_next/shaders/eevee_deferred_tile_compact_vert.glsl
-  engines/eevee_next/shaders/eevee_deferred_tile_stencil_frag.glsl
-  engines/eevee_next/shaders/eevee_deferred_tile_stencil_vert.glsl
   engines/eevee_next/shaders/eevee_depth_of_field_accumulator_lib.glsl
   engines/eevee_next/shaders/eevee_depth_of_field_bokeh_lut_comp.glsl
   engines/eevee_next/shaders/eevee_depth_of_field_downsample_comp.glsl
@@ -506,6 +498,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_film_cryptomatte_post_comp.glsl
   engines/eevee_next/shaders/eevee_film_frag.glsl
   engines/eevee_next/shaders/eevee_film_lib.glsl
+  engines/eevee_next/shaders/eevee_filter_lib.glsl
   engines/eevee_next/shaders/eevee_forward_lib.glsl
   engines/eevee_next/shaders/eevee_gbuffer_lib.glsl
   engines/eevee_next/shaders/eevee_gbuffer_closure_test.glsl
@@ -519,6 +512,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_hiz_debug_frag.glsl
   engines/eevee_next/shaders/eevee_hiz_update_comp.glsl
   engines/eevee_next/shaders/eevee_horizon_denoise_comp.glsl
+  engines/eevee_next/shaders/eevee_horizon_resolve_comp.glsl
   engines/eevee_next/shaders/eevee_horizon_scan_eval_lib.glsl
   engines/eevee_next/shaders/eevee_horizon_scan_comp.glsl
   engines/eevee_next/shaders/eevee_horizon_scan_lib.glsl
@@ -529,14 +523,16 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_light_culling_sort_comp.glsl
   engines/eevee_next/shaders/eevee_light_culling_tile_comp.glsl
   engines/eevee_next/shaders/eevee_light_culling_zbin_comp.glsl
+  engines/eevee_next/shaders/eevee_light_shadow_setup_comp.glsl
   engines/eevee_next/shaders/eevee_light_eval_lib.glsl
   engines/eevee_next/shaders/eevee_light_iter_lib.glsl
   engines/eevee_next/shaders/eevee_light_lib.glsl
   engines/eevee_next/shaders/eevee_lightprobe_eval_lib.glsl
-  engines/eevee_next/shaders/eevee_lightprobe_irradiance_bounds_comp.glsl
-  engines/eevee_next/shaders/eevee_lightprobe_irradiance_ray_comp.glsl
-  engines/eevee_next/shaders/eevee_lightprobe_irradiance_offset_comp.glsl
-  engines/eevee_next/shaders/eevee_lightprobe_irradiance_load_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_volume_bounds_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_volume_ray_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_volume_offset_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_volume_load_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_volume_world_comp.glsl
   engines/eevee_next/shaders/eevee_lightprobe_lib.glsl
   engines/eevee_next/shaders/eevee_lightprobe_volume_eval_lib.glsl
   engines/eevee_next/shaders/eevee_lookdev_display_frag.glsl
@@ -564,13 +560,14 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_ray_trace_screen_comp.glsl
   engines/eevee_next/shaders/eevee_ray_trace_screen_lib.glsl
   engines/eevee_next/shaders/eevee_ray_types_lib.glsl
-  engines/eevee_next/shaders/eevee_reflection_probe_convolve_comp.glsl
-  engines/eevee_next/shaders/eevee_reflection_probe_eval_lib.glsl
-  engines/eevee_next/shaders/eevee_reflection_probe_lib.glsl
-  engines/eevee_next/shaders/eevee_reflection_probe_mapping_lib.glsl
-  engines/eevee_next/shaders/eevee_reflection_probe_remap_comp.glsl
-  engines/eevee_next/shaders/eevee_reflection_probe_select_comp.glsl
-  engines/eevee_next/shaders/eevee_reflection_probe_update_irradiance_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_sphere_convolve_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_sphere_eval_lib.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_sphere_irradiance_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_sphere_lib.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_sphere_mapping_lib.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_sphere_remap_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_sphere_select_comp.glsl
+  engines/eevee_next/shaders/eevee_lightprobe_sphere_sunlight_comp.glsl
   engines/eevee_next/shaders/eevee_renderpass_lib.glsl
   engines/eevee_next/shaders/eevee_sampling_lib.glsl
   engines/eevee_next/shaders/eevee_shadow_debug_frag.glsl
@@ -591,6 +588,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_shadow_tag_usage_vert.glsl
   engines/eevee_next/shaders/eevee_shadow_tag_usage_volume_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_test.glsl
+  engines/eevee_next/shaders/eevee_shadow_tilemap_amend_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_tilemap_bounds_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_tilemap_finalize_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_tilemap_init_comp.glsl
@@ -607,6 +605,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_surf_lib.glsl
   engines/eevee_next/shaders/eevee_surf_occupancy_frag.glsl
   engines/eevee_next/shaders/eevee_surf_shadow_frag.glsl
+  engines/eevee_next/shaders/eevee_surf_volume_frag.glsl
   engines/eevee_next/shaders/eevee_shadow_page_tile_vert.glsl
   engines/eevee_next/shaders/eevee_shadow_page_tile_frag.glsl
   engines/eevee_next/shaders/eevee_surf_world_frag.glsl
@@ -622,7 +621,6 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_vertex_copy_comp.glsl
   engines/eevee_next/shaders/eevee_volume_integration_comp.glsl
   engines/eevee_next/shaders/eevee_volume_lib.glsl
-  engines/eevee_next/shaders/eevee_volume_material_comp.glsl
   engines/eevee_next/shaders/eevee_volume_resolve_frag.glsl
   engines/eevee_next/shaders/eevee_volume_scatter_comp.glsl
 
@@ -710,15 +708,13 @@ set(GLSL_SRC
   intern/shaders/draw_visibility_comp.glsl
 
   intern/draw_command_shared.hh
-  intern/draw_common_shader_shared.h
-  intern/draw_defines.h
+  intern/draw_common_shader_shared.hh
+  intern/draw_defines.hh
   intern/draw_pointcloud_private.hh
-  intern/draw_shader_shared.h
+  intern/draw_shader_shared.hh
 
   engines/gpencil/shaders/gpencil_frag.glsl
-  engines/gpencil/shaders/grease_pencil_frag.glsl
   engines/gpencil/shaders/gpencil_vert.glsl
-  engines/gpencil/shaders/grease_pencil_vert.glsl
   engines/gpencil/shaders/gpencil_antialiasing_frag.glsl
   engines/gpencil/shaders/gpencil_antialiasing_vert.glsl
   engines/gpencil/shaders/gpencil_common_lib.glsl
@@ -726,7 +722,6 @@ set(GLSL_SRC
   engines/gpencil/shaders/gpencil_mask_invert_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_vert.glsl
-  engines/gpencil/shaders/grease_pencil_depth_merge_vert.glsl
   engines/gpencil/shaders/gpencil_vfx_frag.glsl
 
   engines/gpencil/gpencil_defines.h
@@ -773,6 +768,8 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_edit_curve_handle_vert.glsl
   engines/overlay/shaders/overlay_edit_curve_handle_vert_no_geom.glsl
   engines/overlay/shaders/overlay_edit_curve_point_vert.glsl
+  engines/overlay/shaders/overlay_edit_curves_handle_frag.glsl
+  engines/overlay/shaders/overlay_edit_curves_handle_vert.glsl
   engines/overlay/shaders/overlay_edit_curve_wire_vert.glsl
   engines/overlay/shaders/overlay_edit_gpencil_canvas_vert.glsl
   engines/overlay/shaders/overlay_edit_gpencil_guide_vert.glsl
@@ -960,6 +957,11 @@ if(WITH_GTESTS)
       list(APPEND INC_SYS
         PUBLIC ${VULKAN_INCLUDE_DIRS}
       )
+      if(APPLE)
+        list(APPEND INC_SYS
+          ${MOLTENVK_INCLUDE_DIRS}
+        )
+      endif()
     endif()
   endif()
 endif()

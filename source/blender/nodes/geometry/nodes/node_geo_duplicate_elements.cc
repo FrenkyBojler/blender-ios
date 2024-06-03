@@ -1061,25 +1061,27 @@ static void node_rna(StructRNA *srna)
                     "Which domain to duplicate",
                     domain_items,
                     NOD_storage_enum_accessors(domain),
-                    int(AttrDomain::Point));
+                    int(AttrDomain::Point),
+                    nullptr,
+                    true);
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_DUPLICATE_ELEMENTS, "Duplicate Elements", NODE_CLASS_GEOMETRY);
 
-  node_type_storage(&ntype,
-                    "NodeGeometryDuplicateElements",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryDuplicateElements",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
 
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

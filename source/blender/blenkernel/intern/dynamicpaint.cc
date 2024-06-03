@@ -218,7 +218,7 @@ struct PaintBakeData {
 /** UV Image sequence format point */
 struct PaintUVPoint {
   /* Pixel / mesh data */
-  /** tri index on domain derived mesh */
+  /** Triangle index on domain evaluated mesh. */
   uint tri_index;
   uint pixel_index;
   /* vertex indexes */
@@ -1825,7 +1825,7 @@ static void dynamic_paint_apply_surface_displace_cb(void *__restrict userdata,
   madd_v3_v3fl(data->vert_positions[i], data->vert_normals[i], -val);
 }
 
-/* apply displacing vertex surface to the derived mesh */
+/** Apply displacing vertex surface to the evaluated-mesh. */
 static void dynamicPaint_applySurfaceDisplace(DynamicPaintSurface *surface, Mesh *result)
 {
   PaintSurfaceData *sData = surface->data;
@@ -1911,12 +1911,12 @@ static void dynamic_paint_apply_surface_wave_cb(void *__restrict userdata,
   madd_v3_v3fl(data->vert_positions[i], data->vert_normals[i], wPoint[i].height);
 }
 
-/*
- * Apply canvas data to the object derived mesh
+/**
+ * Apply canvas data to the object evaluated-mesh.
  */
 static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *ob, Mesh *mesh)
 {
-  Mesh *result = BKE_mesh_copy_for_eval(mesh);
+  Mesh *result = BKE_mesh_copy_for_eval(*mesh);
 
   if (pmd->canvas && !(pmd->canvas->flags & MOD_DPAINT_BAKING) &&
       pmd->type == MOD_DYNAMICPAINT_TYPE_CANVAS)
@@ -2069,7 +2069,7 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
-    runtime_data->brush_mesh = BKE_mesh_copy_for_eval(result);
+    runtime_data->brush_mesh = BKE_mesh_copy_for_eval(*result);
   }
 
   return result;
@@ -2090,11 +2090,11 @@ static void canvas_copyMesh(DynamicPaintCanvasSettings *canvas, Mesh *mesh)
     BKE_id_free(nullptr, runtime->canvas_mesh);
   }
 
-  runtime->canvas_mesh = BKE_mesh_copy_for_eval(mesh);
+  runtime->canvas_mesh = BKE_mesh_copy_for_eval(*mesh);
 }
 
 /*
- * Updates derived mesh copy and processes dynamic paint step / caches.
+ * Updates evaluated-mesh copy and processes dynamic paint step / caches.
  */
 static void dynamicPaint_frameUpdate(
     DynamicPaintModifierData *pmd, Depsgraph *depsgraph, Scene *scene, Object *ob, Mesh *mesh)
@@ -2103,7 +2103,7 @@ static void dynamicPaint_frameUpdate(
     DynamicPaintCanvasSettings *canvas = pmd->canvas;
     DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(canvas->surfaces.first);
 
-    /* update derived mesh copy */
+    /* update evaluated-mesh copy */
     canvas_copyMesh(canvas, mesh);
 
     /* in case image sequence baking, stop here */
@@ -3827,7 +3827,7 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
                                       SUBFRAME_RECURSION,
                                       BKE_scene_ctime_get(scene),
                                       eModifierType_DynamicPaint);
-  mesh_p = BKE_mesh_copy_for_eval(dynamicPaint_brush_mesh_get(brush));
+  mesh_p = BKE_mesh_copy_for_eval(*dynamicPaint_brush_mesh_get(brush));
   numOfVerts_p = mesh_p->verts_num;
 
   float(*positions_p)[3] = reinterpret_cast<float(*)[3]>(
@@ -3855,7 +3855,8 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
     return;
   }
 
-  /* if mesh is constructive -> num of verts has changed, only use current frame derived mesh */
+  /* If mesh is constructive -> num of verts has changed,
+   * only use current frame evaluated-mesh. */
   if (numOfVerts_p != numOfVerts_c) {
     positions_p = positions_c;
   }
@@ -4318,7 +4319,7 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     Bounds3D mesh_bb = {{0}};
     DynamicPaintVolumeGrid *grid = bData->grid;
 
-    mesh = BKE_mesh_copy_for_eval(brush_mesh);
+    mesh = BKE_mesh_copy_for_eval(*brush_mesh);
     blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
     const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
     const blender::Span<int> corner_verts = mesh->corner_verts();
@@ -6174,7 +6175,7 @@ static bool dynamicPaint_generateBakeData(DynamicPaintSurface *surface,
   }
 
   /*
-   * Make a transformed copy of canvas derived mesh vertices to avoid recalculation.
+   * Make a transformed copy of canvas evaluated-mesh vertices to avoid recalculation.
    */
   bData->mesh_bounds.valid = false;
   for (index = 0; index < canvasNumOfVerts; index++) {
@@ -6404,7 +6405,7 @@ int dynamicPaint_calculateFrame(
 {
   float timescale = 1.0f;
 
-  /* apply previous displace on derivedmesh if incremental surface */
+  /* Apply previous displace on evaluated-mesh if incremental surface. */
   if (surface->flags & MOD_DPAINT_DISP_INCREMENTAL) {
     dynamicPaint_applySurfaceDisplace(surface, dynamicPaint_canvas_mesh_get(surface->canvas));
   }

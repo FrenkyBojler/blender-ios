@@ -12,9 +12,11 @@
 #include "DNA_sound_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
+#include "BKE_file_handler.hh"
 #include "BKE_image.h"
 #include "BKE_main.hh"
 
@@ -26,8 +28,8 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
 
 #include "ED_screen.hh"
 #include "ED_transform.hh"
@@ -75,11 +77,27 @@ static void generic_poll_operations(const wmEvent *event, uint8_t type)
   g_drop_coords.use_snapping = event->modifier & KM_CTRL;
 }
 
-static bool image_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent *event)
+/* While drag-and-drop in the sequencer, the internal drop-box implementation allows to have a drop
+ * preview of the file dragged. This checks when drag-and-drop is done with a single file, and when
+ * only a expected `file_handler` can be used, so internal drop-box can be used instead of the
+ * `file_handler`. */
+static bool test_single_file_handler_poll(const bContext *C,
+                                          wmDrag *drag,
+                                          blender::StringRef file_handler)
+{
+  const auto paths = WM_drag_get_paths(drag);
+  auto file_handlers = blender::bke::file_handlers_poll_file_drop(C, paths);
+  return paths.size() == 1 && file_handlers.size() == 1 &&
+         file_handler == file_handlers[0]->idname;
+}
+
+static bool image_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   if (drag->type == WM_DRAG_PATH) {
     const eFileSel_File_Types file_type = eFileSel_File_Types(WM_drag_get_path_file_type(drag));
-    if (file_type == FILE_TYPE_IMAGE) {
+    if (file_type == FILE_TYPE_IMAGE &&
+        test_single_file_handler_poll(C, drag, "SEQUENCER_FH_image_strip"))
+    {
       generic_poll_operations(event, TH_SEQ_IMAGE);
       return true;
     }
@@ -107,9 +125,11 @@ static bool is_movie(wmDrag *drag)
   return false;
 }
 
-static bool movie_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent *event)
+static bool movie_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (is_movie(drag)) {
+  if (is_movie(drag) && (drag->type != WM_DRAG_PATH ||
+                         test_single_file_handler_poll(C, drag, "SEQUENCER_FH_movie_strip")))
+  {
     generic_poll_operations(event, TH_SEQ_MOVIE);
     return true;
   }
@@ -131,9 +151,11 @@ static bool is_sound(wmDrag *drag)
   return false;
 }
 
-static bool sound_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent *event)
+static bool sound_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (is_sound(drag)) {
+  if (is_sound(drag) && (drag->type != WM_DRAG_PATH ||
+                         test_single_file_handler_poll(C, drag, "SEQUENCER_FH_sound_strip")))
+  {
     generic_poll_operations(event, TH_SEQ_AUDIO);
     return true;
   }
@@ -146,7 +168,7 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   SeqDropCoords *coords = &g_drop_coords;
   ARegion *region = CTX_wm_region(C);
   Scene *scene = CTX_data_scene(C);
-  int hand;
+  eSeqHandle hand;
   View2D *v2d = &region->v2d;
 
   /* Update the position were we would place the strip if we complete the drag and drop action.
@@ -220,6 +242,50 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
 
 static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
+  if (g_drop_coords.in_use) {
+    if (!g_drop_coords.has_read_mouse_pos) {
+      /* We didn't read the mouse position, so we need to do it manually here. */
+      int xy[2];
+      wmWindow *win = CTX_wm_window(C);
+      xy[0] = win->eventstate->xy[0];
+      xy[1] = win->eventstate->xy[1];
+
+      ARegion *region = CTX_wm_region(C);
+      int mval[2];
+      /* Convert mouse coordinates to region local coordinates. */
+      mval[0] = xy[0] - region->winrct.xmin;
+      mval[1] = xy[1] - region->winrct.ymin;
+
+      update_overlay_strip_position_data(C, mval);
+    }
+
+    RNA_int_set(drop->ptr, "frame_start", g_drop_coords.start_frame);
+    RNA_int_set(drop->ptr, "channel", g_drop_coords.channel);
+    RNA_boolean_set(drop->ptr, "overlap_shuffle_override", true);
+  }
+  else {
+    /* We are dropped inside the preview region. Put the strip on top of the
+     * current displayed frame. */
+    Scene *scene = CTX_data_scene(C);
+    Editing *ed = SEQ_editing_ensure(scene);
+    ListBase *seqbase = SEQ_active_seqbase_get(ed);
+    ListBase *channels = SEQ_channels_displayed_get(ed);
+    SpaceSeq *sseq = CTX_wm_space_seq(C);
+
+    blender::VectorSet strips = SEQ_query_rendered_strips(
+        scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
+
+    /* Get the top most strip channel that is in view. */
+    int max_channel = -1;
+    for (Sequence *seq : strips) {
+      max_channel = max_ii(seq->machine, max_channel);
+    }
+
+    if (max_channel != -1) {
+      RNA_int_set(drop->ptr, "channel", max_channel);
+    }
+  }
+
   ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
   /* ID dropped. */
   if (id != nullptr) {
@@ -265,50 +331,6 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
       RNA_collection_clear(drop->ptr, "files");
       RNA_collection_add(drop->ptr, "files", &itemptr);
       RNA_string_set(&itemptr, "name", file);
-    }
-  }
-
-  if (g_drop_coords.in_use) {
-    if (!g_drop_coords.has_read_mouse_pos) {
-      /* We didn't read the mouse position, so we need to do it manually here. */
-      int xy[2];
-      wmWindow *win = CTX_wm_window(C);
-      xy[0] = win->eventstate->xy[0];
-      xy[1] = win->eventstate->xy[1];
-
-      ARegion *region = CTX_wm_region(C);
-      int mval[2];
-      /* Convert mouse coordinates to region local coordinates. */
-      mval[0] = xy[0] - region->winrct.xmin;
-      mval[1] = xy[1] - region->winrct.ymin;
-
-      update_overlay_strip_position_data(C, mval);
-    }
-
-    RNA_int_set(drop->ptr, "frame_start", g_drop_coords.start_frame);
-    RNA_int_set(drop->ptr, "channel", g_drop_coords.channel);
-    RNA_boolean_set(drop->ptr, "overlap_shuffle_override", true);
-  }
-  else {
-    /* We are dropped inside the preview region. Put the strip on top of the
-     * current displayed frame. */
-    Scene *scene = CTX_data_scene(C);
-    Editing *ed = SEQ_editing_ensure(scene);
-    ListBase *seqbase = SEQ_active_seqbase_get(ed);
-    ListBase *channels = SEQ_channels_displayed_get(ed);
-    SpaceSeq *sseq = CTX_wm_space_seq(C);
-
-    blender::VectorSet strips = SEQ_query_rendered_strips(
-        scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
-
-    /* Get the top most strip channel that is in view. */
-    int max_channel = -1;
-    for (Sequence *seq : strips) {
-      max_channel = max_ii(seq->machine, max_channel);
-    }
-
-    if (max_channel != -1) {
-      RNA_int_set(drop->ptr, "channel", max_channel);
     }
   }
 }

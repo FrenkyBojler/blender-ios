@@ -22,6 +22,7 @@
 #include "IMB_moviecache.hh"
 
 #include "BKE_addon.h"
+#include "BKE_asset.hh"
 #include "BKE_blender.hh"           /* own include */
 #include "BKE_blender_user_menu.hh" /* own include */
 #include "BKE_blender_version.h"    /* own include */
@@ -29,7 +30,7 @@
 #include "BKE_cachefile.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_global.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
@@ -79,7 +80,7 @@ void BKE_blender_free()
   BKE_ffmpeg_exit();
 #endif
 
-  BKE_node_system_exit();
+  blender::bke::BKE_node_system_exit();
 }
 
 /** \} */
@@ -339,7 +340,19 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
   BLI_freelistN(&userdef->autoexec_paths);
   BLI_freelistN(&userdef->script_directories);
   BLI_freelistN(&userdef->asset_libraries);
-  BLI_freelistN(&userdef->extension_repos);
+
+  LISTBASE_FOREACH_MUTABLE (bUserExtensionRepo *, repo_ref, &userdef->extension_repos) {
+    MEM_SAFE_FREE(repo_ref->access_token);
+    MEM_freeN(repo_ref);
+  }
+  BLI_listbase_clear(&userdef->extension_repos);
+
+  LISTBASE_FOREACH_MUTABLE (bUserAssetShelfSettings *, settings, &userdef->asset_shelves_settings)
+  {
+    BKE_asset_catalog_path_list_free(settings->enabled_catalog_paths);
+    MEM_freeN(settings);
+  }
+  BLI_listbase_clear(&userdef->asset_shelves_settings);
 
   BLI_freelistN(&userdef->uistyles);
   BLI_freelistN(&userdef->uifonts);

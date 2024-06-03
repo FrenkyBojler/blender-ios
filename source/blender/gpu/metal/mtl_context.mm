@@ -20,14 +20,14 @@
 
 #include "DNA_userdef_types.h"
 
-#include "GPU_capabilities.h"
-#include "GPU_matrix.h"
-#include "GPU_shader.h"
-#include "GPU_storage_buffer.h"
-#include "GPU_texture.h"
-#include "GPU_uniform_buffer.h"
-#include "GPU_vertex_buffer.h"
-#include "intern/gpu_matrix_private.h"
+#include "GPU_capabilities.hh"
+#include "GPU_matrix.hh"
+#include "GPU_shader.hh"
+#include "GPU_storage_buffer.hh"
+#include "GPU_texture.hh"
+#include "GPU_uniform_buffer.hh"
+#include "GPU_vertex_buffer.hh"
+#include "intern/gpu_matrix_private.hh"
 
 #include "BLI_time.h"
 
@@ -225,7 +225,7 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wobjc-method-access"
   /* Enable increased concurrent shader compiler limit.
-   * Note: Disable warning for missing method when building on older OS's, as compiled code will
+   * NOTE: Disable warning for missing method when building on older OS's, as compiled code will
    * still work correctly when run on a system with the API available. */
   if (@available(macOS 13.3, *)) {
     [this->device setShouldMaximizeConcurrentCompilation:YES];
@@ -271,7 +271,7 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
 
 MTLContext::~MTLContext()
 {
-  BLI_assert(this == reinterpret_cast<MTLContext *>(GPU_context_active_get()));
+  BLI_assert(this == MTLContext::get());
   /* Ensure rendering is complete command encoders/command buffers are freed. */
   if (MTLBackend::get()->is_inside_render_boundary()) {
     this->finish();
@@ -980,8 +980,7 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
     }
 
     /* Transform feedback buffer binding. */
-    GPUVertBuf *tf_vbo =
-        this->pipeline_state.active_shader->get_transform_feedback_active_buffer();
+    VertBuf *tf_vbo = this->pipeline_state.active_shader->get_transform_feedback_active_buffer();
     if (tf_vbo != nullptr && pipeline_state_instance->transform_feedback_buffer_index >= 0) {
 
       /* Ensure primitive type is either GPU_LINES, GPU_TRIANGLES or GPU_POINT */
@@ -1086,7 +1085,7 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
         /* Scissor is disabled, reset to default size as scissor state may have been previously
          * assigned on this encoder.
          * NOTE: If an attachment-less framebuffer is used, fetch specified width/height rather
-         * than active attachment width/height as provided by get_default_w/h().*/
+         * than active attachment width/height as provided by get_default_w/h(). */
         uint default_w = render_fb->get_default_width();
         uint default_h = render_fb->get_default_height();
         bool is_attachmentless = (default_w == 0) && (default_h == 0);
@@ -1548,7 +1547,7 @@ bool MTLContext::ensure_buffer_bindings(
         /* Bind Compute SSBO. */
         if (bool(ssbo.stage_mask & ShaderStage::COMPUTE)) {
           BLI_assert(buffer_bind_index >= 0 && buffer_bind_index < MTL_MAX_BUFFER_BINDINGS);
-          cs.bind_compute_buffer(ssbo_buffer, 0, buffer_bind_index, true);
+          cs.bind_compute_buffer(ssbo_buffer, 0, buffer_bind_index);
         }
       }
       else {
@@ -1665,7 +1664,7 @@ void MTLContext::ensure_texture_bindings(
             /* Texture type for bound texture (e.g. Texture2DArray) does not match what was
              * expected in the shader interface. This is a problem and we will need to bind
              * a dummy texture to ensure correct API usage. */
-            MTL_LOG_WARNING(
+            MTL_LOG_ERROR(
                 "(Shader '%s') Texture (%s) %p bound to slot %d is incompatible -- Wrong "
                 "texture target type. (Expecting type %d, actual type %d) (binding "
                 "name:'%s')(texture name:'%s')",
@@ -1680,7 +1679,7 @@ void MTLContext::ensure_texture_bindings(
           }
         }
         else {
-          MTL_LOG_WARNING(
+          MTL_LOG_ERROR(
               "Shader '%s' expected texture (%s) to be bound to location %d (texture[[%d]]) -- No "
               "texture was "
               "bound. (name:'%s')",
@@ -1716,7 +1715,7 @@ void MTLContext::ensure_texture_bindings(
         }
       }
       else {
-        MTL_LOG_WARNING(
+        MTL_LOG_ERROR(
             "Shader %p expected texture (%s) to be bound to slot %d -- Slot exceeds the "
             "hardware/API limit of '%d'. (name:'%s')",
             this->pipeline_state.active_shader,
@@ -1916,7 +1915,7 @@ void MTLContext::ensure_texture_bindings(
             /* Texture type for bound texture (e.g. Texture2DArray) does not match what was
              * expected in the shader interface. This is a problem and we will need to bind
              * a dummy texture to ensure correct API usage. */
-            MTL_LOG_WARNING(
+            MTL_LOG_ERROR(
                 "(Shader '%s') Texture (%s) %p bound to slot %d is incompatible -- Wrong "
                 "texture target type. (Expecting type %d, actual type %d) (binding "
                 "name:'%s')(texture name:'%s')",
@@ -1931,7 +1930,7 @@ void MTLContext::ensure_texture_bindings(
           }
         }
         else {
-          MTL_LOG_WARNING(
+          MTL_LOG_ERROR(
               "Shader '%s' expected texture (%s) to be bound to location %d (texture[[%d]]) -- No "
               "texture was "
               "bound. (name:'%s')",
@@ -1959,7 +1958,7 @@ void MTLContext::ensure_texture_bindings(
         }
       }
       else {
-        MTL_LOG_WARNING(
+        MTL_LOG_ERROR(
             "Shader %p expected texture (%s) to be bound to slot %d -- Slot exceeds the "
             "hardware/API limit of '%d'. (name:'%s')",
             this->pipeline_state.active_shader,
@@ -2388,9 +2387,9 @@ void MTLContext::texture_bind(gpu::MTLTexture *mtl_texture, uint texture_unit, b
   if (texture_unit < 0 || texture_unit >= GPU_max_textures() ||
       texture_unit >= MTL_MAX_TEXTURE_SLOTS)
   {
-    MTL_LOG_WARNING("Attempting to bind texture '%s' to invalid texture unit %d",
-                    mtl_texture->get_name(),
-                    texture_unit);
+    MTL_LOG_ERROR("Attempting to bind texture '%s' to invalid texture unit %d",
+                  mtl_texture->get_name(),
+                  texture_unit);
     BLI_assert(false);
     return;
   }
@@ -2412,7 +2411,7 @@ void MTLContext::sampler_bind(MTLSamplerState sampler_state, uint sampler_unit)
   if (sampler_unit < 0 || sampler_unit >= GPU_max_textures() ||
       sampler_unit >= MTL_MAX_SAMPLER_SLOTS)
   {
-    MTL_LOG_WARNING("Attempting to bind sampler to invalid sampler unit %d", sampler_unit);
+    MTL_LOG_ERROR("Attempting to bind sampler to invalid sampler unit %d", sampler_unit);
     BLI_assert(false);
     return;
   }
@@ -2589,7 +2588,7 @@ id<MTLComputePipelineState> MTLContextComputeUtils::get_buffer_clear_pso()
   }
 
   /* Fetch active context. */
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
 
   @autoreleasepool {
@@ -2660,7 +2659,7 @@ void present(MTLRenderPassDescriptor *blit_descriptor,
              id<CAMetalDrawable> drawable)
 {
 
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
 
   /* Flush any outstanding work. */

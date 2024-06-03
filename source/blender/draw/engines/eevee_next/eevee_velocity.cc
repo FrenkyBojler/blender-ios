@@ -209,9 +209,9 @@ bool VelocityModule::step_object_sync(Object *ob,
 
   /* Avoid drawing object that has no motions but were tagged as such. */
   if (step_ == STEP_CURRENT && has_motion == true && has_deform == false) {
-    float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
-    float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
-    float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
+    const float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
+    const float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
+    const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
     if (inst_.is_viewport()) {
       has_motion = (obmat_curr != obmat_prev);
     }
@@ -262,7 +262,7 @@ void VelocityModule::geometry_steps_fill()
   copy_ps.bind_ssbo("out_buf", *geometry_steps[step_]);
 
   for (VelocityGeometryData &geom : geometry_map.values()) {
-    if (!geom.pos_buf) {
+    if (!geom.pos_buf || geom.len == 0) {
       continue;
     }
     const GPUVertFormat *format = GPU_vertbuf_get_format(geom.pos_buf);
@@ -279,7 +279,9 @@ void VelocityModule::geometry_steps_fill()
       copy_ps.push_constant("start_offset", geom.ofs);
       copy_ps.push_constant("vertex_stride", int(format->stride / 4));
       copy_ps.push_constant("vertex_count", geom.len);
-      copy_ps.dispatch(int3(divide_ceil_u(geom.len, VERTEX_COPY_GROUP_SIZE), 1, 1));
+      uint group_len_x = divide_ceil_u(geom.len, VERTEX_COPY_GROUP_SIZE);
+      uint verts_per_thread = divide_ceil_u(group_len_x, GPU_max_work_group_count(0));
+      copy_ps.dispatch(int3(group_len_x / verts_per_thread, 1, 1));
     }
   }
 
@@ -372,7 +374,7 @@ void VelocityModule::end_sync()
       /* Current geometry step will be copied at the end of the frame.
        * Thus vel.geo.len[STEP_CURRENT] is not yet valid and the current length is manually
        * retrieved. */
-      GPUVertBuf *pos_buf = geometry_map.lookup_default(vel.id, VelocityGeometryData()).pos_buf;
+      gpu::VertBuf *pos_buf = geometry_map.lookup_default(vel.id, VelocityGeometryData()).pos_buf;
       vel.geo.do_deform = pos_buf != nullptr &&
                           (vel.geo.len[STEP_PREVIOUS] == GPU_vertbuf_get_vertex_len(pos_buf));
     }

@@ -10,16 +10,20 @@
 
 #include <mutex>
 
+#include "BLF_api.hh"
+
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
 
-#include "GPU_texture.h"
-#include "GPU_vertex_buffer.h"
+#include "GPU_texture.hh"
+#include "GPU_vertex_buffer.hh"
 
 struct ColorManagedDisplay;
 struct FontBLF;
-struct GPUBatch;
-struct GPUVertBuf;
+namespace blender::gpu {
+class Batch;
+class VertBuf;
+}  // namespace blender::gpu
 struct GPUVertBufRaw;
 
 #include FT_MULTIPLE_MASTERS_H /* Variable font support. */
@@ -93,11 +97,10 @@ inline ft_pix ft_pix_from_float(float v)
 struct BatchBLF {
   /** Can only batch glyph from the same font. */
   FontBLF *font;
-  GPUBatch *batch;
-  GPUVertBuf *verts;
-  GPUVertBufRaw pos_step, col_step, offset_step, glyph_size_step, glyph_comp_len_step,
-      glyph_mode_step;
-  unsigned int pos_loc, col_loc, offset_loc, glyph_size_loc, glyph_comp_len_loc, glyph_mode_loc;
+  blender::gpu::Batch *batch;
+  blender::gpu::VertBuf *verts;
+  GPUVertBufRaw pos_step, col_step, offset_step, glyph_size_step, glyph_flags_step;
+  unsigned int pos_loc, col_loc, offset_loc, glyph_size_loc, glyph_flags_loc;
   unsigned int glyph_len;
   /** Copy of `font->pos`. */
   int ofs[2];
@@ -190,10 +193,7 @@ struct GlyphBLF {
   /** Glyph width and height. */
   int dims[2];
   int pitch;
-  int depth;
-
-  /** Render mode (FT_Render_Mode). */
-  int render_mode;
+  int num_channels;
 
   /**
    * X and Y bearing of the glyph.
@@ -216,9 +216,6 @@ struct FontBufInfoBLF {
 
   /** Buffer size, keep signed so comparisons with negative values work. */
   int dims[2];
-
-  /** Number of channels. */
-  int ch;
 
   /** Display device used for color management. */
   ColorManagedDisplay *display;
@@ -325,13 +322,8 @@ struct FontBLF {
   /** Angle in radians. */
   float angle;
 
-#if 0 /* BLF_BLUR_ENABLE */
-  /* blur: 3 or 5 large kernel */
-  int blur;
-#endif
-
-  /** Shadow level. */
-  int shadow;
+  /** Shadow type. */
+  FontShadowType shadow;
 
   /** And shadow offset. */
   int shadow_x;
@@ -342,12 +334,6 @@ struct FontBLF {
 
   /** Main text color. */
   unsigned char color[4];
-
-  /**
-   * Multiplied this matrix with the current one before draw the text!
-   * see #blf_draw_gpu__start.
-   */
-  float m[16];
 
   /** Clipping rectangle. */
   rcti clip_rec;

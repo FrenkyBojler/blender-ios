@@ -19,7 +19,7 @@ add_definitions(-DBOOST_ALL_NO_LIB)
 # Clang as well works around the issue.
 if(UNIX AND NOT APPLE)
   if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    if(EXISTS ${LIBDIR})
+    if(DEFINED LIBDIR)
       add_definitions(-DARCH_HAS_GNU_STL_EXTENSIONS)
     endif()
   endif()
@@ -33,6 +33,12 @@ if(WIN32)
   # warning alert.
   # Silence them by restore warn C4100 back to w4
   remove_cc_flag("/w34100")
+  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+    # USD currently does not support the new preprocessor,
+    # so we remove it here and disable sse2neon
+    remove_cc_flag("/Zc:preprocessor")
+    add_definitions(-DDISABLE_SSE2NEON)
+  endif()
 endif()
 
 set(INC

@@ -16,7 +16,7 @@
 #include "DNA_fluid_types.h"
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 namespace blender::workbench {
 
@@ -189,9 +189,9 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
 static const CustomData *get_loop_custom_data(const Mesh *mesh)
 {
   if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    BLI_assert(mesh->edit_mesh != nullptr);
-    BLI_assert(mesh->edit_mesh->bm != nullptr);
-    return &mesh->edit_mesh->bm->ldata;
+    BLI_assert(mesh->runtime->edit_mesh != nullptr);
+    BLI_assert(mesh->runtime->edit_mesh->bm != nullptr);
+    return &mesh->runtime->edit_mesh->bm->ldata;
   }
   return &mesh->corner_data;
 }
@@ -199,9 +199,9 @@ static const CustomData *get_loop_custom_data(const Mesh *mesh)
 static const CustomData *get_vert_custom_data(const Mesh *mesh)
 {
   if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    BLI_assert(mesh->edit_mesh != nullptr);
-    BLI_assert(mesh->edit_mesh->bm != nullptr);
-    return &mesh->edit_mesh->bm->vdata;
+    BLI_assert(mesh->runtime->edit_mesh != nullptr);
+    BLI_assert(mesh->runtime->edit_mesh->bm != nullptr);
+    return &mesh->runtime->edit_mesh->bm->vdata;
   }
   return &mesh->vert_data;
 }
@@ -244,7 +244,8 @@ ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
   }
 
   if (sculpt_pbvh) {
-    if (color_type == V3D_SHADING_TEXTURE_COLOR && BKE_pbvh_type(ob->sculpt->pbvh) != PBVH_FACES) {
+    if (color_type == V3D_SHADING_TEXTURE_COLOR && BKE_pbvh_type(*ob->sculpt->pbvh) != PBVH_FACES)
+    {
       /* Force use of material color for sculpt. */
       color_type = V3D_SHADING_MATERIAL_COLOR;
     }
@@ -254,7 +255,7 @@ ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
     bContext *C = (bContext *)DRW_context_state_get()->evil_C;
     if (C != nullptr) {
       color_type = ED_paint_shading_color_override(
-          C, &scene_state.scene->toolsettings->paint_mode, ob, color_type);
+          C, &scene_state.scene->toolsettings->paint_mode, *ob, color_type);
     }
   }
   else if (ob->type == OB_MESH && !DRW_state_is_scene_render()) {

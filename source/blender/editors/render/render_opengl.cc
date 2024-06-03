@@ -27,11 +27,11 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_camera.h"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
@@ -67,9 +67,9 @@
 
 #include "SEQ_render.hh"
 
-#include "GPU_framebuffer.h"
-#include "GPU_matrix.h"
-#include "GPU_viewport.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_matrix.hh"
+#include "GPU_viewport.hh"
 
 #include "render_intern.hh"
 
@@ -393,7 +393,7 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
       else {
         rect = ibuf_result->byte_buffer.data;
       }
-      BKE_image_stamp_buf(scene, camera, nullptr, rect, rectf, rr->rectx, rr->recty, 4);
+      BKE_image_stamp_buf(scene, camera, nullptr, rect, rectf, rr->rectx, rr->recty);
     }
     RE_render_result_rect_from_ibuf(rr, ibuf_result, oglrender->view_id);
     IMB_freeImBuf(ibuf_result);
@@ -791,8 +791,12 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->prevar = prevar;
 
   if (is_view_context) {
-    /* so quad view renders camera */
-    ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->region);
+    /* Prefer rendering camera in quad view if possible. */
+    if (!ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->region)) {
+      /* If not get region activated by ED_view3d_context_activate earlier. */
+      oglrender->v3d = CTX_wm_view3d(C);
+      oglrender->region = CTX_wm_region(C);
+    }
 
     oglrender->rv3d = static_cast<RegionView3D *>(oglrender->region->regiondata);
 
@@ -1313,9 +1317,9 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static std::string screen_opengl_render_description(bContext * /*C*/,
-                                                    wmOperatorType * /*ot*/,
-                                                    PointerRNA *ptr)
+static std::string screen_opengl_render_get_description(bContext * /*C*/,
+                                                        wmOperatorType * /*ot*/,
+                                                        PointerRNA *ptr)
 {
   if (!RNA_boolean_get(ptr, "animation")) {
     return "";
@@ -1340,7 +1344,7 @@ void RENDER_OT_opengl(wmOperatorType *ot)
   ot->idname = "RENDER_OT_opengl";
 
   /* api callbacks */
-  ot->get_description = screen_opengl_render_description;
+  ot->get_description = screen_opengl_render_get_description;
   ot->invoke = screen_opengl_render_invoke;
   ot->exec = screen_opengl_render_exec; /* blocking */
   ot->modal = screen_opengl_render_modal;

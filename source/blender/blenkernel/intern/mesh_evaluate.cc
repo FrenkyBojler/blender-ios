@@ -505,10 +505,9 @@ void BKE_mesh_mdisp_flip(MDisps *md, const bool use_loop_mdisp_flip)
 
 namespace blender::bke {
 
-/* Hide edges when either of their vertices are hidden. */
-static void edge_hide_from_vert(const Span<int2> edges,
-                                const Span<bool> hide_vert,
-                                MutableSpan<bool> hide_edge)
+void mesh_edge_hide_from_vert(const Span<int2> edges,
+                              const Span<bool> hide_vert,
+                              MutableSpan<bool> hide_edge)
 {
   using namespace blender;
   threading::parallel_for(edges.index_range(), 4096, [&](const IndexRange range) {
@@ -518,11 +517,10 @@ static void edge_hide_from_vert(const Span<int2> edges,
   });
 }
 
-/* Hide faces when any of their vertices are hidden. */
-static void face_hide_from_vert(const OffsetIndices<int> faces,
-                                const Span<int> corner_verts,
-                                const Span<bool> hide_vert,
-                                MutableSpan<bool> hide_poly)
+void mesh_face_hide_from_vert(const OffsetIndices<int> faces,
+                              const Span<int> corner_verts,
+                              const Span<bool> hide_vert,
+                              MutableSpan<bool> hide_poly)
 {
   using namespace blender;
   threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
@@ -552,8 +550,8 @@ void mesh_hide_vert_flush(Mesh &mesh)
   SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_only_span<bool>(
       ".hide_poly", AttrDomain::Face);
 
-  edge_hide_from_vert(mesh.edges(), hide_vert_span, hide_edge.span);
-  face_hide_from_vert(mesh.faces(), mesh.corner_verts(), hide_vert_span, hide_poly.span);
+  mesh_edge_hide_from_vert(mesh.edges(), hide_vert_span, hide_edge.span);
+  mesh_face_hide_from_vert(mesh.faces(), mesh.corner_verts(), hide_vert_span, hide_poly.span);
 
   hide_edge.finish();
   hide_poly.finish();
@@ -689,7 +687,7 @@ void mesh_select_edge_flush(Mesh &mesh)
     const VArray<bool> hide_vert = *attributes.lookup_or_default<bool>(
         ".hide_vert", AttrDomain::Point, false);
     array_utils::copy(
-        *attributes.lookup_or_default<bool>(".select_vert", AttrDomain::Point, false),
+        *attributes.lookup_or_default<bool>(".select_edge", AttrDomain::Point, false),
         IndexMask::from_bools(hide_vert, memory).complement(hide_vert.index_range(), memory),
         select_vert.span);
   }
@@ -698,7 +696,7 @@ void mesh_select_edge_flush(Mesh &mesh)
     const VArray<bool> hide_poly = *attributes.lookup_or_default<bool>(
         ".hide_poly", AttrDomain::Face, false);
     array_utils::copy(
-        *attributes.lookup_or_default<bool>(".select_vert", AttrDomain::Face, false),
+        *attributes.lookup_or_default<bool>(".select_edge", AttrDomain::Face, false),
         IndexMask::from_bools(hide_poly, memory).complement(hide_poly.index_range(), memory),
         select_poly.span);
   }

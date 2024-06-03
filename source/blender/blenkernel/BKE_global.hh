@@ -16,6 +16,13 @@
 
 struct Main;
 
+/**
+ * Global data, typically accessed from #G.
+ * See: #BKE_blender_globals_init & #BKE_blender_globals_clear.
+ *
+ * \note This is run-time only but some global data is written
+ * to #FileGlobal which is used to initialize members of #Global.
+ */
 struct Global {
 
   /**
@@ -57,6 +64,14 @@ struct Global {
    * (which use background mode by definition).
    */
   bool background;
+
+  /**
+   * When true, suppress any non-error print messages such as files saves, loaded, quitting etc.
+   * This is used so command line tools can control output without unnecessary noise.
+   *
+   * \note This should only be used to suppress printing (not reports or other kinds of logging).
+   */
+  bool quiet;
 
   /**
    * Skip reading the startup file and user preferences.
@@ -170,6 +185,26 @@ enum {
   G_FLAG_EVENT_SIMULATE = (1 << 3),
   G_FLAG_USERPREF_NO_SAVE_ON_EXIT = (1 << 4),
 
+  /**
+   * Internet access is allowed (offline mode when disabled).
+   *
+   * \note This setting doesn't prevent network access, rather it is a setting to
+   * disallow built-in utilities and 3rd party scripts from accessing the internet.
+   * While this isn't enforced, it is considered a bug when any script sends or receives
+   * data over the internet while this flag is set.
+   */
+  G_FLAG_INTERNET_ALLOW = (1 << 10),
+
+  /* NOTE: storing both online/offline override is needed so changing the preference
+   * can be disabled when launching Blender with `--offline-mode`.
+   * This means that users in a controlled environment can launch
+   * in offline-mode and the option can't be changed afterwards. */
+
+  /** Launched with `--offline-mode` (overrides #USER_INTERNET_ALLOW when set). */
+  G_FLAG_INTERNET_OVERRIDE_PREF_ONLINE = (1 << 11),
+  /** Launched with `--offline-mode` (overrides #USER_INTERNET_ALLOW when set). */
+  G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE = (1 << 12),
+
   G_FLAG_SCRIPT_AUTOEXEC = (1 << 13),
   /** When this flag is set ignore the preferences #USER_SCRIPT_AUTOEXEC_DISABLE. */
   G_FLAG_SCRIPT_OVERRIDE_PREF = (1 << 14),
@@ -177,10 +212,14 @@ enum {
   G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET = (1 << 16),
 };
 
+#define G_FLAG_INTERNET_OVERRIDE_PREF_ANY \
+  (G_FLAG_INTERNET_OVERRIDE_PREF_ONLINE | G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE)
+
 /** Don't overwrite these flags when reading a file. */
 #define G_FLAG_ALL_RUNTIME \
-  (G_FLAG_SCRIPT_AUTOEXEC | G_FLAG_SCRIPT_OVERRIDE_PREF | G_FLAG_EVENT_SIMULATE | \
-   G_FLAG_USERPREF_NO_SAVE_ON_EXIT | \
+  (G_FLAG_SCRIPT_AUTOEXEC | G_FLAG_SCRIPT_OVERRIDE_PREF | G_FLAG_INTERNET_ALLOW | \
+   G_FLAG_INTERNET_OVERRIDE_PREF_ONLINE | G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE | \
+   G_FLAG_EVENT_SIMULATE | G_FLAG_USERPREF_NO_SAVE_ON_EXIT | \
 \
    /* #BPY_python_reset is responsible for resetting these flags on file load. */ \
    G_FLAG_SCRIPT_AUTOEXEC_FAIL | G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)

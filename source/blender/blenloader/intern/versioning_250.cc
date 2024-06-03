@@ -48,7 +48,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.hh"
 #include "BKE_colortools.hh"
@@ -314,7 +314,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
       case SPACE_ACTION: {
         SpaceAction *saction = (SpaceAction *)sl;
 
-        /* We totally reinit the view for the Action Editor,
+        /* We totally reinitialize the view for the Action Editor,
          * as some old instances had some weird cruft set. */
         region->v2d.tot.xmin = -20.0f;
         region->v2d.tot.ymin = float(-area->winy) / 3.0f;
@@ -1035,7 +1035,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         bNode *node = static_cast<bNode *>(ntree->nodes.first);
 
         while (node) {
-          nodeUniqueName(ntree, node);
+          blender::bke::nodeUniqueName(ntree, node);
           node = node->next;
         }
 
@@ -1876,7 +1876,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
         LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-          if (nodeCountSocketLinks(ntree, sock) == 0 &&
+          if (blender::bke::nodeCountSocketLinks(ntree, sock) == 0 &&
               !((sock->flag & (SOCK_HIDDEN | SOCK_UNAVAIL)) != 0))
           {
             bNodeSocket *gsock = do_versions_node_group_add_socket_2_56_2(

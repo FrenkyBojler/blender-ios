@@ -41,7 +41,7 @@
 
 #include "BKE_camera.h"
 #include "BKE_collection.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_image.h"
 #include "BKE_layer.hh"
@@ -76,10 +76,6 @@
  * COLLADA Importer limitations:
  * - no multiple scene import, all objects are added to active scene
  */
-
-// #define COLLADA_DEBUG
-/* creates empties for each imported bone on layer 2, for debugging */
-// #define ARMATURE_TEST
 
 DocumentImporter::DocumentImporter(bContext *C, const ImportSettings *import_settings)
     : import_settings(import_settings),
