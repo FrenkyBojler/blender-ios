@@ -46,7 +46,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Is Valid")
       .dependent_field({3, 4})
       .description(
-          "Whether the sampling was successfull. It can fail when the sampled group is empty");
+          "Whether the sampling was successful. It can fail when the sampled group is empty");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -116,13 +116,18 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
 
     /* Construct BVH tree for each group. */
     bvh_trees_.reinitialize(groups_num);
-    threading::parallel_for(IndexRange(groups_num), 16, [&](const IndexRange range) {
-      for (const int group_i : range) {
-        const IndexMask &group_mask = group_masks[group_i];
-        BVHTreeFromMesh &bvh = bvh_trees_[group_i];
-        BKE_bvhtree_from_mesh_tris_init(mesh, group_mask, bvh);
-      }
-    });
+    threading::parallel_for(
+        IndexRange(groups_num),
+        512,
+        [&](const IndexRange range) {
+          for (const int group_i : range) {
+            const IndexMask &group_mask = group_masks[group_i];
+            BVHTreeFromMesh &bvh = bvh_trees_[group_i];
+            BKE_bvhtree_from_mesh_tris_init(mesh, group_mask, bvh);
+          }
+        },
+        threading::individual_task_sizes(
+            [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
   }
 
   ~SampleNearestSurfaceFunction()
@@ -229,17 +234,17 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_SAMPLE_NEAREST_SURFACE, "Sample Nearest Surface", NODE_CLASS_GEOMETRY);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

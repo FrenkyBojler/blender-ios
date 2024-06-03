@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -50,7 +51,7 @@ static void world_free_data(ID *id)
 
   /* is no lib link block, but world extension */
   if (wrld->nodetree) {
-    ntreeFreeEmbeddedTree(wrld->nodetree);
+    blender::bke::ntreeFreeEmbeddedTree(wrld->nodetree);
     MEM_freeN(wrld->nodetree);
     wrld->nodetree = nullptr;
   }
@@ -81,7 +82,11 @@ static void world_init_data(ID *id)
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void world_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+static void world_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
+                            ID *id_dst,
+                            const ID *id_src,
+                            const int flag)
 {
   World *wrld_dst = (World *)id_dst;
   const World *wrld_src = (const World *)id_src;
@@ -92,13 +97,16 @@ static void world_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
 
   if (wrld_src->nodetree) {
     if (is_localized) {
-      wrld_dst->nodetree = ntreeLocalize(wrld_src->nodetree);
+      wrld_dst->nodetree = blender::bke::ntreeLocalize(wrld_src->nodetree, &wrld_dst->id);
     }
     else {
-      BKE_id_copy_ex(
-          bmain, (ID *)wrld_src->nodetree, (ID **)&wrld_dst->nodetree, flag_private_id_data);
+      BKE_id_copy_in_lib(bmain,
+                         owner_library,
+                         &wrld_src->nodetree->id,
+                         &wrld_dst->id,
+                         reinterpret_cast<ID **>(&wrld_dst->nodetree),
+                         flag_private_id_data);
     }
-    wrld_dst->nodetree->owner_id = &wrld_dst->id;
   }
 
   BLI_listbase_clear(&wrld_dst->gpumaterial);
@@ -152,7 +160,8 @@ static void world_blend_write(BlendWriter *writer, ID *id, const void *id_addres
                                 bNodeTree,
                                 wrld->nodetree,
                                 BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
-    ntreeBlendWrite(writer, (bNodeTree *)BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
+    blender::bke::ntreeBlendWrite(
+        writer, (bNodeTree *)BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
     BLO_write_destroy_id_buffer(&temp_embedded_id_buffer);
   }
 
@@ -167,11 +176,11 @@ static void world_blend_read_data(BlendDataReader *reader, ID *id)
 {
   World *wrld = (World *)id;
 
-  BLO_read_data_address(reader, &wrld->preview);
+  BLO_read_struct(reader, PreviewImage, &wrld->preview);
   BKE_previewimg_blend_read(reader, wrld->preview);
   BLI_listbase_clear(&wrld->gpumaterial);
 
-  BLO_read_data_address(reader, &wrld->lightgroup);
+  BLO_read_struct(reader, LightgroupMembership, &wrld->lightgroup);
 }
 
 IDTypeInfo IDType_ID_WO = {

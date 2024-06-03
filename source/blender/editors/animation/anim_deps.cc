@@ -23,8 +23,8 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
-#include "BKE_anim_data.h"
-#include "BKE_fcurve.h"
+#include "BKE_anim_data.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 
@@ -368,6 +368,19 @@ void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data)
         ale->update &= ~ANIM_UPDATE_DEPS;
         ANIM_list_elem_update(ac->bmain, ac->scene, ale);
       }
+    }
+    else if (ELEM(ale->type,
+                  ANIMTYPE_GREASE_PENCIL_LAYER,
+                  ANIMTYPE_GREASE_PENCIL_LAYER_GROUP,
+                  ANIMTYPE_GREASE_PENCIL_DATABLOCK))
+    {
+      if (ale->update & ANIM_UPDATE_DEPS) {
+        ale->update &= ~ANIM_UPDATE_DEPS;
+        ANIM_list_elem_update(ac->bmain, ac->scene, ale);
+      }
+      /* Order appears to be already handled in `grease_pencil_layer_apply_trans_data` when
+       * translating. */
+      ale->update &= ~(ANIM_UPDATE_HANDLES | ANIM_UPDATE_ORDER);
     }
     else if (ale->update) {
 #if 0

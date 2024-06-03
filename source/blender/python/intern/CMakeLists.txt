@@ -42,6 +42,7 @@ set(SRC
   bpy_app_usd.cc
   bpy_app_tornavis.cc
   bpy_capi_utils.cc
+  bpy_cli_command.cc
   bpy_driver.cc
   bpy_gizmo_wrap.cc
   bpy_interface.cc
@@ -90,6 +91,7 @@ set(SRC
   bpy_app_usd.h
   bpy_app_tornavis.h
   bpy_capi_utils.h
+  bpy_cli_command.h
   bpy_driver.h
   bpy_gizmo_wrap.h
   bpy_intern_string.h
@@ -156,7 +158,7 @@ if(WITH_PYTHON AND WITH_PYTHON_INSTALL AND (APPLE OR WITH_INSTALL_PORTABLE) AND 
   # - `PYTHON_SSL_CERT_FILE` absolute path to the PEM file.
   find_python_module_file("certifi/cacert.pem" PYTHON_SSL_CERT_FILE _python_ssl_cert_file_relative)
   mark_as_advanced(PYTHON_SSL_CERT_FILE)
-  if (PYTHON_SSL_CERT_FILE)
+  if(PYTHON_SSL_CERT_FILE)
     add_definitions(-DPYTHON_SSL_CERT_FILE="${_python_ssl_cert_file_relative}")
   else()
     message(WARNING

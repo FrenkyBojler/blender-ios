@@ -17,7 +17,7 @@
 #include "vk_texture.hh"
 #include "vk_vertex_buffer.hh"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "BLI_math_matrix_types.hh"
 
@@ -26,6 +26,12 @@
 extern "C" char datatoc_glsl_shader_defines_glsl[];
 
 namespace blender::gpu {
+
+void VKDevice::reinit()
+{
+  samplers_.free();
+  samplers_.init();
+}
 
 void VKDevice::deinit()
 {
@@ -42,7 +48,9 @@ void VKDevice::deinit()
   }
   samplers_.free();
   destroy_discarded_resources();
+  pipelines.free_data();
   vkDestroyPipelineCache(vk_device_, vk_pipeline_cache_, vk_allocation_callbacks);
+  descriptor_set_layouts_.deinit();
   vmaDestroyAllocator(mem_allocator_);
   mem_allocator_ = VK_NULL_HANDLE;
 
@@ -77,6 +85,7 @@ void VKDevice::init(void *ghost_context)
   init_physical_device_features();
   VKBackend::platform_init(*this);
   VKBackend::capabilities_init(*this);
+  init_functions();
   init_debug_callbacks();
   init_memory_allocator();
   init_pipeline_cache();
@@ -87,6 +96,18 @@ void VKDevice::init(void *ghost_context)
   debug::object_label(device_get(), "LogicalDevice");
   debug::object_label(queue_get(), "GenericQueue");
   init_glsl_patch();
+}
+
+void VKDevice::init_functions()
+{
+#define LOAD_FUNCTION(name) (PFN_##name) vkGetInstanceProcAddr(vk_instance_, STRINGIFY(name))
+  /* VK_KHR_dynamic_rendering */
+  functions.vkCmdBeginRendering = LOAD_FUNCTION(vkCmdBeginRenderingKHR);
+  functions.vkCmdEndRendering = LOAD_FUNCTION(vkCmdEndRenderingKHR);
+  /* VK_EXT_debug_utils */
+  functions.vkCmdBeginDebugUtilsLabel = LOAD_FUNCTION(vkCmdBeginDebugUtilsLabelEXT);
+  functions.vkCmdEndDebugUtilsLabel = LOAD_FUNCTION(vkCmdEndDebugUtilsLabelEXT);
+#undef LOAD_FUNCTION
 }
 
 void VKDevice::init_debug_callbacks()
@@ -293,7 +314,7 @@ std::string VKDevice::driver_version() const
       /* When using Mesa driver we should use VK_VERSION_*. */
       if (major > 30) {
         return std::to_string((driver_version >> 14) & 0x3FFFF) + "." +
-               std::to_string((driver_version & 0x3FFF));
+               std::to_string(driver_version & 0x3FFF);
       }
       break;
     }
@@ -361,11 +382,17 @@ void VKDevice::destroy_discarded_resources()
 
   while (!discarded_images_.is_empty()) {
     std::pair<VkImage, VmaAllocation> image_allocation = discarded_images_.pop_last();
+    if (use_render_graph) {
+      resources.remove_image(image_allocation.first);
+    }
     vmaDestroyImage(mem_allocator_get(), image_allocation.first, image_allocation.second);
   }
 
   while (!discarded_buffers_.is_empty()) {
     std::pair<VkBuffer, VmaAllocation> buffer_allocation = discarded_buffers_.pop_last();
+    if (use_render_graph) {
+      resources.remove_buffer(buffer_allocation.first);
+    }
     vmaDestroyBuffer(mem_allocator_get(), buffer_allocation.first, buffer_allocation.second);
   }
 

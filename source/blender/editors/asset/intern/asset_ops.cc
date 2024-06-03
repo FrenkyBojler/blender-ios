@@ -58,17 +58,9 @@ static Vector<PointerRNA> asset_operation_get_ids_from_context(const bContext *C
   Vector<PointerRNA> ids;
 
   /* "selected_ids" context member. */
-  {
-    ListBase list;
-    CTX_data_selected_ids(C, &list);
-    LISTBASE_FOREACH (CollectionPointerLink *, link, &list) {
-      ids.append(link->ptr);
-    }
-    BLI_freelistN(&list);
-
-    if (!ids.is_empty()) {
-      return ids;
-    }
+  CTX_data_selected_ids(C, &ids);
+  if (!ids.is_empty()) {
+    return ids;
   }
 
   /* "id" context member. */
@@ -323,7 +315,7 @@ void AssetClearHelper::reportResults(const bContext *C, ReportList &reports) con
         &reports, RPT_INFO, "Data-block '%s' is not an asset anymore", stats.last_id->name + 2);
   }
   else {
-    BKE_reportf(&reports, RPT_INFO, "%i data-blocks are no assets anymore", stats.tot_cleared);
+    BKE_reportf(&reports, RPT_INFO, "%i data-blocks are not assets anymore", stats.tot_cleared);
   }
 }
 
@@ -369,9 +361,9 @@ static bool asset_clear_poll(bContext *C, const Span<PointerRNA> ids)
 
 static std::string asset_clear_get_description(bContext * /*C*/,
                                                wmOperatorType * /*ot*/,
-                                               PointerRNA *values)
+                                               PointerRNA *ptr)
 {
-  const bool set_fake_user = RNA_boolean_get(values, "set_fake_user");
+  const bool set_fake_user = RNA_boolean_get(ptr, "set_fake_user");
   if (!set_fake_user) {
     return "";
   }
@@ -582,12 +574,16 @@ static void ASSET_OT_catalog_delete(wmOperatorType *ot)
 static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
 {
   const SpaceFile *sfile = CTX_wm_space_file(C);
-  if (!sfile) {
+  if (!sfile || ED_fileselect_is_file_browser(sfile)) {
     return nullptr;
   }
 
   asset_system::AssetLibrary *asset_lib = ED_fileselect_active_asset_library_get(sfile);
-  return asset_lib->catalog_service.get();
+  if (asset_lib) {
+    return &asset_lib->catalog_service();
+  }
+
+  return nullptr;
 }
 
 static int asset_catalog_undo_exec(bContext *C, wmOperator * /*op*/)

@@ -50,14 +50,17 @@ static void applyTilt(TransInfo *t)
 
     outputNumInput(&(t->num), c, &t->scene->unit);
 
-    SNPRINTF(str, IFACE_("Tilt: %s" BLI_STR_UTF8_DEGREE_SIGN " %s"), &c[0], t->proptext);
+    SNPRINTF(str, "%s %s" BLI_STR_UTF8_DEGREE_SIGN " %s", IFACE_("Tilt:"), &c[0], t->proptext);
 
     /* XXX For some reason, this seems needed for this op, else RNA prop is not updated... :/ */
     t->values_final[0] = final;
   }
   else {
-    SNPRINTF(
-        str, IFACE_("Tilt: %.2f" BLI_STR_UTF8_DEGREE_SIGN " %s"), RAD2DEGF(final), t->proptext);
+    SNPRINTF(str,
+             "%s %.2f" BLI_STR_UTF8_DEGREE_SIGN " %s",
+             IFACE_("Tilt:"),
+             RAD2DEGF(final),
+             t->proptext);
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -86,8 +89,7 @@ static void initTilt(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 0;
   t->num.idx_max = 0;
-  t->snap[0] = DEG2RAD(5.0);
-  t->snap[1] = DEG2RAD(1.0);
+  initSnapAngleIncrements(t);
 
   copy_v3_fl(t->num.val_inc, t->snap[1]);
   t->num.unit_sys = t->scene->unit.system;

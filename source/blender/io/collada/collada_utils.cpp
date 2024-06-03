@@ -130,7 +130,7 @@ bool bc_validateConstraints(bConstraint *con)
 bool bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
 {
   Scene *scene = CTX_data_scene(C);
-  int partype = PAR_OBJECT;
+  int partype = blender::ed::object::PAR_OBJECT;
   const bool xmirror = false;
   const bool keep_transform = false;
 
@@ -140,7 +140,7 @@ bool bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
                 ob->object_to_world().ptr());
   }
 
-  bool ok = ED_object_parent_set(
+  bool ok = blender::ed::object::parent_set(
       nullptr, C, scene, ob, par, partype, xmirror, keep_transform, nullptr);
   return ok;
 }
@@ -282,7 +282,7 @@ Mesh *bc_get_mesh_copy(BlenderContext &blender_context,
     tmpmesh = (Mesh *)ob->data;
   }
 
-  Mesh *mesh = BKE_mesh_copy_for_eval(tmpmesh);
+  Mesh *mesh = BKE_mesh_copy_for_eval(*tmpmesh);
 
   if (triangulate) {
     bc_triangulate_mesh(mesh);
@@ -652,22 +652,13 @@ void bc_set_IDPropertyMatrix(EditBone *ebone, const char *key, float mat[4][4])
 {
   IDProperty *idgroup = (IDProperty *)ebone->prop;
   if (idgroup == nullptr) {
-    IDPropertyTemplate val = {0};
-    idgroup = IDP_New(IDP_GROUP, &val, "RNA_EditBone ID properties");
+    idgroup = blender::bke::idprop::create_group("RNA_EditBone ID properties").release();
     ebone->prop = idgroup;
   }
 
-  IDPropertyTemplate val = {0};
-  val.array.len = 16;
-  val.array.type = IDP_FLOAT;
-
-  IDProperty *data = IDP_New(IDP_ARRAY, &val, key);
-  float *array = (float *)IDP_Array(data);
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      array[4 * i + j] = mat[i][j];
-    }
-  }
+  IDProperty *data = blender::bke::idprop::create(
+                         key, blender::Span(reinterpret_cast<float *>(mat), 16))
+                         .release();
 
   IDP_AddToGroup(idgroup, data);
 }
@@ -682,14 +673,11 @@ static void bc_set_IDProperty(EditBone *ebone, const char *key, float value)
 {
   if (ebone->prop == nullptr) {
     IDPropertyTemplate val = {0};
-    ebone->prop = IDP_New(IDP_GROUP, &val, "RNA_EditBone ID properties");
+    ebone->prop = blender::bke::idprop::create_group( "RNA_EditBone ID properties").release();
   }
 
   IDProperty *pgroup = (IDProperty *)ebone->prop;
-  IDPropertyTemplate val = {0};
-  IDProperty *prop = IDP_New(IDP_FLOAT, &val, key);
-  IDP_Float(prop) = value;
-  IDP_AddToGroup(pgroup, prop);
+  IDP_AddToGroup(pgroup, blender::bke::idprop::create(key, value).release());
 }
 #endif
 
@@ -1119,7 +1107,7 @@ static bNodeTree *prepare_material_nodetree(Material *ma)
 static bNode *bc_add_node(
     bContext *C, bNodeTree *ntree, int node_type, int locx, int locy, std::string label)
 {
-  bNode *node = nodeAddStaticNode(C, ntree, node_type);
+  bNode *node = blender::bke::nodeAddStaticNode(C, ntree, node_type);
   if (node) {
     if (label.length() > 0) {
       STRNCPY(node->label, label.c_str());
@@ -1142,7 +1130,7 @@ static void bc_node_add_link(
   bNodeSocket *from_socket = (bNodeSocket *)BLI_findlink(&from_node->outputs, from_index);
   bNodeSocket *to_socket = (bNodeSocket *)BLI_findlink(&to_node->inputs, to_index);
 
-  nodeAddLink(ntree, from_node, from_socket, to_node, to_socket);
+  blender::bke::nodeAddLink(ntree, from_node, from_socket, to_node, to_socket);
 }
 
 void bc_add_default_shader(bContext *C, Material *ma)
@@ -1277,7 +1265,7 @@ double bc_get_reflectivity(Material *ma)
 
 bool bc_get_float_from_shader(bNode *shader, double &val, std::string nodeid)
 {
-  bNodeSocket *socket = nodeFindSocket(shader, SOCK_IN, nodeid.c_str());
+  bNodeSocket *socket = blender::bke::nodeFindSocket(shader, SOCK_IN, nodeid);
   if (socket) {
     bNodeSocketValueFloat *ref = (bNodeSocketValueFloat *)socket->default_value;
     val = double(ref->value);
@@ -1291,7 +1279,7 @@ COLLADASW::ColorOrTexture bc_get_cot_from_shader(bNode *shader,
                                                  Color &default_color,
                                                  bool with_alpha)
 {
-  bNodeSocket *socket = nodeFindSocket(shader, SOCK_IN, nodeid.c_str());
+  bNodeSocket *socket = blender::bke::nodeFindSocket(shader, SOCK_IN, nodeid);
   if (socket) {
     bNodeSocketValueRGBA *dcol = (bNodeSocketValueRGBA *)socket->default_value;
     float *col = dcol->value;

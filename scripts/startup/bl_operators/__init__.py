@@ -15,11 +15,13 @@ _modules = [
     "anim",
     "assets",
     "clip",
+    "connect_to_output",
     "console",
     "constraint",
     "file",
     "geometry_nodes",
     "image",
+    "image_as_planes",
     "mesh",
     "node",
     "object",
@@ -37,6 +39,7 @@ _modules = [
     "uvcalc_transform",
     "vertexpaint_dirt",
     "view3d",
+    "world",
     "wm",
 ]
 

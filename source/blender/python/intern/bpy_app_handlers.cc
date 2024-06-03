@@ -37,7 +37,9 @@ static PyTypeObject BlenderAppCbType;
 #define FILEPATH_LOAD_ARG \
   "Accepts one argument: " \
   "the file being loaded, an empty string for the startup-file."
-
+#define RENDER_STATS_ARG \
+  "Accepts one argument: " \
+  "the render stats (render/saving time plus in background mode frame/used [peak] memory)."
 /**
  * See `BKE_callbacks.hh` #eCbEvent declaration for the policy on naming.
  */
@@ -55,7 +57,7 @@ static PyStructSequence_Field app_cb_info_fields[] = {
     {"render_pre", "on render (before)"},
     {"render_post", "on render (after)"},
     {"render_write", "on writing a render frame (directly after the frame is written)"},
-    {"render_stats", "on printing render statistics"},
+    {"render_stats", "on printing render statistics. " RENDER_STATS_ARG},
     {"render_init", "on initialization of a render job"},
     {"render_complete", "on completion of render job"},
     {"render_cancel", "on canceling a render job"},
@@ -96,7 +98,8 @@ static PyStructSequence_Field app_cb_info_fields[] = {
     {"_extension_repos_update_post", "on changes to extension repos (after)"},
     {"_extension_repos_sync", "on creating or synchronizing the active repository"},
     {"_extension_repos_upgrade", "on upgrading the active repository"},
-    {"_extension_drop_url", "on dropping a URL"},
+    {"_extension_repos_files_clear",
+     "remove files from the repository directory (uses as a string argument)"},
 
 /* sets the permanent tag */
 #define APP_CB_OTHER_FIELDS 1

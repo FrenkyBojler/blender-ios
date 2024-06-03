@@ -17,7 +17,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_object_types.hh"
 #include "BKE_report.hh"
 
@@ -31,14 +31,14 @@
 #include "ED_space_api.hh"
 #include "ED_view3d.hh"
 
-#include "GPU_batch.h"
-#include "GPU_batch_presets.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_batch.hh"
+#include "GPU_batch_presets.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
 
 #include "UI_resources.hh"
 
@@ -368,7 +368,7 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
     float color[3];
     UI_GetThemeColor3fv(TH_WIRE, color);
 
-    GPUBatch *sphere = GPU_batch_preset_sphere(0);
+    blender::gpu::Batch *sphere = GPU_batch_preset_sphere(0);
     GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
     GPU_batch_uniform_3fv(sphere, "color", color);
 
@@ -1107,12 +1107,13 @@ static int curve_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
         /* needed or else the draw matrix can be incorrect */
         view3d_operator_needs_opengl(C);
 
-        ED_view3d_depth_override(cdd->vc.depsgraph,
-                                 cdd->vc.region,
-                                 cdd->vc.v3d,
-                                 nullptr,
-                                 V3D_DEPTH_NO_GPENCIL,
-                                 &cdd->depths);
+        eV3DDepthOverrideMode depth_mode = V3D_DEPTH_NO_OVERLAYS;
+        if (cps->flag & CURVE_PAINT_FLAG_DEPTH_ONLY_SELECTED) {
+          depth_mode = V3D_DEPTH_SELECTED_ONLY;
+        }
+
+        ED_view3d_depth_override(
+            cdd->vc.depsgraph, cdd->vc.region, cdd->vc.v3d, nullptr, depth_mode, &cdd->depths);
 
         if (cdd->depths != nullptr) {
           cdd->project.use_depth = true;

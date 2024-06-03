@@ -175,6 +175,9 @@ void Instance::view_update()
 
 void Instance::begin_sync()
 {
+  /* Needs to be first for sun light parameters. */
+  world.sync();
+
   materials.begin_sync();
   velocity.begin_sync(); /* NOTE: Also syncs camera. */
   lights.begin_sync();
@@ -192,7 +195,6 @@ void Instance::begin_sync()
   motion_blur.sync();
   hiz_buffer.sync();
   main_view.sync();
-  world.sync();
   film.sync();
   render_buffers.sync();
   ambient_occlusion.sync();
@@ -205,7 +207,7 @@ void Instance::begin_sync()
 
   if (is_light_bake) {
     /* Do not use render layer visibility during bake.
-     * Note: This is arbitrary and could be changed if needed. */
+     * NOTE: This is arbitrary and could be changed if needed. */
     use_surfaces = use_curves = use_volumes = true;
   }
 
@@ -350,7 +352,7 @@ void Instance::render_sync()
   DRW_curves_update();
 }
 
-bool Instance::do_reflection_probe_sync() const
+bool Instance::do_lightprobe_sphere_sync() const
 {
   if (!sphere_probes.update_probes_this_sample_) {
     return false;
@@ -455,8 +457,8 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
       BLI_mutex_lock(&render->update_render_passes_mutex);
       /* WORKAROUND: We use texture read to avoid using a frame-buffer to get the render result.
        * However, on some implementation, we need a buffer with a few extra bytes for the read to
-       * happen correctly (see GLTexture::read()). So we need a custom memory allocation. */
-      /* Avoid memcpy(), replace the pointer directly. */
+       * happen correctly (see #GLTexture::read()). So we need a custom memory allocation. */
+      /* Avoid #memcpy(), replace the pointer directly. */
       RE_pass_set_buffer_data(rp, result);
       BLI_mutex_unlock(&render->update_render_passes_mutex);
     }
@@ -464,7 +466,7 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 
   /* The vector pass is initialized to weird values. Set it to neutral value if not rendered. */
   if ((pass_bits & EEVEE_RENDER_PASS_VECTOR) == 0) {
-    for (std::string vector_pass_name :
+    for (const std::string &vector_pass_name :
          Film::pass_to_render_pass_names(EEVEE_RENDER_PASS_VECTOR, view_layer))
     {
       RenderPass *vector_rp = RE_pass_find_by_name(
@@ -602,7 +604,8 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   auto register_cryptomatte_passes = [&](eViewLayerCryptomatteFlags cryptomatte_layer,
                                          eViewLayerEEVEEPassType eevee_pass) {
     if (view_layer->cryptomatte_flag & cryptomatte_layer) {
-      for (std::string pass_name : Film::pass_to_render_pass_names(eevee_pass, view_layer)) {
+      for (const std::string &pass_name : Film::pass_to_render_pass_names(eevee_pass, view_layer))
+      {
         RE_engine_register_pass(
             engine, scene, view_layer, pass_name.c_str(), 4, "rgba", SOCK_RGBA);
       }

@@ -156,7 +156,7 @@ static void node_rna(StructRNA *srna)
        0,
        "Wildcard",
        "Remove all attributes that match the pattern which is allowed to contain a single "
-       "wildcard (*)."},
+       "wildcard (*)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_node_enum(srna,
@@ -169,7 +169,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_REMOVE_ATTRIBUTE, "Remove Named Attribute", NODE_CLASS_ATTRIBUTE);
@@ -177,7 +177,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   bke::node_type_size(&ntype, 170, 100, 700);
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

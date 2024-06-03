@@ -9,6 +9,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_world.h"
+#include "BLI_math_rotation.h"
 #include "DEG_depsgraph_query.hh"
 #include "NOD_shader.h"
 
@@ -23,22 +24,22 @@ namespace blender::eevee {
 
 DefaultWorldNodeTree::DefaultWorldNodeTree()
 {
-  bNodeTree *ntree = ntreeAddTree(nullptr, "World Nodetree", ntreeType_Shader->idname);
-  bNode *background = nodeAddStaticNode(nullptr, ntree, SH_NODE_BACKGROUND);
-  bNode *output = nodeAddStaticNode(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
-  bNodeSocket *background_out = nodeFindSocket(background, SOCK_OUT, "Background");
-  bNodeSocket *output_in = nodeFindSocket(output, SOCK_IN, "Surface");
-  nodeAddLink(ntree, background, background_out, output, output_in);
-  nodeSetActive(ntree, output);
+  bNodeTree *ntree = bke::ntreeAddTree(nullptr, "World Nodetree", ntreeType_Shader->idname);
+  bNode *background = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_BACKGROUND);
+  bNode *output = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
+  bNodeSocket *background_out = bke::nodeFindSocket(background, SOCK_OUT, "Background");
+  bNodeSocket *output_in = bke::nodeFindSocket(output, SOCK_IN, "Surface");
+  bke::nodeAddLink(ntree, background, background_out, output, output_in);
+  bke::nodeSetActive(ntree, output);
 
   color_socket_ =
-      (bNodeSocketValueRGBA *)nodeFindSocket(background, SOCK_IN, "Color")->default_value;
+      (bNodeSocketValueRGBA *)bke::nodeFindSocket(background, SOCK_IN, "Color")->default_value;
   ntree_ = ntree;
 }
 
 DefaultWorldNodeTree::~DefaultWorldNodeTree()
 {
-  ntreeFreeEmbeddedTree(ntree_);
+  bke::ntreeFreeEmbeddedTree(ntree_);
   MEM_SAFE_FREE(ntree_);
 }
 
@@ -76,13 +77,31 @@ World::~World()
   return default_world_;
 }
 
+::World *World::scene_world_get()
+{
+  return (inst_.scene->world != nullptr) ? inst_.scene->world : default_world_get();
+}
+
+float World::sun_threshold()
+{
+  /* No sun extraction during baking. */
+  if (inst_.is_baking()) {
+    return 0.0;
+  }
+
+  float sun_threshold = scene_world_get()->sun_threshold;
+  if (inst_.use_studio_light()) {
+    /* Do not call `lookdev_world_.intensity_get()` as it might not be initialized yet. */
+    sun_threshold *= inst_.v3d->shading.studiolight_intensity;
+  }
+  return sun_threshold;
+}
+
 void World::sync()
 {
-  ::World *bl_world = inst_.use_studio_light() ? nullptr : inst_.scene->world;
-
   bool has_update = false;
 
-  if (bl_world) {
+  if (inst_.scene->world != nullptr) {
     /* Detect world update before overriding it. */
     WorldHandle wo_handle = inst_.sync.sync_world();
     has_update = wo_handle.recalc != 0;
@@ -91,8 +110,9 @@ void World::sync()
   /* Sync volume first since its result can override the surface world. */
   sync_volume();
 
+  ::World *bl_world;
   if (inst_.use_studio_light()) {
-    has_update = lookdev_world_.sync(LookdevParameters(inst_.v3d));
+    has_update |= lookdev_world_.sync(LookdevParameters(inst_.v3d));
     bl_world = lookdev_world_.world_get();
   }
   else if ((inst_.view_layer->layflag & SCE_LAY_SKY) == 0) {
@@ -101,11 +121,8 @@ void World::sync()
   else if (has_volume_absorption_) {
     bl_world = default_world_get();
   }
-  else if (inst_.scene->world != nullptr) {
-    bl_world = inst_.scene->world;
-  }
   else {
-    bl_world = default_world_get();
+    bl_world = scene_world_get();
   }
 
   bNodeTree *ntree = (bl_world->nodetree && bl_world->use_nodes) ?
@@ -133,8 +150,9 @@ void World::sync()
 
   float opacity = inst_.use_studio_light() ? lookdev_world_.background_opacity_get() :
                                              inst_.film.background_opacity_get();
+  float background_blur = inst_.use_studio_light() ? lookdev_world_.background_blur_get() : 0.0;
 
-  inst_.pipelines.background.sync(gpumat, opacity);
+  inst_.pipelines.background.sync(gpumat, opacity, background_blur);
   inst_.pipelines.world.sync(gpumat);
 }
 

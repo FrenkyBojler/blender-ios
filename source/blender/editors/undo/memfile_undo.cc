@@ -248,7 +248,7 @@ static void memfile_undosys_step_decode(
         DEG_id_tag_update_ex(bmain, id, recalc_flags);
       }
 
-      bNodeTree *nodetree = ntreeFromID(id);
+      bNodeTree *nodetree = blender::bke::ntreeFromID(id);
       if (nodetree != nullptr) {
         recalc_flags = nodetree->id.recalc;
         if (id->tag & LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) {
@@ -285,7 +285,7 @@ static void memfile_undosys_step_decode(
        * are already part of the current undo state. This is done in a second
        * loop because DEG_id_tag_update may set tags on other datablocks. */
       id->recalc_after_undo_push = 0;
-      bNodeTree *nodetree = ntreeFromID(id);
+      bNodeTree *nodetree = blender::bke::ntreeFromID(id);
       if (nodetree != nullptr) {
         nodetree->id.recalc_after_undo_push = 0;
       }
@@ -355,13 +355,15 @@ static MemFile *ed_undosys_step_get_memfile(UndoStep *us_p)
   return &us->data->memfile;
 }
 
-MemFile *ED_undosys_stack_memfile_get_active(UndoStack *ustack)
+MemFile *ED_undosys_stack_memfile_get_if_active(UndoStack *ustack)
 {
-  UndoStep *us = BKE_undosys_stack_active_with_type(ustack, BKE_UNDOSYS_TYPE_MEMFILE);
-  if (us) {
-    return ed_undosys_step_get_memfile(us);
+  if (!ustack->step_active) {
+    return nullptr;
   }
-  return nullptr;
+  if (ustack->step_active->type != BKE_UNDOSYS_TYPE_MEMFILE) {
+    return nullptr;
+  }
+  return ed_undosys_step_get_memfile(ustack->step_active);
 }
 
 void ED_undosys_stack_memfile_id_changed_tag(UndoStack *ustack, ID *id)

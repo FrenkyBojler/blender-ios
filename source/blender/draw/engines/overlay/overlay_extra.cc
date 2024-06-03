@@ -11,7 +11,9 @@
 #include "UI_resources.hh"
 
 #include "BLI_math_color.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_math_rotation.hh"
 #include "BLI_math_vector.hh"
 
 #include "BKE_anim_path.h"
@@ -47,7 +49,7 @@
 
 #include "overlay_private.hh"
 
-#include "draw_common.h"
+#include "draw_common_c.hh"
 #include "draw_manager_text.hh"
 
 void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
@@ -258,7 +260,7 @@ OVERLAY_ExtraCallBuffers *OVERLAY_extra_call_buffer_get(OVERLAY_Data *vedata, Ob
 }
 
 void OVERLAY_extra_loose_points(OVERLAY_ExtraCallBuffers *cb,
-                                GPUBatch *geom,
+                                blender::gpu::Batch *geom,
                                 const float mat[4][4],
                                 const float color[4])
 {
@@ -268,7 +270,7 @@ void OVERLAY_extra_loose_points(OVERLAY_ExtraCallBuffers *cb,
 }
 
 void OVERLAY_extra_wire(OVERLAY_ExtraCallBuffers *cb,
-                        GPUBatch *geom,
+                        blender::gpu::Batch *geom,
                         const float mat[4][4],
                         const float color[4])
 {
@@ -706,6 +708,8 @@ void OVERLAY_light_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
 void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
+  using namespace blender::math;
+
   OVERLAY_ExtraCallBuffers *cb = OVERLAY_extra_call_buffer_get(vedata, ob);
   const DRWContextState *draw_ctx = DRW_context_state_get();
   ViewLayer *view_layer = draw_ctx->view_layer;
@@ -750,16 +754,26 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
         OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), dist, shape, color_p);
       }
       break;
-    case LIGHTPROBE_TYPE_VOLUME:
-      instdata.clip_sta = show_clipping ? prb->clipsta : -1.0;
-      instdata.clip_end = show_clipping ? prb->clipend : -1.0;
+    case LIGHTPROBE_TYPE_VOLUME: {
+      instdata.clip_sta = show_clipping ? 0.0f : -1.0f;
+      instdata.clip_end = show_clipping ? prb->clipend : -1.0f;
       DRW_buffer_add_entry(cb->probe_grid, color_p, &instdata);
 
+      {
+        /* Display surfel density as a cube. */
+        float3 axes_len = to_scale(ob->object_to_world());
+        float max_axis_len = reduce_max(axes_len);
+        float3 local_surfel_size = (0.5f / prb->grid_surfel_density) * (max_axis_len / axes_len);
+
+        float4x4 surfel_density_mat = from_loc_rot_scale<float4x4>(
+            float3(-1.0f + local_surfel_size), Quaternion::identity(), float3(local_surfel_size));
+        surfel_density_mat = ob->object_to_world() * surfel_density_mat;
+
+        OVERLAY_empty_shape(cb, surfel_density_mat.ptr(), 1.0, OB_CUBE, color_p);
+      }
+
       if (show_influence) {
-        float f = 1.0f - prb->falloff;
-        OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), 1.0 + prb->distinf, OB_CUBE, color_p);
-        OVERLAY_empty_shape(
-            cb, ob->object_to_world().ptr(), 1.0 + prb->distinf * f, OB_CUBE, color_p);
+        OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), 1.0, OB_CUBE, color_p);
       }
 
       /* Data dots */
@@ -781,6 +795,7 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
         DRW_shgroup_call_procedural_points(grp, nullptr, cell_count);
       }
       break;
+    }
     case LIGHTPROBE_TYPE_PLANE:
       DRW_buffer_add_entry(cb->probe_planar, color_p, &instdata);
 
@@ -1008,7 +1023,7 @@ static float camera_offaxis_shiftx_get(Scene *scene,
                                        const OVERLAY_CameraInstanceData *instdata,
                                        bool right_eye)
 {
-  Camera *cam = static_cast<Camera *>(ob->data);
+  const Camera *cam = static_cast<const Camera *>(ob->data);
   if (cam->stereo.convergence_mode == CAM_S3D_OFFAXIS) {
     const char *viewnames[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
     const float shiftx = BKE_camera_multiview_shift_x(&scene->r, ob, viewnames[right_eye]);
@@ -1030,7 +1045,7 @@ static void camera_stereoscopy_extra(OVERLAY_ExtraCallBuffers *cb,
                                      const OVERLAY_CameraInstanceData *instdata)
 {
   OVERLAY_CameraInstanceData stereodata = *instdata;
-  Camera *cam = static_cast<Camera *>(ob->data);
+  const Camera *cam = static_cast<const Camera *>(ob->data);
   const bool is_select = DRW_state_is_select();
   const char *viewnames[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
 
@@ -1134,8 +1149,8 @@ void OVERLAY_camera_cache_populate(OVERLAY_Data *vedata, Object *ob)
   Scene *scene = draw_ctx->scene;
   RegionView3D *rv3d = draw_ctx->rv3d;
 
-  Camera *cam = static_cast<Camera *>(ob->data);
-  Object *camera_object = DEG_get_evaluated_object(draw_ctx->depsgraph, v3d->camera);
+  const Camera *cam = static_cast<Camera *>(ob->data);
+  const Object *camera_object = DEG_get_evaluated_object(draw_ctx->depsgraph, v3d->camera);
   const bool is_select = DRW_state_is_select();
   const bool is_active = (ob == camera_object);
   const bool look_through = (is_active && (rv3d->persp == RV3D_CAMOB));

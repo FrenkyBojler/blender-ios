@@ -41,7 +41,7 @@
 #include "ED_transform.hh"
 #include "ED_transform_snap_object_context.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* test for unlocked camera view in quad view */
 static bool view3d_camera_user_poll(bContext *C)
@@ -562,15 +562,7 @@ static Camera *background_image_camera_from_context(bContext *C)
   return static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
 }
 
-static int background_image_add_exec(bContext *C, wmOperator * /*op*/)
-{
-  Camera *cam = background_image_camera_from_context(C);
-  BKE_camera_background_image_new(cam);
-
-  return OPERATOR_FINISHED;
-}
-
-static int background_image_add_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int camera_background_image_add_exec(bContext *C, wmOperator *op)
 {
   Camera *cam = background_image_camera_from_context(C);
   Image *ima;
@@ -590,37 +582,37 @@ static int background_image_add_invoke(bContext *C, wmOperator *op, const wmEven
   return OPERATOR_FINISHED;
 }
 
-static bool background_image_add_poll(bContext *C)
+static bool camera_background_image_add_poll(bContext *C)
 {
   return background_image_camera_from_context(C) != nullptr;
 }
 
-void VIEW3D_OT_background_image_add(wmOperatorType *ot)
+void VIEW3D_OT_camera_background_image_add(wmOperatorType *ot)
 {
   /* identifiers */
-  /* NOTE: having key shortcut here is bad practice,
-   * but for now keep because this displays when dragging an image over the 3D viewport */
-  ot->name = "Add Background Image";
-  ot->description = "Add a new background image";
-  ot->idname = "VIEW3D_OT_background_image_add";
+  ot->name = "Add Camera Background Image";
+  ot->description = "Add a new background image to the active camera";
+  ot->idname = "VIEW3D_OT_camera_background_image_add";
 
   /* api callbacks */
-  ot->invoke = background_image_add_invoke;
-  ot->exec = background_image_add_exec;
-  ot->poll = background_image_add_poll;
+  ot->exec = camera_background_image_add_exec;
+  ot->poll = camera_background_image_add_poll;
 
   /* flags */
-  ot->flag = OPTYPE_UNDO;
+  ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
 
   /* properties */
+  PropertyRNA *prop = RNA_def_string(
+      ot->srna, "filepath", nullptr, FILE_MAX, "Filepath", "Path to image file");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  prop = RNA_def_boolean(ot->srna,
+                         "relative_path",
+                         true,
+                         "Relative Path",
+                         "Select the file relative to the blend file");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+
   WM_operator_properties_id_lookup(ot, true);
-  WM_operator_properties_filesel(ot,
-                                 FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE,
-                                 FILE_SPECIAL,
-                                 FILE_OPENFILE,
-                                 WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH,
-                                 FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_DEFAULT);
 }
 
 /** \} */
@@ -629,7 +621,7 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 /** \name Background Image Remove Operator
  * \{ */
 
-static int background_image_remove_exec(bContext *C, wmOperator *op)
+static int camera_background_image_remove_exec(bContext *C, wmOperator *op)
 {
   Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
   const int index = RNA_int_get(op->ptr, "index");
@@ -661,15 +653,15 @@ static int background_image_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-void VIEW3D_OT_background_image_remove(wmOperatorType *ot)
+void VIEW3D_OT_camera_background_image_remove(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Remove Background Image";
-  ot->description = "Remove a background image from the 3D view";
-  ot->idname = "VIEW3D_OT_background_image_remove";
+  ot->name = "Remove Camera Background Image";
+  ot->description = "Remove a background image from the camera";
+  ot->idname = "VIEW3D_OT_camera_background_image_remove";
 
   /* api callbacks */
-  ot->exec = background_image_remove_exec;
+  ot->exec = camera_background_image_remove_exec;
   ot->poll = ED_operator_camera_poll;
 
   /* flags */
@@ -823,11 +815,10 @@ void VIEW3D_OT_clip_border(wmOperatorType *ot)
 /** \name Set Cursor Operator
  * \{ */
 
-/* cursor position in vec, result in vec, mval in region coords */
 void ED_view3d_cursor3d_position(bContext *C,
                                  const int mval[2],
                                  const bool use_depth,
-                                 float cursor_co[3])
+                                 float r_cursor_co[3])
 {
   ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -841,28 +832,32 @@ void ED_view3d_cursor3d_position(bContext *C,
     return;
   }
 
-  ED_view3d_calc_zfac_ex(rv3d, cursor_co, &flip);
+  ED_view3d_calc_zfac_ex(rv3d, r_cursor_co, &flip);
 
   /* Reset the depth based on the view offset (we _know_ the offset is in front of us). */
   if (flip) {
-    negate_v3_v3(cursor_co, rv3d->ofs);
+    negate_v3_v3(r_cursor_co, rv3d->ofs);
     /* re initialize, no need to check flip again */
-    ED_view3d_calc_zfac(rv3d, cursor_co);
+    ED_view3d_calc_zfac(rv3d, r_cursor_co);
   }
 
   if (use_depth) { /* maybe this should be accessed some other way */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
     view3d_operator_needs_opengl(C);
-    if (ED_view3d_autodist(depsgraph, region, v3d, mval, cursor_co, true, nullptr)) {
+
+    /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
+    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+
+    if (ED_view3d_autodist(region, v3d, mval, r_cursor_co, nullptr)) {
       depth_used = true;
     }
   }
 
   if (depth_used == false) {
     float depth_pt[3];
-    copy_v3_v3(depth_pt, cursor_co);
-    ED_view3d_win_to_3d_int(v3d, region, depth_pt, mval, cursor_co);
+    copy_v3_v3(depth_pt, r_cursor_co);
+    ED_view3d_win_to_3d_int(v3d, region, depth_pt, mval, r_cursor_co);
   }
 }
 
@@ -870,8 +865,8 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
                                           const int mval[2],
                                           const bool use_depth,
                                           enum eV3DCursorOrient orientation,
-                                          float cursor_co[3],
-                                          float cursor_quat[4])
+                                          float r_cursor_co[3],
+                                          float r_cursor_quat[4])
 {
   Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -883,23 +878,23 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
     return;
   }
 
-  ED_view3d_cursor3d_position(C, mval, use_depth, cursor_co);
+  ED_view3d_cursor3d_position(C, mval, use_depth, r_cursor_co);
 
   if (orientation == V3D_CURSOR_ORIENT_NONE) {
     /* pass */
   }
   else if (orientation == V3D_CURSOR_ORIENT_VIEW) {
-    copy_qt_qt(cursor_quat, rv3d->viewquat);
-    cursor_quat[0] *= -1.0f;
+    copy_qt_qt(r_cursor_quat, rv3d->viewquat);
+    r_cursor_quat[0] *= -1.0f;
   }
   else if (orientation == V3D_CURSOR_ORIENT_XFORM) {
     float mat[3][3];
     ED_transform_calc_orientation_from_type(C, mat);
-    mat3_to_quat(cursor_quat, mat);
+    mat3_to_quat(r_cursor_quat, mat);
   }
   else if (orientation == V3D_CURSOR_ORIENT_GEOM) {
-    copy_qt_qt(cursor_quat, rv3d->viewquat);
-    cursor_quat[0] *= -1.0f;
+    copy_qt_qt(r_cursor_quat, rv3d->viewquat);
+    r_cursor_quat[0] *= -1.0f;
 
     const float mval_fl[2] = {float(mval[0]), float(mval[1])};
     float ray_no[3];
@@ -908,7 +903,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
     SnapObjectContext *snap_context = ED_transform_snap_object_context_create(scene, 0);
 
     float obmat[4][4];
-    Object *ob_dummy = nullptr;
+    const Object *ob_dummy = nullptr;
     float dist_px = 0;
     SnapObjectParams params{};
     params.snap_target_select = SCE_SNAP_TARGET_ALL;
@@ -932,16 +927,16 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
                                                    nullptr) != 0)
     {
       if (use_depth) {
-        copy_v3_v3(cursor_co, ray_co);
+        copy_v3_v3(r_cursor_co, ray_co);
       }
 
       /* Math normal (Z). */
       {
         float tquat[4];
         float z_src[3] = {0, 0, 1};
-        mul_qt_v3(cursor_quat, z_src);
+        mul_qt_v3(r_cursor_quat, z_src);
         rotation_between_vecs_to_quat(tquat, z_src, ray_no);
-        mul_qt_qtqt(cursor_quat, tquat, cursor_quat);
+        mul_qt_qtqt(r_cursor_quat, tquat, r_cursor_quat);
       }
 
       /* Match object matrix (X). */
@@ -966,7 +961,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
         for (int axis = 0; axis < 2; axis++) {
           float tan_src[3] = {0, 0, 0};
           tan_src[axis] = 1.0f;
-          mul_qt_v3(cursor_quat, tan_src);
+          mul_qt_v3(r_cursor_quat, tan_src);
 
           for (int axis_sign = 0; axis_sign < 2; axis_sign++) {
             float tquat_test[4];
@@ -979,7 +974,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
             negate_v3(tan_src);
           }
         }
-        mul_qt_qtqt(cursor_quat, tquat_best, cursor_quat);
+        mul_qt_qtqt(r_cursor_quat, tquat_best, r_cursor_quat);
       }
     }
     ED_transform_snap_object_context_destroy(snap_context);

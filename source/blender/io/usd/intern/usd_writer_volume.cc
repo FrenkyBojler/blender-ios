@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "usd_writer_volume.hh"
+#include "usd_hierarchy_iterator.hh"
 
 #include <pxr/base/tf/pathUtils.h>
 #include <pxr/usd/usdVol/openVDBAsset.h>
@@ -17,12 +18,9 @@
 #include "BLI_fileops.h"
 #include "BLI_index_range.hh"
 #include "BLI_math_base.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
-
-#include "WM_api.hh"
-
-#include "usd_hierarchy_iterator.hh"
 
 namespace blender::io::usd {
 
@@ -97,8 +95,8 @@ std::optional<std::string> USDVolumeWriter::resolve_vdb_file(const Volume *volum
   std::optional<std::string> vdb_file_path;
   if (volume->filepath[0] == '\0') {
     /* Entering this section should mean that Volume object contains OpenVDB data that is not
-     * obtained from external .vdb file but rather generated inside of Blender (i.e. by 'Mesh to
-     * Volume' modifier). Try to save this data to a .vdb file. */
+     * obtained from external `.vdb` file but rather generated inside of Blender (i.e. by 'Mesh to
+     * Volume' modifier). Try to save this data to a `.vdb` file. */
 
     vdb_file_path = construct_vdb_file_path(volume);
     if (!BKE_volume_save(

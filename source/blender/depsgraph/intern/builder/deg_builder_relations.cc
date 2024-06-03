@@ -56,7 +56,7 @@
 #include "DNA_world_types.h"
 
 #include "BKE_action.h"
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_armature.hh"
 #include "BKE_collection.hh"
 #include "BKE_collision.h"
@@ -66,7 +66,7 @@
 #include "BKE_fcurve_driver.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_image.h"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
@@ -90,6 +90,7 @@
 #include "RNA_prototypes.h"
 #include "RNA_types.hh"
 
+#include "ANIM_action.hh"
 #include "SEQ_iterator.hh"
 
 #include "DEG_depsgraph.hh"
@@ -223,8 +224,9 @@ OperationCode bone_target_opcode(ID *target,
                                  const char *component_subdata,
                                  RootPChanMap *root_map)
 {
-  /* Same armature. */
-  if (target == id) {
+  /* Same armature. root_map will be nullptr when building object-level constraints, and in that
+   * case we don't need to check for the common chains. */
+  if (target == id && root_map != nullptr) {
     /* Using "done" here breaks in-chain deps, while using
      * "ready" here breaks most production rigs instead.
      * So, we do a compromise here, and only do this when an
@@ -627,16 +629,11 @@ void DepsgraphRelationBuilder::build_generic_id(ID *id)
   build_parameters(id);
 }
 
-static void build_idproperties_callback(IDProperty *id_property, void *user_data)
-{
-  DepsgraphRelationBuilder *builder = reinterpret_cast<DepsgraphRelationBuilder *>(user_data);
-  BLI_assert(id_property->type == IDP_ID);
-  builder->build_id(reinterpret_cast<ID *>(id_property->data.pointer));
-}
-
 void DepsgraphRelationBuilder::build_idproperties(IDProperty *id_property)
 {
-  IDP_foreach_property(id_property, IDP_TYPE_FILTER_ID, build_idproperties_callback, this);
+  IDP_foreach_property(id_property, IDP_TYPE_FILTER_ID, [&](IDProperty *id_property) {
+    this->build_id(static_cast<ID *>(id_property->data.pointer));
+  });
 }
 
 void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_collection,
@@ -1499,7 +1496,7 @@ void DepsgraphRelationBuilder::build_constraints(ID *id,
           /* Standard object relation. */
           /* TODO: loc vs rot vs scale? */
           if (&ct->tar->id == id) {
-            /* Constraint targeting own object:
+            /* Constraint targeting its own object:
              * - This case is fine IF we're dealing with a bone
              *   constraint pointing to its own armature. In that
              *   case, it's just transform -> bone.
@@ -1546,7 +1543,7 @@ void DepsgraphRelationBuilder::build_animdata(ID *id)
 {
   /* Images. */
   build_animation_images(id);
-  /* Animation curves and NLA. */
+  /* Animation curves, NLA, and Animation datablock. */
   build_animdata_curves(id);
   /* Drivers. */
   build_animdata_drivers(id);
@@ -1577,7 +1574,7 @@ void DepsgraphRelationBuilder::build_animdata_curves(ID *id)
   OperationKey animation_exit_key(id, NodeType::ANIMATION, OperationCode::ANIMATION_EXIT);
   add_relation(animation_entry_key, animation_eval_key, "Init -> Eval");
   add_relation(animation_eval_key, animation_exit_key, "Eval -> Exit");
-  /* Wire up dependency from action. */
+  /* Wire up dependency from action and Animation datablock. */
   ComponentKey adt_key(id, NodeType::ANIMATION);
   /* Relation from action itself. */
   if (adt->action != nullptr) {
@@ -1594,10 +1591,47 @@ void DepsgraphRelationBuilder::build_animdata_curves(ID *id)
   BLI_assert(operation_from != nullptr);
   /* Build relations from animation operation to properties it changes. */
   if (adt->action != nullptr) {
-    build_animdata_curves_targets(id, adt_key, operation_from, &adt->action->curves);
+    build_animdata_action_targets(id, adt->binding_handle, adt_key, operation_from, adt->action);
   }
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
     build_animdata_nlastrip_targets(id, adt_key, operation_from, &nlt->strips);
+  }
+}
+
+void DepsgraphRelationBuilder::build_animdata_fcurve_target(
+    ID *id, PointerRNA id_ptr, ComponentKey &adt_key, OperationNode *operation_from, FCurve *fcu)
+{
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  int index;
+  if (!RNA_path_resolve_full(&id_ptr, fcu->rna_path, &ptr, &prop, &index)) {
+    return;
+  }
+  Node *node_to = rna_node_query_.find_node(&ptr, prop, RNAPointerSource::ENTRY);
+  if (node_to == nullptr) {
+    return;
+  }
+  OperationNode *operation_to = node_to->get_entry_operation();
+  /* NOTE: Special case for bones, avoid relation from animation to
+   * each of the bones. Bone evaluation could only start from pose
+   * init anyway. */
+  if (operation_to->opcode == OperationCode::BONE_LOCAL) {
+    OperationKey pose_init_key(id, NodeType::EVAL_POSE, OperationCode::POSE_INIT);
+    add_relation(adt_key, pose_init_key, "Animation -> Prop", RELATION_CHECK_BEFORE_ADD);
+    return;
+  }
+  graph_->add_new_relation(
+      operation_from, operation_to, "Animation -> Prop", RELATION_CHECK_BEFORE_ADD);
+  /* It is possible that animation is writing to a nested ID data-block,
+   * need to make sure animation is evaluated after target ID is copied. */
+  const IDNode *id_node_from = operation_from->owner->owner;
+  const IDNode *id_node_to = operation_to->owner->owner;
+  if (id_node_from != id_node_to) {
+    ComponentKey cow_key(id_node_to->id_orig, NodeType::COPY_ON_EVAL);
+    add_relation(cow_key,
+                 adt_key,
+                 "Animated Copy-on-Eval -> Animation",
+                 RELATION_CHECK_BEFORE_ADD | RELATION_FLAG_NO_FLUSH);
   }
 }
 
@@ -1609,39 +1643,59 @@ void DepsgraphRelationBuilder::build_animdata_curves_targets(ID *id,
   /* Iterate over all curves and build relations. */
   PointerRNA id_ptr = RNA_id_pointer_create(id);
   LISTBASE_FOREACH (FCurve *, fcu, curves) {
-    PointerRNA ptr;
-    PropertyRNA *prop;
-    int index;
-    if (!RNA_path_resolve_full(&id_ptr, fcu->rna_path, &ptr, &prop, &index)) {
-      continue;
-    }
-    Node *node_to = rna_node_query_.find_node(&ptr, prop, RNAPointerSource::ENTRY);
-    if (node_to == nullptr) {
-      continue;
-    }
-    OperationNode *operation_to = node_to->get_entry_operation();
-    /* NOTE: Special case for bones, avoid relation from animation to
-     * each of the bones. Bone evaluation could only start from pose
-     * init anyway. */
-    if (operation_to->opcode == OperationCode::BONE_LOCAL) {
-      OperationKey pose_init_key(id, NodeType::EVAL_POSE, OperationCode::POSE_INIT);
-      add_relation(adt_key, pose_init_key, "Animation -> Prop", RELATION_CHECK_BEFORE_ADD);
-      continue;
-    }
-    graph_->add_new_relation(
-        operation_from, operation_to, "Animation -> Prop", RELATION_CHECK_BEFORE_ADD);
-    /* It is possible that animation is writing to a nested ID data-block,
-     * need to make sure animation is evaluated after target ID is copied. */
-    const IDNode *id_node_from = operation_from->owner->owner;
-    const IDNode *id_node_to = operation_to->owner->owner;
-    if (id_node_from != id_node_to) {
-      ComponentKey cow_key(id_node_to->id_orig, NodeType::COPY_ON_EVAL);
-      add_relation(cow_key,
-                   adt_key,
-                   "Animated Copy-on-Eval -> Animation",
-                   RELATION_CHECK_BEFORE_ADD | RELATION_FLAG_NO_FLUSH);
+    build_animdata_fcurve_target(id, id_ptr, adt_key, operation_from, fcu);
+  }
+}
+
+void DepsgraphRelationBuilder::build_animdata_action_targets(ID *id,
+                                                             const int32_t binding_handle,
+                                                             ComponentKey &adt_key,
+                                                             OperationNode *operation_from,
+                                                             bAction *dna_action)
+{
+  BLI_assert(id != nullptr);
+  BLI_assert(operation_from != nullptr);
+  BLI_assert(dna_action != nullptr);
+  animrig::Action &action = dna_action->wrap();
+
+  if (action.is_empty()) {
+    return;
+  }
+  if (action.is_action_legacy()) {
+    build_animdata_curves_targets(id, adt_key, operation_from, &action.curves);
+    return;
+  }
+
+#ifdef WITH_ANIM_BAKLAVA
+  const animrig::Binding *binding = action.binding_for_handle(binding_handle);
+  if (binding == nullptr) {
+    /* If there's no matching binding, there's no Action dependency. */
+    return;
+  }
+
+  PointerRNA id_ptr = RNA_id_pointer_create(id);
+
+  for (animrig::Layer *layer : action.layers()) {
+    for (animrig::Strip *strip : layer->strips()) {
+      switch (strip->type()) {
+        case animrig::Strip::Type::Keyframe: {
+          animrig::KeyframeStrip &keyframe_strip = strip->as<animrig::KeyframeStrip>();
+          animrig::ChannelBag *channels = keyframe_strip.channelbag_for_binding(*binding);
+          if (channels == nullptr) {
+            /* Go to next strip. */
+            break;
+          }
+          for (FCurve *fcu : channels->fcurves()) {
+            build_animdata_fcurve_target(id, id_ptr, adt_key, operation_from, fcu);
+          }
+          break;
+        }
+      }
     }
   }
+#else
+  UNUSED_VARS(binding_handle);
+#endif
 }
 
 void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
@@ -1656,7 +1710,13 @@ void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
       ComponentKey action_key(&strip->act->id, NodeType::ANIMATION);
       add_relation(action_key, adt_key, "Action -> Animation");
 
-      build_animdata_curves_targets(id, adt_key, operation_from, &strip->act->curves);
+      if (!strip->act->wrap().is_action_legacy()) {
+        /* TODO: add NLA support for layered actions. */
+        continue;
+      }
+      /* TODO: get binding handle from the owning ID. */
+      const animrig::binding_handle_t binding_handle = animrig::Binding::unassigned;
+      build_animdata_action_targets(id, binding_handle, adt_key, operation_from, strip->act);
     }
     else if (strip->strips.first != nullptr) {
       build_animdata_nlastrip_targets(id, adt_key, operation_from, &strip->strips);
@@ -1681,7 +1741,7 @@ void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
     /* create the driver's relations to targets */
     build_driver(id, fcu);
 
-    /* prevent driver from occurring before own animation... */
+    /* prevent driver from occurring before its own animation... */
     if (adt->action || adt->nla_tracks.first) {
       add_relation(adt_key, driver_key, "AnimData Before Drivers");
     }
@@ -1693,7 +1753,7 @@ void DepsgraphRelationBuilder::build_animation_images(ID *id)
   /* See #DepsgraphNodeBuilder::build_animation_images. */
   bool has_image_animation = false;
   if (ELEM(GS(id->name), ID_MA, ID_WO)) {
-    bNodeTree *ntree = *BKE_ntree_ptr_from_id(id);
+    bNodeTree *ntree = *bke::BKE_ntree_ptr_from_id(id);
     if (ntree != nullptr && ntree->runtime->runtime_flag & NTREE_RUNTIME_FLAG_HAS_IMAGE_ANIMATION)
     {
       has_image_animation = true;
@@ -1741,18 +1801,27 @@ void DepsgraphRelationBuilder::build_animdata_force(ID *id)
   add_relation(animation_key, rigidbody_key, "Animation -> Rigid Body");
 }
 
-void DepsgraphRelationBuilder::build_action(bAction *action)
+void DepsgraphRelationBuilder::build_action(bAction *dna_action)
 {
-  if (built_map_.checkIsBuiltAndTag(action)) {
+  if (built_map_.checkIsBuiltAndTag(dna_action)) {
     return;
   }
 
-  const BuilderStack::ScopedEntry stack_entry = stack_.trace(action->id);
+  const BuilderStack::ScopedEntry stack_entry = stack_.trace(dna_action->id);
 
-  build_idproperties(action->id.properties);
-  if (!BLI_listbase_is_empty(&action->curves)) {
+  build_idproperties(dna_action->id.properties);
+
+  blender::animrig::Action &action = dna_action->wrap();
+#ifndef WITH_ANIM_BAKLAVA
+  /* Prevent evaluation of data introduced by Project Baklava. */
+  if (action.is_action_layered()) {
+    return;
+  }
+#endif
+
+  if (!action.is_empty()) {
     TimeSourceKey time_src_key;
-    ComponentKey animation_key(&action->id, NodeType::ANIMATION);
+    ComponentKey animation_key(&dna_action->id, NodeType::ANIMATION);
     add_relation(time_src_key, animation_key, "TimeSrc -> Animation");
   }
 }
@@ -2661,6 +2730,17 @@ void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
         add_relation(textoncurve_key, obdata_geom_eval_key, "Text on Curve Transform");
         build_object(cu->textoncurve);
       }
+      /* Special relation to ensure active spline index gets properly updated.
+       *
+       * The active spline index is stored on the Curve data-block, and the curve evaluation might
+       * create a new curve data-block for the result, which does not intrinsically sharing the
+       * active spline index. Hence a special relation is added to ensure the modifier stack is
+       * evaluated when selection changes. */
+      {
+        const OperationKey object_data_select_key(
+            obdata, NodeType::BATCH_CACHE, OperationCode::GEOMETRY_SELECT_UPDATE);
+        add_relation(object_data_select_key, obdata_geom_eval_key, "Active Spline Update");
+      }
       break;
     }
     case ID_LT:
@@ -3458,6 +3538,15 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
      *   we allow flush to layer collections component which will ensure
      *   that cached array of bases exists and is up-to-date. */
     if (ELEM(comp_node->type, NodeType::LAYER_COLLECTIONS)) {
+      rel_flag &= ~RELATION_FLAG_NO_FLUSH;
+    }
+    /* Mask evaluation operation is part of parameters, and it needs to be re-evaluated when the
+     * mask is tagged for copy-on-eval.
+     *
+     * TODO(@sergey): This needs to be moved out of here.
+     * In order to do so, moving mask evaluation out of parameters would be helpful and
+     * semantically correct. */
+    if (comp_node->type == NodeType::PARAMETERS && id_type == ID_MSK) {
       rel_flag &= ~RELATION_FLAG_NO_FLUSH;
     }
     /* Compatibility with the legacy tagging: groups are only tagged for Copy-on-Write when their

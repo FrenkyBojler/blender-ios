@@ -139,21 +139,23 @@ static void node_rna(StructRNA *srna)
                     "",
                     rna_enum_node_geometry_mesh_circle_fill_type_items,
                     NOD_storage_enum_accessors(fill_type),
-                    GEO_NODE_MESH_CIRCLE_FILL_NGON);
+                    GEO_NODE_MESH_CIRCLE_FILL_NGON,
+                    nullptr,
+                    true);
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_MESH_PRIMITIVE_CYLINDER, "Cylinder", NODE_CLASS_GEOMETRY);
   ntype.initfunc = node_init;
   ntype.updatefunc = node_update;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeGeometryMeshCylinder", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

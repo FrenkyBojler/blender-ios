@@ -57,7 +57,11 @@ void device_metal_info(vector<DeviceInfo> &devices)
     info.denoisers = DENOISER_NONE;
     info.id = id;
 #  if defined(WITH_OPENIMAGEDENOISE)
+#    if OIDN_VERSION >= 20300
+    if (oidnIsMetalDeviceSupported(device)) {
+#    else
     if (OIDNDenoiserGPU::is_device_supported(info)) {
+#    endif
       info.denoisers |= DENOISER_OPENIMAGEDENOISE;
     }
 #  endif
@@ -89,7 +93,7 @@ void device_metal_info(vector<DeviceInfo> &devices)
     VLOG_INFO << "Added device \"" << info.description << "\" with id \"" << info.id << "\".";
 
     if (info.denoisers & DENOISER_OPENIMAGEDENOISE)
-      VLOG_INFO << "Device with id \"" << info.id << "\" is supporting "
+      VLOG_INFO << "Device with id \"" << info.id << "\" supports "
                 << denoiserTypeToHumanReadable(DENOISER_OPENIMAGEDENOISE) << ".";
   }
 }
