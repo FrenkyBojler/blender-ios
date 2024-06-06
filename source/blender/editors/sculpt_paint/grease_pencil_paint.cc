@@ -339,7 +339,7 @@ struct PaintOperationExecutor {
     // const float3 start_location = self.placement_.project(start_coords);
     const float3 start_location = start_sample.is_xr ? start_sample.controller_position :
                                                        self.placement_.project(start_coords);
-    const float start_radius = ed::greasepencil::radius_from_input_sample(
+    float start_radius = start_sample.is_xr ? 0.612313f : ed::greasepencil::radius_from_input_sample(
         rv3d,
         region,
         scene_,
@@ -348,6 +348,7 @@ struct PaintOperationExecutor {
         start_location,
         self.placement_.to_world_space(),
         settings_);
+    printf("start_radius %f process_start_sample\n",start_radius);
     const float start_opacity = ed::greasepencil::opacity_from_input_sample(
         start_sample.pressure, brush_, scene_, settings_);
     Scene *scene = CTX_data_scene(&C);
@@ -516,7 +517,8 @@ struct PaintOperationExecutor {
 
     const float3 position = extension_sample.is_xr ? extension_sample.controller_position :
                                                      self.placement_.project(coords);
-    float radius = ed::greasepencil::radius_from_input_sample(rv3d,
+    float radius = extension_sample.is_xr ? 0.612313f :
+                    ed::greasepencil::radius_from_input_sample(rv3d,
                                                               region,
                                                               scene_,
                                                               brush_,
@@ -524,6 +526,7 @@ struct PaintOperationExecutor {
                                                               position,
                                                               self.placement_.to_world_space(),
                                                               settings_);
+    printf("radius %f process_extension_sample\n", radius);
     const float opacity = ed::greasepencil::opacity_from_input_sample(
         extension_sample.pressure, brush_, scene_, settings_);
     Scene *scene = CTX_data_scene(&C);
@@ -649,7 +652,14 @@ struct PaintOperationExecutor {
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-  ARegion *region = CTX_wm_region(&C);
+  ARegion *region = CTX_wm_region(&C); // Aregion XR_DATA
+  if (start_sample.is_xr) {
+	  printf("on_stroke_begin is_xr\n");
+    wmWindowManager *wm = CTX_wm_manager(&C);
+    wmXrData *xr_data = &wm->xr;
+    region = WM_xr_get_xr_region(xr_data);
+    printf("winx %d winy %d\n", region->winx, region->winy);
+  }
   View3D *view3d = CTX_wm_view3d(&C);
   Scene *scene = CTX_data_scene(&C);
   Object *object = CTX_data_active_object(&C);
@@ -677,9 +687,11 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   /* Initialize helper class for projecting screen space coordinates. */
   placement_ = ed::greasepencil::DrawingPlacement(*scene, *region, *view3d, *eval_object, &layer);
   if (placement_.use_project_to_surface()) {
+    printf("on_stroke_begin 1\n");
     placement_.cache_viewport_depths(CTX_data_depsgraph_pointer(&C), region, view3d);
   }
   else if (placement_.use_project_to_nearest_stroke()) {
+    printf("on_stroke_begin 2\n");
     placement_.cache_viewport_depths(CTX_data_depsgraph_pointer(&C), region, view3d);
     placement_.set_origin_to_nearest_stroke(start_sample.mouse_position);
   }
@@ -689,35 +701,44 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   float3 origin;
   /* Set the texture space origin to be the first point. */
   if (start_sample.is_xr) {
-    origin = {start_sample.controller_position[0],
-              start_sample.controller_position[1],
-              start_sample.controller_position[2]};
+    // origin = {start_sample.controller_position[0],
+    //           start_sample.controller_position[1],
+    //           start_sample.controller_position[2]};
+    copy_v3_v3(origin, start_sample.controller_position);
   }
   else {
     origin = placement_.project(start_sample.mouse_position);
   }
+
+  print_v3("on_stroke_begin origin: ", origin);
+
   /* Align texture with the drawing plane. */
   switch (scene->toolsettings->gp_sculpt.lock_axis) {
     case GP_LOCKAXIS_VIEW:
+      printf("on_stroke_begin 3\n");
       u_dir = math::normalize(
           placement_.project(float2(region->winx, 0.0f) + start_sample.mouse_position) - origin);
       v_dir = math::normalize(
           placement_.project(float2(0.0f, region->winy) + start_sample.mouse_position) - origin);
       break;
     case GP_LOCKAXIS_Y:
+      printf("on_stroke_begin 4\n");
       u_dir = float3(1.0f, 0.0f, 0.0f);
       v_dir = float3(0.0f, 0.0f, 1.0f);
       break;
     case GP_LOCKAXIS_X:
+      printf("on_stroke_begin 5\n");
       u_dir = float3(0.0f, 1.0f, 0.0f);
       v_dir = float3(0.0f, 0.0f, 1.0f);
       break;
     case GP_LOCKAXIS_Z:
+      printf("on_stroke_begin 6\n");
       u_dir = float3(1.0f, 0.0f, 0.0f);
       v_dir = float3(0.0f, 1.0f, 0.0f);
       break;
     case GP_LOCKAXIS_CURSOR: {
       float3x3 mat;
+      printf("on_stroke_begin 7\n");
       BKE_scene_cursor_rot_to_mat3(&scene->cursor, mat.ptr());
       u_dir = mat * float3(1.0f, 0.0f, 0.0f);
       v_dir = mat * float3(0.0f, 1.0f, 0.0f);
@@ -726,6 +747,9 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
     }
     // case GP_LOCKAXIS_CONTROLLER
   }
+  print_v3("u_dir", u_dir);
+  print_v3("v_dir", v_dir);
+  print_v3("origin", origin);
 
   this->texture_space_ = math::transpose(float2x4(float4(u_dir, -math::dot(u_dir, origin)),
                                                   float4(v_dir, -math::dot(v_dir, origin))));
@@ -744,6 +768,9 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
+
+  print_v3("on_stroke_begin start_sample.controller_position: ", start_sample.controller_position);
+  print_v2("on_stroke_begin start_sample.mouse_position: ", start_sample.mouse_position);
 }
 
 void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)

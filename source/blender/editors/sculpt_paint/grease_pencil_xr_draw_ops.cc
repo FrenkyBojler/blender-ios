@@ -60,22 +60,27 @@ static void stroke_start_xr(bContext *C,
   float mval_prj[2];
   InputSample start_sample;
   start_sample.controller_position = float3(controller);
-//   mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
-//   mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
+  // mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
+  // mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr_data = &wm->xr;
   /*
-   * we need a region type RGN_TYPE_WINDOW 0 to get the winx and winy. This we suppose, is View3D main.
-  */
+   * we need a region type RGN_TYPE_WINDOW 0 to get the winx and winy. This we suppose, is View3D
+   * main.
+   */
   ARegion *region = WM_xr_get_xr_region(xr_data);
   mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
   mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
   ED_view3d_project_float_global(region, controller, mval_prj, V3D_PROJ_TEST_NOP);
-  printf("Invoke: Projected X: %f, Projected Y: %f, win X: %d, M win Y: %d\n", mval_prj[0], mval_prj[1], region->winx, region->winy);
+  printf("Invoke: Projected X: %f, Projected Y: %f, win X: %d, M win Y: %d\n",
+         mval_prj[0],
+         mval_prj[1],
+         region->winx,
+         region->winy);
 
-  // start_sample.mouse_position = float2(controller); 
+  // start_sample.mouse_position = float2(controller);
   start_sample.mouse_position = mouse_xr;
-  start_sample.pressure = 0.0f; // Bring trigger pressure here?
+  start_sample.pressure = 0.0f;  // Bring trigger pressure here?
   start_sample.is_xr = true;
 
   paint_stroke_set_mode_data(paint_stroke, &operation);
@@ -151,7 +156,7 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
 }
 
 static void stroke_update_step(bContext *C,
-                               wmOperator * /*op*/,
+                               wmOperator * op,
                                PaintStroke *stroke,
                                PointerRNA *stroke_element)
 {
@@ -163,7 +168,9 @@ static void stroke_update_step(bContext *C,
   RNA_float_get_array(stroke_element, "controller", sample.controller_position);
   sample.pressure = RNA_float_get(stroke_element, "pressure");
   sample.is_xr = true;
-  sample.controller_position = {0.0, 0.0, 0.0};
+
+  print_v3("stroke_update_step sample.controller_position: ", sample.controller_position);
+  print_v2("stroke_update_step sample.mouse_position: ", sample.mouse_position);
 
   if (!operation) {
     GreasePencilStrokeOperation *new_operation = get_stroke_operation(*C, op);
@@ -183,7 +190,7 @@ static void stroke_redraw(const bContext *C, PaintStroke * /*stroke*/, bool /*fi
   wmXrData *xr_data = &wm->xr;
   ARegion *region = WM_xr_get_xr_region(xr_data);
   ED_region_tag_redraw(region);
-  // ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(C));
 }
 
 static void stroke_done(const bContext *C, PaintStroke *stroke)
