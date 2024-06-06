@@ -422,6 +422,7 @@ static bool socket_can_be_viewed(const bNode &node, const bNodeSocket &socket)
               SOCK_INT,
               SOCK_BOOLEAN,
               SOCK_ROTATION,
+              SOCK_MATRIX,
               SOCK_RGBA,
               SOCK_MENU);
 }
@@ -2262,6 +2263,9 @@ static bool node_can_be_inserted_on_link(bNodeTree &tree, bNode &node, const bNo
   const bNodeSocket *main_output = get_main_socket(tree, node, SOCK_IN);
   if (ELEM(nullptr, main_input, main_output)) {
     return false;
+  }
+  if (node.is_reroute()) {
+    return true;
   }
   if (!tree.typeinfo->validate_link) {
     return true;

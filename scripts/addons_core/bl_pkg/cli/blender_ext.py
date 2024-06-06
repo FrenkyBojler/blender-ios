@@ -101,6 +101,11 @@ RE_CONTROL_CHARS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
 # 16kb to be responsive even on slow connections.
 CHUNK_SIZE_DEFAULT = 1 << 14
 
+# Short descriptions for the UI:
+# Used for project tag-line & permissions values.
+TERSE_DESCRIPTION_MAX_LENGTH = 64
+
+
 # Standard out may be communicating with a parent process,
 # arbitrary prints are NOT acceptable.
 
@@ -232,7 +237,7 @@ class PkgManifest_Build(NamedTuple):
     def _from_dict_impl(
             manifest_build_dict: Dict[str, Any],
             *,
-            extra_paths: List[str],
+            extra_paths: Sequence[str],
             all_errors: bool,
     ) -> Union["PkgManifest_Build", List[str]]:
         # TODO: generalize the type checks, see: `pkg_manifest_is_valid_or_error_impl`.
@@ -241,7 +246,7 @@ class PkgManifest_Build(NamedTuple):
             if not isinstance(value, list):
                 error_list.append("[build]: \"paths\" must be a list, not a {!r}".format(type(value)))
             else:
-                value = value + extra_paths
+                value = [*value, *extra_paths]
                 if (error := pkg_manifest_validate_field_build_path_list(value, strict=True)) is not None:
                     error_list.append(error)
             if not all_errors:
@@ -275,7 +280,7 @@ class PkgManifest_Build(NamedTuple):
     @staticmethod
     def from_dict_all_errors(
             manifest_build_dict: Dict[str, Any],
-            extra_paths: List[str],
+            extra_paths: Sequence[str],
     ) -> Union["PkgManifest_Build", List[str]]:
         return PkgManifest_Build._from_dict_impl(
             manifest_build_dict,
@@ -405,7 +410,7 @@ def scandir_recursive(
 
 def build_paths_expand_iter(
         path: str,
-        path_list: List[str],
+        path_list: Sequence[str],
 ) -> Generator[Tuple[str, str], None, None]:
     """
     Expand paths from a path list which always uses "/" slashes.
@@ -658,6 +663,37 @@ def pkg_manifest_from_archive_and_validate(
         if (archive_subdir := pkg_zipfile_detect_subdir_or_none(zip_fh)) is None:
             return "Archive has no manifest: \"{:s}\"".format(PKG_MANIFEST_FILENAME_TOML)
         return pkg_manifest_from_zipfile_and_validate(zip_fh, archive_subdir, strict=strict)
+
+
+def pkg_is_legacy_addon(filepath: str) -> bool:
+    # Python file is legacy.
+    if os.path.splitext(filepath)[1].lower() == ".py":
+        return True
+
+    try:
+        zip_fh_context = zipfile.ZipFile(filepath, mode="r")
+    except Exception:
+        return False
+
+    with contextlib.closing(zip_fh_context) as zip_fh:
+        # If manifest not legacy.
+        if pkg_zipfile_detect_subdir_or_none(zip_fh) is not None:
+            return False
+
+        # If any Python file contains bl_info it's legacy.
+        for filename in zip_fh_context.NameToInfo.keys():
+            if filename.startswith("."):
+                continue
+            if not filename.lower().endswith(".py"):
+                continue
+            try:
+                file_content = zip_fh.read(filename)
+            except Exception:
+                file_content = None
+            if file_content and file_content.find(b"bl_info"):
+                return True
+
+    return False
 
 
 def remote_url_has_filename_suffix(url: str) -> bool:
@@ -1085,6 +1121,20 @@ def url_retrieve_to_filepath_iter_or_filesystem(
             yield (read, size)
 
 
+def url_retrieve_exception_is_connectivity(
+        ex: Union[Exception, KeyboardInterrupt],
+) -> bool:
+    if isinstance(ex, FileNotFoundError):
+        return True
+    if isinstance(ex, TimeoutError):
+        return True
+    # Covers `HTTPError` too.
+    if isinstance(ex, urllib.error.URLError):
+        return True
+
+    return False
+
+
 def url_retrieve_exception_as_message(
         ex: Union[Exception, KeyboardInterrupt],
         *,
@@ -1119,6 +1169,25 @@ def pkg_idname_is_valid_or_error(pkg_idname: str) -> Optional[str]:
         return "Names must not start with a \"_\""
     if pkg_idname.endswith("_"):
         return "Names must not end with a \"_\""
+    return None
+
+
+def pkg_manifest_validate_terse_description_or_error(value: str) -> Optional[str]:
+    # Could be an argument.
+    length_limit = TERSE_DESCRIPTION_MAX_LENGTH
+    if (length_limit != -1) and (len(value) > length_limit):
+        return "a value no longer than {:d} characters expected, found {:d}".format(length_limit, len(value))
+
+    if (error := pkg_manifest_validate_field_any_non_empty_string_stripped_no_control_chars(value, True)) is not None:
+        return error
+
+    # As we don't have a reliable (unicode aware) punctuation check, just check the last character is alpha/numeric.
+    if value[-1].isalnum():
+        pass  # OK.
+    elif value[-1] in {")", "]", "}"}:
+        pass  # Allow closing brackets (sometimes used to mention formats).
+    else:
+        return "alpha-numeric suffix expected, the string must not end with punctuation"
     return None
 
 
@@ -1237,19 +1306,7 @@ def pkg_manifest_validate_field_type(value: str, strict: bool) -> Optional[str]:
 
 def pkg_manifest_validate_field_tagline(value: str, strict: bool) -> Optional[str]:
     if strict:
-        if (error := pkg_manifest_validate_field_any_non_empty_string_stripped_no_control_chars(value, strict)) is not None:
-            return error
-
-        # Additional requirements.
-        if len(value) > 64:
-            return "a value no longer than 64 characters expected, found {:d}".format(len(value))
-        # As we don't have a reliable (unicode aware) punctuation check, just check the last character is alpha/numeric.
-        if value[-1].isalnum():
-            pass  # OK.
-        elif value[-1] in {")", "]", "}"}:
-            pass  # Allow closing brackets (sometimes used to mention formats).
-        else:
-            return "alpha-numeric suffix expected, the string must not end with punctuation"
+        return pkg_manifest_validate_terse_description_or_error(value)
     else:
         if (error := pkg_manifest_validate_field_any_non_empty_string(value, strict)) is not None:
             return error
@@ -1258,28 +1315,57 @@ def pkg_manifest_validate_field_tagline(value: str, strict: bool) -> Optional[st
 
 
 def pkg_manifest_validate_field_permissions(
-        value: List[Any],
+        value: Union[
+            # `Dict[str, str]` is expected but at this point it's only guaranteed to be a dict.
+            Dict[Any, Any],
+            # Kept for old files.
+            List[Any],
+        ],
         strict: bool,
 ) -> Optional[str]:
-    _ = strict
-    # Always strict for now as it doesn't seem as there are repositories using invalid values.
-    strict = True
+
+    keys_valid = {
+        "files",
+        "network",
+        "clipboard",
+        "camera",
+        "microphone",
+    }
+
     if strict:
-        values_valid = {
-            "files",
-            "network",
-            "clipboard",
-            "camera",
-            "microphone",
-        }
-        for i, item in enumerate(value):
-            if not isinstance(item, str):
-                return "at index {:d} must be a string not a {:s}".format(i, str(type(value)))
-            if item not in values_valid:
-                return "at index {:d} must be a value in {!r}".format(i, tuple(values_valid))
+        # A list may be passed in when not-strict.
+        if not isinstance(value, dict):
+            return "permissions must be a table of strings, not a {:s}".format(str(type(value)))
+
+        for item_key, item_value in value.items():
+            # Validate the key.
+            if not isinstance(item_key, str):
+                return "key \"{:s}\" must be a string not a {:s}".format(str(item_key), str(type(item_key)))
+            if item_key not in keys_valid:
+                return "value of \"{:s}\" must be a value in {!r}".format(item_key, tuple(keys_valid))
+
+            # Validate the value.
+            if not isinstance(item_value, str):
+                return "value of \"{:s}\" must be a string not a {:s}".format(item_key, str(type(item_value)))
+
+            if (error := pkg_manifest_validate_terse_description_or_error(item_value)) is not None:
+                return "value of \"{:s}\": {:s}".format(item_key, error)
+
     else:
-        if (error := pkg_manifest_validate_field_any_list_of_non_empty_strings(value, strict)) is not None:
-            return error
+        if isinstance(value, dict):
+            for item_key, item_value in value.items():
+                if not isinstance(item_key, str):
+                    return "key \"{:s}\" must be a string not a {:s}".format(str(item_key), str(type(item_key)))
+                if not isinstance(item_value, str):
+                    return "value of \"{:s}\" must be a string not a {:s}".format(item_key, str(type(item_value)))
+        elif isinstance(value, list):
+            # Historic beta convention, keep for compatibility.
+            for i, item in enumerate(value):
+                if not isinstance(item_key, str):
+                    return "Expected item at index {:d} to be an int not a {:s}".format(i, str(type(item)))
+        else:
+            # The caller doesn't allow this.
+            assert False, "internal error, disallowed type"
 
     return None
 
@@ -1384,7 +1470,7 @@ def pkg_manifest_validate_field_archive_hash(
 # Keep in sync with `PkgManifest`.
 # key, type, check_fn.
 pkg_manifest_known_keys_and_types: Tuple[
-    Tuple[str, type, Callable[[Any, bool], Optional[str]]],
+    Tuple[str, Union[type, Tuple[type, ...]], Callable[[Any, bool], Optional[str]]],
     ...,
 ] = (
     ("id", str, pkg_manifest_validate_field_idname),
@@ -1401,7 +1487,8 @@ pkg_manifest_known_keys_and_types: Tuple[
     ("blender_version_max", str, pkg_manifest_validate_field_any_version_primitive_or_empty),
     ("website", str, pkg_manifest_validate_field_any_non_empty_string_stripped_no_control_chars),
     ("copyright", list, pkg_manifest_validate_field_any_non_empty_list_of_non_empty_strings),
-    ("permissions", list, pkg_manifest_validate_field_permissions),
+    # Type should be `dict` eventually, some existing packages will have a list of strings instead.
+    ("permissions", (dict, list), pkg_manifest_validate_field_permissions),
     ("tags", list, pkg_manifest_validate_field_any_non_empty_list_of_non_empty_strings),
     ("wheels", list, pkg_manifest_validate_field_wheels),
 )
@@ -1460,14 +1547,15 @@ def pkg_manifest_is_valid_or_error_impl(
 
             # When the default value is None, skip all type checks.
             if not (is_default_value and x_val is None):
-                if x_ty is None:
-                    pass
-                elif isinstance(x_val, x_ty):
+                if isinstance(x_val, x_ty):
                     pass
                 else:
                     error_list.append("\"{:s}\" must be a {:s}, not a {:s}".format(
-                        x_key,
-                        x_ty.__name__,
+                        x_key, (
+                            "[{:s}]".format(", ".join(x_ty_elem.__name__ for x_ty_elem in x_ty))
+                            if isinstance(x_ty, tuple) else
+                            x_ty.__name__
+                        ),
                         type(x_val).__name__,
                     ))
                     if not all_errors:
@@ -1657,6 +1745,7 @@ def repo_sync_from_remote(
         online_user_agent: str,
         access_token: str,
         timeout_in_seconds: float,
+        demote_connection_errors_to_status: bool,
         extension_override: str,
 ) -> bool:
     """
@@ -1711,7 +1800,11 @@ def repo_sync_from_remote(
                 read_total += read
             del read_total
         except (Exception, KeyboardInterrupt) as ex:
-            message_error(msg_fn, url_retrieve_exception_as_message(ex, prefix="sync", url=remote_url))
+            msg = url_retrieve_exception_as_message(ex, prefix="sync", url=remote_url)
+            if demote_connection_errors_to_status and url_retrieve_exception_is_connectivity(ex):
+                message_status(msg_fn, msg)
+            else:
+                message_error(msg_fn, msg)
             return False
 
         if request_exit:
@@ -1998,6 +2091,16 @@ def generic_arg_access_token(subparse: argparse.ArgumentParser) -> None:
     )
 
 
+def generic_arg_verbose(subparse: argparse.ArgumentParser) -> None:
+    subparse.add_argument(
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        default=False,
+        help="Include verbose output.",
+    )
+
+
 def generic_arg_timeout(subparse: argparse.ArgumentParser) -> None:
     subparse.add_argument(
         "--timeout",
@@ -2019,6 +2122,19 @@ def generic_arg_ignore_broken_pipe(subparse: argparse.ArgumentParser) -> None:
         default=False,
         help=(
             "Silently ignore broken pipe, use when the caller may disconnect."
+        ),
+    )
+
+
+def generic_arg_demote_connection_failure_to_status(subparse: argparse.ArgumentParser) -> None:
+    subparse.add_argument(
+        "--demote-connection-errors-to-status",
+        dest="demote_connection_errors_to_status",
+        action="store_true",
+        default=False,
+        help=(
+            "Demote errors relating to connection failure to status updates.\n"
+            "To be used when connection failure should not be considered an error."
         ),
     )
 
@@ -2140,6 +2256,7 @@ class subcmd_client:
             online_user_agent: str,
             access_token: str,
             timeout_in_seconds: float,
+            demote_connection_errors_to_status: bool,
     ) -> bool:
 
         # Validate arguments.
@@ -2165,7 +2282,11 @@ class subcmd_client:
                 result.write(block)
 
         except (Exception, KeyboardInterrupt) as ex:
-            message_error(msg_fn, url_retrieve_exception_as_message(ex, prefix="list", url=remote_url))
+            msg = url_retrieve_exception_as_message(ex, prefix="list", url=remote_url)
+            if demote_connection_errors_to_status and url_retrieve_exception_is_connectivity(ex):
+                message_status(msg_fn, msg)
+            else:
+                message_error(msg_fn, msg)
             return False
 
         result_str = result.getvalue().decode("utf-8")
@@ -2197,6 +2318,7 @@ class subcmd_client:
             online_user_agent: str,
             access_token: str,
             timeout_in_seconds: float,
+            demote_connection_errors_to_status: bool,
             force_exit_ok: bool,
             extension_override: str,
     ) -> bool:
@@ -2211,6 +2333,7 @@ class subcmd_client:
             online_user_agent=online_user_agent,
             access_token=access_token,
             timeout_in_seconds=timeout_in_seconds,
+            demote_connection_errors_to_status=demote_connection_errors_to_status,
             extension_override=extension_override,
         )
         return success
@@ -2483,6 +2606,9 @@ class subcmd_client:
                                 filename_archive_size_test += len(block)
 
                     except (Exception, KeyboardInterrupt) as ex:
+                        # NOTE: don't support `demote_connection_errors_to_status` here because a connection
+                        # failure on installing *is* an error by definition.
+                        # Unlike querying information which might reasonably be skipped.
                         message_error(msg_fn, url_retrieve_exception_as_message(ex, prefix="install", url=remote_url))
                         return False
 
@@ -2597,6 +2723,7 @@ class subcmd_author:
             pkg_source_dir: str,
             pkg_output_dir: str,
             pkg_output_filepath: str,
+            verbose: bool,
     ) -> bool:
         if not os.path.isdir(pkg_source_dir):
             message_error(msg_fn, "Missing local \"{:s}\"".format(pkg_source_dir))
@@ -2628,13 +2755,19 @@ class subcmd_author:
                 message_error(msg_fn, "Error parsing TOML \"{:s}\" {:s}".format(pkg_manifest_filepath, error_msg))
             return False
 
+        # Always include wheels & manifest.
+        build_paths_extra = (
+            # Inclusion of the manifest is implicit.
+            # No need to require the manifest to include itself.
+            PKG_MANIFEST_FILENAME_TOML,
+            *(manifest.wheels or ()),
+        )
+
         if (manifest_build_data := manifest_data.get("build")) is not None:
-            manifest_build_test = PkgManifest_Build.from_dict_all_errors(manifest_build_data, extra_paths=[
-                # Inclusion of the manifest is implicit.
-                # No need to require the manifest to include itself.
-                PKG_MANIFEST_FILENAME_TOML,
-                *(manifest.wheels or ()),
-            ])
+            manifest_build_test = PkgManifest_Build.from_dict_all_errors(
+                manifest_build_data,
+                extra_paths=build_paths_extra,
+            )
             if isinstance(manifest_build_test, list):
                 for error_msg in manifest_build_test:
                     message_error(msg_fn, "Error parsing TOML \"{:s}\" {:s}".format(pkg_manifest_filepath, error_msg))
@@ -2657,23 +2790,73 @@ class subcmd_author:
         if manifest_build.paths_exclude_pattern is not None:
             build_paths_exclude_pattern = PathPatternMatch(manifest_build.paths_exclude_pattern)
 
-        build_paths: Optional[List[str]] = None
+        build_paths: List[Tuple[str, str]] = []
+
+        # Manifest & wheels.
+        if build_paths_extra:
+            build_paths.extend(build_paths_expand_iter(pkg_source_dir, build_paths_extra))
+
         if manifest_build.paths is not None:
-            build_paths = manifest_build.paths
+            build_paths.extend(build_paths_expand_iter(pkg_source_dir, manifest_build.paths))
+        else:
+            # Mixing literal and pattern matched lists of files is a hassle.
+            # De-duplicate canonical root-relative path names.
+            def filepath_canonical_from_relative(filepath_rel: str) -> str:
+                filepath_rel = os.path.normpath(filepath_rel)
+                if os.sep == "\\":
+                    filepath_rel = filepath_rel.replace("\\", "/")
+                return filepath_rel
 
-        def scandir_filter_with_paths_exclude_pattern(filepath: str, is_dir: bool) -> bool:
-            assert build_paths_exclude_pattern is not None
-            if os.sep == "\\":
-                filepath = filepath.replace("\\", "/")
-            if is_dir:
-                assert not filepath.endswith("/")
-                filepath = filepath + "/"
-            assert not filepath.startswith(("/", "./", "../"))
-            return not build_paths_exclude_pattern.test_path(filepath)
+            # Use lowercase to prevent duplicates on MS-Windows.
+            build_paths_extra_canonical: Set[str] = set(
+                filepath_canonical_from_relative(f).lower()
+                for f in build_paths_extra
+            )
 
-        def scandir_filter_fallback(filepath: str, is_dir: bool) -> bool:
-            _ = is_dir
-            return not os.path.basename(filepath).startswith(".")
+            # Scanning the file-system may fail, surround by try/except.
+            try:
+                if build_paths_exclude_pattern:
+                    def scandir_filter_with_paths_exclude_pattern(filepath: str, is_dir: bool) -> bool:
+                        # Returning true includes the file.
+                        assert build_paths_exclude_pattern is not None
+                        if os.sep == "\\":
+                            filepath = filepath.replace("\\", "/")
+                        filepath_canonical = filepath
+                        if is_dir:
+                            assert not filepath.endswith("/")
+                            filepath = filepath + "/"
+                        assert not filepath.startswith(("/", "./", "../"))
+                        result = not build_paths_exclude_pattern.test_path(filepath)
+                        if result and (not is_dir):
+                            # Finally check the path isn't one of the known paths.
+                            if filepath_canonical.lower() in build_paths_extra_canonical:
+                                result = False
+                        return result
+
+                    build_paths.extend(
+                        scandir_recursive(
+                            pkg_source_dir,
+                            filter_fn=scandir_filter_with_paths_exclude_pattern,
+                        ),
+                    )
+                else:
+                    # In this case there isn't really a good option, just ignore all dot-files.
+                    def scandir_filter_fallback(filepath: str, is_dir: bool) -> bool:
+                        # Returning true includes the file.
+                        result = not os.path.basename(filepath).startswith(".")
+                        if result and (not is_dir):
+                            # Finally check the path isn't one of the known paths.
+                            if filepath_canonical_from_relative(filepath).lower() in build_paths_extra_canonical:
+                                result = False
+                        return result
+
+                    build_paths.extend(scandir_recursive(pkg_source_dir, filter_fn=scandir_filter_fallback))
+
+                del build_paths_extra_canonical
+
+            except Exception as ex:
+                message_status(msg_fn, "Error building path list \"{:s}\"".format(str(ex)))
+                return False
 
         pkg_filename = manifest.id + PKG_EXT
 
@@ -2702,26 +2885,13 @@ class subcmd_author:
 
         with CleanupPathsContext(files=(outfile_temp,), directories=()):
             try:
-                zip_fh_context = zipfile.ZipFile(outfile_temp, 'w', zipfile.ZIP_LZMA)
+                zip_fh_context = zipfile.ZipFile(outfile_temp, 'w', zipfile.ZIP_DEFLATED, compresslevel=9)
             except Exception as ex:
                 message_status(msg_fn, "Error creating archive \"{:s}\"".format(str(ex)))
                 return False
 
             with contextlib.closing(zip_fh_context) as zip_fh:
-
-                if build_paths is not None:
-                    filepath_iterator = build_paths_expand_iter(pkg_source_dir, build_paths)
-                else:
-                    filepath_iterator = scandir_recursive(
-                        pkg_source_dir,
-                        filter_fn=(
-                            scandir_filter_with_paths_exclude_pattern if build_paths_exclude_pattern else
-                            # In this case there isn't really a good option, just ignore all dot-files.
-                            scandir_filter_fallback
-                        ),
-                    )
-
-                for filepath_abs, filepath_rel in filepath_iterator:
+                for filepath_abs, filepath_rel in build_paths:
                     if filepath_rel in filenames_root_exclude:
                         continue
 
@@ -2733,6 +2903,9 @@ class subcmd_author:
                     except Exception as ex:
                         message_status(msg_fn, "Error adding to archive \"{:s}\"".format(str(ex)))
                         return False
+
+                    if verbose:
+                        message_status(msg_fn, "add: {:s}".format(filepath_rel))
 
                 request_exit |= message_status(msg_fn, "complete")
                 if request_exit:
@@ -2911,6 +3084,9 @@ class subcmd_dummy:
                     fh.write("""version = "1.0.0"\n""")
                     fh.write("""tagline = "This is a tagline"\n""")
                     fh.write("""blender_version_min = "0.0.0"\n""")
+                    fh.write("""[permissions]\n""")
+                    for value in ("files", "network", "clipboard", "camera", "microphone"):
+                        fh.write("""{:s} = "Example text"\n""".format(value))
 
                 with open(os.path.join(pkg_src_dir, "__init__.py"), "w", encoding="utf-8") as fh:
                     fh.write("""
@@ -2940,6 +3116,7 @@ def unregister():
                     pkg_source_dir=pkg_src_dir,
                     pkg_output_dir=repo_dir,
                     pkg_output_filepath="",
+                    verbose=False,
                 ):
                     # Error running command.
                     return False
@@ -3031,6 +3208,7 @@ def argparse_create_client_list(subparsers: "argparse._SubParsersAction[argparse
 
     generic_arg_output_type(subparse)
     generic_arg_timeout(subparse)
+    generic_arg_demote_connection_failure_to_status(subparse)
 
     subparse.set_defaults(
         func=lambda args: subcmd_client.list_packages(
@@ -3039,6 +3217,7 @@ def argparse_create_client_list(subparsers: "argparse._SubParsersAction[argparse
             online_user_agent=args.online_user_agent,
             access_token=args.access_token,
             timeout_in_seconds=args.timeout,
+            demote_connection_errors_to_status=args.demote_connection_errors_to_status,
         ),
     )
 
@@ -3063,6 +3242,7 @@ def argparse_create_client_sync(subparsers: "argparse._SubParsersAction[argparse
     generic_arg_output_type(subparse)
     generic_arg_timeout(subparse)
     generic_arg_ignore_broken_pipe(subparse)
+    generic_arg_demote_connection_failure_to_status(subparse)
     generic_arg_extension_override(subparse)
 
     subparse.set_defaults(
@@ -3074,6 +3254,7 @@ def argparse_create_client_sync(subparsers: "argparse._SubParsersAction[argparse
             online_user_agent=args.online_user_agent,
             access_token=args.access_token,
             timeout_in_seconds=args.timeout,
+            demote_connection_errors_to_status=args.demote_connection_errors_to_status,
             force_exit_ok=args.force_exit_ok,
             extension_override=args.extension_override,
         ),
@@ -3171,6 +3352,7 @@ def argparse_create_author_build(
     generic_arg_package_source_dir(subparse)
     generic_arg_package_output_dir(subparse)
     generic_arg_package_output_filepath(subparse)
+    generic_arg_verbose(subparse)
 
     if args_internal:
         generic_arg_output_type(subparse)
@@ -3181,6 +3363,7 @@ def argparse_create_author_build(
             pkg_source_dir=args.source_dir,
             pkg_output_dir=args.output_dir,
             pkg_output_filepath=args.output_filepath,
+            verbose=args.verbose,
         ),
     )
 

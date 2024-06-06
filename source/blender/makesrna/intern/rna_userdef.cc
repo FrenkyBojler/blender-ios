@@ -5412,6 +5412,12 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "statusbar_flag", STATUSBAR_SHOW_SCENE_DURATION);
   RNA_def_property_ui_text(prop, "Show Scene Duration", "Show scene duration");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "show_extensions_updates", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "statusbar_flag", STATUSBAR_SHOW_EXTENSIONS_UPDATES);
+  RNA_def_property_ui_text(prop, "Extensions Updates", "Show Extensions Update Count");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
 }
 
 static void rna_def_userdef_edit(BlenderRNA *brna)
@@ -5680,6 +5686,13 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "sculpt_paint_overlay_col");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Sculpt/Paint Overlay Color", "Color of texture overlay");
+
+  /* VSE */
+  prop = RNA_def_property(srna, "use_sequencer_simplified_tweaking", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "sequencer_editor_flag", USER_SEQ_ED_SIMPLE_TWEAKING);
+  RNA_def_property_ui_text(
+      prop, "Tweak Handles", "Allows dragging handles without selecting them first");
 
   /* duplication linking */
   prop = RNA_def_property(srna, "use_duplicate_mesh", PROP_BOOLEAN, PROP_NONE);
@@ -6182,6 +6195,15 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       prop,
       "GPU Backend",
       "GPU backend to use (requires restarting Blender for changes to take effect)");
+
+  prop = RNA_def_property(srna, "max_shader_compilation_subprocesses", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, INT16_MAX);
+  RNA_def_property_ui_text(prop,
+                           "Max Shader Compilation Subprocesses",
+                           "Max number of parallel shader compilation subprocesses, "
+                           "clamped at the max threads supported by the CPU "
+                           "(requires restarting Blender for changes to take effect). "
+                           "Setting it to 0 disables subprocess shader compilation ");
 
   /* Network. */
 

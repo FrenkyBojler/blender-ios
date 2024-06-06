@@ -571,7 +571,9 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     /* passepartout, specified in camera edit buttons */
-    if (ca && (ca->flag & CAM_SHOWPASSEPARTOUT) && ca->passepartalpha > 0.000001f) {
+    if (ca && (ca->flag & CAM_SHOWPASSEPARTOUT) && ca->passepartalpha > 0.000001f &&
+        v3d->flag2 & V3D_SHOW_CAMERA_PASSEPARTOUT)
+    {
       const float winx = (region->winx + 1);
       const float winy = (region->winy + 1);
 
@@ -654,7 +656,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   }
 
   /* safety border */
-  if (ca) {
+  if (ca && (v3d->flag2 & V3D_SHOW_CAMERA_GUIDES)) {
     GPU_blend(GPU_BLEND_ALPHA);
     immUniformThemeColorAlpha(TH_VIEW_OVERLAY, 0.75f);
 
