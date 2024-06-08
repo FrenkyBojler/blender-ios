@@ -53,11 +53,13 @@
 namespace blender::ed::sculpt_paint {
 
 struct PaintSample {
+  // this can be simplified to a float3 like legacy gpencil if this is equivalent to bGPDspoint
   float2 mouse;
-  float3 controller;
+  float3 controller; // xyz from legacy gpencil
   float pressure;
 };
 
+// bGPDstroke
 struct PaintStroke {
   void *mode_data;
   void *stroke_cursor;
@@ -76,6 +78,7 @@ struct PaintStroke {
   int cur_sample;
   int tot_samples;
 
+  // this can be unified into one single float3
   float2 last_mouse_position;
   float3 last_controller_position;
   float3 last_world_space_position;
@@ -313,8 +316,6 @@ static bool paint_brush_update(bContext *C,
    *      It's more an events design issue, which doesn't split coordinate/pressure/angle
    *      changing events. We should avoid this after events system re-design */
   if (!stroke->brush_init) {
-	// PASS - Invoke
-	// NO PASS - Modal
     copy_v2_v2(stroke->initial_mouse, mouse);
     copy_v3_v3(stroke->initial_controller, controller);
     // Converto controller to screen
@@ -341,13 +342,9 @@ static bool paint_brush_update(bContext *C,
     stroke->cached_size_pressure = pressure;
 
     stroke->brush_init = true;
-
-    print_v3("paint_brush_update controller: ", controller);
-    print_v2("paint_brush_update mouse: ", mouse);
   }
 
   if (paint_supports_dynamic_size(brush, mode)) {
-    // PASS - Invoke Modal
     copy_v2_v2(ups.tex_mouse, mouse);
     copy_v2_v2(ups.mask_tex_mouse, mouse);
     stroke->cached_size_pressure = pressure;
@@ -362,28 +359,22 @@ static bool paint_brush_update(bContext *C,
   ups.initial_pixel_radius = BKE_brush_size_get(scene, &brush);
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, mode)) {
-    // NO PASS - Invoke Modal
     ups.pixel_radius *= stroke->cached_size_pressure;
   }
-// PASS - Invoke Modal
   if (paint_supports_dynamic_tex_coords(brush, mode)) {
-// PASS - Invoke Modal
     if (ELEM(brush.mtex.brush_map_mode,
              MTEX_MAP_MODE_VIEW,
              MTEX_MAP_MODE_AREA,
              MTEX_MAP_MODE_RANDOM))
     {
-		// PASS - Invoke Modal
       do_random = true;
     }
-// NO PASS - Invoke Modal
     if (brush.mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
       BKE_brush_randomize_texture_coords(&ups, false);
     }
     else {
       copy_v2_v2(ups.tex_mouse, mouse);
     }
-// NO PASS - Invoke Modal
     /* take care of mask texture, if any */
     if (brush.mask_mtex.tex) {
 
@@ -403,7 +394,7 @@ static bool paint_brush_update(bContext *C,
       }
     }
   }
-// NO PASS - Invoke Modal
+
   if (brush.flag & BRUSH_ANCHORED) {
     bool hit = false;
     float halfway[2];
@@ -453,16 +444,13 @@ static bool paint_brush_update(bContext *C,
     ups.draw_anchored = true;
   }
   else {
-	  // PASS - Invoke Modal
     /* here we are using the initial mouse coordinate because we do not want the rake
      * result to depend on jittering */
-	 // NO PASS - Invoke Modal
     if (!stroke->brush_init) {
       copy_v2_v2(ups.last_rake, mouse_init);
     }
     /* curve strokes do their own rake calculation */
     else if (!(brush.flag & BRUSH_CURVE)) {
-      // NO PASS - Invoke Moda
       if (!paint_calculate_rake_rotation(ups, brush, mouse_init, mode, stroke->rake_started)) {
         /* Not enough motion to define an angle. */
         if (!stroke->rake_started) {
@@ -470,27 +458,22 @@ static bool paint_brush_update(bContext *C,
         }
       }
       else {
-		  // PASS - Invoke Modal
         stroke->rake_started = true;
       }
     }
   }
 
-// PASS - Invoke
-// NO PASS - Modal
   if ((do_random || do_random_mask) && !stroke->rng) {
     /* Lazy initialization. */
     stroke->rng = RandomNumberGenerator::from_random_seed();
   }
 
   if (do_random) {
-    // NO PASS - Invoke  Modal
     if (brush.mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
       ups.brush_rotation += -brush.mtex.random_angle / 2.0f +
                             brush.mtex.random_angle * stroke->rng->get_float();
     }
   }
-// NO PASS - Invoke Modal
   if (do_random_mask) {
     if (brush.mask_mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
       ups.brush_rotation_sec += -brush.mask_mtex.random_angle / 2.0f +
@@ -498,11 +481,10 @@ static bool paint_brush_update(bContext *C,
     }
   }
 
-  if (!location_sampled) {
+  if (!location_sampled) { // WTF maybe this needs to be different for XR ?
     if (stroke->get_location) {
       float mouse3[3] = {mouse[0], mouse[1], 0.0f};
       if (stroke->get_location(C, r_location, mouse3, stroke->original)) {
-		  // PASS - Invoke Modal
         location_success = true;
         *r_location_is_set = true;
       }
@@ -511,14 +493,11 @@ static bool paint_brush_update(bContext *C,
       }
     }
     else {
-		// NO PASS - Invoke
       zero_v3(r_location);
       location_success = true;
       /* don't set 'r_location_is_set', since we don't want to use the value. */
     }
   }
-  print_v3("r_location", r_location);
-  printf("location_success %d, is_dry_run %d\n", location_success, is_dry_run);
   return location_success && (is_dry_run == false);
 }
 
@@ -557,9 +536,6 @@ static void paint_brush_stroke_add_step(
   float location[3];
   bool is_xr = stroke->event_type == EVT_XR_ACTION;
 
-  print_v3("add_step cval: ", cval);
-  print_v2("add_step mval: ", mval);
-
 /* the following code is adapted from texture paint. It may not be needed but leaving here
  * just in case for reference (code in texpaint removed as part of refactoring).
  * It's strange that only texpaint had these guards. */
@@ -592,20 +568,20 @@ static void paint_brush_stroke_add_step(
   copy_v2_v2(stroke->last_mouse_position, mval);
   copy_v3_v3(stroke->last_controller_position, cval);
   stroke->last_pressure = pressure;
-  // NO PASS - Invoke Modal
   if (paint_stroke_use_scene_spacing(brush, mode)) {
     float world_space_position[3];
     if (SCULPT_stroke_get_location(
             C, world_space_position, stroke->last_mouse_position, stroke->original))
     {
+      printf("SCULPT_stroke_get_location\n");
       copy_v3_v3(stroke->last_world_space_position, world_space_position);
       mul_m4_v3(stroke->vc.obact->object_to_world().ptr(), stroke->last_world_space_position);
     }
     else {
+      printf("last_scene_spacing_delta\n");
       add_v3_v3(stroke->last_world_space_position, stroke->last_scene_spacing_delta);
     }
   }
-  // NO PASS - Invoke Modal
   if (paint_stroke_use_jitter(mode, brush, stroke->stroke_mode == BRUSH_STROKE_INVERT)) {
     float delta[2];
     float factor = stroke->zoom_2d;
@@ -630,9 +606,6 @@ static void paint_brush_stroke_add_step(
     copy_v3_v3(controller_out, cval);
   }
 
-  print_v3("add_step controller_out: ", controller_out);
-  print_v2("add_step mouse_out: ", mouse_out);
-
   bool is_location_is_set;
   ups->last_hit = paint_brush_update(C,
                                      brush,
@@ -646,9 +619,7 @@ static void paint_brush_stroke_add_step(
                                      location,
                                      &is_location_is_set);
 
-  printf("is_location_is_set: %d\n", is_location_is_set);
   if (is_location_is_set) {
-    // PASS!! - Invoke Modal
     copy_v3_v3(ups->last_location, location);
   }
   if (!ups->last_hit) {
@@ -658,10 +629,8 @@ static void paint_brush_stroke_add_step(
   /* Dash */
   bool add_step = true;
   if (paint_stroke_use_dash(brush)) {
-    // PASS!! - Invoke Modal
     int dash_samples = stroke->tot_samples % brush.dash_samples;
     float dash = float(dash_samples) / float(brush.dash_samples);
-    // NO PASS - Invoke Modal
     if (dash > brush.dash_ratio) {
       add_step = false;
     }
@@ -683,8 +652,6 @@ static void paint_brush_stroke_add_step(
     RNA_float_set(&itemptr, "x_tilt", stroke->x_tilt);
     RNA_float_set(&itemptr, "y_tilt", stroke->y_tilt);
 
-    // print_v3("add_step location: ", location);
-    // printf("add_step size: %f\n", ups->pixel_radius);
     stroke->update_step(C, op, stroke, &itemptr);
 
     /* don't record this for now, it takes up a lot of memory when doing long
@@ -693,7 +660,6 @@ static void paint_brush_stroke_add_step(
   }
 
   stroke->tot_samples++;
-  printf("Stroke samples: %d\n", stroke->tot_samples);
 }
 
 /* Returns zero if no sculpt changes should be made, non-zero otherwise */
@@ -968,6 +934,14 @@ PaintStroke *paint_stroke_new(bContext *C,
   Brush *br = stroke->brush = BKE_paint_brush(p);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   float zoomx, zoomy;
+  bool is_xr = stroke->event_type == EVT_XR_ACTION;
+
+  if (is_xr) {
+    wmWindowManager *wm = CTX_wm_manager(C);
+    wmXrData *xr_data = &wm->xr;
+    ARegion *region = WM_xr_get_xr_region(xr_data);
+    rv3d = static_cast<RegionView3D *>(region->regiondata);
+  }
 
   stroke->vc = ED_view3d_viewcontext_init(C, depsgraph);
 
@@ -982,14 +956,13 @@ PaintStroke *paint_stroke_new(bContext *C,
 
   stroke->original = paint_tool_raycast_original(*br, BKE_paintmode_get_active_from_context(C));
 
-  get_imapaint_zoom(C, &zoomx, &zoomy); // Investigate
+  get_imapaint_zoom(C, &zoomx, &zoomy);
   stroke->zoom_2d = max_ff(zoomx, zoomy);
 
   /* Check here if color sampling the main brush should do color conversion. This is done here
    * to avoid locking up to get the image buffer during sampling. */
   ups->do_linear_conversion = false;
   ups->colorspace = nullptr;
-  // NO PASS - Invoke
   if (br->mtex.tex && br->mtex.tex->type == TEX_IMAGE && br->mtex.tex->ima) {
     ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(
         br->mtex.tex->ima, &br->mtex.tex->iuser, nullptr);
@@ -999,7 +972,6 @@ PaintStroke *paint_stroke_new(bContext *C,
     }
     BKE_image_pool_release_ibuf(br->mtex.tex->ima, tex_ibuf, nullptr);
   }
-  // NO PASS - Invoke
   if (stroke->stroke_mode == BRUSH_STROKE_INVERT) {
     if (br->flag & BRUSH_CURVE) {
       RNA_enum_set(op->ptr, "mode", BRUSH_STROKE_NORMAL);
@@ -1016,7 +988,6 @@ PaintStroke *paint_stroke_new(bContext *C,
   /* Preserve location from last stroke while applying and resetting
    * ups->average_stroke_counter to 1.
    */
-  // NO PASS - Invoke
   if (ups->average_stroke_counter) {
     mul_v3_fl(ups->average_stroke_accum, 1.0f / float(ups->average_stroke_counter));
     ups->average_stroke_counter = 1;
@@ -1024,7 +995,6 @@ PaintStroke *paint_stroke_new(bContext *C,
 
   /* initialize here to avoid initialization conflict with threaded strokes */
   BKE_curvemapping_init(br->curve);
-  // NO PASS - Invoke
   if (p->flags & PAINT_USE_CAVITY_MASK) {
     BKE_curvemapping_init(p->cavity_curve);
   }
@@ -1249,10 +1219,6 @@ static void paint_stroke_add_sample(
   sample->controller[1] = y;
   sample->controller[2] = z;
 
-  print_v3("add_sample sample->controller: ", sample->controller);
-  print_v2("add_sample sample->mouse: ", sample->mouse);
-  printf("add_sample pressure: %f\n", pressure);
-
   sample->pressure = pressure;
 
   stroke->cur_sample++;
@@ -1279,9 +1245,6 @@ static void paint_stroke_sample_average(const PaintStroke *stroke, PaintSample *
   mul_v2_fl(average->mouse, 1.0f / stroke->num_samples);
   mul_v3_fl(average->controller, 1.0f / stroke->num_samples);
   average->pressure /= stroke->num_samples;
-
-  printf("Mouse avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);
-  printf("Controller avg=(%f, %f, %f), num=%d\n", average->controller[0], average->controller[1], average->controller[2], stroke->num_samples);
 }
 
 /**
@@ -1538,9 +1501,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
   bool redraw = false;
   float pressure;
   bool is_xr = event->type == EVT_XR_ACTION;
-  printf("Modal - first: %d\n", first_modal);
-  printf("is_xr: %d\n", is_xr);
-// NO PASS - Invoke
+
   if (event->type == INBETWEEN_MOUSEMOVE && !paint_tool_require_inbetween_mouse_events(*br, mode))
   {
     return OPERATOR_RUNNING_MODAL;
@@ -1555,8 +1516,6 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
     const wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
     pressure = actiondata->state[0];
   }
-
-  printf("Modal - pressure: %f\n", pressure);
 
   /* When processing a timer event the pressure from the event is 0, so use the last valid
    * pressure. */
@@ -1576,7 +1535,6 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
     wmXrData *xr_data = &wm->xr;
     ARegion *region = WM_xr_get_xr_region(xr_data);
     ED_view3d_project_float_global(region, event->cval, mval_prj, V3D_PROJ_TEST_NOP);
-    printf("Modal: Projected X: %f, Projected Y: %f, win X: %d, M win Y: %d\n", mval_prj[0], mval_prj[1], region->winx, region->winy);
     paint_stroke_add_sample(stroke,
                             input_samples,
                             mval_prj[0],
@@ -1609,14 +1567,11 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
 #endif
 
   /* one time initialization */
-  // NO PASS - Modal
   if (!stroke->stroke_init) {
-    // NO PASS - Invoke
     if (paint_stroke_curve_end(C, op, stroke)) {
       *stroke_p = nullptr;
       return OPERATOR_FINISHED;
     }
-    // NO PASS - Invoke
     if (paint_supports_smooth_stroke(stroke, *br, mode)) {
       stroke->stroke_cursor = WM_paint_cursor_activate(
           SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_tool_poll, paint_draw_smooth_cursor, stroke);
@@ -1627,13 +1582,12 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
   }
 
   /* one time stroke initialization */
-  // NO PASS - Modal
   if (!stroke->stroke_started) {
     stroke->last_pressure = sample_average.pressure;
     copy_v2_v2(stroke->last_mouse_position, sample_average.mouse);
     copy_v3_v3(stroke->last_controller_position, sample_average.controller);
-    // NO PASS - Invoke
     if (paint_stroke_use_scene_spacing(*br, mode)) {
+      printf("paint_stroke_use_scene_spacing\n");
       stroke->stroke_over_mesh = SCULPT_stroke_get_location(
           C, stroke->last_world_space_position, sample_average.mouse, stroke->original);
       mul_m4_v3(stroke->vc.obact->object_to_world().ptr(), stroke->last_world_space_position);
@@ -1642,12 +1596,10 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
     stroke->stroke_started = stroke->test_start(C, op, is_xr ? sample_average.controller : mouse_);
 
     if (stroke->stroke_started) {
-      // NO PASS - Invoke
       if (br->flag & BRUSH_AIRBRUSH) {
         stroke->timer = WM_event_timer_add(
             CTX_wm_manager(C), CTX_wm_window(C), TIMER, stroke->brush->rate);
       }
-      // NO PASS - Invoke
       if (br->flag & BRUSH_LINE) {
         stroke->stroke_cursor = WM_paint_cursor_activate(
             SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_tool_poll, paint_draw_line_cursor, stroke);
@@ -1658,7 +1610,6 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
   }
 
   /* Cancel */
-  // NO PASS - Invoke Modal
   if (event->type == EVT_MODAL_MAP && event->val == PAINT_STROKE_MODAL_CANCEL) {
     if (op->type->cancel) {
       op->type->cancel(C, op);
@@ -1669,10 +1620,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
     return OPERATOR_CANCELLED;
   }
 
-  if (event->type == stroke->event_type && !first_modal) { // NO PASS - Modal
-    printf("!first_modal\n");
+  if (event->type == stroke->event_type && !first_modal) {
     if (event->val == KM_RELEASE) {
-      printf("mouse up\n");
       copy_v2_fl2(mouse, event->mval[0], event->mval[1]);
       copy_v3_fl3(controller, event->cval[0], event->cval[1], event->cval[2]);
       paint_stroke_line_constrain(stroke, mouse);
@@ -1682,35 +1631,25 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
       return OPERATOR_FINISHED;
     }
     if (is_xr) {
-      // Continue
       paint_smooth_stroke(stroke, &sample_average, mode, mouse, &pressure);
       copy_v3_v3(controller, sample_average.controller);
-      // copy_v2_v2(mouse, sample_average.mouse);
       float dcontroller[3];
       float dmouse[2];
       sub_v2_v2v2(dmouse, mouse, stroke->last_mouse_position);
       sub_v3_v3v3(dcontroller, controller, stroke->last_controller_position);
-      print_v2("XR stroke->last_mouse_position:", stroke->last_mouse_position);
-      print_v2("XR mouse:", mouse);
-      print_v2("XR dmouse:", dmouse);
-      print_v3("XR dcontroller:", dcontroller);
-      printf("XR v dcontroller %f, v dmouse %f\n", len_v3(dcontroller), len_v2(dmouse));
       // stroke->stroke_distance += len_v3(dcontroller);
       stroke->stroke_distance += len_v2(dmouse);
       paint_brush_stroke_add_step(C, op, stroke, mouse, controller, pressure);
       redraw = true;
     }
   }
-  else if (ELEM(event->type, EVT_RETKEY, EVT_SPACEKEY)) { // NO PASS - Modal
-    printf("EVT_RETKEY EVT_SPACEKEY\n");
+  else if (ELEM(event->type, EVT_RETKEY, EVT_SPACEKEY)) {
     paint_stroke_line_end(C, op, stroke, sample_average.mouse);
     stroke_done(C, op, stroke);
     *stroke_p = nullptr;
     return OPERATOR_FINISHED;
   }
-  else if (br->flag & BRUSH_LINE) { // NO PASS - Modal
-     printf("BRUSH_LINE\n");
-
+  else if (br->flag & BRUSH_LINE) {
     if (event->modifier & KM_ALT) {
       stroke->constrain_line = true;
     }
@@ -1737,10 +1676,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
            ((br->flag & BRUSH_AIRBRUSH) && event->type == TIMER &&
             event->customdata == stroke->timer))
   {
-     printf("LEAD paint_brush_stroke_add_step\n");
     if (paint_smooth_stroke(stroke, &sample_average, mode, mouse, &pressure)) {
-     printf("LEAD paint_smooth_stroke\n");
-      // PASS!! - Invoke Modal
       if (stroke->stroke_started) {
         if (paint_space_stroke_enabled(*br, mode)) {
           if (paint_space_stroke(C, op, stroke, mouse, pressure)) {
@@ -1748,30 +1684,20 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
           }
         }
         else {
-          // PASS!! - Invoke Modal
-          printf("paint_brush_stroke_add_step\n");
           float dmouse[2];
           sub_v2_v2v2(dmouse, mouse, stroke->last_mouse_position);
           copy_v3_v3(controller, sample_average.controller);
           stroke->stroke_distance += len_v2(dmouse);
-          printf("v dmouse %f\n", len_v2(dmouse));
-          print_v2("stroke->last_mouse_position:", stroke->last_mouse_position);
-          print_v2("mouse:", mouse);
-          print_v2("dmouse:", dmouse);
           paint_brush_stroke_add_step(C, op, stroke, mouse, controller, pressure);
           redraw = true;
         }
       }
     }
   }
-  printf("1 %d, 2 %d, 3 %d\n", first_modal, (!(br->flag & BRUSH_AIRBRUSH) && ISMOUSE_MOTION(event->type)), ((br->flag & BRUSH_AIRBRUSH) && event->type == TIMER && event->customdata == stroke->timer));
-
   /* we want the stroke to have the first daub at the start location
    * instead of waiting till we have moved the space distance */
-  // NO PASS - Invoke Modal
   if (first_dab && paint_space_stroke_enabled(*br, mode) && !(br->flag & BRUSH_SMOOTH_STROKE)) {
     stroke->ups->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
-    printf("first_dab\n");
     paint_brush_stroke_add_step(C, op, stroke, sample_average.mouse, sample_average.controller, sample_average.pressure);
     redraw = true;
   }

@@ -72,15 +72,9 @@ static void stroke_start_xr(bContext *C,
   mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
   mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
   ED_view3d_project_float_global(region, controller, mval_prj, V3D_PROJ_TEST_NOP);
-  printf("Invoke: Projected X: %f, Projected Y: %f, win X: %d, M win Y: %d\n",
-         mval_prj[0],
-         mval_prj[1],
-         region->winx,
-         region->winy);
-
-  // start_sample.mouse_position = float2(controller);
+  
   start_sample.mouse_position = mouse_xr;
-  start_sample.pressure = 0.0f;  // Bring trigger pressure here?
+  start_sample.pressure = 0.0f;
   start_sample.is_xr = true;
 
   paint_stroke_set_mode_data(paint_stroke, &operation);
@@ -169,8 +163,8 @@ static void stroke_update_step(bContext *C,
   sample.pressure = RNA_float_get(stroke_element, "pressure");
   sample.is_xr = true;
 
-  print_v3("stroke_update_step sample.controller_position: ", sample.controller_position);
-  print_v2("stroke_update_step sample.mouse_position: ", sample.mouse_position);
+  // print_v3("stroke_update_step sample.controller_position: ", sample.controller_position);
+  // print_v2("stroke_update_step sample.mouse_position: ", sample.mouse_position);
 
   if (!operation) {
     GreasePencilStrokeOperation *new_operation = get_stroke_operation(*C, op);
