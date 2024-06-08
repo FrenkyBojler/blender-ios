@@ -50,37 +50,6 @@ static bool stroke_get_location(bContext * /*C*/,
   return true;
 }
 
-static void stroke_start_xr(bContext *C,
-                         wmOperator &op,
-                         const float3 &controller,
-                         GreasePencilStrokeOperation &operation)
-{
-  PaintStroke *paint_stroke = static_cast<PaintStroke *>(op.customdata);
-  float2 mouse_xr;
-  float mval_prj[2];
-  InputSample start_sample;
-  start_sample.controller_position = float3(controller);
-  // mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
-  // mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmXrData *xr_data = &wm->xr;
-  /*
-   * we need a region type RGN_TYPE_WINDOW 0 to get the winx and winy. This we suppose, is View3D
-   * main.
-   */
-  ARegion *region = WM_xr_get_xr_region(xr_data);
-  mouse_xr[0] = 2.0f * ((double)controller[0] / region->winx) - 1.0f;
-  mouse_xr[1] = (2.0f * ((double)(region->winy - controller[1]) / region->winy)) - 1.0f;
-  ED_view3d_project_float_global(region, controller, mval_prj, V3D_PROJ_TEST_NOP);
-  
-  start_sample.mouse_position = mouse_xr;
-  start_sample.pressure = 0.0f;
-  start_sample.is_xr = true;
-
-  paint_stroke_set_mode_data(paint_stroke, &operation);
-  operation.on_stroke_begin(*C, start_sample);
-}
-
 static GreasePencilStrokeOperation *get_stroke_operation(bContext &C, wmOperator *op)
 {
   const Paint *paint = BKE_paint_get_active_from_context(&C);
@@ -162,9 +131,6 @@ static void stroke_update_step(bContext *C,
   RNA_float_get_array(stroke_element, "controller", sample.controller_position);
   sample.pressure = RNA_float_get(stroke_element, "pressure");
   sample.is_xr = true;
-
-  // print_v3("stroke_update_step sample.controller_position: ", sample.controller_position);
-  // print_v2("stroke_update_step sample.mouse_position: ", sample.mouse_position);
 
   if (!operation) {
     GreasePencilStrokeOperation *new_operation = get_stroke_operation(*C, op);

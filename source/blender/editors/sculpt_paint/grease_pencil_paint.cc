@@ -125,6 +125,11 @@ static void morph_points_to_curve(Span<float2> src, Span<float2> target, Mutable
 
 class PaintOperation : public GreasePencilStrokeOperation {
  private:
+  /* Xr space coordinates from input samples. */
+  Vector<float3> xr_space_coords_orig_;
+  Vector<float3> xr_space_smoothed_coords_;
+  Vector<Vector<float3>> xr_space_curve_fitted_coords_;
+
   /* Screen space coordinates from input samples. */
   Vector<float2> screen_space_coords_orig_;
   /* Temporary vector of curve fitted screen space coordinates per input sample from the active
@@ -331,6 +336,7 @@ struct PaintOperationExecutor {
                             const int material_index)
   {
     const float2 start_coords = start_sample.mouse_position;
+    const float3 start_coords_xr = start_sample.controller_position;
     RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     ARegion *region = CTX_wm_region(&C);
     if (start_sample.is_xr) {
@@ -356,6 +362,11 @@ struct PaintOperationExecutor {
     Scene *scene = CTX_data_scene(&C);
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
+    if (start_sample.is_xr) {
+      self.xr_space_coords_orig_.append(start_coords_xr);
+      self.xr_space_curve_fitted_coords_.append(Vector<float3>({start_coords_xr}));
+      self.xr_space_smoothed_coords_.append(start_coords_xr);
+    }
     self.screen_space_coords_orig_.append(start_coords);
     self.screen_space_curve_fitted_coords_.append(Vector<float2>({start_coords}));
     self.screen_space_smoothed_coords_.append(start_coords);
@@ -516,15 +527,8 @@ struct PaintOperationExecutor {
     const float2 coords = extension_sample.mouse_position;
     RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     ARegion *region = CTX_wm_region(&C);
-    if (extension_sample.is_xr) {
-      wmWindowManager *wm = CTX_wm_manager(&C);
-      wmXrData *xr_data = &wm->xr;
-      region = WM_xr_get_xr_region(xr_data);
-      rv3d = static_cast<RegionView3D *>(region->regiondata);
-    }
 
-    const float3 position = extension_sample.is_xr ? extension_sample.controller_position :
-                                                     self.placement_.project(coords);
+    const float3 position = self.placement_.project(coords);
     float radius = ed::greasepencil::radius_from_input_sample(rv3d,
                                                               region,
                                                               brush_,
@@ -604,6 +608,7 @@ struct PaintOperationExecutor {
     /* Subdivide stroke in new_points. */
     //  new_screen_space_coords for controller?
     const IndexRange new_points = curves.points_by_curve()[active_curve].take_back(new_points_num);
+    Array<float3> new_xr_space_coords(new_points_num);
     Array<float2> new_screen_space_coords(new_points_num);
     MutableSpan<float3> positions = curves.positions_for_write();
     MutableSpan<float3> new_positions = positions.slice(new_points);
@@ -619,7 +624,7 @@ struct PaintOperationExecutor {
           prev_vertex_color, *vertex_color_, new_vertex_colors, is_first_sample);
     }
 
-    /* Update screen space buffers with new points. */
+    /* Update screen space buffers with new points. XR or what*/
     self.screen_space_coords_orig_.extend(new_screen_space_coords);
     self.screen_space_smoothed_coords_.extend(new_screen_space_coords);
     for (float2 new_position : new_screen_space_coords) {
@@ -648,9 +653,152 @@ struct PaintOperationExecutor {
     drawing_->set_texture_matrices({self.texture_space_}, IndexRange::from_single(active_curve));
   }
 
+  void process_extension_sample_xr(PaintOperation &self,
+                                const bContext &C,
+                                const InputSample &extension_sample)
+  {
+    const float3 coords = extension_sample.controller_position;
+    wmWindowManager *wm = CTX_wm_manager(&C);
+    wmXrData *xr_data = &wm->xr;
+    ARegion *region = WM_xr_get_xr_region(xr_data);
+    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+
+    const float3 position =  extension_sample.controller_position;
+
+    float radius = ed::greasepencil::radius_from_input_sample(rv3d,
+                                                              region,
+                                                              brush_,
+                                                              extension_sample.pressure,
+                                                              position,
+                                                              self.placement_.to_world_space(),
+                                                              settings_);
+
+    const float opacity = ed::greasepencil::opacity_from_input_sample(
+        extension_sample.pressure, brush_, settings_);
+    Scene *scene = CTX_data_scene(&C);
+    const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
+
+    bke::CurvesGeometry &curves = drawing_->strokes_for_write();
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    //  self.screen_space_coords_orig_ for controller?
+    const int active_curve = on_back ? curves.curves_range().first() :
+                                       curves.curves_range().last();
+    const IndexRange curve_points = curves.points_by_curve()[active_curve];
+    const int last_active_point = curve_points.last();
+
+    const float3 prev_coords = self.xr_space_coords_orig_.last();
+
+    const float prev_radius = drawing_->radii()[last_active_point];
+    const float prev_opacity = drawing_->opacities()[last_active_point];
+    const ColorGeometry4f prev_vertex_color = drawing_->vertex_colors()[last_active_point];
+
+    /* Approximate brush with non-circular shape by changing the radius based on the angle. */
+    // if (settings_->draw_angle_factor > 0.0f) {
+    //   const float angle = settings_->draw_angle;
+    //   const float2 angle_vec = float2(math::cos(angle), math::sin(angle));
+    //   const float2 vec = coords - self.screen_space_coords_orig_.last();
+
+    //   /* `angle_factor` is the angle to the horizontal line in screen space. */
+    //   const float angle_factor = 1.0f - math::abs(math::dot(angle_vec, math::normalize(vec)));
+    //   /* Smooth the angle factor over time. */
+    //   self.smoothed_angle_factor_ = math::interpolate(
+    //       self.smoothed_angle_factor_, angle_factor, 0.1f);
+
+    //   /* Influence is controlled by `draw_angle_factor`. */
+    //   const float radius_factor = math::interpolate(
+    //       1.0f, self.smoothed_angle_factor_, settings_->draw_angle_factor);
+    //   radius *= radius_factor;
+    // }
+
+    /* Overwrite last point if it's very close. */
+    const IndexRange points_range = curves.points_by_curve()[curves.curves_range().last()];
+    const bool is_first_sample = (points_range.size() == 1);
+    constexpr float point_override_threshold_px = 0.02f;
+ 
+    if (math::distance(coords, prev_coords) < point_override_threshold_px) {
+      /* Don't move the first point of the stroke. */
+      if (!is_first_sample) {
+        curves.positions_for_write()[last_active_point] = position;
+      }
+      drawing_->radii_for_write()[last_active_point] = math::max(radius, prev_radius);
+      drawing_->opacities_for_write()[last_active_point] = math::max(opacity, prev_opacity);
+      return;
+    }
+
+    /* If the next sample is far away, we subdivide the segment to add more points. */
+    const float distance_px = math::distance(coords, prev_coords);
+    const float brush_radius_px = brush_radius_to_pixel_radius(
+        rv3d, brush_, math::transform_point(self.placement_.to_world_space(), position));
+    /* Clamp the number of points within a pixel in screen space. */
+    constexpr int max_points_per_pixel = 4;
+    /* The value `brush_->spacing` is a percentage of the brush radius in pixels. */
+    const float max_spacing_px = math::max((float(brush_->spacing) / 100.0f) *
+                                               float(brush_radius_px),
+                                           1.0f / float(max_points_per_pixel));
+    const int new_points_num = (distance_px > max_spacing_px) ?
+                                   int(math::floor(distance_px / max_spacing_px)) :
+                                   1;
+
+    /* Resize the curves geometry. */
+    extend_curve(curves, on_back, new_points_num);
+    /* Subdivide stroke in new_points. */
+    //  new_screen_space_coords for controller?
+    const IndexRange new_points = curves.points_by_curve()[active_curve].take_back(new_points_num);
+    Array<float3> new_xr_space_coords(new_points_num);
+    MutableSpan<float3> positions = curves.positions_for_write();
+    MutableSpan<float3> new_positions = positions.slice(new_points);
+    MutableSpan<float> new_radii = drawing_->radii_for_write().slice(new_points);
+    MutableSpan<float> new_opacities = drawing_->opacities_for_write().slice(new_points);
+
+
+    linear_interpolation<float3>(prev_coords, coords, new_xr_space_coords, is_first_sample);
+    linear_interpolation<float>(prev_radius, radius, new_radii, is_first_sample);
+    linear_interpolation<float>(prev_opacity, opacity, new_opacities, is_first_sample);
+    if (vertex_color_) {
+      MutableSpan<ColorGeometry4f> new_vertex_colors = drawing_->vertex_colors_for_write().slice(
+          new_points);
+      linear_interpolation<ColorGeometry4f>(
+          prev_vertex_color, *vertex_color_, new_vertex_colors, is_first_sample);
+    }
+
+    /* Update screen space buffers with new points. XR or what*/
+    self.xr_space_coords_orig_.extend(new_xr_space_coords);
+    self.xr_space_smoothed_coords_.extend(new_xr_space_coords);
+    for (float3 new_position : new_xr_space_coords) {
+      self.xr_space_curve_fitted_coords_.append(Vector<float3>({new_position}));
+    }
+
+    /* Only start smoothing if there are enough points. */
+    constexpr int64_t min_active_smoothing_points_num = 8;
+    const IndexRange smooth_window = self.screen_space_coords_orig_.index_range().drop_front(
+        self.active_smooth_start_index_);
+    if (smooth_window.size() < min_active_smoothing_points_num) {
+      self.placement_.store_xr_point(new_xr_space_coords, new_positions);
+    }
+    else {
+      /* Active smoothing is done in a window at the end of the new stroke. */
+      this->active_smoothing(
+          self, smooth_window, positions.slice(curves.points_by_curve()[active_curve]));
+    }
+
+    /* Initialize the rest of the attributes with default values. */
+    bke::fill_attribute_range_default(attributes,
+                                      bke::AttrDomain::Point,
+                                      this->skipped_attribute_ids(bke::AttrDomain::Point),
+                                      curves.points_range().take_back(1));
+
+    drawing_->set_texture_matrices({self.texture_space_}, IndexRange::from_single(active_curve));
+  }
+
   void execute(PaintOperation &self, const bContext &C, const InputSample &extension_sample)
   {
-    this->process_extension_sample(self, C, extension_sample);
+    if (extension_sample.is_xr) {
+      this->process_extension_sample_xr(self, C, extension_sample);
+    }
+    else {
+      this->process_extension_sample(self, C, extension_sample);
+    }
     drawing_->tag_topology_changed();
   }
 };
@@ -852,6 +1000,34 @@ static void simplify_stroke(bke::greasepencil::Drawing &drawing,
   }
 }
 
+static void simplify_stroke_xr(bke::greasepencil::Drawing &drawing,
+                            Span<float3> xr_space_positions,
+                            const float epsilon,
+                            const int active_curve)
+{
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  const IndexRange points = curves.points_by_curve()[active_curve];
+  BLI_assert(xr_space_positions.size() == points.size());
+
+  if (epsilon <= 0.0f) {
+    return;
+  }
+
+  Array<bool> points_to_delete_arr(drawing.strokes().points_num(), false);
+  points_to_delete_arr.as_mutable_span().slice(points).fill(true);
+  geometry::curve_simplify(curves.positions().slice(points),
+                           curves.cyclic()[active_curve],
+                           epsilon,
+                           xr_space_positions,
+                           points_to_delete_arr.as_mutable_span().slice(points));
+
+  IndexMaskMemory memory;
+  const IndexMask points_to_delete = IndexMask::from_bools(points_to_delete_arr, memory);
+  if (!points_to_delete.is_empty()) {
+    drawing.strokes_for_write().remove_points(points_to_delete, {});
+  }
+}
+
 static int trim_end_points(bke::greasepencil::Drawing &drawing,
                            const float epsilon,
                            const bool on_back,
@@ -948,6 +1124,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
   using namespace blender::bke;
   Scene *scene = CTX_data_scene(&C);
   Object *object = CTX_data_active_object(&C);
+  wmWindowManager *wm = CTX_wm_manager(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   Paint *paint = &scene->toolsettings->gp_paint->paint;
@@ -973,10 +1150,17 @@ void PaintOperation::on_stroke_done(const bContext &C)
       smooth_stroke(drawing, settings->draw_smoothfac, settings->draw_smoothlvl, active_curve);
     }
     if (settings->simplify_px > 0.0f) {
-      simplify_stroke(drawing,
-                      this->screen_space_smoothed_coords_.as_span().drop_back(num_points_removed),
-                      settings->simplify_px,
-                      active_curve);
+      if(!WM_xr_session_is_ready(&wm->xr)) {
+      //   simplify_stroke_xr(drawing,
+      //                   this->xr_space_smoothed_coords_.as_span().drop_back(num_points_removed),
+      //                   settings->simplify_px,
+      //                   active_curve);
+      // } else {
+        simplify_stroke(drawing,
+                        this->screen_space_smoothed_coords_.as_span().drop_back(num_points_removed),
+                        settings->simplify_px,
+                        active_curve);
+      }
     }
   }
   drawing.set_texture_matrices({texture_space_}, IndexRange::from_single(active_curve));

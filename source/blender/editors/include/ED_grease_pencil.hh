@@ -120,6 +120,7 @@ class DrawingPlacement {
   float3 project(float2 co) const;
   void project(Span<float2> src, MutableSpan<float3> dst) const;
 
+  void store_xr_point(Span<float3> src, MutableSpan<float3> dst) const;
   float4x4 to_world_space() const;
 };
 
