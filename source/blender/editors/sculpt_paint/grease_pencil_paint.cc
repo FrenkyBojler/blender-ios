@@ -519,7 +519,6 @@ struct PaintOperationExecutor {
     }
   }
 
-  // real meat to investigate ??
   void process_extension_sample(PaintOperation &self,
                                 const bContext &C,
                                 const InputSample &extension_sample)
@@ -544,7 +543,6 @@ struct PaintOperationExecutor {
 
     bke::CurvesGeometry &curves = drawing_->strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    //  self.screen_space_coords_orig_ for controller?
     const int active_curve = on_back ? curves.curves_range().first() :
                                        curves.curves_range().last();
     const IndexRange curve_points = curves.points_by_curve()[active_curve];
@@ -606,7 +604,6 @@ struct PaintOperationExecutor {
     /* Resize the curves geometry. */
     extend_curve(curves, on_back, new_points_num);
     /* Subdivide stroke in new_points. */
-    //  new_screen_space_coords for controller?
     const IndexRange new_points = curves.points_by_curve()[active_curve].take_back(new_points_num);
     Array<float3> new_xr_space_coords(new_points_num);
     Array<float2> new_screen_space_coords(new_points_num);
@@ -681,7 +678,6 @@ struct PaintOperationExecutor {
 
     bke::CurvesGeometry &curves = drawing_->strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    //  self.screen_space_coords_orig_ for controller?
     const int active_curve = on_back ? curves.curves_range().first() :
                                        curves.curves_range().last();
     const IndexRange curve_points = curves.points_by_curve()[active_curve];
@@ -743,7 +739,6 @@ struct PaintOperationExecutor {
     /* Resize the curves geometry. */
     extend_curve(curves, on_back, new_points_num);
     /* Subdivide stroke in new_points. */
-    //  new_screen_space_coords for controller?
     const IndexRange new_points = curves.points_by_curve()[active_curve].take_back(new_points_num);
     Array<float3> new_xr_space_coords(new_points_num);
     MutableSpan<float3> positions = curves.positions_for_write();

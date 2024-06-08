@@ -481,7 +481,7 @@ static bool paint_brush_update(bContext *C,
     }
   }
 
-  if (!location_sampled) { // WTF maybe this needs to be different for XR ?
+  if (!location_sampled) {
     if (stroke->get_location) {
       float mouse3[3] = {mouse[0], mouse[1], 0.0f};
       if (stroke->get_location(C, r_location, mouse3, stroke->original)) {
