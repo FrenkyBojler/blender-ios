@@ -46,7 +46,7 @@ static bool stroke_get_location(bContext * /*C*/,
 {
   out[0] = mouse[0];
   out[1] = mouse[1];
-  out[2] = mouse[2];
+  out[2] = 0.0f;
   return true;
 }
 
@@ -145,11 +145,6 @@ static void stroke_update_step(bContext *C,
 
 static void stroke_redraw(const bContext *C, PaintStroke * /*stroke*/, bool /*final*/)
 {
-  // C will probably not have ARegion, get it somewhere else
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmXrData *xr_data = &wm->xr;
-  ARegion *region = WM_xr_get_xr_region(xr_data);
-  ED_region_tag_redraw(region);
   ED_region_tag_redraw(CTX_wm_region(C));
 }
 

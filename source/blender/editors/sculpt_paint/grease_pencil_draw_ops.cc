@@ -73,7 +73,7 @@ static bool stroke_get_location(bContext * /*C*/,
 {
   out[0] = mouse[0];
   out[1] = mouse[1];
-  out[2] = mouse[2];
+  out[2] = 0;
   return true;
 }
 

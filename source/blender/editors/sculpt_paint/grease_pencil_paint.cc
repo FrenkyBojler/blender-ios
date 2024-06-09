@@ -690,27 +690,27 @@ struct PaintOperationExecutor {
     const ColorGeometry4f prev_vertex_color = drawing_->vertex_colors()[last_active_point];
 
     /* Approximate brush with non-circular shape by changing the radius based on the angle. */
-    // if (settings_->draw_angle_factor > 0.0f) {
-    //   const float angle = settings_->draw_angle;
-    //   const float2 angle_vec = float2(math::cos(angle), math::sin(angle));
-    //   const float2 vec = coords - self.screen_space_coords_orig_.last();
+    if (settings_->draw_angle_factor > 0.0f) {
+      const float angle = settings_->draw_angle;
+      const float3 angle_vec = float3(math::cos(angle), math::sin(angle), 0.0f);
+      const float3 vec = coords - self.xr_space_coords_orig_.last();
 
-    //   /* `angle_factor` is the angle to the horizontal line in screen space. */
-    //   const float angle_factor = 1.0f - math::abs(math::dot(angle_vec, math::normalize(vec)));
-    //   /* Smooth the angle factor over time. */
-    //   self.smoothed_angle_factor_ = math::interpolate(
-    //       self.smoothed_angle_factor_, angle_factor, 0.1f);
+      /* `angle_factor` is the angle to the horizontal line in screen space. */
+      const float angle_factor = 1.0f - math::abs(math::dot(angle_vec, math::normalize(vec)));
+      /* Smooth the angle factor over time. */
+      self.smoothed_angle_factor_ = math::interpolate(
+          self.smoothed_angle_factor_, angle_factor, 0.1f);
 
-    //   /* Influence is controlled by `draw_angle_factor`. */
-    //   const float radius_factor = math::interpolate(
-    //       1.0f, self.smoothed_angle_factor_, settings_->draw_angle_factor);
-    //   radius *= radius_factor;
-    // }
+      /* Influence is controlled by `draw_angle_factor`. */
+      const float radius_factor = math::interpolate(
+          1.0f, self.smoothed_angle_factor_, settings_->draw_angle_factor);
+      radius *= radius_factor;
+    }
 
     /* Overwrite last point if it's very close. */
     const IndexRange points_range = curves.points_by_curve()[curves.curves_range().last()];
     const bool is_first_sample = (points_range.size() == 1);
-    constexpr float point_override_threshold_px = 0.02f;
+    constexpr float point_override_threshold_px = 0.002f;
  
     if (math::distance(coords, prev_coords) < point_override_threshold_px) {
       /* Don't move the first point of the stroke. */
@@ -966,9 +966,9 @@ static void smooth_stroke(bke::greasepencil::Drawing &drawing,
     radii.finish();
   }
 }
-
+template<typename T>
 static void simplify_stroke(bke::greasepencil::Drawing &drawing,
-                            Span<float2> screen_space_positions,
+                            Span<T> screen_space_positions,
                             const float epsilon,
                             const int active_curve)
 {
@@ -986,34 +986,6 @@ static void simplify_stroke(bke::greasepencil::Drawing &drawing,
                            curves.cyclic()[active_curve],
                            epsilon,
                            screen_space_positions,
-                           points_to_delete_arr.as_mutable_span().slice(points));
-
-  IndexMaskMemory memory;
-  const IndexMask points_to_delete = IndexMask::from_bools(points_to_delete_arr, memory);
-  if (!points_to_delete.is_empty()) {
-    drawing.strokes_for_write().remove_points(points_to_delete, {});
-  }
-}
-
-static void simplify_stroke_xr(bke::greasepencil::Drawing &drawing,
-                            Span<float3> xr_space_positions,
-                            const float epsilon,
-                            const int active_curve)
-{
-  const bke::CurvesGeometry &curves = drawing.strokes();
-  const IndexRange points = curves.points_by_curve()[active_curve];
-  BLI_assert(xr_space_positions.size() == points.size());
-
-  if (epsilon <= 0.0f) {
-    return;
-  }
-
-  Array<bool> points_to_delete_arr(drawing.strokes().points_num(), false);
-  points_to_delete_arr.as_mutable_span().slice(points).fill(true);
-  geometry::curve_simplify(curves.positions().slice(points),
-                           curves.cyclic()[active_curve],
-                           epsilon,
-                           xr_space_positions,
                            points_to_delete_arr.as_mutable_span().slice(points));
 
   IndexMaskMemory memory;
@@ -1144,13 +1116,15 @@ void PaintOperation::on_stroke_done(const bContext &C)
     if (settings->draw_smoothfac > 0.0f) {
       smooth_stroke(drawing, settings->draw_smoothfac, settings->draw_smoothlvl, active_curve);
     }
+
+    /* Simplify stroke. */
     if (settings->simplify_px > 0.0f) {
-      if(!WM_xr_session_is_ready(&wm->xr)) {
-      //   simplify_stroke_xr(drawing,
-      //                   this->xr_space_smoothed_coords_.as_span().drop_back(num_points_removed),
-      //                   settings->simplify_px,
-      //                   active_curve);
-      // } else {
+      if(WM_xr_session_is_ready(&wm->xr)) {
+        simplify_stroke(drawing,
+                        this->xr_space_smoothed_coords_.as_span().drop_back(num_points_removed),
+                        (settings->simplify_px / 1000),
+                        active_curve);
+      } else {
         simplify_stroke(drawing,
                         this->screen_space_smoothed_coords_.as_span().drop_back(num_points_removed),
                         settings->simplify_px,

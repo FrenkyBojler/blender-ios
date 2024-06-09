@@ -66,7 +66,7 @@ namespace blender::ed::sculpt_paint {
 
 using StrokeGetLocation = bool (*)(bContext *C,
                                    float location[3],
-                                   const float mouse[3],
+                                   const float mouse[2],
                                    bool force_original);
 using StrokeTestStart = bool (*)(bContext *C, wmOperator *op, const float mouse[3]);
 using StrokeUpdateStep = void (*)(bContext *C,

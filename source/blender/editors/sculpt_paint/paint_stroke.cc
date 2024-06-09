@@ -55,11 +55,10 @@ namespace blender::ed::sculpt_paint {
 struct PaintSample {
   // this can be simplified to a float3 like legacy gpencil if this is equivalent to bGPDspoint
   float2 mouse;
-  float3 controller; // xyz from legacy gpencil
+  float3 controller;
   float pressure;
 };
 
-// bGPDstroke
 struct PaintStroke {
   void *mode_data;
   void *stroke_cursor;
@@ -318,24 +317,6 @@ static bool paint_brush_update(bContext *C,
   if (!stroke->brush_init) {
     copy_v2_v2(stroke->initial_mouse, mouse);
     copy_v3_v3(stroke->initial_controller, controller);
-    // Converto controller to screen
-    // convert controller position vec3 from world to screen (ndc)
-    // but we need a camera to do that (?)
-    /*
-    x = 2.0f * ((double)pos.x / region_width) - 1.0f;
-    y = (2.0f * ((double)(h - pos.y) / region_height)) - 1.0f;
-
-    vec3 drw_perspective_divide(vec4 hs_P)
-    {
-        return hs_P.xyz / hs_P.w;
-    }
-    vec3 drw_point_ndc_to_view(vec3 ssP)
-    {
-        return drw_perspective_divide(drw_view.wininv * vec4(ssP, 1.0));
-    }
-    */
-    // extract x and y from controller
-    // use the result vec2 as mouse x and y
     copy_v2_v2(ups.last_rake, mouse);
     copy_v2_v2(ups.tex_mouse, mouse);
     copy_v2_v2(ups.mask_tex_mouse, mouse);
@@ -411,8 +392,7 @@ static bool paint_brush_update(bContext *C,
       halfway[1] = dy * 0.5f + stroke->initial_mouse[1];
 
       if (stroke->get_location) {
-        float halfway3[3] = {halfway[0], halfway[1], 0.0f};
-        if (stroke->get_location(C, r_location, halfway3, stroke->original)) {
+        if (stroke->get_location(C, r_location, halfway, stroke->original)) {
           hit = true;
           location_sampled = true;
           location_success = true;
@@ -483,8 +463,7 @@ static bool paint_brush_update(bContext *C,
 
   if (!location_sampled) {
     if (stroke->get_location) {
-      float mouse3[3] = {mouse[0], mouse[1], 0.0f};
-      if (stroke->get_location(C, r_location, mouse3, stroke->original)) {
+      if (stroke->get_location(C, r_location, mouse, stroke->original)) {
         location_success = true;
         *r_location_is_set = true;
       }
@@ -573,12 +552,10 @@ static void paint_brush_stroke_add_step(
     if (SCULPT_stroke_get_location(
             C, world_space_position, stroke->last_mouse_position, stroke->original))
     {
-      printf("SCULPT_stroke_get_location\n");
       copy_v3_v3(stroke->last_world_space_position, world_space_position);
       mul_m4_v3(stroke->vc.obact->object_to_world().ptr(), stroke->last_world_space_position);
     }
     else {
-      printf("last_scene_spacing_delta\n");
       add_v3_v3(stroke->last_world_space_position, stroke->last_scene_spacing_delta);
     }
   }
@@ -1206,18 +1183,24 @@ wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-static void paint_stroke_add_sample(
-    PaintStroke *stroke, int input_samples, float cval_x, float cval_y, float x, float y, float z, float pressure)
+static void paint_stroke_add_sample(PaintStroke *stroke,
+                                    int input_samples,
+                                    float mval_x,
+                                    float mval_y,
+                                    float cval_x,
+                                    float cval_y,
+                                    float cval_z,
+                                    float pressure)
 {
   PaintSample *sample = &stroke->samples[stroke->cur_sample];
   int max_samples = std::clamp(input_samples, 1, PAINT_MAX_INPUT_SAMPLES);
 
-  sample->mouse[0] = round(cval_x);
-  sample->mouse[1] = round(cval_y);
+  sample->mouse[0] = round(mval_x);
+  sample->mouse[1] = round(mval_y);
 
-  sample->controller[0] = x;
-  sample->controller[1] = y;
-  sample->controller[2] = z;
+  sample->controller[0] = cval_x;
+  sample->controller[1] = cval_y;
+  sample->controller[2] = cval_z;
 
   sample->pressure = pressure;
 
@@ -1427,10 +1410,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
             mul_m4_v3(stroke->vc.obact->object_to_world().ptr(),
                       stroke->last_world_space_position);
           }
-
-          float3 last_mouse_position_ = {
-              stroke->last_mouse_position[0], stroke->last_mouse_position[1], 0.0f};
-          stroke->stroke_started = stroke->test_start(C, op, last_mouse_position_);
+          stroke->stroke_started = stroke->test_start(C, op, stroke->last_mouse_position);
 
           if (stroke->stroke_started) {
             paint_brush_stroke_add_step(C, op, stroke, data + 2 * j, {}, 1.0);
@@ -1587,13 +1567,11 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
     copy_v2_v2(stroke->last_mouse_position, sample_average.mouse);
     copy_v3_v3(stroke->last_controller_position, sample_average.controller);
     if (paint_stroke_use_scene_spacing(*br, mode)) {
-      printf("paint_stroke_use_scene_spacing\n");
       stroke->stroke_over_mesh = SCULPT_stroke_get_location(
           C, stroke->last_world_space_position, sample_average.mouse, stroke->original);
       mul_m4_v3(stroke->vc.obact->object_to_world().ptr(), stroke->last_world_space_position);
     }
-    float3 mouse_ = {sample_average.mouse[0], sample_average.mouse[1], 0.0f};
-    stroke->stroke_started = stroke->test_start(C, op, is_xr ? sample_average.controller : mouse_);
+    stroke->stroke_started = stroke->test_start(C, op, sample_average.mouse);
 
     if (stroke->stroke_started) {
       if (br->flag & BRUSH_AIRBRUSH) {
@@ -1734,8 +1712,7 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 
     if (RNA_property_collection_lookup_int(op->ptr, strokeprop, 0, &firstpoint)) {
       RNA_float_get_array(&firstpoint, "mouse", mouse);
-      float3 mouse_ = {mouse[0], mouse[1], 0.0f};
-      stroke->stroke_started = stroke->test_start(C, op, mouse_);
+      stroke->stroke_started = stroke->test_start(C, op, mouse);
     }
   }
 
