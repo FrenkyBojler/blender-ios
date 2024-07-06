@@ -196,23 +196,11 @@ vec2 circle_line_intersection(vec2 l1, vec2 l2, vec2 c, float r){
     return vec2(t-u, t+u);
 }
 
-float raytrace_plane(vec3 RD, vec3 RO, vec3 norm, vec3 p){
-    return (dot(norm, p)-dot(RO, norm))/dot(RD, norm);
-}
+float screen_t_to_local_t(float screen_t, float z1, float z2){
+    float f = (1.0 - screen_t);
 
-float screen_t_to_local_t(float screen_t, vec4 p1, vec4 p2){
-    vec3 screen_point = normalize(vec3(p1.xy + (p2.xy-p1.xy) * saturate(screen_t), 1.0));
-
-    vec3 P1 = from_cam(p1).xyz;
-    vec3 P2 = from_cam(p2).xyz;
-    
-    vec3 norm = normalize(cross(P1-P2, cross(P1, vec3(0.0, 0.0, 1.0))));
-    float ray_length = raytrace_plane(screen_point, vec3(0.0, 0.0, 0.0), norm, P1);
-    vec3 local_point = screen_point*ray_length;
-    
-    
-    float local_dis_sq = dot(P2-P1, P2-P1);
-    float local_t = dot(local_point-P1, P2-P1)/local_dis_sq;
+    float k = z2/z1 - 1.0;
+    float local_t = screen_t/(k*f + 1.0);
 
     return local_t;
 }
@@ -265,8 +253,8 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2, float length_offset){
     vec2 ts = circle_line_intersection(p1.xy, p2.xy, p0, r);
     
     if(ts.x != -1 && ts.y != -1){
-        float t_min = screen_t_to_local_t(ts.x, p1, p2);
-        float t_max = screen_t_to_local_t(ts.y, p1, p2);
+        float t_min = screen_t_to_local_t(ts.x, p1.z, p2.z);
+        float t_max = screen_t_to_local_t(ts.y, p1.z, p2.z);
         
         
         lower = int(floor(t_to_i(t_min, p1, p2, length_offset)));
