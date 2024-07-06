@@ -10,6 +10,19 @@
 #endif
 
 #ifdef GPU_FRAGMENT_SHADER
+float gpencil_stroke_round_mask(float dist, float hardfac) {
+  dist = clamp(1.0 - dist, 0.0, 1.0);
+  if (hardfac > 0.999) {
+    return step(1e-8, dist);
+  }
+  else {
+    /* Modulate the falloff profile */
+    float hardness = 1.0 - hardfac;
+    dist = pow(dist, mix(0.01, 10.0, hardness));
+    return smoothstep(0.0, 1.0, dist);
+  }
+}
+
 float gpencil_stroke_round_cap_mask(vec2 p1, vec2 p2, vec2 aspect, float thickness, float hardfac)
 {
   /* We create our own uv space to avoid issues with triangulation and linear
@@ -28,16 +41,7 @@ float gpencil_stroke_round_cap_mask(vec2 p1, vec2 p2, vec2 aspect, float thickne
   uv_end /= thickness;
   uv_end *= aspect;
 
-  float dist = clamp(1.0 - length(uv_end) * 2.0, 0.0, 1.0);
-  if (hardfac > 0.999) {
-    return step(1e-8, dist);
-  }
-  else {
-    /* Modulate the falloff profile */
-    float hardness = 1.0 - hardfac;
-    dist = pow(dist, mix(0.01, 10.0, hardness));
-    return smoothstep(0.0, 1.0, dist);
-  }
+  return gpencil_stroke_round_mask(length(uv_end) * 2.0, hardfac);
 }
 #endif
 
@@ -141,8 +145,10 @@ vec4 gpencil_vertex(vec4 viewport_size,
                     out float out_strength,
                     /* UV coordinates. */
                     out vec2 out_uv,
-                    /* Screen-Space segment endpoints. */
-                    out vec4 out_sspos,
+                    /* Screen-Space segment start point (x: x, y: y, z: depth, w: radius). */
+                    out vec4 out_sspos1,
+                    /* Screen-Space segment end point (x: x, y: y, z: depth, w: radius). */
+                    out vec4 out_sspos2,
                     /* Stroke aspect ratio. */
                     out vec2 out_aspect,
                     /* Stroke thickness (x: clamped, y: unclamped). */
@@ -183,15 +189,17 @@ vec4 gpencil_vertex(vec4 viewport_size,
   if (gpencil_is_stroke_vertex()) {
     bool is_dot = flag_test(material_flags, GP_STROKE_ALIGNMENT);
     bool is_squares = !flag_test(material_flags, GP_STROKE_DOTS);
+    bool is_multi_dot = true;
 
     /* Special Case. Stroke with single vert are rendered as dots. Do not discard them. */
     if (!is_dot && ma.x == -1 && ma2.x == -1) {
       is_dot = true;
       is_squares = false;
+      is_multi_dot = false;
     }
 
     /* Endpoints, we discard the vertices. */
-    if (!is_dot && ma2.x == -1) {
+    if (!(is_dot && !is_multi_dot) && ma2.x == -1) {
       /* We set the vertex at the camera origin to generate 0 fragments. */
       out_ndc = vec4(0.0, 0.0, -3e36, 0.0);
       return out_ndc;
@@ -201,14 +209,14 @@ vec4 gpencil_vertex(vec4 viewport_size,
     float x = float(gl_VertexID & 1) * 2.0 - 1.0; /* [-1..1] */
     float y = float(gl_VertexID & 2) - 1.0;       /* [-1..1] */
 
-    bool use_curr = is_dot || (x == -1.0);
+    bool use_curr = (is_dot && !is_multi_dot) || (x == -1.0);
 
     vec3 wpos_adj = transform_point(ModelMatrix, (use_curr) ? pos.xyz : pos3.xyz);
     vec3 wpos1 = transform_point(ModelMatrix, pos1.xyz);
     vec3 wpos2 = transform_point(ModelMatrix, pos2.xyz);
 
     vec3 T;
-    if (is_dot) {
+    if (is_dot && !is_multi_dot) {
       /* Shade as facing billboards. */
       T = ViewMatrixInverse[0].xyz;
     }
@@ -246,7 +254,61 @@ vec4 gpencil_vertex(vec4 viewport_size,
     out_uv = vec2(x, y) * 0.5 + 0.5;
     out_hardness = gpencil_decode_hardness(use_curr ? hardness1 : hardness2);
 
-    if (is_dot) {
+    out_sspos1.xy = ss1;
+    out_sspos1.z = ndc1.z;
+    out_sspos1.w = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_size) / ndc1.z / 2.0;
+    out_sspos2.xy = ss2;
+    out_sspos2.z = ndc2.z;
+    out_sspos2.w = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_size) / ndc2.z / 2.0;
+
+    if (is_dot && is_multi_dot) {
+      out_thickness.x = clamped_thickness / out_ndc.w;
+      out_thickness.y = thickness / out_ndc.w;
+      out_aspect = vec2(1.0);
+
+      bool is_stroke_start = (ma.x == -1 && x == -1);
+      bool is_stroke_end = (ma3.x == -1 && x == 1);
+
+      /* Mitter tangent vector. */
+      vec2 miter_tan = safe_normalize(line_adj + line);
+      float miter_dot = dot(miter_tan, line_adj);
+      /* Break corners after a certain angle to avoid really thick corners. */
+      const float miter_limit = 0.5; /* cos(60 degrees) */
+      bool miter_break = true; /* TODO: Fix This. */
+      miter_tan = (miter_break || is_stroke_start || is_stroke_end) ? line :
+                                                                      (miter_tan / miter_dot);
+      /* Rotate 90 degrees counter-clockwise. */
+      vec2 miter = vec2(-miter_tan.y, miter_tan.x);
+
+
+      vec2 screen_ofs = miter * y;
+
+      /* Reminder: we packed the cap flag into the sign of strength and thickness sign. */
+      if ((is_stroke_start && strength1 > 0.0) || (is_stroke_end && thickness1 > 0.0) ||
+          (miter_break && !is_stroke_start && !is_stroke_end))
+      {
+        screen_ofs += line * x;
+      }
+
+      if(is_squares){
+        out_ndc.xy += screen_ofs * viewport_size.zw * clamped_thickness * M_SQRT2;
+      }else{
+        out_ndc.xy += screen_ofs * viewport_size.zw * clamped_thickness;
+      }
+
+      vec3 view1 = point_world_to_view(wpos1);
+      vec3 view2 = point_world_to_view(wpos2);
+
+      // out_sspos1.xy = -view1.xy / view1.z;
+      // out_sspos1.z = -view1.z;
+      // out_sspos1.w = -gpThicknessWorldScale * thickness1 / view1.z / 2.0;
+      // out_sspos2.xy = -view2.xy / view2.z;
+      // out_sspos2.z = -view2.z;
+      // out_sspos2.w = -gpThicknessWorldScale * thickness2 / view2.z / 2.0;
+
+      out_uv.x = (use_curr) ? uv1.z : uv2.z;
+    }
+    else if (is_dot && !is_multi_dot) {
       uint alignment_mode = material_flags & GP_STROKE_ALIGNMENT;
 
       /* For one point strokes use object alignment. */
@@ -288,9 +350,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
       out_aspect = 1.0 / out_aspect;
 
       out_ndc.xy += (x * x_axis + y * y_axis) * viewport_size.zw * clamped_thickness;
+      out_sspos2.xy = ss1 + x_axis * 0.5;
 
-      out_sspos.xy = ss1;
-      out_sspos.zw = ss1 + x_axis * 0.5;
       out_thickness.x = (is_squares) ? 1e18 : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18 : (thickness / out_ndc.w);
     }
@@ -309,8 +370,6 @@ vec4 gpencil_vertex(vec4 viewport_size,
       /* Rotate 90 degrees counter-clockwise. */
       vec2 miter = vec2(-miter_tan.y, miter_tan.x);
 
-      out_sspos.xy = ss1;
-      out_sspos.zw = ss2;
       out_thickness.x = clamped_thickness / out_ndc.w;
       out_thickness.y = thickness / out_ndc.w;
       out_aspect = vec2(1.0);
@@ -339,7 +398,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
     out_thickness.y = 1e20;
     out_hardness = 1.0;
     out_aspect = vec2(1.0);
-    out_sspos = vec4(0.0);
+    out_sspos1 = vec4(0.0);
+    out_sspos2 = vec4(0.0);
 
     /* Flat normal following camera and object bounds. */
     vec3 V = cameraVec(ModelMatrix[3].xyz);
@@ -373,7 +433,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
                     out vec4 out_color,
                     out float out_strength,
                     out vec2 out_uv,
-                    out vec4 out_sspos,
+                    out vec4 out_sspos1,
+                    out vec4 out_sspos2,
                     out vec2 out_aspect,
                     out vec2 out_thickness,
                     out float out_hardness)
@@ -386,7 +447,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
                         out_color,
                         out_strength,
                         out_uv,
-                        out_sspos,
+                        out_sspos1,
+                        out_sspos2,
                         out_aspect,
                         out_thickness,
                         out_hardness);

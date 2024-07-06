@@ -19,7 +19,8 @@ void main()
   init_interface();
 
   /* TODO(fclem): Expose through a node? */
-  vec4 sspos;
+  vec4 sspos1;
+  vec4 sspos2;
   vec2 aspect;
   float strength;
   float hardness;
@@ -33,7 +34,8 @@ void main()
       g_color,
       strength,
       g_uvs,
-      sspos,
+      sspos1,
+      sspos2,
       aspect,
       thickness,
       hardness);

@@ -68,7 +68,8 @@ GPU_SHADER_CREATE_INFO(overlay_outline_prepass_wire_clipped)
 
 GPU_SHADER_INTERFACE_INFO(overlay_outline_prepass_gpencil_flat_iface, "gp_interp_flat")
     .flat(Type::VEC2, "aspect")
-    .flat(Type::VEC4, "sspos");
+    .flat(Type::VEC4, "sspos1")
+    .flat(Type::VEC4, "sspos2");
 GPU_SHADER_INTERFACE_INFO(overlay_outline_prepass_gpencil_noperspective_iface,
                           "gp_interp_noperspective")
     .no_perspective(Type::VEC2, "thickness")

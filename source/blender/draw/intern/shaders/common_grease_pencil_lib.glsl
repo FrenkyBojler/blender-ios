@@ -131,8 +131,10 @@ vec4 gpencil_vertex(vec4 viewport_size,
                     out float out_strength,
                     /* UV coordinates. */
                     out vec2 out_uv,
-                    /* Screen-Space segment endpoints. */
-                    out vec4 out_sspos,
+                    /* Screen-Space segment start point (x: x, y: y, z: depth, w: radius). */
+                    out vec4 out_sspos1,
+                    /* Screen-Space segment end point (x: x, y: y, z: depth, w: radius). */
+                    out vec4 out_sspos2,
                     /* Stroke aspect ratio. */
                     out vec2 out_aspect,
                     /* Stroke thickness (x: clamped, y: unclamped). */
@@ -286,8 +288,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
 
       out_ndc.xy += (x * x_axis + y * y_axis) * viewport_size.zw * clamped_thickness;
 
-      out_sspos.xy = ss1;
-      out_sspos.zw = ss1 + x_axis * 0.5;
+      out_sspos1.xy = ss1;
+      out_sspos2.xy = ss1 + x_axis * 0.5;
       out_thickness.x = (is_squares) ? 1e18 : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18 : (thickness / out_ndc.w);
     }
@@ -306,8 +308,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
       /* Rotate 90 degrees counter-clockwise. */
       vec2 miter = vec2(-miter_tan.y, miter_tan.x);
 
-      out_sspos.xy = ss1;
-      out_sspos.zw = ss2;
+      out_sspos1.xy = ss1;
+      out_sspos2.xy = ss2;
       out_thickness.x = clamped_thickness / out_ndc.w;
       out_thickness.y = thickness / out_ndc.w;
       out_aspect = vec2(1.0);
@@ -345,7 +347,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
     out_thickness.y = 1e20;
     out_hardness = 1.0;
     out_aspect = vec2(1.0);
-    out_sspos = vec4(0.0);
+    out_sspos1 = vec4(0.0);
+    out_sspos2 = vec4(0.0);
 
     /* Flat normal following camera and object bounds. */
     vec3 V = cameraVec(ModelMatrix[3].xyz);
@@ -379,7 +382,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
                     out vec4 out_color,
                     out float out_strength,
                     out vec2 out_uv,
-                    out vec4 out_sspos,
+                    out vec4 out_sspos1,
+                    out vec4 out_sspos2,
                     out vec2 out_aspect,
                     out vec2 out_thickness,
                     out float out_hardness)
@@ -392,7 +396,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
                         out_color,
                         out_strength,
                         out_uv,
-                        out_sspos,
+                        out_sspos1,
+                        out_sspos2,
                         out_aspect,
                         out_thickness,
                         out_hardness);

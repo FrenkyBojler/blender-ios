@@ -46,7 +46,8 @@ void main()
                                vert_color,
                                vert_strength,
                                gp_interp.uv,
-                               gp_interp_flat.sspos,
+                               gp_interp_flat.sspos1,
+                               gp_interp_flat.sspos2,
                                gp_interp_flat.aspect,
                                gp_interp_noperspective.thickness,
                                gp_interp_noperspective.hardness);
@@ -119,6 +120,7 @@ void main()
     gpencil_color_output(fill_col, fcol_decode, 1.0, gp_mat._fill_texture_mix);
 
     gp_interp_flat.mat_flag = gp_flag & GP_FILL_FLAGS;
+    gp_interp_flat.mat_flag |= GP_FILL;
     gp_interp_flat.mat_flag |= uint(ma1.x + gpMaterialOffset) << GPENCIl_MATID_SHIFT;
 
     gp_interp.uv = mat2(gp_mat.fill_uv_rot_scale.xy, gp_mat.fill_uv_rot_scale.zw) * uv1.xy +
