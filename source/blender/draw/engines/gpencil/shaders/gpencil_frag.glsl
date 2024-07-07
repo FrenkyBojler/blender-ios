@@ -297,14 +297,12 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2, float length_offset){
 
 
 
-#define scale_fac (max(viewportSize.x, viewportSize.y))
-
 vec2 from_ss(vec2 a){
-  return (a - viewportSize.xy / 2.0) / scale_fac;
+  return a - viewportSize.xy / 2.0;
 }
 
 vec4 from_ss(vec4 a){
-  return vec4(from_ss(a.xy), a.z, a.w / scale_fac);
+  return vec4(from_ss(a.xy), a.z, a.w);
 }
 
 void main()
@@ -321,6 +319,7 @@ void main()
       if(is_multi_dot){
         vec2 coord = from_ss(gl_FragCoord.xy);
         vec2 ss_coord = coord;
+        vec2 view_coord = vec2(0.0);
 
         float length_offset = 0.0;
 
@@ -391,18 +390,23 @@ void main()
 
         float o1 = s1y * s2x - s1x * s2y;
 
-        float p1w = 0.0;
-        float p2w = 0.0;
+        float scale_fac = 0.0;
 
         if(o1 != 0.0){
-          p1w = ss_p1.w * (by * s2x - bx * s2y) / o1;
+          scale_fac = (by * s2x - bx * s2y) / o1;
         }
-        p2w = ss_p2.w * (s1y / ss_p1.w * p1w - by) / s2y;
+
+
+
+        view_coord = ss_coord * scale_fac;
+        float p1w = ss_p1.w * scale_fac;
+        float p2w = ss_p2.w * scale_fac;
+
+        // scale_fac = (s1y / ss_p1.w * p1w - by) / s2y
 
         p1.w = p1w;
         p2.w = p2w;
 
-        vec2 view_coord = ss_coord * p1.w / ss_p1.w;
 
 
         P1 = from_cam(p1);
