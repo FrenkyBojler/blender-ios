@@ -375,22 +375,33 @@ void main()
         // p1.x - p2.x = ((ss_coord.x - ss_p2.x) / ss_p2.w) * p2.w - ((ss_coord.x - ss_p1.x) / ss_p1.w) * p1.w
         // p1.y - p2.y = ((ss_coord.y - ss_p2.y) / ss_p2.w) * p2.w - ((ss_coord.y - ss_p1.y) / ss_p1.w) * p1.w
 
+        float Cx = ss_coord.x;
+        float Cy = ss_coord.y;
 
-        float c1x = ss_coord.x - ss_p1.x;
-        float c1y = ss_coord.y - ss_p1.y;
+        float s1x = ss_p1.x;
+        float s1y = ss_p1.y;
 
-        float c2x = ss_coord.x - ss_p2.x;
-        float c2y = ss_coord.y - ss_p2.y;
+        float s2x = ss_p2.x;
+        float s2y = ss_p2.y;
+
+
+
+        float c1x = Cx - s1x;
+        float c1y = Cy - s1y;
+
+        float c2x = Cx - s2x;
+        float c2y = Cy - s2y;
 
 
         float bx = p1.x - p2.x;
         float by = p1.y - p2.y;
 
 
-        // float p1w = (bx * (c2y / ss_p2.w) / (c2x / ss_p2.w) - by) / ((c1y / ss_p1.w) - (c1x / ss_p1.w) * (c2y / ss_p2.w) / (c2x / ss_p2.w));
-        // float p2w = (by + (c1y / ss_p1.w) * p1w) / (c2y / ss_p2.w);
 
-        float p1w = ss_p1.w * (bx * c2y / c2x - by) / (c1y - c1x * c2y / c2x);
+        float p1w = ss_p1.w * (bx * c2y - by * c2x) / (c1y * c2x - c1x * c2y);
+
+
+
         float p2w = ss_p2.w * (by + (c1y / ss_p1.w) * p1w) / (c2y);
 
         p1.w = p1w;
