@@ -336,11 +336,11 @@ void main()
         vec4 ndc2;
 
         ndc1.w = out_sspos1.z;
-        ndc1.xy = (out_sspos1.xy / viewportSize.xy - 0.5)*2.0 * ndc1.w;
+        ndc1.xy = (out_sspos1.xy / viewportSize.xy - 0.5) * 2.0 * ndc1.w;
         float ssradius1 = out_sspos1.w * ndc1.w;
 
         ndc2.w = out_sspos2.z;
-        ndc2.xy = (out_sspos2.xy / viewportSize.xy - 0.5)*2.0 * ndc2.w;
+        ndc2.xy = (out_sspos2.xy / viewportSize.xy - 0.5) * 2.0 * ndc2.w;
         float ssradius2 = out_sspos2.w * ndc2.w;
 
 
@@ -369,14 +369,9 @@ void main()
         vec4 p1 = to_cam(P1);
         vec4 p2 = to_cam(P2);
 
-        // p1.w = ss_p1.w;
-        // p2.w = ss_p2.w;
 
-        // p1.x - p2.x = ((ss_coord.x - ss_p2.x) / ss_p2.w) * p2.w - ((ss_coord.x - ss_p1.x) / ss_p1.w) * p1.w
-        // p1.y - p2.y = ((ss_coord.y - ss_p2.y) / ss_p2.w) * p2.w - ((ss_coord.y - ss_p1.y) / ss_p1.w) * p1.w
 
-        float Cx = ss_coord.x;
-        float Cy = ss_coord.y;
+
 
         float s1x = ss_p1.x;
         float s1y = ss_p1.y;
@@ -386,23 +381,23 @@ void main()
 
 
 
-        float c1x = Cx - s1x;
-        float c1y = Cy - s1y;
-
-        float c2x = Cx - s2x;
-        float c2y = Cy - s2y;
-
-
         float bx = p1.x - p2.x;
         float by = p1.y - p2.y;
 
 
 
-        float p1w = ss_p1.w * (bx * c2y - by * c2x) / (c1y * c2x - c1x * c2y);
+        // float p1w = ss_p1.w * (bx * (-s2y) - by * (-s2x)) / ((-s1y) * (-s2x) - (-s1x) * (-s2y));
+        // float p2w = ss_p2.w * (by + ((-s1y) / ss_p1.w) * p1w) / ((-s2y));
 
+        float o1 = s1y * s2x - s1x * s2y;
 
+        float p1w = 0.0;
+        float p2w = 0.0;
 
-        float p2w = ss_p2.w * (by + (c1y / ss_p1.w) * p1w) / (c2y);
+        if(o1 != 0.0){
+          p1w = ss_p1.w * (by * s2x - bx * s2y) / o1;
+        }
+        p2w = ss_p2.w * (s1y / ss_p1.w * p1w - by) / s2y;
 
         p1.w = p1w;
         p2.w = p2w;
