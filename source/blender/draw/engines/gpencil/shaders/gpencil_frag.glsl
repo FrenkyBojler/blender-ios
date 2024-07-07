@@ -297,14 +297,14 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2, float length_offset){
 
 
 
-
+#define scale_fac (max(viewportSize.x, viewportSize.y))
 
 vec2 from_ss(vec2 a){
-  return (a - viewportSize.xy / 2.0) / max(viewportSize.x, viewportSize.y);
+  return (a - viewportSize.xy / 2.0) / scale_fac;
 }
 
 vec4 from_ss(vec4 a){
-  return vec4(from_ss(a.xy), a.z, a.w / max(viewportSize.x, viewportSize.y));
+  return vec4(from_ss(a.xy), a.z, a.w / scale_fac);
 }
 
 void main()
@@ -320,17 +320,63 @@ void main()
     {
       if(is_multi_dot){
         vec2 coord = from_ss(gl_FragCoord.xy);
+        vec2 ss_coord = coord;
 
         float length_offset = 0.0;
 
-        vec4 p1 = from_ss(gp_interp_flat.sspos1);
-        vec4 p2 = from_ss(gp_interp_flat.sspos2);
+        vec4 ss_p1 = from_ss(gp_interp_flat.sspos1);
+        vec4 ss_p2 = from_ss(gp_interp_flat.sspos2);
 
-        // p1 = gp_interp_flat.sspos1;
-        // p2 = gp_interp_flat.sspos2;
+        mat4 m = ProjectionMatrix;
 
-        vec4 pos1 = from_cam(p1);
-        vec4 pos2 = from_cam(p2);
+        vec4 out_sspos1 = gp_interp_flat.sspos1;
+        vec4 out_sspos2 = gp_interp_flat.sspos2;
+
+        vec4 ndc1;
+        vec4 ndc2;
+
+        ndc1.w = out_sspos1.z;
+        ndc1.xy = (out_sspos1.xy / viewportSize.xy - 0.5)*2.0 * ndc1.w;
+        float ssradius1 = out_sspos1.w * ndc1.w;
+
+        ndc2.w = out_sspos2.z;
+        ndc2.xy = (out_sspos2.xy / viewportSize.xy - 0.5)*2.0 * ndc2.w;
+        float ssradius2 = out_sspos2.w * ndc2.w;
+
+
+        vec3 v1;
+        vec3 v2;
+
+
+        v1[0] = ndc1.x / m[0][0];
+        v1[1] = ndc1.y / m[1][1];
+        v1[2] = (ndc1.w - (m[0][3] * v1[0] + m[1][3] * v1[1] + m[3][3]) ) / m[2][3];
+
+
+
+        v2[0] = ndc2.x / m[0][0];
+        v2[1] = ndc2.y / m[1][1];
+        v2[2] = (ndc2.w - (m[0][3] * v2[0] + m[1][3] * v2[1] + m[3][3]) ) / m[2][3];
+
+
+        // vec4 P1 = p1;
+        // vec4 P2 = p2;
+
+        // P1 = gp_interp_flat.sspos1;
+        // P2 = gp_interp_flat.sspos2;
+
+        vec4 P1 = vec4(v1, ssradius1 / v1.z);
+        vec4 P2 = vec4(v2, ssradius2 / v2.z);
+
+        // P1 = from_cam(p1);
+        // P2 = from_cam(p2);
+
+        // P1 = from_cam(P1);
+        // P2 = from_cam(P2);
+
+        float L = length(P1.xyz - P2.xyz);
+
+
         
         // vec4 pos1 = from_cam(gp_interp_flat.sspos1);
         // vec4 pos2 = from_cam(gp_interp_flat.sspos2);
@@ -344,35 +390,46 @@ void main()
 
         // fragColor = vec4(vec3(gp_interp_flat.sspos1.z), 1.0);
 
-        // fragColor = vec4(vec3(cos(length((pos1 - pos2).xyz)*40.0)), 1.0);
+        // fragColor = vec4(vec3(cos(length((P1 - pos2).xyz)*40.0)), 1.0);
 
-        vec2 uv = (coord - p1.xy) * p1.z;
+        vec4 p1 = to_cam(P1);
+        vec4 p2 = to_cam(P2);
 
-        uv /= pos1.w;
+        // vec2 view_coord = ((ss_coord - p1.xy) / p1.w) * p.w + p.xy;
+        vec2 view_coord = ((ss_coord - ss_p1.xy) / ss_p1.w) * p1.w + p1.xy;
+
+
+
+        vec2 uv = (view_coord - p2.xy) / p2.w;
+
+        uv = ((ss_coord - ss_p2.xy) / ss_p2.w);
 
         uv = uv*0.5 + 0.5;
 
-        // fragColor = get_color(uv);
+        fragColor = get_color(uv);
 
-        int2 bounds = get_bounds(coord, to_cam(pos1), to_cam(pos2), length_offset);
-        int lower = bounds.x;
-        int upper = bounds.y;
+        fragColor.w = 1.0;
+        fragColor.x = (cos(L*1000.0)*0.5+0.5);
 
-        // for(int i = lower; i < upper; i++){
-        for(int i=upper-1; i>=lower; i--){
-          float t = i_to_t(i, to_cam(pos1), to_cam(pos2), length_offset);
+        // int2 bounds = get_bounds(coord, to_cam(P1), to_cam(P2), length_offset);
+        // int lower = bounds.x;
+        // int upper = bounds.y;
 
-          vec4 pos = to_cam(pos1 + (pos2 - pos1) * t);
+        // // for(int i = lower; i < upper; i++){
+        // for(int i=upper-1; i>=lower; i--){
+        //   float t = i_to_t(i, to_cam(P1), to_cam(P2), length_offset);
 
-          vec2 uv = coord - pos.xy;
+        //   vec4 pos = to_cam(P1 + (P2 - P1) * t);
 
-          uv /= pos.w;
+        //   vec2 uv = coord - pos.xy;
 
-          uv = uv*0.5 + 0.5;
+        //   uv /= pos.w;
 
-          // fragColor = alpha_over(fragColor, get_color(uv));
-          fragColor = alpha_over(get_color(uv), fragColor);
-        }
+        //   uv = uv*0.5 + 0.5;
+
+        //   // fragColor = alpha_over(fragColor, get_color(uv));
+        //   fragColor = alpha_over(get_color(uv), fragColor);
+        // }
       } else {
         vec2 uv = gl_FragCoord.xy - gp_interp_flat.sspos1.xy;
 
