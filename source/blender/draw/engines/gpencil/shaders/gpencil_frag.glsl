@@ -395,29 +395,12 @@ void main()
         p1.w = p1w;
         p2.w = p2w;
 
-        vec2 view_coord = ((ss_coord - ss_p1.xy) / ss_p1.w) * p1.w + p1.xy;
-        // vec2 view_coord = ((ss_coord - ss_p2.xy) / ss_p2.w) * p2.w + p2.xy;
+        vec2 view_coord = ss_coord * p1.w / ss_p1.w;
 
 
         P1 = from_cam(p1);
         P2 = from_cam(p2);
 
-
-
-        // vec2 uv = (view_coord - p1.xy) / p1.w;
-        vec2 uv = (view_coord - p2.xy) / p2.w;
-        // vec2 uv = ((ss_coord - ss_p2.xy) / ss_p2.w);
-
-
-
-        uv = uv*0.5 + 0.5;
-
-        fragColor = get_color(uv);
-
-        // fragColor.w = 1.0;
-        // fragColor.x = (cos(L*1000.0)*0.5+0.5);
-
-        // fragColor.xy = ss_coord;
 
         int2 bounds = get_bounds(coord, to_cam(P1), to_cam(P2), length_offset);
         int lower = bounds.x;
