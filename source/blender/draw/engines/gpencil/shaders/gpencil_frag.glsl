@@ -361,10 +361,17 @@ void main()
         vec3 v2 = point_ndc_to_view(ndc2);
 
 
-        vec3 view_dir = point_ndc_to_view(vec4(gl_FragCoord.xy / viewportSize.xy, 0, 1) * 2.0 - 1.0);
+        vec3 view_dir = point_ndc_to_view(vec4(gl_FragCoord.xy / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
         vec2 view_coord = view_dir.xy / view_dir.z;
 
-        float scale_fac = (v1.x / v1.z) / ss_p1.x;
+        float dx = 15.0;
+
+        vec3 dview_dir = point_ndc_to_view(vec4((gl_FragCoord.xy + vec2(dx, 0.0)) / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
+        vec2 dview_coord = dview_dir.xy / dview_dir.z;
+
+        vec2 dv_dx = (dview_coord - view_coord) / dx;
+        float scale_fac = length(dv_dx);
+        
         vec4 P1 = vec4(v1, ss_p1.w * scale_fac * v1.z);
         vec4 P2 = vec4(v2, ss_p2.w * scale_fac * v2.z);
 
