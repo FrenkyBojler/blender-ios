@@ -353,6 +353,10 @@ void main()
         float ssradius2 = out_sspos2.w * ndc2.w;
 
 
+        ndc1 = screen_space_to_ndc_and_radius(out_sspos1, ssradius1, viewportSize);
+        ndc2 = screen_space_to_ndc_and_radius(out_sspos2, ssradius2, viewportSize);
+
+
         vec3 v1 = point_ndc_to_view(ndc1);
         vec3 v2 = point_ndc_to_view(ndc2);
 

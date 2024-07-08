@@ -45,6 +45,15 @@ float gpencil_stroke_round_cap_mask(vec2 p1, vec2 p2, vec2 aspect, float thickne
 }
 #endif
 
+vec4 ndc_and_radius_to_screen_space(vec4 ndc, float radius, vec2 viewport_size){
+  return vec4(((ndc.xy / ndc.w) * 0.5 + 0.5) * viewport_size, ndc.w, radius / ndc.w);
+}
+
+vec4 screen_space_to_ndc_and_radius(vec4 ss, out float radius, vec2 viewport_size){
+  radius = ss.w * ss.z;
+  return vec4((ss.xy / viewport_size - 0.5) * 2.0 * ss.z, 0, ss.z);
+}
+
 vec2 gpencil_decode_aspect(int packed_data)
 {
   float asp = float(uint(packed_data) & 0x1FFu) * (1.0 / 255.0);
@@ -264,16 +273,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
     out_sspos2.z = ndc2.w;
     out_sspos2.w = ssradius2 / ndc2.w;
 
-
-
-    out_sspos1.xy = ((ndc1.xy / ndc1.w) * 0.5 + 0.5) * viewport_size.xy;
-    out_sspos1.z = ndc1.w;
-    out_sspos1.w = ssradius1 / ndc1.w;
-    out_sspos2.xy = ((ndc2.xy / ndc2.w) * 0.5 + 0.5) * viewport_size.xy;
-    out_sspos2.z = ndc2.w;
-    out_sspos2.w = ssradius2 / ndc2.w;
-
-
+    out_sspos1 = ndc_and_radius_to_screen_space(ndc1, ssradius1, viewport_size.xy);
+    out_sspos2 = ndc_and_radius_to_screen_space(ndc2, ssradius2, viewport_size.xy);
 
     // out_sspos1.xy = ndc1.xy;
     // out_sspos1.z = ndc1.w;
