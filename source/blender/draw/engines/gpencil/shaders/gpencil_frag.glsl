@@ -171,10 +171,10 @@ float t_to_i(float t, vec4 p1, vec4 p2, float length_offset){
 
 
 int round_q(float fnum){
-    return int(ceil(fnum));
     if(mod(fnum, 1.0) < 0.0001){
         return int(floor(fnum));
     }
+    return int(ceil(fnum));
 }
 
 
