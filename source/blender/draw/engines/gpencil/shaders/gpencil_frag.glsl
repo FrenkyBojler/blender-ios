@@ -325,14 +325,11 @@ void main()
       if(is_multi_dot){
         float length_offset = 0.0;
 
-        vec4 sspos1 = gp_interp_flat.sspos1;
-        vec4 sspos2 = gp_interp_flat.sspos2;
-
         float radius1;
         float radius2;
 
-        vec4 ndc1 = screen_space_to_ndc_and_radius(sspos1, radius1, viewportSize);
-        vec4 ndc2 = screen_space_to_ndc_and_radius(sspos2, radius2, viewportSize);
+        vec4 ndc1 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos1, radius1, viewportSize);
+        vec4 ndc2 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos2, radius2, viewportSize);
 
 
         vec3 v1 = point_ndc_to_view(ndc1);
@@ -350,8 +347,8 @@ void main()
         vec2 dv_dx = (dview_coord - view_coord) / dx;
         float scale_fac = length(dv_dx);
 
-        vec4 P1 = vec4(v1, sspos1.w * scale_fac * v1.z);
-        vec4 P2 = vec4(v2, sspos2.w * scale_fac * v2.z);
+        vec4 P1 = vec4(v1, radius1 * scale_fac);
+        vec4 P2 = vec4(v2, radius2 * scale_fac);
 
         vec4 p1 = to_cam(P1);
         vec4 p2 = to_cam(P2);
