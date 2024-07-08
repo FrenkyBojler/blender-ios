@@ -371,29 +371,19 @@ void main()
         int lower = bounds.x;
         int upper = bounds.y;
 
-        // for(int i = lower; i < upper; i++){
         for(int i=upper-1; i>=lower; i--){
           float t = i_to_t(i, p1, p2, length_offset);
 
           vec4 pos = to_cam(P1 + (P2 - P1) * t);
 
-          vec2 uv = view_coord - pos.xy;
+          vec2 uv = (view_coord - pos.xy) / pos.w;
 
-          uv /= pos.w;
-
-          uv = uv*0.5 + 0.5;
-
-          // fragColor = alpha_over(fragColor, get_color(uv));
-          fragColor = alpha_over(get_color(uv), fragColor);
+          fragColor = alpha_over(get_color(uv*0.5 + 0.5), fragColor);
         }
       } else {
-        vec2 uv = gl_FragCoord.xy - gp_interp_flat.sspos1.xy;
+        vec2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos1.xy) / gp_interp_flat.sspos1.w;
 
-        uv /= gp_interp_flat.sspos1.w / 2.0;
-
-        uv = uv*0.5 + 0.5;
-
-        fragColor = get_color(uv);
+        fragColor = get_color(uv*0.5 + 0.5);
       }
     }
     else{ // line
