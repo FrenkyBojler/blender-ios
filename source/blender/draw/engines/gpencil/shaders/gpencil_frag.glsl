@@ -317,9 +317,7 @@ void main()
     if(flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) // dot and squares
     {
       if(is_multi_dot){
-        vec2 coord = from_ss(gl_FragCoord.xy);
-        vec2 ss_coord = coord;
-        vec2 view_coord = vec2(0.0);
+        vec2 ss_coord = from_ss(gl_FragCoord.xy);
 
         float length_offset = 0.0;
 
@@ -370,42 +368,13 @@ void main()
 
 
 
+        // float scale_fac = (p1.x - p2.x) / (ss_p1.x - ss_p2.x);
+        float scale_fac = p1.x / ss_p1.x;
 
 
-        float s1x = ss_p1.x;
-        float s1y = ss_p1.y;
-
-        float s2x = ss_p2.x;
-        float s2y = ss_p2.y;
-
-
-
-        float bx = p1.x - p2.x;
-        float by = p1.y - p2.y;
-
-
-
-        // float p1w = ss_p1.w * (bx * (-s2y) - by * (-s2x)) / ((-s1y) * (-s2x) - (-s1x) * (-s2y));
-        // float p2w = ss_p2.w * (by + ((-s1y) / ss_p1.w) * p1w) / ((-s2y));
-
-        float o1 = s1y * s2x - s1x * s2y;
-
-        float scale_fac = 0.0;
-
-        if(o1 != 0.0){
-          scale_fac = (by * s2x - bx * s2y) / o1;
-        }
-
-
-
-        view_coord = ss_coord * scale_fac;
-        float p1w = ss_p1.w * scale_fac;
-        float p2w = ss_p2.w * scale_fac;
-
-        // scale_fac = (s1y / ss_p1.w * p1w - by) / s2y
-
-        p1.w = p1w;
-        p2.w = p2w;
+        vec2 view_coord = ss_coord * scale_fac;
+        p1.w = ss_p1.w * scale_fac;
+        p2.w = ss_p2.w * scale_fac;
 
 
 
@@ -413,7 +382,7 @@ void main()
         P2 = from_cam(p2);
 
 
-        int2 bounds = get_bounds(coord, to_cam(P1), to_cam(P2), length_offset);
+        int2 bounds = get_bounds(view_coord, to_cam(P1), to_cam(P2), length_offset);
         int lower = bounds.x;
         int upper = bounds.y;
 
