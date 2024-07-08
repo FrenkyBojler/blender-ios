@@ -263,25 +263,11 @@ vec4 gpencil_vertex(vec4 viewport_size,
     out_uv = vec2(x, y) * 0.5 + 0.5;
     out_hardness = gpencil_decode_hardness(use_curr ? hardness1 : hardness2);
 
-    float ssradius1 = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_size) / 2.0;
-    float ssradius2 = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_size) / 2.0;
+    float radius1 = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_size) / 2.0;
+    float radius2 = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_size) / 2.0;
 
-    out_sspos1.xy = ss1;
-    out_sspos1.z = ndc1.w;
-    out_sspos1.w = ssradius1 / ndc1.w;
-    out_sspos2.xy = ss2;
-    out_sspos2.z = ndc2.w;
-    out_sspos2.w = ssradius2 / ndc2.w;
-
-    out_sspos1 = ndc_and_radius_to_screen_space(ndc1, ssradius1, viewport_size.xy);
-    out_sspos2 = ndc_and_radius_to_screen_space(ndc2, ssradius2, viewport_size.xy);
-
-    // out_sspos1.xy = ndc1.xy;
-    // out_sspos1.z = ndc1.w;
-    // out_sspos1.w = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_size) / ndc1.w / 2.0;
-    // out_sspos2.xy = ndc2.xy;
-    // out_sspos2.z = ndc2.w;
-    // out_sspos2.w = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_size) / ndc2.w / 2.0;
+    out_sspos1 = ndc_and_radius_to_screen_space(ndc1, radius1, viewport_size.xy);
+    out_sspos2 = ndc_and_radius_to_screen_space(ndc2, radius2, viewport_size.xy);
 
     if (is_dot && is_multi_dot) {
       out_thickness.x = clamped_thickness / out_ndc.w;
