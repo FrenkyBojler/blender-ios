@@ -353,20 +353,8 @@ void main()
         float ssradius2 = out_sspos2.w * ndc2.w;
 
 
-        vec3 v1;
-        vec3 v2;
-
-
-        v1[0] = ndc1.x / m[0][0];
-        v1[1] = ndc1.y / m[1][1];
-        v1[2] = (ndc1.w - (m[0][3] * v1[0] + m[1][3] * v1[1] + m[3][3]) ) / m[2][3];
-
-
-
-        v2[0] = ndc2.x / m[0][0];
-        v2[1] = ndc2.y / m[1][1];
-        v2[2] = (ndc2.w - (m[0][3] * v2[0] + m[1][3] * v2[1] + m[3][3]) ) / m[2][3];
-
+        vec3 v1 = point_ndc_to_view(ndc1);
+        vec3 v2 = point_ndc_to_view(ndc2);
 
 
         float scale_fac = (v1.x / v1.z) / ss_p1.x;

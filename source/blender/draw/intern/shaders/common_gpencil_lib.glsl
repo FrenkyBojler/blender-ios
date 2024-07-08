@@ -239,46 +239,6 @@ vec4 gpencil_vertex(vec4 viewport_size,
     out_P = (use_curr) ? wpos1 : wpos2;
     out_strength = abs((use_curr) ? strength1 : strength2);
 
-    ndc1 = ProjectionMatrix * (ViewMatrix * vec4(wpos1, 1.0));
-    ndc2 = ProjectionMatrix * (ViewMatrix * vec4(wpos2, 1.0));
-
-    vec4 v1 = ViewMatrix * vec4(wpos1, 1.0);
-    vec4 v2 = ViewMatrix * vec4(wpos2, 1.0);
-
-    mat4 m = ProjectionMatrix;
-
-    ndc1 = m * v1;
-    ndc2 = m * v2;
-
-    ndc1 = vec4(m[0][0] * v1[0] + m[1][0] * v1[1] + m[2][0] * v1[2] + m[3][0] * v1[3],
-                m[0][1] * v1[0] + m[1][1] * v1[1] + m[2][1] * v1[2] + m[3][1] * v1[3],
-                m[0][2] * v1[0] + m[1][2] * v1[1] + m[2][2] * v1[2] + m[3][2] * v1[3],
-                m[0][3] * v1[0] + m[1][3] * v1[1] + m[2][3] * v1[2] + m[3][3] * v1[3]);
-    
-    ndc2 = vec4(m[0][0] * v2[0] + m[1][0] * v2[1] + m[2][0] * v2[2] + m[3][0] * v2[3],
-                m[0][1] * v2[0] + m[1][1] * v2[1] + m[2][1] * v2[2] + m[3][1] * v2[3],
-                m[0][2] * v2[0] + m[1][2] * v2[1] + m[2][2] * v2[2] + m[3][2] * v2[3],
-                m[0][3] * v2[0] + m[1][3] * v2[1] + m[2][3] * v2[2] + m[3][3] * v2[3]);
-
-
-
-    // ndc1 = vec4(m[0][0] * v1[0]                                                      ,
-    //                             + m[1][1] * v1[1]                                    ,
-    //                                               + m[2][2] * v1[2]                  ,
-    //             m[0][3] * v1[0] + m[1][3] * v1[1] + m[2][3] * v1[2] + m[3][3] * v1[3]);
-
-    // ndc1.x = m[0][0] * v1[0];
-    // ndc1.y = m[1][1] * v1[1];
-    // ndc1.z = m[2][2] * v1[2];
-    // ndc1.w = m[0][3] * v1[0] + m[1][3] * v1[1] + m[2][3] * v1[2] + m[3][3] * v1[3];
-
-    ndc1.x = m[0][0] * v1[0];
-    ndc1.y = m[1][1] * v1[1];
-    ndc1.z = m[2][2] * v1[2];
-    ndc1.w = m[0][3] * v1[0] + m[1][3] * v1[1] + m[2][3] * v1[2] + m[3][3];
-
-    
-
     vec2 ss_adj = gpencil_project_to_screenspace(ndc_adj, viewport_size);
     vec2 ss1 = gpencil_project_to_screenspace(ndc1, viewport_size);
     vec2 ss2 = gpencil_project_to_screenspace(ndc2, viewport_size);

@@ -245,6 +245,11 @@ vec4 point_view_to_ndc(vec3 p)
   return ProjectionMatrix * vec4(p, 1.0);
 }
 
+vec3 point_ndc_to_view(vec4 ndc)
+{
+  return (ProjectionMatrixInverse * ndc).xyz;
+}
+
 vec3 point_view_to_world(vec3 p)
 {
   return (ViewMatrixInverse * vec4(p, 1.0)).xyz;
