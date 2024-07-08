@@ -311,14 +311,6 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2, float length_offset){
 
 
 
-vec2 from_ss(vec2 a){
-  return a - viewportSize.xy / 2.0;
-}
-
-vec4 from_ss(vec4 a){
-  return vec4(from_ss(a.xy), a.z, a.w);
-}
-
 void main()
 {
   bool is_multi_dot = true;
@@ -333,28 +325,14 @@ void main()
       if(is_multi_dot){
         float length_offset = 0.0;
 
-        vec4 ss_p1 = from_ss(gp_interp_flat.sspos1);
-        vec4 ss_p2 = from_ss(gp_interp_flat.sspos2);
+        vec4 sspos1 = gp_interp_flat.sspos1;
+        vec4 sspos2 = gp_interp_flat.sspos2;
 
-        mat4 m = ProjectionMatrix;
+        float radius1;
+        float radius2;
 
-        vec4 out_sspos1 = gp_interp_flat.sspos1;
-        vec4 out_sspos2 = gp_interp_flat.sspos2;
-
-        vec4 ndc1;
-        vec4 ndc2;
-
-        ndc1.w = out_sspos1.z;
-        ndc1.xy = (out_sspos1.xy / viewportSize.xy - 0.5) * 2.0 * ndc1.w;
-        float ssradius1 = out_sspos1.w * ndc1.w;
-
-        ndc2.w = out_sspos2.z;
-        ndc2.xy = (out_sspos2.xy / viewportSize.xy - 0.5) * 2.0 * ndc2.w;
-        float ssradius2 = out_sspos2.w * ndc2.w;
-
-
-        ndc1 = screen_space_to_ndc_and_radius(out_sspos1, ssradius1, viewportSize);
-        ndc2 = screen_space_to_ndc_and_radius(out_sspos2, ssradius2, viewportSize);
+        vec4 ndc1 = screen_space_to_ndc_and_radius(sspos1, radius1, viewportSize);
+        vec4 ndc2 = screen_space_to_ndc_and_radius(sspos2, radius2, viewportSize);
 
 
         vec3 v1 = point_ndc_to_view(ndc1);
@@ -371,9 +349,9 @@ void main()
 
         vec2 dv_dx = (dview_coord - view_coord) / dx;
         float scale_fac = length(dv_dx);
-        
-        vec4 P1 = vec4(v1, ss_p1.w * scale_fac * v1.z);
-        vec4 P2 = vec4(v2, ss_p2.w * scale_fac * v2.z);
+
+        vec4 P1 = vec4(v1, sspos1.w * scale_fac * v1.z);
+        vec4 P2 = vec4(v2, sspos2.w * scale_fac * v2.z);
 
         vec4 p1 = to_cam(P1);
         vec4 p2 = to_cam(P2);
