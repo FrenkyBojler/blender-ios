@@ -205,6 +205,40 @@ float screen_t_to_local_t(float screen_t, float z1, float z2){
     return local_t;
 }
 
+vec2 uneven_capsule_intersection(vec4 p1, vec4 p2, vec2 p0){
+    float l = distance(p1.xy, p2.xy);
+    float r1 = p1.w/p1.z;
+    float r2 = p2.w/p2.z;
+    
+    float local_dis_sq = dot(p2.xy-p1.xy, p2.xy-p1.xy);
+    float X = (dot(p0-p1.xy, p2.xy-p1.xy)/local_dis_sq)*l;
+    vec2 p_t = p1.xy + (p2-p1).xy*(X/l);
+    float Y = distance(p_t, p0);
+    
+    float a = l*l - (r2-r1)*(r2-r1);
+    float b = -2.0*(r1*(r2-r1) + l*X);
+    float c = Y*Y + X*X - r1*r1;
+    
+    float discriminant = b*b - 4.0*a*c;
+    if(discriminant < 0.0){
+        return vec2(-1.0, -1.0);
+    }
+    
+    vec2 t = (vec2(-1.0, 1.0)*sqrt(discriminant) - vec2(b,b))*(1.0/(2.0*a));
+    
+    if( r1 < r2 ) {
+        if(l-r2 < -r1){
+            return vec2(t.x, 1.0);
+        }
+    }else{
+        if(l+r2 < r1){
+            return vec2(0.0, t.y);
+        }
+    }
+    
+    return t;
+}
+
 int min_bound(vec4 p1, vec4 p2, float length_offset){
     return round_q(t_to_i(0.0, p1, p2, length_offset));
 }
@@ -217,54 +251,34 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2, float length_offset){
     if(TYPE == TYPE_DOT){
         return int2(0, 1);
     }
-    
-    int min_lower = 0;
-    int max_upper = round_q(t_to_i(1.0, p1, p2, length_offset));
 
-    return int2(min_lower, max_upper);
+    int min_lower = min_bound(p1, p2, length_offset);
+    int max_upper = max_bound(p1, p2, length_offset);
 
     int lower = 0;
     int upper = 1000000000;
-    
-
-    vec4 P1 = from_cam(p1);
-    vec4 P2 = from_cam(p2);
 
     if(!(p1.z > 0 && p2.z > 0)) {
         return int2(min_lower, max_upper);
-    } 
+    }
+
+    vec2 ts = uneven_capsule_intersection(p1, p2, p0);
     
-    float local_dis_sq = dot((p2-p1).xy, (p2-p1).xy);
-    float t = saturate(dot(p0-p1.xy, (p2-p1).xy)/local_dis_sq);
-    vec3 p_t = (p1 + (p2-p1)*t).xyz;
-    
-    float r = max(p1.w/p1.z, p2.w/p2.z);
-    
-//    r = r1/p1.z + (r2/p2.z - r1/p1.z) * t;
-    
-    if( length(p_t.xy - p0.xy) > r){
+    if(ts.x == -1 && ts.y == -1){
         return int2(0, 0);
     }
 
-//        if(sdUnevenCapsule(p0*xy-p1*xy, r1/p1.z, r2/p2.z, distance(p1*xy,p2*xy))<0.0){
-//            upper = 0;
-//        }
-
-    vec2 ts = circle_line_intersection(p1.xy, p2.xy, p0, r);
-    
-    if(ts.x != -1 && ts.y != -1){
-        float t_min = screen_t_to_local_t(ts.x, p1.z, p2.z);
-        float t_max = screen_t_to_local_t(ts.y, p1.z, p2.z);
-        
-        
-        lower = int(floor(t_to_i(t_min, p1, p2, length_offset)));
-        upper = int(ceil(t_to_i(t_max, p1, p2, length_offset))) + 1;
-    }
-    else{
+    if(ts.y<0.0 || ts.x>1.0){
         return int2(0, 0);
     }
-    
-    
+
+    float t_min = screen_t_to_local_t(saturate(ts.x), p1.z, p2.z);
+    float t_max = screen_t_to_local_t(saturate(ts.y), p1.z, p2.z);
+
+    lower = int(floor(t_to_i(t_min, p1, p2, length_offset)));
+    upper = int(ceil(t_to_i(t_max, p1, p2, length_offset))) + 1;
+
+
     lower = max(min_lower, lower);
     upper = min(max_upper, upper);
 
