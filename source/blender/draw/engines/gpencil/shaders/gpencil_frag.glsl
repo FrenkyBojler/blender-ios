@@ -317,8 +317,6 @@ void main()
     if(flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) // dot and squares
     {
       if(is_multi_dot){
-        vec2 ss_coord = from_ss(gl_FragCoord.xy);
-
         float length_offset = 0.0;
 
         vec4 ss_p1 = from_ss(gp_interp_flat.sspos1);
@@ -356,39 +354,25 @@ void main()
         v2[2] = (ndc2.w - (m[0][3] * v2[0] + m[1][3] * v2[1] + m[3][3]) ) / m[2][3];
 
 
-        vec4 P1 = vec4(v1, ssradius1 * v1.z);
-        vec4 P2 = vec4(v2, ssradius2 * v2.z);
+
+        float scale_fac = (v1.x / v1.z) / ss_p1.x;
+        vec2 view_coord = from_ss(gl_FragCoord.xy) * scale_fac;
 
 
-        float L = length(P1.xyz - P2.xyz);
 
+        vec4 P1 = vec4(v1, ss_p1.w * scale_fac * v1.z);
+        vec4 P2 = vec4(v2, ss_p2.w * scale_fac * v2.z);
 
         vec4 p1 = to_cam(P1);
         vec4 p2 = to_cam(P2);
 
-
-
-        // float scale_fac = (p1.x - p2.x) / (ss_p1.x - ss_p2.x);
-        float scale_fac = p1.x / ss_p1.x;
-
-
-        vec2 view_coord = ss_coord * scale_fac;
-        p1.w = ss_p1.w * scale_fac;
-        p2.w = ss_p2.w * scale_fac;
-
-
-
-        P1 = from_cam(p1);
-        P2 = from_cam(p2);
-
-
-        int2 bounds = get_bounds(view_coord, to_cam(P1), to_cam(P2), length_offset);
+        int2 bounds = get_bounds(view_coord, p1, p2, length_offset);
         int lower = bounds.x;
         int upper = bounds.y;
 
         // for(int i = lower; i < upper; i++){
         for(int i=upper-1; i>=lower; i--){
-          float t = i_to_t(i, to_cam(P1), to_cam(P2), length_offset);
+          float t = i_to_t(i, p1, p2, length_offset);
 
           vec4 pos = to_cam(P1 + (P2 - P1) * t);
 
