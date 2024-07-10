@@ -180,12 +180,10 @@ ccl_device void kernel_volume_density_evaluate(KernelGlobals kg,
       /* Convert to world spcace. */
       sd.P = transform_point(&tfm, sd.P);
     }
-    sd.closure_transparent_extinction = zero_float3();
-    sd.closure_emission_background = zero_float3();
 
-    /* Evaluate volume coefficients. */
-    volume_shader_eval_entry<false,
-                             KERNEL_FEATURE_NODE_MASK_VOLUME & ~KERNEL_FEATURE_NODE_LIGHT_PATH>(
+    /* Sample volume coefficients. */
+    volume_shader_sample_entry<false,
+                               KERNEL_FEATURE_NODE_MASK_VOLUME & ~KERNEL_FEATURE_NODE_LIGHT_PATH>(
         kg, INTEGRATOR_STATE_NULL, &sd, entry, path_flag);
 
     const float sigma = reduce_max(sd.closure_transparent_extinction);

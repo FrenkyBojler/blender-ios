@@ -14,7 +14,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_volume_occupancy_convert)
 
 bool is_front_face_hit(float stored_hit_depth)
 {
-  return stored_hit_depth < 0.0f;
+  return stored_hit_depth > 0.0f;
 }
 
 void main()
@@ -58,37 +58,32 @@ void main()
 
   /* Convert to occupancy bits. */
   occupancy::Bits occupancy = occupancy::occupancy_new();
-  /* True if last interface was a volume entry. */
-  /* Initialized to front facing if first hit is a backface to support camera inside the volume. */
-  bool last_frontfacing = !is_front_face_hit(hit_ordered[0]);
+  /* Consider camera in volume if first hit is a backface. */
+  bool camera_in_volume = !is_front_face_hit(hit_ordered[0]);
+  int stack_depth = int(camera_in_volume);
   /* Add artificial back-facing hit to close volumes we entered but never exited.
    * Fixes issues with non-manifold meshes or things like water planes. */
   hit_ordered[hit_count] = -1.0f;
   /* Bit index of the last interface. */
   int last_bit = 0;
   for (int i = 0; i <= hit_count; i++) {
-    bool frontfacing = is_front_face_hit(hit_ordered[i]);
-    if (last_frontfacing == frontfacing) {
-      /* Same facing, do not treat as a volume interface. */
-      continue;
-    }
-    last_frontfacing = frontfacing;
-
     int occupancy_bit_n = occupancy::bit_index_from_depth(abs(hit_ordered[i]),
                                                           uniform_buf.volumes.tex_size.z);
-    if (last_bit == occupancy_bit_n) {
-      /* We did not cross a new voxel center. Do nothing. */
-      continue;
-    }
     int bit_start = last_bit;
     int bit_count = occupancy_bit_n - last_bit;
     last_bit = occupancy_bit_n;
 
-    if (last_frontfacing == false) {
-      /* occupancy::Bits is cleared by default. No need to do anything for empty regions. */
-      continue;
+    /* occupancy::Bits is cleared by default. No need to do anything for empty regions. */
+    if (stack_depth != 0) {
+      occupancy = occupancy::set_bits_high(occupancy, bit_start, bit_count);
     }
-    occupancy = occupancy::set_bits_high(occupancy, bit_start, bit_count);
+
+    if (is_front_face_hit(hit_ordered[i])) {
+      stack_depth++;
+    }
+    else {
+      stack_depth = max(stack_depth - 1, 0);
+    }
   }
 
   /* Write the occupancy bits */

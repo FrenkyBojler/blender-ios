@@ -445,6 +445,11 @@ ccl_device_inline bool volume_shader_eval_entry(KernelGlobals kg,
     return false;
   }
 
+  if (entry.object == sd->object && entry.shader == sd->shader) {
+    /* Already in the stack, do not accumulate properties. */
+    return true;
+  }
+
   /* Setup shader-data from stack. It's mostly setup already in shader_setup_from_volume, this
    * switching should be quick. */
   sd->object = entry.object;
@@ -492,6 +497,25 @@ ccl_device_inline bool volume_shader_eval_entry(KernelGlobals kg,
   return true;
 }
 
+/* Take one sample of the volume coefficients. */
+template<const bool shadow, const uint node_feature_mask, typename IntegratorGenericState>
+ccl_device_inline void volume_shader_sample_entry(KernelGlobals kg,
+                                                  const IntegratorGenericState state,
+                                                  ccl_private ShaderData *ccl_restrict sd,
+                                                  const ccl_private VolumeStack &entry,
+                                                  const uint32_t path_flag)
+
+{
+  /* Coefficients are accumulated, resetting at the beginning. */
+  sd->closure_transparent_extinction = zero_spectrum();
+  sd->closure_emission_background = zero_spectrum();
+  sd->object = OBJECT_NONE;
+  sd->shader = SHADER_NONE;
+
+  /* Evaluate volume coefficients. */
+  volume_shader_eval_entry<shadow, node_feature_mask>(kg, state, sd, entry, path_flag);
+}
+
 template<const bool shadow, typename ConstIntegratorGenericState>
 ccl_device_inline void volume_shader_eval(KernelGlobals kg,
                                           ConstIntegratorGenericState state,
@@ -515,6 +539,8 @@ ccl_device_inline void volume_shader_eval(KernelGlobals kg,
   sd->num_closure_left = max_closures;
   sd->flag = SD_IS_VOLUME_SHADER_EVAL;
   sd->object_flag = 0;
+  sd->object = OBJECT_NONE;
+  sd->shader = SHADER_NONE;
 
   for (int i = 0;; i++) {
     const VolumeStack entry = volume_stack_read<shadow>(state, i);

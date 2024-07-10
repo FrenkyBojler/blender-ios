@@ -321,10 +321,7 @@ ccl_device_noinline Extrema<float> volume_estimate_extrema(KernelGlobals kg,
     const float shade_t = min(ray->tmax, ray->tmin + (shade_offset + i) * step_size);
     sd->P = ray->P + ray->D * shade_t;
 
-    sd->closure_transparent_extinction = zero_float3();
-    sd->closure_emission_background = zero_float3();
-
-    volume_shader_eval_entry<shadow, KERNEL_FEATURE_NODE_MASK_VOLUME>(
+    volume_shader_sample_entry<shadow, KERNEL_FEATURE_NODE_MASK_VOLUME>(
         kg, state, sd, entry, path_flag);
 
     const float sigma = reduce_max(sd->closure_transparent_extinction);

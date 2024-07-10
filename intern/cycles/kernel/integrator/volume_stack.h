@@ -87,11 +87,6 @@ ccl_device void volume_stack_enter_exit(KernelGlobals kg,
       if (entry.shader == SHADER_NONE) {
         break;
       }
-
-      /* Already in the stack? then we have nothing to do. */
-      if (entry.object == sd->object && entry.shader == sd->shader) {
-        return;
-      }
     }
 
     /* If we exceed the stack limit, ignore. */
