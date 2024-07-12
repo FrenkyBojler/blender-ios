@@ -595,6 +595,7 @@ struct PaintOperationExecutor {
     init_times.finish();
 
     curves.curve_types_for_write()[active_curve] = CURVE_TYPE_POLY;
+    curve_attributes_to_skip.add("curve_type");
     curves.update_curve_types();
 
     /* Initialize the rest of the attributes with default values. */
@@ -1263,6 +1264,11 @@ static int trim_end_points(bke::greasepencil::Drawing &drawing,
 
   if (num_points_to_remove <= 0) {
     return 0;
+  }
+
+  /* Don't remove the entire stroke. Leave at least one point. */
+  if (points.size() - num_points_to_remove < 1) {
+    num_points_to_remove = points.size() - 1;
   }
 
   if (!on_back) {

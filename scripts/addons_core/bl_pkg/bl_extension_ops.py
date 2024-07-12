@@ -349,11 +349,39 @@ def lock_result_any_failed_with_report(op, lock_result, report_type='ERROR'):
     Note that we might want to allow some repositories not to lock and still proceed (in the future).
     """
     any_errors = False
+
+    # Hint for users as this is non-obvious, only show once.
+    unlock_hint_text = (
+        "\n"
+        "If the lock was held by a Blender instance that exited unexpectedly,\n"
+        "use: \"Fore Unlock Repository\" to clear the lock.\n"
+        "Access from the \"Repositories\" popover in the extensions preferences."
+    )
+
     for directory, lock_result_for_repo in lock_result.items():
         if lock_result_for_repo is None:
             continue
-        print("Error \"{:s}\" locking \"{:s}\"".format(lock_result_for_repo, repr(directory)))
-        op.report({report_type}, lock_result_for_repo)
+
+        # NOTE: the lock operation could also store the repository names however it's a reasonable
+        # amount of added boiler plate for minimal gain. Do a lookup here instead.
+        # The chance the name can't be found is low: A repositories directory could have
+        # been changed since the lock was requested, in practice it shouldn't happen.
+        # If it does, using a fallback name is acceptable.
+        repo_name = next(
+            (repo.name for repo in extension_repos_read() if repo.directory == directory),
+            "<unknown>",
+        )
+
+        print("Error locking repository \"{:s}\": {:s}".format(repo_name, lock_result_for_repo))
+        op.report(
+            {report_type},
+            "Repository \"{:s}\": {:s}{:s}".format(
+                repo_name,
+                lock_result_for_repo,
+                "" if any_errors else unlock_hint_text,
+            ),
+        )
+
         any_errors = True
     return any_errors
 
@@ -404,7 +432,7 @@ def repo_iter_valid_only(context, *, exclude_remote, exclude_system):
             if (not repo_item.use_remote_url) and (repo_item.source == 'SYSTEM'):
                 continue
         # Ignore repositories that have invalid settings.
-        directory, remote_url = repo_paths_or_none(repo_item)
+        directory, _remote_url = repo_paths_or_none(repo_item)
         if directory is None:
             continue
         yield repo_item
@@ -494,16 +522,17 @@ def repo_cache_store_refresh_from_prefs(repo_cache_store, include_disabled=False
     return repos
 
 
-def _preferences_ensure_disabled(*, repo_item, pkg_id_sequence, default_set):
+def _preferences_ensure_disabled(
+        *,
+        repo_item,  # `RepoItem`
+        pkg_id_sequence,  # `List[str]`
+        default_set,  # `bool`
+        error_fn,  # `Callable[[Exception], None]`
+):  # `-> Dict[str, Tuple[boo, bool]]`
     import sys
     import addon_utils
 
     result = {}
-    errors = []
-
-    def handle_error(ex):
-        print("Error:", ex)
-        errors.append(str(ex))
 
     modules_clear = []
 
@@ -530,7 +559,7 @@ def _preferences_ensure_disabled(*, repo_item, pkg_id_sequence, default_set):
             if not hasattr(repo_module, pkg_id):
                 print("Repo module \"{:s}.{:s}\" not a sub-module!".format(".".join(module_base_elem), pkg_id))
 
-        addon_utils.disable(addon_module_name, default_set=default_set, handle_error=handle_error)
+        addon_utils.disable(addon_module_name, default_set=default_set, handle_error=error_fn)
 
         modules_clear.append(pkg_id)
 
@@ -569,11 +598,12 @@ def _preferences_ensure_disabled(*, repo_item, pkg_id_sequence, default_set):
                 continue
             delattr(repo_module, pkg_id)
 
-    return result, errors
+    return result
 
 
 def _preferences_ensure_enabled(*, repo_item, pkg_id_sequence, result, handle_error):
     import addon_utils
+    _ = repo_item, pkg_id_sequence
     for addon_module_name, (loaded_default, loaded_state) in result.items():
         # The module was not loaded, so no need to restore it.
         if not loaded_state:
@@ -639,7 +669,8 @@ def _preferences_ui_redraw():
 def _preferences_ui_refresh_addons():
     import addon_utils
     # TODO: make a public method.
-    addon_utils.modules._is_first = True
+    # pylint: disable-next=protected-access
+    addon_utils._is_first_reset()
 
 
 def extension_repos_read_index(index, *, include_disabled=False):
@@ -928,6 +959,7 @@ def _extensions_repo_sync_wheels(repo_cache_store, extensions_enabled):
     local_dir = os.path.join(extensions, ".local")
 
     # WARNING: bad level call, avoid making this a public function just now.
+    # pylint: disable-next=protected-access
     addon_utils._extension_sync_wheels(
         local_dir=local_dir,
         wheel_list=wheel_list,
@@ -1347,6 +1379,7 @@ class EXTENSIONS_OT_repo_sync(Operator, _ExtCmdMixIn):
             repos_lock.append(repo_item.directory)
 
         # Lock repositories.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_lock = bl_extension_utils.RepoLock(
             repo_directories=repos_lock,
             cookie=cookie_from_session(),
@@ -1444,6 +1477,7 @@ class EXTENSIONS_OT_repo_sync_all(Operator, _ExtCmdMixIn):
                 repos_lock.append(repo_item.directory)
 
         # Lock repositories.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_lock = bl_extension_utils.RepoLock(
             repo_directories=repos_lock,
             cookie=cookie_from_session(),
@@ -1496,11 +1530,15 @@ class EXTENSIONS_OT_repo_refresh_all(Operator):
             # Re-generate JSON meta-data from TOML files (needed for offline repository).
             repo_cache_store.refresh_remote_from_directory(
                 directory=repo_item.directory,
+                # NOTE: this isn't a problem as the callback isn't stored.
+                # pylint: disable-next=cell-var-from-loop
                 error_fn=lambda ex: self._exceptions_as_report(repo_item.name, ex),
                 force=True,
             )
             repo_cache_store.refresh_local_from_directory(
                 directory=repo_item.directory,
+                # NOTE: this isn't a problem as the callback isn't stored.
+                # pylint: disable-next=cell-var-from-loop
                 error_fn=lambda ex: self._exceptions_as_report(repo_item.name, ex),
             )
 
@@ -1532,7 +1570,9 @@ class EXTENSIONS_OT_repo_enable_from_drop(Operator):
         print(self.repo_index)
         if (repo := repo_lookup_by_index_or_none_with_report(self.repo_index, self.report)) is None:
             return {'CANCELLED'}
+        # pylint: disable-next=attribute-defined-outside-init
         self._repo_name = repo.name
+        # pylint: disable-next=attribute-defined-outside-init
         self._repo_remote_url = repo.remote_url
 
         wm = context.window_manager
@@ -1562,6 +1602,108 @@ class EXTENSIONS_OT_repo_enable_from_drop(Operator):
         subcol = box.column(align=True)
         subcol.label(text=iface_("Name: {:s}").format(self._repo_name), translate=False)
         subcol.label(text=iface_("URL: {:s}").format(self._repo_remote_url), translate=False)
+
+
+class EXTENSIONS_OT_repo_unlock(Operator):
+    """Remove the repository file-system lock"""
+    bl_idname = "extensions.repo_unlock"
+    bl_label = "Force Unlock Active Repository"
+    bl_options = {'INTERNAL'}
+
+    __slots__ = (
+        "_repo_vars",
+    )
+
+    @classmethod
+    def _poll_message_or_none(cls, repos):
+        # Either return a message for why the lock cannot be unlocked, or,
+        # the lock time and a possible error when accessing it.
+        if not repos:
+            return "Active repository is not enabled has invalid settings", None, None
+        repo = repos[0]
+
+        from . import bl_extension_utils
+        result = bl_extension_utils.repo_lock_directory_query(repo.directory, cookie_from_session())
+        if result is None:
+            return "Active repository is not locked", None, None
+
+        lock_is_ours, lock_mtime, lock_error = result
+        del result
+        if lock_is_ours:
+            return (
+                "Active repository lock held by this session, "
+                "either wait until the operation is finished or restart Blender"
+            ), lock_mtime, lock_error
+        return None, lock_mtime, lock_error
+
+    @classmethod
+    def poll(cls, _context):
+        lock_message, _lock_mtime, _lock_error = cls._poll_message_or_none(extension_repos_read(use_active_only=True))
+        if lock_message is not None:
+            cls.poll_message_set(lock_message)
+            return False
+        return True
+
+    def invoke(self, context, _event):
+        import time
+        repos = extension_repos_read(use_active_only=True)
+        lock_message, lock_mtime, lock_error = self._poll_message_or_none(extension_repos_read(use_active_only=True))
+        if lock_message is not None:
+            self.report({'ERROR'}, lock_message)
+            return {'CANCELLED'}
+
+        repo = repos[0]
+
+        lock_age = 0.0
+        if lock_mtime != 0.0:
+            lock_age = time.time() - lock_mtime
+
+        # pylint: disable-next=attribute-defined-outside-init
+        self._repo_vars = repo.name, repo.directory, lock_age, lock_error
+
+        wm = context.window_manager
+        wm.invoke_props_dialog(
+            self,
+            # Extra wide to account for long paths.
+            width=500,
+            confirm_text="Force Unlock Repository",
+            title="Force Unlock Repository",
+            cancel_default=True,
+        )
+        return {'RUNNING_MODAL'}
+
+    def execute(self, _context):
+        from . import bl_extension_utils
+
+        repo_name, repo_directory, _lock_age, _lock_error = self._repo_vars
+        if (error := bl_extension_utils.repo_lock_directory_force_unlock(repo_directory)):
+            self.report({'ERROR'}, "Force unlock failed: {:s}".format(error))
+            return {'CANCELLED'}
+
+        self.report({'INFO'}, "Unlocked: {:s}".format(repo_name))
+        return {'FINISHED'}
+
+    def draw(self, _context):
+        from .bl_extension_utils import seconds_as_human_readable_text
+
+        layout = self.layout
+        col = layout.column()
+        col.label(text="Warning! Before unlocking, ensure another instance of Blender is not running.")
+        col.label(text="Force unlocking may be necessary in the case of a crash or power failure,")
+        col.label(text="otherwise it should be avoided.")
+
+        col.separator()
+
+        repo_name, repo_directory, lock_age, lock_error = self._repo_vars
+
+        box = col.box()
+        subcol = box.column(align=True)
+        subcol.label(text=iface_("Name: {:s}").format(repo_name), translate=False)
+        subcol.label(text=iface_("Path: {:s}").format(repo_directory), translate=False)
+        if lock_age != 0.0:
+            subcol.label(text=iface_("Age: {:s}").format(seconds_as_human_readable_text(lock_age, 2)), translate=False)
+        if lock_error:
+            subcol.label(text=iface_("Error: {:s}").format(lock_error), translate=False)
 
 
 class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
@@ -1599,8 +1741,11 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
 
     def exec_command_iter(self, is_modal):
         from . import bl_extension_utils
+        # pylint: disable-next=attribute-defined-outside-init
         self._repo_directories = set()
+        # pylint: disable-next=attribute-defined-outside-init
         self._addon_restore = []
+        # pylint: disable-next=attribute-defined-outside-init
         self._theme_restore = _preferences_theme_state_create()
 
         use_active_only = self.use_active_only
@@ -1690,6 +1835,7 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
             return None
 
         # Lock repositories.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_lock = bl_extension_utils.RepoLock(
             repo_directories=list(self._repo_directories),
             cookie=cookie_from_session(),
@@ -1698,10 +1844,11 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
             return None
 
         for repo_item, pkg_id_sequence in handle_addons_info:
-            result, errors = _preferences_ensure_disabled(
+            result = _preferences_ensure_disabled(
                 repo_item=repo_item,
                 pkg_id_sequence=pkg_id_sequence,
                 default_set=False,
+                error_fn=lambda ex: self.report({'ERROR'}, str(ex)),
             )
             self._addon_restore.append((repo_item, pkg_id_sequence, result))
 
@@ -1765,7 +1912,9 @@ class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
             error_fn=self.error_fn_from_exception,
         ))
         repo_pkg_map = _pkg_marked_by_repo(repo_cache_store, pkg_manifest_remote_all)
+        # pylint: disable-next=attribute-defined-outside-init
         self._repo_directories = set()
+        # pylint: disable-next=attribute-defined-outside-init
         self._repo_map_packages_addon_only = []
         package_count = 0
 
@@ -1815,10 +1964,11 @@ class EXTENSIONS_OT_package_install_marked(Operator, _ExtCmdMixIn):
                 self._repo_map_packages_addon_only.append((repo_item.directory, pkg_id_sequence_addon_only))
 
         if not cmd_batch:
-            self.report({'ERROR'}, "No un-installed packages marked")
+            self.report({'ERROR'}, "No uninstalled packages marked")
             return None
 
         # Lock repositories.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_lock = bl_extension_utils.RepoLock(
             repo_directories=list(self._repo_directories),
             cookie=cookie_from_session(),
@@ -1919,7 +2069,9 @@ class EXTENSIONS_OT_package_uninstall_marked(Operator, _ExtCmdMixIn):
         repo_pkg_map = _pkg_marked_by_repo(repo_cache_store, pkg_manifest_local_all)
         package_count = 0
 
+        # pylint: disable-next=attribute-defined-outside-init
         self._repo_directories = set()
+        # pylint: disable-next=attribute-defined-outside-init
         self._theme_restore = _preferences_theme_state_create()
 
         # Track add-ons to disable before uninstalling.
@@ -1958,6 +2110,7 @@ class EXTENSIONS_OT_package_uninstall_marked(Operator, _ExtCmdMixIn):
             return None
 
         # Lock repositories.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_lock = bl_extension_utils.RepoLock(
             repo_directories=list(self._repo_directories),
             cookie=cookie_from_session(),
@@ -1966,11 +2119,12 @@ class EXTENSIONS_OT_package_uninstall_marked(Operator, _ExtCmdMixIn):
             return None
 
         for repo_item, pkg_id_sequence in handle_addons_info:
-            # No need to store the result (`_`) because the add-ons aren't going to be enabled again.
-            _, errors = _preferences_ensure_disabled(
+            # No need to store the result because the add-ons aren't going to be enabled again.
+            _preferences_ensure_disabled(
                 repo_item=repo_item,
                 pkg_id_sequence=pkg_id_sequence,
                 default_set=True,
+                error_fn=lambda ex: self.report({'ERROR'}, str(ex)),
             )
 
         return bl_extension_utils.CommandBatch(
@@ -2066,7 +2220,9 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
             pkg_is_legacy_addon,
         )
 
+        # pylint: disable-next=attribute-defined-outside-init
         self._addon_restore = []
+        # pylint: disable-next=attribute-defined-outside-init
         self._theme_restore = _preferences_theme_state_create()
 
         # Happens when run from scripts and this argument isn't passed in.
@@ -2138,7 +2294,9 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
             return None
 
         # Collect package ID's.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_directory = directory
+        # pylint: disable-next=attribute-defined-outside-init
         self.pkg_id_sequence = pkg_id_sequence
 
         # Detect upgrade.
@@ -2151,15 +2309,17 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
             if pkg_manifest_local is not None:
                 pkg_id_sequence_upgrade = [pkg_id for pkg_id in pkg_id_sequence if pkg_id in pkg_manifest_local]
                 if pkg_id_sequence_upgrade:
-                    result, errors = _preferences_ensure_disabled(
+                    result = _preferences_ensure_disabled(
                         repo_item=repo_item,
                         pkg_id_sequence=pkg_id_sequence_upgrade,
                         default_set=False,
+                        error_fn=lambda ex: self.report({'ERROR'}, str(ex)),
                     )
                     self._addon_restore.append((repo_item, pkg_id_sequence_upgrade, result))
             del repo_cache_store, pkg_manifest_local
 
         # Lock repositories.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_lock = bl_extension_utils.RepoLock(
             repo_directories=[repo_item.directory],
             cookie=cookie_from_session(),
@@ -2503,7 +2663,9 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         if not self._is_ready_to_execute():
             return None
 
+        # pylint: disable-next=attribute-defined-outside-init
         self._addon_restore = []
+        # pylint: disable-next=attribute-defined-outside-init
         self._theme_restore = _preferences_theme_state_create()
 
         directory = _repo_dir_and_index_get(self.repo_index, self.repo_directory, self.report)
@@ -2531,15 +2693,17 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
 
         if is_installed:
             pkg_id_sequence = (pkg_id,)
-            result, errors = _preferences_ensure_disabled(
+            result = _preferences_ensure_disabled(
                 repo_item=repo_item,
                 pkg_id_sequence=pkg_id_sequence,
                 default_set=False,
+                error_fn=lambda ex: self.report({'ERROR'}, str(ex)),
             )
             self._addon_restore.append((repo_item, pkg_id_sequence, result))
             del pkg_id_sequence
 
         # Lock repositories.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_lock = bl_extension_utils.RepoLock(
             repo_directories=[repo_item.directory],
             cookie=cookie_from_session(),
@@ -2636,7 +2800,11 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
 
         # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
         if self.do_legacy_replace and (not canceled):
-            self._do_legacy_replace(self.pkg_id, pkg_manifest_local)
+            self._do_legacy_replace(
+                self.pkg_id,
+                pkg_manifest_local,
+                error_fn=lambda ex: self.report({'ERROR'}, str(ex)),
+            )
 
     def invoke(self, context, event):
         # Only for drop logic!
@@ -2729,7 +2897,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         )
         layout = self.layout
 
-        _repo_index, repo_name, pkg_id, item_remote = self._drop_variables
+        _repo_index, repo_name, _pkg_id, item_remote = self._drop_variables
 
         layout.label(text="Do you want to install the following {:s}?".format(item_remote.type))
 
@@ -2744,7 +2912,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         layout.prop(self, "enable_on_install", text=rna_prop_enable_on_install_type_map[item_remote.type])
 
     @staticmethod
-    def _do_legacy_replace(pkg_id, pkg_manifest_local):
+    def _do_legacy_replace(pkg_id, pkg_manifest_local, error_fn):
         # Disables and add-on that was replaced by an extension,
         # use for upgrading 4.1 preferences or older.
 
@@ -2765,7 +2933,10 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             print("Internal error, legacy lookup failed:", addon_module_name)
             return
 
-        bpy.ops.preferences.addon_disable(module=addon_module_name)
+        try:
+            bpy.ops.preferences.addon_disable(module=addon_module_name)
+        except Exception as ex:
+            error_fn(ex)
 
     # -------------------------------------------------------------------------
     # Draw Overrides
@@ -2809,7 +2980,6 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             repo_from_url_name,  # `str`
             url,  # `str`
     ):
-        import string
         from .bl_extension_utils import (
             platform_from_this_system,
         )
@@ -2861,9 +3031,9 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
 
         if item_local is not None:
             if item_local.type == "add-on":
-                message = rpt_("Add-on \"{:s}\" already installed!")
+                message = rpt_("Add-on \"{:s}\" is already installed!")
             elif item_local.type == "theme":
-                message = rpt_("Theme \"{:s}\" already installed!")
+                message = rpt_("Theme \"{:s}\" is already installed!")
             else:
                 assert False, "Unreachable"
             self._draw_override = (
@@ -2923,7 +3093,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             subcol = box.column(align=True)
             subcol.label(text=iface_("URL: {:s}").format(url_for_display), translate=False)
         else:
-            col.label(text="Alternatively download the extension to Install from Disk.")
+            col.label(text="Alternatively, download the extension to Install from Disk.")
 
         layout.operator_context = 'INVOKE_DEFAULT'
         props = layout.template_popup_confirm("preferences.extension_repo_add", text="Add Repository...")
@@ -2945,6 +3115,7 @@ class EXTENSIONS_OT_package_uninstall(Operator, _ExtCmdMixIn):
     def exec_command_iter(self, is_modal):
         from . import bl_extension_utils
 
+        # pylint: disable-next=attribute-defined-outside-init
         self._theme_restore = _preferences_theme_state_create()
 
         directory = _repo_dir_and_index_get(self.repo_index, self.repo_directory, self.report)
@@ -2959,13 +3130,16 @@ class EXTENSIONS_OT_package_uninstall(Operator, _ExtCmdMixIn):
             self.report({'ERROR'}, "Package ID not set")
             return None
 
-        _, errors = _preferences_ensure_disabled(
+        # No need to store the result because the add-ons aren't going to be enabled again.
+        _preferences_ensure_disabled(
             repo_item=repo_item,
             pkg_id_sequence=(pkg_id,),
             default_set=True,
+            error_fn=lambda ex: self.report({'ERROR'}, str(ex)),
         )
 
         # Lock repositories.
+        # pylint: disable-next=attribute-defined-outside-init
         self.repo_lock = bl_extension_utils.RepoLock(
             repo_directories=[repo_item.directory],
             cookie=cookie_from_session(),
@@ -3305,10 +3479,10 @@ class EXTENSIONS_OT_package_obselete_marked(Operator):
         return {'FINISHED'}
 
 
-class EXTENSIONS_OT_repo_lock(Operator):
+class EXTENSIONS_OT_repo_lock_all(Operator):
     """Lock repositories - to test locking"""
-    bl_idname = "extensions.repo_lock"
-    bl_label = "Lock Repository (Testing)"
+    bl_idname = "extensions.repo_lock_all"
+    bl_label = "Lock All Repositories (Testing)"
 
     lock = None
 
@@ -3329,24 +3503,24 @@ class EXTENSIONS_OT_repo_lock(Operator):
             return {'CANCELLED'}
 
         self.report({'INFO'}, "Locked {:d} repos(s)".format(len(lock_result)))
-        EXTENSIONS_OT_repo_lock.lock = lock_handle
+        EXTENSIONS_OT_repo_lock_all.lock = lock_handle
         return {'FINISHED'}
 
 
-class EXTENSIONS_OT_repo_unlock(Operator):
+class EXTENSIONS_OT_repo_unlock_all(Operator):
     """Unlock repositories - to test unlocking"""
-    bl_idname = "extensions.repo_unlock"
-    bl_label = "Unlock Repository (Testing)"
+    bl_idname = "extensions.repo_unlock_all"
+    bl_label = "Unlock All Repositories (Testing)"
 
     def execute(self, _context):
-        lock_handle = EXTENSIONS_OT_repo_lock.lock
+        lock_handle = EXTENSIONS_OT_repo_lock_all.lock
         if lock_handle is None:
             self.report({'ERROR'}, "Lock not held!")
             return {'CANCELLED'}
 
         lock_result = lock_handle.release()
 
-        EXTENSIONS_OT_repo_lock.lock = None
+        EXTENSIONS_OT_repo_lock_all.lock = None
 
         if lock_result_any_failed_with_report(self, lock_result):
             # This isn't canceled, but there were issues unlocking.
@@ -3388,7 +3562,7 @@ class EXTENSIONS_OT_userpref_tags_set(Operator):
             return {'CANCELLED'}
 
         tags_clear(wm, tags_attr)
-        if self.value is False:
+        if value is False:
             tags_refresh(wm, tags_attr, default_value=False)
 
         _preferences_ui_redraw()
@@ -3436,7 +3610,7 @@ class EXTENSIONS_OT_userpref_show_online(Operator):
     def poll(cls, _context):
         if bpy.app.online_access_override:
             if not bpy.app.online_access:
-                cls.poll_message_set("Blender was launched in offline-mode which cannot be changed at runtime")
+                cls.poll_message_set("Blender was launched in offline mode, which cannot be changed at runtime")
                 return False
         return True
 
@@ -3456,7 +3630,7 @@ class EXTENSIONS_OT_userpref_allow_online(Operator):
     def poll(cls, _context):
         if bpy.app.online_access_override:
             if not bpy.app.online_access:
-                cls.poll_message_set("Blender was launched in offline-mode which cannot be changed at runtime")
+                cls.poll_message_set("Blender was launched in offline mode, which cannot be changed at runtime")
                 return False
         return True
 
@@ -3506,7 +3680,7 @@ class EXTENSIONS_OT_userpref_allow_online_popup(Operator):
             )
         else:
             lines = (
-                rpt_("Please turn Online Access on the System settings."),
+                rpt_("Please turn Online Access on in the System settings."),
                 "",
                 rpt_("Internet access is required to install extensions from the internet."),
             )
@@ -3538,6 +3712,7 @@ classes = (
     EXTENSIONS_OT_repo_sync_all,
     EXTENSIONS_OT_repo_refresh_all,
     EXTENSIONS_OT_repo_enable_from_drop,
+    EXTENSIONS_OT_repo_unlock,
 
     EXTENSIONS_OT_package_install_files,
     EXTENSIONS_OT_package_install,
@@ -3564,8 +3739,8 @@ classes = (
     EXTENSIONS_OT_package_show_settings,
 
     EXTENSIONS_OT_package_obselete_marked,
-    EXTENSIONS_OT_repo_lock,
-    EXTENSIONS_OT_repo_unlock,
+    EXTENSIONS_OT_repo_lock_all,
+    EXTENSIONS_OT_repo_unlock_all,
 
     EXTENSIONS_OT_userpref_tags_set,
     EXTENSIONS_OT_userpref_show_for_update,
