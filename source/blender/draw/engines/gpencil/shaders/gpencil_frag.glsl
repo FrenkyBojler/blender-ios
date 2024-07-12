@@ -102,11 +102,17 @@ vec4 alpha_over(vec4 base, vec4 over){
 }
 
 vec4 to_cam(vec4 a){
+  if (ProjectionMatrix[3][3] == 0.0) {
     return vec4(a.x/a.z, a.y/a.z, a.z, a.w/a.z);
+  }
+  return a;
 }
 
 vec4 from_cam(vec4 a){
+  if (ProjectionMatrix[3][3] == 0.0) {
     return vec4(a.x*a.z, a.y*a.z, a.z, a.w*a.z);
+  }
+  return a;
 }
 
 #define TYPE_DOT 0
@@ -308,7 +314,13 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2, float length_offset){
 
 
 
-
+vec3 ndc_to_view(vec4 ndc){
+  if (ProjectionMatrix[3][3] == 0.0) {
+    return point_ndc_to_view(ndc);
+  }
+  float aspect = viewportSize.x / viewportSize.y;
+  return vec3(ndc.xy / vec2(1.0, aspect), 1.0);
+}
 
 
 void main()
@@ -332,16 +344,16 @@ void main()
         vec4 ndc2 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos2, radius2, viewportSize);
 
 
-        vec3 v1 = point_ndc_to_view(ndc1);
-        vec3 v2 = point_ndc_to_view(ndc2);
+        vec3 v1 = ndc_to_view(ndc1);
+        vec3 v2 = ndc_to_view(ndc2);
 
 
-        vec3 view_dir = point_ndc_to_view(vec4(gl_FragCoord.xy / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
+        vec3 view_dir = ndc_to_view(vec4(gl_FragCoord.xy / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
         vec2 view_coord = view_dir.xy / view_dir.z;
 
         float dx = 15.0;
 
-        vec3 dview_dir = point_ndc_to_view(vec4((gl_FragCoord.xy + vec2(dx, 0.0)) / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
+        vec3 dview_dir = ndc_to_view(vec4((gl_FragCoord.xy + vec2(dx, 0.0)) / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
         vec2 dview_coord = dview_dir.xy / dview_dir.z;
 
         vec2 dv_dx = (dview_coord - view_coord) / dx;
