@@ -347,11 +347,45 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
   }
 }
 
-struct NewFace {
+/* Holds cumulative offsets for the given elements of a number
+ * of concatenated Meshes. The sizes are one greater than the
+ * number of meshes, so that the last value of each gives the
+ * total number of elements. */
+struct MeshOffsets {
+  Array<int> vert_offsets;
+  Array<int> face_offsets;
+
+  MeshOffsets(Span<const Mesh *> meshes);
+};
+
+MeshOffsets::MeshOffsets(Span<const Mesh *> meshes)
+{
+  const int num_meshes = meshes.size();
+  this->vert_offsets.reinitialize(num_meshes + 1);
+  this->face_offsets.reinitialize(num_meshes + 1);
+  for (int i = 0; i <= num_meshes; i++) {
+    this->vert_offsets[i] = (i == 0) ? 0 : this->vert_offsets[i - 1] + meshes[i - 1]->verts_num;
+    this->face_offsets[i] = (i == 0) ? 0 : this->face_offsets[i - 1] + meshes[i - 1]->faces_num;
+  }
+}
+
+/* Return the mesh index and face index within that mesh corresponding to offset-face,
+ * a face index in the concatenated index space of all mesh faces. */
+static std::pair<int, int> offset_face_to_mesh_face(int offset_face, Span<int> mesh_face_offsets)
+{
+  for (int i = 1; i < mesh_face_offsets.size(); i++) {
+    if (offset_face < mesh_face_offsets[i]) {
+      return {i - 1, offset_face - mesh_face_offsets[i - 1]};
+    }
+  }
+  return {mesh_face_offsets.size() - 1, offset_face - mesh_face_offsets.last()};
+}
+
+constexpr int inline_outface_size = 8;
+
+struct OutFace {
   /* Vertex ids in meshgl indexing space. */
-  Vector<int, 8> verts;
-  /* Corresponding orignal offset vert ids (in combined input mesh indexing space). */
-  Vector<int, 8> orig_verts;
+  Vector<int, inline_outface_size> verts;
   /* The faceID input to manifold, i.e. original face id in combined input mesh indexing space.
    */
   int face_id;
@@ -362,11 +396,62 @@ struct MeshAssembly {
   /* Vertex positions, linearized (use vertpos_stride to multiply index). */
   Span<float> vertpos;
   int vertpos_stride = 3;
+  /* How many vertices were in the combined input meshes. */
+  int num_input_verts;
+  /* How many vertices are in the output (i.e., in vertpos). */
+  int num_output_verts;
+  /* Map from output vertex index to corresponding input vertex (-1 if none). */
+  Array<int> out_to_in_vert_map;
   /* Offset face ids. i.e., offset by cumulative face count in input meshes) direct to output. */
   Vector<int> input_faces_to_output;
-  /* New faces to output, as list of vertex indices making up the face. */
-  Vector<NewFace> new_face_verts;
+  /* New faces to output. */
+  Vector<OutFace> new_faces;
 };
+
+/* Fill the MeshAssembly's out_to_in_vert_map.
+ * Do this by fnding, for each output face, which verts of the corresponding
+ * input face match.
+ */
+static void fill_vertex_map(MeshAssembly &ma,
+                            const MeshGL &mgl,
+                            Span<const Mesh *> meshes,
+                            const MeshOffsets &mesh_offsets)
+{
+  constexpr int dbg_level = 1;
+  if (dbg_level > 0) {
+    std::cout << "fill_vertex_map\n";
+  }
+  ma.out_to_in_vert_map = Array<int>(ma.num_output_verts, -1);
+  const int tris_num = mgl.NumTri();
+  const int stride = mgl.numProp;
+  for (const int t : IndexRange(tris_num)) {
+    const int faceid = mgl.faceID[t];
+    auto [mesh_index, face_in_mesh] = offset_face_to_mesh_face(faceid, mesh_offsets.face_offsets);
+    const Mesh *mesh = meshes[mesh_index];
+    const IndexRange orig_face = mesh->faces()[face_in_mesh];
+    Span<int> orig_face_verts = mesh->corner_verts().slice(orig_face);
+    for (const int i : IndexRange(3)) {
+      int v = mgl.triVerts[3 * t + i];
+      if (ma.out_to_in_vert_map[v] != -1) {
+        continue;
+      }
+      int prop_offset = v * stride;
+      float3 pos(mgl.vertProperties[prop_offset],
+                 mgl.vertProperties[prop_offset + 1],
+                 mgl.vertProperties[prop_offset + 2]);
+      auto it = std::find_if(orig_face_verts.begin(), orig_face_verts.end(), [&](int orig_v) {
+        return pos == mesh->vert_positions()[orig_v];
+      });
+      if (it != orig_face_verts.end()) {
+        int orig_v = orig_face_verts[std::distance(orig_face_verts.begin(), it)];
+        ma.out_to_in_vert_map[v] = orig_v + mesh_offsets.vert_offsets[mesh_index];
+        if (dbg_level > 0) {
+          std::cout << " m[" << v << "] = " << ma.out_to_in_vert_map[v] << "\n";
+        }
+      }
+    }
+  }
+}
 
 /* Most input faces should mape to face_group_inline or fewer output triangles. */
 constexpr int face_group_inline = 4;
@@ -396,18 +481,8 @@ static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
   return fg;
 }
 
-/* Return the mesh index and face index within that mesh corresponding to offset-face,
- * a face index in the concatenated index space of all mesh faces. */
-static std::pair<int, int> offset_face_to_mesh_face(int offset_face, Span<int> mesh_face_offsets)
-{
-  for (int i = 1; i < mesh_face_offsets.size(); i++) {
-    if (offset_face < mesh_face_offsets[i]) {
-      return {i - 1, offset_face - mesh_face_offsets[i - 1]};
-    }
-  }
-  return {mesh_face_offsets.size() - 1, offset_face - mesh_face_offsets.last()};
-}
-
+#if 0
+* TODO: later */
 /* Return 1 if \a group is just the same oas the original face \a face_index
  * in \a mesh.
  * Return 2 if it is the same but with the noraal reversed.
@@ -470,10 +545,81 @@ static uchar check_original_face(const Vector<int, face_group_inline> &group,
   }
   return 0;
 }
+#endif
+
+OutFace make_out_face(const MeshGL &mgl, int tri_index, int orig_face)
+{
+  OutFace ans;
+  ans.verts = Vector<int, inline_outface_size>(3);
+  const int k = 3 * tri_index;
+  ans.verts[0] = mgl.triVerts[k];
+  ans.verts[1] = mgl.triVerts[k + 1];
+  ans.verts[2] = mgl.triVerts[k + 2];
+  ans.face_id = orig_face;
+  return ans;
+}
+
+/* For face merging, there is this indexing spaces:
+ * "group edge" index:  linearized indices of edges in the
+ * triangles in the group.
+ * A SharedEdge has two such indices, with the assertion that
+ * they are the have the same vertices (but in opposite order).
+ */
+struct SharedEdge
+{
+  int e1;
+  int e2;
+
+  SharedEdge(int e1, int e2) : e1(e1), e2(e2)
+  {
+  }
+};
+
+/* A pair of vertices in MeshGL output space. */
+struct VertPair
+{
+  int v1;
+  int v2;
+
+  VertPair(int v1, int v2) : v1(v1), v2(v2)
+};
+
+struct FaceNode
+{
+  Vector<SharedEdge, 4> shared_edges;
+  int node_id;
+};
+
+static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces,
+                                           Span<int> group,
+                                           const MeshGL &mgl)
+{
+  Vector<SharedEdge> ans;
+  /* Map from two verts making an edge to where that edge appears
+   * in list of group edges. */
+  Map<VertPair, int> edge_verts_to_tri;
+  for (const int face_index : faces.index_range()) {
+    const int tri = group[face_index];
+    const int v_start_index = 3 * tri;
+    for (const int i : IndexRange(3)) {
+      int v1 = mgl.triVerts[v_start_index + i];
+      int v2 = mgl.triVerts[v_start_index + (( i + 1) % 3)];
+      edge_verts_to_tri.add_new(VertPair(v1, v2), face_index * 3 + i);
+    }
+  }
+  return ans;
+}
+
+static void merge_out_faces(Vector<OutFace> &faces,
+                            Span<int> group,
+                            const MeshGL &mgl)
+{
+  FaceNode nodes(faces.size());
+}
 
 MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
                                        Span<const Mesh *> meshes,
-                                       Span<int> mesh_face_offsets)
+                                       const MeshOffsets &mesh_offsets)
 {
   constexpr int dbg_level = 2;
   if (dbg_level > 0) {
@@ -482,7 +628,10 @@ MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
   MeshAssembly ma;
   ma.vertpos = Span<float>(&*mgl.vertProperties.begin(), mgl.vertProperties.size());
   ma.vertpos_stride = mgl.numProp;
-  const int input_faces_num = mesh_face_offsets.last() + meshes.last()->faces_num;
+  ma.num_input_verts = mesh_offsets.vert_offsets.last();
+  ma.num_output_verts = ma.vertpos.size() / ma.vertpos_stride;
+  const int input_faces_num = mesh_offsets.face_offsets.last();
+  fill_vertex_map(ma, mgl, meshes, mesh_offsets);
   /* For each offset input mesh face, what mgl triangles have it as id? */
   Array<Vector<int, face_group_inline>> face_groups = get_face_groups(mgl, input_faces_num);
   if (dbg_level > 1) {
@@ -492,20 +641,15 @@ MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
       dump_span(face_groups[i].as_span(), "");
     }
   }
-  /* Which groups are just original faces? Some might be original but with reversed normals.
-   * Use 0 for groups that aren't original, 1 for faces that are with same normals, 2 for those
-   * that have reversed normals. */
-  Array<uchar> group_is_original_face(input_faces_num);
-  for (const int f : IndexRange(input_faces_num)) {
-    auto [mesh_index, face_in_mesh] = offset_face_to_mesh_face(f, mesh_face_offsets);
-    group_is_original_face[f] = check_original_face(
-        face_groups[f], mgl, meshes[mesh_index], face_in_mesh);
-    if (dbg_level > 1) {
-      std::cout << "f = " << f << "; mesh_index = " << mesh_index
-                << "; face_in_mesh = " << face_in_mesh << "\n";
-      std::cout << "group_is_original_face[" << f << "] = " << int(group_is_original_face[f])
-                << "\n";
+  for (const int gid : face_groups.index_range()) {
+    Span<int> group = face_groups[gid].as_span();
+    Vector<OutFace> group_faces(group.size());
+    for (const int i : group_faces.index_range()) {
+      int tri_index = group[i];
+      group_faces[i] = make_out_face(mgl, tri_index, gid);
     }
+    merge_out_faces(group_faces, group, mgl);
+    ma.new_faces.extend(group_faces.as_span());
   }
   return ma;
 }
@@ -518,7 +662,7 @@ MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
 static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps,
-                            Span<int> mesh_face_offsets)
+                            const MeshOffsets &mesh_offsets)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -531,7 +675,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   }
   timeit::ScopedTimer timer("meshgl to mesh");
   /* TODO: dissolve unnecessary triangle faces. */
-  MeshAssembly ma = assemble_mesh_from_meshgl(mgl, meshes, mesh_face_offsets);
+  MeshAssembly ma = assemble_mesh_from_meshgl(mgl, meshes, mesh_offsets);
   int tot_positions = mgl.NumVert();
   int tot_faces = mgl.NumTri();
   int tot_corners = tot_faces * 3;
@@ -556,6 +700,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   });
   GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
   int material_span_index = face_attrs.find_attr_index("material_index");
+#if 0
   /* TODO: following is very specific to all-triangle output, */
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
@@ -567,7 +712,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       corner_verts[corner_index] = mgl.triVerts[corner_index];
       corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
       corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
-      std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, mesh_face_offsets);
+      std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, mesh_offsets.face_offsets);
       int input_mesh_index = m_and_f.first;
       int input_face_index = m_and_f.second;
       copy_face_attrs(face_attrs,
@@ -579,6 +724,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     }
   });
   face_offsets[tot_faces] = 3 * tot_faces;
+#endif
   // bke::mesh_smooth_set(*mesh, false);
   {
     timeit::ScopedTimer("calculating edges");
@@ -616,22 +762,16 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       std::cout << "IMPLEMENT ME: mesh_boolean_manifold with transforms\n";
       return nullptr;
     }
-    Array<int> mesh_face_offsets(num_meshes);
-    for (const int i : IndexRange(num_meshes)) {
-      mesh_face_offsets[i] = (i == 0) ? 0 : mesh_face_offsets[i - 1] + meshes[i - 1]->faces_num;
-      if (dbg_level > 0) {
-        std::cout << "face_offsets[" << i << "] = " << mesh_face_offsets[i] << "\n";
-      }
-    }
+    MeshOffsets mesh_offsets(meshes);
     if (dbg_level > 0) {
       for (const int i : IndexRange(num_meshes)) {
-        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, mesh_face_offsets[i]);
+        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, mesh_offsets.face_offsets[i]);
         manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
       }
     }
     else {
       threading::parallel_for_each(IndexRange(num_meshes), [&](int i) {
-        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, mesh_face_offsets[i]);
+        manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, mesh_offsets.face_offsets[i]);
         manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
       });
     }
@@ -654,7 +794,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
         dump_meshgl(meshgl_result, "boolean result meshgl");
       }
     }
-    Mesh *mesh_result = meshgl_to_mesh(meshgl_result, meshes, material_remaps, mesh_face_offsets);
+    Mesh *mesh_result = meshgl_to_mesh(meshgl_result, meshes, material_remaps, mesh_offsets);
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
     UNUSED_VARS(target_transform);
     return mesh_result;
