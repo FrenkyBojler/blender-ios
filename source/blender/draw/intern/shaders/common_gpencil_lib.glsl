@@ -158,6 +158,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
                     out vec4 out_sspos1,
                     /* Screen-Space segment end point (x: x, y: y, z: depth, w: radius). */
                     out vec4 out_sspos2,
+                    /* Object-space accumulated length from the start of the stroke (x: point 1, y: point 2). */
+                    out vec2 out_point_length,
                     /* Stroke aspect ratio. */
                     out vec2 out_aspect,
                     /* Stroke thickness (x: clamped, y: unclamped). */
@@ -268,6 +270,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
 
     out_sspos1 = ndc_and_radius_to_screen_space(ndc1, radius1, viewport_size.xy);
     out_sspos2 = ndc_and_radius_to_screen_space(ndc2, radius2, viewport_size.xy);
+
+    out_point_length = vec2(0.0, distance(pos1.xyz, pos2.xyz));
 
     if (is_dot && is_multi_dot) {
       out_thickness.x = clamped_thickness / out_ndc.w;
@@ -408,6 +412,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
     out_aspect = vec2(1.0);
     out_sspos1 = vec4(0.0);
     out_sspos2 = vec4(0.0);
+    out_point_length = vec2(0.0);
 
     /* Flat normal following camera and object bounds. */
     vec3 V = cameraVec(ModelMatrix[3].xyz);
@@ -443,6 +448,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
                     out vec2 out_uv,
                     out vec4 out_sspos1,
                     out vec4 out_sspos2,
+                    out vec2 out_point_length,
                     out vec2 out_aspect,
                     out vec2 out_thickness,
                     out float out_hardness)
@@ -457,6 +463,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
                         out_uv,
                         out_sspos1,
                         out_sspos2,
+                        out_point_length,
                         out_aspect,
                         out_thickness,
                         out_hardness);

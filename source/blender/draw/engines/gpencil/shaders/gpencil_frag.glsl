@@ -125,9 +125,7 @@ vec4 from_cam(vec4 a){
 #define point_density 10.0
 
 float i_to_t(float i, vec4 p1, vec4 p2, float length_offset){
-    vec4 P1 = from_cam(p1);
-    vec4 P2 = from_cam(p2);
-    float l = length(P1 - P2);
+    float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
 
     if(TYPE == TYPE_RADIUS){
         if(p1.w == p2.w){
@@ -150,9 +148,7 @@ float i_to_t(float i, vec4 p1, vec4 p2, float length_offset){
 }
 
 float t_to_i(float t, vec4 p1, vec4 p2, float length_offset){
-    vec4 P1 = from_cam(p1);
-    vec4 P2 = from_cam(p2);
-    float l = length(P1 - P2);
+    float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
 
     if(TYPE == TYPE_RADIUS){
         if(p1.w == p2.w){

@@ -48,6 +48,7 @@ void main()
                                gp_interp.uv,
                                gp_interp_flat.sspos1,
                                gp_interp_flat.sspos2,
+                               gp_interp_flat.point_length,
                                gp_interp_flat.aspect,
                                gp_interp_noperspective.thickness,
                                gp_interp_noperspective.hardness);
