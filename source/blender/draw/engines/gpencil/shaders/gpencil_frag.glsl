@@ -122,26 +122,24 @@ vec4 from_cam(vec4 a){
 
 #define TYPE 2
 
-#define point_density 10.0
-
 float i_to_t(float i, vec4 p1, vec4 p2){
     float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
 
     if(TYPE == TYPE_RADIUS){
         if(p1.w == p2.w){
-            return (i + mod(-gp_interp_flat.point_length.x*point_density,1.0) )*p1.w / (l * point_density);
+            return (i + mod(-gp_interp_flat.point_length.x,1.0) )*p1.w / l;
         }
         
         float a = p1.w - p2.w;
         float E = -(a - l)/(a + l);
         
-        float E_i = exp(((i + mod(-gp_interp_flat.point_length.x*point_density, 1.0))/(point_density*2)) * log(E));
+        float E_i = exp(((i + mod(-gp_interp_flat.point_length.x, 1.0))/2) * log(E));
         
         return (p1.w * (E_i - 1.0)) / (p2.w - p1.w);
     }else if(TYPE == TYPE_NUMBER){
-        return i / point_density;
+        return i / l;
     }else if(TYPE == TYPE_LENGTH){
-        return (i + mod(-gp_interp_flat.point_length.x*point_density,1.0) ) / (l * point_density);
+        return (i + mod(-gp_interp_flat.point_length.x,1.0) ) / l;
     }else{// DOTs
         return 0.0;
     }
@@ -152,18 +150,18 @@ float t_to_i(float t, vec4 p1, vec4 p2){
 
     if(TYPE == TYPE_RADIUS){
         if(p1.w == p2.w){
-            return t * (l * point_density)/p1.w - mod(-gp_interp_flat.point_length.x*point_density,1.0);
+            return t * l/p1.w - mod(-gp_interp_flat.point_length.x,1.0);
         }
  
         float a = p1.w - p2.w;
         float E = -(a - l)/(a + l);
         float E_i = t * (p2.w - p1.w) / p1.w + 1.0;
         
-        return (log(E_i)/log(E) - mod(-gp_interp_flat.point_length.x*point_density, 1.0)/(point_density*2))*point_density*2.0;
+        return (log(E_i)/log(E) - mod(-gp_interp_flat.point_length.x, 1.0)/2)*2.0;
     }else if(TYPE == TYPE_NUMBER){
-        return t*point_density;
+        return t * l;
     }else if(TYPE == TYPE_LENGTH){
-        return t * (l * point_density) - mod(-gp_interp_flat.point_length.x*point_density,1.0);
+        return t * l - mod(-gp_interp_flat.point_length.x,1.0);
     }else{// DOTs
         return 0.0;
     }
