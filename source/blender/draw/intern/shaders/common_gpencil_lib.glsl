@@ -271,7 +271,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
     out_sspos1 = ndc_and_radius_to_screen_space(ndc1, radius1, viewport_size.xy);
     out_sspos2 = ndc_and_radius_to_screen_space(ndc2, radius2, viewport_size.xy);
 
-    out_point_length = vec2(0.0, distance(pos1.xyz, pos2.xyz));
+    out_point_length = vec2(uv1.z, uv2.z);
 
     if (is_dot && is_multi_dot) {
       out_thickness.x = clamped_thickness / out_ndc.w;

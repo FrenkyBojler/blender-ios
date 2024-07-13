@@ -331,7 +331,7 @@ void main()
     if(flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) // dot and squares
     {
       if(is_multi_dot){
-        float length_offset = 0.0;
+        float length_offset = gp_interp_flat.point_length.x;
 
         float radius1;
         float radius2;
