@@ -100,6 +100,9 @@ typedef struct MaterialGPencilStyle {
   int alignment_mode;
   /** Rotation for texture for Dots and Squares. */
   float alignment_rotation;
+  /** Placement mode for Dots and Squares. */
+  int placement_mode;
+  char _pad3[4];
 } MaterialGPencilStyle;
 
 /* MaterialGPencilStyle->flag */
@@ -420,4 +423,12 @@ enum {
   GP_MATERIAL_FOLLOW_PATH = 0,
   GP_MATERIAL_FOLLOW_OBJ = 1,
   GP_MATERIAL_FOLLOW_FIXED = 2,
+};
+
+/* Grease Pencil Placement Drawing Modes */
+enum {
+  GP_MATERIAL_PLACEMENT_SINGLE = 0,
+  GP_MATERIAL_PLACEMENT_NUMBER = 1,
+  GP_MATERIAL_PLACEMENT_LENGTH = 2,
+  GP_MATERIAL_PLACEMENT_RADIUS = 3,
 };

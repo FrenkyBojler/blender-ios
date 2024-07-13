@@ -551,6 +551,14 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static EnumPropertyItem placement_mode_items[] = {
+      {GP_MATERIAL_PLACEMENT_SINGLE, "SINGLE", 0, "Single", "Place one dot per geometry"},
+      {GP_MATERIAL_PLACEMENT_NUMBER, "NUMBER", 0, "Number", "Place multiple dots per geometry"},
+      {GP_MATERIAL_PLACEMENT_LENGTH, "LENGTH", 0, "Length", "Place a dot every length"},
+      {GP_MATERIAL_PLACEMENT_RADIUS, "RADIUS", 0, "Radius", "Place dots with respect to radius"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "MaterialGPencilStyle", nullptr);
   RNA_def_struct_sdna(srna, "MaterialGPencilStyle");
   RNA_def_struct_ui_text(srna, "Grease Pencil Color", "");
@@ -699,6 +707,14 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
                            "Rotation",
                            "Additional rotation applied to dots and square texture of strokes. "
                            "Only applies in texture shading mode");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
+
+  /* Placement mode for Dots and Squares. */
+  prop = RNA_def_property(srna, "placement_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "placement_mode");
+  RNA_def_property_enum_items(prop, placement_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Placement", "Defines how Dots or Squares are placed along strokes");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
   /* pass index for future compositing and editing tools */

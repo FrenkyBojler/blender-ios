@@ -134,6 +134,12 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
 
             col.prop(gpcolor, "stroke_style", text="Style")
 
+            if gpcolor.mode in {'DOTS', 'BOX'}:
+                col.prop(gpcolor, "placement_mode")
+                if gpcolor.placement_mode != 'SINGLE':
+                    col.prop(gpcolor, "pixel_size", text="Point Distance")
+                    col.separator()
+
             col.prop(gpcolor, "color", text="Base Color")
             col.prop(gpcolor, "use_stroke_holdout")
 
@@ -152,8 +158,6 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
             if gpcolor.mode in {'DOTS', 'BOX'}:
                 col.prop(gpcolor, "alignment_mode")
                 col.prop(gpcolor, "alignment_rotation")
-                if True:
-                    col.prop(gpcolor, "pixel_size", text="Point Distance")
 
             if gpcolor.mode == 'LINE':
                 col.prop(gpcolor, "use_overlap_strokes")

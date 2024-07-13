@@ -215,6 +215,22 @@ GPENCIL_MaterialPool *gpencil_material_pool_create(GPENCIL_PrivateData *pd,
       if (gp_style->mode == GP_MATERIAL_MODE_DOT) {
         mat_data->flag |= GP_STROKE_DOTS;
       }
+
+      switch (gp_style->placement_mode) {
+        case GP_MATERIAL_PLACEMENT_RADIUS:
+          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_RADIUS;
+          break;
+        case GP_MATERIAL_PLACEMENT_LENGTH:
+          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_LENGTH;
+          break;
+        case GP_MATERIAL_PLACEMENT_NUMBER:
+          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_NUMBER;
+          break;
+        case GP_MATERIAL_PLACEMENT_SINGLE:
+        default:
+          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_SINGLE;
+          break;
+      }
     }
 
     if ((gp_style->mode != GP_MATERIAL_MODE_LINE) ||
