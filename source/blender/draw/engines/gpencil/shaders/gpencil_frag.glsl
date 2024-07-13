@@ -97,6 +97,13 @@ vec4 get_color(vec2 uv){
   return col;
 }
 
+vec4 get_dot_color(vec2 uv, int i){
+  vec4 col = get_color(uv);
+  col.rgb *= mod(float(i)*436537.532124, 1.0);
+
+  return col;
+}
+
 vec4 alpha_over(vec4 base, vec4 over){
     return (1.0 - over.w) * base + over;
 }
@@ -368,7 +375,7 @@ void main()
 
           vec2 uv = (view_coord - pos.xy) / pos.w;
 
-          fragColor = alpha_over(get_color(uv*0.5 + 0.5), fragColor);
+          fragColor = alpha_over(get_dot_color(uv*0.5 + 0.5, i), fragColor);
 
           /* Break early if full opacity. */
           if (fragColor.w > 0.999) { break; }
@@ -376,7 +383,8 @@ void main()
       } else {
         vec2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos1.xy) / gp_interp_flat.sspos1.w;
 
-        fragColor = get_color(uv*0.5 + 0.5);
+        int i = int(gp_interp_flat.point_length.x);
+        fragColor = get_dot_color(uv*0.5 + 0.5, i);
       }
     }
     else{ // line
