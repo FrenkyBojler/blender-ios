@@ -371,6 +371,9 @@ void main()
           vec2 uv = (view_coord - pos.xy) / pos.w;
 
           fragColor = alpha_over(get_color(uv*0.5 + 0.5), fragColor);
+
+          /* Break early if full opacity. */
+          if (fragColor.w > 0.999) { break; }
         }
       } else {
         vec2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos1.xy) / gp_interp_flat.sspos1.w;
