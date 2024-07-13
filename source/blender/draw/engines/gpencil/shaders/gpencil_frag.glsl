@@ -124,46 +124,46 @@ vec4 from_cam(vec4 a){
 
 #define point_density 10.0
 
-float i_to_t(float i, vec4 p1, vec4 p2, float length_offset){
+float i_to_t(float i, vec4 p1, vec4 p2){
     float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
 
     if(TYPE == TYPE_RADIUS){
         if(p1.w == p2.w){
-            return (i + mod(-length_offset*point_density,1.0) )*p1.w / (l * point_density);
+            return (i + mod(-gp_interp_flat.point_length.x*point_density,1.0) )*p1.w / (l * point_density);
         }
         
         float a = p1.w - p2.w;
         float E = -(a - l)/(a + l);
         
-        float E_i = exp(((i + mod(-length_offset*point_density, 1.0))/(point_density*2)) * log(E));
+        float E_i = exp(((i + mod(-gp_interp_flat.point_length.x*point_density, 1.0))/(point_density*2)) * log(E));
         
         return (p1.w * (E_i - 1.0)) / (p2.w - p1.w);
     }else if(TYPE == TYPE_NUMBER){
         return i / point_density;
     }else if(TYPE == TYPE_LENGTH){
-        return (i + mod(-length_offset*point_density,1.0) ) / (l * point_density);
+        return (i + mod(-gp_interp_flat.point_length.x*point_density,1.0) ) / (l * point_density);
     }else{// DOTs
         return 0.0;
     }
 }
 
-float t_to_i(float t, vec4 p1, vec4 p2, float length_offset){
+float t_to_i(float t, vec4 p1, vec4 p2){
     float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
 
     if(TYPE == TYPE_RADIUS){
         if(p1.w == p2.w){
-            return t * (l * point_density)/p1.w - mod(-length_offset*point_density,1.0);
+            return t * (l * point_density)/p1.w - mod(-gp_interp_flat.point_length.x*point_density,1.0);
         }
  
         float a = p1.w - p2.w;
         float E = -(a - l)/(a + l);
         float E_i = t * (p2.w - p1.w) / p1.w + 1.0;
         
-        return (log(E_i)/log(E) - mod(-length_offset*point_density, 1.0)/(point_density*2))*point_density*2.0;
+        return (log(E_i)/log(E) - mod(-gp_interp_flat.point_length.x*point_density, 1.0)/(point_density*2))*point_density*2.0;
     }else if(TYPE == TYPE_NUMBER){
         return t*point_density;
     }else if(TYPE == TYPE_LENGTH){
-        return t * (l * point_density) - mod(-length_offset*point_density,1.0);
+        return t * (l * point_density) - mod(-gp_interp_flat.point_length.x*point_density,1.0);
     }else{// DOTs
         return 0.0;
     }
@@ -241,21 +241,21 @@ vec2 uneven_capsule_intersection(vec4 p1, vec4 p2, vec2 p0){
     return t;
 }
 
-int min_bound(vec4 p1, vec4 p2, float length_offset){
-    return round_q(t_to_i(0.0, p1, p2, length_offset));
+int min_bound(vec4 p1, vec4 p2){
+    return round_q(t_to_i(0.0, p1, p2));
 }
 
-int max_bound(vec4 p1, vec4 p2, float length_offset){
-    return round_q(t_to_i(1.0, p1, p2, length_offset));
+int max_bound(vec4 p1, vec4 p2){
+    return round_q(t_to_i(1.0, p1, p2));
 }
 
-int2 get_bounds(vec2 p0, vec4 p1, vec4 p2, float length_offset){
+int2 get_bounds(vec2 p0, vec4 p1, vec4 p2){
     if(TYPE == TYPE_DOT){
         return int2(0, 1);
     }
 
-    int min_lower = min_bound(p1, p2, length_offset);
-    int max_upper = max_bound(p1, p2, length_offset);
+    int min_lower = min_bound(p1, p2);
+    int max_upper = max_bound(p1, p2);
 
     int lower = 0;
     int upper = 1000000000;
@@ -277,8 +277,8 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2, float length_offset){
     float t_min = screen_t_to_local_t(saturate(ts.x), p1.z, p2.z);
     float t_max = screen_t_to_local_t(saturate(ts.y), p1.z, p2.z);
 
-    lower = int(floor(t_to_i(t_min, p1, p2, length_offset)));
-    upper = int(ceil(t_to_i(t_max, p1, p2, length_offset))) + 1;
+    lower = int(floor(t_to_i(t_min, p1, p2)));
+    upper = int(ceil(t_to_i(t_max, p1, p2))) + 1;
 
 
     lower = max(min_lower, lower);
@@ -331,8 +331,6 @@ void main()
     if(flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) // dot and squares
     {
       if(is_multi_dot){
-        float length_offset = gp_interp_flat.point_length.x;
-
         float radius1;
         float radius2;
 
@@ -361,12 +359,12 @@ void main()
         vec4 p1 = to_cam(P1);
         vec4 p2 = to_cam(P2);
 
-        int2 bounds = get_bounds(view_coord, p1, p2, length_offset);
+        int2 bounds = get_bounds(view_coord, p1, p2);
         int lower = bounds.x;
         int upper = bounds.y;
 
         for(int i=upper-1; i>=lower; i--){
-          float t = i_to_t(i, p1, p2, length_offset);
+          float t = i_to_t(i, p1, p2);
 
           vec4 pos = to_cam(P1 + (P2 - P1) * t);
 
