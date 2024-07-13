@@ -131,50 +131,50 @@ vec4 from_cam(vec4 a){
 #define TYPE 2
 
 float i_to_t(float i, vec4 p1, vec4 p2){
-    float l_start = gp_interp_flat.point_length.x;
-    float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
+  float l_start = gp_interp_flat.point_length.x;
+  float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
 
-    if(TYPE == TYPE_RADIUS){
-        if(p1.w == p2.w){
-            return (i - l_start)*p1.w / l;
-        }
-        
-        float a = p1.w - p2.w;
-        float E = -(a - l)/(a + l);
-        
-        float E_i = exp(((i - l_start)/2) * log(E));
-        
-        return (p1.w * (E_i - 1.0)) / (p2.w - p1.w);
-    }else if(TYPE == TYPE_NUMBER){
-        return i / l;
-    }else if(TYPE == TYPE_LENGTH){
-        return (i - l_start ) / l;
-    }else{// DOTs
-        return 0.0;
-    }
+  if(TYPE == TYPE_RADIUS){
+      if(p1.w == p2.w){
+          return (i - l_start)*p1.w / l;
+      }
+      
+      float a = p1.w - p2.w;
+      float E = -(a - l)/(a + l);
+      
+      float E_i = exp(((i - l_start)/2) * log(E));
+      
+      return (p1.w * (E_i - 1.0)) / (p2.w - p1.w);
+  }else if(TYPE == TYPE_NUMBER){
+      return i / l;
+  }else if(TYPE == TYPE_LENGTH){
+      return (i - l_start ) / l;
+  }else{// DOTs
+      return 0.0;
+  }
 }
 
 float t_to_i(float t, vec4 p1, vec4 p2){
-    float l_start = gp_interp_flat.point_length.x;
-    float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
+  float l_start = gp_interp_flat.point_length.x;
+  float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
 
-    if(TYPE == TYPE_RADIUS){
-        if(p1.w == p2.w){
-            return t * l/p1.w + l_start;
-        }
+  if(TYPE == TYPE_RADIUS){
+      if(p1.w == p2.w){
+          return t * l/p1.w + l_start;
+      }
 
-        float a = p1.w - p2.w;
-        float E = -(a - l)/(a + l);
-        float E_i = t * (p2.w - p1.w) / p1.w + 1.0;
-        
-        return 2.0 * log(E_i)/log(E) + l_start;
-    }else if(TYPE == TYPE_NUMBER){
-        return t * l;
-    }else if(TYPE == TYPE_LENGTH){
-        return t * l + l_start;
-    }else{// DOTs
-        return 0.0;
-    }
+      float a = p1.w - p2.w;
+      float E = -(a - l)/(a + l);
+      float E_i = t * (p2.w - p1.w) / p1.w + 1.0;
+      
+      return 2.0 * log(E_i)/log(E) + l_start;
+  }else if(TYPE == TYPE_NUMBER){
+      return t * l;
+  }else if(TYPE == TYPE_LENGTH){
+      return t * l + l_start;
+  }else{// DOTs
+      return 0.0;
+  }
 }
 
 
