@@ -152,6 +152,8 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
             if gpcolor.mode in {'DOTS', 'BOX'}:
                 col.prop(gpcolor, "alignment_mode")
                 col.prop(gpcolor, "alignment_rotation")
+                if True:
+                    col.prop(gpcolor, "pixel_size", text="Point Distance")
 
             if gpcolor.mode == 'LINE':
                 col.prop(gpcolor, "use_overlap_strokes")
