@@ -99,7 +99,8 @@ vec4 get_color(vec2 uv){
 
 vec4 get_dot_color(vec2 uv, int i){
   vec4 col = get_color(uv);
-  col.rgb *= mod(float(i)*436537.532124, 1.0);
+  float rand = mod(sin(mod(i*437.532124, 1.0)*75.4368634), 1.0);
+  col.rgb *= rand;
 
   return col;
 }
