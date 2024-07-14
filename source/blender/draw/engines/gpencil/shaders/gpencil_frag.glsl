@@ -212,14 +212,12 @@ float screen_t_to_local_t(float screen_t, float z1, float z2){
     return local_t;
 }
 
-vec2 uneven_capsule_intersection(vec4 p1, vec4 p2, vec2 p0){
-    float l = distance(p1.xy, p2.xy);
-    float r1 = p1.w;
-    float r2 = p2.w;
+vec2 uneven_capsule_intersection(vec2 p0, vec2 p1, vec2 p2, float r1, float r2){
+    float l = distance(p1, p2);
     
-    float local_dis_sq = dot(p2.xy-p1.xy, p2.xy-p1.xy);
-    float X = (dot(p0-p1.xy, p2.xy-p1.xy)/local_dis_sq)*l;
-    vec2 p_t = p1.xy + (p2-p1).xy*(X/l);
+    float local_dis_sq = dot(p2-p1, p2-p1);
+    float X = (dot(p0-p1, p2-p1)/local_dis_sq)*l;
+    vec2 p_t = p1 + (p2-p1)*(X/l);
     float Y = distance(p_t, p0);
     
     float a = l*l - (r2-r1)*(r2-r1);
@@ -270,7 +268,7 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2){
         return int2(min_lower, max_upper);
     }
 
-    vec2 ts = uneven_capsule_intersection(p1, p2, p0);
+    vec2 ts = uneven_capsule_intersection(p0, p1, p2, p1.w, p2.w);
     
     if(ts.x == -1 && ts.y == -1){
         return int2(0, 0);
