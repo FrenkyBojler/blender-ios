@@ -297,7 +297,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
       float l = length(out_sspos1.xy - out_sspos2.xy);
 
       float a = r2 - r1;
-      float cos_theta = -1.0/(l/a);
+      float cos_theta = -a/l;
       float sin_theta = sqrt(1-cos_theta*cos_theta);
       float tan_half_theta = (1.0 - cos_theta)/sin_theta;
 
