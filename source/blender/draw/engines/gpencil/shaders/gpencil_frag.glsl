@@ -318,7 +318,9 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2){
 
 vec3 ndc_to_view(vec4 ndc){
   if (ProjectionMatrix[3][3] == 0.0) {
-    return point_ndc_to_view(ndc);
+    vec3 view = point_ndc_to_view(ndc);
+    view.z *= -1.0;
+    return view;
   }
   float aspect = viewportSize.x / viewportSize.y;
   return vec3(ndc.xy / vec2(1.0, aspect), 1.0);
