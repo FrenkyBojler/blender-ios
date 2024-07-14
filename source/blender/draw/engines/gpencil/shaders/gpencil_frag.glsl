@@ -322,7 +322,8 @@ vec3 ndc_to_view(vec4 ndc){
 
 void main()
 {
-  bool is_multi_dot = true;
+  uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
+  bool is_multi_dot = placement_mode != GP_DOTS_PLACEMENT_MODE_SINGLE;
 
   if(flag_test(gp_interp_flat.mat_flag, GP_FILL)) // fill
   {

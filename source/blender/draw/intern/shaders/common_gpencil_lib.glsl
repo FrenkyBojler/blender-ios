@@ -198,9 +198,10 @@ vec4 gpencil_vertex(vec4 viewport_size,
   vec4 out_ndc;
 
   if (gpencil_is_stroke_vertex()) {
+    uint placement_mode = material_flags & GP_DOTS_PLACEMENT_MODE;
+    bool is_multi_dot = placement_mode != GP_DOTS_PLACEMENT_MODE_SINGLE;
     bool is_dot = flag_test(material_flags, GP_STROKE_ALIGNMENT);
     bool is_squares = !flag_test(material_flags, GP_STROKE_DOTS);
-    bool is_multi_dot = true;
 
     /* Special Case. Stroke with single vert are rendered as dots. Do not discard them. */
     if (!is_dot && ma.x == -1 && ma2.x == -1) {
