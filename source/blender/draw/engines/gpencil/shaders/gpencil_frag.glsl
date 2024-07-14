@@ -189,19 +189,6 @@ int round_q(float fnum){
 
 
 
-vec2 circle_line_intersection(vec2 l1, vec2 l2, vec2 c, float r){
-    float local_dis_sq = dot(l2-l1, l2-l1);
-    float t = dot(c-l1, l2-l1)/local_dis_sq;
-    float d = length(l1+(l2-l1)*t - c);
-    float j = r*r - d*d;
-    if(j < 0.0){
-        return vec2(-1,-1);
-    }
-    
-    float u = sqrt(j)/sqrt(local_dis_sq);
-    
-    return vec2(t-u, t+u);
-}
 
 float screen_t_to_local_t(float screen_t, float z1, float z2){
     float f = (1.0 - screen_t);
