@@ -130,16 +130,20 @@ float i_to_t(float i, vec4 p1, vec4 p2){
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
 
   if(placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS){
-    if(p1.w == p2.w){
-        return (i - l_start)*p1.w / l;
+    vec4 P1 = from_cam(p1);
+    vec4 P2 = from_cam(p2);
+    l = length(P1.xyz - P2.xyz);
+
+    if(P1.w == P2.w){
+      return (i - l_start)*P1.w / l;
     }
-      
-    float a = p1.w - p2.w;
+
+    float a = P1.w - P2.w;
     float E = -(a - l)/(a + l);
-      
-    float E_i = exp(((i - l_start)/2) * log(E));
-      
-    return (p1.w * (E_i - 1.0)) / (p2.w - p1.w);
+
+    float E_i = exp(((i - l_start)/2.0) * log(E));
+
+    return (P1.w * (E_i - 1.0)) / (P2.w - P1.w);
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER){
     return i / l;
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH){
@@ -156,13 +160,17 @@ float t_to_i(float t, vec4 p1, vec4 p2){
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
 
   if(placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS){
-    if(p1.w == p2.w){
-      return t * l/p1.w + l_start;
+    vec4 P1 = from_cam(p1);
+    vec4 P2 = from_cam(p2);
+    l = length(P1.xyz - P2.xyz);
+
+    if(P1.w == P2.w){
+      return t * l/P1.w + l_start;
     }
 
-    float a = p1.w - p2.w;
+    float a = P1.w - P2.w;
     float E = -(a - l)/(a + l);
-    float E_i = t * (p2.w - p1.w) / p1.w + 1.0;
+    float E_i = t * (P2.w - P1.w) / P1.w + 1.0;
     
     return 2.0 * log(E_i)/log(E) + l_start;
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER){
