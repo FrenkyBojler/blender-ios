@@ -268,7 +268,7 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2){
         return int2(min_lower, max_upper);
     }
 
-    vec2 ts = uneven_capsule_intersection(p0, p1, p2, p1.w, p2.w);
+    vec2 ts = uneven_capsule_intersection(p0, p1.xy, p2.xy, p1.w, p2.w);
     
     if(ts.x == -1 && ts.y == -1){
         return int2(0, 0);
