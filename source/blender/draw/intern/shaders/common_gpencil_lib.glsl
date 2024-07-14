@@ -278,19 +278,9 @@ vec4 gpencil_vertex(vec4 viewport_size,
       out_thickness.y = thickness / out_ndc.w;
       out_aspect = vec2(1.0);
 
-      bool is_stroke_start = (ma.x == -1 && x == -1);
-      bool is_stroke_end = (ma3.x == -1 && x == 1);
 
-      /* Mitter tangent vector. */
-      vec2 miter_tan = safe_normalize(line_adj + line);
-      float miter_dot = dot(miter_tan, line_adj);
-      /* Break corners after a certain angle to avoid really thick corners. */
-      const float miter_limit = 0.5; /* cos(60 degrees) */
-      bool miter_break = true; /* TODO: Fix This. */
-      miter_tan = (miter_break || is_stroke_start || is_stroke_end) ? line :
-                                                                      (miter_tan / miter_dot);
       /* Rotate 90 degrees counter-clockwise. */
-      vec2 miter = vec2(-miter_tan.y, miter_tan.x);
+      vec2 tan_line = vec2(-line.y, line.x);
 
       float r1 = out_sspos1.w;
       float r2 = out_sspos2.w;
@@ -307,7 +297,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
         tan_half_theta = 1.0/tan_half_theta;
       }
 
-      vec2 screen_ofs = miter * y * tan_half_theta;
+      vec2 screen_ofs = tan_line * y * tan_half_theta;
 
       screen_ofs += line * x * (flip ? -1 : 1);
 
@@ -315,7 +305,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
 
       // if(abs(cos_theta) > 1.0){
       //   float max_r = max(r1, r2);
-      //   screen_ofs = (line * x + miter * y) * max_r;
+      //   screen_ofs = (line * x + tan_line * y) * max_r;
       // }
 
       if(is_squares) {
@@ -323,16 +313,6 @@ vec4 gpencil_vertex(vec4 viewport_size,
       }
 
       out_ndc.xy += screen_ofs * viewport_size.zw;
-
-      vec3 view1 = point_world_to_view(wpos1);
-      vec3 view2 = point_world_to_view(wpos2);
-
-      // out_sspos1.xy = -view1.xy / view1.z;
-      // out_sspos1.z = -view1.z;
-      // out_sspos1.w = -gpThicknessWorldScale * thickness1 / view1.z / 2.0;
-      // out_sspos2.xy = -view2.xy / view2.z;
-      // out_sspos2.z = -view2.z;
-      // out_sspos2.w = -gpThicknessWorldScale * thickness2 / view2.z / 2.0;
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
