@@ -292,21 +292,37 @@ vec4 gpencil_vertex(vec4 viewport_size,
       /* Rotate 90 degrees counter-clockwise. */
       vec2 miter = vec2(-miter_tan.y, miter_tan.x);
 
+      float r1 = out_sspos1.w;
+      float r2 = out_sspos2.w;
+      float l = length(out_sspos1.xy - out_sspos2.xy);
 
-      vec2 screen_ofs = miter * y;
+      float a = r2 - r1;
+      float cos_theta = -1.0/(l/a);
+      float sin_theta = sqrt(1-cos_theta*cos_theta);
+      float tan_half_theta = (1.0 - cos_theta)/sin_theta;
 
-      /* Reminder: we packed the cap flag into the sign of strength and thickness sign. */
-      if ((is_stroke_start && strength1 > 0.0) || (is_stroke_end && thickness1 > 0.0) ||
-          (miter_break && !is_stroke_start && !is_stroke_end))
-      {
-        screen_ofs += line * x;
+      bool flip = !(out_sspos1.z > 0 && out_sspos2.z > 0);
+
+      if (x == (flip ? 1 : -1)) {
+        tan_half_theta = 1.0/tan_half_theta;
       }
 
-      if(is_squares){
-        out_ndc.xy += screen_ofs * viewport_size.zw * clamped_thickness * M_SQRT2;
-      }else{
-        out_ndc.xy += screen_ofs * viewport_size.zw * clamped_thickness;
+      vec2 screen_ofs = miter * y * tan_half_theta;
+
+      screen_ofs += line * x * (flip ? -1 : 1);
+
+      screen_ofs *= clamped_thickness;
+
+      // if(abs(cos_theta) > 1.0){
+      //   float max_r = max(r1, r2);
+      //   screen_ofs = (line * x + miter * y) * max_r;
+      // }
+
+      if(is_squares) {
+        screen_ofs *= M_SQRT2;
       }
+
+      out_ndc.xy += screen_ofs * viewport_size.zw;
 
       vec3 view1 = point_world_to_view(wpos1);
       vec3 view2 = point_world_to_view(wpos2);
