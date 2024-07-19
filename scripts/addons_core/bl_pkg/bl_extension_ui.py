@@ -16,6 +16,7 @@ __all__ = (
 )
 
 import bpy
+import os
 
 from bpy.types import (
     Menu,
@@ -265,9 +266,15 @@ def addon_draw_item_expanded(
             text=domain_extract_from_url(item_doc_url),
             icon='HELP' if addon_type in {ADDON_TYPE_LEGACY_CORE, ADDON_TYPE_LEGACY_USER} else 'URL',
         ).url = item_doc_url
-    # Only add "Report a Bug" button if tracker_url is set.
-    # None of the core add-ons are expected to have tracker info (glTF is the exception).
-    if item_tracker_url:
+    
+    col_a.label(text="Location")
+    col_b.split(factor=0.5).operator(
+        "wm.path_open", text="Browse", icon='FILEBROWSER',
+    ).filepath = os.path.dirname(mod.__file__)
+
+    # Only add "Report a Bug" button if tracker_url is set
+    # or the add-on is bundled (use official tracker then).
+    if item_tracker_url or (addon_type == ADDON_TYPE_LEGACY_CORE):
         col_a.label(text="Feedback", text_ctxt=i18n_contexts.editor_preferences)
         col_b.split(factor=0.5).operator(
             "wm.url_open", text="Report a Bug", icon='URL',
@@ -613,7 +620,17 @@ def addons_panel_draw_error_duplicates(layout):
         sub_col = box.column(align=True)
         sub_col.label(text=addon_name + ":")
         sub_col.label(text="    " + addon_file)
+        subsplit = sub_col.row(align=True)
+        subsplit.alignment = "RIGHT"
+        subsplit.operator(
+            "wm.path_open", text="Browse", icon='FILEBROWSER',
+        ).filepath = os.path.dirname(addon_file)
         sub_col.label(text="    " + addon_path)
+        subsplit = sub_col.row(align=True)
+        subsplit.alignment = "RIGHT"
+        subsplit.operator(
+            "wm.path_open", text="Browse", icon='FILEBROWSER',
+        ).filepath = os.path.dirname(addon_path)
 
 
 def addons_panel_draw_error_generic(layout, lines):
