@@ -68,15 +68,14 @@ ccl_device float2 direction_to_fisheye(float3 dir, float fov)
   return make_float2(0.5f - uv.x, uv.y + 0.5f);
 }
 
-
 using T = float;
 
 typedef struct {
-    T data[2];
+  T data[2];
 } Mat_2x1;
 
 typedef struct {
-    T data[2][2];
+  T data[2][2];
 } Mat_2x2;
 
 // FisheyeRadTanThinPrism: f,cx,cy,k0,k1,k2,k3,k5,k5,p1,p2,s1,s2,s3,s4
@@ -96,10 +95,12 @@ static constexpr int startS = startP + 2 * useTangential;
 static constexpr int kMaxIterations = 50;
 static constexpr T converge_threshold = T(1e-8);
 static constexpr T eps = T(1e-8);
-static constexpr int kNumParams = (4 - useSingleFocalLength) + numK + 2 * useTangential + 4 * useThinPrism + 1 * useSkew;
+static constexpr int kNumParams = (4 - useSingleFocalLength) + numK + 2 * useTangential +
+                                  4 * useThinPrism + 1 * useSkew;
 
-ccl_device_inline float3 fisheye_radtanthinprism_to_direction(float u, float v,
-    float width, float height, const float* params0) {
+ccl_device_inline float3 fisheye_radtanthinprism_to_direction(
+    float u, float v, float width, float height, const float *params0)
+{
 
   T params[15];
   for (int i = 0; i < 15; i++) {
@@ -116,8 +117,8 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction(float u, float v,
 
   // get uvDistorted:
   Mat_2x1 uvDistorted;
-  uvDistorted.data[0] = (T(u*width) - cx)/f;
-  uvDistorted.data[1] = (T(v*height) - cy)/f;
+  uvDistorted.data[0] = (T(u * width) - cx) / f;
+  uvDistorted.data[1] = (T(v * height) - cy) / f;
 
   // initial guess
   Mat_2x1 xr_yr;
@@ -131,14 +132,14 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction(float u, float v,
     T xr_yr_squaredNorm = xr_yr.data[0] * xr_yr.data[0] + xr_yr.data[1] * xr_yr.data[1];
 
     if (useTangential) {
-      const T* param = params + startP;
+      const T *param = params + startP;
       T temp = T(2.0) * (xr_yr.data[0] * param[0] + xr_yr.data[1] * param[1]);
       uvDistorted_est.data[0] += temp * xr_yr.data[0] + xr_yr_squaredNorm * param[0];
       uvDistorted_est.data[1] += temp * xr_yr.data[1] + xr_yr_squaredNorm * param[1];
     }
 
     if (useThinPrism) {
-      const T* param = params + startS;
+      const T *param = params + startS;
       T radialPowers2And4[2];
       radialPowers2And4[0] = xr_yr_squaredNorm;
       radialPowers2And4[1] = xr_yr_squaredNorm * xr_yr_squaredNorm;
@@ -150,11 +151,14 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction(float u, float v,
     Mat_2x2 duvDistorted_dxryr;
     if (useTangential) {
       T offdiag = T(2.0) * (xr_yr.data[0] * params[startP + 1] + xr_yr.data[1] * params[startP]);
-      duvDistorted_dxryr.data[0][0] = T(1.0) + T(6.0) * xr_yr.data[0] * params[startP] + T(2.0) * xr_yr.data[1] * params[startP + 1];
+      duvDistorted_dxryr.data[0][0] = T(1.0) + T(6.0) * xr_yr.data[0] * params[startP] +
+                                      T(2.0) * xr_yr.data[1] * params[startP + 1];
       duvDistorted_dxryr.data[0][1] = offdiag;
       duvDistorted_dxryr.data[1][0] = offdiag;
-      duvDistorted_dxryr.data[1][1] = T(1.0) + T(6.0) * xr_yr.data[1] * params[startP + 1] + T(2.0) * xr_yr.data[0] * params[startP];
-    } else {
+      duvDistorted_dxryr.data[1][1] = T(1.0) + T(6.0) * xr_yr.data[1] * params[startP + 1] +
+                                      T(2.0) * xr_yr.data[0] * params[startP];
+    }
+    else {
       duvDistorted_dxryr.data[0][0] = T(1.0);
       duvDistorted_dxryr.data[0][1] = T(0.0);
       duvDistorted_dxryr.data[1][0] = T(0.0);
@@ -175,22 +179,22 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction(float u, float v,
     // note: the matrix duvDistorted_dxryr will be close to identity (for reasonable values
     // of tangential/thin prism distortions), so using an analytical inverse here is safe
     Mat_2x1 correction;
-    T determinant = duvDistorted_dxryr.data[0][0] * duvDistorted_dxryr.data[1][1] - duvDistorted_dxryr.data[0][1] * duvDistorted_dxryr.data[1][0];
-    correction.data[0] = (T(1.0) / determinant) *
-      (duvDistorted_dxryr.data[1][1] *
-       (uvDistorted.data[0] - uvDistorted_est.data[0]) -
-       duvDistorted_dxryr.data[0][1] *
-       (uvDistorted.data[1] - uvDistorted_est.data[1]));
-    correction.data[1] = (T(1.0) / determinant) *
-      (duvDistorted_dxryr.data[0][0] *
-       (uvDistorted.data[1] - uvDistorted_est.data[1]) -
-       duvDistorted_dxryr.data[1][0] *
-       (uvDistorted.data[0] - uvDistorted_est.data[0]));
+    T determinant = duvDistorted_dxryr.data[0][0] * duvDistorted_dxryr.data[1][1] -
+                    duvDistorted_dxryr.data[0][1] * duvDistorted_dxryr.data[1][0];
+    correction.data[0] =
+        (T(1.0) / determinant) *
+        (duvDistorted_dxryr.data[1][1] * (uvDistorted.data[0] - uvDistorted_est.data[0]) -
+         duvDistorted_dxryr.data[0][1] * (uvDistorted.data[1] - uvDistorted_est.data[1]));
+    correction.data[1] =
+        (T(1.0) / determinant) *
+        (duvDistorted_dxryr.data[0][0] * (uvDistorted.data[1] - uvDistorted_est.data[1]) -
+         duvDistorted_dxryr.data[1][0] * (uvDistorted.data[0] - uvDistorted_est.data[0]));
 
     xr_yr.data[0] += correction.data[0];
     xr_yr.data[1] += correction.data[1];
 
-    const T err = correction.data[0]*correction.data[0] + correction.data[1]*correction.data[1];
+    const T err = correction.data[0] * correction.data[0] +
+                  correction.data[1] * correction.data[1];
     if (err < converge_threshold) {
       break;
     }
@@ -224,7 +228,8 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction(float u, float v,
     T step;
     if (std::fabs(dthD_dth) > T(eps)) {
       step = (th_radialDesired - th_radial) / dthD_dth;
-    } else {
+    }
+    else {
       step = (th_radialDesired - th_radial) * dthD_dth > T(0.0) ? 10 * eps : -10 * eps;
     }
 
@@ -240,10 +245,9 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction(float u, float v,
   }
 
   // get the point coordinates:
-  float3 point3dEst = make_float3(
-      (float)(tan(theta) / xr_yrNorm * xr_yr.data[0]),
-      (float)(tan(theta) / xr_yrNorm * xr_yr.data[1]),
-      1.0f);
+  float3 point3dEst = make_float3((float)(tan(theta) / xr_yrNorm * xr_yr.data[0]),
+                                  (float)(tan(theta) / xr_yrNorm * xr_yr.data[1]),
+                                  1.0f);
 
   return point3dEst;
 }
@@ -424,7 +428,8 @@ ccl_device_inline float3 panorama_to_direction(ccl_constant KernelCamera *cam, f
     case PANORAMA_FISHEYE_EQUIDISTANT:
       return fisheye_to_direction(u, v, cam->fisheye_fov);
     case PANORAMA_FISHEYE_624:
-      return fisheye_radtanthinprism_to_direction(u, v, cam->width, cam->height, cam->fisheye624_params);
+      return fisheye_radtanthinprism_to_direction(
+          u, v, cam->width, cam->height, cam->fisheye624_params);
     case PANORAMA_FISHEYE_LENS_POLYNOMIAL:
       return fisheye_lens_polynomial_to_direction(u,
                                                   v,

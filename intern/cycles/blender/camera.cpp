@@ -250,7 +250,7 @@ static void blender_camera_from_object(BlenderCamera *bcam,
     bcam->fisheye_polynomial_k4 = b_camera.fisheye_polynomial_k4();
 
     // fisheye624 distortions
-    bcam->fisheye624_f  = b_camera.fisheye624_f();
+    bcam->fisheye624_f = b_camera.fisheye624_f();
     bcam->fisheye624_cx = b_camera.fisheye624_cx();
     bcam->fisheye624_cy = b_camera.fisheye624_cy();
     bcam->fisheye624_k0 = b_camera.fisheye624_k0();
@@ -353,11 +353,13 @@ static Transform blender_camera_matrix(const Transform &tfm,
        */
       result = tfm * make_transform(
                          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
-    } else if (panorama_type == PANORAMA_FISHEYE_624) {
+    }
+    else if (panorama_type == PANORAMA_FISHEYE_624) {
       /* Camera coordinate convention for Fisheye624 is
        * -Z forward, +Y up and +X right */
       result = tfm * transform_scale(1.0f, 1.0f, -1.0f);
-    } else {
+    }
+    else {
       /* Make it so environment camera needs to be pointed in the direction
        * of the positive x-axis to match an environment texture, this way
        * it is looking at the center of the texture
