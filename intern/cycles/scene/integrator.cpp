@@ -93,6 +93,10 @@ NODE_DEFINE(Integrator)
               GUIDING_DIRECTIONAL_SAMPLING_TYPE_RIS);
   SOCKET_FLOAT(guiding_roughness_threshold, "Guiding Roughness Threshold", 0.05f);
 
+  SOCKET_BOOLEAN(guiding_store_cache, "Store Guiding Cache", false);
+  SOCKET_BOOLEAN(guiding_load_cache, "Load Guiding Cache", false);
+  SOCKET_STRING(guiding_cache_file, "Guiding Cache File", ustring());
+
   SOCKET_BOOLEAN(caustics_reflective, "Reflective Caustics", true);
   SOCKET_BOOLEAN(caustics_refractive, "Refractive Caustics", true);
   SOCKET_FLOAT(filter_glossy, "Filter Glossy", 0.0f);
@@ -501,6 +505,11 @@ GuidingParams Integrator::get_guiding_params(const Device *device) const
   guiding_params.sampling_type = guiding_directional_sampling_type;
   // In Blender/Cycles the user set roughness is squared to behave more linear.
   guiding_params.roughness_threshold = guiding_roughness_threshold * guiding_roughness_threshold;
+
+  guiding_params.store_cache = guiding_store_cache;
+  guiding_params.load_cache = guiding_load_cache;
+  guiding_params.cache_file = guiding_cache_file.c_str();
+
   return guiding_params;
 }
 CCL_NAMESPACE_END

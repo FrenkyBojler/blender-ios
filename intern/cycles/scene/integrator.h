@@ -58,6 +58,10 @@ class Integrator : public Node {
   NODE_SOCKET_API(GuidingDirectionalSamplingType, guiding_directional_sampling_type);
   NODE_SOCKET_API(float, guiding_roughness_threshold);
 
+  NODE_SOCKET_API(bool, guiding_store_cache);
+  NODE_SOCKET_API(bool, guiding_load_cache);
+  NODE_SOCKET_API(ustring, guiding_cache_file);
+
   NODE_SOCKET_API(bool, caustics_reflective)
   NODE_SOCKET_API(bool, caustics_refractive)
   NODE_SOCKET_API(float, filter_glossy)

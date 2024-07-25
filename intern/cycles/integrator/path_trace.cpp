@@ -19,6 +19,7 @@
 #include "session/tile.h"
 
 #include "util/log.h"
+#include "util/path.h"
 #include "util/progress.h"
 #include "util/tbb.h"
 #include "util/time.h"
@@ -1448,11 +1449,19 @@ void PathTrace::set_guiding_params(const GuidingParams &guiding_params, const bo
           device_->get_guiding_device());
       if (guiding_device) {
         guiding_sample_data_storage_ = make_unique<openpgl::cpp::SampleStorage>();
+        if (guiding_params_.load_cache && path_exists(guiding_params_.cache_file)) {
+          guiding_field_ = make_unique<openpgl::cpp::Field>(guiding_device,
+                                                            guiding_params_.cache_file);
+          guiding_params_.start_training = false;
+        }
+        else {
 #  ifdef OPENPGL_USE_FIELD_CONFIG
-        guiding_field_ = make_unique<openpgl::cpp::Field>(guiding_device, field_config);
+          guiding_field_ = make_unique<openpgl::cpp::Field>(guiding_device, field_config);
 #  else
-        guiding_field_ = make_unique<openpgl::cpp::Field>(guiding_device, field_args);
+          guiding_field_ = make_unique<openpgl::cpp::Field>(guiding_device, field_args);
 #  endif
+          guiding_params_.start_training = true;
+        }
       }
       else {
         guiding_sample_data_storage_ = nullptr;
@@ -1478,8 +1487,9 @@ void PathTrace::set_guiding_params(const GuidingParams &guiding_params, const bo
 void PathTrace::guiding_prepare_structures()
 {
 #if defined(WITH_PATH_GUIDING)
-  const bool train = (guiding_params_.training_samples == 0) ||
-                     (guiding_field_->GetIteration() < guiding_params_.training_samples);
+  const bool train = guiding_params_.start_training &&
+                     ((guiding_params_.training_samples == 0) ||
+                      (guiding_field_->GetIteration() < guiding_params_.training_samples));
 
   for (auto &&path_trace_work : path_trace_works_) {
     path_trace_work->guiding_init_kernel_globals(
@@ -1519,6 +1529,13 @@ void PathTrace::guiding_update_structures()
     LOG_TRACE << "Path guiding field valid: " << guiding_field_->Validate();
 
     guiding_sample_data_storage_->Clear();
+  }
+
+  if (guiding_params_.store_cache &&
+      guiding_params_.training_samples == guiding_field_->GetIteration())
+  {
+    VLOG_WORK << "Storing guiding cache: " << guiding_params_.cache_file;
+    guiding_field_->Store(guiding_params_.cache_file);
   }
 #endif
 }

@@ -21,6 +21,12 @@ struct GuidingParams {
   int training_samples = 128;
   bool deterministic = false;
 
+  bool store_cache = false;
+  bool load_cache = false;
+  std::string cache_file = "";
+
+  bool start_training = true;
+
   GuidingParams() = default;
 
   bool modified(const GuidingParams &other) const

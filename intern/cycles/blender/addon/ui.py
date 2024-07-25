@@ -432,6 +432,11 @@ class CYCLES_RENDER_PT_sampling_path_guiding_debug(CyclesDebugButtonsPanel, Pane
         col.prop(cscene, "use_guiding_direct_light")
         col.prop(cscene, "use_guiding_mis_weights")
 
+        col = layout.column(align=True)
+        col.prop(cscene, "guiding_store_cache")
+        col.prop(cscene, "guiding_load_cache")
+        col.prop(cscene, "guiding_cache_file")
+
 
 class CYCLES_RENDER_PT_sampling_advanced(CyclesButtonsPanel, Panel):
     bl_label = "Advanced"

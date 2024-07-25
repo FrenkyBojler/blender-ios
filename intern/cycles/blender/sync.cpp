@@ -529,6 +529,34 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
                                                  GUIDING_DIRECTIONAL_SAMPLING_TYPE_RIS);
     integrator->set_guiding_directional_sampling_type(guiding_directional_sampling_type);
     integrator->set_guiding_roughness_threshold(get_float(cscene, "guiding_roughness_threshold"));
+
+    integrator->set_guiding_store_cache(get_boolean(cscene, "guiding_store_cache"));
+    integrator->set_guiding_load_cache(get_boolean(cscene, "guiding_load_cache"));
+    std::string guiding_cache_file = get_string(cscene, "guiding_cache_file");
+    if (guiding_cache_file != "") {
+      if (!path_exists(guiding_cache_file) && !integrator->get_guiding_store_cache()) {
+        if (path_is_relative(guiding_cache_file)) {
+          std::string dirname = path_dirname(guiding_cache_file);
+          std::string filename = path_filename(guiding_cache_file);
+          std::string scene_filepath = path_dirname(b_data.filepath());
+          std::string comb = path_join(scene_filepath, path_join(dirname, filename));
+          std::string comb2 = path_join(scene_filepath, filename);
+          if (path_exists(comb)) {
+            guiding_cache_file = comb;
+          }
+          else if (path_exists(comb2)) {
+            guiding_cache_file = comb2;
+          }
+          else {
+            guiding_cache_file = "";
+          }
+        }
+        else {
+          guiding_cache_file = "";
+        }
+      }
+    }
+    integrator->set_guiding_cache_file(ustring(guiding_cache_file));
   }
 
   DenoiseParams denoise_params = get_denoise_params(

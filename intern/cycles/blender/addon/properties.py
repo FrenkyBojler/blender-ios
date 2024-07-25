@@ -741,6 +741,24 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default=0.05,
     )
 
+    guiding_store_cache: BoolProperty(
+        name="Storing Cache",
+        description="Stores the trained guiding cache for the scene to a file.",
+        default=False,
+    )
+
+    guiding_load_cache: BoolProperty(
+        name="Loading Cache",
+        description="Loads a stored guiding cache for the scene from a file.",
+        default=False,
+    )
+
+    guiding_cache_file: StringProperty(
+        name="Cache File",
+        description="The location of the stored guiding cache file.",
+        default="",
+    )
+
     max_bounces: IntProperty(
         name="Max Bounces",
         description="Total maximum number of bounces",
