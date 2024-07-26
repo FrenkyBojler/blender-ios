@@ -749,7 +749,7 @@ TEST(KernelCamera, Cam62nc_radial)
   }
 
   {
-    // Testcase from a real calib of some roughly orthographic fisheye lens.
+    // Testcase from a real calib of some roughly "orthographic fisheye" lens.
     float const k[]{-2.7071250929750468e-01,
                     5.1892349368743274e-01,
                     -1.0625944626790622e+00,
