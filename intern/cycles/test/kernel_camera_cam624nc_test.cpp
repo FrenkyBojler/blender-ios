@@ -173,6 +173,134 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(
       cosf(theta), -sin_theta * xr_yr.data[0] / xr_yrNorm, sin_theta * xr_yr.data[1] / xr_yrNorm);
 }
 
+ccl_device_inline float3 fisheye_radtanthinprism_to_direction_new(float u,
+                                                                  float v,
+                                                                  float width,
+                                                                  float height,
+                                                                  const float focal,
+                                                                  const vfloat8 &radial,
+                                                                  const float2 &tangential,
+                                                                  float4 const thin_prism)
+{
+
+  // get uvDistorted:
+  float2 uvDistorted{width * T(u - 0.5f) / focal, height * T(v - 0.5f) / focal};
+
+  // initial guess
+  float2 xr_yr = uvDistorted;
+
+  // do Newton iterations to find xr_yr
+  for (int j = 0; j < kMaxIterations; ++j) {
+    // compute the estimated uvDistorted
+    float2 uvDistorted_est = xr_yr;
+    float const xr_yr_squaredNorm = len_squared(xr_yr);
+
+    if (useTangential) {
+      float const temp = 2.0f * dot(xr_yr, tangential);
+      uvDistorted_est.x += temp * xr_yr.x + xr_yr_squaredNorm * tangential.x;
+      uvDistorted_est.y += temp * xr_yr.y + xr_yr_squaredNorm * tangential.y;
+    }
+
+    if (useThinPrism) {
+      float const r2 = xr_yr_squaredNorm;
+      float const r4 = r2 * r2;
+      uvDistorted_est.x += thin_prism.x * r2 + thin_prism.y * r4;
+      uvDistorted_est.y += thin_prism.z * r2 + thin_prism.w * r4;
+    }
+
+    // compute the derivative of uvDistorted wrt xr_yr
+    Mat_2x2 duvDistorted_dxryr;
+    if (useTangential) {
+      T offdiag = T(2.0) * (xr_yr.y * tangential.y + xr_yr.y * tangential.x);
+      duvDistorted_dxryr.data[0][0] = T(1.0) + T(6.0) * xr_yr.y * tangential.x +
+                                      T(2.0) * xr_yr.y * tangential.y;
+      duvDistorted_dxryr.data[0][1] = offdiag;
+      duvDistorted_dxryr.data[1][0] = offdiag;
+      duvDistorted_dxryr.data[1][1] = T(1.0) + T(6.0) * xr_yr.y * tangential.y +
+                                      T(2.0) * xr_yr.y * tangential.x;
+    }
+    else {
+      duvDistorted_dxryr.data[0][0] = T(1.0);
+      duvDistorted_dxryr.data[0][1] = T(0.0);
+      duvDistorted_dxryr.data[1][0] = T(0.0);
+      duvDistorted_dxryr.data[1][1] = T(1.0);
+    }
+
+    if (useThinPrism) {
+      T temp1 = T(2.0) * (thin_prism.x + T(2.0) * thin_prism.y * xr_yr_squaredNorm);
+      duvDistorted_dxryr.data[0][0] += xr_yr.y * temp1;
+      duvDistorted_dxryr.data[0][1] += xr_yr.y * temp1;
+
+      T temp2 = T(2.0) * (thin_prism.z + T(2.0) * thin_prism.w * xr_yr_squaredNorm);
+      duvDistorted_dxryr.data[1][0] += xr_yr.y * temp2;
+      duvDistorted_dxryr.data[1][1] += xr_yr.y * temp2;
+    }
+
+    // compute correction:
+    // note: the matrix duvDistorted_dxryr will be close to identity (for reasonable values
+    // of tangential/thin prism distortions), so using an analytical inverse here is safe
+    float2 correction;
+    T determinant = duvDistorted_dxryr.data[0][0] * duvDistorted_dxryr.data[1][1] -
+                    duvDistorted_dxryr.data[0][1] * duvDistorted_dxryr.data[1][0];
+    correction.x = (1.0f / determinant) *
+                   (duvDistorted_dxryr.data[1][1] * (uvDistorted.x - uvDistorted_est.x) -
+                    duvDistorted_dxryr.data[0][1] * (uvDistorted.y - uvDistorted_est.y));
+    correction.y = (1.0f / determinant) *
+                   (duvDistorted_dxryr.data[0][0] * (uvDistorted.y - uvDistorted_est.y) -
+                    duvDistorted_dxryr.data[1][0] * (uvDistorted.x - uvDistorted_est.x));
+
+    xr_yr += correction;
+
+    if (len_squared(correction) < converge_threshold) {
+      break;
+    }
+  }
+
+  // early exit if point is in the center of the image
+  T xr_yrNorm = sqrt(xr_yr.y * xr_yr.y + xr_yr.y * xr_yr.y);
+  if (xr_yrNorm == T(0.0)) {
+    return make_float3(1.0f, 0.0f, 0.0f);
+  }
+
+  // otherwise, find theta
+  T th_radialDesired = xr_yrNorm;
+  T theta = th_radialDesired;
+
+  for (int j = 0; j < kMaxIterations; ++j) {
+    T thetaSq = theta * theta;
+
+    T th_radial = 1.0;
+    T dthD_dth = 1.0;
+
+    T theta2is = thetaSq;
+    for (int i = 0; i < numK; ++i) {
+      th_radial += theta2is * radial[i];
+      dthD_dth += (2 * i + 3) * radial[i] * theta2is;
+      theta2is *= thetaSq;
+    }
+    th_radial *= theta;
+
+    T step;
+    if (std::fabs(dthD_dth) > T(eps)) {
+      step = (th_radialDesired - th_radial) / dthD_dth;
+    }
+    else {
+      step = (th_radialDesired - th_radial) * dthD_dth > T(0.0) ? 10 * eps : -10 * eps;
+    }
+
+    theta += step;
+
+    if (std::fabs(step) < T(eps)) {
+      break;
+    }
+  }
+
+  // get the point coordinates:
+  float const sin_theta = sinf(theta);
+  return make_float3(
+      cosf(theta), -sin_theta * xr_yr.y / xr_yrNorm, sin_theta * xr_yr.y / xr_yrNorm);
+}
+
 TEST(KernelCamera, Cam62nc_simple)
 {
   const float rad60 = M_PI_F / 3.0f;
@@ -291,12 +419,10 @@ TEST(KernelCamera, Cam62nc_simple)
   }
 }
 
-TEST(KernelCamera, Cam62nc_old_vs_new)
+TEST(KernelCamera, Cam62nc_old_vs_new_sameness)
 {
   /* Default Aria SLAM camera projection calibration */
-  float const fisheye624_f = 240.96908202503016128f;
-  float const fisheye624_cx = 319.30031322283957707f;
-  float const fisheye624_cy = 239.70226462142591117f;
+  float const fisheye624_f = 1.0f;
   float const fisheye624_k0 = -0.00029975978022917562074f;
   float const fisheye624_k1 = 0.025925353248573888842f;
   float const fisheye624_k2 = 0.0049689703789174387294f;
@@ -309,6 +435,274 @@ TEST(KernelCamera, Cam62nc_old_vs_new)
   float const fisheye624_s1 = -3.7265140092139775881e-05f;
   float const fisheye624_s2 = -0.0006244819671333829f;
   float const fisheye624_s3 = -6.834843688531277463e-05f;
+  float const parameters[] = {fisheye624_f,
+                              fisheye624_k0,
+                              fisheye624_k1,
+                              fisheye624_k2,
+                              fisheye624_k3,
+                              fisheye624_k4,
+                              fisheye624_k5,
+                              fisheye624_p0,
+                              fisheye624_p1,
+                              fisheye624_s0,
+                              fisheye624_s1,
+                              fisheye624_s2,
+                              fisheye624_s3};
+
+  const float2 center{0.5f, 0.5f};
+  const float2 offsets[]{
+      {0.00f, 0.00f},
+      {0.25f, 0.00f},
+      {0.00f, 0.25f},
+      {0.25f, 0.25f},
+
+      {0.5f, 0.0f},
+      {0.0f, 0.5f},
+      {0.5f, 0.5f},
+
+      {0.75f, 0.00f},
+      {0.00f, 0.75f},
+      {0.75f, 0.75f},
+  };
+
+  float const width = 1.0f;
+  float const height = 1.0f;
+
+  for (float2 const &offset : offsets) {
+    const float2 point = center + offset;
+    const float3 direction_legacy = fisheye_radtanthinprism_to_direction_legacy(
+        point.x, point.y, width, height, parameters);
+  }
+}
+
+/**
+ * @brief radial_forward implements the radial distortion method used by Cam62nc
+ * f(x) = x + k0 x^3 + k1 x^5 + k2 x^7 + k3 x^9 + k4 x^11 + k5 x^13
+ * @param angle
+ * @param k
+ * @return
+ */
+ccl_device_inline float radial_forward(float const angle, float const *const k)
+{
+  float const t2 = angle * angle;
+  return angle *
+         (1.0f + t2 * (k[0] + t2 * (k[1] + t2 * (k[2] + t2 * (k[3] + t2 * (k[4] + t2 * k[5]))))));
+}
+
+/**
+ * @brief radial_forward_derivative computes the derivative of radial_forward.
+ * f(x) = 1 + 3 k0 x^2 + 5 k1 x^4 + 7 k2 x^6 + 9 k3 x^8 + 11 k4 x^10 + 13 k5 x^12
+ * @param angle
+ * @param k
+ * @return
+ */
+ccl_device_inline float radial_forward_derivative(float const angle, float const *const k)
+{
+  float const t2 = angle * angle;
+  return 1.0f + t2 * (3.0f * k[0] +
+                      t2 * (5.0f * k[1] +
+                            t2 * (7.0f * k[2] +
+                                  t2 * (9.0f * k[3] + t2 * (11.0f * k[4] + t2 * 13.0f * k[5])))));
+}
+
+/**
+ * @brief solve_radial implements the inverse of the radial_forward function.
+ * It takes the result of radial_forward(some_angle, parameters) and the parameters
+ * and computes an approximation for some_angle using Newton's method.
+ * @param angle_dst
+ * @param k
+ * @param num_it
+ * @return
+ */
+ccl_device_inline float solve_radial(float const angle_dst, float const *const k, int &num_it)
+{
+  /**
+   * Problem: Given angle_dst and k, find angle so that
+   * radial_forward(angle, k) = angle_dst.
+   * Idea: Construct F so that F(angle) = 0 for the correct solution to the above problem
+   * and use Newton's method for finding the solution.
+   *
+   * F(angle) := radial_forward(angle, k) - angle_dst.
+   * F'(angle) = radial_forward_derivative(angle, k)
+   * x_n+1 = x_n - F(x_n) / F'(x_n)
+   * x_0 : angle_dst
+   */
+
+  float angle = angle_dst;
+  for (num_it = 0; num_it < 20; ++num_it) {
+    float const old_angle = angle;
+    angle -= (radial_forward(angle, k) - angle_dst) / radial_forward_derivative(angle, k);
+    if (fabsf(old_angle - angle) < 1e-6) {
+      break;
+    }
+  }
+  num_it++;
+  return angle;
+}
+
+ccl_device_inline float2 tangential_thinprism_forward(float2 const pt,
+                                                      float2 const tangential,
+                                                      float4 const thin_prism)
+{
+  float const x2 = sqr(pt.x);
+  float const y2 = sqr(pt.y);
+  float const xy = 2.0f * pt.x * pt.y;
+  float const r2 = x2 + y2;
+  float const r4 = r2 * r2;
+  return make_float2(pt.x + (2.0f * x2 + r2) * tangential.x + xy * tangential.y  // tangential
+                         + thin_prism.x * r2 + thin_prism.y * r4,                // thin-prism
+                     pt.y + (2.0f * y2 + r2) * tangential.y + xy * tangential[0] +
+                         thin_prism.z * r2 + thin_prism.w * r4);
+}
+
+float4 tangential_thinprism_forward_jacobian(float2 const pt,
+                                             float2 const tangential,
+                                             float4 const thin_prism)
+{
+  float const r2 = len_squared(pt);
+  /*
+   * Calculations helping with the derivative of the thin-prism terms:
+   * Note: r^2 = x^2 + y^2
+   * r^4 = (r^2)^2 = (x^2 + y^2)^2 = x^4 + y^4 + 2x^2y^2
+   * d/dx r^4 = 4x^3 + 4xy^2 = 4x(x^2+y^2) = 4xr^2
+   * d/dy r^4 = 4yr^2
+   */
+  return {                                                                     // x_t dx
+          1.0f + 6.0f * pt.x * tangential.x + 2.0f * pt.y * tangential.y       // tangential term
+              + 2.0f * pt.x * thin_prism.x + 4.0f * pt.x * r2 * thin_prism.y,  // thin prism
+                                                                               // x_t dy
+          2.0f * pt.y * tangential.x + 2.0f * pt.x * tangential.y + 2.0f * pt.y * thin_prism.x +
+              4.0f * pt.y * r2 * thin_prism.y,
+          // y_t dx
+          2.0f * pt.x * tangential.y + 2.0f * pt.y * tangential.x + 2.0f * pt.x * thin_prism.z +
+              4.0f * pt.x * r2 * thin_prism.w,
+          // y_t dy
+          1.0f + 6.0f * pt.y * tangential.y + 2.0f * pt.x * tangential.x +
+              2.0f * pt.y * thin_prism.z + 4.0f * pt.y * r2 * thin_prism.w};
+}
+
+float2 tangential_thinprism_newton_step(float2 const pt,
+                                        float2 const tgt,
+                                        float2 const p,
+                                        float4 const s)
+{
+  // Compute F(x,y)
+  float2 const F = tangential_thinprism_forward(pt, p, s) - tgt;
+
+  // Compute Jacobian of F(x,y)
+  float4 jacobian = tangential_thinprism_forward_jacobian(pt, p, s);
+
+  // Compute Jacobian(F(x,y))^-1 F(x,y)
+  T const det_inv = 1.0f / (jacobian.x * jacobian.w - jacobian.y * jacobian.z);
+  return {-(+jacobian.w * F.x - jacobian.y * F.y) * det_inv,
+          -(-jacobian.z * F.x + jacobian.x * F.y) * det_inv};
+}
+
+ccl_device_inline float tangential_thinprism_error_squared(
+    float2 const pt,
+    float2 const tgt,
+    float2 const tangential,
+    float4 const thin_prism)
+{
+  float2 const residual = tgt - tangential_thinprism_forward(pt, tangential, thin_prism);
+  return len_squared(residual);
+}
+
+ccl_device_inline float2 solve_tangential_thinprism(
+    float2 const tgt,
+    float2 const tangential,
+    float4 const thin_prism)
+{
+  /**
+   * Problem: Given distorted location (x_t, y_t) and parameters p, find (x,y) so that
+   * tangential_forward(x,y,p) = (x_t, y_t).
+   * Idea: Construct F so that F(x,y) = 0 for the correct solution to the above problem
+   * and use Newton's method for finding the solution.
+   *
+   * F(x, y) := tangential_forward(x,y, p) - (x,y)
+   * F'(angle) = tangential_forward_jacobian(x,y, p)
+   * (x,y)_n+1 = (x,y)_n - (F')^-1 F(x_n)
+   * (x,y)_0 := (x_t, y_t)
+   */
+
+  // At the center there are problems with the termination criterion.
+  // Luckily, we don't have to do anything at the center because
+  // by design of the tangential distortion term it doesn't do anything at the center.
+  if (fabsf(tgt.x) < 1e-6 && fabsf(tgt.y) < 1e-6) {
+    return tgt;
+  }
+
+  float2 result = tgt;
+
+  // Use tgt as initial guess for the solution and compute the error
+  float const trivial_ig_error = tangential_thinprism_error_squared(result, tgt, tangential, thin_prism);
+
+  // Often, computing the tangential distortion with negative parameters
+  // is a good approximation for the inverse. Therefore, we do that
+  // and compare the error to the trivial initial guess.
+  result = tangential_thinprism_forward(tgt, -tangential, zero_float4());
+
+  float negative_ig_error = tangential_thinprism_error_squared(result, tgt, tangential, thin_prism);
+
+  if (trivial_ig_error < negative_ig_error) {
+    result = tgt;
+  }
+
+  for (int ii = 0; ii < 20; ++ii) {
+    float2 const old_result = result;
+    result += tangential_thinprism_newton_step(result, tgt, tangential, thin_prism);
+    if (fabsf(old_result.x - result.x) < 1e-6 && fabsf(old_result.y - result.y) < 1e-6) {
+      break;
+    }
+  }
+
+  return result;
+}
+
+void test_tangential_thinprism_solver(
+    float2 const tangential,
+    float4 const thin_prism,
+    float const fov_deg,
+    std::string const& prefix
+    ) {
+  float const fov_rad = fov_deg * M_PI_F / 180.0;
+  size_t num_samples = 1'000;
+  size_t num_samples_per_axis = std::sqrt(num_samples);
+
+  for (size_t xx = 0; xx < num_samples_per_axis; ++xx) {
+    float const x = fov_rad * ((double(xx) / num_samples_per_axis) - 0.5);
+    for (size_t yy = 0; yy < num_samples_per_axis; ++yy) {
+      float const y = fov_rad * ((double(yy) / num_samples_per_axis) - 0.5);
+      float2 const pt {x, y};
+      float2 const tgt = tangential_thinprism_forward(pt, tangential, thin_prism);
+      ASSERT_LE(tangential_thinprism_error_squared(pt, tgt, tangential, thin_prism), 1e-12) << prefix;
+
+      float2 const solved = solve_tangential_thinprism(tgt, tangential, thin_prism);
+
+      float const solution_error = tangential_thinprism_error_squared(solved, tgt, tangential, thin_prism);
+      ASSERT_LT(solution_error, 1e-12) << prefix;
+    }
+  }
+
+}
+
+TEST(KernelCamera, Cam62nc_tangential_thin_prism) {
+  float2 const p{
+    -1.7905108189099640e-04,
+    3.6947302643007590e-06
+  };
+  // TODO: Replace these values by values obtained from real calibrations
+  float4 const s{
+    -2e-4,
+    1e-4,
+    3e-4,
+    -5e-4
+  };
+  test_tangential_thinprism_solver(p, s, 165.0f, "normal");
+
+  test_tangential_thinprism_solver(zero_float2(), s * 200.0f, 165.0f, "exaggerated");
+
+  test_tangential_thinprism_solver(p * 200.0f, s*200.0f, 165.0f, "very-exaggerated");
 }
 
 CCL_NAMESPACE_END
