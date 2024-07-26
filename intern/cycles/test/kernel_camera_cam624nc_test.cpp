@@ -17,12 +17,14 @@
 CCL_NAMESPACE_BEGIN
 
 //*
-ccl_device_inline std::ostream& operator << (std::ostream& out, const float3 val) {
+ccl_device_inline std::ostream &operator<<(std::ostream &out, const float3 val)
+{
   out << "(" << val.x << ", " << val.y << ", " << val.z << ")";
   return out;
 }
 
-ccl_device_inline std::ostream& operator << (std::ostream& out, const float2 val) {
+ccl_device_inline std::ostream &operator<<(std::ostream &out, const float2 val)
+{
   out << "(" << val.x << ", " << val.y << ")";
   return out;
 }
@@ -30,8 +32,9 @@ ccl_device_inline std::ostream& operator << (std::ostream& out, const float2 val
 
 using T = float;
 
-ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(float u, float v,
-    float width, float height, const float* params0) {
+ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(
+    float u, float v, float width, float height, const float *params0)
+{
 
   T params[15];
   for (int i = 0; i < 15; i++) {
@@ -42,8 +45,8 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(float u, fl
 
   // get uvDistorted:
   Mat_2x1 uvDistorted;
-  uvDistorted.data[0] = width  * T(u - 0.5f)/f;
-  uvDistorted.data[1] = height * T(v - 0.5f)/f;
+  uvDistorted.data[0] = width * T(u - 0.5f) / f;
+  uvDistorted.data[1] = height * T(v - 0.5f) / f;
 
   // initial guess
   Mat_2x1 xr_yr;
@@ -57,14 +60,14 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(float u, fl
     T xr_yr_squaredNorm = xr_yr.data[0] * xr_yr.data[0] + xr_yr.data[1] * xr_yr.data[1];
 
     if (useTangential) {
-      const T* param = params + startP;
+      const T *param = params + startP;
       T temp = T(2.0) * (xr_yr.data[0] * param[0] + xr_yr.data[1] * param[1]);
       uvDistorted_est.data[0] += temp * xr_yr.data[0] + xr_yr_squaredNorm * param[0];
       uvDistorted_est.data[1] += temp * xr_yr.data[1] + xr_yr_squaredNorm * param[1];
     }
 
     if (useThinPrism) {
-      const T* param = params + startS;
+      const T *param = params + startS;
       T radialPowers2And4[2];
       radialPowers2And4[0] = xr_yr_squaredNorm;
       radialPowers2And4[1] = xr_yr_squaredNorm * xr_yr_squaredNorm;
@@ -76,11 +79,14 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(float u, fl
     Mat_2x2 duvDistorted_dxryr;
     if (useTangential) {
       T offdiag = T(2.0) * (xr_yr.data[0] * params[startP + 1] + xr_yr.data[1] * params[startP]);
-      duvDistorted_dxryr.data[0][0] = T(1.0) + T(6.0) * xr_yr.data[0] * params[startP] + T(2.0) * xr_yr.data[1] * params[startP + 1];
+      duvDistorted_dxryr.data[0][0] = T(1.0) + T(6.0) * xr_yr.data[0] * params[startP] +
+                                      T(2.0) * xr_yr.data[1] * params[startP + 1];
       duvDistorted_dxryr.data[0][1] = offdiag;
       duvDistorted_dxryr.data[1][0] = offdiag;
-      duvDistorted_dxryr.data[1][1] = T(1.0) + T(6.0) * xr_yr.data[1] * params[startP + 1] + T(2.0) * xr_yr.data[0] * params[startP];
-    } else {
+      duvDistorted_dxryr.data[1][1] = T(1.0) + T(6.0) * xr_yr.data[1] * params[startP + 1] +
+                                      T(2.0) * xr_yr.data[0] * params[startP];
+    }
+    else {
       duvDistorted_dxryr.data[0][0] = T(1.0);
       duvDistorted_dxryr.data[0][1] = T(0.0);
       duvDistorted_dxryr.data[1][0] = T(0.0);
@@ -101,22 +107,22 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(float u, fl
     // note: the matrix duvDistorted_dxryr will be close to identity (for reasonable values
     // of tangential/thin prism distortions), so using an analytical inverse here is safe
     Mat_2x1 correction;
-    T determinant = duvDistorted_dxryr.data[0][0] * duvDistorted_dxryr.data[1][1] - duvDistorted_dxryr.data[0][1] * duvDistorted_dxryr.data[1][0];
-    correction.data[0] = (T(1.0) / determinant) *
-      (duvDistorted_dxryr.data[1][1] *
-       (uvDistorted.data[0] - uvDistorted_est.data[0]) -
-       duvDistorted_dxryr.data[0][1] *
-       (uvDistorted.data[1] - uvDistorted_est.data[1]));
-    correction.data[1] = (T(1.0) / determinant) *
-      (duvDistorted_dxryr.data[0][0] *
-       (uvDistorted.data[1] - uvDistorted_est.data[1]) -
-       duvDistorted_dxryr.data[1][0] *
-       (uvDistorted.data[0] - uvDistorted_est.data[0]));
+    T determinant = duvDistorted_dxryr.data[0][0] * duvDistorted_dxryr.data[1][1] -
+                    duvDistorted_dxryr.data[0][1] * duvDistorted_dxryr.data[1][0];
+    correction.data[0] =
+        (T(1.0) / determinant) *
+        (duvDistorted_dxryr.data[1][1] * (uvDistorted.data[0] - uvDistorted_est.data[0]) -
+         duvDistorted_dxryr.data[0][1] * (uvDistorted.data[1] - uvDistorted_est.data[1]));
+    correction.data[1] =
+        (T(1.0) / determinant) *
+        (duvDistorted_dxryr.data[0][0] * (uvDistorted.data[1] - uvDistorted_est.data[1]) -
+         duvDistorted_dxryr.data[1][0] * (uvDistorted.data[0] - uvDistorted_est.data[0]));
 
     xr_yr.data[0] += correction.data[0];
     xr_yr.data[1] += correction.data[1];
 
-    const T err = correction.data[0]*correction.data[0] + correction.data[1]*correction.data[1];
+    const T err = correction.data[0] * correction.data[0] +
+                  correction.data[1] * correction.data[1];
     if (err < converge_threshold) {
       break;
     }
@@ -149,7 +155,8 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(float u, fl
     T step;
     if (std::fabs(dthD_dth) > T(eps)) {
       step = (th_radialDesired - th_radial) / dthD_dth;
-    } else {
+    }
+    else {
       step = (th_radialDesired - th_radial) * dthD_dth > T(0.0) ? 10 * eps : -10 * eps;
     }
 
@@ -163,13 +170,11 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(float u, fl
   // get the point coordinates:
   float const sin_theta = sinf(theta);
   return make_float3(
-        cosf(theta),
-        -sin_theta * xr_yr.data[0] / xr_yrNorm,
-      sin_theta * xr_yr.data[1] / xr_yrNorm);
-
+      cosf(theta), -sin_theta * xr_yr.data[0] / xr_yrNorm, sin_theta * xr_yr.data[1] / xr_yrNorm);
 }
 
-TEST(KernelCamera, Cam62nc_simple) {
+TEST(KernelCamera, Cam62nc_simple)
+{
   const float rad60 = M_PI_F / 3.0f;
   const float cos60 = 0.5f;
   const float sin60 = M_SQRT3_F / 2.0f;
@@ -198,10 +203,18 @@ TEST(KernelCamera, Cam62nc_simple) {
       {make_float2(+rad45, 0.0f), make_float3(cos45, -sin45, 0.0f), "45"},
       {make_float2(-rad45, 0.0f), make_float3(cos45, +sin45, 0.0f), "45"},
 
-      {make_float2(+rad45 * M_SQRT1_2F, +rad45 * M_SQRT1_2F), make_float3(cos45, -0.5f, +0.5f), "45"},
-      {make_float2(-rad45 * M_SQRT1_2F, +rad45 * M_SQRT1_2F), make_float3(cos45, +0.5f, +0.5f), "45"},
-      {make_float2(+rad45 * M_SQRT1_2F, -rad45 * M_SQRT1_2F), make_float3(cos45, -0.5f, -0.5f), "45"},
-      {make_float2(-rad45 * M_SQRT1_2F, -rad45 * M_SQRT1_2F), make_float3(cos45, +0.5f, -0.5f), "45"},
+      {make_float2(+rad45 * M_SQRT1_2F, +rad45 * M_SQRT1_2F),
+       make_float3(cos45, -0.5f, +0.5f),
+       "45"},
+      {make_float2(-rad45 * M_SQRT1_2F, +rad45 * M_SQRT1_2F),
+       make_float3(cos45, +0.5f, +0.5f),
+       "45"},
+      {make_float2(+rad45 * M_SQRT1_2F, -rad45 * M_SQRT1_2F),
+       make_float3(cos45, -0.5f, -0.5f),
+       "45"},
+      {make_float2(-rad45 * M_SQRT1_2F, -rad45 * M_SQRT1_2F),
+       make_float3(cos45, +0.5f, -0.5f),
+       "45"},
 
       /* 30° */
       {make_float2(0.0f, +rad30), make_float3(cos30, 0.0f, +sin30), "30"},
@@ -210,24 +223,22 @@ TEST(KernelCamera, Cam62nc_simple) {
       {make_float2(-rad30, 0.0f), make_float3(cos30, +sin30, 0.0f), "30"},
   };
 
-  float parameters[16] = {
-    1.0f, // focal length
-    0.0f, // principal point, code removed because it's handled by shift.
-    0.0f, //
-    0.0f, // Distortion parameters are all zero for the simple test.
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    0.0f
-  };
+  float parameters[16] = {1.0f,  // focal length
+                          0.0f,  // principal point, code removed because it's handled by shift.
+                          0.0f,  //
+                          0.0f,  // Distortion parameters are all zero for the simple test.
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f,
+                          0.0f};
 
   for (auto [offset, direction, test_type] : tests) {
     const float2 sensor = offset + make_float2(0.5f, 0.5f);
@@ -269,7 +280,6 @@ TEST(KernelCamera, Cam62nc_simple) {
           << "expected direction:  " << direction << std::endl
           << "test-type: " << test_type << std::endl;
 
-
       /*
       const float2 reprojected = direction_to_fisheye_lens_polynomial(
           direction, k0, k_equidistant, width, height);
@@ -281,9 +291,10 @@ TEST(KernelCamera, Cam62nc_simple) {
   }
 }
 
-TEST(KernelCamera, Cam62nc_old_vs_new) {
-  /* Default Aria SLAM camera projection calibration */ \
-  float const fisheye624_f =  240.96908202503016128f;
+TEST(KernelCamera, Cam62nc_old_vs_new)
+{
+  /* Default Aria SLAM camera projection calibration */
+  float const fisheye624_f = 240.96908202503016128f;
   float const fisheye624_cx = 319.30031322283957707f;
   float const fisheye624_cy = 239.70226462142591117f;
   float const fisheye624_k0 = -0.00029975978022917562074f;
@@ -299,6 +310,5 @@ TEST(KernelCamera, Cam62nc_old_vs_new) {
   float const fisheye624_s2 = -0.0006244819671333829f;
   float const fisheye624_s3 = -6.834843688531277463e-05f;
 }
-
 
 CCL_NAMESPACE_END
