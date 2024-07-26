@@ -514,7 +514,7 @@ ccl_device_inline float radial_forward_derivative(float const angle, float const
  * @param num_it
  * @return
  */
-ccl_device_inline float solve_radial(float const angle_dst, float const *const k, int &num_it)
+ccl_device_inline float solve_radial(float const angle_dst, float const *const k)
 {
   /**
    * Problem: Given angle_dst and k, find angle so that
@@ -529,14 +529,13 @@ ccl_device_inline float solve_radial(float const angle_dst, float const *const k
    */
 
   float angle = angle_dst;
-  for (num_it = 0; num_it < 20; ++num_it) {
+  for (size_t ii = 0; ii < 20; ++ii) {
     float const old_angle = angle;
     angle -= (radial_forward(angle, k) - angle_dst) / radial_forward_derivative(angle, k);
     if (fabsf(old_angle - angle) < 1e-6) {
       break;
     }
   }
-  num_it++;
   return angle;
 }
 
@@ -598,20 +597,18 @@ float2 tangential_thinprism_newton_step(float2 const pt,
           -(-jacobian.z * F.x + jacobian.x * F.y) * det_inv};
 }
 
-ccl_device_inline float tangential_thinprism_error_squared(
-    float2 const pt,
-    float2 const tgt,
-    float2 const tangential,
-    float4 const thin_prism)
+ccl_device_inline float tangential_thinprism_error_squared(float2 const pt,
+                                                           float2 const tgt,
+                                                           float2 const tangential,
+                                                           float4 const thin_prism)
 {
   float2 const residual = tgt - tangential_thinprism_forward(pt, tangential, thin_prism);
   return len_squared(residual);
 }
 
-ccl_device_inline float2 solve_tangential_thinprism(
-    float2 const tgt,
-    float2 const tangential,
-    float4 const thin_prism)
+ccl_device_inline float2 solve_tangential_thinprism(float2 const tgt,
+                                                    float2 const tangential,
+                                                    float4 const thin_prism)
 {
   /**
    * Problem: Given distorted location (x_t, y_t) and parameters p, find (x,y) so that
@@ -635,14 +632,16 @@ ccl_device_inline float2 solve_tangential_thinprism(
   float2 result = tgt;
 
   // Use tgt as initial guess for the solution and compute the error
-  float const trivial_ig_error = tangential_thinprism_error_squared(result, tgt, tangential, thin_prism);
+  float const trivial_ig_error = tangential_thinprism_error_squared(
+      result, tgt, tangential, thin_prism);
 
   // Often, computing the tangential distortion with negative parameters
   // is a good approximation for the inverse. Therefore, we do that
   // and compare the error to the trivial initial guess.
   result = tangential_thinprism_forward(tgt, -tangential, zero_float4());
 
-  float negative_ig_error = tangential_thinprism_error_squared(result, tgt, tangential, thin_prism);
+  float negative_ig_error = tangential_thinprism_error_squared(
+      result, tgt, tangential, thin_prism);
 
   if (trivial_ig_error < negative_ig_error) {
     result = tgt;
@@ -659,12 +658,11 @@ ccl_device_inline float2 solve_tangential_thinprism(
   return result;
 }
 
-void test_tangential_thinprism_solver(
-    float2 const tangential,
-    float4 const thin_prism,
-    float const fov_deg,
-    std::string const& prefix
-    ) {
+void test_tangential_thinprism_solver(float2 const tangential,
+                                      float4 const thin_prism,
+                                      float const fov_deg,
+                                      std::string const &prefix)
+{
   float const fov_rad = fov_deg * M_PI_F / 180.0;
   size_t num_samples = 1'000;
   size_t num_samples_per_axis = std::sqrt(num_samples);
@@ -673,36 +671,94 @@ void test_tangential_thinprism_solver(
     float const x = fov_rad * ((double(xx) / num_samples_per_axis) - 0.5);
     for (size_t yy = 0; yy < num_samples_per_axis; ++yy) {
       float const y = fov_rad * ((double(yy) / num_samples_per_axis) - 0.5);
-      float2 const pt {x, y};
+      float2 const pt{x, y};
       float2 const tgt = tangential_thinprism_forward(pt, tangential, thin_prism);
-      ASSERT_LE(tangential_thinprism_error_squared(pt, tgt, tangential, thin_prism), 1e-12) << prefix;
+      ASSERT_LE(tangential_thinprism_error_squared(pt, tgt, tangential, thin_prism), 1e-12)
+          << prefix;
 
       float2 const solved = solve_tangential_thinprism(tgt, tangential, thin_prism);
 
-      float const solution_error = tangential_thinprism_error_squared(solved, tgt, tangential, thin_prism);
+      float const solution_error = tangential_thinprism_error_squared(
+          solved, tgt, tangential, thin_prism);
       ASSERT_LT(solution_error, 1e-12) << prefix;
     }
   }
-
 }
 
-TEST(KernelCamera, Cam62nc_tangential_thin_prism) {
-  float2 const p{
-    -1.7905108189099640e-04,
-    3.6947302643007590e-06
-  };
+TEST(KernelCamera, Cam62nc_tangential_thin_prism)
+{
+  float2 const p{-1.7905108189099640e-04, 3.6947302643007590e-06};
   // TODO: Replace these values by values obtained from real calibrations
-  float4 const s{
-    -2e-4,
-    1e-4,
-    3e-4,
-    -5e-4
-  };
+  float4 const s{-2e-4, 1e-4, 3e-4, -5e-4};
   test_tangential_thinprism_solver(p, s, 165.0f, "normal");
 
   test_tangential_thinprism_solver(zero_float2(), s * 200.0f, 165.0f, "exaggerated");
 
-  test_tangential_thinprism_solver(p * 200.0f, s*200.0f, 165.0f, "very-exaggerated");
+  test_tangential_thinprism_solver(p * 200.0f, s * 200.0f, 165.0f, "very-exaggerated");
+}
+
+float deg2rad(float angle)
+{
+  return angle * M_PI_F / 180;
+}
+
+/**
+ * @brief test_radial_solver tests the correctness of solve_radial using a given
+ * set of radial distortion parameters. It has assertions for the difference between
+ * the original angle and the solution found by solve_radial and plots the errors
+ * and number of iterations needed.
+ * @param _k
+ * @param fov_deg
+ * @param prefix
+ */
+void test_radial_solver(float const *const radial, float const fov_deg, std::string const &prefix)
+{
+  size_t const num_samples = 1'000;
+  for (size_t ii = 0; ii <= num_samples; ++ii) {
+    double const angle_rad = deg2rad(ii * 0.5f * fov_deg / num_samples);
+    double const angle_tgt = radial_forward(angle_rad, radial);
+    double const solution = solve_radial(angle_tgt, radial);
+    ASSERT_NEAR(solution, angle_rad, 1e-6) << prefix;
+  }
+}
+
+TEST(KernelCamera, Cam62nc_radial)
+{
+  {
+    // Testcase from a real calib of a lens which is very non-equidistant:
+    float const k[]{-6.3212689067106823e-02f,
+                    1.0783254109563612e-02f,
+                    -1.5666209452467651e-02f,
+                    1.0487251796288639e-02f,
+                    -3.8781789116892440e-03f,
+                    5.6914433571826422e-04f};
+
+    test_radial_solver(k, 165.0f, "non-equidistant");
+  }
+
+  {
+    // Testcase from a real calib of a lens which is almost equidistant.
+    float const k[]{6.8925238237090430e-03f,
+                    4.9065099682158737e-03f,
+                    -5.6645010933102091e-03f,
+                    3.5255596948621580e-03f,
+                    -1.2505361069399053e-03f,
+                    1.6815868507166388e-04f};
+
+    test_radial_solver(k, 170.0f, "almost-equidistant");
+  }
+
+  {
+    // Testcase from a real calib of some roughly orthographic fisheye lens.
+    float const k[]{-2.7071250929750468e-01,
+                    5.1892349368743274e-01,
+                    -1.0625944626790622e+00,
+                    1.1393696445669612e+00,
+                    -6.2508654084092763e-01,
+                    1.4034706020688248e-01};
+
+    test_radial_solver(k, 122.0f, "orthographic");
+  }
 }
 
 CCL_NAMESPACE_END
