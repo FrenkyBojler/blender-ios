@@ -160,9 +160,17 @@ void NodeType::register_input(ustring name,
   socket.enum_values = enum_values;
   socket.node_type = node_type;
   socket.flags = flags | extra_flags;
-  assert(inputs.size() < std::numeric_limits<SocketModifiedFlags>::digits);
-  socket.modified_flag_bit = (1ull << inputs.size());
-  inputs.push_back(socket);
+  if (!(inputs.size() < std::numeric_limits<SocketModifiedFlags>::digits)) {
+    printf("inputs.size: %zu\n", inputs.size());
+    printf("std::numeric_limits<SocketModifiedFlags>::digits: %d\n",
+           std::numeric_limits<SocketModifiedFlags>::digits);
+    fflush(stdout);
+  }
+  // assert(inputs.size() < std::numeric_limits<SocketModifiedFlags>::digits);
+  if (inputs.size() < std::numeric_limits<SocketModifiedFlags>::digits) {
+    socket.modified_flag_bit = (1ull << inputs.size());
+    inputs.push_back(socket);
+  }
 }
 
 void NodeType::register_output(ustring name, ustring ui_name, SocketType::Type type)
