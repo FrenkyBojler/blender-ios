@@ -714,12 +714,16 @@ float deg2rad(float angle)
 void test_radial_solver(float const *const radial, float const fov_deg, std::string const &prefix)
 {
   size_t const num_samples = 1'000;
+  double error_sum = 0;
   for (size_t ii = 0; ii <= num_samples; ++ii) {
     double const angle_rad = deg2rad(ii * 0.5f * fov_deg / num_samples);
     double const angle_tgt = radial_forward(angle_rad, radial);
     double const solution = solve_radial(angle_tgt, radial);
-    ASSERT_NEAR(solution, angle_rad, 1e-6) << prefix;
+    EXPECT_NEAR(solution, angle_rad, 1e-6) << prefix;
+    error_sum += std::abs(solution - angle_rad);
   }
+  double const mean_error = error_sum / num_samples;
+  EXPECT_LT(mean_error, 2e-8) << prefix;
 }
 
 TEST(KernelCamera, Cam624nc_radial)
