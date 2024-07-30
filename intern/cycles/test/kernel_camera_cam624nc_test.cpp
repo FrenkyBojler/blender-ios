@@ -589,7 +589,7 @@ float2 tangential_thinprism_newton_step(float2 const pt,
   float2 const F = tangential_thinprism_forward(pt, p, s) - tgt;
 
   // Compute Jacobian of F(x,y)
-  float4 jacobian = tangential_thinprism_forward_jacobian(pt, p, s);
+  float4 const jacobian = tangential_thinprism_forward_jacobian(pt, p, s);
 
   // Compute Jacobian(F(x,y))^-1 F(x,y)
   T const det_inv = 1.0f / (jacobian.x * jacobian.w - jacobian.y * jacobian.z);
