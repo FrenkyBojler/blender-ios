@@ -132,7 +132,7 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     sub.prop(cam, "central_cylindrical_range_u_max", text="Max")
                     sub = col.column(align=True)
                     sub.prop(cam, "central_cylindrical_radius", text="Cylinder radius")
-                elif cam.panorama_type == "FISHEYE_624":
+                elif cam.panorama_type == 'FISHEYE_624':
                     col.prop(cam, "fisheye624_f", text="f")
                     col.prop(cam, "fisheye624_cx", text="cx")
                     col.prop(cam, "fisheye624_cy", text="cy")
