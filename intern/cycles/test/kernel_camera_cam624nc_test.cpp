@@ -301,7 +301,7 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_new(float u,
       cosf(theta), -sin_theta * xr_yr.y / xr_yrNorm, sin_theta * xr_yr.y / xr_yrNorm);
 }
 
-TEST(KernelCamera, Cam62nc_simple)
+TEST(KernelCamera, Cam624nc_simple)
 {
   const float rad60 = M_PI_F / 3.0f;
   const float cos60 = 0.5f;
@@ -419,7 +419,7 @@ TEST(KernelCamera, Cam62nc_simple)
   }
 }
 
-TEST(KernelCamera, Cam62nc_old_vs_new_sameness)
+TEST(KernelCamera, Cam624nc_old_vs_new_sameness)
 {
   /* Default Aria SLAM camera projection calibration */
   float const fisheye624_f = 1.0f;
@@ -476,7 +476,7 @@ TEST(KernelCamera, Cam62nc_old_vs_new_sameness)
 }
 
 /**
- * @brief radial_forward implements the radial distortion method used by Cam62nc
+ * @brief radial_forward implements the radial distortion method used by Cam624nc
  * f(x) = x + k0 x^3 + k1 x^5 + k2 x^7 + k3 x^9 + k4 x^11 + k5 x^13
  * @param angle
  * @param k
@@ -685,7 +685,7 @@ void test_tangential_thinprism_solver(float2 const tangential,
   }
 }
 
-TEST(KernelCamera, Cam62nc_tangential_thin_prism)
+TEST(KernelCamera, Cam624nc_tangential_thin_prism)
 {
   float2 const p{-1.7905108189099640e-04, 3.6947302643007590e-06};
   // TODO: Replace these values by values obtained from real calibrations
@@ -722,7 +722,7 @@ void test_radial_solver(float const *const radial, float const fov_deg, std::str
   }
 }
 
-TEST(KernelCamera, Cam62nc_radial)
+TEST(KernelCamera, Cam624nc_radial)
 {
   {
     // Testcase from a real calib of a lens which is very non-equidistant:
