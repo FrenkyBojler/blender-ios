@@ -678,9 +678,9 @@ void test_tangential_thinprism_solver(float2 const tangential,
 
       float2 const solved = solve_tangential_thinprism(tgt, tangential, thin_prism);
 
-      float const solution_error = tangential_thinprism_error_squared(
+      float const solution_error_squared = tangential_thinprism_error_squared(
           solved, tgt, tangential, thin_prism);
-      ASSERT_LT(solution_error, 1e-12) << prefix;
+      ASSERT_LT(solution_error_squared, 1e-12) << prefix;
     }
   }
 }
