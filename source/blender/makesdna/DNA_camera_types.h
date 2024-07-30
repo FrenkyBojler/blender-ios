@@ -101,6 +101,15 @@ typedef struct Camera {
   float fisheye_polynomial_k2;
   float fisheye_polynomial_k3;
   float fisheye_polynomial_k4;
+
+  /* Central cylindrical range properties. */
+  float central_cylindrical_range_u_min;
+  float central_cylindrical_range_u_max;
+  float central_cylindrical_range_v_min;
+  float central_cylindrical_range_v_max;
+  float central_cylindrical_radius;
+  float _pad2;
+
   // fisheye624 distortions
   float fisheye624_f;
   float fisheye624_cx;
@@ -117,15 +126,7 @@ typedef struct Camera {
   float fisheye624_s1;
   float fisheye624_s2;
   float fisheye624_s3;
-  char _pad2[4];
-
-  /* Central cylindrical range properties. */
-  float central_cylindrical_range_u_min;
-  float central_cylindrical_range_u_max;
-  float central_cylindrical_range_v_min;
-  float central_cylindrical_range_v_max;
-  float central_cylindrical_radius;
-  float _pad3;
+  char _pad3[4];
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
