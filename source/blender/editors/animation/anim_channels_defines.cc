@@ -49,7 +49,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -76,6 +76,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "anim_intern.hh"
+
 using namespace blender;
 
 /* *********************************************** */
@@ -86,9 +88,6 @@ using namespace blender;
 
 /* size of indent steps */
 #define INDENT_STEP_SIZE (0.35f * U.widget_unit)
-
-/* size of string buffers used for animation channel displayed names */
-#define ANIM_CHAN_NAME_SIZE 256
 
 /* get the pointer used for some flag */
 #define GET_ACF_FLAG_PTR(ptr, type) ((*(type) = sizeof(ptr)), &(ptr))
@@ -1369,7 +1368,22 @@ static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
     return;
   }
 
-  BLI_strncpy(r_name, slot->name_without_prefix().c_str(), ANIM_CHAN_NAME_SIZE);
+  BLI_assert(ale->bmain);
+  const int num_users = slot->users(*ale->bmain).size();
+  const char *display_name = slot->name_without_prefix().c_str();
+
+  BLI_assert(num_users >= 0);
+  switch (num_users) {
+    case 0:
+      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (unassigned)", display_name);
+      break;
+    case 1:
+      BLI_strncpy(r_name, display_name, ANIM_CHAN_NAME_SIZE);
+      break;
+    default:
+      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (%d)", display_name, num_users);
+      break;
+  }
 }
 static bool acf_action_slot_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
@@ -1382,7 +1396,12 @@ static bool acf_action_slot_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, Pro
   return (*r_prop != nullptr);
 }
 
-static int acf_action_slot_icon(bAnimListElem *ale)
+static int acf_action_slot_icon(bAnimListElem * /*ale*/)
+{
+  return ICON_LINK_BLEND; /* TODO: design icon. */
+}
+
+static int acf_action_slot_idtype_icon(bAnimListElem *ale)
 {
   animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
   return UI_icon_from_idcode(slot->idtype);
@@ -5032,6 +5051,8 @@ void ANIM_channel_draw(
           draw_sliders = (sipo->flag & SIPO_SLIDERS);
           break;
         }
+        default:
+          BLI_assert_unreachable();
       }
     }
 
@@ -5850,6 +5871,8 @@ void ANIM_channel_draw_widgets(const bContext *C,
           draw_sliders = (sipo->flag & SIPO_SLIDERS);
           break;
         }
+        default:
+          BLI_assert_unreachable();
       }
     }
 
@@ -5960,6 +5983,14 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
         UI_block_emboss_set(block, UI_EMBOSS_NONE);
       }
+
+#ifdef WITH_ANIM_BAKLAVA
+      /* Slot ID type indicator. */
+      if (ale->type == ANIMTYPE_ACTION_SLOT) {
+        offset -= ICON_WIDTH;
+        UI_icon_draw(offset, ymid, acf_action_slot_idtype_icon(ale));
+      }
+#endif /* WITH_ANIM_BAKLAVA */
     }
 
     /* Draw slider:

@@ -11,6 +11,9 @@
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
+
 struct AnimData;
 struct Depsgraph;
 struct ID;
@@ -54,6 +57,32 @@ struct PropertyRNA;
 /** \name Context
  * \{ */
 
+/** Main Data container types. */
+enum eAnimCont_Types {
+  /** Invalid or no data. */
+  ANIMCONT_NONE = 0,
+  /** Action (#bAction). */
+  ANIMCONT_ACTION = 1,
+  /** Shape-key (#Key). */
+  ANIMCONT_SHAPEKEY = 2,
+  /** Grease pencil (screen). */
+  ANIMCONT_GPENCIL = 3,
+  /** Dope-sheet (#bDopesheet). */
+  ANIMCONT_DOPESHEET = 4,
+  /** Animation F-Curves (#bDopesheet). */
+  ANIMCONT_FCURVES = 5,
+  /** Drivers (#bDopesheet). */
+  ANIMCONT_DRIVERS = 6,
+  /** NLA (#bDopesheet). */
+  ANIMCONT_NLA = 7,
+  /** Animation channel (#bAnimListElem). */
+  ANIMCONT_CHANNEL = 8,
+  /** Mask dope-sheet. */
+  ANIMCONT_MASK = 9,
+  /** "timeline" editor (#bDopeSheet). */
+  ANIMCONT_TIMELINE = 10,
+};
+
 /**
  * This struct defines a structure used for animation-specific
  * 'context' information.
@@ -61,15 +90,17 @@ struct PropertyRNA;
 struct bAnimContext {
   /** data to be filtered for use in animation editor */
   void *data;
-  /** type of data eAnimCont_Types */
-  short datatype;
+  /** Type of `data`. */
+  eAnimCont_Types datatype;
 
-  /** editor->mode */
-  short mode;
+  /** Editor mode, which depends on `spacetype` (below). */
+  eAnimEdit_Context dopesheet_mode;
+  eGraphEdit_Mode grapheditor_mode;
+
   /** area->spacetype */
-  short spacetype;
+  eSpace_Type spacetype;
   /** active region -> type (channels or main) */
-  short regiontype;
+  eRegion_Type regiontype;
 
   /** editor host */
   ScrArea *area;
@@ -96,32 +127,6 @@ struct bAnimContext {
 
   /** pointer to current reports list */
   ReportList *reports;
-};
-
-/** Main Data container types. */
-enum eAnimCont_Types {
-  /** Invalid or no data. */
-  ANIMCONT_NONE = 0,
-  /** Action (#bAction). */
-  ANIMCONT_ACTION = 1,
-  /** Shape-key (#Key). */
-  ANIMCONT_SHAPEKEY = 2,
-  /** Grease pencil (screen). */
-  ANIMCONT_GPENCIL = 3,
-  /** Dope-sheet (#bDopesheet). */
-  ANIMCONT_DOPESHEET = 4,
-  /** Animation F-Curves (#bDopesheet). */
-  ANIMCONT_FCURVES = 5,
-  /** Drivers (#bDopesheet). */
-  ANIMCONT_DRIVERS = 6,
-  /** NLA (#bDopesheet). */
-  ANIMCONT_NLA = 7,
-  /** Animation channel (#bAnimListElem). */
-  ANIMCONT_CHANNEL = 8,
-  /** Mask dope-sheet. */
-  ANIMCONT_MASK = 9,
-  /** "timeline" editor (#bDopeSheet). */
-  ANIMCONT_TIMELINE = 10,
 };
 
 /** \} */
@@ -258,10 +263,10 @@ struct bAnimListElem {
   /**
    * For data that is owned by a specific slot, its handle.
    *
-   * This is not declared as blender::animrig::slot_handle_t to avoid all the users of this
-   * header file to get the animrig module as extra dependency (which would spread to the undo
-   * system, lineart, etc). It's probably best to split off this struct definition from the rest of
-   * this header, as most code that uses this header doesn't need to know the definition of this
+   * This is not declared as #blender::animrig::slot_handle_t to avoid all the users of this
+   * header file to get the `animrig` module as extra dependency (which would spread to the undo
+   * system, line-art, etc). It's probably best to split off this struct definition from the rest
+   * of this header, as most code that uses this header doesn't need to know the definition of this
    * struct.
    *
    * TODO: split off into separate header file.
@@ -752,6 +757,12 @@ void ANIM_set_active_channel(bAnimContext *ac,
  * Return whether channel is active.
  */
 bool ANIM_is_active_channel(bAnimListElem *ale);
+
+/**
+ * Deselects the keys displayed within the open animation editors. Depending on the display
+ * settings of those editors, the keys may not be from an action of the selected objects.
+ */
+void ANIM_deselect_keys_in_animation_editors(bContext *C);
 
 /* ************************************************ */
 /* DRAWING API */

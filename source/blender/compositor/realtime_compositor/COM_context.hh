@@ -15,6 +15,7 @@
 #include "GPU_texture.hh"
 
 #include "COM_domain.hh"
+#include "COM_meta_data.hh"
 #include "COM_profiler.hh"
 #include "COM_render_context.hh"
 #include "COM_result.hh"
@@ -53,6 +54,9 @@ class Context {
   /* True if the compositor should write file outputs, false otherwise. */
   virtual bool use_file_output() const = 0;
 
+  /* True if the compositor should compute node previews, false otherwise. */
+  virtual bool should_compute_node_previews() const = 0;
+
   /* True if the compositor should write the composite output, otherwise, the compositor is assumed
    * to not support the composite output and just displays its viewer output. In that case, the
    * composite output will be used as a fallback viewer if no other viewer exists */
@@ -90,7 +94,7 @@ class Context {
                                         const char *pass_name) = 0;
 
   /* Get the name of the view currently being rendered. */
-  virtual StringRef get_view_name() = 0;
+  virtual StringRef get_view_name() const = 0;
 
   /* Get the precision of the intermediate results of the compositor. */
   virtual ResultPrecision get_precision() const = 0;
@@ -107,6 +111,12 @@ class Context {
    * since the last time the flag was reset, hence why the method reset the flag after querying it,
    * that is, to ready it to track the next change. */
   virtual IDRecalcFlag query_id_recalc_flag(ID *id) const = 0;
+
+  /* Populates the given meta data from the render stamp information of the given render pass. */
+  virtual void populate_meta_data_for_pass(const Scene *scene,
+                                           int view_layer_id,
+                                           const char *pass_name,
+                                           MetaData &meta_data) const;
 
   /* Get a pointer to the render context of this context. A render context stores information about
    * the current render. It might be null if the compositor is not being evaluated as part of a

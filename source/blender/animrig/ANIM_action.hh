@@ -30,6 +30,7 @@ struct FCurve;
 struct ID;
 struct Main;
 struct PointerRNA;
+struct Main;
 
 namespace blender::animrig {
 
@@ -120,10 +121,12 @@ class Action : public ::bAction {
   bool layer_remove(Layer &layer_to_remove);
 
   /**
-   * If the Action is empty, create a default layer with a single infinite
-   * keyframe strip.
+   * Ensure that there is at least one layer with the infinite keyframe strip.
+   *
+   * \note Within the limits of Project Baklava Phase 1, this means that there
+   * will be exactly one layer with one keyframe strip on it.
    */
-  void layer_ensure_at_least_one();
+  void layer_keystrip_ensure();
 
   /* Action Slot access. */
   blender::Span<const Slot *> slots() const;
@@ -215,6 +218,27 @@ class Action : public ::bAction {
    * \see `Action::slot_add_for_id()`
    */
   Slot &slot_ensure_for_id(const ID &animated_id);
+
+  /**
+   * Set the active Slot, ensuring only one Slot is flagged as the Active one.
+   *
+   * \param slot_handle if Slot::unassigned, there will not be any active slot.
+   * Passing an unknown/invalid slot handle will result in no slot being active.
+   */
+  void slot_active_set(slot_handle_t slot_handle);
+
+  /**
+   * Get the active Slot.
+   *
+   * This requires a linear scan of the slots, to find the one with the 'Active' flag set. Storing
+   * this on the Slot itself has the advantage that the 'active' status of a Slot can be determined
+   * without requiring access to the owning Action.
+   *
+   * As this already does a linear scan for the active slot, the slot is returned as a pointer;
+   * obtaining the pointer from a handle would require another linear scan to get the pointer,
+   * whereas obtaining the handle from the pointer is a constant operation.
+   */
+  Slot *slot_active_get();
 
   /** Assign this Action to the ID.
    *
@@ -518,6 +542,8 @@ class Slot : public ::ActionSlot {
     Expanded = (1 << 0),
     /** Selected in animation editors. */
     Selected = (1 << 1),
+    /** The active Slot for this Action. Set via a method on the Action. */
+    Active = (1 << 2),
     /* When adding/removing a flag, also update the ENUM_OPERATORS() invocation,
      * all the way below the Slot class. */
   };
@@ -526,6 +552,7 @@ class Slot : public ::ActionSlot {
   void set_expanded(bool expanded);
   bool is_selected() const;
   void set_selected(bool selected);
+  bool is_active() const;
 
   /** Return the set of IDs that are animated by this Slot. */
   Span<ID *> users(Main &bmain) const;
@@ -579,10 +606,15 @@ class Slot : public ::ActionSlot {
    * the responsibility of the caller.
    */
   void name_ensure_prefix();
+
+  /**
+   * Set the 'Active' flag. Only allowed to be called by Action.
+   */
+  void set_active(bool active);
 };
 static_assert(sizeof(Slot) == sizeof(::ActionSlot),
               "DNA struct and its C++ wrapper must have the same size");
-ENUM_OPERATORS(Slot::Flags, Slot::Flags::Selected);
+ENUM_OPERATORS(Slot::Flags, Slot::Flags::Active);
 
 /**
  * KeyframeStrips effectively contain a bag of F-Curves for each Slot.
@@ -627,24 +659,26 @@ class KeyframeStrip : public ::KeyframeActionStrip {
    * Should only be called when there is no `ChannelBag` for this slot yet.
    */
   ChannelBag &channelbag_for_slot_add(const Slot &slot);
-  /**
-   * Find an FCurve for this slot + RNA path + array index combination.
-   *
-   * If it cannot be found, `nullptr` is returned.
-   */
-  FCurve *fcurve_find(const Slot &slot, FCurveDescriptor fcurve_descriptor);
 
   /**
-   * Find an FCurve for this slot + RNA path + array index combination.
-   *
-   * If it cannot be found, a new one is created.
-   *
-   * \param `prop_subtype` The subtype of the property this fcurve is for, if
-   * available.
+   * Find the ChannelBag for `slot`, or if none exists, create it.
    */
-  FCurve &fcurve_find_or_create(const Slot &slot, FCurveDescriptor fcurve_descriptor);
+  ChannelBag &channelbag_for_slot_ensure(const Slot &slot);
 
-  SingleKeyingResult keyframe_insert(const Slot &slot,
+  /**
+   * Remove the ChannelBag from this slot.
+   *
+   * After this call the reference is no longer valid, as the memory will have been freed.
+   *
+   * \return true when the ChannelBag was found & removed, false if it wasn't found.
+   */
+  bool channelbag_remove(ChannelBag &channelbag_to_remove);
+
+  /** Return the channelbag's index, or -1 if there is none for this slot handle. */
+  int64_t find_channelbag_index(const ChannelBag &channelbag) const;
+
+  SingleKeyingResult keyframe_insert(Main *bmain,
+                                     const Slot &slot,
                                      FCurveDescriptor fcurve_descriptor,
                                      float2 time_value,
                                      const KeyframeSettings &settings,
@@ -671,7 +705,68 @@ class ChannelBag : public ::ActionChannelBag {
   const FCurve *fcurve(int64_t index) const;
   FCurve *fcurve(int64_t index);
 
-  const FCurve *fcurve_find(StringRefNull rna_path, int array_index) const;
+  /**
+   * Find an FCurve matching the fcurve descriptor.
+   *
+   * If it cannot be found, `nullptr` is returned.
+   */
+  const FCurve *fcurve_find(FCurveDescriptor fcurve_descriptor) const;
+  FCurve *fcurve_find(FCurveDescriptor fcurve_descriptor);
+
+  /**
+   * Find an FCurve matching the fcurve descriptor, or create one if it doesn't
+   * exist.
+   *
+   * \param bmain: Used to tag the dependency graph(s) for relationship
+   * rebuilding. This is necessary when adding a new F-Curve, as a
+   * previously-unanimated depsgraph component may become animated now. Can be
+   * nullptr, in which case the tagging is skipped and is left as the
+   * responsibility of the caller.
+   */
+  FCurve &fcurve_ensure(Main *bmain, FCurveDescriptor fcurve_descriptor);
+
+  /**
+   * Create an F-Curve, but only if it doesn't exist yet in this ChannelBag.
+   *
+   * \return the F-Curve it it was created, or nullptr if it already existed.
+   *
+   * \param bmain: Used to tag the dependency graph(s) for relationship
+   * rebuilding. This is necessary when adding a new F-Curve, as a
+   * previously-unanimated depsgraph component may become animated now. Can be
+   * nullptr, in which case the tagging is skipped and is left as the
+   * responsibility of the caller.
+   */
+  FCurve *fcurve_create_unique(Main *bmain, FCurveDescriptor fcurve_descriptor);
+
+  /**
+   * Remove an F-Curve from the ChannelBag.
+   *
+   * After this call, if the F-Curve was found, the reference will no longer be
+   * valid, as the curve will have been freed.
+   *
+   * \return true when the F-Curve was found & removed, false if it wasn't found.
+   */
+  bool fcurve_remove(FCurve &fcurve_to_remove);
+
+  /**
+   * Remove all F-Curves from this ChannelBag.
+   */
+  void fcurves_clear();
+
+ protected:
+  /**
+   * Create an F-Curve.
+   *
+   * Assumes that there is no such F-Curve yet on this ChannelBag. If it is
+   * uncertain whether this is the case, use `fcurve_create_unique()` instead.
+   *
+   * \param bmain: Used to tag the dependency graph(s) for relationship
+   * rebuilding. This is necessary when adding a new F-Curve, as a
+   * previously-unanimated depsgraph component may become animated now. Can be
+   * nullptr, in which case the tagging is skipped and is left as the
+   * responsibility of the caller.
+   */
+  FCurve &fcurve_create(Main *bmain, FCurveDescriptor fcurve_descriptor);
 };
 static_assert(sizeof(ChannelBag) == sizeof(::ActionChannelBag),
               "DNA struct and its C++ wrapper must have the same size");
@@ -679,7 +774,7 @@ static_assert(sizeof(ChannelBag) == sizeof(::ActionChannelBag),
 /**
  * Assign the Action to the ID.
  *
- * This will will make a best-effort guess as to which slot to use, in this
+ * This will make a best-effort guess as to which slot to use, in this
  * order;
  *
  * - By slot handle.
@@ -757,7 +852,7 @@ Span<const FCurve *> fcurves_for_action_slot(const Action &action, slot_handle_t
  *
  * This is a utility function whose purpose is unclear after multi-layer Actions are introduced.
  * It might still be useful, it might not be.
-
+ *
  * The use of this function is an indicator for code that might have to be altered when
  * multi-layered Actions are getting implemented.
  */
@@ -765,9 +860,26 @@ Vector<const FCurve *> fcurves_all(const Action &action);
 Vector<FCurve *> fcurves_all(Action &action);
 
 /**
- * Get (or add relevant data to be able to do so) an F-Curve from the given Action,
- * for the given animated data-block. This assumes that all the destinations are valid.
- * \param ptr: can be a null pointer.
+ * Get (or add relevant data to be able to do so) an F-Curve from the given
+ * Action. This assumes that all the destinations are valid.
+ *
+ * NOTE: this function is primarily intended for use with legacy actions, but
+ * for reasons of expedience it now also works with layered actions under the
+ * following limited circumstances: `ptr` must be non-null and must have an
+ * `owner_id` that already uses `act`. Otherwise this function will return
+ * nullptr for layered actions. See the comments in the implementation for more
+ * details.
+ *
+ * \note This function also ensures that dependency graph relationships are
+ * rebuilt. This is necessary when adding a new F-Curve, as a
+ * previously-unanimated depsgraph component may become animated now.
+ *
+ * \param ptr: RNA pointer for the struct the fcurve is being looked up/created
+ * for. For legacy actions this is optional and may be null.
+ *
+ * \param fcurve_descriptor: description of the fcurve to lookup/create. Note
+ * that this is *not* relative to `ptr` (e.g. if `ptr` is not an ID). It should
+ * contain the exact data path of the fcurve to be looked up/created.
  */
 FCurve *action_fcurve_ensure(Main *bmain,
                              bAction *act,
@@ -779,6 +891,54 @@ FCurve *action_fcurve_ensure(Main *bmain,
  * Find the F-Curve from the given Action. This assumes that all the destinations are valid.
  */
 FCurve *action_fcurve_find(bAction *act, FCurveDescriptor fcurve_descriptor);
+
+/**
+ * Find an appropriate user of the given Action + Slot for keyframing purposes.
+ *
+ * (NOTE: although this function exists for handling situations caused by the
+ * expanded capabilities of layered actions, for convenience it also works with
+ * legacy actions. For legacy actions this simply returns `primary_id` as long
+ * as it's a user of `action`.)
+ *
+ * Usually this function shouldn't be necessary, because you'll already have an
+ * obvious ID that you're keying. But in some cases (such as the action editor
+ * where multiple slots are accessible) the active ID that would normally get
+ * keyed might have nothing to do with the slot that's actually getting keyed.
+ *
+ * This function handles such cases by attempting to find an actual user of the
+ * slot that's appropriate for keying. More specifically:
+ *
+ * - If `primary_id` is a user of the slot, `primary_id` is always returned.
+ * - If the slot has precisely one user, that user is returned.
+ * - Otherwise, nullptr is returned.
+ *
+ * In other words, the cases where a user of the slot is *not* returned are:
+ *
+ * - The slot has no users at all.
+ * - The slot has multiple users, none of which are `primary_id`, and therefore
+ *   there is no single, clear user that can be appropriately used for keying.
+ *
+ * \param primary_id: whenever this is among the users of the action + slot, it
+ * is given priority and is returned. May be null.
+ */
+ID *action_slot_get_id_for_keying(Main &bmain,
+                                  Action &action,
+                                  slot_handle_t slot_handle,
+                                  ID *primary_id);
+
+/**
+ * Make a best-effort guess as to which ID* is animated by the given slot.
+ *
+ * This is only used in rare cases; usually the ID* for which operations are
+ * performed is known.
+ *
+ * \note This function was specifically written because the 'display name' of an
+ * F-Curve can only be determined by resolving its RNA path, and for that an ID*
+ * is necessary. It would be better to cache that name on the F-Curve itself, so
+ * that this constant resolving (for drawing, filtering by name, etc.) isn't
+ * necessary any more.
+ */
+ID *action_slot_get_id_best_guess(Main &bmain, Slot &slot, ID *primary_id);
 
 /**
  * Assert the invariants of Project Baklava phase 1.
@@ -810,6 +970,22 @@ void assert_baklava_phase_1_invariants(const Action &action);
 void assert_baklava_phase_1_invariants(const Layer &layer);
 /** \copydoc assert_baklava_phase_1_invariants(const Action &) */
 void assert_baklava_phase_1_invariants(const Strip &strip);
+
+/**
+ * Creates a new `Action` that matches the old action but is converted to have layers.
+ * Returns a nullptr if the action is empty or already layered.
+ */
+Action *convert_to_layered_action(Main &bmain, const Action &legacy_action);
+
+/**
+ * Deselect the keys of all actions in the Span. Duplicate entries are only visited once.
+ */
+void deselect_keys_actions(blender::Span<bAction *> actions);
+
+/**
+ * Deselect all keys within the action.
+ */
+void action_deselect_keys(Action &action);
 
 }  // namespace blender::animrig
 

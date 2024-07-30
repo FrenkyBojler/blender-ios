@@ -20,6 +20,8 @@
 #include "DNA_scene_enums.h"
 #include "DNA_vec_types.h"
 
+#include <memory>
+
 enum class PaintMode : int8_t;
 
 struct ARegion;
@@ -38,7 +40,6 @@ struct Main;
 struct MTex;
 struct Object;
 struct Paint;
-struct PBVHNode;
 struct PointerRNA;
 struct RegionView3D;
 struct ReportList;
@@ -55,10 +56,17 @@ struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperator;
 struct wmOperatorType;
-namespace blender::ed::sculpt_paint {
+namespace blender {
+namespace bke {
+namespace pbvh {
+class Node;
+}
+}  // namespace bke
+namespace ed::sculpt_paint {
 struct PaintStroke;
 struct StrokeCache;
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
+}  // namespace blender
 
 struct CoNo {
   float co[3];
@@ -118,10 +126,32 @@ bool paint_stroke_inverted(PaintStroke *stroke);
 ViewContext *paint_stroke_view_context(PaintStroke *stroke);
 void *paint_stroke_mode_data(PaintStroke *stroke);
 float paint_stroke_distance_get(PaintStroke *stroke);
-void paint_stroke_set_mode_data(PaintStroke *stroke, void *mode_data);
+
+class PaintModeData {
+ public:
+  virtual ~PaintModeData() = default;
+};
+void paint_stroke_set_mode_data(PaintStroke *stroke, std::unique_ptr<PaintModeData> mode_data);
+
 bool paint_stroke_started(PaintStroke *stroke);
+void paint_stroke_jitter_pos(Scene &scene,
+                             const PaintStroke &stroke,
+                             const PaintMode mode,
+                             const Brush &brush,
+                             const float pressure,
+                             const float mval[2],
+                             float r_mouse_out[2]);
 
 bool paint_brush_tool_poll(bContext *C);
+bool paint_brush_update(bContext *C,
+                        const Brush &brush,
+                        PaintMode mode,
+                        PaintStroke *stroke,
+                        const float mouse_init[2],
+                        float mouse[2],
+                        float pressure,
+                        float r_location[3],
+                        bool *r_location_is_set);
 
 void BRUSH_OT_asset_activate(wmOperatorType *ot);
 void BRUSH_OT_asset_save_as(wmOperatorType *ot);
@@ -456,14 +486,15 @@ enum BrushStrokeMode {
   BRUSH_STROKE_NORMAL,
   BRUSH_STROKE_INVERT,
   BRUSH_STROKE_SMOOTH,
+  BRUSH_STROKE_ERASE,
 };
 
 /* paint_hide.cc */
 
 namespace blender::ed::sculpt_paint::hide {
 void sync_all_from_faces(Object &object);
-void mesh_show_all(Object &object, Span<PBVHNode *> nodes);
-void grids_show_all(Depsgraph &depsgraph, Object &object, Span<PBVHNode *> nodes);
+void mesh_show_all(Object &object, Span<bke::pbvh::Node *> nodes);
+void grids_show_all(Depsgraph &depsgraph, Object &object, Span<bke::pbvh::Node *> nodes);
 void tag_update_visibility(const bContext &C);
 
 void PAINT_OT_hide_show_masked(wmOperatorType *ot);
@@ -491,9 +522,16 @@ void gather_mask_bmesh(const BMesh &bm, const Set<BMVert *, 0> &verts, MutableSp
 void scatter_mask_grids(Span<float> mask, SubdivCCG &subdiv_ccg, Span<int> grids);
 void scatter_mask_bmesh(Span<float> mask, const BMesh &bm, const Set<BMVert *, 0> &verts);
 
+void average_neighbor_mask_grids(const SubdivCCG &subdiv_ccg,
+                                 Span<int> grids,
+                                 MutableSpan<float> new_masks);
+void average_neighbor_mask_bmesh(int mask_offset,
+                                 const Set<BMVert *, 0> &verts,
+                                 MutableSpan<float> new_masks);
+
 /** Write to the mask attribute for each node, storing undo data. */
 void write_mask_mesh(Object &object,
-                     const Span<PBVHNode *> nodes,
+                     const Span<bke::pbvh::Node *> nodes,
                      FunctionRef<void(MutableSpan<float>, Span<int>)> write_fn);
 
 /**
@@ -501,7 +539,7 @@ void write_mask_mesh(Object &object,
  * if the data is actually changed.
  */
 void update_mask_mesh(Object &object,
-                      const Span<PBVHNode *> nodes,
+                      const Span<bke::pbvh::Node *> nodes,
                       FunctionRef<void(MutableSpan<float>, Span<int>)> update_fn);
 
 void PAINT_OT_mask_flood_fill(wmOperatorType *ot);
@@ -578,7 +616,7 @@ void init_session_data(const ToolSettings &ts, Object &ob);
 void init_session(
     Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, eObjectMode object_mode);
 
-Vector<PBVHNode *> pbvh_gather_generic(Object &ob, const VPaint &wp, const Brush &brush);
+Vector<bke::pbvh::Node *> pbvh_gather_generic(Object &ob, const VPaint &wp, const Brush &brush);
 
 void mode_enter_generic(
     Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, eObjectMode mode_flag);

@@ -29,6 +29,7 @@ __all__ = (
     "platform_from_this_system",
     "url_append_query_for_blender",
     "url_parse_for_blender",
+    "seconds_as_human_readable_text",
     "file_mtime_or_none",
     "scandir_with_demoted_errors",
     "rmtree_with_fallback_or_error",
@@ -48,6 +49,8 @@ __all__ = (
     # Directory Lock.
     "RepoLock",
     "RepoLockContext",
+
+    "repo_lock_directory_query",
 )
 
 import abc
@@ -492,6 +495,34 @@ def url_parse_for_blender(url: str) -> Tuple[str, Dict[str, str]]:
             query_known[key] = value_xform
 
     return url_strip, query_known
+
+
+def seconds_as_human_readable_text(seconds: float, unit_num: int) -> str:
+    seconds_units = (
+        ("year", "years", 31_556_952.0),
+        ("week", "weeks", 604_800.0),
+        ("day", "days", 86400.0),
+        ("hour", "hours", 3600.0),
+        ("minute", "minutes", 60.0),
+        ("second", "seconds", 1.0),
+    )
+    result = []
+    for unit_text, unit_text_plural, unit_value in seconds_units:
+        if seconds >= unit_value:
+            unit_count = int(seconds / unit_value)
+            seconds -= (unit_count * unit_value)
+            if unit_count > 1:
+                result.append("{:d} {:s}".format(unit_count, unit_text_plural))
+            else:
+                result.append("{:d} {:s}".format(unit_count, unit_text))
+            if len(result) == unit_num:
+                break
+
+    # For short time periods, always show something.
+    if not result:
+        result.append("{:.02g} {:s}".format(seconds / unit_value, unit_text_plural))
+
+    return ", ".join(result)
 
 
 # -----------------------------------------------------------------------------
@@ -1090,6 +1121,29 @@ class CommandBatch:
 # Internal Repo Data Source
 #
 
+class PkgBlock_Normalized(NamedTuple):
+    reason: str
+
+    @staticmethod
+    def from_dict_with_error_fn(
+        block_dict: Dict[str, Any],
+        *,
+        # Only for useful error messages.
+        pkg_idname: str,
+        error_fn: Callable[[Exception], None],
+    ) -> Optional["PkgBlock_Normalized"]:
+
+        try:
+            reason = block_dict["reason"]
+        except KeyError as ex:
+            error_fn(KeyError("{:s}: missing key {:s}".format(pkg_idname, str(ex))))
+            return None
+
+        return PkgBlock_Normalized(
+            reason=reason,
+        )
+
+
 # See similar named tuple: `bl_pkg.cli.blender_ext.PkgManifest`.
 # This type is loaded from an external source and had it's valued parsed into a known "normalized" state.
 # Some transformation is performed to the purpose of displaying in the UI although this type isn't specifically for UI.
@@ -1116,12 +1170,16 @@ class PkgManifest_Normalized(NamedTuple):
     archive_size: int
     archive_url: str
 
+    # Taken from the `blocklist`.
+    block: Optional[PkgBlock_Normalized]
+
     @staticmethod
     def from_dict_with_error_fn(
         manifest_dict: Dict[str, Any],
         *,
         # Only for useful error messages.
         pkg_idname: str,
+        pkg_block: Optional[PkgBlock_Normalized],
         error_fn: Callable[[Exception], None],
     ) -> Optional["PkgManifest_Normalized"]:
         # NOTE: it is expected there are no errors here for typical usage.
@@ -1233,6 +1291,8 @@ class PkgManifest_Normalized(NamedTuple):
 
             archive_size=field_archive_size,
             archive_url=field_archive_url,
+
+            block=pkg_block,
         )
 
 
@@ -1312,15 +1372,55 @@ def pkg_manifest_params_compatible_or_error(
     return None
 
 
-def repository_filter_packages(
+def repository_parse_blocklist(
+        data: List[Dict[str, Any]],
+        *,
+        repo_directory: str,
+        error_fn: Callable[[Exception], None],
+) -> Dict[str, PkgBlock_Normalized]:
+    pkg_block_map = {}
+
+    for item in data:
+        if not isinstance(item, dict):
+            error_fn(Exception("found non dict item in repository \"blocklist\", found {:s}".format(str(type(item)))))
+            continue
+
+        if (pkg_idname := repository_id_with_error_fn(
+                item,
+                repo_directory=repo_directory,
+                error_fn=error_fn,
+        )) is None:
+            continue
+        if (value := PkgBlock_Normalized.from_dict_with_error_fn(
+                item,
+                pkg_idname=pkg_idname,
+                error_fn=error_fn,
+        )) is None:
+            # NOTE: typically we would skip invalid items
+            # however as it's known this ID is blocked, create a dummy item.
+            value = PkgBlock_Normalized(
+                reason="Unknown (parse error)",
+            )
+
+        pkg_block_map[pkg_idname] = value
+
+    return pkg_block_map
+
+
+def repository_parse_data_filtered(
         data: List[Dict[str, Any]],
         *,
         repo_directory: str,
         filter_params: PkgManifest_FilterParams,
+        pkg_block_map: Dict[str, PkgBlock_Normalized],
         error_fn: Callable[[Exception], None],
 ) -> Dict[str, PkgManifest_Normalized]:
     pkg_manifest_map = {}
     for item in data:
+        if not isinstance(item, dict):
+            error_fn(Exception("found non dict item in repository \"data\", found {:s}".format(str(type(item)))))
+            continue
+
         if (pkg_idname := repository_id_with_error_fn(
                 item,
                 repo_directory=repo_directory,
@@ -1338,6 +1438,7 @@ def repository_filter_packages(
         if (value := PkgManifest_Normalized.from_dict_with_error_fn(
                 item,
                 pkg_idname=pkg_idname,
+                pkg_block=pkg_block_map.get(pkg_idname),
                 error_fn=error_fn,
         )) is None:
             continue
@@ -1349,8 +1450,7 @@ def repository_filter_packages(
 
 class RepoRemoteData(NamedTuple):
     version: str
-    blocklist: List[str]
-    # Converted from the `data` field.
+    # Converted from the `data` & `blocklist` fields.
     pkg_manifest_map: Dict[str, PkgManifest_Normalized]
 
 
@@ -1497,15 +1597,29 @@ class _RepoDataSouce_JSON(_RepoDataSouce_ABC):
 
         # It's important to assign this value even if it's "empty",
         # otherwise corrupt files will be detected as unset and continuously attempt to load.
+
+        repo_directory = os.path.dirname(self._filepath)
+
+        # Useful for testing:
+        # `data_dict["blocklist"] = [{"id": "math_vis_console", "reason": "This is blocked"}]`
+
+        pkg_block_map = repository_parse_blocklist(
+            data_dict.get("blocklist", []),
+            repo_directory=repo_directory,
+            error_fn=error_fn,
+        )
+
+        pkg_manifest_map = repository_parse_data_filtered(
+            data_dict.get("data", []),
+            repo_directory=repo_directory,
+            filter_params=self._filter_params,
+            pkg_block_map=pkg_block_map,
+            error_fn=error_fn,
+        )
+
         data = RepoRemoteData(
             version=data_dict.get("version", "v1"),
-            blocklist=data_dict.get("blocklist", []),
-            pkg_manifest_map=repository_filter_packages(
-                data_dict.get("data", []),
-                repo_directory=os.path.dirname(self._filepath),
-                filter_params=self._filter_params,
-                error_fn=error_fn,
-            ),
+            pkg_manifest_map=pkg_manifest_map,
         )
 
         self._data = data
@@ -1606,6 +1720,7 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
             if (value := PkgManifest_Normalized.from_dict_with_error_fn(
                     item_local,
                     pkg_idname=pkg_idname,
+                    pkg_block=None,
                     error_fn=error_fn,
             )) is None:
                 continue
@@ -1617,7 +1732,6 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
         # to use the same structure as the actual JSON.
         data = RepoRemoteData(
             version="v1",
-            blocklist=[],
             pkg_manifest_map=pkg_manifest_map,
         )
         # End: compatibility change.
@@ -1823,6 +1937,7 @@ class _RepoCacheEntry:
                 if (value := PkgManifest_Normalized.from_dict_with_error_fn(
                         item_local,
                         pkg_idname=pkg_idname,
+                        pkg_block=None,
                         error_fn=error_fn,
                 )) is not None:
                     pkg_manifest_local[pkg_idname] = value
@@ -1969,6 +2084,11 @@ class RepoCacheStore:
 # Public Repo Lock
 #
 
+# Currently this is based on a path, this gives significant room without the risk of not being large enough.
+# The size limit is used to prevent over-allocating memory in the unlikely case a lot of data
+# is written into the lock file.
+_REPO_LOCK_SIZE_LIMIT = 16384
+
 
 class RepoLock:
     """
@@ -1993,6 +2113,7 @@ class RepoLock:
             It must point to a path that exists.
             When a lock exists, check if the cookie path exists, if it doesn't, allow acquiring the lock.
         """
+        assert len(cookie) <= _REPO_LOCK_SIZE_LIMIT, "Unreachable"
         self._repo_directories = tuple(repo_directories)
         self._repo_lock_files: List[Tuple[str, str]] = []
         self._held = False
@@ -2008,21 +2129,21 @@ class RepoLock:
         if os.path.exists(local_lock_file):
             try:
                 with open(local_lock_file, "r", encoding="utf8") as fh:
-                    data = fh.read()
+                    data = fh.read(_REPO_LOCK_SIZE_LIMIT)
             except Exception as ex:
-                return "lock file could not be read: {:s}".format(str(ex))
+                return "lock file could not be read ({:s})".format(str(ex))
 
             # The lock is held.
             if os.path.exists(data):
                 if data == cookie:
                     return "lock is already held by this session"
-                return "lock is held by other session: {:s}".format(data)
+                return "lock is held by other session \"{:s}\"".format(data)
 
             # The lock is held (but stale), remove it.
             try:
                 os.remove(local_lock_file)
             except Exception as ex:
-                return "lock file could not be removed: {:s}".format(str(ex))
+                return "lock file could not be removed ({:s})".format(str(ex))
         return None
 
     def acquire(self) -> Dict[str, Optional[str]]:
@@ -2046,19 +2167,19 @@ class RepoLock:
                     os.makedirs(local_private_dir)
                 except Exception as ex:
                     # Likely no permissions or read-only file-system.
-                    result[directory] = "Lock directory could not be created: {:s}".format(str(ex))
+                    result[directory] = "lock directory could not be created ({:s})".format(str(ex))
                     continue
 
             local_lock_file = os.path.join(local_private_dir, REPO_LOCAL_PRIVATE_LOCK)
             # Attempt to get the lock, kick out stale locks.
             if (lock_msg := self._is_locked_with_stale_cookie_removal(local_lock_file, self._cookie)) is not None:
-                result[directory] = "Lock exists: {:s}".format(lock_msg)
+                result[directory] = "lock exists ({:s})".format(lock_msg)
                 continue
             try:
                 with open(local_lock_file, "w", encoding="utf8") as fh:
                     fh.write(self._cookie)
             except Exception as ex:
-                result[directory] = "Lock could not be created: {:s}".format(str(ex))
+                result[directory] = "lock could not be created ({:s})".format(str(ex))
                 # Remove if it was created (but failed to write)... disk-full?
                 try:
                     os.remove(local_lock_file)
@@ -2083,20 +2204,20 @@ class RepoLock:
                 continue
             try:
                 with open(local_lock_file, "r", encoding="utf8") as fh:
-                    data = fh.read()
+                    data = fh.read(_REPO_LOCK_SIZE_LIMIT)
             except Exception as ex:
-                result[directory] = "release(): lock file could not be read: {:s}".format(str(ex))
+                result[directory] = "release(): lock file could not be read ({:s})".format(str(ex))
                 continue
             # Owned by another application, this shouldn't happen.
             if data != self._cookie:
-                result[directory] = "release(): lock was unexpectedly stolen by another program: {:s}".format(data)
+                result[directory] = "release(): lock was unexpectedly stolen by another program ({:s})".format(data)
                 continue
 
             # This is our lock file, we're allowed to remove it!
             try:
                 os.remove(local_lock_file)
             except Exception as ex:
-                result[directory] = "release(): failed to remove file {!r}".format(ex)
+                result[directory] = "release(): failed to remove file ({!r})".format(ex)
 
         self._held = False
         return result
@@ -2115,3 +2236,49 @@ class RepoLockContext:
 
     def __exit__(self, _ty: Any, _value: Any, _traceback: Any) -> None:
         self._repo_lock.release()
+
+
+# -----------------------------------------------------------------------------
+# Public Repo Lock Query & Unlock Support
+#
+
+def repo_lock_directory_query(
+        directory: str,
+        cookie: str,
+) -> Optional[Tuple[bool, float, str]]:
+    local_lock_file = os.path.join(directory, REPO_LOCAL_PRIVATE_DIR, REPO_LOCAL_PRIVATE_LOCK)
+
+    cookie_is_ours = False
+    cookie_mtime = 0.0
+    cookie_error = ""
+
+    try:
+        cookie_stat = os.stat(local_lock_file)
+    except FileNotFoundError:
+        return None
+    except Exception as ex:
+        cookie_error = "lock file could not stat: {:s}".format(str(ex))
+    else:
+        cookie_mtime = cookie_stat[stat.ST_MTIME]
+
+        data = ""
+        try:
+            with open(local_lock_file, "r", encoding="utf8") as fh:
+                data = fh.read(_REPO_LOCK_SIZE_LIMIT)
+        except Exception as ex:
+            cookie_error = "lock file could not be read: {:s}".format(str(ex))
+
+        cookie_is_ours = cookie == data
+
+    return cookie_is_ours, cookie_mtime, cookie_error
+
+
+def repo_lock_directory_force_unlock(
+        directory: str,
+) -> Optional[str]:
+    local_lock_file = os.path.join(directory, REPO_LOCAL_PRIVATE_DIR, REPO_LOCAL_PRIVATE_LOCK)
+    try:
+        os.remove(local_lock_file)
+    except Exception as ex:
+        return str(ex)
+    return None

@@ -120,7 +120,7 @@ template<typename Color> static Color fromFloat(const ColorPaint4f &c)
   }
 }
 
-/* Use for 'blur' brush, align with PBVH nodes, created and freed on each update. */
+/* Use for 'blur' brush, align with pbvh::Tree nodes, created and freed on each update. */
 template<typename BlendType> struct VPaintAverageAccum {
   BlendType len;
   BlendType value[3];
@@ -291,15 +291,15 @@ void init_session_data(const ToolSettings &ts, Object &ob)
   }
 }
 
-Vector<PBVHNode *> pbvh_gather_generic(Object &ob, const VPaint &wp, const Brush &brush)
+Vector<bke::pbvh::Node *> pbvh_gather_generic(Object &ob, const VPaint &wp, const Brush &brush)
 {
   SculptSession &ss = *ob.sculpt;
   const bool use_normal = vwpaint::use_normal(wp);
-  Vector<PBVHNode *> nodes;
+  Vector<bke::pbvh::Node *> nodes;
 
   /* Build a list of all nodes that are potentially within the brush's area of influence */
   if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
-    nodes = bke::pbvh::search_gather(*ss.pbvh, [&](PBVHNode &node) {
+    nodes = bke::pbvh::search_gather(*ss.pbvh, [&](bke::pbvh::Node &node) {
       return node_in_sphere(node, ss.cache->location, ss.cache->radius_squared, true);
     });
 
@@ -310,7 +310,7 @@ Vector<PBVHNode *> pbvh_gather_generic(Object &ob, const VPaint &wp, const Brush
   else {
     const DistRayAABB_Precalc ray_dist_precalc = dist_squared_ray_to_aabb_v3_precalc(
         ss.cache->location, ss.cache->view_normal);
-    nodes = bke::pbvh::search_gather(*ss.pbvh, [&](PBVHNode &node) {
+    nodes = bke::pbvh::search_gather(*ss.pbvh, [&](bke::pbvh::Node &node) {
       return node_in_cylinder(ray_dist_precalc, node, ss.cache->radius_squared, true);
     });
 
@@ -357,10 +357,8 @@ void mode_enter_generic(
 
   /* Create vertex/weight paint mode session data */
   if (ob.sculpt) {
-    if (ob.sculpt->cache) {
-      SCULPT_cache_free(ob.sculpt->cache);
-      ob.sculpt->cache = nullptr;
-    }
+    MEM_delete(ob.sculpt->cache);
+    ob.sculpt->cache = nullptr;
     BKE_sculptsession_free(&ob);
   }
 
@@ -397,8 +395,8 @@ void mode_exit_generic(Object &ob, const eObjectMode mode_flag)
   }
 
   /* If the cache is not released by a cancel or a done, free it now. */
-  if (ob.sculpt && ob.sculpt->cache) {
-    SCULPT_cache_free(ob.sculpt->cache);
+  if (ob.sculpt) {
+    MEM_delete(ob.sculpt->cache);
     ob.sculpt->cache = nullptr;
   }
 
@@ -594,8 +592,8 @@ void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
   /* Switch to the blur (smooth) brush if possible. */
   BKE_paint_brush_set_essentials(bmain,
                                  paint,
-                                 (paint->runtime.ob_mode = OB_MODE_WEIGHT_PAINT) ? "Blur Weight" :
-                                                                                   "Blur Vertex");
+                                 paint->runtime.ob_mode == OB_MODE_WEIGHT_PAINT ? "Blur Weight" :
+                                                                                  "Blur Vertex");
   Brush *smooth_brush = BKE_paint_brush(paint);
 
   if (!smooth_brush) {
@@ -903,7 +901,7 @@ static void to_static_color_type(const eCustomDataType type, const Func &func)
   }
 }
 
-struct VPaintData {
+struct VPaintData : public PaintModeData {
   ViewContext vc;
   AttrDomain domain;
   eCustomDataType type;
@@ -922,20 +920,28 @@ struct VPaintData {
     GArray<> color_prev;
     GArray<> color_curr;
   } smear;
+
+  ~VPaintData()
+  {
+    if (vp_handle) {
+      ED_vpaint_proj_handle_free(vp_handle);
+    }
+  }
 };
 
-static VPaintData *vpaint_init_vpaint(bContext *C,
-                                      wmOperator *op,
-                                      Scene &scene,
-                                      Depsgraph &depsgraph,
-                                      VPaint &vp,
-                                      Object &ob,
-                                      Mesh &mesh,
-                                      const AttrDomain domain,
-                                      const eCustomDataType type,
-                                      const Brush &brush)
+static std::unique_ptr<VPaintData> vpaint_init_vpaint(bContext *C,
+                                                      wmOperator *op,
+                                                      Scene &scene,
+                                                      Depsgraph &depsgraph,
+                                                      VPaint &vp,
+                                                      Object &ob,
+                                                      Mesh &mesh,
+                                                      const AttrDomain domain,
+                                                      const eCustomDataType type,
+                                                      const Brush &brush)
 {
-  VPaintData *vpd = MEM_new<VPaintData>(__func__);
+  std::unique_ptr<VPaintData> vpd = std::make_unique<VPaintData>();
+
   vpd->type = type;
   vpd->domain = domain;
 
@@ -993,10 +999,10 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
     return false;
   }
 
-  VPaintData *vpd = vpaint_init_vpaint(
+  std::unique_ptr<VPaintData> vpd = vpaint_init_vpaint(
       C, op, scene, depsgraph, vp, ob, *mesh, meta_data->domain, meta_data->data_type, brush);
 
-  paint_stroke_set_mode_data(stroke, vpd);
+  paint_stroke_set_mode_data(stroke, std::move(vpd));
 
   /* If not previously created, create vertex/weight paint mode session data */
   vertex_paint_init_stroke(depsgraph, ob);
@@ -1011,7 +1017,7 @@ static void do_vpaint_brush_blur_loops(const bContext *C,
                                        VPaintData &vpd,
                                        Object &ob,
                                        Mesh &mesh,
-                                       const Span<PBVHNode *> nodes,
+                                       const Span<bke::pbvh::Node *> nodes,
                                        GMutableSpan attribute)
 {
   SculptSession &ss = *ob.sculpt;
@@ -1155,7 +1161,7 @@ static void do_vpaint_brush_blur_verts(const bContext *C,
                                        VPaintData &vpd,
                                        Object &ob,
                                        Mesh &mesh,
-                                       const Span<PBVHNode *> nodes,
+                                       const Span<bke::pbvh::Node *> nodes,
                                        GMutableSpan attribute)
 {
   SculptSession &ss = *ob.sculpt;
@@ -1290,7 +1296,7 @@ static void do_vpaint_brush_smear(const bContext *C,
                                   VPaintData &vpd,
                                   Object &ob,
                                   Mesh &mesh,
-                                  const Span<PBVHNode *> nodes,
+                                  const Span<bke::pbvh::Node *> nodes,
                                   GMutableSpan attribute)
 {
   SculptSession &ss = *ob.sculpt;
@@ -1481,7 +1487,7 @@ static void calculate_average_color(VPaintData &vpd,
                                     Mesh &mesh,
                                     const Brush &brush,
                                     const GSpan attribute,
-                                    const Span<PBVHNode *> nodes)
+                                    const Span<bke::pbvh::Node *> nodes)
 {
   SculptSession &ss = *ob.sculpt;
   const GroupedSpan<int> vert_to_face = mesh.vert_to_face_map();
@@ -1597,7 +1603,7 @@ static void vpaint_do_draw(const bContext *C,
                            VPaintData &vpd,
                            Object &ob,
                            Mesh &mesh,
-                           const Span<PBVHNode *> nodes,
+                           const Span<bke::pbvh::Node *> nodes,
                            GMutableSpan attribute)
 {
   SculptSession &ss = *ob.sculpt;
@@ -1751,7 +1757,7 @@ static void vpaint_do_blur(const bContext *C,
                            VPaintData &vpd,
                            Object &ob,
                            Mesh &mesh,
-                           const Span<PBVHNode *> nodes,
+                           const Span<bke::pbvh::Node *> nodes,
                            GMutableSpan attribute)
 {
   if (vpd.domain == AttrDomain::Point) {
@@ -1768,11 +1774,9 @@ static void vpaint_paint_leaves(bContext *C,
                                 Object &ob,
                                 Mesh &mesh,
                                 GMutableSpan attribute,
-                                const Span<PBVHNode *> nodes)
+                                const Span<bke::pbvh::Node *> nodes)
 {
-  for (PBVHNode *node : nodes) {
-    undo::push_node(ob, node, undo::Type::Color);
-  }
+  undo::push_nodes(ob, nodes, undo::Type::Color);
 
   const Brush &brush = *ob.sculpt->cache->brush;
 
@@ -1810,14 +1814,15 @@ static void vpaint_do_paint(bContext *C,
   ss.cache->radial_symmetry_pass = i;
   SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
 
-  Vector<PBVHNode *> nodes = vwpaint::pbvh_gather_generic(ob, vp, brush);
+  Vector<bke::pbvh::Node *> nodes = vwpaint::pbvh_gather_generic(ob, vp, brush);
 
   bke::GSpanAttributeWriter attribute = mesh.attributes_for_write().lookup_for_write_span(
       mesh.active_color_attribute);
   BLI_assert(attribute.domain == vpd.domain);
 
   if (attribute.domain == bke::AttrDomain::Corner) {
-    /* The sculpt undo system needs PBVH node corner indices for corner domain color attributes. */
+    /* The sculpt undo system needs bke::pbvh::Tree node corner indices for corner domain
+     * color attributes. */
     BKE_pbvh_ensure_node_loops(*ss.pbvh, mesh.corner_tris());
   }
 
@@ -1944,12 +1949,6 @@ static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke)
   VPaintData *vpd = static_cast<VPaintData *>(paint_stroke_mode_data(stroke));
   Object &ob = *vpd->vc.obact;
 
-  if (vpd->is_texbrush) {
-    ED_vpaint_proj_handle_free(vpd->vp_handle);
-  }
-
-  MEM_delete(vpd);
-
   SculptSession &ss = *ob.sculpt;
 
   if (ss.cache && ss.cache->alt_smooth) {
@@ -1962,7 +1961,7 @@ static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke)
 
   undo::push_end(ob);
 
-  SCULPT_cache_free(ob.sculpt->cache);
+  MEM_delete(ob.sculpt->cache);
   ob.sculpt->cache = nullptr;
 }
 
@@ -2015,10 +2014,8 @@ static int vpaint_exec(bContext *C, wmOperator *op)
 static void vpaint_cancel(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
-  if (ob.sculpt->cache) {
-    SCULPT_cache_free(ob.sculpt->cache);
-    ob.sculpt->cache = nullptr;
-  }
+  MEM_delete(ob.sculpt->cache);
+  ob.sculpt->cache = nullptr;
 
   paint_stroke_cancel(C, op, (PaintStroke *)op->customdata);
 }
@@ -2217,19 +2214,18 @@ static int vertex_color_set_exec(bContext *C, wmOperator *op)
   BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(C), &obact, true);
 
   undo::push_begin(obact, op);
-  Vector<PBVHNode *> nodes = blender::bke::pbvh::search_gather(*obact.sculpt->pbvh, {});
+  Vector<bke::pbvh::Node *> nodes = bke::pbvh::search_gather(*obact.sculpt->pbvh, {});
 
   const Mesh &mesh = *static_cast<const Mesh *>(obact.data);
-  /* The sculpt undo system needs PBVH node corner indices for corner domain color attributes. */
+  /* The sculpt undo system needs bke::pbvh::Tree node corner indices for corner domain
+   * color attributes. */
   BKE_pbvh_ensure_node_loops(*obact.sculpt->pbvh, mesh.corner_tris());
 
-  for (PBVHNode *node : nodes) {
-    undo::push_node(obact, node, undo::Type::Color);
-  }
+  undo::push_nodes(obact, nodes, undo::Type::Color);
 
   fill_active_color(obact, paintcol, true, affect_alpha);
 
-  for (PBVHNode *node : nodes) {
+  for (bke::pbvh::Node *node : nodes) {
     BKE_pbvh_node_mark_update_color(node);
   }
   undo::push_end(obact);

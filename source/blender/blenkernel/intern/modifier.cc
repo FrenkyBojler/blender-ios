@@ -52,7 +52,6 @@
 #include "BKE_effect.h"
 #include "BKE_fluid.h"
 #include "BKE_global.hh"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
@@ -647,44 +646,22 @@ ModifierData *BKE_modifiers_get_virtual_modifierlist(const Object *ob,
 
 Object *BKE_modifiers_is_deformed_by_armature(Object *ob)
 {
-  if (ob->type == OB_GPENCIL_LEGACY) {
-    GpencilVirtualModifierData gpencilvirtualModifierData;
-    ArmatureGpencilModifierData *agmd = nullptr;
-    GpencilModifierData *gmd = BKE_gpencil_modifiers_get_virtual_modifierlist(
-        ob, &gpencilvirtualModifierData);
+  VirtualModifierData virtual_modifier_data;
+  ArmatureModifierData *amd = nullptr;
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
 
-    /* return the first selected armature, this lets us use multiple armatures */
-    for (; gmd; gmd = gmd->next) {
-      if (gmd->type == eGpencilModifierType_Armature) {
-        agmd = (ArmatureGpencilModifierData *)gmd;
-        if (agmd->object && (agmd->object->base_flag & BASE_SELECTED)) {
-          return agmd->object;
-        }
+  /* return the first selected armature, this lets us use multiple armatures */
+  for (; md; md = md->next) {
+    if (md->type == eModifierType_Armature) {
+      amd = (ArmatureModifierData *)md;
+      if (amd->object && (amd->object->base_flag & BASE_SELECTED)) {
+        return amd->object;
       }
-    }
-    /* If we're still here then return the last armature. */
-    if (agmd) {
-      return agmd->object;
     }
   }
-  else {
-    VirtualModifierData virtual_modifier_data;
-    ArmatureModifierData *amd = nullptr;
-    ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
-
-    /* return the first selected armature, this lets us use multiple armatures */
-    for (; md; md = md->next) {
-      if (md->type == eModifierType_Armature) {
-        amd = (ArmatureModifierData *)md;
-        if (amd->object && (amd->object->base_flag & BASE_SELECTED)) {
-          return amd->object;
-        }
-      }
-    }
-    /* If we're still here then return the last armature. */
-    if (amd) {
-      return amd->object;
-    }
+  /* If we're still here then return the last armature. */
+  if (amd) {
+    return amd->object;
   }
 
   return nullptr;
@@ -850,7 +827,7 @@ const char *BKE_modifier_path_relbase(Main *bmain, Object *ob)
 {
   /* - If the ID is from a library, return library path.
    * - Else if the file has been saved return the blend file path.
-   * - Else if the file isn't saved and the ID isn't from a library, return the temp dir.
+   * - Else if the file isn't saved and the ID isn't from a library, return the temp directory.
    */
   if ((bmain->filepath[0] != '\0') || ID_IS_LINKED(ob)) {
     return ID_BLEND_PATH(bmain, &ob->id);

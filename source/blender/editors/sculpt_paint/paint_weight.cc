@@ -99,7 +99,7 @@ struct WeightPaintGroupData {
   const bool *lock;
 };
 
-struct WPaintData {
+struct WPaintData : public PaintModeData {
   ViewContext vc;
   NormalAnglePrecalc normal_angle_precalc;
 
@@ -122,6 +122,18 @@ struct WPaintData {
   /* original weight values for use in blur/smear */
   float *precomputed_weight;
   bool precomputed_weight_ready;
+
+  ~WPaintData()
+  {
+    MEM_SAFE_FREE(defbase_sel);
+    MEM_SAFE_FREE(vgroup_validmap);
+    MEM_SAFE_FREE(vgroup_locked);
+    MEM_SAFE_FREE(vgroup_unlocked);
+    MEM_SAFE_FREE(lock_flags);
+    MEM_SAFE_FREE(active.lock);
+    MEM_SAFE_FREE(mirror.lock);
+    MEM_SAFE_FREE(precomputed_weight);
+  }
 };
 
 /* struct to avoid passing many args each call to do_weight_paint_vertex()
@@ -907,8 +919,7 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
     }
   }
 
-  WPaintData *wpd = (WPaintData *)MEM_callocN(sizeof(WPaintData), "WPaintData");
-  paint_stroke_set_mode_data(&stroke, wpd);
+  std::unique_ptr<WPaintData> wpd = std::make_unique<WPaintData>();
   wpd->vc = ED_view3d_viewcontext_init(C, &depsgraph);
 
   const Brush *brush = BKE_paint_brush_for_read(&vp.paint);
@@ -1000,6 +1011,8 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
     }
   }
 
+  paint_stroke_set_mode_data(&stroke, std::move(wpd));
+
   return true;
 }
 
@@ -1049,7 +1062,7 @@ static void precompute_weight_values(
  * \{ */
 
 static void parallel_nodes_loop_with_mirror_check(const Mesh &mesh,
-                                                  const Span<PBVHNode *> nodes,
+                                                  const Span<blender::bke::pbvh::Node *> nodes,
                                                   FunctionRef<void(IndexRange)> fn)
 {
   /* NOTE: current mirroring code cannot be run in parallel */
@@ -1068,7 +1081,7 @@ static void do_wpaint_brush_blur(const Scene &scene,
                                  WPaintData &wpd,
                                  const WeightPaintInfo &wpi,
                                  Mesh &mesh,
-                                 const Span<PBVHNode *> nodes)
+                                 const Span<blender::bke::pbvh::Node *> nodes)
 {
   using namespace blender;
   SculptSession &ss = *ob.sculpt;
@@ -1164,7 +1177,7 @@ static void do_wpaint_brush_smear(const Scene &scene,
                                   WPaintData &wpd,
                                   const WeightPaintInfo &wpi,
                                   Mesh &mesh,
-                                  const Span<PBVHNode *> nodes)
+                                  const Span<blender::bke::pbvh::Node *> nodes)
 {
   using namespace blender;
   SculptSession &ss = *ob.sculpt;
@@ -1284,7 +1297,7 @@ static void do_wpaint_brush_draw(const Scene &scene,
                                  const WeightPaintInfo &wpi,
                                  Mesh &mesh,
                                  const float strength,
-                                 const Span<PBVHNode *> nodes)
+                                 const Span<blender::bke::pbvh::Node *> nodes)
 {
   using namespace blender;
   SculptSession &ss = *ob.sculpt;
@@ -1360,7 +1373,7 @@ static float calculate_average_weight(Object &ob,
                                       const Brush &brush,
                                       const VPaint &vp,
                                       WeightPaintInfo &wpi,
-                                      const Span<PBVHNode *> nodes)
+                                      const Span<blender::bke::pbvh::Node *> nodes)
 {
   using namespace blender;
   SculptSession &ss = *ob.sculpt;
@@ -1430,7 +1443,7 @@ static void wpaint_paint_leaves(bContext *C,
                                 WPaintData &wpd,
                                 WeightPaintInfo &wpi,
                                 Mesh &mesh,
-                                const Span<PBVHNode *> nodes)
+                                const Span<blender::bke::pbvh::Node *> nodes)
 {
   const Scene &scene = *CTX_data_scene(C);
   const Brush &brush = *ob.sculpt->cache->brush;
@@ -1623,7 +1636,7 @@ static void wpaint_do_paint(bContext *C,
   ss.cache->radial_symmetry_pass = i;
   SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
 
-  Vector<PBVHNode *> nodes = vwpaint::pbvh_gather_generic(ob, wp, brush);
+  Vector<blender::bke::pbvh::Node *> nodes = vwpaint::pbvh_gather_generic(ob, wp, brush);
 
   wpaint_paint_leaves(C, ob, wp, wpd, wpi, mesh, nodes);
 }
@@ -1804,22 +1817,9 @@ static void wpaint_stroke_update_step(bContext *C,
   ED_region_tag_redraw_partial(vc->region, &r, true);
 }
 
-static void wpaint_stroke_done(const bContext *C, PaintStroke *stroke)
+static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/)
 {
   Object &ob = *CTX_data_active_object(C);
-  WPaintData *wpd = (WPaintData *)paint_stroke_mode_data(stroke);
-
-  if (wpd) {
-    MEM_SAFE_FREE(wpd->defbase_sel);
-    MEM_SAFE_FREE(wpd->vgroup_validmap);
-    MEM_SAFE_FREE(wpd->vgroup_locked);
-    MEM_SAFE_FREE(wpd->vgroup_unlocked);
-    MEM_SAFE_FREE(wpd->lock_flags);
-    MEM_SAFE_FREE(wpd->active.lock);
-    MEM_SAFE_FREE(wpd->mirror.lock);
-    MEM_SAFE_FREE(wpd->precomputed_weight);
-    MEM_freeN(wpd);
-  }
 
   SculptSession &ss = *ob.sculpt;
 
@@ -1844,7 +1844,7 @@ static void wpaint_stroke_done(const bContext *C, PaintStroke *stroke)
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &ob);
 
-  SCULPT_cache_free(ob.sculpt->cache);
+  MEM_delete(ob.sculpt->cache);
   ob.sculpt->cache = nullptr;
 }
 
@@ -1892,10 +1892,8 @@ static int wpaint_exec(bContext *C, wmOperator *op)
 static void wpaint_cancel(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
-  if (ob.sculpt->cache) {
-    SCULPT_cache_free(ob.sculpt->cache);
-    ob.sculpt->cache = nullptr;
-  }
+  MEM_delete(ob.sculpt->cache);
+  ob.sculpt->cache = nullptr;
 
   paint_stroke_cancel(C, op, (PaintStroke *)op->customdata);
 }

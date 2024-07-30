@@ -252,11 +252,11 @@ static Array<float> geodesic_fallback_create(Object &ob, const Set<int> &initial
 Array<float> distances_create(Object &ob, const Set<int> &initial_verts, const float limit_radius)
 {
   SculptSession &ss = *ob.sculpt;
-  switch (BKE_pbvh_type(*ss.pbvh)) {
-    case PBVH_FACES:
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh:
       return geodesic_mesh_create(ob, initial_verts, limit_radius);
-    case PBVH_BMESH:
-    case PBVH_GRIDS:
+    case bke::pbvh::Type::BMesh:
+    case bke::pbvh::Type::Grids:
       return geodesic_fallback_create(ob, initial_verts);
   }
   BLI_assert_unreachable();
@@ -281,7 +281,7 @@ Array<float> distances_create_from_vert_and_symm(Object &ob,
       else {
         float location[3];
         flip_v3_v3(location, SCULPT_vertex_co_get(ss, vertex), ePaintSymmetryFlags(i));
-        v = SCULPT_nearest_vertex_get(ob, location, FLT_MAX, false);
+        v = nearest_vert_calc(ob, location, FLT_MAX, false);
       }
       if (v.i != PBVH_REF_NONE) {
         initial_verts.add(BKE_pbvh_vertex_to_index(*ss.pbvh, v));

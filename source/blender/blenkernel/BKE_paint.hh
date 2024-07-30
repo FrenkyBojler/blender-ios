@@ -12,6 +12,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
+#include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
@@ -38,7 +39,10 @@ struct EnumPropertyItem;
 namespace blender {
 namespace bke {
 enum class AttrDomain : int8_t;
+namespace pbvh {
+class Tree;
 }
+}  // namespace bke
 namespace ed::sculpt_paint {
 namespace expand {
 struct Cache;
@@ -62,7 +66,6 @@ struct MLoopCol;
 struct MPropCol;
 struct MultiresModifierData;
 struct Object;
-struct PBVH;
 struct Paint;
 struct PaintCurve;
 struct PaintModeSettings;
@@ -318,52 +321,51 @@ struct SculptVertexInfo {
   blender::BitVector<> boundary;
 };
 
+#define BOUNDARY_VERTEX_NONE -1
+#define BOUNDARY_STEPS_NONE -1
+
 struct SculptBoundaryEditInfo {
   /* Vertex index from where the topology propagation reached this vertex. */
-  int original_vertex_i;
+  int original_vertex_i = BOUNDARY_VERTEX_NONE;
 
   /* How many steps were needed to reach this vertex from the boundary. */
-  int propagation_steps_num;
+  int propagation_steps_num = BOUNDARY_STEPS_NONE;
 
   /* Strength that is used to deform this vertex. */
-  float strength_factor;
+  float strength_factor = 0.0f;
 };
 
-/* Edge for drawing the boundary preview in the cursor. */
-struct SculptBoundaryPreviewEdge {
-  PBVHVertRef v1;
-  PBVHVertRef v2;
+/* Data used for displaying extra visuals while using the Boundary brush. */
+struct SculptBoundaryPreview {
+  blender::Vector<std::pair<blender::float3, blender::float3>> edges;
+  blender::float3 pivot_position;
+  blender::float3 initial_vert_position;
 };
 
 struct SculptBoundary {
   /* Vertex indices of the active boundary. */
-  blender::Vector<PBVHVertRef> verts;
+  blender::Vector<int> verts;
 
   /* Distance from a vertex in the boundary to initial vertex indexed by vertex index, taking into
    * account the length of all edges between them. Any vertex that is not in the boundary will have
    * a distance of 0. */
-  blender::Array<float> distance;
+  blender::Map<int, float> distance;
 
   /* Data for drawing the preview. */
-  blender::Vector<SculptBoundaryPreviewEdge> edges;
+  blender::Vector<std::pair<blender::float3, blender::float3>> edges;
 
-  /* True if the boundary loops into itself. */
-  bool forms_loop;
-
-  /* Initial vertex in the boundary which is closest to the current sculpt active vertex. */
-  PBVHVertRef initial_vert;
+  /* Initial vertex index in the boundary which is closest to the current sculpt active vertex. */
   int initial_vert_i;
 
   /* Vertex that at max_propagation_steps from the boundary and closest to the original active
    * vertex that was used to initialize the boundary. This is used as a reference to check how much
    * the deformation will go into the mesh and to calculate the strength of the brushes. */
-  PBVHVertRef pivot_vertex;
+  blender::float3 pivot_position;
 
   /* Stores the initial positions of the pivot and boundary initial vertex as they may be deformed
    * during the brush action. This allows to use them as a reference positions and vectors for some
    * brush effects. */
   blender::float3 initial_vert_position;
-  blender::float3 initial_pivot_position;
 
   /* Maximum number of topology steps that were calculated from the boundary. */
   int max_propagation_steps;
@@ -409,7 +411,7 @@ struct SculptAttributeParams {
   int simple_array : 1;
 
   /* Do not mark CustomData layer as temporary.  Cannot be combined with simple_array.  Doesn't
-   * work with PBVH_GRIDS.
+   * work with bke::pbvh::Type::Grids.
    */
   int permanent : 1;   /* Cannot be combined with simple_array. */
   int stroke_only : 1; /* Release layer at end of struct */
@@ -432,7 +434,7 @@ struct SculptAttribute {
 
   /* Data is a flat array outside the CustomData system.
    * This will be true if simple_array is requested in
-   * SculptAttributeParams, or the PBVH type is PBVH_GRIDS or PBVH_BMESH.
+   * SculptAttributeParams, or the tree type is bke::pbvh::Type::Grids or bke::pbvh::Type::BMesh.
    */
   bool simple_array = false;
   /* Data stored per BMesh element. */
@@ -493,7 +495,8 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Depsgraph for the Cloth Brush solver to get the colliders. */
   Depsgraph *depsgraph = nullptr;
 
-  /* These are always assigned to base mesh data when using PBVH_FACES and PBVH_GRIDS. */
+  /* These are always assigned to base mesh data when using Type::Mesh and Type::Grids.
+   */
   blender::MutableSpan<blender::float3> vert_positions;
   blender::OffsetIndices<int> faces;
   blender::Span<int> corner_verts;
@@ -541,8 +544,8 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Limit surface/grids. */
   SubdivCCG *subdiv_ccg = nullptr;
 
-  /* PBVH acceleration structure */
-  std::unique_ptr<PBVH> pbvh;
+  /* BVH tree acceleration structure */
+  std::unique_ptr<blender::bke::pbvh::Tree> pbvh;
 
   /* Object is deformed with some modifiers. */
   bool deform_modifiers_active = false;
@@ -590,7 +593,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   std::unique_ptr<SculptPoseIKChain> pose_ik_chain_preview;
 
   /* Boundary Brush Preview */
-  std::unique_ptr<SculptBoundary> boundary_preview;
+  std::unique_ptr<SculptBoundaryPreview> boundary_preview;
 
   SculptVertexInfo vertex_info = {};
   SculptFakeNeighbors fake_neighbors = {};
@@ -623,7 +626,8 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   } mode = {};
   eObjectMode mode_type;
 
-  /* This flag prevents PBVH from being freed when creating the vp_handle for texture paint. */
+  /* This flag prevents bke::pbvh::Tree from being freed when creating the vp_handle for
+   * texture paint. */
   bool building_vp_handle = false;
 
   /**
@@ -730,20 +734,18 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
                                    MultiresModifierData *mmd);
 void BKE_sculpt_toolsettings_data_ensure(Main *bmain, Scene *scene);
 
-PBVH *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Object *ob);
-
-void BKE_sculpt_bvh_update_from_ccg(PBVH &pbvh, SubdivCCG *subdiv_ccg);
+blender::bke::pbvh::Tree *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Object *ob);
 
 void BKE_sculpt_sync_face_visibility_to_grids(Mesh *mesh, SubdivCCG *subdiv_ccg);
 
 /**
- * Test if PBVH can be used directly for drawing, which is faster than
+ * Test if blender::bke::pbvh::Tree can be used directly for drawing, which is faster than
  * drawing the mesh and all updates that come with it.
  */
 bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d);
 
 /** C accessor for #Object::sculpt::pbvh. */
-PBVH *BKE_object_sculpt_pbvh_get(Object *object);
+blender::bke::pbvh::Tree *BKE_object_sculpt_pbvh_get(Object *object);
 bool BKE_object_sculpt_use_dyntopo(const Object *object);
 
 /* paint_canvas.cc */

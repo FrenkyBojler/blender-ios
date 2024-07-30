@@ -44,9 +44,9 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "rna_access_internal.h"
+#include "rna_access_internal.hh"
 #include "rna_internal.hh"
 
 static CLG_LogRef LOG = {"rna.access_compare_override"};
@@ -137,12 +137,6 @@ bool RNA_property_overridable_get(const PointerRNA *ptr, PropertyRNA *prop)
     else if (RNA_struct_is_a(ptr->type, &RNA_Modifier)) {
       ModifierData *mod = static_cast<ModifierData *>(ptr->data);
       if (mod->flag & eModifierFlag_OverrideLibrary_Local) {
-        return true;
-      }
-    }
-    else if (RNA_struct_is_a(ptr->type, &RNA_GpencilModifier)) {
-      GpencilModifierData *gp_mod = static_cast<GpencilModifierData *>(ptr->data);
-      if (gp_mod->flag & eGpencilModifierFlag_OverrideLibrary_Local) {
         return true;
       }
     }
