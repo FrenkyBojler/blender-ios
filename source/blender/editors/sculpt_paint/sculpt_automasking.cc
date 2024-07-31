@@ -598,7 +598,7 @@ static void mesh_orig_vert_data_update(SculptOrigVertData &orig_data, const int 
 
 void calc_vert_factors(const Object &object,
                        const Cache &cache,
-                       const PBVHNode &node,
+                       const bke::pbvh::Node &node,
                        const Span<int> verts,
                        const MutableSpan<float> factors)
 {
@@ -618,7 +618,7 @@ void calc_face_factors(const Object &object,
                        const OffsetIndices<int> faces,
                        const Span<int> corner_verts,
                        const Cache &cache,
-                       const PBVHNode &node,
+                       const bke::pbvh::Node &node,
                        const Span<int> face_indices,
                        const MutableSpan<float> factors)
 {
@@ -644,7 +644,7 @@ void calc_face_factors(const Object &object,
 
 void calc_grids_factors(const Object &object,
                         const Cache &cache,
-                        const PBVHNode &node,
+                        const bke::pbvh::Node &node,
                         const Span<int> grids,
                         const MutableSpan<float> factors)
 {
@@ -668,7 +668,7 @@ void calc_grids_factors(const Object &object,
 
 void calc_vert_factors(const Object &object,
                        const Cache &cache,
-                       const PBVHNode &node,
+                       const bke::pbvh::Node &node,
                        const Set<BMVert *, 0> &verts,
                        const MutableSpan<float> factors)
 {
@@ -687,7 +687,7 @@ void calc_vert_factors(const Object &object,
   }
 }
 
-NodeData node_begin(const Object &object, const Cache *automasking, const PBVHNode &node)
+NodeData node_begin(const Object &object, const Cache *automasking, const bke::pbvh::Node &node)
 {
   if (!automasking) {
     return {};
@@ -793,6 +793,11 @@ static void init_face_sets_masking(const Sculpt &sd, Object &ob)
 }
 
 #define EDGE_DISTANCE_INF -1
+
+enum eBoundaryAutomaskMode {
+  AUTOMASK_INIT_BOUNDARY_EDGES = 1,
+  AUTOMASK_INIT_BOUNDARY_FACE_SETS = 2,
+};
 
 static void init_boundary_masking(Object &ob, eBoundaryAutomaskMode mode, int propagation_steps)
 {

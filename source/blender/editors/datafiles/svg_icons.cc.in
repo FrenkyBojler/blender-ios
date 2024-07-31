@@ -1,5 +1,5 @@
-#include "svg_icons.h"
 #include "UI_resources.hh"
+#include "svg_icons.h"
 
 #include <algorithm>
 #include <vector>
@@ -12,7 +12,7 @@ blender::Span<SVG_Icon> blender_default_icons()
     std::vector<SVG_Icon> icons
     {
       // clang-format off
-@SVGCCCONTENTS@
+@SVG_CONTENTS_C@
       // clang-format on
     };
     std::sort(icons.begin(), icons.end(), [](const SVG_Icon &a, const SVG_Icon &b) {

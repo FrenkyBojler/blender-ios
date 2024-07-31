@@ -75,6 +75,7 @@ struct bContext;
 struct rcti;
 struct TaskGraph;
 namespace blender::draw {
+class TextureFromPool;
 struct DRW_Attributes;
 struct DRW_MeshCDMask;
 }  // namespace blender::draw
@@ -740,6 +741,9 @@ const float *DRW_viewport_pixelsize_get();
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get();
 DefaultTextureList *DRW_viewport_texture_list_get();
 
+/* See DRW_viewport_pass_texture_get. */
+blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name);
+
 void DRW_viewport_request_redraw();
 
 void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph);
@@ -946,5 +950,10 @@ void DRW_mesh_batch_cache_get_attributes(Object *object,
                                          blender::draw::DRW_Attributes **r_attrs,
                                          blender::draw::DRW_MeshCDMask **r_cd_needed);
 
-void DRW_sculpt_debug_cb(
-    PBVHNode *node, void *user_data, const float bmin[3], const float bmax[3], PBVHNodeFlags flag);
+void DRW_sculpt_debug_cb(blender::bke::pbvh::Node *node,
+                         void *user_data,
+                         const float bmin[3],
+                         const float bmax[3],
+                         PBVHNodeFlags flag);
+
+bool DRW_is_viewport_compositor_enabled();
