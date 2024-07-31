@@ -4,9 +4,7 @@
 extern "C" {
 #endif
 
-const char *blf_get_icon_svg(int icon);
-
-@SVG_CONTENTS_H @
+@SVG_CONTENTS_H@
 
 #ifdef __cplusplus
 }
