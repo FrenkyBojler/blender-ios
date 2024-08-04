@@ -868,7 +868,8 @@ static void add_catalog_tabs(AssetShelf &shelf, ui::Layout &layout)
 
   /* Regular catalog tabs. */
   settings_foreach_enabled_catalog_path(shelf, [&](const asset_system::AssetCatalogPath &path) {
-    ui::Button *but = add_tab_button(*block, path.name());
+    ui::Button *but = add_tab_button(*block,
+                                     CTX_IFACE_(BLT_I18NCONTEXT_ASSET, path.name().c_str()));
 
     button_func_set(but, [&shelf_settings, path](bContext &C) {
       settings_set_active_catalog(shelf_settings, path);

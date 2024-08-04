@@ -190,7 +190,7 @@ class BrushAssetShelf:
         if not shelf_name:
             return
 
-        display_name = brush.name if (brush and show_name) else None
+        display_name = iface_(brush.name, i18n_contexts.asset) if (brush and show_name) else None
         if display_name and brush.has_unsaved_changes:
             # Show "*" to the left for consistency with unsaved files in the title bar.
             display_name = "* " + display_name

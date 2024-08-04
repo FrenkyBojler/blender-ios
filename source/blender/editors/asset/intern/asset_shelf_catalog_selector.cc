@@ -145,7 +145,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
 
       ui::Layout &subrow = row.row(false);
       subrow.active_set(catalog_path_enabled_);
-      subrow.label(catalog_item_.get_name(), ICON_NONE);
+      subrow.label(CTX_IFACE_(BLT_I18NCONTEXT_ASSET, catalog_item_.get_name()), ICON_NONE);
       ui::block_layout_set_current(block, &row);
 
       ui::Button *toggle_but = uiDefButV(block,

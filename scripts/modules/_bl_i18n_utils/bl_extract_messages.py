@@ -1025,6 +1025,8 @@ def dump_ocio_config(msgs, reports, settings):
 
 
 def dump_asset_messages(msgs, reports, settings):
+    i18n_contexts = bpy.app.translations.contexts
+
     # Where to search for assets, relative to the local user resources.
     assets_dir = os.path.join(bpy.utils.resource_path('LOCAL'), "datafiles", "assets")
 
@@ -1044,7 +1046,7 @@ def dump_asset_messages(msgs, reports, settings):
     msgsrc = "Asset catalog from " + settings.ASSET_CATALOG_FILE
     for catalog in sorted(catalogs):
         process_msg(
-            msgs, settings.DEFAULT_CONTEXT, catalog, msgsrc,
+            msgs, i18n_contexts.asset, catalog, msgsrc,
             reports, None, settings,
         )
 
@@ -1063,36 +1065,36 @@ def dump_asset_messages(msgs, reports, settings):
     for bfile in bfiles:
         basename = os.path.basename(bfile)
         bpy.ops.wm.open_mainfile(filepath=bfile)
-        # For now, only parse node groups.
-        # Perhaps some other assets will need to be extracted later?
-        for asset_type in ("node_groups",):
+        # For now, only parse node groups and brushes.
+        for asset_type in ("brushes", "node_groups",):
             for asset in getattr(bpy.data, asset_type):
                 if asset.asset_data is None:  # Not an asset
                     continue
                 assets = asset_files.setdefault(basename, [])
                 asset_data = {"name": asset.name,
                               "description": asset.asset_data.description}
-                for interface in asset.interface.items_tree:
-                    if interface.name == "Geometry":  # Ignore common socket
-                        continue
-                    socket_data = asset_data.setdefault("sockets", [])
-                    socket_data.append((interface.name, interface.description))
+                if asset_type == "node_groups":
+                    for interface in asset.interface.items_tree:
+                        if interface.name == "Geometry":  # Ignore common socket
+                            continue
+                        socket_data = asset_data.setdefault("sockets", [])
+                        socket_data.append((interface.name, interface.description))
+                    for node in asset.nodes:
+                        if node.bl_idname == "GeometryNodeWarning" and node.inputs['Message'].default_value:
+                            warning_data = asset_data.setdefault("warnings", [])
+                            warning_data.append(node.inputs['Message'].default_value)
+                        elif node.bl_idname == "GeometryNodeMenuSwitch" and node.enum_items:
+                            enum_data = asset_data.setdefault("menu_items", [])
+                            for enum_item in node.enum_items:
+                                enum_data.append((enum_item.name, enum_item.description))
                 assets.append(asset_data)
-                for node in asset.nodes:
-                    if node.bl_idname == "GeometryNodeWarning" and node.inputs['Message'].default_value:
-                        warning_data = asset_data.setdefault("warnings", [])
-                        warning_data.append(node.inputs['Message'].default_value)
-                    if node.bl_idname == "GeometryNodeMenuSwitch" and node.enum_items:
-                        enum_data = asset_data.setdefault("menu_items", [])
-                        for enum_item in node.enum_items:
-                            enum_data.append((enum_item.name, enum_item.description))
 
     for asset_file in sorted(asset_files):
         for asset in sorted(asset_files[asset_file], key=lambda a: a["name"]):
             name, description = asset["name"], asset["description"]
             msgsrc = "Asset name from file " + asset_file
             process_msg(
-                msgs, settings.DEFAULT_CONTEXT, name, msgsrc,
+                msgs, i18n_contexts.asset, name, msgsrc,
                 reports, None, settings,
             )
             msgsrc = "Asset description from file " + asset_file
