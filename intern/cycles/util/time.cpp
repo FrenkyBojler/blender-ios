@@ -17,6 +17,14 @@
 #  include "util/windows.h"
 #endif
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+#  ifdef _MSC_VER
+#    include <intrin.h>
+#  else
+#    include <x86intrin.h>
+#  endif
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 #ifdef _WIN32
@@ -61,6 +69,63 @@ void time_sleep(double t)
   if (us > 0) {
     usleep(us);
   }
+}
+#endif
+
+#if defined(__aarch64__) || defined(_M_ARM64)
+/* Use cntvct_el0/cntfrq_el0 registers on ARM64. */
+
+uint64_t time_fast_tick(uint32_t * /*last_cpu*/)
+{
+  uint64_t counter;
+  asm("mrs %x0, cntvct_el0" : "=r"(counter));
+  return counter;
+}
+uint64_t time_fast_frequency()
+{
+  uint64_t freq;
+  asm("mrs %x0, cntfrq_el0" : "=r"(freq));
+  return freq;
+}
+#elif defined(__x86_64__) || defined(_M_X64)
+/* Use RDTSCP on x86-64. */
+
+uint64_t time_fast_tick(uint32_t *last_cpu)
+{
+  return __rdtscp(last_cpu);
+}
+uint64_t time_fast_frequency()
+{
+  static bool initialized = false;
+  static uint64_t frequency;
+
+  /* Unfortunately TSC does not provide a easily accessible frequency value, so roughly calibrate
+   * by sleeping a millisecond. Not ideal, but good enough for our purposes. */
+  if (!initialized) {
+    uint32_t cpu;
+    uint64_t start_tick = time_fast_tick(&cpu);
+    double start_precise = time_dt();
+    time_sleep(0.001);
+    uint64_t end_tick = time_fast_tick(&cpu);
+    double end_precise = time_dt();
+    frequency = uint64_t(double(end_tick - start_tick) / (end_precise - start_precise));
+    initialized = true;
+  }
+
+  return frequency;
+}
+#else
+/* Fall back to CLOCK_MONOTONIC. */
+
+uint64_t time_fast_tick(uint32_t * /*last_cpu*/)
+{
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return uint64_t(now.tv_sec) * 1000000000 + uint64_t(now.tv_nsec);
+}
+uint64_t time_fast_frequency()
+{
+  return 1000000000;
 }
 #endif
 
