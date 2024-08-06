@@ -1,6 +1,8 @@
 
 #include <iostream>
 
+#include <cmath>
+
 #include "testing/testing.h"
 
 #include "util/math.h"
@@ -763,6 +765,123 @@ TEST(KernelCamera, Cam624nc_radial)
 
     test_radial_solver(k, 122.0f, "orthographic");
   }
+}
+
+ccl_device_inline float angle_to_noncentrality(float const theta, float3 const params)
+{
+  float const t2 = theta * theta;
+  float const t4 = t2 * t2;
+  return dot(params, make_float3(t2, t4, t2 * t4));
+}
+
+ccl_device_inline float angle_to_noncentrality_derivative(float const theta, float3 const params)
+{
+  float const t2 = theta * theta;
+  float const t3 = t2 * theta;
+  return dot(params, make_float3(2.0f * theta, 4.0f * t3, 6.0f * t2 * t3));
+}
+
+ccl_device_inline float point_to_noncentrality(float3 const point, float3 const params)
+{
+  float const length = len(point);
+  if (length < 1e-6f) {
+    return 0.0f;
+  }
+  float const theta = acosf(point.z / length);
+  return angle_to_noncentrality(theta, params);
+}
+
+ccl_device_inline float solve_noncentrality(float3 const point, float3 const params)
+{
+
+  float const r2 = sqr(point.x) + sqr(point.y);
+  if (fabsf(r2 < 1e-12f)) {
+    return 0.0f;
+  }
+  float const r = sqrtf(r2);
+
+  float dz = point_to_noncentrality(point, params);
+
+  for (size_t ii = 0; ii < 20; ++ii) {
+    float const corrected_z = point.z - dz;
+    float const theta = atan2f(r, corrected_z);
+    assert(fabsf(theta) >= 0.0f);
+
+    // Derivative of the angle as a function of the corrected z.
+    float const a_dz = r / (r2 + corrected_z * corrected_z);
+
+    // Helper-function for Newton's method:
+    // F(dz) := M(a(dz)) - dz
+    // where M is the noncentrality model and dz is the
+    // z-offset computed in the previous iteration.
+    float const F = angle_to_noncentrality(theta, params) - dz;
+
+    // First derivative of F:
+    // F_dz = M'(a(dz))a'(dz) - 1
+    float const F_dz = angle_to_noncentrality_derivative(theta, params) * a_dz - 1.0f;
+    float const old_dz = dz;
+    dz -= F / F_dz;
+    if (fabsf(dz - old_dz) < 1e-6f) {
+      break;
+    }
+  }
+
+  return dz;
+}
+
+TEST(KernelCamera, Cam624nc_noncentrality)
+{
+  int const num_angles = 1000;
+  float const max_angle_rad = M_PI_F;
+
+  float const quasirandom_offset = 2.0f / (sqrtf(5.0f) + 1.0f);
+  float quasirandom = 0.5;
+  float max_error = 0;
+
+  float3 all_params[] = {
+      make_float3(+1.0f, +0.2f, +0.1f),
+      make_float3(-1.0f, -0.2f, -0.1f),
+
+      make_float3(+1.0f, 0.0f, 0.0f),
+      make_float3(-1.0f, 0.0f, 0.0f),
+
+      make_float3(0.0f, +0.2f, 0.0f),
+      make_float3(0.0f, -0.2f, 0.0f),
+
+      make_float3(0.0f, 0.0f, +0.1f),
+      make_float3(0.0f, 0.0f, -0.1f),
+  };
+
+  for (float3 const params : all_params) {
+    for (int ii = 0; ii < num_angles; ++ii) {
+      float const theta = (float(ii) * max_angle_rad) / num_angles;
+      float const phi = quasirandom * 2.0f * M_PI_F;
+      float const z_offset = angle_to_noncentrality(theta, params);
+      float3 const direction{cosf(phi) * sinf(theta), sinf(phi) * sinf(theta), cosf(theta)};
+      float3 const origin{0.0f, 0.0f, z_offset};
+      float const distance = std::abs(z_offset) + 100.0f + 10.0f * (ii % 10);
+
+      float3 const point = origin + distance * direction;
+      float const recovered_z_offset = solve_noncentrality(point, params);
+      EXPECT_NEAR(recovered_z_offset, z_offset, 3e-5)
+          << "params:    " << params << std::endl
+          << "ii:        " << ii << std::endl
+          << "theta:     " << theta << std::endl
+          << "phi:       " << phi << std::endl
+          << "z_offset:  " << z_offset << std::endl
+          << "direction: " << direction << std::endl
+          << "origin:    " << origin << std::endl
+          << "distance:  " << distance << std::endl
+          << "point:     " << point << std::endl
+          << "recovered_z_offset: " << recovered_z_offset << std::endl;
+
+      max_error = std::max(max_error, std::abs(z_offset - recovered_z_offset));
+
+      quasirandom = std::fmod(quasirandom + quasirandom_offset, 1.0f);
+    }
+  }
+
+  // std::cout << "Maximum z-error: " << max_error << std::endl;
 }
 
 CCL_NAMESPACE_END
