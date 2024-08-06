@@ -2691,24 +2691,6 @@ bool BKE_pbvh_is_deformed(const blender::bke::pbvh::Tree &pbvh)
 }
 /* Proxies */
 
-PBVHColorBufferNode *BKE_pbvh_node_color_buffer_get(blender::bke::pbvh::Node *node)
-{
-  if (!node->color_buffer_.color) {
-    node->color_buffer_.color = static_cast<float(*)[4]>(
-        MEM_callocN(sizeof(float[4]) * node->unique_verts_num_, "Color buffer"));
-  }
-  return &node->color_buffer_;
-}
-
-void BKE_pbvh_node_color_buffer_free(blender::bke::pbvh::Tree &pbvh)
-{
-  blender::Vector<blender::bke::pbvh::Node *> nodes = search_gather(pbvh, {});
-
-  for (blender::bke::pbvh::Node *node : nodes) {
-    MEM_SAFE_FREE(node->color_buffer_.color);
-  }
-}
-
 void pbvh_vertex_iter_init(blender::bke::pbvh::Tree &pbvh,
                            blender::bke::pbvh::Node *node,
                            PBVHVertexIter *vi,
@@ -2864,8 +2846,8 @@ void BKE_pbvh_subdiv_cgg_set(blender::bke::pbvh::Tree &pbvh, SubdivCCG *subdiv_c
   pbvh.subdiv_ccg_ = subdiv_ccg;
 }
 
-void BKE_pbvh_ensure_node_loops(blender::bke::pbvh::Tree &pbvh,
-                                const blender::Span<blender::int3> corner_tris)
+void BKE_pbvh_ensure_node_face_corners(blender::bke::pbvh::Tree &pbvh,
+                                       const blender::Span<blender::int3> corner_tris)
 {
   using namespace blender;
   BLI_assert(pbvh.type() == blender::bke::pbvh::Type::Mesh);

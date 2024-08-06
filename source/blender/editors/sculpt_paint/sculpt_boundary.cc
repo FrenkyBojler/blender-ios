@@ -9,6 +9,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.hh"
+#include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.h"
 
@@ -22,6 +24,7 @@
 #include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
 
+#include "mesh_brush_common.hh"
 #include "paint_intern.hh"
 #include "sculpt_intern.hh"
 
@@ -444,6 +447,9 @@ static void indices_init_bmesh(Object &object,
 /** \name Edit Data Calculation
  * \{ */
 
+#define BOUNDARY_VERTEX_NONE -1
+#define BOUNDARY_STEPS_NONE -1
+
 /**
  * This function initializes all data needed to calculate falloffs and deformation from the
  * boundary into the mesh into a #SculptBoundaryEditInfo array. This includes how many steps are
@@ -460,7 +466,10 @@ static void edit_data_init_mesh(OffsetIndices<int> faces,
                                 const float radius,
                                 SculptBoundary &boundary)
 {
-  boundary.edit_info = Array<SculptBoundaryEditInfo>(vert_positions.size());
+  boundary.edit_info.original_vertex_i = Array<int>(vert_positions.size(), BOUNDARY_VERTEX_NONE);
+  boundary.edit_info.propagation_steps_num = Array<int>(vert_positions.size(),
+                                                        BOUNDARY_STEPS_NONE);
+  boundary.edit_info.strength_factor = Array<float>(vert_positions.size(), 0.0f);
 
   std::queue<int> current_iteration;
 
@@ -468,8 +477,8 @@ static void edit_data_init_mesh(OffsetIndices<int> faces,
     const int vert = boundary.verts[i];
     const int index = boundary.verts[i];
 
-    boundary.edit_info[index].original_vertex_i = index;
-    boundary.edit_info[index].propagation_steps_num = 0;
+    boundary.edit_info.original_vertex_i[index] = index;
+    boundary.edit_info.propagation_steps_num[index] = 0;
 
     current_iteration.push(vert);
   }
@@ -496,22 +505,22 @@ static void edit_data_init_mesh(OffsetIndices<int> faces,
                from_v, faces, corner_verts, vert_to_face, hide_poly, neighbors))
       {
         if ((!hide_vert.is_empty() && hide_vert[from_v]) ||
-            boundary.edit_info[neighbor].propagation_steps_num != BOUNDARY_STEPS_NONE)
+            boundary.edit_info.propagation_steps_num[neighbor] != BOUNDARY_STEPS_NONE)
         {
           continue;
         }
 
-        boundary.edit_info[neighbor].original_vertex_i =
-            boundary.edit_info[from_v].original_vertex_i;
+        boundary.edit_info.original_vertex_i[neighbor] =
+            boundary.edit_info.original_vertex_i[from_v];
 
-        boundary.edit_info[neighbor].propagation_steps_num =
-            boundary.edit_info[from_v].propagation_steps_num + 1;
+        boundary.edit_info.propagation_steps_num[neighbor] =
+            boundary.edit_info.propagation_steps_num[from_v] + 1;
 
         next_iteration.push(neighbor);
 
         /* Check the distance using the vertex that was propagated from the initial vertex that
          * was used to initialize the boundary. */
-        if (boundary.edit_info[from_v].original_vertex_i == initial_vert_i) {
+        if (boundary.edit_info.original_vertex_i[from_v] == initial_vert_i) {
           boundary.pivot_position = vert_positions[neighbor];
           accum_distance += math::distance(vert_positions[from_v], boundary.pivot_position);
         }
@@ -538,7 +547,9 @@ static void edit_data_init_grids(const SubdivCCG &subdiv_ccg,
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const int num_grids = key.grid_area * grids.size();
 
-  boundary.edit_info = Array<SculptBoundaryEditInfo>(num_grids);
+  boundary.edit_info.original_vertex_i = Array<int>(num_grids, BOUNDARY_VERTEX_NONE);
+  boundary.edit_info.propagation_steps_num = Array<int>(num_grids, BOUNDARY_STEPS_NONE);
+  boundary.edit_info.strength_factor = Array<float>(num_grids, 0.0f);
 
   std::queue<SubdivCCGCoord> current_iteration;
 
@@ -547,13 +558,13 @@ static void edit_data_init_grids(const SubdivCCG &subdiv_ccg,
 
     const int index = boundary.verts[i];
 
-    boundary.edit_info[index].original_vertex_i = index;
-    boundary.edit_info[index].propagation_steps_num = 0;
+    boundary.edit_info.original_vertex_i[index] = index;
+    boundary.edit_info.propagation_steps_num[index] = 0;
 
     SubdivCCGNeighbors neighbors;
     BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, vert, true, neighbors);
     for (SubdivCCGCoord neighbor : neighbors.duplicates()) {
-      boundary.edit_info[neighbor.to_index(key)].original_vertex_i = index;
+      boundary.edit_info.original_vertex_i[neighbor.to_index(key)] = index;
     }
 
     current_iteration.push(vert);
@@ -588,15 +599,15 @@ static void edit_data_init_grids(const SubdivCCG &subdiv_ccg,
         const bool is_hidden = !subdiv_ccg.grid_hidden.is_empty() &&
                                subdiv_ccg.grid_hidden[neighbor.grid_index][index_in_grid];
         if (is_hidden ||
-            boundary.edit_info[neighbor_idx].propagation_steps_num != BOUNDARY_STEPS_NONE)
+            boundary.edit_info.propagation_steps_num[neighbor_idx] != BOUNDARY_STEPS_NONE)
         {
           continue;
         }
-        boundary.edit_info[neighbor_idx].original_vertex_i =
-            boundary.edit_info[from_v_i].original_vertex_i;
+        boundary.edit_info.original_vertex_i[neighbor_idx] =
+            boundary.edit_info.original_vertex_i[from_v_i];
 
-        boundary.edit_info[neighbor_idx].propagation_steps_num =
-            boundary.edit_info[from_v_i].propagation_steps_num;
+        boundary.edit_info.propagation_steps_num[neighbor_idx] =
+            boundary.edit_info.propagation_steps_num[from_v_i];
       }
 
       for (const SubdivCCGCoord neighbor : neighbors.unique()) {
@@ -606,15 +617,15 @@ static void edit_data_init_grids(const SubdivCCG &subdiv_ccg,
         const bool is_hidden = !subdiv_ccg.grid_hidden.is_empty() &&
                                subdiv_ccg.grid_hidden[neighbor.grid_index][index_in_grid];
         if (is_hidden ||
-            boundary.edit_info[neighbor_idx].propagation_steps_num != BOUNDARY_STEPS_NONE)
+            boundary.edit_info.propagation_steps_num[neighbor_idx] != BOUNDARY_STEPS_NONE)
         {
           continue;
         }
-        boundary.edit_info[neighbor_idx].original_vertex_i =
-            boundary.edit_info[from_v_i].original_vertex_i;
+        boundary.edit_info.original_vertex_i[neighbor_idx] =
+            boundary.edit_info.original_vertex_i[from_v_i];
 
-        boundary.edit_info[neighbor_idx].propagation_steps_num =
-            boundary.edit_info[from_v_i].propagation_steps_num + 1;
+        boundary.edit_info.propagation_steps_num[neighbor_idx] =
+            boundary.edit_info.propagation_steps_num[from_v_i] + 1;
 
         next_iteration.push(neighbor);
 
@@ -628,15 +639,15 @@ static void edit_data_init_grids(const SubdivCCG &subdiv_ccg,
 
         for (const SubdivCCGCoord coord : neighbor_duplicates.duplicates()) {
           const int neighbor_duplicate_index = coord.to_index(key);
-          boundary.edit_info[neighbor_duplicate_index].original_vertex_i =
-              boundary.edit_info[from_v_i].original_vertex_i;
-          boundary.edit_info[neighbor_duplicate_index].propagation_steps_num =
-              boundary.edit_info[from_v_i].propagation_steps_num + 1;
+          boundary.edit_info.original_vertex_i[neighbor_duplicate_index] =
+              boundary.edit_info.original_vertex_i[from_v_i];
+          boundary.edit_info.propagation_steps_num[neighbor_duplicate_index] =
+              boundary.edit_info.propagation_steps_num[from_v_i] + 1;
         }
 
         /* Check the distance using the vertex that was propagated from the initial vertex that
          * was used to initialize the boundary. */
-        if (boundary.edit_info[from_v_i].original_vertex_i == initial_vert_i) {
+        if (boundary.edit_info.original_vertex_i[from_v_i] == initial_vert_i) {
           boundary.pivot_position = CCG_elem_offset_co(
               key, grids[neighbor.grid_index], index_in_grid);
           accum_distance += math::distance(
@@ -664,7 +675,9 @@ static void edit_data_init_bmesh(BMesh *bm,
 {
   const int num_verts = BM_mesh_elem_count(bm, BM_VERT);
 
-  boundary.edit_info = Array<SculptBoundaryEditInfo>(num_verts);
+  boundary.edit_info.original_vertex_i = Array<int>(num_verts, BOUNDARY_VERTEX_NONE);
+  boundary.edit_info.propagation_steps_num = Array<int>(num_verts, BOUNDARY_STEPS_NONE);
+  boundary.edit_info.strength_factor = Array<float>(num_verts, 0.0f);
 
   std::queue<BMVert *> current_iteration;
 
@@ -672,8 +685,8 @@ static void edit_data_init_bmesh(BMesh *bm,
     const int index = boundary.verts[i];
     BMVert *vert = BM_vert_at_index(bm, index);
 
-    boundary.edit_info[index].original_vertex_i = index;
-    boundary.edit_info[index].propagation_steps_num = 0;
+    boundary.edit_info.original_vertex_i[index] = index;
+    boundary.edit_info.propagation_steps_num[index] = 0;
 
     /* This ensures that all duplicate vertices in the boundary have the same original_vertex
      * index, so the deformation for them will be the same. */
@@ -703,21 +716,21 @@ static void edit_data_init_bmesh(BMesh *bm,
       for (BMVert *neighbor : vert_neighbors_get_bmesh(*from_v, neighbors)) {
         const int neighbor_idx = BM_elem_index_get(neighbor);
         if (BM_elem_flag_test(neighbor, BM_ELEM_HIDDEN) ||
-            boundary.edit_info[neighbor_idx].propagation_steps_num != BOUNDARY_STEPS_NONE)
+            boundary.edit_info.propagation_steps_num[neighbor_idx] != BOUNDARY_STEPS_NONE)
         {
           continue;
         }
-        boundary.edit_info[neighbor_idx].original_vertex_i =
-            boundary.edit_info[from_v_i].original_vertex_i;
+        boundary.edit_info.original_vertex_i[neighbor_idx] =
+            boundary.edit_info.original_vertex_i[from_v_i];
 
-        boundary.edit_info[neighbor_idx].propagation_steps_num =
-            boundary.edit_info[from_v_i].propagation_steps_num + 1;
+        boundary.edit_info.propagation_steps_num[neighbor_idx] =
+            boundary.edit_info.propagation_steps_num[from_v_i] + 1;
 
         next_iteration.push(neighbor);
 
         /* Check the distance using the vertex that was propagated from the initial vertex that
          * was used to initialize the boundary. */
-        if (boundary.edit_info[from_v_i].original_vertex_i == initial_vert_i) {
+        if (boundary.edit_info.original_vertex_i[from_v_i] == initial_vert_i) {
           boundary.pivot_position = neighbor->co;
           accum_distance += math::distance(float3(from_v->co), boundary.pivot_position);
         }
@@ -751,15 +764,22 @@ static void bend_data_init_mesh(const Span<float3> vert_positions,
                                 const Span<float3> vert_normals,
                                 SculptBoundary &boundary)
 {
-  boundary.bend.pivot_rotation_axis = Array<float3>(boundary.edit_info.size(), float3(0));
-  boundary.bend.pivot_positions = Array<float3>(boundary.edit_info.size(), float3(0));
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num != boundary.max_propagation_steps) {
+  const int num_elements = boundary.edit_info.strength_factor.size();
+
+  boundary.bend.pivot_rotation_axis = Array<float3>(num_elements, float3(0));
+  boundary.bend.pivot_positions = Array<float3>(num_elements, float3(0));
+
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] != boundary.max_propagation_steps) {
       continue;
     }
 
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
 
     const float3 normal = vert_normals[i];
     const float3 dir = vert_positions[orig_vert_i] - vert_positions[i];
@@ -767,11 +787,11 @@ static void bend_data_init_mesh(const Span<float3> vert_positions,
     boundary.bend.pivot_positions[orig_vert_i] = vert_positions[i];
   }
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num == BOUNDARY_STEPS_NONE) {
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] == BOUNDARY_STEPS_NONE) {
       continue;
     }
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
 
     boundary.bend.pivot_positions[i] = boundary.bend.pivot_positions[orig_vert_i];
     boundary.bend.pivot_rotation_axis[i] = boundary.bend.pivot_rotation_axis[orig_vert_i];
@@ -780,19 +800,26 @@ static void bend_data_init_mesh(const Span<float3> vert_positions,
 
 static void bend_data_init_grids(const SubdivCCG &subdiv_ccg, SculptBoundary &boundary)
 {
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
+
+  const int num_elements = boundary.edit_info.strength_factor.size();
+
   const CCGKey &key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   Span<CCGElem *> grids = subdiv_ccg.grids;
 
-  boundary.bend.pivot_rotation_axis = Array<float3>(boundary.edit_info.size(), float3(0));
-  boundary.bend.pivot_positions = Array<float3>(boundary.edit_info.size(), float3(0));
+  boundary.bend.pivot_rotation_axis = Array<float3>(num_elements, float3(0));
+  boundary.bend.pivot_positions = Array<float3>(num_elements, float3(0));
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num != boundary.max_propagation_steps) {
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] != boundary.max_propagation_steps) {
       continue;
     }
 
     const SubdivCCGCoord vert = SubdivCCGCoord::from_index(key, i);
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
     const SubdivCCGCoord orig_vert = SubdivCCGCoord::from_index(key, orig_vert_i);
 
     const float3 normal = CCG_grid_elem_no(key, grids[vert.grid_index], vert.x, vert.y);
@@ -804,11 +831,11 @@ static void bend_data_init_grids(const SubdivCCG &subdiv_ccg, SculptBoundary &bo
         key, grids[vert.grid_index], vert.x, vert.y);
   }
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num == BOUNDARY_STEPS_NONE) {
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] == BOUNDARY_STEPS_NONE) {
       continue;
     }
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
 
     boundary.bend.pivot_positions[i] = boundary.bend.pivot_positions[orig_vert_i];
     boundary.bend.pivot_rotation_axis[i] = boundary.bend.pivot_rotation_axis[orig_vert_i];
@@ -817,96 +844,88 @@ static void bend_data_init_grids(const SubdivCCG &subdiv_ccg, SculptBoundary &bo
 
 static void bend_data_init_bmesh(BMesh *bm, SculptBoundary &boundary)
 {
-  boundary.bend.pivot_rotation_axis = Array<float3>(boundary.edit_info.size(), float3(0));
-  boundary.bend.pivot_positions = Array<float3>(boundary.edit_info.size(), float3(0));
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num != boundary.max_propagation_steps) {
+  const int num_elements = boundary.edit_info.strength_factor.size();
+
+  boundary.bend.pivot_rotation_axis = Array<float3>(num_elements, float3(0));
+  boundary.bend.pivot_positions = Array<float3>(num_elements, float3(0));
+
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] != boundary.max_propagation_steps) {
       continue;
     }
 
     BMVert *vert = BM_vert_at_index(bm, i);
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
     BMVert *orig_vert = BM_vert_at_index(bm, orig_vert_i);
 
     const float3 normal = vert->no;
     const float3 dir = float3(orig_vert->co) - float3(vert->co);
     boundary.bend.pivot_rotation_axis[orig_vert_i] = math::normalize(math::cross(dir, normal));
-    boundary.bend.pivot_positions[boundary.edit_info[i].original_vertex_i] = vert->co;
+    boundary.bend.pivot_positions[boundary.edit_info.original_vertex_i[i]] = vert->co;
   }
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num == BOUNDARY_STEPS_NONE) {
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] == BOUNDARY_STEPS_NONE) {
       continue;
     }
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
     boundary.bend.pivot_positions[i] = boundary.bend.pivot_positions[orig_vert_i];
     boundary.bend.pivot_rotation_axis[i] = boundary.bend.pivot_rotation_axis[orig_vert_i];
   }
 }
 
-static void bend_data_init(const Object &object, SculptBoundary &boundary)
-{
-  /* TODO: This method is to assist in refactoring, it should be removed when the rest of this
-   * brush is done. */
-  SculptSession &ss = *object.sculpt;
-  const bke::pbvh::Tree &pbvh = *ss.pbvh;
-
-  switch (pbvh.type()) {
-    case (bke::pbvh::Type::Mesh): {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
-
-      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(pbvh);
-      const Span<float3> vert_normals = mesh.vert_normals();
-
-      bend_data_init_mesh(positions_eval, vert_normals, boundary);
-      break;
-    }
-    case (bke::pbvh::Type::Grids):
-      bend_data_init_grids(*ss.subdiv_ccg, boundary);
-      break;
-
-    case (bke::pbvh::Type::BMesh):
-      bend_data_init_bmesh(ss.bm, boundary);
-      break;
-  }
-}
-
 static void slide_data_init_mesh(const Span<float3> vert_positions, SculptBoundary &boundary)
 {
-  boundary.slide.directions = Array<float3>(boundary.edit_info.size(), float3(0));
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num != boundary.max_propagation_steps) {
+  const int num_elements = boundary.edit_info.strength_factor.size();
+  boundary.slide.directions = Array<float3>(num_elements, float3(0));
+
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] != boundary.max_propagation_steps) {
       continue;
     }
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
     boundary.slide.directions[orig_vert_i] = math::normalize(vert_positions[orig_vert_i] -
                                                              vert_positions[i]);
   }
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num == BOUNDARY_STEPS_NONE) {
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] == BOUNDARY_STEPS_NONE) {
       continue;
     }
     boundary.slide.directions[i] =
-        boundary.slide.directions[boundary.edit_info[i].original_vertex_i];
+        boundary.slide.directions[boundary.edit_info.original_vertex_i[i]];
   }
 }
 
 static void slide_data_init_grids(const SubdivCCG &subdiv_ccg, SculptBoundary &boundary)
 {
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
+
+  const int num_elements = boundary.edit_info.strength_factor.size();
   const CCGKey &key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   Span<CCGElem *> grids = subdiv_ccg.grids;
 
-  boundary.slide.directions = Array<float3>(boundary.edit_info.size(), float3(0));
+  boundary.slide.directions = Array<float3>(num_elements, float3(0));
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num != boundary.max_propagation_steps) {
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] != boundary.max_propagation_steps) {
       continue;
     }
     const SubdivCCGCoord vert = SubdivCCGCoord::from_index(key, i);
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
     const SubdivCCGCoord orig_vert = SubdivCCGCoord::from_index(key, orig_vert_i);
 
     boundary.slide.directions[orig_vert_i] = math::normalize(
@@ -914,59 +933,42 @@ static void slide_data_init_grids(const SubdivCCG &subdiv_ccg, SculptBoundary &b
         CCG_grid_elem_co(key, grids[vert.grid_index], vert.x, vert.y));
   }
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num == BOUNDARY_STEPS_NONE) {
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] == BOUNDARY_STEPS_NONE) {
       continue;
     }
     boundary.slide.directions[i] =
-        boundary.slide.directions[boundary.edit_info[i].original_vertex_i];
+        boundary.slide.directions[boundary.edit_info.original_vertex_i[i]];
   }
 }
 
 static void slide_data_init_bmesh(BMesh *bm, SculptBoundary &boundary)
 {
-  boundary.slide.directions = Array<float3>(boundary.edit_info.size(), float3(0));
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num != boundary.max_propagation_steps) {
+  const int num_elements = boundary.edit_info.strength_factor.size();
+  boundary.slide.directions = Array<float3>(num_elements, float3(0));
+
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] != boundary.max_propagation_steps) {
       continue;
     }
     BMVert *vert = BM_vert_at_index(bm, i);
-    const int orig_vert_i = boundary.edit_info[i].original_vertex_i;
+    const int orig_vert_i = boundary.edit_info.original_vertex_i[i];
     BMVert *orig_vert = BM_vert_at_index(bm, orig_vert_i);
     boundary.slide.directions[orig_vert_i] = math::normalize(float3(orig_vert->co) -
                                                              float3(vert->co));
   }
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num == BOUNDARY_STEPS_NONE) {
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] == BOUNDARY_STEPS_NONE) {
       continue;
     }
     boundary.slide.directions[i] =
-        boundary.slide.directions[boundary.edit_info[i].original_vertex_i];
-  }
-}
-
-static void slide_data_init(const Object &object, SculptBoundary &boundary)
-{
-  /* TODO: This method is to assist in refactoring, it should be removed when the rest of this
-   * brush is done. */
-  SculptSession &ss = *object.sculpt;
-  const bke::pbvh::Tree &pbvh = *ss.pbvh;
-
-  switch (pbvh.type()) {
-    case (bke::pbvh::Type::Mesh): {
-      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(pbvh);
-
-      slide_data_init_mesh(positions_eval, boundary);
-      break;
-    }
-    case (bke::pbvh::Type::Grids):
-      slide_data_init_grids(*ss.subdiv_ccg, boundary);
-      break;
-    case (bke::pbvh::Type::BMesh):
-      slide_data_init_bmesh(ss.bm, boundary);
-      break;
+        boundary.slide.directions[boundary.edit_info.original_vertex_i[i]];
   }
 }
 
@@ -1011,326 +1013,1975 @@ static void twist_data_init_bmesh(BMesh *bm, SculptBoundary &boundary)
   populate_twist_data(positions, boundary);
 }
 
-static void twist_data_init(const Object &object, SculptBoundary &boundary)
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Common helpers
+ * \{ */
+
+BLI_NOINLINE static void filter_uninitialized_verts(const Span<int> propagation_steps,
+                                                    const MutableSpan<float> factors)
 {
-  /* TODO: This method is to assist in refactoring, it should be removed when the rest of this
-   * brush is done. */
+  BLI_assert(propagation_steps.size() == factors.size());
+
+  for (const int i : factors.index_range()) {
+    if (propagation_steps[i] == BOUNDARY_STEPS_NONE) {
+      factors[i] = 0.0f;
+    }
+  }
+}
+
+struct LocalDataMesh {
+  Vector<float3> positions;
+
+  Vector<float> factors;
+  Vector<int> propagation_steps;
+
+  /* TODO: std::variant? */
+  /* Bend */
+  Vector<float3> pivot_positions;
+  Vector<float3> pivot_axes;
+
+  /* Slide */
+  Vector<float3> slide_directions;
+
+  /* Smooth */
+  Vector<Vector<int>> neighbors;
+  Vector<float3> average_positions;
+
+  Vector<float3> new_positions;
+  Vector<float3> translations;
+};
+
+struct LocalDataGrids {
+  Vector<float3> positions;
+
+  Vector<float> factors;
+  Vector<int> propagation_steps;
+
+  /* TODO: std::variant? */
+  /* Bend */
+  Vector<float3> pivot_positions;
+  Vector<float3> pivot_axes;
+
+  /* Slide */
+  Vector<float3> slide_directions;
+
+  /* Smooth */
+  Vector<Vector<SubdivCCGCoord>> neighbors;
+  Vector<float3> average_positions;
+
+  Vector<float3> new_positions;
+  Vector<float3> translations;
+};
+
+struct LocalDataBMesh {
+  Vector<float3> positions;
+
+  Vector<float> factors;
+  Vector<int> propagation_steps;
+
+  /* TODO: std::variant? */
+  /* Bend */
+  Vector<float3> pivot_positions;
+  Vector<float3> pivot_axes;
+
+  /* Slide */
+  Vector<float3> slide_directions;
+
+  /* Smooth */
+  Vector<Vector<BMVert *>> neighbors;
+  Vector<float3> average_positions;
+
+  Vector<float3> new_positions;
+  Vector<float3> translations;
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Bend Deformation
+ * \{ */
+
+BLI_NOINLINE static void calc_bend_position(const Span<float3> positions,
+                                            const Span<float3> pivot_positions,
+                                            const Span<float3> pivot_axes,
+                                            const Span<float> factors,
+                                            const MutableSpan<float3> new_positions)
+{
+  BLI_assert(positions.size() == pivot_positions.size());
+  BLI_assert(positions.size() == pivot_axes.size());
+  BLI_assert(positions.size() == factors.size());
+  BLI_assert(positions.size() == new_positions.size());
+
+  for (const int i : positions.index_range()) {
+    float3 from_pivot_to_pos = positions[i] - pivot_positions[i];
+    float3 rotated;
+    rotate_v3_v3v3fl(rotated, from_pivot_to_pos, pivot_axes[i], factors[i]);
+    new_positions[i] = rotated + pivot_positions[i];
+  }
+}
+
+static void calc_bend_mesh(const Sculpt &sd,
+                           Object &object,
+                           const Span<float3> positions_eval,
+                           const Span<int> vert_propagation_steps,
+                           const Span<float> vert_factors,
+                           const Span<float3> vert_pivot_positions,
+                           const Span<float3> vert_pivot_axes,
+                           const bke::pbvh::Node &node,
+                           LocalDataMesh &tls,
+                           const float3 symmetry_pivot,
+                           const float strength,
+                           const eBrushDeformTarget deform_target,
+                           const MutableSpan<float3> positions_orig)
+{
   SculptSession &ss = *object.sculpt;
-  const bke::pbvh::Tree &pbvh = *ss.pbvh;
+  const StrokeCache &cache = *ss.cache;
 
-  switch (pbvh.type()) {
-    case (bke::pbvh::Type::Mesh): {
-      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(pbvh);
+  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
 
-      twist_data_init_mesh(positions_eval, boundary);
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_mesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  const Span<float3> pivot_positions = gather_data_mesh(
+      vert_pivot_positions, verts, tls.pivot_positions);
+  const Span<float3> pivot_axes = gather_data_mesh(vert_pivot_axes, verts, tls.pivot_axes);
+
+  calc_bend_position(orig_data.positions, pivot_positions, pivot_axes, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, verts, positions_eval, translations);
+
+      write_translations(sd, object, positions_eval, verts, translations, positions_orig);
       break;
     }
-    case (bke::pbvh::Type::Grids):
-      twist_data_init_grids(*ss.subdiv_ccg, boundary);
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_mesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
       break;
-    case (bke::pbvh::Type::BMesh):
-      twist_data_init_bmesh(ss.bm, boundary);
+  }
+}
+
+static void calc_bend_grids(const Sculpt &sd,
+                            Object &object,
+                            SubdivCCG &subdiv_ccg,
+                            const Span<int> vert_propagation_steps,
+                            const Span<float> vert_factors,
+                            const Span<float3> vert_pivot_positions,
+                            const Span<float3> vert_pivot_axes,
+                            const bke::pbvh::Node &node,
+                            LocalDataGrids &tls,
+                            const float3 symmetry_pivot,
+                            const float strength,
+                            const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const int grid_verts_num = grids.size() * key.grid_area;
+  const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_grids(
+      subdiv_ccg, vert_factors, grids, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_grids_factors(object, *cache.automasking, node, grids, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_grids(
+      subdiv_ccg, vert_propagation_steps, grids, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(grid_verts_num);
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  const Span<float3> pivot_positions = gather_data_grids(
+      subdiv_ccg, vert_pivot_positions, grids, tls.pivot_positions);
+  const Span<float3> pivot_axes = gather_data_grids(
+      subdiv_ccg, vert_pivot_axes, grids, tls.pivot_axes);
+
+  calc_bend_position(orig_data.positions, pivot_positions, pivot_axes, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(grid_verts_num);
+      const MutableSpan<float3> translations = tls.translations;
+      const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+      apply_translations(translations, grids, subdiv_ccg);
       break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_grids(subdiv_ccg,
+                         new_positions.as_span(),
+                         grids,
+                         cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_bend_bmesh(const Sculpt &sd,
+                            Object &object,
+                            const Span<int> vert_propagation_steps,
+                            const Span<float> vert_factors,
+                            const Span<float3> vert_pivot_positions,
+                            const Span<float3> vert_pivot_axes,
+                            bke::pbvh::Node &node,
+                            LocalDataBMesh &tls,
+                            const float3 symmetry_pivot,
+                            const float strength,
+                            const eBrushDeformTarget deform_target)
+
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Set<BMVert *, 0> verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  Array<float3> orig_positions(verts.size());
+  Array<float3> orig_normals(verts.size());
+  orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_vert_bmesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_vert_bmesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  const Span<float3> pivot_positions = gather_data_vert_bmesh(
+      vert_pivot_positions, verts, tls.pivot_positions);
+  const Span<float3> pivot_axes = gather_data_vert_bmesh(vert_pivot_axes, verts, tls.pivot_axes);
+
+  calc_bend_position(orig_positions, pivot_positions, pivot_axes, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      const MutableSpan<float3> positions = gather_bmesh_positions(verts, tls.positions);
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_positions, translations);
+      apply_translations(translations, verts);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_vert_bmesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void do_bend_brush(const Sculpt &sd,
+                          Object &object,
+                          const Span<bke::pbvh::Node *> nodes,
+                          const SculptBoundary &boundary,
+                          const float strength,
+                          const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+
+      threading::EnumerableThreadSpecific<LocalDataMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_bend_mesh(sd,
+                         object,
+                         positions_eval,
+                         boundary.edit_info.propagation_steps_num,
+                         boundary.edit_info.strength_factor,
+                         boundary.bend.pivot_positions,
+                         boundary.bend.pivot_rotation_axis,
+                         *nodes[i],
+                         tls,
+                         boundary.initial_vert_position,
+                         strength,
+                         deform_target,
+                         positions_orig);
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalDataGrids> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataGrids &tls = all_tls.local();
+        for (const int i : range) {
+          calc_bend_grids(sd,
+                          object,
+                          subdiv_ccg,
+                          boundary.edit_info.propagation_steps_num,
+                          boundary.edit_info.strength_factor,
+                          boundary.bend.pivot_positions,
+                          boundary.bend.pivot_rotation_axis,
+                          *nodes[i],
+                          tls,
+                          boundary.initial_vert_position,
+                          strength,
+                          deform_target);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      threading::EnumerableThreadSpecific<LocalDataBMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataBMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_bend_bmesh(sd,
+                          object,
+                          boundary.edit_info.propagation_steps_num,
+                          boundary.edit_info.strength_factor,
+                          boundary.bend.pivot_positions,
+                          boundary.bend.pivot_rotation_axis,
+                          *nodes[i],
+                          tls,
+                          boundary.initial_vert_position,
+                          strength,
+                          deform_target);
+        }
+      });
+      break;
+    }
   }
 }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Brush Actions
- *
- * Actual functions related to modifying vertices.
+/** \name Slide Deformation
  * \{ */
 
-static float displacement_from_grab_delta_get(SculptSession &ss, SculptBoundary &boundary)
+BLI_NOINLINE static void calc_slide_position(const Span<float3> positions,
+                                             const Span<float3> directions,
+                                             const Span<float> factors,
+                                             const MutableSpan<float3> new_positions)
 {
-  float plane[4];
-  float pos[3];
-  float normal[3];
-  sub_v3_v3v3(normal, ss.cache->initial_location, boundary.pivot_position);
-  normalize_v3(normal);
+  BLI_assert(positions.size() == directions.size());
+  BLI_assert(positions.size() == factors.size());
+  BLI_assert(positions.size() == new_positions.size());
+
+  for (const int i : positions.index_range()) {
+    new_positions[i] = positions[i] + (directions[i] * factors[i]);
+  }
+}
+
+static void calc_slide_mesh(const Sculpt &sd,
+                            Object &object,
+                            const Span<float3> positions_eval,
+                            const Span<int> vert_propagation_steps,
+                            const Span<float> vert_factors,
+                            const Span<float3> vert_slide_directions,
+                            const bke::pbvh::Node &node,
+                            LocalDataMesh &tls,
+                            const float3 symmetry_pivot,
+                            const float strength,
+                            const eBrushDeformTarget deform_target,
+                            const MutableSpan<float3> positions_orig)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_mesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  const Span<float3> slide_directions = gather_data_mesh(
+      vert_slide_directions, verts, tls.slide_directions);
+
+  calc_slide_position(orig_data.positions, slide_directions, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, verts, positions_eval, translations);
+
+      write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_mesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_slide_grids(const Sculpt &sd,
+                             Object &object,
+                             SubdivCCG &subdiv_ccg,
+                             const Span<int> vert_propagation_steps,
+                             const Span<float> vert_factors,
+                             const Span<float3> vert_slide_directions,
+                             const bke::pbvh::Node &node,
+                             LocalDataGrids &tls,
+                             const float3 symmetry_pivot,
+                             const float strength,
+                             const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const int grid_verts_num = grids.size() * key.grid_area;
+  const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_grids(
+      subdiv_ccg, vert_factors, grids, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_grids_factors(object, *cache.automasking, node, grids, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_grids(
+      subdiv_ccg, vert_propagation_steps, grids, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(grid_verts_num);
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  const Span<float3> slide_directions = gather_data_grids(
+      subdiv_ccg, vert_slide_directions, grids, tls.pivot_positions);
+
+  calc_slide_position(orig_data.positions, slide_directions, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(grid_verts_num);
+      const MutableSpan<float3> translations = tls.translations;
+      const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+      apply_translations(translations, grids, subdiv_ccg);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_grids(subdiv_ccg,
+                         new_positions.as_span(),
+                         grids,
+                         cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_slide_bmesh(const Sculpt &sd,
+                             Object &object,
+                             const Span<int> vert_propagation_steps,
+                             const Span<float> vert_factors,
+                             const Span<float3> vert_slide_directions,
+                             bke::pbvh::Node &node,
+                             LocalDataBMesh &tls,
+                             const float3 symmetry_pivot,
+                             const float strength,
+                             const eBrushDeformTarget deform_target)
+
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Set<BMVert *, 0> verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  Array<float3> orig_positions(verts.size());
+  Array<float3> orig_normals(verts.size());
+  orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_vert_bmesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_vert_bmesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  const Span<float3> slide_directions = gather_data_vert_bmesh(
+      vert_slide_directions, verts, tls.pivot_positions);
+
+  calc_slide_position(orig_positions, slide_directions, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      const MutableSpan<float3> positions = gather_bmesh_positions(verts, tls.positions);
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_positions, translations);
+      apply_translations(translations, verts);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_vert_bmesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void do_slide_brush(const Sculpt &sd,
+                           Object &object,
+                           const Span<bke::pbvh::Node *> nodes,
+                           const SculptBoundary &boundary,
+                           const float strength,
+                           const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+
+      threading::EnumerableThreadSpecific<LocalDataMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_slide_mesh(sd,
+                          object,
+                          positions_eval,
+                          boundary.edit_info.propagation_steps_num,
+                          boundary.edit_info.strength_factor,
+                          boundary.slide.directions,
+                          *nodes[i],
+                          tls,
+                          boundary.initial_vert_position,
+                          strength,
+                          deform_target,
+                          positions_orig);
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalDataGrids> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataGrids &tls = all_tls.local();
+        for (const int i : range) {
+          calc_slide_grids(sd,
+                           object,
+                           subdiv_ccg,
+                           boundary.edit_info.propagation_steps_num,
+                           boundary.edit_info.strength_factor,
+                           boundary.slide.directions,
+                           *nodes[i],
+                           tls,
+                           boundary.initial_vert_position,
+                           strength,
+                           deform_target);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      threading::EnumerableThreadSpecific<LocalDataBMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataBMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_slide_bmesh(sd,
+                           object,
+                           boundary.edit_info.propagation_steps_num,
+                           boundary.edit_info.strength_factor,
+                           boundary.slide.directions,
+                           *nodes[i],
+                           tls,
+                           boundary.initial_vert_position,
+                           strength,
+                           deform_target);
+        }
+      });
+      break;
+    }
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Inflate Deformation
+ * \{ */
+
+BLI_NOINLINE static void calc_inflate_position(const Span<float3> positions,
+                                               const Span<float3> normals,
+                                               const Span<float> factors,
+                                               const MutableSpan<float3> new_positions)
+{
+  BLI_assert(positions.size() == normals.size());
+  BLI_assert(positions.size() == factors.size());
+  BLI_assert(positions.size() == new_positions.size());
+
+  for (const int i : positions.index_range()) {
+    new_positions[i] = positions[i] + (normals[i] * factors[i]);
+  }
+}
+
+static void calc_inflate_mesh(const Sculpt &sd,
+                              Object &object,
+                              const Span<float3> positions_eval,
+                              const Span<int> vert_propagation_steps,
+                              const Span<float> vert_factors,
+                              const bke::pbvh::Node &node,
+                              LocalDataMesh &tls,
+                              const float3 symmetry_pivot,
+                              const float strength,
+                              const eBrushDeformTarget deform_target,
+                              const MutableSpan<float3> positions_orig)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_mesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_inflate_position(orig_data.positions, orig_data.normals, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, verts, positions_eval, translations);
+
+      write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_mesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_inflate_grids(const Sculpt &sd,
+                               Object &object,
+                               SubdivCCG &subdiv_ccg,
+                               const Span<int> vert_propagation_steps,
+                               const Span<float> vert_factors,
+                               const bke::pbvh::Node &node,
+                               LocalDataGrids &tls,
+                               const float3 symmetry_pivot,
+                               const float strength,
+                               const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const int grid_verts_num = grids.size() * key.grid_area;
+  const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_grids(
+      subdiv_ccg, vert_factors, grids, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_grids_factors(object, *cache.automasking, node, grids, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_grids(
+      subdiv_ccg, vert_propagation_steps, grids, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(grid_verts_num);
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_inflate_position(orig_data.positions, orig_data.normals, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(grid_verts_num);
+      const MutableSpan<float3> translations = tls.translations;
+      const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+      apply_translations(translations, grids, subdiv_ccg);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_grids(subdiv_ccg,
+                         new_positions.as_span(),
+                         grids,
+                         cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_inflate_bmesh(const Sculpt &sd,
+                               Object &object,
+                               const Span<int> vert_propagation_steps,
+                               const Span<float> vert_factors,
+                               bke::pbvh::Node &node,
+                               LocalDataBMesh &tls,
+                               const float3 symmetry_pivot,
+                               const float strength,
+                               const eBrushDeformTarget deform_target)
+
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Set<BMVert *, 0> verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  Array<float3> orig_positions(verts.size());
+  Array<float3> orig_normals(verts.size());
+  orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_vert_bmesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_vert_bmesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_inflate_position(orig_positions, orig_normals, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      const MutableSpan<float3> positions = gather_bmesh_positions(verts, tls.positions);
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_positions, translations);
+      apply_translations(translations, verts);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_vert_bmesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void do_inflate_brush(const Sculpt &sd,
+                             Object &object,
+                             const Span<bke::pbvh::Node *> nodes,
+                             const SculptBoundary &boundary,
+                             const float strength,
+                             const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+
+      threading::EnumerableThreadSpecific<LocalDataMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_inflate_mesh(sd,
+                            object,
+                            positions_eval,
+                            boundary.edit_info.propagation_steps_num,
+                            boundary.edit_info.strength_factor,
+                            *nodes[i],
+                            tls,
+                            boundary.initial_vert_position,
+                            strength,
+                            deform_target,
+                            positions_orig);
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalDataGrids> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataGrids &tls = all_tls.local();
+        for (const int i : range) {
+          calc_inflate_grids(sd,
+                             object,
+                             subdiv_ccg,
+                             boundary.edit_info.propagation_steps_num,
+                             boundary.edit_info.strength_factor,
+                             *nodes[i],
+                             tls,
+                             boundary.initial_vert_position,
+                             strength,
+                             deform_target);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      threading::EnumerableThreadSpecific<LocalDataBMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataBMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_inflate_bmesh(sd,
+                             object,
+                             boundary.edit_info.propagation_steps_num,
+                             boundary.edit_info.strength_factor,
+                             *nodes[i],
+                             tls,
+                             boundary.initial_vert_position,
+                             strength,
+                             deform_target);
+        }
+      });
+      break;
+    }
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Grab Deformation
+ * \{ */
+
+BLI_NOINLINE static void calc_grab_position(const Span<float3> positions,
+                                            const float3 grab_delta,
+                                            const Span<float> factors,
+                                            const MutableSpan<float3> new_positions)
+{
+  BLI_assert(positions.size() == factors.size());
+  BLI_assert(positions.size() == new_positions.size());
+
+  for (const int i : positions.index_range()) {
+    new_positions[i] = positions[i] + (grab_delta * factors[i]);
+  }
+}
+
+static void calc_grab_mesh(const Sculpt &sd,
+                           Object &object,
+                           const Span<float3> positions_eval,
+                           const Span<int> vert_propagation_steps,
+                           const Span<float> vert_factors,
+                           const bke::pbvh::Node &node,
+                           LocalDataMesh &tls,
+                           const float3 grab_delta_symmetry,
+                           const float3 symmetry_pivot,
+                           const float strength,
+                           const eBrushDeformTarget deform_target,
+                           const MutableSpan<float3> positions_orig)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_mesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_grab_position(orig_data.positions, grab_delta_symmetry, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, verts, positions_eval, translations);
+
+      write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_mesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_grab_grids(const Sculpt &sd,
+                            Object &object,
+                            SubdivCCG &subdiv_ccg,
+                            const Span<int> vert_propagation_steps,
+                            const Span<float> vert_factors,
+                            const bke::pbvh::Node &node,
+                            LocalDataGrids &tls,
+                            const float3 grab_delta_symmetry,
+                            const float3 symmetry_pivot,
+                            const float strength,
+                            const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const int grid_verts_num = grids.size() * key.grid_area;
+  const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_grids(
+      subdiv_ccg, vert_factors, grids, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_grids_factors(object, *cache.automasking, node, grids, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_grids(
+      subdiv_ccg, vert_propagation_steps, grids, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(grid_verts_num);
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_grab_position(orig_data.positions, grab_delta_symmetry, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(grid_verts_num);
+      const MutableSpan<float3> translations = tls.translations;
+      const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+      apply_translations(translations, grids, subdiv_ccg);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_grids(subdiv_ccg,
+                         new_positions.as_span(),
+                         grids,
+                         cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_grab_bmesh(const Sculpt &sd,
+                            Object &object,
+                            const Span<int> vert_propagation_steps,
+                            const Span<float> vert_factors,
+                            bke::pbvh::Node &node,
+                            LocalDataBMesh &tls,
+                            const float3 grab_delta_symmetry,
+                            const float3 symmetry_pivot,
+                            const float strength,
+                            const eBrushDeformTarget deform_target)
+
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Set<BMVert *, 0> verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  Array<float3> orig_positions(verts.size());
+  Array<float3> orig_normals(verts.size());
+  orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_vert_bmesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_vert_bmesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_grab_position(orig_positions, grab_delta_symmetry, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      const MutableSpan<float3> positions = gather_bmesh_positions(verts, tls.positions);
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_positions, translations);
+      apply_translations(translations, verts);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_vert_bmesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void do_grab_brush(const Sculpt &sd,
+                          Object &object,
+                          const Span<bke::pbvh::Node *> nodes,
+                          const SculptBoundary &boundary,
+                          const float strength,
+                          const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+
+      threading::EnumerableThreadSpecific<LocalDataMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_grab_mesh(sd,
+                         object,
+                         positions_eval,
+                         boundary.edit_info.propagation_steps_num,
+                         boundary.edit_info.strength_factor,
+                         *nodes[i],
+                         tls,
+                         ss.cache->grab_delta_symmetry,
+                         boundary.initial_vert_position,
+                         strength,
+                         deform_target,
+                         positions_orig);
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalDataGrids> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataGrids &tls = all_tls.local();
+        for (const int i : range) {
+          calc_grab_grids(sd,
+                          object,
+                          subdiv_ccg,
+                          boundary.edit_info.propagation_steps_num,
+                          boundary.edit_info.strength_factor,
+                          *nodes[i],
+                          tls,
+                          ss.cache->grab_delta_symmetry,
+                          boundary.initial_vert_position,
+                          strength,
+                          deform_target);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      threading::EnumerableThreadSpecific<LocalDataBMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataBMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_grab_bmesh(sd,
+                          object,
+                          boundary.edit_info.propagation_steps_num,
+                          boundary.edit_info.strength_factor,
+                          *nodes[i],
+                          tls,
+                          ss.cache->grab_delta_symmetry,
+                          boundary.initial_vert_position,
+                          strength,
+                          deform_target);
+        }
+      });
+      break;
+    }
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Twist Deformation
+ * \{ */
+
+BLI_NOINLINE static void calc_twist_position(const Span<float3> positions,
+                                             const float3 pivot_point,
+                                             const float3 pivot_axis,
+                                             const Span<float> factors,
+                                             const MutableSpan<float3> new_positions)
+{
+  BLI_assert(positions.size() == factors.size());
+  BLI_assert(positions.size() == new_positions.size());
+
+  for (const int i : positions.index_range()) {
+    new_positions[i] = math::rotate_around_axis(positions[i], pivot_point, pivot_axis, factors[i]);
+  }
+}
+
+static void calc_twist_mesh(const Sculpt &sd,
+                            Object &object,
+                            const Span<float3> positions_eval,
+                            const Span<int> vert_propagation_steps,
+                            const Span<float> vert_factors,
+                            const bke::pbvh::Node &node,
+                            LocalDataMesh &tls,
+                            const float3 twist_pivot_position,
+                            const float3 twist_axis,
+                            const float3 symmetry_pivot,
+                            const float strength,
+                            const eBrushDeformTarget deform_target,
+                            const MutableSpan<float3> positions_orig)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_mesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_twist_position(
+      orig_data.positions, twist_pivot_position, twist_axis, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, verts, positions_eval, translations);
+
+      write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_mesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_twist_grids(const Sculpt &sd,
+                             Object &object,
+                             SubdivCCG &subdiv_ccg,
+                             const Span<int> vert_propagation_steps,
+                             const Span<float> vert_factors,
+                             const float3 twist_pivot_position,
+                             const float3 twist_axis,
+                             const bke::pbvh::Node &node,
+                             LocalDataGrids &tls,
+                             const float3 symmetry_pivot,
+                             const float strength,
+                             const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const int grid_verts_num = grids.size() * key.grid_area;
+  const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_grids(
+      subdiv_ccg, vert_factors, grids, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_grids_factors(object, *cache.automasking, node, grids, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_grids(
+      subdiv_ccg, vert_propagation_steps, grids, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(grid_verts_num);
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_twist_position(
+      orig_data.positions, twist_pivot_position, twist_axis, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(grid_verts_num);
+      const MutableSpan<float3> translations = tls.translations;
+      const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+      apply_translations(translations, grids, subdiv_ccg);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_grids(subdiv_ccg,
+                         new_positions.as_span(),
+                         grids,
+                         cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_twist_bmesh(const Sculpt &sd,
+                             Object &object,
+                             const Span<int> vert_propagation_steps,
+                             const Span<float> vert_factors,
+                             const float3 twist_pivot_position,
+                             const float3 twist_axis,
+                             bke::pbvh::Node &node,
+                             LocalDataBMesh &tls,
+                             const float3 symmetry_pivot,
+                             const float strength,
+                             const eBrushDeformTarget deform_target)
+
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Set<BMVert *, 0> verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  Array<float3> orig_positions(verts.size());
+  Array<float3> orig_normals(verts.size());
+  orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_vert_bmesh(vert_factors, verts, tls.factors);
+
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+  }
+
+  const Span<int> propagation_steps = gather_data_vert_bmesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+
+  calc_twist_position(orig_positions, twist_pivot_position, twist_axis, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      const MutableSpan<float3> positions = gather_bmesh_positions(verts, tls.positions);
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_positions, translations);
+      apply_translations(translations, verts);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_vert_bmesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void do_twist_brush(const Sculpt &sd,
+                           Object &object,
+                           const Span<bke::pbvh::Node *> nodes,
+                           const SculptBoundary &boundary,
+                           const float strength,
+                           const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+
+      threading::EnumerableThreadSpecific<LocalDataMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_twist_mesh(sd,
+                          object,
+                          positions_eval,
+                          boundary.edit_info.propagation_steps_num,
+                          boundary.edit_info.strength_factor,
+                          *nodes[i],
+                          tls,
+                          boundary.twist.pivot_position,
+                          boundary.twist.rotation_axis,
+                          boundary.initial_vert_position,
+                          strength,
+                          deform_target,
+                          positions_orig);
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalDataGrids> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataGrids &tls = all_tls.local();
+        for (const int i : range) {
+          calc_twist_grids(sd,
+                           object,
+                           subdiv_ccg,
+                           boundary.edit_info.propagation_steps_num,
+                           boundary.edit_info.strength_factor,
+                           boundary.twist.pivot_position,
+                           boundary.twist.rotation_axis,
+                           *nodes[i],
+                           tls,
+                           boundary.initial_vert_position,
+                           strength,
+                           deform_target);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      threading::EnumerableThreadSpecific<LocalDataBMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataBMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_twist_bmesh(sd,
+                           object,
+                           boundary.edit_info.propagation_steps_num,
+                           boundary.edit_info.strength_factor,
+                           boundary.twist.pivot_position,
+                           boundary.twist.rotation_axis,
+                           *nodes[i],
+                           tls,
+                           boundary.initial_vert_position,
+                           strength,
+                           deform_target);
+        }
+      });
+      break;
+    }
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Smooth Deformation
+ * \{ */
+
+BLI_NOINLINE static void calc_smooth_position(const Span<float3> positions,
+                                              const Span<float3> average_position,
+                                              const Span<float> factors,
+                                              const MutableSpan<float3> new_positions)
+{
+  BLI_assert(positions.size() == average_position.size());
+  BLI_assert(positions.size() == factors.size());
+  BLI_assert(positions.size() == new_positions.size());
+
+  for (const int i : positions.index_range()) {
+    const float3 to_smooth = average_position[i] - positions[i];
+    new_positions[i] = positions[i] + (to_smooth * factors[i]);
+  }
+}
+
+BLI_NOINLINE static void calc_average_position(const Span<float3> vert_positions,
+                                               const Span<int> vert_propagation_steps,
+                                               const Span<Vector<int>> neighbors,
+                                               const Span<int> propagation_steps,
+                                               const MutableSpan<float> factors,
+                                               const MutableSpan<float3> average_positions)
+{
+  BLI_assert(vert_positions.size() == vert_propagation_steps.size());
+  BLI_assert(factors.size() == neighbors.size());
+  BLI_assert(factors.size() == propagation_steps.size());
+  BLI_assert(factors.size() == average_positions.size());
+
+  for (const int i : neighbors.index_range()) {
+    average_positions[i] = float3(0.0f);
+    int valid_neighbors = 0;
+    for (const int neighbor : neighbors[i]) {
+      if (propagation_steps[i] == vert_propagation_steps[neighbor]) {
+        average_positions[i] += vert_positions[neighbor];
+        valid_neighbors++;
+      }
+    }
+    average_positions[i] *= math::safe_rcp(float(valid_neighbors));
+    if (valid_neighbors == 0) {
+      factors[i] = 0.0f;
+    }
+  }
+}
+
+BLI_NOINLINE static void calc_average_position(const SubdivCCG &subdiv_ccg,
+                                               const Span<int> vert_propagation_steps,
+                                               const Span<Vector<SubdivCCGCoord>> neighbors,
+                                               const Span<int> propagation_steps,
+                                               const MutableSpan<float> factors,
+                                               const MutableSpan<float3> average_positions)
+{
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  Span<CCGElem *> grids = subdiv_ccg.grids;
+
+  BLI_assert(neighbors.size() == propagation_steps.size());
+  BLI_assert(neighbors.size() == factors.size());
+  BLI_assert(neighbors.size() == average_positions.size());
+
+  for (const int i : neighbors.index_range()) {
+    average_positions[i] = float3(0.0f);
+    int valid_neighbors = 0;
+    for (const SubdivCCGCoord neighbor : neighbors[i]) {
+      if (propagation_steps[i] == vert_propagation_steps[neighbor.to_index(key)]) {
+        average_positions[i] += CCG_grid_elem_co(
+            key, grids[neighbor.grid_index], neighbor.x, neighbor.y);
+        valid_neighbors++;
+      }
+    }
+    average_positions[i] *= math::safe_rcp(float(valid_neighbors));
+    if (valid_neighbors == 0) {
+      factors[i] = 0.0f;
+    }
+  }
+}
+
+BLI_NOINLINE static void calc_average_position(const Span<int> vert_propagation_steps,
+                                               const Span<Vector<BMVert *>> neighbors,
+                                               const Span<int> propagation_steps,
+                                               const MutableSpan<float> factors,
+                                               const MutableSpan<float3> average_positions)
+{
+  BLI_assert(neighbors.size() == propagation_steps.size());
+  BLI_assert(neighbors.size() == factors.size());
+  BLI_assert(neighbors.size() == average_positions.size());
+
+  for (const int i : neighbors.index_range()) {
+    average_positions[i] = float3(0.0f);
+    int valid_neighbors = 0;
+    for (BMVert *neighbor : neighbors[i]) {
+      const int neighbor_idx = BM_elem_index_get(neighbor);
+      if (propagation_steps[i] == vert_propagation_steps[neighbor_idx]) {
+        average_positions[i] += neighbor->co;
+        valid_neighbors++;
+      }
+    }
+    average_positions[i] *= math::safe_rcp(float(valid_neighbors));
+    if (valid_neighbors == 0) {
+      factors[i] = 0.0f;
+    }
+  }
+}
+
+static void calc_smooth_mesh(const Sculpt &sd,
+                             Object &object,
+                             const Span<float3> positions_eval,
+                             const OffsetIndices<int> faces,
+                             const Span<int> corner_verts,
+                             const GroupedSpan<int> vert_to_face,
+                             const Span<bool> hide_poly,
+                             const Span<int> vert_propagation_steps,
+                             const Span<float> vert_factors,
+                             const bke::pbvh::Node &node,
+                             LocalDataMesh &tls,
+                             const float3 symmetry_pivot,
+                             const float strength,
+                             const eBrushDeformTarget deform_target,
+                             const MutableSpan<float3> positions_orig)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_mesh(vert_factors, verts, tls.factors);
+
+  const Span<int> propagation_steps = gather_data_mesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.neighbors.resize(verts.size());
+  const MutableSpan<Vector<int>> neighbors = tls.neighbors;
+
+  calc_vert_neighbors(faces, corner_verts, vert_to_face, hide_poly, verts, neighbors);
+  tls.average_positions.resize(verts.size());
+
+  const Span<float3> positions = gather_data_mesh(positions_eval, verts, tls.positions);
+  const MutableSpan<float3> average_positions = tls.average_positions;
+  calc_average_position(positions_eval,
+                        vert_propagation_steps,
+                        neighbors,
+                        propagation_steps,
+                        factors,
+                        average_positions);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+  calc_smooth_position(positions, average_positions, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, verts, positions_eval, translations);
+
+      write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_mesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_smooth_grids(const Sculpt &sd,
+                              Object &object,
+                              SubdivCCG &subdiv_ccg,
+                              const Span<int> vert_propagation_steps,
+                              const Span<float> vert_factors,
+                              const bke::pbvh::Node &node,
+                              LocalDataGrids &tls,
+                              const float3 symmetry_pivot,
+                              const float strength,
+                              const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
+  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const int grid_verts_num = grids.size() * key.grid_area;
+  const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_grids(
+      subdiv_ccg, vert_factors, grids, tls.factors);
+
+  const Span<int> propagation_steps = gather_data_grids(
+      subdiv_ccg, vert_propagation_steps, grids, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_data.positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.neighbors.resize(grid_verts_num);
+  const MutableSpan<Vector<SubdivCCGCoord>> neighbors = tls.neighbors;
+  calc_vert_neighbors(subdiv_ccg, grids, neighbors);
+
+  tls.average_positions.resize(grid_verts_num);
+  const MutableSpan<float3> average_positions = tls.average_positions;
+  calc_average_position(subdiv_ccg,
+                        vert_propagation_steps,
+                        neighbors,
+                        propagation_steps,
+                        factors,
+                        average_positions);
+
+  const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+
+  tls.new_positions.resize(grid_verts_num);
+  const MutableSpan<float3> new_positions = tls.new_positions;
+  calc_smooth_position(positions, average_positions, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(grid_verts_num);
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+      apply_translations(translations, grids, subdiv_ccg);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_grids(subdiv_ccg,
+                         new_positions.as_span(),
+                         grids,
+                         cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void calc_smooth_bmesh(const Sculpt &sd,
+                              Object &object,
+                              const Span<int> vert_propagation_steps,
+                              const Span<float> vert_factors,
+                              bke::pbvh::Node &node,
+                              LocalDataBMesh &tls,
+                              const float3 symmetry_pivot,
+                              const float strength,
+                              const eBrushDeformTarget deform_target)
+
+{
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+
+  const Set<BMVert *, 0> verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  Array<float3> orig_positions(verts.size());
+  Array<float3> orig_normals(verts.size());
+  orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
+
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  const MutableSpan<float> factors = gather_data_vert_bmesh(vert_factors, verts, tls.factors);
+
+  const Span<int> propagation_steps = gather_data_vert_bmesh(
+      vert_propagation_steps, verts, tls.propagation_steps);
+
+  filter_uninitialized_verts(propagation_steps, factors);
+  filter_verts_outside_symmetry_area(orig_positions, symmetry_pivot, symm, factors);
+
+  scale_factors(factors, strength);
+
+  tls.neighbors.resize(verts.size());
+  const MutableSpan<Vector<BMVert *>> neighbors = tls.neighbors;
+  calc_vert_neighbors(verts, neighbors);
+
+  tls.average_positions.resize(verts.size());
+  const MutableSpan<float3> average_positions = tls.average_positions;
+  calc_average_position(
+      vert_propagation_steps, neighbors, propagation_steps, factors, average_positions);
+  const Span<float3> positions = gather_bmesh_positions(verts, tls.positions);
+
+  tls.new_positions.resize(verts.size());
+  const MutableSpan<float3> new_positions = tls.new_positions;
+  calc_smooth_position(positions, average_positions, factors, new_positions);
+
+  switch (eBrushDeformTarget(deform_target)) {
+    case BRUSH_DEFORM_TARGET_GEOMETRY: {
+      tls.translations.resize(verts.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, positions, translations);
+
+      clip_and_lock_translations(sd, ss, orig_positions, translations);
+      apply_translations(translations, verts);
+      break;
+    }
+    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
+      scatter_data_vert_bmesh(
+          new_positions.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
+      break;
+  }
+}
+
+static void do_smooth_brush(const Sculpt &sd,
+                            Object &object,
+                            const Span<bke::pbvh::Node *> nodes,
+                            const SculptBoundary &boundary,
+                            const float strength,
+                            const eBrushDeformTarget deform_target)
+{
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+      const OffsetIndices<int> faces = mesh.faces();
+      const Span<int> corner_verts = mesh.corner_verts();
+      const GroupedSpan<int> vert_to_face_map = ss.vert_to_face_map;
+      bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
+      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+
+      threading::EnumerableThreadSpecific<LocalDataMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_smooth_mesh(sd,
+                           object,
+                           positions_eval,
+                           faces,
+                           corner_verts,
+                           vert_to_face_map,
+                           hide_poly,
+                           boundary.edit_info.propagation_steps_num,
+                           boundary.edit_info.strength_factor,
+                           *nodes[i],
+                           tls,
+                           boundary.initial_vert_position,
+                           strength,
+                           deform_target,
+                           positions_orig);
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalDataGrids> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataGrids &tls = all_tls.local();
+        for (const int i : range) {
+          calc_smooth_grids(sd,
+                            object,
+                            subdiv_ccg,
+                            boundary.edit_info.propagation_steps_num,
+                            boundary.edit_info.strength_factor,
+                            *nodes[i],
+                            tls,
+                            boundary.initial_vert_position,
+                            strength,
+                            deform_target);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      threading::EnumerableThreadSpecific<LocalDataBMesh> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalDataBMesh &tls = all_tls.local();
+        for (const int i : range) {
+          calc_smooth_bmesh(sd,
+                            object,
+                            boundary.edit_info.propagation_steps_num,
+                            boundary.edit_info.strength_factor,
+                            *nodes[i],
+                            tls,
+                            boundary.initial_vert_position,
+                            strength,
+                            deform_target);
+        }
+      });
+      break;
+    }
+  }
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Brush Initialization
+ * \{ */
+
+static float displacement_from_grab_delta_get(const SculptSession &ss,
+                                              const SculptBoundary &boundary)
+{
+  float4 plane;
+  const float3 normal = math::normalize(ss.cache->initial_location - boundary.pivot_position);
   plane_from_point_normal_v3(plane, ss.cache->initial_location, normal);
-  add_v3_v3v3(pos, ss.cache->initial_location, ss.cache->grab_delta_symmetry);
+
+  const float3 pos = ss.cache->initial_location + ss.cache->grab_delta_symmetry;
   return dist_signed_to_plane_v3(pos, plane);
 }
 
-static void boundary_brush_bend_task(Object &ob, const Brush &brush, bke::pbvh::Node *node)
+static std::pair<float, float> calc_boundary_falloff(const SculptBoundary &boundary,
+                                                     const Brush &brush,
+                                                     const float radius,
+                                                     const int index)
 {
-  SculptSession &ss = *ob.sculpt;
-  const int symm_area = ss.cache->mirror_symmetry_pass;
-  SculptBoundary &boundary = *ss.cache->boundaries[symm_area];
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const float boundary_distance = boundary.distance.lookup_default(index, 0.0f);
+  float falloff_distance = 0.0f;
+  float direction = 1.0f;
 
-  const float strength = ss.cache->bstrength;
-
-  PBVHVertexIter vd;
-  SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(ob, *node, undo::Type::Position);
-
-  const float disp = strength * displacement_from_grab_delta_get(ss, boundary);
-  float angle_factor = disp / ss.cache->radius;
-  /* Angle Snapping when inverting the brush. */
-  if (ss.cache->invert) {
-    angle_factor = floorf(angle_factor * 10) / 10.0f;
-  }
-  const float angle = angle_factor * M_PI;
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      ob, ss.cache->automasking.get(), *node);
-
-  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    if (boundary.edit_info[vd.index].propagation_steps_num == -1) {
-      continue;
+  switch (brush.boundary_falloff_type) {
+    case BRUSH_BOUNDARY_FALLOFF_RADIUS:
+      falloff_distance = boundary_distance;
+      break;
+    case BRUSH_BOUNDARY_FALLOFF_LOOP: {
+      const int div = boundary_distance / radius;
+      const float mod = fmodf(boundary_distance, radius);
+      falloff_distance = div % 2 == 0 ? mod : radius - mod;
+      break;
     }
-
-    auto_mask::node_update(automask_data, vd);
-    SCULPT_orig_vert_data_update(orig_data, vd);
-    if (!SCULPT_check_vertex_pivot_symmetry(orig_data.co, boundary.initial_vert_position, symm)) {
-      continue;
-    }
-
-    const float mask = 1.0f - vd.mask;
-    const float automask = auto_mask::factor_get(
-        ss.cache->automasking.get(), ss, vd.vertex, &automask_data);
-    float t_orig_co[3];
-    float *target_co = SCULPT_brush_deform_target_vertex_co_get(ss, brush.deform_target, &vd);
-    sub_v3_v3v3(t_orig_co, orig_data.co, boundary.bend.pivot_positions[vd.index]);
-    rotate_v3_v3v3fl(target_co,
-                     t_orig_co,
-                     boundary.bend.pivot_rotation_axis[vd.index],
-                     angle * boundary.edit_info[vd.index].strength_factor * mask * automask);
-    add_v3_v3(target_co, boundary.bend.pivot_positions[vd.index]);
-  }
-  BKE_pbvh_vertex_iter_end;
-}
-
-static void brush_slide_task(Object &ob, const Brush &brush, bke::pbvh::Node *node)
-{
-  SculptSession &ss = *ob.sculpt;
-  const int symm_area = ss.cache->mirror_symmetry_pass;
-  SculptBoundary &boundary = *ss.cache->boundaries[symm_area];
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
-
-  const float strength = ss.cache->bstrength;
-
-  PBVHVertexIter vd;
-  SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(ob, *node, undo::Type::Position);
-
-  const float disp = displacement_from_grab_delta_get(ss, boundary);
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      ob, ss.cache->automasking.get(), *node);
-
-  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    if (boundary.edit_info[vd.index].propagation_steps_num == -1) {
-      continue;
-    }
-
-    auto_mask::node_update(automask_data, vd);
-    SCULPT_orig_vert_data_update(orig_data, vd);
-    if (!SCULPT_check_vertex_pivot_symmetry(orig_data.co, boundary.initial_vert_position, symm)) {
-      continue;
-    }
-
-    const float mask = 1.0f - vd.mask;
-    const float automask = auto_mask::factor_get(
-        ss.cache->automasking.get(), ss, vd.vertex, &automask_data);
-    float *target_co = SCULPT_brush_deform_target_vertex_co_get(ss, brush.deform_target, &vd);
-    madd_v3_v3v3fl(target_co,
-                   orig_data.co,
-                   boundary.slide.directions[vd.index],
-                   boundary.edit_info[vd.index].strength_factor * disp * mask * automask *
-                       strength);
-  }
-  BKE_pbvh_vertex_iter_end;
-}
-
-static void brush_inflate_task(Object &ob, const Brush &brush, bke::pbvh::Node *node)
-{
-  SculptSession &ss = *ob.sculpt;
-  const int symm_area = ss.cache->mirror_symmetry_pass;
-  SculptBoundary &boundary = *ss.cache->boundaries[symm_area];
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
-
-  const float strength = ss.cache->bstrength;
-
-  PBVHVertexIter vd;
-  SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(ob, *node, undo::Type::Position);
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      ob, ss.cache->automasking.get(), *node);
-
-  const float disp = displacement_from_grab_delta_get(ss, boundary);
-
-  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    if (boundary.edit_info[vd.index].propagation_steps_num == -1) {
-      continue;
-    }
-
-    auto_mask::node_update(automask_data, vd);
-    SCULPT_orig_vert_data_update(orig_data, vd);
-    if (!SCULPT_check_vertex_pivot_symmetry(orig_data.co, boundary.initial_vert_position, symm)) {
-      continue;
-    }
-
-    const float mask = 1.0f - vd.mask;
-    const float automask = auto_mask::factor_get(
-        ss.cache->automasking.get(), ss, vd.vertex, &automask_data);
-    float *target_co = SCULPT_brush_deform_target_vertex_co_get(ss, brush.deform_target, &vd);
-    madd_v3_v3v3fl(target_co,
-                   orig_data.co,
-                   orig_data.no,
-                   boundary.edit_info[vd.index].strength_factor * disp * mask * automask *
-                       strength);
-  }
-  BKE_pbvh_vertex_iter_end;
-}
-
-static void brush_grab_task(Object &ob, const Brush &brush, bke::pbvh::Node *node)
-{
-  SculptSession &ss = *ob.sculpt;
-  const int symm_area = ss.cache->mirror_symmetry_pass;
-  SculptBoundary &boundary = *ss.cache->boundaries[symm_area];
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
-
-  const float strength = ss.cache->bstrength;
-
-  PBVHVertexIter vd;
-  SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(ob, *node, undo::Type::Position);
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      ob, ss.cache->automasking.get(), *node);
-
-  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    if (boundary.edit_info[vd.index].propagation_steps_num == -1) {
-      continue;
-    }
-
-    auto_mask::node_update(automask_data, vd);
-    SCULPT_orig_vert_data_update(orig_data, vd);
-    if (!SCULPT_check_vertex_pivot_symmetry(orig_data.co, boundary.initial_vert_position, symm)) {
-      continue;
-    }
-
-    const float mask = 1.0f - vd.mask;
-    const float automask = auto_mask::factor_get(
-        ss.cache->automasking.get(), ss, vd.vertex, &automask_data);
-    float *target_co = SCULPT_brush_deform_target_vertex_co_get(ss, brush.deform_target, &vd);
-    madd_v3_v3v3fl(target_co,
-                   orig_data.co,
-                   ss.cache->grab_delta_symmetry,
-                   boundary.edit_info[vd.index].strength_factor * mask * automask * strength);
-  }
-  BKE_pbvh_vertex_iter_end;
-}
-
-static void brush_twist_task(Object &ob, const Brush &brush, bke::pbvh::Node *node)
-{
-  SculptSession &ss = *ob.sculpt;
-  const int symm_area = ss.cache->mirror_symmetry_pass;
-  SculptBoundary &boundary = *ss.cache->boundaries[symm_area];
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
-
-  const float strength = ss.cache->bstrength;
-
-  PBVHVertexIter vd;
-  SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(ob, *node, undo::Type::Position);
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      ob, ss.cache->automasking.get(), *node);
-
-  const float disp = strength * displacement_from_grab_delta_get(ss, boundary);
-  float angle_factor = disp / ss.cache->radius;
-  /* Angle Snapping when inverting the brush. */
-  if (ss.cache->invert) {
-    angle_factor = floorf(angle_factor * 10) / 10.0f;
-  }
-  const float angle = angle_factor * M_PI;
-
-  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    if (boundary.edit_info[vd.index].propagation_steps_num == -1) {
-      continue;
-    }
-
-    auto_mask::node_update(automask_data, vd);
-    SCULPT_orig_vert_data_update(orig_data, vd);
-    if (!SCULPT_check_vertex_pivot_symmetry(orig_data.co, boundary.initial_vert_position, symm)) {
-      continue;
-    }
-
-    const float mask = 1.0f - vd.mask;
-    const float automask = auto_mask::factor_get(
-        ss.cache->automasking.get(), ss, vd.vertex, &automask_data);
-    float t_orig_co[3];
-    float *target_co = SCULPT_brush_deform_target_vertex_co_get(ss, brush.deform_target, &vd);
-    sub_v3_v3v3(t_orig_co, orig_data.co, boundary.twist.pivot_position);
-    rotate_v3_v3v3fl(target_co,
-                     t_orig_co,
-                     boundary.twist.rotation_axis,
-                     angle * mask * automask * boundary.edit_info[vd.index].strength_factor);
-    add_v3_v3(target_co, boundary.twist.pivot_position);
-  }
-  BKE_pbvh_vertex_iter_end;
-}
-
-static void brush_smooth_task(Object &ob, const Brush &brush, bke::pbvh::Node *node)
-{
-  SculptSession &ss = *ob.sculpt;
-  const int symmetry_pass = ss.cache->mirror_symmetry_pass;
-  const SculptBoundary &boundary = *ss.cache->boundaries[symmetry_pass];
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
-
-  const float strength = ss.cache->bstrength;
-
-  PBVHVertexIter vd;
-  SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(ob, *node, undo::Type::Position);
-
-  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    if (boundary.edit_info[vd.index].propagation_steps_num == -1) {
-      continue;
-    }
-
-    SCULPT_orig_vert_data_update(orig_data, vd);
-    if (!SCULPT_check_vertex_pivot_symmetry(orig_data.co, boundary.initial_vert_position, symm)) {
-      continue;
-    }
-
-    float coord_accum[3] = {0.0f, 0.0f, 0.0f};
-    int total_neighbors = 0;
-    const int current_propagation_steps = boundary.edit_info[vd.index].propagation_steps_num;
-    SculptVertexNeighborIter ni;
-    SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vd.vertex, ni) {
-      if (current_propagation_steps == boundary.edit_info[ni.index].propagation_steps_num) {
-        add_v3_v3(coord_accum, SCULPT_vertex_co_get(ss, ni.vertex));
-        total_neighbors++;
+    case BRUSH_BOUNDARY_FALLOFF_LOOP_INVERT: {
+      const int div = boundary_distance / radius;
+      const float mod = fmodf(boundary_distance, radius);
+      falloff_distance = div % 2 == 0 ? mod : radius - mod;
+      /* Inverts the falloff in the intervals 1 2 5 6 9 10 ... etc. */
+      if (((div - 1) & 2) == 0) {
+        direction = -1.0f;
       }
+      break;
     }
-    SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
-
-    if (total_neighbors == 0) {
-      continue;
-    }
-    float disp[3];
-    float avg[3];
-    const float mask = 1.0f - vd.mask;
-    mul_v3_v3fl(avg, coord_accum, 1.0f / total_neighbors);
-    sub_v3_v3v3(disp, avg, vd.co);
-    float *target_co = SCULPT_brush_deform_target_vertex_co_get(ss, brush.deform_target, &vd);
-    madd_v3_v3v3fl(
-        target_co, vd.co, disp, boundary.edit_info[vd.index].strength_factor * mask * strength);
+    case BRUSH_BOUNDARY_FALLOFF_CONSTANT:
+      /* For constant falloff distances are not allocated, so this should never happen. */
+      BLI_assert_unreachable();
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
   }
-  BKE_pbvh_vertex_iter_end;
+
+  return {falloff_distance, direction};
 }
 
-/* This functions assigns a falloff factor to each one of the SculptBoundaryEditInfo structs
- * based on the brush curve and its propagation steps. The falloff goes from the boundary into
- * the mesh.
+/**
+ * These functions assign a falloff factor to each valid edit_info entry based on the brush curve,
+ * its propagation steps, and mask values. The falloff goes from the boundary into the mesh.
  */
-static void init_falloff(const Brush &brush, const float radius, SculptBoundary &boundary)
+static void init_falloff_mesh(const Span<float> mask,
+                              const Brush &brush,
+                              const float radius,
+                              SculptBoundary &boundary)
 {
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
+
+  const int num_elements = boundary.edit_info.strength_factor.size();
   BKE_curvemapping_init(brush.curve);
 
-  for (const int i : boundary.edit_info.index_range()) {
-    if (boundary.edit_info[i].propagation_steps_num != -1) {
-      boundary.edit_info[i].strength_factor = BKE_brush_curve_strength(
-          &brush, boundary.edit_info[i].propagation_steps_num, boundary.max_propagation_steps);
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] != BOUNDARY_STEPS_NONE) {
+      const float mask_factor = mask.is_empty() ? 1.0f : 1.0f - mask[i];
+      boundary.edit_info.strength_factor[i] = mask_factor *
+                                              BKE_brush_curve_strength(
+                                                  &brush,
+                                                  boundary.edit_info.propagation_steps_num[i],
+                                                  boundary.max_propagation_steps);
     }
 
-    if (boundary.edit_info[i].original_vertex_i == boundary.initial_vert_i) {
+    if (boundary.edit_info.original_vertex_i[i] == boundary.initial_vert_i) {
       /* All vertices that are propagated from the original vertex won't be affected by the
        * boundary falloff, so there is no need to calculate anything else. */
       continue;
@@ -1345,39 +2996,343 @@ static void init_falloff(const Brush &brush, const float radius, SculptBoundary 
       continue;
     }
 
-    const float boundary_distance = boundary.distance.lookup_default(
-        boundary.edit_info[i].original_vertex_i, 0.0f);
-    float falloff_distance = 0.0f;
-    float direction = 1.0f;
-
-    switch (brush.boundary_falloff_type) {
-      case BRUSH_BOUNDARY_FALLOFF_RADIUS:
-        falloff_distance = boundary_distance;
-        break;
-      case BRUSH_BOUNDARY_FALLOFF_LOOP: {
-        const int div = boundary_distance / radius;
-        const float mod = fmodf(boundary_distance, radius);
-        falloff_distance = div % 2 == 0 ? mod : radius - mod;
-        break;
-      }
-      case BRUSH_BOUNDARY_FALLOFF_LOOP_INVERT: {
-        const int div = boundary_distance / radius;
-        const float mod = fmodf(boundary_distance, radius);
-        falloff_distance = div % 2 == 0 ? mod : radius - mod;
-        /* Inverts the falloff in the intervals 1 2 5 6 9 10 ... etc. */
-        if (((div - 1) & 2) == 0) {
-          direction = -1.0f;
-        }
-        break;
-      }
-      case BRUSH_BOUNDARY_FALLOFF_CONSTANT:
-        /* For constant falloff distances are not allocated, so this should never happen. */
-        BLI_assert(false);
-    }
-
-    boundary.edit_info[i].strength_factor *= direction * BKE_brush_curve_strength(
+    auto [falloff_distance, direction] = calc_boundary_falloff(
+        boundary, brush, radius, boundary.edit_info.original_vertex_i[i]);
+    boundary.edit_info.strength_factor[i] *= direction * BKE_brush_curve_strength(
                                                              &brush, falloff_distance, radius);
   }
+}
+
+static void init_falloff_grids(const SubdivCCG &subdiv_ccg,
+                               const Brush &brush,
+                               const float radius,
+                               SculptBoundary &boundary)
+{
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
+
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  Span<CCGElem *> grids = subdiv_ccg.grids;
+
+  BKE_curvemapping_init(brush.curve);
+
+  for (const int i : grids.index_range()) {
+    const int start = i * key.grid_area;
+    for (const int offset : IndexRange(key.grid_area)) {
+      const int index = start + offset;
+      if (boundary.edit_info.propagation_steps_num[index] != BOUNDARY_STEPS_NONE) {
+        const float mask_factor = key.has_mask ?
+                                      1.0f - CCG_elem_offset_mask(key, grids[i], offset) :
+                                      1.0f;
+        boundary.edit_info.strength_factor[index] =
+            mask_factor * BKE_brush_curve_strength(&brush,
+                                                   boundary.edit_info.propagation_steps_num[index],
+                                                   boundary.max_propagation_steps);
+      }
+
+      if (boundary.edit_info.original_vertex_i[index] == boundary.initial_vert_i) {
+        /* All vertices that are propagated from the original vertex won't be affected by the
+         * boundary falloff, so there is no need to calculate anything else. */
+        continue;
+      }
+
+      const bool use_boundary_distances = brush.boundary_falloff_type !=
+                                          BRUSH_BOUNDARY_FALLOFF_CONSTANT;
+
+      if (!use_boundary_distances) {
+        /* There are falloff modes that do not require to modify the previously calculated falloff
+         * based on boundary distances. */
+        continue;
+      }
+
+      auto [falloff_distance, direction] = calc_boundary_falloff(
+          boundary, brush, radius, boundary.edit_info.original_vertex_i[index]);
+      boundary.edit_info.strength_factor[index] *= direction *
+                                                   BKE_brush_curve_strength(
+                                                       &brush, falloff_distance, radius);
+    }
+  }
+}
+
+static void init_falloff_bmesh(BMesh *bm,
+                               const Brush &brush,
+                               const float radius,
+                               SculptBoundary &boundary)
+{
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.propagation_steps_num.size());
+  BLI_assert(boundary.edit_info.original_vertex_i.size() ==
+             boundary.edit_info.strength_factor.size());
+
+  const int num_elements = boundary.edit_info.strength_factor.size();
+
+  BKE_curvemapping_init(brush.curve);
+
+  for (const int i : IndexRange(num_elements)) {
+    if (boundary.edit_info.propagation_steps_num[i] != BOUNDARY_STEPS_NONE) {
+      BMVert *vert = BM_vert_at_index(bm, i);
+      const int mask_offset = CustomData_get_offset_named(
+          &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+      const float mask_factor = mask_offset == -1 ? 1.0f :
+                                                    1.0f - BM_ELEM_CD_GET_FLOAT(vert, mask_offset);
+
+      boundary.edit_info.strength_factor[i] = mask_factor *
+                                              BKE_brush_curve_strength(
+                                                  &brush,
+                                                  boundary.edit_info.propagation_steps_num[i],
+                                                  boundary.max_propagation_steps);
+    }
+
+    if (boundary.edit_info.original_vertex_i[i] == boundary.initial_vert_i) {
+      /* All vertices that are propagated from the original vertex won't be affected by the
+       * boundary falloff, so there is no need to calculate anything else. */
+      continue;
+    }
+
+    const bool use_boundary_distances = brush.boundary_falloff_type !=
+                                        BRUSH_BOUNDARY_FALLOFF_CONSTANT;
+
+    if (!use_boundary_distances) {
+      /* There are falloff modes that do not require to modify the previously calculated falloff
+       * based on boundary distances. */
+      continue;
+    }
+
+    auto [falloff_distance, direction] = calc_boundary_falloff(
+        boundary, brush, radius, boundary.edit_info.original_vertex_i[i]);
+    boundary.edit_info.strength_factor[i] *= direction * BKE_brush_curve_strength(
+                                                             &brush, falloff_distance, radius);
+  }
+}
+
+static void init_boundary_mesh(Object &object,
+                               const Brush &brush,
+                               const ePaintSymmetryFlags symm_area)
+{
+  const SculptSession &ss = *object.sculpt;
+  const bke::pbvh::Tree &pbvh = *ss.pbvh;
+
+  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+
+  const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(pbvh);
+  const Span<float3> vert_normals = BKE_pbvh_get_vert_normals(pbvh);
+
+  /* TODO: Remove PBVHVertRef here once we decide how we are storing the active_vertex value. */
+  PBVHVertRef initial_vert_ref = SCULPT_active_vertex_get(ss);
+  if (initial_vert_ref.i == PBVH_REF_NONE) {
+    return;
+  }
+
+  std::optional<int> initial_vert;
+  if (ss.cache->mirror_symmetry_pass == 0) {
+    initial_vert = initial_vert_ref.i;
+  }
+  else {
+    float3 location = symmetry_flip(positions_eval[initial_vert_ref.i], symm_area);
+    initial_vert = nearest_vert_calc_mesh(
+        *ss.pbvh, positions_eval, hide_vert, location, ss.cache->radius_squared, false);
+  }
+
+  if (!initial_vert) {
+    return;
+  }
+
+  ss.cache->boundaries[symm_area] = boundary::data_init_mesh(
+      object, &brush, *initial_vert, ss.cache->initial_radius);
+
+  if (ss.cache->boundaries[symm_area]) {
+    switch (brush.boundary_deform_type) {
+      case BRUSH_BOUNDARY_DEFORM_BEND:
+        bend_data_init_mesh(positions_eval, vert_normals, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_EXPAND:
+        slide_data_init_mesh(positions_eval, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_TWIST:
+        twist_data_init_mesh(positions_eval, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_INFLATE:
+      case BRUSH_BOUNDARY_DEFORM_GRAB:
+      case BRUSH_BOUNDARY_DEFORM_SMOOTH:
+        /* Do nothing. These deform modes don't need any extra data to be precomputed. */
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+
+    init_falloff_mesh(mask, brush, ss.cache->initial_radius, *ss.cache->boundaries[symm_area]);
+  }
+}
+
+static void init_boundary_grids(Object &object,
+                                const Brush &brush,
+                                const ePaintSymmetryFlags symm_area)
+{
+  const SculptSession &ss = *object.sculpt;
+  const bke::pbvh::Tree &pbvh = *ss.pbvh;
+
+  const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  const CCGKey &key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  Span<CCGElem *> grids = subdiv_ccg.grids;
+
+  /* TODO: Remove PBVHVertRef here once we decide how we are storing the active_vertex value. */
+  PBVHVertRef initial_vert_ref = SCULPT_active_vertex_get(ss);
+  if (initial_vert_ref.i == PBVH_REF_NONE) {
+    return;
+  }
+
+  std::optional<SubdivCCGCoord> initial_vert;
+  if (ss.cache->mirror_symmetry_pass == 0) {
+    initial_vert = SubdivCCGCoord::from_index(key, initial_vert_ref.i);
+  }
+  else {
+    const SubdivCCGCoord active_vert = SubdivCCGCoord::from_index(key, initial_vert_ref.i);
+    float3 location = symmetry_flip(
+        CCG_grid_elem_co(key, grids[active_vert.grid_index], active_vert.x, active_vert.y),
+        symm_area);
+    initial_vert = nearest_vert_calc_grids(
+        pbvh, subdiv_ccg, location, ss.cache->radius_squared, false);
+  }
+
+  if (!initial_vert) {
+    return;
+  }
+
+  ss.cache->boundaries[symm_area] = boundary::data_init_grids(
+      object, &brush, *initial_vert, ss.cache->initial_radius);
+
+  if (ss.cache->boundaries[symm_area]) {
+    switch (brush.boundary_deform_type) {
+      case BRUSH_BOUNDARY_DEFORM_BEND:
+        bend_data_init_grids(subdiv_ccg, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_EXPAND:
+        slide_data_init_grids(subdiv_ccg, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_TWIST:
+        twist_data_init_grids(subdiv_ccg, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_INFLATE:
+      case BRUSH_BOUNDARY_DEFORM_GRAB:
+      case BRUSH_BOUNDARY_DEFORM_SMOOTH:
+        /* Do nothing. These deform modes don't need any extra data to be precomputed. */
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+
+    init_falloff_grids(
+        subdiv_ccg, brush, ss.cache->initial_radius, *ss.cache->boundaries[symm_area]);
+  }
+}
+
+static void init_boundary_bmesh(Object &object,
+                                const Brush &brush,
+                                const ePaintSymmetryFlags symm_area)
+{
+  const SculptSession &ss = *object.sculpt;
+  const bke::pbvh::Tree &pbvh = *ss.pbvh;
+
+  BMesh *bm = ss.bm;
+
+  /* TODO: Remove PBVHVertRef here once we decide how we are storing the active_vertex value. */
+  PBVHVertRef initial_vert_ref = SCULPT_active_vertex_get(ss);
+  if (initial_vert_ref.i == PBVH_REF_NONE) {
+    return;
+  }
+
+  std::optional<BMVert *> initial_vert;
+  if (ss.cache->mirror_symmetry_pass == 0) {
+    initial_vert = reinterpret_cast<BMVert *>(initial_vert_ref.i);
+  }
+  else {
+    BMVert *active_vert = reinterpret_cast<BMVert *>(initial_vert_ref.i);
+    float3 location = symmetry_flip(active_vert->co, symm_area);
+    initial_vert = nearest_vert_calc_bmesh(pbvh, location, ss.cache->radius_squared, false);
+  }
+
+  if (!initial_vert) {
+    return;
+  }
+
+  ss.cache->boundaries[symm_area] = boundary::data_init_bmesh(
+      object, &brush, *initial_vert, ss.cache->initial_radius);
+
+  if (ss.cache->boundaries[symm_area]) {
+    switch (brush.boundary_deform_type) {
+      case BRUSH_BOUNDARY_DEFORM_BEND:
+        bend_data_init_bmesh(bm, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_EXPAND:
+        slide_data_init_bmesh(bm, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_TWIST:
+        twist_data_init_bmesh(bm, *ss.cache->boundaries[symm_area]);
+        break;
+      case BRUSH_BOUNDARY_DEFORM_INFLATE:
+      case BRUSH_BOUNDARY_DEFORM_GRAB:
+      case BRUSH_BOUNDARY_DEFORM_SMOOTH:
+        /* Do nothing. These deform modes don't need any extra data to be precomputed. */
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+
+    init_falloff_bmesh(bm, brush, ss.cache->initial_radius, *ss.cache->boundaries[symm_area]);
+  }
+}
+
+static float get_mesh_strength(const SculptSession &ss, const Brush &brush)
+{
+  const int symm_area = ss.cache->mirror_symmetry_pass;
+  SculptBoundary &boundary = *ss.cache->boundaries[symm_area];
+
+  const float strength = ss.cache->bstrength;
+
+  switch (brush.boundary_deform_type) {
+    case BRUSH_BOUNDARY_DEFORM_BEND: {
+      const float disp = strength * displacement_from_grab_delta_get(ss, boundary);
+      float angle_factor = disp / ss.cache->radius;
+      /* Angle Snapping when inverting the brush. */
+      if (ss.cache->invert) {
+        angle_factor = floorf(angle_factor * 10) / 10.0f;
+      }
+      return angle_factor * M_PI;
+    }
+    case BRUSH_BOUNDARY_DEFORM_EXPAND: {
+      return strength * displacement_from_grab_delta_get(ss, boundary);
+    }
+    case BRUSH_BOUNDARY_DEFORM_INFLATE: {
+      return strength * displacement_from_grab_delta_get(ss, boundary);
+    }
+    case BRUSH_BOUNDARY_DEFORM_GRAB:
+      return strength;
+    case BRUSH_BOUNDARY_DEFORM_TWIST: {
+      const float disp = strength * displacement_from_grab_delta_get(ss, boundary);
+      float angle_factor = disp / ss.cache->radius;
+      /* Angle Snapping when inverting the brush. */
+      if (ss.cache->invert) {
+        angle_factor = floorf(angle_factor * 10) / 10.0f;
+      }
+      return angle_factor * M_PI;
+    }
+    case BRUSH_BOUNDARY_DEFORM_SMOOTH:
+      return strength;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return 0.0f;
 }
 
 void do_boundary_brush(const Sculpt &sd, Object &ob, Span<bke::pbvh::Node *> nodes)
@@ -1387,39 +3342,19 @@ void do_boundary_brush(const Sculpt &sd, Object &ob, Span<bke::pbvh::Node *> nod
 
   const ePaintSymmetryFlags symm_area = ss.cache->mirror_symmetry_pass;
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
-
-    PBVHVertRef initial_vert;
-
-    if (ss.cache->mirror_symmetry_pass == 0) {
-      initial_vert = SCULPT_active_vertex_get(ss);
-    }
-    else {
-      float location[3];
-      flip_v3_v3(location, SCULPT_active_vertex_co_get(ss), symm_area);
-      initial_vert = nearest_vert_calc(ob, location, ss.cache->radius_squared, false);
-    }
-
-    ss.cache->boundaries[symm_area] = data_init(
-        ob, &brush, initial_vert, ss.cache->initial_radius);
-
-    if (ss.cache->boundaries[symm_area]) {
-      switch (brush.boundary_deform_type) {
-        case BRUSH_BOUNDARY_DEFORM_BEND:
-          bend_data_init(ob, *ss.cache->boundaries[symm_area]);
-          break;
-        case BRUSH_BOUNDARY_DEFORM_EXPAND:
-          slide_data_init(ob, *ss.cache->boundaries[symm_area]);
-          break;
-        case BRUSH_BOUNDARY_DEFORM_TWIST:
-          twist_data_init(ob, *ss.cache->boundaries[symm_area]);
-          break;
-        case BRUSH_BOUNDARY_DEFORM_INFLATE:
-        case BRUSH_BOUNDARY_DEFORM_GRAB:
-          /* Do nothing. These deform modes don't need any extra data to be precomputed. */
-          break;
-      }
-
-      init_falloff(brush, ss.cache->initial_radius, *ss.cache->boundaries[symm_area]);
+    switch (ss.pbvh->type()) {
+      case bke::pbvh::Type::Mesh:
+        init_boundary_mesh(ob, brush, symm_area);
+        break;
+      case bke::pbvh::Type::Grids:
+        init_boundary_grids(ob, brush, symm_area);
+        break;
+      case bke::pbvh::Type::BMesh:
+        init_boundary_bmesh(ob, brush, symm_area);
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
     }
   }
 
@@ -1428,48 +3363,59 @@ void do_boundary_brush(const Sculpt &sd, Object &ob, Span<bke::pbvh::Node *> nod
     return;
   }
 
+  const float strength = get_mesh_strength(ss, brush);
+
   switch (brush.boundary_deform_type) {
     case BRUSH_BOUNDARY_DEFORM_BEND:
-      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
-        for (const int i : range) {
-          boundary_brush_bend_task(ob, brush, nodes[i]);
-        }
-      });
+      do_bend_brush(sd,
+                    ob,
+                    nodes,
+                    *ss.cache->boundaries[symm_area],
+                    strength,
+                    eBrushDeformTarget(brush.deform_target));
       break;
     case BRUSH_BOUNDARY_DEFORM_EXPAND:
-      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
-        for (const int i : range) {
-          brush_slide_task(ob, brush, nodes[i]);
-        }
-      });
+      do_slide_brush(sd,
+                     ob,
+                     nodes,
+                     *ss.cache->boundaries[symm_area],
+                     strength,
+                     eBrushDeformTarget(brush.deform_target));
       break;
     case BRUSH_BOUNDARY_DEFORM_INFLATE:
-      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
-        for (const int i : range) {
-          brush_inflate_task(ob, brush, nodes[i]);
-        }
-      });
+      do_inflate_brush(sd,
+                       ob,
+                       nodes,
+                       *ss.cache->boundaries[symm_area],
+                       strength,
+                       eBrushDeformTarget(brush.deform_target));
       break;
     case BRUSH_BOUNDARY_DEFORM_GRAB:
-      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
-        for (const int i : range) {
-          brush_grab_task(ob, brush, nodes[i]);
-        }
-      });
+      do_grab_brush(sd,
+                    ob,
+                    nodes,
+                    *ss.cache->boundaries[symm_area],
+                    strength,
+                    eBrushDeformTarget(brush.deform_target));
       break;
     case BRUSH_BOUNDARY_DEFORM_TWIST:
-      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
-        for (const int i : range) {
-          brush_twist_task(ob, brush, nodes[i]);
-        }
-      });
+      do_twist_brush(sd,
+                     ob,
+                     nodes,
+                     *ss.cache->boundaries[symm_area],
+                     strength,
+                     eBrushDeformTarget(brush.deform_target));
       break;
     case BRUSH_BOUNDARY_DEFORM_SMOOTH:
-      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
-        for (const int i : range) {
-          brush_smooth_task(ob, brush, nodes[i]);
-        }
-      });
+      do_smooth_brush(sd,
+                      ob,
+                      nodes,
+                      *ss.cache->boundaries[symm_area],
+                      strength,
+                      eBrushDeformTarget(brush.deform_target));
+      break;
+    default:
+      BLI_assert_unreachable();
       break;
   }
 }

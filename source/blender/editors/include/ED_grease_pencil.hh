@@ -109,6 +109,10 @@ class DrawingPlacement {
                    const View3D &view3d,
                    const Object &eval_object,
                    const bke::greasepencil::Layer *layer);
+  DrawingPlacement(const DrawingPlacement &other);
+  DrawingPlacement(DrawingPlacement &&other);
+  DrawingPlacement &operator=(const DrawingPlacement &other);
+  DrawingPlacement &operator=(DrawingPlacement &&other);
   ~DrawingPlacement();
 
  public:
@@ -317,6 +321,16 @@ IndexMask retrieve_visible_strokes(Object &grease_pencil_object,
 IndexMask retrieve_visible_points(Object &object,
                                   const bke::greasepencil::Drawing &drawing,
                                   IndexMaskMemory &memory);
+
+IndexMask retrieve_visible_bezier_handle_points(Object &object,
+                                                const bke::greasepencil::Drawing &drawing,
+                                                int layer_index,
+                                                IndexMaskMemory &memory);
+IndexMask retrieve_visible_bezier_handle_elements(Object &object,
+                                                  const bke::greasepencil::Drawing &drawing,
+                                                  int layer_index,
+                                                  bke::AttrDomain selection_domain,
+                                                  IndexMaskMemory &memory);
 
 IndexMask retrieve_editable_and_selected_strokes(Object &grease_pencil_object,
                                                  const bke::greasepencil::Drawing &drawing,

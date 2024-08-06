@@ -73,6 +73,7 @@ class ShapeCache {
 
  public:
   BatchPtr quad_wire;
+  BatchPtr quad_solid;
   BatchPtr plain_axes;
   BatchPtr single_arrow;
   BatchPtr cube;
@@ -109,6 +110,10 @@ class ShapeCache {
   BatchPtr light_area_square_lines;
   BatchPtr light_spot_volume;
 
+  BatchPtr lightprobe_cube;
+  BatchPtr lightprobe_planar;
+  BatchPtr lightprobe_grid;
+
   ShapeCache();
 };
 
@@ -142,6 +147,7 @@ class ShaderModule {
   /** Selectable Shaders */
   ShaderPtr armature_sphere_outline;
   ShaderPtr depth_mesh;
+  ShaderPtr extra_grid;
   ShaderPtr extra_shape;
   ShaderPtr extra_wire_object;
   ShaderPtr extra_wire;
@@ -339,9 +345,7 @@ struct LineInstanceBuf : private select::SelectBuf {
     this->select_bind(pass);
     data_buf.push_update();
     pass.bind_ssbo("data_buf", &data_buf);
-    if (color_id) {
-      pass.push_constant("colorid", color_id);
-    }
+    pass.push_constant("colorid", color_id);
     pass.draw_procedural(GPU_PRIM_LINES, 1, data_buf.size());
   }
 };

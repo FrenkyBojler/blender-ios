@@ -321,20 +321,6 @@ struct SculptVertexInfo {
   blender::BitVector<> boundary;
 };
 
-#define BOUNDARY_VERTEX_NONE -1
-#define BOUNDARY_STEPS_NONE -1
-
-struct SculptBoundaryEditInfo {
-  /* Vertex index from where the topology propagation reached this vertex. */
-  int original_vertex_i = BOUNDARY_VERTEX_NONE;
-
-  /* How many steps were needed to reach this vertex from the boundary. */
-  int propagation_steps_num = BOUNDARY_STEPS_NONE;
-
-  /* Strength that is used to deform this vertex. */
-  float strength_factor = 0.0f;
-};
-
 /* Data used for displaying extra visuals while using the Boundary brush. */
 struct SculptBoundaryPreview {
   blender::Vector<std::pair<blender::float3, blender::float3>> edges;
@@ -372,7 +358,16 @@ struct SculptBoundary {
 
   /* Indexed by vertex index, contains the topology information needed for boundary deformations.
    */
-  blender::Array<SculptBoundaryEditInfo> edit_info;
+  struct {
+    /* Vertex index from where the topology propagation reached this vertex. */
+    blender::Array<int> original_vertex_i;
+
+    /* How many steps were needed to reach this vertex from the boundary. */
+    blender::Array<int> propagation_steps_num;
+
+    /* Strength that is used to deform this vertex. */
+    blender::Array<float> strength_factor;
+  } edit_info;
 
   /* Bend Deform type. */
   struct {
@@ -477,11 +472,17 @@ struct SculptAttributePointers {
   SculptAttribute *automasking_stroke_id = nullptr;
   SculptAttribute *automasking_cavity = nullptr;
 
-  SculptAttribute *topology_island_key = nullptr; /* CD_PROP_INT8 */
-
   /* BMesh */
   SculptAttribute *dyntopo_node_id_vertex = nullptr;
   SculptAttribute *dyntopo_node_id_face = nullptr;
+};
+
+struct SculptTopologyIslandCache {
+  /**
+   * An ID for the island containing each geometry vertex. Will be empty if there is only a single
+   * island.
+   */
+  blender::Array<uint8_t> vert_island_ids;
 };
 
 struct SculptSession : blender::NonCopyable, blender::NonMovable {
@@ -662,7 +663,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   int last_automasking_settings_hash = 0;
   uchar last_automask_stroke_id = 0;
-  bool islands_valid = false; /* Is attrs.topology_island_key valid? */
+  std::unique_ptr<SculptTopologyIslandCache> topology_island_cache;
 
   SculptSession();
   ~SculptSession();

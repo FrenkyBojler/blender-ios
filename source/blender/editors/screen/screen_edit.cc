@@ -1035,6 +1035,10 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
     screen->active_region = nullptr;
   }
 
+  if (region_prev != screen->active_region || !screen->active_region) {
+    WM_window_status_area_tag_redraw(win);
+  }
+
   /* Check for redraw headers. */
   if (region_prev != screen->active_region) {
 
@@ -1214,7 +1218,7 @@ static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 static void screen_global_statusbar_area_refresh(wmWindow *win, bScreen *screen)
 {
   const short size_min = 1;
-  const short size_max = 0.8f * screen_global_header_size();
+  const short size_max = 0.85f * screen_global_header_size();
   const short size = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? size_min : size_max;
   rcti rect;
 
