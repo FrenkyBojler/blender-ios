@@ -169,8 +169,6 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
   cycles_property_float_set(cycles_cam, "fisheye_polynomial_k4", cam->fisheye_polynomial_k4);
   /* Fisheye624 */
   cycles_property_float_set(cycles_cam, "fisheye624_f", cam->fisheye624_f);
-  cycles_property_float_set(cycles_cam, "fisheye624_cx", cam->fisheye624_cx);
-  cycles_property_float_set(cycles_cam, "fisheye624_cy", cam->fisheye624_cy);
   cycles_property_float_set(cycles_cam, "fisheye624_k0", cam->fisheye624_k0);
   cycles_property_float_set(cycles_cam, "fisheye624_k1", cam->fisheye624_k1);
   cycles_property_float_set(cycles_cam, "fisheye624_k2", cam->fisheye624_k2);

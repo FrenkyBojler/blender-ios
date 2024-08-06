@@ -117,8 +117,6 @@ NODE_DEFINE(Camera)
 
   // default fisheye624 distortions (from real-world Aria HMD)
   SOCKET_FLOAT(fisheye624_f, "Focal Length", 240.96908202503016128f);
-  SOCKET_FLOAT(fisheye624_cx, "Principal Point x", 319.30031322283957707f);
-  SOCKET_FLOAT(fisheye624_cy, "Principal Point y", 239.70226462142591117f);
   SOCKET_FLOAT(fisheye624_k0, "1. Radial Distortion Coefficient", -0.00029975978022917562074f);
   SOCKET_FLOAT(fisheye624_k1, "2. Radial Distortion Coefficient", 0.025925353248573888842f);
   SOCKET_FLOAT(fisheye624_k2, "3. Radial Distortion Coefficient", 0.0049689703789174387294f);
@@ -454,8 +452,8 @@ void Camera::update(Scene *scene)
 
   /* pack 15 floats into a dense array */
   float params[15] = {fisheye624_f,
-                      fisheye624_cx,
-                      fisheye624_cy,
+                      0.0f,
+                      0.0f,
                       fisheye624_k0,
                       fisheye624_k1,
                       fisheye624_k2,

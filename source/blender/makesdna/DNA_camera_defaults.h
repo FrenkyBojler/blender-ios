@@ -61,8 +61,6 @@
     .central_cylindrical_radius = 1.0f,\
     /* Default Aria SLAM camera projection calibration */ \
     .fisheye624_f =  240.96908202503016128f,\
-    .fisheye624_cx = 319.30031322283957707f,\
-    .fisheye624_cy = 239.70226462142591117f,\
     .fisheye624_k0 = -0.00029975978022917562074f,\
     .fisheye624_k1 = 0.025925353248573888842f,\
     .fisheye624_k2 = 0.0049689703789174387294f,\

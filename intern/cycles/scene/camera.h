@@ -94,8 +94,6 @@ class Camera : public Node {
 
   /* fisheye624 radial/tangential/prismatic distortion model parameters */
   NODE_SOCKET_API(float, fisheye624_f)
-  NODE_SOCKET_API(float, fisheye624_cx)
-  NODE_SOCKET_API(float, fisheye624_cy)
   NODE_SOCKET_API(float, fisheye624_k0)
   NODE_SOCKET_API(float, fisheye624_k1)
   NODE_SOCKET_API(float, fisheye624_k2)

@@ -111,8 +111,6 @@ typedef struct Camera {
 
   // fisheye624 distortions
   float fisheye624_f;
-  float fisheye624_cx;
-  float fisheye624_cy;
   float fisheye624_k0;
   float fisheye624_k1;
   float fisheye624_k2;

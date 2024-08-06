@@ -72,8 +72,6 @@ struct BlenderCamera {
 
   // fisheye624 distortions
   float fisheye624_f;
-  float fisheye624_cx;
-  float fisheye624_cy;
   float fisheye624_k0;
   float fisheye624_k1;
   float fisheye624_k2;
@@ -267,8 +265,6 @@ static void blender_camera_from_object(BlenderCamera *bcam,
 
     // fisheye624 distortions
     bcam->fisheye624_f = b_camera.fisheye624_f();
-    bcam->fisheye624_cx = b_camera.fisheye624_cx();
-    bcam->fisheye624_cy = b_camera.fisheye624_cy();
     bcam->fisheye624_k0 = b_camera.fisheye624_k0();
     bcam->fisheye624_k1 = b_camera.fisheye624_k1();
     bcam->fisheye624_k2 = b_camera.fisheye624_k2();
@@ -567,8 +563,6 @@ static void blender_camera_sync(Camera *cam,
 
   /* fisheye624 params */
   cam->set_fisheye624_f(bcam->fisheye624_f);
-  cam->set_fisheye624_cx(bcam->fisheye624_cx);
-  cam->set_fisheye624_cy(bcam->fisheye624_cy);
   cam->set_fisheye624_k0(bcam->fisheye624_k0);
   cam->set_fisheye624_k1(bcam->fisheye624_k1);
   cam->set_fisheye624_k2(bcam->fisheye624_k2);

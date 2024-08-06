@@ -973,16 +973,6 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Focal Length", "Focal Length");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
-  prop = RNA_def_property(srna, "fisheye624_cx", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Principal Point cx", "Principal point in width.");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
-
-  prop = RNA_def_property(srna, "fisheye624_cy", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Principal Point cy", "Principal point in height.");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
-
   prop = RNA_def_property(srna, "fisheye624_k0", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
   RNA_def_property_ui_text(prop, "Radial Distortion k0", "1. Radial Disortion");
