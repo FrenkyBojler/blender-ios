@@ -96,18 +96,18 @@ class Camera : public Node {
   NODE_SOCKET_API(float, fisheye624_f)
   NODE_SOCKET_API(float, fisheye624_cx)
   NODE_SOCKET_API(float, fisheye624_cy)
-  NODE_SOCKET_API(float, fisheye624_k0);
-  NODE_SOCKET_API(float, fisheye624_k1);
-  NODE_SOCKET_API(float, fisheye624_k2);
-  NODE_SOCKET_API(float, fisheye624_k3);
-  NODE_SOCKET_API(float, fisheye624_k4);
-  NODE_SOCKET_API(float, fisheye624_k5);
-  NODE_SOCKET_API(float, fisheye624_p0);
-  NODE_SOCKET_API(float, fisheye624_p1);
-  NODE_SOCKET_API(float, fisheye624_s0);
-  NODE_SOCKET_API(float, fisheye624_s1);
-  NODE_SOCKET_API(float, fisheye624_s2);
-  NODE_SOCKET_API(float, fisheye624_s3);
+  NODE_SOCKET_API(float, fisheye624_k0)
+  NODE_SOCKET_API(float, fisheye624_k1)
+  NODE_SOCKET_API(float, fisheye624_k2)
+  NODE_SOCKET_API(float, fisheye624_k3)
+  NODE_SOCKET_API(float, fisheye624_k4)
+  NODE_SOCKET_API(float, fisheye624_k5)
+  NODE_SOCKET_API(float, fisheye624_p0)
+  NODE_SOCKET_API(float, fisheye624_p1)
+  NODE_SOCKET_API(float, fisheye624_s0)
+  NODE_SOCKET_API(float, fisheye624_s1)
+  NODE_SOCKET_API(float, fisheye624_s2)
+  NODE_SOCKET_API(float, fisheye624_s3)
 
   /* panorama stereo */
   NODE_SOCKET_API(StereoEye, stereo_eye)
