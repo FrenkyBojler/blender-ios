@@ -124,8 +124,6 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction(
   }
 
   T f = params[0];
-  T cx = params[1];
-  T cy = params[2];
   /* Principal point Y needs to be mirrored because this
    * projection assumes a +Z forward, +Y down and +X right convention.
    */
@@ -133,8 +131,8 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction(
 
   // get uvDistorted:
   Mat_2x1 uvDistorted;
-  uvDistorted.data[0] = (T(u * width) - cx) / f;
-  uvDistorted.data[1] = (T(v * height) - cy) / f;
+  uvDistorted.data[0] = T((u - 0.5f) * width) / f;
+  uvDistorted.data[1] = T((v - 0.5f) * height) / f;
 
   // initial guess
   Mat_2x1 xr_yr;
