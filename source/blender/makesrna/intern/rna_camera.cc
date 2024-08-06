@@ -643,7 +643,7 @@ void RNA_def_camera(BlenderRNA *brna)
        0,
        "Fisheye 624 Camera Projection Model",
        "Lens projection model of popular real-world HMDs (Quest, Aria, etc.)"},
-        {0, nullptr, 0, nullptr, nullptr},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   srna = RNA_def_struct(brna, "Camera", "ID");

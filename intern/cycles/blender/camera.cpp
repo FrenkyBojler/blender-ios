@@ -205,8 +205,8 @@ static PanoramaType blender_panorama_type_to_cycles(const BL::Camera::panorama_t
       return PANORAMA_FISHEYE_LENS_POLYNOMIAL;
     case BL::Camera::panorama_type_CENTRAL_CYLINDRICAL:
       return PANORAMA_CENTRAL_CYLINDRICAL;
-  case BL::Camera::panorama_type_FISHEYE_624:
-    return PANORAMA_FISHEYE_624;
+    case BL::Camera::panorama_type_FISHEYE_624:
+      return PANORAMA_FISHEYE_624;
   }
   /* Could happen if loading a newer file that has an unsupported type. */
   return PANORAMA_FISHEYE_EQUISOLID;
