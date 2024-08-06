@@ -160,6 +160,11 @@ void NodeType::register_input(ustring name,
   socket.enum_values = enum_values;
   socket.node_type = node_type;
   socket.flags = flags | extra_flags;
+#if 1
+  // This block is a hacky work-around and should be replaced by the else-block
+  // as soon as the underlying issue is fixed.
+  // Discussion:
+  // https://projects.blender.org/blender/blender/pulls/124365/files#issuecomment-1250041
   if (!(inputs.size() < std::numeric_limits<SocketModifiedFlags>::digits)) {
     printf("inputs.size: %zu\n", inputs.size());
     printf("std::numeric_limits<SocketModifiedFlags>::digits: %d\n",
@@ -169,8 +174,13 @@ void NodeType::register_input(ustring name,
   // assert(inputs.size() < std::numeric_limits<SocketModifiedFlags>::digits);
   if (inputs.size() < std::numeric_limits<SocketModifiedFlags>::digits) {
     socket.modified_flag_bit = (1ull << inputs.size());
-    inputs.push_back(socket);
   }
+  inputs.push_back(socket);
+#else
+  assert(inputs.size() < std::numeric_limits<SocketModifiedFlags>::digits);
+  socket.modified_flag_bit = (1ull << inputs.size());
+  inputs.push_back(socket);
+#endif
 }
 
 void NodeType::register_output(ustring name, ustring ui_name, SocketType::Type type)
