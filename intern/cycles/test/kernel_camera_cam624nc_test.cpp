@@ -903,6 +903,29 @@ enum BaseProjectionType {
   BASE_PROJECTION_NUM_TYPES,
 };
 
+std::ostream &operator<<(std::ostream &out, BaseProjectionType const type)
+{
+  switch (type) {
+    case RECTILINEAR:
+      out << "RECTILINEAR";
+      return out;
+    case EQUIDISTANT:
+      out << "EQUIDISTANT";
+      return out;
+    case STEREOGRAPHIC:
+      out << "STEREOGRAPHIC";
+      return out;
+    case EQUISOLID:
+      out << "EQUISOLID";
+      return out;
+    case FISHEYE_ORTHOGRAPHIC:
+      out << "FISHEYE_ORTHOGRAPHIC";
+      return out;
+  }
+  out << "UNKNOWN";
+  return out;
+}
+
 ccl_device_inline float invert_projection_type(BaseProjectionType const type, float const theta)
 {
   switch (type) {
