@@ -1052,6 +1052,27 @@ ccl_device_inline float4 cam624nc_to_direction(float const u,
   return {theta_c, -phi_c * theta_s, phi_s * theta_s, theta};
 }
 
+ccl_device_inline float2 direction_to_cam624nc(float4 const dir,
+                                               float const width,
+                                               float const height,
+                                               float const fov,
+                                               float const focal,
+                                               BaseProjectionType const proj_type,
+                                               float const *const radial,
+                                               float2 const tangential,
+                                               float4 const thin_prism)
+{
+  float const theta = -safe_acosf(dir.x);
+
+  float const radius = apply_projection_type(proj_type, radial_forward(theta, radial));
+
+  float2 point = radius * safe_normalize(make_float2(dir.y, dir.z));
+
+  point = focal * tangential_thinprism_forward(point, tangential, thin_prism);
+
+  return {0.5f + point.x / width, 0.5f - point.y / height};
+}
+
 TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
 {
   const float fov = M_PI_F;
@@ -1060,6 +1081,9 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
   float max_error_y = 0.0f;
   float max_error_z = 0.0f;
   float max_error_theta = 0.0f;
+
+  float max_error_sensor_x = 0.0f;
+  float max_error_sensor_y = 0.0f;
 
   const std::pair<float2, float4> tests[]{
       /* Center (0°) */
@@ -1093,7 +1117,7 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
       {make_float2(-rad30, 0.0f), make_float4(cos30, +sin30, 0.0f, rad30)},
   };
 
-  for (auto [offset, direction] : tests) {
+  for (auto [offset, expected] : tests) {
     const float2 sensor = offset + make_float2(0.5f, 0.5f);
     for (float const scale : {1.0f, 0.5f, 2.0f, 0.25f, 4.0f, 0.125f, 8.0f, 0.0625f, 16.0f}) {
       const float width = 1.0f / scale;
@@ -1113,39 +1137,39 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
                                                     zero_float2(),
                                                     zero_float4());
 
-      max_error_x = std::max(max_error_x, std::abs(direction.x - computed.x));
-      EXPECT_NEAR(direction.x, computed.x, 6e-8f)
+      max_error_x = std::max(max_error_x, std::abs(expected.x - computed.x));
+      EXPECT_NEAR(expected.x, computed.x, 6e-8f)
           << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
           << "scale: " << scale << std::endl
           << "computed: " << computed << std::endl
-          << "expected: " << direction << std::endl;
-      max_error_y = std::max(max_error_y, std::abs(direction.y - computed.y));
-      EXPECT_NEAR(direction.y, computed.y, 6e-8f)
+          << "expected: " << expected << std::endl;
+      max_error_y = std::max(max_error_y, std::abs(expected.y - computed.y));
+      EXPECT_NEAR(expected.y, computed.y, 6e-8f)
           << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
           << "scale: " << scale << std::endl
           << "computed: " << computed << std::endl
-          << "expected: " << direction << std::endl;
-      max_error_z = std::max(max_error_z, std::abs(direction.z - computed.z));
-      EXPECT_NEAR(direction.z, computed.z, 6e-8f)
+          << "expected: " << expected << std::endl;
+      max_error_z = std::max(max_error_z, std::abs(expected.z - computed.z));
+      EXPECT_NEAR(expected.z, computed.z, 6e-8f)
           << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
           << "scale: " << scale << std::endl
           << "computed: " << computed << std::endl
-          << "expected: " << direction << std::endl;
-      max_error_theta = std::max(max_error_theta, std::abs(direction.w - computed.w));
-      EXPECT_NEAR(direction.w, computed.w, 2e-7f)
+          << "expected: " << expected << std::endl;
+      max_error_theta = std::max(max_error_theta, std::abs(expected.w - computed.w));
+      EXPECT_NEAR(expected.w, computed.w, 2e-7f)
           << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
           << "scale: " << scale << std::endl
           << "computed: " << computed << std::endl
-          << "expected: " << direction << std::endl;
+          << "expected: " << expected << std::endl;
 
-      // Verify that cam624nc_to_direction returns all zeroes if the point is outside
+      // Verify that cam624nc_to_expected returns all zeroes if the point is outside
       // the configured field of view.
 
       const float4 computed_outside_fov = cam624nc_to_direction(sensor.x,
                                                                 sensor.y,
                                                                 width,
                                                                 height,
-                                                                direction.w - 1e-6,
+                                                                expected.w - 1e-6,
                                                                 focal,
                                                                 EQUIDISTANT,
                                                                 radial,
@@ -1173,13 +1197,20 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
           << "computed: " << computed << std::endl
           << "expected: " << zero_float4() << std::endl;
 
-      /*
-      const float2 reprojected = direction_to_fisheye_lens_polynomial(
-            direction, k0, k_equidistant, width, height);
+      // Check round-trip consistency
 
-      EXPECT_NEAR(sensor.x, reprojected.x, 1e-6) << "scale: " << scale;
-      EXPECT_NEAR(sensor.y, reprojected.y, 1e-6) << "scale: " << scale;
-      */
+      const float2 round_trip = direction_to_cam624nc(
+          expected, width, height, fov, focal, EQUIDISTANT, radial, zero_float2(), zero_float4());
+
+      max_error_sensor_x = std::max(max_error_sensor_x, std::abs(round_trip.x - sensor.x));
+      EXPECT_NEAR(round_trip.x, sensor.x, 2e-7f) << "sensor: " << sensor << std::endl
+                                                 << "scale: " << scale << std::endl
+                                                 << "round_trip: " << round_trip << std::endl;
+
+      max_error_sensor_y = std::max(max_error_sensor_y, std::abs(round_trip.y - sensor.y));
+      EXPECT_NEAR(round_trip.y, sensor.y, 2e-7f) << "sensor: " << sensor << std::endl
+                                                 << "scale: " << scale << std::endl
+                                                 << "round_trip: " << round_trip << std::endl;
     }
   }
 
@@ -1188,6 +1219,9 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
     std::cout << "Maximum error in y: " << max_error_y << std::endl;
     std::cout << "Maximum error in z: " << max_error_z << std::endl;
     std::cout << "Maximum error in theta: " << max_error_theta << std::endl;
+
+    std::cout << "Maximum error in sensor_x: " << max_error_sensor_x << std::endl;
+    std::cout << "Maximum error in sensor_y: " << max_error_sensor_y << std::endl;
   }
 }
 
