@@ -666,7 +666,10 @@ float deg2rad(float angle)
  * @param fov_deg
  * @param prefix
  */
-void test_radial_solver(float const *const radial, float const fov_deg, std::string const &prefix, float const error_threshold)
+void test_radial_solver(float const *const radial,
+                        float const fov_deg,
+                        std::string const &prefix,
+                        float const error_threshold)
 {
   size_t const num_samples = 1'000;
   MaxError error;
@@ -1022,7 +1025,11 @@ ccl_device_inline float2 direction_to_cam624nc(float4 const dir,
 
   float2 point = radius * safe_normalize(make_float2(dir.y, dir.z));
 
+  // Due to different coordinate system conventions, the y-component must be mirrored before and
+  // after solving tangential + thin-prism
+  point.y *= -1.0f;
   point = focal * tangential_thinprism_forward(point, tangential, thin_prism);
+  point.y *= -1.0f;
 
   return {0.5f + point.x / width, 0.5f - point.y / height};
 }
@@ -1179,25 +1186,6 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
   }
 }
 
-float cos_multiple_90(size_t const idx)
-{
-  switch (idx % 4) {
-    case 0:
-      return 1.0f;
-    case 1:
-      return 0.0f;
-    case 2:
-      return -1.0f;
-    case 3:
-      return 0.0f;
-  }
-}
-
-float sin_multiple_90(size_t const idx)
-{
-  return cos_multiple_90(idx + 3);
-}
-
 /**
  * @brief test_cam624nc_roundtrip tests the correctness of cam624nc_to_direction using a given
  * set of distortion parameters. It has assertions for the difference between
@@ -1229,12 +1217,9 @@ void test_cam624nc_roundtrip(float const *const radial,
   MaxError error_sensor_y;
   for (size_t ii = 0; ii <= num_samples; ++ii) {
     float const theta = deg2rad(ii * 0.5f * fov_deg / num_samples);
-    // float const phi = rng.nextf() * 2.0f * M_PI_F;
-    float const phi = float(ii % 4) * M_PI_2_F;
-    float const cos_phi = cos_multiple_90(ii);
-    float const sin_phi = sin_multiple_90(ii);
-    ASSERT_EQ(cos_phi * sin_phi, 0.0f);
-    ASSERT_EQ(fabsf(cos_phi) + fabsf(sin_phi), 1.0f);
+    float const phi = rng.nextf() * 2.0f * M_PI_F;
+    float const cos_phi = cosf(phi);
+    float const sin_phi = sinf(phi);
     float4 const expected_dir{cosf(theta), -cos_phi * sinf(theta), sin_phi * sinf(theta), theta};
     float2 const sensor = direction_to_cam624nc(
         expected_dir, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
@@ -1331,7 +1316,8 @@ void test_cam624nc_roundtrip(float const *const radial,
   EXPECT_LT(mean_error, 2e-8) << prefix;
 
   if (::testing::Test::HasFailure()) {
-    std::cout << "Maximum error in x for " << prefix << ": " << error_x.max << std::endl;
+    std::cout << "Maximum error stats for " << prefix << std::endl;
+    std::cout << "Maximum error in x " << prefix << ": " << error_x.max << std::endl;
     std::cout << "Maximum error in y for " << prefix << ": " << error_y.max << std::endl;
     std::cout << "Maximum error in z for " << prefix << ": " << error_z.max << std::endl;
     std::cout << "Maximum error in theta for " << prefix << ": " << error_theta.max << std::endl;
@@ -1351,32 +1337,46 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
   float const zero_radial[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
   test_cam624nc_roundtrip(zero_radial,
+                          {2e-4, 0.0f},
+                          zero_float4(),
+                          180.0f,
+                          "zero radial, zero thin_prism, normal tangential_x",
+                          2e-7);
+
+  test_cam624nc_roundtrip(zero_radial,
+                          {0.0f, 2e-4f},
+                          zero_float4(),
+                          180.0f,
+                          "zero radial, zero thin_prism, normal tangential_y",
+                          3e-7);
+
+  test_cam624nc_roundtrip(zero_radial,
                           p,
                           zero_float4(),
                           180.0f,
                           "zero radial, zero thin_prism, normal tangential",
-                          5e-5);
+                          2e-7);
 
-  return;
   test_cam624nc_roundtrip(zero_radial,
                           10.0f * p,
                           zero_float4(),
                           180.0f,
                           "zero radial, zero thin_prism, exaggerated tangential",
-                          1e-10);
+                          2e-7);
 
   test_cam624nc_roundtrip(zero_radial,
                           zero_float2(),
                           s,
                           180.0f,
                           "zero radial, zero tangential, normal thin-prism",
-                          1e-10);
+                          2e-7);
+
   test_cam624nc_roundtrip(zero_radial,
                           zero_float2(),
                           10.0f * s,
                           180.0f,
                           "zero radial, zero tangential, exaggerated thin-prism",
-                          1e-10);
+                          3e-7);
 
   {
     // Testcase from a real calib of a lens which is very non-equidistant:
@@ -1387,7 +1387,7 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
                      -3.8781789116892440e-03f,
                      5.6914433571826422e-04f};
 
-    test_cam624nc_roundtrip(k, p, s, 165.0f, "non-equidistant", 3e-3);
+    test_cam624nc_roundtrip(k, p, s, 165.0f, "non-equidistant", 4e-7);
   }
 
   {
@@ -1399,7 +1399,7 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
                      -1.2505361069399053e-03f,
                      1.6815868507166388e-04f};
 
-    test_cam624nc_roundtrip(k, p, s, 170.0f, "almost-equidistant", 4e-3);
+    test_cam624nc_roundtrip(k, p, s, 170.0f, "almost-equidistant", 2e-7);
   }
 
   {
@@ -1411,7 +1411,7 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
                      -6.2508654084092763e-01,
                      1.4034706020688248e-01};
 
-    test_cam624nc_roundtrip(k, p, s, 122.0f, "orthographic", 3e-4);
+    test_cam624nc_roundtrip(k, p, s, 122.0f, "orthographic", 3e-7);
   }
 }
 
