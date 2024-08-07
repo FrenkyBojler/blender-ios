@@ -662,7 +662,7 @@ float deg2rad(float angle)
  * @param fov_deg
  * @param prefix
  */
-void test_radial_solver(float const *const radial, float const fov_deg, std::string const &prefix)
+void test_radial_solver(float const *const radial, float const fov_deg, std::string const &prefix, float const error_threshold)
 {
   size_t const num_samples = 1'000;
   MaxError error;
@@ -670,7 +670,7 @@ void test_radial_solver(float const *const radial, float const fov_deg, std::str
     double const angle_rad = deg2rad(ii * 0.5f * fov_deg / num_samples);
     double const angle_tgt = radial_forward(angle_rad, radial);
     double const solution = solve_radial(angle_tgt, radial);
-    EXPECT_NEAR(solution, angle_rad, 4e-7) << prefix;
+    EXPECT_NEAR(solution, angle_rad, error_threshold) << prefix;
     error.push(solution, angle_rad);
   }
   EXPECT_LT(error.mean(), 2e-8) << prefix;
@@ -684,6 +684,12 @@ void test_radial_solver(float const *const radial, float const fov_deg, std::str
 TEST(KernelCamera, Cam624nc_radial)
 {
   {
+    // Trivial case with all distortion coefficients zero:
+    float const k[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+    test_radial_solver(k, 355.0f, "perfect-equidistant", 1e-15);
+  }
+  {
     // Testcase from a real calib of a lens which is very non-equidistant:
     float const k[]{-6.3212689067106823e-02f,
                     1.0783254109563612e-02f,
@@ -692,7 +698,7 @@ TEST(KernelCamera, Cam624nc_radial)
                     -3.8781789116892440e-03f,
                     5.6914433571826422e-04f};
 
-    test_radial_solver(k, 165.0f, "non-equidistant");
+    test_radial_solver(k, 165.0f, "non-equidistant", 4e-7);
   }
 
   {
@@ -704,7 +710,7 @@ TEST(KernelCamera, Cam624nc_radial)
                     -1.2505361069399053e-03f,
                     1.6815868507166388e-04f};
 
-    test_radial_solver(k, 170.0f, "almost-equidistant");
+    test_radial_solver(k, 170.0f, "almost-equidistant", 4e-7);
   }
 
   {
@@ -716,7 +722,7 @@ TEST(KernelCamera, Cam624nc_radial)
                     -6.2508654084092763e-01,
                     1.4034706020688248e-01};
 
-    test_radial_solver(k, 122.0f, "orthographic");
+    test_radial_solver(k, 122.0f, "orthographic", 4e-7);
   }
 }
 
