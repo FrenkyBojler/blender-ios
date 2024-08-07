@@ -17,8 +17,8 @@
 
 CCL_NAMESPACE_BEGIN
 
-template<class VEC>
-bool near_vec(VEC const a, VEC const b, double const thresh) {
+template<class VEC> bool near_vec(VEC const a, VEC const b, double const thresh)
+{
   return len(a - b) < thresh;
 }
 
@@ -61,7 +61,8 @@ struct MaxError {
     push(std::abs(a - b));
   }
 
-  double mean() const {
+  double mean() const
+  {
     return sum / count;
   }
 };
@@ -626,9 +627,12 @@ void test_tangential_thinprism_solver(float2 const tangential,
   }
 
   if (testing::Test::HasFailure()) {
-    std::cout << "Maximum error in x for tangential_thinprism_forward " << prefix << ": " << error_x.max << std::endl;
-    std::cout << "Maximum error in y for tangential_thinprism_forward " << prefix << ": " << error_y.max << std::endl;
-    std::cout << "Maximum error in length for tangential_thinprism_forward " << prefix << ": " << error_length.max << std::endl;
+    std::cout << "Maximum error in x for tangential_thinprism_forward " << prefix << ": "
+              << error_x.max << std::endl;
+    std::cout << "Maximum error in y for tangential_thinprism_forward " << prefix << ": "
+              << error_y.max << std::endl;
+    std::cout << "Maximum error in length for tangential_thinprism_forward " << prefix << ": "
+              << error_length.max << std::endl;
   }
 }
 
@@ -672,7 +676,8 @@ void test_radial_solver(float const *const radial, float const fov_deg, std::str
   EXPECT_LT(error.mean(), 2e-8) << prefix;
 
   if (::testing::Test::HasFailure()) {
-    std::cout << "Maximum and mean error for radial solver with " << prefix << ": " << error.max << ", " << error.mean() << std::endl;
+    std::cout << "Maximum and mean error for radial solver with " << prefix << ": " << error.max
+              << ", " << error.mean() << std::endl;
   }
 }
 
@@ -1162,16 +1167,22 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
   }
 }
 
-float cos_multiple_90(size_t const idx) {
+float cos_multiple_90(size_t const idx)
+{
   switch (idx % 4) {
-  case 0: return 1.0f;
-  case 1: return 0.0f;
-  case 2: return -1.0f;
-  case 3: return 0.0f;
+    case 0:
+      return 1.0f;
+    case 1:
+      return 0.0f;
+    case 2:
+      return -1.0f;
+    case 3:
+      return 0.0f;
   }
 }
 
-float sin_multiple_90(size_t const idx) {
+float sin_multiple_90(size_t const idx)
+{
   return cos_multiple_90(idx + 3);
 }
 
@@ -1206,14 +1217,13 @@ void test_cam624nc_roundtrip(float const *const radial,
   MaxError error_sensor_y;
   for (size_t ii = 0; ii <= num_samples; ++ii) {
     float const theta = deg2rad(ii * 0.5f * fov_deg / num_samples);
-    //float const phi = rng.nextf() * 2.0f * M_PI_F;
+    // float const phi = rng.nextf() * 2.0f * M_PI_F;
     float const phi = float(ii % 4) * M_PI_2_F;
     float const cos_phi = cos_multiple_90(ii);
     float const sin_phi = sin_multiple_90(ii);
     ASSERT_EQ(cos_phi * sin_phi, 0.0f);
     ASSERT_EQ(fabsf(cos_phi) + fabsf(sin_phi), 1.0f);
-    float4 const expected_dir{
-        cosf(theta), -cos_phi * sinf(theta), sin_phi * sinf(theta), theta};
+    float4 const expected_dir{cosf(theta), -cos_phi * sinf(theta), sin_phi * sinf(theta), theta};
     float2 const sensor = direction_to_cam624nc(
         expected_dir, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
     float4 const recomputed_dir = cam624nc_to_direction(sensor.x,
@@ -1304,7 +1314,6 @@ void test_cam624nc_roundtrip(float const *const radial,
         << "fov: " << fov << std::endl
         << "focal: " << focal << std::endl
         << "prefix: " << prefix << std::endl;
-
   }
   double const mean_error = error_sum / num_samples;
   EXPECT_LT(mean_error, 2e-8) << prefix;
@@ -1314,8 +1323,10 @@ void test_cam624nc_roundtrip(float const *const radial,
     std::cout << "Maximum error in y for " << prefix << ": " << error_y.max << std::endl;
     std::cout << "Maximum error in z for " << prefix << ": " << error_z.max << std::endl;
     std::cout << "Maximum error in theta for " << prefix << ": " << error_theta.max << std::endl;
-    std::cout << "Maximum error in sensor_x for " << prefix << ": " << error_sensor_x.max << std::endl;
-    std::cout << "Maximum error in sensor_y for " << prefix << ": " << error_sensor_y.max << std::endl;
+    std::cout << "Maximum error in sensor_x for " << prefix << ": " << error_sensor_x.max
+              << std::endl;
+    std::cout << "Maximum error in sensor_y for " << prefix << ": " << error_sensor_y.max
+              << std::endl;
   }
 }
 
@@ -1327,23 +1338,42 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
 
   float const zero_radial[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
-  test_cam624nc_roundtrip(zero_radial, p, zero_float4(), 180.0f, "zero radial, zero thin_prism, normal tangential", 5e-5);
+  test_cam624nc_roundtrip(zero_radial,
+                          p,
+                          zero_float4(),
+                          180.0f,
+                          "zero radial, zero thin_prism, normal tangential",
+                          5e-5);
 
   return;
-  test_cam624nc_roundtrip(zero_radial, 10.0f * p, zero_float4(), 180.0f, "zero radial, zero thin_prism, exaggerated tangential", 1e-10);
+  test_cam624nc_roundtrip(zero_radial,
+                          10.0f * p,
+                          zero_float4(),
+                          180.0f,
+                          "zero radial, zero thin_prism, exaggerated tangential",
+                          1e-10);
 
-  test_cam624nc_roundtrip(zero_radial, zero_float2(), s, 180.0f, "zero radial, zero tangential, normal thin-prism", 1e-10);
-  test_cam624nc_roundtrip(zero_radial, zero_float2(), 10.0f * s, 180.0f, "zero radial, zero tangential, exaggerated thin-prism", 1e-10);
-
+  test_cam624nc_roundtrip(zero_radial,
+                          zero_float2(),
+                          s,
+                          180.0f,
+                          "zero radial, zero tangential, normal thin-prism",
+                          1e-10);
+  test_cam624nc_roundtrip(zero_radial,
+                          zero_float2(),
+                          10.0f * s,
+                          180.0f,
+                          "zero radial, zero tangential, exaggerated thin-prism",
+                          1e-10);
 
   {
     // Testcase from a real calib of a lens which is very non-equidistant:
     float const k[6]{-6.3212689067106823e-02f,
-                    1.0783254109563612e-02f,
-                    -1.5666209452467651e-02f,
-                    1.0487251796288639e-02f,
-                    -3.8781789116892440e-03f,
-                    5.6914433571826422e-04f};
+                     1.0783254109563612e-02f,
+                     -1.5666209452467651e-02f,
+                     1.0487251796288639e-02f,
+                     -3.8781789116892440e-03f,
+                     5.6914433571826422e-04f};
 
     test_cam624nc_roundtrip(k, p, s, 165.0f, "non-equidistant", 3e-3);
   }
@@ -1351,11 +1381,11 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
   {
     // Testcase from a real calib of a lens which is almost equidistant.
     float const k[6]{6.8925238237090430e-03f,
-                    4.9065099682158737e-03f,
-                    -5.6645010933102091e-03f,
-                    3.5255596948621580e-03f,
-                    -1.2505361069399053e-03f,
-                    1.6815868507166388e-04f};
+                     4.9065099682158737e-03f,
+                     -5.6645010933102091e-03f,
+                     3.5255596948621580e-03f,
+                     -1.2505361069399053e-03f,
+                     1.6815868507166388e-04f};
 
     test_cam624nc_roundtrip(k, p, s, 170.0f, "almost-equidistant", 4e-3);
   }
@@ -1363,11 +1393,11 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
   {
     // Testcase from a real calib of some roughly "orthographic fisheye" lens.
     float const k[6]{-2.7071250929750468e-01,
-                    5.1892349368743274e-01,
-                    -1.0625944626790622e+00,
-                    1.1393696445669612e+00,
-                    -6.2508654084092763e-01,
-                    1.4034706020688248e-01};
+                     5.1892349368743274e-01,
+                     -1.0625944626790622e+00,
+                     1.1393696445669612e+00,
+                     -6.2508654084092763e-01,
+                     1.4034706020688248e-01};
 
     test_cam624nc_roundtrip(k, p, s, 122.0f, "orthographic", 3e-4);
   }
