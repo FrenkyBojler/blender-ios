@@ -17,6 +17,21 @@
 
 CCL_NAMESPACE_BEGIN
 
+const float rad60 = M_PI_F / 3.0f;
+const float cos60 = 0.5f;
+const float sin60 = M_SQRT3_F / 2.0f;
+const float tan60 = M_SQRT3_F;
+
+const float rad30 = M_PI_F / 6.0f;
+const float cos30 = M_SQRT3_F / 2.0f;
+const float sin30 = 0.5f;
+const float tan30 = M_SQRT3_F / 3.0f;
+
+const float rad45 = M_PI_4F;
+const float cos45 = M_SQRT1_2F;
+const float sin45 = M_SQRT1_2F;
+const float tan45 = 1.0f;
+
 //*
 ccl_device_inline std::ostream &operator<<(std::ostream &out, const float4 val)
 {
@@ -950,11 +965,29 @@ TEST(KernelCamera, Cam624nc_apply_projection_type_roundtrip)
   int const num_tests = 1'000;
   float const error_threshold = 5e-7;
 
+  // Manual tests with special values
+  EXPECT_NEAR(apply_projection_type(RECTILINEAR, rad30), tan30, error_threshold);
+  EXPECT_NEAR(apply_projection_type(EQUIDISTANT, 1.0f), 1.0f, error_threshold);
+  EXPECT_NEAR(apply_projection_type(STEREOGRAPHIC, rad60), 2.0f * tan30, error_threshold);
+  EXPECT_NEAR(apply_projection_type(EQUISOLID, rad60), 2.0f * sin30, error_threshold);
+  EXPECT_NEAR(apply_projection_type(FISHEYE_ORTHOGRAPHIC, rad30), sin30, error_threshold);
+
+  EXPECT_NEAR(invert_projection_type(RECTILINEAR, tan30), rad30, error_threshold);
+  EXPECT_NEAR(invert_projection_type(EQUIDISTANT, 1.0f), 1.0f, error_threshold);
+  EXPECT_NEAR(invert_projection_type(STEREOGRAPHIC, 2.0f * tan30), rad60, error_threshold);
+  EXPECT_NEAR(invert_projection_type(EQUISOLID, 2.0f * sin30), rad60, error_threshold);
+  EXPECT_NEAR(invert_projection_type(FISHEYE_ORTHOGRAPHIC, sin30), rad30, error_threshold);
+
   float max_error = 0;
 
   for (BaseProjectionType const proj_type :
        {RECTILINEAR, EQUIDISTANT, STEREOGRAPHIC, EQUISOLID, FISHEYE_ORTHOGRAPHIC})
   {
+    // Center gets mapped to center no matter the projection type
+    EXPECT_NEAR(apply_projection_type(proj_type, 0.0f), 0.0f, 1e-10);
+    EXPECT_NEAR(invert_projection_type(proj_type, 0.0f), 0.0f, 1e-10);
+
+    // Round-trip consistency test
     float const fov_deg = get_fov_deg_from_proj_type(proj_type) / 2;
     float const fov_rad = deg2rad(fov_deg);
     for (size_t ii = 0; ii <= num_tests; ++ii) {
@@ -1011,18 +1044,6 @@ ccl_device_inline float4 cam624nc_to_direction(float const u,
 TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
 {
   const float fov = M_PI_F;
-
-  const float rad60 = M_PI_F / 3.0f;
-  const float cos60 = 0.5f;
-  const float sin60 = M_SQRT3_F / 2.0f;
-
-  const float rad30 = M_PI_F / 6.0f;
-  const float cos30 = M_SQRT3_F / 2.0f;
-  const float sin30 = 0.5f;
-
-  const float rad45 = M_PI_4F;
-  const float cos45 = M_SQRT1_2F;
-  const float sin45 = M_SQRT1_2F;
 
   float max_error_x = 0.0f;
   float max_error_y = 0.0f;
