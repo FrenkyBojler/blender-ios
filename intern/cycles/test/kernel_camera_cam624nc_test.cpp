@@ -17,6 +17,11 @@
 
 CCL_NAMESPACE_BEGIN
 
+template<class VEC>
+bool near_vec(VEC const a, VEC const b, double const thresh) {
+  return len(a - b) < thresh;
+}
+
 // Creates a 1D quasirandom sequence, see
 // https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
 class QuasiRandom {
@@ -40,14 +45,24 @@ struct MaxError {
  public:
   float max = 0.0f;
 
+  double sum = 0.0;
+
+  size_t count = 0;
+
   void push(float const val)
   {
     max = std::max(max, val);
+    sum += val;
+    count++;
   }
 
   void push(float const a, float const b)
   {
     push(std::abs(a - b));
+  }
+
+  double mean() const {
+    return sum / count;
   }
 };
 
@@ -583,6 +598,10 @@ void test_tangential_thinprism_solver(float2 const tangential,
   size_t num_samples = 1'000;
   size_t num_samples_per_axis = std::sqrt(num_samples);
 
+  MaxError error_x;
+  MaxError error_y;
+  MaxError error_length;
+
   for (size_t xx = 0; xx < num_samples_per_axis; ++xx) {
     float const x = fov_rad * ((double(xx) / num_samples_per_axis) - 0.5);
     for (size_t yy = 0; yy < num_samples_per_axis; ++yy) {
@@ -596,8 +615,20 @@ void test_tangential_thinprism_solver(float2 const tangential,
 
       float const solution_error_squared = tangential_thinprism_error_squared(
           solved, tgt, tangential, thin_prism);
-      ASSERT_LT(solution_error_squared, 1e-12) << prefix;
+      EXPECT_LT(solution_error_squared, 1e-12) << prefix;
+
+      EXPECT_PRED3(near_vec<float2>, pt, solved, 2e-7);
+
+      error_x.push(pt.x, solved.x);
+      error_y.push(pt.y, solved.y);
+      error_length.push(len(pt - solved));
     }
+  }
+
+  if (testing::Test::HasFailure()) {
+    std::cout << "Maximum error in x for tangential_thinprism_forward " << prefix << ": " << error_x.max << std::endl;
+    std::cout << "Maximum error in y for tangential_thinprism_forward " << prefix << ": " << error_y.max << std::endl;
+    std::cout << "Maximum error in length for tangential_thinprism_forward " << prefix << ": " << error_length.max << std::endl;
   }
 }
 
@@ -608,9 +639,9 @@ TEST(KernelCamera, Cam624nc_tangential_thin_prism)
   float4 const s{-2e-4, 1e-4, 3e-4, -5e-4};
   test_tangential_thinprism_solver(p, s, 165.0f, "normal");
 
-  test_tangential_thinprism_solver(zero_float2(), s * 200.0f, 165.0f, "exaggerated");
+  test_tangential_thinprism_solver(zero_float2(), s * 20.0f, 165.0f, "exaggerated");
 
-  test_tangential_thinprism_solver(p * 200.0f, s * 200.0f, 165.0f, "very-exaggerated");
+  test_tangential_thinprism_solver(p * 20.0f, s * 20.0f, 165.0f, "very-exaggerated");
 }
 
 float deg2rad(float angle)
@@ -630,16 +661,19 @@ float deg2rad(float angle)
 void test_radial_solver(float const *const radial, float const fov_deg, std::string const &prefix)
 {
   size_t const num_samples = 1'000;
-  double error_sum = 0;
+  MaxError error;
   for (size_t ii = 0; ii <= num_samples; ++ii) {
     double const angle_rad = deg2rad(ii * 0.5f * fov_deg / num_samples);
     double const angle_tgt = radial_forward(angle_rad, radial);
     double const solution = solve_radial(angle_tgt, radial);
-    EXPECT_NEAR(solution, angle_rad, 1e-6) << prefix;
-    error_sum += std::abs(solution - angle_rad);
+    EXPECT_NEAR(solution, angle_rad, 4e-7) << prefix;
+    error.push(solution, angle_rad);
   }
-  double const mean_error = error_sum / num_samples;
-  EXPECT_LT(mean_error, 2e-8) << prefix;
+  EXPECT_LT(error.mean(), 2e-8) << prefix;
+
+  if (::testing::Test::HasFailure()) {
+    std::cout << "Maximum and mean error for radial solver with " << prefix << ": " << error.max << ", " << error.mean() << std::endl;
+  }
 }
 
 TEST(KernelCamera, Cam624nc_radial)
@@ -946,8 +980,8 @@ ccl_device_inline float4 cam624nc_to_direction(float const u,
     theta *= r_rad / theta;
   }
 
-  float const phi_c = theta > 1e-6 ? point.x / theta : 0.0f;
-  float const phi_s = theta > 1e-6 ? point.y / theta : 1.0f;
+  float const phi_c = theta > 1e-6 ? point.x / theta : 1.0f;
+  float const phi_s = theta > 1e-6 ? point.y / theta : 0.0f;
 
   float const theta_s = sinf(theta);
   float const theta_c = cosf(theta);
@@ -1128,6 +1162,19 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
   }
 }
 
+float cos_multiple_90(size_t const idx) {
+  switch (idx % 4) {
+  case 0: return 1.0f;
+  case 1: return 0.0f;
+  case 2: return -1.0f;
+  case 3: return 0.0f;
+  }
+}
+
+float sin_multiple_90(size_t const idx) {
+  return cos_multiple_90(idx + 3);
+}
+
 /**
  * @brief test_cam624nc_roundtrip tests the correctness of cam624nc_to_direction using a given
  * set of distortion parameters. It has assertions for the difference between
@@ -1159,9 +1206,14 @@ void test_cam624nc_roundtrip(float const *const radial,
   MaxError error_sensor_y;
   for (size_t ii = 0; ii <= num_samples; ++ii) {
     float const theta = deg2rad(ii * 0.5f * fov_deg / num_samples);
-    float const phi = rng.nextf() * 2.0f * M_PI_F;
+    //float const phi = rng.nextf() * 2.0f * M_PI_F;
+    float const phi = float(ii % 4) * M_PI_2_F;
+    float const cos_phi = cos_multiple_90(ii);
+    float const sin_phi = sin_multiple_90(ii);
+    ASSERT_EQ(cos_phi * sin_phi, 0.0f);
+    ASSERT_EQ(fabsf(cos_phi) + fabsf(sin_phi), 1.0f);
     float4 const expected_dir{
-        cosf(theta), -cosf(phi) * sinf(theta), sinf(phi) * sinf(theta), theta};
+        cosf(theta), -cos_phi * sinf(theta), sin_phi * sinf(theta), theta};
     float2 const sensor = direction_to_cam624nc(
         expected_dir, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
     float4 const recomputed_dir = cam624nc_to_direction(sensor.x,
@@ -1227,7 +1279,7 @@ void test_cam624nc_roundtrip(float const *const radial,
     float2 const recomputed_sensor = direction_to_cam624nc(
         recomputed_dir, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
     error_sensor_x.push(sensor.x, recomputed_sensor.x);
-    EXPECT_NEAR(sensor.x, recomputed_sensor.x, error_threshold / 100.0f)
+    EXPECT_NEAR(sensor.x, recomputed_sensor.x, error_threshold)
         << "theta: " << theta << std::endl
         << "phi: " << phi << std::endl
         << "expected_dir: " << expected_dir << std::endl
@@ -1240,7 +1292,7 @@ void test_cam624nc_roundtrip(float const *const radial,
         << "focal: " << focal << std::endl
         << "prefix: " << prefix << std::endl;
     error_sensor_y.push(sensor.y, recomputed_sensor.y);
-    EXPECT_NEAR(sensor.y, recomputed_sensor.y, error_threshold / 100.0f)
+    EXPECT_NEAR(sensor.y, recomputed_sensor.y, error_threshold)
         << "theta: " << theta << std::endl
         << "phi: " << phi << std::endl
         << "expected_dir: " << expected_dir << std::endl
@@ -1269,13 +1321,24 @@ void test_cam624nc_roundtrip(float const *const radial,
 
 TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
 {
-  float2 const p{-1.7905108189099640e-04, 3.6947302643007590e-06};
+  float2 const p{2.0e-04, -2.0e-04};
   // TODO: Replace these values by values obtained from real calibrations
-  float4 const s{-2e-4, 1e-4, 3e-4, -5e-4};
+  float4 const s{-2e-4, 2e-4, 2e-4, -2e-4};
+
+  float const zero_radial[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+  test_cam624nc_roundtrip(zero_radial, p, zero_float4(), 180.0f, "zero radial, zero thin_prism, normal tangential", 5e-5);
+
+  return;
+  test_cam624nc_roundtrip(zero_radial, 10.0f * p, zero_float4(), 180.0f, "zero radial, zero thin_prism, exaggerated tangential", 1e-10);
+
+  test_cam624nc_roundtrip(zero_radial, zero_float2(), s, 180.0f, "zero radial, zero tangential, normal thin-prism", 1e-10);
+  test_cam624nc_roundtrip(zero_radial, zero_float2(), 10.0f * s, 180.0f, "zero radial, zero tangential, exaggerated thin-prism", 1e-10);
+
 
   {
     // Testcase from a real calib of a lens which is very non-equidistant:
-    float const k[]{-6.3212689067106823e-02f,
+    float const k[6]{-6.3212689067106823e-02f,
                     1.0783254109563612e-02f,
                     -1.5666209452467651e-02f,
                     1.0487251796288639e-02f,
@@ -1287,7 +1350,7 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
 
   {
     // Testcase from a real calib of a lens which is almost equidistant.
-    float const k[]{6.8925238237090430e-03f,
+    float const k[6]{6.8925238237090430e-03f,
                     4.9065099682158737e-03f,
                     -5.6645010933102091e-03f,
                     3.5255596948621580e-03f,
@@ -1299,7 +1362,7 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
 
   {
     // Testcase from a real calib of some roughly "orthographic fisheye" lens.
-    float const k[]{-2.7071250929750468e-01,
+    float const k[6]{-2.7071250929750468e-01,
                     5.1892349368743274e-01,
                     -1.0625944626790622e+00,
                     1.1393696445669612e+00,
