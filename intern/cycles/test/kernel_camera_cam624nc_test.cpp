@@ -17,6 +17,40 @@
 
 CCL_NAMESPACE_BEGIN
 
+// Creates a 1D quasirandom sequence, see
+// https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+class QuasiRandom {
+  double const offset = 2.0 / (std::sqrt(5.0) + 1.0);
+  double value = 0.5;
+
+ public:
+  double next()
+  {
+    value = std::fmod(value + offset, 1.0);
+    return value;
+  }
+
+  float nextf()
+  {
+    return float(next());
+  }
+};
+
+struct MaxError {
+ public:
+  float max = 0.0f;
+
+  void push(float const val)
+  {
+    max = std::max(max, val);
+  }
+
+  void push(float const a, float const b)
+  {
+    push(std::abs(a - b));
+  }
+};
+
 const float rad60 = M_PI_F / 3.0f;
 const float cos60 = 0.5f;
 const float sin60 = M_SQRT3_F / 2.0f;
@@ -715,8 +749,8 @@ float deg2rad(float angle)
 /**
  * @brief test_radial_solver tests the correctness of solve_radial using a given
  * set of radial distortion parameters. It has assertions for the difference between
- * the original angle and the solution found by solve_radial and plots the errors
- * and number of iterations needed.
+ * the original angle and the solution found by solve_radial.
+ *
  * @param _k
  * @param fov_deg
  * @param prefix
@@ -842,8 +876,7 @@ TEST(KernelCamera, Cam624nc_noncentrality)
   int const num_angles = 1000;
   float const max_angle_rad = M_PI_F;
 
-  float const quasirandom_offset = 2.0f / (sqrtf(5.0f) + 1.0f);
-  float quasirandom = 0.5;
+  QuasiRandom rng;
   float max_error = 0;
 
   float3 all_params[] = {
@@ -863,7 +896,7 @@ TEST(KernelCamera, Cam624nc_noncentrality)
   for (float3 const params : all_params) {
     for (int ii = 0; ii < num_angles; ++ii) {
       float const theta = (float(ii) * max_angle_rad) / num_angles;
-      float const phi = quasirandom * 2.0f * M_PI_F;
+      float const phi = rng.nextf() * 2.0f * M_PI_F;
       float const z_offset = angle_to_noncentrality(theta, params);
       float3 const direction{cosf(phi) * sinf(theta), sinf(phi) * sinf(theta), cosf(theta)};
       float3 const origin{0.0f, 0.0f, z_offset};
@@ -884,8 +917,6 @@ TEST(KernelCamera, Cam624nc_noncentrality)
           << "recovered_z_offset: " << recovered_z_offset << std::endl;
 
       max_error = std::max(max_error, std::abs(z_offset - recovered_z_offset));
-
-      quasirandom = std::fmod(quasirandom + quasirandom_offset, 1.0f);
     }
   }
 
@@ -1222,6 +1253,188 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
 
     std::cout << "Maximum error in sensor_x: " << max_error_sensor_x << std::endl;
     std::cout << "Maximum error in sensor_y: " << max_error_sensor_y << std::endl;
+  }
+}
+
+/**
+ * @brief test_cam624nc_roundtrip tests the correctness of cam624nc_to_direction using a given
+ * set of distortion parameters. It has assertions for the difference between
+ * the original angle and the solution found by cam624nc_to_direction.
+ *
+ * @param _k
+ * @param fov_deg
+ * @param prefix
+ */
+void test_cam624nc_roundtrip(float const *const radial,
+                             float2 const tangential,
+                             float4 const thin_prism,
+                             float const fov_deg,
+                             std::string const &prefix,
+                             float const error_threshold)
+{
+  float const width = 1.0f;
+  float const height = 1.0f;
+  float const focal = 1.0f;
+  float const fov = M_PI_F;
+  size_t const num_samples = 10;
+  double error_sum = 0;
+  QuasiRandom rng;
+  MaxError error_x;
+  MaxError error_y;
+  MaxError error_z;
+  MaxError error_theta;
+  MaxError error_sensor_x;
+  MaxError error_sensor_y;
+  for (size_t ii = 0; ii <= num_samples; ++ii) {
+    float const theta = deg2rad(ii * 0.5f * fov_deg / num_samples);
+    float const phi = rng.nextf() * 2.0f * M_PI_F;
+    float4 const expected_dir{
+        cosf(theta), -cosf(phi) * sinf(theta), sinf(phi) * sinf(theta), theta};
+    float2 const sensor = direction_to_cam624nc(
+        expected_dir, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
+    float4 const recomputed_dir = cam624nc_to_direction(sensor.x,
+                                                        sensor.y,
+                                                        width,
+                                                        height,
+                                                        fov,
+                                                        focal,
+                                                        EQUIDISTANT,
+                                                        radial,
+                                                        tangential,
+                                                        thin_prism);
+
+    error_x.push(expected_dir.x, recomputed_dir.x);
+    EXPECT_NEAR(expected_dir.x, recomputed_dir.x, error_threshold)
+        << "theta: " << theta << std::endl
+        << "phi: " << phi << std::endl
+        << "expected_dir: " << expected_dir << std::endl
+        << "sensor: " << sensor << std::endl
+        << "recomputed_dir: " << recomputed_dir << std::endl
+        << "width: " << width << std::endl
+        << "height: " << height << std::endl
+        << "fov: " << fov << std::endl
+        << "focal: " << focal << std::endl
+        << "prefix: " << prefix << std::endl;
+    error_y.push(expected_dir.y, recomputed_dir.y);
+    EXPECT_NEAR(expected_dir.y, recomputed_dir.y, error_threshold)
+        << "theta: " << theta << std::endl
+        << "phi: " << phi << std::endl
+        << "expected_dir: " << expected_dir << std::endl
+        << "sensor: " << sensor << std::endl
+        << "recomputed_dir: " << recomputed_dir << std::endl
+        << "width: " << width << std::endl
+        << "height: " << height << std::endl
+        << "fov: " << fov << std::endl
+        << "focal: " << focal << std::endl
+        << "prefix: " << prefix << std::endl;
+    error_z.push(expected_dir.z, recomputed_dir.z);
+    EXPECT_NEAR(expected_dir.z, recomputed_dir.z, error_threshold)
+        << "theta: " << theta << std::endl
+        << "phi: " << phi << std::endl
+        << "expected_dir: " << expected_dir << std::endl
+        << "sensor: " << sensor << std::endl
+        << "recomputed_dir: " << recomputed_dir << std::endl
+        << "width: " << width << std::endl
+        << "height: " << height << std::endl
+        << "fov: " << fov << std::endl
+        << "focal: " << focal << std::endl
+        << "prefix: " << prefix << std::endl;
+    error_theta.push(expected_dir.w, recomputed_dir.w);
+    EXPECT_NEAR(expected_dir.w, recomputed_dir.w, error_threshold)
+        << "theta: " << theta << std::endl
+        << "phi: " << phi << std::endl
+        << "expected_dir: " << expected_dir << std::endl
+        << "sensor: " << sensor << std::endl
+        << "recomputed_dir: " << recomputed_dir << std::endl
+        << "width: " << width << std::endl
+        << "height: " << height << std::endl
+        << "fov: " << fov << std::endl
+        << "focal: " << focal << std::endl
+        << "prefix: " << prefix << std::endl;
+
+    float2 const recomputed_sensor = direction_to_cam624nc(
+        recomputed_dir, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
+    error_sensor_x.push(sensor.x, recomputed_sensor.x);
+    EXPECT_NEAR(sensor.x, recomputed_sensor.x, error_threshold / 100.0f)
+        << "theta: " << theta << std::endl
+        << "phi: " << phi << std::endl
+        << "expected_dir: " << expected_dir << std::endl
+        << "recomputed_dir: " << recomputed_dir << std::endl
+        << "sensor: " << sensor << std::endl
+        << "recomputed_sensor: " << recomputed_sensor << std::endl
+        << "width: " << width << std::endl
+        << "height: " << height << std::endl
+        << "fov: " << fov << std::endl
+        << "focal: " << focal << std::endl
+        << "prefix: " << prefix << std::endl;
+    error_sensor_y.push(sensor.y, recomputed_sensor.y);
+    EXPECT_NEAR(sensor.y, recomputed_sensor.y, error_threshold / 100.0f)
+        << "theta: " << theta << std::endl
+        << "phi: " << phi << std::endl
+        << "expected_dir: " << expected_dir << std::endl
+        << "recomputed_dir: " << recomputed_dir << std::endl
+        << "sensor: " << sensor << std::endl
+        << "recomputed_sensor: " << recomputed_sensor << std::endl
+        << "width: " << width << std::endl
+        << "height: " << height << std::endl
+        << "fov: " << fov << std::endl
+        << "focal: " << focal << std::endl
+        << "prefix: " << prefix << std::endl;
+
+  }
+  double const mean_error = error_sum / num_samples;
+  EXPECT_LT(mean_error, 2e-8) << prefix;
+
+  if (::testing::Test::HasFailure()) {
+    std::cout << "Maximum error in x for " << prefix << ": " << error_x.max << std::endl;
+    std::cout << "Maximum error in y for " << prefix << ": " << error_y.max << std::endl;
+    std::cout << "Maximum error in z for " << prefix << ": " << error_z.max << std::endl;
+    std::cout << "Maximum error in theta for " << prefix << ": " << error_theta.max << std::endl;
+    std::cout << "Maximum error in sensor_x for " << prefix << ": " << error_sensor_x.max << std::endl;
+    std::cout << "Maximum error in sensor_y for " << prefix << ": " << error_sensor_y.max << std::endl;
+  }
+}
+
+TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
+{
+  float2 const p{-1.7905108189099640e-04, 3.6947302643007590e-06};
+  // TODO: Replace these values by values obtained from real calibrations
+  float4 const s{-2e-4, 1e-4, 3e-4, -5e-4};
+
+  {
+    // Testcase from a real calib of a lens which is very non-equidistant:
+    float const k[]{-6.3212689067106823e-02f,
+                    1.0783254109563612e-02f,
+                    -1.5666209452467651e-02f,
+                    1.0487251796288639e-02f,
+                    -3.8781789116892440e-03f,
+                    5.6914433571826422e-04f};
+
+    test_cam624nc_roundtrip(k, p, s, 165.0f, "non-equidistant", 3e-3);
+  }
+
+  {
+    // Testcase from a real calib of a lens which is almost equidistant.
+    float const k[]{6.8925238237090430e-03f,
+                    4.9065099682158737e-03f,
+                    -5.6645010933102091e-03f,
+                    3.5255596948621580e-03f,
+                    -1.2505361069399053e-03f,
+                    1.6815868507166388e-04f};
+
+    test_cam624nc_roundtrip(k, p, s, 170.0f, "almost-equidistant", 4e-3);
+  }
+
+  {
+    // Testcase from a real calib of some roughly "orthographic fisheye" lens.
+    float const k[]{-2.7071250929750468e-01,
+                    5.1892349368743274e-01,
+                    -1.0625944626790622e+00,
+                    1.1393696445669612e+00,
+                    -6.2508654084092763e-01,
+                    1.4034706020688248e-01};
+
+    test_cam624nc_roundtrip(k, p, s, 122.0f, "orthographic", 3e-4);
   }
 }
 
