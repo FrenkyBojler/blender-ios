@@ -325,18 +325,6 @@ ccl_device_inline float3 fisheye_radtanthinprism_to_direction_new(float u,
 
 TEST(KernelCamera, Cam624nc_simple)
 {
-  const float rad60 = M_PI_F / 3.0f;
-  const float cos60 = 0.5f;
-  const float sin60 = M_SQRT3_F / 2.0f;
-
-  const float rad30 = M_PI_F / 6.0f;
-  const float cos30 = M_SQRT3_F / 2.0f;
-  const float sin30 = 0.5f;
-
-  const float rad45 = M_PI_4F;
-  const float cos45 = M_SQRT1_2F;
-  const float sin45 = M_SQRT1_2F;
-
   const std::tuple<float2, float3, std::string> tests[]{
       /* Center (0°) */
       {make_float2(0.0f, 0.0f), make_float3(1.0f, 0.0f, 0.0f), "center"},
