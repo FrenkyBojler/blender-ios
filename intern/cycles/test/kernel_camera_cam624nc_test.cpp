@@ -1,7 +1,6 @@
 
-#include <iostream>
-
 #include <cmath>
+#include <iostream>
 
 #include "testing/testing.h"
 
@@ -19,6 +18,12 @@
 CCL_NAMESPACE_BEGIN
 
 //*
+ccl_device_inline std::ostream &operator<<(std::ostream &out, const float4 val)
+{
+  out << "(" << val.x << ", " << val.y << ", " << val.z << ", " << val.w << ")";
+  return out;
+}
+
 ccl_device_inline std::ostream &operator<<(std::ostream &out, const float3 val)
 {
   out << "(" << val.x << ", " << val.y << ", " << val.z << ")";
