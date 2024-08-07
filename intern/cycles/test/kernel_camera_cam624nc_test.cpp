@@ -593,7 +593,8 @@ ccl_device_inline float2 solve_tangential_thinprism(float2 const tgt,
 void test_tangential_thinprism_solver(float2 const tangential,
                                       float4 const thin_prism,
                                       float const fov_deg,
-                                      std::string const &prefix)
+                                      std::string const &prefix,
+                                      float const error_treshold)
 {
   float const fov_rad = fov_deg * M_PI_F / 180.0;
   size_t num_samples = 1'000;
@@ -618,7 +619,7 @@ void test_tangential_thinprism_solver(float2 const tangential,
           solved, tgt, tangential, thin_prism);
       EXPECT_LT(solution_error_squared, 1e-12) << prefix;
 
-      EXPECT_PRED3(near_vec<float2>, pt, solved, 2e-7);
+      EXPECT_PRED3(near_vec<float2>, pt, solved, error_treshold);
 
       error_x.push(pt.x, solved.x);
       error_y.push(pt.y, solved.y);
@@ -641,11 +642,14 @@ TEST(KernelCamera, Cam624nc_tangential_thin_prism)
   float2 const p{-1.7905108189099640e-04, 3.6947302643007590e-06};
   // TODO: Replace these values by values obtained from real calibrations
   float4 const s{-2e-4, 1e-4, 3e-4, -5e-4};
-  test_tangential_thinprism_solver(p, s, 165.0f, "normal");
 
-  test_tangential_thinprism_solver(zero_float2(), s * 20.0f, 165.0f, "exaggerated");
+  test_tangential_thinprism_solver(zero_float2(), zero_float4(), 355.0f, "all-zero", 1e-15);
 
-  test_tangential_thinprism_solver(p * 20.0f, s * 20.0f, 165.0f, "very-exaggerated");
+  test_tangential_thinprism_solver(p, s, 165.0f, "normal", 2e-7);
+
+  test_tangential_thinprism_solver(zero_float2(), s * 20.0f, 165.0f, "exaggerated", 2e-7);
+
+  test_tangential_thinprism_solver(p * 20.0f, s * 20.0f, 165.0f, "very-exaggerated", 2e-7);
 }
 
 float deg2rad(float angle)
@@ -687,6 +691,8 @@ TEST(KernelCamera, Cam624nc_radial)
     // Trivial case with all distortion coefficients zero:
     float const k[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
+    // solve_radial with all distortion coefficients zero is almost a no-op,
+    // therefore we use a very small error threshold.
     test_radial_solver(k, 355.0f, "perfect-equidistant", 1e-15);
   }
   {
