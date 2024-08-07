@@ -886,7 +886,277 @@ TEST(KernelCamera, Cam624nc_noncentrality)
     }
   }
 
-  // std::cout << "Maximum z-error: " << max_error << std::endl;
+  if (HasFailure()) {
+    std::cout << "Maximum z-error: " << max_error << std::endl;
+  }
+}
+
+enum BaseProjectionType {
+  RECTILINEAR = 0,
+  EQUIDISTANT = 1,
+  STEREOGRAPHIC = 2,
+  EQUISOLID = 3,
+  FISHEYE_ORTHOGRAPHIC = 4,
+  BASE_PROJECTION_NUM_TYPES,
+};
+
+ccl_device_inline float invert_projection_type(BaseProjectionType const type, float const theta)
+{
+  switch (type) {
+    case RECTILINEAR:
+      return atanf(theta);
+    case EQUIDISTANT:
+      return theta;
+    case STEREOGRAPHIC:
+      return 2.0f * atanf(theta / 2.0f);
+    case EQUISOLID:
+      return 2.0f * asinf(theta / 2.0f);
+    case FISHEYE_ORTHOGRAPHIC:
+      return asinf(theta);
+  }
+  return 0.0f;
+}
+
+ccl_device_inline float apply_projection_type(BaseProjectionType const type, float const theta)
+{
+  switch (type) {
+    case RECTILINEAR:
+      return tanf(theta);
+    case EQUIDISTANT:
+      return theta;
+    case STEREOGRAPHIC:
+      return 2.0 * tanf(theta / 2.0f);
+    case EQUISOLID:
+      return 2.0f * sinf(theta / 2.0f);
+    case FISHEYE_ORTHOGRAPHIC:
+      return sinf(theta);
+  }
+  return 0.0f;
+}
+
+float get_fov_deg_from_proj_type(BaseProjectionType const type)
+{
+  switch (type) {
+    case RECTILINEAR:
+      return 160;
+    case FISHEYE_ORTHOGRAPHIC:
+      return 165;
+  }
+  return 330;
+}
+
+TEST(KernelCamera, Cam624nc_apply_projection_type_roundtrip)
+{
+  int const num_tests = 1'000;
+  float const error_threshold = 5e-7;
+
+  float max_error = 0;
+
+  for (BaseProjectionType const proj_type :
+       {RECTILINEAR, EQUIDISTANT, STEREOGRAPHIC, EQUISOLID, FISHEYE_ORTHOGRAPHIC})
+  {
+    float const fov_deg = get_fov_deg_from_proj_type(proj_type) / 2;
+    float const fov_rad = deg2rad(fov_deg);
+    for (size_t ii = 0; ii <= num_tests; ++ii) {
+      float const angle_orig = (float(ii) * fov_rad) / num_tests;
+      float const applied = apply_projection_type(proj_type, angle_orig);
+      float const reversed = invert_projection_type(proj_type, applied);
+      EXPECT_NEAR(reversed, angle_orig, error_threshold)
+          << "Projection type: " << proj_type << std::endl;
+      max_error = std::max(max_error, std::abs(reversed - angle_orig));
+    }
+  }
+
+  if (HasFailure()) {
+    std::cout << "Maximum error: " << max_error << std::endl;
+  }
+}
+
+ccl_device_inline float4 cam624nc_to_direction(float const u,
+                                               float const v,
+                                               float const width,
+                                               float const height,
+                                               float const fov,
+                                               float const focal,
+                                               BaseProjectionType const proj_type,
+                                               float const *const radial,
+                                               float2 const tangential,
+                                               float4 const thin_prism)
+{
+  float2 point{(u - 0.5f) * width / focal, (v - 0.5f) * height / focal};
+
+  point = solve_tangential_thinprism(point, tangential, thin_prism);
+
+  float theta = len(point);
+
+  if (theta > fov) {
+    return zero_float4();
+  }
+
+  float const r_rad = solve_radial(invert_projection_type(proj_type, theta), radial);
+  if (r_rad > 1e-6 && theta > 1e-6) {
+    point *= r_rad / theta;
+    theta *= r_rad / theta;
+  }
+
+  float const phi_c = theta > 1e-6 ? point.x / theta : 0.0f;
+  float const phi_s = theta > 1e-6 ? point.y / theta : 1.0f;
+
+  float const theta_s = sinf(theta);
+  float const theta_c = cosf(theta);
+
+  return {theta_c, -phi_c * theta_s, phi_s * theta_s, theta};
+}
+
+TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
+{
+  const float fov = M_PI_F;
+
+  const float rad60 = M_PI_F / 3.0f;
+  const float cos60 = 0.5f;
+  const float sin60 = M_SQRT3_F / 2.0f;
+
+  const float rad30 = M_PI_F / 6.0f;
+  const float cos30 = M_SQRT3_F / 2.0f;
+  const float sin30 = 0.5f;
+
+  const float rad45 = M_PI_4F;
+  const float cos45 = M_SQRT1_2F;
+  const float sin45 = M_SQRT1_2F;
+
+  float max_error_x = 0.0f;
+  float max_error_y = 0.0f;
+  float max_error_z = 0.0f;
+  float max_error_theta = 0.0f;
+
+  const std::pair<float2, float4> tests[]{
+      /* Center (0°) */
+      {make_float2(0.0f, 0.0f), make_float4(1.0f, 0.0f, 0.0f, 0.0f)},
+
+      /* 60° */
+      {make_float2(0.0f, +rad60), make_float4(cos60, 0.0f, +sin60, rad60)},
+      {make_float2(0.0f, -rad60), make_float4(cos60, 0.0f, -sin60, rad60)},
+      {make_float2(+rad60, 0.0f), make_float4(cos60, -sin60, 0.0f, rad60)},
+      {make_float2(-rad60, 0.0f), make_float4(cos60, +sin60, 0.0f, rad60)},
+
+      /* 45° */
+      {make_float2(0.0f, +rad45), make_float4(cos45, 0.0f, +sin45, rad45)},
+      {make_float2(0.0f, -rad45), make_float4(cos45, 0.0f, -sin45, rad45)},
+      {make_float2(+rad45, 0.0f), make_float4(cos45, -sin45, 0.0f, rad45)},
+      {make_float2(-rad45, 0.0f), make_float4(cos45, +sin45, 0.0f, rad45)},
+
+      {make_float2(+rad45 * M_SQRT1_2F, +rad45 * M_SQRT1_2F),
+       make_float4(cos45, -0.5f, +0.5f, rad45)},
+      {make_float2(-rad45 * M_SQRT1_2F, +rad45 * M_SQRT1_2F),
+       make_float4(cos45, +0.5f, +0.5f, rad45)},
+      {make_float2(+rad45 * M_SQRT1_2F, -rad45 * M_SQRT1_2F),
+       make_float4(cos45, -0.5f, -0.5f, rad45)},
+      {make_float2(-rad45 * M_SQRT1_2F, -rad45 * M_SQRT1_2F),
+       make_float4(cos45, +0.5f, -0.5f, rad45)},
+
+      /* 30° */
+      {make_float2(0.0f, +rad30), make_float4(cos30, 0.0f, +sin30, rad30)},
+      {make_float2(0.0f, -rad30), make_float4(cos30, 0.0f, -sin30, rad30)},
+      {make_float2(+rad30, 0.0f), make_float4(cos30, -sin30, 0.0f, rad30)},
+      {make_float2(-rad30, 0.0f), make_float4(cos30, +sin30, 0.0f, rad30)},
+  };
+
+  for (auto [offset, direction] : tests) {
+    const float2 sensor = offset + make_float2(0.5f, 0.5f);
+    for (float const scale : {1.0f, 0.5f, 2.0f, 0.25f, 4.0f, 0.125f, 8.0f, 0.0625f, 16.0f}) {
+      const float width = 1.0f / scale;
+      const float height = 1.0f / scale;
+      float const focal = 1.0f / scale;
+      /* Trivial case: The coefficients create a perfect equidistant fisheye */
+      float const radial[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+      const float4 computed = cam624nc_to_direction(sensor.x,
+                                                    sensor.y,
+                                                    width,
+                                                    height,
+                                                    fov,
+                                                    focal,
+                                                    EQUIDISTANT,
+                                                    radial,
+                                                    zero_float2(),
+                                                    zero_float4());
+
+      max_error_x = std::max(max_error_x, std::abs(direction.x - computed.x));
+      EXPECT_NEAR(direction.x, computed.x, 6e-8f)
+          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << direction << std::endl;
+      max_error_y = std::max(max_error_y, std::abs(direction.y - computed.y));
+      EXPECT_NEAR(direction.y, computed.y, 6e-8f)
+          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << direction << std::endl;
+      max_error_z = std::max(max_error_z, std::abs(direction.z - computed.z));
+      EXPECT_NEAR(direction.z, computed.z, 6e-8f)
+          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << direction << std::endl;
+      max_error_theta = std::max(max_error_theta, std::abs(direction.w - computed.w));
+      EXPECT_NEAR(direction.w, computed.w, 2e-7f)
+          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << direction << std::endl;
+
+      // Verify that cam624nc_to_direction returns all zeroes if the point is outside
+      // the configured field of view.
+
+      const float4 computed_outside_fov = cam624nc_to_direction(sensor.x,
+                                                                sensor.y,
+                                                                width,
+                                                                height,
+                                                                direction.w - 1e-6,
+                                                                focal,
+                                                                EQUIDISTANT,
+                                                                radial,
+                                                                zero_float2(),
+                                                                zero_float4());
+
+      EXPECT_NEAR(computed_outside_fov.x, 0.0f, 1e-10f)
+          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << zero_float4() << std::endl;
+      EXPECT_NEAR(computed_outside_fov.y, 0.0f, 1e-10f)
+          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << zero_float4() << std::endl;
+      EXPECT_NEAR(computed_outside_fov.z, 0.0f, 1e-10f)
+          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << zero_float4() << std::endl;
+      EXPECT_NEAR(computed_outside_fov.w, 0.0f, 1e-10f)
+          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << zero_float4() << std::endl;
+
+      /*
+      const float2 reprojected = direction_to_fisheye_lens_polynomial(
+            direction, k0, k_equidistant, width, height);
+
+      EXPECT_NEAR(sensor.x, reprojected.x, 1e-6) << "scale: " << scale;
+      EXPECT_NEAR(sensor.y, reprojected.y, 1e-6) << "scale: " << scale;
+      */
+    }
+  }
+
+  if (HasFailure()) {
+    std::cout << "Maximum error in x: " << max_error_x << std::endl;
+    std::cout << "Maximum error in y: " << max_error_y << std::endl;
+    std::cout << "Maximum error in z: " << max_error_z << std::endl;
+    std::cout << "Maximum error in theta: " << max_error_theta << std::endl;
+  }
 }
 
 CCL_NAMESPACE_END
