@@ -5676,18 +5676,22 @@ bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
 
   return nullptr;
 }
-
-int ED_screen_animation_play(bContext *C, int sync, int mode)
+int ED_screen_animation_play_ex(Main *bmain,
+                                bScreen *screen,
+                                Scene *scene,
+                                Depsgraph *depsgraph,
+                                wmWindowManager *wm,
+                                wmWindow *win,
+                                ARegion *region,
+                                ScrArea *area,
+                                int sync_mode,
+                                int play_direction)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Main *bmain = DEG_get_bmain(depsgraph);
 
-  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+  if (ED_screen_animation_playing(wm)) {
     /* stop playback now */
-    ED_screen_animation_timer(C, 0, 0, 0);
+    ED_screen_animation_timer_stop(wm, win);
     ED_scene_fps_average_clear(scene);
     BKE_sound_stop_scene(scene_eval);
 
@@ -5696,43 +5700,52 @@ int ED_screen_animation_play(bContext *C, int sync, int mode)
 
     /* Triggers redraw of sequencer preview so that it does not show to fps anymore after stopping
      * playback. */
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SEQUENCER, scene);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SPREADSHEET, scene);
-    WM_event_add_notifier(C, NC_SCENE | ND_TRANSFORM, scene);
+    WM_event_add_notifier_ex(wm, win, NC_SPACE | ND_SPACE_SEQUENCER, scene);
+    WM_event_add_notifier_ex(wm, win, NC_SPACE | ND_SPACE_SPREADSHEET, scene);
+    WM_event_add_notifier_ex(wm, win, NC_SCENE | ND_TRANSFORM, scene);
   }
   else {
     BKE_callback_exec_id_depsgraph(
         bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_PRE);
 
     /* these settings are currently only available from a menu in the TimeLine */
-    if (mode == 1) { /* XXX only play audio forwards!? */
+    if (play_direction == 1) { /* XXX only play audio forwards!? */
       BKE_sound_play_scene(scene_eval);
     }
 
-    ED_screen_animation_timer(C, screen->redraws_flag, sync, mode);
+    ED_screen_animation_timer_ex(
+        screen, wm, win, scene, region, area, screen->redraws_flag, sync_mode, play_direction);
     ED_scene_fps_average_clear(scene);
-
-    if (screen->animtimer) {
-      wmTimer *wt = screen->animtimer;
-      ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
-
-      sad->region = CTX_wm_region(C);
-    }
   }
 
   return OPERATOR_FINISHED;
 }
 
+int ED_screen_animation_play(bContext *C, int sync_mode, int play_direction)
+{
+  Main *bmain = CTX_data_main(C);
+  bScreen *screen = CTX_wm_screen(C);
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
+
+  return ED_screen_animation_play_ex(
+      bmain, screen, scene, depsgraph, wm, win, region, area, sync_mode, play_direction);
+}
+
 static int screen_animation_play_exec(bContext *C, wmOperator *op)
 {
-  int mode = RNA_boolean_get(op->ptr, "reverse") ? -1 : 1;
-  int sync = -1;
+  int play_direction = RNA_boolean_get(op->ptr, "reverse") ? -1 : 1;
+  int sync_mode = -1;
 
   if (RNA_struct_property_is_set(op->ptr, "sync")) {
-    sync = RNA_boolean_get(op->ptr, "sync");
+    sync_mode = RNA_boolean_get(op->ptr, "sync");
   }
 
-  return ED_screen_animation_play(C, sync, mode);
+  return ED_screen_animation_play(C, sync_mode, play_direction);
 }
 
 static void SCREEN_OT_animation_play(wmOperatorType *ot)

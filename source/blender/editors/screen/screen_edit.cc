@@ -1776,12 +1776,8 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
   return area;
 }
 
-void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
+void ED_screen_animation_timer_stop(wmWindowManager *wm, wmWindow *win)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = CTX_data_scene(C);
   bScreen *stopscreen = ED_screen_animation_playing(wm);
 
   if (stopscreen) {
@@ -1789,13 +1785,42 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
     stopscreen->animtimer = nullptr;
   }
 
-  if (enable) {
+  /* Notifier caught by top header, for button. */
+  WM_event_add_notifier_ex(wm, win, NC_SCREEN | ND_ANIMPLAY, nullptr);
+}
+
+void ED_screen_animation_timer(bContext *C, int redraws, int sync_mode, int play_direction)
+{
+  bScreen *screen = CTX_wm_screen(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
+  ED_screen_animation_timer_ex(
+      screen, wm, win, scene, region, area, redraws, sync_mode, play_direction);
+}
+
+void ED_screen_animation_timer_ex(bScreen *screen,
+                                  wmWindowManager *wm,
+                                  wmWindow *win,
+                                  Scene *scene,
+                                  ARegion *region,
+                                  ScrArea *area,
+                                  int redraws,
+                                  int sync_mode,
+                                  int play_direction)
+{
+  /* Stop any other animation timers */
+  ED_screen_animation_timer_stop(wm, win);
+
+  if (play_direction) {
     ScreenAnimData *sad = static_cast<ScreenAnimData *>(
         MEM_callocN(sizeof(ScreenAnimData), "ScreenAnimData"));
 
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / FPS));
 
-    sad->region = CTX_wm_region(C);
+    sad->region = region;
     /* If start-frame is larger than current frame, we put current-frame on start-frame.
      * NOTE(ton): first frame then is not drawn! */
     if (PRVRANGEON) {
@@ -1817,10 +1842,10 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
       }
     }
     sad->redraws = redraws;
-    sad->flag |= (enable < 0) ? ANIMPLAY_FLAG_REVERSE : 0;
-    sad->flag |= (sync == 0) ? ANIMPLAY_FLAG_NO_SYNC : (sync == 1) ? ANIMPLAY_FLAG_SYNC : 0;
-
-    ScrArea *area = CTX_wm_area(C);
+    sad->flag |= (play_direction < 0) ? ANIMPLAY_FLAG_REVERSE : 0;
+    sad->flag |= (sync_mode == 0) ? ANIMPLAY_FLAG_NO_SYNC :
+                 (sync_mode == 1) ? ANIMPLAY_FLAG_SYNC :
+                                    0;
 
     char spacetype = -1;
 
@@ -1834,7 +1859,7 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
   }
 
   /* Notifier caught by top header, for button. */
-  WM_event_add_notifier(C, NC_SCREEN | ND_ANIMPLAY, nullptr);
+  WM_event_add_notifier_ex(wm, win, NC_SCREEN | ND_ANIMPLAY, nullptr);
 }
 
 /* helper for screen_animation_play() - only to be used for TimeLine */
