@@ -165,13 +165,8 @@ int SCULPT_vertex_count_get(const SculptSession &ss)
 const float *SCULPT_vertex_co_get(const SculptSession &ss, PBVHVertRef vertex)
 {
   switch (ss.pbvh->type()) {
-    case blender::bke::pbvh::Type::Mesh: {
-      if (ss.shapekey_active || ss.deform_modifiers_active) {
-        const Span<float3> positions = BKE_pbvh_get_vert_positions(*ss.pbvh);
-        return positions[vertex.i];
-      }
-      return ss.vert_positions[vertex.i];
-    }
+    case blender::bke::pbvh::Type::Mesh:
+      return BKE_pbvh_get_vert_positions(*ss.pbvh)[vertex.i];
     case blender::bke::pbvh::Type::BMesh:
       return ((BMVert *)vertex.i)->co;
     case blender::bke::pbvh::Type::Grids: {
@@ -208,68 +203,22 @@ const blender::float3 SCULPT_vertex_normal_get(const SculptSession &ss, PBVHVert
   return {};
 }
 
-const float *SCULPT_vertex_co_for_grab_active_get(const SculptSession &ss, PBVHVertRef vertex)
+namespace blender::ed::sculpt_paint {
+
+Span<float3> vert_positions_for_grab_active_get(const Object &object)
 {
-  if (ss.pbvh->type() == blender::bke::pbvh::Type::Mesh) {
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(ss.pbvh->type() == bke::pbvh::Type::Mesh);
+  if (ss.shapekey_active) {
     /* Always grab active shape key if the sculpt happens on shapekey. */
-    if (ss.shapekey_active) {
-      const Span<float3> positions = BKE_pbvh_get_vert_positions(*ss.pbvh);
-      return positions[vertex.i];
-    }
-
-    /* Sculpting on the base mesh. */
-    return ss.vert_positions[vertex.i];
+    return BKE_pbvh_get_vert_positions(*ss.pbvh);
   }
-
-  /* Everything else, such as sculpting on multires. */
-  return SCULPT_vertex_co_get(ss, vertex);
+  /* Otherwise use the base mesh positions. */
+  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  return mesh.vert_positions();
 }
 
-PBVHVertRef SCULPT_active_vertex_get(const SculptSession &ss)
-{
-  if (ELEM(ss.pbvh->type(),
-           blender::bke::pbvh::Type::Mesh,
-           blender::bke::pbvh::Type::BMesh,
-           blender::bke::pbvh::Type::Grids))
-  {
-    return ss.active_vertex;
-  }
-
-  return BKE_pbvh_make_vref(PBVH_REF_NONE);
-}
-
-const float *SCULPT_active_vertex_co_get(const SculptSession &ss)
-{
-  return SCULPT_vertex_co_get(ss, SCULPT_active_vertex_get(ss));
-}
-
-MutableSpan<float3> SCULPT_mesh_deformed_positions_get(SculptSession &ss)
-{
-  switch (ss.pbvh->type()) {
-    case blender::bke::pbvh::Type::Mesh:
-      if (ss.shapekey_active || ss.deform_modifiers_active) {
-        return BKE_pbvh_get_vert_positions(*ss.pbvh);
-      }
-      return ss.vert_positions;
-    case blender::bke::pbvh::Type::BMesh:
-    case blender::bke::pbvh::Type::Grids:
-      return {};
-  }
-  return {};
-}
-
-float *SCULPT_brush_deform_target_vertex_co_get(SculptSession &ss,
-                                                const int deform_target,
-                                                PBVHVertexIter *iter)
-{
-  switch (deform_target) {
-    case BRUSH_DEFORM_TARGET_GEOMETRY:
-      return iter->co;
-    case BRUSH_DEFORM_TARGET_CLOTH_SIM:
-      return ss.cache->cloth_sim->deformation_pos[iter->index];
-  }
-  return iter->co;
-}
+}  // namespace blender::ed::sculpt_paint
 
 ePaintSymmetryFlags SCULPT_mesh_symmetry_xyz_get(const Object &object)
 {
@@ -1233,20 +1182,6 @@ static bool sculpt_tool_needs_original(const char sculpt_tool)
               SCULPT_TOOL_POSE);
 }
 
-static bool sculpt_tool_is_proxy_used(const char sculpt_tool)
-{
-  return ELEM(sculpt_tool,
-              SCULPT_TOOL_SMOOTH,
-              SCULPT_TOOL_LAYER,
-              SCULPT_TOOL_POSE,
-              SCULPT_TOOL_DISPLACEMENT_SMEAR,
-              SCULPT_TOOL_BOUNDARY,
-              SCULPT_TOOL_CLOTH,
-              SCULPT_TOOL_PAINT,
-              SCULPT_TOOL_SMEAR,
-              SCULPT_TOOL_DRAW_FACE_SETS);
-}
-
 static bool sculpt_brush_use_topology_rake(const SculptSession &ss, const Brush &brush)
 {
   return SCULPT_TOOL_HAS_TOPOLOGY_RAKE(brush.sculpt_tool) && (brush.topology_rake_factor > 0.0f) &&
@@ -1813,54 +1748,6 @@ bool SCULPT_brush_test_circle_sq(SculptBrushTest &test, const float co[3])
   return true;
 }
 
-bool SCULPT_brush_test_cube(SculptBrushTest &test,
-                            const float co[3],
-                            const float local[4][4],
-                            const float roundness,
-                            const float /*tip_scale_x*/)
-{
-  float side = 1.0f;
-  float local_co[3];
-
-  if (sculpt_brush_test_clipping(test, co)) {
-    return false;
-  }
-
-  mul_v3_m4v3(local_co, local, co);
-
-  local_co[0] = fabsf(local_co[0]);
-  local_co[1] = fabsf(local_co[1]);
-  local_co[2] = fabsf(local_co[2]);
-
-  /* Keep the square and circular brush tips the same size. */
-  side += (1.0f - side) * roundness;
-
-  const float hardness = 1.0f - roundness;
-  const float constant_side = hardness * side;
-  const float falloff_side = roundness * side;
-
-  if (!(local_co[0] <= side && local_co[1] <= side && local_co[2] <= side)) {
-    /* Outside the square. */
-    return false;
-  }
-  if (min_ff(local_co[0], local_co[1]) > constant_side) {
-    /* Corner, distance to the center of the corner circle. */
-    float r_point[3];
-    copy_v3_fl(r_point, constant_side);
-    test.dist = len_v2v2(r_point, local_co) / falloff_side;
-    return true;
-  }
-  if (max_ff(local_co[0], local_co[1]) > constant_side) {
-    /* Side, distance to the square XY axis. */
-    test.dist = (max_ff(local_co[0], local_co[1]) - constant_side) / falloff_side;
-    return true;
-  }
-
-  /* Inside the square, constant distance. */
-  test.dist = 0.0f;
-  return true;
-}
-
 SculptBrushTestFn SCULPT_brush_test_init_with_falloff_shape(const SculptSession &ss,
                                                             SculptBrushTest &test,
                                                             char falloff_shape)
@@ -1892,15 +1779,6 @@ const float *SCULPT_brush_frontface_normal_from_falloff_shape(const SculptSessio
   }
   BLI_assert(falloff_shape == PAINT_FALLOFF_SHAPE_TUBE);
   return ss.cache->view_normal;
-}
-
-static float frontface(const Brush &brush, const float3 &view_normal, const float3 &normal)
-{
-  using namespace blender;
-  if (!(brush.flag & BRUSH_FRONTFACE)) {
-    return 1.0f;
-  }
-  return std::max(math::dot(normal, view_normal), 0.0f);
 }
 
 #if 0
@@ -2813,26 +2691,6 @@ static float brush_strength(const Sculpt &sd,
   }
 }
 
-static float sculpt_apply_hardness(const blender::ed::sculpt_paint::StrokeCache &cache,
-                                   const float input_len)
-{
-  float final_len = input_len;
-  const float hardness = cache.paint_brush.hardness;
-  float p = input_len / cache.radius;
-  if (p < hardness) {
-    final_len = 0.0f;
-  }
-  else if (hardness == 1.0f) {
-    final_len = cache.radius;
-  }
-  else {
-    p = (p - hardness) / (1.0f - hardness);
-    final_len = p * cache.radius;
-  }
-
-  return final_len;
-}
-
 void sculpt_apply_texture(const SculptSession &ss,
                           const Brush &brush,
                           const float brush_point[3],
@@ -2897,41 +2755,6 @@ void sculpt_apply_texture(const SculptSession &ss,
       *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point_3d, r_rgba, 0, ss.tex_pool);
     }
   }
-}
-
-float SCULPT_brush_strength_factor(
-    SculptSession &ss,
-    const Brush &brush,
-    const float brush_point[3],
-    float len,
-    const float vno[3],
-    const float fno[3],
-    float mask,
-    const PBVHVertRef vertex,
-    int thread_id,
-    const blender::ed::sculpt_paint::auto_mask::NodeData *automask_data)
-{
-  using namespace blender::ed::sculpt_paint;
-  StrokeCache *cache = ss.cache;
-
-  float avg = 1.0f;
-  float rgba[4];
-  sculpt_apply_texture(ss, brush, brush_point, thread_id, &avg, rgba);
-
-  /* Hardness. */
-  const float final_len = sculpt_apply_hardness(*cache, len);
-
-  /* Falloff curve. */
-  avg *= BKE_brush_curve_strength(&brush, final_len, cache->radius);
-  avg *= frontface(brush, cache->view_normal, vno ? vno : fno);
-
-  /* Paint mask. */
-  avg *= 1.0f - mask;
-
-  /* Auto-masking. */
-  avg *= auto_mask::factor_get(cache->automasking.get(), ss, vertex, automask_data);
-
-  return avg;
 }
 
 void SCULPT_calc_vertex_displacement(const SculptSession &ss,
@@ -3268,7 +3091,7 @@ static void sculpt_pbvh_update_pixels(PaintModeSettings &paint_mode_settings,
 {
   using namespace blender;
   BLI_assert(ob.type == OB_MESH);
-  Mesh *mesh = (Mesh *)ob.data;
+  const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
 
   Image *image;
   ImageUser *image_user;
@@ -3276,7 +3099,7 @@ static void sculpt_pbvh_update_pixels(PaintModeSettings &paint_mode_settings,
     return;
   }
 
-  bke::pbvh::build_pixels(*ss.pbvh, mesh, image, image_user);
+  bke::pbvh::build_pixels(*ss.pbvh, mesh, *image, *image_user);
 }
 
 /** \} */
@@ -4776,7 +4599,9 @@ static bool sculpt_needs_delta_for_tip_orientation(const Brush &brush)
               SCULPT_TOOL_SNAKE_HOOK);
 }
 
-static void sculpt_update_brush_delta(UnifiedPaintSettings &ups, Object &ob, const Brush &brush)
+static void sculpt_update_brush_delta(UnifiedPaintSettings &ups,
+                                      const Object &ob,
+                                      const Brush &brush)
 {
   SculptSession &ss = *ob.sculpt;
   StrokeCache *cache = ss.cache;
@@ -4809,8 +4634,13 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings &ups, Object &ob, con
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
     if (tool == SCULPT_TOOL_GRAB && brush.flag & BRUSH_GRAB_ACTIVE_VERTEX) {
-      copy_v3_v3(cache->orig_grab_location,
-                 SCULPT_vertex_co_for_grab_active_get(ss, SCULPT_active_vertex_get(ss)));
+      if (ss.pbvh->type() == bke::pbvh::Type::Mesh) {
+        const Span<float3> positions = vert_positions_for_grab_active_get(ob);
+        cache->orig_grab_location = positions[ss.active_vert_ref().i];
+      }
+      else {
+        cache->orig_grab_location = SCULPT_vertex_co_get(ss, ss.active_vert_ref());
+      }
     }
     else {
       copy_v3_v3(cache->orig_grab_location, cache->true_location);
@@ -5316,9 +5146,10 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   }
 
   /* Update the active vertex of the SculptSession. */
-  ss.active_vertex = srd.active_vertex;
+  const PBVHVertRef active_vertex = srd.active_vertex;
+  ss.set_active_vert(active_vertex);
   SCULPT_vertex_random_access_ensure(ss);
-  copy_v3_v3(out->active_vertex_co, SCULPT_active_vertex_co_get(ss));
+  copy_v3_v3(out->active_vertex_co, SCULPT_vertex_co_get(ss, active_vertex));
 
   switch (ss.pbvh->type()) {
     case bke::pbvh::Type::Mesh:
@@ -5557,8 +5388,11 @@ static void sculpt_restore_mesh(const Sculpt &sd, Object &ob)
   SculptSession &ss = *ob.sculpt;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
-  /* Brushes that also use original coordinates and will need a "restore" step.
-   *  - SCULPT_TOOL_BOUNDARY
+  /* Brushes that use original coordinates and need a "restore" step.
+   *
+   * Note: Despite the Cloth and Boundary brush using original coordinates, the brushes do not
+   * expect this restoration to happen on every stroke step. Performing this restoration causes
+   * issues with the cloth simulation mode for those brushes.
    * TODO: Investigate removing this step using the same technique as the layer brush-- in the
    * brush, apply the translation between the result of the last brush step and the result of the
    * latest brush step.
@@ -5567,8 +5401,7 @@ static void sculpt_restore_mesh(const Sculpt &sd, Object &ob)
            SCULPT_TOOL_ELASTIC_DEFORM,
            SCULPT_TOOL_GRAB,
            SCULPT_TOOL_THUMB,
-           SCULPT_TOOL_ROTATE,
-           SCULPT_TOOL_POSE))
+           SCULPT_TOOL_ROTATE))
   {
     undo::restore_from_undo_step(sd, ob);
     return;
@@ -5928,28 +5761,6 @@ static void sculpt_stroke_update_step(bContext *C,
 
   /* Hack to fix noise texture tearing mesh. */
   sculpt_fix_noise_tear(sd, ob);
-
-  /* TODO(sergey): This is not really needed for the solid shading,
-   * which does use pBVH drawing anyway, but texture and wireframe
-   * requires this.
-   *
-   * Could be optimized later, but currently don't think it's so
-   * much common scenario.
-   *
-   * Same applies to the DEG_id_tag_update() invoked from
-   * sculpt_flush_update_step().
-   *
-   * For some brushes, flushing is done in the brush code itself.
-   */
-  if ((ELEM(brush.sculpt_tool, SCULPT_TOOL_BOUNDARY) || ss.pbvh->type() != bke::pbvh::Type::Mesh))
-  {
-    if (ss.deform_modifiers_active) {
-      SCULPT_flush_stroke_deform(sd, ob, sculpt_tool_is_proxy_used(brush.sculpt_tool));
-    }
-    else if (ss.shapekey_active) {
-      sculpt_update_keyblock(ob);
-    }
-  }
 
   ss.cache->first_time = false;
   copy_v3_v3(ss.cache->true_last_location, ss.cache->true_location);
@@ -7145,8 +6956,7 @@ void filter_distances_with_radius(const float radius,
   }
 }
 
-void calc_brush_cube_distances(const SculptSession &ss,
-                               const Brush &brush,
+void calc_brush_cube_distances(const Brush &brush,
                                const float4x4 &mat,
                                const Span<float3> positions,
                                const Span<int> verts,
@@ -7156,27 +6966,39 @@ void calc_brush_cube_distances(const SculptSession &ss,
   BLI_assert(verts.size() == factors.size());
   BLI_assert(verts.size() == r_distances.size());
 
-  SculptBrushTest test;
-  SCULPT_brush_test_init(ss, test);
-  const float tip_roundness = brush.tip_roundness;
-  const float tip_scale_x = brush.tip_scale_x;
+  const float roundness = brush.tip_roundness;
+  const float hardness = 1.0f - roundness;
   for (const int i : verts.index_range()) {
     if (factors[i] == 0.0f) {
       r_distances[i] = FLT_MAX;
       continue;
     }
-    /* TODO: Break up #SCULPT_brush_test_cube. */
-    if (!SCULPT_brush_test_cube(test, positions[verts[i]], mat.ptr(), tip_roundness, tip_scale_x))
-    {
+    const float3 local = math::abs(math::transform_point(mat, positions[verts[i]]));
+
+    if (!(local[0] <= 1.0f && local[1] <= 1.0f && local[2] <= 1.0f)) {
       factors[i] = 0.0f;
       r_distances[i] = FLT_MAX;
+      continue;
     }
-    r_distances[i] = test.dist;
+    if (std::min(local[0], local[1]) > hardness) {
+      /* Corner, distance to the center of the corner circle. */
+      float r_point[3];
+      copy_v3_fl(r_point, hardness);
+      r_distances[i] = len_v2v2(r_point, local) / roundness;
+      continue;
+    }
+    if (std::max(local[0], local[1]) > hardness) {
+      /* Side, distance to the square XY axis. */
+      r_distances[i] = (std::max(local[0], local[1]) - hardness) / roundness;
+      continue;
+    }
+
+    /* Inside the square, constant distance. */
+    r_distances[i] = 0.0f;
   }
 }
 
-void calc_brush_cube_distances(const SculptSession &ss,
-                               const Brush &brush,
+void calc_brush_cube_distances(const Brush &brush,
                                const float4x4 &mat,
                                const Span<float3> positions,
                                const MutableSpan<float> r_distances,
@@ -7185,21 +7007,35 @@ void calc_brush_cube_distances(const SculptSession &ss,
   BLI_assert(positions.size() == factors.size());
   BLI_assert(positions.size() == r_distances.size());
 
-  SculptBrushTest test;
-  SCULPT_brush_test_init(ss, test);
-  const float tip_roundness = brush.tip_roundness;
-  const float tip_scale_x = brush.tip_scale_x;
+  const float roundness = brush.tip_roundness;
+  const float hardness = 1.0f - roundness;
   for (const int i : positions.index_range()) {
     if (factors[i] == 0.0f) {
       r_distances[i] = FLT_MAX;
       continue;
     }
-    /* TODO: Break up #SCULPT_brush_test_cube. */
-    if (!SCULPT_brush_test_cube(test, positions[i], mat.ptr(), tip_roundness, tip_scale_x)) {
+    const float3 local = math::abs(math::transform_point(mat, positions[i]));
+
+    if (!(local[0] <= 1.0f && local[1] <= 1.0f && local[2] <= 1.0f)) {
       factors[i] = 0.0f;
       r_distances[i] = FLT_MAX;
+      continue;
     }
-    r_distances[i] = test.dist;
+    if (std::min(local[0], local[1]) > hardness) {
+      /* Corner, distance to the center of the corner circle. */
+      float r_point[3];
+      copy_v3_fl(r_point, hardness);
+      r_distances[i] = len_v2v2(r_point, local) / roundness;
+      continue;
+    }
+    if (std::max(local[0], local[1]) > hardness) {
+      /* Side, distance to the square XY axis. */
+      r_distances[i] = (std::max(local[0], local[1]) - hardness) / roundness;
+      continue;
+    }
+
+    /* Inside the square, constant distance. */
+    r_distances[i] = 0.0f;
   }
 }
 
