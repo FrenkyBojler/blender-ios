@@ -28,6 +28,7 @@ JackSynchronizer::JackSynchronizer(JackDevice* device) :
 void JackSynchronizer::seek(std::shared_ptr<IHandle> handle, double time)
 {
 	m_device->seekPlayback(time);
+	handle->seek(time);
 }
 
 double JackSynchronizer::getPosition(std::shared_ptr<IHandle> handle)

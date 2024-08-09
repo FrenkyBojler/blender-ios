@@ -41,7 +41,10 @@ void JackDevice::updateRingBuffers()
 
 	while(m_valid)
 	{
-		if(m_sync > 1)
+		/* Check if we have a desync between the JACK playback state and our own state. */
+		bool signal_stop = m_playing && !doesPlayback();
+
+		if(m_sync == SYNCING || signal_stop)
 		{
 			if(m_syncFunc)
 			{
@@ -75,9 +78,9 @@ void JackDevice::updateRingBuffers()
 					size = temp;
 		}
 
-		if(m_sync > 1)
+		if(m_sync == SYNCING)
 		{
-			m_sync = 3;
+			m_sync = SYNC_DONE;
 		}
 
 		m_mixingCondition.wait(lock);
@@ -91,7 +94,7 @@ int JackDevice::jack_mix(jack_nframes_t length, void* data)
 	int count = device->m_specs.channels;
 	char* buffer;
 
-	if(device->m_sync)
+	if(device->m_sync != SYNC_IDLE)
 	{
 		// play silence while syncing
 		for(unsigned int i = 0; i < count; i++)
@@ -129,29 +132,25 @@ int JackDevice::jack_sync(jack_transport_state_t state, jack_position_t* pos, vo
 {
 	JackDevice* device = (JackDevice*)data;
 
-	if(state == JackTransportStopped)
+	printf("jack state: %d\n", state);
+	if(state == JackTransportStopped) {
+		/* This seems to be called when seeking, so update our timeline. */
+		if(device->m_syncFunc)
+		{
+			device->m_syncFunc(device->m_syncFuncData, state != JackTransportStopped, pos->frame / (float) device->m_specs.rate);
+		}
 		return 1;
-
-	if(device->m_mixingLock.try_lock())
-	{
-		if(device->m_sync > 2)
-		{
-			if(device->m_sync == 3)
-			{
-				device->m_sync = 0;
-				device->m_mixingLock.unlock();
-				return 1;
-			}
-		}
-		else
-		{
-			device->m_sync = 2;
-			device->m_mixingCondition.notify_all();
-		}
-		device->m_mixingLock.unlock();
 	}
-	else if(!device->m_sync)
-		device->m_sync = 1;
+
+	device->m_mixingLock.lock();
+	if (device->m_sync == SYNC_DONE) {
+		device->m_sync = SYNC_IDLE;
+		device->m_mixingLock.unlock();
+        return 1;
+	}
+	device->m_sync = SYNCING;
+	device->m_mixingCondition.notify_all();
+	device->m_mixingLock.unlock();
 
 	return 0;
 }
@@ -219,9 +218,9 @@ JackDevice::JackDevice(const std::string &name, DeviceSpecs specs, int buffersiz
 	create();
 
 	m_valid = true;
-	m_sync = 0;
+	m_playing = false;
+	m_sync = SYNC_IDLE;
 	m_syncFunc = nullptr;
-	m_nextState = m_state = AUD_jack_transport_query(m_client, nullptr);
 
 	// activate the client
 	if(AUD_jack_activate(m_client))
@@ -278,18 +277,17 @@ ISynchronizer* JackDevice::getSynchronizer()
 void JackDevice::playing(bool playing)
 {
 	// Do nothing.
+	m_playing = playing;
 }
 
 void JackDevice::startPlayback()
 {
 	AUD_jack_transport_start(m_client);
-	m_nextState = JackTransportRolling;
 }
 
 void JackDevice::stopPlayback()
 {
 	AUD_jack_transport_stop(m_client);
-	m_nextState = JackTransportStopped;
 }
 
 void JackDevice::seekPlayback(double time)
@@ -315,10 +313,7 @@ bool JackDevice::doesPlayback()
 {
 	jack_transport_state_t state = AUD_jack_transport_query(m_client, nullptr);
 
-	if(state != m_state)
-		m_nextState = m_state = state;
-
-	return m_nextState != JackTransportStopped;
+	return state != JackTransportStopped;
 }
 
 class JackDeviceFactory : public IDeviceFactory

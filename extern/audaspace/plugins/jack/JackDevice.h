@@ -71,6 +71,8 @@ private:
 	 */
 	bool m_valid;
 
+	bool m_playing;
+
 	/// Synchronizer.
 	JackSynchronizer m_synchronizer;
 
@@ -91,19 +93,10 @@ private:
 	AUD_LOCAL static int jack_sync(jack_transport_state_t state, jack_position_t* pos, void* data);
 
 	/**
-	 * Next JACK Transport state (-1 if not expected to change).
-	 */
-	jack_transport_state_t m_nextState;
-
-	/**
-	 * Current jack transport status.
-	 */
-	jack_transport_state_t m_state;
-
-	/**
 	 * Syncronisation state.
 	 */
-	int m_sync;
+	enum Sync_state {SYNC_IDLE, SYNCING, SYNC_DONE};
+	Sync_state m_sync;
 
 	/**
 	 * External syncronisation callback function.

@@ -195,7 +195,6 @@ char **BKE_sound_get_device_names(void);
 typedef void (*SoundJackSyncCallback)(struct Main *bmain, int mode, double time);
 
 void BKE_sound_jack_sync_callback_set(SoundJackSyncCallback callback);
-void BKE_sound_jack_scene_update(struct Scene *scene, int mode, double time);
 
 /* Dependency graph evaluation. */
 

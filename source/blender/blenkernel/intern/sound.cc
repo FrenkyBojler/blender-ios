@@ -1484,30 +1484,6 @@ void BKE_sound_jack_sync_callback_set(SoundJackSyncCallback callback)
 #endif
 }
 
-void BKE_sound_jack_scene_update(Scene *scene, int mode, double time)
-{
-  sound_verify_evaluated_id(&scene->id);
-
-  /* Ugly: Blender doesn't like it when the animation is played back during rendering. */
-  if (G.is_rendering) {
-    return;
-  }
-
-  if (mode) {
-    BKE_sound_play_scene(scene);
-  }
-  else {
-    BKE_sound_stop_scene(scene);
-  }
-#ifdef WITH_AUDASPACE
-  if (scene->playback_handle != nullptr) {
-    AUD_Handle_setPosition(scene->playback_handle, time);
-  }
-#else
-  UNUSED_VARS(time);
-#endif
-}
-
 void BKE_sound_evaluate(Depsgraph *depsgraph, Main *bmain, bSound *sound)
 {
   DEG_debug_print_eval(depsgraph, __func__, sound->id.name, sound);

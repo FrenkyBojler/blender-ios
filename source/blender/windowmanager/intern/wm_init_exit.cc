@@ -61,6 +61,10 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h" /* `RE_` free stuff. */
 
+#ifdef WITH_AUDASPACE
+#  include <AUD_Handle.h>
+#endif
+
 #ifdef WITH_PYTHON
 #  include "BPY_extern_python.hh"
 #  include "BPY_extern_run.hh"
@@ -177,6 +181,7 @@ static void sound_jack_sync_callback(Main *bmain, int mode, double time)
     return;
   }
 
+  printf("callback\n");
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
 
   LISTBASE_FOREACH (wmWindow *, window, &wm->windows) {
@@ -189,10 +194,50 @@ static void sound_jack_sync_callback(Main *bmain, int mode, double time)
     if (depsgraph == nullptr) {
       continue;
     }
-    BKE_sound_lock();
-    Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-    BKE_sound_jack_scene_update(scene_eval, mode, time);
-    BKE_sound_unlock();
+
+    bScreen *screen = WM_window_get_active_screen(window);
+    ARegion *region = screen->active_region;
+    if (!region) {
+      /* TODO if this is null it will lead to the screen not updating sometimes.. */
+      printf("region null!\n");
+    }
+    /* The area is used to check if the playback was started from any of the animation editors.
+     * We probably don't care in this case so we can set it to null.
+     */
+    ScrArea *area = nullptr;
+
+    int new_playback_frame = time * FPS;
+    printf("update, mode: %d, time: %d\n", mode, new_playback_frame);
+    if (mode == 0) {
+      /* Stop all animation playback */
+      ED_screen_animation_play_ex(bmain, screen, scene, depsgraph, wm, window, region, area, 0, 0);
+      scene->r.cfra = new_playback_frame;
+      WM_event_add_notifier_ex(wm, window, NC_SCENE | ND_FRAME, scene);
+    }
+    else if (!ED_screen_animation_playing(wm)) {
+      /* Start playback. */
+      int sync_mode = 1; /* Doesn't really matter as the AUDIO_SYNC flag has priority over this. */
+      int play_direction = 1;
+      scene->r.cfra = new_playback_frame;
+      ED_screen_animation_play_ex(
+          bmain, screen, scene, depsgraph, wm, window, region, area, sync_mode, play_direction);
+    }
+    else {
+#ifdef WITH_AUDASPACE
+      /* We are scrubbing. We need to update the sound position as Audaspace can't seek it's own
+       * audio buffer when scrubbing. */
+      Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+      if (scene_eval->playback_handle) {
+        BKE_sound_lock();
+        AUD_Handle_setPosition(scene_eval->playback_handle, time);
+        BKE_sound_unlock();
+      }
+#endif
+    }
+    /* There can only be one scene playing back audio at a time.
+     * No need to continue looking for scenes to change playback mode for.
+     */
+    break;
   }
 }
 
