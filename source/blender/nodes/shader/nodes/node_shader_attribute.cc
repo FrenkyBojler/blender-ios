@@ -9,25 +9,32 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "NOD_rna_define.hh"
+
 namespace blender::nodes::node_shader_attribute_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>("Color");
-  b.add_output<decl::Vector>("Vector");
-  b.add_output<decl::Float>("Fac");
-  b.add_output<decl::Float>("Alpha");
+  const bNode *node = b.node_or_null();
+
+  if (node != nullptr) {
+    const NodeShaderAttribute *storage = static_cast<const NodeShaderAttribute *>(node->storage);
+    const eCustomDataType data_type = eCustomDataType(storage->data_type);
+    b.add_output(data_type, "Value");
+  }
 }
 
 static void node_shader_buts_attribute(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "attribute_type", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Type"), ICON_NONE);
   uiItemR(layout, ptr, "attribute_name", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Name"), ICON_NONE);
+  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_shader_init_attribute(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeShaderAttribute *attr = MEM_cnew<NodeShaderAttribute>("NodeShaderAttribute");
+  attr->data_type = CD_PROP_FLOAT3;
   node->storage = attr;
 }
 
@@ -65,13 +72,22 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
     GPU_link(mat, "node_attribute_uniform", cd_attr, GPU_constant(&attr_hash), &cd_attr);
   }
 
-  GPU_stack_link(mat, node, "node_attribute", in, out, cd_attr);
+  switch (eCustomDataType(attr->data_type)) {
+    case CD_PROP_FLOAT:
+      GPU_stack_link(mat, node, "node_attribute_float", in, out, cd_attr);
+      break;
+    case CD_PROP_FLOAT3:
+      GPU_stack_link(mat, node, "node_attribute_vector", in, out, cd_attr);
+      break;
+    case CD_PROP_COLOR:
+      GPU_stack_link(mat, node, "node_attribute_color_", in, out, cd_attr);
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
 
   if (is_varying) {
-    int i;
-    LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, i) {
-      node_shader_gpu_bump_tex_coord(mat, node, &out[i].link);
-    }
+    node_shader_gpu_bump_tex_coord(mat, node, &out[0].link);
   }
 
   return 1;

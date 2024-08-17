@@ -1963,6 +1963,12 @@ static bool random_value_type_supported(const EnumPropertyItem *item)
 {
   return ELEM(item->value, CD_PROP_FLOAT, CD_PROP_FLOAT3, CD_PROP_BOOL, CD_PROP_INT32);
 }
+
+static bool shader_attribute_type_supported(const EnumPropertyItem *item)
+{
+  return ELEM(item->value, CD_PROP_FLOAT, CD_PROP_FLOAT3, CD_PROP_COLOR);
+}
+
 static const EnumPropertyItem *rna_FunctionNodeRandomValue_type_itemf(bContext * /*C*/,
                                                                       PointerRNA * /*ptr*/,
                                                                       PropertyRNA * /*prop*/,
@@ -1998,6 +2004,15 @@ static const EnumPropertyItem *rna_GeometryNodeAttributeType_type_with_socket_it
   *r_free = true;
   return itemf_function_check(rna_enum_attribute_type_items,
                               generic_attribute_type_supported_with_socket);
+}
+
+static const EnumPropertyItem *rna_shader_data_type_itemf(bContext * /*C*/,
+                                                          PointerRNA * /*ptr*/,
+                                                          PropertyRNA * /*prop*/,
+                                                          bool *r_free)
+{
+  *r_free = true;
+  return itemf_function_check(rna_enum_attribute_type_items, shader_attribute_type_supported);
 }
 
 static const EnumPropertyItem *rna_GeometryNodeAttributeDomain_attribute_domain_itemf(
@@ -4759,6 +4774,13 @@ static void def_sh_attribute(StructRNA *srna)
   prop = RNA_def_property(srna, "attribute_name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "name");
   RNA_def_property_ui_text(prop, "Attribute Name", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_attribute_type_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_shader_data_type_itemf");
+  RNA_def_property_ui_text(prop, "Data Type", "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 

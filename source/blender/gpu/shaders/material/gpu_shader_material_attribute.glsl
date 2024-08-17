@@ -60,11 +60,17 @@ vec4 attr_load_layer(const uint attr_hash)
   return vec4(0.0);
 }
 
-void node_attribute(
-    vec4 attr, out vec4 outcol, out vec3 outvec, out float outf, out float outalpha)
+void node_attribute_float(vec4 attr, out float outf)
+{
+  outf = math_average(attr.xyz);
+}
+
+void node_attribute_color_(vec4 attr, out vec4 outcol)
 {
   outcol = vec4(attr.xyz, 1.0);
+}
+
+void node_attribute_vector(vec4 attr, out vec3 outvec)
+{
   outvec = attr.xyz;
-  outf = math_average(attr.xyz);
-  outalpha = attr.w;
 }
