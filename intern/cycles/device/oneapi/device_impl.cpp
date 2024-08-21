@@ -47,8 +47,8 @@ static void queue_error_cb(const char *message, void *user_ptr)
   }
 }
 
-OneapiDevice::OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler)
-    : GPUDevice(info, stats, profiler),
+OneapiDevice::OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless)
+    : GPUDevice(info, stats, profiler, headless),
       device_queue_(nullptr),
 #  ifdef WITH_EMBREE_GPU
       embree_device(nullptr),
@@ -207,9 +207,13 @@ void OneapiDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
 size_t OneapiDevice::get_free_mem() const
 {
-  /* Accurate: Use device info. */
+  /* Accurate: Use device info, which is practically useful only on dGPU.
+   * This is because for non-discrete GPUs, all GPU memory allocations would
+   * be in the RAM, thus having the same performance for device and host pointers,
+   * so there is no need to be very accurate about what would end where. */
   const sycl::device &device = reinterpret_cast<sycl::queue *>(device_queue_)->get_device();
-  if (device.has(sycl::aspect::ext_intel_free_memory)) {
+  const bool is_integrated_gpu = device.get_info<sycl::info::device::host_unified_memory>();
+  if (device.has(sycl::aspect::ext_intel_free_memory) && is_integrated_gpu == false) {
     return device.get_info<sycl::ext::intel::info::device::free_memory>();
   }
   /* Estimate: Capacity - in use. */
@@ -307,8 +311,8 @@ bool OneapiDevice::alloc_device(void *&device_pointer, size_t size)
   device_pointer = usm_alloc_device(device_queue_, size);
   if (device_pointer != nullptr) {
     allocation_success = true;
-    /* Due to lazy memory initialisation in GPU runtime we will force memory to
-     * appear in device memory via execution of a kernel using this memory.. */
+    /* Due to lazy memory initialization in GPU runtime we will force memory to
+     * appear in device memory via execution of a kernel using this memory. */
     if (!oneapi_zero_memory_on_device(device_queue_, device_pointer, size)) {
       set_error("oneAPI memory operation error: got runtime exception \"" + oneapi_error_string_ +
                 "\"");
@@ -666,7 +670,14 @@ bool OneapiDevice::create_queue(SyclQueue *&external_queue,
     external_queue = reinterpret_cast<SyclQueue *>(created_queue);
 #  ifdef WITH_EMBREE_GPU
     if (embree_device_pointer) {
-      *((RTCDevice *)embree_device_pointer) = rtcNewSYCLDevice(created_queue->get_context(), "");
+      RTCDevice *device_object_ptr = reinterpret_cast<RTCDevice *>(embree_device_pointer);
+      *device_object_ptr = rtcNewSYCLDevice(created_queue->get_context(), "");
+      if (*device_object_ptr == nullptr) {
+        finished_correct = false;
+        oneapi_error_string_ =
+            "Hardware Raytracing is not available; please install "
+            "\"intel-level-zero-gpu-raytracing\" to enable it or disable Embree on GPU.";
+      }
     }
 #  else
     (void)embree_device_pointer;
@@ -702,8 +713,8 @@ void *OneapiDevice::usm_alloc_device(SyclQueue *queue_, size_t memory_size)
    * provides automatic migration mechanism in order to allow to use the same pointer on host and
    * on device, without need to worry about explicit memory transfer operations, although usage of
    * USM shared imply some documented limitations on the memory usage in regards of parallel access
-   * from differen threads. But for Blender/Cycles this type of memory is not very suitable in
-   * current application architecture, because Cycles is multithread application and already uses
+   * from different threads. But for Blender/Cycles this type of memory is not very suitable in
+   * current application architecture, because Cycles is multi-thread application and already uses
    * two different pointer for host activity and device activity, and also has to perform all
    * needed memory transfer operations. So, USM device memory type has been used for oneAPI device
    * in order to better fit in Cycles architecture. */
@@ -1068,7 +1079,27 @@ std::vector<sycl::device> available_sycl_devices()
             filter_out = true;
           }
           /* if not already filtered out, check driver version. */
-          if (!filter_out) {
+          bool check_driver_version = !filter_out;
+          /* We don't know how to check driver version strings for non-Intel GPUs. */
+          if (check_driver_version &&
+              device.get_info<sycl::info::device::vendor>().find("Intel") == std::string::npos)
+          {
+            check_driver_version = false;
+          }
+          /* Because of https://github.com/oneapi-src/unified-runtime/issues/1777, future drivers
+           * may break parsing done by a SYCL runtime from before the fix we expect in major
+           * version 8. Parsed driver version would start with something different than current
+           * "1.3.". To avoid blocking a device by mistake in the case of new driver / old SYCL
+           * runtime, we disable driver version check in case LIBSYCL_MAJOR_VERSION is below 8 and
+           * actual driver version doesn't start with 1.3. */
+#  if __LIBSYCL_MAJOR_VERSION < 8
+          if (check_driver_version &&
+              !string_startswith(device.get_info<sycl::info::device::driver_version>(), "1.3."))
+          {
+            check_driver_version = false;
+          }
+#  endif
+          if (check_driver_version) {
             int driver_build_version = parse_driver_build_version(device);
             if ((driver_build_version > 100000 &&
                  driver_build_version < lowest_supported_driver_version_win) ||

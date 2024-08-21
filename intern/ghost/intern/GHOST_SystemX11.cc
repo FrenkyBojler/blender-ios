@@ -2002,6 +2002,8 @@ static GHOST_TKey ghost_key_from_keycode(const XkbDescPtr xkb_descr, const KeyCo
     switch (id) {
       case MAKE_ID('T', 'L', 'D', 'E'):
         return GHOST_kKeyAccentGrave;
+      case MAKE_ID('L', 'S', 'G', 'T'):
+        return GHOST_kKeyGrLess;
 #ifdef WITH_GHOST_DEBUG
       default:
         printf("%s unhandled keycode: %.*s\n", __func__, XkbKeyNameLength, id_str);
@@ -2466,7 +2468,8 @@ class DialogData {
 
 static void split(const char *text, const char *seps, char ***str, int *count)
 {
-  char *tok, *data;
+  const char *tok;
+  char *data;
   int i;
   *count = 0;
 

@@ -352,6 +352,9 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
                                     (draw_ctx->object_mode & OB_MODE_SCULPT_CURVES);
   const bool in_sculpt_mode = (ob == draw_ctx->obact) && (ob->sculpt != nullptr) &&
                               (ob->sculpt->mode_type == OB_MODE_SCULPT);
+  const bool in_grease_pencil_sculpt_mode = (ob->type == OB_GREASE_PENCIL) &&
+                                            (draw_ctx->object_mode &
+                                             OB_MODE_SCULPT_GPENCIL_LEGACY);
   const bool has_surface = ELEM(ob->type,
                                 OB_MESH,
                                 OB_CURVES_LEGACY,
@@ -364,7 +367,7 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
                                 OB_GREASE_PENCIL);
   const bool draw_surface = (ob->dt >= OB_WIRE) && (renderable || (ob->dt == OB_WIRE));
   const bool draw_facing = draw_surface && (pd->overlay.flag & V3D_OVERLAY_FACE_ORIENTATION) &&
-                           !is_select;
+                           (ob->dt >= OB_SOLID) && !is_select;
   const bool draw_fade = draw_surface && (pd->overlay.flag & V3D_OVERLAY_FADE_INACTIVE) &&
                          overlay_should_fade_object(ob, draw_ctx->obact);
   const bool draw_mode_transfer = draw_surface;
@@ -489,6 +492,9 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
   else if (in_sculpt_curve_mode) {
     OVERLAY_sculpt_curves_cache_populate(data, ob);
   }
+  else if (in_grease_pencil_sculpt_mode) {
+    OVERLAY_sculpt_grease_pencil_cache_populate(data, ob);
+  }
 
   if (draw_motion_paths) {
     OVERLAY_motion_path_cache_populate(data, ob);
@@ -593,6 +599,8 @@ static void OVERLAY_draw_scene(void *vedata)
   OVERLAY_PrivateData *pd = data->stl->pd;
   OVERLAY_FramebufferList *fbl = data->fbl;
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const View3D *v3d = draw_ctx->v3d;
 
   /* Needs to be done first as it modifies the scene color and depth buffer. */
   if (pd->space_type == SPACE_VIEW3D) {
@@ -624,11 +632,21 @@ static void OVERLAY_draw_scene(void *vedata)
   }
 
   OVERLAY_image_background_draw(data);
-  OVERLAY_background_draw(data);
+  /* Do not render background if XR passthrough is enabled. */
+  if ((pd->v3d_flag & V3D_XR_SESSION_SURFACE) == 0 || (v3d->flag2 & V3D_XR_SHOW_PASSTHROUGH) == 0)
+  {
+    OVERLAY_background_draw(data);
+  }
 
   OVERLAY_antialiasing_start(data);
 
   DRW_view_set_active(nullptr);
+
+  if (DRW_state_is_fbo()) {
+    GPU_framebuffer_bind(fbl->overlay_default_fb);
+  }
+
+  OVERLAY_facing_draw(data);
 
   if (DRW_state_is_fbo()) {
     GPU_framebuffer_bind(fbl->overlay_color_only_fb);
@@ -643,7 +661,6 @@ static void OVERLAY_draw_scene(void *vedata)
 
   OVERLAY_image_draw(data);
   OVERLAY_fade_draw(data);
-  OVERLAY_facing_draw(data);
   OVERLAY_mode_transfer_draw(data);
   OVERLAY_extra_blend_draw(data);
   OVERLAY_volume_draw(data);
@@ -761,6 +778,7 @@ static void OVERLAY_draw_scene(void *vedata)
       OVERLAY_edit_curves_draw(data);
       break;
     case CTX_MODE_EDIT_GREASE_PENCIL:
+    case CTX_MODE_SCULPT_GREASE_PENCIL:
     case CTX_MODE_WEIGHT_GREASE_PENCIL:
       OVERLAY_edit_grease_pencil_draw(data);
       break;

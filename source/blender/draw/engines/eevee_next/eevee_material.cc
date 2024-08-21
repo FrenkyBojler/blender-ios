@@ -26,21 +26,21 @@ namespace blender::eevee {
 
 DefaultSurfaceNodeTree::DefaultSurfaceNodeTree()
 {
-  bNodeTree *ntree = bke::ntreeAddTree(nullptr, "Shader Nodetree", ntreeType_Shader->idname);
-  bNode *bsdf = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_BSDF_PRINCIPLED);
-  bNode *output = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
-  bNodeSocket *bsdf_out = bke::nodeFindSocket(bsdf, SOCK_OUT, "BSDF");
-  bNodeSocket *output_in = bke::nodeFindSocket(output, SOCK_IN, "Surface");
-  bke::nodeAddLink(ntree, bsdf, bsdf_out, output, output_in);
-  bke::nodeSetActive(ntree, output);
+  bNodeTree *ntree = bke::node_tree_add_tree(nullptr, "Shader Nodetree", ntreeType_Shader->idname);
+  bNode *bsdf = bke::node_add_static_node(nullptr, ntree, SH_NODE_BSDF_PRINCIPLED);
+  bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
+  bNodeSocket *bsdf_out = bke::node_find_socket(bsdf, SOCK_OUT, "BSDF");
+  bNodeSocket *output_in = bke::node_find_socket(output, SOCK_IN, "Surface");
+  bke::node_add_link(ntree, bsdf, bsdf_out, output, output_in);
+  bke::node_set_active(ntree, output);
 
   color_socket_ =
-      (bNodeSocketValueRGBA *)bke::nodeFindSocket(bsdf, SOCK_IN, "Base Color")->default_value;
+      (bNodeSocketValueRGBA *)bke::node_find_socket(bsdf, SOCK_IN, "Base Color")->default_value;
   metallic_socket_ =
-      (bNodeSocketValueFloat *)bke::nodeFindSocket(bsdf, SOCK_IN, "Metallic")->default_value;
+      (bNodeSocketValueFloat *)bke::node_find_socket(bsdf, SOCK_IN, "Metallic")->default_value;
   roughness_socket_ =
-      (bNodeSocketValueFloat *)bke::nodeFindSocket(bsdf, SOCK_IN, "Roughness")->default_value;
-  specular_socket_ = (bNodeSocketValueFloat *)bke::nodeFindSocket(
+      (bNodeSocketValueFloat *)bke::node_find_socket(bsdf, SOCK_IN, "Roughness")->default_value;
+  specular_socket_ = (bNodeSocketValueFloat *)bke::node_find_socket(
                          bsdf, SOCK_IN, "Specular IOR Level")
                          ->default_value;
   ntree_ = ntree;
@@ -48,7 +48,7 @@ DefaultSurfaceNodeTree::DefaultSurfaceNodeTree()
 
 DefaultSurfaceNodeTree::~DefaultSurfaceNodeTree()
 {
-  bke::ntreeFreeEmbeddedTree(ntree_);
+  bke::node_tree_free_embedded_tree(ntree_);
   MEM_SAFE_FREE(ntree_);
 }
 
@@ -74,70 +74,70 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
 {
   {
     diffuse_mat = (::Material *)BKE_id_new_nomain(ID_MA, "EEVEE default diffuse");
-    bNodeTree *ntree = bke::ntreeAddTreeEmbedded(
+    bNodeTree *ntree = bke::node_tree_add_tree_embedded(
         nullptr, &diffuse_mat->id, "Shader Nodetree", ntreeType_Shader->idname);
     diffuse_mat->use_nodes = true;
     diffuse_mat->surface_render_method = MA_SURFACE_METHOD_FORWARD;
 
     /* Use 0.18 as it is close to middle gray. Middle gray is typically defined as 18% reflectance
      * of visible light and commonly used for VFX balls. */
-    bNode *bsdf = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_BSDF_DIFFUSE);
-    bNodeSocket *base_color = bke::nodeFindSocket(bsdf, SOCK_IN, "Color");
+    bNode *bsdf = bke::node_add_static_node(nullptr, ntree, SH_NODE_BSDF_DIFFUSE);
+    bNodeSocket *base_color = bke::node_find_socket(bsdf, SOCK_IN, "Color");
     copy_v3_fl(((bNodeSocketValueRGBA *)base_color->default_value)->value, 0.18f);
 
-    bNode *output = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
+    bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
 
-    bke::nodeAddLink(ntree,
-                     bsdf,
-                     bke::nodeFindSocket(bsdf, SOCK_OUT, "BSDF"),
-                     output,
-                     bke::nodeFindSocket(output, SOCK_IN, "Surface"));
+    bke::node_add_link(ntree,
+                       bsdf,
+                       bke::node_find_socket(bsdf, SOCK_OUT, "BSDF"),
+                       output,
+                       bke::node_find_socket(output, SOCK_IN, "Surface"));
 
-    bke::nodeSetActive(ntree, output);
+    bke::node_set_active(ntree, output);
   }
   {
     metallic_mat = (::Material *)BKE_id_new_nomain(ID_MA, "EEVEE default metal");
-    bNodeTree *ntree = bke::ntreeAddTreeEmbedded(
+    bNodeTree *ntree = bke::node_tree_add_tree_embedded(
         nullptr, &metallic_mat->id, "Shader Nodetree", ntreeType_Shader->idname);
     metallic_mat->use_nodes = true;
     metallic_mat->surface_render_method = MA_SURFACE_METHOD_FORWARD;
 
-    bNode *bsdf = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_BSDF_GLOSSY);
-    bNodeSocket *base_color = bke::nodeFindSocket(bsdf, SOCK_IN, "Color");
+    bNode *bsdf = bke::node_add_static_node(nullptr, ntree, SH_NODE_BSDF_GLOSSY);
+    bNodeSocket *base_color = bke::node_find_socket(bsdf, SOCK_IN, "Color");
     copy_v3_fl(((bNodeSocketValueRGBA *)base_color->default_value)->value, 1.0f);
-    bNodeSocket *roughness = bke::nodeFindSocket(bsdf, SOCK_IN, "Roughness");
+    bNodeSocket *roughness = bke::node_find_socket(bsdf, SOCK_IN, "Roughness");
     ((bNodeSocketValueFloat *)roughness->default_value)->value = 0.0f;
 
-    bNode *output = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
+    bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
 
-    bke::nodeAddLink(ntree,
-                     bsdf,
-                     bke::nodeFindSocket(bsdf, SOCK_OUT, "BSDF"),
-                     output,
-                     bke::nodeFindSocket(output, SOCK_IN, "Surface"));
+    bke::node_add_link(ntree,
+                       bsdf,
+                       bke::node_find_socket(bsdf, SOCK_OUT, "BSDF"),
+                       output,
+                       bke::node_find_socket(output, SOCK_IN, "Surface"));
 
-    bke::nodeSetActive(ntree, output);
+    bke::node_set_active(ntree, output);
   }
   {
     error_mat_ = (::Material *)BKE_id_new_nomain(ID_MA, "EEVEE default error");
-    bNodeTree *ntree = bke::ntreeAddTreeEmbedded(
+    bNodeTree *ntree = bke::node_tree_add_tree_embedded(
         nullptr, &error_mat_->id, "Shader Nodetree", ntreeType_Shader->idname);
     error_mat_->use_nodes = true;
 
     /* Use emission and output material to be compatible with both World and Material. */
-    bNode *bsdf = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_EMISSION);
-    bNodeSocket *color = bke::nodeFindSocket(bsdf, SOCK_IN, "Color");
+    bNode *bsdf = bke::node_add_static_node(nullptr, ntree, SH_NODE_EMISSION);
+    bNodeSocket *color = bke::node_find_socket(bsdf, SOCK_IN, "Color");
     copy_v3_fl3(((bNodeSocketValueRGBA *)color->default_value)->value, 1.0f, 0.0f, 1.0f);
 
-    bNode *output = bke::nodeAddStaticNode(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
+    bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
 
-    bke::nodeAddLink(ntree,
-                     bsdf,
-                     bke::nodeFindSocket(bsdf, SOCK_OUT, "Emission"),
-                     output,
-                     bke::nodeFindSocket(output, SOCK_IN, "Surface"));
+    bke::node_add_link(ntree,
+                       bsdf,
+                       bke::node_find_socket(bsdf, SOCK_OUT, "Emission"),
+                       output,
+                       bke::node_find_socket(output, SOCK_IN, "Surface"));
 
-    bke::nodeSetActive(ntree, output);
+    bke::node_set_active(ntree, output);
   }
 }
 
@@ -255,6 +255,8 @@ Material &MaterialModule::material_sync(Object *ob,
                                         eMaterialGeometry geometry_type,
                                         bool has_motion)
 {
+  bool hide_on_camera = ob->visibility_flag & OB_HIDE_CAMERA;
+
   if (geometry_type == MAT_GEOM_VOLUME) {
     MaterialKey material_key(
         blender_mat, geometry_type, MAT_PIPE_VOLUME_MATERIAL, ob->visibility_flag);
@@ -268,7 +270,8 @@ Material &MaterialModule::material_sync(Object *ob,
     });
 
     /* Volume needs to use one sub pass per object to support layering. */
-    VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(ob);
+    VolumeLayer *layer = hide_on_camera ? nullptr :
+                                          inst_.pipelines.volume.register_and_get_layer(ob);
     if (layer) {
       mat.volume_occupancy.sub_pass = layer->occupancy_add(
           ob, blender_mat, mat.volume_occupancy.gpumat);
@@ -306,8 +309,8 @@ Material &MaterialModule::material_sync(Object *ob,
       mat.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);
       mat.capture = material_pass_get(ob, blender_mat, MAT_PIPE_CAPTURE, geometry_type);
       mat.overlap_masking = MaterialPass();
-      mat.reflection_probe_prepass = MaterialPass();
-      mat.reflection_probe_shading = MaterialPass();
+      mat.lightprobe_sphere_prepass = MaterialPass();
+      mat.lightprobe_sphere_shading = MaterialPass();
       mat.planar_probe_prepass = MaterialPass();
       mat.planar_probe_shading = MaterialPass();
       mat.volume_occupancy = MaterialPass();
@@ -317,23 +320,36 @@ Material &MaterialModule::material_sync(Object *ob,
     }
     else {
       /* Order is important for transparent. */
-      mat.prepass = material_pass_get(ob, blender_mat, prepass_pipe, geometry_type);
+      if (!hide_on_camera) {
+        mat.prepass = material_pass_get(ob, blender_mat, prepass_pipe, geometry_type);
+      }
+      else {
+        mat.prepass = MaterialPass();
+      }
+
       mat.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);
+      if (hide_on_camera) {
+        /* Only null the sub_pass.
+         * `mat.shading.gpumat` is always needed for using the GPU_material API. */
+        mat.shading.sub_pass = nullptr;
+      }
+
       mat.overlap_masking = MaterialPass();
       mat.capture = MaterialPass();
 
-      if (inst_.do_reflection_probe_sync() && !(ob->visibility_flag & OB_HIDE_PROBE_CUBEMAP)) {
-        mat.reflection_probe_prepass = material_pass_get(
+      if (inst_.needs_lightprobe_sphere_passes() && !(ob->visibility_flag & OB_HIDE_PROBE_CUBEMAP))
+      {
+        mat.lightprobe_sphere_prepass = material_pass_get(
             ob, blender_mat, MAT_PIPE_PREPASS_DEFERRED, geometry_type, MAT_PROBE_REFLECTION);
-        mat.reflection_probe_shading = material_pass_get(
+        mat.lightprobe_sphere_shading = material_pass_get(
             ob, blender_mat, MAT_PIPE_DEFERRED, geometry_type, MAT_PROBE_REFLECTION);
       }
       else {
-        mat.reflection_probe_prepass = MaterialPass();
-        mat.reflection_probe_shading = MaterialPass();
+        mat.lightprobe_sphere_prepass = MaterialPass();
+        mat.lightprobe_sphere_shading = MaterialPass();
       }
 
-      if (inst_.do_planar_probe_sync() && !(ob->visibility_flag & OB_HIDE_PROBE_PLANAR)) {
+      if (inst_.needs_planar_probe_passes() && !(ob->visibility_flag & OB_HIDE_PROBE_PLANAR)) {
         mat.planar_probe_prepass = material_pass_get(
             ob, blender_mat, MAT_PIPE_PREPASS_PLANAR, geometry_type, MAT_PROBE_PLANAR);
         mat.planar_probe_shading = material_pass_get(
@@ -346,7 +362,7 @@ Material &MaterialModule::material_sync(Object *ob,
 
       mat.has_surface = GPU_material_has_surface_output(mat.shading.gpumat);
       mat.has_volume = GPU_material_has_volume_output(mat.shading.gpumat);
-      if (mat.has_volume) {
+      if (mat.has_volume && !hide_on_camera) {
         mat.volume_occupancy = material_pass_get(
             ob, blender_mat, MAT_PIPE_VOLUME_OCCUPANCY, geometry_type);
         mat.volume_material = material_pass_get(
@@ -375,7 +391,7 @@ Material &MaterialModule::material_sync(Object *ob,
     return mat;
   });
 
-  if (mat.is_alpha_blend_transparent) {
+  if (mat.is_alpha_blend_transparent && !hide_on_camera) {
     /* Transparent needs to use one sub pass per object to support reordering.
      * NOTE: Pre-pass needs to be created first in order to be sorted first. */
     mat.overlap_masking.sub_pass = inst_.pipelines.forward.prepass_transparent_add(
@@ -386,7 +402,8 @@ Material &MaterialModule::material_sync(Object *ob,
 
   if (mat.has_volume) {
     /* Volume needs to use one sub pass per object to support layering. */
-    VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(ob);
+    VolumeLayer *layer = hide_on_camera ? nullptr :
+                                          inst_.pipelines.volume.register_and_get_layer(ob);
     if (layer) {
       mat.volume_occupancy.sub_pass = layer->occupancy_add(
           ob, blender_mat, mat.volume_occupancy.gpumat);
@@ -404,9 +421,6 @@ Material &MaterialModule::material_sync(Object *ob,
 
 ::Material *MaterialModule::material_from_slot(Object *ob, int slot)
 {
-  if (ob->base_flag & BASE_HOLDOUT) {
-    return BKE_material_default_holdout();
-  }
   ::Material *ma = BKE_object_material_get(ob, slot + 1);
   if (ma == nullptr) {
     if (ob->type == OB_VOLUME) {

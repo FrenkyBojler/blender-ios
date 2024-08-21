@@ -67,7 +67,6 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win);
  */
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win);
 
-void wm_window_title(wmWindowManager *wm, wmWindow *win);
 /**
  * Initialize #wmWindow without `ghostwin`, open these and clear.
  *
@@ -107,7 +106,7 @@ void wm_window_set_swap_interval(wmWindow *win, int interval);
 bool wm_window_get_swap_interval(wmWindow *win, int *r_interval);
 
 bool wm_cursor_position_get(wmWindow *win, int *r_x, int *r_y) ATTR_WARN_UNUSED_RESULT;
-void wm_cursor_position_from_ghost_screen_coords(wmWindow *win, int *r_x, int *r_y);
+void wm_cursor_position_from_ghost_screen_coords(wmWindow *win, int *x, int *y);
 void wm_cursor_position_to_ghost_screen_coords(wmWindow *win, int *x, int *y);
 
 void wm_cursor_position_from_ghost_client_coords(wmWindow *win, int *x, int *y);

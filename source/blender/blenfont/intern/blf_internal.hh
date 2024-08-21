@@ -8,7 +8,9 @@
 
 #pragma once
 
+#include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -41,6 +43,12 @@ struct rcti;
 #define BLF_CACHE_MAX_SIZES 8
 /** Maximum number of bytes to use for cached data nodes. 0 is default of 200,000. */
 #define BLF_CACHE_BYTES 400000
+
+/**
+ * Offset from icon id to Unicode Supplementary Private Use Area-B,
+ * added with Unicode 2.0. 65,536 code-points at U+100000..U+10FFFF.
+ */
+#define BLF_ICON_OFFSET 0x100000L
 
 /**
  * We assume square pixels at a fixed DPI of 72, scaling only the size. Therefore
@@ -92,6 +100,25 @@ bool blf_font_size(FontBLF *font, float size);
 
 void blf_font_draw(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
 void blf_font_draw__wrap(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
+
+void blf_draw_svg_icon(FontBLF *font,
+                       uint icon_id,
+                       float x,
+                       float y,
+                       float size,
+                       float color[4] = nullptr,
+                       float outline_alpha = 1.0f,
+                       bool multicolor = false,
+                       blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
+
+blender::Array<uchar> blf_svg_icon_bitmap(
+    FontBLF *font,
+    uint icon_id,
+    float size,
+    int *r_width,
+    int *r_height,
+    bool multicolor = false,
+    blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
 blender::Vector<blender::StringRef> blf_font_string_wrap(FontBLF *font,
                                                          blender::StringRef str,
@@ -165,6 +192,12 @@ GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, uint charcode, uint
 #ifdef BLF_SUBPIXEL_AA
 GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int32_t pen_x);
 #endif
+
+GlyphBLF *blf_glyph_ensure_icon(
+    GlyphCacheBLF *gc,
+    uint icon_id,
+    bool color = false,
+    blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
 /**
  * Convert a character's outlines into curves.

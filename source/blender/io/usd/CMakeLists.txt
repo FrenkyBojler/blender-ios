@@ -74,7 +74,7 @@ set(INC
   ../../python/intern
   ../../windowmanager
   ../../../../intern/utfconv
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -95,7 +95,10 @@ set(SRC
   intern/usd_capi_import.cc
   intern/usd_hierarchy_iterator.cc
   intern/usd_hook.cc
+  intern/usd_light_convert.cc
   intern/usd_mesh_utils.cc
+  intern/usd_utils.cc
+
   intern/usd_writer_abstract.cc
   intern/usd_writer_armature.cc
   intern/usd_writer_camera.cc
@@ -139,7 +142,10 @@ set(SRC
   intern/usd_hash_types.hh
   intern/usd_hierarchy_iterator.hh
   intern/usd_hook.hh
+  intern/usd_light_convert.hh
   intern/usd_mesh_utils.hh
+  intern/usd_utils.hh
+
   intern/usd_writer_abstract.hh
   intern/usd_writer_armature.hh
   intern/usd_writer_camera.hh
@@ -246,7 +252,7 @@ endif()
 
 blender_add_lib(bf_io_usd "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_io_usd bf_rna)
 
 if(COMMAND target_precompile_headers)

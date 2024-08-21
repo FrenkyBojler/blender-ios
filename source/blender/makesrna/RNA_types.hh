@@ -74,19 +74,20 @@ enum PropertyType {
 /* also update rna_property_subtype_unit when you change this */
 enum PropertyUnit {
   PROP_UNIT_NONE = (0 << 16),
-  PROP_UNIT_LENGTH = (1 << 16),        /* m */
-  PROP_UNIT_AREA = (2 << 16),          /* m^2 */
-  PROP_UNIT_VOLUME = (3 << 16),        /* m^3 */
-  PROP_UNIT_MASS = (4 << 16),          /* kg */
-  PROP_UNIT_ROTATION = (5 << 16),      /* radians */
-  PROP_UNIT_TIME = (6 << 16),          /* frame */
-  PROP_UNIT_TIME_ABSOLUTE = (7 << 16), /* time in seconds (independent of scene) */
-  PROP_UNIT_VELOCITY = (8 << 16),      /* m/s */
-  PROP_UNIT_ACCELERATION = (9 << 16),  /* m/(s^2) */
-  PROP_UNIT_CAMERA = (10 << 16),       /* mm */
-  PROP_UNIT_POWER = (11 << 16),        /* W */
-  PROP_UNIT_TEMPERATURE = (12 << 16),  /* C */
-  PROP_UNIT_WAVELENGTH = (13 << 16),   /* `nm` (independent of scene). */
+  PROP_UNIT_LENGTH = (1 << 16),             /* m */
+  PROP_UNIT_AREA = (2 << 16),               /* m^2 */
+  PROP_UNIT_VOLUME = (3 << 16),             /* m^3 */
+  PROP_UNIT_MASS = (4 << 16),               /* kg */
+  PROP_UNIT_ROTATION = (5 << 16),           /* radians */
+  PROP_UNIT_TIME = (6 << 16),               /* frame */
+  PROP_UNIT_TIME_ABSOLUTE = (7 << 16),      /* time in seconds (independent of scene) */
+  PROP_UNIT_VELOCITY = (8 << 16),           /* m/s */
+  PROP_UNIT_ACCELERATION = (9 << 16),       /* m/(s^2) */
+  PROP_UNIT_CAMERA = (10 << 16),            /* mm */
+  PROP_UNIT_POWER = (11 << 16),             /* W */
+  PROP_UNIT_TEMPERATURE = (12 << 16),       /* C */
+  PROP_UNIT_WAVELENGTH = (13 << 16),        /* `nm` (independent of scene). */
+  PROP_UNIT_COLOR_TEMPERATURE = (14 << 16), /* K */
 };
 ENUM_OPERATORS(PropertyUnit, PROP_UNIT_TEMPERATURE)
 
@@ -186,6 +187,9 @@ enum PropertySubType {
 
   /* wavelength */
   PROP_WAVELENGTH = 44 | PROP_UNIT_WAVELENGTH,
+
+  /* wavelength */
+  PROP_COLOR_TEMPERATURE = 45 | PROP_UNIT_COLOR_TEMPERATURE,
 };
 
 /* Make sure enums are updated with these */
@@ -223,9 +227,18 @@ enum PropertyFlag {
   PROP_ICONS_CONSECUTIVE = (1 << 12),
   PROP_ICONS_REVERSE = (1 << 8),
 
-  /** Hidden in the user interface. Inherits #ROP_SKIP_PRESET. */
+  /**
+   * Hide in the user interface. That is, from auto-generated operator property UIs (like the
+   * redo panel) and the outliner "Data API" display mode. Does not hide it in the keymap UI.
+   *
+   * Also don't save in presets, as if #PROP_SKIP_PRESET was set.
+   */
   PROP_HIDDEN = (1 << 19),
-  /** Do not use ghost values. Inherits #PROP_SKIP_PRESET. */
+  /**
+   * Doesn't preserve the last value for repeated operator calls.
+   *
+   * Also don't save in presets, as if #PROP_SKIP_PRESET was set.
+   */
   PROP_SKIP_SAVE = (1 << 28),
 
   /* numbers */
@@ -323,7 +336,7 @@ enum PropertyFlag {
    */
   PROP_PATH_OUTPUT = (1 << 2),
 
-  /** Do not write in presets. */
+  /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
   PROP_SKIP_PRESET = (1 << 11),
 };
 ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)

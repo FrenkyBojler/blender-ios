@@ -84,7 +84,8 @@ ccl_device
           sheen_weight_offset, sheen_tint_offset, sheen_roughness_offset, coat_weight_offset,
           coat_roughness_offset, coat_ior_offset, eta_offset, transmission_weight_offset,
           anisotropic_rotation_offset, coat_tint_offset, coat_normal_offset, alpha_offset,
-          emission_strength_offset, emission_offset, thinfilm_thickness_offset, unused;
+          emission_strength_offset, emission_offset, thinfilm_thickness_offset,
+          diffuse_roughness_offset;
       uint4 data_node2 = read_node(kg, &offset);
 
       float3 T = stack_load_float3(stack, data_node.y);
@@ -93,8 +94,11 @@ ccl_device
                              &roughness_offset,
                              &specular_tint_offset,
                              &anisotropic_offset);
-      svm_unpack_node_uchar4(
-          data_node.w, &sheen_weight_offset, &sheen_tint_offset, &sheen_roughness_offset, &unused);
+      svm_unpack_node_uchar4(data_node.w,
+                             &sheen_weight_offset,
+                             &sheen_tint_offset,
+                             &sheen_roughness_offset,
+                             &diffuse_roughness_offset);
       svm_unpack_node_uchar4(data_node2.x,
                              &eta_offset,
                              &transmission_weight_offset,
@@ -126,7 +130,9 @@ ccl_device
       float ior = fmaxf(stack_load_float(stack, eta_offset), 1e-5f);
 
       ClosureType distribution = (ClosureType)data_node2.y;
+#ifdef __SUBSURFACE__
       ClosureType subsurface_method = (ClosureType)data_node2.z;
+#endif
 
       float3 valid_reflection_N = maybe_ensure_valid_specular_reflection(sd, N);
       float3 coat_normal = stack_valid(coat_normal_offset) ?
@@ -145,7 +151,9 @@ ccl_device
       const float3 clamped_base_color = min(base_color, one_float3());
 
       // get the subsurface scattering data
+#ifdef __SUBSURFACE__
       uint4 data_subsurf = read_node(kg, &offset);
+#endif
 
       uint4 data_alpha_emission_thin = read_node(kg, &offset);
       svm_unpack_node_uchar4(data_alpha_emission_thin.x,
@@ -413,15 +421,23 @@ ccl_device
       subsurface_weight = 0.0f;
 #endif
 
-      ccl_private DiffuseBsdf *bsdf = (ccl_private DiffuseBsdf *)bsdf_alloc(
+      ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)bsdf_alloc(
           sd,
-          sizeof(DiffuseBsdf),
+          sizeof(OrenNayarBsdf),
           rgb_to_spectrum(base_color) * (1.0f - subsurface_weight) * weight);
       if (bsdf) {
         bsdf->N = N;
 
+        const float diffuse_roughness = saturatef(
+            stack_load_float(stack, diffuse_roughness_offset));
         /* setup bsdf */
-        sd->flag |= bsdf_diffuse_setup(bsdf);
+        if (diffuse_roughness < CLOSURE_WEIGHT_CUTOFF) {
+          sd->flag |= bsdf_diffuse_setup((ccl_private DiffuseBsdf *)bsdf);
+        }
+        else {
+          bsdf->roughness = diffuse_roughness;
+          sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, rgb_to_spectrum(base_color));
+        }
       }
 
       break;
@@ -441,7 +457,8 @@ ccl_device
         }
         else {
           bsdf->roughness = roughness;
-          sd->flag |= bsdf_oren_nayar_setup(bsdf);
+          const Spectrum color = saturate(rgb_to_spectrum(stack_load_float3(stack, data_node.y)));
+          sd->flag |= bsdf_oren_nayar_setup(sd, bsdf, color);
         }
       }
       break;
@@ -931,7 +948,7 @@ ccl_device_noinline void svm_node_closure_volume(KernelGlobals kg,
 
   float density = (stack_valid(density_offset)) ? stack_load_float(stack, density_offset) :
                                                   __uint_as_float(node.z);
-  density = mix_weight * fmaxf(density, 0.0f);
+  density = mix_weight * fmaxf(density, 0.0f) * object_volume_density(kg, sd->object);
 
   /* Compute scattering coefficient. */
   Spectrum weight = closure_weight;
@@ -993,7 +1010,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
   float primitive_density = 1.0f;
   float density = (stack_valid(density_offset)) ? stack_load_float(stack, density_offset) :
                                                   __uint_as_float(value_node.x);
-  density = mix_weight * fmaxf(density, 0.0f);
+  density = mix_weight * fmaxf(density, 0.0f) * object_volume_density(kg, sd->object);
 
   if (density > CLOSURE_WEIGHT_CUTOFF) {
     /* Density and color attribute lookup if available. */
@@ -1051,7 +1068,8 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
 
   if (emission > CLOSURE_WEIGHT_CUTOFF) {
     float3 emission_color = stack_load_float3(stack, emission_color_offset);
-    emission_setup(sd, rgb_to_spectrum(emission * emission_color));
+    emission_setup(
+        sd, rgb_to_spectrum(emission * emission_color * object_volume_density(kg, sd->object)));
   }
 
   if (blackbody > CLOSURE_WEIGHT_CUTOFF) {
@@ -1075,14 +1093,15 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
       float3 blackbody_tint = stack_load_float3(stack, node.w);
       float3 bb = blackbody_tint * intensity *
                   rec709_to_rgb(kg, svm_math_blackbody_color_rec709(T));
-      emission_setup(sd, rgb_to_spectrum(bb));
+      emission_setup(sd, rgb_to_spectrum(bb * object_volume_density(kg, sd->object)));
     }
   }
 #endif
   return offset;
 }
 
-ccl_device_noinline void svm_node_closure_emission(ccl_private ShaderData *sd,
+ccl_device_noinline void svm_node_closure_emission(KernelGlobals kg,
+                                                   ccl_private ShaderData *sd,
                                                    ccl_private float *stack,
                                                    Spectrum closure_weight,
                                                    uint4 node)
@@ -1098,6 +1117,10 @@ ccl_device_noinline void svm_node_closure_emission(ccl_private ShaderData *sd,
     }
 
     weight *= mix_weight;
+  }
+
+  if (sd->flag & SD_IS_VOLUME_SHADER_EVAL) {
+    weight *= object_volume_density(kg, sd->object);
   }
 
   emission_setup(sd, weight);

@@ -38,7 +38,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -112,6 +112,13 @@ static const char *shortcut_get_operator_property(bContext *C, uiBut *but, IDPro
     IDP_AddToGroup(prop, bke::idprop::create("name", mt->idname).release());
     *r_prop = prop;
     return "WM_OT_call_menu";
+  }
+
+  if (std::optional asset_shelf_idname = UI_but_asset_shelf_type_idname_get(but)) {
+    IDProperty *prop = blender::bke::idprop::create_group(__func__).release();
+    IDP_AddToGroup(prop, bke::idprop::create("name", *asset_shelf_idname).release());
+    *r_prop = prop;
+    return "WM_OT_call_asset_shelf_popover";
   }
 
   if (PanelType *pt = UI_but_paneltype_get(but)) {
@@ -531,7 +538,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   uiLayout *layout;
   const bContextStore *previous_ctx = CTX_store_get(C);
   {
-    pup = UI_popup_menu_begin(C, UI_but_string_get_label(*but).c_str(), ICON_NONE);
+    pup = UI_popup_menu_begin(C, UI_but_context_menu_title_from_button(*but).c_str(), ICON_NONE);
     layout = UI_popup_menu_layout(pup);
 
     set_layout_context_from_button(C, layout, but);
@@ -821,7 +828,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     }
 
     /* Keying Sets */
-    /* TODO: check on modifyability of Keying Set when doing this */
+    /* TODO: check on modifiability of Keying Set when doing this. */
     if (is_anim) {
       uiItemS(layout);
 
@@ -1070,8 +1077,10 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
   {
     const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
-    uiButViewItem *view_item_but = (uiButViewItem *)ui_view_item_find_mouse_over(region,
-                                                                                 event->xy);
+    uiButViewItem *view_item_but = (but->type == UI_BTYPE_VIEW_ITEM) ?
+                                       static_cast<uiButViewItem *>(but) :
+                                       static_cast<uiButViewItem *>(
+                                           ui_view_item_find_mouse_over(region, event->xy));
     if (view_item_but) {
       BLI_assert(view_item_but->type == UI_BTYPE_VIEW_ITEM);
 
@@ -1344,17 +1353,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
                   UI_ITEM_NONE,
                   nullptr);
     }
-  }
-
-  if (BKE_addon_find(&U.addons, "ui_translate")) {
-    uiItemFullO(layout,
-                "UI_OT_edittranslation_init",
-                nullptr,
-                ICON_NONE,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                nullptr);
   }
 
   /* Show header tools for header buttons. */

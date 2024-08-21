@@ -33,7 +33,7 @@
 #include "ED_undo.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -371,6 +371,7 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     else {
       MEM_freeN(path);
       path = BLI_strdup(BKE_appdir_folder_default_or_root());
+      BLI_path_slash_ensure(path, FILE_MAXDIR);
     }
   }
 

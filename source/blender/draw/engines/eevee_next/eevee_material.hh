@@ -215,6 +215,7 @@ struct MaterialKey {
                                              to_displacement_type(mat_->displacement_method),
                                              to_thickness_type(mat_->thickness_mode),
                                              mat_->blend_flag);
+    options = (options << 1) | (visibility_flags & OB_HIDE_CAMERA ? 0 : 1);
     options = (options << 1) | (visibility_flags & OB_HIDE_SHADOW ? 0 : 1);
     options = (options << 1) | (visibility_flags & OB_HIDE_PROBE_CUBEMAP ? 0 : 1);
     options = (options << 1) | (visibility_flags & OB_HIDE_PROBE_PLANAR ? 0 : 1);
@@ -329,8 +330,8 @@ struct Material {
   MaterialPass prepass;
   MaterialPass overlap_masking;
   MaterialPass capture;
-  MaterialPass reflection_probe_prepass;
-  MaterialPass reflection_probe_shading;
+  MaterialPass lightprobe_sphere_prepass;
+  MaterialPass lightprobe_sphere_shading;
   MaterialPass planar_probe_prepass;
   MaterialPass planar_probe_shading;
   MaterialPass volume_occupancy;

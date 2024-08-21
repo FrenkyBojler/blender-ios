@@ -34,7 +34,7 @@
 #define CULLING_TILE_GROUP_SIZE 256
 
 /* Reflection Probes. */
-/* When changed update parallel sum loop in `eevee_reflection_probe_remap_comp.glsl`. */
+/* When changed update parallel sum loop in `eevee_lightprobe_sphere_remap_comp.glsl`. */
 #define SPHERE_PROBE_REMAP_GROUP_SIZE 32
 #define SPHERE_PROBE_GROUP_SIZE 16
 #define SPHERE_PROBE_SELECT_GROUP_SIZE 64
@@ -42,7 +42,7 @@
 #define SPHERE_PROBE_SH_GROUP_SIZE 256
 #define SPHERE_PROBE_SH_SAMPLES_PER_GROUP 64
 /* Must be power of two for correct partitioning. */
-#define SPHERE_PROBE_ATLAS_MAX_SUBDIV 10
+#define SPHERE_PROBE_ATLAS_MAX_SUBDIV 12
 #define SPHERE_PROBE_ATLAS_RES (1 << SPHERE_PROBE_ATLAS_MAX_SUBDIV)
 /* Maximum number of thread-groups dispatched for remapping a probe to octahedral mapping. */
 #define SPHERE_PROBE_MAX_HARMONIC SQUARE(SPHERE_PROBE_ATLAS_RES / SPHERE_PROBE_REMAP_GROUP_SIZE)
@@ -125,7 +125,7 @@
 #define SHADOW_ROG_ID 0
 
 /* Deferred Lighting. */
-#define DEFERRED_RADIANCE_FORMAT GPU_R11F_G11F_B10F
+#define DEFERRED_RADIANCE_FORMAT GPU_R32UI
 #define DEFERRED_GBUFFER_ROG_ID 0
 
 /* Ray-tracing. */
@@ -188,6 +188,7 @@
 /* Resource bindings. */
 
 /* Textures. */
+/** WARNING: Don't forget to update the reserved slots info. */
 /* Used anywhere. (Starts at index 2, since 0 and 1 are used by draw_gpencil) */
 #define RBUFS_UTILITY_TEX_SLOT 2
 #define HIZ_TEX_SLOT 3
@@ -201,6 +202,12 @@
 /* Currently only used by ray-tracing, but might become used by forward too. */
 #define PLANAR_PROBE_DEPTH_TEX_SLOT 10
 #define PLANAR_PROBE_RADIANCE_TEX_SLOT 11
+/* Reserved slots info */
+#define MATERIAL_TEXTURE_RESERVED_SLOT_FIRST RBUFS_UTILITY_TEX_SLOT
+#define MATERIAL_TEXTURE_RESERVED_SLOT_LAST_NO_EVAL HIZ_TEX_SLOT
+#define MATERIAL_TEXTURE_RESERVED_SLOT_LAST_HYBRID SPHERE_PROBE_TEX_SLOT
+#define MATERIAL_TEXTURE_RESERVED_SLOT_LAST_FORWARD VOLUME_TRANSMITTANCE_TEX_SLOT
+#define MATERIAL_TEXTURE_RESERVED_SLOT_LAST_WORLD SPHERE_PROBE_TEX_SLOT
 
 /* Images. */
 #define RBUFS_COLOR_SLOT 0
@@ -214,7 +221,8 @@
 #define VOLUME_PROP_EXTINCTION_IMG_SLOT 1
 #define VOLUME_PROP_EMISSION_IMG_SLOT 2
 #define VOLUME_PROP_PHASE_IMG_SLOT 3
-#define VOLUME_OCCUPANCY_SLOT 4
+#define VOLUME_PROP_PHASE_WEIGHT_IMG_SLOT 4
+#define VOLUME_OCCUPANCY_SLOT 5
 /* Only during volume pre-pass. */
 #define VOLUME_HIT_DEPTH_SLOT 0
 #define VOLUME_HIT_COUNT_SLOT 1

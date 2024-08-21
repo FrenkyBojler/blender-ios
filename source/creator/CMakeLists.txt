@@ -460,9 +460,6 @@ if(WITH_PYTHON)
     PATTERN ".arcconfig" EXCLUDE
     PATTERN "__pycache__" EXCLUDE
     PATTERN "site" EXCLUDE
-    # Legacy sub-module which is no longer used.
-    PATTERN "addons/*" EXCLUDE
-    PATTERN "addons_contrib/*" EXCLUDE
     PATTERN "${FREESTYLE_EXCLUDE_CONDITIONAL}" EXCLUDE
   )
 
@@ -635,8 +632,9 @@ if(NOT ("${_install_cmd}" STREQUAL ""))
   get_filename_component(_install_dst ${TARGETDIR_VER} ABSOLUTE BASE_DIR ${CMAKE_INSTALL_PREFIX})
   add_custom_command(
     TARGET blender POST_BUILD MAIN_DEPENDENCY blender
-    COMMAND ${CMAKE_COMMAND} -E echo
-    "Run: \\\"${_install_cmd}\\\" to copy runtime files and scripts to: ${_install_dst}"
+    COMMAND
+      ${CMAKE_COMMAND} -E echo
+      "Run: \\\"${_install_cmd}\\\" to copy runtime files and scripts to: ${_install_dst}"
   )
   unset(_install_dst)
 endif()
@@ -1001,25 +999,13 @@ elseif(WIN32)
       ALL
     )
   endif()
-
+  # 4.1 fftw libs need to be installed, in 4.2 fftw got turned into a static lib
+  # and the files below no longer exist.
   if(EXISTS ${LIBDIR}/fftw3/lib/fftw3.dll)
-    set(FFTW_DLL ${LIBDIR}/fftw3/lib/fftw3.dll)
-  else()
-    set(FFTW_DLL ${LIBDIR}/fftw3/lib/libfftw3-3.dll)
-  endif()
-
-  windows_install_shared_manifest(
-    FILES ${FFTW_DLL}
-    ALL
-  )
-  if(EXISTS ${LIBDIR}/fftw3/lib/fftw3f-3.dll)
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/fftw3/lib/fftw3f-3.dll
-      ALL
-    )
-  elseif(EXISTS ${LIBDIR}/fftw3/lib/fftw3f.dll)
-    windows_install_shared_manifest(
-      FILES ${LIBDIR}/fftw3/lib/fftw3f.dll
+      FILES
+        ${LIBDIR}/fftw3/lib/fftw3.dll
+        ${LIBDIR}/fftw3/lib/fftw3f.dll
       ALL
     )
   endif()
@@ -1270,7 +1256,8 @@ elseif(WIN32)
         CONFIGURATIONS Debug
       )
 
-      if(EXISTS ${LIBDIR}/openimageio/lib/python${PYTHON_VERSION}/site-packages) #this will only exist for 3.5+
+      # This will only exist for 3.5+.
+      if(EXISTS ${LIBDIR}/openimageio/lib/python${PYTHON_VERSION}/site-packages)
         install(
           DIRECTORY ${LIBDIR}/openimageio/lib/python${PYTHON_VERSION}/site-packages/
           DESTINATION ${TARGETDIR_VER}/python/lib/site-packages/
@@ -1659,6 +1646,13 @@ if(DEFINED TARGETDIR_TEXT)
 )
 endif()
 
+# Create a system extensions directory (users or administrators may populate this).
+# This only contains a `readme.txt` explaining it's purpose.
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/release/extensions
+  DESTINATION ${TARGETDIR_VER}
+)
+
 # Install more files specified elsewhere.
 delayed_do_install(${TARGETDIR_VER})
 
@@ -1845,7 +1839,8 @@ if(WIN32)
     PDB_NAME "blender_private"
     PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
   )
-  # If compiling with clang-cl we skip PDBSTRIPPED. There's doesn't seem to be a switch for it currently
+  # If compiling with clang-cl we skip PDBSTRIPPED.
+  # There's doesn't seem to be a switch for it currently
   if(WITH_WINDOWS_RELEASE_PDB AND WITH_WINDOWS_RELEASE_STRIPPED_PDB AND NOT MSVC_CLANG)
     # This is slightly messy, but single target generators like ninja will not have the
     # `CMAKE_CFG_INTDIR` variable and multi-target generators like `msbuild` will not have
@@ -1912,6 +1907,9 @@ if(UNIX AND NOT APPLE)
       install(
         CODE "\
 set(BLENDER_BIN \"${CMAKE_INSTALL_PREFIX}/${BLENDER_BIN}\")\n\
+if(DEFINED ENV\{DESTDIR\})\n\
+  set(BLENDER_BIN \"$ENV\{DESTDIR\}/$\{BLENDER_BIN\}\")\n\
+endif()\n\
 set(PYTHON_EXECUTABLE \"${PYTHON_EXECUTABLE}\")\n\
 set(MANPAGE_GEN \"${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py\")\n\
 set(MANPAGE_OUT \"${CMAKE_CURRENT_BINARY_DIR}/blender.1\")\n\

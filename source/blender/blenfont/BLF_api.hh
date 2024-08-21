@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 #include "BLI_vector.hh"
@@ -109,6 +111,12 @@ void BLF_size(int fontid, float size);
  */
 void BLF_character_weight(int fontid, int weight);
 
+/* Return the font's default design weight (100-900). */
+int BLF_default_weight(int fontid) ATTR_WARN_UNUSED_RESULT;
+
+/* Return true if the font has a variable (multiple master) weight axis. */
+bool BLF_has_variable_weight(int fontid) ATTR_WARN_UNUSED_RESULT;
+
 /* Goal: small but useful color API. */
 
 void BLF_color4ubv(int fontid, const unsigned char rgba[4]);
@@ -138,6 +146,23 @@ void BLF_draw(int fontid, const char *str, size_t str_len, ResultBLF *r_info = n
     ATTR_NONNULL(2);
 int BLF_draw_mono(int fontid, const char *str, size_t str_len, int cwidth, int tab_columns)
     ATTR_NONNULL(2);
+
+void BLF_draw_svg_icon(uint icon_id,
+                       float x,
+                       float y,
+                       float size,
+                       float color[4] = nullptr,
+                       float outline_alpha = 1.0f,
+                       bool multicolor = false,
+                       blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
+
+blender::Array<uchar> BLF_svg_icon_bitmap(
+    uint icon_id,
+    float size,
+    int *r_width,
+    int *r_height,
+    bool multicolor = false,
+    blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
 typedef bool (*BLF_GlyphBoundsFn)(const char *str,
                                   size_t str_step_ofs,
@@ -300,7 +325,7 @@ void BLF_draw_buffer(int fontid, const char *str, size_t str_len, ResultBLF *r_i
  *
  * \note called from a thread, so it bypasses the normal BLF_* api (which isn't thread-safe).
  */
-bool BLF_thumb_preview(const char *filename, unsigned char *buf, int w, int h, int channels)
+bool BLF_thumb_preview(const char *filepath, unsigned char *buf, int w, int h, int channels)
     ATTR_NONNULL();
 
 /* `blf_default.cc` */

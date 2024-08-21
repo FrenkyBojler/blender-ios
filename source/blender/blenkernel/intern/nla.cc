@@ -43,7 +43,7 @@
 #include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "nla_private.h"
 
@@ -54,7 +54,7 @@ static CLG_LogRef LOG = {"bke.nla"};
  *
  * The active strip may or may not be on the active track.
  */
-static void nla_tweakmode_find_active(const ListBase /* NlaTrack */ *nla_tracks,
+static void nla_tweakmode_find_active(const ListBase /*NlaTrack*/ *nla_tracks,
                                       NlaTrack **r_track_of_active_strip,
                                       NlaStrip **r_active_strip);
 
@@ -237,8 +237,8 @@ void BKE_nla_tracks_copy(Main *bmain, ListBase *dst, const ListBase *src, const 
  * index from `strips_dest`.
  */
 static NlaStrip *find_active_strip_from_listbase(const NlaStrip *active_strip,
-                                                 const ListBase /* NlaStrip */ *strips_source,
-                                                 const ListBase /* NlaStrip */ *strips_dest)
+                                                 const ListBase /*NlaStrip*/ *strips_source,
+                                                 const ListBase /*NlaStrip*/ *strips_dest)
 {
   BLI_assert_msg(BLI_listbase_count(strips_source) == BLI_listbase_count(strips_dest),
                  "Expecting the same number of source and destination strips");
@@ -587,9 +587,6 @@ void BKE_nla_strip_foreach_id(NlaStrip *strip, LibraryForeachIDData *data)
   LISTBASE_FOREACH (FCurve *, fcu, &strip->fcurves) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_fcurve_foreach_id(fcu, data));
   }
-
-  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
-                                          BKE_fmodifiers_foreach_id(&strip->modifiers, data));
 
   LISTBASE_FOREACH (NlaStrip *, substrip, &strip->strips) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_nla_strip_foreach_id(substrip, data));
@@ -1335,7 +1332,7 @@ bool BKE_nlatrack_is_nonlocal_in_liboverride(const ID *id, const NlaTrack *nlt)
 
 /* NLA Strips -------------------------------------- */
 
-static NlaStrip *nlastrip_find_active(ListBase /* NlaStrip */ *strips)
+static NlaStrip *nlastrip_find_active(ListBase /*NlaStrip*/ *strips)
 {
   LISTBASE_FOREACH (NlaStrip *, strip, strips) {
     if (strip->flag & NLASTRIP_FLAG_ACTIVE) {
@@ -1458,7 +1455,7 @@ void BKE_nlastrip_set_active(AnimData *adt, NlaStrip *strip)
   }
 }
 
-static NlaStrip *nlastrip_find_by_name(ListBase /* NlaStrip */ *strips, const char *name)
+static NlaStrip *nlastrip_find_by_name(ListBase /*NlaStrip*/ *strips, const char *name)
 {
   LISTBASE_FOREACH (NlaStrip *, strip, strips) {
     if (STREQ(strip->name, name)) {
@@ -1845,16 +1842,16 @@ void BKE_nlastrip_validate_name(AnimData *adt, NlaStrip *strip)
   if (strip->name[0] == 0) {
     switch (strip->type) {
       case NLASTRIP_TYPE_CLIP: /* act-clip */
-        STRNCPY(strip->name, (strip->act) ? (strip->act->id.name + 2) : ("<No Action>"));
+        STRNCPY(strip->name, (strip->act) ? (strip->act->id.name + 2) : DATA_("<No Action>"));
         break;
       case NLASTRIP_TYPE_TRANSITION: /* transition */
-        STRNCPY(strip->name, "Transition");
+        STRNCPY(strip->name, DATA_("Transition"));
         break;
       case NLASTRIP_TYPE_META: /* meta */
-        STRNCPY(strip->name, "Meta");
+        STRNCPY(strip->name, DATA_("Meta"));
         break;
       default:
-        STRNCPY(strip->name, "NLA Strip");
+        STRNCPY(strip->name, DATA_("NLA Strip"));
         break;
     }
   }
@@ -2194,7 +2191,7 @@ void BKE_nla_action_pushdown(AnimData *adt, const bool is_liboverride)
   BKE_nlastrip_set_active(adt, strip);
 }
 
-static void nla_tweakmode_find_active(const ListBase /* NlaTrack */ *nla_tracks,
+static void nla_tweakmode_find_active(const ListBase /*NlaTrack*/ *nla_tracks,
                                       NlaTrack **r_track_of_active_strip,
                                       NlaStrip **r_active_strip)
 {

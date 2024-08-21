@@ -37,6 +37,15 @@ void Sampling::init(const Scene *scene)
     sample_count_ = infinite_sample_count_;
   }
 
+  if (inst_.is_viewport()) {
+    /* We can't rely on the film module as it is initialized later. */
+    int pixel_size = BKE_render_preview_pixel_size(&inst_.scene->r);
+    if (pixel_size > 1) {
+      /* Enforce to render at least all the film pixel once. */
+      sample_count_ = max_ii(sample_count_, square_i(pixel_size));
+    }
+  }
+
   motion_blur_steps_ = !inst_.is_viewport() ? scene->eevee.motion_blur_steps : 1;
   sample_count_ = divide_ceil_u(sample_count_, motion_blur_steps_);
 
@@ -113,7 +122,8 @@ void Sampling::end_sync()
 void Sampling::step()
 {
   {
-    uint64_t sample_filter = sample_;
+    /* Repeat the sequence for all pixels that are being up-scaled. */
+    uint64_t sample_filter = sample_ / square_i(inst_.film.scaling_factor_get());
     if (interactive_mode()) {
       sample_filter = sample_filter % interactive_sample_aa_;
     }
@@ -134,9 +144,9 @@ void Sampling::step()
     data_.dimensions[SAMPLING_RAYTRACE_X] = r[0];
   }
   {
-    double2 r, offset = {0, 0};
-    uint2 primes = {5, 7};
-    BLI_halton_2d(primes, offset, sample_ + 1, r);
+    double3 r, offset = {0, 0, 0};
+    uint3 primes = {5, 7, 3};
+    BLI_halton_3d(primes, offset, sample_ + 1, r);
     data_.dimensions[SAMPLING_LENS_U] = r[0];
     data_.dimensions[SAMPLING_LENS_V] = r[1];
     /* TODO de-correlate. */
@@ -145,6 +155,7 @@ void Sampling::step()
     /* TODO de-correlate. */
     data_.dimensions[SAMPLING_AO_U] = r[0];
     data_.dimensions[SAMPLING_AO_V] = r[1];
+    data_.dimensions[SAMPLING_AO_W] = r[2];
     /* TODO de-correlate. */
     data_.dimensions[SAMPLING_CURVES_U] = r[0];
   }

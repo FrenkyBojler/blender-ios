@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "BLI_array.hh"
+#include "BLI_hash.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
@@ -547,7 +548,7 @@ static uchar check_original_face(const Vector<int, face_group_inline> &group,
 }
 #endif
 
-OutFace make_out_face(const MeshGL &mgl, int tri_index, int orig_face)
+static OutFace make_out_face(const MeshGL &mgl, int tri_index, int orig_face)
 {
   OutFace ans;
   ans.verts = Vector<int, inline_outface_size>(3);
@@ -565,34 +566,37 @@ OutFace make_out_face(const MeshGL &mgl, int tri_index, int orig_face)
  * A SharedEdge has two such indices, with the assertion that
  * they are the have the same vertices (but in opposite order).
  */
-struct SharedEdge
-{
+struct SharedEdge {
   int e1;
   int e2;
 
-  SharedEdge(int e1, int e2) : e1(e1), e2(e2)
-  {
-  }
+  SharedEdge(int e1, int e2) : e1(e1), e2(e2) {}
 };
 
 /* A pair of vertices in MeshGL output space. */
-struct VertPair
-{
+struct VertPair {
   int v1;
   int v2;
 
-  VertPair(int v1, int v2) : v1(v1), v2(v2)
+  VertPair(int v1, int v2) : v1(v1), v2(v2) {}
+
+  uint64_t hash() const
+  {
+    return this->v1 ^ this->v2;
+  }
 };
 
-struct FaceNode
+static bool operator==(const VertPair &a, const VertPair &b)
 {
+  return a.v1 == b.v1 && a.v2 == b.v2;
+}
+
+struct FaceNode {
   Vector<SharedEdge, 4> shared_edges;
   int node_id;
 };
 
-static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces,
-                                           Span<int> group,
-                                           const MeshGL &mgl)
+static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces, Span<int> group, const MeshGL &mgl)
 {
   Vector<SharedEdge> ans;
   /* Map from two verts making an edge to where that edge appears
@@ -603,23 +607,21 @@ static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces,
     const int v_start_index = 3 * tri;
     for (const int i : IndexRange(3)) {
       int v1 = mgl.triVerts[v_start_index + i];
-      int v2 = mgl.triVerts[v_start_index + (( i + 1) % 3)];
+      int v2 = mgl.triVerts[v_start_index + ((i + 1) % 3)];
       edge_verts_to_tri.add_new(VertPair(v1, v2), face_index * 3 + i);
     }
   }
   return ans;
 }
 
-static void merge_out_faces(Vector<OutFace> &faces,
-                            Span<int> group,
-                            const MeshGL &mgl)
+static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshGL &mgl)
 {
-  FaceNode nodes(faces.size());
+  // FaceNode nodes(faces.size());
 }
 
-MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
-                                       Span<const Mesh *> meshes,
-                                       const MeshOffsets &mesh_offsets)
+static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
+                                              Span<const Mesh *> meshes,
+                                              const MeshOffsets &mesh_offsets)
 {
   constexpr int dbg_level = 2;
   if (dbg_level > 0) {

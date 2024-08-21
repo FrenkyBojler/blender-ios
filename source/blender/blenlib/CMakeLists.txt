@@ -31,7 +31,6 @@ set(SRC
   intern/BLI_ghash_utils.cc
   intern/BLI_heap.c
   intern/BLI_heap_simple.c
-  intern/BLI_index_range.cc
   intern/BLI_kdopbvh.c
   intern/BLI_linklist.c
   intern/BLI_linklist_lockfree.c
@@ -40,6 +39,7 @@ set(SRC
   intern/BLI_memiter.c
   intern/BLI_mempool.c
   intern/BLI_mmap.c
+  intern/BLI_subprocess.cc
   intern/BLI_timer.c
   intern/DLRB_tree.c
   intern/array_store.cc
@@ -116,6 +116,8 @@ set(SRC
   intern/math_vec.cc
   intern/math_vector.c
   intern/math_vector_inline.c
+  intern/memory_cache.cc
+  intern/memory_counter.cc
   intern/memory_utils.c
   intern/mesh_boolean.cc
   intern/mesh_intersect.cc
@@ -197,6 +199,7 @@ set(SRC
   BLI_bounds.hh
   BLI_bounds_types.hh
   BLI_boxpack_2d.h
+  BLI_build_config.h
   BLI_buffer.h
   BLI_cache_mutex.hh
   BLI_color.hh
@@ -236,6 +239,7 @@ set(SRC
   BLI_fnmatch.h
   BLI_function_ref.hh
   BLI_generic_array.hh
+  BLI_generic_key.hh
   BLI_generic_pointer.hh
   BLI_generic_span.hh
   BLI_generic_value_map.hh
@@ -316,6 +320,8 @@ set(SRC
   BLI_memarena.h
   BLI_memblock.h
   BLI_memiter.h
+  BLI_memory_cache.hh
+  BLI_memory_counter.hh
   BLI_memory_utils.h
   BLI_memory_utils.hh
   BLI_mempool.h
@@ -365,6 +371,7 @@ set(SRC
   BLI_string_utils.hh
   BLI_struct_equality_utils.hh
   BLI_sub_frame.hh
+  BLI_subprocess.hh
   BLI_sys_types.h
   BLI_system.h
   BLI_task.h
@@ -410,6 +417,7 @@ set(LIB
   extern_wcwidth
   PRIVATE bf::intern::atomic
   PRIVATE extern_fmtlib
+  PUBLIC bf::dependencies::optional::tbb
   ${ZLIB_LIBRARIES}
   ${ZSTD_LIBRARIES}
 )
@@ -424,18 +432,6 @@ endif()
 
 if(WITH_MEM_VALGRIND)
   add_definitions(-DWITH_MEM_VALGRIND)
-endif()
-
-if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
-
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
 endif()
 
 if(WITH_GMP)
@@ -519,6 +515,7 @@ if(WITH_GTESTS)
     tests/BLI_bit_ref_test.cc
     tests/BLI_bit_span_test.cc
     tests/BLI_bit_vector_test.cc
+    tests/BLI_build_config_test.cc
     tests/BLI_bitmap_test.cc
     tests/BLI_bounds_test.cc
     tests/BLI_color_test.cc
@@ -565,6 +562,8 @@ if(WITH_GTESTS)
     tests/BLI_math_vector_test.cc
     tests/BLI_math_vector_types_test.cc
     tests/BLI_memiter_test.cc
+    tests/BLI_memory_cache_test.cc
+    tests/BLI_memory_counter_test.cc
     tests/BLI_memory_utils_test.cc
     tests/BLI_mesh_boolean_test.cc
     tests/BLI_mesh_intersect_test.cc

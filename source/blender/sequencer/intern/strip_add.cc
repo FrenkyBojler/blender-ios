@@ -171,6 +171,7 @@ Sequence *SEQ_add_effect_strip(Scene *scene, ListBase *seqbase, SeqLoadData *loa
 
   if (SEQ_effect_get_num_inputs(seq->type) == 1) {
     seq->blend_mode = seq->seq1->blend_mode;
+    seq->blend_opacity = seq->seq1->blend_opacity;
   }
 
   if (!load_data->effect.seq1) {
@@ -339,6 +340,9 @@ Sequence *SEQ_add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
         seq->sound->flags |= SOUND_FLAGS_CACHING;
       }
     }
+
+    /* Turn on Display Waveform by default. */
+    seq->flag |= SEQ_AUDIO_DRAW_WAVEFORM;
   }
 
   seq_add_sound_av_sync(bmain, scene, seq, load_data);

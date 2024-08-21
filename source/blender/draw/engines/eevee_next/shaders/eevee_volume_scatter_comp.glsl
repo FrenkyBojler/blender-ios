@@ -61,7 +61,7 @@ vec3 volume_light_eval(const bool is_directional, vec3 P, vec3 V, uint l_idx, fl
 vec3 volume_lightprobe_eval(vec3 P, vec3 V, float s_anisotropy)
 {
   SphericalHarmonicL1 phase_sh = volume_phase_function_as_sh_L1(V, s_anisotropy);
-  SphericalHarmonicL1 volume_radiance_sh = lightprobe_irradiance_sample(P);
+  SphericalHarmonicL1 volume_radiance_sh = lightprobe_volume_sample(P);
 
   float clamp_indirect = uniform_buf.clamp.volume_indirect;
   volume_radiance_sh = spherical_harmonics_clamp(volume_radiance_sh, clamp_indirect);
@@ -91,9 +91,10 @@ void main()
   vec3 P = drw_point_view_to_world(vP);
   vec3 V = drw_world_incident_vector(P);
 
-  vec2 phase = imageLoad(in_phase_img, froxel).rg;
+  float phase = imageLoad(in_phase_img, froxel).r;
+  float phase_weight = imageLoad(in_phase_weight_img, froxel).r;
   /* Divide by phase total weight, to compute the mean anisotropy. */
-  float s_anisotropy = phase.x / max(1.0, phase.y);
+  float s_anisotropy = phase / max(1.0, phase_weight);
 
 #ifdef VOLUME_LIGHTING
   vec3 direct_radiance = vec3(0.0);

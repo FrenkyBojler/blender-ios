@@ -345,18 +345,6 @@ static bool gpencil_paintmode_toggle_poll(bContext *C)
   return false;
 }
 
-static bool gpencil_paint_poll_view3d(bContext *C)
-{
-  const Object *ob = CTX_data_active_object(C);
-  if (ob == nullptr || (ob->mode & OB_MODE_PAINT_GPENCIL_LEGACY) == 0) {
-    return false;
-  }
-  if (CTX_wm_region_view3d(C) == nullptr) {
-    return false;
-  }
-  return true;
-}
-
 static int gpencil_paintmode_toggle_exec(bContext *C, wmOperator *op)
 {
   const bool back = RNA_boolean_get(op->ptr, "back");
@@ -391,7 +379,7 @@ static int gpencil_paintmode_toggle_exec(bContext *C, wmOperator *op)
       Scene *scene = CTX_data_scene(C);
       BKE_paint_init(bmain, scene, PaintMode::GPencil, PAINT_CURSOR_PAINT_GREASE_PENCIL);
       Paint *paint = BKE_paint_get_active_from_paintmode(scene, PaintMode::GPencil);
-      ED_paint_cursor_start(paint, gpencil_paint_poll_view3d);
+      ED_paint_cursor_start(paint, ED_gpencil_brush_cursor_poll);
       mode = OB_MODE_PAINT_GPENCIL_LEGACY;
     }
     else {
@@ -423,18 +411,15 @@ static int gpencil_paintmode_toggle_exec(bContext *C, wmOperator *op)
     BKE_paint_ensure(bmain, ts, (Paint **)&ts->gp_paint);
     BKE_paint_ensure(bmain, ts, (Paint **)&ts->gp_vertexpaint);
 
-    BKE_brush_gpencil_paint_presets(bmain, ts, false);
-
     /* Ensure Palette by default. */
     BKE_gpencil_palette_ensure(bmain, CTX_data_scene(C));
 
     Paint *paint = &ts->gp_paint->paint;
     Brush *brush = BKE_paint_brush(paint);
-    /* if not exist, create a new one */
-    if ((brush == nullptr) || (brush->gpencil_settings == nullptr)) {
-      BKE_brush_gpencil_paint_presets(bmain, ts, true);
+    if (brush && !brush->gpencil_settings) {
+      BKE_brush_init_gpencil_settings(brush);
     }
-    BKE_paint_brush_validate(bmain, &ts->gp_paint->paint);
+    BKE_paint_brushes_validate(bmain, &ts->gp_paint->paint);
   }
 
   if (ob->type == OB_GPENCIL_LEGACY) {
@@ -573,11 +558,7 @@ static int gpencil_sculptmode_toggle_exec(bContext *C, wmOperator *op)
   if (mode == OB_MODE_SCULPT_GPENCIL_LEGACY) {
     /* Be sure we have brushes. */
     BKE_paint_ensure(bmain, ts, (Paint **)&ts->gp_sculptpaint);
-
-    const bool reset_mode = (BKE_paint_brush(&ts->gp_sculptpaint->paint) == nullptr);
-    BKE_brush_gpencil_sculpt_presets(bmain, ts, reset_mode);
-
-    BKE_paint_brush_validate(bmain, &ts->gp_sculptpaint->paint);
+    BKE_paint_brushes_validate(bmain, &ts->gp_sculptpaint->paint);
   }
 
   /* setup other modes */
@@ -710,17 +691,15 @@ static int gpencil_weightmode_toggle_exec(bContext *C, wmOperator *op)
 
   if (mode == OB_MODE_WEIGHT_GPENCIL_LEGACY) {
     /* Be sure we have brushes. */
+    BKE_paint_ensure(bmain, ts, (Paint **)&ts->gp_weightpaint);
     Paint *weight_paint = BKE_paint_get_active_from_paintmode(scene, PaintMode::WeightGPencil);
-    BKE_paint_ensure(bmain, ts, &weight_paint);
 
     if (ob->type == OB_GREASE_PENCIL) {
       ED_paint_cursor_start(weight_paint, grease_pencil_poll_weight_cursor);
     }
 
-    const bool reset_mode = (BKE_paint_brush(weight_paint) == nullptr);
-    BKE_brush_gpencil_weight_presets(bmain, ts, reset_mode);
-
-    BKE_paint_brush_validate(bmain, weight_paint);
+    BKE_paint_brushes_validate(bmain, weight_paint);
+    BKE_paint_init(bmain, scene, PaintMode::WeightGPencil, PAINT_CURSOR_PAINT_GREASE_PENCIL);
   }
 
   /* setup other modes */
@@ -832,10 +811,7 @@ static int gpencil_vertexmode_toggle_exec(bContext *C, wmOperator *op)
     BKE_paint_ensure(bmain, ts, (Paint **)&ts->gp_paint);
     BKE_paint_ensure(bmain, ts, (Paint **)&ts->gp_vertexpaint);
 
-    const bool reset_mode = (BKE_paint_brush(&ts->gp_vertexpaint->paint) == nullptr);
-    BKE_brush_gpencil_vertex_presets(bmain, ts, reset_mode);
-
-    BKE_paint_brush_validate(bmain, &ts->gp_vertexpaint->paint);
+    BKE_paint_brushes_validate(bmain, &ts->gp_vertexpaint->paint);
 
     /* Ensure Palette by default. */
     BKE_gpencil_palette_ensure(bmain, CTX_data_scene(C));

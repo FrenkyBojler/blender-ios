@@ -65,7 +65,7 @@ struct HorizonScanResult {
  */
 HorizonScanResult horizon_scan_eval(vec3 vP,
                                     vec3 vN,
-                                    vec2 noise,
+                                    vec4 noise,
                                     vec2 pixel_size,
                                     float search_distance,
                                     float thickness_near,
@@ -112,6 +112,8 @@ HorizonScanResult horizon_scan_eval(vec3 vP,
 
     horizon_scan_projected_normal_to_plane_angle_and_length(vN, vV, vT, vB, vN_length, vN_angle);
 
+    vN_angle += (noise.z - 0.5) * (M_PI / 32.0) * angle_bias;
+
     SphericalHarmonicL1 sh_slice = spherical_harmonics_L1_new();
     float weight_slice;
 
@@ -140,7 +142,7 @@ HorizonScanResult horizon_scan_eval(vec3 vP,
           time += 1.0;
         }
 
-        float lod = 1.0 + float(j) * uniform_buf.ao.lod_factor;
+        float lod = 1.0 + saturate(float(j) - noise.w) * uniform_buf.ao.lod_factor;
 
         vec2 sample_uv = ssray.origin.xy + ssray.direction.xy * time;
         float sample_depth = textureLod(hiz_tx, sample_uv * uniform_buf.hiz.uv_scale, lod).r;
@@ -154,16 +156,12 @@ HorizonScanResult horizon_scan_eval(vec3 vP,
         const float bias = 2.0 * 2.4e-7;
         sample_depth += reversed ? -bias : bias;
 
-        vec3 vP_sample = drw_point_screen_to_view(vec3(sample_uv, sample_depth));
+        vec3 vP_sample_front = drw_point_screen_to_view(vec3(sample_uv, sample_depth));
+        vec3 vP_sample_back = vP_sample_front - vV * thickness_near;
 
         float sample_distance;
-        vec3 vL_front = normalize_and_get_length(vP_sample - vP, sample_distance);
-        if (sample_distance > search_distance) {
-          continue;
-        }
-
-        vec3 vL_back = normalize_and_get_length((vP_sample - vV * thickness_near) - vP,
-                                                sample_distance);
+        vec3 vL_front = normalize_and_get_length(vP_sample_front - vP, sample_distance);
+        vec3 vL_back = normalize(vP_sample_back - vP);
         if (sample_distance > search_distance) {
           continue;
         }

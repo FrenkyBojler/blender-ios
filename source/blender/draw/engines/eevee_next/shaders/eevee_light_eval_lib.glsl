@@ -63,18 +63,27 @@ void closure_light_set(inout ClosureLightStack stack, int index, ClosureLight cl
   switch (index) {
     case 0:
       stack.cl[0] = cl_light;
+      break;
 #if LIGHT_CLOSURE_EVAL_COUNT > 1
     case 1:
       stack.cl[1] = cl_light;
+      break;
 #endif
 #if LIGHT_CLOSURE_EVAL_COUNT > 2
     case 2:
       stack.cl[2] = cl_light;
+      break;
 #endif
 #if LIGHT_CLOSURE_EVAL_COUNT > 3
 #  error
 #endif
   }
+}
+
+float light_power_get(LightData light, LightingType type)
+{
+  /* Mask anything above 3. See LIGHT_TRANSLUCENT_WITH_THICKNESS. */
+  return light.power[type & 3u];
 }
 
 void light_eval_single_closure(LightData light,
@@ -85,13 +94,15 @@ void light_eval_single_closure(LightData light,
                                float shadow,
                                const bool is_transmission)
 {
-  if (light.power[cl.type] > 0.0) {
-    float ltc_result = light_ltc(utility_tx, light, cl.N, V, lv, cl.ltc_mat);
-    vec3 out_radiance = light.color * light.power[cl.type] * ltc_result;
-    float visibility = shadow * attenuation;
-    cl.light_shadowed += visibility * out_radiance;
-    cl.light_unshadowed += attenuation * out_radiance;
+  attenuation *= light_power_get(light, cl.type);
+  if (attenuation < 1e-30) {
+    return;
   }
+  float ltc_result = light_ltc(utility_tx, light, cl.N, V, lv, cl.ltc_mat);
+  vec3 out_radiance = light.color * ltc_result;
+  float visibility = shadow * attenuation;
+  cl.light_shadowed += visibility * out_radiance;
+  cl.light_unshadowed += attenuation * out_radiance;
 }
 
 void light_eval_single(uint l_idx,
@@ -116,7 +127,8 @@ void light_eval_single(uint l_idx,
   LightVector lv = light_vector_get(light, is_directional, P);
 
   /* TODO(fclem): Get rid of this special case. */
-  bool is_translucent_with_thickness = is_transmission && (stack.cl[0].N.x == 2.0);
+  bool is_translucent_with_thickness = is_transmission &&
+                                       (stack.cl[0].type == LIGHT_TRANSLUCENT_WITH_THICKNESS);
 
   float attenuation = light_attenuation_surface(
       light, is_directional, is_transmission, is_translucent_with_thickness, Ng, lv);

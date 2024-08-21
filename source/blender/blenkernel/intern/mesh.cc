@@ -31,6 +31,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
 #include "BLI_memarena.h"
+#include "BLI_memory_counter.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
@@ -121,7 +122,7 @@ static void mesh_copy_data(Main *bmain,
   mesh_dst->runtime->subsurf_face_dot_tags = mesh_src->runtime->subsurf_face_dot_tags;
   mesh_dst->runtime->subsurf_optimal_display_edges =
       mesh_src->runtime->subsurf_optimal_display_edges;
-  if ((mesh_src->id.tag & LIB_TAG_NO_MAIN) == 0) {
+  if ((mesh_src->id.tag & ID_TAG_NO_MAIN) == 0) {
     /* This is a direct copy of a main mesh, so for now it has the same topology. */
     mesh_dst->runtime->deformed_only = true;
   }
@@ -162,7 +163,7 @@ static void mesh_copy_data(Main *bmain,
 
   CustomData_MeshMasks mask = CD_MASK_MESH;
 
-  if (mesh_src->id.tag & LIB_TAG_NO_MAIN) {
+  if (mesh_src->id.tag & ID_TAG_NO_MAIN) {
     /* For copies in depsgraph, keep data like #CD_ORIGINDEX and #CD_ORCO. */
     CustomData_MeshMasks_update(&mask, &CD_MASK_DERIVEDMESH);
   }
@@ -300,7 +301,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   BLO_write_string(writer, mesh->default_color_attribute);
 
   BLO_write_pointer_array(writer, mesh->totcol, mesh->mat);
-  BLO_write_raw(writer, sizeof(MSelect) * mesh->totselect, mesh->mselect);
+  BLO_write_struct_array(writer, MSelect, mesh->totselect, mesh->mselect);
 
   CustomData_blend_write(
       writer, &mesh->vert_data, vert_layers, mesh->verts_num, CD_MASK_MESH.vmask, &mesh->id);
@@ -327,7 +328,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
 static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
-  BLO_read_pointer_array(reader, (void **)&mesh->mat);
+  BLO_read_pointer_array(reader, mesh->totcol, (void **)&mesh->mat);
   /* This check added for python created meshes. */
   if (!mesh->mat) {
     mesh->totcol = 0;
@@ -687,6 +688,16 @@ MutableSpan<MDeformVert> Mesh::deform_verts_for_write()
           this->verts_num};
 }
 
+void Mesh::count_memory(blender::MemoryCounter &memory) const
+{
+  memory.add_shared(this->runtime->face_offsets_sharing_info,
+                    this->face_offsets().size_in_bytes());
+  CustomData_count_memory(this->vert_data, this->verts_num, memory);
+  CustomData_count_memory(this->edge_data, this->edges_num, memory);
+  CustomData_count_memory(this->face_data, this->faces_num, memory);
+  CustomData_count_memory(this->corner_data, this->corners_num, memory);
+}
+
 Mesh *BKE_mesh_new_nomain(const int verts_num,
                           const int edges_num,
                           const int faces_num,
@@ -764,7 +775,7 @@ void BKE_mesh_copy_parameters(Mesh *me_dst, const Mesh *me_src)
 void BKE_mesh_copy_parameters_for_eval(Mesh *me_dst, const Mesh *me_src)
 {
   /* User counts aren't handled, don't copy into a mesh from #G_MAIN. */
-  BLI_assert(me_dst->id.tag & (LIB_TAG_NO_MAIN | LIB_TAG_COPIED_ON_EVAL));
+  BLI_assert(me_dst->id.tag & (ID_TAG_NO_MAIN | ID_TAG_COPIED_ON_EVAL));
 
   BKE_mesh_copy_parameters(me_dst, me_src);
   copy_attribute_names(*me_src, *me_dst);

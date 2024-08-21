@@ -80,7 +80,7 @@ class ControlPointNeighborFieldInput final : public bke::CurvesFieldInput {
       const int i_point = std::clamp(indices[i_selection], 0, curves.points_num() - 1);
       const int i_curve = parent_curves[i_point];
       const IndexRange curve_points = points_by_curve[i_curve];
-      const int offset_point = i_point + offsets[i_point];
+      const int offset_point = i_point + offsets[i_selection];
 
       if (cyclic[i_curve]) {
         output[i_selection] = apply_offset_in_cyclic_range(
@@ -178,7 +178,7 @@ static void node_register()
       &ntype, GEO_NODE_OFFSET_POINT_IN_CURVE, "Offset Point in Curve", NODE_CLASS_INPUT);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
