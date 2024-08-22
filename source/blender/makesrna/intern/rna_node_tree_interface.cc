@@ -67,7 +67,7 @@ static StructRNA *rna_NodeTreeInterfaceItem_refine(PointerRNA *ptr)
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
           *item);
-      blender::bke::bNodeSocketType *socket_typeinfo = blender::bke::nodeSocketTypeFind(
+      blender::bke::bNodeSocketType *socket_typeinfo = blender::bke::node_socket_type_find(
           socket.socket_type);
       if (socket_typeinfo && socket_typeinfo->ext_interface.srna) {
         return socket_typeinfo->ext_interface.srna;
@@ -154,7 +154,7 @@ static void rna_NodeTreeInterfaceSocket_draw_custom(ID *id,
                                                     bContext *C,
                                                     uiLayout *layout)
 {
-  blender::bke::bNodeSocketType *typeinfo = blender::bke::nodeSocketTypeFind(
+  blender::bke::bNodeSocketType *typeinfo = blender::bke::node_socket_type_find(
       interface_socket->socket_type);
   if (typeinfo == nullptr) {
     return;
@@ -193,7 +193,7 @@ static void rna_NodeTreeInterfaceSocket_init_socket_custom(
     bNodeSocket *socket,
     const char *data_path)
 {
-  blender::bke::bNodeSocketType *typeinfo = blender::bke::nodeSocketTypeFind(
+  blender::bke::bNodeSocketType *typeinfo = blender::bke::node_socket_type_find(
       interface_socket->socket_type);
   if (typeinfo == nullptr) {
     return;
@@ -229,7 +229,7 @@ static void rna_NodeTreeInterfaceSocket_from_socket_custom(
     const bNode *node,
     const bNodeSocket *socket)
 {
-  blender::bke::bNodeSocketType *typeinfo = blender::bke::nodeSocketTypeFind(
+  blender::bke::bNodeSocketType *typeinfo = blender::bke::node_socket_type_find(
       interface_socket->socket_type);
   if (typeinfo == nullptr) {
     return;
@@ -271,7 +271,8 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
   }
 
   /* Check if we have registered this socket type before. */
-  blender::bke::bNodeSocketType *st = blender::bke::nodeSocketTypeFind(dummy_socket.socket_type);
+  blender::bke::bNodeSocketType *st = blender::bke::node_socket_type_find(
+      dummy_socket.socket_type);
   if (st) {
     /* Socket type registered before. */
   }
@@ -280,7 +281,7 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
     st = MEM_cnew<blender::bke::bNodeSocketType>(__func__);
     BLI_strncpy(st->idname, dummy_socket.socket_type, sizeof(st->idname));
 
-    blender::bke::nodeRegisterSocketType(st);
+    blender::bke::node_register_socket_type(st);
   }
 
   st->free_self = (void (*)(blender::bke::bNodeSocketType *stype))MEM_freeN;
@@ -447,6 +448,15 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
                                       N_("The position from the context")};
       RNA_enum_item_add(&items, &items_count, &position);
     }
+    else if (type->type == SOCK_MATRIX) {
+      const EnumPropertyItem instance_transform{
+          GEO_NODE_DEFAULT_FIELD_INPUT_INSTANCE_TRANSFORM_FIELD,
+          "INSTANCE_TRANSFORM",
+          0,
+          N_("Instance Transform"),
+          N_("Transformation of each instance from the geometry context")};
+      RNA_enum_item_add(&items, &items_count, &instance_transform);
+    }
   }
 
   RNA_enum_item_end(&items, &items_count);
@@ -463,9 +473,6 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_attribute_domain_item
   for (const EnumPropertyItem *item = rna_enum_attribute_domain_items; item->identifier != nullptr;
        item++)
   {
-    if (!U.experimental.use_grease_pencil_version3 && item->value == int(bke::AttrDomain::Layer)) {
-      continue;
-    }
     RNA_enum_item_add(&item_array, &items_len, item);
   }
   RNA_enum_item_end(&item_array, &items_len);
@@ -712,6 +719,7 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocketFloat_subtype_itemf(
                                    PROP_TIME_ABSOLUTE,
                                    PROP_DISTANCE,
                                    PROP_WAVELENGTH,
+                                   PROP_COLOR_TEMPERATURE,
                                    PROP_NONE},
                                   r_free);
 }
@@ -721,7 +729,7 @@ void rna_NodeTreeInterfaceSocketFloat_default_value_range(
 {
   bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
   bNodeSocketValueFloat *dval = static_cast<bNodeSocketValueFloat *>(socket->socket_data);
-  blender::bke::bNodeSocketType *socket_typeinfo = blender::bke::nodeSocketTypeFind(
+  blender::bke::bNodeSocketType *socket_typeinfo = blender::bke::node_socket_type_find(
       socket->socket_type);
   int subtype = socket_typeinfo ? socket_typeinfo->subtype : PROP_NONE;
 
@@ -748,7 +756,7 @@ void rna_NodeTreeInterfaceSocketInt_default_value_range(
 {
   bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
   bNodeSocketValueInt *dval = static_cast<bNodeSocketValueInt *>(socket->socket_data);
-  blender::bke::bNodeSocketType *socket_typeinfo = blender::bke::nodeSocketTypeFind(
+  blender::bke::bNodeSocketType *socket_typeinfo = blender::bke::node_socket_type_find(
       socket->socket_type);
   int subtype = socket_typeinfo ? socket_typeinfo->subtype : PROP_NONE;
 
@@ -789,6 +797,12 @@ void rna_NodeTreeInterfaceSocketVector_default_value_range(
   *max = FLT_MAX;
   *softmin = dval->min;
   *softmax = dval->max;
+}
+
+static const EnumPropertyItem *rna_NodeTreeInterfaceSocketString_subtype_itemf(
+    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+{
+  return rna_subtype_filter_itemf({PROP_FILEPATH, PROP_NONE}, r_free);
 }
 
 /* using a context update function here, to avoid searching the node if possible */
@@ -1050,9 +1064,10 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "default_input", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_dummy_NULL_items);
-  RNA_def_property_ui_text(prop,
-                           "Default Input",
-                           "Input to use when the socket is unconnected. Requires \"Hide Value\"");
+  RNA_def_property_ui_text(
+      prop,
+      "Default Input",
+      "Input to use when the socket is unconnected. Requires \"Hide Value\".");
   RNA_def_property_enum_funcs(
       prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocket_default_input_itemf");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");

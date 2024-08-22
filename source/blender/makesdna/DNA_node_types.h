@@ -226,6 +226,7 @@ typedef struct bNodeSocket {
   bNode &owner_node();
   const bNode &owner_node() const;
   /** Node tree this socket belongs to. */
+  bNodeTree &owner_tree();
   const bNodeTree &owner_tree() const;
 
   /** Links which are incident to this socket. */
@@ -297,8 +298,7 @@ typedef enum eNodeSocketFlag {
   SOCK_IS_LINKED = (1 << 2),
   /** Unavailable is for dynamic sockets. */
   SOCK_UNAVAIL = (1 << 3),
-  // /** DEPRECATED  dynamic socket (can be modified by user) */
-  // SOCK_DYNAMIC = (1 << 4),
+  SOCK_GIZMO_PIN = (1 << 4),
   // /** DEPRECATED  group socket should not be exposed */
   // SOCK_INTERNAL = (1 << 5),
   /** Socket collapsed in UI. */
@@ -483,6 +483,7 @@ typedef struct bNode {
   blender::MutableSpan<bNodePanelState> panel_states();
   /** Node tree this node belongs to. */
   const bNodeTree &owner_tree() const;
+  bNodeTree &owner_tree();
 #endif
 } bNode;
 
@@ -539,8 +540,6 @@ enum {
 enum {
   /** Associated id data block has changed. */
   NODE_UPDATE_ID = 1,
-  /** Node update triggered from update operator */
-  NODE_UPDATE_OPERATOR = 2,
 };
 
 /**
@@ -701,7 +700,12 @@ typedef struct bNodeTree {
 
   /** #blender::bke::NodeGroupColorTag. */
   int color_tag;
-  char _pad[4];
+
+  /**
+   * Default width of a group node created for this group. May be zero, in which case this value
+   * should be ignored.
+   */
+  int default_group_node_width;
 
   rctf viewer_border;
 
@@ -854,7 +858,7 @@ enum {
   NTREE_VIEWER_BORDER = 1 << 4,
   /**
    * Tree is localized copy, free when deleting node groups.
-   * NOTE: DEPRECATED, use (id->tag & LIB_TAG_LOCALIZED) instead.
+   * NOTE: DEPRECATED, use (id->tag & ID_TAG_LOCALIZED) instead.
    */
   // NTREE_IS_LOCALIZED = 1 << 5,
 };
@@ -1127,7 +1131,8 @@ typedef struct NodeImageMultiFile {
   int sfra DNA_DEPRECATED, efra DNA_DEPRECATED;
   /** Selected input in details view list. */
   int active_input;
-  char _pad[4];
+  char save_as_render;
+  char _pad[3];
 } NodeImageMultiFile;
 typedef struct NodeImageMultiFileSocket {
   /* single layer file output */
@@ -1213,17 +1218,23 @@ typedef struct NodeLensDist {
 } NodeLensDist;
 
 typedef struct NodeColorBalance {
-  /* ASC CDL parameters */
+  /* ASC CDL parameters. */
   float slope[3];
   float offset[3];
   float power[3];
   float offset_basis;
   char _pad[4];
 
-  /* LGG parameters */
+  /* LGG parameters. */
   float lift[3];
   float gamma[3];
   float gain[3];
+
+  /* White-point parameters. */
+  float input_temperature;
+  float input_tint;
+  float output_temperature;
+  float output_tint;
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
@@ -1301,6 +1312,13 @@ typedef struct NodeTexEnvironment {
   int interpolation;
   char _pad[4];
 } NodeTexEnvironment;
+
+typedef struct NodeTexGabor {
+  NodeTexBase base;
+  /* Stores NodeGaborType. */
+  char type;
+  char _pad[7];
+} NodeTexGabor;
 
 typedef struct NodeTexGradient {
   NodeTexBase base;
@@ -1793,11 +1811,28 @@ typedef struct NodeGeometryMeshToPoints {
   uint8_t mode;
 } NodeGeometryMeshToPoints;
 
-typedef struct NodeGeometryAttributeCapture {
+typedef struct NodeGeometryAttributeCaptureItem {
   /** #eCustomDataType. */
   int8_t data_type;
+  char _pad[3];
+  /**
+   * If the identifier is zero, the item supports forward-compatibility with older versions of
+   * Blender when it was only possible to capture a single attribute at a time.
+   */
+  int identifier;
+  char *name;
+} NodeGeometryAttributeCaptureItem;
+
+typedef struct NodeGeometryAttributeCapture {
+  /** #eCustomDataType. */
+  int8_t data_type_legacy;
   /** #AttrDomain. */
   int8_t domain;
+  char _pad[2];
+  int next_identifier;
+  NodeGeometryAttributeCaptureItem *capture_items;
+  int capture_items_num;
+  int active_index;
 } NodeGeometryAttributeCapture;
 
 typedef struct NodeGeometryStoreNamedAttribute {
@@ -1971,6 +2006,47 @@ typedef struct NodeShaderMix {
   int8_t blend_type;
   char _pad[3];
 } NodeShaderMix;
+
+typedef struct NodeGeometryLinearGizmo {
+  /** #GeometryNodeGizmoColor. */
+  int color_id;
+  /** #GeometryNodeLinearGizmoDrawStyle. */
+  int draw_style;
+} NodeGeometryLinearGizmo;
+
+typedef struct NodeGeometryDialGizmo {
+  /** #GeometryNodeGizmoColor. */
+  int color_id;
+} NodeGeometryDialGizmo;
+
+typedef struct NodeGeometryTransformGizmo {
+  /** #NodeGeometryTransformGizmoFlag.  */
+  uint32_t flag;
+} NodeGeometryTransformGizmo;
+
+typedef enum NodeGeometryTransformGizmoFlag {
+  GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_X = 1 << 0,
+  GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_Y = 1 << 1,
+  GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_Z = 1 << 2,
+  GEO_NODE_TRANSFORM_GIZMO_USE_ROTATION_X = 1 << 3,
+  GEO_NODE_TRANSFORM_GIZMO_USE_ROTATION_Y = 1 << 4,
+  GEO_NODE_TRANSFORM_GIZMO_USE_ROTATION_Z = 1 << 5,
+  GEO_NODE_TRANSFORM_GIZMO_USE_SCALE_X = 1 << 6,
+  GEO_NODE_TRANSFORM_GIZMO_USE_SCALE_Y = 1 << 7,
+  GEO_NODE_TRANSFORM_GIZMO_USE_SCALE_Z = 1 << 8,
+} NodeGeometryTransformGizmoFlag;
+
+#define GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_ALL \
+  (GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_X | GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_Y | \
+   GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_Z)
+
+#define GEO_NODE_TRANSFORM_GIZMO_USE_ROTATION_ALL \
+  (GEO_NODE_TRANSFORM_GIZMO_USE_ROTATION_X | GEO_NODE_TRANSFORM_GIZMO_USE_ROTATION_Y | \
+   GEO_NODE_TRANSFORM_GIZMO_USE_ROTATION_Z)
+
+#define GEO_NODE_TRANSFORM_GIZMO_USE_SCALE_ALL \
+  (GEO_NODE_TRANSFORM_GIZMO_USE_SCALE_X | GEO_NODE_TRANSFORM_GIZMO_USE_SCALE_Y | \
+   GEO_NODE_TRANSFORM_GIZMO_USE_SCALE_Z)
 
 typedef struct NodeGeometryBakeItem {
   char *name;
@@ -2195,6 +2271,11 @@ enum {
   SHD_PROJ_EQUIRECTANGULAR = 0,
   SHD_PROJ_MIRROR_BALL = 1,
 };
+
+typedef enum NodeGaborType {
+  SHD_GABOR_TYPE_2D = 0,
+  SHD_GABOR_TYPE_3D = 1,
+} NodeGaborType;
 
 enum {
   SHD_IMAGE_EXTENSION_REPEAT = 0,
@@ -2460,6 +2541,7 @@ typedef enum CMPNodeSplitAxis {
 typedef enum CMPNodeColorBalanceMethod {
   CMP_NODE_COLOR_BALANCE_LGG = 0,
   CMP_NODE_COLOR_BALANCE_ASC_CDL = 1,
+  CMP_NODE_COLOR_BALANCE_WHITEPOINT = 2,
 } CMPNodeColorBalanceMethod;
 
 /** Alpha Convert Node. Stored in `custom1`. */
@@ -2874,6 +2956,20 @@ typedef enum NodeCombSepColorMode {
   NODE_COMBSEP_COLOR_HSV = 1,
   NODE_COMBSEP_COLOR_HSL = 2,
 } NodeCombSepColorMode;
+
+typedef enum GeometryNodeGizmoColor {
+  GEO_NODE_GIZMO_COLOR_PRIMARY = 0,
+  GEO_NODE_GIZMO_COLOR_SECONDARY = 1,
+  GEO_NODE_GIZMO_COLOR_X = 2,
+  GEO_NODE_GIZMO_COLOR_Y = 3,
+  GEO_NODE_GIZMO_COLOR_Z = 4,
+} GeometryNodeGizmoColor;
+
+typedef enum GeometryNodeLinearGizmoDrawStyle {
+  GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_ARROW = 0,
+  GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CROSS = 1,
+  GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX = 2,
+} GeometryNodeLinearGizmoDrawStyle;
 
 typedef enum NodeGeometryTransformMode {
   GEO_NODE_TRANSFORM_MODE_COMPONENTS = 0,

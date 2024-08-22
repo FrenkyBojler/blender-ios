@@ -206,6 +206,13 @@ template<typename MatT, typename RotationT>
                                 const RotationT &rotation);
 
 /**
+ * Create a transform matrix with translation and scale applied in this order.
+ */
+template<typename MatT, int ScaleDim>
+[[nodiscard]] MatT from_loc_scale(const typename MatT::loc_type &location,
+                                  const VecBase<typename MatT::base_type, ScaleDim> &scale);
+
+/**
  * Create a transform matrix with translation, rotation and scale applied in this order.
  */
 template<typename MatT, typename RotationT, int ScaleDim>
@@ -1337,6 +1344,26 @@ inline void to_loc_rot_scale(const MatBase<T, 4, 4> &mat,
   to_rot_scale<AllowNegativeScale>(MatBase<T, 3, 3>(mat), r_rotation, r_scale);
 }
 
+/**
+ * Same as #to_loc_rot_scale but is handles matrices that are not only location, rotation and scale
+ * more gracefully, e.g. when the matrix has skew.
+ */
+template<bool AllowNegativeScale, typename T, typename RotationT>
+inline void to_loc_rot_scale_safe(const MatBase<T, 4, 4> &mat,
+                                  VecBase<T, 3> &r_location,
+                                  RotationT &r_rotation,
+                                  VecBase<T, 3> &r_scale)
+{
+  EulerXYZBase<T> euler_rotation;
+  to_loc_rot_scale<AllowNegativeScale>(mat, r_location, euler_rotation, r_scale);
+  if constexpr (std::is_same_v<std::decay_t<RotationT>, QuaternionBase<T>>) {
+    r_rotation = to_quaternion(euler_rotation);
+  }
+  else {
+    r_rotation = RotationT(euler_rotation);
+  }
+}
+
 template<typename MatT> [[nodiscard]] MatT from_location(const typename MatT::loc_type &location)
 {
   MatT mat = MatT::identity();
@@ -1385,6 +1412,15 @@ template<typename MatT, typename RotationT>
   using MatRotT =
       MatBase<typename MatT::base_type, MatT::loc_type::type_length, MatT::loc_type::type_length>;
   MatT mat = MatT(from_rotation<MatRotT>(rotation));
+  mat.location() = location;
+  return mat;
+}
+
+template<typename MatT, int ScaleDim>
+[[nodiscard]] MatT from_loc_scale(const typename MatT::loc_type &location,
+                                  const VecBase<typename MatT::base_type, ScaleDim> &scale)
+{
+  MatT mat = MatT(from_scale<MatT>(scale));
   mat.location() = location;
   return mat;
 }

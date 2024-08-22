@@ -43,7 +43,6 @@
 #include "BKE_context.hh"
 #include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_idtype.hh"
 #include "BKE_material.h"
 #include "BKE_modifier.hh"
@@ -70,6 +69,8 @@
 #include "WM_api.hh"
 
 #include "RNA_define.hh"
+
+#include "GPU_compilation_subprocess.hh"
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -328,6 +329,14 @@ int main(int argc,
 #  endif /* USE_WIN32_UNICODE_ARGS */
 #endif   /* WIN32 */
 
+#if defined(WITH_OPENGL_BACKEND) && BLI_SUBPROCESS_SUPPORT
+  if (STREQ(argv[0], "--compilation-subprocess")) {
+    BLI_assert(argc == 2);
+    GPU_compilation_subprocess_run(argv[1]);
+    return 0;
+  }
+#endif
+
   /* NOTE: Special exception for guarded allocator type switch:
    *       we need to perform switch from lock-free to fully
    *       guarded allocator before any allocation happened.
@@ -429,7 +438,6 @@ int main(int argc,
   BKE_idtype_init();
   BKE_cachefiles_init();
   BKE_modifier_init();
-  BKE_gpencil_modifier_init();
   BKE_shaderfx_init();
   BKE_volumes_init();
   DEG_register_node_types();
@@ -493,13 +501,15 @@ int main(int argc,
   RNA_init();
 
   RE_engines_init();
-  blender::bke::BKE_node_system_init();
+  blender::bke::node_system_init();
   BKE_particle_init_rng();
   /* End second initialization. */
 
 #if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
   /* Python module mode ALWAYS runs in background-mode (for now). */
   G.background = true;
+  /* Manually using `--background` also forces the audio device. */
+  BKE_sound_force_device("None");
 #else
   if (G.background) {
     main_signal_setup_background();

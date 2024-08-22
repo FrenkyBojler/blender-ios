@@ -86,15 +86,6 @@ if(WITH_MANTA_NUMPY AND WITH_PYTHON_NUMPY)
   )
 endif()
 
-if(WITH_TBB)
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
-endif()
-
 if(WITH_OPENVDB)
   list(APPEND INC_SYS
     ${OPENVDB_INCLUDE_DIRS}
@@ -109,6 +100,11 @@ if(WITH_OPENVDB)
     # https://developercommunity.visualstudio.com/content/problem/1167590/bug.html
     # for details.
     string(APPEND CMAKE_CXX_FLAGS " /wd4251")
+  endif()
+
+  # This works around the issue described in #120317 and https://github.com/AcademySoftwareFoundation/openvdb/pull/1786
+  if(MSVC_CLANG)
+    set_source_files_properties(${MANTA_PP}/fileio/iovdb.cpp PROPERTIES COMPILE_FLAGS -fno-delayed-template-parsing)
   endif()
 endif()
 
@@ -245,6 +241,7 @@ if(WITH_MANTA_NUMPY AND WITH_PYTHON_NUMPY)
 endif()
 
 set(LIB
+  PRIVATE bf::dependencies::optional::tbb
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
 )

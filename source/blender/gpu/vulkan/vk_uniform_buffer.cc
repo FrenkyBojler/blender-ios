@@ -33,17 +33,11 @@ void VKUniformBuffer::update(const void *data)
 
 void VKUniformBuffer::allocate()
 {
-  /*
-   * TODO: make uniform buffers device local. In order to do that we should remove the upload
-   * during binding, as that will reset the graphics pipeline and already attached resources would
-   * not be bound anymore.
-   */
-  const bool is_host_visible = true;
   buffer_.create(size_in_bytes_,
                  GPU_USAGE_STATIC,
                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                 is_host_visible);
+                 false);
   debug::object_label(buffer_.vk_handle(), name_);
 }
 
@@ -57,7 +51,7 @@ void VKUniformBuffer::clear_to_zero()
 }
 
 void VKUniformBuffer::add_to_descriptor_set(AddToDescriptorSetContext &data,
-                                            int slot,
+                                            int binding,
                                             shader::ShaderCreateInfo::Resource::BindType bind_type,
                                             const GPUSamplerState /*sampler_state*/)
 {
@@ -67,12 +61,12 @@ void VKUniformBuffer::add_to_descriptor_set(AddToDescriptorSetContext &data,
 
   /* Upload attached data, during bind time. */
   if (data_) {
-    buffer_.update(data_);
+    update(data_);
     MEM_SAFE_FREE(data_);
   }
 
   const std::optional<VKDescriptorSet::Location> location =
-      data.shader_interface.descriptor_set_location(bind_type, slot);
+      data.shader_interface.descriptor_set_location(bind_type, binding);
   if (location) {
     if (bind_type == shader::ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER) {
       data.descriptor_set.bind(*this, *location);
@@ -82,7 +76,7 @@ void VKUniformBuffer::add_to_descriptor_set(AddToDescriptorSetContext &data,
     }
     render_graph::VKBufferAccess buffer_access = {};
     buffer_access.vk_buffer = buffer_.vk_handle();
-    buffer_access.vk_access_flags = data.shader_interface.access_mask(bind_type, *location);
+    buffer_access.vk_access_flags = data.shader_interface.access_mask(bind_type, binding);
     data.resource_access_info.buffers.append(buffer_access);
   }
 }

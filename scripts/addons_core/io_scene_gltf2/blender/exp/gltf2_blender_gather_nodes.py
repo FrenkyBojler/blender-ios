@@ -9,7 +9,7 @@ from mathutils import Matrix, Quaternion, Vector
 from ...io.com import gltf2_io
 from ...io.com import gltf2_io_extensions
 from ...io.exp.gltf2_io_user_extensions import export_user_extensions
-from ..com.gltf2_blender_extras import generate_extras
+from ..com.gltf2_blender_extras import generate_extras, BLACK_LIST
 from ..com.gltf2_blender_default import LIGHTS
 from ..com import gltf2_blender_math
 from . import gltf2_blender_gather_tree
@@ -198,7 +198,7 @@ def __gather_extensions(vnode, export_settings):
         return None
 
     if export_settings["gltf_lights"] and vnode.blender_type == VExportNode.INSTANCE and vnode.data is not None:
-        if vnode.data.type in LIGHTS:
+        if vnode.data.id_type in LIGHTS:
             blender_lamp = vnode.data
     elif export_settings["gltf_lights"] and blender_object is not None and (blender_object.type == "LAMP" or blender_object.type == "LIGHT"):
         blender_lamp = blender_object.data
@@ -297,7 +297,7 @@ def __gather_mesh(vnode, blender_object, export_settings):
                 depsgraph = bpy.context.evaluated_depsgraph_get()
                 blender_mesh_owner = blender_object.evaluated_get(depsgraph)
                 blender_mesh = blender_mesh_owner.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
-                for prop in blender_object.data.keys():
+                for prop in [p for p in blender_object.data.keys() if p not in BLACK_LIST]:
                     blender_mesh[prop] = blender_object.data[prop]
 
                 if export_settings['gltf_skins']:
@@ -405,8 +405,14 @@ def __gather_name(blender_object, export_settings):
 
 def __gather_trans_rot_scale(vnode, export_settings):
     if vnode.parent_uuid is None:
-        # No parent, so matrix is world matrix
-        trans, rot, sca = vnode.matrix_world.decompose()
+        # No parent, so matrix is world matrix, except if we export a collection
+        if export_settings['gltf_collection'] and export_settings['gltf_at_collection_center']:
+            # If collection, we need to take into account the collection offset
+            trans, rot, sca = vnode.matrix_world.decompose()
+            trans -= export_settings['gltf_collection_center']
+        else:
+            # No parent, so matrix is world matrix
+            trans, rot, sca = vnode.matrix_world.decompose()
     else:
         # calculate local matrix
         if export_settings['vtree'].nodes[vnode.parent_uuid].skin is None:
@@ -470,6 +476,12 @@ def gather_skin(vnode, export_settings):
         return None
 
     blender_object = export_settings['vtree'].nodes[vnode].blender_object
+
+    # Lattice can have armature modifiers & vertex groups, but we don't want to export them
+    # Avoid crash getting mesh data from lattices
+    if blender_object and blender_object.type == 'LATTICE':
+        return None
+
     modifiers = {m.type: m for m in blender_object.modifiers} if blender_object else {}
     if "ARMATURE" not in modifiers or modifiers["ARMATURE"].object is None:
         return None

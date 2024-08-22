@@ -189,7 +189,7 @@ void BKE_pchan_minmax(const Object *ob,
  *
  * \note This uses #BKE_pchan_minmax, see its documentation for details on bounds calculation.
  *
- * \param use_select When true, only consider selected bones. When false, selection state is
+ * \param use_select: When true, only consider selected bones. When false, selection state is
  * ignored and all bones are included in the bounds.
  */
 std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob, bool use_select);
@@ -502,7 +502,7 @@ void BKE_pchan_bbone_handles_get(bPoseChannel *pchan,
  */
 void BKE_pchan_bbone_spline_params_get(bPoseChannel *pchan,
                                        bool rest,
-                                       BBoneSplineParameters *r_param);
+                                       BBoneSplineParameters *param);
 
 /**
  * Fills the array with the desired amount of bone->segments elements.

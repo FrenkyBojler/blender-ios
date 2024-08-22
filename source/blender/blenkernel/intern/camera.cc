@@ -290,9 +290,9 @@ float BKE_camera_object_dof_distance(const Object *ob)
                   ob->object_to_world().location(),
                   cam->dof.focus_object->object_to_world().location());
     }
-    return fabsf(dot_v3v3(view_dir, dof_dir));
+    return fmax(fabsf(dot_v3v3(view_dir, dof_dir)), 1e-5f);
   }
-  return cam->dof.focus_distance;
+  return fmax(cam->dof.focus_distance, 1e-5f);
 }
 
 float BKE_camera_sensor_size(int sensor_fit, float sensor_x, float sensor_y)
@@ -483,6 +483,18 @@ void BKE_camera_params_compute_viewplane(
   params->viewdx = pixsize;
   params->viewdy = params->ycor * pixsize;
   params->viewplane = viewplane;
+}
+
+void BKE_camera_params_crop_viewplane(rctf *viewplane, int winx, int winy, const rcti *region)
+{
+  float pix_size_x = BLI_rctf_size_x(viewplane) / winx;
+  float pix_size_y = BLI_rctf_size_y(viewplane) / winy;
+
+  viewplane->xmin += pix_size_x * region->xmin;
+  viewplane->ymin += pix_size_y * region->ymin;
+
+  viewplane->xmax = viewplane->xmin + pix_size_x * BLI_rcti_size_x(region);
+  viewplane->ymax = viewplane->ymin + pix_size_y * BLI_rcti_size_y(region);
 }
 
 void BKE_camera_params_compute_matrix(CameraParams *params)

@@ -10,6 +10,9 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+#include "BLI_vector.hh"
+#include "GPU_common_types.hh"
 #include "GPU_shader_builtin.hh"
 
 namespace blender::gpu {
@@ -58,6 +61,29 @@ const GPUShaderCreateInfo *GPU_shader_create_info_get(const char *info_name);
  * \return true is create info is valid.
  */
 bool GPU_shader_create_info_check_error(const GPUShaderCreateInfo *_info, char r_error[128]);
+
+using BatchHandle = int64_t;
+/**
+ * Request the creation of multiple shaders at once, allowing the backend to use multithreaded
+ * compilation. Returns a handle that can be used to poll if all shaders have been compiled, and to
+ * retrieve the compiled shaders.
+ * NOTE: This function is asynchronous on OpenGL, but it's blocking on Vulkan and Metal.
+ * WARNING: The GPUShaderCreateInfo pointers should be valid until `GPU_shader_batch_finalize` has
+ * returned.
+ */
+BatchHandle GPU_shader_batch_create_from_infos(blender::Span<const GPUShaderCreateInfo *> infos);
+/**
+ * Returns true if all the shaders from the batch have finished their compilation.
+ */
+bool GPU_shader_batch_is_ready(BatchHandle handle);
+/**
+ * Retrieve the compiled shaders, in the same order as the `GPUShaderCreateInfo`s.
+ * If the compilation has not finished yet, this call will block the thread until all the shaders
+ * are ready.
+ * Shaders with compilation errors are returned as null pointers.
+ * WARNING: The handle will be invalidated by this call, you can't request the same batch twice.
+ */
+blender::Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle);
 
 /** \} */
 
@@ -193,6 +219,31 @@ void GPU_shader_constant_int(GPUShader *sh, const char *name, int value);
 void GPU_shader_constant_uint(GPUShader *sh, const char *name, unsigned int value);
 void GPU_shader_constant_float(GPUShader *sh, const char *name, float value);
 void GPU_shader_constant_bool(GPUShader *sh, const char *name, bool value);
+
+using SpecializationBatchHandle = int64_t;
+
+struct ShaderSpecialization {
+  GPUShader *shader;
+  blender::Vector<blender::gpu::shader::SpecializationConstant> constants;
+};
+
+/**
+ * Request the compilation of multiple specialization constant variations at once,
+ * allowing the backend to use multithreaded compilation.
+ * Returns a handle that can be used to poll if all variations have been compiled.
+ * NOTE: This function is asynchronous on OpenGL, and a no-op on Vulkan and Metal.
+ * Batches are processed one by one in FIFO order.
+ * WARNING: Binding a specialization before the batch finishes will fail.
+ */
+SpecializationBatchHandle GPU_shader_batch_specializations(
+    blender::Span<ShaderSpecialization> specializations);
+
+/**
+ * Returns true if all the specializations from the batch have finished their compilation.
+ * NOTE: Polling this function is required for the compilation process to keep progressing.
+ * WARNING: Invalidates the handle if it returns true.
+ */
+bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle);
 
 /** \} */
 

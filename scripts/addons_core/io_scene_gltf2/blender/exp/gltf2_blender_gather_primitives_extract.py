@@ -559,7 +559,8 @@ class PrimitiveCreator:
                                 pass  # Using the same Vertex Color
 
                     elif base_material is not None and self.export_settings['gltf_vertex_color'] == "MATERIAL":
-                        if warning_already_displayed_vc_nodetree is False:
+                        # Check if there is an active Vertex Color in mesh
+                        if warning_already_displayed_vc_nodetree is False and self.blender_mesh.color_attributes.active_color_index != -1:
                             self.export_settings['log'].warning(
                                 'The active Vertex Color will not be exported, as it is not used in the node tree of the material')
                             warning_already_displayed_vc_nodetree = True
@@ -681,13 +682,19 @@ class PrimitiveCreator:
             for u in range(u_tiles):
                 for v in range(v_tiles):
 
-                    if u != u_tiles - 1 and v != v_tiles - 1:
+                    # Check if this tile exists
+                    if int("10" + str(v) + str(u + 1)) not in tiles:
+                        continue
+
+                    # Manage tile limits (inclusive or not), avoiding to have the same vertex
+                    # in two tiles, if the vertex is on the limit
+                    if int("10" + str(v) + str(u + 1 + 1)) in tiles and int("10" + str(v + 1) + str(u + 1)) in tiles:
                         indices = np.where((self.dots[uvmap_name + '0'] >= u) & (self.dots[uvmap_name + '0'] < (u + 1)) & (
                             self.dots[uvmap_name + '1'] <= (1 - v)) & (self.dots[uvmap_name + '1'] > 1 - (v + 1)))[0]
-                    elif u == u_tiles - 1 and v != v_tiles - 1:
+                    elif int("10" + str(v) + str(u + 1 + 1)) not in tiles and int("10" + str(v + 1) + str(u + 1)) in tiles:
                         indices = np.where((self.dots[uvmap_name + '0'] >= u) & (self.dots[uvmap_name + '0'] <= (u + 1)) & (
                             self.dots[uvmap_name + '1'] <= (1 - v)) & (self.dots[uvmap_name + '1'] > 1 - (v + 1)))[0]
-                    elif u != u_tiles - 1 and v == v_tiles - 1:
+                    elif int("10" + str(v) + str(u + 1 + 1)) in tiles and int("10" + str(v + 1) + str(u + 1)) not in tiles:
                         indices = np.where((self.dots[uvmap_name + '0'] >= u) & (self.dots[uvmap_name + '0'] < (u + 1)) & (
                             self.dots[uvmap_name + '1'] <= (1 - v)) & (self.dots[uvmap_name + '1'] >= 1 - (v + 1)))[0]
                     else:

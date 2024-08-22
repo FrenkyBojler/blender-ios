@@ -48,6 +48,7 @@
 #  include "BKE_scene.hh"
 #  include "BKE_sound.h"
 
+#  include "GPU_capabilities.hh"
 #  include "GPU_context.hh"
 
 #  ifdef WITH_PYTHON
@@ -777,6 +778,9 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   PRINT("GPU Options:\n");
   BLI_args_print_arg_doc(ba, "--gpu-backend");
+#  ifdef WITH_OPENGL_BACKEND
+  BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
+#  endif
 
   PRINT("\n");
   PRINT("Misc Options:\n");
@@ -787,6 +791,7 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   BLI_args_print_arg_doc(ba, "--env-system-datafiles");
   BLI_args_print_arg_doc(ba, "--env-system-scripts");
+  BLI_args_print_arg_doc(ba, "--env-system-extensions");
   BLI_args_print_arg_doc(ba, "--env-system-python");
   PRINT("\n");
   BLI_args_print_arg_doc(ba, "-noaudio");
@@ -844,18 +849,18 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
 
   PRINT("Environment Variables:\n");
-  PRINT("  $BLENDER_USER_RESOURCES  Top level directory for user files.\n");
-  PRINT("                           (other 'BLENDER_USER_*' variables override when set).\n");
+  PRINT("  $BLENDER_USER_RESOURCES  Replace default directory of all user files.\n");
+  PRINT("                           Other 'BLENDER_USER_*' variables override when set.\n");
   PRINT("  $BLENDER_USER_CONFIG     Directory for user configuration files.\n");
   PRINT("  $BLENDER_USER_SCRIPTS    Directory for user scripts.\n");
   PRINT("  $BLENDER_USER_EXTENSIONS Directory for user extensions.\n");
   PRINT("  $BLENDER_USER_DATAFILES  Directory for user data files (icons, translations, ..).\n");
   PRINT("\n");
-  PRINT("  $BLENDER_SYSTEM_RESOURCES  Top level directory for system files.\n");
-  PRINT("                             (other 'BLENDER_SYSTEM_*' variables override when set).\n");
-  PRINT("  $BLENDER_SYSTEM_SCRIPTS    Directory for system wide scripts.\n");
-  PRINT("  $BLENDER_SYSTEM_DATAFILES  Directory for system wide data files.\n");
-  PRINT("  $BLENDER_SYSTEM_PYTHON     Directory for system Python libraries.\n");
+  PRINT("  $BLENDER_SYSTEM_RESOURCES  Replace default directory of all bundled resource files.\n");
+  PRINT("  $BLENDER_SYSTEM_SCRIPTS    Directory to add more bundled scripts.\n");
+  PRINT("  $BLENDER_SYSTEM_EXTENSIONS Directory for system extensions repository.\n");
+  PRINT("  $BLENDER_SYSTEM_DATAFILES  Directory to replace bundled datafiles.\n");
+  PRINT("  $BLENDER_SYSTEM_PYTHON     Directory to replace bundled Python libraries.\n");
 
   if (defs.with_ocio) {
     PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
@@ -1483,6 +1488,42 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
   return 1;
 }
 
+#  ifdef WITH_OPENGL_BACKEND
+static const char arg_handle_gpu_compilation_subprocesses_set_doc[] =
+    "\n"
+    "\tOverride the Max Compilation Subprocesses setting (OpenGL only).";
+static int arg_handle_gpu_compilation_subprocesses_set(int argc,
+                                                       const char **argv,
+                                                       void * /*data*/)
+{
+  const char *arg_id = "--gpu-compilation-subprocesses";
+  const int min = 0, max = BLI_system_thread_count();
+  if (argc > 1) {
+    const char *err_msg = nullptr;
+    int subprocesses;
+    if (!parse_int_strict_range(argv[1], nullptr, min, max, &subprocesses, &err_msg)) {
+      fprintf(stderr,
+              "\nError: %s '%s %s', expected number in [%d..%d].\n",
+              err_msg,
+              arg_id,
+              argv[1],
+              min,
+              max);
+      return 0;
+    }
+
+    GPU_compilation_subprocess_override_set(subprocesses);
+    return 1;
+  }
+  fprintf(stderr,
+          "\nError: you must specify a number of subprocesses in [%d..%d] '%s'.\n",
+          min,
+          max,
+          arg_id);
+  return 0;
+}
+#  endif
+
 static const char arg_handle_debug_fpe_set_doc[] =
     "\n\t"
     "Enable floating-point exceptions.";
@@ -1534,6 +1575,9 @@ static const char arg_handle_env_system_set_doc_scripts[] =
 static const char arg_handle_env_system_set_doc_python[] =
     "\n\t"
     "Set the " STRINGIFY_ARG(BLENDER_SYSTEM_PYTHON) " environment variable.";
+static const char arg_handle_env_system_set_doc_extensions[] =
+    "\n\t"
+    "Set the " STRINGIFY_ARG(BLENDER_SYSTEM_EXTENSIONS) " environment variable.";
 
 static int arg_handle_env_system_set(int argc, const char **argv, void * /*data*/)
 {
@@ -1676,17 +1720,26 @@ static int arg_handle_start_with_console(int /*argc*/, const char ** /*argv*/, v
 static bool arg_handle_extension_registration(const bool do_register, const bool all_users)
 {
   /* Logic runs in #main_args_handle_registration. */
+#  ifdef WIN32
+  /* This process has been launched with the permissions needed
+   * to register or unregister, so just do it now and then exit. */
+  if (do_register) {
+    BLI_windows_register_blend_extension(all_users);
+  }
+  else {
+    BLI_windows_unregister_blend_extension(all_users);
+  }
+  TerminateProcess(GetCurrentProcess(), 0);
+  return true;
+#  else
   char *error_msg = nullptr;
   bool result = WM_platform_associate_set(do_register, all_users, &error_msg);
   if (error_msg) {
     fprintf(stderr, "Error: %s\n", error_msg);
     MEM_freeN(error_msg);
   }
-
-#  ifdef WIN32
-  TerminateProcess(GetCurrentProcess(), 0);
-#  endif
   return result;
+#  endif
 }
 
 static const char arg_handle_register_extension_doc[] =
@@ -2372,10 +2425,8 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
   if (argc > 1) {
 #  ifdef WITH_PYTHON
     const char script_str[] =
-        "from addon_utils import check, enable\n"
-        "for m in '%s'.split(','):\n"
-        "    if check(m)[1] is False:\n"
-        "        enable(m, persistent=True)";
+        "from _bpy_internal.addons.cli import set_from_cli\n"
+        "set_from_cli('%s')";
     const int slen = strlen(argv[1]) + (sizeof(script_str) - 2);
     char *str = static_cast<char *>(malloc(slen));
     bContext *C = static_cast<bContext *>(data);
@@ -2534,6 +2585,11 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
       ba, nullptr, "--env-system-scripts", CB_EX(arg_handle_env_system_set, scripts), nullptr);
   BLI_args_add(
       ba, nullptr, "--env-system-python", CB_EX(arg_handle_env_system_set, python), nullptr);
+  BLI_args_add(ba,
+               nullptr,
+               "--env-system-extensions",
+               CB_EX(arg_handle_env_system_set, extensions),
+               nullptr);
 
   BLI_args_add(ba, "-t", "--threads", CB(arg_handle_threads_set), nullptr);
 
@@ -2549,6 +2605,13 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
    * selection for animation player. */
   BLI_args_add(ba, nullptr, "--gpu-backend", CB_ALL(arg_handle_gpu_backend_set), nullptr);
+#  ifdef WITH_OPENGL_BACKEND
+  BLI_args_add(ba,
+               nullptr,
+               "--gpu-compilation-subprocesses",
+               CB(arg_handle_gpu_compilation_subprocesses_set),
+               nullptr);
+#  endif
 
   /* Pass: Background Mode & Settings
    *

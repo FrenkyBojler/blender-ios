@@ -48,11 +48,9 @@ def get_cache_data(path: str,
     # - Action mode, where some object have multiple actions
         # - For this case, on first call, we will cache active action for all objects
         # - On next calls, we will cache only the action of current object, so we can disable viewport for others
-    # For armature : We already checked that we can disable viewport (in case
-    # of drivers, this is currently not possible)
 
     need_to_enable_again = False
-    if export_settings['gltf_optimize_armature_disable_viewport'] is True and len(obj_uuids) == 1:
+    if export_settings['gltf_optimize_disable_viewport'] is True and len(obj_uuids) == 1:
         need_to_enable_again = True
         # Before baking, disabling from viewport all meshes
         for obj in [n.blender_object for n in export_settings['vtree'].nodes.values() if n.blender_type in
@@ -61,6 +59,7 @@ def get_cache_data(path: str,
                 continue
             obj.hide_viewport = True
         export_settings['vtree'].nodes[obj_uuids[0]].blender_object.hide_viewport = False
+    # Work for drivers on shapekeys is already done at start of animation export
 
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
@@ -380,6 +379,11 @@ def armature_caching(data, obj_uuid, blender_obj, action_name, frame, export_set
 
 def object_caching(data, obj_uuids, current_instance, action_name, frame, depsgraph, export_settings):
     for obj_uuid in obj_uuids:
+
+        # Do not cache real collection
+        if export_settings['vtree'].nodes[obj_uuid].blender_type == VExportNode.COLLECTION:
+            continue
+
         blender_obj = export_settings['vtree'].nodes[obj_uuid].blender_object
         if blender_obj is None:  # GN instance
             if export_settings['vtree'].nodes[obj_uuid].parent_uuid not in current_instance.keys():
@@ -524,9 +528,14 @@ def object_caching(data, obj_uuids, current_instance, action_name, frame, depsgr
 
                 if cache_sk:
                     initialize_data_dict(data, key1, key2, key3, key4)
-                    data[key1][key2][key3][key4][frame] = [
-                        k.value for k in get_sk_exported(
-                            driver_object.data.shape_keys.key_blocks)]
+                    if export_settings['gltf_optimize_disable_viewport'] is True:
+                        # Retrieve data from custom properties instead of shape keys
+                        data[key1][key2][key3][key4][frame] = list(
+                            blender_obj['gltf_' + dr_obj])  # This include only exported SK
+                    else:
+                        data[key1][key2][key3][key4][frame] = [
+                            k.value for k in get_sk_exported(
+                                driver_object.data.shape_keys.key_blocks)]
                     cache_sk = False
 
 

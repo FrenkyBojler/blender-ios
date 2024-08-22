@@ -97,7 +97,6 @@ static PyStructSequence_Field app_cb_info_fields[] = {
     {"_extension_repos_update_pre", "on changes to extension repos (before)"},
     {"_extension_repos_update_post", "on changes to extension repos (after)"},
     {"_extension_repos_sync", "on creating or synchronizing the active repository"},
-    {"_extension_repos_upgrade", "on upgrading the active repository"},
     {"_extension_repos_files_clear",
      "remove files from the repository directory (uses as a string argument)"},
 
@@ -110,10 +109,10 @@ static PyStructSequence_Field app_cb_info_fields[] = {
 };
 
 static PyStructSequence_Desc app_cb_info_desc = {
-    "bpy.app.handlers",                    /* name */
-    "This module contains callback lists", /* doc */
-    app_cb_info_fields,                    /* fields */
-    ARRAY_SIZE(app_cb_info_fields) - 1,
+    /*name*/ "bpy.app.handlers",
+    /*doc*/ "This module contains callback lists",
+    /*fields*/ app_cb_info_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(app_cb_info_fields) - 1,
 };
 
 #if 0

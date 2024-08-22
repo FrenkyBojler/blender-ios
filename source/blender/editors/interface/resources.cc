@@ -520,6 +520,12 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_CFRAME:
           cp = ts->cframe;
           break;
+        case TH_FRAME_BEFORE:
+          cp = ts->before_current_frame;
+          break;
+        case TH_FRAME_AFTER:
+          cp = ts->after_current_frame;
+          break;
         case TH_TIME_KEYFRAME:
           cp = ts->time_keyframe;
           break;
@@ -1006,6 +1012,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_ICON_FOLDER:
           cp = btheme->tui.icon_folder;
+          break;
+        case TH_ICON_AUTOKEY:
+          cp = btheme->tui.icon_autokey;
           break;
         case TH_ICON_FUND: {
           /* Development fund icon color is not part of theme. */

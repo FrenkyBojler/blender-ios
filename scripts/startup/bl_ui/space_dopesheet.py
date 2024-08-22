@@ -34,8 +34,11 @@ from rna_prop_ui import PropertyPanel
 def dopesheet_filter(layout, context):
     dopesheet = context.space_data.dopesheet
     is_nla = context.area.type == 'NLA_EDITOR'
+    is_action_editor = not is_nla and context.space_data.mode == 'ACTION'
 
     row = layout.row(align=True)
+    if is_action_editor and context.preferences.experimental.use_animation_baklava:
+        row.prop(dopesheet, "show_all_slots", text="")
     row.prop(dopesheet, "show_only_selected", text="")
     row.prop(dopesheet, "show_hidden", text="")
 
@@ -107,7 +110,7 @@ class DopesheetFilterPopoverBase:
             flow.prop(dopesheet, "show_armatures", text="Armatures")
         if bpy.data.cameras:
             flow.prop(dopesheet, "show_cameras", text="Cameras")
-        if bpy.data.grease_pencils:
+        if bpy.data.grease_pencils_v3:
             flow.prop(dopesheet, "show_gpencil", text="Grease Pencil Objects")
         if bpy.data.lights:
             flow.prop(dopesheet, "show_lights", text="Lights")
@@ -242,45 +245,39 @@ class DOPESHEET_HT_editor_buttons:
 
             layout.template_ID(st, "action", new="action.new", unlink="action.unlink")
 
+            # Show slot selector.
+            if context.preferences.experimental.use_animation_baklava:
+                # context.space_data.action comes from the active object.
+                adt = context.object and context.object.animation_data
+                if adt and st.action and st.action.is_action_layered:
+                    layout.template_search(
+                        adt, "action_slot",
+                        adt, "action_slots",
+                        new="",
+                        unlink="anim.slot_unassign_object",
+                    )
+
         # Layer management
         if st.mode == 'GPENCIL':
             ob = context.active_object
 
-            if context.preferences.experimental.use_grease_pencil_version3:
-                enable_but = ob is not None and ob.type == 'GREASEPENCIL'
+            enable_but = ob is not None and ob.type == 'GREASEPENCIL'
 
-                row = layout.row(align=True)
-                row.enabled = enable_but
-                row.operator("grease_pencil.layer_add", icon='ADD', text="")
-                row.operator("grease_pencil.layer_remove", icon='REMOVE', text="")
-                row.menu("GREASE_PENCIL_MT_grease_pencil_add_layer_extra", icon='DOWNARROW_HLT', text="")
+            row = layout.row(align=True)
+            row.enabled = enable_but
+            row.operator("grease_pencil.layer_add", icon='ADD', text="")
+            row.operator("grease_pencil.layer_remove", icon='REMOVE', text="")
+            row.menu("GREASE_PENCIL_MT_grease_pencil_add_layer_extra", icon='DOWNARROW_HLT', text="")
 
-                row = layout.row(align=True)
-                row.enabled = enable_but
-                row.operator("anim.channels_move", icon='TRIA_UP', text="").direction = 'UP'
-                row.operator("anim.channels_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
+            row = layout.row(align=True)
+            row.enabled = enable_but
+            row.operator("anim.channels_move", icon='TRIA_UP', text="").direction = 'UP'
+            row.operator("anim.channels_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
-                row = layout.row(align=True)
-                row.enabled = enable_but
-                row.operator("grease_pencil.layer_isolate", icon='RESTRICT_VIEW_ON', text="").affect_visibility = True
-                row.operator("grease_pencil.layer_isolate", icon='LOCKED', text="").affect_visibility = False
-            else:
-                enable_but = ob is not None and ob.type == 'GPENCIL'
-                row = layout.row(align=True)
-                row.enabled = enable_but
-                row.operator("gpencil.layer_add", icon='ADD', text="")
-                row.operator("gpencil.layer_remove", icon='REMOVE', text="")
-                row.menu("GPENCIL_MT_layer_context_menu", icon='DOWNARROW_HLT', text="")
-
-                row = layout.row(align=True)
-                row.enabled = enable_but
-                row.operator("gpencil.layer_move", icon='TRIA_UP', text="").type = 'UP'
-                row.operator("gpencil.layer_move", icon='TRIA_DOWN', text="").type = 'DOWN'
-
-                row = layout.row(align=True)
-                row.enabled = enable_but
-                row.operator("gpencil.layer_isolate", icon='RESTRICT_VIEW_ON', text="").affect_visibility = True
-                row.operator("gpencil.layer_isolate", icon='LOCKED', text="").affect_visibility = False
+            row = layout.row(align=True)
+            row.enabled = enable_but
+            row.operator("grease_pencil.layer_isolate", icon='RESTRICT_VIEW_ON', text="").affect_visibility = True
+            row.operator("grease_pencil.layer_isolate", icon='LOCKED', text="").affect_visibility = False
 
         layout.separator_spacer()
 
@@ -392,6 +389,10 @@ class DOPESHEET_MT_view(Menu):
 
         layout.operator("action.view_selected")
         layout.operator("action.view_all")
+        if context.scene.use_preview_range:
+            layout.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            layout.operator("anim.scene_range_frame", text="Frame Scene Range")
         layout.operator("action.view_frame")
         layout.separator()
 
@@ -432,13 +433,17 @@ class DOPESHEET_MT_view(Menu):
 class DOPESHEET_MT_view_pie(Menu):
     bl_label = "View"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         pie = layout.menu_pie()
         pie.operator("action.view_all")
         pie.operator("action.view_selected", icon='ZOOM_SELECTED')
         pie.operator("action.view_frame")
+        if context.scene.use_preview_range:
+            pie.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            pie.operator("anim.scene_range_frame", text="Frame Scene Range")
 
 
 class DOPESHEET_MT_select(Menu):
@@ -541,6 +546,9 @@ class DOPESHEET_MT_channel(Menu):
         layout.operator("anim.channels_fcurves_enable")
 
         layout.separator()
+        layout.operator("anim.channels_bake")
+
+        layout.separator()
         layout.operator("anim.channels_view_selected")
 
 
@@ -600,7 +608,7 @@ class DopesheetActionPanelBase:
 
     @classmethod
     def draw_generic_panel(cls, _context, layout, action):
-        layout.label(text=action.name, icon='ACTION')
+        layout.label(text=action.name, icon='ACTION', translate=False)
 
         layout.prop(action, "use_frame_range")
 
@@ -638,6 +646,30 @@ class DOPESHEET_PT_action(DopesheetActionPanelBase, Panel):
     def draw(self, context):
         action = context.active_action
         self.draw_generic_panel(context, self.layout, action)
+
+
+class DOPESHEET_PT_action_slot(Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Action"
+    bl_label = "Slot"
+
+    @classmethod
+    def poll(cls, context):
+        if not context.preferences.experimental.use_animation_baklava:
+            return False
+        action = context.active_action
+        return bool(action and action.slots.active)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        action = context.active_action
+        slot = action.slots.active
+
+        layout.prop(slot, "name_display", text="Name", icon_value=slot.idtype_icon)
 
 
 #######################################
@@ -852,7 +884,7 @@ class GreasePencilLayersDopeSheetPanel:
             return False
 
         grease_pencil = ob.data
-        active_layer = grease_pencil.layers.active_layer
+        active_layer = grease_pencil.layers.active
         if active_layer:
             return True
 
@@ -924,7 +956,7 @@ class DOPESHEET_PT_grease_pencil_mode(GreasePencilLayersDopeSheetPanel, Panel):
 
         ob = context.object
         grease_pencil = ob.data
-        active_layer = grease_pencil.layers.active_layer
+        active_layer = grease_pencil.layers.active
 
         if active_layer:
             row = layout.row(align=True)
@@ -980,6 +1012,7 @@ classes = (
     DOPESHEET_MT_view_pie,
     DOPESHEET_PT_filters,
     DOPESHEET_PT_action,
+    DOPESHEET_PT_action_slot,
     DOPESHEET_PT_gpencil_mode,
     DOPESHEET_PT_gpencil_layer_masks,
     DOPESHEET_PT_gpencil_layer_transform,

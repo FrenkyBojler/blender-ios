@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Gamma correction value\n"
           "Gamma controls the relative intensity of the mid-tones compared to the full black and "
-          "full white.");
+          "full white");
   b.add_output<decl::Color>("Color");
 }
 
@@ -55,5 +55,5 @@ void register_node_type_sh_gamma()
   ntype.gpu_fn = file_ns::node_shader_gpu_gamma;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

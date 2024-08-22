@@ -11,6 +11,7 @@ from pxr import Usd
 from pxr import UsdUtils
 from pxr import UsdGeom
 from pxr import UsdShade
+from pxr import UsdSkel
 from pxr import Gf
 
 import bpy
@@ -92,6 +93,7 @@ class USDExportTest(AbstractUSDTest):
             filepath=str(export_path),
             export_materials=True,
             evaluation_mode="RENDER",
+            convert_world_material=False,
         )
         self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
 
@@ -190,11 +192,11 @@ class USDExportTest(AbstractUSDTest):
         prim = stage.GetPrimAtPath("/root/Mesh/Mesh")
 
         self.check_primvar(prim, "p_bool", "VtArray<bool>", "vertex", 4)
-        self.check_primvar(prim, "p_int8", "VtArray<int>", "vertex", 4)
+        self.check_primvar(prim, "p_int8", "VtArray<unsigned char>", "vertex", 4)
         self.check_primvar(prim, "p_int32", "VtArray<int>", "vertex", 4)
         self.check_primvar(prim, "p_float", "VtArray<float>", "vertex", 4)
-        self.check_primvar(prim, "p_color", "VtArray<GfVec3f>", "vertex", 4)
-        self.check_primvar(prim, "p_byte_color", "VtArray<GfVec3f>", "vertex", 4)
+        self.check_primvar(prim, "p_color", "VtArray<GfVec4f>", "vertex", 4)
+        self.check_primvar(prim, "p_byte_color", "VtArray<GfVec4f>", "vertex", 4)
         self.check_primvar(prim, "p_vec2", "VtArray<GfVec2f>", "vertex", 4)
         self.check_primvar(prim, "p_vec3", "VtArray<GfVec3f>", "vertex", 4)
         self.check_primvar(prim, "p_quat", "VtArray<GfQuatf>", "vertex", 4)
@@ -212,7 +214,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar_missing(prim, "e_mat4x4")
 
         self.check_primvar(prim, "f_bool", "VtArray<bool>", "uniform", 1)
-        self.check_primvar(prim, "f_int8", "VtArray<int>", "uniform", 1)
+        self.check_primvar(prim, "f_int8", "VtArray<unsigned char>", "uniform", 1)
         self.check_primvar(prim, "f_int32", "VtArray<int>", "uniform", 1)
         self.check_primvar(prim, "f_float", "VtArray<float>", "uniform", 1)
         self.check_primvar_missing(prim, "f_color")
@@ -223,11 +225,11 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar_missing(prim, "f_mat4x4")
 
         self.check_primvar(prim, "fc_bool", "VtArray<bool>", "faceVarying", 4)
-        self.check_primvar(prim, "fc_int8", "VtArray<int>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_int8", "VtArray<unsigned char>", "faceVarying", 4)
         self.check_primvar(prim, "fc_int32", "VtArray<int>", "faceVarying", 4)
         self.check_primvar(prim, "fc_float", "VtArray<float>", "faceVarying", 4)
-        self.check_primvar(prim, "fc_color", "VtArray<GfVec3f>", "faceVarying", 4)
-        self.check_primvar(prim, "fc_byte_color", "VtArray<GfVec3f>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_color", "VtArray<GfVec4f>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_byte_color", "VtArray<GfVec4f>", "faceVarying", 4)
         self.check_primvar(prim, "fc_vec2", "VtArray<GfVec2f>", "faceVarying", 4)
         self.check_primvar(prim, "fc_vec3", "VtArray<GfVec3f>", "faceVarying", 4)
         self.check_primvar(prim, "fc_quat", "VtArray<GfQuatf>", "faceVarying", 4)
@@ -236,7 +238,7 @@ class USDExportTest(AbstractUSDTest):
         prim = stage.GetPrimAtPath("/root/Curve_base/Curves/Curves")
 
         self.check_primvar(prim, "p_bool", "VtArray<bool>", "vertex", 24)
-        self.check_primvar(prim, "p_int8", "VtArray<int>", "vertex", 24)
+        self.check_primvar(prim, "p_int8", "VtArray<unsigned char>", "vertex", 24)
         self.check_primvar(prim, "p_int32", "VtArray<int>", "vertex", 24)
         self.check_primvar(prim, "p_float", "VtArray<float>", "vertex", 24)
         self.check_primvar_missing(prim, "p_color")
@@ -247,7 +249,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar_missing(prim, "p_mat4x4")
 
         self.check_primvar(prim, "sp_bool", "VtArray<bool>", "uniform", 2)
-        self.check_primvar(prim, "sp_int8", "VtArray<int>", "uniform", 2)
+        self.check_primvar(prim, "sp_int8", "VtArray<unsigned char>", "uniform", 2)
         self.check_primvar(prim, "sp_int32", "VtArray<int>", "uniform", 2)
         self.check_primvar(prim, "sp_float", "VtArray<float>", "uniform", 2)
         self.check_primvar_missing(prim, "sp_color")
@@ -260,7 +262,7 @@ class USDExportTest(AbstractUSDTest):
         prim = stage.GetPrimAtPath("/root/Curve_bezier_base/Curves_bezier/Curves")
 
         self.check_primvar(prim, "p_bool", "VtArray<bool>", "varying", 10)
-        self.check_primvar(prim, "p_int8", "VtArray<int>", "varying", 10)
+        self.check_primvar(prim, "p_int8", "VtArray<unsigned char>", "varying", 10)
         self.check_primvar(prim, "p_int32", "VtArray<int>", "varying", 10)
         self.check_primvar(prim, "p_float", "VtArray<float>", "varying", 10)
         self.check_primvar_missing(prim, "p_color")
@@ -271,7 +273,7 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar_missing(prim, "p_mat4x4")
 
         self.check_primvar(prim, "sp_bool", "VtArray<bool>", "uniform", 3)
-        self.check_primvar(prim, "sp_int8", "VtArray<int>", "uniform", 3)
+        self.check_primvar(prim, "sp_int8", "VtArray<unsigned char>", "uniform", 3)
         self.check_primvar(prim, "sp_int32", "VtArray<int>", "uniform", 3)
         self.check_primvar(prim, "sp_float", "VtArray<float>", "uniform", 3)
         self.check_primvar_missing(prim, "sp_color")
@@ -280,6 +282,251 @@ class USDExportTest(AbstractUSDTest):
         self.check_primvar(prim, "sp_vec3", "VtArray<GfVec3f>", "uniform", 3)
         self.check_primvar(prim, "sp_quat", "VtArray<GfQuatf>", "uniform", 3)
         self.check_primvar_missing(prim, "sp_mat4x4")
+
+    def test_export_attributes_varying(self):
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_attribute_varying_test.blend"))
+        # Ensure the simulation zone data is baked for all relevant frames...
+        for frame in range(1, 16):
+            bpy.context.scene.frame_set(frame)
+        bpy.context.scene.frame_set(1)
+
+        export_path = self.tempdir / "usd_attribute_varying_test.usda"
+        res = bpy.ops.wm.usd_export(filepath=str(export_path), export_animation=True, evaluation_mode="RENDER")
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        #
+        # Validate Mesh data
+        #
+        mesh1 = UsdGeom.Mesh(stage.GetPrimAtPath("/root/mesh1/mesh1"))
+        mesh2 = UsdGeom.Mesh(stage.GetPrimAtPath("/root/mesh2/mesh2"))
+        mesh3 = UsdGeom.Mesh(stage.GetPrimAtPath("/root/mesh3/mesh3"))
+
+        sparse_frames = [4.0, 5.0, 8.0, 9.0, 12.0, 13.0]
+
+        # Positions (should be sparsely written)
+        self.assertEqual(mesh1.GetPointsAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(mesh2.GetPointsAttr().GetTimeSamples(), [])
+        self.assertEqual(mesh3.GetPointsAttr().GetTimeSamples(), [])
+        # Velocity (should be sparsely written)
+        self.assertEqual(mesh1.GetVelocitiesAttr().GetTimeSamples(), [])
+        self.assertEqual(mesh2.GetVelocitiesAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(mesh3.GetVelocitiesAttr().GetTimeSamples(), [])
+        # Regular primvar (should be sparsely written)
+        self.assertEqual(UsdGeom.PrimvarsAPI(mesh1).GetPrimvar("test").GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.PrimvarsAPI(mesh2).GetPrimvar("test").GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.PrimvarsAPI(mesh3).GetPrimvar("test").GetTimeSamples(), sparse_frames)
+
+    def test_export_mesh_subd(self):
+        """Test exporting Subdivision Surface attributes and values"""
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_mesh_subd.blend"))
+        export_path = self.tempdir / "usd_mesh_subd.usda"
+        res = bpy.ops.wm.usd_export(
+            filepath=str(export_path),
+            export_subdivision='BEST_MATCH',
+            evaluation_mode="RENDER",
+        )
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/uv_smooth_none_boundary_smooth_all/mesh1"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'all')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeOnly')
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/uv_smooth_corners_boundary_smooth_all/mesh2"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'cornersOnly')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeOnly')
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/uv_smooth_corners_junctions_boundary_smooth_all/mesh3"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'cornersPlus1')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeOnly')
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/uv_smooth_corners_junctions_concave_boundary_smooth_all/mesh4"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'cornersPlus2')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeOnly')
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/uv_smooth_boundaries_boundary_smooth_all/mesh5"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'boundaries')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeOnly')
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/uv_smooth_all_boundary_smooth_all/mesh6"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'none')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeOnly')
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/uv_smooth_boundaries_boundary_smooth_keep/mesh7"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'boundaries')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeAndCorner')
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/crease_verts/crease_verts"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'boundaries')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeOnly')
+        self.assertEqual(len(mesh.GetCornerIndicesAttr().Get()), 7)
+        usd_vert_sharpness = mesh.GetCornerSharpnessesAttr().Get()
+        self.assertEqual(len(usd_vert_sharpness), 7)
+        # A 1.0 crease is INFINITE (10) in USD
+        self.assertAlmostEqual(min(usd_vert_sharpness), 0.1, 5)
+        self.assertEqual(len([sharp for sharp in usd_vert_sharpness if sharp < 1]), 6)
+        self.assertEqual(len([sharp for sharp in usd_vert_sharpness if sharp == 10]), 1)
+
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/crease_edge/crease_edge"))
+        self.assertEqual(mesh.GetSubdivisionSchemeAttr().Get(), 'catmullClark')
+        self.assertEqual(mesh.GetFaceVaryingLinearInterpolationAttr().Get(), 'boundaries')
+        self.assertEqual(mesh.GetInterpolateBoundaryAttr().Get(), 'edgeOnly')
+        self.assertEqual(len(mesh.GetCreaseIndicesAttr().Get()), 20)
+        usd_crease_lengths = mesh.GetCreaseLengthsAttr().Get()
+        self.assertEqual(len(usd_crease_lengths), 10)
+        self.assertTrue(all([length == 2 for length in usd_crease_lengths]))
+        usd_crease_sharpness = mesh.GetCreaseSharpnessesAttr().Get()
+        self.assertEqual(len(usd_crease_sharpness), 10)
+        # A 1.0 crease is INFINITE (10) in USD
+        self.assertAlmostEqual(min(usd_crease_sharpness), 0.1, 5)
+        self.assertEqual(len([sharp for sharp in usd_crease_sharpness if sharp < 1]), 9)
+        self.assertEqual(len([sharp for sharp in usd_crease_sharpness if sharp == 10]), 1)
+
+    def test_export_mesh_triangulate(self):
+        """Test exporting with different triangulation options for meshes."""
+
+        # Use the current scene to create simple geometry to triangulate
+        bpy.ops.mesh.primitive_plane_add(size=1)
+        bpy.ops.mesh.primitive_circle_add(fill_type='NGON', radius=1, vertices=7)
+
+        # We assume that triangulation is thoroughly tested elsewhere. Here we are only interested
+        # in checking that USD passes its operator properties through correctly. We use a minimal
+        # combination of quad and ngon methods to test.
+        tri_export_path1 = self.tempdir / "usd_mesh_tri_setup1.usda"
+        res = bpy.ops.wm.usd_export(
+            filepath=str(tri_export_path1),
+            triangulate_meshes=True,
+            quad_method='FIXED',
+            ngon_method='BEAUTY',
+            evaluation_mode="RENDER",
+        )
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {tri_export_path1}")
+
+        tri_export_path2 = self.tempdir / "usd_mesh_tri_setup2.usda"
+        res = bpy.ops.wm.usd_export(
+            filepath=str(tri_export_path2),
+            triangulate_meshes=True,
+            quad_method='FIXED_ALTERNATE',
+            ngon_method='CLIP',
+            evaluation_mode="RENDER",
+        )
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {tri_export_path2}")
+
+        stage1 = Usd.Stage.Open(str(tri_export_path1))
+        stage2 = Usd.Stage.Open(str(tri_export_path2))
+
+        # The Plane should have different vertex ordering because of the quad methods chosen
+        plane1 = UsdGeom.Mesh(stage1.GetPrimAtPath("/root/Plane/Plane"))
+        plane2 = UsdGeom.Mesh(stage2.GetPrimAtPath("/root/Plane/Plane"))
+        indices1 = plane1.GetFaceVertexIndicesAttr().Get()
+        indices2 = plane2.GetFaceVertexIndicesAttr().Get()
+        self.assertEqual(len(indices1), 6)
+        self.assertEqual(len(indices2), 6)
+        self.assertNotEqual(indices1, indices2)
+
+        # The Circle should have different vertex ordering because of the ngon methods chosen
+        circle1 = UsdGeom.Mesh(stage1.GetPrimAtPath("/root/Circle/Circle"))
+        circle2 = UsdGeom.Mesh(stage2.GetPrimAtPath("/root/Circle/Circle"))
+        indices1 = circle1.GetFaceVertexIndicesAttr().Get()
+        indices2 = circle2.GetFaceVertexIndicesAttr().Get()
+        self.assertEqual(len(indices1), 15)
+        self.assertEqual(len(indices2), 15)
+        self.assertNotEqual(indices1, indices2)
+
+    def test_animation(self):
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_anim_test.blend"))
+        export_path = self.tempdir / "usd_anim_test.usda"
+        res = bpy.ops.wm.usd_export(
+            filepath=str(export_path),
+            export_animation=True,
+            evaluation_mode="RENDER",
+        )
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        # Validate the simple object animation
+        prim = stage.GetPrimAtPath("/root/cube_anim_xform")
+        self.assertEqual(prim.GetTypeName(), "Xform")
+        loc_samples = UsdGeom.Xformable(prim).GetTranslateOp().GetTimeSamples()
+        rot_samples = UsdGeom.Xformable(prim).GetRotateXYZOp().GetTimeSamples()
+        scale_samples = UsdGeom.Xformable(prim).GetScaleOp().GetTimeSamples()
+        self.assertEqual(loc_samples, [1.0, 2.0, 3.0, 4.0])
+        self.assertEqual(rot_samples, [1.0])
+        self.assertEqual(scale_samples, [1.0])
+
+        # Validate the armature animation
+        prim = stage.GetPrimAtPath("/root/Armature/Armature")
+        self.assertEqual(prim.GetTypeName(), "Skeleton")
+        prim_skel = UsdSkel.BindingAPI(prim)
+        anim = UsdSkel.Animation(prim_skel.GetAnimationSource())
+        self.assertEqual(anim.GetJointsAttr().Get(),
+                         ['Bone',
+                          'Bone/Bone_001',
+                          'Bone/Bone_001/Bone_002',
+                          'Bone/Bone_001/Bone_002/Bone_003',
+                          'Bone/Bone_001/Bone_002/Bone_003/Bone_004'])
+        loc_samples = anim.GetTranslationsAttr().GetTimeSamples()
+        rot_samples = anim.GetRotationsAttr().GetTimeSamples()
+        scale_samples = anim.GetScalesAttr().GetTimeSamples()
+        self.assertEqual(loc_samples, [1.0, 2.0, 3.0, 4.0, 5.0])
+        self.assertEqual(rot_samples, [1.0, 2.0, 3.0, 4.0, 5.0])
+        self.assertEqual(scale_samples, [1.0, 2.0, 3.0, 4.0, 5.0])
+
+        # Validate the shape key animation
+        prim = stage.GetPrimAtPath("/root/cube_anim_keys")
+        self.assertEqual(prim.GetTypeName(), "SkelRoot")
+        prim_skel = UsdSkel.BindingAPI(prim.GetPrimAtPath("cube_anim_keys"))
+        self.assertEqual(prim_skel.GetBlendShapesAttr().Get(), ['Key_1'])
+        prim_skel = UsdSkel.BindingAPI(prim.GetPrimAtPath("Skel"))
+        anim = UsdSkel.Animation(prim_skel.GetAnimationSource())
+        weight_samples = anim.GetBlendShapeWeightsAttr().GetTimeSamples()
+        self.assertEqual(weight_samples, [1.0, 2.0, 3.0, 4.0, 5.0])
+
+    def test_materialx_network(self):
+        """Test exporting that a MaterialX export makes it out alright"""
+        bpy.ops.wm.open_mainfile(
+            filepath=str(self.testdir / "usd_materials_export.blend")
+        )
+        export_path = self.tempdir / "materialx.usda"
+        res = bpy.ops.wm.usd_export(
+            filepath=str(export_path),
+            export_materials=True,
+            generate_materialx_network=True,
+            evaluation_mode="RENDER",
+        )
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
+
+        stage = Usd.Stage.Open(str(export_path))
+        material_prim = stage.GetPrimAtPath("/root/_materials/Material")
+        self.assertTrue(material_prim, "Could not find Material prim")
+
+        material = UsdShade.Material(material_prim)
+        mtlx_output = material.GetOutput("mtlx:surface")
+        self.assertTrue(mtlx_output, "Could not find mtlx output")
+
+        connection, source_name, _ = UsdShade.ConnectableAPI.GetConnectedSource(
+            mtlx_output
+        ) or [None, None, None]
+
+        self.assertTrue((connection and source_name), "Could not find mtlx output source")
+
+        shader = UsdShade.Shader(connection.GetPrim())
+        self.assertTrue(shader, "Connected prim is not a shader")
+
+        shader_id = shader.GetIdAttr().Get()
+        self.assertEqual(shader_id, "ND_standard_surface_surfaceshader", "Shader is not a Standard Surface")
 
 
 def main():

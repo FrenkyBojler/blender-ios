@@ -28,6 +28,7 @@ set(SRC
   intern/domain.cc
   intern/evaluator.cc
   intern/input_single_value_operation.cc
+  intern/meta_data.cc
   intern/node_operation.cc
   intern/operation.cc
   intern/profiler.cc
@@ -50,6 +51,7 @@ set(SRC
   COM_evaluator.hh
   COM_input_descriptor.hh
   COM_input_single_value_operation.hh
+  COM_meta_data.hh
   COM_node_operation.hh
   COM_operation.hh
   COM_profiler.hh
@@ -66,6 +68,7 @@ set(SRC
   COM_utilities.hh
 
   algorithms/intern/deriche_gaussian_blur.cc
+  algorithms/intern/extract_alpha.cc
   algorithms/intern/jump_flooding.cc
   algorithms/intern/morphological_blur.cc
   algorithms/intern/morphological_distance.cc
@@ -81,6 +84,7 @@ set(SRC
   algorithms/intern/van_vliet_gaussian_blur.cc
 
   algorithms/COM_algorithm_deriche_gaussian_blur.hh
+  algorithms/COM_algorithm_extract_alpha.hh
   algorithms/COM_algorithm_jump_flooding.hh
   algorithms/COM_algorithm_morphological_blur.hh
   algorithms/COM_algorithm_morphological_distance.hh
@@ -367,10 +371,6 @@ set(shader_create_info_list_file "${CMAKE_CURRENT_BINARY_DIR}/compositor_shader_
 file(GENERATE OUTPUT ${shader_create_info_list_file} CONTENT "${SHADER_CREATE_INFOS_CONTENT}")
 
 if(WITH_TBB)
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_TBB)
   if(WIN32)
     # TBB includes Windows.h which will define min/max macros
     # that will collide with the stl versions.

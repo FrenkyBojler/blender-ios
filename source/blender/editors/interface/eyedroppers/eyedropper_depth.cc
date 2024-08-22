@@ -31,7 +31,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 
@@ -156,6 +156,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
     char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
     BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
     if (!prop_data_path) {
+      MEM_freeN(ddr);
       return false;
     }
     PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
@@ -442,6 +443,11 @@ static bool depthdropper_poll(bContext *C)
     if (but->icon == ICON_EYEDROPPER) {
       return true;
     }
+    /* Context menu button. */
+    if (but->optype && STREQ(but->optype->idname, "UI_OT_eyedropper_depth")) {
+      return true;
+    }
+
     if ((but->type == UI_BTYPE_NUM) && (prop != nullptr) &&
         (RNA_property_type(prop) == PROP_FLOAT) &&
         (RNA_property_subtype(prop) & PROP_UNIT_LENGTH) &&

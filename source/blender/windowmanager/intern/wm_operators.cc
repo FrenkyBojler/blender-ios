@@ -42,6 +42,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_dial_2d.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_utils.hh"
@@ -85,11 +86,13 @@
 #include "ED_undo.hh"
 #include "ED_view3d.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
@@ -165,6 +168,30 @@ size_t WM_operator_bl_idname(char *dst, const char *src)
   return BLI_strncpy_rlen(dst, src, OP_MAX_TYPENAME);
 }
 
+bool WM_operator_bl_idname_is_valid(const char *idname)
+{
+  const char *sep = strstr(idname, OP_BL_SEP_STRING);
+  /* Separator missing or at string beginning/end. */
+  if ((sep == nullptr) || (sep == idname) || (sep[OP_BL_SEP_LEN] == '\0')) {
+    return false;
+  }
+
+  for (const char *ch = idname; ch < sep; ch++) {
+    if ((*ch >= 'A' && *ch <= 'Z') || (*ch >= '0' && *ch <= '9') || *ch == '_') {
+      continue;
+    }
+    return false;
+  }
+
+  for (const char *ch = sep + OP_BL_SEP_LEN; *ch; ch++) {
+    if ((*ch >= 'a' && *ch <= 'z') || (*ch >= '0' && *ch <= '9') || *ch == '_') {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
 bool WM_operator_py_idname_ok_or_report(ReportList *reports,
                                         const char *classname,
                                         const char *idname)
@@ -177,6 +204,15 @@ bool WM_operator_py_idname_ok_or_report(ReportList *reports,
       /* Pass. */
     }
     else if (*ch == '.') {
+      if (ch == idname || (*(ch + 1) == '\0')) {
+        BKE_reportf(reports,
+                    RPT_ERROR,
+                    "Registering operator class: '%s', invalid bl_idname '%s', at position %d",
+                    classname,
+                    idname,
+                    i);
+        return false;
+      }
       dot++;
     }
     else {
@@ -572,6 +608,15 @@ static const char *wm_context_member_from_ptr(const bContext *C,
             case SPACE_NODE: {
               const SpaceNode *snode = (SpaceNode *)space_data;
               TEST_PTR_DATA_TYPE("space_data.overlay", RNA_SpaceNodeOverlay, ptr, snode);
+              break;
+            }
+            case SPACE_SEQ: {
+              const SpaceSeq *sseq = (SpaceSeq *)space_data;
+              TEST_PTR_DATA_TYPE(
+                  "space_data.preview_overlay", RNA_SequencerPreviewOverlay, ptr, sseq);
+              TEST_PTR_DATA_TYPE(
+                  "space_data.timeline_overlay", RNA_SequencerTimelineOverlay, ptr, sseq);
+              TEST_PTR_DATA_TYPE("space_data.cache_overlay", RNA_SequencerCacheOverlay, ptr, sseq);
               break;
             }
           }
@@ -1556,8 +1601,10 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   const bool windows_layout = false;
 #endif
 
-  /* New column so as not to interfere with custom layouts, see: #26436. */
-  {
+  /* Check there are no active default buttons, allowing a dialog to define it's own
+   * confirmation buttons which are shown instead of these, see: #124098. */
+  if (!UI_block_has_active_default_button(uiLayoutGetBlock(layout))) {
+    /* New column so as not to interfere with custom layouts, see: #26436. */
     uiLayout *col = uiLayoutColumn(layout, false);
     uiBlock *col_block = uiLayoutGetBlock(col);
     uiBut *confirm_but;
@@ -1691,7 +1738,7 @@ int WM_operator_confirm_ex(bContext *C,
 
   /* Larger dialog needs a wider minimum width to balance with the big icon. */
   const float min_width = (message == nullptr) ? 180.0f : 230.0f;
-  data->width = int(min_width * UI_SCALE_FAC * UI_style_get()->widgetlabel.points /
+  data->width = int(min_width * UI_SCALE_FAC * UI_style_get()->widget.points /
                     UI_DEFAULT_TEXT_POINTS);
 
   data->free_op = true;
@@ -1731,7 +1778,8 @@ static int wm_operator_props_popup_ex(bContext *C,
                                       const bool do_call,
                                       const bool do_redo,
                                       std::optional<std::string> title = std::nullopt,
-                                      std::optional<std::string> confirm_text = std::nullopt)
+                                      std::optional<std::string> confirm_text = std::nullopt,
+                                      const bool cancel_default = false)
 {
   if ((op->type->flag & OPTYPE_REGISTER) == 0) {
     BKE_reportf(op->reports,
@@ -1754,7 +1802,7 @@ static int wm_operator_props_popup_ex(bContext *C,
   /* If we don't have global undo, we can't do undo push for automatic redo,
    * so we require manual OK clicking in this popup. */
   if (!do_redo || !(U.uiflag & USER_GLOBALUNDO)) {
-    return WM_operator_props_dialog_popup(C, op, 300, title, confirm_text);
+    return WM_operator_props_dialog_popup(C, op, 300, title, confirm_text, cancel_default);
   }
 
   UI_popup_block_ex(C, wm_block_create_redo, nullptr, wm_block_redo_cancel_cb, op, op);
@@ -1770,9 +1818,10 @@ int WM_operator_props_popup_confirm_ex(bContext *C,
                                        wmOperator *op,
                                        const wmEvent * /*event*/,
                                        std::optional<std::string> title,
-                                       std::optional<std::string> confirm_text)
+                                       std::optional<std::string> confirm_text,
+                                       const bool cancel_default)
 {
-  return wm_operator_props_popup_ex(C, op, false, false, title, confirm_text);
+  return wm_operator_props_popup_ex(C, op, false, false, title, confirm_text, cancel_default);
 }
 
 int WM_operator_props_popup_confirm(bContext *C, wmOperator *op, const wmEvent * /*event*/)
@@ -1794,11 +1843,12 @@ int WM_operator_props_dialog_popup(bContext *C,
                                    wmOperator *op,
                                    int width,
                                    std::optional<std::string> title,
-                                   std::optional<std::string> confirm_text)
+                                   std::optional<std::string> confirm_text,
+                                   const bool cancel_default)
 {
   wmOpPopUp *data = MEM_new<wmOpPopUp>(__func__);
   data->op = op;
-  data->width = int(float(width) * UI_SCALE_FAC * UI_style_get()->widgetlabel.points /
+  data->width = int(float(width) * UI_SCALE_FAC * UI_style_get()->widget.points /
                     UI_DEFAULT_TEXT_POINTS);
   data->free_op = true; /* If this runs and gets registered we may want not to free it. */
   data->title = title ? std::move(*title) : WM_operatortype_name(op->type, op->ptr);
@@ -1806,7 +1856,7 @@ int WM_operator_props_dialog_popup(bContext *C,
   data->icon = ALERT_ICON_NONE;
   data->size = WM_POPUP_SIZE_SMALL;
   data->position = WM_POPUP_POSITION_MOUSE;
-  data->cancel_default = false;
+  data->cancel_default = cancel_default;
   data->mouse_move_quit = false;
   data->include_properties = true;
 
@@ -1851,7 +1901,7 @@ int WM_operator_redo_popup(bContext *C, wmOperator *op)
 static int wm_debug_menu_exec(bContext *C, wmOperator *op)
 {
   G.debug_value = RNA_int_get(op->ptr, "debug_value");
-  ED_screen_refresh(CTX_wm_manager(C), CTX_wm_window(C));
+  ED_screen_refresh(C, CTX_wm_manager(C), CTX_wm_window(C));
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
@@ -2216,6 +2266,39 @@ static void WM_OT_call_panel(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+static int asset_shelf_popover_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  char *asset_shelf_id = RNA_string_get_alloc(op->ptr, "name", nullptr, 0, nullptr);
+  BLI_SCOPED_DEFER([&]() { MEM_freeN(asset_shelf_id); });
+
+  if (!blender::ui::asset_shelf_popover_invoke(*C, asset_shelf_id, *op->reports)) {
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+  }
+
+  return OPERATOR_INTERFACE;
+}
+
+/* Needs to be defined at WM level to be globally accessible. */
+static void WM_OT_call_asset_shelf_popover(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Call Asset Shelf Popover";
+  ot->idname = "WM_OT_call_asset_shelf_popover";
+  ot->description = "Open a predefined asset shelf in a popup";
+
+  /* api callbacks */
+  ot->invoke = asset_shelf_popover_invoke;
+
+  ot->flag = OPTYPE_INTERNAL;
+
+  RNA_def_string(ot->srna,
+                 "name",
+                 nullptr,
+                 0,
+                 "Asset Shelf Name",
+                 "Identifier of the asset shelf to display");
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2492,6 +2575,31 @@ static void radial_control_update_header(wmOperator *op, bContext *C)
   ED_area_status_text(area, msg);
 }
 
+/* Helper: Compute the brush radius in pixels at the mouse position. */
+static float grease_pencil_unprojected_brush_radius_pixel_size(const bContext *C,
+                                                               const Brush *brush,
+                                                               const blender::float2 mval)
+{
+  using namespace blender;
+  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(C);
+  View3D *view3d = CTX_wm_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Object *object = CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object *eval_object = DEG_get_evaluated_object(depsgraph, object);
+
+  BLI_assert(object->type == OB_GREASE_PENCIL);
+  GreasePencil *grease_pencil = static_cast<GreasePencil *>(eval_object->data);
+
+  ed::greasepencil::DrawingPlacement placement(
+      *scene, *region, *view3d, *eval_object, grease_pencil->get_active_layer());
+  const float3 position = placement.project(mval);
+  const float pixel_size = ED_view3d_pixel_size(
+      rv3d, math::transform_point(placement.to_world_space(), position));
+  return brush->unprojected_radius / pixel_size;
+}
+
 static void radial_control_set_initial_mouse(bContext *C, RadialControl *rc, const wmEvent *event)
 {
   float d[2] = {0, 0};
@@ -2530,7 +2638,13 @@ static void radial_control_set_initial_mouse(bContext *C, RadialControl *rc, con
   rc->scale_fac = 1.0f;
   if (rc->ptr.owner_id && GS(rc->ptr.owner_id->name) == ID_BR && rc->prop == &rna_Brush_size) {
     Brush *brush = reinterpret_cast<Brush *>(rc->ptr.owner_id);
-    rc->scale_fac = ED_gpencil_radial_control_scale(C, brush, rc->initial_value, event->mval);
+    if ((brush && brush->gpencil_settings) && (brush->ob_mode == OB_MODE_PAINT_GPENCIL_LEGACY) &&
+        (brush->gpencil_tool == GPAINT_TOOL_DRAW) && (brush->flag & BRUSH_LOCK_SIZE) != 0)
+    {
+      const float radius_px = grease_pencil_unprojected_brush_radius_pixel_size(
+          C, brush, blender::float2(event->mval));
+      rc->scale_fac = max_ff(radius_px, 1.0f) / max_ff(rc->initial_value, 1.0f);
+    }
   }
 
   rc->initial_mouse[0] -= d[0];
@@ -3184,8 +3298,10 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
     case EVT_ESCKEY:
     case RIGHTMOUSE:
       /* Canceled; restore original value. */
-      radial_control_set_value(rc, rc->initial_value);
-      ret = OPERATOR_CANCELLED;
+      if (rc->init_event != RIGHTMOUSE) {
+        radial_control_set_value(rc, rc->initial_value);
+        ret = OPERATOR_CANCELLED;
+      }
       break;
 
     case LEFTMOUSE:
@@ -3727,10 +3843,10 @@ static int previews_id_ensure_callback(LibraryIDLinkCallbackData *cb_data)
   PreviewsIDEnsureData *data = static_cast<PreviewsIDEnsureData *>(cb_data->user_data);
   ID *id = *cb_data->id_pointer;
 
-  if (id && (id->tag & LIB_TAG_DOIT)) {
+  if (id && (id->tag & ID_TAG_DOIT)) {
     BLI_assert(ELEM(GS(id->name), ID_MA, ID_TE, ID_IM, ID_WO, ID_LA));
     previews_id_ensure(data->C, data->scene, id);
-    id->tag &= ~LIB_TAG_DOIT;
+    id->tag &= ~ID_TAG_DOIT;
   }
 
   return IDWALK_RET_NOP;
@@ -3747,10 +3863,10 @@ static int previews_ensure_exec(bContext *C, wmOperator * /*op*/)
                     nullptr};
   PreviewsIDEnsureData preview_id_data;
 
-  /* We use LIB_TAG_DOIT to check whether we have already handled a given ID or not. */
-  BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+  /* We use ID_TAG_DOIT to check whether we have already handled a given ID or not. */
+  BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
   for (int i = 0; lb[i]; i++) {
-    BKE_main_id_tag_listbase(lb[i], LIB_TAG_DOIT, true);
+    BKE_main_id_tag_listbase(lb[i], ID_TAG_DOIT, true);
   }
 
   preview_id_data.C = C;
@@ -3766,9 +3882,9 @@ static int previews_ensure_exec(bContext *C, wmOperator * /*op*/)
    * do our best for those, using current scene... */
   for (int i = 0; lb[i]; i++) {
     LISTBASE_FOREACH (ID *, id, lb[i]) {
-      if (id->tag & LIB_TAG_DOIT) {
+      if (id->tag & ID_TAG_DOIT) {
         previews_id_ensure(C, nullptr, id);
-        id->tag &= ~LIB_TAG_DOIT;
+        id->tag &= ~ID_TAG_DOIT;
       }
     }
   }
@@ -4069,6 +4185,7 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_call_menu);
   WM_operatortype_append(WM_OT_call_menu_pie);
   WM_operatortype_append(WM_OT_call_panel);
+  WM_operatortype_append(WM_OT_call_asset_shelf_popover);
   WM_operatortype_append(WM_OT_radial_control);
   WM_operatortype_append(WM_OT_stereo3d_set);
 #if defined(WIN32)

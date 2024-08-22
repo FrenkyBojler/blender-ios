@@ -94,11 +94,13 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   worker_status->progress = 0.0f;
   worker_status->do_update = true;
 
+  BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
+
   SubdivModifierDisabler subdiv_disabler(data->depsgraph);
   if (!data->params.apply_subdiv) {
     subdiv_disabler.disable_modifiers();
+    BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
   }
-  BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
 
   /* For restoring the current frame after exporting animation is done. */
   Scene *scene = DEG_get_input_scene(data->depsgraph);
@@ -228,8 +230,12 @@ bool ABC_export(Scene *scene,
 
   bool export_ok = false;
   if (as_background_job) {
-    wmJob *wm_job = WM_jobs_get(
-        job->wm, CTX_wm_window(C), scene, "Alembic Export", WM_JOB_PROGRESS, WM_JOB_TYPE_ALEMBIC);
+    wmJob *wm_job = WM_jobs_get(job->wm,
+                                CTX_wm_window(C),
+                                scene,
+                                "Alembic Export",
+                                WM_JOB_PROGRESS,
+                                WM_JOB_TYPE_ALEMBIC_EXPORT);
 
     /* setup job */
     WM_jobs_customdata_set(wm_job, job, MEM_freeN);

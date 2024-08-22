@@ -510,7 +510,7 @@ class EditBone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
 
     def transform(self, matrix, *, scale=True, roll=True):
         """
-        Transform the the bones head, tail, roll and envelope
+        Transform the bones head, tail, roll and envelope
         (when the matrix has a scale component).
 
         :arg matrix: 3x3 or 4x4 transformation matrix.
@@ -895,7 +895,7 @@ class Gizmo(StructRNA):
         :arg type: The type of shape to create in (POINTS, LINES, TRIS, LINE_STRIP).
         :type type: string
         :arg verts: Coordinates.
-        :type verts: sequence of of 2D or 3D coordinates.
+        :type verts: sequence of 2D or 3D coordinates.
         :arg display_name: Optional callback that takes the full path, returns the name to display.
         :type display_name: Callable that takes a string and returns a string.
         :return: The newly created shape.
@@ -966,9 +966,17 @@ class Macro(StructRNA):
     __slots__ = ()
 
     @classmethod
-    def define(cls, opname):
+    def define(cls, operator):
+        """
+        Append an operator to a registered macro class.
+
+        :arg operator: Identifier of the operator. This does not have to be defined when this function is called.
+        :type operator: string
+        :return: The operator macro for property access.
+        :rtype: :class:`OperatorMacro`
+        """
         from _bpy import ops
-        return ops.macro_define(cls, opname)
+        return ops.macro_define(cls, operator)
 
 
 class PropertyGroup(StructRNA, metaclass=RNAMetaPropGroup):
@@ -1387,3 +1395,22 @@ class HydraRenderEngine(RenderEngine):
 
         import _bpy_hydra
         _bpy_hydra.engine_view_draw(self.engine_ptr, context)
+
+
+class GreasePencilDrawing(StructRNA):
+    __slots__ = ()
+
+    @property
+    def strokes(self):
+        """
+        Return a collection of all the Grease Pencil strokes in this drawing.
+
+        .. note::
+
+           This API should *not* be used for performance critical operations.
+           Use the :class:`GreasePencilDrawing.attributes` API instead.
+        """
+        from _bpy_internal.grease_pencil.stroke import GreasePencilStrokeSlice
+        num_strokes = self.attributes.domain_size('CURVE')
+        if num_strokes > 0:
+            return GreasePencilStrokeSlice(self, 0, num_strokes)

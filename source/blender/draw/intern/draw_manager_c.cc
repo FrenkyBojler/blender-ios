@@ -8,6 +8,8 @@
 
 #include <cstdio>
 
+#include "CLG_log.h"
+
 #include "BLI_alloca.h"
 #include "BLI_listbase.h"
 #include "BLI_memblock.h"
@@ -88,7 +90,6 @@
 
 #include "engines/basic/basic_engine.h"
 #include "engines/compositor/compositor_engine.h"
-#include "engines/eevee/eevee_engine.h"
 #include "engines/eevee_next/eevee_engine.h"
 #include "engines/external/external_engine.h"
 #include "engines/gpencil/gpencil_engine.h"
@@ -103,6 +104,8 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "DRW_select_buffer.hh"
+
+static CLG_LogRef LOG = {"draw.manager"};
 
 /** Render State: No persistent data between draw calls. */
 DRWManager DST = {nullptr};
@@ -660,6 +663,11 @@ DefaultFramebufferList *DRW_viewport_framebuffer_list_get()
 DefaultTextureList *DRW_viewport_texture_list_get()
 {
   return DRW_view_data_default_texture_list_get(DST.view_data_active);
+}
+
+blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name)
+{
+  return DRW_view_data_pass_texture_get(DST.view_data_active, pass_name);
 }
 
 void DRW_viewport_request_redraw()
@@ -1232,8 +1240,12 @@ static void drw_engines_enable_editors()
   }
 }
 
-static bool is_compositor_enabled()
+bool DRW_is_viewport_compositor_enabled()
 {
+  if (!DST.draw_ctx.v3d) {
+    return false;
+  }
+
   if (DST.draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
     return false;
   }
@@ -1247,6 +1259,10 @@ static bool is_compositor_enabled()
   }
 
   if (!DST.draw_ctx.scene->nodetree) {
+    return false;
+  }
+
+  if (!DST.draw_ctx.rv3d) {
     return false;
   }
 
@@ -1272,7 +1288,7 @@ static void drw_engines_enable(ViewLayer * /*view_layer*/,
     use_drw_engine(&draw_engine_gpencil_type);
   }
 
-  if (is_compositor_enabled()) {
+  if (DRW_is_viewport_compositor_enabled()) {
     use_drw_engine(&draw_engine_compositor_type);
   }
 
@@ -1328,10 +1344,17 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
 
   const bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
-  /* XXX Really nasty locking. But else this could
-   * be executed by the material previews thread
-   * while rendering a viewport. */
-  BLI_ticket_mutex_lock(DST.system_gpu_context_mutex);
+  /* XXX Really nasty locking. But else this could be executed by the
+   * material previews thread while rendering a viewport.
+   *
+   * Check for recursive lock which can deadlock. This should not
+   * happen, but in case there is a bug where depsgraph update is called
+   * during drawing we try not to hang Blender. */
+  if (!BLI_ticket_mutex_lock_check_recursive(DST.system_gpu_context_mutex)) {
+    CLOG_ERROR(&LOG, "GPU context already bound");
+    BLI_assert_unreachable();
+    return;
+  }
 
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -2990,6 +3013,12 @@ bool DRW_state_is_navigating()
   return (rv3d) && (rv3d->rflag & (RV3D_NAVIGATING | RV3D_PAINTING));
 }
 
+bool DRW_state_is_painting()
+{
+  const RegionView3D *rv3d = DST.draw_ctx.rv3d;
+  return (rv3d) && (rv3d->rflag & (RV3D_PAINTING));
+}
+
 bool DRW_state_show_text()
 {
   return (DST.options.is_select) == 0 && (DST.options.is_depth) == 0 &&
@@ -3044,9 +3073,6 @@ void DRW_engine_register(DrawEngineType *draw_engine_type)
 void DRW_engines_register()
 {
   using namespace blender::draw;
-  RE_engines_register(&DRW_engine_viewport_eevee_type);
-  /* Always register EEVEE Next so it can be used in background mode with `--factory-startup`.
-   * (Needed for tests). */
   RE_engines_register(&DRW_engine_viewport_eevee_next_type);
 
   RE_engines_register(&DRW_engine_viewport_workbench_type);

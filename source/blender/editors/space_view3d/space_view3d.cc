@@ -167,7 +167,7 @@ void ED_view3d_stop_render_preview(wmWindowManager *wm, ARegion *region)
     BPy_BEGIN_ALLOW_THREADS;
 #endif
 
-    WM_jobs_kill_type(wm, region, WM_JOB_TYPE_RENDER_PREVIEW);
+    WM_jobs_kill_type(wm, nullptr, WM_JOB_TYPE_RENDER_PREVIEW);
 
 #ifdef WITH_PYTHON
     BPy_END_ALLOW_THREADS;
@@ -684,12 +684,6 @@ static bool view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent 
   return false;
 }
 
-static bool view3d_volume_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
-{
-  const eFileSel_File_Types file_type = eFileSel_File_Types(WM_drag_get_path_file_type(drag));
-  return (drag->type == WM_DRAG_PATH) && (file_type == FILE_TYPE_VOLUME);
-}
-
 static bool view3d_geometry_nodes_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   if (!view3d_drop_id_in_main_region_poll(C, drag, event, ID_NT)) {
@@ -786,26 +780,38 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
    * can use the context setup here to place the objects. */
   BLI_assert(drag->type == WM_DRAG_ASSET);
 
+  Main *bmain = CTX_data_main(C);
   wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   BKE_view_layer_base_deselect_all(scene, view_layer);
 
-  ID *id = WM_drag_asset_id_import(C, asset_drag, FILE_AUTOSELECT);
+  Object *object = reinterpret_cast<Object *>(
+      WM_drag_asset_id_import(C, asset_drag, FILE_AUTOSELECT));
+
+  LayerCollection *lc = BKE_layer_collection_get_active(view_layer);
+  Collection *collection = BKE_collection_parent_editable_find_recursive(view_layer,
+                                                                         lc->collection);
+  object->visibility_flag &= ~(OB_HIDE_VIEWPORT | OB_HIDE_SELECT);
+
+  BKE_collection_object_add(bmain, collection, object);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Base *base = BKE_view_layer_base_find(view_layer, object);
+  base->local_view_bits |= v3d->local_view_uid;
+  base->flag |= BASE_SELECTED;
+  BKE_scene_object_base_flag_sync_from_base(base);
 
   /* TODO(sergey): Only update relations for the current scene. */
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
-  RNA_int_set(drop->ptr, "session_uid", id->session_uid);
+  RNA_int_set(drop->ptr, "session_uid", object->id.session_uid);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
-  Base *base = BKE_view_layer_base_find(view_layer, (Object *)id);
-  if (base != nullptr) {
-    BKE_view_layer_base_select_and_set_active(view_layer, base);
-    WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
-  }
+  BKE_view_layer_base_select_and_set_active(view_layer, base);
+  WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   ED_outliner_select_sync_from_object_tag(C);
 
@@ -818,7 +824,7 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
   if (snap_state) {
     float obmat_final[4][4];
 
-    view3d_ob_drop_matrix_from_snap(snap_state, (Object *)id, obmat_final);
+    view3d_ob_drop_matrix_from_snap(snap_state, object, obmat_final);
 
     RNA_float_set_array(drop->ptr, "matrix", &obmat_final[0][0]);
   }
@@ -901,27 +907,6 @@ static void view3d_id_path_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
   }
 }
 
-static void view3d_lightcache_update(bContext *C)
-{
-  PointerRNA op_ptr;
-
-  Scene *scene = CTX_data_scene(C);
-
-  if (!BKE_scene_uses_blender_eevee(scene)) {
-    /* Only do auto bake if eevee is the active engine */
-    return;
-  }
-
-  wmOperatorType *ot = WM_operatortype_find("SCENE_OT_light_cache_bake", true);
-  WM_operator_properties_create_ptr(&op_ptr, ot);
-  RNA_int_set(&op_ptr, "delay", 200);
-  RNA_enum_set_identifier(C, &op_ptr, "subset", "DIRTY");
-
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_ptr, nullptr);
-
-  WM_operator_properties_free(&op_ptr);
-}
-
 /* region dropbox definition */
 static void view3d_dropboxes()
 {
@@ -988,12 +973,6 @@ static void view3d_dropboxes()
                  WM_drag_free_imported_drag_ID,
                  nullptr);
   WM_dropbox_add(lb,
-                 "OBJECT_OT_volume_import",
-                 view3d_volume_drop_poll,
-                 view3d_id_path_drop_copy,
-                 WM_drag_free_imported_drag_ID,
-                 nullptr);
-  WM_dropbox_add(lb,
                  "OBJECT_OT_data_instance_add",
                  view3d_object_data_drop_poll,
                  view3d_id_drop_copy_with_type,
@@ -1021,6 +1000,7 @@ static void view3d_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_camera);
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_camera_view);
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_empty_image);
+  WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_geometry_nodes);
   /* TODO(@ideasman42): Not working well enough, disable for now. */
 #if 0
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_armature_spline);
@@ -1144,6 +1124,9 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
         case ND_LAYER_CONTENT:
           ED_region_tag_redraw(region);
           WM_gizmomap_tag_refresh(gzmap);
+          if (v3d->localvd && v3d->localvd->runtime.flag & V3D_RUNTIME_LOCAL_MAYBE_EMPTY) {
+            ED_area_tag_refresh(area);
+          }
           break;
         case ND_LAYER:
           if (wmn->reference) {
@@ -1274,6 +1257,12 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
       }
       break;
     case NC_NODE:
+      switch (wmn->data) {
+        case ND_NODE_GIZMO: {
+          WM_gizmomap_tag_refresh(gzmap);
+          break;
+        }
+      }
       ED_region_tag_redraw(region);
       break;
     case NC_WORLD:
@@ -1310,7 +1299,7 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
       ED_region_tag_redraw(region);
       break;
     case NC_TEXTURE:
-      /* same as above */
+      /* Same as #NC_IMAGE. */
       ED_region_tag_redraw(region);
       break;
     case NC_MOVIECLIP:
@@ -1341,7 +1330,13 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
       break;
     case NC_ID:
       if (ELEM(wmn->action, NA_RENAME, NA_EDITED, NA_ADDED, NA_REMOVED)) {
+        if (ELEM(wmn->action, NA_EDITED, NA_REMOVED) && v3d->localvd &&
+            v3d->localvd->runtime.flag & V3D_RUNTIME_LOCAL_MAYBE_EMPTY)
+        {
+          ED_area_tag_refresh(area);
+        }
         ED_region_tag_redraw(region);
+        WM_gizmomap_tag_refresh(gzmap);
       }
       break;
     case NC_SCREEN:
@@ -2001,16 +1996,20 @@ static void space_view3d_listener(const wmSpaceTypeListenerParams *params)
 
 static void space_view3d_refresh(const bContext *C, ScrArea *area)
 {
-  Scene *scene = CTX_data_scene(C);
-  LightCache *lcache = scene->eevee.light_cache_data;
-
-  if (lcache && (lcache->flag & LIGHTCACHE_UPDATE_AUTO) != 0) {
-    lcache->flag &= ~LIGHTCACHE_UPDATE_AUTO;
-    view3d_lightcache_update((bContext *)C);
-  }
-
   View3D *v3d = (View3D *)area->spacedata.first;
   MEM_SAFE_FREE(v3d->runtime.local_stats);
+
+  if (v3d->localvd && v3d->localvd->runtime.flag & V3D_RUNTIME_LOCAL_MAYBE_EMPTY) {
+    ED_localview_exit_if_empty(CTX_data_ensure_evaluated_depsgraph(C),
+                               CTX_data_scene(C),
+                               CTX_data_view_layer(C),
+                               CTX_wm_manager(C),
+                               CTX_wm_window(C),
+                               v3d,
+                               CTX_wm_area(C),
+                               true,
+                               300);
+  }
 }
 
 static void view3d_id_remap_v3d_ob_centers(View3D *v3d,
@@ -2065,6 +2064,9 @@ static void view3d_id_remap(ScrArea *area,
   if (view3d->localvd != nullptr) {
     /* Object centers in local-view aren't used, see: #52663 */
     view3d_id_remap_v3d(area, slink, view3d->localvd, mappings, true);
+    /* Remapping is potentially modifying ID pointers, and there is a local View3D, mark it for a
+     * check for emptiness. */
+    view3d->localvd->runtime.flag |= V3D_RUNTIME_LOCAL_MAYBE_EMPTY;
   }
   BKE_viewer_path_id_remap(&view3d->viewer_path, mappings);
 }
@@ -2077,6 +2079,13 @@ static void view3d_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, v3d->ob_center, IDWALK_CB_DIRECT_WEAK_LINK);
   if (v3d->localvd) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, v3d->localvd->camera, IDWALK_CB_DIRECT_WEAK_LINK);
+
+    /* If potentially modifying ID pointers, and there is a local View3D, mark it for a check for
+     * emptiness. */
+    const int flags = BKE_lib_query_foreachid_process_flags_get(data);
+    if ((flags & IDWALK_READONLY) == 0) {
+      v3d->localvd->runtime.flag |= V3D_RUNTIME_LOCAL_MAYBE_EMPTY;
+    }
   }
   BKE_viewer_path_foreach_id(data, &v3d->viewer_path);
 }
@@ -2219,6 +2228,7 @@ void ED_spacetype_view3d()
   art->free = asset::shelf::region_free;
   art->on_poll_success = asset::shelf::region_on_poll_success;
   art->listener = asset::shelf::region_listen;
+  art->message_subscribe = asset::shelf::region_message_subscribe;
   art->poll = asset::shelf::regions_poll;
   art->snap_size = asset::shelf::region_snap;
   art->on_user_resize = asset::shelf::region_on_user_resize;
@@ -2238,7 +2248,7 @@ void ED_spacetype_view3d()
   art->listener = asset::shelf::header_region_listen;
   art->context = asset::shelf::context;
   BLI_addhead(&st->regiontypes, art);
-  asset::shelf::header_regiontype_register(art, SPACE_VIEW3D);
+  asset::shelf::types_register(art, SPACE_VIEW3D);
 
   /* regions: hud */
   art = ED_area_type_hud(st->spaceid);
@@ -2250,8 +2260,8 @@ void ED_spacetype_view3d()
   BLI_addhead(&st->regiontypes, art);
 
   WM_menutype_add(
-      MEM_new<MenuType>(__func__, blender::ed::geometry::node_group_operator_assets_menu()));
-  WM_menutype_add(MEM_new<MenuType>(
+      MEM_cnew<MenuType>(__func__, blender::ed::geometry::node_group_operator_assets_menu()));
+  WM_menutype_add(MEM_cnew<MenuType>(
       __func__, blender::ed::geometry::node_group_operator_assets_menu_unassigned()));
 
   BKE_spacetype_register(std::move(st));

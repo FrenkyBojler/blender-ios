@@ -36,7 +36,7 @@
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -319,7 +319,7 @@ char pyrna_struct_keyframe_insert_doc[] =
     "      - ``INSERTKEY_AVAILABLE`` Only insert into already existing F-Curves.\n"
     "      - ``INSERTKEY_CYCLE_AWARE`` Take cyclic extrapolation into account "
     "(Cycle-Aware Keying option).\n"
-    "   :type flag: set\n"
+    "   :type options: set\n"
     "   :arg keytype: Type of the key: 'KEYFRAME', 'BREAKDOWN', 'MOVING_HOLD', 'EXTREME', "
     "'JITTER', or 'GENERATED'\n"
     "   :type keytype: string\n"
@@ -402,29 +402,42 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
     }
   }
   else {
-    ID *id = self->ptr.owner_id;
+    BLI_assert(BKE_id_is_in_global_main(self->ptr.owner_id));
 
-    BLI_assert(BKE_id_is_in_global_main(id));
-    CombinedKeyingResult combined_result = insert_keyframe(G_MAIN,
-                                                           *id,
-                                                           group_name,
-                                                           path_full,
-                                                           index,
-                                                           &anim_eval_context,
-                                                           eBezTriple_KeyframeType(keytype),
-                                                           eInsertKeyFlags(options));
+    const std::optional<blender::StringRefNull> channel_group = group_name ?
+                                                                    std::optional(group_name) :
+                                                                    std::nullopt;
+    PointerRNA id_pointer = RNA_id_pointer_create(self->ptr.owner_id);
+    CombinedKeyingResult combined_result = insert_keyframes(G_MAIN,
+                                                            &id_pointer,
+                                                            channel_group,
+                                                            {{path_full, {}, index}},
+                                                            std::nullopt,
+                                                            anim_eval_context,
+                                                            eBezTriple_KeyframeType(keytype),
+                                                            eInsertKeyFlags(options));
     const int success_count = combined_result.get_count(SingleKeyingResult::SUCCESS);
     if (success_count == 0) {
-      combined_result.generate_reports(&reports);
+      /* Ideally this would use the GUI presentation of RPT_ERROR, as the resulting pop-up has more
+       * vertical space than the single-line warning in the status bar. However, semantically these
+       * may not be errors at all, as skipping the keying of certain properties due to the 'only
+       * insert available' flag is not an error.
+       *
+       * Furthermore, using RPT_ERROR here would cause this function to raise a Python exception,
+       * rather than returning a boolean. */
+      combined_result.generate_reports(&reports, RPT_WARNING);
     }
     result = success_count != 0;
   }
 
   MEM_freeN((void *)path_full);
 
-  if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
+  if (BPy_reports_to_error(&reports, PyExc_RuntimeError, false) == -1) {
+    BKE_reports_free(&reports);
     return nullptr;
   }
+  BPy_reports_write_stdout(&reports, nullptr);
+  BKE_reports_free(&reports);
 
   if (result) {
     WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
@@ -538,8 +551,12 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
     }
   }
   else {
+    RNAPath rna_path = {path_full, std::nullopt, index};
+    if (index < 0) {
+      rna_path.index = std::nullopt;
+    }
     result = (blender::animrig::delete_keyframe(
-                  G.main, &reports, self->ptr.owner_id, nullptr, path_full, index, cfra) != 0);
+                  G.main, &reports, self->ptr.owner_id, rna_path, cfra) != 0);
   }
 
   MEM_freeN((void *)path_full);
