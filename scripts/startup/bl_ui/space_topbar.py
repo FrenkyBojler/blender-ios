@@ -244,14 +244,15 @@ class TOPBAR_MT_file(Menu):
         layout.operator_context = 'EXEC_AREA' if context.blend_data.is_saved else 'INVOKE_AREA'
         layout.operator("wm.save_mainfile", text="Save", icon='FILE_TICK')
 
-        sub = layout.row()
-        sub.enabled = context.blend_data.is_saved
-        sub.operator("wm.save_mainfile", text="Save Incremental").incremental = True
-
         layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.save_as_mainfile", text="Save As...")
         layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.save_as_mainfile", text="Save Copy...").copy = True
+
+        sub = layout.row()
+        sub.enabled = context.blend_data.is_saved
+        sub.operator_context = 'EXEC_AREA'
+        sub.operator("wm.save_mainfile", text="Save Incremental").incremental = True
 
         layout.separator()
 
@@ -434,7 +435,7 @@ class TOPBAR_MT_file_import(Menu):
                 "wm.usd_import", text="Universal Scene Description (.usd*)")
 
         if bpy.app.build_options.io_gpencil:
-            self.layout.operator("wm.gpencil_import_svg", text="SVG as Grease Pencil")
+            self.layout.operator("wm.grease_pencil_import_svg", text="SVG as Grease Pencil")
 
         if bpy.app.build_options.io_wavefront_obj:
             self.layout.operator("wm.obj_import", text="Wavefront (.obj)")
@@ -461,10 +462,10 @@ class TOPBAR_MT_file_export(Menu):
         if bpy.app.build_options.io_gpencil:
             # PUGIXML library dependency.
             if bpy.app.build_options.pugixml:
-                self.layout.operator("wm.gpencil_export_svg", text="Grease Pencil as SVG")
+                self.layout.operator("wm.grease_pencil_export_svg", text="Grease Pencil as SVG")
             # HARU library dependency.
             if bpy.app.build_options.haru:
-                self.layout.operator("wm.gpencil_export_pdf", text="Grease Pencil as PDF")
+                self.layout.operator("wm.grease_pencil_export_pdf", text="Grease Pencil as PDF")
 
         if bpy.app.build_options.io_wavefront_obj:
             self.layout.operator("wm.obj_export", text="Wavefront (.obj)")

@@ -19,6 +19,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
@@ -36,6 +37,7 @@
 #include "ED_time_scrub_ui.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
@@ -225,6 +227,27 @@ static bool use_sequencer_snapping(bContext *C)
          (snap_flag & SEQ_SNAP_CURRENT_FRAME_TO_STRIPS);
 }
 
+static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *event)
+{
+  if ((U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0) {
+    return false;
+  }
+
+  const Scene *scene = CTX_data_scene(C);
+  if (!SEQ_editing_get(scene)) {
+    return false;
+  }
+
+  const View2D *v2d = UI_view2d_fromcontext(C);
+
+  float mouse_co[2];
+  UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouse_co[0], &mouse_co[1]);
+
+  StripSelection selection = ED_sequencer_pick_strip_and_handle(scene, v2d, mouse_co);
+
+  return selection.handle != SEQ_HANDLE_NONE;
+}
+
 /* Modal Operator init */
 static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -232,6 +255,9 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
   bScreen *screen = CTX_wm_screen(C);
   if (CTX_wm_space_seq(C) != nullptr && region->regiontype == RGN_TYPE_PREVIEW) {
     return OPERATOR_CANCELLED;
+  }
+  if (sequencer_skip_for_handle_tweak(C, event)) {
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
   /* Change to frame that mouse is over before adding modal handler,
@@ -650,10 +676,49 @@ static void ANIM_OT_previewrange_clear(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Bindings
+/** \name Frame Scene/Preview Range Operator
  * \{ */
 
-static bool binding_unassign_object_poll(bContext *C)
+static int scene_range_frame_exec(bContext *C, wmOperator * /*op*/)
+{
+  ARegion *region = CTX_wm_region(C);
+  const Scene *scene = CTX_data_scene(C);
+  BLI_assert(region);
+  BLI_assert(scene);
+
+  View2D &v2d = region->v2d;
+  v2d.cur.xmin = PSFRA;
+  v2d.cur.xmax = PEFRA;
+
+  v2d.cur = ANIM_frame_range_view2d_add_xmargin(v2d, v2d.cur);
+
+  UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), &v2d, V2D_LOCK_COPY);
+  ED_area_tag_redraw(CTX_wm_area(C));
+
+  return OPERATOR_FINISHED;
+}
+
+static void ANIM_OT_scene_range_frame(wmOperatorType *ot)
+{
+  ot->name = "Frame Scene/Preview Range";
+  ot->idname = "ANIM_OT_scene_range_frame";
+  ot->description =
+      "Reset the horizontal view to the current scene frame range, taking the preview range into "
+      "account if it is active";
+
+  ot->exec = scene_range_frame_exec;
+  ot->poll = ED_operator_animview_active;
+
+  ot->flag = OPTYPE_REGISTER;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Slots
+ * \{ */
+
+static bool slot_unassign_object_poll(bContext *C)
 {
   Object *object = CTX_data_active_object(C);
   if (!object) {
@@ -665,40 +730,97 @@ static bool binding_unassign_object_poll(bContext *C)
     return false;
   }
 
-  return adt->binding_handle != blender::animrig::Binding::unassigned;
+  return adt->slot_handle != blender::animrig::Slot::unassigned;
 }
 
-static int binding_unassign_object_exec(bContext *C, wmOperator * /*op*/)
+static int slot_unassign_object_exec(bContext *C, wmOperator * /*op*/)
 {
   using namespace blender;
 
   Object *object = CTX_data_active_object(C);
-  if (!object) {
-    return OPERATOR_CANCELLED;
-  }
+  animrig::unassign_slot(object->id);
 
-  AnimData *adt = BKE_animdata_from_id(&object->id);
-  if (!adt) {
-    return OPERATOR_CANCELLED;
-  }
-
-  animrig::unassign_binding(*adt);
-
+  DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   return OPERATOR_FINISHED;
 }
 
-static void ANIM_OT_binding_unassign_object(wmOperatorType *ot)
+static void ANIM_OT_slot_unassign_object(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Unassign Binding";
-  ot->idname = "ANIM_OT_binding_unassign_object";
+  ot->name = "Unassign Slot";
+  ot->idname = "ANIM_OT_slot_unassign_object";
   ot->description =
-      "Clear the assigned action binding, effectively making this data-block non-animated";
+      "Clear the assigned action slot, effectively making this data-block non-animated";
 
   /* api callbacks */
-  ot->exec = binding_unassign_object_exec;
-  ot->poll = binding_unassign_object_poll;
+  ot->exec = slot_unassign_object_exec;
+  ot->poll = slot_unassign_object_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int convert_action_exec(bContext *C, wmOperator * /*op*/)
+{
+  using namespace blender;
+
+  Object *object = CTX_data_active_object(C);
+  AnimData *adt = BKE_animdata_from_id(&object->id);
+  BLI_assert(adt != nullptr);
+  BLI_assert(adt->action != nullptr);
+
+  animrig::Action &legacy_action = adt->action->wrap();
+  Main *bmain = CTX_data_main(C);
+
+  animrig::Action *layered_action = animrig::convert_to_layered_action(*bmain, legacy_action);
+  /* We did already check if the action can be converted. */
+  BLI_assert(layered_action != nullptr);
+
+  animrig::unassign_action(object->id);
+  BLI_assert(layered_action->slot_array_num == 1);
+  animrig::Slot *slot = layered_action->slot(0);
+  layered_action->slot_name_set(*bmain, *slot, object->id.name);
+  layered_action->assign_id(slot, object->id);
+
+  ANIM_id_update(bmain, &object->id);
+  DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static bool convert_action_poll(bContext *C)
+{
+  Object *object = CTX_data_active_object(C);
+  if (!object) {
+    return false;
+  }
+
+  AnimData *adt = BKE_animdata_from_id(&object->id);
+  if (!adt || !adt->action) {
+    return false;
+  }
+
+  /* This will also convert empty actions to layered by just adding an empty slot. */
+  if (!adt->action->wrap().is_action_legacy()) {
+    CTX_wm_operator_poll_msg_set(C, "Action is already layered");
+    return false;
+  }
+
+  return true;
+}
+
+static void ANIM_OT_convert_legacy_action(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Convert Legacy Action";
+  ot->idname = "ANIM_OT_convert_legacy_action";
+  ot->description = "Convert a legacy Action to a layered Action on the active object";
+
+  /* api callbacks */
+  ot->exec = convert_action_exec;
+  ot->poll = convert_action_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -720,6 +842,8 @@ void ED_operatortypes_anim()
 
   WM_operatortype_append(ANIM_OT_previewrange_set);
   WM_operatortype_append(ANIM_OT_previewrange_clear);
+
+  WM_operatortype_append(ANIM_OT_scene_range_frame);
 
   /* Entire UI --------------------------------------- */
   WM_operatortype_append(ANIM_OT_keyframe_insert);
@@ -749,7 +873,8 @@ void ED_operatortypes_anim()
 
   WM_operatortype_append(ANIM_OT_keying_set_active_set);
 
-  WM_operatortype_append(ANIM_OT_binding_unassign_object);
+  WM_operatortype_append(ANIM_OT_slot_unassign_object);
+  WM_operatortype_append(ANIM_OT_convert_legacy_action);
 }
 
 void ED_keymap_anim(wmKeyConfig *keyconf)

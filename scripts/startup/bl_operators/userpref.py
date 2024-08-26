@@ -38,20 +38,45 @@ def _zipfile_root_namelist(file_to_extract):
     return root_paths
 
 
-def _module_filesystem_remove(path_base, module_name):
+def _module_filesystem_remove(path_base, filenames):
     # Remove all Python modules with `module_name` in `base_path`.
-    # The `module_name` is expected to be a result from `_zipfile_root_namelist`.
+    # The `filenames` is expected to be a result from `_zipfile_root_namelist`.
     import os
     import shutil
-    module_name = os.path.splitext(module_name)[0]
+    module_names = {
+        filename_only for filename in filenames
+        # Excludes non module names including hidden (dot-files).
+        if (filename_only := os.path.splitext(filename)[0]).isidentifier()
+    }
+
+    paths_stale = []
     for f in os.listdir(path_base):
         f_base = os.path.splitext(f)[0]
-        if f_base == module_name:
+        if f_base in module_names:
             f_full = os.path.join(path_base, f)
-            if os.path.isdir(f_full):
-                shutil.rmtree(f_full)
+            if os.path.isdir(f_full) and (not os.path.islink(f_full)):
+                shutil.rmtree(f_full, ignore_errors=True)
             else:
-                os.remove(f_full)
+                try:
+                    os.remove(f_full)
+                except Exception:
+                    pass
+
+            if os.path.exists(f_full):
+                paths_stale.append(f_full)
+
+    if paths_stale:
+        import addon_utils
+        addon_utils.stale_pending_stage_paths(path_base, paths_stale)
+
+
+def _wm_wait_cursor(value):
+    for wm in bpy.data.window_managers:
+        for window in wm.windows:
+            if value:
+                window.cursor_modal_set('WAIT')
+            else:
+                window.cursor_modal_restore()
 
 
 class PREFERENCES_OT_keyconfig_activate(Operator):
@@ -451,7 +476,18 @@ class PREFERENCES_OT_addon_enable(Operator):
             nonlocal err_str
             err_str = str(ex)
 
-        mod = addon_utils.enable(self.module, default_set=True, handle_error=err_cb)
+        # Refreshing wheels can be slow, use the wait cursor.
+        cursor_set = self.options.is_invoke
+        if cursor_set:
+            _wm_wait_cursor(True)
+
+        # Ensure any wheels are setup before enabling.
+        module_name = self.module
+        is_extension = addon_utils.check_extension(module_name)
+        if is_extension:
+            addon_utils.extensions_refresh(ensure_wheels=True, addon_modules_pending=[module_name])
+
+        mod = addon_utils.enable(module_name, default_set=True, handle_error=err_cb)
 
         if mod:
             bl_info = addon_utils.module_bl_info(mod)
@@ -468,13 +504,22 @@ class PREFERENCES_OT_addon_enable(Operator):
                         "though it is enabled"
                     ).format(info_ver)
                 )
-            return {'FINISHED'}
+            result = {'FINISHED'}
         else:
 
             if err_str:
                 self.report({'ERROR'}, err_str)
 
-            return {'CANCELLED'}
+            if is_extension:
+                # Since the add-on didn't work, remove any wheels it may have installed.
+                addon_utils.extensions_refresh(ensure_wheels=True)
+
+            result = {'CANCELLED'}
+
+        if cursor_set:
+            _wm_wait_cursor(False)
+
+        return result
 
 
 class PREFERENCES_OT_addon_disable(Operator):
@@ -498,10 +543,22 @@ class PREFERENCES_OT_addon_disable(Operator):
             err_str = traceback.format_exc()
             print(err_str)
 
-        addon_utils.disable(self.module, default_set=True, handle_error=err_cb)
+        # Refreshing wheels can be slow, use the wait cursor.
+        cursor_set = self.options.is_invoke
+        if cursor_set:
+            _wm_wait_cursor(True)
+
+        module_name = self.module
+        is_extension = addon_utils.check_extension(module_name)
+        addon_utils.disable(module_name, default_set=True, handle_error=err_cb)
+        if is_extension:
+            addon_utils.extensions_refresh(ensure_wheels=True)
 
         if err_str:
             self.report({'ERROR'}, err_str)
+
+        if cursor_set:
+            _wm_wait_cursor(False)
 
         return {'FINISHED'}
 
@@ -597,6 +654,12 @@ class PREFERENCES_OT_addon_install(Operator):
         default=True,
     )
 
+    enable_on_install: BoolProperty(
+        name="Enable on Install",
+        description="Enable after installing",
+        default=False,
+    )
+
     def _target_path_items(_self, context):
         default_item = ('DEFAULT', "Default", "")
         if context is None:
@@ -605,10 +668,13 @@ class PREFERENCES_OT_addon_install(Operator):
             )
 
         paths = context.preferences.filepaths
+        script_directories_items = [
+            (item.name, item.name, "") for index, item in enumerate(paths.script_directories)
+            if item.directory
+        ]
         return (
-            default_item,
-            None,
-            *[(item.name, item.name, "") for index, item in enumerate(paths.script_directories) if item.directory],
+            (default_item, None, *script_directories_items) if script_directories_items else
+            (default_item,)
         )
 
     target: EnumProperty(
@@ -695,8 +761,7 @@ class PREFERENCES_OT_addon_install(Operator):
                 return {'CANCELLED'}
 
             if self.overwrite:
-                for f in file_to_extract_root:
-                    _module_filesystem_remove(path_addons, f)
+                _module_filesystem_remove(path_addons, file_to_extract_root)
             else:
                 for f in file_to_extract_root:
                     path_dest = os.path.join(path_addons, os.path.basename(f))
@@ -714,7 +779,7 @@ class PREFERENCES_OT_addon_install(Operator):
             path_dest = os.path.join(path_addons, os.path.basename(pyfile))
 
             if self.overwrite:
-                _module_filesystem_remove(path_addons, os.path.basename(pyfile))
+                _module_filesystem_remove(path_addons, [os.path.basename(pyfile)])
             elif os.path.exists(path_dest):
                 self.report({'WARNING'}, rpt_("File already installed to {!r}").format(path_dest))
                 return {'CANCELLED'}
@@ -748,6 +813,12 @@ class PREFERENCES_OT_addon_install(Operator):
 
         # in case a new module path was created to install this addon.
         bpy.utils.refresh_script_paths()
+
+        # Auto enable if needed.
+        if self.enable_on_install:
+            for mod in addon_utils.modules(refresh=False):
+                if mod.__name__ in addons_new:
+                    bpy.ops.preferences.addon_enable(module=mod.__name__)
 
         # print message
         msg = rpt_("Modules Installed ({:s}) from {!r} into {!r}").format(
@@ -804,9 +875,15 @@ class PREFERENCES_OT_addon_remove(Operator):
 
         import shutil
         if isdir and (not os.path.islink(path)):
-            shutil.rmtree(path)
+            shutil.rmtree(path, ignore_errors=True)
         else:
-            os.remove(path)
+            try:
+                os.remove(path)
+            except Exception:
+                pass
+
+        if os.path.exists(path):
+            addon_utils.stale_pending_stage_paths(os.path.dirname(path), [path])
 
         addon_utils.modules_refresh()
 
@@ -840,6 +917,8 @@ class PREFERENCES_OT_addon_expand(Operator):
 
         addon_module_name = self.module
 
+        # Ensure `addons_fake_modules` is set.
+        _modules = addon_utils.modules(refresh=False)
         mod = addon_utils.addons_fake_modules.get(addon_module_name)
         if mod is not None:
             bl_info = addon_utils.module_bl_info(mod)
@@ -864,13 +943,14 @@ class PREFERENCES_OT_addon_show(Operator):
 
         addon_module_name = self.module
 
+        # Ensure `addons_fake_modules` is set.
         _modules = addon_utils.modules(refresh=False)
         mod = addon_utils.addons_fake_modules.get(addon_module_name)
         if mod is not None:
             bl_info = addon_utils.module_bl_info(mod)
             bl_info["show_expanded"] = True
 
-            context.preferences.active_section = 'EXTENSIONS'
+            context.preferences.active_section = 'ADDONS'
             context.preferences.view.show_addons_enabled_only = False
             context.window_manager.addon_filter = 'All'
             context.window_manager.addon_search = bl_info["name"]
@@ -940,8 +1020,7 @@ class PREFERENCES_OT_app_template_install(Operator):
 
             file_to_extract_root = _zipfile_root_namelist(file_to_extract)
             if self.overwrite:
-                for f in file_to_extract_root:
-                    _module_filesystem_remove(path_app_templates, f)
+                _module_filesystem_remove(path_app_templates, file_to_extract_root)
             else:
                 for f in file_to_extract_root:
                     path_dest = os.path.join(path_app_templates, os.path.basename(f))
@@ -1034,7 +1113,7 @@ class PREFERENCES_OT_studiolight_install(Operator):
         # print message
         msg = rpt_("StudioLight Installed {!r} into {!r}").format(
             ", ".join(e.name for e in self.files),
-            path_studiolights
+            path_studiolights,
         )
         print(msg)
         self.report({'INFO'}, msg)

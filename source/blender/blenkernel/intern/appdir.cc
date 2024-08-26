@@ -21,6 +21,7 @@
 #include "BLI_string_utils.hh"
 #include "BLI_tempfile.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_appdir.hh" /* own include */
 #include "BKE_blender_version.h"
@@ -96,6 +97,11 @@ void BKE_appdir_init()
 
 void BKE_appdir_exit()
 {
+  /* System paths can be created on-demand by calls to this API. So they need to be properly
+   * disposed of here. Note that there may be several calls to this in `exit` process
+   * (e.g. `wm_init/wm_exit` will currently both call GHOST API directly,
+   * & `BKE_appdir_init/_exit`). */
+  GHOST_DisposeSystemPaths();
 #ifndef NDEBUG
   BLI_assert(is_appdir_init == true);
   is_appdir_init = false;
@@ -391,8 +397,8 @@ static bool get_path_local_ex(char *targetpath,
                    targetpath_maxncpy,
                    check_is_dir,
                    path_base,
-                   blender_version_decimal(version),
-                   relfolder);
+                   (version) ? blender_version_decimal(version) : relfolder,
+                   (version) ? relfolder : nullptr);
 }
 static bool get_path_local(char *targetpath,
                            size_t targetpath_maxncpy,
@@ -403,13 +409,6 @@ static bool get_path_local(char *targetpath,
   const bool check_is_dir = true;
   return get_path_local_ex(
       targetpath, targetpath_maxncpy, folder_name, subfolder_name, version, check_is_dir);
-}
-
-bool BKE_appdir_app_is_portable_install()
-{
-  /* Detect portable install by the existence of `config` folder. */
-  char dirpath[FILE_MAX];
-  return get_path_local(dirpath, sizeof(dirpath), "config", nullptr);
 }
 
 /**
@@ -465,15 +464,15 @@ static bool get_path_user_ex(char *targetpath,
 {
   char user_path[FILE_MAX];
 
+  /* Environment variable override. */
   if (test_env_path(user_path, "BLENDER_USER_RESOURCES", check_is_dir)) {
     /* Pass. */
   }
+  /* Portable install, to store user files next to Blender executable. */
+  else if (get_path_local_ex(user_path, sizeof(user_path), "portable", nullptr, 0, true)) {
+    /* Pass. */
+  }
   else {
-    /* for portable install, user path is always local */
-    if (BKE_appdir_app_is_portable_install()) {
-      return get_path_local_ex(
-          targetpath, targetpath_maxncpy, folder_name, subfolder_name, version, check_is_dir);
-    }
     user_path[0] = '\0';
 
     const char *user_base_path = GHOST_getUserDir(version, blender_version_decimal(version));
@@ -597,10 +596,10 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_SYSTEM_DATAFILES")) {
         break;
       }
-      if (get_path_local(path, path_maxncpy, "datafiles", subfolder)) {
+      if (get_path_system(path, path_maxncpy, "datafiles", subfolder)) {
         break;
       }
-      if (get_path_system(path, path_maxncpy, "datafiles", subfolder)) {
+      if (get_path_local(path, path_maxncpy, "datafiles", subfolder)) {
         break;
       }
       return false;
@@ -645,9 +644,6 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       return false;
 
     case BLENDER_SYSTEM_SCRIPTS:
-      if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_SYSTEM_SCRIPTS")) {
-        break;
-      }
       if (get_path_system(path, path_maxncpy, "scripts", subfolder)) {
         break;
       }
@@ -661,6 +657,18 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
         break;
       }
       if (get_path_user(path, path_maxncpy, "extensions", subfolder)) {
+        break;
+      }
+      return false;
+
+    case BLENDER_SYSTEM_EXTENSIONS:
+      if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_SYSTEM_EXTENSIONS")) {
+        break;
+      }
+      if (get_path_system(path, path_maxncpy, "extensions", subfolder)) {
+        break;
+      }
+      if (get_path_local(path, path_maxncpy, "extensions", subfolder)) {
         break;
       }
       return false;
@@ -1012,43 +1020,57 @@ bool BKE_appdir_program_python_search(char *program_filepath,
 /** \name Application Templates
  * \{ */
 
-/** Keep in sync with `bpy.utils.app_template_paths()` */
-static const char *app_template_directory_search[2] = {
-    "startup" SEP_STR "bl_app_templates_user",
-    "startup" SEP_STR "bl_app_templates_system",
-};
+static blender::Vector<std::string> appdir_app_template_directories()
+{
+  blender::Vector<std::string> directories;
 
-static const int app_template_directory_id[2] = {
-    /* Only 'USER' */
-    BLENDER_USER_SCRIPTS,
-    /* Covers 'LOCAL' & 'SYSTEM'. */
-    BLENDER_SYSTEM_SCRIPTS,
-};
+  /** Keep in sync with `bpy.utils.app_template_paths()` */
+  char temp_dir[FILE_MAX];
+  if (BKE_appdir_folder_id_ex(BLENDER_USER_SCRIPTS,
+                              "startup" SEP_STR "bl_app_templates_user",
+                              temp_dir,
+                              sizeof(temp_dir)))
+  {
+    directories.append(temp_dir);
+  }
+
+  /* Environment variable. */
+  if (get_path_environment(temp_dir,
+                           sizeof(temp_dir),
+                           "startup" SEP_STR "bl_app_templates_system",
+                           "BLENDER_SYSTEM_SCRIPTS"))
+  {
+    directories.append(temp_dir);
+  }
+
+  /* Local or system directory. */
+  if (BKE_appdir_folder_id_ex(BLENDER_SYSTEM_SCRIPTS,
+                              "startup" SEP_STR "bl_app_templates_system",
+                              temp_dir,
+                              sizeof(temp_dir)))
+  {
+    directories.append(temp_dir);
+  }
+
+  return directories;
+}
 
 bool BKE_appdir_app_template_any()
 {
-  char temp_dir[FILE_MAX];
-  for (int i = 0; i < ARRAY_SIZE(app_template_directory_id); i++) {
-    if (BKE_appdir_folder_id_ex(app_template_directory_id[i],
-                                app_template_directory_search[i],
-                                temp_dir,
-                                sizeof(temp_dir)))
-    {
-      return true;
-    }
-  }
-  return false;
+  return !appdir_app_template_directories().is_empty();
 }
 
 bool BKE_appdir_app_template_id_search(const char *app_template, char *path, size_t path_maxncpy)
 {
-  for (int i = 0; i < ARRAY_SIZE(app_template_directory_id); i++) {
-    char subdir[FILE_MAX];
-    BLI_path_join(subdir, sizeof(subdir), app_template_directory_search[i], app_template);
-    if (BKE_appdir_folder_id_ex(app_template_directory_id[i], subdir, path, path_maxncpy)) {
+  const blender::Vector<std::string> directories = appdir_app_template_directories();
+
+  for (const std::string &directory : directories) {
+    BLI_path_join(path, path_maxncpy, directory.c_str(), app_template);
+    if (BLI_is_dir(path)) {
       return true;
     }
   }
+
   return false;
 }
 
@@ -1076,18 +1098,11 @@ void BKE_appdir_app_templates(ListBase *templates)
 {
   BLI_listbase_clear(templates);
 
-  for (int i = 0; i < ARRAY_SIZE(app_template_directory_id); i++) {
-    char subdir[FILE_MAX];
-    if (!BKE_appdir_folder_id_ex(app_template_directory_id[i],
-                                 app_template_directory_search[i],
-                                 subdir,
-                                 sizeof(subdir)))
-    {
-      continue;
-    }
+  const blender::Vector<std::string> directories = appdir_app_template_directories();
 
+  for (const std::string &subdir : directories) {
     direntry *dirs;
-    const uint dir_num = BLI_filelist_dir_contents(subdir, &dirs);
+    const uint dir_num = BLI_filelist_dir_contents(subdir.c_str(), &dirs);
     for (int f = 0; f < dir_num; f++) {
       if (!FILENAME_IS_CURRPAR(dirs[f].relname) && S_ISDIR(dirs[f].type)) {
         char *app_template = BLI_strdup(dirs[f].relname);

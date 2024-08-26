@@ -24,7 +24,7 @@
 #include "BLO_read_write.hh"
 
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BKE_screen.hh"
 
@@ -54,6 +54,7 @@ static bool is_supported_socket_type(const eNodeSocketDatatype data_type)
 
 static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
 {
+  const bNodeTree *ntree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (node == nullptr) {
     return;
@@ -69,7 +70,10 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
 
   for (const NodeEnumItem &enum_item : storage.enum_definition.items()) {
     const std::string identifier = MenuSwitchItemsAccessor::socket_identifier_for_item(enum_item);
-    auto &input = b.add_input(data_type, enum_item.name, std::move(identifier));
+    auto &input = b.add_input(data_type, enum_item.name, std::move(identifier))
+                      .socket_name_ptr(
+                          &ntree->id, MenuSwitchItemsAccessor::item_srna, &enum_item, "name");
+    ;
     if (supports_fields) {
       input.supports_field();
     }
@@ -115,7 +119,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeMenuSwitch &src_storage = node_storage(*src_node);
-  NodeMenuSwitch *dst_storage = MEM_new<NodeMenuSwitch>(__func__, src_storage);
+  NodeMenuSwitch *dst_storage = MEM_cnew<NodeMenuSwitch>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<MenuSwitchItemsAccessor>(*src_node, *dst_node);
@@ -231,8 +235,8 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     const NodeMenuSwitch &storage = node_storage(node);
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
     can_be_field_ = socket_type_supports_fields(data_type);
-    const bke::bNodeSocketType *socket_type = bke::nodeSocketTypeFind(
-        bke::nodeStaticSocketType(data_type, PROP_NONE));
+    const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(
+        bke::node_static_socket_type(data_type, PROP_NONE));
     BLI_assert(socket_type != nullptr);
     cpp_type_ = socket_type->geometry_nodes_cpp_type;
     field_base_type_ = socket_type->base_cpp_type;
@@ -373,7 +377,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNode &node = *static_cast<bNode *>(ptr->data);
 
   static const uiListType *menu_items_list = []() {
-    uiListType *list = MEM_new<uiListType>(__func__);
+    uiListType *list = MEM_cnew<uiListType>(__func__);
     STRNCPY(list->idname, "NODE_UL_enum_definition_items");
     list->draw_item = draw_menu_switch_item;
     WM_uilisttype_add(list);
@@ -492,7 +496,7 @@ static void register_node()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.insert_link = node_insert_link;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

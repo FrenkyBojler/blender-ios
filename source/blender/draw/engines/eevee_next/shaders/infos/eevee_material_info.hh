@@ -54,7 +54,10 @@ GPU_SHADER_CREATE_INFO(eevee_geom_mesh)
     .vertex_in(1, Type::VEC3, "nor")
     .vertex_source("eevee_geom_mesh_vert.glsl")
     .vertex_out(eevee_surf_iface)
-    .additional_info("draw_modelmat_new", "draw_resource_id_varying", "draw_view");
+    .additional_info("draw_modelmat_new",
+                     "draw_object_infos_new",
+                     "draw_resource_id_varying",
+                     "draw_view");
 
 GPU_SHADER_INTERFACE_INFO(eevee_surf_point_cloud_iface, "point_cloud_interp")
     .smooth(Type::FLOAT, "radius")
@@ -71,6 +74,7 @@ GPU_SHADER_CREATE_INFO(eevee_geom_point_cloud)
     .vertex_out(eevee_surf_point_cloud_flat_iface)
     .additional_info("draw_pointcloud_new",
                      "draw_modelmat_new",
+                     "draw_object_infos_new",
                      "draw_resource_id_varying",
                      "draw_view");
 
@@ -91,7 +95,10 @@ GPU_SHADER_CREATE_INFO(eevee_geom_gpencil)
     .define("MAT_GEOM_GPENCIL")
     .vertex_source("eevee_geom_gpencil_vert.glsl")
     .vertex_out(eevee_surf_iface)
-    .additional_info("draw_gpencil_new", "draw_resource_id_varying", "draw_resource_id_new");
+    .additional_info("draw_gpencil_new",
+                     "draw_object_infos_new",
+                     "draw_resource_id_varying",
+                     "draw_resource_id_new");
 
 GPU_SHADER_INTERFACE_INFO(eevee_surf_curve_iface, "curve_interp")
     .smooth(Type::VEC2, "barycentric_coords")
@@ -111,6 +118,7 @@ GPU_SHADER_CREATE_INFO(eevee_geom_curves)
     .vertex_out(eevee_surf_curve_iface)
     .vertex_out(eevee_surf_curve_flat_iface)
     .additional_info("draw_modelmat_new",
+                     "draw_object_infos_new",
                      "draw_resource_id_varying",
                      "draw_view",
                      "draw_hair_new",
@@ -122,7 +130,10 @@ GPU_SHADER_CREATE_INFO(eevee_geom_world)
     .builtins(BuiltinBits::VERTEX_ID)
     .vertex_source("eevee_geom_world_vert.glsl")
     .vertex_out(eevee_surf_iface)
-    .additional_info("draw_modelmat_new", "draw_resource_id_varying", "draw_view");
+    .additional_info("draw_modelmat_new",
+                     "draw_object_infos_new", /* Unused, but allow debug compilation. */
+                     "draw_resource_id_varying",
+                     "draw_view");
 
 /** \} */
 
@@ -217,6 +228,7 @@ GPU_SHADER_CREATE_INFO(eevee_surf_world)
     .push_constant(Type::FLOAT, "world_opacity_fade")
     .push_constant(Type::FLOAT, "world_background_blur")
     .push_constant(Type::IVEC4, "world_coord_packed")
+    .early_fragment_test(true)
     .fragment_out(0, Type::VEC4, "out_background")
     .fragment_source("eevee_surf_world_frag.glsl")
     .additional_info("eevee_global_ubo",
@@ -227,6 +239,16 @@ GPU_SHADER_CREATE_INFO(eevee_surf_world)
                      //  "eevee_render_pass_out",
                      //  "eevee_cryptomatte_out",
                      "eevee_utility_texture");
+
+GPU_SHADER_CREATE_INFO(eevee_renderpass_clear)
+    .fragment_out(0, Type::VEC4, "out_background")
+    .fragment_source("eevee_renderpass_clear_frag.glsl")
+    .additional_info("draw_fullscreen",
+                     "eevee_global_ubo",
+                     "eevee_render_pass_out",
+                     "eevee_cryptomatte_out",
+                     "eevee_shared")
+    .do_static_compilation(true);
 
 GPU_SHADER_INTERFACE_INFO(eevee_surf_shadow_atomic_iface, "shadow_iface")
     .flat(Type::INT, "shadow_view_id");
@@ -267,7 +289,7 @@ GPU_SHADER_CREATE_INFO(eevee_surf_shadow_tbdr)
     .define("SHADOW_UPDATE_TBDR")
     .builtins(BuiltinBits::LAYER)
     /* Use greater depth write to avoid loosing the early Z depth test but ensure correct fragment
-       ordering after slope bias. */
+     * ordering after slope bias. */
     .depth_write(DepthWrite::GREATER)
     /* F32 color attachment for on-tile depth accumulation without atomics. */
     .fragment_out(0, Type::FLOAT, "out_depth", DualBlend::NONE, SHADOW_ROG_ID);
@@ -301,10 +323,15 @@ GPU_SHADER_CREATE_INFO(eevee_surf_volume)
            ImageType::FLOAT_3D,
            "out_emissive_img")
     .image(VOLUME_PROP_PHASE_IMG_SLOT,
-           GPU_RG16F,
+           GPU_R16F,
            Qualifier::READ_WRITE,
            ImageType::FLOAT_3D,
            "out_phase_img")
+    .image(VOLUME_PROP_PHASE_WEIGHT_IMG_SLOT,
+           GPU_R16F,
+           Qualifier::READ_WRITE,
+           ImageType::FLOAT_3D,
+           "out_phase_weight_img")
     .image(VOLUME_OCCUPANCY_SLOT,
            GPU_R32UI,
            Qualifier::READ,

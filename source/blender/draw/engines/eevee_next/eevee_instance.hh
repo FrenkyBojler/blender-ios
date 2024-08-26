@@ -75,6 +75,8 @@ class Instance {
   uint64_t depsgraph_last_update_ = 0;
   bool overlays_enabled_ = false;
 
+  bool shaders_are_ready_ = true;
+
  public:
   ShaderModule &shaders;
   SyncModule sync;
@@ -195,10 +197,17 @@ class Instance {
   bool do_lightprobe_sphere_sync() const;
   bool do_planar_probe_sync() const;
 
+  /**
+   * Return true when probe passes should be loaded.
+   * It can be true even if do_<type>_probe_sync() is false due to shaders still being compiled.
+   */
+  bool needs_lightprobe_sphere_passes() const;
+  bool needs_planar_probe_passes() const;
+
   /* Render. */
 
   void render_sync();
-  void render_frame(RenderLayer *render_layer, const char *view_name);
+  void render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name);
   void store_metadata(RenderResult *render_result);
 
   /* Viewport. */
@@ -259,6 +268,11 @@ class Instance {
     return DRW_state_is_navigating();
   }
 
+  bool is_painting() const
+  {
+    return DRW_state_is_painting();
+  }
+
   bool use_scene_lights() const
   {
     return (!v3d) ||
@@ -302,6 +316,11 @@ class Instance {
     }
 
     return flags;
+  }
+
+  int get_recalc_flags(const ::World &world)
+  {
+    return world.last_update > depsgraph_last_update_ ? int(ID_RECALC_SHADING) : 0;
   }
 
  private:

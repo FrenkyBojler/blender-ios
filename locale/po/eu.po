@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'a367cf664e0d')\n"
+"Project-Id-Version: Blender 4.3.0 Alpha (b'976062c771b5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-27 12:52+0000\n"
+"POT-Creation-Date: 2024-08-19 11:18+0000\n"
 "PO-Revision-Date: 2024-04-29 13:54+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Basque <https://translate.blender.org/projects/blender-ui/ui/eu/>\n"
@@ -179,12 +179,12 @@ msgid "Multiply"
 msgstr "Biderkatu"
 
 
+msgid "Active"
+msgstr "Aktibo"
+
+
 msgid "Action"
 msgstr "Akzioa"
-
-
-msgid "New"
-msgstr "Berria"
 
 
 msgid "Heads"
@@ -299,10 +299,6 @@ msgid "Parent"
 msgstr "Gurasoa"
 
 
-msgid "Active"
-msgstr "Aktibo"
-
-
 msgid "Material"
 msgstr "Materiala"
 
@@ -325,6 +321,14 @@ msgstr "Kurba"
 
 msgid "Look"
 msgstr "Ikusi"
+
+
+msgid "Temperature"
+msgstr "Tenperatura"
+
+
+msgid "White Point"
+msgstr "Puntu Zuria"
 
 
 msgid "Disable"
@@ -415,10 +419,6 @@ msgid "Delete"
 msgstr "Ezabatu"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Onion Skinning"
 msgstr "Tipula-azapa"
 
@@ -433,20 +433,6 @@ msgstr "Leihoa"
 
 msgid "Tools"
 msgstr "Tresnak"
-
-
-msgid "Speed Factor"
-msgstr "Azelerazio-faktorea"
-
-
-msgctxt "Curve"
-msgid "Curve"
-msgstr "Kurba"
-
-
-msgctxt "Curve"
-msgid "Sphere"
-msgstr "Esfera"
 
 
 msgid "Sound"
@@ -578,12 +564,25 @@ msgid "Min Angle"
 msgstr "Angelu Minimoa"
 
 
+msgctxt "Curve"
+msgid "Sphere"
+msgstr "Esfera"
+
+
 msgid "Show/Hide"
 msgstr "Erakutsi/Ezkutatu"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Show/Hide Faces"
 msgstr "Aurpegiak erakutsi/ezkutatu"
+
+
+msgid "Import"
+msgstr "Inportatu"
 
 
 msgid "Physics"
@@ -602,16 +601,25 @@ msgid "External Data"
 msgstr "Kanpo "
 
 
-msgid "Import"
-msgstr "Inportatu"
-
-
 msgid "Help"
 msgstr "Laguntza"
 
 
 msgid "Relations"
 msgstr "Loturak"
+
+
+msgid "New"
+msgstr "Berria"
+
+
+msgid "Speed Factor"
+msgstr "Azelerazio-faktorea"
+
+
+msgctxt "Curve"
+msgid "Curve"
+msgstr "Kurba"
 
 
 msgctxt "Curve"
@@ -1357,6 +1365,16 @@ msgid "Paste Strokes"
 msgstr "Trazuak itsatsi"
 
 
+msgctxt "Operator"
+msgid "Rotate"
+msgstr "Biratu"
+
+
+msgctxt "Operator"
+msgid "Scale"
+msgstr "Eskalatu"
+
+
 msgid "Mouse location"
 msgstr "Arratoiaren lokalizazioa"
 
@@ -1382,10 +1400,6 @@ msgstr "Kurtsorea finkatu"
 
 msgid "Black Point"
 msgstr "Puntu Beltza"
-
-
-msgid "White Point"
-msgstr "Puntu Zuria"
 
 
 msgctxt "Operator"
@@ -1489,6 +1503,11 @@ msgstr "Ezkutatu"
 msgctxt "Operator"
 msgid "Join"
 msgstr "Elkartu"
+
+
+msgctxt "Operator"
+msgid "New"
+msgstr "Berria"
 
 
 msgid "Child"
@@ -1631,11 +1650,6 @@ msgid "Property"
 msgstr "Ezaugarria"
 
 
-msgctxt "Operator"
-msgid "Rotate"
-msgstr "Biratu"
-
-
 msgid "Delta X"
 msgstr "Delta X"
 
@@ -1695,11 +1709,6 @@ msgid "Save System Info"
 msgstr "Sistemaren Informazioa Gorde"
 
 
-msgctxt "Operator"
-msgid "Scale"
-msgstr "Eskalatu"
-
-
 msgid "Dynamics"
 msgstr "Dinamikak"
 
@@ -1727,10 +1736,6 @@ msgstr "Jarraitu"
 
 msgid "Language"
 msgstr "Hizkuntza"
-
-
-msgid "Temperature"
-msgstr "Tenperatura"
 
 
 msgctxt "Sequence"
@@ -1856,11 +1861,6 @@ msgstr "Animazioa"
 msgctxt "Operator"
 msgid "Report a Bug"
 msgstr "Akats baten berri eman"
-
-
-msgctxt "Operator"
-msgid "New"
-msgstr "Berria"
 
 
 msgid "3D View"
@@ -2033,62 +2033,7 @@ msgid "Path too long, cannot save"
 msgstr "Helbide oso luzea, ezin da gorde"
 
 
-msgctxt "Object"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Mesh"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Curve"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Metaball"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Material"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Texture"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Lattice"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Camera"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "World"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Screen"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Speaker"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "Sound"
+msgctxt "Action"
 msgid "New"
 msgstr "Berria"
 
@@ -2098,22 +2043,22 @@ msgid "New"
 msgstr "Berria"
 
 
-msgctxt "Action"
-msgid "New"
-msgstr "Berria"
-
-
-msgctxt "NodeTree"
-msgid "New"
-msgstr "Berria"
-
-
 msgctxt "Brush"
 msgid "New"
 msgstr "Berria"
 
 
-msgctxt "ParticleSettings"
+msgctxt "Camera"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Curve"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "FreestyleLineStyle"
 msgid "New"
 msgstr "Berria"
 
@@ -2123,7 +2068,62 @@ msgid "New"
 msgstr "Berria"
 
 
-msgctxt "FreestyleLineStyle"
+msgctxt "Lattice"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Material"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Mesh"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Metaball"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "NodeTree"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Object"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "ParticleSettings"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Screen"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Sound"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Speaker"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "Texture"
+msgid "New"
+msgstr "Berria"
+
+
+msgctxt "World"
 msgid "New"
 msgstr "Berria"
 
@@ -2165,6 +2165,14 @@ msgstr "Sarea"
 msgctxt "Mesh"
 msgid "Sphere"
 msgstr "Esfera"
+
+
+msgid "ON"
+msgstr "GAITUTA"
+
+
+msgid "OFF"
+msgstr "DESGAITUTA"
 
 
 msgid "normal"
@@ -2299,10 +2307,6 @@ msgid "iScale"
 msgstr "iEskala"
 
 
-msgid "| Time:%s | "
-msgstr "| Denbora: %s |"
-
-
 msgid "Image too small"
 msgstr "Irudi txikiegia"
 
@@ -2337,14 +2341,6 @@ msgstr "'%s': ez da ezer adierazi"
 
 msgid "dbl-"
 msgstr "dbl-"
-
-
-msgid "ON"
-msgstr "GAITUTA"
-
-
-msgid "OFF"
-msgstr "DESGAITUTA"
 
 
 msgid "unsupported format"

@@ -426,7 +426,7 @@ static void constraintRotLim(const TransInfo * /*t*/, TransData *td)
   }
 }
 
-void constraintSizeLim(const TransInfo *t, TransData *td)
+void constraintSizeLim(const TransInfo *t, const TransDataContainer *tc, TransData *td)
 {
   if (td->con && td->ext) {
     const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_SIZELIMIT);
@@ -481,6 +481,11 @@ void constraintSizeLim(const TransInfo *t, TransData *td)
           /* Just multiply by `td->mtx` (this should be ok). */
           mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
         }
+        else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
+          /* Bone space without considering object transformations. */
+          mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
+          mul_m4_m3m4(cob.matrix, tc->imat3, cob.matrix);
+        }
         else if (con->ownspace != CONSTRAINT_SPACE_LOCAL) {
           /* Skip... incompatible `spacetype`. */
           continue;
@@ -492,6 +497,10 @@ void constraintSizeLim(const TransInfo *t, TransData *td)
         /* Convert spaces again. */
         if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
           /* Just multiply by `td->smtx` (this should be ok). */
+          mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
+        }
+        else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
+          mul_m4_m3m4(cob.matrix, tc->mat3, cob.matrix);
           mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
         }
       }
@@ -1002,7 +1011,7 @@ void ElementResize(const TransInfo *t,
       }
     }
 
-    constraintSizeLim(t, td);
+    constraintSizeLim(t, tc, td);
   }
 
   /* For individual element center, Editmode need to use iloc. */
@@ -1056,6 +1065,19 @@ void ElementResize(const TransInfo *t,
     }
     else if (t->obedit_type == OB_GREASE_PENCIL) {
       mul_v3_fl(vec, td->factor);
+
+      /* Scale stroke thickness. */
+      if (td->val) {
+        NumInput num_evil = t->num;
+        float values_final_evil[4];
+        copy_v4_v4(values_final_evil, t->values_final);
+        transform_snap_increment(t, values_final_evil);
+        applyNumInput(&num_evil, values_final_evil);
+
+        float ratio = values_final_evil[0];
+        float transformed_value = td->ival * fabs(ratio);
+        *td->val = transformed_value;
+      }
     }
   }
   else {

@@ -184,6 +184,11 @@ typedef struct wmWindowManager {
   struct GSet *notifier_queue_set;
   void *_pad1;
 
+  /** Available/pending extensions updates. */
+  int extensions_updates;
+  /** Number of blocked & installed extensions. */
+  int extensions_blocked;
+
   /** Threaded jobs manager. */
   ListBase jobs;
 
@@ -227,6 +232,12 @@ typedef struct wmWindowManager {
 } wmWindowManager;
 
 #define WM_KEYCONFIG_ARRAY_P(wm) &(wm)->defaultconf, &(wm)->addonconf, &(wm)->userconf
+
+/** #wmWindowManager.extensions_updates */
+enum {
+  WM_EXTENSIONS_UPDATE_UNSET = -2,
+  WM_EXTENSIONS_UPDATE_CHECKING = -1,
+};
 
 /** #wmWindowManager.init_flag */
 enum {
@@ -535,7 +546,7 @@ typedef struct wmKeyMap {
   /** See above. */
   short regionid;
   /** Optional, see: #wmOwnerID. */
-  char owner_id[64];
+  char owner_id[128];
 
   /** General flags. */
   short flag;

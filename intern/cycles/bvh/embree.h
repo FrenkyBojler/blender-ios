@@ -37,11 +37,11 @@ class BVHEmbree : public BVH {
              const bool isSyclEmbreeDevice = false);
   void refit(Progress &progress);
 
-#  if WITH_EMBREE_GPU && RTC_VERSION >= 40302
+#  if defined(WITH_EMBREE_GPU) && RTC_VERSION >= 40302
   bool offload_scenes_to_gpu(const vector<RTCScene> &scenes);
 #  endif
 
-  string get_last_error_message();
+  const char *get_last_error_message();
 
   RTCScene scene;
 

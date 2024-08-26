@@ -1220,6 +1220,85 @@ void NoiseTextureNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_noise_texture");
 }
 
+/* Gabor Texture */
+
+NODE_DEFINE(GaborTextureNode)
+{
+  NodeType *type = NodeType::add("gabor_texture", create, NodeType::SHADER);
+
+  TEXTURE_MAPPING_DEFINE(GaborTextureNode);
+
+  static NodeEnum type_enum;
+  type_enum.insert("2D", NODE_GABOR_TYPE_2D);
+  type_enum.insert("3D", NODE_GABOR_TYPE_3D);
+  SOCKET_ENUM(type, "Type", type_enum, NODE_GABOR_TYPE_2D);
+
+  SOCKET_IN_POINT(vector, "Vector", zero_float3(), SocketType::LINK_TEXTURE_GENERATED);
+  SOCKET_IN_FLOAT(scale, "Scale", 5.0f);
+  SOCKET_IN_FLOAT(frequency, "Frequency", 2.0f);
+  SOCKET_IN_FLOAT(anisotropy, "Anisotropy", 1.0f);
+  SOCKET_IN_FLOAT(orientation_2d, "Orientation 2D", M_PI_F / 4.0f);
+  SOCKET_IN_VECTOR(orientation_3d, "Orientation 3D", make_float3(M_SQRT2_F, M_SQRT2_F, 0.0f));
+
+  SOCKET_OUT_FLOAT(value, "Value");
+  SOCKET_OUT_FLOAT(phase, "Phase");
+  SOCKET_OUT_FLOAT(intensity, "Intensity");
+
+  return type;
+}
+
+GaborTextureNode::GaborTextureNode() : TextureNode(get_node_type()) {}
+
+void GaborTextureNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderInput *scale_in = input("Scale");
+  ShaderInput *frequency_in = input("Frequency");
+  ShaderInput *anisotropy_in = input("Anisotropy");
+  ShaderInput *orientation_2d_in = input("Orientation 2D");
+  ShaderInput *orientation_3d_in = input("Orientation 3D");
+
+  ShaderOutput *value_out = output("Value");
+  ShaderOutput *phase_out = output("Phase");
+  ShaderOutput *intensity_out = output("Intensity");
+
+  int vector_stack_offset = tex_mapping.compile_begin(compiler, vector_in);
+  int scale_stack_offset = compiler.stack_assign_if_linked(scale_in);
+  int frequency_stack_offset = compiler.stack_assign_if_linked(frequency_in);
+  int anisotropy_stack_offset = compiler.stack_assign_if_linked(anisotropy_in);
+  int orientation_2d_stack_offset = compiler.stack_assign_if_linked(orientation_2d_in);
+  int orientation_3d_stack_offset = compiler.stack_assign(orientation_3d_in);
+
+  int value_stack_offset = compiler.stack_assign_if_linked(value_out);
+  int phase_stack_offset = compiler.stack_assign_if_linked(phase_out);
+  int intensity_stack_offset = compiler.stack_assign_if_linked(intensity_out);
+
+  compiler.add_node(
+      NODE_TEX_GABOR,
+      type,
+      compiler.encode_uchar4(vector_stack_offset,
+                             scale_stack_offset,
+                             frequency_stack_offset,
+                             anisotropy_stack_offset),
+      compiler.encode_uchar4(orientation_2d_stack_offset, orientation_3d_stack_offset));
+
+  compiler.add_node(
+      compiler.encode_uchar4(value_stack_offset, phase_stack_offset, intensity_stack_offset),
+      __float_as_int(scale),
+      __float_as_int(frequency),
+      __float_as_int(anisotropy));
+  compiler.add_node(__float_as_int(orientation_2d));
+
+  tex_mapping.compile_end(compiler, vector_in, vector_stack_offset);
+}
+
+void GaborTextureNode::compile(OSLCompiler &compiler)
+{
+  tex_mapping.compile(compiler);
+  compiler.parameter(this, "type");
+  compiler.add(this, "node_gabor_texture");
+}
+
 /* Voronoi Texture */
 
 NODE_DEFINE(VoronoiTextureNode)
@@ -1843,37 +1922,51 @@ void PointDensityTextureNode::compile(SVMCompiler &compiler)
   const bool use_density = !density_out->links.empty();
   const bool use_color = !color_out->links.empty();
 
-  if (use_density || use_color) {
-    if (handle.empty()) {
-      ImageManager *image_manager = compiler.scene->image_manager;
-      handle = image_manager->add_image(filename.string(), image_params());
-    }
+  if (!(use_density || use_color)) {
+    return;
+  }
 
-    const int slot = handle.svm_slot();
-    if (slot != -1) {
-      compiler.stack_assign(vector_in);
-      compiler.add_node(NODE_TEX_VOXEL,
-                        slot,
-                        compiler.encode_uchar4(compiler.stack_assign(vector_in),
-                                               compiler.stack_assign_if_linked(density_out),
-                                               compiler.stack_assign_if_linked(color_out),
-                                               space));
-      if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
-        compiler.add_node(tfm.x);
-        compiler.add_node(tfm.y);
-        compiler.add_node(tfm.z);
-      }
+  /* Point Density is only supported for volume shaders. */
+  if (compiler.output_type() != SHADER_TYPE_VOLUME) {
+    if (use_density) {
+      compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(density_out));
     }
-    else {
-      if (use_density) {
-        compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(density_out));
-      }
-      if (use_color) {
-        compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
-        compiler.add_node(
-            NODE_VALUE_V,
-            make_float3(TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B));
-      }
+    if (use_color) {
+      compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
+      compiler.add_node(NODE_VALUE_V, zero_float3());
+    }
+    return;
+  }
+
+  if (handle.empty()) {
+    ImageManager *image_manager = compiler.scene->image_manager;
+    handle = image_manager->add_image(filename.string(), image_params());
+  }
+
+  const int slot = handle.svm_slot();
+  if (slot != -1) {
+    compiler.stack_assign(vector_in);
+    compiler.add_node(NODE_TEX_VOXEL,
+                      slot,
+                      compiler.encode_uchar4(compiler.stack_assign(vector_in),
+                                             compiler.stack_assign_if_linked(density_out),
+                                             compiler.stack_assign_if_linked(color_out),
+                                             space));
+    if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
+      compiler.add_node(tfm.x);
+      compiler.add_node(tfm.y);
+      compiler.add_node(tfm.z);
+    }
+  }
+  else {
+    if (use_density) {
+      compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(density_out));
+    }
+    if (use_color) {
+      compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
+      compiler.add_node(
+          NODE_VALUE_V,
+          make_float3(TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B));
     }
   }
 }
@@ -1886,20 +1979,28 @@ void PointDensityTextureNode::compile(OSLCompiler &compiler)
   const bool use_density = !density_out->links.empty();
   const bool use_color = !color_out->links.empty();
 
-  if (use_density || use_color) {
-    if (handle.empty()) {
-      ImageManager *image_manager = compiler.scene->image_manager;
-      handle = image_manager->add_image(filename.string(), image_params());
-    }
-
-    compiler.parameter_texture("filename", handle);
-    if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
-      compiler.parameter("mapping", tfm);
-      compiler.parameter("use_mapping", 1);
-    }
-    compiler.parameter(this, "interpolation");
-    compiler.add(this, "node_voxel_texture");
+  if (!(use_density || use_color)) {
+    return;
   }
+
+  /* Point Density is only supported for volume shaders. */
+  if (compiler.output_type() != SHADER_TYPE_VOLUME) {
+    compiler.add(this, "node_voxel_texture_zero");
+    return;
+  }
+
+  if (handle.empty()) {
+    ImageManager *image_manager = compiler.scene->image_manager;
+    handle = image_manager->add_image(filename.string(), image_params());
+  }
+
+  compiler.parameter_texture("filename", handle);
+  if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
+    compiler.parameter("mapping", tfm);
+    compiler.parameter("use_mapping", 1);
+  }
+  compiler.parameter(this, "interpolation");
+  compiler.add(this, "node_voxel_texture");
 }
 
 /* Normal */
@@ -2123,24 +2224,38 @@ void ConvertNode::constant_fold(const ConstantFolder &folder)
   /* proxy nodes should have been removed at this point */
   assert(special_type != SHADER_SPECIAL_TYPE_PROXY);
 
-  /* TODO(DingTo): conversion from/to int is not supported yet, don't fold in that case */
-
   if (folder.all_inputs_constant()) {
-    if (from == SocketType::FLOAT) {
+    if (from == SocketType::FLOAT || from == SocketType::INT) {
+      float val = value_float;
+      if (from == SocketType::INT) {
+        val = value_int;
+      }
       if (SocketType::is_float3(to)) {
-        folder.make_constant(make_float3(value_float, value_float, value_float));
+        folder.make_constant(make_float3(val, val, val));
+      }
+      else if (to == SocketType::INT) {
+        folder.make_constant((int)val);
+      }
+      else if (to == SocketType::FLOAT) {
+        folder.make_constant(val);
       }
     }
     else if (SocketType::is_float3(from)) {
-      if (to == SocketType::FLOAT) {
+      if (to == SocketType::FLOAT || to == SocketType::INT) {
+        float val;
         if (from == SocketType::COLOR) {
-          /* color to float */
-          float val = folder.scene->shader_manager->linear_rgb_to_gray(value_color);
-          folder.make_constant(val);
+          /* color to scalar */
+          val = folder.scene->shader_manager->linear_rgb_to_gray(value_color);
         }
         else {
-          /* vector/point/normal to float */
-          folder.make_constant(average(value_vector));
+          /* vector/point/normal to scalar */
+          val = average(value_vector);
+        }
+        if (to == SocketType::INT) {
+          folder.make_constant((int)val);
+        }
+        else if (to == SocketType::FLOAT) {
+          folder.make_constant(val);
         }
       }
       else if (SocketType::is_float3(to)) {
@@ -2599,7 +2714,7 @@ DiffuseBsdfNode::DiffuseBsdfNode() : BsdfNode(get_node_type())
 
 void DiffuseBsdfNode::compile(SVMCompiler &compiler)
 {
-  BsdfNode::compile(compiler, input("Roughness"), NULL);
+  BsdfNode::compile(compiler, input("Roughness"), nullptr, input("Color"));
 }
 
 void DiffuseBsdfNode::compile(OSLCompiler &compiler)
@@ -2633,6 +2748,8 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_FLOAT(ior, "IOR", 1.5f);
   SOCKET_IN_FLOAT(alpha, "Alpha", 1.0f);
   SOCKET_IN_NORMAL(normal, "Normal", zero_float3(), SocketType::LINK_NORMAL);
+
+  SOCKET_IN_FLOAT(diffuse_roughness, "Diffuse Roughness", 0.0f);
 
   SOCKET_IN_FLOAT(subsurface_weight, "Subsurface Weight", 0.0f);
   SOCKET_IN_FLOAT(subsurface_scale, "Subsurface Scale", 0.1f);
@@ -2746,6 +2863,7 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler)
   int tangent_offset = compiler.stack_assign_if_linked(input("Tangent"));
   int specular_ior_level_offset = compiler.stack_assign(input("Specular IOR Level"));
   int roughness_offset = compiler.stack_assign(input("Roughness"));
+  int diffuse_roughness_offset = compiler.stack_assign(input("Diffuse Roughness"));
   int specular_tint_offset = compiler.stack_assign(input("Specular Tint"));
   int anisotropic_offset = compiler.stack_assign(input("Anisotropic"));
   int sheen_weight_offset = compiler.stack_assign(input("Sheen Weight"));
@@ -2782,7 +2900,10 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler)
       tangent_offset,
       compiler.encode_uchar4(
           specular_ior_level_offset, roughness_offset, specular_tint_offset, anisotropic_offset),
-      compiler.encode_uchar4(sheen_weight_offset, sheen_tint_offset, sheen_roughness_offset));
+      compiler.encode_uchar4(sheen_weight_offset,
+                             sheen_tint_offset,
+                             sheen_roughness_offset,
+                             diffuse_roughness_offset));
 
   compiler.add_node(
       compiler.encode_uchar4(

@@ -374,7 +374,8 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                 row.active = enable_edit_value
                 row.prop(key, "eval_time")
 
-        layout.prop(ob, "add_rest_position_attribute")
+        if ob.type == 'MESH':
+            layout.prop(ob, "add_rest_position_attribute")
 
 
 class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
@@ -517,7 +518,7 @@ class MESH_UL_attributes(UIList):
         sub.alignment = 'RIGHT'
         sub.active = False
         sub.label(
-            text="{:s} ▶ {:s}".format(iface_(domain_name), iface_(data_type.name)),
+            text="{:s} - {:s}".format(iface_(domain_name), iface_(data_type.name)),
             translate=False,
         )
 
@@ -639,7 +640,7 @@ class MESH_UL_color_attributes(UIList, ColorAttributesListBase):
         sub = split.row()
         sub.alignment = 'RIGHT'
         sub.active = False
-        sub.label(text="{:s} ▶ {:s}".format(iface_(domain_name), iface_(data_type.name)), translate=False)
+        sub.label(text="{:s} - {:s}".format(iface_(domain_name), iface_(data_type.name)), translate=False)
 
         active_render = _index == data.color_attributes.render_color_index
 

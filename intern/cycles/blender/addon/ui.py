@@ -13,7 +13,11 @@ from bpy.types import Panel, Menu
 
 from bl_ui.properties_grease_pencil_common import GreasePencilSimplifyPanel
 from bl_ui.properties_render import draw_curves_settings, CompositorPerformanceButtonsPanel
-from bl_ui.properties_view_layer import ViewLayerCryptomattePanel, ViewLayerAOVPanel, ViewLayerLightgroupsPanel
+from bl_ui.properties_view_layer import (
+    ViewLayerCryptomattePanelHelper,
+    ViewLayerAOVPanelHelper,
+    ViewLayerLightgroupsPanelHelper,
+)
 
 
 class CyclesPresetPanel(PresetPanel, Panel):
@@ -100,48 +104,67 @@ def use_cpu(context):
     return (get_device_type(context) == 'NONE' or cscene.device == 'CPU' or not backend_has_active_gpu(context))
 
 
-def use_metal(context):
+def use_gpu(context):
     cscene = context.scene.cycles
 
-    return (get_device_type(context) == 'METAL' and cscene.device == 'GPU' and backend_has_active_gpu(context))
+    return (get_device_type(context) != 'NONE' and cscene.device == 'GPU' and backend_has_active_gpu(context))
+
+
+def use_metal(context):
+    return (get_device_type(context) == 'METAL' and use_gpu(context))
 
 
 def use_cuda(context):
-    cscene = context.scene.cycles
-
-    return (get_device_type(context) == 'CUDA' and cscene.device == 'GPU' and backend_has_active_gpu(context))
+    return (get_device_type(context) == 'CUDA' and use_gpu(context))
 
 
 def use_hip(context):
-    cscene = context.scene.cycles
-
-    return (get_device_type(context) == 'HIP' and cscene.device == 'GPU' and backend_has_active_gpu(context))
+    return (get_device_type(context) == 'HIP' and use_gpu(context))
 
 
 def use_optix(context):
-    cscene = context.scene.cycles
-
-    return (get_device_type(context) == 'OPTIX' and cscene.device == 'GPU' and backend_has_active_gpu(context))
+    return (get_device_type(context) == 'OPTIX' and use_gpu(context))
 
 
 def use_oneapi(context):
-    cscene = context.scene.cycles
-
-    return (get_device_type(context) == 'ONEAPI' and cscene.device == 'GPU' and backend_has_active_gpu(context))
+    return (get_device_type(context) == 'ONEAPI' and use_gpu(context))
 
 
 def use_multi_device(context):
-    cscene = context.scene.cycles
-    if cscene.device != 'GPU':
-        return False
-    return context.preferences.addons[__package__].preferences.has_multi_device()
+    if use_gpu(context):
+        return context.preferences.addons[__package__].preferences.has_multi_device()
+    return False
 
 
 def show_device_active(context):
     cscene = context.scene.cycles
-    if cscene.device != 'GPU':
+    if cscene.device == 'CPU':
         return True
-    return backend_has_active_gpu(context)
+    return use_gpu(context)
+
+
+def show_preview_denoise_active(context):
+    cscene = context.scene.cycles
+    if not cscene.use_preview_denoising:
+        return False
+
+    if cscene.preview_denoiser == 'OPTIX':
+        return has_optixdenoiser_gpu_devices(context)
+
+    # OIDN is always available, thanks to CPU support
+    return True
+
+
+def show_denoise_active(context):
+    cscene = context.scene.cycles
+    if not cscene.use_denoising:
+        return False
+
+    if cscene.denoiser == 'OPTIX':
+        return has_optixdenoiser_gpu_devices(context)
+
+    # OIDN is always available, thanks to CPU support
+    return True
 
 
 def get_effective_preview_denoiser(context, has_oidn_gpu):
@@ -154,7 +177,7 @@ def get_effective_preview_denoiser(context, has_oidn_gpu):
     if has_oidn_gpu:
         return 'OPENIMAGEDENOISE'
 
-    if context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX'):
+    if has_optixdenoiser_gpu_devices(context):
         return 'OPTIX'
 
     return 'OPENIMAGEDENOISE'
@@ -162,6 +185,10 @@ def get_effective_preview_denoiser(context, has_oidn_gpu):
 
 def has_oidn_gpu_devices(context):
     return context.preferences.addons[__package__].preferences.has_oidn_gpu_devices()
+
+
+def has_optixdenoiser_gpu_devices(context):
+    return context.preferences.addons[__package__].preferences.has_optixdenoiser_gpu_devices()
 
 
 def use_mnee(context):
@@ -234,7 +261,11 @@ class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         col.active = cscene.use_preview_denoising
-        col.prop(cscene, "preview_denoiser", text="Denoiser")
+
+        sub = col.column()
+        sub.active = show_preview_denoise_active(context)
+        sub.prop(cscene, "preview_denoiser", text="Denoiser")
+
         col.prop(cscene, "preview_denoising_input_passes", text="Passes")
 
         has_oidn_gpu = has_oidn_gpu_devices(context)
@@ -247,7 +278,7 @@ class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
 
         if effective_preview_denoiser == 'OPENIMAGEDENOISE':
             row = col.row()
-            row.active = not use_cpu(context) and has_oidn_gpu
+            row.active = has_oidn_gpu_devices(context)
             row.prop(cscene, "preview_denoising_use_gpu", text="Use GPU")
 
 
@@ -304,7 +335,11 @@ class CYCLES_RENDER_PT_sampling_render_denoise(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         col.active = cscene.use_denoising
-        col.prop(cscene, "denoiser", text="Denoiser")
+
+        sub = col.column()
+        sub.active = show_denoise_active(context)
+        sub.prop(cscene, "denoiser", text="Denoiser")
+
         col.prop(cscene, "denoising_input_passes", text="Passes")
         if cscene.denoiser == 'OPENIMAGEDENOISE':
             col.prop(cscene, "denoising_prefilter", text="Prefilter")
@@ -312,7 +347,7 @@ class CYCLES_RENDER_PT_sampling_render_denoise(CyclesButtonsPanel, Panel):
 
         if cscene.denoiser == 'OPENIMAGEDENOISE':
             row = col.row()
-            row.active = not use_cpu(context) and has_oidn_gpu_devices(context)
+            row.active = has_oidn_gpu_devices(context)
             row.prop(cscene, "denoising_use_gpu", text="Use GPU")
 
 
@@ -390,6 +425,9 @@ class CYCLES_RENDER_PT_sampling_advanced(CyclesButtonsPanel, Panel):
         cscene = scene.cycles
 
         row = layout.row(align=True)
+        row.prop(cscene, "sampling_pattern", text="Pattern")
+
+        row = layout.row(align=True)
         row.prop(cscene, "seed")
         row.prop(cscene, "use_animated_seed", text="", icon='TIME')
 
@@ -400,7 +438,7 @@ class CYCLES_RENDER_PT_sampling_advanced(CyclesButtonsPanel, Panel):
 
         heading = layout.column(align=True, heading="Scrambling Distance")
         # Tabulated Sobol is used when the debug UI is turned off.
-        heading.active = cscene.sampling_pattern == 'TABULATED_SOBOL' or not CyclesDebugButtonsPanel.poll(context)
+        heading.active = cscene.sampling_pattern == 'TABULATED_SOBOL'
         heading.prop(cscene, "auto_scrambling_distance", text="Automatic")
         heading.prop(cscene, "preview_scrambling_distance", text="Viewport")
         heading.prop(cscene, "scrambling_distance", text="Multiplier")
@@ -436,23 +474,6 @@ class CYCLES_RENDER_PT_sampling_lights(CyclesButtonsPanel, Panel):
         sub = col.row()
         sub.prop(cscene, "light_sampling_threshold", text="Light Threshold")
         sub.active = not cscene.use_light_tree
-
-
-class CYCLES_RENDER_PT_sampling_debug(CyclesDebugButtonsPanel, Panel):
-    bl_label = "Debug"
-    bl_parent_id = "CYCLES_RENDER_PT_sampling"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        scene = context.scene
-        cscene = scene.cycles
-
-        col = layout.column(align=True)
-        col.prop(cscene, "sampling_pattern", text="Pattern")
 
 
 class CYCLES_RENDER_PT_subdivision(CyclesButtonsPanel, Panel):
@@ -1027,19 +1048,19 @@ class CYCLES_RENDER_PT_passes_light(CyclesButtonsPanel, Panel):
         col.prop(cycles_view_layer, "use_pass_shadow_catcher")
 
 
-class CYCLES_RENDER_PT_passes_crypto(CyclesButtonsPanel, ViewLayerCryptomattePanel, Panel):
+class CYCLES_RENDER_PT_passes_crypto(CyclesButtonsPanel, ViewLayerCryptomattePanelHelper, Panel):
     bl_label = "Cryptomatte"
     bl_context = "view_layer"
     bl_parent_id = "CYCLES_RENDER_PT_passes"
 
 
-class CYCLES_RENDER_PT_passes_aov(CyclesButtonsPanel, ViewLayerAOVPanel):
+class CYCLES_RENDER_PT_passes_aov(CyclesButtonsPanel, ViewLayerAOVPanelHelper, Panel):
     bl_label = "Shader AOV"
     bl_context = "view_layer"
     bl_parent_id = "CYCLES_RENDER_PT_passes"
 
 
-class CYCLES_RENDER_PT_passes_lightgroups(CyclesButtonsPanel, ViewLayerLightgroupsPanel):
+class CYCLES_RENDER_PT_passes_lightgroups(CyclesButtonsPanel, ViewLayerLightgroupsPanelHelper, Panel):
     bl_label = "Light Groups"
     bl_context = "view_layer"
     bl_parent_id = "CYCLES_RENDER_PT_passes"
@@ -1088,13 +1109,17 @@ class CYCLES_CAMERA_PT_dof(CyclesButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        col.prop(dof, "focus_object", text="Focus Object")
+        col.prop(dof, "focus_object", text="Focus on Object")
         if dof.focus_object and dof.focus_object.type == 'ARMATURE':
             col.prop_search(dof, "focus_subtarget", dof.focus_object.data, "bones", text="Focus Bone")
 
         sub = col.row()
         sub.active = dof.focus_object is None
-        sub.prop(dof, "focus_distance", text="Distance")
+        sub.prop(dof, "focus_distance", text="Focus Distance")
+        sub.operator(
+            "ui.eyedropper_depth",
+            icon='EYEDROPPER',
+            text="").prop_data_path = "scene.camera.data.dof.focus_distance"
 
 
 class CYCLES_CAMERA_PT_dof_aperture(CyclesButtonsPanel, Panel):
@@ -2540,7 +2565,6 @@ classes = (
     CYCLES_RENDER_PT_sampling_path_guiding_debug,
     CYCLES_RENDER_PT_sampling_lights,
     CYCLES_RENDER_PT_sampling_advanced,
-    CYCLES_RENDER_PT_sampling_debug,
     CYCLES_RENDER_PT_light_paths,
     CYCLES_RENDER_PT_light_paths_max_bounces,
     CYCLES_RENDER_PT_light_paths_clamping,

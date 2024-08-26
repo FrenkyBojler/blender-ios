@@ -47,7 +47,7 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -923,7 +923,8 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
       for (i = 0; i < 3; i++) {
         /* Speed effect requires time remapping of `timeline_frame` for input(s). */
         if (input[0] && seq->type == SEQ_TYPE_SPEED) {
-          float target_frame = seq_speed_effect_target_frame_get(scene, seq, timeline_frame, i);
+          int target_frame = floor(
+              seq_speed_effect_target_frame_get(scene, seq, timeline_frame, i));
           ibuf[i] = seq_render_strip(context, state, input[0], target_frame);
         }
         else { /* Other effects. */
@@ -1034,7 +1035,7 @@ static bool seq_image_strip_is_multiview_render(Scene *scene,
   return (seq->flag & SEQ_USE_VIEWS) != 0 && (scene->r.scemode & R_MULTIVIEW) != 0;
 }
 
-static ImBuf *create_missing_media_image(const SeqRenderData *context, const StripElem *orig)
+static ImBuf *create_missing_media_image(const SeqRenderData *context, int width, int height)
 {
   if (context->ignore_missing_media) {
     return nullptr;
@@ -1045,8 +1046,7 @@ static ImBuf *create_missing_media_image(const SeqRenderData *context, const Str
     return nullptr;
   }
 
-  ImBuf *ibuf = IMB_allocImBuf(
-      max_ii(orig->orig_width, 1), max_ii(orig->orig_height, 1), 32, IB_rect);
+  ImBuf *ibuf = IMB_allocImBuf(max_ii(width, 1), max_ii(height, 1), 32, IB_rect);
   float col[4] = {0.85f, 0.0f, 0.75f, 1.0f};
   IMB_rectfill(ibuf, col);
   return ibuf;
@@ -1128,7 +1128,7 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context,
 
   blender::seq::media_presence_set_missing(context->scene, seq, ibuf == nullptr);
   if (ibuf == nullptr) {
-    return create_missing_media_image(context, s_elem);
+    return create_missing_media_image(context, s_elem->orig_width, s_elem->orig_height);
   }
 
   s_elem->orig_width = ibuf->x;
@@ -1292,7 +1292,8 @@ static ImBuf *seq_render_movie_strip(const SeqRenderData *context,
 
   blender::seq::media_presence_set_missing(context->scene, seq, ibuf == nullptr);
   if (ibuf == nullptr) {
-    return create_missing_media_image(context, seq->strip->stripdata);
+    return create_missing_media_image(
+        context, seq->strip->stripdata->orig_width, seq->strip->stripdata->orig_height);
   }
 
   if (*r_is_proxy_image == false) {
@@ -1532,7 +1533,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
 
   /* don't refer to seq->scene above this point!, it can be nullptr */
   if (seq->scene == nullptr) {
-    return nullptr;
+    return create_missing_media_image(context, context->rectx, context->recty);
   }
 
   /* Prevent rendering scene recursively. */
@@ -1678,10 +1679,13 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
 
       RE_AcquireResultImage(re, &rres, view_id);
 
+      /* TODO: Share the pixel data with the original image buffer from the render result using
+       * implicit sharing. */
       if (rres.ibuf && rres.ibuf->float_buffer.data) {
-        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, 0);
-        IMB_assign_float_buffer(
-            ibufs_arr[view_id], rres.ibuf->float_buffer.data, IB_DO_NOT_TAKE_OWNERSHIP);
+        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rectfloat);
+        memcpy(ibufs_arr[view_id]->float_buffer.data,
+               rres.ibuf->float_buffer.data,
+               sizeof(float[4]) * rres.rectx * rres.recty);
 
         /* float buffers in the sequencer are not linear */
         seq_imbuf_to_sequencer_space(context->scene, ibufs_arr[view_id], false);
@@ -1970,6 +1974,26 @@ static ImBuf *seq_render_strip_stack_apply_effect(
   return out;
 }
 
+static bool is_opaque_alpha_over(const Sequence *seq)
+{
+  if (seq->blend_mode != SEQ_TYPE_ALPHAOVER) {
+    return false;
+  }
+  if (seq->blend_opacity < 100.0f) {
+    return false;
+  }
+  if (seq->mul < 1.0f && (seq->flag & SEQ_MULTIPLY_ALPHA) != 0) {
+    return false;
+  }
+  LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
+    /* Assume result is not opaque if there is an enabled Mask modifier. */
+    if ((smd->flag & SEQUENCE_MODIFIER_MUTE) == 0 && smd->type == seqModifierType_Mask) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static ImBuf *seq_render_strip_stack(const SeqRenderData *context,
                                      SeqRenderState *state,
                                      ListBase *channels,
@@ -2008,9 +2032,7 @@ static ImBuf *seq_render_strip_stack(const SeqRenderData *context,
 
     /* Early out for alpha over. It requires image to be rendered, so it can't use
      * `seq_get_early_out_for_blend_mode`. */
-    if (out == nullptr && seq->blend_mode == SEQ_TYPE_ALPHAOVER &&
-        early_out == StripEarlyOut::DoEffect && seq->blend_opacity == 100.0f)
-    {
+    if (out == nullptr && early_out == StripEarlyOut::DoEffect && is_opaque_alpha_over(seq)) {
       ImBuf *test = seq_render_strip(context, state, seq, timeline_frame);
       if (ELEM(test->planes, R_IMF_PLANES_BW, R_IMF_PLANES_RGB)) {
         early_out = StripEarlyOut::UseInput2;

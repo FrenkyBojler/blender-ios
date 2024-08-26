@@ -31,6 +31,7 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
+#include "transform_mode.hh"
 
 #define SEQ_EDGE_PAN_INSIDE_PAD 3.5
 #define SEQ_EDGE_PAN_OUTSIDE_PAD 0 /* Disable clamping for panning, use whole screen. */
@@ -285,7 +286,7 @@ static ListBase *seqbase_active_get(const TransInfo *t)
   return SEQ_active_seqbase_get(ed);
 }
 
-static bool seq_transform_check_overlap(blender::Span<Sequence *> transformed_strips)
+bool seq_transform_check_overlap(blender::Span<Sequence *> transformed_strips)
 {
   for (Sequence *seq : transformed_strips) {
     if (seq->flag & SEQ_OVERLAP) {
@@ -523,13 +524,11 @@ static void createTransSeqData(bContext * /*C*/, TransInfo *t)
 /** \name UVs Transform Flush
  * \{ */
 
-static void view2d_edge_pan_loc_compensate(TransInfo *t, float loc_in[2], float r_loc[2])
+static void view2d_edge_pan_loc_compensate(TransInfo *t, float offset[2])
 {
   TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
 
-  /* Initial and current view2D rects for additional transform due to view panning and zooming. */
-  const rctf *rect_src = &ts->initial_v2d_cur;
-  const rctf *rect_dst = &t->region->v2d.cur;
+  const rctf rect_prev = t->region->v2d.cur;
 
   if (t->options & CTX_VIEW2D_EDGE_PAN) {
     if (t->state == TRANS_CANCEL) {
@@ -545,9 +544,13 @@ static void view2d_edge_pan_loc_compensate(TransInfo *t, float loc_in[2], float 
     }
   }
 
-  copy_v2_v2(r_loc, loc_in);
-  /* Additional offset due to change in view2D rect. */
-  BLI_rctf_transform_pt_v(rect_dst, rect_src, r_loc, r_loc);
+  if (t->state != TRANS_CANCEL) {
+    if (!BLI_rctf_compare(&rect_prev, &t->region->v2d.cur, FLT_EPSILON)) {
+      /* Additional offset due to change in view2D rect. */
+      BLI_rctf_transform_pt_v(&t->region->v2d.cur, &rect_prev, offset, offset);
+      transformViewUpdate(t);
+    }
+  }
 }
 
 static void flushTransSeq(TransInfo *t)
@@ -575,13 +578,15 @@ static void flushTransSeq(TransInfo *t)
    * recalculation, hierarchy is not taken into account. */
   int max_offset = 0;
 
+  float edge_pan_offset[2] = {0.0f, 0.0f};
+  view2d_edge_pan_loc_compensate(t, edge_pan_offset);
+
   /* Flush to 2D vector from internally used 3D vector. */
   for (a = 0, td = tc->data, td2d = tc->data_2d; a < tc->data_len; a++, td++, td2d++) {
     tdsq = (TransDataSeq *)td->extra;
     seq = tdsq->seq;
-    float loc[2];
-    view2d_edge_pan_loc_compensate(t, td->loc, loc);
-    new_frame = round_fl_to_int(loc[0]);
+
+    new_frame = round_fl_to_int(td->loc[0] + edge_pan_offset[0]);
 
     switch (tdsq->sel_flag) {
       case SELECT: {
@@ -592,7 +597,7 @@ static void flushTransSeq(TransInfo *t)
             max_offset = offset;
           }
         }
-        seq->machine = round_fl_to_int(loc[1]);
+        seq->machine = round_fl_to_int(td->loc[1] + edge_pan_offset[1]);
         CLAMP(seq->machine, 1, MAXSEQ);
         break;
       }
@@ -671,13 +676,24 @@ static void recalcData_sequencer(TransInfo *t)
 
 static void special_aftertrans_update__sequencer(bContext * /*C*/, TransInfo *t)
 {
+  SpaceSeq *sseq = (SpaceSeq *)t->area->spacedata.first;
+  if ((sseq->flag & SPACE_SEQ_DESELECT_STRIP_HANDLE) != 0 &&
+      transform_mode_edge_seq_slide_use_restore_handle_selection(t))
+  {
+    TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
+    blender::VectorSet<Sequence *> strips = seq_transform_collection_from_transdata(tc);
+    for (Sequence *seq : strips) {
+      seq->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
+    }
+  }
+
+  sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
+
+  /* #freeSeqData in `transform_conversions.cc` does this
+   * keep here so the else at the end won't run. */
   if (t->state == TRANS_CANCEL) {
     return;
   }
-  /* #freeSeqData in `transform_conversions.cc` does this
-   * keep here so the else at the end won't run. */
-
-  SpaceSeq *sseq = (SpaceSeq *)t->area->spacedata.first;
 
   /* Marker transform, not especially nice but we may want to move markers
    * at the same time as strips in the Video Sequencer. */

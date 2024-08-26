@@ -831,6 +831,11 @@ typedef struct RenderData {
 
   /** Precision used by the GPU execution of the compositor tree. */
   int compositor_precision; /* eCompositorPrecision */
+
+  /* If false and the experimental enable_new_cpu_compositor is true, use the new experimental
+   * CPU compositor implementation, otherwise, use the old CPU compositor. */
+  char use_old_cpu_compositor;
+  char _pad10[7];
 } RenderData;
 
 /** #RenderData::quality_flag */
@@ -915,27 +920,29 @@ typedef struct TimeMarker {
 
 typedef struct Paint_Runtime {
   /** Avoid having to compare with scene pointer everywhere. */
-  unsigned int tool_offset;
+  unsigned int initialized;
   unsigned short ob_mode;
   char _pad[2];
 } Paint_Runtime;
 
-/** We might want to store other things here. */
-typedef struct PaintToolSlot {
-  struct Brush *brush;
-} PaintToolSlot;
-
 /** Paint Tool Base. */
 typedef struct Paint {
+  /**
+   * The active brush. Possibly null. Possibly stored in a separate #Main data-base and not user-
+   * counted.
+   */
   struct Brush *brush;
 
   /**
-   * Each tool has its own active brush,
-   * The currently active tool is defined by the current 'brush'.
+   * A weak asset reference to the #brush, if not NULL.
+   * Used to attempt restoring the active brush from the AssetLibrary system, typically on
+   * file load.
    */
-  struct PaintToolSlot *tool_slots;
-  int tool_slots_len;
-  char _pad1[4];
+  struct AssetWeakReference *brush_asset_reference;
+
+  /** Default eraser brush and associated weak reference. */
+  struct Brush *eraser_brush;
+  struct AssetWeakReference *eraser_brush_asset_reference;
 
   struct Palette *palette;
   /** Cavity curve. */
@@ -1909,11 +1916,6 @@ typedef struct SceneEEVEE {
 
   struct RaytraceEEVEE ray_tracing_options;
 
-  struct LightCache *light_cache DNA_DEPRECATED;
-  struct LightCache *light_cache_data;
-  /* Need a 128 byte string for some translations of some messages. */
-  char light_cache_info[128];
-
   float overscan;
   float light_threshold;
 } SceneEEVEE;
@@ -2051,7 +2053,7 @@ typedef struct Scene {
    * only used by #BKE_object_handle_update()
    */
   struct CustomData_MeshMasks customdata_mask;
-  /** XXX: same as above but for temp operator use (viewport renders). */
+  /** XXX: same as `customdata_mask` but for temp operator use (viewport renders). */
   struct CustomData_MeshMasks customdata_mask_modal;
 
   /* Color Management. */
@@ -2441,6 +2443,11 @@ enum {
   SEQ_SNAP_TO_CURRENT_FRAME = 1 << 1,
   SEQ_SNAP_TO_STRIP_HOLD = 1 << 2,
   SEQ_SNAP_TO_MARKERS = 1 << 3,
+
+  /* Preview snapping. */
+  SEQ_SNAP_TO_PREVIEW_BORDERS = 1 << 4,
+  SEQ_SNAP_TO_PREVIEW_CENTER = 1 << 5,
+  SEQ_SNAP_TO_STRIPS_PREVIEW = 1 << 6,
 };
 
 /** #SequencerToolSettings::snap_flag */
@@ -2828,7 +2835,7 @@ enum {
   SCE_EEVEE_GTAO_BENT_NORMALS = (1 << 5),
   SCE_EEVEE_GTAO_BOUNCE = (1 << 6),
   // SCE_EEVEE_DOF_ENABLED = (1 << 7), /* Moved to camera->dof.flag */
-  SCE_EEVEE_BLOOM_ENABLED = (1 << 8),
+  // SCE_EEVEE_BLOOM_ENABLED = (1 << 8), /* Unused */
   SCE_EEVEE_MOTION_BLUR_ENABLED_DEPRECATED = (1 << 9), /* Moved to scene->r.mode */
   SCE_EEVEE_SHADOW_HIGH_BITDEPTH = (1 << 10),
   SCE_EEVEE_TAA_REPROJECTION = (1 << 11),
@@ -2848,6 +2855,7 @@ enum {
   SCE_EEVEE_RAYTRACE_OPTIONS_SPLIT = (1 << 25),
   SCE_EEVEE_SHADOW_JITTERED_VIEWPORT = (1 << 26),
   SCE_EEVEE_VOLUME_CUSTOM_RANGE = (1 << 27),
+  SCE_EEVEE_FAST_GI_ENABLED = (1 << 28),
 };
 
 typedef enum RaytraceEEVEE_Flag {

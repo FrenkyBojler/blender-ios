@@ -14,7 +14,7 @@
 #include "BLI_string_utils.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BKE_screen.hh"
 
@@ -140,7 +140,9 @@ static void node_declare(NodeDeclarationBuilder &b)
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
         const StringRef name = item.name ? item.name : "";
         const std::string identifier = RepeatItemsAccessor::socket_identifier_for_item(item);
-        auto &input_decl = b.add_input(socket_type, name, identifier);
+        auto &input_decl = b.add_input(socket_type, name, identifier)
+                               .socket_name_ptr(
+                                   &tree->id, RepeatItemsAccessor::item_srna, &item, "name");
         auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
         if (socket_type_supports_fields(socket_type)) {
           input_decl.supports_field();
@@ -192,7 +194,7 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryRepeatInput", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -206,6 +208,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
+  const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (node) {
     const NodeGeometryRepeatOutput &storage = node_storage(*node);
@@ -214,7 +217,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const StringRef name = item.name ? item.name : "";
       const std::string identifier = RepeatItemsAccessor::socket_identifier_for_item(item);
-      auto &input_decl = b.add_input(socket_type, name, identifier);
+      auto &input_decl = b.add_input(socket_type, name, identifier)
+                             .socket_name_ptr(
+                                 &tree->id, RepeatItemsAccessor::item_srna, &item, "name");
       auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
       if (socket_type_supports_fields(socket_type)) {
         input_decl.supports_field();
@@ -250,7 +255,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryRepeatOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new<NodeGeometryRepeatOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_cnew<NodeGeometryRepeatOutput>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<RepeatItemsAccessor>(*src_node, *dst_node);
@@ -300,7 +305,7 @@ static void node_register()
   ntype.register_operators = node_operators;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryRepeatOutput", node_free_storage, node_copy_storage);
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

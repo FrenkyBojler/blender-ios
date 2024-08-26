@@ -20,6 +20,8 @@
 #include "UI_interface_icons.hh"
 #include "WM_types.hh"
 
+#include "MEM_guardedalloc.h"
+
 /* Struct Declarations */
 
 struct ARegion;
@@ -128,7 +130,7 @@ enum eUIEmbossType {
   /** Pull-down menu style */
   UI_EMBOSS_PULLDOWN = 2,
   /** Pie Menu */
-  UI_EMBOSS_RADIAL = 3,
+  UI_EMBOSS_PIE_MENU = 3,
   /**
    * The same as #UI_EMBOSS_NONE, unless the button has
    * a coloring status like an animation state or red alert.
@@ -171,7 +173,7 @@ enum {
 
   UI_BLOCK_POPUP_HOLD = 1 << 18,
   UI_BLOCK_LIST_ITEM = 1 << 19,
-  UI_BLOCK_RADIAL = 1 << 20,
+  UI_BLOCK_PIE_MENU = 1 << 20,
   UI_BLOCK_POPOVER = 1 << 21,
   UI_BLOCK_POPOVER_ONCE = 1 << 22,
   /** Always show key-maps, even for non-menus. */
@@ -264,6 +266,12 @@ enum {
    * However, sometimes this behavior is not desired, so it can be disabled with this flag.
    */
   UI_BUT2_ACTIVATE_ON_INIT_NO_SELECT = 1 << 0,
+  /**
+   * Force the button as active in a semi-modal state. For example, text buttons can continuously
+   * capture text input, while leaving the remaining UI interactive. Only supported well for text
+   * buttons currently.
+   */
+  UI_BUT2_FORCE_SEMI_MODAL_ACTIVE = 1 << 1,
 };
 
 /** #uiBut.dragflag */
@@ -283,9 +291,12 @@ enum {
 /** Larger size used for title text. */
 #define UI_DEFAULT_TITLE_POINTS 11.0f
 
+/** Size of tooltip text. */
+#define UI_DEFAULT_TOOLTIP_POINTS 11.0f
+
 #define UI_PANEL_WIDTH 340
 #define UI_COMPACT_PANEL_WIDTH 160
-#define UI_SIDEBAR_PANEL_WIDTH 220
+#define UI_SIDEBAR_PANEL_WIDTH 280
 #define UI_NAVIGATION_REGION_WIDTH UI_COMPACT_PANEL_WIDTH
 #define UI_NARROW_NAVIGATION_REGION_WIDTH 100
 
@@ -571,6 +582,13 @@ using uiButHandleHoldFunc = void (*)(bContext *C, ARegion *butregion, uiBut *but
 using uiButCompleteFunc = int (*)(bContext *C, char *str, void *arg);
 
 /**
+ * Signatures of callbacks used to free or copy some 'owned' void pointer data (like e.g.
+ * #func_argN in #uiBut or #uiBlock).
+ */
+using uiButArgNFree = void (*)(void *argN);
+using uiButArgNCopy = void *(*)(const void *argN);
+
+/**
  * Function to compare the identity of two buttons over redraws, to check if they represent the
  * same data, and thus should be considered the same button over redraws.
  */
@@ -596,7 +614,7 @@ using uiButSearchListenFn = void (*)(const wmRegionListenerParams *params, void 
 /** Must return an allocated string. */
 using uiButToolTipFunc = std::string (*)(bContext *C, void *argN, const char *tip);
 
-using uiButToolTipCustomFunc = void (*)(bContext *C, uiTooltipData *data, void *argN);
+using uiButToolTipCustomFunc = void (*)(bContext &C, uiTooltipData &data, void *argN);
 
 using uiBlockHandleFunc = void (*)(bContext *C, void *arg, int event);
 
@@ -674,6 +692,11 @@ bool UI_but_is_utf8(const uiBut *but);
 bool UI_block_is_empty_ex(const uiBlock *block, bool skip_title);
 bool UI_block_is_empty(const uiBlock *block);
 bool UI_block_can_add_separator(const uiBlock *block);
+/**
+ * Return true when the block has a default button.
+ * Use this for popups to detect when pressing "Return" will run an action.
+ */
+bool UI_block_has_active_default_button(const uiBlock *block);
 
 uiList *UI_list_find_mouse_over(const ARegion *region, const wmEvent *event);
 
@@ -749,7 +772,8 @@ int UI_popover_panel_invoke(bContext *C, const char *idname, bool keep_open, Rep
  * \param from_active_button: Use the active button for positioning,
  * use when the popover is activated from an operator instead of directly from the button.
  */
-uiPopover *UI_popover_begin(bContext *C, int menu_width, bool from_active_button) ATTR_NONNULL(1);
+uiPopover *UI_popover_begin(bContext *C, int ui_menu_width, bool from_active_button)
+    ATTR_NONNULL(1);
 /**
  * Set the whole structure to work.
  */
@@ -801,6 +825,33 @@ void UI_popup_block_ex(bContext *C,
                        uiBlockCancelFunc cancel_func,
                        void *arg,
                        wmOperator *op);
+
+/**
+ * Return true when #UI_popup_block_template_confirm and related functions are supported.
+ */
+bool UI_popup_block_template_confirm_is_supported(const uiBlock *block);
+/**
+ * Create confirm & cancel buttons in a popup using callback functions.
+ */
+void UI_popup_block_template_confirm(uiBlock *block,
+                                     bool cancel_default,
+                                     blender::FunctionRef<uiBut *()> confirm_fn,
+                                     blender::FunctionRef<uiBut *()> cancel_fn);
+/**
+ * Create confirm & cancel buttons in a popup using an operator.
+ *
+ * \param confirm_text: The text to confirm, null for default text or an empty string to hide.
+ * \param cancel_text: The text to cancel, null for default text or an empty string to hide.
+ * \param r_ptr: The pointer for operator properties, set a "confirm" button has been created.
+ */
+void UI_popup_block_template_confirm_op(uiLayout *layout,
+                                        wmOperatorType *ot,
+                                        const char *confirm_text,
+                                        const char *cancel_text,
+                                        const int icon,
+                                        bool cancel_default,
+                                        PointerRNA *r_ptr);
+
 #if 0 /* UNUSED */
 void uiPupBlockOperator(bContext *C,
                         uiBlockCreateFunc func,
@@ -873,7 +924,7 @@ void UI_blocklist_free_inactive(const bContext *C, ARegion *region);
  * Is called by notifier.
  */
 void UI_screen_free_active_but_highlight(const bContext *C, bScreen *screen);
-void UI_region_free_active_but_all(bContext *context, ARegion *region);
+void UI_region_free_active_but_all(bContext *C, ARegion *region);
 
 void UI_block_region_set(uiBlock *block, ARegion *region);
 
@@ -1368,6 +1419,17 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
                              short height,
                              const char *tip);
 
+void UI_but_operator_set(uiBut *but,
+                         wmOperatorType *optype,
+                         wmOperatorCallContext opcontext,
+                         const PointerRNA *opptr = nullptr);
+/**
+ * Disable calling operators from \a but in button handling. Useful to attach an operator to a
+ * button for tooltips, "Assign Shortcut", etc. without actually making the button execute the
+ * operator.
+ */
+void UI_but_operator_set_never_call(uiBut *but);
+
 /** For passing inputs to ButO buttons. */
 PointerRNA *UI_but_operator_ptr_ensure(uiBut *but);
 
@@ -1387,6 +1449,7 @@ std::optional<EnumPropertyItem> UI_but_rna_enum_item_get(bContext &C, uiBut &but
 std::string UI_but_string_get_rna_property_identifier(const uiBut &but);
 std::string UI_but_string_get_rna_struct_identifier(const uiBut &but);
 std::string UI_but_string_get_label(uiBut &but);
+std::string UI_but_context_menu_title_from_button(uiBut &but);
 /**
  * Query the result of #uiBut::tip_label_func().
  * Meant to allow overriding the label to be displayed in the tool-tip.
@@ -1406,10 +1469,6 @@ std::string UI_but_extra_icon_string_get_label(const uiButExtraOpIcon &extra_ico
 std::string UI_but_extra_icon_string_get_tooltip(bContext &C, const uiButExtraOpIcon &extra_icon);
 std::string UI_but_extra_icon_string_get_operator_keymap(const bContext &C,
                                                          const uiButExtraOpIcon &extra_icon);
-
-/* Edit i18n stuff. */
-/* Name of the main py op from i18n addon. */
-#define EDTSRC_I18N_OP_NAME "UI_OT_edittranslation"
 
 /**
  * Special Buttons
@@ -1517,7 +1576,9 @@ uiBut *uiDefBlockButN(uiBlock *block,
                       int y,
                       short width,
                       short height,
-                      const char *tip);
+                      const char *tip,
+                      uiButArgNFree func_argN_free_fn = MEM_freeN,
+                      uiButArgNCopy func_argN_copy_fn = MEM_dupallocN);
 
 /**
  * Block button containing icon.
@@ -1540,7 +1601,7 @@ uiBut *uiDefSearchBut(uiBlock *block,
                       void *arg,
                       int retval,
                       int icon,
-                      int maxlen,
+                      int maxncpy,
                       int x,
                       int y,
                       short width,
@@ -1556,7 +1617,7 @@ uiBut *uiDefSearchButO_ptr(uiBlock *block,
                            void *arg,
                            int retval,
                            int icon,
-                           int maxlen,
+                           int maxncpy,
                            int x,
                            int y,
                            short width,
@@ -1715,11 +1776,21 @@ void UI_but_search_preview_grid_size_set(uiBut *but, int rows, int cols);
 
 void UI_block_func_handle_set(uiBlock *block, uiBlockHandleFunc func, void *arg);
 void UI_block_func_set(uiBlock *block, uiButHandleFunc func, void *arg1, void *arg2);
-void UI_block_funcN_set(uiBlock *block, uiButHandleNFunc funcN, void *argN, void *arg2);
+void UI_block_funcN_set(uiBlock *block,
+                        uiButHandleNFunc funcN,
+                        void *argN,
+                        void *arg2,
+                        uiButArgNFree func_argN_free_fn = MEM_freeN,
+                        uiButArgNCopy func_argN_copy_fn = MEM_dupallocN);
 
 void UI_but_func_rename_set(uiBut *but, uiButHandleRenameFunc func, void *arg1);
 void UI_but_func_set(uiBut *but, uiButHandleFunc func, void *arg1, void *arg2);
-void UI_but_funcN_set(uiBut *but, uiButHandleNFunc funcN, void *argN, void *arg2);
+void UI_but_funcN_set(uiBut *but,
+                      uiButHandleNFunc funcN,
+                      void *argN,
+                      void *arg2,
+                      uiButArgNFree func_argN_free_fn = MEM_freeN,
+                      uiButArgNCopy func_argN_copy_fn = MEM_dupallocN);
 
 void UI_but_func_complete_set(uiBut *but, uiButCompleteFunc func, void *arg);
 
@@ -1781,7 +1852,7 @@ void UI_but_func_tooltip_custom_set(uiBut *but,
  * \param text: Allocated text (transfer ownership to `data`) or null.
  * \param suffix: Allocated text (transfer ownership to `data`) or null.
  */
-void UI_tooltip_text_field_add(uiTooltipData *data,
+void UI_tooltip_text_field_add(uiTooltipData &data,
                                std::string text,
                                std::string suffix,
                                const uiTooltipStyle style,
@@ -1792,7 +1863,7 @@ void UI_tooltip_text_field_add(uiTooltipData *data,
  * \param image: Image buffer (duplicated, ownership is *not* transferred to `data`).
  * \param image_size: Display size for the image (pixels without UI scale applied).
  */
-void UI_tooltip_image_field_add(uiTooltipData *data, const uiTooltipImage &image_data);
+void UI_tooltip_image_field_add(uiTooltipData &data, const uiTooltipImage &image_data);
 
 /**
  * Recreate tool-tip (use to update dynamic tips)
@@ -1808,7 +1879,7 @@ bool UI_textbutton_activate_rna(const bContext *C,
                                 ARegion *region,
                                 const void *rna_poin_data,
                                 const char *rna_prop_id);
-bool UI_textbutton_activate_but(const bContext *C, uiBut *but);
+bool UI_textbutton_activate_but(const bContext *C, uiBut *actbut);
 
 /**
  * push a new event onto event queue to activate the given button
@@ -1845,7 +1916,7 @@ struct AutoComplete;
 #define AUTOCOMPLETE_FULL_MATCH 1
 #define AUTOCOMPLETE_PARTIAL_MATCH 2
 
-AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxlen);
+AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy);
 void UI_autocomplete_update_name(AutoComplete *autocpl, const char *name);
 int UI_autocomplete_end(AutoComplete *autocpl, char *autoname);
 
@@ -2031,6 +2102,10 @@ void UI_init_userdef();
 void UI_reinit_font();
 void UI_exit();
 
+/* When changing UI font, update text style weights with default font weight
+ * if non-variable. Therefore fixed weight bold font will look bold. */
+void UI_update_text_styles();
+
 /* Layout
  *
  * More automated layout of buttons. Has three levels:
@@ -2096,8 +2171,13 @@ enum eUI_Item_Flag {
   UI_ITEM_R_FORCE_BLANK_DECORATE = 1 << 13,
   /* Even create the property split layout if there's no name to show there. */
   UI_ITEM_R_SPLIT_EMPTY_NAME = 1 << 14,
+  /**
+   * Only for text buttons (for now): Force the button as active in a semi-modal state (capturing
+   * text input while leaving the remaining UI interactive).
+   */
+  UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE = 1 << 15,
 };
-ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_SPLIT_EMPTY_NAME)
+ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
 
 #define UI_HEADER_OFFSET ((void)0, 0.4f * UI_UNIT_X)
@@ -2199,6 +2279,10 @@ MenuType *UI_but_menutype_get(const uiBut *but);
  * This is a bit of a hack but best keep it in one place at least.
  */
 PanelType *UI_but_paneltype_get(const uiBut *but);
+/**
+ * This is a bit of a hack but best keep it in one place at least.
+ */
+std::optional<blender::StringRefNull> UI_but_asset_shelf_type_idname_get(const uiBut *but);
 void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout);
 /**
  * Used for popup panels only.
@@ -2246,6 +2330,9 @@ bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
 Panel *uiLayoutGetRootPanel(uiLayout *layout);
 float uiLayoutGetSearchWeight(uiLayout *layout);
+
+int uiLayoutListItemPaddingWidth();
+void uiLayoutListItemAddPadding(uiLayout *layout);
 
 /* Layout create functions. */
 
@@ -2350,6 +2437,7 @@ uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align);
 uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, bool align);
 uiLayout *uiLayoutOverlap(uiLayout *layout);
 uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout);
+/** Pie menu layout: Buttons are arranged around a center. */
 uiLayout *uiLayoutRadial(uiLayout *layout);
 
 /* templates */
@@ -2442,7 +2530,6 @@ void uiTemplatePathBuilder(uiLayout *layout,
                            PointerRNA *root_ptr,
                            const char *text);
 void uiTemplateModifiers(uiLayout *layout, bContext *C);
-void uiTemplateGpencilModifiers(uiLayout *layout, bContext *C);
 /**
  * Check if the shader effect panels don't match the data and rebuild the panels if so.
  */
@@ -2718,8 +2805,11 @@ void uiTemplateAssetView(uiLayout *layout,
 
 namespace blender::ui {
 
-void template_asset_shelf_popover(
-    uiLayout &layout, const bContext &C, StringRefNull asset_shelf_id, StringRef name, int icon);
+void template_asset_shelf_popover(uiLayout &layout,
+                                  const bContext &C,
+                                  StringRefNull asset_shelf_id,
+                                  StringRefNull name,
+                                  int icon);
 
 }
 
@@ -2729,10 +2819,7 @@ void uiTemplateLightLinkingCollection(uiLayout *layout,
                                       const char *propname);
 
 void uiTemplateBoneCollectionTree(uiLayout *layout, bContext *C);
-
-#ifdef WITH_GREASE_PENCIL_V3
 void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C);
-#endif
 
 void uiTemplateNodeTreeInterface(uiLayout *layout, PointerRNA *ptr);
 /**
@@ -2789,7 +2876,7 @@ void uiItemEnumO_string(uiLayout *layout,
                         int icon,
                         const char *opname,
                         const char *propname,
-                        const char *value);
+                        const char *value_str);
 void uiItemsEnumO(uiLayout *layout, const char *opname, const char *propname);
 void uiItemBooleanO(uiLayout *layout,
                     const char *name,
@@ -3193,7 +3280,7 @@ void UI_fontstyle_draw(const uiFontStyle *fs,
                        const uchar col[4],
                        const uiFontStyleDraw_Params *fs_params);
 /**
- * Drawn same as above, but at 90 degree angle.
+ * Drawn same as #UI_fontstyle_draw, but at 90 degree angle.
  */
 void UI_fontstyle_draw_rotated(const uiFontStyle *fs,
                                const rcti *rect,
@@ -3286,8 +3373,8 @@ void UI_butstore_clear(uiBlock *block);
  * Map freed buttons from the old block and update pointers.
  */
 void UI_butstore_update(uiBlock *block);
-void UI_butstore_free(uiBlock *block, uiButStore *bs);
-bool UI_butstore_is_valid(uiButStore *bs);
+void UI_butstore_free(uiBlock *block, uiButStore *bs_handle);
+bool UI_butstore_is_valid(uiButStore *bs_handle);
 bool UI_butstore_is_registered(uiBlock *block, uiBut *but);
 void UI_butstore_register(uiButStore *bs_handle, uiBut **but_p);
 /**
@@ -3320,15 +3407,6 @@ ARegion *UI_tooltip_create_from_button_or_extra_icon(
 ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
 void UI_tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 
-struct uiSearchItemTooltipData {
-  /** A description for the item, e.g. what happens when selecting it. */
-  char description[UI_MAX_DRAW_STR];
-  /* The full name of the item, without prefixes or suffixes (e.g. hint with UI_SEP_CHARP). */
-  const char *name;
-  /** Additional info about the item (e.g. library name of a linked data-block). */
-  char hint[UI_MAX_DRAW_STR];
-};
-
 /**
  * Create a tooltip from search-item tooltip data \a item_tooltip data.
  * To be called from a callback set with #UI_but_func_search_set_tooltip().
@@ -3336,11 +3414,10 @@ struct uiSearchItemTooltipData {
  * \param item_rect: Rectangle of the search item in search region space (#ui_searchbox_butrect())
  *                   which is passed to the tooltip callback.
  */
-ARegion *UI_tooltip_create_from_search_item_generic(
-    bContext *C,
-    const ARegion *searchbox_region,
-    const rcti *item_rect,
-    const uiSearchItemTooltipData *item_tooltip_data);
+ARegion *UI_tooltip_create_from_search_item_generic(bContext *C,
+                                                    const ARegion *searchbox_region,
+                                                    const rcti *item_rect,
+                                                    ID *id);
 
 /* How long before a tool-tip shows. */
 #define UI_TOOLTIP_DELAY 0.5
@@ -3353,7 +3430,6 @@ ARegion *UI_tooltip_create_from_search_item_generic(
 
 /* Typical UI text */
 #define UI_FSTYLE_WIDGET (const uiFontStyle *)&(UI_style_get()->widget)
-#define UI_FSTYLE_WIDGET_LABEL (const uiFontStyle *)&(UI_style_get()->widgetlabel)
 
 /**
  * Returns the best "UI" precision for given floating value,
@@ -3395,6 +3471,8 @@ bool UI_view_item_can_rename(const blender::ui::AbstractViewItem &item);
 void UI_view_item_begin_rename(blender::ui::AbstractViewItem &item);
 
 bool UI_view_item_supports_drag(const blender::ui::AbstractViewItem &item);
+/** If this view is displayed in a popup, don't close it when clicking to activate items. */
+bool UI_view_item_popup_keep_open(const blender::ui::AbstractViewItem &item);
 /**
  * Attempt to start dragging \a item_. This will not work if the view item doesn't
  * support dragging, i.e. if it won't create a drag-controller upon request.
@@ -3414,3 +3492,4 @@ blender::ui::AbstractViewItem *UI_region_views_find_item_at(const ARegion &regio
                                                             const int xy[2]);
 blender::ui::AbstractViewItem *UI_region_views_find_active_item(const ARegion *region);
 uiBut *UI_region_views_find_active_item_but(const ARegion *region);
+void UI_region_views_clear_search_highlight(const ARegion *region);

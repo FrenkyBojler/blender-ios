@@ -11,7 +11,6 @@
 #include "BKE_curves.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_lib_id.hh"
@@ -71,7 +70,7 @@ void GPENCIL_engine_init(void *ved)
 
   GPENCIL_ViewLayerData *vldata = GPENCIL_view_layer_data_ensure();
 
-  /* Resize and reset memblocks. */
+  /* Resize and reset memory-blocks. */
   BLI_memblock_clear(vldata->gp_light_pool, gpencil_light_pool_free);
   BLI_memblock_clear(vldata->gp_material_pool, gpencil_material_pool_free);
   BLI_memblock_clear(vldata->gp_object_pool, nullptr);
@@ -716,7 +715,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
     const Layer &layer = *layers[info.layer_index];
 
     const bke::CurvesGeometry &curves = info.drawing.strokes();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
     const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(
         "cyclic", bke::AttrDomain::Curve, false);
@@ -732,13 +731,13 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
     Array<int> num_vertices_per_stroke(visible_strokes.size());
     int total_num_triangles = 0;
     int total_num_vertices = 0;
-    visible_strokes.foreach_index([&](const int stroke_i) {
+    visible_strokes.foreach_index([&](const int stroke_i, const int pos) {
       const IndexRange points = points_by_curve[stroke_i];
       const int num_stroke_triangles = (points.size() >= 3) ? (points.size() - 2) : 0;
       const int num_stroke_vertices = (points.size() +
                                        int(cyclic[stroke_i] && (points.size() >= 3)));
-      num_triangles_per_stroke[stroke_i] = num_stroke_triangles;
-      num_vertices_per_stroke[stroke_i] = num_stroke_vertices;
+      num_triangles_per_stroke[pos] = num_stroke_triangles;
+      num_vertices_per_stroke[pos] = num_stroke_vertices;
       total_num_triangles += num_stroke_triangles;
       total_num_vertices += num_stroke_vertices;
     });
@@ -788,9 +787,12 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
                             info.frame_number != pd->cfra && pd->use_multiedit_lines_only;
     const bool is_onion = info.onion_id != 0;
 
-    visible_strokes.foreach_index([&](const int stroke_i) {
+    visible_strokes.foreach_index([&](const int stroke_i, const int pos) {
       const IndexRange points = points_by_curve[stroke_i];
-      const int material_index = stroke_materials[stroke_i];
+      /* The material index is allowed to be negative as it's stored as a generic attribute. We
+       * clamp it here to avoid crashing in the rendering code. Any stroke with a material < 0 will
+       * use the first material in the first material slot.*/
+      const int material_index = std::max(stroke_materials[stroke_i], 0);
       const MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
 
       const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
@@ -804,8 +806,8 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
                                (only_lines && !is_onion) || hide_onion;
 
       if (skip_stroke) {
-        t_offset += num_triangles_per_stroke[stroke_i];
-        t_offset += num_vertices_per_stroke[stroke_i] * 2;
+        t_offset += num_triangles_per_stroke[pos];
+        t_offset += num_vertices_per_stroke[pos] * 2;
         return;
       }
 
@@ -851,19 +853,19 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(GPENCIL_PrivateData 
 
       if (show_fill) {
         const int v_first = t_offset * 3;
-        const int v_count = num_triangles_per_stroke[stroke_i] * 3;
+        const int v_count = num_triangles_per_stroke[pos] * 3;
         drawcall_add(geom, v_first, v_count);
       }
 
-      t_offset += num_triangles_per_stroke[stroke_i];
+      t_offset += num_triangles_per_stroke[pos];
 
       if (show_stroke) {
         const int v_first = t_offset * 3;
-        const int v_count = num_vertices_per_stroke[stroke_i] * 2 * 3;
+        const int v_count = num_vertices_per_stroke[pos] * 2 * 3;
         drawcall_add(geom, v_first, v_count);
       }
 
-      t_offset += num_vertices_per_stroke[stroke_i] * 2;
+      t_offset += num_vertices_per_stroke[pos] * 2;
     });
   }
 
@@ -903,17 +905,8 @@ void GPENCIL_cache_populate(void *ved, Object *ob)
     /* When render in background the active frame could not be properly set due thread priority,
      * better set again. This is not required in viewport. */
     if (txl->render_depth_tx) {
-      const bool time_remap = BKE_gpencil_has_time_modifiers(ob);
-      const DRWContextState *draw_ctx = DRW_context_state_get();
-
       LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-        /* If there is a time modifier, need remap the time before. */
-        if (time_remap) {
-          gpl->actframe = BKE_gpencil_frame_retime_get(draw_ctx->depsgraph, pd->scene, ob, gpl);
-        }
-        else {
-          gpl->actframe = BKE_gpencil_layer_frame_get(gpl, pd->cfra, GP_GETFRAME_USE_PREV);
-        }
+        gpl->actframe = BKE_gpencil_layer_frame_get(gpl, pd->cfra, GP_GETFRAME_USE_PREV);
       }
     }
 

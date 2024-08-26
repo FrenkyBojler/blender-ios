@@ -73,7 +73,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
@@ -91,6 +91,7 @@
 
 #include "NOD_geometry.hh"
 #include "NOD_geometry_nodes_execute.hh"
+#include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
 
@@ -731,9 +732,41 @@ static void find_side_effect_nodes_for_baking(const NodesModifierData &nmd,
   }
 }
 
+static void find_side_effect_nodes_for_active_gizmos(
+    const NodesModifierData &nmd,
+    const ModifierEvalContext &ctx,
+    const wmWindowManager &wm,
+    nodes::GeoNodesSideEffectNodes &r_side_effect_nodes,
+    Set<ComputeContextHash> &r_socket_log_contexts)
+{
+  Object *object_orig = DEG_get_original_object(ctx.object);
+  const NodesModifierData &nmd_orig = *reinterpret_cast<const NodesModifierData *>(
+      BKE_modifier_get_original(ctx.object, const_cast<ModifierData *>(&nmd.modifier)));
+  ComputeContextBuilder compute_context_builder;
+  nodes::gizmos::foreach_active_gizmo_in_modifier(
+      *object_orig,
+      nmd_orig,
+      wm,
+      compute_context_builder,
+      [&](const ComputeContext &compute_context,
+          const bNode &gizmo_node,
+          const bNodeSocket &gizmo_socket) {
+        try_add_side_effect_node(compute_context, gizmo_node.identifier, nmd, r_side_effect_nodes);
+        r_socket_log_contexts.add(compute_context.hash());
+
+        nodes::gizmos::foreach_compute_context_on_gizmo_path(
+            compute_context, gizmo_node, gizmo_socket, [&](const ComputeContext &node_context) {
+              /* Make sure that all intermediate sockets are logged. This is necessary to be able
+               * to evaluate the nodes in reverse for the gizmo. */
+              r_socket_log_contexts.add(node_context.hash());
+            });
+      });
+}
+
 static void find_side_effect_nodes(const NodesModifierData &nmd,
                                    const ModifierEvalContext &ctx,
-                                   nodes::GeoNodesSideEffectNodes &r_side_effect_nodes)
+                                   nodes::GeoNodesSideEffectNodes &r_side_effect_nodes,
+                                   Set<ComputeContextHash> &r_socket_log_contexts)
 {
   Main *bmain = DEG_get_bmain(ctx.depsgraph);
   wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
@@ -759,6 +792,8 @@ static void find_side_effect_nodes(const NodesModifierData &nmd,
   }
 
   find_side_effect_nodes_for_baking(nmd, ctx, r_side_effect_nodes);
+  find_side_effect_nodes_for_active_gizmos(
+      nmd, ctx, *wm, r_side_effect_nodes, r_socket_log_contexts);
 }
 
 static void find_socket_log_contexts(const NodesModifierData &nmd,
@@ -1021,6 +1056,13 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
         {
           if (node_cache->cache_status != bake::CacheStatus::Baked) {
             node_cache->cache_status = bake::CacheStatus::Invalid;
+            if (!node_cache->bake.frames.is_empty()) {
+              if (node_cache->bake.frames.last()->frame == current_frame_) {
+                /* Remove the last (which is the current) cached frame so that it is simulated
+                 * again. */
+                node_cache->bake.frames.pop_last();
+              }
+            }
           }
         }
       }
@@ -1093,14 +1135,16 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
     const SubFrame sim_start_frame{int(sim_frame_range.first())};
     const SubFrame sim_end_frame{int(sim_frame_range.last())};
 
-    /* Try load baked data. */
-    if (!node_cache.bake.failed_finding_bake) {
-      if (node_cache.cache_status != bake::CacheStatus::Baked) {
-        if (try_find_baked_data(node_cache.bake, *bmain_, *ctx_.object, nmd_, zone_id)) {
-          node_cache.cache_status = bake::CacheStatus::Baked;
-        }
-        else {
-          node_cache.bake.failed_finding_bake = true;
+    if (!modifier_cache_->requested_bakes.contains(zone_id)) {
+      /* Try load baked data. */
+      if (!node_cache.bake.failed_finding_bake) {
+        if (node_cache.cache_status != bake::CacheStatus::Baked) {
+          if (try_find_baked_data(node_cache.bake, *bmain_, *ctx_.object, nmd_, zone_id)) {
+            node_cache.cache_status = bake::CacheStatus::Baked;
+          }
+          else {
+            node_cache.bake.failed_finding_bake = true;
+          }
         }
       }
     }
@@ -1704,7 +1748,7 @@ static void modifyGeometry(ModifierData *md,
   }
 
   nodes::GeoNodesSideEffectNodes side_effect_nodes;
-  find_side_effect_nodes(*nmd, *ctx, side_effect_nodes);
+  find_side_effect_nodes(*nmd, *ctx, side_effect_nodes, socket_log_contexts);
   call_data.side_effect_nodes = &side_effect_nodes;
 
   bke::ModifierComputeContext modifier_compute_context{nullptr, nmd->modifier.name};
@@ -1719,7 +1763,7 @@ static void modifyGeometry(ModifierData *md,
     nmd_orig->runtime->eval_log = std::move(eval_log);
   }
 
-  if (DEG_is_active(ctx->depsgraph) && !(ctx->flag & MOD_APPLY_TO_BASE_MESH)) {
+  if (DEG_is_active(ctx->depsgraph) && !(ctx->flag & MOD_APPLY_TO_ORIGINAL)) {
     add_data_block_items_writeback(*ctx, *nmd, *nmd_orig, simulation_params, bake_params);
   }
 
@@ -1916,7 +1960,7 @@ static void add_attribute_search_button(const bContext &C,
     return;
   }
 
-  AttributeSearchData *data = MEM_new<AttributeSearchData>(__func__);
+  AttributeSearchData *data = MEM_cnew<AttributeSearchData>(__func__);
   data->object_session_uid = object->id.session_uid;
   STRNCPY(data->modifier_name, nmd.modifier.name);
   STRNCPY(data->socket_identifier, socket.identifier);
@@ -2130,7 +2174,7 @@ static void draw_interface_panel_content(const bContext *C,
       PointerRNA panel_ptr = RNA_pointer_create(
           modifier_ptr->owner_id, &RNA_NodesModifierPanel, panel);
       if (uiLayout *panel_layout = uiLayoutPanelProp(
-              C, layout, &panel_ptr, "is_open", sub_interface_panel.name))
+              C, layout, &panel_ptr, "is_open", IFACE_(sub_interface_panel.name)))
       {
         draw_interface_panel_content(C, panel_layout, modifier_ptr, nmd, sub_interface_panel);
       }
@@ -2233,7 +2277,7 @@ static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd
       usages.append(IFACE_("Write"));
     }
     if ((usage & geo_log::NamedAttributeUsage::Remove) != geo_log::NamedAttributeUsage::None) {
-      usages.append(IFACE_("Remove"));
+      usages.append(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"));
     }
     for (const int i : usages.index_range()) {
       ss << usages[i];
@@ -2394,6 +2438,16 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   }
 
   BLO_read_struct_array(reader, NodesModifierBake, nmd->bakes_num, &nmd->bakes);
+
+  if (nmd->bakes_num > 0 && nmd->bakes == nullptr) {
+    /* This case generally shouldn't be allowed to happen. However, there is a bug report with a
+     * corrupted .blend file (#123974) that triggers this case. Unfortunately, it's not clear how
+     * that could have happened. For now, handle this case more gracefully in release builds, while
+     * still crashing in debug builds. */
+    nmd->bakes_num = 0;
+    BLI_assert_unreachable();
+  }
+
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
     BLO_read_string(reader, &bake.directory);
 

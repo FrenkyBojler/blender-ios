@@ -16,10 +16,10 @@ bl_info = {
     "version": (3, 0),
     "blender": (4, 2, 0),
     "location": "N-panel in the 3D Viewport",
+    "description": "Copy and paste object and bone transforms with ease",
     "category": "Animation",
     "support": 'OFFICIAL',
     "doc_url": "{BLENDER_MANUAL_URL}/addons/animation/copy_global_transform.html",
-    "tracker_url": "https://projects.blender.org/blender/blender-addons/issues",
 }
 
 import ast
@@ -28,7 +28,7 @@ import contextlib
 from typing import Iterable, Optional, Union, Any, TypeAlias, Iterator
 
 import bpy
-from bpy.types import Context, Object, Operator, Panel, PoseBone, UILayout, FCurve, Camera, FModifierStepped
+from bpy.types import Context, Object, Operator, Panel, PoseBone, UILayout, Camera
 from mathutils import Matrix
 
 

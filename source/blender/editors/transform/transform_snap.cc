@@ -167,6 +167,10 @@ bool transformModeUseSnap(const TransInfo *t)
   }
   ToolSettings *ts = t->settings;
   if (t->mode == TFM_TRANSLATION) {
+    /* VSE preview snapping should also not depend on the 3D viewport. */
+    if (t->spacetype == SPACE_SEQ) {
+      return true;
+    }
     return (ts->snap_transform_mode_flag & SCE_SNAP_TRANSFORM_MODE_TRANSLATE) != 0;
   }
   if (t->mode == TFM_ROTATION) {
@@ -357,11 +361,31 @@ void drawSnapping(TransInfo *t)
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ubv(col);
     float pixelx = BLI_rctf_size_x(&region->v2d.cur) / BLI_rcti_size_x(&region->v2d.mask);
-    immRectf(pos,
-             t->tsnap.snap_target[0] - pixelx,
-             region->v2d.cur.ymax,
-             t->tsnap.snap_target[0] + pixelx,
-             region->v2d.cur.ymin);
+
+    if (region->regiontype == RGN_TYPE_PREVIEW) {
+      if (t->tsnap.direction & DIR_GLOBAL_X) {
+        immRectf(pos,
+                 t->tsnap.snap_target[0] - pixelx,
+                 region->v2d.cur.ymax,
+                 t->tsnap.snap_target[0] + pixelx,
+                 region->v2d.cur.ymin);
+      }
+      if (t->tsnap.direction & DIR_GLOBAL_Y) {
+        immRectf(pos,
+                 region->v2d.cur.xmin,
+                 t->tsnap.snap_target[1] - pixelx,
+                 region->v2d.cur.xmax,
+                 t->tsnap.snap_target[1] + pixelx);
+      }
+    }
+    else {
+      immRectf(pos,
+               t->tsnap.snap_target[0] - pixelx,
+               region->v2d.cur.ymax,
+               t->tsnap.snap_target[0] + pixelx,
+               region->v2d.cur.ymin);
+    }
+
     immUnbindProgram();
     GPU_blend(GPU_BLEND_NONE);
   }
@@ -1223,7 +1247,8 @@ static void snap_target_view3d_fn(TransInfo *t, float * /*vec*/)
 static void snap_target_uv_fn(TransInfo *t, float * /*vec*/)
 {
   BLI_assert(t->spacetype == SPACE_IMAGE);
-  if (t->tsnap.mode & (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_GRID)) {
+  bool found = false;
+  if (t->tsnap.mode & SCE_SNAP_TO_VERTEX) {
     const Vector<Object *> objects =
         BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
             t->scene, t->view_layer, nullptr);
@@ -1239,16 +1264,16 @@ static void snap_target_uv_fn(TransInfo *t, float * /*vec*/)
     {
       t->tsnap.snap_target[0] *= t->aspect[0];
       t->tsnap.snap_target[1] *= t->aspect[1];
-
-      t->tsnap.status |= SNAP_TARGET_FOUND;
-    }
-    else if ((t->tsnap.mode & SCE_SNAP_TO_GRID) && snap_grid_uv(t, t->tsnap.snap_target)) {
-      t->tsnap.status |= SNAP_TARGET_FOUND;
-    }
-    else {
-      t->tsnap.status &= ~SNAP_TARGET_FOUND;
+      t->tsnap.target_type = SCE_SNAP_TO_EDGE_ENDPOINT;
+      found = true;
     }
   }
+
+  if (!found && (t->tsnap.mode & SCE_SNAP_TO_GRID)) {
+    found = snap_grid_uv(t, t->tsnap.snap_target);
+  }
+
+  SET_FLAG_FROM_TEST(t->tsnap.status, found, SNAP_TARGET_FOUND);
 }
 
 static void snap_target_node_fn(TransInfo *t, float * /*vec*/)

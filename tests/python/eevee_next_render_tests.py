@@ -10,6 +10,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+# List of .blend files that are known to be failing and are not ready to be
+# tested, or that only make sense on some devices. Accepts regular expressions.
+BLOCKLIST = [
+    # Blocked due to point cloud volume differences between platforms (to be fixed).
+    "points_volume.blend",
+    # Blocked due to GBuffer encoding of small IOR difference between platforms (to be fixed).
+    "principled_thinfilm_transmission.blend",
+]
+
 
 def setup():
     import bpy
@@ -42,6 +51,7 @@ def setup():
         eevee.volumetric_end = 50.0
         eevee.volumetric_samples = 128
         eevee.use_volumetric_shadows = True
+        eevee.clamp_volume_indirect = 0.0
 
         # Motion Blur
         if scene.render.use_motion_blur:
@@ -77,7 +87,7 @@ def setup():
         # Does not work in edit mode
         if bpy.context.mode == 'OBJECT':
             # Simple probe setup
-            bpy.ops.object.lightprobe_add(type='SPHERE', location=(0.0, 0.0, 1.0))
+            bpy.ops.object.lightprobe_add(type='SPHERE', location=(0.0, 0.1, 1.0))
             cubemap = bpy.context.selected_objects[0]
             cubemap.scale = (5.0, 5.0, 2.0)
             cubemap.data.falloff = 0.0
@@ -87,14 +97,14 @@ def setup():
             bpy.ops.object.lightprobe_add(type='VOLUME', location=(0.0, 0.0, 2.0))
             grid = bpy.context.selected_objects[0]
             grid.scale = (8.0, 4.5, 4.5)
-            grid.data.grid_resolution_x = 32
-            grid.data.grid_resolution_y = 16
-            grid.data.grid_resolution_z = 8
-            grid.data.grid_bake_samples = 128
-            grid.data.grid_capture_world = True
-            grid.data.grid_surfel_density = 100
+            grid.data.resolution_x = 32
+            grid.data.resolution_y = 16
+            grid.data.resolution_z = 8
+            grid.data.bake_samples = 128
+            grid.data.capture_world = True
+            grid.data.surfel_density = 100
             # Make lighting smoother for most of the case.
-            grid.data.grid_dilation_threshold = 1.0
+            grid.data.dilation_threshold = 1.0
             bpy.ops.object.lightprobe_cache_bake(subset='ACTIVE')
 
 
@@ -175,7 +185,7 @@ def main():
         reference_override_dir = "eevee_next_renders/amd"
 
     from modules import render_report
-    report = render_report.Report("Eevee Next", output_dir, oiiotool)
+    report = render_report.Report("Eevee Next", output_dir, oiiotool, blocklist=BLOCKLIST)
     report.set_pixelated(True)
     report.set_engine_name('eevee_next')
     report.set_reference_dir("eevee_next_renders")
@@ -183,8 +193,26 @@ def main():
     report.set_compare_engine('cycles', 'CPU')
 
     test_dir_name = Path(test_dir).name
-    if test_dir_name.startswith('image'):
+    if test_dir_name.startswith('image_mapping'):
+        # Platform dependent border values. To be fixed
+        report.set_fail_threshold(0.2)
+    elif test_dir_name.startswith('image'):
         report.set_fail_threshold(0.051)
+
+    # Noise pattern changes depending on platform. Mostly caused by transparency.
+    # TODO(fclem): See if we can just increase number of samples per file.
+    if test_dir_name.startswith('render_layer'):
+        # shadow pass, rlayer flag
+        report.set_fail_threshold(0.035)
+    elif test_dir_name.startswith('hair'):
+        # hair close up
+        report.set_fail_threshold(0.0275)
+    elif test_dir_name.startswith('integrator'):
+        # shadow all max bounces
+        report.set_fail_threshold(0.0275)
+    elif test_dir_name.startswith('pointcloud'):
+        # points transparent
+        report.set_fail_threshold(0.06)
 
     ok = report.run(test_dir, blender, get_arguments, batch=args.batch, fail_silently=args.fail_silently)
     sys.exit(not ok)

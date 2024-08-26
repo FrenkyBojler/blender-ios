@@ -17,6 +17,7 @@
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation_legacy.hh"
+#include "BLI_memory_counter.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_task.hh"
 
@@ -105,6 +106,8 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
   BKE_defgroup_copy_list(&this->vertex_group_names, &other.vertex_group_names);
   this->vertex_group_active_index = other.vertex_group_active_index;
 
+  this->attributes_active_index = other.attributes_active_index;
+
   this->runtime = MEM_new<CurvesGeometryRuntime>(
       __func__,
       CurvesGeometryRuntime{other.runtime->curve_offsets_sharing_info,
@@ -116,7 +119,8 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
                             other.runtime->evaluated_length_cache,
                             other.runtime->evaluated_tangent_cache,
                             other.runtime->evaluated_normal_cache,
-                            {}});
+                            {},
+                            true});
 
   if (other.runtime->bake_materials) {
     this->runtime->bake_materials = std::make_unique<bake::BakeMaterialsList>(
@@ -156,6 +160,9 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
 
   this->vertex_group_active_index = other.vertex_group_active_index;
   other.vertex_group_active_index = 0;
+
+  this->attributes_active_index = other.attributes_active_index;
+  other.attributes_active_index = 0;
 
   this->runtime = other.runtime;
   other.runtime = nullptr;
@@ -354,6 +361,9 @@ MutableSpan<float3> CurvesGeometry::positions_for_write()
 
 Span<int> CurvesGeometry::offsets() const
 {
+  if (this->curve_num == 0) {
+    return {};
+  }
   return {this->curve_offsets, this->curve_num + 1};
 }
 MutableSpan<int> CurvesGeometry::offsets_for_write()
@@ -795,7 +805,11 @@ static void rotate_directions_around_axes(MutableSpan<float3> directions,
                                           const Span<float> angles)
 {
   for (const int i : directions.index_range()) {
-    directions[i] = math::rotate_direction_around_axis(directions[i], axes[i], angles[i]);
+    const float3 axis = axes[i];
+    if (UNLIKELY(math::is_zero(axis))) {
+      continue;
+    }
+    directions[i] = math::rotate_direction_around_axis(directions[i], axis, angles[i]);
   }
 }
 
@@ -1061,6 +1075,7 @@ void CurvesGeometry::tag_topology_changed()
   this->tag_positions_changed();
   this->runtime->evaluated_offsets_cache.tag_dirty();
   this->runtime->nurbs_basis_cache.tag_dirty();
+  this->runtime->check_type_counts = true;
 }
 void CurvesGeometry::tag_normals_changed()
 {
@@ -1182,6 +1197,13 @@ std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max() const
   return this->runtime->bounds_cache.data();
 }
 
+void CurvesGeometry::count_memory(MemoryCounter &memory) const
+{
+  memory.add_shared(this->runtime->curve_offsets_sharing_info, this->offsets().size_in_bytes());
+  CustomData_count_memory(this->point_data, this->point_num, memory);
+  CustomData_count_memory(this->curve_data, this->curve_num, memory);
+}
+
 CurvesGeometry curves_copy_point_selection(
     const CurvesGeometry &curves,
     const IndexMask &points_to_copy,
@@ -1205,6 +1227,9 @@ CurvesGeometry curves_copy_point_selection(
   threading::parallel_invoke(
       dst_curves.curves_num() > 1024,
       [&]() {
+        if (curves_to_copy.is_empty()) {
+          return;
+        }
         MutableSpan<int> new_curve_offsets = dst_curves.offsets_for_write();
         array_utils::gather(
             curve_point_counts.as_span(), curves_to_copy, new_curve_offsets.drop_back(1));

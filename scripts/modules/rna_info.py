@@ -78,19 +78,19 @@ def get_py_class_from_rna(rna_type):
     def subclasses_recurse(cls):
         for c in cls.__subclasses__():
             # is_registered
-            if "bl_rna" in cls.__dict__:
+            if "bl_rna" in c.__dict__:
                 yield c
             yield from subclasses_recurse(c)
 
-    while py_class is None:
-        base = rna_type.base
-        if base is None:
-            raise Exception("can't find type")
+    base = rna_type.base
+    while base is not None:
         py_class_base = getattr(bpy.types, base.identifier, None)
         if py_class_base is not None:
             for cls in subclasses_recurse(py_class_base):
                 if cls.bl_rna.identifier == identifier:
                     return cls
+        base = base.base
+    raise Exception("can't find type")
 
 
 class InfoStructRNA:
@@ -187,9 +187,15 @@ class InfoStructRNA:
         import types
         functions = []
         for identifier, attr in self._get_py_visible_attrs():
-            # methods may be python wrappers to C functions
-            attr_func = getattr(attr, "__func__", attr)
-            if type(attr_func) in {types.FunctionType, types.MethodType}:
+            # Methods may be python wrappers to C functions.
+            ok = False
+            if (attr_func := getattr(attr, "__func__", None)) is not None:
+                if type(attr_func) == types.FunctionType:
+                    ok = True
+            else:
+                if type(attr) in {types.FunctionType, types.MethodType}:
+                    ok = True
+            if ok:
                 functions.append((identifier, attr))
         return functions
 
@@ -197,13 +203,19 @@ class InfoStructRNA:
         import types
         functions = []
         for identifier, attr in self._get_py_visible_attrs():
-            # methods may be python wrappers to C functions
-            attr_func = getattr(attr, "__func__", attr)
-            if (
-                    (type(attr_func) in {types.BuiltinMethodType, types.BuiltinFunctionType}) or
+            # Methods may be python wrappers to C functions.
+            ok = False
+            if (attr_func := getattr(attr, "__func__", None)) is not None:
+                if type(attr_func) == types.BuiltinFunctionType:
+                    ok = True
+            else:
+                if type(attr) == types.BuiltinMethodType:
+                    ok = True
+                elif type(attr) == types.MethodDescriptorType:
                     # Without the `objclass` check, many inherited methods are included.
-                    (type(attr_func) == types.MethodDescriptorType and attr_func.__objclass__ == self.py_class)
-            ):
+                    if attr.__objclass__ == self.py_class:
+                        ok = True
+            if ok:
                 functions.append((identifier, attr))
         return functions
 

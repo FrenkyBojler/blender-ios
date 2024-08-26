@@ -194,16 +194,8 @@ void ED_preview_ensure_dbase(const bool with_gpencil)
     base_initialized = true;
   }
   if (!base_initialized_gpencil && with_gpencil) {
-
-    if (U.experimental.use_grease_pencil_version3) {
-      G_pr_main_grease_pencil = load_main_from_memory(datatoc_preview_grease_pencil_blend,
-                                                      datatoc_preview_grease_pencil_blend_size);
-    }
-    else {
-      G_pr_main_grease_pencil = load_main_from_memory(
-          datatoc_preview_grease_pencil_legacy_blend,
-          datatoc_preview_grease_pencil_legacy_blend_size);
-    }
+    G_pr_main_grease_pencil = load_main_from_memory(datatoc_preview_grease_pencil_blend,
+                                                    datatoc_preview_grease_pencil_blend_size);
     base_initialized_gpencil = true;
   }
 #else
@@ -275,7 +267,7 @@ const char *ED_preview_collection_name(const ePreviewType pr_type)
 
 static bool render_engine_supports_ray_visibility(const Scene *sce)
 {
-  return !STREQ(sce->r.engine, RE_engine_id_BLENDER_EEVEE);
+  return !STREQ(sce->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
 }
 
 static void switch_preview_collection_visibility(ViewLayer *view_layer, const ePreviewType pr_type)
@@ -517,7 +509,7 @@ static Scene *preview_prepare_scene(
 
     if (id_type == ID_TE) {
       /* Texture is not actually rendered with engine, just set dummy value. */
-      STRNCPY(sce->r.engine, RE_engine_id_BLENDER_EEVEE);
+      STRNCPY(sce->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
     }
 
     if (id_type == ID_MA) {
@@ -1330,19 +1322,6 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
     /* Use default color-spaces for brushes. */
     brush->icon_imbuf = IMB_loadiffname(filepath, flags, nullptr);
 
-    /* Otherwise lets try to find it in other directories. */
-    if (!(brush->icon_imbuf)) {
-      const std::optional<std::string> brushicons_dir = BKE_appdir_folder_id(BLENDER_DATAFILES,
-                                                                             "brushicons");
-      /* Expected to be found, but don't crash if it's not. */
-      if (brushicons_dir.has_value()) {
-        BLI_path_join(filepath, sizeof(filepath), brushicons_dir->c_str(), brush->icon_filepath);
-
-        /* Use default color spaces. */
-        brush->icon_imbuf = IMB_loadiffname(filepath, flags, nullptr);
-      }
-    }
-
     if (brush->icon_imbuf) {
       BKE_icon_changed(BKE_icon_id_ensure(&brush->id));
     }
@@ -1391,7 +1370,7 @@ static void icon_copy_rect(ImBuf *ibuf, uint w, uint h, uint *rect)
   dx = (w - ex) / 2;
   dy = (h - ey) / 2;
 
-  IMB_scalefastImBuf(ima, ex, ey);
+  IMB_scale(ima, ex, ey, IMBScaleFilter::Nearest, false);
 
   /* if needed, convert to 32 bits */
   if (ima->byte_buffer.data == nullptr) {
@@ -1626,9 +1605,8 @@ static void icon_preview_startjob_all_sizes(void *customdata, wmJobWorkerStatus 
           if (object_preview_is_type_supported((Object *)ip->id)) {
             /* Much simpler than the ShaderPreview mess used for other ID types. */
             object_preview_render(ip, cur_size);
-            continue;
           }
-          break;
+          continue;
         case ID_GR:
           BLI_assert(collection_preview_contains_geometry_recursive((Collection *)ip->id));
           /* A collection instance empty was created, so this can just reuse the object preview
@@ -2121,8 +2099,7 @@ void ED_preview_kill_jobs(wmWindowManager *wm, Main * /*bmain*/)
   if (wm) {
     /* This is called to stop all preview jobs before scene data changes, to
      * avoid invalid memory access. */
-    WM_jobs_kill(wm, nullptr, common_preview_startjob);
-    WM_jobs_kill(wm, nullptr, icon_preview_startjob_all_sizes);
+    WM_jobs_kill_type(wm, nullptr, WM_JOB_TYPE_RENDER_PREVIEW);
   }
 }
 
@@ -2142,7 +2119,7 @@ void ED_preview_restart_queue_free()
 
 void ED_preview_restart_queue_add(ID *id, enum eIconSizes size)
 {
-  PreviewRestartQueueEntry *queue_entry = MEM_new<PreviewRestartQueueEntry>(__func__);
+  PreviewRestartQueueEntry *queue_entry = MEM_cnew<PreviewRestartQueueEntry>(__func__);
   queue_entry->size = size;
   queue_entry->id = id;
   BLI_addtail(&G_restart_previews_queue, queue_entry);

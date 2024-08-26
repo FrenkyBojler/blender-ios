@@ -16,7 +16,7 @@ set(INC
   ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
   ../../tornavis
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -332,8 +332,8 @@ if(WITH_IO_STL)
   add_definitions(-DWITH_IO_STL)
 endif()
 
-if(WITH_IO_GPENCIL)
-  add_definitions(-DWITH_IO_GPENCIL)
+if(WITH_IO_GREASE_PENCIL)
+  add_definitions(-DWITH_IO_GREASE_PENCIL)
 endif()
 
 if(WITH_ALEMBIC)
@@ -397,5 +397,5 @@ endif()
 
 blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_python bf_rna)

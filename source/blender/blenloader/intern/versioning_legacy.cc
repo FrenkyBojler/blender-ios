@@ -487,7 +487,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     /* tex->extend and tex->imageflag have changed: */
     Tex *tex = static_cast<Tex *>(bmain->textures.first);
     while (tex) {
-      if (tex->id.tag & LIB_TAG_NEED_LINK) {
+      if (tex->id.tag & ID_TAG_NEED_LINK) {
 
         if (tex->extend == 0) {
           if (tex->xrepeat || tex->yrepeat) {
@@ -780,7 +780,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       sound = static_cast<bSound *>(sound->id.next);
     }
 
-    /* `mesh->subdiv` changed to reflect the actual reparametization
+    /* `mesh->subdiv` changed to reflect the actual reparametrization
      * better, and S-meshes were removed - if it was a S-mesh make
      * it a subsurf, and reset the subdivision level because subsurf
      * takes a lot more work to calculate. */
@@ -2269,7 +2269,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         part->id.lib = ob->id.lib;
 
         part->id.us--;
-        part->id.tag |= (ob->id.tag & LIB_TAG_NEED_LINK);
+        part->id.tag |= (ob->id.tag & ID_TAG_NEED_LINK);
 
         psys->totpart = 0;
         psys->flag = PSYS_CURRENT;
