@@ -37,12 +37,21 @@ Sphinx: PDF generation
     make
 """
 
+import os
+import sys
+import inspect
+import shutil
+import logging
+import warnings
+
+from textwrap import indent
+
+
 try:
     import bpy  # Blender module.
 except ImportError:
     print("\nERROR: this script must run from inside Blender")
     print(__doc__)
-    import sys
     sys.exit()
 
 import rna_info  # Blender module.
@@ -56,15 +65,6 @@ def rna_info_BuildRNAInfo_cache():
 
 rna_info_BuildRNAInfo_cache.ret = None
 # --- end rna_info cache
-
-import os
-import sys
-import inspect
-import shutil
-import logging
-import warnings
-
-from textwrap import indent
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -80,6 +80,9 @@ USE_ONLY_BUILTIN_RNA_TYPES = True
 # Write a page for each static enum defined in:
 # `source/blender/makesrna/RNA_enum_items.hh` so the enums can be linked to instead of being expanded everywhere.
 USE_SHARED_RNA_ENUM_ITEMS_STATIC = True
+
+# Other types are assumed to be `bpy.types.*`.
+PRIMITIVE_TYPE_NAMES = {"bool", "bytearray", "bytes", "dict", "float", "int", "list", "set", "str", "tuple"}
 
 if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
     from _bpy import rna_enum_items_static
@@ -111,7 +114,7 @@ def handle_args():
         usage=__doc__
     )
 
-    # optional arguments
+    # Optional arguments.
     parser.add_argument(
         "-p", "--partial",
         dest="partial",
@@ -248,14 +251,14 @@ or
 
 # Switch for quick testing so doc-builds don't take so long.
 if not ARGS.partial:
-    # full build
+    # Full build.
     FILTER_BPY_OPS = None
     FILTER_BPY_TYPES = None
     EXCLUDE_INFO_DOCS = False
     EXCLUDE_MODULES = []
 
 else:
-    # can manually edit this too:
+    # Can manually edit this too:
     # FILTER_BPY_OPS = ("import.scene", )  # allow
     # FILTER_BPY_TYPES = ("bpy_struct", "Operator", "ID")  # allow
     EXCLUDE_INFO_DOCS = True
@@ -277,10 +280,10 @@ else:
         "bpy.app.translations",
         "bpy.context",
         "bpy.data",
-        "bpy.ops",  # supports filtering
+        "bpy.ops",  # Supports filtering.
         "bpy.path",
         "bpy.props",
-        "bpy.types",  # supports filtering
+        "bpy.types",  # Supports filtering.
         "bpy.utils",
         "bpy.utils.previews",
         "bpy.utils.units",
@@ -319,7 +322,7 @@ else:
     m = None
     EXCLUDE_MODULES = [m for m in EXCLUDE_MODULES if not fnmatch.fnmatchcase(m, ARGS.partial)]
 
-    # special support for bpy.types.XXX
+    # Special support for `bpy.types.*`.
     FILTER_BPY_OPS = tuple([m[8:] for m in ARGS.partial.split(":") if m.startswith("bpy.ops.")])
     if FILTER_BPY_OPS:
         EXCLUDE_MODULES.remove("bpy.ops")
@@ -340,7 +343,7 @@ else:
         "\n                             ".join(sorted(EXCLUDE_MODULES)))
 
     #
-    # done filtering
+    # Done filtering
     # --------------
 
 try:
@@ -380,7 +383,7 @@ EXTRA_SOURCE_FILES = (
 )
 
 
-# examples
+# Examples.
 EXAMPLES_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "examples"))
 EXAMPLE_SET = set(os.path.splitext(f)[0] for f in os.listdir(EXAMPLES_DIR) if f.endswith(".py"))
 EXAMPLE_SET_USED = set()
@@ -418,7 +421,7 @@ INFO_DOCS_OTHER = (
 # This is done so a short description can be included with each link.
 USE_INFO_DOCS_FANCY_INDEX = True
 
-# only support for properties atm.
+# Only support for properties at the moment.
 RNA_BLACKLIST = {
     # XXX messes up PDF!, really a bug but for now just workaround.
     "PreferencesSystem": {"language", }
@@ -501,7 +504,7 @@ SPHINX_IN = os.path.join(ARGS.output_dir, "sphinx-in")
 SPHINX_IN_TMP = SPHINX_IN + "-tmp"
 SPHINX_OUT = os.path.join(ARGS.output_dir, "sphinx-out")
 
-# html build
+# HTML build.
 if ARGS.sphinx_build:
     SPHINX_BUILD = ["sphinx-build", SPHINX_IN, SPHINX_OUT]
 
@@ -513,7 +516,7 @@ if ARGS.sphinx_build:
             SPHINX_IN, SPHINX_OUT,
         ]
 
-# pdf build
+# PDF build.
 if ARGS.sphinx_build_pdf:
     SPHINX_OUT_PDF = os.path.join(ARGS.output_dir, "sphinx-out_pdf")
     SPHINX_BUILD_PDF = [
@@ -645,12 +648,11 @@ def range_str(val):
     """
     if val < -10000000:
         return "-inf"
-    elif val > 10000000:
+    if val > 10000000:
         return "inf"
-    elif type(val) == float:
+    if type(val) == float:
         return "{:g}".format(val)
-    else:
-        return str(val)
+    return str(val)
 
 
 def example_extract_docstring(filepath):
@@ -665,7 +667,7 @@ def example_extract_docstring(filepath):
     line = file.readline()
     line_no = 0
     text = []
-    if line.startswith('"""'):  # assume nothing here
+    if line.startswith('"""'):  # Assume nothing here.
         line_no += 1
     else:
         file.close()
@@ -696,8 +698,7 @@ def title_string(text, heading_char, double=False):
 
     if double:
         return "{:s}\n{:s}\n{:s}\n\n".format(filler, text, filler)
-    else:
-        return "{:s}\n{:s}\n\n".format(text, filler)
+    return "{:s}\n{:s}\n\n".format(text, filler)
 
 
 def write_example_ref(ident, fw, example_id, ext="py"):
@@ -768,13 +769,38 @@ def write_indented_lines(ident, fn, text, strip=True):
             fn(ident + l + "\n")
 
 
+def pyfunc_is_inherited_method(py_func, identifier):
+    assert type(py_func) == MethodType
+    # Exclude Mix-in classes (after the first), because these don't get their own documentation.
+    cls = py_func.__self__
+    if (py_func_base := getattr(cls.__base__, identifier, None)) is not None:
+        if type(py_func_base) == MethodType:
+            if py_func.__func__ == py_func_base.__func__:
+                return True
+        elif type(py_func_base) == bpy.types.bpy_func:
+            return True
+    return False
+
+
 def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_class=True):
     """
     function or class method to sphinx
     """
 
     if type(py_func) == MethodType:
-        return
+        # Including methods means every operators "poll" function for e.g.
+        # would be listed in documentation which isn't useful.
+        #
+        # However excluding all of them is also incorrect as it means class methods defined
+        # in `bpy_types.py` for e.g. are excluded, making some utility functions entirely hidden.
+        if (bl_rna := getattr(py_func.__self__, "bl_rna", None)) is not None:
+            if bl_rna.functions.get(identifier) is not None:
+                return
+        del bl_rna
+
+        # Only inline the method if it's not inherited from another class.
+        if pyfunc_is_inherited_method(py_func, identifier):
+            return
 
     arg_str = str(inspect.signature(py_func))
 
@@ -789,7 +815,10 @@ def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_cla
         arg_str = "()" if (arg_str == "(cls)") else ("(" + arg_str[6:])
         func_type = "classmethod"
     else:
-        func_type = "staticmethod"
+        if type(py_func) == MethodType:
+            func_type = "classmethod"
+        else:
+            func_type = "staticmethod"
 
     doc = py_func.__doc__
     if (not doc) or (not doc.startswith(".. {:s}:: ".format(func_type))):
@@ -822,7 +851,7 @@ def py_descr2sphinx(ident, fw, descr, module_name, type_name, identifier):
         # NOTE: `RST_NOINDEX_ATTR` currently not supported (as it's not used).
         write_indented_lines(ident + "   ", fw, doc, False)
         fw("\n")
-    elif type(descr) == MemberDescriptorType:  # same as above but use "data"
+    elif type(descr) == MemberDescriptorType:  # Same as above but use "data".
         fw(ident + ".. data:: {:s}\n\n".format(identifier))
         # NOTE: `RST_NOINDEX_ATTR` currently not supported (as it's not used).
         write_indented_lines(ident + "   ", fw, doc, False)
@@ -960,8 +989,8 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
 
     write_example_ref("", fw, module_name)
 
-    # write members of the module
-    # only tested with PyStructs which are not exactly modules
+    # Write members of the module.
+    # Only tested with `PyStructs` which are not exactly modules.
     for key, descr in sorted(type(module).__dict__.items()):
         if key.startswith("__"):
             continue
@@ -1031,7 +1060,7 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
         if attribute.startswith("n_"):  # Annoying exception, needed for `bpy.app`.
             continue
 
-        # workaround for bpy.app documenting .index() and .count()
+        # Workaround for `bpy.app` documenting `.index()` and `.count()`.
         if isinstance(module, tuple) and hasattr(tuple, attribute):
             continue
 
@@ -1039,8 +1068,7 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
 
         module_dir_value_type.append((attribute, value, type(value)))
 
-    # sort by str of each type
-    # this way lists, functions etc are grouped.
+    # Sort by `str` of each type this way lists, functions etc are grouped.
     module_dir_value_type.sort(key=lambda triple: str(triple[2]))
 
     for attribute, value, value_type in module_dir_value_type:
@@ -1142,112 +1170,113 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
 
 # Changes In Blender will force errors here.
 context_type_map = {
-    # context_member: (RNA type, is_collection)
-    "active_action": ("Action", False),
-    "active_annotation_layer": ("GPencilLayer", False),
-    "active_bone": ("EditBone", False),
-    "active_file": ("FileSelectEntry", False),
-    "active_gpencil_frame": ("GreasePencilLayer", True),
-    "active_gpencil_layer": ("GPencilLayer", True),
-    "active_node": ("Node", False),
-    "active_object": ("Object", False),
-    "active_operator": ("Operator", False),
-    "active_pose_bone": ("PoseBone", False),
-    "active_sequence_strip": ("Sequence", False),
-    "active_editable_fcurve": ("FCurve", False),
-    "active_nla_strip": ("NlaStrip", False),
-    "active_nla_track": ("NlaTrack", False),
-    "annotation_data": ("GreasePencil", False),
-    "annotation_data_owner": ("ID", False),
-    "armature": ("Armature", False),
-    "asset_library_reference": ("AssetLibraryReference", False),
-    "bone": ("Bone", False),
-    "brush": ("Brush", False),
-    "camera": ("Camera", False),
-    "cloth": ("ClothModifier", False),
-    "collection": ("LayerCollection", False),
-    "collision": ("CollisionModifier", False),
-    "curve": ("Curve", False),
-    "dynamic_paint": ("DynamicPaintModifier", False),
-    "edit_bone": ("EditBone", False),
-    "edit_image": ("Image", False),
-    "edit_mask": ("Mask", False),
-    "edit_movieclip": ("MovieClip", False),
-    "edit_object": ("Object", False),
-    "edit_text": ("Text", False),
-    "editable_bones": ("EditBone", True),
-    "editable_gpencil_layers": ("GPencilLayer", True),
-    "editable_gpencil_strokes": ("GPencilStroke", True),
-    "editable_objects": ("Object", True),
-    "editable_fcurves": ("FCurve", True),
-    "fluid": ("FluidSimulationModifier", False),
-    "gpencil": ("GreasePencil", False),
-    "gpencil_data": ("GreasePencil", False),
-    "grease_pencil": ("GreasePencilv3", False),
-    "gpencil_data_owner": ("ID", False),
-    "curves": ("Hair Curves", False),
-    "id": ("ID", False),
-    "image_paint_object": ("Object", False),
-    "lattice": ("Lattice", False),
-    "light": ("Light", False),
-    "lightprobe": ("LightProbe", False),
-    "line_style": ("FreestyleLineStyle", False),
-    "material": ("Material", False),
-    "material_slot": ("MaterialSlot", False),
-    "mesh": ("Mesh", False),
-    "meta_ball": ("MetaBall", False),
-    "object": ("Object", False),
-    "objects_in_mode": ("Object", True),
-    "objects_in_mode_unique_data": ("Object", True),
-    "particle_edit_object": ("Object", False),
-    "particle_settings": ("ParticleSettings", False),
-    "particle_system": ("ParticleSystem", False),
-    "particle_system_editable": ("ParticleSystem", False),
-    "property": ("(:class:`bpy.types.AnyType`, :class:`string`, :class:`int`)", False),
-    "pointcloud": ("PointCloud", False),
-    "pose_bone": ("PoseBone", False),
-    "pose_object": ("Object", False),
-    "scene": ("Scene", False),
-    "sculpt_object": ("Object", False),
-    "selectable_objects": ("Object", True),
-    "selected_assets": ("AssetRepresentation", True),
-    "selected_bones": ("EditBone", True),
-    "selected_editable_actions": ("Action", True),
-    "selected_editable_bones": ("EditBone", True),
-    "selected_editable_fcurves": ("FCurve", True),
-    "selected_editable_keyframes": ("Keyframe", True),
-    "selected_editable_objects": ("Object", True),
-    "selected_editable_sequences": ("Sequence", True),
-    "selected_files": ("FileSelectEntry", True),
-    "selected_ids": ("ID", True),
-    "selected_nla_strips": ("NlaStrip", True),
-    "selected_movieclip_tracks": ("MovieTrackingTrack", True),
-    "selected_nodes": ("Node", True),
-    "selected_objects": ("Object", True),
-    "selected_pose_bones": ("PoseBone", True),
-    "selected_pose_bones_from_active_object": ("PoseBone", True),
-    "selected_sequences": ("Sequence", True),
-    "selected_visible_actions": ("Action", True),
-    "selected_visible_fcurves": ("FCurve", True),
-    "sequences": ("Sequence", True),
-    "soft_body": ("SoftBodyModifier", False),
-    "speaker": ("Speaker", False),
-    "texture": ("Texture", False),
-    "texture_node": ("Node", False),
-    "texture_slot": ("TextureSlot", False),
-    "texture_user": ("ID", False),
-    "texture_user_property": ("Property", False),
-    "ui_list": ("UIList", False),
-    "vertex_paint_object": ("Object", False),
-    "view_layer": ("ViewLayer", False),
-    "visible_bones": ("EditBone", True),
-    "visible_gpencil_layers": ("GPencilLayer", True),
-    "visible_objects": ("Object", True),
-    "visible_pose_bones": ("PoseBone", True),
-    "visible_fcurves": ("FCurve", True),
-    "weight_paint_object": ("Object", False),
-    "volume": ("Volume", False),
-    "world": ("World", False),
+    # Support multiple types for each item, where each list item is a possible type:
+    # `context_member: [(RNA type, is_collection), ...]`
+    "active_action": [("Action", False)],
+    "active_annotation_layer": [("GPencilLayer", False)],
+    "active_bone": [("EditBone", False), ("Bone", False)],
+    "active_file": [("FileSelectEntry", False)],
+    "active_gpencil_frame": [("GreasePencilLayer", True)],
+    "active_gpencil_layer": [("GPencilLayer", True)],
+    "active_node": [("Node", False)],
+    "active_object": [("Object", False)],
+    "active_operator": [("Operator", False)],
+    "active_pose_bone": [("PoseBone", False)],
+    "active_sequence_strip": [("Sequence", False)],
+    "active_editable_fcurve": [("FCurve", False)],
+    "active_nla_strip": [("NlaStrip", False)],
+    "active_nla_track": [("NlaTrack", False)],
+    "annotation_data": [("GreasePencil", False)],
+    "annotation_data_owner": [("ID", False)],
+    "armature": [("Armature", False)],
+    "asset_library_reference": [("AssetLibraryReference", False)],
+    "bone": [("Bone", False)],
+    "brush": [("Brush", False)],
+    "camera": [("Camera", False)],
+    "cloth": [("ClothModifier", False)],
+    "collection": [("LayerCollection", False)],
+    "collision": [("CollisionModifier", False)],
+    "curve": [("Curve", False)],
+    "dynamic_paint": [("DynamicPaintModifier", False)],
+    "edit_bone": [("EditBone", False)],
+    "edit_image": [("Image", False)],
+    "edit_mask": [("Mask", False)],
+    "edit_movieclip": [("MovieClip", False)],
+    "edit_object": [("Object", False)],
+    "edit_text": [("Text", False)],
+    "editable_bones": [("EditBone", True)],
+    "editable_gpencil_layers": [("GPencilLayer", True)],
+    "editable_gpencil_strokes": [("GPencilStroke", True)],
+    "editable_objects": [("Object", True)],
+    "editable_fcurves": [("FCurve", True)],
+    "fluid": [("FluidSimulationModifier", False)],
+    "gpencil": [("GreasePencil", False)],
+    "gpencil_data": [("GreasePencil", False)],
+    "grease_pencil": [("GreasePencilv3", False)],
+    "gpencil_data_owner": [("ID", False)],
+    "curves": [("Hair Curves", False)],
+    "id": [("ID", False)],
+    "image_paint_object": [("Object", False)],
+    "lattice": [("Lattice", False)],
+    "light": [("Light", False)],
+    "lightprobe": [("LightProbe", False)],
+    "line_style": [("FreestyleLineStyle", False)],
+    "material": [("Material", False)],
+    "material_slot": [("MaterialSlot", False)],
+    "mesh": [("Mesh", False)],
+    "meta_ball": [("MetaBall", False)],
+    "object": [("Object", False)],
+    "objects_in_mode": [("Object", True)],
+    "objects_in_mode_unique_data": [("Object", True)],
+    "particle_edit_object": [("Object", False)],
+    "particle_settings": [("ParticleSettings", False)],
+    "particle_system": [("ParticleSystem", False)],
+    "particle_system_editable": [("ParticleSystem", False)],
+    "property": [("AnyType", False), ("str", False), ("int", False)],
+    "pointcloud": [("PointCloud", False)],
+    "pose_bone": [("PoseBone", False)],
+    "pose_object": [("Object", False)],
+    "scene": [("Scene", False)],
+    "sculpt_object": [("Object", False)],
+    "selectable_objects": [("Object", True)],
+    "selected_assets": [("AssetRepresentation", True)],
+    "selected_bones": [("EditBone", True)],
+    "selected_editable_actions": [("Action", True)],
+    "selected_editable_bones": [("EditBone", True)],
+    "selected_editable_fcurves": [("FCurve", True)],
+    "selected_editable_keyframes": [("Keyframe", True)],
+    "selected_editable_objects": [("Object", True)],
+    "selected_editable_sequences": [("Sequence", True)],
+    "selected_files": [("FileSelectEntry", True)],
+    "selected_ids": [("ID", True)],
+    "selected_nla_strips": [("NlaStrip", True)],
+    "selected_movieclip_tracks": [("MovieTrackingTrack", True)],
+    "selected_nodes": [("Node", True)],
+    "selected_objects": [("Object", True)],
+    "selected_pose_bones": [("PoseBone", True)],
+    "selected_pose_bones_from_active_object": [("PoseBone", True)],
+    "selected_sequences": [("Sequence", True)],
+    "selected_visible_actions": [("Action", True)],
+    "selected_visible_fcurves": [("FCurve", True)],
+    "sequences": [("Sequence", True)],
+    "soft_body": [("SoftBodyModifier", False)],
+    "speaker": [("Speaker", False)],
+    "texture": [("Texture", False)],
+    "texture_node": [("Node", False)],
+    "texture_slot": [("TextureSlot", False)],
+    "texture_user": [("ID", False)],
+    "texture_user_property": [("Property", False)],
+    "ui_list": [("UIList", False)],
+    "vertex_paint_object": [("Object", False)],
+    "view_layer": [("ViewLayer", False)],
+    "visible_bones": [("EditBone", True)],
+    "visible_gpencil_layers": [("GPencilLayer", True)],
+    "visible_objects": [("Object", True)],
+    "visible_pose_bones": [("PoseBone", True)],
+    "visible_fcurves": [("FCurve", True)],
+    "weight_paint_object": [("Object", False)],
+    "volume": [("Volume", False)],
+    "world": [("World", False)],
 }
 
 
@@ -1262,8 +1291,8 @@ def pycontext2sphinx(basepath):
     fw("\n")
     fw("The context members available depend on the area of Blender which is currently being accessed.\n")
     fw("\n")
-    fw("Note that all context values are readonly,\n")
-    fw("but may be modified through the data API or by running operators\n\n")
+    fw("Note that all context values are read-only,\n")
+    fw("but may be modified through the data API or by running operators.\n\n")
 
     # Track all unique properties to properly use `noindex`.
     unique = set()
@@ -1319,7 +1348,7 @@ def pycontext2sphinx(basepath):
 
     write_contex_cls()
     del write_contex_cls
-    # end
+    # End.
 
     # Internal API call only intended to be used to extract context members.
     from _bpy import context_members
@@ -1344,16 +1373,29 @@ def pycontext2sphinx(basepath):
                 fw("   :noindex:\n")
             fw("\n")
 
-            try:
-                member_type, is_seq = context_type_map[member]
-            except KeyError:
+            if (member_types := context_type_map.get(member)) is None:
                 raise SystemExit(
                     "Error: context key {!r} not found in context_type_map; update {:s}".format(member, __file__)
                 ) from None
+            if len(member_types) == 0:
+                raise SystemExit(
+                    "Error: context key {!r} empty in context_type_map; update {:s}".format(member, __file__)
+                )
 
-            if member_type.isidentifier():
-                member_type = ":class:`bpy.types.{:s}`".format(member_type)
-            fw("   :type: {:s} {:s}\n\n".format("sequence of " if is_seq else "", member_type))
+            type_strs = []
+            for member_type, is_seq in member_types:
+                if member_type.isidentifier():
+                    type_strs.append(
+                        "{:s}:class:`{:s}{:s}`".format(
+                            "sequence of " if is_seq else "",
+                            "bpy.types." if member_type not in PRIMITIVE_TYPE_NAMES else "",
+                            member_type,
+                        )
+                    )
+                else:
+                    type_strs.append(member_type)
+
+            fw("   :type: {:s}\n\n".format(" or ".join(type_strs)))
             write_example_ref("   ", fw, "bpy.context." + member)
 
     # Generate type-map:
@@ -1399,8 +1441,7 @@ def pyrna_enum2sphinx(prop, use_empty_descriptions=False):
             )
             for identifier, name, description in prop.enum_items
         ])
-    else:
-        return ""
+    return ""
 
 
 def pyrna2sphinx(basepath):
@@ -1479,7 +1520,7 @@ def pyrna2sphinx(basepath):
                 fw("\n")
                 write_indented_lines(ident + "   ", fw, enum_text)
             del enum_text
-            # end enum exception
+            # End enum exception.
 
         fw(ident + ":{:s}{:s}: {:s}\n".format(id_type, identifier, type_descr))
 
@@ -1513,7 +1554,7 @@ def pyrna2sphinx(basepath):
 
         fw(".. currentmodule:: {:s}\n\n".format(struct_module_name))
 
-        # docs first?, ok
+        # Docs first? OK.
         write_example_ref("", fw, "{:s}.{:s}".format(struct_module_name, struct_id))
 
         base_ids = [base.identifier for base in struct.get_bases()]
@@ -1624,7 +1665,7 @@ def pyrna2sphinx(basepath):
             fw("   .. {:s}:: {:s}({:s})\n\n".format(
                 "classmethod" if func.is_classmethod else "method",
                 func.identifier,
-                args_str
+                args_str,
             ))
             fw("      {:s}\n\n".format(func.description))
 
@@ -1636,8 +1677,8 @@ def pyrna2sphinx(basepath):
             elif func.return_values:  # Multiple return values.
                 fw("      :return ({:s}):\n".format(", ".join(prop.identifier for prop in func.return_values)))
                 for prop in func.return_values:
-                    # TODO: pyrna_enum2sphinx for multiple return values... actually don't
-                    # think we even use this but still!
+                    # TODO: pyrna_enum2sphinx for multiple return values,
+                    # actually don't think we even use this but still!
 
                     enum_descr_override = None
                     if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
@@ -1747,11 +1788,12 @@ def pyrna2sphinx(basepath):
             fw("   :columns: 2\n\n")
 
             # Context does its own thing.
-            # "active_object": ("Object", False),
-            for ref_attr, (ref_type, ref_is_seq) in sorted(context_type_map.items()):
-                if ref_type == struct_id:
-                    fw("   * :mod:`bpy.context.{:s}`\n".format(ref_attr))
-            del ref_attr, ref_type, ref_is_seq
+            # "active_object": [("Object", False)],
+            for ref_attr, ref_types in sorted(context_type_map.items()):
+                for ref_type, _ in ref_types:
+                    if ref_type == struct_id:
+                        fw("   * :mod:`bpy.context.{:s}`\n".format(ref_attr))
+            del ref_attr, ref_types
 
             for ref in struct.references:
                 ref_split = ref.split(".")
@@ -1760,7 +1802,7 @@ def pyrna2sphinx(basepath):
                 fw("   * :class:`{:s}`\n".format(ref))
             fw("\n")
 
-        # docs last?, disable for now
+        # Docs last?, disable for now.
         # write_example_ref("", fw, "bpy.types.{:s}".format(struct_id))
         file.close()
 
@@ -1811,7 +1853,7 @@ def pyrna2sphinx(basepath):
                     py_descr2sphinx("   ", fw, descr, "bpy.types", class_name, key)
             file.close()
 
-        # write fake classes
+        # Write fake classes.
         if _BPY_STRUCT_FAKE:
             class_value = bpy_struct
             fake_bpy_type(
@@ -1826,7 +1868,7 @@ def pyrna2sphinx(basepath):
                 "built-in class used for all collections.", use_subclasses=False,
             )
 
-    # operators
+    # Operators.
     def write_ops():
         API_BASEURL = "https://projects.blender.org/blender/blender/src/branch/main/scripts"
         API_BASEURL_ADDON = "https://projects.blender.org/blender/blender-addons"
@@ -1854,8 +1896,8 @@ def pyrna2sphinx(basepath):
                 args_str = ", ".join(prop.get_arg_default(force=True) for prop in op.args)
                 fw(".. function:: {:s}({:s})\n\n".format(op.func_name, args_str))
 
-                # if the description isn't valid, we output the standard warning
-                # with a link to the wiki so that people can help
+                # If the description isn't valid, we output the standard warning
+                # with a link to the wiki so that people can help.
                 if not op.description or op.description == "(undocumented operator)":
                     operator_description = undocumented_message("bpy.ops", op.module_name, op.func_name)
                 else:
@@ -1927,18 +1969,18 @@ def write_rst_index(basepath):
     fw("   :caption: Application Modules\n\n")
 
     app_modules = (
-        "bpy.context",  # note: not actually a module
-        "bpy.data",     # note: not actually a module
-        "bpy.msgbus",   # note: not actually a module
+        "bpy.context",  # NOTE: not actually a module.
+        "bpy.data",     # NOTE: not actually a module.
+        "bpy.msgbus",   # NOTE: not actually a module.
         "bpy.ops",
         "bpy.types",
 
-        # py modules
+        # Python modules.
         "bpy.utils",
         "bpy.path",
         "bpy.app",
 
-        # C modules
+        # C modules.
         "bpy.props",
     )
 
@@ -1952,7 +1994,7 @@ def write_rst_index(basepath):
     fw("   :caption: Standalone Modules\n\n")
 
     standalone_modules = (
-        # submodules are added in parent page
+        # Sub-modules are added in parent page.
         "aud",
         "bgl",
         "bl_math",
@@ -2179,13 +2221,13 @@ def write_rst_importable_modules(basepath):
     Write the RST files of importable modules.
     """
     importable_modules = {
-        # Python_modules
+        # Python_modules.
         "bpy.path": "Path Utilities",
         "bpy.utils": "Utilities",
         "bpy_extras": "Extra Utilities",
         "gpu_extras": "GPU Utilities",
 
-        # C_modules
+        # C_modules.
         "aud": "Audio System",
         "blf": "Font Drawing",
         "imbuf": "Image Buffer",
@@ -2266,9 +2308,9 @@ def copy_handwritten_rsts(basepath):
     # TODO: put this docs in Blender's code and use import as per modules above.
     handwritten_modules = [
         "bgl",  # "Blender OpenGl wrapper"
-        "bmesh.ops",  # generated by rst_from_bmesh_opdefines.py
+        "bmesh.ops",  # Generated by `rst_from_bmesh_opdefines.py`.
 
-        # includes...
+        # Includes.
         "include__bmesh",
     ]
 
@@ -2345,30 +2387,30 @@ def format_config(basepath):
 
 
 def rna2sphinx(basepath):
-    # main page
+    # Main page.
     write_rst_index(basepath)
 
-    # context
+    # Context.
     if "bpy.context" not in EXCLUDE_MODULES:
         pycontext2sphinx(basepath)
 
-    # internal modules
-    write_rst_bpy(basepath)                 # bpy, disabled by default
-    write_rst_types_index(basepath)         # bpy.types
-    write_rst_ops_index(basepath)           # bpy.ops
-    write_rst_msgbus(basepath)              # bpy.msgbus
-    pyrna2sphinx(basepath)                  # bpy.types.* and bpy.ops.*
-    write_rst_data(basepath)                # bpy.data
+    # Internal modules.
+    write_rst_bpy(basepath)                 # `bpy`, disabled by default
+    write_rst_types_index(basepath)         # `bpy.types`.
+    write_rst_ops_index(basepath)           # `bpy.ops`.
+    write_rst_msgbus(basepath)              # `bpy.msgbus`.
+    pyrna2sphinx(basepath)                  # `bpy.types.*` & `bpy.ops.*`.
+    write_rst_data(basepath)                # `bpy.data`.
     write_rst_importable_modules(basepath)
 
     # `bpy_types_enum_items/*` (referenced from `bpy.types`).
     if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
         write_rst_enum_items_and_index(basepath)
 
-    # copy the other rsts
+    # Copy the other RST files.
     copy_handwritten_rsts(basepath)
 
-    # copy source files referenced
+    # Copy source files referenced.
     copy_handwritten_extra(basepath)
 
 
@@ -2394,7 +2436,7 @@ def align_sphinx_in_to_sphinx_in_tmp(dir_src, dir_dst):
             else:
                 os.remove(f_dst)
 
-    # freshen with new files.
+    # Freshen with new files.
     for f in sorted(sphinx_src_files):
         f_src = os.path.join(dir_src, f)
         f_dst = os.path.join(dir_dst, f)
@@ -2473,7 +2515,7 @@ def main():
         bpy_logfilehandler.setLevel(logging.DEBUG)
         BPY_LOGGER.addHandler(bpy_logfilehandler)
 
-        # using a `FileHandler` seems to disable the `stdout`, so we add a `StreamHandler`.
+        # Using a `FileHandler` seems to disable the `stdout`, so we add a `StreamHandler`.
         bpy_log_stdout_handler = logging.StreamHandler(stream=sys.stdout)
         bpy_log_stdout_handler.setLevel(logging.DEBUG)
         BPY_LOGGER.addHandler(bpy_log_stdout_handler)
@@ -2491,7 +2533,7 @@ def main():
             copy_function=shutil.copy,
         )
 
-    # start from a clean directory everytime
+    # Start from a clean directory every time.
     if os.path.exists(SPHINX_IN_TMP):
         shutil.rmtree(SPHINX_IN_TMP, True)
 
@@ -2500,10 +2542,10 @@ def main():
     except:
         pass
 
-    # copy extra files needed for theme
+    # Copy extra files needed for theme.
     copy_sphinx_files(SPHINX_IN_TMP)
 
-    # write infromation needed for 'conf.py'
+    # Write information needed for `conf.py`.
     format_config(SPHINX_IN_TMP)
 
     # Dump the API in RST files.

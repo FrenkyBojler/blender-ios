@@ -15,6 +15,7 @@
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_memory_counter_fwd.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_span.hh"
@@ -117,6 +118,14 @@ class CurvesGeometryRuntime {
 
   /** Stores weak references to material data blocks. */
   std::unique_ptr<bake::BakeMaterialsList> bake_materials;
+
+  /**
+   * Type counts have to be set eagerly after each operation. It's checked with asserts that the
+   * type counts are correct when accessed. However, this check is expensive and shouldn't be done
+   * all the time because it makes debug builds unusable in some situations that would be fine
+   * otherwise.
+   */
+  bool check_type_counts = true;
 };
 
 /**
@@ -283,6 +292,8 @@ class CurvesGeometry : public ::CurvesGeometry {
    * The largest and smallest position values of evaluated points.
    */
   std::optional<Bounds<float3>> bounds_min_max() const;
+
+  void count_memory(MemoryCounter &memory) const;
 
  private:
   /* --------------------------------------------------------------------
@@ -894,13 +905,22 @@ inline bool CurvesGeometry::has_curve_with_type(const Span<CurveType> types) con
 
 inline const std::array<int, CURVE_TYPES_NUM> &CurvesGeometry::curve_type_counts() const
 {
-  BLI_assert(this->runtime->type_counts == calculate_type_counts(this->curve_types()));
+#ifndef NDEBUG
+
+  if (this->runtime->check_type_counts) {
+    const std::array<int, CURVE_TYPES_NUM> actual_type_counts = calculate_type_counts(
+        this->curve_types());
+    BLI_assert(this->runtime->type_counts == actual_type_counts);
+    this->runtime->check_type_counts = false;
+  }
+#endif
   return this->runtime->type_counts;
 }
 
 inline OffsetIndices<int> CurvesGeometry::points_by_curve() const
 {
-  return OffsetIndices<int>({this->curve_offsets, this->curve_num + 1});
+  return OffsetIndices<int>({this->curve_offsets, this->curve_num + 1},
+                            offset_indices::NoSortCheck{});
 }
 
 inline int CurvesGeometry::evaluated_points_num() const

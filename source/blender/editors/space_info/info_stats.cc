@@ -362,23 +362,21 @@ static bool stats_is_object_dynamic_topology_sculpt(const Object *ob)
 
 static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 {
-
   SculptSession *ss = ob->sculpt;
-
   if (ss == nullptr || ss->pbvh == nullptr) {
     return;
   }
 
-  switch (BKE_pbvh_type(*ss->pbvh)) {
-    case PBVH_FACES:
+  switch (ss->pbvh->type()) {
+    case blender::bke::pbvh::Type::Mesh:
       stats->totvertsculpt = ss->totvert;
       stats->totfacesculpt = ss->totfaces;
       break;
-    case PBVH_BMESH:
+    case blender::bke::pbvh::Type::BMesh:
       stats->totvertsculpt = ob->sculpt->bm->totvert;
       stats->tottri = ob->sculpt->bm->totface;
       break;
-    case PBVH_GRIDS:
+    case blender::bke::pbvh::Type::Grids:
       stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ss->pbvh);
       stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ss->pbvh);
       break;
@@ -718,7 +716,8 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     if (info[0]) {
       ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
     }
-    ofs += BLI_snprintf_rlen(info + ofs, len - ofs, IFACE_("%s"), BKE_blender_version_string());
+    ofs += BLI_snprintf_rlen(
+        info + ofs, len - ofs, IFACE_("%s"), BKE_blender_version_string_compact());
   }
 
   return info;
@@ -828,7 +827,7 @@ void ED_info_draw_stats(
   }
   else if (!(object_mode & OB_MODE_SCULPT)) {
     /* No objects in scene. */
-    stats_row(col1, labels[OBJ], col2, 0, nullptr, y, height);
+    stats_row(col1, labels[OBJ], col2, stats_fmt.totobj, nullptr, y, height);
     return;
   }
 

@@ -44,7 +44,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh" /* RNA_def_property_free_identifier */
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "CLG_log.h"
 
@@ -932,7 +932,7 @@ static PyObject *pyrna_struct_repr(BPy_StructRNA *self)
 
   tmp_str = PyUnicode_FromString(id->name + 2);
 
-  if (RNA_struct_is_ID(self->ptr.type) && (id->flag & LIB_EMBEDDED_DATA) == 0) {
+  if (RNA_struct_is_ID(self->ptr.type) && (id->flag & ID_FLAG_EMBEDDED_DATA) == 0) {
     ret = PyUnicode_FromFormat(
         "bpy.data.%s[%R]", BKE_idtype_idcode_to_name_plural(GS(id->name)), tmp_str);
   }
@@ -1917,7 +1917,7 @@ static int pyrna_py_to_prop(
               return -1;
             }
 
-            if (value_owner_id->tag & LIB_TAG_TEMP_MAIN) {
+            if (value_owner_id->tag & ID_TAG_TEMP_MAIN) {
               /* Allow passing temporary ID's to functions, but not attribute assignment. */
               if (ptr->type != &RNA_Function) {
                 PyErr_Format(PyExc_TypeError,
@@ -2897,7 +2897,7 @@ static int pyrna_prop_collection_ass_subscript(BPy_PropertyRNA *self,
 
   PyErr_Format(PyExc_TypeError,
                "bpy_prop_collection[key]: invalid key, "
-               "must be a string or an int, not %.200s",
+               "must be an int, not %.200s",
                Py_TYPE(key)->tp_name);
   return -1;
 }
@@ -4138,9 +4138,9 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
 
   if (srna_base == &RNA_Node) {
     /* If the given idname is an alias, translate it to the proper idname. */
-    id = blender::bke::nodeTypeFindAlias(id);
+    id = blender::bke::node_type_find_alias(id);
 
-    blender::bke::bNodeType *nt = blender::bke::nodeTypeFind(id);
+    blender::bke::bNodeType *nt = blender::bke::node_type_find(id);
     if (nt) {
       PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_Struct, nt->rna_ext.srna);
       return pyrna_struct_CreatePyObject(&ptr);
@@ -5742,6 +5742,9 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
     return nullptr;
   }
 
+  if (set) {
+    RNA_property_update(BPY_context_get(), &self->ptr, self->prop);
+  }
   Py_RETURN_NONE;
 }
 
@@ -6869,7 +6872,7 @@ PyTypeObject pyrna_struct_Type = {
     /*tp_basicsize*/ sizeof(BPy_StructRNA),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ (destructor)pyrna_struct_dealloc,
-    /*tp_vectorcall_offset */ 0,
+    /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,

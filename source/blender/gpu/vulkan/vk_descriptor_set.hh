@@ -113,6 +113,10 @@ class VKDescriptorSet : NonCopyable {
 class VKDescriptorSetTracker : protected VKResourceTracker<VKDescriptorSet> {
   friend class VKDescriptorSet;
 
+  Vector<VkDescriptorBufferInfo> vk_descriptor_buffer_infos_;
+  Vector<VkDescriptorImageInfo> vk_descriptor_image_infos_;
+  Vector<VkWriteDescriptorSet> vk_write_descriptor_sets_;
+
  public:
   struct Binding {
     VKDescriptorSet::Location location;
@@ -125,6 +129,7 @@ class VKDescriptorSetTracker : protected VKResourceTracker<VKDescriptorSet> {
 
     VKTexture *texture = nullptr;
     VkSampler vk_sampler = VK_NULL_HANDLE;
+    VKImageViewArrayed arrayed = VKImageViewArrayed::DONT_CARE;
 
     Binding()
     {
@@ -167,8 +172,13 @@ class VKDescriptorSetTracker : protected VKResourceTracker<VKDescriptorSet> {
   void bind(VKStorageBuffer &buffer, VKDescriptorSet::Location location);
   void bind(VKUniformBuffer &buffer, VKDescriptorSet::Location location);
   /* TODO: bind as image */
-  void image_bind(VKTexture &texture, VKDescriptorSet::Location location);
-  void bind(VKTexture &texture, VKDescriptorSet::Location location, const VKSampler &sampler);
+  void image_bind(VKTexture &texture,
+                  VKDescriptorSet::Location location,
+                  VKImageViewArrayed arrayed);
+  void bind(VKTexture &texture,
+            VKDescriptorSet::Location location,
+            const VKSampler &sampler,
+            VKImageViewArrayed);
   /* Bind as uniform texel buffer. */
   void bind(VKVertexBuffer &vertex_buffer, VKDescriptorSet::Location location);
 
@@ -176,11 +186,6 @@ class VKDescriptorSetTracker : protected VKResourceTracker<VKDescriptorSet> {
   {
     return active_resource();
   }
-
-  /* Update and bind active descriptor set to pipeline. */
-  void bind(VKContext &context,
-            VkPipelineLayout vk_pipeline_layout,
-            VkPipelineBindPoint vk_pipeline_bind_point);
 
   /**
    * Update the descriptor set on the device.

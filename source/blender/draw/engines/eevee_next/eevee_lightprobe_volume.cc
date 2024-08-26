@@ -4,6 +4,7 @@
 
 #include "DNA_lightprobe_types.h"
 
+#include "BKE_global.hh"
 #include "BKE_lightprobe.h"
 
 #include "GPU_capabilities.hh"
@@ -14,6 +15,8 @@
 #include "eevee_instance.hh"
 
 #include "eevee_lightprobe_volume.hh"
+
+#include <cstdio>
 
 namespace blender::eevee {
 
@@ -47,6 +50,8 @@ void VolumeProbeModule::init()
   do_full_update_ = irradiance_atlas_tx_.ensure_3d(VOLUME_PROBE_FORMAT, atlas_extent, usage);
 
   if (do_full_update_) {
+    do_update_world_ = true;
+
     /* Delete all references to existing bricks. */
     for (VolumeProbe &grid : inst_.light_probes.volume_map_.values()) {
       grid.bricks.clear();
@@ -290,10 +295,10 @@ void VolumeProbeModule::set_view(View & /*view*/)
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
     int3 grid_size = int3(cache->size);
     if (cache->baking.L0) {
-      irradiance_a_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (float *)cache->baking.L0);
-      irradiance_b_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (float *)cache->baking.L1_a);
-      irradiance_c_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (float *)cache->baking.L1_b);
-      irradiance_d_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (float *)cache->baking.L1_c);
+      irradiance_a_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (const float *)cache->baking.L0);
+      irradiance_b_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (const float *)cache->baking.L1_a);
+      irradiance_c_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (const float *)cache->baking.L1_b);
+      irradiance_d_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (const float *)cache->baking.L1_c);
       validity_tx.ensure_3d(GPU_R16F, grid_size, usage, cache->baking.validity);
       if (cache->baking.validity == nullptr) {
         /* Avoid displaying garbage data. */
@@ -301,10 +306,13 @@ void VolumeProbeModule::set_view(View & /*view*/)
       }
     }
     else if (cache->irradiance.L0) {
-      irradiance_a_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (float *)cache->irradiance.L0);
-      irradiance_b_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (float *)cache->irradiance.L1_a);
-      irradiance_c_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (float *)cache->irradiance.L1_b);
-      irradiance_d_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (float *)cache->irradiance.L1_c);
+      irradiance_a_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (const float *)cache->irradiance.L0);
+      irradiance_b_tx.ensure_3d(
+          GPU_RGB16F, grid_size, usage, (const float *)cache->irradiance.L1_a);
+      irradiance_c_tx.ensure_3d(
+          GPU_RGB16F, grid_size, usage, (const float *)cache->irradiance.L1_b);
+      irradiance_d_tx.ensure_3d(
+          GPU_RGB16F, grid_size, usage, (const float *)cache->irradiance.L1_c);
       validity_tx.ensure_3d(GPU_R8, grid_size, usage);
       if (cache->connectivity.validity) {
         /* TODO(fclem): Make texture creation API work with different data types. */
@@ -328,7 +336,7 @@ void VolumeProbeModule::set_view(View & /*view*/)
     if (irradiance_a_tx.is_valid() == false) {
       inst_.info += "Error: Could not allocate irradiance staging texture\n";
       /* Avoid undefined behavior with uninitialized values. Still load a clear texture. */
-      float4 zero(0.0f);
+      const float4 zero(0.0f);
       irradiance_a_tx.ensure_3d(GPU_RGB16F, int3(1), usage, zero);
       irradiance_b_tx.ensure_3d(GPU_RGB16F, int3(1), usage, zero);
       irradiance_c_tx.ensure_3d(GPU_RGB16F, int3(1), usage, zero);
@@ -344,10 +352,10 @@ void VolumeProbeModule::set_view(View & /*view*/)
     draw::Texture visibility_c_tx = {"visibility_c_tx"};
     draw::Texture visibility_d_tx = {"visibility_d_tx"};
     if (visibility_available) {
-      visibility_a_tx.ensure_3d(GPU_R16F, grid_size, usage, (float *)cache->visibility.L0);
-      visibility_b_tx.ensure_3d(GPU_R16F, grid_size, usage, (float *)cache->visibility.L1_a);
-      visibility_c_tx.ensure_3d(GPU_R16F, grid_size, usage, (float *)cache->visibility.L1_b);
-      visibility_d_tx.ensure_3d(GPU_R16F, grid_size, usage, (float *)cache->visibility.L1_c);
+      visibility_a_tx.ensure_3d(GPU_R16F, grid_size, usage, (const float *)cache->visibility.L0);
+      visibility_b_tx.ensure_3d(GPU_R16F, grid_size, usage, (const float *)cache->visibility.L1_a);
+      visibility_c_tx.ensure_3d(GPU_R16F, grid_size, usage, (const float *)cache->visibility.L1_b);
+      visibility_d_tx.ensure_3d(GPU_R16F, grid_size, usage, (const float *)cache->visibility.L1_c);
 
       GPU_texture_swizzle_set(visibility_a_tx, "111r");
       GPU_texture_swizzle_set(visibility_b_tx, "111r");
@@ -501,10 +509,10 @@ void VolumeProbeModule::debug_pass_draw(View &view, GPUFrameBuffer *view_fb)
         Texture debug_data_tx = {"debug_data_tx"};
 
         if (inst_.debug_mode == eDebugMode::DEBUG_IRRADIANCE_CACHE_VALIDITY) {
-          float *data;
+          const float *data;
           if (cache->baking.validity) {
-            data = (float *)cache->baking.validity;
-            debug_data_tx.ensure_3d(GPU_R16F, grid_size, usage, (float *)data);
+            data = cache->baking.validity;
+            debug_data_tx.ensure_3d(GPU_R16F, grid_size, usage, data);
           }
           else if (cache->connectivity.validity) {
             debug_data_tx.ensure_3d(GPU_R8, grid_size, usage);
@@ -526,7 +534,7 @@ void VolumeProbeModule::debug_pass_draw(View &view, GPUFrameBuffer *view_fb)
         }
         else {
           if (cache->baking.virtual_offset) {
-            float *data = (float *)cache->baking.virtual_offset;
+            const float *data = (const float *)cache->baking.virtual_offset;
             debug_data_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, data);
           }
           else {
@@ -572,21 +580,24 @@ void VolumeProbeModule::display_pass_draw(View &view, GPUFrameBuffer *view_fb)
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
     int3 grid_size = int3(cache->size);
     if (cache->baking.L0) {
-      irradiance_a_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (float *)cache->baking.L0);
-      irradiance_b_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (float *)cache->baking.L1_a);
-      irradiance_c_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (float *)cache->baking.L1_b);
-      irradiance_d_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (float *)cache->baking.L1_c);
-      validity_tx.ensure_3d(GPU_R16F, grid_size, usage, (float *)cache->baking.validity);
+      irradiance_a_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (const float *)cache->baking.L0);
+      irradiance_b_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (const float *)cache->baking.L1_a);
+      irradiance_c_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (const float *)cache->baking.L1_b);
+      irradiance_d_tx.ensure_3d(GPU_RGBA16F, grid_size, usage, (const float *)cache->baking.L1_c);
+      validity_tx.ensure_3d(GPU_R16F, grid_size, usage, (const float *)cache->baking.validity);
       if (cache->baking.validity == nullptr) {
         /* Avoid displaying garbage data. */
         validity_tx.clear(float4(0.0));
       }
     }
     else if (cache->irradiance.L0) {
-      irradiance_a_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (float *)cache->irradiance.L0);
-      irradiance_b_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (float *)cache->irradiance.L1_a);
-      irradiance_c_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (float *)cache->irradiance.L1_b);
-      irradiance_d_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (float *)cache->irradiance.L1_c);
+      irradiance_a_tx.ensure_3d(GPU_RGB16F, grid_size, usage, (const float *)cache->irradiance.L0);
+      irradiance_b_tx.ensure_3d(
+          GPU_RGB16F, grid_size, usage, (const float *)cache->irradiance.L1_a);
+      irradiance_c_tx.ensure_3d(
+          GPU_RGB16F, grid_size, usage, (const float *)cache->irradiance.L1_b);
+      irradiance_d_tx.ensure_3d(
+          GPU_RGB16F, grid_size, usage, (const float *)cache->irradiance.L1_c);
       validity_tx.ensure_3d(GPU_R8, grid_size, usage);
       if (cache->connectivity.validity) {
         /* TODO(fclem): Make texture creation API work with different data types. */
@@ -611,7 +622,7 @@ void VolumeProbeModule::display_pass_draw(View &view, GPUFrameBuffer *view_fb)
     display_grids_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
                                 DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK);
     display_grids_ps_.framebuffer_set(&view_fb);
-    display_grids_ps_.shader_set(inst_.shaders.static_shader_get(DISPLAY_PROBE_GRID));
+    display_grids_ps_.shader_set(inst_.shaders.static_shader_get(DISPLAY_PROBE_VOLUME));
 
     display_grids_ps_.push_constant("sphere_radius", grid.viewport_display_size);
     display_grids_ps_.push_constant("grid_resolution", grid_size);
@@ -984,25 +995,44 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
   capture_info_buf_.read();
   if (capture_info_buf_.surfel_len == 0) {
-    /* No surfel to allocated. */
-    do_break_ = true;
+    /* No surfel to allocate. */
     return;
   }
 
   if (capture_info_buf_.surfel_len > surfels_buf_.size()) {
+    printf("IrradianceBake: Allocating %u surfels.\n", capture_info_buf_.surfel_len);
+
     size_t max_size = GPU_max_storage_buffer_size();
     if (GPU_mem_stats_supported()) {
       int total_mem_kb, free_mem_kb;
       GPU_mem_stats_get(&total_mem_kb, &free_mem_kb);
-      max_size = min(max_size, size_t(free_mem_kb) * 1024);
+      /* Leave at least 128MByte for OS and stuffs.
+       * Try to avoid crashes because of OUT_OF_MEMORY errors.  */
+      size_t max_alloc = (size_t(total_mem_kb) - 128 * 1024) * 1024;
+      /* Cap to 95% of available memory. */
+      size_t max_free = size_t((size_t(free_mem_kb) * 1024) * 0.95f);
+
+      max_size = min(max_size, min(max_alloc, max_free));
     }
 
     size_t required_mem = sizeof(Surfel) * (capture_info_buf_.surfel_len - surfels_buf_.size());
     if (required_mem > max_size) {
-      capture_info_buf_.surfel_len = 0u;
-      capture_info_buf_.push_update();
-      inst_.info += "Error: Not enough memory to bake " + std::string(probe_object.id.name) +
-                    ".\n";
+      const bool is_ssbo_bound = (max_size == GPU_max_storage_buffer_size());
+      const uint req_mb = required_mem / (1024 * 1024);
+      const uint max_mb = max_size / (1024 * 1024);
+
+      inst_.info = std::string(is_ssbo_bound ? "Cannot allocate enough" : "Not enough available") +
+                   " video memory to bake \"" + std::string(probe_object.id.name + 2) + "\" (" +
+                   std::to_string(req_mb) + " / " + std::to_string(max_mb) +
+                   " MBytes). "
+                   "Try reducing surfel resolution or capture distance to lower the size of the "
+                   "allocation.\n";
+
+      if (G.background) {
+        /* Print something in background mode instead of failing silently. */
+        fprintf(stderr, "%s\n", inst_.info.c_str());
+      }
+
       do_break_ = true;
       return;
     }

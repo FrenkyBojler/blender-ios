@@ -63,13 +63,16 @@ void closure_light_set(inout ClosureLightStack stack, int index, ClosureLight cl
   switch (index) {
     case 0:
       stack.cl[0] = cl_light;
+      break;
 #if LIGHT_CLOSURE_EVAL_COUNT > 1
     case 1:
       stack.cl[1] = cl_light;
+      break;
 #endif
 #if LIGHT_CLOSURE_EVAL_COUNT > 2
     case 2:
       stack.cl[2] = cl_light;
+      break;
 #endif
 #if LIGHT_CLOSURE_EVAL_COUNT > 3
 #  error
@@ -92,7 +95,7 @@ void light_eval_single_closure(LightData light,
                                const bool is_transmission)
 {
   attenuation *= light_power_get(light, cl.type);
-  if (attenuation < 1e-5) {
+  if (attenuation < 1e-30) {
     return;
   }
   float ltc_result = light_ltc(utility_tx, light, cl.N, V, lv, cl.ltc_mat);

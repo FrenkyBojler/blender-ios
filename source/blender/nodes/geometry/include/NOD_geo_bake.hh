@@ -33,6 +33,7 @@ struct BakeItemsAccessor {
   static constexpr const char *node_idname = "GeometryNodeBake";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
+  static constexpr bool has_single_identifier_str = true;
 
   static socket_items::SocketItemsRef<NodeGeometryBakeItem> get_items_from_node(bNode &node)
   {
@@ -86,6 +87,7 @@ struct BakeDrawContext {
   const NodesModifierBake *bake;
   PointerRNA bake_rna;
   std::optional<IndexRange> baked_range;
+  std::optional<IndexRange> frame_range;
   bool bake_still;
   bool is_baked;
 };
@@ -95,5 +97,8 @@ struct BakeDrawContext {
                                          BakeDrawContext &r_ctx);
 
 std::string get_baked_string(const BakeDrawContext &ctx);
+std::optional<std::string> get_bake_state_string(const BakeDrawContext &ctx);
+void draw_common_bake_settings(BakeDrawContext &ctx, uiLayout *layout);
+void draw_bake_button(const BakeDrawContext &ctx, uiLayout *layout);
 
 }  // namespace blender::nodes

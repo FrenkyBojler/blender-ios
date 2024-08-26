@@ -9,7 +9,6 @@
 #include "vk_state_manager.hh"
 #include "vk_context.hh"
 #include "vk_index_buffer.hh"
-#include "vk_pipeline.hh"
 #include "vk_shader.hh"
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
@@ -21,12 +20,8 @@ namespace blender::gpu {
 
 void VKStateManager::apply_state()
 {
-  VKContext &context = *VKContext::get();
-  if (context.shader) {
-    VKShader &shader = unwrap(*context.shader);
-    VKPipeline &pipeline = shader.pipeline_get();
-    pipeline.state_manager_get().set_state(state, mutable_state);
-  }
+  /* Intentionally empty. State is polled during pipeline creation and doesn't need to be applied.
+   * If this leads to issues we should have an active state. */
 }
 
 void VKStateManager::apply_bindings(VKContext &context,
@@ -46,19 +41,31 @@ void VKStateManager::apply_bindings(VKContext &context,
 
 void VKStateManager::force_state()
 {
-  VKContext &context = *VKContext::get();
-  BLI_assert(context.shader);
-  VKShader &shader = unwrap(*context.shader);
-  VKPipeline &pipeline = shader.pipeline_get();
-  pipeline.state_manager_get().force_state(state, mutable_state);
+  /* Intentionally empty. State is polled during pipeline creation and is always forced. */
 }
 
-void VKStateManager::issue_barrier(eGPUBarrier /*barrier_bits*/)
+void VKStateManager::issue_barrier(eGPUBarrier barrier_bits)
 {
-  VKContext &context = *VKContext::get();
-  /* TODO: Pipeline barriers should be added. We might be able to extract it from
-   * the actual pipeline, later on, but for now we submit the work as barrier. */
-  context.flush();
+  /**
+   * Workaround for EEVEE ThicknessFromShadow shader.
+   *
+   * EEVEE light evaluation uses layered sub-pass tracking. Currently, the tracking supports
+   * transitioning a layer to a different layout once per rendering scope. When using the thickness
+   * from shadow, the layers need to be transitioned twice: once to image load/store for the
+   * thickness from shadow shader and then to a sampler for the light evaluation shader. We work
+   * around this limitation by suspending the rendering.
+   *
+   * The reason we need to suspend the rendering is that Vulkan, by default, doesn't support layout
+   * transitions between the begin and end of rendering. By suspending the render, the graph will
+   * create a new node group that allows the necessary image layout transition.
+   *
+   * This limitation could also be addressed in the render graph scheduler, but that would be quite
+   * a hassle to track and might not be worth the effort.
+   */
+  if (bool(barrier_bits & GPU_BARRIER_SHADER_IMAGE_ACCESS)) {
+    VKContext &context = *VKContext::get();
+    context.rendering_end();
+  }
 }
 
 void VKStateManager::texture_bind(Texture *tex, GPUSamplerState sampler, int unit)

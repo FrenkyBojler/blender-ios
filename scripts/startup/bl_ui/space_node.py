@@ -7,7 +7,6 @@ from bpy.types import (
     Header,
     Menu,
     Panel,
-    UIList,
 )
 from bpy.app.translations import (
     pgettext_iface as iface_,
@@ -352,8 +351,10 @@ class NODE_MT_node(Menu):
         layout.operator_context = 'EXEC_DEFAULT'
         layout.operator("node.clipboard_paste", text="Paste", icon='PASTEDOWN')
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("node.duplicate_move", icon='DUPLICATE')
-        layout.operator("node.duplicate_move_linked")
+        props = layout.operator("node.duplicate_move", icon='DUPLICATE')
+        props.NODE_OT_translate_attach.TRANSFORM_OT_translate.view2d_edge_pan = True
+        props = layout.operator("node.duplicate_move_linked")
+        props.NODE_OT_translate_attach.TRANSFORM_OT_translate.view2d_edge_pan = True
 
         layout.separator()
         layout.operator("node.delete", icon='X')
@@ -703,7 +704,12 @@ class NODE_PT_active_node_color(Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.active_node is not None
+        node = context.active_node
+        if node is None:
+            return False
+        if node.bl_idname == "NodeReroute":
+            return False
+        return True
 
     def draw_header(self, context):
         node = context.active_node
@@ -728,7 +734,6 @@ class NODE_PT_active_node_properties(Panel):
     bl_region_type = 'UI'
     bl_category = "Node"
     bl_label = "Properties"
-    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -843,8 +848,27 @@ class NODE_PT_quality(bpy.types.Panel):
         col = layout.column()
         col.prop(tree, "use_viewer_border")
 
-        col = layout.column()
-        col.prop(snode, "use_auto_render")
+
+class NODE_PT_compositor_debug(Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Options"
+    bl_label = "Debug"
+    bl_parent_id = "NODE_PT_quality"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        render_data = context.scene.render
+        if render_data.compositor_device != "CPU":
+            return False
+
+        preferences = context.preferences
+        return preferences.view.show_developer_ui and preferences.experimental.enable_new_cpu_compositor
+
+    def draw(self, context):
+        render_data = context.scene.render
+        self.layout.prop(render_data, "use_new_cpu_compositor", text="Experimental CPU Implementation")
 
 
 class NODE_PT_overlay(Panel):
@@ -864,6 +888,7 @@ class NODE_PT_overlay(Panel):
 
         col = layout.column()
         col.prop(overlay, "show_wire_color", text="Wire Colors")
+        col.prop(overlay, "show_reroute_auto_labels", text="Reroute Auto Labels")
 
         col.separator()
 
@@ -995,6 +1020,9 @@ class NODE_PT_node_tree_properties(Panel):
             layout.prop(group, "description", text="Description")
 
         layout.prop(group, "color_tag")
+        row = layout.row(align=True)
+        row.prop(group, "default_group_node_width", text="Node Width")
+        row.operator("node.default_group_width_set", text="", icon='NODE')
 
         if group.bl_idname == "GeometryNodeTree":
             header, body = layout.panel("group_usage")
@@ -1069,6 +1097,7 @@ classes = (
     NODE_PT_active_tool,
     NODE_PT_backdrop,
     NODE_PT_quality,
+    NODE_PT_compositor_debug,
     NODE_PT_annotation,
     NODE_PT_overlay,
     NODE_PT_active_node_properties,

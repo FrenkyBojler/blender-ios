@@ -58,16 +58,16 @@ static void node_update(bNodeTree *ntree, bNode *node)
   switch (operation) {
     case geometry::boolean::Operation::Intersect:
     case geometry::boolean::Operation::Union:
-      bke::nodeSetSocketAvailability(ntree, geometry_1_socket, false);
+      bke::node_set_socket_availability(ntree, geometry_1_socket, false);
       node_sock_label(geometry_2_socket, "Mesh");
       break;
     case geometry::boolean::Operation::Difference:
-      bke::nodeSetSocketAvailability(ntree, geometry_1_socket, true);
+      bke::node_set_socket_availability(ntree, geometry_1_socket, true);
       node_sock_label(geometry_2_socket, "Mesh 2");
       break;
   }
 
-  bke::nodeSetSocketAvailability(
+  bke::node_set_socket_availability(
       ntree, intersecting_edges_socket, solver == geometry::boolean::Solver::MeshArr);
 }
 
@@ -206,10 +206,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     selection.finish();
   }
-
   geometry::debug_randomize_mesh_order(result);
 
-  params.set_output("Mesh", GeometrySet::from_mesh(result));
+  GeometrySet result_geometry = GeometrySet::from_mesh(result);
+  result_geometry.name = set_a.name;
+  params.set_output("Mesh", std::move(result_geometry));
 #else
   params.error_message_add(NodeWarningType::Error,
                            TIP_("Disabled, Blender was compiled without GMP"));
@@ -278,7 +279,7 @@ static void node_register()
   ntype.updatefunc = node_update;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

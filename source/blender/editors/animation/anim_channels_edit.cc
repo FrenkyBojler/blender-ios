@@ -43,6 +43,8 @@
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
+#include "ANIM_action.hh"
+
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
@@ -187,6 +189,19 @@ static bool get_channel_bounds(bAnimContext *ac,
           fcu, anim_data, ac->sl, ac->scene, ale->id, include_handles, range, r_bounds);
       break;
     }
+    case ALE_NONE:
+    case ALE_MASKLAY:
+    case ALE_NLASTRIP:
+    case ALE_ALL:
+    case ALE_SCE:
+    case ALE_OB:
+    case ALE_ACT:
+    case ALE_GROUP:
+    case ALE_ACTION_LAYERED:
+    case ALE_ACTION_SLOT:
+    case ALE_GREASE_PENCIL_DATA:
+    case ALE_GREASE_PENCIL_GROUP:
+      return false;
   }
   return found_bounds;
 }
@@ -291,6 +306,26 @@ void ANIM_set_active_channel(bAnimContext *ac,
         ACHANNEL_SET_FLAG(gpl, ACHANNEL_SETFLAG_CLEAR, GP_LAYER_ACTIVE);
         break;
       }
+      case ANIMTYPE_NONE:
+      case ANIMTYPE_ANIMDATA:
+      case ANIMTYPE_SPECIALDATA__UNUSED:
+      case ANIMTYPE_SUMMARY:
+      case ANIMTYPE_SCENE:
+      case ANIMTYPE_OBJECT:
+      case ANIMTYPE_ACTION_SLOT:
+      case ANIMTYPE_NLACONTROLS:
+      case ANIMTYPE_FILLDRIVERS:
+      case ANIMTYPE_DSNTREE:
+      case ANIMTYPE_SHAPEKEY:
+      case ANIMTYPE_GPDATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+      case ANIMTYPE_GREASE_PENCIL_LAYER:
+      case ANIMTYPE_MASKDATABLOCK:
+      case ANIMTYPE_MASKLAYER:
+      case ANIMTYPE_PALETTE:
+      case ANIMTYPE_NUM_TYPES:
+        break;
     }
   }
 
@@ -313,6 +348,11 @@ void ANIM_set_active_channel(bAnimContext *ac,
         nlt->flag |= NLATRACK_ACTIVE;
         break;
       }
+      case ANIMTYPE_ACTION_SLOT:
+        /* ANIMTYPE_ACTION_SLOT is not supported by this function (because the to-be-activated
+         * bAnimListElement is not passed here, only sub-fields of it), just call
+         * Action::slot_active_set() directly. */
+        break;
       case ANIMTYPE_FILLACTD:        /* Action Expander */
       case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
       case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
@@ -366,6 +406,8 @@ void ANIM_set_active_channel(bAnimContext *ac,
 
 bool ANIM_is_active_channel(bAnimListElem *ale)
 {
+  using namespace blender;
+
   switch (ale->type) {
     case ANIMTYPE_FILLACTD:        /* Action Expander */
     case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
@@ -411,9 +453,28 @@ bool ANIM_is_active_channel(bAnimListElem *ale)
       return grease_pencil->is_layer_active(
           static_cast<blender::bke::greasepencil::Layer *>(ale->data));
     }
-    /* These channel types do not have active flags. */
-    case ANIMTYPE_MASKLAYER:
+    case ANIMTYPE_ACTION_SLOT: {
+      animrig::Slot *slot = reinterpret_cast<animrig::Slot *>(ale->data);
+      return slot->is_active();
+    }
+      /* These channel types do not have active flags. */
+    case ANIMTYPE_NONE:
+    case ANIMTYPE_ANIMDATA:
+    case ANIMTYPE_SPECIALDATA__UNUSED:
+    case ANIMTYPE_SUMMARY:
+    case ANIMTYPE_SCENE:
+    case ANIMTYPE_OBJECT:
+    case ANIMTYPE_NLACONTROLS:
+    case ANIMTYPE_FILLDRIVERS:
     case ANIMTYPE_SHAPEKEY:
+    case ANIMTYPE_GPDATABLOCK:
+    case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+    case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+    case ANIMTYPE_MASKDATABLOCK:
+    case ANIMTYPE_MASKLAYER:
+    case ANIMTYPE_NLATRACK:
+    case ANIMTYPE_PALETTE:
+    case ANIMTYPE_NUM_TYPES:
       break;
   }
   return false;
@@ -503,7 +564,13 @@ static eAnimChannels_SetFlag anim_channels_selection_flag_for_toggle(const ListB
           return ACHANNEL_SETFLAG_CLEAR;
         }
         break;
-
+      case ANIMTYPE_ACTION_SLOT: {
+        using namespace blender::animrig;
+        if (static_cast<Slot *>(ale->data)->is_selected()) {
+          return ACHANNEL_SETFLAG_CLEAR;
+        }
+        break;
+      }
       case ANIMTYPE_FILLACTD:        /* Action Expander */
       case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
       case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
@@ -543,16 +610,61 @@ static eAnimChannels_SetFlag anim_channels_selection_flag_for_toggle(const ListB
           return ACHANNEL_SETFLAG_CLEAR;
         }
         break;
+      case ANIMTYPE_NONE:
+      case ANIMTYPE_ANIMDATA:
+      case ANIMTYPE_SPECIALDATA__UNUSED:
+      case ANIMTYPE_SUMMARY:
+      case ANIMTYPE_NLACONTROLS:
+      case ANIMTYPE_FILLDRIVERS:
+      case ANIMTYPE_GPDATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+      case ANIMTYPE_GREASE_PENCIL_LAYER:
+      case ANIMTYPE_MASKDATABLOCK:
+      case ANIMTYPE_PALETTE:
+      case ANIMTYPE_NUM_TYPES:
+        break;
     }
   }
 
   return ACHANNEL_SETFLAG_ADD;
 }
 
+/**
+ * Update the selection state of `selectable_thing` based on `selectmode`.
+ *
+ * This is basically the C++ variant of the macro `ACHANNEL_SET_FLAG(thing, sel, selection_flag)`,
+ * except that this function doesn't require that the selectable thing has a member variable
+ * `flag`. Instead, it requires that it has two functions to query & set its selection state.
+ *
+ * \param selectable_thing: something with functions `set_selected(bool)` and `bool is_selected()`.
+ * \param selectmode: the selection operation to perform.
+ */
+template<typename T>
+static void templated_selection_state_update(T &selectable_thing,
+                                             const eAnimChannels_SetFlag selectmode)
+{
+  switch (selectmode) {
+    case ACHANNEL_SETFLAG_CLEAR:
+      selectable_thing.set_selected(false);
+      break;
+    case ACHANNEL_SETFLAG_ADD:
+    case ACHANNEL_SETFLAG_EXTEND_RANGE:
+      selectable_thing.set_selected(true);
+      break;
+    case ACHANNEL_SETFLAG_INVERT:
+    case ACHANNEL_SETFLAG_TOGGLE:
+      selectable_thing.set_selected(!selectable_thing.is_selected());
+      break;
+  }
+}
+
 static void anim_channels_select_set(bAnimContext *ac,
                                      const ListBase anim_data,
                                      eAnimChannels_SetFlag sel)
 {
+  using namespace blender;
+
   /* Boolean to keep active channel status during range selection. */
   const bool change_active = (sel != ACHANNEL_SETFLAG_EXTEND_RANGE);
 
@@ -619,6 +731,11 @@ static void anim_channels_select_set(bAnimContext *ac,
         nlt->flag &= ~NLATRACK_ACTIVE;
         break;
       }
+      case ANIMTYPE_ACTION_SLOT: {
+        animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
+        templated_selection_state_update(*slot, sel);
+        break;
+      }
       case ANIMTYPE_FILLACTD:        /* Action Expander */
       case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
       case ANIMTYPE_DSMAT:           /* Datablock AnimData Expanders */
@@ -670,6 +787,19 @@ static void anim_channels_select_set(bAnimContext *ac,
         ACHANNEL_SET_FLAG(masklay, sel, MASK_LAYERFLAG_SELECT);
         break;
       }
+      case ANIMTYPE_NONE:
+      case ANIMTYPE_ANIMDATA:
+      case ANIMTYPE_SPECIALDATA__UNUSED:
+      case ANIMTYPE_SUMMARY:
+      case ANIMTYPE_NLACONTROLS:
+      case ANIMTYPE_FILLDRIVERS:
+      case ANIMTYPE_GPDATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+      case ANIMTYPE_MASKDATABLOCK:
+      case ANIMTYPE_PALETTE:
+      case ANIMTYPE_NUM_TYPES:
+        break;
     }
   }
 }
@@ -1484,7 +1614,7 @@ static void split_groups_action_temp(bAction *act, bActionGroup *tgrp)
 
   /* Initialize memory for temp-group */
   memset(tgrp, 0, sizeof(bActionGroup));
-  tgrp->flag |= (AGRP_EXPANDED | AGRP_TEMP);
+  tgrp->flag |= (AGRP_EXPANDED | AGRP_TEMP | AGRP_EXPANDED_G);
   STRNCPY(tgrp->name, "#TempGroup");
 
   /* Move any action-channels not already moved, to the temp group */
@@ -1745,12 +1875,7 @@ static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
   /* method to move channels depends on the editor */
   if (ac.datatype == ANIMCONT_GPENCIL) {
     /* Grease Pencil channels */
-    if (U.experimental.use_grease_pencil_version3) {
-      rearrange_grease_pencil_channels(&ac, mode);
-    }
-    else {
-      rearrange_gpencil_channels(&ac, mode);
-    }
+    rearrange_grease_pencil_channels(&ac, mode);
   }
   else if (ac.datatype == ANIMCONT_MASK) {
     /* Grease Pencil channels */
@@ -2250,6 +2375,49 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
         BKE_mask_layer_remove(mask, masklay);
         break;
       }
+      case ANIMTYPE_NONE:
+      case ANIMTYPE_ANIMDATA:
+      case ANIMTYPE_SPECIALDATA__UNUSED:
+      case ANIMTYPE_SUMMARY:
+      case ANIMTYPE_SCENE:
+      case ANIMTYPE_OBJECT:
+      case ANIMTYPE_GROUP:
+      case ANIMTYPE_NLACONTROLS:
+      case ANIMTYPE_FILLACT_LAYERED:
+      case ANIMTYPE_ACTION_SLOT:
+      case ANIMTYPE_FILLACTD:
+      case ANIMTYPE_FILLDRIVERS:
+      case ANIMTYPE_DSMAT:
+      case ANIMTYPE_DSLAM:
+      case ANIMTYPE_DSCAM:
+      case ANIMTYPE_DSCACHEFILE:
+      case ANIMTYPE_DSCUR:
+      case ANIMTYPE_DSSKEY:
+      case ANIMTYPE_DSWOR:
+      case ANIMTYPE_DSNTREE:
+      case ANIMTYPE_DSPART:
+      case ANIMTYPE_DSMBALL:
+      case ANIMTYPE_DSARM:
+      case ANIMTYPE_DSMESH:
+      case ANIMTYPE_DSTEX:
+      case ANIMTYPE_DSLAT:
+      case ANIMTYPE_DSLINESTYLE:
+      case ANIMTYPE_DSSPK:
+      case ANIMTYPE_DSGPENCIL:
+      case ANIMTYPE_DSMCLIP:
+      case ANIMTYPE_DSHAIR:
+      case ANIMTYPE_DSPOINTCLOUD:
+      case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_SHAPEKEY:
+      case ANIMTYPE_GPDATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+      case ANIMTYPE_MASKDATABLOCK:
+      case ANIMTYPE_NLATRACK:
+      case ANIMTYPE_NLAACTION:
+      case ANIMTYPE_PALETTE:
+      case ANIMTYPE_NUM_TYPES:
+        break;
     }
   }
 
@@ -2980,10 +3148,6 @@ static void box_select_anim_channels(bAnimContext *ac, rcti *rect, short selectm
   /* filter data */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
 
-  if (!ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac->datatype))) {
-    filter |= ANIMFILTER_FCURVESONLY;
-  }
-
   ANIM_animdata_filter(
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
@@ -3035,6 +3199,57 @@ static void box_select_anim_channels(bAnimContext *ac, rcti *rect, short selectm
           ACHANNEL_SET_FLAG(nlt, selectmode, NLATRACK_SELECTED);
           break;
         }
+        case ANIMTYPE_ACTION_SLOT: {
+          using namespace blender::animrig;
+          Slot *slot = static_cast<Slot *>(ale->data);
+          templated_selection_state_update(*slot, eAnimChannels_SetFlag(selectmode));
+          break;
+        }
+        case ANIMTYPE_NONE:
+        case ANIMTYPE_ANIMDATA:
+        case ANIMTYPE_SPECIALDATA__UNUSED:
+        case ANIMTYPE_SUMMARY:
+        case ANIMTYPE_SCENE:
+        case ANIMTYPE_OBJECT:
+        case ANIMTYPE_FCURVE:
+        case ANIMTYPE_NLACONTROLS:
+        case ANIMTYPE_NLACURVE:
+        case ANIMTYPE_FILLACT_LAYERED:
+        case ANIMTYPE_FILLACTD:
+        case ANIMTYPE_FILLDRIVERS:
+        case ANIMTYPE_DSMAT:
+        case ANIMTYPE_DSLAM:
+        case ANIMTYPE_DSCAM:
+        case ANIMTYPE_DSCACHEFILE:
+        case ANIMTYPE_DSCUR:
+        case ANIMTYPE_DSSKEY:
+        case ANIMTYPE_DSWOR:
+        case ANIMTYPE_DSNTREE:
+        case ANIMTYPE_DSPART:
+        case ANIMTYPE_DSMBALL:
+        case ANIMTYPE_DSARM:
+        case ANIMTYPE_DSMESH:
+        case ANIMTYPE_DSTEX:
+        case ANIMTYPE_DSLAT:
+        case ANIMTYPE_DSLINESTYLE:
+        case ANIMTYPE_DSSPK:
+        case ANIMTYPE_DSGPENCIL:
+        case ANIMTYPE_DSMCLIP:
+        case ANIMTYPE_DSHAIR:
+        case ANIMTYPE_DSPOINTCLOUD:
+        case ANIMTYPE_DSVOLUME:
+        case ANIMTYPE_SHAPEKEY:
+        case ANIMTYPE_GPDATABLOCK:
+        case ANIMTYPE_GPLAYER:
+        case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+        case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+        case ANIMTYPE_GREASE_PENCIL_LAYER:
+        case ANIMTYPE_MASKDATABLOCK:
+        case ANIMTYPE_MASKLAYER:
+        case ANIMTYPE_NLAACTION:
+        case ANIMTYPE_PALETTE:
+        case ANIMTYPE_NUM_TYPES:
+          break;
       }
     }
 
@@ -3597,6 +3812,43 @@ static int click_select_channel_fcurve(bAnimContext *ac,
 
   return (ND_ANIMCHAN | NA_SELECTED);
 }
+static int click_select_channel_action_slot(bAnimContext *ac,
+                                            bAnimListElem *ale,
+                                            short /* eEditKeyframes_Select or -1 */ selectmode)
+{
+  using namespace blender;
+
+  BLI_assert_msg(GS(ale->fcurve_owner_id->name) == ID_AC,
+                 "fcurve_owner_id of an Action Slot should be an Action");
+  animrig::Action *action = reinterpret_cast<animrig::Action *>(ale->fcurve_owner_id);
+  animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
+
+  if (selectmode == SELECT_INVERT) {
+    selectmode = slot->is_selected() ? SELECT_SUBTRACT : SELECT_ADD;
+  }
+
+  switch (selectmode) {
+    case SELECT_REPLACE:
+      ANIM_anim_channels_select_set(ac, ACHANNEL_SETFLAG_CLEAR);
+      ATTR_FALLTHROUGH;
+    case SELECT_ADD:
+      slot->set_selected(true);
+      action->slot_active_set(slot->handle);
+      break;
+    case SELECT_SUBTRACT:
+      slot->set_selected(false);
+      break;
+    case SELECT_EXTEND_RANGE:
+      ANIM_anim_channels_select_set(ac, ACHANNEL_SETFLAG_EXTEND_RANGE);
+      animchannel_select_range(ac, ale);
+      break;
+    case SELECT_INVERT:
+      BLI_assert_unreachable();
+      break;
+  }
+
+  return (ND_ANIMCHAN | NA_SELECTED);
+}
 
 static int click_select_channel_shapekey(bAnimContext *ac,
                                          bAnimListElem *ale,
@@ -3868,6 +4120,9 @@ static int mouse_anim_channels(bContext *C,
     case ANIMTYPE_FCURVE:
     case ANIMTYPE_NLACURVE:
       notifierFlags |= click_select_channel_fcurve(ac, ale, selectmode, filter);
+      break;
+    case ANIMTYPE_ACTION_SLOT:
+      notifierFlags |= click_select_channel_action_slot(ac, ale, selectmode);
       break;
     case ANIMTYPE_SHAPEKEY:
       notifierFlags |= click_select_channel_shapekey(ac, ale, selectmode);

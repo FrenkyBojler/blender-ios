@@ -34,7 +34,7 @@
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "SEQ_add.hh"
 #include "SEQ_effects.hh"
@@ -118,7 +118,7 @@ static void sequencer_generic_props__internal(wmOperatorType *ot, int flag)
       ot->srna, "channel", 1, 1, MAXSEQ, "Channel", "Channel to place this strip into", 1, MAXSEQ);
 
   RNA_def_boolean(
-      ot->srna, "replace_sel", true, "Replace Selection", "Replace the current selection");
+      ot->srna, "replace_sel", true, "Replace Selection", "Deselect previously selected strips");
 
   /* Only for python scripts which import strips and place them after. */
   prop = RNA_def_boolean(
@@ -1083,8 +1083,8 @@ void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "use_framerate",
                   true,
-                  "Use Movie Framerate",
-                  "Use framerate from the movie to keep sound and video in sync");
+                  "Set Scene Frame Rate",
+                  "Set frame rate of the current scene to the frame rate of the movie");
 }
 
 static void sequencer_add_sound_multiple_strips(bContext *C,

@@ -19,6 +19,7 @@
 #  include "BLI_generic_virtual_array.hh"
 #  include "BLI_map.hh"
 #  include "BLI_math_vector_types.hh"
+#  include "BLI_memory_counter_fwd.hh"
 #  include "BLI_span.hh"
 namespace blender::bke {
 class AttributeAccessor;
@@ -47,6 +48,7 @@ typedef struct GreasePencilLayerRuntimeHandle GreasePencilLayerRuntimeHandle;
 typedef struct GreasePencilLayerGroupRuntimeHandle GreasePencilLayerGroupRuntimeHandle;
 #endif
 
+struct Main;
 struct GreasePencil;
 struct BlendDataReader;
 struct BlendWriter;
@@ -242,6 +244,7 @@ typedef enum GreasePencilLayerTreeNodeFlag {
   GP_LAYER_TREE_NODE_EXPANDED = (1 << 6),
   GP_LAYER_TREE_NODE_HIDE_MASKS = (1 << 7),
   GP_LAYER_TREE_NODE_DISABLE_MASKS_IN_VIEWLAYER = (1 << 8),
+  GP_LAYER_TREE_NODE_USE_LOCKED_MATERIAL = (1 << 9),
 } GreasePencilLayerTreeNodeFlag;
 
 struct GreasePencilLayerTreeGroup;
@@ -324,12 +327,29 @@ typedef struct GreasePencilLayer {
 #endif
 } GreasePencilLayer;
 
+typedef enum GroupColorTag {
+  LAYERGROUP_COLOR_NONE = -1,
+  LAYERGROUP_COLOR_01,
+  LAYERGROUP_COLOR_02,
+  LAYERGROUP_COLOR_03,
+  LAYERGROUP_COLOR_04,
+  LAYERGROUP_COLOR_05,
+  LAYERGROUP_COLOR_06,
+  LAYERGROUP_COLOR_07,
+  LAYERGROUP_COLOR_08,
+} GroupColorTag;
+
 typedef struct GreasePencilLayerTreeGroup {
   GreasePencilLayerTreeNode base;
   /**
    * List of `GreasePencilLayerTreeNode`.
    */
   ListBase children;
+  /**
+   * Icon color tag.
+   */
+  int8_t color_tag;
+  char _pad[7];
   /**
    * Runtime struct pointer.
    */
@@ -557,7 +577,9 @@ typedef struct GreasePencil {
   blender::IndexMask layer_selection_by_name(const blender::StringRefNull name,
                                              blender::IndexMaskMemory &memory) const;
 
-  void rename_node(blender::bke::greasepencil::TreeNode &node, blender::StringRefNull new_name);
+  void rename_node(Main &bmain,
+                   blender::bke::greasepencil::TreeNode &node,
+                   blender::StringRefNull new_name);
 
   void remove_layer(blender::bke::greasepencil::Layer &layer);
   void remove_group(blender::bke::greasepencil::LayerGroup &group, bool keep_children = false);
@@ -584,6 +606,12 @@ typedef struct GreasePencil {
    * \returns true if any frame was removed.
    */
   bool remove_frames(blender::bke::greasepencil::Layer &layer, blender::Span<int> frame_numbers);
+
+  /**
+   * Adds multiple layers each with its own empty drawing. This can be more efficient than adding
+   * every layer and drawing one by one.
+   */
+  void add_layers_with_empty_drawings_for_eval(int num);
 
   /**
    * Low-level resizing of drawings array. Only allocates new entries in the array, no drawings are
@@ -666,6 +694,8 @@ typedef struct GreasePencil {
 
   blender::bke::AttributeAccessor attributes() const;
   blender::bke::MutableAttributeAccessor attributes_for_write();
+
+  void count_memory(blender::MemoryCounter &memory) const;
 
   /* For debugging purposes. */
   void print_layer_tree();

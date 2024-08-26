@@ -46,6 +46,7 @@ struct NestedTreePreviews;
 struct bNodeLinkDrag {
   /** Links dragged by the operator. */
   Vector<bNodeLink> links;
+  /** Which side of the links is fixed. */
   eNodeSocketInOut in_out;
 
   /** Draw handler for the tooltip icon when dragging a link in empty space. */
@@ -87,13 +88,6 @@ struct SpaceNode_Runtime {
 
   /** Mouse position for drawing socket-less links and adding nodes. */
   float2 cursor;
-
-  /**
-   * Indicates that the compositing tree in the space needs to be re-evaluated using the
-   * auto-compositing pipeline.
-   * Takes priority over the regular compositing.
-   */
-  bool recalc_auto_compositing;
 
   /**
    * Indicates that the compositing int the space tree needs to be re-evaluated using
@@ -308,6 +302,8 @@ void NODE_OT_group_ungroup(wmOperatorType *ot);
 void NODE_OT_group_separate(wmOperatorType *ot);
 void NODE_OT_group_edit(wmOperatorType *ot);
 
+void NODE_OT_default_group_width_set(wmOperatorType *ot);
+
 /* `node_relationships.cc` */
 
 void update_multi_input_indices_for_removed_links(bNode &node);
@@ -377,8 +373,6 @@ void NODE_OT_render_changed(wmOperatorType *ot);
 void NODE_OT_output_file_add_socket(wmOperatorType *ot);
 void NODE_OT_output_file_remove_active_socket(wmOperatorType *ot);
 void NODE_OT_output_file_move_active_socket(wmOperatorType *ot);
-
-void NODE_OT_switch_view_update(wmOperatorType *ot);
 
 /**
  * \note clipboard_cut is a simple macro of copy + delete.

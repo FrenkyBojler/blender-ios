@@ -58,7 +58,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BLO_read_write.hh"
 
@@ -799,6 +799,17 @@ static void action_idcode_patch_check(ID *id, bAction *act)
   if (ELEM(nullptr, id, act)) {
     return;
   }
+
+#ifdef WITH_ANIM_BAKLAVA
+  if (act->wrap().is_action_layered()) {
+    /* Layered Actions can always be assigned to any ID. It's actually the Slot that is limited
+     * to an ID type (similar to legacy Actions). Layered Actions are evaluated differently,
+     * though, and their evaluation shouldn't end up here. At the moment of writing it can still
+     * happen through NLA evaluation, though, so there's no assert here to prevent this. */
+    /* TODO: when possible, add a BLI_assert_unreachable() here. */
+    return;
+  }
+#endif
 
   idcode = GS(id->name);
 
@@ -3201,12 +3212,10 @@ static void animsys_create_tweak_strip(const AnimData *adt,
     r_tweak_strip->flag |= NLASTRIP_FLAG_NO_TIME_MAP;
   }
 
-  /** Controls whether able to keyframe outside range of tweaked strip. */
   if (keyframing_to_strip) {
-    r_tweak_strip->extendmode = (is_inplace_tweak &&
-                                 !(r_tweak_strip->flag & NLASTRIP_FLAG_SYNC_LENGTH)) ?
-                                    NLASTRIP_EXTEND_NOTHING :
-                                    NLASTRIP_EXTEND_HOLD;
+    /* Since keying cannot happen when there is no NLA influence, this is a workaround to get keys
+     * onto the strip in tweak mode while keyframing. */
+    r_tweak_strip->extendmode = NLASTRIP_EXTEND_HOLD;
   }
 }
 
@@ -3725,10 +3734,10 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
                                            int index,
                                            const AnimationEvalContext *anim_eval_context,
                                            bool *r_force_all,
-                                           blender::BitVector<> &r_successful_remaps)
+                                           blender::BitVector<> &r_values_mask)
 {
   const int count = values.size();
-  r_successful_remaps.fill(false);
+  r_values_mask.fill(false);
 
   if (r_force_all != nullptr) {
     *r_force_all = false;
@@ -3745,7 +3754,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
 
   /* No context means no correction. */
   if (context == nullptr || context->strip.act == nullptr) {
-    r_successful_remaps = remap_domain;
+    r_values_mask = remap_domain;
     return;
   }
 
@@ -3762,7 +3771,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
   if (blend_mode == NLASTRIP_MODE_REPLACE && influence == 1.0f &&
       BLI_listbase_is_empty(&context->upper_estrips))
   {
-    r_successful_remaps = remap_domain;
+    r_values_mask = remap_domain;
     return;
   }
 
@@ -3836,7 +3845,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
   }
 
   for (int i = 0; i < blended_necs->length; i++) {
-    r_successful_remaps[i].set(BLI_BITMAP_TEST_BOOL(blended_necs->remap_domain.ptr, i));
+    r_values_mask[i].set(BLI_BITMAP_TEST_BOOL(blended_necs->remap_domain.ptr, i));
   }
 
   nlaeval_snapshot_free_data(&blended_snapshot);
@@ -3938,8 +3947,8 @@ void BKE_animsys_evaluate_animdata(ID *id,
     else if (adt->action) {
       blender::animrig::Action &action = adt->action->wrap();
       if (action.is_action_layered()) {
-        blender::animrig::evaluate_and_apply_animation(
-            id_ptr, action, adt->binding_handle, *anim_eval_context, flush_to_original);
+        blender::animrig::evaluate_and_apply_action(
+            id_ptr, action, adt->slot_handle, *anim_eval_context, flush_to_original);
       }
       else {
         animsys_evaluate_action(&id_ptr, adt->action, anim_eval_context, flush_to_original);

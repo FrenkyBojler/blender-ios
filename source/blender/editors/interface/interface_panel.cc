@@ -291,11 +291,11 @@ void UI_list_panel_unique_str(Panel *panel, char *r_name)
  * \note The only panels that should need to be deleted at runtime are panels with the
  * #PANEL_TYPE_INSTANCED flag set.
  */
-static void panel_delete(const bContext *C, ARegion *region, ListBase *panels, Panel *panel)
+static void panel_delete(ARegion *region, ListBase *panels, Panel *panel)
 {
   /* Recursively delete children. */
   LISTBASE_FOREACH_MUTABLE (Panel *, child, &panel->children) {
-    panel_delete(C, region, &panel->children, child);
+    panel_delete(region, &panel->children, child);
   }
   BLI_freelistN(&panel->children);
 
@@ -319,7 +319,7 @@ void UI_panels_free_instanced(const bContext *C, ARegion *region)
       }
 
       /* Free the panel and its sub-panels. */
-      panel_delete(C, region, &region->panels, panel);
+      panel_delete(region, &region->panels, panel);
     }
   }
 }
@@ -563,6 +563,18 @@ static bool panel_custom_pin_to_last_get(const Panel *panel)
   }
 
   return false;
+}
+
+static void panel_custom_pin_to_last_set(const bContext *C, const Panel *panel, const bool value)
+{
+  if (panel->type->pin_to_last_property[0] != '\0') {
+    PointerRNA *ptr = UI_panel_custom_data_get(panel);
+    if (ptr != nullptr && !RNA_pointer_is_null(ptr)) {
+      PropertyRNA *prop = RNA_struct_find_property(ptr, panel->type->pin_to_last_property);
+      RNA_boolean_set(ptr, panel->type->pin_to_last_property, value);
+      RNA_property_update(const_cast<bContext *>(C), ptr, prop);
+    }
+  }
 }
 
 static bool panel_custom_data_active_get(const Panel *panel)
@@ -1087,7 +1099,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
                                        const bool region_search_filter_active)
 {
   const bool is_subpanel = panel->type->parent != nullptr;
-  const uiFontStyle *fontstyle = (is_subpanel) ? &style->widgetlabel : &style->paneltitle;
+  const uiFontStyle *fontstyle = (is_subpanel) ? &style->widget : &style->paneltitle;
 
   const int header_height = BLI_rcti_size_y(header_rect);
   const int scaled_unit = round_fl_to_int(UI_UNIT_X / aspect);
@@ -1149,30 +1161,38 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   }
 
   /* Draw drag widget. */
-  if (!is_subpanel && show_background && !panel_custom_pin_to_last_get(panel)) {
+  if (!is_subpanel && show_background) {
     const int drag_widget_size = header_height * 0.7f;
-    GPU_matrix_push();
-    /* The magic numbers here center the widget vertically and offset it to the left.
-     * Currently this depends on the height of the header, although it could be independent. */
-    GPU_matrix_translate_2f(widget_rect.xmax - scaled_unit * 1.15,
-                            widget_rect.ymin + (header_height - drag_widget_size) * 0.5f);
-
     const int col_tint = 84;
     float color_high[4], color_dark[4];
     UI_GetThemeColorShade4fv(TH_PANEL_HEADER, col_tint, color_high);
     UI_GetThemeColorShade4fv(TH_PANEL_BACK, -col_tint, color_dark);
-
-    blender::gpu::Batch *batch = GPU_batch_preset_panel_drag_widget(
-        U.pixelsize, color_high, color_dark, drag_widget_size);
-    GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_FLAT_COLOR);
-    GPU_batch_draw(batch);
-    GPU_matrix_pop();
+    if (panel_custom_pin_to_last_get(panel)) {
+      GPU_blend(GPU_BLEND_ALPHA);
+      UI_icon_draw_ex(widget_rect.xmax - scaled_unit * 1.15,
+                      widget_rect.ymin + (header_height - drag_widget_size) * 0.5f,
+                      ICON_PINNED,
+                      aspect * UI_INV_SCALE_FAC,
+                      1.0f,
+                      0.0f,
+                      title_color,
+                      false,
+                      UI_NO_ICON_OVERLAY_TEXT);
+      GPU_blend(GPU_BLEND_NONE);
+    }
+    else {
+      GPU_matrix_push();
+      /* The magic numbers here center the widget vertically and offset it to the left.
+       * Currently this depends on the height of the header, although it could be independent. */
+      GPU_matrix_translate_2f(widget_rect.xmax - scaled_unit * 1.15,
+                              widget_rect.ymin + (header_height - drag_widget_size) * 0.5f);
+      blender::gpu::Batch *batch = GPU_batch_preset_panel_drag_widget(
+          U.pixelsize, color_high, color_dark, drag_widget_size);
+      GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_FLAT_COLOR);
+      GPU_batch_draw(batch);
+      GPU_matrix_pop();
+    }
   }
-}
-
-static int layout_panel_y_offset()
-{
-  return UI_style_get_dpi()->panelspace;
 }
 
 void ui_draw_layout_panels_backdrop(const ARegion *region,
@@ -1181,12 +1201,15 @@ void ui_draw_layout_panels_backdrop(const ARegion *region,
                                     float subpanel_backcolor[4])
 {
   /* Draw backdrops for layout panels. */
+  const float aspect = ui_block_is_popup_any(panel->runtime->block) ?
+                           panel->runtime->block->aspect :
+                           1.0f;
+
   for (const LayoutPanelBody &body : panel->runtime->layout_panels.bodies) {
 
     rctf panel_blockspace = panel->runtime->block->rect;
     panel_blockspace.ymax = panel->runtime->block->rect.ymax + body.end_y;
     panel_blockspace.ymin = panel->runtime->block->rect.ymax + body.start_y;
-    BLI_rctf_translate(&panel_blockspace, 0, -layout_panel_y_offset());
 
     if (panel_blockspace.ymax <= panel->runtime->block->rect.ymin) {
       /* Layout panels no longer fits in block rectangle, stop drawing backdrops. */
@@ -1197,7 +1220,8 @@ void ui_draw_layout_panels_backdrop(const ARegion *region,
       continue;
     }
     /* If the layout panel is at the end of the root panel, it's bottom corners are rounded. */
-    const bool is_main_panel_end = panel_blockspace.ymin - panel->runtime->block->rect.ymin < 10;
+    const bool is_main_panel_end = panel_blockspace.ymin - panel->runtime->block->rect.ymin <
+                                   (10.0f / aspect);
     if (is_main_panel_end) {
       panel_blockspace.ymin = panel->runtime->block->rect.ymin;
       UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
@@ -1973,10 +1997,7 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 LayoutPanelHeader *ui_layout_panel_header_under_mouse(const Panel &panel, const int my)
 {
   for (LayoutPanelHeader &header : panel.runtime->layout_panels.headers) {
-    if (IN_RANGE(float(my - panel.runtime->block->rect.ymax + layout_panel_y_offset()),
-                 header.start_y,
-                 header.end_y))
-    {
+    if (IN_RANGE(float(my - panel.runtime->block->rect.ymax), header.start_y, header.end_y)) {
       return &header;
     }
   }
@@ -2045,8 +2066,8 @@ static void ui_panel_drag_collapse(const bContext *C,
 
     for (LayoutPanelHeader &header : panel->runtime->layout_panels.headers) {
       rctf rect = block->rect;
-      rect.ymin = block->rect.ymax + header.start_y + layout_panel_y_offset();
-      rect.ymax = block->rect.ymax + header.end_y + layout_panel_y_offset();
+      rect.ymin = block->rect.ymax + header.start_y;
+      rect.ymax = block->rect.ymax + header.end_y;
 
       if (BLI_rctf_isect_segment(&rect, xy_a_block, xy_b_block)) {
         RNA_boolean_set(
@@ -2126,7 +2147,7 @@ void ui_panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
 {
   wmWindow *win = CTX_wm_window(C);
   const wmEvent *event = win->eventstate;
-  uiPanelDragCollapseHandle *dragcol_data = MEM_new<uiPanelDragCollapseHandle>(__func__);
+  uiPanelDragCollapseHandle *dragcol_data = MEM_cnew<uiPanelDragCollapseHandle>(__func__);
 
   dragcol_data->was_first_open = was_open;
   copy_v2_v2_int(dragcol_data->xy_init, event->xy);
@@ -2246,14 +2267,17 @@ static void ui_handle_panel_header(const bContext *C,
 
   /* Handle panel dragging. For now don't allow dragging in floating regions. */
   if (show_drag && !(region->alignment == RGN_ALIGN_FLOAT)) {
-    if (panel_custom_pin_to_last_get(panel)) {
-      return;
-    }
     const float drag_area_xmin = block->rect.xmax - (PNL_ICON * 1.5f);
     const float drag_area_xmax = block->rect.xmax;
     if (IN_RANGE(mx, drag_area_xmin, drag_area_xmax)) {
-      panel_activate_state(C, panel, PANEL_STATE_DRAG);
-      return;
+      if (panel_custom_pin_to_last_get(panel)) {
+        panel_custom_pin_to_last_set(C, panel, false);
+        return;
+      }
+      else {
+        panel_activate_state(C, panel, PANEL_STATE_DRAG);
+        return;
+      }
     }
   }
 

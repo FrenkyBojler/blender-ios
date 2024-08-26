@@ -75,7 +75,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -410,13 +410,17 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, ImagePackedFile, &(ima->packedfiles));
 
   if (ima->packedfiles.first) {
-    LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
-      BKE_packedfile_blend_read(reader, &imapf->packedfile);
+    LISTBASE_FOREACH_MUTABLE (ImagePackedFile *, imapf, &ima->packedfiles) {
+      BKE_packedfile_blend_read(reader, &imapf->packedfile, imapf->filepath);
+      if (!imapf->packedfile) {
+        BLI_remlink(&ima->packedfiles, imapf);
+        MEM_freeN(imapf);
+      }
     }
     ima->packedfile = nullptr;
   }
   else {
-    BKE_packedfile_blend_read(reader, &ima->packedfile);
+    BKE_packedfile_blend_read(reader, &ima->packedfile, ima->filepath);
   }
 
   BLI_listbase_clear(&ima->anims);
@@ -795,7 +799,7 @@ bool BKE_image_scale(Image *image, int width, int height, ImageUser *iuser)
   ibuf = BKE_image_acquire_ibuf(image, iuser, &lock);
 
   if (ibuf) {
-    IMB_scaleImBuf(ibuf, width, height);
+    IMB_scale(ibuf, width, height, IMBScaleFilter::Box, false);
     BKE_image_mark_dirty(image, ibuf);
   }
 
@@ -1363,10 +1367,8 @@ static bool image_memorypack_imbuf(
   }
 
   ImagePackedFile *imapf;
-  PackedFile *pf = MEM_cnew<PackedFile>("PackedFile");
-
-  pf->size = ibuf->encoded_size;
-  pf->data = IMB_steal_encoded_buffer(ibuf);
+  PackedFile *pf = BKE_packedfile_new_from_memory(IMB_steal_encoded_buffer(ibuf),
+                                                  ibuf->encoded_size);
 
   imapf = static_cast<ImagePackedFile *>(MEM_mallocN(sizeof(ImagePackedFile), "Image PackedFile"));
   STRNCPY(imapf->filepath, filepath);
@@ -1587,21 +1589,21 @@ void BKE_image_free_all_textures(Main *bmain)
   for (ima = static_cast<Image *>(bmain->images.first); ima;
        ima = static_cast<Image *>(ima->id.next))
   {
-    ima->id.tag &= ~LIB_TAG_DOIT;
+    ima->id.tag &= ~ID_TAG_DOIT;
   }
 
   for (tex = static_cast<Tex *>(bmain->textures.first); tex;
        tex = static_cast<Tex *>(tex->id.next))
   {
     if (tex->ima) {
-      tex->ima->id.tag |= LIB_TAG_DOIT;
+      tex->ima->id.tag |= ID_TAG_DOIT;
     }
   }
 
   for (ima = static_cast<Image *>(bmain->images.first); ima;
        ima = static_cast<Image *>(ima->id.next))
   {
-    if (ima->cache && (ima->id.tag & LIB_TAG_DOIT)) {
+    if (ima->cache && (ima->id.tag & ID_TAG_DOIT)) {
 #ifdef CHECK_FREED_SIZE
       uintptr_t old_size = image_mem_size(ima);
 #endif
@@ -4900,6 +4902,31 @@ bool BKE_image_has_ibuf(Image *ima, ImageUser *iuser)
   IMB_freeImBuf(ibuf);
 
   return ibuf != nullptr;
+}
+
+ImBuf *BKE_image_preview(Image *ima, const short max_size, short *r_width, short *r_height)
+{
+  void *lock;
+  ImBuf *image_ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+  if (image_ibuf == nullptr) {
+    return nullptr;
+  }
+
+  ImBuf *preview = IMB_dupImBuf(image_ibuf);
+  float scale = float(max_size) / float(std::max(image_ibuf->x, image_ibuf->y));
+  if (r_width) {
+    *r_width = image_ibuf->x;
+  }
+  if (r_height) {
+    *r_height = image_ibuf->y;
+  }
+  BKE_image_release_ibuf(ima, image_ibuf, lock);
+
+  /* Resize. */
+  IMB_scale(preview, scale * image_ibuf->x, scale * image_ibuf->y, IMBScaleFilter::Box, false);
+  IMB_rect_from_float(preview);
+
+  return preview;
 }
 
 /** \} */

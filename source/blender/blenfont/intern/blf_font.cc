@@ -198,8 +198,8 @@ static void blf_batch_draw_init()
   g_batch.glyph_flags_loc = GPU_vertformat_attr_add(
       &format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
 
-  g_batch.verts = GPU_vertbuf_create_with_format_ex(&format, GPU_USAGE_STREAM);
-  GPU_vertbuf_data_alloc(g_batch.verts, BLF_BATCH_DRAW_LEN_MAX);
+  g_batch.verts = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STREAM);
+  GPU_vertbuf_data_alloc(*g_batch.verts, BLF_BATCH_DRAW_LEN_MAX);
 
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.pos_loc, &g_batch.pos_step);
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.col_loc, &g_batch.col_step);
@@ -209,8 +209,8 @@ static void blf_batch_draw_init()
   g_batch.glyph_len = 0;
 
   /* A dummy VBO containing 4 points, attributes are not used. */
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, 4);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, 4);
 
   /* We render a quad as a triangle strip and instance it for each glyph. */
   g_batch.batch = GPU_batch_create_ex(GPU_PRIM_TRI_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
@@ -336,7 +336,7 @@ void blf_batch_draw()
   }
 
   GPUTexture *texture = blf_batch_cache_texture_load();
-  GPU_vertbuf_data_len_set(g_batch.verts, g_batch.glyph_len);
+  GPU_vertbuf_data_len_set(*g_batch.verts, g_batch.glyph_len);
   GPU_vertbuf_use(g_batch.verts); /* Send data. */
 
   GPU_batch_program_set_builtin(g_batch.batch, GPU_SHADER_TEXT);
@@ -523,6 +523,95 @@ int blf_font_draw_mono(
   blf_glyph_cache_release(font);
   return columns;
 }
+
+#ifndef WITH_HEADLESS
+void blf_draw_svg_icon(FontBLF *font,
+                       uint icon_id,
+                       float x,
+                       float y,
+                       float size,
+                       float color[4],
+                       float outline_alpha,
+                       bool multicolor,
+                       blender::FunctionRef<void(std::string &)> edit_source_cb)
+{
+  blf_font_size(font, size);
+  font->pos[0] = int(x);
+  font->pos[1] = int(y);
+  font->pos[2] = 0;
+
+  if (color != nullptr) {
+    rgba_float_to_uchar(font->color, color);
+  }
+
+  if (outline_alpha > 0.0f) {
+    font->flags |= BLF_SHADOW;
+    font->shadow = FontShadowType::Outline;
+    font->shadow_x = 0;
+    font->shadow_y = 0;
+    font->shadow_color[0] = 0;
+    font->shadow_color[1] = 0;
+    font->shadow_color[2] = 0;
+    font->shadow_color[3] = char(outline_alpha * 255.0f);
+  }
+
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  blf_batch_draw_begin(font);
+
+  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_source_cb);
+  if (g) {
+    blf_glyph_draw(font, gc, g, 0, 0);
+  }
+
+  if (outline_alpha > 0) {
+    font->flags &= ~BLF_SHADOW;
+  }
+
+  blf_batch_draw_end();
+  blf_glyph_cache_release(font);
+}
+
+blender::Array<uchar> blf_svg_icon_bitmap(FontBLF *font,
+                                          uint icon_id,
+                                          float size,
+                                          int *r_width,
+                                          int *r_height,
+                                          bool multicolor,
+                                          blender::FunctionRef<void(std::string &)> edit_source_cb)
+{
+  blf_font_size(font, size);
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_source_cb);
+
+  if (!g) {
+    blf_glyph_cache_release(font);
+    *r_width = 0;
+    *r_height = 0;
+    return {};
+  }
+
+  *r_width = g->dims[0];
+  *r_height = g->dims[1];
+  blender::Array<uchar> bitmap(g->dims[0] * g->dims[1] * 4);
+
+  if (g->num_channels == 4) {
+    memcpy(bitmap.data(), g->bitmap, size_t(bitmap.size()));
+  }
+  else if (g->num_channels == 1) {
+    for (int64_t y = 0; y < int64_t(g->dims[1]); y++) {
+      for (int64_t x = 0; x < int64_t(g->dims[0]); x++) {
+        int64_t offs_in = (y * int64_t(g->pitch)) + x;
+        bitmap[int64_t(offs_in * 4)] = g->bitmap[offs_in];
+        bitmap[int64_t(offs_in * 4 + 1)] = g->bitmap[offs_in];
+        bitmap[int64_t(offs_in * 4 + 2)] = g->bitmap[offs_in];
+        bitmap[int64_t(offs_in * 4 + 3)] = g->bitmap[offs_in];
+      }
+    }
+  }
+  blf_glyph_cache_release(font);
+  return bitmap;
+}
+#endif /* WITH_HEADLESS */
 
 /** \} */
 
@@ -827,8 +916,8 @@ static void blf_font_boundbox_ex(FontBLF *font,
     }
     const ft_pix pen_x_next = pen_x + g->advance_x;
 
-    const ft_pix gbox_xmin = pen_x;
-    const ft_pix gbox_xmax = pen_x_next;
+    const ft_pix gbox_xmin = std::min(pen_x, pen_x + g->box_xmin);
+    const ft_pix gbox_xmax = std::max(pen_x_next, pen_x + g->box_xmax);
     const ft_pix gbox_ymin = g->box_ymin + pen_y;
     const ft_pix gbox_ymax = g->box_ymax + pen_y;
 
