@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.3.0 Alpha (b'e981389bddb1')\n"
+"Project-Id-Version: Blender 4.3.0 Alpha (b'205d95107e6e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-08-05 09:10+0000\n"
+"POT-Creation-Date: 2024-08-26 09:41+0000\n"
 "PO-Revision-Date: 2024-07-27 01:56+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -22641,10 +22641,6 @@ msgid "Drag"
 msgstr "Przeciąganie"
 
 
-msgid "Double click to rename"
-msgstr "Kliknij dwukrotnie, aby zmienić nazwę"
-
-
 msgid "ID-Block:"
 msgstr "Blok ID:"
 
@@ -24599,10 +24595,6 @@ msgstr "Nie udało się utworzyć nowej nazwy folderu"
 
 msgid "Could not create new folder: %s"
 msgstr "Nie udało się stworzyć nowego folderu: %s"
-
-
-msgid "Could not delete file or directory: %s"
-msgstr "Nie udało się usunąć pliku lub katalogu: %s"
 
 
 msgid "More than one item is selected"

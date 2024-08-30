@@ -1922,37 +1922,51 @@ void PointDensityTextureNode::compile(SVMCompiler &compiler)
   const bool use_density = !density_out->links.empty();
   const bool use_color = !color_out->links.empty();
 
-  if (use_density || use_color) {
-    if (handle.empty()) {
-      ImageManager *image_manager = compiler.scene->image_manager;
-      handle = image_manager->add_image(filename.string(), image_params());
-    }
+  if (!(use_density || use_color)) {
+    return;
+  }
 
-    const int slot = handle.svm_slot();
-    if (slot != -1) {
-      compiler.stack_assign(vector_in);
-      compiler.add_node(NODE_TEX_VOXEL,
-                        slot,
-                        compiler.encode_uchar4(compiler.stack_assign(vector_in),
-                                               compiler.stack_assign_if_linked(density_out),
-                                               compiler.stack_assign_if_linked(color_out),
-                                               space));
-      if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
-        compiler.add_node(tfm.x);
-        compiler.add_node(tfm.y);
-        compiler.add_node(tfm.z);
-      }
+  /* Point Density is only supported for volume shaders. */
+  if (compiler.output_type() != SHADER_TYPE_VOLUME) {
+    if (use_density) {
+      compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(density_out));
     }
-    else {
-      if (use_density) {
-        compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(density_out));
-      }
-      if (use_color) {
-        compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
-        compiler.add_node(
-            NODE_VALUE_V,
-            make_float3(TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B));
-      }
+    if (use_color) {
+      compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
+      compiler.add_node(NODE_VALUE_V, zero_float3());
+    }
+    return;
+  }
+
+  if (handle.empty()) {
+    ImageManager *image_manager = compiler.scene->image_manager;
+    handle = image_manager->add_image(filename.string(), image_params());
+  }
+
+  const int slot = handle.svm_slot();
+  if (slot != -1) {
+    compiler.stack_assign(vector_in);
+    compiler.add_node(NODE_TEX_VOXEL,
+                      slot,
+                      compiler.encode_uchar4(compiler.stack_assign(vector_in),
+                                             compiler.stack_assign_if_linked(density_out),
+                                             compiler.stack_assign_if_linked(color_out),
+                                             space));
+    if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
+      compiler.add_node(tfm.x);
+      compiler.add_node(tfm.y);
+      compiler.add_node(tfm.z);
+    }
+  }
+  else {
+    if (use_density) {
+      compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(density_out));
+    }
+    if (use_color) {
+      compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
+      compiler.add_node(
+          NODE_VALUE_V,
+          make_float3(TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B));
     }
   }
 }
@@ -1965,20 +1979,28 @@ void PointDensityTextureNode::compile(OSLCompiler &compiler)
   const bool use_density = !density_out->links.empty();
   const bool use_color = !color_out->links.empty();
 
-  if (use_density || use_color) {
-    if (handle.empty()) {
-      ImageManager *image_manager = compiler.scene->image_manager;
-      handle = image_manager->add_image(filename.string(), image_params());
-    }
-
-    compiler.parameter_texture("filename", handle);
-    if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
-      compiler.parameter("mapping", tfm);
-      compiler.parameter("use_mapping", 1);
-    }
-    compiler.parameter(this, "interpolation");
-    compiler.add(this, "node_voxel_texture");
+  if (!(use_density || use_color)) {
+    return;
   }
+
+  /* Point Density is only supported for volume shaders. */
+  if (compiler.output_type() != SHADER_TYPE_VOLUME) {
+    compiler.add(this, "node_voxel_texture_zero");
+    return;
+  }
+
+  if (handle.empty()) {
+    ImageManager *image_manager = compiler.scene->image_manager;
+    handle = image_manager->add_image(filename.string(), image_params());
+  }
+
+  compiler.parameter_texture("filename", handle);
+  if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
+    compiler.parameter("mapping", tfm);
+    compiler.parameter("use_mapping", 1);
+  }
+  compiler.parameter(this, "interpolation");
+  compiler.add(this, "node_voxel_texture");
 }
 
 /* Normal */
@@ -2417,6 +2439,121 @@ void BsdfNode::compile(SVMCompiler &compiler)
 void BsdfNode::compile(OSLCompiler & /*compiler*/)
 {
   assert(0);
+}
+
+/* Metallic BSDF Closure */
+
+NODE_DEFINE(MetallicBsdfNode)
+{
+  NodeType *type = NodeType::add("metallic_bsdf", create, NodeType::SHADER);
+
+  SOCKET_IN_COLOR(color, "Base Color", make_float3(0.617f, 0.577f, 0.540f));
+  SOCKET_IN_NORMAL(normal, "Normal", zero_float3(), SocketType::LINK_NORMAL);
+  SOCKET_IN_FLOAT(surface_mix_weight, "SurfaceMixWeight", 0.0f, SocketType::SVM_INTERNAL);
+
+  static NodeEnum distribution_enum;
+  distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_ID);
+  distribution_enum.insert("ggx", CLOSURE_BSDF_MICROFACET_GGX_ID);
+  distribution_enum.insert("multi_ggx", CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID);
+  SOCKET_ENUM(
+      distribution, "Distribution", distribution_enum, CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID);
+
+  static NodeEnum fresnel_type_enum;
+  fresnel_type_enum.insert("f82", CLOSURE_BSDF_F82_CONDUCTOR);
+  fresnel_type_enum.insert("physical_conductor", CLOSURE_BSDF_PHYSICAL_CONDUCTOR);
+  SOCKET_ENUM(fresnel_type, "fresnel_type", fresnel_type_enum, CLOSURE_BSDF_F82_CONDUCTOR);
+
+  SOCKET_IN_COLOR(edge_tint, "Edge Tint", make_float3(0.695f, 0.726f, 0.770f));
+
+  SOCKET_IN_VECTOR(ior, "IOR", make_float3(2.757f, 2.513f, 2.231f));
+  SOCKET_IN_VECTOR(k, "Extinction", make_float3(3.867f, 3.404f, 3.009f));
+
+  SOCKET_IN_VECTOR(tangent, "Tangent", zero_float3(), SocketType::LINK_TANGENT);
+
+  SOCKET_IN_FLOAT(roughness, "Roughness", 0.5f);
+  SOCKET_IN_FLOAT(anisotropy, "Anisotropy", 0.0f);
+  SOCKET_IN_FLOAT(rotation, "Rotation", 0.0f);
+
+  SOCKET_OUT_CLOSURE(BSDF, "BSDF");
+
+  return type;
+}
+
+MetallicBsdfNode::MetallicBsdfNode() : BsdfNode(get_node_type())
+{
+  closure = CLOSURE_BSDF_PHYSICAL_CONDUCTOR;
+}
+
+bool MetallicBsdfNode::is_isotropic()
+{
+  ShaderInput *anisotropy_input = input("Anisotropy");
+  /* Keep in sync with the thresholds in OSL's node_conductor_bsdf and SVM's
+   * svm_node_metallic_bsdf. */
+  return (!anisotropy_input->link && fabsf(anisotropy) <= 1e-4f);
+}
+
+void MetallicBsdfNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+  if (shader->has_surface_link()) {
+    ShaderInput *tangent_in = input("Tangent");
+    if (!tangent_in->link && !is_isotropic()) {
+      attributes->add(ATTR_STD_GENERATED);
+    }
+  }
+
+  ShaderNode::attributes(shader, attributes);
+}
+
+void MetallicBsdfNode::simplify_settings(Scene * /* scene */)
+{
+  /* If the anisotropy is close enough to zero, fall back to the isotropic case. */
+  ShaderInput *tangent_input = input("Tangent");
+  if (tangent_input->link && is_isotropic()) {
+    tangent_input->disconnect();
+  }
+}
+
+void MetallicBsdfNode::compile(SVMCompiler &compiler)
+{
+  compiler.add_node(NODE_CLOSURE_SET_WEIGHT, one_float3());
+
+  ShaderInput *base_color_in = input("Base Color");
+  ShaderInput *edge_tint_in = input("Edge Tint");
+  ShaderInput *ior_in = input("IOR");
+  ShaderInput *k_in = input("Extinction");
+
+  int base_color_ior_offset = fresnel_type == CLOSURE_BSDF_PHYSICAL_CONDUCTOR ?
+                                  compiler.stack_assign(ior_in) :
+                                  compiler.stack_assign(base_color_in);
+  int edge_tint_k_offset = fresnel_type == CLOSURE_BSDF_PHYSICAL_CONDUCTOR ?
+                               compiler.stack_assign(k_in) :
+                               compiler.stack_assign(edge_tint_in);
+
+  ShaderInput *anisotropy_in = input("Anisotropy");
+  ShaderInput *rotation_in = input("Rotation");
+  ShaderInput *roughness_in = input("Roughness");
+  ShaderInput *tangent_in = input("Tangent");
+
+  int normal_offset = compiler.stack_assign_if_linked(input("Normal"));
+
+  compiler.add_node(NODE_CLOSURE_BSDF,
+                    compiler.encode_uchar4(fresnel_type,
+                                           compiler.stack_assign(roughness_in),
+                                           compiler.stack_assign(anisotropy_in),
+                                           compiler.closure_mix_weight_offset()),
+                    compiler.encode_uchar4(base_color_ior_offset,
+                                           edge_tint_k_offset,
+                                           compiler.stack_assign(rotation_in),
+                                           compiler.stack_assign(tangent_in)),
+                    distribution);
+  compiler.add_node(normal_offset);
+}
+
+void MetallicBsdfNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "distribution");
+  compiler.parameter(this, "fresnel_type");
+  compiler.add(this, "node_metallic_bsdf");
 }
 
 /* Glossy BSDF Closure */

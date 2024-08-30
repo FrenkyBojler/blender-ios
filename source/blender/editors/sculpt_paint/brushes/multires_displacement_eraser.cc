@@ -45,11 +45,12 @@ static BLI_NOINLINE void calc_limit_positions(const SubdivCCG &subdiv_ccg,
   }
 }
 
-static void calc_node(const Sculpt &sd,
+static void calc_node(const Depsgraph &depsgraph,
+                      const Sculpt &sd,
                       Object &object,
                       const Brush &brush,
                       const float strength,
-                      bke::pbvh::Node &node,
+                      bke::pbvh::GridsNode &node,
                       LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
@@ -64,7 +65,7 @@ static void calc_node(const Sculpt &sd,
   fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, subdiv_ccg, grids, factors);
+    calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
   }
 
   tls.distances.resize(positions.size());
@@ -74,9 +75,7 @@ static void calc_node(const Sculpt &sd,
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
-  if (cache.automasking) {
-    auto_mask::calc_grids_factors(object, *cache.automasking, node, grids, factors);
-  }
+  auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
   scale_factors(factors, strength);
@@ -95,18 +94,21 @@ static void calc_node(const Sculpt &sd,
 
 }  // namespace multires_displacement_eraser_cc
 
-void do_displacement_eraser_brush(const Sculpt &sd, Object &object, Span<bke::pbvh::Node *> nodes)
+void do_displacement_eraser_brush(const Depsgraph &depsgraph,
+                                  const Sculpt &sd,
+                                  Object &object,
+                                  const IndexMask &node_mask)
 {
   SculptSession &ss = *object.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   const float strength = std::min(ss.cache->bstrength, 1.0f);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
-  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+  MutableSpan<bke::pbvh::GridsNode> nodes = ss.pbvh->nodes<bke::pbvh::GridsNode>();
+  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
     LocalData &tls = all_tls.local();
-    for (const int i : range) {
-      calc_node(sd, object, brush, strength, *nodes[i], tls);
-    }
+    node_mask.slice(range).foreach_index(
+        [&](const int i) { calc_node(depsgraph, sd, object, brush, strength, nodes[i], tls); });
   });
 }
 

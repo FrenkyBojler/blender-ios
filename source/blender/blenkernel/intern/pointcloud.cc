@@ -79,7 +79,7 @@ static void pointcloud_copy_data(Main * /*bmain*/,
   const PointCloud *pointcloud_src = (const PointCloud *)id_src;
   pointcloud_dst->mat = static_cast<Material **>(MEM_dupallocN(pointcloud_src->mat));
 
-  CustomData_copy(
+  CustomData_init_from(
       &pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, pointcloud_dst->totpoint);
 
   pointcloud_dst->runtime = new blender::bke::PointCloudRuntime();
@@ -248,12 +248,12 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
 
 void BKE_pointcloud_nomain_to_pointcloud(PointCloud *pointcloud_src, PointCloud *pointcloud_dst)
 {
-  BLI_assert(pointcloud_src->id.tag & LIB_TAG_NO_MAIN);
+  BLI_assert(pointcloud_src->id.tag & ID_TAG_NO_MAIN);
 
   CustomData_free(&pointcloud_dst->pdata, pointcloud_dst->totpoint);
 
   const int totpoint = pointcloud_dst->totpoint = pointcloud_src->totpoint;
-  CustomData_copy(&pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, totpoint);
+  CustomData_init_from(&pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, totpoint);
 
   BKE_id_free(nullptr, pointcloud_src);
 }
@@ -277,6 +277,11 @@ std::optional<blender::Bounds<blender::float3>> PointCloud::bounds_min_max() con
     }
   });
   return this->runtime->bounds_cache.data();
+}
+
+void PointCloud::count_memory(blender::MemoryCounter &memory) const
+{
+  CustomData_count_memory(this->pdata, this->totpoint, memory);
 }
 
 bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/, const char *name)

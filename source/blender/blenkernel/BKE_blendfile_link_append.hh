@@ -7,6 +7,8 @@
  * \ingroup bke
  */
 
+#include "BLI_function_ref.hh"
+
 struct BlendHandle;
 struct ID;
 struct Library;
@@ -114,6 +116,13 @@ void *BKE_blendfile_link_append_context_item_userdata_get(BlendfileLinkAppendCon
                                                           BlendfileLinkAppendContextItem *item);
 ID *BKE_blendfile_link_append_context_item_newid_get(BlendfileLinkAppendContext *lapp_context,
                                                      BlendfileLinkAppendContextItem *item);
+/**
+ * Replace the newly linked ID by another from the same library. Rarely used, necessary e.g. in
+ * some complex 'do version after setup' code when an ID is replaced by another one.
+ */
+void BKE_blendfile_link_append_context_item_newid_set(BlendfileLinkAppendContext *lapp_context,
+                                                      BlendfileLinkAppendContextItem *item,
+                                                      ID *new_id);
 ID *BKE_blendfile_link_append_context_item_liboverrideid_get(
     BlendfileLinkAppendContext *lapp_context, BlendfileLinkAppendContextItem *item);
 short BKE_blendfile_link_append_context_item_idcode_get(BlendfileLinkAppendContext *lapp_context,
@@ -129,18 +138,7 @@ enum eBlendfileLinkAppendForeachItemFlag {
    * See comments in #foreach_libblock_link_append_callback. */
   BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_INDIRECT = 1 << 1,
 };
-/**
- * Callback called by #BKE_blendfile_link_append_context_item_foreach over each (or a subset of
- * each) of the items in given #BlendfileLinkAppendContext.
- *
- * \param userdata: An opaque void pointer passed to the `callback_function`.
- *
- * \return `true` if iteration should continue, `false` otherwise.
- */
-using BKE_BlendfileLinkAppendContexteItemFunction =
-    bool (*)(BlendfileLinkAppendContext *lapp_context,
-             BlendfileLinkAppendContextItem *item,
-             void *userdata);
+
 /**
  * Iterate over all (or a subset) of the items listed in given #BlendfileLinkAppendContext,
  * and call the `callback_function` on them.
@@ -151,9 +149,14 @@ using BKE_BlendfileLinkAppendContexteItemFunction =
  */
 void BKE_blendfile_link_append_context_item_foreach(
     BlendfileLinkAppendContext *lapp_context,
-    BKE_BlendfileLinkAppendContexteItemFunction callback_function,
-    eBlendfileLinkAppendForeachItemFlag flag,
-    void *userdata);
+    /**
+     * Called over each (or a subset of each) of the items in given #BlendfileLinkAppendContext.
+     *
+     * \return `true` if iteration should continue, `false` otherwise.
+     */
+    blender::FunctionRef<bool(BlendfileLinkAppendContext *lapp_context,
+                              BlendfileLinkAppendContextItem *item)> callback_function,
+    eBlendfileLinkAppendForeachItemFlag flag);
 
 /**
  * Perform append operation, using modern ID usage looper to detect which ID should be kept
@@ -167,6 +170,12 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
  * Perform linking operation on all items added to given `lapp_context`.
  */
 void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *reports);
+
+/**
+ * Instantiate loose data in the scene (e.g. add object to the active collection).
+ */
+void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lapp_context,
+                                                 ReportList *reports);
 
 /**
  * Options controlling the behavior of liboverrides creation.
@@ -183,7 +192,7 @@ enum eBKELibLinkOverride {
   BKE_LIBLINK_OVERRIDE_USE_EXISTING_LIBOVERRIDES = 1 << 0,
   /**
    * Create (or return an existing) runtime liboverride, instead of a regular saved-in-blend-files
-   * one. See also the #LIB_TAG_RUNTIME tag of IDs in DNA_ID.h.
+   * one. See also the #ID_TAG_RUNTIME tag of IDs in DNA_ID.h.
    *
    * \note Typically, usage of this flag implies that no linked IDs are instantiated, such that
    * their usages remain indirect.

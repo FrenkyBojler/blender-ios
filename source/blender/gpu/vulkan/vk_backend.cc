@@ -174,7 +174,7 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
     device.init(ghost_context);
   }
 
-  VKContext *context = new VKContext(ghost_window, ghost_context, device.render_graph());
+  VKContext *context = new VKContext(ghost_window, ghost_context, device.current_thread_data());
   device.context_register(*context);
   GHOST_SetVulkanSwapBuffersCallbacks((GHOST_ContextHandle)ghost_context,
                                       VKContext::swap_buffers_pre_callback,
@@ -242,9 +242,30 @@ VertBuf *VKBackend::vertbuf_alloc()
   return new VKVertexBuffer();
 }
 
-void VKBackend::render_begin() {}
+void VKBackend::render_begin()
+{
+  VKThreadData &thread_data = device.current_thread_data();
+  BLI_assert_msg(thread_data.rendering_depth >= 0, "Unbalanced `GPU_render_begin/end`");
+  thread_data.rendering_depth += 1;
+}
 
-void VKBackend::render_end() {}
+void VKBackend::render_end()
+{
+  VKThreadData &thread_data = device.current_thread_data();
+  thread_data.rendering_depth -= 1;
+  BLI_assert_msg(thread_data.rendering_depth >= 0, "Unbalanced `GPU_render_begin/end`");
+
+  if (G.background) {
+    if (thread_data.rendering_depth == 0) {
+      thread_data.resource_pool_next();
+
+      VKResourcePool &resource_pool = thread_data.resource_pool_get();
+      resource_pool.discard_pool.destroy_discarded_resources(device);
+      resource_pool.reset();
+      resource_pool.discard_pool.move_data(device.orphaned_data);
+    }
+  }
+}
 
 void VKBackend::render_step() {}
 

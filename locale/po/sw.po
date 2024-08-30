@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.3.0 Alpha (b'e981389bddb1')\n"
+"Project-Id-Version: Blender 4.3.0 Alpha (b'205d95107e6e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-08-05 09:10+0000\n"
+"POT-Creation-Date: 2024-08-26 09:41+0000\n"
 "PO-Revision-Date: 2024-07-05 18:56+0000\n"
 "Last-Translator: Isaac Gicheha <shwaky3@gmail.com>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -41008,10 +41008,6 @@ msgid "Edge Angle"
 msgstr "Pembe ya Ukali"
 
 
-msgid "Calculate the surface area of each face in a mesh"
-msgstr "Hesabu eneo la uso wa kila uso katika matundu"
-
-
 msgid "Edge Neighbors"
 msgstr "Edge Majirani"
 
@@ -73105,6 +73101,10 @@ msgid "Maximum distance between welded vertices"
 msgstr "Umbali wa juu zaidi kati ya vipeo vilivyounganishwa"
 
 
+msgid "Shared Vertex"
+msgstr "Kipeo cha Pamoja"
+
+
 msgctxt "Operator"
 msgid "Reset"
 msgstr "Weka upya"
@@ -75434,6 +75434,14 @@ msgid "Scale of the final strokes"
 msgstr "Kiwango cha mapigo ya mwisho"
 
 
+msgid "Scene Unit"
+msgstr "Kitengo cha Mandhari"
+
+
+msgid "Apply current scene's unit (as defined by unit scale) to imported data"
+msgstr "Tumia kitengo cha eneo la sasa (kama inavyofafanuliwa na kipimo cha kitengo) kwa data iliyoagizwa"
+
+
 msgctxt "Operator"
 msgid "Reload Library"
 msgstr "Pakia Upya Maktaba"
@@ -75871,14 +75879,6 @@ msgstr "Ingiza sifa za kipeo maalum"
 
 msgid "Merges vertices by distance"
 msgstr "Huunganisha wima kwa umbali"
-
-
-msgid "Scene Unit"
-msgstr "Kitengo cha Mandhari"
-
-
-msgid "Apply current scene's unit (as defined by unit scale) to imported data"
-msgstr "Tumia kitengo cha eneo la sasa (kama inavyofafanuliwa na kipimo cha kitengo) kwa data iliyoagizwa"
 
 
 msgctxt "Operator"
@@ -93837,10 +93837,6 @@ msgid "Select UVs that are at the same location and share a mesh vertex"
 msgstr "Chagua UV ambazo ziko katika eneo moja na ushiriki vertex ya matundu"
 
 
-msgid "Shared Vertex"
-msgstr "Kipeo cha Pamoja"
-
-
 msgid "Select UVs that share a mesh vertex, whether or not they are at the same location"
 msgstr "Chagua UV zinazoshiriki vertex ya matundu, iwe ziko katika eneo moja au la."
 
@@ -111178,10 +111174,6 @@ msgid "Unable to execute '%s', error changing modes"
 msgstr "Haiwezi kutekeleza '%s', hali za kubadilisha makosa"
 
 
-msgid "Unable to execute, %s object is linked"
-msgstr "Imeshindwa kutekeleza, kitu %s kimeunganishwa"
-
-
 msgid "Apply modifier as a new shapekey and keep it in the stack"
 msgstr "Tumia kirekebishaji kama ufunguo mpya wa umbo na uiweke kwenye rafu"
 
@@ -112953,10 +112945,6 @@ msgstr "'%s' njia iliyotolewa si sahihi ya OS, na badala yake inaunda njia ya '%
 
 msgid "Could not create new folder: %s"
 msgstr "Haikuweza kuunda folda mpya: %s"
-
-
-msgid "Could not delete file or directory: %s"
-msgstr "Haikuweza kufuta faili au saraka: %s"
 
 
 msgid "More than one item is selected"

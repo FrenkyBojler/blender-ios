@@ -8,7 +8,7 @@
  * \ingroup bke
  */
 
-#include <optional>
+#include <variant>
 
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
@@ -18,6 +18,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
+#include "BLI_shared_cache.hh"
 #include "BLI_utility_mixins.hh"
 
 #include "DNA_brush_enums.h"
@@ -25,6 +26,7 @@
 #include "DNA_object_enums.h"
 
 #include "BKE_pbvh.hh"
+#include "BKE_subdiv_ccg.hh"
 
 struct BMFace;
 struct BMLog;
@@ -195,6 +197,8 @@ bool BKE_paint_ensure_from_paintmode(Main *bmain, Scene *sce, PaintMode mode);
 Paint *BKE_paint_get_active_from_paintmode(Scene *sce, PaintMode mode);
 const EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(PaintMode mode);
 uint BKE_paint_get_brush_tool_offset_from_paintmode(PaintMode mode);
+std::optional<int> BKE_paint_get_brush_tool_from_obmode(const Brush *brush,
+                                                        const eObjectMode ob_mode);
 Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
@@ -292,28 +296,10 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
 
 #define SCULPT_FACE_SET_NONE 0
 
-/** Pose Brush IK Chain. */
-struct SculptPoseIKChainSegment {
-  blender::float3 orig;
-  blender::float3 head;
-
-  blender::float3 initial_orig;
-  blender::float3 initial_head;
-  float len;
-  blender::float3 scale;
-  float rot[4];
-  blender::Array<float> weights;
-
-  /* Store a 4x4 transform matrix for each of the possible combinations of enabled XYZ symmetry
-   * axis. */
-  std::array<blender::float4x4, PAINT_SYMM_AREAS> trans_mat;
-  std::array<blender::float4x4, PAINT_SYMM_AREAS> pivot_mat;
-  std::array<blender::float4x4, PAINT_SYMM_AREAS> pivot_mat_inv;
-};
-
-struct SculptPoseIKChain {
-  blender::Array<SculptPoseIKChainSegment> segments;
-  blender::float3 grab_delta_offset;
+/* Data used for displaying extra visuals while using the Pose brush */
+struct SculptPoseIKChainPreview {
+  blender::Array<blender::float3> initial_orig_coords;
+  blender::Array<blender::float3> initial_head_coords;
 };
 
 struct SculptVertexInfo {
@@ -328,65 +314,6 @@ struct SculptBoundaryPreview {
   blender::float3 initial_vert_position;
 };
 
-struct SculptBoundary {
-  /* Vertex indices of the active boundary. */
-  blender::Vector<int> verts;
-
-  /* Distance from a vertex in the boundary to initial vertex indexed by vertex index, taking into
-   * account the length of all edges between them. Any vertex that is not in the boundary will have
-   * a distance of 0. */
-  blender::Map<int, float> distance;
-
-  /* Data for drawing the preview. */
-  blender::Vector<std::pair<blender::float3, blender::float3>> edges;
-
-  /* Initial vertex index in the boundary which is closest to the current sculpt active vertex. */
-  int initial_vert_i;
-
-  /* Vertex that at max_propagation_steps from the boundary and closest to the original active
-   * vertex that was used to initialize the boundary. This is used as a reference to check how much
-   * the deformation will go into the mesh and to calculate the strength of the brushes. */
-  blender::float3 pivot_position;
-
-  /* Stores the initial positions of the pivot and boundary initial vertex as they may be deformed
-   * during the brush action. This allows to use them as a reference positions and vectors for some
-   * brush effects. */
-  blender::float3 initial_vert_position;
-
-  /* Maximum number of topology steps that were calculated from the boundary. */
-  int max_propagation_steps;
-
-  /* Indexed by vertex index, contains the topology information needed for boundary deformations.
-   */
-  struct {
-    /* Vertex index from where the topology propagation reached this vertex. */
-    blender::Array<int> original_vertex_i;
-
-    /* How many steps were needed to reach this vertex from the boundary. */
-    blender::Array<int> propagation_steps_num;
-
-    /* Strength that is used to deform this vertex. */
-    blender::Array<float> strength_factor;
-  } edit_info;
-
-  /* Bend Deform type. */
-  struct {
-    blender::Array<blender::float3> pivot_rotation_axis;
-    blender::Array<blender::float3> pivot_positions;
-  } bend;
-
-  /* Slide Deform type. */
-  struct {
-    blender::Array<blender::float3> directions;
-  } slide;
-
-  /* Twist Deform type. */
-  struct {
-    blender::float3 rotation_axis;
-    blender::float3 pivot_position;
-  } twist;
-};
-
 struct SculptFakeNeighbors {
   bool use_fake_neighbors;
 
@@ -394,7 +321,7 @@ struct SculptFakeNeighbors {
   float current_max_distance;
 
   /* Indexed by vertex, stores the vertex index of its fake neighbor if available. */
-  int *fake_neighbor_index;
+  blender::Array<int> fake_neighbor_index;
 };
 
 /* Session data (mode-specific) */
@@ -460,21 +387,12 @@ struct SculptAttribute {
 /* Convenience pointers for standard sculpt attributes. */
 
 struct SculptAttributePointers {
-  /* Persistent base. */
-  SculptAttribute *persistent_co = nullptr;
-  SculptAttribute *persistent_no = nullptr;
-  SculptAttribute *persistent_disp = nullptr;
-
   /* Precomputed auto-mask factor indexed by vertex, owned by the auto-masking system and
    * initialized in #auto_mask::cache_init when needed. */
   SculptAttribute *automasking_factor = nullptr;
   SculptAttribute *automasking_occlusion = nullptr; /* CD_PROP_INT8. */
   SculptAttribute *automasking_stroke_id = nullptr;
   SculptAttribute *automasking_cavity = nullptr;
-
-  /* BMesh */
-  SculptAttribute *dyntopo_node_id_vertex = nullptr;
-  SculptAttribute *dyntopo_node_id_face = nullptr;
 };
 
 struct SculptTopologyIslandCache {
@@ -485,20 +403,20 @@ struct SculptTopologyIslandCache {
   blender::Array<uint8_t> vert_island_ids;
 };
 
+using ActiveVert = std::variant<std::monostate, int, SubdivCCGCoord, BMVert *>;
+
 struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
   struct { /* Special handling for multires meshes */
-    bool active;
-    MultiresModifierData *modifier;
-    int level;
+    bool active = false;
+    MultiresModifierData *modifier = nullptr;
+    int level = 0;
   } multires = {};
 
   /* Depsgraph for the Cloth Brush solver to get the colliders. */
   Depsgraph *depsgraph = nullptr;
 
-  /* These are always assigned to base mesh data when using Type::Mesh and Type::Grids.
-   */
-  blender::MutableSpan<blender::float3> vert_positions;
+  /* These are always assigned to base mesh data when using Type::Mesh. */
   blender::OffsetIndices<int> faces;
   blender::Span<int> corner_verts;
 
@@ -550,12 +468,17 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   /* Object is deformed with some modifiers. */
   bool deform_modifiers_active = false;
-  /* Coords of un-deformed mesh. */
-  blender::Array<blender::float3> orig_cos;
   /* Coords of deformed mesh but without stroke displacement. */
   blender::Array<blender::float3, 0> deform_cos;
   /* Crazy-space deformation matrices. */
   blender::Array<blender::float3x3, 0> deform_imats;
+
+  /**
+   * Normals corresponding to the #deform_cos evaluated/deform positions. Stored as a #SharedCache
+   * for consistency with mesh caches in #MeshRuntime::vert_normals_cache.
+   */
+  blender::SharedCache<blender::Vector<blender::float3>> vert_normals_deform;
+  blender::SharedCache<blender::Vector<blender::float3>> face_normals_deform;
 
   /* Pool for texture evaluations. */
   ImagePool *tex_pool = nullptr;
@@ -565,8 +488,6 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   blender::ed::sculpt_paint::expand::Cache *expand_cache = nullptr;
 
   /* Cursor data and active vertex for tools */
-  PBVHVertRef active_vertex = PBVHVertRef{PBVH_REF_NONE};
-
   int active_face_index = -1;
   int active_grid_index = -1;
 
@@ -586,12 +507,10 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   Scene *scene = nullptr;
 
   /* Dynamic mesh preview */
-  PBVHVertRef *preview_vert_list = nullptr;
-  int preview_vert_count = 0;
+  blender::Array<int> preview_verts;
 
   /* Pose Brush Preview */
-  blender::float3 pose_origin;
-  std::unique_ptr<SculptPoseIKChain> pose_ik_chain_preview;
+  std::unique_ptr<SculptPoseIKChainPreview> pose_ik_chain_preview;
 
   /* Boundary Brush Preview */
   std::unique_ptr<SculptBoundaryPreview> boundary_preview;
@@ -665,13 +584,50 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   uchar last_automask_stroke_id = 0;
   std::unique_ptr<SculptTopologyIslandCache> topology_island_cache;
 
+ private:
+  /* In general, this value is expected to be valid (non-empty) as long as the cursor is over the
+   * mesh. Changing the underlying mesh type (e.g. enabling dyntopo, changing multires levels)
+   * should invalidate this value.
+   */
+  ActiveVert active_vert_ = {};
+
+ public:
   SculptSession();
   ~SculptSession();
+
+  PBVHVertRef active_vert_ref() const;
+  ActiveVert active_vert() const;
+
+  /**
+   * Retrieves the corresponding index of the ActiveVert inside a mesh-sized array.
+   *
+   * Helpful in generic cases where we are unlikely to already be processing data in a backing-type
+   * specific manner.
+   *
+   * \note For BMesh, a call to SCULPT_vertex_random_access_ensure is needed to get valid results.
+   * \returns -1 if there is no currently active vertex.
+   */
+  int active_vert_index() const;
+
+  /**
+   * Retrieves the active vertex position.
+   *
+   * This method should be avoided if already working with the relevant position-backing structures
+   * for each of the mesh types. In cases where we want more generic code, this abstraction helps
+   * to remove boilerplate.
+   *
+   * \returns float3 at negative infinity if there is no currently active vertex
+   */
+  blender::float3 active_vert_position(const Depsgraph &depsgraph, const Object &object) const;
+
+  void set_active_vert(ActiveVert vert);
+  void clear_active_vert();
 };
 
 void BKE_sculptsession_free(Object *ob);
 void BKE_sculptsession_free_deformMats(SculptSession *ss);
 void BKE_sculptsession_free_vwpaint_data(SculptSession *ss);
+void BKE_sculptsession_free_pbvh(SculptSession *ss);
 void BKE_sculptsession_bm_to_me(Object *ob, bool reorder);
 void BKE_sculptsession_bm_to_me_for_render(Object *object);
 int BKE_sculptsession_vertex_count(const SculptSession *ss);

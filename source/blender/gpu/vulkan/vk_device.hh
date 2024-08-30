@@ -19,6 +19,7 @@
 #include "vk_descriptor_pools.hh"
 #include "vk_descriptor_set_layouts.hh"
 #include "vk_pipeline_pool.hh"
+#include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
 
 namespace blender::gpu {
@@ -52,6 +53,62 @@ struct VKWorkarounds {
      */
     bool r8g8b8 = false;
   } vertex_formats;
+};
+
+/**
+ * Shared resources between contexts that run in the same thread.
+ */
+class VKThreadData : public NonCopyable, NonMovable {
+ public:
+  /** Thread ID this instance belongs to. */
+  pthread_t thread_id;
+  render_graph::VKRenderGraph render_graph;
+  /**
+   * Index of the active resource pool. Is in sync with the active swap chain image or cycled when
+   * rendering.
+   *
+   * NOTE: Initialized to `UINT32_MAX` to detect first change.
+   */
+  uint32_t resource_pool_index = UINT32_MAX;
+  std::array<VKResourcePool, 5> resource_pools;
+
+  /**
+   * The current rendering depth.
+   *
+   * GPU_rendering_begin can be called multiple times forming a hierarchy. The same resource pool
+   * should be used for the whole hierarchy. rendering_depth is increased for every
+   * GPU_rendering_begin and decreased when GPU_rendering_end is called. Resources pools are cycled
+   * when the rendering_depth set to 0.
+   */
+  int32_t rendering_depth = 0;
+
+  VKThreadData(VKDevice &device,
+               pthread_t thread_id,
+               std::unique_ptr<render_graph::VKCommandBufferInterface> command_buffer,
+               render_graph::VKResourceStateTracker &resources);
+  void deinit(VKDevice &device);
+
+  /**
+   * Get the active resource pool.
+   */
+  VKResourcePool &resource_pool_get()
+  {
+    if (resource_pool_index >= resource_pools.size()) {
+      return resource_pools[0];
+    }
+    return resource_pools[resource_pool_index];
+  }
+
+  /** Activate the next resource pool. */
+  void resource_pool_next()
+  {
+    if (resource_pool_index == UINT32_MAX) {
+      resource_pool_index = 1;
+    }
+    else {
+      resource_pool_index = (resource_pool_index + 1) % 5;
+    }
+  }
 };
 
 class VKDevice : public NonCopyable {
@@ -96,19 +153,15 @@ class VKDevice : public NonCopyable {
   /* Workarounds */
   VKWorkarounds workarounds_;
 
-  /** Buffer to bind to unbound resource locations. */
-  VKBuffer dummy_buffer_;
-
-  Vector<std::pair<VkImage, VmaAllocation>> discarded_images_;
-  Vector<std::pair<VkBuffer, VmaAllocation>> discarded_buffers_;
-  Vector<VkImageView> discarded_image_views_;
-
   std::string glsl_patch_;
-  Vector<render_graph::VKRenderGraph *> render_graphs_;
+  Vector<VKThreadData *> thread_data_;
 
  public:
   render_graph::VKResourceStateTracker resources;
+  VKDiscardPool orphaned_data;
   VKPipelinePool pipelines;
+  /** Buffer to bind to unbound resource locations. */
+  VKBuffer dummy_buffer;
 
   /**
    * This struct contains the functions pointer to extension provided functions.
@@ -203,12 +256,6 @@ class VKDevice : public NonCopyable {
 
   bool is_initialized() const;
   void init(void *ghost_context);
-  /**
-   * Initialize a dummy buffer that can be bound for missing attributes.
-   *
-   * Dummy buffer can only be initialized after the command buffer of the context is retrieved.
-   */
-  void init_dummy_buffer(VKContext &context);
   void reinit();
   void deinit();
 
@@ -238,22 +285,27 @@ class VKDevice : public NonCopyable {
    * \{ */
 
   /**
-   * Get the render graph associated with the current thread. Create a new one when not existing.
+   * Get or create current thread data.
    */
-  render_graph::VKRenderGraph &render_graph();
+  VKThreadData &current_thread_data();
+
+  /**
+   * Get the discard pool for the current thread.
+   *
+   * When the active thread has a context a discard pool associated to the thread is returned.
+   * When there is no context the orphan discard pool is returned.
+   *
+   * A thread with a context can have multiple discard pools. One for each swap-chain image.
+   * A thread without a context is most likely a discarded resource triggered during dependency
+   * graph update. A dependency graph update from the viewport during playback or editing;
+   * or a dependency graph update when rendering.
+   * These can happen from a different thread which will don't have a context at all.
+   */
+  VKDiscardPool &discard_pool_for_current_thread();
+
   void context_register(VKContext &context);
   void context_unregister(VKContext &context);
   Span<std::reference_wrapper<VKContext>> contexts_get() const;
-
-  const VKBuffer &dummy_buffer_get() const
-  {
-    return dummy_buffer_;
-  }
-
-  void discard_image(VkImage vk_image, VmaAllocation vma_allocation);
-  void discard_image_view(VkImageView vk_image_view);
-  void discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocation);
-  void destroy_discarded_resources();
 
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) const;
   void debug_print();
@@ -272,6 +324,11 @@ class VKDevice : public NonCopyable {
    * Initialize the functions struct with extension specific function pointer.
    */
   void init_functions();
+
+  /**
+   * Initialize a dummy buffer that can be bound for missing attributes.
+   */
+  void init_dummy_buffer();
 
   /* During initialization the backend requires access to update the workarounds. */
   friend VKBackend;

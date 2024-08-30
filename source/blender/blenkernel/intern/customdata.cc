@@ -27,6 +27,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_memory_counter.hh"
 #include "BLI_mempool.h"
 #include "BLI_path_util.h"
 #include "BLI_set.hh"
@@ -2686,7 +2687,10 @@ void CustomData_realloc(CustomData *data,
   }
 }
 
-void CustomData_copy(const CustomData *source, CustomData *dest, eCustomDataMask mask, int totelem)
+void CustomData_init_from(const CustomData *source,
+                          CustomData *dest,
+                          eCustomDataMask mask,
+                          int totelem)
 {
   CustomData_reset(dest);
 
@@ -2697,11 +2701,11 @@ void CustomData_copy(const CustomData *source, CustomData *dest, eCustomDataMask
   CustomData_merge(source, dest, mask, totelem);
 }
 
-void CustomData_copy_layout(const CustomData *source,
-                            CustomData *dest,
-                            eCustomDataMask mask,
-                            eCDAllocType alloctype,
-                            int totelem)
+void CustomData_init_layout_from(const CustomData *source,
+                                 CustomData *dest,
+                                 eCustomDataMask mask,
+                                 eCDAllocType alloctype,
+                                 int totelem)
 {
   CustomData_reset(dest);
 
@@ -5636,4 +5640,17 @@ std::optional<eCustomDataType> volume_grid_type_to_custom_data_type(const Volume
 size_t CustomData_get_elem_size(const CustomDataLayer *layer)
 {
   return LAYERTYPEINFO[layer->type].size;
+}
+
+void CustomData_count_memory(const CustomData &data,
+                             const int totelem,
+                             blender::MemoryCounter &memory)
+{
+  for (const CustomDataLayer &layer : Span{data.layers, data.totlayer}) {
+    memory.add_shared(layer.sharing_info, [&](blender::MemoryCounter &shared_memory) {
+      /* Not quite correct for all types, but this is only a rough approximation anyway. */
+      const int64_t elem_size = CustomData_get_elem_size(&layer);
+      shared_memory.add(totelem * elem_size);
+    });
+  }
 }

@@ -21,9 +21,9 @@ set(INC
   ../../render
   ../../windowmanager
   ../../io/common
+  ../../io/ply
   ../../io/stl
   ../../io/wavefront_obj
-  ../../io/ply
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -226,6 +226,7 @@ set(SRC
   nodes/node_geo_viewport_transform.cc
   nodes/node_geo_volume_cube.cc
   nodes/node_geo_volume_to_mesh.cc
+  nodes/node_geo_warning.cc
 
   include/NOD_geo_bake.hh
   include/NOD_geo_capture_attribute.hh

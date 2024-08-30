@@ -56,6 +56,7 @@ set(SRC_OSL
   node_map_range.osl
   node_mapping.osl
   node_math.osl
+  node_metallic_bsdf.osl
   node_mix.osl
   node_mix_closure.osl
   node_mix_color.osl
@@ -96,6 +97,7 @@ set(SRC_OSL
   node_vertex_color.osl
   node_voronoi_texture.osl
   node_voxel_texture.osl
+  node_voxel_texture_zero.osl
   node_wavelength.osl
   node_blackbody.osl
   node_wave_texture.osl

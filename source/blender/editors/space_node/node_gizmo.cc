@@ -102,7 +102,7 @@ static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType 
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
-    bNode *node = bke::nodeGetActive(snode->edittree);
+    bNode *node = bke::node_get_active(snode->edittree);
 
     if (node && ELEM(node->type, CMP_NODE_VIEWER)) {
       return true;
@@ -307,7 +307,7 @@ static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*g
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
-    bNode *node = bke::nodeGetActive(snode->edittree);
+    bNode *node = bke::node_get_active(snode->edittree);
 
     if (node && ELEM(node->type, CMP_NODE_CROP)) {
       /* ignore 'use_crop_size', we can't usefully edit the crop in this case. */
@@ -322,7 +322,7 @@ static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*g
 
 static void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
-  NodeCropWidgetGroup *crop_group = MEM_cnew<NodeCropWidgetGroup>(__func__);
+  NodeCropWidgetGroup *crop_group = MEM_new<NodeCropWidgetGroup>(__func__);
   crop_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
 
   RNA_enum_set(crop_group->border->ptr,
@@ -330,6 +330,9 @@ static void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gz
                ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
 
   gzgroup->customdata = crop_group;
+  gzgroup->customdata_free = [](void *customdata) {
+    MEM_delete(static_cast<NodeCropWidgetGroup *>(customdata));
+  };
 }
 
 static void WIDGETGROUP_node_crop_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
@@ -361,7 +364,7 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
     SpaceNode *snode = CTX_wm_space_node(C);
-    bNode *node = bke::nodeGetActive(snode->edittree);
+    bNode *node = bke::node_get_active(snode->edittree);
 
     crop_group->update_data.context = (bContext *)C;
     crop_group->update_data.ptr = RNA_pointer_create(
@@ -421,7 +424,7 @@ static bool WIDGETGROUP_node_sbeam_poll(const bContext *C, wmGizmoGroupType * /*
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
-    bNode *node = bke::nodeGetActive(snode->edittree);
+    bNode *node = bke::node_get_active(snode->edittree);
 
     if (node && ELEM(node->type, CMP_NODE_SUNBEAMS)) {
       return true;
@@ -474,7 +477,7 @@ static void WIDGETGROUP_node_sbeam_refresh(const bContext *C, wmGizmoGroup *gzgr
     copy_v2_v2(sbeam_group->state.offset, ima->runtime.backdrop_offset);
 
     SpaceNode *snode = CTX_wm_space_node(C);
-    bNode *node = bke::nodeGetActive(snode->edittree);
+    bNode *node = bke::node_get_active(snode->edittree);
 
     /* Need to set property here for undo. TODO: would prefer to do this in _init. */
     PointerRNA nodeptr = RNA_pointer_create(
@@ -528,7 +531,7 @@ static bool WIDGETGROUP_node_corner_pin_poll(const bContext *C, wmGizmoGroupType
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
-    bNode *node = bke::nodeGetActive(snode->edittree);
+    bNode *node = bke::node_get_active(snode->edittree);
 
     if (node && ELEM(node->type, CMP_NODE_CORNERPIN)) {
       return true;
@@ -588,7 +591,7 @@ static void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup 
     copy_v2_v2(cpin_group->state.offset, ima->runtime.backdrop_offset);
 
     SpaceNode *snode = CTX_wm_space_node(C);
-    bNode *node = bke::nodeGetActive(snode->edittree);
+    bNode *node = bke::node_get_active(snode->edittree);
 
     /* need to set property here for undo. TODO: would prefer to do this in _init. */
     int i = 0;

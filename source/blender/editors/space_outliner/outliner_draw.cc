@@ -243,7 +243,7 @@ static void restrictbutton_id_user_toggle(bContext * /*C*/, void *poin, void * /
 
   BLI_assert(id != nullptr);
 
-  if (id->flag & LIB_FAKEUSER) {
+  if (id->flag & ID_FLAG_FAKEUSER) {
     id_us_plus(id);
   }
   else {
@@ -693,7 +693,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
   if (ts && tselem) {
     TreeElement *te = outliner_find_tree_element(&space_outliner->tree, tselem);
 
-    if (tselem->type == TSE_SOME_ID) {
+    if (ELEM(tselem->type, TSE_SOME_ID, TSE_LINKED_NODE_TREE)) {
       id_rename_helper();
 
       WM_msg_publish_rna_prop(mbus, tselem->id, tselem->id, ID, name);
@@ -738,12 +738,12 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
                       "Library path '%s' does not exist, correct this before saving",
                       expanded);
         }
-        else if (lib->id.tag & LIB_TAG_MISSING) {
+        else if (lib->id.tag & ID_TAG_MISSING) {
           BKE_reportf(CTX_wm_reports(C),
                       RPT_INFO,
                       "Library path '%s' is now valid, please reload the library",
                       expanded);
-          lib->id.tag &= ~LIB_TAG_MISSING;
+          lib->id.tag &= ~ID_TAG_MISSING;
         }
       }
 
@@ -1761,14 +1761,14 @@ static void outliner_draw_userbuts(uiBlock *block,
     const TreeStoreElem *tselem = TREESTORE(te);
     ID *id = tselem->id;
 
-    if (tselem->type != TSE_SOME_ID || id->tag & LIB_TAG_EXTRAUSER) {
+    if (tselem->type != TSE_SOME_ID || id->tag & ID_TAG_EXTRAUSER) {
       return;
     }
 
     uiBut *bt;
     const char *tip = nullptr;
     const int real_users = id->us - ID_FAKE_USERS(id);
-    const bool has_fake_user = id->flag & LIB_FAKEUSER;
+    const bool has_fake_user = id->flag & ID_FLAG_FAKEUSER;
     const bool is_linked = ID_IS_LINKED(id);
     const bool is_object = GS(id->name) == ID_OB;
     char overlay[5];
@@ -1808,7 +1808,7 @@ static void outliner_draw_userbuts(uiBlock *block,
 
       bt = uiDefIconButBitS(block,
                             UI_BTYPE_ICON_TOGGLE,
-                            LIB_FAKEUSER,
+                            ID_FLAG_FAKEUSER,
                             1,
                             ICON_FAKE_USER_OFF,
                             int(region->v2d.cur.xmax - OL_TOG_USER_BUTS_USERS),
@@ -2502,7 +2502,7 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
     case ID_VO:
       return ICON_OUTLINER_DATA_VOLUME;
     case ID_LI:
-      if (id->tag & LIB_TAG_MISSING) {
+      if (id->tag & ID_TAG_MISSING) {
         return ICON_LIBRARY_DATA_BROKEN;
       }
       else if (((Library *)id)->runtime.parent) {
@@ -2796,6 +2796,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         }
         break;
       }
+      case TSE_LINKED_NODE_TREE:
+        data.icon = ICON_NODETREE;
+        break;
       case TSE_POSE_BASE:
         data.icon = ICON_ARMATURE_DATA;
         break;
@@ -3473,7 +3476,7 @@ static void outliner_draw_tree_element(bContext *C,
     }
 
     const TreeElementRNAStruct *te_rna_struct = tree_element_cast<TreeElementRNAStruct>(te);
-    if (ELEM(tselem->type, TSE_SOME_ID, TSE_LAYER_COLLECTION) ||
+    if (ELEM(tselem->type, TSE_SOME_ID, TSE_LAYER_COLLECTION, TSE_LINKED_NODE_TREE) ||
         (te_rna_struct && RNA_struct_is_ID(te_rna_struct->get_pointer_rna().type)))
     {
       const BIFIconID lib_icon = UI_icon_from_library(tselem->id);

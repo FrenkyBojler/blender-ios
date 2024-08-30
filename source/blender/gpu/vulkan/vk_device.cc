@@ -40,17 +40,17 @@ void VKDevice::deinit()
     return;
   }
 
-  {
-    std::scoped_lock mutex(resources.mutex);
-    for (render_graph::VKRenderGraph *render_graph : render_graphs_) {
-      delete render_graph;
-    }
-    render_graphs_.clear();
-  }
-
-  dummy_buffer_.free();
+  dummy_buffer.free();
   samplers_.free();
-  destroy_discarded_resources();
+
+  {
+    while (!thread_data_.is_empty()) {
+      VKThreadData *thread_data = thread_data_.pop_last();
+      thread_data->deinit(*this);
+      delete thread_data;
+    }
+    thread_data_.clear();
+  }
   pipelines.free_data();
   vkDestroyPipelineCache(vk_device_, vk_pipeline_cache_, vk_allocation_callbacks);
   descriptor_set_layouts_.deinit();
@@ -95,6 +95,7 @@ void VKDevice::init(void *ghost_context)
   init_pipeline_cache();
 
   samplers_.init();
+  init_dummy_buffer();
 
   debug::object_label(vk_handle(), "LogicalDevice");
   debug::object_label(queue_get(), "GenericQueue");
@@ -191,16 +192,16 @@ void VKDevice::init_pipeline_cache()
   vkCreatePipelineCache(vk_device_, &create_info, vk_allocation_callbacks, &vk_pipeline_cache_);
 }
 
-void VKDevice::init_dummy_buffer(VKContext &context)
+void VKDevice::init_dummy_buffer()
 {
-  if (dummy_buffer_.is_allocated()) {
-    return;
-  }
-
-  dummy_buffer_.create(sizeof(float4x4),
-                       GPU_USAGE_DEVICE_ONLY,
-                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-  dummy_buffer_.clear(context, 0);
+  dummy_buffer.create(sizeof(float4x4),
+                      GPU_USAGE_DEVICE_ONLY,
+                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+  debug::object_label(dummy_buffer.vk_handle(), "DummyBuffer");
+  /* Default dummy buffer. Set the 4th element to 1 to fix missing orcos. */
+  float data[16] = {
+      0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  dummy_buffer.update(static_cast<void *>(data));
 }
 
 void VKDevice::init_glsl_patch()
@@ -218,7 +219,6 @@ void VKDevice::init_glsl_patch()
   ss << "#define gpu_InstanceIndex (gl_InstanceIndex)\n";
   ss << "#define gl_InstanceID (gpu_InstanceIndex - gpu_BaseInstance)\n";
 
-  /* TODO(fclem): This creates a validation error and should be already part of Vulkan 1.2. */
   ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
   if (GPU_stencil_export_support()) {
     ss << "#extension GL_ARB_shader_stencil_export: enable\n";
@@ -347,25 +347,64 @@ std::string VKDevice::driver_version() const
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name VKThreadData
+ * \{ */
+
+VKThreadData::VKThreadData(VKDevice &device,
+                           pthread_t thread_id,
+                           std::unique_ptr<render_graph::VKCommandBufferInterface> command_buffer,
+                           render_graph::VKResourceStateTracker &resources)
+    : thread_id(thread_id), render_graph(std::move(command_buffer), resources)
+{
+  for (VKResourcePool &resource_pool : resource_pools) {
+    resource_pool.init(device);
+  }
+}
+
+void VKThreadData::deinit(VKDevice &device)
+{
+  for (VKResourcePool &resource_pool : resource_pools) {
+    resource_pool.deinit(device);
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Resource management
  * \{ */
 
-render_graph::VKRenderGraph &VKDevice::render_graph()
+VKThreadData &VKDevice::current_thread_data()
 {
   std::scoped_lock mutex(resources.mutex);
   pthread_t current_thread_id = pthread_self();
 
-  for (render_graph::VKRenderGraph *render_graph : render_graphs_) {
-    if (pthread_equal(render_graph->thread_id, current_thread_id)) {
-      return *render_graph;
+  for (VKThreadData *thread_data : thread_data_) {
+    if (pthread_equal(thread_data->thread_id, current_thread_id)) {
+      return *thread_data;
     }
   }
 
-  render_graph::VKRenderGraph *render_graph = new render_graph::VKRenderGraph(
-      std::make_unique<render_graph::VKCommandBufferWrapper>(), resources);
-  render_graph->thread_id = current_thread_id;
-  render_graphs_.append(render_graph);
-  return *render_graph;
+  VKThreadData *thread_data = new VKThreadData(
+      *this,
+      current_thread_id,
+      std::make_unique<render_graph::VKCommandBufferWrapper>(),
+      resources);
+  thread_data_.append(thread_data);
+  return *thread_data;
+}
+
+VKDiscardPool &VKDevice::discard_pool_for_current_thread()
+{
+  std::scoped_lock mutex(resources.mutex);
+  pthread_t current_thread_id = pthread_self();
+  for (VKThreadData *thread_data : thread_data_) {
+    if (pthread_equal(thread_data->thread_id, current_thread_id)) {
+      return thread_data->resource_pool_get().discard_pool;
+    }
+  }
+
+  return orphaned_data;
 }
 
 void VKDevice::context_register(VKContext &context)
@@ -381,43 +420,6 @@ Span<std::reference_wrapper<VKContext>> VKDevice::contexts_get() const
 {
   return contexts_;
 };
-
-void VKDevice::discard_image(VkImage vk_image, VmaAllocation vma_allocation)
-{
-  discarded_images_.append(std::pair(vk_image, vma_allocation));
-}
-
-void VKDevice::discard_image_view(VkImageView vk_image_view)
-{
-  discarded_image_views_.append(vk_image_view);
-}
-
-void VKDevice::discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocation)
-{
-  discarded_buffers_.append(std::pair(vk_buffer, vma_allocation));
-}
-
-void VKDevice::destroy_discarded_resources()
-{
-  VK_ALLOCATION_CALLBACKS
-
-  while (!discarded_image_views_.is_empty()) {
-    VkImageView vk_image_view = discarded_image_views_.pop_last();
-    vkDestroyImageView(vk_device_, vk_image_view, vk_allocation_callbacks);
-  }
-
-  while (!discarded_images_.is_empty()) {
-    std::pair<VkImage, VmaAllocation> image_allocation = discarded_images_.pop_last();
-    resources.remove_image(image_allocation.first);
-    vmaDestroyImage(mem_allocator_get(), image_allocation.first, image_allocation.second);
-  }
-
-  while (!discarded_buffers_.is_empty()) {
-    std::pair<VkBuffer, VmaAllocation> buffer_allocation = discarded_buffers_.pop_last();
-    resources.remove_buffer(buffer_allocation.first);
-    vmaDestroyBuffer(mem_allocator_get(), buffer_allocation.first, buffer_allocation.second);
-  }
-}
 
 void VKDevice::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) const
 {
@@ -459,10 +461,6 @@ void VKDevice::debug_print()
   os << " Compute: " << pipelines.compute_pipelines_.size() << "\n";
   os << "Descriptor sets\n";
   os << " VkDescriptorSetLayouts: " << descriptor_set_layouts_.size() << "\n";
-  os << "Discarded resources\n";
-  os << " VkImageView: " << discarded_image_views_.size() << "\n";
-  os << " VkImage: " << discarded_images_.size() << "\n";
-  os << " VkBuffer: " << discarded_buffers_.size() << "\n";
   os << "\n";
 }
 

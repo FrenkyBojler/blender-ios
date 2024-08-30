@@ -22,10 +22,10 @@ namespace blender::realtime_compositor {
 
 Context::Context(TexturePool &texture_pool) : texture_pool_(texture_pool) {}
 
-void Context::populate_meta_data_for_pass(const Scene * /* scene*/,
-                                          int /* view_layer_id */,
-                                          const char * /* pass_name */,
-                                          MetaData & /* meta_data */) const
+void Context::populate_meta_data_for_pass(const Scene * /*scene*/,
+                                          int /*view_layer_id*/,
+                                          const char * /*pass_name*/,
+                                          MetaData & /*meta_data*/) const
 {
 }
 
@@ -107,16 +107,6 @@ Result Context::create_result(ResultType type, ResultPrecision precision)
 Result Context::create_result(ResultType type)
 {
   return create_result(type, get_precision());
-}
-
-Result Context::create_temporary_result(ResultType type, ResultPrecision precision)
-{
-  return Result::Temporary(*this, type, precision);
-}
-
-Result Context::create_temporary_result(ResultType type)
-{
-  return create_temporary_result(type, get_precision());
 }
 
 TexturePool &Context::texture_pool()

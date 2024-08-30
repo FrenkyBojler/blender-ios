@@ -21,6 +21,7 @@ set(INC_SYS
 
 set(SRC
   intern/action.cc
+  intern/action_iterators.cc
   intern/action_legacy.cc
   intern/action_runtime.cc
   intern/action_selection.cc
@@ -36,6 +37,7 @@ set(SRC
   intern/visualkey.cc
 
   ANIM_action.hh
+  ANIM_action_iterators.hh
   ANIM_action_legacy.hh
   ANIM_animdata.hh
   ANIM_armature_iter.hh
@@ -75,6 +77,7 @@ if(WITH_GTESTS)
   set(TEST_INC
   )
   set(TEST_SRC
+    intern/action_iterators_test.cc
     intern/action_test.cc
     intern/bone_collections_test.cc
     intern/evaluation_test.cc

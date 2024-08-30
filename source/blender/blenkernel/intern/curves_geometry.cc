@@ -17,6 +17,7 @@
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation_legacy.hh"
+#include "BLI_memory_counter.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_task.hh"
 
@@ -96,8 +97,8 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
     other.runtime->curve_offsets_sharing_info->add_user();
   }
 
-  CustomData_copy(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
-  CustomData_copy(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
+  CustomData_init_from(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
+  CustomData_init_from(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
 
   this->point_num = other.point_num;
   this->curve_num = other.curve_num;
@@ -1194,6 +1195,13 @@ std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max() const
   this->runtime->bounds_cache.ensure(
       [&](Bounds<float3> &r_bounds) { r_bounds = *bounds::min_max(this->evaluated_positions()); });
   return this->runtime->bounds_cache.data();
+}
+
+void CurvesGeometry::count_memory(MemoryCounter &memory) const
+{
+  memory.add_shared(this->runtime->curve_offsets_sharing_info, this->offsets().size_in_bytes());
+  CustomData_count_memory(this->point_data, this->point_num, memory);
+  CustomData_count_memory(this->curve_data, this->curve_num, memory);
 }
 
 CurvesGeometry curves_copy_point_selection(

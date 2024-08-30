@@ -53,10 +53,6 @@ struct ListBase;
 namespace blender::ed::seq {
 
 struct SpaceSeq_Runtime : public NonCopyable {
-  /** Required for Thumbnail job start condition. */
-  rctf last_thumbnail_area = {0, 0, 0, 0};
-  /** Stores lists of most recently displayed thumbnails. */
-  GHash *last_displayed_thumbnails = nullptr;
   int rename_channel_index = 0;
   float timeline_clamp_custom_range = 0;
 
@@ -104,6 +100,7 @@ struct StripDrawContext {
   bool show_strip_color_tag;
   bool missing_data_block;
   bool missing_media;
+  bool is_connected;
 };
 
 struct TimelineDrawContext {
@@ -161,7 +158,6 @@ ImBuf *sequencer_ibuf_get(const bContext *C,
 
 /* `sequencer_thumbnails.cc` */
 
-void last_displayed_thumbnails_list_free(void *val);
 void draw_seq_strip_thumbnail(View2D *v2d,
                               const bContext *C,
                               Scene *scene,
@@ -227,6 +223,8 @@ void SEQUENCER_OT_mute(wmOperatorType *ot);
 void SEQUENCER_OT_unmute(wmOperatorType *ot);
 void SEQUENCER_OT_lock(wmOperatorType *ot);
 void SEQUENCER_OT_unlock(wmOperatorType *ot);
+void SEQUENCER_OT_connect(wmOperatorType *ot);
+void SEQUENCER_OT_disconnect(wmOperatorType *ot);
 void SEQUENCER_OT_reload(wmOperatorType *ot);
 void SEQUENCER_OT_refresh_all(wmOperatorType *ot);
 void SEQUENCER_OT_reassign_inputs(wmOperatorType *ot);
@@ -340,7 +338,7 @@ void SEQUENCER_OT_rename_channel(wmOperatorType *ot);
 
 /* `sequencer_preview.cc` */
 
-void sequencer_preview_add_sound(const bContext *C, Sequence *seq);
+void sequencer_preview_add_sound(const bContext *C, const Sequence *seq);
 
 /* `sequencer_add.cc` */
 
@@ -379,6 +377,7 @@ void sequencer_retiming_keys_draw(const TimelineDrawContext *timeline_ctx,
                                   const StripDrawContext &strip_ctx);
 void sequencer_retiming_speed_draw(const TimelineDrawContext *timeline_ctx,
                                    const StripDrawContext &strip_ctx);
+void realize_fake_keys(const Scene *scene, Sequence *seq);
 SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Sequence *seq, const int mval[2]);
 SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2], Sequence **r_seq);
 int left_fake_key_frame_get(const bContext *C, const Sequence *seq);

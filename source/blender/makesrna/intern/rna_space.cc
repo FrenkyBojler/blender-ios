@@ -55,6 +55,7 @@
 #include "SEQ_proxy.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_thumbnail_cache.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -883,7 +884,12 @@ static bool rna_Space_view2d_sync_get(PointerRNA *ptr)
   ARegion *region;
 
   area = rna_area_from_space(ptr); /* can be nullptr */
-  region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  if (area->spacetype == SPACE_CLIP) {
+    region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
+  }
+  else {
+    region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  }
   if (region) {
     View2D *v2d = &region->v2d;
     return (v2d->flag & V2D_VIEWSYNC_SCREEN_TIME) != 0;
@@ -906,7 +912,12 @@ static void rna_Space_view2d_sync_set(PointerRNA *ptr, bool value)
     return;
   }
 
-  region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  if (area->spacetype == SPACE_CLIP) {
+    region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
+  }
+  else {
+    region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  }
   if (region) {
     View2D *v2d = &region->v2d;
     if (value) {
@@ -924,7 +935,12 @@ static void rna_Space_view2d_sync_update(Main * /*bmain*/, Scene * /*scene*/, Po
   ARegion *region;
 
   area = rna_area_from_space(ptr); /* can be nullptr */
-  region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  if (area->spacetype == SPACE_CLIP) {
+    region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
+  }
+  else {
+    region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  }
 
   if (region) {
     bScreen *screen = (bScreen *)ptr->owner_id;
@@ -1584,6 +1600,23 @@ static std::optional<std::string> rna_View3DShading_path(const PointerRNA *ptr)
   if (GS(ptr->owner_id->name) == ID_SCE) {
     return "display.shading";
   }
+  else if (GS(ptr->owner_id->name) == ID_SCR) {
+    const bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
+    const View3DShading *shading = static_cast<View3DShading *>(ptr->data);
+    int area_index;
+    int space_index;
+    LISTBASE_FOREACH_INDEX (ScrArea *, area, &screen->areabase, area_index) {
+      LISTBASE_FOREACH_INDEX (SpaceLink *, sl, &area->spacedata, space_index) {
+        if (sl->spacetype == SPACE_VIEW3D) {
+          View3D *v3d = reinterpret_cast<View3D *>(sl);
+          if (&v3d->shading == shading) {
+            return fmt::format("areas[{}].spaces[{}].shading", area_index, space_index);
+          }
+        }
+      }
+    }
+  }
+
   return "shading";
 }
 
@@ -4742,7 +4775,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_faces", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.edit_flag", V3D_OVERLAY_EDIT_FACES);
-  RNA_def_property_ui_text(prop, "Display Faces", "Highlight selected faces");
+  RNA_def_property_ui_text(prop, "Display Faces", "Display a face selection overlay");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "show_face_center", PROP_BOOLEAN, PROP_NONE);
