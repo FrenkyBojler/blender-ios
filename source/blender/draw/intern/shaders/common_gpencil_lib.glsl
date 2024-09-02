@@ -315,23 +315,19 @@ vec4 gpencil_vertex(vec4 viewport_size,
         tan_heigth = 1.0 / tan_half_theta;
       }
 
+      vec2 local = vec2(0.0, 0.0);
+
       if (abs(cos_theta) > 1.0) {
-        vec4 ssp = vec4(0.0);
         if (r1 > r2) {
-          vec2 ssp2 = out_sspos1.xy + (x * local_x + y * local_y) * r1;
-          ssp = vec4(ssp2, out_sspos1.z, 0.0);
+          local = vec2(x, y) * r1;
         }
         else {
-          vec2 ssp2 = out_sspos2.xy + (x * local_x + y * local_y) * r2;
-          ssp = vec4(ssp2, out_sspos2.z, 0.0);
+          local = vec2(x, y) * r2 + vec2(l, 0.0);
         }
-        out_ndc = screen_space_to_ndc(ssp, viewport_size.xy);
       }
       else {
         float area_tan_per_width = 0.5 * (r1 / tan_half_theta + r2 * tan_half_theta);
         float area_non_per_width = max_r;
-
-        vec2 local = vec2(0.0, 0.0);
 
         if (area_tan_per_width < area_non_per_width) {
           if (use_curr) {
@@ -353,15 +349,14 @@ vec4 gpencil_vertex(vec4 viewport_size,
             local.y += y * max_r;
           }
         }
-
-        vec2 ssp2 = local.x * local_x + local.y * local_y;
-
-        ssp2 += out_sspos1.xy;
-
-        vec4 ssp = vec4(ssp2, (use_curr) ? out_sspos1.z : out_sspos2.z, 0.0);
-
-        out_ndc = screen_space_to_ndc(ssp, viewport_size.xy);
       }
+
+      vec2 ssp2 = local.x * local_x + local.y * local_y;
+
+      ssp2 += out_sspos1.xy;
+
+      vec4 ssp = vec4(ssp2, (use_curr) ? out_sspos1.z : out_sspos2.z, 0.0);
+      out_ndc = screen_space_to_ndc(ssp, viewport_size.xy);
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
