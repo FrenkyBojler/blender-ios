@@ -141,7 +141,7 @@ float i_to_t(float i, vec4 p1, vec4 p2)
   if (placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS) {
     vec4 P1 = from_cam(p1);
     vec4 P2 = from_cam(p2);
-    l = length(P1.xyz - P2.xyz);
+    float l = length(P1.xyz - P2.xyz);
 
     float r1 = P1.w;
     float r2 = P2.w;
@@ -178,7 +178,7 @@ float t_to_i(float t, vec4 p1, vec4 p2)
   if (placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS) {
     vec4 P1 = from_cam(p1);
     vec4 P2 = from_cam(p2);
-    l = length(P1.xyz - P2.xyz);
+    float l = length(P1.xyz - P2.xyz);
 
     float r1 = P1.w;
     float r2 = P2.w;
