@@ -327,13 +327,28 @@ vec4 gpencil_vertex(vec4 viewport_size,
       }
       else {
         vec2 ssp2 = out_sspos1.xy;
-        if (use_curr) {
-          ssp2 -= local_x * r1;
-          ssp2 += y * local_y * r1 * tan_half_theta;
-        }
-        else {
-          ssp2 += local_x * (l + r2);
-          ssp2 += y * local_y * r2 * tan_half_theta;
+
+        bool use_tan = false;
+
+        if(use_tan){
+          if (use_curr) {
+            ssp2 -= local_x * r1;
+            ssp2 += y * local_y * r1 * tan_half_theta;
+          }
+          else {
+            ssp2 += local_x * (l + r2);
+            ssp2 += y * local_y * r2 * tan_half_theta;
+          }
+        }else{
+          float max_r = max(r1, r2);
+          if (use_curr) {
+            ssp2 -= local_x * r1;
+            ssp2 += y * local_y * max_r;
+          }
+          else {
+            ssp2 += local_x * (l + r2);
+            ssp2 += y * local_y * max_r;
+          }
         }
 
         vec4 ssp = vec4(ssp2, (use_curr) ? out_sspos1.z : out_sspos2.z, 0.0);
