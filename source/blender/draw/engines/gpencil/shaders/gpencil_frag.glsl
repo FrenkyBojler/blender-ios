@@ -283,7 +283,17 @@ int2 get_bounds(vec2 p0, vec4 p1, vec4 p2)
     return int2(min_lower, max_upper);
   }
 
-  vec2 ts = uneven_capsule_intersection(p0, p1.xy, p2.xy, p1.w, p2.w);
+  float r1 = p1.w;
+  float r2 = p2.w;
+
+  bool is_squares = !flag_test(gp_interp_flat.mat_flag, GP_STROKE_DOTS);
+
+  if (is_squares) {
+    r1 *= M_SQRT2;
+    r2 *= M_SQRT2;
+  }
+
+  vec2 ts = uneven_capsule_intersection(p0, p1.xy, p2.xy, r1, r2);
 
   if (ts.x == -1 && ts.y == -1) {
     return int2(0, 0);
