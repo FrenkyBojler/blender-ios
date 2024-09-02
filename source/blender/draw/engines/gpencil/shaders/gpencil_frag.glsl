@@ -124,9 +124,10 @@ vec4 from_cam(vec4 a){
 }
 
 float i_to_t(float i, vec4 p1, vec4 p2){
-  float l_start = gp_interp_flat.point_length.x;
-  float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
+  float i_start = gp_interp_flat.point_length.x;
+  float i_end = gp_interp_flat.point_length.y;
   float point_density = gp_interp_flat.point_length.z;
+  float i_delta = i_end - i_start;
 
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
 
@@ -139,26 +140,27 @@ float i_to_t(float i, vec4 p1, vec4 p2){
     float r2 = P2.w;
     float a = r2 - r1;
     if(abs(a) < 0.001){
-      return (i / point_density - l_start)*r1 / l;
+      return (i / point_density - i_start)*r1 / l;
     }
 
     float E = (l + a)/(l - a);
-    float E_i = pow(E, (i / point_density - l_start)/2.0);
+    float E_i = pow(E, (i / point_density - i_start)/2.0);
 
     return r1 * (E_i - 1.0) / a;
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER){
-    return i / (l * point_density);
+    return i / (i_delta * point_density);
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH){
-    return (i / point_density - l_start) / l;
+    return (i / point_density - i_start) / i_delta;
   }else{ /* GP_DOTS_PLACEMENT_MODE_SINGLE */
     return 0.0;
   }
 }
 
 float t_to_i(float t, vec4 p1, vec4 p2){
-  float l_start = gp_interp_flat.point_length.x;
-  float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
+  float i_start = gp_interp_flat.point_length.x;
+  float i_end = gp_interp_flat.point_length.y;
   float point_density = gp_interp_flat.point_length.z;
+  float i_delta = i_end - i_start;
 
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
 
@@ -171,17 +173,17 @@ float t_to_i(float t, vec4 p1, vec4 p2){
     float r2 = P2.w;
     float a = r2 - r1;
     if(abs(a) < 0.001){
-      return (t * l/P1.w + l_start) * point_density;
+      return (t * l/P1.w + i_start) * point_density;
     }
 
     float E = (l + a)/(l - a);
     float E_i = t * a / r1 + 1.0;
 
-    return (2.0 * log(E_i)/log(E) + l_start) * point_density;
+    return (2.0 * log(E_i)/log(E) + i_start) * point_density;
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER){
-    return t * l * point_density;
+    return t * i_delta * point_density;
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH){
-    return (t * l + l_start) * point_density;
+    return (t * i_delta + i_start) * point_density;
   }else{ /* GP_DOTS_PLACEMENT_MODE_SINGLE */
     return 0.0;
   }
@@ -370,6 +372,7 @@ void main()
         int lower = bounds.x;
         int upper = bounds.y;
 
+        /* Loop thought backwards so we can break early. */
         for(int i=upper-1; i>=lower; i--){
           float t = i_to_t(i, p1, p2);
 
