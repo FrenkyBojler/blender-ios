@@ -328,31 +328,35 @@ vec4 gpencil_vertex(vec4 viewport_size,
         out_ndc = screen_space_to_ndc(ssp, viewport_size.xy);
       }
       else {
-        vec2 ssp2 = out_sspos1.xy;
-
         float area_tan_per_width = 0.5 * (r1 / tan_half_theta + r2 * tan_half_theta);
         float area_non_per_width = max_r;
 
+        vec2 local = vec2(0.0, 0.0);
+
         if (area_tan_per_width < area_non_per_width) {
           if (use_curr) {
-            ssp2 -= local_x * r1;
-            ssp2 += y * local_y * r1 * tan_heigth;
+            local.x -= r1;
+            local.y += y * r1 * tan_heigth;
           }
           else {
-            ssp2 += local_x * (l + r2);
-            ssp2 += y * local_y * r2 * tan_heigth;
+            local.x += (l + r2);
+            local.y += y * r2 * tan_heigth;
           }
         }
         else {
           if (use_curr) {
-            ssp2 -= local_x * r1;
-            ssp2 += y * local_y * max_r;
+            local.x -= r1;
+            local.y += y * max_r;
           }
           else {
-            ssp2 += local_x * (l + r2);
-            ssp2 += y * local_y * max_r;
+            local.x += (l + r2);
+            local.y += y * max_r;
           }
         }
+
+        vec2 ssp2 = local.x * local_x + local.y * local_y;
+
+        ssp2 += out_sspos1.xy;
 
         vec4 ssp = vec4(ssp2, (use_curr) ? out_sspos1.z : out_sspos2.z, 0.0);
 
