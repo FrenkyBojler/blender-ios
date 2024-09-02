@@ -237,7 +237,8 @@ vec2 uneven_capsule_intersection(vec2 p0, vec2 p1, vec2 p2, float r1, float r2)
     return vec2(-1.0, -1.0);
   }
 
-  vec2 t = (vec2(-1.0, 1.0) * sqrt(discriminant) - vec2(b, b)) * (1.0 / (2.0 * a));
+  /* The quadratic equation. */
+  vec2 t = (vec2(-1.0, 1.0) * sqrt(discriminant) - b) / (2.0 * a);
 
   if (r1 < r2) {
     if (l - r2 < -r1) {
