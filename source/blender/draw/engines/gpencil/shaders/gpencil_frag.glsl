@@ -54,7 +54,8 @@ vec3 gpencil_lighting(void)
   return clamp(light_accum, 0.0, 1e10);
 }
 
-vec4 get_color(vec2 uv){
+vec4 get_color(vec2 uv)
+{
   vec4 col;
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_USE)) {
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_PREMUL);
@@ -83,12 +84,13 @@ vec4 get_color(vec2 uv){
 
   col.rgb *= gpencil_lighting();
 
-  if(flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) // dot and squares
+  if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
   {
-    uv = uv*2.0 - 1.0;
-    if(flag_test(gp_interp_flat.mat_flag, GP_STROKE_DOTS)){
+    uv = uv * 2.0 - 1.0;
+    if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_DOTS)) {
       col *= gpencil_stroke_round_mask(length(uv), gp_interp_noperspective.hardness);
-    }else{
+    }
+    else {
       uv = abs(uv);
       col *= gpencil_stroke_round_mask(max(uv.x, uv.y), gp_interp_noperspective.hardness);
     }
@@ -97,33 +99,38 @@ vec4 get_color(vec2 uv){
   return col;
 }
 
-vec4 get_dot_color(vec2 uv, int i){
+vec4 get_dot_color(vec2 uv, int i)
+{
   vec4 col = get_color(uv);
-  float rand = mod(sin(mod(i*437.532124, 1.0)*75.4368634), 1.0);
+  float rand = mod(sin(mod(i * 437.532124, 1.0) * 75.4368634), 1.0);
   col.rgb *= rand * 0.8 + 0.2;
 
   return col;
 }
 
-vec4 alpha_over(vec4 base, vec4 over){
-    return (1.0 - over.w) * base + over;
+vec4 alpha_over(vec4 base, vec4 over)
+{
+  return (1.0 - over.w) * base + over;
 }
 
-vec4 to_cam(vec4 a){
+vec4 to_cam(vec4 a)
+{
   if (ProjectionMatrix[3][3] == 0.0) {
-    return vec4(a.x/a.z, a.y/a.z, a.z, a.w/a.z);
+    return vec4(a.x / a.z, a.y / a.z, a.z, a.w / a.z);
   }
   return a;
 }
 
-vec4 from_cam(vec4 a){
+vec4 from_cam(vec4 a)
+{
   if (ProjectionMatrix[3][3] == 0.0) {
-    return vec4(a.x*a.z, a.y*a.z, a.z, a.w*a.z);
+    return vec4(a.x * a.z, a.y * a.z, a.z, a.w * a.z);
   }
   return a;
 }
 
-float i_to_t(float i, vec4 p1, vec4 p2){
+float i_to_t(float i, vec4 p1, vec4 p2)
+{
   float i_start = gp_interp_flat.point_length.x;
   float i_end = gp_interp_flat.point_length.y;
   float point_density = gp_interp_flat.point_length.z;
@@ -131,7 +138,7 @@ float i_to_t(float i, vec4 p1, vec4 p2){
 
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
 
-  if(placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS){
+  if (placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS) {
     vec4 P1 = from_cam(p1);
     vec4 P2 = from_cam(p2);
     l = length(P1.xyz - P2.xyz);
@@ -139,24 +146,28 @@ float i_to_t(float i, vec4 p1, vec4 p2){
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
-    if(abs(a) < 0.001){
-      return (i / point_density - i_start)*r1 / l;
+    if (abs(a) < 0.001) {
+      return (i / point_density - i_start) * r1 / l;
     }
 
-    float E = (l + a)/(l - a);
-    float E_i = pow(E, (i / point_density - i_start)/2.0);
+    float E = (l + a) / (l - a);
+    float E_i = pow(E, (i / point_density - i_start) / 2.0);
 
     return r1 * (E_i - 1.0) / a;
-  }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER){
+  }
+  else if (placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER) {
     return i / (i_delta * point_density);
-  }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH){
+  }
+  else if (placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH) {
     return (i / point_density - i_start) / i_delta;
-  }else{ /* GP_DOTS_PLACEMENT_MODE_SINGLE */
+  }
+  else { /* GP_DOTS_PLACEMENT_MODE_SINGLE */
     return 0.0;
   }
 }
 
-float t_to_i(float t, vec4 p1, vec4 p2){
+float t_to_i(float t, vec4 p1, vec4 p2)
+{
   float i_start = gp_interp_flat.point_length.x;
   float i_end = gp_interp_flat.point_length.y;
   float point_density = gp_interp_flat.point_length.z;
@@ -164,7 +175,7 @@ float t_to_i(float t, vec4 p1, vec4 p2){
 
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
 
-  if(placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS){
+  if (placement_mode == GP_DOTS_PLACEMENT_MODE_RADIUS) {
     vec4 P1 = from_cam(p1);
     vec4 P2 = from_cam(p2);
     l = length(P1.xyz - P2.xyz);
@@ -172,151 +183,129 @@ float t_to_i(float t, vec4 p1, vec4 p2){
     float r1 = P1.w;
     float r2 = P2.w;
     float a = r2 - r1;
-    if(abs(a) < 0.001){
-      return (t * l/P1.w + i_start) * point_density;
+    if (abs(a) < 0.001) {
+      return (t * l / P1.w + i_start) * point_density;
     }
 
-    float E = (l + a)/(l - a);
+    float E = (l + a) / (l - a);
     float E_i = t * a / r1 + 1.0;
 
-    return (2.0 * log(E_i)/log(E) + i_start) * point_density;
-  }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER){
+    return (2.0 * log(E_i) / log(E) + i_start) * point_density;
+  }
+  else if (placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER) {
     return t * i_delta * point_density;
-  }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH){
+  }
+  else if (placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH) {
     return (t * i_delta + i_start) * point_density;
-  }else{ /* GP_DOTS_PLACEMENT_MODE_SINGLE */
+  }
+  else { /* GP_DOTS_PLACEMENT_MODE_SINGLE */
     return 0.0;
   }
 }
 
-
-
-
-int round_q(float fnum){
-    if(mod(fnum, 1.0) < 0.0001){
-        return int(floor(fnum));
-    }
-    return int(ceil(fnum));
+int round_q(float fnum)
+{
+  if (mod(fnum, 1.0) < 0.0001) {
+    return int(floor(fnum));
+  }
+  return int(ceil(fnum));
 }
 
+float screen_t_to_local_t(float screen_t, float z1, float z2)
+{
+  float f = (1.0 - screen_t);
 
+  float k = z2 / z1 - 1.0;
+  float local_t = screen_t / (k * f + 1.0);
 
-
-
-
-
-float screen_t_to_local_t(float screen_t, float z1, float z2){
-    float f = (1.0 - screen_t);
-
-    float k = z2/z1 - 1.0;
-    float local_t = screen_t/(k*f + 1.0);
-
-    return local_t;
+  return local_t;
 }
 
-vec2 uneven_capsule_intersection(vec2 p0, vec2 p1, vec2 p2, float r1, float r2){
-    float l = distance(p1, p2);
-    
-    float local_dis_sq = dot(p2-p1, p2-p1);
-    float X = (dot(p0-p1, p2-p1)/local_dis_sq)*l;
-    vec2 p_t = p1 + (p2-p1)*(X/l);
-    float Y = distance(p_t, p0);
-    
-    float a = l*l - (r2-r1)*(r2-r1);
-    float b = -2.0*(r1*(r2-r1) + l*X);
-    float c = Y*Y + X*X - r1*r1;
-    
-    float discriminant = b*b - 4.0*a*c;
-    if(discriminant < 0.0){
-        return vec2(-1.0, -1.0);
+vec2 uneven_capsule_intersection(vec2 p0, vec2 p1, vec2 p2, float r1, float r2)
+{
+  float l = distance(p1, p2);
+
+  float local_dis_sq = dot(p2 - p1, p2 - p1);
+  float X = (dot(p0 - p1, p2 - p1) / local_dis_sq) * l;
+  vec2 p_t = p1 + (p2 - p1) * (X / l);
+  float Y = distance(p_t, p0);
+
+  float a = l * l - (r2 - r1) * (r2 - r1);
+  float b = -2.0 * (r1 * (r2 - r1) + l * X);
+  float c = Y * Y + X * X - r1 * r1;
+
+  float discriminant = b * b - 4.0 * a * c;
+  if (discriminant < 0.0) {
+    return vec2(-1.0, -1.0);
+  }
+
+  vec2 t = (vec2(-1.0, 1.0) * sqrt(discriminant) - vec2(b, b)) * (1.0 / (2.0 * a));
+
+  if (r1 < r2) {
+    if (l - r2 < -r1) {
+      return vec2(t.x, 1.0);
     }
-    
-    vec2 t = (vec2(-1.0, 1.0)*sqrt(discriminant) - vec2(b,b))*(1.0/(2.0*a));
-    
-    if( r1 < r2 ) {
-        if(l-r2 < -r1){
-            return vec2(t.x, 1.0);
-        }
-    }else{
-        if(l+r2 < r1){
-            return vec2(0.0, t.y);
-        }
+  }
+  else {
+    if (l + r2 < r1) {
+      return vec2(0.0, t.y);
     }
-    
-    return t;
+  }
+
+  return t;
 }
 
-int min_bound(vec4 p1, vec4 p2){
-    return round_q(t_to_i(0.0, p1, p2));
+int min_bound(vec4 p1, vec4 p2)
+{
+  return round_q(t_to_i(0.0, p1, p2));
 }
 
-int max_bound(vec4 p1, vec4 p2){
-    return round_q(t_to_i(1.0, p1, p2));
+int max_bound(vec4 p1, vec4 p2)
+{
+  return round_q(t_to_i(1.0, p1, p2));
 }
 
-int2 get_bounds(vec2 p0, vec4 p1, vec4 p2){
-    uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
-    if(placement_mode == GP_DOTS_PLACEMENT_MODE_SINGLE){
-        return int2(0, 1);
-    }
+int2 get_bounds(vec2 p0, vec4 p1, vec4 p2)
+{
+  uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
+  if (placement_mode == GP_DOTS_PLACEMENT_MODE_SINGLE) {
+    return int2(0, 1);
+  }
 
-    int min_lower = min_bound(p1, p2);
-    int max_upper = max_bound(p1, p2);
+  int min_lower = min_bound(p1, p2);
+  int max_upper = max_bound(p1, p2);
 
-    int lower = 0;
-    int upper = 1000000000;
+  int lower = 0;
+  int upper = 1000000000;
 
-    if(!(p1.z > 0 && p2.z > 0)) {
-        return int2(min_lower, max_upper);
-    }
+  if (!(p1.z > 0 && p2.z > 0)) {
+    return int2(min_lower, max_upper);
+  }
 
-    vec2 ts = uneven_capsule_intersection(p0, p1.xy, p2.xy, p1.w, p2.w);
-    
-    if(ts.x == -1 && ts.y == -1){
-        return int2(0, 0);
-    }
+  vec2 ts = uneven_capsule_intersection(p0, p1.xy, p2.xy, p1.w, p2.w);
 
-    if(ts.y<0.0 || ts.x>1.0){
-        return int2(0, 0);
-    }
+  if (ts.x == -1 && ts.y == -1) {
+    return int2(0, 0);
+  }
 
-    float t_min = screen_t_to_local_t(saturate(ts.x), p1.z, p2.z);
-    float t_max = screen_t_to_local_t(saturate(ts.y), p1.z, p2.z);
+  if (ts.y < 0.0 || ts.x > 1.0) {
+    return int2(0, 0);
+  }
 
-    lower = int(floor(t_to_i(t_min, p1, p2)));
-    upper = int(ceil(t_to_i(t_max, p1, p2))) + 1;
+  float t_min = screen_t_to_local_t(saturate(ts.x), p1.z, p2.z);
+  float t_max = screen_t_to_local_t(saturate(ts.y), p1.z, p2.z);
 
+  lower = int(floor(t_to_i(t_min, p1, p2)));
+  upper = int(ceil(t_to_i(t_max, p1, p2))) + 1;
 
-    lower = max(min_lower, lower);
-    upper = min(max_upper, upper);
+  lower = max(min_lower, lower);
+  upper = min(max_upper, upper);
 
-    return int2(lower, upper);
+  return int2(lower, upper);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-vec3 ndc_to_view(vec4 ndc){
+vec3 ndc_to_view(vec4 ndc)
+{
   if (ProjectionMatrix[3][3] == 0.0) {
     vec3 view = point_ndc_to_view(ndc);
     view.z *= -1.0;
@@ -326,37 +315,35 @@ vec3 ndc_to_view(vec4 ndc){
   return vec3(ndc.xy / vec2(1.0, aspect), 1.0);
 }
 
-
 void main()
 {
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
   bool is_multi_dot = placement_mode != GP_DOTS_PLACEMENT_MODE_SINGLE;
 
-  if(flag_test(gp_interp_flat.mat_flag, GP_FILL)) // fill
+  if (flag_test(gp_interp_flat.mat_flag, GP_FILL))  // fill
   {
-      fragColor = get_color(gp_interp.uv);
+    fragColor = get_color(gp_interp.uv);
   }
   else {
-    if(flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) // dot and squares
+    if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
     {
-      if(is_multi_dot){
+      if (is_multi_dot) {
         float radius1;
         float radius2;
 
         vec4 ndc1 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos1, radius1, viewportSize);
         vec4 ndc2 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos2, radius2, viewportSize);
 
-
         vec3 v1 = ndc_to_view(ndc1);
         vec3 v2 = ndc_to_view(ndc2);
-
 
         vec3 view_dir = ndc_to_view(vec4(gl_FragCoord.xy / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
         vec2 view_coord = view_dir.xy / view_dir.z;
 
         float dx = 15.0;
 
-        vec3 dview_dir = ndc_to_view(vec4((gl_FragCoord.xy + vec2(dx, 0.0)) / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
+        vec3 dview_dir = ndc_to_view(
+            vec4((gl_FragCoord.xy + vec2(dx, 0.0)) / viewportSize.xy, 0.0, 1.0) * 2.0 - 1.0);
         vec2 dview_coord = dview_dir.xy / dview_dir.z;
 
         vec2 dv_dx = (dview_coord - view_coord) / dx;
@@ -373,33 +360,35 @@ void main()
         int upper = bounds.y;
 
         /* Loop thought backwards so we can break early. */
-        for(int i=upper-1; i>=lower; i--){
+        for (int i = upper - 1; i >= lower; i--) {
           float t = i_to_t(i, p1, p2);
 
           vec4 pos = to_cam(P1 + (P2 - P1) * t);
 
           vec2 uv = (view_coord - pos.xy) / pos.w;
 
-          fragColor = alpha_over(get_dot_color(uv*0.5 + 0.5, i), fragColor);
+          fragColor = alpha_over(get_dot_color(uv * 0.5 + 0.5, i), fragColor);
 
           /* Break early if full opacity. */
-          if (fragColor.w > 0.999) { break; }
+          if (fragColor.w > 0.999) {
+            break;
+          }
         }
-      } else {
+      }
+      else {
         vec2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos1.xy) / gp_interp_flat.sspos1.w;
 
         int i = int(gp_interp_flat.point_length.x);
-        fragColor = get_dot_color(uv*0.5 + 0.5, i);
+        fragColor = get_dot_color(uv * 0.5 + 0.5, i);
       }
     }
-    else{ // line
+    else {  // line
       fragColor = get_color(gp_interp.uv);
       fragColor *= gpencil_stroke_round_cap_mask(gp_interp_flat.sspos1.xy,
                                                  gp_interp_flat.sspos2.xy,
                                                  gp_interp_flat.aspect,
                                                  gp_interp_noperspective.thickness.x,
                                                  gp_interp_noperspective.hardness);
-
     }
   }
 

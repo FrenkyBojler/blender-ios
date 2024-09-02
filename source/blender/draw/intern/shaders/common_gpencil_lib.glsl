@@ -10,7 +10,8 @@
 #endif
 
 #ifdef GPU_FRAGMENT_SHADER
-float gpencil_stroke_round_mask(float dist, float hardfac) {
+float gpencil_stroke_round_mask(float dist, float hardfac)
+{
   dist = clamp(1.0 - dist, 0.0, 1.0);
   if (hardfac > 0.999) {
     return step(1e-8, dist);
@@ -45,11 +46,13 @@ float gpencil_stroke_round_cap_mask(vec2 p1, vec2 p2, vec2 aspect, float thickne
 }
 #endif
 
-vec4 ndc_and_radius_to_screen_space(vec4 ndc, float radius, vec2 viewport_size){
+vec4 ndc_and_radius_to_screen_space(vec4 ndc, float radius, vec2 viewport_size)
+{
   return vec4(((ndc.xy / ndc.w) * 0.5 + 0.5) * viewport_size, ndc.w, radius / ndc.w);
 }
 
-vec4 screen_space_to_ndc_and_radius(vec4 ss, out float radius, vec2 viewport_size){
+vec4 screen_space_to_ndc_and_radius(vec4 ss, out float radius, vec2 viewport_size)
+{
   radius = ss.w * ss.z;
   return vec4((ss.xy / viewport_size - 0.5) * 2.0 * ss.z, 0, ss.z);
 }
@@ -158,7 +161,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
                     out vec4 out_sspos1,
                     /* Screen-Space segment end point (x: x, y: y, z: depth, w: radius). */
                     out vec4 out_sspos2,
-                    /* Object-space accumulated length from the start of the stroke 
+                    /* Object-space accumulated length from the start of the stroke
                       (x: point 1, y: point 2, z: point density). */
                     out vec3 out_point_length,
                     /* Stroke aspect ratio. */
@@ -281,7 +284,6 @@ vec4 gpencil_vertex(vec4 viewport_size,
       out_thickness.y = thickness / out_ndc.w;
       out_aspect = vec2(1.0);
 
-
       /* Rotate 90 degrees counter-clockwise. */
       vec2 tan_line = vec2(-line.y, line.x);
 
@@ -290,14 +292,14 @@ vec4 gpencil_vertex(vec4 viewport_size,
       float l = length(out_sspos1.xy - out_sspos2.xy);
 
       float a = r2 - r1;
-      float cos_theta = -a/l;
-      float sin_theta = sqrt(1-cos_theta*cos_theta);
-      float tan_half_theta = (1.0 - cos_theta)/sin_theta;
+      float cos_theta = -a / l;
+      float sin_theta = sqrt(1 - cos_theta * cos_theta);
+      float tan_half_theta = (1.0 - cos_theta) / sin_theta;
 
       bool flip = !(out_sspos1.z > 0 && out_sspos2.z > 0);
 
       if (x == (flip ? 1 : -1)) {
-        tan_half_theta = 1.0/tan_half_theta;
+        tan_half_theta = 1.0 / tan_half_theta;
       }
 
       vec2 screen_ofs = tan_line * y * tan_half_theta;
@@ -311,7 +313,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
       //   screen_ofs = (line * x + tan_line * y) * max_r;
       // }
 
-      if(is_squares) {
+      if (is_squares) {
         screen_ofs *= M_SQRT2;
       }
 
