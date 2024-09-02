@@ -51,10 +51,15 @@ vec4 ndc_and_radius_to_screen_space(vec4 ndc, float radius, vec2 viewport_size)
   return vec4(((ndc.xy / ndc.w) * 0.5 + 0.5) * viewport_size, ndc.w, radius / ndc.w);
 }
 
+vec4 screen_space_to_ndc(vec4 ss, vec2 viewport_size)
+{
+  return vec4((ss.xy / viewport_size - 0.5) * 2.0 * ss.z, 0, ss.z);
+}
+
 vec4 screen_space_to_ndc_and_radius(vec4 ss, out float radius, vec2 viewport_size)
 {
   radius = ss.w * ss.z;
-  return vec4((ss.xy / viewport_size - 0.5) * 2.0 * ss.z, 0, ss.z);
+  return screen_space_to_ndc(ss, viewport_size);
 }
 
 vec2 gpencil_decode_aspect(int packed_data)
@@ -284,6 +289,10 @@ vec4 gpencil_vertex(vec4 viewport_size,
       out_thickness.y = thickness / out_ndc.w;
       out_aspect = vec2(1.0);
 
+      vec2 local_x = safe_normalize(out_sspos2.xy - out_sspos1.xy);
+      /* Rotate 90 degrees counter-clockwise. */
+      vec2 local_y = vec2(-local_x.y, local_x.x);
+
       /* Rotate 90 degrees counter-clockwise. */
       vec2 tan_line = vec2(-line.y, line.x);
 
@@ -308,16 +317,24 @@ vec4 gpencil_vertex(vec4 viewport_size,
 
       screen_ofs *= clamped_thickness;
 
-      // if(abs(cos_theta) > 1.0){
-      //   float max_r = max(r1, r2);
-      //   screen_ofs = (line * x + tan_line * y) * max_r;
-      // }
-
       if (is_squares) {
         screen_ofs *= M_SQRT2;
       }
 
       out_ndc.xy += screen_ofs * viewport_size.zw;
+
+      if (abs(cos_theta) > 1.0) {
+        vec4 ssp = vec4(0.0);
+        if (r1 > r2) {
+          vec2 ssp2 = out_sspos1.xy + (x * local_x + y * local_y) * r1;
+          ssp = vec4(ssp2, out_sspos1.z, 0.0);
+        }
+        else {
+          vec2 ssp2 = out_sspos2.xy + (x * local_x + y * local_y) * r2;
+          ssp = vec4(ssp2, out_sspos2.z, 0.0);
+        }
+        out_ndc = screen_space_to_ndc(ssp, viewport_size.xy);
+      }
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
