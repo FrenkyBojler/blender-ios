@@ -1016,15 +1016,15 @@ static VArray<T> attribute_interpolate(const VArray<T> &input, const bke::Curves
   return VArray<T>::ForContainer(std::move(out));
 };
 
-static float t_to_i(const float t, const float l, const float r1, const float r2)
+static float segment_radius_length(const float l, const float r1, const float r2)
 {
   const float a = r2 - r1;
   if (abs(a) < 0.001f) {
-    return t * l / r1;
+    return l / r1;
   }
 
   const float E = (l + a) / (l - a);
-  const float E_i = t * a / r1 + 1.0f;
+  const float E_i = a / r1 + 1.0f;
 
   return 2.0f * log(E_i) / log(E);
 }
@@ -1039,7 +1039,7 @@ static void get_radii_lengths(Span<float> lengths,
     const float l = lengths[i] - (i > 0 ? lengths[i - 1] : 0.0f);
     const float r1 = radii[points[i]];
     const float r2 = radii[points[(i + 1) % points.size()]];
-    radii_length += t_to_i(1.0f, l, r1, r2) - t_to_i(0.0f, l, r1, r2);
+    radii_length += segment_radius_length(l, r1, r2);
     radii_lengths[i] = radii_length;
   }
 }
