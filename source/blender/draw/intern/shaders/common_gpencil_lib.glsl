@@ -293,12 +293,14 @@ vec4 gpencil_vertex(vec4 viewport_size,
       /* Rotate 90 degrees counter-clockwise. */
       vec2 local_y = vec2(-local_x.y, local_x.x);
 
-      /* Rotate 90 degrees counter-clockwise. */
-      vec2 tan_line = vec2(-line.y, line.x);
-
       float r1 = out_sspos1.w;
       float r2 = out_sspos2.w;
       float l = length(out_sspos1.xy - out_sspos2.xy);
+
+      if (is_squares) {
+        r1 *= M_SQRT2;
+        r2 *= M_SQRT2;
+      }
 
       float a = r2 - r1;
       float cos_theta = -a / l;
@@ -311,18 +313,6 @@ vec4 gpencil_vertex(vec4 viewport_size,
         tan_half_theta = 1.0 / tan_half_theta;
       }
 
-      vec2 screen_ofs = tan_line * y * tan_half_theta;
-
-      screen_ofs += line * x * (flip ? -1 : 1);
-
-      screen_ofs *= clamped_thickness;
-
-      if (is_squares) {
-        screen_ofs *= M_SQRT2;
-      }
-
-      out_ndc.xy += screen_ofs * viewport_size.zw;
-
       if (abs(cos_theta) > 1.0) {
         vec4 ssp = vec4(0.0);
         if (r1 > r2) {
@@ -333,6 +323,21 @@ vec4 gpencil_vertex(vec4 viewport_size,
           vec2 ssp2 = out_sspos2.xy + (x * local_x + y * local_y) * r2;
           ssp = vec4(ssp2, out_sspos2.z, 0.0);
         }
+        out_ndc = screen_space_to_ndc(ssp, viewport_size.xy);
+      }
+      else {
+        vec2 ssp2 = out_sspos1.xy;
+        if (use_curr) {
+          ssp2 -= local_x * r1;
+          ssp2 += y * local_y * r1 * tan_half_theta;
+        }
+        else {
+          ssp2 += local_x * (l + r2);
+          ssp2 += y * local_y * r2 * tan_half_theta;
+        }
+
+        vec4 ssp = vec4(ssp2, (use_curr) ? out_sspos1.z : out_sspos2.z, 0.0);
+
         out_ndc = screen_space_to_ndc(ssp, viewport_size.xy);
       }
 
