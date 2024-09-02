@@ -36,7 +36,7 @@
 #include "BKE_screen.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 
@@ -1040,7 +1040,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
          * Use a default width for property button(s). */
         prop_but_width = UI_UNIT_X * 5;
         w_label = ui_text_icon_width_ex(
-            layout, name, ICON_NONE, ui_text_pad_none, UI_FSTYLE_WIDGET_LABEL);
+            layout, name, ICON_NONE, ui_text_pad_none, UI_FSTYLE_WIDGET);
       }
       else {
         w_label = w_hint / 3;
@@ -2897,7 +2897,7 @@ void uiItemPointerR_prop(uiLayout *layout,
 
   /* get icon & name */
   if (icon == ICON_NONE) {
-    StructRNA *icontype;
+    const StructRNA *icontype;
     if (type == PROP_POINTER) {
       icontype = RNA_property_pointer_type(ptr, prop);
     }
@@ -2971,7 +2971,9 @@ static uiBut *ui_item_menu(uiLayout *layout,
                            void *arg,
                            void *argN,
                            const char *tip,
-                           bool force_menu)
+                           bool force_menu,
+                           uiButArgNFree func_argN_free_fn = MEM_freeN,
+                           uiButArgNCopy func_argN_copy_fn = MEM_dupallocN)
 {
   uiBlock *block = layout->root->block;
   uiLayout *heading_layout = ui_layout_heading_find(layout);
@@ -3027,8 +3029,8 @@ static uiBut *ui_item_menu(uiLayout *layout,
       but->poin = (char *)but;
     }
     but->func_argN = argN;
-    but->func_argN_free_fn = MEM_freeN;
-    but->func_argN_copy_fn = MEM_dupallocN;
+    but->func_argN_free_fn = func_argN_free_fn;
+    but->func_argN_copy_fn = func_argN_copy_fn;
   }
 
   if (ELEM(layout->root->type, UI_LAYOUT_PANEL, UI_LAYOUT_TOOLBAR) ||
@@ -3268,8 +3270,7 @@ static uiBut *uiItemL_(uiLayout *layout, const char *name, int icon)
     icon = ICON_BLANK1;
   }
 
-  const int w = ui_text_icon_width_ex(
-      layout, name, icon, ui_text_pad_none, UI_FSTYLE_WIDGET_LABEL);
+  const int w = ui_text_icon_width_ex(layout, name, icon, ui_text_pad_none, UI_FSTYLE_WIDGET);
   uiBut *but;
   if (icon && name[0]) {
     but = uiDefIconTextBut(
@@ -3595,17 +3596,25 @@ void uiItemMenuEnumFullO_ptr(uiLayout *layout,
     icon = ICON_BLANK1;
   }
 
-  MenuItemLevel *lvl = MEM_cnew<MenuItemLevel>("MenuItemLevel");
+  MenuItemLevel *lvl = MEM_new<MenuItemLevel>("MenuItemLevel");
   STRNCPY(lvl->opname, ot->idname);
   STRNCPY(lvl->propname, propname);
   lvl->opcontext = layout->root->opcontext;
 
-  uiBut *but = ui_item_menu(
-      layout, name, icon, menu_item_enum_opname_menu, nullptr, lvl, nullptr, true);
+  uiBut *but = ui_item_menu(layout,
+                            name,
+                            icon,
+                            menu_item_enum_opname_menu,
+                            nullptr,
+                            lvl,
+                            nullptr,
+                            true,
+                            but_func_argN_free<MenuItemLevel>,
+                            but_func_argN_copy<MenuItemLevel>);
   /* Use the menu button as owner for the operator properties, which will then be passed to the
    * individual menu items. */
   if (r_opptr) {
-    but->opptr = MEM_cnew<PointerRNA>("uiButOpPtr");
+    but->opptr = MEM_new<PointerRNA>("uiButOpPtr");
     WM_operator_properties_create_ptr(but->opptr, ot);
     BLI_assert(but->opptr->data == nullptr);
     WM_operator_properties_alloc(&but->opptr, (IDProperty **)&but->opptr->data, ot->idname);
@@ -3671,7 +3680,7 @@ void uiItemMenuEnumR_prop(
     icon = ICON_BLANK1;
   }
 
-  MenuItemLevel *lvl = MEM_cnew<MenuItemLevel>("MenuItemLevel");
+  MenuItemLevel *lvl = MEM_new<MenuItemLevel>("MenuItemLevel");
   lvl->rnapoin = *ptr;
   STRNCPY(lvl->propname, RNA_property_identifier(prop));
   lvl->opcontext = layout->root->opcontext;
@@ -3683,7 +3692,9 @@ void uiItemMenuEnumR_prop(
                nullptr,
                lvl,
                RNA_property_description(prop),
-               false);
+               false,
+               but_func_argN_free<MenuItemLevel>,
+               but_func_argN_copy<MenuItemLevel>);
 }
 
 void uiItemMenuEnumR(
@@ -5397,6 +5408,24 @@ eUIEmbossType uiLayoutGetEmboss(uiLayout *layout)
   return layout->emboss;
 }
 
+int uiLayoutListItemPaddingWidth()
+{
+  return 5 * UI_SCALE_FAC;
+}
+
+void uiLayoutListItemAddPadding(uiLayout *layout)
+{
+  uiBlock *block = uiLayoutGetBlock(layout);
+  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayoutSetFixedSize(row, true);
+
+  uiDefBut(
+      block, UI_BTYPE_SEPR, 0, "", 0, 0, uiLayoutListItemPaddingWidth(), 0, nullptr, 0.0, 0.0, "");
+
+  /* Restore. */
+  UI_block_layout_set_current(block, layout);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -6444,8 +6473,7 @@ uiLayout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon)
 {
   const uiStyle *style = UI_style_get_dpi();
   const short icon_size = 64 * UI_SCALE_FAC;
-  const int text_points_max = std::max(style->widget.points, style->widgetlabel.points);
-  const int dialog_width = icon_size + (text_points_max * size * UI_SCALE_FAC);
+  const int dialog_width = icon_size + (style->widget.points * size * UI_SCALE_FAC);
   return uiItemsAlertBox(block, style, dialog_width, icon, icon_size);
 }
 

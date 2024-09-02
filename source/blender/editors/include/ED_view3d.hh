@@ -184,9 +184,9 @@ void ED_view3d_lastview_store(RegionView3D *rv3d);
 enum eV3DDepthOverrideMode {
   /** Redraw viewport without overlays. */
   V3D_DEPTH_NO_OVERLAYS = 0,
-  /** Redraw viewport without Grease Pencil and Annotations. */
+  /** Redraw viewport without Grease Pencil. */
   V3D_DEPTH_NO_GPENCIL,
-  /** Redraw viewport with Grease Pencil and Annotations only. */
+  /** Redraw viewport with Grease Pencil only. */
   V3D_DEPTH_GPENCIL_ONLY,
   /** Redraw viewport with active object only. */
   V3D_DEPTH_OBJECT_ONLY,
@@ -614,9 +614,9 @@ void ED_view3d_win_to_ray(const ARegion *region,
  * In orthographic view the resulting vector will match the view vector.
  * \param rv3d: The region (used for the window width and height).
  * \param coord: The world-space location.
- * \param vec: The resulting normalized vector.
+ * \param r_out: The resulting normalized vector.
  */
-void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], float vec[3]);
+void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], float r_out[3]);
 /**
  * Calculate a 3d location from 2d window coordinates.
  * \param region: The region (used for the window width and height).
@@ -889,7 +889,19 @@ bool ED_view3d_depth_read_cached_seg(
 /**
  * Returns viewport color in linear space, matching #ED_space_node_color_sample().
  */
-bool ED_view3d_viewport_color_sample(ARegion *region, const int mval[2], float r_col[3]);
+class ViewportColorSampleSession {
+  GPUTexture *tex = nullptr;
+  blender::ushort4 *data = nullptr;
+  int tex_w, tex_h;
+  rcti valid_rect;
+
+ public:
+  ViewportColorSampleSession() = default;
+  ~ViewportColorSampleSession();
+
+  bool init(ARegion *region);
+  bool sample(const int mval[2], float r_col[3]);
+};
 
 enum eV3DSelectMode {
   /* all elements in the region, ignore depth */
@@ -1303,6 +1315,27 @@ void ED_view3d_buttons_region_layout_ex(const bContext *C,
 
 /* `view3d_view.cc` */
 
+/**
+ * Exit 'local view' of given View3D editor, if it is active and there is nothing to display in it
+ * anymore.
+ *
+ * \param depsgraph: Optional, only required for #frame_selected.
+ * \param frame_selected: Frame the newly out-of-local view to show currently visible selected
+ * objects. Will only do something if a valid #depsgraph pointer is also provided.
+ * \param smooth_viewtx: Smooth transition time (in milliseconds) between current view and final
+ * view, if changes are happening. Currently only used if #frame_selected is enabled.
+ *
+ * \return `true` if the local view was actually exited.
+ */
+bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
+                                Scene *scene,
+                                ViewLayer *view_layer,
+                                wmWindowManager *wm,
+                                wmWindow *win,
+                                View3D *v3d,
+                                ScrArea *area,
+                                bool frame_selected = true,
+                                int smooth_viewtx = 0);
 /**
  * See if current UUID is valid, otherwise set a valid UUID to v3d,
  * Try to keep the same UUID previously used to allow users to quickly toggle back and forth.

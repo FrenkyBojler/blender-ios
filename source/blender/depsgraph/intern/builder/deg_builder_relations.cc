@@ -89,7 +89,7 @@
 #include "BKE_world.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 #include "RNA_types.hh"
 
 #include "ANIM_action.hh"
@@ -1785,7 +1785,7 @@ void DepsgraphRelationBuilder::build_animation_images(ID *id)
   /* See #DepsgraphNodeBuilder::build_animation_images. */
   bool has_image_animation = false;
   if (ELEM(GS(id->name), ID_MA, ID_WO)) {
-    bNodeTree *ntree = *bke::BKE_ntree_ptr_from_id(id);
+    bNodeTree *ntree = *bke::node_tree_ptr_from_id(id);
     if (ntree != nullptr && ntree->runtime->runtime_flag & NTREE_RUNTIME_FLAG_HAS_IMAGE_ANIMATION)
     {
       has_image_animation = true;
@@ -2602,25 +2602,6 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
   add_relation(ComponentKey(&object->id, NodeType::GEOMETRY),
                OperationKey(&object->id, NodeType::INSTANCING, OperationCode::INSTANCE),
                "Transform -> Instance");
-  /* Grease Pencil Modifiers. */
-  if (object->greasepencil_modifiers.first != nullptr) {
-    ModifierUpdateDepsgraphContext ctx = {};
-    ctx.scene = scene_;
-    ctx.object = object;
-    LISTBASE_FOREACH (GpencilModifierData *, md, &object->greasepencil_modifiers) {
-      const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(
-          (GpencilModifierType)md->type);
-      if (mti->update_depsgraph) {
-        DepsNodeHandle handle = create_node_handle(obdata_ubereval_key);
-        ctx.node = reinterpret_cast<::DepsNodeHandle *>(&handle);
-        mti->update_depsgraph(md, &ctx, graph_->mode);
-      }
-      if (BKE_gpencil_modifier_depends_ontime(md)) {
-        TimeSourceKey time_src_key;
-        add_relation(time_src_key, obdata_ubereval_key, "Time Source");
-      }
-    }
-  }
   /* Shader FX. */
   if (object->shader_fx.first != nullptr) {
     ModifierUpdateDepsgraphContext ctx = {};

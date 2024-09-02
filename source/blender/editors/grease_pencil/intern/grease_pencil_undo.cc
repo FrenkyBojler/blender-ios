@@ -124,7 +124,7 @@ class StepDrawingGeometry : public StepDrawingGeometryBase {
  public:
   void encode(const GreasePencilDrawing &drawing_geometry,
               const int64_t drawing_index,
-              StepEncodeStatus & /* encode_status */)
+              StepEncodeStatus & /*encode_status*/)
   {
     BLI_assert(drawing_index >= 0 && drawing_index < INT32_MAX);
     index_ = int(drawing_index);
@@ -159,7 +159,7 @@ class StepDrawingReference : public StepDrawingGeometryBase {
  public:
   void encode(const GreasePencilDrawingReference &drawing_reference,
               const int64_t drawing_index,
-              StepEncodeStatus & /* encode_status */)
+              StepEncodeStatus & /*encode_status*/)
   {
     BLI_assert(drawing_index >= 0 && drawing_index < INT32_MAX);
     index_ = int(drawing_index);
@@ -261,7 +261,7 @@ class StepObject {
   {
     layers_num_ = int(grease_pencil.layers().size());
 
-    CustomData_copy(
+    CustomData_init_from(
         &grease_pencil.layers_data, &layers_data_, eCustomDataMask(CD_MASK_ALL), layers_num_);
 
     if (grease_pencil.active_node != nullptr) {
@@ -288,7 +288,8 @@ class StepObject {
       }
     }
 
-    CustomData_copy(
+    CustomData_free(&grease_pencil.layers_data, layers_num_);
+    CustomData_init_from(
         &layers_data_, &grease_pencil.layers_data, eCustomDataMask(CD_MASK_ALL), layers_num_);
   }
 

@@ -41,7 +41,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
@@ -474,6 +474,8 @@ static int collection_exporter_add_exec(bContext *C, wmOperator *op)
   CollectionExport *data = MEM_cnew<CollectionExport>("CollectionExport");
   STRNCPY(data->fh_idname, fh->idname);
 
+  BKE_collection_exporter_name_set(exporters, data, fh->label);
+
   IDPropertyTemplate val{};
   data->export_properties = IDP_New(IDP_GROUP, &val, "export_properties");
   data->flag |= IO_HANDLER_PANEL_OPEN;
@@ -620,7 +622,9 @@ static int collection_exporter_export(bContext *C,
 
   /* Free the "last used" properties that were just set from the collection export and restore the
    * original "last used" properties. */
-  IDP_FreeProperty(ot->last_properties);
+  if (ot->last_properties) {
+    IDP_FreeProperty(ot->last_properties);
+  }
   ot->last_properties = last_properties;
 
   IDP_FreeProperty(op_props);
@@ -663,10 +667,18 @@ static void COLLECTION_OT_exporter_export(wmOperatorType *ot)
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Exporter index", 0, INT_MAX);
 }
 
-static int collection_export(bContext *C, wmOperator *op, Collection *collection)
+struct CollectionExportStats {
+  int successful_exports_num = 0;
+  int collections_num = 0;
+};
+
+static int collection_export(bContext *C,
+                             wmOperator *op,
+                             Collection *collection,
+                             CollectionExportStats &stats)
 {
   ListBase *exporters = &collection->exporters;
-  int num_files = 0;
+  int files_num = 0;
 
   LISTBASE_FOREACH (CollectionExport *, data, exporters) {
     if (collection_exporter_export(C, op, data, collection, false) != OPERATOR_FINISHED) {
@@ -674,21 +686,34 @@ static int collection_export(bContext *C, wmOperator *op, Collection *collection
       return OPERATOR_CANCELLED;
     }
     else {
-      num_files++;
+      files_num++;
     }
   }
 
-  if (num_files) {
-    BKE_reportf(op->reports, RPT_INFO, "Exported %d files", num_files);
+  if (files_num) {
+    stats.successful_exports_num += files_num;
+    stats.collections_num++;
   }
-
   return OPERATOR_FINISHED;
 }
 
 static int collection_io_export_all_exec(bContext *C, wmOperator *op)
 {
   Collection *collection = CTX_data_collection(C);
-  return collection_export(C, op, collection);
+  CollectionExportStats stats;
+  int result = collection_export(C, op, collection, stats);
+
+  /* Only report if nothing was cancelled along the way. We don't want this UI report to happen
+   * over-top any reports from the actual failures. */
+  if (result == OPERATOR_FINISHED && stats.successful_exports_num > 0) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Exported %d files from collection '%s'",
+                stats.successful_exports_num,
+                collection->id.name + 2);
+  }
+
+  return result;
 }
 
 static void COLLECTION_OT_export_all(wmOperatorType *ot)
@@ -708,7 +733,8 @@ static void COLLECTION_OT_export_all(wmOperatorType *ot)
 
 static int collection_export_recursive(bContext *C,
                                        wmOperator *op,
-                                       LayerCollection *layer_collection)
+                                       LayerCollection *layer_collection,
+                                       CollectionExportStats &stats)
 {
   /* Skip collections which have been Excluded in the View Layer. */
   if (layer_collection->flag & LAYER_COLLECTION_EXCLUDE) {
@@ -719,12 +745,12 @@ static int collection_export_recursive(bContext *C,
     return OPERATOR_FINISHED;
   }
 
-  if (collection_export(C, op, layer_collection->collection) != OPERATOR_FINISHED) {
+  if (collection_export(C, op, layer_collection->collection, stats) != OPERATOR_FINISHED) {
     return OPERATOR_CANCELLED;
   }
 
   LISTBASE_FOREACH (LayerCollection *, child, &layer_collection->layer_collections) {
-    if (collection_export_recursive(C, op, child) != OPERATOR_FINISHED) {
+    if (collection_export_recursive(C, op, child, stats) != OPERATOR_FINISHED) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -735,10 +761,22 @@ static int collection_export_recursive(bContext *C,
 static int wm_collection_export_all_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  CollectionExportStats stats;
   LISTBASE_FOREACH (LayerCollection *, layer_collection, &view_layer->layer_collections) {
-    if (collection_export_recursive(C, op, layer_collection) != OPERATOR_FINISHED) {
+    if (collection_export_recursive(C, op, layer_collection, stats) != OPERATOR_FINISHED) {
       return OPERATOR_CANCELLED;
     }
+  }
+
+  /* Only report if nothing was cancelled along the way. We don't want this UI report to happen
+   * over-top any reports from the actual failures. */
+  if (stats.successful_exports_num > 0) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Exported %d files from %d collections",
+                stats.successful_exports_num,
+                stats.collections_num);
   }
 
   return OPERATOR_FINISHED;
@@ -954,12 +992,15 @@ void OBJECT_OT_collection_remove(wmOperatorType *ot)
 static int collection_unlink_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Collection *collection = static_cast<Collection *>(
-      CTX_data_pointer_get_type(C, "collection", &RNA_Collection).data);
+  Collection *collection = CTX_data_collection(C);
 
   if (!collection) {
     return OPERATOR_CANCELLED;
   }
+  if (collection->flag & COLLECTION_IS_MASTER) {
+    return OPERATOR_CANCELLED;
+  }
+  BLI_assert((collection->id.flag & ID_FLAG_EMBEDDED_DATA) == 0);
   if (ID_IS_OVERRIDE_LIBRARY(collection) &&
       collection->id.override_library->hierarchy_root != &collection->id)
   {
@@ -979,6 +1020,26 @@ static int collection_unlink_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool collection_unlink_poll(bContext *C)
+{
+  Collection *collection = CTX_data_collection(C);
+
+  if (!collection) {
+    return false;
+  }
+  if (collection->flag & COLLECTION_IS_MASTER) {
+    return false;
+  }
+  BLI_assert((collection->id.flag & ID_FLAG_EMBEDDED_DATA) == 0);
+  if (ID_IS_OVERRIDE_LIBRARY(collection) &&
+      collection->id.override_library->hierarchy_root != &collection->id)
+  {
+    return false;
+  }
+
+  return ED_operator_objectmode(C);
+}
+
 void OBJECT_OT_collection_unlink(wmOperatorType *ot)
 {
   /* identifiers */
@@ -988,7 +1049,7 @@ void OBJECT_OT_collection_unlink(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = collection_unlink_exec;
-  ot->poll = ED_operator_objectmode;
+  ot->poll = collection_unlink_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

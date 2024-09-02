@@ -44,7 +44,9 @@
 #include "RNA_define.hh"
 
 #include "curves_sculpt_intern.hh"
+#include "paint_hide.hh"
 #include "paint_intern.hh"
+#include "paint_mask.hh"
 #include "sculpt_intern.hh"
 
 static int brush_scale_size_exec(bContext *C, wmOperator *op)
@@ -180,7 +182,8 @@ static int palette_color_add_exec(bContext *C, wmOperator * /*op*/)
              PaintMode::Texture3D,
              PaintMode::Texture2D,
              PaintMode::Vertex,
-             PaintMode::Sculpt))
+             PaintMode::Sculpt,
+             PaintMode::GPencil))
     {
       copy_v3_v3(color->rgb, BKE_brush_color_get(scene, brush));
       color->value = 0.0;

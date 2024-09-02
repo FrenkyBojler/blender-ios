@@ -25,6 +25,7 @@
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_memory_counter_fwd.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -100,6 +101,8 @@ class InstanceReference {
   bool owns_direct_data() const;
   void ensure_owns_direct_data();
 
+  void count_memory(MemoryCounter &memory) const;
+
   friend bool operator==(const InstanceReference &a, const InstanceReference &b);
 };
 
@@ -114,6 +117,11 @@ class Instances {
   int instances_num_ = 0;
 
   CustomData attributes_;
+
+  /**
+   * Caches how often each reference is used.
+   */
+  mutable SharedCache<Array<int>> reference_user_counts_;
 
   /* These almost unique ids are generated based on the `id` attribute, which might not contain
    * unique ids at all. They are *almost* unique, because under certain very unlikely
@@ -144,6 +152,10 @@ class Instances {
    * Otherwise a new handle is added.
    */
   int add_reference(const InstanceReference &reference);
+  /**
+   * Same as above, but does not deduplicate with existing references.
+   */
+  int add_new_reference(const InstanceReference &reference);
   std::optional<int> find_reference_handle(const InstanceReference &query);
   /**
    * Add a reference to the instance reference with an index specified by the #instance_handle
@@ -186,6 +198,11 @@ class Instances {
    */
   Span<int> almost_unique_ids() const;
 
+  /**
+   * Get cached user counts for every reference.
+   */
+  Span<int> reference_user_counts() const;
+
   bke::AttributeAccessor attributes() const;
   bke::MutableAttributeAccessor attributes_for_write();
 
@@ -198,8 +215,11 @@ class Instances {
   bool owns_direct_data() const;
   void ensure_owns_direct_data();
 
+  void count_memory(MemoryCounter &memory) const;
+
   void tag_reference_handles_changed()
   {
+    reference_user_counts_.tag_dirty();
     almost_unique_ids_cache_.tag_dirty();
   }
 };

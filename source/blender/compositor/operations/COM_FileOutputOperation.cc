@@ -169,6 +169,8 @@ void FileOutputOperation::execute_single_layer()
      * be stored in views. An exception to this is stereo images, which needs to have the same
      * structure as non-EXR images. */
     const auto &format = input.data->use_node_format ? node_data_->format : input.data->format;
+    const bool save_as_render = input.data->use_node_format ? node_data_->save_as_render :
+                                                              input.data->save_as_render;
     const bool is_exr = format.imtype == R_IMF_IMTYPE_OPENEXR;
     const int views_count = BKE_scene_multiview_num_views_get(context_->get_render_data());
     if (is_exr && !(format.views_format == R_IMF_VIEWS_STEREO_3D && views_count == 2)) {
@@ -181,7 +183,7 @@ void FileOutputOperation::execute_single_layer()
 
     const int2 size = int2(input.image_input->get_width(), input.image_input->get_height());
     realtime_compositor::FileOutput &file_output = context_->get_render_context()->get_file_output(
-        image_path, format, size, input.data->save_as_render);
+        image_path, format, size, save_as_render);
 
     add_view_for_input(file_output, input, context_->get_view_name());
 
@@ -263,7 +265,7 @@ void FileOutputOperation::execute_multi_layer()
 
 /* Given a float4 image, return a newly allocated float3 image that ignores the last channel. The
  * input image is freed. */
-float *float4_to_float3_image(int2 size, float *float4_image)
+static float *float4_to_float3_image(int2 size, float *float4_image)
 {
   float *float3_image = static_cast<float *>(
       MEM_malloc_arrayN(size_t(size.x) * size.y, sizeof(float[3]), "File Output Vector Buffer."));
@@ -283,8 +285,6 @@ float *float4_to_float3_image(int2 size, float *float4_image)
   return float3_image;
 }
 
-/* Add a pass of the given name, view, and input buffer. The pass channel identifiers follows the
- * EXR conventions. */
 void FileOutputOperation::add_pass_for_input(realtime_compositor::FileOutput &file_output,
                                              const FileOutputInput &input,
                                              const char *pass_name,
@@ -324,7 +324,6 @@ void FileOutputOperation::add_pass_for_input(realtime_compositor::FileOutput &fi
   }
 }
 
-/* Add a view of the given name and input buffer. */
 void FileOutputOperation::add_view_for_input(realtime_compositor::FileOutput &file_output,
                                              const FileOutputInput &input,
                                              const char *view_name)
@@ -347,10 +346,6 @@ void FileOutputOperation::add_view_for_input(realtime_compositor::FileOutput &fi
   }
 }
 
-/* Get the base path of the image to be saved, based on the base path of the node. The base name
- * is an optional initial name of the image, which will later be concatenated with other
- * information like the frame number, view, and extension. If the base name is empty, then the
- * base path represents a directory, so a trailing slash is ensured. */
 void FileOutputOperation::get_single_layer_image_base_path(const char *base_name, char *base_path)
 {
   if (base_name[0]) {
@@ -362,7 +357,6 @@ void FileOutputOperation::get_single_layer_image_base_path(const char *base_name
   }
 }
 
-/* Get the path of the image to be saved based on the given format. */
 void FileOutputOperation::get_single_layer_image_path(const char *base_path,
                                                       const ImageFormatData &format,
                                                       char *image_path)
@@ -377,8 +371,6 @@ void FileOutputOperation::get_single_layer_image_path(const char *base_path,
                                nullptr);
 }
 
-/* Get the path of the EXR image to be saved. If the given view is not empty, its corresponding
- * file suffix will be appended to the name. */
 void FileOutputOperation::get_multi_layer_exr_image_path(const char *base_path,
                                                          const char *view,
                                                          char *image_path)
@@ -404,13 +396,11 @@ const char *FileOutputOperation::get_base_path()
   return node_data_->base_path;
 }
 
-/* Add the file format extensions to the rendered file name. */
 bool FileOutputOperation::use_file_extension()
 {
   return context_->get_render_data()->scemode & R_EXTENSION;
 }
 
-/* If true, save views in a multi-view EXR file, otherwise, save each view in its own file. */
 bool FileOutputOperation::is_multi_view_exr()
 {
   if (!is_multi_view_scene()) {

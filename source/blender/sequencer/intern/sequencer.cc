@@ -32,6 +32,7 @@
 #include "IMB_imbuf.hh"
 
 #include "SEQ_channels.hh"
+#include "SEQ_connect.hh"
 #include "SEQ_edit.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
@@ -42,6 +43,7 @@
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
+#include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
@@ -209,6 +211,10 @@ static void seq_sequence_free_ex(Scene *scene,
   /* free modifiers */
   SEQ_modifier_clear(seq);
 
+  if (SEQ_is_strip_connected(seq)) {
+    SEQ_disconnect(seq);
+  }
+
   /* free cached data used by this strip,
    * also invalidate cache for all dependent sequences
    *
@@ -293,6 +299,7 @@ void SEQ_editing_free(Scene *scene, const bool do_id_user)
   BLI_freelistN(&ed->metastack);
   SEQ_sequence_lookup_free(scene);
   blender::seq::media_presence_free(scene);
+  blender::seq::thumbnail_cache_destroy(scene);
   SEQ_channels_free(&ed->channels);
 
   MEM_freeN(ed);
@@ -322,6 +329,14 @@ static void seq_new_fix_links_recursive(Sequence *seq)
   LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
     if (smd->mask_sequence && smd->mask_sequence->tmp) {
       smd->mask_sequence = static_cast<Sequence *>(smd->mask_sequence->tmp);
+    }
+  }
+
+  if (SEQ_is_strip_connected(seq)) {
+    LISTBASE_FOREACH (SeqConnection *, con, &seq->connections) {
+      if (con->seq_ref->tmp) {
+        con->seq_ref = static_cast<Sequence *>(con->seq_ref->tmp);
+      }
     }
   }
 }
@@ -525,6 +540,11 @@ static Sequence *seq_dupli(const Scene *scene_src,
     SEQ_modifier_list_copy(seqn, seq);
   }
 
+  if (SEQ_is_strip_connected(seq)) {
+    BLI_listbase_clear(&seqn->connections);
+    SEQ_connections_duplicate(&seqn->connections, &seq->connections);
+  }
+
   if (seq->type == SEQ_TYPE_META) {
     seqn->strip->stripdata = nullptr;
 
@@ -625,6 +645,9 @@ Sequence *SEQ_sequence_dupli_recursive(
 
   /* This does not need to be in recursive call itself, since it is already recursive... */
   seq_new_fix_links_recursive(seqn);
+  if (SEQ_is_strip_connected(seqn)) {
+    SEQ_cut_one_way_connections(seqn);
+  }
 
   return seqn;
 }
@@ -660,9 +683,15 @@ void SEQ_sequence_base_dupli_recursive(const Scene *scene_src,
     return;
   }
 
-  /* fix modifier linking */
+  /* Fix effect, modifier, and connected strip links. */
   LISTBASE_FOREACH (Sequence *, seq, nseqbase) {
     seq_new_fix_links_recursive(seq);
+  }
+  /* One-way connections cannot be cut until after all connections are resolved. */
+  LISTBASE_FOREACH (Sequence *, seq, nseqbase) {
+    if (SEQ_is_strip_connected(seq)) {
+      SEQ_cut_one_way_connections(seq);
+    }
   }
 }
 
@@ -767,6 +796,10 @@ static bool seq_write_data_cb(Sequence *seq, void *userdata)
     BLO_write_struct(writer, SeqTimelineChannel, channel);
   }
 
+  LISTBASE_FOREACH (SeqConnection *, con, &seq->connections) {
+    BLO_write_struct(writer, SeqConnection, con);
+  }
+
   if (seq->retiming_keys != nullptr) {
     int size = SEQ_retiming_keys_count(seq);
     BLO_write_struct_array(writer, SeqRetimingKey, size, seq->retiming_keys);
@@ -790,7 +823,6 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
   /* Runtime data cleanup. */
   seq->scene_sound = nullptr;
   BLI_listbase_clear(&seq->anims);
-  seq->flag &= ~SEQ_FLAG_SKIP_THUMBNAILS;
 
   /* Do as early as possible, so that other parts of reading can rely on valid session UID. */
   SEQ_relations_session_uid_generate(seq);
@@ -804,7 +836,39 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
     seq->seq3 = seq->seq2;
   }
 
-  BLO_read_data_address(reader, &seq->effectdata);
+  if (seq->effectdata) {
+    switch (seq->type) {
+      case SEQ_TYPE_COLOR:
+        BLO_read_struct(reader, SolidColorVars, &seq->effectdata);
+        break;
+      case SEQ_TYPE_SPEED:
+        BLO_read_struct(reader, SpeedControlVars, &seq->effectdata);
+        break;
+      case SEQ_TYPE_WIPE:
+        BLO_read_struct(reader, WipeVars, &seq->effectdata);
+        break;
+      case SEQ_TYPE_GLOW:
+        BLO_read_struct(reader, GlowVars, &seq->effectdata);
+        break;
+      case SEQ_TYPE_TRANSFORM:
+        BLO_read_struct(reader, TransformVars, &seq->effectdata);
+        break;
+      case SEQ_TYPE_GAUSSIAN_BLUR:
+        BLO_read_struct(reader, GaussianBlurVars, &seq->effectdata);
+        break;
+      case SEQ_TYPE_TEXT:
+        BLO_read_struct(reader, TextVars, &seq->effectdata);
+        break;
+      case SEQ_TYPE_COLORMIX:
+        BLO_read_struct(reader, ColorMixVars, &seq->effectdata);
+        break;
+      default:
+        BLI_assert_unreachable();
+        seq->effectdata = nullptr;
+        break;
+    }
+  }
+
   BLO_read_struct(reader, Stereo3dFormat, &seq->stereo3d_format);
 
   if (seq->type & SEQ_TYPE_EFFECT) {
@@ -825,7 +889,14 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
 
     /* `SEQ_TYPE_SOUND_HD` case needs to be kept here, for backward compatibility. */
     if (ELEM(seq->type, SEQ_TYPE_IMAGE, SEQ_TYPE_MOVIE, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD)) {
-      BLO_read_data_address(reader, &seq->strip->stripdata);
+      /* FIXME In #SEQ_TYPE_IMAGE case, there is currently no available information about the
+       * length of the stored array of #StripElem.
+       *
+       * This is 'not a problem' because the reading code only checks that the loaded buffer is at
+       * least large enough for the requested data (here a single #StripElem item), and always
+       * assign the whole read memory (without any truncating). But relying on this behavior is
+       * weak and should be addressed. */
+      BLO_read_struct(reader, StripElem, &seq->strip->stripdata);
     }
     else {
       seq->strip->stripdata = nullptr;
@@ -845,6 +916,13 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
   }
 
   SEQ_modifier_blend_read_data(reader, &seq->modifiers);
+
+  BLO_read_struct_list(reader, SeqConnection, &seq->connections);
+  LISTBASE_FOREACH (SeqConnection *, con, &seq->connections) {
+    if (con->seq_ref) {
+      BLO_read_struct(reader, Sequence, &con->seq_ref);
+    }
+  }
 
   BLO_read_struct_list(reader, SeqTimelineChannel, &seq->channels);
 

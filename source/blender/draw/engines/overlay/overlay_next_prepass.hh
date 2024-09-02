@@ -17,48 +17,78 @@ namespace blender::draw::overlay {
 
 class Prepass {
  private:
-  PassMain prepass_ps_ = {"prepass"};
-  PassMain prepass_in_front_ps_ = {"prepass_in_front"};
+  const SelectionType selection_type_;
+
+  PassMain ps_ = {"prepass"};
+
+  bool enabled = false;
 
  public:
+  Prepass(const SelectionType selection_type) : selection_type_(selection_type){};
+
   void begin_sync(Resources &res, const State &state)
   {
-    auto init_pass = [&](PassMain &pass) {
-      pass.init();
-      pass.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | state.clipping_state);
-      pass.shader_set(res.shaders.depth_mesh.get());
-      res.select_bind(pass);
-    };
-    init_pass(prepass_ps_);
-    init_pass(prepass_in_front_ps_);
+    enabled = !state.xray_enabled || (selection_type_ != SelectionType::DISABLED);
+    if (!enabled) {
+      /* Not used. But release the data. */
+      ps_.init();
+      return;
+    }
+
+    const View3DShading &shading = state.v3d->shading;
+    bool use_cull = ((shading.type == OB_SOLID) && (shading.flag & V3D_SHADING_BACKFACE_CULLING));
+    DRWState backface_cull_state = use_cull ? DRW_STATE_CULL_BACK : DRWState(0);
+
+    ps_.init();
+    ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | state.clipping_state |
+                  backface_cull_state);
+    ps_.shader_set(res.shaders.depth_mesh.get());
+    res.select_bind(ps_);
   }
 
   void object_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res)
   {
-    PassMain &pass = (ob_ref.object->dtx & OB_DRAW_IN_FRONT) != 0 ? prepass_in_front_ps_ :
-                                                                    prepass_ps_;
+    if (!enabled) {
+      return;
+    }
+
+    if (ob_ref.object->dt < OB_SOLID) {
+      return;
+    }
 
     /* TODO(fclem) This function should contain what `basic_cache_populate` contained. */
 
-    gpu::Batch *geom = DRW_cache_object_surface_get(ob_ref.object);
+    gpu::Batch *geom = nullptr;
+    switch (ob_ref.object->type) {
+      case OB_MESH:
+        geom = DRW_cache_mesh_surface_get(ob_ref.object);
+        break;
+      case OB_VOLUME:
+        if (selection_type_ == SelectionType::DISABLED) {
+          /* Disable during display, only enable for selection. */
+          /* TODO(fclem): Would be nice to have even when not selecting to occlude overlays. */
+          return;
+        }
+        geom = DRW_cache_volume_selection_surface_get(ob_ref.object);
+        break;
+      default:
+        break;
+    }
+
     if (geom) {
       ResourceHandle res_handle = manager.resource_handle(ob_ref);
-      pass.draw(geom, res_handle, res.select_id(ob_ref).get());
+      ps_.draw(geom, res_handle, res.select_id(ob_ref).get());
     }
   }
 
-  void draw(Resources &res, Manager &manager, View &view)
+  void draw(Framebuffer &framebuffer, Manager &manager, View &view)
   {
+    if (!enabled) {
+      return;
+    }
     /* Should be fine to use the line buffer since the prepass only writes to the depth buffer. */
-    GPU_framebuffer_bind(res.overlay_line_fb);
-    manager.submit(prepass_ps_, view);
-  }
-
-  void draw_in_front(Resources &res, Manager &manager, View &view)
-  {
-    /* Should be fine to use the line buffer since the prepass only writes to the depth buffer. */
-    GPU_framebuffer_bind(res.overlay_line_in_front_fb);
-    manager.submit(prepass_in_front_ps_, view);
+    GPU_framebuffer_bind(framebuffer);
+    manager.submit(ps_, view);
   }
 };
 

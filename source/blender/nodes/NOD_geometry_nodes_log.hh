@@ -52,15 +52,23 @@ namespace blender::nodes::geo_eval_log {
 
 using fn::GField;
 
+/** These values are also written to .blend files, so don't change them lightly. */
 enum class NodeWarningType {
-  Error,
-  Warning,
-  Info,
+  Error = 0,
+  Warning = 1,
+  Info = 2,
 };
 
 struct NodeWarning {
   NodeWarningType type;
   std::string message;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->type, this->message);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(NodeWarning, type, message)
 };
 
 enum class NamedAttributeUsage {
@@ -252,7 +260,7 @@ class GeoTreeLogger {
 class GeoNodeLog {
  public:
   /** Warnings generated for that node. */
-  Vector<NodeWarning> warnings;
+  VectorSet<NodeWarning> warnings;
   /**
    * Time spent in this node. For node groups this is the sum of the run times of the nodes
    * inside.
@@ -296,7 +304,7 @@ class GeoTreeLog {
  public:
   Map<int32_t, GeoNodeLog> nodes;
   Map<int32_t, ViewerNodeLog *, 0> viewer_node_logs;
-  Vector<NodeWarning> all_warnings;
+  VectorSet<NodeWarning> all_warnings;
   std::chrono::nanoseconds run_time_sum{0};
   Vector<const GeometryAttributeInfo *> existing_attributes;
   Map<StringRefNull, NamedAttributeUsage> used_named_attributes;
@@ -305,7 +313,7 @@ class GeoTreeLog {
   GeoTreeLog(GeoModifierLog *modifier_log, Vector<GeoTreeLogger *> tree_loggers);
   ~GeoTreeLog();
 
-  void ensure_node_warnings();
+  void ensure_node_warnings(const bNodeTree *tree);
   void ensure_node_run_time();
   void ensure_socket_values();
   void ensure_viewer_node_logs();

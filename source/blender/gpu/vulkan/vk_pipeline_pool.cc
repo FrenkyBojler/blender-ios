@@ -14,7 +14,7 @@ namespace blender::gpu {
 
 VKPipelinePool::VKPipelinePool()
 {
-  /* Initialize VkComputePipelineCreateInfo*/
+  /* Initialize VkComputePipelineCreateInfo */
   vk_compute_pipeline_create_info_.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
   vk_compute_pipeline_create_info_.pNext = nullptr;
   vk_compute_pipeline_create_info_.flags = 0;
@@ -191,6 +191,7 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
                                                            VkPipeline vk_pipeline_base)
 {
   std::scoped_lock lock(mutex_);
+  graphics_info.fragment_shader.update_hash();
   const VkPipeline *found_pipeline = graphic_pipelines_.lookup_ptr(graphics_info);
   if (found_pipeline) {
     VkPipeline result = *found_pipeline;

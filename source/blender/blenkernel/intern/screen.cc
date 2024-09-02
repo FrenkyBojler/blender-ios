@@ -13,6 +13,8 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include <fmt/format.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -541,8 +543,10 @@ static void area_region_panels_free_recursive(Panel *panel)
 void BKE_area_region_panels_free(ListBase *panels)
 {
   LISTBASE_FOREACH_MUTABLE (Panel *, panel, panels) {
-    /* Free custom data just for parent panels to avoid a double free. */
-    MEM_SAFE_FREE(panel->runtime->custom_data_ptr);
+    /* Delete custom data just for parent panels to avoid a double deletion. */
+    if (panel->runtime->custom_data_ptr) {
+      MEM_delete(panel->runtime->custom_data_ptr);
+    }
     area_region_panels_free_recursive(panel);
   }
   BLI_listbase_clear(panels);
@@ -868,6 +872,26 @@ ScrArea *BKE_screen_find_area_from_space(const bScreen *screen, const SpaceLink 
   return nullptr;
 }
 
+std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA *ptr)
+{
+  if (GS(ptr->owner_id->name) != ID_SCR) {
+    BLI_assert_unreachable();
+    return std::nullopt;
+  }
+
+  bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
+  SpaceLink *link = static_cast<SpaceLink *>(ptr->data);
+
+  int area_index;
+  LISTBASE_FOREACH_INDEX (ScrArea *, area, &screen->areabase, area_index) {
+    const int space_index = BLI_findindex(&area->spacedata, link);
+    if (space_index != -1) {
+      return fmt::format("areas[{}].spaces[{}]", area_index, space_index);
+    }
+  }
+  return std::nullopt;
+}
+
 ScrArea *BKE_screen_find_big_area(const bScreen *screen, const int spacetype, const short min)
 {
   ScrArea *big = nullptr;
@@ -1186,7 +1210,7 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
   else {
     if (spacetype == SPACE_VIEW3D) {
       if (region->regiontype == RGN_TYPE_WINDOW) {
-        BLO_read_data_address(reader, &region->regiondata);
+        BLO_read_struct(reader, RegionView3D, &region->regiondata);
 
         if (region->regiondata == nullptr) {
           /* To avoid crashing on some old files. */

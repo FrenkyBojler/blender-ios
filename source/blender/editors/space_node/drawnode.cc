@@ -48,7 +48,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_node.hh"
 #include "ED_space_api.hh"
@@ -198,14 +198,23 @@ static void node_buts_normal(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr
   uiItemR(layout, &sockptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
 }
 
-static void node_buts_texture(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_buts_texture(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
   short multi = (node->id && ((Tex *)node->id)->use_nodes && (node->type != CMP_NODE_TEXTURE) &&
                  (node->type != TEX_NODE_TEXTURE));
 
-  uiItemR(layout, ptr, "texture", DEFAULT_FLAGS, "", ICON_NONE);
+  uiTemplateID(layout,
+               C,
+               ptr,
+               "texture",
+               "texture.new",
+               nullptr,
+               nullptr,
+               UI_TEMPLATE_ID_FILTER_ALL,
+               false,
+               nullptr);
 
   if (multi) {
     /* Number Drawing not optimal here, better have a list. */
@@ -1678,7 +1687,7 @@ void ED_node_type_draw_color(const char *idname, float *r_color)
 {
   using namespace blender::ed::space_node;
 
-  const blender::bke::bNodeSocketType *typeinfo = blender::bke::nodeSocketTypeFind(idname);
+  const blender::bke::bNodeSocketType *typeinfo = blender::bke::node_socket_type_find(idname);
   if (!typeinfo || typeinfo->type == SOCK_CUSTOM) {
     r_color[0] = 0.0f;
     r_color[1] = 0.0f;
@@ -2050,7 +2059,7 @@ static void nodelink_batch_init()
   g_batch_link.dash_params_id = GPU_vertformat_attr_add(
       &format_inst, "dash_params", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
   g_batch_link.has_back_link_id = GPU_vertformat_attr_add(
-      &format_inst, "has_back_link", GPU_COMP_U32, 1, GPU_FETCH_INT);
+      &format_inst, "has_back_link", GPU_COMP_I32, 1, GPU_FETCH_INT);
   g_batch_link.inst_vbo = GPU_vertbuf_create_with_format_ex(format_inst, GPU_USAGE_STREAM);
   /* Alloc max count but only draw the range we need. */
   GPU_vertbuf_data_alloc(*g_batch_link.inst_vbo, NODELINK_GROUP_SIZE);
@@ -2215,7 +2224,7 @@ static bool node_link_is_field_link(const SpaceNode &snode, const bNodeLink &lin
   if (snode.edittree->type != NTREE_GEOMETRY) {
     return false;
   }
-  if (link.fromsock && link.fromsock->display_shape == SOCK_DISPLAY_SHAPE_DIAMOND) {
+  if (link.fromsock && link.fromsock->runtime->field_state == bke::FieldSocketState::IsField) {
     return true;
   }
   return false;

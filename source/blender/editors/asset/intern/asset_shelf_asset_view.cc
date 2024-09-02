@@ -29,7 +29,7 @@
 #include "UI_interface.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 
@@ -121,7 +121,7 @@ void AssetView::build_items()
 
     const bool show_names = (shelf_.settings.display_flag & ASSETSHELF_SHOW_NAMES);
 
-    const StringRef identifier = asset->get_identifier().library_relative_identifier();
+    const StringRef identifier = asset->library_relative_identifier();
     const int preview_id = [&]() -> int {
       if (list::asset_image_is_loading(&library_ref_, &asset_handle)) {
         return ICON_TEMP;
@@ -211,7 +211,7 @@ static std::optional<wmOperatorCallParams> create_activate_operator_params(
     return {};
   }
 
-  PointerRNA *op_props = MEM_cnew<PointerRNA>(__func__);
+  PointerRNA *op_props = MEM_new<PointerRNA>(__func__);
   WM_operator_properties_create_ptr(op_props, ot);
   asset::operator_asset_reference_props_set(asset, *op_props);
   return wmOperatorCallParams{ot, op_props, WM_OP_INVOKE_REGION_WIN};
@@ -241,7 +241,7 @@ void AssetViewItem::build_grid_tile(uiLayout &layout) const
     UI_but_operator_set(item_but, activate_op->optype, activate_op->opcontext, activate_op->opptr);
     UI_but_operator_set_never_call(item_but);
 
-    MEM_freeN(activate_op->opptr);
+    MEM_delete(activate_op->opptr);
   }
 
   ui::PreviewGridItem::build_grid_tile_button(layout);
@@ -285,7 +285,7 @@ void AssetViewItem::on_activate(bContext &C)
     WM_operator_name_call_ptr(
         &C, activate_op->optype, activate_op->opcontext, activate_op->opptr, nullptr);
     WM_operator_properties_free(activate_op->opptr);
-    MEM_freeN(activate_op->opptr);
+    MEM_delete(activate_op->opptr);
   }
 }
 
@@ -341,6 +341,7 @@ void build_asset_view(uiLayout &layout,
   uiBlock *block = uiLayoutGetBlock(&layout);
   ui::AbstractGridView *grid_view = UI_block_add_view(
       *block, "asset shelf asset view", std::move(asset_view));
+  grid_view->set_context_menu_title("Asset Shelf");
 
   ui::GridViewBuilder builder(*block);
   builder.build_grid_view(*grid_view, region.v2d, layout, filter_string_get(shelf));

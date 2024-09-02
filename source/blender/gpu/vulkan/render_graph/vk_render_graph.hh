@@ -39,6 +39,7 @@
 
 #include <mutex>
 #include <optional>
+#include <pthread.h>
 
 #include "BKE_global.hh"
 
@@ -129,17 +130,6 @@ class VKRenderGraph : public NonCopyable {
   VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_buffer,
                 VKResourceStateTracker &resources);
 
-  /**
-   * Free all resources held by the render graph. After calling this function the render graph may
-   * not work as expected, leading to crashes.
-   *
-   * Freeing data of context resources cannot be done inside the destructor due to an issue when
-   * Blender (read window manager) exits. During this phase the backend is deallocated, device is
-   * destroyed, but window manager requires a context so it creates new one. We work around this
-   * issue by ensuring the VKDevice is always in control of releasing resources.
-   */
-  void free_data();
-
  private:
   /**
    * Add a node to the render graph.
@@ -187,7 +177,9 @@ class VKRenderGraph : public NonCopyable {
   { \
     add_node<NODE_CLASS>(create_info); \
   }
+  ADD_NODE(VKBeginQueryNode)
   ADD_NODE(VKBeginRenderingNode)
+  ADD_NODE(VKEndQueryNode)
   ADD_NODE(VKEndRenderingNode)
   ADD_NODE(VKClearAttachmentsNode)
   ADD_NODE(VKClearColorImageNode)
@@ -204,6 +196,7 @@ class VKRenderGraph : public NonCopyable {
   ADD_NODE(VKDrawIndexedNode)
   ADD_NODE(VKDrawIndexedIndirectNode)
   ADD_NODE(VKDrawIndirectNode)
+  ADD_NODE(VKResetQueryPoolNode)
   ADD_NODE(VKUpdateMipmapsNode)
 #undef ADD_NODE
 

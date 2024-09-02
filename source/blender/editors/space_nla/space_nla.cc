@@ -12,6 +12,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
 
+#include "DNA_screen_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -196,6 +197,8 @@ static void nla_track_region_draw(const bContext *C, ARegion *region)
   /* Recalculate the height of the track list.
    * Needs to be done before the call to #UI_view2d_view_ortho. */
   int height = NLATRACK_TOT_HEIGHT(&ac, item_count);
+  /* Add padding for the collapsed redo panel. */
+  height += HEADERY;
   if (!BLI_listbase_is_empty(ED_context_get_markers(C))) {
     height += (UI_MARKER_MARGIN_Y - NLATRACK_STEP(snla));
   }
@@ -663,7 +666,7 @@ void ED_spacetype_nla()
   art = MEM_cnew<ARegionType>("spacetype nla region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
-  art->keymapflag = ED_KEYMAP_UI;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->listener = nla_region_listener;
   art->init = nla_buttons_region_init;
   art->draw = nla_buttons_region_draw;

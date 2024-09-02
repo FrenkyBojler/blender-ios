@@ -377,6 +377,13 @@ static void detect_workarounds()
    * polaris platform. Keeping legacy platforms around just in case.
    */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+    /* Check for AMD legacy driver. Assuming that when these drivers are used this bug is present.
+     */
+    if (strstr(version, " 22.6.1 ") || strstr(version, " 21.Q1.2 ") ||
+        strstr(version, " 21.Q2.1 "))
+    {
+      GCaps.use_hq_normals_workaround = true;
+    }
     const Vector<std::string> matches = {
         "RX550/550", "(TM) 520", "(TM) 530", "(TM) 535", "R5", "R7", "R9", "HD"};
 
@@ -473,6 +480,23 @@ static void detect_workarounds()
    * `internal format of texture N is not supported`. */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
     GLContext::multi_bind_image_support = false;
+  }
+
+  /* Multi viewport creates small triangle discard on RDNA2 GPUs with official drivers.
+   * Using geometry shader workaround fixes the issue. */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+    if (strstr(renderer, "RX 6300") || strstr(renderer, "RX 6400") ||
+        strstr(renderer, "RX 6450") || strstr(renderer, "RX 6500") ||
+        strstr(renderer, "RX 6550") || strstr(renderer, "RX 6600") ||
+        strstr(renderer, "RX 6650") || strstr(renderer, "RX 6700") ||
+        strstr(renderer, "RX 6750") || strstr(renderer, "RX 6800") ||
+        strstr(renderer, "RX 6850") || strstr(renderer, "RX 6900") ||
+        strstr(renderer, "RX 6950") || strstr(renderer, "W6300") || strstr(renderer, "W6400") ||
+        strstr(renderer, "W6500") || strstr(renderer, "W6600") || strstr(renderer, "W6800") ||
+        strstr(renderer, "W6800") || strstr(renderer, "W6900"))
+    {
+      GLContext::layered_rendering_support = false;
+    }
   }
 
   /* Metal-related Workarounds. */

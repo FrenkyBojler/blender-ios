@@ -348,6 +348,13 @@ typedef struct bNodePanelState {
 #endif
 } bNodePanelState;
 
+typedef enum NodeWarningPropagation {
+  NODE_WARNING_PROPAGATION_ALL = 0,
+  NODE_WARNING_PROPAGATION_NONE = 1,
+  NODE_WARNING_PROPAGATION_ONLY_ERRORS = 2,
+  NODE_WARNING_PROPAGATION_ONLY_ERRORS_AND_WARNINGS = 3,
+} NodeWarningPropagation;
+
 typedef struct bNode {
   struct bNode *next, *prev;
 
@@ -393,6 +400,12 @@ typedef struct bNode {
   /** Used for some builtin nodes that store properties but don't have a storage struct. */
   int16_t custom1, custom2;
   float custom3, custom4;
+
+  /**
+   * #NodeWarningPropagation.
+   */
+  int8_t warning_propagation;
+  char _pad[7];
 
   /**
    * Optional link to libdata.
@@ -700,7 +713,12 @@ typedef struct bNodeTree {
 
   /** #blender::bke::NodeGroupColorTag. */
   int color_tag;
-  char _pad[4];
+
+  /**
+   * Default width of a group node created for this group. May be zero, in which case this value
+   * should be ignored.
+   */
+  int default_group_node_width;
 
   rctf viewer_border;
 
@@ -853,7 +871,7 @@ enum {
   NTREE_VIEWER_BORDER = 1 << 4,
   /**
    * Tree is localized copy, free when deleting node groups.
-   * NOTE: DEPRECATED, use (id->tag & LIB_TAG_LOCALIZED) instead.
+   * NOTE: DEPRECATED, use (id->tag & ID_TAG_LOCALIZED) instead.
    */
   // NTREE_IS_LOCALIZED = 1 << 5,
 };
@@ -1126,7 +1144,8 @@ typedef struct NodeImageMultiFile {
   int sfra DNA_DEPRECATED, efra DNA_DEPRECATED;
   /** Selected input in details view list. */
   int active_input;
-  char _pad[4];
+  char save_as_render;
+  char _pad[3];
 } NodeImageMultiFile;
 typedef struct NodeImageMultiFileSocket {
   /* single layer file output */
@@ -1212,17 +1231,23 @@ typedef struct NodeLensDist {
 } NodeLensDist;
 
 typedef struct NodeColorBalance {
-  /* ASC CDL parameters */
+  /* ASC CDL parameters. */
   float slope[3];
   float offset[3];
   float power[3];
   float offset_basis;
   char _pad[4];
 
-  /* LGG parameters */
+  /* LGG parameters. */
   float lift[3];
   float gamma[3];
   float gain[3];
+
+  /* White-point parameters. */
+  float input_temperature;
+  float input_tint;
+  float output_temperature;
+  float output_tint;
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
@@ -2099,6 +2124,12 @@ enum {
   CMP_NODE_CHANNEL_MATTE_CS_YCC = 4,
 };
 
+/* Conductive fresnel types */
+enum {
+  SHD_PHYSICAL_CONDUCTOR = 0,
+  SHD_CONDUCTOR_F82 = 1,
+};
+
 /* glossy distributions */
 enum {
   SHD_GLOSSY_BECKMANN = 0,
@@ -2529,6 +2560,7 @@ typedef enum CMPNodeSplitAxis {
 typedef enum CMPNodeColorBalanceMethod {
   CMP_NODE_COLOR_BALANCE_LGG = 0,
   CMP_NODE_COLOR_BALANCE_ASC_CDL = 1,
+  CMP_NODE_COLOR_BALANCE_WHITEPOINT = 2,
 } CMPNodeColorBalanceMethod;
 
 /** Alpha Convert Node. Stored in `custom1`. */

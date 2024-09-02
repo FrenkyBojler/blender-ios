@@ -571,7 +571,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
-  tree_log.ensure_node_warnings();
+  tree_log.ensure_node_warnings(node_tree);
   for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
     if (warning.type == geo_log::NodeWarningType::Info) {
       BKE_report(op->reports, RPT_INFO, warning.message.c_str());
@@ -614,8 +614,7 @@ static void store_input_node_values_rna_props(const bContext &C,
   /* 3D cursor node inputs. */
   const View3DCursor &cursor = scene->cursor;
   RNA_float_set_array(op.ptr, "cursor_position", cursor.location);
-  math::Quaternion cursor_rotation;
-  BKE_scene_cursor_rot_to_quat(&cursor, &cursor_rotation.w);
+  math::Quaternion cursor_rotation = cursor.rotation();
   RNA_float_set_array(op.ptr, "cursor_rotation", &cursor_rotation.w);
 
   /* Viewport transform node inputs. */
@@ -663,7 +662,7 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
                                                   PointerRNA *md_ptr,
                                                   const bNodeTreeInterfaceSocket &socket)
 {
-  bke::bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(socket.socket_type);
+  bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   char socket_id_esc[MAX_NAME * 2];
@@ -716,7 +715,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
                                      const bNodeTreeInterfaceSocket &socket,
                                      const int socket_index)
 {
-  bke::bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(socket.socket_type);
+  bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */

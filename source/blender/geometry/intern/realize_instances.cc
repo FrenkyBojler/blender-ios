@@ -788,13 +788,14 @@ static bool attribute_foreach(const bke::GeometrySet &geometry_set,
       reference.to_geometry_set(instance_geometry_set);
       /* Process child instances with a recursive call. */
       if (current_depth != child_depth_target) {
-        child_has_component = child_has_component | attribute_foreach(instance_geometry_set,
-                                                                      component_types,
-                                                                      current_depth + 1,
-                                                                      child_depth_target,
-                                                                      instance_depth,
-                                                                      selection,
-                                                                      callback);
+        const bool has_component = attribute_foreach(instance_geometry_set,
+                                                     component_types,
+                                                     current_depth + 1,
+                                                     child_depth_target,
+                                                     instance_depth,
+                                                     selection,
+                                                     callback);
+        child_has_component = child_has_component || has_component;
       }
     });
   }
@@ -2119,7 +2120,7 @@ static void execute_realize_grease_pencil_tasks(
     const AttributeIDRef &attribute_id = ordered_attributes.ids[attribute_index];
     const eCustomDataType data_type = ordered_attributes.kinds[attribute_index].data_type;
     dst_attribute_writers.append(dst_attributes.lookup_or_add_for_write_only_span(
-        attribute_id, bke::AttrDomain::Point, data_type));
+        attribute_id, bke::AttrDomain::Layer, data_type));
   }
 
   /* Actually execute all tasks. */

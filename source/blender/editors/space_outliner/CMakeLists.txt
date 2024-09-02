@@ -16,7 +16,7 @@ set(INC
 
   ../../../../extern/fmtlib/include
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -74,6 +74,7 @@ set(SRC
   tree/tree_element_id_texture.cc
   tree/tree_element_label.cc
   tree/tree_element_layer_collection.cc
+  tree/tree_element_linked_node_tree.cc
   tree/tree_element_linked_object.cc
   tree/tree_element_modifier.cc
   tree/tree_element_nla.cc
@@ -117,6 +118,7 @@ set(SRC
   tree/tree_element_id_texture.hh
   tree/tree_element_label.hh
   tree/tree_element_layer_collection.hh
+  tree/tree_element_linked_node_tree.hh
   tree/tree_element_linked_object.hh
   tree/tree_element_modifier.hh
   tree/tree_element_nla.hh
@@ -146,5 +148,5 @@ set(LIB
 
 blender_add_lib(bf_editor_space_outliner "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_outliner bf_rna)

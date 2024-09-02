@@ -638,7 +638,7 @@ static eAnimChannels_SetFlag anim_channels_selection_flag_for_toggle(const ListB
  * `flag`. Instead, it requires that it has two functions to query & set its selection state.
  *
  * \param selectable_thing: something with functions `set_selected(bool)` and `bool is_selected()`.
- * \param selectmode the selection operation to perform.
+ * \param selectmode: the selection operation to perform.
  */
 template<typename T>
 static void templated_selection_state_update(T &selectable_thing,
@@ -1614,7 +1614,7 @@ static void split_groups_action_temp(bAction *act, bActionGroup *tgrp)
 
   /* Initialize memory for temp-group */
   memset(tgrp, 0, sizeof(bActionGroup));
-  tgrp->flag |= (AGRP_EXPANDED | AGRP_TEMP);
+  tgrp->flag |= (AGRP_EXPANDED | AGRP_TEMP | AGRP_EXPANDED_G);
   STRNCPY(tgrp->name, "#TempGroup");
 
   /* Move any action-channels not already moved, to the temp group */
@@ -1678,6 +1678,13 @@ static void rearrange_action_channels(bAnimContext *ac, bAction *act, eRearrange
   bActionGroup tgrp;
   ListBase anim_data_visible = {nullptr, nullptr};
   bool do_channels;
+
+  BLI_assert(act != nullptr);
+
+  /* TODO: layered actions not yet supported. */
+  if (!act->wrap().is_action_legacy()) {
+    return;
+  }
 
   /* get rearranging function */
   AnimChanRearrangeFp rearrange_func = rearrange_get_mode_func(mode);
@@ -2036,42 +2043,49 @@ static void animchannels_group_channels(bAnimContext *ac,
   AnimData *adt = adt_ref->adt;
   bAction *act = adt->action;
 
-  if (act) {
-    ListBase anim_data = {nullptr, nullptr};
-    int filter;
-
-    /* find selected F-Curves to re-group */
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
-              ANIMFILTER_FCURVESONLY);
-    ANIM_animdata_filter(ac, &anim_data, eAnimFilter_Flags(filter), adt_ref, ANIMCONT_CHANNEL);
-
-    if (anim_data.first) {
-      bActionGroup *agrp;
-
-      /* create new group, which should now be part of the action */
-      agrp = action_groups_add_new(act, name);
-      BLI_assert(agrp != nullptr);
-
-      /* Transfer selected F-Curves across to new group. */
-      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-        FCurve *fcu = (FCurve *)ale->data;
-        bActionGroup *grp = fcu->grp;
-
-        /* remove F-Curve from group, then group too if it is now empty */
-        action_groups_remove_channel(act, fcu);
-
-        if ((grp) && BLI_listbase_is_empty(&grp->channels)) {
-          BLI_freelinkN(&act->groups, grp);
-        }
-
-        /* add F-Curve to group */
-        action_groups_add_channel(act, agrp, fcu);
-      }
-    }
-
-    /* cleanup */
-    ANIM_animdata_freelist(&anim_data);
+  if (act == nullptr) {
+    return;
   }
+
+  /* TODO: layered actions not yet supported. */
+  if (!act->wrap().is_action_legacy()) {
+    return;
+  }
+
+  ListBase anim_data = {nullptr, nullptr};
+  int filter;
+
+  /* find selected F-Curves to re-group */
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
+            ANIMFILTER_FCURVESONLY);
+  ANIM_animdata_filter(ac, &anim_data, eAnimFilter_Flags(filter), adt_ref, ANIMCONT_CHANNEL);
+
+  if (anim_data.first) {
+    bActionGroup *agrp;
+
+    /* create new group, which should now be part of the action */
+    agrp = action_groups_add_new(act, name);
+    BLI_assert(agrp != nullptr);
+
+    /* Transfer selected F-Curves across to new group. */
+    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+      FCurve *fcu = (FCurve *)ale->data;
+      bActionGroup *grp = fcu->grp;
+
+      /* remove F-Curve from group, then group too if it is now empty */
+      action_groups_remove_channel(act, fcu);
+
+      if ((grp) && BLI_listbase_is_empty(&grp->channels)) {
+        BLI_freelinkN(&act->groups, grp);
+      }
+
+      /* add F-Curve to group */
+      action_groups_add_channel(act, agrp, fcu);
+    }
+  }
+
+  /* cleanup */
+  ANIM_animdata_freelist(&anim_data);
 }
 
 static int animchannels_group_exec(bContext *C, wmOperator *op)
@@ -2164,22 +2178,29 @@ static int animchannels_ungroup_exec(bContext *C, wmOperator * /*op*/)
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     /* find action for this F-Curve... */
-    if (ale->adt && ale->adt->action) {
-      FCurve *fcu = (FCurve *)ale->data;
-      bAction *act = ale->adt->action;
+    if (!ale->adt || !ale->adt->action) {
+      continue;
+    }
 
-      /* only proceed to remove if F-Curve is in a group... */
-      if (fcu->grp) {
-        bActionGroup *agrp = fcu->grp;
+    FCurve *fcu = (FCurve *)ale->data;
+    bAction *act = ale->adt->action;
 
-        /* remove F-Curve from group and add at tail (ungrouped) */
-        action_groups_remove_channel(act, fcu);
-        BLI_addtail(&act->curves, fcu);
+    /* TODO: layered actions not yet supported. */
+    if (!act->wrap().is_action_legacy()) {
+      continue;
+    }
 
-        /* delete group if it is now empty */
-        if (BLI_listbase_is_empty(&agrp->channels)) {
-          BLI_freelinkN(&act->groups, agrp);
-        }
+    /* only proceed to remove if F-Curve is in a group... */
+    if (fcu->grp) {
+      bActionGroup *agrp = fcu->grp;
+
+      /* remove F-Curve from group and add at tail (ungrouped) */
+      action_groups_remove_channel(act, fcu);
+      BLI_addtail(&act->curves, fcu);
+
+      /* delete group if it is now empty */
+      if (BLI_listbase_is_empty(&agrp->channels)) {
+        BLI_freelinkN(&act->groups, agrp);
       }
     }
   }

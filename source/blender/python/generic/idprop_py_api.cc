@@ -410,19 +410,19 @@ static const char *idp_try_read_name(PyObject *name_obj)
  * \{ */
 
 /**
- * The 'idp_from_Py*' functions expect that the input type has been checked before
+ * The `idp_from_Py*` functions expect that the input type has been checked before
  * and return nullptr if the IDProperty can't be created.
  *
- * \param prop_exist If not null, attempt to assign given `ob` value to this property first, and
- *                   only create a new one if not possible.
- *                   If no assignment (or conversion and assignment) is possible, the current
- *                   value remains unchanged.
+ * \param prop_exist: If not null, attempt to assign given `ob` value to this property first, and
+ * only create a new one if not possible.
+ * If no assignment (or conversion and assignment) is possible, the current
+ * value remains unchanged.
  *
- * \param do_conversion If `true`, allow some 'reasonable' conversion of input value to match the
- *                     `prop_exist` property type. E.g. can convert an `int` to a `float`, but not
- *                     the other way around.
+ * \param do_conversion: If `true`, allow some 'reasonable' conversion of input value to match the
+ * `prop_exist` property type. E.g. can convert an `int` to a `float`, but not
+ * the other way around.
  *
- * \param can_create Whether creating a new IDProperty is allowed.
+ * \param can_create: Whether creating a new IDProperty is allowed.
  *
  * \return `prop_exist` if given and it could be assigned given `ob` value, a new IDProperty
  *         otherwise.
@@ -980,6 +980,12 @@ static IDProperty *idp_from_DatablockPointer(IDProperty *prop_exist,
   IDProperty *prop = nullptr;
   ID *value = nullptr;
   pyrna_id_FromPyObject(ob, &value);
+
+  if (value && (value->flag & ID_FLAG_EMBEDDED_DATA) != 0) {
+    PyErr_SetString(PyExc_ValueError, "Cannot assign an embedded ID pointer to an id-property");
+    return nullptr;
+  }
+
   if (prop_exist) {
     if (prop_exist->type == IDP_ID) {
       IDP_AssignID(prop_exist, value, 0);

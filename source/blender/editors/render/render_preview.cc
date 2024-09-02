@@ -27,6 +27,8 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "BLO_readfile.hh"
 
 #include "DNA_brush_types.h"
@@ -1322,19 +1324,6 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
     /* Use default color-spaces for brushes. */
     brush->icon_imbuf = IMB_loadiffname(filepath, flags, nullptr);
 
-    /* Otherwise lets try to find it in other directories. */
-    if (!(brush->icon_imbuf)) {
-      const std::optional<std::string> brushicons_dir = BKE_appdir_folder_id(BLENDER_DATAFILES,
-                                                                             "brushicons");
-      /* Expected to be found, but don't crash if it's not. */
-      if (brushicons_dir.has_value()) {
-        BLI_path_join(filepath, sizeof(filepath), brushicons_dir->c_str(), brush->icon_filepath);
-
-        /* Use default color spaces. */
-        brush->icon_imbuf = IMB_loadiffname(filepath, flags, nullptr);
-      }
-    }
-
     if (brush->icon_imbuf) {
       BKE_icon_changed(BKE_icon_id_ensure(&brush->id));
     }
@@ -1383,7 +1372,7 @@ static void icon_copy_rect(ImBuf *ibuf, uint w, uint h, uint *rect)
   dx = (w - ex) / 2;
   dy = (h - ey) / 2;
 
-  IMB_scalefastImBuf(ima, ex, ey);
+  IMB_scale(ima, ex, ey, IMBScaleFilter::Nearest, false);
 
   /* if needed, convert to 32 bits */
   if (ima->byte_buffer.data == nullptr) {
@@ -1618,9 +1607,8 @@ static void icon_preview_startjob_all_sizes(void *customdata, wmJobWorkerStatus 
           if (object_preview_is_type_supported((Object *)ip->id)) {
             /* Much simpler than the ShaderPreview mess used for other ID types. */
             object_preview_render(ip, cur_size);
-            continue;
           }
-          break;
+          continue;
         case ID_GR:
           BLI_assert(collection_preview_contains_geometry_recursive((Collection *)ip->id));
           /* A collection instance empty was created, so this can just reuse the object preview
@@ -1906,22 +1894,37 @@ static void icon_preview_free(void *customdata)
   MEM_freeN(ip);
 }
 
-bool ED_preview_id_is_supported(const ID *id)
+bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
 {
   if (id == nullptr) {
     return false;
   }
-  if (GS(id->name) == ID_NT) {
-    /* Node groups don't support standard preview generation. */
-    return false;
+
+  /* Get both the result and the "potential" disabled hint. After that we can decide if the
+   * disabled hint needs to be returned to the caller. */
+  const auto [result, disabled_hint] = [id]() -> std::pair<bool, const char *> {
+    switch (GS(id->name)) {
+      case ID_NT:
+        return {false, RPT_("Node groups do not support automatic previews")};
+      case ID_OB:
+        return {object_preview_is_type_supported((const Object *)id),
+                RPT_("Object type does not support automatic previews")};
+      case ID_GR:
+        return {
+            collection_preview_contains_geometry_recursive((const Collection *)id),
+            RPT_("Collection does not contain object types that can be rendered for the automatic "
+                 "preview")};
+      default:
+        return {BKE_previewimg_id_get_p(id) != nullptr,
+                RPT_("Data-block type does not support automatic previews")};
+    }
+  }();
+
+  if (result == false && disabled_hint && r_disabled_hint) {
+    *r_disabled_hint = disabled_hint;
   }
-  if (GS(id->name) == ID_OB) {
-    return object_preview_is_type_supported((const Object *)id);
-  }
-  if (GS(id->name) == ID_GR) {
-    return collection_preview_contains_geometry_recursive((const Collection *)id);
-  }
-  return BKE_previewimg_id_get_p(id) != nullptr;
+
+  return result;
 }
 
 void ED_preview_icon_render(

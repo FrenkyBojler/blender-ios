@@ -514,6 +514,7 @@ class NodeTreeMainUpdater {
       if (nodes::gizmos::update_tree_gizmo_propagation(ntree)) {
         result.interface_changed = true;
       }
+      this->update_socket_shapes(ntree);
     }
 
     result.output_changed = this->check_if_output_changed(ntree);
@@ -575,7 +576,7 @@ class NodeTreeMainUpdater {
   void update_individual_nodes(bNodeTree &ntree)
   {
     for (bNode *node : ntree.all_nodes()) {
-      bke::nodeDeclarationEnsure(&ntree, node);
+      bke::node_declaration_ensure(&ntree, node);
       if (this->should_update_individual_node(ntree, *node)) {
         bke::bNodeType &ntype = *node->typeinfo;
         if (ntype.group_update_func) {
@@ -840,11 +841,34 @@ class NodeTreeMainUpdater {
       for (const int i : IndexRange(storage.items_num)) {
         const bNodeSocket &socket = node->input_socket(i);
         NodeGeometryBakeItem &item = storage.items[i];
-        if (socket.display_shape == SOCK_DISPLAY_SHAPE_DIAMOND) {
+        if (socket.runtime->field_state == FieldSocketState::IsField) {
           item.flag |= GEO_NODE_BAKE_ITEM_IS_ATTRIBUTE;
         }
       }
     }
+  }
+
+  void update_socket_shapes(bNodeTree &ntree)
+  {
+    ntree.ensure_topology_cache();
+    for (bNodeSocket *socket : ntree.all_sockets()) {
+      socket->display_shape = this->get_socket_shape(*socket);
+    }
+  }
+
+  int get_socket_shape(const bNodeSocket &socket)
+  {
+    if (socket.runtime->field_state) {
+      switch (*socket.runtime->field_state) {
+        case bke::FieldSocketState::RequiresSingle:
+          return SOCK_DISPLAY_SHAPE_CIRCLE;
+        case bke::FieldSocketState::CanBeField:
+          return SOCK_DISPLAY_SHAPE_DIAMOND_DOT;
+        case bke::FieldSocketState::IsField:
+          return SOCK_DISPLAY_SHAPE_DIAMOND;
+      }
+    }
+    return socket.display_shape;
   }
 
   bool propagate_enum_definitions(bNodeTree &ntree)
@@ -1131,8 +1155,8 @@ class NodeTreeMainUpdater {
         continue;
       }
       if (ntree.type == NTREE_GEOMETRY) {
-        if (link->fromsock->display_shape == SOCK_DISPLAY_SHAPE_DIAMOND &&
-            link->tosock->display_shape != SOCK_DISPLAY_SHAPE_DIAMOND)
+        if (link->fromsock->runtime->field_state == FieldSocketState::IsField &&
+            link->tosock->runtime->field_state != FieldSocketState::IsField)
         {
           link->flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors_by_target_node.add(
@@ -1252,6 +1276,9 @@ class NodeTreeMainUpdater {
       return true;
     }
     if (node.type == NODE_GROUP_OUTPUT) {
+      return true;
+    }
+    if (node.type == GEO_NODE_WARNING) {
       return true;
     }
     if (nodes::gizmos::is_builtin_gizmo_node(node)) {
@@ -1501,7 +1528,7 @@ class NodeTreeMainUpdater {
     for (const bNestedNodePath &path : old_id_by_path.keys()) {
       const bNode *node = ntree.node_by_id(path.node_id);
       if (node && node->is_group() && node->id) {
-        if (node->id->tag & LIB_TAG_MISSING) {
+        if (node->id->tag & ID_TAG_MISSING) {
           nested_node_paths.append(path);
         }
       }

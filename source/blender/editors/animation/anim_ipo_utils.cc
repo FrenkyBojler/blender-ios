@@ -24,7 +24,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_anim_api.hh"
 
@@ -206,9 +206,9 @@ int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
   return RNA_struct_ui_icon(ptr.type);
 }
 
-std::string getname_anim_fcurve_bound(Main &bmain,
-                                      const blender::animrig::Slot &slot,
-                                      FCurve &fcurve)
+std::string getname_anim_fcurve_for_slot(Main &bmain,
+                                         const blender::animrig::Slot &slot,
+                                         FCurve &fcurve)
 {
   /* TODO: Refactor to avoid this variable. */
   constexpr size_t name_maxncpy = 256;

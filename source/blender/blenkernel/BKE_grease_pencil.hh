@@ -31,6 +31,10 @@ struct Scene;
 struct Object;
 struct Material;
 
+namespace blender::bke::bake {
+struct BakeMaterialsList;
+}
+
 namespace blender::bke {
 
 namespace greasepencil {
@@ -147,7 +151,14 @@ class Drawing : public ::GreasePencilDrawing {
    * Returns true for when this drawing has more than one user.
    */
   bool is_instanced() const;
+  /**
+   * Return true if this drawing has at least one user.
+   */
   bool has_users() const;
+  /**
+   * Return the number of users (keyframes) of this drawing.
+   */
+  int user_count() const;
 };
 static_assert(sizeof(Drawing) == sizeof(::GreasePencilDrawing));
 
@@ -738,6 +749,10 @@ inline bool Drawing::has_users() const
 {
   return this->runtime->user_count.load(std::memory_order_relaxed) > 0;
 }
+inline int Drawing::user_count() const
+{
+  return this->runtime->user_count.load(std::memory_order_relaxed);
+}
 
 inline bool TreeNode::is_group() const
 {
@@ -865,11 +880,14 @@ class GreasePencilRuntime {
   /**
    * Temporarily enable the eraser. Used by the draw tool.
    */
-  bool use_eraser_temp = false;
+  bool temp_use_eraser = false;
+  float temp_eraser_size = 0.0f;
+
+  std::unique_ptr<bake::BakeMaterialsList> bake_materials;
 
  public:
-  GreasePencilRuntime() {}
-  ~GreasePencilRuntime() {}
+  GreasePencilRuntime();
+  ~GreasePencilRuntime();
 };
 
 class GreasePencilDrawingEditHints {
@@ -1011,6 +1029,8 @@ inline bool GreasePencil::has_active_group() const
 {
   return (this->active_node != nullptr) && (this->active_node->wrap().is_group());
 }
+
+bool BKE_grease_pencil_drawing_attribute_required(const GreasePencilDrawing *, const char *name);
 
 void *BKE_grease_pencil_add(Main *bmain, const char *name);
 GreasePencil *BKE_grease_pencil_new_nomain();

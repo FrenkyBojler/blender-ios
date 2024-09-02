@@ -68,6 +68,7 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 
 #  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
+#  include "SEQ_thumbnail_cache.hh"
 
 static int rna_CurveMapping_curves_length(PointerRNA *ptr)
 {
@@ -561,13 +562,13 @@ static std::optional<std::string> rna_ColorManagedViewSettings_path(const Pointe
 static void rna_ColorManagedViewSettings_whitepoint_get(PointerRNA *ptr, float value[3])
 {
   const ColorManagedViewSettings *view_settings = (ColorManagedViewSettings *)ptr->data;
-  IMB_colormanagement_get_view_whitepoint(view_settings, value);
+  IMB_colormanagement_get_whitepoint(view_settings->temperature, view_settings->tint, value);
 }
 
 static void rna_ColorManagedViewSettings_whitepoint_set(PointerRNA *ptr, const float value[3])
 {
   ColorManagedViewSettings *view_settings = (ColorManagedViewSettings *)ptr->data;
-  IMB_colormanagement_set_view_whitepoint(view_settings, value);
+  IMB_colormanagement_set_whitepoint(value, view_settings->temperature, view_settings->tint);
 }
 
 static bool rna_ColorManagedColorspaceSettings_is_data_get(PointerRNA *ptr)
@@ -680,6 +681,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       if (&scene->sequencer_colorspace_settings == colorspace_settings) {
         /* Scene colorspace was changed. */
         SEQ_cache_cleanup(scene);
+        blender::seq::thumbnail_cache_clear(scene);
       }
       else {
         /* Strip colorspace was likely changed. */
@@ -1363,7 +1365,7 @@ static void rna_def_colormanage(BlenderRNA *brna)
       "High Dynamic Range",
       "Enable high dynamic range display in rendered viewport, uncapping display brightness. This "
       "requires a monitor with HDR support and a view transform designed for HDR. "
-      "'Filmic' and 'AgX' do not generate HDR colors");
+      "'Filmic' and 'AgX' do not generate HDR colors.");
   RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagedColorspaceSettings_reload_update");
 
   /* ** Color-space ** */

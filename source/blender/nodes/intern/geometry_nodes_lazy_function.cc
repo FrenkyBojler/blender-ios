@@ -514,6 +514,70 @@ void set_default_remaining_node_outputs(lf::Params &params, const bNode &node)
   }
 }
 
+static void execute_multi_function_on_value_variant__single(
+    const MultiFunction &fn,
+    const Span<SocketValueVariant *> input_values,
+    const Span<SocketValueVariant *> output_values)
+{
+  /* In this case, the multi-function is evaluated directly. */
+  const IndexMask mask(1);
+  mf::ParamsBuilder params{fn, &mask};
+  mf::ContextBuilder context;
+
+  for (const int i : input_values.index_range()) {
+    SocketValueVariant &input_variant = *input_values[i];
+    input_variant.convert_to_single();
+    const void *value = input_variant.get_single_ptr_raw();
+    const mf::ParamType param_type = fn.param_type(params.next_param_index());
+    const CPPType &cpp_type = param_type.data_type().single_type();
+    params.add_readonly_single_input(GPointer{cpp_type, value});
+  }
+  for (const int i : output_values.index_range()) {
+    if (output_values[i] == nullptr) {
+      params.add_ignored_single_output("");
+      continue;
+    }
+    SocketValueVariant &output_variant = *output_values[i];
+    const mf::ParamType param_type = fn.param_type(params.next_param_index());
+    const CPPType &cpp_type = param_type.data_type().single_type();
+    const eNodeSocketDatatype socket_type =
+        bke::geo_nodes_base_cpp_type_to_socket_type(cpp_type).value();
+    void *value = output_variant.allocate_single(socket_type);
+    params.add_uninitialized_single_output(GMutableSpan{cpp_type, value, 1});
+  }
+  fn.call(mask, params, context);
+}
+
+static void execute_multi_function_on_value_variant__field(
+    const MultiFunction &fn,
+    const std::shared_ptr<MultiFunction> &owned_fn,
+    const Span<SocketValueVariant *> input_values,
+    const Span<SocketValueVariant *> output_values)
+{
+  /* Convert all inputs into fields, so that they can be used as input in the new field. */
+  Vector<GField> input_fields;
+  for (const int i : input_values.index_range()) {
+    input_fields.append(input_values[i]->extract<GField>());
+  }
+
+  /* Construct the new field node. */
+  std::shared_ptr<fn::FieldOperation> operation;
+  if (owned_fn) {
+    operation = fn::FieldOperation::Create(owned_fn, std::move(input_fields));
+  }
+  else {
+    operation = fn::FieldOperation::Create(fn, std::move(input_fields));
+  }
+
+  /* Store the new fields in the output. */
+  for (const int i : output_values.index_range()) {
+    if (output_values[i] == nullptr) {
+      continue;
+    }
+    output_values[i]->set(GField{operation, i});
+  }
+}
+
 /**
  * Executes a multi-function. If all inputs are single values, the results will also be single
  * values. If any input is a field, the outputs will also be fields.
@@ -523,67 +587,20 @@ static void execute_multi_function_on_value_variant(const MultiFunction &fn,
                                                     const Span<SocketValueVariant *> input_values,
                                                     const Span<SocketValueVariant *> output_values)
 {
-  /* Check if any input is a field. */
+  /* Check input types which determine how the function is evaluated. */
   bool any_input_is_field = false;
   for (const int i : input_values.index_range()) {
-    if (input_values[i]->is_context_dependent_field()) {
+    const SocketValueVariant &value = *input_values[i];
+    if (value.is_context_dependent_field()) {
       any_input_is_field = true;
-      break;
     }
   }
 
   if (any_input_is_field) {
-    /* Convert all inputs into fields, so that they can be used as input in the new field. */
-    Vector<GField> input_fields;
-    for (const int i : input_values.index_range()) {
-      input_fields.append(input_values[i]->extract<GField>());
-    }
-
-    /* Construct the new field node. */
-    std::shared_ptr<fn::FieldOperation> operation;
-    if (owned_fn) {
-      operation = fn::FieldOperation::Create(owned_fn, std::move(input_fields));
-    }
-    else {
-      operation = fn::FieldOperation::Create(fn, std::move(input_fields));
-    }
-
-    /* Store the new fields in the output. */
-    for (const int i : output_values.index_range()) {
-      if (output_values[i] == nullptr) {
-        continue;
-      }
-      output_values[i]->set(GField{operation, i});
-    }
+    execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
   }
   else {
-    /* In this case, the multi-function is evaluated directly. */
-    const IndexMask mask(1);
-    mf::ParamsBuilder params{fn, &mask};
-    mf::ContextBuilder context;
-
-    for (const int i : input_values.index_range()) {
-      SocketValueVariant &input_variant = *input_values[i];
-      input_variant.convert_to_single();
-      const void *value = input_variant.get_single_ptr_raw();
-      const mf::ParamType param_type = fn.param_type(params.next_param_index());
-      const CPPType &cpp_type = param_type.data_type().single_type();
-      params.add_readonly_single_input(GPointer{cpp_type, value});
-    }
-    for (const int i : output_values.index_range()) {
-      if (output_values[i] == nullptr) {
-        params.add_ignored_single_output("");
-        continue;
-      }
-      SocketValueVariant &output_variant = *output_values[i];
-      const mf::ParamType param_type = fn.param_type(params.next_param_index());
-      const CPPType &cpp_type = param_type.data_type().single_type();
-      const eNodeSocketDatatype socket_type =
-          bke::geo_nodes_base_cpp_type_to_socket_type(cpp_type).value();
-      void *value = output_variant.allocate_single(socket_type);
-      params.add_uninitialized_single_output(GMutableSpan{cpp_type, value, 1});
-    }
-    fn.call(mask, params, context);
+    execute_multi_function_on_value_variant__single(fn, input_values, output_values);
   }
 }
 
@@ -1581,6 +1598,8 @@ struct BuildGraphParams {
   /**  */
   /** Cache to avoid building the same socket combinations multiple times. */
   Map<Vector<lf::OutputSocket *>, lf::OutputSocket *> socket_usages_combination_cache;
+
+  BuildGraphParams(lf::Graph &lf_graph) : lf_graph(lf_graph) {}
 };
 
 struct ZoneFunctionIndices {
@@ -2164,7 +2183,16 @@ class GeometryNodesLazyFunctionLogger : public lf::GraphExecutor::Logger {
  * another (depending on e.g. which tree path is currently viewed in the node editor).
  */
 class GeometryNodesLazyFunctionSideEffectProvider : public lf::GraphExecutor::SideEffectProvider {
+ private:
+  Span<const lf::FunctionNode *> local_side_effect_nodes_;
+
  public:
+  GeometryNodesLazyFunctionSideEffectProvider(
+      Span<const lf::FunctionNode *> local_side_effect_nodes = {})
+      : local_side_effect_nodes_(local_side_effect_nodes)
+  {
+  }
+
   Vector<const lf::FunctionNode *> get_nodes_with_side_effects(
       const lf::Context &context) const override
   {
@@ -2175,7 +2203,10 @@ class GeometryNodesLazyFunctionSideEffectProvider : public lf::GraphExecutor::Si
       return {};
     }
     const ComputeContextHash &context_hash = user_data->compute_context->hash();
-    return call_data.side_effect_nodes->nodes_by_context.lookup(context_hash);
+    Vector<const lf::FunctionNode *> side_effect_nodes =
+        call_data.side_effect_nodes->nodes_by_context.lookup(context_hash);
+    side_effect_nodes.extend(local_side_effect_nodes_);
+    return side_effect_nodes;
   }
 };
 
@@ -2202,6 +2233,8 @@ struct GeometryNodesLazyFunctionBuilder {
   const bNodeTreeZones *tree_zones_;
   MutableSpan<ZoneBuildInfo> zone_build_infos_;
 
+  std::optional<BuildGraphParams> root_graph_build_params_;
+
   /**
    * The inputs sockets in the graph. Multiple group input nodes are combined into one in the
    * lazy-function graph.
@@ -2216,7 +2249,7 @@ struct GeometryNodesLazyFunctionBuilder {
    * Interface boolean sockets that have to be passed in from the outside and indicate whether a
    * specific output will be used.
    */
-  Vector<const lf::GraphInputSocket *> group_output_used_sockets_;
+  Vector<lf::GraphInputSocket *> group_output_used_sockets_;
   /**
    * Interface boolean sockets that can be used as group output that indicate whether a specific
    * input will be used (this may depend on the used outputs as well as other inputs).
@@ -2682,9 +2715,9 @@ struct GeometryNodesLazyFunctionBuilder {
   {
     lf::Graph &lf_graph = lf_graph_info_->graph;
 
-    this->build_group_input_node(lf_graph);
+    this->build_main_group_inputs(lf_graph);
     if (btree_.group_output_node() == nullptr) {
-      this->build_fallback_output_node(lf_graph);
+      this->build_fallback_group_outputs(lf_graph);
     }
 
     for (const bNodeTreeInterfaceSocket *interface_input : btree_.interface_inputs()) {
@@ -2703,7 +2736,7 @@ struct GeometryNodesLazyFunctionBuilder {
       lf_output_usages.append(&lf_socket);
     }
 
-    BuildGraphParams graph_params{lf_graph};
+    BuildGraphParams &graph_params = root_graph_build_params_.emplace(lf_graph);
     if (const bNode *group_output_bnode = btree_.group_output_node()) {
       for (const bNodeSocket *bsocket : group_output_bnode->input_sockets().drop_back(1)) {
         graph_params.usage_by_bsocket.add(bsocket, lf_output_usages[bsocket->index()]);
@@ -2773,12 +2806,33 @@ struct GeometryNodesLazyFunctionBuilder {
     function.outputs.input_usages = lf_graph_outputs.index_range().take_back(
         group_input_usage_sockets_.size());
 
+    Vector<const lf::FunctionNode *> &local_side_effect_nodes =
+        scope_.construct<Vector<const lf::FunctionNode *>>();
+    for (const bNode *bnode : btree_.nodes_by_type("GeometryNodeWarning")) {
+      if (bnode->output_socket(0).is_directly_linked()) {
+        /* The warning node is not a side-effect node. Instead, the user explicitly used the output
+         * socket to specify when the warning node should be used. */
+        continue;
+      }
+      if (tree_zones_->get_zone_by_node(bnode->identifier)) {
+        /* "Global" warning nodes that are evaluated whenever the node group is evaluated must not
+         * be in a zone. */
+        continue;
+      }
+      /* Add warning node as side-effect node so that it is always evaluated if the node group is
+       * evaluated. */
+      const lf::Socket *lf_socket = root_graph_build_params_->lf_inputs_by_bsocket.lookup(
+          &bnode->input_socket(0))[0];
+      const lf::FunctionNode &lf_node = static_cast<const lf::FunctionNode &>(lf_socket->node());
+      local_side_effect_nodes.append(&lf_node);
+    }
+
     function.function = &scope_.construct<lf::GraphExecutor>(
         lf_graph_info_->graph,
         std::move(lf_graph_inputs),
         std::move(lf_graph_outputs),
         &scope_.construct<GeometryNodesLazyFunctionLogger>(*lf_graph_info_),
-        &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>(),
+        &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>(local_side_effect_nodes),
         nullptr);
   }
 
@@ -3144,7 +3198,7 @@ struct GeometryNodesLazyFunctionBuilder {
     }
   }
 
-  void build_group_input_node(lf::Graph &lf_graph)
+  void build_main_group_inputs(lf::Graph &lf_graph)
   {
     const Span<const bNodeTreeInterfaceSocket *> interface_inputs = btree_.interface_inputs();
     for (const bNodeTreeInterfaceSocket *interface_input : interface_inputs) {
@@ -3160,7 +3214,7 @@ struct GeometryNodesLazyFunctionBuilder {
    * Build an output node that just outputs default values in the case when there is no Group
    * Output node in the tree.
    */
-  void build_fallback_output_node(lf::Graph &lf_graph)
+  void build_fallback_group_outputs(lf::Graph &lf_graph)
   {
     for (const bNodeTreeInterfaceSocket *interface_output : btree_.interface_outputs()) {
       const bke::bNodeSocketType *typeinfo = interface_output->socket_typeinfo();
@@ -3218,6 +3272,10 @@ struct GeometryNodesLazyFunctionBuilder {
       }
       case GEO_NODE_INDEX_SWITCH: {
         this->build_index_switch_node(bnode, graph_params);
+        break;
+      }
+      case GEO_NODE_WARNING: {
+        this->build_warning_node(bnode, graph_params);
         break;
       }
       case GEO_NODE_GIZMO_LINEAR:
@@ -3386,13 +3444,13 @@ struct GeometryNodesLazyFunctionBuilder {
     for (const int i : bnode.input_sockets().index_range()) {
       const bNodeSocket &bsocket = bnode.input_socket(i);
       BLI_assert(!bsocket.is_multi_input());
-      lf::InputSocket &lf_socket = lf_node.input(i);
+      lf::InputSocket &lf_socket = lf_node.input(group_lf_graph_info->function.inputs.main[i]);
       graph_params.lf_inputs_by_bsocket.add(&bsocket, &lf_socket);
       mapping_->bsockets_by_lf_socket_map.add(&lf_socket, &bsocket);
     }
     for (const int i : bnode.output_sockets().index_range()) {
       const bNodeSocket &bsocket = bnode.output_socket(i);
-      lf::OutputSocket &lf_socket = lf_node.output(i);
+      lf::OutputSocket &lf_socket = lf_node.output(group_lf_graph_info->function.outputs.main[i]);
       graph_params.lf_output_by_bsocket.add_new(&bsocket, &lf_socket);
       mapping_->bsockets_by_lf_socket_map.add(&lf_socket, &bsocket);
     }
@@ -3873,6 +3931,45 @@ struct GeometryNodesLazyFunctionBuilder {
       const int index = index_socket.default_value_typed<bNodeSocketValueInt>()->value;
       if (IndexRange(items_num).contains(index)) {
         graph_params.usage_by_bsocket.add(&bnode.input_socket(index + 1), output_is_used);
+      }
+    }
+  }
+
+  void build_warning_node(const bNode &bnode, BuildGraphParams &graph_params)
+  {
+    auto lazy_function_ptr = get_warning_node_lazy_function(bnode);
+    LazyFunction &lazy_function = *lazy_function_ptr;
+    scope_.add(std::move(lazy_function_ptr));
+
+    lf::Node &lf_node = graph_params.lf_graph.add_function(lazy_function);
+
+    for (const int i : bnode.input_sockets().index_range()) {
+      const bNodeSocket &bsocket = bnode.input_socket(i);
+      lf::InputSocket &lf_socket = lf_node.input(i);
+      graph_params.lf_inputs_by_bsocket.add(&bsocket, &lf_socket);
+      mapping_->bsockets_by_lf_socket_map.add(&lf_socket, &bsocket);
+    }
+    for (const int i : bnode.output_sockets().index_range()) {
+      const bNodeSocket &bsocket = bnode.output_socket(i);
+      lf::OutputSocket &lf_socket = lf_node.output(i);
+      graph_params.lf_output_by_bsocket.add(&bsocket, &lf_socket);
+      mapping_->bsockets_by_lf_socket_map.add(&lf_socket, &bsocket);
+    }
+
+    const bNodeSocket &output_bsocket = bnode.output_socket(0);
+
+    lf::OutputSocket *lf_usage = nullptr;
+    if (output_bsocket.is_directly_linked()) {
+      /* The warning node is only used if the output socket is used. */
+      lf_usage = graph_params.usage_by_bsocket.lookup_default(&output_bsocket, nullptr);
+    }
+    else {
+      /* The warning node is used if any of the output sockets is used. */
+      lf_usage = this->or_socket_usages(group_output_used_sockets_, graph_params);
+    }
+    if (lf_usage) {
+      for (const bNodeSocket *socket : bnode.input_sockets()) {
+        graph_params.usage_by_bsocket.add(socket, lf_usage);
       }
     }
   }
@@ -4437,7 +4534,7 @@ const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_gr
     }
   }
   if (const ID *id_orig = DEG_get_original_id(const_cast<ID *>(&btree.id))) {
-    if (id_orig->tag & LIB_TAG_MISSING) {
+    if (id_orig->tag & ID_TAG_MISSING) {
       return nullptr;
     }
   }

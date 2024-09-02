@@ -44,7 +44,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh" /* RNA_def_property_free_identifier */
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "CLG_log.h"
 
@@ -90,6 +90,11 @@
 
 BPy_StructRNA *bpy_context_module = nullptr; /* for fast access */
 
+static PyObject *pyrna_struct_CreatePyObject_from_type(PointerRNA *ptr,
+                                                       PyTypeObject *tp,
+                                                       void **instance);
+
+static PyObject *pyrna_srna_Subtype(StructRNA *srna);
 static PyObject *pyrna_struct_Subtype(PointerRNA *ptr);
 static PyObject *pyrna_prop_collection_values(BPy_PropertyRNA *self);
 
@@ -932,7 +937,7 @@ static PyObject *pyrna_struct_repr(BPy_StructRNA *self)
 
   tmp_str = PyUnicode_FromString(id->name + 2);
 
-  if (RNA_struct_is_ID(self->ptr.type) && (id->flag & LIB_EMBEDDED_DATA) == 0) {
+  if (RNA_struct_is_ID(self->ptr.type) && (id->flag & ID_FLAG_EMBEDDED_DATA) == 0) {
     ret = PyUnicode_FromFormat(
         "bpy.data.%s[%R]", BKE_idtype_idcode_to_name_plural(GS(id->name)), tmp_str);
   }
@@ -1917,7 +1922,7 @@ static int pyrna_py_to_prop(
               return -1;
             }
 
-            if (value_owner_id->tag & LIB_TAG_TEMP_MAIN) {
+            if (value_owner_id->tag & ID_TAG_TEMP_MAIN) {
               /* Allow passing temporary ID's to functions, but not attribute assignment. */
               if (ptr->type != &RNA_Function) {
                 PyErr_Format(PyExc_TypeError,
@@ -2897,7 +2902,7 @@ static int pyrna_prop_collection_ass_subscript(BPy_PropertyRNA *self,
 
   PyErr_Format(PyExc_TypeError,
                "bpy_prop_collection[key]: invalid key, "
-               "must be a string or an int, not %.200s",
+               "must be an int, not %.200s",
                Py_TYPE(key)->tp_name);
   return -1;
 }
@@ -4138,9 +4143,9 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
 
   if (srna_base == &RNA_Node) {
     /* If the given idname is an alias, translate it to the proper idname. */
-    id = blender::bke::nodeTypeFindAlias(id);
+    id = blender::bke::node_type_find_alias(id);
 
-    blender::bke::bNodeType *nt = blender::bke::nodeTypeFind(id);
+    blender::bke::bNodeType *nt = blender::bke::node_type_find(id);
     if (nt) {
       PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_Struct, nt->rna_ext.srna);
       return pyrna_struct_CreatePyObject(&ptr);
@@ -5742,6 +5747,9 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
     return nullptr;
   }
 
+  if (set) {
+    RNA_property_update(BPY_context_get(), &self->ptr, self->prop);
+  }
   Py_RETURN_NONE;
 }
 
@@ -6869,7 +6877,7 @@ PyTypeObject pyrna_struct_Type = {
     /*tp_basicsize*/ sizeof(BPy_StructRNA),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ (destructor)pyrna_struct_dealloc,
-    /*tp_vectorcall_offset */ 0,
+    /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
@@ -7344,16 +7352,12 @@ static void pyrna_prop_collection_iter_dealloc(BPy_PropertyCollectionIterRNA *se
 
 static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
 {
-  PyObject *item;
-
   Py_INCREF(newclass);
 
-  if (RNA_struct_py_type_get(srna)) {
-    PyC_ObSpit("RNA WAS SET - ", static_cast<PyObject *>(RNA_struct_py_type_get(srna)));
+  if (PyObject *oldclass = static_cast<PyObject *>(RNA_struct_py_type_get(srna))) {
+    PyC_ObSpit("RNA WAS SET - ", oldclass);
+    Py_DECREF(oldclass);
   }
-
-  Py_XDECREF((PyObject *)RNA_struct_py_type_get(srna));
-
   RNA_struct_py_type_set(srna, (void *)newclass); /* Store for later use */
 
   /* Not 100% needed, but useful,
@@ -7361,12 +7365,25 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
 
   /* Python deals with the circular reference. */
   PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_Struct, srna);
-  item = pyrna_struct_CreatePyObject(&ptr);
 
-  /* NOTE: must set the class not the __dict__ else the internal slots are not updated correctly.
-   */
-  PyObject_SetAttr(newclass, bpy_intern_str_bl_rna, item);
-  Py_DECREF(item);
+  /* NOTE: using `pyrna_struct_CreatePyObject(&ptr)` is close to what is needed,
+   * however the it isn't correct because the result of:
+   * `type(bpy.types.Object.bl_rna) == bpy.types.Object`.
+   * In this case the type of `bl_rna` should be `bpy.types.Struct`.
+   * This is passed in explicitly, while #pyrna_struct_CreatePyObject could
+   * take this as an argument it's such a corner case that using a lower level
+   * function that takes the type is preferable. */
+  {
+    BLI_assert(RNA_struct_instance(&ptr) == nullptr);
+    PyTypeObject *tp = (PyTypeObject *)pyrna_srna_Subtype(&RNA_Struct);
+    PyObject *item = pyrna_struct_CreatePyObject_from_type(&ptr, tp, nullptr);
+    Py_DECREF(tp); /* `srna` owns, can't hold a reference. */
+
+    /* NOTE: must set the class not the `__dict__`
+     * else the internal slots are not updated correctly. */
+    PyObject_SetAttr(newclass, bpy_intern_str_bl_rna, item);
+    Py_DECREF(item);
+  }
 
   /* Add `staticmethod` and `classmethod` functions. */
   {
@@ -7390,8 +7407,6 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
 
   /* Done with RNA instance. */
 }
-
-static PyObject *pyrna_srna_Subtype(StructRNA *srna);
 
 /* Return a borrowed reference. */
 static PyObject *pyrna_srna_PyBase(StructRNA *srna)  //, PyObject *bpy_types_dict)
@@ -7603,6 +7618,77 @@ static PyObject *pyrna_struct_Subtype(PointerRNA *ptr)
 
 /*-----------------------CreatePyObject---------------------------------*/
 
+/**
+ * A lower level version of #pyrna_struct_CreatePyObject,
+ * use this when type (`tp`) needs to be set to a non-standard value.
+ */
+static PyObject *pyrna_struct_CreatePyObject_from_type(PointerRNA *ptr,
+                                                       PyTypeObject *tp,
+                                                       void **instance)
+{
+  BPy_StructRNA *pyrna = nullptr;
+  if (tp) {
+    pyrna = (BPy_StructRNA *)tp->tp_alloc(tp, 0);
+#ifdef USE_PYRNA_STRUCT_REFERENCE
+    /* #PyType_GenericAlloc will have set tracking.
+     * We only want tracking when `StructRNA.reference` has been set. */
+    if (pyrna != nullptr) {
+      PyObject_GC_UnTrack(pyrna);
+    }
+#endif
+  }
+  else {
+    CLOG_WARN(BPY_LOG_RNA, "could not make type '%s'", RNA_struct_identifier(ptr->type));
+
+#ifdef USE_PYRNA_STRUCT_REFERENCE
+    pyrna = (BPy_StructRNA *)PyObject_GC_New(BPy_StructRNA, &pyrna_struct_Type);
+#else
+    pyrna = (BPy_StructRNA *)PyObject_New(BPy_StructRNA, &pyrna_struct_Type);
+#endif
+
+#ifdef USE_PYRNA_STRUCT_REFERENCE
+    /* #PyType_GenericAlloc will have set tracking.
+     * We only want tracking when `StructRNA.reference` has been set. */
+    PyObject_GC_UnTrack(pyrna);
+#endif
+
+#ifdef USE_WEAKREFS
+    if (pyrna != nullptr) {
+      pyrna->in_weakreflist = nullptr;
+    }
+#endif
+  }
+
+  if (pyrna == nullptr) {
+    PyErr_SetString(PyExc_MemoryError, "couldn't create bpy_struct object");
+    return nullptr;
+  }
+
+  /* Blender's instance owns a reference (to avoid Python freeing it). */
+  if (instance) {
+    *instance = pyrna;
+    Py_INCREF(pyrna);
+  }
+
+  pyrna->ptr = *ptr;
+#ifdef PYRNA_FREE_SUPPORT
+  pyrna->freeptr = false;
+#endif
+
+#ifdef USE_PYRNA_STRUCT_REFERENCE
+  pyrna->reference = nullptr;
+#endif
+
+  // PyC_ObSpit("NewStructRNA: ", (PyObject *)pyrna);
+
+#ifdef USE_PYRNA_INVALIDATE_WEAKREF
+  if (ptr->owner_id) {
+    id_weakref_pool_add(ptr->owner_id, (BPy_DummyPointerRNA *)pyrna);
+  }
+#endif
+  return (PyObject *)pyrna;
+}
+
 PyObject *pyrna_struct_CreatePyObject(PointerRNA *ptr)
 {
   BPy_StructRNA *pyrna = nullptr;
@@ -7634,70 +7720,9 @@ PyObject *pyrna_struct_CreatePyObject(PointerRNA *ptr)
 #endif
   }
 
-  {
-    PyTypeObject *tp = (PyTypeObject *)pyrna_struct_Subtype(ptr);
-
-    if (tp) {
-      pyrna = (BPy_StructRNA *)tp->tp_alloc(tp, 0);
-#ifdef USE_PYRNA_STRUCT_REFERENCE
-      /* #PyType_GenericAlloc will have set tracking.
-       * We only want tracking when `StructRNA.reference` has been set. */
-      if (pyrna != nullptr) {
-        PyObject_GC_UnTrack(pyrna);
-      }
-#endif
-      Py_DECREF(tp); /* srna owns, can't hold a reference. */
-    }
-    else {
-      CLOG_WARN(BPY_LOG_RNA, "could not make type '%s'", RNA_struct_identifier(ptr->type));
-
-#ifdef USE_PYRNA_STRUCT_REFERENCE
-      pyrna = (BPy_StructRNA *)PyObject_GC_New(BPy_StructRNA, &pyrna_struct_Type);
-#else
-      pyrna = (BPy_StructRNA *)PyObject_New(BPy_StructRNA, &pyrna_struct_Type);
-#endif
-
-#ifdef USE_PYRNA_STRUCT_REFERENCE
-      /* #PyType_GenericAlloc will have set tracking.
-       * We only want tracking when `StructRNA.reference` has been set. */
-      PyObject_GC_UnTrack(pyrna);
-#endif
-
-#ifdef USE_WEAKREFS
-      if (pyrna != nullptr) {
-        pyrna->in_weakreflist = nullptr;
-      }
-#endif
-    }
-  }
-
-  if (pyrna == nullptr) {
-    PyErr_SetString(PyExc_MemoryError, "couldn't create bpy_struct object");
-    return nullptr;
-  }
-
-  /* Blender's instance owns a reference (to avoid Python freeing it). */
-  if (instance) {
-    *instance = pyrna;
-    Py_INCREF(pyrna);
-  }
-
-  pyrna->ptr = *ptr;
-#ifdef PYRNA_FREE_SUPPORT
-  pyrna->freeptr = false;
-#endif
-
-#ifdef USE_PYRNA_STRUCT_REFERENCE
-  pyrna->reference = nullptr;
-#endif
-
-  // PyC_ObSpit("NewStructRNA: ", (PyObject *)pyrna);
-
-#ifdef USE_PYRNA_INVALIDATE_WEAKREF
-  if (ptr->owner_id) {
-    id_weakref_pool_add(ptr->owner_id, (BPy_DummyPointerRNA *)pyrna);
-  }
-#endif
+  PyTypeObject *tp = (PyTypeObject *)pyrna_struct_Subtype(ptr);
+  pyrna = (BPy_StructRNA *)pyrna_struct_CreatePyObject_from_type(ptr, tp, instance);
+  Py_XDECREF(tp); /* `srna` owns, can't hold a reference. */
   return (PyObject *)pyrna;
 }
 

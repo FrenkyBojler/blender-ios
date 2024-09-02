@@ -47,7 +47,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
@@ -127,7 +127,7 @@ static FileTooltipData *file_tooltip_data_create(const SpaceFile *sfile, const F
   return data;
 }
 
-static void file_draw_tooltip_custom_func(bContext * /*C*/, uiTooltipData *tip, void *argN)
+static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
 {
   FileTooltipData *file_data = static_cast<FileTooltipData *>(argN);
   const SpaceFile *sfile = file_data->sfile;
@@ -694,7 +694,7 @@ static void file_draw_preview(const FileList *files,
     }
 
     icon_x = xco + (file->typeflag & FILE_TYPE_DIR ? ex * 0.31f : ex * 0.178f);
-    icon_y = yco + (file->typeflag & FILE_TYPE_DIR ? ex * 0.11f : ex * 0.15f);
+    icon_y = yco + (file->typeflag & FILE_TYPE_DIR ? ex * 0.19f : ex * 0.15f);
     UI_icon_draw_ex(icon_x,
                     icon_y,
                     is_loading ? ICON_TEMP : icon,
@@ -706,17 +706,15 @@ static void file_draw_preview(const FileList *files,
                     UI_NO_ICON_OVERLAY_TEXT);
   }
 
-  if (is_link || is_offline) {
-    /* Icon at bottom to indicate it is a shortcut, link, alias, or offline. */
-    const int arrow = is_link ? ICON_LOOP_FORWARDS : ICON_INTERNET;
-    if (!is_icon) {
-      /* At very bottom-left if preview style. */
-      const uchar light[4] = {255, 255, 255, 255};
-      const float icon_x = float(xco) + (2.0f * UI_SCALE_FAC);
-      const float icon_y = float(yco) + (2.0f * UI_SCALE_FAC);
+  if (icon_aspect < 2.0f) {
+    const float icon_x = float(tile_draw_rect->xmin) + (3.0f * UI_SCALE_FAC);
+    const float icon_y = float(tile_draw_rect->ymin) + (17.0f * UI_SCALE_FAC);
+    const uchar light[4] = {255, 255, 255, 255};
+    if (is_offline) {
+      /* Icon at bottom to indicate the file is offline. */
       UI_icon_draw_ex(icon_x,
                       icon_y,
-                      arrow,
+                      ICON_INTERNET,
                       1.0f / UI_SCALE_FAC,
                       0.6f,
                       0.0f,
@@ -724,39 +722,30 @@ static void file_draw_preview(const FileList *files,
                       true,
                       UI_NO_ICON_OVERLAY_TEXT);
     }
-    else {
-      /* Link to folder or non-previewed file. */
-      uchar icon_color[4];
-      UI_GetThemeColor4ubv(TH_BACK, icon_color);
-      const float icon_x = xco + ((file->typeflag & FILE_TYPE_DIR) ? 0.14f : 0.23f) * scaledx;
-      const float icon_y = yco + ((file->typeflag & FILE_TYPE_DIR) ? 0.24f : 0.14f) * scaledy;
+    else if (is_link) {
+      /* Icon at bottom to indicate it is a shortcut, link, or alias. */
       UI_icon_draw_ex(icon_x,
                       icon_y,
-                      arrow,
-                      icon_aspect / UI_SCALE_FAC * 1.8f,
-                      0.3f,
+                      ICON_FILE_ALIAS,
+                      1.0f / UI_SCALE_FAC,
+                      0.6f,
                       0.0f,
-                      icon_color,
+                      nullptr,
                       false,
                       UI_NO_ICON_OVERLAY_TEXT);
     }
-  }
-  else if (icon && icon_aspect < 2.0f &&
-           ((!is_icon && !(file->typeflag & FILE_TYPE_FTFONT)) || is_loading))
-  {
-    /* Smaller, fainter icon at bottom-left for preview image thumbnail, but not for fonts. */
-    const uchar light[4] = {255, 255, 255, 255};
-    const float icon_x = float(xco) + (2.0f * UI_SCALE_FAC);
-    const float icon_y = float(yco) + (2.0f * UI_SCALE_FAC);
-    UI_icon_draw_ex(icon_x,
-                    icon_y,
-                    icon,
-                    1.0f / UI_SCALE_FAC,
-                    0.6f,
-                    0.0f,
-                    light,
-                    true,
-                    UI_NO_ICON_OVERLAY_TEXT);
+    else if (icon && ((!is_icon && !(file->typeflag & FILE_TYPE_FTFONT)) || is_loading)) {
+      /* Smaller, fainter icon at bottom-left for preview image thumbnail, but not for fonts. */
+      UI_icon_draw_ex(icon_x,
+                      icon_y,
+                      icon,
+                      1.0f / UI_SCALE_FAC,
+                      0.6f,
+                      0.0f,
+                      light,
+                      true,
+                      UI_NO_ICON_OVERLAY_TEXT);
+    }
   }
 
   const bool is_current_main_data = filelist_file_get_id(file) != nullptr;
@@ -765,8 +754,8 @@ static void file_draw_preview(const FileList *files,
      * current file (from current #Main in fact). */
     float icon_x, icon_y;
     const uchar light[4] = {255, 255, 255, 255};
-    icon_x = xco + ex - UI_UNIT_X;
-    icon_y = yco + ey - UI_UNIT_Y;
+    icon_x = float(tile_draw_rect->xmax) - (16.0f * UI_SCALE_FAC);
+    icon_y = float(tile_draw_rect->ymax) - (20.0f * UI_SCALE_FAC);
     UI_icon_draw_ex(icon_x,
                     icon_y,
                     ICON_CURRENT_FILE,
@@ -774,7 +763,7 @@ static void file_draw_preview(const FileList *files,
                     0.6f,
                     0.0f,
                     light,
-                    false,
+                    true,
                     UI_NO_ICON_OVERLAY_TEXT);
   }
 
@@ -1386,10 +1375,10 @@ void file_draw_list(const bContext *C, ARegion *region)
 
     const bool is_filtered = params->filter_search[0] != '\0';
 
-    uchar text_col[4];
-    UI_GetThemeColor4ubv(TH_TEXT, text_col);
+    uchar text_col_mod[4];
+    copy_v4_v4_uchar(text_col_mod, text_col);
     if (!is_filtered) {
-      text_col[3] /= 2;
+      text_col_mod[3] /= 2;
     }
 
     const char *message = [&]() {
@@ -1406,7 +1395,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                              tile_draw_rect.xmin + UI_UNIT_X,
                              tile_draw_rect.ymax - UI_UNIT_Y,
                              message,
-                             text_col);
+                             text_col_mod);
   }
 
   BLF_batch_draw_end();

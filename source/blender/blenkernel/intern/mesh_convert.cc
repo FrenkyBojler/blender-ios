@@ -824,7 +824,12 @@ static Mesh *mesh_new_from_mesh_object(Depsgraph *depsgraph,
                                        const bool preserve_all_data_layers,
                                        const bool preserve_origindex)
 {
-  if (preserve_all_data_layers || preserve_origindex) {
+  /* This function tries to reevaluate the object from the original data. If the original object
+   * was not a mesh object, this won't work because it uses mesh object evaluation which assumes
+   * the type of the original object data. */
+  if (!(object->runtime->data_orig && GS(object->runtime->data_orig->name) != ID_ME) &&
+      (preserve_all_data_layers || preserve_origindex))
+  {
     return mesh_new_from_mesh_object_with_layers(depsgraph, object, preserve_origindex);
   }
   const Mesh *mesh_input = (const Mesh *)object->data;
@@ -1051,7 +1056,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
 void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob)
 {
   using namespace blender::bke;
-  BLI_assert(mesh_src->id.tag & LIB_TAG_NO_MAIN);
+  BLI_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
   if (ob) {
     BLI_assert(mesh_dst == ob->data);
   }
@@ -1066,10 +1071,13 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob)
 
   /* Using #CD_MASK_MESH ensures that only data that should exist in Main meshes is moved. */
   const CustomData_MeshMasks mask = CD_MASK_MESH;
-  CustomData_copy(&mesh_src->vert_data, &mesh_dst->vert_data, mask.vmask, mesh_src->verts_num);
-  CustomData_copy(&mesh_src->edge_data, &mesh_dst->edge_data, mask.emask, mesh_src->edges_num);
-  CustomData_copy(&mesh_src->face_data, &mesh_dst->face_data, mask.pmask, mesh_src->faces_num);
-  CustomData_copy(
+  CustomData_init_from(
+      &mesh_src->vert_data, &mesh_dst->vert_data, mask.vmask, mesh_src->verts_num);
+  CustomData_init_from(
+      &mesh_src->edge_data, &mesh_dst->edge_data, mask.emask, mesh_src->edges_num);
+  CustomData_init_from(
+      &mesh_src->face_data, &mesh_dst->face_data, mask.pmask, mesh_src->faces_num);
+  CustomData_init_from(
       &mesh_src->corner_data, &mesh_dst->corner_data, mask.lmask, mesh_src->corners_num);
   std::swap(mesh_dst->face_offset_indices, mesh_src->face_offset_indices);
   std::swap(mesh_dst->runtime->face_offsets_sharing_info,
@@ -1109,7 +1117,7 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob)
 
 void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
 {
-  BLI_assert(mesh_src->id.tag & LIB_TAG_NO_MAIN);
+  BLI_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
 
   const int totvert = mesh_src->verts_num;
 

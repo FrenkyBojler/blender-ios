@@ -591,7 +591,8 @@ struct PaintOperationExecutor {
 
     bke::SpanAttributeWriter<float> init_times = attributes.lookup_or_add_for_write_span<float>(
         "init_time", bke::AttrDomain::Curve);
-    init_times.span[active_curve] = self.start_time_;
+    /* Truncating time in ms to uint32 then we don't lose precision in lower bits. */
+    init_times.span[active_curve] = float(uint64_t(self.start_time_ * double(1e3))) / float(1e3);
     curve_attributes_to_skip.add("init_time");
     init_times.finish();
 
@@ -1007,10 +1008,10 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   /* Initialize helper class for projecting screen space coordinates. */
   placement_ = ed::greasepencil::DrawingPlacement(*scene, *region, *view3d, *eval_object, &layer);
   if (placement_.use_project_to_surface()) {
-    placement_.cache_viewport_depths(CTX_data_depsgraph_pointer(&C), region, view3d);
+    placement_.cache_viewport_depths(depsgraph, region, view3d);
   }
   else if (placement_.use_project_to_nearest_stroke()) {
-    placement_.cache_viewport_depths(CTX_data_depsgraph_pointer(&C), region, view3d);
+    placement_.cache_viewport_depths(depsgraph, region, view3d);
     placement_.set_origin_to_nearest_stroke(start_sample.mouse_position);
   }
 

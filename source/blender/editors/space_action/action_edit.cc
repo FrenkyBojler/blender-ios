@@ -975,6 +975,8 @@ static int actkeys_insertkey_exec(bContext *C, wmOperator *op)
   /* what channels to affect? */
   mode = RNA_enum_get(op->ptr, "type");
 
+  ANIM_deselect_keys_in_animation_editors(C);
+
   /* insert keyframes */
   insert_action_keys(&ac, mode);
 
@@ -1038,7 +1040,7 @@ static bool duplicate_action_keys(bAnimContext *ac)
           static_cast<GreasePencilLayer *>(ale->data)->wrap());
     }
     else if (ale->type == ANIMTYPE_MASKLAYER) {
-      ED_masklayer_frames_duplicate((MaskLayer *)ale->data);
+      changed |= ED_masklayer_frames_duplicate((MaskLayer *)ale->data);
     }
     else {
       BLI_assert(0);

@@ -50,6 +50,18 @@ bool InstanceReference::owns_direct_data() const
   return geometry_set_->owns_direct_data();
 }
 
+void InstanceReference::count_memory(MemoryCounter &memory) const
+{
+  switch (type_) {
+    case Type::GeometrySet: {
+      geometry_set_->count_memory(memory);
+    }
+    default: {
+      break;
+    }
+  }
+}
+
 static void convert_collection_to_instances(const Collection &collection,
                                             bke::Instances &instances)
 {
@@ -128,6 +140,7 @@ Instances::Instances(Instances &&other)
     : references_(std::move(other.references_)),
       instances_num_(other.instances_num_),
       attributes_(other.attributes_),
+      reference_user_counts_(std::move(other.reference_user_counts_)),
       almost_unique_ids_cache_(std::move(other.almost_unique_ids_cache_))
 {
   CustomData_reset(&other.attributes_);
@@ -136,9 +149,10 @@ Instances::Instances(Instances &&other)
 Instances::Instances(const Instances &other)
     : references_(other.references_),
       instances_num_(other.instances_num_),
+      reference_user_counts_(other.reference_user_counts_),
       almost_unique_ids_cache_(other.almost_unique_ids_cache_)
 {
-  CustomData_copy(&other.attributes_, &attributes_, CD_MASK_ALL, other.instances_num_);
+  CustomData_init_from(&other.attributes_, &attributes_, CD_MASK_ALL, other.instances_num_);
 }
 
 Instances::~Instances()
@@ -181,6 +195,7 @@ void Instances::add_instance(const int instance_handle, const float4x4 &transfor
   CustomData_realloc(&attributes_, old_size, instances_num_);
   this->reference_handles_for_write().last() = instance_handle;
   this->transforms_for_write().last() = transform;
+  this->tag_reference_handles_changed();
 }
 
 Span<int> Instances::reference_handles() const
@@ -244,6 +259,12 @@ int Instances::add_reference(const InstanceReference &reference)
   if (std::optional<int> handle = this->find_reference_handle(reference)) {
     return *handle;
   }
+  return this->add_new_reference(reference);
+}
+
+int Instances::add_new_reference(const InstanceReference &reference)
+{
+  this->tag_reference_handles_changed();
   return references_.append_and_get_index(reference);
 }
 
@@ -391,6 +412,14 @@ void Instances::ensure_owns_direct_data()
   }
 }
 
+void Instances::count_memory(MemoryCounter &memory) const
+{
+  CustomData_count_memory(attributes_, instances_num_, memory);
+  for (const InstanceReference &reference : references_) {
+    reference.count_memory(memory);
+  }
+}
+
 static Array<int> generate_unique_instance_ids(Span<int> original_ids)
 {
   Array<int> unique_ids(original_ids.size());
@@ -441,6 +470,23 @@ static Array<int> generate_unique_instance_ids(Span<int> original_ids)
   }
 
   return unique_ids;
+}
+
+Span<int> Instances::reference_user_counts() const
+{
+  reference_user_counts_.ensure([&](Array<int> &r_data) {
+    const int references_num = references_.size();
+    r_data.reinitialize(references_num);
+    r_data.fill(0);
+
+    const Span<int> handles = this->reference_handles();
+    for (const int handle : handles) {
+      if (handle >= 0 && handle < references_num) {
+        r_data[handle]++;
+      }
+    }
+  });
+  return reference_user_counts_.data();
 }
 
 Span<int> Instances::almost_unique_ids() const

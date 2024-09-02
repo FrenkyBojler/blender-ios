@@ -18,6 +18,7 @@ set(INC_SYS
 set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::dependencies::optional::tbb
 )
 
 add_definitions(-DWITH_DNA_GHASH)
@@ -45,7 +46,7 @@ file(GENERATE OUTPUT ${dna_header_string_file} CONTENT "${DNA_FILE_LIST}")
 # Build makesdna executable
 
 # Subset of blenlib used by makesdna.
-set(SRC_BLENLIB
+set(BLENLIB_SRC
   ../../blenlib/intern/BLI_assert.c
   ../../blenlib/intern/BLI_ghash.c
   ../../blenlib/intern/BLI_ghash_utils.cc
@@ -68,7 +69,7 @@ set(SRC_BLENLIB
 set(SRC
   dna_utils.cc
   makesdna.cc
-  ${SRC_BLENLIB}
+  ${BLENLIB_SRC}
   ${dna_header_include_file}
   ${dna_header_string_file}
 )
@@ -104,6 +105,7 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
     ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.c
   COMMAND
+    ${CMAKE_COMMAND} -E env ${PLATFORM_ENV_BUILD}
     "$<TARGET_FILE:makesdna>"
     ${CMAKE_CURRENT_BINARY_DIR}/dna.c
     ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
@@ -152,13 +154,15 @@ set(INC_SYS
 )
 
 set(SRC
-  ${SRC_BLENLIB}
+  ${BLENLIB_SRC}
   ${SRC_DNA_DEFAULTS_INC}
+  ${SRC_DNA_OTHER_INC}
 )
 
 set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::dependencies::optional::tbb
 )
 
 blender_add_lib(bf_dna_blenlib "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

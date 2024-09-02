@@ -37,6 +37,14 @@ VKFrameBuffer::VKFrameBuffer(const char *name)
   enabled_srgb_ = false;
 }
 
+VKFrameBuffer::~VKFrameBuffer()
+{
+  VKContext &context = *VKContext::get();
+  if (context.active_framebuffer_get() == this) {
+    context.deactivate_framebuffer();
+  }
+}
+
 /** \} */
 
 void VKFrameBuffer::bind(bool enabled_srgb)
@@ -541,16 +549,25 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
     }
 
     VKTexture &color_texture = *unwrap(unwrap(attachment.tex));
+    /* To support `gpu_Layer` we need to set the layerCount to the number of layers it can access.
+     */
+    int layer_count = color_texture.layer_count();
+    if (attachment.layer == -1 && layer_count != 1) {
+      begin_rendering.node_data.vk_rendering_info.layerCount = max_ii(
+          begin_rendering.node_data.vk_rendering_info.layerCount, layer_count);
+    }
+
     VkRenderingAttachmentInfo &attachment_info =
         begin_rendering.node_data
             .color_attachments[begin_rendering.node_data.vk_rendering_info.colorAttachmentCount++];
     attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
 
     VkImageView vk_image_view = VK_NULL_HANDLE;
+    uint32_t layer_base = max_ii(attachment.layer, 0);
     GPUAttachmentState attachment_state = attachment_states_[color_attachment_index];
     if (attachment_state == GPU_ATTACHMENT_WRITE) {
       VKImageViewInfo image_view_info = {eImageViewUsage::Attachment,
-                                         IndexRange(max_ii(attachment.layer, 0), 1),
+                                         IndexRange(layer_base, layer_count),
                                          IndexRange(attachment.mip, 1),
                                          {{'r', 'g', 'b', 'a'}},
                                          false,
@@ -565,7 +582,8 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
     access_info.images.append(
         {color_texture.vk_image_handle(),
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-         VK_IMAGE_ASPECT_COLOR_BIT});
+         VK_IMAGE_ASPECT_COLOR_BIT,
+         layer_base});
     color_attachment_formats_.append(to_vk_format(color_texture.device_format_get()));
 
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
@@ -633,7 +651,8 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
                                is_stencil_attachment ?
                                    static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT |
                                                                    VK_IMAGE_ASPECT_STENCIL_BIT) :
-                                   static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT)});
+                                   static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT),
+                               0});
     break;
   }
 
