@@ -19,7 +19,7 @@ GPU_SHADER_INTERFACE_INFO(gpencil_geometry_flat_iface, "gp_interp_flat")
     .flat(Type::VEC2, "aspect")
     .flat(Type::VEC4, "sspos1")
     .flat(Type::VEC4, "sspos2")
-    .flat(Type::VEC2, "point_length")
+    .flat(Type::VEC3, "point_length")
     .flat(Type::UINT, "mat_flag")
     .flat(Type::FLOAT, "depth");
 GPU_SHADER_INTERFACE_INFO(gpencil_geometry_noperspective_iface, "gp_interp_noperspective")

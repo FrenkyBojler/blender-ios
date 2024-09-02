@@ -126,6 +126,7 @@ vec4 from_cam(vec4 a){
 float i_to_t(float i, vec4 p1, vec4 p2){
   float l_start = gp_interp_flat.point_length.x;
   float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
+  float point_density = gp_interp_flat.point_length.z;
 
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
 
@@ -138,17 +139,17 @@ float i_to_t(float i, vec4 p1, vec4 p2){
     float r2 = P2.w;
     float a = r2 - r1;
     if(abs(a) < 0.001){
-      return (i - l_start)*r1 / l;
+      return (i / point_density - l_start)*r1 / l;
     }
 
     float E = (l + a)/(l - a);
-    float E_i = pow(E, (i - l_start)/2.0);
+    float E_i = pow(E, (i / point_density - l_start)/2.0);
 
     return r1 * (E_i - 1.0) / a;
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER){
-    return i / l;
+    return i / (l * point_density);
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH){
-    return (i - l_start ) / l;
+    return (i / point_density - l_start) / l;
   }else{ /* GP_DOTS_PLACEMENT_MODE_SINGLE */
     return 0.0;
   }
@@ -157,6 +158,7 @@ float i_to_t(float i, vec4 p1, vec4 p2){
 float t_to_i(float t, vec4 p1, vec4 p2){
   float l_start = gp_interp_flat.point_length.x;
   float l = gp_interp_flat.point_length.y - gp_interp_flat.point_length.x;
+  float point_density = gp_interp_flat.point_length.z;
 
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
 
@@ -169,17 +171,17 @@ float t_to_i(float t, vec4 p1, vec4 p2){
     float r2 = P2.w;
     float a = r2 - r1;
     if(abs(a) < 0.001){
-      return t * l/P1.w + l_start;
+      return (t * l/P1.w + l_start) * point_density;
     }
 
     float E = (l + a)/(l - a);
     float E_i = t * a / r1 + 1.0;
-    
-    return 2.0 * log(E_i)/log(E) + l_start;
+
+    return (2.0 * log(E_i)/log(E) + l_start) * point_density;
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_NUMBER){
-    return t * l;
+    return t * l * point_density;
   }else if(placement_mode == GP_DOTS_PLACEMENT_MODE_LENGTH){
-    return t * l + l_start;
+    return (t * l + l_start) * point_density;
   }else{ /* GP_DOTS_PLACEMENT_MODE_SINGLE */
     return 0.0;
   }

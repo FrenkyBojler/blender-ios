@@ -21,7 +21,7 @@ void main()
   /* TODO(fclem): Expose through a node? */
   vec4 sspos1;
   vec4 sspos2;
-  vec4 point_length;
+  vec3 point_length;
   vec2 aspect;
   float strength;
   float hardness;

@@ -58,7 +58,7 @@ void main()
       gp_interp.uv.x *= gp_mat._stroke_u_scale;
     }
 
-    gp_interp_flat.point_length *= gp_mat._stroke_u_scale;
+    gp_interp_flat.point_length.z = gp_mat._stroke_u_scale;
 
     /* Special case: We don't use vertex color if material Holdout. */
     if (flag_test(gp_flag, GP_STROKE_HOLDOUT)) {
