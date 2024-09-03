@@ -194,10 +194,10 @@ vec4 dot_segment(vec2 xy, vec4 ss1, vec4 ss2, bool is_squares, vec4 viewport_siz
     }
   }
 
-  vec2 ssp2 = ss1.xy + local.x * local_x + local.y * local_y;
+  vec2 ssp = ss1.xy + local.x * local_x + local.y * local_y;
 
-  vec4 ssp = vec4(ssp2, (x == -1) ? ss1.z : ss2.z, 0.0);
-  return screen_space_to_ndc(ssp, viewport_size.xy);
+  float t = local.x / l;
+  return screen_space_to_ndc(vec4(ssp, mix(ss1.z, ss2.z, t), 0.0), viewport_size.xy);
 }
 
 /**
