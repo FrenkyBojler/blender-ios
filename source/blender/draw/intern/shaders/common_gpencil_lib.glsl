@@ -124,6 +124,12 @@ bool gpencil_is_stroke_vertex()
   return flag_test(gl_VertexID, GP_IS_STROKE_VERTEX_BIT);
 }
 
+vec4 discard_ndc()
+{
+  /* We set the vertex at the camera origin to generate 0 fragments. */
+  return vec4(0.0, 0.0, -3e36, 0.0);
+}
+
 vec4 dot_segment(vec2 xy, vec4 ss1, vec4 ss2, bool is_squares, vec4 viewport_size)
 {
   vec2 local_x = safe_normalize(ss2.xy - ss1.xy);
@@ -148,16 +154,18 @@ vec4 dot_segment(vec2 xy, vec4 ss1, vec4 ss2, bool is_squares, vec4 viewport_siz
   float sin_theta = sqrt(1 - cos_theta * cos_theta);
   float tan_half_theta = (1.0 - cos_theta) / sin_theta;
 
-  // bool is_inside = !(ss1.z > 0 && ss2.z > 0);
+  if (ss1.z < 0 || ss1.z < 0) {
+    return discard_ndc();
+  }
 
   vec2 local = vec2(0.0, 0.0);
 
   if (abs(cos_theta) > 1.0) {
     if (r1 > r2) {
-      local = vec2(x, y) * r1;
+      local = xy * r1;
     }
     else {
-      local = vec2(x, y) * r2 + vec2(l, 0.0);
+      local = xy * r2 + vec2(l, 0.0);
     }
   }
   else {
@@ -289,9 +297,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
 
     /* Endpoints, we discard the vertices. */
     if (!(is_dot && !is_multi_dot) && ma2.x == -1) {
-      /* We set the vertex at the camera origin to generate 0 fragments. */
-      out_ndc = vec4(0.0, 0.0, -3e36, 0.0);
-      return out_ndc;
+      return discard_ndc();
     }
 
     /* Avoid using a vertex attribute for quad positioning. */
