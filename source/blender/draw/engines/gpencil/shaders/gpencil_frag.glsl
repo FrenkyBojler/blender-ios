@@ -390,7 +390,16 @@ void main()
         vec2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos1.xy) / gp_interp_flat.sspos1.w;
 
         int i = int(gp_interp_flat.point_length.x);
-        fragColor = get_dot_color(uv * 0.5 + 0.5, i);
+
+        /* TEMP CODE */
+        if (gl_FragCoord.x / viewportSize.x < 0.5) {
+          uv = uv * 0.5 + 0.5;
+        }
+        else {
+          uv = gp_interp.uv;
+        }
+
+        fragColor = get_dot_color(uv, i);
       }
     }
     else {  // line
