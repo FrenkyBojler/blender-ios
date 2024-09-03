@@ -150,11 +150,6 @@ vec4 dot_segment(vec2 xy, vec4 ss1, vec4 ss2, bool is_squares, vec4 viewport_siz
 
   // bool is_inside = !(ss1.z > 0 && ss2.z > 0);
 
-  float tan_heigth = tan_half_theta;
-  if (x == -1) {
-    tan_heigth = 1.0 / tan_half_theta;
-  }
-
   vec2 local = vec2(0.0, 0.0);
 
   if (abs(cos_theta) > 1.0) {
@@ -172,11 +167,11 @@ vec4 dot_segment(vec2 xy, vec4 ss1, vec4 ss2, bool is_squares, vec4 viewport_siz
     if (area_tan_per_width < area_non_per_width) {
       if (x == -1.0) {
         local.x += -r1;
-        local.y += y * r1 * tan_heigth;
+        local.y += y * r1 / tan_half_theta;
       }
       else {
         local.x += l + r2;
-        local.y += y * r2 * tan_heigth;
+        local.y += y * r2 * tan_half_theta;
       }
     }
     else {
