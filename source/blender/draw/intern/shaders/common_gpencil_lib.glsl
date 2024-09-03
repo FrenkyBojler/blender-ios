@@ -124,6 +124,79 @@ bool gpencil_is_stroke_vertex()
   return flag_test(gl_VertexID, GP_IS_STROKE_VERTEX_BIT);
 }
 
+vec4 dot_segment(vec2 xy, vec4 ss1, vec4 ss2, bool is_squares, vec4 viewport_size)
+{
+  vec2 local_x = safe_normalize(ss2.xy - ss1.xy);
+  /* Rotate 90 degrees counter-clockwise. */
+  vec2 local_y = vec2(-local_x.y, local_x.x);
+
+  float r1 = ss1.w;
+  float r2 = ss2.w;
+  float l = length(ss1.xy - ss2.xy);
+
+  if (is_squares) {
+    r1 *= M_SQRT2;
+    r2 *= M_SQRT2;
+  }
+
+  float x = xy.x;
+  float y = xy.y;
+
+  float max_r = max(r1, r2);
+  float a = r2 - r1;
+  float cos_theta = -a / l;
+  float sin_theta = sqrt(1 - cos_theta * cos_theta);
+  float tan_half_theta = (1.0 - cos_theta) / sin_theta;
+
+  // bool is_inside = !(ss1.z > 0 && ss2.z > 0);
+
+  float tan_heigth = tan_half_theta;
+  if (x == -1) {
+    tan_heigth = 1.0 / tan_half_theta;
+  }
+
+  vec2 local = vec2(0.0, 0.0);
+
+  if (abs(cos_theta) > 1.0) {
+    if (r1 > r2) {
+      local = vec2(x, y) * r1;
+    }
+    else {
+      local = vec2(x, y) * r2 + vec2(l, 0.0);
+    }
+  }
+  else {
+    float area_tan_per_width = 0.5 * (r1 / tan_half_theta + r2 * tan_half_theta);
+    float area_non_per_width = max_r;
+
+    if (area_tan_per_width < area_non_per_width) {
+      if (x == -1.0) {
+        local.x += -r1;
+        local.y += y * r1 * tan_heigth;
+      }
+      else {
+        local.x += l + r2;
+        local.y += y * r2 * tan_heigth;
+      }
+    }
+    else {
+      if (x == -1.0) {
+        local.x -= r1;
+        local.y += y * max_r;
+      }
+      else {
+        local.x += l + r2;
+        local.y += y * max_r;
+      }
+    }
+  }
+
+  vec2 ssp2 = ss1.xy + local.x * local_x + local.y * local_y;
+
+  vec4 ssp = vec4(ssp2, (x == -1) ? ss1.z : ss2.z, 0.0);
+  return screen_space_to_ndc(ssp, viewport_size.xy);
+}
+
 /**
  * Returns value of gl_Position.
  *
@@ -289,74 +362,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
       out_thickness.y = thickness / out_ndc.w;
       out_aspect = vec2(1.0);
 
-      vec2 local_x = safe_normalize(out_sspos2.xy - out_sspos1.xy);
-      /* Rotate 90 degrees counter-clockwise. */
-      vec2 local_y = vec2(-local_x.y, local_x.x);
-
-      float r1 = out_sspos1.w;
-      float r2 = out_sspos2.w;
-      float l = length(out_sspos1.xy - out_sspos2.xy);
-
-      if (is_squares) {
-        r1 *= M_SQRT2;
-        r2 *= M_SQRT2;
-      }
-
-      float max_r = max(r1, r2);
-      float a = r2 - r1;
-      float cos_theta = -a / l;
-      float sin_theta = sqrt(1 - cos_theta * cos_theta);
-      float tan_half_theta = (1.0 - cos_theta) / sin_theta;
-
-      // bool is_inside = !(out_sspos1.z > 0 && out_sspos2.z > 0);
-
-      float tan_heigth = tan_half_theta;
-      if (x == -1) {
-        tan_heigth = 1.0 / tan_half_theta;
-      }
-
-      vec2 local = vec2(0.0, 0.0);
-
-      if (abs(cos_theta) > 1.0) {
-        if (r1 > r2) {
-          local = vec2(x, y) * r1;
-        }
-        else {
-          local = vec2(x, y) * r2 + vec2(l, 0.0);
-        }
-      }
-      else {
-        float area_tan_per_width = 0.5 * (r1 / tan_half_theta + r2 * tan_half_theta);
-        float area_non_per_width = max_r;
-
-        if (area_tan_per_width < area_non_per_width) {
-          if (use_curr) {
-            local.x += -r1;
-            local.y += y * r1 * tan_heigth;
-          }
-          else {
-            local.x += l + r2;
-            local.y += y * r2 * tan_heigth;
-          }
-        }
-        else {
-          if (use_curr) {
-            local.x -= r1;
-            local.y += y * max_r;
-          }
-          else {
-            local.x += l + r2;
-            local.y += y * max_r;
-          }
-        }
-      }
-
-      vec2 ssp2 = local.x * local_x + local.y * local_y;
-
-      ssp2 += out_sspos1.xy;
-
-      vec4 ssp = vec4(ssp2, (use_curr) ? out_sspos1.z : out_sspos2.z, 0.0);
-      out_ndc = screen_space_to_ndc(ssp, viewport_size.xy);
+      out_ndc = dot_segment(vec2(x, y), out_sspos1, out_sspos2, is_squares, viewport_size);
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
