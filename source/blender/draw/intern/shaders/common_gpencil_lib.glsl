@@ -308,10 +308,10 @@ vec4 gpencil_vertex(vec4 viewport_size,
       float sin_theta = sqrt(1 - cos_theta * cos_theta);
       float tan_half_theta = (1.0 - cos_theta) / sin_theta;
 
-      bool flip = !(out_sspos1.z > 0 && out_sspos2.z > 0);
+      // bool is_inside = !(out_sspos1.z > 0 && out_sspos2.z > 0);
 
       float tan_heigth = tan_half_theta;
-      if (x == (flip ? 1 : -1)) {
+      if (x == -1) {
         tan_heigth = 1.0 / tan_half_theta;
       }
 
@@ -331,11 +331,11 @@ vec4 gpencil_vertex(vec4 viewport_size,
 
         if (area_tan_per_width < area_non_per_width) {
           if (use_curr) {
-            local.x -= r1;
+            local.x += -r1;
             local.y += y * r1 * tan_heigth;
           }
           else {
-            local.x += (l + r2);
+            local.x += l + r2;
             local.y += y * r2 * tan_heigth;
           }
         }
@@ -345,7 +345,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
             local.y += y * max_r;
           }
           else {
-            local.x += (l + r2);
+            local.x += l + r2;
             local.y += y * max_r;
           }
         }
