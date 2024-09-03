@@ -78,7 +78,7 @@ void Film::init_aovs(const Set<std::string> &passes_used_by_viewport_compositor)
   }
 
   if (aovs.size() > AOV_MAX) {
-    inst_.info += "Error: Too many AOVs\n";
+    inst_.info_append_i18n("Error: Too many AOVs");
     return;
   }
 
@@ -864,7 +864,7 @@ GPUTexture *Film::get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_
 
 bool Film::is_viewport_compositor_enabled() const
 {
-  return DRW_is_viewport_compositor_enabled();
+  return inst_.is_viewport() && DRW_is_viewport_compositor_enabled();
 }
 
 /* Gets the appropriate shader to write the given pass type. This is because passes of different

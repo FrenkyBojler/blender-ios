@@ -68,9 +68,7 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
   }
 
   /* Account for layer transform. */
-  if (scene.toolsettings->gp_sculpt.lock_axis != GP_LOCKAXIS_VIEW &&
-      scene.toolsettings->gp_sculpt.lock_axis != GP_LOCKAXIS_CURSOR)
-  {
+  if (!ELEM(scene.toolsettings->gp_sculpt.lock_axis, GP_LOCKAXIS_VIEW, GP_LOCKAXIS_CURSOR)) {
     /* Use the transpose inverse for normal. */
     placement_normal_ = math::transform_direction(math::transpose(world_space_to_layer_space_),
                                                   placement_normal_);
@@ -154,7 +152,7 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
   }
 
   /* Account for layer transform. */
-  if (reproject_mode != ReprojectMode::View && reproject_mode != ReprojectMode::Cursor) {
+  if (!ELEM(reproject_mode, ReprojectMode::View, ReprojectMode::Cursor)) {
     /* Use the transpose inverse for normal. */
     placement_normal_ = math::transform_direction(math::transpose(world_space_to_layer_space_),
                                                   placement_normal_);
@@ -381,6 +379,9 @@ float3 DrawingPlacement::reproject(const float3 pos) const
     float lambda;
     if (isect_ray_plane_v3(ray_co, ray_no, plane, &lambda, false)) {
       proj_point = ray_co + ray_no * lambda;
+    }
+    else {
+      return pos;
     }
   }
   return math::transform_point(world_space_to_layer_space_, proj_point);

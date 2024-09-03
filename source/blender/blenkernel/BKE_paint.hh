@@ -18,6 +18,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
+#include "BLI_shared_cache.hh"
 #include "BLI_utility_mixins.hh"
 
 #include "DNA_brush_enums.h"
@@ -25,6 +26,7 @@
 #include "DNA_object_enums.h"
 
 #include "BKE_pbvh.hh"
+#include "BKE_subdiv_ccg.hh"
 
 struct BMFace;
 struct BMLog;
@@ -76,7 +78,6 @@ struct Scene;
 struct Sculpt;
 struct SculptSession;
 struct SubdivCCG;
-struct SubdivCCGCoord;
 struct Tex;
 struct ToolSettings;
 struct UnifiedPaintSettings;
@@ -196,6 +197,8 @@ bool BKE_paint_ensure_from_paintmode(Main *bmain, Scene *sce, PaintMode mode);
 Paint *BKE_paint_get_active_from_paintmode(Scene *sce, PaintMode mode);
 const EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(PaintMode mode);
 uint BKE_paint_get_brush_tool_offset_from_paintmode(PaintMode mode);
+std::optional<int> BKE_paint_get_brush_tool_from_obmode(const Brush *brush,
+                                                        const eObjectMode ob_mode);
 Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
@@ -470,6 +473,13 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Crazy-space deformation matrices. */
   blender::Array<blender::float3x3, 0> deform_imats;
 
+  /**
+   * Normals corresponding to the #deform_cos evaluated/deform positions. Stored as a #SharedCache
+   * for consistency with mesh caches in #MeshRuntime::vert_normals_cache.
+   */
+  blender::SharedCache<blender::Vector<blender::float3>> vert_normals_deform;
+  blender::SharedCache<blender::Vector<blender::float3>> face_normals_deform;
+
   /* Pool for texture evaluations. */
   ImagePool *tex_pool = nullptr;
 
@@ -500,7 +510,6 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   blender::Array<int> preview_verts;
 
   /* Pose Brush Preview */
-  blender::float3 pose_origin;
   std::unique_ptr<SculptPoseIKChainPreview> pose_ik_chain_preview;
 
   /* Boundary Brush Preview */
@@ -580,7 +589,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
    * mesh. Changing the underlying mesh type (e.g. enabling dyntopo, changing multires levels)
    * should invalidate this value.
    */
-  PBVHVertRef active_vert_ = PBVHVertRef{PBVH_REF_NONE};
+  ActiveVert active_vert_ = {};
 
  public:
   SculptSession();
@@ -611,7 +620,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
    */
   blender::float3 active_vert_position(const Depsgraph &depsgraph, const Object &object) const;
 
-  void set_active_vert(PBVHVertRef vert);
+  void set_active_vert(ActiveVert vert);
   void clear_active_vert();
 };
 
@@ -684,7 +693,7 @@ void BKE_sculpt_toolsettings_data_ensure(Main *bmain, Scene *scene);
 
 blender::bke::pbvh::Tree *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Object *ob);
 
-void BKE_sculpt_sync_face_visibility_to_grids(Mesh *mesh, SubdivCCG *subdiv_ccg);
+void BKE_sculpt_sync_face_visibility_to_grids(const Mesh &mesh, SubdivCCG &subdiv_ccg);
 
 /**
  * Test if blender::bke::pbvh::Tree can be used directly for drawing, which is faster than
