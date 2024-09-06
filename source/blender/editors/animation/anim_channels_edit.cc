@@ -645,16 +645,24 @@ static void templated_selection_state_update(T &selectable_thing,
                                              const eAnimChannels_SetFlag selectmode)
 {
   switch (selectmode) {
-    case ACHANNEL_SETFLAG_CLEAR:
-      selectable_thing.set_selected(false);
+    case ACHANNEL_SETFLAG_INVERT:
+      selectable_thing.set_selected(!selectable_thing.is_selected());
       break;
     case ACHANNEL_SETFLAG_ADD:
-    case ACHANNEL_SETFLAG_EXTEND_RANGE:
       selectable_thing.set_selected(true);
       break;
-    case ACHANNEL_SETFLAG_INVERT:
+    /* You would probably expect "extend range" to select rather than deselect,
+     * and "toggle" to behave the same as "invert", because that's what a sane
+     * system would do. However, this function is used in the same places as the
+     * `ACHANNEL_SET_FLAG` macro, and therefore reproduces its logic. Note that
+     * in the "extend range" case this is actually functionally important,
+     * because `anim_channels_select_set()` below uses that case to *deselect
+     * everything* before `animchannel_select_range()` later does the actual
+     * selection of the channels in the range. */
+    case ACHANNEL_SETFLAG_CLEAR:
+    case ACHANNEL_SETFLAG_EXTEND_RANGE:
     case ACHANNEL_SETFLAG_TOGGLE:
-      selectable_thing.set_selected(!selectable_thing.is_selected());
+      selectable_thing.set_selected(false);
       break;
   }
 }
@@ -2271,7 +2279,10 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  /* do groups only first (unless in Drivers mode, where there are none) */
+  /* Do groups and other "summary/expander" types first (unless in Drivers mode, where there are
+   * none), because the following loop will not find those channels. Also deleting an entire group
+   * or slot will delete the channels they contain as well, so better avoid looping over those in
+   * the same loop. */
   if (ac.datatype != ANIMCONT_DRIVERS) {
     /* filter data */
     filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
@@ -2281,35 +2292,100 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
 
     /* delete selected groups and their associated channels */
     LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-      /* only groups - don't check other types yet, since they may no-longer exist */
-      if (ale->type == ANIMTYPE_GROUP) {
-        bActionGroup *agrp = (bActionGroup *)ale->data;
-        AnimData *adt = ale->adt;
-        FCurve *fcu, *fcn;
+      switch (ale->type) {
+        case ANIMTYPE_ACTION_SLOT: {
+          BLI_assert(ale->fcurve_owner_id);
+          BLI_assert(ale->data);
+          BLI_assert_msg(GS(ale->fcurve_owner_id->name) == ID_AC,
+                         "fcurve_owner_id should be an Action");
 
-        /* skip this group if no AnimData available, as we can't safely remove the F-Curves */
-        if (adt == nullptr) {
-          continue;
+          blender::animrig::Action &action =
+              reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
+          blender::animrig::Slot &slot_to_remove = static_cast<ActionSlot *>(ale->data)->wrap();
+
+          action.slot_remove(slot_to_remove);
+
+          tag_update_animation_element(ale);
+          break;
+        }
+        case ANIMTYPE_GROUP: {
+          bActionGroup *agrp = (bActionGroup *)ale->data;
+          AnimData *adt = ale->adt;
+          FCurve *fcu, *fcn;
+
+          /* skip this group if no AnimData available, as we can't safely remove the F-Curves */
+          if (adt == nullptr) {
+            continue;
+          }
+
+          /* delete all of the Group's F-Curves, but no others */
+          for (fcu = static_cast<FCurve *>(agrp->channels.first); fcu && fcu->grp == agrp;
+               fcu = fcn)
+          {
+            fcn = fcu->next;
+
+            /* remove from group and action, then free */
+            action_groups_remove_channel(adt->action, fcu);
+            BKE_fcurve_free(fcu);
+          }
+
+          /* free the group itself */
+          if (adt->action) {
+            BLI_freelinkN(&adt->action->groups, agrp);
+            DEG_id_tag_update_ex(CTX_data_main(C), &adt->action->id, ID_RECALC_ANIMATION);
+          }
+          else {
+            MEM_freeN(agrp);
+          }
+          break;
         }
 
-        /* delete all of the Group's F-Curves, but no others */
-        for (fcu = static_cast<FCurve *>(agrp->channels.first); fcu && fcu->grp == agrp; fcu = fcn)
-        {
-          fcn = fcu->next;
-
-          /* remove from group and action, then free */
-          action_groups_remove_channel(adt->action, fcu);
-          BKE_fcurve_free(fcu);
-        }
-
-        /* free the group itself */
-        if (adt->action) {
-          BLI_freelinkN(&adt->action->groups, agrp);
-          DEG_id_tag_update_ex(CTX_data_main(C), &adt->action->id, ID_RECALC_ANIMATION);
-        }
-        else {
-          MEM_freeN(agrp);
-        }
+        case ANIMTYPE_NONE:
+        case ANIMTYPE_ANIMDATA:
+        case ANIMTYPE_SPECIALDATA__UNUSED:
+        case ANIMTYPE_SUMMARY:
+        case ANIMTYPE_SCENE:
+        case ANIMTYPE_OBJECT:
+        case ANIMTYPE_FCURVE:
+        case ANIMTYPE_NLACONTROLS:
+        case ANIMTYPE_NLACURVE:
+        case ANIMTYPE_FILLACT_LAYERED:
+        case ANIMTYPE_FILLACTD:
+        case ANIMTYPE_FILLDRIVERS:
+        case ANIMTYPE_DSMAT:
+        case ANIMTYPE_DSLAM:
+        case ANIMTYPE_DSCAM:
+        case ANIMTYPE_DSCACHEFILE:
+        case ANIMTYPE_DSCUR:
+        case ANIMTYPE_DSSKEY:
+        case ANIMTYPE_DSWOR:
+        case ANIMTYPE_DSNTREE:
+        case ANIMTYPE_DSPART:
+        case ANIMTYPE_DSMBALL:
+        case ANIMTYPE_DSARM:
+        case ANIMTYPE_DSMESH:
+        case ANIMTYPE_DSTEX:
+        case ANIMTYPE_DSLAT:
+        case ANIMTYPE_DSLINESTYLE:
+        case ANIMTYPE_DSSPK:
+        case ANIMTYPE_DSGPENCIL:
+        case ANIMTYPE_DSMCLIP:
+        case ANIMTYPE_DSHAIR:
+        case ANIMTYPE_DSPOINTCLOUD:
+        case ANIMTYPE_DSVOLUME:
+        case ANIMTYPE_SHAPEKEY:
+        case ANIMTYPE_GPDATABLOCK:
+        case ANIMTYPE_GPLAYER:
+        case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+        case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+        case ANIMTYPE_GREASE_PENCIL_LAYER:
+        case ANIMTYPE_MASKDATABLOCK:
+        case ANIMTYPE_MASKLAYER:
+        case ANIMTYPE_NLATRACK:
+        case ANIMTYPE_NLAACTION:
+        case ANIMTYPE_PALETTE:
+        case ANIMTYPE_NUM_TYPES:
+          break;
       }
     }
 

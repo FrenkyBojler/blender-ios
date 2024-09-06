@@ -622,17 +622,6 @@ static const float bone_box_verts[8][3] = {
     {-1.0f, 1.0f, 1.0f},
 };
 
-static const float bone_box_smooth_normals[8][3] = {
-    {M_SQRT3, -M_SQRT3, M_SQRT3},
-    {M_SQRT3, -M_SQRT3, -M_SQRT3},
-    {-M_SQRT3, -M_SQRT3, -M_SQRT3},
-    {-M_SQRT3, -M_SQRT3, M_SQRT3},
-    {M_SQRT3, M_SQRT3, M_SQRT3},
-    {M_SQRT3, M_SQRT3, -M_SQRT3},
-    {-M_SQRT3, M_SQRT3, -M_SQRT3},
-    {-M_SQRT3, M_SQRT3, M_SQRT3},
-};
-
 static const uint bone_box_wire[24] = {
     0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7,
 };
@@ -1980,22 +1969,6 @@ static const float bone_octahedral_verts[6][3] = {
     {0.0f, 1.0f, 0.0f},
 };
 
-static const float bone_octahedral_smooth_normals[6][3] = {
-    {0.0f, -1.0f, 0.0f},
-#if 0 /* creates problems for outlines when scaled */
-    {0.943608f * M_SQRT1_2, -0.331048f, 0.943608f * M_SQRT1_2},
-    {0.943608f * M_SQRT1_2, -0.331048f, -0.943608f * M_SQRT1_2},
-    {-0.943608f * M_SQRT1_2, -0.331048f, -0.943608f * M_SQRT1_2},
-    {-0.943608f * M_SQRT1_2, -0.331048f, 0.943608f * M_SQRT1_2},
-#else
-    {M_SQRT1_2, 0.0f, M_SQRT1_2},
-    {M_SQRT1_2, 0.0f, -M_SQRT1_2},
-    {-M_SQRT1_2, 0.0f, -M_SQRT1_2},
-    {-M_SQRT1_2, 0.0f, M_SQRT1_2},
-#endif
-    {0.0f, 1.0f, 0.0f},
-};
-
 #if 0 /* UNUSED */
 
 static const uint bone_octahedral_wire[24] = {
@@ -2080,12 +2053,11 @@ blender::gpu::Batch *DRW_cache_bone_octahedral_get()
 
     static GPUVertFormat format = {0};
     static struct {
-      uint pos, nor, snor;
+      uint pos, nor;
     } attr_id;
     if (format.attr_len == 0) {
       attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
       attr_id.nor = GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-      attr_id.snor = GPU_vertformat_attr_add(&format, "snor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     }
 
     /* Vertices */
@@ -2095,10 +2067,6 @@ blender::gpu::Batch *DRW_cache_bone_octahedral_get()
     for (int i = 0; i < 8; i++) {
       for (int j = 0; j < 3; j++) {
         GPU_vertbuf_attr_set(vbo, attr_id.nor, v_idx, bone_octahedral_solid_normals[i]);
-        GPU_vertbuf_attr_set(vbo,
-                             attr_id.snor,
-                             v_idx,
-                             bone_octahedral_smooth_normals[bone_octahedral_solid_tris[i][j]]);
         GPU_vertbuf_attr_set(
             vbo, attr_id.pos, v_idx++, bone_octahedral_verts[bone_octahedral_solid_tris[i][j]]);
       }
@@ -2141,12 +2109,11 @@ blender::gpu::Batch *DRW_cache_bone_box_get()
 
     static GPUVertFormat format = {0};
     static struct {
-      uint pos, nor, snor;
+      uint pos, nor;
     } attr_id;
     if (format.attr_len == 0) {
       attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
       attr_id.nor = GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-      attr_id.snor = GPU_vertformat_attr_add(&format, "snor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     }
 
     /* Vertices */
@@ -2156,8 +2123,6 @@ blender::gpu::Batch *DRW_cache_bone_box_get()
     for (int i = 0; i < 12; i++) {
       for (int j = 0; j < 3; j++) {
         GPU_vertbuf_attr_set(vbo, attr_id.nor, v_idx, bone_box_solid_normals[i]);
-        GPU_vertbuf_attr_set(
-            vbo, attr_id.snor, v_idx, bone_box_smooth_normals[bone_box_solid_tris[i][j]]);
         GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, bone_box_verts[bone_box_solid_tris[i][j]]);
       }
     }
