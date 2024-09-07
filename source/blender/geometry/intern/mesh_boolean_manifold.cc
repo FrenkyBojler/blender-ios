@@ -116,15 +116,15 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   dump_span(mesh->corner_tri_faces(), "corner_tri_faces");
   std::cout << "attributes:\n";
   bke::AttributeAccessor attrs = mesh->attributes();
-  attrs.for_all([&](const bke::AttributeIDRef &id, const bke::AttributeMetaData &meta_data) {
-    if (ELEM(id.name(), "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
+  attrs.for_all([&](const StringRef &id, const bke::AttributeMetaData &meta_data) {
+    if (ELEM(id, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
       return true;
     }
     static const char *domain_names[] = {
         "point", "edge", "face", "corner", "curve", "instance", "layer"};
     const int di = static_cast<int8_t>(meta_data.domain);
     const char *domain = (di >= 0 && di < ATTR_DOMAIN_NUM) ? domain_names[di] : "?";
-    std::string label = std::string(domain) + ": " + id.name();
+    std::string label = std::string(domain) + ": " + id;
     switch (meta_data.data_type) {
       case CD_PROP_FLOAT: {
         VArraySpan<float> floatspan(*attrs.lookup<float>(id));
@@ -249,7 +249,7 @@ static std::pair<int, int> mesh_and_face(int output_tri,
 class GAttributeReadWriteSpans {
  public:
   /* A set of attributes we want copied. */
-  Vector<bke::AttributeIDRef> attrs;
+  Vector<StringRef> attrs;
   /* Parallel array of data_type. */
   Vector<eCustomDataType> data_types;
   /* Destination attribute data, one span per attribute we want copied. */
@@ -279,7 +279,7 @@ GAttributeReadWriteSpans::GAttributeReadWriteSpans(Span<const Mesh *> input_mesh
   }
   bke::MutableAttributeAccessor output_accessor = output_mesh->attributes_for_write();
   output_accessor.for_all(
-      [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData &metadata) {
+      [&](const StringRef &id, const bke::AttributeMetaData &metadata) {
         if (metadata.domain != domain) {
           return true;
         }
@@ -306,7 +306,7 @@ GAttributeReadWriteSpans::~GAttributeReadWriteSpans()
 int GAttributeReadWriteSpans::find_attr_index(const char *name) const
 {
   for (int i : this->attrs.index_range()) {
-    if (this->attrs[i].name() == name) {
+    if (this->attrs[i] == name) {
       return i;
     }
   }
