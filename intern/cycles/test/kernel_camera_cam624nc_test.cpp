@@ -988,16 +988,15 @@ ccl_device_inline float4 cam624nc_to_direction(float const u,
 
   point = solve_tangential_thinprism(point, tangential, thin_prism);
 
-  float theta = len(point);
+  float const sensor_rad = len(point);
 
-  if (theta > fov) {
+  if (sensor_rad > fov) {
     return zero_float4();
   }
 
-  float const r_rad = solve_radial(invert_projection_type(proj_type, theta), radial);
-  if (r_rad > 1e-6 && theta > 1e-6) {
-    point *= r_rad / theta;
-    theta *= r_rad / theta;
+  float const theta = solve_radial(invert_projection_type(proj_type, sensor_rad), radial);
+  if (theta > 1e-6 && sensor_rad > 1e-6) {
+    point *= theta / sensor_rad;
   }
 
   float const phi_c = theta > 1e-6 ? point.x / theta : 1.0f;
