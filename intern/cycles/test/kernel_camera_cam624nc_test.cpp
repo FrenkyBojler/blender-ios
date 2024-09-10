@@ -471,6 +471,22 @@ ccl_device_inline float solve_radial(float const angle_dst, float const *const k
   return angle;
 }
 
+TEST(KernelCamera, Cam624nc_radial_trivial)
+{
+  float const radial[6] = {0,0,0,0,0,0};
+  size_t const num_pts = 10'000;
+  float const max_angle = M_PI_F;
+  for (size_t ii = 0; ii <= num_pts; ++ii) {
+    float const angle = float(ii) * max_angle / num_pts;
+    float const forward = radial_forward(angle, radial);
+    EXPECT_NEAR(angle, forward, 1e-8);
+    float const solved = solve_radial(angle, radial);
+    EXPECT_NEAR(solved, forward, 1e-8);
+    float const derivative = radial_forward_derivative(angle, radial);
+    EXPECT_NEAR(derivative, 1.0f, 1e-8);
+  }
+}
+
 ccl_device_inline float2 tangential_thinprism_forward(float2 const pt,
                                                       float2 const tangential,
                                                       float4 const thin_prism)
@@ -588,6 +604,29 @@ ccl_device_inline float2 solve_tangential_thinprism(float2 const tgt,
   }
 
   return result;
+}
+
+TEST(KernelCamera, Cam624nc_thinprism_trivial)
+{
+  std::mt19937_64 rng(0xBEEBBEEB);
+  std::uniform_real_distribution<float> dist(-2.0f, 2.0f);
+  float2 const p = zero_float2();
+  float4 const s = zero_float4();
+  size_t const num_pts = 10'000;
+  for (size_t ii = 0; ii <= num_pts; ++ii) {
+    float2 const pt = {dist(rng), dist(rng)};
+    float2 const forward = tangential_thinprism_forward(pt, p, s);
+    EXPECT_NEAR(pt.x, forward.x, 1e-8);
+    EXPECT_NEAR(pt.y, forward.y, 1e-8);
+    float2 const solved = solve_tangential_thinprism(pt, p, s);
+    EXPECT_NEAR(pt.x, solved.x, 1e-8);
+    EXPECT_NEAR(pt.y, solved.y, 1e-8);
+    float4 const derivative = tangential_thinprism_forward_jacobian(pt, p, s);
+    EXPECT_NEAR(derivative.x, 1.0f, 1e-8);
+    EXPECT_NEAR(derivative.y, 0.0f, 1e-8);
+    EXPECT_NEAR(derivative.z, 0.0f, 1e-8);
+    EXPECT_NEAR(derivative.w, 1.0f, 1e-8);
+  }
 }
 
 void test_tangential_thinprism_solver(float2 const tangential,
