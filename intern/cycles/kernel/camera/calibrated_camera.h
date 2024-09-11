@@ -16,7 +16,7 @@ enum BaseProjectionType {
 
 ccl_device_inline float2 blender2calib(float2 a)
 {
-  return {a.x, 1.0f - a.y};
+  return make_float2(a.x, 1.0f - a.y);
 }
 
 ccl_device_inline float2 calib2blender(float2 a)
@@ -26,12 +26,12 @@ ccl_device_inline float2 calib2blender(float2 a)
 
 ccl_device_inline float4 calib2blender(float4 a)
 {
-  return {a.z, -a.x, -a.y, a.w};
+  return make_float4(a.z, -a.x, -a.y, a.w);
 }
 
 ccl_device_inline float4 blender2calib(float4 a)
 {
-  return {-a.y, -a.z, a.x, a.w};
+  return make_float4(-a.y, -a.z, a.x, a.w);
 }
 
 ccl_device_inline float invert_projection_type(BaseProjectionType const type, float const theta)
@@ -59,7 +59,7 @@ ccl_device_inline float apply_projection_type(BaseProjectionType const type, flo
     case EQUIDISTANT:
       return theta;
     case STEREOGRAPHIC:
-      return 2.0 * tanf(theta / 2.0f);
+      return 2.0f * tanf(theta / 2.0f);
     case EQUISOLID:
       return 2.0f * sinf(theta / 2.0f);
     case FISHEYE_ORTHOGRAPHIC:
@@ -125,7 +125,7 @@ ccl_device_inline float solve_radial(float const angle_dst, float const *const k
   for (size_t ii = 0; ii < 20; ++ii) {
     float const old_angle = angle;
     angle -= (radial_forward(angle, k) - angle_dst) / radial_forward_derivative(angle, k);
-    if (fabsf(old_angle - angle) < 1e-6) {
+    if (fabsf(old_angle - angle) < 1e-6f) {
       break;
     }
   }
@@ -159,7 +159,7 @@ float4 tangential_thinprism_forward_jacobian(float2 const pt,
    * d/dx r^4 = 4x^3 + 4xy^2 = 4x(x^2+y^2) = 4xr^2
    * d/dy r^4 = 4yr^2
    */
-  return {                                                                     // x_t dx
+  return make_float4(                                                                     // x_t dx
           1.0f + 6.0f * pt.x * tangential.x + 2.0f * pt.y * tangential.y       // tangential term
               + 2.0f * pt.x * thin_prism.x + 4.0f * pt.x * r2 * thin_prism.y,  // thin prism
                                                                                // x_t dy
@@ -170,7 +170,7 @@ float4 tangential_thinprism_forward_jacobian(float2 const pt,
               4.0f * pt.x * r2 * thin_prism.w,
           // y_t dy
           1.0f + 6.0f * pt.y * tangential.y + 2.0f * pt.x * tangential.x +
-              2.0f * pt.y * thin_prism.z + 4.0f * pt.y * r2 * thin_prism.w};
+              2.0f * pt.y * thin_prism.z + 4.0f * pt.y * r2 * thin_prism.w);
 }
 
 float2 tangential_thinprism_newton_step(float2 const pt,
@@ -218,7 +218,7 @@ ccl_device_inline float2 solve_tangential_thinprism(float2 const tgt,
   // At the center there are problems with the termination criterion.
   // Luckily, we don't have to do anything at the center because
   // by design of the tangential distortion term it doesn't do anything at the center.
-  if (fabsf(tgt.x) < 1e-6 && fabsf(tgt.y) < 1e-6) {
+  if (fabsf(tgt.x) < 1e-6f && fabsf(tgt.y) < 1e-6f) {
     return tgt;
   }
 
@@ -243,7 +243,7 @@ ccl_device_inline float2 solve_tangential_thinprism(float2 const tgt,
   for (int ii = 0; ii < 20; ++ii) {
     float2 const old_result = result;
     result += tangential_thinprism_newton_step(result, tgt, tangential, thin_prism);
-    if (fabsf(old_result.x - result.x) < 1e-6 && fabsf(old_result.y - result.y) < 1e-6) {
+    if (fabsf(old_result.x - result.x) < 1e-6f && fabsf(old_result.y - result.y) < 1e-6f) {
       break;
     }
   }
@@ -273,17 +273,17 @@ ccl_device_inline float4 calibrated_cam_to_direction_impl(float2 point,
   }
 
   float const theta = solve_radial(invert_projection_type(proj_type, sensor_rad), radial);
-  if (theta > 1e-6 && sensor_rad > 1e-6) {
+  if (theta > 1e-6f && sensor_rad > 1e-6f) {
     point *= theta / sensor_rad;
   }
 
-  float const phi_c = theta > 1e-6 ? point.x / theta : 1.0f;
-  float const phi_s = theta > 1e-6 ? point.y / theta : 0.0f;
+  float const phi_c = theta > 1e-6f ? point.x / theta : 1.0f;
+  float const phi_s = theta > 1e-6f ? point.y / theta : 0.0f;
 
   float const theta_s = sinf(theta);
   float const theta_c = cosf(theta);
 
-  return {phi_c * theta_s, phi_s * theta_s, theta_c, theta};
+  return make_float4(phi_c * theta_s, phi_s * theta_s, theta_c, theta);
 }
 
 ccl_device_inline float2 direction_to_calibrated_cam_impl(float4 const dir,

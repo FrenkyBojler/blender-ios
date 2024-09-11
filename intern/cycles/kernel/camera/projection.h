@@ -10,6 +10,8 @@
 #include "util/math.h"
 #include "util/types.h"
 
+#include "calibrated_camera.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Spherical coordinates <-> Cartesian direction. */
