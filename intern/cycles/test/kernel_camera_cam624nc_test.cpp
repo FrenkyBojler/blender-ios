@@ -12,8 +12,11 @@
 
 #include "kernel/types.h"
 
+#include "kernel/camera/calibrated_camera.h"
 #include "kernel/camera/camera.h"
 #include "kernel/camera/projection.h"
+
+#include <random>
 
 CCL_NAMESPACE_BEGIN
 
@@ -51,7 +54,7 @@ struct MaxError {
 
   void push(float const val)
   {
-    max = std::max(max, val);
+    max = std::max(max, std::abs(val));
     sum += val;
     count++;
   }
@@ -66,6 +69,11 @@ struct MaxError {
     return sum / count;
   }
 };
+std::ostream &operator<<(std::ostream &out, MaxError const &val)
+{
+  out << val.max;
+  return out;
+}
 
 const float rad60 = M_PI_F / 3.0f;
 const float cos60 = 0.5f;
@@ -102,378 +110,9 @@ ccl_device_inline std::ostream &operator<<(std::ostream &out, const float2 val)
 }
 // */
 
-using T = float;
-
-ccl_device_inline float3 fisheye_radtanthinprism_to_direction_legacy(
-    float u, float v, float width, float height, const float *params0)
+TEST(KernelCamera, calibrated_cam_radial_trivial)
 {
-
-  T params[15];
-  for (int i = 0; i < 15; i++) {
-    params[i] = T(params0[i]);
-  }
-
-  T f = params[0];
-
-  // get uvDistorted:
-  Mat_2x1 uvDistorted;
-  uvDistorted.data[0] = width * T(u - 0.5f) / f;
-  uvDistorted.data[1] = height * T(v - 0.5f) / f;
-
-  // initial guess
-  Mat_2x1 xr_yr;
-  memcpy(xr_yr.data, uvDistorted.data, sizeof(xr_yr.data));
-
-  // do Newton iterations to find xr_yr
-  for (int j = 0; j < kMaxIterations; ++j) {
-    // compute the estimated uvDistorted
-    Mat_2x1 uvDistorted_est;
-    memcpy(uvDistorted_est.data, xr_yr.data, sizeof(uvDistorted_est.data));
-    T xr_yr_squaredNorm = xr_yr.data[0] * xr_yr.data[0] + xr_yr.data[1] * xr_yr.data[1];
-
-    if (useTangential) {
-      const T *param = params + startP;
-      T temp = T(2.0) * (xr_yr.data[0] * param[0] + xr_yr.data[1] * param[1]);
-      uvDistorted_est.data[0] += temp * xr_yr.data[0] + xr_yr_squaredNorm * param[0];
-      uvDistorted_est.data[1] += temp * xr_yr.data[1] + xr_yr_squaredNorm * param[1];
-    }
-
-    if (useThinPrism) {
-      const T *param = params + startS;
-      T radialPowers2And4[2];
-      radialPowers2And4[0] = xr_yr_squaredNorm;
-      radialPowers2And4[1] = xr_yr_squaredNorm * xr_yr_squaredNorm;
-      uvDistorted_est.data[0] += param[0] * radialPowers2And4[0] + param[1] * radialPowers2And4[1];
-      uvDistorted_est.data[1] += param[2] * radialPowers2And4[0] + param[3] * radialPowers2And4[1];
-    }
-
-    // compute the derivative of uvDistorted wrt xr_yr
-    Mat_2x2 duvDistorted_dxryr;
-    if (useTangential) {
-      T offdiag = T(2.0) * (xr_yr.data[0] * params[startP + 1] + xr_yr.data[1] * params[startP]);
-      duvDistorted_dxryr.data[0][0] = T(1.0) + T(6.0) * xr_yr.data[0] * params[startP] +
-                                      T(2.0) * xr_yr.data[1] * params[startP + 1];
-      duvDistorted_dxryr.data[0][1] = offdiag;
-      duvDistorted_dxryr.data[1][0] = offdiag;
-      duvDistorted_dxryr.data[1][1] = T(1.0) + T(6.0) * xr_yr.data[1] * params[startP + 1] +
-                                      T(2.0) * xr_yr.data[0] * params[startP];
-    }
-    else {
-      duvDistorted_dxryr.data[0][0] = T(1.0);
-      duvDistorted_dxryr.data[0][1] = T(0.0);
-      duvDistorted_dxryr.data[1][0] = T(0.0);
-      duvDistorted_dxryr.data[1][1] = T(1.0);
-    }
-
-    if (useThinPrism) {
-      T temp1 = T(2.0) * (params[startS] + T(2.0) * params[startS + 1] * xr_yr_squaredNorm);
-      duvDistorted_dxryr.data[0][0] += xr_yr.data[0] * temp1;
-      duvDistorted_dxryr.data[0][1] += xr_yr.data[1] * temp1;
-
-      T temp2 = T(2.0) * (params[startS + 2] + T(2.0) * params[startS + 3] * xr_yr_squaredNorm);
-      duvDistorted_dxryr.data[1][0] += xr_yr.data[0] * temp2;
-      duvDistorted_dxryr.data[1][1] += xr_yr.data[1] * temp2;
-    }
-
-    // compute correction:
-    // note: the matrix duvDistorted_dxryr will be close to identity (for reasonable values
-    // of tangential/thin prism distortions), so using an analytical inverse here is safe
-    Mat_2x1 correction;
-    T determinant = duvDistorted_dxryr.data[0][0] * duvDistorted_dxryr.data[1][1] -
-                    duvDistorted_dxryr.data[0][1] * duvDistorted_dxryr.data[1][0];
-    correction.data[0] =
-        (T(1.0) / determinant) *
-        (duvDistorted_dxryr.data[1][1] * (uvDistorted.data[0] - uvDistorted_est.data[0]) -
-         duvDistorted_dxryr.data[0][1] * (uvDistorted.data[1] - uvDistorted_est.data[1]));
-    correction.data[1] =
-        (T(1.0) / determinant) *
-        (duvDistorted_dxryr.data[0][0] * (uvDistorted.data[1] - uvDistorted_est.data[1]) -
-         duvDistorted_dxryr.data[1][0] * (uvDistorted.data[0] - uvDistorted_est.data[0]));
-
-    xr_yr.data[0] += correction.data[0];
-    xr_yr.data[1] += correction.data[1];
-
-    const T err = correction.data[0] * correction.data[0] +
-                  correction.data[1] * correction.data[1];
-    if (err < converge_threshold) {
-      break;
-    }
-  }
-
-  // early exit if point is in the center of the image
-  T xr_yrNorm = sqrt(xr_yr.data[0] * xr_yr.data[0] + xr_yr.data[1] * xr_yr.data[1]);
-  if (xr_yrNorm == T(0.0)) {
-    return make_float3(1.0f, 0.0f, 0.0f);
-  }
-
-  // otherwise, find theta
-  T th_radialDesired = xr_yrNorm;
-  T theta = th_radialDesired;
-
-  for (int j = 0; j < kMaxIterations; ++j) {
-    T thetaSq = theta * theta;
-
-    T th_radial = 1.0;
-    T dthD_dth = 1.0;
-
-    T theta2is = thetaSq;
-    for (int i = 0; i < numK; ++i) {
-      th_radial += theta2is * params[startK + i];
-      dthD_dth += (2 * i + 3) * params[startK + i] * theta2is;
-      theta2is *= thetaSq;
-    }
-    th_radial *= theta;
-
-    T step;
-    if (std::fabs(dthD_dth) > T(eps)) {
-      step = (th_radialDesired - th_radial) / dthD_dth;
-    }
-    else {
-      step = (th_radialDesired - th_radial) * dthD_dth > T(0.0) ? 10 * eps : -10 * eps;
-    }
-
-    theta += step;
-
-    if (std::fabs(step) < T(eps)) {
-      break;
-    }
-  }
-
-  // get the point coordinates:
-  float const sin_theta = sinf(theta);
-  return make_float3(
-      cosf(theta), -sin_theta * xr_yr.data[0] / xr_yrNorm, sin_theta * xr_yr.data[1] / xr_yrNorm);
-}
-
-TEST(KernelCamera, Cam624nc_simple)
-{
-  const std::tuple<float2, float3, std::string> tests[]{
-      /* Center (0°) */
-      {make_float2(0.0f, 0.0f), make_float3(1.0f, 0.0f, 0.0f), "center"},
-
-      /* 60° */
-      {make_float2(0.0f, +rad60), make_float3(cos60, 0.0f, +sin60), "60"},
-      {make_float2(0.0f, -rad60), make_float3(cos60, 0.0f, -sin60), "60"},
-      {make_float2(+rad60, 0.0f), make_float3(cos60, -sin60, 0.0f), "60"},
-      {make_float2(-rad60, 0.0f), make_float3(cos60, +sin60, 0.0f), "60"},
-
-      /* 45° */
-      {make_float2(0.0f, +rad45), make_float3(cos45, 0.0f, +sin45), "45"},
-      {make_float2(0.0f, -rad45), make_float3(cos45, 0.0f, -sin45), "45"},
-      {make_float2(+rad45, 0.0f), make_float3(cos45, -sin45, 0.0f), "45"},
-      {make_float2(-rad45, 0.0f), make_float3(cos45, +sin45, 0.0f), "45"},
-
-      {make_float2(+rad45 * M_SQRT1_2F, +rad45 * M_SQRT1_2F),
-       make_float3(cos45, -0.5f, +0.5f),
-       "45"},
-      {make_float2(-rad45 * M_SQRT1_2F, +rad45 * M_SQRT1_2F),
-       make_float3(cos45, +0.5f, +0.5f),
-       "45"},
-      {make_float2(+rad45 * M_SQRT1_2F, -rad45 * M_SQRT1_2F),
-       make_float3(cos45, -0.5f, -0.5f),
-       "45"},
-      {make_float2(-rad45 * M_SQRT1_2F, -rad45 * M_SQRT1_2F),
-       make_float3(cos45, +0.5f, -0.5f),
-       "45"},
-
-      /* 30° */
-      {make_float2(0.0f, +rad30), make_float3(cos30, 0.0f, +sin30), "30"},
-      {make_float2(0.0f, -rad30), make_float3(cos30, 0.0f, -sin30), "30"},
-      {make_float2(+rad30, 0.0f), make_float3(cos30, -sin30, 0.0f), "30"},
-      {make_float2(-rad30, 0.0f), make_float3(cos30, +sin30, 0.0f), "30"},
-  };
-
-  float parameters[16] = {1.0f,  // focal length
-                          0.0f,  // principal point, code removed because it's handled by shift.
-                          0.0f,  //
-                          0.0f,  // Distortion parameters are all zero for the simple test.
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f};
-
-  for (auto [offset, direction, test_type] : tests) {
-    const float2 sensor = offset + make_float2(0.5f, 0.5f);
-    for (float const scale : {1.0f, 0.5f, 2.0f, 0.25f, 4.0f, 0.125f, 8.0f, 0.0625f, 16.0f}) {
-      const float width = 1.0f / scale;
-      const float height = 1.0f / scale;
-      parameters[0] = 1.0f / scale;
-
-      const float3 computed = fisheye_radtanthinprism_to_direction_legacy(
-          sensor.x, sensor.y, width, height, parameters);
-
-      const float3 computed_normalized = normalize(computed);
-
-      EXPECT_NEAR(direction.x, computed_normalized.x, 1e-6)
-          << "width, height: " << width << ", " << height << std::endl
-          << "offset: (" << offset.x << ", " << offset.y << ")" << std::endl
-          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
-          << "scale: " << scale << std::endl
-          << "computed:            " << computed << std::endl
-          << "computed_normalized: " << computed_normalized << std::endl
-          << "expected direction:  " << direction << std::endl
-          << "test-type: " << test_type << std::endl;
-      EXPECT_NEAR(direction.y, computed_normalized.y, 1e-6)
-          << "width, height: " << width << ", " << height << std::endl
-          << "offset: (" << offset.x << ", " << offset.y << ")" << std::endl
-          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
-          << "scale: " << scale << std::endl
-          << "computed:            " << computed << std::endl
-          << "computed_normalized: " << computed_normalized << std::endl
-          << "expected direction:  " << direction << std::endl
-          << "test-type: " << test_type << std::endl;
-      EXPECT_NEAR(direction.z, computed_normalized.z, 1e-6)
-          << "width, height: " << width << ", " << height << std::endl
-          << "offset: (" << offset.x << ", " << offset.y << ")" << std::endl
-          << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
-          << "scale: " << scale << std::endl
-          << "computed:            " << computed << std::endl
-          << "computed_normalized: " << computed_normalized << std::endl
-          << "expected direction:  " << direction << std::endl
-          << "test-type: " << test_type << std::endl;
-
-      /*
-      const float2 reprojected = direction_to_fisheye_lens_polynomial(
-          direction, k0, k_equidistant, width, height);
-
-      EXPECT_NEAR(sensor.x, reprojected.x, 1e-6) << "scale: " << scale;
-      EXPECT_NEAR(sensor.y, reprojected.y, 1e-6) << "scale: " << scale;
-      */
-    }
-  }
-}
-
-TEST(KernelCamera, Cam624nc_old_vs_new_sameness)
-{
-  /* Default Aria SLAM camera projection calibration */
-  float const fisheye624_f = 1.0f;
-  float const fisheye624_k0 = -0.00029975978022917562074f;
-  float const fisheye624_k1 = 0.025925353248573888842f;
-  float const fisheye624_k2 = 0.0049689703789174387294f;
-  float const fisheye624_k3 = -0.0082339337266616879907f;
-  float const fisheye624_k4 = -0.0058290815323180505958f;
-  float const fisheye624_k5 = 0.0026384817055371189917f;
-  float const fisheye624_p0 = 0.00016612194528025018398f;
-  float const fisheye624_p1 = 2.3049914803609829601e-05f;
-  float const fisheye624_s0 = -0.00025728595469903830411f;
-  float const fisheye624_s1 = -3.7265140092139775881e-05f;
-  float const fisheye624_s2 = -0.0006244819671333829f;
-  float const fisheye624_s3 = -6.834843688531277463e-05f;
-  float const parameters[] = {fisheye624_f,
-                              fisheye624_k0,
-                              fisheye624_k1,
-                              fisheye624_k2,
-                              fisheye624_k3,
-                              fisheye624_k4,
-                              fisheye624_k5,
-                              fisheye624_p0,
-                              fisheye624_p1,
-                              fisheye624_s0,
-                              fisheye624_s1,
-                              fisheye624_s2,
-                              fisheye624_s3};
-
-  const float2 center{0.5f, 0.5f};
-  const float2 offsets[]{
-      {0.00f, 0.00f},
-      {0.25f, 0.00f},
-      {0.00f, 0.25f},
-      {0.25f, 0.25f},
-
-      {0.5f, 0.0f},
-      {0.0f, 0.5f},
-      {0.5f, 0.5f},
-
-      {0.75f, 0.00f},
-      {0.00f, 0.75f},
-      {0.75f, 0.75f},
-  };
-
-  float const width = 1.0f;
-  float const height = 1.0f;
-
-  for (float2 const &offset : offsets) {
-    const float2 point = center + offset;
-    const float3 direction_legacy = fisheye_radtanthinprism_to_direction_legacy(
-        point.x, point.y, width, height, parameters);
-  }
-}
-
-/**
- * @brief radial_forward implements the radial distortion method used by Cam624nc
- * f(x) = x + k0 x^3 + k1 x^5 + k2 x^7 + k3 x^9 + k4 x^11 + k5 x^13
- * @param angle
- * @param k
- * @return
- */
-ccl_device_inline float radial_forward(float const angle, float const *const k)
-{
-  float const t2 = angle * angle;
-  return angle *
-         (1.0f + t2 * (k[0] + t2 * (k[1] + t2 * (k[2] + t2 * (k[3] + t2 * (k[4] + t2 * k[5]))))));
-}
-
-/**
- * @brief radial_forward_derivative computes the derivative of radial_forward.
- * f(x) = 1 + 3 k0 x^2 + 5 k1 x^4 + 7 k2 x^6 + 9 k3 x^8 + 11 k4 x^10 + 13 k5 x^12
- * @param angle
- * @param k
- * @return
- */
-ccl_device_inline float radial_forward_derivative(float const angle, float const *const k)
-{
-  float const t2 = angle * angle;
-  return 1.0f + t2 * (3.0f * k[0] +
-                      t2 * (5.0f * k[1] +
-                            t2 * (7.0f * k[2] +
-                                  t2 * (9.0f * k[3] + t2 * (11.0f * k[4] + t2 * 13.0f * k[5])))));
-}
-
-/**
- * @brief solve_radial implements the inverse of the radial_forward function.
- * It takes the result of radial_forward(some_angle, parameters) and the parameters
- * and computes an approximation for some_angle using Newton's method.
- * @param angle_dst
- * @param k
- * @param num_it
- * @return
- */
-ccl_device_inline float solve_radial(float const angle_dst, float const *const k)
-{
-  /**
-   * Problem: Given angle_dst and k, find angle so that
-   * radial_forward(angle, k) = angle_dst.
-   * Idea: Construct F so that F(angle) = 0 for the correct solution to the above problem
-   * and use Newton's method for finding the solution.
-   *
-   * F(angle) := radial_forward(angle, k) - angle_dst.
-   * F'(angle) = radial_forward_derivative(angle, k)
-   * x_n+1 = x_n - F(x_n) / F'(x_n)
-   * x_0 : angle_dst
-   */
-
-  float angle = angle_dst;
-  for (size_t ii = 0; ii < 20; ++ii) {
-    float const old_angle = angle;
-    angle -= (radial_forward(angle, k) - angle_dst) / radial_forward_derivative(angle, k);
-    if (fabsf(old_angle - angle) < 1e-6) {
-      break;
-    }
-  }
-  return angle;
-}
-
-TEST(KernelCamera, Cam624nc_radial_trivial)
-{
-  float const radial[6] = {0,0,0,0,0,0};
+  float const radial[6] = {0, 0, 0, 0, 0, 0};
   size_t const num_pts = 10'000;
   float const max_angle = M_PI_F;
   for (size_t ii = 0; ii <= num_pts; ++ii) {
@@ -487,126 +126,7 @@ TEST(KernelCamera, Cam624nc_radial_trivial)
   }
 }
 
-ccl_device_inline float2 tangential_thinprism_forward(float2 const pt,
-                                                      float2 const tangential,
-                                                      float4 const thin_prism)
-{
-  float const x2 = sqr(pt.x);
-  float const y2 = sqr(pt.y);
-  float const xy = 2.0f * pt.x * pt.y;
-  float const r2 = x2 + y2;
-  float const r4 = r2 * r2;
-  return make_float2(pt.x + (2.0f * x2 + r2) * tangential.x + xy * tangential.y  // tangential
-                         + thin_prism.x * r2 + thin_prism.y * r4,                // thin-prism
-                     pt.y + (2.0f * y2 + r2) * tangential.y + xy * tangential[0] +
-                         thin_prism.z * r2 + thin_prism.w * r4);
-}
-
-float4 tangential_thinprism_forward_jacobian(float2 const pt,
-                                             float2 const tangential,
-                                             float4 const thin_prism)
-{
-  float const r2 = len_squared(pt);
-  /*
-   * Calculations helping with the derivative of the thin-prism terms:
-   * Note: r^2 = x^2 + y^2
-   * r^4 = (r^2)^2 = (x^2 + y^2)^2 = x^4 + y^4 + 2x^2y^2
-   * d/dx r^4 = 4x^3 + 4xy^2 = 4x(x^2+y^2) = 4xr^2
-   * d/dy r^4 = 4yr^2
-   */
-  return {                                                                     // x_t dx
-          1.0f + 6.0f * pt.x * tangential.x + 2.0f * pt.y * tangential.y       // tangential term
-              + 2.0f * pt.x * thin_prism.x + 4.0f * pt.x * r2 * thin_prism.y,  // thin prism
-                                                                               // x_t dy
-          2.0f * pt.y * tangential.x + 2.0f * pt.x * tangential.y + 2.0f * pt.y * thin_prism.x +
-              4.0f * pt.y * r2 * thin_prism.y,
-          // y_t dx
-          2.0f * pt.x * tangential.y + 2.0f * pt.y * tangential.x + 2.0f * pt.x * thin_prism.z +
-              4.0f * pt.x * r2 * thin_prism.w,
-          // y_t dy
-          1.0f + 6.0f * pt.y * tangential.y + 2.0f * pt.x * tangential.x +
-              2.0f * pt.y * thin_prism.z + 4.0f * pt.y * r2 * thin_prism.w};
-}
-
-float2 tangential_thinprism_newton_step(float2 const pt,
-                                        float2 const tgt,
-                                        float2 const p,
-                                        float4 const s)
-{
-  // Compute F(x,y)
-  float2 const F = tangential_thinprism_forward(pt, p, s) - tgt;
-
-  // Compute Jacobian of F(x,y)
-  float4 const jacobian = tangential_thinprism_forward_jacobian(pt, p, s);
-
-  // Compute Jacobian(F(x,y))^-1 F(x,y)
-  T const det_inv = 1.0f / (jacobian.x * jacobian.w - jacobian.y * jacobian.z);
-  return {-(+jacobian.w * F.x - jacobian.y * F.y) * det_inv,
-          -(-jacobian.z * F.x + jacobian.x * F.y) * det_inv};
-}
-
-ccl_device_inline float tangential_thinprism_error_squared(float2 const pt,
-                                                           float2 const tgt,
-                                                           float2 const tangential,
-                                                           float4 const thin_prism)
-{
-  float2 const residual = tgt - tangential_thinprism_forward(pt, tangential, thin_prism);
-  return len_squared(residual);
-}
-
-ccl_device_inline float2 solve_tangential_thinprism(float2 const tgt,
-                                                    float2 const tangential,
-                                                    float4 const thin_prism)
-{
-  /**
-   * Problem: Given distorted location (x_t, y_t) and parameters p, find (x,y) so that
-   * tangential_forward(x,y,p) = (x_t, y_t).
-   * Idea: Construct F so that F(x,y) = 0 for the correct solution to the above problem
-   * and use Newton's method for finding the solution.
-   *
-   * F(x, y) := tangential_forward(x,y, p) - (x,y)
-   * F'(angle) = tangential_forward_jacobian(x,y, p)
-   * (x,y)_n+1 = (x,y)_n - (F')^-1 F(x_n)
-   * (x,y)_0 := (x_t, y_t)
-   */
-
-  // At the center there are problems with the termination criterion.
-  // Luckily, we don't have to do anything at the center because
-  // by design of the tangential distortion term it doesn't do anything at the center.
-  if (fabsf(tgt.x) < 1e-6 && fabsf(tgt.y) < 1e-6) {
-    return tgt;
-  }
-
-  float2 result = tgt;
-
-  // Use tgt as initial guess for the solution and compute the error
-  float const trivial_ig_error = tangential_thinprism_error_squared(
-      result, tgt, tangential, thin_prism);
-
-  // Often, computing the tangential distortion with negative parameters
-  // is a good approximation for the inverse. Therefore, we do that
-  // and compare the error to the trivial initial guess.
-  result = tangential_thinprism_forward(tgt, -tangential, zero_float4());
-
-  float negative_ig_error = tangential_thinprism_error_squared(
-      result, tgt, tangential, thin_prism);
-
-  if (trivial_ig_error < negative_ig_error) {
-    result = tgt;
-  }
-
-  for (int ii = 0; ii < 20; ++ii) {
-    float2 const old_result = result;
-    result += tangential_thinprism_newton_step(result, tgt, tangential, thin_prism);
-    if (fabsf(old_result.x - result.x) < 1e-6 && fabsf(old_result.y - result.y) < 1e-6) {
-      break;
-    }
-  }
-
-  return result;
-}
-
-TEST(KernelCamera, Cam624nc_thinprism_trivial)
+TEST(KernelCamera, calibrated_cam_thinprism_trivial)
 {
   std::mt19937_64 rng(0xBEEBBEEB);
   std::uniform_real_distribution<float> dist(-2.0f, 2.0f);
@@ -676,7 +196,7 @@ void test_tangential_thinprism_solver(float2 const tangential,
   }
 }
 
-TEST(KernelCamera, Cam624nc_tangential_thin_prism)
+TEST(KernelCamera, calibrated_cam_tangential_thin_prism)
 {
   float2 const p{-1.7905108189099640e-04, 3.6947302643007590e-06};
   // TODO: Replace these values by values obtained from real calibrations
@@ -727,7 +247,7 @@ void test_radial_solver(float const *const radial,
   }
 }
 
-TEST(KernelCamera, Cam624nc_radial)
+TEST(KernelCamera, calibrated_cam_radial)
 {
   {
     // Trivial case with all distortion coefficients zero:
@@ -774,69 +294,7 @@ TEST(KernelCamera, Cam624nc_radial)
   }
 }
 
-ccl_device_inline float angle_to_noncentrality(float const theta, float3 const params)
-{
-  float const t2 = theta * theta;
-  float const t4 = t2 * t2;
-  return dot(params, make_float3(t2, t4, t2 * t4));
-}
-
-ccl_device_inline float angle_to_noncentrality_derivative(float const theta, float3 const params)
-{
-  float const t2 = theta * theta;
-  float const t3 = t2 * theta;
-  return dot(params, make_float3(2.0f * theta, 4.0f * t3, 6.0f * t2 * t3));
-}
-
-ccl_device_inline float point_to_noncentrality(float3 const point, float3 const params)
-{
-  float const length = len(point);
-  if (length < 1e-6f) {
-    return 0.0f;
-  }
-  float const theta = acosf(point.z / length);
-  return angle_to_noncentrality(theta, params);
-}
-
-ccl_device_inline float solve_noncentrality(float3 const point, float3 const params)
-{
-
-  float const r2 = sqr(point.x) + sqr(point.y);
-  if (fabsf(r2 < 1e-12f)) {
-    return 0.0f;
-  }
-  float const r = sqrtf(r2);
-
-  float dz = point_to_noncentrality(point, params);
-
-  for (size_t ii = 0; ii < 20; ++ii) {
-    float const corrected_z = point.z - dz;
-    float const theta = atan2f(r, corrected_z);
-    assert(fabsf(theta) >= 0.0f);
-
-    // Derivative of the angle as a function of the corrected z.
-    float const a_dz = r / (r2 + corrected_z * corrected_z);
-
-    // Helper-function for Newton's method:
-    // F(dz) := M(a(dz)) - dz
-    // where M is the noncentrality model and dz is the
-    // z-offset computed in the previous iteration.
-    float const F = angle_to_noncentrality(theta, params) - dz;
-
-    // First derivative of F:
-    // F_dz = M'(a(dz))a'(dz) - 1
-    float const F_dz = angle_to_noncentrality_derivative(theta, params) * a_dz - 1.0f;
-    float const old_dz = dz;
-    dz -= F / F_dz;
-    if (fabsf(dz - old_dz) < 1e-6f) {
-      break;
-    }
-  }
-
-  return dz;
-}
-
-TEST(KernelCamera, Cam624nc_noncentrality)
+TEST(KernelCamera, calibrated_cam_noncentrality)
 {
   int const num_angles = 1000;
   float const max_angle_rad = M_PI_F;
@@ -890,15 +348,6 @@ TEST(KernelCamera, Cam624nc_noncentrality)
   }
 }
 
-enum BaseProjectionType {
-  RECTILINEAR = 0,
-  EQUIDISTANT = 1,
-  STEREOGRAPHIC = 2,
-  EQUISOLID = 3,
-  FISHEYE_ORTHOGRAPHIC = 4,
-  BASE_PROJECTION_NUM_TYPES,
-};
-
 std::ostream &operator<<(std::ostream &out, BaseProjectionType const type)
 {
   switch (type) {
@@ -922,40 +371,6 @@ std::ostream &operator<<(std::ostream &out, BaseProjectionType const type)
   return out;
 }
 
-ccl_device_inline float invert_projection_type(BaseProjectionType const type, float const theta)
-{
-  switch (type) {
-    case RECTILINEAR:
-      return atanf(theta);
-    case EQUIDISTANT:
-      return theta;
-    case STEREOGRAPHIC:
-      return 2.0f * atanf(theta / 2.0f);
-    case EQUISOLID:
-      return 2.0f * asinf(theta / 2.0f);
-    case FISHEYE_ORTHOGRAPHIC:
-      return asinf(theta);
-  }
-  return 0.0f;
-}
-
-ccl_device_inline float apply_projection_type(BaseProjectionType const type, float const theta)
-{
-  switch (type) {
-    case RECTILINEAR:
-      return tanf(theta);
-    case EQUIDISTANT:
-      return theta;
-    case STEREOGRAPHIC:
-      return 2.0 * tanf(theta / 2.0f);
-    case EQUISOLID:
-      return 2.0f * sinf(theta / 2.0f);
-    case FISHEYE_ORTHOGRAPHIC:
-      return sinf(theta);
-  }
-  return 0.0f;
-}
-
 float get_fov_deg_from_proj_type(BaseProjectionType const type)
 {
   switch (type) {
@@ -967,7 +382,7 @@ float get_fov_deg_from_proj_type(BaseProjectionType const type)
   return 330;
 }
 
-TEST(KernelCamera, Cam624nc_apply_projection_type_roundtrip)
+TEST(KernelCamera, calibrated_cam_apply_projection_type_roundtrip)
 {
   int const num_tests = 1'000;
   float const error_threshold = 5e-7;
@@ -1012,67 +427,7 @@ TEST(KernelCamera, Cam624nc_apply_projection_type_roundtrip)
   }
 }
 
-ccl_device_inline float4 cam624nc_to_direction(float const u,
-                                               float const v,
-                                               float const width,
-                                               float const height,
-                                               float const fov,
-                                               float const focal,
-                                               BaseProjectionType const proj_type,
-                                               float const *const radial,
-                                               float2 const tangential,
-                                               float4 const thin_prism)
-{
-  float2 point{(u - 0.5f) * width / focal, (v - 0.5f) * height / focal};
-
-  point = solve_tangential_thinprism(point, tangential, thin_prism);
-
-  float const sensor_rad = len(point);
-
-  if (sensor_rad > fov) {
-    return zero_float4();
-  }
-
-  float const theta = solve_radial(invert_projection_type(proj_type, sensor_rad), radial);
-  if (theta > 1e-6 && sensor_rad > 1e-6) {
-    point *= theta / sensor_rad;
-  }
-
-  float const phi_c = theta > 1e-6 ? point.x / theta : 1.0f;
-  float const phi_s = theta > 1e-6 ? point.y / theta : 0.0f;
-
-  float const theta_s = sinf(theta);
-  float const theta_c = cosf(theta);
-
-  return {theta_c, -phi_c * theta_s, phi_s * theta_s, theta};
-}
-
-ccl_device_inline float2 direction_to_cam624nc(float4 const dir,
-                                               float const width,
-                                               float const height,
-                                               float const fov,
-                                               float const focal,
-                                               BaseProjectionType const proj_type,
-                                               float const *const radial,
-                                               float2 const tangential,
-                                               float4 const thin_prism)
-{
-  float const theta = -safe_acosf(dir.x);
-
-  float const radius = apply_projection_type(proj_type, radial_forward(theta, radial));
-
-  float2 point = radius * safe_normalize(make_float2(dir.y, dir.z));
-
-  // Due to different coordinate system conventions, the y-component must be mirrored before and
-  // after solving tangential + thin-prism
-  point.y *= -1.0f;
-  point = focal * tangential_thinprism_forward(point, tangential, thin_prism);
-  point.y *= -1.0f;
-
-  return {0.5f + point.x / width, 0.5f - point.y / height};
-}
-
-TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
+TEST(KernelCamera, calibrated_cam_calibrated_cam_to_direction_simple)
 {
   const float fov = M_PI_F;
 
@@ -1125,16 +480,8 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
       /* Trivial case: The coefficients create a perfect equidistant fisheye */
       float const radial[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
-      const float4 computed = cam624nc_to_direction(sensor.x,
-                                                    sensor.y,
-                                                    width,
-                                                    height,
-                                                    fov,
-                                                    focal,
-                                                    EQUIDISTANT,
-                                                    radial,
-                                                    zero_float2(),
-                                                    zero_float4());
+      const float4 computed = calibrated_cam_to_direction(
+          sensor, width, height, fov, focal, EQUIDISTANT, radial, zero_float2(), zero_float4());
 
       max_error_x = std::max(max_error_x, std::abs(expected.x - computed.x));
       EXPECT_NEAR(expected.x, computed.x, 6e-8f)
@@ -1161,19 +508,18 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
           << "computed: " << computed << std::endl
           << "expected: " << expected << std::endl;
 
-      // Verify that cam624nc_to_expected returns all zeroes if the point is outside
+      // Verify that calibrated_cam_to_expected returns all zeroes if the point is outside
       // the configured field of view.
 
-      const float4 computed_outside_fov = cam624nc_to_direction(sensor.x,
-                                                                sensor.y,
-                                                                width,
-                                                                height,
-                                                                expected.w - 1e-6,
-                                                                focal,
-                                                                EQUIDISTANT,
-                                                                radial,
-                                                                zero_float2(),
-                                                                zero_float4());
+      const float4 computed_outside_fov = calibrated_cam_to_direction(sensor,
+                                                                      width,
+                                                                      height,
+                                                                      expected.w - 1e-6,
+                                                                      focal,
+                                                                      EQUIDISTANT,
+                                                                      radial,
+                                                                      zero_float2(),
+                                                                      zero_float4());
 
       EXPECT_NEAR(computed_outside_fov.x, 0.0f, 1e-10f)
           << "sensor: (" << sensor.x << ", " << sensor.y << ")" << std::endl
@@ -1198,8 +544,8 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
 
       // Check round-trip consistency
 
-      const float2 round_trip = direction_to_cam624nc(
-          expected, width, height, fov, focal, EQUIDISTANT, radial, zero_float2(), zero_float4());
+      const float2 round_trip = direction_to_calibrated_cam(
+          expected, width, height, focal, EQUIDISTANT, radial, zero_float2(), zero_float4());
 
       max_error_sensor_x = std::max(max_error_sensor_x, std::abs(round_trip.x - sensor.x));
       EXPECT_NEAR(round_trip.x, sensor.x, 2e-7f) << "sensor: " << sensor << std::endl
@@ -1225,20 +571,20 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_simple)
 }
 
 /**
- * @brief test_cam624nc_roundtrip tests the correctness of cam624nc_to_direction using a given
- * set of distortion parameters. It has assertions for the difference between
- * the original angle and the solution found by cam624nc_to_direction.
+ * @brief test_calibrated_cam_roundtrip tests the correctness of calibrated_cam_to_direction using
+ * a given set of distortion parameters. It has assertions for the difference between the original
+ * angle and the solution found by calibrated_cam_to_direction.
  *
  * @param _k
  * @param fov_deg
  * @param prefix
  */
-void test_cam624nc_roundtrip(float const *const radial,
-                             float2 const tangential,
-                             float4 const thin_prism,
-                             float const fov_deg,
-                             std::string const &prefix,
-                             float const error_threshold)
+void test_calibrated_cam_roundtrip(float const *const radial,
+                                   float2 const tangential,
+                                   float4 const thin_prism,
+                                   float const fov_deg,
+                                   std::string const &prefix,
+                                   float const error_threshold)
 {
   float const width = 1.0f;
   float const height = 1.0f;
@@ -1259,18 +605,10 @@ void test_cam624nc_roundtrip(float const *const radial,
     float const cos_phi = cosf(phi);
     float const sin_phi = sinf(phi);
     float4 const expected_dir{cosf(theta), -cos_phi * sinf(theta), sin_phi * sinf(theta), theta};
-    float2 const sensor = direction_to_cam624nc(
-        expected_dir, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
-    float4 const recomputed_dir = cam624nc_to_direction(sensor.x,
-                                                        sensor.y,
-                                                        width,
-                                                        height,
-                                                        fov,
-                                                        focal,
-                                                        EQUIDISTANT,
-                                                        radial,
-                                                        tangential,
-                                                        thin_prism);
+    float2 const sensor = direction_to_calibrated_cam(
+        expected_dir, width, height, focal, EQUIDISTANT, radial, tangential, thin_prism);
+    float4 const recomputed_dir = calibrated_cam_to_direction(
+        sensor, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
 
     error_x.push(expected_dir.x, recomputed_dir.x);
     EXPECT_NEAR(expected_dir.x, recomputed_dir.x, error_threshold)
@@ -1321,8 +659,8 @@ void test_cam624nc_roundtrip(float const *const radial,
         << "focal: " << focal << std::endl
         << "prefix: " << prefix << std::endl;
 
-    float2 const recomputed_sensor = direction_to_cam624nc(
-        recomputed_dir, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
+    float2 const recomputed_sensor = direction_to_calibrated_cam(
+        recomputed_dir, width, height, focal, EQUIDISTANT, radial, tangential, thin_prism);
     error_sensor_x.push(sensor.x, recomputed_sensor.x);
     EXPECT_NEAR(sensor.x, recomputed_sensor.x, error_threshold)
         << "theta: " << theta << std::endl
@@ -1366,7 +704,7 @@ void test_cam624nc_roundtrip(float const *const radial,
   }
 }
 
-TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
+TEST(KernelCamera, calibrated_cam_calibrated_cam_to_direction_round_trip)
 {
   float2 const p{2.0e-04, -2.0e-04};
   // TODO: Replace these values by values obtained from real calibrations
@@ -1374,47 +712,47 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
 
   float const zero_radial[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
-  test_cam624nc_roundtrip(zero_radial,
-                          {2e-4, 0.0f},
-                          zero_float4(),
-                          180.0f,
-                          "zero radial, zero thin_prism, normal tangential_x",
-                          2e-7);
+  test_calibrated_cam_roundtrip(zero_radial,
+                                {2e-4, 0.0f},
+                                zero_float4(),
+                                180.0f,
+                                "zero radial, zero thin_prism, normal tangential_x",
+                                2e-7);
 
-  test_cam624nc_roundtrip(zero_radial,
-                          {0.0f, 2e-4f},
-                          zero_float4(),
-                          180.0f,
-                          "zero radial, zero thin_prism, normal tangential_y",
-                          3e-7);
+  test_calibrated_cam_roundtrip(zero_radial,
+                                {0.0f, 2e-4f},
+                                zero_float4(),
+                                180.0f,
+                                "zero radial, zero thin_prism, normal tangential_y",
+                                3e-7);
 
-  test_cam624nc_roundtrip(zero_radial,
-                          p,
-                          zero_float4(),
-                          180.0f,
-                          "zero radial, zero thin_prism, normal tangential",
-                          2e-7);
+  test_calibrated_cam_roundtrip(zero_radial,
+                                p,
+                                zero_float4(),
+                                180.0f,
+                                "zero radial, zero thin_prism, normal tangential",
+                                2e-7);
 
-  test_cam624nc_roundtrip(zero_radial,
-                          10.0f * p,
-                          zero_float4(),
-                          180.0f,
-                          "zero radial, zero thin_prism, exaggerated tangential",
-                          2e-7);
+  test_calibrated_cam_roundtrip(zero_radial,
+                                10.0f * p,
+                                zero_float4(),
+                                180.0f,
+                                "zero radial, zero thin_prism, exaggerated tangential",
+                                2e-7);
 
-  test_cam624nc_roundtrip(zero_radial,
-                          zero_float2(),
-                          s,
-                          180.0f,
-                          "zero radial, zero tangential, normal thin-prism",
-                          2e-7);
+  test_calibrated_cam_roundtrip(zero_radial,
+                                zero_float2(),
+                                s,
+                                180.0f,
+                                "zero radial, zero tangential, normal thin-prism",
+                                2e-7);
 
-  test_cam624nc_roundtrip(zero_radial,
-                          zero_float2(),
-                          10.0f * s,
-                          180.0f,
-                          "zero radial, zero tangential, exaggerated thin-prism",
-                          3e-7);
+  test_calibrated_cam_roundtrip(zero_radial,
+                                zero_float2(),
+                                10.0f * s,
+                                180.0f,
+                                "zero radial, zero tangential, exaggerated thin-prism",
+                                3e-7);
 
   {
     // Testcase from a real calib of a lens which is very non-equidistant:
@@ -1425,7 +763,7 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
                      -3.8781789116892440e-03f,
                      5.6914433571826422e-04f};
 
-    test_cam624nc_roundtrip(k, p, s, 165.0f, "non-equidistant", 4e-7);
+    test_calibrated_cam_roundtrip(k, p, s, 165.0f, "non-equidistant", 4e-7);
   }
 
   {
@@ -1437,7 +775,7 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
                      -1.2505361069399053e-03f,
                      1.6815868507166388e-04f};
 
-    test_cam624nc_roundtrip(k, p, s, 170.0f, "almost-equidistant", 2e-7);
+    test_calibrated_cam_roundtrip(k, p, s, 170.0f, "almost-equidistant", 2e-7);
   }
 
   {
@@ -1449,7 +787,128 @@ TEST(KernelCamera, Cam624nc_cam624nc_to_direction_round_trip)
                      -6.2508654084092763e-01,
                      1.4034706020688248e-01};
 
-    test_cam624nc_roundtrip(k, p, s, 122.0f, "orthographic", 3e-7);
+    test_calibrated_cam_roundtrip(k, p, s, 122.0f, "orthographic", 3e-7);
+  }
+}
+
+TEST(KernelCamera, calibrated_cam_vs_reference_projections)
+{
+  MaxError max_error_x, max_error_y, max_error_z, max_error_theta, max_error_sensor_x,
+      max_error_sensor_y, max_error_length;
+
+  float const fov = 5;
+
+  float const focal_ref = 0.318310f;
+  float const radial[6] = {-0.271000f, 0.519000f, -1.060000f, 1.140000f, -0.625000f, 0.140000f};
+  float2 const p = make_float2(-0.057100f, 0.076120f);
+  float4 const s = make_float4(0.001000f, 0.002000f, -0.002000f, 0.001000f);
+  std::pair<float2, float4> reference_data[]{
+      {make_float2(0.544857f, 0.457416f),
+       make_float4(0.981022f, -0.142974f, -0.130976f, 0.195134f)},
+      {make_float2(0.491441f, 0.580892f), make_float4(0.962164f, 0.023821f, 0.271428f, 0.275961f)},
+      {make_float2(0.430290f, 0.409030f),
+       make_float4(0.943426f, 0.201748f, -0.263145f, 0.337981f)},
+      {make_float2(0.609617f, 0.516467f),
+       make_float4(0.924807f, -0.374620f, 0.066265f, 0.390268f)},
+      {make_float2(0.383539f, 0.567937f), make_float4(0.906308f, 0.356586f, 0.226831f, 0.436332f)},
+      {make_float2(0.536058f, 0.347188f),
+       make_float4(0.887927f, -0.119414f, -0.444214f, 0.477978f)},
+      {make_float2(0.561047f, 0.620046f),
+       make_float4(0.869664f, -0.227524f, 0.438084f, 0.516275f)},
+      {make_float2(0.326487f, 0.431959f),
+       make_float4(0.851519f, 0.492509f, -0.179864f, 0.551922f)},
+      {make_float2(0.652088f, 0.427871f),
+       make_float4(0.833490f, -0.510732f, -0.210823f, 0.585401f)},
+      {make_float2(0.420486f, 0.649567f), make_float4(0.815579f, 0.245257f, 0.524099f, 0.617067f)},
+      {make_float2(0.430310f, 0.289524f),
+       make_float4(0.797784f, 0.180451f, -0.575307f, 0.647185f)},
+      {make_float2(0.646058f, 0.579396f),
+       make_float4(0.780105f, -0.541318f, 0.313705f, 0.675963f)},
+      {make_float2(0.282058f, 0.536444f), make_float4(0.762541f, 0.631851f, 0.138911f, 0.703565f)},
+      {make_float2(0.618735f, 0.309560f),
+       make_float4(0.745092f, -0.383589f, -0.545616f, 0.730124f)},
+      {make_float2(0.516595f, 0.680370f),
+       make_float4(0.727758f, -0.088137f, 0.680148f, 0.755750f)},
+      {make_float2(0.298195f, 0.325499f),
+       make_float4(0.710537f, 0.538053f, -0.453471f, 0.780535f)},
+      {make_float2(0.701941f, 0.478984f),
+       make_float4(0.693430f, -0.719908f, -0.029770f, 0.804557f)},
+      {make_float2(0.327821f, 0.649062f), make_float4(0.676437f, 0.522053f, 0.519513f, 0.827882f)},
+      {make_float2(0.502392f, 0.221553f),
+       make_float4(0.659556f, -0.034720f, -0.750853f, 0.850568f)},
+      {make_float2(0.623151f, 0.645919f),
+       make_float4(0.642788f, -0.490812f, 0.588156f, 0.872665f)},
+  };
+
+  for (auto [sensor, expected] : reference_data) {
+    for (float const scale : {1.0f}) {
+      const float width = 1.0f / scale;
+      const float height = 1.0f / scale;
+      float const focal = focal_ref / scale;
+
+      const float4 computed = calibrated_cam_to_direction(
+          sensor, width, height, fov, focal, EQUIDISTANT, radial, p, s);
+
+      float const length = len(make_float3(computed.x, computed.y, computed.z));
+      EXPECT_NEAR(length, 1.0f, 1e-6);
+      max_error_length.push(length, 1.0f);
+
+      max_error_x.push(expected.x, computed.x);
+      EXPECT_NEAR(expected.x, computed.x, 3e-6f)
+          << "sensor: " << sensor << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << expected << std::endl
+          << "difference: " << computed - expected << std::endl;
+      max_error_y.push(expected.y, computed.y);
+      EXPECT_NEAR(expected.y, computed.y, 3e-6f)
+          << "sensor: " << sensor << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << expected << std::endl
+          << "difference: " << computed - expected << std::endl;
+      max_error_z.push(expected.z, computed.z);
+      EXPECT_NEAR(expected.z, computed.z, 3e-6f)
+          << "sensor: " << sensor << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << expected << std::endl
+          << "difference: " << computed - expected << std::endl;
+      max_error_theta.push(expected.w, computed.w);
+      EXPECT_NEAR(expected.w, computed.w, 5e-6f)
+          << "sensor: " << sensor << std::endl
+          << "scale: " << scale << std::endl
+          << "computed: " << computed << std::endl
+          << "expected: " << expected << std::endl
+          << "difference: " << computed - expected << std::endl;
+
+      // Check round-trip consistency
+
+      const float2 round_trip = direction_to_calibrated_cam(
+          computed, width, height, focal, EQUIDISTANT, radial, p, s);
+
+      max_error_sensor_x.push(round_trip.x, sensor.x);
+      EXPECT_NEAR(round_trip.x, sensor.x, 1e-6f) << "sensor: " << sensor << std::endl
+                                                 << "scale: " << scale << std::endl
+                                                 << "round_trip: " << round_trip << std::endl;
+
+      max_error_sensor_y.push(round_trip.y, sensor.y);
+      EXPECT_NEAR(round_trip.y, sensor.y, 1e-6f) << "sensor: " << sensor << std::endl
+                                                 << "scale: " << scale << std::endl
+                                                 << "round_trip: " << round_trip << std::endl;
+    }
+  }
+
+  if (HasFailure()) {
+    std::cout << "Maximum error in x: " << max_error_x << std::endl;
+    std::cout << "Maximum error in y: " << max_error_y << std::endl;
+    std::cout << "Maximum error in z: " << max_error_z << std::endl;
+    std::cout << "Maximum error in theta: " << max_error_theta << std::endl;
+
+    std::cout << "Maximum error in sensor_x: " << max_error_sensor_x << std::endl;
+    std::cout << "Maximum error in sensor_y: " << max_error_sensor_y << std::endl;
+
+    std::cout << "Maximum error of direction vector length: " << max_error_length << std::endl;
   }
 }
 
