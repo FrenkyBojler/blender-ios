@@ -9,7 +9,6 @@
 
 #include <pxr/usd/usdGeom/mesh.h>
 
-struct Key;
 struct SubsurfModifierData;
 
 namespace blender::bke {
@@ -56,7 +55,7 @@ class USDGenericMeshWriter : public USDAbstractWriter {
   void write_uv_data(const Mesh *mesh,
                      const pxr::UsdGeomMesh &usd_mesh,
                      const StringRef attribute_id,
-                     const char *active_set_name);
+                     const StringRef active_uvmap_name);
   void write_color_data(const Mesh *mesh,
                         const pxr::UsdGeomMesh &usd_mesh,
                         const StringRef attribute_id,

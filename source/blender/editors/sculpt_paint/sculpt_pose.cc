@@ -292,7 +292,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   for (const IKChainSegment &segment : cache.pose_ik_chain->segments) {
     calc_segment_translations(orig_positions, segment, segment_translations);
-    gather_data_vert_bmesh(segment.weights.as_span(), verts, segment_weights);
+    gather_data_bmesh(segment.weights.as_span(), verts, segment_weights);
     scale_translations(segment_translations, segment_weights);
     add_arrays(translations, segment_translations);
   }
@@ -306,7 +306,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
       break;
     case BRUSH_DEFORM_TARGET_CLOTH_SIM:
       add_arrays(translations, orig_positions);
-      scatter_data_vert_bmesh(
+      scatter_data_bmesh(
           translations.as_span(), verts, cache.cloth_sim->deformation_pos.as_mutable_span());
       break;
   }
@@ -394,25 +394,24 @@ static void grow_factors_grids(const ePaintSymmetryFlags symm,
                                PoseGrowFactorData &gftd)
 {
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<CCGElem *> elems = subdiv_ccg.grids;
+  const Span<float3> positions = subdiv_ccg.positions;
   const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
   const Span<int> grids = node.grids();
 
   for (const int i : grids.index_range()) {
     const int grid = grids[i];
-    CCGElem *elem = elems[grid];
-    const int start = key.grid_area * grid;
+    const IndexRange grid_range = bke::ccg::grid_range(key, grid);
     for (const short y : IndexRange(key.grid_size)) {
       for (const short x : IndexRange(key.grid_size)) {
         const int offset = CCG_grid_xy_to_index(key.grid_size, x, y);
         if (!grid_hidden.is_empty() && grid_hidden[grid][offset]) {
           continue;
         }
-        const int vert = start + offset;
+        const int vert = grid_range[offset];
 
         SubdivCCGNeighbors neighbors;
         BKE_subdiv_ccg_neighbor_coords_get(
-            subdiv_ccg, SubdivCCGCoord{grids[i], x, y}, false, neighbors);
+            subdiv_ccg, SubdivCCGCoord{grid, x, y}, false, neighbors);
 
         float max = 0.0f;
         for (const SubdivCCGCoord neighbor : neighbors.coords) {
@@ -425,7 +424,7 @@ static void grow_factors_grids(const ePaintSymmetryFlags symm,
         }
 
         if (max > prev_mask[vert]) {
-          const float3 &position = CCG_elem_offset_co(key, elem, offset);
+          const float3 &position = positions[vert];
           pose_factor[vert] = max;
           if (SCULPT_check_vertex_pivot_symmetry(position, pose_initial_position, symm)) {
             gftd.pos_avg += position;
@@ -453,7 +452,6 @@ static void grow_factors_bmesh(const ePaintSymmetryFlags symm,
     const int vert = BM_elem_index_get(bm_vert);
 
     float max = 0.0f;
-    neighbors.clear();
     for (const BMVert *neighbor : vert_neighbors_get_bmesh(*bm_vert, neighbors)) {
       max = std::max(max, prev_mask[BM_elem_index_get(neighbor)]);
     }
@@ -640,50 +638,6 @@ static bool vert_inside_brush_radius(const float3 &vertex,
 }
 
 /**
- * \param fallback_floodfill_origin: In topology mode this stores the furthest point from the
- * stroke origin for cases when a pose origin based on the brush radius can't be set.
- */
-static bool topology_floodfill(const Depsgraph &depsgraph,
-                               const Object &object,
-                               const float3 &pose_initial_co,
-                               const float radius,
-                               const int symm,
-                               const PBVHVertRef to_v,
-                               const bool is_duplicate,
-                               MutableSpan<float> pose_factor,
-                               float3 &fallback_floodfill_origin,
-                               float3 &pose_origin,
-                               int &tot_co)
-{
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  int to_v_i = BKE_pbvh_vertex_to_index(pbvh, to_v);
-
-  const float *co = SCULPT_vertex_co_get(depsgraph, object, to_v);
-
-  if (!pose_factor.is_empty()) {
-    pose_factor[to_v_i] = 1.0f;
-  }
-
-  if (len_squared_v3v3(pose_initial_co, fallback_floodfill_origin) <
-      len_squared_v3v3(pose_initial_co, co))
-  {
-    copy_v3_v3(fallback_floodfill_origin, co);
-  }
-
-  if (vert_inside_brush_radius(co, pose_initial_co, radius, symm)) {
-    return true;
-  }
-  if (SCULPT_check_vertex_pivot_symmetry(co, pose_initial_co, symm)) {
-    if (!is_duplicate) {
-      add_v3_v3(pose_origin, co);
-      tot_co++;
-    }
-  }
-
-  return false;
-}
-
-/**
  * \param fallback_origin: If we can't find any face set to continue, use the position of all
  * vertices that have the current face set.
  */
@@ -797,59 +751,210 @@ static bool face_sets_floodfill(const Depsgraph &depsgraph,
   return visit_next;
 }
 
-/* Public functions. */
-
-void calc_pose_data(const Depsgraph &depsgraph,
-                    Object &ob,
-                    SculptSession &ss,
-                    const float3 &initial_location,
-                    float radius,
-                    float pose_offset,
-                    float3 &r_pose_origin,
-                    MutableSpan<float> r_pose_factor)
+/**
+ * fallback_floodfill_origin: In topology mode this stores the furthest point from the
+ * stroke origin for cases when a pose origin based on the brush radius can't be set.
+ */
+static void calc_pose_origin_and_factor_mesh(const Depsgraph &depsgraph,
+                                             Object &object,
+                                             SculptSession &ss,
+                                             const float3 &initial_location,
+                                             float radius,
+                                             float3 &r_pose_origin,
+                                             MutableSpan<float> r_pose_factor)
 {
-  SCULPT_vertex_random_access_ensure(ob);
+  BLI_assert(!r_pose_factor.is_empty());
+
+  Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   /* Calculate the pose rotation point based on the boundaries of the brush factor. */
-  flood_fill::FillData flood = flood_fill::init_fill(ob);
-  flood_fill::add_initial_with_symmetry(
-      depsgraph, ob, flood, ss.active_vert_ref(), !r_pose_factor.is_empty() ? radius : 0.0f);
+  flood_fill::FillDataMesh flood(positions_eval.size());
+  flood.add_initial_with_symmetry(
+      depsgraph, object, pbvh, std::get<int>(ss.active_vert()), radius);
 
-  const int symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const int symm = SCULPT_mesh_symmetry_xyz_get(object);
 
   int tot_co = 0;
   float3 pose_origin(0);
   float3 fallback_floodfill_origin = initial_location;
-  flood_fill::execute(ob, flood, [&](PBVHVertRef /*from_v*/, PBVHVertRef to_v, bool is_duplicate) {
-    return topology_floodfill(depsgraph,
-                              ob,
-                              initial_location,
-                              radius,
-                              symm,
-                              to_v,
-                              is_duplicate,
-                              r_pose_factor,
-                              fallback_floodfill_origin,
-                              pose_origin,
-                              tot_co);
+  flood.execute(object, ss.vert_to_face_map, [&](int /*from_v*/, int to_v) {
+    r_pose_factor[to_v] = 1.0f;
+
+    const float3 co = positions_eval[to_v];
+    if (math::distance_squared(initial_location, fallback_floodfill_origin) <
+        math::distance_squared(initial_location, co))
+    {
+      fallback_floodfill_origin = co;
+    }
+
+    if (vert_inside_brush_radius(co, initial_location, radius, symm)) {
+      return true;
+    }
+
+    if (SCULPT_check_vertex_pivot_symmetry(co, initial_location, symm)) {
+      pose_origin += co;
+      tot_co++;
+    }
+
+    return false;
   });
 
   if (tot_co > 0) {
-    pose_origin /= float(tot_co);
+    r_pose_origin = pose_origin / float(tot_co);
   }
   else {
-    pose_origin = fallback_floodfill_origin;
+    r_pose_origin = fallback_floodfill_origin;
+  }
+}
+
+static void calc_pose_origin_and_factor_grids(Object &object,
+                                              SculptSession &ss,
+                                              const float3 &initial_location,
+                                              float radius,
+                                              float3 &r_pose_origin,
+                                              MutableSpan<float> r_pose_factor)
+{
+  BLI_assert(!r_pose_factor.is_empty());
+
+  const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+
+  const Span<float3> positions = subdiv_ccg.positions;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  /* Calculate the pose rotation point based on the boundaries of the brush factor. */
+  flood_fill::FillDataGrids flood(positions.size());
+  flood.add_initial_with_symmetry(
+      object, pbvh, subdiv_ccg, std::get<SubdivCCGCoord>(ss.active_vert()), radius);
+
+  const int symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  int tot_co = 0;
+  float3 pose_origin(0);
+  float3 fallback_floodfill_origin = initial_location;
+  flood.execute(
+      object, subdiv_ccg, [&](SubdivCCGCoord /*from_v*/, SubdivCCGCoord to_v, bool is_duplicate) {
+        const int to_v_i = to_v.to_index(key);
+
+        r_pose_factor[to_v_i] = 1.0f;
+
+        const float3 &co = positions[to_v_i];
+        if (math::distance_squared(initial_location, fallback_floodfill_origin) <
+            math::distance_squared(initial_location, co))
+        {
+          fallback_floodfill_origin = co;
+        }
+
+        if (vert_inside_brush_radius(co, initial_location, radius, symm)) {
+          return true;
+        }
+
+        if (SCULPT_check_vertex_pivot_symmetry(co, initial_location, symm)) {
+          if (!is_duplicate) {
+            pose_origin += co;
+            tot_co++;
+          }
+        }
+
+        return false;
+      });
+
+  if (tot_co > 0) {
+    r_pose_origin = pose_origin / float(tot_co);
+  }
+  else {
+    r_pose_origin = fallback_floodfill_origin;
+  }
+}
+
+static void calc_pose_origin_and_factor_bmesh(Object &object,
+                                              SculptSession &ss,
+                                              const float3 &initial_location,
+                                              float radius,
+                                              float3 &r_pose_origin,
+                                              MutableSpan<float> r_pose_factor)
+{
+  BLI_assert(!r_pose_factor.is_empty());
+  SCULPT_vertex_random_access_ensure(object);
+
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+
+  /* Calculate the pose rotation point based on the boundaries of the brush factor. */
+  flood_fill::FillDataBMesh flood(BM_mesh_elem_count(ss.bm, BM_VERT));
+  flood.add_initial_with_symmetry(object, pbvh, std::get<BMVert *>(ss.active_vert()), radius);
+
+  const int symm = SCULPT_mesh_symmetry_xyz_get(object);
+
+  int tot_co = 0;
+  float3 pose_origin(0);
+  float3 fallback_floodfill_origin = initial_location;
+  flood.execute(object, [&](BMVert * /*from_v*/, BMVert *to_v) {
+    const int to_v_i = BM_elem_index_get(to_v);
+    r_pose_factor[to_v_i] = 1.0f;
+
+    const float3 co = to_v->co;
+    if (math::distance_squared(initial_location, fallback_floodfill_origin) <
+        math::distance_squared(initial_location, co))
+    {
+      fallback_floodfill_origin = co;
+    }
+
+    if (vert_inside_brush_radius(co, initial_location, radius, symm)) {
+      return true;
+    }
+
+    if (SCULPT_check_vertex_pivot_symmetry(co, initial_location, symm)) {
+      pose_origin += co;
+      tot_co++;
+    }
+
+    return false;
+  });
+
+  if (tot_co > 0) {
+    r_pose_origin = pose_origin / float(tot_co);
+  }
+  else {
+    r_pose_origin = fallback_floodfill_origin;
+  }
+}
+
+static void calc_pose_data(const Depsgraph &depsgraph,
+                           Object &object,
+                           SculptSession &ss,
+                           const float3 &initial_location,
+                           float radius,
+                           float pose_offset,
+                           float3 &r_pose_origin,
+                           MutableSpan<float> r_pose_factor)
+{
+  BLI_assert(!r_pose_factor.is_empty());
+
+  float3 pose_origin;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh:
+      calc_pose_origin_and_factor_mesh(
+          depsgraph, object, ss, initial_location, radius, pose_origin, r_pose_factor);
+      break;
+    case bke::pbvh::Type::Grids:
+      calc_pose_origin_and_factor_grids(
+          object, ss, initial_location, radius, pose_origin, r_pose_factor);
+      break;
+    case bke::pbvh::Type::BMesh:
+      calc_pose_origin_and_factor_bmesh(
+          object, ss, initial_location, radius, pose_origin, r_pose_factor);
+      break;
   }
 
   /* Offset the pose origin. */
-  float3 pose_d = math::normalize(pose_origin - initial_location);
-  pose_origin += pose_d * radius * pose_offset;
+  const float3 pose_dir = math::normalize(pose_origin - initial_location);
+  pose_origin += pose_dir * radius * pose_offset;
   r_pose_origin = pose_origin;
 
   /* Do the initial grow of the factors to get the first segment of the chain with Origin Offset.
    */
-  if (pose_offset != 0.0f && !r_pose_factor.is_empty()) {
-    grow_pose_factor(depsgraph, ob, ss, pose_origin, pose_origin, 0, nullptr, r_pose_factor);
+  if (pose_offset != 0.0f) {
+    grow_pose_factor(depsgraph, object, ss, pose_origin, pose_origin, 0, nullptr, r_pose_factor);
   }
 }
 

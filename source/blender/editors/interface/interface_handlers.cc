@@ -3442,6 +3442,10 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
   MEM_SAFE_FREE(text_edit.edit_string);
 
+  /* Clear the status bar. */
+  WorkspaceStatus status(C);
+  status.item(" ", ICON_NONE);
+
 #ifdef USE_DRAG_MULTINUM
   /* this can happen from multi-drag */
   if (data->applied_interactive) {
@@ -3561,6 +3565,8 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
   uiTextEdit &text_edit = data->text_edit;
   wmWindow *win = data->window;
+
+  ED_workspace_status_text(C, nullptr);
 
   if (but) {
     if (UI_but_is_utf8(but)) {
@@ -4337,6 +4343,12 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
   PanelType *popover_panel_type = nullptr;
   void *arg = nullptr;
 
+  if (but->type != UI_BTYPE_PULLDOWN) {
+    /* Clear the status bar. */
+    WorkspaceStatus status(C);
+    status.item(" ", ICON_NONE);
+  }
+
   switch (but->type) {
     case UI_BTYPE_BLOCK:
     case UI_BTYPE_PULLDOWN:
@@ -4436,6 +4448,8 @@ static void ui_block_open_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 
     but->block->auto_open_last = BLI_time_now_seconds();
   }
+
+  ED_workspace_status_text(C, nullptr);
 
   if (data->menu) {
     ui_popup_block_free(C, data->menu);
@@ -8558,11 +8572,18 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
       else {
         WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, nullptr, true);
       }
+      /* Clear the status bar. */
+      WorkspaceStatus status(C);
+      status.item(" ", ICON_NONE);
     }
     ui_numedit_begin(but, data);
   }
   else if (data->state == BUTTON_STATE_NUM_EDITING) {
     ui_numedit_end(but, data);
+
+    if (state != BUTTON_STATE_TEXT_EDITING) {
+      ED_workspace_status_text(C, nullptr);
+    }
 
     if (but->flag & UI_BUT_DRIVEN) {
       /* Only warn when editing stepping/dragging the value.
@@ -10594,13 +10615,37 @@ static int ui_handle_menu_event(bContext *C,
   but = ui_region_find_active_but(region);
 
 #ifdef USE_DRAG_POPUP
+
+#  if defined(__APPLE__)
+  constexpr int PopupTitleHoverCursor = WM_CURSOR_HAND;
+  constexpr int PopupTitleDragCursor = WM_CURSOR_HAND_CLOSED;
+#  else
+  constexpr int PopupTitleHoverCursor = WM_CURSOR_MOVE;
+  constexpr int PopupTitleDragCursor = WM_CURSOR_MOVE;
+#  endif
+
+  wmWindow *win = CTX_wm_window(C);
+
+  if (!menu->is_grab && is_floating && (!but || but->type == UI_BTYPE_IMAGE)) {
+    if (event->type == LEFTMOUSE && event->val == KM_PRESS && inside_title) {
+      /* Initial press before starting to drag. */
+      WM_cursor_set(win, PopupTitleDragCursor);
+    }
+    else if (event->type == MOUSEMOVE && !win->modalcursor) {
+      /* Hover over draggable area. */
+      WM_cursor_set(win, inside_title ? PopupTitleHoverCursor : WM_CURSOR_DEFAULT);
+    }
+  }
+
   if (menu->is_grab) {
     if (event->type == LEFTMOUSE) {
       menu->is_grab = false;
+      WM_cursor_set(win, WM_CURSOR_DEFAULT);
       retval = WM_UI_HANDLER_BREAK;
     }
     else {
       if (event->type == MOUSEMOVE) {
+        WM_cursor_set(win, PopupTitleDragCursor);
         int mdiff[2];
 
         sub_v2_v2v2_int(mdiff, event->xy, menu->grab_xy_prev);
@@ -11136,7 +11181,9 @@ static int ui_handle_menu_event(bContext *C,
       else if ((event->type == LEFTMOUSE) && (event->val == KM_PRESS) &&
                (inside && is_floating && inside_title))
       {
-        if (!but || !ui_but_contains_point_px(but, region, event->xy)) {
+        if (!but || but->type == UI_BTYPE_IMAGE ||
+            !ui_but_contains_point_px(but, region, event->xy))
+        {
           if (but) {
             UI_but_tooltip_timer_remove(C, but);
           }

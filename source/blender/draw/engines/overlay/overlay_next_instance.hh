@@ -18,6 +18,7 @@
 #include "overlay_next_curve.hh"
 #include "overlay_next_empty.hh"
 #include "overlay_next_facing.hh"
+#include "overlay_next_fade.hh"
 #include "overlay_next_fluid.hh"
 #include "overlay_next_force_field.hh"
 #include "overlay_next_grease_pencil.hh"
@@ -31,6 +32,7 @@
 #include "overlay_next_particle.hh"
 #include "overlay_next_prepass.hh"
 #include "overlay_next_relation.hh"
+#include "overlay_next_sculpt.hh"
 #include "overlay_next_speaker.hh"
 #include "overlay_next_wireframe.hh"
 #include "overlay_next_xray_fade.hh"
@@ -69,6 +71,7 @@ class Instance {
     Curves curves;
     Empties empties = {selection_type_};
     Facing facing = {selection_type_};
+    Fade fade = {selection_type_};
     Fluids fluids = {selection_type_};
     ForceFields force_fields = {selection_type_};
     GreasePencil grease_pencil;
@@ -77,9 +80,11 @@ class Instance {
     LightProbes light_probes = {selection_type_};
     Metaballs metaballs = {selection_type_};
     Meshes meshes;
+    MeshUVs mesh_uvs;
     Particles particles;
     Prepass prepass = {selection_type_};
     Relations relations = {selection_type_};
+    Sculpts sculpts = {selection_type_};
     Speakers speakers = {selection_type_};
     Wireframe wireframe;
   } regular{selection_type_}, infront{selection_type_};

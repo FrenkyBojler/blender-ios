@@ -1097,7 +1097,6 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
                                                   grids,
                                                   false,
                                                   factors,
-                                                  positions,
                                                   tls.vert_neighbors,
                                                   translations);
 
@@ -1274,7 +1273,6 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
                                                   grids,
                                                   relax_face_sets,
                                                   factors,
-                                                  positions,
                                                   tls.vert_neighbors,
                                                   translations);
 
@@ -1464,7 +1462,8 @@ static void calc_surface_smooth_filter(const Depsgraph &depsgraph,
 
           tls.average_positions.resize(positions.size());
           const MutableSpan<float3> average_positions = tls.average_positions;
-          smooth::neighbor_position_average_grids(subdiv_ccg, grids, average_positions);
+          smooth::average_data_grids(
+              subdiv_ccg, subdiv_ccg.positions.as_span(), grids, average_positions);
 
           tls.laplacian_disp.resize(positions.size());
           const MutableSpan<float3> laplacian_disp = tls.laplacian_disp;
@@ -1557,7 +1556,7 @@ static void calc_surface_smooth_filter(const Depsgraph &depsgraph,
               positions, orig_positions, average_positions, alpha, laplacian_disp, translations);
           scale_translations(translations, factors);
 
-          scatter_data_vert_bmesh(laplacian_disp.as_span(), verts, all_laplacian_disp);
+          scatter_data_bmesh(laplacian_disp.as_span(), verts, all_laplacian_disp);
 
           zero_disabled_axis_components(*ss.filter_cache, translations);
           clip_and_lock_translations(sd, ss, orig_positions, translations);
@@ -1582,7 +1581,7 @@ static void calc_surface_smooth_filter(const Depsgraph &depsgraph,
           scale_factors(factors, strength);
           clamp_factors(factors, 0.0f, 1.0f);
 
-          const MutableSpan<float3> laplacian_disp = gather_data_vert_bmesh(
+          const MutableSpan<float3> laplacian_disp = gather_data_bmesh(
               all_laplacian_disp.as_span(), verts, tls.laplacian_disp);
 
           tls.average_positions.resize(verts.size());
@@ -1726,7 +1725,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
     case bke::pbvh::Type::Grids: {
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-      const Span<CCGElem *> elems = subdiv_ccg.grids;
+      MutableSpan<float3> vert_positions = subdiv_ccg.positions;
 
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
@@ -1755,7 +1754,8 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
 
           tls.smooth_positions.resize(positions.size());
           const MutableSpan<float3> smooth_positions = tls.smooth_positions;
-          smooth::neighbor_position_average_grids(subdiv_ccg, grids, smooth_positions);
+          smooth::average_data_grids(
+              subdiv_ccg, subdiv_ccg.positions.as_span(), grids, smooth_positions);
 
           const Span<float> sharpen_factors = gather_data_grids(
               subdiv_ccg, ss.filter_cache->sharpen_factor.as_span(), grids, tls.sharpen_factors);
@@ -1777,9 +1777,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
                 BKE_subdiv_ccg_neighbor_coords_get(
                     subdiv_ccg, SubdivCCGCoord{grid, x, y}, false, neighbors);
                 for (const SubdivCCGCoord neighbor : neighbors.coords) {
-                  float3 disp_n = CCG_grid_elem_co(
-                                      key, elems[neighbor.grid_index], neighbor.x, neighbor.y) -
-                                  position;
+                  float3 disp_n = vert_positions[neighbor.to_index(key)] - position;
                   disp_n *= ss.filter_cache->sharpen_factor[neighbor.to_index(key)];
                   disp_sharpen += disp_n;
                 }
@@ -1843,7 +1841,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
           const MutableSpan<float3> smooth_positions = tls.smooth_positions;
           smooth::neighbor_position_average_bmesh(verts, smooth_positions);
 
-          const Span<float> sharpen_factors = gather_data_vert_bmesh(
+          const Span<float> sharpen_factors = gather_data_bmesh(
               ss.filter_cache->sharpen_factor.as_span(), verts, tls.sharpen_factors);
 
           tls.translations.resize(verts.size());
@@ -1856,7 +1854,6 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
             const float3 position = vert->co;
 
             float3 disp_sharpen(0.0f);
-            neighbors.clear();
             for (const BMVert *neighbor : vert_neighbors_get_bmesh(*vert, neighbors)) {
               float3 disp_n = float3(neighbor->co) - position;
               disp_n *= ss.filter_cache->sharpen_factor[BM_elem_index_get(neighbor)];
@@ -1868,7 +1865,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
             i++;
           }
 
-          const Span<float3> detail_directions = gather_data_vert_bmesh(
+          const Span<float3> detail_directions = gather_data_bmesh(
               ss.filter_cache->detail_directions.as_span(), verts, tls.detail_directions);
 
           calc_sharpen_detail_translations(*ss.filter_cache,
@@ -1991,7 +1988,7 @@ static void calc_enhance_details_filter(const Depsgraph &depsgraph,
               depsgraph, object, ss.filter_cache->automasking.get(), nodes[i], verts, factors);
           scale_factors(factors, final_strength);
 
-          const MutableSpan translations = gather_data_vert_bmesh(
+          const MutableSpan<float3> translations = gather_data_bmesh(
               ss.filter_cache->detail_directions.as_span(), verts, tls.translations);
           scale_translations(translations, factors);
           reset_translations_to_original(translations, positions, orig_positions);
@@ -2075,13 +2072,11 @@ static void calc_limit_surface_positions(const Object &object, MutableSpan<float
   const SculptSession &ss = *object.sculpt;
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<CCGElem *> elems = subdiv_ccg.grids;
 
-  threading::parallel_for(elems.index_range(), 512, [&](const IndexRange range) {
+  threading::parallel_for(IndexRange(subdiv_ccg.grids_num), 512, [&](const IndexRange range) {
     for (const int grid : range) {
-      const int start = grid * key.grid_area;
-      BKE_subdiv_ccg_eval_limit_positions(
-          subdiv_ccg, key, grid, limit_positions.slice(start, key.grid_area));
+      MutableSpan grid_dst = limit_positions.slice(bke::ccg::grid_range(key, grid));
+      BKE_subdiv_ccg_eval_limit_positions(subdiv_ccg, key, grid, grid_dst);
     }
   });
 }
@@ -2201,12 +2196,12 @@ static void mesh_filter_sharpen_init(const Depsgraph &depsgraph,
             tls.smooth_directions.resize(verts.size());
             smooth::average_data_bmesh(
                 detail_directions.as_span(), verts, tls.smooth_directions.as_mutable_span());
-            scatter_data_vert_bmesh(tls.smooth_directions.as_span(), verts, detail_directions);
+            scatter_data_bmesh(tls.smooth_directions.as_span(), verts, detail_directions);
 
             tls.smooth_factors.resize(verts.size());
             smooth::average_data_bmesh(
                 sharpen_factors.as_span(), verts, tls.smooth_factors.as_mutable_span());
-            scatter_data_vert_bmesh(tls.smooth_factors.as_span(), verts, sharpen_factors);
+            scatter_data_bmesh(tls.smooth_factors.as_span(), verts, sharpen_factors);
           });
         });
         break;
