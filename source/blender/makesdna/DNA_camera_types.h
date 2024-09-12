@@ -75,7 +75,7 @@ typedef struct Camera {
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
 
-  /** CAM_PERSP, CAM_ORTHO or CAM_PANO. */
+  /** CAM_PERSP, CAM_ORTHO, CAM_PANO, or CAM_CALIB */
   char type;
   /** Draw type extra. */
   char dtx;
@@ -123,6 +123,10 @@ typedef struct Camera {
   float calibrated_cam_s1;
   float calibrated_cam_s2;
   float calibrated_cam_s3;
+  float calibrated_cam_nc0;
+  float calibrated_cam_nc1;
+  float calibrated_cam_nc2;
+  float calibrated_cam_nc3;
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
@@ -148,6 +152,7 @@ enum {
   CAM_PERSP = 0,
   CAM_ORTHO = 1,
   CAM_PANO = 2,
+  CAM_CALIB = 3,
 };
 
 /* panorama_type */
@@ -159,7 +164,6 @@ enum {
   CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL = 4,
   CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE = 5,
   CAM_PANORAMA_CENTRAL_CYLINDRICAL = 6,
-  CAM_PANORAMA_FISHEYE_624 = 7,
 };
 
 /* dtx */

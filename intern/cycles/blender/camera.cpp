@@ -84,6 +84,10 @@ struct BlenderCamera {
   float calibrated_cam_s1;
   float calibrated_cam_s2;
   float calibrated_cam_s3;
+  float calibrated_cam_nc0;
+  float calibrated_cam_nc1;
+  float calibrated_cam_nc2;
+  float calibrated_cam_nc3;
 
   enum { AUTO, HORIZONTAL, VERTICAL } sensor_fit;
   float sensor_width;
@@ -205,8 +209,6 @@ static PanoramaType blender_panorama_type_to_cycles(const BL::Camera::panorama_t
       return PANORAMA_FISHEYE_LENS_POLYNOMIAL;
     case BL::Camera::panorama_type_CENTRAL_CYLINDRICAL:
       return PANORAMA_CENTRAL_CYLINDRICAL;
-    case BL::Camera::panorama_type_FISHEYE_624:
-      return PANORAMA_FISHEYE_624;
   }
   /* Could happen if loading a newer file that has an unsupported type. */
   return PANORAMA_FISHEYE_EQUISOLID;
@@ -236,6 +238,9 @@ static void blender_camera_from_object(BlenderCamera *bcam,
         else {
           bcam->type = CAMERA_PERSPECTIVE;
         }
+        break;
+      case BL::Camera::type_CALIB:
+        bcam->type = CAMERA_CALIBRATED;
         break;
       case BL::Camera::type_PERSP:
       default:
@@ -277,6 +282,10 @@ static void blender_camera_from_object(BlenderCamera *bcam,
     bcam->calibrated_cam_s1 = b_camera.calibrated_cam_s1();
     bcam->calibrated_cam_s2 = b_camera.calibrated_cam_s2();
     bcam->calibrated_cam_s3 = b_camera.calibrated_cam_s3();
+    bcam->calibrated_cam_nc0 = b_camera.calibrated_cam_nc0();
+    bcam->calibrated_cam_nc1 = b_camera.calibrated_cam_nc1();
+    bcam->calibrated_cam_nc2 = b_camera.calibrated_cam_nc2();
+    bcam->calibrated_cam_nc3 = b_camera.calibrated_cam_nc3();
 
     bcam->interocular_distance = b_camera.stereo().interocular_distance();
     if (b_camera.stereo().convergence_mode() == BL::CameraStereoData::convergence_mode_PARALLEL) {
@@ -365,11 +374,6 @@ static Transform blender_camera_matrix(const Transform &tfm,
        */
       result = tfm * make_transform(
                          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
-    }
-    else if (panorama_type == PANORAMA_FISHEYE_624) {
-      /* Camera coordinate convention for Fisheye624 is
-       * -Z forward, +Y up and +X right */
-      result = tfm * transform_scale(1.0f, 1.0f, -1.0f);
     }
     else {
       /* Make it so environment camera needs to be pointed in the direction

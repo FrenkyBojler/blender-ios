@@ -443,9 +443,6 @@ ccl_device_inline float3 panorama_to_direction(ccl_constant KernelCamera *cam, f
       return mirrorball_to_direction(u, v);
     case PANORAMA_FISHEYE_EQUIDISTANT:
       return fisheye_to_direction(u, v, cam->fisheye_fov);
-    case PANORAMA_FISHEYE_624:
-      return fisheye_radtanthinprism_to_direction(
-          u, v, cam->width, cam->height, cam->calibrated_cam_params);
     case PANORAMA_FISHEYE_LENS_POLYNOMIAL:
       return fisheye_lens_polynomial_to_direction(u,
                                                   v,

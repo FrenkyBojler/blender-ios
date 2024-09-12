@@ -106,6 +106,10 @@ class Camera : public Node {
   NODE_SOCKET_API(float, calibrated_cam_s1)
   NODE_SOCKET_API(float, calibrated_cam_s2)
   NODE_SOCKET_API(float, calibrated_cam_s3)
+  NODE_SOCKET_API(float, calibrated_cam_nc0)
+  NODE_SOCKET_API(float, calibrated_cam_nc1)
+  NODE_SOCKET_API(float, calibrated_cam_nc2)
+  NODE_SOCKET_API(float, calibrated_cam_nc3)
 
   /* panorama stereo */
   NODE_SOCKET_API(StereoEye, stereo_eye)

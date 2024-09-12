@@ -81,6 +81,7 @@ NODE_DEFINE(Camera)
   type_enum.insert("perspective", CAMERA_PERSPECTIVE);
   type_enum.insert("orthograph", CAMERA_ORTHOGRAPHIC);
   type_enum.insert("panorama", CAMERA_PANORAMA);
+  type_enum.insert("calibrated", CAMERA_CALIBRATED);
   SOCKET_ENUM(camera_type, "Type", type_enum, CAMERA_PERSPECTIVE);
 
   static NodeEnum panorama_type_enum;
@@ -91,7 +92,6 @@ NODE_DEFINE(Camera)
   panorama_type_enum.insert("fisheye_equisolid", PANORAMA_FISHEYE_EQUISOLID);
   panorama_type_enum.insert("fisheye_lens_polynomial", PANORAMA_FISHEYE_LENS_POLYNOMIAL);
   panorama_type_enum.insert("panorama_central_cylindrical", PANORAMA_CENTRAL_CYLINDRICAL);
-  panorama_type_enum.insert("fisheye_624", PANORAMA_FISHEYE_624);
   SOCKET_ENUM(panorama_type, "Panorama Type", panorama_type_enum, PANORAMA_EQUIRECTANGULAR);
 
   SOCKET_FLOAT(fisheye_fov, "Fisheye FOV", M_PI_F);
@@ -116,25 +116,23 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(central_cylindrical_range_v_max, "Central Cylindrical Range V Max", 1.0f);
 
   // default calibrated_cam distortions (from real-world Aria HMD)
-  SOCKET_FLOAT(calibrated_cam_f, "Focal Length", 240.96908202503016128f);
-  SOCKET_FLOAT(calibrated_cam_k0, "1. Radial Distortion Coefficient", -0.00029975978022917562074f);
-  SOCKET_FLOAT(calibrated_cam_k1, "2. Radial Distortion Coefficient", 0.025925353248573888842f);
-  SOCKET_FLOAT(calibrated_cam_k2, "3. Radial Distortion Coefficient", 0.0049689703789174387294f);
-  SOCKET_FLOAT(calibrated_cam_k3, "4. Radial Distortion Coefficient", -0.0082339337266616879907f);
-  SOCKET_FLOAT(calibrated_cam_k4, "5. Radial Distortion Coefficient", -0.0058290815323180505958f);
-  SOCKET_FLOAT(calibrated_cam_k5, "6. Radial Distortion Coefficient", 0.0026384817055371189917f);
-  SOCKET_FLOAT(
-      calibrated_cam_p0, "1. Tangential Distortion Coefficient", 0.00016612194528025018398f);
-  SOCKET_FLOAT(
-      calibrated_cam_p1, "2. Tangential Distortion Coefficient", 2.3049914803609829601e-05f);
-  SOCKET_FLOAT(
-      calibrated_cam_s0, "1. Thin Prismatic Distortion Coefficient", -0.00025728595469903830411f);
-  SOCKET_FLOAT(
-      calibrated_cam_s1, "2. Thin Prismatic Distortion Coefficient", -3.7265140092139775881e-05f);
-  SOCKET_FLOAT(
-      calibrated_cam_s2, "3. Thin Prismatic Distortion Coefficient", -0.0006244819671333829f);
-  SOCKET_FLOAT(
-      calibrated_cam_s3, "4. Thin Prismatic Distortion Coefficient", -6.834843688531277463e-05f);
+  SOCKET_FLOAT(calibrated_cam_f, "Focal Length", 5.0f);
+  SOCKET_FLOAT(calibrated_cam_k0, "1. Radial Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_k1, "2. Radial Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_k2, "3. Radial Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_k3, "4. Radial Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_k4, "5. Radial Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_k5, "6. Radial Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_p0, "1. Tangential Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_p1, "2. Tangential Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_s0, "1. Thin Prismatic Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_s1, "2. Thin Prismatic Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_s2, "3. Thin Prismatic Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_s3, "4. Thin Prismatic Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_nc0, "1. Noncentrality Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_nc1, "2. Noncentrality Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_nc2, "3. Noncentrality Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_nc3, "4. Noncentrality Coefficient", 0.0f);
 
   static NodeEnum stereo_eye_enum;
   stereo_eye_enum.insert("none", STEREO_NONE);
@@ -453,23 +451,18 @@ void Camera::update(Scene *scene)
                                                 central_cylindrical_range_v_min,
                                                 central_cylindrical_range_v_max);
 
-  /* pack 15 floats into a dense array */
-  float params[15] = {calibrated_cam_f,
-                      0.0f,
-                      0.0f,
-                      calibrated_cam_k0,
-                      calibrated_cam_k1,
-                      calibrated_cam_k2,
-                      calibrated_cam_k3,
-                      calibrated_cam_k4,
-                      calibrated_cam_k5,
-                      calibrated_cam_p0,
-                      calibrated_cam_p1,
-                      calibrated_cam_s0,
-                      calibrated_cam_s1,
-                      calibrated_cam_s2,
-                      calibrated_cam_s3};
-  memcpy(kcam->calibrated_cam_params, params, sizeof(params));
+  kcam->calibrated_cam_f = calibrated_cam_f;
+  kcam->calibrated_cam_k[0] = calibrated_cam_k0;
+  kcam->calibrated_cam_k[1] = calibrated_cam_k1;
+  kcam->calibrated_cam_k[2] = calibrated_cam_k2;
+  kcam->calibrated_cam_k[3] = calibrated_cam_k3;
+  kcam->calibrated_cam_k[4] = calibrated_cam_k4;
+  kcam->calibrated_cam_k[5] = calibrated_cam_k5;
+  kcam->calibrated_cam_p = make_float2(calibrated_cam_p0, calibrated_cam_p1);
+  kcam->calibrated_cam_s = make_float4(
+      calibrated_cam_s0, calibrated_cam_s1, calibrated_cam_s2, calibrated_cam_s3);
+  kcam->calibrated_cam_nc = make_float4(
+      calibrated_cam_nc0, calibrated_cam_nc1, calibrated_cam_nc2, calibrated_cam_nc3);
 
   switch (stereo_eye) {
     case STEREO_LEFT:
