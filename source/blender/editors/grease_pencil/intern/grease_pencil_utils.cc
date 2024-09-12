@@ -68,9 +68,7 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
   }
 
   /* Account for layer transform. */
-  if (scene.toolsettings->gp_sculpt.lock_axis != GP_LOCKAXIS_VIEW &&
-      scene.toolsettings->gp_sculpt.lock_axis != GP_LOCKAXIS_CURSOR)
-  {
+  if (!ELEM(scene.toolsettings->gp_sculpt.lock_axis, GP_LOCKAXIS_VIEW, GP_LOCKAXIS_CURSOR)) {
     /* Use the transpose inverse for normal. */
     placement_normal_ = math::transform_direction(math::transpose(world_space_to_layer_space_),
                                                   placement_normal_);
@@ -154,7 +152,7 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
   }
 
   /* Account for layer transform. */
-  if (reproject_mode != ReprojectMode::View && reproject_mode != ReprojectMode::Cursor) {
+  if (!ELEM(reproject_mode, ReprojectMode::View, ReprojectMode::Cursor)) {
     /* Use the transpose inverse for normal. */
     placement_normal_ = math::transform_direction(math::transpose(world_space_to_layer_space_),
                                                   placement_normal_);
@@ -174,6 +172,9 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
       break;
     /* TODO: Implement ReprojectMode::Surface for reproject operator */
     default:
+      depth_ = DrawingPlacementDepth::ObjectOrigin;
+      surface_offset_ = 0.0f;
+      placement_loc_ = float3(0.0f);
       break;
   }
 
@@ -381,6 +382,9 @@ float3 DrawingPlacement::reproject(const float3 pos) const
     float lambda;
     if (isect_ray_plane_v3(ray_co, ray_no, plane, &lambda, false)) {
       proj_point = ray_co + ray_no * lambda;
+    }
+    else {
+      return pos;
     }
   }
   return math::transform_point(world_space_to_layer_space_, proj_point);
@@ -874,6 +878,21 @@ static VectorSet<int> get_hidden_material_indices(Object &object)
   return hidden_material_indices;
 }
 
+static VectorSet<int> get_fill_material_indices(Object &object)
+{
+  BLI_assert(object.type == OB_GREASE_PENCIL);
+  VectorSet<int> fill_material_indices;
+  for (const int mat_i : IndexRange(object.totcol)) {
+    Material *material = BKE_object_material_get(&object, mat_i + 1);
+    if (material != nullptr && material->gp_style != nullptr &&
+        (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0)
+    {
+      fill_material_indices.add_new(mat_i);
+    }
+  }
+  return fill_material_indices;
+}
+
 IndexMask retrieve_editable_strokes(Object &object,
                                     const bke::greasepencil::Drawing &drawing,
                                     int layer_index,
@@ -881,9 +900,17 @@ IndexMask retrieve_editable_strokes(Object &object,
 {
   using namespace blender;
   const bke::CurvesGeometry &curves = drawing.strokes();
-  const IndexRange curves_range = drawing.strokes().curves_range();
+  const IndexRange curves_range = curves.curves_range();
 
   if (object.totcol == 0) {
+    return IndexMask(curves_range);
+  }
+
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
+
+  /* If we're not using material locking, the entire curves range is editable. */
+  if (layer.ignore_locked_materials()) {
     return IndexMask(curves_range);
   }
 
@@ -894,9 +921,6 @@ IndexMask retrieve_editable_strokes(Object &object,
   }
 
   const bke::AttributeAccessor attributes = curves.attributes();
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-  const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
-
   const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
@@ -908,11 +932,41 @@ IndexMask retrieve_editable_strokes(Object &object,
   /* Get all the strokes that have their material unlocked. */
   return IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        const int material_index = materials[curve_i];
-        /* The stroke is editable if the material is editable. If the material is not editable,
-         * then the stroke is only editable if the layer disables the locked material option. */
-        return editable_material_indices.contains(material_index) || layer.use_locked_material();
+        return editable_material_indices.contains(materials[curve_i]);
       });
+}
+
+IndexMask retrieve_editable_fill_strokes(Object &object,
+                                         const bke::greasepencil::Drawing &drawing,
+                                         int layer_index,
+                                         IndexMaskMemory &memory)
+{
+  using namespace blender;
+  const IndexMask editable_strokes = retrieve_editable_strokes(
+      object, drawing, layer_index, memory);
+  if (editable_strokes.is_empty()) {
+    return {};
+  }
+
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  const IndexRange curves_range = curves.curves_range();
+
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
+  const VectorSet<int> fill_material_indices = get_fill_material_indices(object);
+  if (!materials) {
+    /* If the attribute does not exist then the default is the first material. */
+    if (editable_strokes.contains(0) && fill_material_indices.contains(0)) {
+      return curves_range;
+    }
+    return {};
+  }
+  const IndexMask fill_strokes = IndexMask::from_predicate(
+      curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
+        const int material_index = materials[curve_i];
+        return fill_material_indices.contains(material_index);
+      });
+  return IndexMask::from_intersection(editable_strokes, fill_strokes, memory);
 }
 
 IndexMask retrieve_editable_strokes_by_material(Object &object,
@@ -957,9 +1011,17 @@ IndexMask retrieve_editable_points(Object &object,
                                    IndexMaskMemory &memory)
 {
   const bke::CurvesGeometry &curves = drawing.strokes();
-  const IndexRange points_range = drawing.strokes().points_range();
+  const IndexRange points_range = curves.points_range();
 
   if (object.totcol == 0) {
+    return IndexMask(points_range);
+  }
+
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
+
+  /* If we're not using material locking, the entire points range is editable. */
+  if (layer.ignore_locked_materials()) {
     return IndexMask(points_range);
   }
 
@@ -969,11 +1031,8 @@ IndexMask retrieve_editable_points(Object &object,
     return {};
   }
 
-  const bke::AttributeAccessor attributes = curves.attributes();
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-  const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
-
   /* Propagate the material index to the points. */
+  const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Point);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
@@ -985,10 +1044,7 @@ IndexMask retrieve_editable_points(Object &object,
   /* Get all the points that are part of a stroke with an unlocked material. */
   return IndexMask::from_predicate(
       points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
-        const int material_index = materials[point_i];
-        /* The stroke is editable if the material is editable. If the material is not editable,
-         * then the stroke is only editable if the layer disables the locked material option. */
-        return editable_material_indices.contains(material_index) || layer.use_locked_material();
+        return editable_material_indices.contains(materials[point_i]);
       });
 }
 
@@ -1129,6 +1185,21 @@ IndexMask retrieve_editable_and_selected_strokes(Object &object,
   const bke::CurvesGeometry &curves = drawing.strokes();
 
   const IndexMask editable_strokes = retrieve_editable_strokes(
+      object, drawing, layer_index, memory);
+  const IndexMask selected_strokes = ed::curves::retrieve_selected_curves(curves, memory);
+
+  return IndexMask::from_intersection(editable_strokes, selected_strokes, memory);
+}
+
+IndexMask retrieve_editable_and_selected_fill_strokes(Object &object,
+                                                      const bke::greasepencil::Drawing &drawing,
+                                                      int layer_index,
+                                                      IndexMaskMemory &memory)
+{
+  using namespace blender;
+  const bke::CurvesGeometry &curves = drawing.strokes();
+
+  const IndexMask editable_strokes = retrieve_editable_fill_strokes(
       object, drawing, layer_index, memory);
   const IndexMask selected_strokes = ed::curves::retrieve_selected_curves(curves, memory);
 
@@ -1289,13 +1360,12 @@ Array<PointTransferData> compute_topology_change(
   /* Attributes. */
   const bke::AttributeAccessor src_attributes = src.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
-  const bke::AnonymousAttributePropagationInfo propagation_info{};
 
   /* Copy curves attributes. */
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
-                         propagation_info,
-                         {"cyclic"},
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_from_skip_ref({"cyclic"}),
                          dst_to_src_curve,
                          dst_attributes);
   if (src_cyclic.get_if_single().value_or(true)) {
@@ -1336,7 +1406,7 @@ Array<PointTransferData> compute_topology_change(
 
   /* Copy/Interpolate point attributes. */
   for (bke::AttributeTransferData &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, propagation_info))
+           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT))
   {
     bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
       using T = decltype(dummy);

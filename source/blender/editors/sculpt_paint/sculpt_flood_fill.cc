@@ -19,11 +19,11 @@
 
 namespace blender::ed::sculpt_paint::flood_fill {
 
-FillData init_fill(SculptSession &ss)
+FillData init_fill(Object &object)
 {
-  SCULPT_vertex_random_access_ensure(ss);
+  SCULPT_vertex_random_access_ensure(object);
   FillData data;
-  data.visited_verts.resize(SCULPT_vertex_count_get(ss));
+  data.visited_verts.resize(SCULPT_vertex_count_get(object));
   return data;
 }
 
@@ -175,8 +175,7 @@ void FillDataGrids::add_initial_with_symmetry(const Object &object,
     else {
       BLI_assert(radius > 0.0f);
       const float radius_squared = (radius == FLT_MAX) ? FLT_MAX : radius * radius;
-      CCGElem *elem = subdiv_ccg.grids[vertex.grid_index];
-      float3 location = symmetry_flip(CCG_grid_elem_co(key, elem, vertex.x, vertex.y),
+      float3 location = symmetry_flip(subdiv_ccg.positions[vertex.to_index(key)],
                                       ePaintSymmetryFlags(i));
       vert_to_add = nearest_vert_calc_grids(pbvh, subdiv_ccg, location, radius_squared, false);
     }
@@ -224,15 +223,15 @@ void execute(Object &object,
              FillData &flood,
              FunctionRef<bool(PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate)> func)
 {
-  SculptSession &ss = *object.sculpt;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   while (!flood.queue.empty()) {
     PBVHVertRef from_v = flood.queue.front();
     flood.queue.pop();
 
     SculptVertexNeighborIter ni;
-    SCULPT_VERTEX_DUPLICATES_AND_NEIGHBORS_ITER_BEGIN (ss, from_v, ni) {
+    SCULPT_VERTEX_DUPLICATES_AND_NEIGHBORS_ITER_BEGIN (object, from_v, ni) {
       const PBVHVertRef to_v = ni.vertex;
-      int to_v_i = BKE_pbvh_vertex_to_index(*ss.pbvh, to_v);
+      int to_v_i = BKE_pbvh_vertex_to_index(pbvh, to_v);
 
       if (flood.visited_verts[to_v_i]) {
         continue;
@@ -242,7 +241,7 @@ void execute(Object &object,
         continue;
       }
 
-      flood.visited_verts[BKE_pbvh_vertex_to_index(*ss.pbvh, to_v)].set();
+      flood.visited_verts[BKE_pbvh_vertex_to_index(pbvh, to_v)].set();
 
       if (func(from_v, to_v, ni.is_duplicate)) {
         flood.queue.push(to_v);
@@ -335,7 +334,6 @@ void FillDataBMesh::execute(Object & /*object*/,
     BMVert *from_v = this->queue.front();
     this->queue.pop();
 
-    neighbors.clear();
     for (BMVert *neighbor : vert_neighbors_get_bmesh(*from_v, neighbors)) {
       const int neighbor_idx = BM_elem_index_get(neighbor);
       if (this->visited_verts[neighbor_idx]) {

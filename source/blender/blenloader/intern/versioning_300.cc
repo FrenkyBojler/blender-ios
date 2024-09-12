@@ -54,7 +54,7 @@
 
 #undef DNA_GENFILE_VERSIONING_MACROS
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -77,7 +77,7 @@
 #include "BKE_main_namemap.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
@@ -3560,7 +3560,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Brush *, br, &bmain->brushes) {
       /* Buggy code in wm_toolsystem broke smear in old files,
        * reset to defaults. */
-      if (br->sculpt_tool == SCULPT_TOOL_SMEAR) {
+      if (br->sculpt_brush_type == SCULPT_BRUSH_TYPE_SMEAR) {
         br->alpha = 1.0f;
         br->spacing = 5;
         br->flag &= ~BRUSH_ALPHA_PRESSURE;
@@ -3724,7 +3724,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
      * to bugs in the wm_toolsystem API (auto-creation of sculpt brushes
      * was broken).  Go through and reset all smear brushes. */
     LISTBASE_FOREACH (Brush *, br, &bmain->brushes) {
-      if (br->sculpt_tool == SCULPT_TOOL_SMEAR) {
+      if (br->sculpt_brush_type == SCULPT_BRUSH_TYPE_SMEAR) {
         br->alpha = 1.0f;
         br->spacing = 5;
         br->flag &= ~BRUSH_ALPHA_PRESSURE;

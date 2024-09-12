@@ -17,9 +17,9 @@
 #include "BKE_pbvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
+struct BMVert;
 struct Depsgraph;
 struct Object;
-struct SculptSession;
 
 namespace blender::ed::sculpt_paint::flood_fill {
 
@@ -83,7 +83,7 @@ struct FillDataBMesh {
 /**
  * \deprecated See the individual FillData constructors instead of this method.
  */
-FillData init_fill(SculptSession &ss);
+FillData init_fill(Object &object);
 
 void add_initial(FillData &flood, PBVHVertRef vertex);
 void add_and_skip_initial(FillData &flood, PBVHVertRef vertex);

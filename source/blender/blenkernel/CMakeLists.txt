@@ -58,7 +58,6 @@ set(SRC
   intern/appdir.cc
   intern/armature.cc
   intern/armature_deform.cc
-  intern/armature_pose.cc
   intern/armature_selection.cc
   intern/armature_update.cc
   intern/asset.cc
@@ -320,7 +319,6 @@ set(SRC
   intern/world.cc
   intern/writemovie.cc
 
-  BKE_action.h
   BKE_action.hh
   BKE_addon.h
   BKE_anim_data.hh
@@ -328,6 +326,9 @@ set(SRC
   BKE_anim_visualization.h
   BKE_animsys.h
   BKE_anonymous_attribute_id.hh
+  BKE_anonymous_attribute_make.hh
+  BKE_attribute_filter.hh
+  BKE_attribute_filters.hh
   BKE_appdir.hh
   BKE_armature.hh
   BKE_asset.hh
@@ -461,7 +462,7 @@ set(SRC
   BKE_modifier.hh
   BKE_movieclip.h
   BKE_multires.hh
-  BKE_nla.h
+  BKE_nla.hh
   BKE_node.hh
   BKE_node_enum.hh
   BKE_node_runtime.hh

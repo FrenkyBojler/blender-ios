@@ -32,6 +32,7 @@
 #include "IMB_imbuf.hh"
 
 #include "SEQ_channels.hh"
+#include "SEQ_connect.hh"
 #include "SEQ_edit.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
@@ -42,6 +43,7 @@
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
+#include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
@@ -209,6 +211,10 @@ static void seq_sequence_free_ex(Scene *scene,
   /* free modifiers */
   SEQ_modifier_clear(seq);
 
+  if (SEQ_is_strip_connected(seq)) {
+    SEQ_disconnect(seq);
+  }
+
   /* free cached data used by this strip,
    * also invalidate cache for all dependent sequences
    *
@@ -293,6 +299,7 @@ void SEQ_editing_free(Scene *scene, const bool do_id_user)
   BLI_freelistN(&ed->metastack);
   SEQ_sequence_lookup_free(scene);
   blender::seq::media_presence_free(scene);
+  blender::seq::thumbnail_cache_destroy(scene);
   SEQ_channels_free(&ed->channels);
 
   MEM_freeN(ed);
@@ -309,9 +316,6 @@ static void seq_new_fix_links_recursive(Sequence *seq)
     if (seq->seq2 && seq->seq2->tmp) {
       seq->seq2 = static_cast<Sequence *>(seq->seq2->tmp);
     }
-    if (seq->seq3 && seq->seq3->tmp) {
-      seq->seq3 = static_cast<Sequence *>(seq->seq3->tmp);
-    }
   }
   else if (seq->type == SEQ_TYPE_META) {
     LISTBASE_FOREACH (Sequence *, seqn, &seq->seqbase) {
@@ -322,6 +326,14 @@ static void seq_new_fix_links_recursive(Sequence *seq)
   LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
     if (smd->mask_sequence && smd->mask_sequence->tmp) {
       smd->mask_sequence = static_cast<Sequence *>(smd->mask_sequence->tmp);
+    }
+  }
+
+  if (SEQ_is_strip_connected(seq)) {
+    LISTBASE_FOREACH (SeqConnection *, con, &seq->connections) {
+      if (con->seq_ref->tmp) {
+        con->seq_ref = static_cast<Sequence *>(con->seq_ref->tmp);
+      }
     }
   }
 }
@@ -525,6 +537,11 @@ static Sequence *seq_dupli(const Scene *scene_src,
     SEQ_modifier_list_copy(seqn, seq);
   }
 
+  if (SEQ_is_strip_connected(seq)) {
+    BLI_listbase_clear(&seqn->connections);
+    SEQ_connections_duplicate(&seqn->connections, &seq->connections);
+  }
+
   if (seq->type == SEQ_TYPE_META) {
     seqn->strip->stripdata = nullptr;
 
@@ -625,6 +642,9 @@ Sequence *SEQ_sequence_dupli_recursive(
 
   /* This does not need to be in recursive call itself, since it is already recursive... */
   seq_new_fix_links_recursive(seqn);
+  if (SEQ_is_strip_connected(seqn)) {
+    SEQ_cut_one_way_connections(seqn);
+  }
 
   return seqn;
 }
@@ -660,9 +680,15 @@ void SEQ_sequence_base_dupli_recursive(const Scene *scene_src,
     return;
   }
 
-  /* fix modifier linking */
+  /* Fix effect, modifier, and connected strip links. */
   LISTBASE_FOREACH (Sequence *, seq, nseqbase) {
     seq_new_fix_links_recursive(seq);
+  }
+  /* One-way connections cannot be cut until after all connections are resolved. */
+  LISTBASE_FOREACH (Sequence *, seq, nseqbase) {
+    if (SEQ_is_strip_connected(seq)) {
+      SEQ_cut_one_way_connections(seq);
+    }
   }
 }
 
@@ -767,6 +793,10 @@ static bool seq_write_data_cb(Sequence *seq, void *userdata)
     BLO_write_struct(writer, SeqTimelineChannel, channel);
   }
 
+  LISTBASE_FOREACH (SeqConnection *, con, &seq->connections) {
+    BLO_write_struct(writer, SeqConnection, con);
+  }
+
   if (seq->retiming_keys != nullptr) {
     int size = SEQ_retiming_keys_count(seq);
     BLO_write_struct_array(writer, SeqRetimingKey, size, seq->retiming_keys);
@@ -790,19 +820,12 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
   /* Runtime data cleanup. */
   seq->scene_sound = nullptr;
   BLI_listbase_clear(&seq->anims);
-  seq->flag &= ~SEQ_FLAG_SKIP_THUMBNAILS;
 
   /* Do as early as possible, so that other parts of reading can rely on valid session UID. */
   SEQ_relations_session_uid_generate(seq);
 
   BLO_read_struct(reader, Sequence, &seq->seq1);
   BLO_read_struct(reader, Sequence, &seq->seq2);
-  BLO_read_struct(reader, Sequence, &seq->seq3);
-
-  /* a patch: after introduction of effects with 3 input strips */
-  if (seq->seq3 == nullptr) {
-    seq->seq3 = seq->seq2;
-  }
 
   if (seq->effectdata) {
     switch (seq->type) {
@@ -884,6 +907,13 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
   }
 
   SEQ_modifier_blend_read_data(reader, &seq->modifiers);
+
+  BLO_read_struct_list(reader, SeqConnection, &seq->connections);
+  LISTBASE_FOREACH (SeqConnection *, con, &seq->connections) {
+    if (con->seq_ref) {
+      BLO_read_struct(reader, Sequence, &con->seq_ref);
+    }
+  }
 
   BLO_read_struct_list(reader, SeqTimelineChannel, &seq->channels);
 
