@@ -60,19 +60,19 @@
     .central_cylindrical_range_v_max = 1.0f,\
     .central_cylindrical_radius = 1.0f,\
     /* Default Aria SLAM camera projection calibration */ \
-    .fisheye624_f =  240.96908202503016128f,\
-    .fisheye624_k0 = -0.00029975978022917562074f,\
-    .fisheye624_k1 = 0.025925353248573888842f,\
-    .fisheye624_k2 = 0.0049689703789174387294f,\
-    .fisheye624_k3 = -0.0082339337266616879907f,\
-    .fisheye624_k4 = -0.0058290815323180505958f,\
-    .fisheye624_k5 = 0.0026384817055371189917f,\
-    .fisheye624_p0 = 0.00016612194528025018398f,\
-    .fisheye624_p1 = 2.3049914803609829601e-05f,\
-    .fisheye624_s0 = -0.00025728595469903830411f,\
-    .fisheye624_s1 = -3.7265140092139775881e-05f,\
-    .fisheye624_s2 = -0.0006244819671333829f,\
-    .fisheye624_s3 = -6.834843688531277463e-05f,\
+    .calibrated_cam_f =  240.96908202503016128f,\
+    .calibrated_cam_k0 = -0.00029975978022917562074f,\
+    .calibrated_cam_k1 = 0.025925353248573888842f,\
+    .calibrated_cam_k2 = 0.0049689703789174387294f,\
+    .calibrated_cam_k3 = -0.0082339337266616879907f,\
+    .calibrated_cam_k4 = -0.0058290815323180505958f,\
+    .calibrated_cam_k5 = 0.0026384817055371189917f,\
+    .calibrated_cam_p0 = 0.00016612194528025018398f,\
+    .calibrated_cam_p1 = 2.3049914803609829601e-05f,\
+    .calibrated_cam_s0 = -0.00025728595469903830411f,\
+    .calibrated_cam_s1 = -3.7265140092139775881e-05f,\
+    .calibrated_cam_s2 = -0.0006244819671333829f,\
+    .calibrated_cam_s3 = -6.834843688531277463e-05f,\
  \
     .dof = _DNA_DEFAULT_CameraDOFSettings, \
  \

@@ -152,8 +152,8 @@ ccl_device_inline float2 tangential_thinprism_forward(float2 const pt,
 }
 
 ccl_device_inline float4 tangential_thinprism_forward_jacobian(float2 const pt,
-                                             float2 const tangential,
-                                             float4 const thin_prism)
+                                                               float2 const tangential,
+                                                               float4 const thin_prism)
 {
   float const r2 = len_squared(pt);
   /*
@@ -163,24 +163,24 @@ ccl_device_inline float4 tangential_thinprism_forward_jacobian(float2 const pt,
    * d/dx r^4 = 4x^3 + 4xy^2 = 4x(x^2+y^2) = 4xr^2
    * d/dy r^4 = 4yr^2
    */
-  return make_float4(                                                                     // x_t dx
-          1.0f + 6.0f * pt.x * tangential.x + 2.0f * pt.y * tangential.y       // tangential term
-              + 2.0f * pt.x * thin_prism.x + 4.0f * pt.x * r2 * thin_prism.y,  // thin prism
-                                                                               // x_t dy
-          2.0f * pt.y * tangential.x + 2.0f * pt.x * tangential.y + 2.0f * pt.y * thin_prism.x +
-              4.0f * pt.y * r2 * thin_prism.y,
-          // y_t dx
-          2.0f * pt.x * tangential.y + 2.0f * pt.y * tangential.x + 2.0f * pt.x * thin_prism.z +
-              4.0f * pt.x * r2 * thin_prism.w,
-          // y_t dy
-          1.0f + 6.0f * pt.y * tangential.y + 2.0f * pt.x * tangential.x +
-              2.0f * pt.y * thin_prism.z + 4.0f * pt.y * r2 * thin_prism.w);
+  return make_float4(                                                      // x_t dx
+      1.0f + 6.0f * pt.x * tangential.x + 2.0f * pt.y * tangential.y       // tangential term
+          + 2.0f * pt.x * thin_prism.x + 4.0f * pt.x * r2 * thin_prism.y,  // thin prism
+                                                                           // x_t dy
+      2.0f * pt.y * tangential.x + 2.0f * pt.x * tangential.y + 2.0f * pt.y * thin_prism.x +
+          4.0f * pt.y * r2 * thin_prism.y,
+      // y_t dx
+      2.0f * pt.x * tangential.y + 2.0f * pt.y * tangential.x + 2.0f * pt.x * thin_prism.z +
+          4.0f * pt.x * r2 * thin_prism.w,
+      // y_t dy
+      1.0f + 6.0f * pt.y * tangential.y + 2.0f * pt.x * tangential.x + 2.0f * pt.y * thin_prism.z +
+          4.0f * pt.y * r2 * thin_prism.w);
 }
 
 ccl_device_inline float2 tangential_thinprism_newton_step(float2 const pt,
-                                        float2 const tgt,
-                                        float2 const p,
-                                        float4 const s)
+                                                          float2 const tgt,
+                                                          float2 const p,
+                                                          float4 const s)
 {
   // Compute F(x,y)
   float2 const F = tangential_thinprism_forward(pt, p, s) - tgt;
@@ -255,16 +255,15 @@ ccl_device_inline float2 solve_tangential_thinprism(float2 const tgt,
   return result;
 }
 
-
 ccl_device_inline float4 calibrated_cam_to_direction_impl(float2 point,
-                                                    float const width,
-                                                    float const height,
-                                                    float const fov,
-                                                    float const focal,
-                                                    BaseProjectionType const proj_type,
-                                                    float const *const radial,
-                                                    float2 const tangential,
-                                                    float4 const thin_prism)
+                                                          float const width,
+                                                          float const height,
+                                                          float const fov,
+                                                          float const focal,
+                                                          BaseProjectionType const proj_type,
+                                                          float const *const radial,
+                                                          float2 const tangential,
+                                                          float4 const thin_prism)
 {
   point = make_float2((point.x - 0.5f) * width / focal, (point.y - 0.5f) * height / focal);
 
@@ -291,13 +290,13 @@ ccl_device_inline float4 calibrated_cam_to_direction_impl(float2 point,
 }
 
 ccl_device_inline float2 direction_to_calibrated_cam_impl(float4 const dir,
-                                                    float const width,
-                                                    float const height,
-                                                    float const focal,
-                                                    BaseProjectionType const proj_type,
-                                                    float const *const radial,
-                                                    float2 const tangential,
-                                                    float4 const thin_prism)
+                                                          float const width,
+                                                          float const height,
+                                                          float const focal,
+                                                          BaseProjectionType const proj_type,
+                                                          float const *const radial,
+                                                          float2 const tangential,
+                                                          float4 const thin_prism)
 {
   float const theta = safe_acosf(dir.z);
 
@@ -311,13 +310,13 @@ ccl_device_inline float2 direction_to_calibrated_cam_impl(float4 const dir,
 }
 
 ccl_device_inline float2 direction_to_calibrated_cam(float4 const dir,
-                                               float const width,
-                                               float const height,
-                                               float const focal,
-                                               BaseProjectionType const proj_type,
-                                               float const *const radial,
-                                               float2 const tangential,
-                                               float4 const thin_prism)
+                                                     float const width,
+                                                     float const height,
+                                                     float const focal,
+                                                     BaseProjectionType const proj_type,
+                                                     float const *const radial,
+                                                     float2 const tangential,
+                                                     float4 const thin_prism)
 {
   float2 const result = direction_to_calibrated_cam_impl(
       blender2calib(dir), width, height, focal, proj_type, radial, tangential, thin_prism);
@@ -325,14 +324,14 @@ ccl_device_inline float2 direction_to_calibrated_cam(float4 const dir,
 }
 
 ccl_device_inline float4 calibrated_cam_to_direction(float2 sensor,
-                                               float const width,
-                                               float const height,
-                                               float const fov,
-                                               float const focal,
-                                               BaseProjectionType const proj_type,
-                                               float const *const radial,
-                                               float2 const tangential,
-                                               float4 const thin_prism)
+                                                     float const width,
+                                                     float const height,
+                                                     float const fov,
+                                                     float const focal,
+                                                     BaseProjectionType const proj_type,
+                                                     float const *const radial,
+                                                     float2 const tangential,
+                                                     float4 const thin_prism)
 {
   float4 const result = calibrated_cam_to_direction_impl(
       blender2calib(sensor), width, height, fov, focal, proj_type, radial, tangential, thin_prism);
