@@ -47,6 +47,8 @@ ccl_device_inline float invert_projection_type(BaseProjectionType const type, fl
       return 2.0f * asinf(theta / 2.0f);
     case FISHEYE_ORTHOGRAPHIC:
       return asinf(theta);
+    case BASE_PROJECTION_NUM_TYPES:
+      return 0.0f;
   }
   return 0.0f;
 }
@@ -64,6 +66,8 @@ ccl_device_inline float apply_projection_type(BaseProjectionType const type, flo
       return 2.0f * sinf(theta / 2.0f);
     case FISHEYE_ORTHOGRAPHIC:
       return sinf(theta);
+    case BASE_PROJECTION_NUM_TYPES:
+      return 0.0f;
   }
   return 0.0f;
 }
@@ -147,7 +151,7 @@ ccl_device_inline float2 tangential_thinprism_forward(float2 const pt,
                          thin_prism.z * r2 + thin_prism.w * r4);
 }
 
-float4 tangential_thinprism_forward_jacobian(float2 const pt,
+ccl_device_inline float4 tangential_thinprism_forward_jacobian(float2 const pt,
                                              float2 const tangential,
                                              float4 const thin_prism)
 {
@@ -173,7 +177,7 @@ float4 tangential_thinprism_forward_jacobian(float2 const pt,
               2.0f * pt.y * thin_prism.z + 4.0f * pt.y * r2 * thin_prism.w);
 }
 
-float2 tangential_thinprism_newton_step(float2 const pt,
+ccl_device_inline float2 tangential_thinprism_newton_step(float2 const pt,
                                         float2 const tgt,
                                         float2 const p,
                                         float4 const s)
