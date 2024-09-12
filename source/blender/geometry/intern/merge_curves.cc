@@ -126,37 +126,36 @@ static void reorder_and_flip_attributes_group_to_group(
     const Span<bool> flip_direction,
     bke::MutableAttributeAccessor dst_attributes)
 {
-  src_attributes.for_all(
-      [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData meta_data) {
-        if (meta_data.domain != domain) {
-          return true;
-        }
-        if (meta_data.data_type == CD_PROP_STRING) {
-          return true;
-        }
-        const GVArray src = *src_attributes.lookup(id, domain);
-        bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-            id, domain, meta_data.data_type);
-        if (!dst) {
-          return true;
-        }
+  src_attributes.for_all([&](const StringRef id, const bke::AttributeMetaData meta_data) {
+    if (meta_data.domain != domain) {
+      return true;
+    }
+    if (meta_data.data_type == CD_PROP_STRING) {
+      return true;
+    }
+    const GVArray src = *src_attributes.lookup(id, domain);
+    bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+        id, domain, meta_data.data_type);
+    if (!dst) {
+      return true;
+    }
 
-        threading::parallel_for(old_by_new_map.index_range(), 1024, [&](const IndexRange range) {
-          for (const int new_i : range) {
-            const int old_i = old_by_new_map[new_i];
-            const bool flip = flip_direction[old_i];
+    threading::parallel_for(old_by_new_map.index_range(), 1024, [&](const IndexRange range) {
+      for (const int new_i : range) {
+        const int old_i = old_by_new_map[new_i];
+        const bool flip = flip_direction[old_i];
 
-            GMutableSpan dst_span = dst.span.slice(dst_offsets[new_i]);
-            array_utils::copy(src.slice(src_offsets[old_i]), dst_span);
-            if (flip) {
-              reverse_order(dst_span);
-            }
-          }
-        });
+        GMutableSpan dst_span = dst.span.slice(dst_offsets[new_i]);
+        array_utils::copy(src.slice(src_offsets[old_i]), dst_span);
+        if (flip) {
+          reverse_order(dst_span);
+        }
+      }
+    });
 
-        dst.finish();
-        return true;
-      });
+    dst.finish();
+    return true;
+  });
 }
 
 static bke::CurvesGeometry reorder_and_flip_curves(const bke::CurvesGeometry &src_curves,
@@ -167,7 +166,7 @@ static bke::CurvesGeometry reorder_and_flip_curves(const bke::CurvesGeometry &sr
 
   bke::gather_attributes(src_curves.attributes(),
                          bke::AttrDomain::Curve,
-                         {},
+                         bke::AttrDomain::Curve,
                          {},
                          old_by_new_map,
                          dst_curves.attributes_for_write());
@@ -255,8 +254,8 @@ static bke::CurvesGeometry join_curves_ranges(const bke::CurvesGeometry &src_cur
   const Span<int> old_by_new_map = old_curves_by_new.data().drop_back(1);
   bke::gather_attributes(src_curves.attributes(),
                          bke::AttrDomain::Curve,
-                         {},
-                         {"cyclic"},
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_from_skip_ref({"cyclic"}),
                          old_by_new_map,
                          dst_curves.attributes_for_write());
 
@@ -272,18 +271,20 @@ static bke::CurvesGeometry join_curves_ranges(const bke::CurvesGeometry &src_cur
   offset_indices::accumulate_counts_to_offsets(new_offsets);
 
   /* Point attributes copied without changes. */
-  bke::copy_attributes(
-      src_curves.attributes(), bke::AttrDomain::Point, {}, {}, dst_curves.attributes_for_write());
+  bke::copy_attributes(src_curves.attributes(),
+                       bke::AttrDomain::Point,
+                       bke::AttrDomain::Point,
+                       {},
+                       dst_curves.attributes_for_write());
 
   dst_curves.tag_topology_changed();
   return dst_curves;
 }
 
-bke::CurvesGeometry curves_merge_endpoints(
-    const bke::CurvesGeometry &src_curves,
-    Span<int> connect_to_curve,
-    Span<bool> flip_direction,
-    const bke::AnonymousAttributePropagationInfo & /*propagation_info*/)
+bke::CurvesGeometry curves_merge_endpoints(const bke::CurvesGeometry &src_curves,
+                                           Span<int> connect_to_curve,
+                                           Span<bool> flip_direction,
+                                           const bke::AttributeFilter & /*attribute_filter*/)
 {
   BLI_assert(connect_to_curve.size() == src_curves.curves_num());
   const VArraySpan<bool> src_cyclic = src_curves.cyclic();

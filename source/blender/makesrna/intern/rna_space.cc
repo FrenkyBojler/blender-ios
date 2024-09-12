@@ -55,6 +55,7 @@
 #include "SEQ_proxy.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_thumbnail_cache.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -556,7 +557,7 @@ static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
 #  include "BKE_icons.h"
 #  include "BKE_idprop.hh"
 #  include "BKE_layer.hh"
-#  include "BKE_nla.h"
+#  include "BKE_nla.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_preferences.h"
 #  include "BKE_scene.hh"
@@ -883,7 +884,12 @@ static bool rna_Space_view2d_sync_get(PointerRNA *ptr)
   ARegion *region;
 
   area = rna_area_from_space(ptr); /* can be nullptr */
-  region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  if (area->spacetype == SPACE_CLIP) {
+    region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
+  }
+  else {
+    region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  }
   if (region) {
     View2D *v2d = &region->v2d;
     return (v2d->flag & V2D_VIEWSYNC_SCREEN_TIME) != 0;
@@ -906,7 +912,12 @@ static void rna_Space_view2d_sync_set(PointerRNA *ptr, bool value)
     return;
   }
 
-  region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  if (area->spacetype == SPACE_CLIP) {
+    region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
+  }
+  else {
+    region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  }
   if (region) {
     View2D *v2d = &region->v2d;
     if (value) {
@@ -924,7 +935,12 @@ static void rna_Space_view2d_sync_update(Main * /*bmain*/, Scene * /*scene*/, Po
   ARegion *region;
 
   area = rna_area_from_space(ptr); /* can be nullptr */
-  region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  if (area->spacetype == SPACE_CLIP) {
+    region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
+  }
+  else {
+    region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  }
 
   if (region) {
     bScreen *screen = (bScreen *)ptr->owner_id;
@@ -2292,7 +2308,7 @@ static void rna_SpaceDopeSheetEditor_action_update(bContext *C, PointerRNA *ptr)
   }
 
   /* Exit editmode first - we cannot change actions while in tweak-mode. */
-  BKE_nla_tweakmode_exit(adt);
+  BKE_nla_tweakmode_exit({*id, *adt});
 
   /* To prevent data loss (i.e. if users flip between actions using the Browse menu),
    * stash this action if nothing else uses it.
@@ -2308,7 +2324,7 @@ static void rna_SpaceDopeSheetEditor_action_update(bContext *C, PointerRNA *ptr)
      *      and the user then uses the browse menu to get back to this action,
      *      assigning it as the active action (i.e. the stash strip gets out of sync)
      */
-    BKE_nla_action_stash(adt, ID_IS_OVERRIDE_LIBRARY(id));
+    BKE_nla_action_stash({*id, *adt}, ID_IS_OVERRIDE_LIBRARY(id));
   }
 
   BKE_animdata_set_action(nullptr, id, saction->action);
@@ -4759,7 +4775,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_faces", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.edit_flag", V3D_OVERLAY_EDIT_FACES);
-  RNA_def_property_ui_text(prop, "Display Faces", "Highlight selected faces");
+  RNA_def_property_ui_text(prop, "Display Faces", "Display a face selection overlay");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "show_face_center", PROP_BOOLEAN, PROP_NONE);
@@ -7895,8 +7911,8 @@ static void rna_def_space_clip(BlenderRNA *brna)
       {SC_VIEW_DOPESHEET,
        "DOPESHEET",
        ICON_ACTION,
-       "Dopesheet",
-       "Dopesheet view for tracking data"},
+       "Dope Sheet",
+       "Dope Sheet view for tracking data"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

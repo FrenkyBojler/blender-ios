@@ -56,7 +56,7 @@ static void OVERLAY_engine_init(void *vedata)
 
   /* Allocate instance. */
   if (data->instance == nullptr) {
-    data->instance = new Instance(select::SelectionType::DISABLED);
+    data->instance = new Instance(select::SelectionType::DISABLED, false);
   }
 
   OVERLAY_PrivateData *pd = stl->pd;
@@ -185,6 +185,7 @@ static void OVERLAY_cache_init(void *vedata)
     case CTX_MODE_SCULPT_GREASE_PENCIL:
     case CTX_MODE_EDIT_GREASE_PENCIL:
     case CTX_MODE_WEIGHT_GREASE_PENCIL:
+    case CTX_MODE_VERTEX_GREASE_PENCIL:
       OVERLAY_edit_grease_pencil_cache_init(data);
       break;
     case CTX_MODE_PARTICLE:
@@ -782,6 +783,7 @@ static void OVERLAY_draw_scene(void *vedata)
     case CTX_MODE_EDIT_GREASE_PENCIL:
     case CTX_MODE_SCULPT_GREASE_PENCIL:
     case CTX_MODE_WEIGHT_GREASE_PENCIL:
+    case CTX_MODE_VERTEX_GREASE_PENCIL:
       OVERLAY_edit_grease_pencil_draw(data);
       break;
     default:

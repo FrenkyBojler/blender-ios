@@ -29,7 +29,6 @@ class ModuleInfo:
 modules = {
     "Module/Animation & Rigging": ModuleInfo(name="Animation & Rigging", labelid="268"),
     "Module/Core": ModuleInfo(name="Core", labelid="269"),
-    "Module/EEVEE & Viewport": ModuleInfo(name="EEVEE & Viewport", labelid="272"),
     "Module/Grease Pencil": ModuleInfo(name="Grease Pencil", labelid="273"),
     "Module/Modeling": ModuleInfo(name="Modeling", labelid="274"),
     "Module/Nodes & Physics": ModuleInfo(name="Nodes & Physics", labelid="275"),
@@ -40,6 +39,7 @@ modules = {
     "Module/Sculpt, Paint & Texture": ModuleInfo(name="Sculpt, Paint & Texture", labelid="281"),
     "Module/User Interface": ModuleInfo(name="User Interface", labelid="283"),
     "Module/VFX & Video": ModuleInfo(name="VFX & Video", labelid="284"),
+    "Module/Viewport & EEVEE": ModuleInfo(name="Viewport & EEVEE", labelid="272"),
 }
 
 base_url = (
@@ -69,6 +69,11 @@ def compile_list(severity: str) -> None:
         verbose=True,
     )
 
+    # Create a dictionary of format {module_id: module_name}
+    module_label_ids = {}
+    for module_name in modules:
+        module_label_ids[modules[module_name].labelid] = module_name
+
     uncategorized_reports = []
 
     issues_json_sorted = sorted(issues_json, key=lambda x: x["number"])
@@ -81,12 +86,19 @@ def compile_list(severity: str) -> None:
 
         # Check reports module assignment and fill in data.
         for label_iter in issue["labels"]:
-            label = label_iter["name"]
-            if label not in modules:
+            label_id = str(label_iter["id"])
+            if label_id not in module_label_ids:
                 continue
 
-            modules[label].buglist.append(f"[#{number}]({html_url})")
-            modules[label].buglist_full.append(f"* [{title}]({html_url}) - {created_at}\n")
+            current_module_name = module_label_ids[label_id]
+            if current_module_name != label_iter["name"]:
+                new_label_name = label_iter["name"]
+                print(f"ALERT: The name of label of '{current_module_name}' changed.")
+                print(f"The new name is '{new_label_name}'.")
+                input("Press enter to continue: \n")
+
+            modules[current_module_name].buglist.append(f"[#{number}]({html_url})")
+            modules[current_module_name].buglist_full.append(f"* [{title}]({html_url}) - {created_at}\n")
             break
     else:
         uncategorized_reports.append(f"[#{number}]({html_url})")

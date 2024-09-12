@@ -22,7 +22,6 @@ struct BMVert;
 struct Depsgraph;
 struct Object;
 struct PBVHVertRef;
-struct Sculpt;
 struct SculptBoundaryPreview;
 struct SculptSession;
 struct SubdivCCG;
@@ -104,7 +103,7 @@ void ensure_boundary_info(Object &object);
  *
  * Requires #ensure_boundary_info to have been called.
  */
-bool vert_is_boundary(const SculptSession &ss, PBVHVertRef vertex);
+bool vert_is_boundary(const Object &object, PBVHVertRef vertex);
 bool vert_is_boundary(Span<bool> hide_poly,
                       GroupedSpan<int> vert_to_face_map,
                       BitSpan boundary,
@@ -123,7 +122,7 @@ bool vert_is_boundary(BMVert *vert);
 std::unique_ptr<SculptBoundary> data_init(const Depsgraph &depsgraph,
                                           Object &object,
                                           const Brush *brush,
-                                          PBVHVertRef initial_vert,
+                                          int initial_vert,
                                           float radius);
 std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
                                                Object &object,

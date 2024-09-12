@@ -73,6 +73,7 @@ class IMAGE_MT_view(Menu):
 
         show_uvedit = sima.show_uvedit
         show_render = sima.show_render
+        show_maskedit = sima.show_maskedit
 
         layout.prop(sima, "show_region_toolbar")
         layout.prop(sima, "show_region_ui")
@@ -87,7 +88,7 @@ class IMAGE_MT_view(Menu):
 
         layout.separator()
 
-        if show_uvedit:
+        if show_uvedit or show_maskedit:
             layout.operator("image.view_selected", text="Frame Selected")
 
         layout.operator("image.view_all")
@@ -783,9 +784,8 @@ class IMAGE_HT_header(Header):
     def draw_xform_template(layout, context):
         sima = context.space_data
         show_uvedit = sima.show_uvedit
-        show_maskedit = sima.show_maskedit
 
-        if show_uvedit or show_maskedit:
+        if show_uvedit:
             layout.prop(sima, "pivot_point", icon_only=True)
 
         if show_uvedit:
@@ -876,8 +876,20 @@ class IMAGE_HT_header(Header):
         layout.template_ID(sima, "image", new="image.new", open="image.open")
 
         if show_maskedit:
-            row = layout.row()
-            row.template_ID(sima, "mask", new="mask.new")
+            layout.template_ID(sima, "mask", new="mask.new")
+            layout.prop(sima, "pivot_point", icon_only=True)
+
+            row = layout.row(align=True)
+            row.prop(tool_settings, "use_proportional_edit_mask", text="", icon_only=True)
+            sub = row.row(align=True)
+            sub.active = tool_settings.use_proportional_edit_mask
+            sub.prop_with_popover(
+                tool_settings,
+                "proportional_edit_falloff",
+                text="",
+                icon_only=True,
+                panel="IMAGE_PT_proportional_edit",
+            )
 
         if not show_render:
             layout.prop(sima, "use_image_pin", text="", emboss=False)

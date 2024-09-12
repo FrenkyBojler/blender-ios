@@ -419,6 +419,10 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler(&region->handlers, keymap);
 
   keymap = WM_keymap_ensure(
+      wm->defaultconf, "Grease Pencil Vertex Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler(&region->handlers, keymap);
+
+  keymap = WM_keymap_ensure(
       wm->defaultconf, "Grease Pencil Brush Stroke", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->handlers, keymap);
 
@@ -842,6 +846,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
 {
   BLI_assert(drag->type == WM_DRAG_ASSET);
 
+  Main *bmain = CTX_data_main(C);
   wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -850,6 +855,11 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
 
   ID *id = WM_drag_asset_id_import(C, asset_drag, FILE_AUTOSELECT);
   Collection *collection = (Collection *)id;
+
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Collection *old_active_collection = BKE_view_layer_active_collection_get(view_layer)->collection;
+  BKE_collection_child_add(bmain, old_active_collection, collection);
+  DEG_id_tag_update(&old_active_collection->id, ID_RECALC_SYNC_TO_EVAL);
 
   /* TODO(sergey): Only update relations for the current scene. */
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1725,6 +1735,9 @@ void ED_view3d_buttons_region_layout_ex(const bContext *C,
     case CTX_MODE_WEIGHT_GREASE_PENCIL:
       ARRAY_SET_ITEMS(contexts, ".greasepencil_weight");
       break;
+    case CTX_MODE_VERTEX_GREASE_PENCIL:
+      ARRAY_SET_ITEMS(contexts, ".grease_pencil_vertex");
+      break;
     case CTX_MODE_EDIT_POINT_CLOUD:
       ARRAY_SET_ITEMS(contexts, ".point_cloud_edit");
       break;
@@ -2008,7 +2021,7 @@ static void space_view3d_refresh(const bContext *C, ScrArea *area)
                                v3d,
                                CTX_wm_area(C),
                                true,
-                               300);
+                               U.smooth_viewtx);
   }
 }
 
