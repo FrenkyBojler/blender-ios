@@ -113,10 +113,6 @@ if(WITH_HEADLESS)
 endif()
 
 if(WITH_SDL)
-  if(WITH_SDL_DYNLOAD)
-    list(APPEND INC ../../extern/sdlew/include)
-    add_definitions(-DWITH_SDL_DYNLOAD)
-  endif()
   add_definitions(-DWITH_SDL)
 endif()
 
@@ -981,10 +977,17 @@ file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so.0.0.0)\n
   endif()
 
   if(WITH_DRACO)
-    install(
-      PROGRAMS $<TARGET_FILE:extern_draco>
-      DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
-    )
+    if(WITH_PYTHON_MODULE)
+      install(
+        PROGRAMS $<TARGET_FILE:extern_draco>
+        DESTINATION ${CMAKE_BINARY_DIR}/bin/bpy/lib
+      )
+    else()
+      install(
+        PROGRAMS $<TARGET_FILE:extern_draco>
+        DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
+      )
+    endif()
   endif()
 elseif(WIN32)
   if(WITH_WINDOWS_EXTERNAL_MANIFEST)
@@ -1529,10 +1532,17 @@ elseif(WIN32)
   endif()
 
   if(WITH_DRACO)
-    install(
-      PROGRAMS $<TARGET_FILE:extern_draco>
-      DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
-    )
+    if(WITH_PYTHON_MODULE)
+      install(
+        PROGRAMS $<TARGET_FILE:extern_draco>
+        DESTINATION ${CMAKE_BINARY_DIR}/bin/bpy/lib
+      )
+    else()
+      install(
+        PROGRAMS $<TARGET_FILE:extern_draco>
+        DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
+      )
+    endif()
   endif()
 
   if(WITH_PYTHON_MODULE AND TARGETDIR_BPY)
@@ -1666,10 +1676,17 @@ elseif(APPLE)
   endif()
 
   if(WITH_DRACO)
-    install(
-      PROGRAMS $<TARGET_FILE:extern_draco>
-      DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
-    )
+    if(WITH_PYTHON_MODULE)
+      install(
+        PROGRAMS $<TARGET_FILE:extern_draco>
+        DESTINATION ${CMAKE_BINARY_DIR}/bin/bpy/lib
+      )
+    else()
+      install(
+        PROGRAMS $<TARGET_FILE:extern_draco>
+        DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
+      )
+    endif()
   endif()
 endif()
 

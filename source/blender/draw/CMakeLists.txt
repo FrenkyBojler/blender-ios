@@ -293,8 +293,10 @@ set(SRC
   engines/overlay/overlay_next_bounds.hh
   engines/overlay/overlay_next_camera.hh
   engines/overlay/overlay_next_curve.hh
+  engines/overlay/overlay_next_edit_text.hh
   engines/overlay/overlay_next_empty.hh
   engines/overlay/overlay_next_facing.hh
+  engines/overlay/overlay_next_fade.hh
   engines/overlay/overlay_next_fluid.hh
   engines/overlay/overlay_next_force_field.hh
   engines/overlay/overlay_next_grease_pencil.hh
@@ -306,11 +308,15 @@ set(SRC
   engines/overlay/overlay_next_lightprobe.hh
   engines/overlay/overlay_next_mesh.hh
   engines/overlay/overlay_next_metaball.hh
+  engines/overlay/overlay_next_mode_transfer.hh
+  engines/overlay/overlay_next_origin.hh
   engines/overlay/overlay_next_outline.hh
+  engines/overlay/overlay_next_paint.hh
   engines/overlay/overlay_next_particle.hh
   engines/overlay/overlay_next_prepass.hh
   engines/overlay/overlay_next_private.hh
   engines/overlay/overlay_next_relation.hh
+  engines/overlay/overlay_next_sculpt.hh
   engines/overlay/overlay_next_speaker.hh
   engines/overlay/overlay_next_wireframe.hh
   engines/overlay/overlay_next_xray_fade.hh
@@ -661,6 +667,9 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_clipbound_vert.glsl
   engines/overlay/shaders/overlay_common_lib.glsl
   engines/overlay/shaders/overlay_depth_only_frag.glsl
+  engines/overlay/shaders/overlay_depth_only_gpencil_frag.glsl
+  engines/overlay/shaders/overlay_depth_only_gpencil_vert.glsl
+  engines/overlay/shaders/overlay_depth_only_mesh_conservative_vert.glsl
   engines/overlay/shaders/overlay_depth_only_vert.glsl
   engines/overlay/shaders/overlay_edit_curve_handle_geom.glsl
   engines/overlay/shaders/overlay_edit_curve_handle_next_vert.glsl
@@ -697,6 +706,8 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_edit_uv_edges_geom.glsl
   engines/overlay/shaders/overlay_edit_uv_edges_vert.glsl
   engines/overlay/shaders/overlay_edit_uv_edges_vert_no_geom.glsl
+  engines/overlay/shaders/overlay_edit_uv_edges_next_frag.glsl
+  engines/overlay/shaders/overlay_edit_uv_edges_next_vert.glsl
   engines/overlay/shaders/overlay_edit_uv_face_dots_vert.glsl
   engines/overlay/shaders/overlay_edit_uv_faces_vert.glsl
   engines/overlay/shaders/overlay_edit_uv_image_mask_frag.glsl

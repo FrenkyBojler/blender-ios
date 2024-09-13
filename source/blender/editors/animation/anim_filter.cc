@@ -66,7 +66,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
@@ -835,6 +835,8 @@ static bAnimListElem *make_new_animlistelem(
       break;
     }
     case ANIMTYPE_GROUP: {
+      BLI_assert_msg(GS(fcurve_owner_id->name) == ID_AC, "fcurve_owner_id should be an Action");
+
       bActionGroup *agrp = (bActionGroup *)data;
 
       ale->flag = agrp->flag;

@@ -2052,7 +2052,7 @@ class _defs_grease_pencil_paint:
         ]
 
     @ToolDef.from_fn
-    def cutter():
+    def trim():
         def draw_settings(context, layout, _tool):
             brush = context.tool_settings.gpencil_paint.brush
             gp_settings = brush.gpencil_settings
@@ -2062,9 +2062,9 @@ class _defs_grease_pencil_paint:
             row.prop(gp_settings, "use_active_layer_only")
 
         return dict(
-            idname="builtin.cutter",
-            label="Cutter",
-            icon="ops.gpencil.stroke_cutter",
+            idname="builtin.trim",
+            label="Trim",
+            icon="ops.gpencil.stroke_trim",
             cursor='KNIFE',
             keymap=(),
             draw_settings=draw_settings,
@@ -3026,6 +3026,44 @@ class _defs_grease_pencil_weight:
         ]
 
 
+class _defs_grease_pencil_vertex:
+
+    @staticmethod
+    def poll_select_mask(context):
+        if context is None:
+            return False
+        ob = context.active_object
+        tool_settings = context.scene.tool_settings
+        return (
+            ob is not None and
+            ob.type == 'GREASEPENCIL' and (
+                tool_settings.use_gpencil_vertex_select_mask_point or
+                tool_settings.use_gpencil_vertex_select_mask_stroke or
+                tool_settings.use_gpencil_vertex_select_mask_segment
+            )
+        )
+
+    @staticmethod
+    def generate_from_brushes(context):
+        # Though `data_block` is conceptually unnecessary with a single brush tool,
+        # it's still used because many areas assume that brush tools have it set #bToolRef.
+        tool = None
+        if context:
+            brush = context.tool_settings.gpencil_vertex_paint.brush
+            if brush:
+                tool = brush.gpencil_vertex_tool
+        return [
+            ToolDef.from_dict(
+                dict(
+                    idname="builtin.brush",
+                    label="Brush",
+                    icon="brush.sculpt.paint",
+                    data_block=tool
+                )
+            )
+        ]
+
+
 class _defs_curves_sculpt:
 
     @staticmethod
@@ -3808,7 +3846,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_view3d_generic.cursor,
             None,
             _defs_grease_pencil_paint.generate_from_brushes,
-            _defs_grease_pencil_paint.cutter,
+            _defs_grease_pencil_paint.trim,
             None,
             _defs_grease_pencil_paint.eyedropper,
             None,
@@ -3887,6 +3925,17 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             lambda context: (
                 VIEW3D_PT_tools_active._tools_gpencil_select
                 if _defs_gpencil_vertex.poll_select_mask(context)
+                else ()
+            ),
+        ],
+        'VERTEX_GREASE_PENCIL': [
+            _defs_grease_pencil_vertex.generate_from_brushes,
+            None,
+            *_tools_annotate,
+            None,
+            lambda context: (
+                VIEW3D_PT_tools_active._tools_select
+                if _defs_grease_pencil_vertex.poll_select_mask(context)
                 else ()
             ),
         ],

@@ -44,7 +44,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_tracking_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_path.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -76,6 +76,8 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "BLO_read_write.hh"
+
+#include "ANIM_action.hh"
 
 #include "CLG_log.h"
 
@@ -2966,13 +2968,19 @@ static void actcon_get_tarmat(Depsgraph *depsgraph,
              (cob->pchan) ? cob->pchan->name : nullptr);
     }
 
+    /* TODO: add an action slot selector to the constraint settings. */
+    BLI_assert(data->act);
+    const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+        *data->act);
+
     /* Get the appropriate information from the action */
     if (cob->type == CONSTRAINT_OBTYPE_OBJECT || (data->flag & ACTCON_BONE_USE_OBJECT_ACTION)) {
       Object workob;
 
       /* evaluate using workob */
       /* FIXME: we don't have any consistent standards on limiting effects on object... */
-      what_does_obaction(cob->ob, &workob, nullptr, data->act, nullptr, &anim_eval_context);
+      what_does_obaction(
+          cob->ob, &workob, nullptr, data->act, slot_handle, nullptr, &anim_eval_context);
       BKE_object_to_mat4(&workob, ct->matrix);
     }
     else if (cob->type == CONSTRAINT_OBTYPE_BONE) {
@@ -2989,7 +2997,8 @@ static void actcon_get_tarmat(Depsgraph *depsgraph,
       tchan->rotmode = pchan->rotmode;
 
       /* evaluate action using workob (it will only set the PoseChannel in question) */
-      what_does_obaction(cob->ob, &workob, &pose, data->act, pchan->name, &anim_eval_context);
+      what_does_obaction(
+          cob->ob, &workob, &pose, data->act, slot_handle, pchan->name, &anim_eval_context);
 
       /* convert animation to matrices for use here */
       BKE_pchan_calc_mat(tchan);

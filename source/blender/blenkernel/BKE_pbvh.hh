@@ -11,8 +11,6 @@
 #include "BLI_utildefines.h"
 
 struct BMesh;
-struct BMVert;
-struct BMFace;
 
 namespace blender::bke::pbvh {
 
@@ -32,7 +30,6 @@ enum PBVHNodeFlags {
   PBVH_Leaf = 1 << 0,
 
   PBVH_UpdateNormals = 1 << 1,
-  PBVH_UpdateBB = 1 << 2,
   PBVH_UpdateDrawBuffers = 1 << 4,
   PBVH_UpdateRedraw = 1 << 5,
   PBVH_UpdateMask = 1 << 6,

@@ -80,6 +80,7 @@
 #include "ED_undo.hh"
 
 #include "bmesh.hh"
+#include "mesh_brush_common.hh"
 #include "paint_hide.hh"
 #include "paint_intern.hh"
 #include "sculpt_color.hh"
@@ -418,7 +419,7 @@ static bool topology_matches(const StepData &step_data, const Object &object)
   const SculptSession &ss = *object.sculpt;
   if (use_multires_undo(step_data, ss)) {
     const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-    return subdiv_ccg.grids.size() == step_data.mesh_grids_num &&
+    return subdiv_ccg.grids_num == step_data.mesh_grids_num &&
            subdiv_ccg.grid_size == step_data.grid_size;
   }
   Mesh &mesh = *static_cast<Mesh *>(object.data);
@@ -548,24 +549,23 @@ static void restore_position_mesh(Object &object,
   }
 }
 
-static void restore_position_grids(MutableSpan<CCGElem *> grids,
+static void restore_position_grids(MutableSpan<float3> positions,
                                    const CCGKey &key,
                                    Node &unode,
                                    MutableSpan<bool> modified_grids)
 {
-  const Span<int> grid_indices = unode.grids;
-  MutableSpan<float3> position = unode.position;
+  const Span<int> grids = unode.grids;
+  MutableSpan<float3> undo_position = unode.position;
 
-  int index = 0;
-  for (const int i : grid_indices.index_range()) {
-    CCGElem *grid = grids[grid_indices[i]];
-    for (const int j : IndexRange(key.grid_area)) {
-      std::swap(CCG_elem_offset_co(key, grid, j), position[index]);
-      index++;
+  for (const int i : grids.index_range()) {
+    MutableSpan data = positions.slice(bke::ccg::grid_range(key, grids[i]));
+    MutableSpan undo_data = undo_position.slice(bke::ccg::grid_range(key, i));
+    for (const int offset : data.index_range()) {
+      std::swap(data[offset], undo_data[offset]);
     }
   }
 
-  modified_grids.fill_indices(grid_indices, true);
+  modified_grids.fill_indices(grids, true);
 }
 
 static void restore_vert_visibility_mesh(Object &object,
@@ -631,7 +631,6 @@ static void restore_hidden_face(Object &object, Node &unode, MutableSpan<bool> m
     }
   }
   hide_poly.finish();
-  BKE_sculpt_hide_poly_pointer_update(object);
 }
 
 static void restore_color(Object &object, StepData &step_data, MutableSpan<bool> modified_vertices)
@@ -681,18 +680,18 @@ static void restore_mask_grids(Object &object, Node &unode, MutableSpan<bool> mo
 {
   SculptSession &ss = *object.sculpt;
   SubdivCCG *subdiv_ccg = ss.subdiv_ccg;
+  MutableSpan<float> masks = subdiv_ccg->masks;
 
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*subdiv_ccg);
 
-  MutableSpan<float> mask = unode.mask;
-  MutableSpan<CCGElem *> grids = subdiv_ccg->grids;
+  const Span<int> grids = unode.grids;
+  MutableSpan<float> undo_mask = unode.mask;
 
-  int index = 0;
-  for (const int grid : unode.grids) {
-    CCGElem *elem = grids[grid];
-    for (const int j : IndexRange(key.grid_area)) {
-      std::swap(CCG_elem_offset_mask(key, elem, j), mask[index]);
-      index++;
+  for (const int i : grids.index_range()) {
+    MutableSpan data = masks.slice(bke::ccg::grid_range(key, grids[i]));
+    MutableSpan undo_data = undo_mask.slice(bke::ccg::grid_range(key, i));
+    for (const int offset : data.index_range()) {
+      std::swap(data[offset], undo_data[offset]);
     }
   }
 
@@ -705,7 +704,8 @@ static bool restore_face_sets(Object &object,
 {
   const Span<int> face_indices = unode.face_indices;
 
-  bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(object);
+  bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(
+      *static_cast<Mesh *>(object.data));
   bool modified = false;
   for (const int i : face_indices.index_range()) {
     const int face = face_indices[i];
@@ -965,11 +965,6 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
   ss.pivot_pos = step_data.pivot_pos;
   ss.pivot_rot = step_data.pivot_rot;
 
-  const bool clear_automask_cache = !ELEM(step_data.type, Type::Color, Type::Mask);
-  if (clear_automask_cache) {
-    ss.last_automasking_settings_hash = 0;
-  }
-
   if (bmesh_restore(C, *depsgraph, step_data, object, ss)) {
     return;
   }
@@ -1001,19 +996,17 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       if (use_multires_undo(step_data, ss)) {
         MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
         SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-        MutableSpan<CCGElem *> grids = subdiv_ccg.grids;
         const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-        Array<bool> modified_grids(grids.size(), false);
+        Array<bool> modified_grids(subdiv_ccg.grids_num, false);
         for (std::unique_ptr<Node> &unode : step_data.nodes) {
-          restore_position_grids(grids, key, *unode, modified_grids);
+          restore_position_grids(subdiv_ccg.positions, key, *unode, modified_grids);
         }
-        node_mask.foreach_index([&](const int i) {
-          const Span<int> grids = nodes[i].grids();
-          if (indices_contain_true(modified_grids, grids)) {
-            BKE_pbvh_node_mark_positions_update(nodes[i]);
-          }
-        });
+        const IndexMask changed_nodes = IndexMask::from_predicate(
+            node_mask, GrainSize(1), memory, [&](const int i) {
+              return indices_contain_true(modified_grids, nodes[i].grids());
+            });
+        pbvh.tag_positions_changed(changed_nodes);
         multires_mark_as_modified(depsgraph, &object, MULTIRES_COORDS_MODIFIED);
       }
       else {
@@ -1021,13 +1014,15 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
         if (!restore_active_shape_key(*C, *depsgraph, step_data, object)) {
           return;
         }
-        Array<bool> modified_verts(ss.totvert, false);
+        const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+        Array<bool> modified_verts(mesh.verts_num, false);
         restore_position_mesh(object, step_data.nodes, modified_verts);
-        node_mask.foreach_index([&](const int i) {
-          if (indices_contain_true(modified_verts, nodes[i].all_verts())) {
-            BKE_pbvh_node_mark_positions_update(nodes[i]);
-          }
-        });
+
+        const IndexMask changed_nodes = IndexMask::from_predicate(
+            node_mask, GrainSize(1), memory, [&](const int i) {
+              return indices_contain_true(modified_verts, nodes[i].all_verts());
+            });
+        pbvh.tag_positions_changed(changed_nodes);
       }
 
       if (tag_update) {
@@ -1051,7 +1046,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       if (use_multires_undo(step_data, ss)) {
         MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
         SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-        Array<bool> modified_grids(subdiv_ccg.grids.size(), false);
+        Array<bool> modified_grids(subdiv_ccg.grids_num, false);
         for (std::unique_ptr<Node> &unode : step_data.nodes) {
           restore_vert_visibility_grids(subdiv_ccg, *unode, modified_grids);
         }
@@ -1063,7 +1058,8 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
       else {
         MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-        Array<bool> modified_verts(ss.totvert, false);
+        const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+        Array<bool> modified_verts(mesh.verts_num, false);
         for (std::unique_ptr<Node> &unode : step_data.nodes) {
           restore_vert_visibility_mesh(object, *unode, modified_verts);
         }
@@ -1090,7 +1086,8 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
         return;
       }
 
-      Array<bool> modified_faces(ss.totfaces, false);
+      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      Array<bool> modified_faces(mesh.faces_num, false);
       for (std::unique_ptr<Node> &unode : step_data.nodes) {
         restore_hidden_face(object, *unode, modified_faces);
       }
@@ -1133,7 +1130,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
 
       if (use_multires_undo(step_data, ss)) {
         MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-        Array<bool> modified_grids(ss.subdiv_ccg->grids.size(), false);
+        Array<bool> modified_grids(ss.subdiv_ccg->grids_num, false);
         for (std::unique_ptr<Node> &unode : step_data.nodes) {
           restore_mask_grids(object, *unode, modified_grids);
         }
@@ -1145,7 +1142,8 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
       else {
         MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-        Array<bool> modified_verts(ss.totvert, false);
+        const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+        Array<bool> modified_verts(mesh.verts_num, false);
         for (std::unique_ptr<Node> &unode : step_data.nodes) {
           restore_mask_mesh(object, *unode, modified_verts);
         }
@@ -1168,7 +1166,8 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
         return;
       }
 
-      Array<bool> modified_faces(ss.totfaces, false);
+      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      Array<bool> modified_faces(mesh.faces_num, false);
       for (std::unique_ptr<Node> &unode : step_data.nodes) {
         restore_face_sets(object, *unode, modified_faces);
       }
@@ -1206,7 +1205,8 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
 
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-      Array<bool> modified_verts(ss.totvert, false);
+      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      Array<bool> modified_verts(mesh.verts_num, false);
       restore_color(object, step_data, modified_verts);
       node_mask.foreach_index([&](const int i) {
         if (indices_contain_true(modified_verts, nodes[i].all_verts())) {
@@ -1311,29 +1311,10 @@ static void store_positions_mesh(const Depsgraph &depsgraph, const Object &objec
 
 static void store_positions_grids(const SubdivCCG &subdiv_ccg, Node &unode)
 {
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-
-  const Span<CCGElem *> grids = subdiv_ccg.grids;
-  {
-    int index = 0;
-    for (const int grid : unode.grids) {
-      CCGElem *elem = grids[grid];
-      for (const int i : IndexRange(key.grid_area)) {
-        unode.position[index] = CCG_elem_offset_co(key, elem, i);
-        index++;
-      }
-    }
-  }
-  if (key.has_normals) {
-    int index = 0;
-    for (const int grid : unode.grids) {
-      CCGElem *elem = grids[grid];
-      for (const int i : IndexRange(key.grid_area)) {
-        unode.normal[index] = CCG_elem_offset_no(key, elem, i);
-        index++;
-      }
-    }
-  }
+  gather_data_grids(
+      subdiv_ccg, subdiv_ccg.positions.as_span(), unode.grids, unode.position.as_mutable_span());
+  gather_data_grids(
+      subdiv_ccg, subdiv_ccg.normals.as_span(), unode.grids, unode.normal.as_mutable_span());
 }
 
 static void store_vert_visibility_mesh(const Mesh &mesh, const bke::pbvh::Node &node, Node &unode)
@@ -1378,17 +1359,9 @@ static void store_mask_mesh(const Mesh &mesh, Node &unode)
 
 static void store_mask_grids(const SubdivCCG &subdiv_ccg, Node &unode)
 {
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  if (key.has_mask) {
-    const Span<CCGElem *> grids = subdiv_ccg.grids;
-    int index = 0;
-    for (const int grid : unode.grids) {
-      CCGElem *elem = grids[grid];
-      for (const int i : IndexRange(key.grid_area)) {
-        unode.mask[index] = CCG_elem_offset_mask(key, elem, i);
-        index++;
-      }
-    }
+  if (!subdiv_ccg.masks.is_empty()) {
+    gather_data_grids(
+        subdiv_ccg, subdiv_ccg.masks.as_span(), unode.grids, unode.mask.as_mutable_span());
   }
   else {
     unode.mask.fill(0.0f);
@@ -1864,12 +1837,12 @@ void push_begin_ex(Object &ob, const char *name)
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
-      us->data.mesh_verts_num = ss.totvert;
+      us->data.mesh_verts_num = mesh.verts_num;
       us->data.mesh_corners_num = mesh.corners_num;
       break;
     }
     case bke::pbvh::Type::Grids: {
-      us->data.mesh_grids_num = ss.subdiv_ccg->grids.size();
+      us->data.mesh_grids_num = ss.subdiv_ccg->grids_num;
       us->data.grid_size = ss.subdiv_ccg->grid_size;
       break;
     }
@@ -2295,15 +2268,25 @@ void push_multires_mesh_end(bContext *C, const char *str)
 
 namespace blender::ed::sculpt_paint {
 
-std::optional<OrigPositionData> orig_position_data_lookup_mesh(const Object & /*object*/,
-                                                               const bke::pbvh::MeshNode &node)
+std::optional<OrigPositionData> orig_position_data_lookup_mesh_all_verts(
+    const Object & /*object*/, const bke::pbvh::MeshNode &node)
 {
   const undo::Node *unode = undo::get_node(&node, undo::Type::Position);
   if (!unode) {
     return std::nullopt;
   }
-  return OrigPositionData{unode->position.as_span().take_front(unode->unique_verts_num),
-                          unode->normal.as_span().take_front(unode->unique_verts_num)};
+  return OrigPositionData{unode->position.as_span(), unode->normal.as_span()};
+}
+
+std::optional<OrigPositionData> orig_position_data_lookup_mesh(const Object &object,
+                                                               const bke::pbvh::MeshNode &node)
+{
+  std::optional<OrigPositionData> result = orig_position_data_lookup_mesh_all_verts(object, node);
+  if (!result) {
+    return std::nullopt;
+  }
+  return OrigPositionData{result->positions.take_front(node.verts().size()),
+                          result->normals.take_front(node.verts().size())};
 }
 
 std::optional<OrigPositionData> orig_position_data_lookup_grids(const Object & /*object*/,
