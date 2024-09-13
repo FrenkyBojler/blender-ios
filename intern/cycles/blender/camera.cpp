@@ -70,20 +70,24 @@ struct BlenderCamera {
   float central_cylindrical_range_v_max;
   float central_cylindrical_radius;
 
-  // fisheye624 distortions
-  float fisheye624_f;
-  float fisheye624_k0;
-  float fisheye624_k1;
-  float fisheye624_k2;
-  float fisheye624_k3;
-  float fisheye624_k4;
-  float fisheye624_k5;
-  float fisheye624_p0;
-  float fisheye624_p1;
-  float fisheye624_s0;
-  float fisheye624_s1;
-  float fisheye624_s2;
-  float fisheye624_s3;
+  // calibrated_cam distortions
+  float calibrated_cam_f;
+  float calibrated_cam_k0;
+  float calibrated_cam_k1;
+  float calibrated_cam_k2;
+  float calibrated_cam_k3;
+  float calibrated_cam_k4;
+  float calibrated_cam_k5;
+  float calibrated_cam_p0;
+  float calibrated_cam_p1;
+  float calibrated_cam_s0;
+  float calibrated_cam_s1;
+  float calibrated_cam_s2;
+  float calibrated_cam_s3;
+  float calibrated_cam_nc0;
+  float calibrated_cam_nc1;
+  float calibrated_cam_nc2;
+  float calibrated_cam_nc3;
 
   enum { AUTO, HORIZONTAL, VERTICAL } sensor_fit;
   float sensor_width;
@@ -205,8 +209,6 @@ static PanoramaType blender_panorama_type_to_cycles(const BL::Camera::panorama_t
       return PANORAMA_FISHEYE_LENS_POLYNOMIAL;
     case BL::Camera::panorama_type_CENTRAL_CYLINDRICAL:
       return PANORAMA_CENTRAL_CYLINDRICAL;
-    case BL::Camera::panorama_type_FISHEYE_624:
-      return PANORAMA_FISHEYE_624;
   }
   /* Could happen if loading a newer file that has an unsupported type. */
   return PANORAMA_FISHEYE_EQUISOLID;
@@ -237,6 +239,9 @@ static void blender_camera_from_object(BlenderCamera *bcam,
           bcam->type = CAMERA_PERSPECTIVE;
         }
         break;
+      case BL::Camera::type_CALIB:
+        bcam->type = CAMERA_CALIBRATED;
+        break;
       case BL::Camera::type_PERSP:
       default:
         bcam->type = CAMERA_PERSPECTIVE;
@@ -263,20 +268,24 @@ static void blender_camera_from_object(BlenderCamera *bcam,
     bcam->central_cylindrical_range_v_max = b_camera.central_cylindrical_range_v_max();
     bcam->central_cylindrical_radius = b_camera.central_cylindrical_radius();
 
-    // fisheye624 distortions
-    bcam->fisheye624_f = b_camera.fisheye624_f();
-    bcam->fisheye624_k0 = b_camera.fisheye624_k0();
-    bcam->fisheye624_k1 = b_camera.fisheye624_k1();
-    bcam->fisheye624_k2 = b_camera.fisheye624_k2();
-    bcam->fisheye624_k3 = b_camera.fisheye624_k3();
-    bcam->fisheye624_k4 = b_camera.fisheye624_k4();
-    bcam->fisheye624_k5 = b_camera.fisheye624_k5();
-    bcam->fisheye624_p0 = b_camera.fisheye624_p0();
-    bcam->fisheye624_p1 = b_camera.fisheye624_p1();
-    bcam->fisheye624_s0 = b_camera.fisheye624_s0();
-    bcam->fisheye624_s1 = b_camera.fisheye624_s1();
-    bcam->fisheye624_s2 = b_camera.fisheye624_s2();
-    bcam->fisheye624_s3 = b_camera.fisheye624_s3();
+    // calibrated_cam distortions
+    bcam->calibrated_cam_f = b_camera.calibrated_cam_f();
+    bcam->calibrated_cam_k0 = b_camera.calibrated_cam_k0();
+    bcam->calibrated_cam_k1 = b_camera.calibrated_cam_k1();
+    bcam->calibrated_cam_k2 = b_camera.calibrated_cam_k2();
+    bcam->calibrated_cam_k3 = b_camera.calibrated_cam_k3();
+    bcam->calibrated_cam_k4 = b_camera.calibrated_cam_k4();
+    bcam->calibrated_cam_k5 = b_camera.calibrated_cam_k5();
+    bcam->calibrated_cam_p0 = b_camera.calibrated_cam_p0();
+    bcam->calibrated_cam_p1 = b_camera.calibrated_cam_p1();
+    bcam->calibrated_cam_s0 = b_camera.calibrated_cam_s0();
+    bcam->calibrated_cam_s1 = b_camera.calibrated_cam_s1();
+    bcam->calibrated_cam_s2 = b_camera.calibrated_cam_s2();
+    bcam->calibrated_cam_s3 = b_camera.calibrated_cam_s3();
+    bcam->calibrated_cam_nc0 = b_camera.calibrated_cam_nc0();
+    bcam->calibrated_cam_nc1 = b_camera.calibrated_cam_nc1();
+    bcam->calibrated_cam_nc2 = b_camera.calibrated_cam_nc2();
+    bcam->calibrated_cam_nc3 = b_camera.calibrated_cam_nc3();
 
     bcam->interocular_distance = b_camera.stereo().interocular_distance();
     if (b_camera.stereo().convergence_mode() == BL::CameraStereoData::convergence_mode_PARALLEL) {
@@ -365,11 +374,6 @@ static Transform blender_camera_matrix(const Transform &tfm,
        */
       result = tfm * make_transform(
                          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
-    }
-    else if (panorama_type == PANORAMA_FISHEYE_624) {
-      /* Camera coordinate convention for Fisheye624 is
-       * -Z forward, +Y up and +X right */
-      result = tfm * transform_scale(1.0f, 1.0f, -1.0f);
     }
     else {
       /* Make it so environment camera needs to be pointed in the direction
@@ -561,20 +565,24 @@ static void blender_camera_sync(Camera *cam,
   cam->set_fisheye_polynomial_k3(bcam->fisheye_polynomial_k3);
   cam->set_fisheye_polynomial_k4(bcam->fisheye_polynomial_k4);
 
-  /* fisheye624 params */
-  cam->set_fisheye624_f(bcam->fisheye624_f);
-  cam->set_fisheye624_k0(bcam->fisheye624_k0);
-  cam->set_fisheye624_k1(bcam->fisheye624_k1);
-  cam->set_fisheye624_k2(bcam->fisheye624_k2);
-  cam->set_fisheye624_k3(bcam->fisheye624_k3);
-  cam->set_fisheye624_k4(bcam->fisheye624_k4);
-  cam->set_fisheye624_k5(bcam->fisheye624_k5);
-  cam->set_fisheye624_p0(bcam->fisheye624_p0);
-  cam->set_fisheye624_p1(bcam->fisheye624_p1);
-  cam->set_fisheye624_s0(bcam->fisheye624_s0);
-  cam->set_fisheye624_s1(bcam->fisheye624_s1);
-  cam->set_fisheye624_s2(bcam->fisheye624_s2);
-  cam->set_fisheye624_s3(bcam->fisheye624_s3);
+  /* calibrated_cam params */
+  cam->set_calibrated_cam_f(bcam->calibrated_cam_f);
+  cam->set_calibrated_cam_k0(bcam->calibrated_cam_k0);
+  cam->set_calibrated_cam_k1(bcam->calibrated_cam_k1);
+  cam->set_calibrated_cam_k2(bcam->calibrated_cam_k2);
+  cam->set_calibrated_cam_k3(bcam->calibrated_cam_k3);
+  cam->set_calibrated_cam_k4(bcam->calibrated_cam_k4);
+  cam->set_calibrated_cam_k5(bcam->calibrated_cam_k5);
+  cam->set_calibrated_cam_p0(bcam->calibrated_cam_p0);
+  cam->set_calibrated_cam_p1(bcam->calibrated_cam_p1);
+  cam->set_calibrated_cam_s0(bcam->calibrated_cam_s0);
+  cam->set_calibrated_cam_s1(bcam->calibrated_cam_s1);
+  cam->set_calibrated_cam_s2(bcam->calibrated_cam_s2);
+  cam->set_calibrated_cam_s3(bcam->calibrated_cam_s3);
+  cam->set_calibrated_cam_nc0(bcam->calibrated_cam_nc0);
+  cam->set_calibrated_cam_nc1(bcam->calibrated_cam_nc1);
+  cam->set_calibrated_cam_nc2(bcam->calibrated_cam_nc2);
+  cam->set_calibrated_cam_nc3(bcam->calibrated_cam_nc3);
 
   cam->set_longitude_min(bcam->longitude_min);
   cam->set_longitude_max(bcam->longitude_max);

@@ -133,21 +133,36 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     sub.prop(cam, "central_cylindrical_range_u_max", text="Max")
                     sub = col.column(align=True)
                     sub.prop(cam, "central_cylindrical_radius", text="Cylinder radius")
-                elif cam.panorama_type == 'FISHEYE_624':
-                    col.prop(cam, "fisheye624_f", text="f")
-                    col.prop(cam, "fisheye624_k0", text="k0")
-                    col.prop(cam, "fisheye624_k1", text="k1")
-                    col.prop(cam, "fisheye624_k2", text="k2")
-                    col.prop(cam, "fisheye624_k3", text="k3")
-                    col.prop(cam, "fisheye624_k4", text="k4")
-                    col.prop(cam, "fisheye624_k5", text="k5")
-                    col.prop(cam, "fisheye624_p0", text="p0")
-                    col.prop(cam, "fisheye624_p1", text="p1")
-                    col.prop(cam, "fisheye624_s0", text="s0")
-                    col.prop(cam, "fisheye624_s1", text="s1")
-                    col.prop(cam, "fisheye624_s2", text="s2")
-                    col.prop(cam, "fisheye624_s3", text="s3")
 
+            elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}:
+                if cam.lens_unit == 'MILLIMETERS':
+                    col.prop(cam, "lens")
+                elif cam.lens_unit == 'FOV':
+                    col.prop(cam, "angle")
+                col.prop(cam, "lens_unit")
+
+        elif cam.type == 'CALIB':
+            engine = context.engine
+            if engine == 'CYCLES':
+                col.prop(cam, "calibrated_cam_f", text="f")
+                col.prop(cam, "calibrated_cam_k0", text="k0")
+                col.prop(cam, "calibrated_cam_k1", text="k1")
+                col.prop(cam, "calibrated_cam_k2", text="k2")
+                col.prop(cam, "calibrated_cam_k3", text="k3")
+                col.prop(cam, "calibrated_cam_k4", text="k4")
+                col.prop(cam, "calibrated_cam_k5", text="k5")
+                col.prop(cam, "calibrated_cam_p0", text="p0")
+                col.prop(cam, "calibrated_cam_p1", text="p1")
+                col.prop(cam, "calibrated_cam_s0", text="s0")
+                col.prop(cam, "calibrated_cam_s1", text="s1")
+                col.prop(cam, "calibrated_cam_s2", text="s2")
+                col.prop(cam, "calibrated_cam_s3", text="s3")
+                col.prop(cam, "calibrated_cam_nc0", text="nc0")
+                col.prop(cam, "calibrated_cam_nc1", text="nc1")
+                col.prop(cam, "calibrated_cam_nc2", text="nc2")
+                col.prop(cam, "calibrated_cam_nc3", text="nc3")
+
+            # TODO: Figure out what we actually want to do here
             elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}:
                 if cam.lens_unit == 'MILLIMETERS':
                     col.prop(cam, "lens")

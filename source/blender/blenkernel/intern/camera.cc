@@ -167,20 +167,24 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
   cycles_property_float_set(cycles_cam, "fisheye_polynomial_k2", cam->fisheye_polynomial_k2);
   cycles_property_float_set(cycles_cam, "fisheye_polynomial_k3", cam->fisheye_polynomial_k3);
   cycles_property_float_set(cycles_cam, "fisheye_polynomial_k4", cam->fisheye_polynomial_k4);
-  /* Fisheye624 */
-  cycles_property_float_set(cycles_cam, "fisheye624_f", cam->fisheye624_f);
-  cycles_property_float_set(cycles_cam, "fisheye624_k0", cam->fisheye624_k0);
-  cycles_property_float_set(cycles_cam, "fisheye624_k1", cam->fisheye624_k1);
-  cycles_property_float_set(cycles_cam, "fisheye624_k2", cam->fisheye624_k2);
-  cycles_property_float_set(cycles_cam, "fisheye624_k3", cam->fisheye624_k3);
-  cycles_property_float_set(cycles_cam, "fisheye624_k4", cam->fisheye624_k4);
-  cycles_property_float_set(cycles_cam, "fisheye624_k5", cam->fisheye624_k5);
-  cycles_property_float_set(cycles_cam, "fisheye624_p0", cam->fisheye624_p0);
-  cycles_property_float_set(cycles_cam, "fisheye624_p1", cam->fisheye624_p1);
-  cycles_property_float_set(cycles_cam, "fisheye624_s0", cam->fisheye624_s0);
-  cycles_property_float_set(cycles_cam, "fisheye624_s1", cam->fisheye624_s1);
-  cycles_property_float_set(cycles_cam, "fisheye624_s2", cam->fisheye624_s2);
-  cycles_property_float_set(cycles_cam, "fisheye624_s3", cam->fisheye624_s3);
+  /* CalibratedCam */
+  cycles_property_float_set(cycles_cam, "calibrated_cam_f", cam->calibrated_cam_f);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_k0", cam->calibrated_cam_k0);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_k1", cam->calibrated_cam_k1);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_k2", cam->calibrated_cam_k2);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_k3", cam->calibrated_cam_k3);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_k4", cam->calibrated_cam_k4);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_k5", cam->calibrated_cam_k5);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_p0", cam->calibrated_cam_p0);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_p1", cam->calibrated_cam_p1);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_s0", cam->calibrated_cam_s0);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_s1", cam->calibrated_cam_s1);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_s2", cam->calibrated_cam_s2);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_s3", cam->calibrated_cam_s3);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_nc0", cam->calibrated_cam_nc0);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_nc1", cam->calibrated_cam_nc1);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_nc2", cam->calibrated_cam_nc2);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_nc3", cam->calibrated_cam_nc3);
 
   id->properties = idprop_temp;
 

@@ -75,7 +75,7 @@ typedef struct Camera {
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
 
-  /** CAM_PERSP, CAM_ORTHO or CAM_PANO. */
+  /** CAM_PERSP, CAM_ORTHO, CAM_PANO, or CAM_CALIB */
   char type;
   /** Draw type extra. */
   char dtx;
@@ -109,20 +109,24 @@ typedef struct Camera {
   float central_cylindrical_range_v_max;
   float central_cylindrical_radius;
 
-  // fisheye624 distortions
-  float fisheye624_f;
-  float fisheye624_k0;
-  float fisheye624_k1;
-  float fisheye624_k2;
-  float fisheye624_k3;
-  float fisheye624_k4;
-  float fisheye624_k5;
-  float fisheye624_p0;
-  float fisheye624_p1;
-  float fisheye624_s0;
-  float fisheye624_s1;
-  float fisheye624_s2;
-  float fisheye624_s3;
+  // calibrated_cam distortions
+  float calibrated_cam_f;
+  float calibrated_cam_k0;
+  float calibrated_cam_k1;
+  float calibrated_cam_k2;
+  float calibrated_cam_k3;
+  float calibrated_cam_k4;
+  float calibrated_cam_k5;
+  float calibrated_cam_p0;
+  float calibrated_cam_p1;
+  float calibrated_cam_s0;
+  float calibrated_cam_s1;
+  float calibrated_cam_s2;
+  float calibrated_cam_s3;
+  float calibrated_cam_nc0;
+  float calibrated_cam_nc1;
+  float calibrated_cam_nc2;
+  float calibrated_cam_nc3;
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
@@ -148,6 +152,7 @@ enum {
   CAM_PERSP = 0,
   CAM_ORTHO = 1,
   CAM_PANO = 2,
+  CAM_CALIB = 3,
 };
 
 /* panorama_type */
@@ -159,7 +164,6 @@ enum {
   CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL = 4,
   CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE = 5,
   CAM_PANORAMA_CENTRAL_CYLINDRICAL = 6,
-  CAM_PANORAMA_FISHEYE_624 = 7,
 };
 
 /* dtx */
