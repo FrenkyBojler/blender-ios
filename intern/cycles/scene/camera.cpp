@@ -125,10 +125,10 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(calibrated_cam_k5, "6. Radial Distortion Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_p0, "1. Tangential Distortion Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_p1, "2. Tangential Distortion Coefficient", 0.0f);
-  SOCKET_FLOAT(calibrated_cam_s0, "1. Thin Prismatic Distortion Coefficient", 0.0f);
-  SOCKET_FLOAT(calibrated_cam_s1, "2. Thin Prismatic Distortion Coefficient", 0.0f);
-  SOCKET_FLOAT(calibrated_cam_s2, "3. Thin Prismatic Distortion Coefficient", 0.0f);
-  SOCKET_FLOAT(calibrated_cam_s3, "4. Thin Prismatic Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_s0, "1. Thin Prism Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_s1, "2. Thin Prism Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_s2, "3. Thin Prism Distortion Coefficient", 0.0f);
+  SOCKET_FLOAT(calibrated_cam_s3, "4. Thin Prism Distortion Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_nc0, "1. Noncentrality Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_nc1, "2. Noncentrality Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_nc2, "3. Noncentrality Coefficient", 0.0f);

@@ -1011,22 +1011,22 @@ void RNA_def_camera(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "calibrated_cam_s0", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Thin Prism Distortion s0", "1. Prismatic Disortion");
+  RNA_def_property_ui_text(prop, "Thin Prism Distortion s0", "1. Prism Disortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_s1", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Thin Prism Distortion s1", "2. Prismatic Disortion");
+  RNA_def_property_ui_text(prop, "Thin Prism Distortion s1", "2. Prism Disortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_s2", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Thin Prism Distortion s2", "3. Prismatic Disortion");
+  RNA_def_property_ui_text(prop, "Thin Prism Distortion s2", "3. Prism Disortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_s3", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Thin Prism Distortion s3", "4. Prismatic Disortion");
+  RNA_def_property_ui_text(prop, "Thin Prism Distortion s3", "4. Prism Disortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_nc0", PROP_FLOAT, PROP_NONE);
