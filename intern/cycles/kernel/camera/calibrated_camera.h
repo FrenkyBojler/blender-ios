@@ -338,21 +338,22 @@ ccl_device_inline float4 calibrated_cam_to_direction(float2 sensor,
   return calib2blender(result);
 }
 
-ccl_device_inline float angle_to_noncentrality(float const theta, float3 const params)
+ccl_device_inline float angle_to_noncentrality(float const theta, float4 const params)
 {
   float const t2 = theta * theta;
   float const t4 = t2 * t2;
-  return dot(params, make_float3(t2, t4, t2 * t4));
+  return dot(params, make_float4(t2, t4, t2 * t4, t4 * t4));
 }
 
-ccl_device_inline float angle_to_noncentrality_derivative(float const theta, float3 const params)
+ccl_device_inline float angle_to_noncentrality_derivative(float const theta, float4 const params)
 {
   float const t2 = theta * theta;
   float const t3 = t2 * theta;
-  return dot(params, make_float3(2.0f * theta, 4.0f * t3, 6.0f * t2 * t3));
+  float const t5 = t2 * t3;
+  return dot(params, make_float4(2.0f * theta, 4.0f * t3, 6.0f * t5, 8.0f * t5 * t2));
 }
 
-ccl_device_inline float point_to_noncentrality(float3 const point, float3 const params)
+ccl_device_inline float point_to_noncentrality(float3 const point, float4 const params)
 {
   float const length = len(point);
   if (length < 1e-6f) {
@@ -362,7 +363,7 @@ ccl_device_inline float point_to_noncentrality(float3 const point, float3 const 
   return angle_to_noncentrality(theta, params);
 }
 
-ccl_device_inline float solve_noncentrality(float3 const point, float3 const params)
+ccl_device_inline float solve_noncentrality(float3 const point, float4 const params)
 {
 
   float const r2 = sqr(point.x) + sqr(point.y);

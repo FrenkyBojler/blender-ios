@@ -302,21 +302,24 @@ TEST(KernelCamera, calibrated_cam_noncentrality)
   QuasiRandom rng;
   float max_error = 0;
 
-  float3 all_params[] = {
-      make_float3(+1.0f, +0.2f, +0.1f),
-      make_float3(-1.0f, -0.2f, -0.1f),
+  float4 all_params[] = {
+      make_float4(+1.0f, +0.2f, +0.1f, +0.005f),
+      make_float4(-1.0f, -0.2f, -0.1f, -0.005f),
 
-      make_float3(+1.0f, 0.0f, 0.0f),
-      make_float3(-1.0f, 0.0f, 0.0f),
+      make_float4(+1.0f, 0.0f, 0.0f, 0.0f),
+      make_float4(-1.0f, 0.0f, 0.0f, 0.0f),
 
-      make_float3(0.0f, +0.2f, 0.0f),
-      make_float3(0.0f, -0.2f, 0.0f),
+      make_float4(0.0f, +0.2f, 0.0f, 0.0f),
+      make_float4(0.0f, -0.2f, 0.0f, 0.0f),
 
-      make_float3(0.0f, 0.0f, +0.1f),
-      make_float3(0.0f, 0.0f, -0.1f),
+      make_float4(0.0f, 0.0f, +0.1f, 0.0f),
+      make_float4(0.0f, 0.0f, -0.1f, 0.0f),
+
+      make_float4(0.0f, 0.0f, 0.0f, +0.02f),
+      make_float4(0.0f, 0.0f, 0.0f, -0.02f),
   };
 
-  for (float3 const params : all_params) {
+  for (float4 const params : all_params) {
     for (int ii = 0; ii < num_angles; ++ii) {
       float const theta = (float(ii) * max_angle_rad) / num_angles;
       float const phi = rng.nextf() * 2.0f * M_PI_F;
@@ -327,7 +330,7 @@ TEST(KernelCamera, calibrated_cam_noncentrality)
 
       float3 const point = origin + distance * direction;
       float const recovered_z_offset = solve_noncentrality(point, params);
-      EXPECT_NEAR(recovered_z_offset, z_offset, 3e-5)
+      EXPECT_NEAR(recovered_z_offset, z_offset, 7e-5)
           << "params:    " << params << std::endl
           << "ii:        " << ii << std::endl
           << "theta:     " << theta << std::endl
