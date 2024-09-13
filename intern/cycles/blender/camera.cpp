@@ -579,6 +579,10 @@ static void blender_camera_sync(Camera *cam,
   cam->set_calibrated_cam_s1(bcam->calibrated_cam_s1);
   cam->set_calibrated_cam_s2(bcam->calibrated_cam_s2);
   cam->set_calibrated_cam_s3(bcam->calibrated_cam_s3);
+  cam->set_calibrated_cam_nc0(bcam->calibrated_cam_nc0);
+  cam->set_calibrated_cam_nc1(bcam->calibrated_cam_nc1);
+  cam->set_calibrated_cam_nc2(bcam->calibrated_cam_nc2);
+  cam->set_calibrated_cam_nc3(bcam->calibrated_cam_nc3);
 
   cam->set_longitude_min(bcam->longitude_min);
   cam->set_longitude_max(bcam->longitude_max);
