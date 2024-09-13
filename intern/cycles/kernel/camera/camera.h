@@ -242,16 +242,16 @@ ccl_device_inline float4 camera_calibrated_direction(ccl_constant KernelCamera *
 {
   const ProjectionTransform rastertocamera = cam->rastertocamera;
   float3 Pcamera = transform_perspective(&rastertocamera, make_float3(x, y, 0.0f));
-  return calibrated_cam_to_direction(make_float2(Pcamera.x, Pcamera.y),
-                                     cam->sensorwidth,
-                                     cam->sensorheight,
-                                     2.0f * M_PI_F, // TODO get a user-provided FoV
-                                     cam->calibrated_cam_f,
-                                     BaseProjectionType::EQUIDISTANT, // TODO: get a user-provided base projection type
-                                     cam->calibrated_cam_k,
-                                     cam->calibrated_cam_p,
-                                     cam->calibrated_cam_s
-                                     );
+  return calibrated_cam_to_direction(
+      make_float2(Pcamera.x, Pcamera.y),
+      cam->sensorwidth,
+      cam->sensorheight,
+      2.0f * M_PI_F,  // TODO get a user-provided FoV
+      cam->calibrated_cam_f,
+      BaseProjectionType::EQUIDISTANT,  // TODO: get a user-provided base projection type
+      cam->calibrated_cam_k,
+      cam->calibrated_cam_p,
+      cam->calibrated_cam_s);
 }
 
 ccl_device_inline void camera_sample_panorama(ccl_constant KernelCamera *cam,
@@ -358,10 +358,10 @@ ccl_device_inline void camera_sample_panorama(ccl_constant KernelCamera *cam,
 }
 
 ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
-                                              ccl_global const DecomposedTransform *cam_motion,
-                                              const float2 raster,
-                                              const float2 rand_lens,
-                                              ccl_private Ray *ray)
+                                                ccl_global const DecomposedTransform *cam_motion,
+                                                const float2 raster,
+                                                const float2 rand_lens,
+                                                ccl_private Ray *ray)
 {
   /* create ray from raster position */
   float3 P = zero_float3();
@@ -379,10 +379,10 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
   /* modify ray for depth of field */
   float aperturesize = cam->aperturesize;
 
-#ifdef __RAY_DIFFERENTIALS__
+#  ifdef __RAY_DIFFERENTIALS__
   /* keep pre-DoF value for differentials later */
   float3 Dcenter = D;
-#endif
+#  endif
 
   if (aperturesize > 0.0f) {
     /* sample point on aperture */
@@ -425,7 +425,7 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
   ray->D = D;
 
 #ifdef TODO_RAY_DIFFERENTIALS
-#ifdef __RAY_DIFFERENTIALS__
+#  ifdef __RAY_DIFFERENTIALS__
   /* Ray differentials, computed from scratch using the raster coordinates
    * because we don't want to be affected by depth of field. We compute
    * ray origin and direction for the center and two neighboring pixels
@@ -456,7 +456,7 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
   dD.dx = normalize(transform_direction(&cameratoworld, Dx)) - Dcenter;
   dD.dy = normalize(transform_direction(&cameratoworld, Dy)) - Dcenter;
   ray->dD = differential_make_compact(dD);
-#endif
+#  endif
 #endif
 
   /* clipping: TODO */
