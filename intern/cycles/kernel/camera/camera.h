@@ -375,7 +375,7 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
     return;
   }
 
-#if TODO_CALIBRATED_DOF
+#ifdef TODO_CALIBRATED_DOF
   /* modify ray for depth of field */
   float aperturesize = cam->aperturesize;
 
