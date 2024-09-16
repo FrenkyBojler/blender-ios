@@ -367,7 +367,7 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
   float3 P = zero_float3();
   float4 D_theta = camera_calibrated_direction(cam, raster.x, raster.y);
   float3 D = make_float3(D_theta.x, D_theta.y, D_theta.z);
-  P.z = 1e-3 * angle_to_noncentrality(D_theta.w, cam->calibrated_cam_nc);
+  P.z = 1e-3f * angle_to_noncentrality(D_theta.w, cam->calibrated_cam_nc);
 
   /* indicates ray should not receive any light, outside of the lens */
   if (is_zero(D)) {
