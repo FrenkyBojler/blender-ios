@@ -72,6 +72,7 @@ struct BlenderCamera {
 
   // calibrated_cam distortions
   float calibrated_cam_f;
+  float calibrated_cam_fov;
   float calibrated_cam_k0;
   float calibrated_cam_k1;
   float calibrated_cam_k2;
@@ -88,6 +89,7 @@ struct BlenderCamera {
   float calibrated_cam_nc1;
   float calibrated_cam_nc2;
   float calibrated_cam_nc3;
+  BaseProjectionType calibrated_cam_type;
 
   enum { AUTO, HORIZONTAL, VERTICAL } sensor_fit;
   float sensor_width;
@@ -608,7 +610,9 @@ static void blender_camera_sync(Camera *cam,
   cam->set_bladesrotation(bcam->aperturerotation);
 
   /* calibrated_cam params */
+  cam->set_calibrated_cam_type(bcam->calibrated_cam_type);
   cam->set_calibrated_cam_f(bcam->calibrated_cam_f);
+  cam->set_calibrated_cam_fov(bcam->calibrated_cam_fov);
   cam->set_calibrated_cam_k0(bcam->calibrated_cam_k0);
   cam->set_calibrated_cam_k1(bcam->calibrated_cam_k1);
   cam->set_calibrated_cam_k2(bcam->calibrated_cam_k2);

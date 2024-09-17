@@ -642,6 +642,35 @@ void RNA_def_camera(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem base_projection_type_items[] = {
+      {CALIBRATED_RECTILINEAR,
+       "PERSPECTIVE",
+       0,
+       "Perspective",
+       "Perspective projection, also known as rectilinear"},
+      {CALIBRATED_EQUIDISTANT,
+       "EQUIDISTANT",
+       0,
+       "Equidistant",
+       "Equidistant fisheye, also known as f*theta"},
+      {CALIBRATED_STEREOGRAPHIC,
+       "STEREOGRAPHIC",
+       0,
+       "Stereographic",
+       "Stereographic fisheye, maintains angles"},
+      {CALIBRATED_EQUISOLID,
+       "EQUISOLID",
+       0,
+       "Equisolid",
+       "Equisolid fisheye, compressed marginal objects more than the equidistant fisheye"},
+      {CALIBRATED_FISHEYE_ORTHOGRAPHIC,
+       "FISHEYE_ORTHOGRAPHIC",
+       0,
+       "Fisheye Orthographic",
+       "Orthographic fisheye, also known as f*sin(theta). Compressed marginal objects even more than the orthographic fisheye."},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "Camera", "ID");
   RNA_def_struct_ui_text(srna, "Camera", "Camera data-block for storing camera settings");
   RNA_def_struct_ui_icon(srna, ICON_CAMERA_DATA);
@@ -965,69 +994,79 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Cylinder Radius", "Radius of the virtual cylinder");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
+  prop = RNA_def_property(srna, "calibrated_cam_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, base_projection_type_items);
+  RNA_def_property_ui_text(prop, "Projection Type", "Base projection type");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
   prop = RNA_def_property(srna, "calibrated_cam_f", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
   RNA_def_property_ui_text(prop, "Focal Length", "Focal Length");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
+  prop = RNA_def_property(srna, "calibrated_cam_fov", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_ui_range(prop, 0.0, 2.0 * M_PI, 3, 2);
+  RNA_def_property_ui_text(prop, "Field of View", "Field of View");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
   prop = RNA_def_property(srna, "calibrated_cam_k0", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Radial Distortion k0", "1. Radial Disortion");
+  RNA_def_property_ui_text(prop, "Radial Distortion k0", "1. Radial Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_k1", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Radial Distortion k1", "2. Radial Disortion");
+  RNA_def_property_ui_text(prop, "Radial Distortion k1", "2. Radial Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_k2", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Radial Distortion k2", "3. Radial Disortion");
+  RNA_def_property_ui_text(prop, "Radial Distortion k2", "3. Radial Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_k3", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Radial Distortion k3", "4. Radial Disortion");
+  RNA_def_property_ui_text(prop, "Radial Distortion k3", "4. Radial Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_k4", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Radial Distortion k4", "5. Radial Disortion");
+  RNA_def_property_ui_text(prop, "Radial Distortion k4", "5. Radial Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_k5", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Radial Distortion k5", "6. Radial Disortion");
+  RNA_def_property_ui_text(prop, "Radial Distortion k5", "6. Radial Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_p0", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Tangential Distortion p0", "1. Tangential Disortion");
+  RNA_def_property_ui_text(prop, "Tangential Distortion p0", "1. Tangential Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_p1", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Tangential Distortion p1", "2. Tangential Disortion");
+  RNA_def_property_ui_text(prop, "Tangential Distortion p1", "2. Tangential Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_s0", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Thin Prism Distortion s0", "1. Prism Disortion");
+  RNA_def_property_ui_text(prop, "Thin Prism Distortion s0", "1. Prism Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_s1", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Thin Prism Distortion s1", "2. Prism Disortion");
+  RNA_def_property_ui_text(prop, "Thin Prism Distortion s1", "2. Prism Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_s2", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Thin Prism Distortion s2", "3. Prism Disortion");
+  RNA_def_property_ui_text(prop, "Thin Prism Distortion s2", "3. Prism Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_s3", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Thin Prism Distortion s3", "4. Prism Disortion");
+  RNA_def_property_ui_text(prop, "Thin Prism Distortion s3", "4. Prism Distortion");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_nc0", PROP_FLOAT, PROP_NONE);

@@ -77,6 +77,7 @@ void Node::set(const SocketType &input, uint64_t value)
 
 void Node::set(const SocketType &input, float value)
 {
+  assert(nullptr != &input);
   assert(input.type == SocketType::FLOAT);
   set_if_different(input, value);
 }
