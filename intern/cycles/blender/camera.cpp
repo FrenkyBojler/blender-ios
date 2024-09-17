@@ -565,25 +565,6 @@ static void blender_camera_sync(Camera *cam,
   cam->set_fisheye_polynomial_k3(bcam->fisheye_polynomial_k3);
   cam->set_fisheye_polynomial_k4(bcam->fisheye_polynomial_k4);
 
-  /* calibrated_cam params */
-  cam->set_calibrated_cam_f(bcam->calibrated_cam_f);
-  cam->set_calibrated_cam_k0(bcam->calibrated_cam_k0);
-  cam->set_calibrated_cam_k1(bcam->calibrated_cam_k1);
-  cam->set_calibrated_cam_k2(bcam->calibrated_cam_k2);
-  cam->set_calibrated_cam_k3(bcam->calibrated_cam_k3);
-  cam->set_calibrated_cam_k4(bcam->calibrated_cam_k4);
-  cam->set_calibrated_cam_k5(bcam->calibrated_cam_k5);
-  cam->set_calibrated_cam_p0(bcam->calibrated_cam_p0);
-  cam->set_calibrated_cam_p1(bcam->calibrated_cam_p1);
-  cam->set_calibrated_cam_s0(bcam->calibrated_cam_s0);
-  cam->set_calibrated_cam_s1(bcam->calibrated_cam_s1);
-  cam->set_calibrated_cam_s2(bcam->calibrated_cam_s2);
-  cam->set_calibrated_cam_s3(bcam->calibrated_cam_s3);
-  cam->set_calibrated_cam_nc0(bcam->calibrated_cam_nc0);
-  cam->set_calibrated_cam_nc1(bcam->calibrated_cam_nc1);
-  cam->set_calibrated_cam_nc2(bcam->calibrated_cam_nc2);
-  cam->set_calibrated_cam_nc3(bcam->calibrated_cam_nc3);
-
   cam->set_longitude_min(bcam->longitude_min);
   cam->set_longitude_max(bcam->longitude_max);
 
@@ -624,6 +605,25 @@ static void blender_camera_sync(Camera *cam,
   cam->set_aperturesize(bcam->aperturesize);
   cam->set_blades(bcam->apertureblades);
   cam->set_bladesrotation(bcam->aperturerotation);
+
+  /* calibrated_cam params */
+  cam->set_calibrated_cam_f(bcam->calibrated_cam_f);
+  cam->set_calibrated_cam_k0(bcam->calibrated_cam_k0);
+  cam->set_calibrated_cam_k1(bcam->calibrated_cam_k1);
+  cam->set_calibrated_cam_k2(bcam->calibrated_cam_k2);
+  cam->set_calibrated_cam_k3(bcam->calibrated_cam_k3);
+  cam->set_calibrated_cam_k4(bcam->calibrated_cam_k4);
+  cam->set_calibrated_cam_k5(bcam->calibrated_cam_k5);
+  cam->set_calibrated_cam_p0(bcam->calibrated_cam_p0);
+  cam->set_calibrated_cam_p1(bcam->calibrated_cam_p1);
+  cam->set_calibrated_cam_s0(bcam->calibrated_cam_s0);
+  cam->set_calibrated_cam_s1(bcam->calibrated_cam_s1);
+  cam->set_calibrated_cam_s2(bcam->calibrated_cam_s2);
+  cam->set_calibrated_cam_s3(bcam->calibrated_cam_s3);
+  cam->set_calibrated_cam_nc0(bcam->calibrated_cam_nc0);
+  cam->set_calibrated_cam_nc1(bcam->calibrated_cam_nc1);
+  cam->set_calibrated_cam_nc2(bcam->calibrated_cam_nc2);
+  cam->set_calibrated_cam_nc3(bcam->calibrated_cam_nc3);
 
   /* transform */
   cam->set_matrix(blender_camera_matrix(bcam->matrix, bcam->type, bcam->panorama_type));
