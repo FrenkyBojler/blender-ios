@@ -134,6 +134,16 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(calibrated_cam_nc2, "3. Noncentrality Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_nc3, "4. Noncentrality Coefficient", 0.0f);
 
+  static NodeEnum calibrated_cam_type_enum;
+  calibrated_cam_type_enum.insert("perspective", BaseProjectionType::RECTILINEAR);
+  calibrated_cam_type_enum.insert("equidistant", BaseProjectionType::EQUIDISTANT);
+  calibrated_cam_type_enum.insert("equisolid", BaseProjectionType::EQUISOLID);
+  calibrated_cam_type_enum.insert("stereographic", BaseProjectionType::STEREOGRAPHIC);
+  calibrated_cam_type_enum.insert("fisheye_orthographic",
+                                  BaseProjectionType::FISHEYE_ORTHOGRAPHIC);
+  SOCKET_ENUM(
+      calibrated_cam_type, "Type", calibrated_cam_type_enum, BaseProjectionType::RECTILINEAR);
+
   static NodeEnum stereo_eye_enum;
   stereo_eye_enum.insert("none", STEREO_NONE);
   stereo_eye_enum.insert("left", STEREO_LEFT);
@@ -451,6 +461,7 @@ void Camera::update(Scene *scene)
                                                 central_cylindrical_range_v_min,
                                                 central_cylindrical_range_v_max);
 
+  /* calibrated camera */
   kcam->calibrated_cam_f = calibrated_cam_f;
   kcam->calibrated_cam_k[0] = calibrated_cam_k0;
   kcam->calibrated_cam_k[1] = calibrated_cam_k1;
@@ -463,6 +474,8 @@ void Camera::update(Scene *scene)
       calibrated_cam_s0, calibrated_cam_s1, calibrated_cam_s2, calibrated_cam_s3);
   kcam->calibrated_cam_nc = make_float4(
       calibrated_cam_nc0, calibrated_cam_nc1, calibrated_cam_nc2, calibrated_cam_nc3);
+  kcam->calibrated_cam_fov = calibrated_cam_fov;
+  kcam->calibrated_cam_type = calibrated_cam_type;
 
   switch (stereo_eye) {
     case STEREO_LEFT:

@@ -5,15 +5,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-enum BaseProjectionType {
-  RECTILINEAR = 0,
-  EQUIDISTANT = 1,
-  STEREOGRAPHIC = 2,
-  EQUISOLID = 3,
-  FISHEYE_ORTHOGRAPHIC = 4,
-  BASE_PROJECTION_NUM_TYPES,
-};
-
 ccl_device_inline float2 blender2calib(float2 a)
 {
   return make_float2(a.x, 1.0f - a.y);
@@ -271,13 +262,13 @@ ccl_device_inline float4 calibrated_cam_to_direction_impl(float2 point,
 
   float const sensor_rad = len(point);
 
-  if (sensor_rad > fov) {
-    return zero_float4();
-  }
-
   float const theta = solve_radial(invert_projection_type(proj_type, sensor_rad), radial);
   if (theta > 1e-6f && sensor_rad > 1e-6f) {
     point *= theta / sensor_rad;
+  }
+
+  if (2.0f * theta > fov) {
+    return zero_float4();
   }
 
   float const phi_c = theta > 1e-6f ? point.x / theta : 1.0f;

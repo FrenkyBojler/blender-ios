@@ -59,8 +59,9 @@
     .central_cylindrical_range_v_min = -1.0f,\
     .central_cylindrical_range_v_max = 1.0f,\
     .central_cylindrical_radius = 1.0f,\
-    /* Default Aria SLAM camera projection calibration */ \
+    /* Neutral calibration parameters */ \
     .calibrated_cam_f =  5.0f,\
+    .calibrated_cam_fov =  (float)M_PI,\
     .calibrated_cam_k0 = 0.0f,\
     .calibrated_cam_k1 = 0.0f,\
     .calibrated_cam_k2 = 0.0f,\
@@ -77,6 +78,7 @@
     .calibrated_cam_nc1 = 0.0f,\
     .calibrated_cam_nc2 = 0.0f,\
     .calibrated_cam_nc3 = 0.0f,\
+    .calibrated_cam_type = 0,\
  \
     .dof = _DNA_DEFAULT_CameraDOFSettings, \
  \

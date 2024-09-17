@@ -677,6 +677,16 @@ enum PanoramaType {
   PANORAMA_NUM_TYPES,
 };
 
+/* Base projection types for the calibrated camera */
+enum BaseProjectionType {
+  RECTILINEAR = 0,
+  EQUIDISTANT = 1,
+  STEREOGRAPHIC = 2,
+  EQUISOLID = 3,
+  FISHEYE_ORTHOGRAPHIC = 4,
+  BASE_PROJECTION_NUM_TYPES,
+};
+
 /* Specifies an offset for the shutter's time interval. */
 enum MotionPosition {
   /* Shutter opens at the current frame. */
@@ -1295,6 +1305,10 @@ typedef struct KernelCamera {
   float4 calibrated_cam_s;
   // Noncentrality parameters
   float4 calibrated_cam_nc;
+  // FoV in radians
+  float calibrated_cam_fov;
+  // Base projection type
+  int calibrated_cam_type;
 
   /* stereo */
   float interocular_offset;

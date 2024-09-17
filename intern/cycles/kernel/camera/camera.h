@@ -345,16 +345,15 @@ ccl_device_inline float4 camera_calibrated_direction(ccl_constant KernelCamera *
 {
   const ProjectionTransform rastertocamera = cam->rastertocamera;
   float3 Pcamera = transform_perspective(&rastertocamera, make_float3(x, y, 0.0f));
-  return calibrated_cam_to_direction(
-      make_float2(Pcamera.x, Pcamera.y),
-      cam->sensorwidth,
-      cam->sensorheight,
-      2.0f * M_PI_F,  // TODO get a user-provided FoV
-      cam->calibrated_cam_f,
-      BaseProjectionType::EQUIDISTANT,  // TODO: get a user-provided base projection type
-      cam->calibrated_cam_k,
-      cam->calibrated_cam_p,
-      cam->calibrated_cam_s);
+  return calibrated_cam_to_direction(make_float2(Pcamera.x, Pcamera.y),
+                                     cam->sensorwidth,
+                                     cam->sensorheight,
+                                     cam->calibrated_cam_fov,
+                                     cam->calibrated_cam_f,
+                                     BaseProjectionType(cam->calibrated_cam_type),
+                                     cam->calibrated_cam_k,
+                                     cam->calibrated_cam_p,
+                                     cam->calibrated_cam_s);
 }
 
 ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
