@@ -64,7 +64,7 @@ ccl_device_inline float apply_projection_type(BaseProjectionType const type, flo
 }
 
 /**
- * @brief radial_forward implements the radial distortion method used by Cam624nc
+ * @brief radial_forward implements the radial distortion method used by the calibrated camera model. *
  * f(x) = x + k0 x^3 + k1 x^5 + k2 x^7 + k3 x^9 + k4 x^11 + k5 x^13
  * @param angle
  * @param k
