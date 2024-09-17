@@ -256,7 +256,8 @@ ccl_device_inline float4 calibrated_cam_to_direction_impl(float2 point,
                                                           float2 const tangential,
                                                           float4 const thin_prism)
 {
-  point = make_float2((point.x - 0.5f) * sensorwidth / focal, (point.y - 0.5f) * sensorheight / focal);
+  point = make_float2((point.x - 0.5f) * sensorwidth / focal,
+                      (point.y - 0.5f) * sensorheight / focal);
 
   point = solve_tangential_thinprism(point, tangential, thin_prism);
 
