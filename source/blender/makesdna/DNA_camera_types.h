@@ -110,8 +110,9 @@ typedef struct Camera {
   float central_cylindrical_radius;
 
   // calibrated_cam distortions
-  float calibrated_cam_f;
+  int calibrated_cam_type;
   float calibrated_cam_fov;
+  float calibrated_cam_f;
   float calibrated_cam_k0;
   float calibrated_cam_k1;
   float calibrated_cam_k2;
@@ -128,7 +129,6 @@ typedef struct Camera {
   float calibrated_cam_nc1;
   float calibrated_cam_nc2;
   float calibrated_cam_nc3;
-  int calibrated_cam_type;
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;

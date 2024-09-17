@@ -168,6 +168,8 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
   cycles_property_float_set(cycles_cam, "fisheye_polynomial_k3", cam->fisheye_polynomial_k3);
   cycles_property_float_set(cycles_cam, "fisheye_polynomial_k4", cam->fisheye_polynomial_k4);
   /* CalibratedCam */
+  cycles_property_int_set(cycles_cam, "calibrated_cam_type", cam->calibrated_cam_type);
+  cycles_property_float_set(cycles_cam, "calibrated_cam_fov", cam->calibrated_cam_fov);
   cycles_property_float_set(cycles_cam, "calibrated_cam_f", cam->calibrated_cam_f);
   cycles_property_float_set(cycles_cam, "calibrated_cam_k0", cam->calibrated_cam_k0);
   cycles_property_float_set(cycles_cam, "calibrated_cam_k1", cam->calibrated_cam_k1);

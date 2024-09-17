@@ -1295,6 +1295,10 @@ typedef struct KernelCamera {
   float4 central_cylindrical_range;
 
   /* Calibrated camera distortion model */
+  // Base projection type
+  int calibrated_cam_type;
+  // FoV in radians
+  float calibrated_cam_fov;
   // Focal length
   float calibrated_cam_f;
   // Radial distortion
@@ -1305,10 +1309,8 @@ typedef struct KernelCamera {
   float4 calibrated_cam_s;
   // Noncentrality parameters
   float4 calibrated_cam_nc;
-  // FoV in radians
-  float calibrated_cam_fov;
-  // Base projection type
-  int calibrated_cam_type;
+
+  float pad_calibrated_cam;
 
   /* stereo */
   float interocular_offset;

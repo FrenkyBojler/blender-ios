@@ -93,6 +93,8 @@ class Camera : public Node {
   NODE_SOCKET_API(float, central_cylindrical_range_v_max)
 
   /* calibrated_cam radial/tangential/thin prism/noncentrality model parameters */
+  NODE_SOCKET_API(BaseProjectionType, calibrated_cam_type)
+  NODE_SOCKET_API(float, calibrated_cam_fov)
   NODE_SOCKET_API(float, calibrated_cam_f)
   NODE_SOCKET_API(float, calibrated_cam_k0)
   NODE_SOCKET_API(float, calibrated_cam_k1)
@@ -110,8 +112,6 @@ class Camera : public Node {
   NODE_SOCKET_API(float, calibrated_cam_nc1)
   NODE_SOCKET_API(float, calibrated_cam_nc2)
   NODE_SOCKET_API(float, calibrated_cam_nc3)
-  NODE_SOCKET_API(float, calibrated_cam_fov)
-  NODE_SOCKET_API(BaseProjectionType, calibrated_cam_type)
 
   /* panorama stereo */
   NODE_SOCKET_API(StereoEye, stereo_eye)

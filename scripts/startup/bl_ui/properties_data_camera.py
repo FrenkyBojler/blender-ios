@@ -145,8 +145,8 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
             engine = context.engine
             if engine == 'CYCLES':
                 col.prop(cam, "calibrated_cam_type")
-                col.prop(cam, "calibrated_cam_f", text="Focal length")
                 col.prop(cam, "calibrated_cam_fov", text="FoV")
+                col.prop(cam, "calibrated_cam_f", text="Focal length")
                 col.prop(cam, "calibrated_cam_k0", text="Radial k0")
                 col.prop(cam, "calibrated_cam_k1", text="k1")
                 col.prop(cam, "calibrated_cam_k2", text="k2")

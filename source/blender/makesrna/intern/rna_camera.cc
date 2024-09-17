@@ -667,7 +667,8 @@ void RNA_def_camera(BlenderRNA *brna)
        "FISHEYE_ORTHOGRAPHIC",
        0,
        "Fisheye Orthographic",
-       "Orthographic fisheye, also known as f*sin(theta). Compressed marginal objects even more than the orthographic fisheye."},
+       "Orthographic fisheye, also known as f*sin(theta). Compressed marginal objects even more "
+       "than the orthographic fisheye."},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -999,14 +1000,14 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Projection Type", "Base projection type");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
-  prop = RNA_def_property(srna, "calibrated_cam_f", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
-  RNA_def_property_ui_text(prop, "Focal Length", "Focal Length");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
-
   prop = RNA_def_property(srna, "calibrated_cam_fov", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_ui_range(prop, 0.0, 2.0 * M_PI, 3, 2);
   RNA_def_property_ui_text(prop, "Field of View", "Field of View");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "calibrated_cam_f", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 0.1, 6);
+  RNA_def_property_ui_text(prop, "Focal Length", "Focal Length");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
   prop = RNA_def_property(srna, "calibrated_cam_k0", PROP_FLOAT, PROP_NONE);

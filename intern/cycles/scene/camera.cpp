@@ -115,7 +115,17 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(central_cylindrical_range_v_min, "Central Cylindrical Range V Min", -1.0f);
   SOCKET_FLOAT(central_cylindrical_range_v_max, "Central Cylindrical Range V Max", 1.0f);
 
-  // default calibrated_cam distortions (from real-world Aria HMD)
+  // Neutral distortion coefficients
+  static NodeEnum calibrated_cam_type_enum;
+  calibrated_cam_type_enum.insert("perspective", BaseProjectionType::RECTILINEAR);
+  calibrated_cam_type_enum.insert("equidistant", BaseProjectionType::EQUIDISTANT);
+  calibrated_cam_type_enum.insert("equisolid", BaseProjectionType::EQUISOLID);
+  calibrated_cam_type_enum.insert("stereographic", BaseProjectionType::STEREOGRAPHIC);
+  calibrated_cam_type_enum.insert("fisheye_orthographic",
+                                  BaseProjectionType::FISHEYE_ORTHOGRAPHIC);
+  SOCKET_ENUM(
+      calibrated_cam_type, "Type", calibrated_cam_type_enum, BaseProjectionType::RECTILINEAR);
+  SOCKET_FLOAT(calibrated_cam_fov, "Field of View", M_2PI_F);
   SOCKET_FLOAT(calibrated_cam_f, "Focal Length", 5.0f);
   SOCKET_FLOAT(calibrated_cam_k0, "1. Radial Distortion Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_k1, "2. Radial Distortion Coefficient", 0.0f);
@@ -133,16 +143,6 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(calibrated_cam_nc1, "2. Noncentrality Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_nc2, "3. Noncentrality Coefficient", 0.0f);
   SOCKET_FLOAT(calibrated_cam_nc3, "4. Noncentrality Coefficient", 0.0f);
-
-  static NodeEnum calibrated_cam_type_enum;
-  calibrated_cam_type_enum.insert("perspective", BaseProjectionType::RECTILINEAR);
-  calibrated_cam_type_enum.insert("equidistant", BaseProjectionType::EQUIDISTANT);
-  calibrated_cam_type_enum.insert("equisolid", BaseProjectionType::EQUISOLID);
-  calibrated_cam_type_enum.insert("stereographic", BaseProjectionType::STEREOGRAPHIC);
-  calibrated_cam_type_enum.insert("fisheye_orthographic",
-                                  BaseProjectionType::FISHEYE_ORTHOGRAPHIC);
-  SOCKET_ENUM(
-      calibrated_cam_type, "Type", calibrated_cam_type_enum, BaseProjectionType::RECTILINEAR);
 
   static NodeEnum stereo_eye_enum;
   stereo_eye_enum.insert("none", STEREO_NONE);
@@ -462,6 +462,8 @@ void Camera::update(Scene *scene)
                                                 central_cylindrical_range_v_max);
 
   /* calibrated camera */
+  kcam->calibrated_cam_type = calibrated_cam_type;
+  kcam->calibrated_cam_fov = calibrated_cam_fov;
   kcam->calibrated_cam_f = calibrated_cam_f;
   kcam->calibrated_cam_k[0] = calibrated_cam_k0;
   kcam->calibrated_cam_k[1] = calibrated_cam_k1;
@@ -474,8 +476,6 @@ void Camera::update(Scene *scene)
       calibrated_cam_s0, calibrated_cam_s1, calibrated_cam_s2, calibrated_cam_s3);
   kcam->calibrated_cam_nc = make_float4(
       calibrated_cam_nc0, calibrated_cam_nc1, calibrated_cam_nc2, calibrated_cam_nc3);
-  kcam->calibrated_cam_fov = calibrated_cam_fov;
-  kcam->calibrated_cam_type = calibrated_cam_type;
 
   switch (stereo_eye) {
     case STEREO_LEFT:
