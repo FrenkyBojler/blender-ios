@@ -373,7 +373,6 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
     return;
   }
 
-#ifdef TODO_CALIBRATED_DOF
   /* modify ray for depth of field */
   float aperturesize = cam->aperturesize;
 
@@ -399,8 +398,6 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
     P = U * lens_uv.x + V * lens_uv.y;
     D = normalize(Pfocus - P);
   }
-
-#endif
 
   /* transform ray from camera to world */
   Transform cameratoworld = cam->cameratoworld;
