@@ -514,8 +514,9 @@ static void blender_camera_sync(Camera *cam,
   cam->set_full_height(height);
 
   /* panorama sensor */
-  if (bcam->type == CAMERA_PANORAMA && (bcam->panorama_type == PANORAMA_FISHEYE_EQUISOLID ||
-                                        bcam->panorama_type == PANORAMA_FISHEYE_LENS_POLYNOMIAL))
+  if (bcam->type == CAMERA_CALIBRATED ||
+      (bcam->type == CAMERA_PANORAMA && (bcam->panorama_type == PANORAMA_FISHEYE_EQUISOLID ||
+                                         bcam->panorama_type == PANORAMA_FISHEYE_LENS_POLYNOMIAL)))
   {
     float fit_xratio = (float)bcam->render_width * bcam->pixelaspect.x;
     float fit_yratio = (float)bcam->render_height * bcam->pixelaspect.y;
