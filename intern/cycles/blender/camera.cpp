@@ -371,7 +371,7 @@ static Transform blender_camera_matrix(const Transform &tfm,
 {
   Transform result;
 
-  if (type == CAMERA_PANORAMA) {
+  if (type == CAMERA_PANORAMA || type == CAMERA_CALIBRATED) {
     if (panorama_type == PANORAMA_MIRRORBALL) {
       /* Mirror ball camera is looking into the negative Y direction
        * which matches texture mirror ball mapping.
@@ -455,7 +455,7 @@ static void blender_camera_viewplane(BlenderCamera *bcam,
     }
   }
 
-  if (bcam->type == CAMERA_PANORAMA) {
+  if (bcam->type == CAMERA_PANORAMA || bcam->type == CAMERA_CALIBRATED) {
     /* Set viewplane for panoramic camera. */
     if (viewplane != NULL) {
       *viewplane = bcam->pano_viewplane;
@@ -850,7 +850,7 @@ static void blender_camera_from_view(BlenderCamera *bcam,
     if (b_ob) {
       blender_camera_from_object(bcam, b_engine, b_ob, skip_panorama);
 
-      if (!skip_panorama && bcam->type == CAMERA_PANORAMA) {
+      if (!skip_panorama && (bcam->type == CAMERA_PANORAMA || bcam->type == CAMERA_CALIBRATED)) {
         /* in panorama camera view, we map viewplane to camera border */
         BoundBox2D view_box, cam_box;
         float view_aspect;

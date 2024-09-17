@@ -229,7 +229,7 @@ Camera::~Camera() {}
 
 void Camera::compute_auto_viewplane()
 {
-  if (camera_type == CAMERA_PANORAMA) {
+  if (camera_type == CAMERA_PANORAMA || camera_type == CAMERA_CALIBRATED) {
     viewplane.left = 0.0f;
     viewplane.right = 1.0f;
     viewplane.bottom = 0.0f;
@@ -385,7 +385,7 @@ void Camera::update(Scene *scene)
 
   if (need_motion == Scene::MOTION_PASS) {
     /* TODO(sergey): Support perspective (zoom, fov) motion. */
-    if (camera_type == CAMERA_PANORAMA) {
+    if (camera_type == CAMERA_PANORAMA || camera_type == CAMERA_CALIBRATED) {
       if (have_motion) {
         kcam->motion_pass_pre = transform_inverse(motion[0]);
         kcam->motion_pass_post = transform_inverse(motion[motion.size() - 1]);
@@ -652,7 +652,7 @@ BoundBox Camera::viewplane_bounds_get()
   const float max_aperture_size = aperture_ratio < 1.0f ? aperturesize / aperture_ratio :
                                                           aperturesize;
 
-  if (camera_type == CAMERA_PANORAMA) {
+  if (camera_type == CAMERA_PANORAMA || camera_type == CAMERA_CALIBRATED) {
     const float extend = max_aperture_size + nearclip;
     if (use_spherical_stereo == false) {
       bounds.grow(make_float3(cameratoworld.x.w, cameratoworld.y.w, cameratoworld.z.w), extend);
@@ -823,7 +823,7 @@ float Camera::world_to_raster_size(float3 P)
       }
     }
   }
-  else if (camera_type == CAMERA_PANORAMA) {
+  else if (camera_type == CAMERA_PANORAMA || camera_type == CAMERA_CALIBRATED) {
     float3 D = transform_point(&worldtocamera, P);
     float dist = len(D);
 

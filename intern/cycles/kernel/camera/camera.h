@@ -561,7 +561,7 @@ ccl_device_inline float camera_distance(KernelGlobals kg, float3 P)
 
 ccl_device_inline float camera_z_depth(KernelGlobals kg, float3 P)
 {
-  if (kernel_data.cam.type != CAMERA_PANORAMA) {
+  if (kernel_data.cam.type != CAMERA_PANORAMA && kernel_data.cam.type != CAMERA_CALIBRATED) {
     Transform worldtocamera = kernel_data.cam.worldtocamera;
     return transform_point(&worldtocamera, P).z;
   }
@@ -590,7 +590,7 @@ ccl_device_inline float3 camera_world_to_ndc(KernelGlobals kg,
                                              ccl_private ShaderData *sd,
                                              float3 P)
 {
-  if (kernel_data.cam.type != CAMERA_PANORAMA) {
+  if (kernel_data.cam.type != CAMERA_PANORAMA && kernel_data.cam.type != CAMERA_CALIBRATED) {
     /* perspective / ortho */
     if (sd->object == PRIM_NONE && kernel_data.cam.type == CAMERA_PERSPECTIVE)
       P += camera_position(kg);
