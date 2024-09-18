@@ -611,7 +611,7 @@ void test_calibrated_cam_roundtrip(float const *const radial,
     float2 const sensor = direction_to_calibrated_cam(
         expected_dir, width, height, focal, EQUIDISTANT, radial, tangential, thin_prism);
     float4 const recomputed_dir = calibrated_cam_to_direction(
-        sensor, width, height, fov, focal, EQUIDISTANT, radial, tangential, thin_prism);
+        sensor, width, height, M_2PI_F, focal, EQUIDISTANT, radial, tangential, thin_prism);
 
     error_x.push(expected_dir.x, recomputed_dir.x);
     EXPECT_NEAR(expected_dir.x, recomputed_dir.x, error_threshold)
@@ -737,11 +737,11 @@ TEST(KernelCamera, calibrated_cam_calibrated_cam_to_direction_round_trip)
                                 2e-7);
 
   test_calibrated_cam_roundtrip(zero_radial,
-                                10.0f * p,
+                                300.0f * p,
                                 zero_float4(),
                                 180.0f,
                                 "zero radial, zero thin_prism, exaggerated tangential",
-                                2e-7);
+                                3e-7);
 
   test_calibrated_cam_roundtrip(zero_radial,
                                 zero_float2(),
@@ -752,7 +752,7 @@ TEST(KernelCamera, calibrated_cam_calibrated_cam_to_direction_round_trip)
 
   test_calibrated_cam_roundtrip(zero_radial,
                                 zero_float2(),
-                                10.0f * s,
+                                300.0f * s,
                                 180.0f,
                                 "zero radial, zero tangential, exaggerated thin-prism",
                                 3e-7);
