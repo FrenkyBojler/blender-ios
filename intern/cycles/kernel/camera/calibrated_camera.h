@@ -359,7 +359,7 @@ ccl_device_inline float solve_noncentrality(float3 const point, float4 const par
 {
 
   float const r2 = sqr(point.x) + sqr(point.y);
-  if (fabsf(r2 < 1e-12f)) {
+  if (fabsf(r2) < 1e-12f) {
     return 0.0f;
   }
   float const r = sqrtf(r2);
