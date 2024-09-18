@@ -138,7 +138,7 @@ ccl_device_inline float2 tangential_thinprism_forward(float2 const pt,
   float const r4 = r2 * r2;
   return make_float2(pt.x + (2.0f * x2 + r2) * tangential.x + xy * tangential.y  // tangential
                          + thin_prism.x * r2 + thin_prism.y * r4,                // thin-prism
-                     pt.y + (2.0f * y2 + r2) * tangential.y + xy * tangential[0] +
+                     pt.y + (2.0f * y2 + r2) * tangential.y + xy * tangential.x +
                          thin_prism.z * r2 + thin_prism.w * r4);
 }
 
