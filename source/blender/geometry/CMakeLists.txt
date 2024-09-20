@@ -10,6 +10,7 @@ set(INC
   ../functions
   ../makesrna
   ../../../intern/eigen
+  ../../../../extern/curve_fit_nd
 )
 
 set(INC_SYS
@@ -20,6 +21,7 @@ set(SRC
   intern/curve_constraints.cc
   intern/extend_curves.cc
   intern/fillet_curves.cc
+  intern/fit_curves_to_points.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
   intern/merge_curves.cc
@@ -58,6 +60,7 @@ set(SRC
   GEO_curve_constraints.hh
   GEO_extend_curves.hh
   GEO_fillet_curves.hh
+  GEO_fit_curves_to_points.hh
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh
   GEO_merge_curves.hh
@@ -99,6 +102,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  extern_curve_fit_nd
 )
 
 if(WITH_OPENVDB)
