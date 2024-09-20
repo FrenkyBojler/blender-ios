@@ -1097,7 +1097,8 @@ bool BKE_camera_multiview_spherical_stereo(const RenderData *rd, const Object *c
 
   const Camera *cam = static_cast<const Camera *>(camera->data);
 
-  if ((rd->views_format == SCE_VIEWS_FORMAT_STEREO_3D) && ELEM(cam->type, CAM_PANO, CAM_PERSP) &&
+  if ((rd->views_format == SCE_VIEWS_FORMAT_STEREO_3D) &&
+      ELEM(cam->type, CAM_PANO, CAM_PERSP, CAM_CALIB) &&
       ((cam->stereo.flag & CAM_S3D_SPHERICAL) != 0))
   {
     return true;
@@ -1208,7 +1209,7 @@ float BKE_camera_multiview_shift_x(const RenderData *rd,
   if (rd->views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
     return data->shiftx;
   }
-  if (data->type == CAM_PANO) {
+  if (ELEM(data->type, CAM_PANO, CAM_CALIB)) {
     return data->shiftx;
   }
   /* SCE_VIEWS_SETUP_BASIC */
