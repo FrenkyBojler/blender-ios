@@ -376,10 +376,10 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
   /* modify ray for depth of field */
   float aperturesize = cam->aperturesize;
 
-#  ifdef __RAY_DIFFERENTIALS__
+#ifdef __RAY_DIFFERENTIALS__
   /* keep pre-DoF value for differentials later */
   float3 Dcenter = D;
-#  endif
+#endif
 
   if (aperturesize > 0.0f) {
     /* sample point on aperture */
