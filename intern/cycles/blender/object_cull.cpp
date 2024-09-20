@@ -23,9 +23,11 @@ BlenderObjectCulling::BlenderObjectCulling(Scene *scene, BL::Scene &b_scene)
     PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
 
     use_scene_camera_cull_ = scene->camera->get_camera_type() != CAMERA_PANORAMA &&
+                             scene->camera->get_camera_type() != CAMERA_CALIBRATED &&
                              !b_scene.render().use_multiview() &&
                              get_boolean(cscene, "use_camera_cull");
     use_scene_distance_cull_ = scene->camera->get_camera_type() != CAMERA_PANORAMA &&
+                               scene->camera->get_camera_type() != CAMERA_CALIBRATED &&
                                !b_scene.render().use_multiview() &&
                                get_boolean(cscene, "use_distance_cull");
 
