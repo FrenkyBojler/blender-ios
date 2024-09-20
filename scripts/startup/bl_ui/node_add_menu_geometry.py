@@ -120,6 +120,7 @@ class NODE_MT_geometry_node_GEO_CURVE_OPERATIONS(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeDeformCurvesOnSurface")
         node_add_menu.add_node_type(layout, "GeometryNodeFillCurve")
         node_add_menu.add_node_type(layout, "GeometryNodeFilletCurve")
+        node_add_menu.add_node_type(layout, "GeometryNodeFitCurves")
         node_add_menu.add_node_type(layout, "GeometryNodeGreasePencilToCurves")
         node_add_menu.add_node_type(layout, "GeometryNodeInterpolateCurves")
         node_add_menu.add_node_type(layout, "GeometryNodeResampleCurve")

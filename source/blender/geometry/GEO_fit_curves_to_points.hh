@@ -11,9 +11,13 @@
 
 namespace blender::geometry {
 
+enum class FitMethod { Refit, Split };
+
 bke::CurvesGeometry fit_curves_to_points(Span<float3> positions,
                                          OffsetIndices<int> points_by_curve,
-                                         Span<bool> cyclic,
+                                         const VArray<bool> cyclic,
+                                         const VArray<int> resolution,
+                                         FitMethod method,
                                          float epsilon,
                                          Array<int> &r_new_to_old_map);
 
