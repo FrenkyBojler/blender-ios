@@ -204,6 +204,73 @@ static void build_face_to_face_by_edge_map(const OffsetIndices<int> faces,
   });
 }
 
+static void build_corner_to_corner_by_vert_map(const OffsetIndices<int> faces,
+                                               const Span<int> corner_verts,
+                                               const int verts_num,
+                                               const int corners_num,
+                                               Array<int> &r_offsets,
+                                               Array<int> &r_indices)
+{
+  Array<int> vert_to_corner_offset_data;
+  Array<int> vert_to_corner_indices;
+  const GroupedSpan<int> vert_to_corner_map = bke::mesh::build_vert_to_corner_map(
+      corner_verts, verts_num, vert_to_corner_offset_data, vert_to_corner_indices);
+
+  const OffsetIndices<int> vert_to_corner_offsets(vert_to_corner_offset_data);
+
+  r_offsets = Array<int>(corners_num + 1, 0);
+  threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
+    for (const int face_i : range) {
+      int num_next_prev = 0;
+      if (faces[face_i].size() == 2) {
+        num_next_prev = 1;
+      }
+      else if (faces[face_i].size() > 2) {
+        num_next_prev = 2;
+      }
+      for (const int vert_i : corner_verts.slice(faces[face_i])) {
+        const int corner_i = bke::mesh::face_find_corner_from_vert(
+            faces[face_i], corner_verts, vert_i);
+
+        /* Subtract corner itself from the number of corners connected to the vertex. */
+        r_offsets[corner_i] += vert_to_corner_offsets[vert_i].size() - 1;
+        /* Account for next and previous corner in same face. */
+        r_offsets[corner_i] += num_next_prev;
+      }
+    }
+  });
+  const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(r_offsets);
+  r_indices.reinitialize(offsets.total_size());
+
+  threading::parallel_for(faces.index_range(), 4096, [&](IndexRange range) {
+    for (const int face_i : range) {
+      for (const int corner_i : faces[face_i]) {
+        MutableSpan<int> neighbors = r_indices.as_mutable_span().slice(offsets[face_i]);
+        if (neighbors.is_empty()) {
+          continue;
+        }
+        int count = 0;
+        for (const int vert_i : corner_verts.slice(faces[face_i])) {
+          for (const int neighbor : vert_to_corner_map[vert_i]) {
+            if (neighbor != corner_i) {
+              neighbors[count] = neighbor;
+              count++;
+            }
+          }
+        }
+        if (faces[face_i].size() == 2) {
+          neighbors[count] = bke::mesh::face_corner_next(faces[face_i], corner_i);
+        }
+        else if (faces[face_i].size() > 2) {
+          neighbors[count] = bke::mesh::face_corner_next(faces[face_i], corner_i);
+          count++;
+          neighbors[count] = bke::mesh::face_corner_prev(faces[face_i], corner_i);
+        }
+      }
+    }
+  });
+}
+
 static GroupedSpan<int> create_mesh_map(const Mesh &mesh,
                                         const AttrDomain domain,
                                         Array<int> &r_offsets,
@@ -219,6 +286,14 @@ static GroupedSpan<int> create_mesh_map(const Mesh &mesh,
     case AttrDomain::Face:
       build_face_to_face_by_edge_map(
           mesh.faces(), mesh.corner_edges(), mesh.edges_num, r_offsets, r_indices);
+      break;
+    case AttrDomain::Corner:
+      build_corner_to_corner_by_vert_map(mesh.faces(),
+                                         mesh.corner_verts(),
+                                         mesh.verts_num,
+                                         mesh.corners_num,
+                                         r_offsets,
+                                         r_indices);
       break;
     default:
       BLI_assert_unreachable();
@@ -400,7 +475,12 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
     GSpan result_buffer = buffer_a.as_span();
     switch (context.type()) {
       case GeometryComponent::Type::Mesh:
-        if (ELEM(context.domain(), AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face)) {
+        if (ELEM(context.domain(),
+                 AttrDomain::Point,
+                 AttrDomain::Edge,
+                 AttrDomain::Face,
+                 AttrDomain::Corner))
+        {
           if (const Mesh *mesh = context.mesh()) {
             result_buffer = blur_on_mesh(
                 *mesh, context.domain(), iterations_, neighbor_weights, buffer_a, buffer_b);
