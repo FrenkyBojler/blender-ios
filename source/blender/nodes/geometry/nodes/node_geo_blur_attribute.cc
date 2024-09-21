@@ -221,21 +221,12 @@ static void build_corner_to_corner_by_vert_map(const OffsetIndices<int> faces,
   r_offsets = Array<int>(corners_num + 1, 0);
   threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
     for (const int face_i : range) {
-      int num_next_prev = 0;
-      if (faces[face_i].size() == 2) {
-        num_next_prev = 1;
-      }
-      else if (faces[face_i].size() > 2) {
-        num_next_prev = 2;
-      }
-      for (const int vert_i : corner_verts.slice(faces[face_i])) {
-        const int corner_i = bke::mesh::face_find_corner_from_vert(
-            faces[face_i], corner_verts, vert_i);
-
-        /* Subtract corner itself from the number of corners connected to the vertex. */
-        r_offsets[corner_i] += vert_to_corner_offsets[vert_i].size() - 1;
-        /* Account for next and previous corner in same face. */
-        r_offsets[corner_i] += num_next_prev;
+      for (const int corner_i : faces[face_i]) {
+        const int vert_i = corner_verts[corner_i];
+        constexpr int self_corner = -1;
+        constexpr int prev_and_next_corners = 2;
+        r_offsets[corner_i] += vert_to_corner_offsets[vert_i].size() + self_corner +
+                               prev_and_next_corners;
       }
     }
   });
@@ -245,27 +236,19 @@ static void build_corner_to_corner_by_vert_map(const OffsetIndices<int> faces,
   threading::parallel_for(faces.index_range(), 4096, [&](IndexRange range) {
     for (const int face_i : range) {
       for (const int corner_i : faces[face_i]) {
-        MutableSpan<int> neighbors = r_indices.as_mutable_span().slice(offsets[face_i]);
-        if (neighbors.is_empty()) {
-          continue;
-        }
-        int count = 0;
-        for (const int vert_i : corner_verts.slice(faces[face_i])) {
-          for (const int neighbor : vert_to_corner_map[vert_i]) {
-            if (neighbor != corner_i) {
-              neighbors[count] = neighbor;
-              count++;
-            }
-          }
-        }
-        if (faces[face_i].size() == 2) {
-          neighbors[count] = bke::mesh::face_corner_next(faces[face_i], corner_i);
-        }
-        else if (faces[face_i].size() > 2) {
-          neighbors[count] = bke::mesh::face_corner_next(faces[face_i], corner_i);
-          count++;
-          neighbors[count] = bke::mesh::face_corner_prev(faces[face_i], corner_i);
-        }
+        const int vert_i = corner_verts[corner_i];
+        const int prev_corner_i = bke::mesh::face_corner_prev(faces[face_i], corner_i);
+        const int next_corner_i = bke::mesh::face_corner_next(faces[face_i], corner_i);
+
+        MutableSpan<int> neighbors = r_indices.as_mutable_span().slice(offsets[corner_i]);
+
+        MutableSpan<int> vert_neighbors = neighbors.drop_back(1);
+        vert_neighbors.copy_from(vert_to_corner_map[vert_i]);
+
+        auto self_corner = std::find(vert_neighbors.begin(), vert_neighbors.end(), corner_i);
+        *self_corner = prev_corner_i;
+
+        neighbors.last() = next_corner_i;
       }
     }
   });
