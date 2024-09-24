@@ -2,23 +2,20 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "node_geometry_util.hh"
-
 #include "BKE_attribute.hh"
-#include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
-
-#include "BLI_array_utils.hh"
-#include "BLI_offset_indices.hh"
-#include "BLI_task.hh"
-
-#include "DNA_pointcloud_types.h"
 
 #include "GEO_fit_curves.hh"
 
+#include "NOD_rna_define.hh"
+
 #include "BKE_geometry_set.hh"
 
+#include "node_geometry_util.hh"
+
 namespace blender::nodes::node_geo_fit_curves_cc {
+
+NODE_STORAGE_FUNCS(NodeGeometryFitCurves)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -28,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Threshold")
       .default_value(0.01f)
       .min(0.0f)
-      .max(1000.0f)
+      .max(1.0f)
       .supports_field()
       .description(
           "Error threshold that defines how well the spline matches the input positions. Lower "
@@ -38,62 +35,48 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Curves").propagate_all();
 }
 
-static Curves *fit_curves(const Curves &curves,
-                          const Field<bool> &selection_field,
-                          const Field<float> &threshold_field,
-                          const AttributeFilter &attribute_filter)
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  // const int domain_size = points.totpoint;
-  // if (domain_size == 0) {
-  //   return nullptr;
-  // }
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+}
 
-  // Array<int> group_ids(domain_size);
-  // {
-  //   const bke::PointCloudFieldContext context(points);
-  //   fn::FieldEvaluator evaluator(context, domain_size);
-  //   evaluator.add(group_id_field);
-  //   evaluator.evaluate();
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  NodeGeometryFitCurves *data = MEM_cnew<NodeGeometryFitCurves>(__func__);
 
-  //   const VArray<int> group_ids_varray = evaluator.get_evaluated<int>(0);
-  //   group_ids_varray.materialize(group_ids.as_mutable_span());
-  // }
-  // const int total_curves = identifiers_to_indices(group_ids);
-  Curves *curves_id = bke::curves_new_nomain(0, 0);
-  // bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-  // Array<int> old_to_new_map;
-  // {
-  //   const bke::CurvesFieldContext context(curves, bke::AttrDomain::Curve);
-  //   fn::FieldEvaluator evaluator(context, total_curves);
-  //   evaluator.add(cyclic_field);
-  //   evaluator.add(resolution_field);
-  //   evaluator.evaluate();
+  data->mode = GEO_NODE_CURVE_FIT_REFIT;
+  node->storage = data;
+}
 
-  //   const VArray<bool> cyclic_varray = evaluator.get_evaluated<bool>(0);
-  //   const VArray<int> resolution_varray = evaluator.get_evaluated<int>(1);
+static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
+                                      const Field<bool> &selection_field,
+                                      const Field<float> &threshold_field,
+                                      const AttributeFilter &attribute_filter)
+{
+  const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Curve};
+  fn::FieldEvaluator evaluator{field_context, src_curves.curves_num()};
+  evaluator.add(selection_field);
+  evaluator.add(threshold_field);
+  evaluator.evaluate();
 
-  //   const Span<int> indices = group_ids.as_span();
-  //   curves.offsets_for_write().fill(0);
-  //   offset_indices::build_reverse_offsets(indices, curves.offsets_for_write());
+  Array<int> old_to_new_map;
+  bke::CurvesGeometry curves = geometry::fit_curves(src_curves.positions(),
+                                                    src_curves.points_by_curve(),
+                                                    evaluator.get_evaluated_as_mask(0),
+                                                    src_curves.cyclic(),
+                                                    evaluator.get_evaluated<float>(1),
+                                                    geometry::FitMethod::Refit,
+                                                    old_to_new_map);
 
-  //   const OffsetIndices src_point_offsets = curves.offsets();
-  //   curves = geometry::fit_curves(points.positions(),
-  //                                 src_point_offsets,
-  //                                 cyclic_varray,
-  //                                 resolution_varray,
-  //                                 epsilon,
-  //                                 old_to_new_map);
-  // }
+  bke::gather_attributes(src_curves.attributes(),
+                         AttrDomain::Point,
+                         AttrDomain::Point,
+                         attribute_filter,
+                         old_to_new_map,
+                         curves.attributes_for_write());
 
-  // bke::gather_attributes(points.attributes(),
-  //                        AttrDomain::Point,
-  //                        AttrDomain::Point,
-  //                        attribute_filter,
-  //                        old_to_new_map,
-  //                        curves.attributes_for_write());
-
-  // geometry::debug_randomize_curve_order(&curves);
-  return curves_id;
+  geometry::debug_randomize_curve_order(&curves);
+  return curves;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -104,10 +87,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    if (const Curves *input_curves = geometry_set.get_curves()) {
-      Curves *result_curves = fit_curves(
-          *input_curves, selection_field, threshold_field, attribute_filter);
-      geometry_set.replace_curves(result_curves);
+    if (const Curves *curves_id = geometry_set.get_curves()) {
+      const bke::CurvesGeometry &src_curves = curves_id->geometry.wrap();
+      bke::CurvesGeometry dst_curves = fit_curves(
+          src_curves, selection_field, threshold_field, attribute_filter);
+      Curves *dst_curves_id = bke::curves_new_nomain(std::move(dst_curves));
+      bke::curves_copy_parameters(*curves_id, *dst_curves_id);
+      geometry_set.replace_curves(dst_curves_id);
     }
     geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
   });
@@ -115,14 +101,32 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Curves", std::move(geometry_set));
 }
 
+static void node_rna(StructRNA *srna)
+{
+  static EnumPropertyItem mode_items[] = {
+      {GEO_NODE_CURVE_FIT_SPLIT, "SPLIT", 0, "Split", ""},
+      {GEO_NODE_CURVE_FIT_REFIT, "REFIT", 0, "Refit", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  RNA_def_node_enum(
+      srna, "mode", "Mode", "Curve fitting mode", mode_items, NOD_storage_enum_accessors(mode));
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_FIT_CURVES, "Fit Curves", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_type_storage(
+      &ntype, "NodeGeometryFitCurves", node_free_standard_storage, node_copy_standard_storage);
+  ntype.initfunc = node_init;
+  ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -14,11 +14,11 @@ namespace blender::geometry {
 enum class FitMethod { Refit, Split };
 
 bke::CurvesGeometry fit_curves(Span<float3> positions,
-                               OffsetIndices<int> src_point_offsets,
-                               const IndexMask &selection,
+                               OffsetIndices<int> src_offsets,
+                               const IndexMask &curve_selection,
                                const VArray<bool> &cyclic,
                                const VArray<float> &thresholds,
                                FitMethod method,
-                               Array<int> &r_new_to_old_map);
+                               Array<int> &r_old_to_new_map);
 
 }  // namespace blender::geometry

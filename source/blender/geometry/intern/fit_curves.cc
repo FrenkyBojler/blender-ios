@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_bounds.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
@@ -14,26 +15,37 @@ extern "C" {
 namespace blender::geometry {
 
 bke::CurvesGeometry fit_curves(const Span<float3> positions,
-                               const OffsetIndices<int> src_point_offsets,
-                               const IndexMask &selection,
+                               const OffsetIndices<int> src_offsets,
+                               const IndexMask &curve_selection,
                                const VArray<bool> &cyclic,
                                const VArray<float> &thresholds,
                                const FitMethod method,
-                               Array<int> &r_new_to_old_map)
+                               Array<int> &r_old_to_new_map)
 {
-  const int dst_curves_num = src_point_offsets.size();
+  const int dst_curves_num = curve_selection.size();
   /* Add one at the end so we can accumulate the sizes to offsets later. */
   Array<int> sizes_per_curve(dst_curves_num + 1);
   Array<int8_t> type_per_curve(dst_curves_num);
   Array<Vector<float3>> left_handles_per_curve(dst_curves_num);
   Array<Vector<float3>> control_points_per_curve(dst_curves_num);
   Array<Vector<float3>> right_handles_per_curve(dst_curves_num);
-  Array<Vector<int>> new_to_old_per_curve(dst_curves_num);
-  selection.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
-    const IndexRange points_range = src_point_offsets[curve_i];
+  Array<Vector<int>> old_to_new_per_curve(dst_curves_num);
+  curve_selection.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
+    const IndexRange points_range = src_offsets[curve_i];
     const Span<float3> points = positions.slice(points_range);
     const bool use_cyclic = cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
+
+    Bounds<float3> bounds = *bounds::min_max(points);
+    const float3 center = bounds.center();
+    const float diagonal_distance = math::distance(bounds.min, bounds.max);
+
+    Array<float3> normalized_positions(points.size());
+    threading::parallel_for(points.index_range(), 4096, [&](const IndexRange range) {
+      for (const int i : range) {
+        normalized_positions[i] = (points[i] - center) / diagonal_distance;
+      }
+    });
 
     const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | (use_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0;
 
@@ -45,14 +57,14 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
 
     int error = 1;
     if (method == FitMethod::Refit) {
-      error = curve_fit_cubic_to_points_refit_fl(*points.data(),
-                                                 points.size(),
+      error = curve_fit_cubic_to_points_refit_fl(*normalized_positions.data(),
+                                                 normalized_positions.size(),
                                                  3,
                                                  epsilon,
                                                  flag,
                                                  nullptr,
                                                  0,
-                                                 0.0f,
+                                                 M_PI,
                                                  &r_cubic_array,
                                                  &r_cubic_array_len,
                                                  &r_orig_index_map,
@@ -60,8 +72,8 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
                                                  &r_corner_index_array_len);
     }
     else if (method == FitMethod::Split) {
-      error = curve_fit_cubic_to_points_fl(*points.data(),
-                                           points.size(),
+      error = curve_fit_cubic_to_points_fl(*normalized_positions.data(),
+                                           normalized_positions.size(),
                                            3,
                                            epsilon,
                                            flag,
@@ -94,7 +106,7 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
     left_handles_per_curve[curve_i].resize(dst_points_num);
     control_points_per_curve[curve_i].resize(dst_points_num);
     right_handles_per_curve[curve_i].resize(dst_points_num);
-    new_to_old_per_curve[curve_i].resize(dst_points_num);
+    old_to_new_per_curve[curve_i].resize(dst_points_num);
 
     MutableSpan<float3> left_handles = left_handles_per_curve[curve_i].as_mutable_span();
     MutableSpan<float3> control_points = control_points_per_curve[curve_i].as_mutable_span();
@@ -102,13 +114,13 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
     threading::parallel_for(IndexRange(dst_points_num), 4096, [&](const IndexRange range) {
       for (const int point_i : range) {
         const int index = point_i * 3;
-        left_handles[point_i] = cubic_array_span[index];
-        control_points[point_i] = cubic_array_span[index + 1];
-        right_handles[point_i] = cubic_array_span[index + 2];
+        left_handles[point_i] = (cubic_array_span[index] * diagonal_distance) + center;
+        control_points[point_i] = (cubic_array_span[index + 1] * diagonal_distance) + center;
+        right_handles[point_i] = (cubic_array_span[index + 2] * diagonal_distance) + center;
       }
     });
 
-    new_to_old_per_curve[curve_i].as_mutable_span().copy_from(orig_index_span);
+    old_to_new_per_curve[curve_i].as_mutable_span().copy_from(orig_index_span);
   });
 
   const OffsetIndices points_by_curve = offset_indices::accumulate_counts_to_offsets(
@@ -125,7 +137,7 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
   dst_curves.handle_types_left_for_write().fill(BEZIER_HANDLE_ALIGN);
   dst_curves.handle_types_right_for_write().fill(BEZIER_HANDLE_ALIGN);
 
-  r_new_to_old_map.reinitialize(dst_curves.points_num());
+  r_old_to_new_map.reinitialize(dst_curves.points_num());
 
   MutableSpan<float3> handle_positions_left = dst_curves.handle_positions_left_for_write();
   MutableSpan<float3> control_point_positions = dst_curves.positions_for_write();
@@ -137,8 +149,8 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
       control_point_positions.slice(points).copy_from(control_points_per_curve[curve_i].as_span());
       handle_positions_right.slice(points).copy_from(right_handles_per_curve[curve_i].as_span());
 
-      r_new_to_old_map.as_mutable_span().slice(points).copy_from(
-          new_to_old_per_curve[curve_i].as_span());
+      r_old_to_new_map.as_mutable_span().slice(points).copy_from(
+          old_to_new_per_curve[curve_i].as_span());
     }
   });
 
