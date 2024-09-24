@@ -7122,7 +7122,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   BLI_rcti_rctf_copy(&rect, &but->rect);
 
   if (bool(flags & (ButEditFlags::Shift | ButEditFlags::ContinuousGrab))) {
-    const float fac = ui_mouse_scale_warp_factor(true);
+    const float fac = ui_mouse_scale_warp_factor(bool(flags & ButEditFlags::Shift));
     mval[0] = (mx - float(data->draglastx)) * fac + mval[0];
     mval[1] = (my - float(data->draglasty)) * fac + mval[1];
 
