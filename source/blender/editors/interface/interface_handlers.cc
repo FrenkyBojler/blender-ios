@@ -7074,13 +7074,34 @@ static int ui_do_but_HSVCUBE(
   return WM_UI_HANDLER_CONTINUE;
 }
 
+enum class ButEditFlags : uint8_t {
+  IsBegin = 1 << 0,
+  Shift = 1 << 1,
+  ContinuousGrab = 1 << 2,
+};
+ENUM_OPERATORS(ButEditFlags, ButEditFlags::ContinuousGrab)
+
+ButEditFlags ui_but_edit_flags(const uiBut *but, const wmEvent *event, bool is_begin = false)
+{
+  ButEditFlags flags;
+  if (is_begin) {
+    flags |= ButEditFlags::IsBegin;
+  }
+  if (event->modifier & KM_SHIFT) {
+    flags |= ButEditFlags::Shift;
+  }
+  if (ui_but_is_cursor_warp(but) && event->tablet.active == EVT_TABLET_NONE) {
+    flags |= ButEditFlags::ContinuousGrab;
+  }
+  return flags;
+}
+
 static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
                                      uiHandleButtonData *data,
                                      float mx,
                                      float my,
                                      const enum eSnapType snap,
-                                     const bool shift,
-                                     const bool use_continuous_grab)
+                                     ButEditFlags flags)
 {
   const bool changed = true;
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
@@ -7091,12 +7112,17 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
    * position will depend on mouse movement rather than the absolute mouse position.
    */
   static float mval[2];
-
+  if (bool(flags & ButEditFlags::IsBegin)) {
+    mval[0] = mx;
+    mval[1] = my;
+    data->draglastx = mx;
+    data->draglasty = my;
+  }
   rcti rect;
   BLI_rcti_rctf_copy(&rect, &but->rect);
 
-  if (use_continuous_grab || shift) {
-    const float fac = ui_mouse_scale_warp_factor(shift);
+  if (bool(flags & (ButEditFlags::Shift | ButEditFlags::ContinuousGrab))) {
+    const float fac = ui_mouse_scale_warp_factor(true);
     mval[0] = (mx - float(data->draglastx)) * fac + mval[0];
     mval[1] = (my - float(data->draglasty)) * fac + mval[1];
 
@@ -7114,7 +7140,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   }
 
 #ifdef USE_CONT_MOUSE_CORRECT
-  if (use_continuous_grab) {
+  if (bool(flags & ButEditFlags::ContinuousGrab)) {
     /* OK but can go outside bounds */
     data->ungrab_mval[0] = mval[0];
     data->ungrab_mval[1] = mval[1];
@@ -7250,7 +7276,6 @@ static int ui_do_but_HSVCIRCLE(
   int mx = event->xy[0];
   int my = event->xy[1];
 
-  const bool shift = event->modifier & KM_SHIFT;
   ui_window_to_block(data->region, block, &mx, &my);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
@@ -7262,10 +7287,8 @@ static int ui_do_but_HSVCIRCLE(
       data->draglasty = my;
       button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 
-      /* On KM_PRESS the mouse is within the circle, use `use_continuous_grab = false` to pick
-       * color at mouse position. */
       /* also do drag the first time */
-      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, false, false)) {
+      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, ui_but_edit_flags(but, event, true))) {
         ui_numedit_apply(C, block, but, data);
       }
 
@@ -7337,9 +7360,7 @@ static int ui_do_but_HSVCIRCLE(
     else if ((event->type == MOUSEMOVE) || ui_event_is_snap(event)) {
       if (mx != data->draglastx || my != data->draglasty || event->type != MOUSEMOVE) {
         const enum eSnapType snap = ui_event_to_snap(event);
-        const bool use_continuous_grab = ui_but_is_cursor_warp(but) &&
-                                         event->tablet.active == EVT_TABLET_NONE;
-        if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, use_continuous_grab)) {
+        if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, ui_but_edit_flags(but, event))) {
           ui_numedit_apply(C, block, but, data);
         }
       }
