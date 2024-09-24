@@ -7108,7 +7108,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   float *hsv = cpicker->hsv_perceptual;
 
   /* When #flags contains #ButEditFlags::ContinuousGrab or #ButEditFlags::Shift, #mval stores the
-   * HSV cursor positon as mouse position to make delta movements whithin the circe, otherwise
+   * HSV cursor positon as mouse position to make delta movements within the circe, otherwise
    * uses the real mouse position. */
   static float mval[2];
   if (bool(flags & ButEditFlags::IsBegin)) {
