@@ -31,19 +31,19 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
   Array<Vector<float3>> right_handles_per_curve(dst_curves_num);
   Array<Vector<int>> old_to_new_per_curve(dst_curves_num);
   curve_selection.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
-    const IndexRange points_range = src_offsets[curve_i];
-    const Span<float3> points = positions.slice(points_range);
+    const IndexRange points = src_offsets[curve_i];
+    const Span<float3> curve_positions = positions.slice(points);
     const bool use_cyclic = cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
 
-    Bounds<float3> bounds = *bounds::min_max(points);
+    Bounds<float3> bounds = *bounds::min_max(curve_positions);
     const float3 center = bounds.center();
     const float diagonal_distance = math::distance(bounds.min, bounds.max);
 
-    Array<float3> normalized_positions(points.size());
-    threading::parallel_for(points.index_range(), 4096, [&](const IndexRange range) {
+    Array<float3> normalized_positions(curve_positions.size());
+    threading::parallel_for(curve_positions.index_range(), 4096, [&](const IndexRange range) {
       for (const int i : range) {
-        normalized_positions[i] = (points[i] - center) / diagonal_distance;
+        normalized_positions[i] = (curve_positions[i] - center) / diagonal_distance;
       }
     });
 
@@ -56,23 +56,8 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
     uint32_t r_corner_index_array_len;
 
     int error = 1;
-    if (method == FitMethod::Refit) {
-      error = curve_fit_cubic_to_points_refit_fl(*normalized_positions.data(),
-                                                 normalized_positions.size(),
-                                                 3,
-                                                 epsilon,
-                                                 flag,
-                                                 nullptr,
-                                                 0,
-                                                 M_PI,
-                                                 &r_cubic_array,
-                                                 &r_cubic_array_len,
-                                                 &r_orig_index_map,
-                                                 &r_corner_index_array,
-                                                 &r_corner_index_array_len);
-    }
-    else if (method == FitMethod::Split) {
-      error = curve_fit_cubic_to_points_fl(*normalized_positions.data(),
+    if (method == FitMethod::Split) {
+      error = curve_fit_cubic_to_points_fl(normalized_positions.as_span().cast<float>().data(),
                                            normalized_positions.size(),
                                            3,
                                            epsilon,
@@ -85,13 +70,29 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
                                            &r_corner_index_array,
                                            &r_corner_index_array_len);
     }
+    else if (method == FitMethod::Refit) {
+      error = curve_fit_cubic_to_points_refit_fl(
+          normalized_positions.as_span().cast<float>().data(),
+          normalized_positions.size(),
+          3,
+          epsilon,
+          flag,
+          nullptr,
+          0,
+          M_PI,
+          &r_cubic_array,
+          &r_cubic_array_len,
+          &r_orig_index_map,
+          &r_corner_index_array,
+          &r_corner_index_array_len);
+    }
 
     if (error) {
       /* Some error occured. Fall back to using the input positions as the (poly) curve. */
       sizes_per_curve[curve_i] = points.size();
       type_per_curve[curve_i] = CURVE_TYPE_POLY;
       control_points_per_curve[curve_i].resize(points.size());
-      control_points_per_curve[curve_i].as_mutable_span().copy_from(points);
+      control_points_per_curve[curve_i].as_mutable_span().copy_from(curve_positions);
       return;
     }
 

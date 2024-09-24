@@ -51,6 +51,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
                                       const Field<bool> &selection_field,
                                       const Field<float> &threshold_field,
+                                      const GeometryNodeFitCurvesMode mode,
                                       const AttributeFilter &attribute_filter)
 {
   const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Curve};
@@ -59,13 +60,25 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   evaluator.add(threshold_field);
   evaluator.evaluate();
 
+  geometry::FitMethod method;
+  switch (mode) {
+    case GEO_NODE_CURVE_FIT_SPLIT:
+      method = geometry::FitMethod::Split;
+      break;
+    case GEO_NODE_CURVE_FIT_REFIT:
+      method = geometry::FitMethod::Refit;
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+
   Array<int> old_to_new_map;
   bke::CurvesGeometry curves = geometry::fit_curves(src_curves.positions(),
                                                     src_curves.points_by_curve(),
                                                     evaluator.get_evaluated_as_mask(0),
                                                     src_curves.cyclic(),
                                                     evaluator.get_evaluated<float>(1),
-                                                    geometry::FitMethod::Refit,
+                                                    method,
                                                     old_to_new_map);
 
   bke::gather_attributes(src_curves.attributes(),
@@ -81,16 +94,18 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  const NodeGeometryFitCurves &storage = node_storage(params.node());
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<float> threshold_field = params.extract_input<Field<float>>("Threshold");
+  const GeometryNodeFitCurvesMode mode = (GeometryNodeFitCurvesMode)storage.mode;
 
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (const Curves *curves_id = geometry_set.get_curves()) {
       const bke::CurvesGeometry &src_curves = curves_id->geometry.wrap();
       bke::CurvesGeometry dst_curves = fit_curves(
-          src_curves, selection_field, threshold_field, attribute_filter);
+          src_curves, selection_field, threshold_field, mode, attribute_filter);
       Curves *dst_curves_id = bke::curves_new_nomain(std::move(dst_curves));
       bke::curves_copy_parameters(*curves_id, *dst_curves_id);
       geometry_set.replace_curves(dst_curves_id);
@@ -104,8 +119,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_FIT_SPLIT, "SPLIT", 0, "Split", ""},
       {GEO_NODE_CURVE_FIT_REFIT, "REFIT", 0, "Refit", ""},
+      {GEO_NODE_CURVE_FIT_SPLIT, "SPLIT", 0, "Split", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

@@ -3100,6 +3100,6 @@ typedef enum NodeGeometryTransformMode {
 } NodeGeometryTransformMode;
 
 typedef enum GeometryNodeFitCurvesMode {
-  GEO_NODE_CURVE_FIT_SPLIT = 0,
-  GEO_NODE_CURVE_FIT_REFIT = 1,
+  GEO_NODE_CURVE_FIT_REFIT = 0,
+  GEO_NODE_CURVE_FIT_SPLIT = 1,
 } GeometryNodeFitCurvesMode;
