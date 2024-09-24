@@ -20,6 +20,7 @@ set(SRC
   intern/add_curves_on_mesh.cc
   intern/curve_constraints.cc
   intern/extend_curves.cc
+  intern/extract_elements.cc
   intern/fillet_curves.cc
   intern/fit_curves_to_points.cc
   intern/interpolate_curves.cc
@@ -59,6 +60,7 @@ set(SRC
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
   GEO_extend_curves.hh
+  GEO_extract_elements.hh
   GEO_fillet_curves.hh
   GEO_fit_curves_to_points.hh
   GEO_interpolate_curves.hh
@@ -104,6 +106,13 @@ set(LIB
   PRIVATE bf::extern::fmtlib
   extern_curve_fit_nd
 )
+
+if(WITH_UV_SLIM)
+  list(APPEND INC
+    ../../../intern/slim
+  )
+  add_definitions(-DWITH_UV_SLIM)
+endif()
 
 if(WITH_OPENVDB)
   list(APPEND INC

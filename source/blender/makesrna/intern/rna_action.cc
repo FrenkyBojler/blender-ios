@@ -439,18 +439,19 @@ ActionStrip *rna_ActionStrips_new(
 }
 
 void rna_ActionStrips_remove(
-    ID *action, ActionLayer *dna_layer, bContext *C, ReportList *reports, PointerRNA *strip_ptr)
+    ID *action_id, ActionLayer *dna_layer, bContext *C, ReportList *reports, PointerRNA *strip_ptr)
 {
+  animrig::Action &action = reinterpret_cast<bAction *>(action_id)->wrap();
   animrig::Layer &layer = dna_layer->wrap();
   animrig::Strip &strip = rna_data_strip(strip_ptr);
-  if (!layer.strip_remove(strip)) {
+  if (!layer.strip_remove(action, strip)) {
     BKE_report(reports, RPT_ERROR, "This strip does not belong to this layer");
     return;
   }
 
   RNA_POINTER_INVALIDATE(strip_ptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
-  DEG_id_tag_update(action, ID_RECALC_ANIMATION);
+  DEG_id_tag_update(action_id, ID_RECALC_ANIMATION);
 }
 
 static std::optional<std::string> rna_ActionStrip_path(const PointerRNA *ptr)
@@ -1107,7 +1108,7 @@ static FCurve *rna_Action_fcurve_new(bAction *act,
 #  endif
 
   /* Annoying, check if this exists. */
-  if (blender::animrig::action_fcurve_find(act, fcurve_descriptor)) {
+  if (blender::animrig::fcurve_find_in_action(act, fcurve_descriptor)) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "F-Curve '%s[%d]' already exists in action '%s'",
@@ -1146,7 +1147,7 @@ static FCurve *rna_Action_fcurve_find(bAction *act,
 #  endif
 
   /* Returns nullptr if not found. */
-  return BKE_fcurve_find(&act->curves, data_path, index);
+  return animrig::fcurve_find_in_action(act, {data_path, index});
 }
 
 static void rna_Action_fcurve_remove(bAction *act, ReportList *reports, PointerRNA *fcu_ptr)

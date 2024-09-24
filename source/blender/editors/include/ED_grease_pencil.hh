@@ -131,7 +131,8 @@ class DrawingPlacement {
                    const Object &eval_object,
                    const bke::greasepencil::Layer *layer,
                    ReprojectMode reproject_mode,
-                   float surface_offset = 0.0f);
+                   float surface_offset = 0.0f,
+                   ViewDepths *view_depths = nullptr);
   DrawingPlacement(const DrawingPlacement &other);
   DrawingPlacement(DrawingPlacement &&other);
   DrawingPlacement &operator=(const DrawingPlacement &other);
@@ -257,8 +258,9 @@ bool has_any_frame_selected(const bke::greasepencil::Layer &layer);
  * create one when auto-key is on (taking additive drawing setting into account).
  * \return false when no keyframe could be found or created.
  */
-bool ensure_active_keyframe(bContext *C,
+bool ensure_active_keyframe(const Scene &scene,
                             GreasePencil &grease_pencil,
+                            bke::greasepencil::Layer &layer,
                             bool duplicate_previous_key,
                             bool &r_inserted_keyframe);
 
@@ -511,11 +513,14 @@ const bke::CurvesGeometry &clipboard_curves();
 /**
  * Paste curves from the clipboard into the drawing.
  * \param paste_back: Render behind existing curves by inserting curves at the front.
+ * \param keep_world_transform: Keep the world transform of clipboard strokes unchanged.
  * \return Index range of the new curves in the drawing after pasting.
  */
 IndexRange clipboard_paste_strokes(Main &bmain,
                                    Object &object,
                                    bke::greasepencil::Drawing &drawing,
+                                   const float4x4 &transform,
+                                   bool keep_world_transform,
                                    bool paste_back);
 
 /**

@@ -348,7 +348,8 @@ static bool reuse_bmain_move_id(ReuseOldBMainData *reuse_data,
 
   id->lib = lib;
   BLI_addtail(new_lb, id);
-  BKE_id_new_name_validate(new_bmain, new_lb, id, nullptr, true);
+  BKE_id_new_name_validate(
+      *new_bmain, *new_lb, *id, nullptr, IDNewNameMode::RenameExistingNever, true);
   BKE_lib_libblock_session_uid_renew(id);
 
   /* Remap to itself, to avoid re-processing this ID again. */
@@ -953,6 +954,12 @@ static void setup_app_data(bContext *C,
         if (ID_TYPE_SUPPORTS_ASSET_EDITABLE(idtype_info->id_code)) {
           reuse_editable_asset_bmain_data_for_blendfile(&reuse_data, idtype_info->id_code);
         }
+      }
+    }
+
+    if (mode != LOAD_UI) {
+      LISTBASE_FOREACH (bScreen *, screen, &bfd->main->screens) {
+        BKE_screen_runtime_refresh_for_blendfile(screen);
       }
     }
   }

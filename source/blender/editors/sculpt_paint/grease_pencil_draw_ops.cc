@@ -114,6 +114,9 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
     }
   }
   else if (mode == PaintMode::SculptGreasePencil) {
+    if (stroke_mode == BRUSH_STROKE_SMOOTH) {
+      return greasepencil::new_smooth_operation(stroke_mode);
+    }
     switch (eBrushGPSculptType(brush.gpencil_sculpt_brush_type)) {
       case GPSCULPT_BRUSH_TYPE_SMOOTH:
         return greasepencil::new_smooth_operation(stroke_mode);
@@ -327,6 +330,7 @@ static bool grease_pencil_sculpt_paint_poll(bContext *C)
 
 static int grease_pencil_sculpt_paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  const Scene *scene = CTX_data_scene(C);
   const Object *object = CTX_data_active_object(C);
   if (!object || object->type != OB_GREASE_PENCIL) {
     return OPERATOR_CANCELLED;
@@ -356,7 +360,7 @@ static int grease_pencil_sculpt_paint_invoke(bContext *C, wmOperator *op, const 
    * the previous key. */
   const bool use_duplicate_previous_key = true;
   if (!ed::greasepencil::ensure_active_keyframe(
-          C, grease_pencil, use_duplicate_previous_key, inserted_keyframe))
+          *scene, grease_pencil, active_layer, use_duplicate_previous_key, inserted_keyframe))
   {
     BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
     return OPERATOR_CANCELLED;
@@ -523,6 +527,7 @@ static int grease_pencil_vertex_brush_stroke_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent *event)
 {
+  const Scene *scene = CTX_data_scene(C);
   const Object *object = CTX_data_active_object(C);
   if (!object || object->type != OB_GREASE_PENCIL) {
     return OPERATOR_CANCELLED;
@@ -552,7 +557,7 @@ static int grease_pencil_vertex_brush_stroke_invoke(bContext *C,
    * duplicate the previous key. */
   const bool use_duplicate_previous_key = true;
   if (!ed::greasepencil::ensure_active_keyframe(
-          C, grease_pencil, use_duplicate_previous_key, inserted_keyframe))
+          *scene, grease_pencil, active_layer, use_duplicate_previous_key, inserted_keyframe))
   {
     BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
     return OPERATOR_CANCELLED;
@@ -734,7 +739,7 @@ static void grease_pencil_fill_extension_cut(const bContext &C,
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const Span<float3> positions = curves.positions();
     const VArray<bool> cyclic = curves.cyclic();
-    const bke::greasepencil::Layer &layer = *grease_pencil.layer(info.layer_index);
+    const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
     const float4x4 layer_to_view = view_matrix * layer.to_world_space(object);
 
     for (const int i_curve : curves.curves_range()) {
@@ -970,7 +975,7 @@ static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const Span<float3> positions = curves.positions();
     const VArray<bool> cyclic = curves.cyclic();
-    const float4x4 layer_to_world = grease_pencil.layer(info.layer_index)->to_world_space(object);
+    const float4x4 layer_to_world = grease_pencil.layer(info.layer_index).to_world_space(object);
 
     for (const int i_curve : curves.curves_range()) {
       const IndexRange points = points_by_curve[i_curve];
@@ -1082,8 +1087,7 @@ static void grease_pencil_fill_overlay_cb(const bContext *C, ARegion * /*region*
       const IndexMask curve_mask = info.drawing.strokes().curves_range();
       const VArray<ColorGeometry4f> colors = VArray<ColorGeometry4f>::ForSingle(
           stroke_curves_color, info.drawing.strokes().points_num());
-      const float4x4 layer_to_world =
-          grease_pencil.layer(info.layer_index)->to_world_space(object);
+      const float4x4 layer_to_world = grease_pencil.layer(info.layer_index).to_world_space(object);
       const bool use_xray = false;
       const float radius_scale = 1.0f;
 
