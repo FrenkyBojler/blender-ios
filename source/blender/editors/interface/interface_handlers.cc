@@ -7107,10 +7107,9 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
   float *hsv = cpicker->hsv_perceptual;
 
-  /* If `use_continuous_grab = false` stores the absolute mouse position.
-   * If `use_continuous_grab = true` stores relative mouse position within the `HSVCIRCLE`, this
-   * position will depend on mouse movement rather than the absolute mouse position.
-   */
+  /* When #flags contains #ButEditFlags::ContinuousGrab or #ButEditFlags::Shift, #mval stores the
+   * HSV cursor positon as mouse position to make delta movements whithin the circe, otherwise
+   * uses the real mouse position. */
   static float mval[2];
   if (bool(flags & ButEditFlags::IsBegin)) {
     mval[0] = mx;
