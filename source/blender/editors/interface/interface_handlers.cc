@@ -7095,7 +7095,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   rcti rect;
   BLI_rcti_rctf_copy(&rect, &but->rect);
 
-  if (use_continuous_grab) {
+  if (use_continuous_grab || shift) {
     const float fac = ui_mouse_scale_warp_factor(shift);
     mval[0] = (mx - float(data->draglastx)) * fac + mval[0];
     mval[1] = (my - float(data->draglasty)) * fac + mval[1];
@@ -7265,7 +7265,7 @@ static int ui_do_but_HSVCIRCLE(
       /* On KM_PRESS the mouse is within the circle, use `use_continuous_grab = false` to pick
        * color at mouse position. */
       /* also do drag the first time */
-      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, false)) {
+      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, false, false)) {
         ui_numedit_apply(C, block, but, data);
       }
 
