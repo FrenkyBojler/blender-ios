@@ -421,14 +421,13 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
   ray->P = P;
   ray->D = D;
 
-#ifdef TODO_RAY_DIFFERENTIALS
-#  ifdef __RAY_DIFFERENTIALS__
+#ifdef __RAY_DIFFERENTIALS__
   /* Ray differentials, computed from scratch using the raster coordinates
    * because we don't want to be affected by depth of field. We compute
    * ray origin and direction for the center and two neighboring pixels
    * and simply take their differences. */
-  float3 Dx = camera_panorama_direction(cam, raster.x + 1.0f, raster.y);
-  float3 Dy = camera_panorama_direction(cam, raster.x, raster.y + 1.0f);
+  float3 Dx = float4_to_float3(camera_calibrated_direction(cam, raster.x + 1.0f, raster.y));
+  float3 Dy = float4_to_float3(camera_calibrated_direction(cam, raster.x, raster.y + 1.0f));
 
   if (use_stereo) {
     float3 Pcenter = zero_float3();
@@ -453,7 +452,6 @@ ccl_device_inline void camera_sample_calibrated(ccl_constant KernelCamera *cam,
   dD.dx = normalize(transform_direction(&cameratoworld, Dx)) - Dcenter;
   dD.dy = normalize(transform_direction(&cameratoworld, Dy)) - Dcenter;
   ray->dD = differential_make_compact(dD);
-#  endif
 #endif
 
   /* clipping: TODO */
