@@ -204,20 +204,14 @@ static void build_face_to_face_by_edge_map(const OffsetIndices<int> faces,
   });
 }
 
-static void build_corner_to_corner_by_vert_map(const OffsetIndices<int> faces,
+static void build_corner_to_corner_by_vert_map(const GroupedSpan<int> vert_to_corner_map,
+                                               const OffsetIndices<int> faces,
                                                const Span<int> corner_verts,
                                                const int verts_num,
                                                const int corners_num,
                                                Array<int> &r_offsets,
                                                Array<int> &r_indices)
 {
-  Array<int> vert_to_corner_offset_data;
-  Array<int> vert_to_corner_indices;
-  const GroupedSpan<int> vert_to_corner_map = bke::mesh::build_vert_to_corner_map(
-      corner_verts, verts_num, vert_to_corner_offset_data, vert_to_corner_indices);
-
-  const OffsetIndices<int> vert_to_corner_offsets(vert_to_corner_offset_data);
-
   r_offsets = Array<int>(corners_num + 1, 0);
   threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
     for (const int face : range) {
@@ -225,8 +219,8 @@ static void build_corner_to_corner_by_vert_map(const OffsetIndices<int> faces,
         const int vert = corner_verts[corner];
         constexpr int self_corner = -1;
         constexpr int prev_and_next_corners = 2;
-        r_offsets[corner] += vert_to_corner_offsets[vert].size() + self_corner +
-                               prev_and_next_corners;
+        r_offsets[corner] += vert_to_corner_map.offsets[vert].size() + self_corner +
+                             prev_and_next_corners;
       }
     }
   });
@@ -271,7 +265,8 @@ static GroupedSpan<int> create_mesh_map(const Mesh &mesh,
           mesh.faces(), mesh.corner_edges(), mesh.edges_num, r_offsets, r_indices);
       break;
     case AttrDomain::Corner:
-      build_corner_to_corner_by_vert_map(mesh.faces(),
+      build_corner_to_corner_by_vert_map(mesh.vert_to_corner_map(),
+                                         mesh.faces(),
                                          mesh.corner_verts(),
                                          mesh.verts_num,
                                          mesh.corners_num,
