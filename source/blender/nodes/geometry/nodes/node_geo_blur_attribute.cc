@@ -220,12 +220,12 @@ static void build_corner_to_corner_by_vert_map(const OffsetIndices<int> faces,
 
   r_offsets = Array<int>(corners_num + 1, 0);
   threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
-    for (const int face_i : range) {
-      for (const int corner_i : faces[face_i]) {
-        const int vert_i = corner_verts[corner_i];
+    for (const int face : range) {
+      for (const int corner : faces[face]) {
+        const int vert = corner_verts[corner];
         constexpr int self_corner = -1;
         constexpr int prev_and_next_corners = 2;
-        r_offsets[corner_i] += vert_to_corner_offsets[vert_i].size() + self_corner +
+        r_offsets[corner] += vert_to_corner_offsets[vert].size() + self_corner +
                                prev_and_next_corners;
       }
     }
@@ -234,21 +234,21 @@ static void build_corner_to_corner_by_vert_map(const OffsetIndices<int> faces,
   r_indices.reinitialize(offsets.total_size());
 
   threading::parallel_for(faces.index_range(), 4096, [&](IndexRange range) {
-    for (const int face_i : range) {
-      for (const int corner_i : faces[face_i]) {
-        const int vert_i = corner_verts[corner_i];
-        const int prev_corner_i = bke::mesh::face_corner_prev(faces[face_i], corner_i);
-        const int next_corner_i = bke::mesh::face_corner_next(faces[face_i], corner_i);
+    for (const int face : range) {
+      for (const int corner : faces[face]) {
+        const int vert = corner_verts[corner];
+        const int prev_corner = bke::mesh::face_corner_prev(faces[face], corner);
+        const int next_corner = bke::mesh::face_corner_next(faces[face], corner);
 
-        MutableSpan<int> neighbors = r_indices.as_mutable_span().slice(offsets[corner_i]);
+        MutableSpan<int> neighbors = r_indices.as_mutable_span().slice(offsets[corner]);
 
         MutableSpan<int> vert_neighbors = neighbors.drop_back(1);
-        vert_neighbors.copy_from(vert_to_corner_map[vert_i]);
+        vert_neighbors.copy_from(vert_to_corner_map[vert]);
 
-        auto self_corner = std::find(vert_neighbors.begin(), vert_neighbors.end(), corner_i);
-        *self_corner = prev_corner_i;
+        auto self_corner = std::find(vert_neighbors.begin(), vert_neighbors.end(), corner);
+        *self_corner = prev_corner;
 
-        neighbors.last() = next_corner_i;
+        neighbors.last() = next_corner;
       }
     }
   });
