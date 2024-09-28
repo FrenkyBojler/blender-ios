@@ -567,11 +567,26 @@ static OutFace make_out_face(const MeshGL &mgl, int tri_index, int orig_face)
  * they are the have the same vertices (but in opposite order).
  */
 struct SharedEdge {
+  /* First shared edge ("group edge" indexing). */
   int e1;
+  /* Second shared edge. */
   int e2;
+  /* First vertex for e1 (second for e2). */
+  int v1;
+  /* Second vertex for e1 (first for e2). */
+  int v2;
 
-  SharedEdge(int e1, int e2) : e1(e1), e2(e2) {}
+  SharedEdge(int e1, int e2, int v1, int v2) : e1(e1), e2(e2), v1(v1), v2(v2) {}
 };
+
+/* Canonical SharedEdge has v1 < v2. */
+static inline SharedEdge canon_shared_edge(int e1, int e2, int v1, int v2)
+{
+  if (v1 < v2) {
+    return SharedEdge(e1, e2, v1, v2);
+  }
+  return SharedEdge(e2, e1, v2, v1);
+}
 
 /* A pair of vertices in MeshGL output space. */
 struct VertPair {
@@ -596,19 +611,24 @@ struct FaceNode {
   int node_id;
 };
 
-static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces, Span<int> group, const MeshGL &mgl)
+static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces)
 {
   Vector<SharedEdge> ans;
   /* Map from two verts making an edge to where that edge appears
    * in list of group edges. */
   Map<VertPair, int> edge_verts_to_tri;
   for (const int face_index : faces.index_range()) {
-    const int tri = group[face_index];
-    const int v_start_index = 3 * tri;
+    const OutFace &f = faces[face_index];
     for (const int i : IndexRange(3)) {
-      int v1 = mgl.triVerts[v_start_index + i];
-      int v2 = mgl.triVerts[v_start_index + ((i + 1) % 3)];
-      edge_verts_to_tri.add_new(VertPair(v1, v2), face_index * 3 + i);
+      int v1 = f.verts[i];
+      int v2 = f.verts[(i + 1) % 3];
+      int this_e = face_index * 3 + i;
+      edge_verts_to_tri.add_new(VertPair(v1, v2), this_e);
+      int other_e = edge_verts_to_tri.lookup_default(VertPair(v2, v1), -1);
+      if (other_e != -1) {
+        std::cout << "found shared pair between verts " << v1 << " and " << v2 << "\n";
+        ans.append(canon_shared_edge(this_e, other_e, v1, v2));
+      }
     }
   }
   return ans;
@@ -616,7 +636,27 @@ static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces, Span<int> group,
 
 static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshGL &mgl)
 {
-  // FaceNode nodes(faces.size());
+  constexpr int dbg_level = 1;
+  if (group.size() <= 1) {
+    return;
+  }
+  if (dbg_level > 0) {
+    std::cout << "\nmerge_out_faces for faceid " << faces[0].face_id << "\n";
+    for (const int i : faces.index_range()) {
+      const OutFace &f = faces[i];
+      dump_span(f.verts.as_span(), std::to_string(i));
+    }
+  }
+  Vector<SharedEdge> shared_edges = get_shared_edges(faces);
+  if (dbg_level > 0) {
+    std::cout << "shared edges:\n";
+    for (const SharedEdge &se : shared_edges) {
+      std::cout << "(e" << se.e1 << ",e" << se.e2
+      << ";v" << se.v1 << ",v" << se.v2 << ")";
+    }
+    std::cout << "\n";
+    //dump_span(shared_edges.as_span(), "shared edges");
+  }
 }
 
 static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
