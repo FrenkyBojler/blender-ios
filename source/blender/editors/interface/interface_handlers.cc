@@ -7090,14 +7090,30 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   /* When `use_continuous_grab` or `shift` is `true`, #mval stores the HSV cursor positon as mouse
    * position to make delta movements within the circe, otherwise uses the real mouse position. */
   static float mval[2];
-  if (is_begin) {
-    mval[0] = mx;
-    mval[1] = my;
-    data->draglastx = mx;
-    data->draglasty = my;
-  }
+
   rcti rect;
   BLI_rcti_rctf_copy(&rect, &but->rect);
+  if (is_begin) {
+    data->draglastx = mx;
+    data->draglasty = my;
+    /* Allow start editing the original color if shift is pressed at start. */
+    if (shift) {
+      float hsvo[3], rgbo[3];
+
+      /* calculate original hsv again */
+      copy_v3_v3(hsvo, hsv);
+      copy_v3_v3(rgbo, data->origvec);
+      ui_scene_linear_to_perceptual_space(but, rgbo);
+      ui_color_picker_rgb_to_hsv_compat(rgbo, hsvo);
+
+      /* and original position */
+      ui_hsvcircle_pos_from_vals(cpicker, &rect, hsvo, &mval[0], &mval[1]);
+    }
+    else {
+      mval[0] = mx;
+      mval[1] = my;
+    }
+  }
 
   float rgb[3];
   ui_but_v3_get(but, rgb);
@@ -7257,7 +7273,6 @@ static int ui_do_but_HSVCIRCLE(
   float *hsv = cpicker->hsv_perceptual;
   int mx = event->xy[0];
   int my = event->xy[1];
-
   ui_window_to_block(data->region, block, &mx, &my);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
@@ -7268,9 +7283,9 @@ static int ui_do_but_HSVCIRCLE(
       data->draglastx = mx;
       data->draglasty = my;
       button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-
+      const bool shift = event->modifier & KM_SHIFT;
       /* also do drag the first time */
-      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, false, false, true)) {
+      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, false, true)) {
         ui_numedit_apply(C, block, but, data);
       }
 
