@@ -116,31 +116,31 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   dump_span(mesh->corner_tri_faces(), "corner_tri_faces");
   std::cout << "attributes:\n";
   bke::AttributeAccessor attrs = mesh->attributes();
-  attrs.for_all([&](const StringRef &id, const bke::AttributeMetaData &meta_data) {
-    if (ELEM(id, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
+  attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
       return true;
     }
     static const char *domain_names[] = {
         "point", "edge", "face", "corner", "curve", "instance", "layer"};
-    const int di = static_cast<int8_t>(meta_data.domain);
+    const int di = static_cast<int8_t>(iter.domain);
     const char *domain = (di >= 0 && di < ATTR_DOMAIN_NUM) ? domain_names[di] : "?";
-    std::string label = std::string(domain) + ": " + id;
-    switch (meta_data.data_type) {
+    std::string label = std::string(domain) + ": " + iter.name;
+    switch (iter.data_type) {
       case CD_PROP_FLOAT: {
-        VArraySpan<float> floatspan(*attrs.lookup<float>(id));
+        VArraySpan<float> floatspan(*attrs.lookup<float>(iter.name));
         dump_span(floatspan, label);
       } break;
       case CD_PROP_INT32:
       case CD_PROP_BOOL: {
-        VArraySpan<int> intspan(*attrs.lookup<int>(id));
+        VArraySpan<int> intspan(*attrs.lookup<int>(iter.name));
         dump_span(intspan, label);
       } break;
       case CD_PROP_FLOAT3: {
-        VArraySpan<float3> float3span(*attrs.lookup<float3>(id));
+        VArraySpan<float3> float3span(*attrs.lookup<float3>(iter.name));
         dump_span(float3span, label);
       } break;
       case CD_PROP_FLOAT2: {
-        VArraySpan<float2> float2span(*attrs.lookup<float2>(id));
+        VArraySpan<float2> float2span(*attrs.lookup<float2>(iter.name));
         dump_span(float2span, label);
       } break;
       default:
@@ -278,19 +278,19 @@ GAttributeReadWriteSpans::GAttributeReadWriteSpans(Span<const Mesh *> input_mesh
     input_accessors.append(input_meshes[i]->attributes());
   }
   bke::MutableAttributeAccessor output_accessor = output_mesh->attributes_for_write();
-  output_accessor.for_all(
-      [&](const StringRef &id, const bke::AttributeMetaData &metadata) {
-        if (metadata.domain != domain) {
+  output_accessor.foreach_attribute(
+      [&](const bke::AttributeIter &iter) {
+        if (iter.domain != domain) {
           return true;
         }
-        this->attrs.append(id);
-        this->data_types.append(metadata.data_type);
+        this->attrs.append(iter.name);
+        this->data_types.append(iter.data_type);
         this->dest_writers.append(output_accessor.lookup_or_add_for_write_only_span(
-            id, metadata.domain, metadata.data_type));
+            iter.name, iter.domain, iter.data_type));
         this->dest.append(this->dest_writers.last().span);
         for (int i : IndexRange(num_mesh)) {
           this->sources[i].append(
-              *input_accessors[i].lookup_or_default(id, domain, metadata.data_type));
+              *input_accessors[i].lookup_or_default(iter.name, domain, iter.data_type));
         }
         return true;
       });
