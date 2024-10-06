@@ -405,6 +405,8 @@ if(WITH_EXPERIMENTAL_FEATURES)
   add_blender_test(
     bl_animation_action
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_action.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
   )
 endif()
 
@@ -628,7 +630,9 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(WARNING "Disabling render tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/render/shader")
-    message(WARNING "Disabling render tests because tests folder does not exist at ${TEST_SRC_DIR}")
+    message(
+      WARNING "Disabling render tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
+    )
   elseif(NOT WITH_COMPOSITOR_CPU)
     message(WARNING "Disabling render tests because WITH_COMPOSITOR_CPU is disabled")
   elseif(NOT WITH_OPENCOLORIO)
@@ -742,7 +746,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
 
     if(WITH_GPU_RENDER_TESTS)
       list(APPEND gpu_render_tests ${render_tests})
-      list(FILTER gpu_render_tests EXCLUDE REGEX light_group|light_linking|shadow_catcher|denoise|guiding|reports)
+      list(FILTER gpu_render_tests EXCLUDE REGEX light_group|shadow_catcher|denoise|guiding|reports)
 
       set(_gpu_render_tests_arguments)
       if(WITH_GPU_RENDER_TESTS_SILENT)
@@ -762,7 +766,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
           )
         endforeach()
       endif()
-      
+
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
@@ -925,6 +929,7 @@ set(geo_node_tests
   curve_primitives
   curves
   curves/interpolate_curves
+  foreach_geometry_element_zone
   geometry
   grease_pencil
   instance
@@ -988,9 +993,11 @@ if(WITH_GPU_DRAW_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(STATUS "Disabling OpenGL draw tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
-    message(STATUS "Disabling OpenGL draw tests because tests folder does not exist at ${TEST_SRC_DIR}")
+    message(
+      STATUS "Disabling OpenGL draw tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
+    )
   else()
-    # Use all subdirectories of opengl folder.
+    # Use all subdirectories of the `opengl` directory.
     file(GLOB children RELATIVE ${TEST_SRC_DIR}/opengl ${TEST_SRC_DIR}/opengl/*)
     foreach(child ${children})
       # Resolve symlinks, useful to test production files with linked libraries.
@@ -1107,6 +1114,8 @@ else()
     effects
     filter
     transform
+    blend_modes_byte
+    blend_modes_float
   )
 
   foreach(render_test ${render_tests})

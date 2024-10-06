@@ -239,7 +239,8 @@ typedef enum {
   /* Trackballs and programmable buttons. */
   GHOST_kButtonMaskButton6,
   GHOST_kButtonMaskButton7,
-  GHOST_kButtonNum
+
+#define GHOST_kButtonNum (int(GHOST_kButtonMaskButton7) + 1)
 } GHOST_TButton;
 
 typedef enum {
@@ -713,8 +714,18 @@ typedef struct {
 } GHOST_DisplaySetting;
 
 typedef struct {
+  /** Index of the GPU device in the list provided by the platform. */
+  int index;
+  /** (PCI) Vendor ID of the GPU. */
+  uint vendor_id;
+  /** Device ID of the GPU provided by the vendor. */
+  uint device_id;
+} GHOST_GPUDevice;
+
+typedef struct {
   int flags;
   GHOST_TDrawingContextType context_type;
+  GHOST_GPUDevice preferred_device;
 } GHOST_GPUSettings;
 
 #ifdef WITH_VULKAN_BACKEND

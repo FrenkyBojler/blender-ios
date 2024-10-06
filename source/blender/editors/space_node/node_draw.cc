@@ -551,6 +551,10 @@ static bool node_update_basis_socket(const bContext &C,
 }
 
 struct NodeInterfaceItemData {
+ private:
+  NodeInterfaceItemData() = default;
+
+ public:
   /* Declaration of a socket (only for socket items). */
   const nodes::SocketDeclaration *socket_decl = nullptr;
   bNodeSocket *input = nullptr;
@@ -563,6 +567,8 @@ struct NodeInterfaceItemData {
   bNodePanelState *state = nullptr;
   /* Runtime panel state for draw locations. */
   bke::bNodePanelRuntime *runtime = nullptr;
+
+  bool is_separator = false;
 
   NodeInterfaceItemData(const nodes::SocketDeclaration *_socket_decl,
                         bNodeSocket *_input,
@@ -577,6 +583,13 @@ struct NodeInterfaceItemData {
   {
   }
 
+  static NodeInterfaceItemData separator()
+  {
+    NodeInterfaceItemData item;
+    item.is_separator = true;
+    return item;
+  }
+
   bool is_valid_socket() const
   {
     /* At least one socket pointer must be valid. */
@@ -587,6 +600,11 @@ struct NodeInterfaceItemData {
   {
     /* Panel can only be drawn when state data is available. */
     return this->panel_decl && this->state && this->runtime;
+  }
+
+  bool is_valid_separator() const
+  {
+    return this->is_separator;
   }
 };
 
@@ -666,6 +684,10 @@ static Vector<NodeInterfaceItemData> node_build_item_data(bNode &node)
       ++panel_state;
       ++panel_runtime;
     }
+    else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl->get())) {
+      result.append(NodeInterfaceItemData::separator());
+      ++item_decl;
+    }
   }
   return result;
 }
@@ -729,6 +751,9 @@ static void node_update_panel_items_visibility_recursive(int num_items,
           parent_state.flag |= NODE_PANEL_CONTENT_VISIBLE;
         }
       }
+    }
+    else if (item.is_valid_separator()) {
+      /* Nothing to do. */
     }
     else {
       /* Should not happen. */
@@ -868,6 +893,22 @@ static void add_panel_items_recursive(const bContext &C,
         state.need_spacer_after_item = true;
       }
     }
+    else if (item.is_valid_separator()) {
+      if (!is_parent_collapsed) {
+        uiLayout *layout = UI_block_layout(&block,
+                                           UI_LAYOUT_VERTICAL,
+                                           UI_LAYOUT_PANEL,
+                                           locx + NODE_DYS,
+                                           locy,
+                                           NODE_WIDTH(node) - NODE_DY,
+                                           NODE_DY,
+                                           0,
+                                           UI_style_get_dpi());
+        uiItemS_ex(layout, 1.0, LayoutSeparatorType::Line);
+        UI_block_layout_resolve(&block, nullptr, nullptr);
+        locy -= NODE_ITEM_SPACING_Y;
+      }
+    }
     else {
       /* Should not happen. */
       BLI_assert_unreachable();
@@ -906,6 +947,15 @@ static void node_update_basis_from_declaration(
 
   /* Start by adding root panel items. */
   LocationUpdateState location_state(item_data);
+
+  /* Draw buttons at the top when the node has a custom socket order. This could be customized in
+   * the future to support showing the buttons in any place. */
+  if (node.declaration()->allow_any_socket_order) {
+    location_state.buttons_drawn = true;
+    location_state.need_spacer_after_item = node_update_basis_buttons(
+        C, ntree, node, node.typeinfo->draw_buttons, block, locy);
+  }
+
   add_panel_items_recursive(
       C, ntree, node, block, locx, locy, -1, false, "", nullptr, location_state);
 
@@ -2103,7 +2153,7 @@ static void node_draw_preview_background(rctf *rect)
 }
 
 /* Not a callback. */
-static void node_draw_preview(const Scene *scene, ImBuf *preview, rctf *prv)
+static void node_draw_preview(const Scene *scene, ImBuf *preview, const rctf *prv)
 {
   float xrect = BLI_rctf_size_x(prv);
   float yrect = BLI_rctf_size_y(prv);
@@ -2554,7 +2604,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                        nullptr,
                        0.0f,
                        0.0f,
-                       "");
+                       panel_decl->description.c_str());
     UI_but_func_pushed_state_set(but, [&state](const uiBut &) { return state.is_collapsed(); });
     UI_but_func_set(
         but, node_panel_toggle_button_cb, const_cast<bNodePanelState *>(&state), &ntree);
@@ -2565,42 +2615,12 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
   }
 }
 
-static int node_error_type_to_icon(const geo_log::NodeWarningType type)
-{
-  switch (type) {
-    case geo_log::NodeWarningType::Error:
-      return ICON_CANCEL;
-    case geo_log::NodeWarningType::Warning:
-      return ICON_ERROR;
-    case geo_log::NodeWarningType::Info:
-      return ICON_INFO;
-  }
-
-  BLI_assert(false);
-  return ICON_ERROR;
-}
-
-static uint8_t node_error_type_priority(const geo_log::NodeWarningType type)
-{
-  switch (type) {
-    case geo_log::NodeWarningType::Error:
-      return 3;
-    case geo_log::NodeWarningType::Warning:
-      return 2;
-    case geo_log::NodeWarningType::Info:
-      return 1;
-  }
-
-  BLI_assert(false);
-  return 0;
-}
-
 static geo_log::NodeWarningType node_error_highest_priority(Span<geo_log::NodeWarning> warnings)
 {
-  uint8_t highest_priority = 0;
+  int highest_priority = 0;
   geo_log::NodeWarningType highest_priority_type = geo_log::NodeWarningType::Info;
   for (const geo_log::NodeWarning &warning : warnings) {
-    const uint8_t priority = node_error_type_priority(warning.type);
+    const int priority = node_warning_type_severity(warning.type);
     if (priority > highest_priority) {
       highest_priority = priority;
       highest_priority_type = warning.type;
@@ -2702,7 +2722,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
   uiBut *but = uiDefIconBut(&block,
                             UI_BTYPE_BUT,
                             0,
-                            node_error_type_to_icon(display_type),
+                            geo_log::node_warning_type_icon(display_type),
                             icon_offset,
                             rect.ymax - NODE_DY,
                             NODE_HEADER_ICON_SIZE,
@@ -2728,6 +2748,9 @@ static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
       return nullptr;
     }
     const bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
+    if (zone && ELEM(&node, zone->input_node, zone->output_node)) {
+      zone = zone->parent_zone;
+    }
     return tree_draw_ctx.geo_log_by_zone.lookup_default(zone, nullptr);
   }();
 
@@ -2735,7 +2758,7 @@ static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
     return std::nullopt;
   }
   if (node.type == NODE_GROUP_OUTPUT) {
-    return tree_log->run_time_sum;
+    return tree_log->execution_time;
   }
   if (node.is_frame()) {
     /* Could be cached in the future if this recursive code turns out to be slow. */
@@ -2755,7 +2778,7 @@ static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
         if (const geo_log::GeoNodeLog *node_log = tree_log->nodes.lookup_ptr_as(tnode->identifier))
         {
           found_node = true;
-          run_time += node_log->run_time;
+          run_time += node_log->execution_time;
         }
       }
     }
@@ -2765,7 +2788,7 @@ static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
     return std::nullopt;
   }
   if (const geo_log::GeoNodeLog *node_log = tree_log->nodes.lookup_ptr(node.identifier)) {
-    return node_log->run_time;
+    return node_log->execution_time;
   }
   return std::nullopt;
 }
@@ -3097,7 +3120,12 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
 
   if (snode.overlay.flag & SN_OVERLAY_SHOW_TIMINGS &&
       (ELEM(node.typeinfo->nclass, NODE_CLASS_GEOMETRY, NODE_CLASS_GROUP, NODE_CLASS_ATTRIBUTE) ||
-       ELEM(node.type, NODE_FRAME, NODE_GROUP_OUTPUT)))
+       ELEM(node.type,
+            NODE_FRAME,
+            NODE_GROUP_OUTPUT,
+            GEO_NODE_SIMULATION_OUTPUT,
+            GEO_NODE_REPEAT_OUTPUT,
+            GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT)))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
         tree_draw_ctx, snode, node);
@@ -3396,7 +3424,7 @@ static void node_draw_basis(const bContext &C,
   float iconofs = rct.xmax - 0.35f * U.widget_unit;
 
   /* Group edit. This icon should be the first for the node groups. */
-  if (node.type == NODE_GROUP) {
+  if (node.is_group()) {
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
     uiBut *but = uiDefIconBut(&block,
@@ -3443,7 +3471,7 @@ static void node_draw_basis(const bContext &C,
                     (void *)"NODE_OT_preview_toggle");
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
-  if (node.is_group() && node.typeinfo->ui_icon != ICON_NONE) {
+  if (ELEM(node.type, NODE_CUSTOM, NODE_CUSTOM_GROUP) && node.typeinfo->ui_icon != ICON_NONE) {
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
     uiDefIconBut(&block,
@@ -4401,7 +4429,7 @@ static void add_rect_corner_positions(Vector<float2> &positions, const rctf &rec
 
 static void find_bounds_by_zone_recursive(const SpaceNode &snode,
                                           const bNodeTreeZone &zone,
-                                          const Span<std::unique_ptr<bNodeTreeZone>> all_zones,
+                                          const Span<const bNodeTreeZone *> all_zones,
                                           MutableSpan<Vector<float2>> r_bounds_by_zone)
 {
   const float node_padding = UI_UNIT_X;
@@ -4530,7 +4558,7 @@ static void node_draw_zones_and_frames(const bContext &C,
   using ZoneOrNode = std::variant<const bNodeTreeZone *, const bNode *>;
   Vector<ZoneOrNode> draw_order;
   for (const int zone_i : IndexRange(zones_num)) {
-    draw_order.append(zones->zones[zone_i].get());
+    draw_order.append(zones->zones[zone_i]);
   }
   for (const bNode *node : ntree.all_nodes()) {
     if (node->flag & NODE_BACKGROUND) {
@@ -4777,7 +4805,7 @@ static void draw_nodetree(const bContext &C,
         *snode);
     for (geo_log::GeoTreeLog *log : tree_draw_ctx.geo_log_by_zone.values()) {
       log->ensure_node_warnings(&ntree);
-      log->ensure_node_run_time();
+      log->ensure_execution_times();
     }
     const WorkSpace *workspace = CTX_wm_workspace(&C);
     tree_draw_ctx.active_geometry_nodes_viewer = viewer_path::find_geometry_nodes_viewer(

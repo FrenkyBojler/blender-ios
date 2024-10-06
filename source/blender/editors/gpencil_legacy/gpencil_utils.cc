@@ -37,7 +37,7 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_brush.hh"
 #include "BKE_collection.hh"
 #include "BKE_colortools.hh"
@@ -609,7 +609,7 @@ void gpencil_point_conversion_init(bContext *C, GP_SpaceConversion *r_gsc)
     /* for camera view set the subrect */
     if (rv3d->persp == RV3D_CAMOB) {
       ED_view3d_calc_camera_border(
-          scene, depsgraph, region, v3d, rv3d, &r_gsc->subrect_data, true);
+          scene, depsgraph, region, v3d, rv3d, true, &r_gsc->subrect_data);
       r_gsc->subrect = &r_gsc->subrect_data;
     }
   }
@@ -1722,7 +1722,7 @@ void ED_gpencil_brush_draw_eraser(Brush *brush, int x, int y)
 
 bool ED_gpencil_brush_cursor_poll(bContext *C)
 {
-  if (WM_toolsystem_active_tool_is_brush(C)) {
+  if (WM_toolsystem_active_tool_is_brush(C) && !WM_toolsystem_active_tool_has_custom_cursor(C)) {
     return true;
   }
   return false;
@@ -1784,7 +1784,7 @@ float ED_gpencil_radial_control_scale(bContext *C,
                                       const int mval[2])
 {
   float scale_fac = 1.0f;
-  if ((brush && brush->gpencil_settings) && (brush->ob_mode == OB_MODE_PAINT_GPENCIL_LEGACY) &&
+  if ((brush && brush->gpencil_settings) && (brush->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) &&
       (brush->gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW))
   {
     float cursor_radius = ED_gpencil_cursor_radius(C, mval[0], mval[1]);
@@ -2032,7 +2032,7 @@ void ED_gpencil_setup_modes(bContext *C, bGPdata *gpd, int newmode)
       gpd->flag &= ~GP_DATA_STROKE_VERTEXMODE;
       ED_gpencil_toggle_brush_cursor(C, false, nullptr);
       break;
-    case OB_MODE_PAINT_GPENCIL_LEGACY:
+    case OB_MODE_PAINT_GREASE_PENCIL:
       gpd->flag &= ~GP_DATA_STROKE_EDITMODE;
       gpd->flag |= GP_DATA_STROKE_PAINTMODE;
       gpd->flag &= ~GP_DATA_STROKE_SCULPTMODE;
@@ -2040,7 +2040,7 @@ void ED_gpencil_setup_modes(bContext *C, bGPdata *gpd, int newmode)
       gpd->flag &= ~GP_DATA_STROKE_VERTEXMODE;
       ED_gpencil_toggle_brush_cursor(C, true, nullptr);
       break;
-    case OB_MODE_SCULPT_GPENCIL_LEGACY:
+    case OB_MODE_SCULPT_GREASE_PENCIL:
       gpd->flag &= ~GP_DATA_STROKE_EDITMODE;
       gpd->flag &= ~GP_DATA_STROKE_PAINTMODE;
       gpd->flag |= GP_DATA_STROKE_SCULPTMODE;
@@ -2048,7 +2048,7 @@ void ED_gpencil_setup_modes(bContext *C, bGPdata *gpd, int newmode)
       gpd->flag &= ~GP_DATA_STROKE_VERTEXMODE;
       ED_gpencil_toggle_brush_cursor(C, true, nullptr);
       break;
-    case OB_MODE_WEIGHT_GPENCIL_LEGACY:
+    case OB_MODE_WEIGHT_GREASE_PENCIL:
       gpd->flag &= ~GP_DATA_STROKE_EDITMODE;
       gpd->flag &= ~GP_DATA_STROKE_PAINTMODE;
       gpd->flag &= ~GP_DATA_STROKE_SCULPTMODE;
@@ -2056,7 +2056,7 @@ void ED_gpencil_setup_modes(bContext *C, bGPdata *gpd, int newmode)
       gpd->flag &= ~GP_DATA_STROKE_VERTEXMODE;
       ED_gpencil_toggle_brush_cursor(C, true, nullptr);
       break;
-    case OB_MODE_VERTEX_GPENCIL_LEGACY:
+    case OB_MODE_VERTEX_GREASE_PENCIL:
       gpd->flag &= ~GP_DATA_STROKE_EDITMODE;
       gpd->flag &= ~GP_DATA_STROKE_PAINTMODE;
       gpd->flag &= ~GP_DATA_STROKE_SCULPTMODE;

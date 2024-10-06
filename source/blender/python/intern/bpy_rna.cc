@@ -27,15 +27,15 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BPY_extern.h"
-#include "BPY_extern_clog.h"
+#include "BPY_extern.hh"
+#include "BPY_extern_clog.hh"
 
-#include "bpy_capi_utils.h"
-#include "bpy_intern_string.h"
-#include "bpy_props.h"
-#include "bpy_rna.h"
-#include "bpy_rna_anim.h"
-#include "bpy_rna_callback.h"
+#include "bpy_capi_utils.hh"
+#include "bpy_intern_string.hh"
+#include "bpy_props.hh"
+#include "bpy_rna.hh"
+#include "bpy_rna_anim.hh"
+#include "bpy_rna_callback.hh"
 
 #ifdef USE_PYRNA_INVALIDATE_WEAKREF
 #  include "BLI_ghash.h"
@@ -62,12 +62,12 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "../generic/idprop_py_api.h" /* For IDprop lookups. */
-#include "../generic/idprop_py_ui_api.h"
-#include "../generic/py_capi_rna.h"
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/idprop_py_api.hh" /* For IDprop lookups. */
+#include "../generic/idprop_py_ui_api.hh"
+#include "../generic/py_capi_rna.hh"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
+#include "../generic/python_utildefines.hh"
 
 #define USE_PEDANTIC_WRITE
 #define USE_MATHUTILS
@@ -90,7 +90,7 @@
 
 BPy_StructRNA *bpy_context_module = nullptr; /* for fast access */
 
-static PyObject *pyrna_struct_CreatePyObject_from_type(PointerRNA *ptr,
+static PyObject *pyrna_struct_CreatePyObject_from_type(const PointerRNA *ptr,
                                                        PyTypeObject *tp,
                                                        void **instance);
 
@@ -393,7 +393,7 @@ static int pyrna_py_to_prop(
 static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item);
 
 #ifdef USE_MATHUTILS
-#  include "../mathutils/mathutils.h" /* So we can have mathutils callbacks. */
+#  include "../mathutils/mathutils.hh" /* So we can have mathutils callbacks. */
 
 static PyObject *pyrna_prop_array_subscript_slice(BPy_PropertyArrayRNA *self,
                                                   PointerRNA *ptr,
@@ -6500,7 +6500,7 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
 
   /* enable this so all strings are copied and freed after calling.
    * this exposes bugs where the pointer to the string is held and re-used */
-  /* #define DEBUG_STRING_FREE */
+  // #define DEBUG_STRING_FREE
 
 #ifdef DEBUG_STRING_FREE
   PyObject *string_free_ls = PyList_New(0);
@@ -7624,7 +7624,7 @@ static PyObject *pyrna_struct_Subtype(PointerRNA *ptr)
  * A lower level version of #pyrna_struct_CreatePyObject,
  * use this when type (`tp`) needs to be set to a non-standard value.
  */
-static PyObject *pyrna_struct_CreatePyObject_from_type(PointerRNA *ptr,
+static PyObject *pyrna_struct_CreatePyObject_from_type(const PointerRNA *ptr,
                                                        PyTypeObject *tp,
                                                        void **instance)
 {
@@ -9235,6 +9235,7 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
   if (!BLI_listbase_is_empty(&reports.list)) {
     const bool has_error = (BPy_reports_to_error(&reports, PyExc_RuntimeError, false) == -1);
     if (!has_error) {
+      BKE_report_print_level_set(&reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
       BPy_reports_write_stdout(&reports, error_prefix);
     }
     if (has_error) {

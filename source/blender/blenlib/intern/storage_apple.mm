@@ -13,7 +13,7 @@
 #include <sys/xattr.h>
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 /* Extended file attribute used by OneDrive to mark placeholder files. */
@@ -212,8 +212,6 @@ bool BLI_change_working_dir(const char *dir)
     if ([[NSFileManager defaultManager] changeCurrentDirectoryPath:path] == YES) {
       return true;
     }
-    else {
-      return false;
-    }
+    return false;
   }
 }

@@ -15,8 +15,6 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_types.hh"
 
-struct ModifierData;
-
 namespace blender::bke {
 
 enum class AttrDomain : int8_t;
@@ -239,7 +237,7 @@ void edges_sharp_from_angle_set(OffsetIndices<int> faces,
  * \{ */
 
 /**
- * Find the index of the next corner in the face, looping to the start if necessary.
+ * Find the index of the previous corner in the face, looping to the end if necessary.
  * The indices are into the entire corners array, not just the face's corners.
  */
 inline int face_corner_prev(const IndexRange face, const int corner)
@@ -248,7 +246,7 @@ inline int face_corner_prev(const IndexRange face, const int corner)
 }
 
 /**
- * Find the index of the previous corner in the face, looping to the end if necessary.
+ * Find the index of the next corner in the face, looping to the start if necessary.
  * The indices are into the entire corners array, not just the face's corners.
  */
 inline int face_corner_next(const IndexRange face, const int corner)

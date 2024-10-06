@@ -18,7 +18,7 @@
 #include "DNA_sound_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
@@ -315,9 +315,6 @@ static void seq_new_fix_links_recursive(Sequence *seq)
     }
     if (seq->seq2 && seq->seq2->tmp) {
       seq->seq2 = static_cast<Sequence *>(seq->seq2->tmp);
-    }
-    if (seq->seq3 && seq->seq3->tmp) {
-      seq->seq3 = static_cast<Sequence *>(seq->seq3->tmp);
     }
   }
   else if (seq->type == SEQ_TYPE_META) {
@@ -695,15 +692,9 @@ void SEQ_sequence_base_dupli_recursive(const Scene *scene_src,
   }
 }
 
-bool SEQ_valid_strip_channel(Sequence *seq)
+bool SEQ_is_valid_strip_channel(const Sequence *seq)
 {
-  if (seq->machine < 1) {
-    return false;
-  }
-  if (seq->machine > MAXSEQ) {
-    return false;
-  }
-  return true;
+  return seq->machine >= 1 && seq->machine <= SEQ_MAX_CHANNELS;
 }
 
 SequencerToolSettings *SEQ_tool_settings_copy(SequencerToolSettings *tool_settings)
@@ -829,12 +820,6 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
 
   BLO_read_struct(reader, Sequence, &seq->seq1);
   BLO_read_struct(reader, Sequence, &seq->seq2);
-  BLO_read_struct(reader, Sequence, &seq->seq3);
-
-  /* a patch: after introduction of effects with 3 input strips */
-  if (seq->seq3 == nullptr) {
-    seq->seq3 = seq->seq2;
-  }
 
   if (seq->effectdata) {
     switch (seq->type) {

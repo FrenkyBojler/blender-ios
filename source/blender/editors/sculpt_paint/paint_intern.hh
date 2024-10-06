@@ -25,13 +25,8 @@ enum class PaintMode : int8_t;
 
 struct ARegion;
 struct bContext;
-struct BMesh;
-struct BMVert;
 struct Brush;
-struct CCGElem;
-struct CCGKey;
 struct ColorManagedDisplay;
-struct ColorSpace;
 struct Depsgraph;
 struct Image;
 struct ImagePool;
@@ -47,7 +42,6 @@ struct ReportList;
 struct Scene;
 struct SculptSession;
 struct SpaceImage;
-struct SubdivCCG;
 struct ToolSettings;
 struct VertProjHandle;
 struct ViewContext;
@@ -138,7 +132,10 @@ void paint_stroke_jitter_pos(Scene &scene,
                              const float mval[2],
                              float r_mouse_out[2]);
 
+/** Returns true if the active tool uses brushes. */
 bool paint_brush_tool_poll(bContext *C);
+/** Returns true if the brush cursor should be activated. */
+bool paint_brush_cursor_poll(bContext *C);
 bool paint_brush_update(bContext *C,
                         const Brush &brush,
                         PaintMode mode,
@@ -281,7 +278,7 @@ void paint_2d_stroke(void *ps,
                      bool eraser,
                      float pressure,
                      float distance,
-                     float size);
+                     float base_size);
 /**
  * This function expects linear space color values.
  */
@@ -311,8 +308,8 @@ void paint_brush_color_get(Scene *scene,
                            bool invert,
                            float distance,
                            float pressure,
-                           float color[3],
-                           ColorManagedDisplay *display);
+                           ColorManagedDisplay *display,
+                           float r_color[3]);
 bool paint_use_opacity_masking(Brush *brush);
 void paint_brush_init_tex(Brush *brush);
 void paint_brush_exit_tex(Brush *brush);

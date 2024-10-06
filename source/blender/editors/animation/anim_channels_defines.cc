@@ -58,7 +58,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
@@ -3891,9 +3891,15 @@ static void *layer_setting_ptr(bAnimListElem *ale,
   return GET_ACF_FLAG_PTR(layer->base.flag, r_type);
 }
 
-static int layer_group_icon(bAnimListElem * /*ale*/)
+static int layer_group_icon(bAnimListElem *ale)
 {
-  return ICON_FILE_FOLDER;
+  using namespace bke::greasepencil;
+  const LayerGroup &group = *static_cast<LayerGroup *>(ale->data);
+  int icon = ICON_GREASEPENCIL_LAYER_GROUP;
+  if (group.color_tag != LAYERGROUP_COLOR_NONE) {
+    icon = ICON_LAYERGROUP_COLOR_01 + group.color_tag;
+  }
+  return icon;
 }
 
 static void layer_group_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
@@ -4821,6 +4827,50 @@ static bool achannel_is_being_renamed(const bAnimContext *ac,
   return false;
 }
 
+/**
+ * Check if the animation channel is an item that either is or belongs to a
+ * disconnected action slot.
+ */
+static bool achannel_is_part_of_disconnected_slot(const bAnimListElem *ale)
+{
+  BLI_assert(ale->bmain != nullptr);
+  if (ale->bmain == nullptr) {
+    return false;
+  }
+
+  switch (ale->type) {
+    case ANIMTYPE_ACTION_SLOT: {
+      const animrig::Slot &slot = static_cast<const ActionSlot *>(ale->data)->wrap();
+
+      return slot.users(*ale->bmain).is_empty();
+    }
+
+    case ANIMTYPE_GROUP:
+    case ANIMTYPE_FCURVE: {
+      if (ale->fcurve_owner_id == nullptr || GS(ale->fcurve_owner_id->name) != ID_AC) {
+        return false;
+      }
+
+      const animrig::Action &action =
+          reinterpret_cast<const bAction *>(ale->fcurve_owner_id)->wrap();
+      if (action.is_action_legacy()) {
+        return false;
+      }
+
+      const animrig::Slot *slot = action.slot_for_handle(ale->slot_handle);
+      if (slot == nullptr) {
+        return false;
+      }
+
+      return slot->users(*ale->bmain).is_empty();
+    }
+
+    /* No other types are currently drawn as children of action slots. */
+    default:
+      return false;
+  }
+}
+
 /** Check if the animation channel name should be underlined in red due to errors. */
 static bool achannel_is_broken(const bAnimListElem *ale)
 {
@@ -5012,6 +5062,11 @@ void ANIM_channel_draw(
     }
     else {
       UI_GetThemeColor4ubv(TH_TEXT, col);
+    }
+
+    /* Gray out disconnected action slots and their children. */
+    if (!selected && achannel_is_part_of_disconnected_slot(ale)) {
+      col[3] = col[3] / 3 * 2;
     }
 
     /* get name */
@@ -5761,7 +5816,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
                                uiBlock *block,
-                               rctf *rect,
+                               const rctf *rect,
                                size_t channel_index)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
