@@ -10,15 +10,15 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.hh"
+#include "BLI_noise.hh"
+#include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
-
 #include "BLT_translation.hh"
 
 #include "IMB_imbuf.hh"
@@ -33,6 +33,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
@@ -357,7 +358,7 @@ bool paint_use_opacity_masking(Brush *brush)
                        IMAGE_PAINT_BRUSH_TYPE_SMEAR,
                        IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
                   (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
-                  (brush->flag & BRUSH_USE_GRADIENT) ||
+                  (brush->flag & BRUSH_USE_GRADIENT) || (brush->flag2 & BRUSH_JITTER_COLOR) ||
                   (brush->mtex.tex && !ELEM(brush->mtex.brush_map_mode,
                                             MTEX_MAP_MODE_TILED,
                                             MTEX_MAP_MODE_STENCIL,
@@ -369,6 +370,7 @@ bool paint_use_opacity_masking(Brush *brush)
 void paint_brush_color_get(Scene *scene,
                            const Paint *paint,
                            Brush *br,
+                           StrokeFactors stroke_factors,
                            bool color_correction,
                            bool invert,
                            float distance,
@@ -399,6 +401,11 @@ void paint_brush_color_get(Scene *scene,
       /* Gradient / Color-band colors are not considered #PROP_COLOR_GAMMA.
        * Brush colors are expected to be in sRGB though. */
       IMB_colormanagement_scene_linear_to_srgb_v3(r_color, color_gr);
+    }
+    else if (br->flag2 & BRUSH_JITTER_COLOR) {
+      blender::float3 r = BKE_paint_randomize_color(
+          br, stroke_factors, distance, pressure, BKE_brush_color_get(scene, paint, br));
+      copy_v3_v3(r_color, r);
     }
     else {
       copy_v3_v3(r_color, BKE_brush_color_get(scene, paint, br));
@@ -1140,6 +1147,12 @@ static bool texture_paint_poll(bContext *C)
   }
 
   return false;
+}
+
+struct StrokeFactors stroke_factors_new()
+{
+  blender::RandomNumberGenerator rng = blender::RandomNumberGenerator::from_random_seed();
+  return StrokeFactors{rng.get_float(), rng.get_float(), rng.get_float()};
 }
 
 bool image_texture_paint_poll(bContext *C)

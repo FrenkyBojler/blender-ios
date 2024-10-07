@@ -710,6 +710,51 @@ static Color vpaint_blend(const VPaint &vp,
   return color_blend;
 }
 
+template<typename Color, typename Traits>
+static Color vpaint_blend_draw(const VPaint &vp,
+                               MutableSpan<Color> prev_vertex_colors,
+                               MutableSpan<Color> vertex_colors,
+                               MutableSpan<Color> stroke_buffer,
+                               Color brush_mark_color,
+                               float brush_mark_alpha,
+                               float brush_strength,
+                               int vert)
+{
+  Color result;
+  if (!vwpaint::brush_use_accumulate(vp)) {
+    BLI_assert(!stroke_buffer.is_empty());
+    BLI_assert(!prev_mesh_colors.is_empty());
+
+    if (isZero(prev_vertex_colors[vert])) {
+      prev_vertex_colors[vert] = vertex_colors[vert];
+    }
+
+    if (isZero(stroke_buffer[vert])) {
+      stroke_buffer[vert] = vertex_colors[vert];
+      stroke_buffer[vert].a = 0;
+    }
+
+    stroke_buffer[vert] = BLI_mix_colors<Color, Traits>(
+        IMB_BlendMode::IMB_BLEND_MIX, stroke_buffer[vert], brush_mark_color, brush_mark_alpha);
+
+    result = vpaint_blend<Color, Traits>(vp,
+                                         prev_vertex_colors[vert],
+                                         prev_vertex_colors[vert],
+                                         stroke_buffer[vert],
+                                         stroke_buffer[vert].a,
+                                         Traits::range * brush_strength);
+  }
+  else {
+    result = vpaint_blend<Color, Traits>(vp,
+                                         vertex_colors[vert],
+                                         Color() /* unused in accumulate mode */,
+                                         brush_mark_color,
+                                         brush_mark_alpha,
+                                         Traits::range * brush_strength);
+  }
+  return result;
+}
+
 static void paint_and_tex_color_alpha_intern(const VPaint &vp,
                                              const ViewContext *vc,
                                              const float co[3],
@@ -906,6 +951,7 @@ struct VPaintData : public PaintModeData {
 
   /* For brushes that don't use accumulation, a temporary holding array */
   GArray<> prev_colors;
+  GArray<> stroke_buffer;
 
   ~VPaintData() override
   {
@@ -964,9 +1010,16 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(bContext *C,
       vpd->prev_colors = GArray(attribute.type(), attribute.size());
       attribute.type().value_initialize_n(vpd->prev_colors.data(), vpd->prev_colors.size());
     }
+
+    if (vpd->stroke_buffer.is_empty()) {
+      const GVArray attribute = *mesh.attributes().lookup(mesh.active_color_attribute);
+      vpd->stroke_buffer = GArray(attribute.type(), attribute.size());
+      attribute.type().value_initialize_n(vpd->stroke_buffer.data(), vpd->stroke_buffer.size());
+    }
   }
   else {
     vpd->prev_colors = {};
+    vpd->stroke_buffer = {};
   }
 
   return vpd;
@@ -1677,6 +1730,7 @@ static void vpaint_do_draw(const bContext *C,
       ss, brush.falloff_shape);
 
   GMutableSpan g_previous_color = vpd.prev_colors;
+  GMutableSpan g_stroke_buffer = vpd.stroke_buffer;
 
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
   const OffsetIndices faces = mesh.faces();
@@ -1692,6 +1746,15 @@ static void vpaint_do_draw(const bContext *C,
   VArraySpan<bool> select_poly;
   if (use_face_sel) {
     select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
+  }
+
+  blender::float3 brush_color = blender::float3(vpd.paintcol.r, vpd.paintcol.g, vpd.paintcol.b);
+  if (brush.flag2 & BRUSH_JITTER_COLOR) {
+    brush_color = BKE_paint_randomize_color(&brush,
+                                            ss.cache->stroke_factors,
+                                            ss.cache->stroke_distance,
+                                            ss.cache->pressure,
+                                            brush_color);
   }
 
   struct LocalData {
@@ -1742,7 +1805,10 @@ static void vpaint_do_draw(const bContext *C,
         using Traits = blender::color::Traits<Color>;
         MutableSpan<Color> colors = attribute.typed<T>().template cast<Color>();
         MutableSpan<Color> previous_color = g_previous_color.typed<T>().template cast<Color>();
-        Color color_final = fromFloat<Color>(vpd.paintcol);
+        MutableSpan<Color> stroke_buffer = g_stroke_buffer.typed<T>().template cast<Color>();
+
+        Color color_final = fromFloat<Color>(
+            ColorPaint4f(brush_color[0], brush_color[1], brush_color[2], 1.0));
 
         /* If we're painting with a texture, sample the texture color and alpha. */
         float tex_alpha = 1.0;
@@ -1764,24 +1830,18 @@ static void vpaint_do_draw(const bContext *C,
           tex_alpha = paint_and_tex_color_alpha<Color>(vp, vpd, symm_point, &color_final);
         }
 
-        Color color_orig(0, 0, 0, 0);
+        const float alpha_final = Traits::frange * brush_fade * brush_strength * tex_alpha *
+                                  brush_alpha_pressure;
 
         if (vpd.domain == AttrDomain::Point) {
-          if (!previous_color.is_empty()) {
-            if (isZero(previous_color[vert])) {
-              previous_color[vert] = colors[vert];
-            }
-            color_orig = previous_color[vert];
-          }
-          const float final_alpha = Traits::frange * brush_fade * brush_strength * tex_alpha *
-                                    brush_alpha_pressure;
-
-          colors[vert] = vpaint_blend<Color, Traits>(vp,
-                                                     colors[vert],
-                                                     color_orig,
-                                                     color_final,
-                                                     final_alpha,
-                                                     Traits::range * brush_strength);
+          colors[vert] = vpaint_blend_draw<Color, Traits>(vp,
+                                                          previous_color,
+                                                          colors,
+                                                          stroke_buffer,
+                                                          color_final,
+                                                          alpha_final,
+                                                          brush_strength,
+                                                          vert);
         }
         else {
           /* For each face owning this vert, paint each loop belonging to this vert. */
@@ -1791,23 +1851,14 @@ static void vpaint_do_draw(const bContext *C,
             if (!select_poly.is_empty() && !select_poly[face]) {
               continue;
             }
-            Color color_orig = Color(0, 0, 0, 0); /* unused when array is nullptr */
-
-            if (!previous_color.is_empty()) {
-              if (isZero(previous_color[corner])) {
-                previous_color[corner] = colors[corner];
-              }
-              color_orig = previous_color[corner];
-            }
-            const float final_alpha = Traits::frange * brush_fade * brush_strength * tex_alpha *
-                                      brush_alpha_pressure;
-
-            colors[corner] = vpaint_blend<Color, Traits>(vp,
-                                                         colors[corner],
-                                                         color_orig,
-                                                         color_final,
-                                                         final_alpha,
-                                                         Traits::range * brush_strength);
+            colors[corner] = vpaint_blend_draw<Color, Traits>(vp,
+                                                              previous_color,
+                                                              colors,
+                                                              stroke_buffer,
+                                                              color_final,
+                                                              alpha_final,
+                                                              brush_strength,
+                                                              corner);
           }
         }
       });
@@ -1973,6 +2024,8 @@ static void vpaint_stroke_update_step(bContext *C,
   ViewContext &vc = vpd.vc;
   Object &ob = *vc.obact;
   SculptSession &ss = *ob.sculpt;
+
+  ss.cache->stroke_distance = paint_stroke_distance_get(stroke);
 
   vwpaint::update_cache_variants(C, vp, ob, itemptr);
 

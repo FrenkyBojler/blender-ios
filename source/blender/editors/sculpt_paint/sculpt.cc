@@ -4039,6 +4039,7 @@ static void sculpt_update_cache_invariants(
     cache->accum = true;
   }
 
+  cache->stroke_factors = stroke_factors_new();
   cache->first_time = true;
   cache->plane_brush.first_time = true;
 

@@ -32,6 +32,7 @@
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
+#include "BLI_noise.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -1845,6 +1846,75 @@ void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float st
   else {
     copy_v3_v3(stroke, ob->object_to_world().location());
   }
+}
+
+// TODO: merge this functionality with greasepencil PaintOperationExecutor::randomize_color
+blender::float3 BKE_paint_randomize_color(const Brush *brush,
+                                          const StrokeFactors stroke_factors,
+                                          const float distance,
+                                          const float pressure,
+                                          const blender::float3 color)
+{
+  constexpr float noise_scale = 1 / 20.0f;
+
+  float random_hue = 0.0f;
+  if ((brush->flag2 & BRUSH_USE_HUE_AT_STROKE) == 0) {
+    random_hue = blender::noise::perlin(
+        blender::float2(distance * noise_scale, stroke_factors.random_hue * 100));
+  }
+  else {
+    random_hue = stroke_factors.random_hue;
+  }
+
+  float random_sat = 0.0f;
+  if ((brush->flag2 & BRUSH_USE_SAT_AT_STROKE) == 0) {
+    random_sat = blender::noise::perlin(
+        blender::float2(distance * noise_scale, stroke_factors.random_sat * 100));
+  }
+  else {
+    random_sat = stroke_factors.random_sat;
+  }
+
+  float random_val = 0.0f;
+  if ((brush->flag2 & BRUSH_USE_VAL_AT_STROKE) == 0) {
+    random_val = blender::noise::perlin(
+        blender::float2(distance * noise_scale, stroke_factors.random_val * 100));
+  }
+  else {
+    random_val = stroke_factors.random_val;
+  }
+
+  float hue_factor = brush->hue_jitter;
+  if ((brush->flag2 & BRUSH_USE_HUE_RAND_PRESS) != 0) {
+    hue_factor *= BKE_curvemapping_evaluateF(brush->curve_rand_hue, 0, pressure);
+  }
+  float sat_factor = brush->saturation_jitter;
+  if ((brush->flag2 & BRUSH_USE_SAT_RAND_PRESS) != 0) {
+    sat_factor *= BKE_curvemapping_evaluateF(brush->curve_rand_saturation, 0, pressure);
+  }
+  float val_factor = brush->value_jitter;
+  if ((brush->flag2 & BRUSH_USE_VAL_RAND_PRESS) != 0) {
+    val_factor *= BKE_curvemapping_evaluateF(brush->curve_rand_value, 0, pressure);
+  }
+
+  blender::float3 hsv;
+  rgb_to_hsv_v(color, hsv);
+
+  hsv[0] += blender::math::interpolate(0.5f, random_hue, hue_factor) - 0.5f;
+  /* Wrap hue. */
+  if (hsv[0] > 1.0f) {
+    hsv[0] -= 1.0f;
+  }
+  else if (hsv[0] < 0.0f) {
+    hsv[0] += 1.0f;
+  }
+
+  hsv[1] *= blender::math::interpolate(1.0f, random_sat * 2.0f, sat_factor);
+  hsv[2] *= blender::math::interpolate(1.0f, random_val * 2.0f, val_factor);
+
+  blender::float3 random_color;
+  hsv_to_rgb_v(hsv, random_color);
+  return random_color;
 }
 
 void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)

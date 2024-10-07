@@ -230,6 +230,7 @@ struct StrokeCache {
 
   /* The rest is temporary storage that isn't saved as a property */
 
+  StrokeFactors stroke_factors;
   /* Beginning of stroke may do some things special. */
   bool first_time = false;
 
