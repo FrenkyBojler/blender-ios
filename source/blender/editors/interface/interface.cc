@@ -1723,6 +1723,9 @@ static bool ui_but_icon_extra_is_visible_bone_eyedropper(uiBut *but)
     return false;
   }
   uiButSearch *search_but = (uiButSearch *)but;
+  if (!search_but->rnasearchprop) {
+    return false;
+  }
   const StructRNA *type = RNA_property_pointer_type(&search_but->rnasearchpoin,
                                                     search_but->rnasearchprop);
   return type == &RNA_Bone || type == &RNA_EditBone;
@@ -3397,8 +3400,8 @@ void ui_but_range_set_soft(uiBut *but)
       int imin, imax, istep;
 
       RNA_property_int_ui_range(&but->rnapoin, but->rnaprop, &imin, &imax, &istep);
-      softmin = (imin == INT_MIN) ? -1e4 : imin;
-      softmax = (imin == INT_MAX) ? 1e4 : imax;
+      softmin = std::max(imin, INT_MIN);
+      softmax = std::min(imax, INT_MAX);
       // step = istep;  /* UNUSED */
       // precision = 1; /* UNUSED */
 
@@ -4134,7 +4137,7 @@ void ui_block_cm_to_display_space_v3(uiBlock *block, float pixel[3])
 /**
  * Factory function: Allocate button and set #uiBut.type.
  *
- * \note: #ui_but_mem_delete is the matching 'destructor' function.
+ * \note #ui_but_mem_delete is the matching 'destructor' function.
  */
 static uiBut *ui_but_new(const eButType type)
 {
@@ -5106,7 +5109,7 @@ int UI_autocomplete_end(AutoComplete *autocpl, char *autoname)
   return match;
 }
 
-#define PREVIEW_TILE_PAD (0.15f * UI_UNIT_X)
+#define PREVIEW_TILE_PAD (0.225f * UI_UNIT_X)
 
 int UI_preview_tile_size_x(const int size_px)
 {
@@ -6583,6 +6586,16 @@ void UI_but_search_preview_grid_size_set(uiBut *but, int rows, int cols)
   uiButSearch *but_search = reinterpret_cast<uiButSearch *>(but);
   but_search->preview_rows = rows;
   but_search->preview_cols = cols;
+}
+
+void UI_but_view_item_draw_size_set(uiBut *but,
+                                    const std::optional<int> draw_width,
+                                    const std::optional<int> draw_height)
+{
+  BLI_assert(but->type == UI_BTYPE_VIEW_ITEM);
+  uiButViewItem *but_view_item = reinterpret_cast<uiButViewItem *>(but);
+  but_view_item->draw_width = draw_width.value_or(0);
+  but_view_item->draw_height = draw_height.value_or(0);
 }
 
 void UI_but_focus_on_enter_event(wmWindow *win, uiBut *but)

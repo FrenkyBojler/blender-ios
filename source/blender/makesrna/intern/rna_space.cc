@@ -236,7 +236,7 @@ const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
   }
 #define SACT_ITEM_GPENCIL \
   { \
-    SACTCONT_GPENCIL, "GPENCIL", ICON_GREASEPENCIL, "Grease Pencil", \
+    SACTCONT_GPENCIL, "GPENCIL", ICON_OUTLINER_OB_GREASEPENCIL, "Grease Pencil", \
         "Edit timings for all Grease Pencil sketches in file" \
   }
 #define SACT_ITEM_MASK \
@@ -464,6 +464,7 @@ static const EnumPropertyItem rna_enum_view3dshading_render_pass_type_items[] = 
     {EEVEE_RENDER_PASS_VOLUME_LIGHT, "VOLUME_LIGHT", 0, "Volume Light", ""},
 
     RNA_ENUM_ITEM_HEADING(N_("Data"), nullptr),
+    {EEVEE_RENDER_PASS_POSITION, "POSITION", 0, "Position", ""},
     {EEVEE_RENDER_PASS_NORMAL, "NORMAL", 0, "Normal", ""},
     {EEVEE_RENDER_PASS_MIST, "MIST", 0, "Mist", ""},
     {EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT, "CryptoObject", 0, "CryptoObject", ""},
@@ -4099,7 +4100,7 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_filter_object_grease_pencil", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "filter", SO_FILTER_NO_OB_GREASE_PENCIL);
-  RNA_def_property_ui_text(prop, "Show Grease Pencil", "Show grease pencil objects");
+  RNA_def_property_ui_text(prop, "Show Grease Pencil", "Show Grease Pencil objects");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   prop = RNA_def_property(srna, "use_filter_object_others", PROP_BOOLEAN, PROP_NONE);
@@ -4978,7 +4979,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_gpencil_grid", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "gp_flag", V3D_GP_SHOW_GRID);
-  RNA_def_property_ui_text(prop, "Use Grid", "Display a grid over grease pencil paper");
+  RNA_def_property_ui_text(prop, "Use Grid", "Display a grid over Grease Pencil paper");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "use_gpencil_fade_layers", PROP_BOOLEAN, PROP_NONE);
@@ -5844,7 +5845,7 @@ static void rna_def_space_image(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_GPencil_datablocks_annotations_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
-  RNA_def_property_ui_text(prop, "Grease Pencil", "Grease pencil data for this space");
+  RNA_def_property_ui_text(prop, "Grease Pencil", "Grease Pencil data for this space");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
   /* update */
