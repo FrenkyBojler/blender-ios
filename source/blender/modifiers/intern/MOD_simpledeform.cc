@@ -24,7 +24,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
@@ -38,7 +38,6 @@ BLI_ALIGN_STRUCT struct DeformUserData {
   int lock_axis;
   int vgroup;
   int limit_axis;
-  float weight;
   float smd_factor;
   float smd_limit[2];
   float (*vertexCos)[3];

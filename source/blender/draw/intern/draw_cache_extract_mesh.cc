@@ -74,10 +74,12 @@ static void mesh_extract_render_data_node_exec(void *__restrict task_data)
   const bool calc_loose_geom = DRW_ibo_requested(buffers.ibo.lines) ||
                                DRW_ibo_requested(buffers.ibo.lines_loose) ||
                                DRW_ibo_requested(buffers.ibo.points) ||
+                               DRW_vbo_requested(buffers.vbo.pos) ||
                                DRW_vbo_requested(buffers.vbo.edit_data) ||
                                DRW_vbo_requested(buffers.vbo.vnor) ||
                                DRW_vbo_requested(buffers.vbo.vert_idx) ||
-                               DRW_vbo_requested(buffers.vbo.edge_idx);
+                               DRW_vbo_requested(buffers.vbo.edge_idx) ||
+                               DRW_vbo_requested(buffers.vbo.edge_fac);
 
   if (calc_loose_geom) {
     mesh_render_data_update_loose_geom(mr, update_task_data->cache);
@@ -791,7 +793,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
   }
   if (DRW_vbo_requested(buffers.vbo.nor)) {
     /* The corner normals calculation uses positions and normals stored in the `pos` VBO. */
-    extract_normals_subdiv(subdiv_cache, *buffers.vbo.pos, *buffers.vbo.nor);
+    extract_normals_subdiv(mr, subdiv_cache, *buffers.vbo.pos, *buffers.vbo.nor);
   }
   if (DRW_vbo_requested(buffers.vbo.edge_fac)) {
     extract_edge_factor_subdiv(subdiv_cache, mr, *buffers.vbo.pos, *buffers.vbo.edge_fac);

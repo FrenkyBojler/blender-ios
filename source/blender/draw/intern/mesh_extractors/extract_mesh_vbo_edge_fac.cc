@@ -38,13 +38,20 @@ template<> inline float edge_factor_calc<float>(const float3 &a, const float3 &b
   /* Re-scale to the slider range. */
   float fac = (200 * (cosine - 1.0f)) + 1.0f;
   CLAMP(fac, 0.0f, 1.0f);
-  return fac;
+  /* 1.0 is a reserved value to force hide the wire. */
+  constexpr float factor = 254.0f / 255.0f;
+  return fac * factor;
 }
 
 template<> inline uint8_t edge_factor_calc<uint8_t>(const float3 &a, const float3 &b)
 {
+  const float cosine = math::dot(a, b);
+
+  /* Re-scale to the slider range. */
+  float fac = (200 * (cosine - 1.0f)) + 1.0f;
+  CLAMP(fac, 0.0f, 1.0f);
   /* 255 is a reserved value to force hide the wire. */
-  return uint8_t(edge_factor_calc<float>(a, b) * 254);
+  return fac * 254;
 }
 
 template<typename T>
@@ -62,7 +69,12 @@ static void extract_edge_factor_mesh(const MeshRenderData &mr, MutableSpan<T> vb
     for (const int corner : faces[face]) {
       const int edge = corner_edges[corner];
       if (!optimal_display_edges.is_empty() && !optimal_display_edges[edge]) {
-        vbo_data[corner] = FORCE_HIDE;
+        if constexpr (std::is_same_v<T, float>) {
+          vbo_data[corner] = 1.0f;
+        }
+        else {
+          vbo_data[corner] = FORCE_HIDE;
+        }
         continue;
       }
 
@@ -131,9 +143,9 @@ void extract_edge_factor(const MeshRenderData &mr, gpu::VertBuf &vbo)
     if (format.attr_len == 0) {
       GPU_vertformat_attr_add(&format, "wd", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     }
-    GPU_vertbuf_init_with_format(&vbo, &format);
-    GPU_vertbuf_data_alloc(&vbo, mr.corners_num + mr.loose_indices_num);
-    MutableSpan vbo_data(static_cast<float *>(GPU_vertbuf_get_data(&vbo)), mr.corners_num);
+    GPU_vertbuf_init_with_format(vbo, format);
+    GPU_vertbuf_data_alloc(vbo, mr.corners_num + mr.loose_indices_num);
+    MutableSpan vbo_data = vbo.data<float>();
     if (mr.extract_type == MR_EXTRACT_MESH) {
       extract_edge_factor_mesh(mr, vbo_data);
     }
@@ -147,9 +159,9 @@ void extract_edge_factor(const MeshRenderData &mr, gpu::VertBuf &vbo)
     if (format.attr_len == 0) {
       GPU_vertformat_attr_add(&format, "wd", GPU_COMP_U8, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
     }
-    GPU_vertbuf_init_with_format(&vbo, &format);
-    GPU_vertbuf_data_alloc(&vbo, mr.corners_num + mr.loose_indices_num);
-    MutableSpan vbo_data(static_cast<uint8_t *>(GPU_vertbuf_get_data(&vbo)), mr.corners_num);
+    GPU_vertbuf_init_with_format(vbo, format);
+    GPU_vertbuf_data_alloc(vbo, mr.corners_num + mr.loose_indices_num);
+    MutableSpan vbo_data = vbo.data<uint8_t>();
     if (mr.extract_type == MR_EXTRACT_MESH) {
       extract_edge_factor_mesh(mr, vbo_data);
     }
@@ -162,7 +174,7 @@ void extract_edge_factor(const MeshRenderData &mr, gpu::VertBuf &vbo)
 
 /* Different function than the one used for the non-subdivision case, as we directly take care of
  * the buggy AMD driver case. */
-static GPUVertFormat *get_subdiv_edge_fac_format()
+static const GPUVertFormat &get_subdiv_edge_fac_format()
 {
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
@@ -173,7 +185,7 @@ static GPUVertFormat *get_subdiv_edge_fac_format()
       GPU_vertformat_attr_add(&format, "wd", GPU_COMP_U8, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
     }
   }
-  return &format;
+  return format;
 }
 
 static gpu::VertBuf *build_poly_other_map_vbo(const DRWSubdivCache &subdiv_cache)
@@ -185,11 +197,9 @@ static gpu::VertBuf *build_poly_other_map_vbo(const DRWSubdivCache &subdiv_cache
     GPU_vertformat_attr_add(&format, "poly_other", GPU_COMP_I32, 1, GPU_FETCH_INT);
   }
 
-  GPU_vertbuf_init_with_format(vbo, &format);
-  GPU_vertbuf_data_alloc(vbo, subdiv_cache.num_subdiv_loops);
-
-  MutableSpan vbo_data{static_cast<int *>(GPU_vertbuf_get_data(vbo)),
-                       subdiv_cache.num_subdiv_loops};
+  GPU_vertbuf_init_with_format(*vbo, format);
+  GPU_vertbuf_data_alloc(*vbo, subdiv_cache.num_subdiv_loops);
+  MutableSpan vbo_data = vbo->data<int>();
 
   Array<MEdgeDataPrev> edge_data(subdiv_cache.num_subdiv_edges);
   Array<int> tmp_edge_corner_count(subdiv_cache.num_subdiv_edges, 0);
@@ -228,17 +238,19 @@ void extract_edge_factor_subdiv(const DRWSubdivCache &subdiv_cache,
                                 gpu::VertBuf &pos_nor,
                                 gpu::VertBuf &vbo)
 {
-  GPU_vertbuf_init_build_on_device(&vbo,
+  GPU_vertbuf_init_build_on_device(vbo,
                                    get_subdiv_edge_fac_format(),
                                    subdiv_cache.num_subdiv_loops +
                                        subdiv_loose_edges_num(mr, subdiv_cache) * 2);
 
-  gpu::VertBuf *poly_other_map = build_poly_other_map_vbo(subdiv_cache);
+  if (mr.faces_num > 0) {
+    gpu::VertBuf *poly_other_map = build_poly_other_map_vbo(subdiv_cache);
 
-  draw_subdiv_build_edge_fac_buffer(
-      subdiv_cache, &pos_nor, subdiv_cache.edges_draw_flag, poly_other_map, &vbo);
+    draw_subdiv_build_edge_fac_buffer(
+        subdiv_cache, &pos_nor, subdiv_cache.edges_draw_flag, poly_other_map, &vbo);
 
-  GPU_vertbuf_discard(poly_other_map);
+    GPU_vertbuf_discard(poly_other_map);
+  }
 
   const int loose_edges_num = subdiv_loose_edges_num(mr, subdiv_cache);
   if (loose_edges_num == 0) {

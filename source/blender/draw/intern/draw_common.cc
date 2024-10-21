@@ -14,6 +14,7 @@
 
 #include "UI_resources.hh"
 
+#include "BLI_index_range.hh"
 #include "BLI_math_color.h"
 
 #include "BKE_colorband.hh"
@@ -39,9 +40,25 @@ static ColorBand weight_ramp_copy;
 
 static GPUTexture *DRW_create_weight_colorramp_texture();
 
+using namespace blender;
+
 void DRW_globals_update()
 {
   GlobalsUboStorage *gb = &G_draw.block;
+
+  const DRWContextState *ctx = DRW_context_state_get();
+  if (ctx->rv3d != nullptr) {
+    int plane_len = (RV3D_LOCK_FLAGS(ctx->rv3d) & RV3D_BOXCLIP) ? 4 : 6;
+    for (auto i : IndexRange(plane_len)) {
+      gb->clip_planes[i] = float4(ctx->rv3d->clip[i]);
+    }
+    if (plane_len < 6) {
+      for (auto i : IndexRange(plane_len, 6 - plane_len)) {
+        /* Fill other planes with same valid planes. Avoid changing. */
+        gb->clip_planes[i] = gb->clip_planes[plane_len - 1];
+      }
+    }
+  }
 
   UI_GetThemeColor4fv(TH_WIRE, gb->color_wire);
   UI_GetThemeColor4fv(TH_WIRE_EDIT, gb->color_wire_edit);
@@ -142,6 +159,8 @@ void DRW_globals_update()
   UI_GetThemeColor4fv(TH_ACTIVE_SPLINE, gb->color_active_spline);
 
   UI_GetThemeColor4fv(TH_CFRAME, gb->color_current_frame);
+  UI_GetThemeColor4fv(TH_FRAME_BEFORE, gb->color_before_frame);
+  UI_GetThemeColor4fv(TH_FRAME_AFTER, gb->color_after_frame);
 
   /* Meta-ball. */
   UI_COLOR_RGBA_FROM_U8(0xA0, 0x30, 0x30, 0xFF, gb->color_mball_radius);

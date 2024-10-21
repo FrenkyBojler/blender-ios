@@ -27,6 +27,7 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_icons.h"
 #include "BKE_main.hh"
@@ -177,8 +178,8 @@ void ED_render_engine_changed(Main *bmain, const bool update_scene_data)
       ED_render_engine_area_exit(bmain, area);
     }
   }
-  /* Invalidate all shader previews. */
-  blender::ed::space_node::stop_preview_job(*static_cast<wmWindowManager *>(bmain->wm.first));
+  /* Stop and invalidate all shader previews. */
+  ED_preview_kill_jobs(static_cast<wmWindowManager *>(bmain->wm.first), bmain);
   LISTBASE_FOREACH (Material *, ma, &bmain->materials) {
     BKE_material_make_node_previews_dirty(ma);
   }
@@ -336,6 +337,9 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
       break;
     case ID_SCE:
       scene_changed(bmain, (Scene *)id);
+      break;
+    case ID_BR:
+      BKE_brush_tag_unsaved_changes(reinterpret_cast<Brush *>(id));
       break;
     default:
       break;

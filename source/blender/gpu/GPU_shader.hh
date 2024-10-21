@@ -10,6 +10,9 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+#include "BLI_vector.hh"
+#include "GPU_common_types.hh"
 #include "GPU_shader_builtin.hh"
 
 namespace blender::gpu {
@@ -39,6 +42,11 @@ struct GPUShader;
 GPUShader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info);
 
 /**
+ * Same as GPU_shader_create_from_info but will run preprocessor on source strings.
+ */
+GPUShader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info);
+
+/**
  * Create a shader using a named #GPUShaderCreateInfo registered at startup.
  * These are declared inside `*_info.hh` files using the `GPU_SHADER_CREATE_INFO()` macro.
  * They are also expected to have been flagged using `do_static_compilation`.
@@ -53,11 +61,37 @@ GPUShader *GPU_shader_create_from_info_name(const char *info_name);
  */
 const GPUShaderCreateInfo *GPU_shader_create_info_get(const char *info_name);
 
+void GPU_shader_create_info_get_unfinalized_copy(const char *info_name,
+                                                 GPUShaderCreateInfo &r_info);
+
 /**
  * Error checking for user created shaders.
  * \return true is create info is valid.
  */
 bool GPU_shader_create_info_check_error(const GPUShaderCreateInfo *_info, char r_error[128]);
+
+using BatchHandle = int64_t;
+/**
+ * Request the creation of multiple shaders at once, allowing the backend to use multithreaded
+ * compilation. Returns a handle that can be used to poll if all shaders have been compiled, and to
+ * retrieve the compiled shaders.
+ * NOTE: This function is asynchronous on OpenGL, but it's blocking on Vulkan and Metal.
+ * WARNING: The GPUShaderCreateInfo pointers should be valid until `GPU_shader_batch_finalize` has
+ * returned.
+ */
+BatchHandle GPU_shader_batch_create_from_infos(blender::Span<const GPUShaderCreateInfo *> infos);
+/**
+ * Returns true if all the shaders from the batch have finished their compilation.
+ */
+bool GPU_shader_batch_is_ready(BatchHandle handle);
+/**
+ * Retrieve the compiled shaders, in the same order as the `GPUShaderCreateInfo`s.
+ * If the compilation has not finished yet, this call will block the thread until all the shaders
+ * are ready.
+ * Shaders with compilation errors are returned as null pointers.
+ * WARNING: The handle will be invalidated by this call, you can't request the same batch twice.
+ */
+blender::Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle);
 
 /** \} */
 
@@ -193,6 +227,34 @@ void GPU_shader_constant_int(GPUShader *sh, const char *name, int value);
 void GPU_shader_constant_uint(GPUShader *sh, const char *name, unsigned int value);
 void GPU_shader_constant_float(GPUShader *sh, const char *name, float value);
 void GPU_shader_constant_bool(GPUShader *sh, const char *name, bool value);
+
+using SpecializationBatchHandle = int64_t;
+
+struct ShaderSpecialization {
+  GPUShader *shader;
+  blender::Vector<blender::gpu::shader::SpecializationConstant> constants;
+};
+
+/**
+ * Request the compilation of multiple specialization constant variations at once,
+ * allowing the backend to use multi-threaded compilation.
+ * Returns a handle that can be used to poll if all variations have been compiled.
+ * A NULL handle indicates no compilation of any variant was possible (likely due to
+ * some state being currently available) and so no batch was created. Compilation
+ * of the specialized variant will instead occur at draw/dispatch time.
+ * NOTE: This function is asynchronous on OpenGL and Metal and a no-op on Vulkan.
+ * Batches are processed one by one in FIFO order.
+ * WARNING: Binding a specialization before the batch finishes will fail.
+ */
+SpecializationBatchHandle GPU_shader_batch_specializations(
+    blender::Span<ShaderSpecialization> specializations);
+
+/**
+ * Returns true if all the specializations from the batch have finished their compilation.
+ * NOTE: Polling this function is required for the compilation process to keep progressing.
+ * WARNING: Invalidates the handle if it returns true.
+ */
+bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle);
 
 /** \} */
 
@@ -336,6 +398,8 @@ int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin);
  * This is used for platform support, where bug reports can list all failing shaders.
  */
 void GPU_shader_compile_static();
+
+void GPU_shader_cache_dir_clear_old();
 
 /** DEPRECATED: Use hard-coded buffer location instead. */
 enum GPUUniformBlockBuiltin {

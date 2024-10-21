@@ -2054,6 +2054,11 @@ uint gpu::MTLTexture::gl_bindcode_get() const
 bool gpu::MTLTexture::init_internal()
 {
   this->prepare_internal();
+  /* TODO(jbakker): Other limit checks should be added as well. When a texture violates a limit it
+   * is not backed by a texture and will crash when used. */
+  if (type_ == GPU_TEXTURE_3D && d_ > GPU_max_texture_3d_size()) {
+    return false;
+  }
   return true;
 }
 
@@ -2596,7 +2601,7 @@ id<MTLTexture> MTLTexture::get_non_srgb_handle()
 /** \name Pixel Buffer
  * \{ */
 
-MTLPixelBuffer::MTLPixelBuffer(uint size) : PixelBuffer(size)
+MTLPixelBuffer::MTLPixelBuffer(size_t size) : PixelBuffer(size)
 {
   /* Ensure buffer satisfies the alignment of 256 bytes for copying
    * data between buffers and textures. As specified in:

@@ -9,7 +9,7 @@
 #include "BKE_blender.hh"
 #include "BKE_preferences.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string_ref.hh"
 
 #include "DNA_asset_types.h"
@@ -469,7 +469,7 @@ void AssetLibraryService::allocate_service_instance()
   }
 }
 
-static void on_blendfile_load(Main * /*bMain*/,
+static void on_blendfile_load(Main * /*bmain*/,
                               PointerRNA ** /*pointers*/,
                               const int /*num_pointers*/,
                               void * /*arg*/)

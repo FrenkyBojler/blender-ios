@@ -46,7 +46,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "IMB_imbuf_types.hh"
 #include "IMB_interp.hh"
@@ -185,6 +185,11 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
        0,
        "Smooth",
        "Switch brush to smooth mode for duration of stroke"},
+      {BRUSH_STROKE_ERASE,
+       "ERASE",
+       0,
+       "Erase",
+       "Switch brush to erase mode for duration of stroke"},
       {0},
   };
 
@@ -521,6 +526,7 @@ static int brush_sculpt_curves_falloff_preset_exec(bContext *C, wmOperator *op)
   mapping->preset = RNA_enum_get(op->ptr, "shape");
   CurveMap *map = mapping->cm;
   BKE_curvemap_reset(map, &mapping->clipr, mapping->preset, CURVEMAP_SLOPE_POSITIVE);
+  BKE_brush_tag_unsaved_changes(brush);
   return OPERATOR_FINISHED;
 }
 

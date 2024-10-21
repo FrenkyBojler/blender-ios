@@ -693,8 +693,8 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   uiLayout *layout = UI_block_layout(
       block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, 200 * UI_SCALE_FAC, UI_UNIT_Y, 0, style);
 
-  uiItemL_ex(layout, "Insert Unicode Character", ICON_NONE, true, false);
-  uiItemL(layout, "Enter a Unicode codepoint hex value", ICON_NONE);
+  uiItemL_ex(layout, IFACE_("Insert Unicode Character"), ICON_NONE, true, false);
+  uiItemL(layout, RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
 
   uiBut *text_but = uiDefBut(block,
                              UI_BTYPE_TEXT,
@@ -761,7 +761,7 @@ static int text_insert_unicode_invoke(bContext *C, wmOperator * /*op*/, const wm
 {
   char *edit_string = static_cast<char *>(MEM_mallocN(24, __func__));
   edit_string[0] = 0;
-  UI_popup_block_invoke(C, wm_block_insert_unicode_create, edit_string, MEM_freeN);
+  UI_popup_block_invoke_ex(C, wm_block_insert_unicode_create, edit_string, MEM_freeN, false);
   return OPERATOR_FINISHED;
 }
 
@@ -2203,7 +2203,10 @@ void ED_curve_editfont_make(Object *obedit)
   ef->len = len_char32;
   BLI_assert(ef->len >= 0);
 
-  memcpy(ef->textbufinfo, cu->strinfo, ef->len * sizeof(CharInfo));
+  /* Old files may not have this initialized (v2.34). Leaving zeroed is OK. */
+  if (cu->strinfo) {
+    memcpy(ef->textbufinfo, cu->strinfo, ef->len * sizeof(CharInfo));
+  }
 
   ef->pos = cu->pos;
   if (ef->pos > ef->len) {

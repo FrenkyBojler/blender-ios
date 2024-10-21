@@ -48,6 +48,8 @@ ccl_device_constant DeviceString u_object_color = 12695623857059169556ull;
 ccl_device_constant DeviceString u_object_alpha = 11165053919428293151ull;
 /* "object:index" */
 ccl_device_constant DeviceString u_object_index = 6588325838217472556ull;
+/* "object:is_light" */
+ccl_device_constant DeviceString u_object_is_light = 13979755312845091842ull;
 /* "geom:dupli_generated" */
 ccl_device_constant DeviceString u_geom_dupli_generated = 6715607178003388908ull;
 /* "geom:dupli_uv" */
@@ -1117,6 +1119,10 @@ ccl_device_inline bool get_object_standard_attribute(KernelGlobals kg,
     float f = object_pass_id(kg, sd->object);
     return set_attribute_float(f, type, derivatives, val);
   }
+  else if (name == DeviceStrings::u_object_is_light) {
+    float f = ((sd->type & PRIMITIVE_LAMP) != 0);
+    return set_attribute_float(f, type, derivatives, val);
+  }
   else if (name == DeviceStrings::u_geom_dupli_generated) {
     float3 f = object_dupli_generated(kg, sd->object);
     return set_attribute_float3(f, type, derivatives, val);
@@ -1553,7 +1559,7 @@ OSL_NOISE_IMPL(osl_snoise, snoise)
 
 /* Texturing */
 
-#include "kernel/svm/ies.h"
+#include "kernel/util/ies.h"
 
 ccl_device_extern ccl_private OSLTextureOptions *osl_get_texture_options(
     ccl_private ShaderGlobals *sg)

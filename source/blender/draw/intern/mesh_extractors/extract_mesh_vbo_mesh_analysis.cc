@@ -15,7 +15,7 @@
 
 #include "BKE_bvhutils.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_editmesh_bvh.h"
+#include "BKE_editmesh_bvh.hh"
 #include "BKE_editmesh_cache.hh"
 
 #include "extract_mesh.hh"
@@ -198,6 +198,10 @@ static void statvis_calc_thickness(const MeshRenderData &mr, MutableSpan<float> 
     BVHTreeFromMesh treeData = {nullptr};
 
     BVHTree *tree = BKE_bvhtree_from_mesh_get(&treeData, mr.mesh, BVHTREE_FROM_CORNER_TRIS, 4);
+    if (tree == nullptr) {
+      return;
+    }
+
     const Span<int3> corner_tris = mr.mesh->corner_tris();
     const Span<int> tri_faces = mr.mesh->corner_tri_faces();
     for (const int i : corner_tris.index_range()) {
@@ -326,6 +330,9 @@ static void statvis_calc_intersect(const MeshRenderData &mr, MutableSpan<float> 
     BVHTreeFromMesh treeData = {nullptr};
 
     BVHTree *tree = BKE_bvhtree_from_mesh_get(&treeData, mr.mesh, BVHTREE_FROM_CORNER_TRIS, 4);
+    if (tree == nullptr) {
+      return;
+    }
 
     BVHTree_OverlapData data = {};
     data.positions = mr.vert_positions;
@@ -570,9 +577,9 @@ void extract_mesh_analysis(const MeshRenderData &mr, gpu::VertBuf &vbo)
   if (format.attr_len == 0) {
     GPU_vertformat_attr_add(&format, "weight", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
   }
-  GPU_vertbuf_init_with_format(&vbo, &format);
-  GPU_vertbuf_data_alloc(&vbo, mr.corners_num);
-  MutableSpan<float> vbo_data(static_cast<float *>(GPU_vertbuf_get_data(&vbo)), mr.corners_num);
+  GPU_vertbuf_init_with_format(vbo, format);
+  GPU_vertbuf_data_alloc(vbo, mr.corners_num);
+  MutableSpan<float> vbo_data = vbo.data<float>();
 
   switch (mr.toolsettings->statvis.type) {
     case SCE_STATVIS_OVERHANG:

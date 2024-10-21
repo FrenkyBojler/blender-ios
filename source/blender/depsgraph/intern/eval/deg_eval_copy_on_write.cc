@@ -69,7 +69,7 @@
 #  include "DNA_world_types.h"
 #endif
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -832,7 +832,7 @@ ID *deg_expand_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
 #endif
   /* Do it now, so remapping will understand that possibly remapped self ID
    * is not to be remapped again. */
-  deg_tag_eval_copy_id(id_cow, id_orig);
+  deg_tag_eval_copy_id(const_cast<Depsgraph &>(*depsgraph), id_cow, id_orig);
   /* Perform remapping of the nodes. */
   RemapCallbackUserData user_data = {nullptr};
   user_data.depsgraph = depsgraph;
@@ -886,14 +886,6 @@ ID *deg_update_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
        *  - Depsgraph of SceneB is evaluated.
        *  - User enters edit mode of ObjectA in SceneA. */
       update_edit_mode_pointers(depsgraph, id_orig, id_cow);
-      return id_cow;
-    }
-    /* In case we don't need to do a copy-on-evaluation, we can use the update cache of the grease
-     * pencil data to do an update-on-write. */
-    if (id_type == ID_GD_LEGACY && BKE_gpencil_can_avoid_full_copy_on_write(
-                                       (const ::Depsgraph *)depsgraph, (bGPdata *)id_orig))
-    {
-      BKE_gpencil_update_on_write((bGPdata *)id_orig, (bGPdata *)id_cow);
       return id_cow;
     }
   }
@@ -988,14 +980,14 @@ void discard_edit_mode_pointers(ID *id_cow)
 
 }  // namespace
 
-/**
- *  Free content of the evaluated data-block.
- * Notes:
- * - Does not recurse into nested ID data-blocks.
- * - Does not free data-block itself.
- */
 void deg_free_eval_copy_datablock(ID *id_cow)
 {
+  /* Free content of the evaluated data-block.
+   * Notes:
+   * - Does not recurse into nested ID data-blocks.
+   * - Does not free data-block itself.
+   */
+
   if (!check_datablock_expanded(id_cow)) {
     /* Actual content was never copied on top of evaluated data-block, we have
      * nothing to free. */
@@ -1050,14 +1042,15 @@ bool deg_validate_eval_copy_datablock(ID *id_cow)
   return data.is_valid;
 }
 
-void deg_tag_eval_copy_id(ID *id_cow, const ID *id_orig)
+void deg_tag_eval_copy_id(deg::Depsgraph &depsgraph, ID *id_cow, const ID *id_orig)
 {
   BLI_assert(id_cow != id_orig);
-  BLI_assert((id_orig->tag & LIB_TAG_COPIED_ON_EVAL) == 0);
-  id_cow->tag |= LIB_TAG_COPIED_ON_EVAL;
+  BLI_assert((id_orig->tag & ID_TAG_COPIED_ON_EVAL) == 0);
+  id_cow->tag |= ID_TAG_COPIED_ON_EVAL;
   /* This ID is no longer localized, is a self-sustaining copy now. */
-  id_cow->tag &= ~LIB_TAG_LOCALIZED;
+  id_cow->tag &= ~ID_TAG_LOCALIZED;
   id_cow->orig_id = (ID *)id_orig;
+  id_cow->runtime.depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
 }
 
 bool deg_eval_copy_is_expanded(const ID *id_cow)
