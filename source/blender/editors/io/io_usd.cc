@@ -453,6 +453,12 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
       uiItemR(col, ptr, "export_global_forward_selection", UI_ITEM_NONE, nullptr, ICON_NONE);
       uiItemR(col, ptr, "export_global_up_selection", UI_ITEM_NONE, nullptr, ICON_NONE);
     }
+
+    uiItemR(col, ptr, "convert_scene_units", UI_ITEM_NONE, nullptr, ICON_NONE);
+    if (eUSDSceneUnits(RNA_enum_get(ptr, "convert_scene_units")) == USD_SCENE_UNITS_CUSTOM) {
+      uiItemR(col, ptr, "meters_per_unit", UI_ITEM_NONE, nullptr, ICON_NONE);
+    }
+
     uiItemR(col, ptr, "xform_op_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
 
     col = uiLayoutColumn(panel, false);
@@ -505,14 +511,9 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
     uiItemR(panel.header, ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
     uiItemL(panel.header, IFACE_("Materials"), ICON_NONE);
     if (panel.body) {
+
       const bool export_materials = RNA_boolean_get(ptr, "export_materials");
       uiLayoutSetActive(panel.body, export_materials);
-      uiItemR(col, ptr, "convert_scene_units", UI_ITEM_NONE, nullptr, ICON_NONE);
-      if (eUSDSceneUnits(RNA_enum_get(ptr, "convert_scene_units")) == USD_SCENE_UNITS_CUSTOM) {
-        uiItemR(col, ptr, "meters_per_unit", UI_ITEM_NONE, nullptr, ICON_NONE);
-      }
-      col = uiLayoutColumn(box, true);
-      uiItemR(col, ptr, "evaluation_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
 
       uiLayout *col = uiLayoutColumn(panel.body, false);
       uiItemR(col, ptr, "generate_preview_surface", UI_ITEM_NONE, nullptr, ICON_NONE);
