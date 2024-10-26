@@ -67,6 +67,8 @@
 
 #include "NOD_texture.h"
 
+#include "GEO_dyntopo.hh"
+
 #include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
@@ -2923,7 +2925,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
     return;
   }
 
-  MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
+  // MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
 
   /* Free index based vertex info as it will become invalid after modifying the topology during the
    * stroke. */
@@ -2952,11 +2954,24 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   }
   pbvh.tag_positions_changed(node_mask);
   pbvh.tag_topology_changed(node_mask);
-  node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_topology_update(nodes[i]); });
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    BKE_pbvh_bmesh_node_save_orig(ss.bm, ss.bm_log, &nodes[i], false);
-  });
+  // node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_topology_update(nodes[i]); });
+  // node_mask.foreach_index(GrainSize(1), [&](const int i) {
+    // BKE_pbvh_bmesh_node_save_orig(ss.bm, ss.bm_log, &nodes[i], false);
+  // });
 
+  printf("STEP!\n");
+
+  const Mesh *old_mesh = static_cast<const Mesh *>(ob.data);
+  Array<float2> uv_positions(old_mesh->verts_num);
+  const Span<float3> positions = old_mesh->vert_positions();
+  for (const int i : uv_positions.index_range()) {
+    uv_positions[i] = positions[i].xy();
+  }
+  Mesh *new_mesh = geometry::dyntopo::subdivide(*old_mesh, uv_positions, float2(0.0f), 2.0f, 1.0f);
+  ob.data = new_mesh;
+  
+
+/*
   float max_edge_len;
   if (sd.flags & (SCULPT_DYNTOPO_DETAIL_CONSTANT | SCULPT_DYNTOPO_DETAIL_MANUAL)) {
     max_edge_len = dyntopo::detail_size::constant_to_detail_size(sd.constant_detail, ob);
@@ -2981,6 +2996,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
                                    ss.cache->radius,
                                    (brush.flag & BRUSH_FRONTFACE) != 0,
                                    (brush.falloff_shape != PAINT_FALLOFF_SHAPE_SPHERE));
+*/
 
   /* Update average stroke position. */
   copy_v3_v3(location, ss.cache->location);
@@ -5250,10 +5266,10 @@ static void stroke_update_step(bContext *C,
   sculpt_update_cache_variants(C, sd, ob, itemptr);
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);
 
-  if (dyntopo::stroke_is_dyntopo(ob, brush)) {
+  // if (dyntopo::stroke_is_dyntopo(ob, brush)) {
     do_symmetrical_brush_actions(
         depsgraph, scene, sd, ob, dynamic_topology_update, ups, tool_settings.paint_mode);
-  }
+  // }
 
   do_symmetrical_brush_actions(
       depsgraph, scene, sd, ob, do_brush_action, ups, tool_settings.paint_mode);
