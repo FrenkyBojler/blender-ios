@@ -1168,12 +1168,14 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "icon_alpha")
         col.prop(ui, "icon_saturation", text="Saturation")
 
+        col = flow.column()
+        col.prop(ui, "widget_emboss")
+
         col = flow.column(align=True)
         col.prop(ui, "menu_shadow_fac")
         col.prop(ui, "menu_shadow_width", text="Shadow Width")
 
         col = flow.column()
-        col.prop(ui, "widget_emboss")
         col.prop(ui, "panel_roundness")
 
 
