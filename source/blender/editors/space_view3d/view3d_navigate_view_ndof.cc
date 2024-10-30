@@ -693,7 +693,7 @@ static bool ndof_get_cor_from_zbuf(const CoRFromZBufParams *params, float r_cor[
   return false;
 }
 
-void ndof_recalculate_cor(bContext *C)
+static void ndof_recalculate_cor(bContext *C)
 {
   const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
@@ -765,7 +765,7 @@ static int ndof_orbit_zoom_invoke_impl(bContext *C,
   /* off by default, until changed later this function */
   rv3d->rot_angle = 0.0f;
 
-  if (ndof->progress == P_FINISHING) {
+  if (ndof->progress == P_STARTING) {
     ndof_recalculate_cor(C);
   }
   else if ((rv3d->persp == RV3D_ORTHO) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
