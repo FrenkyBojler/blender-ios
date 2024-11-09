@@ -1078,7 +1078,7 @@ class VIEW3D_HT_header(Header):
         ):
             sub.popover(panel="VIEW3D_PT_overlay_bones", text="", icon='POSE_HLT')
 
-        row = layout.row()
+        row = layout.row(align=True)
         row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
 
         # While exposing `shading.show_xray(_wireframe)` is correct.
@@ -1094,6 +1094,11 @@ class VIEW3D_HT_header(Header):
             text="",
             icon='XRAY',
             depress=draw_depressed,
+        )
+        sub = row.row(align=True)
+        sub.popover(
+            panel="VIEW3D_PT_xray",
+            text="",
         )
 
         row = layout.row(align=True)
@@ -6803,6 +6808,16 @@ class VIEW3D_PT_overlay(Panel):
         layout.label(text="Viewport Overlays")
 
 
+class VIEW3D_PT_xray(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "X-Ray Options"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(context.space_data.shading, "xray_auto_toggle", text="Auto X-Ray Selection")
+
+
 class VIEW3D_PT_overlay_guides(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
@@ -9013,6 +9028,7 @@ classes = (
     VIEW3D_PT_overlay_bones,
     VIEW3D_PT_overlay_sculpt,
     VIEW3D_PT_overlay_sculpt_curves,
+    VIEW3D_PT_xray,
     VIEW3D_PT_snapping,
     VIEW3D_PT_sculpt_snapping,
     VIEW3D_PT_proportional_edit,

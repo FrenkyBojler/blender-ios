@@ -161,7 +161,7 @@ typedef struct View3DShading {
   /** When to preview the compositor output in the viewport. View3DShadingUseCompositor. */
   char use_compositor;
 
-  char _pad;
+  char xray_auto_toggle;
 
   /** FILE_MAXFILE. */
   char studio_light[256];
@@ -545,6 +545,7 @@ enum {
   V3D_SHADING_SCENE_LIGHTS_RENDER = (1 << 12),
   V3D_SHADING_SCENE_WORLD_RENDER = (1 << 13),
   V3D_SHADING_STUDIOLIGHT_VIEW_ROTATION = (1 << 14),
+  V3D_SHADING_XRAY_AUTO_TOGGLE = (1 << 15),
 };
 
 /** #View3D.debug_flag */
