@@ -532,6 +532,7 @@ static void facetag_set_cb(BMFace *f, bool val, void *user_data_v)
 static void mouse_mesh_shortest_path_face(Scene * /*scene*/,
                                           Object *obedit,
                                           const PathSelectParams *op_params,
+                                          bContext *C,
                                           BMFace *f_act,
                                           BMFace *f_dst)
 {
@@ -627,6 +628,12 @@ static void mouse_mesh_shortest_path_face(Scene * /*scene*/,
       BM_select_history_store(bm, f_dst_last);
     }
     BM_mesh_active_face_set(bm, f_dst_last);
+
+    if (f_dst_last->mat_nr != obedit->actcol - 1) {
+      obedit->actcol = f_dst_last->mat_nr + 1;
+      em->mat_nr = f_dst_last->mat_nr;
+      WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, nullptr);
+    }
   }
 
   EDBMUpdate_Params params{};
@@ -644,6 +651,7 @@ static void mouse_mesh_shortest_path_face(Scene * /*scene*/,
 
 static bool edbm_shortest_path_pick_ex(Scene *scene,
                                        Object *obedit,
+                                       bContext *C,
                                        const PathSelectParams *op_params,
                                        BMElem *ele_src,
                                        BMElem *ele_dst)
@@ -662,7 +670,8 @@ static bool edbm_shortest_path_pick_ex(Scene *scene,
     ok = true;
   }
   else if (ele_src->head.htype == BM_FACE) {
-    mouse_mesh_shortest_path_face(scene, obedit, op_params, (BMFace *)ele_src, (BMFace *)ele_dst);
+    mouse_mesh_shortest_path_face(
+        scene, obedit, op_params, C, (BMFace *)ele_src, (BMFace *)ele_dst);
     ok = true;
   }
 
@@ -769,7 +778,7 @@ static int edbm_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmE
 
   op_params.track_active = track_active;
 
-  if (!edbm_shortest_path_pick_ex(vc.scene, vc.obedit, &op_params, ele_src, ele_dst)) {
+  if (!edbm_shortest_path_pick_ex(vc.scene, vc.obedit, C, &op_params, ele_src, ele_dst)) {
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -810,7 +819,7 @@ static int edbm_shortest_path_pick_exec(bContext *C, wmOperator *op)
   path_select_params_from_op(op, scene->toolsettings, &op_params);
   op_params.track_active = true;
 
-  if (!edbm_shortest_path_pick_ex(scene, obedit, &op_params, ele_src, ele_dst)) {
+  if (!edbm_shortest_path_pick_ex(scene, obedit, C, &op_params, ele_src, ele_dst)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -932,7 +941,7 @@ static int edbm_shortest_path_select_exec(bContext *C, wmOperator *op)
       PathSelectParams op_params;
       path_select_params_from_op(op, scene->toolsettings, &op_params);
 
-      edbm_shortest_path_pick_ex(scene, obedit, &op_params, ele_src, ele_dst);
+      edbm_shortest_path_pick_ex(scene, obedit, C, &op_params, ele_src, ele_dst);
 
       found_valid_elements = true;
     }
