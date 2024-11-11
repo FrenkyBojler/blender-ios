@@ -518,8 +518,7 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
                                             IntegratorShadowState state,
                                             ccl_private Ray *ccl_restrict ray,
                                             ccl_private ShaderData *ccl_restrict sd,
-                                            ccl_private Spectrum *ccl_restrict throughput,
-                                            const float object_step_size)
+                                            ccl_private Spectrum *ccl_restrict throughput)
 {
   /* Load random number state. */
   RNGState rng_state;
@@ -874,7 +873,6 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
     ccl_private ShaderData *ccl_restrict sd,
     const ccl_private RNGState *rng_state,
     ccl_global float *ccl_restrict render_buffer,
-    const float object_step_size,
     const VolumeSampleMethod direct_sample_method,
     const ccl_private EquiangularCoefficients &equiangular_coeffs,
     ccl_private VolumeIntegrateResult &result)
@@ -1308,9 +1306,6 @@ ccl_device VolumeIntegrateEvent volume_integrate(KernelGlobals kg,
                                                       VOLUME_SAMPLE_DISTANCE;
 
   /* Step through volume. */
-  VOLUME_READ_LAMBDA(integrator_state_read_volume_stack(state, i))
-  const float step_size = volume_stack_step_size(kg, volume_read_lambda_pass);
-
 #  if defined(__PATH_GUIDING__) && PATH_GUIDING_LEVEL >= 1
   /* The current path throughput which is used later to calculate per-segment throughput. */
   const float3 initial_throughput = INTEGRATOR_STATE(state, path, throughput);
@@ -1329,7 +1324,6 @@ ccl_device VolumeIntegrateEvent volume_integrate(KernelGlobals kg,
                                  &sd,
                                  &rng_state,
                                  render_buffer,
-                                 step_size,
                                  direct_sample_method,
                                  equiangular_coeffs,
                                  result);
