@@ -337,6 +337,17 @@ class DOPESHEET_HT_editor_buttons:
                 return context.object
 
 
+class DOPESHEET_HT_footer(Header):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+
+        from bl_ui.space_time import TIME_MT_editor_menus
+        TIME_HT_editor_buttons.draw_header(context, layout)
+
+
 class DOPESHEET_PT_snapping(Panel):
     bl_space_type = 'DOPESHEET_EDITOR'
     bl_region_type = 'HEADER'
@@ -957,6 +968,7 @@ class DOPESHEET_PT_grease_pencil_layer_relations(
 
 classes = (
     DOPESHEET_HT_header,
+    DOPESHEET_HT_footer,
     DOPESHEET_PT_proportional_edit,
     DOPESHEET_MT_editor_menus,
     DOPESHEET_MT_view,

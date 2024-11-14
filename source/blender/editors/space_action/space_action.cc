@@ -77,6 +77,12 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
+  /* footer */
+  region = MEM_cnew<ARegion>("footer for action");
+  BLI_addtail(&saction->regionbase, region);
+  region->regiontype = RGN_TYPE_FOOTER;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
+
   /* channel list region */
   region = MEM_cnew<ARegion>("channel region for action");
   BLI_addtail(&saction->regionbase, region);
@@ -349,6 +355,26 @@ static void action_header_region_draw(const bContext *C, ARegion *region)
 
   ED_region_header(C, region);
 }
+
+/* add handlers, stuff you only do once or on area/region changes */
+static void action_footer_region_init(wmWindowManager * /*wm*/, ARegion *region)
+{
+  ED_region_header_init(region);
+}
+
+static void action_footer_region_draw(const bContext *C, ARegion *region)
+{
+  /* The anim context is not actually used, but this makes sure the action being displayed is up to
+   * date. */
+  bAnimContext ac;
+  ANIM_animdata_get_context(C, &ac);
+
+  ED_region_header(C, region);
+}
+
+static void action_footer_region_free(ARegion * /*region*/) {}
+
+static void action_footer_region_listener(const wmRegionListenerParams * /*params*/) {}
 
 static void action_channel_region_listener(const wmRegionListenerParams *params)
 {
@@ -961,6 +987,19 @@ void ED_spacetype_action()
   art->init = action_header_region_init;
   art->draw = action_header_region_draw;
   art->listener = action_header_region_listener;
+
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: footer */
+  art = MEM_cnew<ARegionType>("spacetype action region");;
+  art->regionid = RGN_TYPE_FOOTER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+
+  art->init = action_footer_region_init;
+  art->draw = action_footer_region_draw;
+  art->free = action_footer_region_free;
+  art->listener = action_footer_region_listener;
 
   BLI_addhead(&st->regiontypes, art);
 

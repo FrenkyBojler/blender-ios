@@ -5101,13 +5101,13 @@ static int screen_context_menu_invoke(bContext *C, wmOperator * /*op*/, const wm
       ED_screens_header_tools_menu_create(C, layout, nullptr);
       UI_popup_menu_end(C, pup);
     }
-    else if (region->regiontype == RGN_TYPE_FOOTER) {
+    if (region->regiontype == RGN_TYPE_FOOTER || region->regiontype == RGN_TYPE_HEADER) {
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Footer"), ICON_NONE);
       uiLayout *layout = UI_popup_menu_layout(pup);
       ED_screens_footer_tools_menu_create(C, layout, nullptr);
       UI_popup_menu_end(C, pup);
     }
-    else if (region->regiontype == RGN_TYPE_NAV_BAR) {
+    if (region->regiontype == RGN_TYPE_NAV_BAR) {
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
       uiLayout *layout = UI_popup_menu_layout(pup);
       ED_screens_region_flip_menu_create(C, layout, nullptr);
