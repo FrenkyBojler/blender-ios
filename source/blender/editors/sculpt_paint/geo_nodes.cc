@@ -48,8 +48,11 @@ namespace blender::ed::sculpt_paint {
     call_data.root_ntree = &tree;
     call_data.side_effect_nodes = {};
 
+    bke::SculptingComputeContext compute_context;
+
     nodes::GeoNodesLFUserData user_data;
     user_data.call_data = &call_data;
+    user_data.compute_context = &compute_context;
 
     LinearAllocator<> allocator;
     Vector<GMutablePointer> inputs_to_destruct;
