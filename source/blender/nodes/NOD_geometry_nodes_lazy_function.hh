@@ -208,6 +208,19 @@ struct GeoNodesOperatorData {
   int active_face_index = -1;
 };
 
+struct GeoNodesSculptingData {
+  float strength;
+  float radius;
+  bool flip;
+  float pen_pressure;
+  float3 plane_normal;
+  float3 plane_origin;
+  float4x4 local_transform;
+
+  const Object* self_object = nullptr;
+  const Depsgraph* depsgraph = nullptr;
+};
+
 struct GeoNodesCallData {
   /**
    * Top-level node tree of the current evaluation.
@@ -248,6 +261,8 @@ struct GeoNodesCallData {
    * Data from execution as operator in 3D viewport.
    */
   GeoNodesOperatorData *operator_data = nullptr;
+
+  GeoNodesSculptingData *sculpting_data = nullptr;
 
   /**
    * Self object has slightly different semantics depending on how geometry nodes is called.

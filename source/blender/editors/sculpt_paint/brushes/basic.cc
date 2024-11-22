@@ -20,6 +20,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 
+#include "editors/sculpt_paint/geo_nodes.hh"
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
@@ -69,9 +70,9 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  translations.fill(float3(0.0f));
-  /*scale_translations(translations, tls.factors);
-  scale_translations(translations, ss.cache->bstrength);*/
+  sculpting_geo_nodes_execute(*ss.cache, translations);
+  scale_translations(translations, tls.factors);
+  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
@@ -94,9 +95,9 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
-  translations.fill(float3(0.0f));
-  /*scale_translations(translations, tls.factors);
-  scale_translations(translations, ss.cache->bstrength);*/
+  sculpting_geo_nodes_execute(*ss.cache, translations);
+  scale_translations(translations, tls.factors);
+  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, grids, subdiv_ccg);
@@ -118,9 +119,9 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  translations.fill(float3(0.0f));
-  /*scale_translations(translations, tls.factors);
-  scale_translations(translations, ss.cache->bstrength);*/
+  sculpting_geo_nodes_execute(*ss.cache, translations);
+  scale_translations(translations, tls.factors);
+  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, verts);
@@ -133,7 +134,7 @@ void do_basic_brush(const Depsgraph &depsgraph,
                    Object &object,
                    const IndexMask &node_mask)
 {
-  const SculptSession &ss = *object.sculpt;
+  //const SculptSession &ss = *object.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   bke::pbvh::Tree& pbvh = *bke::object::pbvh_get(object);

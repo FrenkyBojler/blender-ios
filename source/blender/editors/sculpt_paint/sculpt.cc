@@ -52,6 +52,7 @@
 #include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_ID.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
@@ -2109,6 +2110,7 @@ static float brush_strength(const Sculpt &sd,
       final_pressure = pow4f(pressure);
       overlap = (1.0f + overlap) / 2.0f;
       return 0.25f * alpha * flip * final_pressure * overlap * feather;
+    case SCULPT_BRUSH_TYPE_BASIC:
     case SCULPT_BRUSH_TYPE_DRAW:
     case SCULPT_BRUSH_TYPE_DRAW_SHARP:
     case SCULPT_BRUSH_TYPE_LAYER:
@@ -3640,6 +3642,8 @@ static const char *sculpt_brush_type_name(const Sculpt &sd)
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   switch (eBrushSculptType(brush.sculpt_brush_type)) {
+    case SCULPT_BRUSH_TYPE_BASIC:
+      return "Basic Brush";
     case SCULPT_BRUSH_TYPE_DRAW:
       return "Draw Brush";
     case SCULPT_BRUSH_TYPE_SMOOTH:
@@ -5277,6 +5281,9 @@ static void stroke_update_step(bContext *C,
   ToolSettings &tool_settings = *CTX_data_tool_settings(C);
   StrokeCache *cache = ss.cache;
   cache->stroke_distance = paint_stroke_distance_get(stroke);
+
+  Main* bmain = CTX_data_main(C);
+  cache->node_tree = (bNodeTree*)BKE_libblock_find_name(bmain, ID_NT, "brush");
 
   SCULPT_stroke_modifiers_check(C, ob, brush);
   sculpt_update_cache_variants(C, sd, ob, itemptr);
