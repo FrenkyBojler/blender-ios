@@ -149,6 +149,7 @@ const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
     {0, nullptr, 0, nullptr, nullptr}};
 
 const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
+    {SCULPT_BRUSH_TYPE_BASIC, "BASIC", 0, "Basic", ""},
     {SCULPT_BRUSH_TYPE_DRAW, "DRAW", 0, "Draw", ""},
     {SCULPT_BRUSH_TYPE_DRAW_SHARP, "DRAW_SHARP", 0, "Draw Sharp", ""},
     {SCULPT_BRUSH_TYPE_CLAY, "CLAY", 0, "Clay", ""},

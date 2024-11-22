@@ -3164,6 +3164,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
 
   /* Apply one type of brush action. */
   switch (brush.sculpt_brush_type) {
+    case SCULPT_BRUSH_TYPE_BASIC:
+      do_basic_brush(depsgraph, sd, ob, node_mask);
+      break;
     case SCULPT_BRUSH_TYPE_DRAW: {
       const bool use_vector_displacement = (brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
                                             (brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA));
