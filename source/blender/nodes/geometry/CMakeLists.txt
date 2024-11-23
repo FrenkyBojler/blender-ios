@@ -186,6 +186,9 @@ set(SRC
   nodes/node_geo_sample_uv_surface.cc
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
+  nodes/node_geo_sculpt_brush_info.cc
+  nodes/node_geo_sculpt_pen_pressure.cc
+  nodes/node_geo_sculpt_stroke_info.cc
   nodes/node_geo_sdf_grid_boolean.cc
   nodes/node_geo_self_object.cc
   nodes/node_geo_separate_components.cc

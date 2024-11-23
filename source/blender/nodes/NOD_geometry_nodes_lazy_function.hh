@@ -211,7 +211,8 @@ struct GeoNodesOperatorData {
 struct GeoNodesSculptingData {
   float strength;
   float radius;
-  bool flip;
+  float flip;
+  bool is_first_step;
   float pen_pressure;
   float3 plane_normal;
   float3 plane_origin;

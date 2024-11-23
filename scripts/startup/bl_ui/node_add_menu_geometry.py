@@ -528,6 +528,16 @@ class NODE_MT_category_GEO_POINT(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "GeometryNodeSetPointRadius")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        
+class NODE_MT_category_sculpting(Menu):
+    bl_idname = "NODE_MT_category_sculpting"
+    bl_label = "Sculpting"
+
+    def draw(self, _context):
+        layout = self.layout
+        node_add_menu.add_node_type(layout, "GeometryNodeSculptBrushInfo")
+        node_add_menu.add_node_type(layout, "GeometryNodeSculptPenPressure")
+        node_add_menu.add_node_type(layout, "GeometryNodeSculptStrokeInfo")
 
 
 class NODE_MT_category_simulation(Menu):
@@ -813,6 +823,7 @@ class NODE_MT_geometry_node_add_all(Menu):
         layout.menu("NODE_MT_category_GEO_POINT")
         layout.menu("NODE_MT_category_GEO_VOLUME")
         layout.separator()
+        layout.menu("NODE_MT_category_sculpting")
         layout.menu("NODE_MT_category_simulation")
         layout.separator()
         layout.menu("NODE_MT_geometry_node_GEO_MATERIAL")
@@ -855,6 +866,7 @@ classes = (
     NODE_MT_category_import,
     NODE_MT_geometry_node_mesh_topology,
     NODE_MT_category_GEO_POINT,
+    NODE_MT_category_sculpting,
     NODE_MT_category_simulation,
     NODE_MT_category_GEO_VOLUME,
     NODE_MT_geometry_node_GEO_VOLUME_READ,

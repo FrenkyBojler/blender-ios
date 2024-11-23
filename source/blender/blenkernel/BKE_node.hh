@@ -1383,6 +1383,9 @@ void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index);
 #define GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT 2148
 #define GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT 2149
 #define GEO_NODE_MERGE_LAYERS 2150
+#define GEO_NODE_SCULPT_BRUSH_INFO 2151
+#define GEO_NODE_SCULPT_PEN_PRESSURE 2152
+#define GEO_NODE_SCULPT_STROKE_INFO 2153
 
 /** \} */
 

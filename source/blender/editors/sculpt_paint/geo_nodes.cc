@@ -21,7 +21,10 @@
 
 namespace blender::ed::sculpt_paint {
 
-  void sculpting_geo_nodes_execute(StrokeCache &cache, MutableSpan<float3> translations)
+  void sculpting_geo_nodes_execute(const Depsgraph &depsgraph,
+    Object &object,
+    StrokeCache &cache,
+    MutableSpan<float3> translations)
   {
     const bNodeTree &tree = *cache.node_tree;
 
@@ -44,9 +47,21 @@ namespace blender::ed::sculpt_paint {
       .slice(function.outputs.input_usages)
       .fill(lf::ValueUsage::Unused);
 
+    nodes::GeoNodesSculptingData sculpting_data;
+    sculpting_data.plane_normal = cache.sculpt_normal_symm;
+    sculpting_data.plane_origin = cache.location_symm;
+    sculpting_data.pen_pressure = cache.pressure;
+    sculpting_data.radius = cache.radius;
+    sculpting_data.strength = cache.bstrength;
+    sculpting_data.is_first_step = cache.first_time;
+    sculpting_data.local_transform = cache.brush_local_mat;
+    sculpting_data.depsgraph = &depsgraph;
+    sculpting_data.self_object = &object;
+
     nodes::GeoNodesCallData call_data;
     call_data.root_ntree = &tree;
     call_data.side_effect_nodes = {};
+    call_data.sculpting_data = &sculpting_data;
 
     bke::SculptingComputeContext compute_context;
 

@@ -19,5 +19,8 @@
 #include "editors/sculpt_paint/sculpt_intern.hh"
 
 namespace blender::ed::sculpt_paint {
-  void sculpting_geo_nodes_execute(StrokeCache& cache, MutableSpan<float3> translations);
+  void sculpting_geo_nodes_execute(const Depsgraph &depsgraph,
+    Object &object,
+    StrokeCache& cache,
+    MutableSpan<float3> translations);
 }
