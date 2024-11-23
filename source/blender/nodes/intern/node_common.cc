@@ -364,6 +364,7 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
   decl->description(io_socket.description ? io_socket.description : "");
   decl->hide_value(io_socket.flag & NODE_INTERFACE_SOCKET_HIDE_VALUE);
   decl->compact(io_socket.flag & NODE_INTERFACE_SOCKET_COMPACT);
+  decl->structure_type(StructureType(io_socket.derived_structure_type));
   return *decl;
 }
 
@@ -528,8 +529,12 @@ static void node_reroute_declare(blender::nodes::NodeDeclarationBuilder &b)
 
   const blender::StringRefNull socket_idname(
       static_cast<const NodeReroute *>(node->storage)->type_idname);
-  b.add_input<blender::nodes::decl::Custom>("Input").idname(socket_idname.c_str());
-  b.add_output<blender::nodes::decl::Custom>("Output").idname(socket_idname.c_str());
+  b.add_input<blender::nodes::decl::Custom>("Input")
+      .idname(socket_idname.c_str())
+      .structure_type(blender::nodes::StructureType::Dynamic);
+  b.add_output<blender::nodes::decl::Custom>("Output")
+      .idname(socket_idname.c_str())
+      .structure_type(blender::nodes::StructureType::Dynamic);
 }
 
 static void node_reroute_init(bNodeTree * /*ntree*/, bNode *node)

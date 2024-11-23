@@ -196,6 +196,8 @@ class SocketDeclaration : public ItemDeclaration {
   InputSocketFieldType input_field_type = InputSocketFieldType::None;
   OutputFieldDependency output_field_dependency;
 
+  StructureType structure_type = StructureType::Single;
+
  private:
   CompositorInputRealizationOptions compositor_realization_options_ =
       CompositorInputRealizationOptions::RealizeOnOperationDomain;
@@ -390,6 +392,8 @@ class BaseSocketDeclarationBuilder {
                                                 const StructRNA *srna,
                                                 const void *data,
                                                 StringRef property_name);
+
+  BaseSocketDeclarationBuilder &structure_type(StructureType structure_type);
 
   /** Index in the list of inputs or outputs. */
   int index() const;

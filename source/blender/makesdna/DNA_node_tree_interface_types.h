@@ -61,12 +61,31 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_HIDE_VALUE = 1 << 2,
   NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER = 1 << 3,
   NODE_INTERFACE_SOCKET_COMPACT = 1 << 4,
-  NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY = 1 << 5,
+  NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY = 1 << 5, /* Deprecated. */
   NODE_INTERFACE_SOCKET_LAYER_SELECTION = 1 << 6,
   /* INSPECT is used by Connect to Output operator to ensure socket that exits from node group. */
   NODE_INTERFACE_SOCKET_INSPECT = 1 << 7,
 } NodeTreeInterfaceSocketFlag;
 ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_INSPECT);
+
+typedef enum NodeSocketInterfaceStructureType {
+  NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO = 0,
+  NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE = 1,
+  NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC = 2,
+  NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD = 3,
+  NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID = 4,
+} NodeSocketInterfaceStructureType;
+
+#ifdef __cplusplus
+namespace blender::nodes {
+enum class StructureType {
+  Single = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
+  Dynamic = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC,
+  Field = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD,
+  Grid = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID,
+};
+}
+#endif
 
 typedef struct bNodeTreeInterfaceSocket {
   bNodeTreeInterfaceItem item;
@@ -91,6 +110,12 @@ typedef struct bNodeTreeInterfaceSocket {
   void *socket_data;
 
   IDProperty *properties;
+
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type;
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t derived_structure_type;  // TODO: Remove this
+  char _pad[6];
 
 #ifdef __cplusplus
   bNodeSocketTypeHandle *socket_typeinfo() const;

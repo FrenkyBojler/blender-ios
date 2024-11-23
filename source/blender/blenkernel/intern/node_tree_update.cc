@@ -861,9 +861,9 @@ class NodeTreeMainUpdater {
     if (socket.runtime->field_state) {
       switch (*socket.runtime->field_state) {
         case bke::FieldSocketState::RequiresSingle:
-          return SOCK_DISPLAY_SHAPE_CIRCLE;
+          return SOCK_DISPLAY_SHAPE_LINE;
         case bke::FieldSocketState::CanBeField:
-          return SOCK_DISPLAY_SHAPE_DIAMOND_DOT;
+          return SOCK_DISPLAY_SHAPE_CIRCLE;
         case bke::FieldSocketState::IsField:
           return SOCK_DISPLAY_SHAPE_DIAMOND;
       }
