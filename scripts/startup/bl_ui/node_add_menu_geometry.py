@@ -538,6 +538,7 @@ class NODE_MT_category_sculpting(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeSculptBrushInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeSculptPenPressure")
         node_add_menu.add_node_type(layout, "GeometryNodeSculptStrokeInfo")
+        node_add_menu.add_node_type(layout, "GeometryNodeSculptVertexData")
 
 
 class NODE_MT_category_simulation(Menu):

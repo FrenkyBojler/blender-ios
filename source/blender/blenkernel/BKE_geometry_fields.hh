@@ -142,6 +142,19 @@ class InstancesFieldContext : public fn::FieldContext {
   }
 };
 
+class SculptingFieldContext : public fn::FieldContext {
+private:
+  const Span<float3> positions_;
+  const Span<float3> normals_;
+
+public:
+  SculptingFieldContext(const Span<float3> positions, const Span<float3> normals)
+    : positions_(positions), normals_(normals) {}
+
+  const Span<float3> positions() const { return positions_; }
+  const Span<float3> normals() const { return normals_; }
+};
+
 /**
  * A field context that can represent meshes, curves, point clouds, instances or grease pencil
  * layers, used for field inputs that can work for multiple geometry types.
@@ -266,6 +279,48 @@ class InstancesFieldInput : public fn::FieldInput {
                                  ResourceScope &scope) const override;
   virtual GVArray get_varray_for_context(const Instances &instances,
                                          const IndexMask &mask) const = 0;
+};
+
+class SculptingFieldInput : public fn::FieldInput {
+private:
+  std::string name_;
+
+public:
+  SculptingFieldInput(const std::string& name, const CPPType& type)
+    : fn::FieldInput(type, name), name_(name) {}
+
+  GVArray get_varray_for_context(const fn::FieldContext& context,
+    const IndexMask& /* mask */,
+    ResourceScope& /* scope */) const override
+  {
+    const SculptingFieldContext* sculpt_context =
+      dynamic_cast<const SculptingFieldContext*>(&context);
+
+    if (sculpt_context == nullptr) {
+      return {};
+    }
+
+    if (name_ == "position") {
+      return VArray<float3>::ForSpan(sculpt_context->positions());
+    }
+
+    if (name_ == "normal") {
+      return VArray<float3>::ForSpan(sculpt_context->normals());
+    }
+
+    return {};
+  }
+
+  std::string socket_inspection_name() const override { return name_; }
+
+
+  bool is_equal_to(const fn::FieldNode& other) const override
+  {
+    if (const auto* other_field = dynamic_cast<const SculptingFieldInput*>(&other)) {
+      return name_ == other_field->name_;
+    }
+    return false;
+  }
 };
 
 class AttributeFieldInput : public GeometryFieldInput {

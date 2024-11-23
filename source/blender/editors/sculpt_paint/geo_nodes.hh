@@ -22,5 +22,6 @@ namespace blender::ed::sculpt_paint {
   void sculpting_geo_nodes_execute(const Depsgraph &depsgraph,
     Object &object,
     StrokeCache& cache,
+    Span<float3> positions,
     MutableSpan<float3> translations);
 }

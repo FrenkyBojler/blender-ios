@@ -16,6 +16,7 @@
 #include "BKE_node_socket_value.hh"
 
 #include "FN_lazy_function_execute.hh"
+#include "FN_field.hh"
 
 #include "editors/sculpt_paint/sculpt_intern.hh"
 
@@ -24,6 +25,7 @@ namespace blender::ed::sculpt_paint {
   void sculpting_geo_nodes_execute(const Depsgraph &depsgraph,
     Object &object,
     StrokeCache &cache,
+    Span<float3> positions,
     MutableSpan<float3> translations)
   {
     const bNodeTree &tree = *cache.node_tree;
@@ -129,9 +131,12 @@ namespace blender::ed::sculpt_paint {
     }
 
     bke::SocketValueVariant output = std::move(*param_outputs[0].get<bke::SocketValueVariant>());
-    float3 translation = output.get<float3>();
-    printf("%f %f %f \n", translation.x, translation.y, translation.z);
-    translations.fill(translation);
+
+    fn::Field<float3> output_field = output.get<fn::Field<float3>>();
+    bke::SculptingFieldContext context(positions, {});
+    fn::FieldEvaluator evaluator{ context, translations.size() };
+    evaluator.add_with_destination(output_field, translations);
+    evaluator.evaluate();
 
     //store_output_attributes(output_geometry, btree, properties, param_outputs);
 
