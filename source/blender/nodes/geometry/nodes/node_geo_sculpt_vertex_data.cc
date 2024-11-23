@@ -11,6 +11,7 @@ namespace blender::nodes::node_geo_sculpt_vertex_data_cc {
   {
     b.add_output<decl::Vector>("Position").field_source().description("Position");
     b.add_output<decl::Vector>("Normal").field_source().description("Normal");
+    b.add_output<decl::Int>("Index").field_source().description("Index");
   }
 
   static void node_geo_exec(GeoNodeExecParams params)
@@ -21,8 +22,12 @@ namespace blender::nodes::node_geo_sculpt_vertex_data_cc {
     Field<float3> normal_field{
         std::make_shared<SculptingFieldInput>("normal", CPPType::get<float3>()) };
 
+    Field<float3> index_field{
+        std::make_shared<SculptingFieldInput>("index", CPPType::get<int>()) };
+
     params.set_output("Position", std::move(position_field));
     params.set_output("Normal", std::move(normal_field));
+    params.set_output("Index", std::move(index_field));
   }
 
   static void node_register()

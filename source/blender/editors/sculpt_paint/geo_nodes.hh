@@ -23,5 +23,6 @@ namespace blender::ed::sculpt_paint {
     Object &object,
     StrokeCache& cache,
     Span<float3> positions,
+    Span<int> indices,
     MutableSpan<float3> translations);
 }

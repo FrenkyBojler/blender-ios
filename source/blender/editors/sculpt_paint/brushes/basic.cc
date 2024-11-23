@@ -70,7 +70,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  sculpting_geo_nodes_execute(depsgraph, object, *ss.cache, positions, translations);
+  sculpting_geo_nodes_execute(depsgraph, object, *ss.cache, positions, verts, translations);
   scale_translations(translations, tls.factors);
   scale_translations(translations, ss.cache->bstrength);
 

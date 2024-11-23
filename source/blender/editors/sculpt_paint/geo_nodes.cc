@@ -26,6 +26,7 @@ namespace blender::ed::sculpt_paint {
     Object &object,
     StrokeCache &cache,
     Span<float3> positions,
+    Span<int> indices,
     MutableSpan<float3> translations)
   {
     const bNodeTree &tree = *cache.node_tree;
@@ -133,7 +134,7 @@ namespace blender::ed::sculpt_paint {
     bke::SocketValueVariant output = std::move(*param_outputs[0].get<bke::SocketValueVariant>());
 
     fn::Field<float3> output_field = output.get<fn::Field<float3>>();
-    bke::SculptingFieldContext context(positions, {});
+    bke::SculptingFieldContext context(positions, {}, indices);
     fn::FieldEvaluator evaluator{ context, translations.size() };
     evaluator.add_with_destination(output_field, translations);
     evaluator.evaluate();

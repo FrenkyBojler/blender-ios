@@ -146,13 +146,15 @@ class SculptingFieldContext : public fn::FieldContext {
 private:
   const Span<float3> positions_;
   const Span<float3> normals_;
+  const Span<int> indices_;
 
 public:
-  SculptingFieldContext(const Span<float3> positions, const Span<float3> normals)
-    : positions_(positions), normals_(normals) {}
+  SculptingFieldContext(const Span<float3> positions, const Span<float3> normals, const Span<int> indices)
+    : positions_(positions), normals_(normals), indices_(indices) {}
 
   const Span<float3> positions() const { return positions_; }
   const Span<float3> normals() const { return normals_; }
+  const Span<int> indices() const { return indices_; }
 };
 
 /**
@@ -306,6 +308,10 @@ public:
 
     if (name_ == "normal") {
       return VArray<float3>::ForSpan(sculpt_context->normals());
+    }
+
+    if (name_ == "index") {
+      return VArray<int>::ForSpan(sculpt_context->indices());
     }
 
     return {};
