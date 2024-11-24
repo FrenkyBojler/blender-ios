@@ -459,6 +459,7 @@ DefNode(GeometryNode, GEO_NODE_SAMPLE_NEAREST, 0, "SAMPLE_NEAREST", SampleNeares
 DefNode(GeometryNode, GEO_NODE_SAMPLE_UV_SURFACE, 0, "SAMPLE_UV_SURFACE", SampleUVSurface, "Sample UV Surface", "Calculate the interpolated values of a mesh attribute at a UV coordinate")
 DefNode(GeometryNode, GEO_NODE_SCALE_ELEMENTS, 0, "SCALE_ELEMENTS", ScaleElements, "Scale Elements", "Scale groups of connected edges and faces")
 DefNode(GeometryNode, GEO_NODE_SCALE_INSTANCES, 0, "SCALE_INSTANCES", ScaleInstances, "Scale Instances", "Scale geometry instances in local or global space")
+DefNode(GeometryNode, GEO_NODE_SCULPT_ACTIVE_MESH, 0, "SCULPT_ACTIVE_MESH", SculptActiveMesh, "Active Mesh", "Active Mesh")
 DefNode(GeometryNode, GEO_NODE_SCULPT_BRUSH_INFO, 0, "SCULPT_BRUSH_INFO", SculptBrushInfo, "Brush Info", "Brush Info")
 DefNode(GeometryNode, GEO_NODE_SCULPT_PEN_PRESSURE, 0, "SCULPT_PEN_PRESSURE", SculptPenPressure, "Pen Pressure", "Pen Pressure")
 DefNode(GeometryNode, GEO_NODE_SCULPT_STROKE_INFO, 0, "SCULPT_STROKE_INFO", SculptStrokeInfo, "Stroke Info", "Stroke Info")

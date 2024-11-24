@@ -1387,6 +1387,7 @@ void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index);
 #define GEO_NODE_SCULPT_PEN_PRESSURE 2152
 #define GEO_NODE_SCULPT_STROKE_INFO 2153
 #define GEO_NODE_SCULPT_VERTEX_DATA 2154
+#define GEO_NODE_SCULPT_ACTIVE_MESH 2155
 
 /** \} */
 

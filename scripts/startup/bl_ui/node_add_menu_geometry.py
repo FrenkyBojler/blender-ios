@@ -535,6 +535,7 @@ class NODE_MT_category_sculpting(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "GeometryNodeSculptActiveMesh")
         node_add_menu.add_node_type(layout, "GeometryNodeSculptBrushInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeSculptPenPressure")
         node_add_menu.add_node_type(layout, "GeometryNodeSculptStrokeInfo")
