@@ -100,10 +100,9 @@ void main()
       break;
     }
     case SOCK_DISPLAY_SHAPE_LINE: {
-      float diamond_radius = diamond_radius - corner_rounding;
-      distance_squared = max(absUV.x - diamond_radius * 0.7, absUV.y - diamond_radius * 1.3);
+      float square_radius = square_radius - corner_rounding;
+      distance_squared = square_sdf(co, square_radius * 0.75, square_radius * 1.4);
       alpha_threshold = corner_rounding;
-      dot_threshold = finalDotRadius;
       break;
     }
     case SOCK_DISPLAY_SHAPE_VOLUME_GRID: {
