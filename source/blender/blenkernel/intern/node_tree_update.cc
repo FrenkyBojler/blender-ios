@@ -858,7 +858,12 @@ class NodeTreeMainUpdater {
 
   int get_socket_shape(const bNodeSocket &socket)
   {
-    if (socket.runtime->field_state) {
+    if (socket.in_out == SOCK_OUT) {
+      if (socket.runtime->declaration) {
+        if (socket.runtime->declaration->structure_type == StructureType::Grid) {
+          return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
+        }
+      }
       switch (*socket.runtime->field_state) {
         case bke::FieldSocketState::RequiresSingle:
           return SOCK_DISPLAY_SHAPE_LINE;
@@ -866,6 +871,20 @@ class NodeTreeMainUpdater {
           return SOCK_DISPLAY_SHAPE_CIRCLE;
         case bke::FieldSocketState::IsField:
           return SOCK_DISPLAY_SHAPE_DIAMOND;
+      }
+    }
+    else {
+      if (socket.runtime->declaration) {
+        switch (socket.runtime->declaration->structure_type) {
+          case StructureType::Single:
+            return SOCK_DISPLAY_SHAPE_LINE;
+          case StructureType::Dynamic:
+            return SOCK_DISPLAY_SHAPE_CIRCLE;
+          case StructureType::Field:
+            return SOCK_DISPLAY_SHAPE_CIRCLE;
+          case StructureType::Grid:
+            return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
+        }
       }
     }
     return socket.display_shape;
