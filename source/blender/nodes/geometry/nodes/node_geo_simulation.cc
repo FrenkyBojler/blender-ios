@@ -456,8 +456,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       output_decl.dependent_field({input_decl.index()});
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic).align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -801,8 +801,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       output_decl.dependent_field({input_decl.index()});
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

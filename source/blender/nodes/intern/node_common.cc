@@ -706,7 +706,7 @@ static void group_input_declare(NodeDeclarationBuilder &b)
     }
     return true;
   });
-  b.add_output<decl::Extend>("", "__extend__");
+  b.add_output<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
 }
 
 static void group_output_declare(NodeDeclarationBuilder &b)
@@ -728,7 +728,7 @@ static void group_output_declare(NodeDeclarationBuilder &b)
     }
     return true;
   });
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
 }
 
 static bool group_input_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
