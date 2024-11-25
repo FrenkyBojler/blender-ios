@@ -4,7 +4,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_stroke_plane_cc {
+namespace blender::nodes::node_geo_sculpt_stroke_plane_cc {
 
   static void node_declare(NodeDeclarationBuilder& b)
   {
@@ -43,4 +43,4 @@ namespace blender::nodes::node_geo_stroke_plane_cc {
   }
   NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_stroke_info_cc
+}  // namespace blender::nodes::node_geo_sculpt_stroke_info_cc
