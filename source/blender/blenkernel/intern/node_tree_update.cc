@@ -507,6 +507,9 @@ class NodeTreeMainUpdater {
       if (node_field_inferencing::update_field_inferencing(ntree)) {
         result.interface_changed = true;
       }
+      if (node_structure_type_inferencing::update_structure_type_inferencing(ntree)) {
+        result.interface_changed = true;
+      }
       this->update_from_field_inference(ntree);
       if (node_tree_reference_lifetimes::analyse_reference_lifetimes(ntree)) {
         result.interface_changed = true;

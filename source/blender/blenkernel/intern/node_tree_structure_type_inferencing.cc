@@ -262,7 +262,7 @@ bool update_structure_type_inferencing(bNodeTree &tree)
       io_socket.derived_structure_type = int8_t(structure_type);
     }
   }
-  for (bNode *output_node : tree.group_output_nodes()) {
+  for (bNode *output_node : tree.nodes_by_type("NodeGroupOutput")) {
     for (const int output_i : tree.interface_outputs().index_range()) {
       bNodeSocket &socket = output_node->input_socket(output_i);
       const bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[output_i];

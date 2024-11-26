@@ -98,4 +98,7 @@ struct ReferenceLifetimesInfo {
 
 bool analyse_reference_lifetimes(bNodeTree &tree);
 
+Array<const nodes::aal::RelationsInNode *> prepare_relations_by_node(const bNodeTree &tree,
+                                                                     ResourceScope &scope);
+
 }  // namespace blender::bke::node_tree_reference_lifetimes
