@@ -45,9 +45,13 @@ bool update_structure_type_inferencing(bNodeTree &tree)
   Array<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node =
       node_tree_reference_lifetimes::prepare_relations_by_node(tree, scope);
 
+  const Span<const bNode *> toposort_result = tree.toposort_right_to_left();
   Array<SocketUsageInfo> socket_usages(tree.all_sockets().size());
+
   /* TODO: Handle zones. */
-  for (const bNode *node : tree.toposort_right_to_left()) {
+  for (const bNode *node : toposort_result) {
+
+    /* Propagate constraints to node's output sockets. */
     for (const bNodeSocket *output_socket : node->output_sockets()) {
       SocketUsageInfo &output_usage = socket_usages[output_socket->index_in_tree()];
       for (const bNodeLink *link : output_socket->directly_linked_links()) {
