@@ -10,10 +10,12 @@
 #include <boost/python/class.hpp>
 #include <boost/python/import.hpp>
 #include <boost/python/return_value_policy.hpp>
+#include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <boost/python/to_python_converter.hpp>
 
 #include "BLI_utildefines.h"
 
+#include "BKE_idtype.hh"
 #include "BKE_report.hh"
 
 #include "DNA_windowmanager_types.h"
@@ -25,6 +27,7 @@
 
 #include <list>
 #include <memory>
+#include <string>
 
 using namespace boost;
 
@@ -110,14 +113,66 @@ struct USDSceneExportContext {
 struct USDSceneImportContext {
   USDSceneImportContext() = default;
 
-  USDSceneImportContext(pxr::UsdStageRefPtr in_stage) : stage(in_stage) {}
+  USDSceneImportContext(pxr::UsdStageRefPtr in_stage,
+                        const ImportedIDLinks &in_imported_id_links,
+                        const blender::Map<std::string, std::string> &in_imported_materials)
+      : stage(in_stage),
+        imported_id_links(in_imported_id_links),
+        imported_materials(in_imported_materials)
+  {
+  }
+
+  void release()
+  {
+    if (links) {
+      delete links;
+    }
+  }
 
   pxr::UsdStageRefPtr get_stage() const
   {
     return stage;
   }
 
+  boost::python::dict get_links()
+  {
+    if (!links) {
+      links = new boost::python::dict;
+
+      auto get_list = [&](const std::string &path) {
+        if (!links->has_key(path)) {
+          (*links)[path] = boost::python::list();
+        }
+        return boost::python::extract<boost::python::list>((*links)[path]);
+      };
+
+      auto append = [&](const std::string &path, const IDTypeInfo *type_info, const char *name) {
+        boost::python::list list = get_list(path);
+        list.append(boost::python::make_tuple(type_info->name_plural, name));
+      };
+
+      for (auto &[path, ids] : imported_id_links) {
+        for (const ID *id : ids) {
+          const IDTypeInfo *type_info = nullptr;
+          if (id && (type_info = BKE_idtype_get_info_from_id(id))) {
+            append(path, type_info, id->name + 2);
+          }
+        }
+      }
+
+      boost::python::dict materials;
+      imported_materials.foreach_item([&](const std::string &path, const std::string &name) {
+        append(path, &IDType_ID_MA, name.c_str());
+      });
+    }
+
+    return *links;
+  }
+
   pxr::UsdStageRefPtr stage;
+  ImportedIDLinks imported_id_links;
+  blender::Map<std::string, std::string> imported_materials;
+  boost::python::dict *links = nullptr;
 };
 
 /* Encapsulate arguments for material export. */
@@ -158,6 +213,9 @@ void register_hook_converters()
   /* Register converter from PoinerRNA to a PyObject*. */
   python::to_python_converter<PointerRNA, PointerRNAToPython>();
 
+  python::class_<std::map<std::string, PointerRNA>>("PathPointerRNAMap")
+      .def(python::map_indexing_suite<std::map<std::string, PointerRNA>>());
+
   /* Register context class converters. */
   python::class_<USDSceneExportContext>("USDSceneExportContext")
       .def("get_stage", &USDSceneExportContext::get_stage)
@@ -169,7 +227,8 @@ void register_hook_converters()
       .def("get_stage", &USDMaterialExportContext::get_stage);
 
   python::class_<USDSceneImportContext>("USDSceneImportContext")
-      .def("get_stage", &USDSceneImportContext::get_stage);
+      .def("get_stage", &USDSceneImportContext::get_stage)
+      .def("get_links", &USDSceneImportContext::get_links);
 
   PyGILState_Release(gilstate);
 }
@@ -197,13 +256,14 @@ static void handle_python_error(USDHook *hook, ReportList *reports)
 class USDHookInvoker {
  public:
   /* Attempt to call the function, if defined by the registered hooks. */
-  void call() const
+  void call()
   {
     if (hook_list().empty()) {
       return;
     }
 
     PyGILState_STATE gilstate = PyGILState_Ensure();
+    init_in_gil();
 
     /* Iterate over the hooks and invoke the hook function, if it's defined. */
     USDHookList::const_iterator hook_iter = hook_list().begin();
@@ -239,6 +299,7 @@ class USDHookInvoker {
       }
     }
 
+    release_in_gil();
     PyGILState_Release(gilstate);
   }
 
@@ -250,6 +311,9 @@ class USDHookInvoker {
    *
    * python::call_method<void>(hook_obj, function_name(), arg1, arg2); */
   virtual void call_hook(PyObject *hook_obj) const = 0;
+
+  virtual void init_in_gil(){};
+  virtual void release_in_gil(){};
 
   /* Reports list provided when constructing the subclass, used by #call() to store reports. */
   ReportList *reports_;
@@ -313,7 +377,11 @@ class OnImportInvoker : public USDHookInvoker {
   USDSceneImportContext hook_context_;
 
  public:
-  OnImportInvoker(pxr::UsdStageRefPtr stage, ReportList *reports) : hook_context_(stage)
+  OnImportInvoker(pxr::UsdStageRefPtr stage,
+                  const ImportedIDLinks &imported_id_links,
+                  const blender::Map<std::string, std::string> &imported_materials,
+                  ReportList *reports)
+      : hook_context_(stage, imported_id_links, imported_materials)
   {
     reports_ = reports;
   }
@@ -327,6 +395,11 @@ class OnImportInvoker : public USDHookInvoker {
   void call_hook(PyObject *hook_obj) const override
   {
     python::call_method<bool>(hook_obj, function_name(), ref(hook_context_));
+  }
+
+  void release_in_gil() override
+  {
+    hook_context_.release();
   }
 };
 
@@ -353,13 +426,16 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
   on_material_export.call();
 }
 
-void call_import_hooks(pxr::UsdStageRefPtr stage, ReportList *reports)
+void call_import_hooks(pxr::UsdStageRefPtr stage,
+                       const ImportedIDLinks &imported_id_links,
+                       const blender::Map<std::string, std::string> &imported_materials,
+                       ReportList *reports)
 {
   if (hook_list().empty()) {
     return;
   }
 
-  OnImportInvoker on_import(stage, reports);
+  OnImportInvoker on_import(stage, imported_id_links, imported_materials, reports);
   on_import.call();
 }
 

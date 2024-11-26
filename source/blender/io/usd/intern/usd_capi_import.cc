@@ -44,12 +44,17 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/tokens.h>
+
+#include <boost/python/dict.hpp>
 
 #include <fmt/core.h>
 
@@ -169,6 +174,7 @@ struct ImportJobData {
   ImportSettings settings;
 
   USDStageReader *archive;
+  ImportedIDLinks imported_id_links;
 
   bool *stop;
   bool *do_update;
@@ -345,8 +351,16 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     }
 
     Object *ob = reader->object();
+    if (!ob) {
+      continue;
+    }
 
     reader->read_object_data(data->bmain, 0.0);
+
+    data->imported_id_links[reader->object_prim_path()].push_back(&ob->id);
+    if (ob->data) {
+      data->imported_id_links[reader->data_prim_path()].push_back(static_cast<ID *>(ob->data));
+    }
 
     USDPrimReader *parent = reader->parent();
 
@@ -457,7 +471,10 @@ static void import_endjob(void *customdata)
     /* Ensure Python types for invoking hooks are registered. */
     register_hook_converters();
 
-    call_import_hooks(data->archive->stage(), data->params.worker_status->reports);
+    call_import_hooks(data->archive->stage(),
+                      data->imported_id_links,
+                      data->settings.usd_path_to_mat_name,
+                      data->params.worker_status->reports);
 
     if (data->is_background_job) {
       /* Blender already returned from the import operator, so we need to store our own extra undo

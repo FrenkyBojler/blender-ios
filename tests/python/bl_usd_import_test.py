@@ -1490,54 +1490,52 @@ class USDImportTest(AbstractUSDTest):
         check_image("color_121212.hdr", 1, 4, False)
         check_materials()
 
-    def test_import_object_and_data_name_properties(self):
-        tmp_path = str(self.tempdir / "tmp.usda")
+    def test_get_links_parent_xform_not_merged(self):
+        bpy.utils.register_class(GetLinksUsdImportHook)
+        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=False)
+        links = GetLinksUsdImportHook.links
+        bpy.utils.unregister_class(GetLinksUsdImportHook)
 
-        old = SaveStageUsdImportHook.path
-        SaveStageUsdImportHook.path = tmp_path
-        bpy.utils.register_class(SaveStageUsdImportHook)
+        expected_links = {
+            "/Cube": [("objects", "Cube.002"), ("meshes", "Cube.002")],
+            "/XformThenCube": [("objects", "XformThenCube")],
+            "/XformThenCube/Cube": [("objects", "Cube"), ("meshes", "Cube")],
+            "/XformThenXformCube": [("objects", "XformThenXformCube")],
+            "/XformThenXformCube/XformIntermediate": [("objects", "XformIntermediate")],
+            "/XformThenXformCube/XformIntermediate/Cube": [("objects", "Cube.001"), ("meshes", "Cube.001")],
+            "/Material": [("materials", "Material")],
+        }
 
-        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"))
+        self.assertDictEqual(links, expected_links)
 
-        stage = Usd.Stage.Open(tmp_path)
+    def test_get_links_parent_xform_merged(self):
+        bpy.utils.register_class(GetLinksUsdImportHook)
+        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=True)
+        links = GetLinksUsdImportHook.links
+        bpy.utils.unregister_class(GetLinksUsdImportHook)
 
-        expected = (
-            ("/XformThenCube", "object_name", "Cube"),
-            ("/XformThenCube", "data_name", None),
-            ("/XformThenCube/Cube", "object_name", None),
-            ("/XformThenCube/Cube", "data_name", "Cube"),
+        expected_links = {
+            "/Cube": [("objects", "Cube.002"), ("meshes", "Cube.002")],
+            "/XformThenCube": [("objects", "Cube")],
+            "/XformThenCube/Cube": [("meshes", "Cube")],
+            "/XformThenXformCube": [("objects", "XformThenXformCube")],
+            "/XformThenXformCube/XformIntermediate": [("objects", "Cube.001")],
+            "/XformThenXformCube/XformIntermediate/Cube": [("meshes", "Cube.001")],
+            "/Material": [("materials", "Material")],
+        }
 
-            ("/XformThenXformCube", "object_name", "XformThenXformCube"),
-            ("/XformThenXformCube", "data_name", None),
-            ("/XformThenXformCube/XformIntermediate", "object_name", "Cube.001"),
-            ("/XformThenXformCube/XformIntermediate", "data_name", None),
-            ("/XformThenXformCube/XformIntermediate/Cube", "object_name", None),
-            ("/XformThenXformCube/XformIntermediate/Cube", "data_name", "Cube.001"),
-
-            ("/Cube", "object_name", "Cube.002"),
-            ("/Cube", "data_name", "Cube.002"),
-
-            ("/Material", "object_name", None),
-            ("/Material", "data_name", "Material"),
-            ("/Material/Principled_BSDF", "object_name", None),
-            ("/Material/Principled_BSDF", "data_name", None),
-        )
-        for path, suffix, value in expected:
-            self.assertEqual(stage.GetPrimAtPath(path).GetAttribute(f"userProperties:blender:{suffix}").Get(), value)
-
-        bpy.utils.unregister_class(SaveStageUsdImportHook)
-        SaveStageUsdImportHook.path = old
+        self.assertDictEqual(links, expected_links)
 
 
-class SaveStageUsdImportHook(bpy.types.USDHook):
-    bl_idname = "usd_import_hook"
-    bl_label = "Import Hook"
+class GetLinksUsdImportHook(bpy.types.USDHook):
+    bl_idname = "get_links_usd_import_hook"
+    bl_label = "Get Links Usd Import Hook"
 
-    path = ""
+    links = None
 
     @staticmethod
     def on_import(context):
-        context.get_stage().Export(SaveStageUsdImportHook.path)
+        GetLinksUsdImportHook.links = context.get_links()
 
 
 def main():
