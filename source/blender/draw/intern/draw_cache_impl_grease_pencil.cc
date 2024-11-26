@@ -1199,6 +1199,11 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
 
+    const VArray<bool> use_line = *attributes.lookup_or_default<bool>(
+        "use_line", bke::AttrDomain::Curve, true);
+    const VArray<bool> use_fill = *attributes.lookup_or_default<bool>(
+        "use_fill", bke::AttrDomain::Curve, false);
+
     const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
     const Span<int> verts_start_offsets = verts_start_offsets_per_visible_drawing[drawing_i];
@@ -1265,7 +1270,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       verts_slice.first().mat = -1;
 
       /* If the stroke has more than 2 points, add the triangle indices to the index buffer. */
-      if (points.size() >= 3) {
+      if (points.size() >= 3 && use_fill[curve_i]) {
         const Span<int3> tris_slice = triangles.slice(tris_start_offset, points.size() - 2);
         for (const int3 tri : tris_slice) {
           GPU_indexbuf_add_tri_verts(&ibo,
