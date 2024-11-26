@@ -268,8 +268,6 @@ bool update_structure_type_inferencing(bNodeTree &tree)
       const bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[output_i];
       const StructureType derived_structure_type = StructureType(io_socket.derived_structure_type);
       socket_structure_types[socket.index_in_tree()] = derived_structure_type;
-      const_cast<StructureType &>(
-          socket.runtime->declaration->structure_type) = derived_structure_type;
     }
   }
 
