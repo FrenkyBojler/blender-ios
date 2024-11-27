@@ -113,9 +113,7 @@ typedef struct bNodeTreeInterfaceSocket {
 
   /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type;
-  /** #NodeSocketInterfaceStructureType. */
-  int8_t derived_structure_type;  // TODO: Remove this
-  char _pad[6];
+  char _pad[7];
 
 #ifdef __cplusplus
   bNodeSocketTypeHandle *socket_typeinfo() const;

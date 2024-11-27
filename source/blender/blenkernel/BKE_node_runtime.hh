@@ -156,11 +156,12 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
+  std::unique_ptr<nodes::StructureTypeInferencingInterface> structure_type_interface;
 
   /**
-   * For geometry nodes, a lazy function graph with some additional info is cached. This is used to
-   * evaluate the node group. Caching it here allows us to reuse the preprocessed node tree in case
-   * its used multiple times.
+   * For geometry nodes, a lazy function graph with some additional info is cached. This is
+   * used to evaluate the node group. Caching it here allows us to reuse the preprocessed node
+   * tree in case its used multiple times.
    */
   std::mutex geometry_nodes_lazy_function_graph_info_mutex;
   std::unique_ptr<nodes::GeometryNodesLazyFunctionGraphInfo>

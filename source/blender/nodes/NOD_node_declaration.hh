@@ -87,6 +87,11 @@ struct FieldInferencingInterface {
   BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
 };
 
+struct StructureTypeInferencingInterface {
+  Array<StructureType> inputs;
+  Array<StructureType> outputs;
+};
+
 namespace anonymous_attribute_lifetime {
 
 /**
