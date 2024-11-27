@@ -168,7 +168,7 @@ eevee_bxdf_lib.glsl
 # eevee_bxdf_microfacet_lib.glsl
 # eevee_bxdf_oren_nayar_lib.glsl
 # eevee_bxdf_sampling_lib.glsl
-# eevee_camera_lib.glsl
+eevee_camera_lib.glsl
 # eevee_closure_lib.glsl
 eevee_colorspace_lib.glsl
 # eevee_cryptomatte_lib.glsl
@@ -192,22 +192,22 @@ eevee_light_lib.glsl
 eevee_ltc_lib.glsl
 # eevee_motion_blur_lib.glsl
 # eevee_nodetree_lib.glsl
-# eevee_occupancy_lib.glsl
-# eevee_octahedron_lib.glsl
+eevee_occupancy_lib.glsl
+eevee_octahedron_lib.glsl
 # eevee_ray_generate_lib.glsl
 # eevee_ray_trace_screen_lib.glsl
 # eevee_ray_types_lib.glsl
 # eevee_renderpass_lib.glsl
-# eevee_sampling_lib.glsl
+eevee_sampling_lib.glsl
 # eevee_shadow_lib.glsl
 # eevee_shadow_page_ops_lib.glsl
 # eevee_shadow_tag_usage_lib.glsl
 # eevee_shadow_tilemap_lib.glsl
 # eevee_shadow_tracing_lib.glsl
-# eevee_spherical_harmonics_lib.glsl
-# eevee_subsurface_lib.glsl
+eevee_spherical_harmonics_lib.glsl
+eevee_subsurface_lib.glsl
 # eevee_surf_lib.glsl
-# eevee_surfel_list_lib.glsl
+eevee_surfel_list_lib.glsl
 # eevee_thickness_lib.glsl
 # eevee_transparency_lib.glsl
 # eevee_velocity_lib.glsl
