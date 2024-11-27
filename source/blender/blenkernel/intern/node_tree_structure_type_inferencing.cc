@@ -33,6 +33,45 @@ struct SocketUsageInfo {
   }
 };
 
+static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
+                                                       MutableSpan<SocketUsageInfo> socket_usages)
+{
+  for (const bNodeSocket *socket : tree.all_sockets()) {
+    const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
+    if (!socket->runtime->declaration) {
+      continue;
+    }
+    const StructureType structure_type = declaration->structure_type;
+    switch (structure_type) {
+      case StructureType::Dynamic: {
+        break;
+      }
+      case StructureType::Single: {
+        socket_usages[socket->index_in_tree()].requires_single_value = true;
+        break;
+      }
+      case StructureType::Grid: {
+        socket_usages[socket->index_in_tree()].requires_grid = true;
+        break;
+      }
+      case StructureType::Field: {
+        socket_usages[socket->index_in_tree()].evaluated_as_field = true;
+        break;
+      }
+    }
+  }
+}
+
+static void propagate_right_to_left(const bNodeTree &tree,
+                                    MutableSpan<SocketUsageInfo> socket_usages)
+{
+}
+
+static void propagate_left_to_right(const bNodeTree &tree,
+                                    MutableSpan<SocketUsageInfo> socket_usages)
+{
+}
+
 bool update_structure_type_inferencing(bNodeTree &tree)
 {
   tree.ensure_topology_cache();
@@ -41,12 +80,17 @@ bool update_structure_type_inferencing(bNodeTree &tree)
     return true;
   }
 
+  Array<SocketUsageInfo> socket_usages(tree.all_sockets().size());
+
+  initialize_usages_from_socket_declarations(tree, socket_usages);
+  propagate_right_to_left(tree, socket_usages);
+  propagate_left_to_right(tree, socket_usages);
+
   ResourceScope scope;
   Array<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node =
       node_tree_reference_lifetimes::prepare_relations_by_node(tree, scope);
 
   const Span<const bNode *> toposort_result = tree.toposort_right_to_left();
-  Array<SocketUsageInfo> socket_usages(tree.all_sockets().size());
 
   /* TODO: Handle zones. */
   for (const bNode *node : toposort_result) {
