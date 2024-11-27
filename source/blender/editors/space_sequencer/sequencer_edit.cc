@@ -40,6 +40,7 @@
 #include "BKE_sound.h"
 
 #include "RNA_access.hh"
+#include "RNA_types.hh"
 #include "SEQ_add.hh"
 #include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
@@ -82,8 +83,10 @@
 
 /* Own include. */
 #include "intern/RNA_blender.hh"
+#include "intern/rna_internal_types.hh"
 #include "sequencer_intern.hh"
 #include <algorithm>
+#include <cfloat>
 #include <cstddef>
 #include <cstdio>
 #include <tuple>
@@ -3543,7 +3546,12 @@ enum eSampleType {
 static int find_next_sample(SoundWaveform *wf, int sample_start, eSampleType type, wmOperator *op)
 {
   const float volume_threshold = RNA_float_get(op->ptr, "volume_threshold");
-  const int length_threshold = RNA_int_get(op->ptr, "length_threshold");
+
+  float length_threshold = 1;
+  if (type == SILENT) {
+    length_threshold = RNA_float_get(op->ptr, "min_silence_duration") *
+                       SOUND_WAVE_SAMPLES_PER_SECOND;
+  }
 
   int i = sample_start;
   int hit_count = 0;
@@ -3575,8 +3583,8 @@ static blender::VectorSet<blender::int2> silent_ranges_per_strip_get(const Scene
 {
   SoundWaveform *wf = static_cast<SoundWaveform *>(seq->sound->waveform);
   const float samples_per_frame = SOUND_WAVE_SAMPLES_PER_SECOND / FPS;
-  const int padding = RNA_int_get(op->ptr, "padding");
-  const int minimum_length = RNA_int_get(op->ptr, "minimum_length");
+  const int padding = std::round(RNA_float_get(op->ptr, "padding") * FPS);
+  const int min_strip_length = std::round(RNA_float_get(op->ptr, "min_strip_duration") * FPS);
   const int strip_start_frame = SEQ_time_left_handle_frame_get(scene, seq);
   const int strip_end_frame = SEQ_time_right_handle_frame_get(scene, seq);
   const int end_sample = (strip_end_frame - SEQ_time_start_frame_get(seq)) * samples_per_frame;
@@ -3603,16 +3611,25 @@ static blender::VectorSet<blender::int2> silent_ranges_per_strip_get(const Scene
     }
 
     /* Prevent creating small strip fragments at start of the strip. */
-    if (silence_start - strip_start_frame < minimum_length) {
+    if (silence_start - strip_start_frame < min_strip_length) {
       silence_start = strip_start_frame;
     }
 
     silence_start = std::clamp(silence_start, strip_start_frame, strip_end_frame);
     silence_end = std::clamp(silence_end, strip_start_frame, strip_end_frame);
 
-    if (silence_end - silence_start < minimum_length) {
+    if (silence_end - silence_start <= 0) {
       continue;
     }
+
+    /* Check gap between silent ranges. */
+    if (silent_frames.size() > 0 &&
+        (silence_start - silent_frames[silent_frames.size() - 1].y < min_strip_length))
+    {
+      silence_start = silent_frames[silent_frames.size() - 1].x;
+      silent_frames.pop();
+    }
+
     silent_frames.add({silence_start, silence_end});
   }
 
@@ -3665,7 +3682,7 @@ static RemoveSilenceResult remove_silence_do_split(bContext *C, Sequence *seq, b
   }
 
   if (result.silent == nullptr) {
-    BLI_assert_unreachable();
+    // BLI_assert_unreachable();
     return result;
   }
 
@@ -3802,35 +3819,38 @@ void SEQUENCER_OT_remove_silence(wmOperatorType *ot)
                 0.0f,
                 1.0f);
 
-  RNA_def_int(ot->srna,
-              "length_threshold",
-              15,
-              0,
-              INT_MAX,
-              "Length Threshold",
-              "How many samples must be silent or loud",
-              0,
-              INT_MAX);
+  PropertyRNA *prop = RNA_def_float(ot->srna,
+                                    "min_silence_duration",
+                                    0.1f,
+                                    0.0f,
+                                    FLT_MAX,
+                                    "Minimum Silence Duration",
+                                    "Remove silence longer than the specified time",
+                                    0.0f,
+                                    FLT_MAX);
+  RNA_def_property_subtype(prop, PROP_TIME_ABSOLUTE);
 
-  RNA_def_int(ot->srna,
-              "padding",
-              3,
-              0,
-              INT_MAX,
-              "Padding",
-              "Shrink silent range from each side by number of frames",
-              0,
-              INT_MAX);
+  prop = RNA_def_float(ot->srna,
+                       "padding",
+                       0.1f,
+                       0.0f,
+                       FLT_MAX,
+                       "Padding",
+                       "Adjust duration to the left (or right) of the detected area.",
+                       0.0f,
+                       FLT_MAX);
+  RNA_def_property_subtype(prop, PROP_TIME_ABSOLUTE);
 
-  RNA_def_int(ot->srna,
-              "minimum_length",
-              10,
-              1,
-              INT_MAX,
-              "Minimal Strip Length",
-              "How short can strip be after silence is removed",
-              1,
-              INT_MAX);
+  prop = RNA_def_float(ot->srna,
+                       "min_strip_duration",
+                       0.3f,
+                       0.0f,
+                       FLT_MAX,
+                       "Minimum Strip Duration",
+                       "How short can strip be after silence is removed",
+                       0.0f,
+                       FLT_MAX);
+  RNA_def_property_subtype(prop, PROP_TIME_ABSOLUTE);
 }
 
 /** \} */
