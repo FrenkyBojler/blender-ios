@@ -348,6 +348,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
       VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   workarounds.dynamic_rendering_unused_attachments = !device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
+  workarounds.logic_ops = !device.physical_device_features_get().logicOp;
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) ||
@@ -510,13 +511,16 @@ void VKBackend::render_end()
   thread_data.rendering_depth -= 1;
   BLI_assert_msg(thread_data.rendering_depth >= 0, "Unbalanced `GPU_render_begin/end`");
   if (G.background) {
-    /* Garbage collection when performing background rendering. In this case the rendering is
-     * already 'thread-safe'. We move the resources to the device discard list and we destroy it
-     * the next frame. */
+    /* Garbage collection when performing background rendering. */
     if (thread_data.rendering_depth == 0) {
+      VKContext *context = VKContext::get();
+      if (context != nullptr) {
+        context->flush_render_graph();
+      }
+
+      thread_data.resource_pool_next();
       VKResourcePool &resource_pool = thread_data.resource_pool_get();
-      device.orphaned_data.destroy_discarded_resources(device);
-      device.orphaned_data.move_data(resource_pool.discard_pool);
+      resource_pool.discard_pool.destroy_discarded_resources(device);
       resource_pool.reset();
     }
   }
