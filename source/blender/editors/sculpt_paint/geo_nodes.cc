@@ -134,8 +134,12 @@ namespace blender::ed::sculpt_paint {
     bke::SocketValueVariant output = std::move(*param_outputs[0].get<bke::SocketValueVariant>());
 
     fn::Field<float3> output_field = output.get<fn::Field<float3>>();
-    bke::SculptingFieldContext context(positions, {}, indices);
-    fn::FieldEvaluator evaluator{ context, translations.size() };
+    const Mesh& mesh = *static_cast<Mesh*>(object.data);
+    bke::SculptMeshFieldContext context(mesh, bke::AttrDomain::Point, positions);
+
+    index_mask::IndexMaskMemory memory;
+    index_mask::IndexMask mask = index_mask::IndexMask::from_indices(indices, memory);
+    fn::FieldEvaluator evaluator{ context, &mask };
     evaluator.add_with_destination(output_field, translations);
     evaluator.evaluate();
 

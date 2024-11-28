@@ -157,6 +157,17 @@ public:
   const Span<int> indices() const { return indices_; }
 };
 
+class SculptMeshFieldContext : public MeshFieldContext {
+private:
+  const Span<float3> positions_;
+
+public:
+  SculptMeshFieldContext(const Mesh& mesh, AttrDomain domain, const Span<float3> positions)
+    : MeshFieldContext(mesh, domain), positions_(positions) {}
+
+  const Span<float3> positions() const { return positions_; }
+};
+
 /**
  * A field context that can represent meshes, curves, point clouds, instances or grease pencil
  * layers, used for field inputs that can work for multiple geometry types.
@@ -295,8 +306,8 @@ public:
     const IndexMask& /* mask */,
     ResourceScope& /* scope */) const override
   {
-    const SculptingFieldContext* sculpt_context =
-      dynamic_cast<const SculptingFieldContext*>(&context);
+    const SculptMeshFieldContext* sculpt_context =
+      dynamic_cast<const SculptMeshFieldContext*>(&context);
 
     if (sculpt_context == nullptr) {
       return {};
@@ -306,13 +317,13 @@ public:
       return VArray<float3>::ForSpan(sculpt_context->positions());
     }
 
-    if (name_ == "normal") {
+    /*if (name_ == "normal") {
       return VArray<float3>::ForSpan(sculpt_context->normals());
     }
 
     if (name_ == "index") {
       return VArray<int>::ForSpan(sculpt_context->indices());
-    }
+    }*/
 
     return {};
   }
