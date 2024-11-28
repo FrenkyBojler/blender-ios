@@ -57,6 +57,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
+#include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_effect.h"
 #include "BKE_file_handler.hh"
@@ -3272,6 +3273,71 @@ static void add_subsurf_node_limit_surface_option(Main &bmain)
   }
 }
 
+static void convert_grease_pencil_material_stroke_fill_toggle_to_attributes(Main &bmain)
+{
+  using namespace blender;
+  using namespace bke::greasepencil;
+  /* TODO: We ignore cases where Grease Pencil data is reused in different objects. Handle the case
+   * properly where different objects overwrite the material (at object level!) for a specific
+   * Grease Pencil data-block. */
+  Map<Object *, GreasePencil *> object_data_map;
+  LISTBASE_FOREACH (Object *, object, &bmain.objects) {
+    if (object->type == OB_GREASE_PENCIL) {
+      GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+      object_data_map.add(object, grease_pencil);
+    }
+  }
+
+  for (auto [object, grease_pencil] : object_data_map.items()) {
+    for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+      if (base->type != GP_DRAWING) {
+        continue;
+      }
+      Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+      bke::CurvesGeometry &curves = drawing.strokes_for_write();
+
+      Array<bool> material_uses_stroke(curves.curves_num(), false);
+      Array<bool> material_uses_fill(curves.curves_num(), false);
+      const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
+          "material_index", bke::AttrDomain::Curve, 0);
+      threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {
+        for (const int curve_i : range) {
+          const int material_index = materials[curve_i];
+          const Material *material = BKE_object_material_get(object, material_index + 1);
+          if (!material) {
+            continue;
+          }
+          BLI_assert(material->gp_style != nullptr);
+          material_uses_stroke[curve_i] = (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) !=
+                                          0;
+          material_uses_fill[curve_i] = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
+        }
+      });
+
+      bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+      /* TODO: Handle the case where the attribute already exists? */
+      if (!attributes.contains("show_stroke")) {
+        bke::SpanAttributeWriter<bool> show_stroke =
+            attributes.lookup_or_add_for_write_only_span<bool>("show_stroke",
+                                                               bke::AttrDomain::Curve);
+
+        show_stroke.span.copy_from(material_uses_stroke);
+        show_stroke.finish();
+      }
+
+      /* TODO: Handle the case where the attribute already exists? */
+      if (!attributes.contains("show_fill")) {
+        bke::SpanAttributeWriter<bool> show_fill =
+            attributes.lookup_or_add_for_write_only_span<bool>("show_fill",
+                                                               bke::AttrDomain::Curve);
+
+        show_fill.span.copy_from(material_uses_fill);
+        show_fill.finish();
+      }
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5182,6 +5248,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         remove_triangulate_node_min_size_input(ntree);
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 9)) {
+    convert_grease_pencil_material_stroke_fill_toggle_to_attributes(*bmain);
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
