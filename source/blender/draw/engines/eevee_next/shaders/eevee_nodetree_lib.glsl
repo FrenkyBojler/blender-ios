@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include "infos/eevee_common_info.hh"
+
+SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
+
 #include "draw_model_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_renderpass_lib.glsl"

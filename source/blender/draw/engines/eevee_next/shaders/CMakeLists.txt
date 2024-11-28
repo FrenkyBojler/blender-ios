@@ -161,20 +161,18 @@ set(SRC_GLSL_COMP
 )
 
 set(SRC_GLSL_LIB
-# eevee_ambient_occlusion_lib.glsl
+eevee_ambient_occlusion_lib.glsl
 # eevee_attributes_lib.glsl
-# eevee_bxdf_diffuse_lib.glsl
+eevee_bxdf_diffuse_lib.glsl
 eevee_bxdf_lib.glsl
-# eevee_bxdf_microfacet_lib.glsl
-# eevee_bxdf_oren_nayar_lib.glsl
-# eevee_bxdf_sampling_lib.glsl
+eevee_bxdf_microfacet_lib.glsl
 eevee_camera_lib.glsl
-# eevee_closure_lib.glsl
+eevee_closure_lib.glsl
 eevee_colorspace_lib.glsl
-# eevee_cryptomatte_lib.glsl
+eevee_cryptomatte_lib.glsl
 # eevee_depth_of_field_accumulator_lib.glsl
 # eevee_depth_of_field_lib.glsl
-# eevee_film_lib.glsl
+eevee_film_lib.glsl
 eevee_filter_lib.glsl
 # eevee_forward_lib.glsl
 # eevee_gbuffer_lib.glsl
@@ -186,31 +184,31 @@ eevee_light_lib.glsl
 # eevee_lightprobe_eval_lib.glsl
 # eevee_lightprobe_lib.glsl
 # eevee_lightprobe_sphere_eval_lib.glsl
-# eevee_lightprobe_sphere_lib.glsl
-# eevee_lightprobe_sphere_mapping_lib.glsl
+eevee_lightprobe_sphere_lib.glsl
+eevee_lightprobe_sphere_mapping_lib.glsl
 # eevee_lightprobe_volume_eval_lib.glsl
 eevee_ltc_lib.glsl
-# eevee_motion_blur_lib.glsl
-# eevee_nodetree_lib.glsl
+eevee_motion_blur_lib.glsl
+# eevee_nodetree_lib.glsl # Has dependency on draw_model_lib that is hard to resolve
 eevee_occupancy_lib.glsl
 eevee_octahedron_lib.glsl
-# eevee_ray_generate_lib.glsl
+eevee_ray_generate_lib.glsl
 # eevee_ray_trace_screen_lib.glsl
-# eevee_ray_types_lib.glsl
+eevee_ray_types_lib.glsl
 # eevee_renderpass_lib.glsl
 eevee_sampling_lib.glsl
 # eevee_shadow_lib.glsl
 # eevee_shadow_page_ops_lib.glsl
 # eevee_shadow_tag_usage_lib.glsl
-# eevee_shadow_tilemap_lib.glsl
+eevee_shadow_tilemap_lib.glsl
 # eevee_shadow_tracing_lib.glsl
 eevee_spherical_harmonics_lib.glsl
 eevee_subsurface_lib.glsl
 # eevee_surf_lib.glsl
 eevee_surfel_list_lib.glsl
-# eevee_thickness_lib.glsl
-# eevee_transparency_lib.glsl
-# eevee_velocity_lib.glsl
+eevee_thickness_lib.glsl
+# eevee_transparency_lib.glsl # Require Fragment shader include
+# eevee_velocity_lib.glsl # Has dependency on draw_model_lib that is hard to resolve
 # eevee_volume_lib.glsl
 )
 
