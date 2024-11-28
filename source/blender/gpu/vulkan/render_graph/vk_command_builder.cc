@@ -93,8 +93,9 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
   for (NodeHandle node_handle : node_group) {
     VKRenderGraphNode &node = render_graph.nodes_[node_handle];
 #if 0
-    std::cout << "node_group: " << node_group.first() << "-" << node_group.last()
-              << ", node_handle: " << node_handle << ", node_type: " << node.type << "\n";
+    std::cout << "node_group=" << node_group.first() << "-" << node_group.last()
+              << ", node_handle=" << node_handle << ", node_type=" << node.type
+              << ", debug_group=" << render_graph.full_debug_group(node_handle) << "\n";
 #endif
 #if 0
     render_graph.debug_print(node_handle);
@@ -142,13 +143,15 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
         is_rendering = true;
       }
     }
-#if 0
-    std::cout << "node_group: " << node_group.first() << "-" << node_group.last()
-              << ", node_handle: " << node_handle << ", node_type: " << node.type << "\n";
-#endif
     if (G.debug & G_DEBUG_GPU) {
       activate_debug_group(render_graph, command_buffer, node_handle);
     }
+#if 0
+    std::cout << "node_group=" << node_group.first() << "-" << node_group.last()
+              << ", node_handle=" << node_handle << ", node_type=" << node.type
+              << ", debug group=" << render_graph.full_debug_group(node_handle) << "\n";
+
+#endif
     node.build_commands(command_buffer, state_.active_pipelines);
 
     /* When layered image has different layouts we reset the layouts to
@@ -590,7 +593,7 @@ void VKCommandBuilder::layer_tracking_update(VkImage vk_image,
                      "We don't support that one layer transitions multiple times during a "
                      "rendering scope.");
       /* Early exit as layer is in correct layout. This is a normal case as we expect multiple draw
-       * commands to take place during a rendering scope with the same layer access.*/
+       * commands to take place during a rendering scope with the same layer access. */
       return;
     }
   }
