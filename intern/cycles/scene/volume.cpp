@@ -744,10 +744,6 @@ void VolumeManager::tag_update()
 /* Remove changed object from the list of octrees and tag for rebuild. */
 void VolumeManager::tag_update(const Object *object, uint32_t flag)
 {
-  if (flag & ObjectManager::VISIBILITY_MODIFIED) {
-    tag_update();
-  }
-
   for (const Node *node : object->get_geometry()->get_used_shaders()) {
     const Shader *shader = static_cast<const Shader *>(node);
     if (shader->has_volume_spatial_varying || (flag & ObjectManager::OBJECT_REMOVED)) {
@@ -943,9 +939,25 @@ void VolumeManager::initialize_octree_(const Scene *scene)
   }
 }
 
+int VolumeManager::num_octree_nodes_() const
+{
+  int num_nodes = 0;
+
+  std::set<const Octree *> unique_octrees;
+  for (const auto &it : object_octrees_) {
+    const Octree *octree = it.second.get();
+    if (unique_octrees.find(octree) == unique_octrees.end()) {
+      unique_octrees.insert(octree);
+      num_nodes += octree->get_num_nodes();
+    }
+  }
+
+  return num_nodes;
+}
+
 void VolumeManager::build_octree_(Device *device, Progress &progress)
 {
-  double start_time = time_dt();
+  const double start_time = time_dt();
 
   for (auto &it : object_octrees_) {
     if (it.second->is_built()) {
@@ -959,33 +971,24 @@ void VolumeManager::build_octree_(Device *device, Progress &progress)
     it.second->build(device, progress, object, shader, interior_mask);
   }
 
-  double build_time = time_dt() - start_time;
-  std::cout << "Volume octree built in " << build_time << " seconds." << std::endl;
-  VLOG_INFO << "Volume octree built in " << build_time << " seconds.";
+  const double build_time = time_dt() - start_time;
+
+  std::cout << object_octrees_.size() << " volume octree(s) with a total of "
+            << num_octree_nodes_() << " nodes are built in " << build_time << " seconds."
+            << std::endl;
+  VLOG_WORK << object_octrees_.size() << " volume octree(s) with a total of "
+            << num_octree_nodes_() << " nodes are built in " << build_time << " seconds.";
 }
 
 void VolumeManager::flatten_octree_(DeviceScene *dscene, const Scene *scene) const
 {
-  /* Count total number of nodes. */
-  int num_nodes = 0;
-  {
-    std::set<const Octree *> unique_octrees;
-    for (const auto &it : object_octrees_) {
-      const Octree *octree = it.second.get();
-      if (unique_octrees.find(octree) == unique_octrees.end()) {
-        unique_octrees.insert(octree);
-        num_nodes += octree->get_num_nodes();
-      }
-    }
-  }
-
   /* Keep track of the root index of the unique octrees. */
   std::map<const Octree *, int> octree_root_indices;
 
   /* Plus one for world volume. */
   int *roots = dscene->volume_tree_roots.alloc(scene->objects.size() + 1);
 
-  KernelOctreeNode *knodes = dscene->volume_tree_nodes.alloc(num_nodes);
+  KernelOctreeNode *knodes = dscene->volume_tree_nodes.alloc(num_octree_nodes_());
 
   int node_index = 0;
   for (const auto &it : object_octrees_) {
@@ -1008,6 +1011,12 @@ void VolumeManager::flatten_octree_(DeviceScene *dscene, const Scene *scene) con
 
   dscene->volume_tree_nodes.copy_to_device();
   dscene->volume_tree_roots.copy_to_device();
+
+  VLOG_WORK << "Memory usage of volume octrees: "
+            << (dscene->volume_tree_nodes.size() * sizeof(KernelOctreeNode) +
+                dscene->volume_tree_roots.size() * sizeof(int)) /
+                   (1024.0 * 1024.0)
+            << "Mb.";
 }
 
 std::string VolumeManager::visualize_octree_(const DeviceScene *dscene, const char *filename) const
@@ -1049,9 +1058,7 @@ std::string VolumeManager::visualize_octree_(const DeviceScene *dscene, const ch
     file.close();
   }
 
-  /* TODO(weizhen): returns empty string so that the function is only called with `--debug-cycles`.
-   * But it feels hacky. */
-  return "";
+  return std::filesystem::current_path() / filename;
 }
 
 void VolumeManager::device_update(Device *device,
@@ -1072,8 +1079,8 @@ void VolumeManager::device_update(Device *device,
   }
 
   if (update_visualization_) {
-    VLOG_INFO << visualize_octree_(dscene, "octree.py")
-              << "Octree has been written to file octree.py.";
+    VLOG_DEBUG << "Octree visualization has been written to "
+               << visualize_octree_(dscene, "octree.py");
     update_visualization_ = false;
   }
 }

@@ -74,6 +74,7 @@ __forceinline float3 Octree::voxel_size() const
   return index_to_position_scale_;
 }
 
+/* TODO(weizhen): check why the octree looks different. */
 bool Octree::should_split_(std::shared_ptr<OctreeNode> &node,
                            const float scale,
                            const bool is_homogeneous_volume) const
@@ -119,6 +120,7 @@ static bool vdb_voxel_intersect(const float3 p_min,
 }
 #endif
 
+/* TODO(weizhen): the argument does not compile without openvdb. */
 /* Fill in coordinates for shading the volume density. */
 static void fill_shader_input(device_vector<KernelShaderEvalInput> &d_input,
                               const Octree *octree,
@@ -340,14 +342,17 @@ void Octree::build(Device *device,
                    const Shader *shader,
                    openvdb::BoolGrid::ConstPtr &interior_mask)
 {
-  progress.set_substatus("Evaluate volume density");
+  const char *name = object ? object->get_asset_name().c_str() : "world volume";
+  string status = string_printf("Evaluating density for %s", name);
+  progress.set_substatus(status);
 
   evaluate_volume_density_(device, progress, object, shader, interior_mask);
   if (progress.get_cancel()) {
     return;
   }
 
-  progress.set_substatus("Building Octree for volumes");
+  status = string_printf("Building octree for %s", name);
+  progress.set_substatus(status);
 
   const float scale = volume_scale_(object);
   const bool is_homogeneus = VolumeManager::is_homogeneous_volume(object, shader);

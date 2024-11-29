@@ -59,6 +59,9 @@ class VolumeManager {
   /* Converting the octrees into an array for uploading to the kernel. */
   void flatten_octree_(DeviceScene *, const Scene *) const;
 
+  /* Count all the nodes of the octrees. */
+  int num_octree_nodes_() const;
+
   /* When running Blender with `--verbose 5`, an octree visualization is written to `filename`,
    * which is a Python script that can be run inside Blender. */
   std::string visualize_octree_(const DeviceScene *, const char *filename) const;
