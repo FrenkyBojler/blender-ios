@@ -2485,19 +2485,11 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   DST.options.is_material_select = do_material_sub_selection;
   drw_task_graph_init();
   /* Get list of enabled engines */
-  drw_engines_enable_overlays();
+  use_drw_engine(&draw_engine_select_next_type);
   if (use_obedit) {
     /* Noop. */
   }
   else if (!draw_surface) {
-    /* grease pencil selection */
-    if (drw_gpencil_engine_needed(depsgraph, v3d)) {
-      use_drw_engine(&draw_engine_gpencil_type);
-    }
-  }
-  else {
-    /* Draw surface for occlusion. */
-    drw_engines_enable_basic();
     /* grease pencil selection */
     if (drw_gpencil_engine_needed(depsgraph, v3d)) {
       use_drw_engine(&draw_engine_gpencil_type);
