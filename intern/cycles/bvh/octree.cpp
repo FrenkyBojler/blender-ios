@@ -7,6 +7,8 @@
 #include "scene/object.h"
 #include "scene/volume.h"
 
+#include "integrator/shader_eval.h"
+
 #include "util/progress.h"
 
 CCL_NAMESPACE_BEGIN
@@ -90,6 +92,75 @@ bool Octree::should_split(std::shared_ptr<OctreeNode> &node) const
           node->depth < VOLUME_OCTREE_MAX_DEPTH);
 }
 
+/* Fill in coordinates for shading the volume density. */
+static void fill_shader_input(device_vector<KernelShaderEvalInput> &d_input,
+                              const Octree *octree,
+                              const Object *object,
+                              const Shader *shader,
+                              const int resolution)
+{
+  /* Get object id. */
+  const int object_id = object ? object->get_device_index() : OBJECT_NONE;
+
+  /* Get shader id. */
+  const uint shader_id = shader->id;
+
+  KernelShaderEvalInput *d_input_data = d_input.data();
+
+  const float3 voxel_size = octree->voxel_size();
+  /* Dilate the voxel in case we miss features at the boundary. */
+  const float3 pad = 0.2f * voxel_size;
+  const float3 padded_size = voxel_size + pad * 2.0f;
+
+  const blocked_range3d<int> range(0, resolution, 8, 0, resolution, 8, 0, resolution, 8);
+  parallel_for(range, [&](const blocked_range3d<int> &r) {
+    for (int z = r.cols().begin(); z < r.cols().end(); ++z) {
+      for (int y = r.rows().begin(); y < r.rows().end(); ++y) {
+        for (int x = r.pages().begin(); x < r.pages().end(); ++x) {
+          const int offset = octree->flatten_index(x, y, z);
+          const float3 p = octree->index_to_position(x, y, z);
+
+          KernelShaderEvalInput in;
+          in.object = object_id;
+          in.prim = __float_as_int(p.x - pad.x);
+          in.u = p.y - pad.y;
+          in.v = p.z - pad.z;
+          d_input_data[offset * 2] = in;
+
+          in.object = shader_id;
+          in.prim = __float_as_int(padded_size.x);
+          in.u = padded_size.y;
+          in.v = padded_size.z;
+          d_input_data[offset * 2 + 1] = in;
+        }
+      }
+    }
+  });
+}
+
+/* Read back the volume densty. */
+static void read_shader_output(const device_vector<float> &d_output,
+                               const Octree *octree,
+                               const int num_channels,
+                               const int resolution,
+                               vector<Extrema<float>> &sigmas)
+{
+  const float *d_output_data = d_output.data();
+  const blocked_range3d<int> range(0, resolution, 32, 0, resolution, 32, 0, resolution, 32);
+
+  parallel_for(range, [&](const blocked_range3d<int> &r) {
+    for (int z = r.cols().begin(); z < r.cols().end(); ++z) {
+      for (int y = r.rows().begin(); y < r.rows().end(); ++y) {
+        for (int x = r.pages().begin(); x < r.pages().end(); ++x) {
+          const int index = octree->flatten_index(x, y, z);
+          sigmas[index].min += d_output_data[index * num_channels + 0];
+          sigmas[index].max += d_output_data[index * num_channels + 1];
+        }
+      }
+    }
+  });
+}
+
 void Octree::evaluate_volume_density(Device *device,
                                      Progress &progress,
                                      const Object *object,
@@ -112,7 +183,22 @@ void Octree::evaluate_volume_density(Device *device,
   /* Min and max. */
   const int num_channels = 2;
 
-  /* TODO: Evaluate shader on device. */
+  /* Need the size of two `KernelShaderEvalInput` per voxel for evaluating the shader. */
+  const int num_inputs = size * 2;
+
+  /* Evaluate shader on device. */
+  ShaderEval shader_eval(device, progress);
+  shader_eval.eval(
+      SHADER_EVAL_VOLUME_DENSITY,
+      num_inputs,
+      num_channels,
+      [&](device_vector<KernelShaderEvalInput> &d_input) {
+        fill_shader_input(d_input, this, object, shader, resolution_);
+        return size;
+      },
+      [&](device_vector<float> &d_output) {
+        read_shader_output(d_output, this, num_channels, resolution_, sigmas_);
+      });
 }
 
 float Octree::volume_scale(const Object *object) const
