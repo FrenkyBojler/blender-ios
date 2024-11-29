@@ -23,7 +23,7 @@ void ScreenSpaceDrawingMode::add_shgroups() const
   pass.push_constant("shuffle", sh_params.shuffle);
   pass.push_constant("draw_flags", static_cast<int32_t>(sh_params.flags));
   pass.push_constant("is_image_premultiplied", sh_params.use_premul_alpha);
-  pass.push_constant("depth_tx", dtxl->depth);
+  pass.bind_texture("depth_tx", dtxl->depth);
 
   float4x4 image_mat = float4x4::identity();
   ResourceHandle handle = instance_.manager->resource_handle(image_mat);
