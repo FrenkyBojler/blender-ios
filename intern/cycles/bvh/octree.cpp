@@ -11,6 +11,10 @@
 
 #include "util/progress.h"
 
+#ifdef WITH_OPENVDB
+#  include <openvdb/tools/FindActiveValues.h>
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 __forceinline int Octree::flatten_index(int x, int y, int z) const
@@ -92,11 +96,37 @@ bool Octree::should_split(std::shared_ptr<OctreeNode> &node) const
           node->depth < VOLUME_OCTREE_MAX_DEPTH);
 }
 
+#ifdef WITH_OPENVDB
+/* Check if a interior mask grid intersects with a bounding box defined by `p_min` and `p_max`. */
+static bool vdb_voxel_intersect(const float3 p_min,
+                                const float3 p_max,
+                                openvdb::BoolGrid::ConstPtr &grid,
+                                const openvdb::tools::FindActiveValues<openvdb::BoolTree> &find)
+{
+  if (grid->empty()) {
+    /* Non-mesh volume. */
+    return true;
+  }
+
+  const openvdb::math::CoordBBox coord_bbox(
+      openvdb::Coord::floor(grid->worldToIndex({p_min.x, p_min.y, p_min.z})),
+      openvdb::Coord::ceil(grid->worldToIndex({p_max.x, p_max.y, p_max.z})));
+
+  /* Check if the bounding box lies inside or partially overlaps the mesh.
+   * For interior mask grids, all the interior voxels are active. */
+  return find.anyActiveValues(coord_bbox, true);
+}
+#endif
+
+/* TODO(weizhen): the argument does not compile without openvdb. */
 /* Fill in coordinates for shading the volume density. */
 static void fill_shader_input(device_vector<KernelShaderEvalInput> &d_input,
                               const Octree *octree,
                               const Object *object,
                               const Shader *shader,
+#ifdef WITH_OPENVDB
+                              openvdb::BoolGrid::ConstPtr &interior_mask,
+#endif
                               const int resolution)
 {
   /* Get object id. */
@@ -114,11 +144,25 @@ static void fill_shader_input(device_vector<KernelShaderEvalInput> &d_input,
 
   const blocked_range3d<int> range(0, resolution, 8, 0, resolution, 8, 0, resolution, 8);
   parallel_for(range, [&](const blocked_range3d<int> &r) {
+#ifdef WITH_OPENVDB
+    /* One accessor per thread is important for cached access. */
+    const auto find = openvdb::tools::FindActiveValues(interior_mask->tree());
+#endif
+
     for (int z = r.cols().begin(); z < r.cols().end(); ++z) {
       for (int y = r.rows().begin(); y < r.rows().end(); ++y) {
         for (int x = r.pages().begin(); x < r.pages().end(); ++x) {
           const int offset = octree->flatten_index(x, y, z);
           const float3 p = octree->index_to_position(x, y, z);
+
+#ifdef WITH_OPENVDB
+          /* Zero density for cells outside of the mesh. */
+          if (!vdb_voxel_intersect(p, p + voxel_size, interior_mask, find)) {
+            d_input_data[offset * 2].object = OBJECT_NONE;
+            d_input_data[offset * 2 + 1].object = SHADER_NONE;
+            continue;
+          }
+#endif
 
           KernelShaderEvalInput in;
           in.object = object_id;
@@ -163,6 +207,9 @@ static void read_shader_output(const device_vector<float> &d_output,
 
 void Octree::evaluate_volume_density(Device *device,
                                      Progress &progress,
+#ifdef WITH_OPENVDB
+                                     openvdb::BoolGrid::ConstPtr &interior_mask,
+#endif
                                      const Object *object,
                                      const Shader *shader)
 {
@@ -193,7 +240,11 @@ void Octree::evaluate_volume_density(Device *device,
       num_inputs,
       num_channels,
       [&](device_vector<KernelShaderEvalInput> &d_input) {
+#ifdef WITH_OPENVDB
+        fill_shader_input(d_input, this, object, shader, interior_mask, resolution_);
+#else
         fill_shader_input(d_input, this, object, shader, resolution_);
+#endif
         return size;
       },
       [&](device_vector<float> &d_output) {
@@ -287,13 +338,24 @@ void Octree::flatten(KernelOctreeNode *knodes,
   }
 }
 
-void Octree::build(Device *device, Progress &progress, const Object *object, const Shader *shader)
+void Octree::build(Device *device,
+                   Progress &progress,
+#ifdef WITH_OPENVDB
+                   openvdb::BoolGrid::ConstPtr &interior_mask,
+#endif
+                   const Object *object,
+                   const Shader *shader)
+
 {
   const char *name = object ? object->get_asset_name().c_str() : "world volume";
   string status = string_printf("Evaluating density for %s", name);
   progress.set_substatus(status);
 
+#ifdef WITH_OPENVDB
+  evaluate_volume_density(device, progress, interior_mask, object, shader);
+#else
   evaluate_volume_density(device, progress, object, shader);
+#endif
   if (progress.get_cancel()) {
     return;
   }

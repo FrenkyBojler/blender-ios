@@ -12,6 +12,10 @@
 #include "util/boundbox.h"
 #include "util/task.h"
 
+#ifdef WITH_OPENVDB
+#  include <openvdb/openvdb.h>
+#endif
+
 #include <atomic>
 
 CCL_NAMESPACE_BEGIN
@@ -56,7 +60,11 @@ class Octree {
   ~Octree() = default;
 
   /* Build the octree according to the volume density. */
+#ifdef WITH_OPENVDB
+  void build(Device *, Progress &, openvdb::BoolGrid::ConstPtr &, const Object *, const Shader *);
+#else
   void build(Device *, Progress &, const Object *, const Shader *);
+#endif
 
   /* Convert the octree into an array of nodes for uploading to the kernel. */
   void flatten(KernelOctreeNode *, const int, const std::shared_ptr<OctreeNode> &, int &) const;
@@ -85,7 +93,12 @@ class Octree {
    * and `index_max`. */
   Extrema<float> get_extrema(const int3 index_min, const int3 index_max) const;
   /* Randomly sample positions inside the grid to evaluate the shader for the density. */
+#ifdef WITH_OPENVDB
+  void evaluate_volume_density(
+      Device *, Progress &, openvdb::BoolGrid::ConstPtr &, const Object *, const Shader *);
+#else
   void evaluate_volume_density(Device *, Progress &, const Object *, const Shader *);
+#endif
   /* Convert from position in object space to grid index space. */
   float3 position_to_index_scale_;
   float3 index_to_position_scale_;

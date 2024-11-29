@@ -12,6 +12,7 @@
 #ifdef WITH_OPENVDB
 #  include <openvdb/tools/Dense.h>
 #  include <openvdb/tools/GridTransformer.h>
+#  include <openvdb/tools/LevelSetUtil.h>
 #  include <openvdb/tools/Morphology.h>
 #  include <openvdb/tools/Statistics.h>
 #endif
@@ -808,6 +809,58 @@ bool VolumeManager::is_homogeneous_volume(const Object *object, const Shader *sh
   return true;
 }
 
+#ifdef WITH_OPENVDB
+openvdb::BoolGrid::ConstPtr VolumeManager::mesh_to_sdf_grid(const Mesh *mesh,
+                                                            const Shader *shader,
+                                                            const float half_width)
+{
+  const int num_verts = mesh->get_verts().size();
+  std::vector<openvdb::Vec3f> points(num_verts);
+  parallel_for(0, num_verts, [&](int i) {
+    const float3 &vert = mesh->get_verts()[i];
+    points[i] = openvdb::Vec3f(vert.x, vert.y, vert.z);
+  });
+
+  const int max_num_triangles = mesh->num_triangles();
+  std::vector<openvdb::Vec3I> triangles;
+  triangles.reserve(max_num_triangles);
+  for (int i = 0; i < max_num_triangles; i++) {
+    /* Only push triangles with matching shader. */
+    const int shader_index = mesh->get_shader()[i];
+    if (static_cast<const Shader *>(mesh->get_used_shaders()[shader_index]) == shader) {
+      triangles.emplace_back(mesh->get_triangles()[i * 3],
+                             mesh->get_triangles()[i * 3 + 1],
+                             mesh->get_triangles()[i * 3 + 2]);
+    }
+  }
+
+  /* TODO(weizhen): Should consider object instead of mesh size. */
+  const float3 mesh_size = mesh->bounds.size();
+  const auto vdb_voxel_size = openvdb::Vec3d(mesh_size.x, mesh_size.y, mesh_size.z) /
+                              double(1 << VOLUME_OCTREE_MAX_DEPTH);
+
+  auto xform = openvdb::math::Transform::createLinearTransform(1.0);
+  xform->postScale(vdb_voxel_size);
+
+  auto sdf_grid = openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(
+      *xform, points, triangles, half_width);
+
+  return openvdb::tools::sdfInteriorMask(*sdf_grid, 0.5 * vdb_voxel_size.length());
+}
+
+openvdb::BoolGrid::ConstPtr VolumeManager::get_vdb(const Geometry *geom,
+                                                   const Shader *shader) const
+{
+  if (geom && geom->is_mesh()) {
+    if (auto it = vdb_map_.find({geom, shader}); it != vdb_map_.end()) {
+      return it->second;
+    }
+  }
+  /* Create empty grid. */
+  return openvdb::BoolGrid::create();
+}
+#endif
+
 void VolumeManager::initialize_octree(const Scene *scene)
 {
   /* Add world volume. */
@@ -867,6 +920,18 @@ void VolumeManager::initialize_octree(const Scene *scene)
           object_octrees_[{object, shader}] = std::make_shared<Octree>(mesh->bounds);
         }
       }
+
+#ifdef WITH_OPENVDB
+      if (geom->is_mesh() && !VolumeManager::is_homogeneous_volume(object, shader) &&
+          vdb_map_.find({geom, shader}) == vdb_map_.end())
+      {
+        const Mesh *mesh = static_cast<const Mesh *>(geom);
+        const float3 dim = mesh->bounds.size();
+        if (dim.x > 0.0f && dim.y > 0.0f && dim.z > 0.0f) {
+          vdb_map_[{geom, shader}] = mesh_to_sdf_grid(mesh, shader, 1.0f);
+        }
+      }
+#endif
     }
   }
 }
@@ -899,7 +964,13 @@ void VolumeManager::build_octree(Device *device, Progress &progress)
 
     const Object *object = it.first.first;
     const Shader *shader = it.first.second;
+#ifdef WITH_OPENVDB
+    openvdb::BoolGrid::ConstPtr interior_mask = get_vdb(object ? object->get_geometry() : nullptr,
+                                                        shader);
+    it.second->build(device, progress, interior_mask, object, shader);
+#else
     it.second->build(device, progress, object, shader);
+#endif
   }
 
   const double build_time = time_dt() - start_time;
@@ -1020,6 +1091,13 @@ void VolumeManager::device_free(DeviceScene *dscene)
   dscene->volume_tree_roots.free();
 }
 
-VolumeManager::~VolumeManager() {}
+VolumeManager::~VolumeManager()
+{
+#ifdef WITH_OPENVDB
+  for (auto &it : vdb_map_) {
+    it.second.reset();
+  }
+#endif
+}
 
 CCL_NAMESPACE_END

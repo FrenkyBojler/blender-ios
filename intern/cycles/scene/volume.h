@@ -8,6 +8,10 @@
 
 #include "scene/mesh.h"
 
+#ifdef WITH_OPENVDB
+#  include <openvdb/openvdb.h>
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 class Object;
@@ -59,6 +63,16 @@ class VolumeManager {
   std::map<std::pair<const Object *, const Shader *>, std::shared_ptr<Octree>> object_octrees_;
 
   bool need_rebuild_;
+
+#ifdef WITH_OPENVDB
+  /* Create SDF grid for mesh volumes, to determine whether a certain point is in the
+   * interior of the mesh. This reduces evaluation time needed for heterogeneous volume. */
+  openvdb::BoolGrid::ConstPtr mesh_to_sdf_grid(const Mesh *mesh,
+                                               const Shader *shader,
+                                               const float half_width);
+  openvdb::BoolGrid::ConstPtr get_vdb(const Geometry *, const Shader *) const;
+  std::map<std::pair<const Geometry *, const Shader *>, openvdb::BoolGrid::ConstPtr> vdb_map_;
+#endif
 };
 
 CCL_NAMESPACE_END
