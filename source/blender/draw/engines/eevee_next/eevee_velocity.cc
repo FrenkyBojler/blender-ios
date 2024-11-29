@@ -314,6 +314,9 @@ void VelocityModule::step_swap()
     std::swap(camera_steps[step_a], camera_steps[step_b]);
     std::swap(step_time[step_a], step_time[step_b]);
 
+    object_steps_usage[step_a] = object_steps_usage[step_b];
+    object_steps_usage[step_b] = 0;
+
     for (VelocityObjectData &vel : velocity_map.values()) {
       vel.obj.ofs[step_a] = vel.obj.ofs[step_b];
       vel.obj.ofs[step_b] = uint(-1);
@@ -343,6 +346,10 @@ void VelocityModule::begin_sync()
   step_ = STEP_CURRENT;
   step_camera_sync();
   object_steps_usage[step_] = 0;
+  if (inst_.is_viewport()) {
+    /* Next is never properly synced for viewport. */
+    object_steps_usage[STEP_NEXT] = 0;
+  }
 }
 
 void VelocityModule::end_sync()
