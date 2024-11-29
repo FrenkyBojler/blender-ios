@@ -17,10 +17,7 @@
 #include "image_batches.hh"
 #include "image_private.hh"
 
-#include "DNA_windowmanager_types.h"
-
 namespace blender::image_engine {
-class Instance;
 
 constexpr float EPSILON_UV_BOUNDS = 0.00001f;
 
