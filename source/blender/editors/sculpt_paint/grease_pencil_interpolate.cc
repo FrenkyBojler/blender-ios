@@ -287,7 +287,6 @@ static bool find_curve_mapping_from_index(const GreasePencil &grease_pencil,
     from_selection = from_drawing.strokes().curves_range();
     to_selection = to_drawing.strokes().curves_range();
   }
-  // const int interpolated_pairs_num = std::min(from_selection.size(), to_selection.size());
   /* Discard additional elements of the larger selection. */
   if (from_selection.size() > to_selection.size()) {
     from_selection.slice(0, to_selection.size());
@@ -300,10 +299,6 @@ static bool find_curve_mapping_from_index(const GreasePencil &grease_pencil,
   array_utils::fill_index_range(from_curves);
   to_curves.fill(-1);
   /* Selected curves are interpolated. */
-  // from_selection.slice(0, interpolated_pairs_num)
-  //     .to_indices(pairs.from_curves.as_mutable_span().slice(old_pairs_num, pairs_num));
-  // to_selection.slice(0, pairs_num)
-  //     .to_indices(pairs.to_curves.as_mutable_span().slice(old_pairs_num, pairs_num));
   IndexMask::foreach_segment_zipped({from_selection, to_selection},
                                     [&](Span<IndexMaskSegment> segments) {
                                       const IndexMaskSegment &from_segment = segments[0];
