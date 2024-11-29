@@ -533,7 +533,6 @@ static void rna_def_space_properties_filter(StructRNA *srna)
 
     PropertyRNA *prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(prop, nullptr, "properties_filter", value);
-    RNA_def_property_ui_icon(prop, item.icon, 0);
     RNA_def_property_ui_text(prop, item.name, "");
     RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_properties_filter_update");
   }

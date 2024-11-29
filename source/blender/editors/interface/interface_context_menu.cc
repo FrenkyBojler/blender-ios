@@ -10,6 +10,7 @@
 
 #include <cstring>
 
+#include "ED_buttons.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -1379,6 +1380,8 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
                   ICON_NONE,
                   ED_screens_region_flip_menu_create,
                   nullptr);
+      uiItemMenuF(
+          layout, IFACE_("Display Properties"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
     }
     else if (region->regiontype == RGN_TYPE_FOOTER) {
       uiItemMenuF(

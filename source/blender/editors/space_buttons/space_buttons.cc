@@ -6,10 +6,12 @@
  * \ingroup spbuttons
  */
 
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <limits>
 
+#include "BLI_vector.hh"
 #include "DNA_workspace_types.h"
 #include "MEM_guardedalloc.h"
 
@@ -29,6 +31,8 @@
 #include "ED_space_api.hh"
 #include "ED_view3d.hh" /* To draw toolbar UI. */
 
+#include "RNA_prototypes.hh"
+#include "UI_interface_c.hh"
 #include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
@@ -157,6 +161,37 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 /* -------------------------------------------------------------------- */
 /** \name Property Editor Layout
  * \{ */
+
+void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+{
+  blender::Vector<const char *> filter_items{
+      "show_render",
+      "show_output",
+      "show_view_layer",
+      "show_scene",
+      "show_world",
+      "show_collection",
+      "show_object",
+      "show_modifiers",
+      "show_effects",
+      "show_particles",
+      "show_physics",
+      "show_constraints",
+      "show_data",
+      "show_bone",
+      "show_bone_constraints",
+      "show_material",
+      "show_texture",
+  };
+
+  PointerRNA ptr = RNA_pointer_create(
+      (ID *)CTX_wm_workspace(C), &RNA_WorkSpace, CTX_wm_workspace(C));
+
+  for (const char *item : filter_items) {
+    uiItemR(layout, &ptr, item, UI_ITEM_R_TOGGLE, nullptr, ICON_NONE);
+  }
+}
+
 int ED_buttons_tabs_list(SpaceProperties *sbuts, short *context_tabs_array)
 {
   return ED_buttons_tabs_list(nullptr, sbuts, context_tabs_array);

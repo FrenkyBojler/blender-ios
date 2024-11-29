@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BKE_screen.hh"
 #include "DNA_workspace_types.h"
 struct ScrArea;
 struct SpaceProperties;
@@ -23,6 +24,7 @@ int ED_buttons_tabs_list(SpaceProperties *sbuts, short *context_tabs_array);
 int ED_buttons_tabs_list(const WorkSpace *workspace,
                          SpaceProperties *sbuts,
                          short *context_tabs_array);
+void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/);
 bool ED_buttons_tab_has_search_result(SpaceProperties *sbuts, int index);
 
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value);

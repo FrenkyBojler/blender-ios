@@ -10,6 +10,7 @@
 #include <cstring>
 #include <fmt/format.h>
 
+#include "ED_buttons.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_rotation.h"
@@ -5111,6 +5112,8 @@ static int screen_context_menu_invoke(bContext *C, wmOperator * /*op*/, const wm
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
       uiLayout *layout = UI_popup_menu_layout(pup);
       ED_screens_region_flip_menu_create(C, layout, nullptr);
+      uiItemMenuF(
+          layout, IFACE_("Display Properties"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
       UI_popup_menu_end(C, pup);
     }
   }
