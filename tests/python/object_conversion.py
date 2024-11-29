@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # To run all tests, use
-# BLENDER_VERBOSE=1 ./bin/blender ../tests/data/modeling/object_conversion.blend --python ../blender/tests/python/bl_object_conversion.py -- --run-all-tests
+# BLENDER_VERBOSE=1 ./bin/blender ../blender/tests/data/modeling/object_conversion.blend --python ../blender/tests/python/object_conversion.py -- --run-all-tests
 # (that assumes the test is run from a build directory in the same directory as the source code)
 import bpy
 import os
@@ -12,6 +12,7 @@ import inspect
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from modules.mesh_test import SpecMeshTest, OperatorSpecObjectMode, RunTest
+
 
 class ConversionTypeTestHelper:
     def __init__(self, tests):
@@ -22,7 +23,7 @@ class ConversionTypeTestHelper:
         """
         Run all tests in self.tests list. Displays all failed tests at bottom.
         """
-        for test_number, each_test in enumerate(self.tests):
+        for _, each_test in enumerate(self.tests):
             test_name = each_test.test_name
             success = self.run_test(test_name)
 
@@ -40,7 +41,7 @@ class ConversionTypeTestHelper:
 
             print("Run following command to open Blender and run the failing test:")
             print("{} {} --python {} -- {} {}"
-                    .format(blender_path, blend_path, python_path, "--run-test", "<test_name>"))
+                  .format(blender_path, blend_path, python_path, "--run-test", "<test_name>"))
 
             raise Exception("Tests {} failed".format(self._failed_tests_list))
 
@@ -64,25 +65,31 @@ class ConversionTypeTestHelper:
         print("Running test '{}'".format(test.test_name))
 
         test_object = bpy.data.objects[test.from_object]
-        with bpy.context.temp_override(object=test_object,selected_objects=[test_object]):
+        with bpy.context.temp_override(object=test_object, selected_objects=[test_object]):
             bpy.context.view_layer.objects.active = test_object
 
             selection = test_object.select_get()
             test_object.select_set(True)
-            retval = bpy.ops.object.convert(target = test.to_type, keep_original = True)
+            retval = bpy.ops.object.convert(target=test.to_type, keep_original=True)
             test_object.select_set(False)
 
             if retval != {'FINISHED'}:
                 raise RuntimeError("Unexpected operator return value: {}".format(retval))
-            
+
         resulting_type = bpy.context.view_layer.objects.active.type
         bpy.ops.object.delete()
         if resulting_type != test.resulting_type:
-            raise RuntimeError("Converted object does not match expected type.\nTest '{}': Converting '{}' to '{}' expecting '{}' got '{}'\n"
-                .format(test.test_name, test.from_object, test.to_type, test.resulting_type, resulting_type))
+            raise RuntimeError(
+                "Converted object does not match expected type.\nTest '{}': Converting '{}' to '{}' expecting '{}' got '{}'\n" .format(
+                    test.test_name,
+                    test.from_object,
+                    test.to_type,
+                    test.resulting_type,
+                    resulting_type))
 
         print("Success\n")
         return True
+
 
 class ConversionPair:
     def __init__(self, test_name, from_object, to_type, resulting_type):
@@ -90,6 +97,7 @@ class ConversionPair:
         self.from_object = from_object
         self.to_type = to_type
         self.resulting_type = resulting_type
+
 
 def main():
     tests = [
@@ -141,14 +149,12 @@ def main():
         ConversionPair('GreasePencil 11', 'BezierCurve_Curves', 'GREASEPENCIL', 'GREASEPENCIL'),
     ]
 
-
     operator_test = RunTest(tests)
     all_type_tests = ConversionTypeTestHelper(type_tests)
 
     command = list(sys.argv)
     for i, cmd in enumerate(command):
         if cmd == "--run-all-tests":
-            has_problems = False
             operator_test.do_compare = True
             operator_test.run_all_tests()
             all_type_tests.run_all_tests()
