@@ -1034,8 +1034,7 @@ static void recalcData_actedit(TransInfo *t)
 
     transform_convert_flush_handle2D(td, td2d, 0.0f);
 
-    if (((t->state == TRANS_RUNNING) || hasNumInput(&t->num)) &&
-        ((td->flag & TD_GREASE_PENCIL_FRAME) != 0))
+    if ((td->flag & TD_GREASE_PENCIL_FRAME) != 0)
     {
       grease_pencil_layer_update_trans_data(
           *static_cast<blender::bke::greasepencil::Layer *>(td->extra),
