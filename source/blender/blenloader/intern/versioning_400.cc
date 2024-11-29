@@ -3142,6 +3142,7 @@ static void add_dopesheet_editor_footer(Main &bmain)
         {
           new_footer_region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
                                                                            RGN_ALIGN_BOTTOM;
+          new_footer_region->flag |= RGN_FLAG_HIDDEN;
         }
       }
     }
