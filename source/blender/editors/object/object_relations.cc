@@ -735,23 +735,6 @@ bool parent_set(ReportList *reports,
 
     invert_m4_m4(ob->parentinv, BKE_object_calc_parent(depsgraph, scene, ob).ptr());
   }
-  else if (is_armature_parent && (ob->type == OB_GPENCIL_LEGACY) && (par->type == OB_ARMATURE)) {
-    if (partype == PAR_ARMATURE) {
-      ED_gpencil_add_armature(C, reports, ob, par);
-    }
-    else if (partype == PAR_ARMATURE_NAME) {
-      ED_gpencil_add_armature_weights(C, reports, ob, par, GP_PAR_ARMATURE_NAME);
-    }
-    else if (ELEM(partype, PAR_ARMATURE_AUTO, PAR_ARMATURE_ENVELOPE)) {
-      WM_cursor_wait(true);
-      ED_gpencil_add_armature_weights(C, reports, ob, par, GP_PAR_ARMATURE_AUTO);
-      WM_cursor_wait(false);
-    }
-    /* get corrected inverse */
-    ob->partype = PAROBJECT;
-
-    invert_m4_m4(ob->parentinv, BKE_object_calc_parent(depsgraph, scene, ob).ptr());
-  }
   else if (is_armature_parent && (ob->type == OB_GREASE_PENCIL) && (par->type == OB_ARMATURE)) {
     if (partype == PAR_ARMATURE_NAME) {
       ed::greasepencil::add_armature_vertex_groups(*ob, *par);
@@ -975,7 +958,7 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
     if (child->type == OB_MESH) {
       has_children_of_type.mesh = true;
     }
-    if (ELEM(child->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+    if (ELEM(child->type, OB_GREASE_PENCIL)) {
       has_children_of_type.gpencil = true;
     }
     if (child->type == OB_CURVES) {
@@ -1938,13 +1921,6 @@ static void single_obdata_users(
                                                  nullptr,
                                                  LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
             break;
-          case OB_GPENCIL_LEGACY:
-            ob->data = ID_NEW_SET(ob->data,
-                                  BKE_id_copy_ex(bmain,
-                                                 static_cast<const ID *>(ob->data),
-                                                 nullptr,
-                                                 LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
-            break;
           case OB_CURVES:
             ob->data = ID_NEW_SET(ob->data,
                                   BKE_id_copy_ex(bmain,
@@ -2465,6 +2441,9 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
         }
       }
     }
+    /* Also tag the Scene itself for remapping when creating overrides (includes the scene's master
+     * collection too). */
+    scene->id.tag |= ID_TAG_DOIT;
   }
 
   ID *id_root_override;
@@ -2948,13 +2927,14 @@ std::string drop_named_material_tooltip(bContext *C, const char *name, const int
   Material *prev_mat = BKE_object_material_get(ob, mat_slot);
 
   if (prev_mat) {
-    return fmt::format(TIP_("Drop {} on {} (slot {}, replacing {})"),
+    return fmt::format(fmt::runtime(TIP_("Drop {} on {} (slot {}, replacing {})")),
                        name,
                        ob->id.name + 2,
                        mat_slot,
                        prev_mat->id.name + 2);
   }
-  return fmt::format(TIP_("Drop {} on {} (slot {})"), name, ob->id.name + 2, mat_slot);
+  return fmt::format(
+      fmt::runtime(TIP_("Drop {} on {} (slot {})")), name, ob->id.name + 2, mat_slot);
 }
 
 static int drop_named_material_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -3018,8 +2998,9 @@ std::string drop_geometry_nodes_tooltip(bContext *C, PointerRNA *properties, con
     return {};
   }
 
-  return fmt::format(
-      TIP_("Add modifier with node group \"{}\" on object \"{}\""), id->name, ob->id.name);
+  return fmt::format(fmt::runtime(TIP_("Add modifier with node group \"{}\" on object \"{}\"")),
+                     id->name,
+                     ob->id.name);
 }
 
 static bool check_geometry_node_group_sockets(wmOperator *op, const bNodeTree *tree)

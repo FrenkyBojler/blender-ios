@@ -1137,11 +1137,11 @@ class ConstraintButtonsSubPanel:
 
         col = layout.column(align=True)
         col.prop(con, "action")
-        if context.preferences.experimental.use_animation_baklava and con.action and con.action.is_action_layered:
+        if con.action and con.action.is_action_layered:
             col.context_pointer_set("animated_id", con.id_data)
             col.template_search(
                 con, "action_slot",
-                con, "action_slots",
+                con, "action_suitable_slots",
                 new="",  # No use in making a new slot here.
                 unlink="anim.slot_unassign_from_constraint",
                 text="Slot",

@@ -73,8 +73,6 @@ char *blf_dir_metrics_search(const char *filepath);
 int blf_font_init();
 void blf_font_exit();
 
-bool blf_font_id_is_valid(int fontid);
-
 /**
  * Return glyph id from char-code.
  */
@@ -148,6 +146,7 @@ void blf_font_width_and_height(FontBLF *font,
 float blf_font_width(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
 float blf_font_height(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
 float blf_font_fixed_width(FontBLF *font);
+int blf_font_glyph_advance(FontBLF *font, const char *str);
 int blf_font_height_max(FontBLF *font);
 int blf_font_width_max(FontBLF *font);
 int blf_font_descender(FontBLF *font);
