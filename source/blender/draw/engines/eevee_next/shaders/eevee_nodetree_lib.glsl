@@ -7,6 +7,7 @@
 #include "infos/eevee_common_info.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
+SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 
 #include "draw_model_lib.glsl"
 #include "draw_view_lib.glsl"

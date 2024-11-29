@@ -4,6 +4,8 @@
 
 #ifdef GPU_SHADER
 #  pragma once
+#  include "BLI_utildefines_variadic.h"
+
 #  include "gpu_glsl_cpp_stubs.hh"
 
 #  include "draw_object_infos_info.hh"
@@ -11,6 +13,7 @@
 #  include "eevee_shader_shared.hh"
 
 #  include "eevee_common_info.hh"
+#  include "eevee_volume_info.hh"
 #endif
 
 #include "eevee_defines.hh"
