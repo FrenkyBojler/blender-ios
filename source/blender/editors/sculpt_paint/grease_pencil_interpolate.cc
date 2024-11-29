@@ -258,6 +258,21 @@ static bool find_curve_mapping_from_index(const GreasePencil &grease_pencil,
   BLI_assert(layer.has_drawing_at(interval->second));
   const Drawing &from_drawing = *grease_pencil.get_drawing_at(layer, interval->first);
   const Drawing &to_drawing = *grease_pencil.get_drawing_at(layer, interval->second);
+  /* In addition to interpolated pairs, the unselected original strokes are also included, making
+   * the total pair count the same as the "from" curve count. */
+  const int pairs_num = from_drawing.strokes().curves_num();
+
+  const int old_pairs_num = pairs.from_frames.size();
+  pairs.from_frames.append_n_times(interval->first, pairs_num);
+  pairs.to_frames.append_n_times(interval->second, pairs_num);
+  pairs.from_curves.resize(old_pairs_num + pairs_num);
+  pairs.to_curves.resize(old_pairs_num + pairs_num);
+  MutableSpan<int> from_curves = pairs.from_curves.as_mutable_span().slice(old_pairs_num,
+                                                                           pairs_num);
+  MutableSpan<int> to_curves = pairs.to_curves.as_mutable_span().slice(old_pairs_num, pairs_num);
+
+  /* Write source indices into the pair data. If one drawing has more selected curves than the
+   * other the remainder is ignored. */
 
   IndexMaskMemory memory;
   IndexMask from_selection, to_selection;
@@ -271,21 +286,33 @@ static bool find_curve_mapping_from_index(const GreasePencil &grease_pencil,
     from_selection = from_drawing.strokes().curves_range();
     to_selection = to_drawing.strokes().curves_range();
   }
+  // const int interpolated_pairs_num = std::min(from_selection.size(), to_selection.size());
+  /* Discard additional elements of the larger selection. */
+  if (from_selection.size() > to_selection.size()) {
+    from_selection.slice(0, to_selection.size());
+  }
+  else if (to_selection.size() > from_selection.size()) {
+    to_selection.slice(0, from_selection.size());
+  }
 
-  const int pairs_num = std::min(from_selection.size(), to_selection.size());
-
-  const int old_pairs_num = pairs.from_frames.size();
-  pairs.from_frames.append_n_times(interval->first, pairs_num);
-  pairs.to_frames.append_n_times(interval->second, pairs_num);
-  pairs.from_curves.resize(old_pairs_num + pairs_num);
-  pairs.to_curves.resize(old_pairs_num + pairs_num);
-
-  /* Write source indices into the pair data. The drawing with fewer curves will discard some based
-   * on index. */
-  from_selection.slice(0, pairs_num)
-      .to_indices(pairs.from_curves.as_mutable_span().slice(old_pairs_num, pairs_num));
-  to_selection.slice(0, pairs_num)
-      .to_indices(pairs.to_curves.as_mutable_span().slice(old_pairs_num, pairs_num));
+  /* By default: copy the "from" curve and ignore the "to" curve. */
+  array_utils::fill_index_range(from_curves);
+  to_curves.fill(-1);
+  /* Selected curves are interpolated. */
+  // from_selection.slice(0, interpolated_pairs_num)
+  //     .to_indices(pairs.from_curves.as_mutable_span().slice(old_pairs_num, pairs_num));
+  // to_selection.slice(0, pairs_num)
+  //     .to_indices(pairs.to_curves.as_mutable_span().slice(old_pairs_num, pairs_num));
+  IndexMask::foreach_segment_zipped({from_selection, to_selection},
+                                    [&](Span<IndexMaskSegment> segments) {
+                                      const IndexMaskSegment &from_segment = segments[0];
+                                      const IndexMaskSegment &to_segment = segments[1];
+                                      BLI_assert(from_segment.size() == to_segment.size());
+                                      for (const int i : from_segment.index_range()) {
+                                        to_curves[from_segment[i]] = to_segment[i];
+                                      }
+                                      return true;
+                                    });
 
   return true;
 }
@@ -561,23 +588,44 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
         const int pair_index = sorted_pairs[sorted_index];
         const int from_curve = curve_pairs.from_curves[pair_index];
         const int to_curve = curve_pairs.to_curves[pair_index];
-        const IndexRange from_points = from_points_by_curve[from_curve];
-        const IndexRange to_points = to_points_by_curve[to_curve];
 
-        dst_curve_offsets[pair_index] = std::max(from_points.size(), to_points.size());
-        switch (flip_mode) {
-          case InterpolateFlipMode::None:
-            dst_curve_flip[pair_index] = false;
-            break;
-          case InterpolateFlipMode::Flip:
-            dst_curve_flip[pair_index] = true;
-            break;
-          case InterpolateFlipMode::FlipAuto: {
-            dst_curve_flip[pair_index] = compute_auto_flip(from_positions.slice(from_points),
-                                                           to_positions.slice(to_points));
-            break;
+        int curve_size = 0;
+        bool curve_flip = false;
+        if (from_curve < 0 && to_curve < 0) {
+          /* No output curve. */
+        }
+        else if (from_curve < 0) {
+          const IndexRange to_points = to_points_by_curve[to_curve];
+          curve_size = to_points.size();
+          curve_flip = false;
+        }
+        else if (to_curve < 0) {
+          const IndexRange from_points = from_points_by_curve[from_curve];
+          curve_size = from_points.size();
+          curve_flip = false;
+        }
+        else {
+          const IndexRange from_points = from_points_by_curve[from_curve];
+          const IndexRange to_points = to_points_by_curve[to_curve];
+
+          curve_size = std::max(from_points.size(), to_points.size());
+          switch (flip_mode) {
+            case InterpolateFlipMode::None:
+              curve_flip = false;
+              break;
+            case InterpolateFlipMode::Flip:
+              curve_flip = true;
+              break;
+            case InterpolateFlipMode::FlipAuto: {
+              curve_flip = compute_auto_flip(from_positions.slice(from_points),
+                                             to_positions.slice(to_points));
+              break;
+            }
           }
         }
+
+        dst_curve_offsets[pair_index] = curve_size;
+        dst_curve_flip[pair_index] = curve_flip;
       }
     }
     return offset_indices::accumulate_counts_to_offsets(dst_curve_offsets);
@@ -590,18 +638,30 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
     dst_curves.offsets_for_write().copy_from(dst_curve_offsets);
   }
 
+  /* Copy vertex group names since we still have other parts of the code depends on vertex group
+   * names to be available. */
+  BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &grease_pencil.vertex_group_names);
+
   /* Sorted map arrays that can be passed to the interpolation function directly.
    * These index maps have the same order as the sorted indices, so slices of indices can be used
    * for interpolating all curves of a frame pair at once. */
-  Array<int> sorted_from_curve_indices(dst_curve_num);
-  Array<int> sorted_to_curve_indices(dst_curve_num);
+  Array<int> from_curve_buffer(dst_curve_num);
+  Array<int> to_curve_buffer(dst_curve_num);
   Array<int> from_sample_indices(dst_point_num);
   Array<int> to_sample_indices(dst_point_num);
   Array<float> from_sample_factors(dst_point_num);
   Array<float> to_sample_factors(dst_point_num);
+  IndexMaskMemory memory;
 
   for (const int pair_range_i : curves_by_pair.index_range()) {
     const IndexRange pair_range = curves_by_pair[pair_range_i];
+    /* Subset of target curves that are filled by this frame pair. Selection is built from pair
+     * indices, which correspond to dst curve indices. */
+    const IndexMask dst_curve_mask = IndexMask::from_indices(
+        sorted_pairs.as_span().slice(pair_range), memory);
+    MutableSpan<int> from_indices = from_curve_buffer.as_mutable_span().slice(pair_range);
+    MutableSpan<int> to_indices = to_curve_buffer.as_mutable_span().slice(pair_range);
+
     const int first_pair_index = sorted_pairs[pair_range.first()];
     const int from_frame = curve_pairs.from_frames[first_pair_index];
     const int to_frame = curve_pairs.to_frames[first_pair_index];
@@ -617,20 +677,10 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
     const VArray<bool> from_curves_cyclic = from_drawing->strokes().cyclic();
     const VArray<bool> to_curves_cyclic = to_drawing->strokes().cyclic();
 
-    IndexMaskMemory selection_memory;
-    /* Subset of target curves that are filled by this frame pair. Selection is built from pair
-     * indices, which correspond to dst curve indices. */
-    const IndexMask dst_curve_mask = IndexMask::from_indices(
-        sorted_pairs.as_span().slice(pair_range), selection_memory);
-    MutableSpan<int> pair_from_indices = sorted_from_curve_indices.as_mutable_span().slice(
-        pair_range);
-    MutableSpan<int> pair_to_indices = sorted_to_curve_indices.as_mutable_span().slice(pair_range);
-    for (const int i : pair_range) {
-      const int pair_index = sorted_pairs[i];
-      sorted_from_curve_indices[i] = std::clamp(
-          curve_pairs.from_curves[pair_index], 0, int(from_curves.last()));
-      sorted_to_curve_indices[i] = std::clamp(
-          curve_pairs.to_curves[pair_index], 0, int(to_curves.last()));
+    for (const int i : pair_range.index_range()) {
+      const int pair_index = sorted_pairs[pair_range[i]];
+      from_indices[i] = curve_pairs.from_curves[pair_index];
+      to_indices[i] = curve_pairs.to_curves[pair_index];
 
       const int from_curve = curve_pairs.from_curves[pair_index];
       const int to_curve = curve_pairs.to_curves[pair_index];
@@ -666,8 +716,8 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
 
     geometry::interpolate_curves_with_samples(from_drawing->strokes(),
                                               to_drawing->strokes(),
-                                              pair_from_indices,
-                                              pair_to_indices,
+                                 from_indices,
+                                 to_indices,
                                               from_sample_indices,
                                               to_sample_indices,
                                               from_sample_factors,

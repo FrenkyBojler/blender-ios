@@ -204,6 +204,10 @@ static void sample_curve_attribute(const bke::CurvesGeometry &src_curves,
     Vector<T> evaluated_data;
     dst_curve_mask.foreach_index([&](const int i_dst_curve, const int pos) {
       const int i_src_curve = src_curve_indices[pos];
+      if (i_src_curve < 0) {
+        return;
+      }
+
       const IndexRange src_points = src_points_by_curve[i_src_curve];
       const IndexRange dst_points = dst_points_by_curve[i_dst_curve];
 
@@ -240,7 +244,7 @@ static void mix_arrays(const Span<T> from,
 
 static void mix_arrays(const GSpan src_from,
                        const GSpan src_to,
-                       const float mix_factor,
+                       const Span<float> mix_factors,
                        const IndexMask &selection,
                        const GMutableSpan dst)
 {
@@ -250,14 +254,14 @@ static void mix_arrays(const GSpan src_from,
     const Span<T> to = src_to.typed<T>();
     const MutableSpan<T> dst_typed = dst.typed<T>();
     selection.foreach_index(GrainSize(512), [&](const int curve) {
-      dst_typed[curve] = math::interpolate(from[curve], to[curve], mix_factor);
+      dst_typed[curve] = math::interpolate(from[curve], to[curve], mix_factors[curve]);
     });
   });
 }
 
 static void mix_arrays(const GSpan src_from,
                        const GSpan src_to,
-                       const float mix_factor,
+                       const Span<float> mix_factors,
                        const IndexMask &group_selection,
                        const OffsetIndices<int> groups,
                        const GMutableSpan dst)
@@ -269,7 +273,7 @@ static void mix_arrays(const GSpan src_from,
       const Span<T> from = src_from.typed<T>();
       const Span<T> to = src_to.typed<T>();
       const MutableSpan<T> dst_typed = dst.typed<T>();
-      mix_arrays(from.slice(range), to.slice(range), mix_factor, dst_typed.slice(range));
+      mix_arrays(from.slice(range), to.slice(range), mix_factors[curve], dst_typed.slice(range));
     });
   });
 }
@@ -311,8 +315,34 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
   AttributesForInterpolation curve_attributes = gather_curve_attributes_to_interpolate(
       from_curves, to_curves, dst_curves);
 
+  Array<float> mix_factors(dst_curves.curves_num());
   const OffsetIndices dst_points_by_curve = dst_curves.points_by_curve();
 
+
+    // BLI_assert(from_curves.curves_range().contains(i_from_curve));
+    // BLI_assert(to_curves.curves_range().contains(i_to_curve));
+    // const Span<float> from_lengths = from_curves.evaluated_lengths_for_curve(
+    //     i_from_curve, from_curves_cyclic[i_from_curve]);
+    // const Span<float> to_lengths = to_curves.evaluated_lengths_for_curve(
+    //     i_to_curve, to_curves_cyclic[i_to_curve]);
+    const Span<float> from_lengths = (i_from_curve >= 0 ?
+                                          from_curves.evaluated_lengths_for_curve(
+                                              i_from_curve, from_curves_cyclic[i_from_curve]) :
+                                          Span<float>{});
+    const Span<float> to_lengths = (i_to_curve >= 0 ?
+                                        to_curves.evaluated_lengths_for_curve(
+                                            i_to_curve, to_curves_cyclic[i_to_curve]) :
+                                        Span<float>{});
+
+    if (i_from_curve >= 0 && i_to_curve >= 0) {
+      mix_factors[i_dst_curve] = mix_factor;
+    }
+    else if (i_to_curve >= 0) {
+      mix_factors[i_dst_curve] = 1.0f;
+    }
+    else {
+      mix_factors[i_dst_curve] = 0.0f;
+    }
   /* For every attribute, evaluate attributes from every curve in the range in the original
    * curve's "evaluated points", then use linear interpolation to sample to the result. */
   for (const int i_attribute : point_attributes.dst.index_range()) {
@@ -346,7 +376,7 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
                              to_sample_indices,
                              to_sample_factors,
                              to_samples);
-      mix_arrays(from_samples, to_samples, mix_factor, dst_curve_mask, dst_points_by_curve, dst);
+      mix_arrays(from_samples, to_samples, mix_factors, dst_curve_mask, dst_points_by_curve, dst);
     }
     else if (!src_from.is_empty()) {
       sample_curve_attribute(from_curves,
@@ -394,7 +424,7 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
 
     mix_arrays(from_samples.as_span(),
                to_samples.as_span(),
-               mix_factor,
+               mix_factors,
                dst_curve_mask,
                dst_points_by_curve,
                dst_positions);
@@ -421,7 +451,7 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
       GArray<> to_samples(dst.type(), dst.size());
       array_utils::copy(GVArray::ForSpan(src_from), dst_curve_mask, from_samples);
       array_utils::copy(GVArray::ForSpan(src_to), dst_curve_mask, to_samples);
-      mix_arrays(from_samples, to_samples, mix_factor, dst_curve_mask, dst);
+      mix_arrays(from_samples, to_samples, mix_factors, dst_curve_mask, dst);
     }
     else if (!src_from.is_empty()) {
       array_utils::copy(GVArray::ForSpan(src_from), dst_curve_mask, dst);
