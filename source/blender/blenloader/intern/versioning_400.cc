@@ -3126,6 +3126,28 @@ static void add_image_editor_asset_shelf(Main &bmain)
   }
 }
 
+static void add_dopesheet_editor_footer(Main &bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain.screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype != SPACE_ACTION) {
+          continue;
+        }
+
+        ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
+
+        if (ARegion *new_footer_region = do_versions_add_region_if_not_found(
+                regionbase, RGN_TYPE_FOOTER, __func__, RGN_TYPE_HEADER))
+        {
+          new_footer_region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
+                                                                           RGN_ALIGN_BOTTOM;
+        }
+      }
+    }
+  }
+}
+
 static void node_reroute_add_storage(bNodeTree &tree)
 {
   for (bNode *node : tree.all_nodes()) {
@@ -5180,6 +5202,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         remove_triangulate_node_min_size_input(ntree);
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 9)) {
+    add_dopesheet_editor_footer(*bmain);
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
