@@ -42,7 +42,7 @@
 #include "opensubdiv_evaluator_capi.hh"
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_evaluator.hh"
-#  include "opensubdiv_topology_refiner_capi.hh"
+#  include "opensubdiv_topology_refiner.hh"
 #endif
 
 #include "draw_cache_extract.hh"
@@ -307,7 +307,9 @@ static GPUShader *get_subdiv_shader(SubdivShaderType shader_type)
     else if (shader_type == SHADER_BUFFER_EDGE_FAC) {
       /* No separate shader for the AMD driver case as we assume that the GPU will not change
        * during the execution of the program. */
-      defines = GPU_crappy_amd_driver() ? "#define GPU_AMD_DRIVER_BYTE_BUG\n" : nullptr;
+      if (GPU_crappy_amd_driver()) {
+        defines = "#define GPU_AMD_DRIVER_BYTE_BUG\n";
+      }
     }
     else if (shader_type == SHADER_BUFFER_CUSTOM_NORMALS_FINALIZE) {
       defines = "#define CUSTOM_NORMALS\n";
@@ -818,13 +820,13 @@ static void draw_subdiv_cache_update_extra_coarse_face_data(DRWSubdivCache &cach
     }
     GPU_vertbuf_init_with_format_ex(*cache.extra_coarse_face_data, format, GPU_USAGE_DYNAMIC);
     GPU_vertbuf_data_alloc(*cache.extra_coarse_face_data,
-                           mr.extract_type == MR_EXTRACT_BMESH ? cache.bm->totface :
-                                                                 mesh->faces_num);
+                           mr.extract_type == MeshExtractType::BMesh ? cache.bm->totface :
+                                                                       mesh->faces_num);
   }
 
   MutableSpan<uint32_t> flags_data = cache.extra_coarse_face_data->data<uint32_t>();
 
-  if (mr.extract_type == MR_EXTRACT_BMESH) {
+  if (mr.extract_type == MeshExtractType::BMesh) {
     draw_subdiv_cache_extra_coarse_face_data_bm(cache.bm, mr.efa_act, flags_data);
   }
   else if (mr.orig_index_face != nullptr) {
@@ -2134,7 +2136,6 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
                                                  MeshBufferCache &mbc,
                                                  const bool is_editmode,
                                                  const bool is_paint_mode,
-                                                 const bool edit_mode_active,
                                                  const float4x4 &object_to_world,
                                                  const bool do_final,
                                                  const bool do_uvedit,
@@ -2212,16 +2213,8 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
     draw_subdiv_cache_ensure_mat_offsets(draw_cache, mesh_eval, batch_cache.mat_len);
   }
 
-  std::unique_ptr<MeshRenderData> mr = mesh_render_data_create(ob,
-                                                               mesh,
-                                                               is_editmode,
-                                                               is_paint_mode,
-                                                               edit_mode_active,
-                                                               object_to_world,
-                                                               do_final,
-                                                               do_uvedit,
-                                                               use_hide,
-                                                               ts);
+  std::unique_ptr<MeshRenderData> mr = mesh_render_data_create(
+      ob, mesh, is_editmode, is_paint_mode, object_to_world, do_final, do_uvedit, use_hide, ts);
   draw_cache.use_hide = use_hide;
 
   /* Used for setting loop normals flags. Mapped extraction is only used during edit mode.
@@ -2290,7 +2283,6 @@ void DRW_create_subdivision(Object &ob,
                             MeshBufferCache &mbc,
                             const bool is_editmode,
                             const bool is_paint_mode,
-                            const bool edit_mode_active,
                             const float4x4 &object_to_world,
                             const bool do_final,
                             const bool do_uvedit,
@@ -2314,7 +2306,6 @@ void DRW_create_subdivision(Object &ob,
                                             mbc,
                                             is_editmode,
                                             is_paint_mode,
-                                            edit_mode_active,
                                             object_to_world,
                                             do_final,
                                             do_uvedit,
