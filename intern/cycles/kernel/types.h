@@ -964,6 +964,9 @@ struct AttributeMap {
 #endif
 
 #define MAX_VOLUME_CLOSURE 8  // NOLINT
+/* Set the maximal resolution to be 128 (2^7) to reduce traversing overhead. */
+/* TODO(weizhen): tweak this threshold. 128 is a reference from PBRT. */
+#define VOLUME_OCTREE_MAX_DEPTH 7
 
 /* This struct is the base class for all closures. The common members are
  * duplicated in all derived classes since we don't have C++ in the kernel
@@ -1693,6 +1696,43 @@ struct KernelLightTreeNode {
   uint8_t pad[11];
 };
 static_assert_align(KernelLightTreeNode, 16);
+
+struct KernelOctreeNode {
+  /* Index of the parent node in device vector `volume_tree_nodes`. */
+  int parent;
+
+  /* Index of the first child node in device vector `volume_tree_nodes`. All children of the same
+   * node are stored in contiguous memory. */
+  int first_child;
+
+  /* Minimal and maximal volume density inside the node. */
+  /* TODO(weizhen): only leaf nodes need this field, can potentially reduce size. */
+  Extrema<float> sigma;
+
+  ccl_device_inline_method bool is_leaf() const
+  {
+    return first_child == -1;
+  }
+
+  ccl_device_inline_method bool is_root() const
+  {
+    return parent == -1;
+  }
+
+  /* Only root nodes need transformation, allocate two more struct per root node to store the scale
+   * and translation. */
+  ccl_device_inline_method float3 decode_transform() const
+  {
+    return make_float3(__int_as_float(parent), __int_as_float(first_child), sigma.min);
+  }
+
+  ccl_device_inline_method void encode_transform(const float3 vec)
+  {
+    parent = __float_as_int(vec.x);
+    first_child = __float_as_int(vec.y);
+    sigma.min = vec.z;
+  }
+};
 
 struct KernelLightTreeEmitter {
   /* Bounding cone. */

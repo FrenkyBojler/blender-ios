@@ -49,6 +49,7 @@ class BakeData;
 class RenderStats;
 class SceneUpdateStats;
 class Volume;
+class VolumeManager;
 
 /* Scene Parameters */
 
@@ -150,6 +151,7 @@ class Scene : public NodeOwner {
   unique_ptr<ParticleSystemManager> particle_system_manager;
   unique_ptr<BakeManager> bake_manager;
   unique_ptr<ProceduralManager> procedural_manager;
+  unique_ptr<VolumeManager> volume_manager;
 
   /* default shaders */
   Shader *default_surface;

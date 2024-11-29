@@ -4,7 +4,9 @@
 
 #include "scene/volume.h"
 #include "scene/attribute.h"
+#include "scene/background.h"
 #include "scene/image_vdb.h"
+#include "scene/object.h"
 #include "scene/scene.h"
 
 #ifdef WITH_OPENVDB
@@ -19,6 +21,8 @@
 #include "util/openvdb.h"
 #include "util/progress.h"
 #include "util/types.h"
+
+#include "bvh/octree.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -777,5 +781,202 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
                    (1024.0 * 1024.0)
             << "Mb.";
 }
+
+VolumeManager::VolumeManager()
+{
+  /* TODO(weizhen): enable later when octree is used for ray marching. */
+  need_rebuild_ = false;
+}
+
+bool VolumeManager::is_homogeneous_volume(const Object *object, const Shader *shader)
+{
+  if (!shader->has_volume || shader->has_volume_spatial_varying) {
+    return false;
+  }
+
+  if (object && shader->has_volume_attribute_dependency) {
+    for (Attribute &attr : object->get_geometry()->attributes.attributes) {
+      /* If both the shader and the object needs volume attributes, the volume is heterogeneous. */
+      if (attr.element == ATTR_ELEMENT_VOXEL) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+void VolumeManager::initialize_octree(const Scene *scene)
+{
+  /* Add world volume. */
+  const Shader *bg_shader = scene->background->get_shader(scene);
+  if (bg_shader->has_volume) {
+    /* Represent world with `nullptr`. */
+    auto it = object_octrees_.find({nullptr, bg_shader});
+    if (it == object_octrees_.end()) {
+      /* World volume is unbounded, use some practical large number instead. */
+      const float3 size = make_float3(10000.0f);
+      object_octrees_[{nullptr, bg_shader}] = std::make_shared<Octree>(BoundBox(-size, size));
+    }
+  }
+
+  /* Instanced objects without spatial variation can share one octree. */
+  std::map<std::pair<const Geometry *, const Shader *>, std::shared_ptr<Octree>> geometry_octrees;
+  for (const auto &it : object_octrees_) {
+    const Shader *shader = it.first.second;
+    if (!shader->has_volume_spatial_varying) {
+      if (const Object *object = it.first.first) {
+        geometry_octrees[{object->get_geometry(), shader}] = it.second;
+      }
+    }
+  }
+
+  /* Loop through the volume objects to initialize their root nodes. */
+  for (const Object *object : scene->objects) {
+    const Geometry *geom = object->get_geometry();
+    if (!geom->has_volume) {
+      continue;
+    }
+
+    /* Create Octree. */
+    for (const Node *node : geom->get_used_shaders()) {
+      const Shader *shader = static_cast<const Shader *>(node);
+      if (!shader->has_volume) {
+        continue;
+      }
+
+      if (object_octrees_.find({object, shader}) == object_octrees_.end()) {
+        const Mesh *mesh = static_cast<const Mesh *>(geom);
+        if (!shader->has_volume_spatial_varying) {
+          /* TODO(weizhen): check object attribute. */
+          if (auto it = geometry_octrees.find({geom, shader}); it != geometry_octrees.end()) {
+            /* Share octree with other instances. */
+            object_octrees_[{object, shader}] = it->second;
+          }
+          else {
+            auto octree = std::make_shared<Octree>(mesh->bounds);
+            geometry_octrees[{geom, shader}] = octree;
+            object_octrees_[{object, shader}] = octree;
+          }
+        }
+        else {
+          /* TODO(weizhen): we can still share the octree if the spatial variation is in object
+           * space, but that might be tricky to determine. */
+          object_octrees_[{object, shader}] = std::make_shared<Octree>(mesh->bounds);
+        }
+      }
+    }
+  }
+}
+
+int VolumeManager::num_octree_nodes() const
+{
+  int num_nodes = 0;
+
+  std::set<const Octree *> unique_octrees;
+  for (const auto &it : object_octrees_) {
+    const Octree *octree = it.second.get();
+    if (unique_octrees.find(octree) == unique_octrees.end()) {
+      unique_octrees.insert(octree);
+      /* Plus two to encode transformation for root nodes. */
+      num_nodes += octree->get_num_nodes() + 2;
+    }
+  }
+
+  return num_nodes;
+}
+
+void VolumeManager::build_octree(Device *device, Progress &progress)
+{
+  const double start_time = time_dt();
+
+  for (auto &it : object_octrees_) {
+    if (it.second->is_built()) {
+      continue;
+    }
+
+    const Object *object = it.first.first;
+    const Shader *shader = it.first.second;
+    it.second->build(device, progress, object, shader);
+  }
+
+  const double build_time = time_dt() - start_time;
+
+  VLOG_WORK << object_octrees_.size() << " volume octree(s) with a total of " << num_octree_nodes()
+            << " nodes are built in " << build_time << " seconds.";
+}
+
+void VolumeManager::flatten_octree(DeviceScene *dscene, const Scene *scene) const
+{
+  if (object_octrees_.empty()) {
+    return;
+  }
+
+  /* Keep track of the root index of the unique octrees. */
+  std::map<const Octree *, int> octree_root_indices;
+
+  /* Plus one for world volume. */
+  int *roots = dscene->volume_tree_roots.alloc(scene->objects.size() + 1);
+
+  KernelOctreeNode *knodes = dscene->volume_tree_nodes.alloc(num_octree_nodes());
+
+  int node_index = 0;
+  for (const auto &it : object_octrees_) {
+    const Object *object = it.first.first;
+    const int object_id = object ? object->get_device_index() + 1 : 0;
+    const Octree *octree = it.second.get();
+    if (auto entry = octree_root_indices.find(octree); entry == octree_root_indices.end()) {
+      /* Flatten octree and record the index of the root node. */
+      const uint root_index = node_index++;
+      auto root = octree->get_root();
+      roots[object_id] = root_index;
+      octree_root_indices[octree] = root_index;
+      knodes[root_index].parent = -1;
+
+      /* Encode scale and translation into octree space. */
+      const float3 inv_scale = 1.0f / root->bbox.size();
+      const float3 inv_translation = -root->bbox.min * inv_scale + 1.0f;
+      knodes[node_index++].encode_transform(inv_scale);
+      knodes[node_index++].encode_transform(inv_translation);
+
+      octree->flatten(knodes, root_index, root, node_index);
+    }
+    else {
+      /* If octree is already flattened, just point to the index of the root node. */
+      roots[object_id] = entry->second;
+    }
+  }
+
+  dscene->volume_tree_nodes.copy_to_device();
+  dscene->volume_tree_roots.copy_to_device();
+
+  VLOG_WORK << "Memory usage of volume octrees: "
+            << (dscene->volume_tree_nodes.size() * sizeof(KernelOctreeNode) +
+                dscene->volume_tree_roots.size() * sizeof(int)) /
+                   (1024.0 * 1024.0)
+            << "Mb.";
+}
+
+void VolumeManager::device_update(Device *device,
+                                  DeviceScene *dscene,
+                                  const Scene *scene,
+                                  Progress &progress)
+{
+  if (need_rebuild_) {
+    initialize_octree(scene);
+    build_octree(device, progress);
+    flatten_octree(dscene, scene);
+
+    need_rebuild_ = false;
+  }
+}
+
+void VolumeManager::device_free(DeviceScene *dscene)
+{
+  dscene->volume_tree_nodes.free();
+  dscene->volume_tree_roots.free();
+}
+
+VolumeManager::~VolumeManager() {}
 
 CCL_NAMESPACE_END

@@ -869,4 +869,31 @@ ccl_device_inline Interval<T> intervals_intersection(const ccl_private Interval<
   return {max(first.min, second.min), min(first.max, second.max)};
 }
 
+/* Defines the minimal and maximal values of a quantity. */
+template<typename T> struct Extrema {
+  T min;
+  T max;
+  Extrema<T>() = default;
+  ccl_device_inline_method Extrema<T>(T value) : min(value), max(value) {}
+  ccl_device_inline_method Extrema<T>(T min_, T max_) : min(min_), max(max_) {}
+
+  ccl_device_inline_method T range() const
+  {
+    return max - min;
+  }
+};
+
+/* Returns the extrema of both extrema. */
+template<typename T>
+ccl_device_inline Extrema<T> join(const ccl_private Extrema<T> &a, const ccl_private Extrema<T> &b)
+{
+  return {min(a.min, b.min), max(a.max, b.max)};
+}
+
+template<typename T>
+ccl_device_inline Extrema<T> join(const ccl_private Extrema<T> &a, const ccl_private T &v)
+{
+  return {min(a.min, v), max(a.max, v)};
+}
+
 CCL_NAMESPACE_END
