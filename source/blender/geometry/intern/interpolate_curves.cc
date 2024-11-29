@@ -237,8 +237,16 @@ static void mix_arrays(const Span<T> from,
                        const float mix_factor,
                        const MutableSpan<T> dst)
 {
-  for (const int i : dst.index_range()) {
-    dst[i] = math::interpolate(from[i], to[i], mix_factor);
+  if (mix_factor == 0.0f) {
+    dst.copy_from(from);
+  }
+  else if (mix_factor == 1.0f) {
+    dst.copy_from(to);
+  }
+  else {
+    for (const int i : dst.index_range()) {
+      dst[i] = math::interpolate(from[i], to[i], mix_factor);
+    }
   }
 }
 
@@ -254,7 +262,16 @@ static void mix_arrays(const GSpan src_from,
     const Span<T> to = src_to.typed<T>();
     const MutableSpan<T> dst_typed = dst.typed<T>();
     selection.foreach_index(GrainSize(512), [&](const int curve) {
-      dst_typed[curve] = math::interpolate(from[curve], to[curve], mix_factors[curve]);
+      const float mix_factor = mix_factors[curve];
+      if (mix_factor == 0.0f) {
+        dst_typed[curve] = from[curve];
+      }
+      else if (mix_factor == 1.0f) {
+        dst_typed[curve] = to[curve];
+      }
+      else {
+        dst_typed[curve] = math::interpolate(from[curve], to[curve], mix_factor);
+      }
     });
   });
 }
