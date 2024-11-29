@@ -19,7 +19,7 @@
 #include "image_batches.hh"
 #include "image_private.hh"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 constexpr float EPSILON_UV_BOUNDS = 0.00001f;
 
@@ -686,4 +686,4 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
   }
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

@@ -14,7 +14,7 @@
 #include "GPU_batch.hh"
 #include "GPU_texture.hh"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 struct TextureInfo {
   /**
@@ -96,4 +96,4 @@ struct TextureInfo {
   }
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

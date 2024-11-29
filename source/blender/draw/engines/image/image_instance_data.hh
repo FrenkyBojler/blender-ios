@@ -20,7 +20,7 @@
 
 #include "DRW_render.hh"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 struct IMAGE_InstanceData {
   Image *image;
@@ -96,4 +96,4 @@ struct IMAGE_InstanceData {
   }
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

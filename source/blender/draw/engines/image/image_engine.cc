@@ -33,7 +33,7 @@
 #include "image_space_image.hh"
 #include "image_space_node.hh"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 static std::unique_ptr<AbstractSpaceAccessor> space_accessor_from_context(
     const DRWContextState *draw_ctx)
@@ -181,11 +181,11 @@ static void IMAGE_instance_free(void *_instance_data)
 
 static const DrawEngineDataSize IMAGE_data_size = DRW_VIEWPORT_DATA_SIZE(IMAGE_Data);
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine
 
 extern "C" {
 
-using namespace blender::draw::image_engine;
+using namespace blender::image_engine;
 
 DrawEngineType draw_engine_image_type = {
     /*next*/ nullptr,

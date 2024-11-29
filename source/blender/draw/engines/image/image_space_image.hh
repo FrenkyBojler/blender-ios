@@ -10,7 +10,7 @@
 
 #include "image_private.hh"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 class SpaceImageAccessor : public AbstractSpaceAccessor {
   SpaceImage *sima;
@@ -108,4 +108,4 @@ class SpaceImageAccessor : public AbstractSpaceAccessor {
   }
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine
