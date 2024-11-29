@@ -76,7 +76,6 @@ __forceinline float3 Octree::voxel_size() const
 
 /* TODO(weizhen): check why the octree looks different. */
 bool Octree::should_split_(std::shared_ptr<OctreeNode> &node,
-                           const float scale,
                            const bool is_homogeneous_volume) const
 {
   const int3 index_min = position_to_floor_index_(node->bbox.min);
@@ -89,7 +88,7 @@ bool Octree::should_split_(std::shared_ptr<OctreeNode> &node,
 
   /* The threshold is set so that ideally only one sample needs to be taken per node. Value taken
    * from "Volume Rendering for Pixar's Elemental". */
-  if ((node->sigma.max - node->sigma.min) * len(node->bbox.size()) * scale < 1.442f ||
+  if ((node->sigma.max - node->sigma.min) * len(node->bbox.size()) * scale_ < 1.442f ||
       node->depth == VOLUME_OCTREE_MAX_DEPTH)
   {
     return false;
@@ -293,10 +292,9 @@ shared_ptr<OctreeInternalNode> Octree::make_internal_(shared_ptr<OctreeNode> &no
 }
 
 void Octree::recursive_build_(shared_ptr<OctreeNode> &octree_node,
-                              const float scale,
                               const bool is_homogeneous_volume = false)
 {
-  if (!should_split_(octree_node, scale, is_homogeneous_volume)) {
+  if (!should_split_(octree_node, is_homogeneous_volume)) {
     return;
   }
 
@@ -305,7 +303,7 @@ void Octree::recursive_build_(shared_ptr<OctreeNode> &octree_node,
 
   for (auto &child : internal->children_) {
     /* TODO(weizhen): check the performance. */
-    task_pool_.push([&] { recursive_build_(child, scale); });
+    task_pool_.push([&] { recursive_build_(child); });
   }
 
   octree_node = internal;
@@ -354,9 +352,8 @@ void Octree::build(Device *device,
   status = string_printf("Building octree for %s", name);
   progress.set_substatus(status);
 
-  const float scale = volume_scale_(object);
-  const bool is_homogeneus = VolumeManager::is_homogeneous_volume(object, shader);
-  recursive_build_(root_, scale, is_homogeneus);
+  scale_ = volume_scale_(object);
+  recursive_build_(root_, VolumeManager::is_homogeneous_volume(object, shader));
 
   task_pool_.wait_work();
 

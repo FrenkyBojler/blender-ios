@@ -96,15 +96,14 @@ class Octree {
   int3 position_to_floor_index_(const float3 p) const;
   int3 position_to_ceil_index_(const float3 p) const;
 
-  /* Whether a node should be split into child nodes. A scale is applied to account for meshes
-   * before or after transformation. */
-  bool should_split_(std::shared_ptr<OctreeNode> &node,
-                     const float scale,
-                     const bool is_homogeneous_volume) const;
-  /* Scale the node size so that Octree has the same shape in viewport and final render. */
+  /* Whether a node should be split into child nodes. */
+  bool should_split_(std::shared_ptr<OctreeNode> &node, const bool is_homogeneous_volume) const;
+  /* Scale the node size so that the octree has the similar subdivision levels in viewport and
+   * final render. */
   float volume_scale_(const Object *object) const;
+  float scale_;
   /* Recursively build a node and its child nodes. */
-  void recursive_build_(std::shared_ptr<OctreeNode> &, const float, const bool);
+  void recursive_build_(std::shared_ptr<OctreeNode> &, const bool);
   /* Turn a node into an internal node. */
   std::shared_ptr<OctreeInternalNode> make_internal_(std::shared_ptr<OctreeNode> &node);
 
