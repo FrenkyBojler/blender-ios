@@ -30,7 +30,6 @@
 
 #ifdef GLSL_CPP_STUBS
 #  pragma once
-using bool32_t = bool;
 
 /* Silence macros when compiling for shaders. */
 #  define BLI_STATIC_ASSERT(cond, msg)
