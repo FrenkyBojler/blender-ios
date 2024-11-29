@@ -120,8 +120,8 @@ namespace blender::ed::sculpt_paint {
 static int same_tex_snap(TexSnapshot *snap, MTex *mtex, ViewContext *vc, bool col, float zoom)
 {
   return (/* make brush smaller shouldn't cause a resample */
-                                                               //(mtex->brush_map_mode != MTEX_MAP_MODE_VIEW ||
-                                                               //(BKE_brush_size_get(vc->scene, brush) <= snap->BKE_brush_size_get)) &&
+          //(mtex->brush_map_mode != MTEX_MAP_MODE_VIEW ||
+          //(BKE_brush_size_get(vc->scene, brush) <= snap->BKE_brush_size_get)) &&
 
           (mtex->brush_map_mode != MTEX_MAP_MODE_TILED ||
            (vc->region->winx == snap->winx && vc->region->winy == snap->winy)) &&
@@ -848,10 +848,10 @@ BLI_INLINE void draw_tri_point(uint pos,
 
   float w = width / 2.0f;
   const float tri[3][2] = {
-                           {co[0], co[1] + w},
-                           {co[0] - w, co[1] - w},
-                           {co[0] + w, co[1] - w},
-                           };
+      {co[0], co[1] + w},
+      {co[0] - w, co[1] - w},
+      {co[0] + w, co[1] - w},
+  };
 
   immBegin(GPU_PRIM_LINE_LOOP, 3);
   immVertex2fv(pos, tri[0]);
