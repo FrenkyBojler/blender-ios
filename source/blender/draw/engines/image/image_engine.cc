@@ -36,7 +36,6 @@
 
 namespace blender::image_engine {
 
-
 struct IMAGE_Data {
   void *engine_type;
   DRWViewportEmptyList *fbl;
