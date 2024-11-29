@@ -277,11 +277,6 @@ class TIME_PT_keyframing_settings(TimelinePanelButtons, Panel):
     bl_options = {'HIDE_HEADER'}
     bl_region_type = 'HEADER'
 
-    @classmethod
-    def poll(cls, context):
-        # only for timeline editor
-        return cls.has_timeline(context)
-
     def draw(self, context):
         layout = self.layout
 
@@ -307,11 +302,6 @@ class TIME_PT_auto_keyframing(TimelinePanelButtons, Panel):
     bl_options = {'HIDE_HEADER'}
     bl_region_type = 'HEADER'
     bl_ui_units_x = 9
-
-    @classmethod
-    def poll(cls, context):
-        # Only for timeline editor.
-        return cls.has_timeline(context)
 
     def draw(self, context):
         layout = self.layout

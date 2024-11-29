@@ -8,6 +8,7 @@ from bpy.types import (
     Menu,
     Panel,
 )
+from bpy.app.translations import contexts as i18n_contexts
 
 from bl_ui.properties_data_grease_pencil import (
     GreasePencil_LayerMaskPanel,
@@ -343,10 +344,78 @@ class DOPESHEET_HT_footer(Header):
     bl_region_type = 'FOOTER'
 
     def draw(self, context):
+        scene = context.scene
+        tool_settings = context.tool_settings
+        screen = context.screen
+
         layout = self.layout
 
-        from bl_ui.space_time import TIME_MT_editor_menus
-        TIME_HT_editor_buttons.draw_header(context, layout)
+        # Menus.
+        layout.popover(
+            panel="TIME_PT_playback",
+            text="Playback",
+        )
+        layout.popover(
+            panel="TIME_PT_keyframing_settings",
+            text="Keying",
+            text_ctxt=i18n_contexts.id_windowmanager,
+        )
+
+        layout.separator_spacer()
+
+        # Auto-key toggle.
+        row = layout.row(align=True)
+        row.prop(tool_settings, "use_keyframe_insert_auto", text="", toggle=True)
+        sub = row.row(align=True)
+        sub.active = tool_settings.use_keyframe_insert_auto
+        sub.popover(
+            panel="TIME_PT_auto_keyframing",
+            text="",
+        )
+
+        # Playback buttons.
+        row = layout.row(align=True)
+        row.operator("screen.frame_jump", text="", icon='REW').end = False
+        row.operator("screen.keyframe_jump", text="", icon='PREV_KEYFRAME').next = False
+        if not screen.is_animation_playing:
+            # If using JACK and A/V sync, hide the play-reversed button since
+            # JACK transport doesn't support reversed playback.
+            if scene.sync_mode == 'AUDIO_SYNC' and context.preferences.system.audio_device == 'JACK':
+                row.scale_x = 2
+                row.operator("screen.animation_play", text="", icon='PLAY')
+                row.scale_x = 1
+            else:
+                row.operator("screen.animation_play", text="", icon='PLAY_REVERSE').reverse = True
+                row.operator("screen.animation_play", text="", icon='PLAY')
+        else:
+            row.scale_x = 2
+            row.operator("screen.animation_play", text="", icon='PAUSE')
+            row.scale_x = 1
+        row.operator("screen.keyframe_jump", text="", icon='NEXT_KEYFRAME').next = True
+        row.operator("screen.frame_jump", text="", icon='FF').end = True
+
+        layout.separator_spacer()
+
+        # Current frame.
+        row = layout.row()
+        if scene.show_subframe:
+            row.scale_x = 1.15
+            row.prop(scene, "frame_float", text="")
+        else:
+            row.scale_x = 0.95
+            row.prop(scene, "frame_current", text="")
+
+        # Scene frame range.
+        row = layout.row(align=True)
+        row.prop(scene, "use_preview_range", text="", toggle=True)
+        sub = row.row(align=True)
+        sub.scale_x = 0.8
+        if not scene.use_preview_range:
+            sub.prop(scene, "frame_start", text="Start")
+            sub.prop(scene, "frame_end", text="End")
+        else:
+            sub.prop(scene, "frame_preview_start", text="Start")
+            sub.prop(scene, "frame_preview_end", text="End")
 
 
 class DOPESHEET_PT_snapping(Panel):
