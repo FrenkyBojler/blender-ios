@@ -457,6 +457,7 @@ void curve_populate_trans_data_structs(
   const View3D *v3d = static_cast<const View3D *>(t.view);
   const bool hide_handles = (v3d != nullptr) ? (v3d->overlay.handle_display == CURVE_HANDLE_NONE) :
                                                false;
+  const Span<float3> point_positions = curves.positions();
   std::array<MutableSpan<float3>, 3> positions_per_selection_attr;
 
   for (const int selection_i : points_to_transform_per_attr.index_range()) {
@@ -494,7 +495,7 @@ void curve_populate_trans_data_structs(
     VArray<bool> selection = selection_attrs[selection_i];
 
     points_to_transform.foreach_index(
-        GrainSize(512), [&](const int64_t point_in_domain_i, const int64_t transform_point_i) {
+        GrainSize(1024), [&](const int64_t point_in_domain_i, const int64_t transform_point_i) {
           TransData &td = tc_data[transform_point_i];
           float3 *elem = &positions[transform_point_i];
 
@@ -502,7 +503,7 @@ void curve_populate_trans_data_structs(
           copy_v3_v3(td.center,
                      hide_handles || (t.around == V3D_AROUND_LOCAL_ORIGINS) ||
                              selection_attrs[0][point_in_domain_i] ?
-                         curves.positions()[point_in_domain_i] :
+                         point_positions[point_in_domain_i] :
                          td.iloc);
           td.loc = *elem;
 
