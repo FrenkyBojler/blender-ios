@@ -21,7 +21,7 @@
 
 namespace blender::io::obj {
 
-Curve *blender::io::obj::CurveFromGeometry::create_curve()
+Curve *blender::io::obj::CurveFromGeometry::create_curve(const OBJImportParams &import_params)
 {
   BLI_assert(!curve_geometry_.nurbs_element_.curv_indices.is_empty());
 
@@ -36,7 +36,7 @@ Curve *blender::io::obj::CurveFromGeometry::create_curve()
 
   Nurb *nurb = static_cast<Nurb *>(MEM_callocN(sizeof(Nurb), __func__));
   BLI_addtail(BKE_curve_nurbs_get(curve), nurb);
-  this->create_nurbs(curve);
+  this->create_nurbs(curve, import_params);
 
   return curve;
 }
@@ -63,7 +63,7 @@ Object *CurveFromGeometry::create_curve_object(Main *bmain, const OBJImportParam
 
   Nurb *nurb = static_cast<Nurb *>(MEM_callocN(sizeof(Nurb), __func__));
   BLI_addtail(BKE_curve_nurbs_get(curve), nurb);
-  this->create_nurbs(curve);
+  this->create_nurbs(curve, import_params);
 
   obj->data = curve;
   transform_object(obj, import_params);
@@ -71,7 +71,7 @@ Object *CurveFromGeometry::create_curve_object(Main *bmain, const OBJImportParam
   return obj;
 }
 
-void CurveFromGeometry::create_nurbs(Curve *curve)
+void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import_params)
 {
   const NurbsElement &nurbs_geometry = curve_geometry_.nurbs_element_;
   Nurb *nurb = static_cast<Nurb *>(curve->nurb.first);
@@ -88,17 +88,54 @@ void CurveFromGeometry::create_nurbs(Curve *curve)
                                                                          nurbs_geometry.degree + 1;
   nurb->resolu = nurb->resolv = curve->resolu;
 
-  const int64_t tot_vert{nurbs_geometry.curv_indices.size()};
+  nurb->flagu = this->detect_knot_mode(import_params);
+  const int degree = nurbs_geometry.degree;
+  const Span<int> indices = nurbs_geometry.curv_indices.as_span().slice(
+      nurbs_geometry.curv_indices.index_range().drop_front(nurb->flagu & CU_NURB_CYCLIC ? degree :
+                                                                                          0));
 
-  BKE_nurb_points_add(nurb, tot_vert);
-  for (int i = 0; i < tot_vert; i++) {
+  BKE_nurb_points_add(nurb, indices.size());
+  for (const int i : indices.index_range()) {
     BPoint &bpoint = nurb->bp[i];
-    copy_v3_v3(bpoint.vec, global_vertices_.vertices[nurbs_geometry.curv_indices[i]]);
-    bpoint.vec[3] = 1.0f;
+    copy_v3_v3(bpoint.vec, global_vertices_.vertices[indices[i]]);
+    bpoint.vec[3] = (global_vertices_.vertex_weights.size() > indices[i]) ?
+                        global_vertices_.vertex_weights[indices[i]] :
+                        1.0f;
     bpoint.weight = 1.0f;
   }
 
   BKE_nurb_knot_calc_u(nurb);
+}
+
+short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params)
+{
+  const NurbsElement &nurbs_geometry = curve_geometry_.nurbs_element_;
+  const int degree = nurbs_geometry.degree;
+  const Span<int> indices = nurbs_geometry.curv_indices;
+  const Span<float> knots = nurbs_geometry.parm;
+  short knot_mode = 0;
+
+  if (import_params.close_spline_loops && indices.size() > degree) {
+    bool is_cyclic = true;
+
+    for (const int i : IndexRange(degree)) {
+      if (indices[i] != indices.last(degree - i - 1)) {
+        is_cyclic = false;
+        break;
+      }
+    }
+    for (const int i : IndexRange(degree - 1)) {
+      const float head_span = knots[i + 1] - knots[i];
+      const float tail_span = knots.last(degree + i) - knots.last(degree + i + 1);
+      if (abs(head_span - tail_span) > 0.0001f) {
+        is_cyclic = false;
+        break;
+      }
+    }
+    if (is_cyclic) {
+      knot_mode = CU_NURB_CYCLIC;
+    }
+  }
 
   /* Figure out whether curve should have U endpoint flag set:
    * the parameters should have at least (degree+1) values on each end,
@@ -109,19 +146,47 @@ void CurveFromGeometry::create_nurbs(Curve *curve)
     do_endpoints = true;
     const float2 range = nurbs_geometry.range;
     for (int i = 0; i < deg1; ++i) {
-      if (abs(nurbs_geometry.parm[i] - range.x) > 0.0001f) {
-        do_endpoints = false;
-        break;
-      }
-      if (abs(nurbs_geometry.parm[nurbs_geometry.parm.size() - 1 - i] - range.y) > 0.0001f) {
+      if (abs(knots[i] - range.x) > 0.0001f || abs(knots.last(i) - range.y) > 0.0001f) {
         do_endpoints = false;
         break;
       }
     }
   }
+  IndexRange inner_knots = knots.index_range();
   if (do_endpoints) {
-    nurb->flagu = CU_NURB_ENDPOINT;
+    knot_mode |= CU_NURB_ENDPOINT;
+    inner_knots = inner_knots.size() > 2 * degree ?
+                      inner_knots.drop_front(degree).drop_back(degree) :
+                      IndexRange();
   }
+  if (inner_knots.size() > 0) {
+    const float first_step = knots[inner_knots.first() + 1] - knots[inner_knots.first()];
+    bool is_spacing_equal = true;
+    bool is_bezier_knot = degree > 1;
+    int repeats = 0;
+    for (const int i : inner_knots.drop_front(1).drop_back(1)) {
+      const float step = knots[i + 1] - knots[i];
+      if (abs(step - first_step) > 0.0001f) {
+        is_spacing_equal = false;
+        if (step == 0.0f) {
+          repeats++;
+          if (repeats > degree - 1) {
+            is_bezier_knot = false;
+          }
+        }
+      }
+      else if (repeats == degree - 1) {
+        repeats = 0;
+      }
+      else {
+        is_bezier_knot = false;
+      }
+    }
+    if (!is_spacing_equal && is_bezier_knot) {
+      knot_mode |= CU_NURB_BEZIER;
+    }
+  }
+  return knot_mode;
 }
 
 }  // namespace blender::io::obj

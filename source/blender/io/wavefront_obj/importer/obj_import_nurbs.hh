@@ -32,7 +32,7 @@ class CurveFromGeometry : NonMovable, NonCopyable {
   {
   }
 
-  Curve *create_curve();
+  Curve *create_curve(const OBJImportParams &import_params);
 
   Object *create_curve_object(Main *bmain, const OBJImportParams &import_params);
 
@@ -40,6 +40,8 @@ class CurveFromGeometry : NonMovable, NonCopyable {
   /**
    * Create a NURBS spline for the Curve converted from Geometry.
    */
-  void create_nurbs(Curve *curve);
+  void create_nurbs(Curve *curve, const OBJImportParams &import_params);
+
+  short detect_knot_mode(const OBJImportParams &import_params);
 };
 }  // namespace blender::io::obj
