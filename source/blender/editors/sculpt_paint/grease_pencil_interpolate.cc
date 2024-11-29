@@ -678,15 +678,29 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
 
     for (const int i : pair_range.index_range()) {
       const int pair_index = sorted_pairs[pair_range[i]];
+      const IndexRange dst_points = dst_points_by_curve[pair_index];
       from_indices[i] = curve_pairs.from_curves[pair_index];
       to_indices[i] = curve_pairs.to_curves[pair_index];
 
       const int from_curve = curve_pairs.from_curves[pair_index];
       const int to_curve = curve_pairs.to_curves[pair_index];
+
+      BLI_assert(from_curve >= 0 || to_curve >= 0);
+      if (to_curve < 0) {
+        /* Copy "from" curve. */
+        array_utils::fill_index_range(from_sample_indices.as_mutable_span().slice(dst_points));
+        from_sample_factors.fill(0.0f);
+        continue;
+      }
+      if (from_curve < 0) {
+        /* Copy "to" curve. */
+        array_utils::fill_index_range(to_sample_indices.as_mutable_span().slice(dst_points));
+        to_sample_factors.fill(0.0f);
+        continue;
+      }
+
       const IndexRange from_points = from_points_by_curve[from_curve];
       const IndexRange to_points = to_points_by_curve[to_curve];
-      const IndexRange dst_points = dst_points_by_curve[pair_index];
-
       if (from_points.size() >= to_points.size()) {
         /* Target curve samples match 'from' points. */
         BLI_assert(from_points.size() == dst_points.size());
