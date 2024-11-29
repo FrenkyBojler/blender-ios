@@ -229,6 +229,9 @@ void Object::tag_update(Scene *scene)
   if (geometry) {
     if (tfm_is_modified() || motion_is_modified()) {
       flag |= ObjectManager::TRANSFORM_MODIFIED;
+      if (geometry->has_volume) {
+        scene->volume_manager->tag_update(this, flag);
+      }
     }
 
     if (visibility_is_modified()) {

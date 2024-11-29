@@ -39,6 +39,12 @@ class VolumeManager {
   void device_update(Device *, DeviceScene *, const Scene *, Progress &);
   void device_free(DeviceScene *);
 
+  /* Tag volume octree for update when scene changes. */
+  void tag_update();
+  void tag_update(const Shader *shader);
+  void tag_update(const Object *object, const uint32_t flag);
+  void tag_update(const Geometry *geometry);
+
   /* Check whether the shader is a homogeneous volume. */
   static bool is_homogeneous_volume(const Object *, const Shader *);
 
@@ -63,6 +69,7 @@ class VolumeManager {
   std::map<std::pair<const Object *, const Shader *>, std::shared_ptr<Octree>> object_octrees_;
 
   bool need_rebuild_;
+  bool update_visualization_ = false;
 
 #ifdef WITH_OPENVDB
   /* Create SDF grid for mesh volumes, to determine whether a certain point is in the

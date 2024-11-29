@@ -19,6 +19,7 @@
 #include "scene/shader_nodes.h"
 #include "scene/svm.h"
 #include "scene/tables.h"
+#include "scene/volume.h"
 
 #include "util/log.h"
 #include "util/murmurhash.h"
@@ -395,6 +396,10 @@ void Shader::tag_update(Scene *scene)
     scene->geometry_manager->need_flags_update = true;
     scene->object_manager->need_flags_update = true;
     prev_volume_step_rate = volume_step_rate;
+  }
+
+  if (has_volume || prev_has_volume) {
+    scene->volume_manager->tag_update(this);
   }
 }
 

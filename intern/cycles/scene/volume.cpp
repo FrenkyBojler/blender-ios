@@ -791,6 +791,76 @@ VolumeManager::VolumeManager()
   need_rebuild_ = false;
 }
 
+void VolumeManager::tag_update()
+{
+  /* TODO(weizhen): enable later when octree is used for ray marching. */
+  need_rebuild_ = false;
+}
+
+/* Remove changed object from the list of octrees and tag for rebuild. */
+void VolumeManager::tag_update(const Object *object, uint32_t flag)
+{
+  if (flag & ObjectManager::VISIBILITY_MODIFIED) {
+    tag_update();
+  }
+
+  for (const Node *node : object->get_geometry()->get_used_shaders()) {
+    const Shader *shader = static_cast<const Shader *>(node);
+    if (shader->has_volume_spatial_varying || (flag & ObjectManager::OBJECT_REMOVED)) {
+      /* TODO(weizhen): no need to update if the spatial variation is not in world space. */
+      tag_update();
+      object_octrees_.erase({object, shader});
+    }
+  }
+
+  if (!need_rebuild_ && (flag & ObjectManager::TRANSFORM_MODIFIED)) {
+    /* Octree is not tagged for rebuild, but the transformation changed, so a redraw is needed. */
+    update_visualization_ = true;
+  }
+}
+
+/* Remove object with changed shader from the list of octrees and tag for rebuild. */
+void VolumeManager::tag_update(const Shader *shader)
+{
+  tag_update();
+  for (auto it = object_octrees_.begin(); it != object_octrees_.end();) {
+    if (it->first.second == shader) {
+      it = object_octrees_.erase(it);
+    }
+    else {
+      it++;
+    }
+  }
+}
+
+/* Remove object with changed geometry from the list of octrees and tag for rebuild. */
+void VolumeManager::tag_update(const Geometry *geometry)
+{
+  tag_update();
+  /* Tag Octree for update. */
+  for (auto it = object_octrees_.begin(); it != object_octrees_.end();) {
+    const Object *object = it->first.first;
+    if (object && object->get_geometry() == geometry) {
+      it = object_octrees_.erase(it);
+    }
+    else {
+      it++;
+    }
+  }
+
+#ifdef WITH_OPENVDB
+  /* Tag VDB map for update. */
+  for (auto it = vdb_map_.begin(); it != vdb_map_.end();) {
+    if (it->first.first == geometry) {
+      it = vdb_map_.erase(it);
+    }
+    else {
+      it++;
+    }
+  }
+#endif
+}
+
 bool VolumeManager::is_homogeneous_volume(const Object *object, const Shader *shader)
 {
   if (!shader->has_volume || shader->has_volume_spatial_varying) {
@@ -1079,9 +1149,14 @@ void VolumeManager::device_update(Device *device,
     initialize_octree(scene);
     build_octree(device, progress);
     flatten_octree(dscene, scene);
-    VLOG_DEBUG << "Octree visualization has been written to " << visualize_octree("octree.py");
 
+    update_visualization_ = true;
     need_rebuild_ = false;
+  }
+
+  if (update_visualization_) {
+    VLOG_DEBUG << "Octree visualization has been written to " << visualize_octree("octree.py");
+    update_visualization_ = false;
   }
 }
 

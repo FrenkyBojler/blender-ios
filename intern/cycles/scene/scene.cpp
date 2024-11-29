@@ -929,6 +929,9 @@ template<> void Scene::delete_node(Geometry *node)
   }
   else {
     flag = GeometryManager::MESH_REMOVED;
+    if (node->has_volume) {
+      volume_manager->tag_update(node);
+    }
   }
 
   geometry.erase_by_swap(node);
@@ -938,8 +941,14 @@ template<> void Scene::delete_node(Geometry *node)
 template<> void Scene::delete_node(Object *node)
 {
   assert(node->get_owner() == this);
+
+  uint flag = ObjectManager::OBJECT_REMOVED;
+  if (node->get_geometry()->has_volume) {
+    volume_manager->tag_update(node, flag);
+  }
+
   objects.erase_by_swap(node);
-  object_manager->tag_update(this, ObjectManager::OBJECT_REMOVED);
+  object_manager->tag_update(this, flag);
 }
 
 template<> void Scene::delete_node(ParticleSystem *node)
