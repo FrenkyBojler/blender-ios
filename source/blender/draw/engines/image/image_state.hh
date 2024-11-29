@@ -45,7 +45,7 @@ struct State {
     bool do_tile_drawing : 1;
   } flags;
 
-  GPUFrameBuffer *main_fb = nullptr;
+  //GPUFrameBuffer *main_fb = nullptr;
   PassSimple image_ps = {"Image/Color"};
   PassSimple depth_ps = {"Image/Depth"};
 

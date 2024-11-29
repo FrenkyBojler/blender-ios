@@ -19,16 +19,15 @@ void ScreenSpaceDrawingMode::add_shgroups() const
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
   pass.shader_set(shader);
-  pass.push_constant("far_near_distances", sh_params.far_near);
-  pass.push_constant("shuffle", sh_params.shuffle);
-  pass.push_constant("draw_flags", static_cast<int32_t>(sh_params.flags));
-  pass.push_constant("is_image_premultiplied", sh_params.use_premul_alpha);
-  pass.push_constant("depth_tx", dtxl->depth);
-
   float4x4 image_mat = float4x4::identity();
   ResourceHandle handle = instance_.manager->resource_handle(image_mat);
   for (const TextureInfo &info : instance_.state.texture_infos) {
     PassSimple::Sub &sub = pass.sub("Texture");
+    sub.push_constant("far_near_distances", sh_params.far_near);
+    sub.push_constant("shuffle", sh_params.shuffle);
+    sub.push_constant("draw_flags", static_cast<int32_t>(sh_params.flags));
+    sub.push_constant("is_image_premultiplied", sh_params.use_premul_alpha);
+    sub.push_constant("depth_tx", dtxl->depth);
     sub.push_constant("offset", info.offset());
     sub.bind_texture("image_tx", info.texture);
     sub.draw(info.batch, handle);
@@ -373,14 +372,17 @@ void ScreenSpaceDrawingMode::draw_finish() const
 
 void ScreenSpaceDrawingMode::draw_viewport() const
 {
-  State *instance_data = &instance_.state;
+  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  GPUFrameBuffer *fb = dfbl->default_fb;
 
-  GPU_framebuffer_bind(instance_data->main_fb);
+  GPU_framebuffer_bind(fb);
   static float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  float clear_depth = instance_data->flags.do_tile_drawing ? 0.75 : 1.0f;
-  GPU_framebuffer_clear_color_depth(instance_data->main_fb, clear_col, clear_depth);
+  float clear_depth = instance_.state.flags.do_tile_drawing ? 0.75 : 1.0f;
+  GPU_framebuffer_clear_color_depth(fb, clear_col, clear_depth);
 
   instance_.manager->submit(instance_.state.depth_ps, instance_.state.view);
+
+  GPU_framebuffer_bind(dfbl->color_only_fb);
   instance_.manager->submit(instance_.state.image_ps, instance_.state.view);
 }
 
