@@ -371,15 +371,8 @@ static void action_footer_region_init(wmWindowManager * /*wm*/, ARegion *region)
 
 static void action_footer_region_draw(const bContext *C, ARegion *region)
 {
-  /* The anim context is not actually used, but this makes sure the action being displayed is up to
-   * date. */
-  bAnimContext ac;
-  ANIM_animdata_get_context(C, &ac);
-
   ED_region_header(C, region);
 }
-
-static void action_footer_region_listener(const wmRegionListenerParams * /*params*/) {}
 
 static void action_channel_region_listener(const wmRegionListenerParams *params)
 {
@@ -1003,7 +996,6 @@ void ED_spacetype_action()
 
   art->init = action_footer_region_init;
   art->draw = action_footer_region_draw;
-  art->listener = action_footer_region_listener;
 
   BLI_addhead(&st->regiontypes, art);
 

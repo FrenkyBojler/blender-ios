@@ -731,7 +731,10 @@ enum {
   ED_KEYMAP_GIZMO = (1 << 2),
   ED_KEYMAP_TOOL = (1 << 3),
   ED_KEYMAP_VIEW2D = (1 << 4),
+  /* General input map for the main region of animation editors (frame
+   * scrubbing, time markers, etc.). */
   ED_KEYMAP_ANIMATION = (1 << 6),
+  /* Hotkeys for frame stepping/jumping and animation playback. */
   ED_KEYMAP_FRAMES = (1 << 7),
   ED_KEYMAP_HEADER = (1 << 8),
   ED_KEYMAP_FOOTER = (1 << 9),
