@@ -165,7 +165,6 @@ __intersection__local_tri_mblur(
     uint primitive_id [[primitive_id]],
 #  if defined(__METALRT_MOTION__)
     uint object [[instance_id]],
-    uint primitive_id_offset [[user_instance_id]],
 #  endif
     float2 barycentrics [[barycentric_coord]],
     float ray_tmax [[distance]])
