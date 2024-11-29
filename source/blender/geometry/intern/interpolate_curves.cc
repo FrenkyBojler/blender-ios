@@ -287,7 +287,6 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
                                      const Span<float> from_sample_factors,
                                      const Span<float> to_sample_factors,
                                      const IndexMask &dst_curve_mask,
-                                     const Span<bool> dst_curve_flip_direction,
                                      const float mix_factor,
                                      CurvesGeometry &dst_curves)
 {
@@ -315,25 +314,12 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
   AttributesForInterpolation curve_attributes = gather_curve_attributes_to_interpolate(
       from_curves, to_curves, dst_curves);
 
-  Array<float> mix_factors(dst_curves.curves_num());
   const OffsetIndices dst_points_by_curve = dst_curves.points_by_curve();
 
-
-    // BLI_assert(from_curves.curves_range().contains(i_from_curve));
-    // BLI_assert(to_curves.curves_range().contains(i_to_curve));
-    // const Span<float> from_lengths = from_curves.evaluated_lengths_for_curve(
-    //     i_from_curve, from_curves_cyclic[i_from_curve]);
-    // const Span<float> to_lengths = to_curves.evaluated_lengths_for_curve(
-    //     i_to_curve, to_curves_cyclic[i_to_curve]);
-    const Span<float> from_lengths = (i_from_curve >= 0 ?
-                                          from_curves.evaluated_lengths_for_curve(
-                                              i_from_curve, from_curves_cyclic[i_from_curve]) :
-                                          Span<float>{});
-    const Span<float> to_lengths = (i_to_curve >= 0 ?
-                                        to_curves.evaluated_lengths_for_curve(
-                                            i_to_curve, to_curves_cyclic[i_to_curve]) :
-                                        Span<float>{});
-
+  Array<float> mix_factors(dst_curves.curves_num());
+  dst_curve_mask.foreach_index(GrainSize(512), [&](const int i_dst_curve, const int pos) {
+    const int i_from_curve = from_curve_indices[pos];
+    const int i_to_curve = to_curve_indices[pos];
     if (i_from_curve >= 0 && i_to_curve >= 0) {
       mix_factors[i_dst_curve] = mix_factor;
     }
@@ -343,6 +329,8 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
     else {
       mix_factors[i_dst_curve] = 0.0f;
     }
+  });
+
   /* For every attribute, evaluate attributes from every curve in the range in the original
    * curve's "evaluated points", then use linear interpolation to sample to the result. */
   for (const int i_attribute : point_attributes.dst.index_range()) {
@@ -504,8 +492,8 @@ void interpolate_curves(const CurvesGeometry &from_curves,
 {
   const VArray<bool> from_curves_cyclic = from_curves.cyclic();
   const VArray<bool> to_curves_cyclic = to_curves.cyclic();
-  const Span<float3> from_evaluated_positions = from_curves.evaluated_positions();
-  const Span<float3> to_evaluated_positions = to_curves.evaluated_positions();
+  // const Span<float3> from_evaluated_positions = from_curves.evaluated_positions();
+  // const Span<float3> to_evaluated_positions = to_curves.evaluated_positions();
   const OffsetIndices dst_points_by_curve = dst_curves.points_by_curve();
 
   /* Sampling arbitrary attributes works by first interpolating them to the curve's standard
@@ -525,6 +513,22 @@ void interpolate_curves(const CurvesGeometry &from_curves,
   dst_curve_mask.foreach_index(GrainSize(32), [&](const int i_dst_curve, const int pos) {
     const int i_from_curve = from_curve_indices[pos];
     const int i_to_curve = to_curve_indices[pos];
+
+    // BLI_assert(from_curves.curves_range().contains(i_from_curve));
+    // BLI_assert(to_curves.curves_range().contains(i_to_curve));
+    // const Span<float> from_lengths = from_curves.evaluated_lengths_for_curve(
+    //     i_from_curve, from_curves_cyclic[i_from_curve]);
+    // const Span<float> to_lengths = to_curves.evaluated_lengths_for_curve(
+    //     i_to_curve, to_curves_cyclic[i_to_curve]);
+    // const Span<float> from_lengths = (i_from_curve >= 0 ?
+    //                                       from_curves.evaluated_lengths_for_curve(
+    //                                           i_from_curve, from_curves_cyclic[i_from_curve]) :
+    //                                       Span<float>{});
+    // const Span<float> to_lengths = (i_to_curve >= 0 ?
+    //                                     to_curves.evaluated_lengths_for_curve(
+    //                                         i_to_curve, to_curves_cyclic[i_to_curve]) :
+    //                                     Span<float>{});
+
     const IndexRange dst_points = dst_points_by_curve[i_dst_curve];
     /* First curve is sampled in forward direction, second curve may be reversed. */
     sample_curve_uniform(from_curves,
@@ -550,7 +554,6 @@ void interpolate_curves(const CurvesGeometry &from_curves,
                                   from_sample_factors,
                                   to_sample_factors,
                                   dst_curve_mask,
-                                  dst_curve_flip_direction,
                                   mix_factor,
                                   dst_curves);
 }

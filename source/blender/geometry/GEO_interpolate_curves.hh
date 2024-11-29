@@ -33,7 +33,6 @@ void interpolate_curves_with_samples(const bke::CurvesGeometry &from_curves,
                                      Span<float> from_sample_factors,
                                      Span<float> to_sample_factors,
                                      const IndexMask &dst_curve_mask,
-                                     Span<bool> dst_curve_flip_direction,
                                      float mix_factor,
                                      bke::CurvesGeometry &dst_curves);
 

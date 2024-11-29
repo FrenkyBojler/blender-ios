@@ -671,8 +671,6 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
     if (!from_drawing || !to_drawing) {
       continue;
     }
-    const IndexRange from_curves = from_drawing->strokes().curves_range();
-    const IndexRange to_curves = to_drawing->strokes().curves_range();
     const OffsetIndices from_points_by_curve = from_drawing->strokes().points_by_curve();
     const OffsetIndices to_points_by_curve = to_drawing->strokes().points_by_curve();
     const VArray<bool> from_curves_cyclic = from_drawing->strokes().cyclic();
@@ -717,14 +715,13 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
 
     geometry::interpolate_curves_with_samples(from_drawing->strokes(),
                                               to_drawing->strokes(),
-                                 from_indices,
-                                 to_indices,
+                                              from_indices,
+                                              to_indices,
                                               from_sample_indices,
                                               to_sample_indices,
                                               from_sample_factors,
                                               to_sample_factors,
                                               dst_curve_mask,
-                                              dst_curve_flip,
                                               mix_factor,
                                               dst_curves);
   }
