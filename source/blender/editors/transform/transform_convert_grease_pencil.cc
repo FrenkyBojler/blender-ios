@@ -48,7 +48,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(tc.obedit->data);
 
     Vector<ed::greasepencil::MutableDrawingInfo> drawings =
-        ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
+        ed::greasepencil::retrieve_editable_drawings_with_falloff(*scene, grease_pencil);
 
     if (blender::animrig::is_autokey_on(scene)) {
       for (const int info_i : drawings.index_range()) {
@@ -61,7 +61,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
               target_layer, *target_layer.start_frame_at(current_frame), current_frame, false);
         }
       }
-      drawings = ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
+      drawings = ed::greasepencil::retrieve_editable_drawings_with_falloff(*scene, grease_pencil);
     }
 
     all_drawings.append(drawings);
@@ -212,7 +212,8 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
                                         points_to_transform_per_attribute[layer_offset],
                                         affected_strokes,
                                         use_connected_only,
-                                        bezier_curves[layer_offset]);
+                                        bezier_curves[layer_offset],
+                                        new float(info.multi_frame_falloff));
       layer_offset++;
     }
   }

@@ -141,9 +141,9 @@ static void transdata_elem_translate(const TransInfo *t,
 
   if (t->options & CTX_GPENCIL_STROKES) {
     /* Grease pencil multi-frame falloff. */
-    bGPDstroke *gps = (bGPDstroke *)td->extra;
+    float *gps = (float *)td->extra;
     if (gps != nullptr) {
-      mul_v3_fl(tvec, td->factor * gps->runtime.multi_frame_falloff);
+      mul_v3_fl(tvec, td->factor * *gps);
     }
     else {
       mul_v3_fl(tvec, td->factor);
