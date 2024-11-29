@@ -347,6 +347,7 @@ static void update_pose_action_from_scene(Main *bmain,
                                           blender::animrig::Action &action,
                                           Object &pose_object)
 {
+  using namespace blender::animrig;
   if (action.slot_array_num < 1) {
     /* All actions should have slots at this point. */
     BLI_assert_unreachable();
@@ -354,42 +355,48 @@ static void update_pose_action_from_scene(Main *bmain,
   }
 
   Set<RNAPath> existing_paths;
-  blender::animrig::foreach_fcurve_in_action_slot(
-      action, action.slot_array[0]->handle, [&](FCurve &fcurve) {
-        existing_paths.add({fcurve.rna_path, std::nullopt, fcurve.array_index});
-      });
+  foreach_fcurve_in_action_slot(action, action.slot_array[0]->handle, [&](FCurve &fcurve) {
+    existing_paths.add({fcurve.rna_path, std::nullopt, fcurve.array_index});
+  });
 
-  blender::animrig::KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
+  KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
   BLI_assert(action.strip_keyframe_data_array_num == 1);
   BLI_assert(action.slot_array_num == 1);
-  blender::animrig::StripKeyframeData *strip_data = action.strip_keyframe_data()[0];
-  blender::animrig::Slot *slot = action.slot(0);
+  StripKeyframeData *strip_data = action.strip_keyframe_data()[0];
+  Slot *slot = action.slot(0);
 
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object.pose->chanbase) {
     if (!(pose_bone->bone->flag & BONE_SELECTED)) {
       continue;
     }
     PointerRNA bone_pointer = RNA_pointer_create(&pose_object.id, &RNA_PoseBone, pose_bone);
-    PointerRNA resolved_pointer;
-    PropertyRNA *resolved_property;
-    if (!RNA_path_resolve(&bone_pointer, "location", &resolved_pointer, &resolved_property)) {
-      continue;
-    }
-    const std::optional<std::string> rna_path_id_to_prop = RNA_path_from_ID_to_property(
-        &resolved_pointer, resolved_property);
-    if (!rna_path_id_to_prop.has_value()) {
-      continue;
-    }
-    Vector<float> values = blender::animrig::get_rna_values(&resolved_pointer, resolved_property);
-    int i = 0;
-    for (const float value : values) {
-      RNAPath path = {rna_path_id_to_prop.value(), std::nullopt, i};
-      /* Only updating existing channels. */
-      if (existing_paths.contains(path)) {
-        strip_data->keyframe_insert(
-            bmain, *slot, {rna_path_id_to_prop.value(), i}, {1, value}, key_settings);
+    Vector<RNAPath> rna_paths = construct_rna_paths(&bone_pointer);
+
+    for (RNAPath &rna_path : rna_paths) {
+      PointerRNA resolved_pointer;
+      PropertyRNA *resolved_property;
+      if (!RNA_path_resolve(
+              &bone_pointer, rna_path.path.c_str(), &resolved_pointer, &resolved_property))
+      {
+        continue;
       }
-      i++;
+      const std::optional<std::string> rna_path_id_to_prop = RNA_path_from_ID_to_property(
+          &resolved_pointer, resolved_property);
+      if (!rna_path_id_to_prop.has_value()) {
+        continue;
+      }
+      Vector<float> values = blender::animrig::get_rna_values(&resolved_pointer,
+                                                              resolved_property);
+      int i = 0;
+      for (const float value : values) {
+        RNAPath path = {rna_path_id_to_prop.value(), std::nullopt, i};
+        /* Only updating existing channels. */
+        if (existing_paths.contains(path)) {
+          strip_data->keyframe_insert(
+              bmain, *slot, {rna_path_id_to_prop.value(), i}, {1, value}, key_settings);
+        }
+        i++;
+      }
     }
   }
 }
