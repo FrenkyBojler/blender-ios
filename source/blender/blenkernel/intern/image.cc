@@ -4123,21 +4123,6 @@ static ImBuf *image_load_sequence_multilayer(Image *ima, ImageUser *iuser, int e
   return ibuf;
 }
 
-static void ensure_float_buffer_is_linear(ImBuf *ibuf, const char *source_colorspace)
-{
-  if (ibuf->float_buffer.data == nullptr) {
-    return;
-  }
-  if (source_colorspace == nullptr || source_colorspace[0] == '\0') {
-    return;
-  }
-
-  colormanage_imbuf_make_linear(ibuf, source_colorspace);
-  if ((ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) == 0) {
-    ibuf->float_buffer.colorspace = nullptr;
-  }
-}
-
 static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const int view_id)
 {
   ImBuf *ibuf = nullptr;
@@ -4184,7 +4169,7 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
     ibuf = IMB_makeSingleUser(IMB_anim_absolute(ia->anim, fra, IMB_TC_RECORD_RUN, IMB_PROXY_NONE));
 
     if (ibuf) {
-      ensure_float_buffer_is_linear(ibuf, ima->colorspace_settings.name);
+      colormanage_imbuf_make_linear(ibuf, ima->colorspace_settings.name);
       image_init_after_load(ima, iuser, ibuf);
     }
   }
