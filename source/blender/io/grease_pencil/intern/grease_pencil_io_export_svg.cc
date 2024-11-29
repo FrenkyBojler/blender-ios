@@ -112,10 +112,7 @@ class SVGExporter : public GreasePencilExporter {
   pugi::xml_document main_doc_;
 
   bool export_scene(Scene &scene, StringRefNull filepath);
-  void export_grease_pencil_objects(pugi::xml_node node,
-                                    int frame_number,
-                                    int frame_count,
-                                    float scene_duration);
+  void export_grease_pencil_objects(pugi::xml_node node, int frame_number);
   void export_grease_pencil_layer(pugi::xml_node node,
                                   const Object &object,
                                   const bke::greasepencil::Layer &layer,
@@ -123,6 +120,9 @@ class SVGExporter : public GreasePencilExporter {
 
   void write_document_header();
   pugi::xml_node write_main_node();
+  pugi::xml_node write_animation_node(pugi::xml_node parent_node,
+                                      IndexMask frames,
+                                      float duration);
   pugi::xml_node write_polygon(pugi::xml_node node,
                                const float4x4 &transform,
                                Span<float3> positions);
@@ -155,9 +155,6 @@ static bool is_selected_frame(const GreasePencil &grease_pencil, const int frame
 
 bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 {
-  bool result = false;
-  Object &ob_eval = *DEG_get_evaluated_object(context_.depsgraph, params_.object);
-
   switch (params_.frame_mode) {
     case ExportParams::FrameMode::Active: {
       const int frame_number = scene.r.cfra;
@@ -166,68 +163,67 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       this->write_document_header();
       pugi::xml_node main_node = this->write_main_node();
 
-      this->export_grease_pencil_objects(main_node, frame_number, 1, scene.r.framelen);
-      result = this->write_to_file(filepath);
-      break;
+      this->export_grease_pencil_objects(main_node, frame_number);
+
+      return this->write_to_file(filepath);
     }
     case ExportParams::FrameMode::Selected:
     case ExportParams::FrameMode::Scene: {
-      const bool only_selected = (params_.frame_mode == ExportParams::FrameMode::Selected);
+      const bool selection_only = params_.frame_mode == ExportParams::FrameMode::Selected;
       const int orig_frame = scene.r.cfra;
 
-      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
+      IndexMask frames = IndexMask(IndexRange(scene.r.sfra, scene.r.efra - scene.r.sfra + 1));
 
-      // TODO(Leon): Reimplement with IndexMask.
-
-      int framecount = scene.r.efra - scene.r.sfra + 1;
-      int first_frame = scene.r.sfra;
-      if (only_selected) {
-        framecount = 0;
-        for (int frame = scene.r.sfra; frame <= scene.r.efra; frame += scene.r.frame_step) {
-          if (is_selected_frame(grease_pencil, frame)) {
-            if (framecount == 0) {
-              first_frame = frame;
-            }
-            framecount++;
-          }
-        }
+      IndexMaskMemory memory;
+      if (selection_only) {
+        Object &ob_eval = *DEG_get_evaluated_object(context_.depsgraph, params_.object);
+        GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
+        frames = IndexMask::from_predicate(frames, GrainSize(1), memory, [&](const int frame) {
+          return is_selected_frame(grease_pencil, frame);
+        });
       }
 
-      this->prepare_render_params(scene, first_frame);
+      this->prepare_render_params(scene, frames.first());
 
       this->write_document_header();
       pugi::xml_node main_node = this->write_main_node();
 
-      float framerate = scene.r.frs_sec / scene.r.frs_sec_base;
-      float duration = framecount / framerate;
+      /* Put frames into a hidden group. They are referenced later by a <use>-node that displays
+       * them in order. Use a group rather than a <defs>-node because some graphics applications
+       * don't expose those to users making it hard for them to work with the file. */
+      pugi::xml_node frames_group_node = main_node.append_child("g");
+      frames_group_node.append_attribute("id").set_value("blender_frames");
+      frames_group_node.append_attribute("display").set_value("none");
 
-      for (int frame = scene.r.sfra; frame <= scene.r.efra; frame += scene.r.frame_step) {
-        if (only_selected && !is_selected_frame(grease_pencil, frame)) {
-          continue;
-        }
+      const int frame_count = frames.size();
+      const float duration = scene.r.frs_sec_base * frame_count / scene.r.frs_sec;
+
+      frames.foreach_index([&](const int frame) {
         scene.r.cfra = frame;
         BKE_scene_graph_update_for_newframe(context_.depsgraph);
         this->prepare_render_params(scene, frame);
-        this->export_grease_pencil_objects(main_node, frame, framecount, duration);
-      }
+        this->export_grease_pencil_objects(frames_group_node, frame);
+      });
 
-      result = this->write_to_file(filepath);
       scene.r.cfra = orig_frame;
-      break;
+
+      this->write_animation_node(main_node, frames, duration);
+
+      return this->write_to_file(filepath);
     }
     default:
       BLI_assert_unreachable();
-      break;
+      return false;
   }
-
-  return result;
 }
 
-// TODO(Leon): properly separate multi and single frame export.
-void SVGExporter::export_grease_pencil_objects(pugi::xml_node node,
-                                               const int frame_number,
-                                               const int frame_count,
-                                               const float scene_duration)
+static std::string frame_name(int frame)
+{
+  std::string frametxt = "blender_frame_" + std::to_string(frame);
+  return frametxt;
+}
+
+void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int frame)
 {
   using bke::greasepencil::Drawing;
 
@@ -235,46 +231,30 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node,
 
   Vector<ObjectInfo> objects = retrieve_objects();
 
+  pugi::xml_node frame_node = node.append_child("g");
+  frame_node.append_attribute("id").set_value(frame_name(frame).c_str());
+
   for (const ObjectInfo &info : objects) {
     const Object *ob = info.object;
 
     /* Camera clipping. */
     if (is_clipping) {
       pugi::xml_node clip_node = node.append_child("clipPath");
-      clip_node.append_attribute("id").set_value(
-          ("clip-path" + std::to_string(frame_number)).c_str());
+      clip_node.append_attribute("id").set_value(("clip-path" + std::to_string(frame)).c_str());
 
       write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
     }
 
-    pugi::xml_node frame_node = node.append_child("g");
-    std::string frametxt = "blender_frame_" + std::to_string(frame_number);
-    frame_node.append_attribute("id").set_value(frametxt.c_str());
-
     /* Clip area. */
     if (is_clipping) {
       frame_node.append_attribute("clip-path")
-          .set_value(("url(#clip-path" + std::to_string(frame_number) + ")").c_str());
+          .set_value(("url(#clip-path" + std::to_string(frame) + ")").c_str());
     }
-
-    //TODO(Leon): Rewrite to use the grouped frames and animate them with hrefs.
-    //         <animate attributeName="visibility" begin="0s" from="visible" to="hidden" dur=".6s"
-    //         repeatCount="indefinite" />
-    pugi::xml_node animate_node = frame_node.append_child("animate");
-    animate_node.append_attribute("attributeName").set_value("display");
-    animate_node.append_attribute("values").set_value("none; inline; none; none;");
-    const float start_value = float(frame_number - 1.0f) / float(frame_count);
-    const float end_value = float(frame_number) / float(frame_count);
-    animate_node.append_attribute("keyTimes")
-        .set_value(fmt::format("0.0; {}; {}; 1.0", start_value, end_value).c_str());
-    std::string durationtext = std::to_string(scene_duration) + "s";
-    animate_node.append_attribute("dur").set_value(durationtext.c_str());
-    animate_node.append_attribute("repeatCount").set_value("indefinite");
 
     pugi::xml_node ob_node = frame_node.append_child("g");
 
     char obtxt[96];
-    SNPRINTF(obtxt, "blender_object_%s", ob->id.name + 2);
+    SNPRINTF(obtxt, "blender_object_%s_%d", ob->id.name + 2, frame);
     ob_node.append_attribute("id").set_value(obtxt);
 
     /* Use evaluated version to get strokes with modifiers. */
@@ -286,7 +266,7 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node,
       if (!layer->is_visible()) {
         continue;
       }
-      const Drawing *drawing = grease_pencil_eval->get_drawing_at(*layer, frame_number);
+      const Drawing *drawing = grease_pencil_eval->get_drawing_at(*layer, frame);
       if (drawing == nullptr) {
         continue;
       }
@@ -376,6 +356,36 @@ pugi::xml_node SVGExporter::write_main_node()
   main_node.append_attribute("viewBox").set_value(viewbox.c_str());
 
   return main_node;
+}
+
+pugi::xml_node SVGExporter::write_animation_node(pugi::xml_node parent_node,
+                                                 IndexMask frames,
+                                                 const float duration)
+{
+  pugi::xml_node use_node = parent_node.append_child("use");
+  use_node.append_attribute("id").set_value("animation_display");
+  use_node.append_attribute("href").set_value(frame_name(frames.first()).c_str());
+
+  pugi::xml_node animate_node = use_node.append_child("animate");
+  animate_node.append_attribute("id").set_value("frame-by-frame_animation");
+  animate_node.append_attribute("attributeName").set_value("href");
+
+  std::string duration_text = std::to_string(duration) + "s";
+  animate_node.append_attribute("dur").set_value(duration_text.c_str());
+  animate_node.append_attribute("repeatCount").set_value("indefinite");
+
+  std::string animated_frame_ids = [&]() {
+    std::string frame_ids_text = "";
+    frames.foreach_index([&](const int frame) {
+      std::string frame_url_entry = "#" + frame_name(frame) + ";";
+      frame_ids_text.append(frame_url_entry);
+    });
+    return frame_ids_text;
+  }();
+
+  animate_node.append_attribute("values").set_value(animated_frame_ids.c_str());
+
+  return use_node;
 }
 
 pugi::xml_node SVGExporter::write_polygon(pugi::xml_node node,
