@@ -116,17 +116,18 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params)
   short knot_mode = 0;
 
   if (import_params.close_spline_loops && indices.size() > degree) {
+    const Span<int> indices_tail = indices.take_back(degree);
     bool is_cyclic = true;
-
     for (const int i : IndexRange(degree)) {
-      if (indices[i] != indices.last(degree - i - 1)) {
+      if (indices[i] != indices_tail[i]) {
         is_cyclic = false;
         break;
       }
     }
+    const Span<float> knots_tail = knots.take_back(2 * degree + 1);
     for (const int i : IndexRange(degree - 1)) {
       const float head_span = knots[i + 1] - knots[i];
-      const float tail_span = knots.last(degree + i) - knots.last(degree + i + 1);
+      const float tail_span = knots_tail[i + 1] - knots_tail[i];
       if (abs(head_span - tail_span) > 0.0001f) {
         is_cyclic = false;
         break;
