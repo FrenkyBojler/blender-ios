@@ -41,8 +41,6 @@ namespace blender::ed::io {
 
 #  if defined(WITH_PUGIXML) || defined(WITH_HARU)
 
-// TODO(Leon): Deduplicate code between SVG and PDF export.
-
 /* Definition of enum elements to export. */
 /* Common props for exporting. */
 static void grease_pencil_export_common_props_definition(wmOperatorType *ot)

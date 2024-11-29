@@ -221,8 +221,8 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
 
   Vector<ObjectInfo> objects = retrieve_objects();
 
-  pugi::xml_node frame_node = node.append_child("g");
-  frame_node.append_attribute("id").set_value(frame_name(frame_number).c_str());
+  pugi::xml_node frame_group_node = node.append_child("g");
+  frame_group_node.append_attribute("id").set_value(frame_name(frame_number).c_str());
 
   for (const ObjectInfo &info : objects) {
     const Object *ob = info.object;
@@ -238,14 +238,14 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
 
     /* Clip area. */
     if (is_clipping) {
-      frame_node.append_attribute("clip-path")
+      frame_group_node.append_attribute("clip-path")
           .set_value(("url(#clip-path" + std::to_string(frame_number) + ")").c_str());
     }
 
-    pugi::xml_node ob_node = frame_node.append_child("g");
+    pugi::xml_node ob_node = frame_group_node.append_child("g");
 
-    char obtxt[96];
-    SNPRINTF(obtxt, "blender_object_%s_%d", ob->id.name + 2, frame_number);
+    char obtxt[128];
+    SNPRINTF(obtxt, "blender_object_%s_at_frame_%d", ob->id.name + 2, frame_number);
     ob_node.append_attribute("id").set_value(obtxt);
 
     /* Use evaluated version to get strokes with modifiers. */
@@ -354,7 +354,7 @@ pugi::xml_node SVGExporter::write_animation_node(pugi::xml_node parent_node,
                                                  const float duration)
 {
   pugi::xml_node use_node = parent_node.append_child("use");
-  use_node.append_attribute("id").set_value("animation_display");
+  use_node.append_attribute("id").set_value("blender_animation");
   use_node.append_attribute("href").set_value(frame_name(frames.first()).c_str());
 
   pugi::xml_node animate_node = use_node.append_child("animate");
