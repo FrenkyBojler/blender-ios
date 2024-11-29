@@ -82,7 +82,7 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
   SpaceLink *sl = CTX_wm_space_data(C);
 
   /* Tool property tab is a special case where 3d tool properties are shown in the properties
-   * editor. This would allow tool keymap to also work in such situations. */
+   * editor. This would allow assigning tool shortcut keys from properties editor. */
   bool allow_properties_keymap = false;
   if (sl->spacetype == SPACE_PROPERTIES) {
     SpaceProperties *sp = reinterpret_cast<SpaceProperties *>(sl);
