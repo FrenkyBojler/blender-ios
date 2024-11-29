@@ -4,19 +4,12 @@
 
 #include "bvh/octree.h"
 
-#include "scene/geometry.h"
-#include "scene/image_vdb.h"
 #include "scene/object.h"
-#include "scene/shader_nodes.h"
 #include "scene/volume.h"
 
 #include "integrator/shader_eval.h"
 
 #include "util/progress.h"
-#include "util/stats.h"
-
-#include <fstream>
-#include <memory>
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/tools/FindActiveValues.h>
@@ -26,22 +19,21 @@ CCL_NAMESPACE_BEGIN
 
 __forceinline int Octree::flatten_index(int x, int y, int z) const
 {
-  return x + width * (y + z * width);
+  return x + resolution_ * (y + z * resolution_);
 }
 
-Extrema<float> Octree::get_extrema(const vector<Extrema<float>> &values,
-                                   const int3 index_min,
-                                   const int3 index_max) const
+Extrema<float> Octree::get_extrema_(const int3 index_min, const int3 index_max) const
 {
   const blocked_range3d<int> range(
       index_min.x, index_max.x, 32, index_min.y, index_max.y, 32, index_min.z, index_max.z, 32);
+
   const Extrema<float> identity;
 
   auto reduction_func = [&](const blocked_range3d<int> &r, Extrema<float> init) -> Extrema<float> {
     for (int z = r.cols().begin(); z < r.cols().end(); ++z) {
       for (int y = r.rows().begin(); y < r.rows().end(); ++y) {
         for (int x = r.pages().begin(); x < r.pages().end(); ++x) {
-          init = join(init, values[flatten_index(x, y, z)]);
+          init = join(init, sigmas_[flatten_index(x, y, z)]);
         }
       }
     }
@@ -53,22 +45,49 @@ Extrema<float> Octree::get_extrema(const vector<Extrema<float>> &values,
   return parallel_reduce(range, identity, reduction_func, join_func);
 }
 
-bool Octree::should_split(std::shared_ptr<OctreeNode> &node,
-                          const float scale,
-                          const bool is_homogeneous_volume) const
+/* Convert from position in object space to index space. */
+__forceinline float3 Octree::position_to_index_(const float3 p) const
 {
-  const int3 index_min = object_to_floor_index(node->bbox.min);
-  const int3 index_max = object_to_ceil_index(node->bbox.max);
-  const Extrema<float> sigma_extrema = get_extrema(sigmas, index_min, index_max);
+  return (p - root_->bbox.min) * position_to_index_scale_;
+}
 
-  /* Do not split homogeneous volume. Volume stack already skips the zero-density regions. */
+int3 Octree::position_to_floor_index_(const float3 p) const
+{
+  const float3 index = floor(position_to_index_(p));
+  return make_int3(int(index.x), int(index.y), int(index.z));
+}
+
+int3 Octree::position_to_ceil_index_(const float3 p) const
+{
+  const float3 index = ceil(position_to_index_(p));
+  return make_int3(int(index.x), int(index.y), int(index.z));
+}
+
+/* Convert from index to position in object space. */
+__forceinline float3 Octree::index_to_position(int x, int y, int z) const
+{
+  return root_->bbox.min + make_float3(x, y, z) * index_to_position_scale_;
+}
+
+__forceinline float3 Octree::voxel_size() const
+{
+  return index_to_position_scale_;
+}
+
+bool Octree::should_split_(std::shared_ptr<OctreeNode> &node,
+                           const float scale,
+                           const bool is_homogeneous_volume) const
+{
+  const int3 index_min = position_to_floor_index_(node->bbox.min);
+  const int3 index_max = position_to_ceil_index_(node->bbox.max);
+  const Extrema<float> sigma_extrema = get_extrema_(index_min, index_max);
+
   node->sigma.max = sigma_extrema.max;
+  /* Do not split homogeneous volume. Volume stack already skips the zero-density regions. */
   node->sigma.min = is_homogeneous_volume ? sigma_extrema.max : sigma_extrema.min;
 
-  /* TODO(weizhen): force subdivision of aggregate nodes that are larger than the volume contained,
-   * regardless of the volume's majorant extinction. */
-
-  /* From "Volume Rendering for Pixar's Elemental". */
+  /* The threshold is set so that ideally only one sample needs to be taken per node. Value taken
+   * from "Volume Rendering for Pixar's Elemental". */
   if ((node->sigma.max - node->sigma.min) * len(node->bbox.size()) * scale < 1.442f ||
       node->depth == VOLUME_OCTREE_MAX_DEPTH)
   {
@@ -78,95 +97,8 @@ bool Octree::should_split(std::shared_ptr<OctreeNode> &node,
   return true;
 }
 
-shared_ptr<OctreeInternalNode> Octree::make_internal(shared_ptr<OctreeNode> &node)
-{
-  num_nodes += 8;
-  auto internal = std::make_shared<OctreeInternalNode>(*node);
-
-  /* Create bounding boxes for children. */
-  const float3 center = internal->bbox.center();
-  for (int i = 0; i < 8; i++) {
-    const float3 t = make_float3(i & 1, (i >> 1) & 1, (i >> 2) & 1);
-    const BoundBox bbox(mix(internal->bbox.min, center, t), mix(center, internal->bbox.max, t));
-    internal->children_[i] = std::make_shared<OctreeNode>(bbox, internal->depth + 1);
-  }
-
-  return internal;
-}
-
-void Octree::recursive_build_(shared_ptr<OctreeNode> &octree_node,
-                              const float scale,
-                              const bool is_homogeneous_volume = false)
-{
-  if (!should_split(octree_node, scale, is_homogeneous_volume)) {
-    return;
-  }
-
-  /* Make the current node an internal node. */
-  auto internal = make_internal(octree_node);
-
-  for (auto &child : internal->children_) {
-    /* TODO(weizhen): check the performance. */
-    task_pool.push([&] { recursive_build_(child, scale); });
-  }
-
-  octree_node = internal;
-}
-
-void Octree::flatten(KernelOctreeNode *knodes,
-                     const int current_index,
-                     const shared_ptr<OctreeNode> &node,
-                     int &child_index) const
-{
-  KernelOctreeNode &knode = knodes[current_index];
-  knode.bbox.max = node->bbox.max;
-  knode.bbox.min = node->bbox.min;
-  knode.sigma = node->sigma;
-
-  if (auto internal_ptr = std::dynamic_pointer_cast<OctreeInternalNode>(node)) {
-    knode.first_child = child_index;
-    child_index += 8;
-    /* Loop through all the children. */
-    for (int i = 0; i < 8; i++) {
-      knodes[knode.first_child + i].parent = current_index;
-      flatten(knodes, knode.first_child + i, internal_ptr->children_[i], child_index);
-    }
-  }
-  else {
-    knode.first_child = -1;
-  }
-}
-
-/* Convert from position in object space to object. */
-__forceinline float3 Octree::object_to_index(float3 p) const
-{
-  return (p - root_->bbox.min) * object_to_index_scale_;
-}
-
-int3 Octree::object_to_floor_index(float3 p) const
-{
-  const float3 index = floor(object_to_index(p));
-  return make_int3(int(index.x), int(index.y), int(index.z));
-}
-
-int3 Octree::object_to_ceil_index(float3 p) const
-{
-  const float3 index = ceil(object_to_index(p));
-  return make_int3(int(index.x), int(index.y), int(index.z));
-}
-
-/* Convert from index to position in object space. */
-__forceinline float3 Octree::index_to_object(int x, int y, int z) const
-{
-  return root_->bbox.min + make_float3(x, y, z) * index_to_object_scale_;
-}
-
-__forceinline float3 Octree::voxel_size() const
-{
-  return index_to_object_scale_;
-}
-
 #ifdef WITH_OPENVDB
+/* Check if a interior mask grid intersects with a bounding box defined by `p_min` and `p_max`. */
 static bool vdb_voxel_intersect(const float3 p_min,
                                 const float3 p_max,
                                 openvdb::BoolGrid::ConstPtr &grid,
@@ -192,7 +124,7 @@ static void fill_shader_input(device_vector<KernelShaderEvalInput> &d_input,
                               const Octree *octree,
                               const Object *object,
                               const Shader *shader,
-                              const int width,
+                              const int resolution,
                               openvdb::BoolGrid::ConstPtr &interior_mask)
 {
   /* Get object id. */
@@ -207,7 +139,7 @@ static void fill_shader_input(device_vector<KernelShaderEvalInput> &d_input,
   d_input_data[0].object = num_samples;
 
   const float3 voxel_size = octree->voxel_size();
-  const blocked_range3d<int> range(0, width, 8, 0, width, 8, 0, width, 8);
+  const blocked_range3d<int> range(0, resolution, 8, 0, resolution, 8, 0, resolution, 8);
   parallel_for(range, [&](const blocked_range3d<int> &r) {
     /* One accessor per thread is important for cached access. */
     const auto find = openvdb::tools::FindActiveValues(interior_mask->tree());
@@ -218,7 +150,7 @@ static void fill_shader_input(device_vector<KernelShaderEvalInput> &d_input,
           const int offset = octree->flatten_index(x, y, z);
           /* TODO(weizhen): check if we can use index directly instead of position for mesh
            * interior. */
-          const float3 p = octree->index_to_object(x, y, z);
+          const float3 p = octree->index_to_position(x, y, z);
 
 #ifdef WITH_OPENVDB
           /* Zero density for cells outside of the mesh. */
@@ -251,11 +183,11 @@ static void fill_shader_input(device_vector<KernelShaderEvalInput> &d_input,
 static void read_shader_output(const device_vector<float> &d_output,
                                const Octree *octree,
                                const int num_channels,
-                               const int width,
+                               const int resolution,
                                vector<Extrema<float>> &sigmas)
 {
   const float *d_output_data = d_output.data();
-  const blocked_range3d<int> range(0, width, 32, 0, width, 32, 0, width, 32);
+  const blocked_range3d<int> range(0, resolution, 32, 0, resolution, 32, 0, resolution, 32);
 
   parallel_for(range, [&](const blocked_range3d<int> &r) {
     for (int z = r.cols().begin(); z < r.cols().end(); ++z) {
@@ -276,31 +208,38 @@ void Octree::evaluate_volume_density_(Device *device,
                                       const Shader *shader,
                                       openvdb::BoolGrid::ConstPtr &interior_mask)
 {
-  width = VolumeManager::is_homogeneous_volume(object, shader) ? 1 : 1 << VOLUME_OCTREE_MAX_DEPTH;
-  object_to_index_scale_ = float(width) / root_->bbox.size();
-  index_to_object_scale_ = 1.0f / object_to_index_scale_;
+  resolution_ = VolumeManager::is_homogeneous_volume(object, shader) ?
+                    1 :
+                    1 << VOLUME_OCTREE_MAX_DEPTH;
+  position_to_index_scale_ = float(resolution_) / root_->bbox.size();
+  index_to_position_scale_ = 1.0f / position_to_index_scale_;
 
   /* Initialize density field. */
-  /* TODO(weizhen): maybe lower the resolution. */
-  const int size = width * width * width;
-  sigmas.resize(size);
-  parallel_for(0, size, [&](int i) { sigmas[i] = {0.0f, 0.0f}; });
+  /* TODO(weizhen): maybe lower the resolution depending on the object size. */
+  const int size = resolution_ * resolution_ * resolution_;
+  sigmas_.resize(size);
+  parallel_for(0, size, [&](int i) { sigmas_[i] = {0.0f, 0.0f}; });
 
   /* Min and max. */
   const int num_channels = 2;
+
+  /* 2 per voxel for evaluating the shader, 1 for number of samples needed. */
+  /* TODO(weizhen): check the performance of using 16 regardless if it's homogeneous. Or we can
+   * check in the kernel. */
+  const int num_inputs = size * 2 + 1;
 
   /* Evaluate shader on device. */
   ShaderEval shader_eval(device, progress);
   shader_eval.eval(
       SHADER_EVAL_VOLUME_DENSITY,
-      size * 2 + 1,
+      num_inputs,
       num_channels,
       [&](device_vector<KernelShaderEvalInput> &d_input) {
-        fill_shader_input(d_input, this, object, shader, width, interior_mask);
+        fill_shader_input(d_input, this, object, shader, resolution_, interior_mask);
         return size;
       },
       [&](device_vector<float> &d_output) {
-        read_shader_output(d_output, this, num_channels, width, sigmas);
+        read_shader_output(d_output, this, num_channels, resolution_, sigmas_);
       });
 }
 
@@ -311,12 +250,16 @@ float Octree::volume_scale_(const Object *object) const
     if (geom->is_volume()) {
       const Volume *volume = static_cast<const Volume *>(geom);
       if (volume->get_object_space()) {
+        /* The density changes with object scale, we scale the density accordingly in the final
+         * render. */
         if (volume->transform_applied) {
           const float3 unit = normalize(one_float3());
           return 1.0f / len(transform_direction(&object->get_tfm(), unit));
         }
       }
       else {
+        /* The density does not change with object scale, we scale the node in the viewport to it's
+         * true size. */
         if (!volume->transform_applied) {
           const float3 unit = normalize(one_float3());
           return len(transform_direction(&object->get_tfm(), unit));
@@ -329,6 +272,66 @@ float Octree::volume_scale_(const Object *object) const
   }
 
   return 1.0f;
+}
+
+shared_ptr<OctreeInternalNode> Octree::make_internal_(shared_ptr<OctreeNode> &node)
+{
+  num_nodes_ += 8;
+  auto internal = std::make_shared<OctreeInternalNode>(*node);
+
+  /* Create bounding boxes for children. */
+  const float3 center = internal->bbox.center();
+  for (int i = 0; i < 8; i++) {
+    const float3 t = make_float3(i & 1, (i >> 1) & 1, (i >> 2) & 1);
+    const BoundBox bbox(mix(internal->bbox.min, center, t), mix(center, internal->bbox.max, t));
+    internal->children_[i] = std::make_shared<OctreeNode>(bbox, internal->depth + 1);
+  }
+
+  return internal;
+}
+
+void Octree::recursive_build_(shared_ptr<OctreeNode> &octree_node,
+                              const float scale,
+                              const bool is_homogeneous_volume = false)
+{
+  if (!should_split_(octree_node, scale, is_homogeneous_volume)) {
+    return;
+  }
+
+  /* Make the current node an internal node. */
+  auto internal = make_internal_(octree_node);
+
+  for (auto &child : internal->children_) {
+    /* TODO(weizhen): check the performance. */
+    task_pool_.push([&] { recursive_build_(child, scale); });
+  }
+
+  octree_node = internal;
+}
+
+void Octree::flatten(KernelOctreeNode *knodes,
+                     const int current_index,
+                     const shared_ptr<OctreeNode> &node,
+                     int &child_index) const
+{
+  KernelOctreeNode &knode = knodes[current_index];
+  knode.bbox.max = node->bbox.max;
+  knode.bbox.min = node->bbox.min;
+  knode.sigma = node->sigma;
+
+  if (auto internal_ptr = std::dynamic_pointer_cast<OctreeInternalNode>(node)) {
+    knode.first_child = child_index;
+    child_index += 8;
+    /* Loop through all the children and flatten in breath-first manner, so that children are
+     * stored in contiguous indices. */
+    for (int i = 0; i < 8; i++) {
+      knodes[knode.first_child + i].parent = current_index;
+      flatten(knodes, knode.first_child + i, internal_ptr->children_[i], child_index);
+    }
+  }
+  else {
+    knode.first_child = -1;
+  }
 }
 
 void Octree::build(Device *device,
@@ -350,10 +353,10 @@ void Octree::build(Device *device,
   const bool is_homogeneus = VolumeManager::is_homogeneous_volume(object, shader);
   recursive_build_(root_, scale, is_homogeneus);
 
-  task_pool.wait_work();
+  task_pool_.wait_work();
 
   is_built_ = true;
-  sigmas.clear();
+  sigmas_.clear();
 }
 
 Octree::Octree(const BoundBox &bbox)
@@ -369,7 +372,7 @@ bool Octree::is_built() const
 
 int Octree::get_num_nodes() const
 {
-  return num_nodes;
+  return num_nodes_;
 }
 
 std::shared_ptr<OctreeNode> Octree::get_root() const

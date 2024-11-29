@@ -138,8 +138,7 @@ static void create_quad(int3 corners[8],
  * - The topologies of input OpenVDB grids are merged into a temporary grid.
  * - Voxels of the temporary grid are dilated to account for the padding necessary for volume
  * sampling.
- * - Quads are created on the boundary between active and inactive leaf nodes of the temporary
- * grid.
+ * - A bounding box of the temporary grid is created.
  */
 class VolumeMeshBuilder {
  public:
@@ -742,6 +741,7 @@ void VolumeManager::tag_update()
   need_rebuild_ = true;
 }
 
+/* Remove changed object from the list of octrees and tag for rebuild. */
 void VolumeManager::tag_update(const Object *object, uint32_t flag)
 {
   if (flag & ObjectManager::VISIBILITY_MODIFIED) {
@@ -758,10 +758,12 @@ void VolumeManager::tag_update(const Object *object, uint32_t flag)
   }
 
   if (!need_rebuild_ && (flag & ObjectManager::TRANSFORM_MODIFIED)) {
+    /* Octree is not tagged for rebuild, but the transformation changed, so a redraw is needed. */
     update_visualization_ = true;
   }
 }
 
+/* Remove object with changed shader from the list of octrees and tag for rebuild. */
 void VolumeManager::tag_update(const Shader *shader)
 {
   tag_update();
@@ -775,6 +777,7 @@ void VolumeManager::tag_update(const Shader *shader)
   }
 }
 
+/* Remove object with changed geometry from the list of octrees and tag for rebuild. */
 void VolumeManager::tag_update(const Geometry *geometry)
 {
   tag_update();
@@ -854,21 +857,34 @@ openvdb::BoolGrid::ConstPtr VolumeManager::mesh_to_sdf_grid_(const Mesh *mesh,
 
   return openvdb::tools::sdfInteriorMask(*sdf_grid, 0.5 * vdb_voxel_size.length());
 }
+
+openvdb::BoolGrid::ConstPtr VolumeManager::get_vdb_(const Geometry *geom,
+                                                    const Shader *shader) const
+{
+  if (geom && geom->is_mesh()) {
+    if (auto it = vdb_map_.find({geom, shader}); it != vdb_map_.end()) {
+      return it->second;
+    }
+  }
+  /* Create empty grid. */
+  return openvdb::BoolGrid::create();
+}
 #endif
 
 void VolumeManager::initialize_octree_(const Scene *scene)
 {
+  /* Add world volume. */
   const Shader *bg_shader = scene->background->get_shader(scene);
   if (bg_shader->has_volume) {
     auto it = object_octrees_.find({nullptr, bg_shader});
     if (it == object_octrees_.end()) {
-      /* Some large number. */
+      /* World volume is unbounded, use some practical large number instead. */
       const float3 size = make_float3(10000.0f);
       object_octrees_[{nullptr, bg_shader}] = std::make_shared<Octree>(BoundBox(-size, size));
     }
   }
 
-  /* Non-spatial varying instanced objects can share one octree. */
+  /* Instanced objects without spatial variation can share one octree. */
   std::map<std::pair<const Geometry *, const Shader *>, std::shared_ptr<Octree>> geometry_octrees;
   for (const auto &it : object_octrees_) {
     const Shader *shader = it.first.second;
@@ -879,7 +895,7 @@ void VolumeManager::initialize_octree_(const Scene *scene)
     }
   }
 
-  /* Loop through the volume objects to initialize the root node. */
+  /* Loop through the volume objects to initialize their root nodes. */
   for (Object *object : scene->objects) {
     const Geometry *geom = object->get_geometry();
     if (!geom->has_volume) {
@@ -899,6 +915,7 @@ void VolumeManager::initialize_octree_(const Scene *scene)
           /* TODO(weizhen): check object attribute. */
           /* TODO(weizhen): check maximal resolution needed. */
           if (auto it = geometry_octrees.find({geom, shader}); it != geometry_octrees.end()) {
+            /* Share octree with other instances. */
             object_octrees_[{object, shader}] = it->second;
           }
           else {
@@ -908,13 +925,13 @@ void VolumeManager::initialize_octree_(const Scene *scene)
           }
         }
         else {
+          /* TODO(weizhen): we can still share the octree if the spatial variation is in object
+           * space, but that might be tricky to determine. */
           object_octrees_[{object, shader}] = std::make_shared<Octree>(mesh->bounds);
         }
       }
 
 #ifdef WITH_OPENVDB
-      /* Create SDF grid for mesh volumes, to determine whether a certain point is in the
-       * interior of the mesh. This reduces evaluation time needed for heterogeneous volume. */
       if (geom->is_mesh() && !VolumeManager::is_homogeneous_volume(object, shader) &&
           vdb_map_.find({geom, shader}) == vdb_map_.end())
       {
@@ -925,20 +942,6 @@ void VolumeManager::initialize_octree_(const Scene *scene)
     }
   }
 }
-
-#ifdef WITH_OPENVDB
-openvdb::BoolGrid::ConstPtr VolumeManager::get_vdb_(const Geometry *geom,
-                                                    const Shader *shader) const
-{
-  if (geom && geom->is_mesh()) {
-    if (auto it = vdb_map_.find({geom, shader}); it != vdb_map_.end()) {
-      return it->second;
-    }
-  }
-  /* Create empty grid. */
-  return openvdb::BoolGrid::create();
-}
-#endif
 
 void VolumeManager::build_octree_(Device *device, Progress &progress)
 {
@@ -976,26 +979,30 @@ void VolumeManager::flatten_octree_(DeviceScene *dscene, const Scene *scene) con
     }
   }
 
-  int node_index = 0;
+  /* Keep track of the root index of the unique octrees. */
   std::map<const Octree *, int> octree_root_indices;
+
   /* Plus one for world volume. */
   int *roots = dscene->volume_tree_roots.alloc(scene->objects.size() + 1);
 
   KernelOctreeNode *knodes = dscene->volume_tree_nodes.alloc(num_nodes);
 
+  int node_index = 0;
   for (const auto &it : object_octrees_) {
     const Object *object = it.first.first;
     const int object_id = object ? object->get_device_index() + 1 : 0;
     const Octree *octree = it.second.get();
-    if (auto entry = octree_root_indices.find(octree); entry != octree_root_indices.end()) {
-      roots[object_id] = entry->second;
-    }
-    else {
+    if (auto entry = octree_root_indices.find(octree); entry == octree_root_indices.end()) {
+      /* Flatten octree and record the index of the root node. */
       const uint root_index = node_index++;
       roots[object_id] = root_index;
       octree_root_indices[octree] = root_index;
       knodes[root_index].parent = -1;
       octree->flatten(knodes, root_index, octree->get_root(), node_index);
+    }
+    else {
+      /* If octree is already flattened, just point to the index of the root node. */
+      roots[object_id] = entry->second;
     }
   }
 
@@ -1049,7 +1056,7 @@ std::string VolumeManager::visualize_octree_(const DeviceScene *dscene, const ch
 
 void VolumeManager::device_update(Device *device,
                                   DeviceScene *dscene,
-                                  Scene *scene,
+                                  const Scene *scene,
                                   Progress &progress)
 {
   /* TODO(weizhen): geometry nodes set material should get updated. */

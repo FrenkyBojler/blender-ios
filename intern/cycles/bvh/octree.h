@@ -2,11 +2,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+/* The volume octree is used to determine the necessary step size when rendering the volume. One
+ * volume per object per shader is built, and a node splits in eight when the density difference
+ * inside the node exceeds a certain threshold. */
+
 #ifndef __OCTREE_H__
 #define __OCTREE_H__
 
 #include "util/boundbox.h"
-#include "util/map.h"
 #include "util/task.h"
 
 #ifdef WITH_OPENVDB
@@ -17,23 +20,21 @@
 
 CCL_NAMESPACE_BEGIN
 
-class BoundBox;
 class Device;
-class Geometry;
-class Mesh;
-class Progress;
-class Scene;
-class Shader;
 class Object;
+class Progress;
+class Shader;
 struct KernelOctreeNode;
-struct Node;
-class VolumeManager;
 
 struct OctreeNode {
+  /* Bounding box of the node. */
   BoundBox bbox;
+
+  /* Depth of the node in the octree. */
   int depth;
 
   /* TODO(weizhen): we need visibility for shadow, camera, and indirect. */
+  /* Minimal and maximal volume density inside the node. */
   Extrema<float> sigma = {0.0f, 0.0f};
 
   OctreeNode() : bbox(BoundBox::empty), depth(0) {}
@@ -52,56 +53,72 @@ struct OctreeInternalNode : public OctreeNode {
 };
 
 class Octree {
-  friend struct OctreeNode;
-
  public:
-  void build(Device *, Progress &, const Object *, const Shader *, openvdb::BoolGrid::ConstPtr &);
   Octree(const BoundBox &bbox);
   ~Octree() = default;
-  /* Breadth-first flatten, so that children are stored in consecutive indices. */
+
+  /* Build the octree according to the volume density. */
+  void build(Device *, Progress &, const Object *, const Shader *, openvdb::BoolGrid::ConstPtr &);
+
+  /* Convert the octree into an array of nodes for uploading to the kernel. */
   void flatten(KernelOctreeNode *, const int, const std::shared_ptr<OctreeNode> &, int &) const;
-  int get_num_nodes() const;
 
-  float3 object_to_index(float3 p) const;
-  int3 object_to_floor_index(float3 p) const;
-  int3 object_to_ceil_index(float3 p) const;
-  /* Convert from index to the position of the lower left corner of the cell. */
-  float3 index_to_object(int x, int y, int z) const;
-  float3 voxel_size() const;
+  /* Flatten a 3D coordinate in the grid to a 1D index. */
   int flatten_index(int x, int y, int z) const;
+  /* Convert from index to the position of the lower left corner of the voxel. */
+  float3 index_to_position(int x, int y, int z) const;
+  /* Size of a voxel. */
+  float3 voxel_size() const;
 
-  /* Represent octree nodes as empty boxes with Blender Python API. */
-  void visualize(const KernelOctreeNode *knodes, const int root, std::ofstream &file) const;
-  bool is_built() const;
+  int get_num_nodes() const;
   std::shared_ptr<OctreeNode> get_root() const;
+  bool is_built() const;
+
+  /* Draw octree nodes as empty boxes with Blender Python API. */
+  void visualize(const KernelOctreeNode *knodes, const int root, std::ofstream &file) const;
 
  private:
-  bool is_built_;
-  std::shared_ptr<OctreeInternalNode> make_internal(std::shared_ptr<OctreeNode> &node);
-  /* Scale the node size so that Octree has the same shape in viewport and final render. */
-  float volume_scale_(const Object *object) const;
-  void recursive_build_(std::shared_ptr<OctreeNode> &, const float, const bool);
+  /* The bounding box of the octree is divided into a regular grid with the same resolution in each
+   * dimension. */
+  int resolution_;
+  /* Extrema of volume densities in the grid. */
+  vector<Extrema<float>> sigmas_;
+  /* Compute the extrema of all the `sigmas_` in a coordinate bounding box defined by `index_min`
+   * and `index_max`. */
+  Extrema<float> get_extrema_(const int3 index_min, const int3 index_max) const;
+  /* Randomly sample positions inside the grid to evaluate the shader for the density. */
   void evaluate_volume_density_(
       Device *, Progress &, const Object *, const Shader *, openvdb::BoolGrid::ConstPtr &);
-  Extrema<float> get_extrema(const vector<Extrema<float>> &values,
-                             const int3 index_min,
-                             const int3 index_max) const;
-  bool should_split(std::shared_ptr<OctreeNode> &, const float, const bool) const;
+  /* Convert from position in object space to grid index space. */
+  float3 position_to_index_scale_;
+  float3 index_to_position_scale_;
+  float3 position_to_index_(const float3 p) const;
+  int3 position_to_floor_index_(const float3 p) const;
+  int3 position_to_ceil_index_(const float3 p) const;
+
+  /* Whether a node should be split into child nodes. A scale is applied to account for meshes
+   * before or after transformation. */
+  bool should_split_(std::shared_ptr<OctreeNode> &node,
+                     const float scale,
+                     const bool is_homogeneous_volume) const;
+  /* Scale the node size so that Octree has the same shape in viewport and final render. */
+  float volume_scale_(const Object *object) const;
+  /* Recursively build a node and its child nodes. */
+  void recursive_build_(std::shared_ptr<OctreeNode> &, const float, const bool);
+  /* Turn a node into an internal node. */
+  std::shared_ptr<OctreeInternalNode> make_internal_(std::shared_ptr<OctreeNode> &node);
 
   /* Root node. */
   std::shared_ptr<OctreeNode> root_;
-  /* TODO(weizhen): Remove atomic? */
-  std::atomic<int> num_nodes = 1;
 
-  TaskPool task_pool;
+  /* Whether the octree is already built. */
+  bool is_built_;
 
-  int width;
-  float3 object_to_index_scale_;
-  float3 index_to_object_scale_;
-  vector<Extrema<float>> sigmas;
+  /* Number of nodes in the octree. Incremented while building the tree.  */
+  std::atomic<int> num_nodes_ = 1;
 
-  /* World volume. */
-  // Extrema<float> background_density;
+  /* Task pool for building the octree in parallel. */
+  TaskPool task_pool_;
 };
 
 CCL_NAMESPACE_END
