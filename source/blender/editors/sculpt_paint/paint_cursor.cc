@@ -120,8 +120,8 @@ namespace blender::ed::sculpt_paint {
 static int same_tex_snap(TexSnapshot *snap, MTex *mtex, ViewContext *vc, bool col, float zoom)
 {
   return (/* make brush smaller shouldn't cause a resample */
-          //(mtex->brush_map_mode != MTEX_MAP_MODE_VIEW ||
-          //(BKE_brush_size_get(vc->scene, brush) <= snap->BKE_brush_size_get)) &&
+                                                               //(mtex->brush_map_mode != MTEX_MAP_MODE_VIEW ||
+                                                               //(BKE_brush_size_get(vc->scene, brush) <= snap->BKE_brush_size_get)) &&
 
           (mtex->brush_map_mode != MTEX_MAP_MODE_TILED ||
            (vc->region->winx == snap->winx && vc->region->winy == snap->winy)) &&
@@ -848,10 +848,10 @@ BLI_INLINE void draw_tri_point(uint pos,
 
   float w = width / 2.0f;
   const float tri[3][2] = {
-      {co[0], co[1] + w},
-      {co[0] - w, co[1] - w},
-      {co[0] + w, co[1] - w},
-  };
+                           {co[0], co[1] + w},
+                           {co[0] - w, co[1] - w},
+                           {co[0] + w, co[1] - w},
+                           };
 
   immBegin(GPU_PRIM_LINE_LOOP, 3);
   immVertex2fv(pos, tri[0]);
@@ -1658,10 +1658,12 @@ static void paint_draw_3D_view_inactive_brush_cursor(PaintCursorContext *pcontex
                           pcontext->final_radius,
                           80);
   immUniformColor3fvAlpha(pcontext->outline_col, pcontext->outline_alpha * 0.35f);
+  const float pcontext_alpha = BKE_brush_alpha_get(pcontext->scene, pcontext->brush);
+
   imm_draw_circle_wire_3d(pcontext->pos,
                           pcontext->translation[0],
                           pcontext->translation[1],
-                          pcontext->final_radius * clamp_f(pcontext->brush->alpha, 0.0f, 1.0f),
+                          pcontext->final_radius * clamp_f(pcontext_alpha, 0.0f, 1.0f),
                           80);
 }
 
@@ -1697,8 +1699,9 @@ static void paint_cursor_draw_main_inactive_cursor(PaintCursorContext *pcontext)
 
   GPU_line_width(1.0f);
   immUniformColor3fvAlpha(pcontext->outline_col, pcontext->outline_alpha * 0.5f);
+  const float pcontext_alpha = BKE_brush_alpha_get(pcontext->scene, pcontext->brush);
   imm_draw_circle_wire_3d(
-      pcontext->pos, 0, 0, pcontext->radius * clamp_f(pcontext->brush->alpha, 0.0f, 1.0f), 80);
+      pcontext->pos, 0, 0, pcontext->radius * clamp_f(pcontext_alpha, 0.0f, 1.0f), 80);
 }
 
 static void paint_cursor_pose_brush_segments_draw(PaintCursorContext *pcontext)
