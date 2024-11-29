@@ -164,9 +164,10 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       if (selection_only) {
         Object &ob_eval = *DEG_get_evaluated_object(context_.depsgraph, params_.object);
         GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
-        frames = IndexMask::from_predicate(frames, GrainSize(1), memory, [&](const int frame) {
-          return this->is_selected_frame(grease_pencil, frame);
-        });
+        frames = IndexMask::from_predicate(
+            frames, GrainSize(1), memory, [&](const int frame_number) {
+              return this->is_selected_frame(grease_pencil, frame_number);
+            });
       }
 
       this->prepare_render_params(scene, frames.first());
@@ -184,11 +185,11 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       const int frame_count = frames.size();
       const float duration = scene.r.frs_sec_base * frame_count / scene.r.frs_sec;
 
-      frames.foreach_index([&](const int frame) {
-        scene.r.cfra = frame;
+      frames.foreach_index([&](const int frame_number) {
+        scene.r.cfra = frame_number;
         BKE_scene_graph_update_for_newframe(context_.depsgraph);
-        this->prepare_render_params(scene, frame);
-        this->export_grease_pencil_objects(frames_group_node, frame);
+        this->prepare_render_params(scene, frame_number);
+        this->export_grease_pencil_objects(frames_group_node, frame_number);
       });
 
       /* Back to original frame. */
@@ -206,13 +207,13 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
   }
 }
 
-static std::string frame_name(int frame)
+static std::string frame_name(int frame_number)
 {
-  std::string frametxt = "blender_frame_" + std::to_string(frame);
+  std::string frametxt = "blender_frame_" + std::to_string(frame_number);
   return frametxt;
 }
 
-void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int frame)
+void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int frame_number)
 {
   using bke::greasepencil::Drawing;
 
@@ -221,7 +222,7 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
   Vector<ObjectInfo> objects = retrieve_objects();
 
   pugi::xml_node frame_node = node.append_child("g");
-  frame_node.append_attribute("id").set_value(frame_name(frame).c_str());
+  frame_node.append_attribute("id").set_value(frame_name(frame_number).c_str());
 
   for (const ObjectInfo &info : objects) {
     const Object *ob = info.object;
@@ -229,7 +230,8 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
     /* Camera clipping. */
     if (is_clipping) {
       pugi::xml_node clip_node = node.append_child("clipPath");
-      clip_node.append_attribute("id").set_value(("clip-path" + std::to_string(frame)).c_str());
+      clip_node.append_attribute("id").set_value(
+          ("clip-path" + std::to_string(frame_number)).c_str());
 
       write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
     }
@@ -237,13 +239,13 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
     /* Clip area. */
     if (is_clipping) {
       frame_node.append_attribute("clip-path")
-          .set_value(("url(#clip-path" + std::to_string(frame) + ")").c_str());
+          .set_value(("url(#clip-path" + std::to_string(frame_number) + ")").c_str());
     }
 
     pugi::xml_node ob_node = frame_node.append_child("g");
 
     char obtxt[96];
-    SNPRINTF(obtxt, "blender_object_%s_%d", ob->id.name + 2, frame);
+    SNPRINTF(obtxt, "blender_object_%s_%d", ob->id.name + 2, frame_number);
     ob_node.append_attribute("id").set_value(obtxt);
 
     /* Use evaluated version to get strokes with modifiers. */
@@ -255,7 +257,7 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       if (!layer->is_visible()) {
         continue;
       }
-      const Drawing *drawing = grease_pencil_eval->get_drawing_at(*layer, frame);
+      const Drawing *drawing = grease_pencil_eval->get_drawing_at(*layer, frame_number);
       if (drawing == nullptr) {
         continue;
       }
