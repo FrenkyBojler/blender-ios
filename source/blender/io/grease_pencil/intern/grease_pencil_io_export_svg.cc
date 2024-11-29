@@ -14,6 +14,7 @@
 #include "BLI_virtual_array.hh"
 
 #include "BKE_grease_pencil.hh"
+#include "BKE_scene.hh"
 
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
@@ -111,7 +112,10 @@ class SVGExporter : public GreasePencilExporter {
   pugi::xml_document main_doc_;
 
   bool export_scene(Scene &scene, StringRefNull filepath);
-  void export_grease_pencil_objects(pugi::xml_node node, int frame_number);
+  void export_grease_pencil_objects(pugi::xml_node node,
+                                    int frame_number,
+                                    int frame_count,
+                                    float scene_duration);
   void export_grease_pencil_layer(pugi::xml_node node,
                                   const Object &object,
                                   const bke::greasepencil::Layer &layer,
@@ -135,20 +139,95 @@ class SVGExporter : public GreasePencilExporter {
   bool write_to_file(StringRefNull filepath);
 };
 
-bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
+// TODO(Leon): Share with PDF-exporter.
+static bool is_selected_frame(const GreasePencil &grease_pencil, const int frame_number)
 {
-  const int frame_number = scene.r.cfra;
-
-  this->prepare_render_params(scene, frame_number);
-
-  this->write_document_header();
-  pugi::xml_node main_node = this->write_main_node();
-  this->export_grease_pencil_objects(main_node, frame_number);
-
-  return this->write_to_file(filepath);
+  for (const bke::greasepencil::Layer *layer : grease_pencil.layers()) {
+    if (layer->is_visible()) {
+      const GreasePencilFrame *frame = layer->frames().lookup_ptr(frame_number);
+      if ((frame != nullptr) && frame->is_selected()) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
-void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int frame_number)
+bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
+{
+  bool result = false;
+  Object &ob_eval = *DEG_get_evaluated_object(context_.depsgraph, params_.object);
+
+  switch (params_.frame_mode) {
+    case ExportParams::FrameMode::Active: {
+      const int frame_number = scene.r.cfra;
+      this->prepare_render_params(scene, frame_number);
+
+      this->write_document_header();
+      pugi::xml_node main_node = this->write_main_node();
+
+      this->export_grease_pencil_objects(main_node, frame_number, 1, scene.r.framelen);
+      result = this->write_to_file(filepath);
+      break;
+    }
+    case ExportParams::FrameMode::Selected:
+    case ExportParams::FrameMode::Scene: {
+      const bool only_selected = (params_.frame_mode == ExportParams::FrameMode::Selected);
+      const int orig_frame = scene.r.cfra;
+
+      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
+
+      // TODO(Leon): Reimplement with IndexMask.
+
+      int framecount = scene.r.efra - scene.r.sfra + 1;
+      int first_frame = scene.r.sfra;
+      if (only_selected) {
+        framecount = 0;
+        for (int frame = scene.r.sfra; frame <= scene.r.efra; frame += scene.r.frame_step) {
+          if (is_selected_frame(grease_pencil, frame)) {
+            if (framecount == 0) {
+              first_frame = frame;
+            }
+            framecount++;
+          }
+        }
+      }
+
+      this->prepare_render_params(scene, first_frame);
+
+      this->write_document_header();
+      pugi::xml_node main_node = this->write_main_node();
+
+      float framerate = scene.r.frs_sec / scene.r.frs_sec_base;
+      float duration = framecount / framerate;
+
+      for (int frame = scene.r.sfra; frame <= scene.r.efra; frame += scene.r.frame_step) {
+        if (only_selected && !is_selected_frame(grease_pencil, frame)) {
+          continue;
+        }
+        scene.r.cfra = frame;
+        BKE_scene_graph_update_for_newframe(context_.depsgraph);
+        this->prepare_render_params(scene, frame);
+        this->export_grease_pencil_objects(main_node, frame, framecount, duration);
+      }
+
+      result = this->write_to_file(filepath);
+      scene.r.cfra = orig_frame;
+      break;
+    }
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+
+  return result;
+}
+
+// TODO(Leon): properly separate multi and single frame export.
+void SVGExporter::export_grease_pencil_objects(pugi::xml_node node,
+                                               const int frame_number,
+                                               const int frame_count,
+                                               const float scene_duration)
 {
   using bke::greasepencil::Drawing;
 
@@ -177,6 +256,20 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       frame_node.append_attribute("clip-path")
           .set_value(("url(#clip-path" + std::to_string(frame_number) + ")").c_str());
     }
+
+    //TODO(Leon): Rewrite to use the grouped frames and animate them with hrefs.
+    //         <animate attributeName="visibility" begin="0s" from="visible" to="hidden" dur=".6s"
+    //         repeatCount="indefinite" />
+    pugi::xml_node animate_node = frame_node.append_child("animate");
+    animate_node.append_attribute("attributeName").set_value("display");
+    animate_node.append_attribute("values").set_value("none; inline; none; none;");
+    const float start_value = float(frame_number - 1.0f) / float(frame_count);
+    const float end_value = float(frame_number) / float(frame_count);
+    animate_node.append_attribute("keyTimes")
+        .set_value(fmt::format("0.0; {}; {}; 1.0", start_value, end_value).c_str());
+    std::string durationtext = std::to_string(scene_duration) + "s";
+    animate_node.append_attribute("dur").set_value(durationtext.c_str());
+    animate_node.append_attribute("repeatCount").set_value("indefinite");
 
     pugi::xml_node ob_node = frame_node.append_child("g");
 
