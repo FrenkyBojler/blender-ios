@@ -99,6 +99,8 @@ struct CurvesTransformData {
    */
   blender::Vector<int> layer_offsets;
 
+  blender::Vector<float> grease_pencil_falloffs;
+
   /**
    * Copy of all positions being transformed.
    */

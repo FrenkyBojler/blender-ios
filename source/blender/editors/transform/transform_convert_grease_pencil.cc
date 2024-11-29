@@ -80,6 +80,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
     tc.data_len = 0;
 
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings = all_drawings[i];
+    curves_transform_data->grease_pencil_falloffs.reinitialize(drawings.size());
     for (ed::greasepencil::MutableDrawingInfo info : drawings) {
       const bke::CurvesGeometry &curves = info.drawing.strokes();
       Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
@@ -186,7 +187,8 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
     Span<const bke::greasepencil::Layer *> layers = grease_pencil.layers();
 
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings = all_drawings[i];
-    for (ed::greasepencil::MutableDrawingInfo info : drawings) {
+    for (const int drawing : drawings.index_range()) {
+      ed::greasepencil::MutableDrawingInfo info = drawings[drawing];
       const bke::greasepencil::Layer &layer = *layers[info.layer_index];
       const float4x4 layer_space_to_world_space = layer.to_world_space(*object_eval);
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
@@ -205,6 +207,11 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
                                              ed::greasepencil::retrieve_editable_strokes(
                                                  *object, info.drawing, info.layer_index, memory) :
                                              IndexMask();
+
+      CurvesTransformData &curves_transform_data = *static_cast<CurvesTransformData *>(
+          tc.custom.type.data);
+      curves_transform_data.grease_pencil_falloffs[drawing] = info.multi_frame_falloff;
+      float &drawing_falloff = curves_transform_data.grease_pencil_falloffs[drawing];
       curve_populate_trans_data_structs(tc,
                                         curves,
                                         layer_space_to_world_space,
@@ -213,7 +220,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
                                         affected_strokes,
                                         use_connected_only,
                                         bezier_curves[layer_offset],
-                                        new float(info.multi_frame_falloff));
+                                        &drawing_falloff);
       layer_offset++;
     }
   }
