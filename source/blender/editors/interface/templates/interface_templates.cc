@@ -6760,7 +6760,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
                         0.0f,
                         "");
   /* UI_BTYPE_ROUNDBOX's bg color is set in but->col. */
-  UI_GetThemeColorType4ubv(TH_INFO_WARNING, SPACE_INFO, but->col);
+  UI_GetThemeColorType4ubv(TH_WARNING, SPACE_INFO, but->col);
 
   if (!warning_message.is_empty()) {
     /* Background for the rest of the message. */
@@ -6778,7 +6778,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
                    "");
 
     /* Use icon background at low opacity to highlight, but still contrasting with area TH_TEXT. */
-    UI_GetThemeColorType4ubv(TH_INFO_WARNING, SPACE_INFO, but->col);
+    UI_GetThemeColorType4ubv(TH_WARNING, SPACE_INFO, but->col);
     but->col[3] = 64;
   }
 

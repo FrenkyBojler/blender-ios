@@ -40,7 +40,13 @@ BLI_STATIC_ASSERT(sizeof(BIFIconID_Static) <= sizeof(BIFIconID),
 #define TH_UNDEFINED -1
 
 enum ThemeColorID {
+  TH_NONE,
+  TH_BLACK,
+  TH_WHITE,
   TH_REDALERT,
+  TH_ERROR,
+  TH_WARNING,
+  TH_INFO,
 
   TH_THEMEUI,
   /* Common colors among spaces. */
@@ -340,11 +346,8 @@ enum ThemeColorID {
 
   TH_INFO_SELECTED,
   TH_INFO_SELECTED_TEXT,
-  TH_INFO_ERROR,
   TH_INFO_ERROR_TEXT,
-  TH_INFO_WARNING,
   TH_INFO_WARNING_TEXT,
-  TH_INFO_INFO,
   TH_INFO_INFO_TEXT,
   TH_INFO_DEBUG,
   TH_INFO_DEBUG_TEXT,
