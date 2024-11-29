@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "ED_image.hh"
+
 #include "image_private.hh"
 
 namespace blender::image_engine {

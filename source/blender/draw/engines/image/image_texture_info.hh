@@ -14,6 +14,8 @@
 #include "GPU_batch.hh"
 #include "GPU_texture.hh"
 
+#include "DRW_render.hh"
+
 namespace blender::image_engine {
 
 struct TextureInfo {
