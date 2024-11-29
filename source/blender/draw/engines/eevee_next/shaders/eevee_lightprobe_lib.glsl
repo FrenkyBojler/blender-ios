@@ -4,6 +4,12 @@
 
 #pragma once
 
+#include "infos/eevee_lightprobe_sphere_info.hh"
+
+SHADER_LIBRARY_CREATE_INFO(eevee_lightprobe_sphere_data)
+SHADER_LIBRARY_CREATE_INFO(eevee_volume_probe_data)
+SHADER_LIBRARY_CREATE_INFO(eevee_lightprobe_planar_data)
+
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 

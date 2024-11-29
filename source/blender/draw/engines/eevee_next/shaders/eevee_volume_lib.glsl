@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_common_info.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 

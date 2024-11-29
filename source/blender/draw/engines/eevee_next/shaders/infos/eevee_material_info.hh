@@ -138,18 +138,6 @@ GPU_SHADER_CREATE_END()
 #define image_array_out(slot, qualifier, format, name) \
   image(slot, format, qualifier, ImageType::FLOAT_2D_ARRAY, name, Frequency::PASS)
 
-GPU_SHADER_CREATE_INFO(eevee_render_pass_out)
-DEFINE("MAT_RENDER_PASS_SUPPORT")
-ADDITIONAL_INFO(eevee_global_ubo)
-IMAGE_FREQ(RBUFS_COLOR_SLOT, GPU_RGBA16F, WRITE, FLOAT_2D_ARRAY, rp_color_img, PASS)
-IMAGE_FREQ(RBUFS_VALUE_SLOT, GPU_R16F, WRITE, FLOAT_2D_ARRAY, rp_value_img, PASS)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_cryptomatte_out)
-STORAGE_BUF(CRYPTOMATTE_BUF_SLOT, READ, vec2, cryptomatte_object_buf[])
-IMAGE_FREQ(RBUFS_CRYPTOMATTE_SLOT, GPU_RGBA32F, WRITE, FLOAT_2D, rp_cryptomatte_img, PASS)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(eevee_surf_deferred_base)
 DEFINE("MAT_DEFERRED")
 DEFINE("GBUFFER_WRITE")

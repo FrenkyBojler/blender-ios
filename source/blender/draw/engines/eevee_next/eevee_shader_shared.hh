@@ -2148,8 +2148,10 @@ BLI_STATIC_ASSERT_ALIGN(UniformData, 16)
 #    define UTIL_TEXEL vec2(gl_FragCoord.xy)
 #  elif defined(GPU_COMPUTE_SHADER)
 #    define UTIL_TEXEL vec2(gl_GlobalInvocationID.xy)
-#  else
+#  elif defined(GPU_VERTEX_SHADER)
 #    define UTIL_TEXEL vec2(gl_VertexID, 0)
+#  elif defined(GPU_LIBRARY_SHADER)
+#    define UTIL_TEXEL vec2(0)
 #  endif
 
 /* Fetch texel. Wrapping if above range. */

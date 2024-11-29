@@ -37,13 +37,6 @@ GPU_SHADER_CREATE_END()
 
 /** \} */
 
-GPU_SHADER_CREATE_INFO(eevee_gbuffer_data)
-DEFINE("GBUFFER_LOAD")
-SAMPLER(12, UINT_2D, gbuf_header_tx)
-SAMPLER(13, FLOAT_2D_ARRAY, gbuf_closure_tx)
-SAMPLER(14, FLOAT_2D_ARRAY, gbuf_normal_tx)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(eevee_deferred_tile_classify)
 FRAGMENT_SOURCE("eevee_deferred_tile_classify_frag.glsl")
 ADDITIONAL_INFO(eevee_shared)

@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include "infos/eevee_lightprobe_sphere_info.hh"
+
+SHADER_LIBRARY_CREATE_INFO(eevee_lightprobe_sphere_data)
+
 #include "eevee_lightprobe_sphere_mapping_lib.glsl"
 #include "eevee_octahedron_lib.glsl"
 #include "eevee_spherical_harmonics_lib.glsl"
