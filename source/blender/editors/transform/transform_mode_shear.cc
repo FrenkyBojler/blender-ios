@@ -70,9 +70,9 @@ static void transdata_elem_shear(const TransInfo *t,
 
   if (t->options & CTX_GPENCIL_STROKES) {
     /* Grease pencil multi-frame falloff. */
-    bGPDstroke *gps = (bGPDstroke *)td->extra;
+    float *gps = (float *)td->extra;
     if (gps != nullptr) {
-      mul_v3_fl(vec, td->factor * gps->runtime.multi_frame_falloff);
+      mul_v3_fl(vec, td->factor * *gps);
     }
     else {
       mul_v3_fl(vec, td->factor);
