@@ -9,6 +9,7 @@ set(INC
   ../../blenkernel
   ../../blentranslation
   ../../gpu
+  ../../imbuf
   ../../makesrna
   ../../sequencer
   ../../windowmanager

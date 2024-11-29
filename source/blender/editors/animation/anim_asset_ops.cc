@@ -6,8 +6,11 @@
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_icons.h"
 #include "BKE_lib_id.hh"
 #include "BKE_preferences.h"
+#include "BKE_preview_image.hh"
 #include "BKE_report.hh"
 
 #include "WM_api.hh"
@@ -25,6 +28,7 @@
 #include "ED_screen.hh"
 
 #include "UI_resources.hh"
+#include "UI_view2d.hh"
 
 #include "BLT_translation.hh"
 
@@ -32,6 +36,8 @@
 #include "ANIM_action_iterators.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_rna.hh"
+
+#include "IMB_imbuf.hh"
 
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_tree.hh"
@@ -456,6 +462,168 @@ void POSELIB_OT_asset_overwrite(wmOperatorType *ot)
 
   ot->exec = pose_asset_overwrite_exec;
   ot->poll = pose_asset_overwrite_poll;
+}
+
+static int screenshot_preview_exec(bContext *C, wmOperator *op)
+{
+  blender::int2 rect_a, rect_b;
+  RNA_int_get_array(op->ptr, "min", rect_a);
+  RNA_int_get_array(op->ptr, "max", rect_b);
+
+  rcti crop_rect;
+  if (rect_a.x < rect_b.x) {
+    crop_rect.xmin = rect_a.x;
+    crop_rect.xmax = rect_b.x;
+  }
+  else {
+    crop_rect.xmin = rect_b.x;
+    crop_rect.xmax = rect_a.x;
+  }
+
+  if (rect_a.y < rect_b.y) {
+    crop_rect.ymin = rect_a.y;
+    crop_rect.ymax = rect_b.y;
+  }
+  else {
+    crop_rect.ymin = rect_b.y;
+    crop_rect.ymax = rect_a.y;
+  }
+
+  int dumprect_size[2];
+  wmWindow *win = CTX_wm_window(C);
+  uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
+
+  ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
+  IMB_assign_byte_buffer(image_buffer, dumprect, IB_DO_NOT_TAKE_OWNERSHIP);
+  IMB_rect_crop(image_buffer, &crop_rect);
+
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  BLI_assert_msg(asset_handle != nullptr, "This is ensured by poll");
+  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
+
+  Main *bmain = CTX_data_main(C);
+  ID *id = bke::asset_edit_id_from_weak_reference(*bmain, ID_AC, asset_reference);
+
+  PreviewImage *preview_image = BKE_previewimg_id_ensure(id);
+  BKE_previewimg_clear(preview_image);
+
+  for (int size_type = 0; size_type < NUM_ICON_SIZES; size_type++) {
+    BKE_previewimg_ensure(preview_image, size_type);
+    int width = image_buffer->x;
+    int height = image_buffer->y;
+    if (size_type == ICON_SIZE_ICON) {
+      if (image_buffer->x > image_buffer->y) {
+        width = ICON_RENDER_DEFAULT_HEIGHT;
+        height = image_buffer->y * (width / float(image_buffer->x));
+      }
+      else if (image_buffer->y > image_buffer->x) {
+        height = ICON_RENDER_DEFAULT_HEIGHT;
+        width = image_buffer->x * (height / float(image_buffer->y));
+      }
+      else {
+        width = height = ICON_RENDER_DEFAULT_HEIGHT;
+      }
+    }
+    ImBuf *scaled_imbuf = IMB_scale_into_new(
+        image_buffer, width, height, IMBScaleFilter::Nearest, false);
+    preview_image->rect[size_type] = (uint *)MEM_dupallocN(scaled_imbuf->byte_buffer.data);
+    preview_image->w[size_type] = width;
+    preview_image->h[size_type] = height;
+    IMB_freeImBuf(scaled_imbuf);
+  }
+
+  bke::asset_edit_id_save(*bmain, *id, *op->reports);
+
+  MEM_freeN(dumprect);
+  IMB_freeImBuf(image_buffer);
+
+  return OPERATOR_FINISHED;
+}
+
+static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (event->type != LEFTMOUSE) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  View2D *v2d = UI_view2d_fromcontext(C);
+  wmWindow *window = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
+
+  blender::int2 screen_space_mouse = {
+      event->mval[0] + region->winrct.xmin,
+      event->mval[1] + region->winrct.ymin,
+  };
+
+  switch (event->val) {
+    case KM_PRESS: {
+      RNA_int_set_array(op->ptr, "min", screen_space_mouse);
+      return OPERATOR_RUNNING_MODAL;
+    }
+    case KM_RELEASE: {
+      RNA_int_set_array(op->ptr, "max", screen_space_mouse);
+      screenshot_preview_exec(C, op);
+      return OPERATOR_FINISHED;
+    }
+  }
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static int screenshot_preview_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  /* Add a modal handler for this operator. */
+  WM_event_add_modal_handler(C, op);
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static bool screenshot_preview_poll(bContext *C)
+{
+  if (G.background) {
+    return false;
+  }
+
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  if (!asset_handle) {
+    return false;
+  }
+
+  return WM_operator_winactive(C);
+}
+
+/* This should be a generic operator for assets not linked to the poselib. */
+void POSELIB_OT_screenshot_preview(wmOperatorType *ot)
+{
+  ot->name = "Capture screenshot thumbnail";
+  ot->description = "Capture a screenshot to use as a preview for the selected asset";
+  ot->idname = "POSELIB_OT_screenshot_preview";
+
+  ot->poll = screenshot_preview_poll;
+  ot->invoke = screenshot_preview_invoke;
+  ot->modal = screenshot_preview_modal;
+  ot->exec = screenshot_preview_exec;
+
+  RNA_def_int_array(ot->srna,
+                    "min",
+                    2,
+                    nullptr,
+                    0,
+                    INT_MAX,
+                    "Point 1",
+                    "Top left point of screenshot in screenspace",
+                    0,
+                    3840);
+  RNA_def_int_array(ot->srna,
+                    "max",
+                    2,
+                    nullptr,
+                    0,
+                    INT_MAX,
+                    "Point 2",
+                    "Bottom right point of screenshot in screenspace",
+                    0,
+                    3840);
 }
 
 }  // namespace blender::ed::animrig

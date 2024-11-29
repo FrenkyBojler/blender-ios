@@ -59,6 +59,7 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
 
         layout.separator()
         layout.operator("poselib.asset_overwrite")
+        layout.operator("poselib.screenshot_preview")
         layout.separator()
         layout.operator("asset.open_containing_blend_file")
 
@@ -80,6 +81,7 @@ def pose_library_asset_browser_context_menu(self: UIList, context: Context) -> N
 
     layout.separator()
     layout.operator("poselib.asset_overwrite")
+    layout.operator("poselib.screenshot_preview")
     layout.separator()
 
     layout.operator("poselib.apply_pose_asset", text="Apply Pose").flipped = False
