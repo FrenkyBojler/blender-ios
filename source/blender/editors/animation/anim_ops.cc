@@ -962,6 +962,7 @@ void ED_operatortypes_anim()
   WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_create);
   WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_overwrite);
   WM_operatortype_append(blender::ed::animrig::POSELIB_OT_screenshot_preview);
+  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_delete);
 }
 
 void ED_keymap_anim(wmKeyConfig *keyconf)

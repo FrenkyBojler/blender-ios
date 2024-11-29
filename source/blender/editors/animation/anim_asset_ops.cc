@@ -27,6 +27,7 @@
 #include "ED_asset_shelf.hh"
 #include "ED_screen.hh"
 
+#include "UI_interface_icons.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -464,6 +465,62 @@ void POSELIB_OT_asset_overwrite(wmOperatorType *ot)
   ot->poll = pose_asset_overwrite_poll;
 }
 
+static bool pose_asset_delete_poll(bContext *C)
+{
+  if (!ED_operator_posemode_context(C)) {
+    return false;
+  }
+
+  bAction *action = action_from_selected_asset(C);
+
+  if (!action) {
+    return false;
+  }
+
+  if (!bke::asset_edit_id_is_editable(action->id)) {
+    return false;
+  }
+
+  return true;
+}
+
+static int pose_asset_delete_exec(bContext *C, wmOperator *op)
+{
+  bAction *action = action_from_selected_asset(C);
+  bke::asset_edit_id_delete(*CTX_data_main(C), action->id, *op->reports);
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static int pose_asset_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  bAction *action = action_from_selected_asset(C);
+
+  return WM_operator_confirm_ex(
+      C,
+      op,
+      IFACE_("Delete Brush Asset"),
+      ID_IS_LINKED(action) ?
+          IFACE_("Permanently delete pose asset blend file. This cannot be undone.") :
+          IFACE_("Permanently delete pose asset. This cannot be undone."),
+      IFACE_("Delete"),
+      ALERT_ICON_WARNING,
+      false);
+}
+
+/* Calling it overwrite instead of save because we aren't actually saving an opened asset. */
+void POSELIB_OT_asset_delete(wmOperatorType *ot)
+{
+  ot->name = "Delete Pose Asset";
+  ot->description = "Delete the selected Pose Asset";
+  ot->idname = "POSELIB_OT_asset_delete";
+
+  ot->poll = pose_asset_delete_poll;
+  ot->invoke = pose_asset_delete_invoke;
+  ot->exec = pose_asset_delete_exec;
+}
+
 static int screenshot_preview_exec(bContext *C, wmOperator *op)
 {
   blender::int2 rect_a, rect_b;
@@ -536,6 +593,8 @@ static int screenshot_preview_exec(bContext *C, wmOperator *op)
 
   MEM_freeN(dumprect);
   IMB_freeImBuf(image_buffer);
+
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
