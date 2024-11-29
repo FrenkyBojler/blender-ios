@@ -15,6 +15,14 @@
 #  define MAT_CLIP_PLANE
 #  define PLANAR_PROBES
 #  define MAT_RENDER_PASS_SUPPORT
+
+/* Stub for C++ compilation. */
+struct NodeTree {
+  float crypto_hash;
+  float _pad0;
+  float _pad1;
+  float _pad2;
+};
 #endif
 
 #include "eevee_defines.hh"
@@ -23,6 +31,12 @@
 /* -------------------------------------------------------------------- */
 /** \name Common
  * \{ */
+
+/* Stub for C++ compilation. */
+/* TODO(fclem): Use it for actual interface. */
+GPU_SHADER_CREATE_INFO(eevee_node_tree)
+UNIFORM_BUF(0 /*GPU_NODE_TREE_UBO_SLOT*/, NodeTree, node_tree)
+GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_shared)
 TYPEDEF_SOURCE("eevee_defines.hh")

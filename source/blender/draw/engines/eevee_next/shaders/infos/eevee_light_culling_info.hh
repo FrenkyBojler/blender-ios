@@ -6,6 +6,7 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
+#  include "draw_fullscreen_info.hh"
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"

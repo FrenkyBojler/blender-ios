@@ -8,7 +8,6 @@
 
 #include "infos/eevee_material_info.hh"
 
-VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 VERTEX_SHADER_CREATE_INFO(eevee_geom_world)
 
 #include "draw_view_lib.glsl"

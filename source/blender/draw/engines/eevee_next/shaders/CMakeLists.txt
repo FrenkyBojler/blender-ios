@@ -30,57 +30,57 @@ set(INC_GLSL
 )
 
 set(SRC_GLSL_VERT
-eevee_debug_irradiance_grid_vert.glsl
-eevee_debug_surfels_vert.glsl
-eevee_depth_of_field_scatter_vert.glsl
-eevee_display_lightprobe_planar_vert.glsl
-eevee_display_lightprobe_sphere_vert.glsl
-eevee_display_lightprobe_volume_vert.glsl
-eevee_geom_curves_vert.glsl
-# eevee_geom_gpencil_vert.glsl # Not yet supported
-eevee_geom_mesh_vert.glsl
-eevee_geom_point_cloud_vert.glsl
-eevee_geom_volume_vert.glsl
-eevee_geom_world_vert.glsl
-eevee_lookdev_display_vert.glsl
-eevee_shadow_page_tile_vert.glsl
-eevee_shadow_tag_usage_vert.glsl
+  eevee_debug_irradiance_grid_vert.glsl
+  eevee_debug_surfels_vert.glsl
+  eevee_depth_of_field_scatter_vert.glsl
+  eevee_display_lightprobe_planar_vert.glsl
+  eevee_display_lightprobe_sphere_vert.glsl
+  eevee_display_lightprobe_volume_vert.glsl
+  eevee_geom_curves_vert.glsl
+  # eevee_geom_gpencil_vert.glsl # Not yet supported
+  eevee_geom_mesh_vert.glsl
+  eevee_geom_point_cloud_vert.glsl
+  eevee_geom_volume_vert.glsl
+  eevee_geom_world_vert.glsl
+  eevee_lookdev_display_vert.glsl
+  eevee_shadow_page_tile_vert.glsl
+  eevee_shadow_tag_usage_vert.glsl
 )
 
 set(SRC_GLSL_FRAG
-# eevee_debug_gbuffer_frag.glsl
-# eevee_debug_irradiance_grid_frag.glsl
-# eevee_debug_surfels_frag.glsl
-# eevee_deferred_capture_frag.glsl
-# eevee_deferred_combine_frag.glsl
-# eevee_deferred_light_frag.glsl
-# eevee_deferred_planar_frag.glsl
-# eevee_deferred_thickness_amend_frag.glsl
-# eevee_deferred_tile_classify_frag.glsl
-# eevee_depth_of_field_scatter_frag.glsl
-# eevee_display_lightprobe_planar_frag.glsl
-# eevee_display_lightprobe_sphere_frag.glsl
-# eevee_display_lightprobe_volume_frag.glsl
-# eevee_film_copy_frag.glsl
-# eevee_film_frag.glsl
-# eevee_hiz_debug_frag.glsl
-# eevee_light_culling_debug_frag.glsl
-# eevee_lookdev_display_frag.glsl
-# eevee_occupancy_convert_frag.glsl
-# eevee_renderpass_clear_frag.glsl
-# eevee_shadow_debug_frag.glsl
-# eevee_shadow_page_tile_frag.glsl
-# eevee_shadow_tag_usage_frag.glsl
-# eevee_surf_capture_frag.glsl
-# eevee_surf_deferred_frag.glsl
-# eevee_surf_depth_frag.glsl
-# eevee_surf_forward_frag.glsl
-# eevee_surf_hybrid_frag.glsl
-# eevee_surf_occupancy_frag.glsl
-# eevee_surf_shadow_frag.glsl
-# eevee_surf_volume_frag.glsl
-# eevee_surf_world_frag.glsl
-# eevee_volume_resolve_frag.glsl
+  eevee_debug_gbuffer_frag.glsl
+  eevee_debug_irradiance_grid_frag.glsl
+  eevee_debug_surfels_frag.glsl
+  eevee_deferred_capture_frag.glsl
+  eevee_deferred_combine_frag.glsl
+  eevee_deferred_light_frag.glsl
+  eevee_deferred_planar_frag.glsl
+  eevee_deferred_thickness_amend_frag.glsl
+  eevee_deferred_tile_classify_frag.glsl
+  eevee_depth_of_field_scatter_frag.glsl
+  eevee_display_lightprobe_planar_frag.glsl
+  eevee_display_lightprobe_sphere_frag.glsl
+  eevee_display_lightprobe_volume_frag.glsl
+  eevee_film_copy_frag.glsl
+  eevee_film_frag.glsl
+  eevee_hiz_debug_frag.glsl
+  eevee_light_culling_debug_frag.glsl
+  eevee_lookdev_display_frag.glsl
+  eevee_occupancy_convert_frag.glsl
+  eevee_renderpass_clear_frag.glsl
+  eevee_shadow_debug_frag.glsl
+  eevee_shadow_page_tile_frag.glsl
+  eevee_shadow_tag_usage_frag.glsl
+  eevee_surf_capture_frag.glsl
+  eevee_surf_deferred_frag.glsl
+  eevee_surf_depth_frag.glsl
+  eevee_surf_forward_frag.glsl
+  eevee_surf_hybrid_frag.glsl
+  eevee_surf_occupancy_frag.glsl
+  eevee_surf_shadow_frag.glsl
+  # eevee_surf_volume_frag.glsl # Issue with eevee_attributes_lib / draw_pointcloud_lib
+  # eevee_surf_world_frag.glsl # Issue with eevee_attributes_lib / draw_pointcloud_lib
+  eevee_volume_resolve_frag.glsl
 )
 
 set(SRC_GLSL_COMP
@@ -236,7 +236,7 @@ endfunction()
 # Compile shaders with shader code.
 if (WITH_GPU_SHADER_CPP_COMPILATION)
   compile_sources_as_cpp(eevee_cpp_shaders_vert "${SRC_GLSL_VERT}" "GPU_VERTEX_SHADER")
-  # compile_sources_as_cpp(eevee_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
+  compile_sources_as_cpp(eevee_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
   # compile_sources_as_cpp(eevee_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
   compile_sources_as_cpp(eevee_cpp_shaders_lib "${SRC_GLSL_LIB}" "GPU_LIBRARY_SHADER")
 endif()

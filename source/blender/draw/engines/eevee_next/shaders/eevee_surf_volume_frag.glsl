@@ -7,6 +7,11 @@
 
 /* Store volumetric properties into the froxel textures. */
 
+#include "infos/eevee_material_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_volume)
+
 #include "eevee_volume_lib.glsl"
 
 /* Needed includes for shader nodes. */
