@@ -139,20 +139,6 @@ class SVGExporter : public GreasePencilExporter {
   bool write_to_file(StringRefNull filepath);
 };
 
-// TODO(Leon): Share with PDF-exporter.
-static bool is_selected_frame(const GreasePencil &grease_pencil, const int frame_number)
-{
-  for (const bke::greasepencil::Layer *layer : grease_pencil.layers()) {
-    if (layer->is_visible()) {
-      const GreasePencilFrame *frame = layer->frames().lookup_ptr(frame_number);
-      if ((frame != nullptr) && frame->is_selected()) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 {
   switch (params_.frame_mode) {
@@ -179,7 +165,7 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
         Object &ob_eval = *DEG_get_evaluated_object(context_.depsgraph, params_.object);
         GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
         frames = IndexMask::from_predicate(frames, GrainSize(1), memory, [&](const int frame) {
-          return is_selected_frame(grease_pencil, frame);
+          return this->is_selected_frame(grease_pencil, frame);
         });
       }
 
@@ -188,7 +174,7 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       this->write_document_header();
       pugi::xml_node main_node = this->write_main_node();
 
-      /* Put frames into a hidden group. They are referenced later by a <use>-node that displays
+      /* Put frames in a hidden group. They are referenced later by a <use>-node that displays
        * them in order. Use a group rather than a <defs>-node because some graphics applications
        * don't expose those to users making it hard for them to work with the file. */
       pugi::xml_node frames_group_node = main_node.append_child("g");
@@ -205,7 +191,10 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
         this->export_grease_pencil_objects(frames_group_node, frame);
       });
 
+      /* Back to original frame. */
       scene.r.cfra = orig_frame;
+      BKE_scene_camera_switch_update(&scene);
+      BKE_scene_graph_update_for_newframe(context_.depsgraph);
 
       this->write_animation_node(main_node, frames, duration);
 
