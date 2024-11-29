@@ -130,6 +130,10 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
       depth_cache_(view_depths),
       surface_offset_(surface_offset)
 {
+  if (view_depths != nullptr) {
+    depth_cache_free_ = false;
+  }
+
   layer_space_to_world_space_ = (layer != nullptr) ? layer->to_world_space(eval_object) :
                                                      eval_object.object_to_world();
   world_space_to_layer_space_ = math::invert(layer_space_to_world_space_);
@@ -261,7 +265,7 @@ DrawingPlacement &DrawingPlacement::operator=(DrawingPlacement &&other)
 
 DrawingPlacement::~DrawingPlacement()
 {
-  if (depth_cache_ != nullptr) {
+  if ((depth_cache_ != nullptr) && depth_cache_free_) {
     ED_view3d_depths_free(depth_cache_);
   }
 }

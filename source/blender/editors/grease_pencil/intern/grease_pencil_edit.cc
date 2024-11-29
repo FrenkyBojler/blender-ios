@@ -2906,6 +2906,7 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
   if (mode == ReprojectMode::Surface) {
     scene.r.cfra = oldframe;
     BKE_scene_graph_update_for_newframe(depsgraph);
+    ED_view3d_depths_free(view_depths);
   }
 
   if (changed) {
