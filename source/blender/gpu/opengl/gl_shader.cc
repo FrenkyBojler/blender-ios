@@ -608,6 +608,13 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
     ss << ";\n";
     location += std::max(1, uniform.array_size);
   }
+#if 0 /* #95278: This is not be enough to prevent some compilers think it is recursive. */
+  for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
+    /* #95278: Double macro to avoid some compilers think it is recursive. */
+    ss << "#define " << uniform.name << "_ " << uniform.name << "\n";
+    ss << "#define " << uniform.name << " (" << uniform.name << "_)\n";
+  }
+#endif
   ss << "\n";
   return ss.str();
 }
