@@ -14,6 +14,12 @@
 
 #  include "eevee_common_info.hh"
 #  include "eevee_volume_info.hh"
+
+#  define HAIR_SHADER
+#  define DRW_HAIR_INFO
+
+#  define POINTCLOUD_SHADER
+#  define DRW_POINTCLOUD_INFO
 #endif
 
 #include "eevee_defines.hh"

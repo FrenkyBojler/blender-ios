@@ -2,6 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/eevee_material_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
+VERTEX_SHADER_CREATE_INFO(eevee_geom_curves)
+
+/* TODO(fclem): Make compilation possible. Better split eevee_attributes_lib per object type. */
+VERTEX_SHADER_CREATE_INFO(eevee_geom_point_cloud)
+
 #include "common_hair_lib.glsl" /* TODO rename to curve. */
 #include "draw_model_lib.glsl"
 #include "eevee_attributes_lib.glsl"

@@ -30,21 +30,21 @@ set(INC_GLSL
 )
 
 set(SRC_GLSL_VERT
-# eevee_debug_irradiance_grid_vert.glsl
-# eevee_debug_surfels_vert.glsl
-# eevee_depth_of_field_scatter_vert.glsl
-# eevee_display_lightprobe_planar_vert.glsl
-# eevee_display_lightprobe_sphere_vert.glsl
-# eevee_display_lightprobe_volume_vert.glsl
-# eevee_geom_curves_vert.glsl
-# eevee_geom_gpencil_vert.glsl
-# eevee_geom_mesh_vert.glsl
-# eevee_geom_point_cloud_vert.glsl
-# eevee_geom_volume_vert.glsl
-# eevee_geom_world_vert.glsl
-# eevee_lookdev_display_vert.glsl
-# eevee_shadow_page_tile_vert.glsl
-# eevee_shadow_tag_usage_vert.glsl
+eevee_debug_irradiance_grid_vert.glsl
+eevee_debug_surfels_vert.glsl
+eevee_depth_of_field_scatter_vert.glsl
+eevee_display_lightprobe_planar_vert.glsl
+eevee_display_lightprobe_sphere_vert.glsl
+eevee_display_lightprobe_volume_vert.glsl
+eevee_geom_curves_vert.glsl
+# eevee_geom_gpencil_vert.glsl # Not yet supported
+eevee_geom_mesh_vert.glsl
+eevee_geom_point_cloud_vert.glsl
+eevee_geom_volume_vert.glsl
+eevee_geom_world_vert.glsl
+eevee_lookdev_display_vert.glsl
+eevee_shadow_page_tile_vert.glsl
+eevee_shadow_tag_usage_vert.glsl
 )
 
 set(SRC_GLSL_FRAG
@@ -235,8 +235,8 @@ endfunction()
 
 # Compile shaders with shader code.
 if (WITH_GPU_SHADER_CPP_COMPILATION)
-  # compile_sources_as_cpp(workbench_cpp_shaders_vert "${SRC_GLSL_VERT}" "GPU_VERTEX_SHADER")
-  # compile_sources_as_cpp(workbench_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
-  # compile_sources_as_cpp(workbench_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
-  compile_sources_as_cpp(workbench_cpp_shaders_lib "${SRC_GLSL_LIB}" "GPU_LIBRARY_SHADER")
+  compile_sources_as_cpp(eevee_cpp_shaders_vert "${SRC_GLSL_VERT}" "GPU_VERTEX_SHADER")
+  # compile_sources_as_cpp(eevee_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
+  # compile_sources_as_cpp(eevee_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
+  compile_sources_as_cpp(eevee_cpp_shaders_lib "${SRC_GLSL_LIB}" "GPU_LIBRARY_SHADER")
 endif()

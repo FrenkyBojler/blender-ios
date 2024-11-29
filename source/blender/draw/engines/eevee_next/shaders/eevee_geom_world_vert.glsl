@@ -6,6 +6,11 @@
  * Custom full-screen triangle with placeholders varyings.
  */
 
+#include "infos/eevee_material_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
+VERTEX_SHADER_CREATE_INFO(eevee_geom_world)
+
 #include "draw_view_lib.glsl"
 #include "eevee_nodetree_lib.glsl"
 #include "eevee_surf_lib.glsl"

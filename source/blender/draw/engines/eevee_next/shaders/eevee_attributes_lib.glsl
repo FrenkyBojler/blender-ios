@@ -9,7 +9,7 @@
 #include "gpu_shader_math_matrix_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 /* MAT_GEOM_POINT_CLOUD */
-#include "common_pointcloud_lib.glsl"
+#include "draw_pointcloud_lib.glsl"
 /* MAT_GEOM_CURVES */
 #include "common_hair_lib.glsl" /* TODO rename to curve. */
 
