@@ -895,7 +895,7 @@ typedef enum eDopeSheet_FilterFlag {
    * Show all Action slots; if not set, only show the Slot of the
    * data-block that's being animated by the Action.
    */
-  ADS_FILTER_ALL_SLOTS = (1 << 5),
+  ADS_FILTER_ONLY_SLOTS_OF_ACTIVE = (1 << 5),
 
   /* datatype-based filtering */
   ADS_FILTER_NOSHAPEKEYS = (1 << 6),
@@ -1162,28 +1162,41 @@ typedef struct ActionLayer {
  */
 typedef struct ActionSlot {
   /**
-   * Typically the ID name this slot was created for, including the two
-   * letters indicating the ID type.
+   * The string identifier of this Slot within the Action.
+   *
+   * The first two characters are the two-letter code corresponding to `idtype`
+   * below (e.g. 'OB', 'ME', 'LA'), and the remaining characters store slot's
+   * display name. Since the combination of the `idtype` and display name are
+   * always unique within an action, this string identifier is as well.
+   *
+   * Typically this matches the ID name this slot was created for, including the
+   * two letters indicating the ID type.
    *
    * \see #AnimData::slot_name
    */
-  char name[66]; /* MAX_ID_NAME */
-  uint8_t _pad0[2];
+  char identifier[66]; /* MAX_ID_NAME */
 
   /**
-   * Type of ID-blocks that this slot can be assigned to.
+   * Type of ID-block that this slot is intended for.
+   *
    * If 0, will be set to whatever ID is first assigned.
    */
-  int idtype;
+  int16_t idtype;
 
   /**
-   * Identifier of this Slot within the Action.
+   * Numeric identifier of this Slot within the Action.
    *
    * This number allows reorganization of the #bAction::slot_array without
    * invalidating references. Also these remain valid when copy-on-evaluate
    * copies are made.
    *
+   * Unlike `identifier` above, this cannot be set by the user and never changes
+   * after initial assignment, and thus serves as a "forever" identifier of the
+   * slot.
+   *
    * Only valid within the Action that owns this Slot.
+   *
+   * NOTE: keep this type in sync with `slot_handle_t` in BKE_action.hh.
    *
    * \see #blender::animrig::Action::slot_for_handle()
    */
@@ -1191,7 +1204,7 @@ typedef struct ActionSlot {
 
   /** \see #blender::animrig::Slot::flags() */
   int8_t slot_flags;
-  uint8_t _pad1[3];
+  uint8_t _pad1[7];
 
   /** Runtime data. Set to nullptr when writing to disk. */
   ActionSlotRuntimeHandle *runtime;

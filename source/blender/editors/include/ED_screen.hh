@@ -153,15 +153,17 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 
 void ED_region_clear(const bContext *C, const ARegion *region, int /*ThemeColorID*/ colorid);
 
-void ED_region_info_draw(ARegion *region, const char *text, float fill_color[4], bool full_redraw);
+void ED_region_info_draw(ARegion *region,
+                         const char *text,
+                         const float fill_color[4],
+                         bool full_redraw);
 void ED_region_info_draw_multiline(ARegion *region,
                                    const char *text_array[],
-                                   float fill_color[4],
+                                   const float fill_color[4],
                                    bool full_redraw);
 void ED_region_image_metadata_panel_draw(ImBuf *ibuf, uiLayout *layout);
 void ED_region_grid_draw(ARegion *region, float zoomx, float zoomy, float x0, float y0);
 float ED_region_blend_alpha(ARegion *region);
-void ED_region_visible_rect_calc(ARegion *region, rcti *rect);
 const rcti *ED_region_visible_rect(ARegion *region);
 /**
  * Overlapping regions only in the following restricted cases.
@@ -287,6 +289,11 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area);
        vert_name = (vert_name == (win)->global_areas.vertbase.last) ? \
                        (ScrVert *)(screen)->vertbase.first : \
                        vert_name->next)
+
+/**
+ * Update all areas that are supposed to follow the timeline playhead.
+ */
+void ED_areas_do_frame_follow(bContext *C, bool center_view);
 
 /* screens */
 

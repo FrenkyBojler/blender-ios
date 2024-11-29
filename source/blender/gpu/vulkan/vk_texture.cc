@@ -6,13 +6,14 @@
  * \ingroup gpu
  */
 
+#include "GPU_capabilities.hh"
+
 #include "vk_texture.hh"
 
 #include "vk_buffer.hh"
 #include "vk_context.hh"
 #include "vk_data_conversion.hh"
 #include "vk_framebuffer.hh"
-#include "vk_memory.hh"
 #include "vk_pixel_buffer.hh"
 #include "vk_shader.hh"
 #include "vk_shader_interface.hh"
@@ -205,6 +206,7 @@ void VKTexture::read_sub(
   VKContext &context = *VKContext::get();
   context.rendering_end();
   context.render_graph.add_node(copy_image_to_buffer);
+  context.descriptor_set_get().upload_descriptor_sets();
   context.render_graph.submit_buffer_for_read(staging_buffer.vk_handle());
 
   convert_device_to_host(
@@ -288,8 +290,27 @@ void VKTexture::update_sub(
 
   VKBuffer staging_buffer;
   staging_buffer.create(device_memory_size, GPU_USAGE_DYNAMIC, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-  convert_host_to_device(
-      staging_buffer.mapped_memory_get(), data, sample_len, format, format_, device_format_);
+  /* Rows are sequentially stored, when unpack row length is 0, or equal to the extent width. In
+   * other cases we unpack the rows to reduce the size of the staging buffer and data transfer. */
+  const uint texture_unpack_row_length =
+      context.state_manager_get().texture_unpack_row_length_get();
+  if (texture_unpack_row_length == 0 || texture_unpack_row_length == extent.x) {
+    convert_host_to_device(
+        staging_buffer.mapped_memory_get(), data, sample_len, format, format_, device_format_);
+  }
+  else {
+    BLI_assert_msg(!is_compressed,
+                   "Compressed data with texture_unpack_row_length != 0 is not supported.");
+    size_t dst_row_stride = extent.x * to_bytesize(device_format_);
+    size_t src_row_stride = texture_unpack_row_length * to_bytesize(format_, format);
+    uint8_t *dst_ptr = static_cast<uint8_t *>(staging_buffer.mapped_memory_get());
+    const uint8_t *src_ptr = static_cast<const uint8_t *>(data);
+    for (int x = 0; x < extent.x; x++) {
+      convert_host_to_device(dst_ptr, src_ptr, extent.x, format, format_, device_format_);
+      src_ptr += src_row_stride;
+      dst_ptr += dst_row_stride;
+    }
+  }
 
   render_graph::VKCopyBufferToImageNode::CreateInfo copy_buffer_to_image = {};
   copy_buffer_to_image.src_buffer = staging_buffer.vk_handle();
@@ -297,8 +318,6 @@ void VKTexture::update_sub(
   copy_buffer_to_image.region.imageExtent.width = extent.x;
   copy_buffer_to_image.region.imageExtent.height = extent.y;
   copy_buffer_to_image.region.imageExtent.depth = extent.z;
-  copy_buffer_to_image.region.bufferRowLength =
-      context.state_manager_get().texture_unpack_row_length_get();
   copy_buffer_to_image.region.imageOffset.x = offset.x;
   copy_buffer_to_image.region.imageOffset.y = offset.y;
   copy_buffer_to_image.region.imageOffset.z = offset.z;
@@ -320,9 +339,10 @@ void VKTexture::update_sub(int offset_[3],
   update_sub(0, offset_, extent_, format, pixel_buffer.map());
 }
 
-/* TODO(fclem): Legacy. Should be removed at some point. */
 uint VKTexture::gl_bindcode_get() const
 {
+  /* TODO(fclem): Legacy. Should be removed at some point. */
+
   return 0;
 }
 
@@ -405,6 +425,10 @@ static VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
       }
       else {
         result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
+        if (workarounds.dynamic_rendering) {
+          result |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        }
       }
     }
   }
@@ -448,12 +472,19 @@ bool VKTexture::allocate()
   BLI_assert(vk_image_ == VK_NULL_HANDLE);
   BLI_assert(!is_texture_view());
 
+  VkExtent3D vk_extent = vk_extent_3d(0);
+  const uint32_t limit = (type_ == GPU_TEXTURE_3D) ? GPU_max_texture_3d_size() :
+                                                     GPU_max_texture_size();
+  if (vk_extent.depth > limit || vk_extent.height > limit || vk_extent.depth > limit) {
+    return false;
+  }
+
   VKDevice &device = VKBackend::get().device;
   VkImageCreateInfo image_info = {};
   image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   image_info.flags = to_vk_image_create(type_, format_flag_, usage_get());
   image_info.imageType = to_vk_image_type(type_);
-  image_info.extent = vk_extent_3d(0);
+  image_info.extent = vk_extent;
   image_info.mipLevels = max_ii(mipmaps_, 1);
   image_info.arrayLayers = vk_layer_count(1);
   image_info.format = to_vk_format(device_format_);
@@ -504,44 +535,6 @@ bool VKTexture::allocate()
                              name_);
 
   return result == VK_SUCCESS;
-}
-
-void VKTexture::add_to_descriptor_set(AddToDescriptorSetContext &data,
-                                      int binding,
-                                      shader::ShaderCreateInfo::Resource::BindType bind_type,
-                                      const GPUSamplerState sampler_state)
-{
-  /* Forwarding the call to the source vertex buffer as in vulkan a texel buffer is a buffer(view)
-   * and not a texture. */
-  if (type_ == GPU_TEXTURE_BUFFER) {
-    source_buffer_->add_to_descriptor_set(data, binding, bind_type, sampler_state);
-    return;
-  }
-
-  const std::optional<VKDescriptorSet::Location> location =
-      data.shader_interface.descriptor_set_location(bind_type, binding);
-  if (location) {
-    const VKImageViewArrayed arrayed = data.shader_interface.arrayed(bind_type, binding);
-    if (bind_type == shader::ShaderCreateInfo::Resource::BindType::IMAGE) {
-      data.descriptor_set.image_bind(*this, *location, arrayed);
-    }
-    else {
-      VKDevice &device = VKBackend::get().device;
-      const VKSampler &sampler = device.samplers().get(sampler_state);
-      data.descriptor_set.bind(*this, *location, sampler, arrayed);
-    }
-    uint32_t layer_base = 0;
-    uint32_t layer_count = VK_REMAINING_ARRAY_LAYERS;
-    if (arrayed == VKImageViewArrayed::ARRAYED && is_texture_view()) {
-      layer_base = layer_offset_;
-      layer_count = vk_layer_count(VK_REMAINING_ARRAY_LAYERS);
-    }
-    data.resource_access_info.images.append({vk_image_handle(),
-                                             data.shader_interface.access_mask(bind_type, binding),
-                                             to_vk_image_aspect_flag_bits(device_format_),
-                                             layer_base,
-                                             layer_count});
-  }
 }
 
 /* -------------------------------------------------------------------- */

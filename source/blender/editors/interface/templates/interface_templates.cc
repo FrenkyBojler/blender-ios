@@ -33,7 +33,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -77,6 +77,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "ED_fileselect.hh"
+#include "ED_id_management.hh"
 #include "ED_info.hh"
 #include "ED_object.hh"
 #include "ED_render.hh"
@@ -346,15 +347,16 @@ static uiBlock *template_common_search_menu(const bContext *C,
  * \{ */
 
 struct TemplateID {
-  PointerRNA ptr;
-  PropertyRNA *prop;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
 
-  ListBase *idlb;
-  short idcode;
-  short filter;
-  int prv_rows, prv_cols;
-  bool preview;
-  float scale;
+  ListBase *idlb = nullptr;
+  short idcode = 0;
+  short filter = 0;
+  int prv_rows = 0;
+  int prv_cols = 0;
+  bool preview = false;
+  float scale = 0.0f;
 };
 
 /* Search browse menu, assign. */
@@ -977,6 +979,10 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
        * still assign the callback so the button can be identified as part of an ID-template. See
        * #UI_context_active_but_prop_get_templateID(). */
       break;
+    case UI_ID_RENAME:
+      /* Only for the undo push. */
+      undo_push_label = "Rename Data-Block";
+      break;
     case UI_ID_BROWSE:
     case UI_ID_PIN:
       RNA_warning("warning, id event %d shouldn't come here", event);
@@ -1393,6 +1399,13 @@ static void template_ID(const bContext *C,
                     0,
                     0,
                     RNA_struct_ui_description(type));
+    /* Handle undo through the #template_id_cb set below. Default undo handling from the button
+     * code (see #ui_apply_but_undo) would not work here, as the new name is not yet applied to the
+     * ID. */
+    UI_but_flag_disable(but, UI_BUT_UNDO);
+    Main *bmain = CTX_data_main(C);
+    UI_but_func_rename_full_set(
+        but, [bmain, id](std::string &new_name) { ED_id_rename(*bmain, *id, new_name); });
     UI_but_funcN_set(but,
                      template_id_cb,
                      MEM_new<TemplateID>(__func__, template_ui),
@@ -1804,7 +1817,7 @@ static void ui_template_id(uiLayout *layout,
     return;
   }
 
-  TemplateID template_ui;
+  TemplateID template_ui = {};
   template_ui.ptr = *ptr;
   template_ui.prop = prop;
   template_ui.prv_rows = prv_rows;
@@ -1908,7 +1921,7 @@ void uiTemplateAction(uiLayout *layout,
   AnimData *adt = BKE_animdata_from_id(id);
   PointerRNA adt_ptr = RNA_pointer_create(id, &RNA_AnimData, adt);
 
-  TemplateID template_ui;
+  TemplateID template_ui = {};
   template_ui.ptr = adt_ptr;
   template_ui.prop = adt_action_prop;
   template_ui.prv_rows = 0;
@@ -2191,16 +2204,12 @@ static void template_search_add_button_name(uiBlock *block,
   }
 
   PropertyRNA *name_prop;
-#ifdef WITH_ANIM_BAKLAVA
   if (type == &RNA_ActionSlot) {
     name_prop = RNA_struct_find_property(active_ptr, "name_display");
   }
   else {
-#endif /* WITH_ANIM_BAKLAVA */
     name_prop = RNA_struct_name_property(type);
-#ifdef WITH_ANIM_BAKLAVA
   }
-#endif /* WITH_ANIM_BAKLAVA */
 
   const int width = template_search_textbut_width(active_ptr, name_prop);
   const int height = template_search_textbut_height();
@@ -2229,7 +2238,8 @@ static void template_search_buttons(const bContext *C,
                                     uiLayout *layout,
                                     TemplateSearch &template_search,
                                     const char *newop,
-                                    const char *unlinkop)
+                                    const char *unlinkop,
+                                    const char *text)
 {
   uiBlock *block = uiLayoutGetBlock(layout);
   uiRNACollectionSearch *search_data = &template_search.search_data;
@@ -2244,16 +2254,26 @@ static void template_search_buttons(const bContext *C,
     type = active_ptr.type;
   }
 
-  uiLayoutRow(layout, true);
+  uiLayout *row = uiLayoutRow(layout, true);
   UI_block_align_begin(block);
 
-  template_search_add_button_searchmenu(C, layout, block, template_search, editable, false);
+  uiLayout *decorator_layout = nullptr;
+  if (text && text[0]) {
+    /* Add label respecting the separated layout property split state. */
+    decorator_layout = uiItemL_respect_property_split(row, text, ICON_NONE);
+  }
+
+  template_search_add_button_searchmenu(C, row, block, template_search, editable, false);
   template_search_add_button_name(block, &active_ptr, type);
   template_search_add_button_operator(
       block, newop, WM_OP_INVOKE_DEFAULT, ICON_DUPLICATE, editable);
   template_search_add_button_operator(block, unlinkop, WM_OP_INVOKE_REGION_WIN, ICON_X, editable);
 
   UI_block_align_end(block);
+
+  if (decorator_layout) {
+    uiItemDecoratorR(decorator_layout, nullptr, nullptr, RNA_NO_INDEX);
+  }
 }
 
 static PropertyRNA *template_search_get_searchprop(PointerRNA *targetptr,
@@ -2333,11 +2353,12 @@ void uiTemplateSearch(uiLayout *layout,
                       PointerRNA *searchptr,
                       const char *searchpropname,
                       const char *newop,
-                      const char *unlinkop)
+                      const char *unlinkop,
+                      const char *text)
 {
   TemplateSearch template_search;
   if (template_search_setup(template_search, ptr, propname, searchptr, searchpropname)) {
-    template_search_buttons(C, layout, template_search, newop, unlinkop);
+    template_search_buttons(C, layout, template_search, newop, unlinkop, text);
   }
 }
 
@@ -2350,7 +2371,8 @@ void uiTemplateSearchPreview(uiLayout *layout,
                              const char *newop,
                              const char *unlinkop,
                              const int rows,
-                             const int cols)
+                             const int cols,
+                             const char *text)
 {
   TemplateSearch template_search;
   if (template_search_setup(template_search, ptr, propname, searchptr, searchpropname)) {
@@ -2358,7 +2380,7 @@ void uiTemplateSearchPreview(uiLayout *layout,
     template_search.preview_rows = rows;
     template_search.preview_cols = cols;
 
-    template_search_buttons(C, layout, template_search, newop, unlinkop);
+    template_search_buttons(C, layout, template_search, newop, unlinkop, text);
   }
 }
 
@@ -3383,7 +3405,13 @@ void uiTemplatePreview(uiLayout *layout,
     ui_preview = MEM_cnew<uiPreview>(__func__);
     STRNCPY(ui_preview->preview_id, preview_id);
     ui_preview->height = short(UI_UNIT_Y * 7.6f);
+    ui_preview->id_session_uid = pid->session_uid;
+    ui_preview->tag = UI_PREVIEW_TAG_DIRTY;
     BLI_addtail(&region->ui_previews, ui_preview);
+  }
+  else if (ui_preview->id_session_uid != pid->session_uid) {
+    ui_preview->id_session_uid = pid->session_uid;
+    ui_preview->tag |= UI_PREVIEW_TAG_DIRTY;
   }
 
   if (ui_preview->height < UI_UNIT_Y) {
@@ -3402,7 +3430,10 @@ void uiTemplatePreview(uiLayout *layout,
   /* add preview */
   uiDefBut(
       block, UI_BTYPE_EXTRA, 0, "", 0, 0, UI_UNIT_X * 10, ui_preview->height, pid, 0.0, 0.0, "");
-  UI_but_func_drawextra_set(block, ED_preview_draw, pparent, slot);
+  UI_but_func_drawextra_set(block,
+                            [pid, pparent, slot, ui_preview](const bContext *C, rcti *rect) {
+                              ED_preview_draw(C, pid, pparent, slot, ui_preview, rect);
+                            });
   UI_block_func_handle_set(block, do_preview_buttons, nullptr);
 
   uiDefIconButS(block,
@@ -6447,12 +6478,7 @@ static bool uiTemplateInputStatusAzone(uiLayout *layout, const AZone *az, const 
 {
   if (az->type == AZONE_AREA) {
     uiItemL(layout, nullptr, ICON_MOUSE_LMB_DRAG);
-    if (U.experimental.use_docking) {
-      uiItemL(layout, IFACE_("Split/Dock"), ICON_NONE);
-    }
-    else {
-      uiItemL(layout, IFACE_("Split/Join"), ICON_NONE);
-    }
+    uiItemL(layout, IFACE_("Split/Dock"), ICON_NONE);
     uiItemS_ex(layout, 0.7f);
     uiItemL(layout, "", ICON_EVENT_SHIFT);
     uiItemL(layout, nullptr, ICON_MOUSE_LMB_DRAG);
@@ -6468,7 +6494,7 @@ static bool uiTemplateInputStatusAzone(uiLayout *layout, const AZone *az, const 
   if (az->type == AZONE_REGION) {
     uiItemL(layout, nullptr, ICON_MOUSE_LMB_DRAG);
     uiItemL(layout,
-            (region->visible) ? IFACE_("Resize Region") : IFACE_("Show Hidden Region"),
+            (region->runtime->visible) ? IFACE_("Resize Region") : IFACE_("Show Hidden Region"),
             ICON_NONE);
     return true;
   }
@@ -6569,8 +6595,9 @@ static std::string ui_template_status_tooltip(bContext *C, void * /*argN*/, cons
     char writer_ver_str[12];
     BKE_blender_version_blendfile_string_from_values(
         writer_ver_str, sizeof(writer_ver_str), bmain->versionfile, -1);
-    tooltip_message += fmt::format(RPT_("File saved by newer Blender\n({}), expect loss of data"),
-                                   writer_ver_str);
+    tooltip_message += fmt::format(
+        fmt::runtime(RPT_("File saved by newer Blender\n({}), expect loss of data")),
+        writer_ver_str);
   }
   if (bmain->is_asset_edit_file) {
     if (!tooltip_message.empty()) {
@@ -6805,6 +6832,7 @@ static void keymap_item_modified(bContext * /*C*/, void *kmi_p, void * /*unused*
 {
   wmKeyMapItem *kmi = (wmKeyMapItem *)kmi_p;
   WM_keyconfig_update_tag(nullptr, kmi);
+  U.runtime.is_dirty = true;
 }
 
 static void template_keymap_item_properties(uiLayout *layout, const char *title, PointerRNA *ptr)
@@ -7430,10 +7458,13 @@ static void uiTemplateRecentFiles_tooltip_func(bContext & /*C*/, uiTooltipData &
 {
   char *path = (char *)argN;
 
-  /* File path. */
-  char root[FILE_MAX];
-  BLI_path_split_dir_part(path, root, FILE_MAX);
-  UI_tooltip_text_field_add(tip, root, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+  /* File name and path. */
+  char dirname[FILE_MAX];
+  char filename[FILE_MAX];
+  BLI_path_split_dir_file(path, dirname, sizeof(dirname), filename, sizeof(filename));
+  UI_tooltip_text_field_add(tip, filename, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+  UI_tooltip_text_field_add(tip, dirname, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+
   UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
 
   if (!BLI_exists(path)) {

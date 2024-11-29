@@ -261,9 +261,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
 
   if (use_clnors) {
-    BKE_mesh_set_custom_normals(result,
-                                static_cast<float(*)[3]>(CustomData_get_layer_for_write(
-                                    &result->corner_data, CD_NORMAL, result->corners_num)));
+    BKE_mesh_set_custom_normals_normalized(
+        result,
+        static_cast<float(*)[3]>(
+            CustomData_get_layer_for_write(&result->corner_data, CD_NORMAL, result->corners_num)));
     CustomData_free_layers(&result->corner_data, CD_NORMAL, result->corners_num);
   }
   // blender::bke::subdiv::stats_print(&subdiv->stats);
@@ -344,8 +345,8 @@ static void panel_draw(const bContext *C, Panel *panel)
   /* Only test for adaptive subdivision if built with cycles. */
   bool show_adaptive_options = false;
   bool ob_use_adaptive_subdivision = false;
-  PointerRNA cycles_ptr = {nullptr};
-  PointerRNA ob_cycles_ptr = {nullptr};
+  PointerRNA cycles_ptr = {};
+  PointerRNA ob_cycles_ptr = {};
 #ifdef WITH_CYCLES
   Scene *scene = CTX_data_scene(C);
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);

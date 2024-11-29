@@ -15,7 +15,10 @@
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 
+#include "RNA_access.hh"
+
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include <limits>
@@ -156,36 +159,116 @@ TEST_F(ActionLayersTest, remove_strip)
   Strip &strip0 = layer.strip_add(*action, Strip::Type::Keyframe);
   Strip &strip1 = layer.strip_add(*action, Strip::Type::Keyframe);
   Strip &strip2 = layer.strip_add(*action, Strip::Type::Keyframe);
+  Strip &strip3 = layer.strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &strip_data0 = strip0.data<StripKeyframeData>(*action);
+  StripKeyframeData &strip_data1 = strip1.data<StripKeyframeData>(*action);
+  StripKeyframeData &strip_data2 = strip2.data<StripKeyframeData>(*action);
+  StripKeyframeData &strip_data3 = strip3.data<StripKeyframeData>(*action);
 
   /* Add some keys to check that also the strip data is freed correctly. */
   const KeyframeSettings settings = get_keyframe_settings(false);
   Slot &slot = action->slot_add();
-  strip0.data<StripKeyframeData>(*action).keyframe_insert(
-      bmain, slot, {"location", 0}, {1.0f, 47.0f}, settings);
-  strip1.data<StripKeyframeData>(*action).keyframe_insert(
-      bmain, slot, {"location", 0}, {1.0f, 47.0f}, settings);
-  strip2.data<StripKeyframeData>(*action).keyframe_insert(
-      bmain, slot, {"location", 0}, {1.0f, 47.0f}, settings);
+  strip_data0.keyframe_insert(bmain, slot, {"location", 0}, {1.0f, 47.0f}, settings);
+  strip_data1.keyframe_insert(bmain, slot, {"location", 0}, {1.0f, 48.0f}, settings);
+  strip_data2.keyframe_insert(bmain, slot, {"location", 0}, {1.0f, 49.0f}, settings);
+  strip_data3.keyframe_insert(bmain, slot, {"location", 0}, {1.0f, 50.0f}, settings);
 
-  EXPECT_TRUE(layer.strip_remove(strip1));
-  EXPECT_EQ(2, layer.strips().size());
+  EXPECT_EQ(4, action->strip_keyframe_data().size());
+  EXPECT_EQ(0, strip0.data_index);
+  EXPECT_EQ(1, strip1.data_index);
+  EXPECT_EQ(2, strip2.data_index);
+  EXPECT_EQ(3, strip3.data_index);
+
+  EXPECT_TRUE(layer.strip_remove(*action, strip1));
+  EXPECT_EQ(3, action->strip_keyframe_data().size());
+  EXPECT_EQ(3, layer.strips().size());
   EXPECT_EQ(&strip0, layer.strip(0));
   EXPECT_EQ(&strip2, layer.strip(1));
+  EXPECT_EQ(&strip3, layer.strip(2));
+  EXPECT_EQ(0, strip0.data_index);
+  EXPECT_EQ(2, strip2.data_index);
+  EXPECT_EQ(1, strip3.data_index); /* Swapped in when removing strip 1's data. */
+  EXPECT_EQ(&strip_data0, &strip0.data<StripKeyframeData>(*action));
+  EXPECT_EQ(&strip_data2, &strip2.data<StripKeyframeData>(*action));
+  EXPECT_EQ(&strip_data3, &strip3.data<StripKeyframeData>(*action));
 
-  EXPECT_TRUE(layer.strip_remove(strip2));
+  EXPECT_TRUE(layer.strip_remove(*action, strip2));
+  EXPECT_EQ(2, action->strip_keyframe_data().size());
+  EXPECT_EQ(2, layer.strips().size());
+  EXPECT_EQ(&strip0, layer.strip(0));
+  EXPECT_EQ(&strip3, layer.strip(1));
+  EXPECT_EQ(0, strip0.data_index);
+  EXPECT_EQ(1, strip3.data_index);
+  EXPECT_EQ(&strip_data0, &strip0.data<StripKeyframeData>(*action));
+  EXPECT_EQ(&strip_data3, &strip3.data<StripKeyframeData>(*action));
+
+  EXPECT_TRUE(layer.strip_remove(*action, strip3));
+  EXPECT_EQ(1, action->strip_keyframe_data().size());
   EXPECT_EQ(1, layer.strips().size());
   EXPECT_EQ(&strip0, layer.strip(0));
+  EXPECT_EQ(0, strip0.data_index);
+  EXPECT_EQ(&strip_data0, &strip0.data<StripKeyframeData>(*action));
 
-  EXPECT_TRUE(layer.strip_remove(strip0));
+  EXPECT_TRUE(layer.strip_remove(*action, strip0));
+  EXPECT_EQ(0, action->strip_keyframe_data().size());
   EXPECT_EQ(0, layer.strips().size());
 
   { /* Test removing a strip that is not owned. */
     Layer &other_layer = action->layer_add("Another Layer");
     Strip &other_strip = other_layer.strip_add(*action, Strip::Type::Keyframe);
 
-    EXPECT_FALSE(layer.strip_remove(other_strip))
+    EXPECT_FALSE(layer.strip_remove(*action, other_strip))
         << "Removing a strip not owned by the layer should be gracefully rejected";
   }
+}
+
+/* NOTE: this test creates strip instances in a bespoke way for the purpose of
+ * exercising the strip removal code, because at the time of writing we don't
+ * have a proper API for creating strip instances. When such an API is added,
+ * this test should be updated to use it. */
+TEST_F(ActionLayersTest, remove_strip_instances)
+{
+  Layer &layer = action->layer_add("Test Læür");
+  Strip &strip0 = layer.strip_add(*action, Strip::Type::Keyframe);
+  Strip &strip1 = layer.strip_add(*action, Strip::Type::Keyframe);
+  Strip &strip2 = layer.strip_add(*action, Strip::Type::Keyframe);
+
+  /* Make on of the strips an instance of another. */
+  strip0.data_index = strip1.data_index;
+
+  StripKeyframeData &strip_data_0_1 = strip0.data<StripKeyframeData>(*action);
+  StripKeyframeData &strip_data_2 = strip2.data<StripKeyframeData>(*action);
+
+  /* Add some keys to check that also the strip data is freed correctly. */
+  const KeyframeSettings settings = get_keyframe_settings(false);
+  Slot &slot = action->slot_add();
+  strip_data_0_1.keyframe_insert(bmain, slot, {"location", 0}, {1.0f, 47.0f}, settings);
+  strip_data_2.keyframe_insert(bmain, slot, {"location", 0}, {1.0f, 48.0f}, settings);
+
+  EXPECT_EQ(3, action->strip_keyframe_data().size());
+  EXPECT_EQ(1, strip0.data_index);
+  EXPECT_EQ(1, strip1.data_index);
+  EXPECT_EQ(2, strip2.data_index);
+
+  /* Removing an instance should not delete the underlying data as long as there
+   * is still another strip using it. */
+  EXPECT_TRUE(layer.strip_remove(*action, strip1));
+  EXPECT_EQ(3, action->strip_keyframe_data().size());
+  EXPECT_EQ(2, layer.strips().size());
+  EXPECT_EQ(&strip0, layer.strip(0));
+  EXPECT_EQ(&strip2, layer.strip(1));
+  EXPECT_EQ(1, strip0.data_index);
+  EXPECT_EQ(2, strip2.data_index);
+  EXPECT_EQ(&strip_data_0_1, &strip0.data<StripKeyframeData>(*action));
+  EXPECT_EQ(&strip_data_2, &strip2.data<StripKeyframeData>(*action));
+
+  /* Removing the last user of strip data should also delete the data. */
+  EXPECT_TRUE(layer.strip_remove(*action, strip0));
+  EXPECT_EQ(2, action->strip_keyframe_data().size());
+  EXPECT_EQ(1, layer.strips().size());
+  EXPECT_EQ(&strip2, layer.strip(0));
+  EXPECT_EQ(1, strip2.data_index);
+  EXPECT_EQ(&strip_data_2, &strip2.data<StripKeyframeData>(*action));
 }
 
 TEST_F(ActionLayersTest, add_slot)
@@ -195,7 +278,7 @@ TEST_F(ActionLayersTest, add_slot)
     EXPECT_EQ(1, action->last_slot_handle);
     EXPECT_EQ(1, slot.handle);
 
-    EXPECT_STREQ("XXSlot", slot.name);
+    EXPECT_STREQ("XXSlot", slot.identifier);
     EXPECT_EQ(0, slot.idtype);
   }
 
@@ -204,7 +287,7 @@ TEST_F(ActionLayersTest, add_slot)
     EXPECT_EQ(2, action->last_slot_handle);
     EXPECT_EQ(2, slot.handle);
 
-    EXPECT_STREQ(cube->id.name, slot.name);
+    EXPECT_STREQ(cube->id.name, slot.identifier);
     EXPECT_EQ(ID_OB, slot.idtype);
   }
 }
@@ -227,9 +310,9 @@ TEST_F(ActionLayersTest, add_slot_multiple)
 {
   Slot &slot_cube = action->slot_add();
   Slot &slot_suzanne = action->slot_add();
-  assign_action(action, cube->id);
+  EXPECT_TRUE(assign_action(action, cube->id));
   EXPECT_EQ(assign_action_slot(&slot_cube, cube->id), ActionSlotAssignmentResult::OK);
-  assign_action(action, suzanne->id);
+  EXPECT_TRUE(assign_action(action, suzanne->id));
   EXPECT_EQ(assign_action_slot(&slot_suzanne, suzanne->id), ActionSlotAssignmentResult::OK);
 
   EXPECT_EQ(2, action->last_slot_handle);
@@ -342,13 +425,13 @@ TEST_F(ActionLayersTest, action_assign_id)
   /* Assign to the only, 'virgin' Slot, should always work. */
   Slot &slot_cube = action->slot_add();
   ASSERT_NE(nullptr, slot_cube.runtime);
-  ASSERT_STREQ(slot_cube.name, "XXSlot");
+  ASSERT_STREQ(slot_cube.identifier, "XXSlot");
   ASSERT_EQ(assign_action_and_slot(action, &slot_cube, cube->id), ActionSlotAssignmentResult::OK);
 
   EXPECT_EQ(slot_cube.handle, cube->adt->slot_handle);
-  EXPECT_STREQ(slot_cube.name, "OBSlot");
-  EXPECT_STREQ(slot_cube.name, cube->adt->slot_name)
-      << "The slot name should be copied to the adt";
+  EXPECT_STREQ(slot_cube.identifier, "OBSlot");
+  EXPECT_STREQ(slot_cube.identifier, cube->adt->last_slot_identifier)
+      << "The slot identifier should be copied to the adt";
 
   EXPECT_TRUE(slot_cube.users(*bmain).contains(&cube->id))
       << "Expecting Cube to be registered as animated by its slot.";
@@ -356,9 +439,9 @@ TEST_F(ActionLayersTest, action_assign_id)
   /* Assign another ID to the same Slot. */
   ASSERT_EQ(assign_action_and_slot(action, &slot_cube, suzanne->id),
             ActionSlotAssignmentResult::OK);
-  EXPECT_STREQ(slot_cube.name, "OBSlot");
-  EXPECT_STREQ(slot_cube.name, cube->adt->slot_name)
-      << "The slot name should be copied to the adt";
+  EXPECT_STREQ(slot_cube.identifier, "OBSlot");
+  EXPECT_STREQ(slot_cube.identifier, cube->adt->last_slot_identifier)
+      << "The slot identifier should be copied to the adt";
 
   EXPECT_TRUE(slot_cube.users(*bmain).contains(&cube->id))
       << "Expecting Suzanne to be registered as animated by the Cube slot.";
@@ -392,7 +475,7 @@ TEST_F(ActionLayersTest, action_assign_id)
 
   { /* Unassign the Action. */
     const int user_count_pre = action->id.us;
-    unassign_action(cube->id);
+    EXPECT_TRUE(unassign_action(cube->id));
     ASSERT_EQ(action->id.us, user_count_pre - 1)
         << "Unassigning an Action should lower its user count";
 
@@ -409,8 +492,9 @@ TEST_F(ActionLayersTest, action_assign_id)
   ASSERT_EQ(assign_action_and_slot(action, &another_slot_cube, cube->id),
             ActionSlotAssignmentResult::OK);
   EXPECT_EQ(another_slot_cube.handle, cube->adt->slot_handle);
-  EXPECT_STREQ("OBSlot.002", another_slot_cube.name) << "The slot should be uniquely named";
-  EXPECT_STREQ("OBSlot.002", cube->adt->slot_name) << "The slot name should be copied to the adt";
+  EXPECT_STREQ("OBSlot.002", another_slot_cube.identifier) << "The slot should be uniquely named";
+  EXPECT_STREQ("OBSlot.002", cube->adt->last_slot_identifier)
+      << "The slot identifier should be copied to the adt";
   EXPECT_TRUE(another_slot_cube.users(*bmain).contains(&cube->id))
       << "Expecting Cube to be registered as animated by the 'another_slot_cube' slot.";
 
@@ -429,82 +513,82 @@ TEST_F(ActionLayersTest, rename_slot)
   Slot &slot_cube = action->slot_add();
   ASSERT_EQ(assign_action_and_slot(action, &slot_cube, cube->id), ActionSlotAssignmentResult::OK);
   EXPECT_EQ(slot_cube.handle, cube->adt->slot_handle);
-  EXPECT_STREQ("OBSlot", slot_cube.name);
-  EXPECT_STREQ(slot_cube.name, cube->adt->slot_name)
-      << "The slot name should be copied to the adt";
+  EXPECT_STREQ("OBSlot", slot_cube.identifier);
+  EXPECT_STREQ(slot_cube.identifier, cube->adt->last_slot_identifier)
+      << "The slot identifier should be copied to the adt";
 
-  action->slot_name_define(slot_cube, "New Slot Name");
-  EXPECT_STREQ("New Slot Name", slot_cube.name);
-  /* At this point the slot name will not have been copied to the cube
+  action->slot_identifier_define(slot_cube, "New Slot Name");
+  EXPECT_STREQ("New Slot Name", slot_cube.identifier);
+  /* At this point the slot identifier will not have been copied to the cube
    * AnimData. However, I don't want to test for that here, as it's not exactly
    * desirable behavior, but more of a side-effect of the current
    * implementation. */
 
-  action->slot_name_propagate(*bmain, slot_cube);
-  EXPECT_STREQ("New Slot Name", cube->adt->slot_name);
+  action->slot_identifier_propagate(*bmain, slot_cube);
+  EXPECT_STREQ("New Slot Name", cube->adt->last_slot_identifier);
 
   /* Finally, do another rename, do NOT call the propagate function, then
    * unassign. This should still result in the correct slot name being stored
    * on the ADT. */
-  action->slot_name_define(slot_cube, "Even Newer Name");
-  unassign_action(cube->id);
-  EXPECT_STREQ("Even Newer Name", cube->adt->slot_name);
+  action->slot_identifier_define(slot_cube, "Even Newer Name");
+  EXPECT_TRUE(unassign_action(cube->id));
+  EXPECT_STREQ("Even Newer Name", cube->adt->last_slot_identifier);
 }
 
-TEST_F(ActionLayersTest, slot_name_ensure_prefix)
+TEST_F(ActionLayersTest, slot_identifier_ensure_prefix)
 {
   class AccessibleSlot : public Slot {
    public:
-    void name_ensure_prefix()
+    void identifier_ensure_prefix()
     {
-      Slot::name_ensure_prefix();
+      Slot::identifier_ensure_prefix();
     }
   };
 
   Slot &raw_slot = action->slot_add();
   AccessibleSlot &slot = static_cast<AccessibleSlot &>(raw_slot);
-  ASSERT_STREQ("XXSlot", slot.name);
+  ASSERT_STREQ("XXSlot", slot.identifier);
   ASSERT_EQ(0, slot.idtype);
 
   /* Check defaults, idtype zeroed. */
-  slot.name_ensure_prefix();
-  EXPECT_STREQ("XXSlot", slot.name);
+  slot.identifier_ensure_prefix();
+  EXPECT_STREQ("XXSlot", slot.identifier);
 
   /* idtype CA, default name.  */
   slot.idtype = ID_CA;
-  slot.name_ensure_prefix();
-  EXPECT_STREQ("CASlot", slot.name);
+  slot.identifier_ensure_prefix();
+  EXPECT_STREQ("CASlot", slot.identifier);
 
   /* idtype ME, explicit name of other idtype. */
-  action->slot_name_define(slot, "CANewName");
+  action->slot_identifier_define(slot, "CANewName");
   slot.idtype = ID_ME;
-  slot.name_ensure_prefix();
-  EXPECT_STREQ("MENewName", slot.name);
+  slot.identifier_ensure_prefix();
+  EXPECT_STREQ("MENewName", slot.identifier);
 
   /* Zeroing out idtype. */
   slot.idtype = 0;
-  slot.name_ensure_prefix();
-  EXPECT_STREQ("XXNewName", slot.name);
+  slot.identifier_ensure_prefix();
+  EXPECT_STREQ("XXNewName", slot.identifier);
 }
 
-TEST_F(ActionLayersTest, slot_name_prefix)
+TEST_F(ActionLayersTest, slot_identifier_prefix)
 {
   Slot &slot = action->slot_add();
-  EXPECT_EQ("XX", slot.name_prefix_for_idtype());
+  EXPECT_EQ("XX", slot.identifier_prefix_for_idtype());
 
   slot.idtype = ID_CA;
-  EXPECT_EQ("CA", slot.name_prefix_for_idtype());
+  EXPECT_EQ("CA", slot.identifier_prefix_for_idtype());
 }
 
-TEST_F(ActionLayersTest, rename_slot_name_collision)
+TEST_F(ActionLayersTest, rename_slot_identifier_collision)
 {
   Slot &slot1 = action->slot_add();
   Slot &slot2 = action->slot_add();
 
-  action->slot_name_define(slot1, "New Slot Name");
-  action->slot_name_define(slot2, "New Slot Name");
-  EXPECT_STREQ("New Slot Name", slot1.name);
-  EXPECT_STREQ("New Slot Name.001", slot2.name);
+  action->slot_identifier_define(slot1, "New Slot Name");
+  action->slot_identifier_define(slot2, "New Slot Name");
+  EXPECT_STREQ("New Slot Name", slot1.identifier);
+  EXPECT_STREQ("New Slot Name.001", slot2.identifier);
 }
 
 TEST_F(ActionLayersTest, find_suitable_slot)
@@ -518,29 +602,29 @@ TEST_F(ActionLayersTest, find_suitable_slot)
    * These should nevertheless be matched up. */
   Slot &slot = action->slot_add();
   slot.handle = 327;
-  STRNCPY_UTF8(slot.name, "OBKüüübus");
+  STRNCPY_UTF8(slot.identifier, "OBKüüübus");
   slot.idtype = GS(cube->id.name);
   EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
 
   /* ===
    * Slot exists with the same name & type as the ID, and the ID has an AnimData with the same
-   * slot name, but a different slot_handle. Since the Action has not yet been
-   * assigned to this ID, the slot_handle should be ignored, and the slot name used for
+   * slot identifier, but a different slot_handle. Since the Action has not yet been
+   * assigned to this ID, the slot_handle should be ignored, and the slot identifier used for
    * matching. */
 
-  /* Create a slot with a handle that should be ignored.*/
+  /* Create a slot with a handle that should be ignored. */
   Slot &other_slot = action->slot_add();
   other_slot.handle = 47;
 
   AnimData *adt = BKE_animdata_ensure_id(&cube->id);
   adt->action = nullptr;
-  /* Configure adt to use the handle of one slot, and the name of the other. */
+  /* Configure adt to use the handle of one slot, and the identifier of the other. */
   adt->slot_handle = other_slot.handle;
-  STRNCPY_UTF8(adt->slot_name, slot.name);
+  STRNCPY_UTF8(adt->last_slot_identifier, slot.identifier);
   EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
 
   /* ===
-   * Same situation as above (AnimData has name of one slot, but the handle of another),
+   * Same situation as above (AnimData has identifier of one slot, but the handle of another),
    * except that the Action has already been assigned. In this case the handle should take
    * precedence. */
   adt->action = action;
@@ -551,7 +635,7 @@ TEST_F(ActionLayersTest, find_suitable_slot)
    * A slot exists, but doesn't match anything in the action data of the cube. This should fall
    * back to using the ID name. */
   adt->slot_handle = 161;
-  STRNCPY_UTF8(adt->slot_name, "¿¿What's this??");
+  STRNCPY_UTF8(adt->last_slot_identifier, "¿¿What's this??");
   EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
 }
 
@@ -735,24 +819,24 @@ TEST_F(ActionLayersTest, is_action_assignable_to)
 
 TEST_F(ActionLayersTest, action_slot_get_id_for_keying__empty_action)
 {
-  assign_action(action, cube->id);
+  EXPECT_TRUE(assign_action(action, cube->id));
 
   /* Double-check that the action is considered empty for the test. */
   EXPECT_TRUE(action->is_empty());
 
-  /* A `primary_id` that uses the action should get returned. Every other case
-   * should return nullptr. */
-  EXPECT_EQ(&cube->id, action_slot_get_id_for_keying(*bmain, *action, 0, &cube->id));
+  /* None should return an ID, since there are no slots yet which could have this ID assigned.
+   * Assignment of the Action itself (cube) shouldn't matter. */
+  EXPECT_EQ(nullptr, action_slot_get_id_for_keying(*bmain, *action, 0, &cube->id));
   EXPECT_EQ(nullptr, action_slot_get_id_for_keying(*bmain, *action, 0, nullptr));
   EXPECT_EQ(nullptr, action_slot_get_id_for_keying(*bmain, *action, 0, &suzanne->id));
 }
 
 TEST_F(ActionLayersTest, action_slot_get_id_for_keying__legacy_action)
 {
-  FCurve *fcurve = action_fcurve_ensure(bmain, action, nullptr, nullptr, {"location", 0});
+  FCurve *fcurve = action_fcurve_ensure_legacy(bmain, action, nullptr, nullptr, {"location", 0});
   EXPECT_FALSE(fcurve == nullptr);
 
-  assign_action(action, cube->id);
+  EXPECT_TRUE(assign_action(action, cube->id));
 
   /* Double-check that the action is considered legacy for the test. */
   EXPECT_TRUE(action->is_action_legacy());
@@ -794,8 +878,10 @@ TEST_F(ActionLayersTest, action_slot_get_id_for_keying__layered_action)
 TEST_F(ActionLayersTest, conversion_to_layered)
 {
   EXPECT_TRUE(action->is_empty());
-  FCurve *legacy_fcu_0 = action_fcurve_ensure(bmain, action, "Test", nullptr, {"location", 0});
-  FCurve *legacy_fcu_1 = action_fcurve_ensure(bmain, action, "Test", nullptr, {"location", 1});
+  FCurve *legacy_fcu_0 = action_fcurve_ensure_legacy(
+      bmain, action, "Test", nullptr, {"location", 0});
+  FCurve *legacy_fcu_1 = action_fcurve_ensure_legacy(
+      bmain, action, "Test", nullptr, {"location", 1});
 
   KeyframeSettings settings;
   settings.handle = HD_AUTO;
@@ -809,7 +895,7 @@ TEST_F(ActionLayersTest, conversion_to_layered)
   ASSERT_TRUE(converted != action);
   EXPECT_STREQ(converted->id.name, "ACACÄnimåtië_layered");
   Strip *strip = converted->layer(0)->strip(0);
-  StripKeyframeData strip_data = strip->data<StripKeyframeData>(*converted);
+  StripKeyframeData &strip_data = strip->data<StripKeyframeData>(*converted);
   ChannelBag *bag = strip_data.channelbag(0);
   ASSERT_EQ(bag->fcurve_array_num, 2);
   ASSERT_EQ(bag->fcurve_array[0]->totvert, 2);
@@ -827,7 +913,7 @@ TEST_F(ActionLayersTest, conversion_to_layered)
 
   Action *long_name_action = static_cast<Action *>(BKE_id_new(
       bmain, ID_AC, "name_for_an_action_that_is_exactly_64_chars_which_is_MAX_ID_NAME"));
-  action_fcurve_ensure(bmain, long_name_action, "Long", nullptr, {"location", 0});
+  action_fcurve_ensure_legacy(bmain, long_name_action, "Long", nullptr, {"location", 0});
   converted = convert_to_layered_action(*bmain, *long_name_action);
   /* AC gets added automatically by Blender, the long name is shortened to make space for
    * "_layered". */
@@ -838,11 +924,11 @@ TEST_F(ActionLayersTest, conversion_to_layered)
 TEST_F(ActionLayersTest, conversion_to_layered_action_groups)
 {
   EXPECT_TRUE(action->is_empty());
-  action_fcurve_ensure(bmain, action, "Test", nullptr, {"location", 0});
-  action_fcurve_ensure(bmain, action, "Test", nullptr, {"rotation_euler", 1});
-  action_fcurve_ensure(bmain, action, "Test_Two", nullptr, {"scale", 1});
-  action_fcurve_ensure(bmain, action, "Test_Three", nullptr, {"show_name", 1});
-  action_fcurve_ensure(bmain, action, "Test_Rename", nullptr, {"show_axis", 1});
+  action_fcurve_ensure_legacy(bmain, action, "Test", nullptr, {"location", 0});
+  action_fcurve_ensure_legacy(bmain, action, "Test", nullptr, {"rotation_euler", 1});
+  action_fcurve_ensure_legacy(bmain, action, "Test_Two", nullptr, {"scale", 1});
+  action_fcurve_ensure_legacy(bmain, action, "Test_Three", nullptr, {"show_name", 1});
+  action_fcurve_ensure_legacy(bmain, action, "Test_Rename", nullptr, {"show_axis", 1});
 
   bActionGroup *rename_group = static_cast<bActionGroup *>(BLI_findlink(&action->groups, 3));
   ASSERT_NE(rename_group, nullptr);
@@ -887,6 +973,60 @@ TEST_F(ActionLayersTest, empty_to_layered)
   ASSERT_TRUE(converted != action);
   ASSERT_TRUE(converted->is_action_layered());
   ASSERT_FALSE(converted->is_action_legacy());
+}
+
+TEST_F(ActionLayersTest, action_move_slot)
+{
+  Action *action_2 = static_cast<Action *>(BKE_id_new(bmain, ID_AC, "Action 2"));
+  EXPECT_TRUE(action->is_empty());
+
+  Slot &slot_cube = action->slot_add();
+  Slot &slot_suzanne = action_2->slot_add();
+  EXPECT_EQ(assign_action_and_slot(action, &slot_cube, cube->id), ActionSlotAssignmentResult::OK);
+  EXPECT_EQ(assign_action_and_slot(action_2, &slot_suzanne, suzanne->id),
+            ActionSlotAssignmentResult::OK);
+
+  PointerRNA cube_rna_pointer = RNA_id_pointer_create(&cube->id);
+  PointerRNA suzanne_rna_pointer = RNA_id_pointer_create(&suzanne->id);
+
+  action_fcurve_ensure(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
+  action_fcurve_ensure(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
+
+  action_fcurve_ensure(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"location", 0});
+  action_fcurve_ensure(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"rotation_euler", 1});
+
+  ASSERT_EQ(action->layer_array_num, 1);
+  ASSERT_EQ(action_2->layer_array_num, 1);
+
+  Layer *layer_1 = action->layer(0);
+  Layer *layer_2 = action_2->layer(0);
+
+  ASSERT_EQ(layer_1->strip_array_num, 1);
+  ASSERT_EQ(layer_2->strip_array_num, 1);
+
+  StripKeyframeData &strip_data_1 = layer_1->strip(0)->data<StripKeyframeData>(*action);
+  StripKeyframeData &strip_data_2 = layer_2->strip(0)->data<StripKeyframeData>(*action_2);
+
+  ASSERT_EQ(strip_data_1.channelbag_array_num, 1);
+  ASSERT_EQ(strip_data_2.channelbag_array_num, 1);
+
+  ChannelBag *bag_1 = strip_data_1.channelbag(0);
+  ChannelBag *bag_2 = strip_data_2.channelbag(0);
+
+  ASSERT_EQ(bag_1->fcurve_array_num, 2);
+  ASSERT_EQ(bag_2->fcurve_array_num, 2);
+
+  move_slot(*bmain, slot_suzanne, *action_2, *action);
+
+  ASSERT_EQ(strip_data_1.channelbag_array_num, 2);
+  ASSERT_EQ(strip_data_2.channelbag_array_num, 0);
+
+  ASSERT_EQ(action->slot_array_num, 2);
+  ASSERT_EQ(action_2->slot_array_num, 0);
+
+  /* Action should have been reassigned. */
+  ASSERT_EQ(action, cube->adt->action);
+  ASSERT_EQ(action, suzanne->adt->action);
 }
 
 /*-----------------------------------------------------------*/
@@ -1664,6 +1804,125 @@ TEST_F(ChannelBagTest, channel_group_fcurve_ungroup)
   EXPECT_EQ(nullptr, fcu3.grp);
   EXPECT_EQ(nullptr, fcu1.grp);
   EXPECT_EQ(nullptr, fcu2.grp);
+}
+
+/*-----------------------------------------------------------*/
+
+class ActionFCurveMoveTest : public testing::Test {
+ public:
+  Main *bmain;
+
+  static void SetUpTestSuite()
+  {
+    /* BKE_id_free() hits a code path that uses CLOG, which crashes if not initialized properly. */
+    CLG_init();
+
+    /* To make id_can_have_animdata() and friends work, the `id_types` array needs to be set up. */
+    BKE_idtype_init();
+  }
+
+  static void TearDownTestSuite()
+  {
+    CLG_exit();
+  }
+
+  void SetUp() override
+  {
+    bmain = BKE_main_new();
+  }
+
+  void TearDown() override
+  {
+    BKE_main_free(bmain);
+  }
+
+  static FCurve *fcurve_create(const StringRefNull rna_path, const int array_index)
+  {
+    FCurve *fcurve = BKE_fcurve_create();
+    fcurve->rna_path = BLI_strdupn(rna_path.c_str(), array_index);
+    return fcurve;
+  };
+};
+
+TEST_F(ActionFCurveMoveTest, test_fcurve_move_legacy)
+{
+  Action &action_src = action_add(*this->bmain, "SourceAction");
+  Action &action_dst = action_add(*this->bmain, "DestinationAction");
+
+  /* Add F-Curves to source Action. */
+  BLI_addtail(&action_src.curves, this->fcurve_create("source_prop", 0));
+  FCurve *fcurve_to_move = this->fcurve_create("source_prop", 2);
+  BLI_addtail(&action_src.curves, fcurve_to_move);
+
+  /* Add F-Curves to destination Action. */
+  BLI_addtail(&action_dst.curves, this->fcurve_create("dest_prop", 0));
+
+  ASSERT_TRUE(action_src.is_action_legacy());
+  ASSERT_TRUE(action_dst.is_action_legacy());
+
+  action_fcurve_move(action_dst, Slot::unassigned, action_src, *fcurve_to_move);
+
+  EXPECT_TRUE(action_src.is_action_legacy());
+  EXPECT_TRUE(action_dst.is_action_legacy());
+
+  EXPECT_EQ(-1, BLI_findindex(&action_src.curves, fcurve_to_move))
+      << "F-Curve should no longer exist in source Action";
+  EXPECT_EQ(1, BLI_findindex(&action_dst.curves, fcurve_to_move))
+      << "F-Curve should exist in destination Action";
+
+  EXPECT_EQ(1, BLI_listbase_count(&action_src.curves))
+      << "Source Action should still have the other F-Curve";
+  EXPECT_EQ(2, BLI_listbase_count(&action_dst.curves))
+      << "Destination Action should have its original and the moved F-Curve";
+}
+
+TEST_F(ActionFCurveMoveTest, test_fcurve_move_layered)
+{
+  Action &action_src = action_add(*this->bmain, "SourceAction");
+  Action &action_dst = action_add(*this->bmain, "DestinationAction");
+
+  /* Add F-Curves to source Action. */
+  Slot &slot_src = action_src.slot_add();
+  action_src.layer_keystrip_ensure();
+  StripKeyframeData &strip_data_src = action_src.layer(0)->strip(0)->data<StripKeyframeData>(
+      action_src);
+  ChannelBag &cbag_src = strip_data_src.channelbag_for_slot_ensure(slot_src);
+
+  cbag_src.fcurve_ensure(this->bmain, {"source_prop", 0});
+  FCurve &fcurve_to_move = cbag_src.fcurve_ensure(this->bmain, {"source_prop", 2});
+  bActionGroup &group_src = cbag_src.channel_group_create("Gröpje");
+  cbag_src.fcurve_assign_to_channel_group(fcurve_to_move, group_src);
+
+  /* Add F-Curves to destination Action. */
+  Slot &slot_dst = action_dst.slot_add();
+  action_dst.layer_keystrip_ensure();
+  StripKeyframeData &strip_data_dst = action_dst.layer(0)->strip(0)->data<StripKeyframeData>(
+      action_dst);
+  ChannelBag &cbag_dst = strip_data_dst.channelbag_for_slot_ensure(slot_dst);
+
+  cbag_dst.fcurve_ensure(this->bmain, {"dest_prop", 0});
+
+  ASSERT_TRUE(action_src.is_action_layered());
+  ASSERT_TRUE(action_dst.is_action_layered());
+
+  action_fcurve_move(action_dst, slot_dst.handle, action_src, fcurve_to_move);
+
+  EXPECT_TRUE(action_src.is_action_layered());
+  EXPECT_TRUE(action_dst.is_action_layered());
+
+  EXPECT_EQ(nullptr, cbag_src.fcurve_find({fcurve_to_move.rna_path, fcurve_to_move.array_index}))
+      << "F-Curve should no longer exist in source Action";
+  EXPECT_EQ(&fcurve_to_move,
+            cbag_dst.fcurve_find({fcurve_to_move.rna_path, fcurve_to_move.array_index}))
+      << "F-Curve should exist in destination Action";
+
+  EXPECT_EQ(1, cbag_src.fcurves().size()) << "Source Action should still have the other F-Curve";
+  EXPECT_EQ(2, cbag_dst.fcurves().size())
+      << "Destination Action should have its original and the moved F-Curve";
+
+  bActionGroup *group_dst = cbag_dst.channel_group_find("Gröpje");
+  ASSERT_NE(nullptr, group_dst) << "Expected channel group to be created";
+  ASSERT_EQ(group_dst, fcurve_to_move.grp) << "Expected group membership to move as well";
 }
 
 }  // namespace blender::animrig::tests

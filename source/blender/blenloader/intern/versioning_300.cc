@@ -20,7 +20,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_multi_value_map.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
@@ -70,7 +70,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_main.hh"
@@ -3053,7 +3053,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
                                                                      &sl->regionbase;
               LISTBASE_FOREACH (ARegion *, region, regionbase) {
                 if (region->regiontype == RGN_TYPE_WINDOW) {
-                  region->v2d.max[1] = MAXSEQ;
+                  region->v2d.max[1] = SEQ_MAX_CHANNELS;
                 }
               }
               break;
@@ -4007,6 +4007,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
           ARegion *channels_region = BKE_region_find_in_listbase_by_type(regionbase,
                                                                          RGN_TYPE_CHANNELS);
           if (channels_region) {
+            MEM_delete(channels_region->runtime);
             BLI_freelinkN(regionbase, channels_region);
           }
         }
@@ -4540,6 +4541,15 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  {
+    /* Keep this block, even when empty. */
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->toolsettings->uvcalc_iterations = 10;
+      scene->toolsettings->uvcalc_weight_factor = 1.0f;
+      STRNCPY(scene->toolsettings->uvcalc_weight_group, "uv_importance");
+    }
   }
 
   /**

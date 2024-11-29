@@ -363,10 +363,16 @@ template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketV
 
 static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSocket &socket)
 {
+  bool data_read = false;
   socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
     using SocketDataType = typename decltype(type_tag)::type;
     socket_data_read_data_impl(reader, reinterpret_cast<SocketDataType **>(&socket.socket_data));
+    data_read = true;
   });
+  if (!data_read && socket.socket_data) {
+    /* Not sure how this can happen exactly, but it did happen in #127855. */
+    socket.socket_data = nullptr;
+  }
 }
 
 /** \} */
@@ -868,10 +874,6 @@ void bNodeTreeInterfacePanel::add_item(bNodeTreeInterfaceItem &item)
 
 void bNodeTreeInterfacePanel::insert_item(bNodeTreeInterfaceItem &item, int position)
 {
-  /* Are child panels allowed? */
-  BLI_assert(item.item_type != NODE_INTERFACE_PANEL ||
-             (this->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS));
-
   /* Apply any constraints on the item positions. */
   position = find_valid_insert_position_for_item(item, position);
   position = std::min(std::max(position, 0), items_num);
@@ -1107,9 +1109,6 @@ void bNodeTreeInterface::init_data()
 {
   this->runtime = MEM_new<blender::bke::bNodeTreeInterfaceRuntime>(__func__);
   this->tag_missing_runtime_data();
-
-  /* Root panel is allowed to contain child panels. */
-  root_panel.flag |= NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS;
 }
 
 void bNodeTreeInterface::copy_data(const bNodeTreeInterface &src, int flag)
@@ -1244,11 +1243,6 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::add_panel(const blender::StringRef 
   }
   BLI_assert(this->find_item(parent->item));
 
-  if (!(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS)) {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
-
   bNodeTreeInterfacePanel *new_panel = make_panel(next_uid++, name, description, flag);
   if (new_panel) {
     parent->add_item(new_panel->item);
@@ -1269,11 +1263,6 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::insert_panel(const blender::StringR
   }
   BLI_assert(this->find_item(parent->item));
 
-  if (!(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS)) {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
-
   bNodeTreeInterfacePanel *new_panel = make_panel(next_uid++, name, description, flag);
   if (new_panel) {
     parent->insert_item(new_panel->item, position);
@@ -1292,13 +1281,6 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::add_item_copy(const bNodeTreeInterfa
   BLI_assert(this->find_item(item));
   BLI_assert(this->find_item(parent->item));
 
-  if (item.item_type == NODE_INTERFACE_PANEL &&
-      !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
-
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
   parent->add_item(*citem);
@@ -1316,13 +1298,6 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::insert_item_copy(const bNodeTreeInte
   }
   BLI_assert(this->find_item(item));
   BLI_assert(this->find_item(parent->item));
-
-  if (item.item_type == NODE_INTERFACE_PANEL &&
-      !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
 
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
@@ -1385,12 +1360,7 @@ bool bNodeTreeInterface::move_item_to_parent(bNodeTreeInterfaceItem &item,
   if (parent == nullptr) {
     return false;
   }
-  if (item.item_type == NODE_INTERFACE_PANEL && new_parent &&
-      !(new_parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return false;
-  }
+
   if (parent == new_parent) {
     if (parent->move_item(item, new_position)) {
       this->tag_items_changed();

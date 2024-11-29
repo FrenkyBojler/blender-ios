@@ -55,6 +55,10 @@ namespace node_interface = blender::bke::node_interface;
 static void rna_NodeTreeInterfaceItem_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  if (!ntree) {
+    /* This can happen because of the dummy socket in #rna_NodeTreeInterfaceSocket_register. */
+    return;
+  }
   ntree->tree_interface.tag_items_changed();
   ED_node_tree_propagate_change(nullptr, bmain, ntree);
 }
@@ -583,12 +587,6 @@ static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy_to_parent(
       BKE_report(reports, RPT_ERROR_INVALID_INPUT, "Parent is not part of the interface");
       return nullptr;
     }
-    if (item->item_type == NODE_INTERFACE_PANEL &&
-        !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-    {
-      BKE_report(reports, RPT_WARNING, "Parent panel does not allow child panels");
-      return nullptr;
-    }
   }
 
   if (parent == nullptr) {
@@ -662,18 +660,11 @@ static void rna_NodeTreeInterfaceItems_move(ID *id,
 static void rna_NodeTreeInterfaceItems_move_to_parent(ID *id,
                                                       bNodeTreeInterface *interface,
                                                       Main *bmain,
-                                                      ReportList *reports,
+                                                      ReportList * /*reports*/,
                                                       bNodeTreeInterfaceItem *item,
                                                       bNodeTreeInterfacePanel *parent,
                                                       int to_position)
 {
-  if (item->item_type == NODE_INTERFACE_PANEL && parent &&
-      !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    BKE_report(reports, RPT_WARNING, "Parent panel does not allow child panels");
-    return;
-  }
-
   interface->move_item_to_parent(*item, parent, to_position);
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
@@ -1078,6 +1069,7 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, nullptr, "socket_type");
   RNA_def_property_flag(prop, PROP_REGISTER);
   RNA_def_property_ui_text(prop, "Socket Type Name", "Name of the socket type");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   func = RNA_def_function(srna, "draw", nullptr);
   RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL);

@@ -8,6 +8,8 @@
 
 #include "vk_render_graph.hh"
 
+#include <sstream>
+
 namespace blender::gpu::render_graph {
 
 VKRenderGraph::VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_buffer,
@@ -76,13 +78,24 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
 
 void VKRenderGraph::submit()
 {
+  /* Using `VK_NULL_HANDLE` will select the default VkFence of the command buffer. */
+  submit_synchronization_event(VK_NULL_HANDLE);
+  wait_synchronization_event(VK_NULL_HANDLE);
+}
+
+void VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
+{
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  command_buffer_->submit_with_cpu_synchronization();
+  command_buffer_->submit_with_cpu_synchronization(vk_fence);
   submission_id.next();
   remove_nodes(node_handles);
-  command_buffer_->wait_for_cpu_synchronization();
+}
+
+void VKRenderGraph::wait_synchronization_event(VkFence vk_fence)
+{
+  command_buffer_->wait_for_cpu_synchronization(vk_fence);
 }
 
 /** \} */
@@ -124,6 +137,25 @@ void VKRenderGraph::debug_print(NodeHandle node_handle) const
     link.debug_print(os, resources_);
     os << "\n";
   }
+}
+
+std::string VKRenderGraph::full_debug_group(NodeHandle node_handle) const
+{
+  if ((G.debug & G_DEBUG_GPU) == 0) {
+    return std::string();
+  }
+
+  DebugGroupID debug_group = debug_.node_group_map[node_handle];
+  if (debug_group == -1) {
+    return std::string();
+  }
+
+  std::stringstream ss;
+  for (const VKRenderGraph::DebugGroupNameID &name_id : debug_.used_groups[debug_group]) {
+    ss << "/" << debug_.group_names[name_id];
+  }
+
+  return ss.str();
 }
 
 /** \} */

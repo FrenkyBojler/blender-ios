@@ -246,7 +246,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     if (use_clnors) {
       float(*corner_normals)[3] = static_cast<float(*)[3]>(
           CustomData_get_layer_for_write(&result->corner_data, CD_NORMAL, result->corners_num));
-      BKE_mesh_set_custom_normals(result, corner_normals);
+      BKE_mesh_set_custom_normals_normalized(result, corner_normals);
       CustomData_free_layers(&result->corner_data, CD_NORMAL, result->corners_num);
     }
     // blender::bke::subdiv::stats_print(&subdiv->stats);
@@ -353,7 +353,7 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
               WM_OP_EXEC_DEFAULT,
               UI_ITEM_NONE,
               &op_ptr);
-  RNA_enum_set(&op_ptr, "mode", MULTIRES_SUBDIVIDE_CATMULL_CLARK);
+  RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::CatmullClark));
   RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
 
   row = uiLayoutRow(layout, false);
@@ -365,7 +365,7 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
               WM_OP_EXEC_DEFAULT,
               UI_ITEM_NONE,
               &op_ptr);
-  RNA_enum_set(&op_ptr, "mode", MULTIRES_SUBDIVIDE_SIMPLE);
+  RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::Simple));
   RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
   uiItemFullO(row,
               "OBJECT_OT_multires_subdivide",
@@ -375,7 +375,7 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
               WM_OP_EXEC_DEFAULT,
               UI_ITEM_NONE,
               &op_ptr);
-  RNA_enum_set(&op_ptr, "mode", MULTIRES_SUBDIVIDE_LINEAR);
+  RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::Linear));
   RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
 
   uiItemS(layout);
