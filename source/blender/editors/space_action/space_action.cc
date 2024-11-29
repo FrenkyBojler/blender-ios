@@ -997,7 +997,7 @@ void ED_spacetype_action()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: footer */
-  art = MEM_cnew<ARegionType>("spacetype action region");;
+  art = MEM_cnew<ARegionType>("spacetype action region");
   art->regionid = RGN_TYPE_FOOTER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
