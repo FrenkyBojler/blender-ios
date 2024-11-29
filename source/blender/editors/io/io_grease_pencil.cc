@@ -345,7 +345,14 @@ static int grease_pencil_export_svg_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void ui_gpencil_export_settings(uiLayout *layout, PointerRNA *imfptr)
+enum class GreasePencilExportFiletype {
+  SVG = 0,
+  PDF = 1,
+};
+
+static void ui_gpencil_export_settings(uiLayout *layout,
+                                       PointerRNA *imfptr,
+                                       GreasePencilExportFiletype file_type)
 {
   uiLayout *box, *row, *col, *sub;
 
@@ -374,11 +381,14 @@ static void ui_gpencil_export_settings(uiLayout *layout, PointerRNA *imfptr)
   uiItemR(sub, imfptr, "stroke_sample", UI_ITEM_NONE, nullptr, ICON_NONE);
   uiItemR(sub, imfptr, "use_fill", UI_ITEM_NONE, nullptr, ICON_NONE);
   uiItemR(sub, imfptr, "use_uniform_width", UI_ITEM_NONE, nullptr, ICON_NONE);
+  if (file_type == GreasePencilExportFiletype::SVG) {
+    uiItemR(col, imfptr, "use_clip_camera", UI_ITEM_NONE, nullptr, ICON_NONE);
+  }
 }
 
 static void grease_pencil_export_svg_draw(bContext * /*C*/, wmOperator *op)
 {
-  ui_gpencil_export_settings(op->layout, op->ptr);
+  ui_gpencil_export_settings(op->layout, op->ptr, GreasePencilExportFiletype::SVG);
 }
 
 static bool grease_pencil_export_svg_poll(bContext *C)
@@ -514,7 +524,7 @@ static int grease_pencil_export_pdf_exec(bContext *C, wmOperator *op)
 
 static void grease_pencil_export_pdf_draw(bContext * /*C*/, wmOperator *op)
 {
-  ui_gpencil_export_settings(op->layout, op->ptr);
+  ui_gpencil_export_settings(op->layout, op->ptr, GreasePencilExportFiletype::PDF);
 }
 
 static bool grease_pencil_export_pdf_poll(bContext *C)
