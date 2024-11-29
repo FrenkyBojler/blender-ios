@@ -78,7 +78,7 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* footer */
-  region = MEM_cnew<ARegion>("footer for action");
+  region = BKE_area_region_new();
   BLI_addtail(&saction->regionbase, region);
   region->regiontype = RGN_TYPE_FOOTER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
@@ -377,8 +377,6 @@ static void action_footer_region_draw(const bContext *C, ARegion *region)
 
   ED_region_header(C, region);
 }
-
-static void action_footer_region_free(ARegion * /*region*/) {}
 
 static void action_footer_region_listener(const wmRegionListenerParams * /*params*/) {}
 
@@ -1000,11 +998,10 @@ void ED_spacetype_action()
   art = MEM_cnew<ARegionType>("spacetype action region");
   art->regionid = RGN_TYPE_FOOTER;
   art->prefsizey = HEADERY;
-  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_FOOTER;
 
   art->init = action_footer_region_init;
   art->draw = action_footer_region_draw;
-  art->free = action_footer_region_free;
   art->listener = action_footer_region_listener;
 
   BLI_addhead(&st->regiontypes, art);
