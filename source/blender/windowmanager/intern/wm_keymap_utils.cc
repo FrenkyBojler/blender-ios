@@ -80,8 +80,19 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
   eSpace_Type space_type = SPACE_EMPTY;
   eRegion_Type region_type = RGN_TYPE_WINDOW;
   SpaceLink *sl = CTX_wm_space_data(C);
+
+  /* Tool property tab is a special case where 3d tool properties are shown in the properties
+   * editor. This would allow tool keymap to also work in such situations. */
+  bool allow_properties_keymap = false;
+  if (sl->spacetype == SPACE_PROPERTIES) {
+    SpaceProperties *sp = reinterpret_cast<SpaceProperties *>(sl);
+    if (sp->mainb == BCONTEXT_TOOL) {
+      allow_properties_keymap = true;
+    }
+  }
+
   const char *km_id = nullptr;
-  if (sl->spacetype == SPACE_VIEW3D || sl->spacetype == SPACE_PROPERTIES) {
+  if (sl->spacetype == SPACE_VIEW3D || allow_properties_keymap) {
     const enum eContextObjectMode mode = CTX_data_mode_enum(C);
     switch (mode) {
       case CTX_MODE_EDIT_MESH:
