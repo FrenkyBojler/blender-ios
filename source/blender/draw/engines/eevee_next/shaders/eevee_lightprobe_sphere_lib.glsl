@@ -6,7 +6,11 @@
 
 #include "infos/eevee_lightprobe_sphere_info.hh"
 
+/* TODO(fclem): Pass the lightprobe_sphere_buf around and avoid relying on interface.
+ * Currently in conflict with eevee_lightprobe_volume_load. */
+#ifndef SPHERE_PROBE_SELECT
 SHADER_LIBRARY_CREATE_INFO(eevee_lightprobe_sphere_data)
+#endif
 
 #include "eevee_lightprobe_sphere_mapping_lib.glsl"
 #include "eevee_octahedron_lib.glsl"

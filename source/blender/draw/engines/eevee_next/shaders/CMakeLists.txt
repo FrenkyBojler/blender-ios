@@ -109,29 +109,29 @@ eevee_film_pass_convert_comp.glsl
 # eevee_light_culling_tile_comp.glsl
 # eevee_light_culling_zbin_comp.glsl
 # eevee_light_shadow_setup_comp.glsl
-# eevee_lightprobe_sphere_convolve_comp.glsl
-# eevee_lightprobe_sphere_irradiance_comp.glsl
-# eevee_lightprobe_sphere_remap_comp.glsl
-# eevee_lightprobe_sphere_select_comp.glsl
-# eevee_lightprobe_sphere_sunlight_comp.glsl
-# eevee_lightprobe_volume_bounds_comp.glsl
-# eevee_lightprobe_volume_load_comp.glsl
-# eevee_lightprobe_volume_offset_comp.glsl
-# eevee_lightprobe_volume_ray_comp.glsl
-# eevee_lightprobe_volume_world_comp.glsl
-# eevee_lut_comp.glsl
+eevee_lightprobe_sphere_convolve_comp.glsl
+eevee_lightprobe_sphere_irradiance_comp.glsl
+eevee_lightprobe_sphere_remap_comp.glsl
+eevee_lightprobe_sphere_select_comp.glsl
+eevee_lightprobe_sphere_sunlight_comp.glsl
+eevee_lightprobe_volume_bounds_comp.glsl
+eevee_lightprobe_volume_load_comp.glsl
+eevee_lightprobe_volume_offset_comp.glsl
+eevee_lightprobe_volume_ray_comp.glsl
+eevee_lightprobe_volume_world_comp.glsl
+eevee_lut_comp.glsl
 eevee_motion_blur_dilate_comp.glsl
 eevee_motion_blur_flatten_comp.glsl
 eevee_motion_blur_gather_comp.glsl
-# eevee_ray_denoise_bilateral_comp.glsl
-# eevee_ray_denoise_spatial_comp.glsl
-# eevee_ray_denoise_temporal_comp.glsl
-# eevee_ray_generate_comp.glsl
-# eevee_ray_tile_classify_comp.glsl
-# eevee_ray_tile_compact_comp.glsl
-# eevee_ray_trace_fallback_comp.glsl
-# eevee_ray_trace_planar_comp.glsl
-# eevee_ray_trace_screen_comp.glsl
+eevee_ray_denoise_bilateral_comp.glsl
+eevee_ray_denoise_spatial_comp.glsl
+eevee_ray_denoise_temporal_comp.glsl
+eevee_ray_generate_comp.glsl
+eevee_ray_tile_classify_comp.glsl
+eevee_ray_tile_compact_comp.glsl
+eevee_ray_trace_fallback_comp.glsl
+eevee_ray_trace_planar_comp.glsl
+eevee_ray_trace_screen_comp.glsl
 # eevee_shadow_clipmap_clear_comp.glsl
 # eevee_shadow_page_allocate_comp.glsl
 # eevee_shadow_page_clear_comp.glsl
@@ -148,16 +148,16 @@ eevee_motion_blur_gather_comp.glsl
 # eevee_shadow_tilemap_init_comp.glsl
 # eevee_shadow_tilemap_rendermap_comp.glsl
 # eevee_shadow_visibility_comp.glsl
-# eevee_subsurface_convolve_comp.glsl
-# eevee_subsurface_setup_comp.glsl
-# eevee_surfel_cluster_build_comp.glsl
-# eevee_surfel_light_comp.glsl
-# eevee_surfel_list_build_comp.glsl
-# eevee_surfel_list_sort_comp.glsl
-# eevee_surfel_ray_comp.glsl
-# eevee_vertex_copy_comp.glsl
-# eevee_volume_integration_comp.glsl
-# eevee_volume_scatter_comp.glsl
+eevee_subsurface_convolve_comp.glsl
+eevee_subsurface_setup_comp.glsl
+eevee_surfel_cluster_build_comp.glsl
+eevee_surfel_light_comp.glsl
+eevee_surfel_list_build_comp.glsl
+eevee_surfel_list_sort_comp.glsl
+eevee_surfel_ray_comp.glsl
+eevee_vertex_copy_comp.glsl
+eevee_volume_integration_comp.glsl
+eevee_volume_scatter_comp.glsl
 )
 
 set(SRC_GLSL_LIB
