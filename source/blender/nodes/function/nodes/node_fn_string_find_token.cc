@@ -48,9 +48,9 @@ static std::vector<int> string_find_tokens(const StringRef text,
                                            bool overlap)
 {
   std::vector<int> positions;
-   if (text.is_empty() || token.is_empty()) {
+  if (text.is_empty() || token.is_empty()) {
     return positions;
-   }
+  }
   std::u32string a_u32 = bli_str_utf8_as_u32string(text);
   std::u32string b_u32 = bli_str_utf8_as_u32string(token);
 
@@ -72,9 +72,11 @@ static std::vector<int> string_find_tokens(const StringRef text,
   }
   return positions;
 }
-static int out_finded_token_position(const std::vector<int> *positions, const int start, const int next)
+static int out_finded_token_position(const std::vector<int> *positions,
+                                     const int start,
+                                     const int next)
 {
-  if (positions->empty()||next<=0) {
+  if (positions->empty() || next <= 0) {
     return 0;
   }
   if (start > positions->back()) {
@@ -120,7 +122,7 @@ static void string_find_count_out(const StringRef text,
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   static auto token_position_count =
-      mf::build::SI5_SO2<std::string, std::string, int, int, bool,int, int>(
+      mf::build::SI5_SO2<std::string, std::string, int, int, bool, int, int>(
           "String Find Token",
           [](const std::string &text,
              const std::string &token,
@@ -129,7 +131,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
              const bool &overlap,
              int &position,
              int &count) -> void {
-            string_find_count_out(text,token,start,next,overlap,position,count);
+            string_find_count_out(text, token, start, next, overlap, position, count);
           },
           mf::build::exec_presets::AllSpanOrSingle());
 
