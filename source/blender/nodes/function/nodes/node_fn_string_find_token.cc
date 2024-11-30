@@ -62,15 +62,15 @@ static std::vector<int> string_find_tokens(const StringRef text,
     Matche_len = 1;
   }
   int pos = 0;
-  while ((pos = a_u32.find(b_u32, pos)) != std::u32string_view::npos) {
+  while ((pos = a_u32.find(b_u32, pos)) != std::u32string::npos) {
     positions.push_back(pos);
     pos += Matche_len;
   }
   return positions;
 }
-static int out_finded_token(const std::vector<int> *positions, const int start, const int next)
+static int out_finded_token_position(const std::vector<int> *positions, const int start, const int next)
 {
-  if (positions->empty()) {
+  if (positions->empty()||start<0||next<=0) {
     return 0;
   }
   if (start > positions->back()) {
@@ -110,7 +110,7 @@ static void string_find_count_out(const StringRef text,
                                   int &out_count)
 {
   std::vector<int> positions = string_find_tokens(text, token, overlap);
-  out_pos = out_finded_token(&positions, start, next);
+  out_pos = out_finded_token_position(&positions, start, next);
   out_count = out_finded_tokens_count(&positions, start);
 }
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
