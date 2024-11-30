@@ -15,6 +15,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Token");
   b.add_input<decl::Int>("Start Char").min(0);
   b.add_input<decl::Int>("Next Find").min(0).default_value(1);
+  b.add_input<decl::Bool>("Overlap Matches");
   b.add_output<decl::Int>("Token Position");
   b.add_output<decl::Int>("Token Count");
 }
@@ -42,16 +43,22 @@ std::u32string bli_str_utf8_as_u32string(const StringRef u8src)
   return u32out;
 }
 
-static int string_find_token(const StringRef text,
-                             const StringRef token,
-                             const int start,
-                             const int next)
+static int string_find_token(
+    const StringRef text, const StringRef token, const int start, const int next, bool overlap)
 {
   if (text.is_empty() || token.is_empty() || next <= 0) {
     return 0;
   }
   std::u32string a_u32 = bli_str_utf8_as_u32string(text);
   std::u32string b_u32 = bli_str_utf8_as_u32string(token);
+
+  int Matche_len;
+  if (!overlap) {
+    Matche_len = b_u32.size();
+  }
+  else {
+    Matche_len = 1;
+  }
 
   if (start < 0 || start > a_u32.size()) {
     return -1;
@@ -64,27 +71,35 @@ static int string_find_token(const StringRef text,
     if (count == next) {
       return pos;
     }
-    pos += b_u32.size();
+    pos += Matche_len;
   }
   return -1;
 }
 
-static int string_count_token(const StringRef text, const StringRef token, int start)
+static int string_count_token(const StringRef text, const StringRef token, int start, bool overlap)
 {
   if (text.is_empty() || token.is_empty()) {
     return 0;
   }
+  int Matche_len;
+  if (!overlap) {
+    Matche_len = token.size();
+  }
+  else {
+    Matche_len = 1;
+  }
+
   int count = 0;
   int pos = start;
   while ((pos = text.find(token, pos)) != std::string::npos) {
     count++;
-    pos += token.size();
+    pos += Matche_len;
   }
   return count;
 }
+
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-
   static auto token_position_count =
       mf::build::SI4_SO2<std::string, std::string, int, int, int, int>(
           "String Find Token",
@@ -94,8 +109,8 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
              const int &next,
              int &position,
              int &count) -> void {
-            position = string_find_token(text, token, start, next);
-            count = string_count_token(text, token, start);
+            position = string_find_token(text, token, start, next, false);
+            count = string_count_token(text, token, start, false);
           },
           mf::build::exec_presets::AllSpanOrSingle());
 
