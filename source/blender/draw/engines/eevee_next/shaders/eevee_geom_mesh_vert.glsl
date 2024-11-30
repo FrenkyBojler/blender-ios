@@ -7,11 +7,8 @@
 VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 VERTEX_SHADER_CREATE_INFO(eevee_geom_mesh)
 
-/* TODO(fclem): Make compilation possible. Better split eevee_attributes_lib per object type. */
-VERTEX_SHADER_CREATE_INFO(eevee_geom_point_cloud)
-
 #include "draw_model_lib.glsl"
-#include "eevee_attributes_lib.glsl"
+#include "eevee_attributes_mesh_lib.glsl"
 #include "eevee_nodetree_lib.glsl"
 #include "eevee_surf_lib.glsl"
 #include "eevee_velocity_lib.glsl"

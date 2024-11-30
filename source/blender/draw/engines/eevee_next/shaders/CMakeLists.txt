@@ -78,8 +78,8 @@ set(SRC_GLSL_FRAG
   eevee_surf_hybrid_frag.glsl
   eevee_surf_occupancy_frag.glsl
   eevee_surf_shadow_frag.glsl
-  # eevee_surf_volume_frag.glsl # Issue with eevee_attributes_lib / draw_pointcloud_lib
-  # eevee_surf_world_frag.glsl # Issue with eevee_attributes_lib / draw_pointcloud_lib
+  eevee_surf_volume_frag.glsl
+  eevee_surf_world_frag.glsl 
   eevee_volume_resolve_frag.glsl
 )
 
@@ -162,7 +162,12 @@ set(SRC_GLSL_COMP
 
 set(SRC_GLSL_LIB
   eevee_ambient_occlusion_lib.glsl
-  # eevee_attributes_lib.glsl # Has dependency on draw_model_lib that is hard to resolve
+  eevee_attributes_curves_lib.glsl
+  eevee_attributes_gpencil_lib.glsl
+  eevee_attributes_mesh_lib.glsl
+  eevee_attributes_point_cloud_lib.glsl
+  eevee_attributes_volume_lib.glsl
+  eevee_attributes_world_lib.glsl
   eevee_bxdf_diffuse_lib.glsl
   eevee_bxdf_lib.glsl
   eevee_bxdf_microfacet_lib.glsl
