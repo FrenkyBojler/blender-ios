@@ -224,28 +224,25 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
   pugi::xml_node frame_group_node = node.append_child("g");
   frame_group_node.append_attribute("id").set_value(frame_name(frame_number).c_str());
 
+  /* Camera clipping. */
+  if (is_clipping) {
+    pugi::xml_node clip_node = frame_group_node.append_child("clipPath");
+    clip_node.append_attribute("id").set_value(
+        ("clip-path" + std::to_string(frame_number)).c_str());
+
+    write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
+
+    frame_group_node.append_attribute("clip-path")
+        .set_value(("url(#clip-path" + std::to_string(frame_number) + ")").c_str());
+  }
+
   for (const ObjectInfo &info : objects) {
     const Object *ob = info.object;
 
-    /* Camera clipping. */
-    if (is_clipping) {
-      pugi::xml_node clip_node = node.append_child("clipPath");
-      clip_node.append_attribute("id").set_value(
-          ("clip-path" + std::to_string(frame_number)).c_str());
-
-      write_rect(clip_node, 0, 0, render_rect_.size().x, render_rect_.size().y, 0.0f, "#000000");
-    }
-
-    /* Clip area. */
-    if (is_clipping) {
-      frame_group_node.append_attribute("clip-path")
-          .set_value(("url(#clip-path" + std::to_string(frame_number) + ")").c_str());
-    }
-
     pugi::xml_node ob_node = frame_group_node.append_child("g");
 
-    char obtxt[128];
-    SNPRINTF(obtxt, "blender_object_%s_at_frame_%d", ob->id.name + 2, frame_number);
+    char obtxt[96];
+    SNPRINTF(obtxt, "blender_object_%s%d", ob->id.name + 2, frame_number);
     ob_node.append_attribute("id").set_value(obtxt);
 
     /* Use evaluated version to get strokes with modifiers. */
@@ -355,7 +352,8 @@ pugi::xml_node SVGExporter::write_animation_node(pugi::xml_node parent_node,
 {
   pugi::xml_node use_node = parent_node.append_child("use");
   use_node.append_attribute("id").set_value("blender_animation");
-  use_node.append_attribute("href").set_value(frame_name(frames.first()).c_str());
+  std::string href_text = "url(#" + frame_name(frames.first()) + ")";
+  use_node.append_attribute("href").set_value(href_text.c_str());
 
   pugi::xml_node animate_node = use_node.append_child("animate");
   animate_node.append_attribute("id").set_value("frame-by-frame_animation");
