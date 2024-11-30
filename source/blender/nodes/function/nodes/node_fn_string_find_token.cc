@@ -47,7 +47,9 @@ static int string_find_token(const StringRef text,
                              const int start,
                              const int next)
 {
-  if(text.is_empty()||token.is_empty()||next<=0){return 0;}
+  if (text.is_empty() || token.is_empty() || next <= 0) {
+    return 0;
+  }
   std::u32string a_u32 = bli_str_utf8_as_u32string(text);
   std::u32string b_u32 = bli_str_utf8_as_u32string(token);
 
@@ -67,11 +69,13 @@ static int string_find_token(const StringRef text,
   return -1;
 }
 
-static int string_count_token(const StringRef text, const StringRef token)
+static int string_count_token(const StringRef text, const StringRef token, int start)
 {
-  if(text.is_empty()||token.is_empty()){return 0;}
+  if (text.is_empty() || token.is_empty()) {
+    return 0;
+  }
   int count = 0;
-  int pos = 0;
+  int pos = start;
   while ((pos = text.find(token, pos)) != std::string::npos) {
     count++;
     pos += token.size();
@@ -90,8 +94,8 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
              const int &next,
              int &position,
              int &count) -> void {
-            position = string_find_token(text,token,start,next);
-            count = string_count_token(text,token);
+            position = string_find_token(text, token, start, next);
+            count = string_count_token(text, token, start);
           },
           mf::build::exec_presets::AllSpanOrSingle());
 
