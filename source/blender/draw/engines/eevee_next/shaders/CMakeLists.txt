@@ -99,16 +99,16 @@ eevee_depth_of_field_tiles_flatten_comp.glsl
 eevee_film_comp.glsl
 eevee_film_cryptomatte_post_comp.glsl
 eevee_film_pass_convert_comp.glsl
-# eevee_hiz_update_comp.glsl
-# eevee_horizon_denoise_comp.glsl
-# eevee_horizon_resolve_comp.glsl
-# eevee_horizon_scan_comp.glsl
-# eevee_horizon_setup_comp.glsl
-# eevee_light_culling_select_comp.glsl
-# eevee_light_culling_sort_comp.glsl
-# eevee_light_culling_tile_comp.glsl
-# eevee_light_culling_zbin_comp.glsl
-# eevee_light_shadow_setup_comp.glsl
+eevee_hiz_update_comp.glsl
+eevee_horizon_denoise_comp.glsl
+eevee_horizon_resolve_comp.glsl
+eevee_horizon_scan_comp.glsl
+eevee_horizon_setup_comp.glsl
+eevee_light_culling_select_comp.glsl
+eevee_light_culling_sort_comp.glsl
+eevee_light_culling_tile_comp.glsl
+eevee_light_culling_zbin_comp.glsl
+eevee_light_shadow_setup_comp.glsl
 eevee_lightprobe_sphere_convolve_comp.glsl
 eevee_lightprobe_sphere_irradiance_comp.glsl
 eevee_lightprobe_sphere_remap_comp.glsl
@@ -132,22 +132,22 @@ eevee_ray_tile_compact_comp.glsl
 eevee_ray_trace_fallback_comp.glsl
 eevee_ray_trace_planar_comp.glsl
 eevee_ray_trace_screen_comp.glsl
-# eevee_shadow_clipmap_clear_comp.glsl
-# eevee_shadow_page_allocate_comp.glsl
-# eevee_shadow_page_clear_comp.glsl
-# eevee_shadow_page_defrag_comp.glsl
-# eevee_shadow_page_free_comp.glsl
-# eevee_shadow_page_mask_comp.glsl
-# eevee_shadow_tag_update_comp.glsl
-# eevee_shadow_tag_usage_comp.glsl
-# eevee_shadow_tag_usage_surfels_comp.glsl
-# eevee_shadow_tag_usage_volume_comp.glsl
-# eevee_shadow_tilemap_amend_comp.glsl
-# eevee_shadow_tilemap_bounds_comp.glsl
-# eevee_shadow_tilemap_finalize_comp.glsl
-# eevee_shadow_tilemap_init_comp.glsl
-# eevee_shadow_tilemap_rendermap_comp.glsl
-# eevee_shadow_visibility_comp.glsl
+eevee_shadow_clipmap_clear_comp.glsl
+eevee_shadow_page_allocate_comp.glsl
+eevee_shadow_page_clear_comp.glsl
+eevee_shadow_page_defrag_comp.glsl
+eevee_shadow_page_free_comp.glsl
+eevee_shadow_page_mask_comp.glsl
+eevee_shadow_tag_update_comp.glsl
+eevee_shadow_tag_usage_comp.glsl
+eevee_shadow_tag_usage_surfels_comp.glsl
+eevee_shadow_tag_usage_volume_comp.glsl
+eevee_shadow_tilemap_amend_comp.glsl
+eevee_shadow_tilemap_bounds_comp.glsl
+eevee_shadow_tilemap_finalize_comp.glsl
+eevee_shadow_tilemap_init_comp.glsl
+eevee_shadow_tilemap_rendermap_comp.glsl
+eevee_shadow_visibility_comp.glsl
 eevee_subsurface_convolve_comp.glsl
 eevee_subsurface_setup_comp.glsl
 eevee_surfel_cluster_build_comp.glsl

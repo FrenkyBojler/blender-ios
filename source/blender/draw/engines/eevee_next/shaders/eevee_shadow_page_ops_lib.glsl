@@ -29,7 +29,9 @@
 
 #include "infos/eevee_shadow_info.hh"
 
+#ifdef GPU_LIBRARY_SHADER
 SHADER_LIBRARY_CREATE_INFO(eevee_shadow_page_free)
+#endif
 
 #include "eevee_shadow_tilemap_lib.glsl"
 
