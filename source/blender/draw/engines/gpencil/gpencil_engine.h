@@ -195,6 +195,8 @@ struct GPENCIL_Instance {
   PassSimple mask_invert_ps = {"mask_invert_ps"};
 
   blender::draw::View view = {"GPView"};
+
+  float4x4 object_bound_mat;
 };
 
 struct GPENCIL_Data {
@@ -266,7 +268,6 @@ typedef struct GPENCIL_PrivateData {
   bool draw_wireframe;
   /* Used by the depth merge step. */
   int is_stroke_order_3d;
-  float4x4 object_bound_mat;
   /* Used for computing object distance to camera. */
   float camera_z_axis[3], camera_z_offset;
   float camera_pos[3];
