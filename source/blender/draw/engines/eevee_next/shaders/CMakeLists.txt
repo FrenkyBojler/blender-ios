@@ -84,21 +84,21 @@ set(SRC_GLSL_FRAG
 )
 
 set(SRC_GLSL_COMP
-# eevee_ambient_occlusion_pass_comp.glsl
-# eevee_depth_of_field_bokeh_lut_comp.glsl
-# eevee_depth_of_field_downsample_comp.glsl
-# eevee_depth_of_field_filter_comp.glsl
-# eevee_depth_of_field_gather_comp.glsl
-# eevee_depth_of_field_hole_fill_comp.glsl
-# eevee_depth_of_field_reduce_comp.glsl
-# eevee_depth_of_field_resolve_comp.glsl
-# eevee_depth_of_field_setup_comp.glsl
-# eevee_depth_of_field_stabilize_comp.glsl
-# eevee_depth_of_field_tiles_dilate_comp.glsl
-# eevee_depth_of_field_tiles_flatten_comp.glsl
-# eevee_film_comp.glsl
-# eevee_film_cryptomatte_post_comp.glsl
-# eevee_film_pass_convert_comp.glsl
+eevee_ambient_occlusion_pass_comp.glsl
+eevee_depth_of_field_bokeh_lut_comp.glsl
+eevee_depth_of_field_downsample_comp.glsl
+eevee_depth_of_field_filter_comp.glsl
+eevee_depth_of_field_gather_comp.glsl
+eevee_depth_of_field_hole_fill_comp.glsl
+eevee_depth_of_field_reduce_comp.glsl
+eevee_depth_of_field_resolve_comp.glsl
+eevee_depth_of_field_setup_comp.glsl
+eevee_depth_of_field_stabilize_comp.glsl
+eevee_depth_of_field_tiles_dilate_comp.glsl
+eevee_depth_of_field_tiles_flatten_comp.glsl
+eevee_film_comp.glsl
+eevee_film_cryptomatte_post_comp.glsl
+eevee_film_pass_convert_comp.glsl
 # eevee_hiz_update_comp.glsl
 # eevee_horizon_denoise_comp.glsl
 # eevee_horizon_resolve_comp.glsl
@@ -120,9 +120,9 @@ set(SRC_GLSL_COMP
 # eevee_lightprobe_volume_ray_comp.glsl
 # eevee_lightprobe_volume_world_comp.glsl
 # eevee_lut_comp.glsl
-# eevee_motion_blur_dilate_comp.glsl
-# eevee_motion_blur_flatten_comp.glsl
-# eevee_motion_blur_gather_comp.glsl
+eevee_motion_blur_dilate_comp.glsl
+eevee_motion_blur_flatten_comp.glsl
+eevee_motion_blur_gather_comp.glsl
 # eevee_ray_denoise_bilateral_comp.glsl
 # eevee_ray_denoise_spatial_comp.glsl
 # eevee_ray_denoise_temporal_comp.glsl
@@ -237,6 +237,6 @@ endfunction()
 if (WITH_GPU_SHADER_CPP_COMPILATION)
   compile_sources_as_cpp(eevee_cpp_shaders_vert "${SRC_GLSL_VERT}" "GPU_VERTEX_SHADER")
   compile_sources_as_cpp(eevee_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
-  # compile_sources_as_cpp(eevee_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
+  compile_sources_as_cpp(eevee_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
   compile_sources_as_cpp(eevee_cpp_shaders_lib "${SRC_GLSL_LIB}" "GPU_LIBRARY_SHADER")
 endif()

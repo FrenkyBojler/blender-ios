@@ -13,7 +13,9 @@
 #include "infos/eevee_depth_of_field_info.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_depth_of_field_lut)
+#ifdef GPU_LIBRARY_SHADER
 COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_gather)
+#endif
 
 #include "draw_view_lib.glsl"
 #include "eevee_colorspace_lib.glsl"

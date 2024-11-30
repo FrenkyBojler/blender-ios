@@ -14,6 +14,7 @@
 #  include "eevee_velocity_info.hh"
 
 #  define DOF_BOKEH_TEXTURE true
+#  define DILATE_MODE_MIN_MAX true
 #endif
 
 #include "eevee_defines.hh"

@@ -17,6 +17,10 @@
  * - Stabilized Color and CoC (half-resolution).
  */
 
+#include "infos/eevee_depth_of_field_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_stabilize)
+
 #include "eevee_colorspace_lib.glsl"
 #include "eevee_depth_of_field_lib.glsl"
 #include "eevee_velocity_lib.glsl"
