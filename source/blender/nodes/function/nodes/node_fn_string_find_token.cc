@@ -62,6 +62,10 @@ static std::vector<int> string_find_tokens(const StringRef text,
     Matche_len = 1;
   }
   int pos = 0;
+  if (a_u32.substr(0, b_u32.size()) == b_u32) {
+    positions.push_back(0);
+    pos += Matche_len;
+  }
   while ((pos = a_u32.find(b_u32, pos)) != std::u32string::npos) {
     positions.push_back(pos);
     pos += Matche_len;
@@ -70,13 +74,13 @@ static std::vector<int> string_find_tokens(const StringRef text,
 }
 static int out_finded_token_position(const std::vector<int> *positions, const int start, const int next)
 {
-  if (positions->empty()||start<0||next<=0) {
+  if (positions->empty()||next<=0) {
     return 0;
   }
   if (start > positions->back()) {
     return -1;
   }
-  auto it = std::lower_bound(positions->begin(), positions->end(), start + 1);
+  auto it = std::lower_bound(positions->begin(), positions->end(), start);
   if (it == positions->end()) {
     return -1;
   }
