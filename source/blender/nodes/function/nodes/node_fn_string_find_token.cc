@@ -76,10 +76,10 @@ static int out_finded_token_position(const std::vector<int> *positions,
                                      const int start,
                                      const int next)
 {
-  if (positions->empty() || next <= 0) {
+  if (next <= 0) {
     return 0;
   }
-  if (start > positions->back()) {
+  if (positions->empty() ||start > positions->back()) {
     return -1;
   }
   auto it = std::lower_bound(positions->begin(), positions->end(), start);
