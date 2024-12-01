@@ -67,7 +67,8 @@ static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_GIZMO_TRANSFORM, "Transform Gizmo", blender::bke::NodeClass::Interface);
+  geo_node_type_base(
+      &ntype, GEO_NODE_GIZMO_TRANSFORM, "Transform Gizmo", blender::bke::NodeClass::Interface);
   bke::node_type_storage(&ntype,
                          "NodeGeometryTransformGizmo",
                          node_free_standard_storage,

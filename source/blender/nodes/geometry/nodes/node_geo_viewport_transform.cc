@@ -37,8 +37,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_TOOL_VIEWPORT_TRANSFORM, "Viewport Transform", blender::bke::NodeClass::Input);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_TOOL_VIEWPORT_TRANSFORM,
+                     "Viewport Transform",
+                     blender::bke::NodeClass::Input);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_tool_node;

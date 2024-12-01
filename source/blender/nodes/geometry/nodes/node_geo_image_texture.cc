@@ -419,7 +419,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_IMAGE_TEXTURE, "Image Texture", blender::bke::NodeClass::Texture);
+  geo_node_type_base(
+      &ntype, GEO_NODE_IMAGE_TEXTURE, "Image Texture", blender::bke::NodeClass::Texture);
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;

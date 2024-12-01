@@ -103,7 +103,8 @@ void register_node_type_cmp_premulkey()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_PREMULKEY, "Alpha Convert", blender::bke::NodeClass::Converter);
+  cmp_node_type_base(
+      &ntype, CMP_NODE_PREMULKEY, "Alpha Convert", blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::cmp_node_premulkey_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_premulkey;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;

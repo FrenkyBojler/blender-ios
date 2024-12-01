@@ -871,8 +871,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_INTERPOLATE_CURVES, "Interpolate Curves", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_INTERPOLATE_CURVES,
+                     "Interpolate Curves",
+                     blender::bke::NodeClass::Geometry);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

@@ -72,7 +72,8 @@ void register_node_type_sh_bsdf_refraction()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BSDF_REFRACTION, "Refraction BSDF", blender::bke::NodeClass::Shader);
+  sh_node_type_base(
+      &ntype, SH_NODE_BSDF_REFRACTION, "Refraction BSDF", blender::bke::NodeClass::Shader);
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);

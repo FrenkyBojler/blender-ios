@@ -170,8 +170,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_REMOVE_ATTRIBUTE, "Remove Named Attribute", blender::bke::NodeClass::Attribute);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_REMOVE_ATTRIBUTE,
+                     "Remove Named Attribute",
+                     blender::bke::NodeClass::Attribute);
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   bke::node_type_size(&ntype, 170, 100, 700);

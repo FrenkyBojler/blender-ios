@@ -131,7 +131,8 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_REPEAT_INPUT, "Repeat Input", blender::bke::NodeClass::Interface);
+  geo_node_type_base(
+      &ntype, GEO_NODE_REPEAT_INPUT, "Repeat Input", blender::bke::NodeClass::Interface);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
@@ -222,7 +223,8 @@ static void node_operators()
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_REPEAT_OUTPUT, "Repeat Output", blender::bke::NodeClass::Interface);
+  geo_node_type_base(
+      &ntype, GEO_NODE_REPEAT_OUTPUT, "Repeat Output", blender::bke::NodeClass::Interface);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = repeat_input_node::node_label;

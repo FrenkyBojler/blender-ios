@@ -47,7 +47,10 @@ static bool sh_fn_poll_default(const blender::bke::bNodeType * /*ntype*/,
   return true;
 }
 
-void sh_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, blender::bke::NodeClass nclass)
+void sh_node_type_base(blender::bke::bNodeType *ntype,
+                       int type,
+                       const char *name,
+                       blender::bke::NodeClass nclass)
 {
   blender::bke::node_type_base(ntype, type, name, nclass);
 
@@ -56,7 +59,10 @@ void sh_node_type_base(blender::bke::bNodeType *ntype, int type, const char *nam
   ntype->gather_link_search_ops = blender::nodes::search_link_ops_for_basic_node;
 }
 
-void sh_fn_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, blender::bke::NodeClass nclass)
+void sh_fn_node_type_base(blender::bke::bNodeType *ntype,
+                          int type,
+                          const char *name,
+                          blender::bke::NodeClass nclass)
 {
   sh_node_type_base(ntype, type, name, nclass);
   ntype->poll = sh_fn_poll_default;

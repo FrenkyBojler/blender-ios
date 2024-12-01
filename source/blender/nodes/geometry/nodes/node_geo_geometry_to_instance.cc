@@ -33,8 +33,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_GEOMETRY_TO_INSTANCE, "Geometry to Instance", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_GEOMETRY_TO_INSTANCE,
+                     "Geometry to Instance",
+                     blender::bke::NodeClass::Geometry);
   blender::bke::node_type_size(&ntype, 160, 100, 300);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

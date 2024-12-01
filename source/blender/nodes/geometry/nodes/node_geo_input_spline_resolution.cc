@@ -52,8 +52,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_SPLINE_RESOLUTION, "Spline Resolution", blender::bke::NodeClass::Input);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_INPUT_SPLINE_RESOLUTION,
+                     "Spline Resolution",
+                     blender::bke::NodeClass::Input);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

@@ -78,8 +78,10 @@ void register_node_type_sh_vector_displacement()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(
-      &ntype, SH_NODE_VECTOR_DISPLACEMENT, "Vector Displacement", blender::bke::NodeClass::Op_Vector);
+  sh_node_type_base(&ntype,
+                    SH_NODE_VECTOR_DISPLACEMENT,
+                    "Vector Displacement",
+                    blender::bke::NodeClass::Op_Vector);
   ntype.declare = file_ns::node_declare;
   ntype.initfunc = file_ns::node_shader_init_vector_displacement;
   ntype.gpu_fn = file_ns::gpu_shader_vector_displacement;

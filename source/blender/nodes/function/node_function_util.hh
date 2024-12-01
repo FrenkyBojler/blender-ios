@@ -25,4 +25,7 @@
 
 #include "RNA_access.hh"
 
-void fn_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, blender::bke::NodeClass nclass);
+void fn_node_type_base(blender::bke::bNodeType *ntype,
+                       int type,
+                       const char *name,
+                       blender::bke::NodeClass nclass);

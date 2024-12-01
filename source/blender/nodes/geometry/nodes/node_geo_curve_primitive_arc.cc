@@ -372,7 +372,8 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_CURVE_PRIMITIVE_ARC, "Arc", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_CURVE_PRIMITIVE_ARC, "Arc", blender::bke::NodeClass::Geometry);
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(&ntype,
                                   "NodeGeometryCurvePrimitiveArc",

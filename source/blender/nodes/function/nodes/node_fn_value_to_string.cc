@@ -126,7 +126,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_VALUE_TO_STRING, "Value to String", blender::bke::NodeClass::Converter);
+  fn_node_type_base(
+      &ntype, FN_NODE_VALUE_TO_STRING, "Value to String", blender::bke::NodeClass::Converter);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;

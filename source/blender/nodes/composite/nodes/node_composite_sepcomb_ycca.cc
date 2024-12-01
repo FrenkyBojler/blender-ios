@@ -82,8 +82,10 @@ void register_node_type_cmp_sepycca()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, CMP_NODE_SEPYCCA_LEGACY, "Separate YCbCrA (Legacy)", blender::bke::NodeClass::Converter);
+  cmp_node_type_base(&ntype,
+                     CMP_NODE_SEPYCCA_LEGACY,
+                     "Separate YCbCrA (Legacy)",
+                     blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::cmp_node_sepycca_declare;
   ntype.initfunc = file_ns::node_composit_init_mode_sepycca;
   ntype.gather_link_search_ops = nullptr;
@@ -175,8 +177,10 @@ void register_node_type_cmp_combycca()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, CMP_NODE_COMBYCCA_LEGACY, "Combine YCbCrA (Legacy)", blender::bke::NodeClass::Converter);
+  cmp_node_type_base(&ntype,
+                     CMP_NODE_COMBYCCA_LEGACY,
+                     "Combine YCbCrA (Legacy)",
+                     blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::cmp_node_combycca_declare;
   ntype.initfunc = file_ns::node_composit_init_mode_combycca;
   ntype.gather_link_search_ops = nullptr;
