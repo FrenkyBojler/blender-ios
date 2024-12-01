@@ -92,13 +92,13 @@ blender::bke::NodeClass node_group_ui_class(const bNode *node)
     case blender::bke::NodeGroupColorTag::Attribute:
       return blender::bke::NodeClass::Attribute;
     case blender::bke::NodeGroupColorTag::Color:
-      return blender::bke::NodeClass::Op_Color;
+      return blender::bke::NodeClass::OpColor;
     case blender::bke::NodeGroupColorTag::Converter:
       return blender::bke::NodeClass::Converter;
     case blender::bke::NodeGroupColorTag::Distort:
       return blender::bke::NodeClass::Distort;
     case blender::bke::NodeGroupColorTag::Filter:
-      return blender::bke::NodeClass::Op_Filter;
+      return blender::bke::NodeClass::OpFilter;
     case blender::bke::NodeGroupColorTag::Geometry:
       return blender::bke::NodeClass::Geometry;
     case blender::bke::NodeGroupColorTag::Input:
@@ -114,7 +114,7 @@ blender::bke::NodeClass node_group_ui_class(const bNode *node)
     case blender::bke::NodeGroupColorTag::Texture:
       return blender::bke::NodeClass::Texture;
     case blender::bke::NodeGroupColorTag::Vector:
-      return blender::bke::NodeClass::Op_Vector;
+      return blender::bke::NodeClass::OpVector;
   }
   return blender::bke::NodeClass::Group;
 }

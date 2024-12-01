@@ -115,8 +115,8 @@ static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback f
   func(calldata, blender::bke::NodeClass::Output, N_("Output"));
   func(calldata, blender::bke::NodeClass::Shader, N_("Shader"));
   func(calldata, blender::bke::NodeClass::Texture, N_("Texture"));
-  func(calldata, blender::bke::NodeClass::Op_Color, N_("Color"));
-  func(calldata, blender::bke::NodeClass::Op_Vector, N_("Vector"));
+  func(calldata, blender::bke::NodeClass::OpColor, N_("Color"));
+  func(calldata, blender::bke::NodeClass::OpVector, N_("Vector"));
   func(calldata, blender::bke::NodeClass::Converter, N_("Converter"));
   func(calldata, blender::bke::NodeClass::Script, N_("Script"));
   func(calldata, blender::bke::NodeClass::Group, N_("Group"));

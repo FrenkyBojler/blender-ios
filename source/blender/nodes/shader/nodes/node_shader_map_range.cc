@@ -65,7 +65,7 @@ static blender::bke::NodeClass node_shader_map_range_ui_class(const bNode *node)
   const NodeMapRange &storage = node_storage(*node);
   const eCustomDataType data_type = static_cast<eCustomDataType>(storage.data_type);
   if (data_type == CD_PROP_FLOAT3) {
-    return blender::bke::NodeClass::Op_Vector;
+    return blender::bke::NodeClass::OpVector;
   }
   return blender::bke::NodeClass::Converter;
 }

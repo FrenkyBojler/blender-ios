@@ -218,7 +218,7 @@ void register_node_type_cmp_curve_vec()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
-      &ntype, CMP_NODE_CURVE_VEC, "Vector Curves", blender::bke::NodeClass::Op_Vector);
+      &ntype, CMP_NODE_CURVE_VEC, "Vector Curves", blender::bke::NodeClass::OpVector);
   ntype.declare = file_ns::cmp_node_curve_vec_declare;
   ntype.draw_buttons = file_ns::node_buts_curvevec;
   blender::bke::node_type_size(&ntype, 200, 140, 320);
@@ -388,7 +388,7 @@ void register_node_type_cmp_curve_rgb()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_CURVE_RGB, "RGB Curves", blender::bke::NodeClass::Op_Color);
+  cmp_node_type_base(&ntype, CMP_NODE_CURVE_RGB, "RGB Curves", blender::bke::NodeClass::OpColor);
   ntype.declare = file_ns::cmp_node_rgbcurves_declare;
   blender::bke::node_type_size(&ntype, 200, 140, 320);
   ntype.initfunc = file_ns::node_composit_init_curve_rgb;

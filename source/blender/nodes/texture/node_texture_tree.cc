@@ -84,7 +84,7 @@ static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback f
 {
   func(calldata, blender::bke::NodeClass::Input, N_("Input"));
   func(calldata, blender::bke::NodeClass::Output, N_("Output"));
-  func(calldata, blender::bke::NodeClass::Op_Color, N_("Color"));
+  func(calldata, blender::bke::NodeClass::OpColor, N_("Color"));
   func(calldata, blender::bke::NodeClass::Pattern, N_("Patterns"));
   func(calldata, blender::bke::NodeClass::Texture, N_("Textures"));
   func(calldata, blender::bke::NodeClass::Converter, N_("Converter"));

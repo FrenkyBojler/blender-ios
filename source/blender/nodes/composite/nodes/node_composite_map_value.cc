@@ -195,7 +195,7 @@ void register_node_type_cmp_map_value()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MAP_VALUE, "Map Value", blender::bke::NodeClass::Op_Vector);
+  cmp_node_type_base(&ntype, CMP_NODE_MAP_VALUE, "Map Value", blender::bke::NodeClass::OpVector);
   ntype.declare = file_ns::cmp_node_map_value_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_map_value;
   ntype.initfunc = file_ns::node_composit_init_map_value;

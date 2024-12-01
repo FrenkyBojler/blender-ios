@@ -55,7 +55,7 @@ void register_node_type_sh_light_falloff()
   static blender::bke::bNodeType ntype;
 
   sh_node_type_base(
-      &ntype, SH_NODE_LIGHT_FALLOFF, "Light Falloff", blender::bke::NodeClass::Op_Color);
+      &ntype, SH_NODE_LIGHT_FALLOFF, "Light Falloff", blender::bke::NodeClass::OpColor);
   ntype.declare = file_ns::node_declare;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.gpu_fn = file_ns::node_shader_gpu_light_falloff;

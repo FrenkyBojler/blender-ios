@@ -48,7 +48,7 @@ void register_node_type_tex_invert()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_INVERT, "Invert Color", blender::bke::NodeClass::Op_Color);
+  tex_node_type_base(&ntype, TEX_NODE_INVERT, "Invert Color", blender::bke::NodeClass::OpColor);
   blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
 

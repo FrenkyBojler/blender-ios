@@ -58,7 +58,7 @@ void register_node_type_sh_brightcontrast()
   static blender::bke::bNodeType ntype;
 
   sh_node_type_base(
-      &ntype, SH_NODE_BRIGHTCONTRAST, "Brightness/Contrast", blender::bke::NodeClass::Op_Color);
+      &ntype, SH_NODE_BRIGHTCONTRAST, "Brightness/Contrast", blender::bke::NodeClass::OpColor);
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::gpu_shader_brightcontrast;
   ntype.materialx_fn = file_ns::node_shader_materialx;

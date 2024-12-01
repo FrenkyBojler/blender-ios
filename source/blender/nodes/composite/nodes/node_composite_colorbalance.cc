@@ -386,7 +386,7 @@ void register_node_type_cmp_colorbalance()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
-      &ntype, CMP_NODE_COLORBALANCE, "Color Balance", blender::bke::NodeClass::Op_Color);
+      &ntype, CMP_NODE_COLORBALANCE, "Color Balance", blender::bke::NodeClass::OpColor);
   ntype.declare = file_ns::cmp_node_colorbalance_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_colorbalance;
   ntype.draw_buttons_ex = file_ns::node_composit_buts_colorbalance_ex;

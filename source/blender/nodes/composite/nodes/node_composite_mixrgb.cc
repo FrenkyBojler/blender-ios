@@ -244,7 +244,7 @@ void register_node_type_cmp_mix_rgb()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MIX_RGB, "Mix", blender::bke::NodeClass::Op_Color);
+  cmp_node_type_base(&ntype, CMP_NODE_MIX_RGB, "Mix", blender::bke::NodeClass::OpColor);
   ntype.flag |= NODE_PREVIEW;
   ntype.declare = file_ns::cmp_node_mixrgb_declare;
   ntype.labelfunc = node_blend_label;

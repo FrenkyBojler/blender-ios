@@ -139,9 +139,9 @@ static blender::bke::NodeClass sh_node_mix_ui_class(const bNode *node)
 
   switch (data_type) {
     case SOCK_VECTOR:
-      return blender::bke::NodeClass::Op_Vector;
+      return blender::bke::NodeClass::OpVector;
     case SOCK_RGBA:
-      return blender::bke::NodeClass::Op_Color;
+      return blender::bke::NodeClass::OpColor;
     default:
       return blender::bke::NodeClass::Converter;
   }

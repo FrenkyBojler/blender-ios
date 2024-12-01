@@ -104,7 +104,7 @@ void register_node_type_tex_curve_rgb()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_CURVE_RGB, "RGB Curves", blender::bke::NodeClass::Op_Color);
+  tex_node_type_base(&ntype, TEX_NODE_CURVE_RGB, "RGB Curves", blender::bke::NodeClass::OpColor);
   blender::bke::node_type_socket_templates(&ntype, rgb_inputs, rgb_outputs);
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
   ntype.initfunc = rgb_init;

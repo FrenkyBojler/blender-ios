@@ -58,7 +58,7 @@ void register_node_type_tex_mix_rgb()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_MIX_RGB, "Mix", blender::bke::NodeClass::Op_Color);
+  tex_node_type_base(&ntype, TEX_NODE_MIX_RGB, "Mix", blender::bke::NodeClass::OpColor);
   blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.labelfunc = node_blend_label;
   ntype.exec_fn = exec;

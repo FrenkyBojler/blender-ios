@@ -212,9 +212,9 @@ using NodeMaterialXFunction = void (*)(void *data, bNode *node, bNodeSocket *out
 enum class NodeClass : int8_t {
   Input = 0,
   Output = 1,
-  Op_Color = 3,
-  Op_Vector = 4,
-  Op_Filter = 5,
+  OpColor = 3,
+  OpVector = 4,
+  OpFilter = 5,
   Group = 6,
   Converter = 8,
   Matte = 9,
