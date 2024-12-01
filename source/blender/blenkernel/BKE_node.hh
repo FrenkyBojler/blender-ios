@@ -636,10 +636,10 @@ std::optional<StringRefNull> node_static_socket_label(int type, int subtype);
   } \
   ((void)0)
 
-bNodeSocket *node_find_socket(bNode *node, eNodeSocketInOut in_out, StringRefNull identifier);
+bNodeSocket *node_find_socket(bNode *node, eNodeSocketInOut in_out, StringRef identifier);
 const bNodeSocket *node_find_socket(const bNode *node,
                                     eNodeSocketInOut in_out,
-                                    StringRefNull identifier);
+                                    StringRef identifier);
 bNodeSocket *node_add_socket(bNodeTree *ntree,
                              bNode *node,
                              eNodeSocketInOut in_out,

@@ -111,7 +111,7 @@ using blender::MutableSpan;
 using blender::Set;
 using blender::Span;
 using blender::Stack;
-using blender::StringRefNull;
+using blender::StringRef;
 using blender::Vector;
 using blender::VectorSet;
 using blender::bke::bNodeRuntime;
@@ -487,10 +487,10 @@ static void write_node_socket_interface(BlendWriter *writer, const bNodeSocket *
 /* Construct a bNodeSocket that represents a node group socket the old way. */
 static bNodeSocket *make_socket(bNodeTree *ntree,
                                 const eNodeSocketInOut in_out,
-                                const StringRefNull idname,
+                                const StringRef idname,
 
-                                const StringRefNull name,
-                                const StringRefNull identifier)
+                                const StringRef name,
+                                const StringRef identifier)
 {
   bNodeSocketType *stype = node_socket_type_find(idname.data());
   if (stype == nullptr) {
@@ -515,7 +515,7 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
 }
 
 /* Include the subtype suffix for old socket idnames. */
-static StringRefNull get_legacy_socket_subtype_idname(StringRefNull idname,
+static StringRef get_legacy_socket_subtype_idname(StringRef idname,
                                                       const void *socket_data)
 {
   if (idname == "NodeSocketFloat") {
@@ -592,7 +592,7 @@ static void construct_interface_as_legacy_sockets(bNodeTree *ntree)
         ntree,
         in_out,
         get_legacy_socket_subtype_idname(socket.socket_type, socket.socket_data),
-        socket.name ? socket.name : "",
+        socket.name,
         socket.identifier);
     if (!iosock) {
       return nullptr;
@@ -1835,7 +1835,7 @@ StringRefNull node_socket_sub_type_label(int subtype)
 
 bNodeSocket *node_find_socket(bNode *node,
                               const eNodeSocketInOut in_out,
-                              const StringRefNull identifier)
+                              const StringRef identifier)
 {
   const ListBase *sockets = (in_out == SOCK_IN) ? &node->inputs : &node->outputs;
   LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
@@ -1848,7 +1848,7 @@ bNodeSocket *node_find_socket(bNode *node,
 
 const bNodeSocket *node_find_socket(const bNode *node,
                                     const eNodeSocketInOut in_out,
-                                    const StringRefNull identifier)
+                                    const StringRef identifier)
 {
   /* Reuse the implementation of the mutable accessor. */
   return node_find_socket(const_cast<bNode *>(node), in_out, identifier);
