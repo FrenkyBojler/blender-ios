@@ -271,9 +271,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
-  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Convex Hull");
-
 #ifdef WITH_BULLET
+
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Convex Hull");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     Mesh *mesh = compute_hull(geometry_set);
