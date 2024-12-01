@@ -285,8 +285,8 @@ static void node_socket_add_replace(const bContext *C,
     }
 
     /* also preserve mapping for texture nodes */
-    if (node_from->typeinfo->nclass == NODE_CLASS_TEXTURE &&
-        node_prev->typeinfo->nclass == NODE_CLASS_TEXTURE &&
+    if (node_from->typeinfo->nclass == blender::bke::NodeClass::Texture &&
+        node_prev->typeinfo->nclass == blender::bke::NodeClass::Texture &&
         /* White noise texture node does not have NodeTexBase. */
         node_from->storage != nullptr && node_prev->storage != nullptr)
     {
@@ -488,7 +488,9 @@ static bool ui_node_item_special_poll(const bNodeTree * /*ntree*/, const bke::bN
   return true;
 }
 
-static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
+static void ui_node_menu_column(NodeLinkArg *arg,
+                                blender::bke::NodeClass nclass,
+                                const char *cname)
 {
   bNodeTree *ntree = arg->ntree;
   bNodeSocket *sock = arg->sock;
@@ -607,11 +609,13 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   }
 }
 
-static void node_menu_column_foreach_cb(void *calldata, int nclass, const char *name)
+static void node_menu_column_foreach_cb(void *calldata,
+                                        blender::bke::NodeClass nclass,
+                                        const char *name)
 {
   NodeLinkArg *arg = (NodeLinkArg *)calldata;
 
-  if (!ELEM(nclass, NODE_CLASS_GROUP, NODE_CLASS_LAYOUT)) {
+  if (!ELEM(nclass, blender::bke::NodeClass::Group, blender::bke::NodeClass::Layout)) {
     ui_node_menu_column(arg, nclass, name);
   }
 }
@@ -676,7 +680,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
         but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_DISCONNECT));
   }
 
-  ui_node_menu_column(arg, NODE_CLASS_GROUP, N_("Group"));
+  ui_node_menu_column(arg, blender::bke::NodeClass::Group, N_("Group"));
 }
 
 }  // namespace blender::ed::space_node

@@ -76,13 +76,13 @@ static void geometry_node_tree_update(bNodeTree *ntree)
 
 static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
 {
-  func(calldata, NODE_CLASS_INPUT, N_("Input"));
-  func(calldata, NODE_CLASS_GEOMETRY, N_("Geometry"));
-  func(calldata, NODE_CLASS_ATTRIBUTE, N_("Attribute"));
-  func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
-  func(calldata, NODE_CLASS_OP_VECTOR, N_("Vector"));
-  func(calldata, NODE_CLASS_CONVERTER, N_("Converter"));
-  func(calldata, NODE_CLASS_LAYOUT, N_("Layout"));
+  func(calldata, blender::bke::NodeClass::Input, N_("Input"));
+  func(calldata, blender::bke::NodeClass::Geometry, N_("Geometry"));
+  func(calldata, blender::bke::NodeClass::Attribute, N_("Attribute"));
+  func(calldata, blender::bke::NodeClass::Op_Color, N_("Color"));
+  func(calldata, blender::bke::NodeClass::Op_Vector, N_("Vector"));
+  func(calldata, blender::bke::NodeClass::Converter, N_("Converter"));
+  func(calldata, blender::bke::NodeClass::Layout, N_("Layout"));
 }
 
 static bool geometry_node_tree_validate_link(eNodeSocketDatatype type_a,

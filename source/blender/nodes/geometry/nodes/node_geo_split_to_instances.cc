@@ -354,8 +354,10 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_SPLIT_TO_INSTANCES, "Split to Instances", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_SPLIT_TO_INSTANCES,
+                     "Split to Instances",
+                     blender::bke::NodeClass::Geometry);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;

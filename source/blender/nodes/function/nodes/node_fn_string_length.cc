@@ -27,7 +27,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_STRING_LENGTH, "String Length", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, FN_NODE_STRING_LENGTH, "String Length", blender::bke::NodeClass::Converter);
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
   blender::bke::node_register_type(&ntype);

@@ -3656,7 +3656,7 @@ void node_tree_set_output(bNodeTree *ntree)
   const bool is_compositor = ntree->type == NTREE_COMPOSIT;
   /* find the active outputs, might become tree type dependent handler */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->typeinfo->nclass == NODE_CLASS_OUTPUT) {
+    if (node->typeinfo->nclass == blender::bke::NodeClass::Output) {
       /* we need a check for which output node should be tagged like this, below an exception */
       if (ELEM(node->type, CMP_NODE_OUTPUT_FILE, GEO_NODE_VIEWER)) {
         continue;
@@ -3667,7 +3667,7 @@ void node_tree_set_output(bNodeTree *ntree)
       /* there is more types having output class, each one is checked */
 
       LISTBASE_FOREACH (bNode *, tnode, &ntree->nodes) {
-        if (tnode->typeinfo->nclass != NODE_CLASS_OUTPUT) {
+        if (tnode->typeinfo->nclass != blender::bke::NodeClass::Output) {
           continue;
         }
 
@@ -4326,7 +4326,7 @@ static bool node_poll_instance_default(const bNode *node,
   return node->typeinfo->poll(node->typeinfo, ntree, r_disabled_hint);
 }
 
-void node_type_base(bNodeType *ntype, const int type, const char *name, const short nclass)
+void node_type_base(bNodeType *ntype, const int type, const char *name, const NodeClass nclass)
 {
   /* Use static type info header to map static int type to identifier string and RNA struct type.
    * Associate the RNA struct type with the bNodeType.
@@ -4369,7 +4369,7 @@ void node_type_base_custom(bNodeType *ntype,
                            const char *idname,
                            const char *name,
                            const char *enum_name,
-                           const short nclass)
+                           const NodeClass nclass)
 {
   STRNCPY(ntype->idname, idname);
   ntype->type = NODE_CUSTOM;

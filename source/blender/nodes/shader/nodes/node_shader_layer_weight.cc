@@ -46,7 +46,7 @@ void register_node_type_sh_layer_weight()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_LAYER_WEIGHT, "Layer Weight", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, SH_NODE_LAYER_WEIGHT, "Layer Weight", blender::bke::NodeClass::Input);
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_layer_weight;
   ntype.materialx_fn = file_ns::node_shader_materialx;

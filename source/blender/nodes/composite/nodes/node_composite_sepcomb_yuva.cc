@@ -56,7 +56,7 @@ void register_node_type_cmp_sepyuva()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
-      &ntype, CMP_NODE_SEPYUVA_LEGACY, "Separate YUVA (Legacy)", NODE_CLASS_CONVERTER);
+      &ntype, CMP_NODE_SEPYUVA_LEGACY, "Separate YUVA (Legacy)", blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::cmp_node_sepyuva_declare;
   ntype.gather_link_search_ops = nullptr;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
@@ -123,7 +123,7 @@ void register_node_type_cmp_combyuva()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
-      &ntype, CMP_NODE_COMBYUVA_LEGACY, "Combine YUVA (Legacy)", NODE_CLASS_CONVERTER);
+      &ntype, CMP_NODE_COMBYUVA_LEGACY, "Combine YUVA (Legacy)", blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::cmp_node_combyuva_declare;
   ntype.gather_link_search_ops = nullptr;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;

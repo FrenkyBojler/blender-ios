@@ -111,17 +111,17 @@ static void shader_get_from_context(const bContext *C,
 
 static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
 {
-  func(calldata, NODE_CLASS_INPUT, N_("Input"));
-  func(calldata, NODE_CLASS_OUTPUT, N_("Output"));
-  func(calldata, NODE_CLASS_SHADER, N_("Shader"));
-  func(calldata, NODE_CLASS_TEXTURE, N_("Texture"));
-  func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
-  func(calldata, NODE_CLASS_OP_VECTOR, N_("Vector"));
-  func(calldata, NODE_CLASS_CONVERTER, N_("Converter"));
-  func(calldata, NODE_CLASS_SCRIPT, N_("Script"));
-  func(calldata, NODE_CLASS_GROUP, N_("Group"));
-  func(calldata, NODE_CLASS_INTERFACE, N_("Interface"));
-  func(calldata, NODE_CLASS_LAYOUT, N_("Layout"));
+  func(calldata, blender::bke::NodeClass::Input, N_("Input"));
+  func(calldata, blender::bke::NodeClass::Output, N_("Output"));
+  func(calldata, blender::bke::NodeClass::Shader, N_("Shader"));
+  func(calldata, blender::bke::NodeClass::Texture, N_("Texture"));
+  func(calldata, blender::bke::NodeClass::Op_Color, N_("Color"));
+  func(calldata, blender::bke::NodeClass::Op_Vector, N_("Vector"));
+  func(calldata, blender::bke::NodeClass::Converter, N_("Converter"));
+  func(calldata, blender::bke::NodeClass::Script, N_("Script"));
+  func(calldata, blender::bke::NodeClass::Group, N_("Group"));
+  func(calldata, blender::bke::NodeClass::Interface, N_("Interface"));
+  func(calldata, blender::bke::NodeClass::Layout, N_("Layout"));
 }
 
 static void localize(bNodeTree *localtree, bNodeTree * /*ntree*/)

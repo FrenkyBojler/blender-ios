@@ -215,7 +215,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_SEPARATE_COLOR, "Separate Color", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, FN_NODE_SEPARATE_COLOR, "Separate Color", blender::bke::NodeClass::Converter);
   ntype.declare = node_declare;
   ntype.updatefunc = node_update;
   ntype.initfunc = node_init;

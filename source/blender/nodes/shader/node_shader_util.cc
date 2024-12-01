@@ -47,7 +47,7 @@ static bool sh_fn_poll_default(const blender::bke::bNodeType * /*ntype*/,
   return true;
 }
 
-void sh_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, short nclass)
+void sh_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, blender::bke::NodeClass nclass)
 {
   blender::bke::node_type_base(ntype, type, name, nclass);
 
@@ -56,7 +56,7 @@ void sh_node_type_base(blender::bke::bNodeType *ntype, int type, const char *nam
   ntype->gather_link_search_ops = blender::nodes::search_link_ops_for_basic_node;
 }
 
-void sh_fn_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, short nclass)
+void sh_fn_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, blender::bke::NodeClass nclass)
 {
   sh_node_type_base(ntype, type, name, nclass);
   ntype->poll = sh_fn_poll_default;
@@ -226,7 +226,7 @@ bool blender::bke::node_supports_active_flag(const bNode *node, int sub_activity
   BLI_assert(ELEM(sub_activity, NODE_ACTIVE_TEXTURE, NODE_ACTIVE_PAINT_CANVAS));
   switch (sub_activity) {
     case NODE_ACTIVE_TEXTURE:
-      return node->typeinfo->nclass == NODE_CLASS_TEXTURE;
+      return node->typeinfo->nclass == blender::bke::NodeClass::Texture;
     case NODE_ACTIVE_PAINT_CANVAS:
       return ELEM(node->type, SH_NODE_TEX_IMAGE, SH_NODE_ATTRIBUTE);
   }
@@ -328,7 +328,7 @@ void ntreeExecGPUNodes(bNodeTreeExec *exec, GPUMaterial *mat, bNode *output_node
 
     do_it = false;
     /* for groups, only execute outputs for edited group */
-    if (node->typeinfo->nclass == NODE_CLASS_OUTPUT) {
+    if (node->typeinfo->nclass == blender::bke::NodeClass::Output) {
       if ((output_node != nullptr) && (node == output_node)) {
         do_it = true;
       }

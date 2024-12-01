@@ -96,7 +96,7 @@ void register_node_type_tex_image()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_IMAGE, "Image", NODE_CLASS_INPUT);
+  tex_node_type_base(&ntype, TEX_NODE_IMAGE, "Image", blender::bke::NodeClass::Input);
   blender::bke::node_type_socket_templates(&ntype, nullptr, outputs);
   ntype.initfunc = init;
   blender::bke::node_type_storage(

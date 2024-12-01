@@ -1909,7 +1909,7 @@ bool BKE_linestyle_use_textures(FreestyleLineStyle *linestyle, const bool use_sh
   if (use_shading_nodes) {
     if (linestyle && linestyle->use_nodes && linestyle->nodetree) {
       LISTBASE_FOREACH (bNode *, node, &linestyle->nodetree->nodes) {
-        if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+        if (node->typeinfo->nclass == blender::bke::NodeClass::Texture) {
           return true;
         }
       }

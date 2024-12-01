@@ -110,7 +110,7 @@ static void node_register()
   geo_node_type_base(&ntype,
                      GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE,
                      "Offset Corner in Face",
-                     NODE_CLASS_INPUT);
+                     blender::bke::NodeClass::Input);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

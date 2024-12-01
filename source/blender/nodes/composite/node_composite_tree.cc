@@ -51,17 +51,17 @@ static void composite_get_from_context(const bContext *C,
 
 static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
 {
-  func(calldata, NODE_CLASS_INPUT, N_("Input"));
-  func(calldata, NODE_CLASS_OUTPUT, N_("Output"));
-  func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
-  func(calldata, NODE_CLASS_OP_VECTOR, N_("Vector"));
-  func(calldata, NODE_CLASS_OP_FILTER, N_("Filter"));
-  func(calldata, NODE_CLASS_CONVERTER, N_("Converter"));
-  func(calldata, NODE_CLASS_MATTE, N_("Matte"));
-  func(calldata, NODE_CLASS_DISTORT, N_("Distort"));
-  func(calldata, NODE_CLASS_GROUP, N_("Group"));
-  func(calldata, NODE_CLASS_INTERFACE, N_("Interface"));
-  func(calldata, NODE_CLASS_LAYOUT, N_("Layout"));
+  func(calldata, blender::bke::NodeClass::Input, N_("Input"));
+  func(calldata, blender::bke::NodeClass::Output, N_("Output"));
+  func(calldata, blender::bke::NodeClass::Op_Color, N_("Color"));
+  func(calldata, blender::bke::NodeClass::Op_Vector, N_("Vector"));
+  func(calldata, blender::bke::NodeClass::Op_Filter, N_("Filter"));
+  func(calldata, blender::bke::NodeClass::Converter, N_("Converter"));
+  func(calldata, blender::bke::NodeClass::Matte, N_("Matte"));
+  func(calldata, blender::bke::NodeClass::Distort, N_("Distort"));
+  func(calldata, blender::bke::NodeClass::Group, N_("Group"));
+  func(calldata, blender::bke::NodeClass::Interface, N_("Interface"));
+  func(calldata, blender::bke::NodeClass::Layout, N_("Layout"));
 }
 
 /* local tree then owns all compbufs */
@@ -136,7 +136,7 @@ static void composite_node_add_init(bNodeTree * /*bnodetree*/, bNode *bnode)
   /* Composite node will only show previews for input classes
    * by default, other will be hidden
    * but can be made visible with the show_preview option */
-  if (bnode->typeinfo->nclass != NODE_CLASS_INPUT) {
+  if (bnode->typeinfo->nclass != blender::bke::NodeClass::Input) {
     bnode->flag &= ~NODE_PREVIEW;
   }
 }

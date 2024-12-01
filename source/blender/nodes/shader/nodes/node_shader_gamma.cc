@@ -50,7 +50,7 @@ void register_node_type_sh_gamma()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_GAMMA, "Gamma", NODE_CLASS_OP_COLOR);
+  sh_node_type_base(&ntype, SH_NODE_GAMMA, "Gamma", blender::bke::NodeClass::Op_Color);
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_gamma;
   ntype.materialx_fn = file_ns::node_shader_materialx;

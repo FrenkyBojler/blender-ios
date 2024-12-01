@@ -19,7 +19,10 @@ static bool fn_node_poll_default(const blender::bke::bNodeType * /*ntype*/,
   return true;
 }
 
-void fn_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, short nclass)
+void fn_node_type_base(blender::bke::bNodeType *ntype,
+                       int type,
+                       const char *name,
+                       blender::bke::NodeClass nclass)
 {
   blender::bke::node_type_base(ntype, type, name, nclass);
   ntype->poll = fn_node_poll_default;

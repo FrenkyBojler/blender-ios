@@ -362,7 +362,7 @@ void register_node_type_sh_math()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_MATH, "Math", NODE_CLASS_CONVERTER);
+  sh_fn_node_type_base(&ntype, SH_NODE_MATH, "Math", blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::sh_node_math_declare;
   ntype.labelfunc = node_math_label;
   ntype.gpu_fn = file_ns::gpu_shader_math;

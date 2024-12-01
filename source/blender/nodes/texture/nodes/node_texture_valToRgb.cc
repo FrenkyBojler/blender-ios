@@ -49,7 +49,7 @@ void register_node_type_tex_valtorgb()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_VALTORGB, "Color Ramp", NODE_CLASS_CONVERTER);
+  tex_node_type_base(&ntype, TEX_NODE_VALTORGB, "Color Ramp", blender::bke::NodeClass::Converter);
   blender::bke::node_type_socket_templates(&ntype, valtorgb_in, valtorgb_out);
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
   ntype.initfunc = valtorgb_init;
@@ -92,7 +92,7 @@ void register_node_type_tex_rgbtobw()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_RGBTOBW, "RGB to BW", NODE_CLASS_CONVERTER);
+  tex_node_type_base(&ntype, TEX_NODE_RGBTOBW, "RGB to BW", blender::bke::NodeClass::Converter);
   blender::bke::node_type_socket_templates(&ntype, rgbtobw_in, rgbtobw_out);
   ntype.exec_fn = rgbtobw_exec;
 

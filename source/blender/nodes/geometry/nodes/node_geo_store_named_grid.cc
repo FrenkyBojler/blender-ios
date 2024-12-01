@@ -134,7 +134,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_STORE_NAMED_GRID, "Store Named Grid", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, GEO_NODE_STORE_NAMED_GRID, "Store Named Grid", blender::bke::NodeClass::Geometry);
 
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = search_link_ops;

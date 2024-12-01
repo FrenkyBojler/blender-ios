@@ -248,7 +248,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SAMPLE_INDEX, "Sample Index", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, GEO_NODE_SAMPLE_INDEX, "Sample Index", blender::bke::NodeClass::Geometry);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   blender::bke::node_type_storage(

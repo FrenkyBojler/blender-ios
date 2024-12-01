@@ -1289,7 +1289,7 @@ class NodeTreeMainUpdater {
 
   bool is_output_node(const bNode &node) const
   {
-    if (node.typeinfo->nclass == NODE_CLASS_OUTPUT) {
+    if (node.typeinfo->nclass == blender::bke::NodeClass::Output) {
       return true;
     }
     if (node.type == NODE_GROUP_OUTPUT) {

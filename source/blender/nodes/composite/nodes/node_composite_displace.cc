@@ -219,7 +219,7 @@ void register_node_type_cmp_displace()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_DISPLACE, "Displace", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, CMP_NODE_DISPLACE, "Displace", blender::bke::NodeClass::Distort);
   ntype.declare = file_ns::cmp_node_displace_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 

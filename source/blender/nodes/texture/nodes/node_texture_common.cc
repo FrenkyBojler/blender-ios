@@ -147,7 +147,7 @@ void register_node_type_tex_group()
    * to the shared #NODE_GROUP integer type id. */
 
   blender::bke::node_type_base_custom(
-      &ntype, "TextureNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
+      &ntype, "TextureNodeGroup", "Group", "GROUP", blender::bke::NodeClass::Group);
   ntype.type = NODE_GROUP;
   ntype.poll = tex_node_poll_default;
   ntype.poll_instance = node_group_poll_instance;

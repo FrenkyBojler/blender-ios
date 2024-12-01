@@ -286,7 +286,7 @@ void register_node_type_cmp_composite()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_COMPOSITE, "Composite", NODE_CLASS_OUTPUT);
+  cmp_node_type_base(&ntype, CMP_NODE_COMPOSITE, "Composite", blender::bke::NodeClass::Output);
   ntype.declare = file_ns::cmp_node_composite_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_composite;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;

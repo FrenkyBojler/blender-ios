@@ -109,7 +109,7 @@ void register_node_type_cmp_texture()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_TEXTURE, "Texture", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, CMP_NODE_TEXTURE, "Texture", blender::bke::NodeClass::Input);
   ntype.declare = file_ns::cmp_node_texture_declare;
   ntype.realtime_compositor_unsupported_message = N_(
       "Texture nodes not supported in the Viewport compositor");

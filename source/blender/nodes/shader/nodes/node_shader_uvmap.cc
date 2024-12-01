@@ -93,7 +93,7 @@ void register_node_type_sh_uvmap()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_UVMAP, "UV Map", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, SH_NODE_UVMAP, "UV Map", blender::bke::NodeClass::Input);
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_uvmap;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);

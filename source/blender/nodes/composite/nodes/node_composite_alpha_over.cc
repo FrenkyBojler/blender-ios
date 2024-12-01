@@ -197,7 +197,7 @@ void register_node_type_cmp_alphaover()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_ALPHAOVER, "Alpha Over", NODE_CLASS_OP_COLOR);
+  cmp_node_type_base(&ntype, CMP_NODE_ALPHAOVER, "Alpha Over", blender::bke::NodeClass::Op_Color);
   ntype.declare = file_ns::cmp_node_alphaover_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_alphaover;
   ntype.initfunc = file_ns::node_alphaover_init;

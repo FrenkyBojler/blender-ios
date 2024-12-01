@@ -125,7 +125,7 @@ void register_node_type_cmp_math()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MATH, "Math", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, CMP_NODE_MATH, "Math", blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::cmp_node_math_declare;
   ntype.labelfunc = node_math_label;
   ntype.updatefunc = node_math_update;

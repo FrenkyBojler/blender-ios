@@ -272,7 +272,7 @@ void register_node_type_cmp_mapuv()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MAP_UV, "Map UV", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, CMP_NODE_MAP_UV, "Map UV", blender::bke::NodeClass::Distort);
   ntype.declare = file_ns::cmp_node_map_uv_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_map_uv;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;

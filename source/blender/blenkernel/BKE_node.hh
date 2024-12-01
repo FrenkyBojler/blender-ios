@@ -270,7 +270,7 @@ struct bNodeType {
   void (*labelfunc)(const bNodeTree *ntree, const bNode *node, char *label, int label_maxncpy);
 
   /** Optional override for node class, used for drawing node header. */
-  int (*ui_class)(const bNode *node);
+  blender::bke::NodeClass (*ui_class)(const bNode *node);
   /** Optional dynamic description of what the node group does. */
   std::string (*ui_description_fn)(const bNode &node);
 
@@ -445,7 +445,7 @@ enum class NodeGroupColorTag {
   Vector = 13,
 };
 
-using bNodeClassCallback = void (*)(void *calldata, int nclass, const char *name);
+using bNodeClassCallback = void (*)(void *calldata, NodeClass nclass, const char *name);
 
 struct bNodeTreeType {
   int type;        /* type identifier */
@@ -777,8 +777,11 @@ bool node_group_poll(const bNodeTree *nodetree,
                      const bNodeTree *grouptree,
                      const char **r_disabled_hint);
 
-void node_type_base_custom(
-    bNodeType *ntype, const char *idname, const char *name, const char *enum_name, short nclass);
+void node_type_base_custom(bNodeType *ntype,
+                           const char *idname,
+                           const char *name,
+                           const char *enum_name,
+                           NodeClass nclass);
 
 /**
  * \warning Nodes defining a storage type _must_ allocate this for new nodes.
@@ -1718,7 +1721,7 @@ const char *nodeSocketShortLabel(const bNodeSocket *sock);
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
+void node_type_base(bNodeType *ntype, int type, const char *name, NodeClass nclass);
 
 void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,

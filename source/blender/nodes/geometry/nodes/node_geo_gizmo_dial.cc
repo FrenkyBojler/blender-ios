@@ -52,7 +52,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_GIZMO_DIAL, "Dial Gizmo", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, GEO_NODE_GIZMO_DIAL, "Dial Gizmo", blender::bke::NodeClass::Interface);
   bke::node_type_storage(
       &ntype, "NodeGeometryDialGizmo", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;

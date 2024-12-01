@@ -145,7 +145,7 @@ static void buttons_texture_users_find_nodetree(ListBase *users,
         buttons_texture_user_node_add(
             users, id, ntree, node, ptr, prop, category, RNA_struct_ui_icon(ptr.type), node->name);
       }
-      else if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+      else if (node->typeinfo->nclass == blender::bke::NodeClass::Texture) {
         PointerRNA ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
         buttons_texture_user_node_add(users,
                                       id,

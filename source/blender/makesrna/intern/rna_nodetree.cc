@@ -1289,7 +1289,9 @@ static void rna_NodeTree_active_node_set(PointerRNA *ptr,
     blender::bke::node_set_active(ntree, node);
 
     /* Handle NODE_DO_OUTPUT as well. */
-    if (node->typeinfo->nclass == NODE_CLASS_OUTPUT && node->type != CMP_NODE_OUTPUT_FILE) {
+    if (node->typeinfo->nclass == blender::bke::NodeClass::Output &&
+        node->type != CMP_NODE_OUTPUT_FILE)
+    {
       /* If this node becomes the active output, the others of the same type can't be the active
        * output anymore. */
       LISTBASE_FOREACH (bNode *, other_node, &ntree->nodes) {
@@ -1863,7 +1865,8 @@ static blender::bke::bNodeType *rna_Node_register_base(Main *bmain,
   /* setup dummy node & node type to store static properties in */
   memset(&dummy_nt, 0, sizeof(blender::bke::bNodeType));
   /* this does some additional initialization of default values */
-  blender::bke::node_type_base_custom(&dummy_nt, identifier, "", "CUSTOM", 0);
+  blender::bke::node_type_base_custom(
+      &dummy_nt, identifier, "", "CUSTOM", blender::bke::NodeClass::Input);
 
   memset(&dummy_node, 0, sizeof(bNode));
   dummy_node.typeinfo = &dummy_nt;

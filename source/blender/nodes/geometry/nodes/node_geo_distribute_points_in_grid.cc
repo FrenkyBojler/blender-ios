@@ -256,7 +256,7 @@ static void node_register()
   geo_node_type_base(&ntype,
                      GEO_NODE_DISTRIBUTE_POINTS_IN_GRID,
                      "Distribute Points in Grid",
-                     NODE_CLASS_GEOMETRY);
+                     blender::bke::NodeClass::Geometry);
   ntype.initfunc = node_init;
   blender::bke::node_type_size(&ntype, 170, 100, 320);
   ntype.declare = node_declare;

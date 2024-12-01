@@ -80,43 +80,43 @@ void node_group_label(const bNodeTree * /*ntree*/,
       label, (node->id) ? node->id->name + 2 : IFACE_("Missing Data-Block"), label_maxncpy);
 }
 
-int node_group_ui_class(const bNode *node)
+blender::bke::NodeClass node_group_ui_class(const bNode *node)
 {
   const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
   if (!group) {
-    return NODE_CLASS_GROUP;
+    return blender::bke::NodeClass::Group;
   }
   switch (blender::bke::NodeGroupColorTag(group->color_tag)) {
     case blender::bke::NodeGroupColorTag::None:
-      return NODE_CLASS_GROUP;
+      return blender::bke::NodeClass::Group;
     case blender::bke::NodeGroupColorTag::Attribute:
-      return NODE_CLASS_ATTRIBUTE;
+      return blender::bke::NodeClass::Attribute;
     case blender::bke::NodeGroupColorTag::Color:
-      return NODE_CLASS_OP_COLOR;
+      return blender::bke::NodeClass::Op_Color;
     case blender::bke::NodeGroupColorTag::Converter:
-      return NODE_CLASS_CONVERTER;
+      return blender::bke::NodeClass::Converter;
     case blender::bke::NodeGroupColorTag::Distort:
-      return NODE_CLASS_DISTORT;
+      return blender::bke::NodeClass::Distort;
     case blender::bke::NodeGroupColorTag::Filter:
-      return NODE_CLASS_OP_FILTER;
+      return blender::bke::NodeClass::Op_Filter;
     case blender::bke::NodeGroupColorTag::Geometry:
-      return NODE_CLASS_GEOMETRY;
+      return blender::bke::NodeClass::Geometry;
     case blender::bke::NodeGroupColorTag::Input:
-      return NODE_CLASS_INPUT;
+      return blender::bke::NodeClass::Input;
     case blender::bke::NodeGroupColorTag::Matte:
-      return NODE_CLASS_MATTE;
+      return blender::bke::NodeClass::Matte;
     case blender::bke::NodeGroupColorTag::Output:
-      return NODE_CLASS_OUTPUT;
+      return blender::bke::NodeClass::Output;
     case blender::bke::NodeGroupColorTag::Script:
-      return NODE_CLASS_SCRIPT;
+      return blender::bke::NodeClass::Script;
     case blender::bke::NodeGroupColorTag::Shader:
-      return NODE_CLASS_SHADER;
+      return blender::bke::NodeClass::Shader;
     case blender::bke::NodeGroupColorTag::Texture:
-      return NODE_CLASS_TEXTURE;
+      return blender::bke::NodeClass::Texture;
     case blender::bke::NodeGroupColorTag::Vector:
-      return NODE_CLASS_OP_VECTOR;
+      return blender::bke::NodeClass::Op_Vector;
   }
-  return NODE_CLASS_GROUP;
+  return blender::bke::NodeClass::Group;
 }
 
 bool node_group_poll_instance(const bNode *node,
@@ -503,7 +503,7 @@ void register_node_type_frame()
   blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("frame node type");
   ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
 
-  blender::bke::node_type_base(ntype, NODE_FRAME, "Frame", NODE_CLASS_LAYOUT);
+  blender::bke::node_type_base(ntype, NODE_FRAME, "Frame", blender::bke::NodeClass::Layout);
   ntype->initfunc = node_frame_init;
   blender::bke::node_type_storage(
       ntype, "NodeFrame", node_free_standard_storage, node_copy_standard_storage);
@@ -545,7 +545,7 @@ void register_node_type_reroute()
   blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("frame node type");
   ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
 
-  blender::bke::node_type_base(ntype, NODE_REROUTE, "Reroute", NODE_CLASS_LAYOUT);
+  blender::bke::node_type_base(ntype, NODE_REROUTE, "Reroute", blender::bke::NodeClass::Layout);
   ntype->declare = node_reroute_declare;
   ntype->initfunc = node_reroute_init;
   node_type_storage(ntype, "NodeReroute", node_free_standard_storage, node_copy_standard_storage);
@@ -651,7 +651,7 @@ bool blender::bke::node_is_connected_to_output(const bNodeTree *ntree, const bNo
     const bNode *next_node = nodes_to_check.pop();
     for (const bNodeSocket *socket : next_node->output_sockets()) {
       for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (link->tonode->typeinfo->nclass == NODE_CLASS_OUTPUT &&
+        if (link->tonode->typeinfo->nclass == blender::bke::NodeClass::Output &&
             link->tonode->flag & NODE_DO_OUTPUT)
         {
           return true;
@@ -776,7 +776,7 @@ void register_node_type_group_input()
   blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("node type");
   ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
 
-  blender::bke::node_type_base(ntype, NODE_GROUP_INPUT, "Group Input", NODE_CLASS_INTERFACE);
+  blender::bke::node_type_base(ntype, NODE_GROUP_INPUT, "Group Input", blender::bke::NodeClass::Interface);
   blender::bke::node_type_size(ntype, 140, 80, 400);
   ntype->declare = blender::nodes::group_input_declare;
   ntype->insert_link = blender::nodes::group_input_insert_link;
@@ -800,7 +800,7 @@ void register_node_type_group_output()
   blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("node type");
   ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
 
-  blender::bke::node_type_base(ntype, NODE_GROUP_OUTPUT, "Group Output", NODE_CLASS_INTERFACE);
+  blender::bke::node_type_base(ntype, NODE_GROUP_OUTPUT, "Group Output", blender::bke::NodeClass::Interface);
   blender::bke::node_type_size(ntype, 140, 80, 400);
   ntype->declare = blender::nodes::group_output_declare;
   ntype->insert_link = blender::nodes::group_output_insert_link;

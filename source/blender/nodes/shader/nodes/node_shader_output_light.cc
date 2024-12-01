@@ -36,7 +36,7 @@ void register_node_type_sh_output_light()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_OUTPUT_LIGHT, "Light Output", NODE_CLASS_OUTPUT);
+  sh_node_type_base(&ntype, SH_NODE_OUTPUT_LIGHT, "Light Output", blender::bke::NodeClass::Output);
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_cycles_shader_nodes_poll;
   ntype.gpu_fn = file_ns::node_shader_gpu_output_light;

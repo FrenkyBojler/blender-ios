@@ -82,16 +82,16 @@ static void texture_get_from_context(const bContext *C,
 
 static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
 {
-  func(calldata, NODE_CLASS_INPUT, N_("Input"));
-  func(calldata, NODE_CLASS_OUTPUT, N_("Output"));
-  func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
-  func(calldata, NODE_CLASS_PATTERN, N_("Patterns"));
-  func(calldata, NODE_CLASS_TEXTURE, N_("Textures"));
-  func(calldata, NODE_CLASS_CONVERTER, N_("Converter"));
-  func(calldata, NODE_CLASS_DISTORT, N_("Distort"));
-  func(calldata, NODE_CLASS_GROUP, N_("Group"));
-  func(calldata, NODE_CLASS_INTERFACE, N_("Interface"));
-  func(calldata, NODE_CLASS_LAYOUT, N_("Layout"));
+  func(calldata, blender::bke::NodeClass::Input, N_("Input"));
+  func(calldata, blender::bke::NodeClass::Output, N_("Output"));
+  func(calldata, blender::bke::NodeClass::Op_Color, N_("Color"));
+  func(calldata, blender::bke::NodeClass::Pattern, N_("Patterns"));
+  func(calldata, blender::bke::NodeClass::Texture, N_("Textures"));
+  func(calldata, blender::bke::NodeClass::Converter, N_("Converter"));
+  func(calldata, blender::bke::NodeClass::Distort, N_("Distort"));
+  func(calldata, blender::bke::NodeClass::Group, N_("Group"));
+  func(calldata, blender::bke::NodeClass::Interface, N_("Interface"));
+  func(calldata, blender::bke::NodeClass::Layout, N_("Layout"));
 }
 
 /* XXX muting disabled in previews because of threading issues with the main execution

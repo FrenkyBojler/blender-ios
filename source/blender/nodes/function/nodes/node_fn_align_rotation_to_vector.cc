@@ -229,8 +229,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(
-      &ntype, FN_NODE_ALIGN_ROTATION_TO_VECTOR, "Align Rotation to Vector", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype,
+                    FN_NODE_ALIGN_ROTATION_TO_VECTOR,
+                    "Align Rotation to Vector",
+                    blender::bke::NodeClass::Converter);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;

@@ -46,7 +46,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_INPUT_ROTATION, "Rotation", 0);
+  fn_node_type_base(&ntype, FN_NODE_INPUT_ROTATION, "Rotation", blender::bke::NodeClass::Input);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(

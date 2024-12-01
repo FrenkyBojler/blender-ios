@@ -569,7 +569,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_BAKE, "Bake", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, GEO_NODE_BAKE, "Bake", blender::bke::NodeClass::Geometry);
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;

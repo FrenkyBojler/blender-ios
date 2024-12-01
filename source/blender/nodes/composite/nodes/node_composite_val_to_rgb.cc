@@ -154,7 +154,7 @@ void register_node_type_cmp_valtorgb()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_VALTORGB, "Color Ramp", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, CMP_NODE_VALTORGB, "Color Ramp", blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::cmp_node_valtorgb_declare;
   blender::bke::node_type_size(&ntype, 240, 200, 320);
   ntype.initfunc = file_ns::node_composit_init_valtorgb;
@@ -229,7 +229,7 @@ void register_node_type_cmp_rgbtobw()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_RGBTOBW, "RGB to BW", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, CMP_NODE_RGBTOBW, "RGB to BW", blender::bke::NodeClass::Converter);
   ntype.declare = file_ns::cmp_node_rgbtobw_declare;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
