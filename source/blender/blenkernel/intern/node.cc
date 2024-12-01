@@ -591,7 +591,7 @@ static void construct_interface_as_legacy_sockets(bNodeTree *ntree)
         ntree,
         in_out,
         get_legacy_socket_subtype_idname(socket.socket_type, socket.socket_data),
-        socket.name,
+        socket.name ? socket.name : "",
         socket.identifier);
     if (!iosock) {
       return nullptr;
