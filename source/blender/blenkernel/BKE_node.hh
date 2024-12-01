@@ -785,6 +785,7 @@ void node_type_base_custom(bNodeType *ntype,
 /**
  * \warning Nodes defining a storage type _must_ allocate this for new nodes.
  * Otherwise nodes will reload as undefined (#46619).
+ * #storagename is optional due to some compositor nodes use non-DNA storage type.
  */
 void node_type_storage(bNodeType *ntype,
                        std::optional<StringRefNull> storagename,
