@@ -22,12 +22,22 @@
 
 namespace blender::ed::sculpt_paint {
 
-  void sculpting_geo_nodes_execute(const Depsgraph &depsgraph,
+  static void destruct_outputs(Vector<GMutablePointer> &param_outputs,
+    Vector<bool> &param_set_outputs)
+  {
+    for (const int i : param_outputs.index_range()) {
+      if (param_set_outputs[i]) {
+        GMutablePointer& ptr = param_outputs[i];
+        ptr.destruct();
+      }
+    }
+  }
+
+  static void sculpt_nodes_execute(const Depsgraph &depsgraph,
     Object &object,
     StrokeCache &cache,
-    Span<float3> positions,
-    Span<int> indices,
-    MutableSpan<float3> translations)
+    bke::SculptFieldContext &context,
+    MutableSpan<float3> &translations)
   {
     const bNodeTree &tree = *cache.node_tree;
 
@@ -39,9 +49,10 @@ namespace blender::ed::sculpt_paint {
     const int num_outputs = lazy_function.outputs().size();
 
     Array<GMutablePointer> param_inputs(num_inputs);
-    Array<GMutablePointer> param_outputs(num_outputs);
     Array<std::optional<lf::ValueUsage>> param_input_usages(num_inputs);
     Array<lf::ValueUsage> param_output_usages(num_outputs);
+
+    Array<GMutablePointer> param_outputs(num_outputs);
     Array<bool> param_set_outputs(num_outputs, false);
 
     /* We want to evaluate the main outputs, but don't care about which inputs are used for now. */
@@ -132,22 +143,59 @@ namespace blender::ed::sculpt_paint {
     }
 
     bke::SocketValueVariant output = std::move(*param_outputs[0].get<bke::SocketValueVariant>());
-
     fn::Field<float3> output_field = output.get<fn::Field<float3>>();
-    const Mesh& mesh = *static_cast<Mesh*>(object.data);
-    bke::MeshSculptFieldContext context(mesh, positions);
 
     fn::FieldEvaluator evaluator{ context, translations.size() };
     evaluator.add_with_destination(output_field, translations);
     evaluator.evaluate();
 
-    //store_output_attributes(output_geometry, btree, properties, param_outputs);
-
-    for (const int i : IndexRange(num_outputs)) {
+    for (const int i : param_outputs.index_range()) {
       if (param_set_outputs[i]) {
         GMutablePointer& ptr = param_outputs[i];
         ptr.destruct();
       }
     }
+  }
+
+  void mesh_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
+    Object& object,
+    StrokeCache& cache,
+    const Span<float3> position_eval,
+    const Span<int> verts,
+    MutableSpan<float3> translations)
+  {
+    Array<float3> positions(verts.size());
+
+    for (const int i : positions.index_range()) {
+      positions[i] = position_eval[verts[i]];
+    }
+
+    const Mesh* mesh = static_cast<const Mesh*>(object.data);
+    bke::MeshSculptFieldContext context(*mesh, positions, verts);
+
+    sculpt_nodes_execute(depsgraph, object, cache, context, translations);
+  }
+
+  void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+    Object &object,
+    StrokeCache &cache,
+    SubdivCCG &subdiv_ccg,
+    Span<int> grids,
+    Span<float3> positions,
+    MutableSpan<float3> translations)
+  {
+    bke::GridsSculptFieldContext context(subdiv_ccg, grids, positions);
+    sculpt_nodes_execute(depsgraph, object, cache, context, translations);
+  }
+
+  void bmesh_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
+    Object& object,
+    StrokeCache& cache,
+    const Set<BMVert*, 0>& verts,
+    Span<float3> positions,
+    MutableSpan<float3> translations)
+  {
+    bke::BMeshSculptFieldContext context(verts, positions);
+    sculpt_nodes_execute(depsgraph, object, cache, context, translations);
   }
 }

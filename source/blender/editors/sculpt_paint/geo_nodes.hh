@@ -2,27 +2,27 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_geometry_nodes_execute.hh"
-#include "NOD_geometry_nodes_lazy_function.hh"
-#include "NOD_node_declaration.hh"
-#include "NOD_socket.hh"
-
-#include "BKE_compute_contexts.hh"
-#include "BKE_geometry_fields.hh"
-#include "BKE_geometry_set.hh"
-#include "BKE_idprop.hh"
-#include "BKE_node_enum.hh"
-#include "BKE_node_socket_value.hh"
-
-#include "FN_lazy_function_execute.hh"
-
-#include "editors/sculpt_paint/sculpt_intern.hh"
-
 namespace blender::ed::sculpt_paint {
-  void sculpting_geo_nodes_execute(const Depsgraph &depsgraph,
-    Object &object,
+
+  void mesh_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
+    Object& object,
     StrokeCache& cache,
+    const Span<float3> position_eval,
+    const Span<int> verts,
+    MutableSpan<float3> translations);
+
+  void grids_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
+    Object& object,
+    StrokeCache& cache,
+    SubdivCCG& subdiv_ccg,
+    Span<int> grids,
     Span<float3> positions,
-    Span<int> indices,
+    MutableSpan<float3> translations);
+
+  void bmesh_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
+    Object& object,
+    StrokeCache& cache,
+    const Set<BMVert*, 0>& verts,
+    Span<float3> positions,
     MutableSpan<float3> translations);
 }
