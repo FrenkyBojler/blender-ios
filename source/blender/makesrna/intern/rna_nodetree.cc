@@ -4191,6 +4191,9 @@ static void rna_reroute_node_socket_type_set(PointerRNA *ptr, const char *value)
 
   bNode &node = *static_cast<bNode *>(ptr->data);
 
+  if (value == nullptr) {
+    return;
+  }
   blender::bke::bNodeSocketType *socket_type = blender::bke::node_socket_type_find(value);
   if (socket_type == nullptr) {
     return;
