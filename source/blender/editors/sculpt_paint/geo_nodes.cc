@@ -135,11 +135,9 @@ namespace blender::ed::sculpt_paint {
 
     fn::Field<float3> output_field = output.get<fn::Field<float3>>();
     const Mesh& mesh = *static_cast<Mesh*>(object.data);
-    bke::SculptMeshFieldContext context(mesh, bke::AttrDomain::Point, positions);
+    bke::MeshSculptFieldContext context(mesh, positions);
 
-    index_mask::IndexMaskMemory memory;
-    index_mask::IndexMask mask = index_mask::IndexMask::from_indices(indices, memory);
-    fn::FieldEvaluator evaluator{ context, &mask };
+    fn::FieldEvaluator evaluator{ context, translations.size() };
     evaluator.add_with_destination(output_field, translations);
     evaluator.evaluate();
 

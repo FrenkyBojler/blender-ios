@@ -142,30 +142,27 @@ class InstancesFieldContext : public fn::FieldContext {
   }
 };
 
-class SculptingFieldContext : public fn::FieldContext {
+class SculptFieldContext : public fn::FieldContext {
 private:
   const Span<float3> positions_;
-  const Span<float3> normals_;
-  const Span<int> indices_;
+  const Span<float3> original_positions_;
 
 public:
-  SculptingFieldContext(const Span<float3> positions, const Span<float3> normals, const Span<int> indices)
-    : positions_(positions), normals_(normals), indices_(indices) {}
+  SculptFieldContext(const Span<float3> positions)
+    : positions_(positions) {}
 
   const Span<float3> positions() const { return positions_; }
-  const Span<float3> normals() const { return normals_; }
-  const Span<int> indices() const { return indices_; }
 };
 
-class SculptMeshFieldContext : public MeshFieldContext {
+class MeshSculptFieldContext : public SculptFieldContext {
 private:
-  const Span<float3> positions_;
-
+  const Mesh *mesh_;
 public:
-  SculptMeshFieldContext(const Mesh& mesh, AttrDomain domain, const Span<float3> positions)
-    : MeshFieldContext(mesh, domain), positions_(positions) {}
+  MeshSculptFieldContext(const Mesh& mesh,
+    const Span<float3> positions)
+    : SculptFieldContext(positions), mesh_(&mesh) {}
 
-  const Span<float3> positions() const { return positions_; }
+  const Mesh* mesh() const { return mesh_; }
 };
 
 /**
@@ -292,52 +289,6 @@ class InstancesFieldInput : public fn::FieldInput {
                                  ResourceScope &scope) const override;
   virtual GVArray get_varray_for_context(const Instances &instances,
                                          const IndexMask &mask) const = 0;
-};
-
-class SculptingFieldInput : public fn::FieldInput {
-private:
-  std::string name_;
-
-public:
-  SculptingFieldInput(const std::string& name, const CPPType& type)
-    : fn::FieldInput(type, name), name_(name) {}
-
-  GVArray get_varray_for_context(const fn::FieldContext& context,
-    const IndexMask& /* mask */,
-    ResourceScope& /* scope */) const override
-  {
-    const SculptMeshFieldContext* sculpt_context =
-      dynamic_cast<const SculptMeshFieldContext*>(&context);
-
-    if (sculpt_context == nullptr) {
-      return {};
-    }
-
-    if (name_ == "position") {
-      return VArray<float3>::ForSpan(sculpt_context->positions());
-    }
-
-    /*if (name_ == "normal") {
-      return VArray<float3>::ForSpan(sculpt_context->normals());
-    }
-
-    if (name_ == "index") {
-      return VArray<int>::ForSpan(sculpt_context->indices());
-    }*/
-
-    return {};
-  }
-
-  std::string socket_inspection_name() const override { return name_; }
-
-
-  bool is_equal_to(const fn::FieldNode& other) const override
-  {
-    if (const auto* other_field = dynamic_cast<const SculptingFieldInput*>(&other)) {
-      return name_ == other_field->name_;
-    }
-    return false;
-  }
 };
 
 class AttributeFieldInput : public GeometryFieldInput {
