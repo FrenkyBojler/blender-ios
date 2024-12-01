@@ -1650,34 +1650,6 @@ static_assert_align(KernelLightDistribution, 16);
 struct KernelBoundingBox {
   packed_float3 min;
   packed_float3 max;
-
-  ccl_device_inline_method float3 center() const
-  {
-    return 0.5f * (min + max);
-  }
-
-  ccl_device_inline_method float3 size() const
-  {
-    return max - min;
-  }
-
-  ccl_device_inline_method bool contains(float3 p, float exp = 0.0f) const
-  {
-    return all(p >= (min - exp)) && all(p <= (max + exp));
-  }
-
-  ccl_device_inline_method void print() const
-  {
-#ifdef __KERNEL_PRINTF__
-    printf("bbox min = (%.8f, %.8f, %.8f) max (%.8f, %.8f, %.8f)\n",
-           double(min.x),
-           double(min.y),
-           double(min.z),
-           double(max.x),
-           double(max.y),
-           double(max.z));
-#endif
-  }
 };
 
 struct KernelBoundingCone {
@@ -1738,7 +1710,9 @@ struct KernelOctreeNode {
   int first_child;
   Extrema<float> sigma;
 
-  KernelBoundingBox bbox;
+  /* TODO(weizhen): only root node needs this field. */
+  float3 inv_scale;
+  float3 inv_translation;
 
   ccl_device_inline_method bool is_leaf() const
   {

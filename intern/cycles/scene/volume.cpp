@@ -998,10 +998,13 @@ void VolumeManager::flatten_octree_(DeviceScene *dscene, const Scene *scene) con
     if (auto entry = octree_root_indices.find(octree); entry == octree_root_indices.end()) {
       /* Flatten octree and record the index of the root node. */
       const uint root_index = node_index++;
+      auto root = octree->get_root();
       roots[object_id] = root_index;
       octree_root_indices[octree] = root_index;
       knodes[root_index].parent = -1;
-      octree->flatten(knodes, root_index, octree->get_root(), node_index);
+      knodes[root_index].inv_scale = 1.0f / root->bbox.size();
+      knodes[root_index].inv_translation = -root->bbox.min * knodes[root_index].inv_scale + 1.0f;
+      octree->flatten(knodes, root_index, root, node_index);
     }
     else {
       /* If octree is already flattened, just point to the index of the root node. */
@@ -1070,6 +1073,7 @@ void VolumeManager::device_update(Device *device,
   /* TODO(weizhen): only rebuild if there is volume in the scene. */
 
   if (need_rebuild_) {
+    /* TODO(weizhen): missing update when original instanced object is shown. */
     initialize_octree_(scene);
     build_octree_(device, progress);
     flatten_octree_(dscene, scene);

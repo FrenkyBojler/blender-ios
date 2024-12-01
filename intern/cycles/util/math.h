@@ -848,9 +848,14 @@ ccl_device_inline float beta(float x, float y)
   return expf(lgammaf(x) + lgammaf(y) - lgammaf(x + y));
 }
 
-ccl_device_inline float xor_signmask(float x, int y)
+ccl_device_inline float xor_mask(float x, uint y)
 {
-  return __int_as_float(__float_as_int(x) ^ y);
+  return __uint_as_float(__float_as_uint(x) ^ y);
+}
+
+ccl_device_inline float and_mask(float x, uint y)
+{
+  return __uint_as_float(__float_as_uint(x) & y);
 }
 
 ccl_device float bits_to_01(uint bits)

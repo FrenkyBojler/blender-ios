@@ -315,8 +315,6 @@ void Octree::flatten(KernelOctreeNode *knodes,
                      int &child_index) const
 {
   KernelOctreeNode &knode = knodes[current_index];
-  knode.bbox.max = node->bbox.max;
-  knode.bbox.min = node->bbox.min;
   knode.sigma = node->sigma;
 
   if (auto internal_ptr = std::dynamic_pointer_cast<OctreeInternalNode>(node)) {
@@ -382,6 +380,7 @@ std::shared_ptr<OctreeNode> Octree::get_root() const
   return root_;
 }
 
+/* TODO(weizhen): fix visualization. */
 void Octree::visualize(const KernelOctreeNode *knodes, const int root, std::ofstream &file) const
 {
   std::string str = "vertices = [";
@@ -389,9 +388,9 @@ void Octree::visualize(const KernelOctreeNode *knodes, const int root, std::ofst
     if (knodes[i].is_leaf()) {
       continue;
     }
-    const float3 mid = knodes[i].bbox.center();
-    const float3 max = knodes[i].bbox.max;
-    const float3 min = knodes[i].bbox.min;
+    const float3 mid = zero_float3();  // knodes[i].bbox.center();
+    const float3 max = zero_float3();  // knodes[i].bbox.max;
+    const float3 min = zero_float3();  // knodes[i].bbox.min;
     const std::string mid_x = to_string(mid.x), mid_y = to_string(mid.y), mid_z = to_string(mid.z),
                       min_x = to_string(min.x), min_y = to_string(min.y), min_z = to_string(min.z),
                       max_x = to_string(max.x), max_y = to_string(max.y), max_z = to_string(max.z);
@@ -421,8 +420,8 @@ void Octree::visualize(const KernelOctreeNode *knodes, const int root, std::ofst
       "bpy.ops.object.mode_set(mode='EDIT')\n";
   file << str;
 
-  const float3 center = knodes[root].bbox.center();
-  const float3 size = knodes[root].bbox.size() * 0.5f;
+  const float3 center = zero_float3();  // knodes[root].bbox.center();
+  const float3 size = zero_float3();    // knodes[root].bbox.size() * 0.5f;
   file << "bpy.ops.mesh.primitive_cube_add(location = " << center << ", scale = " << size << ")\n";
   file << "bpy.ops.mesh.delete(type='ONLY_FACE')\n"
           "bpy.ops.object.mode_set(mode='OBJECT')\n"
