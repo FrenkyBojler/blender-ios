@@ -515,8 +515,7 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
 }
 
 /* Include the subtype suffix for old socket idnames. */
-static StringRef get_legacy_socket_subtype_idname(StringRef idname,
-                                                      const void *socket_data)
+static StringRef get_legacy_socket_subtype_idname(StringRef idname, const void *socket_data)
 {
   if (idname == "NodeSocketFloat") {
     const bNodeSocketValueFloat &float_data = *static_cast<const bNodeSocketValueFloat *>(
