@@ -952,7 +952,7 @@ static void uv_vert_positions(const int edge_edges_num,
 
 Mesh *create_icosphere_mesh(const int resolution,
                             const float radius,
-                            const bke::AttributeIDRef &uv_id)
+                            const std::optional<StringRef> &uv_id)
 {
   // std::cout << std::endl;
   const int base_edge_verts_num = math::max<int>(0, resolution - 2);
@@ -1064,9 +1064,9 @@ Mesh *create_icosphere_mesh(const int resolution,
     });
   }
 
-  if (uv_id) {
+  if (uv_id.has_value()) {
     bke::SpanAttributeWriter<float2> uv_map = attributes.lookup_or_add_for_write_only_span<float2>(
-        uv_id, bke::AttrDomain::Corner);
+        *uv_id, bke::AttrDomain::Corner);
     uv_vert_positions(base_edge_edges_num,
                       faces_of_edge_range,
                       faces_of_face_range,

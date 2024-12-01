@@ -129,15 +129,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int subdivisions = std::min(params.extract_input<int>("Subdivisions"), 10);
   const float radius = params.extract_input<float>("Radius");
 
-<<<<<<< HEAD
   const bool new_type = params.extract_input<bool>("New");
 
-  AnonymousAttributeIDPtr uv_map_id = params.get_output_anonymous_attribute_id_if_needed("UV Map");
+  std::optional<std::string> uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
+      "UV Map");
 
   if (new_type) {
     SCOPED_TIMER_AVERAGED("New");
     const int line_subdiv = math::pow<int>(2, std::max<int>(0, subdivisions - 1)) + 1;
-    Mesh *mesh = geometry::create_icosphere_mesh(line_subdiv, radius, uv_map_id.get());
+    Mesh *mesh = geometry::create_icosphere_mesh(line_subdiv, radius, uv_map_id);
     /* TODO: Compute bound in geometry module. */
     mesh->bounds_set_eager(calculate_bounds_ico_sphere(radius, subdivisions));
     params.set_output("Mesh", GeometrySet::from_mesh(mesh));
@@ -145,13 +145,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   SCOPED_TIMER_AVERAGED("Old");
-  Mesh *mesh = create_ico_sphere_mesh(subdivisions, radius, uv_map_id.get());
-=======
-  std::optional<std::string> uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
-      "UV Map");
-
   Mesh *mesh = create_ico_sphere_mesh(subdivisions, radius, uv_map_id);
->>>>>>> main
   params.set_output("Mesh", GeometrySet::from_mesh(mesh));
 }
 

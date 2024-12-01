@@ -6,13 +6,11 @@
 
 struct Mesh;
 namespace blender {
-namespace bke {
-class AttributeIDRef;
-}
+class StringRef;
 }  // namespace blender
 
 namespace blender::geometry {
 
-Mesh *create_icosphere_mesh(int resolution, float radius, const bke::AttributeIDRef &uv_id);
+Mesh *create_icosphere_mesh(int resolution, float radius, const std::optional<StringRef> &uv_id);
 
 }  // namespace blender::geometry
