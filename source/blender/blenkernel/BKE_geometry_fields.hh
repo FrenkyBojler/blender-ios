@@ -11,8 +11,11 @@
  */
 
 #include "BKE_geometry_set.hh"
+#include "BKE_subdiv_ccg.hh"
 
 #include "FN_field.hh"
+
+#include "bmesh.hh"
 
 struct Mesh;
 struct PointCloud;
@@ -145,7 +148,6 @@ class InstancesFieldContext : public fn::FieldContext {
 class SculptFieldContext : public fn::FieldContext {
 private:
   const Span<float3> positions_;
-  const Span<float3> original_positions_;
 
 public:
   SculptFieldContext(const Span<float3> positions)
@@ -156,13 +158,40 @@ public:
 
 class MeshSculptFieldContext : public SculptFieldContext {
 private:
-  const Mesh *mesh_;
+  const Mesh &mesh_;
 public:
   MeshSculptFieldContext(const Mesh& mesh,
     const Span<float3> positions)
-    : SculptFieldContext(positions), mesh_(&mesh) {}
+    : SculptFieldContext(positions), mesh_(mesh) {}
 
-  const Mesh* mesh() const { return mesh_; }
+  const Mesh &mesh() const { return mesh_; }
+};
+
+class GridsSculptFieldContext : public SculptFieldContext {
+private:
+  const SubdivCCG& subdiv_ccg_;
+  const Span<int> grids_;
+
+public:
+  GridsSculptFieldContext(const Span<float3> positions,
+    const SubdivCCG& subdiv_ccg,
+    const Span<int> grids)
+    : SculptFieldContext(positions), subdiv_ccg_(subdiv_ccg), grids_(grids) {}
+
+  const SubdivCCG& subdiv_ccg() const { return subdiv_ccg_; }
+  const Span<int> grids() const { return grids_; }
+};
+
+class BMeshSculptFieldContext : public SculptFieldContext {
+private:
+  const Set<BMVert*, 0>& verts_;
+
+public:
+  BMeshSculptFieldContext(const Span<float3> positions,
+    const Set<BMVert*, 0>& verts)
+    : SculptFieldContext(positions), verts_(verts) {}
+
+  const Set<BMVert*, 0>& verts() const { return verts_; }
 };
 
 /**
