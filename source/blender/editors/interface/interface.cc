@@ -2005,11 +2005,11 @@ void UI_block_end_ex(const bContext *C,
       ui_block_bounds_calc_text(block, 0.0f);
       break;
     case UI_BLOCK_BOUNDS_POPUP_CENTER:
-      if (xy != r_xy) {
-        ui_block_bounds_calc_post_centered(block, xy);
+      if (block->handle->grab_xy_prev[0] == 0 && block->handle->grab_xy_prev[1] == 0) {
+        ui_block_bounds_calc_centered(window, block);
       }
       else {
-        ui_block_bounds_calc_centered(window, block);
+        ui_block_bounds_calc_post_centered(block, xy);
       }
       break;
     case UI_BLOCK_BOUNDS_PIE_CENTER:
