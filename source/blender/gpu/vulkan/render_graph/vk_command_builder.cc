@@ -8,6 +8,7 @@
 
 #include "vk_command_builder.hh"
 #include "vk_render_graph.hh"
+#include "vk_to_string.hh"
 
 namespace blender::gpu::render_graph {
 
@@ -88,9 +89,21 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
                                         std::optional<NodeHandle> &r_rendering_scope)
 {
   bool is_rendering = false;
+
   for (NodeHandle node_handle : node_group) {
     VKRenderGraphNode &node = render_graph.nodes_[node_handle];
+#if 0
+    std::cout << "node_group=" << node_group.first() << "-" << node_group.last()
+              << ", node_handle=" << node_handle << ", node_type=" << node.type
+              << ", debug_group=" << render_graph.full_debug_group(node_handle) << "\n";
+#endif
+#if 0
+    render_graph.debug_print(node_handle);
+#endif
     build_pipeline_barriers(render_graph, command_buffer, node_handle, node.pipeline_stage_get());
+    if (node.type == VKNodeType::BEGIN_RENDERING) {
+      layer_tracking_begin(render_graph, node_handle);
+    }
   }
 
   for (NodeHandle node_handle : node_group) {
@@ -120,24 +133,45 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
       if (!is_rendering) {
         // Resuming paused rendering scope.
         VKRenderGraphNode &rendering_node = render_graph.nodes_[*r_rendering_scope];
+        build_pipeline_barriers(
+            render_graph, command_buffer, *r_rendering_scope, rendering_node.pipeline_stage_get());
+        if (state_.subresource_tracking_enabled()) {
+          layer_tracking_resume(command_buffer);
+        }
         rendering_node.begin_rendering.vk_rendering_info.flags = VK_RENDERING_RESUMING_BIT;
         rendering_node.build_commands(command_buffer, state_.active_pipelines);
         is_rendering = true;
       }
     }
-#if 0
-    std::cout << "node_group: " << node_group.first() << "-" << node_group.last()
-              << ", node_handle: " << node_handle << ", node_type: " << node.type << "\n";
-#endif
     if (G.debug & G_DEBUG_GPU) {
       activate_debug_group(render_graph, command_buffer, node_handle);
     }
+#if 0
+    std::cout << "node_group=" << node_group.first() << "-" << node_group.last()
+              << ", node_handle=" << node_handle << ", node_type=" << node.type
+              << ", debug group=" << render_graph.full_debug_group(node_handle) << "\n";
+
+#endif
     node.build_commands(command_buffer, state_.active_pipelines);
+
+    /* When layered image has different layouts we reset the layouts to
+     * VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL. */
+    if (node.type == VKNodeType::END_RENDERING && state_.subresource_tracking_enabled()) {
+      layer_tracking_end(command_buffer);
+    }
   }
   if (is_rendering) {
     /* Suspend rendering as the next node group will contain data transfer/dispatch commands. */
     is_rendering = false;
-    command_buffer.end_rendering();
+    if (command_buffer.use_dynamic_rendering) {
+      command_buffer.end_rendering();
+    }
+    else {
+      command_buffer.end_render_pass();
+    }
+    if (state_.subresource_tracking_enabled()) {
+      layer_tracking_suspend(command_buffer);
+    }
   }
 }
 
@@ -190,8 +224,9 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
     VkDebugUtilsLabelEXT debug_utils_label = {};
     debug_utils_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
     for (int index : IndexRange(state_.debug_level, num_begins)) {
-      std::string group_name = render_graph.debug_.group_names[to_group[index]];
-      debug_utils_label.pLabelName = group_name.c_str();
+      const VKRenderGraph::DebugGroup &debug_group = render_graph.debug_.groups[to_group[index]];
+      debug_utils_label.pLabelName = debug_group.name.c_str();
+      copy_v4_v4(debug_utils_label.color, debug_group.color);
       command_buffer.begin_debug_utils_label(&debug_utils_label);
     }
   }
@@ -280,24 +315,29 @@ void VKCommandBuilder::add_buffer_read_barriers(VKRenderGraph &render_graph,
       continue;
     }
     VKResourceBarrierState &resource_state = resource.barrier_state;
-    VkAccessFlags read_access = resource_state.read_access;
-    VkAccessFlags write_access = resource_state.write_access;
-    VkAccessFlags wait_access = VK_ACCESS_NONE;
-
-    if (read_access == (read_access | link.vk_access_flags) &&
-        (resource_state.read_stages & node_stages))
+    const bool is_first_read = resource_state.is_new_stamp();
+    if (!is_first_read &&
+        (resource_state.vk_access & link.vk_access_flags) == link.vk_access_flags &&
+        (resource_state.vk_pipeline_stages & node_stages) == node_stages)
     {
       /* Has already been covered in a previous call no need to add this one. */
       continue;
     }
 
-    wait_access |= write_access;
-    read_access |= link.vk_access_flags;
-    state_.src_stage_mask |= resource_state.write_stages;
+    const VkAccessFlags wait_access = resource_state.vk_access;
+
+    state_.src_stage_mask |= resource_state.vk_pipeline_stages;
     state_.dst_stage_mask |= node_stages;
 
-    resource_state.read_access = read_access;
-    resource_state.read_stages |= node_stages;
+    if (is_first_read) {
+      resource_state.vk_access = link.vk_access_flags;
+      resource_state.vk_pipeline_stages = node_stages;
+    }
+    else {
+      resource_state.vk_access |= link.vk_access_flags;
+      resource_state.vk_pipeline_stages |= node_stages;
+    }
+
     add_buffer_barrier(resource.buffer.vk_buffer, wait_access, link.vk_access_flags);
   }
 }
@@ -315,24 +355,13 @@ void VKCommandBuilder::add_buffer_write_barriers(VKRenderGraph &render_graph,
       continue;
     }
     VKResourceBarrierState &resource_state = resource.barrier_state;
-    VkAccessFlags read_access = resource_state.read_access;
-    VkAccessFlags write_access = resource_state.write_access;
-    VkAccessFlags wait_access = VK_ACCESS_NONE;
+    const VkAccessFlags wait_access = resource_state.vk_access;
 
-    if (read_access != VK_ACCESS_NONE) {
-      wait_access |= read_access;
-    }
-    if (read_access == VK_ACCESS_NONE && write_access != VK_ACCESS_NONE) {
-      wait_access |= write_access;
-    }
-
-    state_.src_stage_mask |= resource_state.read_stages | resource_state.write_stages;
+    state_.src_stage_mask |= resource_state.vk_pipeline_stages;
     state_.dst_stage_mask |= node_stages;
 
-    resource_state.read_access = VK_ACCESS_NONE;
-    resource_state.write_access = link.vk_access_flags;
-    resource_state.read_stages = VK_PIPELINE_STAGE_NONE;
-    resource_state.write_stages = node_stages;
+    resource_state.vk_access = link.vk_access_flags;
+    resource_state.vk_pipeline_stages = node_stages;
 
     if (wait_access != VK_ACCESS_NONE) {
       add_buffer_barrier(resource.buffer.vk_buffer, wait_access, link.vk_access_flags);
@@ -344,6 +373,23 @@ void VKCommandBuilder::add_buffer_barrier(VkBuffer vk_buffer,
                                           VkAccessFlags src_access_mask,
                                           VkAccessFlags dst_access_mask)
 {
+  for (VkBufferMemoryBarrier &vk_buffer_memory_barrier : vk_buffer_memory_barriers_) {
+    if (vk_buffer_memory_barrier.buffer == vk_buffer) {
+      /* When registering read/write buffers, it can be that the node internally requires
+       * read/write. In this case we adjust the dstAccessMask of the read barrier. */
+      if ((vk_buffer_memory_barrier.dstAccessMask & src_access_mask) == src_access_mask) {
+        vk_buffer_memory_barrier.dstAccessMask |= dst_access_mask;
+        return;
+      }
+      /* When re-registering resources we can skip if access mask already contain all the flags. */
+      if ((vk_buffer_memory_barrier.dstAccessMask & dst_access_mask) == dst_access_mask &&
+          (vk_buffer_memory_barrier.srcAccessMask & src_access_mask) == src_access_mask)
+      {
+        return;
+      }
+    }
+  }
+
   vk_buffer_memory_barrier_.srcAccessMask = src_access_mask;
   vk_buffer_memory_barrier_.dstAccessMask = dst_access_mask;
   vk_buffer_memory_barrier_.buffer = vk_buffer;
@@ -374,24 +420,40 @@ void VKCommandBuilder::add_image_read_barriers(VKRenderGraph &render_graph,
       continue;
     }
     VKResourceBarrierState &resource_state = resource.barrier_state;
-    VkAccessFlags read_access = resource_state.read_access;
-    VkAccessFlags write_access = resource_state.write_access;
-    VkAccessFlags wait_access = read_access | write_access;
-
-    if (read_access == (read_access | link.vk_access_flags) &&
+    const bool is_first_read = resource_state.is_new_stamp();
+    if ((!is_first_read) &&
+        (resource_state.vk_access & link.vk_access_flags) == link.vk_access_flags &&
+        (resource_state.vk_pipeline_stages & node_stages) == node_stages &&
         resource_state.image_layout == link.vk_image_layout)
     {
-      /* Has already been covered in a previous call no need to add this one. */
+      /* Has already been covered in previous barrier no need to add this one. */
       continue;
     }
 
-    state_.src_stage_mask |= resource_state.write_stages | resource_state.read_stages;
+    if (state_.layered_attachments.contains(resource.image.vk_image) &&
+        resource_state.image_layout != link.vk_image_layout)
+    {
+      layer_tracking_update(resource.image.vk_image,
+                            link.layer_base,
+                            link.layer_count,
+                            resource_state.image_layout,
+                            link.vk_image_layout);
+      continue;
+    }
+
+    VkAccessFlags wait_access = resource_state.vk_access;
+
+    state_.src_stage_mask |= resource_state.vk_pipeline_stages;
     state_.dst_stage_mask |= node_stages;
 
-    resource_state.read_access = link.vk_access_flags;
-    resource_state.write_access = VK_ACCESS_NONE;
-    resource_state.read_stages = node_stages;
-    resource_state.write_stages = VK_PIPELINE_STAGE_NONE;
+    if (is_first_read) {
+      resource_state.vk_access = link.vk_access_flags;
+      resource_state.vk_pipeline_stages = node_stages;
+    }
+    else {
+      resource_state.vk_access |= link.vk_access_flags;
+      resource_state.vk_pipeline_stages |= node_stages;
+    }
 
     add_image_barrier(resource.image.vk_image,
                       wait_access,
@@ -416,17 +478,25 @@ void VKCommandBuilder::add_image_write_barriers(VKRenderGraph &render_graph,
       continue;
     }
     VKResourceBarrierState &resource_state = resource.barrier_state;
-    VkAccessFlags read_access = resource_state.read_access;
-    VkAccessFlags write_access = resource_state.write_access;
-    VkAccessFlags wait_access = read_access | write_access;
+    const VkAccessFlags wait_access = resource_state.vk_access;
 
-    state_.src_stage_mask |= resource_state.read_stages | resource_state.write_stages;
+    if (state_.layered_attachments.contains(resource.image.vk_image) &&
+        resource_state.image_layout != link.vk_image_layout)
+    {
+      layer_tracking_update(resource.image.vk_image,
+                            link.layer_base,
+                            link.layer_count,
+                            resource_state.image_layout,
+                            link.vk_image_layout);
+
+      continue;
+    }
+
+    state_.src_stage_mask |= resource_state.vk_pipeline_stages;
     state_.dst_stage_mask |= node_stages;
 
-    resource_state.read_access = VK_ACCESS_NONE;
-    resource_state.write_access = link.vk_access_flags;
-    resource_state.read_stages = VK_PIPELINE_STAGE_NONE;
-    resource_state.write_stages = node_stages;
+    resource_state.vk_access = link.vk_access_flags;
+    resource_state.vk_pipeline_stages = node_stages;
 
     if (wait_access != VK_ACCESS_NONE || link.vk_image_layout != resource_state.image_layout) {
       add_image_barrier(resource.image.vk_image,
@@ -445,15 +515,38 @@ void VKCommandBuilder::add_image_barrier(VkImage vk_image,
                                          VkAccessFlags dst_access_mask,
                                          VkImageLayout old_layout,
                                          VkImageLayout new_layout,
-                                         VkImageAspectFlags aspect_mask)
+                                         VkImageAspectFlags aspect_mask,
+                                         uint32_t layer_base,
+                                         uint32_t layer_count)
 {
   BLI_assert(aspect_mask != VK_IMAGE_ASPECT_NONE);
+  for (VkImageMemoryBarrier &vk_image_memory_barrier : vk_image_memory_barriers_) {
+    if (vk_image_memory_barrier.image == vk_image) {
+      /* When registering read/write buffers, it can be that the node internally requires
+       * read/write. In this case we adjust the dstAccessMask of the read barrier. An example is
+       * EEVEE update HIZ compute shader and shadow tagging. */
+      if ((vk_image_memory_barrier.dstAccessMask & src_access_mask) == src_access_mask) {
+        vk_image_memory_barrier.dstAccessMask |= dst_access_mask;
+        return;
+      }
+      /* When re-registering resources we can skip if access mask already contain all the flags. */
+      if ((vk_image_memory_barrier.dstAccessMask & dst_access_mask) == dst_access_mask &&
+          (vk_image_memory_barrier.srcAccessMask & src_access_mask) == src_access_mask &&
+          old_layout == new_layout)
+      {
+        return;
+      }
+    }
+  }
+
   vk_image_memory_barrier_.srcAccessMask = src_access_mask;
   vk_image_memory_barrier_.dstAccessMask = dst_access_mask;
   vk_image_memory_barrier_.image = vk_image;
   vk_image_memory_barrier_.oldLayout = old_layout;
   vk_image_memory_barrier_.newLayout = new_layout;
   vk_image_memory_barrier_.subresourceRange.aspectMask = aspect_mask;
+  vk_image_memory_barrier_.subresourceRange.baseArrayLayer = layer_base;
+  vk_image_memory_barrier_.subresourceRange.layerCount = layer_count;
   vk_image_memory_barriers_.append(vk_image_memory_barrier_);
   /* Reset state for reuse. */
   vk_image_memory_barrier_.srcAccessMask = VK_ACCESS_NONE;
@@ -462,8 +555,142 @@ void VKCommandBuilder::add_image_barrier(VkImage vk_image,
   vk_image_memory_barrier_.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   vk_image_memory_barrier_.newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   vk_image_memory_barrier_.subresourceRange.aspectMask = VK_IMAGE_ASPECT_NONE;
+  vk_image_memory_barrier_.subresourceRange.baseArrayLayer = 0;
+  vk_image_memory_barrier_.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Sub-resource tracking
+ * \{ */
+
+void VKCommandBuilder::layer_tracking_begin(const VKRenderGraph &render_graph,
+                                            NodeHandle node_handle)
+{
+  BLI_assert(render_graph.nodes_[node_handle].type == VKNodeType::BEGIN_RENDERING);
+  state_.layered_attachments.clear();
+  state_.layered_bindings.clear();
+
+  const VKRenderGraphNodeLinks &links = render_graph.links_[node_handle];
+  for (const VKRenderGraphLink &link : links.outputs) {
+    VKResourceStateTracker::Resource &resource = render_graph.resources_.resources_.lookup(
+        link.resource.handle);
+    if (resource.has_multiple_layers()) {
+      state_.layered_attachments.add(resource.image.vk_image);
+    }
+  }
+}
+
+void VKCommandBuilder::layer_tracking_update(VkImage vk_image,
+                                             uint32_t layer,
+                                             uint32_t layer_count,
+                                             VkImageLayout old_layout,
+                                             VkImageLayout new_layout)
+{
+  for (const LayeredImageBinding &binding : state_.layered_bindings) {
+    if (binding.vk_image == vk_image && binding.layer == layer) {
+      BLI_assert_msg(binding.vk_image_layout == new_layout,
+                     "We don't support that one layer transitions multiple times during a "
+                     "rendering scope.");
+      /* Early exit as layer is in correct layout. This is a normal case as we expect multiple draw
+       * commands to take place during a rendering scope with the same layer access. */
+      return;
+    }
+  }
+
+  state_.layered_bindings.append({vk_image, new_layout, layer, layer_count});
+
+  /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
+  state_.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  state_.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  add_image_barrier(vk_image,
+                    VK_ACCESS_TRANSFER_WRITE_BIT,
+                    VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
+                        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT |
+                        VK_ACCESS_TRANSFER_WRITE_BIT,
+                    old_layout,
+                    new_layout,
+                    VK_IMAGE_ASPECT_COLOR_BIT,
+                    layer,
+                    layer_count);
+}
+
+void VKCommandBuilder::layer_tracking_end(VKCommandBufferInterface &command_buffer)
+{
+  layer_tracking_suspend(command_buffer);
+  state_.layered_attachments.clear();
+  state_.layered_bindings.clear();
+}
+
+void VKCommandBuilder::layer_tracking_suspend(VKCommandBufferInterface &command_buffer)
+{
+  if (state_.layered_bindings.is_empty()) {
+    return;
+  }
+
+  reset_barriers();
+  /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
+  state_.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  state_.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  for (const LayeredImageBinding &binding : state_.layered_bindings) {
+    add_image_barrier(
+        binding.vk_image,
+        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+        binding.vk_image_layout,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        binding.layer,
+        binding.layer_count);
+#if 0
+    std::cout << __func__ << ": transition layout image=" << binding.vk_image
+              << ", layer=" << binding.layer << ", count=" << binding.layer_count
+              << ", from_layout=" << to_string(binding.vk_image_layout)
+              << ", to_layout=" << to_string(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) << "\n";
+#endif
+  }
+  send_pipeline_barriers(command_buffer);
+}
+
+void VKCommandBuilder::layer_tracking_resume(VKCommandBufferInterface &command_buffer)
+{
+  if (state_.layered_bindings.is_empty()) {
+    return;
+  }
+
+  reset_barriers();
+  /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
+  state_.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  state_.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  for (const LayeredImageBinding &binding : state_.layered_bindings) {
+    add_image_barrier(
+        binding.vk_image,
+        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        binding.vk_image_layout,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        binding.layer,
+        binding.layer_count);
+#if 0
+    std::cout << __func__ << ": transition layout image=" << binding.vk_image
+              << ", layer=" << binding.layer << ", count=" << binding.layer_count
+              << ", from_layout=" << to_string(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+              << ", to_layout=" << to_string(binding.vk_image_layout) << "\n";
+#endif
+  }
+  send_pipeline_barriers(command_buffer);
+}
 /** \} */
 
 }  // namespace blender::gpu::render_graph

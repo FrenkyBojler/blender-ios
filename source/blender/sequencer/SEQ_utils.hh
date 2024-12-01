@@ -19,7 +19,7 @@ struct StripElem;
 
 void SEQ_sequence_base_unique_name_recursive(Scene *scene, ListBase *seqbasep, Sequence *seq);
 const char *SEQ_sequence_give_name(const Sequence *seq);
-ListBase *SEQ_get_seqbase_from_sequence(Sequence *seq, ListBase **channels, int *r_offset);
+ListBase *SEQ_get_seqbase_from_sequence(Sequence *seq, ListBase **r_channels, int *r_offset);
 const Sequence *SEQ_get_topmost_sequence(const Scene *scene, int frame);
 /**
  * In cases where we don't know the sequence's listbase.
@@ -55,6 +55,8 @@ void SEQ_set_scale_to_fit(const Sequence *seq,
  * \param scene: Scene in which name must be unique
  */
 void SEQ_ensure_unique_name(Sequence *seq, Scene *scene);
+
+void SEQ_fontmap_clear();
 
 namespace blender::seq {
 

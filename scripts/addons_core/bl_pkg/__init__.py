@@ -26,7 +26,6 @@ import bpy
 from bpy.props import (
     BoolProperty,
     EnumProperty,
-    IntProperty,
     PointerProperty,
     StringProperty,
 )
@@ -39,14 +38,12 @@ def _local_module_reload():
     import importlib
     from . import (
         bl_extension_cli,
-        bl_extension_local,
         bl_extension_notify,
         bl_extension_ops,
         bl_extension_ui,
         bl_extension_utils,
     )
     importlib.reload(bl_extension_cli)
-    importlib.reload(bl_extension_local)
     importlib.reload(bl_extension_notify)
     importlib.reload(bl_extension_ops)
     importlib.reload(bl_extension_ui)
@@ -92,6 +89,65 @@ def cookie_from_session():
 # -----------------------------------------------------------------------------
 # Shared Low Level Utilities
 
+# NOTE(@ideasman42): this is used externally from `addon_utils` which is something we try to avoid but done in
+# the case of generating compatibility cache, avoiding this "bad-level call" would be good but impractical when
+# the command line tool is treated as a stand-alone program (which I prefer to keep).
+def manifest_compatible_with_wheel_data_or_error(
+        pkg_manifest_filepath,  # `str`
+        repo_module,  # `str`
+        pkg_id,  # `str`
+        repo_directory,  # `str`
+        wheel_list,  # `list[tuple[str, list[str]]]`
+):  # `Optional[str]`
+    from bl_pkg.bl_extension_utils import (
+        pkg_manifest_dict_is_valid_or_error,
+        toml_from_filepath,
+        python_versions_from_wheels,
+    )
+    from bl_pkg.bl_extension_ops import (
+        pkg_manifest_params_compatible_or_error_for_this_system,
+    )
+
+    try:
+        manifest_dict = toml_from_filepath(pkg_manifest_filepath)
+    except Exception as ex:
+        return "Error reading TOML data {:s}".format(str(ex))
+
+    if (error := pkg_manifest_dict_is_valid_or_error(manifest_dict, from_repo=False, strict=False)):
+        return error
+
+    python_versions = []
+    if (wheel_files := manifest_dict.get("wheels", None)) is not None:
+        if isinstance(python_versions_test := python_versions_from_wheels(wheel_files), str):
+            print("Error parsing wheel versions: {:s} from \"{:s}\"".format(
+                python_versions_test,
+                pkg_manifest_filepath,
+            ))
+        else:
+            python_versions = [
+                ".".join(str(i) for i in v)
+                for v in python_versions_test
+            ]
+
+    if isinstance(error := pkg_manifest_params_compatible_or_error_for_this_system(
+            blender_version_min=manifest_dict.get("blender_version_min", ""),
+            blender_version_max=manifest_dict.get("blender_version_max", ""),
+            platforms=manifest_dict.get("platforms", ""),
+            python_versions=python_versions,
+    ), str):
+        return error
+
+    # NOTE: the caller may need to collect wheels when refreshing.
+    # While this isn't so clean it happens to be efficient.
+    # It could be refactored to work differently in the future if that is ever needed.
+    if wheels_rel := manifest_dict.get("wheels"):
+        from .bl_extension_ops import pkg_wheel_filter
+        if (wheel_abs := pkg_wheel_filter(repo_module, pkg_id, repo_directory, wheels_rel)) is not None:
+            wheel_list.append(wheel_abs)
+
+    return None
+
+
 def repo_paths_or_none(repo_item):
     if (directory := repo_item.directory) == "":
         return None, None
@@ -114,9 +170,7 @@ def repo_active_or_none():
     return active_repo
 
 
-def repo_stats_calc_outdated_for_repo_directory(repo_directory):
-
-    repo_cache_store = repo_cache_store_ensure()
+def repo_stats_calc_outdated_for_repo_directory(repo_cache_store, repo_directory):
     pkg_manifest_local = repo_cache_store.refresh_local_from_directory(
         directory=repo_directory,
         error_fn=print,
@@ -144,6 +198,59 @@ def repo_stats_calc_outdated_for_repo_directory(repo_directory):
     return package_count
 
 
+def repo_stats_calc_blocked(repo_cache_store):
+    import os
+
+    # Use a directory subset to avoid additional work for local only or missing repositories.
+    directory_subset = set()
+
+    for repo_item in bpy.context.preferences.extensions.repos:
+        if not repo_item.enabled:
+            continue
+        if not repo_item.use_remote_url:
+            continue
+        if not repo_item.remote_url:
+            continue
+
+        repo_directory = repo_item.directory
+        if not os.path.isdir(repo_directory):
+            continue
+
+        directory_subset.add(repo_directory)
+
+    if not directory_subset:
+        return 0
+
+    block_count = 0
+    for (
+            pkg_manifest_remote,
+            pkg_manifest_local,
+    ) in zip(
+        repo_cache_store.pkg_manifest_from_remote_ensure(
+            error_fn=print,
+            directory_subset=directory_subset,
+            ignore_missing=True,
+        ),
+        repo_cache_store.pkg_manifest_from_local_ensure(
+            error_fn=print,
+            directory_subset=directory_subset,
+            ignore_missing=True,
+        ),
+    ):
+        if (pkg_manifest_remote is None) or (pkg_manifest_local is None):
+            continue
+
+        for pkg_id in pkg_manifest_local.keys():
+            item_remote = pkg_manifest_remote.get(pkg_id)
+            if item_remote is None:
+                continue
+
+            if item_remote.block:
+                block_count += 1
+
+    return block_count
+
+
 def repo_stats_calc():
     # NOTE: if repositories get very large, this could be optimized to only check repositories that have changed.
     # Although this isn't called all that often - it's unlikely to be a bottleneck.
@@ -152,6 +259,9 @@ def repo_stats_calc():
         return
 
     import os
+
+    repo_cache_store = repo_cache_store_ensure()
+
     package_count = 0
 
     for repo_item in bpy.context.preferences.extensions.repos:
@@ -169,9 +279,12 @@ def repo_stats_calc():
         if not os.path.isdir(repo_directory):
             continue
 
-        package_count += repo_stats_calc_outdated_for_repo_directory(repo_directory)
+        package_count += repo_stats_calc_outdated_for_repo_directory(repo_cache_store, repo_directory)
 
-    bpy.context.window_manager.extensions_updates = package_count
+    wm = bpy.context.window_manager
+    wm.extensions_updates = package_count
+
+    wm.extensions_blocked = repo_stats_calc_blocked(repo_cache_store)
 
 
 def print_debug(*args, **kw):
@@ -252,9 +365,9 @@ def repos_to_notify():
         repos_notify.append((
             bl_extension_ops.RepoItem(
                 name=repo_item.name,
-                directory=repo_directory,
+                directory=repo_item.directory,
                 source="" if repo_item.use_remote_url else repo_item.source,
-                remote_url=remote_url,
+                remote_url=repo_item.remote_url,
                 module=repo_item.module,
                 use_cache=repo_item.use_cache,
                 access_token=repo_item.access_token if repo_item.use_access_token else "",
@@ -357,7 +470,6 @@ def monkeypatch_extenions_repos_update_pre_impl():
 
 def monkeypatch_extenions_repos_update_post_impl():
     import os
-    # pylint: disable-next=redefined-outer-name
     from . import bl_extension_ops
 
     repo_cache_store = repo_cache_store_ensure()
@@ -394,7 +506,7 @@ def monkeypatch_extensions_repos_update_pre(*_):
     except Exception as ex:
         print_debug("ERROR", str(ex))
     try:
-        monkeypatch_extensions_repos_update_pre._fn_orig()
+        monkeypatch_extensions_repos_update_pre.fn_orig()
     except Exception as ex:
         print_debug("ERROR", str(ex))
 
@@ -403,7 +515,7 @@ def monkeypatch_extensions_repos_update_pre(*_):
 def monkeypatch_extenions_repos_update_post(*_):
     print_debug("POST:")
     try:
-        monkeypatch_extenions_repos_update_post._fn_orig()
+        monkeypatch_extenions_repos_update_post.fn_orig()
     except Exception as ex:
         print_debug("ERROR", str(ex))
     try:
@@ -415,40 +527,50 @@ def monkeypatch_extenions_repos_update_post(*_):
 def monkeypatch_install():
     import addon_utils
 
+    # pylint: disable-next=protected-access
     handlers = bpy.app.handlers._extension_repos_update_pre
+    # pylint: disable-next=protected-access
     fn_orig = addon_utils._initialize_extension_repos_pre
+
     fn_override = monkeypatch_extensions_repos_update_pre
     for i, fn in enumerate(handlers):
         if fn is fn_orig:
             handlers[i] = fn_override
-            fn_override._fn_orig = fn_orig
+            fn_override.fn_orig = fn_orig
             break
 
+    # pylint: disable-next=protected-access
     handlers = bpy.app.handlers._extension_repos_update_post
+    # pylint: disable-next=protected-access
     fn_orig = addon_utils._initialize_extension_repos_post
+
     fn_override = monkeypatch_extenions_repos_update_post
     for i, fn in enumerate(handlers):
         if fn is fn_orig:
             handlers[i] = fn_override
-            fn_override._fn_orig = fn_orig
+            fn_override.fn_orig = fn_orig
             break
 
 
 def monkeypatch_uninstall():
+    # pylint: disable-next=protected-access
     handlers = bpy.app.handlers._extension_repos_update_pre
+
     fn_override = monkeypatch_extensions_repos_update_pre
     for i, fn in enumerate(handlers):
         if fn is fn_override:
-            handlers[i] = fn_override._fn_orig
-            del fn_override._fn_orig
+            handlers[i] = fn_override.fn_orig
+            del fn_override.fn_orig
             break
 
+    # pylint: disable-next=protected-access
     handlers = bpy.app.handlers._extension_repos_update_post
+
     fn_override = monkeypatch_extenions_repos_update_post
     for i, fn in enumerate(handlers):
         if fn is fn_override:
-            handlers[i] = fn_override._fn_orig
-            del fn_override._fn_orig
+            handlers[i] = fn_override.fn_orig
+            del fn_override.fn_orig
             break
 
 
@@ -462,6 +584,7 @@ _repo_cache_store = None
 def repo_cache_store_ensure():
     # pylint: disable-next=global-statement
     global _repo_cache_store
+    import sys
 
     if _repo_cache_store is not None:
         return _repo_cache_store
@@ -470,7 +593,10 @@ def repo_cache_store_ensure():
         bl_extension_ops,
         bl_extension_utils,
     )
-    _repo_cache_store = bl_extension_utils.RepoCacheStore(bpy.app.version)
+    _repo_cache_store = bl_extension_utils.RepoCacheStore(
+        blender_version=bpy.app.version,
+        python_version=sys.version_info[:3],
+    )
     bl_extension_ops.repo_cache_store_refresh_from_prefs(_repo_cache_store)
     return _repo_cache_store
 
@@ -548,6 +674,11 @@ def register():
         bl_extension_ui,
     )
 
+    # Needed, otherwise the UI gets filtered out, see: #122754.
+    from _bpy import _bl_owner_id_set as bl_owner_id_set
+    bl_owner_id_set("")
+    del bl_owner_id_set
+
     repo_cache_store_clear()
 
     for cls in classes:
@@ -593,9 +724,11 @@ def register():
     from bl_ui.space_userpref import USERPREF_MT_interface_theme_presets
     USERPREF_MT_interface_theme_presets.append(theme_preset_draw)
 
+    # pylint: disable-next=protected-access
     handlers = bpy.app.handlers._extension_repos_sync
     handlers.append(extenion_repos_sync)
 
+    # pylint: disable-next=protected-access
     handlers = bpy.app.handlers._extension_repos_files_clear
     handlers.append(extenion_repos_files_clear)
 
@@ -633,10 +766,12 @@ def unregister():
     from bl_ui.space_userpref import USERPREF_MT_interface_theme_presets
     USERPREF_MT_interface_theme_presets.remove(theme_preset_draw)
 
+    # pylint: disable-next=protected-access
     handlers = bpy.app.handlers._extension_repos_sync
     if extenion_repos_sync in handlers:
         handlers.remove(extenion_repos_sync)
 
+    # pylint: disable-next=protected-access
     handlers = bpy.app.handlers._extension_repos_files_clear
     if extenion_repos_files_clear in handlers:
         handlers.remove(extenion_repos_files_clear)

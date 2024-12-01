@@ -7,9 +7,9 @@
  * Dispatched one thread per light.
  */
 
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_fast_lib.glsl)
+#include "eevee_sampling_lib.glsl"
+#include "gpu_shader_math_fast_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
 
 int shadow_directional_coverage_get(int level)
 {
@@ -220,22 +220,22 @@ void cubeface_sync(int tilemap_id,
   /* Use switch instead of inline array of float3x3. */
   switch (cubeface) {
     case Z_NEG:
-      viewmat = mat4x4(mat3x3(+1, +0, +0, +0, +1, +0, +0, +0, +1)) * viewmat;
+      viewmat = to_float4x4(mat3x3(+1, +0, +0, +0, +1, +0, +0, +0, +1)) * viewmat;
       break;
     case X_POS:
-      viewmat = mat4x4(mat3x3(+0, +0, -1, -1, +0, +0, +0, +1, +0)) * viewmat;
+      viewmat = to_float4x4(mat3x3(+0, +0, -1, -1, +0, +0, +0, +1, +0)) * viewmat;
       break;
     case X_NEG:
-      viewmat = mat4x4(mat3x3(+0, +0, +1, +1, +0, +0, +0, +1, +0)) * viewmat;
+      viewmat = to_float4x4(mat3x3(+0, +0, +1, +1, +0, +0, +0, +1, +0)) * viewmat;
       break;
     case Y_POS:
-      viewmat = mat4x4(mat3x3(+1, +0, +0, +0, +0, -1, +0, +1, +0)) * viewmat;
+      viewmat = to_float4x4(mat3x3(+1, +0, +0, +0, +0, -1, +0, +1, +0)) * viewmat;
       break;
     case Y_NEG:
-      viewmat = mat4x4(mat3x3(-1, +0, +0, +0, +0, +1, +0, +1, +0)) * viewmat;
+      viewmat = to_float4x4(mat3x3(-1, +0, +0, +0, +0, +1, +0, +1, +0)) * viewmat;
       break;
     case Z_POS:
-      viewmat = mat4x4(mat3x3(+1, +0, +0, +0, -1, +0, +0, +0, -1)) * viewmat;
+      viewmat = to_float4x4(mat3x3(+1, +0, +0, +0, -1, +0, +0, +0, -1)) * viewmat;
       break;
   }
 
@@ -252,7 +252,14 @@ void cubeface_sync(int tilemap_id,
 void main()
 {
   uint l_idx = gl_GlobalInvocationID.x;
-  if (l_idx >= light_cull_buf.items_count) {
+  /* We are dispatching (with padding) over the culled light array.
+   * This array is not contiguous. Visible local lights are packed at the beginning
+   * and directional lights at the end. There is a range of uninitialized value in between that
+   * needs to be avoided. */
+  bool valid_local = (l_idx < light_cull_buf.visible_count);
+  bool valid_directional = (l_idx >= light_cull_buf.local_lights_len) &&
+                           (l_idx < light_cull_buf.items_count);
+  if (!valid_local && !valid_directional) {
     return;
   }
 
@@ -282,7 +289,7 @@ void main()
          * set to 0 only when the light radius is also 0 to detect this case. */
       }
       else {
-        light.object_to_world = transform_from_matrix(mat4x4(from_up_axis(shadow_direction)));
+        light.object_to_world = transform_from_matrix(to_float4x4(from_up_axis(shadow_direction)));
       }
     }
 

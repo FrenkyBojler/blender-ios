@@ -15,7 +15,8 @@
 
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
+#include "BKE_screen.hh"
 
 #include "ED_image.hh"
 #include "ED_screen.hh"
@@ -275,13 +276,9 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
 
 static void sequencer_sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  SpaceSeq *sseq = (SpaceSeq *)CTX_wm_space_data(C);
   ARegion *region = CTX_wm_region(C);
-  ImBuf *ibuf = sequencer_ibuf_get(
-      bmain, region, depsgraph, scene, sseq, scene->r.cfra, 0, nullptr);
+  ImBuf *ibuf = sequencer_ibuf_get(C, scene->r.cfra, 0, nullptr);
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
   float fx, fy;
 
@@ -476,9 +473,9 @@ int ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(
       MEM_callocN(sizeof(ImageSampleInfo), "ImageSampleInfo"));
 
-  info->art = region->type;
+  info->art = region->runtime->type;
   info->draw_handle = ED_region_draw_cb_activate(
-      region->type, ED_imbuf_sample_draw, info, REGION_DRAW_POST_PIXEL);
+      region->runtime->type, ED_imbuf_sample_draw, info, REGION_DRAW_POST_PIXEL);
   info->sample_size = RNA_int_get(op->ptr, "size");
   op->customdata = info;
 

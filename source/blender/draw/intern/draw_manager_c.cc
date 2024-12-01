@@ -189,7 +189,7 @@ bool DRW_object_is_renderable(const Object *ob)
   BLI_assert((ob->base_flag & BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT) != 0);
 
   if (ob->type == OB_MESH) {
-    if ((ob == DST.draw_ctx.object_edit) || DRW_object_is_in_edit_mode(ob)) {
+    if ((ob == DST.draw_ctx.object_edit) || ob->mode == OB_MODE_EDIT) {
       View3D *v3d = DST.draw_ctx.v3d;
       if (v3d && ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && RETOPOLOGY_ENABLED(v3d)) {
         return false;
@@ -663,6 +663,11 @@ DefaultFramebufferList *DRW_viewport_framebuffer_list_get()
 DefaultTextureList *DRW_viewport_texture_list_get()
 {
   return DRW_view_data_default_texture_list_get(DST.view_data_active);
+}
+
+blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name)
+{
+  return DRW_view_data_pass_texture_get(DST.view_data_active, pass_name);
 }
 
 void DRW_viewport_request_redraw()
@@ -1190,8 +1195,8 @@ static void drw_engines_enable_from_engine(const RenderEngineType *engine_type, 
 
 static void drw_engines_enable_overlays()
 {
-  use_drw_engine((U.experimental.enable_overlay_next) ? &draw_engine_overlay_next_type :
-                                                        &draw_engine_overlay_type);
+  use_drw_engine((U.experimental.enable_overlay_legacy) ? &draw_engine_overlay_type :
+                                                          &draw_engine_overlay_next_type);
 }
 /**
  * Use for select and depth-drawing.
@@ -1210,8 +1215,8 @@ static void drw_engine_enable_image_editor()
     use_drw_engine(&draw_engine_image_type);
   }
 
-  use_drw_engine((U.experimental.enable_overlay_next) ? &draw_engine_overlay_next_type :
-                                                        &draw_engine_overlay_type);
+  use_drw_engine((U.experimental.enable_overlay_legacy) ? &draw_engine_overlay_type :
+                                                          &draw_engine_overlay_next_type);
 }
 
 static void drw_engines_enable_editors()
@@ -1229,14 +1234,18 @@ static void drw_engines_enable_editors()
     SpaceNode *snode = (SpaceNode *)space_data;
     if ((snode->flag & SNODE_BACKDRAW) != 0) {
       use_drw_engine(&draw_engine_image_type);
-      use_drw_engine((U.experimental.enable_overlay_next) ? &draw_engine_overlay_next_type :
-                                                            &draw_engine_overlay_type);
+      use_drw_engine((U.experimental.enable_overlay_legacy) ? &draw_engine_overlay_type :
+                                                              &draw_engine_overlay_next_type);
     }
   }
 }
 
-static bool is_compositor_enabled()
+bool DRW_is_viewport_compositor_enabled()
 {
+  if (!DST.draw_ctx.v3d) {
+    return false;
+  }
+
   if (DST.draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
     return false;
   }
@@ -1250,6 +1259,10 @@ static bool is_compositor_enabled()
   }
 
   if (!DST.draw_ctx.scene->nodetree) {
+    return false;
+  }
+
+  if (!DST.draw_ctx.rv3d) {
     return false;
   }
 
@@ -1275,7 +1288,7 @@ static void drw_engines_enable(ViewLayer * /*view_layer*/,
     use_drw_engine(&draw_engine_gpencil_type);
   }
 
-  if (is_compositor_enabled()) {
+  if (DRW_is_viewport_compositor_enabled()) {
     use_drw_engine(&draw_engine_compositor_type);
   }
 
@@ -1302,10 +1315,9 @@ static void drw_engines_data_validate()
  * For slow exact check use `DRW_render_check_grease_pencil` */
 static bool drw_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d)
 {
-  const bool exclude_gpencil_rendering =
-      v3d ? ((v3d->object_type_exclude_viewport & (1 << OB_GPENCIL_LEGACY)) != 0) ||
-                ((v3d->object_type_exclude_viewport & (1 << OB_GREASE_PENCIL)) != 0) :
-            false;
+  const bool exclude_gpencil_rendering = v3d ? ((v3d->object_type_exclude_viewport &
+                                                 (1 << OB_GREASE_PENCIL)) != 0) :
+                                               false;
   return (!exclude_gpencil_rendering) && (DEG_id_type_any_exists(depsgraph, ID_GD_LEGACY) ||
                                           DEG_id_type_any_exists(depsgraph, ID_GP));
 }
@@ -1873,7 +1885,7 @@ bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-    if (ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+    if (ob->type == OB_GREASE_PENCIL) {
       if (DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF) {
         return true;
       }
@@ -2476,7 +2488,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   DST.options.is_material_select = do_material_sub_selection;
   drw_task_graph_init();
   /* Get list of enabled engines */
-  if (U.experimental.enable_overlay_next) {
+  if (!U.experimental.enable_overlay_legacy) {
     use_drw_engine(&draw_engine_select_next_type);
   }
   else if (use_obedit) {
@@ -2603,13 +2615,13 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
     if (!select_pass_fn(DRW_SELECT_PASS_PRE, select_pass_user_data)) {
       break;
     }
-    if (!U.experimental.enable_overlay_next) {
+    if (U.experimental.enable_overlay_legacy) {
       DRW_state_lock(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_TEST_ENABLED);
     }
 
     drw_engines_draw_scene();
 
-    if (!U.experimental.enable_overlay_next) {
+    if (U.experimental.enable_overlay_legacy) {
       DRW_state_lock(DRWState(0));
     }
 
@@ -3093,9 +3105,6 @@ void DRW_engines_register()
     BKE_particle_batch_cache_dirty_tag_cb = DRW_particle_batch_cache_dirty_tag;
     BKE_particle_batch_cache_free_cb = DRW_particle_batch_cache_free;
 
-    BKE_gpencil_batch_cache_dirty_tag_cb = DRW_gpencil_batch_cache_dirty_tag;
-    BKE_gpencil_batch_cache_free_cb = DRW_gpencil_batch_cache_free;
-
     BKE_curves_batch_cache_dirty_tag_cb = DRW_curves_batch_cache_dirty_tag;
     BKE_curves_batch_cache_free_cb = DRW_curves_batch_cache_free;
 
@@ -3242,7 +3251,9 @@ void DRW_gpu_context_create()
   WM_system_gpu_context_activate(DST.system_gpu_context);
   /* Be sure to create blender_gpu_context too. */
   DST.blender_gpu_context = GPU_context_create(nullptr, DST.system_gpu_context);
-  /* So we activate the window's one afterwards. */
+  /* Setup compilation context. */
+  DRW_shader_init();
+  /* Activate the window's context afterwards. */
   wm_window_reset_drawable();
 }
 
@@ -3250,6 +3261,7 @@ void DRW_gpu_context_destroy()
 {
   BLI_assert(BLI_thread_is_main());
   if (DST.system_gpu_context != nullptr) {
+    DRW_shader_exit();
     WM_system_gpu_context_activate(DST.system_gpu_context);
     GPU_context_active_set(DST.blender_gpu_context);
     GPU_context_discard(DST.blender_gpu_context);
