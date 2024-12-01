@@ -129,7 +129,7 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
   /* in some cases we create the block before the region,
    * so we set it delayed here if necessary */
-  if (BLI_findindex(&handle->region->uiblocks, block) == -1) {
+  if (BLI_findindex(&handle->region->runtime->uiblocks, block) == -1) {
     UI_block_region_set(block, handle->region);
   }
 
@@ -268,9 +268,8 @@ uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
     const int ui_units_x = (panel_type->ui_units_x == 0) ? UI_POPOVER_WIDTH_UNITS :
                                                            panel_type->ui_units_x;
     /* Scale width by changes to Text Style point size. */
-    const int text_points_max = std::max(style->widget.points, style->widgetlabel.points);
     pup->ui_size_x = ui_units_x * U.widget_unit *
-                     (text_points_max / float(UI_DEFAULT_TEXT_POINTS));
+                     (style->widget.points / float(UI_DEFAULT_TEXT_POINTS));
   }
 
   pup->popover_func = popover_func;

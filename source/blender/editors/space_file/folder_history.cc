@@ -11,7 +11,7 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -70,7 +70,7 @@ void folderlist_pushdir(ListBase *folderlist, const char *dir)
   }
 
   /* create next folder element */
-  folder = MEM_new<FolderList>(__func__);
+  folder = MEM_cnew<FolderList>(__func__);
   folder->foldername = BLI_strdup(dir);
 
   /* add it to the end of the list */
@@ -117,6 +117,7 @@ void folderlist_free(ListBase *folderlist)
       MEM_freeN(folder->foldername);
       MEM_delete(folder);
     }
+    BLI_listbase_clear(folderlist);
   }
 }
 
