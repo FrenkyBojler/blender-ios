@@ -209,6 +209,26 @@ using NodeGPUExecFunction = int (*)(
     GPUMaterial *mat, bNode *node, bNodeExecData *execdata, GPUNodeStack *in, GPUNodeStack *out);
 using NodeMaterialXFunction = void (*)(void *data, bNode *node, bNodeSocket *out);
 
+enum class NodeClass : int8_t {
+  Input = 0,
+  Output = 1,
+  Op_Color = 3,
+  Op_Vector = 4,
+  Op_Filter = 5,
+  Group = 6,
+  Converter = 8,
+  Matte = 9,
+  Distort = 10,
+  Pattern = 12,
+  Texture = 13,
+  Script = 32,
+  Interface = 33,
+  Shader = 40,
+  Geometry = 41,
+  Attribute = 42,
+  Layout = 100,
+};
+
 /**
  * \brief Defines a node type.
  *
@@ -227,7 +247,8 @@ struct bNodeType {
 
   float width, minwidth, maxwidth;
   float height, minheight, maxheight;
-  short nclass, flag;
+  NodeClass nclass;
+  short flag;
 
   /* templates for static sockets */
   bNodeSocketTemplate *inputs, *outputs;
@@ -398,27 +419,6 @@ struct bNodeType {
 
   /* RNA integration */
   ExtensionRNA rna_ext;
-};
-
-/** #bNodeType.nclass (for add-menu and themes). */
-enum class NodeClass : int8_t {
-  Input = 0,
-  Output = 1,
-  Op_Color = 3,
-  Op_Vector = 4,
-  Op_Filter = 5,
-  Group = 6,
-  Converter = 8,
-  Matte = 9,
-  Distort = 10,
-  Pattern = 12,
-  Texture = 13,
-  Script = 32,
-  Interface = 33,
-  Shader = 40,
-  Geometry = 41,
-  Attribute = 42,
-  Layout = 100,
 };
 
 /**
@@ -796,18 +796,17 @@ void node_type_storage(bNodeType *ntype,
 /* -------------------------------------------------------------------- */
 /** \name Common Node Types
  * \{ */
-enum class CommonNodeType : int8_t {
-  Undefined = -2, /* node type is not registered */
-  Custom = -1, /* for dynamically registered custom types */
-  Group = 2,
-//  DE_FORLOOP = 3, /* deprecated */
-//  DE_WHILELOOP = 4, /* deprecated */
-  Frame = 5,
-  Reroute = 6,
-  GroupInput = 7,
-  GroupOutput = 8,
-  CustomGroup = 9,
-};
+
+#define NODE_UNDEFINED -2 /* node type is not registered */
+#define NODE_CUSTOM -1    /* for dynamically registered custom types */
+#define NODE_GROUP 2
+// #define NODE_FORLOOP 3       /* deprecated */
+// #define NODE_WHILELOOP   4   /* deprecated */
+#define NODE_FRAME 5
+#define NODE_REROUTE 6
+#define NODE_GROUP_INPUT 7
+#define NODE_GROUP_OUTPUT 8
+#define NODE_CUSTOM_GROUP 9
 
 /** \} */
 
