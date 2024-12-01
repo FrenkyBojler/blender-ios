@@ -105,11 +105,17 @@ void draw_layer_filter_settings(const bContext * /*C*/, uiLayout *layout, Pointe
   row = uiLayoutRow(col, true);
   uiLayoutSetPropDecorate(row, false);
   if (use_layer_group_filter) {
-    uiItemPointerR(
-        row, ptr, "layer_filter", &obj_data_ptr, "layer_groups", nullptr, ICON_OUTLINER_DATA_GP_LAYER);
+    uiItemPointerR(row,
+                   ptr,
+                   "layer_filter",
+                   &obj_data_ptr,
+                   "layer_groups",
+                   nullptr,
+                   ICON_GREASEPENCIL_LAYER_GROUP);
   }
   else {
-    uiItemPointerR(row, ptr, "layer_filter", &obj_data_ptr, "layers", nullptr, ICON_GREASEPENCIL);
+    uiItemPointerR(
+        row, ptr, "layer_filter", &obj_data_ptr, "layers", nullptr, ICON_OUTLINER_DATA_GP_LAYER);
   }
   sub = uiLayoutRow(row, true);
   uiItemR(sub, ptr, "use_layer_group_filter", UI_ITEM_NONE, "", ICON_FILE_FOLDER);
