@@ -3660,7 +3660,7 @@ void node_tree_set_output(bNodeTree *ntree)
   const bool is_compositor = ntree->type == NTREE_COMPOSIT;
   /* find the active outputs, might become tree type dependent handler */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->typeinfo->nclass == blender::bke::NodeClass::Output) {
+    if (node->typeinfo->nclass == NodeClass::Output) {
       /* we need a check for which output node should be tagged like this, below an exception */
       if (ELEM(node->type, CMP_NODE_OUTPUT_FILE, GEO_NODE_VIEWER)) {
         continue;
@@ -3671,7 +3671,7 @@ void node_tree_set_output(bNodeTree *ntree)
       /* there is more types having output class, each one is checked */
 
       LISTBASE_FOREACH (bNode *, tnode, &ntree->nodes) {
-        if (tnode->typeinfo->nclass != blender::bke::NodeClass::Output) {
+        if (tnode->typeinfo->nclass != NodeClass::Output) {
           continue;
         }
 
