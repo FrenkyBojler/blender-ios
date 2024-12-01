@@ -821,7 +821,7 @@ void register_node_type_cmp_rlayers()
       "Render passes not supported in the Viewport compositor");
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_storage(
-      &ntype, nullptr, file_ns::node_composit_free_rlayers, file_ns::node_composit_copy_rlayers);
+      &ntype, std::nullopt, file_ns::node_composit_free_rlayers, file_ns::node_composit_copy_rlayers);
   ntype.updatefunc = file_ns::cmp_node_rlayers_update;
   ntype.initfunc = node_cmp_rlayers_outputs;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);

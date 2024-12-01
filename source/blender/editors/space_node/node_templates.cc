@@ -611,12 +611,12 @@ static void ui_node_menu_column(NodeLinkArg *arg,
 
 static void node_menu_column_foreach_cb(void *calldata,
                                         blender::bke::NodeClass nclass,
-                                        const char *name)
+                                        const StringRefNull name)
 {
   NodeLinkArg *arg = (NodeLinkArg *)calldata;
 
   if (!ELEM(nclass, blender::bke::NodeClass::Group, blender::bke::NodeClass::Layout)) {
-    ui_node_menu_column(arg, nclass, name);
+    ui_node_menu_column(arg, nclass, name.c_str());
   }
 }
 
