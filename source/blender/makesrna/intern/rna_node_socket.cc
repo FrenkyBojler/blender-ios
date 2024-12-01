@@ -64,8 +64,11 @@ extern FunctionRNA rna_NodeSocket_draw_color_simple_func;
 
 /* ******** Node Socket ******** */
 
-static void rna_NodeSocket_draw(
-    bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, const blender::StringRefNull text)
+static void rna_NodeSocket_draw(bContext *C,
+                                uiLayout *layout,
+                                PointerRNA *ptr,
+                                PointerRNA *node_ptr,
+                                const blender::StringRefNull text)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
   ParameterList list;

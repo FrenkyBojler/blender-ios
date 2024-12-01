@@ -850,7 +850,8 @@ void ED_init_standard_node_socket_type(bke::bNodeSocketType *);
 static bke::bNodeSocketType *make_standard_socket_type(int type, int subtype)
 {
   const StringRefNull socket_idname = *bke::node_static_socket_type(type, subtype);
-  const StringRefNull interface_idname = *bke::node_static_socket_interface_type_new(type, subtype);
+  const StringRefNull interface_idname = *bke::node_static_socket_interface_type_new(type,
+                                                                                     subtype);
   const StringRefNull socket_label = *bke::node_static_socket_label(type, subtype);
   const StringRefNull socket_subtype_label = blender::bke::node_socket_sub_type_label(subtype);
   bke::bNodeSocketType *stype;
