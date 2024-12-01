@@ -491,7 +491,7 @@ static void ui_block_bounds_calc_centered(wmWindow *window, uiBlock *block)
   ui_block_bounds_calc(block);
 }
 
-static void ui_block_bounds_calc_post_centered(wmWindow *window, uiBlock *block, const int xy[2])
+static void ui_block_bounds_calc_post_centered(uiBlock *block, const blender::int2 &xy)
 {
   const int margin = int(12 * UI_SCALE_FAC);
   ui_block_bounds_calc(block);
@@ -2006,7 +2006,7 @@ void UI_block_end_ex(const bContext *C,
       break;
     case UI_BLOCK_BOUNDS_POPUP_CENTER:
       if (xy != r_xy) {
-        ui_block_bounds_calc_post_centered(window, block, xy);
+        ui_block_bounds_calc_post_centered(block, xy);
       }
       else {
         ui_block_bounds_calc_centered(window, block);
