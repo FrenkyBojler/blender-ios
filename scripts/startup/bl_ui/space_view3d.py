@@ -926,15 +926,14 @@ class VIEW3D_HT_header(Header):
                     panel="VIEW3D_PT_grease_pencil_origin",
                 )
 
-            if object_mode in {'PAINT_GREASE_PENCIL', 'SCULPT_GREASE_PENCIL'}:
-                sub = layout.row(align=True)
-                sub.active = tool_settings.gpencil_stroke_placement_view3d != 'SURFACE'
-                sub.prop_with_popover(
-                    tool_settings.gpencil_sculpt,
-                    "lock_axis",
-                    text="",
-                    panel="VIEW3D_PT_grease_pencil_lock",
-                )
+            sub = layout.row(align=True)
+            sub.active = tool_settings.gpencil_stroke_placement_view3d != 'SURFACE'
+            sub.prop_with_popover(
+                tool_settings.gpencil_sculpt,
+                "lock_axis",
+                text="",
+                panel="VIEW3D_PT_grease_pencil_lock",
+            )
 
             draw_topbar_grease_pencil_layer_panel(context, layout)
 
@@ -952,12 +951,6 @@ class VIEW3D_HT_header(Header):
                         panel="VIEW3D_PT_grease_pencil_guide",
                         text="Guides",
                     )
-            if object_mode == 'SCULPT_GREASE_PENCIL':
-                layout.popover(
-                    panel="VIEW3D_PT_grease_pencil_sculpt_automasking",
-                    text="",
-                    icon=VIEW3D_HT_header._grease_pencil_sculpt_automasking_icon(tool_settings.gpencil_sculpt),
-                )
 
         elif object_mode == 'SCULPT':
             # If the active tool supports it, show the canvas selector popover.
@@ -5723,7 +5716,7 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
         layout.operator("grease_pencil.stroke_subdivide", text="Subdivide")
         layout.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
-        layout.operator("grease_pencil.stroke_simplify", text="Simplify")
+        layout.menu("GREASE_PENCIL_MT_stroke_simplify")
 
         layout.separator()
 
