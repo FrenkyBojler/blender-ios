@@ -3008,7 +3008,6 @@ static Object *convert_grease_pencil_component_to_curves(Object &ob, ObjectConve
 
 static Object *convert_mesh_to_curves(Object &ob, ObjectConversionInfo &info)
 {
-  /* This is to make it so the logic is the same as the old conversion code path. */
   Object *newob = convert_curves_component_to_curves(ob, info);
   if (newob) {
     return newob;
@@ -3079,7 +3078,7 @@ static Object *convert_mesh_to_mesh(Object &ob, ObjectConversionInfo &info)
   return newob;
 }
 
-static Object *convert_mesh(Object &ob, const short target, ObjectConversionInfo &info)
+static Object *convert_mesh(Object &ob, const ObjectType target, ObjectConversionInfo &info)
 {
   switch (target) {
     case OB_CURVES_LEGACY:
@@ -3200,7 +3199,7 @@ static Object *convert_curves_to_grease_pencil(Object &ob, ObjectConversionInfo 
   return newob;
 }
 
-static Object *convert_curves(Object &ob, const short target, ObjectConversionInfo &info)
+static Object *convert_curves(Object &ob, const ObjectType target, ObjectConversionInfo &info)
 {
   switch (target) {
     case OB_MESH:
@@ -3304,7 +3303,9 @@ static Object *convert_grease_pencil_to_mesh(Object &ob, ObjectConversionInfo &i
   return newob;
 }
 
-static Object *convert_grease_pencil(Object &ob, const short target, ObjectConversionInfo &info)
+static Object *convert_grease_pencil(Object &ob,
+                                     const ObjectType target,
+                                     ObjectConversionInfo &info)
 {
   switch (target) {
     case OB_CURVES:
@@ -3420,7 +3421,9 @@ static Object *convert_curves_legacy_to_mesh(Object &ob, ObjectConversionInfo &i
   return newob;
 }
 
-static Object *convert_curves_legacy(Object &ob, const short target, ObjectConversionInfo &info)
+static Object *convert_curves_legacy(Object &ob,
+                                     const ObjectType target,
+                                     ObjectConversionInfo &info)
 {
   switch (target) {
     case OB_MESH:
@@ -3472,7 +3475,7 @@ static Object *convert_mball_to_mesh(Object &ob, ObjectConversionInfo &info)
   return newob;
 }
 
-static Object *convert_mball(Object &ob, const short target, ObjectConversionInfo &info)
+static Object *convert_mball(Object &ob, const ObjectType target, ObjectConversionInfo &info)
 {
   switch (target) {
     case OB_MESH:
@@ -3497,7 +3500,7 @@ static Object *convert_point_cloud_to_mesh(Object &ob, ObjectConversionInfo &inf
   return newob;
 }
 
-static Object *convert_point_cloud(Object &ob, const short target, ObjectConversionInfo &info)
+static Object *convert_point_cloud(Object &ob, const ObjectType target, ObjectConversionInfo &info)
 {
   switch (target) {
     case OB_MESH:
@@ -3616,6 +3619,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       }
     }
     else {
+      const ObjectType target = ObjectType(ob->type);
       switch (ob->type) {
         case OB_MESH:
           newob = convert_mesh(*ob, target, info);
