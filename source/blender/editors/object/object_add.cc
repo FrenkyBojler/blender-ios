@@ -2875,9 +2875,6 @@ struct ObjectConversionInfo {
   Object *obact;
   bool keep_original;
   bool do_merge_customdata;
-  bool mballConverted;
-  bool gpencilConverted;
-  bool gpencilCurveConverted;
   ReportList *reports;
 };
 
@@ -3087,8 +3084,11 @@ static Object *convert_mesh(Object &ob, const ObjectType target, ObjectConversio
       return convert_mesh_to_curves(ob, info);
     case OB_POINTCLOUD:
       return convert_mesh_to_point_cloud(ob, info);
-    case OB_MESH: /* And default...? (it seems to be the original logic)... */
+    case OB_MESH:
+      return convert_mesh_to_mesh(ob, info);
     default:
+      /* Current logic does convert mesh to mesh for any other target types. This would change
+       * after other types of conversion are designed and implemented. */
       return convert_mesh_to_mesh(ob, info);
   }
 }
@@ -3433,7 +3433,7 @@ static Object *convert_curves_legacy(Object &ob,
   }
 }
 
-static Object *convert_mball_to_mesh(Object &ob, ObjectConversionInfo &info)
+static Object *convert_mball_to_mesh(Object &ob, ObjectConversionInfo &info, bool &r_mball_converted)
 {
   Object *newob = nullptr;
   Object *baseob = nullptr;
@@ -3469,17 +3469,17 @@ static Object *convert_mball_to_mesh(Object &ob, ObjectConversionInfo &info)
     }
 
     baseob->flag |= OB_DONE;
-    info.mballConverted = 1;
+    r_mball_converted = true;
   }
 
   return newob;
 }
 
-static Object *convert_mball(Object &ob, const ObjectType target, ObjectConversionInfo &info)
+static Object *convert_mball(Object &ob, const ObjectType target, ObjectConversionInfo &info, bool &r_mball_converted)
 {
   switch (target) {
     case OB_MESH:
-      return convert_mball_to_mesh(ob, info);
+      return convert_mball_to_mesh(ob, info, r_mball_converted);
     default:
       return nullptr;
   }
@@ -3556,9 +3556,6 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   info.view_layer = view_layer;
   info.obact = obact;
   info.basen = info.basact = nullptr;
-  info.mballConverted = false;
-  info.gpencilConverted = false;
-  info.gpencilCurveConverted = false;
   info.keep_original = keep_original;
   info.do_merge_customdata = do_merge_customdata;
   info.reports = op->reports;
@@ -3596,6 +3593,9 @@ static int object_convert_exec(bContext *C, wmOperator *op)
     BKE_scene_graph_update_tagged(depsgraph, bmain);
     scene->customdata_mask = customdata_mask_prev;
   }
+
+  bool mball_converted = false;
+
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
     Base *base = static_cast<Base *>(ptr.data);
@@ -3639,7 +3639,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_grease_pencil(*ob, target, info);
           break;
         case OB_MBALL:
-          newob = convert_mball(*ob, target, info);
+          newob = convert_mball(*ob, target, info, mball_converted);
           break;
         case OB_POINTCLOUD:
           newob = convert_point_cloud(*ob, target, info);
@@ -3678,7 +3678,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   }
 
   if (!keep_original) {
-    if (info.mballConverted) {
+    if (mball_converted) {
       /* We need to remove non-basis MBalls first, otherwise we won't be able to detect them if
        * their basis happens to be removed first. */
       FOREACH_SCENE_OBJECT_BEGIN (scene, ob_mball) {
@@ -3699,28 +3699,6 @@ static int object_convert_exec(bContext *C, wmOperator *op)
               base_free_and_unlink(bmain, scene, ob_mball);
             }
           }
-        }
-      }
-      FOREACH_SCENE_OBJECT_END;
-    }
-    /* Remove curves and meshes converted to Grease Pencil object. */
-    if (info.gpencilConverted) {
-      FOREACH_SCENE_OBJECT_BEGIN (scene, ob_delete) {
-        if (ELEM(ob_delete->type, OB_CURVES_LEGACY, OB_MESH)) {
-          if (ob_delete->flag & OB_DONE) {
-            base_free_and_unlink(bmain, scene, ob_delete);
-          }
-        }
-      }
-      FOREACH_SCENE_OBJECT_END;
-    }
-  }
-  else {
-    /* Remove Text curves converted to Grease Pencil object to avoid duplicated curves. */
-    if (info.gpencilCurveConverted) {
-      FOREACH_SCENE_OBJECT_BEGIN (scene, ob_delete) {
-        if (ELEM(ob_delete->type, OB_CURVES_LEGACY) && (ob_delete->flag & OB_DONE)) {
-          base_free_and_unlink(bmain, scene, ob_delete);
         }
       }
       FOREACH_SCENE_OBJECT_END;
