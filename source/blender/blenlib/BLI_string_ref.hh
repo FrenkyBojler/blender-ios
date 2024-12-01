@@ -52,6 +52,7 @@ class StringRefBase {
   int64_t size_;
 
   constexpr StringRefBase(const char *data, int64_t size);
+  StringRefBase(std::nullptr_t) = delete;
 
  public:
   /* Similar to string_view::npos, but signed. */
