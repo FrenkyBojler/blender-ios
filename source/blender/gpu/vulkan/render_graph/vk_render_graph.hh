@@ -235,7 +235,7 @@ class VKRenderGraph : public NonCopyable {
    * Post conditions:
    * - `vk_swapchain_image` layout is transitioned to `VK_IMAGE_LAYOUT_SRC_PRESENT`.
    */
-  void submit_for_present(VkImage vk_swapchain_image);
+  VkSemaphore submit_for_present(VkImage vk_swapchain_image);
 
   /**
    * Submit full graph.

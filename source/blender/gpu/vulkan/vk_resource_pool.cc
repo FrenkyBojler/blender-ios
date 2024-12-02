@@ -122,6 +122,19 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
 {
   std::scoped_lock mutex(mutex_);
 
+  Vector<uint64_t> wait_values(semaphores_.size(), 1);
+  VkSemaphoreWaitInfo wait_info = {};
+  wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+  wait_info.semaphoreCount = semaphores_.size();
+  wait_info.pSemaphores = semaphores_.begin();
+  wait_info.pValues = wait_values.begin();
+  vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
+
+  for (auto semaphore : semaphores_) {
+    vkDestroySemaphore(device.vk_handle(), semaphore, nullptr);
+  }
+  semaphores_.clear();
+
   while (!image_views_.is_empty()) {
     VkImageView vk_image_view = image_views_.pop_last();
     vkDestroyImageView(device.vk_handle(), vk_image_view, nullptr);
@@ -166,4 +179,21 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
   command_buffers_.clear();
 }
 
+SyncSemaphores VKDiscardPool::sync_semaphores(VKDevice &device)
+{
+  std::scoped_lock mutex(mutex_);
+  VkSemaphore wait_semaphore = semaphores_.is_empty() ? VK_NULL_HANDLE : semaphores_.last();
+
+  VkSemaphoreTypeCreateInfo semaphore_type_info = {};
+  semaphore_type_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+  semaphore_type_info.initialValue = 0;
+  semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
+
+  VkSemaphoreCreateInfo semaphore_info = {};
+  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  semaphore_info.pNext = &semaphore_type_info;
+  semaphores_.append({});
+  vkCreateSemaphore(device.vk_handle(), &semaphore_info, nullptr, &semaphores_.last());
+  return {wait_semaphore, semaphores_.last()};
+}
 }  // namespace blender::gpu

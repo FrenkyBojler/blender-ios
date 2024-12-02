@@ -83,27 +83,48 @@ void VKCommandBufferWrapper::end_recording()
   vkEndCommandBuffer(vk_command_buffer_);
 }
 
-void VKCommandBufferWrapper::submit_with_cpu_synchronization(VkFence vk_fence)
+VkSemaphore VKCommandBufferWrapper::submit_with_cpu_synchronization(VkFence vk_fence)
 {
-  if (vk_fence == VK_NULL_HANDLE) {
-    vk_fence = vk_fence_;
-  }
   VKDevice &device = VKBackend::get().device;
-  vkResetFences(device.vk_handle(), 1, &vk_fence);
+  if (vk_fence) {
+    vkResetFences(device.vk_handle(), 1, &vk_fence);
+  }
+  VkSemaphore semaphore;
   {
     std::scoped_lock lock(device.queue_mutex_get());
-    vkQueueSubmit(device.queue_get(), 1, &vk_submit_info_, vk_fence);
+    SyncSemaphores sync_semaphores = device.discard_pool_for_current_thread(true).sync_semaphores(
+        device);
+    VkSubmitInfo vk_submit_info = vk_submit_info_;
+    if (sync_semaphores.wait_semaphore) {
+      vk_submit_info.waitSemaphoreCount = 1;
+      vk_submit_info.pWaitSemaphores = &sync_semaphores.wait_semaphore;
+    }
+    vk_submit_info.signalSemaphoreCount = 1;
+    vk_submit_info.pSignalSemaphores = &sync_semaphores.signal_semaphore;
+    semaphore = sync_semaphores.signal_semaphore;
+
+    vkQueueSubmit(device.queue_get(), 1, &vk_submit_info, vk_fence);
   }
   device.discard_pool_for_current_thread(true).discard_command_buffer(vk_command_buffer_,
                                                                       vk_command_pool_);
   vk_command_buffer_ = nullptr;
+  return semaphore;
+}
+
+void VKCommandBufferWrapper::wait_for_cpu_synchronization(VkSemaphore vk_semaphore)
+{
+  uint64_t wait_vals = 1;
+  VkSemaphoreWaitInfo wait_info = {};
+  wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+  wait_info.semaphoreCount = 1;
+  wait_info.pSemaphores = &vk_semaphore;
+  wait_info.pValues = &wait_vals;
+  VKDevice &device = VKBackend::get().device;
+  vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
 }
 
 void VKCommandBufferWrapper::wait_for_cpu_synchronization(VkFence vk_fence)
 {
-  if (vk_fence == VK_NULL_HANDLE) {
-    vk_fence = vk_fence_;
-  }
   VKDevice &device = VKBackend::get().device;
   while (vkWaitForFences(device.vk_handle(), 1, &vk_fence, true, UINT64_MAX) == VK_TIMEOUT) {
   }

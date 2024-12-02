@@ -16,6 +16,11 @@
 namespace blender::gpu {
 class VKDevice;
 
+struct SyncSemaphores {
+  VkSemaphore wait_semaphore;
+  VkSemaphore signal_semaphore;
+};
+
 /**
  * Pool of resources that are discarded, but can still be in used and cannot be destroyed.
  *
@@ -30,6 +35,7 @@ class VKDiscardPool {
   friend class VKDevice;
 
  private:
+  Vector<VkSemaphore> semaphores_{};
   Vector<std::pair<VkImage, VmaAllocation>> images_;
   Vector<std::pair<VkBuffer, VmaAllocation>> buffers_;
   Vector<VkImageView> image_views_;
@@ -71,6 +77,7 @@ class VKDiscardPool {
    */
   void move_data(VKDiscardPool &src_pool);
   void destroy_discarded_resources(VKDevice &device);
+  SyncSemaphores sync_semaphores(VKDevice &device);
 };
 
 class VKResourcePool {

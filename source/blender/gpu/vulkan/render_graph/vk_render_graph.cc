@@ -43,7 +43,7 @@ void VKRenderGraph::remove_nodes(Span<NodeHandle> node_handles)
 /** \name Submit graph
  * \{ */
 
-void VKRenderGraph::submit_for_present(VkImage vk_swapchain_image)
+VkSemaphore VKRenderGraph::submit_for_present(VkImage vk_swapchain_image)
 {
   /* Needs to be executed at forehand as `add_node` also locks the mutex. */
   VKSynchronizationNode::CreateInfo synchronization = {};
@@ -55,15 +55,10 @@ void VKRenderGraph::submit_for_present(VkImage vk_swapchain_image)
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_image(*this, vk_swapchain_image);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  /* TODO: To improve performance it could be better to return a semaphore. This semaphore can be
-   * passed in the swapchain to ensure GPU synchronization. This also require a second semaphore to
-   * pause drawing until the swapchain has completed its drawing phase.
-   *
-   * Currently using CPU synchronization for safety. */
-  command_buffer_->submit_with_cpu_synchronization();
+  VkSemaphore sync_semaphore = command_buffer_->submit_with_cpu_synchronization(VK_NULL_HANDLE);
   submission_id.next();
   remove_nodes(node_handles);
-  command_buffer_->wait_for_cpu_synchronization();
+  return sync_semaphore;
 }
 
 void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
@@ -71,17 +66,16 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_buffer(*this, vk_buffer);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  command_buffer_->submit_with_cpu_synchronization();
+  VkSemaphore sync_semaphore = command_buffer_->submit_with_cpu_synchronization(VK_NULL_HANDLE);
   submission_id.next();
   remove_nodes(node_handles);
-  command_buffer_->wait_for_cpu_synchronization();
+  command_buffer_->wait_for_cpu_synchronization(sync_semaphore);
 }
 
 void VKRenderGraph::submit()
 {
   /* Using `VK_NULL_HANDLE` will select the default VkFence of the command buffer. */
   submit_synchronization_event(VK_NULL_HANDLE);
-  wait_synchronization_event(VK_NULL_HANDLE);
 }
 
 void VKRenderGraph::submit_synchronization_event(VkFence vk_fence)

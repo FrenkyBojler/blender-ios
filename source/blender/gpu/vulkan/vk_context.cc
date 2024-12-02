@@ -353,7 +353,7 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   framebuffer.rendering_end(*this);
   render_graph.add_node(blit_image);
   descriptor_set_get().upload_descriptor_sets();
-  render_graph.submit_for_present(swap_chain_data.image);
+  *swap_chain_data.present_wait_semaphore = render_graph.submit_for_present(swap_chain_data.image);
 
   device.resources.remove_image(swap_chain_data.image);
 #if 0

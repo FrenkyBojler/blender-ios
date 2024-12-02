@@ -511,7 +511,7 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
   VkDevice device = vulkan_device->device;
-
+  vkDeviceWaitIdle(device);
   if (m_swapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
   }
@@ -564,12 +564,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
   VK_CHECK(vkWaitForFences(device, 1, &m_fence, VK_TRUE, UINT64_MAX));
   VK_CHECK(vkResetFences(device, 1, &m_fence));
+  // printf("%d\n", image_index);
 
-  GHOST_VulkanSwapChainData swap_chain_data;
+  GHOST_VulkanSwapChainData swap_chain_data = {};
   swap_chain_data.image = m_swapchain_images[image_index];
   swap_chain_data.format = m_surface_format.format;
   swap_chain_data.extent = m_render_extent;
-
+  VkSemaphore present_wait_semaphore;
+  swap_chain_data.present_wait_semaphore = &present_wait_semaphore;
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
   }
@@ -582,6 +584,8 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   present_info.pSwapchains = &m_swapchain;
   present_info.pImageIndices = &image_index;
   present_info.pResults = nullptr;
+  present_info.pWaitSemaphores = &present_wait_semaphore;
+  present_info.waitSemaphoreCount = 1;
 
   result = VK_SUCCESS;
   {
@@ -706,21 +710,32 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
 {
-  // TODO cleanup: we are not going to use MAILBOX as it isn't supported by renderdoc.
+  // TODO: Allow selecting present mode as user preference.
   uint32_t present_count;
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, nullptr);
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
-  /* MAILBOX is the lowest latency V-Sync enabled mode so use it if available */
-  for (auto present_mode : presents) {
-    if (present_mode == VK_PRESENT_MODE_FIFO_KHR) {
-      *r_presentMode = present_mode;
-      return GHOST_kSuccess;
-    }
-  }
-  /* FIFO present mode is always available. */
-  for (auto present_mode : presents) {
-    if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+
+  auto support_present_mode = [&presents](VkPresentModeKHR presen_mode) -> bool {
+    return std::find(presents.begin(), presents.end(), presen_mode) != presents.end();
+  };
+  VkPresentModeKHR present_modes[]{
+#if 0
+      /* FIFO present mode is always available. */
+      VK_PRESENT_MODE_FIFO_KHR,
+      /* MAILBOX is the lowest latency V-Sync enabled mode so use it if available */
+      VK_PRESENT_MODE_MAILBOX_KHR,
+      VK_PRESENT_MODE_IMMEDIATE_KHR,
+
+#else
+      VK_PRESENT_MODE_MAILBOX_KHR,
+      VK_PRESENT_MODE_IMMEDIATE_KHR,
+      VK_PRESENT_MODE_FIFO_KHR,
+
+#endif
+  };
+  for (auto present_mode : present_modes) {
+    if (support_present_mode(present_mode)) {
       *r_presentMode = present_mode;
       return GHOST_kSuccess;
     }
