@@ -493,7 +493,7 @@ static void ui_block_bounds_calc_centered(wmWindow *window, uiBlock *block)
 
 static void ui_block_bounds_calc_post_centered(uiBlock *block, const blender::int2 &xy)
 {
-  const int margin = int(12 * UI_SCALE_FAC);
+  const int margin = int(12.0f * UI_SCALE_FAC);
   ui_block_bounds_calc(block);
   UI_block_translate(block, xy[0] - block->rect.xmin + margin, xy[1] - block->rect.ymin + margin);
   ui_block_bounds_calc(block);
