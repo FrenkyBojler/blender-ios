@@ -1900,7 +1900,7 @@ static void rna_def_action_slots(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_enum(
       func,
-      "type",
+      "id_type",
       rna_enum_id_type_items,
       ID_OB,
       "Data-block Type",
