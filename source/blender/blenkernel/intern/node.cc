@@ -105,18 +105,6 @@
 
 #include "BLO_read_write.hh"
 
-using blender::Array;
-using blender::Map;
-using blender::MutableSpan;
-using blender::Set;
-using blender::Span;
-using blender::Stack;
-using blender::StringRef;
-using blender::Vector;
-using blender::VectorSet;
-using blender::bke::bNodeRuntime;
-using blender::bke::bNodeSocketRuntime;
-using blender::bke::bNodeTreeRuntime;
 using blender::nodes::FieldInferencingInterface;
 using blender::nodes::InputSocketFieldType;
 using blender::nodes::NodeDeclaration;
@@ -488,7 +476,6 @@ static void write_node_socket_interface(BlendWriter *writer, const bNodeSocket *
 static bNodeSocket *make_socket(bNodeTree *ntree,
                                 const eNodeSocketInOut in_out,
                                 const StringRef idname,
-
                                 const StringRef name,
                                 const StringRef identifier)
 {
@@ -4377,7 +4364,6 @@ void node_type_base_custom(bNodeType *ntype,
                            const StringRefNull name,
                            const StringRefNull enum_name,
                            const NodeClass nclass)
-
 {
   STRNCPY(ntype->idname, idname.c_str());
   ntype->type = NODE_CUSTOM;
