@@ -237,16 +237,15 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
   IndexMask result = IndexMask::from_predicate(
       full_mask, GrainSize(4096), memory, [&](const int64_t layer_i) {
         if (layer_name_filter) {
+          const Layer *layer = layers[layer_i];
           if (filter_layer_group) {
-            const Layer *layer = layers[layer_i];
             const bool match = layer->is_child_of(*filter_layer_group);
             if (match == layer_filter_invert) {
               return false;
             }
           }
           else {
-            const Layer &layer = *layers[layer_i];
-            const bool match = (layer.name() == layer_name_filter.value());
+            const bool match = (layer->name() == layer_name_filter.value());
             if (match == layer_filter_invert) {
               return false;
             }
