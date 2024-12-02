@@ -1084,6 +1084,11 @@ static int actionzone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   bScreen *screen = CTX_wm_screen(C);
   AZone *az = screen_actionzone_find_xy(screen, event->xy);
 
+  uiBut *active = UI_context_active_but_get(C);
+  if (active) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
   /* Quick escape - Scroll azones only hide/unhide the scroll-bars,
    * they have their own handling. */
   if (az == nullptr || ELEM(az->type, AZONE_REGION_SCROLL)) {

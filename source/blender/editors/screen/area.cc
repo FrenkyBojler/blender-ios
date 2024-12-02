@@ -995,7 +995,7 @@ static void area_azone_init(wmWindow *win, const bScreen *screen, ScrArea *area)
     return;
   }
 
-  const float coords[4][4] = {
+  const float coords[3][4] = {
       /* Bottom-left. */
       {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
@@ -1006,19 +1006,14 @@ static void area_azone_init(wmWindow *win, const bScreen *screen, ScrArea *area)
        area->totrct.ymin - U.pixelsize,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymin + AZONESPOTH},
-      /* Top-left. */
+      /* Top. */
       {area->totrct.xmin - U.pixelsize,
-       area->totrct.ymax - AZONESPOTH,
-       area->totrct.xmin + AZONESPOTW,
-       area->totrct.ymax + U.pixelsize},
-      /* Top-right. */
-      {area->totrct.xmax - AZONESPOTW,
-       area->totrct.ymax - AZONESPOTH,
+       area->totrct.ymax - ED_area_headersize(),
        area->totrct.xmax + U.pixelsize,
-       area->totrct.ymax + U.pixelsize},
+       area->totrct.ymax},
   };
 
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 3; i++) {
     /* can't click on bottom corners on OS X, already used for resizing */
 #ifdef __APPLE__
     if (!WM_window_is_fullscreen(win) &&
