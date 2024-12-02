@@ -13,7 +13,7 @@
 namespace blender::gpu {
 
 /**
- * Is the driver of the give physical device supported?
+ * Is the driver of the given physical device supported?
  *
  * There are some drivers that have known issues and should not be used. This check needs to be
  * identical between GPU module and GHOST, otherwise GHOST can still select a device which isn't

@@ -22,6 +22,7 @@
 #include "vk_drawlist.hh"
 #include "vk_fence.hh"
 #include "vk_framebuffer.hh"
+#include "vk_ghost_api.hh"
 #include "vk_index_buffer.hh"
 #include "vk_pixel_buffer.hh"
 #include "vk_query.hh"
