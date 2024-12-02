@@ -3401,7 +3401,7 @@ blender::bke::greasepencil::Layer &GreasePencil::add_layer(const blender::String
                                                            const bool check_name_is_unique)
 {
   using namespace blender;
-  std::string unique_name = check_name_is_unique ? unique_layer_name(name) : name.data();
+  std::string unique_name = check_name_is_unique ? unique_layer_name(name) : std::string(name);
   const int numLayers = layers().size();
   CustomData_realloc(&layers_data, numLayers, numLayers + 1, CD_SET_DEFAULT);
   bke::greasepencil::Layer *new_layer = MEM_new<bke::greasepencil::Layer>(__func__, unique_name);
@@ -3485,7 +3485,7 @@ blender::bke::greasepencil::LayerGroup &GreasePencil::add_layer_group(
 {
   using namespace blender;
   std::string unique_name = check_name_is_unique ? unique_layer_group_name(*this, name) :
-                                                   name.data();
+                                                   std::string(name);
   bke::greasepencil::LayerGroup *new_group = MEM_new<bke::greasepencil::LayerGroup>(__func__,
                                                                                     unique_name);
   return root_group().add_node(new_group->as_node()).as_group();
