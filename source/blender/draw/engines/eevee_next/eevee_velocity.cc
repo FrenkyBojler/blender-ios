@@ -313,9 +313,7 @@ void VelocityModule::step_swap()
     std::swap(geometry_steps[step_a], geometry_steps[step_b]);
     std::swap(camera_steps[step_a], camera_steps[step_b]);
     std::swap(step_time[step_a], step_time[step_b]);
-
-    object_steps_usage[step_a] = object_steps_usage[step_b];
-    object_steps_usage[step_b] = 0;
+    std::swap(object_steps_usage[step_a], object_steps_usage[step_b]);
 
     for (VelocityObjectData &vel : velocity_map.values()) {
       vel.obj.ofs[step_a] = vel.obj.ofs[step_b];
