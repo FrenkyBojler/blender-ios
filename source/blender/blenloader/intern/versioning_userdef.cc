@@ -415,7 +415,7 @@ static void keymap_update_mesh_sculpt_brushes(wmKeyMap *keymap)
 {
   constexpr blender::StringRef asset_prefix =
       "brushes/essentials_brushes-mesh_sculpt.blend/Brush/";
-  constexpr char const * tool_property = "sculpt_tool";
+  constexpr char const *tool_property = "sculpt_tool";
 
   const auto tool_asset_map = []() {
     blender::Map<blender::StringRef, blender::StringRef> map;
@@ -505,7 +505,7 @@ static void keymap_update_mesh_vertex_paint_brushes(wmKeyMap *keymap)
 {
   constexpr blender::StringRef asset_prefix =
       "brushes/essentials_brushes-mesh_vertex.blend/Brush/";
-  constexpr char const * tool_property = "vertex_tool";
+  constexpr char const *tool_property = "vertex_tool";
 
   const auto tool_tool_map = []() {
     blender::Map<blender::StringRef, blender::StringRefNull> map;
@@ -532,7 +532,7 @@ static void keymap_update_mesh_weight_paint_brushes(wmKeyMap *keymap)
 {
   constexpr blender::StringRef asset_prefix =
       "brushes/essentials_brushes-mesh_weight.blend/Brush/";
-  constexpr char const * tool_property = "weight_tool";
+  constexpr char const *tool_property = "weight_tool";
 
   const auto tool_tool_map = []() {
     blender::Map<blender::StringRef, blender::StringRefNull> map;
@@ -559,7 +559,7 @@ static void keymap_update_mesh_texture_paint_brushes(wmKeyMap *keymap)
 {
   constexpr blender::StringRef asset_prefix =
       "brushes/essentials_brushes-mesh_texture.blend/Brush/";
-  constexpr char const * tool_property = "image_tool";
+  constexpr char const *tool_property = "image_tool";
 
   const auto tool_tool_map = []() {
     blender::Map<blender::StringRef, blender::StringRefNull> map;
