@@ -2870,20 +2870,18 @@ struct ObjectConversionInfo {
   Depsgraph *depsgraph;
   Scene *scene;
   ViewLayer *view_layer;
-  Base *base;
-  Base *basen, *basact;
   Object *obact;
   bool keep_original;
   bool do_merge_customdata;
   ReportList *reports;
 };
 
-static Object *get_object_for_conversion(Object &ob, ObjectConversionInfo &info)
+static Object *get_object_for_conversion(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
   if (info.keep_original) {
-    info.basen = duplibase_for_convert(
-        info.bmain, info.depsgraph, info.scene, info.view_layer, info.base, nullptr);
-    Object *newob = info.basen->object;
+    *r_new_base = duplibase_for_convert(
+        info.bmain, info.depsgraph, info.scene, info.view_layer, &base, nullptr);
+    Object *newob = (*r_new_base)->object;
 
     /* Decrement original object data usage count. */
     ID *original_object_data = static_cast<ID *>(newob->data);
@@ -2894,13 +2892,15 @@ static Object *get_object_for_conversion(Object &ob, ObjectConversionInfo &info)
 
     return newob;
   }
-  return &ob;
+  *r_new_base = 0;
+  return base.object;
 }
 
-static Object *convert_mesh_to_curves_legacy(Object &ob, ObjectConversionInfo &info)
+static Object *convert_mesh_to_curves_legacy(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = get_object_for_conversion(ob, info);
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
 
   BKE_mesh_to_curve(info.bmain, info.depsgraph, info.scene, newob);
 
@@ -2914,19 +2914,19 @@ static Object *convert_mesh_to_curves_legacy(Object &ob, ObjectConversionInfo &i
   return newob;
 }
 
-static Object *convert_curves_component_to_curves(Object &ob, ObjectConversionInfo &info)
+static Object *convert_curves_component_to_curves(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = nullptr;
+  Object *ob = base.object, *newob = nullptr;
+  ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
   }
 
   if (geometry.has_curves()) {
-    newob = get_object_for_conversion(ob, info);
+    newob = get_object_for_conversion(base, info, r_new_base);
 
     const Curves *curves_eval = geometry.get_curves();
     Curves *new_curves = static_cast<Curves *>(BKE_id_new(info.bmain, ID_CV, newob->id.name + 2));
@@ -2944,25 +2944,25 @@ static Object *convert_curves_component_to_curves(Object &ob, ObjectConversionIn
     BKE_reportf(info.reports,
                 RPT_WARNING,
                 "Object '%s' has no evaluated Curve or Grease Pencil data",
-                ob.id.name + 2);
+                ob->id.name + 2);
   }
 
   return newob;
 }
 
-static Object *convert_grease_pencil_component_to_curves(Object &ob, ObjectConversionInfo &info)
+static Object *convert_grease_pencil_component_to_curves(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = nullptr;
+  Object *ob = base.object, *newob = nullptr;
+  ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
   }
 
   if (geometry.has_grease_pencil()) {
-    newob = get_object_for_conversion(ob, info);
+    newob = get_object_for_conversion(base, info, r_new_base);
 
     Curves *new_curves = static_cast<Curves *>(BKE_id_new(info.bmain, ID_CV, newob->id.name + 2));
     newob->data = new_curves;
@@ -2997,25 +2997,26 @@ static Object *convert_grease_pencil_component_to_curves(Object &ob, ObjectConve
     BKE_reportf(info.reports,
                 RPT_WARNING,
                 "Object '%s' has no evaluated Curve or Grease Pencil data",
-                ob.id.name + 2);
+                ob->id.name + 2);
   }
 
   return newob;
 }
 
-static Object *convert_mesh_to_curves(Object &ob, ObjectConversionInfo &info)
+static Object *convert_mesh_to_curves(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  Object *newob = convert_curves_component_to_curves(ob, info);
+  Object *newob = convert_curves_component_to_curves(base, info, r_new_base);
   if (newob) {
     return newob;
   }
-  return convert_grease_pencil_component_to_curves(ob, info);
+  return convert_grease_pencil_component_to_curves(base, info, r_new_base);
 }
 
-static Object *convert_mesh_to_point_cloud(Object &ob, ObjectConversionInfo &info)
+static Object *convert_mesh_to_point_cloud(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = get_object_for_conversion(ob, info);
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
 
   BKE_mesh_to_pointcloud(info.bmain, info.depsgraph, info.scene, newob);
 
@@ -3027,16 +3028,17 @@ static Object *convert_mesh_to_point_cloud(Object &ob, ObjectConversionInfo &inf
   return newob;
 }
 
-static Object *convert_mesh_to_mesh(Object &ob, ObjectConversionInfo &info)
+static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = get_object_for_conversion(ob, info);
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
 
   /* make new mesh data from the original copy */
   /* NOTE: get the mesh from the original, not from the copy in some
    * cases this doesn't give correct results (when MDEF is used for eg)
    */
-  const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, &ob);
+  const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   Mesh *new_mesh = mesh_eval ? BKE_mesh_copy_for_eval(*mesh_eval) :
                                BKE_mesh_new_nomain(0, 0, 0, 0);
@@ -3069,36 +3071,36 @@ static Object *convert_mesh_to_mesh(Object &ob, ObjectConversionInfo &info)
   BKE_object_free_modifiers(newob, 0); /* after derivedmesh calls! */
 
   if (!info.keep_original) {
-    DEG_id_tag_update(&ob.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
+    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
   }
 
   return newob;
 }
 
-static Object *convert_mesh(Object &ob, const ObjectType target, ObjectConversionInfo &info)
+static Object *convert_mesh(Base &base, const ObjectType target, ObjectConversionInfo &info, Base **r_new_base)
 {
   switch (target) {
     case OB_CURVES_LEGACY:
-      return convert_mesh_to_curves_legacy(ob, info);
+      return convert_mesh_to_curves_legacy(base, info, r_new_base);
     case OB_CURVES:
-      return convert_mesh_to_curves(ob, info);
+      return convert_mesh_to_curves(base, info, r_new_base);
     case OB_POINTCLOUD:
-      return convert_mesh_to_point_cloud(ob, info);
+      return convert_mesh_to_point_cloud(base, info, r_new_base);
     case OB_MESH:
-      return convert_mesh_to_mesh(ob, info);
+      return convert_mesh_to_mesh(base, info, r_new_base);
     default:
       /* Current logic does convert mesh to mesh for any other target types. This would change
        * after other types of conversion are designed and implemented. */
-      return convert_mesh_to_mesh(ob, info);
+      return convert_mesh_to_mesh(base, info, r_new_base);
   }
 }
 
-static Object *convert_curves_to_mesh(Object &ob, ObjectConversionInfo &info)
+static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = nullptr;
+  Object *ob = base.object, *newob = nullptr;
+  ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3109,7 +3111,7 @@ static Object *convert_curves_to_mesh(Object &ob, ObjectConversionInfo &info)
   Mesh *new_mesh = nullptr;
 
   if (mesh_eval || curves_eval) {
-    newob = get_object_for_conversion(ob, info);
+    newob = get_object_for_conversion(base, info, r_new_base);
     new_mesh = static_cast<Mesh *>(BKE_id_new(info.bmain, ID_ME, newob->id.name + 2));
     newob->data = new_mesh;
     newob->type = OB_MESH;
@@ -3118,7 +3120,7 @@ static Object *convert_curves_to_mesh(Object &ob, ObjectConversionInfo &info)
     BKE_reportf(info.reports,
                 RPT_WARNING,
                 "Object '%s' has no evaluated mesh or curves data",
-                ob.id.name + 2);
+                ob->id.name + 2);
     return nullptr;
   }
 
@@ -3143,12 +3145,12 @@ static Object *convert_curves_to_mesh(Object &ob, ObjectConversionInfo &info)
   return newob;
 }
 
-static Object *convert_curves_to_grease_pencil(Object &ob, ObjectConversionInfo &info)
+static Object *convert_curves_to_grease_pencil(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = nullptr;
+  Object *ob = base.object, *newob = nullptr;
+  ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3159,7 +3161,7 @@ static Object *convert_curves_to_grease_pencil(Object &ob, ObjectConversionInfo 
   GreasePencil *new_grease_pencil = nullptr;
 
   if (grease_pencil_eval || curves_eval) {
-    newob = get_object_for_conversion(ob, info);
+    newob = get_object_for_conversion(base, info, r_new_base);
     new_grease_pencil = static_cast<GreasePencil *>(
         BKE_id_new(info.bmain, ID_GP, newob->id.name + 2));
     newob->data = new_grease_pencil;
@@ -3169,7 +3171,7 @@ static Object *convert_curves_to_grease_pencil(Object &ob, ObjectConversionInfo 
     BKE_reportf(info.reports,
                 RPT_WARNING,
                 "Object '%s' has no evaluated Grease Pencil or Curves data",
-                ob.id.name + 2);
+                ob->id.name + 2);
     return nullptr;
   }
 
@@ -3199,33 +3201,33 @@ static Object *convert_curves_to_grease_pencil(Object &ob, ObjectConversionInfo 
   return newob;
 }
 
-static Object *convert_curves(Object &ob, const ObjectType target, ObjectConversionInfo &info)
+static Object *convert_curves(Base &base, const ObjectType target, ObjectConversionInfo &info, Base **r_new_base)
 {
   switch (target) {
     case OB_MESH:
-      return convert_curves_to_mesh(ob, info);
+      return convert_curves_to_mesh(base, info, r_new_base);
     case OB_GREASE_PENCIL:
-      return convert_curves_to_grease_pencil(ob, info);
+      return convert_curves_to_grease_pencil(base, info, r_new_base);
     default:
-      return convert_curves_component_to_curves(ob, info);
+      return convert_curves_component_to_curves(base, info, r_new_base);
   }
 }
 
-static Object *convert_grease_pencil_to_mesh(Object &ob, ObjectConversionInfo &info)
+static Object *convert_grease_pencil_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = nullptr;
+  Object *ob = base.object, *newob = nullptr;
+  ob->flag |= OB_DONE;
 
   /* Mostly same as converting to OB_CURVES, the mesh will be converted from Curves afterwards. */
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
   }
 
   if (geometry.has_curves()) {
-    newob = get_object_for_conversion(ob, info);
+    newob = get_object_for_conversion(base, info, r_new_base);
 
     const Curves *curves_eval = geometry.get_curves();
     Curves *new_curves = static_cast<Curves *>(BKE_id_new(info.bmain, ID_CV, newob->id.name + 2));
@@ -3240,7 +3242,7 @@ static Object *convert_grease_pencil_to_mesh(Object &ob, ObjectConversionInfo &i
     BKE_object_free_modifiers(newob, 0);
   }
   else if (geometry.has_grease_pencil()) {
-    newob = get_object_for_conversion(ob, info);
+    newob = get_object_for_conversion(base, info, r_new_base);
 
     /* Do not link `new_curves` to `bmain` since it's temporary. */
     Curves *new_curves = static_cast<Curves *>(BKE_id_new_nomain(ID_CV, newob->id.name + 2));
@@ -3261,7 +3263,7 @@ static Object *convert_grease_pencil_to_mesh(Object &ob, ObjectConversionInfo &i
         curves_id->geometry.wrap() = drawings[i].drawing.strokes();
         const int layer_index = drawings[i].layer_index;
         const bke::greasepencil::Layer *layer = grease_pencil->layers()[layer_index];
-        blender::float4x4 to_object = layer->to_object_space(ob);
+        blender::float4x4 to_object = layer->to_object_space(*ob);
         bke::CurvesGeometry &new_curves = curves_id->geometry.wrap();
         MutableSpan<blender::float3> positions = new_curves.positions_for_write();
         for (const int point_i : new_curves.points_range()) {
@@ -3297,35 +3299,36 @@ static Object *convert_grease_pencil_to_mesh(Object &ob, ObjectConversionInfo &i
   }
   else {
     BKE_reportf(
-        info.reports, RPT_WARNING, "Object '%s' has no evaluated curves data", ob.id.name + 2);
+        info.reports, RPT_WARNING, "Object '%s' has no evaluated curves data", ob->id.name + 2);
   }
 
   return newob;
 }
 
-static Object *convert_grease_pencil(Object &ob,
+static Object *convert_grease_pencil(Base &base,
                                      const ObjectType target,
-                                     ObjectConversionInfo &info)
+                                     ObjectConversionInfo &info, Base **r_new_base)
 {
   switch (target) {
     case OB_CURVES:
-      return convert_grease_pencil_component_to_curves(ob, info);
+      return convert_grease_pencil_component_to_curves(base, info, r_new_base);
     case OB_MESH:
-      return convert_grease_pencil_to_mesh(ob, info);
+      return convert_grease_pencil_to_mesh(base, info, r_new_base);
     default:
       return nullptr;
   }
   return nullptr;
 }
 
-static Object *convert_font_to_curves_legacy(Object &ob, ObjectConversionInfo &info)
+static Object *convert_font_to_curves_legacy(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = get_object_for_conversion(ob, info);
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
 
   Curve *cu = static_cast<Curve *>(newob->data);
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   BKE_vfont_to_curve_ex(ob_eval,
                         static_cast<Curve *>(ob_eval->data),
                         FO_EDIT,
@@ -3362,7 +3365,7 @@ static Object *convert_font_to_curves_legacy(Object &ob, ObjectConversionInfo &i
       for (ob1 = static_cast<Object *>(info.bmain->objects.first); ob1;
            ob1 = static_cast<Object *>(ob1->id.next))
       {
-        if (ob1->data == ob.data && ob1 != &ob) {
+        if (ob1->data == ob->data && ob1 != ob) {
           ob1->type = OB_CURVES_LEGACY;
           DEG_id_tag_update(&ob1->id,
                             ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
@@ -3381,9 +3384,9 @@ static Object *convert_font_to_curves_legacy(Object &ob, ObjectConversionInfo &i
   return newob;
 }
 
-static Object *convert_font_to_mesh(Object &ob, ObjectConversionInfo &info)
+static Object *convert_font_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  Object *newob = convert_font_to_curves_legacy(ob, info);
+  Object *newob = convert_font_to_curves_legacy(base, info, r_new_base);
 
   /* No assumption should be made that the resulting objects is a mesh, as conversion can
    * fail. */
@@ -3394,23 +3397,24 @@ static Object *convert_font_to_mesh(Object &ob, ObjectConversionInfo &info)
   return newob;
 }
 
-static Object *convert_font(Object &ob, const short target, ObjectConversionInfo &info)
+static Object *convert_font(Base &base, const short target, ObjectConversionInfo &info, Base **r_new_base)
 {
   switch (target) {
     case OB_MESH:
-      return convert_font_to_mesh(ob, info);
+      return convert_font_to_mesh(base, info, r_new_base);
     case OB_CURVES_LEGACY:
-      return convert_font_to_curves_legacy(ob, info);
+      return convert_font_to_curves_legacy(base, info, r_new_base);
     default:
       return nullptr;
   }
   return nullptr;
 }
 
-static Object *convert_curves_legacy_to_mesh(Object &ob, ObjectConversionInfo &info)
+static Object *convert_curves_legacy_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = get_object_for_conversion(ob, info);
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
 
   /* No assumption should be made that the resulting objects is a mesh, as conversion can
    * fail. */
@@ -3421,37 +3425,40 @@ static Object *convert_curves_legacy_to_mesh(Object &ob, ObjectConversionInfo &i
   return newob;
 }
 
-static Object *convert_curves_legacy(Object &ob,
+static Object *convert_curves_legacy(Base &base,
                                      const ObjectType target,
-                                     ObjectConversionInfo &info)
+                                     ObjectConversionInfo &info, Base **r_new_base)
 {
   switch (target) {
     case OB_MESH:
-      return convert_curves_legacy_to_mesh(ob, info);
+      return convert_curves_legacy_to_mesh(base, info, r_new_base);
     default:
       return nullptr;
   }
 }
 
-static Object *convert_mball_to_mesh(Object &ob, ObjectConversionInfo &info, bool &r_mball_converted)
+static Object *convert_mball_to_mesh(Base &base,
+                                     ObjectConversionInfo &info,
+                                     bool &r_mball_converted, Base **r_new_base, Base **r_act_base)
 {
+  Object *ob = base.object;
   Object *newob = nullptr;
   Object *baseob = nullptr;
 
-  info.base->flag &= ~BASE_SELECTED;
-  ob.base_flag &= ~BASE_SELECTED;
+  base.flag &= ~BASE_SELECTED;
+  base.object->base_flag &= ~BASE_SELECTED;
 
-  baseob = BKE_mball_basis_find(info.scene, &ob);
+  baseob = BKE_mball_basis_find(info.scene, ob);
 
-  if (&ob != baseob) {
+  if (ob != baseob) {
     /* If mother-ball is converting it would be marked as done later. */
-    ob.flag |= OB_DONE;
+    ob->flag |= OB_DONE;
   }
 
   if (!(baseob->flag & OB_DONE)) {
-    info.basen = duplibase_for_convert(
-        info.bmain, info.depsgraph, info.scene, info.view_layer, info.base, baseob);
-    newob = info.basen->object;
+    *r_new_base = duplibase_for_convert(
+        info.bmain, info.depsgraph, info.scene, info.view_layer, &base, baseob);
+    newob = (*r_new_base)->object;
 
     MetaBall *mb = static_cast<MetaBall *>(newob->data);
     id_us_min(&mb->id);
@@ -3465,7 +3472,7 @@ static Object *convert_mball_to_mesh(Object &ob, ObjectConversionInfo &info, boo
     newob->type = OB_MESH;
 
     if (info.obact->type == OB_MBALL) {
-      info.basact = info.basen;
+      *r_act_base = *r_new_base;
     }
 
     baseob->flag |= OB_DONE;
@@ -3475,20 +3482,24 @@ static Object *convert_mball_to_mesh(Object &ob, ObjectConversionInfo &info, boo
   return newob;
 }
 
-static Object *convert_mball(Object &ob, const ObjectType target, ObjectConversionInfo &info, bool &r_mball_converted)
+static Object *convert_mball(Base &base,
+                             const ObjectType target,
+                             ObjectConversionInfo &info,
+                             bool &r_mball_converted, Base **r_new_base, Base **r_act_base)
 {
   switch (target) {
     case OB_MESH:
-      return convert_mball_to_mesh(ob, info, r_mball_converted);
+      return convert_mball_to_mesh(base, info, r_mball_converted, r_new_base, r_act_base);
     default:
       return nullptr;
   }
 }
 
-static Object *convert_point_cloud_to_mesh(Object &ob, ObjectConversionInfo &info)
+static Object *convert_point_cloud_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
 {
-  ob.flag |= OB_DONE;
-  Object *newob = get_object_for_conversion(ob, info);
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
 
   BKE_pointcloud_to_mesh(info.bmain, info.depsgraph, info.scene, newob);
 
@@ -3500,11 +3511,11 @@ static Object *convert_point_cloud_to_mesh(Object &ob, ObjectConversionInfo &inf
   return newob;
 }
 
-static Object *convert_point_cloud(Object &ob, const ObjectType target, ObjectConversionInfo &info)
+static Object *convert_point_cloud(Base &base, const ObjectType target, ObjectConversionInfo &info, Base **r_new_base)
 {
   switch (target) {
     case OB_MESH:
-      return convert_point_cloud_to_mesh(ob, info);
+      return convert_point_cloud_to_mesh(base, info, r_new_base);
     default:
       return nullptr;
   }
@@ -3555,10 +3566,11 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   info.scene = scene;
   info.view_layer = view_layer;
   info.obact = obact;
-  info.basen = info.basact = nullptr;
   info.keep_original = keep_original;
   info.do_merge_customdata = do_merge_customdata;
   info.reports = op->reports;
+
+  Base* act_base=nullptr;
 
   /* Ensure we get all meshes calculated with a sufficient data-mask,
    * needed since re-evaluating single modifiers causes bugs if they depend
@@ -3598,10 +3610,8 @@ static int object_convert_exec(bContext *C, wmOperator *op)
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
-    Base *base = static_cast<Base *>(ptr.data);
+    Base *base = static_cast<Base *>(ptr.data), *new_base=nullptr;
     Object *ob = base->object;
-
-    info.base = base;
 
     if (ob->flag & OB_DONE || !IS_TAGGED(ob->data)) {
       if (ob->type != target) {
@@ -3622,27 +3632,27 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       const ObjectType target = ObjectType(ob->type);
       switch (ob->type) {
         case OB_MESH:
-          newob = convert_mesh(*ob, target, info);
+          newob = convert_mesh(*base, target, info, &new_base);
           break;
         case OB_CURVES:
-          newob = convert_curves(*ob, target, info);
+          newob = convert_curves(*base, target, info, &new_base);
           break;
         case OB_CURVES_LEGACY:
           [[fallthrough]];
         case OB_SURF:
-          newob = convert_curves_legacy(*ob, target, info);
+          newob = convert_curves_legacy(*base, target, info, &new_base);
           break;
         case OB_FONT:
-          newob = convert_font(*ob, target, info);
+          newob = convert_font(*base, target, info, &new_base);
           break;
         case OB_GREASE_PENCIL:
-          newob = convert_grease_pencil(*ob, target, info);
+          newob = convert_grease_pencil(*base, target, info, &new_base);
           break;
         case OB_MBALL:
-          newob = convert_mball(*ob, target, info, mball_converted);
+          newob = convert_mball(*base, target, info, mball_converted, &new_base, &act_base);
           break;
         case OB_POINTCLOUD:
-          newob = convert_point_cloud(*ob, target, info);
+          newob = convert_point_cloud(*base, target, info, &new_base);
           break;
         default:
           continue;
@@ -3657,13 +3667,12 @@ static int object_convert_exec(bContext *C, wmOperator *op)
     /* tag obdata if it was been changed */
 
     /* If the original object is active then make this object active */
-    if (info.basen) {
+    if (new_base) {
       if (ob == obact) {
         /* Store new active base to update view layer. */
-        info.basact = info.basen;
+        act_base = new_base;
       }
-
-      info.basen = nullptr;
+      new_base = nullptr;
     }
 
     if (!keep_original && (ob->flag & OB_DONE)) {
@@ -3708,10 +3717,10 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   // XXX: editmode_enter(C, 0);
   // XXX: exit_editmode(C, EM_FREEDATA|); /* free data, but no undo. */
 
-  if (info.basact) {
+  if (act_base) {
     /* active base was changed */
-    base_activate(C, info.basact);
-    view_layer->basact = info.basact;
+    base_activate(C, act_base);
+    view_layer->basact = act_base;
   }
   else {
     BKE_view_layer_synced_ensure(scene, view_layer);
