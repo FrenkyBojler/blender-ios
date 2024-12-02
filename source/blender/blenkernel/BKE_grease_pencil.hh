@@ -36,6 +36,7 @@ struct BakeMaterialsList;
 }
 
 namespace blender::bke {
+struct AttributeAccessorFunctions;
 
 namespace greasepencil {
 
@@ -703,6 +704,15 @@ class LayerGroup : public ::GreasePencilLayerTreeGroup {
   TreeNode *find_node_by_name(StringRefNull name);
 
   /**
+   * Returns true if the group is expanded in the UI.
+   */
+  bool is_expanded() const;
+  /**
+   * Expand/collapse the group in the UI.
+   */
+  void set_expanded(bool expanded);
+
+  /**
    * Print the nodes. For debugging purposes.
    */
   void print_nodes(StringRefNull header) const;
@@ -881,6 +891,8 @@ inline LayerGroup &Layer::parent_group()
 }
 
 TREENODE_COMMON_METHODS_FORWARD_IMPL(LayerGroup);
+
+const AttributeAccessorFunctions &get_attribute_accessor_functions();
 
 }  // namespace greasepencil
 
