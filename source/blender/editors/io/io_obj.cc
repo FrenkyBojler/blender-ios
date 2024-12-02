@@ -544,7 +544,7 @@ void WM_OT_obj_import(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "close_spline_loops",
                   true,
-                  "Close Curve Loops",
+                  "Detect Cyclic Curves",
                   "Join curve endpoints if overlapping control points are detected"
                   "(if disabled, no curves will be cyclic)");
 
