@@ -10,6 +10,7 @@
 
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_string_ref.hh"
 
 #include "BKE_mesh.h"
 #include "BKE_mesh_types.hh"
@@ -17,7 +18,7 @@
 namespace blender::bke {
 
 enum class AttrDomain : int8_t;
-class AttributeIDRef;
+struct AttributeAccessorFunctions;
 
 namespace mesh {
 /* -------------------------------------------------------------------- */
@@ -237,7 +238,7 @@ void edges_sharp_from_angle_set(OffsetIndices<int> faces,
  * \{ */
 
 /**
- * Find the index of the next corner in the face, looping to the start if necessary.
+ * Find the index of the previous corner in the face, looping to the end if necessary.
  * The indices are into the entire corners array, not just the face's corners.
  */
 inline int face_corner_prev(const IndexRange face, const int corner)
@@ -246,7 +247,7 @@ inline int face_corner_prev(const IndexRange face, const int corner)
 }
 
 /**
- * Find the index of the previous corner in the face, looping to the end if necessary.
+ * Find the index of the next corner in the face, looping to the start if necessary.
  * The indices are into the entire corners array, not just the face's corners.
  */
 inline int face_corner_next(const IndexRange face, const int corner)
@@ -336,6 +337,17 @@ void mesh_vert_normals_assign(Mesh &mesh, Vector<float3> vert_normals);
 void mesh_smooth_set(Mesh &mesh, bool use_smooth, bool keep_sharp_edges = false);
 void mesh_sharp_edges_set_from_angle(Mesh &mesh, float angle, bool keep_sharp_edges = false);
 
+/**
+ * Calculate edge visibility based on vertex visibility, hides an edge when either of its
+ * vertices are hidden. */
+void mesh_edge_hide_from_vert(Span<int2> edges, Span<bool> hide_vert, MutableSpan<bool> hide_edge);
+
+/* Hide faces when any of their vertices are hidden. */
+void mesh_face_hide_from_vert(OffsetIndices<int> faces,
+                              Span<int> corner_verts,
+                              Span<bool> hide_vert,
+                              MutableSpan<bool> hide_poly);
+
 /** Make edge and face visibility consistent with vertices. */
 void mesh_hide_vert_flush(Mesh &mesh);
 /** Make vertex and edge visibility consistent with faces. */
@@ -350,8 +362,15 @@ void mesh_select_face_flush(Mesh &mesh);
 
 /** Set the default name when adding a color attribute if there is no default yet. */
 void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
-                                                const AttributeIDRef &id,
+                                                StringRef id,
                                                 AttrDomain domain,
                                                 eCustomDataType data_type);
+
+void mesh_data_update(Depsgraph &depsgraph,
+                      const Scene &scene,
+                      Object &ob,
+                      const CustomData_MeshMasks &dataMask);
+
+const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 
 }  // namespace blender::bke

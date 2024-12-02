@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 /**
  * The resources expected to be defined are:
  * - grids_infos_buf
@@ -12,15 +14,15 @@
  * - sampling_buf
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_lightprobe_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_spherical_harmonics_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
+#include "eevee_lightprobe_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_spherical_harmonics_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 
 /**
  * Return the brick coordinate inside the grid.
  */
-ivec3 lightprobe_irradiance_grid_brick_coord(vec3 lP)
+ivec3 lightprobe_volume_grid_brick_coord(vec3 lP)
 {
   ivec3 brick_coord = ivec3((lP - 0.5) / float(IRRADIANCE_GRID_BRICK_SIZE - 1));
   /* Avoid sampling adjacent bricks. */
@@ -30,9 +32,9 @@ ivec3 lightprobe_irradiance_grid_brick_coord(vec3 lP)
 /**
  * Return the local coordinated of the shading point inside the brick in unnormalized coordinate.
  */
-vec3 lightprobe_irradiance_grid_brick_local_coord(VolumeProbeData grid_data,
-                                                  vec3 lP,
-                                                  ivec3 brick_coord)
+vec3 lightprobe_volume_grid_brick_local_coord(VolumeProbeData grid_data,
+                                              vec3 lP,
+                                              ivec3 brick_coord)
 {
   /* Avoid sampling adjacent bricks around the origin. */
   lP = max(lP, vec3(0.5));
@@ -44,10 +46,10 @@ vec3 lightprobe_irradiance_grid_brick_local_coord(VolumeProbeData grid_data,
 /**
  * Return the biased local brick local coordinated.
  */
-vec3 lightprobe_irradiance_grid_bias_sample_coord(VolumeProbeData grid_data,
-                                                  uvec2 brick_atlas_coord,
-                                                  vec3 brick_lP,
-                                                  vec3 lNg)
+vec3 lightprobe_volume_grid_bias_sample_coord(VolumeProbeData grid_data,
+                                              uvec2 brick_atlas_coord,
+                                              vec3 brick_lP,
+                                              vec3 lNg)
 {
   /* A cell is the interpolation region between 8 texels. */
   vec3 cell_lP = brick_lP - 0.5;
@@ -66,7 +68,7 @@ vec3 lightprobe_irradiance_grid_bias_sample_coord(VolumeProbeData grid_data,
   /**
    * References:
    *
-   * "Probe-based lighting, strand-based hair system, and physical hair shading in Unity’s Enemies"
+   * "Probe-based lighting, strand-based hair system, and physical hair shading in Unity's Enemies"
    * by Francesco Cifariello Ciardi, Lasse Jon Fuglsang Pedersen and John Parsaie.
    *
    * "Multi-Scale Global Illumination in Quantum Break"
@@ -78,7 +80,7 @@ vec3 lightprobe_irradiance_grid_bias_sample_coord(VolumeProbeData grid_data,
   float trilinear_weights[8];
   float total_weight = 0.0;
   for (int i = 0; i < 8; i++) {
-    ivec3 sample_position = lightprobe_irradiance_grid_cell_corner(i);
+    ivec3 sample_position = lightprobe_volume_grid_cell_corner(i);
 
     vec3 trilinear = select(1.0 - cell_fract, cell_fract, bvec3(sample_position));
     float positional_weight = trilinear.x * trilinear.y * trilinear.z;
@@ -109,7 +111,7 @@ vec3 lightprobe_irradiance_grid_bias_sample_coord(VolumeProbeData grid_data,
   return 0.5 + cell_start + trilinear_coord;
 }
 
-SphericalHarmonicL1 lightprobe_irradiance_sample_atlas(sampler3D atlas_tx, vec3 atlas_coord)
+SphericalHarmonicL1 lightprobe_volume_sample_atlas(sampler3D atlas_tx, vec3 atlas_coord)
 {
   vec4 texture_coord = vec4(atlas_coord, float(IRRADIANCE_GRID_BRICK_SIZE)) /
                        vec3(textureSize(atlas_tx, 0)).xyzz;
@@ -124,7 +126,7 @@ SphericalHarmonicL1 lightprobe_irradiance_sample_atlas(sampler3D atlas_tx, vec3 
   return sh;
 }
 
-SphericalHarmonicL1 lightprobe_irradiance_sample(
+SphericalHarmonicL1 lightprobe_volume_sample(
     sampler3D atlas_tx, vec3 P, vec3 V, vec3 Ng, const bool do_bias)
 {
   vec3 lP;
@@ -152,7 +154,7 @@ SphericalHarmonicL1 lightprobe_irradiance_sample(
     }
 
     /* If sample fall inside the grid, step out of the loop. */
-    if (lightprobe_irradiance_grid_local_coord(grids_infos_buf[i], P, lP)) {
+    if (lightprobe_volume_grid_local_coord(grids_infos_buf[i], P, lP)) {
       index = i;
 #ifdef IRRADIANCE_GRID_SAMPLING
       float distance_to_border = reduce_min(
@@ -168,7 +170,7 @@ SphericalHarmonicL1 lightprobe_irradiance_sample(
 
   VolumeProbeData grid_data = grids_infos_buf[index];
 
-  mat3x3 world_to_grid_transposed = mat3x3(grid_data.world_to_grid_transposed);
+  mat3x3 world_to_grid_transposed = to_float3x3(grid_data.world_to_grid_transposed);
   vec3 lNg = safe_normalize(Ng * world_to_grid_transposed);
   vec3 lV = safe_normalize(V * world_to_grid_transposed);
 
@@ -181,33 +183,32 @@ SphericalHarmonicL1 lightprobe_irradiance_sample(
     lNg = vec3(0.0);
   }
 
-  ivec3 brick_coord = lightprobe_irradiance_grid_brick_coord(lP);
-  int brick_index = lightprobe_irradiance_grid_brick_index_get(grid_data, brick_coord);
+  ivec3 brick_coord = lightprobe_volume_grid_brick_coord(lP);
+  int brick_index = lightprobe_volume_grid_brick_index_get(grid_data, brick_coord);
   IrradianceBrick brick = irradiance_brick_unpack(bricks_infos_buf[brick_index]);
 
-  vec3 brick_lP = lightprobe_irradiance_grid_brick_local_coord(grid_data, lP, brick_coord);
+  vec3 brick_lP = lightprobe_volume_grid_brick_local_coord(grid_data, lP, brick_coord);
 
   /* Sampling point bias. */
-  brick_lP = lightprobe_irradiance_grid_bias_sample_coord(
-      grid_data, brick.atlas_coord, brick_lP, lNg);
+  brick_lP = lightprobe_volume_grid_bias_sample_coord(grid_data, brick.atlas_coord, brick_lP, lNg);
 
   vec3 atlas_coord = vec3(vec2(brick.atlas_coord), 0.0) + brick_lP;
 
-  return lightprobe_irradiance_sample_atlas(atlas_tx, atlas_coord);
+  return lightprobe_volume_sample_atlas(atlas_tx, atlas_coord);
 }
 
-SphericalHarmonicL1 lightprobe_irradiance_world()
+SphericalHarmonicL1 lightprobe_volume_world()
 {
   /* We need a 0.5 offset because of filtering. */
-  return lightprobe_irradiance_sample_atlas(irradiance_atlas_tx, vec3(0.5001));
+  return lightprobe_volume_sample_atlas(irradiance_atlas_tx, vec3(0.5001));
 }
 
-SphericalHarmonicL1 lightprobe_irradiance_sample(vec3 P)
+SphericalHarmonicL1 lightprobe_volume_sample(vec3 P)
 {
-  return lightprobe_irradiance_sample(irradiance_atlas_tx, P, vec3(0), vec3(0), false);
+  return lightprobe_volume_sample(irradiance_atlas_tx, P, vec3(0), vec3(0), false);
 }
 
-SphericalHarmonicL1 lightprobe_irradiance_sample(vec3 P, vec3 V, vec3 Ng)
+SphericalHarmonicL1 lightprobe_volume_sample(vec3 P, vec3 V, vec3 Ng)
 {
-  return lightprobe_irradiance_sample(irradiance_atlas_tx, P, V, Ng, true);
+  return lightprobe_volume_sample(irradiance_atlas_tx, P, V, Ng, true);
 }

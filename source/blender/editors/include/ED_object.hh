@@ -27,7 +27,6 @@ struct Main;
 struct ModifierData;
 struct Object;
 struct PointerRNA;
-struct PropertyRNA;
 struct ReportList;
 struct Scene;
 struct ShaderFxData;
@@ -489,7 +488,8 @@ bool modifier_apply(Main *bmain,
                     Object *ob,
                     ModifierData *md,
                     int mode,
-                    bool keep_modifier);
+                    bool keep_modifier,
+                    bool do_all_keyframes);
 bool modifier_copy(ReportList *reports, Main *bmain, Scene *scene, Object *ob, ModifierData *md);
 void modifier_link(bContext *C, Object *ob_dst, Object *ob_src);
 bool modifier_copy_to_object(Main *bmain,
@@ -596,8 +596,6 @@ void data_xform_by_mat4(XFormObjectData *xod, const float mat[4][4]);
 void data_xform_restore(XFormObjectData *xod);
 void data_xform_tag_update(XFormObjectData *xod);
 
-void ui_template_modifier_asset_menu_items(uiLayout &layout,
-                                           const bContext &C,
-                                           StringRef catalog_path);
+void ui_template_modifier_asset_menu_items(uiLayout &layout, StringRef catalog_path);
 
 }  // namespace blender::ed::object

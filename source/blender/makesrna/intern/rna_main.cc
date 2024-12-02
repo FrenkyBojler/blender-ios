@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "RNA_access.hh"
@@ -90,9 +90,6 @@ static void rna_Main_filepath_set(PointerRNA *ptr, const char *value)
     }
 
 RNA_MAIN_LISTBASE_FUNCS_DEF(actions)
-#  ifdef WITH_ANIM_BAKLAVA
-RNA_MAIN_LISTBASE_FUNCS_DEF(animations)
-#  endif
 RNA_MAIN_LISTBASE_FUNCS_DEF(armatures)
 RNA_MAIN_LISTBASE_FUNCS_DEF(brushes)
 RNA_MAIN_LISTBASE_FUNCS_DEF(cachefiles)
@@ -101,9 +98,7 @@ RNA_MAIN_LISTBASE_FUNCS_DEF(collections)
 RNA_MAIN_LISTBASE_FUNCS_DEF(curves)
 RNA_MAIN_LISTBASE_FUNCS_DEF(fonts)
 RNA_MAIN_LISTBASE_FUNCS_DEF(gpencils)
-#  ifdef WITH_GREASE_PENCIL_V3
 RNA_MAIN_LISTBASE_FUNCS_DEF(grease_pencils)
-#  endif
 RNA_MAIN_LISTBASE_FUNCS_DEF(hair_curves)
 RNA_MAIN_LISTBASE_FUNCS_DEF(images)
 RNA_MAIN_LISTBASE_FUNCS_DEF(lattices)
@@ -322,14 +317,6 @@ void RNA_def_main(BlenderRNA *brna)
        "Actions",
        "Action data-blocks",
        RNA_def_main_actions},
-#  ifdef WITH_ANIM_BAKLAVA
-      {"animations",
-       "Animation",
-       "rna_Main_animations_begin",
-       "animations",
-       "Animation data-blocks",
-       RNA_def_main_animations},
-#  endif
       {"particles",
        "ParticleSettings",
        "rna_Main_particles_begin",
@@ -345,17 +332,15 @@ void RNA_def_main(BlenderRNA *brna)
       {"grease_pencils",
        "GreasePencil",
        "rna_Main_gpencils_begin",
-       "Grease Pencil",
-       "Grease Pencil data-blocks",
-       RNA_def_main_gpencil_legacy},
-#  ifdef WITH_GREASE_PENCIL_V3
+       "Annotation",
+       "Annotation data-blocks (legacy Grease Pencil)",
+       RNA_def_main_annotations},
       {"grease_pencils_v3",
        "GreasePencilv3",
        "rna_Main_grease_pencils_begin",
-       "Grease Pencil v3",
-       "Grease Pencil v3 data-blocks",
+       "Grease Pencil",
+       "Grease Pencil data-blocks",
        RNA_def_main_grease_pencil},
-#  endif
       {"movieclips",
        "MovieClip",
        "rna_Main_movieclips_begin",

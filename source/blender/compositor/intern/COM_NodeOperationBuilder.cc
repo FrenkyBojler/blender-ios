@@ -207,7 +207,7 @@ PreviewOperation *NodeOperationBuilder::make_preview_operation() const
     return nullptr;
   }
 
-  bNodeInstanceHash *previews = context_->get_preview_hash();
+  bke::bNodeInstanceHash *previews = context_->get_preview_hash();
   if (previews) {
     Scene *scene = context_->get_scene();
     PreviewOperation *operation = new PreviewOperation(
@@ -245,20 +245,20 @@ void NodeOperationBuilder::add_node_input_preview(NodeInput *input)
 
 void NodeOperationBuilder::register_viewer(ViewerOperation *viewer)
 {
-  if (active_viewer_) {
-    if (current_node_->is_in_active_group()) {
-      /* deactivate previous viewer */
-      active_viewer_->set_active(false);
-
-      active_viewer_ = viewer;
-      viewer->set_active(true);
-    }
+  if (!active_viewer_) {
+    active_viewer_ = viewer;
+    viewer->set_active(true);
+    return;
   }
-  else {
-    if (current_node_->get_bnodetree() == context_->get_bnodetree()) {
-      active_viewer_ = viewer;
-      viewer->set_active(true);
-    }
+
+  /* A viewer is already registered, so we active this viewer but only if it is in the active node
+   * tree, since it takes precedence over viewer nodes in other trees. So deactivate existing
+   * viewer and set this viewer as active. */
+  if (current_node_->is_in_active_group()) {
+    active_viewer_->set_active(false);
+
+    active_viewer_ = viewer;
+    viewer->set_active(true);
   }
 }
 

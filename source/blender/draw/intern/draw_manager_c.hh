@@ -30,6 +30,7 @@
 #include "draw_instance_data.hh"
 #include "draw_shader_shared.hh"
 
+struct DRWDebugModule;
 struct DRWTexturePool;
 struct DRWUniformChunk;
 struct DupliObject;
@@ -704,7 +705,6 @@ void drw_debug_draw();
 void drw_debug_init();
 void drw_debug_module_free(DRWDebugModule *module);
 GPUStorageBuf *drw_debug_gpu_draw_buf_get();
-GPUStorageBuf *drw_debug_gpu_print_buf_get();
 
 eDRWCommandType command_type_get(const uint64_t *command_type_bits, int index);
 
@@ -743,8 +743,8 @@ void drw_engine_data_free(GPUViewport *viewport);
 
 namespace blender::draw {
 
-void DRW_mesh_get_attributes(const Object *object,
-                             const Mesh *mesh,
+void DRW_mesh_get_attributes(const Object &object,
+                             const Mesh &mesh,
                              const GPUMaterial *const *gpumat_array,
                              int gpumat_array_len,
                              DRW_Attributes *r_attrs,

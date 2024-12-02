@@ -11,7 +11,9 @@
 #include "UI_resources.hh"
 
 #include "BLI_math_color.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_math_rotation.hh"
 #include "BLI_math_vector.hh"
 
 #include "BKE_anim_path.h"
@@ -706,6 +708,8 @@ void OVERLAY_light_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
 void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
+  using namespace blender::math;
+
   OVERLAY_ExtraCallBuffers *cb = OVERLAY_extra_call_buffer_get(vedata, ob);
   const DRWContextState *draw_ctx = DRW_context_state_get();
   ViewLayer *view_layer = draw_ctx->view_layer;
@@ -750,10 +754,23 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
         OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), dist, shape, color_p);
       }
       break;
-    case LIGHTPROBE_TYPE_VOLUME:
-      instdata.clip_sta = show_clipping ? prb->clipsta : -1.0;
-      instdata.clip_end = show_clipping ? prb->clipend : -1.0;
+    case LIGHTPROBE_TYPE_VOLUME: {
+      instdata.clip_sta = show_clipping ? 0.0f : -1.0f;
+      instdata.clip_end = show_clipping ? prb->clipend : -1.0f;
       DRW_buffer_add_entry(cb->probe_grid, color_p, &instdata);
+
+      {
+        /* Display surfel density as a cube. */
+        float3 axes_len = to_scale(ob->object_to_world());
+        float max_axis_len = reduce_max(axes_len);
+        float3 local_surfel_size = (0.5f / prb->grid_surfel_density) * (max_axis_len / axes_len);
+
+        float4x4 surfel_density_mat = from_loc_rot_scale<float4x4>(
+            float3(-1.0f + local_surfel_size), Quaternion::identity(), float3(local_surfel_size));
+        surfel_density_mat = ob->object_to_world() * surfel_density_mat;
+
+        OVERLAY_empty_shape(cb, surfel_density_mat.ptr(), 1.0, OB_CUBE, color_p);
+      }
 
       if (show_influence) {
         OVERLAY_empty_shape(cb, ob->object_to_world().ptr(), 1.0, OB_CUBE, color_p);
@@ -778,6 +795,7 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
         DRW_shgroup_call_procedural_points(grp, nullptr, cell_count);
       }
       break;
+    }
     case LIGHTPROBE_TYPE_PLANE:
       DRW_buffer_add_entry(cb->probe_planar, color_p, &instdata);
 
@@ -1578,7 +1596,7 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
   const bool from_dupli = (ob->base_flag & (BASE_FROM_SET | BASE_FROM_DUPLI)) != 0;
   const bool has_bounds = !ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_EMPTY, OB_SPEAKER, OB_LIGHTPROBE);
   const bool has_texspace = has_bounds &&
-                            !ELEM(ob->type, OB_EMPTY, OB_LATTICE, OB_ARMATURE, OB_GPENCIL_LEGACY);
+                            !ELEM(ob->type, OB_EMPTY, OB_LATTICE, OB_ARMATURE, OB_GREASE_PENCIL);
 
   const bool draw_relations = ((pd->v3d_flag & V3D_HIDE_HELPLINES) == 0) && !is_select_mode;
   const bool draw_obcenters = !is_paint_mode &&

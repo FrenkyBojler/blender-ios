@@ -57,7 +57,7 @@ static void node_composite_update_scale(bNodeTree *ntree, bNode *node)
   /* Only show X/Y scale factor inputs for modes using them! */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (STR_ELEM(sock->name, "X", "Y")) {
-      bke::nodeSetSocketAvailability(ntree, sock, use_xy_scale);
+      bke::node_set_socket_availability(ntree, sock, use_xy_scale);
     }
   }
 }
@@ -116,8 +116,8 @@ class ScaleOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     Result &input = get_input("Image");
-    GPU_texture_filter_mode(input.texture(), true);
-    GPU_texture_extend_mode(input.texture(), GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+    GPU_texture_filter_mode(input, true);
+    GPU_texture_extend_mode(input, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
     input.bind_as_texture(shader, "input_tx");
 
     Result &x_scale = get_input("X");
@@ -280,7 +280,7 @@ void register_node_type_cmp_scale()
 {
   namespace file_ns = blender::nodes::node_composite_scale_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_SCALE, "Scale", NODE_CLASS_DISTORT);
   ntype.declare = file_ns::cmp_node_scale_declare;
@@ -288,5 +288,5 @@ void register_node_type_cmp_scale()
   ntype.updatefunc = file_ns::node_composite_update_scale;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

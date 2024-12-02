@@ -226,9 +226,38 @@ void Mesh::tag_overlapping_none()
   this->flag |= ME_NO_OVERLAPPING_TOPOLOGY;
 }
 
+namespace blender::bke {
+
+void TrianglesCache::freeze()
+{
+  this->frozen = true;
+  this->dirty_while_frozen = false;
+}
+
+void TrianglesCache::unfreeze()
+{
+  this->frozen = false;
+  if (this->dirty_while_frozen) {
+    this->data.tag_dirty();
+  }
+  this->dirty_while_frozen = false;
+}
+
+void TrianglesCache::tag_dirty()
+{
+  if (this->frozen) {
+    this->dirty_while_frozen = true;
+  }
+  else {
+    this->data.tag_dirty();
+  }
+}
+
+}  // namespace blender::bke
+
 blender::Span<blender::int3> Mesh::corner_tris() const
 {
-  this->runtime->corner_tris_cache.ensure([&](blender::Array<blender::int3> &r_data) {
+  this->runtime->corner_tris_cache.data.ensure([&](blender::Array<blender::int3> &r_data) {
     const Span<float3> positions = this->vert_positions();
     const blender::OffsetIndices faces = this->faces();
     const Span<int> corner_verts = this->corner_verts();
@@ -244,7 +273,7 @@ blender::Span<blender::int3> Mesh::corner_tris() const
     }
   });
 
-  return this->runtime->corner_tris_cache.data();
+  return this->runtime->corner_tris_cache.data.data();
 }
 
 blender::Span<int> Mesh::corner_tri_faces() const
@@ -296,7 +325,7 @@ void BKE_mesh_runtime_clear_geometry(Mesh *mesh)
   mesh->runtime->loose_edges_cache.tag_dirty();
   mesh->runtime->loose_verts_cache.tag_dirty();
   mesh->runtime->verts_no_face_cache.tag_dirty();
-  mesh->runtime->corner_tris_cache.tag_dirty();
+  mesh->runtime->corner_tris_cache.data.tag_dirty();
   mesh->runtime->corner_tri_faces_cache.tag_dirty();
   mesh->runtime->shrinkwrap_boundary_cache.tag_dirty();
   mesh->runtime->subsurf_face_dot_tags.clear_and_shrink();
@@ -425,8 +454,8 @@ bool BKE_mesh_runtime_is_valid(Mesh *mesh_eval)
 
   MutableSpan<float3> positions = mesh_eval->vert_positions_for_write();
   MutableSpan<blender::int2> edges = mesh_eval->edges_for_write();
-  MutableSpan<int> face_offsets = mesh_eval->face_offsets_for_write();
-  MutableSpan<int> corner_verts = mesh_eval->corner_verts_for_write();
+  Span<int> face_offsets = mesh_eval->face_offsets();
+  Span<int> corner_verts = mesh_eval->corner_verts();
   MutableSpan<int> corner_edges = mesh_eval->corner_edges_for_write();
 
   is_valid &= BKE_mesh_validate_all_customdata(
@@ -443,6 +472,8 @@ bool BKE_mesh_runtime_is_valid(Mesh *mesh_eval)
       do_fixes,
       &changed);
 
+  MDeformVert *dverts = static_cast<MDeformVert *>(
+      CustomData_get_layer_for_write(&mesh_eval->vert_data, CD_MDEFORMVERT, mesh_eval->verts_num));
   is_valid &= BKE_mesh_validate_arrays(
       mesh_eval,
       reinterpret_cast<float(*)[3]>(positions.data()),
@@ -457,7 +488,7 @@ bool BKE_mesh_runtime_is_valid(Mesh *mesh_eval)
       corner_verts.size(),
       face_offsets.data(),
       mesh_eval->faces_num,
-      mesh_eval->deform_verts_for_write().data(),
+      dverts,
       do_verbose,
       do_fixes,
       &changed);

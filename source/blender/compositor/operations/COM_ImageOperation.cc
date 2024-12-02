@@ -15,7 +15,7 @@ BaseImageOperation::BaseImageOperation()
 {
   image_ = nullptr;
   buffer_ = nullptr;
-  image_user_ = nullptr;
+  image_user_ = {};
   imagewidth_ = 0;
   imageheight_ = 0;
   framenumber_ = 0;
@@ -34,19 +34,11 @@ ImageAlphaOperation::ImageAlphaOperation() : BaseImageOperation()
 
 ImBuf *BaseImageOperation::get_im_buf()
 {
-  ImBuf *ibuf;
-  ImageUser iuser = *image_user_;
-
-  if (image_ == nullptr) {
+  if (rd_ == nullptr || image_ == nullptr) {
     return nullptr;
   }
 
-  /* local changes to the original ImageUser */
-  if (BKE_image_is_multilayer(image_) == false) {
-    iuser.multi_index = BKE_scene_multiview_view_id_get(rd_, view_name_);
-  }
-
-  ibuf = BKE_image_acquire_ibuf(image_, &iuser, nullptr);
+  ImBuf *ibuf = BKE_image_acquire_multilayer_view_ibuf(*rd_, *image_, image_user_, "", view_name_);
   if (ibuf == nullptr || (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr))
   {
     BKE_image_release_ibuf(image_, ibuf, nullptr);
@@ -90,14 +82,24 @@ void ImageOperation::update_memory_buffer_partial(MemoryBuffer *output,
 {
   const bool ensure_premultiplied = !ELEM(
       image_->alpha_mode, IMA_ALPHA_CHANNEL_PACKED, IMA_ALPHA_IGNORE);
-  output->copy_from(buffer_, area, ensure_premultiplied, true);
+  if (buffer_) {
+    output->copy_from(buffer_, area, ensure_premultiplied, true);
+  }
+  else {
+    output->fill(area, COM_COLOR_TRANSPARENT);
+  }
 }
 
 void ImageAlphaOperation::update_memory_buffer_partial(MemoryBuffer *output,
                                                        const rcti &area,
                                                        Span<MemoryBuffer *> /*inputs*/)
 {
-  output->copy_from(buffer_, area, 3, COM_DATA_TYPE_VALUE_CHANNELS, 0);
+  if (buffer_) {
+    output->copy_from(buffer_, area, 3, COM_DATA_TYPE_VALUE_CHANNELS, 0);
+  }
+  else {
+    output->fill(area, COM_VALUE_ZERO);
+  }
 }
 
 }  // namespace blender::compositor

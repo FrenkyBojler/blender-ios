@@ -7,6 +7,7 @@
  * \ingroup bke
  */
 
+#include "BLI_array.hh"
 #include "BLI_compiler_attrs.h"
 #include "BLI_compiler_compat.h"
 #include "BLI_utildefines.h"
@@ -93,8 +94,6 @@ void BKE_mesh_clear_geometry_and_metadata(Mesh *mesh);
 
 Mesh *BKE_mesh_add(Main *bmain, const char *name);
 
-void BKE_mesh_free_editmesh(Mesh *mesh);
-
 /**
  * A version of #BKE_mesh_copy_parameters that is intended for evaluated output
  * (the modifier stack for example).
@@ -124,10 +123,9 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
                                            CustomData_MeshMasks mask);
 
 /**
- * Performs copy for use during evaluation,
- * optional referencing original arrays to reduce memory.
+ * Performs copy for use during evaluation.
  */
-Mesh *BKE_mesh_copy_for_eval(const Mesh *source);
+Mesh *BKE_mesh_copy_for_eval(const Mesh &source);
 
 /**
  * These functions construct a new Mesh,
@@ -138,7 +136,10 @@ Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob, const ListBase *
 
 bool BKE_mesh_attribute_required(const char *name);
 
-float (*BKE_mesh_orco_verts_get(const Object *ob))[3];
+blender::Array<blender::float3> BKE_mesh_orco_verts_get(const Object *ob);
+void BKE_mesh_orco_verts_transform(Mesh *mesh,
+                                   blender::MutableSpan<blender::float3> orco,
+                                   bool invert);
 void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, bool invert);
 
 /**
@@ -354,6 +355,7 @@ bool BKE_mesh_has_custom_loop_normals(Mesh *mesh);
  * with automatically computed vectors.
  */
 void BKE_mesh_set_custom_normals(Mesh *mesh, float (*r_custom_loop_normals)[3]);
+void BKE_mesh_set_custom_normals_normalized(Mesh *mesh, float (*r_custom_loop_normals)[3]);
 /**
  * Higher level functions hiding most of the code needed around call to
  * #normals_corner_custom_set_from_verts().
@@ -362,6 +364,8 @@ void BKE_mesh_set_custom_normals(Mesh *mesh, float (*r_custom_loop_normals)[3]);
  * with automatically computed vectors.
  */
 void BKE_mesh_set_custom_normals_from_verts(Mesh *mesh, float (*r_custom_vert_normals)[3]);
+void BKE_mesh_set_custom_normals_from_verts_normalized(Mesh *mesh,
+                                                       float (*r_custom_vert_normals)[3]);
 
 /* *** mesh_evaluate.cc *** */
 
@@ -464,7 +468,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
                               unsigned int edges_num,
                               MFace *legacy_faces,
                               unsigned int legacy_faces_num,
-                              int *corner_verts,
+                              const int *corner_verts,
                               int *corner_edges,
                               unsigned int corners_num,
                               const int *face_offsets,

@@ -204,8 +204,9 @@ static void curve_deform_coords_impl(const Object *ob_curve,
                                      const int defgrp_index,
                                      const short flag,
                                      const short defaxis,
-                                     BMEditMesh *em_target)
+                                     const BMEditMesh *em_target)
 {
+  BLI_assert(ushort(defaxis) < 6);
   Curve *cu;
   int a;
   CurveDeform cd;
@@ -391,7 +392,7 @@ void BKE_curve_deform_coords_with_editmesh(const Object *ob_curve,
                                            const int defgrp_index,
                                            const short flag,
                                            const short defaxis,
-                                           BMEditMesh *em_target)
+                                           const BMEditMesh *em_target)
 {
   curve_deform_coords_impl(ob_curve,
                            ob_target,

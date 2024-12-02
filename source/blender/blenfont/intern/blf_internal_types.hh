@@ -8,7 +8,10 @@
 
 #pragma once
 
+#include <atomic>
 #include <mutex>
+
+#include "BLF_api.hh"
 
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
@@ -97,9 +100,8 @@ struct BatchBLF {
   FontBLF *font;
   blender::gpu::Batch *batch;
   blender::gpu::VertBuf *verts;
-  GPUVertBufRaw pos_step, col_step, offset_step, glyph_size_step, glyph_comp_len_step,
-      glyph_mode_step;
-  unsigned int pos_loc, col_loc, offset_loc, glyph_size_loc, glyph_comp_len_loc, glyph_mode_loc;
+  GPUVertBufRaw pos_step, col_step, offset_step, glyph_size_step, glyph_flags_step;
+  unsigned int pos_loc, col_loc, offset_loc, glyph_size_loc, glyph_flags_loc;
   unsigned int glyph_len;
   /** Copy of `font->pos`. */
   int ofs[2];
@@ -192,10 +194,7 @@ struct GlyphBLF {
   /** Glyph width and height. */
   int dims[2];
   int pitch;
-  int depth;
-
-  /** Render mode (FT_Render_Mode). */
-  int render_mode;
+  int num_channels;
 
   /**
    * X and Y bearing of the glyph.
@@ -218,9 +217,6 @@ struct FontBufInfoBLF {
 
   /** Buffer size, keep signed so comparisons with negative values work. */
   int dims[2];
-
-  /** Number of channels. */
-  int ch;
 
   /** Display device used for color management. */
   ColorManagedDisplay *display;
@@ -315,8 +311,8 @@ struct FontBLF {
    */
   uint unicode_ranges[4];
 
-  /** Number of times this font was loaded. */
-  unsigned int reference_count;
+  /** Number of references to this font object. When it reaches zero, font is unloaded. */
+  std::atomic<uint32_t> reference_count;
 
   /** Aspect ratio or scale. */
   float aspect[3];
@@ -327,8 +323,8 @@ struct FontBLF {
   /** Angle in radians. */
   float angle;
 
-  /** Shadow level. */
-  int shadow;
+  /** Shadow type. */
+  FontShadowType shadow;
 
   /** And shadow offset. */
   int shadow_x;

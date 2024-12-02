@@ -22,11 +22,12 @@
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
+#include "BKE_screen.hh"
 #include "BKE_unit.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -124,10 +125,7 @@ static float get_bevel_offset(wmOperator *op)
 static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
 {
   Scene *sce = CTX_data_scene(C);
-
-  auto get_modal_key_str = [&](int id) {
-    return WM_modalkeymap_operator_items_to_string(op->type, id, true).value_or("");
-  };
+  BevelData *opdata = static_cast<BevelData *>(op->customdata);
 
   char offset_str[NUM_STR_REP_LEN];
   if (RNA_enum_get(op->ptr, "offset_type") == BEVEL_AMT_PERCENT) {
@@ -149,6 +147,21 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
   prop = RNA_struct_find_property(op->ptr, "offset_type");
   RNA_property_enum_name_gettexted(
       C, op->ptr, prop, RNA_property_enum_get(op->ptr, prop), &mode_str);
+
+  /* Shown in area header. */
+
+  const std::string header_status = fmt::format("{}: {}, {}: {}, {}: {}",
+                                                mode_str,
+                                                offset_str,
+                                                IFACE_("Segments"),
+                                                RNA_int_get(op->ptr, "segments"),
+                                                IFACE_("Profile"),
+                                                RNA_float_get(op->ptr, "profile"));
+
+  ED_area_status_text(CTX_wm_area(C), header_status.c_str());
+
+  /* Shown on Status Bar. */
+
   prop = RNA_struct_find_property(op->ptr, "profile_type");
   RNA_property_enum_name_gettexted(
       C, op->ptr, prop, RNA_property_enum_get(op->ptr, prop), &profile_type_str);
@@ -165,52 +178,51 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
   RNA_property_enum_name_gettexted(
       C, op->ptr, prop, RNA_property_enum_get(op->ptr, prop), &affect_str);
 
-  const std::string status_text = fmt::format(
-      IFACE_("{}: Confirm, "
-             "{}: Cancel, "
-             "{}: Width Type ({}), "
-             "{}: Width ({}), "
-             "{}: Segments ({}), "
-             "{}: Profile ({:.3f}), "
-             "{}: Clamp Overlap ({}), "
-             "{}: Affect ({}), "
-             "{}: Outer Miter ({}), "
-             "{}: Inner Miter ({}), "
-             "{}: Harden Normals ({}), "
-             "{}: Mark Seam ({}), "
-             "{}: Mark Sharp ({}), "
-             "{}: Profile Type ({}), "
-             "{}: Intersection ({})"),
-      get_modal_key_str(BEV_MODAL_CONFIRM),
-      get_modal_key_str(BEV_MODAL_CANCEL),
-      get_modal_key_str(BEV_MODAL_OFFSET_MODE_CHANGE),
-      mode_str,
-      get_modal_key_str(BEV_MODAL_VALUE_OFFSET),
-      offset_str,
-      get_modal_key_str(BEV_MODAL_VALUE_SEGMENTS),
-      RNA_int_get(op->ptr, "segments"),
-      get_modal_key_str(BEV_MODAL_VALUE_PROFILE),
-      RNA_float_get(op->ptr, "profile"),
-      get_modal_key_str(BEV_MODAL_CLAMP_OVERLAP_TOGGLE),
-      WM_bool_as_string(RNA_boolean_get(op->ptr, "clamp_overlap")),
-      get_modal_key_str(BEV_MODAL_AFFECT_CHANGE),
-      affect_str,
-      get_modal_key_str(BEV_MODAL_OUTER_MITER_CHANGE),
-      omiter_str,
-      get_modal_key_str(BEV_MODAL_INNER_MITER_CHANGE),
-      imiter_str,
-      get_modal_key_str(BEV_MODAL_HARDEN_NORMALS_TOGGLE),
-      WM_bool_as_string(RNA_boolean_get(op->ptr, "harden_normals")),
-      get_modal_key_str(BEV_MODAL_MARK_SEAM_TOGGLE),
-      WM_bool_as_string(RNA_boolean_get(op->ptr, "mark_seam")),
-      get_modal_key_str(BEV_MODAL_MARK_SHARP_TOGGLE),
-      WM_bool_as_string(RNA_boolean_get(op->ptr, "mark_sharp")),
-      get_modal_key_str(BEV_MODAL_PROFILE_TYPE_CHANGE),
-      profile_type_str,
-      get_modal_key_str(BEV_MODAL_VERTEX_MESH_CHANGE),
-      vmesh_str);
+  WorkspaceStatus status(C);
+  status.opmodal(IFACE_("Confirm"), op->type, BEV_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op->type, BEV_MODAL_CANCEL);
+  status.opmodal(IFACE_("Width Type"), op->type, BEV_MODAL_OFFSET_MODE_CHANGE);
 
-  ED_workspace_status_text(C, status_text.c_str());
+  status.opmodal(
+      IFACE_("Width"), op->type, BEV_MODAL_VALUE_OFFSET, opdata->value_mode == OFFSET_VALUE);
+  status.opmodal(IFACE_("Segments"),
+                 op->type,
+                 BEV_MODAL_VALUE_SEGMENTS,
+                 opdata->value_mode == SEGMENTS_VALUE);
+  status.opmodal(
+      IFACE_("Profile"), op->type, BEV_MODAL_VALUE_PROFILE, opdata->value_mode == PROFILE_VALUE);
+
+  status.opmodal(IFACE_("Clamp"),
+                 op->type,
+                 BEV_MODAL_CLAMP_OVERLAP_TOGGLE,
+                 RNA_boolean_get(op->ptr, "clamp_overlap"));
+  status.opmodal(IFACE_("Harden"),
+                 op->type,
+                 BEV_MODAL_HARDEN_NORMALS_TOGGLE,
+                 RNA_boolean_get(op->ptr, "harden_normals"));
+  status.opmodal(
+      IFACE_("Seam"), op->type, BEV_MODAL_MARK_SEAM_TOGGLE, RNA_boolean_get(op->ptr, "mark_seam"));
+  status.opmodal(IFACE_("Sharp"),
+                 op->type,
+                 BEV_MODAL_MARK_SHARP_TOGGLE,
+                 RNA_boolean_get(op->ptr, "mark_sharp"));
+
+  std::string desc;
+
+  desc = fmt::format("{} ({}) ", IFACE_("Affect"), affect_str);
+  status.opmodal(desc.c_str(), op->type, BEV_MODAL_AFFECT_CHANGE);
+
+  desc = fmt::format("{} ({}) ", IFACE_("Outer"), omiter_str);
+  status.opmodal(desc.c_str(), op->type, BEV_MODAL_OUTER_MITER_CHANGE);
+
+  desc = fmt::format("{} ({}) ", IFACE_("Inner"), imiter_str);
+  status.opmodal(desc.c_str(), op->type, BEV_MODAL_INNER_MITER_CHANGE);
+
+  desc = fmt::format("{} ({}) ", IFACE_("Profile Type"), profile_type_str);
+  status.opmodal(desc.c_str(), op->type, BEV_MODAL_PROFILE_TYPE_CHANGE);
+
+  desc = fmt::format("{} ({}) ", IFACE_("Intersection"), vmesh_str);
+  status.opmodal(desc.c_str(), op->type, BEV_MODAL_VERTEX_MESH_CHANGE);
 }
 
 static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
@@ -279,8 +291,10 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
       BMEditMesh *em = BKE_editmesh_from_object(obedit);
       ob_store.mesh_backup = EDBM_redo_state_store(em);
     }
-    opdata->draw_handle_pixel = ED_region_draw_cb_activate(
-        region->type, ED_region_draw_mouse_line_cb, opdata->mcenter, REGION_DRAW_POST_PIXEL);
+    opdata->draw_handle_pixel = ED_region_draw_cb_activate(region->runtime->type,
+                                                           ED_region_draw_mouse_line_cb,
+                                                           opdata->mcenter,
+                                                           REGION_DRAW_POST_PIXEL);
     G.moving = G_TRANSFORM_EDIT;
   }
 
@@ -397,7 +411,7 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
     for (BevelObjectStore &ob_store : opdata->ob_store) {
       EDBM_redo_state_free(&ob_store.mesh_backup);
     }
-    ED_region_draw_cb_exit(region->type, opdata->draw_handle_pixel);
+    ED_region_draw_cb_exit(region->runtime->type, opdata->draw_handle_pixel);
     G.moving = 0;
   }
   MEM_delete(opdata);

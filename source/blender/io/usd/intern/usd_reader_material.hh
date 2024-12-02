@@ -53,6 +53,15 @@ struct NodePlacementContext {
   }
 };
 
+/* Helper struct which carries an assortment of optional
+ * information that is sometimes required when linking
+ * nodes together. */
+struct ExtraLinkInfo {
+  bool is_color_corrected = false;
+
+  float opacity_threshold = 0.0f;
+};
+
 /* Converts USD materials to Blender representation. */
 
 /**
@@ -103,6 +112,10 @@ class USDMaterialReader {
                                   bNodeTree *ntree,
                                   const pxr::UsdShadeShader &usd_shader) const;
 
+  bool set_displacement_node_inputs(bNodeTree *ntree,
+                                    bNode *output,
+                                    const pxr::UsdShadeShader &usd_shader) const;
+
   /** Convert the given USD shader input to an input on the given Blender node. */
   bool set_node_input(const pxr::UsdShadeInput &usd_input,
                       bNode *dest_node,
@@ -110,7 +123,7 @@ class USDMaterialReader {
                       bNodeTree *ntree,
                       int column,
                       NodePlacementContext *r_ctx,
-                      bool is_color_corrected) const;
+                      const ExtraLinkInfo &extra = {}) const;
 
   /**
    * Follow the connected source of the USD input to create corresponding inputs
@@ -122,7 +135,7 @@ class USDMaterialReader {
                          bNodeTree *ntree,
                          int column,
                          NodePlacementContext *r_ctx,
-                         bool is_color_corrected = false) const;
+                         const ExtraLinkInfo &extra = {}) const;
 
   void convert_usd_uv_texture(const pxr::UsdShadeShader &usd_shader,
                               const pxr::TfToken &usd_source_name,
@@ -131,7 +144,7 @@ class USDMaterialReader {
                               bNodeTree *ntree,
                               int column,
                               NodePlacementContext *r_ctx,
-                              bool is_color_corrected = false) const;
+                              const ExtraLinkInfo &extra = {}) const;
 
   void convert_usd_transform_2d(const pxr::UsdShadeShader &usd_shader,
                                 bNode *dest_node,
@@ -146,7 +159,7 @@ class USDMaterialReader {
    */
   void load_tex_image(const pxr::UsdShadeShader &usd_shader,
                       bNode *tex_image,
-                      bool is_color_corrected = false) const;
+                      const ExtraLinkInfo &extra = {}) const;
 
   /**
    * This function creates a Blender UV Map node, under the simplifying assumption that

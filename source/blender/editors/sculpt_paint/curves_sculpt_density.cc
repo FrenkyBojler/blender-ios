@@ -14,6 +14,7 @@
 #include "BKE_mesh_sample.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
 #include "BKE_report.hh"
 
 #include "ED_screen.hh"
@@ -533,7 +534,7 @@ struct DensitySubtractOperationExecutor {
 
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
-    if (curves_->curves_num() == 0) {
+    if (curves_->is_empty()) {
       return;
     }
 
@@ -856,7 +857,7 @@ static bool use_add_density_mode(const BrushStrokeMode brush_mode,
 
   /* Compute distance from brush to curve roots. */
   Array<std::pair<float, int>> distances_sq_to_brush(curves.curves_num());
-  threading::EnumerableThreadSpecific<int> valid_curve_count_by_thread;
+  threading::EnumerableThreadSpecific<int> valid_curve_count_by_thread([&]() { return 0; });
   threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
     int &valid_curve_count = valid_curve_count_by_thread.local();
     for (const int curve_i : range) {

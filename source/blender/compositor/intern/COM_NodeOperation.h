@@ -126,9 +126,7 @@ class NodeOperationInput {
    */
   bool determine_canvas(const rcti &preferred_area, rcti &r_area);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("COM:NodeOperation")
-#endif
 };
 
 class NodeOperationOutput {
@@ -155,9 +153,7 @@ class NodeOperationOutput {
 
   void determine_canvas(const rcti &preferred_area, rcti &r_area);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("COM:NodeOperation")
-#endif
 };
 
 struct NodeOperationFlags {
@@ -266,7 +262,7 @@ class NodeOperation {
  private:
   int id_;
   std::string name_;
-  bNodeInstanceKey node_instance_key_{NODE_INSTANCE_KEY_NONE};
+  bNodeInstanceKey node_instance_key_{bke::NODE_INSTANCE_KEY_NONE};
 
   Vector<NodeOperationInput> inputs_;
   Vector<NodeOperationOutput> outputs_;
@@ -565,9 +561,7 @@ class NodeOperation {
   /* allow the DebugInfo class to look at internals */
   friend class DebugInfo;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("COM:NodeOperation")
-#endif
 };
 
 std::ostream &operator<<(std::ostream &os, const NodeOperationFlags &node_operation_flags);

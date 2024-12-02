@@ -11,11 +11,13 @@
 #include "usd_reader_mesh.hh"
 #include "usd_reader_nurbs.hh"
 #include "usd_reader_pointinstancer.hh"
+#include "usd_reader_points.hh"
 #include "usd_reader_prim.hh"
 #include "usd_reader_shape.hh"
 #include "usd_reader_skeleton.hh"
 #include "usd_reader_volume.hh"
 #include "usd_reader_xform.hh"
+#include "usd_utils.hh"
 
 #include <pxr/pxr.h>
 #include <pxr/usd/usdGeom/camera.h>
@@ -26,17 +28,13 @@
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/nurbsCurves.h>
 #include <pxr/usd/usdGeom/pointInstancer.h>
+#include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/scope.h>
 #include <pxr/usd/usdGeom/sphere.h>
 #include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdLux/boundableLightBase.h>
+#include <pxr/usd/usdLux/nonboundableLightBase.h>
 #include <pxr/usd/usdShade/material.h>
-
-#if PXR_VERSION >= 2111
-#  include <pxr/usd/usdLux/boundableLightBase.h>
-#  include <pxr/usd/usdLux/nonboundableLightBase.h>
-#else
-#  include <pxr/usd/usdLux/light.h>
-#endif
 
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
@@ -109,29 +107,6 @@ static void set_instance_collection(
   }
 }
 
-static void collect_point_instancer_proto_paths(const pxr::UsdPrim &prim, UsdPathSet &r_paths)
-{
-  /* Note that we use custom filter flags to allow traversing undefined prims,
-   * because prototype prims may be defined as overs which are skipped by the
-   * default predicate. */
-  pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
-                                               !pxr::UsdPrimIsAbstract;
-
-  pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_flags);
-
-  for (const auto &child_prim : children) {
-    if (pxr::UsdGeomPointInstancer instancer = pxr::UsdGeomPointInstancer(child_prim)) {
-      pxr::SdfPathVector paths;
-      instancer.GetPrototypesRel().GetTargets(&paths);
-      for (const pxr::SdfPath &path : paths) {
-        r_paths.add(path);
-      }
-    }
-
-    collect_point_instancer_proto_paths(child_prim, r_paths);
-  }
-}
-
 USDStageReader::USDStageReader(pxr::UsdStageRefPtr stage,
                                const USDImportParams &params,
                                const ImportSettings &settings)
@@ -179,13 +154,13 @@ USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim
   if (params_.import_meshes && prim.IsA<pxr::UsdGeomMesh>()) {
     return new USDMeshReader(prim, params_, settings_);
   }
-#if PXR_VERSION >= 2111
+  if (params_.import_lights && prim.IsA<pxr::UsdLuxDomeLight>()) {
+    /* Dome lights are handled elsewhere. */
+    return nullptr;
+  }
   if (params_.import_lights &&
       (prim.IsA<pxr::UsdLuxBoundableLightBase>() || prim.IsA<pxr::UsdLuxNonboundableLightBase>()))
   {
-#else
-  if (params_.import_lights && prim.IsA<pxr::UsdLuxLight>()) {
-#endif
     return new USDLightReader(prim, params_, settings_);
   }
   if (params_.import_volumes && prim.IsA<pxr::UsdVolVolume>()) {
@@ -193,6 +168,9 @@ USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim
   }
   if (params_.import_skeletons && prim.IsA<pxr::UsdSkelSkeleton>()) {
     return new USDSkeletonReader(prim, params_, settings_);
+  }
+  if (params_.import_points && prim.IsA<pxr::UsdGeomPoints>()) {
+    return new USDPointsReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdGeomImageable>()) {
     return new USDXformReader(prim, params_, settings_);
@@ -221,11 +199,11 @@ USDPrimReader *USDStageReader::create_reader(const pxr::UsdPrim &prim)
   if (prim.IsA<pxr::UsdGeomMesh>()) {
     return new USDMeshReader(prim, params_, settings_);
   }
-#if PXR_VERSION >= 2111
+  if (prim.IsA<pxr::UsdLuxDomeLight>()) {
+    /* We don't handle dome lights. */
+    return nullptr;
+  }
   if (prim.IsA<pxr::UsdLuxBoundableLightBase>() || prim.IsA<pxr::UsdLuxNonboundableLightBase>()) {
-#else
-  if (prim.IsA<pxr::UsdLuxLight>()) {
-#endif
     return new USDLightReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdVolVolume>()) {
@@ -233,6 +211,12 @@ USDPrimReader *USDStageReader::create_reader(const pxr::UsdPrim &prim)
   }
   if (prim.IsA<pxr::UsdSkelSkeleton>()) {
     return new USDSkeletonReader(prim, params_, settings_);
+  }
+  if (prim.IsA<pxr::UsdGeomPoints>()) {
+    return new USDPointsReader(prim, params_, settings_);
+  }
+  if (prim.IsA<pxr::UsdGeomPointInstancer>()) {
+    return new USDPointInstancerReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdGeomImageable>()) {
     return new USDXformReader(prim, params_, settings_);
@@ -300,11 +284,13 @@ bool USDStageReader::include_by_purpose(const pxr::UsdGeomImageable &imageable) 
   return true;
 }
 
-/* Determine if the given reader can use the parent of the encapsulated USD prim
- * to compute the Blender object's transform. If so, the reader is appropriately
- * flagged and the function returns true. Otherwise, the function returns false. */
-static bool merge_with_parent(USDPrimReader *reader)
+bool USDStageReader::merge_with_parent(USDPrimReader *reader) const
 {
+  /* Don't merge if the param is set to false */
+  if (!params_.merge_parent_xform) {
+    return false;
+  }
+
   USDXformReader *xform_reader = dynamic_cast<USDXformReader *>(reader);
 
   if (!xform_reader) {
@@ -356,14 +342,18 @@ USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
     }
   }
 
+  if (prim.IsA<pxr::UsdLuxDomeLight>()) {
+    dome_lights_.append(pxr::UsdLuxDomeLight(prim));
+  }
+
   pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
                                                !pxr::UsdPrimIsAbstract;
+
   if (defined_prims_only) {
     filter_flags &= pxr::UsdPrimIsDefined;
   }
 
   pxr::Usd_PrimFlagsPredicate filter_predicate(filter_flags);
-
   if (!params_.support_scene_instancing) {
     filter_predicate = pxr::UsdTraverseInstanceProxies(filter_predicate);
   }
@@ -419,6 +409,9 @@ USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
   if (!reader) {
     return nullptr;
   }
+  if (!reader->valid()) {
+    return nullptr;
+  }
 
   r_readers.append(reader);
   reader->incref();
@@ -438,6 +431,7 @@ void USDStageReader::collect_readers()
   }
 
   clear_readers();
+  dome_lights_.clear();
 
   /* Identify paths to point instancer prototypes, as these will be converted
    * in a separate pass over the stage. */
@@ -449,7 +443,7 @@ void USDStageReader::collect_readers()
   stage_->SetInterpolationType(pxr::UsdInterpolationType::UsdInterpolationTypeHeld);
 
   /* Create readers, skipping over prototype prims in this pass. */
-  collect_readers(root, instancer_proto_paths, true, readers_);
+  collect_readers(root, instancer_proto_paths, params_.import_defined_only, readers_);
 
   if (params_.support_scene_instancing) {
     /* Collect the scene-graph instance prototypes. */
@@ -545,7 +539,7 @@ void USDStageReader::import_all_materials(Main *bmain)
     Material *new_mtl = mtl_reader.add_material(usd_mtl);
     BLI_assert_msg(new_mtl, "Failed to create material");
 
-    const std::string mtl_name = pxr::TfMakeValidIdentifier(new_mtl->id.name + 2);
+    const std::string mtl_name = make_safe_name(new_mtl->id.name + 2, true);
     settings_.mat_name_to_mat.lookup_or_add_default(mtl_name) = new_mtl;
 
     if (params_.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
@@ -677,22 +671,22 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
 
   for (USDPrimReader *reader : readers_) {
     USDPointInstancerReader *instancer_reader = dynamic_cast<USDPointInstancerReader *>(reader);
-
     if (!instancer_reader) {
       continue;
     }
 
+    pxr::SdfPathVector proto_paths = instancer_reader->proto_paths();
     const pxr::SdfPath &instancer_path = reader->prim().GetPath();
     Collection *instancer_protos_coll = create_collection(
         bmain, all_protos_collection, instancer_path.GetName().c_str());
 
     /* Determine the max number of digits we will need for the possibly zero-padded
      * string representing the prototype index. */
-    const int max_index_digits = integer_digits_i(instancer_reader->proto_paths().size());
+    const int max_index_digits = integer_digits_i(proto_paths.size());
 
     int proto_index = 0;
 
-    for (const pxr::SdfPath &proto_path : instancer_reader->proto_paths()) {
+    for (const pxr::SdfPath &proto_path : proto_paths) {
       BLI_assert(max_index_digits > 0);
 
       /* Format the collection name to follow the proto_<index> pattern. */
@@ -702,8 +696,8 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
       Collection *proto_coll = create_collection(bmain, instancer_protos_coll, coll_name.c_str());
       blender::Vector<USDPrimReader *> proto_readers = instancer_proto_readers_.lookup_default(
           proto_path, {});
-      for (USDPrimReader *reader : proto_readers) {
-        Object *ob = reader->object();
+      for (const USDPrimReader *proto : proto_readers) {
+        Object *ob = proto->object();
         if (!ob) {
           continue;
         }
@@ -746,6 +740,39 @@ void USDStageReader::create_point_instancer_proto_readers(const UsdPathSet &prot
   }
 }
 
+void USDStageReader::collect_point_instancer_proto_paths(const pxr::UsdPrim &prim,
+                                                         UsdPathSet &r_paths) const
+{
+  /* Note that we use custom filter flags to allow traversing undefined prims,
+   * because prototype prims may be defined as overs which are skipped by the
+   * default predicate. */
+  pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
+                                               !pxr::UsdPrimIsAbstract;
+
+  pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_flags);
+
+  for (const auto &child_prim : children) {
+    if (pxr::UsdGeomPointInstancer instancer = pxr::UsdGeomPointInstancer(child_prim)) {
+      /* We should only collect the prototype paths from this instancer if it would be included
+       * by our purpose and visibility checks, matching what is inside #collect_readers. */
+      if (!include_by_purpose(instancer)) {
+        continue;
+      }
+      if (!include_by_visibility(instancer)) {
+        continue;
+      }
+
+      pxr::SdfPathVector paths;
+      instancer.GetPrototypesRel().GetTargets(&paths);
+      for (const pxr::SdfPath &path : paths) {
+        r_paths.add(path);
+      }
+    }
+
+    collect_point_instancer_proto_paths(child_prim, r_paths);
+  }
+}
+
 UsdPathSet USDStageReader::collect_point_instancer_proto_paths() const
 {
   UsdPathSet result;
@@ -754,12 +781,12 @@ UsdPathSet USDStageReader::collect_point_instancer_proto_paths() const
     return result;
   }
 
-  io::usd::collect_point_instancer_proto_paths(stage_->GetPseudoRoot(), result);
+  collect_point_instancer_proto_paths(stage_->GetPseudoRoot(), result);
 
   std::vector<pxr::UsdPrim> protos = stage_->GetPrototypes();
 
   for (const pxr::UsdPrim &proto_prim : protos) {
-    io::usd::collect_point_instancer_proto_paths(proto_prim, result);
+    collect_point_instancer_proto_paths(proto_prim, result);
   }
 
   return result;

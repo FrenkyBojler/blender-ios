@@ -14,6 +14,7 @@
 #include "DNA_listBase.h"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_types.hh"
 
 struct BlenderRNA;
@@ -126,7 +127,7 @@ using PropEnumSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value
 
 /** Structure storing all needed data to process all three kinds of RNA properties. */
 struct PropertyRNAOrID {
-  PointerRNA ptr;
+  PointerRNA *ptr;
 
   /**
    * The PropertyRNA passed as parameter, used to generate that structure's content:
@@ -260,9 +261,9 @@ struct RNAPropertyOverrideApplyContext {
   bool do_insert = false;
 
   /** Main RNA data and property pointers. */
-  PointerRNA ptr_dst = {0};
-  PointerRNA ptr_src = {0};
-  PointerRNA ptr_storage = {0};
+  PointerRNA ptr_dst = {};
+  PointerRNA ptr_src = {};
+  PointerRNA ptr_storage = {};
   PropertyRNA *prop_dst = nullptr;
   PropertyRNA *prop_src = nullptr;
   PropertyRNA *prop_storage = nullptr;
@@ -273,9 +274,9 @@ struct RNAPropertyOverrideApplyContext {
   int len_storage = 0;
 
   /** Items, for RNA collections. */
-  PointerRNA ptr_item_dst = {0};
-  PointerRNA ptr_item_src = {0};
-  PointerRNA ptr_item_storage = {0};
+  PointerRNA ptr_item_dst = {};
+  PointerRNA ptr_item_src = {};
+  PointerRNA ptr_item_storage = {};
 
   /** LibOverride data. */
   IDOverrideLibrary *liboverride = nullptr;
@@ -411,6 +412,8 @@ struct BoolPropertyRNA {
   PropBooleanArrayGetFuncEx getarray_ex;
   PropBooleanArraySetFuncEx setarray_ex;
 
+  PropBooleanGetFuncEx get_default;
+  PropBooleanArrayGetFuncEx get_default_array;
   bool defaultvalue;
   const bool *defaultarray;
 };
@@ -435,6 +438,8 @@ struct IntPropertyRNA {
   int hardmin, hardmax;
   int step;
 
+  PropIntGetFuncEx get_default;
+  PropIntArrayGetFuncEx get_default_array;
   int defaultvalue;
   const int *defaultarray;
 };
@@ -459,6 +464,9 @@ struct FloatPropertyRNA {
   float hardmin, hardmax;
   float step;
   int precision;
+
+  PropFloatGetFuncEx get_default;
+  PropFloatArrayGetFuncEx get_default_array;
 
   float defaultvalue;
   const float *defaultarray;

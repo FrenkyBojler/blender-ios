@@ -33,9 +33,9 @@
 #include "BKE_customdata.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
-#include "BKE_image_save.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
+#include "BKE_image_save.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
@@ -66,6 +66,8 @@
 #include "RNA_define.hh"
 
 #include "SEQ_render.hh"
+
+#include "ANIM_action_legacy.hh"
 
 #include "GPU_framebuffer.hh"
 #include "GPU_matrix.hh"
@@ -393,7 +395,7 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
       else {
         rect = ibuf_result->byte_buffer.data;
       }
-      BKE_image_stamp_buf(scene, camera, nullptr, rect, rectf, rr->rectx, rr->recty, 4);
+      BKE_image_stamp_buf(scene, camera, nullptr, rect, rectf, rr->rectx, rr->recty);
     }
     RE_render_result_rect_from_ibuf(rr, ibuf_result, oglrender->view_id);
     IMB_freeImBuf(ibuf_result);
@@ -512,7 +514,7 @@ static void gather_frames_to_render_for_adt(const OGLRender *oglrender, const An
   int frame_start = PSFRA;
   int frame_end = PEFRA;
 
-  LISTBASE_FOREACH (FCurve *, fcu, &adt->action->curves) {
+  for (const FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(adt)) {
     if (fcu->driver != nullptr || fcu->fpt != nullptr) {
       /* Drivers have values for any point in time, so to get "the keyed frames" they are
        * useless. Same for baked FCurves, they also have keys for every frame, which is not
@@ -616,7 +618,6 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
     case ID_SCR: /* Screen */
     case ID_GR:  /* Group */
     case ID_AC:  /* bAction */
-    case ID_AN:  /* Animation */
     case ID_BR:  /* Brush */
     case ID_WM:  /* WindowManager */
     case ID_LS:  /* FreestyleLineStyle */
@@ -1112,7 +1113,7 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
     return false;
   }
   Scene *scene = oglrender->scene;
-  WriteTaskData *task_data = MEM_new<WriteTaskData>("write task data");
+  WriteTaskData *task_data = MEM_cnew<WriteTaskData>("write task data");
   task_data->rr = rr;
   memcpy(&task_data->tmp_scene, scene, sizeof(task_data->tmp_scene));
   BLI_mutex_lock(&oglrender->task_mutex);
@@ -1318,9 +1319,9 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static std::string screen_opengl_render_description(bContext * /*C*/,
-                                                    wmOperatorType * /*ot*/,
-                                                    PointerRNA *ptr)
+static std::string screen_opengl_render_get_description(bContext * /*C*/,
+                                                        wmOperatorType * /*ot*/,
+                                                        PointerRNA *ptr)
 {
   if (!RNA_boolean_get(ptr, "animation")) {
     return "";
@@ -1345,7 +1346,7 @@ void RENDER_OT_opengl(wmOperatorType *ot)
   ot->idname = "RENDER_OT_opengl";
 
   /* api callbacks */
-  ot->get_description = screen_opengl_render_description;
+  ot->get_description = screen_opengl_render_get_description;
   ot->invoke = screen_opengl_render_invoke;
   ot->exec = screen_opengl_render_exec; /* blocking */
   ot->modal = screen_opengl_render_modal;

@@ -48,6 +48,20 @@ enum {
    * data-blocks.
    */
   IDTYPE_FLAGS_NO_MEMFILE_UNDO = 1 << 5,
+  /**
+   * Indicates that the given IDType is considered as unused.
+   *
+   * This is used for some 'root' ID types which typically do not have any actual user (WM.
+   * Scene...). It prevents e.g. their deletion through the 'Purge' operation.
+   *
+   * \note This applies to local IDs. Linked data should essentially ignore this flag. In practice,
+   * currently, only the Scene ID can be linked among the `never unused` types.
+   *
+   * \note The implementation of the expected behaviors related to this characteristic is somewhat
+   * fragile and inconsistent currently. In most case though, code is expected to ensure that such
+   * IDs have at least an 'extra user' (#ID_TAG_EXTRAUSER).
+   */
+  IDTYPE_FLAGS_NEVER_UNUSED = 1 << 6,
 };
 
 struct IDCacheKey {
@@ -281,7 +295,6 @@ extern IDTypeInfo IDType_ID_CV;
 extern IDTypeInfo IDType_ID_PT;
 extern IDTypeInfo IDType_ID_VO;
 extern IDTypeInfo IDType_ID_GP;
-extern IDTypeInfo IDType_ID_AN;
 
 /** Empty shell mostly, but needed for read code. */
 extern IDTypeInfo IDType_ID_LINK_PLACEHOLDER;
@@ -363,9 +376,9 @@ short BKE_idtype_idcode_from_name(const char *idtype_name);
  */
 int BKE_idtype_idcode_to_index(short idcode);
 /**
- * Convert an \a idfilter into an \a idtype_index (e.g. #FILTER_ID_OB -> #INDEX_ID_OB).
+ * Convert an \a id_filter into an \a idtype_index (e.g. #FILTER_ID_OB -> #INDEX_ID_OB).
  */
-int BKE_idtype_idfilter_to_index(uint64_t idfilter);
+int BKE_idtype_idfilter_to_index(uint64_t id_filter);
 
 /**
  * Convert an \a idtype_index into an \a idcode (e.g. #INDEX_ID_OB -> #ID_OB).

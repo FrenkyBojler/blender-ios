@@ -21,6 +21,7 @@
 #include "BKE_global.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -140,7 +141,6 @@ const EnumPropertyItem rna_enum_transform_mode_type_items[] = {
     {TFM_BONE_ENVELOPE_DIST, "BONE_ENVELOPE_DIST", 0, "Bone Envelope Distance", ""},
     {TFM_CURVE_SHRINKFATTEN, "CURVE_SHRINKFATTEN", 0, "Curve Shrink/Fatten", ""},
     {TFM_MASK_SHRINKFATTEN, "MASK_SHRINKFATTEN", 0, "Mask Shrink/Fatten", ""},
-    {TFM_GPENCIL_SHRINKFATTEN, "GPENCIL_SHRINKFATTEN", 0, "Grease Pencil Shrink/Fatten", ""},
     {TFM_BONE_ROLL, "BONE_ROLL", 0, "Bone Roll", ""},
     {TFM_TIME_TRANSLATE, "TIME_TRANSLATE", 0, "Time Translate", ""},
     {TFM_TIME_SLIDE, "TIME_SLIDE", 0, "Time Slide", ""},
@@ -419,7 +419,7 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   /* XXX insert keys are called here, and require context. */
   t->context = C;
-  exit_code = transformEvent(t, event);
+  exit_code = transformEvent(t, op, event);
   t->context = nullptr;
 
   /* Allow navigation while transforming. */
@@ -449,7 +449,7 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
         /* Navigation has ended. */
 
         /* Call before #applyMouseInput. */
-        tranformViewUpdate(t);
+        transformViewUpdate(t);
 
         /* Mouse input is outdated. */
         t->mval = float2(event->mval);
@@ -1349,6 +1349,13 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
       ot->srna, "value", 2, nullptr, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 0);
 
+  prop = RNA_def_boolean(ot->srna,
+                         "use_restore_handle_selection",
+                         false,
+                         "Restore Handle Selection",
+                         "Restore handle selection after tweaking");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   WM_operatortype_props_advanced_begin(ot);
 
   Transform_Properties(ot, P_SNAP | P_VIEW2D_EDGE_PAN);
@@ -1413,7 +1420,7 @@ static int transform_from_gizmo_invoke(bContext *C, wmOperator * /*op*/, const w
   bToolRef *tref = WM_toolsystem_ref_from_context(C);
   if (tref) {
     ARegion *region = CTX_wm_region(C);
-    wmGizmoMap *gzmap = region->gizmo_map;
+    wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup = gzmap ? WM_gizmomap_group_find(gzmap, "VIEW3D_GGT_xform_gizmo") :
                                     nullptr;
     if (gzgroup != nullptr) {

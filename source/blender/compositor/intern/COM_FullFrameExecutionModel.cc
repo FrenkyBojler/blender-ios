@@ -12,11 +12,11 @@
 #include "COM_ViewerOperation.h"
 #include "COM_WorkScheduler.h"
 
+#include "COM_profiler.hh"
+
 #include "BLI_timeit.hh"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace blender::compositor {
 
@@ -28,10 +28,8 @@ FullFrameExecutionModel::FullFrameExecutionModel(CompositorContext &context,
       num_operations_finished_(0)
 {
   priorities_.append(eCompositorPriority::High);
-  if (!context.is_fast_calculation()) {
-    priorities_.append(eCompositorPriority::Medium);
-    priorities_.append(eCompositorPriority::Low);
-  }
+  priorities_.append(eCompositorPriority::Medium);
+  priorities_.append(eCompositorPriority::Low);
 }
 
 void FullFrameExecutionModel::execute(ExecutionSystem &exec_system)
@@ -44,8 +42,6 @@ void FullFrameExecutionModel::execute(ExecutionSystem &exec_system)
 
   determine_areas_to_render_and_reads();
   render_operations();
-
-  profiler_.finalize(*node_tree);
 }
 
 void FullFrameExecutionModel::determine_areas_to_render_and_reads()
@@ -105,7 +101,7 @@ void FullFrameExecutionModel::render_operation(NodeOperation *op)
   constexpr int output_x = 0;
   constexpr int output_y = 0;
 
-  const timeit::TimePoint time_start = timeit::Clock::now();
+  const timeit::TimePoint before_time = timeit::Clock::now();
 
   const bool has_outputs = op->get_number_of_output_sockets() > 0;
   MemoryBuffer *op_buf = has_outputs ? create_operation_buffer(op, output_x, output_y) : nullptr;
@@ -127,7 +123,13 @@ void FullFrameExecutionModel::render_operation(NodeOperation *op)
 
   operation_finished(op);
 
-  profiler_.add_operation_execution_time(*op, time_start, timeit::Clock::now());
+  /* The operation may not come from any node. For example, it may have been added to convert data
+   * type. Do not accumulate time from its execution. */
+  const timeit::TimePoint after_time = timeit::Clock::now();
+  const bNodeInstanceKey node_instance_key = op->get_node_instance_key();
+  if (context_.get_profiler() && node_instance_key != bke::NODE_INSTANCE_KEY_NONE) {
+    context_.get_profiler()->set_node_evaluation_time(node_instance_key, after_time - before_time);
+  }
 }
 
 void FullFrameExecutionModel::render_operations()
@@ -253,7 +255,8 @@ void FullFrameExecutionModel::get_output_render_area(NodeOperation *output_op, r
   const bool has_viewer_border = border_.use_viewer_border &&
                                  (output_op->get_flags().is_viewer_operation ||
                                   output_op->get_flags().is_preview_operation);
-  const bool has_render_border = border_.use_render_border;
+  const bool has_render_border = border_.use_render_border &&
+                                 output_op->get_flags().use_render_border;
   if (has_viewer_border || has_render_border) {
     /* Get border with normalized coordinates. */
     const rctf *norm_border = has_viewer_border ? border_.viewer_border : border_.render_border;

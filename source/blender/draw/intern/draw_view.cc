@@ -17,6 +17,8 @@
 
 namespace blender::draw {
 
+std::atomic<uint32_t> View::global_sync_counter_ = 1;
+
 void View::sync(const float4x4 &view_mat, const float4x4 &win_mat, int view_id)
 {
   data_[view_id].viewmat = view_mat;
@@ -31,6 +33,9 @@ void View::sync(const float4x4 &view_mat, const float4x4 &win_mat, int view_id)
   frustum_culling_sphere_calc(view_id);
 
   dirty_ = true;
+  manager_fingerprint_ = 0;
+  /* Add 2 to always have a non-null number even in case of overflow. */
+  sync_counter_ = (global_sync_counter_ += 2);
 }
 
 void View::sync(const DRWView *view)
@@ -80,14 +85,10 @@ void View::frustum_boundbox_calc(int view_id)
   corners[1][1] = corners[5][1] = bottom;
   corners[2][1] = corners[6][1] = top;
 
+  const float4x4 &view_inv = data_[view_id].viewinv;
   /* Transform into world space. */
   for (float4 &corner : corners) {
-    mul_m4_v3(data_[view_id].viewinv.ptr(), corner);
-    corner.w = 1.0;
-    /* Special case for planar reflection. */
-    if (is_inverted_) {
-      corner.z = -corner.z;
-    }
+    corner = float4(math::transform_point(view_inv, float3(corner)), 1.0);
   }
 }
 
@@ -101,15 +102,9 @@ void View::frustum_culling_planes_calc(int view_id)
                       culling_[view_id].frustum_planes.planes[3],
                       culling_[view_id].frustum_planes.planes[4],
                       culling_[view_id].frustum_planes.planes[2]);
-
   /* Normalize. */
   for (float4 &plane : culling_[view_id].frustum_planes.planes) {
-    plane.w /= normalize_v3(plane);
-
-    /* Special case for planar reflection. */
-    if (is_inverted_) {
-      plane.z = -plane.z;
-    }
+    plane /= math::length(plane.xyz());
   }
 }
 
@@ -242,6 +237,11 @@ void View::bind()
 
 void View::compute_procedural_bounds()
 {
+  /* Sync happens on the GPU. This is called after each sync. */
+  manager_fingerprint_ = 0;
+  /* Add 2 to always have a non-null number even in case of overflow. */
+  sync_counter_ = (global_sync_counter_ += 2);
+
   GPU_debug_group_begin("View.compute_procedural_bounds");
 
   GPUShader *shader = DRW_shader_draw_view_finalize_get();
@@ -254,7 +254,10 @@ void View::compute_procedural_bounds()
   GPU_debug_group_end();
 }
 
-void View::compute_visibility(ObjectBoundsBuf &bounds, uint resource_len, bool debug_freeze)
+void View::compute_visibility(ObjectBoundsBuf &bounds,
+                              ObjectInfosBuf & /*infos*/,
+                              uint resource_len,
+                              bool debug_freeze)
 {
   if (debug_freeze && frozen_ == false) {
     data_freeze_[0] = static_cast<ViewMatrices>(data_[0]);

@@ -13,12 +13,15 @@
 #include "BKE_grease_pencil_vertex_groups.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object_deform.h"
+#include "BKE_paint.hh"
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "BLI_kdtree.h"
+#include "BLI_rect.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "ED_grease_pencil.hh"
@@ -80,7 +83,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
   /* Flag for Auto-normalize weights of bone deformed vertex groups. */
   bool auto_normalize;
   /* Brush mode: normal, invert or smooth. */
-  BrushStrokeMode brush_mode;
+  BrushStrokeMode stroke_mode;
   /* Add or subtract weight? */
   bool invert_brush_weight;
   /* Active vertex group in GP object. */
@@ -205,8 +208,8 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
         }
 
         /* Convert stroke points to screen space positions. */
-        const bke::greasepencil::Layer &layer =
-            *this->grease_pencil->layers()[drawing_info.layer_index];
+        const bke::greasepencil::Layer &layer = this->grease_pencil->layer(
+            drawing_info.layer_index);
         const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
         const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d, layer_to_world);
 

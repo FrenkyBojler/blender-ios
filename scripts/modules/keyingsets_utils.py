@@ -28,7 +28,7 @@ import bpy
 # General Utilities
 
 
-# Append the specified property name on the the existing path
+# Append the specified property name on the existing path.
 def path_add_property(path, prop):
     if path:
         return path + "." + prop
@@ -212,7 +212,8 @@ def RKS_GEN_custom_props(_ksi, _context, ks, data):
     # Only some RNA types can be animated.
     prop_type_compat = {bpy.types.BoolProperty,
                         bpy.types.IntProperty,
-                        bpy.types.FloatProperty}
+                        bpy.types.FloatProperty,
+                        bpy.types.EnumProperty}
 
     # When working with a pose, 'id_block' is the armature object (which should
     # get the animation data), whereas 'data' is the bone being keyed.
@@ -220,8 +221,13 @@ def RKS_GEN_custom_props(_ksi, _context, ks, data):
         # ignore special "_RNA_UI" used for UI editing
         if cprop_name == "_RNA_UI":
             continue
+        if cprop_name in data.bl_rna.properties and not data.bl_rna.properties[cprop_name].is_animatable:
+            continue
 
-        prop_path = '["{:s}"]'.format(bpy.utils.escape_identifier(cprop_name))
+        if cprop_name in data.bl_rna.properties:
+            prop_path = cprop_name
+        else:
+            prop_path = '["{:s}"]'.format(bpy.utils.escape_identifier(cprop_name))
 
         try:
             rna_property = data.path_resolve(prop_path, False)

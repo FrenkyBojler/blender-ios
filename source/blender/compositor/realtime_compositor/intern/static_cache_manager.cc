@@ -8,6 +8,11 @@ namespace blender::realtime_compositor {
 
 void StaticCacheManager::reset()
 {
+  if (should_skip_next_reset_) {
+    should_skip_next_reset_ = false;
+    return;
+  }
+
   symmetric_blur_weights.reset();
   symmetric_separable_blur_weights.reset();
   morphological_distance_feather_weights.reset();
@@ -22,6 +27,12 @@ void StaticCacheManager::reset()
   cached_images.reset();
   deriche_gaussian_coefficients.reset();
   van_vliet_gaussian_coefficients.reset();
+  fog_glow_kernels.reset();
+}
+
+void StaticCacheManager::skip_next_reset()
+{
+  should_skip_next_reset_ = true;
 }
 
 }  // namespace blender::realtime_compositor

@@ -33,7 +33,6 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_DerivedMesh.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_lib_id.hh"
@@ -67,6 +66,9 @@ Mesh *BKE_mesh_wrapper_from_editmesh(std::shared_ptr<BMEditMesh> em,
 
   /* Use edit-mesh directly where possible. */
   mesh->runtime->is_original_bmesh = true;
+
+  /* Until the mesh is modified destructively it can be considered "deformed". */
+  mesh->runtime->deformed_only = true;
 
   mesh->runtime->edit_mesh = std::move(em);
 

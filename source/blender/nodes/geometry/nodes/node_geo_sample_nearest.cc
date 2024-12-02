@@ -31,6 +31,7 @@ void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
 
   mask.foreach_index([&](const int i) {
     BVHTreeNearest nearest;
+    nearest.index = -1;
     nearest.dist_sq = FLT_MAX;
     const float3 position = positions[i];
     BLI_bvhtree_find_nearest(
@@ -89,6 +90,7 @@ static void get_closest_pointcloud_points(const PointCloud &pointcloud,
 
   mask.foreach_index([&](const int i) {
     BVHTreeNearest nearest;
+    nearest.index = -1;
     nearest.dist_sq = FLT_MAX;
     const float3 position = positions[i];
     BLI_bvhtree_find_nearest(
@@ -328,14 +330,14 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_SAMPLE_NEAREST, "Sample Nearest", NODE_CLASS_GEOMETRY);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

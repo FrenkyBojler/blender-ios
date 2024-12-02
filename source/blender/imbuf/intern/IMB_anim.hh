@@ -34,6 +34,7 @@ struct ImBufAnim {
   double frs_sec_base;
   double start_offset;
   int x, y;
+  int video_rotation;
 
   /* for number */
   char filepath[1024];
@@ -59,6 +60,7 @@ struct ImBufAnim {
   AVPacket *cur_packet;
 
   bool seek_before_decode;
+  bool is_float;
 #endif
 
   char index_dir[768];
@@ -67,7 +69,8 @@ struct ImBufAnim {
   int indices_tried;
 
   ImBufAnim *proxy_anim[IMB_PROXY_MAX_SLOT];
-  ImBufAnimIndex *curr_idx[IMB_TC_MAX_SLOT];
+  ImBufAnimIndex *record_run;
+  ImBufAnimIndex *no_gaps;
 
   char colorspace[64];
   char suffix[64]; /* MAX_NAME - multiview */

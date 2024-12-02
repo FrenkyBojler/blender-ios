@@ -16,7 +16,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -27,7 +27,7 @@
 
 #include "node_common.h"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "NOD_composite.hh"
 #include "node_composite_util.hh"
@@ -36,8 +36,11 @@
 #  include "COM_compositor.hh"
 #endif
 
-static void composite_get_from_context(
-    const bContext *C, bNodeTreeType * /*treetype*/, bNodeTree **r_ntree, ID **r_id, ID **r_from)
+static void composite_get_from_context(const bContext *C,
+                                       blender::bke::bNodeTreeType * /*treetype*/,
+                                       bNodeTree **r_ntree,
+                                       ID **r_id,
+                                       ID **r_from)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -46,7 +49,7 @@ static void composite_get_from_context(
   *r_ntree = scene->nodetree;
 }
 
-static void foreach_nodeclass(Scene * /*scene*/, void *calldata, bNodeClassCallback func)
+static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
 {
   func(calldata, NODE_CLASS_INPUT, N_("Input"));
   func(calldata, NODE_CLASS_OUTPUT, N_("Output"));
@@ -74,7 +77,7 @@ static void localize(bNodeTree *localtree, bNodeTree *ntree)
     local_node->runtime->original = node;
 
     /* move over the compbufs */
-    /* right after #blender::bke::ntreeCopyTree() `oldsock` pointers are valid */
+    /* right after #blender::bke::node_tree_copy_tree() `oldsock` pointers are valid */
 
     if (node->type == CMP_NODE_VIEWER) {
       if (node->id) {
@@ -98,7 +101,7 @@ static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
   blender::bke::node_preview_merge_tree(ntree, localtree, true);
 
   LISTBASE_FOREACH (bNode *, lnode, &localtree->nodes) {
-    if (bNode *orig_node = nodeFindNodebyName(ntree, lnode->name)) {
+    if (bNode *orig_node = blender::bke::node_find_node_by_name(ntree, lnode->name)) {
       if (lnode->type == CMP_NODE_VIEWER) {
         if (lnode->id && (lnode->flag & NODE_DO_OUTPUT)) {
           /* image_merge does sanity check for pointers */
@@ -123,7 +126,7 @@ static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
 
 static void update(bNodeTree *ntree)
 {
-  ntreeSetOutput(ntree);
+  blender::bke::node_tree_set_output(ntree);
 
   ntree_update_reroute_nodes(ntree);
 }
@@ -138,18 +141,19 @@ static void composite_node_add_init(bNodeTree * /*bnodetree*/, bNode *bnode)
   }
 }
 
-static bool composite_node_tree_socket_type_valid(bNodeTreeType * /*ntreetype*/,
-                                                  bNodeSocketType *socket_type)
+static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*ntreetype*/,
+                                                  blender::bke::bNodeSocketType *socket_type)
 {
-  return blender::bke::nodeIsStaticSocketType(socket_type) &&
+  return blender::bke::node_is_static_socket_type(socket_type) &&
          ELEM(socket_type->type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
 }
 
-bNodeTreeType *ntreeType_Composite;
+blender::bke::bNodeTreeType *ntreeType_Composite;
 
 void register_node_tree_type_cmp()
 {
-  bNodeTreeType *tt = ntreeType_Composite = MEM_cnew<bNodeTreeType>(__func__);
+  blender::bke::bNodeTreeType *tt = ntreeType_Composite = MEM_cnew<blender::bke::bNodeTreeType>(
+      __func__);
 
   tt->type = NTREE_COMPOSIT;
   STRNCPY(tt->idname, "CompositorNodeTree");
@@ -168,7 +172,7 @@ void register_node_tree_type_cmp()
 
   tt->rna_ext.srna = &RNA_CompositorNodeTree;
 
-  ntreeTypeAdd(tt);
+  blender::bke::node_tree_type_add(tt);
 }
 
 void ntreeCompositExecTree(Render *render,
@@ -177,12 +181,12 @@ void ntreeCompositExecTree(Render *render,
                            RenderData *rd,
                            const char *view_name,
                            blender::realtime_compositor::RenderContext *render_context,
-                           blender::compositor::ProfilerData &profiler_data)
+                           blender::realtime_compositor::Profiler *profiler)
 {
 #ifdef WITH_COMPOSITOR_CPU
-  COM_execute(render, rd, scene, ntree, view_name, render_context, profiler_data);
+  COM_execute(render, rd, scene, ntree, view_name, render_context, profiler);
 #else
-  UNUSED_VARS(render, scene, ntree, rd, view_name, render_context, profiler_data);
+  UNUSED_VARS(render, scene, ntree, rd, view_name, render_context, profiler);
 #endif
 }
 
@@ -197,6 +201,11 @@ void ntreeCompositUpdateRLayers(bNodeTree *ntree)
   for (bNode *node : ntree->all_nodes()) {
     if (node->type == CMP_NODE_R_LAYERS) {
       node_cmp_rlayers_outputs(ntree, node);
+    }
+    else if (node->type == CMP_NODE_CRYPTOMATTE &&
+             node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)
+    {
+      node->typeinfo->updatefunc(ntree, node);
     }
   }
 }

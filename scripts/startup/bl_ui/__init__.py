@@ -26,7 +26,6 @@ _modules = [
     "properties_data_curve",
     "properties_data_curves",
     "properties_data_empty",
-    "properties_data_gpencil",
     "properties_data_grease_pencil",
     "properties_data_light",
     "properties_data_lattice",
@@ -61,7 +60,6 @@ _modules = [
     "properties_texture",
     "properties_world",
     "properties_collection",
-    "temp_anim_layers",
     "generic_ui_list",
 
     # Generic Space Modules
@@ -122,7 +120,6 @@ def register():
             register_class(cls)
 
     space_filebrowser.register_props()
-    temp_anim_layers.register_props()
 
     from bpy.props import (
         EnumProperty,
@@ -253,7 +250,7 @@ class UI_UL_list(bpy.types.UIList):
         Re-order items using their names (case-insensitive).
         propname is the name of the string property to use for sorting.
         return a list mapping org_idx -> new_idx,
-               or an empty list if no sorting has been done.
+        or an empty list if no sorting has been done.
         """
         _sort = [(idx, getattr(it, propname, "")) for idx, it in enumerate(items)]
         return cls.sort_items_helper(_sort, lambda e: e[1].lower())

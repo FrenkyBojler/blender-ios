@@ -4,9 +4,7 @@
 
 #pragma once
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 struct bNode;
 
@@ -29,13 +27,6 @@ class NodeOperationBuilder;
  * \see Node
  */
 Node *COM_convert_bnode(bNode *b_node);
-
-/**
- * \brief True if the node is considered 'fast'.
- *
- * Slow nodes will be skipped if fast execution is required.
- */
-bool COM_bnode_is_fast_node(const bNode &b_node);
 
 /**
  * \brief This function will add a date-type conversion rule when the to-socket does not support

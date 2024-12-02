@@ -22,6 +22,7 @@
 
 #include "ED_view3d.hh"
 
+#include "DRW_gpu_wrapper.hh"
 #include "DRW_render.hh"
 
 #include "COM_context.hh"
@@ -68,7 +69,17 @@ class Context : public realtime_compositor::Context {
     return *DRW_context_state_get()->scene->nodetree;
   }
 
+  bool use_gpu() const override
+  {
+    return true;
+  }
+
   bool use_file_output() const override
+  {
+    return false;
+  }
+
+  bool should_compute_node_previews() const override
   {
     return false;
   }
@@ -92,13 +103,15 @@ class Context : public realtime_compositor::Context {
   }
 
   /* We limit the compositing region to the camera region if in camera view, while we use the
-   * entire viewport otherwise. */
+   * entire viewport otherwise. We also use the entire viewport when doing viewport rendering since
+   * the viewport is already the camera region in that case. */
   rcti get_compositing_region() const override
   {
     const int2 viewport_size = int2(float2(DRW_viewport_size_get()));
     const rcti render_region = rcti{0, viewport_size.x, 0, viewport_size.y};
 
-    if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB) {
+    if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render())
+    {
       return render_region;
     }
 
@@ -108,8 +121,8 @@ class Context : public realtime_compositor::Context {
                                  DRW_context_state_get()->region,
                                  DRW_context_state_get()->v3d,
                                  DRW_context_state_get()->rv3d,
-                                 &camera_border,
-                                 false);
+                                 false,
+                                 &camera_border);
 
     rcti camera_region;
     BLI_rcti_rctf_copy_floor(&camera_region, &camera_border);
@@ -120,40 +133,62 @@ class Context : public realtime_compositor::Context {
     return visible_camera_region;
   }
 
-  GPUTexture *get_output_texture() override
+  realtime_compositor::Result get_output_result() override
   {
-    return DRW_viewport_texture_list_get()->color;
+    realtime_compositor::Result result = this->create_result(
+        realtime_compositor::ResultType::Color, realtime_compositor::ResultPrecision::Half);
+    result.wrap_external(DRW_viewport_texture_list_get()->color);
+    return result;
   }
 
-  GPUTexture *get_viewer_output_texture(realtime_compositor::Domain /* domain */) override
+  realtime_compositor::Result get_viewer_output_result(
+      realtime_compositor::Domain /*domain*/,
+      bool /*is_data*/,
+      realtime_compositor::ResultPrecision /*precision*/) override
   {
-    return DRW_viewport_texture_list_get()->color;
+    realtime_compositor::Result result = this->create_result(
+        realtime_compositor::ResultType::Color, realtime_compositor::ResultPrecision::Half);
+    result.wrap_external(DRW_viewport_texture_list_get()->color);
+    return result;
   }
 
-  GPUTexture *get_input_texture(const Scene *scene, int view_layer, const char *pass_name) override
+  realtime_compositor::Result get_pass(const Scene *scene,
+                                       int view_layer,
+                                       const char *pass_name) override
   {
     if (DEG_get_original_id(const_cast<ID *>(&scene->id)) !=
         DEG_get_original_id(&DRW_context_state_get()->scene->id))
     {
-      return nullptr;
+      return realtime_compositor::Result(*this);
     }
 
     if (view_layer != 0) {
-      return nullptr;
+      return realtime_compositor::Result(*this);
     }
 
+    /* The combined pass is a special case where we return the viewport color texture, because it
+     * includes Grease Pencil objects since GP is drawn using their own engine. */
     if (STREQ(pass_name, RE_PASSNAME_COMBINED)) {
-      return get_output_texture();
+      GPUTexture *combined_texture = DRW_viewport_texture_list_get()->color;
+      realtime_compositor::Result pass = realtime_compositor::Result(
+          *this, GPU_texture_format(combined_texture));
+      pass.wrap_external(combined_texture);
+      return pass;
     }
-    else if (STREQ(pass_name, RE_PASSNAME_Z)) {
-      return DRW_viewport_texture_list_get()->depth;
+
+    /* Return the pass that was written by the engine if such pass was found. */
+    GPUTexture *pass_texture = DRW_viewport_pass_texture_get(pass_name).gpu_texture();
+    if (pass_texture) {
+      realtime_compositor::Result pass = realtime_compositor::Result(
+          *this, GPU_texture_format(pass_texture));
+      pass.wrap_external(pass_texture);
+      return pass;
     }
-    else {
-      return nullptr;
-    }
+
+    return realtime_compositor::Result(*this);
   }
 
-  StringRef get_view_name() override
+  StringRef get_view_name() const override
   {
     const SceneRenderView *view = static_cast<SceneRenderView *>(
         BLI_findlink(&get_render_data().views, DRW_context_state_get()->v3d->multiview_eye));
@@ -162,10 +197,10 @@ class Context : public realtime_compositor::Context {
 
   realtime_compositor::ResultPrecision get_precision() const override
   {
-    switch (get_node_tree().precision) {
-      case NODE_TREE_COMPOSITOR_PRECISION_AUTO:
+    switch (get_scene().r.compositor_precision) {
+      case SCE_COMPOSITOR_PRECISION_AUTO:
         return realtime_compositor::ResultPrecision::Half;
-      case NODE_TREE_COMPOSITOR_PRECISION_FULL:
+      case SCE_COMPOSITOR_PRECISION_FULL:
         return realtime_compositor::ResultPrecision::Full;
     }
 

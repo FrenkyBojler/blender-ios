@@ -14,6 +14,8 @@
 #include "BKE_collection.hh"
 #include "BKE_instances.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "node_geometry_util.hh"
 
 #include <algorithm>
@@ -67,6 +69,13 @@ static void node_geo_exec(GeoNodeExecParams params)
       collection, const_cast<Object *>(self_object));
   if (is_recursive) {
     params.error_message_add(NodeWarningType::Error, TIP_("Collection contains current object"));
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (!DEG_collection_geometry_is_evaluated(*collection)) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Can't access collections geometry because it's not evaluated "
+                                  "yet. This can happen when there is a dependency cycle"));
     params.set_default_remaining_outputs();
     return;
   }
@@ -140,8 +149,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     const int handle = instances->add_reference(*collection);
     instances->add_instance(handle, transform);
   }
+  GeometrySet geometry = GeometrySet::from_instances(instances.release());
+  geometry.name = collection->id.name + 2;
 
-  params.set_output("Instances", GeometrySet::from_instances(instances.release()));
+  params.set_output("Instances", std::move(geometry));
 }
 
 static void node_rna(StructRNA *srna)
@@ -174,18 +185,18 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_COLLECTION_INFO, "Collection Info", NODE_CLASS_INPUT);
   ntype.declare = node_declare;
   ntype.initfunc = node_node_init;
-  node_type_storage(&ntype,
-                    "NodeGeometryCollectionInfo",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryCollectionInfo",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

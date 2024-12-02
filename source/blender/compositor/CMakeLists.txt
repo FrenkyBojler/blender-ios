@@ -23,7 +23,7 @@ if(WITH_COMPOSITOR_CPU)
     ../render
     ../render/intern
 
-    # RNA_prototypes.h
+    # RNA_prototypes.hh
     ${CMAKE_BINARY_DIR}/source/blender/makesrna
   )
 
@@ -34,7 +34,6 @@ if(WITH_COMPOSITOR_CPU)
   set(SRC
     COM_compositor.hh
     COM_defines.h
-    COM_profile.hh
 
     intern/COM_BufferArea.h
     intern/COM_BufferRange.h
@@ -83,10 +82,6 @@ if(WITH_COMPOSITOR_CPU)
     intern/COM_WorkScheduler.cc
     intern/COM_WorkScheduler.h
     intern/COM_compositor.cc
-    intern/COM_profile.cc
-
-    operations/COM_QualityStepHelper.cc
-    operations/COM_QualityStepHelper.h
 
     # Internal nodes
     nodes/COM_SocketProxyNode.cc
@@ -468,6 +463,8 @@ if(WITH_COMPOSITOR_CPU)
     operations/COM_ColorBalanceASCCDLOperation.h
     operations/COM_ColorBalanceLGGOperation.cc
     operations/COM_ColorBalanceLGGOperation.h
+    operations/COM_ColorBalanceWhitepointOperation.cc
+    operations/COM_ColorBalanceWhitepointOperation.h
     operations/COM_InvertOperation.cc
     operations/COM_InvertOperation.h
     operations/COM_MapRangeOperation.cc
@@ -482,8 +479,6 @@ if(WITH_COMPOSITOR_CPU)
     # Distort operation
     operations/COM_DisplaceOperation.cc
     operations/COM_DisplaceOperation.h
-    operations/COM_DisplaceSimpleOperation.cc
-    operations/COM_DisplaceSimpleOperation.h
     operations/COM_FlipOperation.cc
     operations/COM_FlipOperation.h
     operations/COM_MapUVOperation.cc
@@ -580,6 +575,14 @@ if(WITH_COMPOSITOR_CPU)
     PRIVATE bf::intern::atomic
   )
 
+  if(WITH_TBB)
+    if(WIN32)
+      # TBB includes Windows.h which will define min/max macros
+      # that will collide with the STL versions.
+      add_definitions(-DNOMINMAX)
+    endif()
+  endif()
+
   if(WITH_OPENIMAGEDENOISE)
     add_definitions(-DWITH_OPENIMAGEDENOISE)
     add_definitions(-DOIDN_STATIC_LIB)
@@ -591,6 +594,16 @@ if(WITH_COMPOSITOR_CPU)
       ${OPENIMAGEDENOISE_LIBRARIES}
       ${TBB_LIBRARIES}
     )
+  endif()
+
+  if(WITH_FFTW3)
+    list(APPEND INC_SYS
+      ${FFTW3_INCLUDE_DIRS}
+    )
+    list(APPEND LIB
+      ${FFTW3_LIBRARIES}
+    )
+    add_definitions(-DWITH_FFTW3)
   endif()
 
   blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
@@ -621,7 +634,7 @@ if(WITH_COMPOSITOR_CPU)
     blender_add_test_suite_lib(compositor "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
   endif()
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   add_dependencies(bf_compositor bf_rna)
 
 # End WITH_COMPOSITOR_CPU.

@@ -27,7 +27,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -41,8 +41,7 @@
 static bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
 {
   Object *ob = blender::ed::object::context_active_object(C);
-
-  return (ob != nullptr) && (ob->type != OB_GPENCIL_LEGACY);
+  return ob != nullptr;
 }
 
 /* -------------------------------------------------------------------- */
@@ -113,7 +112,7 @@ PointerRNA *modifier_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_
   }
 
   uiBlock *block = uiLayoutGetBlock(panel->layout);
-  UI_block_lock_set(block, ID_IS_LINKED((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
+  UI_block_lock_set(block, !ID_IS_EDITABLE((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
 
   UI_panel_context_pointer_set(panel, "modifier", ptr);
 
@@ -219,10 +218,28 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   uiLayoutSetUnitsX(layout, 4.0f);
 
   /* Apply. */
-  uiItemO(layout,
-          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply"),
-          ICON_CHECKMARK,
-          "OBJECT_OT_modifier_apply");
+  if (ob->type == OB_GREASE_PENCIL) {
+    uiItemO(layout,
+            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply (Active Keyframe)"),
+            ICON_CHECKMARK,
+            "OBJECT_OT_modifier_apply");
+
+    uiItemFullO(layout,
+                "OBJECT_OT_modifier_apply",
+                IFACE_("Apply (All Keyframes)"),
+                ICON_KEYFRAME,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                &op_ptr);
+    RNA_boolean_set(&op_ptr, "all_keyframes", true);
+  }
+  else {
+    uiItemO(layout,
+            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply"),
+            ICON_CHECKMARK,
+            "OBJECT_OT_modifier_apply");
+  }
 
   /* Apply as shapekey. */
   if (BKE_modifier_is_same_topology(md) && !BKE_modifier_is_non_geometrical(md)) {
@@ -284,6 +301,10 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
               UI_ITEM_NONE,
               &op_ptr);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->modifiers) - 1);
+
+  uiItemS(layout);
+
+  uiItemR(layout, &ptr, "use_pin_to_last", UI_ITEM_NONE, nullptr, ICON_NONE);
 
   if (md->type == eModifierType_Nodes) {
     uiItemS(layout);
@@ -465,6 +486,7 @@ PanelType *modifier_panel_register(ARegionType *region_type, ModifierType type, 
   STRNCPY(panel_type->context, "modifier");
   STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   STRNCPY(panel_type->active_property, "is_active");
+  STRNCPY(panel_type->pin_to_last_property, "use_pin_to_last");
 
   panel_type->draw_header = modifier_panel_header;
   panel_type->draw = draw;

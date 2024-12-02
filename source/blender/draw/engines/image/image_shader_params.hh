@@ -14,12 +14,12 @@
 
 #include "IMB_imbuf_types.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "image_enums.hh"
 #include "image_space.hh"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 struct ShaderParameters {
   ImageDrawFlags flags = ImageDrawFlags::Default;
@@ -43,4 +43,4 @@ struct ShaderParameters {
   }
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

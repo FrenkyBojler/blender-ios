@@ -6,6 +6,8 @@
 
 #include "BLT_translation.hh"
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_scene.hh"
@@ -55,7 +57,7 @@ void COM_execute(Render *render,
                  bNodeTree *node_tree,
                  const char *view_name,
                  blender::realtime_compositor::RenderContext *render_context,
-                 blender::compositor::ProfilerData &profiler_data)
+                 blender::realtime_compositor::Profiler *profiler)
 {
   /* Initialize mutex, TODO: this mutex init is actually not thread safe and
    * should be done somewhere as part of blender startup, all the other
@@ -77,11 +79,12 @@ void COM_execute(Render *render,
   compositor_init_node_previews(render_data, node_tree);
   compositor_reset_node_tree_status(node_tree);
 
-  if (U.experimental.use_full_frame_compositor &&
-      node_tree->execution_mode == NTREE_EXECUTION_MODE_GPU)
+  if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU ||
+      (USER_EXPERIMENTAL_TEST(&U, enable_new_cpu_compositor) && !scene->r.use_old_cpu_compositor))
   {
-    /* GPU compositor. */
-    RE_compositor_execute(*render, *scene, *render_data, *node_tree, view_name, render_context);
+    /* Realtime compositor. */
+    RE_compositor_execute(
+        *render, *scene, *render_data, *node_tree, view_name, render_context, profiler);
   }
   else {
     /* CPU compositor. */
@@ -91,32 +94,8 @@ void COM_execute(Render *render,
 
     /* Execute. */
     const bool is_rendering = render_context != nullptr;
-    const bool twopass = (node_tree->flag & NTREE_TWO_PASS) && !is_rendering;
-    if (twopass) {
-      blender::compositor::ExecutionSystem fast_pass(render_data,
-                                                     scene,
-                                                     node_tree,
-                                                     is_rendering,
-                                                     true,
-                                                     view_name,
-                                                     render_context,
-                                                     profiler_data);
-      fast_pass.execute();
-
-      if (node_tree->runtime->test_break(node_tree->runtime->tbh)) {
-        BLI_mutex_unlock(&g_compositor.mutex);
-        return;
-      }
-    }
-
-    blender::compositor::ExecutionSystem system(render_data,
-                                                scene,
-                                                node_tree,
-                                                is_rendering,
-                                                false,
-                                                view_name,
-                                                render_context,
-                                                profiler_data);
+    blender::compositor::ExecutionSystem system(
+        render_data, scene, node_tree, is_rendering, view_name, render_context, profiler);
     system.execute();
   }
 

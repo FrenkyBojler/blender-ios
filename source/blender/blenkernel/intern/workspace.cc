@@ -42,6 +42,8 @@ static void workspace_init_data(ID *id)
 {
   WorkSpace *workspace = (WorkSpace *)id;
 
+  workspace->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
+
   BKE_asset_library_reference_init_default(&workspace->asset_library_ref);
 }
 
@@ -58,7 +60,9 @@ static void workspace_free_data(ID *id)
     BKE_workspace_tool_remove(workspace, static_cast<bToolRef *>(workspace->tools.first));
   }
 
-  MEM_SAFE_FREE(workspace->status_text);
+  BKE_workspace_status_clear(workspace);
+  MEM_delete(workspace->runtime);
+
   BKE_viewer_path_clear(&workspace->viewer_path);
 }
 
@@ -106,6 +110,10 @@ static void workspace_blend_read_data(BlendDataReader *reader, ID *id)
   LISTBASE_FOREACH (WorkSpaceDataRelation *, relation, &workspace->hook_layout_relations) {
     /* Parent pointer does not belong to workspace data and is therefore restored in lib_link step
      * of window manager. */
+    /* FIXME: Should not use that untyped #BLO_read_data_address call, especially since it's
+     * reference-counting the matching data in readfile code. Problem currently is that there is no
+     * type info available for this void pointer (_should_ be pointing to a #WorkSpaceLayout ?), so
+     * #BLO_read_get_new_data_address_no_us cannot be used here. */
     BLO_read_data_address(reader, &relation->value);
   }
 
@@ -115,7 +123,7 @@ static void workspace_blend_read_data(BlendDataReader *reader, ID *id)
     IDP_BlendDataRead(reader, &tref->properties);
   }
 
-  workspace->status_text = nullptr;
+  workspace->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
 
   /* Do not keep the scene reference when appending a workspace. Setting a scene for a workspace is
    * a convenience feature, but the workspace should never truly depend on scene data. */
@@ -176,7 +184,7 @@ IDTypeInfo IDType_ID_WS = {
     /*name_plural*/ N_("workspaces"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WORKSPACE,
     /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ workspace_init_data,
@@ -630,6 +638,17 @@ void BKE_workspace_layout_name_set(WorkSpace *workspace,
 bScreen *BKE_workspace_layout_screen_get(const WorkSpaceLayout *layout)
 {
   return layout->screen;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Status
+ * \{ */
+
+void BKE_workspace_status_clear(WorkSpace *workspace)
+{
+  workspace->runtime->status.clear_and_shrink();
 }
 
 /** \} */

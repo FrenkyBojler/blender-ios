@@ -505,6 +505,7 @@ class WholeCharacterMixin:
             bpy.types.BoolProperty,
             bpy.types.IntProperty,
             bpy.types.FloatProperty,
+            bpy.types.EnumProperty,
         }
 
         # go over all custom properties for bone
@@ -518,6 +519,9 @@ class WholeCharacterMixin:
                 except ValueError:
                     # This happens when a custom property is set to None. In that case it cannot
                     # be converted to an FCurve-compatible value, so we can't keyframe it anyway.
+                    continue
+                if not rna_property:
+                    # Failure to resolve property.
                     continue
                 if rna_property.rna_type in prop_type_compat:
                     self.addProp(ks, bone, prop_path)

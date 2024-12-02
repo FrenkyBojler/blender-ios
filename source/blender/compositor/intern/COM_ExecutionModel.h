@@ -8,11 +8,7 @@
 
 #include "DNA_vec_types.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
-
-#include "COM_profile.hh"
+#include "MEM_guardedalloc.h"
 
 namespace blender::compositor {
 
@@ -46,8 +42,6 @@ class ExecutionModel {
    */
   Span<NodeOperation *> operations_;
 
-  Profiler profiler_;
-
  public:
   ExecutionModel(CompositorContext &context, Span<NodeOperation *> operations);
 
@@ -55,14 +49,7 @@ class ExecutionModel {
 
   virtual void execute(ExecutionSystem &exec_system) = 0;
 
-  const ProfilerData &get_profiler_data() const
-  {
-    return profiler_.get_data();
-  }
-
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("COM:BaseExecutionModel")
-#endif
 };
 
 }  // namespace blender::compositor

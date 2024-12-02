@@ -13,6 +13,7 @@
 
 struct AssetMetaData;
 struct BHead;
+struct BlendfileLinkAppendContext;
 struct BlendHandle;
 struct BlendThumbnail;
 struct FileData;
@@ -89,6 +90,7 @@ struct BlendFileReadWMSetupData {
 struct BlendFileReadParams {
   uint skip_flags : 3; /* #eBLOReadSkip */
   uint is_startup : 1;
+  uint is_factory_settings : 1;
 
   /** Whether we are reading the memfile for an undo or a redo. */
   int undo_direction; /* #eUndoStepDir */
@@ -209,7 +211,9 @@ void BLO_blendfiledata_free(BlendFileData *bfd);
  *
  * \param new_bmain: the newly read Main data-base.
  */
-void BLO_read_do_version_after_setup(Main *new_bmain, BlendFileReadReport *reports);
+void BLO_read_do_version_after_setup(Main *new_bmain,
+                                     BlendfileLinkAppendContext *lapp_context,
+                                     BlendFileReadReport *reports);
 
 /** \} */
 
@@ -294,16 +298,6 @@ LinkNode * /*BLODataBlockInfo*/ BLO_blendhandle_get_datablock_info(BlendHandle *
                                                                    bool use_assets_only,
                                                                    int *r_tot_info_items);
 /**
- * Gets the previews of all the data-blocks in a file of a certain type
- * (e.g. all the scene previews in a file).
- *
- * \param bh: The blendhandle to access.
- * \param ofblocktype: The type of names to get.
- * \param r_tot_prev: The length of the returned list.
- * \return A BLI_linklist of #PreviewImage. The #PreviewImage links should be freed with malloc.
- */
-LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_tot_prev);
-/**
  * Get the PreviewImage of a single data block in a file.
  * (e.g. all the scene previews in a file).
  *
@@ -370,7 +364,7 @@ void BLO_read_invalidate_message(BlendHandle *bh, Main *bmain, const char *messa
 enum eBLOLibLinkFlags {
   /** Generate a placeholder (empty ID) if not found in current lib file. */
   BLO_LIBLINK_USE_PLACEHOLDERS = 1 << 16,
-  /** Force loaded ID to be tagged as #LIB_TAG_INDIRECT (used in reload context only). */
+  /** Force loaded ID to be tagged as #ID_TAG_INDIRECT (used in reload context only). */
   BLO_LIBLINK_FORCE_INDIRECT = 1 << 17,
   /** Set fake user on appended IDs. */
   BLO_LIBLINK_APPEND_SET_FAKEUSER = 1 << 19,
@@ -493,19 +487,14 @@ void *BLO_library_read_struct(FileData *fd, BHead *bh, const char *blockname);
 using BLOExpandDoitCallback = void (*)(void *fdhandle, Main *mainvar, void *idv);
 
 /**
- * Set the callback func used over all ID data found by \a BLO_expand_main func.
- *
- * \param expand_doit_func: Called for each ID block it finds.
- */
-void BLO_main_expander(BLOExpandDoitCallback expand_doit_func);
-/**
  * Loop over all ID data in Main to mark relations.
- * Set (id->tag & LIB_TAG_NEED_EXPAND) to mark expanding. Flags get cleared after expanding.
+ * Set (id->tag & ID_TAG_NEED_EXPAND) to mark expanding. Flags get cleared after expanding.
  *
  * \param fdhandle: usually file-data, or own handle. May be nullptr.
  * \param mainvar: the Main database to expand.
+ * \param calback: Called for each ID block it finds.
  */
-void BLO_expand_main(void *fdhandle, Main *mainvar);
+void BLO_expand_main(void *fdhandle, Main *mainvar, BLOExpandDoitCallback callback);
 
 /**
  * Update defaults in startup.blend, without having to save and embed it.

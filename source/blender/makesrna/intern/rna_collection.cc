@@ -54,6 +54,8 @@ BLI_STATIC_ASSERT(ARRAY_SIZE(rna_enum_collection_color_items) - 2 == COLLECTION_
 #  include "BKE_global.hh"
 #  include "BKE_layer.hh"
 
+#  include "BLT_translation.hh"
+
 #  include "WM_api.hh"
 
 #  include "RNA_access.hh"
@@ -111,7 +113,7 @@ static bool rna_collection_objects_edit_check(Collection *collection,
                 collection->id.name + 2);
     return false;
   }
-  if (ID_IS_LINKED(&collection->id)) {
+  if (!ID_IS_EDITABLE(&collection->id)) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Could not (un)link the object '%s' because the collection '%s' is linked",
@@ -239,7 +241,7 @@ static bool rna_collection_children_edit_check(Collection *collection,
                 collection->id.name + 2);
     return false;
   }
-  if (ID_IS_LINKED(&collection->id)) {
+  if (!ID_IS_EDITABLE(&collection->id)) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Could not (un)link the collection '%s' because the collection '%s' is linked",
@@ -448,6 +450,12 @@ static void rna_CollectionLightLinking_update(Main *bmain, Scene * /*scene*/, Po
   DEG_relations_tag_update(bmain);
 }
 
+static void rna_CollectionExport_name_set(PointerRNA *ptr, const char *value)
+{
+  CollectionExport *data = reinterpret_cast<CollectionExport *>(ptr->data);
+  BKE_collection_exporter_name_set(nullptr, data, value);
+}
+
 static PointerRNA rna_CollectionExport_export_properties_get(PointerRNA *ptr)
 {
   const CollectionExport *data = reinterpret_cast<CollectionExport *>(ptr->data);
@@ -596,6 +604,11 @@ static void rna_def_collection_exporter_data(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "CollectionExport");
   RNA_def_struct_ui_text(srna, "Collection Export Data", "Exporter configured for the collection");
 
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_struct_ui_text(srna, "Name", "");
+  RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_CollectionExport_name_set");
+
   prop = RNA_def_property(srna, "is_open", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", IO_HANDLER_PANEL_OPEN);
   RNA_def_property_ui_text(prop, "Is Open", "Whether the panel is expanded or closed");
@@ -702,6 +715,11 @@ void RNA_def_collections(BlenderRNA *brna)
   RNA_def_property_collection_sdna(prop, nullptr, "exporters", nullptr);
   RNA_def_property_ui_text(
       prop, "Collection Export Handlers", "Export Handlers configured for the collection");
+
+  prop = RNA_def_property(srna, "active_exporter_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Active Collection Exporter Index", "Active index in the exporters list");
 
   /* TODO(sergey): Functions to link and unlink collections. */
 

@@ -7,8 +7,18 @@ if(WIN32)
   set(OSL_FLEX_BISON -DFLEX_EXECUTABLE=${LIBDIR}/flexbison/win_flex.exe -DBISON_EXECUTABLE=${LIBDIR}/flexbison/win_bison.exe)
 else()
   set(OSL_CMAKE_CXX_STANDARD_LIBRARIES)
-  set(OSL_FLEX_BISON)
   set(OSL_OPENIMAGEIO_LIBRARY "${LIBDIR}/openimageio/lib/OpenImageIO${SHAREDLIBEXT};${LIBDIR}/png/lib/${LIBPREFIX}png16${LIBEXT};${LIBDIR}/jpeg/lib/${LIBPREFIX}jpeg${LIBEXT};${LIBDIR}/tiff/lib/${LIBPREFIX}tiff${LIBEXT};${LIBDIR}/openexr/lib/IlmImf${OPENEXR_VERSION_POSTFIX}${SHAREDLIBEXT}")
+
+  if(APPLE)
+    # Explicitly specify Homebrew path, so we don't use the old system one.
+    if(BLENDER_PLATFORM_ARM)
+      set(OSL_FLEX_BISON -DBISON_EXECUTABLE=/opt/homebrew/opt/bison/bin/bison)
+    else()
+      set(OSL_FLEX_BISON -DBISON_EXECUTABLE=/usr/local/opt/bison/bin/bison)
+    endif()
+  else()
+    set(OSL_FLEX_BISON)
+  endif()
 endif()
 
 set(OSL_EXTRA_ARGS
@@ -16,8 +26,6 @@ set(OSL_EXTRA_ARGS
   -DOpenEXR_ROOT=${LIBDIR}/openexr/
   -DOpenImageIO_ROOT=${LIBDIR}/openimageio/
   -DOSL_BUILD_TESTS=OFF
-  -DOSL_BUILD_MATERIALX=OFF
-  -DPNG_ROOT=${LIBDIR}/png
   -DZLIB_LIBRARY=${LIBDIR}/zlib/lib/${ZLIB_LIBRARY}
   -DZLIB_INCLUDE_DIR=${LIBDIR}/zlib/include/
   ${OSL_FLEX_BISON}
@@ -28,19 +36,17 @@ set(OSL_EXTRA_ARGS
   -DSTOP_ON_WARNING=OFF
   -DUSE_LLVM_BITCODE=OFF
   -DLLVM_ROOT=${LIBDIR}/llvm/
-  -DLLVM_DIRECTORY=${LIBDIR}/llvm/
+  -DLLVM_STATIC=ON
   -DUSE_PARTIO=OFF
   -DUSE_QT=OFF
-  -DUSE_Qt5=OFF
   -DINSTALL_DOCS=OFF
   -Dpugixml_ROOT=${LIBDIR}/pugixml
-  -DTIFF_ROOT=${LIBDIR}/tiff
-  -DJPEG_ROOT=${LIBDIR}/jpeg
   -DUSE_PYTHON=OFF
   -DImath_ROOT=${LIBDIR}/imath
   -DCMAKE_DEBUG_POSTFIX=_d
   -DPython_ROOT=${LIBDIR}/python
   -DPython_EXECUTABLE=${PYTHON_BINARY}
+  -Dlibdeflate_DIR=${LIBDIR}/deflate/lib/cmake/libdeflate
 )
 
 if(NOT APPLE)
@@ -129,4 +135,9 @@ if(WIN32)
       DEPENDEES install
     )
   endif()
+else()
+  harvest_rpath_bin(external_osl osl/bin osl/bin "oslc")
+  harvest(external_osl osl/include osl/include "*.h")
+  harvest_rpath_lib(external_osl osl/lib osl/lib "*${SHAREDLIBEXT}*")
+  harvest(external_osl osl/share/OSL/shaders osl/share/OSL/shaders "*.h")
 endif()
