@@ -29,6 +29,7 @@ enum class GeoMismatch : int8_t {
   CurveAttributes,  /* Some values of the curve attributes are different. */
   EdgeTopology,     /* The edge topology is different. */
   FaceTopology,     /* The face topology is different. */
+  CurveTopology,    /* The curve topology is different. */
   Attributes,       /* The sets of attribute ids are different. */
   AttributeTypes,   /* Some attributes with the same name have different types. */
   Indices,          /* The geometries are the same up to a change of indices. */
@@ -61,6 +62,8 @@ const char *mismatch_to_string(const GeoMismatch &mismatch)
       return "The edge topology is different";
     case GeoMismatch::FaceTopology:
       return "The face topology is different";
+    case GeoMismatch::CurveTopology:
+      return "The curve topology is different";
     case GeoMismatch::Attributes:
       return "The sets of attribute ids are different";
     case GeoMismatch::AttributeTypes:
@@ -508,7 +511,7 @@ static bool ignored_attribute(const StringRef id)
 }
 
 /**
- * Verify that both meshes have the same attributes:
+ * Verify that both geometries have the same attributes:
  * - Same names
  * - Same domains
  * - Same types
@@ -542,7 +545,7 @@ static std::optional<GeoMismatch> verify_attributes_compatible(
 /**
  * Sort the domain using all the attributes on that domain except the ones in excluded_attributes
  *
- * \returns A mismatch if one of the attributes has different values between the two meshes.
+ * \returns A mismatch if one of the attributes has different values between the two geometries.
  */
 static std::optional<GeoMismatch> sort_domain_using_attributes(
     const AttributeAccessor &attributes1,
@@ -553,7 +556,7 @@ static std::optional<GeoMismatch> sort_domain_using_attributes(
     const float threshold)
 {
 
-  /* We only need the ids from one mesh, since we know they have the same attributes. */
+  /* We only need the ids from one geometry, since we know they have the same attributes. */
   Set<StringRefNull> attribute_ids = attributes1.all_ids();
   for (const StringRef name : excluded_attributes) {
     attribute_ids.remove_as(name);
@@ -929,6 +932,39 @@ std::optional<GeoMismatch> compare_meshes(const Mesh &mesh1,
   return std::nullopt;
 }
 
+/**
+ * Sort curves based on their sizes.
+ */
+static bool sort_curves(const OffsetIndices<int> offset_indices1,
+                        const OffsetIndices<int> offset_indices2,
+                        IndexMapping &curves)
+{
+  Array<int> curve_counts1(offset_indices1.size());
+  Array<int> curve_counts2(offset_indices2.size());
+  offset_indices::copy_group_sizes(
+      offset_indices1, offset_indices1.index_range(), curve_counts1.as_mutable_span());
+  offset_indices::copy_group_sizes(
+      offset_indices2, offset_indices2.index_range(), curve_counts2.as_mutable_span());
+  sort_per_set_based_on_attributes(curves.set_sizes,
+                                   curves.from_sorted1,
+                                   curves.from_sorted2,
+                                   curve_counts1.as_span(),
+                                   curve_counts2.as_span(),
+                                   0);
+  const bool curves_sizes_match = update_set_ids(curves.set_ids,
+                                                 curve_counts1.as_span(),
+                                                 curve_counts2.as_span(),
+                                                 curves.from_sorted1,
+                                                 curves.from_sorted2,
+                                                 0,
+                                                 0);
+  if (!curves_sizes_match) {
+    return false;
+  }
+  update_set_sizes(curves.set_ids, curves.set_sizes);
+  return true;
+}
+
 std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
                                           const CurvesGeometry &curves2,
                                           const float threshold)
@@ -958,6 +994,10 @@ std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
   }
 
   IndexMapping curves(curves1.curves_num());
+  if (!sort_curves(curves1.offsets(), curves2.offsets(), curves)) {
+    return GeoMismatch::CurveTopology;
+  }
+
   mismatch = sort_domain_using_attributes(
       curves1_attributes, curves2_attributes, AttrDomain::Curve, {}, curves, threshold);
   if (mismatch) {
@@ -965,7 +1005,7 @@ std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
   }
 
   for (const int sorted_i : points.from_sorted1.index_range()) {
-    if (points.from_sorted1[sorted_i] != curves.from_sorted2[sorted_i]) {
+    if (points.from_sorted1[sorted_i] != points.from_sorted2[sorted_i]) {
       return GeoMismatch::Indices;
     }
   }
