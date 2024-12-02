@@ -51,13 +51,21 @@ class ActionSlotCreationTest(unittest.TestCase):
 
     def test_invalid_arguments(self):
         with self.assertRaises(TypeError):
+            # ID type parameter is required.
             self.action.slots.new('Hello')
 
         with self.assertRaises(TypeError):
+            # Name parameter is required.
             self.action.slots.new('OBJECT')
 
         with self.assertRaises(RuntimeError):
+            # Name parameter must not be empty.
             self.action.slots.new('OBJECT', "")
+
+        with self.assertRaises(TypeError):
+            # Creating slots with unspecified ID type is
+            # not supported in the Python API.
+            self.action.slots.new('UNSPECIFIED', "Bob")
 
 
 class ActionSlotAssignmentTest(unittest.TestCase):
