@@ -493,7 +493,7 @@ bool vert_is_boundary(const OffsetIndices<int> faces,
                       const SubdivCCGCoord vert)
 {
   /* TODO: Unlike the base mesh implementation this method does NOT take into account face
-   * visibility. Either this should be noted as a intentional limitation or fixed.*/
+   * visibility. Either this should be noted as a intentional limitation or fixed. */
   int v1, v2;
   const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
       subdiv_ccg, vert, corner_verts, faces, v1, v2);
@@ -512,7 +512,7 @@ bool vert_is_boundary(const OffsetIndices<int> faces,
 bool vert_is_boundary(BMVert *vert)
 {
   /* TODO: Unlike the base mesh implementation this method does NOT take into account face
-   * visibility. Either this should be noted as a intentional limitation or fixed.*/
+   * visibility. Either this should be noted as a intentional limitation or fixed. */
   return BM_vert_is_boundary(vert);
 }
 
