@@ -87,15 +87,15 @@ class Background : Overlay {
     bg_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     bg_ps_.bind_texture("colorBuffer", &res.color_render_tx);
     bg_ps_.bind_texture("depthBuffer", &res.depth_tx);
-    bg_ps_.push_constant("colorOverride", color_override);
+    bg_ps_.push_constant("colorOverride", color_override); 
     bg_ps_.push_constant("bgType", background_type);
     bg_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 
-  void draw_output(Framebuffer &framebuffer, Manager &manager, View & /*view*/) final
+  void draw_output(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
     framebuffer_ref_ = framebuffer;
-    manager.submit(bg_ps_);
+    manager.submit(bg_ps_, view);
   }
 };
 
