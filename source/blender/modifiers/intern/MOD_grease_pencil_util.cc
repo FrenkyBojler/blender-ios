@@ -227,11 +227,11 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
 
   const Span<const blender::bke::greasepencil::LayerGroup *> layer_groups =
       grease_pencil.layer_groups();
-  int filter_layer_group = -1;
+  const bke::greasepencil::LayerGroup *filter_layer_group = nullptr;
   if (layer_name_filter) {
     for (int i : layer_groups.index_range()) {
       if (layer_groups[i]->name() == layer_name_filter.value()) {
-        filter_layer_group = i;
+        filter_layer_group = layer_groups[i];
         break;
       }
     }
@@ -240,10 +240,10 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
   IndexMask result = IndexMask::from_predicate(
       full_mask, GrainSize(4096), memory, [&](const int64_t layer_i) {
         if (layer_name_filter) {
-          if (filter_layer_group > -1) {
-            const blender::bke::greasepencil::LayerGroup *group = layer_groups[filter_layer_group];
+          if (filter_layer_group) {
+            const blender::bke::greasepencil::LayerGroup *group = filter_layer_group;
             const Layer *layer = layers[layer_i];
-            const bool match = group->layers().contains(layer);
+            const bool match = layer->is_child_of(*group);
             if (match == layer_filter_invert) {
               return false;
             }
