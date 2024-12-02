@@ -118,7 +118,8 @@ void VKScheduler::move_transfer_and_dispatch_outside_rendering_scope(
 
     /* Move buffer update buffer commands to before the rendering scope, unless the buffer is
      * already being used by a draw command. Images modification could also be moved outside the
-     * rendering scope, but it is more tricky as they could also be attached to the framebuffer. */
+     * rendering scope, but it is more tricky as they could also be attached to the frame-buffer.
+     */
     pre_rendering_scope.clear();
     rendering_scope.clear();
     used_buffers.clear();
@@ -154,7 +155,7 @@ void VKScheduler::move_transfer_and_dispatch_outside_rendering_scope(
       }
 
       /* Any read/write to buffer resources should be added to used_buffers in order to detect if
-       * it is safe to move a node before the rendering scope.*/
+       * it is safe to move a node before the rendering scope. */
       const VKRenderGraphNodeLinks &links = render_graph.links_[node_handle];
       for (const VKRenderGraphLink &input : links.inputs) {
         if (render_graph.resources_.resource_type_get(input.resource.handle) ==

@@ -36,6 +36,8 @@
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
+#  include "ED_grease_pencil.hh"
+
 static GreasePencil *rna_grease_pencil(const PointerRNA *ptr)
 {
   return reinterpret_cast<GreasePencil *>(ptr->owner_id);
@@ -168,6 +170,20 @@ static std::pair<int, const blender::bke::greasepencil::Layer *> find_layer_of_f
   return {0, nullptr};
 }
 
+static std::pair<int, blender::bke::greasepencil::Layer *> find_layer_of_frame(
+    GreasePencil &grease_pencil, const GreasePencilFrame &find_frame)
+{
+  using namespace blender::bke::greasepencil;
+  for (Layer *layer : grease_pencil.layers_for_write()) {
+    for (const auto &[key, frame] : layer->frames().items()) {
+      if (&frame == &find_frame) {
+        return {int(key), layer};
+      }
+    }
+  }
+  return {0, nullptr};
+}
+
 static PointerRNA rna_Frame_drawing_get(PointerRNA *ptr)
 {
   using namespace blender::bke::greasepencil;
@@ -187,6 +203,37 @@ static PointerRNA rna_Frame_drawing_get(PointerRNA *ptr)
   const Drawing *drawing = grease_pencil.get_drawing_at(*this_layer, frame_number);
   return rna_pointer_inherit_refine(
       ptr, &RNA_GreasePencilDrawing, static_cast<void *>(const_cast<Drawing *>(drawing)));
+}
+
+static void rna_Frame_drawing_set(PointerRNA *frame_ptr,
+                                  const PointerRNA drawing_ptr,
+                                  ReportList * /*reports*/)
+{
+  using namespace blender::bke::greasepencil;
+  GreasePencil &grease_pencil = *rna_grease_pencil(frame_ptr);
+  GreasePencilFrame &frame_to_find = *static_cast<GreasePencilFrame *>(frame_ptr->data);
+  /* It shouldn't be possible for the user to get an PointerRNA to a frame that just marks the end
+   * of another frame. */
+  BLI_assert(!frame_to_find.is_end());
+
+  /* RNA doesn't give access to the parented layer object, so we have to iterate over all layers
+   * and search for the matching GreasePencilFrame pointer in the frames collection. */
+  auto [frame_number, this_layer] = find_layer_of_frame(grease_pencil, frame_to_find);
+  /* Layer should exist. */
+  BLI_assert(this_layer != nullptr);
+
+  Drawing *dst_drawing = grease_pencil.get_drawing_at(*this_layer, frame_number);
+  if (dst_drawing == nullptr) {
+    return;
+  }
+  const Drawing *src_drawing = static_cast<const Drawing *>(drawing_ptr.data);
+  if (src_drawing == nullptr) {
+    /* Clear the drawing. */
+    *dst_drawing = {};
+  }
+  else {
+    *dst_drawing = *src_drawing;
+  }
 }
 
 static int rna_Frame_frame_number_get(PointerRNA *ptr)
@@ -357,6 +404,25 @@ static void rna_GreasePencilLayer_pass_index_set(PointerRNA *ptr, int value)
   layer_passes.finish();
 }
 
+static void rna_GreasePencilLayer_parent_set(PointerRNA *ptr,
+                                             PointerRNA value,
+                                             ReportList * /*reports*/)
+{
+  using namespace blender;
+  bke::greasepencil::Layer &layer = static_cast<GreasePencilLayer *>(ptr->data)->wrap();
+  Object *parent = static_cast<Object *>(value.data);
+
+  ed::greasepencil::grease_pencil_layer_parent_set(layer, parent, layer.parent_bone_name(), false);
+}
+
+static void rna_GreasePencilLayer_bone_set(PointerRNA *ptr, const char *value)
+{
+  using namespace blender;
+  bke::greasepencil::Layer &layer = static_cast<GreasePencilLayer *>(ptr->data)->wrap();
+
+  ed::greasepencil::grease_pencil_layer_parent_set(layer, layer.parent, value, false);
+}
+
 static void rna_GreasePencilLayer_tint_color_get(PointerRNA *ptr, float *values)
 {
   using namespace blender;
@@ -497,6 +563,19 @@ static void rna_GreasePencil_active_layer_set(PointerRNA *ptr,
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED | NA_SELECTED, grease_pencil);
 }
 
+static PointerRNA rna_GreasePencilLayerGroup_parent_group_get(PointerRNA *ptr)
+{
+  blender::bke::greasepencil::LayerGroup &layer_group =
+      static_cast<GreasePencilLayerTreeGroup *>(ptr->data)->wrap();
+  blender::bke::greasepencil::LayerGroup *parent_group = layer_group.as_node().parent_group();
+  /* Return None when group is in the root group. */
+  if (!parent_group || parent_group == rna_grease_pencil(ptr)->root_group_ptr) {
+    return PointerRNA_NULL;
+  }
+  return rna_pointer_inherit_refine(
+      ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(parent_group));
+}
+
 static PointerRNA rna_GreasePencil_active_group_get(PointerRNA *ptr)
 {
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
@@ -544,6 +623,12 @@ static void rna_GreasePencilLayerGroup_name_set(PointerRNA *ptr, const char *val
   GreasePencilLayerTreeGroup *group = static_cast<GreasePencilLayerTreeGroup *>(ptr->data);
 
   grease_pencil->rename_node(*G_MAIN, group->wrap().as_node(), value);
+}
+
+static void rna_GreasePencilLayerGroup_is_expanded_set(PointerRNA *ptr, const bool value)
+{
+  GreasePencilLayerTreeGroup *group = static_cast<GreasePencilLayerTreeGroup *>(ptr->data);
+  group->wrap().set_expanded(value);
 }
 
 static void rna_iterator_grease_pencil_layer_groups_begin(CollectionPropertyIterator *iter,
@@ -665,7 +750,9 @@ static void rna_def_grease_pencil_frame(BlenderRNA *brna)
   /* Drawing. */
   prop = RNA_def_property(srna, "drawing", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "GreasePencilDrawing");
-  RNA_def_property_pointer_funcs(prop, "rna_Frame_drawing_get", nullptr, nullptr, nullptr);
+  RNA_def_property_pointer_funcs(
+      prop, "rna_Frame_drawing_get", "rna_Frame_drawing_set", nullptr, nullptr);
+  RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Drawing", "A Grease Pencil drawing");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
 
@@ -748,7 +835,7 @@ static void rna_def_grease_pencil_layer_masks(BlenderRNA *brna, PropertyRNA *cpr
   srna = RNA_def_struct(brna, "GreasePencilLayerMasks", nullptr);
   RNA_def_struct_sdna(srna, "GreasePencilLayer");
   RNA_def_struct_ui_text(
-      srna, "Grease Pencil Mask Layers", "Collection of grease pencil masking layers");
+      srna, "Grease Pencil Mask Layers", "Collection of Grease Pencil masking layers");
 
   prop = RNA_def_property(srna, "active_mask_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -920,6 +1007,8 @@ static void rna_def_grease_pencil_layer(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, "rna_GreasePencilLayer_parent_set", nullptr, nullptr);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Parent", "Parent object");
@@ -927,6 +1016,7 @@ static void rna_def_grease_pencil_layer(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "parent_bone", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "parsubstr");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_GreasePencilLayer_bone_set");
   RNA_def_property_ui_text(
       prop,
       "Parent Bone",
@@ -1088,6 +1178,23 @@ static void rna_def_grease_pencil_layer_group(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Onion Skinning", "Display onion skins before and after the current frame");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
+
+  /* Expanded */
+  prop = RNA_def_property(srna, "is_expanded", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, "GreasePencilLayerTreeNode", "flag", GP_LAYER_TREE_NODE_EXPANDED);
+  RNA_def_property_ui_text(prop, "Expanded", "The layer groups is expanded in the UI");
+  RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_GreasePencilLayerGroup_is_expanded_set");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
+
+  /* Parent group. */
+  prop = RNA_def_property(srna, "parent_group", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "GreasePencilLayerGroup");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_GreasePencilLayerGroup_parent_group_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Parent Group", "The parent group this group is part of");
 }
 
 static void rna_def_grease_pencil_layer_groups(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1259,7 +1366,7 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static EnumPropertyItem prop_stroke_depth_order_items[] = {
-      {0, "2D", 0, "2D Layers", "Display strokes using grease pencil layers to define order"},
+      {0, "2D", 0, "2D Layers", "Display strokes using Grease Pencil layers to define order"},
       {GREASE_PENCIL_STROKE_ORDER_3D,
        "3D",
        0,

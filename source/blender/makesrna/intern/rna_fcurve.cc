@@ -676,10 +676,10 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value, ReportList *
   /* Layered action. */
   bActionGroup *group = static_cast<bActionGroup *>(value.data);
 
-  BLI_assert(group->channel_bag != nullptr);
-  blender::animrig::ChannelBag &channel_bag = group->channel_bag->wrap();
+  BLI_assert(group->channelbag != nullptr);
+  blender::animrig::Channelbag &channelbag = group->channelbag->wrap();
 
-  if (!channel_bag.fcurve_assign_to_channel_group(*fcu, *group)) {
+  if (!channelbag.fcurve_assign_to_channel_group(*fcu, *group)) {
     printf(
         "ERROR: F-Curve (datapath: '%s') doesn't belong to the same channel bag as "
         "channel group '%s'\n",
@@ -773,6 +773,7 @@ static void rna_FCurve_modifiers_remove(FCurve *fcu, ReportList *reports, Pointe
   }
 
   remove_fmodifier(&fcu->modifiers, fcm);
+  DEG_id_tag_update(fcm_ptr->owner_id, ID_RECALC_ANIMATION);
   RNA_POINTER_INVALIDATE(fcm_ptr);
 }
 

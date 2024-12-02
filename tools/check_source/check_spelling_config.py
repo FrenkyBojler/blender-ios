@@ -326,6 +326,9 @@ dict_custom = {
     "reimplement",
     "reimplemented",
     "reimplementing",
+    "relink",
+    "relinked",
+    "relinking",
     "remappable",
     "remapper",
     "remappings",
@@ -424,6 +427,7 @@ dict_custom = {
     "unapply",
     "unassign",
     "unassigning",
+    "unassigns",
     "unassociated",
     "unbake",
     "unbuffered",
@@ -846,6 +850,7 @@ dict_ignore = {
 
     # Company names.
     "Logitech",
+    "Qualcomm",
     "Wacom",
 
     # Project Names.

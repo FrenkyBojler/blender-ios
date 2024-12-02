@@ -11,6 +11,10 @@
  * in-focus and defocus regions.
  */
 
+#include "infos/eevee_depth_of_field_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_resolve)
+
 #include "eevee_depth_of_field_accumulator_lib.glsl"
 
 /* Workarounds for Metal/AMD issue where atomicMax lead to incorrect results.
@@ -80,7 +84,7 @@ vec3 dof_neighborhood_clamp(vec2 frag_coord, vec3 color, float center_coc, float
 {
   /* Stabilize color by clamping with the stable half res neighborhood. */
   vec3 neighbor_min, neighbor_max;
-  const vec2 corners[4] = vec2[4](vec2(-1, -1), vec2(1, -1), vec2(-1, 1), vec2(1, 1));
+  const vec2 corners[4] = float2_array(vec2(-1, -1), vec2(1, -1), vec2(-1, 1), vec2(1, 1));
   for (int i = 0; i < 4; i++) {
     /**
      * Visit the 4 half-res texels around (and containing) the full-resolution texel.

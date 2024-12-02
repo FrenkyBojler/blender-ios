@@ -50,7 +50,7 @@
 
 #include "BKE_anim_visualization.h"
 #include "BKE_customdata.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_main.hh" /* for Main */
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
@@ -179,7 +179,7 @@ static void do_versions_image_settings_2_60(Scene *sce)
   imf->depth = R_IMF_CHAN_DEPTH_8;
 
   /* openexr */
-  imf->exr_codec = rd->quality & 7; /* strange but true! 0-4 are valid values, OPENEXR_COMPRESS */
+  imf->exr_codec = rd->quality & 7; /* 0-4 were valid values back then */
 
   switch (imf->imtype) {
     case R_IMF_IMTYPE_OPENEXR:
@@ -856,33 +856,33 @@ static const char *node_get_static_idname(int type, int treetype)
   return "";
 }
 
-static const char *node_socket_get_static_idname(bNodeSocket *sock)
+static blender::StringRefNull node_socket_get_static_idname(bNodeSocket *sock)
 {
   switch (sock->type) {
     case SOCK_FLOAT: {
       bNodeSocketValueFloat *dval = sock->default_value_typed<bNodeSocketValueFloat>();
-      return blender::bke::node_static_socket_type(SOCK_FLOAT, dval->subtype);
+      return *blender::bke::node_static_socket_type(SOCK_FLOAT, dval->subtype);
     }
     case SOCK_INT: {
       bNodeSocketValueInt *dval = sock->default_value_typed<bNodeSocketValueInt>();
-      return blender::bke::node_static_socket_type(SOCK_INT, dval->subtype);
+      return *blender::bke::node_static_socket_type(SOCK_INT, dval->subtype);
     }
     case SOCK_BOOLEAN: {
-      return blender::bke::node_static_socket_type(SOCK_BOOLEAN, PROP_NONE);
+      return *blender::bke::node_static_socket_type(SOCK_BOOLEAN, PROP_NONE);
     }
     case SOCK_VECTOR: {
       bNodeSocketValueVector *dval = sock->default_value_typed<bNodeSocketValueVector>();
-      return blender::bke::node_static_socket_type(SOCK_VECTOR, dval->subtype);
+      return *blender::bke::node_static_socket_type(SOCK_VECTOR, dval->subtype);
     }
     case SOCK_RGBA: {
-      return blender::bke::node_static_socket_type(SOCK_RGBA, PROP_NONE);
+      return *blender::bke::node_static_socket_type(SOCK_RGBA, PROP_NONE);
     }
     case SOCK_STRING: {
       bNodeSocketValueString *dval = sock->default_value_typed<bNodeSocketValueString>();
-      return blender::bke::node_static_socket_type(SOCK_STRING, dval->subtype);
+      return *blender::bke::node_static_socket_type(SOCK_STRING, dval->subtype);
     }
     case SOCK_SHADER: {
-      return blender::bke::node_static_socket_type(SOCK_SHADER, PROP_NONE);
+      return *blender::bke::node_static_socket_type(SOCK_SHADER, PROP_NONE);
     }
   }
   return "";
@@ -917,18 +917,18 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
 
       /* sockets idname */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-        STRNCPY(sock->idname, node_socket_get_static_idname(sock));
+        STRNCPY(sock->idname, node_socket_get_static_idname(sock).c_str());
       }
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        STRNCPY(sock->idname, node_socket_get_static_idname(sock));
+        STRNCPY(sock->idname, node_socket_get_static_idname(sock).c_str());
       }
     }
     /* tree sockets idname */
     LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->inputs_legacy) {
-      STRNCPY(sock->idname, node_socket_get_static_idname(sock));
+      STRNCPY(sock->idname, node_socket_get_static_idname(sock).c_str());
     }
     LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->outputs_legacy) {
-      STRNCPY(sock->idname, node_socket_get_static_idname(sock));
+      STRNCPY(sock->idname, node_socket_get_static_idname(sock).c_str());
     }
   }
 
@@ -2637,7 +2637,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
             continue;
           }
 
-          ARegion *arnew = MEM_cnew<ARegion>("node tools");
+          ARegion *arnew = BKE_area_region_new();
 
           BLI_insertlinkafter(&area->regionbase, region, arnew);
           arnew->regiontype = RGN_TYPE_TOOLS;
