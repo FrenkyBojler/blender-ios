@@ -43,6 +43,9 @@ Curve *blender::io::obj::CurveFromGeometry::create_curve(const OBJImportParams &
 
 Object *CurveFromGeometry::create_curve_object(Main *bmain, const OBJImportParams &import_params)
 {
+  if (curve_geometry_.nurbs_element_.curv_indices.is_empty()) {
+    return nullptr;
+  }
   std::string ob_name = get_geometry_name(curve_geometry_.geometry_name_,
                                           import_params.collection_separator);
   if (ob_name.empty() && !curve_geometry_.nurbs_element_.group_.empty()) {
@@ -51,7 +54,6 @@ Object *CurveFromGeometry::create_curve_object(Main *bmain, const OBJImportParam
   if (ob_name.empty()) {
     ob_name = "Untitled";
   }
-  BLI_assert(!curve_geometry_.nurbs_element_.curv_indices.is_empty());
 
   Curve *curve = BKE_curve_add(bmain, ob_name.c_str(), OB_CURVES_LEGACY);
   Object *obj = BKE_object_add_only_object(bmain, OB_CURVES_LEGACY, ob_name.c_str());
