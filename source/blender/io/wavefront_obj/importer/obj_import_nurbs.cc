@@ -74,6 +74,7 @@ Object *CurveFromGeometry::create_curve_object(Main *bmain, const OBJImportParam
 void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import_params)
 {
   const NurbsElement &nurbs_geometry = curve_geometry_.nurbs_element_;
+  const int degree = nurbs_geometry.degree;
   Nurb *nurb = static_cast<Nurb *>(curve->nurb.first);
 
   nurb->type = CU_NURBS;
@@ -88,8 +89,12 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
                                                                          nurbs_geometry.degree + 1;
   nurb->resolu = nurb->resolv = curve->resolu;
 
-  nurb->flagu = this->detect_knot_mode(import_params);
-  const int degree = nurbs_geometry.degree;
+  nurb->flagu = this->detect_knot_mode(import_params,
+                                       degree,
+                                       nurbs_geometry.curv_indices,
+                                       nurbs_geometry.parm,
+                                       nurbs_geometry.range);
+
   const Span<int> indices = nurbs_geometry.curv_indices.as_span().slice(
       nurbs_geometry.curv_indices.index_range().drop_front(nurb->flagu & CU_NURB_CYCLIC ? degree :
                                                                                           0));
@@ -107,12 +112,12 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
   BKE_nurb_knot_calc_u(nurb);
 }
 
-short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params)
+short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
+                                          const int degree,
+                                          const Span<int> indices,
+                                          const Span<float> knots,
+                                          const float2 range)
 {
-  const NurbsElement &nurbs_geometry = curve_geometry_.nurbs_element_;
-  const int degree = nurbs_geometry.degree;
-  const Span<int> indices = nurbs_geometry.curv_indices;
-  const Span<float> knots = nurbs_geometry.parm;
   short knot_mode = 0;
 
   if (import_params.close_spline_loops && indices.size() > degree) {
@@ -142,11 +147,10 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params)
    * the parameters should have at least (degree+1) values on each end,
    * and their values should match curve range. */
   bool do_endpoints = false;
-  int deg1 = nurbs_geometry.degree + 1;
-  if (nurbs_geometry.parm.size() >= deg1 * 2) {
+  int order = degree + 1;
+  if (knots.size() >= order * 2) {
     do_endpoints = true;
-    const float2 range = nurbs_geometry.range;
-    for (int i = 0; i < deg1; ++i) {
+    for (int i = 0; i < order; ++i) {
       if (abs(knots[i] - range.x) > 0.0001f || abs(knots.last(i) - range.y) > 0.0001f) {
         do_endpoints = false;
         break;
