@@ -182,8 +182,8 @@ bool VKBackend::is_supported()
 
     if (!GPU_vulkan_is_supported_driver(vk_physical_device)) {
       CLOG_WARN(&LOG,
-                "Installed driver for device [%s] has known issues. Updating driver might improve "
-                "compatibility.",
+                "Installed driver for device [%s] has known issues and will not be used. Updating "
+                "driver might improve compatibility.",
                 vk_properties.deviceName);
       continue;
     }
