@@ -21,7 +21,7 @@ void ScreenSpaceDrawingMode::add_shgroups() const
   pass.shader_set(shader);
   pass.push_constant("far_near_distances", sh_params.far_near);
   pass.push_constant("shuffle", sh_params.shuffle);
-  pass.push_constant("draw_flags", static_cast<int32_t>(sh_params.flags));
+  pass.push_constant("draw_flags", int32_t(sh_params.flags));
   pass.push_constant("is_image_premultiplied", sh_params.use_premul_alpha);
   pass.bind_texture("depth_tx", dtxl->depth);
 
@@ -380,7 +380,8 @@ void ScreenSpaceDrawingMode::draw_viewport() const
 {
   float clear_depth = instance_.state.flags.do_tile_drawing ? 0.75 : 1.0f;
   if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-    /* OpenGL doesn't support clearing depth stencil via load store actions as the data types should match. */
+    /* OpenGL doesn't support clearing depth stencil via load store actions as the data types
+     * should match. */
     GPU_framebuffer_bind(instance_.state.depth_fb);
     instance_.state.depth_fb.clear_depth(clear_depth);
   }

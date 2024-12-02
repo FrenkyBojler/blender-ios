@@ -64,7 +64,7 @@ class Instance {
 
     /* Setup full screen view matrix. */
     float4x4 viewmat = math::projection::orthographic(
-        0.0f, (float)region->winx, 0.0f, (float)region->winy, 0.0f, 1.0f);
+        0.0f, float(region->winx), 0.0f, float(region->winy), 0.0f, 1.0f);
     float4x4 winmat = float4x4::identity();
     state.view.sync(viewmat, winmat);
   }
