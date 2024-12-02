@@ -94,10 +94,7 @@ static int out_finded_token_position(const std::vector<int> *positions,
 }
 static int out_finded_tokens_count(const std::vector<int> *positions, const int start)
 {
-  if (positions->empty()) {
-    return 0;
-  }
-  if (start > positions->back()) {
+  if (positions->empty()||start > positions->back()) {
     return 0;
   }
   auto it = std::lower_bound(positions->begin(), positions->end(), start);

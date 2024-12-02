@@ -704,7 +704,7 @@ inline auto SI5_SO2(const char *name,
                     const ExecPreset exec_preset = exec_presets::Materialized())
 {
   return detail::build_multi_function_with_n_inputs_two_outputs<Out1, Out2>(
-      name, element_fn, exec_preset, TypeSequence<In1,In2,In3,In4,In5>());
+      name, element_fn, exec_preset, TypeSequence<In1, In2, In3, In4, In5>());
 }
 
 /** Build multi-function with 1 single-input and 3 single output parameter. */
