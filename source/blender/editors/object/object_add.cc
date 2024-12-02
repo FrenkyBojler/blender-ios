@@ -2896,7 +2896,9 @@ static Object *get_object_for_conversion(Base &base, ObjectConversionInfo &info,
   return base.object;
 }
 
-static Object *convert_mesh_to_curves_legacy(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_mesh_to_curves_legacy(Base &base,
+                                             ObjectConversionInfo &info,
+                                             Base **r_new_base)
 {
   Object *ob = base.object;
   ob->flag |= OB_DONE;
@@ -2914,7 +2916,9 @@ static Object *convert_mesh_to_curves_legacy(Base &base, ObjectConversionInfo &i
   return newob;
 }
 
-static Object *convert_curves_component_to_curves(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_curves_component_to_curves(Base &base,
+                                                  ObjectConversionInfo &info,
+                                                  Base **r_new_base)
 {
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
@@ -2950,7 +2954,9 @@ static Object *convert_curves_component_to_curves(Base &base, ObjectConversionIn
   return newob;
 }
 
-static Object *convert_grease_pencil_component_to_curves(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_grease_pencil_component_to_curves(Base &base,
+                                                         ObjectConversionInfo &info,
+                                                         Base **r_new_base)
 {
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
@@ -3012,7 +3018,9 @@ static Object *convert_mesh_to_curves(Base &base, ObjectConversionInfo &info, Ba
   return convert_grease_pencil_component_to_curves(base, info, r_new_base);
 }
 
-static Object *convert_mesh_to_point_cloud(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_mesh_to_point_cloud(Base &base,
+                                           ObjectConversionInfo &info,
+                                           Base **r_new_base)
 {
   Object *ob = base.object;
   ob->flag |= OB_DONE;
@@ -3077,7 +3085,10 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
   return newob;
 }
 
-static Object *convert_mesh(Base &base, const ObjectType target, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_mesh(Base &base,
+                            const ObjectType target,
+                            ObjectConversionInfo &info,
+                            Base **r_new_base)
 {
   switch (target) {
     case OB_CURVES_LEGACY:
@@ -3145,7 +3156,9 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
   return newob;
 }
 
-static Object *convert_curves_to_grease_pencil(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_curves_to_grease_pencil(Base &base,
+                                               ObjectConversionInfo &info,
+                                               Base **r_new_base)
 {
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
@@ -3201,7 +3214,10 @@ static Object *convert_curves_to_grease_pencil(Base &base, ObjectConversionInfo 
   return newob;
 }
 
-static Object *convert_curves(Base &base, const ObjectType target, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_curves(Base &base,
+                              const ObjectType target,
+                              ObjectConversionInfo &info,
+                              Base **r_new_base)
 {
   switch (target) {
     case OB_MESH:
@@ -3213,7 +3229,9 @@ static Object *convert_curves(Base &base, const ObjectType target, ObjectConvers
   }
 }
 
-static Object *convert_grease_pencil_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_grease_pencil_to_mesh(Base &base,
+                                             ObjectConversionInfo &info,
+                                             Base **r_new_base)
 {
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
@@ -3307,7 +3325,8 @@ static Object *convert_grease_pencil_to_mesh(Base &base, ObjectConversionInfo &i
 
 static Object *convert_grease_pencil(Base &base,
                                      const ObjectType target,
-                                     ObjectConversionInfo &info, Base **r_new_base)
+                                     ObjectConversionInfo &info,
+                                     Base **r_new_base)
 {
   switch (target) {
     case OB_CURVES:
@@ -3320,7 +3339,9 @@ static Object *convert_grease_pencil(Base &base,
   return nullptr;
 }
 
-static Object *convert_font_to_curves_legacy(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_font_to_curves_legacy(Base &base,
+                                             ObjectConversionInfo &info,
+                                             Base **r_new_base)
 {
   Object *ob = base.object;
   ob->flag |= OB_DONE;
@@ -3397,7 +3418,10 @@ static Object *convert_font_to_mesh(Base &base, ObjectConversionInfo &info, Base
   return newob;
 }
 
-static Object *convert_font(Base &base, const short target, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_font(Base &base,
+                            const short target,
+                            ObjectConversionInfo &info,
+                            Base **r_new_base)
 {
   switch (target) {
     case OB_MESH:
@@ -3410,7 +3434,9 @@ static Object *convert_font(Base &base, const short target, ObjectConversionInfo
   return nullptr;
 }
 
-static Object *convert_curves_legacy_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_curves_legacy_to_mesh(Base &base,
+                                             ObjectConversionInfo &info,
+                                             Base **r_new_base)
 {
   Object *ob = base.object;
   ob->flag |= OB_DONE;
@@ -3427,7 +3453,8 @@ static Object *convert_curves_legacy_to_mesh(Base &base, ObjectConversionInfo &i
 
 static Object *convert_curves_legacy(Base &base,
                                      const ObjectType target,
-                                     ObjectConversionInfo &info, Base **r_new_base)
+                                     ObjectConversionInfo &info,
+                                     Base **r_new_base)
 {
   switch (target) {
     case OB_MESH:
@@ -3439,7 +3466,9 @@ static Object *convert_curves_legacy(Base &base,
 
 static Object *convert_mball_to_mesh(Base &base,
                                      ObjectConversionInfo &info,
-                                     bool &r_mball_converted, Base **r_new_base, Base **r_act_base)
+                                     bool &r_mball_converted,
+                                     Base **r_new_base,
+                                     Base **r_act_base)
 {
   Object *ob = base.object;
   Object *newob = nullptr;
@@ -3485,7 +3514,9 @@ static Object *convert_mball_to_mesh(Base &base,
 static Object *convert_mball(Base &base,
                              const ObjectType target,
                              ObjectConversionInfo &info,
-                             bool &r_mball_converted, Base **r_new_base, Base **r_act_base)
+                             bool &r_mball_converted,
+                             Base **r_new_base,
+                             Base **r_act_base)
 {
   switch (target) {
     case OB_MESH:
@@ -3495,7 +3526,9 @@ static Object *convert_mball(Base &base,
   }
 }
 
-static Object *convert_point_cloud_to_mesh(Base &base, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_point_cloud_to_mesh(Base &base,
+                                           ObjectConversionInfo &info,
+                                           Base **r_new_base)
 {
   Object *ob = base.object;
   ob->flag |= OB_DONE;
@@ -3511,7 +3544,10 @@ static Object *convert_point_cloud_to_mesh(Base &base, ObjectConversionInfo &inf
   return newob;
 }
 
-static Object *convert_point_cloud(Base &base, const ObjectType target, ObjectConversionInfo &info, Base **r_new_base)
+static Object *convert_point_cloud(Base &base,
+                                   const ObjectType target,
+                                   ObjectConversionInfo &info,
+                                   Base **r_new_base)
 {
   switch (target) {
     case OB_MESH:
@@ -3570,7 +3606,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   info.do_merge_customdata = do_merge_customdata;
   info.reports = op->reports;
 
-  Base* act_base=nullptr;
+  Base *act_base = nullptr;
 
   /* Ensure we get all meshes calculated with a sufficient data-mask,
    * needed since re-evaluating single modifiers causes bugs if they depend
@@ -3610,7 +3646,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
-    Base *base = static_cast<Base *>(ptr.data), *new_base=nullptr;
+    Base *base = static_cast<Base *>(ptr.data), *new_base = nullptr;
     Object *ob = base->object;
 
     if (ob->flag & OB_DONE || !IS_TAGGED(ob->data)) {
