@@ -737,6 +737,7 @@ class MeshUVs : Overlay {
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
     Object &ob = *object_eval;
+    BLI_assert(ob.type == OB_MESH);
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
 
     if (object_eval != ob_ref.object) {
