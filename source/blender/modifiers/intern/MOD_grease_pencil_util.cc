@@ -38,6 +38,7 @@ namespace blender::modifier::greasepencil {
 using bke::greasepencil::Drawing;
 using bke::greasepencil::FramesMapKeyT;
 using bke::greasepencil::Layer;
+using bke::greasepencil::LayerGroup;
 
 void init_influence_data(GreasePencilModifierInfluenceData *influence_data,
                          const bool has_custom_curve)
@@ -225,15 +226,11 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
   const VArray<int> layer_passes =
       layer_attributes.lookup_or_default<int>("pass_index", bke::AttrDomain::Layer, 0).varray;
 
-  const Span<const blender::bke::greasepencil::LayerGroup *> layer_groups =
-      grease_pencil.layer_groups();
-  const bke::greasepencil::LayerGroup *filter_layer_group = nullptr;
-  if (layer_name_filter) {
-    for (int i : layer_groups.index_range()) {
-      if (layer_groups[i]->name() == layer_name_filter.value()) {
-        filter_layer_group = layer_groups[i];
-        break;
-      }
+  const LayerGroup *filter_layer_group = nullptr;
+  for (const LayerGroup *group : grease_pencil.layer_groups()) {
+    if (group->name() == layer_name_filter.value()) {
+      filter_layer_group = group;
+      break;
     }
   }
 
@@ -241,9 +238,8 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
       full_mask, GrainSize(4096), memory, [&](const int64_t layer_i) {
         if (layer_name_filter) {
           if (filter_layer_group) {
-            const blender::bke::greasepencil::LayerGroup *group = filter_layer_group;
             const Layer *layer = layers[layer_i];
-            const bool match = layer->is_child_of(*group);
+            const bool match = layer->is_child_of(*filter_layer_group);
             if (match == layer_filter_invert) {
               return false;
             }
