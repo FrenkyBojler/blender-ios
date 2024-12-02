@@ -45,9 +45,11 @@ struct State {
     bool do_tile_drawing : 1;
   } flags;
 
-  // GPUFrameBuffer *main_fb = nullptr;
-  PassSimple image_ps = {"Image.Color"};
+  Framebuffer depth_fb = {"Image.Depth"};
+  Framebuffer color_fb = {"Image.Color"};
+
   PassSimple depth_ps = {"Image.Depth"};
+  PassSimple image_ps = {"Image.Color"};
 
   /**
    * Cache containing the float buffers when drawing byte images.

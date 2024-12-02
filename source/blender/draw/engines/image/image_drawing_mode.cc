@@ -326,6 +326,11 @@ void ScreenSpaceDrawingMode::do_full_update_texture_slot(const TextureInfo &text
 void ScreenSpaceDrawingMode::begin_sync() const
 {
   {
+    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    instance_.state.depth_fb.ensure(GPU_ATTACHMENT_TEXTURE(dtxl->depth));
+    instance_.state.color_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(dtxl->color));
+  }
+  {
     PassSimple &pass = instance_.state.image_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS | DRW_STATE_BLEND_ALPHA_PREMUL);
@@ -373,17 +378,20 @@ void ScreenSpaceDrawingMode::draw_finish() const
 
 void ScreenSpaceDrawingMode::draw_viewport() const
 {
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-  GPUFrameBuffer *fb = dfbl->default_fb;
-
-  GPU_framebuffer_bind(fb);
-  static float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   float clear_depth = instance_.state.flags.do_tile_drawing ? 0.75 : 1.0f;
-  GPU_framebuffer_clear_color_depth(fb, clear_col, clear_depth);
-
+  GPU_framebuffer_bind_ex(instance_.state.depth_fb,
+                          {
+                              {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {clear_depth}},
+                          });
   instance_.manager->submit(instance_.state.depth_ps, instance_.state.view);
 
-  GPU_framebuffer_bind(dfbl->color_only_fb);
+  GPU_framebuffer_bind_ex(
+      instance_.state.color_fb,
+      {
+          {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_DONT_CARE, {0.0f}},
+          {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0.0f, 0.0f, 0.0f, 0.0f}},
+
+      });
   instance_.manager->submit(instance_.state.image_ps, instance_.state.view);
 }
 
