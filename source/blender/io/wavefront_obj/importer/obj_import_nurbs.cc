@@ -160,7 +160,7 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params)
                       inner_knots.drop_front(degree).drop_back(degree) :
                       IndexRange();
   }
-  if (inner_knots.size() > 0) {
+  if (!inner_knots.is_empty()) {
     const float first_step = knots[inner_knots.first() + 1] - knots[inner_knots.first()];
     bool is_spacing_equal = true;
     bool is_bezier_knot = degree > 1;
