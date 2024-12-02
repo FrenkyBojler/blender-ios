@@ -952,7 +952,7 @@ TreeNode::TreeNode(const GreasePencilLayerTreeNodeType type) : TreeNode()
 TreeNode::TreeNode(const GreasePencilLayerTreeNodeType type, const StringRef name) : TreeNode()
 {
   this->type = type;
-  this->GreasePencilLayerTreeNode::name = BLI_strdup(name.data());
+  this->GreasePencilLayerTreeNode::name = BLI_strdupn(name.data(), name.size());
 }
 
 TreeNode::TreeNode(const TreeNode &other) : TreeNode(GreasePencilLayerTreeNodeType(other.type))
@@ -970,7 +970,7 @@ TreeNode::~TreeNode()
 void TreeNode::set_name(const StringRef name)
 {
   MEM_SAFE_FREE(this->GreasePencilLayerTreeNode::name);
-  this->GreasePencilLayerTreeNode::name = BLI_strdup(name.data());
+  this->GreasePencilLayerTreeNode::name = BLI_strdupn(name.data(), name.size());
 }
 
 const LayerGroup &TreeNode::as_group() const
@@ -1028,7 +1028,7 @@ LayerMask::LayerMask()
 
 LayerMask::LayerMask(const StringRef name) : LayerMask()
 {
-  this->layer_name = BLI_strdup_null(name.data());
+  this->layer_name = BLI_strdupn(name.data(), name.size());
 }
 
 LayerMask::LayerMask(const LayerMask &other) : LayerMask()
@@ -1457,12 +1457,12 @@ StringRefNull Layer::parent_bone_name() const
   return (this->parsubstr != nullptr) ? StringRefNull(this->parsubstr) : StringRefNull();
 }
 
-void Layer::set_parent_bone_name(const char *new_name)
+void Layer::set_parent_bone_name(const StringRef new_name)
 {
   if (this->parsubstr != nullptr) {
     MEM_freeN(this->parsubstr);
   }
-  this->parsubstr = BLI_strdup_null(new_name);
+  this->parsubstr = BLI_strdupn(new_name.data(), new_name.size());
 }
 
 float4x4 Layer::parent_to_world(const Object &parent) const
@@ -1502,12 +1502,12 @@ StringRefNull Layer::view_layer_name() const
   return (this->viewlayername != nullptr) ? StringRefNull(this->viewlayername) : StringRefNull();
 }
 
-void Layer::set_view_layer_name(const char *new_name)
+void Layer::set_view_layer_name(const StringRef new_name)
 {
   if (this->viewlayername != nullptr) {
     MEM_freeN(this->viewlayername);
   }
-  this->viewlayername = BLI_strdup_null(new_name);
+  this->viewlayername = BLI_strdupn(new_name.data(), new_name.size());
 }
 
 LayerGroup::LayerGroup()
