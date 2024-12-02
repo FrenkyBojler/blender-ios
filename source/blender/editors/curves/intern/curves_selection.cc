@@ -544,6 +544,8 @@ void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
+  const IndexRange all_writers = get_curves_all_selection_attribute_names().index_range();
+  const IndexRange selection_writer = IndexRange(1);
 
   Vector<bke::GSpanAttributeWriter> selection_writers = init_selection_writers(
       curves, bke::AttrDomain::Point);
@@ -551,9 +553,8 @@ void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask)
   curves_mask.foreach_index(GrainSize(256), [&](const int64_t curve) {
     /* For Bezier curves check all three selection layers  ".selection", ".selection_handle_left",
      * ".selection_handle_right". For other curves only ".selection". */
-    const IndexRange curve_writers = curve_types[curve] == CURVE_TYPE_BEZIER ?
-                                         get_curves_all_selection_attribute_names().index_range() :
-                                         IndexRange(1);
+    const IndexRange curve_writers = curve_types[curve] == CURVE_TYPE_BEZIER ? all_writers :
+                                                                               selection_writer;
     const IndexRange points = points_by_curve[curve];
 
     for (const int i : curve_writers) {
