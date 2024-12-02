@@ -3914,9 +3914,8 @@ static int area_join_cursor(sAreaJoinData *jd, const wmEvent *event)
       case SCREEN_DIR_W:
         return WM_CURSOR_W_ARROW;
         break;
-      case SCREEN_DIR_E:
+      default:
         return WM_CURSOR_E_ARROW;
-        break;
     }
   }
 
