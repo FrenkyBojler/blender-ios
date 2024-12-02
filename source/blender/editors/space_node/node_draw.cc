@@ -454,7 +454,8 @@ const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_l
   }
 
   const StringRefNull socket_label = bke::nodeSocketLabel(socket);
-  const char *translated_socket_label = CTX_IFACE_(socket_translation_context, socket_label.c_str());
+  const char *translated_socket_label = CTX_IFACE_(socket_translation_context,
+                                                   socket_label.c_str());
 
   /* Shorten socket label if it begins with the panel label. */
   if (panel_label) {
