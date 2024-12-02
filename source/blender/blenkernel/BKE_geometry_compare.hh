@@ -36,6 +36,12 @@ const char *mismatch_to_string(const GeoMismatch &mismatch);
  */
 std::optional<GeoMismatch> compare_meshes(const Mesh &mesh1, const Mesh &mesh2, float threshold);
 
+/**
+ * \brief Checks if the two curves geometries are different, returning the type of mismatch if any.
+ * Changes in index order are detected, but treated as a mismatch.
+ * 
+ * \returns The type of mismatch that was detected, if there is any.
+ */
 std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
                                           const CurvesGeometry &curves2,
                                           float threshold);

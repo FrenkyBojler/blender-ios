@@ -939,21 +939,21 @@ static bool sort_curves(const OffsetIndices<int> offset_indices1,
                         const OffsetIndices<int> offset_indices2,
                         IndexMapping &curves)
 {
-  Array<int> curve_counts1(offset_indices1.size());
-  Array<int> curve_counts2(offset_indices2.size());
+  Array<int> curve_point_counts1(offset_indices1.size());
+  Array<int> curve_point_counts2(offset_indices2.size());
   offset_indices::copy_group_sizes(
-      offset_indices1, offset_indices1.index_range(), curve_counts1.as_mutable_span());
+      offset_indices1, offset_indices1.index_range(), curve_point_counts1.as_mutable_span());
   offset_indices::copy_group_sizes(
-      offset_indices2, offset_indices2.index_range(), curve_counts2.as_mutable_span());
+      offset_indices2, offset_indices2.index_range(), curve_point_counts2.as_mutable_span());
   sort_per_set_based_on_attributes(curves.set_sizes,
                                    curves.from_sorted1,
                                    curves.from_sorted2,
-                                   curve_counts1.as_span(),
-                                   curve_counts2.as_span(),
+                                   curve_point_counts1.as_span(),
+                                   curve_point_counts2.as_span(),
                                    0);
   const bool curves_sizes_match = update_set_ids(curves.set_ids,
-                                                 curve_counts1.as_span(),
-                                                 curve_counts2.as_span(),
+                                                 curve_point_counts1.as_span(),
+                                                 curve_point_counts2.as_span(),
                                                  curves.from_sorted1,
                                                  curves.from_sorted2,
                                                  0,
