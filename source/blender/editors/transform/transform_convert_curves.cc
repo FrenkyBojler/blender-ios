@@ -458,6 +458,8 @@ void curve_populate_trans_data_structs(
   const bool hide_handles = (v3d != nullptr) ? (v3d->overlay.handle_display == CURVE_HANDLE_NONE) :
                                                false;
   const Span<float3> point_positions = curves.positions();
+  const VArray<bool> point_selection = *curves.attributes().lookup_or_default<bool>(
+      ".selection", bke::AttrDomain::Point, true);
   std::array<MutableSpan<float3>, 3> positions_per_selection_attr;
 
   for (const int selection_i : points_to_transform_per_attr.index_range()) {
@@ -503,7 +505,7 @@ void curve_populate_trans_data_structs(
         copy_v3_v3(td.iloc, *elem);
         copy_v3_v3(td.center,
                    hide_handles || (t.around == V3D_AROUND_LOCAL_ORIGINS) ||
-                           selection_attrs[0][point_in_domain_i] ?
+                           point_selection[point_in_domain_i] ?
                        point_positions[point_in_domain_i] :
                        td.iloc);
         td.loc = *elem;
