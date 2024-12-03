@@ -422,13 +422,13 @@ TEST_F(ActionLayersTest, slot_remove)
   { /* Creating a slot after removing one should not reuse its handle. */
     action->last_slot_handle = 3; /* To create independence between sub-tests. */
     Slot &slot1 = action->slot_add();
-    ASSERT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 4, slot1.handle);
-    ASSERT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 4, action->last_slot_handle);
+    ASSERT_EQ(4, slot1.handle);
+    ASSERT_EQ(4, action->last_slot_handle);
     ASSERT_TRUE(action->slot_remove(slot1));
 
     Slot &slot2 = action->slot_add();
-    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 5, slot2.handle);
-    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 5, action->last_slot_handle);
+    EXPECT_EQ(5, slot2.handle);
+    EXPECT_EQ(5, action->last_slot_handle);
   }
 }
 
