@@ -30,7 +30,6 @@ TEST(math_vector, ClampVecWithFloats)
   EXPECT_FLOAT_EQ(1.0f, c[1]);
 }
 
-
 TEST(math_vector, test_invert_v3_safe)
 {
   float v3_with_zeroes[3] = {0.0f, 2.0f, 3.0f};
