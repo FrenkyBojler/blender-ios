@@ -28,7 +28,9 @@ struct Scene;
 struct DRWData;
 namespace blender::draw {
 struct CurvesUniformBufPool;
-}
+class Manager;
+class CurveRefinePass;
+}  // namespace blender::draw
 
 /* Keep in sync with globalsBlock in shaders */
 BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
@@ -53,7 +55,7 @@ bool DRW_object_axis_orthogonal_to_view(Object *ob, int axis);
 /* draw_hair.cc */
 
 /**
- * \note Only valid after #DRW_hair_update().
+ * \note Only valid after #DRW_curves_update().
  */
 blender::gpu::VertBuf *DRW_hair_pos_buffer_get(Object *object,
                                                ParticleSystem *psys,
@@ -64,7 +66,6 @@ void DRW_hair_duplimat_get(Object *object,
                            float (*dupli_mat)[4]);
 
 void DRW_hair_init();
-void DRW_hair_update();
 void DRW_hair_free();
 
 /* draw_curves.cc */
@@ -78,7 +79,8 @@ gpu::VertBuf *DRW_curves_pos_buffer_get(Object *object);
 
 void DRW_curves_init(DRWData *drw_data);
 void DRW_curves_ubos_pool_free(CurvesUniformBufPool *pool);
-void DRW_curves_update();
+void DRW_curves_refine_pass_free(CurveRefinePass *pass);
+void DRW_curves_update(draw::Manager &manager);
 void DRW_curves_free();
 
 /* draw_pointcloud.cc */

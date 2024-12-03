@@ -32,18 +32,11 @@
 #include "DRW_gpu_wrapper.hh"
 
 #include "draw_hair_private.hh"
+#include "draw_manager.hh"
 #include "draw_shader.hh"
 #include "draw_shader_shared.hh"
 
-struct ParticleRefineCall {
-  ParticleRefineCall *next;
-  blender::gpu::VertBuf *vbo;
-  DRWShadingGroup *shgrp;
-  uint vert_len;
-};
-
 static blender::gpu::VertBuf *g_dummy_vbo = nullptr;
-static DRWPass *g_tf_pass; /* XXX can be a problem with multiple #DRWManager in the future */
 static blender::draw::UniformBuffer<CurvesInfos> *g_dummy_curves_info = nullptr;
 
 static void drw_hair_ensure_vbo()
@@ -72,19 +65,7 @@ static void drw_hair_ensure_vbo()
 
 void DRW_hair_init()
 {
-  g_tf_pass = DRW_pass_create("Update Hair Pass", DRW_STATE_NO_DRAW);
-
   drw_hair_ensure_vbo();
-}
-
-static void drw_hair_particle_cache_shgrp_attach_resources(DRWShadingGroup *shgrp,
-                                                           ParticleHairCache *cache,
-                                                           const int subdiv)
-{
-  DRW_shgroup_buffer_texture(shgrp, "hairPointBuffer", cache->proc_point_buf);
-  DRW_shgroup_buffer_texture(shgrp, "hairStrandBuffer", cache->proc_strand_buf);
-  DRW_shgroup_buffer_texture(shgrp, "hairStrandSegBuffer", cache->proc_strand_seg_buf);
-  DRW_shgroup_uniform_int(shgrp, "hairStrandsRes", &cache->final[subdiv].strands_res, 1);
 }
 
 static void drw_hair_particle_cache_update_compute(ParticleHairCache *cache, const int subdiv)
@@ -92,18 +73,24 @@ static void drw_hair_particle_cache_update_compute(ParticleHairCache *cache, con
   const int strands_len = cache->strands_len;
   const int final_points_len = cache->final[subdiv].strands_res * strands_len;
   if (final_points_len > 0) {
+    using namespace blender::draw;
     GPUShader *shader = DRW_shader_hair_refine_get(PART_REFINE_CATMULL_ROM);
-    DRWShadingGroup *shgrp = DRW_shgroup_create(shader, g_tf_pass);
-    drw_hair_particle_cache_shgrp_attach_resources(shgrp, cache, subdiv);
-    DRW_shgroup_vertex_buffer(shgrp, "posTime", cache->final[subdiv].proc_buf);
+
+    /* TODO(fclem): Remove Global access. */
+    PassSimple &pass = *DST.vmempool->curves_refine;
+    pass.shader_set(shader);
+    pass.bind_texture("hairPointBuffer", cache->proc_point_buf);
+    pass.bind_texture("hairStrandBuffer", cache->proc_strand_buf);
+    pass.bind_texture("hairStrandSegBuffer", cache->proc_strand_seg_buf);
+    pass.push_constant("hairStrandsRes", &cache->final[subdiv].strands_res);
+    pass.bind_ssbo("posTime", cache->final[subdiv].proc_buf);
 
     const int max_strands_per_call = GPU_max_work_group_count(0);
     int strands_start = 0;
     while (strands_start < strands_len) {
       int batch_strands_len = std::min(strands_len - strands_start, max_strands_per_call);
-      DRWShadingGroup *subgroup = DRW_shgroup_create_sub(shgrp);
-      DRW_shgroup_uniform_int_copy(subgroup, "hairStrandOffset", strands_start);
-      DRW_shgroup_call_compute(subgroup, batch_strands_len, cache->final[subdiv].strands_res, 1);
+      pass.push_constant("hairStrandOffset", strands_start);
+      pass.dispatch(int3(batch_strands_len, cache->final[subdiv].strands_res, 1));
       strands_start += batch_strands_len;
     }
   }
@@ -169,13 +156,6 @@ void DRW_hair_duplimat_get(Object *object,
   else {
     unit_m4(dupli_mat);
   }
-}
-
-void DRW_hair_update()
-{
-  /* Just render the pass when using compute shaders or transform feedback. */
-  DRW_draw_pass(g_tf_pass);
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 }
 
 void DRW_hair_free()

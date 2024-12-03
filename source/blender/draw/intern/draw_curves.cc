@@ -37,15 +37,7 @@
 
 namespace blender::draw {
 
-struct CurvesEvalCall {
-  CurvesEvalCall *next;
-  gpu::VertBuf *vbo;
-  DRWShadingGroup *shgrp;
-  uint vert_len;
-};
-
 static gpu::VertBuf *g_dummy_vbo = nullptr;
-static DRWPass *g_tf_pass; /* XXX can be a problem with multiple DRWManager in the future */
 
 using CurvesInfosBuf = UniformBuffer<CurvesInfos>;
 
@@ -100,11 +92,12 @@ void DRW_curves_init(DRWData *drw_data)
 
   if (drw_data->curves_ubos == nullptr) {
     drw_data->curves_ubos = MEM_new<CurvesUniformBufPool>("CurvesUniformBufPool");
+    drw_data->curves_refine = MEM_new<draw::CurveRefinePass>("CurvesEvalPass", "CurvesEvalPass");
   }
   CurvesUniformBufPool *pool = drw_data->curves_ubos;
   pool->reset();
 
-  g_tf_pass = DRW_pass_create("Update Curves Pass", (DRWState)0);
+  drw_data->curves_refine->init();
 
   drw_curves_ensure_dummy_vbo();
 }
@@ -114,14 +107,9 @@ void DRW_curves_ubos_pool_free(CurvesUniformBufPool *pool)
   MEM_delete(pool);
 }
 
-static void drw_curves_cache_shgrp_attach_resources(DRWShadingGroup *shgrp,
-                                                    CurvesEvalCache *cache,
-                                                    gpu::VertBuf *point_buf)
+void DRW_curves_refine_pass_free(CurveRefinePass *pass)
 {
-  DRW_shgroup_buffer_texture(shgrp, "hairPointBuffer", point_buf);
-  DRW_shgroup_buffer_texture(shgrp, "hairStrandBuffer", cache->proc_strand_buf);
-  DRW_shgroup_buffer_texture(shgrp, "hairStrandSegBuffer", cache->proc_strand_seg_buf);
-  DRW_shgroup_uniform_int(shgrp, "hairStrandsRes", &cache->final.resolution, 1);
+  MEM_delete(pass);
 }
 
 static void drw_curves_cache_update_compute(CurvesEvalCache *cache,
@@ -132,17 +120,22 @@ static void drw_curves_cache_update_compute(CurvesEvalCache *cache,
   BLI_assert(input_buf != nullptr);
   BLI_assert(output_buf != nullptr);
   GPUShader *shader = DRW_shader_curves_refine_get(CURVES_EVAL_CATMULL_ROM);
-  DRWShadingGroup *shgrp = DRW_shgroup_create(shader, g_tf_pass);
-  drw_curves_cache_shgrp_attach_resources(shgrp, cache, input_buf);
-  DRW_shgroup_vertex_buffer(shgrp, "posTime", output_buf);
+
+  /* TODO(fclem): Remove Global access. */
+  PassSimple &pass = *DST.vmempool->curves_refine;
+  pass.shader_set(shader);
+  pass.bind_texture("hairPointBuffer", input_buf);
+  pass.bind_texture("hairStrandBuffer", cache->proc_strand_buf);
+  pass.bind_texture("hairStrandSegBuffer", cache->proc_strand_seg_buf);
+  pass.push_constant("hairStrandsRes", &cache->final.resolution);
+  pass.bind_ssbo("posTime", output_buf);
 
   const int max_strands_per_call = GPU_max_work_group_count(0);
   int strands_start = 0;
   while (strands_start < curves_num) {
     int batch_strands_len = std::min(curves_num - strands_start, max_strands_per_call);
-    DRWShadingGroup *subgroup = DRW_shgroup_create_sub(shgrp);
-    DRW_shgroup_uniform_int_copy(subgroup, "hairStrandOffset", strands_start);
-    DRW_shgroup_call_compute(subgroup, batch_strands_len, cache->final.resolution, 1);
+    pass.push_constant("hairStrandOffset", strands_start);
+    pass.dispatch(int3(batch_strands_len, cache->final.resolution, 1));
     strands_start += batch_strands_len;
   }
 }
@@ -218,24 +211,13 @@ static int attribute_index_in_material(GPUMaterial *gpu_material, const char *na
   return -1;
 }
 
-void DRW_curves_update()
+void DRW_curves_update(draw::Manager &manager)
 {
+  /* TODO(fclem): Remove Global access. */
+  PassSimple &pass = *DST.vmempool->curves_refine;
 
-  /* Ensure there's a valid active view.
-   * "Next" engines use this function, but this still uses the old Draw Manager. */
-  if (DRW_view_default_get() == nullptr) {
-    /* Create a dummy default view, it's not really used. */
-    DRW_view_default_set(DRW_view_create(
-        float4x4::identity().ptr(), float4x4::identity().ptr(), nullptr, nullptr, nullptr));
-  }
-  if (DRW_view_get_active() == nullptr) {
-    DRW_view_set_active(DRW_view_default_get());
-  }
-
-  /* Update legacy hair too, to avoid verbosity in callers. */
-  DRW_hair_update();
-
-  DRW_draw_pass(g_tf_pass);
+  /* NOTE: This also update legacy hairs too as they populate the same pass. */
+  manager.submit(pass);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 }
 
