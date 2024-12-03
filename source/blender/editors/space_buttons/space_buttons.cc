@@ -164,41 +164,41 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 
 void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 {
-  blender::Vector<const char *> filter_items{
-      "show_render",
-      "show_output",
-      "show_view_layer",
-      "show_scene",
-      "show_world",
-      "show_collection",
-      "show_object",
-      "show_modifiers",
-      "show_effects",
-      "show_particles",
-      "show_physics",
-      "show_constraints",
-      "show_data",
-      "show_bone",
-      "show_bone_constraints",
-      "show_material",
-      "show_texture",
+  const blender::Vector<const char *> filter_items = {
+      "show_properties_render",
+      "show_properties_output",
+      "show_properties_view_layer",
+      "show_properties_scene",
+      "show_properties_world",
+      "show_properties_collection",
+      "show_properties_object",
+      "show_properties_modifiers",
+      "show_properties_effects",
+      "show_properties_particles",
+      "show_properties_physics",
+      "show_properties_constraints",
+      "show_properties_data",
+      "show_properties_bone",
+      "show_properties_bone_constraints",
+      "show_properties_material",
+      "show_properties_texture",
   };
 
   PointerRNA ptr = RNA_pointer_create(
-      (ID *)CTX_wm_workspace(C), &RNA_WorkSpace, CTX_wm_workspace(C));
+      reinterpret_cast<ID *>(CTX_wm_workspace(C)), &RNA_WorkSpace, CTX_wm_workspace(C));
 
   for (const char *item : filter_items) {
     uiItemR(layout, &ptr, item, UI_ITEM_R_TOGGLE, nullptr, ICON_NONE);
   }
 }
 
-int ED_buttons_tabs_list(SpaceProperties *sbuts, short *context_tabs_array)
+int ED_buttons_tabs_list(const SpaceProperties *sbuts, short *context_tabs_array)
 {
   return ED_buttons_tabs_list(nullptr, sbuts, context_tabs_array);
 }
 
 int ED_buttons_tabs_list(const WorkSpace *workspace,
-                         SpaceProperties *sbuts,
+                         const SpaceProperties *sbuts,
                          short *context_tabs_array)
 {
   int filter = 0xffffffff;

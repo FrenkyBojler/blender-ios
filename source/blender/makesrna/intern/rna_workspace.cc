@@ -19,6 +19,8 @@
 #include "RE_engine.h"
 
 #include "BLI_array_utils.h"
+#include "BLI_assert.h"
+#include "BLI_vector.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -56,12 +58,10 @@ static int find_new_properties_tab(const WorkSpace *workspace,
                                    int iter_step)
 {
   short tabs_array_no_filter[BCONTEXT_TOT * 2];
-  const int tabs_no_filter_len = ED_buttons_tabs_list(
-      nullptr, const_cast<SpaceProperties *>(sbuts), tabs_array_no_filter);
+  const int tabs_no_filter_len = ED_buttons_tabs_list(nullptr, sbuts, tabs_array_no_filter);
 
   short tabs_array[BCONTEXT_TOT * 2];
-  const int tabs_len = ED_buttons_tabs_list(
-      workspace, const_cast<SpaceProperties *>(sbuts), tabs_array);
+  const int tabs_len = ED_buttons_tabs_list(workspace, sbuts, tabs_array);
 
   const int old_index = BLI_array_findindex(
       tabs_array_no_filter, tabs_no_filter_len, &sbuts->mainb);
@@ -502,33 +502,34 @@ static void rna_def_workspace_tools(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_return(func, parm);
 }
 
-static const char *filter_items[] = {
-    "show_tool",
-    "show_scene",
-    "show_render",
-    "show_output",
-    "show_view_layer",
-    "show_world",
-    "show_collection",
-    "show_object",
-    "show_constraints",
-    "show_modifiers",
-    "show_data",
-    "show_bone",
-    "show_bone_constraints",
-    "show_material",
-    "show_texture",
-    "show_particles",
-    "show_physics",
-    "show_effects",
-};
-
 static void rna_def_space_properties_filter(StructRNA *srna)
 {
-  for (int i = 1; i < BCONTEXT_TOT; i++) {
-    EnumPropertyItem item = rna_enum_properties_editor_context_items[i];
-    int value = (1 << item.value);
+  const blender::Vector<const char *> filter_items = {
+      "show_properties_tool",
+      "show_properties_render",
+      "show_properties_output",
+      "show_properties_view_layer",
+      "show_properties_scene",
+      "show_properties_world",
+      "show_properties_collection",
+      "show_properties_object",
+      "show_properties_modifiers",
+      "show_properties_effects",
+      "show_properties_particles",
+      "show_properties_physics",
+      "show_properties_constraints",
+      "show_properties_data",
+      "show_properties_bone",
+      "show_properties_bone_constraints",
+      "show_properties_material",
+      "show_properties_texture",
+  };
 
+  BLI_assert(filter_items.size() == BCONTEXT_TOT);
+
+  for (int i = 0; i < BCONTEXT_TOT; i++) {
+    EnumPropertyItem item = rna_enum_properties_editor_context_items[i];
+    const int value = (1 << item.value);
     const char *prop_name = filter_items[i];
 
     PropertyRNA *prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
