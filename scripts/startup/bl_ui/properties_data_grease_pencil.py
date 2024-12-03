@@ -337,6 +337,10 @@ class GreasePencil_LayerAttributePanel:
         ob = context.object
         grease_pencil = ob.data
         layer = grease_pencil.layers.active
+
+        if layer is None:
+            return
+
         layout.active = not layer.lock
 
         frame = layer.current_frame()
