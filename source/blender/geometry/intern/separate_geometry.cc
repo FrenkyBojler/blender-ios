@@ -158,7 +158,7 @@ static std::optional<GreasePencil *> separate_grease_pencil_layer_selection(
     dst_layer.set_name(src_layer.name());
 
     if (src_drawing) {
-      dst_drawing.strokes_for_write() = src_drawing->strokes();
+      dst_drawing = *src_drawing;
     }
   });
 
