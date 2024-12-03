@@ -859,8 +859,15 @@ static float get_margin_between_elements(const Span<FlatNodeItem> items, const i
   switch (prev_type) {
     case Type::Socket: {
       switch (next_type) {
-        case Type::Socket:
+        case Type::Socket: {
+          const flat_item::Socket &sock = std::get<flat_item::Socket>(next.item);
+          if ((sock.input && sock.input->flag & SOCK_COLLAPSED) ||
+              (sock.output && sock.output->flag & SOCK_COLLAPSED))
+          {
+            return 0;
+          }
           return NODE_ITEM_SPACING_Y;
+        }
         case Type::Separator:
           return 0;
         case Type::Layout:
