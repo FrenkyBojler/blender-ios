@@ -111,7 +111,22 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
     bpoint.weight = 1.0f;
   }
 
-  BKE_nurb_knot_calc_u(nurb);
+  if (nurb->flagu & CU_NURB_FREE) {
+    BKE_nurb_knot_alloc_u(nurb);
+    Span<float> knots = nurbs_geometry.parm.as_span();
+    if (nurb->flagu & CU_NURB_CYCLIC) {
+      knots = knots.drop_front(degree);
+      const float last_real_knot = knots[nurb->pntsu + degree];
+      MutableSpan<float> virtual_knots(nurb->knotsu + degree + 1, degree);
+      for (const int i : IndexRange(degree)) {
+        virtual_knots[i] = last_real_knot + knots[degree + 1 + i] - knots[degree];
+      }
+    }
+    std::copy_n(knots.data(), knots.size(), nurb->knotsu);
+  }
+  else {
+    BKE_nurb_knot_calc_u(nurb);
+  }
 }
 
 short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
@@ -189,8 +204,15 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
         is_bezier_knot = false;
       }
     }
-    if (!is_spacing_equal && is_bezier_knot) {
-      knot_mode |= CU_NURB_BEZIER;
+    if (!is_spacing_equal) {
+      if (is_bezier_knot) {
+        knot_mode |= CU_NURB_BEZIER;
+      }
+      else if (do_endpoints) {
+        /* TODO: include and unclamped (do_endpoints == false).
+         * For this manually clamp. */
+        knot_mode |= CU_NURB_FREE;
+      }
     }
   }
   return knot_mode;

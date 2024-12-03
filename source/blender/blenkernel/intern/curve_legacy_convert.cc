@@ -66,6 +66,9 @@ static NormalMode normal_mode_from_legacy(const short twist_mode)
 
 static KnotsMode knots_mode_from_legacy(const short flag)
 {
+  if (flag & CU_NURB_FREE) {
+    return NURBS_KNOT_MODE_FREE;
+  }
   switch (flag & (CU_NURB_ENDPOINT | CU_NURB_BEZIER)) {
     case CU_NURB_ENDPOINT:
       return NURBS_KNOT_MODE_ENDPOINT;
@@ -171,6 +174,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
     MutableSpan<float> nurbs_weights = curves.nurbs_weights_for_write();
     MutableSpan<int8_t> nurbs_orders = curves.nurbs_orders_for_write();
     MutableSpan<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes_for_write();
+    MutableSpan<float> knots_attr = curves.knots_for_write();
 
     selection.foreach_index(GrainSize(256), [&](const int curve_i) {
       const Nurb &src_curve = *src_curves[curve_i];
@@ -180,6 +184,11 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
       resolutions[curve_i] = src_curve.resolu;
       nurbs_orders[curve_i] = src_curve.orderu;
       nurbs_knots_modes[curve_i] = knots_mode_from_legacy(src_curve.flagu);
+      if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_FREE) {
+        curves::nurbs::compact_knots(src_curve.orderu,
+                                     Span<float>(src_curve.knotsu, KNOTSU(&src_curve)),
+                                     knots_attr.slice(points));
+      }
 
       for (const int i : src_points.index_range()) {
         const BPoint &bp = src_points[i];
