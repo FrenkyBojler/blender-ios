@@ -114,30 +114,39 @@ std::optional<pxr::SdfValueTypeName> convert_blender_type_to_usd(
 
 std::optional<eCustomDataType> convert_usd_type_to_blender(const pxr::SdfValueTypeName usd_type);
 
+/**
+ * Set the USD attribute to the provided value at the given time. The value will be written
+ * sparsely.
+ */
 template<typename USDT>
 void set_attribute(const pxr::UsdAttribute &attr,
-                   USDT usd_data,
+                   USDT value,
                    pxr::UsdTimeCode timecode,
                    pxr::UsdUtilsSparseValueWriter &value_writer)
 {
   if (!attr.HasValue()) {
-    attr.Set(usd_data, pxr::UsdTimeCode::Default());
+    attr.Set(value, pxr::UsdTimeCode::Default());
   }
 
-  value_writer.SetAttribute(attr, usd_data, timecode);
+  value_writer.SetAttribute(attr, value, timecode);
 }
 
+/**
+ * Set the USD attribute to the provided array value at the given time. The value will be written
+ * sparsely. For efficiency, this function swaps out the given value, leaving it empty, so it can
+ * leverage the USD API where no additional copy of the data is required. */
 template<typename USDT>
 void set_attribute(const pxr::UsdAttribute &attr,
-                   pxr::VtArray<USDT> &usd_data,
+                   pxr::VtArray<USDT> &value,
                    pxr::UsdTimeCode timecode,
                    pxr::UsdUtilsSparseValueWriter &value_writer)
 {
   if (!attr.HasValue()) {
-    attr.Set(usd_data, pxr::UsdTimeCode::Default());
+    attr.Set(value, pxr::UsdTimeCode::Default());
   }
 
-  value_writer.SetAttribute(attr, usd_data, timecode);
+  pxr::VtValue val = pxr::VtValue::Take(value);
+  value_writer.SetAttribute(attr, &val, timecode);
 }
 
 /* Copy a typed Blender attribute array into a typed USD primvar attribute. */
