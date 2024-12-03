@@ -252,17 +252,17 @@ ccl_device void volume_voxel_get(KernelGlobals kg, ccl_private OctreeTracing &tr
 }
 
 template<typename StackReadOp>
-ccl_device_inline bool volume_octree_tracing_init(KernelGlobals kg,
-                                                  ccl_private OctreeTracing &global,
-                                                  const ccl_private Ray *ccl_restrict ray,
-                                                  StackReadOp stack_read,
-                                                  const bool skip = false)
+ccl_device_inline bool volume_octree_setup(KernelGlobals kg,
+                                           ccl_private OctreeTracing &global,
+                                           const ccl_private Ray *ccl_restrict ray,
+                                           StackReadOp stack_read)
 {
   if (isnan_safe(ray->D.x)) {
     /* TODO(weizhen): fix NaN ray->D in the `overlapping_different_aniso.blend`. */
     return false;
   }
 
+  const bool skip = global.node;
   Extrema<float> sigma = skip ? global.node->sigma * object_volume_density(kg, global.object) :
                                 0.0f;
   const int skip_object = global.object;
@@ -315,10 +315,10 @@ ccl_device_inline bool volume_octree_tracing_init(KernelGlobals kg,
 
 /* Advance to the next adjacent voxel and update the active interval. */
 template<typename StackReadOp>
-ccl_device_inline bool volume_octree_tracing_advance(KernelGlobals kg,
-                                                     ccl_private OctreeTracing &tracing,
-                                                     const ccl_private Ray *ccl_restrict ray,
-                                                     StackReadOp stack_read)
+ccl_device_inline bool volume_octree_advance(KernelGlobals kg,
+                                             ccl_private OctreeTracing &tracing,
+                                             const ccl_private Ray *ccl_restrict ray,
+                                             StackReadOp stack_read)
 {
   if (tracing.t.max >= ray->tmax) {
     /* Reached the last segment. */
@@ -354,7 +354,7 @@ ccl_device_inline bool volume_octree_tracing_advance(KernelGlobals kg,
   tracing.t.min = tracing.t.max;
   tracing.t.max = tracing.ray_voxel_intersect(ray->tmax);
 
-  return volume_octree_tracing_init(kg, tracing, ray, stack_read, true);
+  return volume_octree_setup(kg, tracing, ray, stack_read);
 }
 
 /* Evaluate shader to get extinction coefficient at P. We can use the shadow path evaluation to
@@ -614,7 +614,7 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
 
   OctreeTracing tracing(ray->tmin);
   VOLUME_READ_LAMBDA(integrator_state_read_shadow_volume_stack(state, i))
-  if (!volume_octree_tracing_init(kg, tracing, ray, volume_read_lambda_pass)) {
+  if (!volume_octree_setup(kg, tracing, ray, volume_read_lambda_pass)) {
     return;
   }
 
@@ -624,7 +624,7 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
         kg, state, ray, sd, tracing.t.min, tracing.t.max, vstate.step, sigma_c, rng_state);
     /* TODO(weizhen): early termination.  */
 
-    if (!volume_octree_tracing_advance(kg, tracing, ray, volume_read_lambda_pass)) {
+    if (!volume_octree_advance(kg, tracing, ray, volume_read_lambda_pass)) {
       return;
     }
   }
@@ -922,7 +922,7 @@ ccl_device void volume_integrate_step_scattering(
 
   /* Stop if this is the last segment, or exceeds maximal steps. */
   VOLUME_READ_LAMBDA(integrator_state_read_volume_stack(state, i))
-  vstate.stop = !volume_octree_tracing_advance(kg, tracing, ray, volume_read_lambda_pass) ||
+  vstate.stop = !volume_octree_advance(kg, tracing, ray, volume_read_lambda_pass) ||
                 (vstate.step >= kernel_data.integrator.volume_max_steps);
 }
 
@@ -998,7 +998,7 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 
   OctreeTracing tracing(ray->tmin);
   VOLUME_READ_LAMBDA(integrator_state_read_volume_stack(state, i))
-  if (!volume_octree_tracing_init(kg, tracing, ray, volume_read_lambda_pass)) {
+  if (!volume_octree_setup(kg, tracing, ray, volume_read_lambda_pass)) {
     return;
   }
 
