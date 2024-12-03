@@ -23,7 +23,7 @@ namespace blender::draw::overlay {
 /* Add prepass which will write to the depth buffer so that the
  * alpha-under overlays (alpha checker) will draw correctly for external engines.
  * NOTE: Use the same Z-depth value as in the regular image drawing engine. */
-class PrepassImage : Overlay {
+class ImagePrepass : Overlay {
  private:
   PassSimple ps_ = {"ImagePrepass"};
 
@@ -42,7 +42,7 @@ class PrepassImage : Overlay {
     ps_.draw(res.shapes.image_quad.get());
   }
 
-  void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
+  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -69,13 +69,9 @@ class Prepass : Overlay {
 
   bool use_material_slot_selection_ = false;
 
-  PrepassImage space_image;
-
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    space_image.begin_sync(res, state);
-
     enabled_ = state.is_space_v3d();
 
     if (!enabled_) {
@@ -301,8 +297,6 @@ class Prepass : Overlay {
 
   void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
-    space_image.draw_line(framebuffer, manager, view);
-
     if (!enabled_) {
       return;
     }
