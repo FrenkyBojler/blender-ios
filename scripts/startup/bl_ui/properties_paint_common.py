@@ -16,7 +16,7 @@ class BrushAssetShelf:
 
     @classmethod
     def poll(cls, context):
-        return hasattr(context, "object") and context.object and context.object.mode == cls.mode
+        return (ob := getattr(context, "object", None)) is not None and ob.mode == cls.mode
 
     @classmethod
     def has_tool_with_brush_type(cls, context, brush_type):
@@ -136,9 +136,13 @@ class BrushAssetShelf:
         if not shelf_name:
             return
 
+        display_name = brush.name if (brush and show_name) else None
+        if display_name and brush.has_unsaved_changes:
+            display_name = display_name + "*"
+
         layout.template_asset_shelf_popover(
             shelf_name,
-            name=brush.name if (brush and show_name) else None,
+            name=display_name,
             icon='BRUSH_DATA' if not preview_icon_id else 'NONE',
             icon_value=preview_icon_id,
         )
@@ -301,6 +305,22 @@ class BrushPanel(UnifiedPaintPanel):
 
 class BrushSelectPanel(BrushPanel):
     bl_label = "Brush Asset"
+
+    # Use header preset function to right align the layout.
+    def draw_header_preset(self, context):
+        layout = self.layout
+
+        settings = self.paint_settings(context)
+        if settings is None:
+            return
+
+        brush = settings.brush
+        if brush is None:
+            return
+
+        if brush.has_unsaved_changes:
+            layout.label(text="*Unsaved Changes")
+            layout.separator()
 
     def draw(self, context):
         layout = self.layout
@@ -1517,15 +1537,17 @@ def brush_basic__draw_color_selector(context, layout, brush, gp_settings):
     if brush.gpencil_tool in {'DRAW', 'FILL'}:
         row.separator(factor=1.0)
         sub_row = row.row(align=True)
-        sub_row.enabled = not gp_settings.pin_draw_mode
-        if gp_settings.pin_draw_mode:
+        pin_draw_mode = gp_settings.pin_draw_mode
+        sub_row.enabled = not pin_draw_mode
+        if pin_draw_mode:
             sub_row.prop_enum(gp_settings, "brush_draw_mode", 'MATERIAL', text="", icon='MATERIAL')
             sub_row.prop_enum(gp_settings, "brush_draw_mode", 'VERTEXCOLOR', text="", icon='VPAINT_HLT')
         else:
             sub_row.prop_enum(settings, "color_mode", 'MATERIAL', text="", icon='MATERIAL')
             sub_row.prop_enum(settings, "color_mode", 'VERTEXCOLOR', text="", icon='VPAINT_HLT')
 
-        show_vertex_color = settings.color_mode == 'VERTEXCOLOR' or gp_settings.brush_draw_mode == 'VERTEXCOLOR'
+        show_vertex_color = ((not pin_draw_mode) and settings.color_mode == 'VERTEXCOLOR') or \
+            (pin_draw_mode and gp_settings.brush_draw_mode == 'VERTEXCOLOR')
 
         if show_vertex_color:
             sub_row = row.row(align=True)

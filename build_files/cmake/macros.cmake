@@ -1046,7 +1046,8 @@ function(glsl_to_c
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
     DEPENDS ${_file_from} datatoc glsl_preprocess)
 
-  set_source_files_properties(${_file_to} PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_tmp} PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_to}  PROPERTIES GENERATED TRUE)
 endfunction()
 
 
@@ -1408,14 +1409,14 @@ macro(windows_install_shared_manifest)
     endif()
     install(
       FILES ${WINDOWS_INSTALL_FILES}
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS ${WINDOWS_CONFIGURATIONS}
     )
   else()
     # Python module without manifest.
     install(
       FILES ${WINDOWS_INSTALL_FILES}
-      DESTINATION "./bpy"
+      DESTINATION "bpy"
       CONFIGURATIONS ${WINDOWS_CONFIGURATIONS}
     )
   endif()
@@ -1453,7 +1454,7 @@ macro(windows_generate_shared_manifest)
     )
     install(
       FILES ${CMAKE_BINARY_DIR}/Debug/blender.shared.manifest
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS Debug
     )
   endif()
@@ -1465,7 +1466,7 @@ macro(windows_generate_shared_manifest)
     )
     install(
       FILES ${CMAKE_BINARY_DIR}/Release/blender.shared.manifest
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
   endif()

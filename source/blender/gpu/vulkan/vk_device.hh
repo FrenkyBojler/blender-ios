@@ -25,6 +25,8 @@
 namespace blender::gpu {
 class VKBackend;
 
+/* TODO: Split into VKWorkarounds and VKExtensions to remove the negating when an extension isn't
+ * supported. */
 struct VKWorkarounds {
   /**
    * Some devices don't support pixel formats that are aligned to 24 and 48 bits.
@@ -60,6 +62,22 @@ struct VKWorkarounds {
    * If set to true, the backend would inject a geometry shader to produce barycentric coordinates.
    */
   bool fragment_shader_barycentric = false;
+
+  /**
+   * Is the workarounds for devices that don't support VK_KHR_dynamic_rendering enabled.
+   */
+  bool dynamic_rendering = false;
+
+  /**
+   * Is the workarounds for devices that don't support VK_EXT_dynamic_rendering_unused_attachments
+   * enabled.
+   */
+  bool dynamic_rendering_unused_attachments = false;
+
+  /**
+   * Is the workarounds for devices that don't support Logic Ops enabled.
+   */
+  bool logic_ops = false;
 };
 
 /**
@@ -71,7 +89,6 @@ class VKThreadData : public NonCopyable, NonMovable {
  public:
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
-  render_graph::VKRenderGraph render_graph;
   /**
    * Index of the active resource pool. Is in sync with the active swap chain image or cycled when
    * rendering.
@@ -91,16 +108,7 @@ class VKThreadData : public NonCopyable, NonMovable {
    */
   int32_t rendering_depth = 0;
 
-  /**
-   * Number of contexts registered in the current thread.
-   * Discarded resources are destroyed when all contexts are unregistered.
-   */
-  int32_t num_contexts = 0;
-
-  VKThreadData(VKDevice &device,
-               pthread_t thread_id,
-               std::unique_ptr<render_graph::VKCommandBufferInterface> command_buffer,
-               render_graph::VKResourceStateTracker &resources);
+  VKThreadData(VKDevice &device, pthread_t thread_id);
   void deinit(VKDevice &device);
 
   /**
@@ -134,6 +142,7 @@ class VKDevice : public NonCopyable {
   VkDevice vk_device_ = VK_NULL_HANDLE;
   uint32_t vk_queue_family_ = 0;
   VkQueue vk_queue_ = VK_NULL_HANDLE;
+  std::mutex *queue_mutex_ = nullptr;
 
   VKSamplers samplers_;
   VKDescriptorSetLayouts descriptor_set_layouts_;
@@ -194,6 +203,11 @@ class VKDevice : public NonCopyable {
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessenger = nullptr;
   } functions;
 
+  const char *extension_name_get(int index) const
+  {
+    return device_extensions_[index].extensionName;
+  }
+
   VkPhysicalDevice physical_device_get() const
   {
     return vk_physical_device_;
@@ -232,6 +246,10 @@ class VKDevice : public NonCopyable {
   VkQueue queue_get() const
   {
     return vk_queue_;
+  }
+  std::mutex &queue_mutex_get()
+  {
+    return *queue_mutex_;
   }
 
   const uint32_t queue_family_get() const
@@ -310,8 +328,10 @@ class VKDevice : public NonCopyable {
    * graph update. A dependency graph update from the viewport during playback or editing;
    * or a dependency graph update when rendering.
    * These can happen from a different thread which will don't have a context at all.
+   * \param thread_safe: Caller thread already owns the resources mutex and is safe to run this
+   * function without trying to reacquire resources mutex making a deadlock.
    */
-  VKDiscardPool &discard_pool_for_current_thread();
+  VKDiscardPool &discard_pool_for_current_thread(bool thread_safe = false);
 
   void context_register(VKContext &context);
   void context_unregister(VKContext &context);
@@ -320,6 +340,8 @@ class VKDevice : public NonCopyable {
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) const;
   static void debug_print(std::ostream &os, const VKDiscardPool &discard_pool);
   void debug_print();
+
+  void free_command_pool_buffers(VkCommandPool vk_command_pool);
 
   /** \} */
 
