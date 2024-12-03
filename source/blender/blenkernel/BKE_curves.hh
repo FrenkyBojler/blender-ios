@@ -286,8 +286,8 @@ class CurvesGeometry : public ::CurvesGeometry {
   Span<float2> surface_uv_coords() const;
   MutableSpan<float2> surface_uv_coords_for_write();
 
-  Span<float> knots() const;
-  MutableSpan<float> knots_for_write();
+  Span<float> nurbs_knots() const;
+  MutableSpan<float> nurbs_knots_for_write();
 
   /**
    * Vertex group data, encoded as an array of indices and weights for every vertex.

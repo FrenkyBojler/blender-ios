@@ -47,10 +47,10 @@ constexpr StringRef ATTR_HANDLE_TYPE_RIGHT = "handle_type_right";
 constexpr StringRef ATTR_HANDLE_POSITION_LEFT = "handle_left";
 constexpr StringRef ATTR_HANDLE_POSITION_RIGHT = "handle_right";
 constexpr StringRef ATTR_NURBS_ORDER = "nurbs_order";
+constexpr StringRef ATTR_NURBS_KNOT = "nurbs_knot";
 constexpr StringRef ATTR_NURBS_WEIGHT = "nurbs_weight";
 constexpr StringRef ATTR_NURBS_KNOTS_MODE = "knots_mode";
 constexpr StringRef ATTR_SURFACE_UV_COORDINATE = "surface_uv_coordinate";
-constexpr StringRef ATTR_KNOT = "nurbs_knot";
 
 /* -------------------------------------------------------------------- */
 /** \name Constructors/Destructor
@@ -486,14 +486,14 @@ MutableSpan<float2> CurvesGeometry::surface_uv_coords_for_write()
   return get_mutable_attribute<float2>(*this, AttrDomain::Curve, ATTR_SURFACE_UV_COORDINATE);
 }
 
-Span<float> CurvesGeometry::knots() const
+Span<float> CurvesGeometry::nurbs_knots() const
 {
-  return get_span_attribute<float>(*this, AttrDomain::Point, ATTR_KNOT);
+  return get_span_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_KNOT);
 }
 
-MutableSpan<float> CurvesGeometry::knots_for_write()
+MutableSpan<float> CurvesGeometry::nurbs_knots_for_write()
 {
-  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_KNOT);
+  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_KNOT);
 }
 
 Span<MDeformVert> CurvesGeometry::deform_verts() const
@@ -650,7 +650,7 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
     const VArray<bool> cyclic = this->cyclic();
     const VArray<int8_t> orders = this->nurbs_orders();
     const VArray<int8_t> knots_modes = this->nurbs_knots_modes();
-    const Span<float> knots_attr = this->knots();
+    const Span<float> knots_attr = this->nurbs_knots();
 
     nurbs_mask.foreach_segment(GrainSize(64), [&](const IndexMaskSegment segment) {
       Vector<float, 32> knots;
@@ -1289,12 +1289,12 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
   IndexMaskMemory memory;
   const IndexMask points_to_copy = points_to_delete.complement(this->points_range(), memory);
   *this = curves_copy_point_selection(*this, points_to_copy, attribute_filter);
-  if (attributes().contains(ATTR_KNOT)) {
+  if (attributes().contains(ATTR_NURBS_KNOT)) {
     const VArray<int8_t> nurbs_knots_modes = this->nurbs_knots_modes();
     const VArray<bool> cyclic = this->cyclic();
     const OffsetIndices points_by_curve = this->points_by_curve();
     const VArray<int8_t> nurbs_orders = this->nurbs_orders();
-    MutableSpan<float> knots = this->knots_for_write();
+    MutableSpan<float> knots = this->nurbs_knots_for_write();
 
     IndexMask must_be_clamped = IndexMask::from_predicate(
         this->curves_range(), GrainSize(4096), memory, [&](const int64_t i) {

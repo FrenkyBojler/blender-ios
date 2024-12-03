@@ -279,7 +279,7 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
   orders.resize(num_curves);
 
   const Span<float3> positions = curves.positions();
-  const Span<float> knots_attr = curves.knots();
+  const Span<float> knots_attr = curves.nurbs_knots();
 
   VArray<int8_t> geom_orders = curves.nurbs_orders();
   VArray<int8_t> knots_modes = curves.nurbs_knots_modes();
