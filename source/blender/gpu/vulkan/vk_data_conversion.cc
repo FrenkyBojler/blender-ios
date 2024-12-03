@@ -78,6 +78,9 @@ enum class ConversionType {
 
   UINT_TO_DEPTH24_STENCIL8,
   DEPTH24_STENCIL8_TO_UINT,
+
+  UINT_TO_DEPTH32F_STENCIL8,
+  DEPTH32F_STENCIL8_TO_UINT,
   /**
    * The requested conversion isn't supported.
    */
@@ -516,7 +519,7 @@ static ConversionType type_of_conversion_uint248(const eGPUTextureFormat device_
       return ConversionType::UINT_TO_DEPTH24_STENCIL8;
 
     case GPU_DEPTH32F_STENCIL8:
-      return ConversionType::UNSUPPORTED;
+      return ConversionType::UINT_TO_DEPTH32F_STENCIL8;
 
     case GPU_RGBA32F:
     case GPU_RG32F:
@@ -664,6 +667,7 @@ static ConversionType reversed(ConversionType type)
       CASE_PAIR(FLOAT3, HALF4)
       CASE_PAIR(FLOAT3, FLOAT4)
       CASE_PAIR(UINT, DEPTH24_STENCIL8)
+      CASE_PAIR(UINT, DEPTH32F_STENCIL8)
 
     case ConversionType::UNSUPPORTED:
       return ConversionType::UNSUPPORTED;
@@ -778,6 +782,8 @@ class DepthComponent24 : public ComponentValue<uint32_t> {
 };
 
 struct Depth24Stencil8 : ComponentValue<uint32_t> {};
+/* Use a float as we only have the depth aspect in the staging buffers. */
+struct Depth32fStencil8 : ComponentValue<float> {};
 
 template<typename InnerType> struct SignedNormalized {
   static_assert(std::is_same<InnerType, uint8_t>() || std::is_same<InnerType, uint16_t>());
@@ -975,6 +981,18 @@ static void convert(Depth24Stencil8 &dst, const UI32 &src)
   dst.value = depth + (stencil << 24);
 }
 
+static void convert(UI32 &dst, const Depth32fStencil8 &src)
+{
+  uint32_t depth = uint32_t(src.value * 0xFFFFFF);
+  dst.value = (depth << 8);
+}
+
+static void convert(Depth32fStencil8 &dst, const UI32 &src)
+{
+  uint32_t depth = (src.value >> 8) & 0xFFFFFF;
+  dst.value = float(depth) * 0xFFFFFF;
+}
+
 template<typename DestinationType, typename SourceType>
 void convert(MutableSpan<DestinationType> dst, Span<SourceType> src)
 {
@@ -1143,6 +1161,12 @@ static void convert_buffer(void *dst_memory,
       break;
     case ConversionType::UINT_TO_DEPTH24_STENCIL8:
       convert_per_pixel<Depth24Stencil8, UI32>(dst_memory, src_memory, buffer_size);
+      break;
+    case ConversionType::DEPTH32F_STENCIL8_TO_UINT:
+      convert_per_pixel<UI32, Depth32fStencil8>(dst_memory, src_memory, buffer_size);
+      break;
+    case ConversionType::UINT_TO_DEPTH32F_STENCIL8:
+      convert_per_pixel<Depth32fStencil8, UI32>(dst_memory, src_memory, buffer_size);
       break;
 
     case ConversionType::B10F_G11F_R11F_TO_FLOAT:
