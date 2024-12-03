@@ -976,7 +976,6 @@ GPU_TEST(texture_roundtrip__GPU_DATA_UBYTE__GPU_SRGB8);
 /** \name Round-trip testing GPU_DATA_UINT_24_8
  * \{ */
 
-#if RUN_UNSUPPORTED
 static void test_texture_roundtrip__GPU_DATA_UINT_24_8__GPU_DEPTH32F_STENCIL8()
 {
   texture_create_upload_read<GPU_DEPTH32F_STENCIL8, GPU_DATA_UINT_24_8, void>();
@@ -988,7 +987,6 @@ static void test_texture_roundtrip__GPU_DATA_UINT_24_8__GPU_DEPTH24_STENCIL8()
   texture_create_upload_read<GPU_DEPTH24_STENCIL8, GPU_DATA_UINT_24_8, void>();
 }
 GPU_TEST(texture_roundtrip__GPU_DATA_UINT_24_8__GPU_DEPTH24_STENCIL8);
-#endif
 
 /* \} */
 
