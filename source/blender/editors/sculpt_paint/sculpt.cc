@@ -465,8 +465,14 @@ inline void append_neighbors_to_vector(const OffsetIndices<int> faces,
      * face corner. That results in half being duplicates for any "normal" topology. */
     const int2 neighbors = bke::mesh::face_find_adjacent_verts(faces[face], corner_verts, vert);
     for (const int neighbor : {neighbors[0], neighbors[1]}) {
-      const IndexRange existing_range = IndexRange::from_begin_end(vert_start, r_data.size());
-      if (r_data.as_span().slice(existing_range).contains(neighbor)) {
+      bool found = false;
+      for (int i = r_data.size() - 1; i >= vert_start; i--) {
+        if (r_data[i] == neighbor) {
+          found = true;
+          break;
+        }
+      }
+      if (found) {
         continue;
       }
       r_data.append(neighbor);
