@@ -93,7 +93,7 @@ set(SRC
   intern/lazy_threading.cc
   intern/length_parameterize.cc
   intern/listbase.cc
-  intern/math_base.c
+  intern/math_base.cc
   intern/math_base_inline.c
   intern/math_base_safe_inline.c
   intern/math_basis_types.cc
