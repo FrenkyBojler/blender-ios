@@ -5184,7 +5184,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         for (const bNode *parent = node->parent; parent; parent = parent->parent) {
           node->locx += parent->locx;
@@ -5195,16 +5194,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         node->locx += node->offsetx_legacy;
         node->locy += node->offsety_legacy;
-
-        /* The offset is not applied to children, so undo it here. */
-        // for (const bNode *parent = node->parent; parent; parent = parent->parent) {
-        // if (const bNode *parent = node->parent) {
-        //   node->locx -= parent->offsetx_legacy;
-        //   node->locy -= parent->offsety_legacy;
-        // }
-      }
-
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         node->offsetx_legacy = 0.0f;
         node->offsety_legacy = 0.0f;
       }
