@@ -6,6 +6,26 @@
 
 namespace blender::nodes::node_geo_input_index_cc {
 
+class SculptIndexFieldInput final : public fn::FieldInput {
+public:
+  SculptIndexFieldInput() : fn::FieldInput(CPPType::get<int>(), "Index")
+  {
+    category_ = Category::Generated;
+  }
+
+  GVArray get_varray_for_context(const FieldContext& context,
+    const IndexMask& /* mask */,
+    ResourceScope& /* scope */) const final
+  {
+    if (const bke::MeshSculptFieldContext* mesh_sculpt_context =
+      dynamic_cast<const bke::MeshSculptFieldContext*>(&context)) {
+      return VArray<int>::ForSpan(mesh_sculpt_context->indices());
+    }
+
+    return {};
+  }
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Int>("Index").field_source();
@@ -13,8 +33,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> index_field{std::make_shared<fn::IndexFieldInput>()};
-  params.set_output("Index", std::move(index_field));
+  if (params.user_data()->call_data->sculpt_data) {
+    Field<int> index_field = { std::make_shared<SculptIndexFieldInput>() };
+  }
+  else {
+    Field<int> index_field{ std::make_shared<fn::IndexFieldInput>() };
+    params.set_output("Index", std::move(index_field));
+  }
 }
 
 static void node_register()
