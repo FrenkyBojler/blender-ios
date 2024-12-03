@@ -18,6 +18,17 @@ from bpy.types import (
 from bl_ui_utils.layout import operator_context
 
 
+class VIEW3D_MT_pose_modify(Menu):
+    bl_label = "Modify Pose Asset"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("poselib.asset_overwrite", text="Replace").mode = "REPLACE"
+        layout.operator("poselib.asset_overwrite", text="Add").mode = "ADD"
+        layout.operator("poselib.asset_overwrite", text="Remove").mode = "REMOVE"
+
+
 class PoseLibraryPanel:
     @classmethod
     def pose_library_panel_poll(cls, context: Context) -> bool:
@@ -59,6 +70,7 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
 
         layout.separator()
         layout.operator("poselib.asset_overwrite")
+        layout.menu("VIEW3D_MT_pose_modify")
         layout.operator("poselib.screenshot_preview")
         layout.operator("poselib.asset_delete")
         layout.separator()
@@ -189,6 +201,7 @@ def _on_blendfile_load_post(none, other_none) -> None:
 classes = (
     DOPESHEET_PT_asset_panel,
     ASSETBROWSER_MT_asset,
+    VIEW3D_MT_pose_modify,
     VIEW3D_AST_pose_library,
 )
 

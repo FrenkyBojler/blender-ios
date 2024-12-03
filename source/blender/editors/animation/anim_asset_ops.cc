@@ -333,6 +333,13 @@ void POSELIB_OT_asset_create(wmOperatorType *ot)
       prop, visit_library_prop_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
 }
 
+enum AssetOverwriteMode {
+  OVERWRITE_UPDATE = 0,
+  OVERWRITE_REPLACE,
+  OVERWRITE_ADD,
+  OVERWRITE_REMOVE,
+};
+
 static bAction *action_from_selected_asset(bContext *C)
 {
   const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
@@ -350,34 +357,20 @@ static bAction *action_from_selected_asset(bContext *C)
       bke::asset_edit_id_from_weak_reference(*bmain, ID_AC, asset_reference));
 }
 
-static void update_pose_action_from_scene(Main *bmain,
-                                          blender::animrig::Action &action,
-                                          Object &pose_object)
+struct PathValue {
+  RNAPath rna_path;
+  float value;
+};
+
+static Vector<PathValue> generate_path_values(Object &pose_object)
 {
-  using namespace blender::animrig;
-  if (action.slot_array_num < 1) {
-    /* All actions should have slots at this point. */
-    BLI_assert_unreachable();
-    return;
-  }
-
-  Set<RNAPath> existing_paths;
-  foreach_fcurve_in_action_slot(action, action.slot_array[0]->handle, [&](FCurve &fcurve) {
-    existing_paths.add({fcurve.rna_path, std::nullopt, fcurve.array_index});
-  });
-
-  KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
-  BLI_assert(action.strip_keyframe_data_array_num == 1);
-  BLI_assert(action.slot_array_num == 1);
-  StripKeyframeData *strip_data = action.strip_keyframe_data()[0];
-  Slot *slot = action.slot(0);
-
+  Vector<PathValue> path_values;
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object.pose->chanbase) {
     if (!(pose_bone->bone->flag & BONE_SELECTED)) {
       continue;
     }
     PointerRNA bone_pointer = RNA_pointer_create(&pose_object.id, &RNA_PoseBone, pose_bone);
-    Vector<RNAPath> rna_paths = construct_rna_paths(&bone_pointer);
+    Vector<RNAPath> rna_paths = blender::animrig::construct_rna_paths(&bone_pointer);
 
     for (RNAPath &rna_path : rna_paths) {
       PointerRNA resolved_pointer;
@@ -397,13 +390,96 @@ static void update_pose_action_from_scene(Main *bmain,
       int i = 0;
       for (const float value : values) {
         RNAPath path = {rna_path_id_to_prop.value(), std::nullopt, i};
-        /* Only updating existing channels. */
-        if (existing_paths.contains(path)) {
-          strip_data->keyframe_insert(
-              bmain, *slot, {rna_path_id_to_prop.value(), i}, {1, value}, key_settings);
-        }
+        path_values.append({path, value});
         i++;
       }
+    }
+  }
+  return path_values;
+}
+
+static void update_pose_action_from_scene(Main *bmain,
+                                          blender::animrig::Action &action,
+                                          Object &pose_object,
+                                          const AssetOverwriteMode mode)
+{
+  using namespace blender::animrig;
+  if (action.slot_array_num < 1) {
+    /* All actions should have slots at this point. */
+    BLI_assert_unreachable();
+    return;
+  }
+
+  Set<RNAPath> existing_paths;
+  foreach_fcurve_in_action_slot(action, action.slot_array[0]->handle, [&](FCurve &fcurve) {
+    existing_paths.add({fcurve.rna_path, std::nullopt, fcurve.array_index});
+  });
+
+  KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
+  BLI_assert(action.strip_keyframe_data_array_num == 1);
+  BLI_assert(action.slot_array_num == 1);
+  StripKeyframeData *strip_data = action.strip_keyframe_data()[0];
+  Slot *slot = action.slot(0);
+  Vector<PathValue> path_values = generate_path_values(pose_object);
+
+  switch (mode) {
+    case OVERWRITE_UPDATE: {
+      for (const PathValue &path_value : path_values) {
+        /* Only updating existing channels. */
+        if (existing_paths.contains(path_value.rna_path)) {
+          strip_data->keyframe_insert(
+              bmain,
+              *slot,
+              {path_value.rna_path.path, path_value.rna_path.index.value()},
+              {1, path_value.value},
+              key_settings);
+        }
+      }
+      break;
+    }
+    case OVERWRITE_ADD: {
+      for (const PathValue &path_value : path_values) {
+        strip_data->keyframe_insert(bmain,
+                                    *slot,
+                                    {path_value.rna_path.path, path_value.rna_path.index.value()},
+                                    {1, path_value.value},
+                                    key_settings);
+      }
+      break;
+    }
+    case OVERWRITE_REPLACE: {
+      Channelbag *channel_bag = strip_data->channelbag_for_slot(slot->handle);
+      if (!channel_bag) {
+        /* No channels to remove. */
+        return;
+      }
+      channel_bag->fcurves_clear();
+      for (const PathValue &path_value : path_values) {
+        strip_data->keyframe_insert(bmain,
+                                    *slot,
+                                    {path_value.rna_path.path, path_value.rna_path.index.value()},
+                                    {1, path_value.value},
+                                    key_settings);
+      }
+      break;
+    }
+    case OVERWRITE_REMOVE: {
+      Channelbag *channel_bag = strip_data->channelbag_for_slot(slot->handle);
+      if (!channel_bag) {
+        /* No channels to remove. */
+        return;
+      }
+      Map<RNAPath, FCurve *> fcurve_map;
+      foreach_fcurve_in_action_slot(action, action.slot_array[0]->handle, [&](FCurve &fcurve) {
+        fcurve_map.add({fcurve.rna_path, std::nullopt, fcurve.array_index}, &fcurve);
+      });
+      for (const PathValue &path_value : path_values) {
+        if (existing_paths.contains(path_value.rna_path)) {
+          FCurve *fcurve = fcurve_map.lookup(path_value.rna_path);
+          channel_bag->fcurve_remove(*fcurve);
+        }
+      }
+      break;
     }
   }
 }
@@ -419,7 +495,8 @@ static int pose_asset_overwrite_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  update_pose_action_from_scene(bmain, action->wrap(), *pose_object);
+  AssetOverwriteMode mode = AssetOverwriteMode(RNA_enum_get(op->ptr, "mode"));
+  update_pose_action_from_scene(bmain, action->wrap(), *pose_object, mode);
 
   asset::generate_preview(C, &action->id);
   bke::asset_edit_id_save(*bmain, action->id, *op->reports);
@@ -453,16 +530,47 @@ static bool pose_asset_overwrite_poll(bContext *C)
   return true;
 }
 
+static const EnumPropertyItem prop_asset_overwrite_modes[] = {
+    {OVERWRITE_UPDATE,
+     "UPDATE",
+     0,
+     "Update",
+     "Update existing channels in the pose asset but don't remove or add any channels"},
+    {OVERWRITE_REPLACE,
+     "REPLACE",
+     0,
+     "Replace",
+     "Completely replace all channels in the pose asset with the current selection"},
+    {OVERWRITE_ADD,
+     "ADD",
+     0,
+     "Add",
+     "Add channels of the selection to the pose asset. Existing channels will be updated"},
+    {OVERWRITE_REMOVE,
+     "REMOVE",
+     0,
+     "Remove",
+     "Remove channels of the selection from the pose asset"},
+};
+
 /* Calling it overwrite instead of save because we aren't actually saving an opened asset. */
 void POSELIB_OT_asset_overwrite(wmOperatorType *ot)
 {
   ot->name = "Overwrite Pose Asset";
   ot->description =
-      "Update the selected pose asset in the asset library from the currently selected bones";
+      "Update the selected pose asset in the asset library from the currently selected bones. The "
+      "mode defines how the asset is updated";
   ot->idname = "POSELIB_OT_asset_overwrite";
 
   ot->exec = pose_asset_overwrite_exec;
   ot->poll = pose_asset_overwrite_poll;
+
+  RNA_def_enum(ot->srna,
+               "mode",
+               prop_asset_overwrite_modes,
+               OVERWRITE_UPDATE,
+               "Overwrite Mode",
+               "Specify which parts of the pose asset are overwritten");
 }
 
 static bool pose_asset_delete_poll(bContext *C)
