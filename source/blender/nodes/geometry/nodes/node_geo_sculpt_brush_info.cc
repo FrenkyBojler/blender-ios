@@ -17,10 +17,10 @@ namespace blender::nodes::node_geo_sculpt_brush_info_cc {
   {
     const nodes::GeoNodesCallData* call_data = params.user_data()->call_data;
 
-    if (call_data && call_data->sculpting_data) {
-      const float strength = call_data->sculpting_data->strength;
-      const float radius = call_data->sculpting_data->radius;
-      const bool flip = call_data->sculpting_data->flip;
+    if (call_data && call_data->sculpt_data) {
+      const float strength = call_data->sculpt_data->strength;
+      const float radius = call_data->sculpt_data->radius;
+      const bool flip = call_data->sculpt_data->flip;
       params.set_output("Strength", strength);
       params.set_output("Radius", radius);
       params.set_output("Flip", flip);

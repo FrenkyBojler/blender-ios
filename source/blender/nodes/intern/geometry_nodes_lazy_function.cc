@@ -4153,8 +4153,8 @@ const Object *GeoNodesCallData::self_object() const
     return DEG_get_evaluated_object(this->operator_data->depsgraphs->active,
                                     const_cast<Object *>(this->operator_data->self_object_orig));
   }
-  if (this->sculpting_data) {
-    return this->sculpting_data->self_object;
+  if (this->sculpt_data) {
+    return this->sculpt_data->self_object;
   }
   return nullptr;
 }

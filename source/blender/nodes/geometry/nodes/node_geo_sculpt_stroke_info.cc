@@ -18,11 +18,11 @@ namespace blender::nodes::node_geo_sculpt_stroke_plane_cc {
   {
     const nodes::GeoNodesCallData* call_data = params.user_data()->call_data;
 
-    if (call_data && call_data->sculpting_data) {
-      const float3 plane_normal = call_data->sculpting_data->plane_normal;
-      const float3 plane_origin = call_data->sculpting_data->plane_origin;
-      const bool is_first_step = call_data->sculpting_data->is_first_step;
-      const float4x4 &local_transform = call_data->sculpting_data->local_transform;
+    if (call_data && call_data->sculpt_data) {
+      const float3 plane_normal = call_data->sculpt_data->plane_normal;
+      const float3 plane_origin = call_data->sculpt_data->plane_origin;
+      const bool is_first_step = call_data->sculpt_data->is_first_step;
+      const float4x4 &local_transform = call_data->sculpt_data->local_transform;
       params.set_output("Plane Normal", plane_normal);
       params.set_output("Plane Origin", plane_origin);
       params.set_output("Is First Step", is_first_step);

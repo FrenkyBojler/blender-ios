@@ -244,8 +244,8 @@ class GeoNodeExecParams {
       if (data->call_data->operator_data) {
         return data->call_data->operator_data->depsgraphs->active;
       }
-      if (data->call_data->sculpting_data) {
-        return data->call_data->sculpting_data->depsgraph;
+      if (data->call_data->sculpt_data) {
+        return data->call_data->sculpt_data->depsgraph;
       }
     }
     return nullptr;

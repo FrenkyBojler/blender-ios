@@ -34,8 +34,8 @@
 #include "BKE_bake_items.hh"
 #include "BKE_node_tree_zones.hh"
 
-struct Object;
 struct Depsgraph;
+struct Object;
 struct Scene;
 
 namespace blender::nodes {
@@ -208,7 +208,7 @@ struct GeoNodesOperatorData {
   int active_face_index = -1;
 };
 
-struct GeoNodesSculptingData {
+struct GeoNodesSculptData {
   float strength;
   float radius;
   float flip;
@@ -263,7 +263,7 @@ struct GeoNodesCallData {
    */
   GeoNodesOperatorData *operator_data = nullptr;
 
-  GeoNodesSculptingData *sculpting_data = nullptr;
+  GeoNodesSculptData *sculpt_data = nullptr;
 
   /**
    * Self object has slightly different semantics depending on how geometry nodes is called.

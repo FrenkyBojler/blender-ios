@@ -15,10 +15,11 @@
 
 #include "FN_field.hh"
 
-#include "bmesh.hh"
-
 struct Mesh;
 struct PointCloud;
+struct Depsgraph;
+struct Object;
+struct BMVert;
 
 namespace blender::bke {
 
@@ -147,24 +148,38 @@ class InstancesFieldContext : public fn::FieldContext {
 
 class SculptFieldContext : public fn::FieldContext {
 private:
+  /* Having object and depsgraph is needed here to have access to them in some field inputs.
+     A better solution might be necessary. */
+  const Depsgraph& depsgraph_;// = nullptr;
+  const Object& object_;// = nullptr;
+
   const Span<float3> positions_;
 
 public:
-  SculptFieldContext(const Span<float3> positions)
-    : positions_(positions) {}
+  SculptFieldContext(const Depsgraph& depsgraph,
+    const Object& object,
+    const Span<float3> positions)
+    : depsgraph_(depsgraph), object_(object), positions_(positions) {}
 
+  const Depsgraph& depsgraph() const { return depsgraph_; }
+  const Object& object() const { return object_; }
   const Span<float3> positions() const { return positions_; }
 };
 
 class MeshSculptFieldContext : public SculptFieldContext {
 private:
-  const Mesh &mesh_;
+  const Mesh& mesh_;
+  const Span<int> indices_;
 public:
-  MeshSculptFieldContext(const Mesh& mesh,
-    const Span<float3> positions)
-    : SculptFieldContext(positions), mesh_(mesh) {}
+  MeshSculptFieldContext(const Depsgraph& depsgraph,
+    const Object& object,
+    const Mesh& mesh,
+    const Span<float3> positions,
+    const Span<int> indices)
+    : SculptFieldContext(depsgraph, object, positions), mesh_(mesh), indices_(indices) {}
 
-  const Mesh &mesh() const { return mesh_; }
+  const Mesh& mesh() const { return mesh_; }
+  const Span<int> indices() const { return indices_; }
 };
 
 class GridsSculptFieldContext : public SculptFieldContext {
@@ -173,10 +188,12 @@ private:
   const Span<int> grids_;
 
 public:
-  GridsSculptFieldContext(const Span<float3> positions,
+  GridsSculptFieldContext(const Depsgraph& depsgraph,
+    const Object& object,
     const SubdivCCG& subdiv_ccg,
-    const Span<int> grids)
-    : SculptFieldContext(positions), subdiv_ccg_(subdiv_ccg), grids_(grids) {}
+    const Span<int> grids,
+    const Span<float3> positions)
+    : SculptFieldContext(depsgraph, object, positions), subdiv_ccg_(subdiv_ccg), grids_(grids) {}
 
   const SubdivCCG& subdiv_ccg() const { return subdiv_ccg_; }
   const Span<int> grids() const { return grids_; }
@@ -187,9 +204,11 @@ private:
   const Set<BMVert*, 0>& verts_;
 
 public:
-  BMeshSculptFieldContext(const Span<float3> positions,
-    const Set<BMVert*, 0>& verts)
-    : SculptFieldContext(positions), verts_(verts) {}
+  BMeshSculptFieldContext(const Depsgraph& depsgraph,
+    const Object& object,
+    const Set<BMVert*, 0>& verts,
+    const Span<float3> positions)
+    : SculptFieldContext(depsgraph, object, positions), verts_(verts) {}
 
   const Set<BMVert*, 0>& verts() const { return verts_; }
 };

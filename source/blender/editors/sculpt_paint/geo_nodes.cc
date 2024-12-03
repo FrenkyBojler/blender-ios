@@ -22,17 +22,6 @@
 
 namespace blender::ed::sculpt_paint {
 
-  static void destruct_outputs(Vector<GMutablePointer> &param_outputs,
-    Vector<bool> &param_set_outputs)
-  {
-    for (const int i : param_outputs.index_range()) {
-      if (param_set_outputs[i]) {
-        GMutablePointer& ptr = param_outputs[i];
-        ptr.destruct();
-      }
-    }
-  }
-
   static void sculpt_nodes_execute(const Depsgraph &depsgraph,
     Object &object,
     StrokeCache &cache,
@@ -61,21 +50,21 @@ namespace blender::ed::sculpt_paint {
       .slice(function.outputs.input_usages)
       .fill(lf::ValueUsage::Unused);
 
-    nodes::GeoNodesSculptingData sculpting_data;
-    sculpting_data.plane_normal = cache.sculpt_normal_symm;
-    sculpting_data.plane_origin = cache.location_symm;
-    sculpting_data.pen_pressure = cache.pressure;
-    sculpting_data.radius = cache.radius;
-    sculpting_data.strength = cache.bstrength;
-    sculpting_data.is_first_step = cache.first_time;
-    sculpting_data.local_transform = cache.brush_local_mat;
-    sculpting_data.depsgraph = &depsgraph;
-    sculpting_data.self_object = &object;
+    nodes::GeoNodesSculptData sculpt_data;
+    sculpt_data.plane_normal = cache.sculpt_normal_symm;
+    sculpt_data.plane_origin = cache.location_symm;
+    sculpt_data.pen_pressure = cache.pressure;
+    sculpt_data.radius = cache.radius;
+    sculpt_data.strength = cache.bstrength;
+    sculpt_data.is_first_step = cache.first_time;
+    sculpt_data.local_transform = cache.brush_local_mat;
+    sculpt_data.depsgraph = &depsgraph;
+    sculpt_data.self_object = &object;
 
     nodes::GeoNodesCallData call_data;
     call_data.root_ntree = &tree;
     call_data.side_effect_nodes = {};
-    call_data.sculpting_data = &sculpting_data;
+    call_data.sculpt_data = &sculpt_data;
 
     bke::SculptingComputeContext compute_context;
 
@@ -171,7 +160,7 @@ namespace blender::ed::sculpt_paint {
     }
 
     const Mesh* mesh = static_cast<const Mesh*>(object.data);
-    bke::MeshSculptFieldContext context(*mesh, positions, verts);
+    bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts);
 
     sculpt_nodes_execute(depsgraph, object, cache, context, translations);
   }
@@ -184,7 +173,7 @@ namespace blender::ed::sculpt_paint {
     Span<float3> positions,
     MutableSpan<float3> translations)
   {
-    bke::GridsSculptFieldContext context(subdiv_ccg, grids, positions);
+    bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
     sculpt_nodes_execute(depsgraph, object, cache, context, translations);
   }
 
@@ -195,7 +184,7 @@ namespace blender::ed::sculpt_paint {
     Span<float3> positions,
     MutableSpan<float3> translations)
   {
-    bke::BMeshSculptFieldContext context(verts, positions);
+    bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
     sculpt_nodes_execute(depsgraph, object, cache, context, translations);
   }
 }

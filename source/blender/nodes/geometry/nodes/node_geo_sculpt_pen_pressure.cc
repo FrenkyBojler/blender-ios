@@ -16,8 +16,8 @@ namespace blender::nodes::node_geo_sculpt_pen_pressure_cc {
   {
     const nodes::GeoNodesCallData *call_data = params.user_data()->call_data;
 
-    if (call_data && call_data->sculpting_data) {
-      const float pen_pressure = call_data->sculpting_data->pen_pressure;
+    if (call_data && call_data->sculpt_data) {
+      const float pen_pressure = call_data->sculpt_data->pen_pressure;
       params.set_output("Pen Pressure", pen_pressure);
     }
     else {
