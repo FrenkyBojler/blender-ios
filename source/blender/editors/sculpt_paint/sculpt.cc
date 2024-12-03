@@ -449,12 +449,12 @@ Span<int> vert_neighbors_get_mesh(const OffsetIndices<int> faces,
   return r_neighbors.as_span();
 }
 
-inline void add_neighbors_to_vector(const OffsetIndices<int> faces,
-                                    const Span<int> corner_verts,
-                                    const GroupedSpan<int> vert_to_face,
-                                    const Span<bool> hide_poly,
-                                    const int vert,
-                                    Vector<int> &r_data)
+inline void append_neighbors_to_vector(const OffsetIndices<int> faces,
+                                       const Span<int> corner_verts,
+                                       const GroupedSpan<int> vert_to_face,
+                                       const Span<bool> hide_poly,
+                                       const int vert,
+                                       Vector<int> &r_data)
 {
   const int vert_start = r_data.size();
   for (const int face : vert_to_face[vert]) {
@@ -7365,7 +7365,7 @@ GroupedSpan<int> calc_vert_neighbors(const OffsetIndices<int> faces,
   r_data.clear();
   for (const int i : verts.index_range()) {
     r_offset_data[i] = r_data.size();
-    add_neighbors_to_vector(faces, corner_verts, vert_to_face, hide_poly, verts[i], r_data);
+    append_neighbors_to_vector(faces, corner_verts, vert_to_face, hide_poly, verts[i], r_data);
   }
   r_offset_data.last() = r_data.size();
   return GroupedSpan<int>(r_offset_data.as_span(), r_data.as_span());
@@ -7439,7 +7439,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(const OffsetIndices<int> faces,
     const int vert = verts[i];
     const int vert_start = r_data.size();
     r_offset_data[i] = vert_start;
-    add_neighbors_to_vector(faces, corner_verts, vert_to_face, hide_poly, vert, r_data);
+    append_neighbors_to_vector(faces, corner_verts, vert_to_face, hide_poly, vert, r_data);
 
     if (boundary_verts[vert]) {
       /* Do not include neighbors of corner vertices. */
