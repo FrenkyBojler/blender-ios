@@ -320,7 +320,9 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
   BKE_id_free(bmain, &pose_action.id);
 
   // TODO uncomment this once it no longer triggers an assert.
-  // refresh_asset_library(C, user_library_to_library_ref(*user_library));
+#ifdef NDEBUG
+  refresh_asset_library(C, user_library_to_library_ref(*user_library));
+#endif
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
 
@@ -527,6 +529,19 @@ static void update_pose_action_from_scene(Main *bmain,
   }
 }
 
+static void update_things(bContext *C)
+{
+  // TODO uncomment this once it no longer triggers an assert.
+
+#ifdef NDEBUG
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
+  bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
+      &U, asset_reference.asset_library_identifier);
+  refresh_asset_library(C, user_library_to_library_ref(*library));
+#endif
+}
+
 static int pose_asset_overwrite_exec(bContext *C, wmOperator *op)
 {
   bAction *action = action_from_selected_asset(C);
@@ -543,6 +558,8 @@ static int pose_asset_overwrite_exec(bContext *C, wmOperator *op)
 
   asset::generate_preview(C, &action->id);
   bke::asset_edit_id_save(*bmain, action->id, *op->reports);
+
+  update_things(C);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
@@ -639,6 +656,7 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
 {
   bAction *action = action_from_selected_asset(C);
   bke::asset_edit_id_delete(*CTX_data_main(C), action->id, *op->reports);
+  update_things(C);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -745,6 +763,8 @@ static int screenshot_preview_exec(bContext *C, wmOperator *op)
   MEM_freeN(dumprect);
   IMB_freeImBuf(image_buffer);
 
+  update_things(C);
+
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -792,8 +812,13 @@ static bool screenshot_preview_poll(bContext *C)
     return false;
   }
 
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  if (!asset_handle) {
+  bAction *action = action_from_selected_asset(C);
+
+  if (!action) {
+    return false;
+  }
+
+  if (!bke::asset_edit_id_is_editable(action->id)) {
     return false;
   }
 
