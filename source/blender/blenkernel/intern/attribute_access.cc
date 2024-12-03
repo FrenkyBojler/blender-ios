@@ -540,8 +540,9 @@ bool CustomDataAttributeProvider::try_create(void *owner,
   add_custom_data_layer_from_attribute_init(
       attribute_id, *custom_data, data_type, element_num, initializer, {});
   if (initializer.type != AttributeInit::Type::Construct) {
-    /* Avoid calling update function when values are not initialized. In that case
-     * values must be set elsewhere anyway, which will cause a separate update tag. */
+    /* Avoid calling update function when values are not default-initialized. Without default
+     * initialization or otherwise meaningful initial values, they should be set elsewhere
+     * anyway, which will cause a separate update tag. */
     if (custom_data_access_.get_tag_modified_function != nullptr) {
       if (const std::function<void()> fn = custom_data_access_.get_tag_modified_function(
               owner, attribute_id))
