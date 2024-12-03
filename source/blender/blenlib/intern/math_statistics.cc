@@ -17,20 +17,20 @@
 
 /********************************** Covariance Matrices *********************************/
 
-typedef struct CovarianceData {
+struct CovarianceData {
   const float *cos_vn;
   const float *center;
   float *r_covmat;
   float covfac;
   int n;
   int cos_vn_num;
-} CovarianceData;
+};
 
 static void covariance_m_vn_ex_task_cb(void *__restrict userdata,
                                        const int a,
-                                       const TaskParallelTLS *__restrict UNUSED(tls))
+                                       const TaskParallelTLS *__restrict /*tls*/)
 {
-  CovarianceData *data = userdata;
+  CovarianceData *data = static_cast<CovarianceData *>(userdata);
   const float *cos_vn = data->cos_vn;
   const float *center = data->center;
   float *r_covmat = data->r_covmat;

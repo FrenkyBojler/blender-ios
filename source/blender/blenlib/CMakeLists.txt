@@ -108,29 +108,29 @@ set(SRC
   intern/math_interp.cc
   intern/math_matrix.cc
   intern/math_matrix_c.cc
-  intern/math_rotation.c
+  intern/math_rotation_c.cc
   intern/math_rotation.cc
-  intern/math_solvers.c
-  intern/math_statistics.c
-  intern/math_time.c
+  intern/math_solvers.cc
+  intern/math_statistics.cc
+  intern/math_time.cc
   intern/math_vec.cc
-  intern/math_vector.c
+  intern/math_vector.cc
   intern/math_vector_inline.c
   intern/memory_cache.cc
   intern/memory_counter.cc
-  intern/memory_utils.c
+  intern/memory_utils.cc
   intern/mesh_boolean.cc
   intern/mesh_intersect.cc
-  intern/noise.c
+  intern/noise_c.cc
   intern/noise.cc
   intern/offset_indices.cc
   intern/ordered_edge.cc
   intern/path_utils.cc
-  intern/polyfill_2d.c
-  intern/polyfill_2d_beautify.c
-  intern/quadric.c
+  intern/polyfill_2d.cc
+  intern/polyfill_2d_beautify.cc
+  intern/quadric.cc
   intern/rand.cc
-  intern/rct.c
+  intern/rct.cc
   intern/resource_scope.cc
   intern/scanfill.c
   intern/scanfill_utils.c
