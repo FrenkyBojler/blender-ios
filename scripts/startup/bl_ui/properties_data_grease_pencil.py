@@ -329,7 +329,7 @@ class GREASE_PENCIL_UL_drawing_attributes(UIList):
         sub.label(text=data_type.name)
 
 
-class GreasePencil_LayerAttributePanel:
+class GreasePencil_LayerAttributesPanel:
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
@@ -385,7 +385,7 @@ class DATA_PT_grease_pencil_layer_relations(LayerDataButtonsPanel, GreasePencil_
     bl_options = {'DEFAULT_CLOSED'}
 
 
-class DATA_PT_grease_pencil_layer_attributes(LayerDataButtonsPanel, GreasePencil_LayerAttributePanel, Panel):
+class DATA_PT_grease_pencil_layer_attributes(LayerDataButtonsPanel, GreasePencil_LayerAttributesPanel, Panel):
     bl_label = "Attributes"
     bl_parent_id = "DATA_PT_grease_pencil_layers"
     bl_options = {'DEFAULT_CLOSED'}
