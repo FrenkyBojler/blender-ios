@@ -55,6 +55,8 @@ struct VolumeIntegrateResult {
  * todo: this value could be tweaked or turned into a probability to avoid unnecessary
  * work in volumes and subsurface scattering. */
 #  define VOLUME_THROUGHPUT_EPSILON 1e-6f
+/* TODO(weizhen): tweak this value. */
+#  define OVERLAP_EXP 5e-4f
 
 /* Volume shader properties
  *
@@ -133,60 +135,329 @@ struct VolumeStep {
   /* Perform shading at this offset within a step, to integrate over the entire step segment. */
   float shade_offset;
 
-  /* Maximal steps allowed between `ray->tmin` and `ray->tmax`. */
-  int max_steps;
+  /* Current step. */
+  int step;
 
   /* Current active segment. */
   Interval<float> t;
 };
 
-template<const bool shadow>
 ccl_device_forceinline void volume_step_init(KernelGlobals kg,
                                              const ccl_private RNGState *rng_state,
-                                             const float object_step_size,
                                              const float tmin,
-                                             const float tmax,
                                              ccl_private VolumeStep *vstep)
 {
+  vstep->step = 0;
   vstep->t.min = vstep->t.max = tmin;
+  vstep->shade_offset = path_state_rng_1D(kg, rng_state, PRNG_VOLUME_SHADE_OFFSET);
+  vstep->offset = path_state_rng_1D(kg, rng_state, PRNG_VOLUME_OFFSET);
+}
 
-  if (object_step_size == FLT_MAX) {
-    /* Homogeneous volume. */
-    vstep->size = tmax - tmin;
-    vstep->shade_offset = 0.0f;
-    vstep->offset = 1.0f;
-    vstep->max_steps = 1;
+enum Dimension { DIM_X = 1U << 0U, DIM_Y = 1U << 1U, DIM_Z = 1U << 2U };
+
+/* Hierarchical DDA for ray tracing the volume octree, following "Efficient Sparse Voxel Octrees"
+ * by Samuli Laine and Tero Karras, and the implementation in
+ * https://dubiousconst282.github.io/2024/10/03/voxel-ray-tracing/
+ *
+ * The ray segment is transformed into octree space [1, 2), with `ray->D` pointing all negative
+ * directions. At each ray tracing step, we intersect the backface of the current active leaf node
+ * to find `t.max`, then store a point `current_P` which lies in the adjacent leaf node. The next
+ * leaf node is found by checking the higher bits of `current_P`.
+ *
+ * The paper suggests to keep a stack of parent nodes, in practice such a stack (even when the size
+ * is just 8) slows down performance on GPU. Instead we store the parent index in the leaf node
+ * directly, since there is sufficient space due to alignment.
+ */
+struct OctreeTracing {
+  /* Current active leaf node. */
+  /* TODO(weizhen): maybe int is better. */
+  ccl_global const KernelOctreeNode *node = nullptr;
+
+  /* Spans the ray segment from the front face to the back face of the current active leaf node. */
+  Interval<float> t;
+
+  /* Ray origin in octree coordinate space. */
+  packed_float3 ray_P;
+
+  /* Ray direction in octree coordinate space. */
+  packed_float3 ray_D;
+  packed_float3 inv_ray_D;
+
+  /* Current active position in octree coordinate space. */
+  packed_float3 current_P;
+
+  /* Object which the octree belongs to. */
+  int object;
+
+  /* Scale of the current active leaf node, relative to the smallest possible size representable by
+   * float. Initialize to the number of float mantissa bits. */
+  uint8_t scale = 23;
+  uint8_t next_scale;
+  /* Mark the dimension to negate the ray so that we find the correct octant. */
+  uint8_t octant_mask;
+
+  ccl_device_inline_method OctreeTracing(const float tmin)
+  {
+    /* Initialize t.max to FLT_MAX so that any intersection with the node face is smaller. */
+    t = {tmin, FLT_MAX};
   }
-  else {
-    /* Heterogeneous volume. */
-    vstep->max_steps = kernel_data.integrator.volume_max_steps;
-    const float t = tmax - tmin;
-    float step_size = min(object_step_size, t);
 
-    if (t > vstep->max_steps * step_size) {
-      /* Increase step size to cover the whole ray segment. */
-      step_size = t / (float)vstep->max_steps;
+  /* Given ray origin `P` and direction `D` in object space, convert them into octree space
+   * [1.0, 2.0).
+   * Returns false if ray is leaving the octree or octree has degenerate shape. */
+  ccl_device_inline_method bool to_octree_space(ccl_private const float3 &P,
+                                                ccl_private const float3 &D,
+                                                const float3 scale,
+                                                const float3 translation)
+  {
+    if (!isfinite_safe(scale)) {
+      /* Degenerate octree. */
+      return false;
     }
 
-    vstep->size = step_size;
-    vstep->shade_offset = path_state_rng_1D(kg, rng_state, PRNG_VOLUME_SHADE_OFFSET);
+    /* Starting point of octree tracing. */
+    current_P = (P + D * t.min) * scale + translation;
+    ray_D = D * scale;
 
-    if (shadow) {
-      /* For shadows we do not offset all segments, since the starting point is already a random
-       * distance inside the volume. It also appears to create banding artifacts for unknown
-       * reasons. */
-      vstep->offset = 1.0f;
+    /* Select octant mask to mirror the coordinate system so that ray direction is negative along
+     * each axis, and adjust `current_P` accordingly. */
+    const auto positive = ray_D > 0.0f;
+    octant_mask = (positive.x * DIM_X) | (positive.y * DIM_Y) | (positive.z * DIM_Z);
+    current_P = select(current_P, 3.0f - current_P, positive);
+
+    if (current_P.x < 1.0f || current_P.y < 1.0f || current_P.z < 1.0f) {
+      /* Point lies outside of the octree and the ray is leaving the octree. */
+      return false;
     }
-    else {
-      vstep->offset = path_state_rng_1D(kg, rng_state, PRNG_VOLUME_OFFSET);
-    }
+
+    /* Clamp for numerical stability. */
+    current_P = min(current_P, make_float3(1.9999999f));
+
+    ray_D = -fabs(ray_D);
+    inv_ray_D = 1.0f / ray_D;
+
+    /* Ray origin. */
+    ray_P = current_P - ray_D * t.min;
+    return true;
+  }
+
+  /* Find the bounding box min of the node that `current_P` lies in within the current scale. */
+  ccl_device_inline_method float3 floor_pos() const
+  {
+    /* Erase bits lower than scale. */
+    const uint mask = ~0u << scale;
+    return make_float3(
+        and_mask(current_P.x, mask), and_mask(current_P.y, mask), and_mask(current_P.z, mask));
+  }
+
+  /* Find arbitrary position inside the next node.
+   * We use the end of the current segment offsetted by half of the minimal node size in the normal
+   * direction of the last face intersection. */
+  ccl_device_inline_method void find_next_pos(const float3 bbox_min,
+                                              const float3 t,
+                                              const float tmax)
+  {
+    constexpr float half_size = 1.0f / (2 << VOLUME_OCTREE_MAX_DEPTH);
+    const float3 next_P = select(ray_P + ray_D * tmax, bbox_min - half_size, t == tmax);
+
+    /* Find the nearest common ancestor of two positions by checking the shared higher bits. */
+    const uint3 diff_P = make_uint3(__float_as_uint(current_P.x) ^ __float_as_uint(next_P.x),
+                                    __float_as_uint(current_P.y) ^ __float_as_uint(next_P.y),
+                                    __float_as_uint(current_P.z) ^ __float_as_uint(next_P.z));
+
+    current_P = next_P;
+    next_scale = 32u - count_leading_zeros(diff_P.x | diff_P.y | diff_P.z);
+  }
+
+  /* See `ray_aabb_intersect()`. We only need to intersect the 3 back sides because the ray
+   * direction is all negative. */
+  ccl_device_inline_method float ray_voxel_intersect(const float ray_tmax)
+  {
+    const float3 bbox_min = floor_pos();
+
+    /* Distances to the three surfaces. */
+    float3 intersect_t = (bbox_min - ray_P) * inv_ray_D;
+
+    /* Select the smallest element that is larger than `t.min`, to avoid self intersection. */
+    intersect_t = select(make_float3(FLT_MAX), intersect_t, intersect_t > t.min);
+
+    /* The first intersection is given by the smallest t. */
+    const float tmax = reduce_min(intersect_t);
+
+    find_next_pos(bbox_min, intersect_t, tmax);
+
+    return fminf(tmax, ray_tmax);
+  }
+
+  /* Returns the octant of `current_P` in the node at given scale. */
+  ccl_device_inline_method int get_octant() const
+  {
+    const uint x = (__float_as_uint(current_P.x) >> scale) & DIM_X;
+    const uint y = (__float_as_uint(current_P.y) >> (scale - 1u)) & DIM_Y;
+    const uint z = (__float_as_uint(current_P.z) >> (scale - 2u)) & DIM_Z;
+    return (x | y | z) ^ octant_mask;
+  }
+};
+
+/* Find the leaf node of the current position, and replace `octree.node` with that node. */
+ccl_device void volume_voxel_get(KernelGlobals kg, ccl_private OctreeTracing &octree)
+{
+  const ccl_global KernelOctreeNode *&knode = octree.node;
+  while (knode->first_child != -1) {
+    /* TODO(weizhen): I can not call a `ccl_device` function on a `ccl_global` pointer, Metal
+     * complains about missing `const` specifier. I haven't found a good solution yet. */
+    // while (!knode->is_leaf()) {
+    octree.scale -= 1;
+    knode = &kernel_data_fetch(volume_tree_nodes, knode->first_child + octree.get_octant());
   }
 }
 
-ccl_device_inline bool volume_integrate_advance(const int step,
-                                                const ccl_private Ray *ccl_restrict ray,
-                                                ccl_private float3 *shade_P,
-                                                ccl_private VolumeStep &vstep)
+/* Find the current active ray segment.
+ * We might have multiple overlapping octrees, find the smallest `tmax` of all and store the
+ * information of that octree in `OctreeTracing`.
+ * Meanwhile, accumulate the density of all the leaf nodes that overlap with the active segment. */
+template<typename StackReadOp>
+ccl_device_inline bool volume_octree_setup(KernelGlobals kg,
+                                           ccl_private OctreeTracing &global,
+                                           const ccl_private Ray *ccl_restrict ray,
+                                           ccl_private VolumeStep &vstep,
+                                           StackReadOp stack_read)
+{
+  if (isnan_safe(ray->D.x)) {
+    /* TODO(weizhen): fix NaN ray->D in the `overlapping_different_aniso.blend`. */
+    return false;
+  }
+
+  /* The current active octree is already set up, we can skip it. */
+  const bool skip = global.node;
+  Extrema<float> sigma = skip ? global.node->sigma * object_volume_density(kg, global.object) :
+                                0.0f;
+  const int skip_object = global.object;
+
+  for (int i = 0;; i++) {
+    /* Loop through all the object in the volume stack and find their octrees. */
+    const VolumeStack entry = stack_read(i);
+
+    if (entry.shader == SHADER_NONE) {
+      break;
+    }
+
+    if (skip && entry.object == skip_object) {
+      continue;
+    }
+
+    /* Plus one because world volume has `object == OBJECT_NONE`. */
+    const int root = kernel_data_fetch(volume_tree_roots, entry.object + 1);
+    const ccl_global KernelOctreeNode *kroot = &kernel_data_fetch(volume_tree_nodes, root);
+
+    float3 local_P = ray->P;
+    float3 local_D = ray->D;
+    if (entry.object != OBJECT_NONE &&
+        !(kernel_data_fetch(object_flag, entry.object) & SD_OBJECT_TRANSFORM_APPLIED))
+    {
+      /* Convert to object space. */
+      const Transform itfm = object_fetch_transform(kg, entry.object, OBJECT_INVERSE_TRANSFORM);
+      local_P = transform_point(&itfm, ray->P);
+      local_D = transform_direction(&itfm, ray->D);
+    }
+
+    OctreeTracing local(global.t.min);
+    local.node = kroot;
+    local.object = entry.object;
+
+    /* Decode scale and translation. */
+    KernelOctreeNode knode = kernel_data_fetch(volume_tree_nodes, root + 1);
+    const float3 scale = knode.decode_transform();
+    knode = kernel_data_fetch(volume_tree_nodes, root + 2);
+    const float3 translation = knode.decode_transform();
+
+    if (local.to_octree_space(local_P, local_D, scale, translation)) {
+      volume_voxel_get(kg, local);
+      local.t.max = local.ray_voxel_intersect(ray->tmax);
+    }
+    else {
+      local.t.max = ray->tmax;
+    }
+
+    sigma += local.node->sigma * object_volume_density(kg, local.object);
+    if (local.t.max <= global.t.max) {
+      /* Replace the current active octree with the one that has the smallest `tmax`. */
+      global = local;
+    }
+  }
+
+  if (!global.node) {
+    /* Stack empty. */
+    return false;
+  }
+
+  /* TODO(weizhen): need investigation when/if it happens. */
+  // kernel_assert(!global.t.is_empty());
+  if (global.t.is_empty()) {
+    return false;
+  }
+
+  /* Step size should ideally be as small as the active voxel span, but not so small that we
+   * never exit the volume. */
+  const int steps_left = kernel_data.integrator.volume_max_steps - vstep.step;
+  vstep.size = fminf(global.t.length(), 1.0f / sigma.range());
+  vstep.size = fmaxf(vstep.size, (ray->tmax - vstep.t.min) / float(steps_left));
+
+  return true;
+}
+
+/* Advance to the next adjacent voxel and update the active interval. */
+template<typename StackReadOp>
+ccl_device_inline bool volume_octree_advance(KernelGlobals kg,
+                                             ccl_private OctreeTracing &octree,
+                                             const ccl_private Ray *ccl_restrict ray,
+                                             ccl_private VolumeStep &vstep,
+                                             StackReadOp stack_read)
+{
+  if (octree.t.max >= ray->tmax) {
+    /* Reached the last segment. */
+    return false;
+  }
+
+  if (octree.next_scale > 23) {
+    if (fabsf(octree.t.max - ray->tmax) <= OVERLAP_EXP) {
+      /* This could happen due to numerical issues, when the bounding box overlaps with a
+       * primitive, but different intersections are registered for both. */
+      return false;
+    }
+
+    /* Outside of the root node, reset. */
+    octree.t = {octree.t.max, ray->tmax};
+    return volume_octree_setup(kg, octree, ray, vstep, stack_read);
+  }
+
+  kernel_assert(octree.next_scale > octree.scale);
+
+  /* Fetch the common ancestor. */
+  for (; octree.scale < octree.next_scale; octree.scale++) {
+    kernel_assert(octree.node->parent != -1);
+    octree.node = &kernel_data_fetch(volume_tree_nodes, octree.node->parent);
+  }
+
+  /* Find the current active leaf node. */
+  volume_voxel_get(kg, octree);
+
+  /* Advance to the next segment. */
+  octree.t.min = octree.t.max;
+  octree.t.max = octree.ray_voxel_intersect(ray->tmax);
+
+  return volume_octree_setup(kg, octree, ray, vstep, stack_read);
+}
+
+/* Advance to the next interval. If the step size exceeds the current leaf node, find the next leaf
+ * node. */
+template<typename StackReadOp>
+ccl_device bool volume_integrate_advance(KernelGlobals kg,
+                                         const ccl_private Ray *ccl_restrict ray,
+                                         ccl_private float3 *shade_P,
+                                         ccl_private OctreeTracing &octree,
+                                         ccl_private VolumeStep &vstep,
+                                         StackReadOp stack_read)
 {
   if (vstep.t.max == ray->tmax) {
     /* Reached the last segment. */
@@ -195,11 +466,29 @@ ccl_device_inline bool volume_integrate_advance(const int step,
 
   /* Advance to new position. */
   vstep.t.min = vstep.t.max;
-  vstep.t.max = min(ray->tmax, ray->tmin + (step + vstep.offset) * vstep.size);
+  bool success = true;
+  if (!octree.node) {
+    /* Initialize octree. */
+    success = volume_octree_setup(kg, octree, ray, vstep, stack_read);
+    vstep.t.max = octree.t.min + vstep.offset * vstep.size;
+  }
+  else {
+    float candidate_t_max = vstep.t.max + vstep.size;
+    if (candidate_t_max >= octree.t.max) {
+      /* Advance to next voxel. */
+      volume_octree_advance(kg, octree, ray, vstep, stack_read);
+      candidate_t_max = fminf(candidate_t_max, vstep.t.max + vstep.size);
+    }
+    vstep.t.max = candidate_t_max;
+  }
+
+  /* Clamp to prevent numerical issues. */
+  vstep.t.max = clamp(vstep.t.max, vstep.t.min + OVERLAP_EXP, ray->tmax);
+
   const float shade_t = mix(vstep.t.min, vstep.t.max, vstep.shade_offset);
   *shade_P = ray->P + ray->D * shade_t;
 
-  return step < vstep.max_steps;
+  return success && vstep.step++ < kernel_data.integrator.volume_max_steps;
 }
 
 /* Volume Shadows
@@ -240,11 +529,14 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
 
   /* Prepare for stepping. */
   VolumeStep vstep;
-  volume_step_init<true>(kg, &rng_state, object_step_size, ray->tmin, ray->tmax, &vstep);
+  volume_step_init(kg, &rng_state, ray->tmin, &vstep);
+
+  OctreeTracing octree(ray->tmin);
+  VOLUME_READ_LAMBDA(integrator_state_read_shadow_volume_stack(state, i))
 
   /* compute extinction at the start */
   Spectrum sum = zero_spectrum();
-  for (int step = 0; volume_integrate_advance(step, ray, &sd->P, vstep); step++) {
+  for (; volume_integrate_advance(kg, ray, &sd->P, octree, vstep, volume_read_lambda_pass);) {
     /* compute attenuation over segment */
     Spectrum sigma_t = zero_spectrum();
     if (shadow_volume_shader_sample(kg, state, sd, &sigma_t)) {
@@ -252,7 +544,7 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
        * because `exp(a)*exp(b) = exp(a+b)`, also do a quick #VOLUME_THROUGHPUT_EPSILON
        * check then. */
       sum += (-sigma_t * vstep.t.length());
-      if ((step & 0x07) == 0) { /* TODO: Other interval? */
+      if ((vstep.step & 0x07) == 0) { /* TODO: Other interval? */
         tp = *throughput * exp(sum);
 
         /* stop if nearly all light is blocked */
@@ -591,7 +883,7 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 
   /* Prepare for stepping. */
   VolumeStep vstep;
-  volume_step_init<false>(kg, rng_state, object_step_size, ray->tmin, ray->tmax, &vstep);
+  volume_step_init(kg, rng_state, ray->tmin, &vstep);
 
   /* Initialize volume integration state. */
   VolumeIntegrateState vstate ccl_optional_struct_init;
@@ -618,7 +910,9 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 #  endif
   Spectrum accum_emission = zero_spectrum();
 
-  for (int step = 0; volume_integrate_advance(step, ray, &sd->P, vstep); step++) {
+  OctreeTracing octree(ray->tmin);
+  VOLUME_READ_LAMBDA(integrator_state_read_volume_stack(state, i))
+  for (; volume_integrate_advance(kg, ray, &sd->P, octree, vstep, volume_read_lambda_pass);) {
     /* compute segment */
     VolumeShaderCoefficients coeff ccl_optional_struct_init;
     if (volume_shader_sample(kg, state, sd, &coeff)) {

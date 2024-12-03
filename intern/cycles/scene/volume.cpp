@@ -739,14 +739,12 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
 
 VolumeManager::VolumeManager()
 {
-  /* TODO(weizhen): enable later when octree is used for ray marching. */
-  need_rebuild_ = false;
+  need_rebuild_ = true;
 }
 
 void VolumeManager::tag_update()
 {
-  /* TODO(weizhen): enable later when octree is used for ray marching. */
-  need_rebuild_ = false;
+  need_rebuild_ = true;
 }
 
 /* Remove changed object from the list of octrees and tag for rebuild. */

@@ -641,9 +641,14 @@ ccl_device_inline float beta(const float x, const float y)
   return expf(lgammaf(x) + lgammaf(y) - lgammaf(x + y));
 }
 
-ccl_device_inline float xor_signmask(const float x, const int y)
+ccl_device_inline float xor_mask(const float x, const uint y)
 {
-  return __int_as_float(__float_as_int(x) ^ y);
+  return __uint_as_float(__float_as_uint(x) ^ y);
+}
+
+ccl_device_inline float and_mask(const float x, const uint y)
+{
+  return __uint_as_float(__float_as_uint(x) & y);
 }
 
 ccl_device float bits_to_01(const uint bits)
@@ -882,6 +887,24 @@ template<typename T> struct Extrema {
     return max - min;
   }
 };
+
+template<typename T> ccl_device_inline Extrema<T> operator*(const Extrema<T> a, const T b)
+{
+  return {a.min * b, a.max * b};
+}
+
+template<typename T>
+ccl_device_inline Extrema<T> operator+(const ccl_private Extrema<T> &a,
+                                       const ccl_private Extrema<T> &b)
+{
+  return {a.min + b.min, a.max + b.max};
+}
+
+template<typename T>
+ccl_device_inline Extrema<T> operator+=(ccl_private Extrema<T> &a, const ccl_private Extrema<T> &b)
+{
+  return a = a + b;
+}
 
 /* Returns the extrema of both extrema. */
 template<typename T>

@@ -130,6 +130,11 @@ ccl_device_inline float3 operator-(const float3 a, const float f)
   return a - make_float3(f);
 }
 
+ccl_device_inline float3 operator-(const float f, const float3 a)
+{
+  return make_float3(f) - a;
+}
+
 ccl_device_inline float3 operator+=(float3 &a, const float3 b)
 {
   return a = a + b;
@@ -211,7 +216,23 @@ ccl_device_inline float dot(const float3 a, const float3 b)
 #  endif
 }
 
-#endif
+ccl_device_inline int3 operator>(const float3 a, const float b)
+{
+  return make_int3(a.x > b, a.y > b, a.z > b);
+}
+
+ccl_device_inline int3 operator==(const float3 a, const float b)
+{
+  return make_int3(a.x == b, a.y == b, a.z == b);
+}
+
+/* `select` following the order of Metal. */
+ccl_device_inline float3 select(const float3 b, const float3 a, const int3 mask)
+{
+  return make_float3(mask.x ? a.x : b.x, mask.y ? a.y : b.y, mask.z ? a.z : b.z);
+}
+
+#endif /* __KERNEL_METAL__ */
 
 ccl_device_inline float dot_xy(const float3 a, const float3 b)
 {
