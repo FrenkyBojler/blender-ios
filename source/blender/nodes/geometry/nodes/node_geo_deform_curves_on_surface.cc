@@ -35,6 +35,64 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Curves").propagate_all();
 }
 
+static float3 compute_triangle_tangent(const float3 &p1,
+                                       const float3 &p2,
+                                       const float3 &p3,
+                                       const float2 &uv1,
+                                       const float2 &uv2,
+                                       const float2 &uv3)
+{
+  const float x1 = p2.x - p1.x;
+  const float x2 = p3.x - p1.x;
+  const float y1 = p2.y - p1.y;
+  const float y2 = p3.y - p1.y;
+  const float z1 = p2.z - p1.z;
+  const float z2 = p3.z - p1.z;
+
+  const float s1 = uv2.x - uv1.x;
+  const float s2 = uv3.x - uv1.x;
+  const float t1 = uv2.y - uv1.y;
+  const float t2 = uv3.y - uv1.y;
+
+  const float r = 1.0F / (s1 * t2 - s2 * t1);
+  const float3 tangent((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
+  return tangent;
+}
+
+// TODO: need to compute tangents per corner in the general case
+static void compute_vertex_tangents(const Span<float3> positions,
+                                    Span<int3> tris,
+                                    Span<int> corner_verts,
+                                    Span<float2> uvs,
+                                    MutableSpan<float3> r_tangents)
+{
+  r_tangents.fill(float3(0.0f));
+  for (const int tri_i : tris.index_range()) {
+    const int3 &tri = tris[tri_i];
+    const int vert_0 = corner_verts[tri[0]];
+    const int vert_1 = corner_verts[tri[1]];
+    const int vert_2 = corner_verts[tri[2]];
+
+    const float3 &pos_0 = positions[vert_0];
+    const float3 &pos_1 = positions[vert_1];
+    const float3 &pos_2 = positions[vert_2];
+
+    const float2 &uv_0 = uvs[tri[0]];
+    const float2 &uv_1 = uvs[tri[1]];
+    const float2 &uv_2 = uvs[tri[2]];
+
+    const float3 tangent = compute_triangle_tangent(pos_0, pos_1, pos_2, uv_0, uv_1, uv_2);
+
+    r_tangents[vert_0] += tangent;
+    r_tangents[vert_1] += tangent;
+    r_tangents[vert_2] += tangent;
+  }
+
+  for (const int vert_i : positions.index_range()) {
+    r_tangents[vert_i] = math::normalize(r_tangents[vert_i]);
+  }
+}
+
 static void deform_curves(const CurvesGeometry &curves,
                           const Mesh &surface_mesh_old,
                           const Mesh &surface_mesh_new,
@@ -43,7 +101,8 @@ static void deform_curves(const CurvesGeometry &curves,
                           const ReverseUVSampler &reverse_uv_sampler_new,
                           const Span<float3> corner_normals_old,
                           const Span<float3> corner_normals_new,
-                          const Span<float3> rest_positions,
+                          const Span<float3> rest_tangents,
+                          const Span<float3> deformed_tangents,
                           const float4x4 &surface_to_curves,
                           MutableSpan<float3> r_positions,
                           MutableSpan<float3x3> r_rotations,
@@ -129,21 +188,20 @@ static void deform_curves(const CurvesGeometry &curves,
       /* The translation is just the difference between the old and new position on the surface. */
       const float3 translation = pos_new - pos_old;
 
-      const float3 &rest_pos_0 = rest_positions[vert_0_new];
-      const float3 &rest_pos_1 = rest_positions[vert_1_new];
-
       /* The tangent reference direction is used to determine the rotation of the surface point
        * around its normal axis. It's important that the old and new tangent reference are computed
        * in a consistent way. If the surface has not been rotated, the old and new tangent
        * reference have to have the same direction. For that reason, the old tangent reference is
        * computed based on the rest position attribute instead of positions on the old mesh. This
-       * way the old and new tangent reference use the same topology.
-       *
-       * TODO: Figure out if this can be smoothly interpolated across the surface as well.
-       * Currently, this is a source of discontinuity in the deformation, because the vector
-       * changes instantly from one triangle to the next. */
-      const float3 tangent_reference_dir_old = rest_pos_1 - rest_pos_0;
-      const float3 tangent_reference_dir_new = pos_1_new - pos_0_new;
+       * way the old and new tangent reference use the same topology. */
+      float3 tangent_reference_dir_old = mix3(bary_weights_new,
+                                              rest_tangents[vert_0_new],
+                                              rest_tangents[vert_1_new],
+                                              rest_tangents[vert_2_new]);
+      float3 tangent_reference_dir_new = mix3(bary_weights_new,
+                                              deformed_tangents[vert_0_new],
+                                              deformed_tangents[vert_1_new],
+                                              deformed_tangents[vert_2_new]);
 
       /* Compute first local tangent based on the (potentially smoothed) normal and the tangent
        * reference. */
@@ -310,6 +368,20 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Span<float3> corner_normals_orig = surface_mesh_orig->corner_normals();
   const Span<float3> corner_normals_eval = surface_mesh_eval->corner_normals();
 
+  Array<float3> rest_tangents(surface_mesh_eval->verts_num);
+  Array<float3> deformed_tangents(surface_mesh_eval->verts_num);
+
+  compute_vertex_tangents(rest_positions,
+                          surface_mesh_eval->corner_tris(),
+                          surface_mesh_eval->corner_verts(),
+                          uv_map_eval,
+                          rest_tangents);
+  compute_vertex_tangents(surface_mesh_eval->vert_positions(),
+                          surface_mesh_eval->corner_tris(),
+                          surface_mesh_eval->corner_verts(),
+                          uv_map_eval,
+                          deformed_tangents);
+
   std::atomic<int> invalid_uv_count = 0;
 
   const bke::CurvesSurfaceTransforms transforms{*self_ob_eval, surface_ob_eval};
@@ -338,7 +410,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                   reverse_uv_sampler_eval,
                   corner_normals_orig,
                   corner_normals_eval,
-                  rest_positions,
+                  rest_tangents,
+                  deformed_tangents,
                   transforms.surface_to_curves,
                   curves.positions_for_write(),
                   edit_hint_rotations,
@@ -354,7 +427,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                   reverse_uv_sampler_eval,
                   corner_normals_orig,
                   corner_normals_eval,
-                  rest_positions,
+                  rest_tangents,
+                  deformed_tangents,
                   transforms.surface_to_curves,
                   curves.positions_for_write(),
                   {},
@@ -372,7 +446,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                     reverse_uv_sampler_eval,
                     corner_normals_orig,
                     corner_normals_eval,
-                    rest_positions,
+                    rest_tangents,
+                    deformed_tangents,
                     transforms.surface_to_curves,
                     edit_hint_positions,
                     edit_hint_rotations,
