@@ -4875,10 +4875,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 8)) {
-    update_paint_modes_for_brush_assets(*bmain);
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 9)) {
     fix_built_in_curve_attribute_defaults(bmain);
   }
@@ -5180,6 +5176,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         remove_triangulate_node_min_size_input(ntree);
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
+    update_paint_modes_for_brush_assets(*bmain);
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
