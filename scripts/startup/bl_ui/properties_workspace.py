@@ -166,30 +166,30 @@ class WORKSPACE_UL_addons_items(UIList):
 
 class WORKSPACE_PT_prop_filter(WorkSpaceButtonsPanel, Panel):
     bl_parent_id = "WORKSPACE_PT_main"
-    bl_label = "Display Properties"
+    bl_label = "Visible Tabs"
 
     def draw(self, context):
         layout = self.layout
         workspace = context.workspace
 
         col = layout.column(align=True)
-        col.prop(workspace, "show_render")
-        col.prop(workspace, "show_output")
-        col.prop(workspace, "show_view_layer")
-        col.prop(workspace, "show_scene")
-        col.prop(workspace, "show_world")
-        col.prop(workspace, "show_collection")
-        col.prop(workspace, "show_object")
-        col.prop(workspace, "show_modifiers")
-        col.prop(workspace, "show_effects")
-        col.prop(workspace, "show_particles")
-        col.prop(workspace, "show_physics")
-        col.prop(workspace, "show_constraints")
-        col.prop(workspace, "show_data")
-        col.prop(workspace, "show_bone")
-        col.prop(workspace, "show_bone_constraints")
-        col.prop(workspace, "show_material")
-        col.prop(workspace, "show_texture")
+        col.prop(workspace, "show_properties_render")
+        col.prop(workspace, "show_properties_output")
+        col.prop(workspace, "show_properties_view_layer")
+        col.prop(workspace, "show_properties_scene")
+        col.prop(workspace, "show_properties_world")
+        col.prop(workspace, "show_properties_collection")
+        col.prop(workspace, "show_properties_object")
+        col.prop(workspace, "show_properties_modifiers")
+        col.prop(workspace, "show_properties_effects")
+        col.prop(workspace, "show_properties_particles")
+        col.prop(workspace, "show_properties_physics")
+        col.prop(workspace, "show_properties_constraints")
+        col.prop(workspace, "show_properties_data")
+        col.prop(workspace, "show_properties_bone")
+        col.prop(workspace, "show_properties_bone_constraints")
+        col.prop(workspace, "show_properties_material")
+        col.prop(workspace, "show_properties_texture")
 
 
 class WORKSPACE_PT_custom_props(WorkSpaceButtonsPanel, PropertyPanel, Panel):

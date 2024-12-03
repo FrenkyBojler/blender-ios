@@ -18,7 +18,6 @@
 
 #include "RE_engine.h"
 
-#include "BLI_array_utils.h"
 #include "BLI_assert.h"
 #include "BLI_vector.hh"
 
@@ -50,78 +49,6 @@
 
 static void rna_window_update_all(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
-  WM_main_add_notifier(NC_WINDOW, nullptr);
-}
-
-static int find_new_properties_tab(const WorkSpace *workspace,
-                                   const SpaceProperties *sbuts,
-                                   int iter_step)
-{
-  short tabs_array_no_filter[BCONTEXT_TOT * 2];
-  const int tabs_no_filter_len = ED_buttons_tabs_list(nullptr, sbuts, tabs_array_no_filter);
-
-  short tabs_array[BCONTEXT_TOT * 2];
-  const int tabs_len = ED_buttons_tabs_list(workspace, sbuts, tabs_array);
-
-  const int old_index = BLI_array_findindex(
-      tabs_array_no_filter, tabs_no_filter_len, &sbuts->mainb);
-
-  /* Try to find next tab to switch to. */
-  int new_tab = -1;
-  for (int i = old_index; i < tabs_no_filter_len; i += iter_step) {
-    const int candidate_tab = tabs_array_no_filter[i];
-
-    if (candidate_tab == -1) {
-      continue;
-    }
-
-    const int found_tab_index = BLI_array_findindex(tabs_array, tabs_len, &candidate_tab);
-
-    if (found_tab_index != -1) {
-      new_tab = tabs_array[found_tab_index];
-      break;
-    }
-  }
-
-  return new_tab;
-}
-
-static void rna_properties_filter_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
-{
-  const WorkSpace *workspace = (WorkSpace *)ptr->owner_id;
-  LISTBASE_FOREACH (const WorkSpaceLayout *, layout, &workspace->layouts) {
-    bScreen *screen = BKE_workspace_layout_screen_get(layout);
-
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-        if (sl->spacetype != SPACE_PROPERTIES) {
-          continue;
-        }
-
-        SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
-
-        if (((1 << sbuts->mainb) & workspace->properties_filter) != 0) {
-          continue;
-        }
-
-        /* Activate next visible tab if possible, fallback to last visible in the list. */
-        int new_tab = find_new_properties_tab(workspace, sbuts, +1);
-
-        /* Try to find previous tab to switch to. */
-        if (new_tab == -1) {
-          new_tab = find_new_properties_tab(workspace, sbuts, -1);
-        }
-
-        if (new_tab == -1) {
-          new_tab = (1 << BCONTEXT_TOOL);
-          BLI_assert_unreachable();
-        }
-
-        sbuts->mainb = new_tab;
-        sbuts->mainbuser = new_tab;
-      }
-    }
-  }
   WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
@@ -527,7 +454,7 @@ static void rna_def_space_properties_filter(StructRNA *srna)
 
   BLI_assert(filter_items.size() == BCONTEXT_TOT);
 
-  for (int i = 0; i < BCONTEXT_TOT; i++) {
+  for (int i = 1; i < BCONTEXT_TOT; i++) {
     EnumPropertyItem item = rna_enum_properties_editor_context_items[i];
     const int value = (1 << item.value);
     const char *prop_name = filter_items[i];
@@ -535,7 +462,7 @@ static void rna_def_space_properties_filter(StructRNA *srna)
     PropertyRNA *prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(prop, nullptr, "properties_filter", value);
     RNA_def_property_ui_text(prop, item.name, "");
-    RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_properties_filter_update");
+    RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_window_update_all");
   }
 }
 

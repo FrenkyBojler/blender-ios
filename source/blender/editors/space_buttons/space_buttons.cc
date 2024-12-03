@@ -11,7 +11,9 @@
 #include <cstring>
 #include <limits>
 
+#include "BLI_array_utils.h"
 #include "BLI_vector.hh"
+#include "DNA_scene_types.h"
 #include "DNA_workspace_types.h"
 #include "MEM_guardedalloc.h"
 
@@ -660,9 +662,64 @@ static void buttons_navigation_bar_region_init(wmWindowManager *wm, ARegion *reg
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
 }
 
+static int find_new_properties_tab(const WorkSpace *workspace,
+                                   const SpaceProperties *sbuts,
+                                   int iter_step)
+{
+  short tabs_array_no_filter[BCONTEXT_TOT * 2];
+  const int tabs_no_filter_len = ED_buttons_tabs_list(nullptr, sbuts, tabs_array_no_filter);
+
+  short tabs_array[BCONTEXT_TOT * 2];
+  const int tabs_len = ED_buttons_tabs_list(workspace, sbuts, tabs_array);
+
+  const int old_index = BLI_array_findindex(
+      tabs_array_no_filter, tabs_no_filter_len, &sbuts->mainb);
+
+  /* Try to find next tab to switch to. */
+  int new_tab = -1;
+  for (int i = old_index; i < tabs_no_filter_len; i += iter_step) {
+    const int candidate_tab = tabs_array_no_filter[i];
+
+    if (candidate_tab == -1) {
+      continue;
+    }
+
+    const int found_tab_index = BLI_array_findindex(tabs_array, tabs_len, &candidate_tab);
+
+    if (found_tab_index != -1) {
+      new_tab = tabs_array[found_tab_index];
+      break;
+    }
+  }
+
+  return new_tab;
+}
+
+/* Change active tab, if it was hidden. */
+static void buttons_check_filter(const bContext *C, SpaceProperties *sbuts)
+{
+  const WorkSpace *workspace = CTX_wm_workspace(C);
+  if (((1 << sbuts->mainb) & workspace->properties_filter) != 0) {
+    return;
+  }
+
+  int new_tab = find_new_properties_tab(workspace, sbuts, +1);
+
+  /* Try to find previous tab to switch to. */
+  if (new_tab == -1) {
+    new_tab = find_new_properties_tab(workspace, sbuts, -1);
+  }
+
+  if (new_tab == -1) {
+    new_tab = (1 << BCONTEXT_TOOL);
+    BLI_assert_unreachable();
+  }
+}
+
 static void buttons_navigation_bar_region_draw(const bContext *C, ARegion *region)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  buttons_check_filter(C, sbuts);
   buttons_context_compute(C, sbuts);
 
   LISTBASE_FOREACH (PanelType *, pt, &region->runtime->type->paneltypes) {
