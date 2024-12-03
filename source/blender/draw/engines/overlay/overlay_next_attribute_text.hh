@@ -141,7 +141,7 @@ class AttributeTexts : Overlay {
         const float3 position = math::transform_point(object_to_world, positions[i]);
         const T &value = values_typed[i];
 
-        char numstr[64];
+        char numstr[256];
         size_t numstr_len = 0;
         if constexpr (std::is_same_v<T, bool>) {
           numstr_len = SNPRINTF_RLEN(numstr, "%s", value ? "True" : "False");
@@ -177,12 +177,58 @@ class AttributeTexts : Overlay {
           numstr_len = SNPRINTF_RLEN(
               numstr, "(%.3f, %.3f, %.3f, %.3f)", value.w, value.x, value.y, value.z);
         }
+        else if constexpr (std::is_same_v<T, float4x4>) {
+          float3 location;
+          math::EulerXYZ rotation;
+          float3 scale;
+          const float3 degrees{
+              rotation.x().degree(), rotation.y().degree(), rotation.z().degree()};
+
+          math::to_loc_rot_scale_safe<true>(value, location, rotation, scale);
+          numstr_len = SNPRINTF_RLEN(
+              numstr,
+              "Location: %.3f, %.3f, %.3f\nRotation: %.3f°, %.3f°, %.3f°\nScale: %.3f, %.3f, %.3f",
+              location.x,
+              location.y,
+              location.z,
+              degrees.x,
+              degrees.y,
+              degrees.z,
+              scale.x,
+              scale.y,
+              scale.z);
+        }
         else {
           BLI_assert_unreachable();
         }
 
-        DRW_text_cache_add(
-            dt, position, numstr, numstr_len, 0, 0, DRW_TEXT_CACHE_GLOBALSPACE, col, true, true);
+        Vector<StringRef> lines;
+        StringRef remaining{numstr, int64_t(numstr_len)};
+        while (!remaining.is_empty()) {
+          const int line_len = remaining.find_first_of('\n');
+          if (line_len == -1) {
+            lines.append(remaining);
+            break;
+          }
+          else {
+            lines.append(remaining.substr(0, line_len));
+            remaining = remaining.substr(line_len + 1);
+          }
+        }
+
+        for (const int i : lines.index_range()) {
+          const StringRef line = lines[i];
+          DRW_text_cache_add(dt,
+                             position,
+                             line.data(),
+                             line.size(),
+                             0,
+                             i * 12.0f * UI_SCALE_FAC,
+                             DRW_TEXT_CACHE_GLOBALSPACE,
+                             col,
+                             true,
+                             true);
+        }
       }
     });
   }
