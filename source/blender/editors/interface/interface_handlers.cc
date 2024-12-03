@@ -3747,15 +3747,15 @@ static const wchar_t ibm437_chars[] = {
     0x2261, 0x00B1, 0x2265, 0x2264, 0x2320, 0x2321, 0x00F7, 0x2248, 0x00B0, 0x2219, 0x00B7, 0x221A,
     0x207F, 0x00B2, 0x25A0, 0x00A0};
 
-static const wchar_t mac_option_09_chars[] = {
-    0x00BA, 0x00A1, 0x2122, 0x00A3, 0x00A2, 0x0192, 0x00A7, 0x00B6, 0x2022, 0x00AA};
-static const wchar_t mac_option_09shift_chars[] = {
-    0x201A, 0x017D, 0x20AC, 0x00D0, 0x00F0, 0x00DE, 0x00FE, 0x00FD, 0x00B0, 0x00B7};
-
-static const wchar_t mac_option_az_chars[] = {
-    0x00E5, 0x2020, 0x00E7, 0xFFFF, 0xFFFF, 0x0192, 0x00A9, 0x2122, 0x02C6,
-    0x00D4, 0x0161, 0x00AC, 0x00B5, 0x00F8, 0x00F8, 0x00BC, 0x0153, 0x00AE,
-    0x00DF, 0x00DD, 0x00A8, 0x02C6, 0x2026, 0x2030, 0x00A5, 0x2021};
+static const wchar_t mac_chars[] = {
+    0x017D, 0x00C6, 0x00D0, 0x00F0, 0x00DE, 0x00FD, 0x00B4, 0x00B7, 0x201A, 0x00B0, 0x00B1, 0x00BE,
+    0x2013, 0x201E, 0x00F7, 0x00BA, 0x00A1, 0x2122, 0x00A3, 0x00A2, 0x0192, 0x00A7, 0x00B6, 0x2022,
+    0x00AA, 0x00DA, 0x2026, 0x00AF, 0x201A, 0x02DC, 0x00BF, 0x20AC, 0x00C5, 0x00B9, 0x00C7, 0x00CE,
+    0x00B4, 0x00CF, 0x203A, 0x00D3, 0x0038, 0x0039, 0x2022, 0x00D2, 0x00C2, 0xFFFF, 0x00D8, 0x00BD,
+    0x0152, 0x2030, 0x00CD, 0xFFFF, 0x0060, 0x00D7, 0x201E, 0x0153, 0x00C1, 0x00B8, 0x201C, 0x00B4,
+    0x2018, 0x00FE, 0x2014, 0xFFFF, 0x00E5, 0x2020, 0x00E7, 0xFFFF, 0xFFFF, 0x0192, 0x00A9, 0x2122,
+    0x02C6, 0x00D4, 0x0161, 0x00AC, 0x00B5, 0x00F8, 0x00F8, 0x00BC, 0x0153, 0x00AE, 0x00DF, 0x00DD,
+    0x00A8, 0x02C6, 0x2026, 0x2030, 0x00A5, 0x2021, 0x201D, 0x00AA, 0x2019, 0x0060};
 
 static char unicode_input[10] = {0};
 
@@ -3775,15 +3775,8 @@ static int ui_handle_unicode_input(uiBut *but,
       uint val = strtoul(unicode_input, NULL, 16);
 
       int len = BLI_strnlen(unicode_input, ARRAY_SIZE(unicode_input));
-      if (len == 1) {
-        if (unicode_input[0] >= EVT_ZEROKEY && unicode_input[0] <= EVT_NINEKEY) {
-          val = event->modifier & KM_SHIFT ?
-                    mac_option_09shift_chars[unicode_input[0] - EVT_ZEROKEY] :
-                    mac_option_09_chars[unicode_input[0] - EVT_ZEROKEY];
-        }
-        else if (unicode_input[0] >= EVT_AKEY && unicode_input[0] <= EVT_ZKEY) {
-          val = mac_option_az_chars[unicode_input[0] - EVT_AKEY];
-        }
+      if (len == 1 && unicode_input[0] >= '!' && unicode_input[0] <= '~') {
+        val = mac_chars[unicode_input[0] - '!'];
       }
       else if (len < 4) {
         uint val10 = strtoul(unicode_input, NULL, 10);
@@ -3805,13 +3798,11 @@ static int ui_handle_unicode_input(uiBut *but,
   if (event->modifier & KM_ALT && event->val == KM_PRESS) {
     /* Holding Alt while pressing a key. */
     char ch = 0;
-    if ((event->type >= EVT_ZEROKEY && event->type <= EVT_NINEKEY) ||
-        (event->type >= EVT_AKEY && event->type <= EVT_ZKEY))
-    {
-      ch = event->type;
-    }
-    else if (event->type >= EVT_PAD0 && event->type <= EVT_PAD9) {
+    if (event->type >= EVT_PAD0 && event->type <= EVT_PAD9) {
       ch = event->type - 102;
+    }
+    else {
+      ch = event->utf8_buf[0];
     }
 
     if (ch) {
