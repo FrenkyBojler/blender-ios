@@ -579,6 +579,7 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
                                               const FillBoundary &boundary,
                                               const ImageBufferAccessor &buffer,
                                               const ed::greasepencil::DrawingPlacement &placement,
+                                              const float3x3 &image_to_region,
                                               const int material_index,
                                               const float hardness)
 {
@@ -635,7 +636,10 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
   for (const int point_i : curves.points_range()) {
     const int pixel_index = boundary.pixels[point_i];
     const int2 pixel_coord = buffer.coord_from_index(pixel_index);
-    const float3 position = placement.project_with_shift(float2(pixel_coord));
+    const float2 region_coord =
+        math::transform_point(image_to_region, float3(pixel_coord, 1.0f)).xy();
+    const float3 position = placement.project_with_shift(region_coord);
+    // const float3 position = placement.project_with_shift(float2(pixel_coord));
     positions[point_i] = position;
 
     /* Calculate radius and opacity for the outline as if it was a user stroke with full pressure.
@@ -698,6 +702,7 @@ static bke::CurvesGeometry process_image(Image &ima,
                                          const ViewContext &view_context,
                                          const Brush &brush,
                                          const ed::greasepencil::DrawingPlacement &placement,
+                                         const float3x3 &image_to_region,
                                          const int stroke_material_index,
                                          const float stroke_hardness,
                                          const bool invert,
@@ -757,6 +762,7 @@ static bke::CurvesGeometry process_image(Image &ima,
                             boundary,
                             buffer,
                             placement,
+                            image_to_region,
                             stroke_material_index,
                             stroke_hardness);
 }
@@ -943,7 +949,7 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
 
   switch (fit_method) {
     case FillToolFitMethod::None:
-      return std::make_pair(float2(1.0f), float2(0.0f));
+      return std::make_tuple(float2(1.0f), float2(0.0f), float3x3::identity());
 
     case FillToolFitMethod::FitToView: {
       const Object &object_eval = *DEG_get_evaluated_object(view_context.depsgraph,
@@ -989,52 +995,45 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
               (fill_point.y > bounds_max.y ? offset_max.y : offset_center.y));
       const float2 offset = math::safe_divide(region_offset, region_extent);
 
-      return std::make_pair(zoom, offset);
+      const float2 scale_factors = math::clamp(
+          math::safe_divide(region_extent, fill_bounds_extent),
+          float2(min_zoom_factor),
+          float2(max_zoom_factor));
+      /* Use the most zoomed out factor for uniform scale. */
+      const float2 scale = uniform_zoom ? float2(math::reduce_max(scale_factors)) : scale_factors;
+
+      /* Center transform. */
+      const float3x3 image_to_region = math::from_loc_scale<float3x3>(region_offset, zoom);
+
+      return std::make_tuple(zoom, offset, image_to_region);
     }
   }
 
-  return std::make_pair(float2(1.0f), float2(0.0f));
+  return std::make_tuple(float2(1.0f), float2(0.0f), float3x3::identity());
 }
 
-bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
-                                 const Brush &brush,
-                                 const Scene &scene,
-                                 const bke::greasepencil::Layer &layer,
-                                 const VArray<bool> &boundary_layers,
-                                 const Span<DrawingInfo> src_drawings,
-                                 const bool invert,
-                                 const std::optional<float> alpha_threshold,
-                                 const float2 &fill_point,
-                                 const ExtensionData &extensions,
-                                 const FillToolFitMethod fit_method,
-                                 const int stroke_material_index,
-                                 const bool keep_images)
+static Image *render_strokes(const ViewContext &view_context,
+                             const Brush &brush,
+                             const Scene &scene,
+                             const bke::greasepencil::Layer &layer,
+                             const VArray<bool> &boundary_layers,
+                             const Span<DrawingInfo> src_drawings,
+                             const std::optional<float> alpha_threshold,
+                             const float2 &fill_point,
+                             const ExtensionData &extensions,
+                             const ed::greasepencil::DrawingPlacement &placement,
+                             const float2 &zoom,
+                             const float2 &offset)
 {
   using bke::greasepencil::Layer;
 
   ARegion &region = *view_context.region;
-  View3D &view3d = *view_context.v3d;
   RegionView3D &rv3d = *view_context.rv3d;
-  Depsgraph &depsgraph = *view_context.depsgraph;
   Object &object = *view_context.obact;
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object);
-  const ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
 
-  /* Zoom and offset based on bounds, to fit all strokes within the render. */
-  const bool uniform_zoom = true;
-  const float max_zoom_factor = 5.0f;
-  const float2 margin = float2(20);
-  const auto [zoom, offset] = fit_strokes_to_view(view_context,
-                                                  boundary_layers,
-                                                  src_drawings,
-                                                  fit_method,
-                                                  fill_point,
-                                                  uniform_zoom,
-                                                  max_zoom_factor,
-                                                  margin);
   /* Scale stroke radius by half to hide gaps between filled areas and boundaries. */
   const float radius_scale = (brush.gpencil_settings->fill_draw_mode == GP_FILL_DMODE_CONTROL) ?
                                  0.0f :
@@ -1129,7 +1128,68 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
   GPU_depth_mask(false);
   GPU_blend(GPU_BLEND_NONE);
 
-  Image *ima = image_render::image_render_end(*view_context.bmain, offscreen_buffer);
+  return image_render::image_render_end(*view_context.bmain, offscreen_buffer);
+}
+
+bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
+                                 const Brush &brush,
+                                 const Scene &scene,
+                                 const bke::greasepencil::Layer &layer,
+                                 const VArray<bool> &boundary_layers,
+                                 const Span<DrawingInfo> src_drawings,
+                                 const bool invert,
+                                 const std::optional<float> alpha_threshold,
+                                 const float2 &fill_point,
+                                 const ExtensionData &extensions,
+                                 const FillToolFitMethod fit_method,
+                                 const int stroke_material_index,
+                                 const bool keep_images)
+{
+  using bke::greasepencil::Layer;
+
+  ARegion &region = *view_context.region;
+  View3D &view3d = *view_context.v3d;
+  Depsgraph &depsgraph = *view_context.depsgraph;
+  Object &object = *view_context.obact;
+
+  BLI_assert(object.type == OB_GREASE_PENCIL);
+  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object);
+
+  /* Zoom and offset based on bounds, to fit all strokes within the render. */
+  const bool uniform_zoom = true;
+  const float max_zoom_factor = 5.0f;
+  const float2 margin = float2(20);
+  const auto [zoom, offset, image_to_region] = fit_strokes_to_view(view_context,
+                                                                   boundary_layers,
+                                                                   src_drawings,
+                                                                   fit_method,
+                                                                   fill_point,
+                                                                   uniform_zoom,
+                                                                   max_zoom_factor,
+                                                                   margin);
+  // const float3x3 region_to_image = math::invert(image_to_region);
+
+  ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
+  if (placement.use_project_to_surface()) {
+    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
+  }
+  else if (placement.use_project_to_nearest_stroke()) {
+    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
+    placement.set_origin_to_nearest_stroke(fill_point);
+  }
+
+  Image *ima = render_strokes(view_context,
+                              brush,
+                              scene,
+                              layer,
+                              boundary_layers,
+                              src_drawings,
+                              alpha_threshold,
+                              fill_point,
+                              extensions,
+                              placement,
+                              zoom,
+                              offset);
   if (!ima) {
     return {};
   }
@@ -1142,6 +1202,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                                                   view_context,
                                                   brush,
                                                   placement,
+                                                  image_to_region,
                                                   stroke_material_index,
                                                   stroke_hardness,
                                                   invert,
