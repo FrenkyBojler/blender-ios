@@ -528,7 +528,8 @@ class NODE_MT_category_GEO_POINT(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "GeometryNodeSetPointRadius")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
-        
+
+
 class NODE_MT_category_sculpting(Menu):
     bl_idname = "NODE_MT_category_sculpting"
     bl_label = "Sculpting"

@@ -5282,8 +5282,8 @@ static void stroke_update_step(bContext *C,
   StrokeCache *cache = ss.cache;
   cache->stroke_distance = paint_stroke_distance_get(stroke);
 
-  Main* bmain = CTX_data_main(C);
-  cache->node_tree = (bNodeTree*)BKE_libblock_find_name(bmain, ID_NT, "brush");
+  Main *bmain = CTX_data_main(C);
+  cache->node_tree = (bNodeTree *)BKE_libblock_find_name(bmain, ID_NT, "brush");
 
   SCULPT_stroke_modifiers_check(C, ob, brush);
   sculpt_update_cache_variants(C, sd, ob, itemptr);

@@ -218,8 +218,8 @@ struct GeoNodesSculptData {
   float3 plane_origin;
   float4x4 local_transform;
 
-  const Object* self_object = nullptr;
-  const Depsgraph* depsgraph = nullptr;
+  const Object *self_object = nullptr;
+  const Depsgraph *depsgraph = nullptr;
 };
 
 struct GeoNodesCallData {

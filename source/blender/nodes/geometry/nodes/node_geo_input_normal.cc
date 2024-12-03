@@ -13,21 +13,22 @@ struct BMVert;
 namespace blender::nodes::node_geo_input_normal_cc {
 
 class SculptNormalFieldInput final : public fn::FieldInput {
-public:
+ public:
   SculptNormalFieldInput() : fn::FieldInput(CPPType::get<float3>(), "Normal")
   {
     category_ = Category::Generated;
   }
 
-  GVArray get_varray_for_context(const FieldContext& context,
-    const IndexMask& /* mask */,
-    ResourceScope& /* scope */) const final
+  GVArray get_varray_for_context(const FieldContext &context,
+                                 const IndexMask & /* mask */,
+                                 ResourceScope & /* scope */) const final
   {
-    if (const bke::MeshSculptFieldContext* mesh_sculpt_context =
-      dynamic_cast<const bke::MeshSculptFieldContext*>(&context)) {
+    if (const bke::MeshSculptFieldContext *mesh_sculpt_context =
+            dynamic_cast<const bke::MeshSculptFieldContext *>(&context))
+    {
 
-      const Depsgraph& depsgraph = mesh_sculpt_context->depsgraph();
-      const Object& object = mesh_sculpt_context->object();
+      const Depsgraph &depsgraph = mesh_sculpt_context->depsgraph();
+      const Object &object = mesh_sculpt_context->object();
       const Span<int> indices = mesh_sculpt_context->indices();
 
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
@@ -40,10 +41,11 @@ public:
       return VArray<float3>::ForContainer(normals);
     }
 
-    if (const bke::GridsSculptFieldContext* grids_sculpt_context =
-      dynamic_cast<const bke::GridsSculptFieldContext*>(&context)) {
+    if (const bke::GridsSculptFieldContext *grids_sculpt_context =
+            dynamic_cast<const bke::GridsSculptFieldContext *>(&context))
+    {
 
-      const SubdivCCG& subdiv_ccg = grids_sculpt_context->subdiv_ccg();
+      const SubdivCCG &subdiv_ccg = grids_sculpt_context->subdiv_ccg();
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       const Span<int> grids = grids_sculpt_context->grids();
       const Span<float3> ccg_normals = subdiv_ccg.normals;
@@ -60,14 +62,15 @@ public:
       return VArray<float3>::ForSpan(normals);
     }
 
-    if (const bke::BMeshSculptFieldContext* bmesh_sculpt_context =
-      dynamic_cast<const bke::BMeshSculptFieldContext*>(&context)) {
+    if (const bke::BMeshSculptFieldContext *bmesh_sculpt_context =
+            dynamic_cast<const bke::BMeshSculptFieldContext *>(&context))
+    {
 
-      const Set<BMVert*, 0>& verts = bmesh_sculpt_context->verts();
+      const Set<BMVert *, 0> &verts = bmesh_sculpt_context->verts();
       Array<float3> normals(verts.size());
 
       int i = 0;
-      for (const BMVert* vert : verts) {
+      for (const BMVert *vert : verts) {
         normals[i] = float3(vert->no);
         i++;
       }
@@ -87,11 +90,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   if (params.user_data()->call_data->sculpt_data) {
-    Field<float3> normal_field{ std::make_shared<SculptNormalFieldInput>() };
+    Field<float3> normal_field{std::make_shared<SculptNormalFieldInput>()};
     params.set_output("Normal", std::move(normal_field));
   }
   else {
-    Field<float3> normal_field{ std::make_shared<bke::NormalFieldInput>() };
+    Field<float3> normal_field{std::make_shared<bke::NormalFieldInput>()};
     params.set_output("Normal", std::move(normal_field));
   }
 }

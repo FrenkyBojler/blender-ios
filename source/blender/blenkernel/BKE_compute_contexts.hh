@@ -165,16 +165,15 @@ class OperatorComputeContext : public ComputeContext {
 };
 
 class SculptingComputeContext : public ComputeContext {
-private:
-  static constexpr const char* s_static_type = "SCULPTING";
+ private:
+  static constexpr const char *s_static_type = "SCULPTING";
 
-public:
+ public:
   SculptingComputeContext() : SculptingComputeContext(nullptr) {}
-  SculptingComputeContext(const ComputeContext* parent) : ComputeContext(s_static_type, parent) {}
+  SculptingComputeContext(const ComputeContext *parent) : ComputeContext(s_static_type, parent) {}
 
-private:
-  void print_current_in_line(std::ostream& /* stream */) const override {}
+ private:
+  void print_current_in_line(std::ostream & /* stream */) const override {}
 };
-
 
 }  // namespace blender::bke
