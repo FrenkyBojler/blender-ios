@@ -612,9 +612,6 @@ ENUM_OPERATORS(Layer::Flags, Layer::Flags::Enabled);
  * to identify which F-Curves (and in the future other animation data) it will
  * be animated by.
  *
- * This is called a 'slot' because it binds the animatable ID to the sub-set
- * of animation data that should animate it.
- *
  * \see #AnimData::slot_handle
  */
 class Slot : public ::ActionSlot {
