@@ -1158,6 +1158,7 @@ static void makeknots(Nurb *nu, short uv)
       if (BKE_nurb_check_valid_u(nu)) {
         nu->knotsu = (float *)MEM_calloc_arrayN(KNOTSU(nu) + 1, sizeof(float), "makeknots");
         calcknots(nu->knotsu, nu->pntsu, nu->orderu, nu->flagu);
+        nu->flagu &= ~CU_NURB_FREE;
       }
       else {
         nu->knotsu = nullptr;
@@ -1170,6 +1171,7 @@ static void makeknots(Nurb *nu, short uv)
       if (BKE_nurb_check_valid_v(nu)) {
         nu->knotsv = (float *)MEM_calloc_arrayN(KNOTSV(nu) + 1, sizeof(float), "makeknots");
         calcknots(nu->knotsv, nu->pntsv, nu->orderv, nu->flagv);
+        nu->flagv &= ~CU_NURB_FREE;
       }
       else {
         nu->knotsv = nullptr;
