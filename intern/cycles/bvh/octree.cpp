@@ -54,13 +54,13 @@ __forceinline float3 Octree::position_to_index_(const float3 p) const
 int3 Octree::position_to_floor_index_(const float3 p) const
 {
   const float3 index = floor(position_to_index_(p));
-  return make_int3(int(index.x), int(index.y), int(index.z));
+  return clamp(make_int3(int(index.x), int(index.y), int(index.z)), 0, resolution_);
 }
 
 int3 Octree::position_to_ceil_index_(const float3 p) const
 {
   const float3 index = ceil(position_to_index_(p));
-  return make_int3(int(index.x), int(index.y), int(index.z));
+  return clamp(make_int3(int(index.x), int(index.y), int(index.z)), 0, resolution_);
 }
 
 /* Convert from index to position in object space. */
