@@ -949,9 +949,6 @@ template<typename T> QuaternionBase<T> normalized_to_quat_with_checks(const MatB
   if (UNLIKELY(!std::isfinite(det))) {
     return QuaternionBase<T>::identity();
   }
-  else if (UNLIKELY(math::abs(det) < 0.00001)) {
-    return QuaternionBase<T>::identity();
-  }
   else if (UNLIKELY(det < T(0))) {
     return normalized_to_quat_fast(-mat);
   }
