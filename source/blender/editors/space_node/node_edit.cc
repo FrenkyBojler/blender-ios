@@ -914,7 +914,6 @@ static bool socket_is_occluded(const float2 &location,
 struct NodeSizeWidget {
   float mxstart, mystart;
   float oldlocx, oldlocy;
-  float oldoffsetx, oldoffsety;
   float oldwidth, oldheight;
   int directions;
 };
@@ -932,8 +931,6 @@ static void node_resize_init(
   /* store old */
   nsw->oldlocx = node->locx;
   nsw->oldlocy = node->locy;
-  nsw->oldoffsetx = node->offsetx;
-  nsw->oldoffsety = node->offsety;
   nsw->oldwidth = node->width;
   nsw->oldheight = node->height;
   nsw->directions = dir;
@@ -955,8 +952,6 @@ static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
 
     node->locx = nsw->oldlocx;
     node->locy = nsw->oldlocy;
-    node->offsetx = nsw->oldoffsetx;
-    node->offsety = nsw->oldoffsety;
     node->width = nsw->oldwidth;
     node->height = nsw->oldheight;
   }
@@ -1038,26 +1033,6 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
           if (nsw->directions & NODE_RESIZE_BOTTOM) {
             node->height = nsw->oldheight - dy;
             CLAMP(node->height, heightmin, heightmax);
-          }
-        }
-
-        if (node->type == NODE_FRAME) {
-          /* Keep the offset symmetric around center point. */
-          if (nsw->directions & NODE_RESIZE_LEFT) {
-            node->locx = nsw->oldlocx + 0.5f * dx;
-            node->offsetx = nsw->oldoffsetx + 0.5f * dx;
-          }
-          if (nsw->directions & NODE_RESIZE_RIGHT) {
-            node->locx = nsw->oldlocx + 0.5f * dx;
-            node->offsetx = nsw->oldoffsetx - 0.5f * dx;
-          }
-          if (nsw->directions & NODE_RESIZE_TOP) {
-            node->locy = nsw->oldlocy + 0.5f * dy;
-            node->offsety = nsw->oldoffsety + 0.5f * dy;
-          }
-          if (nsw->directions & NODE_RESIZE_BOTTOM) {
-            node->locy = nsw->oldlocy + 0.5f * dy;
-            node->offsety = nsw->oldoffsety - 0.5f * dy;
           }
         }
       }

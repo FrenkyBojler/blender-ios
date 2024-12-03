@@ -432,8 +432,7 @@ typedef struct bNode {
    * nodes.
    */
   float width, height;
-  /** Additional offset from loc. TODO: Redundant with #locx and #locy, remove/deprecate. */
-  float offsetx, offsety;
+  float offsetx_legacy, offsety_legacy;
 
   /** Custom user-defined label, MAX_NAME. */
   char label[64];

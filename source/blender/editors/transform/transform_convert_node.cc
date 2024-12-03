@@ -6,6 +6,8 @@
  * \ingroup edtransform
  */
 
+#include <iostream>
+
 #include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -49,9 +51,7 @@ static void create_transform_data_for_node(TransData &td,
                                            const float dpi_fac)
 {
   /* Account for parents (nested nodes). */
-  const float2 node_offset = {node.offsetx, node.offsety};
-  float2 loc = bke::node_to_view(&node, math::round(node_offset));
-  loc *= dpi_fac;
+  float2 loc = bke::node_to_view(&node, float2(0)) * dpi_fac;
 
   /* Use top-left corner as the transform origin for nodes. */
   /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
@@ -226,16 +226,14 @@ static void flushTransNodes(TransInfo *t)
       TransData2D *td2d = &tc->data_2d[i];
       bNode *node = static_cast<bNode *>(td->extra);
 
-      float2 loc;
-      add_v2_v2v2(loc, td2d->loc, offset);
+      float2 loc = float2(td2d->loc) + offset;
+      std::cout << __func__ << " loc: " << loc << std::endl;
 
       /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
       loc /= dpi_fac;
 
       /* Account for parents (nested nodes). */
-      const float2 node_offset = {node->offsetx, node->offsety};
-      const float2 new_node_location = loc - math::round(node_offset);
-      const float2 location = bke::node_from_view(node->parent, new_node_location);
+      const float2 location = bke::node_from_view(node->parent, loc);
       node->locx = location.x;
       node->locy = location.y;
     }

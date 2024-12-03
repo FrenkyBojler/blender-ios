@@ -372,13 +372,13 @@ float2 node_to_view(const bNode &node, const float2 &co)
 
 void node_to_updated_rect(const bNode &node, rctf &r_rect)
 {
-  const float2 xmin_ymax = node_to_view(node, {node.offsetx, node.offsety});
-  r_rect.xmin = xmin_ymax.x;
-  r_rect.ymax = xmin_ymax.y;
-  const float2 xmax_ymin = node_to_view(node,
-                                        {node.offsetx + node.width, node.offsety - node.height});
-  r_rect.xmax = xmax_ymin.x;
-  r_rect.ymin = xmax_ymin.y;
+  const float2 min = node_to_view(node, float2(0.0f, -node.height));
+  const float2 max = node_to_view(node, float2(node.width, 0.0f));
+  r_rect.xmin = min.x;
+  r_rect.ymin = min.y;
+  r_rect.xmax = max.x;
+  r_rect.ymax = max.y;
+  // std::cout << __func__ << " min: " << min << " max: " << max << std::endl;
 }
 
 float2 node_from_view(const bNode &node, const float2 &co)
@@ -3879,11 +3879,15 @@ static float frame_node_label_height(const NodeFrame &frame_data)
 
 #define NODE_FRAME_MARGIN (1.5f * U.widget_unit)
 
-/* XXX Does a bounding box update by iterating over all children.
+/**
+ * Does a bounding box update by iterating over all children.
  * Not ideal to do this in every draw call, but doing as transform callback doesn't work,
- * since the child node totr rects are not updated properly at that point. */
+ * since the frame node automatic size depends on the size of each node which is only calculated
+ * while drawing.
+ */
 static void frame_node_prepare_for_draw(bNode &node, Span<bNode *> nodes)
 {
+  std::cout << "  " << node.name << std::endl;
   NodeFrame *data = (NodeFrame *)node.storage;
 
   const float margin = NODE_FRAME_MARGIN;
@@ -3897,6 +3901,16 @@ static void frame_node_prepare_for_draw(bNode &node, Span<bNode *> nodes)
   /* Initialize rect from current frame size. */
   rctf rect;
   node_to_updated_rect(node, rect);
+
+  rect.xmin /= UI_SCALE_FAC;
+  rect.ymin /= UI_SCALE_FAC;
+  rect.xmax /= UI_SCALE_FAC;
+  rect.ymax /= UI_SCALE_FAC;
+  print_rctf("    before", &rect);
+  rect.xmin *= UI_SCALE_FAC;
+  rect.ymin *= UI_SCALE_FAC;
+  rect.xmax *= UI_SCALE_FAC;
+  rect.ymax *= UI_SCALE_FAC;
 
   /* Frame can be resized manually only if shrinking is disabled or no children are attached. */
   data->flag |= NODE_FRAME_RESIZEABLE;
@@ -3927,14 +3941,23 @@ static void frame_node_prepare_for_draw(bNode &node, Span<bNode *> nodes)
   }
 
   /* Now adjust the frame size from view-space bounding box. */
-  const float2 offset = node_from_view(node, {rect.xmin, rect.ymax});
-  node.offsetx = offset.x;
-  node.offsety = offset.y;
-  const float2 max = node_from_view(node, {rect.xmax, rect.ymin});
-  node.width = max.x - node.offsetx;
-  node.height = -max.y + node.offsety;
+  const float2 min = bke::node_from_view(node.parent, float2(rect.xmin, rect.ymin)) / UI_SCALE_FAC;
+  const float2 max = bke::node_from_view(node.parent, float2(rect.xmax, rect.ymax)) / UI_SCALE_FAC;
+  node.locx = min.x;
+  node.locy = max.y;
+  node.width = max.x - min.x;
+  node.height = max.y - min.y;
 
   node.runtime->totr = rect;
+
+  std::cout << "    min: " << min << " max: " << max << "\n";
+
+  node_to_updated_rect(node, rect);
+  rect.xmin /= UI_SCALE_FAC;
+  rect.ymin /= UI_SCALE_FAC;
+  rect.xmax /= UI_SCALE_FAC;
+  rect.ymax /= UI_SCALE_FAC;
+  print_rctf("    after", &rect);
 }
 
 static void reroute_node_prepare_for_draw(bNode &node)
@@ -3959,6 +3982,7 @@ static void node_update_nodetree(const bContext &C,
                                  Span<bNode *> nodes,
                                  Span<uiBlock *> blocks)
 {
+  std::cout << "NODE_UPDATE_NODETREE\n";
   /* Make sure socket "used" tags are correct, for displaying value buttons. */
   SpaceNode *snode = CTX_wm_space_node(&C);
 

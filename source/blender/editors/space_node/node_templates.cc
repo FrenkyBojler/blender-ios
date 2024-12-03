@@ -240,8 +240,6 @@ static void node_socket_add_replace(const bContext *C,
       /* If we're replacing existing node, use its location. */
       node_from->locx = node_prev->locx;
       node_from->locy = node_prev->locy;
-      node_from->offsetx = node_prev->offsetx;
-      node_from->offsety = node_prev->offsety;
     }
     else {
       sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
