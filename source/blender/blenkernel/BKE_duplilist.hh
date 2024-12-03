@@ -36,7 +36,7 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
                                    const ViewerPath *viewer_path);
 void free_object_duplilist(ListBase *lb);
 
-#define MAX_DUPLI_RECUR 8
+inline constexpr int MAX_DUPLI_RECUR = 8;
 
 struct DupliObject {
   DupliObject *next, *prev;
