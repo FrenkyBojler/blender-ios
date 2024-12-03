@@ -85,7 +85,11 @@ class Action : public ::bAction {
    */
   Action(const Action &other) = delete;
 
-  /* Discriminators for 'legacy' and 'layered' Actions. */
+  /* Discriminators for 'legacy' and 'layered' Actions.
+   *
+   * Note: these are transitional APIs, and should eventually be removed when
+   * legacy actions become fully unsupported in the other code.
+   */
   /**
    * Return whether this Action has any data at all.
    *
