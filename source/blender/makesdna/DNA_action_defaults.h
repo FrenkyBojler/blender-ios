@@ -14,17 +14,18 @@
 
 /* -------------------------------------------------------------------- */
 /** \name Action Struct
- *
- * The last_slot_handle is set to a high value to disambiguate slot handles from
+ * \{ */
+
+/* The last_slot_handle is set to a high value to disambiguate slot handles from
  * array indices.
  *
  * This particular value was obtained by taking the 31 LSB of the TentHash value
- * (Nathan's hash function) for the string "Quercus & Laksa" (Sybren's cats).
- * \{ */
+ * (Nathan's hash function) for the string "Quercus & Laksa" (Sybren's cats). */
+#define DNA_DEFAULT_BACTION_LAST_SLOT_HANDLE 0x3bc119ba
 
 #define _DNA_DEFAULT_bAction \
   { \
-  .last_slot_handle = 0x3bc119ba, \
+  .last_slot_handle = DNA_DEFAULT_BACTION_LAST_SLOT_HANDLE, \
   }
 
 /** \} */
