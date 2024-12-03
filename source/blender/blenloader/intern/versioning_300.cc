@@ -871,8 +871,6 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
     store_attribute_node->parent = node->parent;
     store_attribute_node->locx = node->locx + 25;
     store_attribute_node->locy = node->locy;
-    store_attribute_node->offsetx_legacy = node->offsetx_legacy;
-    store_attribute_node->offsety_legacy = node->offsety_legacy;
     auto &storage = *MEM_cnew<NodeGeometryStoreNamedAttribute>(__func__);
     store_attribute_node->storage = &storage;
     storage.domain = int8_t(blender::bke::AttrDomain::Corner);

@@ -364,27 +364,30 @@ static Array<uiBlock *> node_uiblocks_init(const bContext &C, const Span<bNode *
   return blocks;
 }
 
-float2 node_to_view(const bNode &node, const float2 &co)
+float2 node_to_view(const float2 &co)
 {
-  const float2 node_location = bke::node_to_view(&node, co);
-  return node_location * UI_SCALE_FAC;
+  return co * UI_SCALE_FAC;
+}
+
+static rctf node_to_rect(const bNode &node)
+{
+  rctf rect{};
+  rect.xmin = node.locx;
+  rect.ymin = node.locy - node.height;
+  rect.xmax = node.locx + node.width;
+  rect.ymax = node.locy;
+  return rect;
 }
 
 void node_to_updated_rect(const bNode &node, rctf &r_rect)
 {
-  const float2 min = node_to_view(node, float2(0.0f, -node.height));
-  const float2 max = node_to_view(node, float2(node.width, 0.0f));
-  r_rect.xmin = min.x;
-  r_rect.ymin = min.y;
-  r_rect.xmax = max.x;
-  r_rect.ymax = max.y;
-  // std::cout << __func__ << " min: " << min << " max: " << max << std::endl;
+  r_rect = node_to_rect(node);
+  BLI_rctf_mul(&r_rect, UI_SCALE_FAC);
 }
 
-float2 node_from_view(const bNode &node, const float2 &co)
+float2 node_from_view(const float2 &co)
 {
-  const float2 node_location = co / UI_SCALE_FAC;
-  return bke::node_from_view(&node, node_location);
+  return co / UI_SCALE_FAC;
 }
 
 static bool is_node_panels_supported(const bNode &node)
@@ -408,11 +411,8 @@ static bool node_update_basis_buttons(const bContext &C,
 
   PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
 
-  /* Get "global" coordinates. */
-  float2 loc = node_to_view(node, float2(0));
   /* Round the node origin because text contents are always pixel-aligned. */
-  loc.x = round(loc.x);
-  loc.y = round(loc.y);
+  const float2 loc = node_to_view(math::round(float2(node.locx, node.locy)));
 
   dy -= NODE_DYS / 4;
 
@@ -1097,7 +1097,7 @@ static void node_update_basis_from_declaration(
           else if constexpr (std::is_same_v<ItemT, flat_item::Layout>) {
             const nodes::LayoutDeclaration &decl = *item.decl;
             /* Round the node origin because text contents are always pixel-aligned. */
-            const float2 loc = math::round(node_to_view(node, float2(0)));
+            const float2 loc = math::round(node_to_view(float2(node.locx, node.locy)));
             uiLayout *layout = UI_block_layout(&block,
                                                UI_LAYOUT_VERTICAL,
                                                UI_LAYOUT_PANEL,
@@ -1220,11 +1220,8 @@ static void node_update_basis(const bContext &C,
                               bNode &node,
                               uiBlock &block)
 {
-  /* Get "global" coordinates. */
-  float2 loc = node_to_view(node, float2(0));
   /* Round the node origin because text contents are always pixel-aligned. */
-  loc.x = round(loc.x);
-  loc.y = round(loc.y);
+  const float2 loc = node_to_view(math::round(float2(node.locx, node.locy)));
 
   int dy = loc.y;
 
@@ -1259,11 +1256,8 @@ static void node_update_hidden(bNode &node, uiBlock &block)
 {
   int totin = 0, totout = 0;
 
-  /* Get "global" coordinates. */
-  float2 loc = node_to_view(node, float2(0));
   /* Round the node origin because text contents are always pixel-aligned. */
-  loc.x = round(loc.x);
-  loc.y = round(loc.y);
+  const float2 loc = math::round(node_to_view(float2(node.locx, node.locy)));
 
   /* Calculate minimal radius. */
   for (const bNodeSocket *socket : node.input_sockets()) {
@@ -3887,7 +3881,6 @@ static float frame_node_label_height(const NodeFrame &frame_data)
  */
 static void frame_node_prepare_for_draw(bNode &node, Span<bNode *> nodes)
 {
-  std::cout << "  " << node.name << std::endl;
   NodeFrame *data = (NodeFrame *)node.storage;
 
   const float margin = NODE_FRAME_MARGIN;
@@ -3901,16 +3894,6 @@ static void frame_node_prepare_for_draw(bNode &node, Span<bNode *> nodes)
   /* Initialize rect from current frame size. */
   rctf rect;
   node_to_updated_rect(node, rect);
-
-  rect.xmin /= UI_SCALE_FAC;
-  rect.ymin /= UI_SCALE_FAC;
-  rect.xmax /= UI_SCALE_FAC;
-  rect.ymax /= UI_SCALE_FAC;
-  print_rctf("    before", &rect);
-  rect.xmin *= UI_SCALE_FAC;
-  rect.ymin *= UI_SCALE_FAC;
-  rect.xmax *= UI_SCALE_FAC;
-  rect.ymax *= UI_SCALE_FAC;
 
   /* Frame can be resized manually only if shrinking is disabled or no children are attached. */
   data->flag |= NODE_FRAME_RESIZEABLE;
@@ -3941,28 +3924,19 @@ static void frame_node_prepare_for_draw(bNode &node, Span<bNode *> nodes)
   }
 
   /* Now adjust the frame size from view-space bounding box. */
-  const float2 min = bke::node_from_view(node.parent, float2(rect.xmin, rect.ymin)) / UI_SCALE_FAC;
-  const float2 max = bke::node_from_view(node.parent, float2(rect.xmax, rect.ymax)) / UI_SCALE_FAC;
+  const float2 min = node_from_view({rect.xmin, rect.ymin});
+  const float2 max = node_from_view({rect.xmax, rect.ymax});
   node.locx = min.x;
   node.locy = max.y;
   node.width = max.x - min.x;
   node.height = max.y - min.y;
 
   node.runtime->totr = rect;
-
-  std::cout << "    min: " << min << " max: " << max << "\n";
-
-  node_to_updated_rect(node, rect);
-  rect.xmin /= UI_SCALE_FAC;
-  rect.ymin /= UI_SCALE_FAC;
-  rect.xmax /= UI_SCALE_FAC;
-  rect.ymax /= UI_SCALE_FAC;
-  print_rctf("    after", &rect);
 }
 
 static void reroute_node_prepare_for_draw(bNode &node)
 {
-  const float2 loc = node_to_view(node, float2(0));
+  const float2 loc = node_to_view({node.locx, node.locy});
 
   /* When the node is hidden, the input and output socket are both in the same place. */
   node.input_socket(0).runtime->location = loc;
@@ -3982,7 +3956,6 @@ static void node_update_nodetree(const bContext &C,
                                  Span<bNode *> nodes,
                                  Span<uiBlock *> blocks)
 {
-  std::cout << "NODE_UPDATE_NODETREE\n";
   /* Make sure socket "used" tags are correct, for displaying value buttons. */
   SpaceNode *snode = CTX_wm_space_node(&C);
 

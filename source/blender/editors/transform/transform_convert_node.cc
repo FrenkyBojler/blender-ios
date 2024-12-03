@@ -19,6 +19,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "ED_node.hh"
 
@@ -51,7 +52,7 @@ static void create_transform_data_for_node(TransData &td,
                                            const float dpi_fac)
 {
   /* Account for parents (nested nodes). */
-  float2 loc = bke::node_to_view(&node, float2(0)) * dpi_fac;
+  float2 loc = float2(node.locx, node.locy) * dpi_fac;
 
   /* Use top-left corner as the transform origin for nodes. */
   /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
@@ -186,6 +187,17 @@ static void node_snap_grid_apply(TransInfo *t)
   }
 }
 
+static void move_child_nodes(bNode &node, const float2 &delta)
+{
+  for (bNode *child : node.direct_children_in_frame()) {
+    child->locx += delta.x;
+    child->locy += delta.y;
+    if (child->is_frame()) {
+      move_child_nodes(*child, delta);
+    }
+  }
+}
+
 static void flushTransNodes(TransInfo *t)
 {
   const float dpi_fac = UI_SCALE_FAC;
@@ -227,15 +239,17 @@ static void flushTransNodes(TransInfo *t)
       bNode *node = static_cast<bNode *>(td->extra);
 
       float2 loc = float2(td2d->loc) + offset;
-      std::cout << __func__ << " loc: " << loc << std::endl;
 
       /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
       loc /= dpi_fac;
 
-      /* Account for parents (nested nodes). */
-      const float2 location = bke::node_from_view(node->parent, loc);
-      node->locx = location.x;
-      node->locy = location.y;
+      if (node->is_frame()) {
+        const float2 delta = loc - float2(node->locx, node->locy);
+        move_child_nodes(*node, delta);
+      }
+
+      node->locx = loc.x;
+      node->locy = loc.y;
     }
 
     /* Handle intersection with noodles. */

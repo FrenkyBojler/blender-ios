@@ -425,7 +425,7 @@ typedef struct bNode {
   /** Parent node (for frame nodes). */
   struct bNode *parent;
 
-  /** Root location in the node canvas (in parent space). */
+  /** The location of the top left corner of the node on the canvas. */
   float locx, locy;
   /**
    * Custom width and height controlled by users. Height is calculate automatically for most

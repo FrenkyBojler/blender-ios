@@ -3082,48 +3082,18 @@ void node_internal_relink(bNodeTree *ntree, bNode *node)
   }
 }
 
-float2 node_to_view(const bNode *node, const float2 loc)
-{
-  float2 view_loc = loc;
-  for (const bNode *node_iter = node; node_iter; node_iter = node_iter->parent) {
-    view_loc += float2(node_iter->locx, node_iter->locy);
-  }
-  return view_loc;
-}
-
-float2 node_from_view(const bNode *node, const float2 view_loc)
-{
-  float2 loc = view_loc;
-  for (const bNode *node_iter = node; node_iter; node_iter = node_iter->parent) {
-    loc -= float2(node_iter->locx, node_iter->locy);
-  }
-  return loc;
-}
-
 void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)
 {
   BLI_assert(parent->type == NODE_FRAME);
   BLI_assert(!node_is_parent_and_child(parent, node));
-
-  const float2 loc = node_to_view(node, {});
-
   node->parent = parent;
   BKE_ntree_update_tag_parent_change(ntree, node);
-  /* transform to parent space */
-  const float2 new_loc = node_from_view(parent, loc);
-  node->locx = new_loc.x;
-  node->locy = new_loc.y;
 }
 
 void node_detach_node(bNodeTree *ntree, bNode *node)
 {
   if (node->parent) {
     BLI_assert(node->parent->type == NODE_FRAME);
-
-    /* transform to view space */
-    const float2 loc = node_to_view(node, {});
-    node->locx = loc.x;
-    node->locy = loc.y;
     node->parent = nullptr;
     BKE_ntree_update_tag_parent_change(ntree, node);
   }
