@@ -37,7 +37,6 @@ VERTEX_SOURCE("basic_depth_curves_vert.glsl")
 ADDITIONAL_INFO(draw_hair)
 GPU_SHADER_CREATE_END()
 
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

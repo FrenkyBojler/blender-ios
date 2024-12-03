@@ -361,7 +361,6 @@ VERTEX_SOURCE("overlay_edit_uv_edges_vert.glsl")
 GEOMETRY_SOURCE("overlay_edit_uv_edges_geom.glsl")
 GPU_SHADER_CREATE_END()
 
-
 GPU_SHADER_CREATE_INFO(overlay_edit_uv_edges_select)
 DO_STATIC_COMPILATION()
 DEFINE("USE_EDGE_SELECT")

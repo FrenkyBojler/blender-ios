@@ -275,7 +275,6 @@ ADDITIONAL_INFO(overlay_motion_path_line)
 ADDITIONAL_INFO(drw_clipped)
 GPU_SHADER_CREATE_END()
 
-
 GPU_SHADER_INTERFACE_INFO(overlay_motion_path_point_iface)
 FLAT(VEC4, finalColor)
 GPU_SHADER_INTERFACE_END()
