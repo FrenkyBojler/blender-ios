@@ -807,8 +807,9 @@ void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
 
     const bScreen *screen = WM_window_get_active_screen(win);
     ED_screen_areas_iter (win, screen, area) {
-      /* Ensure area and region types are set before doing any other area/region level things, they
-       * might be required. */
+      /* Set area and region types early so areas and regions are in a usable state. This may be
+       * needed by further (re-)initialization logic, specifically region polling needs it early on
+       * (see #130583). */
       ED_area_and_region_types_init(area);
     }
 
