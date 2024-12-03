@@ -12,6 +12,7 @@
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -221,6 +222,47 @@ static blender::animrig::Action &extract_pose(Main &bmain, Object &pose_object)
   return action;
 }
 
+/* Check that the newly created asset is visible SOMEWHERE in Blender. If not already visible,
+ * open the asset shelf on the current 3D view. The reason for not always doing that is that it
+ * might be annoying in case you have 2 3D viewports open, but you want the asset shelf on only one
+ * of them, or you work out of the asset browser.*/
+static void ensure_asset_ui_visible(bContext &C)
+{
+  ScrArea *current_area = CTX_wm_area(&C);
+  if (current_area->type->spaceid != SPACE_VIEW3D) {
+    /* Opening the asset shelf will only work from the 3D viewport. */
+    return;
+  }
+
+  wmWindowManager *wm = CTX_wm_manager(&C);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(win);
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->type->spaceid == SPACE_FILE) {
+        SpaceFile *sfile = reinterpret_cast<SpaceFile *>(area->spacedata.first);
+        if (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) {
+          /* Asset Browser is open. */
+          // return;
+        }
+        continue;
+      }
+      const ARegion *shelf_region = BKE_area_find_region_type(area, RGN_TYPE_ASSET_SHELF);
+      if (!shelf_region) {
+        continue;
+      }
+      if (!(shelf_region->flag & RGN_FLAG_HIDDEN)) {
+        /* A visible asset shelf was found. */
+        return;
+      }
+    }
+  }
+
+  /* At this point, no asset shelf or asset browser was visible anywhere. */
+  ARegion *shelf_region = BKE_area_find_region_type(current_area, RGN_TYPE_ASSET_SHELF);
+  shelf_region->flag &= ~RGN_FLAG_HIDDEN;
+  ED_region_visibility_change_update(&C, CTX_wm_area(&C), shelf_region);
+}
+
 static int pose_asset_create_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_NAME] = "";
@@ -272,6 +314,7 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
       *bmain, pose_action.id, name, *user_library, pose_asset_reference, *op->reports);
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
+  ensure_asset_ui_visible(*C);
   show_catalog_in_asset_shelf(*C, catalog_path);
 
   BKE_id_free(bmain, &pose_action.id);
@@ -713,8 +756,6 @@ static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_RUNNING_MODAL;
   }
 
-  View2D *v2d = UI_view2d_fromcontext(C);
-  wmWindow *window = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
 
   blender::int2 screen_space_mouse = {
@@ -737,7 +778,7 @@ static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int screenshot_preview_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int screenshot_preview_invoke(bContext *C, wmOperator *op, const wmEvent * /* event */)
 {
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
