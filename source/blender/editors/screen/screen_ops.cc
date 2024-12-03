@@ -10,7 +10,6 @@
 #include <cstring>
 #include <fmt/format.h>
 
-#include "ED_buttons.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_build_config.h"
@@ -55,6 +54,7 @@
 
 #include "ED_anim_api.hh"
 #include "ED_armature.hh"
+#include "ED_buttons.hh"
 #include "ED_fileselect.hh"
 #include "ED_image.hh"
 #include "ED_keyframes_keylist.hh"

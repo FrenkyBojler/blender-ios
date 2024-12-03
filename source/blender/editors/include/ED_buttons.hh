@@ -10,6 +10,7 @@
 
 #include "BKE_screen.hh"
 #include "DNA_workspace_types.h"
+
 struct ScrArea;
 struct SpaceProperties;
 struct bContext;

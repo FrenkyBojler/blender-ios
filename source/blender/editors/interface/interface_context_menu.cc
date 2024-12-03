@@ -10,8 +10,6 @@
 
 #include <cstring>
 
-#include "DNA_space_types.h"
-#include "ED_buttons.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -30,6 +28,7 @@
 #include "BKE_screen.hh"
 
 #include "ED_asset.hh"
+#include "ED_buttons.hh"
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
 

@@ -6,20 +6,19 @@
  * \ingroup spbuttons
  */
 
-#include <cstddef>
 #include <cstdio>
 #include <cstring>
-#include <limits>
 
-#include "BLI_array_utils.h"
-#include "BLI_vector.hh"
-#include "DNA_scene_types.h"
-#include "DNA_workspace_types.h"
 #include "MEM_guardedalloc.h"
 
+#include "DNA_scene_types.h"
+#include "DNA_workspace_types.h"
+
+#include "BLI_array_utils.h"
 #include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
