@@ -44,21 +44,34 @@ class Slot;
 /**
  * Container of animation data for one or more animated IDs.
  *
- * Broadly an Action consists of Layers, each Layer has Strips, and it's the
- * Strips that eventually contain the animation data.
+ * An Action broadly consists of four things:
  *
- * Temporary limitation: each Action can only contain one Layer.
+ * 1. Layers. Layers contain Strips.
+ * 2. Strips. Strips reference StripData.
+ * 3. StripData. Strip<Type>Data contains animation data of the given type. For
+ *    example, StripKeyframeData (currently the only StripData type) contains
+ *    keyframes.
+ * 4. Slots. Slots are identifiers, used to index subsets of animation data
+ *    within StripData items.
  *
- * Which sub-set of that data drives the animation of which ID is determined by
- * which Slot is associated with that ID.
+ * StripData is not stored in the Strips themselves, but rather is stored
+ * separately at the top level of the Action, and each Strip *references* a
+ * StripData item. In the future this may be used for Strip instancing by having
+ * more than one Strip reference the same StripData item.
  *
- * \note This wrapper class for the `bAction` DNA struct only has functionality
- * for the layered animation data. The legacy F-Curves (in `bAction::curves`)
- * and their groups (in `bAction::groups`) are not managed here. To see whether
- * an Action uses this legacy data, or has been converted to the current layered
- * structure, use `Action::is_action_legacy()` and
- * `Action::is_action_layered()`. Note that an empty Action is considered valid
- * for both.
+ * Each Action has a single set of Slots defined at its top level. The animation
+ * data within a StripData item is organized into one or more subsets, each of
+ * which is marked as being for a different Slot.
+ *
+ * For an ID to be animated by an Action, the ID must specify both an Action and
+ * a Slot within that Action to be animated by. The Slot that the ID uses
+ * determines which subsets of the animation data throughout the Action it is
+ * animated by.
+ *
+ * \note Temporary limitations: each Action can only contain one Layer, and each
+ * Layer can only contain one infinite Strip with no time offset. These
+ * limitations will be progressively lifted as we implement layered animation
+ * and non-linear animation functionality for Actions in the future.
  *
  * \see #AnimData::action
  * \see #AnimData::slot_handle
