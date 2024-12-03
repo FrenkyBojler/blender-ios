@@ -926,7 +926,7 @@ void BLI_polyfill_calc(const float (*coords)[2],
   }
 
   PolyFill pf;
-  PolyIndex *indices = BLI_array_alloca(indices, coords_num);
+  PolyIndex *indices = static_cast<PolyIndex *>(BLI_array_alloca(indices, coords_num));
 
 #ifdef DEBUG_TIME
   TIMEIT_START(polyfill2d);
@@ -942,7 +942,8 @@ void BLI_polyfill_calc(const float (*coords)[2],
 
 #ifdef USE_KDTREE
   if (pf.coords_num_concave) {
-    pf.kdtree.nodes = BLI_array_alloca(pf.kdtree.nodes, pf.coords_num_concave);
+    pf.kdtree.nodes = static_cast<KDTreeNode2D *>(
+        BLI_array_alloca(pf.kdtree.nodes, pf.coords_num_concave));
     pf.kdtree.nodes_map = static_cast<uint32_t *>(
         memset(BLI_array_alloca(pf.kdtree.nodes_map, coords_num),
                0xff,
