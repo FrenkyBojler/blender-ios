@@ -1289,6 +1289,24 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
   IndexMaskMemory memory;
   const IndexMask points_to_copy = points_to_delete.complement(this->points_range(), memory);
   *this = curves_copy_point_selection(*this, points_to_copy, attribute_filter);
+  if (attributes().contains(ATTR_KNOT)) {
+    const VArray<int8_t> nurbs_knots_modes = this->nurbs_knots_modes();
+    const VArray<bool> cyclic = this->cyclic();
+    const OffsetIndices points_by_curve = this->points_by_curve();
+    const VArray<int8_t> nurbs_orders = this->nurbs_orders();
+    MutableSpan<float> knots = this->knots_for_write();
+
+    IndexMask must_be_clamped = IndexMask::from_predicate(
+        this->curves_range(), GrainSize(4096), memory, [&](const int64_t i) {
+          return !cyclic[i] && nurbs_knots_modes[i] == NURBS_KNOT_MODE_FREE;
+        });
+
+    must_be_clamped.foreach_index(GrainSize(256), [&](const int curve) {
+      MutableSpan<float> curve_knots = knots.slice(points_by_curve[curve]);
+      curve_knots[0] = 0.0f;
+      curve_knots.take_back(nurbs_orders[curve] - 2).fill(0.0f);
+    });
+  }
 }
 
 CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
