@@ -43,8 +43,10 @@ namespace blender::ed::sculpt_paint {
       return;
     }
 
-    /* Only allow float3 outputs */
-    if (*lazy_function.outputs()[0].type != CPPType::get<float3>()) {
+    const char* type = tree.interface_outputs()[0]->socket_type;
+    
+    /* Only allow vector outputs */
+    if (!STREQ(type, "NodeSocketVector")) {
       translations.fill(float3(0.0f));
       return;
     }
