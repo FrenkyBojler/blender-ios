@@ -54,7 +54,7 @@
 AnimData *ED_actedit_animdata_from_context(const bContext *C, ID **r_adt_id_owner)
 {
   { /* Support use from the layout.template_action() UI template. */
-    PointerRNA ptr = {nullptr};
+    PointerRNA ptr = {};
     PropertyRNA *prop = nullptr;
     UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
     /* template_action() sets a RNA_AnimData pointer, whereas other code may set
@@ -184,7 +184,7 @@ static void actedit_change_action(bContext *C, bAction *act)
 static bool action_new_poll(bContext *C)
 {
   { /* Support use from the layout.template_action() UI template. */
-    PointerRNA ptr = {nullptr};
+    PointerRNA ptr = {};
     PropertyRNA *prop = nullptr;
     UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
     if (prop) {
@@ -658,22 +658,16 @@ void ED_animedit_unlink_action(
     }
   }
   else {
-    /* Unlink normally - Setting it to nullptr should be enough to get the old one unlinked */
+    /* Clear AnimData -> action via RNA, so that it triggers message bus updates. */
+    PointerRNA ptr = RNA_pointer_create(id, &RNA_AnimData, adt);
+    PropertyRNA *prop = RNA_struct_find_property(&ptr, "action");
+
+    RNA_property_pointer_set(&ptr, prop, PointerRNA_NULL, nullptr);
+    RNA_property_update(C, &ptr, prop);
+
+    /* Also update the Action editor legacy Action pointer. */
     if (area->spacetype == SPACE_ACTION) {
-      /* clear action editor -> action */
       actedit_change_action(C, nullptr);
-    }
-    else {
-      /* clear AnimData -> action */
-      PropertyRNA *prop;
-
-      /* create AnimData RNA pointers */
-      PointerRNA ptr = RNA_pointer_create(id, &RNA_AnimData, adt);
-      prop = RNA_struct_find_property(&ptr, "action");
-
-      /* clear... */
-      RNA_property_pointer_set(&ptr, prop, PointerRNA_NULL, nullptr);
-      RNA_property_update(C, &ptr, prop);
     }
   }
 }

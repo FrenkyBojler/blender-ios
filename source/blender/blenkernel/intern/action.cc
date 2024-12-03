@@ -36,6 +36,8 @@
 
 #include "BLT_translation.hh"
 
+#include "BLO_read_write.hh"
+
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
@@ -308,10 +310,9 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-#ifdef WITH_ANIM_BAKLAVA
-static void write_channelbag(BlendWriter *writer, animrig::ChannelBag &channelbag)
+static void write_channelbag(BlendWriter *writer, animrig::Channelbag &channelbag)
 {
-  BLO_write_struct(writer, ActionChannelBag, &channelbag);
+  BLO_write_struct(writer, ActionChannelbag, &channelbag);
 
   Span<bActionGroup *> groups = channelbag.channel_groups();
   BLO_write_pointer_array(writer, groups.size(), groups.data());
@@ -335,7 +336,7 @@ static void write_strip_keyframe_data(BlendWriter *writer,
   auto channelbags = strip_keyframe_data.channelbags();
   BLO_write_pointer_array(writer, channelbags.size(), channelbags.data());
 
-  for (animrig::ChannelBag *channelbag : channelbags) {
+  for (animrig::Channelbag *channelbag : channelbags) {
     write_channelbag(writer, *channelbag);
   }
 }
@@ -485,13 +486,11 @@ static void action_blend_write_clear_legacy_fcurves_listbase(ListBase &listbase)
 
   BLI_listbase_clear(&listbase);
 }
-#endif /* WITH_ANIM_BAKLAVA */
 
 static void action_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(id)->wrap();
 
-#ifdef WITH_ANIM_BAKLAVA
   /* Create legacy data for Layered Actions: the F-Curves from the first Slot,
    * bottom layer, first Keyframe strip. */
   const bool do_write_forward_compat = !BLO_write_is_undo(writer) && action.slot_array_num > 0 &&
@@ -509,34 +508,16 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
      * forward-compat legacy data is also written, and vice-versa. Both have
      * pointers to each other that won't resolve properly when loaded in older
      * Blender versions if only one is written. */
-    animrig::ChannelBag *bag = channelbag_for_action_slot(action, first_slot.handle);
+    animrig::Channelbag *bag = channelbag_for_action_slot(action, first_slot.handle);
     if (bag) {
       action_blend_write_make_legacy_fcurves_listbase(action.curves, bag->fcurves());
       action_blend_write_make_legacy_channel_groups_listbase(action.groups, bag->channel_groups());
     }
   }
-#else
-  /* Built without Baklava, so ensure that the written data is clean. This should not change
-   * anything, as the reading code below also ensures these fields are empty, and the APIs to add
-   * those should be unavailable. */
-  BLI_assert_msg(action.layer_array == nullptr,
-                 "Action should not have layers, built without Baklava experimental feature");
-  BLI_assert_msg(action.layer_array_num == 0,
-                 "Action should not have layers, built without Baklava experimental feature");
-  BLI_assert_msg(action.slot_array == nullptr,
-                 "Action should not have slots, built without Baklava experimental feature");
-  BLI_assert_msg(action.slot_array_num == 0,
-                 "Action should not have slots, built without Baklava experimental feature");
-  action.layer_array = nullptr;
-  action.layer_array_num = 0;
-  action.slot_array = nullptr;
-  action.slot_array_num = 0;
-#endif /* WITH_ANIM_BAKLAVA */
 
   BLO_write_id_struct(writer, bAction, id_address, &action.id);
   BKE_id_blend_write(writer, &action.id);
 
-#ifdef WITH_ANIM_BAKLAVA
   /* Write layered Action data. */
   write_strip_keyframe_data_array(writer, action.strip_keyframe_data());
   write_layers(writer, action.layers());
@@ -558,7 +539,6 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     action_blend_write_clear_legacy_channel_groups_listbase(action.groups);
     action_blend_write_clear_legacy_fcurves_listbase(action.curves);
   }
-#endif /* WITH_ANIM_BAKLAVA */
 
   /* Write legacy F-Curves & Groups. */
   BKE_fcurve_blend_write_listbase(writer, &action.curves);
@@ -573,15 +553,13 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_previewimg_blend_write(writer, action.preview);
 }
 
-#ifdef WITH_ANIM_BAKLAVA
-
-static void read_channelbag(BlendDataReader *reader, animrig::ChannelBag &channelbag)
+static void read_channelbag(BlendDataReader *reader, animrig::Channelbag &channelbag)
 {
   BLO_read_pointer_array(
       reader, channelbag.group_array_num, reinterpret_cast<void **>(&channelbag.group_array));
   for (int i = 0; i < channelbag.group_array_num; i++) {
     BLO_read_struct(reader, bActionGroup, &channelbag.group_array[i]);
-    channelbag.group_array[i]->channel_bag = &channelbag;
+    channelbag.group_array[i]->channelbag = &channelbag;
 
     /* Clear the legacy channels #ListBase, since it will have been set for some
      * groups for forward compatibility.
@@ -612,8 +590,8 @@ static void read_strip_keyframe_data(BlendDataReader *reader,
                          reinterpret_cast<void **>(&strip_keyframe_data.channelbag_array));
 
   for (int i = 0; i < strip_keyframe_data.channelbag_array_num; i++) {
-    BLO_read_struct(reader, ActionChannelBag, &strip_keyframe_data.channelbag_array[i]);
-    ActionChannelBag *channelbag = strip_keyframe_data.channelbag_array[i];
+    BLO_read_struct(reader, ActionChannelbag, &strip_keyframe_data.channelbag_array[i]);
+    ActionChannelbag *channelbag = strip_keyframe_data.channelbag_array[i];
     read_channelbag(reader, channelbag->wrap());
   }
 }
@@ -678,27 +656,21 @@ static void read_slots(BlendDataReader *reader, animrig::Action &action)
     action.slot_array[i]->wrap().blend_read_post();
   }
 }
-#endif /* WITH_ANIM_BAKLAVA */
 
 static void action_blend_read_data(BlendDataReader *reader, ID *id)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(id)->wrap();
 
-#ifdef WITH_ANIM_BAKLAVA
+  /* Undo generic endian switching (careful, only the two least significant bytes of the int32 must
+   * be swapped back here, since this value is actually an int16). */
+  if (BLO_read_requires_endian_switch(reader)) {
+    bAction *act = reinterpret_cast<bAction *>(id);
+    BLI_endian_switch_int16(reinterpret_cast<short *>(&act->idroot));
+  }
+
   read_strip_keyframe_data_array(reader, action);
   read_layers(reader, action);
   read_slots(reader, action);
-#else
-  /* Built without Baklava, so do not read the layers, strips, slots, etc.
-   * This ensures the F-Curves in the legacy `curves` ListBase are read & used
-   * (these are written by future Blender versions for forward compatibility). */
-  action.layer_array = nullptr;
-  action.layer_array_num = 0;
-  action.slot_array = nullptr;
-  action.slot_array_num = 0;
-  action.strip_keyframe_data_array = nullptr;
-  action.strip_keyframe_data_array_num = 0;
-#endif /* WITH_ANIM_BAKLAVA */
 
   if (action.is_action_layered()) {
     /* Clear the forward-compatible storage (see action_blend_write_data()). */
@@ -722,12 +694,6 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
     LISTBASE_FOREACH (bActionGroup *, agrp, &action.groups) {
       BLO_read_struct(reader, FCurve, &agrp->channels.first);
       BLO_read_struct(reader, FCurve, &agrp->channels.last);
-#ifndef WITH_ANIM_BAKLAVA
-      /* Ensure that the group's 'channelbag' pointer is nullptr. This is used to distinguish
-       * groups from legacy vs layered Actions, and since this Blender is built without layered
-       * Actions support, the Action should be treated as legacy. */
-      agrp->channel_bag = nullptr;
-#endif
     }
   }
 
@@ -814,7 +780,7 @@ bAction *BKE_action_add(Main *bmain, const char name[])
 
 bActionGroup *get_active_actiongroup(bAction *act)
 {
-  /* TODO: move this logic to the animrig::ChannelBag struct and unify with code
+  /* TODO: move this logic to the animrig::Channelbag struct and unify with code
    * that uses direct access to the flags. */
   for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
     if (agrp->flag & AGRP_ACTIVE) {
@@ -826,7 +792,7 @@ bActionGroup *get_active_actiongroup(bAction *act)
 
 void set_active_action_group(bAction *act, bActionGroup *agrp, short select)
 {
-  /* TODO: move this logic to the animrig::ChannelBag struct and unify with code
+  /* TODO: move this logic to the animrig::Channelbag struct and unify with code
    * that uses direct access to the flags. */
   for (bActionGroup *grp : animrig::legacy::channel_groups_all(act)) {
     if ((grp == agrp) && (select)) {
@@ -1678,6 +1644,12 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
   copy_v3_v3(pchan->custom_rotation_euler, pchan_from->custom_rotation_euler);
   pchan->custom_shape_wire_width = pchan_from->custom_shape_wire_width;
 
+  pchan->color.palette_index = pchan_from->color.palette_index;
+  copy_v4_v4_uchar(pchan->color.custom.active, pchan_from->color.custom.active);
+  copy_v4_v4_uchar(pchan->color.custom.select, pchan_from->color.custom.select);
+  copy_v4_v4_uchar(pchan->color.custom.solid, pchan_from->color.custom.solid);
+  pchan->color.custom.flag = pchan_from->color.custom.flag;
+
   pchan->drawflag = pchan_from->drawflag;
 }
 
@@ -1941,7 +1913,7 @@ void what_does_obaction(Object *ob,
     /* Find the named channel group. */
     Action &action = act->wrap();
     if (action.is_action_layered()) {
-      ChannelBag *cbag = channelbag_for_action_slot(action, action_slot_handle);
+      Channelbag *cbag = channelbag_for_action_slot(action, action_slot_handle);
       agrp = cbag ? cbag->channel_group_find(groupname) : nullptr;
     }
     else {
