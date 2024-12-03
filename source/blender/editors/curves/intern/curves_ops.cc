@@ -1360,7 +1360,7 @@ static int exec(bContext *C, wmOperator * /*op*/)
                             [&](const int i) { cyclic.span[i] = !cyclic.span[i]; });
     cyclic.finish();
 
-    if (!cyclic.span.as_span().contains(true)) {
+    if (!cyclic.span.contains(true)) {
       attributes.remove("cyclic");
     }
 

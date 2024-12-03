@@ -3303,11 +3303,6 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
   if (ob) {
     ob_to_keylist(&ads, ob, keylist, 0, {-FLT_MAX, FLT_MAX});
 
-    if (ob->type == OB_GPENCIL_LEGACY) {
-      const bool active = !(scene->flag & SCE_KEYS_NO_SELONLY);
-      gpencil_to_keylist(&ads, static_cast<bGPdata *>(ob->data), keylist, active);
-    }
-
     if (ob->type == OB_GREASE_PENCIL) {
       const bool active_layer_only = !(scene->flag & SCE_KEYS_NO_SELONLY);
       grease_pencil_data_block_to_keylist(
@@ -3905,6 +3900,23 @@ static int area_join_cursor(sAreaJoinData *jd, const wmEvent *event)
       return (jd->split_dir == SCREEN_AXIS_V) ? WM_CURSOR_V_SPLIT : WM_CURSOR_H_SPLIT;
     }
     return WM_CURSOR_EDIT;
+  }
+
+  if (jd->dir != SCREEN_DIR_NONE) {
+    /* Joining */
+    switch (jd->dir) {
+      case SCREEN_DIR_N:
+        return WM_CURSOR_N_ARROW;
+        break;
+      case SCREEN_DIR_S:
+        return WM_CURSOR_S_ARROW;
+        break;
+      case SCREEN_DIR_W:
+        return WM_CURSOR_W_ARROW;
+        break;
+      default:
+        return WM_CURSOR_E_ARROW;
+    }
   }
 
   if (jd->dir != SCREEN_DIR_NONE || jd->dock_target != AreaDockTarget::None) {
@@ -5305,6 +5317,18 @@ static bool match_region_with_redraws(const ScrArea *area,
         break;
     }
   }
+  else if (regiontype == RGN_TYPE_TOOLS) {
+    switch (spacetype) {
+      case SPACE_SPREADSHEET:
+        if (redraws & TIME_SPREADSHEETS) {
+          return true;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   return false;
 }
 
