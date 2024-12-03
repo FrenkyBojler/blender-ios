@@ -87,14 +87,13 @@ void BLI_covariance_m_vn_ex(const int n,
 
   memset(r_covmat, 0, sizeof(*r_covmat) * (size_t)(n * n));
 
-  CovarianceData data = {
-      .cos_vn = cos_vn,
-      .center = center,
-      .r_covmat = r_covmat,
-      .covfac = covfac,
-      .n = n,
-      .cos_vn_num = cos_vn_num,
-  };
+  CovarianceData data{};
+  data.cos_vn = cos_vn;
+  data.center = center;
+  data.r_covmat = r_covmat;
+  data.covfac = covfac;
+  data.n = n;
+  data.cos_vn_num = cos_vn_num;
 
   TaskParallelSettings settings;
   BLI_parallel_range_settings_defaults(&settings);
