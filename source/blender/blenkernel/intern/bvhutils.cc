@@ -973,7 +973,7 @@ void BKE_bvhtree_from_mesh_tris_init(const Mesh &mesh,
 
   int active_num = -1;
   BVHTree *tree = bvhtree_new_common(0.0f, 2, 6, tris_num, active_num);
-  r_data.owned_tree = tree;
+  r_data.owned_tree = std::unique_ptr<BVHTree, BVHTreeDeleter>(tree);
   r_data.tree = tree;
   if (tree == nullptr) {
     return;
@@ -1014,7 +1014,7 @@ void BKE_bvhtree_from_mesh_edges_init(const Mesh &mesh,
 
   int active_num = -1;
   BVHTree *tree = bvhtree_new_common(0.0f, 2, 6, edges_mask.size(), active_num);
-  r_data.owned_tree = tree;
+  r_data.owned_tree = std::unique_ptr<BVHTree, BVHTreeDeleter>(tree);
   r_data.tree = tree;
   if (tree == nullptr) {
     return;
@@ -1050,7 +1050,7 @@ void BKE_bvhtree_from_mesh_verts_init(const Mesh &mesh,
 
   int active_num = -1;
   BVHTree *tree = bvhtree_new_common(0.0f, 2, 6, verts_mask.size(), active_num);
-  r_data.owned_tree = tree;
+  r_data.owned_tree = std::unique_ptr<BVHTree, BVHTreeDeleter>(tree);
   r_data.tree = tree;
   if (tree == nullptr) {
     return;

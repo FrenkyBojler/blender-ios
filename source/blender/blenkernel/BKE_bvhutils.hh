@@ -23,6 +23,14 @@ struct MFace;
 struct Mesh;
 struct PointCloud;
 
+class BVHTreeDeleter {
+ public:
+  void operator()(BVHTree *tree)
+  {
+    BLI_bvhtree_free(tree);
+  }
+};
+
 /**
  * Struct that stores basic information about a #BVHTree built from a mesh.
  */
@@ -41,14 +49,7 @@ struct BVHTreeFromMesh {
 
   const MFace *face = nullptr;
 
-  BVHTree *owned_tree = nullptr;
-
-  ~BVHTreeFromMesh()
-  {
-    if (this->owned_tree) {
-      BLI_bvhtree_free(this->owned_tree);
-    }
-  }
+  std::unique_ptr<BVHTree, BVHTreeDeleter> owned_tree;
 };
 
 enum BVHCacheType {
