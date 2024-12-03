@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  if (params.user_data()->call_data->sculpting_data) {
+  if (params.user_data()->call_data->sculpt_data) {
     Field<float3> position_field{ std::make_shared<SculptPositionFieldInput>() };
     params.set_output("Position", std::move(position_field));
   }
