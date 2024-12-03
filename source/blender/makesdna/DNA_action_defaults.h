@@ -22,11 +22,11 @@
  * This particular value was obtained by taking the 31 most-significant bits of
  * the TentHash value (Nathan's hash function) for the string "Quercus&Laksa"
  * (Sybren's cats). */
-#define DNA_DEFAULT_BACTION_LAST_SLOT_HANDLE 0x37627bf5
+#define DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE 0x37627bf5
 
 #define _DNA_DEFAULT_bAction \
   { \
-  .last_slot_handle = DNA_DEFAULT_BACTION_LAST_SLOT_HANDLE, \
+  .last_slot_handle = DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE, \
   }
 
 /** \} */
