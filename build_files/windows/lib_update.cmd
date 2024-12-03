@@ -10,6 +10,12 @@ if "%BUILD_ARCH%" == "arm64" (
 if errorlevel 1 (
 		set /p LibRetry= "Error during update, retry? y/n"
 		if /I "!LibRetry!"=="Y" (
+			rem Basic cleanup:
+			rem NOTE: the cleanup is only tried during the second retry!
+			rmdir /s /q ".git\modules\%BUILD_VS_LIBDIR%"
+			"%GIT%" config --remove-section "submodule.%BUILD_VS_LIBDIR%" || echo failed to remove "submodule.%BUILD_VS_LIBDIR%" from git config. Remove it manually please.
+			rmdir /s /q "%BUILD_VS_LIBDIR%"
+			mkdir "%BUILD_VS_LIBDIR%" 2>nul
 			goto RETRY
 		)
 		echo.

@@ -37,6 +37,11 @@ if NOT EXIST "%BUILD_VS_LIBDIR%\.git" (
 			if errorlevel 1 (
 				set /p LibRetry= "Error during download, retry? y/n"
 				if /I "!LibRetry!"=="Y" (
+					rem Basic cleanup
+					rmdir /s /q ".git\modules\%BUILD_VS_LIBDIR%"
+					"%GIT%" config --remove-section "submodule.%BUILD_VS_LIBDIR%"
+					rmdir /s /q "%BUILD_VS_LIBDIR%"
+					mkdir "%BUILD_VS_LIBDIR%"
 					goto RETRY
 				)
 				echo.
