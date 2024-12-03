@@ -461,14 +461,13 @@ inline void append_neighbors_to_vector(const OffsetIndices<int> faces,
     if (!hide_poly.is_empty() && hide_poly[face]) {
       continue;
     }
+    /* In order to support non-manifold topology, both neighboring vertices are added for each
+     * face corner. That results in half being duplicates for any "normal" topology. */
     const int2 neighbors = bke::mesh::face_find_adjacent_verts(faces[face], corner_verts, vert);
     for (const int neighbor : {neighbors[0], neighbors[1]}) {
-      /* In order to support non-manifold topology, both neighboring vertices are added for each
-       * face corner. That results in half being duplicates for any "normal" topology. */
-      for (int i = r_data.size() - 1; i >= vert_start; i--) {
-        if (r_data[i] == neighbor) {
-          continue;
-        }
+      const IndexRange existing_range = IndexRange::from_begin_end(vert_start, r_data.size());
+      if (r_data.as_span().slice(existing_range).contains(neighbor)) {
+        continue;
       }
       r_data.append(neighbor);
     }
