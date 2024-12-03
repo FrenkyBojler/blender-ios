@@ -1658,13 +1658,13 @@ static void paint_draw_3D_view_inactive_brush_cursor(PaintCursorContext *pcontex
                           pcontext->final_radius,
                           80);
   immUniformColor3fvAlpha(pcontext->outline_col, pcontext->outline_alpha * 0.35f);
-  const float pcontext_alpha = BKE_brush_alpha_get(pcontext->scene, pcontext->brush);
-
-  imm_draw_circle_wire_3d(pcontext->pos,
-                          pcontext->translation[0],
-                          pcontext->translation[1],
-                          pcontext->final_radius * clamp_f(pcontext_alpha, 0.0f, 1.0f),
-                          80);
+  imm_draw_circle_wire_3d(
+      pcontext->pos,
+      pcontext->translation[0],
+      pcontext->translation[1],
+      pcontext->final_radius *
+          clamp_f(BKE_brush_alpha_get(pcontext->scene, pcontext->brush), 0.0f, 1.0f),
+      80);
 }
 
 static void paint_cursor_update_object_space_radius(PaintCursorContext *pcontext)
@@ -1699,9 +1699,13 @@ static void paint_cursor_draw_main_inactive_cursor(PaintCursorContext *pcontext)
 
   GPU_line_width(1.0f);
   immUniformColor3fvAlpha(pcontext->outline_col, pcontext->outline_alpha * 0.5f);
-  const float pcontext_alpha = BKE_brush_alpha_get(pcontext->scene, pcontext->brush);
   imm_draw_circle_wire_3d(
-      pcontext->pos, 0, 0, pcontext->radius * clamp_f(pcontext_alpha, 0.0f, 1.0f), 80);
+      pcontext->pos,
+      0,
+      0,
+      pcontext->final_radius *
+          clamp_f(BKE_brush_alpha_get(pcontext->scene, pcontext->brush), 0.0f, 1.0f),
+      80);
 }
 
 static void paint_cursor_pose_brush_segments_draw(PaintCursorContext *pcontext)
