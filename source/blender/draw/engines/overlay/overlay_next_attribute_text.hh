@@ -181,10 +181,11 @@ class AttributeTexts : Overlay {
           float3 location;
           math::EulerXYZ rotation;
           float3 scale;
-          const float3 degrees{
-              rotation.x().degree(), rotation.y().degree(), rotation.z().degree()};
 
           math::to_loc_rot_scale_safe<true>(value, location, rotation, scale);
+
+          const float3 degrees{
+              rotation.x().degree(), rotation.y().degree(), rotation.z().degree()};
           numstr_len = SNPRINTF_RLEN(
               numstr,
               "Location: %.3f, %.3f, %.3f\nRotation: %.3f°, %.3f°, %.3f°\nScale: %.3f, %.3f, %.3f",
@@ -223,7 +224,7 @@ class AttributeTexts : Overlay {
                              line.data(),
                              line.size(),
                              0,
-                             i * 12.0f * UI_SCALE_FAC,
+                             -i * 12.0f * UI_SCALE_FAC,
                              DRW_TEXT_CACHE_GLOBALSPACE,
                              col,
                              true,
