@@ -120,6 +120,7 @@ void Instance::begin_sync()
   resources.begin_sync();
 
   background.begin_sync(resources, state);
+  image_prepass.begin_sync(resources, state);
   motion_paths.begin_sync(resources, state);
   origins.begin_sync(resources, state);
   outline.begin_sync(resources, state);
@@ -186,7 +187,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
     layer.particles.edit_object_sync(manager, ob_ref, resources, state);
   }
 
-  if (in_paint_mode) {
+  if (in_paint_mode && !state.hide_overlays) {
     switch (ob_ref.object->type) {
       case OB_MESH:
         /* TODO(fclem): Make it part of a #Meshes. */
@@ -249,7 +250,8 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (state.is_wireframe_mode || !state.hide_overlays) {
-    layer.wireframe.object_sync_ex(manager, ob_ref, resources, state, in_edit_paint_mode);
+    layer.wireframe.object_sync_ex(
+        manager, ob_ref, resources, state, in_edit_paint_mode, in_edit_mode);
   }
 
   if (!state.hide_overlays) {
@@ -364,6 +366,8 @@ void Instance::draw(Manager &manager)
     draw_scope.begin_capture();
   }
 
+  resources.pre_draw();
+
   outline.flat_objects_pass_sync(manager, view, resources, state);
   GreasePencil::compute_depth_planes(manager, view, resources, state);
 
@@ -429,13 +433,14 @@ void Instance::draw_node(Manager &manager, View &view)
 
 void Instance::draw_v2d(Manager &manager, View &view)
 {
+  image_prepass.draw_on_render(resources.render_fb, manager, view);
   regular.mesh_uvs.draw_on_render(resources.render_fb, manager, view);
 
   GPU_framebuffer_bind(resources.overlay_output_fb);
   GPU_framebuffer_clear_color(resources.overlay_output_fb, float4(0.0));
 
   background.draw_output(resources.overlay_output_fb, manager, view);
-  grid.draw_color_only(resources.overlay_output_fb, manager, view);
+  grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
   regular.mesh_uvs.draw(resources.overlay_output_fb, manager, view);
 }
 
@@ -444,7 +449,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
   float4 clear_color(0.0f);
 
   auto draw = [&](OverlayLayer &layer, Framebuffer &framebuffer) {
-    layer.facing.draw(framebuffer, manager, view);
+    /* TODO(fclem): Depth aware outlines (see #130751). */
+    // layer.facing.draw(framebuffer, manager, view);
     layer.fade.draw(framebuffer, manager, view);
     layer.mode_transfer.draw(framebuffer, manager, view);
     layer.edit_text.draw(framebuffer, manager, view);
@@ -523,6 +529,12 @@ void Instance::draw_v3d(Manager &manager, View &view)
     infront.wireframe.copy_depth(resources.depth_target_in_front_tx);
   }
   {
+    /* TODO(fclem): This is really bad for performance as the outline pass will then split the
+     * render pass and do a framebuffer switch. This also only fix the issue for non-infront
+     * objects.
+     * We need to figure a way to merge the outline with correct depth awareness (see #130751). */
+    regular.facing.draw(resources.overlay_fb, manager, view);
+
     /* Line only pass. */
     outline.draw_line_only_ex(resources.overlay_line_only_fb, resources, manager, view);
   }
@@ -530,6 +542,9 @@ void Instance::draw_v3d(Manager &manager, View &view)
     /* Overlay (+Line) pass. */
     draw(regular, resources.overlay_fb);
     draw_line(regular, resources.overlay_line_fb);
+
+    /* Here because of custom order of regular.facing. */
+    infront.facing.draw(resources.overlay_fb, manager, view);
 
     draw(infront, resources.overlay_in_front_fb);
     draw_line(infront, resources.overlay_line_in_front_fb);
@@ -551,7 +566,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
 
     origins.draw_color_only(resources.overlay_color_only_fb, manager, view);
   }
-  {
+
+  if (state.is_depth_only_drawing == false) {
     /* Output pass. */
     GPU_framebuffer_bind(resources.overlay_output_fb);
     GPU_framebuffer_clear_color(resources.overlay_output_fb, clear_color);
