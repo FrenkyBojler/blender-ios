@@ -19,9 +19,10 @@
 /* The last_slot_handle is set to a high value to disambiguate slot handles from
  * array indices.
  *
- * This particular value was obtained by taking the 31 LSB of the TentHash value
- * (Nathan's hash function) for the string "Quercus & Laksa" (Sybren's cats). */
-#define DNA_DEFAULT_BACTION_LAST_SLOT_HANDLE 0x3bc119ba
+ * This particular value was obtained by taking the 31 most-significant bits of
+ * the TentHash value (Nathan's hash function) for the string "Quercus&Laksa"
+ * (Sybren's cats). */
+#define DNA_DEFAULT_BACTION_LAST_SLOT_HANDLE 0x37627bf5
 
 #define _DNA_DEFAULT_bAction \
   { \
