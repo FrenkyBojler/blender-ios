@@ -22,7 +22,7 @@
 
 namespace blender::ed::sculpt_paint {
 
-  static void sculpt_nodes_execute(const Depsgraph &depsgraph,
+  static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
     Object &object,
     StrokeCache &cache,
     bke::SculptFieldContext &context,
@@ -36,6 +36,18 @@ namespace blender::ed::sculpt_paint {
     const lf::LazyFunction& lazy_function = *function.function;
     const int num_inputs = lazy_function.inputs().size();
     const int num_outputs = lazy_function.outputs().size();
+
+    /* Nothing to do */
+    if (num_outputs == 0) {
+      translations.fill(float3(0.0f));
+      return;
+    }
+
+    /* Only allow float3 outputs */
+    if (*lazy_function.outputs()[0].type != CPPType::get<float3>()) {
+      translations.fill(float3(0.0f));
+      return;
+    }
 
     Array<GMutablePointer> param_inputs(num_inputs);
     Array<std::optional<lf::ValueUsage>> param_input_usages(num_inputs);
@@ -162,7 +174,7 @@ namespace blender::ed::sculpt_paint {
     const Mesh* mesh = static_cast<const Mesh*>(object.data);
     bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts);
 
-    sculpt_nodes_execute(depsgraph, object, cache, context, translations);
+    sculpt_nodes_evaluate(depsgraph, object, cache, context, translations);
   }
 
   void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
@@ -174,7 +186,7 @@ namespace blender::ed::sculpt_paint {
     MutableSpan<float3> translations)
   {
     bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
-    sculpt_nodes_execute(depsgraph, object, cache, context, translations);
+    sculpt_nodes_evaluate(depsgraph, object, cache, context, translations);
   }
 
   void bmesh_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
@@ -185,6 +197,6 @@ namespace blender::ed::sculpt_paint {
     MutableSpan<float3> translations)
   {
     bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
-    sculpt_nodes_execute(depsgraph, object, cache, context, translations);
+    sculpt_nodes_evaluate(depsgraph, object, cache, context, translations);
   }
 }
