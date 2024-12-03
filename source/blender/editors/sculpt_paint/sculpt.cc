@@ -463,6 +463,8 @@ inline void append_neighbors_to_vector(const OffsetIndices<int> faces,
     }
     const int2 neighbors = bke::mesh::face_find_adjacent_verts(faces[face], corner_verts, vert);
     for (const int neighbor : {neighbors[0], neighbors[1]}) {
+      /* In order to support non-manifold topology, both neighboring vertices are added for each
+       * face corner. That results in half being duplicates for any "normal" topology. */
       for (int i = r_data.size() - 1; i >= vert_start; i--) {
         if (r_data[i] == neighbor) {
           continue;
