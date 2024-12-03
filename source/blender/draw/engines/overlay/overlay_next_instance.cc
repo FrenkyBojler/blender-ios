@@ -365,6 +365,8 @@ void Instance::draw(Manager &manager)
     draw_scope.begin_capture();
   }
 
+  resources.pre_draw();
+
   outline.flat_objects_pass_sync(manager, view, resources, state);
   GreasePencil::compute_depth_planes(manager, view, resources, state);
 
@@ -436,7 +438,7 @@ void Instance::draw_v2d(Manager &manager, View &view)
   GPU_framebuffer_clear_color(resources.overlay_output_fb, float4(0.0));
 
   background.draw_output(resources.overlay_output_fb, manager, view);
-  grid.draw_color_only(resources.overlay_output_fb, manager, view);
+  grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
   regular.mesh_uvs.draw(resources.overlay_output_fb, manager, view);
 }
 
@@ -562,7 +564,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
 
     origins.draw_color_only(resources.overlay_color_only_fb, manager, view);
   }
-  {
+
+  if (state.is_depth_only_drawing == false) {
     /* Output pass. */
     GPU_framebuffer_bind(resources.overlay_output_fb);
     GPU_framebuffer_clear_color(resources.overlay_output_fb, clear_color);
