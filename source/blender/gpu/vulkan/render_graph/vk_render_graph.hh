@@ -241,11 +241,17 @@ class VKRenderGraph : public NonCopyable {
    * Submit full graph.
    */
   void submit();
+  /**
+   * Submit full graph and waits on CPU to complete execution.
+   */
+  void submit_and_wait();
 
   /**  Submit render graph with CPU synchronization event. */
-  void submit_synchronization_event(VkFence vk_fence);
+  VkSemaphore submit_synchronization_event(VkFence vk_fence);
   /** Wait and reset for a CPU synchronization event. */
   void wait_synchronization_event(VkFence vk_fence);
+  /** Wait CPU synchronization event. */
+  void wait_synchronization_event(VkSemaphore vk_semaphore);
   /**
    * Push a new debugging group to the stack with the given name.
    *

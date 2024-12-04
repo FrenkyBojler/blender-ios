@@ -271,7 +271,7 @@ TEST(vk_render_graph, begin_draw_end__layered)
     render_graph.add_node(end_rendering);
   }
 
-  render_graph.submit();
+  render_graph.submit_and_wait();
   EXPECT_EQ(7, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "

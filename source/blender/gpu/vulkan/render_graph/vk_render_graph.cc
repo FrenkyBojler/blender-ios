@@ -8,6 +8,7 @@
 
 #include "vk_render_graph.hh"
 #include "gpu_backend.hh"
+#include "vk_backend.hh"
 
 #include <sstream>
 
@@ -74,23 +75,33 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
 
 void VKRenderGraph::submit()
 {
-  /* Using `VK_NULL_HANDLE` will select the default VkFence of the command buffer. */
   submit_synchronization_event(VK_NULL_HANDLE);
 }
 
-void VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
+void VKRenderGraph::submit_and_wait()
+{
+  wait_synchronization_event(submit_synchronization_event(VK_NULL_HANDLE));
+}
+
+VkSemaphore VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
 {
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  command_buffer_->submit_with_cpu_synchronization(vk_fence);
+  VkSemaphore sync_semaphore = command_buffer_->submit_with_cpu_synchronization(vk_fence);
   submission_id.next();
   remove_nodes(node_handles);
+  return sync_semaphore;
 }
 
 void VKRenderGraph::wait_synchronization_event(VkFence vk_fence)
 {
   command_buffer_->wait_for_cpu_synchronization(vk_fence);
+}
+
+void VKRenderGraph::wait_synchronization_event(VkSemaphore vk_semaphore)
+{
+  command_buffer_->wait_for_cpu_synchronization(vk_semaphore);
 }
 
 /** \} */

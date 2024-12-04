@@ -511,7 +511,6 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
   VkDevice device = vulkan_device->device;
-  vkDeviceWaitIdle(device);
   if (m_swapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
   }
@@ -586,7 +585,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   present_info.pResults = nullptr;
   present_info.pWaitSemaphores = &present_wait_semaphore;
   present_info.waitSemaphoreCount = 1;
-
+  //   VkSwapchainPresentFenceInfoEXT pfence = {};
+  //   pfence.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
+  //   present_info.pNext = &pfence;
   result = VK_SUCCESS;
   {
     std::scoped_lock lock(vulkan_device->queue_mutex);

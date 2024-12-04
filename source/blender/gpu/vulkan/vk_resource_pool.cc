@@ -185,9 +185,9 @@ SyncSemaphores VKDiscardPool::sync_semaphores(VKDevice &device)
   VkSemaphore wait_semaphore = semaphores_.is_empty() ? VK_NULL_HANDLE : semaphores_.last();
 
   VkSemaphoreTypeCreateInfo semaphore_type_info = {};
+  semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
   semaphore_type_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
   semaphore_type_info.initialValue = 0;
-  semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
 
   VkSemaphoreCreateInfo semaphore_info = {};
   semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
