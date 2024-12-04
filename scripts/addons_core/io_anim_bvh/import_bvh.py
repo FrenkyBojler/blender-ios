@@ -516,9 +516,11 @@ def bvh_node_dict2armature(
 
     context.view_layer.update()
 
-    arm_ob.animation_data_create()
+    arm_ob_adt = arm_ob.animation_data_create()
     action = bpy.data.actions.new(name=bvh_name)
     arm_ob.animation_data.action = action
+    slot_arm_ob = action.slots.new(arm_ob.id_type, arm_ob.name)
+    arm_ob_adt.action_slot_handle = slot_arm_ob.handle
 
     # Replace the bvh_node.temp (currently an editbone)
     # With a tuple  (pose_bone, armature_bone, bone_rest_matrix, bone_rest_matrix_inv)
