@@ -547,10 +547,19 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(ImBufAnim *anim,
     rv->c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
   }
 
-  rv->c->color_range = codec_ctx->color_range;
-  rv->c->color_primaries = codec_ctx->color_primaries;
-  rv->c->color_trc = codec_ctx->color_trc;
-  rv->c->colorspace = codec_ctx->colorspace;
+  /* Only set the color data if the values are valid. */
+  if (av_color_range_name(codec_ctx->color_range)) {
+    rv->c->color_range = codec_ctx->color_range;
+  }
+  if (av_color_primaries_name(codec_ctx->color_primaries)) {
+    rv->c->color_primaries = codec_ctx->color_primaries;
+  }
+  if (av_color_transfer_name(codec_ctx->color_trc)) {
+    rv->c->color_trc = codec_ctx->color_trc;
+  }
+  if (av_color_space_name(codec_ctx->colorspace)) {
+    rv->c->colorspace = codec_ctx->colorspace;
+  }
 
   avcodec_parameters_from_context(rv->st->codecpar, rv->c);
 
