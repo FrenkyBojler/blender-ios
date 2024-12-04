@@ -477,4 +477,23 @@ TEST(curves_geometry, BezierGenericEvaluation)
   }
 }
 
+TEST(curves_geometry, CustomKnots)
+{
+  const Span<float> custom_knots(
+      {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 5.0f, 8.0f, 8.0f, 8.0f, 8.0f});
+  const Span<float> expected_compact({0.0f, 1.0f, 1.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f});
+  const int order = 4;
+
+  Array<float> compact_knots(expected_compact.size());
+  curves::nurbs::compact_knots(order, custom_knots, compact_knots);
+  for (const int i : compact_knots.index_range()) {
+    EXPECT_NEAR(compact_knots[i], expected_compact[i], 1e-6f);
+  }
+
+  Array<float> expanded_knots(custom_knots.size());
+  curves::nurbs::expand_knots(order, compact_knots, expanded_knots);
+  for (const int i : expanded_knots.index_range()) {
+    EXPECT_NEAR(expanded_knots[i], custom_knots[i], 1e-6f);
+  }
+}
 }  // namespace blender::bke::tests
