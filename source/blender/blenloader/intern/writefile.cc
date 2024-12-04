@@ -1085,6 +1085,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
     writestruct(wd, ID_LI, Library, 1, &library);
     BKE_id_blend_write(&writer, &library.id);
 
+    /* Write packed file if necessary. */
     if (library.packedfile) {
       BKE_packedfile_blend_write(&writer, library.packedfile);
       if (!wd->use_memfile) {
@@ -1092,6 +1093,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
       }
     }
 
+    /* Write placeholders for linked data-blocks that are used. */
     for (const ID *id : ids_used_from_library) {
       if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
         CLOG_ERROR(&LOG,
