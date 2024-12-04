@@ -668,7 +668,7 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
         }
 
         knots.reinitialize(curves::nurbs::knots_num(points.size(), order, is_cyclic));
-        if (mode == NURBS_KNOT_MODE_FREE) {
+        if (mode == NURBS_KNOT_MODE_CUSTOM) {
           curves::nurbs::expand_knots(order, knots_attr.slice(points), knots);
         }
         else {
@@ -1298,7 +1298,7 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
 
     IndexMask must_be_clamped = IndexMask::from_predicate(
         this->curves_range(), GrainSize(4096), memory, [&](const int64_t i) {
-          return !cyclic[i] && nurbs_knots_modes[i] == NURBS_KNOT_MODE_FREE;
+          return !cyclic[i] && nurbs_knots_modes[i] == NURBS_KNOT_MODE_CUSTOM;
         });
 
     must_be_clamped.foreach_index(GrainSize(256), [&](const int curve) {

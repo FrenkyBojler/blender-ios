@@ -441,7 +441,7 @@ enum {
   CU_NURB_CYCLIC = 1 << 0,
   CU_NURB_ENDPOINT = 1 << 1,
   CU_NURB_BEZIER = 1 << 2,
-  CU_NURB_FREE = 1 << 3,
+  CU_NURB_CUSTOM = 1 << 3,
 };
 
 #define CU_ACT_NONE -1

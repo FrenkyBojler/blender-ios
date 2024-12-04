@@ -66,8 +66,8 @@ static NormalMode normal_mode_from_legacy(const short twist_mode)
 
 static KnotsMode knots_mode_from_legacy(const short flag)
 {
-  if (flag & CU_NURB_FREE) {
-    return NURBS_KNOT_MODE_FREE;
+  if (flag & CU_NURB_CUSTOM) {
+    return NURBS_KNOT_MODE_CUSTOM;
   }
   switch (flag & (CU_NURB_ENDPOINT | CU_NURB_BEZIER)) {
     case CU_NURB_ENDPOINT:
@@ -183,7 +183,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
       resolutions[curve_i] = src_curve.resolu;
       nurbs_orders[curve_i] = src_curve.orderu;
       nurbs_knots_modes[curve_i] = knots_mode_from_legacy(src_curve.flagu);
-      if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_FREE) {
+      if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_CUSTOM) {
         /* Placed here to prevent attribute creation when it is not needed. */
         MutableSpan<float> knots_attr = curves.nurbs_knots_for_write();
         curves::nurbs::compact_knots(src_curve.orderu,

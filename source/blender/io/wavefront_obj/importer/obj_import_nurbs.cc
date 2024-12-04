@@ -97,10 +97,10 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
                                        nurbs_geometry.parm,
                                        nurbs_geometry.range);
 
-  if (nurb->flagu & (CU_NURB_FREE | CU_NURB_CYCLIC | CU_NURB_ENDPOINT) == CU_NURB_FREE) {
-    /* TODO: If mode is CU_NURB_FREE, but not CU_NURB_CYCLIC and CU_NURB_ENDPOINT, then make curve
-     * clamped instead of removing CU_NURB_FREE. */
-    nurb->flagu &= ~CU_NURB_FREE;
+  if (nurb->flagu & (CU_NURB_CUSTOM | CU_NURB_CYCLIC | CU_NURB_ENDPOINT) == CU_NURB_CUSTOM) {
+    /* TODO: If mode is CU_NURB_CUSTOM, but not CU_NURB_CYCLIC and CU_NURB_ENDPOINT, then make curve
+     * clamped instead of removing CU_NURB_CUSTOM. */
+    nurb->flagu &= ~CU_NURB_CUSTOM;
   }
 
   const Span<int> indices = nurbs_geometry.curv_indices.as_span().slice(
@@ -117,7 +117,7 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
     bpoint.weight = 1.0f;
   }
 
-  if (nurb->flagu & CU_NURB_FREE) {
+  if (nurb->flagu & CU_NURB_CUSTOM) {
     BKE_nurb_knot_alloc_u(nurb);
     Span<float> knots = nurbs_geometry.parm.as_span();
     if (nurb->flagu & CU_NURB_CYCLIC) {
@@ -211,7 +211,7 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
       }
     }
     if (!is_spacing_equal) {
-      knot_mode |= is_bezier_knot ? CU_NURB_BEZIER : CU_NURB_FREE;
+      knot_mode |= is_bezier_knot ? CU_NURB_BEZIER : CU_NURB_CUSTOM;
     }
   }
   return knot_mode;
