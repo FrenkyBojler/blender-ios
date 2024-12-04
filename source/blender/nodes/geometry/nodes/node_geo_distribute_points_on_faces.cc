@@ -440,7 +440,8 @@ static void compute_attribute_outputs(const Mesh &mesh,
   ids.finish();
 
   if (attribute_outputs.normal_id) {
-    SpanAttributeWriter<float3> normals = dst_attributes.lookup_or_add_for_write_only_span<float3>(*attribute_outputs.normal_id, AttrDomain::Point);
+    SpanAttributeWriter<float3> normals = dst_attributes.lookup_or_add_for_write_only_span<float3>(
+        *attribute_outputs.normal_id, AttrDomain::Point);
     if (use_legacy_normal) {
       compute_legacy_normal_outputs(mesh, tri_bary_coords.offsets, normals.span);
     }
@@ -452,8 +453,11 @@ static void compute_attribute_outputs(const Mesh &mesh,
 
   if (attribute_outputs.rotation_id) {
     BLI_assert(attribute_outputs.normal_id);
-    const VArraySpan<float3> normals = *dst_attributes.lookup<float3>(*attribute_outputs.normal_id, AttrDomain::Point);
-    SpanAttributeWriter<math::Quaternion> rotations = dst_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(*attribute_outputs.rotation_id, AttrDomain::Point);
+    const VArraySpan<float3> normals = *dst_attributes.lookup<float3>(*attribute_outputs.normal_id,
+                                                                      AttrDomain::Point);
+    SpanAttributeWriter<math::Quaternion> rotations =
+        dst_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(
+            *attribute_outputs.rotation_id, AttrDomain::Point);
     compute_rotation_output(normals, rotations.span);
     rotations.finish();
   }
