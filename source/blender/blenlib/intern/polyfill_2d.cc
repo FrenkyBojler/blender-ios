@@ -33,7 +33,7 @@
 
 #include "BLI_utildefines.h"
 
-#include <malloc.h>
+#include <cstdlib>
 
 #include "BLI_alloca.h"
 #include "BLI_math_geom.h"
