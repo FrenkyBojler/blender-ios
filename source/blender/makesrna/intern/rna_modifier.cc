@@ -8383,7 +8383,7 @@ static void rna_def_modifier_grease_pencil_layer_filter(StructRNA *srna)
   prop = RNA_def_property(srna, "use_layer_group_filter", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "influence.flag", GREASE_PENCIL_INFLUENCE_USE_LAYER_GROUP_FILTER);
-  RNA_def_property_ui_text(prop, "Layer Group", "Filter with layer group name");
+  RNA_def_property_ui_text(prop, "Layer Group", "Filter by layer group name");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
