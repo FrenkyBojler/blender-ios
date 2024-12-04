@@ -479,8 +479,10 @@ TEST(curves_geometry, BezierGenericEvaluation)
 
 TEST(curves_geometry, CustomKnots)
 {
+  /* 8 point order 4 curve knots. */
   const Span<float> custom_knots(
       {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 5.0f, 8.0f, 8.0f, 8.0f, 8.0f});
+  /* Spans between first 8 knots loop shifted to the left by (order - 2). */
   const Span<float> expected_compact({0.0f, 1.0f, 1.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f});
   const int order = 4;
 
@@ -494,6 +496,24 @@ TEST(curves_geometry, CustomKnots)
   curves::nurbs::expand_knots(order, compact_knots, expanded_knots);
   for (const int i : expanded_knots.index_range()) {
     EXPECT_NEAR(expanded_knots[i], custom_knots[i], 1e-6f);
+  }
+
+  /* 5 point order 4 curve knots. */
+  const Span<float> custom_cyclic_knots(
+      {0.0f, 0.5f, 1.5f, 3.0f, 5.0f, 7.5f, 8.0f, 9.0f, 10.5f, 12.5f, 15.0f});
+  /* Spans between first 5 knots loop shifted to the left by (order - 2). */
+  const Span<float> expected_cyclic_knots{1.5f, 2.0f, 2.5f, 0.5f, 1.0f};
+
+  Array<float> compact_cyclic_knots(expected_cyclic_knots.size());
+  curves::nurbs::compact_knots(order, custom_cyclic_knots, compact_cyclic_knots);
+  for (const int i : compact_cyclic_knots.index_range()) {
+    EXPECT_NEAR(compact_cyclic_knots[i], expected_cyclic_knots[i], 1e-6f);
+  }
+
+  Array<float> expanded_cyclic_knots(custom_cyclic_knots.size());
+  curves::nurbs::expand_knots(order, compact_cyclic_knots, expanded_cyclic_knots);
+  for (const int i : expanded_cyclic_knots.index_range()) {
+    EXPECT_NEAR(expanded_cyclic_knots[i], custom_cyclic_knots[i], 1e-6f);
   }
 }
 }  // namespace blender::bke::tests
