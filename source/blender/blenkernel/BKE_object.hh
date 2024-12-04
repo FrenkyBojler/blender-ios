@@ -234,9 +234,19 @@ Object *BKE_object_duplicate(Main *bmain,
  */
 void BKE_object_obdata_size_init(Object *ob, float size);
 
+/**
+ * A version of #BKE_object_scale_to_mat3 that uses a fallback for zero axis scale.
+ * Use this when the resulting matrix needs to be inverted.
+ */
+void BKE_object_scale_to_mat3_with_unit_fallback(const Object *ob, float r_mat[3][3]);
 void BKE_object_scale_to_mat3(const Object *ob, float r_mat[3][3]);
 void BKE_object_rot_to_mat3(const Object *ob, float r_mat[3][3], bool use_drot);
 void BKE_object_mat3_to_rot(Object *ob, float r_mat[3][3], bool use_compat);
+/**
+ * A version of #BKE_object_to_mat3 that uses a fallback for zero axis scale.
+ * Use this when the resulting matrix needs to be inverted.
+ */
+void BKE_object_to_mat3_with_unit_fallback(const Object *ob, float r_mat[3][3]);
 void BKE_object_to_mat3(const Object *ob, float r_mat[3][3]);
 void BKE_object_to_mat4(const Object *ob, float r_mat[4][4]);
 /**

@@ -2732,6 +2732,16 @@ void BKE_object_obdata_size_init(Object *ob, const float size)
 /** \name Object Matrix Get/Set API
  * \{ */
 
+void BKE_object_scale_to_mat3_with_unit_fallback(const Object *ob, float mat[3][3])
+{
+  float3 vec;
+  mul_v3_v3v3(vec, ob->scale, ob->dscale);
+
+  size_ensure_nonzero_axis_v3(vec, 1.0f);
+
+  size_to_mat3(mat, vec);
+}
+
 void BKE_object_scale_to_mat3(const Object *ob, float mat[3][3])
 {
   float3 vec;
@@ -2912,6 +2922,19 @@ void BKE_object_tfm_copy(Object *object_dst, const Object *object_src)
 #undef TFMCPY
 #undef TFMCPY3D
 #undef TFMCPY4D
+}
+
+void BKE_object_to_mat3_with_unit_fallback(const Object *ob, float r_mat[3][3]) /* no parent */
+{
+  float smat[3][3];
+  float rmat[3][3];
+
+  /* Scale. */
+  BKE_object_scale_to_mat3_with_unit_fallback(ob, smat);
+
+  /* Rotation. */
+  BKE_object_rot_to_mat3(ob, rmat, true);
+  mul_m3_m3m3(r_mat, rmat, smat);
 }
 
 void BKE_object_to_mat3(const Object *ob, float r_mat[3][3]) /* no parent */

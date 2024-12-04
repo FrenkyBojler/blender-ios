@@ -830,7 +830,7 @@ static int apply_objects_internal(bContext *C,
       BKE_object_rot_to_mat3(ob, rsmat, true);
 
       /* correct for scale, note mul_m3_m3m3 has swapped args! */
-      BKE_object_scale_to_mat3(ob, tmat);
+      BKE_object_scale_to_mat3_with_unit_fallback(ob, tmat);
       invert_m3_m3(timat, tmat);
       mul_m3_m3m3(rsmat, timat, rsmat);
       mul_m3_m3m3(rsmat, rsmat, tmat);
@@ -848,7 +848,7 @@ static int apply_objects_internal(bContext *C,
       if (!(apply_scale && apply_rot)) {
         float tmat[3][3];
         /* correct for scale and rotation that is still applied */
-        BKE_object_to_mat3(ob, obmat);
+        BKE_object_to_mat3_with_unit_fallback(ob, obmat);
         invert_m3_m3(iobmat, obmat);
         mul_m3_m3m3(tmat, rsmat, iobmat);
         mul_m3_v3(tmat, mat[3]);

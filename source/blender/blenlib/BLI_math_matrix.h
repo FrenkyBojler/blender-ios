@@ -371,6 +371,12 @@ float mat4_to_volume_scale(const float mat[4][4]);
 float mat3_to_scale(const float mat[3][3]);
 float mat4_to_scale(const float mat[4][4]);
 
+/**
+ * Return the number of non-zero axes that had unit values set.
+ * non-finite numbers are treated as zero and are set to unit.
+ */
+int size_ensure_nonzero_axis_v3(float size[3], float unit);
+
 void size_to_mat3(float R[3][3], const float size[3]);
 void size_to_mat4(float R[4][4], const float size[3]);
 

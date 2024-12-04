@@ -1892,6 +1892,33 @@ float determinant_m4(const float m[4][4])
 
 /****************************** Transformations ******************************/
 
+int size_ensure_nonzero_axis_v3(float size[3], const float unit)
+{
+  int count_neg = 0, count_pos = 0;
+  for (int i = 0; i < 3; i++) {
+    if (size[i] < 0.0f) {
+      count_neg += 1;
+    }
+    else if (size[i] > 0.0f) {
+      count_pos += 1;
+    }
+  }
+  const int count_valid = count_neg + count_pos;
+  if (count_valid == 3) {
+    return 0;
+  }
+
+  /* When all valid values are negative, ensure the fallback values are negative
+   * so the resulting matrix doesn't flip the objects normals. */
+  const float fallback = ((count_neg != 0) && (count_pos == 0)) ? -unit : unit;
+  for (int i = 0; i < 3; i++) {
+    if (!(size[i] < 0.0f || size[i] > 0.0f)) {
+      size[i] = fallback;
+    }
+  }
+  return 3 - count_valid;
+}
+
 void size_to_mat3(float R[3][3], const float size[3])
 {
   R[0][0] = size[0];
