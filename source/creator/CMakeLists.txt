@@ -1514,6 +1514,7 @@ elseif(WIN32)
     )
     install(
       FILES
+        ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_cycles.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_gpu.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_gpu_glitchworkaround.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_log.cmd
