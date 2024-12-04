@@ -68,9 +68,8 @@ static void compute_corner_tangents(const Span<float3> positions,
 {
   const int verts_num = positions.size();
   const int tris_num = tris.size();
-  const int corners_num = corner_verts.size();
 
-  BLI_assert(r_corner_tangents.size() == corners_num);
+  BLI_assert(r_corner_tangents.size() == corner_verts.size());
 
   /* Compute a tangent vector for each triangle. */
   threading::parallel_for(IndexRange(tris_num), 256, [&](const IndexRange range) {
@@ -235,14 +234,15 @@ static void deform_curves(const CurvesGeometry &curves,
        * reference have to have the same direction. For that reason, the old tangent reference is
        * computed based on the rest position attribute instead of positions on the old mesh. This
        * way the old and new tangent reference use the same topology. */
-      float3 tangent_reference_dir_old = mix3(bary_weights_new,
-                                              rest_corner_tangents[corner_0_new],
-                                              rest_corner_tangents[corner_1_new],
-                                              rest_corner_tangents[corner_2_new]);
-      float3 tangent_reference_dir_new = mix3(bary_weights_new,
-                                              deformed_corner_tangents[corner_0_new],
-                                              deformed_corner_tangents[corner_1_new],
-                                              deformed_corner_tangents[corner_2_new]);
+      float3 tangent_reference_dir_old = math::normalize(mix3(bary_weights_new,
+                                                              rest_corner_tangents[corner_0_new],
+                                                              rest_corner_tangents[corner_1_new],
+                                                              rest_corner_tangents[corner_2_new]));
+      float3 tangent_reference_dir_new = math::normalize(
+          mix3(bary_weights_new,
+               deformed_corner_tangents[corner_0_new],
+               deformed_corner_tangents[corner_1_new],
+               deformed_corner_tangents[corner_2_new]));
 
       /* Compute first local tangent based on the (potentially smoothed) normal and the tangent
        * reference. */
