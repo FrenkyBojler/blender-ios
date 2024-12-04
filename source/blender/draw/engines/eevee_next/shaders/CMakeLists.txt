@@ -2,25 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# avoid noisy warnings
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  add_c_flag("-Wno-unused-result")
-  remove_cc_flag("-Wmissing-declarations")
-  # Would be nice to enable the warning once we support references.
-  add_cxx_flag("-Wno-uninitialized")
-  # Would be nice to enable the warning once we support nameless parameters.
-  add_cxx_flag("-Wno-unused-parameter")
-  # To compile libraries.
-  add_cxx_flag("-Wno-pragma-once-outside-header")
-elseif(MSVC)
-  # Equivalent to "-Wno-uninitialized"
-  add_cxx_flag("/wd4700")
-  # Equivalent to "-Wno-unused-parameter"
-  add_cxx_flag("/wd4100")
-  # Disable "potential divide by 0" warning
-  add_cxx_flag("/wd4723")
-endif()
-
 set(INC_GLSL
   .
   ..
@@ -229,7 +210,6 @@ set(SRC_GLSL_LIB
   eevee_volume_lib.glsl
 )
 
-add_definitions(-DGPU_SHADER)
 # TODO Remove
 add_definitions(-DUSE_GPU_SHADER_CREATE_INFO)
 
@@ -252,6 +232,7 @@ endfunction()
 
 # Compile shaders with shader code.
 if (WITH_GPU_SHADER_CPP_COMPILATION)
+  with_shader_cpp_compilation_config()
   compile_sources_as_cpp(eevee_cpp_shaders_vert "${SRC_GLSL_VERT}" "GPU_VERTEX_SHADER")
   compile_sources_as_cpp(eevee_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
   compile_sources_as_cpp(eevee_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
