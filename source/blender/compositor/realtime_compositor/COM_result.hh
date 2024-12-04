@@ -757,8 +757,10 @@ inline float4 Result::sample_bilinear_extended(const float2 &coordinates) const
   return pixel_value;
 }
 
-/* Given a Result as the userdata argument, sample it at the given coordinates using extended
- * boundary condition and write the result to the result argument.*/
+/**
+ * Given a Result as the userdata argument, sample it at the given coordinates using extended
+ * boundary condition and write the result to the result argument.
+ */
 static void sample_ewa_extended_read_callback(void *userdata, int x, int y, float result[4])
 {
   const Result *input = static_cast<const Result *>(userdata);
@@ -792,8 +794,10 @@ inline float4 Result::sample_ewa_extended(const float2 &coordinates,
   return pixel_value;
 }
 
-/* Given a Result as the userdata argument, sample it at the given coordinates using zero boundary
- * condition and write the result to the result argument.*/
+/**
+ * Given a Result as the userdata argument, sample it at the given coordinates using zero boundary
+ * condition and write the result to the result argument.
+ */
 static void sample_ewa_zero_read_callback(void *userdata, int x, int y, float result[4])
 {
   const Result *input = static_cast<const Result *>(userdata);
@@ -829,6 +833,9 @@ inline float4 Result::sample_ewa_zero(const float2 &coordinates,
 
 inline int64_t Result::get_pixel_index(const int2 &texel) const
 {
+  BLI_assert(!is_single_value_);
+  BLI_assert(this->is_allocated());
+  BLI_assert(texel.x >= 0 && texel.y >= 0 && texel.x < domain_.size.x && texel.y < domain_.size.y);
   return (int64_t(texel.y) * domain_.size.x + texel.x) * this->channels_count();
 }
 

@@ -32,6 +32,77 @@
 
 namespace blender::draw::overlay {
 
+struct BoneInstanceData {
+  /* Keep sync with bone instance vertex format (OVERLAY_InstanceFormats) */
+  union {
+    float4x4 mat44;
+    float mat[4][4];
+    struct {
+      float _pad0[3], color_hint_a;
+      float _pad1[3], color_hint_b;
+      float _pad2[3], color_a;
+      float _pad3[3], color_b;
+    };
+    struct {
+      float _pad00[3], amin_a;
+      float _pad01[3], amin_b;
+      float _pad02[3], amax_a;
+      float _pad03[3], amax_b;
+    };
+  };
+
+  BoneInstanceData() = default;
+
+  /* Constructor used by metaball overlays and expected to be used for drawing
+   * metaball edit circles with armature wire shader that produces wide-lines. */
+  BoneInstanceData(const float4x4 &ob_mat,
+                   const float3 &pos,
+                   const float radius,
+                   const float color[4])
+
+  {
+    mat44[0] = ob_mat[0] * radius;
+    mat44[1] = ob_mat[1] * radius;
+    mat44[2] = ob_mat[2] * radius;
+    mat44[3] = float4(blender::math::transform_point(ob_mat, pos));
+    set_color(color);
+  }
+
+  BoneInstanceData(const float4x4 &bone_mat, const float4 &bone_color, const float4 &hint_color)
+      : mat44(bone_mat)
+  {
+    set_color(bone_color);
+    set_hint_color(hint_color);
+  };
+
+  BoneInstanceData(const float4x4 &bone_mat, const float4 &bone_color) : mat44(bone_mat)
+  {
+    set_color(bone_color);
+  };
+
+  void set_color(const float4 &bone_color)
+  {
+    /* Encoded color into 2 floats to be able to use the matrix to color the custom bones. */
+    color_a = encode_2f_to_float(bone_color[0], bone_color[1]);
+    color_b = encode_2f_to_float(bone_color[2], bone_color[3]);
+  }
+
+  void set_hint_color(const float4 &hint_color)
+  {
+    /* Encoded color into 2 floats to be able to use the matrix to color the custom bones. */
+    color_hint_a = encode_2f_to_float(hint_color[0], hint_color[1]);
+    color_hint_b = encode_2f_to_float(hint_color[2], hint_color[3]);
+  }
+
+ private:
+  /* Encode 2 units float with byte precision into a float. */
+  float encode_2f_to_float(float a, float b) const
+  {
+    /* NOTE: `b` can go up to 2. Needed to encode wire size. */
+    return float(int(clamp_f(a, 0.0f, 1.0f) * 255) | (int(clamp_f(b, 0.0f, 2.0f) * 255) << 8));
+  }
+};
+
 using SelectionType = select::SelectionType;
 
 using blender::draw::Framebuffer;
@@ -255,6 +326,9 @@ class ShapeCache {
   BatchPtr sphere_low_detail;
 
   BatchPtr ground_line;
+
+  /* Batch drawing a quad with coordinate [0..1] at 0.75 depth. */
+  BatchPtr image_quad;
 
   BatchPtr light_icon_outer_lines;
   BatchPtr light_icon_inner_lines;
@@ -531,6 +605,94 @@ struct Resources : public select::SelectMap {
   {
     SelectMap::begin_sync();
     free_movieclips_textures();
+  }
+
+  void acquire(const State &state, DefaultTextureList &viewport_textures)
+  {
+    this->depth_tx.wrap(viewport_textures.depth);
+    this->depth_in_front_tx.wrap(viewport_textures.depth_in_front);
+    this->color_overlay_tx.wrap(viewport_textures.color_overlay);
+    this->color_render_tx.wrap(viewport_textures.color);
+
+    this->render_fb = DRW_viewport_framebuffer_list_get()->default_fb;
+    this->render_in_front_fb = DRW_viewport_framebuffer_list_get()->in_front_fb;
+
+    int2 render_size = int2(this->depth_tx.size());
+
+    if (state.xray_enabled) {
+      /* For X-ray we render the scene to a separate depth buffer. */
+      this->xray_depth_tx.acquire(render_size, GPU_DEPTH24_STENCIL8);
+      this->depth_target_tx.wrap(this->xray_depth_tx);
+      /* TODO(fclem): Remove mandatory allocation. */
+      this->xray_depth_in_front_tx.acquire(render_size, GPU_DEPTH24_STENCIL8);
+      this->depth_target_in_front_tx.wrap(this->xray_depth_in_front_tx);
+    }
+    else {
+      /* TODO(fclem): Remove mandatory allocation. */
+      if (!this->depth_in_front_tx.is_valid()) {
+        this->depth_in_front_alloc_tx.acquire(render_size, GPU_DEPTH24_STENCIL8);
+        this->depth_in_front_tx.wrap(this->depth_in_front_alloc_tx);
+      }
+      this->depth_target_tx.wrap(this->depth_tx);
+      this->depth_target_in_front_tx.wrap(this->depth_in_front_tx);
+    }
+
+    /* TODO: Better semantics using a switch? */
+    if (!this->color_overlay_tx.is_valid()) {
+      /* Likely to be the selection case. Allocate dummy texture and bind only depth buffer. */
+      this->color_overlay_alloc_tx.acquire(int2(1, 1), GPU_SRGB8_A8);
+      this->color_render_alloc_tx.acquire(int2(1, 1), GPU_SRGB8_A8);
+
+      this->color_overlay_tx.wrap(this->color_overlay_alloc_tx);
+      this->color_render_tx.wrap(this->color_render_alloc_tx);
+
+      this->line_tx.acquire(int2(1, 1), GPU_RGBA8);
+      this->overlay_tx.acquire(int2(1, 1), GPU_SRGB8_A8);
+
+      this->overlay_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx));
+      this->overlay_line_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx));
+      this->overlay_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx));
+      this->overlay_line_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx));
+    }
+    else {
+      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
+                               GPU_TEXTURE_USAGE_ATTACHMENT;
+      this->line_tx.acquire(render_size, GPU_RGBA8, usage);
+      this->overlay_tx.acquire(render_size, GPU_SRGB8_A8, usage);
+
+      this->overlay_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx),
+                              GPU_ATTACHMENT_TEXTURE(this->overlay_tx));
+      this->overlay_line_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx),
+                                   GPU_ATTACHMENT_TEXTURE(this->overlay_tx),
+                                   GPU_ATTACHMENT_TEXTURE(this->line_tx));
+      this->overlay_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_in_front_tx),
+                                       GPU_ATTACHMENT_TEXTURE(this->overlay_tx));
+      this->overlay_line_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_in_front_tx),
+                                            GPU_ATTACHMENT_TEXTURE(this->overlay_tx),
+                                            GPU_ATTACHMENT_TEXTURE(this->line_tx));
+    }
+
+    this->overlay_line_only_fb.ensure(GPU_ATTACHMENT_NONE,
+                                      GPU_ATTACHMENT_TEXTURE(this->overlay_tx),
+                                      GPU_ATTACHMENT_TEXTURE(this->line_tx));
+    this->overlay_color_only_fb.ensure(GPU_ATTACHMENT_NONE,
+                                       GPU_ATTACHMENT_TEXTURE(this->overlay_tx));
+    /* The v2d path writes to the overlay output directly, but it needs a depth attachment. */
+    this->overlay_output_fb.ensure(state.is_space_image() ?
+                                       GPUAttachment GPU_ATTACHMENT_TEXTURE(this->depth_tx) :
+                                       GPUAttachment GPU_ATTACHMENT_NONE,
+                                   GPU_ATTACHMENT_TEXTURE(this->color_overlay_tx));
+  }
+
+  void release()
+  {
+    this->line_tx.release();
+    this->overlay_tx.release();
+    this->xray_depth_tx.release();
+    this->xray_depth_in_front_tx.release();
+    this->depth_in_front_alloc_tx.release();
+    this->color_overlay_alloc_tx.release();
+    this->color_render_alloc_tx.release();
   }
 
   ThemeColorID object_wire_theme_id(const ObjectRef &ob_ref, const State &state) const
