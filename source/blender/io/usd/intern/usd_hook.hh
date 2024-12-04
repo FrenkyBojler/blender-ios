@@ -5,8 +5,6 @@
 
 #include <BLI_map.hh>
 
-#include <RNA_types.hh>
-
 #include <pxr/usd/usd/common.h>
 #include <pxr/usd/usdShade/material.h>
 

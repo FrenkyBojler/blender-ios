@@ -10,7 +10,6 @@
 #include <boost/python/class.hpp>
 #include <boost/python/import.hpp>
 #include <boost/python/return_value_policy.hpp>
-#include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <boost/python/to_python_converter.hpp>
 
 #include "BLI_utildefines.h"
@@ -27,7 +26,6 @@
 
 #include <list>
 #include <memory>
-#include <string>
 
 using namespace boost;
 
@@ -212,9 +210,6 @@ void register_hook_converters()
 
   /* Register converter from PoinerRNA to a PyObject*. */
   python::to_python_converter<PointerRNA, PointerRNAToPython>();
-
-  python::class_<std::map<std::string, PointerRNA>>("PathPointerRNAMap")
-      .def(python::map_indexing_suite<std::map<std::string, PointerRNA>>());
 
   /* Register context class converters. */
   python::class_<USDSceneExportContext>("USDSceneExportContext")

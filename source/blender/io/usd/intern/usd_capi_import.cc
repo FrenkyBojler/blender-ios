@@ -44,9 +44,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.hh"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 
