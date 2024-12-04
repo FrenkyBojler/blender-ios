@@ -23,8 +23,6 @@ ShaderModule::ShaderPtr ShaderModule::shader(
 
   patch(info);
 
-  info.define("OVERLAY_NEXT");
-
   if (clipping_enabled_) {
     info.define("USE_WORLD_CLIP_PLANES");
   }
@@ -47,8 +45,6 @@ ShaderModule::ShaderPtr ShaderModule::selectable_shader(const char *create_info_
   gpu::shader::ShaderCreateInfo info(create_info_name);
   GPU_shader_create_info_get_unfinalized_copy(create_info_name,
                                               reinterpret_cast<GPUShaderCreateInfo &>(info));
-
-  info.define("OVERLAY_NEXT");
 
   if (selection_type_ != SelectionType::DISABLED) {
     info.define("SELECT_ENABLE");
@@ -80,8 +76,6 @@ ShaderModule::ShaderPtr ShaderModule::selectable_shader(
                                               reinterpret_cast<GPUShaderCreateInfo &>(info));
 
   patch(info);
-
-  info.define("OVERLAY_NEXT");
 
   if (selection_type_ != SelectionType::DISABLED) {
     info.define("SELECT_ENABLE");
