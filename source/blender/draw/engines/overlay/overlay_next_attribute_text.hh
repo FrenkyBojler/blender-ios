@@ -142,6 +142,7 @@ class AttributeTexts : Overlay {
         const T &value = values_typed[i];
 
         char numstr[256];
+        bool is_single_line = true;
         size_t numstr_len = 0;
         if constexpr (std::is_same_v<T, bool>) {
           numstr_len = SNPRINTF_RLEN(numstr, "%s", value ? "True" : "False");
@@ -198,22 +199,28 @@ class AttributeTexts : Overlay {
               scale.x,
               scale.y,
               scale.z);
+          is_single_line = false;
         }
         else {
           BLI_assert_unreachable();
         }
 
         Vector<StringRef> lines;
-        StringRef remaining{numstr, int64_t(numstr_len)};
-        while (!remaining.is_empty()) {
-          const int line_len = remaining.find_first_of('\n');
-          if (line_len == -1) {
-            lines.append(remaining);
-            break;
-          }
-          else {
-            lines.append(remaining.substr(0, line_len));
-            remaining = remaining.substr(line_len + 1);
+        if (is_single_line) {
+          lines.append(numstr);
+        }
+        else {
+          StringRef remaining{numstr, int64_t(numstr_len)};
+          while (!remaining.is_empty()) {
+            const int line_len = remaining.find_first_of('\n');
+            if (line_len == -1) {
+              lines.append(remaining);
+              break;
+            }
+            else {
+              lines.append(remaining.substr(0, line_len));
+              remaining = remaining.substr(line_len + 1);
+            }
           }
         }
 
