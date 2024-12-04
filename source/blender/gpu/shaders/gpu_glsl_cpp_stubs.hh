@@ -785,35 +785,35 @@ template<typename T> T tan(T) RET;
 template<typename T> T tanh(T) RET;
 }  // namespace glsl
 
-#define abs(x) glsl::abs(x)
-#define ceil(x) glsl::ceil(x)
-#define exp(x) glsl::exp(x)
-#define exp2(x) glsl::exp2(x)
-#define floor(x) glsl::floor(x)
-#define fma(a, b, c) glsl::fma(a, b, c)
-#define frexp(x, exp) glsl::frexp(x, exp)
-#define isinf(x) glsl::isinf(x)
-#define isnan(x) glsl::isnan(x)
-#define log(x) glsl::log(x)
-#define log2(x) glsl::log2(x)
-#define modf(x, i) glsl::modf(x, i)
-#define pow(x, y) glsl::pow(x, y)
-#define round(x) glsl::round(x)
-#define sqrt(x) glsl::sqrt(x)
-#define trunc(x) glsl::trunc(x)
-#define ldexp(x, exp) glsl::ldexp(x, exp)
-#define acos(x) glsl::acos(x)
-#define acosh(x) glsl::acosh(x)
-#define asin(x) glsl::asin(x)
-#define asinh(x) glsl::asinh(x)
+#define abs glsl::abs
+#define ceil glsl::ceil
+#define exp glsl::exp
+#define exp2 glsl::exp2
+#define floor glsl::floor
+#define fma glsl::fma
+#define frexp glsl::frexp
+#define isinf glsl::isinf
+#define isnan glsl::isnan
+#define log glsl::log
+#define log2 glsl::log2
+#define modf glsl::modf
+#define pow glsl::pow
+#define round glsl::round
+#define sqrt glsl::sqrt
+#define trunc glsl::trunc
+#define ldexp glsl::ldexp
+#define acos glsl::acos
+#define acosh glsl::acosh
+#define asin glsl::asin
+#define asinh glsl::asinh
 #define atan glsl::atan
-#define atanh(x) glsl::atanh(x)
-#define cos(x) glsl::cos(x)
-#define cosh(x) glsl::cosh(x)
-#define sin(x) glsl::sin(x)
-#define sinh(x) glsl::sinh(x)
-#define tan(x) glsl::tan(x)
-#define tanh(x) glsl::tanh(x)
+#define atanh glsl::atanh
+#define cos glsl::cos
+#define cosh glsl::cosh
+#define sin glsl::sin
+#define sinh glsl::sinh
+#define tan glsl::tan
+#define tanh glsl::tanh
 
 template<typename T> T max(T, T) RET;
 template<typename T> T min(T, T) RET;

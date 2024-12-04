@@ -101,11 +101,12 @@ float hypot(float x, float y)
 
 /* Declared as _atan2 to prevent errors with `WITH_GPU_SHADER_CPP_COMPILATION` on VS2019 due
  * to `corecrt_math` conflicting functions. */
+
 float _atan2(float y, float x)
 {
   return atan(y, x);
 }
-#  define atan2(x, y) _atan2(x, y)
+#  define atan2 _atan2
 
 /**
  * Safe `a` modulo `b`.
