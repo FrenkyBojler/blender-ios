@@ -965,7 +965,7 @@ static BakeFrameIndices get_bake_frame_indices(
 {
   BakeFrameIndices frame_indices;
   if (!frame_caches.is_empty()) {
-    const int first_future_frame_index = binary_search::find_predicate_begin(
+    const int first_future_frame_index = binary_search::first_if(
         frame_caches,
         [&](const std::unique_ptr<bake::FrameCache> &value) { return value->frame > frame; });
     frame_indices.next = (first_future_frame_index == frame_caches.size()) ?
@@ -1505,7 +1505,7 @@ class NodesModifierBakeParams : public nodes::GeoNodesBakeParams {
           frame_cache->frame = current_frame;
           frame_cache->state = std::move(state);
           auto &frames = node_cache->bake.frames;
-          const int insert_index = binary_search::find_predicate_begin(
+          const int insert_index = binary_search::first_if(
               frames, [&](const std::unique_ptr<bake::FrameCache> &frame_cache) {
                 return frame_cache->frame > current_frame;
               });
@@ -2002,9 +2002,9 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   }
 
   const std::string attribute_prop_name = data.socket_identifier +
-                                          nodes::input_attribute_name_suffix();
+                                          nodes::input_attribute_name_suffix;
   IDProperty &name_property = *IDP_GetPropertyFromGroup(nmd->settings.properties,
-                                                        attribute_prop_name.c_str());
+                                                        attribute_prop_name);
   IDP_AssignString(&name_property, item.name.c_str());
 
   ED_undo_push(C, "Assign Attribute Name");
@@ -2076,16 +2076,14 @@ static void add_attribute_search_or_value_buttons(const bContext &C,
                                                   uiLayout *layout,
                                                   const NodesModifierData &nmd,
                                                   PointerRNA *md_ptr,
+                                                  const StringRef socket_id_esc,
+                                                  const StringRefNull rna_path,
                                                   const bNodeTreeInterfaceSocket &socket)
 {
-  const StringRefNull identifier = socket.identifier;
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
-  char socket_id_esc[MAX_NAME * 2];
-  BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
-  const std::string rna_path = "[\"" + std::string(socket_id_esc) + "\"]";
-  const std::string rna_path_attribute_name = "[\"" + std::string(socket_id_esc) +
-                                              nodes::input_attribute_name_suffix() + "\"]";
+  const std::string rna_path_attribute_name = fmt::format(
+      "[\"{}{}\"]", socket_id_esc, nodes::input_attribute_name_suffix);
 
   /* We're handling this manually in this case. */
   uiLayoutSetPropDecorate(layout, false);
@@ -2144,7 +2142,7 @@ static void draw_property_for_socket(const bContext &C,
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = IDP_GetPropertyFromGroup(nmd->settings.properties, identifier.c_str());
+  IDProperty *property = IDP_GetPropertyFromGroup(nmd->settings.properties, identifier);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
@@ -2201,7 +2199,8 @@ static void draw_property_for_socket(const bContext &C,
     }
     default: {
       if (nodes::input_has_attribute_toggle(*nmd->node_group, input_index)) {
-        add_attribute_search_or_value_buttons(C, row, *nmd, md_ptr, socket);
+        add_attribute_search_or_value_buttons(
+            C, row, *nmd, md_ptr, socket_id_esc, rna_path, socket);
       }
       else {
         uiItemR(row, md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
@@ -2222,8 +2221,8 @@ static void draw_property_for_output_socket(const bContext &C,
   const StringRefNull identifier = socket.identifier;
   char socket_id_esc[MAX_NAME * 2];
   BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
-  const std::string rna_path_attribute_name = "[\"" + StringRef(socket_id_esc) +
-                                              nodes::input_attribute_name_suffix() + "\"]";
+  const std::string rna_path_attribute_name = fmt::format(
+      "[\"{}{}\"]", socket_id_esc, nodes::input_attribute_name_suffix);
 
   uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
   uiLayout *name_row = uiLayoutRow(split, false);
@@ -2248,7 +2247,13 @@ static bool interace_panel_has_socket(const bNodeTreeInterfacePanel &interface_p
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
     if (item->item_type == NODE_INTERFACE_SOCKET) {
-      return true;
+      const bNodeTreeInterfaceSocket &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(
+          item);
+      if ((socket.flag &
+           (NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER | NODE_INTERFACE_SOCKET_OUTPUT)) == 0)
+      {
+        return true;
+      }
     }
     if (item->item_type == NODE_INTERFACE_PANEL) {
       if (interace_panel_has_socket(*reinterpret_cast<const bNodeTreeInterfacePanel *>(item))) {
@@ -2346,6 +2351,10 @@ static void draw_bake_panel(uiLayout *layout, PointerRNA *modifier_ptr)
 
 static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd)
 {
+  if (G.is_rendering) {
+    /* Avoid accessing this data while baking in a separate thread. */
+    return;
+  }
   geo_log::GeoTreeLog *tree_log = get_root_tree_log(nmd);
   if (tree_log == nullptr) {
     return;
@@ -2432,6 +2441,10 @@ static void draw_warnings(const bContext *C,
                           uiLayout *layout,
                           PointerRNA *md_ptr)
 {
+  if (G.is_rendering) {
+    /* Avoid accessing this data while baking in a separate thread. */
+    return;
+  }
   using namespace geo_log;
   GeoTreeLog *tree_log = get_root_tree_log(nmd);
   if (!tree_log) {
@@ -2443,7 +2456,9 @@ static void draw_warnings(const bContext *C,
     return;
   }
   PanelLayout panel = uiLayoutPanelProp(C, layout, md_ptr, "open_warnings_panel");
-  uiItemL(panel.header, fmt::format(IFACE_("Warnings ({})"), warnings_num).c_str(), ICON_NONE);
+  uiItemL(panel.header,
+          fmt::format(fmt::runtime(IFACE_("Warnings ({})")), warnings_num).c_str(),
+          ICON_NONE);
   if (!panel.body) {
     return;
   }

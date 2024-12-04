@@ -31,6 +31,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -1050,7 +1051,7 @@ static void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
           layer_orig.opacity = layer_eval.opacity;
           layer_orig.set_local_transform(layer_eval.local_transform());
 
-          /* Add new mapping for layer_eval -> layer_orig*/
+          /* Add new mapping for `layer_eval` -> `layer_orig`. */
           eval_to_orig_layer_map.add_new(&layer_eval, &layer_orig);
         }
       }
@@ -2608,9 +2609,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = edit_modifier_liboverride_allowed_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
 }
@@ -2701,12 +2700,14 @@ static bool modifier_copy_to_selected_poll(bContext *C)
       continue;
     }
 
-    if (!md && BKE_object_supports_modifiers(ob)) {
+    if (!md) {
       /* Skip type check if modifier could not be found ("modifier" context variable not set). */
-      found_supported_objects = true;
-      break;
+      if (BKE_object_supports_modifiers(ob)) {
+        found_supported_objects = true;
+        break;
+      }
     }
-    if (BKE_object_support_modifier_type_check(ob, md->type)) {
+    else if (BKE_object_support_modifier_type_check(ob, md->type)) {
       found_supported_objects = true;
       break;
     }

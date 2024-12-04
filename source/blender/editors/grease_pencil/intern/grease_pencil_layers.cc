@@ -43,7 +43,7 @@ bool grease_pencil_layer_parent_set(bke::greasepencil::Layer &layer,
   }
 
   layer.parent = parent;
-  BLI_strncpy(layer.parsubstr, bone.c_str(), sizeof(layer.parsubstr));
+  layer.parsubstr = BLI_strdup_null(bone.c_str());
   /* Calculate inverse parent matrix. */
   if (parent) {
     copy_m4_m4(layer.parentinv, parent->world_to_object().ptr());
@@ -65,7 +65,7 @@ void grease_pencil_layer_parent_clear(bke::greasepencil::Layer &layer, const boo
   }
 
   layer.parent = nullptr;
-  layer.parsubstr[0] = 0;
+  MEM_SAFE_FREE(layer.parsubstr);
 
   copy_m4_m4(layer.parentinv, float4x4::identity().ptr());
 }
@@ -453,9 +453,8 @@ static void GREASE_PENCIL_OT_layer_group_add(wmOperatorType *ot)
 static int grease_pencil_layer_group_remove_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(C);
   const bool keep_children = RNA_boolean_get(op->ptr, "keep_children");
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
   if (!grease_pencil.has_active_group()) {
     return OPERATOR_CANCELLED;

@@ -105,10 +105,10 @@ class VelocityModule {
   void step_sync(eVelocityStep step, float time);
 
   /* Gather motion data. Returns true if the object **can** have motion. */
-  bool step_object_sync(Object *ob,
-                        ObjectKey &object_key,
+  bool step_object_sync(ObjectKey &object_key,
+                        const ObjectRef &object_ref,
+                        int recalc,
                         ResourceHandle resource_handle,
-                        int recalc = 0,
                         ModifierData *modifier_data = nullptr,
                         ParticleSystem *particle_sys = nullptr);
 
@@ -121,8 +121,6 @@ class VelocityModule {
   void begin_sync();
   /** This is the end of the current frame sync. Not the step_sync. */
   void end_sync();
-
-  void bind_resources(DRWShadingGroup *grp);
 
   template<typename PassType> void bind_resources(PassType &pass)
   {

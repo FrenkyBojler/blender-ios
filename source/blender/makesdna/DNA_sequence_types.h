@@ -233,6 +233,11 @@ typedef struct Sequence {
   /* pointers for effects: */
   struct Sequence *seq1, *seq2;
 
+  /* This strange padding is needed due to how `seqbasep` de-serialization is
+   * done right now in #scene_blend_read_data. */
+  void *_pad7;
+  int _pad8[2];
+
   /** List of strips for meta-strips. */
   ListBase seqbase;
   ListBase channels; /* SeqTimelineChannel */
@@ -291,6 +296,7 @@ typedef struct Sequence {
   float speed_factor;
 
   struct SeqRetimingKey *retiming_keys;
+  void *_pad5;
   int retiming_keys_num;
   char _pad6[4];
 
@@ -443,6 +449,7 @@ typedef struct TextVars {
   float loc[2];
   float wrap_width;
   float box_margin;
+  float box_roundness;
   float shadow_angle;
   float shadow_offset;
   float shadow_blur;
@@ -458,7 +465,7 @@ typedef struct TextVars {
 
   char align_y DNA_DEPRECATED /* Only used for versioning. */;
   char anchor_x, anchor_y;
-  char _pad1[5];
+  char _pad1;
   TextVarsRuntime *runtime;
 } TextVars;
 
