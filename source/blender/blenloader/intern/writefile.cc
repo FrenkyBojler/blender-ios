@@ -1462,7 +1462,7 @@ static bool write_file_handle(Main *mainvar,
     write_id(wd, id);
   }
 
-  /* Write data for linked in libraries. */
+  /* Write libraries about libraries and linked data-blocks. */
   write_libraries(wd, mainvar);
 
   /* So changes above don't cause a 'DNA1' to be detected as changed on undo. */
