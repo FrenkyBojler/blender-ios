@@ -1512,9 +1512,15 @@ elseif(WIN32)
       DESTINATION ${TARGETDIR_EXE}
       RENAME blender_system_info.cmd
     )
+    if(WITH_CYCLES)
+      install(
+        FILES
+          ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_cycles.cmd
+        DESTINATION ${TARGETDIR_EXE}
+      )
+    endif()
     install(
       FILES
-        ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_cycles.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_gpu.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_gpu_glitchworkaround.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_log.cmd
