@@ -33,6 +33,8 @@
 
 #include "BLI_utildefines.h"
 
+#include <malloc.h>
+
 #include "BLI_alloca.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
