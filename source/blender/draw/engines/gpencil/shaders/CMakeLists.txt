@@ -41,24 +41,6 @@ set(SRC_GLSL_LIB
   gpencil_common_lib.glsl
 )
 
-
-function(compile_sources_as_cpp
-  executable
-  sources
-  define
-  )
-
-  foreach(glsl_file ${sources})
-    set_source_files_properties(${glsl_file} PROPERTIES LANGUAGE CXX)
-  endforeach()
-
-  add_library(${executable} OBJECT ${sources})
-  set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
-  target_include_directories(${executable} PUBLIC ${INC_GLSL})
-  target_compile_definitions(${executable} PRIVATE ${define})
-endfunction()
-
-
 # Compile shaders with shader code.
 if (WITH_GPU_SHADER_CPP_COMPILATION)
   with_shader_cpp_compilation_config()

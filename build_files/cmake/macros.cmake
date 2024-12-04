@@ -1513,3 +1513,19 @@ elseif(MSVC)
 endif()
 add_definitions(-DGPU_SHADER)
 endmacro()
+
+function(compile_sources_as_cpp
+  executable
+  sources
+  define
+  )
+
+  foreach(glsl_file ${sources})
+    set_source_files_properties(${glsl_file} PROPERTIES LANGUAGE CXX)
+  endforeach()
+
+  add_library(${executable} OBJECT ${sources})
+  set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
+  target_include_directories(${executable} PUBLIC ${INC_GLSL})
+  target_compile_definitions(${executable} PRIVATE ${define})
+endfunction()

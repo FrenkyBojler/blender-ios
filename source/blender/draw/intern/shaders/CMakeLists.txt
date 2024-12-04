@@ -31,29 +31,13 @@ set(SRC_GLSL_COMP
   draw_view_finalize_comp.glsl
   draw_visibility_comp.glsl
 )
-# TODO Remove
-add_definitions(-DUSE_GPU_SHADER_CREATE_INFO)
-
-function(compile_sources_as_cpp
-  executable
-  sources
-  define
-  )
-
-  foreach(glsl_file ${sources})
-    set_source_files_properties(${glsl_file} PROPERTIES LANGUAGE CXX)
-  endforeach()
-
-  add_library(${executable} OBJECT ${sources})
-  set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
-  target_include_directories(${executable} PUBLIC ${INC_GLSL})
-  target_compile_definitions(${executable} PRIVATE ${define})
-endfunction()
-
-
+    
 # Compile shaders with shader code.
 if (WITH_GPU_SHADER_CPP_COMPILATION)
   with_shader_cpp_compilation_config()
+  # TODO Remove
+  add_definitions(-DUSE_GPU_SHADER_CREATE_INFO)
+
   compile_sources_as_cpp(draw_cpp_shaders_vert "${SRC_GLSL_VERT}" "GPU_VERTEX_SHADER")
   compile_sources_as_cpp(draw_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
   compile_sources_as_cpp(draw_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
