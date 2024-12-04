@@ -269,9 +269,9 @@ def op_panel(menu, kmi_args, kmi_data=()):
 
 def op_asset_shelf_popup(asset_shelf, spacebar_action):
     if spacebar_action == 'PLAY':
-       kmi_args = {"type": 'SPACE', "value": 'PRESS', "shift": True}
+        kmi_args = {"type": 'SPACE', "value": 'PRESS', "shift": True}
     elif spacebar_action == 'TOOL':
-       kmi_args = {"type": 'SPACE', "value": 'PRESS'}
+        kmi_args = {"type": 'SPACE', "value": 'PRESS'}
 
     return ("wm.call_asset_shelf_popover", kmi_args, {"properties": [("name", asset_shelf)]})
 
@@ -4751,7 +4751,7 @@ def km_image_paint(params):
             "VIEW3D_AST_brush_texture_paint",
             params.spacebar_action
         ),
-        op_asset_shelf_popup(
+            op_asset_shelf_popup(
             "IMAGE_AST_brush_paint",
             params.spacebar_action
         ),])
