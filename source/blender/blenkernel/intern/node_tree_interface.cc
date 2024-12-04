@@ -1080,8 +1080,8 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
       /* Copy interface socket directly from source group to avoid loosing data in the process. */
       group->ensure_interface_cache();
       const bNodeTreeInterfaceSocket &src_io_socket =
-          (from_sock.is_input()) ? *group->interface_inputs()[from_sock.index()] :
-                                   *group->interface_outputs()[from_sock.index()];
+          from_sock.is_input() ? *group->interface_inputs()[from_sock.index()] :
+                                 *group->interface_outputs()[from_sock.index()];
       iosock = reinterpret_cast<bNodeTreeInterfaceSocket *>(
           ntree.tree_interface.add_item_copy(src_io_socket.item, nullptr));
     }
