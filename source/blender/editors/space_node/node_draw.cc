@@ -1326,13 +1326,13 @@ static void node_update_hidden(bNode &node, uiBlock &block)
 
 static int node_get_colorid(TreeDrawContext &tree_draw_ctx, const bNode &node)
 {
-  const blender::bke::NodeClass nclass = (node.typeinfo->ui_class == nullptr) ?
-                                             node.typeinfo->nclass :
-                                             node.typeinfo->ui_class(&node);
+  const bke::NodeClass nclass = (node.typeinfo->ui_class == nullptr) ?
+                                    node.typeinfo->nclass :
+                                    node.typeinfo->ui_class(&node);
   switch (nclass) {
-    case blender::bke::NodeClass::Input:
+    case bke::NodeClass::Input:
       return TH_NODE_INPUT;
-    case blender::bke::NodeClass::Output: {
+    case bke::NodeClass::Output: {
       if (node.type == GEO_NODE_VIEWER) {
         return &node == tree_draw_ctx.active_geometry_nodes_viewer ? TH_NODE_OUTPUT : TH_NODE;
       }
@@ -1340,35 +1340,35 @@ static int node_get_colorid(TreeDrawContext &tree_draw_ctx, const bNode &node)
                                   (node.type == CMP_NODE_OUTPUT_FILE);
       return is_output_node ? TH_NODE_OUTPUT : TH_NODE;
     }
-    case blender::bke::NodeClass::Converter:
+    case bke::NodeClass::Converter:
       return TH_NODE_CONVERTER;
-    case blender::bke::NodeClass::OpColor:
+    case bke::NodeClass::OpColor:
       return TH_NODE_COLOR;
-    case blender::bke::NodeClass::OpVector:
+    case bke::NodeClass::OpVector:
       return TH_NODE_VECTOR;
-    case blender::bke::NodeClass::OpFilter:
+    case bke::NodeClass::OpFilter:
       return TH_NODE_FILTER;
-    case blender::bke::NodeClass::Group:
+    case bke::NodeClass::Group:
       return TH_NODE_GROUP;
-    case blender::bke::NodeClass::Interface:
+    case bke::NodeClass::Interface:
       return TH_NODE_INTERFACE;
-    case blender::bke::NodeClass::Matte:
+    case bke::NodeClass::Matte:
       return TH_NODE_MATTE;
-    case blender::bke::NodeClass::Distort:
+    case bke::NodeClass::Distort:
       return TH_NODE_DISTORT;
-    case blender::bke::NodeClass::Texture:
+    case bke::NodeClass::Texture:
       return TH_NODE_TEXTURE;
-    case blender::bke::NodeClass::Shader:
+    case bke::NodeClass::Shader:
       return TH_NODE_SHADER;
-    case blender::bke::NodeClass::Script:
+    case bke::NodeClass::Script:
       return TH_NODE_SCRIPT;
-    case blender::bke::NodeClass::Pattern:
+    case bke::NodeClass::Pattern:
       return TH_NODE_PATTERN;
-    case blender::bke::NodeClass::Layout:
+    case bke::NodeClass::Layout:
       return TH_NODE_LAYOUT;
-    case blender::bke::NodeClass::Geometry:
+    case bke::NodeClass::Geometry:
       return TH_NODE_GEOMETRY;
-    case blender::bke::NodeClass::Attribute:
+    case bke::NodeClass::Attribute:
       return TH_NODE_ATTRIBUTE;
     default:
       return TH_NODE;
@@ -3024,9 +3024,9 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
 
   if (snode.overlay.flag & SN_OVERLAY_SHOW_TIMINGS &&
       (ELEM(node.typeinfo->nclass,
-            blender::bke::NodeClass::Geometry,
-            blender::bke::NodeClass::Group,
-            blender::bke::NodeClass::Attribute) ||
+            bke::NodeClass::Geometry,
+            bke::NodeClass::Group,
+            bke::NodeClass::Attribute) ||
        ELEM(node.type,
             NODE_FRAME,
             NODE_GROUP_OUTPUT,
