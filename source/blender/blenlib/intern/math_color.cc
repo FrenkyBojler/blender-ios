@@ -184,13 +184,23 @@ void ycc_to_rgb(float y, float cb, float cr, float *r_r, float *r_g, float *r_b,
 
 void hex_to_rgb(const char *hexcol, float *r_r, float *r_g, float *r_b)
 {
-  uint ri, gi, bi;
+  hex_to_rgba(hexcol, r_r, r_g, r_b, nullptr);
+}
+
+void hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *r_a)
+{
+  uint ri, gi, bi, ai;
+  bool has_alpha = false;
 
   if (hexcol[0] == '#') {
     hexcol++;
   }
 
-  if (sscanf(hexcol, "%02x%02x%02x", &ri, &gi, &bi) == 3) {
+  if (sscanf(hexcol, "%02x%02x%02x%02x", &ri, &gi, &bi, &ai) == 4) {
+    /* height digit hex colors with alpha */
+    has_alpha = true;
+  }
+  else if (sscanf(hexcol, "%02x%02x%02x", &ri, &gi, &bi) == 3) {
     /* six digit hex colors */
   }
   else if (sscanf(hexcol, "%01x%01x%01x", &ri, &gi, &bi) == 3) {
@@ -202,6 +212,9 @@ void hex_to_rgb(const char *hexcol, float *r_r, float *r_g, float *r_b)
   else {
     /* avoid using un-initialized vars */
     *r_r = *r_g = *r_b = 0.0f;
+    if (r_a) {
+      *r_a = 0.0f;
+    }
     return;
   }
 
@@ -211,6 +224,11 @@ void hex_to_rgb(const char *hexcol, float *r_r, float *r_g, float *r_b)
   CLAMP(*r_r, 0.0f, 1.0f);
   CLAMP(*r_g, 0.0f, 1.0f);
   CLAMP(*r_b, 0.0f, 1.0f);
+
+  if (r_a && has_alpha) {
+    *r_a = float(ai) * (1.0f / 255.0f);
+    CLAMP(*r_a, 0.0f, 1.0f);
+  }
 }
 
 void rgb_to_hsv(float r, float g, float b, float *r_h, float *r_s, float *r_v)
@@ -892,7 +910,7 @@ bool whitepoint_to_temp_tint(const float3 &white, float &temperature, float &tin
   if (entry == planck_locus.begin() || entry == planck_locus.end()) {
     return false;
   }
-  const size_t i = (size_t)(entry - planck_locus.begin());
+  const size_t i = size_t(entry - planck_locus.begin());
   const locus_entry_t &low = planck_locus[i - 1], high = planck_locus[i];
 
   /* Find closest point on locus. */
@@ -919,7 +937,7 @@ float3 whitepoint_from_temp_tint(const float temperature, const float tint)
       1e6f / temperature, planck_locus[0].mired, planck_locus[planck_locus.size() - 1].mired);
   auto check = [](const locus_entry_t &entry, const float val) { return entry.mired < val; };
   const auto entry = std::lower_bound(planck_locus.begin(), planck_locus.end(), mired, check);
-  const size_t i = (size_t)(entry - planck_locus.begin());
+  const size_t i = size_t(entry - planck_locus.begin());
   const locus_entry_t &low = planck_locus[i - 1], high = planck_locus[i];
 
   /* Find interpolation factor. */
@@ -934,7 +952,7 @@ float3 whitepoint_from_temp_tint(const float temperature, const float tint)
   const float2 isotherm = normalize(interpolate(isotherm0, isotherm1, f));
 
   /* Offset away from the Planckian locus according to the tint.
-   * Tint is parametrized such that +-3000 tint corresponds to +-1 delta UV. */
+   * Tint is parameterized such that +-3000 tint corresponds to +-1 delta UV. */
   uv -= isotherm * tint / 3000.0f;
 
   /* Convert CIE 1960 uv -> xyY. */

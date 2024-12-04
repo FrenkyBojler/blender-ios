@@ -87,9 +87,9 @@ wmGesture *WM_gesture_new(wmWindow *window, const ARegion *region, const wmEvent
     gesture->customdata = border;
     border[0] = xy[0] - gesture->winrct.xmin;
     border[1] = xy[1] - gesture->winrct.ymin;
-    border[2] = border[0];
-    border[3] = border[1];
-    gesture->points = 2;
+    gesture->mval.x = border[0];
+    gesture->mval.y = border[1];
+    gesture->points = 1;
   }
 
   return gesture;
@@ -443,7 +443,7 @@ static void draw_start_vertex_circle(const wmGesture &gt, const uint shdr_pos)
   const short(*border)[2] = static_cast<short int(*)[2]>(gt.customdata);
 
   const float start_pos[2] = {float(border[0][0]), float(border[0][1])};
-  const float current_pos[2] = {float(border[numverts - 1][0]), float(border[numverts - 1][1])};
+  const float current_pos[2] = {float(gt.mval.x), float(gt.mval.y)};
 
   const float dist = len_v2v2(start_pos, current_pos);
   const float limit = pow2f(blender::wm::gesture::POLYLINE_CLICK_RADIUS * UI_SCALE_FAC);
@@ -454,7 +454,15 @@ static void draw_start_vertex_circle(const wmGesture &gt, const uint shdr_pos)
         1.0f * UI_SCALE_FAC, blender::wm::gesture::POLYLINE_CLICK_RADIUS * UI_SCALE_FAC, u);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+    const blender::float3 color = {1.0f, 1.0f, 1.0f};
+    immUniformColor4f(color.x, color.y, color.z, 0.8f);
     imm_draw_circle_wire_2d(shdr_pos, start_pos[0], start_pos[1], radius, 15.0f);
+
+    const blender::float3 darker_color = color * 0.4f;
+    immUniformColor4f(darker_color.x, darker_color.y, darker_color.z, 0.8f);
+    imm_draw_circle_wire_2d(shdr_pos, start_pos[0], start_pos[1], radius + 1, 15.0f);
+
     immUnbindProgram();
   }
 }
@@ -463,7 +471,7 @@ static void wm_gesture_draw_polyline(wmGesture *gt)
 {
   draw_filled_lasso(gt);
 
-  const int numverts = gt->points;
+  const int numverts = gt->points + 1;
   if (numverts < 2) {
     return;
   }
@@ -486,9 +494,10 @@ static void wm_gesture_draw_polyline(wmGesture *gt)
   immBegin(GPU_PRIM_LINE_LOOP, numverts);
 
   const short *border = (short *)gt->customdata;
-  for (int i = 0; i < numverts; i++, border += 2) {
+  for (int i = 0; i < gt->points; i++, border += 2) {
     immVertex2f(shdr_pos, float(border[0]), float(border[1]));
   }
+  immVertex2f(shdr_pos, float(gt->mval.x), float(gt->mval.y));
 
   immEnd();
 
@@ -497,11 +506,10 @@ static void wm_gesture_draw_polyline(wmGesture *gt)
   draw_start_vertex_circle(*gt, shdr_pos);
 }
 
-static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
+static void wm_gesture_draw_cross(const wmWindow *win, const wmGesture *gt)
 {
   const rcti *rect = static_cast<const rcti *>(gt->customdata);
-  const int winsize_x = WM_window_pixels_x(win);
-  const int winsize_y = WM_window_pixels_y(win);
+  const blender::int2 win_size = WM_window_native_pixel_size(win);
 
   float x1, x2, y1, y2;
 
@@ -522,18 +530,18 @@ static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
 
   immBegin(GPU_PRIM_LINES, 4);
 
-  x1 = float(rect->xmin - winsize_x);
+  x1 = float(rect->xmin - win_size[0]);
   y1 = float(rect->ymin);
-  x2 = float(rect->xmin + winsize_x);
+  x2 = float(rect->xmin + win_size[0]);
   y2 = y1;
 
   immVertex2f(shdr_pos, x1, y1);
   immVertex2f(shdr_pos, x2, y2);
 
   x1 = float(rect->xmin);
-  y1 = float(rect->ymin - winsize_y);
+  y1 = float(rect->ymin - win_size[1]);
   x2 = x1;
-  y2 = float(rect->ymin + winsize_y);
+  y2 = float(rect->ymin + win_size[1]);
 
   immVertex2f(shdr_pos, x1, y1);
   immVertex2f(shdr_pos, x2, y2);

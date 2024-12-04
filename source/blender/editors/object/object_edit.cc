@@ -51,7 +51,7 @@
 #include "BKE_effect.h"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -325,7 +325,7 @@ void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_boolean(ot->srna, "select", true, "Select", "");
+  RNA_def_boolean(ot->srna, "select", true, "Select", "Select revealed objects");
 }
 
 static int object_hide_view_set_exec(bContext *C, wmOperator *op)
@@ -334,6 +334,8 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool unselected = RNA_boolean_get(op->ptr, "unselected");
   bool changed = false;
+  const bool confirm = op->flag & OP_IS_INVOKE;
+  uint hide_count = 0;
 
   /* Hide selected or unselected objects. */
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -346,6 +348,7 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
       if (base->flag & BASE_SELECTED) {
         base_select(base, BA_DESELECT);
         base->flag |= BASE_HIDDEN;
+        hide_count++;
         changed = true;
       }
     }
@@ -353,12 +356,17 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
       if (!(base->flag & BASE_SELECTED)) {
         base_select(base, BA_DESELECT);
         base->flag |= BASE_HIDDEN;
+        hide_count++;
         changed = true;
       }
     }
   }
   if (!changed) {
     return OPERATOR_CANCELLED;
+  }
+
+  if (hide_count > 0 && confirm) {
+    BKE_reportf(op->reports, RPT_INFO, "%u object(s) hidden", (hide_count));
   }
 
   BKE_view_layer_need_resync_tag(view_layer);
@@ -716,6 +724,8 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
       obedit->mode &= ~OB_MODE_EDIT;
       /* Also happens when mesh is shared across multiple objects. #69834. */
       DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+      /* Leaving edit mode may modify the original object data; tag that as well. */
+      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
     }
     return true;
   }
@@ -738,6 +748,8 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
 
     /* also flush ob recalc, doesn't take much overhead, but used for particles */
     DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+    /* Leaving edit mode may modify the original object data; tag that as well. */
+    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, scene);
 
@@ -936,7 +948,8 @@ static int editmode_toggle_exec(bContext *C, wmOperator *op)
 
   if (!is_mode_set) {
     editmode_enter_ex(bmain, scene, obact, 0);
-    if (obact->mode & mode_flag) {
+    /* Grease Pencil does not support multi-object editing. */
+    if ((obact->type != OB_GREASE_PENCIL) && ((obact->mode & mode_flag) != 0)) {
       FOREACH_SELECTED_OBJECT_BEGIN (view_layer, v3d, ob) {
         if ((ob != obact) && (ob->type == obact->type)) {
           editmode_enter_ex(bmain, scene, ob, EM_NO_CONTEXT);
@@ -1604,6 +1617,8 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
     CTX_data_selected_editable_objects(C, &ctx_objects);
   }
 
+  bool modifier_removed = false;
+
   Set<ID *> object_data;
   for (const PointerRNA &ptr : ctx_objects) {
     Object *ob = static_cast<Object *>(ptr.data);
@@ -1616,6 +1631,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
             if (is_smooth_by_angle_modifier(*md)) {
               modifier_remove(op->reports, bmain, scene, ob, md);
               DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+              modifier_removed = true;
               break;
             }
           }
@@ -1651,10 +1667,14 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       changed_multi = true;
-
       DEG_id_tag_update(data, ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, data);
     }
+  }
+
+  if (modifier_removed) {
+    /* Outliner needs to know. #124302. */
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
   }
 
   if (has_linked_data) {
@@ -1673,7 +1693,8 @@ static bool shade_poll(bContext *C)
   if (obact != nullptr) {
     /* Doesn't handle edit-data, sculpt dynamic-topology, or their undo systems. */
     if (obact->mode & (OB_MODE_EDIT | OB_MODE_SCULPT) || obact->data == nullptr ||
-        ID_IS_OVERRIDE_LIBRARY(obact) || ID_IS_OVERRIDE_LIBRARY(obact->data))
+        !ID_IS_EDITABLE(obact) || !ID_IS_EDITABLE(obact->data) || ID_IS_OVERRIDE_LIBRARY(obact) ||
+        ID_IS_OVERRIDE_LIBRARY(obact->data))
     {
       return false;
     }
@@ -1943,11 +1964,6 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
   Object *ob = CTX_data_active_object(C);
   eObjectMode mode = eObjectMode(RNA_enum_get(op->ptr, "mode"));
   const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-
-  /* by default the operator assume is a mesh, but if gp object change mode */
-  if ((ob->type == OB_GPENCIL_LEGACY) && (mode == OB_MODE_EDIT)) {
-    mode = OB_MODE_EDIT_GPENCIL_LEGACY;
-  }
 
   if (!mode_compat_test(ob, mode)) {
     return OPERATOR_PASS_THROUGH;
@@ -2222,7 +2238,7 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
   int index = menu->index;
   LISTBASE_FOREACH (CollectionChild *, child, &menu->collection->children) {
     Collection *collection = child->collection;
-    MoveToCollectionData *submenu = MEM_cnew<MoveToCollectionData>(__func__);
+    MoveToCollectionData *submenu = MEM_new<MoveToCollectionData>(__func__);
     BLI_addtail(&menu->submenus, submenu);
     submenu->collection = collection;
     submenu->index = ++index;
@@ -2234,10 +2250,11 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
 
 static void move_to_collection_menus_free_recursive(MoveToCollectionData *menu)
 {
-  LISTBASE_FOREACH (MoveToCollectionData *, submenu, &menu->submenus) {
+  LISTBASE_FOREACH_MUTABLE (MoveToCollectionData *, submenu, &menu->submenus) {
     move_to_collection_menus_free_recursive(submenu);
+    MEM_delete(submenu);
   }
-  BLI_freelistN(&menu->submenus);
+  BLI_listbase_clear(&menu->submenus);
 }
 
 static void move_to_collection_menus_free(MoveToCollectionData **menu)
@@ -2247,7 +2264,7 @@ static void move_to_collection_menus_free(MoveToCollectionData **menu)
   }
 
   move_to_collection_menus_free_recursive(*menu);
-  MEM_freeN(*menu);
+  MEM_delete(*menu);
   *menu = nullptr;
 }
 
@@ -2346,7 +2363,7 @@ static int move_to_collection_invoke(bContext *C, wmOperator *op, const wmEvent 
    *
    * So we are left with a memory that will necessarily leak. It's a small leak though. */
   if (master_collection_menu == nullptr) {
-    master_collection_menu = MEM_cnew<MoveToCollectionData>(
+    master_collection_menu = MEM_new<MoveToCollectionData>(
         "MoveToCollectionData menu - expected eventual memleak");
   }
 

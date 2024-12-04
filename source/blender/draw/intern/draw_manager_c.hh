@@ -30,6 +30,7 @@
 #include "draw_instance_data.hh"
 #include "draw_shader_shared.hh"
 
+struct DRWDebugModule;
 struct DRWTexturePool;
 struct DRWUniformChunk;
 struct DupliObject;
@@ -38,6 +39,7 @@ namespace blender::draw {
 struct CurvesUniformBufPool;
 struct DRW_Attributes;
 struct DRW_MeshCDMask;
+class CurveRefinePass;
 }  // namespace blender::draw
 struct GPUMaterial;
 
@@ -478,7 +480,6 @@ struct DRWView {
   BoundSphere frustum_bsphere;
   float frustum_planes[6][4];
   /** Custom visibility function. */
-  DRWCallVisibilityFn *visibility_fn;
   void *user_data;
 };
 /* Needed to assert that alignment is the same in C++ and C. */
@@ -574,6 +575,7 @@ struct DRWData {
   DRWViewData *view_data[2];
   /** Per draw-call curves object data. */
   blender::draw::CurvesUniformBufPool *curves_ubos;
+  blender::draw::CurveRefinePass *curves_refine;
 };
 
 /** \} */
@@ -696,15 +698,12 @@ extern DRWManager DST; /* TODO: get rid of this and allow multi-threaded renderi
 
 void drw_texture_set_parameters(GPUTexture *tex, DRWTextureFlag flags);
 
-void *drw_viewport_engine_data_ensure(void *engine_type);
-
 void drw_state_set(DRWState state);
 
 void drw_debug_draw();
 void drw_debug_init();
 void drw_debug_module_free(DRWDebugModule *module);
 GPUStorageBuf *drw_debug_gpu_draw_buf_get();
-GPUStorageBuf *drw_debug_gpu_print_buf_get();
 
 eDRWCommandType command_type_get(const uint64_t *command_type_bits, int index);
 
@@ -716,8 +715,6 @@ void drw_batch_cache_generate_requested(Object *ob);
  */
 void drw_batch_cache_generate_requested_delayed(Object *ob);
 void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob);
-
-void drw_resource_buffer_finish(DRWData *vmempool);
 
 /* Procedural Drawing */
 blender::gpu::Batch *drw_cache_procedural_points_get();
@@ -733,13 +730,6 @@ void drw_uniform_attrs_pool_update(GHash *table,
                                    const DupliObject *dupli_source);
 
 GPUUniformBuf *drw_ensure_layer_attribute_buffer();
-
-double *drw_engine_data_cache_time_get(GPUViewport *viewport);
-void *drw_engine_data_engine_data_create(GPUViewport *viewport, void *engine_type);
-void *drw_engine_data_engine_data_get(GPUViewport *viewport, void *engine_handle);
-bool drw_engine_data_engines_data_validate(GPUViewport *viewport, void **engine_handle_array);
-void drw_engine_data_cache_release(GPUViewport *viewport);
-void drw_engine_data_free(GPUViewport *viewport);
 
 namespace blender::draw {
 

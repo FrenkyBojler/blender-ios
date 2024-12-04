@@ -37,28 +37,49 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Float>("Distance Min")
-      .min(0.0f)
-      .subtype(PROP_DISTANCE)
-      .make_available(enable_poisson);
-  b.add_input<decl::Float>("Density Max")
-      .default_value(10.0f)
-      .min(0.0f)
-      .make_available(enable_poisson);
-  b.add_input<decl::Float>("Density").default_value(10.0f).min(0.0f).field_on_all().make_available(
-      enable_random);
-  b.add_input<decl::Float>("Density Factor")
-      .default_value(1.0f)
-      .min(0.0f)
-      .max(1.0f)
-      .subtype(PROP_FACTOR)
-      .field_on_all()
-      .make_available(enable_poisson);
+  auto &distance_min = b.add_input<decl::Float>("Distance Min")
+                           .min(0.0f)
+                           .subtype(PROP_DISTANCE)
+                           .make_available(enable_poisson)
+                           .available(false);
+  auto &density_max = b.add_input<decl::Float>("Density Max")
+                          .default_value(10.0f)
+                          .min(0.0f)
+                          .make_available(enable_poisson)
+                          .available(false);
+  auto &density = b.add_input<decl::Float>("Density")
+                      .default_value(10.0f)
+                      .min(0.0f)
+                      .field_on_all()
+                      .make_available(enable_random)
+                      .available(false);
+  auto &density_factor = b.add_input<decl::Float>("Density Factor")
+                             .default_value(1.0f)
+                             .min(0.0f)
+                             .max(1.0f)
+                             .subtype(PROP_FACTOR)
+                             .field_on_all()
+                             .make_available(enable_poisson)
+                             .available(false);
   b.add_input<decl::Int>("Seed");
 
   b.add_output<decl::Geometry>("Points").propagate_all();
   b.add_output<decl::Vector>("Normal").field_on_all();
   b.add_output<decl::Rotation>("Rotation").field_on_all();
+
+  const bNode *node = b.node_or_null();
+  if (node != nullptr) {
+    switch (node->custom1) {
+      case GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON:
+        distance_min.available(true);
+        density_max.available(true);
+        density_factor.available(true);
+        break;
+      case GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_RANDOM:
+        density.available(true);
+        break;
+    }
+  }
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -69,26 +90,6 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "use_legacy_normal", UI_ITEM_NONE, nullptr, ICON_NONE);
-}
-
-static void node_point_distribute_points_on_faces_update(bNodeTree *ntree, bNode *node)
-{
-  bNodeSocket *sock_distance_min = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 2));
-  bNodeSocket *sock_density_max = static_cast<bNodeSocket *>(sock_distance_min->next);
-  bNodeSocket *sock_density = sock_density_max->next;
-  bNodeSocket *sock_density_factor = sock_density->next;
-  bke::nodeSetSocketAvailability(ntree,
-                                 sock_distance_min,
-                                 node->custom1 ==
-                                     GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON);
-  bke::nodeSetSocketAvailability(
-      ntree, sock_density_max, node->custom1 == GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON);
-  bke::nodeSetSocketAvailability(
-      ntree, sock_density, node->custom1 == GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_RANDOM);
-  bke::nodeSetSocketAvailability(ntree,
-                                 sock_density_factor,
-                                 node->custom1 ==
-                                     GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON);
 }
 
 /**
@@ -285,11 +286,12 @@ BLI_NOINLINE static void propagate_existing_attributes(
     const Mesh &mesh,
     const GroupedSpan<float3> bary_coords,
     const bke::AttributeAccessor src_attributes,
-    const Map<AttributeIDRef, AttributeKind> &attributes,
+    const Map<StringRef, AttributeDomainAndType> &attributes,
     bke::MutableAttributeAccessor dst_attributes)
 {
-  for (MapItem<AttributeIDRef, AttributeKind> entry : attributes.items()) {
-    const AttributeIDRef attribute_id = entry.key;
+  for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
+    const StringRef attribute_id = entry.key;
+
     const eCustomDataType output_data_type = entry.value.data_type;
     if (output_data_type == CD_PROP_STRING) {
       continue;
@@ -333,8 +335,8 @@ BLI_NOINLINE static void propagate_existing_attributes(
 
 namespace {
 struct AttributeOutputs {
-  AnonymousAttributeIDPtr normal_id;
-  AnonymousAttributeIDPtr rotation_id;
+  std::optional<std::string> normal_id;
+  std::optional<std::string> rotation_id;
 };
 }  // namespace
 
@@ -438,8 +440,7 @@ static void compute_attribute_outputs(const Mesh &mesh,
   ids.finish();
 
   if (attribute_outputs.normal_id) {
-    SpanAttributeWriter<float3> normals = dst_attributes.lookup_or_add_for_write_only_span<float3>(
-        attribute_outputs.normal_id.get(), AttrDomain::Point);
+    SpanAttributeWriter<float3> normals = dst_attributes.lookup_or_add_for_write_only_span<float3>(*attribute_outputs.normal_id, AttrDomain::Point);
     if (use_legacy_normal) {
       compute_legacy_normal_outputs(mesh, tri_bary_coords.offsets, normals.span);
     }
@@ -451,11 +452,8 @@ static void compute_attribute_outputs(const Mesh &mesh,
 
   if (attribute_outputs.rotation_id) {
     BLI_assert(attribute_outputs.normal_id);
-    const VArraySpan<float3> normals = *dst_attributes.lookup<float3>(
-        attribute_outputs.normal_id.get(), AttrDomain::Point);
-    SpanAttributeWriter<math::Quaternion> rotations =
-        dst_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(
-            attribute_outputs.rotation_id.get(), AttrDomain::Point);
+    const VArraySpan<float3> normals = *dst_attributes.lookup<float3>(*attribute_outputs.normal_id, AttrDomain::Point);
+    SpanAttributeWriter<math::Quaternion> rotations = dst_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(*attribute_outputs.rotation_id, AttrDomain::Point);
     compute_rotation_output(normals, rotations.span);
     rotations.finish();
   }
@@ -686,11 +684,11 @@ static void point_distribution_calculate(GeometrySet &geometry_set,
 
   geometry_set.replace_pointcloud(pointcloud);
 
-  Map<AttributeIDRef, AttributeKind> attributes;
+  Map<StringRef, AttributeDomainAndType> attributes;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Mesh},
                                                  GeometryComponent::Type::PointCloud,
                                                  false,
-                                                 params.get_output_propagation_info("Points"),
+                                                 params.get_attribute_filter("Points"),
                                                  attributes);
 
   propagate_existing_attributes(
@@ -740,13 +738,12 @@ static void node_register()
                      GEO_NODE_DISTRIBUTE_POINTS_ON_FACES,
                      "Distribute Points on Faces",
                      NODE_CLASS_GEOMETRY);
-  ntype.updatefunc = node_point_distribute_points_on_faces_update;
   blender::bke::node_type_size(&ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

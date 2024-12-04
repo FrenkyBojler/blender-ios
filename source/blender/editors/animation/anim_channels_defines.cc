@@ -49,7 +49,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -58,7 +58,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
@@ -71,10 +71,13 @@
 #include "UI_view2d.hh"
 
 #include "ED_anim_api.hh"
-#include "ED_keyframing.hh"
+
+#include "ANIM_fcurve.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+
+#include "anim_intern.hh"
 
 using namespace blender;
 
@@ -86,9 +89,6 @@ using namespace blender;
 
 /* size of indent steps */
 #define INDENT_STEP_SIZE (0.35f * U.widget_unit)
-
-/* size of string buffers used for animation channel displayed names */
-#define ANIM_CHAN_NAME_SIZE 256
 
 /* get the pointer used for some flag */
 #define GET_ACF_FLAG_PTR(ptr, type) ((*(type) = sizeof(ptr)), &(ptr))
@@ -232,20 +232,17 @@ static short acf_generic_indentation_2(bAnimContext *ac, bAnimListElem *ale)
 /* indentation which varies with the grouping status */
 static short acf_generic_indentation_flexible(bAnimContext * /*ac*/, bAnimListElem *ale)
 {
-  short indent = 0;
-
-  /* grouped F-Curves need extra level of indentation */
-  if (ale->type == ANIMTYPE_FCURVE) {
-    FCurve *fcu = (FCurve *)ale->data;
-
-    /* TODO: we need some way of specifying that the indentation color should be one less. */
-    if (fcu->grp) {
-      indent++;
-    }
+  if (ale->type != ANIMTYPE_FCURVE) {
+    return 0;
   }
 
-  /* no indentation */
-  return indent;
+  /* Grouped F-Curves need extra level of indentation. */
+  const FCurve *fcu = static_cast<const FCurve *>(ale->data);
+  if (fcu->grp) {
+    return 1;
+  }
+
+  return 0;
 }
 
 /* basic offset for channels derived from indentation */
@@ -290,6 +287,36 @@ static short acf_generic_group_offset(bAnimContext *ac, bAnimListElem *ale)
   short offset = acf_generic_basic_offset(ac, ale);
 
   if (ale->id) {
+
+    /* Action Editor. */
+    if (ac->datatype == ANIMCONT_ACTION) {
+      /* For Action Editor mode, we have a limited set of channel types we need
+       * to account for, so we can handle them very simply here in one place. */
+      switch (ale->type) {
+        case ANIMTYPE_FCURVE:
+        case ANIMTYPE_GROUP: {
+          const bAction *action = reinterpret_cast<bAction *>(ale->fcurve_owner_id);
+          if (action->wrap().is_action_layered()) {
+            offset += short(0.35f * U.widget_unit);
+          }
+          break;
+        }
+
+        case ANIMTYPE_SUMMARY:
+        case ANIMTYPE_ACTION_SLOT:
+          break;
+
+        /* There should be no types except the above in Action Editor mode. */
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
+
+      return offset;
+    }
+
+    /* Other editors. */
+
     /* texture animdata */
     if (GS(ale->id->name) == ID_TE) {
       offset += U.widget_unit;
@@ -297,11 +324,10 @@ static short acf_generic_group_offset(bAnimContext *ac, bAnimListElem *ale)
     /* materials and particles animdata */
     else if (ELEM(GS(ale->id->name), ID_MA, ID_PA)) {
       offset += short(0.7f * U.widget_unit);
-
-      /* If not in Action Editor mode, action-groups (and their children)
-       * must carry some offset too. */
     }
-    else if (ac->datatype != ANIMCONT_ACTION) {
+    /* If not in Action Editor mode, action-groups (and their children)
+     * must carry some offset too. */
+    else {
       offset += short(0.7f * U.widget_unit);
     }
 
@@ -642,8 +668,6 @@ static int acf_object_icon(bAnimListElem *ale)
       return ICON_OUTLINER_OB_VOLUME;
     case OB_EMPTY:
       return ICON_OUTLINER_OB_EMPTY;
-    case OB_GPENCIL_LEGACY:
-      return ICON_OUTLINER_OB_GREASEPENCIL;
     case OB_GREASE_PENCIL:
       return ICON_OUTLINER_OB_GREASEPENCIL;
     default:
@@ -975,7 +999,52 @@ static bAnimChannelType ACF_GROUP = {
 /* name for fcurve entries */
 static void acf_fcurve_name(bAnimListElem *ale, char *name)
 {
-  getname_anim_fcurve(name, ale->id, static_cast<FCurve *>(ale->data));
+  using namespace blender::animrig;
+
+  FCurve *fcurve = static_cast<FCurve *>(ale->data);
+
+  /* Clear the error flag. It'll be set again when an error situation is detected. */
+  fcurve->flag &= ~FCURVE_DISABLED;
+
+  if (ale->fcurve_owner_id && GS(ale->fcurve_owner_id->name) == ID_AC &&
+      ale->slot_handle != Slot::unassigned)
+  {
+    /* F-Curve comes from a layered Action. This means that we cannot trust `ale->id` or
+     * `ale->adt`, because in the Action Editor those are set to whatever object has this Action
+     * assigned. This F-Curve may be for a different slot, though, and thus might be animating a
+     * entirely different ID type. */
+    const Action &action = reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
+    const Slot *slot = action.slot_for_handle(ale->slot_handle);
+    if (!slot) {
+      /* Defer to the default F-Curve resolution, but without the animated ID
+       * pointer, as it's likely to be wrong anyway. */
+      getname_anim_fcurve(name, nullptr, fcurve);
+      return;
+    }
+
+    /* If the animated ID this ALE is for is a user of the slot, try to resolve the path on that.
+     * If this fails, mark the F-Curve as problematic. This code is here so that
+     * getname_anim_fcurve_for_slot() can do its best to find a label of the animated property,
+     * independently of the "error line" shown in the dope sheet, at the cost of one extra call to
+     * RNA_path_resolve_property(). See #129490. */
+    if (slot->users(*ale->bmain).contains(ale->id)) {
+      PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
+      PointerRNA ptr;
+      PropertyRNA *prop;
+      if (!RNA_path_resolve_property(&id_ptr, fcurve->rna_path, &ptr, &prop)) {
+        fcurve->flag |= FCURVE_DISABLED;
+      }
+    }
+
+    BLI_assert(ale->bmain);
+    const std::string fcurve_name = getname_anim_fcurve_for_slot(*ale->bmain, *slot, *fcurve);
+    const size_t num_chars_copied = fcurve_name.copy(name, std::string::npos);
+    name[num_chars_copied] = '\0';
+
+    return;
+  }
+
+  getname_anim_fcurve(name, ale->id, fcurve);
 }
 
 /* "name" property for fcurve entries */
@@ -1250,12 +1319,10 @@ static bAnimChannelType ACF_NLACURVE = {
 
 /* Object Animation Expander  ------------------------------------------- */
 
-#ifdef WITH_ANIM_BAKLAVA
-
 /* TODO: just get this from RNA? */
 static int acf_fillanim_icon(bAnimListElem * /*ale*/)
 {
-  return ICON_ACTION; /* TODO: give Animation its own icon? */
+  return ICON_ACTION;
 }
 
 /* check if some setting exists for this channel */
@@ -1335,7 +1402,110 @@ static bAnimChannelType ACF_FILLANIM = {
     /*setting_ptr*/ acf_fillanim_setting_ptr,
 };
 
-#endif
+static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
+{
+  const animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
+  if (!slot) {
+    /* Trying to getting the slot's name without a slot is a bug. */
+    BLI_assert_unreachable();
+    BLI_strncpy(r_name, "-nil-", ANIM_CHAN_NAME_SIZE);
+    return;
+  }
+
+  BLI_assert(ale->bmain);
+  const int num_users = slot->users(*ale->bmain).size();
+  const char *display_name = slot->identifier_without_prefix().c_str();
+
+  BLI_assert(num_users >= 0);
+  switch (num_users) {
+    case 0:
+      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (unassigned)", display_name);
+      break;
+    case 1:
+      BLI_strncpy(r_name, display_name, ANIM_CHAN_NAME_SIZE);
+      break;
+    default:
+      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (%d)", display_name, num_users);
+      break;
+  }
+}
+static bool acf_action_slot_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
+{
+  animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
+  BLI_assert(GS(ale->fcurve_owner_id->name) == ID_AC);
+
+  *r_ptr = RNA_pointer_create(ale->fcurve_owner_id, &RNA_ActionSlot, slot);
+  *r_prop = RNA_struct_find_property(r_ptr, "name_display");
+
+  return (*r_prop != nullptr);
+}
+
+static int acf_action_slot_icon(bAnimListElem * /*ale*/)
+{
+  return ICON_ACTION_SLOT;
+}
+
+static int acf_action_slot_idtype_icon(bAnimListElem *ale)
+{
+  animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
+  return UI_icon_from_idcode(slot->idtype);
+}
+
+static bool acf_action_slot_setting_valid(bAnimContext * /*ac*/,
+                                          bAnimListElem * /*ale*/,
+                                          const eAnimChannel_Settings setting)
+{
+  switch (setting) {
+    case ACHANNEL_SETTING_SELECT:
+    case ACHANNEL_SETTING_EXPAND:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+static int acf_action_slot_setting_flag(bAnimContext * /*ac*/,
+                                        eAnimChannel_Settings setting,
+                                        bool *r_neg)
+{
+  *r_neg = false;
+
+  switch (setting) {
+    case ACHANNEL_SETTING_SELECT:
+      return int(animrig::Slot::Flags::Selected);
+    case ACHANNEL_SETTING_EXPAND:
+      return int(animrig::Slot::Flags::Expanded);
+    default:
+      return 0;
+  }
+}
+static void *acf_action_slot_setting_ptr(bAnimListElem *ale,
+                                         eAnimChannel_Settings /*setting*/,
+                                         short *r_type)
+{
+  animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
+  return GET_ACF_FLAG_PTR(slot->slot_flags, r_type);
+}
+
+static bAnimChannelType ACF_ACTION_SLOT = {
+    /*channel_type_name*/ "Action Slot",
+    /*channel_role*/ ACHANNEL_ROLE_EXPANDER,
+
+    /*get_backdrop_color*/ acf_generic_dataexpand_color,
+    /*get_channel_color*/ nullptr,
+    /*draw_backdrop*/ nullptr,
+    /*get_indent_level*/ acf_generic_indentation_0,
+    /*get_offset*/ acf_generic_group_offset,
+
+    /*name*/ acf_action_slot_name,
+    /*name_prop*/ acf_action_slot_name_prop,
+    /*icon*/ acf_action_slot_icon,
+
+    /*has_setting*/ acf_action_slot_setting_valid,
+    /*setting_flag*/ acf_action_slot_setting_flag,
+    /*setting_ptr*/ acf_action_slot_setting_ptr,
+};
 
 /* Object Action Expander  ------------------------------------------- */
 
@@ -3418,7 +3588,7 @@ static void acf_gpd_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float 
 /* TODO: just get this from RNA? */
 static int acf_gpd_icon(bAnimListElem * /*ale*/)
 {
-  return ICON_OUTLINER_OB_GREASEPENCIL;
+  return ICON_OUTLINER_DATA_GREASEPENCIL;
 }
 
 /* check if some setting exists for this channel */
@@ -3733,9 +3903,15 @@ static void *layer_setting_ptr(bAnimListElem *ale,
   return GET_ACF_FLAG_PTR(layer->base.flag, r_type);
 }
 
-static int layer_group_icon(bAnimListElem * /*ale*/)
+static int layer_group_icon(bAnimListElem *ale)
 {
-  return ICON_FILE_FOLDER;
+  using namespace bke::greasepencil;
+  const LayerGroup &group = *static_cast<LayerGroup *>(ale->data);
+  int icon = ICON_GREASEPENCIL_LAYER_GROUP;
+  if (group.color_tag != LAYERGROUP_COLOR_NONE) {
+    icon = ICON_LAYERGROUP_COLOR_01 + group.color_tag;
+  }
+  return icon;
 }
 
 static void layer_group_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
@@ -3809,7 +3985,7 @@ static bAnimChannelType ACF_GPL = {
     /*channel_role*/ ACHANNEL_ROLE_CHANNEL,
 
     /*get_backdrop_color*/ acf_generic_channel_color,
-    /*get_channel_color*/ acf_gpl_channel_color,
+    /*get_channel_color*/ nullptr,
     /*draw_backdrop*/ acf_generic_channel_backdrop,
     /*get_indent_level*/ acf_generic_indentation_flexible,
     /*get_offset*/ greasepencil::layer_offset,
@@ -4249,7 +4425,7 @@ static void acf_nlaaction_name(bAnimListElem *ale, char *name)
       BLI_strncpy(name, act->id.name + 2, ANIM_CHAN_NAME_SIZE);
     }
     else {
-      BLI_strncpy(name, "<No Action>", ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy(name, IFACE_("<No Action>"), ANIM_CHAN_NAME_SIZE);
     }
   }
 }
@@ -4378,11 +4554,8 @@ static void ANIM_init_channel_typeinfo_data()
     animchannelTypeInfo[type++] = &ACF_NLACONTROLS; /* NLA Control FCurve Expander */
     animchannelTypeInfo[type++] = &ACF_NLACURVE;    /* NLA Control FCurve Channel */
 
-#ifdef WITH_ANIM_BAKLAVA
-    animchannelTypeInfo[type++] = &ACF_FILLANIM; /* Object's Layered Action Expander */
-#else
-    animchannelTypeInfo[type++] = nullptr;
-#endif
+    animchannelTypeInfo[type++] = &ACF_FILLANIM;    /* Object's Layered Action Expander */
+    animchannelTypeInfo[type++] = &ACF_ACTION_SLOT; /* Action Slot Expander */
     animchannelTypeInfo[type++] = &ACF_FILLACTD;    /* Object Action Expander */
     animchannelTypeInfo[type++] = &ACF_FILLDRIVERS; /* Drivers Expander */
 
@@ -4423,10 +4596,10 @@ static void ANIM_init_channel_typeinfo_data()
     animchannelTypeInfo[type++] = &ACF_NLATRACK;  /* NLA Track */
     animchannelTypeInfo[type++] = &ACF_NLAACTION; /* NLA Action */
 
-#ifdef WITH_ANIM_BAKLAVA
     BLI_assert_msg(animchannelTypeInfo[ANIMTYPE_FILLACT_LAYERED] == &ACF_FILLANIM,
                    "ANIMTYPE_FILLACT_LAYERED does not match ACF_FILLANIM");
-#endif
+    BLI_assert_msg(animchannelTypeInfo[ANIMTYPE_ACTION_SLOT] == &ACF_ACTION_SLOT,
+                   "ANIMTYPE_ACTION_SLOT does not match ACF_ACTION_SLOT");
   }
 }
 
@@ -4659,6 +4832,50 @@ static bool achannel_is_being_renamed(const bAnimContext *ac,
   return false;
 }
 
+/**
+ * Check if the animation channel is an item that either is or belongs to a
+ * disconnected action slot.
+ */
+static bool achannel_is_part_of_disconnected_slot(const bAnimListElem *ale)
+{
+  BLI_assert(ale->bmain != nullptr);
+  if (ale->bmain == nullptr) {
+    return false;
+  }
+
+  switch (ale->type) {
+    case ANIMTYPE_ACTION_SLOT: {
+      const animrig::Slot &slot = static_cast<const ActionSlot *>(ale->data)->wrap();
+
+      return slot.users(*ale->bmain).is_empty();
+    }
+
+    case ANIMTYPE_GROUP:
+    case ANIMTYPE_FCURVE: {
+      if (ale->fcurve_owner_id == nullptr || GS(ale->fcurve_owner_id->name) != ID_AC) {
+        return false;
+      }
+
+      const animrig::Action &action =
+          reinterpret_cast<const bAction *>(ale->fcurve_owner_id)->wrap();
+      if (action.is_action_legacy()) {
+        return false;
+      }
+
+      const animrig::Slot *slot = action.slot_for_handle(ale->slot_handle);
+      if (slot == nullptr) {
+        return false;
+      }
+
+      return slot->users(*ale->bmain).is_empty();
+    }
+
+    /* No other types are currently drawn as children of action slots. */
+    default:
+      return false;
+  }
+}
+
 /** Check if the animation channel name should be underlined in red due to errors. */
 static bool achannel_is_broken(const bAnimListElem *ale)
 {
@@ -4852,6 +5069,11 @@ void ANIM_channel_draw(
       UI_GetThemeColor4ubv(TH_TEXT, col);
     }
 
+    /* Gray out disconnected action slots and their children. */
+    if (!selected && achannel_is_part_of_disconnected_slot(ale)) {
+      col[3] = col[3] / 3 * 2;
+    }
+
     /* get name */
     acf->name(ale, name);
 
@@ -4919,6 +5141,8 @@ void ANIM_channel_draw(
           draw_sliders = (sipo->flag & SIPO_SLIDERS);
           break;
         }
+        default:
+          BLI_assert_unreachable();
       }
     }
 
@@ -5148,7 +5372,7 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
   /* try to resolve the path stored in the F-Curve */
   if (RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
     /* set the special 'replace' flag if on a keyframe */
-    if (fcurve_frame_has_keyframe(fcu, cfra)) {
+    if (blender::animrig::fcurve_frame_has_keyframe(fcu, cfra)) {
       flag |= INSERTKEY_REPLACE;
     }
 
@@ -5238,7 +5462,7 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
 
   if (fcu && prop) {
     /* set the special 'replace' flag if on a keyframe */
-    if (fcurve_frame_has_keyframe(fcu, cfra)) {
+    if (blender::animrig::fcurve_frame_has_keyframe(fcu, cfra)) {
       flag |= INSERTKEY_REPLACE;
     }
 
@@ -5597,7 +5821,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
                                uiBlock *block,
-                               rctf *rect,
+                               const rctf *rect,
                                size_t channel_index)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
@@ -5668,7 +5892,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
   /* step 4) draw text - check if renaming widget is in use... */
   if (is_being_renamed) {
-    PointerRNA ptr = {nullptr};
+    PointerRNA ptr = {};
     PropertyRNA *prop = nullptr;
 
     /* draw renaming widget if we can get RNA pointer for it
@@ -5737,6 +5961,8 @@ void ANIM_channel_draw_widgets(const bContext *C,
           draw_sliders = (sipo->flag & SIPO_SLIDERS);
           break;
         }
+        default:
+          BLI_assert_unreachable();
       }
     }
 
@@ -5846,6 +6072,12 @@ void ANIM_channel_draw_widgets(const bContext *C,
         RNA_int_set(opptr_b, "track_index", channel_index);
 
         UI_block_emboss_set(block, UI_EMBOSS_NONE);
+      }
+
+      /* Slot ID type indicator. */
+      if (ale->type == ANIMTYPE_ACTION_SLOT) {
+        offset -= ICON_WIDTH;
+        UI_icon_draw(offset, ymid, acf_action_slot_idtype_icon(ale));
       }
     }
 

@@ -22,7 +22,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_fileselect.hh"
 
@@ -255,7 +255,7 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
   uiItemS(col);
 
   blender::ed::asset_browser::file_create_asset_catalog_tree_view_in_layout(
-      asset_library, col, sfile, params);
+      C, asset_library, col, sfile, params);
 }
 
 void file_tools_region_panels_register(ARegionType *art)

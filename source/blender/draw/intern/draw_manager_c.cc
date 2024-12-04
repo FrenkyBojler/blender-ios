@@ -88,7 +88,6 @@
 /* only for callbacks */
 #include "draw_cache_impl.hh"
 
-#include "engines/basic/basic_engine.h"
 #include "engines/compositor/compositor_engine.h"
 #include "engines/eevee_next/eevee_engine.h"
 #include "engines/external/external_engine.h"
@@ -189,7 +188,7 @@ bool DRW_object_is_renderable(const Object *ob)
   BLI_assert((ob->base_flag & BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT) != 0);
 
   if (ob->type == OB_MESH) {
-    if ((ob == DST.draw_ctx.object_edit) || DRW_object_is_in_edit_mode(ob)) {
+    if ((ob == DST.draw_ctx.object_edit) || ob->mode == OB_MODE_EDIT) {
       View3D *v3d = DST.draw_ctx.v3d;
       if (v3d && ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && RETOPOLOGY_ENABLED(v3d)) {
         return false;
@@ -491,6 +490,7 @@ void DRW_viewport_data_free(DRWData *drw_data)
   }
   DRW_volume_ubos_pool_free(drw_data->volume_grids_ubos);
   DRW_curves_ubos_pool_free(drw_data->curves_ubos);
+  DRW_curves_refine_pass_free(drw_data->curves_refine);
   MEM_freeN(drw_data);
 }
 
@@ -585,7 +585,7 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
 
   if (rv3d != nullptr) {
     dst->pixsize = rv3d->pixsize;
-    dst->view_default = DRW_view_create(rv3d->viewmat, rv3d->winmat, nullptr, nullptr, nullptr);
+    dst->view_default = DRW_view_create(rv3d->viewmat, rv3d->winmat, nullptr, nullptr);
 
     if (dst->draw_ctx.sh_cfg == GPU_SHADER_CFG_CLIPPED) {
       int plane_len = (RV3D_LOCK_FLAGS(rv3d) & RV3D_BOXCLIP) ? 4 : 6;
@@ -609,7 +609,7 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
     winmat[3][0] = -1.0f;
     winmat[3][1] = -1.0f;
 
-    dst->view_default = DRW_view_create(viewmat, winmat, nullptr, nullptr, nullptr);
+    dst->view_default = DRW_view_create(viewmat, winmat, nullptr, nullptr);
     dst->view_active = dst->view_default;
     dst->view_previous = nullptr;
   }
@@ -663,6 +663,11 @@ DefaultFramebufferList *DRW_viewport_framebuffer_list_get()
 DefaultTextureList *DRW_viewport_texture_list_get()
 {
   return DRW_view_data_default_texture_list_get(DST.view_data_active);
+}
+
+blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name)
+{
+  return DRW_view_data_pass_texture_get(DST.view_data_active, pass_name);
 }
 
 void DRW_viewport_request_redraw()
@@ -1190,15 +1195,7 @@ static void drw_engines_enable_from_engine(const RenderEngineType *engine_type, 
 
 static void drw_engines_enable_overlays()
 {
-  use_drw_engine((U.experimental.enable_overlay_next) ? &draw_engine_overlay_next_type :
-                                                        &draw_engine_overlay_type);
-}
-/**
- * Use for select and depth-drawing.
- */
-static void drw_engines_enable_basic()
-{
-  use_drw_engine(&draw_engine_basic_type);
+  use_drw_engine(&draw_engine_overlay_next_type);
 }
 
 static void drw_engine_enable_image_editor()
@@ -1210,8 +1207,7 @@ static void drw_engine_enable_image_editor()
     use_drw_engine(&draw_engine_image_type);
   }
 
-  use_drw_engine((U.experimental.enable_overlay_next) ? &draw_engine_overlay_next_type :
-                                                        &draw_engine_overlay_type);
+  use_drw_engine(&draw_engine_overlay_next_type);
 }
 
 static void drw_engines_enable_editors()
@@ -1229,14 +1225,17 @@ static void drw_engines_enable_editors()
     SpaceNode *snode = (SpaceNode *)space_data;
     if ((snode->flag & SNODE_BACKDRAW) != 0) {
       use_drw_engine(&draw_engine_image_type);
-      use_drw_engine((U.experimental.enable_overlay_next) ? &draw_engine_overlay_next_type :
-                                                            &draw_engine_overlay_type);
+      use_drw_engine(&draw_engine_overlay_next_type);
     }
   }
 }
 
-static bool is_compositor_enabled()
+bool DRW_is_viewport_compositor_enabled()
 {
+  if (!DST.draw_ctx.v3d) {
+    return false;
+  }
+
   if (DST.draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
     return false;
   }
@@ -1250,6 +1249,10 @@ static bool is_compositor_enabled()
   }
 
   if (!DST.draw_ctx.scene->nodetree) {
+    return false;
+  }
+
+  if (!DST.draw_ctx.rv3d) {
     return false;
   }
 
@@ -1275,7 +1278,7 @@ static void drw_engines_enable(ViewLayer * /*view_layer*/,
     use_drw_engine(&draw_engine_gpencil_type);
   }
 
-  if (is_compositor_enabled()) {
+  if (DRW_is_viewport_compositor_enabled()) {
     use_drw_engine(&draw_engine_compositor_type);
   }
 
@@ -1302,10 +1305,9 @@ static void drw_engines_data_validate()
  * For slow exact check use `DRW_render_check_grease_pencil` */
 static bool drw_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d)
 {
-  const bool exclude_gpencil_rendering =
-      v3d ? ((v3d->object_type_exclude_viewport & (1 << OB_GPENCIL_LEGACY)) != 0) ||
-                ((v3d->object_type_exclude_viewport & (1 << OB_GREASE_PENCIL)) != 0) :
-            false;
+  const bool exclude_gpencil_rendering = v3d ? ((v3d->object_type_exclude_viewport &
+                                                 (1 << OB_GREASE_PENCIL)) != 0) :
+                                               false;
   return (!exclude_gpencil_rendering) && (DEG_id_type_any_exists(depsgraph, ID_GD_LEGACY) ||
                                           DEG_id_type_any_exists(depsgraph, ID_GP));
 }
@@ -1754,7 +1756,7 @@ void DRW_draw_render_loop_ex(Depsgraph *depsgraph,
   GPU_framebuffer_bind(DST.default_framebuffer);
   GPU_framebuffer_clear_depth_stencil(DST.default_framebuffer, 1.0f, 0xFF);
 
-  DRW_curves_update();
+  DRW_curves_update(*DRW_manager_get());
 
   DRW_draw_callbacks_pre_scene();
 
@@ -1873,7 +1875,7 @@ bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-    if (ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+    if (ob->type == OB_GREASE_PENCIL) {
       if (DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF) {
         return true;
       }
@@ -2375,7 +2377,6 @@ void DRW_render_instance_buffer_finish()
   BLI_assert_msg(!DST.buffer_finish_called, "DRW_render_instance_buffer_finish called twice!");
   DST.buffer_finish_called = true;
   DRW_instance_buffer_finish(DST.vmempool->idatalist);
-  drw_resource_buffer_finish(DST.vmempool);
 }
 
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)
@@ -2476,29 +2477,15 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   DST.options.is_material_select = do_material_sub_selection;
   drw_task_graph_init();
   /* Get list of enabled engines */
-  if (U.experimental.enable_overlay_next) {
-    use_drw_engine(&draw_engine_select_next_type);
-  }
-  else if (use_obedit) {
-    drw_engines_enable_overlays();
+  use_drw_engine(&draw_engine_select_next_type);
+  if (use_obedit) {
+    /* Noop. */
   }
   else if (!draw_surface) {
     /* grease pencil selection */
     if (drw_gpencil_engine_needed(depsgraph, v3d)) {
       use_drw_engine(&draw_engine_gpencil_type);
     }
-
-    drw_engines_enable_overlays();
-  }
-  else {
-    /* Draw surface for occlusion. */
-    drw_engines_enable_basic();
-    /* grease pencil selection */
-    if (drw_gpencil_engine_needed(depsgraph, v3d)) {
-      use_drw_engine(&draw_engine_gpencil_type);
-    }
-
-    drw_engines_enable_overlays();
   }
   drw_engines_data_validate();
 
@@ -2596,22 +2583,15 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   DRW_state_reset();
   DRW_draw_callbacks_pre_scene();
 
-  DRW_curves_update();
+  DRW_curves_update(*DRW_manager_get());
 
   /* Only 1-2 passes. */
   while (true) {
     if (!select_pass_fn(DRW_SELECT_PASS_PRE, select_pass_user_data)) {
       break;
     }
-    if (!U.experimental.enable_overlay_next) {
-      DRW_state_lock(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_TEST_ENABLED);
-    }
 
     drw_engines_draw_scene();
-
-    if (!U.experimental.enable_overlay_next) {
-      DRW_state_lock(DRWState(0));
-    }
 
     if (!select_pass_fn(DRW_SELECT_PASS_POST, select_pass_user_data)) {
       break;
@@ -2638,8 +2618,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          View3D *v3d,
                          GPUViewport *viewport,
                          const bool use_gpencil,
-                         const bool use_basic,
-                         const bool use_overlay,
                          const bool use_only_selected)
 {
   using namespace blender::draw;
@@ -2671,12 +2649,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   if (use_gpencil) {
     use_drw_engine(&draw_engine_gpencil_type);
   }
-  if (use_basic) {
-    drw_engines_enable_basic();
-  }
-  if (use_overlay) {
-    drw_engines_enable_overlays();
-  }
+  drw_engines_enable_overlays();
 
   drw_task_graph_init();
 
@@ -2743,7 +2716,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   /* Start Drawing */
   DRW_state_reset();
 
-  DRW_curves_update();
+  DRW_curves_update(*DRW_manager_get());
 
   drw_engines_draw_scene();
 
@@ -2839,7 +2812,6 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 #else
     DST.buffer_finish_called = true;
     // DRW_instance_buffer_finish(DST.vmempool->idatalist);
-    drw_resource_buffer_finish(DST.vmempool);
 #endif
   }
 
@@ -3066,11 +3038,9 @@ void DRW_engines_register()
 
   DRW_engine_register(&draw_engine_gpencil_type);
 
-  DRW_engine_register(&draw_engine_overlay_type);
   DRW_engine_register(&draw_engine_overlay_next_type);
   DRW_engine_register(&draw_engine_select_next_type);
   DRW_engine_register(&draw_engine_select_type);
-  DRW_engine_register(&draw_engine_basic_type);
   DRW_engine_register(&draw_engine_compositor_type);
 #ifdef WITH_DRAW_DEBUG
   DRW_engine_register(&draw_engine_debug_select_type);
@@ -3092,9 +3062,6 @@ void DRW_engines_register()
 
     BKE_particle_batch_cache_dirty_tag_cb = DRW_particle_batch_cache_dirty_tag;
     BKE_particle_batch_cache_free_cb = DRW_particle_batch_cache_free;
-
-    BKE_gpencil_batch_cache_dirty_tag_cb = DRW_gpencil_batch_cache_dirty_tag;
-    BKE_gpencil_batch_cache_free_cb = DRW_gpencil_batch_cache_free;
 
     BKE_curves_batch_cache_dirty_tag_cb = DRW_curves_batch_cache_dirty_tag;
     BKE_curves_batch_cache_free_cb = DRW_curves_batch_cache_free;
@@ -3242,7 +3209,9 @@ void DRW_gpu_context_create()
   WM_system_gpu_context_activate(DST.system_gpu_context);
   /* Be sure to create blender_gpu_context too. */
   DST.blender_gpu_context = GPU_context_create(nullptr, DST.system_gpu_context);
-  /* So we activate the window's one afterwards. */
+  /* Setup compilation context. */
+  DRW_shader_init();
+  /* Activate the window's context afterwards. */
   wm_window_reset_drawable();
 }
 
@@ -3250,6 +3219,7 @@ void DRW_gpu_context_destroy()
 {
   BLI_assert(BLI_thread_is_main());
   if (DST.system_gpu_context != nullptr) {
+    DRW_shader_exit();
     WM_system_gpu_context_activate(DST.system_gpu_context);
     GPU_context_active_set(DST.blender_gpu_context);
     GPU_context_discard(DST.blender_gpu_context);

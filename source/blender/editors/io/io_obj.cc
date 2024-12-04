@@ -15,7 +15,7 @@
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_utildefines.h"
 
@@ -111,8 +111,7 @@ static int wm_obj_export_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "collection", export_params.collection);
 
   OBJ_export(C, &export_params);
-
-  return OPERATOR_FINISHED;
+  return BKE_reports_contain(op->reports, RPT_ERROR) ? OPERATOR_CANCELLED : OPERATOR_FINISHED;
 }
 
 static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
@@ -412,6 +411,7 @@ static int wm_obj_import_exec(bContext *C, wmOperator *op)
   import_params.use_split_groups = RNA_boolean_get(op->ptr, "use_split_groups");
   import_params.import_vertex_groups = RNA_boolean_get(op->ptr, "import_vertex_groups");
   import_params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
+  import_params.close_spline_loops = RNA_boolean_get(op->ptr, "close_spline_loops");
   char separator[2] = {};
   RNA_string_get(op->ptr, "collection_separator", separator);
   import_params.collection_separator = separator[0];
@@ -461,6 +461,7 @@ static void ui_obj_import_settings(const bContext *C, uiLayout *layout, PointerR
     uiItemR(col, ptr, "use_split_groups", UI_ITEM_NONE, nullptr, ICON_NONE);
     uiItemR(col, ptr, "import_vertex_groups", UI_ITEM_NONE, nullptr, ICON_NONE);
     uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "close_spline_loops", UI_ITEM_NONE, nullptr, ICON_NONE);
     uiItemR(col, ptr, "collection_separator", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
 }
@@ -540,6 +541,12 @@ void WM_OT_obj_import(wmOperatorType *ot)
       "Validate Meshes",
       "Ensure the data is valid "
       "(when disabled, data may be imported which causes crashes displaying or editing)");
+  RNA_def_boolean(ot->srna,
+                  "close_spline_loops",
+                  true,
+                  "Detect Cyclic Curves",
+                  "Join curve endpoints if overlapping control points are detected"
+                  "(if disabled, no curves will be cyclic)");
 
   RNA_def_string(ot->srna,
                  "collection_separator",

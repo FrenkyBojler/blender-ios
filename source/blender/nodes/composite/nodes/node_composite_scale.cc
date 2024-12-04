@@ -11,6 +11,7 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 
@@ -57,7 +58,7 @@ static void node_composite_update_scale(bNodeTree *ntree, bNode *node)
   /* Only show X/Y scale factor inputs for modes using them! */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (STR_ELEM(sock->name, "X", "Y")) {
-      bke::nodeSetSocketAvailability(ntree, sock, use_xy_scale);
+      bke::node_set_socket_availability(ntree, sock, use_xy_scale);
     }
   }
 }
@@ -112,12 +113,22 @@ class ScaleOperation : public NodeOperation {
 
   void execute_variable_size()
   {
+    if (this->context().use_gpu()) {
+      execute_variable_size_gpu();
+    }
+    else {
+      execute_variable_size_cpu();
+    }
+  }
+
+  void execute_variable_size_gpu()
+  {
     GPUShader *shader = context().get_shader("compositor_scale_variable");
     GPU_shader_bind(shader);
 
     Result &input = get_input("Image");
-    GPU_texture_filter_mode(input.texture(), true);
-    GPU_texture_extend_mode(input.texture(), GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+    GPU_texture_filter_mode(input, true);
+    GPU_texture_extend_mode(input, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
     input.bind_as_texture(shader, "input_tx");
 
     Result &x_scale = get_input("X");
@@ -138,6 +149,29 @@ class ScaleOperation : public NodeOperation {
     y_scale.unbind_as_texture();
     output.unbind_as_image();
     GPU_shader_unbind();
+  }
+
+  void execute_variable_size_cpu()
+  {
+    const Result &input = this->get_input("Image");
+    const Result &x_scale = this->get_input("X");
+    const Result &y_scale = this->get_input("Y");
+
+    Result &output = this->get_result("Image");
+    const Domain domain = compute_domain();
+    output.allocate_texture(domain);
+
+    const int2 size = domain.size;
+    parallel_for(size, [&](const int2 texel) {
+      float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
+      float2 center = float2(0.5f);
+
+      float2 scale = float2(x_scale.load_pixel(texel).x, y_scale.load_pixel(texel).x);
+      float2 scaled_coordinates = center +
+                                  (coordinates - center) / math::max(scale, float2(0.0001f));
+
+      output.store_pixel(texel, input.sample_bilinear_zero(scaled_coordinates));
+    });
   }
 
   float2 get_scale()
@@ -288,5 +322,5 @@ void register_node_type_cmp_scale()
   ntype.updatefunc = file_ns::node_composite_update_scale;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

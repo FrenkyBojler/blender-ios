@@ -202,11 +202,22 @@ blender::bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_fac
     return MeshNormalDomain::Point;
   }
 
-  if (CustomData_has_layer(&this->corner_data, CD_CUSTOMLOOPNORMAL)) {
-    return MeshNormalDomain::Corner;
+  const bke::AttributeAccessor attributes = this->attributes();
+  if (const std::optional<AttributeMetaData> custom = attributes.lookup_meta_data("custom_normal"))
+  {
+    switch (custom->domain) {
+      case AttrDomain::Point:
+      case AttrDomain::Edge:
+      case AttrDomain::Face:
+        /* Not supported yet. */
+        break;
+      case AttrDomain::Corner:
+        return MeshNormalDomain::Corner;
+      default:
+        BLI_assert_unreachable();
+    }
   }
 
-  const AttributeAccessor attributes = this->attributes();
   const VArray<bool> sharp_faces = *attributes.lookup_or_default<bool>(
       "sharp_face", AttrDomain::Face, false);
 
@@ -288,8 +299,8 @@ blender::Span<blender::float3> Mesh::corner_normals() const
         const AttributeAccessor attributes = this->attributes();
         const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
         const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
-        const short2 *custom_normals = static_cast<const short2 *>(
-            CustomData_get_layer(&this->corner_data, CD_CUSTOMLOOPNORMAL));
+        const VArraySpan custom_normals = *attributes.lookup<short2>("custom_normal",
+                                                                     AttrDomain::Corner);
         mesh::normals_calc_corners(this->vert_positions(),
                                    this->edges(),
                                    this->faces(),
@@ -1173,7 +1184,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           const Span<float3> face_normals,
                           const Span<bool> sharp_edges,
                           const Span<bool> sharp_faces,
-                          const short2 *clnors_data,
+                          const Span<short2> custom_normals,
                           CornerNormalSpaceArray *r_lnors_spacearr,
                           MutableSpan<float3> r_corner_normals)
 {
@@ -1199,7 +1210,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
   SCOPED_TIMER_AVERAGED(__func__);
 #endif
 
-  if (!r_lnors_spacearr && clnors_data) {
+  if (!r_lnors_spacearr && !custom_normals.is_empty()) {
     /* We need to compute lnor spacearr if some custom lnor data are given to us! */
     r_lnors_spacearr = &_lnors_spacearr;
   }
@@ -1208,7 +1219,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
   CornerSplitTaskDataCommon common_data;
   common_data.lnors_spacearr = r_lnors_spacearr;
   common_data.corner_normals = r_corner_normals;
-  common_data.clnors_data = {clnors_data, clnors_data ? corner_verts.size() : 0};
+  common_data.clnors_data = custom_normals;
   common_data.positions = vert_positions;
   common_data.edges = edges;
   common_data.faces = faces;
@@ -1306,7 +1317,7 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
                        face_normals,
                        sharp_edges,
                        sharp_faces,
-                       r_clnors_data.data(),
+                       r_clnors_data,
                        &lnors_spacearr,
                        corner_normals);
 
@@ -1372,8 +1383,8 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
       const float *org_nor = nullptr;
 
       for (int i = fan_corners.index_range().last(); i >= 0; i--) {
-        const int lidx = fan_corners[i];
-        float *nor = r_custom_corner_normals[lidx];
+        const int corner = fan_corners[i];
+        float *nor = r_custom_corner_normals[corner];
 
         if (!org_nor) {
           org_nor = nor;
@@ -1383,9 +1394,9 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
            * previous corner's face and current's one as sharp.
            * We know those two corners do not point to the same edge,
            * since we do not allow reversed winding in a same smooth fan. */
-          const IndexRange face = faces[corner_to_face[lidx]];
-          const int corner_prev = face_corner_prev(face, lidx);
-          const int edge = corner_edges[lidx];
+          const IndexRange face = faces[corner_to_face[corner]];
+          const int corner_prev = face_corner_prev(face, corner);
+          const int edge = corner_edges[corner];
           const int edge_prev = corner_edges[corner_prev];
           const int prev_edge = corner_edges[prev_corner];
           sharp_edges[prev_edge == edge_prev ? prev_edge : edge] = true;
@@ -1393,8 +1404,8 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
           org_nor = nor;
         }
 
-        prev_corner = lidx;
-        done_corners[lidx].set();
+        prev_corner = corner;
+        done_corners[corner].set();
       }
 
       /* We also have to check between last and first corners,
@@ -1402,13 +1413,13 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
        * This is just a simplified version of above while loop.
        * See #45984. */
       if (fan_corners.size() > 1 && org_nor) {
-        const int lidx = fan_corners.last();
-        float *nor = r_custom_corner_normals[lidx];
+        const int corner = fan_corners.last();
+        float *nor = r_custom_corner_normals[corner];
 
         if (dot_v3v3(org_nor, nor) < LNOR_SPACE_TRIGO_THRESHOLD) {
-          const IndexRange face = faces[corner_to_face[lidx]];
-          const int corner_prev = face_corner_prev(face, lidx);
-          const int edge = corner_edges[lidx];
+          const IndexRange face = faces[corner_to_face[corner]];
+          const int corner_prev = face_corner_prev(face, corner);
+          const int edge = corner_edges[corner];
           const int edge_prev = corner_edges[corner_prev];
           const int prev_edge = corner_edges[prev_corner];
           sharp_edges[prev_edge == edge_prev ? prev_edge : edge] = true;
@@ -1427,7 +1438,7 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
                          face_normals,
                          sharp_edges,
                          sharp_faces,
-                         r_clnors_data.data(),
+                         r_clnors_data,
                          &lnors_spacearr,
                          corner_normals);
   }
@@ -1460,10 +1471,10 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
     }
     else {
       float3 avg_nor(0.0f);
-      for (const int lidx : fan_corners) {
-        const int nidx = use_vertices ? corner_verts[lidx] : lidx;
+      for (const int corner : fan_corners) {
+        const int nidx = use_vertices ? corner_verts[corner] : corner;
         avg_nor += r_custom_corner_normals[nidx];
-        done_corners[lidx].reset();
+        done_corners[corner].reset();
       }
 
       mul_v3_fl(avg_nor, 1.0f / float(fan_corners.size()));
@@ -1529,16 +1540,12 @@ void normals_corner_custom_set_from_verts(const Span<float3> vert_positions,
 
 static void mesh_set_custom_normals(Mesh *mesh, float (*r_custom_nors)[3], const bool use_vertices)
 {
-  short2 *clnors = static_cast<short2 *>(
-      CustomData_get_layer_for_write(&mesh->corner_data, CD_CUSTOMLOOPNORMAL, mesh->corners_num));
-  if (clnors != nullptr) {
-    memset(clnors, 0, sizeof(*clnors) * mesh->corners_num);
-  }
-  else {
-    clnors = static_cast<short2 *>(CustomData_add_layer(
-        &mesh->corner_data, CD_CUSTOMLOOPNORMAL, CD_SET_DEFAULT, mesh->corners_num));
-  }
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  SpanAttributeWriter custom_normals = attributes.lookup_or_add_for_write_span<short2>(
+      "custom_normal", AttrDomain::Corner);
+  if (!custom_normals) {
+    return;
+  }
   SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
       "sharp_edge", AttrDomain::Edge);
   const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
@@ -1555,19 +1562,47 @@ static void mesh_set_custom_normals(Mesh *mesh, float (*r_custom_nors)[3], const
                                  {reinterpret_cast<float3 *>(r_custom_nors),
                                   use_vertices ? mesh->verts_num : mesh->corners_num},
                                  sharp_edges.span,
-                                 {clnors, mesh->corners_num});
+                                 custom_normals.span);
 
   sharp_edges.finish();
+  custom_normals.finish();
 }
 
 }  // namespace blender::bke::mesh
 
+static void normalize_vecs(blender::MutableSpan<blender::float3> normals)
+{
+  using namespace blender;
+
+  threading::parallel_for(normals.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      normals[i] = math::normalize(normals[i]);
+    }
+  });
+}
+
 void BKE_mesh_set_custom_normals(Mesh *mesh, float (*r_custom_corner_normals)[3])
+{
+  normalize_vecs(
+      {reinterpret_cast<blender::float3 *>(r_custom_corner_normals), mesh->corners_num});
+
+  blender::bke::mesh::mesh_set_custom_normals(mesh, r_custom_corner_normals, false);
+}
+
+void BKE_mesh_set_custom_normals_normalized(Mesh *mesh, float (*r_custom_corner_normals)[3])
 {
   blender::bke::mesh::mesh_set_custom_normals(mesh, r_custom_corner_normals, false);
 }
 
 void BKE_mesh_set_custom_normals_from_verts(Mesh *mesh, float (*r_custom_vert_normals)[3])
+{
+  normalize_vecs({reinterpret_cast<blender::float3 *>(r_custom_vert_normals), mesh->verts_num});
+
+  blender::bke::mesh::mesh_set_custom_normals(mesh, r_custom_vert_normals, true);
+}
+
+void BKE_mesh_set_custom_normals_from_verts_normalized(Mesh *mesh,
+                                                       float (*r_custom_vert_normals)[3])
 {
   blender::bke::mesh::mesh_set_custom_normals(mesh, r_custom_vert_normals, true);
 }
