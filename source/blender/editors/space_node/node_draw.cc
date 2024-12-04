@@ -1400,7 +1400,7 @@ static void node_socket_tooltip_set(uiBlock &block,
   const eUIEmbossType old_emboss = UI_block_emboss_get(&block);
   UI_block_emboss_set(&block, UI_EMBOSS_NONE);
   uiBut *but = uiDefIconBut(&block,
-                            UI_BTYPE_BUT,
+                            UI_BTYPE_LABEL,
                             0,
                             ICON_NONE,
                             location.x - size.x / 2.0f,
