@@ -29,7 +29,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_COLLECTION, "Collection", blender::bke::NodeClass::Input);
+  geo_node_type_base(
+      &ntype, GEO_NODE_INPUT_COLLECTION, "Collection", blender::bke::NodeClass::Input);
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
