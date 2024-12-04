@@ -174,7 +174,6 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
     MutableSpan<float> nurbs_weights = curves.nurbs_weights_for_write();
     MutableSpan<int8_t> nurbs_orders = curves.nurbs_orders_for_write();
     MutableSpan<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes_for_write();
-    MutableSpan<float> knots_attr = curves.nurbs_knots_for_write();
 
     selection.foreach_index(GrainSize(256), [&](const int curve_i) {
       const Nurb &src_curve = *src_curves[curve_i];
@@ -185,6 +184,8 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
       nurbs_orders[curve_i] = src_curve.orderu;
       nurbs_knots_modes[curve_i] = knots_mode_from_legacy(src_curve.flagu);
       if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_FREE) {
+        /* Placed here to prevent attribute creation when it is not needed. */
+        MutableSpan<float> knots_attr = curves.nurbs_knots_for_write();
         curves::nurbs::compact_knots(src_curve.orderu,
                                      Span<float>(src_curve.knotsu, KNOTSU(&src_curve)),
                                      knots_attr.slice(points));
