@@ -122,7 +122,7 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 
 static const CPPType &get_item_cpp_type(const eNodeSocketDatatype socket_type)
 {
-  const char *socket_idname = bke::node_static_socket_type(socket_type, 0);
+  const StringRefNull socket_idname = *bke::node_static_socket_type(socket_type, 0);
   const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_idname);
   BLI_assert(typeinfo);
   BLI_assert(typeinfo->geometry_nodes_cpp_type);
@@ -750,7 +750,7 @@ void draw_bake_button_row(const BakeDrawContext &ctx, uiLayout *layout, const bo
         }
       }
       else {
-        /* If the data is not yet baked, still show the icon based on the derived bake target.*/
+        /* If the data is not yet baked, still show the icon based on the derived bake target. */
         const int icon = ctx.bake_target == NODES_MODIFIER_BAKE_TARGET_DISK ? ICON_UGLYPACKAGE :
                                                                               ICON_PACKAGE;
         PointerRNA ptr;

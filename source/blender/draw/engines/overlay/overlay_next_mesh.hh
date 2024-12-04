@@ -19,6 +19,7 @@
 #include "BKE_subdiv_modifier.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_brush_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_mesh_types.h"
 #include "ED_image.hh"
 #include "ED_view3d.hh"
@@ -417,6 +418,7 @@ class Meshes : Overlay {
 
   static bool mesh_has_edit_cage(const Object *ob)
   {
+    BLI_assert(ob->type == OB_MESH);
     const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
     if (mesh.runtime->edit_mesh != nullptr) {
       const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
@@ -512,9 +514,6 @@ class MeshUVs : Overlay {
   bool show_tiled_image_active_ = false;
   bool show_tiled_image_border_ = false;
   bool show_tiled_image_label_ = false;
-
-  /* Set of original objects that have been drawn. */
-  Set<const Object *> drawn_object_set_;
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -708,41 +707,21 @@ class MeshUVs : Overlay {
 
     per_mesh_area_3d_.clear();
     per_mesh_area_2d_.clear();
-
-    drawn_object_set_.clear();
   }
 
   void edit_object_sync(Manager &manager,
                         const ObjectRef &ob_ref,
                         Resources & /*res*/,
-                        const State &state) final
+                        const State & /*state*/) final
   {
     if (!enabled_ || ob_ref.object->type != OB_MESH) {
       return;
     }
 
-    /* When editing objects that share the same mesh we should only draw the
-     * first object to avoid overlapping UVs. Moreover, only the first evaluated object has the
-     * correct batches with the correct selection state.
-     * To this end, we skip duplicates and use the evaluated object returned by the depsgraph.
-     * See #83187. */
-    Object *object_orig = DEG_get_original_object(ob_ref.object);
-    Object *object_eval = DEG_get_evaluated_object(state.depsgraph, object_orig);
-
-    if (!drawn_object_set_.add(object_orig)) {
-      return;
-    }
-
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
-    Object &ob = *object_eval;
+    Object &ob = *ob_ref.object;
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
-
-    if (object_eval != ob_ref.object) {
-      /* We are requesting batches on an evaluated ID that is potentially not iterated over.
-       * So we have to manually call these cache validation and extraction method. */
-      DRW_mesh_batch_cache_validate(ob, mesh);
-    }
 
     if (show_uv_edit) {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_edges(ob, mesh);
@@ -781,14 +760,9 @@ class MeshUVs : Overlay {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }
-
-    if (object_eval != ob_ref.object) {
-      /* TODO(fclem): Refactor. Global access. But as explained above it is a bit complicated. */
-      drw_batch_cache_generate_requested_delayed(&ob);
-    }
   }
 
-  void end_sync(Resources &res, const ShapeCache &shapes, const State &state) final
+  void end_sync(Resources &res, const State &state) final
   {
     if (!enabled_) {
       return;
@@ -833,7 +807,7 @@ class MeshUVs : Overlay {
         const float3 tile_location(tile_x, tile_y, 0.0f);
         pass.push_constant("tile_pos", tile_location);
         pass.push_constant("ucolor", is_active ? selected_color : theme_color);
-        pass.draw(shapes.quad_wire.get());
+        pass.draw(res.shapes.quad_wire.get());
 
         /* Note: don't draw label twice for active tile. */
         if (show_tiled_image_label_ && !is_active) {
@@ -882,7 +856,7 @@ class MeshUVs : Overlay {
         pass.push_constant("ucolor", float4(1.0f, 1.0f, 1.0f, brush->clone.alpha));
         pass.push_constant("brush_offset", float2(brush->clone.offset));
         pass.push_constant("brush_scale", float2(stencil_texture.size().xy()) / size_image);
-        pass.draw(shapes.quad_solid.get());
+        pass.draw(res.shapes.quad_solid.get());
       }
     }
 
@@ -902,7 +876,7 @@ class MeshUVs : Overlay {
       pass.push_constant("opacity", opacity);
       pass.push_constant("brush_offset", float2(0.0f));
       pass.push_constant("brush_scale", float2(1.0f));
-      pass.draw(shapes.quad_solid.get());
+      pass.draw(res.shapes.quad_solid.get());
     }
   }
 
