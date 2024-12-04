@@ -7574,13 +7574,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "enable_new_cpu_compositor", 1);
   RNA_def_property_ui_text(prop, "CPU Compositor", "Enable the new CPU compositor");
 
-  prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop,
-      "All Linked Data Direct",
-      "Forces all linked data to be considered as directly linked. Workaround for current "
-      "issues/limitations in BAT (Blender studio pipeline tool)");
-
   prop = RNA_def_property(srna, "use_new_volume_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop, "New Volume Nodes", "Enables visibility of the new Volume nodes in the UI");

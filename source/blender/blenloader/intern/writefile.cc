@@ -1378,13 +1378,7 @@ static bool write_file_handle(Main *mainvar,
     ID *id_iter;
     FOREACH_MAIN_ID_BEGIN (mainvar, id_iter) {
       if (ID_IS_LINKED(id_iter) && BKE_idtype_idcode_is_linkable(GS(id_iter->name))) {
-        if (USER_EXPERIMENTAL_TEST(&U, use_all_linked_data_direct)) {
-          /* Forces all linked data to be considered as directly linked.
-           * FIXME: Workaround some BAT tool limitations for Heist production, should be removed
-           * asap afterward. */
-          id_lib_extern(id_iter);
-        }
-        else if (GS(id_iter->name) == ID_SCE) {
+        if (GS(id_iter->name) == ID_SCE) {
           /* For scenes, do not force them into 'indirectly linked' status.
            * The main reason is that scenes typically have no users, so most linked scene would be
            * systematically 'lost' on file save.
