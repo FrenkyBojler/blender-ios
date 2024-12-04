@@ -480,11 +480,11 @@ TEST(curves_geometry, BezierGenericEvaluation)
 TEST(curves_geometry, CustomKnots)
 {
   /* 8 point order 4 curve knots. */
-  const Span<float> custom_knots(
+  static const Span<float> custom_knots(
       {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 5.0f, 8.0f, 8.0f, 8.0f, 8.0f});
   /* Spans between first 8 knots loop shifted to the left by (order - 2). */
-  const Span<float> expected_compact({0.0f, 1.0f, 1.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f});
-  const int order = 4;
+  static const Span<float> expected_compact({0.0f, 1.0f, 1.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f});
+  static const int order = 4;
 
   Array<float> compact_knots(expected_compact.size());
   curves::nurbs::compact_knots(order, custom_knots, compact_knots);
@@ -499,10 +499,10 @@ TEST(curves_geometry, CustomKnots)
   }
 
   /* 5 point order 4 curve knots. */
-  const Span<float> custom_cyclic_knots(
+  static const Span<float> custom_cyclic_knots(
       {0.0f, 0.5f, 1.5f, 3.0f, 5.0f, 7.5f, 8.0f, 9.0f, 10.5f, 12.5f, 15.0f});
   /* Spans between first 5 knots loop shifted to the left by (order - 2). */
-  const Span<float> expected_cyclic_knots{1.5f, 2.0f, 2.5f, 0.5f, 1.0f};
+  static const Span<float> expected_cyclic_knots{1.5f, 2.0f, 2.5f, 0.5f, 1.0f};
 
   Array<float> compact_cyclic_knots(expected_cyclic_knots.size());
   curves::nurbs::compact_knots(order, custom_cyclic_knots, compact_cyclic_knots);
