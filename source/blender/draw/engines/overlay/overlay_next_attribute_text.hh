@@ -126,6 +126,24 @@ class AttributeTexts : Overlay {
     add_values_to_text_cache(dt, attribute, {float3(0, 0, 0)}, object_to_world);
   }
 
+  static Vector<StringRef> split_lines(const StringRef text)
+  {
+    Vector<StringRef> lines;
+    StringRef remaining = text;
+    while (!remaining.is_empty()) {
+      const int line_len = remaining.find_first_of('\n');
+      if (line_len == -1) {
+        lines.append(remaining);
+        break;
+      }
+      else {
+        lines.append(remaining.substr(0, line_len));
+        remaining = remaining.substr(line_len + 1);
+      }
+    }
+    return lines;
+  }
+
   void add_values_to_text_cache(DRWTextStore *dt,
                                 const GVArray &values,
                                 const Span<float3> positions,
@@ -210,18 +228,7 @@ class AttributeTexts : Overlay {
           lines.append(numstr);
         }
         else {
-          StringRef remaining{numstr, int64_t(numstr_len)};
-          while (!remaining.is_empty()) {
-            const int line_len = remaining.find_first_of('\n');
-            if (line_len == -1) {
-              lines.append(remaining);
-              break;
-            }
-            else {
-              lines.append(remaining.substr(0, line_len));
-              remaining = remaining.substr(line_len + 1);
-            }
-          }
+          lines = split_lines(numstr);
         }
 
         for (const int i : lines.index_range()) {
