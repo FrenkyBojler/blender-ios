@@ -97,6 +97,12 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
                                        nurbs_geometry.parm,
                                        nurbs_geometry.range);
 
+  if (nurb->flagu & (CU_NURB_FREE | CU_NURB_CYCLIC | CU_NURB_ENDPOINT) == CU_NURB_FREE) {
+    /* TODO: If mode is CU_NURB_FREE, but not CU_NURB_CYCLIC and CU_NURB_ENDPOINT, then make curve
+     * clamped instead of removing CU_NURB_FREE. */
+    nurb->flagu &= ~CU_NURB_FREE;
+  }
+
   const Span<int> indices = nurbs_geometry.curv_indices.as_span().slice(
       nurbs_geometry.curv_indices.index_range().drop_front(nurb->flagu & CU_NURB_CYCLIC ? degree :
                                                                                           0));
@@ -205,14 +211,7 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
       }
     }
     if (!is_spacing_equal) {
-      if (is_bezier_knot) {
-        knot_mode |= CU_NURB_BEZIER;
-      }
-      else if (do_endpoints) {
-        /* TODO: include and unclamped (do_endpoints == false).
-         * For this manually clamp. */
-        knot_mode |= CU_NURB_FREE;
-      }
+      knot_mode |= is_bezier_knot ? CU_NURB_BEZIER : CU_NURB_FREE;
     }
   }
   return knot_mode;
