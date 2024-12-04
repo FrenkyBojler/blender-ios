@@ -25,8 +25,8 @@
 
 namespace blender::geometry {
 
-enum EdgeIntersectType { Discarded = 0, Kept = 1, Intersect = 2, TypeCount = 3 };
-enum PolygonIntersectType { Outside = 0, Intersect = 1, Inside = 2, TypeCount = 3 };
+enum EdgeIntersectType { Discarded = 0, Intersect = 1, Kept = 2, TypeCount = 3 };
+// enum PolygonIntersectType { Outside = 0, Intersect = 1, Inside = 2, TypeCount = 3 };
 
 /*
  * Vertex generated from linear interpolation between two
@@ -48,8 +48,7 @@ struct MeshEdgeGroupCopyMask {
    */
   IndexMask src_indices;
   /*
-   * Optional: Table for remapping the vertex indices for the edge. Leave empty if vertices are
-   * left unchanged.
+   * Optional: Table for remapping the src indices. Leave empty if indices are unchanged.
    */
   Span<int> mapping_table;
 };
@@ -69,9 +68,9 @@ struct MeshEdgeGroupPair {
 };
 
 /*
- * Polygons generated between the given vertices.
+ * Triangles generated from given .
  */
-struct MeshPolygonGroup {
+struct MeshTriangleGroup {
   /*
    * Indices to the polygon attributes should be copied from.
    */
@@ -79,9 +78,64 @@ struct MeshPolygonGroup {
   /*
    * Edge index sets, indices point to edges in the target mesh.
    */
-  Span<Vector<int, 4>> edge_indices;
-  Span<Vector<int2, 4>> src_corners;
-  Span<Vector<float, 4>> src_weights;
+  Span<int3> vertex_indices; /* Optional, can be computed by checking matching edge index pairs! */
+  Span<int3> edge_indices;
+  Span<float3> src_weights;
+  Span<int2> src_corners;
+
+  int64_t num_faces() const
+  {
+    BLI_assert(src_polygon_indices.size() == edge_indices.size());
+    BLI_assert(src_polygon_indices.size() * 3 == src_corners.size());
+    BLI_assert(src_polygon_indices.size() == src_weights.size());
+    return src_polygon_indices.size();
+  }
+
+  int64_t num_corners() const
+  {
+    return edge_indices.size() * 3;
+  }
+
+  void fill_corner_offsets(MutableSpan<int> offset_slice) const
+  {
+    for (const int64_t index : offset_slice.index_range().drop_front(1)) {
+      offset_slice[index] = offset_slice[index - 1] + 3;
+    }
+  }
+};
+struct MeshFaceGroupCopyMask {
+
+  int num_corners;
+  /*
+   * Mask for the faces to copy from the data source.
+   */
+  IndexMask src_indices;
+
+  Span<int> mapping_table_verts;
+  Span<int> mapping_table_edges;
+
+  void fill_corner_table(const OffsetIndices<int> src_corner_offsets,
+                         const Span<int> src_corner_verts,
+                         const Span<int> src_corner_edges,
+                         MutableSpan<int> offset_slice,
+                         MutableSpan<int> dst_corner_verts,
+                         MutableSpan<int> dst_corner_edges) const
+  {
+    for (const int64_t local_face_index : offset_slice.index_range().drop_back(1)) {
+      const IndexRange src_range = src_corner_offsets[src_indices[local_face_index]];
+      const IndexRange dst_range(offset_slice[local_face_index], src_range.size());
+      offset_slice[local_face_index + 1] = dst_range.one_after_last();
+
+      for (const int64_t index : src_range.index_range()) {
+        dst_corner_verts[dst_range[index]] =
+            mapping_table_verts[src_corner_verts[src_range[index]]];
+        dst_corner_edges[dst_range[index]] =
+            mapping_table_edges[src_corner_edges[src_range[index]]];
+        BLI_assert(dst_corner_verts[dst_range[index]] >= 0);
+        BLI_assert(dst_corner_edges[dst_range[index]] >= 0);
+      }
+    }
+  }
 };
 
 struct LocalData {
@@ -125,7 +179,7 @@ using VariantEdgeGroup = std::variant<MeshEdgeGroupCopyMask, MeshEdgeGroupPair>;
 /*
  * Descriptor variants for mesh polygon groups/sets.
  */
-using VariantPolygonGroup = std::variant<MeshPolygonGroup>;
+using VariantPolygonGroup = std::variant<MeshFaceGroupCopyMask, MeshTriangleGroup>;
 
 IndexRange vertex_range(VariantVertexGroup group)
 {
@@ -149,34 +203,6 @@ IndexRange edge_range(VariantEdgeGroup group)
   BLI_assert_msg(false, "Unreachable: Invalid variant implementation");
 }
 
-IndexRange polygon_corner_range(VariantPolygonGroup group)
-{
-  if (auto item = std::get_if<MeshPolygonGroup>(&group)) {
-    return item->src_polygon_indices.index_range();
-  }
-  BLI_assert_msg(false, "Unreachable: Invalid variant implementation");
-}
-
-/*
- * Pre-compute corner offsets indices.
- */
-Array<int, 12> polygon_corner_offsets(VariantPolygonGroup group, int64_t source_offset)
-{
-  const IndexRange range = polygon_corner_range(group);
-  Array<int, 12> offsets(range.size() + 1);
-  offsets[0] = source_offset;
-
-  if (auto item = std::get_if<MeshPolygonGroup>(&group)) {
-    for (const int64_t face_index : range) {
-      offsets[face_index + 1] = offsets[face_index] + item->edge_indices[face_index].size();
-    }
-  }
-  else {
-    BLI_assert_msg(false, "Unreachable: Invalid variant implementation");
-  }
-  return offsets;
-}
-
 int count_num_vertices(const Span<VariantVertexGroup> vertex_groups)
 {
   int vertex_count = 0;
@@ -195,14 +221,27 @@ int count_num_edges(const Span<VariantEdgeGroup> edge_groups)
   return edge_count;
 }
 
+int2 get_face_shape(const VariantPolygonGroup &group)
+{
+  if (auto item = std::get_if<MeshTriangleGroup>(&group)) {
+    return int2{int(item->num_faces()), int(item->num_corners())};
+  }
+  else if (auto item = std::get_if<MeshFaceGroupCopyMask>(&group)) {
+    return int2{int(item->src_indices.size()), item->num_corners};
+  }
+  else {
+    BLI_assert_msg(false, "Unreachable: Invalid variant implementation");
+  }
+}
+
 int2 count_num_polygons(const Span<VariantPolygonGroup> poly_groups)
 {
   int face_count = 0;
   int offset = 0;
-  for (int64_t i = 0; i < poly_groups.size(); i++) {
-    auto range = polygon_corner_offsets(poly_groups[i], offset);
-    face_count += range.size() - 1;
-    offset = range.last();
+  for (int64_t group_index = 0; group_index < poly_groups.size(); group_index++) {
+    const int2 shape = get_face_shape(poly_groups[group_index]);
+    face_count += shape.x;
+    offset += shape.y;
   }
   return {face_count, offset};
 }
@@ -364,20 +403,54 @@ void transfer_edge_data(const Mesh &src_mesh,
   }
 }
 
-/* Find the common value (assumed the shared value exist).
+/* Find the sorted common value pair of `a` so that `a.x` is found in b.
+ * Assumes the shared value exist!
+ *
  */
-int shared_index(int2 a, int2 b)
+int2 sort_shared_index(int2 a, int2 b)
 {
   if (a.x == b.x || a.x == b.y) {
-    return a.x;
+    return a;
   }
-  // BLI_assert(a.y == b.x || a.y == b.y);
-  return a.y;
+  BLI_assert(a.y == b.x || a.y == b.y);
+  return int2(a.y, a.x);
 }
 
-int shared_edge_vert(Span<int2> edge_indices, int a, int b)
+/* Find the common value in `a` (assumed the shared value exist).
+ */
+int get_unshared_index(int2 a, int b)
 {
-  return shared_index(edge_indices[a], edge_indices[b]);
+  BLI_assert(b == a.x || b == a.y);
+  return b == a.x ? a.x : a.y;
+}
+
+Vector<int> compute_polygon_vert_indices_from_edge_data(Span<int> dst_face_offsets_slice,
+                                                        Span<int2> dst_edges,
+                                                        Span<int> edge_corner_indices)
+{
+  Vector<int> face_corner_indices(dst_face_offsets_slice.last() - dst_face_offsets_slice.first());
+  threading::parallel_for(dst_face_offsets_slice.index_range(), 4092, [&](IndexRange subrange) {
+    for (const int64_t local_face_index : subrange) {
+      const int local_first_corner = dst_face_offsets_slice[local_face_index];
+      const IndexRange src_range(
+          local_first_corner, dst_face_offsets_slice[local_face_index + 1] - local_first_corner);
+      const IndexRange dst_range(src_range.first() - dst_face_offsets_slice.first(),
+                                 src_range.size());
+      const Span<int> edgec_inds = edge_corner_indices.slice(src_range);
+
+      /* Transfer corners */
+      const int2 initial_sort = sort_shared_index(dst_edges[edgec_inds.last()],
+                                                  dst_edges[edgec_inds.first()]);
+
+      int next_common = initial_sort.y;
+      face_corner_indices[dst_range.first()] = next_common;
+      for (const int64_t i : edgec_inds.drop_front(1)) {
+        next_common = get_unshared_index(dst_edges[i], next_common);
+        face_corner_indices[dst_range[i]] = next_common;
+      }
+    }
+  });
+  return face_corner_indices;
 }
 
 void transfer_polygon_data(const Mesh &src_mesh,
@@ -396,55 +469,65 @@ void transfer_polygon_data(const Mesh &src_mesh,
   copy_poly_skip.add(".corner_vert");
   copy_poly_skip.add(".corner_edge");
 
+  Span<int> src_vert_corners = src_mesh.corner_verts();
+  Span<int> src_edge_corners = src_mesh.corner_edges();
+  OffsetIndices<int> src_face_offsets(src_mesh.face_offsets());
+
   /* Assign polygon indices */
   Array<int64_t> group_face_count(poly_groups.size());
   {
-    Span<int> src_vert_corners = src_mesh.corner_verts();
-    Span<int> src_edge_corners = src_mesh.corner_edges();
     MutableSpan<int> dst_vert_corners = dst_mesh.corner_verts_for_write();
     MutableSpan<int> dst_edge_corners = dst_mesh.corner_edges_for_write();
     MutableSpan<int> dst_face_offsets = dst_mesh.face_offsets_for_write();
     Span<int2> dst_edges = dst_mesh.edges();
 
-    int64_t tot_offset = 0;
+    int64_t tot_corner_offset = 0;
     int64_t tot_face_count = 0;
+
+    Vector<int> computed_corner_indices;
 
     dst_face_offsets[0] = 0;
     for (int64_t group_index = 0; group_index < poly_groups.size(); group_index++) {
-      const auto dst_offsets = polygon_corner_offsets(poly_groups[group_index], tot_offset);
-      /* Write face offsets */
-      const IndexRange dst_offset_range(tot_face_count, dst_offsets.size());
-      BLI_assert(dst_face_offsets[dst_offset_range.first()] == dst_offsets.first());
-      dst_face_offsets.slice(dst_offset_range).copy_from(dst_offsets);
+
+      const int2 face_shape = get_face_shape(poly_groups[group_index]);
+      const IndexRange dst_corner_range(tot_corner_offset, face_shape.y);
+      MutableSpan<int> dst_face_offsets_slice = dst_face_offsets.slice(
+          IndexRange(tot_face_count, face_shape.x + 1));
 
       /* Write face corner offsets */
-      if (auto item = std::get_if<MeshPolygonGroup>(&poly_groups[group_index])) {
-        BLI_assert(dst_offsets.size() - 1 == item->edge_indices.size());
+      if (auto item = std::get_if<MeshTriangleGroup>(&poly_groups[group_index])) {
+        /* Write face offsets */
+        item->fill_corner_offsets(dst_face_offsets_slice);
 
-        threading::parallel_for(item->edge_indices.index_range(), 4092, [&](IndexRange subrange) {
-          for (const int64_t index : subrange) {
-            MutableSpan<int> dst_edgec = dst_edge_corners.slice(
-                IndexRange(dst_offsets[index], dst_offsets[index + 1] - dst_offsets[index]));
-            MutableSpan<int> dst_vertc = dst_vert_corners.slice(
-                IndexRange(dst_offsets[index], dst_offsets[index + 1] - dst_offsets[index]));
+        Span<int> group_edge_indices = item->edge_indices.cast<int>();
+        dst_edge_corners.slice(dst_corner_range).copy_from(group_edge_indices);
 
-            /* Transfer corners */
-            dst_edgec[0] = item->edge_indices[index][0];
-            dst_vertc[0] = shared_edge_vert(
-                dst_edges,
-                dst_edgec[0],
-                item->edge_indices[index][dst_edgec.index_range().last()]);
-            for (const int64_t i : dst_edgec.index_range().drop_front(1)) {
-              dst_edgec[i] = item->edge_indices[index][i];
-              int shared_vert = shared_edge_vert(dst_edges, dst_edgec[i], dst_edgec[i - 1]);
-              dst_vertc[i] = shared_vert;
-            }
-          }
-        });
+        Span<int> group_vert_indices;
+        if (item->vertex_indices.size() == 0) {
+          computed_corner_indices = compute_polygon_vert_indices_from_edge_data(
+              dst_face_offsets_slice, dst_edges, group_edge_indices);
+          group_vert_indices = computed_corner_indices.as_span();
+        }
+        else {
+          group_vert_indices = item->vertex_indices.cast<int>();
+        }
+        dst_vert_corners.slice(dst_corner_range).copy_from(group_vert_indices);
+      }
+      else if (auto item = std::get_if<MeshFaceGroupCopyMask>(&poly_groups[group_index])) {
+
+        item->fill_corner_table(src_face_offsets,
+                                src_vert_corners,
+                                src_edge_corners,
+                                dst_face_offsets_slice,
+                                dst_vert_corners.slice(dst_corner_range),
+                                dst_edge_corners.slice(dst_corner_range));
+      }
+      else {
+        BLI_assert_msg(false, "Unreachable: Invalid variant implementation");
       }
 
-      tot_offset += dst_offsets.last();
-      tot_face_count += dst_offsets.size() - 1;
+      tot_face_count += face_shape.x;
+      tot_corner_offset += face_shape.y;
       group_face_count[group_index] = tot_face_count;
     }
   }
@@ -465,10 +548,13 @@ void transfer_polygon_data(const Mesh &src_mesh,
 
       int64_t face_offset = 0;
       for (int64_t group_index = 0; group_index < poly_groups.size(); group_index++) {
-        const IndexRange dst_range(face_offset, group_face_count[group_index]);
+        const IndexRange dst_range(face_offset, group_face_count[group_index] - face_offset);
 
-        if (auto item = std::get_if<MeshPolygonGroup>(&poly_groups[group_index])) {
+        if (auto item = std::get_if<MeshTriangleGroup>(&poly_groups[group_index])) {
           array_utils::gather(src_data, item->src_polygon_indices, dst_data.slice(dst_range));
+        }
+        else if (auto item = std::get_if<MeshFaceGroupCopyMask>(&poly_groups[group_index])) {
+          array_utils::gather(src_data, item->src_indices, dst_data.slice(dst_range));
         }
         else {
           BLI_assert_msg(false, "Unreachable: Invalid variant implementation");
@@ -479,43 +565,66 @@ void transfer_polygon_data(const Mesh &src_mesh,
   }
 
   /* Copy face corner domain. */
-  for (bke::AttributeTransferData &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes,
-           dst_attributes,
-           ATTR_DOMAIN_MASK_CORNER,
-           bke::attribute_filter_with_skip_ref(attribute_filter, copy_poly_skip)))
   {
-    const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(attribute.meta_data.data_type);
-    bke::attribute_math::convert_to_static_type(cpp_type, [&](auto dummy) {
-      using T = decltype(dummy);
+    OffsetIndices dst_face_offsets(dst_mesh.face_offsets());
+    for (bke::AttributeTransferData &attribute : bke::retrieve_attributes_for_transfer(
+             src_attributes,
+             dst_attributes,
+             ATTR_DOMAIN_MASK_CORNER,
+             bke::attribute_filter_with_skip_ref(attribute_filter, copy_poly_skip)))
+    {
+      const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(attribute.meta_data.data_type);
+      bke::attribute_math::convert_to_static_type(cpp_type, [&](auto dummy) {
+        using T = decltype(dummy);
 
-      Span<T> src_data = attribute.src.template typed<T>();
-      MutableSpan<T> dst_data = attribute.dst.span.typed<T>();
+        Span<T> src_data = attribute.src.template typed<T>();
+        MutableSpan<T> dst_data = attribute.dst.span.typed<T>();
 
-      int64_t tot_offset = 0;
-      for (int64_t group_index = 0; group_index < poly_groups.size(); group_index++) {
-        const auto dst_offsets = polygon_corner_offsets(poly_groups[group_index], tot_offset);
-        if (auto item = std::get_if<MeshPolygonGroup>(&poly_groups[group_index])) {
+        int64_t face_offset = 0;
+        for (int64_t group_index = 0; group_index < poly_groups.size(); group_index++) {
+          if (auto item = std::get_if<MeshTriangleGroup>(&poly_groups[group_index])) {
+            const IndexRange face_range(face_offset, group_face_count[group_index] - face_offset);
+            const Span<float> src_weights = item->src_weights.cast<float>();
+            const int64_t first_corner = dst_face_offsets[face_range.first()].first();
 
-          threading::parallel_for(item->src_corners.index_range(), 4092, [&](IndexRange subrange) {
-            for (const int64_t face_index : subrange) {
-              const IndexRange dst_range(dst_offsets[face_index], dst_offsets[face_index + 1]);
-              const Span<int2> corners = item->src_corners[face_index];
-              const Span<float> weights = item->src_weights[face_index];
-              for (const int64_t index : corners.index_range()) {
-                const int2 cpair = corners[index];
-                dst_data[dst_range[index]] = bke::attribute_math::mix2(
-                    weights[index], src_data[cpair.x], src_data[cpair.y]);
+            threading::parallel_for(face_range, 4092, [&](IndexRange subrange) {
+              for (const int64_t face_index : subrange) {
+                for (const int64_t dst_corner_index : dst_face_offsets[face_index]) {
+                  const int64_t src_index = dst_corner_index - first_corner;
+                  const int2 cpair = item->src_corners[src_index];
+                  /* Checking if cpair.y == -1 but catching 0.0f weights */
+                  BLI_assert(cpair.y >= 0 || src_weights[src_index] == 0.0f);
+                  dst_data[dst_corner_index] = src_weights[src_index] == 0.0f ?
+                                                   src_data[cpair.x] :
+                                                   bke::attribute_math::mix2(
+                                                       src_weights[src_index],
+                                                       src_data[cpair.x],
+                                                       src_data[cpair.y]);
+                }
               }
-            }
-          });
+            });
+          }
+          else if (auto item = std::get_if<MeshFaceGroupCopyMask>(&poly_groups[group_index])) {
+            const IndexRange local_face_range(group_face_count[group_index] - face_offset);
+            threading::parallel_for(local_face_range, 4092, [&](IndexRange subrange) {
+              for (const int64_t face_index : subrange) {
+                const int64_t src_face_index = item->src_indices[face_index];
+                const IndexRange src_range = src_face_offsets[src_face_index];
+                const IndexRange dst_range = dst_face_offsets[face_index + face_offset];
+
+                for (const int64_t index : src_range.index_range()) {
+                  dst_data[dst_range[index]] = src_data[src_range[index]];
+                }
+              }
+            });
+          }
+          else {
+            BLI_assert_msg(false, "Unreachable: Invalid variant implementation");
+          }
+          face_offset += group_face_count[group_index];
         }
-        else {
-          BLI_assert_msg(false, "Unreachable: Invalid variant implementation");
-        }
-        tot_offset += dst_offsets.last();
-      }
-    });
+      });
+    }
   }
 }
 
@@ -527,6 +636,27 @@ float edge_weight(const float signed_dist_x, const float signed_dist_y)
   const float tot_dist = abs_d1 + abs(signed_dist_y);
   return math::safe_divide<float>(abs_d1, tot_dist);
 };
+
+int2 sorted_edge(const int2 edge)
+{
+  if (edge.y < edge.x) {
+    return {edge.y, edge.x};
+  }
+  return edge;
+}
+
+float sorted_weight(const int2 edge, const float weight)
+{
+  if (edge.y < edge.x) {
+    return 1.0f - weight;
+  }
+  return weight;
+}
+
+bool is_sequential_pair(int2 ab, const int tot_size)
+{
+  return (ab.x + 1) % tot_size == ab.y;
+}
 
 Mesh *new_mesh_from_groups(const Mesh &src_mesh,
                            const Span<VariantVertexGroup> vertex_groups,
@@ -573,10 +703,13 @@ std::pair<Mesh *, BisectResult> bisect_mesh(const Mesh &mesh,
   // TODO: REMOVE
   const int8_t MASK_KEPT = 0x4;
   const int8_t MASK_IN_PLANE = 0x8;
+
+  /* Classify vertices
+   */
   Array<int8_t> vertex_flags(src_num_vert);
   Array<float, 12> dist_buffer(src_num_vert);
 
-  auto fn_is_outside = [](float signed_distance) { return signed_distance > 0.0f; };
+  auto fn_is_outside = [](float signed_distance) { return signed_distance >= 0.0f; };
 
   IndexMaskMemory kept_memory;
   IndexMask kept_vertices = IndexMask::from_predicate(
@@ -589,6 +722,40 @@ std::pair<Mesh *, BisectResult> bisect_mesh(const Mesh &mesh,
         return is_inside;
       });
 
+  const int num_verts_kept = int(kept_vertices.size());
+  if (num_verts_kept == 0) {
+    return {nullptr, BisectResult::Discard};
+  }
+
+  /* Classify edges to keep, this is necessary to remap edges and edge attributes.
+   */
+  const Span<int2> src_edges = mesh.edges();
+  auto fn_intersected_edge = [&](int64_t i) {
+    const int8_t v1_kept = vertex_flags[src_edges[i].x];
+    const int8_t v2_kept = vertex_flags[src_edges[i].y];
+    return v1_kept + v2_kept;
+  };
+
+  Array<float, 12> edge_insertion_factor(src_num_edges);
+  IndexMaskMemory intersected_memory;
+  Array<IndexMask, EdgeIntersectType::TypeCount> edge_type_selections(
+      EdgeIntersectType::TypeCount);
+  IndexMask::from_groups<int64_t>(IndexMask(src_edges.index_range()),
+                                  intersected_memory,
+                                  fn_intersected_edge,
+                                  edge_type_selections.as_mutable_span());
+
+  const int64_t num_edges_intersected = edge_type_selections[EdgeIntersectType::Intersect].size();
+  const int num_edges_kept = int(edge_type_selections[EdgeIntersectType::Kept].size());
+
+  /* Handle keep/discard all. */
+  if (num_edges_intersected == 0) {
+    BLI_assert(edge_type_selections[EdgeIntersectType::Discarded].size() == 0);
+    return {nullptr, BisectResult::Keep};
+  }
+
+  /* Classify faces
+   */
   const OffsetIndices src_polys = mesh.faces();
   const Span<int> src_corner_verts = mesh.corner_verts();
   const Span<int> src_corner_edges = mesh.corner_edges();
@@ -598,754 +765,590 @@ std::pair<Mesh *, BisectResult> bisect_mesh(const Mesh &mesh,
     const IndexRange src_corner_range = src_polys[index_poly];
     const Span<int> corners = src_corner_verts.slice(src_corner_range);
 
+    /* Determine intersection, loop over all edges except initial, and last (2 edges must be cut).
+     */
     const int8_t initial = vertex_flags[corners.first()];
     for (const int64_t index : corners.index_range().drop_front(1)) {
       if (initial != vertex_flags[corners[index]]) {
-        return PolygonIntersectType::Intersect;
+        return EdgeIntersectType::Intersect;
       }
     }
-    return initial >= MASK_INSIDE ? PolygonIntersectType::Inside : PolygonIntersectType::Outside;
+    return initial >= MASK_INSIDE ? EdgeIntersectType::Kept : EdgeIntersectType::Discarded;
   };
   IndexMaskMemory polygon_sort_memory;
-  std::array<IndexMask, PolygonIntersectType::TypeCount> poly_type_selections;
+  Array<IndexMask, EdgeIntersectType::TypeCount> poly_type_selections(
+      EdgeIntersectType::TypeCount);
   IndexMask::from_groups<int64_t>(IndexMask(src_polys.index_range()),
                                   polygon_sort_memory,
                                   fn_polygon_group,
-                                  MutableSpan<IndexMask>(poly_type_selections));
+                                  poly_type_selections.as_mutable_span());
 
-  /* Compute corner offsets for intersected polygons */
+  /* Compute corner offsets for intersected polygons (synchronous) */
   const int64_t num_intersected_polygons =
       poly_type_selections[EdgeIntersectType::Intersect].size();
-  std::vector<int> tesselation_offsets(num_intersected_polygons + 1);
-  int tot_tri_count = 0;
-  tesselation_offsets[0] = tot_tri_count;
-  poly_type_selections[EdgeIntersectType::Intersect].foreach_index([&](const int64_t index_poly) {
-    tot_tri_count += bke::mesh::face_triangles_num(src_polys[index_poly].size());
-    tesselation_offsets[index_poly + 1] = tot_tri_count;
-  });
+  Vector<int> tesselation_off_data(num_intersected_polygons + 1);
+  MutableSpan<int> tess_off_span = tesselation_off_data.as_mutable_span().slice(
+      1, num_intersected_polygons);
+  tesselation_off_data[0] = 0;
 
-  /* Compute triangulation */
+  const int max_face_size = poly_type_selections[EdgeIntersectType::Intersect].parallel_reduce(
+      GrainSize(4096),
+      0,
+      [&](const int64_t index, const int64_t index_pos, const int &identity) {
+        const int face_size = src_polys[index].size();
+        const int tri_count = bke::mesh::face_triangles_num(face_size);
+        tess_off_span[index_pos] = tri_count;
+        return face_size;
+      },
+      [](int a, int b) { return std::max<int>(a, b); });
+
+  std::partial_sum(
+      tesselation_off_data.begin(), tesselation_off_data.end(), tesselation_off_data.begin());
+  OffsetIndices<int> tesselation_offsets(tesselation_off_data);
+
+  /* Compute triangulation (asynchronous) */
   threading::EnumerableThreadSpecific<LocalData> all_local_data;
 
-  std::vector<int3> tesselation(tesselation_offsets.back());
+  Vector<int3> tesselation(tesselation_offsets.last());
+
+  Vector<int> tess_dst_offsets(num_intersected_polygons + 1);
+  MutableSpan<int> tess_dst_off_span = tess_dst_offsets.as_mutable_span().slice(
+      1, num_intersected_polygons);
+  tess_dst_offsets[0] = 0;
+
+  Vector<int> edge_split_dst_offset_buffer(num_intersected_polygons + 1);
+  MutableSpan<int> edge_split_dst_off_span = edge_split_dst_offset_buffer.as_mutable_span().slice(
+      1, num_intersected_polygons);
+  edge_split_dst_offset_buffer[0] = num_edges_intersected;
+
+  Vector<int> edge_formed_dst_offset_buffer(num_intersected_polygons + 1);
+  MutableSpan<int> edge_formed_dst_off_span =
+      edge_formed_dst_offset_buffer.as_mutable_span().slice(1, num_intersected_polygons);
+  edge_formed_dst_offset_buffer[0] = 0;
+
+  Vector<int> edge_mask_offset_buffer(num_intersected_polygons + 1);
+  MutableSpan<int> edge_mask_offset_span = edge_mask_offset_buffer.as_mutable_span().slice(
+      1, num_intersected_polygons);
+  edge_mask_offset_buffer[0] = 0;
+
+  Vector<int> local_corner_indices(max_face_size);
+  std::iota(local_corner_indices.begin(), local_corner_indices.end(), 0);
+
+  /* Tesselate
+   */
   poly_type_selections[EdgeIntersectType::Intersect].foreach_index(
-      GrainSize(512), [&](const int64_t index_poly) {
+      GrainSize(512), [&](const int64_t index_poly, const int64_t index_pos) {
         LocalData &local_data = all_local_data.local();
 
         const IndexRange src_corner_range = src_polys[index_poly];
-        bke::mesh::mesh_calc_tessellation_for_face(src_corner_verts,
+        const IndexRange local_corner_range(src_corner_range.size());
+        const Span<int> local_corner_span = local_corner_indices.as_span().slice(
+            0, src_corner_range.size());
+
+        /* Count number of intersections on the boundary. */
+        int prev_vert = src_corner_verts[src_corner_range.last()];
+        int boundary_intersect_count = 0;
+        for (const int64_t corner : src_corner_range) {
+          const int next_vert = src_corner_verts[corner];
+          boundary_intersect_count += int(vertex_flags[prev_vert] != vertex_flags[next_vert]);
+          prev_vert = next_vert;
+        }
+        BLI_assert(boundary_intersect_count % 2 == 0);
+
+        // Make thread local allocated memory
+        Vector<float3> local_corner_pos(local_corner_range.size());
+        array_utils::gather(src_positions,
+                            src_corner_verts.slice(src_corner_range),
+                            local_corner_pos.as_mutable_span());
+        Vector<int8_t> local_flags(local_corner_range.size());
+        array_utils::gather(vertex_flags.as_span(),
+                            src_corner_verts.slice(src_corner_range),
+                            local_flags.as_mutable_span());
+
+        /* Tesselate */
+        MutableSpan<int3> corner_tess_span = tesselation.as_mutable_span().slice(
+            tesselation_offsets[index_pos]);
+        bke::mesh::mesh_calc_tessellation_for_face(local_corner_span,
                                                    src_positions,
-                                                   src_corner_range.first(),
+                                                   0,
                                                    src_corner_range.size(),
-                                                   &tesselation[tesselation_offsets[index_poly]],
+                                                   corner_tess_span.data(),
                                                    &local_data.pf_arena);
+
+        /* Count intersections within the tesselated triangle set. */
+        int count_tris_with_cut = 0;
+        int count_tris_inside = 0; /* Number of tess tris inside the plane (split or kept). */
+        int count_tris_internal_split = 0; /* Number of tess tris outputs two tris (== quad). */
+        for (int3 &tri : corner_tess_span) {
+          const int num_inner = local_flags[tri.x] + local_flags[tri.y] + local_flags[tri.z];
+          if (num_inner == 0) {
+            continue;
+          }
+          const int8_t cut_ie1 = int8_t(local_flags[tri.x] != local_flags[tri.y]);
+          const int8_t cut_ie2 = int8_t(local_flags[tri.y] != local_flags[tri.z]);
+          const int8_t cut_ie3 = int8_t(local_flags[tri.z] != local_flags[tri.x]);
+
+          const int8_t num_cuts = cut_ie1 + cut_ie2 + cut_ie3;
+          if (num_cuts) {
+            BLI_assert(num_cuts == 2);
+            count_tris_with_cut++; /* Total num_cuts / 2 */
+            /* Adjust tri order to align edges as: cut, cut, in plane edge.
+             * Order simplifies logic when generating the tri.
+             */
+            if (!cut_ie1) {
+              const int x = tri.x;
+              tri.x = tri.y;
+              tri.y = tri.z;
+              tri.z = x;
+            }
+            else if (!cut_ie2) {
+              const int y = tri.y;
+              tri.y = tri.x;
+              tri.x = tri.z;
+              tri.z = y;
+            }
+          }
+          /* Note that case for 'num_inner == 0' is already skipped.
+           */
+          count_tris_inside++;                              /* num_inner == 3 ? 1 : num_inner */
+          count_tris_internal_split += (num_inner - 1) % 2; /* num_inner == 2 */
+        }
+
+        /* Store counts
+         */
+        const int num_tris_inner = count_tris_inside - count_tris_with_cut;
+        tess_dst_off_span[index_pos] = count_tris_inside + count_tris_internal_split;
+        edge_split_dst_off_span[index_pos] = count_tris_with_cut - boundary_intersect_count / 2;
+        edge_formed_dst_off_span[index_pos] = count_tris_with_cut + count_tris_internal_split +
+                                              num_tris_inner;
+        edge_mask_offset_span[index_pos] = count_tris_with_cut; /* any cut => has edge on border */
       });
 
-  /* Classify IF edge is intersected
-   *
-   *    *     *-----*  <- No intersection
-   *     \
-   *  ^^^^ Plane ^^^^^
-   *       \
-   *        *  <- Intersected
-   */
-  const Span<int2> src_edges = mesh.edges();
-  auto fn_intersected_edge = [&](int64_t i) {
-    const int8_t v1_kept = is_kept_vertex[src_edges[i].x];
-    const int8_t v2_kept = is_kept_vertex[src_edges[i].y];
-    if (v1_kept != v2_kept) {
-      return int(EdgeIntersectType::Intersect);
-    }
-    return int(v1_kept & MASK_KEPT);
-  };
+  /* Accumulate dst offsets */
+  std::partial_sum(tess_dst_offsets.begin(), tess_dst_offsets.end(), tess_dst_offsets.begin());
+  OffsetIndices<int> tesselation_dst_offsets(tess_dst_offsets);
 
-  Array<float, 12> edge_insertion_factor(src_num_edges);
-  IndexMaskMemory intersected_memory;
+  std::partial_sum(edge_split_dst_offset_buffer.begin(),
+                   edge_split_dst_offset_buffer.end(),
+                   edge_split_dst_offset_buffer.begin());
+  OffsetIndices<int> edge_split_dst_offsets(edge_split_dst_offset_buffer);
 
-  std::array<IndexMask, EdgeIntersectType::TypeCount> edge_type_selections;
-  IndexMask::from_groups<int64_t>(IndexMask(src_edges.index_range()),
-                                  intersected_memory,
-                                  fn_intersected_edge,
-                                  MutableSpan<IndexMask>(edge_type_selections));
+  std::partial_sum(edge_formed_dst_offset_buffer.begin(),
+                   edge_formed_dst_offset_buffer.end(),
+                   edge_formed_dst_offset_buffer.begin());
+  OffsetIndices<int> edge_formed_dst_offsets(edge_formed_dst_offset_buffer);
 
-  /* Handle keep/discard all. */
-  const int64_t num_kept_edges = edge_type_selections[EdgeIntersectType::Kept].size();
-  const int64_t num_inter_edges = edge_type_selections[EdgeIntersectType::Intersect].size();
-
-  const int num_kept_vertices = int(kept_vertices.size());
-  if (num_inter_edges == 0) {
-    if (edge_type_selections[EdgeIntersectType::Discarded].size() == 0) {
-      return {nullptr, BisectResult::Keep};
-    }
-    else { /* (num_kept_edges == 0) */
-      return {nullptr, BisectResult::Discard};
-    }
-  }
-
-  const OffsetIndices src_polys = mesh.faces();
-  const Span<int> src_corner_verts = mesh.corner_verts();
-  const Span<int> src_corner_edges = mesh.corner_edges();
+  std::partial_sum(edge_mask_offset_buffer.begin(),
+                   edge_mask_offset_buffer.end(),
+                   edge_mask_offset_buffer.begin());
+  OffsetIndices<int> index_mask_offsets(edge_mask_offset_buffer);
+  BLI_assert(index_mask_offsets.total_size() == index_mask_offsets.last());
 
   /* Create vertex index map */
   Array<int, 12> old_to_new_vertex_map(src_num_vert);
-  kept_vertices.foreach_index([&](const int64_t index, const int64_t index_pos) {
-    old_to_new_vertex_map[index] = index_pos;
+  kept_vertices.foreach_index([&](const int64_t index_vert, const int64_t index_pos) {
+    old_to_new_vertex_map[index_vert] = index_pos;
   });
-
-  /* Handle intersected edges.
-   *
-   * Inserts vertices and replaces edges for the edges being split.
-   * If one or both sides are discarded, no edge is formed on that side (vertex will always be).
-   *
-   *         - Goes to ->
-   *
-   *  --*----           --*---
-   *    |                 |
-   *    |                 |      <- Newly formed edge (on the 'outside')
-   *    |      ^^^Plane^^ x   <-- Newly formed vertex (in plane)
-   *    |                 |      <- Newly formed edge (on the 'inside')
-   *    |                 |
-   *  --*----           --*---
-   *
-   */
-
-  const int side_keep_count = !args.clear_inner + !args.clear_outer;
-  // const int side_keep_both = side_keep_count == 2;
-  /* Args for vertices formed during edge splits. */
-  Array<float, 12> ie_lerp_weights(num_inter_edges);
-  Array<int2, 12> sie_index_pairs(num_inter_edges);
-  /* Constructs for forming edges from (s)plitting (i)ntersected (e)dges */
-  Array<int2, 12> sie_vert_map(num_inter_edges);
-  Array<int2, 12> sie_edge_map(sie_vert_map.size());
-
-  /* Map from index of intersected edge -> Index of the 'in plane' vertex created in the new mesh
-   */
-  Array<int, 12> ie_vert_map(num_inter_edges);
   /* Maps index of kept edges from the original mesh to their index in the new mesh */
   Array<int, 12> old_to_new_edge_map(src_num_edges);
   old_to_new_edge_map.fill(-1);
-
-  edge_type_selections[EdgeIntersectType::Intersect].foreach_index(
-      GrainSize(512), [&](const int64_t src_index, const int64_t index_pos) {
-        const int2 vert_indices = src_edges[src_index];
-        const float signed_dist_x = dist_buffer[vert_indices.x];
-        const float signed_dist_y = dist_buffer[vert_indices.y];
-
-        /* Generate vertex at the split.
-         */
-        const int split_edge_index = index_pos;
-        ie_lerp_weights[split_edge_index] = edge_weight(signed_dist_x, signed_dist_y);
-        sie_index_pairs[split_edge_index] = vert_indices;
-
-        const int new_vert_index = split_edge_index + int(kept_vertices.size());
-        ie_vert_map[index_pos] = new_vert_index;
-        old_to_new_edge_map[src_index] = index_pos;
-
-        /* Generate new edge for the split.
-         * Edge direction is known (edge points away from the plane).
-         */
-        int other_vertex = fn_is_outside(signed_dist_x) ? vert_indices.y : vert_indices.x;
-        sie_vert_map[split_edge_index] = int2(old_to_new_vertex_map[other_vertex], new_vert_index);
-        sie_edge_map[split_edge_index] = {int(src_index), -1};
-      });
-
-  /* Slice of the buffers for split edges that are valid. */
-  const IndexRange split_edge_vert_slice(0, num_inter_edges);
-  const IndexRange split_edge_slice(0, num_inter_edges);
-
-  /* Maps index of kept edges from the original mesh to their index in the new mesh */
   edge_type_selections[EdgeIntersectType::Kept].foreach_index(
-      [&](const int64_t index, const int64_t index_pos) {
-        old_to_new_edge_map[index] = index_pos;
+      [&](const int64_t index_edge, const int64_t index_pos) {
+        old_to_new_edge_map[index_edge] = index_pos;
       });
 
-  /* Compute polygon splits using the computed edge splits.
-   *
-   *       -- Goes to -->
-   *
-   *   *---*           *---*
-   *   |   |           |   |      <- Polygon formed on 'outside'
-   *   x   x       ^^^ x---x ^^^
-   *   |   |           |   |      <- Polygon formed on 'inside'
-   *   *---*           *---*
+  /* Buffers for vertices formed from edge splits, two types either:
+   * 1. Vertices formed from existing edges in the input/source
+   * 2. Vertices formed splitting virtual/tesselated edges
    */
-  Array<Vector<int, 2>, 12> copied_polygons(src_num_polys);
-  // Array<Vector<Vector<int, 4>, 2>, 12> new_split_polygons(src_num_polys);
-  // Array<Vector<Vector<int2, 4>, 2>, 12> new_split_polygon_src_corner(new_split_polygons.size());
-  // Array<Vector<Vector<float, 4>, 2>, 12>
-  // new_split_polygon_src_weight(new_split_polygons.size());
+  const int64_t tot_split_edges = edge_split_dst_offsets.last();
 
-  auto fn_polygon_group = [&](int64_t index_poly) {
-    const IndexRange src_corner_range = src_polys[index_poly];
-    const Span<int> corners = src_corner_verts.slice(src_corner_range);
+  Array<int, 12> tesselation_polygon_indices(tesselation_dst_offsets.last());
+  Array<int3, 12> tesselation_vertex_indices(tesselation_dst_offsets.last());
+  Array<int3, 12> tesselation_edge_indices(tesselation_vertex_indices.size());
+  Array<float3, 12> tesselation_corner_weights(tesselation_vertex_indices.size());
+  Array<int2, 12> tesselation_corner_vertices(tesselation_vertex_indices.size() * 3);
 
-    const int8_t initial = is_kept_vertex[corners.first()];
-    int8_t identical = initial;
-    for (const int64_t index : corners.index_range().drop_front(1)) {
-      identical |= is_kept_vertex[corners[index]];
-    }
+  Array<float, 12> vertex_split_weights(tot_split_edges);
+  Array<int2, 12> vertex_split_vertices(tot_split_edges);
 
-    /* Determine polygon group
-     */
-    if (initial == identical) {
-      return (initial & MASK_KEPT) ? EdgeIntersectType::Kept : EdgeIntersectType::Discarded;
-    }
-    return EdgeIntersectType::Copy;
+  const int num_total_edge_created = tot_split_edges + edge_formed_dst_offsets.last();
+  Array<int2, 12> edge_output_vertex_pairs(num_total_edge_created);
+  Array<int2, 12> edge_output_src_edges(num_total_edge_created);
+
+  /* Index mask for tracking edges formed inside the plane. */
+  Vector<int> edge_border_index_mask(index_mask_offsets.last());
+
+  auto split_edge = [&](const int2 src_vert_indices,
+                        const int64_t index_offset,
+                        const int2 src_edge_indices,
+                        float &r_edge_weight) {
+    const float signed_dist_x = dist_buffer[src_vert_indices.x];
+    const float signed_dist_y = dist_buffer[src_vert_indices.y];
+    const int other_vertex = fn_is_outside(signed_dist_x) ? src_vert_indices.y :
+                                                            src_vert_indices.x;
+
+    const int new_vert_index = num_verts_kept + index_offset;
+    const int new_edge_index = num_edges_kept + index_offset;
+
+    r_edge_weight = edge_weight(signed_dist_x, signed_dist_y);
+    vertex_split_weights[index_offset] = r_edge_weight;
+    vertex_split_vertices[index_offset] = src_vert_indices;
+
+    edge_output_vertex_pairs[index_offset] = int2(old_to_new_vertex_map[other_vertex],
+                                                  new_vert_index);
+    edge_output_src_edges[index_offset] = src_edge_indices;
+
+    return int2{new_vert_index, new_edge_index};
   };
 
-  /* Compute polygon masks */
-  IndexMaskMemory kept_polygon_memory;
-  std::array<IndexMask, EdgeIntersectType::TypeCount> poly_type_selections;
-  IndexMask::from_groups<int64_t>(IndexMask(src_polys.index_range()),
-                                  kept_polygon_memory,
-                                  fn_intersected_edge,
-                                  MutableSpan<IndexMask>(edge_type_selections));
-
-  /* Compute maximum number of polygons formed */
-  int polygon_limit = poly_type_selections[EdgeIntersectType::Intersect].parallel_reduce(
-      GrainSize(512),
-      0,
-      [&](const int64_t index_poly) {
-        const IndexRange src_corner_range = src_polys[index_poly];
-        const Span<int> corners = src_corner_verts.slice(src_corner_range);
-
-        int outside_count = 0;
-        for (const int64_t index : corners.index_range()) {
-          outside_count += is_kept_vertex[corners[index]] & MASK_OUTSIDE;
-        }
-        // TODO: Count should be polys...
-        return outside_count;
-      },
-      [](int a, int b) { return a + b; });
-
-  /* Index for the new edges formed inside the intersected polygons by the cutting plane.
-   * Index is zero based relative to the edges formed in this 'group'.
+  /* Split existing edges (synchronous)
    */
-  Array<Vector<int, 2>, 12> new_inter_edge_indices(new_split_polygons.size());
-  /* Index pairs for the vertices connected by edges formed in the poly-plane intersection. */
-  Array<Vector<int2, 2>, 12> new_inter_edge_verts(new_split_polygons.size());
-  /* Indices to src edges being split by the poly-plane intersection, for attribute transfers */
-  Array<Vector<int2, 2>, 12> new_inter_edge_map(new_split_polygons.size());
+  edge_type_selections[EdgeIntersectType::Intersect].foreach_index(
+      [&](const int64_t index_src_edge, const int64_t index_pos) {
+        float edge_weight;
+        const int2 vert_indices = sorted_edge(src_edges[index_src_edge]);
+        const int2 ve_index = split_edge(
+            vert_indices, index_pos, int2{int(index_src_edge), -1}, edge_weight);
+        old_to_new_edge_map[index_src_edge] = ve_index.y;
+      });
 
-  /* Counts the number of edges formed by poly-plane intersection. */
-  std::atomic<int> new_inter_edge_index = 0;
-  /* Index offset to the first poly-plane 'intersect' edge in the final mesh. */
-  const int new_inter_edge_index_offset = num_kept_edges + num_inter_edges;
-  const Span<float3> positions = mesh.vert_positions();
-  const int new_total_face_count = threading::parallel_reduce<int>(
-      src_polys.index_range(),
-      512,
-      0,
-      [&](IndexRange src_poly_subrange, const int &identity) {
-        int count = identity;
-        for (const int64_t index_poly : src_poly_subrange) {
+  /* Generate output triangulation
+   */
+  poly_type_selections[EdgeIntersectType::Intersect].foreach_index(
+      GrainSize(512), [&](const int64_t index_poly, const int64_t index_pos) {
+        const IndexRange src_corner_range = src_polys[index_poly];
+        const IndexRange local_corner_range(src_corner_range.size());
 
-          const IndexRange src_corner_range = src_polys[index_poly];
-          const Span<int> corners = src_corner_verts.slice(src_corner_range);
-          const Span<int> corner_edges = src_corner_edges.slice(src_corner_range);
+        const IndexRange edge_split_dst_offset = edge_split_dst_offsets[index_pos];
+        const IndexRange edge_formed_dst_offset = edge_formed_dst_offsets[index_pos];
+        const IndexRange tess_dst_offset = tesselation_dst_offsets[index_pos];
+        const IndexRange index_mask_offset = index_mask_offsets[index_pos];
 
-          const int8_t initial = is_kept_vertex[corners.first()];
-          int keep_count = initial & MASK_KEPT;
-          int8_t identical = initial;
-          for (const int64_t index : corners.index_range().drop_front(1)) {
-            const int8_t is_kept = is_kept_vertex[corners[index]];
-            keep_count += is_kept & MASK_KEPT;
-            identical = identical | is_kept;
-          }
+        // = tess_dst_offset * 3
+        const IndexRange tess_dst_offset_corner(tess_dst_offset.first() * 3,
+                                                tess_dst_offset.size() * 3);
 
-          /* Iterate all corners and track the edge being intersected.
-           * TODO: Handle sequences with edges in the plane
-           * TODO: Add bit for vertex 'in plane'?
+        // Todo: allocate to these buffers..
+        MutableSpan<int> local_tess_poly_src = tesselation_polygon_indices.as_mutable_span().slice(
+            tess_dst_offset);
+        MutableSpan<int3> local_tess_inds = tesselation_vertex_indices.as_mutable_span().slice(
+            tess_dst_offset);
+        MutableSpan<int3> local_tess_edges = tesselation_edge_indices.as_mutable_span().slice(
+            tess_dst_offset);
+
+        MutableSpan<float3> local_tess_corner_weights =
+            tesselation_corner_weights.as_mutable_span().slice(tess_dst_offset);
+        MutableSpan<int2> local_tess_corner_vertices =
+            tesselation_corner_vertices.as_mutable_span().slice(tess_dst_offset_corner);
+
+        const Span<int> local_corner_verts = src_corner_verts.slice(src_corner_range);
+        const Span<int> local_corner_edges = src_corner_edges.slice(src_corner_range);
+
+        // Make thread local allocated memory
+        Vector<float3> local_corner_pos(local_corner_range.size());
+        array_utils::gather(src_positions,
+                            src_corner_verts.slice(src_corner_range),
+                            local_corner_pos.as_mutable_span());
+        Vector<int8_t> local_flags(local_corner_range.size());
+        array_utils::gather(vertex_flags.as_span(),
+                            src_corner_verts.slice(src_corner_range),
+                            local_flags.as_mutable_span());
+
+        Vector<int2> edge_split_pairs(local_corner_range.size());
+        Vector<int2> index_vert_edge(local_corner_range.size());
+        Vector<float> edge_split_weight(local_corner_range.size());
+        int count_lookup_edges = 0; /* Counts the number of entries in the lookup table. */
+
+        auto append_outer_edge = [&](int2 pair) {
+          /* Append an edge that lies on the boundary to the cutting plane.
            */
+          const int edge_index = old_to_new_edge_map[local_corner_edges[pair.x]];
+          const int offset_virtual_split = edge_index - num_edges_kept;
+          const int vertex_index = num_verts_kept + offset_virtual_split;
 
-          /* First find a starting corner to iterate from that is not 'in the plane'. */
-          // int8_t first_kept;
-          // int64_t drop_count = -1;
-          // int kept_count = 0;
-          // int start_edge_index;
-          // for (const int64_t index : corners.index_range()) {
-          //   int vc_index = corners[index];
-          //   const int8_t next_kept = is_kept_vertex[vc_index];
-          //   kept_count += next_kept & MASK_KEPT;
-          //   if (!(next_kept & MASK_IN_PLANE)) {
-          //     first_kept = next_kept;
-          //     drop_count = index + 1;
-          //     start_edge_index = index == 0 ? corners.size() - 1 : index - 1;
-          //     break;
-          //   }
-          // }
-          //
-          ///* Find intersections IFF a valid starting corner was found (otherwise all are in
-          /// plane)
-          // */
-          // if (drop_count != -1) {
-          //  int8_t is_kept = first_kept & MASK_OUTSIDE;
-          //  for (const int64_t index : corners.index_range().drop_front(drop_count)) {
-          //    const int8_t next_kept = is_kept_vertex[corners[index]];
-          //    kept_count += (next_kept & MASK_KEPT);
-          //    if (is_kept != (next_kept & MASK_OUTSIDE)) {
-          //      pic_corner_index.append(index - 1);
-          //      is_kept = next_kept & MASK_OUTSIDE;
-          //    }
-          //  }
-          //  /* Last edge case */
-          //  if (is_kept != (first_kept & MASK_OUTSIDE)) {
-          //    /* No need to check 'in plane' here as starting corner is guaranteed not to be! */
-          //    pic_corner_index.append(start_edge_index);
-          //  }
-          //}
+          const int2 sorted_pair = sorted_edge(pair);
+          index_vert_edge[count_lookup_edges] = int2{vertex_index, edge_index};
+          edge_split_pairs[count_lookup_edges] = sorted_pair;
+          /* Ensure weight is sorted in local order, this may invert an inverted value */
+          edge_split_weight[count_lookup_edges] = sorted_weight(
+              int2{local_corner_verts[sorted_pair.x], local_corner_verts[sorted_pair.y]},
+              vertex_split_weights[offset_virtual_split]);
+          count_lookup_edges++;
+        };
 
-          /* Determine action applied to the polygon
-           */
-          if (initial == identical) {
-            if (keep_count == corners.size()) {
-              /* All kept, copy polygon */
-              count++;
-            }
-            /* Else: Discard, polygon is 'not kept'. */
-            continue;
+        /* Fetch split boundary edges */
+        int prev_corner = local_corner_range.last();
+        for (const int corner : local_corner_range) {
+          if (local_flags[corner] != local_flags[prev_corner]) {
+            append_outer_edge(int2{prev_corner, corner});
           }
-
-          const int num_tris = poly_to_tri_count(1, src_corner_range.size());
-          /* It would be plausible to 'break' here and only determine intersection classification,
-           * but the number of edges and faces formed are not known until after triangulation and
-           * everything is tested...
-           */
-
-          OffsetIndices<int> poly_offset = src_polys.slice(IndexRange(index_poly, 1));
-
-          Array<int3> triangulation_corners(num_tris);
-          bke::mesh::corner_tris_calc(
-              positions, poly_offset, src_corner_verts, triangulation_corners);
-
-          Vector<int3> new_triangles;
-          new_triangles.reserve(num_tris * 3);
-
-          auto split_triangle = [](const int opposite, const int next, const int last) {
-            int ___ = 0;
-          };
-
-          for (const int3 tri_corners : triangulation_corners) {
-            int8_t xy = is_kept_vertex[tri_corners.x] | is_kept_vertex[tri_corners.y];
-            if (xy == is_kept_vertex[tri_corners.z]) {
-              if (is_kept_vertex[tri_corners.z] & MASK_KEPT) {
-                new_triangles.append(tri_corners);
-              }
-              continue;
-            }
-
-            int8_t opposite;
-            if (is_kept_vertex[tri_corners.x] == is_kept_vertex[tri_corners.z]) {
-              opposite = 0;
-
-              split_triangle(0, 1, 2);
-            }
-            else if (is_kept_vertex[tri_corners.y] == is_kept_vertex[tri_corners.z]) {
-              split_triangle(1, 2, 0);
-            }
-            else {
-              split_triangle(2, 0, 1);
-            }
-          }
-
-          std::unordered_map<int, int> corner_to_local;
-          for (int i = 0; i < src_corner_range.size(); i++) {
-            corner_to_local[src_corner_range[i]] = i;
-          }
-
-          std::unordered_map<int, int> corner_to_edge;
-          for (int i = 0; i < src_corner_range.size(); i++) {
-            corner_to_local[src_corner_range[i]] = i;
-          }
-
-          continue;
-
-          /* Split polygon face(s). Iterate corner loop and form edges between adjacent
-           * intersection pairs */
-          // BLI_assert(pic_corner_index.size() % 2 == 0);
-
-          /* Index for the split edge in the intersected edge set. */
-          Array<int, 12> pic_split_edge_index(pic_corner_index.size());
-          for (const int64_t index : pic_corner_index.index_range()) {
-            const int edge_index = old_to_new_edge_map[corner_edges[pic_corner_index[index]]];
-            BLI_assert(edge_index >= 0);
-            pic_split_edge_index[index] = edge_index;
-          }
-
-          /* Increment the index relative to the polygon set, returns 0 when incrementing the
-           * last entry. */
-          auto increment = [&](const int64_t index) { return (index + 1) % corners.size(); };
-          /* Find index (in new mesh) for the edge on the given side of the split.
-           */
-          auto append_split_edge_side = [&](const int64_t index,
-                                            bool outside,
-                                            bool side_from,
-                                            Vector<int, 12> &poly_ecorners,
-                                            Vector<int2, 12> &poly_src_corner,
-                                            Vector<float, 12> &poly_src_weight) {
-            const int intersect_index = pic_split_edge_index[index];
-            const int intersect_split_edge_index = intersect_index * side_keep_count +
-                                                   int(!outside && side_keep_both);
-            const int i0 = pic_corner_index[index];
-            const int i1 = increment(i0);
-            int2 src_corner_inds{int(corner_range[i0]), int(corner_range[i1])};
-            poly_ecorners.append(num_kept_edges + intersect_split_edge_index);
-            poly_src_corner.append(src_corner_inds);
-            /* Weight */
-            const float w0 = edge_weight(dist_buffer[corners[i0]], dist_buffer[corners[i1]]);
-            poly_src_weight.append(w0);
-          };
-          /* Add an edge spanning two intersected edges within the polygon.
-           * Input indices reference edges in the polygon set.
-           * Returns the index of the edge formed in the new mesh.
-           */
-          auto add_intersection_edge = [&](const int2 pic_pair) {
-            /* Fetch indices to the vertices formed in the previously computed edge splits. */
-            int2 v_connect_pair{ie_vert_map[pic_split_edge_index[pic_pair.x]],
-                                ie_vert_map[pic_split_edge_index[pic_pair.y]]};
-            BLI_assert(v_connect_pair.x >= 0);
-            BLI_assert(v_connect_pair.y >= 0);
-
-            /* Determine if both edges are 'in the plane' and if so that they are not adjacent
-             * (edge already exist). */
-            const bool x_in_plane = v_connect_pair.x < num_kept_vertices;
-            const bool y_in_plane = v_connect_pair.y < num_kept_vertices;
-            if (x_in_plane && y_in_plane) {
-              int corner_a = pic_corner_index[pic_pair.x];
-              int corner_b = pic_corner_index[pic_pair.y];
-              /* Find the corner not in the plane (can only be 1). */
-              if (!(is_kept_vertex[corners[corner_a]] & MASK_IN_PLANE)) {
-                corner_a = increment(corner_a);
-                /*  corner_b = corner_b; */
-              }
-              else {
-                /* corner_a = corner_a */
-                corner_b = increment(corner_b);
-              }
-
-              /* Check if corners are adjacent, if so edge already exists! */
-              if (increment(corner_a) == corner_b) {
-                return old_to_new_edge_map[corner_edges[corner_a]];
-              }
-              else if (increment(corner_b) == corner_a) {
-                return old_to_new_edge_map[corner_edges[corner_b]];
-              }
-              /* No match and no existing edge and a new one must be formed.
-               * Geometry could also be degenerate (includes same vertex twice within one polygon
-               * or some overlap with other polygons...)!
-               */
-            }
-
-            int new_index = new_inter_edge_index++;
-            new_inter_edge_indices[index_poly].append(new_index);
-            new_inter_edge_verts[index_poly].append(v_connect_pair);
-
-            /* Find source edges to map data from */
-            int2 src_edges{corner_edges[pic_corner_index[pic_pair.x]],
-                           corner_edges[pic_corner_index[pic_pair.y]]};
-            new_inter_edge_map[index_poly].append(src_edges);
-            return new_index + new_inter_edge_index_offset;
-          };
-
-          /* Determine if intersection pairs. Shift the pairing by one if the edge formed inside
-           * the n-gon is being flipped. Default to no shift (default only apply for intersecting
-           * edges that are nearly identical/overlapping and parallel.
-           */
-          int start_shift_vote = 0;
-          for (int i = 0; i < pic_corner_index.size(); i += 2) {
-            const int v0 = corners[pic_corner_index[i]];
-            const int v1 = corners[increment(pic_corner_index[i])];
-            const int v2 = corners[pic_corner_index[i + 1]];
-            const int v3 = corners[increment(pic_corner_index[i + 1])];
-            const float3 V0 = positions[v0];
-            const float3 V1 = positions[v1];
-            const float3 V2 = positions[v2];
-            const float3 V3 = positions[v3];
-
-            const float w0 = ie_lerp_weights[pic_split_edge_index[i]];
-            const float w1 = ie_lerp_weights[pic_split_edge_index[i + 1]];
-
-            const float3 I0 = bke::attribute_math::mix2(w0, V0, V1);
-            const float3 I1 = bke::attribute_math::mix2(w1, V2, V3);
-
-            float3 edge1_delta = V1 - V0;
-            float3 edge2_delta = V3 - V2;
-            normalize_v3(edge1_delta);
-            normalize_v3(edge2_delta);
-            float3 edge_norm;
-            cross_v3_v3v3(edge_norm, edge1_delta, edge2_delta);
-
-            if (dot_v3v3(edge_norm, edge_norm) < 1e-7) {
-              edge2_delta = V2 - V0;
-              cross_v3_v3v3(edge_norm, edge1_delta, edge2_delta);
-              /* Valid case (edges are nearly identical) but not handled:*/
-              if (dot_v3v3(edge_norm, edge_norm) < 1e-7) {
-                continue;
-              }
-            }
-
-            auto fn_check_edge_order =
-                [](const float3 &edge_delta, const float3 &edge_norm, float3 I0, float3 I1) {
-                  float3 delta = I1 - I0;
-                  float3 edge_right;
-                  cross_v3_v3v3(edge_right, edge_delta, edge_norm);
-
-                  /* Near 0 if edges are parallel */
-                  return dot_v3v3(delta, edge_right);
-                };
-
-            /* Shift if both 'infront' the plane spanned by the poly edge (expected behind) */
-            const float signed_e1 = fn_check_edge_order(edge1_delta, edge_norm, I0, I1);
-            const float signed_e2 = fn_check_edge_order(edge2_delta, edge_norm, I1, I0);
-            start_shift_vote = !(signed_e1 < 0.0f && signed_e2 < 0.0f);
-            break;
-          }
-
-          // TODO: Vote shift
-          const bool do_shift_start = start_shift_vote > 0;
-
-          /* Create edges formed between pairs of intersected edges within the polygon.
-           */
-          /* Track index for pairs of intersected edges within the polygon (polygon relative). */
-          Array<int2, 12> intersect_pairs(pic_corner_index.size() / 2);
-          /* Track index for edges formed from the intersected pairs (relative to final mesh). */
-          Array<int, 12> intersect_edges(intersect_pairs.size());
-
-          /* Initial case (first pair). */
-          const int start_intersect = pic_corner_index.size() - 2 + do_shift_start;
-          intersect_pairs[0] = {start_intersect, (start_intersect + 1) % pic_corner_index.size()};
-          intersect_edges[0] = add_intersection_edge(intersect_pairs[0]);
-          /* Remaining pairs. */
-          for (const int64_t pair_index : IndexRange(1, intersect_pairs.size() - 1)) {
-            const int index = (pair_index - 1) * 2 + do_shift_start;
-            intersect_pairs[pair_index] = {index, index + 1};
-            intersect_edges[pair_index] = add_intersection_edge(intersect_pairs[pair_index]);
-          }
-          if (kept_count == 0) {
-            /* Only generate the intersected edges (no polygon on either side will be kept) */
-            continue;
-          }
-
-          /* Construct corner loops
-
-          Corner loop construction is repeated twice: generating polygons once for each side of
-          the plane. The side for either iteration is unknown until checked inside each call,
-          this is due to iteration being determined by the source polygon corner order which is
-          independent of the plane.
-
-          One or multiple polygons can be generated on each side. Starting point for each
-          iteration around the source polygon is the corner index that follws after the first
-          intersected edge pair (if multiple polygons are formed the first remaining intersection
-          is used).
-
-          In the first generate call, iteration begins on the fourth corner (d|3) which also maps
-          to the fourth edge (da|3) in the output polygon, this is due to the corner edges 0 (ab)
-          and 2 (cd) forming the edge corner intersection pair in the source polygon, so ++2 = 3.
-
-          Intersections generate 3 corner edges, since iteration begins from an intersection this
-          intersection is used as the base case and forms the 3 first corners (0, 1, 2).
-          Innermost iteration then generate (3) from (00) then terminates in the second iteration
-          (11) as it looped back to the intersected edge (ab) from the base case.
-
-
-              c *-------* b
-                |       |
-                |       |
-                |   1   |
-          cd|2 x-------x ab|1
-                |       |
-                | 2     | 0
-                |       |
-                *-------*
-            d|3|00  3     a|0|01
-
-          Legend:
-          No | is edge number of newly formed edge
-          <>|<>|<> sequence:
-            <literal(s) for the original corners used to form the corner> |
-            <corner index in the newly formed (output) polygon> |
-            <repeated iteration index (00 == 0, 01 == 1), iteration in the innermost loop>
-
-
-          Second generate call constructs the polygon on the opposite side of the plane, this is
-          done by traversing the half-edge on the opposite side of the intersection edge.
-          Traversal is done in the same way by simply reversing the indices of the edges in the
-          intersection pairs. The end result is highlighted below, the main difference is inner
-          iterations starting on corner 1 (b) from intersection of the 0:th source corner edge.
-
-            c|0|01  3    b|3|00
-              c *-------*
-                |       |
-              0 |       | 2
-                |   1   |
-          cd|1 x-------x ab|2
-                |       |
-                |       |
-                |       |
-                *-------*
-
-          For multiple intersection pairs, intersections are traversed continuing iteration on
-          the same side of the plane until it loops back to the initial intersection. Multiple
-          polygons will be formed in the polygons are disjoint by starting from any remaining
-          intersection pair.
-          */
-
-          auto fn_generate_polygons = [&]() {
-            const int64_t kept_vertex_index = increment(pic_corner_index[intersect_pairs[0].y]);
-            const bool outside = fn_is_outside(dist_buffer[corners[kept_vertex_index]]);
-            if ((outside && args.clear_outer) || (!outside && args.clear_inner)) {
-              return; /* Cleared side. */
-            }
-
-            int next_intersect = 0;
-            while (next_intersect < intersect_pairs.size()) {
-              const int2 start_pair = intersect_pairs[next_intersect];
-
-              Vector<int, 12> poly_ecorners;
-              Vector<int2, 12> poly_src_corner;
-              Vector<float, 12> poly_src_weight;
-
-              /*
-                * Corner edge meaning (references dst edges):
-                  Index to edge formed when splitting first edge (on the correct side of plane)
-                  Index to newly formed internal edge
-                  Index to edge formed when splitting second edge (in the pair, and correct side)
-              */
-              /* Vertex corners (references src corner vertices)
-               * Note that vertex corners are 'shifted back' by one, as corner edge 0 begins in
-               * vertex corner 0.
-               */
-              const int first_corner = pic_corner_index[start_pair.x];
-              {
-                const int i0 = first_corner;
-                poly_src_corner.append(int2{int(corner_range[i0]), 0});
-                poly_src_weight.append(0.0f);
-                append_split_edge_side(
-                    start_pair.x, outside, true, poly_ecorners, poly_src_corner, poly_src_weight);
-                poly_ecorners.append(intersect_edges[next_intersect]);
-                append_split_edge_side(
-                    start_pair.y, outside, false, poly_ecorners, poly_src_corner, poly_src_weight);
-                // poly_ecorners.append(append_split_edge_side(start_pair.x, outside));
-                //  poly_ecorners.append(append_split_edge_side(start_pair.y, outside));
-              }
-
-              int2 pic_pair = intersect_pairs[++next_intersect % intersect_pairs.size()];
-              for (int64_t index = increment(pic_corner_index[start_pair.y]);
-                   index != first_corner;
-                   index = increment(index))
-              {
-                if (index == pic_corner_index[pic_pair.x]) {
-                  /* Traversed to next bisected edge */
-                  index = pic_corner_index[pic_pair.y];
-                  const int i0 = pic_corner_index[pic_pair.x];
-                  int2 src_corner_vindex{int(corner_range[i0]), 0};
-                  poly_src_corner.append(src_corner_vindex);
-                  poly_src_weight.append(0.0f);
-                  append_split_edge_side(
-                      pic_pair.x, outside, true, poly_ecorners, poly_src_corner, poly_src_weight);
-                  poly_ecorners.append(intersect_edges[next_intersect]);
-                  append_split_edge_side(
-                      pic_pair.y, outside, false, poly_ecorners, poly_src_corner, poly_src_weight);
-
-                  /* Vertex corners (references src corner vertices)
-                   * Note that vertex corners are 'shifted back' by one, as corner edge 0 begins
-                   * in vertex corner 0.
-                   */
-                  pic_pair = intersect_pairs[++next_intersect % intersect_pairs.size()];
-                }
-                else {
-                  /* Asserts edge is a 'kept' edge. */
-                  const int corner_edge = corner_edges[index];
-                  const int mapped_edge = old_to_new_edge_map[corner_edge];
-                  if (mapped_edge == -1) {
-                    /* Not possible unless start shift is wrong */
-                    poly_ecorners.clear();
-                    next_intersect = pic_corner_index.size();
-                    break;
-                  }
-                  poly_ecorners.append(mapped_edge);
-                  poly_src_corner.append(int2{int(corner_range[index]), 0});
-                  poly_src_weight.append(0.0f);
-                }
-              }
-              /* Make poly */
-              if (poly_ecorners.size() < 3) {
-                /* Not possible unless start shift is wrong */
-                continue;
-              }
-              new_split_polygons[index_poly].append(std::move(poly_ecorners));
-              new_split_polygon_src_corner[index_poly].append(std::move(poly_src_corner));
-              new_split_polygon_src_weight[index_poly].append(std::move(poly_src_weight));
-              count++;
-            }
-          };
-
-          fn_generate_polygons();
-          /* Swap pair order and generate opposite side of the bisect plane. */
-          for (int2 &pair : intersect_pairs) {
-            std::swap(pair.x, pair.y);
-          }
-          fn_generate_polygons();
+          prev_corner = corner;
         }
-        return count;
+
+        int count_edges_formed = 0; /* Counts formed edges. */
+        auto new_formed_edge_index = [&]() {
+          const int offset_virtual_formed = edge_split_dst_offsets.last() +
+                                            edge_formed_dst_offset.first() + count_edges_formed;
+          count_edges_formed++;
+          return int2{offset_virtual_formed, num_edges_kept + offset_virtual_formed};
+        };
+
+        int count_edges_split = 0;
+        auto find_or_split_edge = [&](int2 corners) {
+          /*
+           */
+          int2 pair = sorted_edge(corners);
+          auto it = std::find(edge_split_pairs.begin(), edge_split_pairs.end(), pair);
+
+          if (it == edge_split_pairs.end()) {
+            /* Split the edge */
+            const int2 vert_indices{local_corner_verts[pair.x], local_corner_verts[pair.y]};
+            const int64_t offset_virtual_split = edge_split_dst_offset.first() + count_edges_split;
+
+            edge_split_pairs[count_lookup_edges] = pair;
+            index_vert_edge[count_lookup_edges] = split_edge(
+                vert_indices,
+                offset_virtual_split,
+                int2{-1, -1},
+                edge_split_weight[count_lookup_edges]);
+
+            count_edges_split++;
+            return count_lookup_edges++;
+          }
+          return int(std::distance(edge_split_pairs.begin(), it));
+        };
+
+        auto find_or_create_inner_edge = [&](const int2 corners) {
+          /* Form a new edge inside the N-gon that isn't intersected by the plane.
+           */
+
+          int2 pair = sorted_edge(corners);
+          auto it = std::find(edge_split_pairs.begin(), edge_split_pairs.end(), pair);
+
+          if (it == edge_split_pairs.end()) {
+            /* Create a new edge entry! */
+            const int2 offset_index = new_formed_edge_index();
+            edge_split_pairs[count_lookup_edges] = pair;
+            index_vert_edge[count_lookup_edges] = int2(-1, offset_index.y);
+
+            edge_output_vertex_pairs[offset_index.x] = int2{
+                old_to_new_vertex_map[local_corner_verts[corners.x]],
+                old_to_new_vertex_map[local_corner_verts[corners.y]]};
+            edge_output_src_edges[offset_index.x] = int2{
+                old_to_new_edge_map[local_corner_edges[corners.x]],
+                old_to_new_edge_map[local_corner_verts[corners.y]]};
+
+            count_lookup_edges++;
+            return offset_index.y;
+          }
+          const int64_t local_split_index = std::distance(edge_split_pairs.begin(), it);
+          return index_vert_edge[local_split_index].y;
+        };
+
+        int count_edges_formed_at_cut = 0;
+        auto form_edge_at_cut = [&](int2 new_vert_indices, int2 src_edge_indices) {
+          /* Form a new edge inside the N-gon between two intersections (at the plane cut).
+           */
+          const int2 offset_index = new_formed_edge_index();
+          edge_output_vertex_pairs[offset_index.x] = new_vert_indices;
+          edge_output_src_edges[offset_index.x] = src_edge_indices;
+
+          edge_border_index_mask[index_mask_offset[count_edges_formed_at_cut]] = offset_index.y;
+
+          count_edges_formed_at_cut++;
+          return offset_index.y;
+        };
+
+        auto form_edge_diagonal =
+            [&](int split_vert_index, int corner_index, int split_edge_source_index) {
+              /* Form a new edge inside the triangle itself, between a cut edge and interior vertex
+               * (occurs when output from spliting the tesselated tri forms a quad).
+               */
+              const int2 offset_index = new_formed_edge_index();
+              edge_output_vertex_pairs[offset_index.x] = int2(
+                  split_vert_index, old_to_new_vertex_map[local_corner_verts[corner_index]]);
+              edge_output_src_edges[offset_index.x] = int2(
+                  old_to_new_edge_map[local_corner_edges[corner_index]], split_edge_source_index);
+
+              return offset_index.y;
+            };
+
+        int tri_count = 0;
+        for (const int3 tri : tesselation.as_span().slice(tesselation_offsets[index_pos])) {
+          const int num_inner = local_flags[tri.x] + local_flags[tri.y] + local_flags[tri.z];
+          if (num_inner == 0) {
+            continue;
+          }
+          local_tess_poly_src[tri_count] = index_poly;
+
+          if (num_inner == 3) {
+            /* No intersection... Keep whole and form inner edge(s) */
+            const int2 xy = int2{tri.x, tri.y};
+            const int2 yz = int2{tri.y, tri.z};
+            const int2 zx = int2{tri.y, tri.z};
+            const int e0 = is_sequential_pair(xy, local_corner_range.size()) ?
+                               old_to_new_edge_map[local_corner_edges[tri.x]] :
+                               find_or_create_inner_edge(xy);
+            const int e1 = is_sequential_pair(yz, local_corner_range.size()) ?
+                               old_to_new_edge_map[local_corner_edges[tri.y]] :
+                               find_or_create_inner_edge(yz);
+            const int e2 = is_sequential_pair(zx, local_corner_range.size()) ?
+                               old_to_new_edge_map[local_corner_edges[tri.z]] :
+                               find_or_create_inner_edge(zx);
+            local_tess_edges[tri_count] = int3{e0, e1, e2};
+            local_tess_inds[tri_count] = int3{old_to_new_vertex_map[local_corner_verts[tri.x]],
+                                              old_to_new_vertex_map[local_corner_verts[tri.y]],
+                                              old_to_new_vertex_map[local_corner_verts[tri.z]]};
+
+            const int coffset = tri_count * 3;
+            local_tess_corner_vertices[coffset + 0] = int2{int(src_corner_range[tri.x]), -1};
+            local_tess_corner_vertices[coffset + 1] = int2{int(src_corner_range[tri.y]), -1};
+            local_tess_corner_vertices[coffset + 2] = int2{int(src_corner_range[tri.z]), -1};
+            local_tess_corner_weights[tri_count] = float3{0.0f, 0.0f, 0.0f};
+            tri_count++;
+          }
+          else if (num_inner == 1) {
+
+            /*
+             * Case
+             *
+             * 0          2
+             *  *---------*    Outside
+             *   \       /
+             *  ^ x ^ ^ x ^ <- Plane
+             *   b \   / a
+             *      \ /        Inside
+             *       * 1, c
+             */
+            const int split_index_b = find_or_split_edge(int2{tri.x, tri.y});
+            const int split_index_a = find_or_split_edge(int2{tri.y, tri.z});
+
+            const int2 ve_cut_a = index_vert_edge[split_index_a];
+            const int2 ve_cut_b = index_vert_edge[split_index_b];
+
+            /* Sorted xy, yz index pairs */
+            const int2 pair_a = edge_split_pairs[split_index_a];
+            const int2 pair_b = edge_split_pairs[split_index_b];
+
+            const int e0 = form_edge_at_cut(int2{ve_cut_b.x, ve_cut_a.x}, int2{-1, -1});
+            const int v1 = local_corner_verts[tri.y];
+            const int vc = old_to_new_vertex_map[v1];
+            BLI_assert(vertex_flags[v1] & MASK_INSIDE);
+            BLI_assert(vc >= 0);
+
+            local_tess_inds[tri_count] = int3{ve_cut_a.x, ve_cut_b.x, vc};
+            local_tess_edges[tri_count] = int3{e0, ve_cut_b.y, ve_cut_a.y};
+
+            const int coffset = tri_count * 3;
+            local_tess_corner_vertices[coffset + 0] = int2{int(src_corner_range[pair_a.x]),
+                                                           int(src_corner_range[pair_a.y])};
+            local_tess_corner_vertices[coffset + 1] = int2{int(src_corner_range[pair_b.x]),
+                                                           int(src_corner_range[pair_b.y])};
+            local_tess_corner_vertices[coffset + 2] = int2{int(src_corner_range[tri.y]), -1};
+            local_tess_corner_weights[tri_count] = float3{
+                edge_split_weight[split_index_a], edge_split_weight[split_index_b], 0.0f};
+            tri_count++;
+          }
+          else {
+            /*
+             * Case
+             *
+             *         1
+             *          *              Outside
+             *         / \
+             *        /   \
+             *   ^ ^ x ^ ^ x ^ ^ ^  <- Plane
+             *      / II c  \
+             *     /   c     \       c == Inner triangulation edge
+             *    / c     I   \
+             * 2 *-------------*  0    Inside
+             *
+             *      ^ Inner edge
+             */
+            const int split_index0 = find_or_split_edge(int2{tri.x, tri.y});
+            const int split_index1 = find_or_split_edge(int2{tri.y, tri.z});
+
+            const int2 ve_cut0 = index_vert_edge[split_index0];
+            const int2 ve_cut1 = index_vert_edge[split_index1];
+
+            /* Sorted xy, yz index pairs */
+            const int2 pair_01 = edge_split_pairs[split_index0];
+            const int2 pair_12 = edge_split_pairs[split_index1];
+
+            const int2 zx = int2{tri.z, tri.x};
+            const int einner = is_sequential_pair(zx, local_corner_range.size()) ?
+                                   old_to_new_edge_map[local_corner_edges[tri.z]] :
+                                   find_or_create_inner_edge(zx);
+
+            const int ecut = form_edge_at_cut(int2{ve_cut0.x, ve_cut1.x}, int2{-1, -1});
+            const int ediag = form_edge_diagonal(ve_cut0.x, tri.z, -1);
+            const int v0 = old_to_new_vertex_map[local_corner_verts[tri.x]];
+            const int v2 = old_to_new_vertex_map[local_corner_verts[tri.z]];
+
+            local_tess_inds[tri_count] = int3{v0, ve_cut0.x, v2};
+            local_tess_inds[tri_count + 1] = int3{v2, ve_cut0.x, ve_cut1.x};
+
+            local_tess_edges[tri_count] = int3{ve_cut0.y, ediag, einner};
+            local_tess_edges[tri_count + 1] = int3{ediag, ecut, ve_cut1.y};
+
+            const int coffset = tri_count * 3;
+            local_tess_corner_vertices[coffset + 0] = int2{int(src_corner_range[tri.x]), -1};
+            local_tess_corner_vertices[coffset + 1] = int2{int(src_corner_range[pair_01.x]),
+                                                           int(src_corner_range[pair_01.y])};
+            local_tess_corner_vertices[coffset + 2] = int2{int(src_corner_range[tri.z]), -1};
+
+            local_tess_corner_vertices[coffset + 3] = int2{int(src_corner_range[tri.z]), -1};
+            local_tess_corner_vertices[coffset + 4] = int2{int(src_corner_range[pair_01.x]),
+                                                           int(src_corner_range[pair_01.y])};
+            local_tess_corner_vertices[coffset + 5] = int2{int(src_corner_range[pair_12.x]),
+                                                           int(src_corner_range[pair_12.y])};
+
+            local_tess_corner_weights[tri_count] = float3{
+                0.0f, edge_split_weight[split_index0], 0.0f};
+            local_tess_corner_weights[tri_count + 1] = float3{
+                0.0f, edge_split_weight[split_index0], edge_split_weight[split_index1]};
+
+            local_tess_poly_src[tri_count + 1] = index_poly;
+            tri_count += 2;
+          }
+        }
+      });
+
+  const int num_copied_corners = poly_type_selections[EdgeIntersectType::Kept].parallel_reduce(
+      GrainSize(4096),
+      0,
+      [&](const int64_t index_face, const int64_t index_pos, const int &identity) {
+        return int(src_polys[index_face].size());
       },
       [](int a, int b) { return a + b; });
-
-  /* Condense arrays */
-  Array<int, 12> new_split_polygon_indices(new_total_face_count);
-  Array<Vector<int, 4>, 12> new_split_polygons_dense(new_total_face_count);
-  Array<Vector<int2, 4>, 12> new_split_polygon_src_corner_dense(new_total_face_count);
-  Array<Vector<float, 4>, 12> new_split_polygon_src_weight_dense(new_total_face_count);
-
-  Array<int2, 12> new_inter_edge_verts_dense(new_inter_edge_index);
-  Array<int2, 12> new_inter_edge_map_dense(new_inter_edge_index);
-
-  int poly_counter = 0;
-  for (const int64_t index_poly : new_split_polygons.index_range()) {
-    for (const int64_t i : new_inter_edge_indices[index_poly].index_range()) {
-      const int edge_offset = new_inter_edge_indices[index_poly][i];
-      new_inter_edge_verts_dense[edge_offset] = new_inter_edge_verts[index_poly][i];
-      new_inter_edge_map_dense[edge_offset] = new_inter_edge_map[index_poly][i];
-    }
-    if (new_split_polygons[index_poly].is_empty()) {
-      continue;
-    }
-
-    /* Iterate and make dense! */
-    for (const int64_t i : new_split_polygons[index_poly].index_range()) {
-      new_split_polygon_indices[poly_counter] = index_poly;
-      new_split_polygons_dense[poly_counter] = std::move(new_split_polygons[index_poly][i]);
-      new_split_polygon_src_corner_dense[poly_counter] = std::move(
-          new_split_polygon_src_corner[index_poly][i]);
-      new_split_polygon_src_weight_dense[poly_counter] = std::move(
-          new_split_polygon_src_weight[index_poly][i]);
-      ++poly_counter;
-    }
-  }
 
   /* Group Descriptors */
   std::array<VariantVertexGroup, 2> vertex_groups = {
       MeshVertexGroupCopyMask{kept_vertices},
-      MeshVertexGroupLinear{sie_index_pairs.as_span().slice(split_edge_vert_slice),
-                            ie_lerp_weights.as_span().slice(split_edge_vert_slice)}};
+      MeshVertexGroupLinear{vertex_split_vertices.as_span(), vertex_split_weights.as_span()}};
 
-  std::array<VariantEdgeGroup, 3> edge_groups = {
+  std::array<VariantEdgeGroup, 2> edge_groups = {
       MeshEdgeGroupCopyMask{edge_type_selections[EdgeIntersectType::Kept],
                             old_to_new_vertex_map.as_span()},
-      MeshEdgeGroupPair{sie_vert_map.as_span().slice(split_edge_slice),
-                        sie_edge_map.as_span().slice(split_edge_slice)},
-      MeshEdgeGroupPair{new_inter_edge_verts_dense, new_inter_edge_map_dense}};
-  std::array<VariantPolygonGroup, 1> poly_groups = {
-      MeshPolygonGroup{new_split_polygon_indices,
-                       new_split_polygons_dense,
-                       new_split_polygon_src_corner_dense,
-                       new_split_polygon_src_weight_dense}};
+      MeshEdgeGroupPair{edge_output_vertex_pairs.as_span(), edge_output_src_edges.as_span()}};
+
+  std::array<VariantPolygonGroup, 2> poly_groups = {
+      MeshFaceGroupCopyMask{num_copied_corners,
+                            poly_type_selections[EdgeIntersectType::Kept],
+                            old_to_new_vertex_map.as_span(),
+                            old_to_new_edge_map.as_span()},
+      MeshTriangleGroup{tesselation_polygon_indices,
+                        tesselation_vertex_indices,
+                        tesselation_edge_indices,
+                        tesselation_corner_weights,
+                        tesselation_corner_vertices}};
 
   /* Create new mesh */
   Mesh *result = new_mesh_from_groups(mesh, vertex_groups, edge_groups, poly_groups);
-  transfer_vertex_data(mesh, *result, vertex_groups, propagation_info);
-  transfer_edge_data(mesh, *result, edge_groups, propagation_info);
-  transfer_polygon_data(mesh, *result, poly_groups, propagation_info);
+  transfer_vertex_data(mesh, *result, vertex_groups, attribute_filter);
+  transfer_edge_data(mesh, *result, edge_groups, attribute_filter);
+  transfer_polygon_data(mesh, *result, poly_groups, attribute_filter);
 
   /* Copy kept data */
 

@@ -32,12 +32,12 @@ void corner_tris_calc(Span<float3> vert_positions,
                       Span<int> corner_verts,
                       MutableSpan<int3> corner_tris);
 
-static void mesh_calc_tessellation_for_face(const Span<int> corner_verts,
-                                            const Span<float3> positions,
-                                            const int face_start,
-                                            const int face_size,
-                                            int3 *tri,
-                                            MemArena **pf_arena_p);
+void mesh_calc_tessellation_for_face(const Span<int> corner_verts,
+                                     const Span<float3> positions,
+                                     const int face_start,
+                                     const int face_size,
+                                     int3 *tri,
+                                     MemArena **pf_arena_p);
 
 /**
  * A version of #corner_tris_calc which takes pre-calculated face normals

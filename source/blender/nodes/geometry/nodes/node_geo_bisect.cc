@@ -168,7 +168,7 @@ static void plane_clip_point_cloud(GeometrySet &geometry_set, const blender::geo
 
 static void geometry_set_curve_bisect(GeometrySet &geometry_set,
                                       const blender::geometry::BisectArgs &args,
-                                      const AnonymousAttributePropagationInfo &propagation_info)
+                                      const bke::AttributeFilter &attribute_filter)
 {
   if (!geometry_set.has_curves()) {
     return;
@@ -197,7 +197,7 @@ static void geometry_set_curve_bisect(GeometrySet &geometry_set,
   */
 
   bke::CurvesGeometry dst_curves = geometry::bisect_curves(
-      src_curves, src_curves.curves_range(), args, propagation_info);
+      src_curves, src_curves.curves_range(), args, attribute_filter);
 
   Curves *dst_curves_id = bke::curves_new_nomain(std::move(dst_curves));
   bke::curves_copy_parameters(src_curves_id, *dst_curves_id);
@@ -207,8 +207,7 @@ static void geometry_set_curve_bisect(GeometrySet &geometry_set,
 static void geo_node_bisect_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const AnonymousAttributePropagationInfo &propagation_info = params.get_output_propagation_info(
-      "Geometry");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Geometry"); // "Mesh"
 
   blender::geometry::BisectArgs args;
 
@@ -230,7 +229,8 @@ static void geo_node_bisect_exec(GeoNodeExecParams params)
       if (geometry_set.has_mesh()) {
         const Mesh *mesh_in = geometry_set.get_mesh();
 
-        std::pair<Mesh *, geometry::BisectResult> result = geometry::bisect_mesh(*mesh_in, args, propagation_info);
+        std::pair<Mesh *, geometry::BisectResult> result = geometry::bisect_mesh(
+            *mesh_in, args, attribute_filter);
         if (result.second == geometry::BisectResult::Keep) {
           /* Do nothing => forward original mesh */
         }
@@ -245,7 +245,7 @@ static void geo_node_bisect_exec(GeoNodeExecParams params)
       */
 
       if (geometry_set.has_curves()) {
-        geometry_set_curve_bisect(geometry_set, args, propagation_info);
+        geometry_set_curve_bisect(geometry_set, args, attribute_filter);
       }
     });
   }
@@ -259,7 +259,7 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_BISECT, "Bisect", NODE_CLASS_GEOMETRY);
   ntype.declare = geo_node_bisect_declare;
   ntype.geometry_node_execute = geo_node_bisect_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
