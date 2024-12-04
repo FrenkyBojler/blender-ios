@@ -270,7 +270,7 @@ struct bNodeType {
   void (*labelfunc)(const bNodeTree *ntree, const bNode *node, char *label, int label_maxncpy);
 
   /** Optional override for node class, used for drawing node header. */
-  blender::bke::NodeClass (*ui_class)(const bNode *node);
+  NodeClass (*ui_class)(const bNode *node);
   /** Optional dynamic description of what the node group does. */
   std::string (*ui_description_fn)(const bNode &node);
 
