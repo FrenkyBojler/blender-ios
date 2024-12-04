@@ -303,7 +303,7 @@ static void tree_element_object_activate(bContext *C,
   if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_OB)) {
     ob = (Object *)tselem->id;
   }
-  else {
+  else if (te->idcode != ID_GR) {
     parent_te = outliner_search_back_te(te, ID_OB);
     if (parent_te) {
       parent_tselem = TREESTORE(parent_te);
