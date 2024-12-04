@@ -35,7 +35,9 @@ class VKDiscardPool {
   friend class VKDevice;
 
  private:
-  Vector<VkSemaphore> semaphores_{};
+  Vector<VkSemaphore> semaphores_;
+  VkFence semaphores_guard_;
+
   Vector<std::pair<VkImage, VmaAllocation>> images_;
   Vector<std::pair<VkBuffer, VmaAllocation>> buffers_;
   Vector<VkImageView> image_views_;
@@ -78,6 +80,7 @@ class VKDiscardPool {
   void move_data(VKDiscardPool &src_pool);
   void destroy_discarded_resources(VKDevice &device);
   SyncSemaphores sync_semaphores(VKDevice &device);
+  void set_semaphores_guard(VkFence vk_fence);
 };
 
 class VKResourcePool {

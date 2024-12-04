@@ -565,10 +565,16 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VK_CHECK(vkResetFences(device, 1, &m_fence));
   // printf("%d\n", image_index);
 
+  VkFence present_fence;
+  VkFenceCreateInfo fence_info = {};
+  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  VK_CHECK(vkCreateFence(device, &fence_info, nullptr, &present_fence));
+
   GHOST_VulkanSwapChainData swap_chain_data = {};
   swap_chain_data.image = m_swapchain_images[image_index];
   swap_chain_data.format = m_surface_format.format;
   swap_chain_data.extent = m_render_extent;
+  swap_chain_data.present_fence = present_fence;
   VkSemaphore present_wait_semaphore;
   swap_chain_data.present_wait_semaphore = &present_wait_semaphore;
   if (swap_buffers_pre_callback_) {
@@ -585,9 +591,13 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   present_info.pResults = nullptr;
   present_info.pWaitSemaphores = &present_wait_semaphore;
   present_info.waitSemaphoreCount = 1;
-  //   VkSwapchainPresentFenceInfoEXT pfence = {};
-  //   pfence.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
-  //   present_info.pNext = &pfence;
+
+  VkSwapchainPresentFenceInfoEXT present_fence_info = {};
+  present_fence_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
+  present_fence_info.swapchainCount = 1;
+  present_fence_info.pFences = &present_fence;
+
+  present_info.pNext = &present_fence_info;
   result = VK_SUCCESS;
   {
     std::scoped_lock lock(vulkan_device->queue_mutex);
@@ -1017,6 +1027,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    // required_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
   }
   optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);

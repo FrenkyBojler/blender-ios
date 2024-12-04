@@ -730,6 +730,8 @@ typedef struct {
   VkExtent2D extent;
   /** Semaphore that present must wait. */
   VkSemaphore *present_wait_semaphore;
+  /** Fence that is signaled when present completes. */
+  VkFence present_fence;
 } GHOST_VulkanSwapChainData;
 #endif
 

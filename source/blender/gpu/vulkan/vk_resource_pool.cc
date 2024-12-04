@@ -130,6 +130,13 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
   wait_info.pValues = wait_values.begin();
   vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
 
+  if (!semaphores_.is_empty()) {
+    BLI_assert(semaphores_guard_);
+    vkWaitForFences(device.vk_handle(), 1, &semaphores_guard_, false, UINT64_MAX);
+    vkDestroyFence(device.vk_handle(), semaphores_guard_, nullptr);
+  }
+  semaphores_guard_ = VK_NULL_HANDLE;
+
   for (auto semaphore : semaphores_) {
     vkDestroySemaphore(device.vk_handle(), semaphore, nullptr);
   }
@@ -195,5 +202,10 @@ SyncSemaphores VKDiscardPool::sync_semaphores(VKDevice &device)
   semaphores_.append({});
   vkCreateSemaphore(device.vk_handle(), &semaphore_info, nullptr, &semaphores_.last());
   return {wait_semaphore, semaphores_.last()};
+}
+void VKDiscardPool::set_semaphores_guard(VkFence vk_fence)
+{
+  BLI_assert(semaphores_guard_ == VK_NULL_HANDLE);
+  semaphores_guard_ = vk_fence;
 }
 }  // namespace blender::gpu

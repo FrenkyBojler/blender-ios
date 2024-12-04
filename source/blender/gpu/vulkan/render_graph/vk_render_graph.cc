@@ -8,7 +8,6 @@
 
 #include "vk_render_graph.hh"
 #include "gpu_backend.hh"
-#include "vk_backend.hh"
 
 #include <sstream>
 
