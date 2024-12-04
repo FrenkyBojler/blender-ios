@@ -59,38 +59,79 @@ static float3 compute_triangle_tangent(const float3 &p1,
   return tangent;
 }
 
-// TODO: need to compute tangents per corner in the general case
-static void compute_vertex_tangents(const Span<float3> positions,
-                                    Span<int3> tris,
-                                    Span<int> corner_verts,
-                                    Span<float2> uvs,
-                                    MutableSpan<float3> r_tangents)
+static void compute_corner_tangents(const Span<float3> positions,
+                                    const Span<int3> tris,
+                                    const Span<int> corner_verts,
+                                    const GroupedSpan<int> vert_to_corners_map,
+                                    const Span<float2> uvs,
+                                    MutableSpan<float3> r_corner_tangents)
 {
-  r_tangents.fill(float3(0.0f));
-  for (const int tri_i : tris.index_range()) {
-    const int3 &tri = tris[tri_i];
-    const int vert_0 = corner_verts[tri[0]];
-    const int vert_1 = corner_verts[tri[1]];
-    const int vert_2 = corner_verts[tri[2]];
+  const int verts_num = positions.size();
+  const int tris_num = tris.size();
+  const int corners_num = corner_verts.size();
 
-    const float3 &pos_0 = positions[vert_0];
-    const float3 &pos_1 = positions[vert_1];
-    const float3 &pos_2 = positions[vert_2];
+  BLI_assert(r_corner_tangents.size() == corners_num);
 
-    const float2 &uv_0 = uvs[tri[0]];
-    const float2 &uv_1 = uvs[tri[1]];
-    const float2 &uv_2 = uvs[tri[2]];
+  /* Compute a tangent vector for each triangle. */
+  threading::parallel_for(IndexRange(tris_num), 256, [&](const IndexRange range) {
+    for (const int tri_i : range) {
+      const int3 &tri = tris[tri_i];
+      const int vert_0 = corner_verts[tri[0]];
+      const int vert_1 = corner_verts[tri[1]];
+      const int vert_2 = corner_verts[tri[2]];
 
-    const float3 tangent = compute_triangle_tangent(pos_0, pos_1, pos_2, uv_0, uv_1, uv_2);
+      const float3 &pos_0 = positions[vert_0];
+      const float3 &pos_1 = positions[vert_1];
+      const float3 &pos_2 = positions[vert_2];
 
-    r_tangents[vert_0] += tangent;
-    r_tangents[vert_1] += tangent;
-    r_tangents[vert_2] += tangent;
-  }
+      const float2 &uv_0 = uvs[tri[0]];
+      const float2 &uv_1 = uvs[tri[1]];
+      const float2 &uv_2 = uvs[tri[2]];
 
-  for (const int vert_i : positions.index_range()) {
-    r_tangents[vert_i] = math::normalize(r_tangents[vert_i]);
-  }
+      const float3 tangent = compute_triangle_tangent(pos_0, pos_1, pos_2, uv_0, uv_1, uv_2);
+      /* Writing it separately for every triangle here, simplifies the next loop. */
+      r_corner_tangents[tri[0]] = tangent;
+      r_corner_tangents[tri[1]] = tangent;
+      r_corner_tangents[tri[2]] = tangent;
+    }
+  });
+
+  /* Mix the tangent vectors in vertices where multiple corners share the same uv. */
+  threading::parallel_for(IndexRange(verts_num), 512, [&](const IndexRange range) {
+    for (const int vert_i : range) {
+      struct SharedCorners {
+        float2 uv;
+        Vector<int, 10> corners;
+        float3 tangent_sum = float3(0.0f);
+      };
+
+      const Span<int> corners = vert_to_corners_map[vert_i];
+      Vector<SharedCorners> shared_corners;
+      for (const int corner_i : corners) {
+        const float2 &uv = uvs[corner_i];
+        /* This is only the non-interpolated tangent right now. */
+        const float3 &tri_tangent = r_corner_tangents[corner_i];
+        bool found = false;
+        for (SharedCorners &shared_corner : shared_corners) {
+          if (math::distance_manhattan(uv, shared_corner.uv) < 0.00001) {
+            shared_corner.corners.append(corner_i);
+            shared_corner.tangent_sum += tri_tangent;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          shared_corners.append({uv, {corner_i}, tri_tangent});
+        }
+      }
+      for (const SharedCorners &shared_corner : shared_corners) {
+        const float3 tangent = math::normalize(shared_corner.tangent_sum);
+        for (const int corner_i : shared_corner.corners) {
+          r_corner_tangents[corner_i] = tangent;
+        }
+      }
+    }
+  });
 }
 
 static void deform_curves(const CurvesGeometry &curves,
@@ -101,8 +142,8 @@ static void deform_curves(const CurvesGeometry &curves,
                           const ReverseUVSampler &reverse_uv_sampler_new,
                           const Span<float3> corner_normals_old,
                           const Span<float3> corner_normals_new,
-                          const Span<float3> rest_tangents,
-                          const Span<float3> deformed_tangents,
+                          const Span<float3> rest_corner_tangents,
+                          const Span<float3> deformed_corner_tangents,
                           const float4x4 &surface_to_curves,
                           MutableSpan<float3> r_positions,
                           MutableSpan<float3x3> r_rotations,
@@ -195,13 +236,13 @@ static void deform_curves(const CurvesGeometry &curves,
        * computed based on the rest position attribute instead of positions on the old mesh. This
        * way the old and new tangent reference use the same topology. */
       float3 tangent_reference_dir_old = mix3(bary_weights_new,
-                                              rest_tangents[vert_0_new],
-                                              rest_tangents[vert_1_new],
-                                              rest_tangents[vert_2_new]);
+                                              rest_corner_tangents[corner_0_new],
+                                              rest_corner_tangents[corner_1_new],
+                                              rest_corner_tangents[corner_2_new]);
       float3 tangent_reference_dir_new = mix3(bary_weights_new,
-                                              deformed_tangents[vert_0_new],
-                                              deformed_tangents[vert_1_new],
-                                              deformed_tangents[vert_2_new]);
+                                              deformed_corner_tangents[corner_0_new],
+                                              deformed_corner_tangents[corner_1_new],
+                                              deformed_corner_tangents[corner_2_new]);
 
       /* Compute first local tangent based on the (potentially smoothed) normal and the tangent
        * reference. */
@@ -368,19 +409,28 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Span<float3> corner_normals_orig = surface_mesh_orig->corner_normals();
   const Span<float3> corner_normals_eval = surface_mesh_eval->corner_normals();
 
-  Array<float3> rest_tangents(surface_mesh_eval->verts_num);
-  Array<float3> deformed_tangents(surface_mesh_eval->verts_num);
+  Array<float3> rest_corner_tangents(surface_mesh_eval->corners_num);
+  Array<float3> deformed_corner_tangents(surface_mesh_eval->corners_num);
 
-  compute_vertex_tangents(rest_positions,
-                          surface_mesh_eval->corner_tris(),
-                          surface_mesh_eval->corner_verts(),
-                          uv_map_eval,
-                          rest_tangents);
-  compute_vertex_tangents(surface_mesh_eval->vert_positions(),
-                          surface_mesh_eval->corner_tris(),
-                          surface_mesh_eval->corner_verts(),
-                          uv_map_eval,
-                          deformed_tangents);
+  threading::parallel_invoke(
+      [&]() {
+        compute_corner_tangents(rest_positions,
+                                surface_mesh_eval->corner_tris(),
+                                surface_mesh_eval->corner_verts(),
+                                surface_mesh_eval->vert_to_corner_map(),
+                                uv_map_eval,
+                                rest_corner_tangents);
+      },
+      [&]() {
+        compute_corner_tangents(surface_mesh_eval->vert_positions(),
+                                surface_mesh_eval->corner_tris(),
+                                surface_mesh_eval->corner_verts(),
+                                surface_mesh_eval->vert_to_corner_map(),
+                                uv_map_eval,
+                                deformed_corner_tangents);
+      }
+
+  );
 
   std::atomic<int> invalid_uv_count = 0;
 
@@ -410,8 +460,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                   reverse_uv_sampler_eval,
                   corner_normals_orig,
                   corner_normals_eval,
-                  rest_tangents,
-                  deformed_tangents,
+                  rest_corner_tangents,
+                  deformed_corner_tangents,
                   transforms.surface_to_curves,
                   curves.positions_for_write(),
                   edit_hint_rotations,
@@ -427,8 +477,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                   reverse_uv_sampler_eval,
                   corner_normals_orig,
                   corner_normals_eval,
-                  rest_tangents,
-                  deformed_tangents,
+                  rest_corner_tangents,
+                  deformed_corner_tangents,
                   transforms.surface_to_curves,
                   curves.positions_for_write(),
                   {},
@@ -446,8 +496,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                     reverse_uv_sampler_eval,
                     corner_normals_orig,
                     corner_normals_eval,
-                    rest_tangents,
-                    deformed_tangents,
+                    rest_corner_tangents,
+                    deformed_corner_tangents,
                     transforms.surface_to_curves,
                     edit_hint_positions,
                     edit_hint_rotations,
