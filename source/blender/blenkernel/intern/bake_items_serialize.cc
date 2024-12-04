@@ -861,7 +861,7 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
   if (const auto *io_attributes = io_mesh->lookup_array("vertex_group_names")) {
     for (const std::shared_ptr<Value> &value : io_attributes->elements()) {
       if (value->type() != io::serialize::eValueType::String) {
-        continue;
+        return cancel();
       }
       bDeformGroup *defgroup = MEM_cnew<bDeformGroup>(__func__);
       STRNCPY(defgroup->name, value->as_string_value()->value().c_str());
