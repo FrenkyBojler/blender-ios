@@ -7,6 +7,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_interface.hh"
 
 #include "BLI_math_vector.h"
