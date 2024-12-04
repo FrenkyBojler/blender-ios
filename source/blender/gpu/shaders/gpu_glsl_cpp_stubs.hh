@@ -29,9 +29,10 @@
 
 #pragma once
 
-#include <cassert>
-#include <cstdio>
 #include <type_traits>
+
+#define assert(assertion)
+#define printf(...)
 
 /* Some compilers complain about lack of return values. Keep it short. */
 #define RET \
@@ -743,46 +744,31 @@ int findMSB(int) RET;
 int findMSB(uint) RET;
 
 /* Math Functions. */
+
+/* NOTE: Declared inside a namespace and exposed behind macros to prevent
+ * errors on VS2019 due to `corecrt_math` conflicting functions. */
+namespace glsl {
 template<typename T> T abs(T) RET;
-template<typename T> T max(T, T) RET;
-template<typename T> T min(T, T) RET;
-template<typename T> T sign(T) RET;
-template<typename T, typename U> T clamp(T, U, U) RET;
-template<typename T> T clamp(T, double, double) RET;
-template<typename T, typename U> T max(T, U) RET;
-template<typename T, typename U> T min(T, U) RET;
 /* TODO(fclem): These should be restricted to floats. */
 template<typename T> T ceil(T) RET;
 template<typename T> T exp(T) RET;
 template<typename T> T exp2(T) RET;
 template<typename T> T floor(T) RET;
 template<typename T> T fma(T, T, T) RET;
-#ifndef _MSC_VER /* Avoid function redefinition which triggers a compile time error. */
 double fma(double, double, double) RET;
-#endif
-template<typename T> T fract(T) RET;
 template<typename T> T frexp(T, T) RET;
-template<typename T> T inversesqrt(T) RET;
 bool isinf(double) RET;
 template<int D> VecBase<bool, D> isinf(VecOp<double, D>) RET;
 bool isnan(double) RET;
 template<int D> VecBase<bool, D> isnan(VecOp<double, D>) RET;
 template<typename T> T log(T) RET;
 template<typename T> T log2(T) RET;
-double mod(double, double) RET;
-template<int D> VecBase<double, D> mod(VecOp<double, D>, double) RET;
-template<int D> VecBase<double, D> mod(VecOp<double, D>, VecOp<double, D>) RET;
 template<typename T> T modf(T, T);
 template<typename T, typename U> T pow(T, U) RET;
 template<typename T> T round(T) RET;
-template<typename T> T smoothstep(T, T, T) RET;
 template<typename T> T sqrt(T) RET;
-double step(double, double) RET;
-template<int D> VecBase<double, D> step(VecOp<double, D>, VecOp<double, D>) RET;
-template<int D> VecBase<double, D> step(double, VecOp<double, D>) RET;
 template<typename T> T trunc(T) RET;
 template<typename T, typename U> T ldexp(T, U) RET;
-double smoothstep(double, double, double) RET;
 
 template<typename T> T acos(T) RET;
 template<typename T> T acosh(T) RET;
@@ -797,6 +783,56 @@ template<typename T> T sin(T) RET;
 template<typename T> T sinh(T) RET;
 template<typename T> T tan(T) RET;
 template<typename T> T tanh(T) RET;
+}  // namespace glsl
+
+#define abs(x) glsl::abs(x)
+#define ceil(x) glsl::ceil(x)
+#define exp(x) glsl::exp(x)
+#define exp2(x) glsl::exp2(x)
+#define floor(x) glsl::floor(x)
+#define fma(a, b, c) glsl::fma(a, b, c)
+#define frexp(x, exp) glsl::frexp(x, exp)
+#define isinf(x) glsl::isinf(x)
+#define isnan(x) glsl::isnan(x)
+#define log(x) glsl::log(x)
+#define log2(x) glsl::log2(x)
+#define modf(x, i) glsl::modf(x, i)
+#define pow(x, y) glsl::pow(x, y)
+#define round(x) glsl::round(x)
+#define sqrt(x) glsl::sqrt(x)
+#define trunc(x) glsl::trunc(x)
+#define ldexp(x, exp) glsl::ldexp(x, exp)
+#define acos(x) glsl::acos(x)
+#define acosh(x) glsl::acosh(x)
+#define asin(x) glsl::asin(x)
+#define asinh(x) glsl::asinh(x)
+#define atan glsl::atan
+#define atanh(x) glsl::atanh(x)
+#define cos(x) glsl::cos(x)
+#define cosh(x) glsl::cosh(x)
+#define sin(x) glsl::sin(x)
+#define sinh(x) glsl::sinh(x)
+#define tan(x) glsl::tan(x)
+#define tanh(x) glsl::tanh(x)
+
+template<typename T> T max(T, T) RET;
+template<typename T> T min(T, T) RET;
+template<typename T> T sign(T) RET;
+template<typename T, typename U> T clamp(T, U, U) RET;
+template<typename T> T clamp(T, double, double) RET;
+template<typename T, typename U> T max(T, U) RET;
+template<typename T, typename U> T min(T, U) RET;
+/* TODO(fclem): These should be restricted to floats. */
+template<typename T> T fract(T) RET;
+template<typename T> T inversesqrt(T) RET;
+double mod(double, double) RET;
+template<int D> VecBase<double, D> mod(VecOp<double, D>, double) RET;
+template<int D> VecBase<double, D> mod(VecOp<double, D>, VecOp<double, D>) RET;
+template<typename T> T smoothstep(T, T, T) RET;
+double step(double, double) RET;
+template<int D> VecBase<double, D> step(VecOp<double, D>, VecOp<double, D>) RET;
+template<int D> VecBase<double, D> step(double, VecOp<double, D>) RET;
+double smoothstep(double, double, double) RET;
 
 template<typename T> T degrees(T) RET;
 template<typename T> T radians(T) RET;
