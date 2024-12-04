@@ -89,26 +89,25 @@ VkSemaphore VKCommandBufferWrapper::submit_with_cpu_synchronization(VkFence vk_f
   if (vk_fence) {
     vkResetFences(device.vk_handle(), 1, &vk_fence);
   }
-  VkSemaphore semaphore;
-  {
+  VkSemaphore submit_signal_semaphore = [&]() -> VkSemaphore {
     std::scoped_lock lock(device.queue_mutex_get());
-    SyncSemaphores sync_semaphores = device.discard_pool_for_current_thread(true).sync_semaphores(
-        device);
+    SubmitSyncSemaphores submit_sync_semaphores =
+        device.discard_pool_for_current_thread(true).submit_sync_semaphores(device);
     VkSubmitInfo vk_submit_info = vk_submit_info_;
-    if (sync_semaphores.wait_semaphore) {
+    if (submit_sync_semaphores.wait_semaphore) {
       vk_submit_info.waitSemaphoreCount = 1;
-      vk_submit_info.pWaitSemaphores = &sync_semaphores.wait_semaphore;
+      vk_submit_info.pWaitSemaphores = &submit_sync_semaphores.wait_semaphore;
     }
     vk_submit_info.signalSemaphoreCount = 1;
-    vk_submit_info.pSignalSemaphores = &sync_semaphores.signal_semaphore;
-    semaphore = sync_semaphores.signal_semaphore;
+    vk_submit_info.pSignalSemaphores = &submit_sync_semaphores.signal_semaphore;
 
     vkQueueSubmit(device.queue_get(), 1, &vk_submit_info, vk_fence);
-  }
+    return submit_sync_semaphores.signal_semaphore;
+  }();
   device.discard_pool_for_current_thread(true).discard_command_buffer(vk_command_buffer_,
                                                                       vk_command_pool_);
   vk_command_buffer_ = nullptr;
-  return semaphore;
+  return submit_signal_semaphore;
 }
 
 void VKCommandBufferWrapper::wait_for_cpu_synchronization(VkSemaphore vk_semaphore)

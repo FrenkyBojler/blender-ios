@@ -122,25 +122,28 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
 {
   std::scoped_lock mutex(mutex_);
 
-  Vector<uint64_t> wait_values(semaphores_.size(), 1);
+  Vector<uint64_t> wait_values(submit_semaphores_.size(), 1);
   VkSemaphoreWaitInfo wait_info = {};
   wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-  wait_info.semaphoreCount = semaphores_.size();
-  wait_info.pSemaphores = semaphores_.begin();
+  wait_info.semaphoreCount = submit_semaphores_.size();
+  wait_info.pSemaphores = submit_semaphores_.begin();
   wait_info.pValues = wait_values.begin();
   vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
 
-  if (!semaphores_.is_empty()) {
+  if (!submit_semaphores_.is_empty()) {
     BLI_assert(semaphores_guard_);
     vkWaitForFences(device.vk_handle(), 1, &semaphores_guard_, false, UINT64_MAX);
     vkDestroyFence(device.vk_handle(), semaphores_guard_, nullptr);
   }
+  else {
+    BLI_assert(!semaphores_guard_);
+  }
   semaphores_guard_ = VK_NULL_HANDLE;
 
-  for (auto semaphore : semaphores_) {
+  for (auto semaphore : submit_semaphores_) {
     vkDestroySemaphore(device.vk_handle(), semaphore, nullptr);
   }
-  semaphores_.clear();
+  submit_semaphores_.clear();
 
   while (!image_views_.is_empty()) {
     VkImageView vk_image_view = image_views_.pop_last();
@@ -186,10 +189,11 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
   command_buffers_.clear();
 }
 
-SyncSemaphores VKDiscardPool::sync_semaphores(VKDevice &device)
+SubmitSyncSemaphores VKDiscardPool::submit_sync_semaphores(VKDevice &device)
 {
   std::scoped_lock mutex(mutex_);
-  VkSemaphore wait_semaphore = semaphores_.is_empty() ? VK_NULL_HANDLE : semaphores_.last();
+  VkSemaphore wait_semaphore = submit_semaphores_.is_empty() ? VK_NULL_HANDLE :
+                                                               submit_semaphores_.last();
 
   VkSemaphoreTypeCreateInfo semaphore_type_info = {};
   semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
@@ -199,12 +203,13 @@ SyncSemaphores VKDiscardPool::sync_semaphores(VKDevice &device)
   VkSemaphoreCreateInfo semaphore_info = {};
   semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   semaphore_info.pNext = &semaphore_type_info;
-  semaphores_.append({});
-  vkCreateSemaphore(device.vk_handle(), &semaphore_info, nullptr, &semaphores_.last());
-  return {wait_semaphore, semaphores_.last()};
+  submit_semaphores_.append({});
+  vkCreateSemaphore(device.vk_handle(), &semaphore_info, nullptr, &submit_semaphores_.last());
+  return {wait_semaphore, submit_semaphores_.last()};
 }
 void VKDiscardPool::set_semaphores_guard(VkFence vk_fence)
 {
+  std::scoped_lock mutex(mutex_);
   BLI_assert(semaphores_guard_ == VK_NULL_HANDLE);
   semaphores_guard_ = vk_fence;
 }

@@ -55,10 +55,11 @@ VkSemaphore VKRenderGraph::submit_for_present(VkImage vk_swapchain_image)
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_image(*this, vk_swapchain_image);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  VkSemaphore sync_semaphore = command_buffer_->submit_with_cpu_synchronization(VK_NULL_HANDLE);
+  VkSemaphore submit_signal_semaphore = command_buffer_->submit_with_cpu_synchronization(
+      VK_NULL_HANDLE);
   submission_id.next();
   remove_nodes(node_handles);
-  return sync_semaphore;
+  return submit_signal_semaphore;
 }
 
 void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
@@ -66,10 +67,11 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_buffer(*this, vk_buffer);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  VkSemaphore sync_semaphore = command_buffer_->submit_with_cpu_synchronization(VK_NULL_HANDLE);
+  VkSemaphore submit_signal_semaphore = command_buffer_->submit_with_cpu_synchronization(
+      VK_NULL_HANDLE);
   submission_id.next();
   remove_nodes(node_handles);
-  command_buffer_->wait_for_cpu_synchronization(sync_semaphore);
+  command_buffer_->wait_for_cpu_synchronization(submit_signal_semaphore);
 }
 
 void VKRenderGraph::submit()
@@ -87,10 +89,10 @@ VkSemaphore VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  VkSemaphore sync_semaphore = command_buffer_->submit_with_cpu_synchronization(vk_fence);
+  VkSemaphore submit_signal_semaphore = command_buffer_->submit_with_cpu_synchronization(vk_fence);
   submission_id.next();
   remove_nodes(node_handles);
-  return sync_semaphore;
+  return submit_signal_semaphore;
 }
 
 void VKRenderGraph::wait_synchronization_event(VkFence vk_fence)
