@@ -858,6 +858,8 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
     }
   }
 
+  /* Create the vertex group name list, then later on when processing generic attributes, these
+   * names will be stored as vertex groups. */
   if (const auto *io_attributes = io_mesh->lookup_array("vertex_group_names")) {
     for (const std::shared_ptr<Value> &value : io_attributes->elements()) {
       if (value->type() != io::serialize::eValueType::String) {
