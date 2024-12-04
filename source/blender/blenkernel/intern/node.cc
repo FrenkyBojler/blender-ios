@@ -391,6 +391,10 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   ntree->tree_interface.foreach_id(data);
+
+  for (ID *&id_ref : ntree->runtime->eval_deps.ids.values()) {
+    BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_NOP);
+  }
 }
 
 static void node_foreach_cache(ID *id,

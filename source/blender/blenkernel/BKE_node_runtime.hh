@@ -93,6 +93,17 @@ struct LoggedZoneGraphs {
   Map<int, std::string> graph_by_zone_id;
 };
 
+struct PossibleEvaluationDependencies {
+  Map<uint32_t, ID *> ids;
+
+  struct ObjectDeps {
+    bool transform = false;
+    bool geometry = false;
+  };
+
+  Map<uint32_t, ObjectDeps> objects_info;
+};
+
 /**
  * Runtime data for #bNodeTree from the perspective of execution instructions (rather than runtime
  * data from evaluation of the node tree). Evaluation data is not the responsibility of the node
@@ -193,6 +204,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * only valid during node editor drawing.
    */
   Set<const bNodeSocket *> sockets_on_active_gizmo_paths;
+
+  PossibleEvaluationDependencies eval_deps;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> links;
