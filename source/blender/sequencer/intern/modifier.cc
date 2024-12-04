@@ -78,6 +78,69 @@ struct ModifierThread {
   modifier_apply_threaded_cb apply_callback;
 };
 
+/* Mask image is treated as "blending factors / weights" in RGB channels.
+ * Most often they are grayscale, but not necessarily so. Alpha channel is
+ * ignored.
+ *
+ * This means that if a mask is produced by another strip, and
+ * we need to do byte<->float conversions, we don't follow the regular
+ * blender's way where byte images are straight alpha, in some colorspace,
+ * but float images are premultiplied, in linear space.
+ *
+ * Instead, we do conversion with just simple 0..255 byte remapping to 0..1
+ * float range. No color space conversions, no alpha premultiplication. */
+static ImBuf *mask_ensure_needed_buffer(ImBuf *mask, bool need_float)
+{
+  if (mask == nullptr) {
+    return nullptr;
+  }
+  if (need_float && mask->byte_buffer.data != nullptr && mask->float_buffer.data == nullptr) {
+    /* We need float, but mask image only has byte:
+     * allocate a new image and convert into that, so that input image
+     * is not altered (it might be used as a non-mask somewhere else). */
+    ImBuf *res = IMB_allocImBuf(
+        mask->x, mask->y, mask->planes, IB_rectfloat | IB_uninitialized_pixels);
+    res->channels = 4;
+
+    threading::parallel_for(
+        IndexRange(int64_t(mask->x) * mask->y), 8192, [&](const IndexRange range) {
+          const uchar *src = mask->byte_buffer.data + range.first() * 4;
+          float *dst = res->float_buffer.data + range.first() * 4;
+          for (int64_t i : range) {
+            UNUSED_VARS(i);
+            rgba_uchar_to_float(dst, src);
+            src += 4;
+            dst += 4;
+          }
+        });
+    IMB_freeImBuf(mask);
+    mask = res;
+  }
+  else if (!need_float && mask->byte_buffer.data == nullptr && mask->float_buffer.data != nullptr)
+  {
+    /* We need byte, but mask image only has float:
+     * allocate a new image and convert into that, so that input image
+     * is not altered (it might be used as a non-mask somewhere else). */
+    ImBuf *res = IMB_allocImBuf(mask->x, mask->y, mask->planes, IB_rect | IB_uninitialized_pixels);
+    res->channels = 4;
+
+    threading::parallel_for(
+        IndexRange(int64_t(mask->x) * mask->y), 8192, [&](const IndexRange range) {
+          const float *src = mask->float_buffer.data + range.first() * 4;
+          uchar *dst = res->byte_buffer.data + range.first() * 4;
+          for (int64_t i : range) {
+            UNUSED_VARS(i);
+            rgba_float_to_uchar(dst, src);
+            src += 4;
+            dst += 4;
+          }
+        });
+    IMB_freeImBuf(mask);
+    mask = res;
+  }
+  return mask;
+}
+
 /**
  * \a timeline_frame is offset by \a fra_offset only in case we are using a real mask.
  */
@@ -96,17 +159,7 @@ static ImBuf *modifier_render_mask_input(const SeqRenderData *context,
       SeqRenderState state;
 
       mask_input = seq_render_strip(context, &state, mask_sequence, timeline_frame);
-
-      if (make_float) {
-        if (!mask_input->float_buffer.data) {
-          IMB_float_from_rect(mask_input);
-        }
-      }
-      else {
-        if (!mask_input->byte_buffer.data) {
-          IMB_rect_from_float(mask_input);
-        }
-      }
+      mask_input = mask_ensure_needed_buffer(mask_input, make_float);
     }
   }
   else if (mask_input_type == SEQUENCE_MASK_INPUT_ID) {
