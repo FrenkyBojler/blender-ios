@@ -8,6 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
 
 #include "DNA_defaults.h"
@@ -104,7 +105,10 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Armature Modifier");
 }
 
-static void modify_curves(ModifierData &md, const ModifierEvalContext &ctx, Drawing &drawing)
+static void modify_curves(ModifierData &md,
+                          const ModifierEvalContext &ctx,
+                          Drawing &drawing,
+                          std::optional<bke::GreasePencilDrawingEditHints> edit_hints)
 {
   auto &amd = reinterpret_cast<GreasePencilArmatureModifierData &>(md);
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
@@ -130,15 +134,33 @@ static void modify_curves(ModifierData &md, const ModifierEvalContext &ctx, Draw
     return;
   }
 
+  Vector<float3> old_positions;
+  std::optional<MutableSpan<float3x3>> deform_mats;
+  if (edit_hints) {
+    old_positions = Vector<float3>(positions);
+
+    if (!edit_hints->deform_mats.has_value()) {
+      edit_hints->deform_mats.emplace(drawing.strokes().points_num(), float3x3::identity());
+    }
+    deform_mats = edit_hints->deform_mats->as_mutable_span();
+  }
+
   curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
     const IndexRange points = points_by_curve[curve_i];
+
+    std::optional<MutableSpan<float3>> old_positions_for_curve;
+    std::optional<MutableSpan<float3x3>> deform_mats_for_curve;
+    if (deform_mats) {
+      old_positions_for_curve = old_positions.as_mutable_span().slice(points);
+      deform_mats_for_curve = deform_mats->slice(points);
+    }
 
     BKE_armature_deform_coords_with_curves(*amd.object,
                                            *ctx.object,
                                            &curves.vertex_group_names,
                                            positions.slice(points),
-                                           std::nullopt,
-                                           std::nullopt,
+                                           old_positions_for_curve,
+                                           deform_mats_for_curve,
                                            dverts.slice(points),
                                            deformflag,
                                            amd.influence.vertex_group_name);
@@ -159,13 +181,34 @@ static void modify_geometry_set(ModifierData *md,
   GreasePencil &grease_pencil = *geometry_set->get_grease_pencil_for_write();
   const int frame = grease_pencil.runtime->eval_frame;
 
+  /* Initialize edit hints. */
+  bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(*geometry_set);
+
+  Span<bke::GreasePencilDrawingEditHints> edit_hints = {};
+  if (geometry_set->has_component<bke::GeometryComponentEditData>()) {
+    bke::GeometryComponentEditData &edit_component =
+        geometry_set->get_component_for_write<bke::GeometryComponentEditData>();
+    if (edit_component.grease_pencil_edit_hints_ &&
+        edit_component.grease_pencil_edit_hints_->drawing_hints)
+    {
+      edit_hints = *edit_component.grease_pencil_edit_hints_->drawing_hints;
+    }
+  }
+
   IndexMaskMemory mask_memory;
   const IndexMask layer_mask = modifier::greasepencil::get_filtered_layer_mask(
       grease_pencil, amd->influence, mask_memory);
   const Vector<Drawing *> drawings = modifier::greasepencil::get_drawings_for_write(
       grease_pencil, layer_mask, frame);
-  threading::parallel_for_each(drawings,
-                               [&](Drawing *drawing) { modify_curves(*md, *ctx, *drawing); });
+  threading::parallel_for_each(drawings.index_range(), [&](const int index) {
+    Drawing *drawing = drawings[index];
+    if (edit_hints.is_empty()) {
+      modify_curves(*md, *ctx, *drawing, std::nullopt);
+    }
+    else {
+      modify_curves(*md, *ctx, *drawing, edit_hints[index]);
+    }
+  });
 }
 
 static void panel_draw(const bContext *C, Panel *panel)
