@@ -153,7 +153,7 @@ void VKDescriptorSetTracker::bind_input_attachment_resource(
   if (supports_local_read) {
     VKTexture *texture = static_cast<VKTexture *>(
         state_manager.images_.get(resource_binding.binding));
-    BLI_assert(Texture);
+    BLI_assert(texture);
     bind_image(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
                VK_NULL_HANDLE,
                texture->image_view_get(resource_binding.arrayed).vk_handle(),
