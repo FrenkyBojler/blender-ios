@@ -665,6 +665,10 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object
           edit_hints->drawing_hints.value()[layer_index];
       if (const std::optional<Span<float3>> positions = drawing_hints.positions()) {
         deformation.positions = *positions;
+        if (drawing_hints.deform_mats.has_value()) {
+          BLI_assert(drawing_hints.deform_mats->size() == positions->size());
+          deformation.deform_mats = *drawing_hints.deform_mats;
+        }
         return deformation;
       }
     }

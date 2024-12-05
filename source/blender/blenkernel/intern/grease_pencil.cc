@@ -2194,7 +2194,7 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   }
   /* Only add the edit hint component in edit mode for now so users can properly select deformed
    * drawings. */
-  if (object->mode == OB_MODE_EDIT) {
+  if (ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL)) {
     GeometryComponentEditData &edit_component =
         geometry_set.get_component_for_write<GeometryComponentEditData>();
     edit_component.grease_pencil_edit_hints_ = std::make_unique<GreasePencilEditHints>(
