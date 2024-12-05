@@ -553,6 +553,20 @@ inline auto build_multi_function_with_n_inputs_two_outputs(const char *name,
   return CustomMF(name, call_fn, param_tags);
 }
 
+template<typename Out1, typename Out2, typename Out3, typename... In, typename ElementFn, typename ExecPreset>
+inline auto build_multi_function_with_n_inputs_three_outputs(const char *name,
+                                                           const ElementFn element_fn,
+                                                           const ExecPreset exec_preset,
+                                                           TypeSequence<In...> /*in_types*/)
+{
+  constexpr auto param_tags = TypeSequence<ParamTag<ParamCategory::SingleInput, In>...,
+                                           ParamTag<ParamCategory::SingleOutput, Out1>,
+                                           ParamTag<ParamCategory::SingleOutput, Out2>,
+                                           ParamTag<ParamCategory::SingleOutput, Out3>>();
+  auto call_fn = build_multi_function_call_from_element_fn(element_fn, exec_preset, param_tags);
+  return CustomMF(name, call_fn, param_tags);
+}
+
 }  // namespace detail
 
 /** Build multi-function with 1 single-input and 1 single-output parameter. */
@@ -689,7 +703,7 @@ inline auto SI2_SO2(const char *name,
       name, element_fn, exec_preset, TypeSequence<In1, In2>());
 }
 
-/** Build multi-function with 4 single-input and 4 single-output parameter. */
+/** Build multi-function with 5 single-input and 3 single-output parameter. */
 template<typename In1,
          typename In2,
          typename In3,
@@ -697,13 +711,14 @@ template<typename In1,
          typename In5,
          typename Out1,
          typename Out2,
+         typename Out3,
          typename ElementFn,
          typename ExecPreset = exec_presets::Materialized>
-inline auto SI5_SO2(const char *name,
+inline auto SI5_SO3(const char *name,
                     const ElementFn element_fn,
                     const ExecPreset exec_preset = exec_presets::Materialized())
 {
-  return detail::build_multi_function_with_n_inputs_two_outputs<Out1, Out2>(
+  return detail::build_multi_function_with_n_inputs_three_outputs<Out1, Out2,Out3>(
       name, element_fn, exec_preset, TypeSequence<In1, In2, In3, In4, In5>());
 }
 
