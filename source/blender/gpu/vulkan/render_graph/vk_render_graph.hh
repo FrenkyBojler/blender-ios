@@ -229,13 +229,19 @@ class VKRenderGraph : public NonCopyable {
    * affecting the given vk_swapchain_image. This method is called when performing a
    * swap chain swap.
    *
+   * When submitting the commands will wait until the `presenting_semaphore` is signalled,
+   * indicating that the swapchain image is ready and can be modified. The `rendering_semaphore`
+   * needs to be signaled in order for the swapchain to start presenting the modified image.
+   *
    * Pre conditions:
    * - `vk_swapchain_image` needs to be a created using ResourceOwner::SWAP_CHAIN`.
    *
    * Post conditions:
    * - `vk_swapchain_image` layout is transitioned to `VK_IMAGE_LAYOUT_SRC_PRESENT`.
    */
-  void submit_for_present(VkImage vk_swapchain_image);
+  void submit_for_present(VkImage vk_swapchain_image,
+                          VkSemaphore presenting_semaphore,
+                          VkSemaphore rendering_semaphore);
 
   /**
    * Submit full graph.

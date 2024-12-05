@@ -24,6 +24,8 @@ class VKCommandBufferInterface {
 
   virtual void begin_recording() = 0;
   virtual void end_recording() = 0;
+  virtual void submit_with_gpu_synchronization(VkSemaphore presenting_semaphore,
+                                               VkSemaphore rendering_semaphore) = 0;
   virtual void submit_with_cpu_synchronization(VkFence vk_fence = VK_NULL_HANDLE) = 0;
   virtual void wait_for_cpu_synchronization(VkFence vk_fence = VK_NULL_HANDLE) = 0;
 
@@ -160,6 +162,8 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
 
   void begin_recording() override;
   void end_recording() override;
+  void submit_with_gpu_synchronization(VkSemaphore presenting_semaphore,
+                                       VkSemaphore rendering_semaphore) override;
   void submit_with_cpu_synchronization(VkFence vk_fence) override;
   void wait_for_cpu_synchronization(VkFence vk_fence) override;
 

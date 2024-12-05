@@ -191,7 +191,14 @@ class GHOST_ContextVK : public GHOST_Context {
   VkExtent2D m_render_extent;
   VkExtent2D m_render_extent_min;
   VkSurfaceFormatKHR m_surface_format;
+
+  /* VkSemaphore for present queue to wait for rendering to finish. */
+  VkSemaphore m_rendering_semaphore;
+  /* VkSemaphore for rendering to wait until the swapchain image is idle. */
+  VkSemaphore m_presenting_semaphore;
+#if 0
   VkFence m_fence;
+#endif
 
   std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback_;
   std::function<void(void)> swap_buffers_post_callback_;

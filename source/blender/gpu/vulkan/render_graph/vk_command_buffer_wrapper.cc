@@ -83,6 +83,27 @@ void VKCommandBufferWrapper::end_recording()
   vkEndCommandBuffer(vk_command_buffer_);
 }
 
+void VKCommandBufferWrapper::submit_with_gpu_synchronization(VkSemaphore presenting_semaphore,
+                                                             VkSemaphore rendering_semaphore)
+{
+  VkPipelineStageFlags wait_stages = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  VkSubmitInfo vk_submit_info = vk_submit_info_;
+  vk_submit_info.waitSemaphoreCount = 1;
+  vk_submit_info.pWaitSemaphores = &presenting_semaphore;
+  vk_submit_info.pWaitDstStageMask = &wait_stages;
+  vk_submit_info.signalSemaphoreCount = 1;
+  vk_submit_info.pSignalSemaphores = &rendering_semaphore;
+
+  VKDevice &device = VKBackend::get().device;
+  {
+    std::scoped_lock lock(device.queue_mutex_get());
+    vkQueueSubmit(device.queue_get(), 1, &vk_submit_info, VK_NULL_HANDLE);
+  }
+  device.discard_pool_for_current_thread(true).discard_command_buffer(vk_command_buffer_,
+                                                                      vk_command_pool_);
+  vk_command_buffer_ = nullptr;
+}
+
 void VKCommandBufferWrapper::submit_with_cpu_synchronization(VkFence vk_fence)
 {
   if (vk_fence == VK_NULL_HANDLE) {

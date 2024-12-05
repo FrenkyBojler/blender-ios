@@ -45,6 +45,7 @@ class CommandBufferLog : public VKCommandBufferInterface {
     is_recording_ = false;
   }
 
+  void submit_with_gpu_synchronization(VkSemaphore presenting_semaphore, VkSemaphore rendering_semaphore) {}
   void submit_with_cpu_synchronization(VkFence /*vk_fence*/) override
   {
     EXPECT_FALSE(is_recording_);

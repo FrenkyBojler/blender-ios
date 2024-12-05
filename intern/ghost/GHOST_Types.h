@@ -728,6 +728,11 @@ typedef struct {
   VkFormat format;
   /** Resolution of the image. */
   VkExtent2D extent;
+
+  /** Semaphore to wait for before accessing the image. */
+  VkSemaphore presenting_semaphore;
+  /** Semaphore to signal when image can be presented. */
+  VkSemaphore rendering_semaphore;
 } GHOST_VulkanSwapChainData;
 #endif
 
