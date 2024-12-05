@@ -144,9 +144,10 @@ static void add_collection_relation(const ModifierUpdateDepsgraphContext *ctx,
   DEG_add_collection_geometry_customdata_mask(ctx->node, &collection, &dependency_data_mask);
 }
 
-static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx,
-                                Object &object,
-                                const nodes::GeometryNodesEvalDependencies::ObjectDeps &info)
+static void add_object_relation(
+    const ModifierUpdateDepsgraphContext *ctx,
+    Object &object,
+    const nodes::GeometryNodesEvalDependencies::ObjectDependencyInfo &info)
 {
   if (info.transform) {
     DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");

@@ -21,13 +21,13 @@ struct GeometryNodesEvalDependencies {
    * Stores additional dependency information for objects. It can be more efficient to only depend
    * on an object partially.
    */
-  struct ObjectDeps {
+  struct ObjectDependencyInfo {
     bool transform = false;
     bool geometry = false;
 
-    BLI_STRUCT_EQUALITY_OPERATORS_2(ObjectDeps, transform, geometry);
+    BLI_STRUCT_EQUALITY_OPERATORS_2(ObjectDependencyInfo, transform, geometry);
   };
-  static constexpr ObjectDeps all_object_deps{true, true};
+  static constexpr ObjectDependencyInfo all_object_deps{true, true};
 
   /**
    * Maps `session_uid` to the corresponding data-block.
@@ -37,7 +37,7 @@ struct GeometryNodesEvalDependencies {
   Map<uint32_t, ID *> ids;
 
   /** Additional information for object dependencies. */
-  Map<uint32_t, ObjectDeps> objects_info;
+  Map<uint32_t, ObjectDependencyInfo> objects_info;
 
   bool needs_own_transform = false;
   bool needs_active_camera = false;
@@ -60,7 +60,7 @@ struct GeometryNodesEvalDependencies {
    * Add an object as dependency. It's customizable whether e.g. the transform and/or geometry is
    * required.
    */
-  void add_object(Object *object, const ObjectDeps &object_deps = all_object_deps);
+  void add_object(Object *object, const ObjectDependencyInfo &object_deps = all_object_deps);
 
   /**
    * Add all the given given dependencies to this one.

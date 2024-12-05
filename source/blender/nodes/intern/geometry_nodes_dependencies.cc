@@ -32,13 +32,15 @@ void GeometryNodesEvalDependencies::add_generic_id_full(ID *id)
   }
 }
 
-void GeometryNodesEvalDependencies::add_object(Object *object, const ObjectDeps &object_deps)
+void GeometryNodesEvalDependencies::add_object(Object *object,
+                                               const ObjectDependencyInfo &object_deps)
 {
   if (!object) {
     return;
   }
   this->add_generic_id(&object->id);
-  ObjectDeps &deps = this->objects_info.lookup_or_add(object->id.session_uid, object_deps);
+  ObjectDependencyInfo &deps = this->objects_info.lookup_or_add(object->id.session_uid,
+                                                                object_deps);
   deps.geometry |= object_deps.geometry;
   deps.transform |= object_deps.transform;
 }
