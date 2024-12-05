@@ -218,7 +218,7 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
   MutableSpan<float> new_knots = new_curves.nurbs_knots_for_write();
   custom_knot_curves.foreach_index(GrainSize(64), [&](const int64_t curve) {
     const IndexRange points = points_by_curve[curve];
-    const int order = orders[curve];
+    const int order = std::min(orders[curve], int8_t(points.size() + 1));
     const int first_index = intervals_by_curve[curve].start();
     const int first_value = copy_intervals[first_index].start();
     bool is_selected = is_first_selected[curve];
@@ -228,19 +228,17 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
     /* TODO: Could be 1.0f, but tesselation must divide separate knot spans instead of whole
      * curve's definition interval. Otherwise with existing big knot spans 1.0f doesn't get
      * tesselation steps.*/
-    const float new_step = *std::max_element(curve_knots.begin(), curve_knots.end());
+    const float new_step = [](float x) {
+      return x > 0.0001f ? x : 1.0f;
+    }(*std::max_element(curve_knots.begin(), curve_knots.end()));
 
     if (!cyclic[curve]) {
       curve_knots_buff.reinitialize(points.size());
       curve_knots_buff.as_mutable_span().copy_from(knots.slice(points));
 
       curve_knots_buff[0] = new_step;
-      const int ending = points.size() + 1 - order + 1;
-      if (ending < curve_knots_buff.size()) {
-        for (const int i : IndexRange::from_begin_end(ending, curve_knots_buff.size())) {
-          curve_knots_buff[i] = new_step;
-        }
-      }
+      MutableSpan<float> tail = curve_knots_buff.as_mutable_span().take_back(order - 2);
+      tail.fill(new_step);
       curve_knots = curve_knots_buff.as_span();
     }
 
@@ -258,11 +256,8 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
     if (!cyclic[curve]) {
       MutableSpan<float> new_curve_knots = new_knots.slice(
           IndexRange::from_begin_end(new_offsets[curve], new_offsets[curve + 1]));
-
       new_curve_knots.first() = 0.0f;
-      for (const int i : IndexRange(order - 2)) {
-        new_curve_knots.last(i) = 0.0f;
-      }
+      new_curve_knots.take_back(order - 2).fill(0.0f);
     }
   });
 }

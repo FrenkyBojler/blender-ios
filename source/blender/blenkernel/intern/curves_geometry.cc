@@ -1304,7 +1304,7 @@ void ensure_non_cyclic_clamped(const IndexMask selection,
     MutableSpan<float> knots = curves.nurbs_knots_for_write();
 
     IndexMask must_be_clamped = IndexMask::from_predicate(
-        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t i) {
+        selection, GrainSize(4096), memory, [&](const int64_t i) {
           return !cyclic[i] && nurbs_knots_modes[i] == NURBS_KNOT_MODE_CUSTOM;
         });
 
