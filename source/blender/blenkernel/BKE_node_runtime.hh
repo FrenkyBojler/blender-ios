@@ -93,15 +93,71 @@ struct LoggedZoneGraphs {
   Map<int, std::string> graph_by_zone_id;
 };
 
-struct PossibleEvaluationDependencies {
+struct NodeTreeEvalDependencies {
+  /** Maps `session_uid` to the corresponding data-block. */
   Map<uint32_t, ID *> ids;
 
   struct ObjectDeps {
     bool transform = false;
     bool geometry = false;
-  };
 
+    BLI_STRUCT_EQUALITY_OPERATORS_2(ObjectDeps, transform, geometry);
+  };
+  static constexpr ObjectDeps all_object_deps{true, true};
+
+  /** Additional information for object dependencies. */
   Map<uint32_t, ObjectDeps> objects_info;
+
+  bool needs_own_transform = false;
+  bool needs_active_camera = false;
+
+  void add_generic_id(ID *id)
+  {
+    if (!id) {
+      return;
+    }
+    this->ids.add(id->session_uid, id);
+  }
+
+  void add_generic_id_full(ID *id)
+  {
+    if (!id) {
+      return;
+    }
+    if (GS(id->name) == ID_OB) {
+      this->add_object(reinterpret_cast<Object *>(id));
+    }
+    else {
+      this->add_generic_id(id);
+    }
+  }
+
+  void add_object(Object *object, const ObjectDeps &object_deps = all_object_deps)
+  {
+    if (!object) {
+      return;
+    }
+    this->add_generic_id(&object->id);
+    ObjectDeps &deps = this->objects_info.lookup_or_add(object->id.session_uid, object_deps);
+    deps.geometry |= object_deps.geometry;
+    deps.transform |= object_deps.transform;
+  }
+
+  void merge(const NodeTreeEvalDependencies &other)
+  {
+    for (ID *id : other.ids.values()) {
+      this->add_generic_id(id);
+    }
+    for (const auto &&item : other.objects_info.items()) {
+      ID *id = this->ids.lookup(item.key);
+      BLI_assert(GS(id->name) == ID_OB);
+      this->add_object(reinterpret_cast<Object *>(id), item.value);
+    }
+    this->needs_own_transform |= other.needs_own_transform;
+    this->needs_active_camera |= other.needs_active_camera;
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(NodeTreeEvalDependencies, ids, objects_info);
 };
 
 /**
@@ -205,7 +261,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    */
   Set<const bNodeSocket *> sockets_on_active_gizmo_paths;
 
-  PossibleEvaluationDependencies eval_deps;
+  NodeTreeEvalDependencies eval_dependencies;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> links;

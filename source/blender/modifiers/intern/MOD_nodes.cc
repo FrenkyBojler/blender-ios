@@ -119,11 +119,12 @@ static void init_data(ModifierData *md)
   nmd->runtime->cache = std::make_shared<bake::ModifierCache>();
 }
 
-static void find_used_ids_from_settings(const NodesModifierSettings &settings, Set<ID *> &ids)
+static void find_dependencies_from_settings(const NodesModifierSettings &settings,
+                                            bke::NodeTreeEvalDependencies &deps)
 {
   IDP_foreach_property(settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
     if (ID *id = IDP_Id(property)) {
-      ids.add(id);
+      deps.add_generic_id_full(id);
     }
   });
 }
@@ -142,10 +143,17 @@ static void add_collection_relation(const ModifierUpdateDepsgraphContext *ctx,
   DEG_add_collection_geometry_customdata_mask(ctx->node, &collection, &dependency_data_mask);
 }
 
-static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx, Object &object)
+static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx,
+                                Object &object,
+                                const bke::NodeTreeEvalDependencies::ObjectDeps &info)
 {
-  DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
-  if (&(ID &)object != &ctx->object->id) {
+  if (info.transform) {
+    DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
+  }
+  if (&(ID &)object == &ctx->object->id) {
+    return;
+  }
+  if (info.geometry) {
     if (object.type == OB_EMPTY && object.instance_collection != nullptr) {
       add_collection_relation(ctx, *object.instance_collection);
     }
@@ -165,33 +173,33 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
   DEG_add_node_tree_output_relation(ctx->node, nmd->node_group, "Nodes Modifier");
 
-  bool needs_own_transform_relation = false;
-  bool needs_scene_camera_relation = false;
-  Set<ID *> used_ids;
-  find_used_ids_from_settings(nmd->settings, used_ids);
-  nodes::find_node_tree_dependencies(
-      *nmd->node_group, used_ids, needs_own_transform_relation, needs_scene_camera_relation);
+  /* This intentionally makes a copy because a few extra dependencies are added below. */
+  bke::NodeTreeEvalDependencies eval_deps = nmd->node_group->runtime->eval_dependencies;
+
+  /* Create dependencies to data-blocks referenced by the settings in the modifier. */
+  find_dependencies_from_settings(nmd->settings, eval_deps);
 
   if (ctx->object->type == OB_CURVES) {
     Curves *curves_id = static_cast<Curves *>(ctx->object->data);
     if (curves_id->surface != nullptr) {
-      used_ids.add(&curves_id->surface->id);
+      eval_deps.add_object(curves_id->surface);
     }
   }
 
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
     for (const NodesModifierDataBlock &data_block : Span(bake.data_blocks, bake.data_blocks_num)) {
       if (data_block.id) {
-        used_ids.add(data_block.id);
+        eval_deps.add_generic_id_full(data_block.id);
       }
     }
   }
 
-  for (ID *id : used_ids) {
+  for (ID *id : eval_deps.ids.values()) {
     switch ((ID_Type)GS(id->name)) {
       case ID_OB: {
         Object *object = reinterpret_cast<Object *>(id);
-        add_object_relation(ctx, *object);
+        add_object_relation(
+            ctx, *object, eval_deps.objects_info.lookup_default(object->id.session_uid, {}));
         break;
       }
       case ID_GR: {
@@ -212,10 +220,10 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     }
   }
 
-  if (needs_own_transform_relation) {
+  if (eval_deps.needs_own_transform) {
     DEG_add_depends_on_transform_relation(ctx->node, "Nodes Modifier");
   }
-  if (needs_scene_camera_relation) {
+  if (eval_deps.needs_active_camera) {
     DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
     /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
