@@ -196,9 +196,6 @@ class GHOST_ContextVK : public GHOST_Context {
   VkSemaphore m_rendering_semaphore;
   /* VkSemaphore for rendering to wait until the swapchain image is idle. */
   VkSemaphore m_presenting_semaphore;
-#if 0
-  VkFence m_fence;
-#endif
 
   std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback_;
   std::function<void(void)> swap_buffers_post_callback_;

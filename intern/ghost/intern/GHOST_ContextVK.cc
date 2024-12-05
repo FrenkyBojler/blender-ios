@@ -485,9 +485,6 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
       m_command_buffer(VK_NULL_HANDLE),
       m_surface(VK_NULL_HANDLE),
       m_swapchain(VK_NULL_HANDLE),
-#if 0
-      m_fence(VK_NULL_HANDLE)
-#endif
       m_rendering_semaphore(VK_NULL_HANDLE),
       m_presenting_semaphore(VK_NULL_HANDLE)
 {
@@ -527,12 +524,6 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
   if (m_swapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
   }
-#if 0
-  if (m_fence != VK_NULL_HANDLE) {
-    vkDestroyFence(device, m_fence, nullptr);
-    m_fence = VK_NULL_HANDLE;
-  }
-#endif
   if (m_rendering_semaphore != VK_NULL_HANDLE) {
     vkDestroySemaphore(device, m_rendering_semaphore, nullptr);
     m_rendering_semaphore = VK_NULL_HANDLE;
@@ -584,10 +575,6 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
       createSwapchain();
     }
   }
-#if 0
-  VK_CHECK(vkWaitForFences(device, 1, &m_fence, VK_TRUE, UINT64_MAX));
-  VK_CHECK(vkResetFences(device, 1, &m_fence));
-#endif
 
   GHOST_VulkanSwapChainData swap_chain_data;
   swap_chain_data.image = m_swapchain_images[image_index];
@@ -917,12 +904,6 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr);
   m_swapchain_images.resize(image_count);
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
-
-#if 0
-  VkFenceCreateInfo fence_info = {};
-  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  VK_CHECK(vkCreateFence(device, &fence_info, nullptr, &m_fence));
-#endif
 
   VkSemaphoreCreateInfo semaphore_info = {};
   semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
