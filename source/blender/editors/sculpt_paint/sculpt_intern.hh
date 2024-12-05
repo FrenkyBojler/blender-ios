@@ -233,6 +233,8 @@ struct StrokeCache {
 
   bool first_time; /* Beginning of stroke may do some things special */
 
+  int step;
+
   /* from ED_view3d_ob_project_mat_get() */
   float4x4 projection_mat;
 

@@ -3354,6 +3354,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
 
   add_v3_v3(ups.average_stroke_accum, location);
   ups.average_stroke_counter++;
+
   /* Update last stroke position. */
   ups.last_stroke_valid = true;
 }
@@ -3990,6 +3991,7 @@ static void sculpt_update_cache_invariants(
   }
 
   cache->first_time = true;
+  cache->step = 0;
 
 #define PIXEL_INPUT_THRESHHOLD 5
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_ROTATE) {
@@ -5281,6 +5283,10 @@ static void stroke_update_step(bContext *C,
   ToolSettings &tool_settings = *CTX_data_tool_settings(C);
   StrokeCache *cache = ss.cache;
   cache->stroke_distance = paint_stroke_distance_get(stroke);
+
+  if (SCULPT_stroke_is_main_symmetry_pass(*cache)) {
+    cache->step++;
+  }
 
   Main *bmain = CTX_data_main(C);
   cache->node_tree = (bNodeTree *)BKE_libblock_find_name(bmain, ID_NT, "brush");

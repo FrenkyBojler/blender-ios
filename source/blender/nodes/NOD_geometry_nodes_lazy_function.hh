@@ -213,6 +213,7 @@ struct GeoNodesSculptData {
   float radius;
   float flip;
   bool is_first_step;
+  int step;
   float pen_pressure;
   float3 plane_normal;
   float3 plane_origin;

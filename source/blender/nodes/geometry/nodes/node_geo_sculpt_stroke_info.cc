@@ -11,6 +11,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Plane Normal").description("Plane Normal");
   b.add_output<decl::Vector>("Plane Origin").description("Plane Origin");
   b.add_output<decl::Bool>("Is First Step").description("Is First Step");
+  b.add_output<decl::Int>("Step").description("Step");
   b.add_output<decl::Matrix>("Local Transform").description("Local Transform");
 }
 
@@ -22,10 +23,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     const float3 plane_normal = call_data->sculpt_data->plane_normal;
     const float3 plane_origin = call_data->sculpt_data->plane_origin;
     const bool is_first_step = call_data->sculpt_data->is_first_step;
+    const int step = call_data->sculpt_data->step;
     const float4x4 &local_transform = call_data->sculpt_data->local_transform;
+
     params.set_output("Plane Normal", plane_normal);
     params.set_output("Plane Origin", plane_origin);
     params.set_output("Is First Step", is_first_step);
+    params.set_output("Step", step);
     params.set_output("Local Transform", local_transform);
   }
   else {

@@ -64,6 +64,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_data.radius = cache.radius;
   sculpt_data.strength = cache.bstrength;
   sculpt_data.is_first_step = cache.first_time;
+  sculpt_data.step = cache.step;
   sculpt_data.local_transform = cache.brush_local_mat;
   sculpt_data.depsgraph = &depsgraph;
   sculpt_data.self_object = &object;
