@@ -3428,6 +3428,11 @@ static Object *convert_font(Base &base,
       return convert_font_to_mesh(base, info, r_new_base);
     case OB_CURVES_LEGACY:
       return convert_font_to_curves_legacy(base, info, r_new_base);
+    case OB_GREASE_PENCIL:
+      /* TODO: Converting to curves when target object type is Grease Pencil. This is to keep the
+       * logic the same as prior to https://projects.blender.org/blender/blender/pulls/130668 ,
+       * later implementation should handle this properly. */
+      return convert_font_to_curves_legacy(base, info, r_new_base);
     default:
       return nullptr;
   }
