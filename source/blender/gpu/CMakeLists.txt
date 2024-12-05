@@ -20,7 +20,6 @@ set(INC
 
   # For `*_info.hh` includes.
   ../compositor/realtime_compositor/shaders/infos
-  ../draw/engines/basic/shaders/infos
   ../draw/engines/eevee_next
   ../draw/engines/eevee_next/shaders/infos
   ../draw/engines/gpencil
@@ -57,6 +56,10 @@ if(WITH_RENDERDOC)
     ../../../intern/renderdoc_dynload/include
   )
   add_definitions(-DWITH_RENDERDOC)
+endif()
+
+if(WITH_GPU_SHADER_ASSERT)
+  add_definitions(-DWITH_GPU_SHADER_ASSERT)
 endif()
 
 set(INC_SYS
@@ -275,6 +278,7 @@ set(VULKAN_SRC
   vulkan/vk_drawlist.hh
   vulkan/vk_fence.hh
   vulkan/vk_framebuffer.hh
+  vulkan/vk_ghost_api.hh
   vulkan/vk_image_view.hh
   vulkan/vk_immediate.hh
   vulkan/vk_index_buffer.hh
@@ -391,6 +395,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::extern::fmtlib
 )
 
 # Select Backend source based on availability
@@ -470,8 +475,6 @@ set(GLSL_SRC
   shaders/gpu_shader_diag_stripes_frag.glsl
   shaders/gpu_shader_simple_lighting_frag.glsl
   shaders/gpu_shader_flat_color_frag.glsl
-  shaders/gpu_shader_flat_color_alpha_test_0_frag.glsl
-  shaders/gpu_shader_flat_id_frag.glsl
   shaders/gpu_shader_2D_vert.glsl
   shaders/gpu_shader_2D_area_borders_vert.glsl
   shaders/gpu_shader_2D_area_borders_frag.glsl
@@ -479,6 +482,8 @@ set(GLSL_SRC
   shaders/gpu_shader_2D_widget_base_frag.glsl
   shaders/gpu_shader_2D_widget_shadow_vert.glsl
   shaders/gpu_shader_2D_widget_shadow_frag.glsl
+  shaders/gpu_shader_2D_node_socket_frag.glsl
+  shaders/gpu_shader_2D_node_socket_vert.glsl
   shaders/gpu_shader_2D_nodelink_frag.glsl
   shaders/gpu_shader_2D_nodelink_vert.glsl
   shaders/gpu_shader_2D_line_dashed_frag.glsl
@@ -499,19 +504,13 @@ set(GLSL_SRC
   shaders/gpu_shader_3D_flat_color_vert.glsl
   shaders/gpu_shader_3D_line_dashed_uniform_color_vert.glsl
   shaders/gpu_shader_3D_polyline_frag.glsl
-  shaders/gpu_shader_3D_polyline_geom.glsl
   shaders/gpu_shader_3D_polyline_vert.glsl
-  shaders/gpu_shader_3D_polyline_vert_no_geom.glsl
   shaders/gpu_shader_3D_smooth_color_vert.glsl
   shaders/gpu_shader_3D_smooth_color_frag.glsl
-  shaders/gpu_shader_3D_passthrough_vert.glsl
   shaders/gpu_shader_3D_clipped_uniform_color_vert.glsl
-
-  shaders/gpu_shader_instance_variying_size_variying_color_vert.glsl
 
   shaders/gpu_shader_point_uniform_color_aa_frag.glsl
   shaders/gpu_shader_point_uniform_color_outline_aa_frag.glsl
-  shaders/gpu_shader_point_varying_color_varying_outline_aa_frag.glsl
   shaders/gpu_shader_point_varying_color_frag.glsl
   shaders/gpu_shader_3D_point_varying_size_varying_color_vert.glsl
   shaders/gpu_shader_3D_point_uniform_size_aa_vert.glsl
@@ -745,6 +744,13 @@ if(WITH_OPENCOLORIO)
   add_definitions(-DWITH_OCIO)
 endif()
 
+if(WITH_GPU_DRAW_TESTS)
+  add_definitions(-DWITH_GPU_DRAW_TESTS)
+endif()
+
+if(WITH_GTEST)
+  add_definitions(-DWITH_GTEST)
+endif()
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 target_link_libraries(bf_gpu PUBLIC

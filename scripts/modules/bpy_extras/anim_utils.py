@@ -8,6 +8,8 @@ __all__ = (
 
     "bake_action_iter",
     "bake_action_objects_iter",
+
+    "BakeOptions",
 )
 
 import bpy
@@ -96,20 +98,22 @@ def _ensure_channelbag_exists(action: Action, slot: ActionSlot):
 def bake_action(
         obj,
         *,
-        action, frames,
-        bake_options: BakeOptions,
+        action,
+        frames,
+        bake_options,
 ):
     """
     :arg obj: Object to bake.
     :type obj: :class:`bpy.types.Object`
     :arg action: An action to bake the data into, or None for a new action
        to be created.
-    :type action: :class:`bpy.types.Action` or None
+    :type action: :class:`bpy.types.Action` | None
     :arg frames: Frames to bake.
-    :type frames: iterable of int
-
-    :return: an action or None
-    :rtype: :class:`bpy.types.Action`
+    :type frames: int
+    :arg bake_options: Options for baking.
+    :type bake_options: :class:`anim_utils.BakeOptions`
+    :return: Action or None.
+    :rtype: :class:`bpy.types.Action` | None
     """
     if not (bake_options.do_pose or bake_options.do_object):
         return None
@@ -126,16 +130,18 @@ def bake_action_objects(
         object_action_pairs,
         *,
         frames,
-        bake_options: BakeOptions
+        bake_options,
 ):
     """
     A version of :func:`bake_action_objects_iter` that takes frames and returns the output.
 
     :arg frames: Frames to bake.
     :type frames: iterable of int
+    :arg bake_options: Options for baking.
+    :type bake_options: :class:`anim_utils.BakeOptions`
 
-    :return: A sequence of Action or None types (aligned with `object_action_pairs`)
-    :rtype: sequence of :class:`bpy.types.Action`
+    :return: A sequence of Action or None types (aligned with ``object_action_pairs``)
+    :rtype: Sequence[:class:`bpy.types.Action`]
     """
     if not (bake_options.do_pose or bake_options.do_object):
         return []
@@ -149,7 +155,7 @@ def bake_action_objects(
 
 def bake_action_objects_iter(
         object_action_pairs,
-        bake_options: BakeOptions
+        bake_options,
 ):
     """
     An coroutine that bakes actions for multiple objects.
@@ -157,6 +163,8 @@ def bake_action_objects_iter(
     :arg object_action_pairs: Sequence of object action tuples,
        action is the destination for the baked data. When None a new action will be created.
     :type object_action_pairs: Sequence of (:class:`bpy.types.Object`, :class:`bpy.types.Action`)
+    :arg bake_options: Options for baking.
+    :type bake_options: :class:`anim_utils.BakeOptions`
     """
     scene = bpy.context.scene
     frame_back = scene.frame_current
@@ -183,7 +191,7 @@ def bake_action_iter(
         obj,
         *,
         action,
-        bake_options: BakeOptions
+        bake_options,
 ):
     """
     An coroutine that bakes action for a single object.
@@ -192,9 +200,9 @@ def bake_action_iter(
     :type obj: :class:`bpy.types.Object`
     :arg action: An action to bake the data into, or None for a new action
        to be created.
-    :type action: :class:`bpy.types.Action` or None
+    :type action: :class:`bpy.types.Action` | None
     :arg bake_options: Boolean options of what to include into the action bake.
-    :type bake_options: :class: `anim_utils.BakeOptions`
+    :type bake_options: :class:`anim_utils.BakeOptions`
 
     :return: an action or None
     :rtype: :class:`bpy.types.Action`
@@ -380,7 +388,7 @@ def bake_action_iter(
     else:
         # When baking into the current action, a slot needs to be assigned.
         if not atd.action_slot:
-            slot = action.slots.new(for_id=obj)
+            slot = action.slots.new(obj.id_type, obj.name)
             atd.action_slot = slot
 
     # Only leave tweak mode if we actually need to modify the action (#57159)
@@ -391,7 +399,7 @@ def bake_action_iter(
 
         atd.action = action
         if action.is_action_layered:
-            slot = action.slots.new(for_id=obj)
+            slot = action.slots.new(obj.id_type, obj.name)
             atd.action_slot = slot
 
     # Baking the action only makes sense in Replace mode, so force it (#69105)

@@ -51,7 +51,7 @@ void Instance::init(const int2 &output_res,
                     Depsgraph *depsgraph_,
                     Object *camera_object_,
                     const RenderLayer *render_layer_,
-                    const DRWView *drw_view_,
+                    View *drw_view_,
                     const View3D *v3d_,
                     const RegionView3D *rv3d_)
 {
@@ -184,7 +184,7 @@ void Instance::view_update()
 /** \name Sync
  *
  * Sync will gather data from the scene that can change over a time step (i.e: motion steps).
- * IMPORTANT: xxx.sync() functions area responsible for creating DRW resources (i.e: DRWView) as
+ * IMPORTANT: xxx.sync() functions area responsible for creating DRW resources as
  * well as querying temp texture pool. All DRWPasses should be ready by the end end_sync().
  * \{ */
 
@@ -232,12 +232,13 @@ void Instance::begin_sync()
   }
 }
 
-void Instance::object_sync(Object *ob)
+void Instance::object_sync(ObjectRef &ob_ref)
 {
   if (!shaders_are_ready_) {
     return;
   }
 
+  Object *ob = ob_ref.object;
   const bool is_renderable_type = ELEM(ob->type,
                                        OB_CURVES,
                                        OB_GREASE_PENCIL,
@@ -246,7 +247,6 @@ void Instance::object_sync(Object *ob)
                                        OB_VOLUME,
                                        OB_LAMP,
                                        OB_LIGHTPROBE);
-  const bool is_drawable_type = is_renderable_type && !ELEM(ob->type, OB_LAMP, OB_LIGHTPROBE);
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
   const bool partsys_is_visible = (ob_visibility & OB_VISIBLE_PARTICLES) != 0 &&
                                   (ob->type == OB_MESH);
@@ -257,20 +257,14 @@ void Instance::object_sync(Object *ob)
     return;
   }
 
-  /* TODO cleanup. */
-  ObjectRef ob_ref = DRW_object_ref_get(ob);
   ObjectHandle &ob_handle = sync.sync_object(ob_ref);
-  ResourceHandle res_handle = {0};
-  if (is_drawable_type) {
-    res_handle = manager->resource_handle(ob_ref);
-  }
 
   if (partsys_is_visible && ob != DRW_context_state_get()->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
           ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
                                                                          ob->object_to_world());
-          sync.sync_curves(ob, hair_handle, _res_handle, ob_ref, &md, &particle_sys);
+          sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
         };
     foreach_hair_particle_handle(ob, ob_handle, sync_hair);
   }
@@ -281,18 +275,18 @@ void Instance::object_sync(Object *ob)
         lights.sync_light(ob, ob_handle);
         break;
       case OB_MESH:
-        if (!sync.sync_sculpt(ob, ob_handle, res_handle, ob_ref)) {
-          sync.sync_mesh(ob, ob_handle, res_handle, ob_ref);
+        if (!sync.sync_sculpt(ob, ob_handle, ob_ref)) {
+          sync.sync_mesh(ob, ob_handle, ob_ref);
         }
         break;
       case OB_POINTCLOUD:
-        sync.sync_point_cloud(ob, ob_handle, res_handle, ob_ref);
+        sync.sync_point_cloud(ob, ob_handle, ob_ref);
         break;
       case OB_VOLUME:
-        sync.sync_volume(ob, ob_handle, res_handle, ob_ref);
+        sync.sync_volume(ob, ob_handle, ob_ref);
         break;
       case OB_CURVES:
-        sync.sync_curves(ob, ob_handle, res_handle, ob_ref);
+        sync.sync_curves(ob, ob_handle, ob_ref);
         break;
       case OB_LIGHTPROBE:
         light_probes.sync_probe(ob, ob_handle);
@@ -303,7 +297,6 @@ void Instance::object_sync(Object *ob)
   }
 }
 
-/* Wrapper to use with DRW_render_object_iter. */
 void Instance::object_sync_render(void *instance_,
                                   Object *ob,
                                   RenderEngine *engine,
@@ -311,7 +304,8 @@ void Instance::object_sync_render(void *instance_,
 {
   UNUSED_VARS(engine, depsgraph);
   Instance &inst = *reinterpret_cast<Instance *>(instance_);
-  inst.object_sync(ob);
+  ObjectRef ob_ref = DRW_object_ref_get(ob);
+  inst.object_sync(ob_ref);
 }
 
 void Instance::end_sync()
@@ -364,9 +358,7 @@ void Instance::render_sync()
   manager->end_sync();
 
   /* TODO: Remove old draw manager calls. */
-  DRW_render_instance_buffer_finish();
-
-  DRW_curves_update();
+  DRW_curves_update(*manager);
 }
 
 bool Instance::needs_lightprobe_sphere_passes() const
@@ -395,10 +387,6 @@ bool Instance::do_planar_probe_sync() const
 /** \name Rendering
  * \{ */
 
-/**
- * Conceptually renders one sample per pixel.
- * Everything based on random sampling should be done here (i.e: DRWViews jitter)
- */
 void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
@@ -715,6 +703,10 @@ void Instance::light_bake_irradiance(
     manager->begin_sync();
     render_sync();
     manager->end_sync();
+
+    /* Sampling module needs to be initialized to computing lighting. */
+    sampling.init(probe);
+    sampling.step();
 
     DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
 
