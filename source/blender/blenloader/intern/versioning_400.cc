@@ -3283,29 +3283,35 @@ static void add_subsurf_node_limit_surface_option(Main &bmain)
   }
 }
 
+static blender::Vector<bNode *> flatten_parent_tree(bNodeTree &ntree)
+{
+  using namespace blender;
+  VectorSet<bNode *> nodes;
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+    Vector<bNode *> parents;
+    for (bNode *parent = node->parent; parent; parent = parent->parent) {
+      parents.append(parent);
+    }
+    std::reverse(parents.begin(), parents.end());
+    nodes.add_multiple(parents);
+    nodes.add(node);
+  }
+  Vector<bNode *> vector = nodes.extract_vector();
+  std::reverse(vector.begin(), vector.end());
+  return vector;
+}
+
 static void version_node_locations_to_global(bNodeTree &ntree)
 {
-  /* First process all frame nodes, then all other nodes.*/
-  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
-    if (node->type == NODE_FRAME) {
-      continue;
-    }
-    for (const bNode *parent = node->parent; parent; parent = parent->parent) {
-      node->locx += parent->locx;
-      node->locy += parent->locy;
-    }
-  }
-  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
-    if (node->type != NODE_FRAME) {
-      continue;
-    }
-    for (const bNode *parent = node->parent; parent; parent = parent->parent) {
-      node->locx += parent->locx;
-      node->locy += parent->locy;
-    }
-  }
+  using namespace blender;
+  Vector<bNode *> nodes = flatten_parent_tree(ntree);
 
-  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+  for (bNode *node : nodes) {
+    for (const bNode *parent = node->parent; parent; parent = parent->parent) {
+      node->locx += parent->locx;
+      node->locy += parent->locy;
+    }
+
     node->locx += node->offsetx_legacy;
     node->locy += node->offsety_legacy;
     node->offsetx_legacy = 0.0f;
