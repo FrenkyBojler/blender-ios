@@ -1289,15 +1289,22 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
   IndexMaskMemory memory;
   const IndexMask points_to_copy = points_to_delete.complement(this->points_range(), memory);
   *this = curves_copy_point_selection(*this, points_to_copy, attribute_filter);
-  if (attributes().contains(ATTR_NURBS_KNOT)) {
-    const VArray<int8_t> nurbs_knots_modes = this->nurbs_knots_modes();
-    const VArray<bool> cyclic = this->cyclic();
-    const OffsetIndices points_by_curve = this->points_by_curve();
-    const VArray<int8_t> nurbs_orders = this->nurbs_orders();
-    MutableSpan<float> knots = this->nurbs_knots_for_write();
+  ensure_non_cyclic_clamped(this->curves_range(), *this, memory);
+}
+
+void ensure_non_cyclic_clamped(const IndexMask selection,
+                               bke::CurvesGeometry &curves,
+                               IndexMaskMemory &memory)
+{
+  if (curves.attributes().contains("nurbs_knot")) {
+    const VArray<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes();
+    const VArray<bool> cyclic = curves.cyclic();
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
+    MutableSpan<float> knots = curves.nurbs_knots_for_write();
 
     IndexMask must_be_clamped = IndexMask::from_predicate(
-        this->curves_range(), GrainSize(4096), memory, [&](const int64_t i) {
+        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t i) {
           return !cyclic[i] && nurbs_knots_modes[i] == NURBS_KNOT_MODE_CUSTOM;
         });
 
