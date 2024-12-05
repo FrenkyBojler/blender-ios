@@ -30,6 +30,7 @@ struct GeometryNodesEvalDependencies {
 
   bool needs_own_transform = false;
   bool needs_active_camera = false;
+  bool time_dependent = false;
 
   void add_generic_id(ID *id);
 
@@ -39,7 +40,12 @@ struct GeometryNodesEvalDependencies {
 
   void merge(const GeometryNodesEvalDependencies &other);
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(GeometryNodesEvalDependencies, ids, objects_info);
+  BLI_STRUCT_EQUALITY_OPERATORS_5(GeometryNodesEvalDependencies,
+                                  ids,
+                                  objects_info,
+                                  needs_own_transform,
+                                  needs_active_camera,
+                                  time_dependent);
 };
 
 void gather_geometry_nodes_eval_dependencies(bNodeTree &ntree,

@@ -267,8 +267,8 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
       return true;
     }
   }
-  Set<const bNodeTree *> checked_groups;
-  return check_tree_for_time_node(*tree, checked_groups);
+  BLI_assert(tree->runtime->geometry_nodes_eval_dependencies);
+  return tree->runtime->geometry_nodes_eval_dependencies->time_dependent;
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)

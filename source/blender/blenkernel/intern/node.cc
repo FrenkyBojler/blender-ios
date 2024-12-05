@@ -2630,15 +2630,6 @@ bNode *node_add_node(const bContext *C, bNodeTree *ntree, const StringRefNull id
 
   BKE_ntree_update_tag_node_new(ntree, node);
 
-  if (ELEM(node->type,
-           GEO_NODE_INPUT_SCENE_TIME,
-           GEO_NODE_INPUT_ACTIVE_CAMERA,
-           GEO_NODE_SELF_OBJECT,
-           GEO_NODE_SIMULATION_INPUT))
-  {
-    DEG_relations_tag_update(CTX_data_main(C));
-  }
-
   return node;
 }
 
@@ -3552,8 +3543,6 @@ void node_remove_node(Main *bmain, bNodeTree *ntree, bNode *node, const bool do_
    * do to ID user reference-counting and removal of animation data then. */
   BLI_assert((ntree->id.tag & ID_TAG_LOCALIZED) == 0);
 
-  bool node_has_id = false;
-
   if (do_id_user) {
     /* Free callback for NodeCustomGroup. */
     if (node->typeinfo->freefunc_api) {
@@ -3565,14 +3554,13 @@ void node_remove_node(Main *bmain, bNodeTree *ntree, bNode *node, const bool do_
     /* Do user counting. */
     if (node->id) {
       id_us_min(node->id);
-      node_has_id = true;
     }
 
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-      node_has_id |= socket_id_user_decrement(sock);
+      socket_id_user_decrement(sock);
     }
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-      node_has_id |= socket_id_user_decrement(sock);
+      socket_id_user_decrement(sock);
     }
   }
 
@@ -3584,16 +3572,6 @@ void node_remove_node(Main *bmain, bNodeTree *ntree, bNode *node, const bool do_
   SNPRINTF(prefix, "nodes[\"%s\"]", propname_esc);
 
   if (BKE_animdata_fix_paths_remove(&ntree->id, prefix)) {
-    if (bmain != nullptr) {
-      DEG_relations_tag_update(bmain);
-    }
-  }
-
-  /* Also update relations for the scene time node, which causes a dependency
-   * on time that users expect to be removed when the node is removed. */
-  if (node_has_id ||
-      ELEM(node->type, GEO_NODE_INPUT_SCENE_TIME, GEO_NODE_SELF_OBJECT, GEO_NODE_SIMULATION_INPUT))
-  {
     if (bmain != nullptr) {
       DEG_relations_tag_update(bmain);
     }

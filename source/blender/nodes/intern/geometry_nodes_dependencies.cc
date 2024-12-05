@@ -55,6 +55,7 @@ void GeometryNodesEvalDependencies::merge(const GeometryNodesEvalDependencies &o
   }
   this->needs_own_transform |= other.needs_own_transform;
   this->needs_active_camera |= other.needs_active_camera;
+  this->time_dependent |= other.time_dependent;
 }
 
 static void add_eval_dependencies_from_socket(bNodeSocket &socket,
@@ -133,6 +134,8 @@ void gather_geometry_nodes_eval_dependencies(bNodeTree &ntree, GeometryNodesEval
     add_eval_dependencies_from_socket(*socket, deps);
   }
   deps.needs_active_camera |= !ntree.nodes_by_type("GeometryNodeInputActiveCamera").is_empty();
+  deps.time_dependent |= !ntree.nodes_by_type("GeometryNodeSimulationInput").is_empty() ||
+                         !ntree.nodes_by_type("GeometryNodeInputSceneTime").is_empty();
   for (const bNode *node : ntree.group_nodes()) {
     if (!node->id) {
       continue;
