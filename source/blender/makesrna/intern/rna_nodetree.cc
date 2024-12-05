@@ -890,8 +890,7 @@ static const EnumPropertyItem *rna_node_static_type_itemf(bContext * /*C*/,
 static void rna_Node_location_get(PointerRNA *ptr, float *value)
 {
   const bNode *node = static_cast<bNode *>(ptr->data);
-  copy_v2_v2(value,
-             blender::bke::node_location_global_to_node(node, float2(node->locx, node->locy)));
+  copy_v2_v2(value, blender::bke::node_location_global(*node));
 }
 
 static void move_child_nodes(bNode &node, const float2 &delta)
@@ -908,9 +907,11 @@ static void move_child_nodes(bNode &node, const float2 &delta)
 static void rna_Node_location_set(PointerRNA *ptr, const float *value)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
-  const float2 loc = blender::bke::node_location_global_to_node(node, value);
+  const float2 loc = blender::bke::node_location_to_parent_space(*node, value);
   const float2 delta = loc - float2(node->locx, node->locy);
-  move_child_nodes(*node, delta);
+  if (node->is_frame()) {
+    move_child_nodes(*node, delta);
+  }
   node->locx = loc.x;
   node->locy = loc.y;
 }

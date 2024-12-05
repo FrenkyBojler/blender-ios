@@ -663,34 +663,46 @@ static void cleanup_legacy_sockets(bNodeTree *ntree)
   BLI_listbase_clear(&ntree->outputs_legacy);
 }
 
-static void move_nodes_to_parent_space(bNodeTree &ntree)
+static blender::Vector<bNode *> flatten_parent_tree(bNodeTree &ntree)
 {
+  using namespace blender;
+  VectorSet<bNode *> nodes;
+  nodes.reserve(ntree.all_nodes().size());
   for (bNode *node : ntree.all_nodes()) {
-    const float2 loc = node_location_global_to_node(node, float2(node->locx, node->locy));
+    Vector<bNode *> parents;
+    for (bNode *parent = node->parent; parent; parent = parent->parent) {
+      parents.append(parent);
+    }
+    std::reverse(parents.begin(), parents.end());
+    nodes.add_multiple(parents);
+    nodes.add(node);
+  }
+  Vector<bNode *> vector = nodes.extract_vector();
+  std::reverse(vector.begin(), vector.end());
+  return vector;
+}
+
+static void move_nodes_to_parent_space(bNodeTree &ntree, Array<float2> &orig_positions)
+{
+  const Span<bNode *> nodes = ntree.all_nodes();
+  orig_positions.reinitialize(nodes.size());
+  for (const int i : nodes.index_range()) {
+    orig_positions[i] = float2(nodes[i]->locx, nodes[i]->locy);
+  }
+
+  for (bNode *node : flatten_parent_tree(ntree)) {
+    const float2 loc = node_location_to_parent_space(*node, float2(node->locx, node->locy));
     node->locx = loc.x;
     node->locy = loc.y;
   }
 }
 
-static void move_nodes_to_global_space(bNodeTree &ntree)
+static void restore_node_locations(bNodeTree &ntree, const Span<float2> orig_positions)
 {
-  for (bNode *node : ntree.all_nodes()) {
-    if (node->type == NODE_FRAME) {
-      continue;
-    }
-    for (const bNode *parent = node->parent; parent; parent = parent->parent) {
-      node->locx += parent->locx;
-      node->locy += parent->locy;
-    }
-  }
-  for (bNode *node : ntree.all_nodes()) {
-    if (node->type != NODE_FRAME) {
-      continue;
-    }
-    for (const bNode *parent = node->parent; parent; parent = parent->parent) {
-      node->locx += parent->locx;
-      node->locy += parent->locy;
-    }
+  const Span<bNode *> nodes = ntree.all_nodes();
+  for (const int i : nodes.index_range()) {
+    nodes[i]->locx = orig_positions[i].x;
+    nodes[i]->locy = orig_positions[i].y;
   }
 }
 
@@ -774,8 +786,9 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   BKE_id_blend_write(writer, &ntree->id);
   BLO_write_string(writer, ntree->description);
 
+  Array<float2> orig_positions;
   if (!BLO_write_is_undo(writer)) {
-    forward_compat::move_nodes_to_parent_space(*ntree);
+    forward_compat::move_nodes_to_parent_space(*ntree, orig_positions);
   }
 
   for (bNode *node : ntree->all_nodes()) {
@@ -933,7 +946,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   }
 
   if (!BLO_write_is_undo(writer)) {
-    forward_compat::move_nodes_to_global_space(*ntree);
+    forward_compat::restore_node_locations(*ntree, orig_positions);
   }
 
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
@@ -3121,20 +3134,20 @@ void node_internal_relink(bNodeTree *ntree, bNode *node)
   }
 }
 
-float2 node_location_node_to_global(const bNode *node, const float2 loc)
+float2 node_location_global(const bNode &node)
 {
-  float2 view_loc = loc;
-  for (const bNode *node_iter = node; node_iter; node_iter = node_iter->parent) {
-    view_loc += float2(node_iter->locx, node_iter->locy);
+  float2 view_loc(node.locx, node.locy);
+  for (const bNode *parent = node.parent; parent; parent = parent->parent) {
+    view_loc += float2(parent->locx, parent->locy);
   }
   return view_loc;
 }
 
-float2 node_location_global_to_node(const bNode *node, const float2 view_loc)
+float2 node_location_to_parent_space(const bNode &node, const float2 view_loc)
 {
   float2 loc = view_loc;
-  for (const bNode *node_iter = node; node_iter; node_iter = node_iter->parent) {
-    loc -= float2(node_iter->locx, node_iter->locy);
+  for (const bNode *parent = node.parent; parent; parent = parent->parent) {
+    loc -= float2(parent->locx, parent->locy);
   }
   return loc;
 }
