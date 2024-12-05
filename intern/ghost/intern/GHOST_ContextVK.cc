@@ -496,7 +496,8 @@ GHOST_ContextVK::~GHOST_ContextVK()
     GHOST_DeviceVK &device_vk = *vulkan_device;
     device_vk.wait_idle();
 
-    destroySwapchain();
+    destroySwapchain(-1);
+    m_discarded_resources.swap_chain_resources.resize(0);
 
     if (m_command_buffer != VK_NULL_HANDLE) {
       vkFreeCommandBuffers(device_vk.device, m_command_pool, 1, &m_command_buffer);
@@ -516,7 +517,21 @@ GHOST_ContextVK::~GHOST_ContextVK()
   }
 }
 
-GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
+GHOST_ContextVK_DiscardedSwapChainResources::~GHOST_ContextVK_DiscardedSwapChainResources()
+{
+  destroy();
+}
+
+void GHOST_ContextVK_DiscardedSwapChainResources::destroy()
+{
+  VkDevice device = vulkan_device->device;
+  for (VkSemaphore vk_semaphore : semaphores) {
+    vkDestroySemaphore(device, vk_semaphore, nullptr);
+  }
+  semaphores.clear();
+}
+
+GHOST_TSuccess GHOST_ContextVK::destroySwapchain(int image_index)
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
   VkDevice device = vulkan_device->device;
@@ -524,14 +539,22 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
   if (m_swapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
   }
-  if (m_rendering_semaphore != VK_NULL_HANDLE) {
+
+  if (image_index == -1) {
     vkDestroySemaphore(device, m_rendering_semaphore, nullptr);
-    m_rendering_semaphore = VK_NULL_HANDLE;
-  }
-  if (m_presenting_semaphore != VK_NULL_HANDLE) {
     vkDestroySemaphore(device, m_presenting_semaphore, nullptr);
+    m_rendering_semaphore = VK_NULL_HANDLE;
     m_presenting_semaphore = VK_NULL_HANDLE;
   }
+  else {
+    GHOST_ContextVK_DiscardedSwapChainResources &swap_chain_resources =
+        m_discarded_resources.swap_chain_resources[image_index];
+    swap_chain_resources.semaphores.push_back(m_rendering_semaphore);
+    swap_chain_resources.semaphores.push_back(m_presenting_semaphore);
+    m_rendering_semaphore = VK_NULL_HANDLE;
+    m_presenting_semaphore = VK_NULL_HANDLE;
+  }
+
   return GHOST_kSuccess;
 }
 
@@ -554,7 +577,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 
     if (recreate_swapchain) {
       /* Swap-chain is out of date. Recreate swap-chain. */
-      destroySwapchain();
+      destroySwapchain(-1);
       createSwapchain();
     }
   }
@@ -571,10 +594,12 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     result = vkAcquireNextImageKHR(
         device, m_swapchain, UINT64_MAX, m_presenting_semaphore, VK_NULL_HANDLE, &image_index);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-      destroySwapchain();
+      destroySwapchain(-1);
       createSwapchain();
     }
   }
+
+  m_discarded_resources.swap_chain_resources[image_index].destroy();
 
   GHOST_VulkanSwapChainData swap_chain_data;
   swap_chain_data.image = m_swapchain_images[image_index];
@@ -603,7 +628,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
     /* Swap-chain is out of date. Recreate swap-chain and skip this frame. */
-    destroySwapchain();
+    destroySwapchain(image_index);
     createSwapchain();
     if (swap_buffers_post_callback_) {
       swap_buffers_post_callback_();
@@ -903,6 +928,9 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   /* image_count may not be what we requested! Getter for final value. */
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr);
   m_swapchain_images.resize(image_count);
+  if (image_count > m_discarded_resources.swap_chain_resources.size()) {
+    m_discarded_resources.swap_chain_resources.resize(image_count);
+  }
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
 
   VkSemaphoreCreateInfo semaphore_info = {};
@@ -919,6 +947,8 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
     VkImageMemoryBarrier &barrier = barriers[i];
     barrier = {};
 
+    // TODO: leave to undefined at this moment. Saves unneeded cycles as the image will be
+    // fully rewritten.
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;

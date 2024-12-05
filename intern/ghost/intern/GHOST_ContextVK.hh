@@ -57,6 +57,17 @@ struct GHOST_ContextVK_WindowInfo {
   int size[2];
 };
 
+struct GHOST_ContextVK_DiscardedSwapChainResources {
+  std::vector<VkSemaphore> semaphores;
+
+  ~GHOST_ContextVK_DiscardedSwapChainResources();
+  void destroy();
+};
+
+struct GHOST_ContextVK_DiscardedResources {
+  std::vector<GHOST_ContextVK_DiscardedSwapChainResources> swap_chain_resources;
+};
+
 class GHOST_ContextVK : public GHOST_Context {
  public:
   /**
@@ -187,6 +198,7 @@ class GHOST_ContextVK : public GHOST_Context {
   VkSurfaceKHR m_surface;
   VkSwapchainKHR m_swapchain;
   std::vector<VkImage> m_swapchain_images;
+  GHOST_ContextVK_DiscardedResources m_discarded_resources;
 
   VkExtent2D m_render_extent;
   VkExtent2D m_render_extent_min;
@@ -202,7 +214,7 @@ class GHOST_ContextVK : public GHOST_Context {
 
   const char *getPlatformSpecificSurfaceExtension() const;
   GHOST_TSuccess createSwapchain();
-  GHOST_TSuccess destroySwapchain();
+  GHOST_TSuccess destroySwapchain(int image_index);
   GHOST_TSuccess createCommandPools();
   GHOST_TSuccess createGraphicsCommandBuffers();
   GHOST_TSuccess createGraphicsCommandBuffer();
