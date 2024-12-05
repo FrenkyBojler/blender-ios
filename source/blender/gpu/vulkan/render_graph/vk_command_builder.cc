@@ -744,7 +744,7 @@ void VKCommandBuilder::layer_tracking_resume(VKCommandBufferInterface &command_b
               << ", to_layout=" << to_string(binding.vk_image_layout) << "\n";
 #endif
   }
-  send_pipeline_barriers(command_buffer);
+  send_pipeline_barriers(command_buffer, false);
 }
 /** \} */
 
