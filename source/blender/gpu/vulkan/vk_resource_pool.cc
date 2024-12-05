@@ -207,7 +207,8 @@ SubmitSyncSemaphores VKDiscardPool::submit_sync_semaphores(VKDevice &device)
   vkCreateSemaphore(device.vk_handle(), &semaphore_info, nullptr, &submit_semaphores_.last());
   return {wait_semaphore, submit_semaphores_.last()};
 }
-void VKDiscardPool::set_semaphores_guard(VkFence vk_fence)
+
+void VKDiscardPool::set_semaphores_fence_guard(VkFence vk_fence)
 {
   std::scoped_lock mutex(mutex_);
   BLI_assert(semaphores_guard_ == VK_NULL_HANDLE);

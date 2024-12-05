@@ -16,8 +16,12 @@
 namespace blender::gpu {
 class VKDevice;
 
+/** Semaphores for submit sequential syncronization. */
 struct SubmitSyncSemaphores {
+  /** Semaphore that previous submit in the same frame will signal, will be `null` for first pair
+   * of syncronization semaphores requested in the frame. */
   VkSemaphore wait_semaphore;
+  /** Semaphore that current submit in the frame should signal. */
   VkSemaphore signal_semaphore;
 };
 
@@ -79,8 +83,24 @@ class VKDiscardPool {
    */
   void move_data(VKDiscardPool &src_pool);
   void destroy_discarded_resources(VKDevice &device);
+
+  /**
+   * Request a pair of submit syncronization semaphores
+   * This will define a sequential syncronization in the GPU, each submit would wait on the
+   * previous submission work in the frame to finish, and then when the submission work is
+   * completed this will signal so the following submission in the frame that is waiting can be
+   * executed. Not including `SubmitSyncSemaphores::signal_semaphore` in
+   * `VkSubmitInfo::pSignalSemaphores` would generate a deadlock.
+   *
+   * This semaphores are owned by the discard poll, can be used to wait on submit, however caller
+   * must not keep a reference to this semaphore since it may be destroyed when this resourse pool
+   * is requested again.
+   */
   SubmitSyncSemaphores submit_sync_semaphores(VKDevice &device);
-  void set_semaphores_guard(VkFence vk_fence);
+
+  /** Sets a fence that prevents submit semaphores from being destroyed before the frame
+   * presentation completed. */
+  void set_semaphores_fence_guard(VkFence vk_fence);
 };
 
 class VKResourcePool {
