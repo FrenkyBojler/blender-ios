@@ -31,9 +31,9 @@
 
 namespace blender::draw::overlay {
 
-constexpr int overlay_edit_text = V3D_OVERLAY_EDIT_EDGE_LEN | V3D_OVERLAY_EDIT_FACE_AREA |
-                                  V3D_OVERLAY_EDIT_FACE_ANG | V3D_OVERLAY_EDIT_EDGE_ANG |
-                                  V3D_OVERLAY_EDIT_INDICES;
+inline constexpr int overlay_edit_text = V3D_OVERLAY_EDIT_EDGE_LEN | V3D_OVERLAY_EDIT_FACE_AREA |
+                                         V3D_OVERLAY_EDIT_FACE_ANG | V3D_OVERLAY_EDIT_EDGE_ANG |
+                                         V3D_OVERLAY_EDIT_INDICES;
 
 /**
  * Draw edit mesh overlays.

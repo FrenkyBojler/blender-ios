@@ -39,8 +39,8 @@ class ShadowPunctual;
 
 using namespace draw;
 
-constexpr GPUSamplerState no_filter = GPUSamplerState::default_sampler();
-constexpr GPUSamplerState with_filter = {GPU_SAMPLER_FILTERING_LINEAR};
+inline constexpr GPUSamplerState no_filter = GPUSamplerState::default_sampler();
+inline constexpr GPUSamplerState with_filter = {GPU_SAMPLER_FILTERING_LINEAR};
 #endif
 
 /** WORKAROUND(@fclem): This is because this file is included before common_math_lib.glsl. */

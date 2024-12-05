@@ -19,7 +19,7 @@
 namespace blender::gpu {
 
 /** Value for invisible elements in a #GPU_PRIM_POINTS index buffer. */
-constexpr uint32_t RESTART_INDEX = 0xFFFFFFFF;
+inline constexpr uint32_t RESTART_INDEX = 0xFFFFFFFF;
 
 enum GPUIndexBufType {
   GPU_INDEX_U16,

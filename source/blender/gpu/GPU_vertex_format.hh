@@ -18,12 +18,13 @@
 
 struct GPUShader;
 
-constexpr static int GPU_VERT_ATTR_MAX_LEN = 16;
-constexpr static int GPU_VERT_ATTR_MAX_NAMES = 6;
-constexpr static int GPU_VERT_ATTR_NAMES_BUF_LEN = 256;
-constexpr static int GPU_VERT_FORMAT_MAX_NAMES = 63; /* More than enough, actual max is ~30. */
+inline constexpr static int GPU_VERT_ATTR_MAX_LEN = 16;
+inline constexpr static int GPU_VERT_ATTR_MAX_NAMES = 6;
+inline constexpr static int GPU_VERT_ATTR_NAMES_BUF_LEN = 256;
+/* More than enough, actual max is ~30. */
+inline constexpr static int GPU_VERT_FORMAT_MAX_NAMES = 63;
 /* Computed as GPU_VERT_ATTR_NAMES_BUF_LEN / 30 (actual max format name). */
-constexpr static int GPU_MAX_SAFE_ATTR_NAME = 12;
+inline constexpr static int GPU_MAX_SAFE_ATTR_NAME = 12;
 
 enum GPUVertCompType {
   GPU_COMP_I8 = 0,

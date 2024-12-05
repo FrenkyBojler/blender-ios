@@ -38,10 +38,10 @@ namespace blender::index_mask {
  * - A power of two is used for #max_segment_size, because that allows for faster construction of
  *   index masks for index ranges.
  */
-static constexpr int64_t max_segment_size_shift = 14;
-static constexpr int64_t max_segment_size = (1 << max_segment_size_shift); /* 16384 */
-static constexpr int64_t max_segment_size_mask_low = max_segment_size - 1;
-static constexpr int64_t max_segment_size_mask_high = ~max_segment_size_mask_low;
+inline constexpr int64_t max_segment_size_shift = 14;
+inline constexpr int64_t max_segment_size = (1 << max_segment_size_shift); /* 16384 */
+inline constexpr int64_t max_segment_size_mask_low = max_segment_size - 1;
+inline constexpr int64_t max_segment_size_mask_high = ~max_segment_size_mask_low;
 
 /**
  * Encodes a position in an #IndexMask. The term "raw" just means that this does not have the usual

@@ -560,7 +560,7 @@ struct wmNotifier {
 /* ************** Gesture Manager data ************** */
 
 namespace blender::wm::gesture {
-constexpr float POLYLINE_CLICK_RADIUS = 15.0f;
+inline constexpr float POLYLINE_CLICK_RADIUS = 15.0f;
 }
 
 /** #wmGesture::type */

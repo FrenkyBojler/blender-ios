@@ -31,9 +31,9 @@
 
 namespace blender::ed::sculpt_paint::greasepencil {
 
-static constexpr float FIND_NEAREST_POINT_EPSILON = 1e-6f;
-static constexpr int BLUR_NEIGHBOUR_NUM = 5;
-static constexpr int SMEAR_NEIGHBOUR_NUM = 8;
+inline constexpr float FIND_NEAREST_POINT_EPSILON = 1e-6f;
+inline constexpr int BLUR_NEIGHBOUR_NUM = 5;
+inline constexpr int SMEAR_NEIGHBOUR_NUM = 8;
 
 class WeightPaintOperation : public GreasePencilStrokeOperation {
  public:

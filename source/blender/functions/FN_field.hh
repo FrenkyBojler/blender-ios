@@ -214,7 +214,7 @@ template<typename T> class Field : public GField, detail::TypedFieldBase {
 
 /** True when T is any Field<...> type. */
 template<typename T>
-static constexpr bool is_field_v = std::is_base_of_v<detail::TypedFieldBase, T> &&
+inline constexpr bool is_field_v = std::is_base_of_v<detail::TypedFieldBase, T> &&
                                    !std::is_same_v<detail::TypedFieldBase, T>;
 
 /**

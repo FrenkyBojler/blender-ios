@@ -29,10 +29,10 @@
 
 struct GPUShader;
 
-constexpr static int GPU_BATCH_VBO_MAX_LEN = 16;
-constexpr static int GPU_BATCH_INST_VBO_MAX_LEN = 2;
-constexpr static int GPU_BATCH_VAO_STATIC_LEN = 3;
-constexpr static int GPU_BATCH_VAO_DYN_ALLOC_COUNT = 16;
+inline constexpr static int GPU_BATCH_VBO_MAX_LEN = 16;
+inline constexpr static int GPU_BATCH_INST_VBO_MAX_LEN = 2;
+inline constexpr static int GPU_BATCH_VAO_STATIC_LEN = 3;
+inline constexpr static int GPU_BATCH_VAO_DYN_ALLOC_COUNT = 16;
 
 enum eGPUBatchFlag {
   /** Invalid default state. */

@@ -55,9 +55,9 @@ namespace detail_size {
 /**
  * Scaling factor to match the displayed size to the actual sculpted size
  */
-constexpr float RELATIVE_SCALE_FACTOR = 0.4f;
+inline constexpr float RELATIVE_SCALE_FACTOR = 0.4f;
 /** The relative scale of the minimum and maximum edge length. */
-constexpr float EDGE_LENGTH_MIN_FACTOR = 0.4f;
+inline constexpr float EDGE_LENGTH_MIN_FACTOR = 0.4f;
 
 /**
  * Converts from Sculpt#constant_detail to the #pbvh::Tree max edge length.

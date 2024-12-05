@@ -15,11 +15,11 @@
 
 namespace blender::compositor {
 
-static constexpr bool COM_EXPORT_GRAPHVIZ = false;
-static constexpr bool COM_GRAPHVIZ_SHOW_NODE_NAME = false;
+inline constexpr bool COM_EXPORT_GRAPHVIZ = false;
+inline constexpr bool COM_GRAPHVIZ_SHOW_NODE_NAME = false;
 
 /* Saves operations results to image files. */
-static constexpr bool COM_EXPORT_OPERATION_BUFFERS = false;
+inline constexpr bool COM_EXPORT_OPERATION_BUFFERS = false;
 
 class Node;
 class NodeOperation;

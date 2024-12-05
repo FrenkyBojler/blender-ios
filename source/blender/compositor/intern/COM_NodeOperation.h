@@ -37,7 +37,7 @@ typedef NodeOperation SocketReader;
  * This solves the issue that the FileInputNode in a group node cannot find the
  * correct resolution.
  */
-static constexpr unsigned int RESOLUTION_INPUT_ANY = 999999;
+inline constexpr unsigned int RESOLUTION_INPUT_ANY = 999999;
 
 /**
  * \brief Resize modes of inputsockets

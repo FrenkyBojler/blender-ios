@@ -52,7 +52,7 @@
 #include "ImportSettings.h"
 #include "collada_internal.h"
 
-constexpr int LIMITTED_PRECISION = 6;
+inline constexpr int LIMITTED_PRECISION = 6;
 
 typedef std::map<COLLADAFW::UniqueId, Image *> UidImageMap;
 typedef std::map<std::string, Image *> KeyImageMap;

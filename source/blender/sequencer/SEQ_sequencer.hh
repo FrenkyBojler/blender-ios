@@ -21,7 +21,7 @@ struct SeqTimelineChannel;
 struct Sequence;
 struct SequencerToolSettings;
 
-constexpr int SEQ_MAX_CHANNELS = 128;
+inline constexpr int SEQ_MAX_CHANNELS = 128;
 
 /* RNA enums, just to be more readable */
 enum {

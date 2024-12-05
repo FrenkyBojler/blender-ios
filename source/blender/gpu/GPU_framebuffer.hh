@@ -38,7 +38,7 @@ enum eGPUFrameBufferBits {
 ENUM_OPERATORS(eGPUFrameBufferBits, GPU_STENCIL_BIT)
 
 /* Guaranteed by the spec and is never greater than 16 on any hardware or implementation. */
-constexpr static int GPU_MAX_VIEWPORTS = 16;
+inline constexpr static int GPU_MAX_VIEWPORTS = 16;
 
 struct GPUAttachment {
   GPUTexture *tex;

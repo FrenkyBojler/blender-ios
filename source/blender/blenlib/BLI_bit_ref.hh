@@ -27,12 +27,12 @@ namespace blender::bits {
 /** Using a large integer type is better because then it's easier to process many bits at once. */
 using BitInt = uint64_t;
 /** Number of bits that fit into #BitInt. */
-static constexpr int64_t BitsPerInt = int64_t(sizeof(BitInt) * 8);
+inline constexpr int64_t BitsPerInt = int64_t(sizeof(BitInt) * 8);
 /** Shift amount to get from a bit index to an int index. Equivalent to `log(BitsPerInt, 2)`. */
-static constexpr int64_t BitToIntIndexShift = 3 + (sizeof(BitInt) >= 2) + (sizeof(BitInt) >= 4) +
+inline constexpr int64_t BitToIntIndexShift = 3 + (sizeof(BitInt) >= 2) + (sizeof(BitInt) >= 4) +
                                               (sizeof(BitInt) >= 8);
 /** Bit mask containing a 1 for the last few bits that index a bit inside of an #BitInt. */
-static constexpr BitInt BitIndexMask = (BitInt(1) << BitToIntIndexShift) - 1;
+inline constexpr BitInt BitIndexMask = (BitInt(1) << BitToIntIndexShift) - 1;
 
 inline BitInt mask_first_n_bits(const int64_t n)
 {

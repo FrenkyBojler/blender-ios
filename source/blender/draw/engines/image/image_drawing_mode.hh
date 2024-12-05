@@ -22,7 +22,7 @@
 namespace blender::image_engine {
 class Instance;
 
-constexpr float EPSILON_UV_BOUNDS = 0.00001f;
+inline constexpr float EPSILON_UV_BOUNDS = 0.00001f;
 
 class BaseTextureMethod {
  protected:

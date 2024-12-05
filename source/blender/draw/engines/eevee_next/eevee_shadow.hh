@@ -29,7 +29,7 @@ class ShadowPipeline;
 struct Light;
 
 /* To be applied after view matrix. Follow same order as eCubeFace. */
-constexpr static const float shadow_face_mat[6][3][3] = {
+inline constexpr static const float shadow_face_mat[6][3][3] = {
     {{+1, +0, +0}, {+0, +1, +0}, {+0, +0, +1}}, /* Z_NEG */
     {{+0, +0, -1}, {-1, +0, +0}, {+0, +1, +0}}, /* X_POS */
     {{+0, +0, +1}, {+1, +0, +0}, {+0, +1, +0}}, /* X_NEG */
@@ -39,10 +39,11 @@ constexpr static const float shadow_face_mat[6][3][3] = {
 };
 
 /* Converts to [-SHADOW_TILEMAP_RES / 2..SHADOW_TILEMAP_RES / 2] for XY and [0..1] for Z. */
-constexpr static const float shadow_clipmap_scale_mat[4][4] = {{SHADOW_TILEMAP_RES / 2, 0, 0, 0},
-                                                               {0, SHADOW_TILEMAP_RES / 2, 0, 0},
-                                                               {0, 0, 0.5, 0},
-                                                               {0, 0, 0.5, 1}};
+inline constexpr static const float shadow_clipmap_scale_mat[4][4] = {
+    {SHADOW_TILEMAP_RES / 2, 0, 0, 0},
+    {0, SHADOW_TILEMAP_RES / 2, 0, 0},
+    {0, 0, 0.5, 0},
+    {0, 0, 0.5, 1}};
 
 /* Technique used for updating the virtual shadow map contents. */
 enum class ShadowTechnique {
