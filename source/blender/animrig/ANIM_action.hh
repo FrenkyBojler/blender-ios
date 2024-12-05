@@ -258,20 +258,6 @@ class Action : public ::bAction {
   Span<StripKeyframeData *> strip_keyframe_data();
 
   /**
-   * Find the slot that best matches the animated ID.
-   *
-   * If the ID is already animated by this Action, by matching this
-   * Action's slots with (in order):
-   *
-   * - `animated_id.adt->slot_handle`,
-   * - `animated_id.adt->last_slot_identifier`,
-   * - `animated_id.name`.
-   *
-   * Note that this is different from #slot_for_id, which does not use the
-   * slot identifier, and only works when this Action is already assigned. */
-  Slot *find_suitable_slot_for(const ID &animated_id);
-
-  /**
    * Return whether this Action actually has any animation data for the given slot.
    *
    * \see has_keyframes()
