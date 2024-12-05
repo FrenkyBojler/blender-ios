@@ -221,10 +221,11 @@ class Action : public ::bAction {
   Slot *slot_find_by_identifier(StringRefNull slot_identifier);
 
   /**
-   * Create a new, unused Slot.
+   * Create a new Slot.
    *
-   * The returned slot will be suitable for any ID type. After assigning the
-   * slot to an ID, it will be changed to only be suitable for that ID's type.
+   * The slot is given a default name and will be suitable for any ID type.
+   * After assigning the slot to an ID, it will be changed to only be suitable
+   * for that ID's type.
    */
   Slot &slot_add();
 
@@ -424,6 +425,20 @@ class Action : public ::bAction {
   void strip_keyframe_data_remove_if_unused(int index);
 
  private:
+  /**
+   * Create a new slot for this Action, but *don't* add it to the Action's list
+   * of slots.
+   *
+   * This *does* give the slot a slot handle, and also correspondingly updates
+   * the Action's `last_slot_handle` field, hence why this is a method on
+   * Action.
+   *
+   * This is a low-level function. Prefer `slot_add()` and friends in most
+   * cases.
+   *
+   * \see slot_add()
+   * \see slot_add_for_id()
+   */
   Slot &slot_allocate();
 
   /**
