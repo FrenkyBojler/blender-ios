@@ -124,6 +124,21 @@ class Action : public ::bAction {
   const Layer *layer(int64_t index) const;
   Layer *layer(int64_t index);
 
+  /**
+   * Create a new layer in this Action.
+   *
+   * The new layer is added to the end of the layer array, and will be empty (no
+   * strips).
+   *
+   * \note At the time of writing this comment (in Baklava phase 1) only a
+   * single layer per Action is supported in Blender, but this function does NOT
+   * enforce that. Be careful!
+   *
+   * \param name The name to give the new layer. If no name is given, a default
+   * name is used.
+   *
+   * \return A reference to the newly created layer.
+   */
   Layer &layer_add(std::optional<StringRefNull> name);
 
   /**
