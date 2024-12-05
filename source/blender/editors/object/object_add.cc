@@ -3451,6 +3451,17 @@ static Object *convert_curves_legacy_to_mesh(Base &base,
   return newob;
 }
 
+static Object *convert_curves_legacy_to_curves(Base &base,
+                                               ObjectConversionInfo &info,
+                                               Base **r_new_base)
+{
+  Object *newob = convert_curves_component_to_curves(base, info, r_new_base);
+  if (newob) {
+    return newob;
+  }
+  return convert_grease_pencil_component_to_curves(base, info, r_new_base);
+}
+
 static Object *convert_curves_legacy(Base &base,
                                      const ObjectType target,
                                      ObjectConversionInfo &info,
@@ -3459,6 +3470,8 @@ static Object *convert_curves_legacy(Base &base,
   switch (target) {
     case OB_MESH:
       return convert_curves_legacy_to_mesh(base, info, r_new_base);
+    case OB_CURVES:
+      return convert_curves_legacy_to_curves(base, info, r_new_base);
     default:
       return nullptr;
   }
