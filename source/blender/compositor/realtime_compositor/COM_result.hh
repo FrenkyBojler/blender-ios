@@ -472,6 +472,9 @@ class Result {
    * the number of elements for vector types. */
   template<typename T> static constexpr int get_type_channels_count();
 
+  /* Return true if the provided template type is supported by the class. */
+  template<typename T> static constexpr bool is_supported_type();
+
   /* Allocates the texture data for the given size, either on the GPU or CPU based on the result's
    * context. See the allocate_texture method for information about the from_pool argument. */
   void allocate_data(int2 size, bool from_pool);
@@ -548,6 +551,8 @@ inline int *Result::integer_texture() const
 template<typename T> inline T Result::get_single_value() const
 {
   BLI_assert(this->is_single_value());
+  static_assert(Result::is_supported_type<T>());
+
   if constexpr (std::is_same_v<T, float>) {
     return float_value_;
   }
@@ -564,8 +569,7 @@ template<typename T> inline T Result::get_single_value() const
     return int2_value_;
   }
   else {
-    static_assert(false);
-    return float4(0.0f);
+    return T(0);
   }
 }
 
@@ -940,13 +944,18 @@ template<typename T> constexpr int Result::get_type_channels_count()
   }
 }
 
+template<typename T> constexpr bool Result::is_supported_type()
+{
+  return std::is_same_v<T, float> || std::is_same_v<T, float2> || std::is_same_v<T, float3> ||
+         std::is_same_v<T, float4> || std::is_same_v<T, int2>;
+}
+
 template<typename T> inline int64_t Result::get_pixel_index(const int2 &texel) const
 {
   BLI_assert(!is_single_value_);
   BLI_assert(this->is_allocated());
   BLI_assert(texel.x >= 0 && texel.y >= 0 && texel.x < domain_.size.x && texel.y < domain_.size.y);
-  static_assert(std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, float2> ||
-                std::is_same_v<T, float3> || std::is_same_v<T, float4> || std::is_same_v<T, int2>);
+  static_assert(Result::is_supported_type<T>());
 
   constexpr int channels_count = Result::get_type_channels_count<T>();
   BLI_assert(this->channels_count() == channels_count);
