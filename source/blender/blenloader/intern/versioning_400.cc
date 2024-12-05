@@ -4875,6 +4875,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 8)) {
+    update_paint_modes_for_brush_assets(*bmain);
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 9)) {
     fix_built_in_curve_attribute_defaults(bmain);
   }
@@ -5179,7 +5183,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
-    update_paint_modes_for_brush_assets(*bmain);
+    /* Applies the fix for the texture paint image editor tool to fix files
+     * that were saved in 4.3 with invalid tref->id data */
+    LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
+      LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
+        if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
+          STRNCPY(tref->idname, "builtin.brush");
+        }
+      }
+    }
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
