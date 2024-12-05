@@ -10,6 +10,7 @@
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 
@@ -33,6 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
   b.add_output<decl::Geometry>("Curves").propagate_all();
+  b.add_output<decl::Bool>("Invalid").field_on_all();
 }
 
 static void deform_curves(const CurvesGeometry &curves,
@@ -47,7 +49,8 @@ static void deform_curves(const CurvesGeometry &curves,
                           const float4x4 &surface_to_curves,
                           MutableSpan<float3> r_positions,
                           MutableSpan<float3x3> r_rotations,
-                          std::atomic<int> &r_invalid_uv_count)
+                          std::atomic<int> &r_invalid_uv_count,
+                          MutableSpan<bool> r_invalid_curves)
 {
   /* Find attachment points on old and new mesh. */
   const int curves_num = curves.curves_num();
@@ -69,6 +72,18 @@ static void deform_curves(const CurvesGeometry &curves,
   const Span<int3> surface_corner_tris_new = surface_mesh_new.corner_tris();
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
+
+  if (!r_invalid_curves.is_empty()) {
+    threading::parallel_for(curves.curves_range(), 4096, [&](const IndexRange range) {
+      for (const int curve_i : range) {
+        const bool is_invalid_curve = surface_samples_old[curve_i].type !=
+                                          ReverseUVSampler::ResultType::Ok ||
+                                      surface_samples_new[curve_i].type !=
+                                          ReverseUVSampler::ResultType::Ok;
+        r_invalid_curves[curve_i] = is_invalid_curve;
+      }
+    });
+  }
 
   threading::parallel_for(curves.curves_range(), 256, [&](const IndexRange range) {
     for (const int curve_i : range) {
@@ -311,6 +326,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Span<float3> corner_normals_eval = surface_mesh_eval->corner_normals();
 
   std::atomic<int> invalid_uv_count = 0;
+  const std::optional<std::string> invalid_id = params.get_output_anonymous_attribute_id_if_needed(
+      "Invalid");
+  Array<bool> invalid_curves(invalid_id.has_value() ? curves.curve_num : 0);
 
   const bke::CurvesSurfaceTransforms transforms{*self_ob_eval, surface_ob_eval};
 
@@ -342,7 +360,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                   transforms.surface_to_curves,
                   curves.positions_for_write(),
                   edit_hint_rotations,
-                  invalid_uv_count);
+                  invalid_uv_count,
+                  invalid_curves);
   }
   else {
     /* First deform the actual curves in the input geometry. */
@@ -358,7 +377,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                   transforms.surface_to_curves,
                   curves.positions_for_write(),
                   {},
-                  invalid_uv_count);
+                  invalid_uv_count,
+                  invalid_curves);
     /* Then also deform edit curve information for use in sculpt mode. */
     const CurvesGeometry &curves_orig = edit_hints->curves_id_orig.geometry.wrap();
     const VArraySpan<float2> surface_uv_coords_orig = *curves_orig.attributes().lookup_or_default(
@@ -376,8 +396,17 @@ static void node_geo_exec(GeoNodeExecParams params)
                     transforms.surface_to_curves,
                     edit_hint_positions,
                     edit_hint_rotations,
-                    invalid_uv_count);
+                    invalid_uv_count,
+                    {});
     }
+  }
+
+  if (invalid_id) {
+    MutableAttributeAccessor attributes = curves.attributes_for_write();
+    SpanAttributeWriter<bool> attribute = attributes.lookup_or_add_for_write_span<bool>(
+        *invalid_id, AttrDomain::Curve);
+    array_utils::copy(invalid_curves.as_span(), attribute.span);
+    attribute.finish();
   }
 
   curves.tag_positions_changed();
