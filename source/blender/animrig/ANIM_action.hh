@@ -277,17 +277,18 @@ class Action : public ::bAction {
   Span<StripKeyframeData *> strip_keyframe_data();
 
   /**
-   * Find the slot that best matches the animated ID.
+   * Find a slot in this Action for auto-assignment to the given ID.
    *
-   * If the ID is already animated by this Action, by matching this
-   * Action's slots with (in order):
+   * When an Action is assigned to an ID, we sometimes also want to
+   * automatically assign a slot from that Action for user convenience. This
+   * method attempts to find a slot for that purpose.
    *
-   * - `animated_id.adt->slot_handle`,
-   * - `animated_id.adt->last_slot_identifier`,
-   * - `animated_id.name`.
-   *
-   * Note that this is different from #slot_for_id, which does not use the
-   * slot identifier, and only works when this Action is already assigned. */
+   * \return A pointer to the found slot, or nullptr if no appropriate slot is
+   * found.
+   */
+  /* TODO: rename to `find_slot_for_auto_assignment_to()`, because we're using
+   * the term "suitable" to mean something more specific now, and explicitly
+   * mentioning "auto assignment" makes its purpose very clear. */
   Slot *find_suitable_slot_for(const ID &animated_id);
 
   /**
