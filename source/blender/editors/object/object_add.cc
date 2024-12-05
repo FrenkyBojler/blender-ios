@@ -2892,7 +2892,7 @@ static Object *get_object_for_conversion(Base &base, ObjectConversionInfo &info,
 
     return newob;
   }
-  *r_new_base = 0;
+  *r_new_base = nullptr;
   return base.object;
 }
 
@@ -3674,7 +3674,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_curves(*base, target, info, &new_base);
           break;
         case OB_CURVES_LEGACY:
-          [[fallthrough]];
+          ATTR_FALLTHROUGH;
         case OB_SURF:
           newob = convert_curves_legacy(*base, target, info, &new_base);
           break;
