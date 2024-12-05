@@ -3373,6 +3373,15 @@ class WM_MT_splash_quick_setup(Menu):
         else:
             sub.operator("wm.save_userpref", text="Continue")
 
+        layout.separator()
+        layout.separator(type='LINE')
+
+        split = layout.split()
+        col1 = split.column()
+        col1.operator("wm.url_open_preset", text="Donate", icon='FUND').type = 'FUND'
+        col2 = split.column()
+        col2.operator("wm.url_open_preset", text="What's New", icon='URL').type = 'RELEASE_NOTES'
+
         layout.separator(factor=2.0)
 
 
