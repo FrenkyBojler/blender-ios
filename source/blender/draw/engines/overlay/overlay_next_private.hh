@@ -499,6 +499,8 @@ class ShaderModule {
   ShaderPtr selectable_shader(const char *create_info_name);
   ShaderPtr selectable_shader(const char *create_info_name,
                               FunctionRef<void(gpu::shader::ShaderCreateInfo &info)> patch);
+  ShaderPtr static_clippable_shader(const char *create_info_name);
+  ShaderPtr static_selectable_shader(const char *create_info_name);
 };
 
 struct GreasePencilDepthPlane {

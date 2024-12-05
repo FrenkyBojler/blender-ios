@@ -97,6 +97,32 @@ ShaderModule::ShaderPtr ShaderModule::selectable_shader(
       GPU_shader_create_from_info(reinterpret_cast<const GPUShaderCreateInfo *>(&info)));
 }
 
+ShaderModule::ShaderPtr ShaderModule::static_clippable_shader(const char *create_info_name)
+{
+  std::string name = create_info_name;
+
+  if (clipping_enabled_) {
+    name += "_clipped";
+  }
+
+  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
+}
+
+ShaderModule::ShaderPtr ShaderModule::static_selectable_shader(const char *create_info_name)
+{
+  std::string name = create_info_name;
+
+  if (selection_type_ != SelectionType::DISABLED) {
+    name += "_selectable";
+  }
+
+  if (clipping_enabled_) {
+    name += "_clipped";
+  }
+
+  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
+}
+
 using namespace blender::gpu::shader;
 
 static void shader_patch_common(gpu::shader::ShaderCreateInfo &info)
