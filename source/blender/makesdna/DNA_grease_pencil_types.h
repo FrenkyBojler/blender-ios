@@ -702,7 +702,9 @@ typedef struct GreasePencil {
    * drawing exists.
    */
   blender::bke::greasepencil::Drawing *get_editable_drawing_at(
-      const blender::bke::greasepencil::Layer &layer, int frame_number);
+      const blender::bke::greasepencil::Layer &layer,
+      int frame_number,
+      const bool ignore_visibility = false);
 
   /**
    * Returns a drawing on \a layer at the frame this grease pencil was evaluated at or `nullptr` if
