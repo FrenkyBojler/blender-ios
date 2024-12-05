@@ -116,6 +116,7 @@ const EnumPropertyItem rna_enum_node_color_tag_items[] = {
     {int(blender::bke::NodeColorTag::Vector), "VECTOR", 0, "Vector", ""},
     {int(blender::bke::NodeColorTag::Pattern), "PATTERN", 0, "Pattern", ""},
     {int(blender::bke::NodeColorTag::Interface), "INTERFACE", 0, "Interface", ""},
+    {int(blender::bke::NodeColorTag::Group), "GROUP", 0, "Group", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1159,7 +1160,8 @@ static const EnumPropertyItem *rna_NodeTree_color_tag_itemf(bContext * /*C*/,
         break;
       }
       case blender::bke::NodeColorTag::Pattern:
-      case blender::bke::NodeColorTag::Interface: {
+      case blender::bke::NodeColorTag::Interface:
+      case blender::bke::NodeColorTag::Group: {
         break;
       }
       default: {
@@ -2479,8 +2481,9 @@ static int rna_Node_color_tag_get(PointerRNA *ptr)
       return int(blender::bke::NodeColorTag::Geometry);
     case NODE_CLASS_ATTRIBUTE:
       return int(blender::bke::NodeColorTag::Attribute);
-    case NODE_CLASS_LAYOUT:
     case NODE_CLASS_GROUP:
+      return int(blender::bke::NodeColorTag::Group);
+    case NODE_CLASS_LAYOUT:
       break;
   }
 

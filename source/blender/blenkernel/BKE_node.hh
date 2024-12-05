@@ -443,6 +443,7 @@ enum class NodeColorTag {
   Vector = 13,
   Pattern = 14,
   Interface = 15,
+  Group = 16,
 };
 
 using bNodeClassCallback = void (*)(void *calldata, int nclass, const char *name);

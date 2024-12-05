@@ -119,6 +119,8 @@ int node_group_ui_class(const bNode *node)
       return NODE_CLASS_PATTERN;
     case blender::bke::NodeColorTag::Interface:
       return NODE_CLASS_INTERFACE;
+    case blender::bke::NodeColorTag::Group:
+      return NODE_CLASS_GROUP;
   }
   return NODE_CLASS_GROUP;
 }
