@@ -91,6 +91,7 @@
 #include "NOD_geo_repeat.hh"
 #include "NOD_geo_simulation.hh"
 #include "NOD_geometry.hh"
+#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
@@ -392,8 +393,10 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 
   ntree->tree_interface.foreach_id(data);
 
-  for (ID *&id_ref : ntree->runtime->eval_dependencies.ids.values()) {
-    BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_NOP);
+  if (ntree->runtime->geometry_nodes_eval_dependencies) {
+    for (ID *&id_ref : ntree->runtime->geometry_nodes_eval_dependencies->ids.values()) {
+      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_NOP);
+    }
   }
 }
 

@@ -64,6 +64,7 @@
 
 #include "FN_lazy_function_execute.hh"
 
+#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -292,7 +293,8 @@ static void store_result_geometry(
 static void gather_node_group_ids(const bNodeTree &node_tree, Set<ID *> &ids)
 {
   const int orig_size = ids.size();
-  for (ID *id : node_tree.runtime->eval_dependencies.ids.values()) {
+  BLI_assert(node_tree.runtime->geometry_nodes_eval_dependencies);
+  for (ID *id : node_tree.runtime->geometry_nodes_eval_dependencies->ids.values()) {
     ids.add(id);
   }
   if (ids.size() != orig_size) {

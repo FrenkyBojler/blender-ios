@@ -91,6 +91,7 @@
 #include "ED_viewer_path.hh"
 
 #include "NOD_geometry.hh"
+#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -120,7 +121,7 @@ static void init_data(ModifierData *md)
 }
 
 static void find_dependencies_from_settings(const NodesModifierSettings &settings,
-                                            bke::NodeTreeEvalDependencies &deps)
+                                            nodes::GeometryNodesEvalDependencies &deps)
 {
   IDP_foreach_property(settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
     if (ID *id = IDP_Id(property)) {
@@ -145,7 +146,7 @@ static void add_collection_relation(const ModifierUpdateDepsgraphContext *ctx,
 
 static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx,
                                 Object &object,
-                                const bke::NodeTreeEvalDependencies::ObjectDeps &info)
+                                const nodes::GeometryNodesEvalDependencies::ObjectDeps &info)
 {
   if (info.transform) {
     DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
@@ -174,7 +175,9 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   DEG_add_node_tree_output_relation(ctx->node, nmd->node_group, "Nodes Modifier");
 
   /* This intentionally makes a copy because a few extra dependencies are added below. */
-  bke::NodeTreeEvalDependencies eval_deps = nmd->node_group->runtime->eval_dependencies;
+  BLI_assert(nmd->node_group->runtime->geometry_nodes_eval_dependencies);
+  nodes::GeometryNodesEvalDependencies eval_deps =
+      *nmd->node_group->runtime->geometry_nodes_eval_dependencies;
 
   /* Create dependencies to data-blocks referenced by the settings in the modifier. */
   find_dependencies_from_settings(nmd->settings, eval_deps);

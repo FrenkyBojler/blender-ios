@@ -28,6 +28,7 @@
 
 #include "MOD_nodes.hh"
 
+#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
@@ -869,94 +870,15 @@ class NodeTreeMainUpdater {
   void update_eval_dependencies(bNodeTree &ntree)
   {
     ntree.ensure_topology_cache();
-    NodeTreeEvalDependencies new_deps;
-    for (bNodeSocket *socket : ntree.all_sockets()) {
-      this->add_eval_dependencies_from_socket(*socket, new_deps);
-    }
-    new_deps.needs_active_camera |=
-        !ntree.nodes_by_type("GeometryNodeInputActiveCamera").is_empty();
-    for (const bNode *node : ntree.group_nodes()) {
-      if (!node->id) {
-        continue;
-      }
-      const bNodeTree &group = *reinterpret_cast<const bNodeTree *>(node->id);
-      new_deps.merge(group.runtime->eval_dependencies);
-    }
-    for (const bNode *node : ntree.all_nodes()) {
-      new_deps.needs_own_transform |= this->node_needs_own_transform(*node);
-    }
+    nodes::GeometryNodesEvalDependencies new_deps;
+    nodes::gather_geometry_nodes_eval_dependencies(ntree, new_deps);
 
-    if (new_deps != ntree.runtime->eval_dependencies) {
+    if (!ntree.runtime->geometry_nodes_eval_dependencies ||
+        new_deps != *ntree.runtime->geometry_nodes_eval_dependencies)
+    {
       needs_relations_update_ = true;
-      ntree.runtime->eval_dependencies = new_deps;
-    }
-  }
-
-  void add_eval_dependencies_from_socket(bNodeSocket &socket, NodeTreeEvalDependencies &deps)
-  {
-    if (socket.is_input()) {
-      if (socket.is_logically_linked()) {
-        /* The input value is unused. */
-        return;
-      }
-    }
-    switch (socket.type) {
-      case SOCK_OBJECT: {
-        if (Object *object = ((bNodeSocketValueObject *)socket.default_value)->value) {
-          deps.add_object(object);
-        }
-        break;
-      }
-      case SOCK_COLLECTION: {
-        if (Collection *collection = ((bNodeSocketValueCollection *)socket.default_value)->value) {
-          deps.add_generic_id(reinterpret_cast<ID *>(collection));
-        }
-        break;
-      }
-      case SOCK_MATERIAL: {
-        if (Material *material = ((bNodeSocketValueMaterial *)socket.default_value)->value) {
-          deps.add_generic_id(reinterpret_cast<ID *>(material));
-        }
-        break;
-      }
-      case SOCK_TEXTURE: {
-        if (Tex *texture = ((bNodeSocketValueTexture *)socket.default_value)->value) {
-          deps.add_generic_id(reinterpret_cast<ID *>(texture));
-        }
-        break;
-      }
-      case SOCK_IMAGE: {
-        if (Image *image = ((bNodeSocketValueImage *)socket.default_value)->value) {
-          deps.add_generic_id(reinterpret_cast<ID *>(image));
-        }
-        break;
-      }
-    }
-  }
-
-  bool node_needs_own_transform(const bNode &node)
-  {
-    if (node.is_muted()) {
-      return false;
-    }
-    switch (node.type) {
-      case GEO_NODE_COLLECTION_INFO: {
-        const NodeGeometryCollectionInfo &storage =
-            *static_cast<const NodeGeometryCollectionInfo *>(node.storage);
-        return storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
-      }
-      case GEO_NODE_OBJECT_INFO: {
-        const NodeGeometryObjectInfo &storage = *static_cast<const NodeGeometryObjectInfo *>(
-            node.storage);
-        return storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
-      }
-      case GEO_NODE_DEFORM_CURVES_ON_SURFACE:
-      case GEO_NODE_SELF_OBJECT: {
-        return true;
-      }
-      default: {
-        return false;
-      }
+      ntree.runtime->geometry_nodes_eval_dependencies =
+          std::make_unique<nodes::GeometryNodesEvalDependencies>(std::move(new_deps));
     }
   }
 
