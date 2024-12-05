@@ -490,6 +490,7 @@ void DRW_viewport_data_free(DRWData *drw_data)
   }
   DRW_volume_ubos_pool_free(drw_data->volume_grids_ubos);
   DRW_curves_ubos_pool_free(drw_data->curves_ubos);
+  DRW_curves_refine_pass_free(drw_data->curves_refine);
   MEM_freeN(drw_data);
 }
 
@@ -584,7 +585,7 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
 
   if (rv3d != nullptr) {
     dst->pixsize = rv3d->pixsize;
-    dst->view_default = DRW_view_create(rv3d->viewmat, rv3d->winmat, nullptr, nullptr, nullptr);
+    dst->view_default = DRW_view_create(rv3d->viewmat, rv3d->winmat, nullptr, nullptr);
 
     if (dst->draw_ctx.sh_cfg == GPU_SHADER_CFG_CLIPPED) {
       int plane_len = (RV3D_LOCK_FLAGS(rv3d) & RV3D_BOXCLIP) ? 4 : 6;
@@ -608,7 +609,7 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
     winmat[3][0] = -1.0f;
     winmat[3][1] = -1.0f;
 
-    dst->view_default = DRW_view_create(viewmat, winmat, nullptr, nullptr, nullptr);
+    dst->view_default = DRW_view_create(viewmat, winmat, nullptr, nullptr);
     dst->view_active = dst->view_default;
     dst->view_previous = nullptr;
   }
@@ -1755,7 +1756,7 @@ void DRW_draw_render_loop_ex(Depsgraph *depsgraph,
   GPU_framebuffer_bind(DST.default_framebuffer);
   GPU_framebuffer_clear_depth_stencil(DST.default_framebuffer, 1.0f, 0xFF);
 
-  DRW_curves_update();
+  DRW_curves_update(*DRW_manager_get());
 
   DRW_draw_callbacks_pre_scene();
 
@@ -2376,7 +2377,6 @@ void DRW_render_instance_buffer_finish()
   BLI_assert_msg(!DST.buffer_finish_called, "DRW_render_instance_buffer_finish called twice!");
   DST.buffer_finish_called = true;
   DRW_instance_buffer_finish(DST.vmempool->idatalist);
-  drw_resource_buffer_finish(DST.vmempool);
 }
 
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)
@@ -2583,7 +2583,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   DRW_state_reset();
   DRW_draw_callbacks_pre_scene();
 
-  DRW_curves_update();
+  DRW_curves_update(*DRW_manager_get());
 
   /* Only 1-2 passes. */
   while (true) {
@@ -2618,7 +2618,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          View3D *v3d,
                          GPUViewport *viewport,
                          const bool use_gpencil,
-                         const bool use_overlay,
                          const bool use_only_selected)
 {
   using namespace blender::draw;
@@ -2650,9 +2649,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   if (use_gpencil) {
     use_drw_engine(&draw_engine_gpencil_type);
   }
-  if (use_overlay) {
-    drw_engines_enable_overlays();
-  }
+  drw_engines_enable_overlays();
 
   drw_task_graph_init();
 
@@ -2719,7 +2716,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   /* Start Drawing */
   DRW_state_reset();
 
-  DRW_curves_update();
+  DRW_curves_update(*DRW_manager_get());
 
   drw_engines_draw_scene();
 
@@ -2815,7 +2812,6 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 #else
     DST.buffer_finish_called = true;
     // DRW_instance_buffer_finish(DST.vmempool->idatalist);
-    drw_resource_buffer_finish(DST.vmempool);
 #endif
   }
 
