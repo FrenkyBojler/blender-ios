@@ -70,7 +70,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  mesh_sculpt_nodes_evaluate(
+  mesh_sculpt_nodes_evaluate<float3>(
       depsgraph, object, *ss.cache, position_data.eval, verts, translations);
   scale_translations(translations, tls.factors);
   scale_translations(translations, ss.cache->bstrength);
@@ -96,7 +96,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
-  grids_sculpt_nodes_evaluate(
+  grids_sculpt_nodes_evaluate<float3>(
       depsgraph, object, *ss.cache, subdiv_ccg, grids, positions, translations);
   scale_translations(translations, tls.factors);
   scale_translations(translations, ss.cache->bstrength);
@@ -121,7 +121,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  bmesh_sculpt_nodes_evaluate(depsgraph, object, *ss.cache, verts, positions, translations);
+  bmesh_sculpt_nodes_evaluate<float3>(depsgraph, object, *ss.cache, verts, positions, translations);
   scale_translations(translations, tls.factors);
   scale_translations(translations, ss.cache->bstrength);
 

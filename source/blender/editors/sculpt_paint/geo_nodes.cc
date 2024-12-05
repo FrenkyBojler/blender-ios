@@ -22,11 +22,12 @@
 
 namespace blender::ed::sculpt_paint {
 
+template <typename T>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   Object &object,
                                   StrokeCache &cache,
                                   bke::SculptFieldContext &context,
-                                  MutableSpan<float3> &translations)
+                                  MutableSpan<T> outputs)
 {
   const bNodeTree &tree = *cache.node_tree;
 
@@ -39,15 +40,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
   /* Nothing to do */
   if (num_outputs == 0) {
-    translations.fill(float3(0.0f));
-    return;
-  }
-
-  const char *type = tree.interface_outputs()[0]->socket_type;
-
-  /* Only allow vector outputs */
-  if (!STREQ(type, "NodeSocketVector")) {
-    translations.fill(float3(0.0f));
+    outputs.fill(T(0.0f));
     return;
   }
 
@@ -146,10 +139,10 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
 
   bke::SocketValueVariant output = std::move(*param_outputs[0].get<bke::SocketValueVariant>());
-  fn::Field<float3> output_field = output.get<fn::Field<float3>>();
 
-  fn::FieldEvaluator evaluator{context, translations.size()};
-  evaluator.add_with_destination(output_field, translations);
+  fn::Field<T> output_field = output.get<fn::Field<T>>();
+  fn::FieldEvaluator evaluator{context, outputs.size()};
+  evaluator.add_with_destination(output_field, outputs);
   evaluator.evaluate();
 
   for (const int i : param_outputs.index_range()) {
@@ -160,12 +153,13 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
 }
 
+template <typename T>
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                 Object &object,
                                 StrokeCache &cache,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
-                                MutableSpan<float3> translations)
+                                MutableSpan<T> translations)
 {
   Array<float3> positions(verts.size());
 
@@ -176,29 +170,79 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
   bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts);
 
-  sculpt_nodes_evaluate(depsgraph, object, cache, context, translations);
+  sculpt_nodes_evaluate<T>(depsgraph, object, cache, context, translations);
 }
 
+template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
+                                Object& object,
+                                StrokeCache& cache,
+                                const Span<float3> position_eval,
+                                const Span<int> verts,
+                                MutableSpan<float3> translations);
+
+template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
+                                Object& object,
+                                StrokeCache& cache,
+                                const Span<float3> position_eval,
+                                const Span<int> verts,
+                                MutableSpan<float3> factors);
+
+template <typename T>
 void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  StrokeCache &cache,
                                  SubdivCCG &subdiv_ccg,
                                  Span<int> grids,
                                  Span<float3> positions,
-                                 MutableSpan<float3> translations)
+                                 MutableSpan<T> translations)
 {
   bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
-  sculpt_nodes_evaluate(depsgraph, object, cache, context, translations);
+  sculpt_nodes_evaluate<T>(depsgraph, object, cache, context, translations);
 }
 
+
+template void grids_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
+                                Object& object,
+                                StrokeCache& cache,
+                                SubdivCCG& subdiv_ccg,
+                                Span<int> grids,
+                                Span<float3> positions,
+                                MutableSpan<float3> translations);
+
+template void grids_sculpt_nodes_evaluate<float>(const Depsgraph& depsgraph,
+                                Object& object,
+                                StrokeCache& cache,
+                                SubdivCCG& subdiv_ccg,
+                                Span<int> grids,
+                                Span<float3> positions,
+                                MutableSpan<float> factors);
+
+template <typename T>
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  StrokeCache &cache,
                                  const Set<BMVert *, 0> &verts,
                                  Span<float3> positions,
-                                 MutableSpan<float3> translations)
+                                 MutableSpan<T> translations)
 {
   bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
-  sculpt_nodes_evaluate(depsgraph, object, cache, context, translations);
+  sculpt_nodes_evaluate<T>(depsgraph, object, cache, context, translations);
 }
+
+template void bmesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
+  Object& object,
+  StrokeCache& cache,
+  const Set<BMVert*, 0>& verts,
+  Span<float3> positions,
+  MutableSpan<float3> translations);
+
+template void bmesh_sculpt_nodes_evaluate<float>(const Depsgraph& depsgraph,
+  Object& object,
+  StrokeCache& cache,
+  const Set<BMVert*, 0>& verts,
+  Span<float3> positions,
+  MutableSpan<float> factors);
+
+
+
 }  // namespace blender::ed::sculpt_paint
