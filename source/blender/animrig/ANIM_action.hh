@@ -212,6 +212,12 @@ class Action : public ::bAction {
    */
   void slot_identifier_propagate(Main &bmain, const Slot &slot);
 
+  /**
+   * Return the slot in this action with the given identifier, if any.
+   *
+   * \return A pointer to the matching slot, or nullptr if no matching slot is
+   * found.
+   */
   Slot *slot_find_by_identifier(StringRefNull slot_identifier);
 
   /**
