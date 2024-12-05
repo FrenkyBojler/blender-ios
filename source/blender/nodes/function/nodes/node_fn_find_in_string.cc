@@ -7,17 +7,17 @@
 #include <charconv>
 #include <iomanip>
 
-namespace blender::nodes::node_fn_string_find_token_cc {
+namespace blender::nodes::node_fn_find_in_string_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("String").hide_label();
-  b.add_input<decl::String>("Token");
+  b.add_input<decl::String>("Seach");
   b.add_input<decl::Int>("Start Char").min(0);
   b.add_input<decl::Int>("Next Find").min(0).default_value(1);
   b.add_input<decl::Bool>("Overlap Matches");
-  b.add_output<decl::Int>("Token Position");
-  b.add_output<decl::Int>("Token Count");
+  b.add_output<decl::Int>("Position");
+  b.add_output<decl::Int>("Count");
 }
 
 std::u32string bli_str_utf8_as_u32string(const StringRef u8src)
@@ -120,7 +120,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   static auto token_position_count =
       mf::build::SI5_SO2<std::string, std::string, int, int, bool, int, int>(
-          "String Find Token",
+          "Find in String",
           [](const std::string &text,
              const std::string &token,
              const int &start,
@@ -139,7 +139,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_STRING_FIND_TOKEN, "String Find Token", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, FN_NODE_FIND_IN_STRING, "Find in String", NODE_CLASS_CONVERTER);
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
   blender::bke::node_register_type(&ntype);
