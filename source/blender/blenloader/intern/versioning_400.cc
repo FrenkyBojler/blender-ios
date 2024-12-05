@@ -3311,23 +3311,22 @@ static void convert_grease_pencil_material_stroke_fill_toggle_to_attributes(Main
 
       bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
       /* TODO: Handle the case where the attribute already exists? */
-      if (!attributes.contains("show_stroke")) {
-        bke::SpanAttributeWriter<bool> show_stroke =
-            attributes.lookup_or_add_for_write_only_span<bool>("show_stroke",
+      if (!attributes.contains("is_stroke")) {
+        bke::SpanAttributeWriter<bool> is_stroke =
+            attributes.lookup_or_add_for_write_only_span<bool>("is_stroke",
                                                                bke::AttrDomain::Curve);
 
-        show_stroke.span.copy_from(material_uses_stroke);
-        show_stroke.finish();
+        is_stroke.span.copy_from(material_uses_stroke);
+        is_stroke.finish();
       }
 
       /* TODO: Handle the case where the attribute already exists? */
-      if (!attributes.contains("show_fill")) {
-        bke::SpanAttributeWriter<bool> show_fill =
-            attributes.lookup_or_add_for_write_only_span<bool>("show_fill",
-                                                               bke::AttrDomain::Curve);
+      if (!attributes.contains("is_fill")) {
+        bke::SpanAttributeWriter<bool> is_fill =
+            attributes.lookup_or_add_for_write_only_span<bool>("is_fill", bke::AttrDomain::Curve);
 
-        show_fill.span.copy_from(material_uses_fill);
-        show_fill.finish();
+        is_fill.span.copy_from(material_uses_fill);
+        is_fill.finish();
       }
     }
   }

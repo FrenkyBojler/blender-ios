@@ -1199,10 +1199,10 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
 
-    const VArray<bool> use_line = *attributes.lookup_or_default<bool>(
-        "use_line", bke::AttrDomain::Curve, true);
-    const VArray<bool> use_fill = *attributes.lookup_or_default<bool>(
-        "use_fill", bke::AttrDomain::Curve, false);
+    const VArray<bool> is_stroke = *attributes.lookup_or_default<bool>(
+        "is_stroke", bke::AttrDomain::Curve, true);
+    const VArray<bool> is_fill = *attributes.lookup_or_default<bool>(
+        "is_fill", bke::AttrDomain::Curve, false);
 
     const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
@@ -1270,7 +1270,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       verts_slice.first().mat = -1;
 
       /* If the stroke has more than 2 points, add the triangle indices to the index buffer. */
-      if (points.size() >= 3 && use_fill[curve_i]) {
+      if (points.size() >= 3 && is_fill[curve_i]) {
         const Span<int3> tris_slice = triangles.slice(tris_start_offset, points.size() - 2);
         for (const int3 tri : tris_slice) {
           GPU_indexbuf_add_tri_verts(&ibo,
@@ -1280,38 +1280,40 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         }
       }
 
-      /* Write all the point attributes to the vertex buffers. Create a quad for each point. */
-      const float u_scale = u_scales[curve_i];
-      const float u_translation = u_translations[curve_i];
-      for (const int i : IndexRange(points.size())) {
-        const int idx = i + 1;
-        const float u_stroke = u_scale * (i > 0 ? lengths[i - 1] : 0.0f) + u_translation;
-        populate_point(verts_range,
-                       curve_i,
-                       start_caps[curve_i],
-                       end_caps[curve_i],
-                       points[i],
-                       idx,
-                       u_stroke,
-                       texture_matrix,
-                       verts_slice[idx],
-                       cols_slice[idx]);
-      }
+      if (is_stroke[curve_i]) {
+        /* Write all the point attributes to the vertex buffers. Create a quad for each point. */
+        const float u_scale = u_scales[curve_i];
+        const float u_translation = u_translations[curve_i];
+        for (const int i : IndexRange(points.size())) {
+          const int idx = i + 1;
+          const float u_stroke = u_scale * (i > 0 ? lengths[i - 1] : 0.0f) + u_translation;
+          populate_point(verts_range,
+                         curve_i,
+                         start_caps[curve_i],
+                         end_caps[curve_i],
+                         points[i],
+                         idx,
+                         u_stroke,
+                         texture_matrix,
+                         verts_slice[idx],
+                         cols_slice[idx]);
+        }
 
-      if (is_cyclic) {
-        const int idx = points.size() + 1;
-        const float u = points.size() > 1 ? lengths[points.size() - 1] : 0.0f;
-        const float u_stroke = u_scale * u + u_translation;
-        populate_point(verts_range,
-                       curve_i,
-                       start_caps[curve_i],
-                       end_caps[curve_i],
-                       points[0],
-                       idx,
-                       u_stroke,
-                       texture_matrix,
-                       verts_slice[idx],
-                       cols_slice[idx]);
+        if (is_cyclic) {
+          const int idx = points.size() + 1;
+          const float u = points.size() > 1 ? lengths[points.size() - 1] : 0.0f;
+          const float u_stroke = u_scale * u + u_translation;
+          populate_point(verts_range,
+                         curve_i,
+                         start_caps[curve_i],
+                         end_caps[curve_i],
+                         points[0],
+                         idx,
+                         u_stroke,
+                         texture_matrix,
+                         verts_slice[idx],
+                         cols_slice[idx]);
+        }
       }
 
       /* Last vertex is not drawn. */
