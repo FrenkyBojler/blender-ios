@@ -87,8 +87,8 @@ class Action : public ::bAction {
 
   /* Discriminators for 'legacy' and 'layered' Actions.
    *
-   * Note: these are transitional APIs, and should eventually be removed when
-   * legacy actions become fully unsupported in the other code.
+   * Note: these are transitional APIs, and should eventually be relegated to
+   * only being used in versioning code.
    */
   /**
    * Return whether this Action has any data at all.
