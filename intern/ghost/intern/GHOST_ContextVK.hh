@@ -57,6 +57,17 @@ struct GHOST_ContextVK_WindowInfo {
   int size[2];
 };
 
+struct BinarySemaphore {
+ private:
+  VkSemaphore semaphore_ = VK_NULL_HANDLE;
+  bool dirty_ = true;
+
+ public:
+  void destroy(VkDevice vk_device);
+  const VkSemaphore &get(VkDevice vk_device);
+  void tag_dirty();
+};
+
 class GHOST_ContextVK : public GHOST_Context {
  public:
   /**
@@ -187,6 +198,8 @@ class GHOST_ContextVK : public GHOST_Context {
   VkSurfaceKHR m_surface;
   VkSwapchainKHR m_swapchain;
   std::vector<VkImage> m_swapchain_images;
+
+  std::vector<BinarySemaphore> m_images_present_semaphores_;
 
   VkExtent2D m_render_extent;
   VkExtent2D m_render_extent_min;

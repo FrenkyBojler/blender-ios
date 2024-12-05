@@ -489,6 +489,10 @@ GHOST_ContextVK::~GHOST_ContextVK()
 
     destroySwapchain();
 
+    for (BinarySemaphore &present_semaphore : m_images_present_semaphores_) {
+      present_semaphore.destroy(device_vk.device);
+    }
+    m_images_present_semaphores_.clear();
     if (m_command_buffer != VK_NULL_HANDLE) {
       vkFreeCommandBuffers(device_vk.device, m_command_pool, 1, &m_command_buffer);
       m_command_buffer = VK_NULL_HANDLE;
@@ -519,6 +523,34 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
     m_fence = VK_NULL_HANDLE;
   }
   return GHOST_kSuccess;
+}
+
+void BinarySemaphore::destroy(VkDevice vk_device)
+{
+  if (this->semaphore_) {
+    vkDestroySemaphore(vk_device, this->semaphore_, nullptr);
+    this->semaphore_ = VK_NULL_HANDLE;
+    this->dirty_ = true;
+  }
+}
+
+const VkSemaphore &BinarySemaphore::get(VkDevice vk_device)
+{
+  if (this->semaphore_ && !this->dirty_) {
+    return this->semaphore_;
+  }
+  destroy(vk_device);
+  VkSemaphore present_wait_semaphore;
+  VkSemaphoreCreateInfo semaphore_info = {};
+  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  vkCreateSemaphore(vk_device, &semaphore_info, nullptr, &this->semaphore_);
+  this->dirty_ = false;
+  return this->semaphore_;
+}
+
+void BinarySemaphore::tag_dirty()
+{
+  this->dirty_ = true;
 }
 
 GHOST_TSuccess GHOST_ContextVK::swapBuffers()
@@ -565,17 +597,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VK_CHECK(vkResetFences(device, 1, &m_fence));
   // printf("%d\n", image_index);
 
-  VkSemaphore present_wait_semaphore;
-  VkSemaphoreCreateInfo semaphore_info = {};
-  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-  vkCreateSemaphore(device, &semaphore_info, nullptr, &present_wait_semaphore);
+  BinarySemaphore &present_semaphore = m_images_present_semaphores_[image_index];
 
   GHOST_VulkanSwapChainData swap_chain_data = {};
   swap_chain_data.image = m_swapchain_images[image_index];
   swap_chain_data.format = m_surface_format.format;
   swap_chain_data.extent = m_render_extent;
   swap_chain_data.present_wait_semaphore;
-  swap_chain_data.present_wait_semaphore = present_wait_semaphore;
+  swap_chain_data.present_wait_semaphore = present_semaphore.get(device);
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
   }
@@ -588,7 +617,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   present_info.pSwapchains = &m_swapchain;
   present_info.pImageIndices = &image_index;
   present_info.pResults = nullptr;
-  present_info.pWaitSemaphores = &present_wait_semaphore;
+  present_info.pWaitSemaphores = &swap_chain_data.present_wait_semaphore;
   present_info.waitSemaphoreCount = 1;
 
   result = VK_SUCCESS;
@@ -603,9 +632,11 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     if (swap_buffers_post_callback_) {
       swap_buffers_post_callback_();
     }
+    present_semaphore.tag_dirty();
     return GHOST_kSuccess;
   }
   else if (result != VK_SUCCESS) {
+    present_semaphore.tag_dirty();
     fprintf(stderr,
             "Error: Failed to present swap chain image : %s\n",
             vulkan_error_as_string(result));
@@ -910,7 +941,9 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr);
   m_swapchain_images.resize(image_count);
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
-
+  while (m_images_present_semaphores_.size() < image_count) {
+    m_images_present_semaphores_.push_back({});
+  }
   VkFenceCreateInfo fence_info = {};
   fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   VK_CHECK(vkCreateFence(device, &fence_info, nullptr, &m_fence));
