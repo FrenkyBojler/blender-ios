@@ -3136,11 +3136,11 @@ void node_internal_relink(bNodeTree *ntree, bNode *node)
 
 float2 node_location_global(const bNode &node)
 {
-  float2 view_loc(node.locx, node.locy);
+  float2 location(node.locx, node.locy);
   for (const bNode *parent = node.parent; parent; parent = parent->parent) {
-    view_loc += float2(parent->locx, parent->locy);
+    location += float2(parent->locx, parent->locy);
   }
-  return view_loc;
+  return location;
 }
 
 float2 node_location_to_parent_space(const bNode &node, const float2 view_loc)
