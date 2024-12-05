@@ -69,31 +69,35 @@ static void add_eval_dependencies_from_socket(bNodeSocket &socket,
   }
   switch (socket.type) {
     case SOCK_OBJECT: {
-      if (Object *object = ((bNodeSocketValueObject *)socket.default_value)->value) {
+      if (Object *object = static_cast<bNodeSocketValueObject *>(socket.default_value)->value) {
         deps.add_object(object);
       }
       break;
     }
     case SOCK_COLLECTION: {
-      if (Collection *collection = ((bNodeSocketValueCollection *)socket.default_value)->value) {
+      if (Collection *collection =
+              static_cast<bNodeSocketValueCollection *>(socket.default_value)->value)
+      {
         deps.add_generic_id(reinterpret_cast<ID *>(collection));
       }
       break;
     }
     case SOCK_MATERIAL: {
-      if (Material *material = ((bNodeSocketValueMaterial *)socket.default_value)->value) {
+      if (Material *material =
+              static_cast<bNodeSocketValueMaterial *>(socket.default_value)->value)
+      {
         deps.add_generic_id(reinterpret_cast<ID *>(material));
       }
       break;
     }
     case SOCK_TEXTURE: {
-      if (Tex *texture = ((bNodeSocketValueTexture *)socket.default_value)->value) {
+      if (Tex *texture = static_cast<bNodeSocketValueTexture *>(socket.default_value)->value) {
         deps.add_generic_id(reinterpret_cast<ID *>(texture));
       }
       break;
     }
     case SOCK_IMAGE: {
-      if (Image *image = ((bNodeSocketValueImage *)socket.default_value)->value) {
+      if (Image *image = static_cast<bNodeSocketValueImage *>(socket.default_value)->value) {
         deps.add_generic_id(reinterpret_cast<ID *>(image));
       }
       break;
