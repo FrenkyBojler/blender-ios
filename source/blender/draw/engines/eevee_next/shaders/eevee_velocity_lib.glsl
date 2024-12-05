@@ -134,7 +134,9 @@ void velocity_vertex(
 {
   VelocityIndex vel = velocity_indirection_buf[resource_id];
   mat4 obmat_prev = velocity_obj_prev_buf[vel.obj.ofs[STEP_PREVIOUS]];
-  mat4 obmat_next = velocity_obj_next_buf[vel.obj.ofs[STEP_NEXT]];
+  int next_offset = vel.obj.ofs[STEP_NEXT] >= 0 ? vel.obj.ofs[STEP_NEXT] :
+                                                  vel.obj.ofs[STEP_CURRENT];
+  mat4 obmat_next = velocity_obj_next_buf[next_offset];
   vec3 P_prev = transform_point(obmat_prev, lP_prev);
   vec3 P_next = transform_point(obmat_next, lP_next);
   vec3 P = transform_point(ModelMatrix, lP);
