@@ -522,8 +522,22 @@ class Strip : public ::ActionStrip {
     return Type(this->strip_type);
   }
 
+  /**
+   * Return whether the strip's frame range extends from -infinity to +infinity.
+   */
   bool is_infinite() const;
+
+  /**
+   * Return whether the given frame is within the strip's frame range.
+   *
+   * \note Strip frame ranges are inclusive on both sides.
+   */
   bool contains_frame(float frame_time) const;
+
+  /**
+   * Return whether the end of the strip's frame range matches the given frame
+   * time.
+   */
   bool is_last_frame(float frame_time) const;
 
   /**
