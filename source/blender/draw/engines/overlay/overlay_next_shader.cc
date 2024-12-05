@@ -132,259 +132,71 @@ static void shader_patch_common(gpu::shader::ShaderCreateInfo &info)
       "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
 }
 
-static void shader_patch_edit_mesh_normal_common(gpu::shader::ShaderCreateInfo &info)
-{
-  shader_patch_common(info);
-  info.defines_.clear(); /* Removes WORKAROUND_INDEX_LOAD_INCLUDE. */
-  info.vertex_inputs_.clear();
-  info.additional_info("gpu_index_buffer_load");
-  info.storage_buf(1, Qualifier::READ, "float", "pos[]", Frequency::GEOMETRY);
-}
-
 ShaderModule::ShaderModule(const SelectionType selection_type, const bool clipping_enabled)
     : selection_type_(selection_type), clipping_enabled_(clipping_enabled)
 {
   /** Shaders */
+  attribute_viewer_mesh = static_clippable_shader("overlay_viewer_attribute_mesh");
+  attribute_viewer_pointcloud = static_clippable_shader("overlay_viewer_attribute_pointcloud");
+  attribute_viewer_curve = static_clippable_shader("overlay_viewer_attribute_curve");
+  attribute_viewer_curves = static_clippable_shader("overlay_viewer_attribute_curves");
 
-  attribute_viewer_mesh = shader(
-      "overlay_viewer_attribute_mesh", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info(
-            "overlay_viewer_attribute_common", "draw_view", "draw_modelmat_new", "draw_globals");
-      });
-  attribute_viewer_pointcloud = shader("overlay_viewer_attribute_pointcloud",
-                                       [](gpu::shader::ShaderCreateInfo &info) {
-                                         info.additional_infos_.clear();
-                                         info.additional_info("overlay_viewer_attribute_common",
-                                                              "draw_pointcloud_new",
-                                                              "draw_globals",
-                                                              "draw_view",
-                                                              "draw_modelmat_new");
-                                       });
-  attribute_viewer_curve = shader(
-      "overlay_viewer_attribute_curve", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info(
-            "overlay_viewer_attribute_common", "draw_view", "draw_globals", "draw_modelmat_new");
-      });
-  attribute_viewer_curves = shader("overlay_viewer_attribute_curves",
-                                   [](gpu::shader::ShaderCreateInfo &info) {
-                                     info.additional_infos_.clear();
-                                     info.additional_info("overlay_viewer_attribute_common",
-                                                          "draw_hair_new",
-                                                          "draw_view",
-                                                          "draw_globals",
-                                                          "draw_modelmat_new");
-                                   });
+  armature_degrees_of_freedom = static_clippable_shader("overlay_armature_dof");
 
-  armature_degrees_of_freedom = shader(
-      "overlay_armature_dof", [](gpu::shader::ShaderCreateInfo &info) {
-        info.storage_buf(0, Qualifier::READ, "ExtraInstanceData", "data_buf[]");
-        info.define("inst_obmat", "data_buf[gl_InstanceID].object_to_world_");
-        info.define("color", "data_buf[gl_InstanceID].color_");
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-      });
+  curve_edit_points = static_clippable_shader("overlay_edit_curves_point");
+  curve_edit_line = static_clippable_shader("overlay_edit_particle_strand");
 
-  curve_edit_points = shader("overlay_edit_curves_point", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_common(info);
-  });
-  curve_edit_line = shader("overlay_edit_particle_strand",
-                           [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
+  extra_point = static_selectable_shader("overlay_extra_point");
 
-  extra_point = selectable_shader("overlay_extra_point", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.vertex_inputs_.pop_last();
-    info.push_constants_.pop_last();
-    info.additional_info("draw_view", "draw_modelmat_new", "draw_globals")
-        .typedef_source("overlay_shader_shared.h")
-        .storage_buf(0, Qualifier::READ, "VertexData", "data_buf[]")
-        .define("pos", "data_buf[gl_VertexID].pos_.xyz")
-        .define("ucolor", "data_buf[gl_VertexID].color_");
-  });
+  grid_background = static_clippable_shader("overlay_grid_background");
 
-  grid_background = shader("overlay_grid_background", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_common(info);
-    info.push_constant(gpu::shader::Type::VEC3, "tile_scale");
-    info.define("tile_pos", "vec3(0.0)");
-  });
+  grid_image = static_clippable_shader("overlay_grid_image");
 
-  grid_image = shader("overlay_grid_image", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_common(info);
-    info.storage_buf(0, Qualifier::READ, "vec3", "tile_pos_buf[]")
-        .define("tile_pos", "tile_pos_buf[gl_InstanceID]")
-        .define("tile_scale", "vec3(1.0)");
-    ;
-  });
+  legacy_curve_edit_wires = static_clippable_shader("overlay_edit_curve_wire");
+  legacy_curve_edit_points = static_clippable_shader("overlay_edit_curve_point");
 
-  legacy_curve_edit_wires = shader(
-      "overlay_edit_curve_wire",
-      [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-  legacy_curve_edit_points = shader(
-      "overlay_edit_curve_point",
-      [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
+  mesh_analysis = static_clippable_shader("overlay_edit_mesh_analysis");
 
-  mesh_analysis = shader("overlay_edit_mesh_analysis",
-                         [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
+  mesh_edit_face = static_clippable_shader("overlay_edit_mesh_face");
+  mesh_edit_vert = static_clippable_shader("overlay_edit_mesh_vert");
+  mesh_edit_depth = static_clippable_shader("overlay_edit_mesh_depth");
+  mesh_edit_skin_root = static_clippable_shader("overlay_edit_mesh_skin_root");
 
-  mesh_edit_face = shader("overlay_edit_mesh_face", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_common(info);
-    info.additional_info("overlay_edit_mesh_common");
-  });
-  mesh_edit_vert = shader("overlay_edit_mesh_vert", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_common(info);
-    info.additional_info("overlay_edit_mesh_common");
-  });
+  mesh_face_normal = static_clippable_shader("overlay_mesh_face_normal");
+  mesh_face_normal_subdiv = static_clippable_shader("overlay_mesh_face_normal_subdiv");
+  mesh_loop_normal = static_clippable_shader("overlay_mesh_loop_normal");
+  mesh_loop_normal_subdiv = static_clippable_shader("overlay_mesh_loop_normal_subdiv");
+  mesh_vert_normal = static_clippable_shader("overlay_mesh_vert_normal");
 
-  mesh_edit_depth = shader("overlay_edit_mesh_depth",
-                           [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
+  outline_prepass_mesh = static_clippable_shader("overlay_outline_prepass_mesh");
+  outline_prepass_curves = static_clippable_shader("overlay_outline_prepass_curves");
+  outline_prepass_pointcloud = static_clippable_shader("overlay_outline_prepass_pointcloud");
+  outline_prepass_gpencil = static_clippable_shader("overlay_outline_prepass_gpencil");
 
-  mesh_edit_skin_root = shader(
-      "overlay_edit_mesh_skin_root", [](gpu::shader::ShaderCreateInfo &info) {
-        shader_patch_common(info);
-        /* TODO(fclem): Use correct vertex format. For now we read the format manually. */
-        info.storage_buf(0, Qualifier::READ, "float", "size[]", Frequency::GEOMETRY);
-        info.vertex_inputs_.clear();
-        info.define("VERTEX_PULL");
-      });
+  particle_edit_vert = static_clippable_shader("overlay_edit_particle_point");
+  particle_edit_edge = static_clippable_shader("overlay_edit_particle_strand");
 
-  mesh_face_normal = shader("overlay_edit_mesh_normal", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_edit_mesh_normal_common(info);
-    info.define("FACE_NORMAL");
-    info.push_constant(gpu::shader::Type::BOOL, "hq_normals");
-    info.storage_buf(0, Qualifier::READ, "uint", "norAndFlag[]", Frequency::GEOMETRY);
-  });
+  paint_region_edge = static_clippable_shader("overlay_paint_wire");
+  paint_region_face = static_clippable_shader("overlay_paint_face");
+  paint_region_vert = static_clippable_shader("overlay_paint_point");
+  paint_texture = static_clippable_shader("overlay_paint_texture");
+  paint_weight = static_clippable_shader("overlay_paint_weight");
+  paint_weight_fake_shading = static_clippable_shader("overlay_paint_weight_fake_shading");
 
-  mesh_face_normal_subdiv = shader(
-      "overlay_edit_mesh_normal", [](gpu::shader::ShaderCreateInfo &info) {
-        shader_patch_edit_mesh_normal_common(info);
-        info.define("FACE_NORMAL");
-        info.define("FLOAT_NORMAL");
-        info.storage_buf(0, Qualifier::READ, "vec4", "norAndFlag[]", Frequency::GEOMETRY);
-      });
+  sculpt_mesh = static_clippable_shader("overlay_sculpt_mask");
+  sculpt_curves = static_clippable_shader("overlay_sculpt_curves_selection");
+  sculpt_curves_cage = static_clippable_shader("overlay_sculpt_curves_cage");
 
-  mesh_loop_normal = shader("overlay_edit_mesh_normal", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_edit_mesh_normal_common(info);
-    info.define("LOOP_NORMAL");
-    info.push_constant(gpu::shader::Type::BOOL, "hq_normals");
-    info.storage_buf(0, Qualifier::READ, "uint", "lnor[]", Frequency::GEOMETRY);
-  });
+  uv_analysis_stretch_angle = static_clippable_shader("overlay_edit_uv_stretching_angle");
+  uv_analysis_stretch_area = static_clippable_shader("overlay_edit_uv_stretching_area");
+  uv_edit_vert = static_clippable_shader("overlay_edit_uv_verts");
+  uv_edit_face = static_clippable_shader("overlay_edit_uv_faces");
+  uv_edit_facedot = static_clippable_shader("overlay_edit_uv_face_dots");
+  uv_image_borders = static_clippable_shader("overlay_edit_uv_tiled_image_borders");
+  uv_brush_stencil = static_clippable_shader("overlay_edit_uv_stencil_image");
+  uv_paint_mask = static_clippable_shader("overlay_edit_uv_mask_image");
 
-  mesh_loop_normal_subdiv = shader(
-      "overlay_edit_mesh_normal", [](gpu::shader::ShaderCreateInfo &info) {
-        shader_patch_edit_mesh_normal_common(info);
-        info.define("LOOP_NORMAL");
-        info.define("FLOAT_NORMAL");
-        info.storage_buf(0, Qualifier::READ, "vec4", "lnor[]", Frequency::GEOMETRY);
-      });
-
-  mesh_vert_normal = shader("overlay_edit_mesh_normal", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_edit_mesh_normal_common(info);
-    info.define("VERT_NORMAL");
-    info.storage_buf(0, Qualifier::READ, "uint", "vnor[]", Frequency::GEOMETRY);
-  });
-
-  outline_prepass_mesh = shader(
-      "overlay_outline_prepass_mesh", [](gpu::shader::ShaderCreateInfo &info) {
-        shader_patch_common(info);
-        info.additional_info("draw_object_infos_new", "overlay_outline_prepass");
-      });
-  outline_prepass_curves = shader(
-      "overlay_outline_prepass_curves", [](gpu::shader::ShaderCreateInfo &info) {
-        shader_patch_common(info);
-        info.additional_info("draw_hair_new", "draw_object_infos_new", "overlay_outline_prepass");
-      });
-  outline_prepass_pointcloud = shader(
-      "overlay_outline_prepass_pointcloud", [](gpu::shader::ShaderCreateInfo &info) {
-        shader_patch_common(info);
-        info.additional_info(
-            "draw_pointcloud_new", "draw_object_infos_new", "overlay_outline_prepass");
-      });
-  outline_prepass_gpencil = shader(
-      "overlay_outline_prepass_gpencil", [](gpu::shader::ShaderCreateInfo &info) {
-        shader_patch_common(info);
-        info.additional_info("draw_gpencil_new", "draw_object_infos_new");
-      });
-
-  particle_edit_vert = shader(
-      "overlay_edit_particle_point",
-      [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-  particle_edit_edge = shader(
-      "overlay_edit_particle_strand",
-      [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-
-  paint_region_edge = shader("overlay_paint_wire", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_common(info);
-  });
-  paint_region_face = shader("overlay_paint_face", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_common(info);
-  });
-  paint_region_vert = shader("overlay_paint_point", [](gpu::shader::ShaderCreateInfo &info) {
-    shader_patch_common(info);
-  });
-  paint_texture = shader("overlay_paint_texture",
-                         [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-  paint_weight = shader("overlay_paint_weight",
-                        [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-  paint_weight_fake_shading = shader("overlay_paint_weight",
-                                     [](gpu::shader::ShaderCreateInfo &info) {
-                                       shader_patch_common(info);
-                                       info.define("FAKE_SHADING");
-                                       info.push_constant(gpu::shader::Type::VEC3, "light_dir");
-                                     });
-
-  sculpt_mesh = shader("overlay_sculpt_mask",
-                       [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-  sculpt_curves = shader("overlay_sculpt_curves_selection",
-                         [](gpu::shader::ShaderCreateInfo &info) {
-                           shader_patch_common(info);
-                           info.additional_info("draw_hair_new");
-                         });
-  sculpt_curves_cage = shader(
-      "overlay_sculpt_curves_cage",
-      [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-
-  uv_analysis_stretch_angle = shader("overlay_edit_uv_stretching_angle",
-                                     [](gpu::shader::ShaderCreateInfo &info) {
-                                       shader_patch_common(info);
-                                       info.additional_info("overlay_edit_uv_stretching");
-                                     });
-  uv_analysis_stretch_area = shader("overlay_edit_uv_stretching_area",
-                                    [](gpu::shader::ShaderCreateInfo &info) {
-                                      shader_patch_common(info);
-                                      info.additional_info("overlay_edit_uv_stretching");
-                                    });
-  uv_edit_vert = shader("overlay_edit_uv_verts",
-                        [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-  uv_edit_face = shader("overlay_edit_uv_faces",
-                        [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-  uv_edit_facedot = shader("overlay_edit_uv_face_dots",
-                           [](gpu::shader::ShaderCreateInfo &info) { shader_patch_common(info); });
-  uv_image_borders = shader("overlay_edit_uv_tiled_image_borders",
-                            [](gpu::shader::ShaderCreateInfo &info) {
-                              info.additional_infos_.clear();
-                              info.push_constant(gpu::shader::Type::VEC3, "tile_pos");
-                              info.define("tile_scale", "vec3(1.0)");
-                              info.additional_info("draw_view");
-                            });
-  uv_brush_stencil = shader("overlay_edit_uv_stencil_image",
-                            [](gpu::shader::ShaderCreateInfo &info) {
-                              info.additional_infos_.clear();
-                              info.push_constant(gpu::shader::Type::VEC2, "brush_offset");
-                              info.push_constant(gpu::shader::Type::VEC2, "brush_scale");
-                              info.additional_info("draw_view");
-                            });
-  uv_paint_mask = shader("overlay_edit_uv_mask_image", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.push_constant(gpu::shader::Type::VEC2, "brush_offset");
-    info.push_constant(gpu::shader::Type::VEC2, "brush_scale");
-    info.additional_info("draw_view");
-  });
-
-  xray_fade = shader("overlay_xray_fade", [](gpu::shader::ShaderCreateInfo &info) {
-    info.sampler(2, ImageType::DEPTH_2D, "xrayDepthTexInfront");
-    info.sampler(3, ImageType::DEPTH_2D, "depthTexInfront");
-  });
+  xray_fade = static_clippable_shader("overlay_xray_fade");
 
   /** Selectable Shaders */
 

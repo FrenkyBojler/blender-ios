@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_create_info.hh"
+#include "overlay_common_info.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Extra shapes
@@ -173,25 +173,23 @@ FLAT(VEC4, fillColor)
 FLAT(VEC4, outlineColor)
 GPU_SHADER_INTERFACE_END()
 
-GPU_SHADER_CREATE_INFO(overlay_extra_point)
-DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_INFO(overlay_extra_point_base)
 /* TODO(fclem): Move the vertex shader to Overlay engine and remove this bypass. */
 DEFINE_VALUE("blender_srgb_to_framebuffer_space(a)", "a")
-VERTEX_IN(0, VEC3, pos)
-PUSH_CONSTANT(VEC4, ucolor)
 VERTEX_OUT(overlay_extra_point_iface)
 FRAGMENT_OUT(0, VEC4, fragColor)
 VERTEX_SOURCE("overlay_extra_point_vert.glsl")
 FRAGMENT_SOURCE("overlay_point_varying_color_varying_outline_aa_frag.glsl")
-ADDITIONAL_INFO(draw_modelmat)
+ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
+TYPEDEF_SOURCE("overlay_shader_shared.h")
+STORAGE_BUF(0, READ, VertexData, data_buf[])
+/*TODO(pragma37): Remove?*/
+DEFINE_VALUE("pos", "data_buf[gl_VertexID].pos_.xyz")
+DEFINE_VALUE("ucolor", "data_buf[gl_VertexID].color_");
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(overlay_extra_point_clipped)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(overlay_extra_point)
-ADDITIONAL_INFO(drw_clipped)
-GPU_SHADER_CREATE_END()
+OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_extra_point, overlay_extra_point_base)
 
 GPU_SHADER_INTERFACE_INFO(overlay_extra_loose_point_iface)
 SMOOTH(VEC4, finalColor)

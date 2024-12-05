@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
 #include "gpu_shader_create_info.hh"
 
 GPU_SHADER_CREATE_INFO(overlay_clipped)

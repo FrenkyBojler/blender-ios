@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_create_info.hh"
+#include "overlay_common_info.hh"
 
 GPU_SHADER_CREATE_INFO(overlay_frag_output)
 FRAGMENT_OUT(0, VEC4, fragColor)
@@ -333,22 +333,19 @@ GPU_SHADER_CREATE_INFO(overlay_armature_dof)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.h")
 VERTEX_IN(0, VEC2, pos)
-/* Per instance. Assumed to be in world coordinate already. */
-VERTEX_IN(1, VEC4, color)
-VERTEX_IN(2, MAT4, inst_obmat)
 VERTEX_OUT(overlay_armature_wire_iface)
 VERTEX_SOURCE("overlay_armature_dof_vert.glsl")
 FRAGMENT_SOURCE("overlay_armature_dof_solid_frag.glsl")
 ADDITIONAL_INFO(overlay_frag_output)
 ADDITIONAL_INFO(overlay_armature_common)
 ADDITIONAL_INFO(draw_globals)
+STORAGE_BUF(0, READ, ExtraInstanceData, data_buf[])
+/*TODO(pragma37): Remove?*/
+DEFINE_VALUE("inst_obmat", "data_buf[gl_InstanceID].object_to_world_")
+DEFINE_VALUE("color", "data_buf[gl_InstanceID].color_")
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(overlay_armature_dof_clipped)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(overlay_armature_dof)
-ADDITIONAL_INFO(drw_clipped)
-GPU_SHADER_CREATE_END()
+OVERLAY_INFO_CLIP_VARIATION(overlay_armature_dof)
 
 /** \} */
 
