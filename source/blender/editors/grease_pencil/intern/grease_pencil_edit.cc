@@ -2835,7 +2835,8 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
 
   ViewDepths *view_depths = nullptr;
   if (mode == ReprojectMode::Surface) {
-    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, &view_depths);
+    ED_view3d_depth_override(
+        depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &view_depths);
   }
 
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
@@ -2890,8 +2891,14 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
 
       const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      /* Pass in a copy of view_depths, DrawingPlacement fully owns (and frees) them. */
+      ViewDepths *view_depths_copy = nullptr;
+      if (view_depths != nullptr) {
+        view_depths_copy = static_cast<ViewDepths *>(MEM_dupallocN(view_depths));
+        view_depths_copy->depths = static_cast<float *>(MEM_dupallocN(view_depths->depths));
+      }
       const DrawingPlacement drawing_placement(
-          scene, *region, *v3d, *object, &layer, mode, offset, view_depths);
+          scene, *region, *v3d, *object, &layer, mode, offset, view_depths_copy);
 
       MutableSpan<float3> positions = curves.positions_for_write();
       points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
@@ -2901,6 +2908,10 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
 
       changed.store(true, std::memory_order_relaxed);
     });
+  }
+
+  if (view_depths != nullptr) {
+    ED_view3d_depths_free(view_depths);
   }
 
   if (mode == ReprojectMode::Surface) {
