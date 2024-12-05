@@ -292,7 +292,14 @@ class Action : public ::bAction {
   Slot *find_suitable_slot_for(const ID &animated_id);
 
   /**
-   * Return whether this Action actually has any animation data for the given slot.
+   * Return whether this Action actually has any animation data for the given
+   * slot.
+   *
+   * This method is distinct from `has_keyframes()` in the following ways:
+   *
+   * - This does *not* support legacy actions, and should not be called on them.
+   * - This returns true if there are any fcurves for the given slot *even if*
+   *   all those fcurves are empty (i.e. contain no keyframes).
    *
    * \see has_keyframes()
    */
@@ -300,6 +307,9 @@ class Action : public ::bAction {
 
   /**
    * Check if the slot with this handle has any keyframes.
+   *
+   * If called on a legacy action, `action_slot_handle` is ignored and the
+   * fcurves of the legacy action are checked for keyframes.
    *
    * \see is_slot_animated()
    */
