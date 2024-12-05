@@ -3138,18 +3138,17 @@ float2 node_location_global(const bNode &node)
 {
   float2 location(node.locx, node.locy);
   for (const bNode *parent = node.parent; parent; parent = parent->parent) {
-    location += float2(parent->locx, parent->locy);
+    location -= float2(parent->locx, parent->locy);
   }
   return location;
 }
 
-float2 node_location_to_parent_space(const bNode &node, const float2 view_loc)
+float2 node_location_to_parent_space(const bNode &node, const float2 &global_location)
 {
-  float2 loc = view_loc;
-  for (const bNode *parent = node.parent; parent; parent = parent->parent) {
-    loc -= float2(parent->locx, parent->locy);
+  if (bNode *parent = node.parent) {
+    return global_location - float2(parent->locx, parent->locy);
   }
-  return loc;
+  return global_location;
 }
 
 void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)
