@@ -124,7 +124,6 @@ set(SRC
   intern/usd_hash_types.hh
   intern/usd_hierarchy_iterator.hh
   intern/usd_hook.hh
-  intern/usd_usdtokens.hh
   intern/usd_light_convert.hh
   intern/usd_mesh_utils.hh
   intern/usd_utils.hh

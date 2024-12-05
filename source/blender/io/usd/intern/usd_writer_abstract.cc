@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "usd_writer_abstract.hh"
-#include "usd_usdtokens.hh"
 #include "usd_utils.hh"
 #include "usd_writer_material.hh"
 
@@ -29,6 +28,7 @@ static const pxr::TfToken preview_shader("previewShader", pxr::TfToken::Immortal
 static const pxr::TfToken preview_surface("UsdPreviewSurface", pxr::TfToken::Immortal);
 static const pxr::TfToken roughness("roughness", pxr::TfToken::Immortal);
 static const pxr::TfToken surface("surface", pxr::TfToken::Immortal);
+static const pxr::TfToken blender_ns("userProperties:blender", pxr::TfToken::Immortal);
 }  // namespace usdtokens
 
 static std::string get_mesh_active_uvlayer_name(const Object *ob)
@@ -295,10 +295,19 @@ void USDAbstractWriter::write_id_properties(const pxr::UsdPrim &prim,
   }
 
   if (usd_export_context_.export_params.author_blender_name) {
-    /* Author property of original blender Object name. */
-    const pxr::TfToken &token = GS(id.name) == ID_OB ? usdtokens::blender_ns_object_name :
-                                                       usdtokens::blender_ns_data_name;
-    set_id_name_to_prim(&id, token, prim);
+    if (GS(id.name) == ID_OB) {
+      /* Author property of original blender Object name. */
+      prim.CreateAttribute(pxr::TfToken(usdtokens::blender_ns.GetString() + ":object_name"),
+                           pxr::SdfValueTypeNames->String,
+                           true)
+          .Set<std::string>(std::string(id.name + 2));
+    }
+    else {
+      prim.CreateAttribute(pxr::TfToken(usdtokens::blender_ns.GetString() + ":data_name"),
+                           pxr::SdfValueTypeNames->String,
+                           true)
+          .Set<std::string>(std::string(id.name + 2));
+    }
   }
 
   if (id.properties) {
