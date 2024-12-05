@@ -691,9 +691,10 @@ static void move_nodes_to_parent_space(bNodeTree &ntree, Array<float2> &orig_pos
   }
 
   for (bNode *node : flatten_parent_tree(ntree)) {
-    const float2 loc = node_location_to_parent_space(*node, float2(node->locx, node->locy));
-    node->locx = loc.x;
-    node->locy = loc.y;
+    if (const bNode *parent = node->parent) {
+      node->locx -= parent->locx;
+      node->locy -= parent->locy;
+    }
   }
 }
 
@@ -3132,23 +3133,6 @@ void node_internal_relink(bNodeTree *ntree, bNode *node)
       node_remove_link(ntree, link);
     }
   }
-}
-
-float2 node_location_global(const bNode &node)
-{
-  float2 location(node.locx, node.locy);
-  for (const bNode *parent = node.parent; parent; parent = parent->parent) {
-    location -= float2(parent->locx, parent->locy);
-  }
-  return location;
-}
-
-float2 node_location_to_parent_space(const bNode &node, const float2 &global_location)
-{
-  if (bNode *parent = node.parent) {
-    return global_location - float2(parent->locx, parent->locy);
-  }
-  return global_location;
 }
 
 void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)

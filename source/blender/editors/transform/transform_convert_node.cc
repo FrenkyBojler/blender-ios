@@ -6,8 +6,6 @@
  * \ingroup edtransform
  */
 
-#include <iostream>
-
 #include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"

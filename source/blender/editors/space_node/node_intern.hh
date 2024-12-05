@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "BLI_bounds_types.hh"
 #include "BLI_compute_context.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_vector.hh"

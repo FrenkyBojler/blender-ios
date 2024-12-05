@@ -887,10 +887,15 @@ static const EnumPropertyItem *rna_node_static_type_itemf(bContext * /*C*/,
   return item;
 }
 
+static float2 node_parent_offset(const bNode &node)
+{
+  return node.parent ? float2(node.parent->locx, node.parent->locy) : float2(0);
+}
+
 static void rna_Node_location_get(PointerRNA *ptr, float *value)
 {
   const bNode *node = static_cast<bNode *>(ptr->data);
-  copy_v2_v2(value, blender::bke::node_location_global(*node));
+  copy_v2_v2(value, float2(node->locx, node->locy) - node_parent_offset(*node));
 }
 
 static void move_child_nodes(bNode &node, const float2 &delta)
@@ -907,13 +912,12 @@ static void move_child_nodes(bNode &node, const float2 &delta)
 static void rna_Node_location_set(PointerRNA *ptr, const float *value)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
-  const float2 loc = blender::bke::node_location_to_parent_space(*node, value);
-  const float2 delta = loc - float2(node->locx, node->locy);
+  const float2 new_location = float2(value) + node_parent_offset(*node);
   if (node->is_frame()) {
-    move_child_nodes(*node, delta);
+    move_child_nodes(*node, new_location - float2(node->locx, node->locy));
   }
-  node->locx = loc.x;
-  node->locy = loc.y;
+  node->locx = new_location.x;
+  node->locy = new_location.y;
 }
 
 /* ******** Node Tree ******** */

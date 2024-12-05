@@ -3977,8 +3977,7 @@ static void node_update_nodetree(const bContext &C,
     }
   }
 
-  /* Now calculate the size of frame nodes, which can depend on the size of other nodes.
-   * Update nodes in reverse, so children sizes get updated before parents. */
+  /* Now calculate the size of frame nodes, which can depend on the size of other nodes. */
   for (bNode *frame : ntree.root_frames()) {
     calc_node_frame_dimensions(*frame);
   }
