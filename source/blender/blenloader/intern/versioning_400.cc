@@ -5200,9 +5200,9 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_MAIN_ID_END;
   }
 
-   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
-    /* Applies the fix for the texture paint image editor tool to fix files
-     * that were saved in 4.3 with invalid tref->id data */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
+    /* #update_paint_modes_for_brush_assets() didn't handle image editor tools for some time. 4.3
+     * files saved during that period could have invalid tool references stored. */
     LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
       LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
         if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
