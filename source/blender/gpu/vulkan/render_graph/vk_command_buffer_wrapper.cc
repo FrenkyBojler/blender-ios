@@ -83,23 +83,49 @@ void VKCommandBufferWrapper::end_recording()
   vkEndCommandBuffer(vk_command_buffer_);
 }
 
-VkSemaphore VKCommandBufferWrapper::submit_with_cpu_synchronization(VkFence vk_fence)
+TimelineSemaphore VKCommandBufferWrapper::submit_with_cpu_synchronization(
+    VkFence vk_fence, VkSemaphore vk_binary_semaphore)
 {
   VKDevice &device = VKBackend::get().device;
   if (vk_fence) {
     vkResetFences(device.vk_handle(), 1, &vk_fence);
   }
-  VkSemaphore submit_signal_semaphore = [&]() -> VkSemaphore {
+  TimelineSemaphore submit_signal_semaphore = [&]() -> TimelineSemaphore {
     std::scoped_lock lock(device.queue_mutex_get());
     SubmitSyncSemaphores submit_sync_semaphores =
         device.discard_pool_for_current_thread(true).submit_sync_semaphores(device);
     VkSubmitInfo vk_submit_info = vk_submit_info_;
+
+    VkPipelineStageFlags wait_stages = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
     if (submit_sync_semaphores.wait_semaphore) {
       vk_submit_info.waitSemaphoreCount = 1;
-      vk_submit_info.pWaitSemaphores = &submit_sync_semaphores.wait_semaphore;
+      vk_submit_info.pWaitSemaphores = &(*submit_sync_semaphores.wait_semaphore).semaphore();
+      vk_submit_info.pWaitDstStageMask = &wait_stages;
     }
-    vk_submit_info.signalSemaphoreCount = 1;
-    vk_submit_info.pSignalSemaphores = &submit_sync_semaphores.signal_semaphore;
+    Vector<VkSemaphore> signal_semaphores;
+    Vector<uint64_t> signal_values;
+    signal_semaphores.append(submit_sync_semaphores.signal_semaphore.semaphore());
+    signal_values.append(submit_sync_semaphores.signal_semaphore.value());
+
+    if (vk_binary_semaphore) {
+      signal_semaphores.append(vk_binary_semaphore);
+      signal_values.append(1);
+    }
+
+    vk_submit_info.signalSemaphoreCount = signal_semaphores.size();
+    vk_submit_info.pSignalSemaphores = signal_semaphores.begin();
+
+    VkTimelineSemaphoreSubmitInfo timeline_submit_info;
+    timeline_submit_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    timeline_submit_info.signalSemaphoreValueCount = signal_semaphores.size();
+    timeline_submit_info.pSignalSemaphoreValues = signal_values.begin();
+
+    if (submit_sync_semaphores.wait_semaphore) {
+      timeline_submit_info.waitSemaphoreValueCount = signal_semaphores.size();
+      timeline_submit_info.pWaitSemaphoreValues =
+          &(*submit_sync_semaphores.wait_semaphore).value();
+    }
 
     vkQueueSubmit(device.queue_get(), 1, &vk_submit_info, vk_fence);
     return submit_sync_semaphores.signal_semaphore;
@@ -110,14 +136,13 @@ VkSemaphore VKCommandBufferWrapper::submit_with_cpu_synchronization(VkFence vk_f
   return submit_signal_semaphore;
 }
 
-void VKCommandBufferWrapper::wait_for_cpu_synchronization(VkSemaphore vk_semaphore)
+void VKCommandBufferWrapper::wait_for_cpu_synchronization(TimelineSemaphore vk_semaphore)
 {
-  uint64_t wait_vals = 1;
   VkSemaphoreWaitInfo wait_info = {};
   wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
   wait_info.semaphoreCount = 1;
-  wait_info.pSemaphores = &vk_semaphore;
-  wait_info.pValues = &wait_vals;
+  wait_info.pSemaphores = &vk_semaphore.semaphore();
+  wait_info.pValues = &vk_semaphore.value();
   VKDevice &device = VKBackend::get().device;
   vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
 }

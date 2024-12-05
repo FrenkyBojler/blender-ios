@@ -49,6 +49,11 @@ void VKDevice::deinit()
     }
     thread_data_.clear();
   }
+
+  for (TimelineSemaphore timeline_semaphore : orphaned_data.timeline_semaphores_pool) {
+    vkDestroySemaphore(vk_handle(), timeline_semaphore.semaphore(), nullptr);
+  }
+
   pipelines.write_to_disk();
   pipelines.free_data();
   descriptor_set_layouts_.deinit();

@@ -18,11 +18,12 @@ class VKDevice;
 
 /** Semaphores for submit sequential syncronization. */
 struct SubmitSyncSemaphores {
-  /** Semaphore that previous submit in the same frame will signal, will be `null` for first pair
-   * of syncronization semaphores requested in the frame. */
-  VkSemaphore wait_semaphore;
-  /** Semaphore that current submit in the frame should signal. */
-  VkSemaphore signal_semaphore;
+  /** Timeline semaphore of the previous submit in the same frame, current submission must wait
+   * to this semaphore to signal the corresponding timeline value, valueless for the first pair of
+   * syncronization semaphores requested in the frame. */
+  std ::optional<TimelineSemaphore> wait_semaphore;
+  /** Timeline semaphore that current frame submit must use to signal. */
+  TimelineSemaphore signal_semaphore;
 };
 
 /**
@@ -39,7 +40,8 @@ class VKDiscardPool {
   friend class VKDevice;
 
  private:
-  Vector<VkSemaphore> submit_semaphores_;
+  Vector<TimelineSemaphore> timeline_semaphores_pool;
+  Vector<TimelineSemaphore> submit_semaphores_;
   VkFence semaphores_guard_;
 
   Vector<std::pair<VkImage, VmaAllocation>> images_;
@@ -89,18 +91,16 @@ class VKDiscardPool {
    * This will define a sequential syncronization in the GPU, each submit would wait on the
    * previous submission work in the frame to finish, and then when the submission work is
    * completed this will signal so the following submission in the frame that is waiting can be
-   * executed. Not including `SubmitSyncSemaphores::signal_semaphore` in
-   * `VkSubmitInfo::pSignalSemaphores` would generate a deadlock.
+   * executed. Not including `SubmitSyncSemaphores::signal_semaphore` within
+   * `VkSubmitInfo::pSignalSemaphores` whit its corresponding signal value would generate a
+   * deadlock.
    *
-   * This semaphores are owned by the discard poll, can be used to wait on submit, however caller
-   * must not keep a reference to this semaphore since it may be destroyed when this resourse pool
-   * is requested again.
+   * The `SubmitSyncSemaphores::signal_semaphore` must be used exclusively as signal semaphore
+   * within `VkSubmitInfo::pSignalSemaphores` in the following `vkQueueSubmit` call, caller
+   * can use this timeline semaphores to perform any wait operation, this will be safe to do
+   * as long VKDevice not becomes invalid.
    */
   SubmitSyncSemaphores submit_sync_semaphores(VKDevice &device);
-
-  /** Sets a fence that prevents submit semaphores from being destroyed before the frame
-   * presentation completed. */
-  void set_semaphores_fence_guard(VkFence vk_fence);
 };
 
 class VKResourcePool {

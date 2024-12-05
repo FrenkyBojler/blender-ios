@@ -729,9 +729,7 @@ typedef struct {
   /** Resolution of the image. */
   VkExtent2D extent;
   /** Semaphore that present must wait. */
-  VkSemaphore *present_wait_semaphore;
-  /** Fence that is signaled when present completes. */
-  VkFence present_fence;
+  VkSemaphore present_wait_semaphore;
 } GHOST_VulkanSwapChainData;
 #endif
 

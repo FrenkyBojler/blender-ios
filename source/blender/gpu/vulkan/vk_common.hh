@@ -25,6 +25,25 @@
 
 namespace blender::gpu {
 
+struct TimelineSemaphore {
+ private:
+  VkSemaphore semaphore_;
+  uint64_t value_;
+
+ public:
+  TimelineSemaphore(VkSemaphore semaphore, uint64_t value) : semaphore_{semaphore}, value_{value}
+  {
+  }
+  const VkSemaphore &semaphore()
+  {
+    return semaphore_;
+  };
+  const uint64_t &value()
+  {
+    return value_;
+  }
+};
+
 /**
  * Based on the usage of an Image View a different image view type should be created.
  *

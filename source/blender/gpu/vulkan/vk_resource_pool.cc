@@ -31,6 +31,20 @@ void VKResourcePool::reset()
 void VKDiscardPool::deinit(VKDevice &device)
 {
   destroy_discarded_resources(device);
+  /* Other Vulkan objects may check when a timeline semaphore has reach to certain value, if the
+   * timeline semaphore is included in `timeline_semaphores_pool` that means it already has reached
+   * the last expected value, however we must keep those semaphores alive to be able to
+   * make that checks, so keep them until device is destroyed. */
+  if (&device.orphaned_data != this) {
+    device.orphaned_data.timeline_semaphores_pool.extend(timeline_semaphores_pool);
+    timeline_semaphores_pool.clear();
+  }
+  else {
+    for (TimelineSemaphore &timeline_semaphore : timeline_semaphores_pool) {
+      vkDestroySemaphore(device.vk_handle(), timeline_semaphore.semaphore(), nullptr);
+    }
+    timeline_semaphores_pool.clear();
+  }
 }
 
 void VKDiscardPool::move_data(VKDiscardPool &src_pool)
@@ -44,6 +58,10 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool)
   pipeline_layouts_.extend(src_pool.pipeline_layouts_);
   framebuffers_.extend(src_pool.framebuffers_);
   render_passes_.extend(src_pool.render_passes_);
+
+  submit_semaphores_.extend(src_pool.submit_semaphores_);
+  timeline_semaphores_pool.extend(src_pool.timeline_semaphores_pool);
+
   src_pool.buffers_.clear();
   src_pool.image_views_.clear();
   src_pool.images_.clear();
@@ -122,27 +140,26 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
 {
   std::scoped_lock mutex(mutex_);
 
-  Vector<uint64_t> wait_values(submit_semaphores_.size(), 1);
+  Vector<VkSemaphore> wait_semaphores;
+  wait_semaphores.reserve(submit_semaphores_.size());
+
+  Vector<uint64_t> wait_values;
+  wait_values.reserve(submit_semaphores_.size());
+
+  for (TimelineSemaphore &submit_semaphore : submit_semaphores_) {
+    wait_semaphores.append(submit_semaphore.semaphore());
+    wait_values.append(submit_semaphore.value());
+  }
+
   VkSemaphoreWaitInfo wait_info = {};
   wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
   wait_info.semaphoreCount = submit_semaphores_.size();
-  wait_info.pSemaphores = submit_semaphores_.begin();
+  wait_info.pSemaphores = wait_semaphores.begin();
   wait_info.pValues = wait_values.begin();
+
   vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
 
-  if (!submit_semaphores_.is_empty()) {
-    BLI_assert(semaphores_guard_);
-    vkWaitForFences(device.vk_handle(), 1, &semaphores_guard_, false, UINT64_MAX);
-    vkDestroyFence(device.vk_handle(), semaphores_guard_, nullptr);
-  }
-  else {
-    BLI_assert(!semaphores_guard_);
-  }
-  semaphores_guard_ = VK_NULL_HANDLE;
-
-  for (auto semaphore : submit_semaphores_) {
-    vkDestroySemaphore(device.vk_handle(), semaphore, nullptr);
-  }
+  timeline_semaphores_pool.extend(submit_semaphores_);
   submit_semaphores_.clear();
 
   while (!image_views_.is_empty()) {
@@ -191,27 +208,31 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
 
 SubmitSyncSemaphores VKDiscardPool::submit_sync_semaphores(VKDevice &device)
 {
+
   std::scoped_lock mutex(mutex_);
-  VkSemaphore wait_semaphore = submit_semaphores_.is_empty() ? VK_NULL_HANDLE :
-                                                               submit_semaphores_.last();
+  std::optional<TimelineSemaphore> wait_semaphore = std::nullopt;
+  if (!submit_semaphores_.is_empty()) {
+    wait_semaphore.emplace(submit_semaphores_.last());
+  }
 
-  VkSemaphoreTypeCreateInfo semaphore_type_info = {};
-  semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
-  semaphore_type_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-  semaphore_type_info.initialValue = 0;
+  if (!timeline_semaphores_pool.is_empty()) {
+    auto submit_semaphore = timeline_semaphores_pool.pop_last();
+    submit_semaphores_.append({submit_semaphore.semaphore(), submit_semaphore.value() + 1});
+  }
+  else {
+    VkSemaphoreTypeCreateInfo semaphore_type_info = {};
+    semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
+    semaphore_type_info.semaphoreType = VK_SEMAPHORE_TYPE_BINARY;
+    semaphore_type_info.initialValue = 0;
 
-  VkSemaphoreCreateInfo semaphore_info = {};
-  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-  semaphore_info.pNext = &semaphore_type_info;
-  submit_semaphores_.append({});
-  vkCreateSemaphore(device.vk_handle(), &semaphore_info, nullptr, &submit_semaphores_.last());
+    VkSemaphoreCreateInfo semaphore_info = {};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    semaphore_info.pNext = &semaphore_type_info;
+    VkSemaphore semaphore = VK_NULL_HANDLE;
+    vkCreateSemaphore(device.vk_handle(), &semaphore_info, nullptr, &semaphore);
+    submit_semaphores_.append({semaphore, 1});
+  }
   return {wait_semaphore, submit_semaphores_.last()};
 }
 
-void VKDiscardPool::set_semaphores_fence_guard(VkFence vk_fence)
-{
-  std::scoped_lock mutex(mutex_);
-  BLI_assert(semaphores_guard_ == VK_NULL_HANDLE);
-  semaphores_guard_ = vk_fence;
-}
 }  // namespace blender::gpu
