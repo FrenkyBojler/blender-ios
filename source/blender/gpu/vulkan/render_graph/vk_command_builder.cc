@@ -298,10 +298,10 @@ void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_
   VkPipelineStageFlags src_stage_mask;
   VkPipelineStageFlags dst_stage_mask;
   if (within_rendering) {
-    // see: VUID-vkCmdPipelineBarrier-srcStageMask-09556
-    // If vkCmdPipelineBarrier is called within a render pass instance started with
-    // vkCmdBeginRendering, this command must only specify framebuffer-space stages in srcStageMask
-    // and dstStageMask
+    /* see: VUID - vkCmdPipelineBarrier - srcStageMask - 09556
+     * If vkCmdPipelineBarrier is called within a render pass instance started with
+     * vkCmdBeginRendering, this command must only specify framebuffer-space stages in srcStageMask
+     * and dstStageMask */
     src_stage_mask = dst_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
                                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
                                       VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
@@ -516,7 +516,7 @@ void VKCommandBuilder::add_image_write_barriers(VKRenderGraph &render_graph,
     VKResourceBarrierState &resource_state = resource.barrier_state;
     const VkAccessFlags wait_access = resource_state.vk_access;
     if (within_rendering && link.vk_image_layout != VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) {
-      // allow only local read barriers inside rendering scope
+      /* allow only local read barriers inside rendering scope */
       continue;
     }
     if (state_.layered_attachments.contains(resource.image.vk_image) &&
