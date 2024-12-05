@@ -3665,30 +3665,30 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      const ObjectType target = ObjectType(ob->type);
+      const ObjectType target_type = ObjectType(target);
       switch (ob->type) {
         case OB_MESH:
-          newob = convert_mesh(*base, target, info, &new_base);
+          newob = convert_mesh(*base, target_type, info, &new_base);
           break;
         case OB_CURVES:
-          newob = convert_curves(*base, target, info, &new_base);
+          newob = convert_curves(*base, target_type, info, &new_base);
           break;
         case OB_CURVES_LEGACY:
           ATTR_FALLTHROUGH;
         case OB_SURF:
-          newob = convert_curves_legacy(*base, target, info, &new_base);
+          newob = convert_curves_legacy(*base, target_type, info, &new_base);
           break;
         case OB_FONT:
-          newob = convert_font(*base, target, info, &new_base);
+          newob = convert_font(*base, target_type, info, &new_base);
           break;
         case OB_GREASE_PENCIL:
-          newob = convert_grease_pencil(*base, target, info, &new_base);
+          newob = convert_grease_pencil(*base, target_type, info, &new_base);
           break;
         case OB_MBALL:
-          newob = convert_mball(*base, target, info, mball_converted, &new_base, &act_base);
+          newob = convert_mball(*base, target_type, info, mball_converted, &new_base, &act_base);
           break;
         case OB_POINTCLOUD:
-          newob = convert_point_cloud(*base, target, info, &new_base);
+          newob = convert_point_cloud(*base, target_type, info, &new_base);
           break;
         default:
           continue;
