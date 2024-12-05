@@ -33,7 +33,7 @@
 
 namespace blender::ed::greasepencil {
 
-/* This utility function is ported from `ob_parbone()` in `blenkernel/intern/object.cc`. */
+/* This utility function is modified from `BKE_object_get_parent_matrix()`. */
 static void get_bone_mat(const Object *parent, const char *parsubstr, float4x4 &r_mat)
 {
   if (parent->type != OB_ARMATURE) {
