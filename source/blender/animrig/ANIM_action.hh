@@ -217,13 +217,13 @@ class Action : public ::bAction {
   /**
    * Create a new, unused Slot.
    *
-   * The returned slot will be suitable for any ID type. After slot to an
-   * ID, it be limited to that ID's type.
+   * The returned slot will be suitable for any ID type. After assigning the
+   * slot to an ID, it will be changed to only be suitable for that ID's type.
    */
   Slot &slot_add();
 
   /**
-   * Create a new slot, named after the given ID, and limited to the ID's type.
+   * Create a new slot, named after the given ID, and suitable for the ID's type.
    *
    * Note that this assigns neither this Action nor the new Slot to the ID. This function
    * merely initializes the Slot itself to suitable values to start animating this ID.
