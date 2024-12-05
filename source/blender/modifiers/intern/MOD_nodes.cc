@@ -174,8 +174,8 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
   DEG_add_node_tree_output_relation(ctx->node, nmd->node_group, "Nodes Modifier");
 
-  /* This intentionally makes a copy because a few extra dependencies are added below. */
   BLI_assert(nmd->node_group->runtime->geometry_nodes_eval_dependencies);
+  /* This intentionally makes a copy because a few extra dependencies are added below. */
   nodes::GeometryNodesEvalDependencies eval_deps =
       *nmd->node_group->runtime->geometry_nodes_eval_dependencies;
 
@@ -231,28 +231,6 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
   }
-}
-
-static bool check_tree_for_time_node(const bNodeTree &tree, Set<const bNodeTree *> &checked_groups)
-{
-  if (!checked_groups.add(&tree)) {
-    return false;
-  }
-  tree.ensure_topology_cache();
-  if (!tree.nodes_by_type("GeometryNodeInputSceneTime").is_empty()) {
-    return true;
-  }
-  if (!tree.nodes_by_type("GeometryNodeSimulationInput").is_empty()) {
-    return true;
-  }
-  for (const bNode *node : tree.group_nodes()) {
-    if (const bNodeTree *sub_tree = reinterpret_cast<const bNodeTree *>(node->id)) {
-      if (check_tree_for_time_node(*sub_tree, checked_groups)) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData *md)

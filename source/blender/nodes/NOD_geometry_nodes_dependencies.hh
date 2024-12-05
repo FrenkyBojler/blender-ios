@@ -13,10 +13,14 @@ struct bNodeTree;
 
 namespace blender::nodes {
 
+/**
+ * Gathers dependencies that the node tree requires before it can be evaluated.
+ */
 struct GeometryNodesEvalDependencies {
-  /** Maps `session_uid` to the corresponding data-block. */
-  Map<uint32_t, ID *> ids;
-
+  /**
+   * Stores additional dependency information for objects. It can be more efficient to only depend
+   * on an object partially.
+   */
   struct ObjectDeps {
     bool transform = false;
     bool geometry = false;
@@ -25,6 +29,13 @@ struct GeometryNodesEvalDependencies {
   };
   static constexpr ObjectDeps all_object_deps{true, true};
 
+  /**
+   * Maps `session_uid` to the corresponding data-block.
+   * The data-block pointer is not used as key in this map, so that it can be modified in
+   * #node_foreach_id.
+   */
+  Map<uint32_t, ID *> ids;
+
   /** Additional information for object dependencies. */
   Map<uint32_t, ObjectDeps> objects_info;
 
@@ -32,12 +43,28 @@ struct GeometryNodesEvalDependencies {
   bool needs_active_camera = false;
   bool time_dependent = false;
 
+  /**
+   * Adds a generic data-block dependency. Note that this does not add a dependency to e.g. the
+   * transform or geometry of an object. If that is desired, use #add_object or
+   * #add_generic_id_full instead.
+   */
   void add_generic_id(ID *id);
 
+  /**
+   * Adds a data-block as dependency. For objects, it also adds a dependency to the transform and
+   * geometry.
+   */
   void add_generic_id_full(ID *id);
 
+  /**
+   * Add an object as dependency. It's customizable whether e.g. the transform and/or geometry is
+   * required.
+   */
   void add_object(Object *object, const ObjectDeps &object_deps = all_object_deps);
 
+  /**
+   * Add all the given given dependencies to this one.
+   */
   void merge(const GeometryNodesEvalDependencies &other);
 
   BLI_STRUCT_EQUALITY_OPERATORS_5(GeometryNodesEvalDependencies,
@@ -48,6 +75,10 @@ struct GeometryNodesEvalDependencies {
                                   time_dependent);
 };
 
+/**
+ * Find all evaluation dependencies for the given node tree.
+ * NOTE: It's assumed that all (indirectly) used node groups are updated already.
+ */
 void gather_geometry_nodes_eval_dependencies(bNodeTree &ntree,
                                              GeometryNodesEvalDependencies &deps);
 

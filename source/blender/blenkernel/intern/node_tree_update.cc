@@ -873,6 +873,7 @@ class NodeTreeMainUpdater {
     nodes::GeometryNodesEvalDependencies new_deps;
     nodes::gather_geometry_nodes_eval_dependencies(ntree, new_deps);
 
+    /* Check if the dependencies have changed. */
     if (!ntree.runtime->geometry_nodes_eval_dependencies ||
         new_deps != *ntree.runtime->geometry_nodes_eval_dependencies)
     {

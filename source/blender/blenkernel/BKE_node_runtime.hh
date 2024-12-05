@@ -198,6 +198,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   /**
    * Cache of dependencies used by the node tree itself. Does not account for data that's passed
    * into the node tree from the outside.
+   * NOTE: The node tree may reference additional data-blocks besides the ones included here. But
+   * those are not used when the node tree is evaluated by Geometry Nodes.
    */
   std::unique_ptr<nodes::GeometryNodesEvalDependencies> geometry_nodes_eval_dependencies;
 
