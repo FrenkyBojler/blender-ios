@@ -50,7 +50,7 @@ GPENCIL_tObject *gpencil_object_cache_add(GPENCIL_PrivateData *pd,
   tgp_ob->layers.first = tgp_ob->layers.last = nullptr;
   tgp_ob->vfx.first = tgp_ob->vfx.last = nullptr;
   tgp_ob->camera_z = dot_v3v3(pd->camera_z_axis, ob->object_to_world().location());
-  tgp_ob->is_drawmode3d = is_stroke_order_3d || pd->draw_depth_only;
+  tgp_ob->is_drawmode3d = is_stroke_order_3d;
   tgp_ob->object_scale = mat4_to_scale(ob->object_to_world().ptr());
 
   /* Check if any material with holdout flag enabled. */
@@ -439,7 +439,7 @@ GPENCIL_tLayer *grease_pencil_layer_cache_add(GPENCIL_PrivateData *pd,
 
     PassSimple &pass = *tgp_layer->geom_ps;
 
-    GPUTexture *depth_tex = (is_in_front) ? pd->dummy_tx : pd->scene_depth_tx;
+    GPUTexture *depth_tex = (is_in_front) ? pd->dummy_depth : pd->scene_depth_tx;
     GPUTexture **mask_tex = (is_masked) ? &pd->mask_tx : &pd->dummy_tx;
 
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ALPHA_PREMUL;
@@ -459,6 +459,9 @@ GPENCIL_tLayer *grease_pencil_layer_cache_add(GPENCIL_PrivateData *pd,
     pass.push_constant("gpThicknessOffset", 0.0f);
     pass.push_constant("gpThicknessWorldScale", thickness_scale);
     pass.push_constant("gpVertexColorOpacity", vert_col_opacity);
+
+    pass.bind_texture("gpFillTexture", pd->dummy_tx);
+    pass.bind_texture("gpStrokeTexture", pd->dummy_tx);
 
     /* If random color type, need color by layer. */
     float4 gpl_color;

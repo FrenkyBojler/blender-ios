@@ -136,7 +136,7 @@ static void convert_action_in_place(blender::animrig::Action &action)
   Layer &layer = action.layer_add("Layer");
   blender::animrig::Strip &strip = layer.strip_add(action,
                                                    blender::animrig::Strip::Type::Keyframe);
-  ChannelBag &bag = strip.data<StripKeyframeData>(action).channelbag_for_slot_ensure(slot);
+  Channelbag &bag = strip.data<StripKeyframeData>(action).channelbag_for_slot_ensure(slot);
   const int fcu_count = BLI_listbase_count(&action.curves);
   const int group_count = BLI_listbase_count(&action.groups);
   bag.fcurve_array = MEM_cnew_array<FCurve *>(fcu_count, "Action versioning - fcurves");
@@ -149,7 +149,7 @@ static void convert_action_in_place(blender::animrig::Action &action)
   LISTBASE_FOREACH_INDEX (bActionGroup *, group, &action.groups, group_index) {
     bag.group_array[group_index] = group;
 
-    group->channel_bag = &bag;
+    group->channelbag = &bag;
     group->fcurve_range_start = fcurve_index;
 
     LISTBASE_FOREACH (FCurve *, fcu, &group->channels) {
@@ -293,6 +293,19 @@ static void version_legacy_actions_to_layered(Main *bmain)
           break;
       }
     }
+  }
+}
+
+static void version_fcurve_noise_modifier(FCurve &fcurve)
+{
+  LISTBASE_FOREACH (FModifier *, fcurve_modifier, &fcurve.modifiers) {
+    if (fcurve_modifier->type != FMODIFIER_TYPE_NOISE) {
+      continue;
+    }
+    FMod_Noise *data = static_cast<FMod_Noise *>(fcurve_modifier->data);
+    data->lacunarity = 2.0f;
+    data->roughness = 0.5f;
+    data->legacy_noise = true;
   }
 }
 
@@ -5182,11 +5195,33 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 9)) {
+    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+      blender::animrig::Action &action = dna_action->wrap();
+      blender::animrig::foreach_fcurve_in_action(
+          action, [&](FCurve &fcurve) { version_fcurve_noise_modifier(fcurve); });
+    }
+
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      AnimData *adt = BKE_animdata_from_id(id);
+      if (!adt) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
+        version_fcurve_noise_modifier(*fcu);
+      }
+    }
+    FOREACH_MAIN_ID_END;
+  }
+
   /* Always run this versioning; meshes are written with the legacy format which always needs to
    * be converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
+    blender::bke::mesh_custom_normals_to_generic(*mesh);
   }
 
   /**

@@ -74,6 +74,10 @@ void GPENCIL_engine_init(void *ved)
     const float pixels[1][4] = {{1.0f, 0.0f, 1.0f, 1.0f}};
     txl->dummy_texture = DRW_texture_create_2d(1, 1, GPU_RGBA8, DRW_TEX_WRAP, (float *)pixels);
   }
+  if (txl->dummy_depth == nullptr) {
+    const float pixels[1] = {1.0f};
+    txl->dummy_depth = DRW_texture_create_2d(1, 1, GPU_DEPTH_COMPONENT24, DRW_TEX_WRAP, pixels);
+  }
 
   GPENCIL_ViewLayerData *vldata = GPENCIL_view_layer_data_ensure();
 
@@ -103,9 +107,9 @@ void GPENCIL_engine_init(void *ved)
   stl->pd->sbuffer_tobjects.first = nullptr;
   stl->pd->sbuffer_tobjects.last = nullptr;
   stl->pd->dummy_tx = txl->dummy_texture;
-  stl->pd->draw_depth_only = !DRW_state_is_fbo();
-  stl->pd->draw_wireframe = (v3d && v3d->shading.type == OB_WIRE) && !stl->pd->draw_depth_only;
-  stl->pd->scene_depth_tx = stl->pd->draw_depth_only ? txl->dummy_texture : dtxl->depth;
+  stl->pd->dummy_depth = txl->dummy_depth;
+  stl->pd->draw_wireframe = (v3d && v3d->shading.type == OB_WIRE);
+  stl->pd->scene_depth_tx = dtxl->depth;
   stl->pd->scene_fb = dfbl->default_fb;
   stl->pd->is_render = txl->render_depth_tx || (v3d && v3d->shading.type == OB_RENDER);
   stl->pd->is_viewport = (v3d != nullptr);
@@ -478,12 +482,14 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
       continue;
     }
 
+    if (last_pass) {
+      drawcall_flush(*last_pass);
+    }
+
     GPENCIL_tLayer *tgp_layer = grease_pencil_layer_cache_add(
         pd, ob, layer, info.onion_id, is_layer_used_as_mask, tgp_ob);
     PassSimple &pass = *tgp_layer->geom_ps;
     last_pass = &pass;
-
-    drawcall_flush(pass);
 
     const bool use_lights = pd->use_lighting &&
                             ((layer.base.flag & GP_LAYER_TREE_NODE_USE_LIGHTS) != 0) &&
@@ -724,35 +730,6 @@ void GPENCIL_cache_finish(void *ved)
   }
 }
 
-static void GPENCIL_draw_scene_depth_only(void *ved)
-{
-  using namespace blender::draw;
-  GPENCIL_Data *vedata = (GPENCIL_Data *)ved;
-  GPENCIL_PrivateData *pd = vedata->stl->pd;
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-
-  if (DRW_state_is_fbo()) {
-    GPU_framebuffer_bind(dfbl->depth_only_fb);
-  }
-
-  blender::draw::Manager *manager = DRW_manager_get();
-  blender::draw::View view("GPDepthOnlyView", DRW_view_get_active());
-
-  LISTBASE_FOREACH (GPENCIL_tObject *, ob, &pd->tobjects) {
-    LISTBASE_FOREACH (GPENCIL_tLayer *, layer, &ob->layers) {
-      manager->submit(*layer->geom_ps, view);
-    }
-  }
-
-  if (DRW_state_is_fbo()) {
-    GPU_framebuffer_bind(dfbl->default_fb);
-  }
-
-  pd->gp_object_pool = pd->gp_maskbit_pool = nullptr;
-  pd->gp_vfx_pool = nullptr;
-  pd->gp_layer_pool = nullptr;
-}
-
 static void gpencil_draw_mask(GPENCIL_Data *vedata,
                               blender::draw::View &view,
                               GPENCIL_tObject *ob,
@@ -919,11 +896,6 @@ void GPENCIL_draw_scene(void *ved)
     interp_v3_v3v3(clear_cols[0], background_color, clear_cols[0], pd->fade_3d_object_opacity);
 
     mul_v4_fl(clear_cols[1], pd->fade_3d_object_opacity);
-  }
-
-  if (pd->draw_depth_only) {
-    GPENCIL_draw_scene_depth_only(vedata);
-    return;
   }
 
   if (pd->tobjects.first == nullptr) {
