@@ -85,9 +85,9 @@ void VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
 
 bool VKCommandBuilder::node_has_input_attachments(const VKRenderGraph& render_graph, NodeHandle node)
 {
-  const auto & links = render_graph.links_[node];
-  const auto & inputs = links.inputs;
-  for (const auto& input : inputs)
+  const VKRenderGraphNodeLinks& links = render_graph.links_[node];
+  const Vector<VKRenderGraphLink>& inputs = links.inputs;
+  for (const VKRenderGraphLink& input : inputs)
     {
     if (input.vk_access_flags & VK_ACCESS_INPUT_ATTACHMENT_READ_BIT)
       {
