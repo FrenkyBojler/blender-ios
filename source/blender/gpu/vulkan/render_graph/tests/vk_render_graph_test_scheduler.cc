@@ -56,7 +56,7 @@ TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
     render_graph.add_node(end_rendering);
   }
 
-  VkSemaphore submit_signal_semaphore = render_graph.submit_for_present(image);
+  TimelineSemaphore submit_signal_semaphore = render_graph.submit_for_present(image);
   render_graph.wait_synchronization_event(submit_signal_semaphore);
 
   EXPECT_EQ(6, log.size());
@@ -176,7 +176,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
     render_graph.add_node(end_rendering);
   }
 
-  VkSemaphore submit_signal_semaphore = render_graph.submit_for_present(image);
+  TimelineSemaphore submit_signal_semaphore = render_graph.submit_for_present(image);
   render_graph.wait_synchronization_event(submit_signal_semaphore);
 
   EXPECT_EQ(7, log.size());
@@ -301,7 +301,7 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
     render_graph.add_node(end_rendering);
   }
 
-  VkSemaphore submit_signal_semaphore = render_graph.submit_for_present(image);
+  TimelineSemaphore submit_signal_semaphore = render_graph.submit_for_present(image);
   render_graph.wait_synchronization_event(submit_signal_semaphore);
 
   EXPECT_EQ(7, log.size());
@@ -442,7 +442,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
     render_graph.add_node(end_rendering);
   }
 
-  VkSemaphore submit_signal_semaphore = render_graph.submit_for_present(image);
+  TimelineSemaphore submit_signal_semaphore = render_graph.submit_for_present(image);
   render_graph.wait_synchronization_event(submit_signal_semaphore);
 
   EXPECT_EQ(11, log.size());
