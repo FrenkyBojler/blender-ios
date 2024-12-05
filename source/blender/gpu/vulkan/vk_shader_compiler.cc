@@ -223,7 +223,9 @@ static bool compile_ex(shaderc::Compiler &compiler,
   }
   else {
     // TODO: use Blender's error logging API
-    fprintf(stderr, "compile failed, error: %s", shader_module.compilation_result.GetErrorMessage().c_str());
+    fprintf(stderr,
+            "compile failed, error: %s",
+            shader_module.compilation_result.GetErrorMessage().c_str());
   }
   return compilation_succeeded;
 }

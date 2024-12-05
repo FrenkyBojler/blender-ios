@@ -104,7 +104,6 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
     missing_capabilities.append(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
   }
 
-
   /* Check for known faulty drivers. */
   VkPhysicalDeviceProperties2 vk_physical_device_properties = {};
   VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties = {};
@@ -343,7 +342,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
   workarounds.dynamic_rendering = !device.supports_extension(
       VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   workarounds.dynamic_rendering_local_read = !device.supports_extension(
-    VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
+      VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
   workarounds.dynamic_rendering_unused_attachments = !device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
 

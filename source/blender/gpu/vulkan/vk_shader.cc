@@ -959,7 +959,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
   }
 
   ss << "\n/* Sub-pass Inputs. */\n";
-  const VKShaderInterface& interface = interface_get();
+  const VKShaderInterface &interface = interface_get();
   const bool use_local_read = !workarounds.dynamic_rendering_local_read;
   const bool use_dynamic_rendering = !workarounds.dynamic_rendering;
 
@@ -974,26 +974,33 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
 
       Type component_type = to_component_type(input.type);
       char typePrefix;
-      switch (component_type)
-      {
-      case Type::INT: typePrefix = 'i'; break;
-      case Type::UINT: typePrefix = 'u'; break;
-      default: typePrefix = ' '; break;
+      switch (component_type) {
+        case Type::INT:
+          typePrefix = 'i';
+          break;
+        case Type::UINT:
+          typePrefix = 'u';
+          break;
+        default:
+          typePrefix = ' ';
+          break;
       }
-      ss << "layout(input_attachment_index = " << (input.index) << ", binding = " << (subpass_input_binding_index++) << ") uniform "<< typePrefix << "subpassInput " << input_attachment_name << "; \n";
+      ss << "layout(input_attachment_index = " << (input.index)
+         << ", binding = " << (subpass_input_binding_index++) << ") uniform " << typePrefix
+         << "subpassInput " << input_attachment_name << "; \n";
 
       char swizzle[] = "xyzw";
       swizzle[to_component_count(input.type)] = '\0';
 
       std::stringstream ss_pre;
       /* Populate the global before main using subpassLoad. */
-      ss_pre << "  " << input.name << " = " << input.type << "( subpassLoad(" << input_attachment_name << ")." << swizzle << " ); \n";
+      ss_pre << "  " << input.name << " = " << input.type << "( subpassLoad("
+             << input_attachment_name << ")." << swizzle << " ); \n";
 
       pre_main += ss_pre.str();
     }
   }
-  else if (use_dynamic_rendering)
-  {
+  else if (use_dynamic_rendering) {
     for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
       std::string image_name = "gpu_subpass_img_";
       image_name += std::to_string(input.index);

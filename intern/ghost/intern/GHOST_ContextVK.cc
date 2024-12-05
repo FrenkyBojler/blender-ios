@@ -275,12 +275,11 @@ class GHOST_DeviceVK {
       device_create_info_p_next = &dynamic_rendering_unused_attachments;
     }
 
-    VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR
-      dynamic_rendering_local_read = {};
+    VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR dynamic_rendering_local_read = {};
     dynamic_rendering_local_read.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR;
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR;
     dynamic_rendering_local_read.dynamicRenderingLocalRead = VK_TRUE;
-    if (has_extensions({ VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME })) {
+    if (has_extensions({VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME})) {
       dynamic_rendering_local_read.pNext = device_create_info_p_next;
       device_create_info_p_next = &dynamic_rendering_local_read;
     }

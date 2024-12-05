@@ -7,8 +7,8 @@
  */
 
 #include "vk_command_builder.hh"
-#include "vk_render_graph.hh"
 #include "vk_backend.hh"
+#include "vk_render_graph.hh"
 
 namespace blender::gpu::render_graph {
 
@@ -83,17 +83,16 @@ void VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
   command_buffer.end_recording();
 }
 
-bool VKCommandBuilder::node_has_input_attachments(const VKRenderGraph& render_graph, NodeHandle node)
+bool VKCommandBuilder::node_has_input_attachments(const VKRenderGraph &render_graph,
+                                                  NodeHandle node)
 {
-  const VKRenderGraphNodeLinks& links = render_graph.links_[node];
-  const Vector<VKRenderGraphLink>& inputs = links.inputs;
-  for (const VKRenderGraphLink& input : inputs)
-    {
-    if (input.vk_access_flags & VK_ACCESS_INPUT_ATTACHMENT_READ_BIT)
-      {
+  const VKRenderGraphNodeLinks &links = render_graph.links_[node];
+  const Vector<VKRenderGraphLink> &inputs = links.inputs;
+  for (const VKRenderGraphLink &input : inputs) {
+    if (input.vk_access_flags & VK_ACCESS_INPUT_ATTACHMENT_READ_BIT) {
       return true;
-      }
     }
+  }
   return false;
 }
 
@@ -103,7 +102,7 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
                                         std::optional<NodeHandle> &r_rendering_scope)
 {
   bool is_rendering = false;
-  const VKDevice& device = VKBackend::get().device;
+  const VKDevice &device = VKBackend::get().device;
   const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
 
   for (NodeHandle node_handle : node_group) {
@@ -115,7 +114,8 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
 #if 0
     render_graph.debug_print(node_handle);
 #endif
-    build_pipeline_barriers(render_graph, command_buffer, node_handle, node.pipeline_stage_get(), false);
+    build_pipeline_barriers(
+        render_graph, command_buffer, node_handle, node.pipeline_stage_get(), false);
     if (node.type == VKNodeType::BEGIN_RENDERING) {
       layer_tracking_begin(render_graph, node_handle);
     }
@@ -152,9 +152,9 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
         rendering_node.build_commands(command_buffer, state_.active_pipelines);
         is_rendering = true;
       }
-      else if (supports_local_read && node_has_input_attachments(render_graph, node_handle))
-      {
-        build_pipeline_barriers(render_graph, command_buffer, node_handle, node.pipeline_stage_get(), true);
+      else if (supports_local_read && node_has_input_attachments(render_graph, node_handle)) {
+        build_pipeline_barriers(
+            render_graph, command_buffer, node_handle, node.pipeline_stage_get(), true);
       }
     }
 #if 0
@@ -280,7 +280,8 @@ void VKCommandBuilder::reset_barriers()
   state_.dst_stage_mask = VK_PIPELINE_STAGE_NONE;
 }
 
-void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_buffer, bool within_rendering)
+void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_buffer,
+                                              bool within_rendering)
 {
   if (vk_image_memory_barriers_.is_empty() && vk_buffer_memory_barriers_.is_empty()) {
     reset_barriers();
@@ -296,16 +297,17 @@ void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_
 
   VkPipelineStageFlags src_stage_mask;
   VkPipelineStageFlags dst_stage_mask;
-  if (within_rendering)
-  {
+  if (within_rendering) {
     // see: VUID-vkCmdPipelineBarrier-srcStageMask-09556
-    // If vkCmdPipelineBarrier is called within a render pass instance started with vkCmdBeginRendering,
-    // this command must only specify framebuffer-space stages in srcStageMask and dstStageMask
-    src_stage_mask = dst_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-      VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // If vkCmdPipelineBarrier is called within a render pass instance started with
+    // vkCmdBeginRendering, this command must only specify framebuffer-space stages in srcStageMask
+    // and dstStageMask
+    src_stage_mask = dst_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                                      VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+                                      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
   }
-  else
-  {
+  else {
     src_stage_mask = state_.src_stage_mask;
     dst_stage_mask = state_.dst_stage_mask;
   }
@@ -458,9 +460,7 @@ void VKCommandBuilder::add_image_read_barriers(VKRenderGraph &render_graph,
       /* Has already been covered in previous barrier no need to add this one. */
       continue;
     }
-    if (within_rendering &&
-      link.vk_image_layout != VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR)
-    {
+    if (within_rendering && link.vk_image_layout != VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) {
       // allow only local read barriers inside rendering scope
       continue;
     }
@@ -515,9 +515,7 @@ void VKCommandBuilder::add_image_write_barriers(VKRenderGraph &render_graph,
     }
     VKResourceBarrierState &resource_state = resource.barrier_state;
     const VkAccessFlags wait_access = resource_state.vk_access;
-    if (within_rendering &&
-      link.vk_image_layout != VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR)
-    {
+    if (within_rendering && link.vk_image_layout != VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) {
       // allow only local read barriers inside rendering scope
       continue;
     }
@@ -660,7 +658,7 @@ void VKCommandBuilder::layer_tracking_update(VkImage vk_image,
 
 void VKCommandBuilder::layer_tracking_end(VKCommandBufferInterface &command_buffer, bool suspend)
 {
-  const VKDevice& device = VKBackend::get().device;
+  const VKDevice &device = VKBackend::get().device;
   const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
 
   if (!state_.layered_bindings.is_empty()) {
@@ -678,9 +676,10 @@ void VKCommandBuilder::layer_tracking_end(VKCommandBufferInterface &command_buff
               VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
               VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
           binding.vk_image_layout,
-          supports_local_read ? 
-            VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR : // support usage as both a color attachment and input attachment
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          supports_local_read ?
+              VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :  // support usage as both a color
+                                                          // attachment and input attachment
+                                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
           VK_IMAGE_ASPECT_COLOR_BIT,
           binding.layer,
           binding.layer_count);

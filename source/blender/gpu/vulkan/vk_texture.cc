@@ -389,7 +389,7 @@ bool VKTexture::is_texture_view() const
 static VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
                                            const eGPUTextureFormatFlag format_flag)
 {
-  const VKDevice& device = VKBackend::get().device;
+  const VKDevice &device = VKBackend::get().device;
   const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
   const bool supports_dynamic_rendering = !device.workarounds_get().dynamic_rendering;
 
@@ -412,8 +412,7 @@ static VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
       }
       else {
         result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        if (supports_local_read || (!supports_dynamic_rendering))
-        {
+        if (supports_local_read || (!supports_dynamic_rendering)) {
           result |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
         }
       }

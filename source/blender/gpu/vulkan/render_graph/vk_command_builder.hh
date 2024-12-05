@@ -125,8 +125,7 @@ class VKCommandBuilder {
                                VkPipelineStageFlags pipeline_stage,
                                bool within_rendering = false);
   void reset_barriers();
-  void send_pipeline_barriers(VKCommandBufferInterface &command_buffer,
-                              bool within_rendering);
+  void send_pipeline_barriers(VKCommandBufferInterface &command_buffer, bool within_rendering);
 
   void add_buffer_barriers(VKRenderGraph &render_graph,
                            NodeHandle node_handle,
@@ -207,7 +206,7 @@ class VKCommandBuilder {
    */
   void layer_tracking_end(VKCommandBufferInterface &command_buffer, bool suspend);
 
-  bool node_has_input_attachments(const VKRenderGraph& render_graph, NodeHandle node);
+  bool node_has_input_attachments(const VKRenderGraph &render_graph, NodeHandle node);
 };
 
 }  // namespace blender::gpu::render_graph
