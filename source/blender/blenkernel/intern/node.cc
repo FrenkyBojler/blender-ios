@@ -663,6 +663,37 @@ static void cleanup_legacy_sockets(bNodeTree *ntree)
   BLI_listbase_clear(&ntree->outputs_legacy);
 }
 
+static void move_nodes_to_parent_space(bNodeTree &ntree)
+{
+  for (bNode *node : ntree.all_nodes()) {
+    const float2 loc = node_location_global_to_node(node, float2(node->locx, node->locy));
+    node->locx = loc.x;
+    node->locy = loc.y;
+  }
+}
+
+static void move_nodes_to_global_space(bNodeTree &ntree)
+{
+  for (bNode *node : ntree.all_nodes()) {
+    if (node->type == NODE_FRAME) {
+      continue;
+    }
+    for (const bNode *parent = node->parent; parent; parent = parent->parent) {
+      node->locx += parent->locx;
+      node->locy += parent->locy;
+    }
+  }
+  for (bNode *node : ntree.all_nodes()) {
+    if (node->type != NODE_FRAME) {
+      continue;
+    }
+    for (const bNode *parent = node->parent; parent; parent = parent->parent) {
+      node->locx += parent->locx;
+      node->locy += parent->locy;
+    }
+  }
+}
+
 }  // namespace forward_compat
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
@@ -742,6 +773,10 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 {
   BKE_id_blend_write(writer, &ntree->id);
   BLO_write_string(writer, ntree->description);
+
+  if (!BLO_write_is_undo(writer)) {
+    forward_compat::move_nodes_to_parent_space(*ntree);
+  }
 
   for (bNode *node : ntree->all_nodes()) {
     if (ntree->type == NTREE_SHADER && node->type == SH_NODE_BSDF_HAIR_PRINCIPLED) {
@@ -895,6 +930,10 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
       nodes::socket_items::blend_write<nodes::ForeachGeometryElementMainItemsAccessor>(writer,
                                                                                        *node);
     }
+  }
+
+  if (!BLO_write_is_undo(writer)) {
+    forward_compat::move_nodes_to_global_space(*ntree);
   }
 
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
@@ -3080,6 +3119,24 @@ void node_internal_relink(bNodeTree *ntree, bNode *node)
       node_remove_link(ntree, link);
     }
   }
+}
+
+float2 node_location_node_to_global(const bNode *node, const float2 loc)
+{
+  float2 view_loc = loc;
+  for (const bNode *node_iter = node; node_iter; node_iter = node_iter->parent) {
+    view_loc += float2(node_iter->locx, node_iter->locy);
+  }
+  return view_loc;
+}
+
+float2 node_location_global_to_node(const bNode *node, const float2 view_loc)
+{
+  float2 loc = view_loc;
+  for (const bNode *node_iter = node; node_iter; node_iter = node_iter->parent) {
+    loc -= float2(node_iter->locx, node_iter->locy);
+  }
+  return loc;
 }
 
 void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)

@@ -1554,6 +1554,10 @@ bool node_link_is_selected(const bNodeLink *link);
 
 void node_internal_relink(bNodeTree *ntree, bNode *node);
 
+float2 node_location_node_to_global(const bNode *node, float2 loc);
+
+float2 node_location_global_to_node(const bNode *node, float2 loc);
+
 void node_position_relative(bNode *from_node,
                             const bNode *to_node,
                             const bNodeSocket *from_sock,

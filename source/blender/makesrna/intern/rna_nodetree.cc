@@ -656,6 +656,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "DNA_scene_types.h"
 #  include "WM_api.hh"
 
+using blender::float2;
 using blender::nodes::BakeItemsAccessor;
 using blender::nodes::CaptureAttributeItemsAccessor;
 using blender::nodes::ForeachGeometryElementGenerationItemsAccessor;
@@ -884,6 +885,34 @@ static const EnumPropertyItem *rna_node_static_type_itemf(bContext * /*C*/,
   *r_free = true;
 
   return item;
+}
+
+static void rna_Node_location_get(PointerRNA *ptr, float *value)
+{
+  const bNode *node = static_cast<bNode *>(ptr->data);
+  copy_v2_v2(value,
+             blender::bke::node_location_global_to_node(node, float2(node->locx, node->locy)));
+}
+
+static void move_child_nodes(bNode &node, const float2 &delta)
+{
+  for (bNode *child : node.direct_children_in_frame()) {
+    child->locx += delta.x;
+    child->locy += delta.y;
+    if (child->is_frame()) {
+      move_child_nodes(*child, delta);
+    }
+  }
+}
+
+static void rna_Node_location_set(PointerRNA *ptr, const float *value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  const float2 loc = blender::bke::node_location_global_to_node(node, value);
+  const float2 delta = loc - float2(node->locx, node->locy);
+  move_child_nodes(*node, delta);
+  node->locx = loc.x;
+  node->locy = loc.y;
 }
 
 /* ******** Node Tree ******** */
@@ -10734,10 +10763,17 @@ static void rna_def_node(BlenderRNA *brna)
       "Node type (deprecated, use bl_static_type or bl_idname for the actual identifier string)");
 
   prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_array(prop, 2);
+  RNA_def_property_float_funcs(prop, "rna_Node_location_get", "rna_Node_location_set", nullptr);
+  RNA_def_property_range(prop, -100000.0f, 100000.0f);
+  RNA_def_property_ui_text(prop, "Location", "Location of the node within its parent frame");
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "location_absolute", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, nullptr, "locx");
   RNA_def_property_array(prop, 2);
   RNA_def_property_range(prop, -100000.0f, 100000.0f);
-  RNA_def_property_ui_text(prop, "Location", "");
+  RNA_def_property_ui_text(prop, "Absolute Location", "Location of the node in the entire canvas");
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 
   prop = RNA_def_property(srna, "width", PROP_FLOAT, PROP_XYZ);
