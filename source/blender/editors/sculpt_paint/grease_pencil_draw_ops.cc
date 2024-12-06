@@ -1799,7 +1799,7 @@ static int grease_pencil_lasso_erase_exec(bContext *C, wmOperator *op)
       }
     });
 
-    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     Array<Bounds<float2>> screen_space_curve_bounds(curves.curves_num());
     threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
       for (const int curve : range) {
