@@ -185,13 +185,13 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   rgb_uchar_to_float(main_color, theme->text);
   copy_v3_v3(normal_color, main_color);
 
-  /* `value_color` mixes with some background for a less strength. */
+  /* `value_color` mixes with some background for less strength. */
   copy_v3_v3(value_color, main_color);
-  color_blend_f3_f3(value_color, background_color, 0.2f); /* Light gray. */
+  color_blend_f3_f3(value_color, background_color, 0.2f);
 
   /* `python_color` mixes with more background to be even dimmer. */
   copy_v3_v3(python_color, main_color);
-  color_blend_f3_f3(python_color, background_color, 0.5f); /* Dark gray. */
+  color_blend_f3_f3(python_color, background_color, 0.5f);
 
   /* `active_color` is a light blue. */
   active_color[0] = 0.4f;
