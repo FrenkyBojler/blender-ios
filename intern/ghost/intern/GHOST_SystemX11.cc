@@ -1520,7 +1520,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
                         XA_ATOM,
                         32,
                         PropModeReplace,
-                        reinterpret_cast<const uchar*>(atom_list),
+                        reinterpret_cast<const uchar *>(atom_list),
                         ARRAY_SIZE(atom_list));
         XFlush(m_display);
       }
