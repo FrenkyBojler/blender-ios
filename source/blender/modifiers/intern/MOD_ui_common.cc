@@ -41,8 +41,7 @@
 static bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
 {
   Object *ob = blender::ed::object::context_active_object(C);
-
-  return (ob != nullptr) && (ob->type != OB_GPENCIL_LEGACY);
+  return ob != nullptr;
 }
 
 /* -------------------------------------------------------------------- */
@@ -145,7 +144,7 @@ void modifier_grease_pencil_curve_header_draw(const bContext * /*C*/, Panel *pan
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_custom_curve", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_custom_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void modifier_grease_pencil_curve_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -219,10 +218,28 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   uiLayoutSetUnitsX(layout, 4.0f);
 
   /* Apply. */
-  uiItemO(layout,
-          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply"),
-          ICON_CHECKMARK,
-          "OBJECT_OT_modifier_apply");
+  if (ob->type == OB_GREASE_PENCIL) {
+    uiItemO(layout,
+            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply (Active Keyframe)"),
+            ICON_CHECKMARK,
+            "OBJECT_OT_modifier_apply");
+
+    uiItemFullO(layout,
+                "OBJECT_OT_modifier_apply",
+                IFACE_("Apply (All Keyframes)"),
+                ICON_KEYFRAME,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                &op_ptr);
+    RNA_boolean_set(&op_ptr, "all_keyframes", true);
+  }
+  else {
+    uiItemO(layout,
+            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply"),
+            ICON_CHECKMARK,
+            "OBJECT_OT_modifier_apply");
+  }
 
   /* Apply as shapekey. */
   if (BKE_modifier_is_same_topology(md) && !BKE_modifier_is_non_geometrical(md)) {
@@ -287,19 +304,19 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
 
   uiItemS(layout);
 
-  uiItemR(layout, &ptr, "use_pin_to_last", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, &ptr, "use_pin_to_last", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (md->type == eModifierType_Nodes) {
     uiItemS(layout);
     uiItemFullO(layout,
                 "OBJECT_OT_geometry_nodes_move_to_nodes",
-                nullptr,
+                std::nullopt,
                 ICON_NONE,
                 nullptr,
                 WM_OP_INVOKE_DEFAULT,
                 UI_ITEM_NONE,
                 &op_ptr);
-    uiItemR(layout, &ptr, "show_group_selector", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, &ptr, "show_group_selector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

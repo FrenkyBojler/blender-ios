@@ -57,7 +57,7 @@
 #include "DNA_volume_types.h"
 #include "DNA_world_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_armature.hh"
 #include "BKE_collection.hh"
@@ -69,7 +69,7 @@
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_query.hh"
@@ -242,14 +242,7 @@ OperationCode bone_target_opcode(ID *target,
 
 bool object_have_geometry_component(const Object *object)
 {
-  return ELEM(object->type,
-              OB_MESH,
-              OB_CURVES_LEGACY,
-              OB_FONT,
-              OB_SURF,
-              OB_MBALL,
-              OB_LATTICE,
-              OB_GPENCIL_LEGACY);
+  return ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_MBALL, OB_LATTICE);
 }
 
 }  // namespace
@@ -981,7 +974,6 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
     case OB_SURF:
     case OB_MBALL:
     case OB_LATTICE:
-    case OB_GPENCIL_LEGACY:
     case OB_CURVES:
     case OB_POINTCLOUD:
     case OB_VOLUME:
@@ -1513,11 +1505,6 @@ void DepsgraphRelationBuilder::build_constraints(ID *id,
 
           /* Add dependency on normal layers if necessary. */
           if (ct->tar->type == OB_MESH && scon->shrinkType != MOD_SHRINKWRAP_NEAREST_VERTEX) {
-            bool track = (scon->flag & CON_SHRINKWRAP_TRACK_NORMAL) != 0;
-            if (track || BKE_shrinkwrap_needs_normals(scon->shrinkType, scon->shrinkMode)) {
-              add_customdata_mask(ct->tar,
-                                  DEGCustomDataMeshMasks::MaskLoop(CD_MASK_CUSTOMLOOPNORMAL));
-            }
             if (scon->shrinkType == MOD_SHRINKWRAP_TARGET_PROJECT) {
               add_special_eval_flag(&ct->tar->id, DAG_EVAL_NEED_SHRINKWRAP_BOUNDARY);
             }
@@ -1702,7 +1689,6 @@ void DepsgraphRelationBuilder::build_animdata_action_targets(ID *id,
     return;
   }
 
-#ifdef WITH_ANIM_BAKLAVA
   const animrig::Slot *slot = action.slot_for_handle(slot_handle);
   if (slot == nullptr) {
     /* If there's no matching slot, there's no Action dependency. */
@@ -1715,8 +1701,8 @@ void DepsgraphRelationBuilder::build_animdata_action_targets(ID *id,
     for (animrig::Strip *strip : layer->strips()) {
       switch (strip->type()) {
         case animrig::Strip::Type::Keyframe: {
-          animrig::KeyframeStrip &keyframe_strip = strip->as<animrig::KeyframeStrip>();
-          animrig::ChannelBag *channels = keyframe_strip.channelbag_for_slot(*slot);
+          animrig::StripKeyframeData &strip_data = strip->data<animrig::StripKeyframeData>(action);
+          animrig::Channelbag *channels = strip_data.channelbag_for_slot(*slot);
           if (channels == nullptr) {
             /* Go to next strip. */
             break;
@@ -1729,9 +1715,6 @@ void DepsgraphRelationBuilder::build_animdata_action_targets(ID *id,
       }
     }
   }
-#else
-  UNUSED_VARS(slot_handle);
-#endif
 }
 
 void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
@@ -1746,13 +1729,8 @@ void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
       ComponentKey action_key(&strip->act->id, NodeType::ANIMATION);
       add_relation(action_key, adt_key, "Action -> Animation");
 
-      if (!strip->act->wrap().is_action_legacy()) {
-        /* TODO: add NLA support for layered actions. */
-        continue;
-      }
-      /* TODO: get slot handle from the owning ID. */
-      const animrig::slot_handle_t slot_handle = animrig::Slot::unassigned;
-      build_animdata_action_targets(id, slot_handle, adt_key, operation_from, strip->act);
+      build_animdata_action_targets(
+          id, strip->action_slot_handle, adt_key, operation_from, strip->act);
     }
     else if (strip->strips.first != nullptr) {
       build_animdata_nlastrip_targets(id, adt_key, operation_from, &strip->strips);
@@ -1848,13 +1826,6 @@ void DepsgraphRelationBuilder::build_action(bAction *dna_action)
   build_idproperties(dna_action->id.properties);
 
   blender::animrig::Action &action = dna_action->wrap();
-#ifndef WITH_ANIM_BAKLAVA
-  /* Prevent evaluation of data introduced by Project Baklava. */
-  if (action.is_action_layered()) {
-    return;
-  }
-#endif
-
   if (!action.is_empty()) {
     TimeSourceKey time_src_key;
     ComponentKey animation_key(&dna_action->id, NodeType::ANIMATION);

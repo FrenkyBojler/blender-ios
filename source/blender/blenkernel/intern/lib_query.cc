@@ -364,8 +364,6 @@ static bool library_foreach_ID_link(Main *bmain,
     if (id->override_library != nullptr) {
       CALLBACK_INVOKE_ID(id->override_library->reference,
                          IDWALK_CB_USER | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE);
-      CALLBACK_INVOKE_ID(id->override_library->storage,
-                         IDWALK_CB_USER | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE);
 
       CALLBACK_INVOKE_ID(id->override_library->hierarchy_root, IDWALK_CB_LOOPBACK);
       LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &id->override_library->properties) {
@@ -511,8 +509,8 @@ bool BKE_library_id_can_use_idtype(ID *owner_id, const short id_type_used)
 struct IDUsersIter {
   ID *id;
 
-  ListBase *lb_array[INDEX_ID_MAX];
-  int lb_idx;
+  // ListBase *lb_array[INDEX_ID_MAX]; /* UNUSED. */
+  // int lb_idx; /* UNUSED. */
 
   ID *curr_id;
   int count_direct, count_indirect; /* Set by callback. */

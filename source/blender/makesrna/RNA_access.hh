@@ -18,6 +18,7 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
+#include "BLI_string_ref.hh"
 
 struct ID;
 struct IDOverrideLibrary;
@@ -631,7 +632,7 @@ void RNA_collection_clear(PointerRNA *ptr, const char *name);
 
 #define RNA_STRUCT_BEGIN(sptr, prop) \
   { \
-    CollectionPropertyIterator rna_macro_iter; \
+    CollectionPropertyIterator rna_macro_iter{}; \
     for (RNA_property_collection_begin( \
              sptr, RNA_struct_iterator_property((sptr)->type), &rna_macro_iter); \
          rna_macro_iter.valid; \
@@ -761,7 +762,7 @@ void RNA_parameter_dynamic_length_set_data(ParameterList *parms,
 int RNA_function_call(
     bContext *C, ReportList *reports, PointerRNA *ptr, FunctionRNA *func, ParameterList *parms);
 
-const char *RNA_translate_ui_text(
+std::optional<blender::StringRefNull> RNA_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, int translate);
 
 /* ID */
@@ -875,7 +876,7 @@ bool RNA_struct_override_matches(Main *bmain,
                                  PointerRNA *ptr_reference,
                                  const char *root_path,
                                  size_t root_path_len,
-                                 IDOverrideLibrary *override,
+                                 IDOverrideLibrary *liboverride,
                                  eRNAOverrideMatch flags,
                                  eRNAOverrideMatchResult *r_report_flags);
 
@@ -887,7 +888,7 @@ bool RNA_struct_override_store(Main *bmain,
                                PointerRNA *ptr_local,
                                PointerRNA *ptr_reference,
                                PointerRNA *ptr_storage,
-                               IDOverrideLibrary *override);
+                               IDOverrideLibrary *liboverride);
 
 enum eRNAOverrideApplyFlag {
   RNA_OVERRIDE_APPLY_FLAG_NOP = 0,
@@ -939,7 +940,7 @@ IDOverrideLibraryPropertyOperation *RNA_property_override_property_operation_get
                                                                                  bool *r_strict,
                                                                                  bool *r_created);
 
-eRNAOverrideStatus RNA_property_override_library_status(Main *bmainm,
+eRNAOverrideStatus RNA_property_override_library_status(Main *bmain,
                                                         PointerRNA *ptr,
                                                         PropertyRNA *prop,
                                                         int index);

@@ -35,21 +35,21 @@
 
 namespace blender::bke {
 
-static const std::string ATTR_POSITION = "position";
-static const std::string ATTR_RADIUS = "radius";
-static const std::string ATTR_TILT = "tilt";
-static const std::string ATTR_CURVE_TYPE = "curve_type";
-static const std::string ATTR_CYCLIC = "cyclic";
-static const std::string ATTR_RESOLUTION = "resolution";
-static const std::string ATTR_NORMAL_MODE = "normal_mode";
-static const std::string ATTR_HANDLE_TYPE_LEFT = "handle_type_left";
-static const std::string ATTR_HANDLE_TYPE_RIGHT = "handle_type_right";
-static const std::string ATTR_HANDLE_POSITION_LEFT = "handle_left";
-static const std::string ATTR_HANDLE_POSITION_RIGHT = "handle_right";
-static const std::string ATTR_NURBS_ORDER = "nurbs_order";
-static const std::string ATTR_NURBS_WEIGHT = "nurbs_weight";
-static const std::string ATTR_NURBS_KNOTS_MODE = "knots_mode";
-static const std::string ATTR_SURFACE_UV_COORDINATE = "surface_uv_coordinate";
+constexpr StringRef ATTR_POSITION = "position";
+constexpr StringRef ATTR_RADIUS = "radius";
+constexpr StringRef ATTR_TILT = "tilt";
+constexpr StringRef ATTR_CURVE_TYPE = "curve_type";
+constexpr StringRef ATTR_CYCLIC = "cyclic";
+constexpr StringRef ATTR_RESOLUTION = "resolution";
+constexpr StringRef ATTR_NORMAL_MODE = "normal_mode";
+constexpr StringRef ATTR_HANDLE_TYPE_LEFT = "handle_type_left";
+constexpr StringRef ATTR_HANDLE_TYPE_RIGHT = "handle_type_right";
+constexpr StringRef ATTR_HANDLE_POSITION_LEFT = "handle_left";
+constexpr StringRef ATTR_HANDLE_POSITION_RIGHT = "handle_right";
+constexpr StringRef ATTR_NURBS_ORDER = "nurbs_order";
+constexpr StringRef ATTR_NURBS_WEIGHT = "nurbs_weight";
+constexpr StringRef ATTR_NURBS_KNOTS_MODE = "knots_mode";
+constexpr StringRef ATTR_SURFACE_UV_COORDINATE = "surface_uv_coordinate";
 
 /* -------------------------------------------------------------------- */
 /** \name Constructors/Destructor
@@ -1189,7 +1189,7 @@ void CurvesGeometry::transform(const float4x4 &matrix)
 
 std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max() const
 {
-  if (this->points_num() == 0) {
+  if (this->is_empty()) {
     return std::nullopt;
   }
   this->runtime->bounds_cache.ensure(
@@ -1237,10 +1237,12 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
       [&]() {
         gather_attributes(curves.attributes(),
                           AttrDomain::Point,
+                          AttrDomain::Point,
                           attribute_filter,
                           points_to_copy,
                           dst_curves.attributes_for_write());
         gather_attributes(curves.attributes(),
+                          AttrDomain::Curve,
                           AttrDomain::Curve,
                           attribute_filter,
                           curves_to_copy,
@@ -1289,14 +1291,19 @@ CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
 
   gather_attributes_group_to_group(src_attributes,
                                    AttrDomain::Point,
+                                   AttrDomain::Point,
                                    attribute_filter,
                                    points_by_curve,
                                    dst_points_by_curve,
                                    curves_to_copy,
                                    dst_attributes);
 
-  gather_attributes(
-      src_attributes, AttrDomain::Curve, attribute_filter, curves_to_copy, dst_attributes);
+  gather_attributes(src_attributes,
+                    AttrDomain::Curve,
+                    AttrDomain::Curve,
+                    attribute_filter,
+                    curves_to_copy,
+                    dst_attributes);
 
   dst_curves.update_curve_types();
   dst_curves.remove_attributes_based_on_types();
@@ -1361,24 +1368,24 @@ void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
 
   MutableAttributeAccessor attributes = this->attributes_for_write();
 
-  attributes.for_all([&](const StringRef id, AttributeMetaData meta_data) {
-    if (meta_data.domain != AttrDomain::Point) {
-      return true;
+  attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (iter.domain != AttrDomain::Point) {
+      return;
     }
-    if (meta_data.data_type == CD_PROP_STRING) {
-      return true;
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
     }
-    if (bezier_handle_names.contains(id)) {
-      return true;
+    if (bezier_handle_names.contains(iter.name)) {
+      return;
     }
 
-    GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
+    GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     attribute_math::convert_to_static_type(attribute.span.type(), [&](auto dummy) {
       using T = decltype(dummy);
       reverse_curve_point_data<T>(*this, curves_to_reverse, attribute.span.typed<T>());
     });
     attribute.finish();
-    return true;
+    return;
   });
 
   /* In order to maintain the shape of Bezier curves, handle attributes must reverse, but also the
@@ -1421,6 +1428,14 @@ void CurvesGeometry::remove_attributes_based_on_types()
   if (!this->has_curve_with_type({CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
     attributes.remove(ATTR_RESOLUTION);
   }
+}
+
+CurvesGeometry curves_new_no_attributes(int point_num, int curve_num)
+{
+  CurvesGeometry curves(0, curve_num);
+  curves.point_num = point_num;
+  CustomData_free_layer_named(&curves.point_data, "position", 0);
+  return curves;
 }
 
 /** \} */
@@ -1552,6 +1567,16 @@ GVArray CurvesGeometry::adapt_domain(const GVArray &varray,
 
   BLI_assert_unreachable();
   return {};
+}
+
+AttributeAccessor CurvesGeometry::attributes() const
+{
+  return AttributeAccessor(this, curves::get_attribute_accessor_functions());
+}
+
+MutableAttributeAccessor CurvesGeometry::attributes_for_write()
+{
+  return MutableAttributeAccessor(this, curves::get_attribute_accessor_functions());
 }
 
 /** \} */

@@ -219,7 +219,7 @@ add_blender_test(
 # This test can be extremely long, especially in debug builds.
 # Generate BLENDFILE_VERSIONING_SPLIT_RANGE instances of the test,
 # each processing their own subset of the whole set of blendfiles.
-set(BLENDFILE_VERSIONING_SPLIT_RANGE 8)
+set(BLENDFILE_VERSIONING_SPLIT_RANGE 32)
 math(EXPR BLENDFILE_VERSIONING_SPLIT_RANGE_CMAKE "${BLENDFILE_VERSIONING_SPLIT_RANGE} - 1")
 foreach(idx RANGE ${BLENDFILE_VERSIONING_SPLIT_RANGE_CMAKE})
   add_blender_test(
@@ -283,6 +283,14 @@ add_blender_test(
   curves_extrude
   ${TEST_SRC_DIR}/modeling/curves_extrude.blend
   --python ${TEST_PYTHON_DIR}/curves_extrude.py
+  --
+  --run-all-tests
+)
+
+add_blender_test(
+  object_conversion
+  ${TEST_SRC_DIR}/modeling/object_conversion.blend
+  --python ${TEST_PYTHON_DIR}/object_conversion.py
   --
   --run-all-tests
 )
@@ -400,13 +408,12 @@ add_blender_test(
   --testdir "${TEST_SRC_DIR}/animation"
 )
 
-if(WITH_EXPERIMENTAL_FEATURES)
-  # Only run with Project Baklava enabled.
-  add_blender_test(
-    bl_animation_action
-    --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_action.py
-  )
-endif()
+add_blender_test(
+  bl_animation_action
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_action.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
+)
 
 add_blender_test(
   bl_animation_keyframing
@@ -628,7 +635,9 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(WARNING "Disabling render tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/render/shader")
-    message(WARNING "Disabling render tests because tests folder does not exist at ${TEST_SRC_DIR}")
+    message(
+      WARNING "Disabling render tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
+    )
   elseif(NOT WITH_COMPOSITOR_CPU)
     message(WARNING "Disabling render tests because WITH_COMPOSITOR_CPU is disabled")
   elseif(NOT WITH_OPENCOLORIO)
@@ -742,7 +751,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
 
     if(WITH_GPU_RENDER_TESTS)
       list(APPEND gpu_render_tests ${render_tests})
-      list(FILTER gpu_render_tests EXCLUDE REGEX light_group|light_linking|shadow_catcher|denoise|guiding|reports)
+      list(FILTER gpu_render_tests EXCLUDE REGEX light_group|shadow_catcher|denoise|guiding|reports)
 
       set(_gpu_render_tests_arguments)
       if(WITH_GPU_RENDER_TESTS_SILENT)
@@ -762,7 +771,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
           )
         endforeach()
       endif()
-      
+
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
@@ -925,6 +934,7 @@ set(geo_node_tests
   curve_primitives
   curves
   curves/interpolate_curves
+  foreach_geometry_element_zone
   geometry
   grease_pencil
   instance
@@ -988,9 +998,11 @@ if(WITH_GPU_DRAW_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(STATUS "Disabling OpenGL draw tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
-    message(STATUS "Disabling OpenGL draw tests because tests folder does not exist at ${TEST_SRC_DIR}")
+    message(
+      STATUS "Disabling OpenGL draw tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
+    )
   else()
-    # Use all subdirectories of opengl folder.
+    # Use all subdirectories of the `opengl` directory.
     file(GLOB children RELATIVE ${TEST_SRC_DIR}/opengl ${TEST_SRC_DIR}/opengl/*)
     foreach(child ${children})
       # Resolve symlinks, useful to test production files with linked libraries.
@@ -1107,6 +1119,9 @@ else()
     effects
     filter
     transform
+    blend_modes_byte
+    blend_modes_float
+    ffmpeg
   )
 
   foreach(render_test ${render_tests})
@@ -1160,3 +1175,16 @@ add_subdirectory(collada)
 
 # TODO: disabled for now after collection unification
 # add_subdirectory(view_layer)
+
+# ------------------------------------------------------------------------------
+# Linux Release sainty checks
+
+if(WITH_LINUX_OFFICIAL_RELEASE_TESTS)
+  get_filename_component(release_root_folder ${TEST_BLENDER_EXE} DIRECTORY)
+  add_python_test(
+    linux_release_sanity_checks
+    ${CMAKE_SOURCE_DIR}/tools/check_blender_release/check_release.py
+    -- ${release_root_folder}
+  )
+  unset(release_root_folder)
+endif()

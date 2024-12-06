@@ -36,6 +36,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 #include "BKE_shrinkwrap.hh"
 #include "BKE_unit.hh"
 
@@ -105,6 +106,7 @@ static bool object_remesh_poll(bContext *C)
 
 static int voxel_remesh_exec(bContext *C, wmOperator *op)
 {
+  const Scene &scene = *CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
@@ -132,7 +134,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_begin(*ob, op);
+    sculpt_paint::undo::geometry_begin(scene, *ob, op);
   }
 
   if (mesh->flag & ME_REMESH_FIX_POLES && mesh->remesh_voxel_adaptivity <= 0.0f) {
@@ -158,6 +160,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
 
   if (ob->mode == OB_MODE_SCULPT) {
     sculpt_paint::undo::geometry_end(*ob);
+    BKE_sculptsession_free_pbvh(*ob);
   }
 
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
@@ -330,7 +333,8 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
 
   GPU_matrix_push();
   GPU_matrix_mul(cd->text_mat);
-  BLF_size(fontid, 10.0f * fstyle_points * UI_SCALE_FAC);
+  /* Resolution scale is already accounted for in 'text_mat'. */
+  BLF_size(fontid, 10.0f * fstyle_points);
   BLF_color3f(fontid, 1.0f, 1.0f, 1.0f);
   BLF_width_and_height(fontid, str, strdrawlen, &strwidth, &strheight);
   BLF_position(fontid, -0.5f * strwidth, -0.5f * strheight, 0.0f);
@@ -348,7 +352,7 @@ static void voxel_size_edit_cancel(bContext *C, wmOperator *op)
   ARegion *region = CTX_wm_region(C);
   VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op->customdata);
 
-  ED_region_draw_cb_exit(region->type, cd->draw_handle);
+  ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
 
   MEM_freeN(op->customdata);
 
@@ -386,7 +390,7 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
       (event->type == EVT_RETKEY && event->val == KM_PRESS) ||
       (event->type == EVT_PADENTER && event->val == KM_PRESS))
   {
-    ED_region_draw_cb_exit(region->type, cd->draw_handle);
+    ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
     mesh->remesh_voxel_size = cd->voxel_size;
     MEM_freeN(op->customdata);
     ED_region_tag_redraw(region);
@@ -442,7 +446,7 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 
   /* Initial operator Custom Data setup. */
   cd->draw_handle = ED_region_draw_cb_activate(
-      region->type, voxel_size_edit_draw, cd, REGION_DRAW_POST_VIEW);
+      region->runtime->type, voxel_size_edit_draw, cd, REGION_DRAW_POST_VIEW);
   cd->active_object = active_object;
   cd->init_mval[0] = event->mval[0];
   cd->init_mval[1] = event->mval[1];
@@ -842,6 +846,7 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
 
   Object *ob = qj->owner;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Scene &scene = *qj->scene;
   Mesh *new_mesh;
   Mesh *bisect_mesh;
 
@@ -887,7 +892,7 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
   new_mesh = remesh_symmetry_mirror(qj->owner, new_mesh, qj->symmetry_axes);
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_begin(*ob, qj->op);
+    sculpt_paint::undo::geometry_begin(scene, *ob, qj->op);
   }
 
   if (qj->preserve_attributes) {
@@ -900,6 +905,7 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
 
   if (ob->mode == OB_MODE_SCULPT) {
     sculpt_paint::undo::geometry_end(*ob);
+    BKE_sculptsession_free_pbvh(*ob);
   }
 
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);

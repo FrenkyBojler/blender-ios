@@ -273,7 +273,7 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
                                      const VArray<int> &cuts,
                                      const bke::AttributeFilter &attribute_filter)
 {
-  if (src_curves.points_num() == 0) {
+  if (src_curves.is_empty()) {
     return src_curves;
   }
 
@@ -413,6 +413,7 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
                                      subdivide_nurbs);
 
   bke::copy_attributes_group_to_group(src_attributes,
+                                      bke::AttrDomain::Point,
                                       bke::AttrDomain::Point,
                                       attribute_filter,
                                       src_points_by_curve,

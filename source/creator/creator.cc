@@ -82,6 +82,10 @@
 #  include <floatingpoint.h>
 #endif
 
+#ifdef _OPENMP
+#  include <omp.h>
+#endif
+
 #ifdef WITH_BINRELOC
 #  include "binreloc.h"
 #endif
@@ -92,10 +96,6 @@
 
 #ifdef WITH_CYCLES_LOGGING
 #  include "CCL_api.h"
-#endif
-
-#ifdef WITH_SDL_DYNLOAD
-#  include "sdlew.h"
 #endif
 
 #include "creator_intern.h" /* Own include. */
@@ -304,12 +304,19 @@ int main(int argc,
   setvbuf(stdout, nullptr, _IONBF, 0);
 #endif
 
-#ifdef WIN32
-/* We delay loading of OPENMP so we can set the policy here. */
-#  if defined(_MSC_VER)
+#ifdef _OPENMP
+#  if defined(WIN32) && defined(_MSC_VER)
+  /* We delay loading of OPENMP so we can set the policy here. */
   _putenv_s("OMP_WAIT_POLICY", "PASSIVE");
 #  endif
+  /* Ensure the OpenMP runtime is initialized as soon as possible to make sure duplicate
+   * `libomp/libiomp5` runtime conflicts are detected as soon as a second runtime is initialized.
+   * Initialization must be done after setting any relevant environment variables, but before
+   * installing signal handlers. */
+  omp_get_max_threads();
+#endif
 
+#ifdef WIN32
 #  ifdef USE_WIN32_UNICODE_ARGS
   /* Win32 Unicode Arguments. */
   {
@@ -370,10 +377,6 @@ int main(int argc,
       STRNCPY(build_commit_time, unknown);
     }
   }
-#endif
-
-#ifdef WITH_SDL_DYNLOAD
-  sdlewInit();
 #endif
 
   /* Initialize logging. */
