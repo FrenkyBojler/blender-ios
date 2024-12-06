@@ -1205,6 +1205,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                               int point_i,
                               int idx,
                               float u_stroke,
+                              float curve_shape,
                               const float4x2 &texture_matrix,
                               GreasePencilStrokeVert &s_vert,
                               GreasePencilColorVert &c_vert) {
@@ -1220,7 +1221,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       s_vert.opacity = opacities[point_i] *
                        ((start_cap == GP_STROKE_CAP_TYPE_ROUND) ? 1.0f : -1.0f);
       s_vert.point_id = verts_range[idx];
-      s_vert.stroke_id = verts_range.first();
+      s_vert.stroke_id = curve_shape;
       s_vert.mat = materials[curve_i] % GPENCIL_MATERIAL_BUFFER_LEN;
 
       s_vert.packed_asp_hard_rot = pack_rotation_aspect_hardness(
@@ -1256,6 +1257,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       const float4x2 texture_matrix = texture_matrices[shape.first()] *
                                       object_space_to_layer_space;
 
+      const int curve_shape = verts_start_offsets[shape.first()];
+
       shape.foreach_index([&](const int curve_i) {
         const IndexRange points = points_by_curve[curve_i];
         const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
@@ -1283,6 +1286,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                          points[i],
                          idx,
                          u_stroke,
+                         curve_shape,
                          texture_matrix,
                          verts_slice[idx],
                          cols_slice[idx]);
@@ -1299,6 +1303,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                          points[0],
                          idx,
                          u_stroke,
+                         curve_shape,
                          texture_matrix,
                          verts_slice[idx],
                          cols_slice[idx]);
