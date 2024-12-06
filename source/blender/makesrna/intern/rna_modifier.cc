@@ -4037,6 +4037,7 @@ static void rna_def_modifier_smooth(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "repeat");
+  RNA_def_property_range(prop, 0, SHRT_MAX);
   RNA_def_property_ui_range(prop, 0, 30, 1, -1);
   RNA_def_property_ui_text(prop, "Repeat", "");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -4108,6 +4109,7 @@ static void rna_def_modifier_correctivesmooth(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "repeat");
+  RNA_def_property_range(prop, 0, SHRT_MAX);
   RNA_def_property_ui_range(prop, 0, 200, 1, -1);
   RNA_def_property_ui_text(prop, "Repeat", "");
   RNA_def_property_update(prop, 0, "rna_CorrectiveSmoothModifier_update");
@@ -4220,6 +4222,7 @@ static void rna_def_modifier_laplaciansmooth(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "repeat");
+  RNA_def_property_range(prop, 0, SHRT_MAX);
   RNA_def_property_ui_range(prop, 0, 200, 1, -1);
   RNA_def_property_ui_text(prop, "Repeat", "");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -5639,7 +5642,7 @@ static void rna_def_modifier_screw(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "iter");
-  RNA_def_property_range(prop, 1, 10000);
+  RNA_def_property_range(prop, 1, INT_MAX);
   RNA_def_property_ui_range(prop, 1, 100, 1, -1);
   RNA_def_property_ui_text(prop, "Iterations", "Number of times to apply the screw operation");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -7015,6 +7018,7 @@ static void rna_def_modifier_laplaciandeform(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "repeat");
+  RNA_def_property_range(prop, 0, SHRT_MAX);
   RNA_def_property_ui_range(prop, 1, 50, 1, -1);
   RNA_def_property_ui_text(prop, "Repeat", "");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -10328,6 +10332,7 @@ static void rna_def_modifier_grease_pencil_simplify(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "step", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "step");
+  RNA_def_property_range(prop, 0, SHRT_MAX);
   RNA_def_property_range(prop, 1, 50);
   RNA_def_property_ui_text(prop, "Iterations", "Number of times to apply simplify");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
