@@ -27,6 +27,25 @@
 namespace blender::ed::sculpt_paint {
 
 /* TODO: move to more appropriate file */
+static float4x4& calc_local_space_matrix(StrokeCache& cache,
+  const float3& plane_normal,
+  const float3& plane_center)
+{
+  float4x4 mat = float4x4::identity();
+  mat.x_axis() = math::cross(plane_normal, cache.grab_delta_symm);
+  mat.y_axis() = math::cross(plane_normal, float3(mat[0]));
+  mat.z_axis() = plane_normal;
+  mat.location() = plane_center;
+  mat = math::normalize(mat);
+
+  float4x4 scale = math::from_scale<float4x4>(float3(cache.radius));
+  float4x4 scaled_mat = mat * scale;
+  float4x4 inv_mat = math::invert(scaled_mat);
+
+  return inv_mat;
+}
+
+/* TODO: move to more appropriate file */
 static float4x4& calc_texture_space_matrix(StrokeCache& cache)
 {
   float4x4 mat = math::from_location<float4x4>(float3(0.5f, 0.5f, 0.0f));
@@ -93,13 +112,15 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
   nodes::GeoNodesSculptData sculpt_data;
   sculpt_data.plane_normal = cache.sculpt_normal_symm;
-  sculpt_data.plane_origin = cache.location_symm;
+  sculpt_data.plane_center = cache.location_symm;
+  sculpt_data.cursor_location = cache.location_symm;
   sculpt_data.pen_pressure = cache.pressure;
   sculpt_data.radius = cache.radius;
   sculpt_data.strength = cache.bstrength;
   sculpt_data.is_first_step = cache.first_time;
   sculpt_data.step = cache.step;
-  sculpt_data.local_transform = calc_texture_space_matrix(cache);
+  //sculpt_data.local_transform = calc_local_space_matrix(/* TODO */);
+  sculpt_data.texture_transform = calc_texture_space_matrix(cache);
   sculpt_data.depsgraph = &depsgraph;
   sculpt_data.self_object = &object;
 

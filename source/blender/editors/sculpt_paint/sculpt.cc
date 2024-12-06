@@ -4075,7 +4075,8 @@ static void brush_delta_update(const Depsgraph &depsgraph,
   };
   int brush_type = brush.sculpt_brush_type;
 
-  if (!ELEM(brush_type,
+  /* TODO: check if computing grab_delta for every brush breaks anything */
+  /* if (!ELEM(brush_type,
             SCULPT_BRUSH_TYPE_PAINT,
             SCULPT_BRUSH_TYPE_BASIC,
             SCULPT_BRUSH_TYPE_GRAB,
@@ -4094,7 +4095,8 @@ static void brush_delta_update(const Depsgraph &depsgraph,
       !brush_uses_topology_rake(ss, brush))
   {
     return;
-  }
+  } */
+
   float grab_location[3], imat[4][4], delta[3], loc[3];
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {

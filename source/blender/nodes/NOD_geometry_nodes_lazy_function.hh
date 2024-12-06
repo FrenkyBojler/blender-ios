@@ -215,9 +215,11 @@ struct GeoNodesSculptData {
   bool is_first_step;
   int step;
   float pen_pressure;
+  float3 cursor_location;
   float3 plane_normal;
-  float3 plane_origin;
+  float3 plane_center;
   float4x4 local_transform;
+  float4x4 texture_transform;
 
   const Object *self_object = nullptr;
   const Depsgraph *depsgraph = nullptr;
