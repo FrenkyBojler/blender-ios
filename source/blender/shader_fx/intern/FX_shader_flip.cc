@@ -15,9 +15,9 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_screen.hh"
 
 #include "UI_interface.hh"

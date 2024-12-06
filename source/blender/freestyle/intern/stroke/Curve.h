@@ -13,7 +13,7 @@
 
 #include "../geometry/Geom.h"
 
-//#include "../scene_graph/FrsMaterial.h"
+// #include "../scene_graph/FrsMaterial.h"
 
 #include "../view_map/Interface0D.h"
 #include "../view_map/Interface1D.h"
@@ -22,9 +22,7 @@
 
 #include "../system/BaseIterator.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -334,9 +332,7 @@ class CurvePoint : public Interface0D {
   Vec2d directionFredo() const;
 #endif
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:CurvePoint")
-#endif
 };
 
 /**********************************/
@@ -583,9 +579,7 @@ class Curve : public Interface1D {
    */
   virtual Interface0DIterator pointsEnd(float t = 0.0f);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Curve")
-#endif
 };
 
 } /* namespace Freestyle */

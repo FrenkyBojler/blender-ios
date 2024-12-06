@@ -60,7 +60,10 @@ class RotateOperation : public NodeOperation {
     const math::AngleRadian rotation = get_input("Degr").get_float_value_default(0.0f);
     const float3x3 transformation = math::from_rotation<float3x3>(rotation);
 
-    transform(context(), input, output, transformation, get_interpolation());
+    RealizationOptions realization_options = input.get_realization_options();
+    realization_options.interpolation = get_interpolation();
+
+    transform(context(), input, output, transformation, realization_options);
   }
 
   Interpolation get_interpolation()
@@ -90,7 +93,7 @@ void register_node_type_cmp_rotate()
 {
   namespace file_ns = blender::nodes::node_composite_rotate_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_ROTATE, "Rotate", NODE_CLASS_DISTORT);
   ntype.declare = file_ns::cmp_node_rotate_declare;
@@ -98,5 +101,5 @@ void register_node_type_cmp_rotate()
   ntype.initfunc = file_ns::node_composit_init_rotate;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

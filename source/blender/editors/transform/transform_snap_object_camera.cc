@@ -8,8 +8,7 @@
 
 #include "BLI_math_matrix.hh"
 
-#include "BKE_bvhutils.h"
-#include "BKE_mesh.hh"
+#include "BKE_bvhutils.hh"
 #include "BKE_object.hh"
 #include "BKE_tracking.h"
 
@@ -20,7 +19,7 @@
 using namespace blender;
 
 eSnapMode snapCamera(SnapObjectContext *sctx,
-                     Object *object,
+                     const Object *object,
                      const float4x4 &obmat,
                      eSnapMode snap_to_flag)
 {

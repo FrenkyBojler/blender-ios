@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(overlay_common_lib.glsl)
+#include "overlay_common_lib.glsl"
 
 void do_vertex(
     vec4 pos, float selection_fac, vec2 stipple_start, vec2 stipple_pos, float coord, vec2 offset)
@@ -15,7 +15,7 @@ void do_vertex(
   gl_Position = pos;
   /* Multiply offset by 2 because gl_Position range is [-1..1]. */
   gl_Position.xy += offset * 2.0;
-  EmitVertex();
+  gpu_EmitVertex();
 }
 
 void main()

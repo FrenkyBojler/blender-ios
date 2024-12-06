@@ -16,11 +16,11 @@
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
-#include "BKE_lib_query.h"
-#include "BKE_modifier.h"
+#include "BKE_context.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 

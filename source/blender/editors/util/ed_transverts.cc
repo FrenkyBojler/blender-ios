@@ -16,15 +16,13 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_DerivedMesh.h"
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_editmesh.h"
-#include "BKE_lattice.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_lattice.hh"
 #include "BKE_mesh_iterators.hh"
 #include "BKE_object.hh"
 
@@ -33,7 +31,7 @@
 #include "ED_armature.hh"
 #include "ED_curves.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
 
 #include "ED_transverts.hh" /* own include */
 
@@ -308,7 +306,7 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
     }
 
     if (mode & TM_CALC_MAPLOC) {
-      Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(obedit);
+      const Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(obedit);
       if (tvs->transverts && editmesh_eval_cage) {
         BM_mesh_elem_table_ensure(bm, BM_VERT);
         BKE_mesh_foreach_mapped_vert(

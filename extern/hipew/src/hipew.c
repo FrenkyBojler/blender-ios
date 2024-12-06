@@ -35,6 +35,7 @@ thipGetErrorString *hipGetErrorString;
 thipGetLastError *hipGetLastError;
 thipInit *hipInit;
 thipDriverGetVersion *hipDriverGetVersion;
+thipRuntimeGetVersion *hipRuntimeGetVersion;
 thipGetDevice *hipGetDevice;
 thipGetDeviceCount *hipGetDeviceCount;
 thipGetDeviceProperties *hipGetDeviceProperties;
@@ -232,15 +233,18 @@ static int hipewHipInit(void) {
   /* Library paths. */
 #ifdef _WIN32
   /* Expected in C:/Windows/System32 or similar, no path needed. */
-  const char *hip_paths[] = {"amdhip64.dll", NULL};
-
+  const char *hip_paths[] = {"amdhip64.dll", "amdhip64_6.dll", NULL};
 #elif defined(__APPLE__)
   /* Default installation path. */
   const char *hip_paths[] = {"", NULL};
 #else
+  /* ROCm 6 changes paths from /opt/rocm/hip/lib to /opt/rocm/lib, so
+   * search for libraries there. It still includes .so.5. */
   const char *hip_paths[] = {"libamdhip64.so.5",
+                             "/opt/rocm/lib/libamdhip64.so.5",
                              "/opt/rocm/hip/lib/libamdhip64.so.5",
                              "libamdhip64.so",
+                             "/opt/rocm/lib/libamdhip64.so",
                              "/opt/rocm/hip/lib/libamdhip64.so", NULL};
 #endif
   static int initialized = 0;
@@ -281,6 +285,7 @@ static int hipewHipInit(void) {
   HIP_LIBRARY_FIND_CHECKED(hipGetLastError);
   HIP_LIBRARY_FIND_CHECKED(hipInit);
   HIP_LIBRARY_FIND_CHECKED(hipDriverGetVersion);
+  HIP_LIBRARY_FIND_CHECKED(hipRuntimeGetVersion);
   HIP_LIBRARY_FIND_CHECKED(hipGetDevice);
   HIP_LIBRARY_FIND_CHECKED(hipGetDeviceCount);
   HIP_LIBRARY_FIND_CHECKED(hipGetDeviceProperties);
@@ -406,7 +411,28 @@ static int hipewHipInit(void) {
   return result;
 }
 
+hipMemoryType get_hip_memory_type(hipMemoryType mem_type, int runtime_version) {
+  /** Convert hipMemoryType for backwards compatibility with rocm5/6. 
+   * This can be removed when support for ROCm 5 is removed. */
 
+  /* If version is 5 we need to use the old enum vals (60000000 is start of ROCm 6) */
+  if (runtime_version > 60000000) {
+    return mem_type;
+  }
+
+  switch (mem_type) {
+    case hipMemoryTypeHost:
+      return hipMemoryTypeHost_v5;
+    case hipMemoryTypeDevice:
+      return hipMemoryTypeDevice_v5;
+    case hipMemoryTypeArray:
+      return hipMemoryTypeArray_v5;
+    case hipMemoryTypeUnified:
+      return hipMemoryTypeUnified_v5;
+    default:
+      return hipMemoryTypeUnregistered;  /* This should not happen. */
+  }
+}
 
 int hipewInit(hipuint32_t flags) {
   int result = HIPEW_SUCCESS;

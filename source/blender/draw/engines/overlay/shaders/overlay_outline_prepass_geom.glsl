@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "common_view_clipping_lib.glsl"
+#include "common_view_lib.glsl"
 
 void vert_from_gl_in(int v)
 {
@@ -41,10 +41,10 @@ void main()
   //  return;
 
   vert_from_gl_in(1);
-  EmitVertex();
+  gpu_EmitVertex();
 
   vert_from_gl_in(2);
-  EmitVertex();
+  gpu_EmitVertex();
 
   EndPrimitive();
 }

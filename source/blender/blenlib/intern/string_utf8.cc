@@ -10,11 +10,12 @@
  * \ingroup bli
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <wchar.h>
-#include <wctype.h>
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cwchar>
+#include <cwctype>
 #include <wcwidth.h>
 
 #include "BLI_utildefines.h"
@@ -28,7 +29,7 @@
 #  pragma GCC diagnostic error "-Wsign-conversion"
 #endif
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /* -------------------------------------------------------------------- */
 /** \name UTF8 Character Decoding (Skip & Mask Lookup)
@@ -194,14 +195,14 @@ ptrdiff_t BLI_str_utf8_invalid_byte(const char *str, size_t length)
     /* Check for overlong sequences for each different length */
     switch (ab) {
       case 1:
-        /* Check for: XX00 000X. */
+        /* Check for: `XX00 000X`. */
         if ((c & 0x3e) == 0) {
           goto utf8_error;
         }
         continue; /* We know there aren't any more bytes to check */
 
       case 2:
-        /* Check for: 1110 0000, XX0X XXXX. */
+        /* Check for: `1110 0000, XX0X XXXX`. */
         if (c == 0xe0 && (*p & 0x20) == 0) {
           goto utf8_error;
         }
@@ -243,21 +244,21 @@ ptrdiff_t BLI_str_utf8_invalid_byte(const char *str, size_t length)
         break;
 
       case 3:
-        /* Check for: 1111 0000, XX00 XXXX. */
+        /* Check for: `1111 0000, XX00 XXXX`. */
         if (c == 0xf0 && (*p & 0x30) == 0) {
           goto utf8_error;
         }
         break;
 
       case 4:
-        /* Check for 1111 1000, XX00 0XXX. */
+        /* Check for `1111 1000, XX00 0XXX`. */
         if (c == 0xf8 && (*p & 0x38) == 0) {
           goto utf8_error;
         }
         break;
 
       case 5:
-        /* Check for: 1111 1100, XX00 00XX. */
+        /* Check for: `1111 1100, XX00 00XX`. */
         if (c == 0xfc && (*p & 0x3c) == 0) {
           goto utf8_error;
         }
@@ -319,7 +320,7 @@ BLI_INLINE char *str_utf8_copy_max_bytes_impl(char *dst, const char *src, size_t
   /* Cast to `uint8_t` is a no-op, quiets array subscript of type `char` warning.
    * No need to check `src` points to a nil byte as this will return from the switch statement. */
   size_t utf8_size;
-  while ((utf8_size = (size_t)utf8_char_compute_skip(*src)) < dst_maxncpy) {
+  while ((utf8_size = size_t(utf8_char_compute_skip(*src))) < dst_maxncpy) {
     dst_maxncpy -= utf8_size;
     /* Prefer more compact block. */
     /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
@@ -356,7 +357,7 @@ size_t BLI_strncpy_utf8_rlen(char *__restrict dst, const char *__restrict src, s
   char *r_dst = dst;
   dst = str_utf8_copy_max_bytes_impl(dst, src, dst_maxncpy);
 
-  return (size_t)(dst - r_dst);
+  return size_t(dst - r_dst);
 }
 
 /* -------------------------------------------------------------------- */
@@ -371,7 +372,7 @@ size_t BLI_strncpy_wchar_as_utf8(char *__restrict dst,
 
   size_t len = 0;
   while (*src && len < dst_maxncpy) {
-    len += BLI_str_utf8_from_unicode((uint)*src++, dst + len, dst_maxncpy - len);
+    len += BLI_str_utf8_from_unicode(uint(*src++), dst + len, dst_maxncpy - len);
   }
   dst[len] = '\0';
   /* Return the correct length when part of the final byte did not fit into the string. */
@@ -386,7 +387,7 @@ size_t BLI_wstrlen_utf8(const wchar_t *src)
   size_t len = 0;
 
   while (*src) {
-    len += BLI_str_utf8_from_unicode_len((uint)*src++);
+    len += BLI_str_utf8_from_unicode_len(uint(*src++));
   }
 
   return len;
@@ -394,14 +395,26 @@ size_t BLI_wstrlen_utf8(const wchar_t *src)
 
 size_t BLI_strlen_utf8_ex(const char *strc, size_t *r_len_bytes)
 {
-  size_t len;
+  size_t len = 0;
   const char *strc_orig = strc;
 
-  for (len = 0; *strc; len++) {
-    strc += BLI_str_utf8_size_safe(strc);
+  while (*strc) {
+    int step = BLI_str_utf8_size_safe(strc);
+
+    /* Detect null bytes within multi-byte sequences.
+     * This matches the behavior of #BLI_strncpy_utf8 for incomplete byte sequences. */
+    for (int i = 1; i < step; i++) {
+      if (UNLIKELY(strc[i] == '\0')) {
+        step = i;
+        break;
+      }
+    }
+
+    strc += step;
+    len++;
   }
 
-  *r_len_bytes = (size_t)(strc - strc_orig);
+  *r_len_bytes = size_t(strc - strc_orig);
   return len;
 }
 
@@ -417,16 +430,25 @@ size_t BLI_strnlen_utf8_ex(const char *strc, const size_t strc_maxlen, size_t *r
   const char *strc_orig = strc;
   const char *strc_end = strc + strc_maxlen;
 
-  while (true) {
-    size_t step = (size_t)BLI_str_utf8_size_safe(strc);
-    if (!*strc || strc + step > strc_end) {
+  while (*strc) {
+    int step = BLI_str_utf8_size_safe(strc);
+    if (strc + step > strc_end) {
       break;
+    }
+
+    /* Detect null bytes within multi-byte sequences.
+     * This matches the behavior of #BLI_strncpy_utf8 for incomplete byte sequences. */
+    for (int i = 1; i < step; i++) {
+      if (UNLIKELY(strc[i] == '\0')) {
+        step = i;
+        break;
+      }
     }
     strc += step;
     len++;
   }
 
-  *r_len_bytes = (size_t)(strc - strc_orig);
+  *r_len_bytes = size_t(strc - strc_orig);
   return len;
 }
 
@@ -762,7 +784,7 @@ uint BLI_str_utf8_as_unicode_step_or_error(const char *__restrict p,
                                            const size_t p_len,
                                            size_t *__restrict index)
 {
-  const uchar c = (uchar) * (p += *index);
+  const uchar c = uchar(*(p += *index));
 
   BLI_assert(*index < p_len);
   BLI_assert(c != '\0');
@@ -788,7 +810,7 @@ uint BLI_str_utf8_as_unicode_step_safe(const char *__restrict p,
 {
   uint result = BLI_str_utf8_as_unicode_step_or_error(p, p_len, index);
   if (UNLIKELY(result == BLI_UTF8_ERR)) {
-    result = (uint)p[*index];
+    result = uint(p[*index]);
     *index += 1;
   }
   BLI_assert(*index <= p_len);
@@ -854,10 +876,10 @@ size_t BLI_str_utf8_from_unicode(uint c, char *dst, const size_t dst_maxncpy)
   }
 
   for (uint i = len - 1; i > 0; i--) {
-    dst[i] = (char)((c & 0x3f) | 0x80);
+    dst[i] = char((c & 0x3f) | 0x80);
     c >>= 6;
   }
-  dst[0] = (char)(c | first);
+  dst[0] = char(c | first);
 
   return len;
 }
@@ -883,7 +905,7 @@ size_t BLI_str_utf8_as_utf32(char32_t *__restrict dst_w,
     else {
       *dst_w = '?';
       const char *src_c_next = BLI_str_find_next_char_utf8(src_c + index, src_c_end);
-      index = (size_t)(src_c_next - src_c);
+      index = size_t(src_c_next - src_c);
     }
     dst_w++;
     len++;
@@ -903,7 +925,7 @@ size_t BLI_str_utf32_as_utf8(char *__restrict dst,
 
   size_t len = 0;
   while (*src && len < dst_maxncpy) {
-    len += BLI_str_utf8_from_unicode((uint)*src++, dst + len, dst_maxncpy - len);
+    len += BLI_str_utf8_from_unicode(uint(*src++), dst + len, dst_maxncpy - len);
   }
   dst[len] = '\0';
   /* Return the correct length when part of the final byte did not fit into the string. */
@@ -919,7 +941,7 @@ size_t BLI_str_utf32_as_utf8_len_ex(const char32_t *src, const size_t src_maxlen
   const char32_t *src_end = src + src_maxlen;
 
   while ((src < src_end) && *src) {
-    len += BLI_str_utf8_from_unicode_len((uint)*src++);
+    len += BLI_str_utf8_from_unicode_len(uint(*src++));
   }
 
   return len;
@@ -930,7 +952,7 @@ size_t BLI_str_utf32_as_utf8_len(const char32_t *src)
   size_t len = 0;
 
   while (*src) {
-    len += BLI_str_utf8_from_unicode_len((uint)*src++);
+    len += BLI_str_utf8_from_unicode_len(uint(*src++));
   }
 
   return len;
@@ -987,7 +1009,7 @@ size_t BLI_str_partition_ex_utf8(const char *str,
                                  const char **r_suf,
                                  const bool from_right)
 {
-  const size_t str_len = end ? (size_t)(end - str) : strlen(str);
+  const size_t str_len = end ? size_t(end - str) : strlen(str);
   if (end == nullptr) {
     end = str + str_len;
   }
@@ -1003,7 +1025,7 @@ size_t BLI_str_partition_ex_utf8(const char *str,
                                    str + index))
   {
     size_t index_ofs = 0;
-    const uint c = BLI_str_utf8_as_unicode_step_or_error(sep, (size_t)(end - sep), &index_ofs);
+    const uint c = BLI_str_utf8_as_unicode_step_or_error(sep, size_t(end - sep), &index_ofs);
     if (UNLIKELY(c == BLI_UTF8_ERR)) {
       break;
     }
@@ -1014,7 +1036,7 @@ size_t BLI_str_partition_ex_utf8(const char *str,
         /* `suf` is already correct in case from_right is true. */
         *r_sep = sep;
         *r_suf = from_right ? suf : (char *)(str + index);
-        return (size_t)(sep - str);
+        return size_t(sep - str);
       }
     }
 
@@ -1063,19 +1085,19 @@ int BLI_str_utf8_offset_from_index(const char *str, const size_t str_len, const 
     UNUSED_VARS(code);
     index++;
   }
-  return (int)offset;
+  return int(offset);
 }
 
 int BLI_str_utf8_offset_to_column(const char *str, const size_t str_len, const int offset_target)
 {
   BLI_assert(offset_target >= 0);
-  const size_t offset_target_clamp = MIN2(size_t(offset_target), str_len);
+  const size_t offset_target_clamp = std::min(size_t(offset_target), str_len);
   size_t offset = 0;
   int column = 0;
   while (offset < offset_target_clamp) {
     const uint code = BLI_str_utf8_as_unicode_step_safe(str, str_len, &offset);
     column += BLI_wcwidth_safe(code);
-    BLI_assert(offset <= (size_t)offset_target); /* See DOXY section comment. */
+    BLI_assert(offset <= size_t(offset_target)); /* See DOXY section comment. */
   }
   return column;
 }
@@ -1092,7 +1114,7 @@ int BLI_str_utf8_offset_from_column(const char *str, const size_t str_len, const
     }
     offset = offset_next;
   }
-  return (int)offset;
+  return int(offset);
 }
 
 int BLI_str_utf8_offset_to_column_with_tabs(const char *str,
@@ -1101,14 +1123,14 @@ int BLI_str_utf8_offset_to_column_with_tabs(const char *str,
                                             const int tab_width)
 {
   BLI_assert(offset_target >= 0);
-  const size_t offset_target_clamp = MIN2(size_t(offset_target), str_len);
+  const size_t offset_target_clamp = std::min(size_t(offset_target), str_len);
   size_t offset = 0;
   int column = 0;
   while (offset < offset_target_clamp) {
     const uint code = BLI_str_utf8_as_unicode_step_safe(str, str_len, &offset);
     /* The following line is the only change compared with #BLI_str_utf8_offset_to_column. */
     column += (code == '\t') ? (tab_width - (column % tab_width)) : BLI_wcwidth_safe(code);
-    BLI_assert(offset <= (size_t)offset_target); /* See DOXY section comment. */
+    BLI_assert(offset <= size_t(offset_target)); /* See DOXY section comment. */
   }
   return column;
 }
@@ -1129,7 +1151,7 @@ int BLI_str_utf8_offset_from_column_with_tabs(const char *str,
     }
     offset = offset_next;
   }
-  return (int)offset;
+  return int(offset);
 }
 
 /** \} */

@@ -7,9 +7,9 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "GPU_capabilities.h"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_capabilities.hh"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_algorithm_realize_on_domain.hh"
 #include "COM_context.hh"
@@ -26,7 +26,7 @@ namespace blender::realtime_compositor {
  * size to account for the bounding box of the domain after rotation. The size of the returned
  * domain is bound and clipped by the maximum possible GPU texture size to avoid allocations that
  * surpass hardware limits, which is typically 16k. */
-static Domain compute_realized_transformation_domain(const Domain &domain)
+static Domain compute_realized_transformation_domain(Context &context, const Domain &domain)
 {
   math::AngleRadian rotation;
   float2 translation, scale;
@@ -46,8 +46,8 @@ static Domain compute_realized_transformation_domain(const Domain &domain)
 
   const float3x3 transformation = math::from_loc_rot_scale<float3x3>(translation, rotation, scale);
 
-  const int2 domain_size = math::clamp(
-      int2(math::round(size)), int2(1), int2(GPU_max_texture_size()));
+  const int max_size = context.use_gpu() ? GPU_max_texture_size() : 65536;
+  const int2 domain_size = math::clamp(int2(math::round(size)), int2(1), int2(max_size));
 
   return Domain(domain_size, transformation);
 }
@@ -55,33 +55,31 @@ static Domain compute_realized_transformation_domain(const Domain &domain)
 void transform(Context &context,
                Result &input,
                Result &output,
-               float3x3 transformation,
-               Interpolation interpolation)
+               const float3x3 &transformation,
+               RealizationOptions realization_options)
 {
-  math::AngleRadian rotation;
-  float2 translation, scale;
-  math::to_loc_rot_scale(transformation, translation, rotation, scale);
+  /* If we are wrapping, the input is translated but the target domain remains fixed, which results
+   * in the input clipping on one side and wrapping on the opposite side. This mask vector can be
+   * multiplied to the translation component of the transformation to remove it. */
+  const float2 wrap_mask = float2(realization_options.wrap_x ? 0.0f : 1.0f,
+                                  realization_options.wrap_y ? 0.0f : 1.0f);
 
-  /* Rotation and scale transformations are immediately realized. */
-  if (rotation != 0.0f || scale != float2(1.0f)) {
-    RealizationOptions realization_options = input.get_realization_options();
-    realization_options.interpolation = interpolation;
+  /* Compute a transformed input domain, excluding translations of wrapped axes. */
+  Domain input_domain = input.domain();
+  float3x3 domain_transformation = transformation;
+  domain_transformation.location() *= wrap_mask;
+  input_domain.transform(domain_transformation);
 
-    Domain input_domain = input.domain();
-    input_domain.transform(transformation);
+  /* Realize the input on the target domain using the full transformation. */
+  const Domain target_domain = compute_realized_transformation_domain(context, input_domain);
+  realize_on_domain(context,
+                    input,
+                    output,
+                    target_domain,
+                    transformation * input.domain().transformation,
+                    realization_options);
 
-    const Domain target_domain = compute_realized_transformation_domain(input_domain);
-
-    realize_on_domain(
-        context, input, output, target_domain, input_domain.transformation, realization_options);
-  }
-  else {
-    input.pass_through(output);
-    const float3x3 translation_matrix = math::from_location<float3x3>(translation);
-    output.transform(translation_matrix);
-  }
-
-  output.get_realization_options().interpolation = interpolation;
+  output.get_realization_options().interpolation = realization_options.interpolation;
 }
 
 }  // namespace blender::realtime_compositor

@@ -11,11 +11,10 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "GPU_texture.h"
-
 #include "DNA_texture_types.h"
 
 #include "COM_cached_resource.hh"
+#include "COM_result.hh"
 
 namespace blender::realtime_compositor {
 
@@ -27,10 +26,10 @@ class Context;
 class CachedTextureKey {
  public:
   int2 size;
-  float2 offset;
-  float2 scale;
+  float3 offset;
+  float3 scale;
 
-  CachedTextureKey(int2 size, float2 offset, float2 scale);
+  CachedTextureKey(int2 size, float3 offset, float3 scale);
 
   uint64_t hash() const;
 };
@@ -44,17 +43,22 @@ bool operator==(const CachedTextureKey &a, const CachedTextureKey &b);
  * given texture ID on a space that spans the given size, parameterized by the given parameters. */
 class CachedTexture : public CachedResource {
  private:
-  GPUTexture *color_texture_ = nullptr;
-  GPUTexture *value_texture_ = nullptr;
+  Array<float4> color_pixels_;
+  Array<float> value_pixels_;
 
  public:
-  CachedTexture(Tex *texture, bool use_color_management, int2 size, float2 offset, float2 scale);
+  Result color_result;
+  Result value_result;
+
+ public:
+  CachedTexture(Context &context,
+                Tex *texture,
+                bool use_color_management,
+                int2 size,
+                float3 offset,
+                float3 scale);
 
   ~CachedTexture();
-
-  GPUTexture *color_texture();
-
-  GPUTexture *value_texture();
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -77,8 +81,8 @@ class CachedTextureContainer : CachedResourceContainer {
                      Tex *texture,
                      bool use_color_management,
                      int2 size,
-                     float2 offset,
-                     float2 scale);
+                     float3 offset,
+                     float3 scale);
 };
 
 }  // namespace blender::realtime_compositor

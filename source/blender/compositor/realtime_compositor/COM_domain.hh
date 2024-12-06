@@ -23,8 +23,8 @@ enum class Interpolation : uint8_t {
  * Realization Options
  *
  * The options that describe how an input result prefer to be realized on some other domain. This
- * is used by the Realize On Domain Operation to identify the appropriate method of realization.
- * See the Domain class for more information. */
+ * is used by the Realize On Domain and Transform algorithms to identify the appropriate method of
+ * realization. See the Domain class for more information. */
 struct RealizationOptions {
   /* The interpolation method that should be used when performing realization. Since realizing a
    * result involves projecting it on a different domain, which in turn, involves sampling the
@@ -34,11 +34,11 @@ struct RealizationOptions {
   /* If true, the result will be repeated infinitely along the horizontal axis when realizing the
    * result. If false, regions outside of bounds of the result along the horizontal axis will be
    * filled with zeros. */
-  bool repeat_x = false;
+  bool wrap_x = false;
   /* If true, the result will be repeated infinitely along the vertical axis when realizing the
    * result. If false, regions outside of bounds of the result along the vertical axis will be
    * filled with zeros. */
-  bool repeat_y = false;
+  bool wrap_y = false;
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ struct RealizationOptions {
  * output, but also by its transformation in that virtual space. The transformation of the result
  * together with the dimension of its image is stored and represented by a Domain. In the figure
  * below, two results of different domains are illustrated on the virtual compositing space. One of
- * the results is centered in space with an image dimension of 800px × 600px, and the other result
+ * the results is centered in space with an image dimension of 800px x 600px, and the other result
  * is scaled down and translated such that it lies in the upper right quadrant of the space with an
  * image dimension of 800px × 400px. The position of the domain is in pixel space, and the domain
  * is considered centered if it has an identity transformation. Note that both results have the

@@ -97,10 +97,10 @@ static void node_shader_update_map_range(bNodeTree *ntree, bNode *node)
   }
 
   LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->inputs, index) {
-    bke::nodeSetSocketAvailability(ntree, socket, new_input_availability[index]);
+    bke::node_set_socket_availability(ntree, socket, new_input_availability[index]);
   }
   LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->outputs, index) {
-    bke::nodeSetSocketAvailability(ntree, socket, new_output_availability[index]);
+    bke::node_set_socket_availability(ntree, socket, new_output_availability[index]);
   }
 }
 
@@ -445,8 +445,6 @@ static void sh_node_map_range_build_multi_function(NodeMultiFunctionBuilder &bui
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  /* TODO: Implement steps */
-
   const NodeMapRange *map_range = static_cast<NodeMapRange *>(node_->storage);
   NodeItem::Type type;
   NodeItem value = empty();
@@ -454,6 +452,7 @@ NODE_SHADER_MATERIALX_BEGIN
   NodeItem from_max = empty();
   NodeItem to_min = empty();
   NodeItem to_max = empty();
+  NodeItem steps = empty();
   switch (map_range->data_type) {
     case CD_PROP_FLOAT:
       type = NodeItem::Type::Float;
@@ -462,6 +461,9 @@ NODE_SHADER_MATERIALX_BEGIN
       from_max = get_input_value(2, type);
       to_min = get_input_value(3, type);
       to_max = get_input_value(4, type);
+      if (map_range->interpolation_type == NODE_MAP_RANGE_STEPPED) {
+        steps = get_input_value(5, type);
+      }
       break;
     case CD_PROP_FLOAT3:
       type = NodeItem::Type::Vector3;
@@ -470,20 +472,46 @@ NODE_SHADER_MATERIALX_BEGIN
       from_max = get_input_value(8, type);
       to_min = get_input_value(9, type);
       to_max = get_input_value(10, type);
+      if (map_range->interpolation_type == NODE_MAP_RANGE_STEPPED) {
+        steps = get_input_value(11, type);
+      }
       break;
     default:
       BLI_assert_unreachable();
-      return empty();
   }
 
-  return create_node("range",
-                     type,
-                     {{"in", value},
-                      {"inlow", from_min},
-                      {"inhigh", from_max},
-                      {"outlow", to_min},
-                      {"outhigh", to_max},
-                      {"doclamp", val(bool(map_range->clamp))}});
+  NodeItem res = empty();
+  switch (map_range->interpolation_type) {
+    case NODE_MAP_RANGE_LINEAR:
+      res = create_node("remap",
+                        type,
+                        {{"in", value},
+                         {"inlow", from_min},
+                         {"inhigh", from_max},
+                         {"outlow", to_min},
+                         {"outhigh", to_max}});
+      break;
+    case NODE_MAP_RANGE_STEPPED: {
+      NodeItem factor = create_node(
+          "remap", type, {{"in", value}, {"inlow", from_min}, {"inhigh", from_max}});
+      value = (factor * (steps + val(1.0f))).floor() / steps;
+      res = create_node("remap", type, {{"in", value}, {"outlow", to_min}, {"outhigh", to_max}});
+      break;
+    }
+    case NODE_MAP_RANGE_SMOOTHSTEP:
+    case NODE_MAP_RANGE_SMOOTHERSTEP:
+      value = create_node(
+          "smoothstep", type, {{"in", value}, {"low", from_min}, {"high", from_max}});
+      res = create_node("remap", type, {{"in", value}, {"outlow", to_min}, {"outhigh", to_max}});
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+
+  if (map_range->clamp != 0) {
+    res = res.clamp(to_min, to_max);
+  }
+  return res;
 }
 #endif
 NODE_SHADER_MATERIALX_END
@@ -494,19 +522,19 @@ void register_node_type_sh_map_range()
 {
   namespace file_ns = blender::nodes::node_shader_map_range_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(&ntype, SH_NODE_MAP_RANGE, "Map Range", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::sh_node_map_range_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_map_range;
   ntype.ui_class = file_ns::node_shader_map_range_ui_class;
   ntype.initfunc = file_ns::node_shader_init_map_range;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeMapRange", node_free_standard_storage, node_copy_standard_storage);
   ntype.updatefunc = file_ns::node_shader_update_map_range;
   ntype.gpu_fn = file_ns::gpu_shader_map_range;
   ntype.build_multi_function = file_ns::sh_node_map_range_build_multi_function;
   ntype.gather_link_search_ops = file_ns::node_map_range_gather_link_searches;
   ntype.materialx_fn = file_ns::node_shader_materialx;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

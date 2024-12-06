@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
+#include "gpu_glsl_cpp_stubs.hh"
+
 /*
  * For debugging purpose mainly.
  * From https://www.shadertoy.com/view/4dsSzr
@@ -25,4 +29,8 @@ vec3 hue_gradient(float t)
 {
   vec3 p = abs(fract(t + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
   return (clamp(p - 1.0, 0.0, 1.0));
+}
+vec3 green_to_red_gradient(float t)
+{
+  return mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), t);
 }

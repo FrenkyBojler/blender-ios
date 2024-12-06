@@ -7,11 +7,11 @@
 
 #include "COM_KuwaharaNode.h"
 
-#include "COM_GaussianXBlurOperation.h"
-#include "COM_GaussianYBlurOperation.h"
+#include "COM_GaussianBlurBaseOperation.h"
 #include "COM_KuwaharaAnisotropicOperation.h"
 #include "COM_KuwaharaAnisotropicStructureTensorOperation.h"
 #include "COM_KuwaharaClassicOperation.h"
+#include "COM_SummedAreaTableOperation.h"
 
 namespace blender::compositor {
 
@@ -23,12 +23,25 @@ void KuwaharaNode::convert_to_operations(NodeConverter &converter,
 
   switch (data->variation) {
     case CMP_NODE_KUWAHARA_CLASSIC: {
-      KuwaharaClassicOperation *operation = new KuwaharaClassicOperation();
+      KuwaharaClassicOperation *kuwahara_classic = new KuwaharaClassicOperation();
+      kuwahara_classic->set_high_precision(data->high_precision);
+      converter.add_operation(kuwahara_classic);
+      converter.map_input_socket(get_input_socket(0), kuwahara_classic->get_input_socket(0));
+      converter.map_input_socket(get_input_socket(1), kuwahara_classic->get_input_socket(1));
 
-      converter.add_operation(operation);
-      converter.map_input_socket(get_input_socket(0), operation->get_input_socket(0));
-      converter.map_input_socket(get_input_socket(1), operation->get_input_socket(1));
-      converter.map_output_socket(get_output_socket(0), operation->get_output_socket());
+      SummedAreaTableOperation *sat = new SummedAreaTableOperation();
+      sat->set_mode(SummedAreaTableOperation::eMode::Identity);
+      converter.add_operation(sat);
+      converter.map_input_socket(get_input_socket(0), sat->get_input_socket(0));
+      converter.add_link(sat->get_output_socket(0), kuwahara_classic->get_input_socket(2));
+
+      SummedAreaTableOperation *sat_squared = new SummedAreaTableOperation();
+      sat_squared->set_mode(SummedAreaTableOperation::eMode::Squared);
+      converter.add_operation(sat_squared);
+      converter.map_input_socket(get_input_socket(0), sat_squared->get_input_socket(0));
+      converter.add_link(sat_squared->get_output_socket(0), kuwahara_classic->get_input_socket(3));
+
+      converter.map_output_socket(get_output_socket(0), kuwahara_classic->get_output_socket(0));
       break;
     }
 
@@ -63,7 +76,8 @@ void KuwaharaNode::convert_to_operations(NodeConverter &converter,
 
       KuwaharaAnisotropicOperation *kuwahara_anisotropic_operation =
           new KuwaharaAnisotropicOperation();
-      kuwahara_anisotropic_operation->data = *data;
+      kuwahara_anisotropic_operation->set_sharpness(data->sharpness);
+      kuwahara_anisotropic_operation->set_eccentricity(data->eccentricity);
 
       converter.add_operation(kuwahara_anisotropic_operation);
       converter.map_input_socket(get_input_socket(0),

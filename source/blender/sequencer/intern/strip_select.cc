@@ -11,12 +11,10 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BKE_scene.h"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
 
-#include "SEQ_select.h"
-#include "SEQ_sequencer.h"
-
-Sequence *SEQ_select_active_get(Scene *scene)
+Sequence *SEQ_select_active_get(const Scene *scene)
 {
   const Editing *ed = SEQ_editing_get(scene);
 

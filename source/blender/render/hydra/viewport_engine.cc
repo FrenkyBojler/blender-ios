@@ -2,53 +2,44 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "viewport_engine.h"
+#include "viewport_engine.hh"
+#include "camera.hh"
 
 #include <pxr/base/gf/camera.h>
 #include <pxr/imaging/glf/drawTarget.h>
 #include <pxr/usd/usdGeom/camera.h>
 
-#include "DNA_camera_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_vec_types.h" /* This include must be before `BKE_camera.h` due to `rctf` type. */
 #include "DNA_view3d_types.h"
 
 #include "BLI_math_matrix.h"
+#include "BLI_time.h"
 #include "BLI_timecode.h"
-#include "PIL_time.h"
 
 #include "BKE_camera.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
-#include "DEG_depsgraph_query.hh"
-
-#include "GPU_context.h"
-#include "GPU_matrix.h"
+#include "GPU_matrix.hh"
 
 #include "RE_engine.h"
-
-#include "hydra/camera.h"
 
 namespace blender::render::hydra {
 
 struct ViewSettings {
+  int screen_width;
+  int screen_height;
+  pxr::GfVec4i border;
+  pxr::GfCamera camera;
+
   ViewSettings(bContext *context);
 
   int width();
   int height();
-
-  pxr::GfCamera gf_camera();
-
-  io::hydra::CameraData camera_data;
-
-  int screen_width;
-  int screen_height;
-  pxr::GfVec4i border;
 };
 
 ViewSettings::ViewSettings(bContext *context)
-    : camera_data(CTX_wm_view3d(context), CTX_wm_region(context))
 {
   View3D *view3d = CTX_wm_view3d(context);
   RegionView3D *region_data = static_cast<RegionView3D *>(CTX_wm_region_data(context));
@@ -74,7 +65,7 @@ ViewSettings::ViewSettings(bContext *context)
       for (int i = 0; i < 4; i++) {
         float world_location[] = {
             camera_points[i][0], camera_points[i][1], camera_points[i][2], 1.0f};
-        mul_m4_v4(camera_obj->object_to_world, world_location);
+        mul_m4_v4(camera_obj->object_to_world().ptr(), world_location);
         mul_m4_v4(region_data->persmat, world_location);
 
         if (world_location[3] > 0.0) {
@@ -121,6 +112,14 @@ ViewSettings::ViewSettings(bContext *context)
   }
 
   border = pxr::GfVec4i(x1, y1, x2, y2);
+
+  camera = gf_camera(CTX_data_ensure_evaluated_depsgraph(context),
+                     view3d,
+                     region,
+                     pxr::GfVec4f(float(border[0]) / screen_width,
+                                  float(border[1]) / screen_height,
+                                  float(width()) / screen_width,
+                                  float(height()) / screen_height));
 }
 
 int ViewSettings::width()
@@ -133,14 +132,6 @@ int ViewSettings::height()
   return border[3] - border[1];
 }
 
-pxr::GfCamera ViewSettings::gf_camera()
-{
-  return camera_data.gf_camera(pxr::GfVec4f(float(border[0]) / screen_width,
-                                            float(border[1]) / screen_height,
-                                            float(width()) / screen_width,
-                                            float(height()) / screen_height));
-}
-
 DrawTexture::DrawTexture()
 {
   float coords[8] = {0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0};
@@ -148,8 +139,8 @@ DrawTexture::DrawTexture()
   GPUVertFormat format = {0};
   GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   GPU_vertformat_attr_add(&format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, 4);
+  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, 4);
   GPU_vertbuf_attr_fill(vbo, 0, coords);
   GPU_vertbuf_attr_fill(vbo, 1, coords);
 
@@ -215,8 +206,7 @@ void ViewportEngine::render()
     return;
   };
 
-  pxr::GfCamera gf_camera = view_settings.gf_camera();
-  free_camera_delegate_->SetCamera(gf_camera);
+  free_camera_delegate_->SetCamera(view_settings.camera);
 
   pxr::GfVec4d viewport(0.0, 0.0, view_settings.width(), view_settings.height());
   render_task_delegate_->set_viewport(viewport);
@@ -257,13 +247,13 @@ void ViewportEngine::render()
   GPU_shader_unbind();
 
   if (renderer_percent_done() == 0.0f) {
-    time_begin_ = PIL_check_seconds_timer();
+    time_begin_ = BLI_time_now_seconds();
   }
 
   char elapsed_time[32];
 
   BLI_timecode_string_from_time_simple(
-      elapsed_time, sizeof(elapsed_time), PIL_check_seconds_timer() - time_begin_);
+      elapsed_time, sizeof(elapsed_time), BLI_time_now_seconds() - time_begin_);
 
   float percent_done = renderer_percent_done();
   if (!render_task_delegate_->is_converged()) {

@@ -8,34 +8,29 @@
  * Method of smoothing deformation, also known as 'delta-mush'.
  */
 
+#include "BLI_math_base.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_screen.hh"
+#include "BKE_deform.hh"
+#include "BKE_editmesh.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -47,13 +42,12 @@
 
 // #define DEBUG_TIME
 
-#include "PIL_time.h"
+#include "BLI_time.h"
 #ifdef DEBUG_TIME
-#  include "PIL_time_utildefines.h"
-
+#  include "BLI_time_utildefines.h"
 #endif
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 static void init_data(ModifierData *md)
 {
@@ -167,7 +161,7 @@ static void smooth_iter__simple(CorrectiveSmoothModifierData *csmd,
   const float lambda = csmd->lambda;
   int i;
 
-  const int edges_num = mesh->totedge;
+  const int edges_num = mesh->edges_num;
   const blender::Span<blender::int2> edges = mesh->edges();
 
   struct SmoothingData_Simple {
@@ -242,7 +236,7 @@ static void smooth_iter__length_weight(CorrectiveSmoothModifierData *csmd,
                                        uint iterations)
 {
   const float eps = FLT_EPSILON * 10.0f;
-  const uint edges_num = uint(mesh->totedge);
+  const uint edges_num = uint(mesh->edges_num);
   /* NOTE: the way this smoothing method works, its approx half as strong as the simple-smooth,
    * and 2.0 rarely spikes, double the value for consistent behavior. */
   const float lambda = csmd->lambda * 2.0f;
@@ -430,7 +424,7 @@ static void calc_tangent_spaces(const Mesh *mesh,
                                 float *r_tangent_weights,
                                 float *r_tangent_weights_per_vertex)
 {
-  const uint mvert_num = uint(mesh->totvert);
+  const uint mvert_num = uint(mesh->verts_num);
   const blender::OffsetIndices faces = mesh->faces();
   blender::Span<int> corner_verts = mesh->corner_verts();
 
@@ -470,7 +464,8 @@ static void calc_tangent_spaces(const Mesh *mesh,
 
       if (calc_tangent_loop(v_dir_prev, v_dir_next, ts)) {
         if (r_tangent_weights != nullptr) {
-          const float weight = fabsf(acosf(dot_v3v3(v_dir_next, v_dir_prev)));
+          const float weight = fabsf(
+              blender::math::safe_acos_approx(dot_v3v3(v_dir_next, v_dir_prev)));
           r_tangent_weights[curr_corner] = weight;
           r_tangent_weights_per_vertex[corner_verts[curr_corner]] += weight;
         }
@@ -511,13 +506,11 @@ static void calc_deltas(CorrectiveSmoothModifierData *csmd,
                         Mesh *mesh,
                         const MDeformVert *dvert,
                         const int defgrp_index,
-                        const float (*rest_coords)[3],
-                        uint verts_num)
+                        const blender::Span<blender::float3> rest_coords)
 {
   const blender::Span<int> corner_verts = mesh->corner_verts();
 
-  blender::Array<blender::float3> smooth_vertex_coords(
-      blender::Span(reinterpret_cast<const blender::float3 *>(rest_coords), verts_num));
+  blender::Array<blender::float3> smooth_vertex_coords(rest_coords);
 
   uint l_index;
 
@@ -608,7 +601,8 @@ static void correctivesmooth_modifier_do(ModifierData *md,
   }
 
   if ((csmd->rest_source == MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND) &&
-      (csmd->bind_coords == nullptr)) {
+      (csmd->bind_coords == nullptr))
+  {
     BKE_modifier_set_error(ob, md, "Bind data required");
     goto error;
   }
@@ -631,7 +625,7 @@ static void correctivesmooth_modifier_do(ModifierData *md,
       goto error;
     }
     else {
-      const int me_numVerts = (em) ? em->bm->totvert : ((Mesh *)ob->data)->totvert;
+      const int me_numVerts = (em) ? em->bm->totvert : ((Mesh *)ob->data)->verts_num;
 
       if (me_numVerts != vertexCos.size()) {
         BKE_modifier_set_error(ob,
@@ -648,43 +642,37 @@ static void correctivesmooth_modifier_do(ModifierData *md,
   if (!csmd->delta_cache.deltas || (csmd->delta_cache.deltas_num != corner_verts.size()) ||
       force_delta_cache_update)
   {
-    const float(*rest_coords)[3];
-    bool is_rest_coords_alloc = false;
+    blender::Array<blender::float3> rest_coords_alloc;
+    blender::Span<blender::float3> rest_coords;
 
     store_cache_settings(csmd);
 
     if (csmd->rest_source == MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND) {
       /* caller needs to do sanity check here */
       csmd->bind_coords_num = uint(vertexCos.size());
-      rest_coords = csmd->bind_coords;
+      rest_coords = {reinterpret_cast<const blender::float3 *>(csmd->bind_coords),
+                     csmd->bind_coords_num};
     }
     else {
-      int me_numVerts;
       if (em) {
-        rest_coords = BKE_editmesh_vert_coords_alloc_orco(em, &me_numVerts);
-        is_rest_coords_alloc = true;
+        rest_coords_alloc = BKE_editmesh_vert_coords_alloc_orco(em);
+        rest_coords = rest_coords_alloc;
       }
       else {
-        const Mesh *me = static_cast<const Mesh *>(ob->data);
-        rest_coords = reinterpret_cast<const float(*)[3]>(me->vert_positions().data());
-        me_numVerts = me->totvert;
+        const Mesh *object_mesh = static_cast<const Mesh *>(ob->data);
+        rest_coords = object_mesh->vert_positions();
       }
-
-      BLI_assert(me_numVerts == int(vertexCos.size()));
     }
 
 #ifdef DEBUG_TIME
     TIMEIT_START(corrective_smooth_deltas);
 #endif
 
-    calc_deltas(csmd, mesh, dvert, defgrp_index, rest_coords, uint(vertexCos.size()));
+    calc_deltas(csmd, mesh, dvert, defgrp_index, rest_coords);
 
 #ifdef DEBUG_TIME
     TIMEIT_END(corrective_smooth_deltas);
 #endif
-    if (is_rest_coords_alloc) {
-      MEM_freeN((void *)rest_coords);
-    }
   }
 
   if (csmd->rest_source == MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND) {
@@ -747,15 +735,9 @@ error:
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
-  correctivesmooth_modifier_do(md,
-                               ctx->depsgraph,
-                               ctx->object,
-                               mesh,
-                               {reinterpret_cast<blender::float3 *>(vertexCos), verts_num},
-                               nullptr);
+  correctivesmooth_modifier_do(md, ctx->depsgraph, ctx->object, mesh, positions, nullptr);
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -835,7 +817,7 @@ ModifierTypeInfo modifierType_CorrectiveSmooth = {
     /*struct_name*/ "CorrectiveSmoothModifierData",
     /*struct_size*/ sizeof(CorrectiveSmoothModifierData),
     /*srna*/ &RNA_CorrectiveSmoothModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_SMOOTH,
 
@@ -861,4 +843,5 @@ ModifierTypeInfo modifierType_CorrectiveSmooth = {
     /*panel_register*/ panel_register,
     /*blend_write*/ blend_write,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

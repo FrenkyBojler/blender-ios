@@ -10,9 +10,10 @@
  * https://github.com/fedackb/mesh-fairing.
  */
 
+#include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
-struct BMesh;
 struct Mesh;
 
 /* Mesh Fairing. */
@@ -25,16 +26,10 @@ enum eMeshFairingDepth {
 };
 
 /**
- * Affect_vertices is used to define the fairing area. Indexed by vertex index, set to true when
- * the vertex should be modified by fairing.
- */
-void BKE_bmesh_prefair_and_fair_verts(BMesh *bm, bool *affect_verts, eMeshFairingDepth depth);
-
-/**
  * This function can optionally use the vertex coordinates of deform_mverts to read and write the
  * fairing result. When NULL, the function will use mesh positions directly.
  */
 void BKE_mesh_prefair_and_fair_verts(Mesh *mesh,
-                                     float (*deform_vert_positions)[3],
-                                     bool *affect_verts,
+                                     blender::MutableSpan<blender::float3> deform_vert_positions,
+                                     const bool affected_verts[],
                                      eMeshFairingDepth depth);

@@ -6,19 +6,20 @@
  * \ingroup cmpnodes
  */
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_string_utf8.h"
 
 #include "DNA_movieclip_types.h"
 
-#include "BKE_context.h"
-#include "BKE_lib_id.h"
+#include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_tracking.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_distortion_grid.hh"
 #include "COM_node_operation.hh"
@@ -77,16 +78,7 @@ static void node_composit_buts_moviedistortion(uiLayout *layout, bContext *C, Po
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(layout,
-               C,
-               ptr,
-               "clip",
-               nullptr,
-               "CLIP_OT_open",
-               nullptr,
-               UI_TEMPLATE_ID_FILTER_ALL,
-               false,
-               nullptr);
+  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (!node->id) {
     return;
@@ -111,18 +103,35 @@ class MovieDistortionOperation : public NodeOperation {
     }
 
     const Domain domain = compute_domain();
-    const DistortionGrid &distortion_grid = context().cache_manager().distortion_grids.get(
-        get_movie_clip(), domain.size, get_distortion_type(), context().get_frame_number());
+    const Result &distortion_grid = context().cache_manager().distortion_grids.get(
+        context(),
+        get_movie_clip(),
+        domain.size,
+        get_distortion_type(),
+        context().get_frame_number());
 
-    GPUShader *shader = shader_manager().get("compositor_movie_distortion");
+    if (this->context().use_gpu()) {
+      this->execute_gpu(distortion_grid);
+    }
+    else {
+      this->execute_cpu(distortion_grid);
+    }
+  }
+
+  void execute_gpu(const Result &distortion_grid)
+  {
+    GPUShader *shader = context().get_shader("compositor_movie_distortion");
     GPU_shader_bind(shader);
 
-    GPU_texture_extend_mode(input_image.texture(), GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
-    GPU_texture_filter_mode(input_image.texture(), true);
+    Result &input_image = get_input("Image");
+    GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+    GPU_texture_filter_mode(input_image, true);
     input_image.bind_as_texture(shader, "input_tx");
 
     distortion_grid.bind_as_texture(shader, "distortion_grid_tx");
 
+    const Domain domain = compute_domain();
+    Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
@@ -132,6 +141,20 @@ class MovieDistortionOperation : public NodeOperation {
     distortion_grid.unbind_as_texture();
     output_image.unbind_as_image();
     GPU_shader_unbind();
+  }
+
+  void execute_cpu(const Result &distortion_grid)
+  {
+    Result &input = get_input("Image");
+
+    const Domain domain = compute_domain();
+    Result &output = get_result("Image");
+    output.allocate_texture(domain);
+
+    parallel_for(domain.size, [&](const int2 texel) {
+      output.store_pixel(texel,
+                         input.sample_bilinear_zero(distortion_grid.load_pixel(texel).xy()));
+    });
   }
 
   DistortionType get_distortion_type()
@@ -156,15 +179,16 @@ void register_node_type_cmp_moviedistortion()
 {
   namespace file_ns = blender::nodes::node_composite_moviedistortion_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_MOVIEDISTORTION, "Movie Distortion", NODE_CLASS_DISTORT);
   ntype.declare = file_ns::cmp_node_moviedistortion_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_moviedistortion;
   ntype.labelfunc = file_ns::label;
   ntype.initfunc_api = file_ns::init;
-  node_type_storage(&ntype, nullptr, file_ns::storage_free, file_ns::storage_copy);
+  blender::bke::node_type_storage(
+      &ntype, std::nullopt, file_ns::storage_free, file_ns::storage_copy);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

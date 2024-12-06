@@ -12,12 +12,12 @@
 
 namespace blender::gpu {
 
-VKPixelBuffer::VKPixelBuffer(int64_t size) : PixelBuffer(size)
+VKPixelBuffer::VKPixelBuffer(size_t size) : PixelBuffer(size)
 {
   buffer_.create(size,
                  GPU_USAGE_STATIC,
-                 static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT));
+                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                 true);
   debug::object_label(buffer_.vk_handle(), "PixelBuffer");
 }
 

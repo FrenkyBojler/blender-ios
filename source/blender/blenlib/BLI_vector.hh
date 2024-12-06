@@ -25,17 +25,12 @@
  */
 
 #include <algorithm>
-#include <cstdlib>
-#include <cstring>
-#include <memory>
 
 #include "BLI_allocator.hh"
 #include "BLI_index_range.hh"
 #include "BLI_memory_utils.hh"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
-
-#include "MEM_guardedalloc.h"
 
 namespace blender {
 
@@ -47,6 +42,17 @@ void vector_print_stats(const char *name,
                         int64_t inlineCapacity,
                         int64_t memorySize);
 }
+
+/**
+ * This is used in #Vector::from_raw and #Vector::release to transfer ownership of the underlying
+ * data-array into and out of the #Vector. Note that this struct does not do any memory management.
+ */
+template<typename T, typename Allocator> struct VectorData {
+  T *data = nullptr;
+  int64_t size = 0;
+  int64_t capacity = 0;
+  BLI_NO_UNIQUE_ADDRESS Allocator allocator;
+};
 
 template<
     /**
@@ -77,6 +83,7 @@ class Vector {
   using iterator = T *;
   using const_iterator = const T *;
   using size_type = int64_t;
+  using allocator_type = Allocator;
 
  private:
   /**
@@ -263,6 +270,27 @@ class Vector {
     other.capacity_end_ = other.begin_ + OtherInlineBufferCapacity;
     UPDATE_VECTOR_SIZE(this);
     UPDATE_VECTOR_SIZE(&other);
+  }
+
+  /**
+   * Initializes the #Vector from an existing buffer. The #Vector takes ownership of the buffer.
+   * The caller is responsible to make sure that the buffer has been allocated with the same
+   * allocator that the #Vector will use to deallocate it.
+   */
+  Vector(const VectorData<T, Allocator> &data) : Vector(data.allocator)
+  {
+    BLI_assert(data.capacity == 0 || data.data != nullptr);
+    BLI_assert(data.size >= 0);
+    BLI_assert(data.size <= data.capacity);
+    /* Don't use the passed in buffer if it is null. Use the inline-buffer instead which is already
+     * initialized by the constructor call above. */
+    if (data.data != nullptr) {
+      /* Take ownership of the array. */
+      begin_ = data.data;
+      end_ = data.data + data.size;
+      capacity_end_ = data.data + data.capacity;
+      UPDATE_VECTOR_SIZE(this);
+    }
   }
 
   ~Vector()
@@ -816,6 +844,7 @@ class Vector {
   {
     const T *prev_end = this->end();
     end_ = std::remove_if(this->begin(), this->end(), predicate);
+    destruct_n(end_, prev_end - end_);
     UPDATE_VECTOR_SIZE(this);
     return int64_t(prev_end - end_);
   }
@@ -963,6 +992,54 @@ class Vector {
   }
 
   /**
+   * Release the underlying memory buffer from the #Vector. The caller is responsible for freeing
+   * the pointer if it is non-null.
+   *
+   * If the values were stored in the inline-buffer, the values are copied to a newly allocated
+   * array first. The caller does not have to any special handling in this case.
+   *
+   * The #Vector will be empty afterwards.
+   */
+  VectorData<T, Allocator> release()
+  {
+    if (this->is_inline()) {
+      if (this->is_empty()) {
+        /* No need to make an allocation that does not contain any data. */
+        return {};
+      }
+      /* Make an new allocation, because it's not possible to transfer ownership of the inline
+       * buffer to the caller. */
+      const int64_t size = this->size();
+      T *data = static_cast<T *>(
+          allocator_.allocate(size_t(size) * sizeof(T), alignof(T), __func__));
+      try {
+        uninitialized_relocate_n(begin_, size, data);
+      }
+      catch (...) {
+        allocator_.deallocate(data);
+        throw;
+      }
+      begin_ = data;
+      end_ = begin_ + size;
+      capacity_end_ = end_;
+    }
+
+    VectorData<T, Allocator> data;
+    data.data = begin_;
+    data.size = end_ - begin_;
+    data.capacity = capacity_end_ - begin_;
+    data.allocator = allocator_;
+
+    /* Reset #Vector to use empty inline buffer again. */
+    begin_ = inline_buffer_;
+    end_ = begin_;
+    capacity_end_ = begin_ + InlineBufferCapacity;
+    UPDATE_VECTOR_SIZE(this);
+
+    return data;
+  }
+
+  /**
    * Print some debug information about the vector.
    */
   void print_stats(const char *name) const
@@ -971,12 +1048,12 @@ class Vector {
         name, this, this->size(), capacity_end_ - begin_, InlineBufferCapacity, sizeof(*this));
   }
 
- private:
   bool is_inline() const
   {
     return begin_ == inline_buffer_;
   }
 
+ private:
   void ensure_space_for_one()
   {
     if (UNLIKELY(end_ >= capacity_end_)) {

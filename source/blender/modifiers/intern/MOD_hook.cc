@@ -12,7 +12,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
@@ -20,17 +20,14 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_action.h"
-#include "BKE_colortools.h"
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_action.hh"
+#include "BKE_colortools.hh"
+#include "BKE_deform.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.hh"
+#include "BKE_modifier.hh"
+#include "BKE_object_types.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -38,9 +35,7 @@
 #include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "DEG_depsgraph_query.hh"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -119,12 +114,12 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     }
     DEG_add_object_relation(ctx->node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
   }
-  /* We need own transformation as well. */
+  /* We need our own transformation as well. */
   DEG_add_depends_on_transform_relation(ctx->node, "Hook Modifier");
 }
 
 struct HookData_cb {
-  float (*vertexCos)[3];
+  blender::MutableSpan<blender::float3> positions;
 
   /**
    * When anything other than -1, use deform groups.
@@ -232,7 +227,7 @@ static float hook_falloff(const HookData_cb *hd, const float len_sq)
 
 static void hook_co_apply(HookData_cb *hd, int j, const MDeformVert *dv)
 {
-  float *co = hd->vertexCos[j];
+  float *co = hd->positions[j];
   float fac;
 
   if (hd->use_falloff) {
@@ -271,9 +266,8 @@ static void deformVerts_do(HookModifierData *hmd,
                            const ModifierEvalContext * /*ctx*/,
                            Object *ob,
                            Mesh *mesh,
-                           BMEditMesh *em,
-                           float (*vertexCos)[3],
-                           int verts_num)
+                           const BMEditMesh *em,
+                           blender::MutableSpan<blender::float3> positions)
 {
   Object *ob_target = hmd->object;
   bPoseChannel *pchan = BKE_pose_channel_find_name(ob_target->pose, hmd->subtarget);
@@ -293,7 +287,7 @@ static void deformVerts_do(HookModifierData *hmd,
   }
 
   /* Generic data needed for applying per-vertex calculations (initialize all members) */
-  hd.vertexCos = vertexCos;
+  hd.positions = positions;
 
   MOD_get_vgroup(ob, mesh, hmd->name, &dvert, &hd.defgrp_index);
   int cd_dvert_offset = -1;
@@ -338,14 +332,14 @@ static void deformVerts_do(HookModifierData *hmd,
   /* get world-space matrix of target, corrected for the space the verts are in */
   if (hmd->subtarget[0] && pchan) {
     /* bone target if there's a matching pose-channel */
-    mul_m4_m4m4(dmat, ob_target->object_to_world, pchan->pose_mat);
+    mul_m4_m4m4(dmat, ob_target->object_to_world().ptr(), pchan->pose_mat);
   }
   else {
     /* just object target */
-    copy_m4_m4(dmat, ob_target->object_to_world);
+    copy_m4_m4(dmat, ob_target->object_to_world().ptr());
   }
-  invert_m4_m4(ob->world_to_object, ob->object_to_world);
-  mul_m4_series(hd.mat, ob->world_to_object, dmat, hmd->parentinv);
+  invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+  mul_m4_series(hd.mat, ob->world_to_object().ptr(), dmat, hmd->parentinv);
   /* --- done with 'hd' init --- */
 
   /* Regarding index range checking below.
@@ -365,13 +359,13 @@ static void deformVerts_do(HookModifierData *hmd,
     if (mesh && (origindex_ar = static_cast<const int *>(
                      CustomData_get_layer(&mesh->vert_data, CD_ORIGINDEX))))
     {
-      int verts_orig_num = verts_num;
+      int verts_orig_num = positions.size();
       if (ob->type == OB_MESH) {
         const Mesh *me_orig = static_cast<const Mesh *>(ob->data);
-        verts_orig_num = me_orig->totvert;
+        verts_orig_num = me_orig->verts_num;
       }
       BLI_bitmap *indexar_used = hook_index_array_to_bitmap(hmd, verts_orig_num);
-      for (i = 0; i < verts_num; i++) {
+      for (i = 0; i < positions.size(); i++) {
         int i_orig = origindex_ar[i];
         BLI_assert(i_orig < verts_orig_num);
         if (BLI_BITMAP_TEST(indexar_used, i_orig)) {
@@ -382,8 +376,8 @@ static void deformVerts_do(HookModifierData *hmd,
     }
     else { /* missing mesh or ORIGINDEX */
       if ((em != nullptr) && (hd.defgrp_index != -1)) {
-        BLI_assert(em->bm->totvert == verts_num);
-        BLI_bitmap *indexar_used = hook_index_array_to_bitmap(hmd, verts_num);
+        BLI_assert(em->bm->totvert == positions.size());
+        BLI_bitmap *indexar_used = hook_index_array_to_bitmap(hmd, positions.size());
         BMIter iter;
         BMVert *v;
         BM_ITER_MESH_INDEX (v, &iter, em->bm, BM_VERTS_OF_MESH, i) {
@@ -398,7 +392,7 @@ static void deformVerts_do(HookModifierData *hmd,
       else {
         for (i = 0, index_pt = hmd->indexar; i < hmd->indexar_num; i++, index_pt++) {
           const int j = *index_pt;
-          if (j < verts_num) {
+          if (j < positions.size()) {
             hook_co_apply(&hd, j, dvert ? &dvert[j] : nullptr);
           }
         }
@@ -407,7 +401,7 @@ static void deformVerts_do(HookModifierData *hmd,
   }
   else if (hd.defgrp_index != -1) { /* vertex group hook */
     if (em != nullptr) {
-      BLI_assert(em->bm->totvert == verts_num);
+      BLI_assert(em->bm->totvert == positions.size());
       BMIter iter;
       BMVert *v;
       BM_ITER_MESH_INDEX (v, &iter, em->bm, BM_VERTS_OF_MESH, i) {
@@ -418,7 +412,7 @@ static void deformVerts_do(HookModifierData *hmd,
     }
     else {
       BLI_assert(dvert != nullptr);
-      for (i = 0; i < verts_num; i++) {
+      for (i = 0; i < positions.size(); i++) {
         hook_co_apply(&hd, i, &dvert[i]);
       }
     }
@@ -428,19 +422,17 @@ static void deformVerts_do(HookModifierData *hmd,
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
   HookModifierData *hmd = (HookModifierData *)md;
-  deformVerts_do(hmd, ctx, ctx->object, mesh, nullptr, vertexCos, verts_num);
+  deformVerts_do(hmd, ctx, ctx->object, mesh, nullptr, positions);
 }
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh *em,
+                            const BMEditMesh *em,
                             Mesh *mesh,
-                            float (*vertexCos)[3],
-                            int verts_num)
+                            blender::MutableSpan<blender::float3> positions)
 {
   HookModifierData *hmd = (HookModifierData *)md;
 
@@ -449,8 +441,7 @@ static void deform_verts_EM(ModifierData *md,
                  ctx->object,
                  mesh,
                  mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH ? em : nullptr,
-                 vertexCos,
-                 verts_num);
+                 positions);
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -538,7 +529,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   HookModifierData *hmd = (HookModifierData *)md;
 
-  BLO_read_data_address(reader, &hmd->curfalloff);
+  BLO_read_struct(reader, CurveMapping, &hmd->curfalloff);
   if (hmd->curfalloff) {
     BKE_curvemapping_blend_read(reader, hmd->curfalloff);
   }
@@ -552,7 +543,7 @@ ModifierTypeInfo modifierType_Hook = {
     /*struct_name*/ "HookModifierData",
     /*struct_size*/ sizeof(HookModifierData),
     /*srna*/ &RNA_HookModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_HOOK,
@@ -578,4 +569,5 @@ ModifierTypeInfo modifierType_Hook = {
     /*panel_register*/ panel_register,
     /*blend_write*/ blend_write,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

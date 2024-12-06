@@ -6,9 +6,7 @@
 
 #include "DNA_node_types.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace blender::compositor {
 
@@ -37,11 +35,11 @@ class NodeGraph {
  public:
   ~NodeGraph();
 
-  const Vector<Node *> &nodes() const
+  Span<Node *> nodes() const
   {
     return nodes_;
   }
-  const Vector<Link> &links() const
+  Span<Link> links() const
   {
     return links_;
   }
@@ -96,9 +94,7 @@ class NodeGraph {
                            bNodeInstanceKey key,
                            bool is_active_group);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("COM:NodeGraph")
-#endif
 };
 
 }  // namespace blender::compositor

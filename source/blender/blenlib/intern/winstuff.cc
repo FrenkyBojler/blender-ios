@@ -20,7 +20,7 @@
 
 #  define WIN32_SKIP_HKEY_PROTECTION /* Need to use HKEY. */
 #  include "BLI_fileops.h"
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_utildefines.h"
 #  include "BLI_winstuff.h"
@@ -218,6 +218,11 @@ bool BLI_windows_register_blend_extension(const bool all_users)
 
   if (lresult != ERROR_SUCCESS) {
     registry_error(root, "Unable to register Blend document type");
+    return false;
+  }
+
+  if (!BLI_windows_update_pinned_launcher(blender_path)) {
+    fprintf(stderr, "Update of pinned launcher failed.");
     return false;
   }
 

@@ -13,14 +13,16 @@
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
-#include "GPU_capabilities.h"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
-#include "GPU_uniform_buffer.h"
+#include "GPU_capabilities.hh"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "gpu_shader_create_info.hh"
 
+#include "COM_context.hh"
 #include "COM_ocio_color_space_conversion_shader.hh"
+#include "COM_result.hh"
 
 #if defined(WITH_OCIO)
 #  include <OpenColorIO/OpenColorIO.h>
@@ -32,16 +34,15 @@ namespace blender::realtime_compositor {
  * OCIO Color Space Conversion Shader Key.
  */
 
-OCIOColorSpaceConversionShaderKey::OCIOColorSpaceConversionShaderKey(std::string source,
-                                                                     std::string target,
-                                                                     std::string config_cache_id)
+OCIOColorSpaceConversionShaderKey::OCIOColorSpaceConversionShaderKey(
+    const std::string &source, const std::string &target, const std::string &config_cache_id)
     : source(source), target(target), config_cache_id(config_cache_id)
 {
 }
 
 uint64_t OCIOColorSpaceConversionShaderKey::hash() const
 {
-  return get_default_hash_3(source, target, config_cache_id);
+  return get_default_hash(source, target, config_cache_id);
 }
 
 bool operator==(const OCIOColorSpaceConversionShaderKey &a,
@@ -74,10 +75,11 @@ using namespace blender::gpu::shader;
  * finally create the shader. */
 class GPUShaderCreator : public OCIO::GpuShaderCreator {
  public:
-  static std::shared_ptr<GPUShaderCreator> Create()
+  static std::shared_ptr<GPUShaderCreator> Create(ResultPrecision precision)
   {
     std::shared_ptr<GPUShaderCreator> instance = std::make_shared<GPUShaderCreator>();
     instance->setLanguage(OCIO::GPU_LANGUAGE_GLSL_4_0);
+    instance->precision_ = precision;
     return instance;
   }
 
@@ -137,7 +139,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 
     /* Don't use the name argument directly since ShaderCreateInfo only stores references to
      * resource names, instead, use the name that is stored in resource_names_. */
-    std::string &resource_name = *resource_names_[resource_names_.size() - 1];
+    const std::string &resource_name = *resource_names_[resource_names_.size() - 1];
     shader_create_info_.push_constant(Type::BOOL, resource_name);
 
     boolean_uniforms_.add(name, get_bool);
@@ -226,16 +228,19 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 
     /* Don't use the name argument directly since ShaderCreateInfo only stores references to
      * resource names, instead, use the name that is stored in resource_names_. */
-    std::string &resource_name = *resource_names_[resource_names_.size() - 1];
+    const std::string &resource_name = *resource_names_[resource_names_.size() - 1];
 
     GPUTexture *texture;
-    eGPUTextureFormat texture_format = (channel == TEXTURE_RGB_CHANNEL) ? GPU_RGB16F : GPU_R16F;
+    const ResultType result_type = (channel == TEXTURE_RGB_CHANNEL) ? ResultType::Float3 :
+                                                                      ResultType::Float;
+    const eGPUTextureFormat texture_format = Result::gpu_texture_format(result_type, precision_);
     /* A height of 1 indicates a 1D texture according to the OCIO API. */
 #  if OCIO_VERSION_HEX >= 0x02030000
-    if (dimensions == OCIO::GpuShaderDesc::TEXTURE_1D) {
+    if (dimensions == OCIO::GpuShaderDesc::TEXTURE_1D)
 #  else
-    if (height == 1) {
+    if (height == 1)
 #  endif
+    {
       texture = GPU_texture_create_1d(
           texture_name, width, 1, texture_format, GPU_TEXTURE_USAGE_SHADER_READ, values);
       shader_create_info_.sampler(textures_.size() + 1, ImageType::FLOAT_1D, resource_name);
@@ -263,11 +268,18 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 
     /* Don't use the name argument directly since ShaderCreateInfo only stores references to
      * resource names, instead, use the name that is stored in resource_names_. */
-    std::string &resource_name = *resource_names_[resource_names_.size() - 1];
+    const std::string &resource_name = *resource_names_[resource_names_.size() - 1];
     shader_create_info_.sampler(textures_.size() + 1, ImageType::FLOAT_3D, resource_name);
 
     GPUTexture *texture = GPU_texture_create_3d(
-        texture_name, size, size, size, 1, GPU_RGB16F, GPU_TEXTURE_USAGE_SHADER_READ, values);
+        texture_name,
+        size,
+        size,
+        size,
+        1,
+        Result::gpu_texture_format(ResultType::Float3, precision_),
+        GPU_TEXTURE_USAGE_SHADER_READ,
+        values);
     GPU_texture_filter_mode(texture, interpolation != OCIO::INTERP_NEAREST);
 
     textures_.add(sampler_name, texture);
@@ -297,8 +309,11 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 
     shader_create_info_.local_group_size(16, 16);
     shader_create_info_.sampler(0, ImageType::FLOAT_2D, input_sampler_name());
-    shader_create_info_.image(
-        0, GPU_RGBA16F, Qualifier::WRITE, ImageType::FLOAT_2D, output_image_name());
+    shader_create_info_.image(0,
+                              Result::gpu_texture_format(ResultType::Color, precision_),
+                              Qualifier::WRITE,
+                              ImageType::FLOAT_2D,
+                              output_image_name());
     shader_create_info_.compute_source("gpu_shader_compositor_ocio_processor.glsl");
     shader_create_info_.compute_source_generated += shader_code_;
 
@@ -308,6 +323,10 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 
   GPUShader *bind_shader_and_resources()
   {
+    if (!shader_) {
+      return nullptr;
+    }
+
     GPU_shader_bind(shader_);
 
     for (auto item : float_uniforms_.items()) {
@@ -422,6 +441,9 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
   /* Allow creating 1D textures, or only use 2D textures. */
   bool allow_texture_1D_ = true;
 #  endif
+
+  /* The precision of the OCIO resources as well as the output image. */
+  ResultPrecision precision_;
 };
 
 #else
@@ -429,6 +451,11 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 /* A stub implementation in case OCIO is disabled at build time. */
 class GPUShaderCreator {
  public:
+  static std::shared_ptr<GPUShaderCreator> Create(ResultPrecision /*precision*/)
+  {
+    return std::make_shared<GPUShaderCreator>();
+  }
+
   GPUShader *bind_shader_and_resources()
   {
     return nullptr;
@@ -453,20 +480,26 @@ class GPUShaderCreator {
  * OCIO Color Space Conversion Shader.
  */
 
-OCIOColorSpaceConversionShader::OCIOColorSpaceConversionShader(std::string source,
+OCIOColorSpaceConversionShader::OCIOColorSpaceConversionShader(Context &context,
+                                                               std::string source,
                                                                std::string target)
 {
-#if defined(WITH_OCIO)
-  /* Get a GPU processor that transforms the source color space to the target color space. */
-  OCIO::ConstConfigRcPtr config = OCIO::GetCurrentConfig();
-  OCIO::ConstProcessorRcPtr processor = config->getProcessor(source.c_str(), target.c_str());
-  OCIO::ConstGPUProcessorRcPtr gpu_processor = processor->getDefaultGPUProcessor();
-
   /* Create a GPU shader creator and construct it based on the transforms in the default GPU
    * processor. */
-  shader_creator_ = GPUShaderCreator::Create();
-  auto ocio_shader_creator = std::static_pointer_cast<OCIO::GpuShaderCreator>(shader_creator_);
-  gpu_processor->extractGpuShaderInfo(ocio_shader_creator);
+  shader_creator_ = GPUShaderCreator::Create(context.get_precision());
+
+#if defined(WITH_OCIO)
+  /* Get a GPU processor that transforms the source color space to the target color space. */
+  try {
+    OCIO::ConstConfigRcPtr config = OCIO::GetCurrentConfig();
+    OCIO::ConstProcessorRcPtr processor = config->getProcessor(source.c_str(), target.c_str());
+    OCIO::ConstGPUProcessorRcPtr gpu_processor = processor->getDefaultGPUProcessor();
+
+    auto ocio_shader_creator = std::static_pointer_cast<OCIO::GpuShaderCreator>(shader_creator_);
+    gpu_processor->extractGpuShaderInfo(ocio_shader_creator);
+  }
+  catch (const OCIO::Exception &) {
+  }
 #else
   UNUSED_VARS(source, target);
 #endif
@@ -508,7 +541,8 @@ void OCIOColorSpaceConversionShaderContainer::reset()
   }
 }
 
-OCIOColorSpaceConversionShader &OCIOColorSpaceConversionShaderContainer::get(std::string source,
+OCIOColorSpaceConversionShader &OCIOColorSpaceConversionShaderContainer::get(Context &context,
+                                                                             std::string source,
                                                                              std::string target)
 {
 #if defined(WITH_OCIO)
@@ -520,8 +554,9 @@ OCIOColorSpaceConversionShader &OCIOColorSpaceConversionShaderContainer::get(std
 
   const OCIOColorSpaceConversionShaderKey key(source, target, config_cache_id);
 
-  OCIOColorSpaceConversionShader &shader = *map_.lookup_or_add_cb(
-      key, [&]() { return std::make_unique<OCIOColorSpaceConversionShader>(source, target); });
+  OCIOColorSpaceConversionShader &shader = *map_.lookup_or_add_cb(key, [&]() {
+    return std::make_unique<OCIOColorSpaceConversionShader>(context, source, target);
+  });
 
   shader.needed = true;
   return shader;

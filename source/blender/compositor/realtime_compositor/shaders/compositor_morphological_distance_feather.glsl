@@ -24,9 +24,10 @@
  * and intertwined with the Gaussian blur implementation as follows. A search window of a radius
  * equivalent to the dilate/erode distance is applied on the image to find either the minimum or
  * maximum pixel value multiplied by its corresponding falloff value in the window. For dilation,
- * we try to find the maximum, and for erosion, we try to find the minimum. Additionally, we also
- * save the falloff value where the minimum or maximum was found. The found value will be that of
- * the narrow band distance field and the saved falloff value will be used as the mixing factor
+ * we try to find the maximum, and for erosion, we try to find the minimum. The implementation uses
+ * an inverse function to find the minimum, specified through the FUNCTION macro. Additionally, we
+ * also save the falloff value where the minimum or maximum was found. The found value will be that
+ * of the narrow band distance field and the saved falloff value will be used as the mixing factor
  * with the Gaussian blur.
  *
  * To make sense of the aforementioned algorithm, assume we are dilating a binary image by 5 pixels
@@ -49,7 +50,7 @@
  * the erode case, except the minimum value is computed instead.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_compositor_texture_utilities.glsl)
+#include "gpu_shader_compositor_texture_utilities.glsl"
 
 void main()
 {
@@ -59,8 +60,8 @@ void main()
   float accumulated_value = 0.0;
 
   /* Compute the contribution of the center pixel to the blur result. */
-  float center_value = texture_load(input_tx, texel).x;
-  accumulated_value += center_value * texture_load(weights_tx, 0).x;
+  float center_value = FUNCTION(texture_load(input_tx, texel).x);
+  accumulated_value += center_value * texture_load(weights_tx, ivec2(0)).x;
 
   /* Start with the center value as the maximum/minimum distance and reassign to the true maximum
    * or minimum in the search loop below. Additionally, the center falloff is always 1.0, so start
@@ -72,15 +73,15 @@ void main()
    * falloffs textures only store the weights and falloffs for the positive half, but since the
    * they are both symmetric, the same weights and falloffs are used for the negative half and we
    * compute both of their contributions. */
-  for (int i = 1; i < texture_size(weights_tx); i++) {
-    float weight = texture_load(weights_tx, i).x;
-    float falloff = texture_load(falloffs_tx, i).x;
+  for (int i = 1; i < texture_size(weights_tx).x; i++) {
+    float weight = texture_load(weights_tx, ivec2(i, 0)).x;
+    float falloff = texture_load(falloffs_tx, ivec2(i, 0)).x;
 
     /* Loop for two iterations, where s takes the value of -1 and 1, which is used as the sign
      * needed to evaluated the positive and negative sides as explain above. */
     for (int s = -1; s < 2; s += 2) {
       /* Compute the contribution of the pixel to the blur result. */
-      float value = texture_load(input_tx, texel + ivec2(s * i, 0)).x;
+      float value = FUNCTION(texture_load(input_tx, texel + ivec2(s * i, 0)).x);
       accumulated_value += value * weight;
 
       /* The distance is computed such that its highest value is the pixel value itself, so
@@ -88,7 +89,7 @@ void main()
       float falloff_distance = value * falloff;
 
       /* Find either the maximum or the minimum for the dilate and erode cases respectively. */
-      if (COMPARE(falloff_distance, limit_distance)) {
+      if (falloff_distance > limit_distance) {
         limit_distance = falloff_distance;
         limit_distance_falloff = falloff;
       }
@@ -102,5 +103,5 @@ void main()
 
   /* Write the value using the transposed texel. See the execute_distance_feather_horizontal_pass
    * method for more information on the rational behind this. */
-  imageStore(output_img, texel.yx, vec4(value));
+  imageStore(output_img, texel.yx, vec4(FUNCTION(value)));
 }

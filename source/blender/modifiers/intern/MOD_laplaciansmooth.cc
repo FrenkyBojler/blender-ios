@@ -9,30 +9,22 @@
 #include "BLI_math_geom.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.hh"
+#include "BKE_deform.hh"
+#include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
@@ -234,7 +226,8 @@ static void init_laplacian_matrix(LaplacianSystem *sys)
     idv2 = sys->edges[i][1];
     /* if is boundary, apply scale-dependent umbrella operator only with neighbors in boundary */
     if (sys->ne_ed_num[idv1] != sys->ne_fa_num[idv1] &&
-        sys->ne_ed_num[idv2] != sys->ne_fa_num[idv2]) {
+        sys->ne_ed_num[idv2] != sys->ne_fa_num[idv2])
+    {
       sys->vlengths[idv1] += sys->eweights[i];
       sys->vlengths[idv2] += sys->eweights[i];
     }
@@ -365,7 +358,7 @@ static void laplaciansmoothModifier_do(
   int defgrp_index;
   const bool invert_vgroup = (smd->flag & MOD_LAPLACIANSMOOTH_INVERT_VGROUP) != 0;
 
-  sys = init_laplacian_system(mesh->totedge, mesh->totloop, verts_num);
+  sys = init_laplacian_system(mesh->edges_num, mesh->corners_num, verts_num);
   if (!sys) {
     return;
   }
@@ -504,15 +497,17 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
-  if (verts_num == 0) {
+  if (positions.is_empty()) {
     return;
   }
 
-  laplaciansmoothModifier_do(
-      (LaplacianSmoothModifierData *)md, ctx->object, mesh, vertexCos, verts_num);
+  laplaciansmoothModifier_do((LaplacianSmoothModifierData *)md,
+                             ctx->object,
+                             mesh,
+                             reinterpret_cast<float(*)[3]>(positions.data()),
+                             positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -555,7 +550,7 @@ ModifierTypeInfo modifierType_LaplacianSmooth = {
     /*struct_name*/ "LaplacianSmoothModifierData",
     /*struct_size*/ sizeof(LaplacianSmoothModifierData),
     /*srna*/ &RNA_LaplacianSmoothModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_SMOOTH,
 
@@ -581,4 +576,5 @@ ModifierTypeInfo modifierType_LaplacianSmooth = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

@@ -7,14 +7,14 @@
 #include <cstdint>
 #include <memory>
 
+#include "BLI_array.hh"
 #include "BLI_map.hh"
-
-#include "GPU_shader.h"
-#include "GPU_texture.h"
 
 #include "COM_cached_resource.hh"
 
 namespace blender::realtime_compositor {
+
+class Context;
 
 /* ------------------------------------------------------------------------------------------------
  * Morphological Distance Feather Key.
@@ -42,25 +42,22 @@ bool operator==(const MorphologicalDistanceFeatherWeightsKey &a,
  * and the shader takes that into consideration. */
 class MorphologicalDistanceFeatherWeights : public CachedResource {
  private:
-  GPUTexture *weights_texture_ = nullptr;
-  GPUTexture *distance_falloffs_texture_ = nullptr;
+  Array<float> weights_;
+  Array<float> falloffs_;
 
  public:
-  MorphologicalDistanceFeatherWeights(int type, int radius);
+  Result weights_result;
+  Result falloffs_result;
+
+ public:
+  MorphologicalDistanceFeatherWeights(Context &context, int type, int radius);
 
   ~MorphologicalDistanceFeatherWeights();
 
+ private:
   void compute_weights(int radius);
 
   void compute_distance_falloffs(int type, int radius);
-
-  void bind_weights_as_texture(GPUShader *shader, const char *texture_name) const;
-
-  void unbind_weights_as_texture() const;
-
-  void bind_distance_falloffs_as_texture(GPUShader *shader, const char *texture_name) const;
-
-  void unbind_distance_falloffs_as_texture() const;
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -78,7 +75,7 @@ class MorphologicalDistanceFeatherWeightsContainer : CachedResourceContainer {
    * given parameters in the container, if one exists, return it, otherwise, return a newly created
    * one and add it to the container. In both cases, tag the cached resource as needed to keep it
    * cached for the next evaluation. */
-  MorphologicalDistanceFeatherWeights &get(int type, int radius);
+  MorphologicalDistanceFeatherWeights &get(Context &context, int type, int radius);
 };
 
 }  // namespace blender::realtime_compositor

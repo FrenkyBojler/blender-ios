@@ -3,13 +3,15 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_assert.h"
+#include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_task.hh"
 
-#include "GPU_compute.h"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_compute.hh"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_context.hh"
 #include "COM_result.hh"
@@ -57,8 +59,8 @@ static void compute_incomplete_prologues(Context &context,
                                          Result &incomplete_x_prologues,
                                          Result &incomplete_y_prologues)
 {
-  GPUShader *shader = context.shader_manager().get(
-      get_compute_incomplete_prologues_shader(operation));
+  GPUShader *shader = context.get_shader(get_compute_incomplete_prologues_shader(operation),
+                                         ResultPrecision::Full);
   GPU_shader_bind(shader);
 
   input.bind_as_texture(shader, "input_tx");
@@ -94,8 +96,8 @@ static void compute_complete_x_prologues(Context &context,
                                          Result &complete_x_prologues,
                                          Result &complete_x_prologues_sum)
 {
-  GPUShader *shader = context.shader_manager().get(
-      "compositor_summed_area_table_compute_complete_x_prologues");
+  GPUShader *shader = context.get_shader(
+      "compositor_summed_area_table_compute_complete_x_prologues", ResultPrecision::Full);
   GPU_shader_bind(shader);
 
   incomplete_x_prologues.bind_as_texture(shader, "incomplete_x_prologues_tx");
@@ -129,8 +131,8 @@ static void compute_complete_y_prologues(Context &context,
                                          Result &complete_x_prologues_sum,
                                          Result &complete_y_prologues)
 {
-  GPUShader *shader = context.shader_manager().get(
-      "compositor_summed_area_table_compute_complete_y_prologues");
+  GPUShader *shader = context.get_shader(
+      "compositor_summed_area_table_compute_complete_y_prologues", ResultPrecision::Full);
   GPU_shader_bind(shader);
 
   incomplete_y_prologues.bind_as_texture(shader, "incomplete_y_prologues_tx");
@@ -175,7 +177,8 @@ static void compute_complete_blocks(Context &context,
                                     SummedAreaTableOperation operation,
                                     Result &output)
 {
-  GPUShader *shader = context.shader_manager().get(get_compute_complete_blocks_shader(operation));
+  GPUShader *shader = context.get_shader(get_compute_complete_blocks_shader(operation),
+                                         ResultPrecision::Full);
   GPU_shader_bind(shader);
 
   input.bind_as_texture(shader, "input_tx");
@@ -198,28 +201,24 @@ static void compute_complete_blocks(Context &context,
   output.unbind_as_image();
 }
 
-void summed_area_table(Context &context,
-                       Result &input,
-                       Result &output,
-                       SummedAreaTableOperation operation)
+static void summed_area_table_gpu(Context &context,
+                                  Result &input,
+                                  Result &output,
+                                  SummedAreaTableOperation operation)
 {
-  Result incomplete_x_prologues = Result::Temporary(
-      ResultType::Color, context.texture_pool(), ResultPrecision::Full);
-  Result incomplete_y_prologues = Result::Temporary(
-      ResultType::Color, context.texture_pool(), ResultPrecision::Full);
+  Result incomplete_x_prologues = context.create_result(ResultType::Color, ResultPrecision::Full);
+  Result incomplete_y_prologues = context.create_result(ResultType::Color, ResultPrecision::Full);
   compute_incomplete_prologues(
       context, input, operation, incomplete_x_prologues, incomplete_y_prologues);
 
-  Result complete_x_prologues = Result::Temporary(
-      ResultType::Color, context.texture_pool(), ResultPrecision::Full);
-  Result complete_x_prologues_sum = Result::Temporary(
-      ResultType::Color, context.texture_pool(), ResultPrecision::Full);
+  Result complete_x_prologues = context.create_result(ResultType::Color, ResultPrecision::Full);
+  Result complete_x_prologues_sum = context.create_result(ResultType::Color,
+                                                          ResultPrecision::Full);
   compute_complete_x_prologues(
       context, input, incomplete_x_prologues, complete_x_prologues, complete_x_prologues_sum);
   incomplete_x_prologues.release();
 
-  Result complete_y_prologues = Result::Temporary(
-      ResultType::Color, context.texture_pool(), ResultPrecision::Full);
+  Result complete_y_prologues = context.create_result(ResultType::Color, ResultPrecision::Full);
   compute_complete_y_prologues(
       context, input, incomplete_y_prologues, complete_x_prologues_sum, complete_y_prologues);
   incomplete_y_prologues.release();
@@ -229,6 +228,55 @@ void summed_area_table(Context &context,
       context, input, complete_x_prologues, complete_y_prologues, operation, output);
   complete_x_prologues.release();
   complete_y_prologues.release();
+}
+
+/* Computes the summed area table as a cascade of a horizontal summing pass followed by a vertical
+ * summing pass. */
+static void summed_area_table_cpu(Result &input,
+                                  Result &output,
+                                  SummedAreaTableOperation operation)
+{
+  output.allocate_texture(input.domain());
+
+  /* Horizontal summing pass. */
+  const int2 size = input.domain().size;
+  threading::parallel_for(IndexRange(size.y), 1, [&](const IndexRange range_y) {
+    for (const int y : range_y) {
+      float4 accumulated_color = float4(0.0f);
+      for (const int x : IndexRange(size.x)) {
+        const int2 texel = int2(x, y);
+        const float4 color = input.load_pixel(texel);
+        accumulated_color += operation == SummedAreaTableOperation::Square ? color * color : color;
+        output.store_pixel(texel, accumulated_color);
+      }
+    }
+  });
+
+  /* Vertical summing pass. */
+  threading::parallel_for(IndexRange(size.x), 1, [&](const IndexRange range_x) {
+    for (const int x : range_x) {
+      float4 accumulated_color = float4(0.0f);
+      for (const int y : IndexRange(size.y)) {
+        const int2 texel = int2(x, y);
+        const float4 color = output.load_pixel(texel);
+        accumulated_color += color;
+        output.store_pixel(texel, accumulated_color);
+      }
+    }
+  });
+}
+
+void summed_area_table(Context &context,
+                       Result &input,
+                       Result &output,
+                       SummedAreaTableOperation operation)
+{
+  if (context.use_gpu()) {
+    summed_area_table_gpu(context, input, output, operation);
+  }
+  else {
+    summed_area_table_cpu(input, output, operation);
+  }
 }
 
 }  // namespace blender::realtime_compositor

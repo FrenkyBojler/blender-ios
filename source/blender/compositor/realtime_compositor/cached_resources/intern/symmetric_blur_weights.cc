@@ -13,9 +13,10 @@
 
 #include "RE_pipeline.h"
 
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
+#include "COM_context.hh"
+#include "COM_result.hh"
 #include "COM_symmetric_blur_weights.hh"
 
 namespace blender::realtime_compositor {
@@ -31,7 +32,7 @@ SymmetricBlurWeightsKey::SymmetricBlurWeightsKey(int type, float2 radius)
 
 uint64_t SymmetricBlurWeightsKey::hash() const
 {
-  return get_default_hash_3(type, radius.x, radius.y);
+  return get_default_hash(type, radius.x, radius.y);
 }
 
 bool operator==(const SymmetricBlurWeightsKey &a, const SymmetricBlurWeightsKey &b)
@@ -43,20 +44,21 @@ bool operator==(const SymmetricBlurWeightsKey &a, const SymmetricBlurWeightsKey 
  * Symmetric Blur Weights.
  */
 
-SymmetricBlurWeights::SymmetricBlurWeights(int type, float2 radius)
+SymmetricBlurWeights::SymmetricBlurWeights(Context &context, int type, float2 radius)
+    : result(context.create_result(ResultType::Float))
 {
   /* The full size of filter is double the radius plus 1, but since the filter is symmetric, we
    * only compute a single quadrant of it and so no doubling happens. We add 1 to make sure the
    * filter size is always odd and there is a center weight. */
   const float2 scale = math::safe_divide(float2(1.0f), radius);
   const int2 size = int2(math::ceil(radius)) + int2(1);
-  Array<float> weights(size.x * size.y);
+  weights_ = Array<float>(size.x * size.y);
 
   float sum = 0.0f;
 
   /* First, compute the center weight. */
   const float center_weight = RE_filter_value(type, 0.0f);
-  weights[0] = center_weight;
+  weights_[0] = center_weight;
   sum += center_weight;
 
   /* Then, compute the weights along the positive x axis, making sure to add double the weight to
@@ -64,7 +66,7 @@ SymmetricBlurWeights::SymmetricBlurWeights(int type, float2 radius)
    * of the x axis. Skip the center weight already computed by dropping the front index. */
   for (const int x : IndexRange(size.x).drop_front(1)) {
     const float weight = RE_filter_value(type, x * scale.x);
-    weights[x] = weight;
+    weights_[x] = weight;
     sum += weight * 2.0f;
   }
 
@@ -73,7 +75,7 @@ SymmetricBlurWeights::SymmetricBlurWeights(int type, float2 radius)
    * of the y axis. Skip the center weight already computed by dropping the front index. */
   for (const int y : IndexRange(size.y).drop_front(1)) {
     const float weight = RE_filter_value(type, y * scale.y);
-    weights[size.x * y] = weight;
+    weights_[size.x * y] = weight;
     sum += weight * 2.0f;
   }
 
@@ -84,7 +86,7 @@ SymmetricBlurWeights::SymmetricBlurWeights(int type, float2 radius)
   for (const int y : IndexRange(size.y).drop_front(1)) {
     for (const int x : IndexRange(size.x).drop_front(1)) {
       const float weight = RE_filter_value(type, math::length(float2(x, y) * scale));
-      weights[size.x * y + x] = weight;
+      weights_[size.x * y + x] = weight;
       sum += weight * 4.0f;
     }
   }
@@ -92,28 +94,25 @@ SymmetricBlurWeights::SymmetricBlurWeights(int type, float2 radius)
   /* Finally, normalize the weights. */
   for (const int y : IndexRange(size.y)) {
     for (const int x : IndexRange(size.x)) {
-      weights[size.x * y + x] /= sum;
+      weights_[size.x * y + x] /= sum;
     }
   }
 
-  texture_ = GPU_texture_create_2d(
-      "Weights", size.x, size.y, 1, GPU_R16F, GPU_TEXTURE_USAGE_GENERAL, weights.data());
+  if (context.use_gpu()) {
+    this->result.allocate_texture(Domain(size), false);
+    GPU_texture_update(this->result, GPU_DATA_FLOAT, weights_.data());
+
+    /* CPU-side data no longer needed, so free it. */
+    weights_ = Array<float>();
+  }
+  else {
+    this->result.wrap_external(weights_.data(), size);
+  }
 }
 
 SymmetricBlurWeights::~SymmetricBlurWeights()
 {
-  GPU_texture_free(texture_);
-}
-
-void SymmetricBlurWeights::bind_as_texture(GPUShader *shader, const char *texture_name) const
-{
-  const int texture_image_unit = GPU_shader_get_sampler_binding(shader, texture_name);
-  GPU_texture_bind(texture_, texture_image_unit);
-}
-
-void SymmetricBlurWeights::unbind_as_texture() const
-{
-  GPU_texture_unbind(texture_);
+  this->result.release();
 }
 
 /* --------------------------------------------------------------------
@@ -132,15 +131,15 @@ void SymmetricBlurWeightsContainer::reset()
   }
 }
 
-SymmetricBlurWeights &SymmetricBlurWeightsContainer::get(int type, float2 radius)
+Result &SymmetricBlurWeightsContainer::get(Context &context, int type, float2 radius)
 {
   const SymmetricBlurWeightsKey key(type, radius);
 
   auto &weights = *map_.lookup_or_add_cb(
-      key, [&]() { return std::make_unique<SymmetricBlurWeights>(type, radius); });
+      key, [&]() { return std::make_unique<SymmetricBlurWeights>(context, type, radius); });
 
   weights.needed = true;
-  return weights;
+  return weights.result;
 }
 
 }  // namespace blender::realtime_compositor

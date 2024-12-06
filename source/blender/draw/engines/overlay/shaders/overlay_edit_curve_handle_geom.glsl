@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "common_view_clipping_lib.glsl"
+#include "common_view_lib.glsl"
 
 void output_line(vec2 offset, vec4 color)
 {
@@ -12,12 +12,12 @@ void output_line(vec2 offset, vec4 color)
   gl_Position = gl_in[0].gl_Position;
   gl_Position.xy += offset * gl_in[0].gl_Position.w;
   view_clipping_distances_set(gl_in[0]);
-  EmitVertex();
+  gpu_EmitVertex();
 
   gl_Position = gl_in[1].gl_Position;
   gl_Position.xy += offset * gl_in[1].gl_Position.w;
   view_clipping_distances_set(gl_in[1]);
-  EmitVertex();
+  gpu_EmitVertex();
 }
 
 void main()

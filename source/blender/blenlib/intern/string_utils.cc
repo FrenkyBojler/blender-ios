@@ -6,9 +6,9 @@
  * \ingroup bli
  */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
 
 #include <array>
 
@@ -24,7 +24,7 @@
 
 #include "DNA_listBase.h"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /* -------------------------------------------------------------------- */
 /** \name String Replace
@@ -96,15 +96,15 @@ void BLI_string_replace_char(char *str, char src, char dst)
 }
 
 bool BLI_string_replace_table_exact(char *string,
-                                    const size_t string_maxncpy,
+                                    const size_t string_len,
                                     const char *replace_table[][2],
                                     int replace_table_len)
 {
-  BLI_string_debug_size_after_nil(string, string_maxncpy);
+  BLI_string_debug_size_after_nil(string, string_len);
 
   for (int i = 0; i < replace_table_len; i++) {
     if (STREQ(string, replace_table[i][0])) {
-      BLI_strncpy(string, replace_table[i][1], string_maxncpy);
+      BLI_strncpy(string, replace_table[i][1], string_len);
       return true;
     }
   }
@@ -114,11 +114,11 @@ bool BLI_string_replace_table_exact(char *string,
 size_t BLI_string_replace_range(
     char *string, size_t string_maxncpy, int src_beg, int src_end, const char *dst)
 {
-  int string_len = (int)strlen(string);
+  int string_len = int(strlen(string));
   BLI_assert(src_beg <= src_end);
   BLI_assert(src_end <= string_len);
   const int src_len = src_end - src_beg;
-  int dst_len = (int)strlen(dst);
+  int dst_len = int(strlen(dst));
 
   if (src_len < dst_len) {
     /* Grow, first handle special cases. */
@@ -140,13 +140,13 @@ size_t BLI_string_replace_range(
     }
 
     /* Grow. */
-    memmove(string + (src_end + ofs), string + src_end, (size_t)(string_len - src_end) + 1);
+    memmove(string + (src_end + ofs), string + src_end, size_t(string_len - src_end) + 1);
     string_len += ofs;
   }
   else if (src_len > dst_len) {
     /* Shrink. */
     const int ofs = src_len - dst_len;
-    memmove(string + (src_end - ofs), string + src_end, (size_t)(string_len - src_end) + 1);
+    memmove(string + (src_end - ofs), string + src_end, size_t(string_len - src_end) + 1);
     string_len -= ofs;
   }
   else { /* Simple case, no resizing. */
@@ -157,7 +157,7 @@ size_t BLI_string_replace_range(
     memcpy(string + src_beg, dst, size_t(dst_len));
   }
   BLI_assert(string[string_len] == '\0');
-  return (size_t)string_len;
+  return size_t(string_len);
 }
 
 /** \} */
@@ -178,7 +178,7 @@ size_t BLI_string_split_name_number(const char *name,
     while (a--) {
       if (name[a] == delim) {
         r_name_left[a] = '\0'; /* truncate left part here */
-        *r_number = (int)atol(name + a + 1);
+        *r_number = int(atol(name + a + 1));
         /* casting down to an int, can overflow for large numbers */
         if (*r_number < 0) {
           *r_number = 0;
@@ -284,7 +284,7 @@ size_t BLI_string_flip_side_name(char *name_dst,
   /* always copy the name, since this can be called with an uninitialized string */
   len = BLI_strncpy_rlen(name_dst, name_src, name_dst_maxncpy);
   if (len < 3) {
-    /* we don't do names like .R or .L */
+    /* We don't support names such as `.R` or `.L`. */
     return len;
   }
 
@@ -357,7 +357,7 @@ size_t BLI_string_flip_side_name(char *name_dst,
   }
 
   if (!is_set && len > 5) {
-    /* hrms, why test for a separator? lets do the rule 'ultimate left or right' */
+    /* Test for a separator to apply the rule: ultimate left or right. */
     if (((index = BLI_strcasestr(prefix, "right")) == prefix) || (index == prefix + len - 5)) {
       is_set = true;
       if (index[0] == 'r') {
@@ -468,7 +468,10 @@ std::string BLI_uniquename_cb(blender::FunctionRef<bool(blender::StringRef)> uni
  * \param name_offset: should be calculated using `offsetof(structname, membername)`
  * macro from `stddef.h`
  */
-static bool uniquename_find_dupe(ListBase *list, void *vlink, const char *name, int name_offset)
+static bool uniquename_find_dupe(const ListBase *list,
+                                 void *vlink,
+                                 const char *name,
+                                 int name_offset)
 {
   for (Link *link = static_cast<Link *>(list->first); link; link = link->next) {
     if (link != vlink) {
@@ -483,7 +486,7 @@ static bool uniquename_find_dupe(ListBase *list, void *vlink, const char *name, 
 }
 
 struct UniqueNameCheckData {
-  ListBase *lb;
+  const ListBase *lb;
   void *vlink;
   int name_offset;
 };
@@ -495,7 +498,7 @@ static bool uniquename_unique_check(void *arg, const char *name)
   return uniquename_find_dupe(data->lb, data->vlink, name, data->name_offset);
 }
 
-void BLI_uniquename(ListBase *list,
+void BLI_uniquename(const ListBase *list,
                     void *vlink,
                     const char *defname,
                     char delim,
@@ -562,7 +565,7 @@ size_t BLI_string_join_array(char *result,
     }
   }
   *c = '\0';
-  return (size_t)(c - result);
+  return size_t(c - result);
 }
 
 size_t BLI_string_join_array_by_sep_char(
@@ -589,7 +592,7 @@ size_t BLI_string_join_array_by_sep_char(
     }
   }
   *c = '\0';
-  return (size_t)(c - result);
+  return size_t(c - result);
 }
 
 char *BLI_string_join_arrayN(const char *strings[], uint strings_num)

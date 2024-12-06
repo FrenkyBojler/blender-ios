@@ -11,6 +11,8 @@
 
 namespace blender::realtime_compositor {
 
+class Context;
+
 /* ------------------------------------------------------------------------------------------------
  * OCIO Color Space Conversion Shader Key.
  */
@@ -20,9 +22,9 @@ class OCIOColorSpaceConversionShaderKey {
   std::string target;
   std::string config_cache_id;
 
-  OCIOColorSpaceConversionShaderKey(std::string source,
-                                    std::string target,
-                                    std::string config_cache_id);
+  OCIOColorSpaceConversionShaderKey(const std::string &source,
+                                    const std::string &target,
+                                    const std::string &config_cache_id);
 
   uint64_t hash() const;
 };
@@ -42,7 +44,7 @@ class OCIOColorSpaceConversionShader : public CachedResource {
   std::shared_ptr<GPUShaderCreator> shader_creator_;
 
  public:
-  OCIOColorSpaceConversionShader(std::string source, std::string target);
+  OCIOColorSpaceConversionShader(Context &context, std::string source, std::string target);
 
   GPUShader *bind_shader_and_resources();
 
@@ -67,7 +69,7 @@ class OCIOColorSpaceConversionShaderContainer : CachedResourceContainer {
    * parameters in the container, if one exists, return it, otherwise, return a newly created one
    * and add it to the container. In both cases, tag the cached resource as needed to keep it
    * cached for the next evaluation. */
-  OCIOColorSpaceConversionShader &get(std::string source, std::string target);
+  OCIOColorSpaceConversionShader &get(Context &context, std::string source, std::string target);
 };
 
 }  // namespace blender::realtime_compositor
