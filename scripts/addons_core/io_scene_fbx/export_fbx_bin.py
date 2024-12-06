@@ -870,7 +870,10 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         fbx_data_element_custom_properties(props, me)
 
     # Subdivision levels. Take them from the first found subsurf modifier from the
-    # first object that has the mesh.
+    # first object that has the mesh. Always write crease information if present,
+    # if the modifier explicitly uses creases ("use_creases" setting) and mesh lacks them,
+    # still provide zeros (see TODO comment below)
+    write_crease = False
     if scene_data.settings.use_subsurf:
         last_subsurf = None
         for mod in me_obj.bdata.modifiers:
@@ -891,6 +894,9 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
             elem_data_single_int32(geom, b"PreserveBorders", 0)
             elem_data_single_int32(geom, b"PreserveHardEdges", 0)
             elem_data_single_int32(geom, b"PropagateEdgeHardness", 0)
+
+            write_crease = last_subsurf.use_creases
+    write_crease = (write_crease or me.edge_creases)
 
     elem_data_single_int32(geom, b"GeometryVersion", FBX_GEOMETRY_VERSION)
 
@@ -1111,39 +1117,40 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
     del t_ls
     del t_lei
 
-    # Edge crease for subdivision (alwas exported even without modifier)
-    ec_fbx_dtype = np.float64
-    if t_pvi_edge_indices.size:
-        ec_bl_dtype = np.single
-        edge_creases = me.edge_creases
-        if edge_creases:
-            t_ec_raw = np.empty(len(me.edges), dtype=ec_bl_dtype)
-            edge_creases.data.foreach_get("value", t_ec_raw)
+    # Edge crease for subdivision
+    if write_crease:
+        ec_fbx_dtype = np.float64
+        if t_pvi_edge_indices.size:
+            ec_bl_dtype = np.single
+            edge_creases = me.edge_creases
+            if edge_creases:
+                t_ec_raw = np.empty(len(me.edges), dtype=ec_bl_dtype)
+                edge_creases.data.foreach_get("value", t_ec_raw)
 
-            # Convert to t_pvi edge-keys.
-            t_ec_ek_raw = t_ec_raw[t_pvi_edge_indices]
+                # Convert to t_pvi edge-keys.
+                t_ec_ek_raw = t_ec_raw[t_pvi_edge_indices]
 
-            # Blender squares those values before sending them to OpenSubdiv, when other software don't,
-            # so we need to compensate that to get similar results through FBX...
-            # Use the precision of the fbx dtype for the calculation since it's usually higher precision.
-            t_ec_ek_raw = t_ec_ek_raw.astype(ec_fbx_dtype, copy=False)
-            t_ec = np.square(t_ec_ek_raw, out=t_ec_ek_raw)
-            del t_ec_ek_raw
-            del t_ec_raw
+                # Blender squares those values before sending them to OpenSubdiv, when other software don't,
+                # so we need to compensate that to get similar results through FBX...
+                # Use the precision of the fbx dtype for the calculation since it's usually higher precision.
+                t_ec_ek_raw = t_ec_ek_raw.astype(ec_fbx_dtype, copy=False)
+                t_ec = np.square(t_ec_ek_raw, out=t_ec_ek_raw)
+                del t_ec_ek_raw
+                del t_ec_raw
+            else:
+                # todo: Blender edge creases are optional now, we may be able to avoid writing the array to FBX when
+                #  there are no edge creases.
+                t_ec = np.zeros(t_pvi_edge_indices.shape, dtype=ec_fbx_dtype)
         else:
-            # todo: Blender edge creases are optional now, we may be able to avoid writing the array to FBX when
-            #  there are no edge creases.
-            t_ec = np.zeros(t_pvi_edge_indices.shape, dtype=ec_fbx_dtype)
-    else:
-        t_ec = np.empty(0, dtype=ec_fbx_dtype)
+            t_ec = np.empty(0, dtype=ec_fbx_dtype)
 
-    lay_crease = elem_data_single_int32(geom, b"LayerElementEdgeCrease", 0)
-    elem_data_single_int32(lay_crease, b"Version", FBX_GEOMETRY_CREASE_VERSION)
-    elem_data_single_string(lay_crease, b"Name", b"")
-    elem_data_single_string(lay_crease, b"MappingInformationType", b"ByEdge")
-    elem_data_single_string(lay_crease, b"ReferenceInformationType", b"Direct")
-    elem_data_single_float64_array(lay_crease, b"EdgeCrease", t_ec)
-    del t_ec
+        lay_crease = elem_data_single_int32(geom, b"LayerElementEdgeCrease", 0)
+        elem_data_single_int32(lay_crease, b"Version", FBX_GEOMETRY_CREASE_VERSION)
+        elem_data_single_string(lay_crease, b"Name", b"")
+        elem_data_single_string(lay_crease, b"MappingInformationType", b"ByEdge")
+        elem_data_single_string(lay_crease, b"ReferenceInformationType", b"Direct")
+        elem_data_single_float64_array(lay_crease, b"EdgeCrease", t_ec)
+        del t_ec
 
     # And we are done with edges!
     del t_pvi_edge_indices
@@ -1500,10 +1507,10 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         lay_smooth = elem_empty(layer, b"LayerElement")
         elem_data_single_string(lay_smooth, b"Type", b"LayerElementSmoothing")
         elem_data_single_int32(lay_smooth, b"TypedIndex", 0)
-    # Edge crease is always exported
-    lay_crease = elem_empty(layer, b"LayerElement")
-    elem_data_single_string(lay_crease, b"Type", b"LayerElementEdgeCrease")
-    elem_data_single_int32(lay_crease, b"TypedIndex", 0)
+    if write_crease:
+        lay_crease = elem_empty(layer, b"LayerElement")
+        elem_data_single_string(lay_crease, b"Type", b"LayerElementEdgeCrease")
+        elem_data_single_int32(lay_crease, b"TypedIndex", 0)
     if vcolnumber:
         lay_vcol = elem_empty(layer, b"LayerElement")
         elem_data_single_string(lay_vcol, b"Type", b"LayerElementColor")
