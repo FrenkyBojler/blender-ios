@@ -990,12 +990,15 @@ static int childof_get_tars(bConstraint *con, ListBase *list)
 {
   if (con && list) {
     bChildOfConstraint *data = static_cast<bChildOfConstraint *>(con->data);
-    bConstraintTarget *ct;
 
-    /* standard target-getting macro for single-target constraints */
-    SINGLETARGET_GET_TARS(con, data->tar, data->subtarget, ct, list);
+    if (data->tar) {
+      bConstraintTarget *ct;
 
-    return 1;
+      /* standard target-getting macro for single-target constraints */
+      SINGLETARGET_GET_TARS(con, data->tar, data->subtarget, ct, list);
+
+      return 1;
+    }
   }
 
   return 0;
