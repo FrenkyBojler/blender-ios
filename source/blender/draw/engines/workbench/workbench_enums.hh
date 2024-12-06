@@ -15,7 +15,7 @@ enum class eGeometryType {
 };
 inline constexpr int geometry_type_len = static_cast<int>(eGeometryType::POINTCLOUD) + 1;
 
-inline const char *get_name(eGeometryType type)
+static inline const char *get_name(eGeometryType type)
 {
   switch (type) {
     case eGeometryType::MESH:
@@ -30,7 +30,7 @@ inline const char *get_name(eGeometryType type)
   }
 }
 
-inline eGeometryType geometry_type_from_object(Object *ob)
+static inline eGeometryType geometry_type_from_object(Object *ob)
 {
   switch (ob->type) {
     case OB_CURVES:
@@ -55,7 +55,7 @@ enum class eLightingType {
 };
 inline constexpr int lighting_type_len = static_cast<int>(eLightingType::MATCAP) + 1;
 
-inline eLightingType lighting_type_from_v3d_lighting(char lighting)
+static inline eLightingType lighting_type_from_v3d_lighting(char lighting)
 {
   switch (lighting) {
     case V3D_LIGHTING_FLAT:
@@ -76,12 +76,12 @@ enum class eShaderType {
 };
 inline constexpr int shader_type_len = static_cast<int>(eShaderType::TEXTURE) + 1;
 
-inline eShaderType shader_type_from_v3d_shading(char shading)
+static inline eShaderType shader_type_from_v3d_shading(char shading)
 {
   return shading == V3D_SHADING_TEXTURE_COLOR ? eShaderType::TEXTURE : eShaderType::MATERIAL;
 }
 
-inline const char *get_name(eShaderType type)
+static inline const char *get_name(eShaderType type)
 {
   switch (type) {
     case eShaderType::MATERIAL:
