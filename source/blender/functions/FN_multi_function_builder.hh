@@ -131,7 +131,8 @@ template<typename MaskT, typename... Args, typename... ParamTags, size_t... I, t
 #if (defined(__GNUC__) && !defined(__clang__))
 [[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
 #endif
-inline void execute_array(TypeSequence<ParamTags...> /*param_tags*/,
+inline void
+execute_array(TypeSequence<ParamTags...> /*param_tags*/,
                           std::index_sequence<I...> /*indices*/,
                           ElementFn element_fn,
                           MaskT mask,
@@ -173,7 +174,8 @@ template<typename... ParamTags, typename ElementFn, typename... Chunks>
 #if (defined(__GNUC__) && !defined(__clang__))
 [[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
 #endif
-inline void execute_materialized_impl(TypeSequence<ParamTags...> /*param_tags*/,
+inline void
+execute_materialized_impl(TypeSequence<ParamTags...> /*param_tags*/,
                                       const ElementFn element_fn,
                                       const int64_t size,
                                       Chunks &&__restrict... chunks)
