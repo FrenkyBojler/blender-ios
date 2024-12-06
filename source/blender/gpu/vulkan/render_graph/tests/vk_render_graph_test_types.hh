@@ -45,13 +45,13 @@ class CommandBufferLog : public VKCommandBufferInterface {
     is_recording_ = false;
   }
 
-  TimelineSemaphore submit_with_cpu_synchronization(VkFence /*vk_fence*/) override
+  VKTimelineSemaphoreWaitInfo submit_with_cpu_synchronization(VkFence /*vk_fence*/) override
   {
     EXPECT_FALSE(is_recording_);
     EXPECT_FALSE(is_cpu_synchronizing_);
     is_cpu_synchronizing_ = true;
   };
-  void wait_for_cpu_synchronization(TimelineSemaphore /*vk_semaphore*/) override
+  void wait_for_cpu_synchronization(VKTimelineSemaphoreWaitInfo /*wait_info*/) override
   {
     EXPECT_FALSE(is_recording_);
     EXPECT_TRUE(is_cpu_synchronizing_);

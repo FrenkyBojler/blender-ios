@@ -1022,4 +1022,18 @@ VkDescriptorType to_vk_descriptor_type(const shader::ShaderCreateInfo::Resource 
   return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 }
 
+VKTimelineSemaphore VKTimelineSemaphore::create_timeline_semaphore(VkDevice device)
+{
+  VkSemaphoreTypeCreateInfo semaphore_type_info = {};
+  semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
+  semaphore_type_info.semaphoreType = VK_SEMAPHORE_TYPE_BINARY;
+  semaphore_type_info.initialValue = 0;
+
+  VkSemaphoreCreateInfo semaphore_info = {};
+  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  semaphore_info.pNext = &semaphore_type_info;
+  VKTimelineSemaphore timeline_semaphore = {};
+  vkCreateSemaphore(device, &semaphore_info, nullptr, &timeline_semaphore.semaphore_);
+  return timeline_semaphore;
+}
 }  // namespace blender::gpu

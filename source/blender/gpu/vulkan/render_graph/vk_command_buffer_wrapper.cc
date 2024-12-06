@@ -83,30 +83,30 @@ void VKCommandBufferWrapper::end_recording()
   vkEndCommandBuffer(vk_command_buffer_);
 }
 
-TimelineSemaphore VKCommandBufferWrapper::submit_with_cpu_synchronization(
+VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronization(
     VkFence vk_fence, VkSemaphore vk_binary_semaphore)
 {
   VKDevice &device = VKBackend::get().device;
   if (vk_fence) {
     vkResetFences(device.vk_handle(), 1, &vk_fence);
   }
-  TimelineSemaphore submit_signal_semaphore = [&]() -> TimelineSemaphore {
+  VKTimelineSemaphoreWaitInfo wait_signal_info = [&]() -> VKTimelineSemaphoreWaitInfo {
     std::scoped_lock lock(device.queue_mutex_get());
-    SubmitSyncSemaphores submit_sync_semaphores =
-        device.discard_pool_for_current_thread(true).submit_sync_semaphores(device);
+    SubmitSyncInfo submit_sync_info =
+        device.discard_pool_for_current_thread(true).submit_sync_info(device);
     VkSubmitInfo vk_submit_info = vk_submit_info_;
 
     VkPipelineStageFlags wait_stages = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
-    if (submit_sync_semaphores.wait_semaphore) {
+    if (submit_sync_info.wait_info) {
       vk_submit_info.waitSemaphoreCount = 1;
-      vk_submit_info.pWaitSemaphores = &(*submit_sync_semaphores.wait_semaphore).semaphore();
+      vk_submit_info.pWaitSemaphores = &(*submit_sync_info.wait_info).semaphore;
       vk_submit_info.pWaitDstStageMask = &wait_stages;
     }
     Vector<VkSemaphore> signal_semaphores;
     Vector<uint64_t> signal_values;
-    signal_semaphores.append(submit_sync_semaphores.signal_semaphore.semaphore());
-    signal_values.append(submit_sync_semaphores.signal_semaphore.value());
+    signal_semaphores.append(submit_sync_info.signal_info.semaphore);
+    signal_values.append(submit_sync_info.signal_info.value);
 
     if (vk_binary_semaphore) {
       signal_semaphores.append(vk_binary_semaphore);
@@ -121,30 +121,29 @@ TimelineSemaphore VKCommandBufferWrapper::submit_with_cpu_synchronization(
     timeline_submit_info.signalSemaphoreValueCount = signal_semaphores.size();
     timeline_submit_info.pSignalSemaphoreValues = signal_values.begin();
 
-    if (submit_sync_semaphores.wait_semaphore) {
-      timeline_submit_info.waitSemaphoreValueCount = signal_semaphores.size();
-      timeline_submit_info.pWaitSemaphoreValues =
-          &(*submit_sync_semaphores.wait_semaphore).value();
+    if (submit_sync_info.wait_info) {
+      timeline_submit_info.waitSemaphoreValueCount = 1;
+      timeline_submit_info.pWaitSemaphoreValues = &(*submit_sync_info.wait_info).value;
     }
 
     vkQueueSubmit(device.queue_get(), 1, &vk_submit_info, vk_fence);
-    return submit_sync_semaphores.signal_semaphore;
+    return {submit_sync_info.signal_info.semaphore, submit_sync_info.signal_info.value};
   }();
   device.discard_pool_for_current_thread(true).discard_command_buffer(vk_command_buffer_,
                                                                       vk_command_pool_);
   vk_command_buffer_ = nullptr;
-  return submit_signal_semaphore;
+  return wait_signal_info;
 }
 
-void VKCommandBufferWrapper::wait_for_cpu_synchronization(TimelineSemaphore vk_semaphore)
+void VKCommandBufferWrapper::wait_for_cpu_synchronization(VKTimelineSemaphoreWaitInfo wait_info)
 {
-  VkSemaphoreWaitInfo wait_info = {};
-  wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-  wait_info.semaphoreCount = 1;
-  wait_info.pSemaphores = &vk_semaphore.semaphore();
-  wait_info.pValues = &vk_semaphore.value();
+  VkSemaphoreWaitInfo vk_wait_info = {};
+  vk_wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+  vk_wait_info.semaphoreCount = 1;
+  vk_wait_info.pSemaphores = &wait_info.semaphore;
+  vk_wait_info.pValues = &wait_info.value;
   VKDevice &device = VKBackend::get().device;
-  vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
+  vkWaitSemaphores(device.vk_handle(), &vk_wait_info, UINT64_MAX);
 }
 
 void VKCommandBufferWrapper::wait_for_cpu_synchronization(VkFence vk_fence)

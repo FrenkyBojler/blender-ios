@@ -28,7 +28,7 @@ void VKFence::signal()
     VKDevice &device = VKBackend::get().device;
     VkFenceCreateInfo vk_fence_create_info = {};
     vk_fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    // vk_fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    vk_fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     vkCreateFence(device.vk_handle(), &vk_fence_create_info, nullptr, &vk_fence_);
   }
   VKContext &context = *VKContext::get();

@@ -235,8 +235,8 @@ class VKRenderGraph : public NonCopyable {
    * Post conditions:
    * - `vk_swapchain_image` layout is transitioned to `VK_IMAGE_LAYOUT_SRC_PRESENT`.
    */
-  TimelineSemaphore submit_for_present(VkImage vk_swapchain_image,
-                                       VkSemaphore vk_binary_semaphore);
+  VKTimelineSemaphoreWaitInfo submit_for_present(VkImage vk_swapchain_image,
+                                                 VkSemaphore vk_binary_semaphore);
 
   /**
    * Submit full graph.
@@ -248,11 +248,11 @@ class VKRenderGraph : public NonCopyable {
   void submit_and_wait();
 
   /**  Submit render graph with CPU synchronization event. */
-  TimelineSemaphore submit_synchronization_event(VkFence vk_fence);
+  VKTimelineSemaphoreWaitInfo submit_synchronization_event(VkFence vk_fence);
   /** Wait and reset for a CPU synchronization event. */
   void wait_synchronization_event(VkFence vk_fence);
   /** Wait CPU synchronization event. */
-  void wait_synchronization_event(TimelineSemaphore vk_semaphore);
+  void wait_synchronization_event(VKTimelineSemaphoreWaitInfo wait_info);
   /**
    * Push a new debugging group to the stack with the given name.
    *

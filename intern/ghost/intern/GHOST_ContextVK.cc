@@ -35,6 +35,9 @@
 
 #include <sys/stat.h>
 
+/* Sets `VK_PRESENT_MODE_IMMEDIATE_KHR` as present method for fps stress debug. */
+#define FPS_STRESS_DEBUG
+
 /*
  * Should we only select surfaces that are known to be compatible. Or should we in case no
  * compatible surfaces have been found select the first one.
@@ -489,7 +492,7 @@ GHOST_ContextVK::~GHOST_ContextVK()
 
     destroySwapchain();
 
-    for (BinarySemaphore &present_semaphore : m_images_present_semaphores_) {
+    for (GHOST_VulkanBinarySemaphore &present_semaphore : m_images_present_semaphores_) {
       present_semaphore.destroy(device_vk.device);
     }
     m_images_present_semaphores_.clear();
@@ -515,6 +518,7 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
   VkDevice device = vulkan_device->device;
+
   if (m_swapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
   }
@@ -525,7 +529,7 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
   return GHOST_kSuccess;
 }
 
-void BinarySemaphore::destroy(VkDevice vk_device)
+void GHOST_VulkanBinarySemaphore::destroy(VkDevice vk_device)
 {
   if (this->semaphore_) {
     vkDestroySemaphore(vk_device, this->semaphore_, nullptr);
@@ -534,13 +538,12 @@ void BinarySemaphore::destroy(VkDevice vk_device)
   }
 }
 
-const VkSemaphore &BinarySemaphore::get(VkDevice vk_device)
+const VkSemaphore &GHOST_VulkanBinarySemaphore::get(VkDevice vk_device)
 {
   if (this->semaphore_ && !this->dirty_) {
     return this->semaphore_;
   }
   destroy(vk_device);
-  VkSemaphore present_wait_semaphore;
   VkSemaphoreCreateInfo semaphore_info = {};
   semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   vkCreateSemaphore(vk_device, &semaphore_info, nullptr, &this->semaphore_);
@@ -548,7 +551,7 @@ const VkSemaphore &BinarySemaphore::get(VkDevice vk_device)
   return this->semaphore_;
 }
 
-void BinarySemaphore::tag_dirty()
+void GHOST_VulkanBinarySemaphore::tag_dirty()
 {
   this->dirty_ = true;
 }
@@ -597,14 +600,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VK_CHECK(vkResetFences(device, 1, &m_fence));
   // printf("%d\n", image_index);
 
-  BinarySemaphore &present_semaphore = m_images_present_semaphores_[image_index];
+  GHOST_VulkanBinarySemaphore &present_semaphore = m_images_present_semaphores_[image_index];
 
-  GHOST_VulkanSwapChainData swap_chain_data = {};
+  GHOST_VulkanSwapChainData swap_chain_data;
   swap_chain_data.image = m_swapchain_images[image_index];
   swap_chain_data.format = m_surface_format.format;
   swap_chain_data.extent = m_render_extent;
-  swap_chain_data.present_wait_semaphore;
   swap_chain_data.present_wait_semaphore = present_semaphore.get(device);
+
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
   }
@@ -755,20 +758,16 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
     return std::find(presents.begin(), presents.end(), presen_mode) != presents.end();
   };
   VkPresentModeKHR present_modes[]{
-#if 0
       /* FIFO present mode is always available. */
       VK_PRESENT_MODE_FIFO_KHR,
       /* MAILBOX is the lowest latency V-Sync enabled mode so use it if available */
       VK_PRESENT_MODE_MAILBOX_KHR,
       VK_PRESENT_MODE_IMMEDIATE_KHR,
-
-#else
-      VK_PRESENT_MODE_MAILBOX_KHR,
-      VK_PRESENT_MODE_IMMEDIATE_KHR,
-      VK_PRESENT_MODE_FIFO_KHR,
-
-#endif
   };
+
+#ifdef FPS_STRESS_DEBUG
+  std::swap(present_modes[0], present_modes[2]);
+#endif
   for (auto present_mode : present_modes) {
     if (support_present_mode(present_mode)) {
       *r_presentMode = present_mode;
@@ -1053,7 +1052,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    // required_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
   }
   optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);

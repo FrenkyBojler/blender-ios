@@ -40,7 +40,7 @@ void VKDiscardPool::deinit(VKDevice &device)
     timeline_semaphores_pool.clear();
   }
   else {
-    for (TimelineSemaphore &timeline_semaphore : timeline_semaphores_pool) {
+    for (VKTimelineSemaphore &timeline_semaphore : timeline_semaphores_pool) {
       vkDestroySemaphore(device.vk_handle(), timeline_semaphore.semaphore(), nullptr);
     }
     timeline_semaphores_pool.clear();
@@ -146,7 +146,7 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
   Vector<uint64_t> wait_values;
   wait_values.reserve(submit_semaphores_.size());
 
-  for (TimelineSemaphore &submit_semaphore : submit_semaphores_) {
+  for (VKTimelineSemaphore &submit_semaphore : submit_semaphores_) {
     wait_semaphores.append(submit_semaphore.semaphore());
     wait_values.append(submit_semaphore.value());
   }
@@ -206,33 +206,20 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
   command_buffers_.clear();
 }
 
-SubmitSyncSemaphores VKDiscardPool::submit_sync_semaphores(VKDevice &device)
+SubmitSyncInfo VKDiscardPool::submit_sync_info(VKDevice &device)
 {
-
   std::scoped_lock mutex(mutex_);
-  std::optional<TimelineSemaphore> wait_semaphore = std::nullopt;
+  std::optional<VKTimelineSemaphoreWaitInfo> wait_semaphore = std::nullopt;
   if (!submit_semaphores_.is_empty()) {
-    wait_semaphore.emplace(submit_semaphores_.last());
+    wait_semaphore.emplace(submit_semaphores_.last().wait_info());
   }
-
   if (!timeline_semaphores_pool.is_empty()) {
-    auto submit_semaphore = timeline_semaphores_pool.pop_last();
-    submit_semaphores_.append({submit_semaphore.semaphore(), submit_semaphore.value() + 1});
+    submit_semaphores_.append(timeline_semaphores_pool.pop_last());
   }
   else {
-    VkSemaphoreTypeCreateInfo semaphore_type_info = {};
-    semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
-    semaphore_type_info.semaphoreType = VK_SEMAPHORE_TYPE_BINARY;
-    semaphore_type_info.initialValue = 0;
-
-    VkSemaphoreCreateInfo semaphore_info = {};
-    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    semaphore_info.pNext = &semaphore_type_info;
-    VkSemaphore semaphore = VK_NULL_HANDLE;
-    vkCreateSemaphore(device.vk_handle(), &semaphore_info, nullptr, &semaphore);
-    submit_semaphores_.append({semaphore, 1});
+    submit_semaphores_.append(VKTimelineSemaphore::create_timeline_semaphore(device.vk_handle()));
   }
-  return {wait_semaphore, submit_semaphores_.last()};
+  return {wait_semaphore, submit_semaphores_.last().new_signal_info()};
 }
 
 }  // namespace blender::gpu

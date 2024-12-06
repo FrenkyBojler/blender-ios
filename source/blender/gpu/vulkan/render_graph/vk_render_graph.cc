@@ -43,8 +43,8 @@ void VKRenderGraph::remove_nodes(Span<NodeHandle> node_handles)
 /** \name Submit graph
  * \{ */
 
-TimelineSemaphore VKRenderGraph::submit_for_present(VkImage vk_swapchain_image,
-                                                    VkSemaphore vk_binary_semaphore)
+VKTimelineSemaphoreWaitInfo VKRenderGraph::submit_for_present(VkImage vk_swapchain_image,
+                                                              VkSemaphore vk_binary_semaphore)
 {
   /* Needs to be executed at forehand as `add_node` also locks the mutex. */
   VKSynchronizationNode::CreateInfo synchronization = {};
@@ -56,11 +56,11 @@ TimelineSemaphore VKRenderGraph::submit_for_present(VkImage vk_swapchain_image,
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_image(*this, vk_swapchain_image);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  TimelineSemaphore submit_signal_semaphore = command_buffer_->submit_with_cpu_synchronization(
+  VKTimelineSemaphoreWaitInfo wait_signal_info = command_buffer_->submit_with_cpu_synchronization(
       VK_NULL_HANDLE, vk_binary_semaphore);
   submission_id.next();
   remove_nodes(node_handles);
-  return submit_signal_semaphore;
+  return wait_signal_info;
 }
 
 void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
@@ -68,11 +68,11 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_buffer(*this, vk_buffer);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  TimelineSemaphore submit_signal_semaphore = command_buffer_->submit_with_cpu_synchronization(
-      VK_NULL_HANDLE);
+  VKTimelineSemaphoreWaitInfo wait_signal_semaphore =
+      command_buffer_->submit_with_cpu_synchronization(VK_NULL_HANDLE);
   submission_id.next();
   remove_nodes(node_handles);
-  command_buffer_->wait_for_cpu_synchronization(submit_signal_semaphore);
+  command_buffer_->wait_for_cpu_synchronization(wait_signal_semaphore);
 }
 
 void VKRenderGraph::submit()
@@ -85,16 +85,16 @@ void VKRenderGraph::submit_and_wait()
   wait_synchronization_event(submit_synchronization_event(VK_NULL_HANDLE));
 }
 
-TimelineSemaphore VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
+VKTimelineSemaphoreWaitInfo VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
 {
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  TimelineSemaphore submit_signal_semaphore = command_buffer_->submit_with_cpu_synchronization(
+  VKTimelineSemaphoreWaitInfo wait_signal_info = command_buffer_->submit_with_cpu_synchronization(
       vk_fence);
   submission_id.next();
   remove_nodes(node_handles);
-  return submit_signal_semaphore;
+  return wait_signal_info;
 }
 
 void VKRenderGraph::wait_synchronization_event(VkFence vk_fence)
@@ -102,9 +102,9 @@ void VKRenderGraph::wait_synchronization_event(VkFence vk_fence)
   command_buffer_->wait_for_cpu_synchronization(vk_fence);
 }
 
-void VKRenderGraph::wait_synchronization_event(TimelineSemaphore vk_semaphore)
+void VKRenderGraph::wait_synchronization_event(VKTimelineSemaphoreWaitInfo wait_info)
 {
-  command_buffer_->wait_for_cpu_synchronization(vk_semaphore);
+  command_buffer_->wait_for_cpu_synchronization(wait_info);
 }
 
 /** \} */

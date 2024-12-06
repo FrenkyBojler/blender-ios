@@ -16,14 +16,13 @@
 namespace blender::gpu {
 class VKDevice;
 
-/** Semaphores for submit sequential syncronization. */
-struct SubmitSyncSemaphores {
-  /** Timeline semaphore of the previous submit in the same frame, current submission must wait
-   * to this semaphore to signal the corresponding timeline value, valueless for the first pair of
-   * syncronization semaphores requested in the frame. */
-  std ::optional<TimelineSemaphore> wait_semaphore;
-  /** Timeline semaphore that current frame submit must use to signal. */
-  TimelineSemaphore signal_semaphore;
+/** Semaphores syncronization info for sequential submissions. */
+struct SubmitSyncInfo {
+  /** Previous frame submit signal info that must we used as wait info for the current submit,
+   * valueless for the first `SubmitSyncInfo` requested in the frame. */
+  std ::optional<VKTimelineSemaphoreWaitInfo> wait_info;
+  /** Submit Signal info. */
+  VKTimelineSemaphoreSignalInfo signal_info;
 };
 
 /**
@@ -40,8 +39,8 @@ class VKDiscardPool {
   friend class VKDevice;
 
  private:
-  Vector<TimelineSemaphore> timeline_semaphores_pool;
-  Vector<TimelineSemaphore> submit_semaphores_;
+  Vector<VKTimelineSemaphore> timeline_semaphores_pool;
+  Vector<VKTimelineSemaphore> submit_semaphores_;
   VkFence semaphores_guard_;
 
   Vector<std::pair<VkImage, VmaAllocation>> images_;
@@ -87,20 +86,16 @@ class VKDiscardPool {
   void destroy_discarded_resources(VKDevice &device);
 
   /**
-   * Request a pair of submit syncronization semaphores
-   * This will define a sequential syncronization in the GPU, each submit would wait on the
-   * previous submission work in the frame to finish, and then when the submission work is
-   * completed this will signal so the following submission in the frame that is waiting can be
-   * executed. Not including `SubmitSyncSemaphores::signal_semaphore` within
-   * `VkSubmitInfo::pSignalSemaphores` whit its corresponding signal value would generate a
-   * deadlock.
+   * Request submit syncronization info.
    *
-   * The `SubmitSyncSemaphores::signal_semaphore` must be used exclusively as signal semaphore
-   * within `VkSubmitInfo::pSignalSemaphores` in the following `vkQueueSubmit` call, caller
-   * can use this timeline semaphores to perform any wait operation, this will be safe to do
-   * as long VKDevice not becomes invalid.
+   * This will define a sequential syncronization in the GPU,
+   * each submit would wait on the previous submission batch in the frame to finish, and then when
+   * the submission batch is completed this will signal to the following submission in the frame
+   * that is waiting so can be executed. `SubmitSyncInfo::signal_info` data must used only once as
+   * signal paramether in `VkSubmitInfo` for the following `vkQueueSubmit` call, after this can be
+   * used this `signal_info` as a wait info for syncronization.
    */
-  SubmitSyncSemaphores submit_sync_semaphores(VKDevice &device);
+  SubmitSyncInfo submit_sync_info(VKDevice &device);
 };
 
 class VKResourcePool {

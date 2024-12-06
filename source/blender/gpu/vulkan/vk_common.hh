@@ -25,22 +25,43 @@
 
 namespace blender::gpu {
 
-struct TimelineSemaphore {
+struct VKTimelineSemaphoreWaitInfo {
+  VkSemaphore semaphore;
+  uint64_t value;
+};
+
+struct VKTimelineSemaphoreSignalInfo {
+  VkSemaphore semaphore;
+  uint64_t value;
+};
+
+struct VKTimelineSemaphore {
  private:
-  VkSemaphore semaphore_;
-  uint64_t value_;
+  VkSemaphore semaphore_ = VK_NULL_HANDLE;
+  uint64_t last_signaled_value_ = 0;
 
  public:
-  TimelineSemaphore(VkSemaphore semaphore, uint64_t value) : semaphore_{semaphore}, value_{value}
-  {
-  }
+  static VKTimelineSemaphore create_timeline_semaphore(VkDevice device);
+
   const VkSemaphore &semaphore()
   {
     return semaphore_;
   };
-  const uint64_t &value()
+
+  const uint64_t value()
   {
-    return value_;
+    return last_signaled_value_;
+  }
+
+  VKTimelineSemaphoreWaitInfo wait_info()
+  {
+    return {this->semaphore_, this->last_signaled_value_};
+  }
+
+  VKTimelineSemaphoreSignalInfo new_signal_info()
+  {
+    this->last_signaled_value_++;
+    return {this->semaphore_, this->last_signaled_value_};
   }
 };
 

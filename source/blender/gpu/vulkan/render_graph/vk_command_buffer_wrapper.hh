@@ -24,10 +24,10 @@ class VKCommandBufferInterface {
 
   virtual void begin_recording() = 0;
   virtual void end_recording() = 0;
-  virtual TimelineSemaphore submit_with_cpu_synchronization(
+  virtual VKTimelineSemaphoreWaitInfo submit_with_cpu_synchronization(
       VkFence vk_fence = VK_NULL_HANDLE, VkSemaphore vk_binary_semaphore = VK_NULL_HANDLE) = 0;
 
-  virtual void wait_for_cpu_synchronization(TimelineSemaphore vk_semaphore) = 0;
+  virtual void wait_for_cpu_synchronization(VKTimelineSemaphoreWaitInfo wait_info) = 0;
   virtual void wait_for_cpu_synchronization(VkFence vk_fence) = 0;
 
   virtual void bind_pipeline(VkPipelineBindPoint pipeline_bind_point, VkPipeline pipeline) = 0;
@@ -163,9 +163,9 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
 
   void begin_recording() override;
   void end_recording() override;
-  TimelineSemaphore submit_with_cpu_synchronization(VkFence vk_fence,
-                                                    VkSemaphore vk_binary_semaphore) override;
-  void wait_for_cpu_synchronization(TimelineSemaphore vk_semaphore) override;
+  VKTimelineSemaphoreWaitInfo submit_with_cpu_synchronization(
+      VkFence vk_fence, VkSemaphore vk_binary_semaphore) override;
+  void wait_for_cpu_synchronization(VKTimelineSemaphoreWaitInfo wait_info) override;
   void wait_for_cpu_synchronization(VkFence vk_fence) override;
 
   void bind_pipeline(VkPipelineBindPoint pipeline_bind_point, VkPipeline pipeline) override;
