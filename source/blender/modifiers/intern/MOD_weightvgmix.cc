@@ -29,6 +29,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_build.hh"
@@ -158,7 +159,9 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  walk(user_data, ob, md, "mask_texture");
+  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "mask_texture");
+  walk(user_data, ob, md, &ptr, prop);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -452,15 +455,15 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiItemS(layout);
 
-  uiItemR(layout, ptr, "default_weight_a", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "default_weight_a", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(layout, ptr, "default_weight_b", UI_ITEM_NONE, IFACE_("B"), ICON_NONE);
 
   uiItemS(layout);
 
-  uiItemR(layout, ptr, "mix_set", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "mix_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mix_set", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "normalize", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }

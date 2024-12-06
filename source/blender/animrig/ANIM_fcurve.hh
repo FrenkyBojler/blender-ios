@@ -28,6 +28,7 @@ struct FCurveDescriptor {
   StringRefNull rna_path;
   int array_index;
   std::optional<PropertySubType> prop_subtype;
+  std::optional<blender::StringRefNull> channel_group;
 };
 
 /* This is used to pass in the settings for a keyframe into a function. */
@@ -155,5 +156,14 @@ void bake_fcurve(FCurve *fcu, blender::int2 range, float step, BakeCurveRemove r
  * E.g. With a key selected on frame 1 and 3 it will insert a key on frame 2.
  */
 void bake_fcurve_segments(FCurve *fcu);
+
+/**
+ * Checks if some F-Curve has a keyframe for a given frame.
+ * \note Used for the buttons to check for keyframes.
+ *
+ * \param frame: The frame on which to check for a keyframe. A binary search with a threshold is
+ * used to find the key, so the float doesn't need to match exactly.
+ */
+bool fcurve_frame_has_keyframe(const FCurve *fcu, float frame);
 
 }  // namespace blender::animrig

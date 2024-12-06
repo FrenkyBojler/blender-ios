@@ -112,7 +112,7 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
                                              const ModifierEvalContext *ctx,
                                              const Mesh *mesh,
                                              const float time,
-                                             const char **err_str)
+                                             const char **r_err_str)
 {
   if ((ctx->flag & MOD_APPLY_ORCO) == 0) {
     return false;
@@ -123,7 +123,7 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
   switch (cache_file->type) {
     case CACHEFILE_TYPE_ALEMBIC:
 #  ifdef WITH_ALEMBIC
-      if (!ABC_mesh_topology_changed(mcmd->reader, ctx->object, mesh, time, err_str)) {
+      if (!ABC_mesh_topology_changed(mcmd->reader, ctx->object, mesh, time, r_err_str)) {
         return true;
       }
 #  endif
@@ -131,7 +131,7 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
     case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
       if (!blender::io::usd::USD_mesh_topology_changed(
-              mcmd->reader, ctx->object, mesh, time, err_str))
+              mcmd->reader, ctx->object, mesh, time, r_err_str))
       {
         return true;
       }
@@ -380,12 +380,12 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (has_cache_file) {
     uiItemPointerR(
-        layout, ptr, "object_path", &cache_file_ptr, "object_paths", nullptr, ICON_NONE);
+        layout, ptr, "object_path", &cache_file_ptr, "object_paths", std::nullopt, ICON_NONE);
   }
 
   if (RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
-    uiItemR(layout, ptr, "read_data", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-    uiItemR(layout, ptr, "use_vertex_interpolation", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "read_data", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    uiItemR(layout, ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   modifier_panel_end(layout, ptr);
@@ -405,7 +405,7 @@ static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
   uiTemplateCacheFileVelocity(layout, &fileptr);
-  uiItemR(layout, ptr, "velocity_scale", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "velocity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void time_panel_draw(const bContext * /*C*/, Panel *panel)

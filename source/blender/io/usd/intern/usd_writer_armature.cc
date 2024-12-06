@@ -4,23 +4,23 @@
 
 #include "usd_writer_armature.hh"
 #include "usd_armature_utils.hh"
+#include "usd_utils.hh"
 
-#include "BKE_action.h"
+#include "ANIM_action.hh"
+
+#include "BKE_action.hh"
 
 #include "DNA_armature_types.h"
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/matrix4f.h>
+#include <pxr/usd/usdGeom/primvarsAPI.h>
 #include <pxr/usd/usdSkel/animation.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
 #include <pxr/usd/usdSkel/skeleton.h>
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.usd"};
-
-namespace usdtokens {
-static const pxr::TfToken Anim("Anim", pxr::TfToken::Immortal);
-}  // namespace usdtokens
 
 /**
  * Get the pose matrix for the given channel.
@@ -54,6 +54,7 @@ static void initialize(const Object *obj,
   using namespace blender::io::usd;
 
   pxr::VtTokenArray joints;
+  pxr::VtArray<float> bone_lengths;
   pxr::VtArray<pxr::GfMatrix4d> bind_xforms;
   pxr::VtArray<pxr::GfMatrix4d> rest_xforms;
 
@@ -68,6 +69,9 @@ static void initialize(const Object *obj,
        * Bones not found in the map should be skipped. */
       return;
     }
+
+    /* Store Blender bone lengths to facilitate better round-tripping. */
+    bone_lengths.push_back(bone->length);
 
     joints.push_back(build_usd_joint_path(bone, allow_unicode));
     const pxr::GfMatrix4f arm_mat(bone->arm_mat);
@@ -93,11 +97,19 @@ static void initialize(const Object *obj,
   skel.GetBindTransformsAttr().Set(bind_xforms);
   skel.GetRestTransformsAttr().Set(rest_xforms);
 
-  pxr::UsdSkelBindingAPI usd_skel_api = pxr::UsdSkelBindingAPI::Apply(skel.GetPrim());
+  const pxr::UsdPrim skel_prim = skel.GetPrim();
+
+  /* Store the custom bone lengths as just a regular Primvar attached to the Skeleton. */
+  const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(skel_prim);
+  pxr::UsdGeomPrimvar pv_lengths = pv_api.CreatePrimvar(
+      BlenderBoneLengths, pxr::SdfValueTypeNames->FloatArray, pxr::UsdGeomTokens->uniform);
+  pv_lengths.Set(bone_lengths);
+
+  pxr::UsdSkelBindingAPI usd_skel_api = pxr::UsdSkelBindingAPI::Apply(skel_prim);
 
   if (skel_anim) {
     usd_skel_api.CreateAnimationSourceRel().SetTargets(
-        pxr::SdfPathVector({pxr::SdfPath(usdtokens::Anim)}));
+        pxr::SdfPathVector({pxr::SdfPath(skel_anim.GetPath().GetName())}));
     create_pose_joints(skel_anim, *obj, deform_bones, allow_unicode);
   }
 }
@@ -156,9 +168,15 @@ void USDArmatureWriter::do_write(HierarchyContext &context)
 
   pxr::UsdSkelAnimation skel_anim;
 
+  const bool allow_unicode = usd_export_context_.export_params.allow_unicode;
+
   if (usd_export_context_.export_params.export_animation) {
+    /* Use the action name as the animation name. */
+    const animrig::Action *action = animrig::get_action(context.object->id);
+    const pxr::TfToken anim_name(make_safe_name(action->id.name + 2, allow_unicode));
+
     /* Create the skeleton animation primitive as a child of the skeleton. */
-    pxr::SdfPath anim_path = usd_export_context_.usd_path.AppendChild(usdtokens::Anim);
+    pxr::SdfPath anim_path = usd_export_context_.usd_path.AppendChild(anim_name);
     skel_anim = pxr::UsdSkelAnimation::Define(stage, anim_path);
 
     if (!skel_anim) {
@@ -167,7 +185,6 @@ void USDArmatureWriter::do_write(HierarchyContext &context)
     }
   }
 
-  const bool allow_unicode = usd_export_context_.export_params.allow_unicode;
   Map<StringRef, const Bone *> *deform_map = usd_export_context_.export_params.only_deform_bones ?
                                                  &deform_map_ :
                                                  nullptr;

@@ -10,7 +10,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "bpy_app_build_options.h"
+#include "bpy_app_build_options.hh"
 
 static PyTypeObject BlenderAppBuildOptionsType;
 
@@ -36,7 +36,6 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"openal", nullptr},
     {"opensubdiv", nullptr},
     {"sdl", nullptr},
-    {"sdl_dynload", nullptr},
     {"coreaudio", nullptr},
     {"jack", nullptr},
     {"pulseaudio", nullptr},
@@ -191,12 +190,6 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_SDL_DYNLOAD
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
-
 #ifdef WITH_COREAUDIO
   SetObjIncref(Py_True);
 #else
@@ -263,7 +256,7 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_IO_GPENCIL
+#ifdef WITH_IO_GREASE_PENCIL
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);

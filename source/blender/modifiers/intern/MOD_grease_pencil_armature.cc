@@ -107,6 +107,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void modify_curves(ModifierData &md, const ModifierEvalContext &ctx, Drawing &drawing)
 {
   auto &amd = reinterpret_cast<GreasePencilArmatureModifierData &>(md);
+  modifier::greasepencil::ensure_no_bezier_curves(drawing);
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
 
   /* The influence flag is where the "invert" flag is stored,
@@ -134,6 +135,7 @@ static void modify_curves(ModifierData &md, const ModifierEvalContext &ctx, Draw
 
     BKE_armature_deform_coords_with_curves(*amd.object,
                                            *ctx.object,
+                                           &curves.vertex_group_names,
                                            positions.slice(points),
                                            std::nullopt,
                                            std::nullopt,
@@ -175,7 +177,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   modifier::greasepencil::draw_vertex_group_settings(C, layout, ptr);
 
   uiLayout *col = uiLayoutColumnWithHeading(layout, true, IFACE_("Bind To"));

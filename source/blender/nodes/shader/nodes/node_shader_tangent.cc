@@ -43,8 +43,12 @@ static void node_shader_buts_tangent(uiLayout *layout, bContext *C, PointerRNA *
     uiItemR(layout, ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_GROUP_UVS);
   }
   else {
-    uiItemR(
-        layout, ptr, "axis", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+    uiItemR(layout,
+            ptr,
+            "axis",
+            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
+            std::nullopt,
+            ICON_NONE);
   }
 }
 
@@ -111,5 +115,5 @@ void register_node_type_sh_tangent()
       &ntype, "NodeShaderTangent", node_free_standard_storage, node_copy_standard_storage);
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

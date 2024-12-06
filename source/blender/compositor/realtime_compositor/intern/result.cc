@@ -19,8 +19,15 @@
 
 namespace blender::realtime_compositor {
 
+Result::Result(Context &context) : context_(&context) {}
+
 Result::Result(Context &context, ResultType type, ResultPrecision precision)
     : context_(&context), type_(type), precision_(precision)
+{
+}
+
+Result::Result(Context &context, eGPUTextureFormat format)
+    : context_(&context), type_(Result::type(format)), precision_(Result::precision(format))
 {
 }
 
@@ -161,6 +168,25 @@ ResultType Result::type(eGPUTextureFormat format)
     case GPU_RG16I:
     case GPU_RG32I:
       return ResultType::Int2;
+    default:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return ResultType::Color;
+}
+
+ResultType Result::float_type(const int channels_count)
+{
+  switch (channels_count) {
+    case 1:
+      return ResultType::Float;
+    case 2:
+      return ResultType::Float2;
+    case 3:
+      return ResultType::Float3;
+    case 4:
+      return ResultType::Color;
     default:
       break;
   }
@@ -330,6 +356,20 @@ void Result::wrap_external(int *texture, int2 size)
   storage_type_ = ResultStorageType::IntegerCPU;
   is_external_ = true;
   domain_ = Domain(size);
+}
+
+void Result::wrap_external(const Result &result)
+{
+  BLI_assert(type_ == result.type());
+  BLI_assert(precision_ == result.precision());
+  BLI_assert(!this->is_allocated());
+  BLI_assert(!master_);
+
+  /* Steal the data of the given result and mark it as wrapping external data, but create a
+   * temporary copy of the result first, since steal_data will reset it. */
+  Result result_copy = result;
+  this->steal_data(result_copy);
+  is_external_ = true;
 }
 
 void Result::set_transformation(const float3x3 &transformation)
@@ -602,6 +642,17 @@ void Result::release()
     return;
   }
 
+  this->free();
+}
+
+void Result::free()
+{
+  /* If there is a master result, free it instead. */
+  if (master_) {
+    master_->free();
+    return;
+  }
+
   if (is_external_) {
     return;
   }
@@ -646,6 +697,13 @@ ResultPrecision Result::precision() const
   return precision_;
 }
 
+void Result::set_type(ResultType type)
+{
+  /* Changing the type can only be done if it wasn't allocated yet. */
+  BLI_assert(!this->is_allocated());
+  type_ = type;
+}
+
 void Result::set_precision(ResultPrecision precision)
 {
   /* Changing the precision can only be done if it wasn't allocated yet. */
@@ -679,34 +737,6 @@ int Result::reference_count() const
     return master_->reference_count();
   }
   return reference_count_;
-}
-
-const Domain &Result::domain() const
-{
-  return domain_;
-}
-
-float *Result::float_texture()
-{
-  BLI_assert(storage_type_ == ResultStorageType::FloatCPU);
-  return float_texture_;
-}
-
-float4 Result::load_pixel(const int2 &texel) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->copy_pixel(pixel_value, float_texture_);
-  }
-  else {
-    this->copy_pixel(pixel_value, this->get_float_pixel(texel));
-  }
-  return pixel_value;
-}
-
-void Result::store_pixel(const int2 &texel, const float4 &pixel_value)
-{
-  this->copy_pixel(this->get_float_pixel(texel), pixel_value);
 }
 
 void Result::allocate_data(int2 size, bool from_pool)
@@ -743,48 +773,6 @@ void Result::allocate_data(int2 size, bool from_pool)
         storage_type_ = ResultStorageType::IntegerCPU;
         break;
     }
-  }
-}
-
-int64_t Result::channels_count() const
-{
-  switch (type_) {
-    case ResultType::Float:
-      return 1;
-    case ResultType::Float2:
-    case ResultType::Int2:
-      return 2;
-    case ResultType::Float3:
-      return 3;
-    case ResultType::Vector:
-    case ResultType::Color:
-      return 4;
-  }
-  return 4;
-}
-
-float *Result::get_float_pixel(const int2 &texel) const
-{
-  return float_texture_ + (texel.y * domain_.size.x + texel.x) * this->channels_count();
-}
-
-void Result::copy_pixel(float *target, const float *source) const
-{
-  switch (type_) {
-    case ResultType::Float:
-      *target = *source;
-      break;
-    case ResultType::Float2:
-    case ResultType::Int2:
-      copy_v2_v2(target, source);
-      break;
-    case ResultType::Float3:
-      copy_v3_v3(target, source);
-      break;
-    case ResultType::Vector:
-    case ResultType::Color:
-      copy_v4_v4(target, source);
-      break;
   }
 }
 
