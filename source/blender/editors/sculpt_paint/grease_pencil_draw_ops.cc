@@ -7,6 +7,7 @@
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
+#include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
@@ -19,10 +20,12 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_assert.h"
+#include "BLI_bounds.hh"
 #include "BLI_color.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdopbvh.h"
 #include "BLI_kdtree.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -1746,6 +1749,232 @@ static void GREASE_PENCIL_OT_fill(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+static inline Bounds<int2> get_pixel_bounds(const Bounds<float2> bounds)
+{
+  return Bounds<int2>(int2(math::floor(bounds.min)), int2(math::ceil(bounds.max)));
+}
+
+static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 point)
+{
+  return isect_point_poly_v2_int(
+      point, reinterpret_cast<const int(*)[2]>(lasso.data()), uint(lasso.size()));
+}
+
+static int grease_pencil_lasso_erase_exec(bContext *C, wmOperator *op)
+{
+  using namespace bke::greasepencil;
+  using namespace ed::greasepencil;
+  const Scene *scene = CTX_data_scene(C);
+  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  const ARegion *region = CTX_wm_region(C);
+  Object *object = CTX_data_active_object(C);
+  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, object);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  const Array<int2> lasso = WM_gesture_lasso_path_to_array(C, op);
+  if (lasso.is_empty()) {
+    return OPERATOR_FINISHED;
+  }
+
+  std::atomic<bool> changed = false;
+  const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
+      *scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
+    const bke::crazyspace::GeometryDeformation deformation =
+        bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
+            ob_eval, *object, info.layer_index, info.frame_number);
+    const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
+
+    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    Array<float2> screen_space_positions(curves.points_num());
+    threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
+      for (const int point : points) {
+        const float3 pos = math::transform_point(layer_to_world, deformation.positions[point]);
+        eV3DProjStatus result = ED_view3d_project_float_global(
+            region, pos, screen_space_positions[point], V3D_PROJ_TEST_NOP);
+        if (result != V3D_PROJ_RET_OK) {
+          screen_space_positions[point] = float2(0);
+        }
+      }
+    });
+
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    Array<Bounds<float2>> screen_space_curve_bounds(curves.curves_num());
+    threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
+      for (const int curve : range) {
+        screen_space_curve_bounds[curve] = *bounds::min_max(
+            screen_space_positions.as_span().slice(points_by_curve[curve]));
+      }
+    });
+
+    const Bounds<int2> lasso_bounds = *bounds::min_max(lasso.as_span());
+
+    IndexMaskMemory memory;
+    const IndexMask selection = IndexMask::from_predicate(
+        curves.curves_range(), GrainSize(512), memory, [&](const int64_t index) {
+          return bounds::intersect(lasso_bounds,
+                                   get_pixel_bounds(screen_space_curve_bounds[index]))
+              .has_value();
+        });
+
+    if (selection.is_empty()) {
+      return;
+    }
+
+    Array<bool> points_to_remove(curves.points_num(), false);
+    selection.foreach_index(GrainSize(512), [&](const int64_t index) {
+      for (const int point : points_by_curve[index]) {
+        points_to_remove[point] = is_point_inside_lasso(lasso,
+                                                        int2(screen_space_positions[point]));
+      }
+    });
+
+    /* Return if there is no point to remove. */
+    if (std::all_of(points_to_remove.begin(), points_to_remove.end(), [&](const bool value) {
+          return value == false;
+        }))
+    {
+      return;
+    }
+
+    info.drawing.strokes_for_write() = ed::greasepencil::remove_points_and_split(
+        curves, IndexMask::from_bools(points_to_remove, memory));
+    info.drawing.tag_topology_changed();
+
+    changed.store(true, std::memory_order_relaxed);
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_lasso_erase(wmOperatorType *ot)
+{
+  ot->name = "Grease Pencil Lasso Erase";
+  ot->idname = "GREASE_PENCIL_OT_lasso_erase";
+  ot->description = "Erase points in the lasso region";
+
+  ot->poll = ed::greasepencil::grease_pencil_painting_poll;
+  ot->invoke = WM_gesture_lasso_invoke;
+  ot->exec = grease_pencil_lasso_erase_exec;
+  ot->modal = WM_gesture_lasso_modal;
+  ot->cancel = WM_gesture_lasso_cancel;
+
+  ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
+
+  WM_operator_properties_gesture_lasso(ot);
+}
+
+static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 point)
+{
+  if (point.x < bounds.min.x) {
+    return false;
+  }
+  if (point.x > bounds.max.x) {
+    return false;
+  }
+  if (point.y < bounds.min.y) {
+    return false;
+  }
+  if (point.y > bounds.max.y) {
+    return false;
+  }
+  return true;
+}
+
+static int grease_pencil_box_erase_exec(bContext *C, wmOperator *op)
+{
+  using namespace bke::greasepencil;
+  using namespace ed::greasepencil;
+  const Scene *scene = CTX_data_scene(C);
+  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  const ARegion *region = CTX_wm_region(C);
+  Object *object = CTX_data_active_object(C);
+  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, object);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  const Bounds<int2> box_bounds = WM_operator_properties_border_to_bounds(op);
+  if (box_bounds.is_empty()) {
+    return OPERATOR_FINISHED;
+  }
+
+  std::atomic<bool> changed = false;
+  const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
+      *scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
+    const bke::crazyspace::GeometryDeformation deformation =
+        bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
+            ob_eval, *object, info.layer_index, info.frame_number);
+    const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
+
+    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    Array<float2> screen_space_positions(curves.points_num());
+    threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
+      for (const int point : points) {
+        const float3 pos = math::transform_point(layer_to_world, deformation.positions[point]);
+        eV3DProjStatus result = ED_view3d_project_float_global(
+            region, pos, screen_space_positions[point], V3D_PROJ_TEST_NOP);
+        if (result != V3D_PROJ_RET_OK) {
+          screen_space_positions[point] = float2(0);
+        }
+      }
+    });
+
+    Array<bool> points_to_remove(curves.points_num(), false);
+    threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
+      for (const int point : points) {
+        points_to_remove[point] = is_point_inside_bounds(box_bounds,
+                                                         int2(screen_space_positions[point]));
+      }
+    });
+
+    /* Return if there is no point to remove. */
+    if (std::all_of(points_to_remove.begin(), points_to_remove.end(), [&](const bool value) {
+          return value == false;
+        }))
+    {
+      return;
+    }
+
+    IndexMaskMemory memory;
+    info.drawing.strokes_for_write() = ed::greasepencil::remove_points_and_split(
+        curves, IndexMask::from_bools(points_to_remove, memory));
+    info.drawing.tag_topology_changed();
+
+    changed.store(true, std::memory_order_relaxed);
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_box_erase(wmOperatorType *ot)
+{
+  ot->name = "Grease Pencil Box Erase";
+  ot->idname = "GREASE_PENCIL_OT_box_erase";
+  ot->description = "Erase points in the box region";
+
+  ot->poll = ed::greasepencil::grease_pencil_painting_poll;
+  ot->invoke = WM_gesture_box_invoke;
+  ot->exec = grease_pencil_box_erase_exec;
+  ot->modal = WM_gesture_box_modal;
+  ot->cancel = WM_gesture_box_cancel;
+
+  ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
+
+  WM_operator_properties_border(ot);
+}
+
 /** \} */
 
 }  // namespace blender::ed::sculpt_paint
@@ -1762,6 +1991,8 @@ void ED_operatortypes_grease_pencil_draw()
   WM_operatortype_append(GREASE_PENCIL_OT_weight_brush_stroke);
   WM_operatortype_append(GREASE_PENCIL_OT_vertex_brush_stroke);
   WM_operatortype_append(GREASE_PENCIL_OT_fill);
+  WM_operatortype_append(GREASE_PENCIL_OT_lasso_erase);
+  WM_operatortype_append(GREASE_PENCIL_OT_box_erase);
 }
 
 void ED_filltool_modal_keymap(wmKeyConfig *keyconf)
