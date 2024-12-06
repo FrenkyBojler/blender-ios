@@ -5206,7 +5206,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_MAIN_ID_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 11)) {
     /* #update_paint_modes_for_brush_assets() didn't handle image editor tools for some time. 4.3
      * files saved during that period could have invalid tool references stored. */
     LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
