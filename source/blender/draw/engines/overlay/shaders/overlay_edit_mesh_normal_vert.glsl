@@ -6,6 +6,7 @@
 #include "common_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
+#include "overlay_common_lib.glsl"
 
 bool test_occlusion()
 {

@@ -4,6 +4,7 @@
 
 #include "common_view_clipping_lib.glsl"
 #include "common_view_lib.glsl"
+#include "overlay_common_lib.glsl"
 
 /* project to screen space */
 vec2 proj(vec4 pos)

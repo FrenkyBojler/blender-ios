@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "common_view_lib.glsl"
+#include "overlay_common_lib.glsl"
 
 #define XPOS (1 << 0)
 #define XNEG (1 << 1)

@@ -4,6 +4,7 @@
 
 #include "common_view_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+#include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
 
 void main()
