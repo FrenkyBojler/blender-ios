@@ -89,35 +89,43 @@ std::optional<std::pair<int64_t, int64_t>> VKScheduler::find_rendering_scope(
 
 void VKScheduler::move_initial_transfer_to_start(const VKRenderGraph &render_graph)
 {
-  /* Make a list of initial transfer and other node. */
-  initial_data_transfers_nodes_.clear();
-  other_nodes_.clear();
+  Vector<NodeHandle> data_transfers;
+  Vector<NodeHandle> other_nodes;
+
+  data_transfers.reserve(result_.size());
+  other_nodes.reserve(result_.size());
 
   for (const int64_t index : result_.index_range()) {
     NodeHandle node_handle = result_[index];
     const VKRenderGraphNode &node = render_graph.nodes_[node_handle];
     if (ELEM(node.type,
              VKNodeType::COPY_BUFFER,
-             VKNodeType::UPDATE_BUFFER,
              VKNodeType::COPY_BUFFER_TO_IMAGE,
              VKNodeType::COPY_IMAGE_TO_BUFFER))
     {
       const VKRenderGraphNodeLinks &links = render_graph.links_[node_handle];
       if (links.inputs[0].resource.stamp == 0 && links.outputs[0].resource.stamp == 0) {
-        initial_data_transfers_nodes_.append(index);
+        data_transfers.append(index);
+        continue;
+      }
+    }
+    if (ELEM(node.type, VKNodeType::FILL_BUFFER, VKNodeType::UPDATE_BUFFER)) {
+      const VKRenderGraphNodeLinks &links = render_graph.links_[node_handle];
+      if (links.outputs[0].resource.stamp == 0) {
+        data_transfers.append(index);
         continue;
       }
     }
 
-    other_nodes_.append(index);
+    other_nodes.append(index);
   }
 
   MutableSpan<NodeHandle> store_data_transfers = result_.as_mutable_span().slice(
-      0, initial_data_transfers_nodes_.size());
-  MutableSpan<NodeHandle> store_other = result_.as_mutable_span().slice(
-      initial_data_transfers_nodes_.size(), other_nodes_.size());
-  store_data_transfers.copy_from(initial_data_transfers_nodes_);
-  store_other.copy_from(other_nodes_);
+      0, data_transfers.size());
+  MutableSpan<NodeHandle> store_other = result_.as_mutable_span().slice(data_transfers.size(),
+                                                                        other_nodes.size());
+  store_data_transfers.copy_from(data_transfers);
+  store_other.copy_from(other_nodes);
 }
 
 /** \} */

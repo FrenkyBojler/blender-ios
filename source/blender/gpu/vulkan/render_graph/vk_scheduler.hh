@@ -51,9 +51,6 @@ class VKScheduler {
    */
   Vector<NodeHandle> result_;
 
-  Vector<NodeHandle> initial_data_transfers_nodes_;
-  Vector<NodeHandle> other_nodes_;
-
  public:
   /**
    * Determine which nodes of the render graph should be selected and in what order they should
