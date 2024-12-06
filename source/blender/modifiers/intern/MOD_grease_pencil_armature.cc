@@ -108,7 +108,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void modify_curves(ModifierData &md,
                           const ModifierEvalContext &ctx,
                           Drawing &drawing,
-                          std::optional<bke::GreasePencilDrawingEditHints> edit_hints)
+                          bke::GreasePencilDrawingEditHints *edit_hints)
 {
   auto &amd = reinterpret_cast<GreasePencilArmatureModifierData &>(md);
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
@@ -179,18 +179,19 @@ static void modify_geometry_set(ModifierData *md,
     return;
   }
   GreasePencil &grease_pencil = *geometry_set->get_grease_pencil_for_write();
+  const GreasePencil &grease_pencil_orig = *reinterpret_cast<GreasePencil *>(
+      DEG_get_original_id(&grease_pencil.id));
   const int frame = grease_pencil.runtime->eval_frame;
 
-  /* Initialize edit hints. */
-  bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(*geometry_set);
-
-  Span<bke::GreasePencilDrawingEditHints> edit_hints = {};
+  MutableSpan<bke::GreasePencilDrawingEditHints> edit_hints = {};
   if (geometry_set->has_component<bke::GeometryComponentEditData>()) {
     bke::GeometryComponentEditData &edit_component =
         geometry_set->get_component_for_write<bke::GeometryComponentEditData>();
-    if (edit_component.grease_pencil_edit_hints_ &&
-        edit_component.grease_pencil_edit_hints_->drawing_hints)
-    {
+    if (edit_component.grease_pencil_edit_hints_) {
+      if (!edit_component.grease_pencil_edit_hints_->drawing_hints) {
+        edit_component.grease_pencil_edit_hints_->drawing_hints.emplace(
+            grease_pencil_orig.layers().size());
+      }
       edit_hints = *edit_component.grease_pencil_edit_hints_->drawing_hints;
     }
   }
@@ -203,10 +204,10 @@ static void modify_geometry_set(ModifierData *md,
   threading::parallel_for_each(drawings.index_range(), [&](const int index) {
     Drawing *drawing = drawings[index];
     if (edit_hints.is_empty()) {
-      modify_curves(*md, *ctx, *drawing, std::nullopt);
+      modify_curves(*md, *ctx, *drawing, nullptr);
     }
     else {
-      modify_curves(*md, *ctx, *drawing, edit_hints[index]);
+      modify_curves(*md, *ctx, *drawing, &edit_hints[index]);
     }
   });
 }
