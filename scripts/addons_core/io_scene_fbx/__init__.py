@@ -433,12 +433,6 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
         description="Convert all faces to triangles",
         default=False,
     )
-    optimize_normals: BoolProperty(
-        name="Optimize Normals",
-        description="Use IndexToDirect mode to deduplicate normals. May not be well supported by "
-        "some external software.",
-        default=True,
-    )
     use_custom_props: BoolProperty(
         name="Custom Properties",
         description="Export custom properties",
@@ -659,7 +653,6 @@ def export_panel_geometry(layout, operator):
         #sub.prop(operator, "use_mesh_modifiers_render")
         body.prop(operator, "use_mesh_edges")
         body.prop(operator, "use_triangles")
-        body.prop(operator, "optimize_normals")
         sub = body.row()
         # ~ sub.enabled = operator.mesh_smooth_type in {'OFF'}
         sub.prop(operator, "use_tspace")

@@ -1154,7 +1154,6 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
     del t_pvi_edge_indices
 
     # Loop normals.
-    do_optimize_normals = scene_data.settings.optimize_normals
     tspacenumber = 0
     if write_normals:
         normal_bl_dtype = np.single
@@ -1192,7 +1191,12 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
 
         # Workaround for Unity FBX import issue where the normals are considered invalid if any normals are
         # deduplicated. See #123088.
-        if do_optimize_normals == False or normal_mapping == b"ByVertice":
+        # Unity FBX also has issues with importing blend shape normals with deduplicated normals, so skip
+        # deduplication if the mesh has shape keys. See !126491.
+        skip_normal_deduplication = (normal_mapping == b"ByVertice") or \
+                                    (me in scene_data.data_deformers_shape)
+
+        if skip_normal_deduplication:
             # Write every normal without any deduplication, so the indices array will be [0, 1, 2, ..., n].
             t_normal_idx = np.arange(len(t_normal.reshape(-1, 3)), dtype=normal_idx_fbx_dtype)
         else:
@@ -3443,7 +3447,6 @@ def save_single(operator, scene, depsgraph, filepath="",
                 use_mesh_edges=True,
                 use_tspace=True,
                 use_triangles=False,
-                optimize_normals=False,
                 embed_textures=False,
                 use_custom_props=False,
                 bake_space_transform=False,
@@ -3512,7 +3515,7 @@ def save_single(operator, scene, depsgraph, filepath="",
         bake_space_transform, global_matrix_inv, global_matrix_inv_transposed,
         context_objects, object_types, use_mesh_modifiers, use_mesh_modifiers_render,
         mesh_smooth_type, use_subsurf, use_mesh_edges, use_tspace, use_triangles,
-        optimize_normals, armature_nodetype, use_armature_deform_only,
+        armature_nodetype, use_armature_deform_only,
         add_leaf_bones, bone_correction_matrix, bone_correction_matrix_inv,
         bake_anim, bake_anim_use_all_bones, bake_anim_use_nla_strips, bake_anim_use_all_actions,
         bake_anim_step, bake_anim_simplify_factor, bake_anim_force_startend_keying,
@@ -3591,7 +3594,6 @@ def defaults_unity3d():
         "use_subsurf": False,
         "use_tspace": False,  # XXX Why? Unity is expected to support tspace import...
         "use_triangles": False,
-        "optimize_normals": False, # Appears to cause problems when using imported blend shape normals
 
         "use_armature_deform_only": True,
 

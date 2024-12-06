@@ -1901,7 +1901,7 @@ FBXExportSettings = namedtuple("FBXExportSettings", (
     "bake_space_transform", "global_matrix_inv", "global_matrix_inv_transposed",
     "context_objects", "object_types", "use_mesh_modifiers", "use_mesh_modifiers_render",
     "mesh_smooth_type", "use_subsurf", "use_mesh_edges", "use_tspace", "use_triangles",
-    "optimize_normals", "armature_nodetype", "use_armature_deform_only", "add_leaf_bones",
+    "armature_nodetype", "use_armature_deform_only", "add_leaf_bones",
     "bone_correction_matrix", "bone_correction_matrix_inv",
     "bake_anim", "bake_anim_use_all_bones", "bake_anim_use_nla_strips", "bake_anim_use_all_actions",
     "bake_anim_step", "bake_anim_simplify_factor", "bake_anim_force_startend_keying",
