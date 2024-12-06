@@ -111,8 +111,8 @@ void Instance::init()
 
 void Instance::begin_sync()
 {
-  const DRWView *view_legacy = DRW_view_default_get();
-  View view("OverlayView", view_legacy);
+  /* TODO(fclem): Against design. Should not sync depending on view. */
+  View &view = View::default_get();
   state.dt = DRW_text_cache_ensure();
   state.camera_position = view.viewinv().location();
   state.camera_forward = view.viewinv().z_axis();
@@ -354,7 +354,7 @@ void Instance::end_sync()
 void Instance::draw(Manager &manager)
 {
   /* TODO(fclem): Remove global access. */
-  view.sync(DRW_view_default_get());
+  View &view = View::default_get();
 
   static gpu::DebugScope select_scope = {"Selection"};
   static gpu::DebugScope draw_scope = {"Overlay"};
@@ -374,7 +374,7 @@ void Instance::draw(Manager &manager)
   /* Pre-Draw: Run the compute steps of all passes up-front
    * to avoid constant GPU compute/raster context switching. */
   {
-    manager.compute_visibility(view);
+    manager.ensure_visibility(view);
 
     auto pre_draw = [&](OverlayLayer &layer) {
       layer.attribute_viewer.pre_draw(manager, view);
@@ -689,8 +689,8 @@ bool Instance::object_is_in_front(const Object *object, const State &state)
 
 bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 {
-  if (selection_type_ != SelectionType::DISABLED) {
-    /* Selection always need a prepass.
+  if (selection_type_ != SelectionType::DISABLED || state.is_depth_only_drawing) {
+    /* Selection and depth picking always need a prepass.
      * Note that depth writing and depth test might be disable for certain selection mode. */
     return true;
   }
