@@ -6,8 +6,11 @@
  * \ingroup gpu
  */
 
-#include "vk_buffer.hh"
+#include "BLI_array_utils.hh"
+#include "BLI_task.hh"
+
 #include "vk_backend.hh"
+#include "vk_buffer.hh"
 #include "vk_context.hh"
 
 namespace blender::gpu {
@@ -109,7 +112,10 @@ bool VKBuffer::create(size_t size_in_bytes,
 void VKBuffer::update_immediately(const void *data) const
 {
   BLI_assert_msg(is_mapped(), "Cannot update a non-mapped buffer.");
-  memcpy(mapped_memory_, data, size_in_bytes_);
+  Span<uint8_t> src(static_cast<const uint8_t *>(data), size_in_bytes_);
+  MutableSpan<uint8_t> dst(static_cast<uint8_t *>(mapped_memory_), size_in_bytes_);
+
+  threading::memory_bandwidth_bound_task(size_in_bytes_, [&]() { array_utils::copy(src, dst); });
   flush();
 }
 
