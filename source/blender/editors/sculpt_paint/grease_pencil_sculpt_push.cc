@@ -69,13 +69,8 @@ void PushOperation::on_stroke_extended(const bContext &C, const InputSample &ext
             return;
           }
 
-          const float3 old_position_eval = deformation.positions[point_i];
-          const float3 new_position_eval = projection_fn(old_position_eval,
-                                                         mouse_delta * influence);
-          const float3 translation_eval = new_position_eval - old_position_eval;
-          const float3 translation_orig = deformation.translation_from_deformed_to_original(
-              point_i, translation_eval);
-          positions[point_i] += translation_orig;
+          positions[point_i] += compute_orig_delta(
+              projection_fn, deformation, point_i, mouse_delta * influence);
         });
 
         params.drawing.tag_positions_changed();
