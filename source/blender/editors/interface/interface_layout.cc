@@ -1147,7 +1147,7 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C,
     return;
   }
 
-  LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
+  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
       if (but && but->rnapoin.data) {
         if (RNA_property_type(but->rnaprop) == PROP_STRING) {
@@ -2404,10 +2404,8 @@ void uiItemFullR(uiLayout *layout,
     if (is_id_name_prop) {
       Main *bmain = CTX_data_main(static_cast<bContext *>(block->evil_C));
       ID *id = ptr->owner_id;
-      UI_but_func_rename_full_set(but, [bmain, id](const std::string &new_name) {
-        ED_id_rename(*bmain, *id, new_name);
-        WM_main_add_notifier(NC_ID | NA_RENAME, nullptr);
-      });
+      UI_but_func_rename_full_set(
+          but, [bmain, id](const std::string &new_name) { ED_id_rename(*bmain, *id, new_name); });
     }
 
     bool results_are_suggestions = false;
@@ -3711,19 +3709,6 @@ void uiItemMenuEnumR_prop(
                false,
                but_func_argN_free<MenuItemLevel>,
                but_func_argN_copy<MenuItemLevel>);
-}
-
-void uiItemMenuEnumR(
-    uiLayout *layout, PointerRNA *ptr, const char *propname, const char *name, int icon)
-{
-  PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
-  if (!prop) {
-    ui_item_disabled(layout, propname);
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
-    return;
-  }
-
-  uiItemMenuEnumR_prop(layout, ptr, prop, name, icon);
 }
 
 void uiItemTabsEnumR_prop(uiLayout *layout,

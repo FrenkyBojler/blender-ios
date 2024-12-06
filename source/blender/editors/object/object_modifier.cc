@@ -1051,7 +1051,7 @@ static void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
           layer_orig.opacity = layer_eval.opacity;
           layer_orig.set_local_transform(layer_eval.local_transform());
 
-          /* Add new mapping for layer_eval -> layer_orig*/
+          /* Add new mapping for `layer_eval` -> `layer_orig`. */
           eval_to_orig_layer_map.add_new(&layer_eval, &layer_orig);
         }
       }
@@ -2609,9 +2609,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = edit_modifier_liboverride_allowed_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
 }
