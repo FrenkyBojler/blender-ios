@@ -111,8 +111,8 @@ void Instance::init()
 
 void Instance::begin_sync()
 {
-  const DRWView *view_legacy = DRW_view_default_get();
-  View view("OverlayView", view_legacy);
+  /* TODO(fclem): Against design. Should not sync depending on view. */
+  View &view = View::default_get();
   state.dt = DRW_text_cache_ensure();
   state.camera_position = view.viewinv().location();
   state.camera_forward = view.viewinv().z_axis();
@@ -354,7 +354,7 @@ void Instance::end_sync()
 void Instance::draw(Manager &manager)
 {
   /* TODO(fclem): Remove global access. */
-  view.sync(DRW_view_default_get());
+  View &view = View::default_get();
 
   static gpu::DebugScope select_scope = {"Selection"};
   static gpu::DebugScope draw_scope = {"Overlay"};
@@ -374,7 +374,7 @@ void Instance::draw(Manager &manager)
   /* Pre-Draw: Run the compute steps of all passes up-front
    * to avoid constant GPU compute/raster context switching. */
   {
-    manager.compute_visibility(view);
+    manager.ensure_visibility(view);
 
     auto pre_draw = [&](OverlayLayer &layer) {
       layer.attribute_viewer.pre_draw(manager, view);
@@ -428,7 +428,7 @@ void Instance::draw_node(Manager &manager, View &view)
 {
   /* Don't clear background for the node editor. The node editor draws the background and we
    * need to mask out the image from the already drawn overlay color buffer. */
-  background.draw_output(resources.overlay_output_fb, manager, view);
+  background.draw_output(resources.overlay_output_color_only_fb, manager, view);
 }
 
 void Instance::draw_v2d(Manager &manager, View &view)
@@ -436,10 +436,10 @@ void Instance::draw_v2d(Manager &manager, View &view)
   image_prepass.draw_on_render(resources.render_fb, manager, view);
   regular.mesh_uvs.draw_on_render(resources.render_fb, manager, view);
 
-  GPU_framebuffer_bind(resources.overlay_output_fb);
-  GPU_framebuffer_clear_color(resources.overlay_output_fb, float4(0.0));
+  GPU_framebuffer_bind(resources.overlay_output_color_only_fb);
+  GPU_framebuffer_clear_color(resources.overlay_output_color_only_fb, float4(0.0));
 
-  background.draw_output(resources.overlay_output_fb, manager, view);
+  background.draw_output(resources.overlay_output_color_only_fb, manager, view);
   grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
   regular.mesh_uvs.draw(resources.overlay_output_fb, manager, view);
 }
@@ -569,16 +569,16 @@ void Instance::draw_v3d(Manager &manager, View &view)
 
   if (state.is_depth_only_drawing == false) {
     /* Output pass. */
-    GPU_framebuffer_bind(resources.overlay_output_fb);
-    GPU_framebuffer_clear_color(resources.overlay_output_fb, clear_color);
+    GPU_framebuffer_bind(resources.overlay_output_color_only_fb);
+    GPU_framebuffer_clear_color(resources.overlay_output_color_only_fb, clear_color);
 
     /* TODO(fclem): Split overlay and rename draw functions. */
-    regular.cameras.draw_background_images(resources.overlay_output_fb, manager, view);
-    infront.cameras.draw_background_images(resources.overlay_output_fb, manager, view);
-    regular.empties.draw_background_images(resources.overlay_output_fb, manager, view);
+    regular.cameras.draw_background_images(resources.overlay_output_color_only_fb, manager, view);
+    infront.cameras.draw_background_images(resources.overlay_output_color_only_fb, manager, view);
+    regular.empties.draw_background_images(resources.overlay_output_color_only_fb, manager, view);
 
-    background.draw_output(resources.overlay_output_fb, manager, view);
-    anti_aliasing.draw_output(resources.overlay_output_fb, manager, view);
+    background.draw_output(resources.overlay_output_color_only_fb, manager, view);
+    anti_aliasing.draw_output(resources.overlay_output_color_only_fb, manager, view);
   }
 }
 
@@ -689,8 +689,8 @@ bool Instance::object_is_in_front(const Object *object, const State &state)
 
 bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 {
-  if (selection_type_ != SelectionType::DISABLED) {
-    /* Selection always need a prepass.
+  if (selection_type_ != SelectionType::DISABLED || state.is_depth_only_drawing) {
+    /* Selection and depth picking always need a prepass.
      * Note that depth writing and depth test might be disable for certain selection mode. */
     return true;
   }
