@@ -833,14 +833,15 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
     return;
   }
 
-  /* Adding multires via the `subdivision_set` modifier results in the subsequent undo step
+  /* Adding multires via the `subdivision_set` operator results in the subsequent undo step
    * not correctly performing a global undo step; we exit early here to avoid crashing.
    * See: #131478 */
   const bool multires_undo_step = use_multires_undo(step_data, ss);
   if ((multires_undo_step && pbvh.type() != bke::pbvh::Type::Grids) ||
       (!multires_undo_step && pbvh.type() != bke::pbvh::Type::Mesh))
   {
-    CLOG_WARN(&LOG, "Mismatched pbvh type and step data!");
+    CLOG_WARN(&LOG,
+              "Undo step type and sculpt geometry type do not match: skipping undo state restore");
     return;
   }
 
