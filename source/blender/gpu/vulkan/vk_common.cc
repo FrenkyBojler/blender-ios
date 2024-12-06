@@ -1026,7 +1026,7 @@ VKTimelineSemaphore VKTimelineSemaphore::create_timeline_semaphore(VkDevice devi
 {
   VkSemaphoreTypeCreateInfo semaphore_type_info = {};
   semaphore_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR;
-  semaphore_type_info.semaphoreType = VK_SEMAPHORE_TYPE_BINARY;
+  semaphore_type_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
   semaphore_type_info.initialValue = 0;
 
   VkSemaphoreCreateInfo semaphore_info = {};
