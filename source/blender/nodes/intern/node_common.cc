@@ -115,6 +115,12 @@ blender::bke::NodeClass node_group_ui_class(const bNode *node)
       return blender::bke::NodeClass::Texture;
     case blender::bke::NodeGroupColorTag::Vector:
       return blender::bke::NodeClass::OpVector;
+    case blender::bke::NodeColorTag::Pattern:
+      return blender::bke::NodeGroupColorTag::Pattern;
+    case blender::bke::NodeColorTag::Interface:
+      return blender::bke::NodeGroupColorTag::Interface;
+    case blender::bke::NodeColorTag::Group:
+      return blender::bke::NodeGroupColorTag::Group;
   }
   return blender::bke::NodeClass::Group;
 }

@@ -161,34 +161,12 @@ struct State {
   float2 image_uv_aspect;
   float2 image_aspect;
 
-  /* Data to save per overlay to not rely on rv3d for rendering.
-   * TODO(fclem): Compute offset directly from the view. */
-  struct ViewOffsetData {
-    /* Copy of rv3d->dist. */
-    float dist;
-    /* Copy of rv3d->persp. */
-    char persp;
-    /* Copy of rv3d->is_persp. */
-    bool is_persp;
-  };
-
-  ViewOffsetData offset_data_get() const
+  View::OffsetData offset_data_get() const
   {
     if (rv3d == nullptr) {
-      return {0.0f, 0, false};
+      return View::OffsetData();
     }
-    return {rv3d->dist, rv3d->persp, rv3d->is_persp != 0};
-  }
-
-  static float view_dist_get(const ViewOffsetData &offset_data, const float4x4 &winmat)
-  {
-    float view_dist = offset_data.dist;
-    /* Special exception for orthographic camera:
-     * `view_dist` isn't used as the depth range isn't the same. */
-    if (offset_data.persp == RV3D_CAMOB && offset_data.is_persp == false) {
-      view_dist = 1.0f / max_ff(fabsf(winmat[0][0]), fabsf(winmat[1][1]));
-    }
-    return view_dist;
+    return View::OffsetData(*rv3d);
   }
 
   /** Convenience functions. */
@@ -263,12 +241,6 @@ struct State {
     return (this->overlay.flag & V3D_OVERLAY_SHOW_LIGHT_COLORS);
   }
 };
-
-static inline float4x4 winmat_polygon_offset(float4x4 winmat, float view_dist, float offset)
-{
-  winmat[3][2] -= GPU_polygon_offset_calc(winmat.ptr(), view_dist, offset);
-  return winmat;
-}
 
 /**
  * Contains all overlay generic geometry batches.
@@ -528,6 +500,8 @@ struct Resources : public select::SelectMap {
   Framebuffer overlay_line_in_front_fb = {"overlay_line_in_front_fb"};
 
   /* Output Color. */
+  Framebuffer overlay_output_color_only_fb = {"overlay_output_color_only_fb"};
+  /* Depth, Output Color. */
   Framebuffer overlay_output_fb = {"overlay_output_fb"};
 
   /* Render Frame-buffers. Only used for multiplicative blending on top of the render. */
@@ -677,10 +651,10 @@ struct Resources : public select::SelectMap {
                                       GPU_ATTACHMENT_TEXTURE(this->line_tx));
     this->overlay_color_only_fb.ensure(GPU_ATTACHMENT_NONE,
                                        GPU_ATTACHMENT_TEXTURE(this->overlay_tx));
-    /* The v2d path writes to the overlay output directly, but it needs a depth attachment. */
-    this->overlay_output_fb.ensure(state.is_space_image() ?
-                                       GPUAttachment GPU_ATTACHMENT_TEXTURE(this->depth_tx) :
-                                       GPUAttachment GPU_ATTACHMENT_NONE,
+
+    this->overlay_output_color_only_fb.ensure(GPU_ATTACHMENT_NONE,
+                                              GPU_ATTACHMENT_TEXTURE(this->color_overlay_tx));
+    this->overlay_output_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                                    GPU_ATTACHMENT_TEXTURE(this->color_overlay_tx));
   }
 
