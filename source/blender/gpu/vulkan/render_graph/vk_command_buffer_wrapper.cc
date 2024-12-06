@@ -47,8 +47,8 @@ VKCommandBufferWrapper::VKCommandBufferWrapper(const VKWorkarounds &workarounds)
 VKCommandBufferWrapper::~VKCommandBufferWrapper()
 {
   VKDevice &device = VKBackend::get().device;
-  device.free_command_pool_buffers(vk_command_pool_);
   if (vk_command_pool_ != VK_NULL_HANDLE) {
+    device.free_command_pool_buffers(vk_command_pool_);
     vkDestroyCommandPool(device.vk_handle(), vk_command_pool_, nullptr);
     vk_command_pool_ = VK_NULL_HANDLE;
   }
@@ -116,7 +116,7 @@ VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronizat
     vk_submit_info.signalSemaphoreCount = signal_semaphores.size();
     vk_submit_info.pSignalSemaphores = signal_semaphores.begin();
 
-    VkTimelineSemaphoreSubmitInfo timeline_submit_info;
+    VkTimelineSemaphoreSubmitInfo timeline_submit_info = {};
     timeline_submit_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
     timeline_submit_info.signalSemaphoreValueCount = signal_semaphores.size();
     timeline_submit_info.pSignalSemaphoreValues = signal_values.begin();

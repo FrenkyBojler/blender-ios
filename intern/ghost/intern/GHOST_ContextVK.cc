@@ -36,7 +36,7 @@
 #include <sys/stat.h>
 
 /* Sets `VK_PRESENT_MODE_IMMEDIATE_KHR` as present method for fps stress debug. */
-#define FPS_STRESS_DEBUG
+// #define FPS_STRESS_DEBUG
 
 /*
  * Should we only select surfaces that are known to be compatible. Or should we in case no
@@ -256,6 +256,7 @@ class GHOST_DeviceVK {
     vulkan_12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan_12_features.shaderOutputLayer = features_12.shaderOutputLayer;
     vulkan_12_features.shaderOutputViewportIndex = features_12.shaderOutputViewportIndex;
+    vulkan_12_features.timelineSemaphore = VK_TRUE;
     vulkan_12_features.pNext = device_create_info_p_next;
     device_create_info_p_next = &vulkan_12_features;
 

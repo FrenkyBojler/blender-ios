@@ -36,8 +36,7 @@ void VKDiscardPool::deinit(VKDevice &device)
    * the last expected value, however we must keep those semaphores alive to be able to
    * make that checks, so keep them until device is destroyed. */
   if (&device.orphaned_data != this) {
-    device.orphaned_data.timeline_semaphores_pool.extend(timeline_semaphores_pool);
-    timeline_semaphores_pool.clear();
+    device.orphaned_data.move_data(*this);
   }
   else {
     for (VKTimelineSemaphore &timeline_semaphore : timeline_semaphores_pool) {
@@ -61,6 +60,9 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool)
 
   submit_semaphores_.extend(src_pool.submit_semaphores_);
   timeline_semaphores_pool.extend(src_pool.timeline_semaphores_pool);
+
+  src_pool.submit_semaphores_.clear();
+  src_pool.timeline_semaphores_pool.clear();
 
   src_pool.buffers_.clear();
   src_pool.image_views_.clear();
@@ -157,7 +159,9 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
   wait_info.pSemaphores = wait_semaphores.begin();
   wait_info.pValues = wait_values.begin();
 
-  vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
+  if (!submit_semaphores_.is_empty()) {
+    vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
+  }
 
   timeline_semaphores_pool.extend(submit_semaphores_);
   submit_semaphores_.clear();

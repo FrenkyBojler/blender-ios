@@ -18,7 +18,8 @@ TEST(vk_render_graph, transfer_and_present)
   resources.add_image(
       back_buffer, 1, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ResourceOwner::SWAP_CHAIN);
 
-  VKTimelineSemaphoreWaitInfo wait_signal_info = render_graph.submit_for_present(back_buffer);
+  VKTimelineSemaphoreWaitInfo wait_signal_info = render_graph.submit_for_present(back_buffer,
+                                                                                 nullptr);
   render_graph.wait_synchronization_event(wait_signal_info);
   EXPECT_EQ(1, log.size());
   EXPECT_EQ(
@@ -48,7 +49,8 @@ TEST(vk_render_graph, clear_and_present)
   clear_color_image.vk_image = back_buffer;
   render_graph.add_node(clear_color_image);
 
-  VKTimelineSemaphoreWaitInfo wait_signal_info = render_graph.submit_for_present(back_buffer);
+  VKTimelineSemaphoreWaitInfo wait_signal_info = render_graph.submit_for_present(back_buffer,
+                                                                                 nullptr);
   render_graph.wait_synchronization_event(wait_signal_info);
 
   EXPECT_EQ(3, log.size());

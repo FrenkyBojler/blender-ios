@@ -301,7 +301,7 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
     render_graph.add_node(end_rendering);
   }
 
-  VKTimelineSemaphoreWaitInfo wait_signal_info = render_graph.submit_for_present(image);
+  VKTimelineSemaphoreWaitInfo wait_signal_info = render_graph.submit_for_present(image, nullptr);
   render_graph.wait_synchronization_event(wait_signal_info);
 
   EXPECT_EQ(7, log.size());
@@ -442,7 +442,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
     render_graph.add_node(end_rendering);
   }
 
-  VKTimelineSemaphoreWaitInfo wait_signal_info = render_graph.submit_for_present(image);
+  VKTimelineSemaphoreWaitInfo wait_signal_info = render_graph.submit_for_present(image, nullptr);
   render_graph.wait_synchronization_event(wait_signal_info);
 
   EXPECT_EQ(11, log.size());
