@@ -185,10 +185,10 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
       nurbs_knots_modes[curve_i] = knots_mode_from_legacy(src_curve.flagu);
       if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_CUSTOM) {
         /* Placed here to prevent attribute creation when it is not needed. */
-        MutableSpan<float> knots_attr = curves.nurbs_knots_for_write();
-        curves::nurbs::compact_knots(src_curve.orderu,
-                                     Span<float>(src_curve.knotsu, KNOTSU(&src_curve)),
-                                     knots_attr.slice(points));
+        MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
+        curves::nurbs::knots_to_spans(src_curve.orderu,
+                                      Span<float>(src_curve.knotsu, KNOTSU(&src_curve)),
+                                      knot_spans.slice(points));
       }
 
       for (const int i : src_points.index_range()) {

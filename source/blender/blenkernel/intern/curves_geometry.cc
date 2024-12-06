@@ -47,7 +47,7 @@ constexpr StringRef ATTR_HANDLE_TYPE_RIGHT = "handle_type_right";
 constexpr StringRef ATTR_HANDLE_POSITION_LEFT = "handle_left";
 constexpr StringRef ATTR_HANDLE_POSITION_RIGHT = "handle_right";
 constexpr StringRef ATTR_NURBS_ORDER = "nurbs_order";
-constexpr StringRef ATTR_NURBS_KNOT = "nurbs_knot";
+constexpr StringRef ATTR_NURBS_KNOT_SPAN = "nurbs_knot_span";
 constexpr StringRef ATTR_NURBS_WEIGHT = "nurbs_weight";
 constexpr StringRef ATTR_NURBS_KNOTS_MODE = "knots_mode";
 constexpr StringRef ATTR_SURFACE_UV_COORDINATE = "surface_uv_coordinate";
@@ -486,14 +486,14 @@ MutableSpan<float2> CurvesGeometry::surface_uv_coords_for_write()
   return get_mutable_attribute<float2>(*this, AttrDomain::Curve, ATTR_SURFACE_UV_COORDINATE);
 }
 
-Span<float> CurvesGeometry::nurbs_knots() const
+Span<float> CurvesGeometry::nurbs_knot_spans() const
 {
-  return get_span_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_KNOT);
+  return get_span_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_KNOT_SPAN);
 }
 
-MutableSpan<float> CurvesGeometry::nurbs_knots_for_write()
+MutableSpan<float> CurvesGeometry::nurbs_knot_spans_for_write()
 {
-  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_KNOT);
+  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_KNOT_SPAN);
 }
 
 Span<MDeformVert> CurvesGeometry::deform_verts() const
@@ -650,7 +650,7 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
     const VArray<bool> cyclic = this->cyclic();
     const VArray<int8_t> orders = this->nurbs_orders();
     const VArray<int8_t> knots_modes = this->nurbs_knots_modes();
-    const Span<float> knots_attr = this->nurbs_knots();
+    const Span<float> knot_spans = this->nurbs_knot_spans();
 
     nurbs_mask.foreach_segment(GrainSize(64), [&](const IndexMaskSegment segment) {
       Vector<float, 32> knots;
@@ -669,7 +669,7 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
 
         knots.reinitialize(curves::nurbs::knots_num(points.size(), order, is_cyclic));
         if (mode == NURBS_KNOT_MODE_CUSTOM) {
-          curves::nurbs::expand_knots(order, knots_attr.slice(points), knots);
+          curves::nurbs::spans_to_knots(order, knot_spans.slice(points), knots);
         }
         else {
           curves::nurbs::calculate_knots(points.size(), mode, order, is_cyclic, knots);
@@ -1296,12 +1296,12 @@ void ensure_non_cyclic_clamped(const IndexMask selection,
                                bke::CurvesGeometry &curves,
                                IndexMaskMemory &memory)
 {
-  if (curves.attributes().contains("nurbs_knot")) {
+  if (curves.attributes().contains(ATTR_NURBS_KNOT_SPAN)) {
     const VArray<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes();
     const VArray<bool> cyclic = curves.cyclic();
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
-    MutableSpan<float> knots = curves.nurbs_knots_for_write();
+    MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
 
     IndexMask must_be_clamped = IndexMask::from_predicate(
         selection, GrainSize(4096), memory, [&](const int64_t i) {
@@ -1309,9 +1309,9 @@ void ensure_non_cyclic_clamped(const IndexMask selection,
         });
 
     must_be_clamped.foreach_index(GrainSize(256), [&](const int curve) {
-      MutableSpan<float> curve_knots = knots.slice(points_by_curve[curve]);
-      curve_knots[0] = 0.0f;
-      curve_knots.take_back(nurbs_orders[curve] - 2).fill(0.0f);
+      MutableSpan<float> curve_knot_spans = knot_spans.slice(points_by_curve[curve]);
+      curve_knot_spans[0] = 0.0f;
+      curve_knot_spans.take_back(nurbs_orders[curve] - 2).fill(0.0f);
     });
   }
 }

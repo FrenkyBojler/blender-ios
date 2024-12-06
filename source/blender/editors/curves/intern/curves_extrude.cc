@@ -210,12 +210,12 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
                           const Span<int> new_offsets,
                           bke::CurvesGeometry &new_curves)
 {
-  const Span<float> knots = curves.nurbs_knots();
+  const Span<float> knot_spans = curves.nurbs_knot_spans();
   const VArray<bool> cyclic = curves.cyclic();
   const VArray<int8_t> orders = curves.nurbs_orders();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
-  MutableSpan<float> new_knots = new_curves.nurbs_knots_for_write();
+  MutableSpan<float> new_knot_spans = new_curves.nurbs_knot_spans_for_write();
   custom_knot_curves.foreach_index(GrainSize(64), [&](const int64_t curve) {
     const IndexRange points = points_by_curve[curve];
     const int order = std::min(orders[curve], int8_t(points.size() + 1));
@@ -224,38 +224,38 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
     bool is_selected = is_first_selected[curve];
     Array<float> curve_knots_buff(points.size());
 
-    Span<float> curve_knots = knots.slice(points);
+    Span<float> curve_knot_spans = knot_spans.slice(points);
     /* TODO: Could be 1.0f, but tesselation must divide separate knot spans instead of whole
      * curve's definition interval. Otherwise with existing big knot spans 1.0f doesn't get
      * tesselation steps.*/
-    const float max_span = *std::max_element(curve_knots.begin(), curve_knots.end());
+    const float max_span = *std::max_element(curve_knot_spans.begin(), curve_knot_spans.end());
     const float new_span = max_span > 0.0001f ? max_span : 1.0f;
 
     if (!cyclic[curve]) {
       MutableSpan<float> buff_span = curve_knots_buff.as_mutable_span();
-      buff_span.copy_from(knots.slice(points));
+      buff_span.copy_from(knot_spans.slice(points));
 
       buff_span.first() = new_span;
       buff_span.take_back(order - 2).fill(new_span);
-      curve_knots = buff_span;
+      curve_knot_spans = buff_span;
     }
 
     for (const int i : intervals_by_curve[curve].drop_back(1)) {
       const IndexRange src = shift_end_by(copy_intervals[i], 1);
       const IndexRange dst = src.shift(new_offsets[curve] - first_value + i - first_index);
-      new_knots.slice(dst).copy_from(curve_knots.slice(src.shift(-first_value)));
+      new_knot_spans.slice(dst).copy_from(curve_knot_spans.slice(src.shift(-first_value)));
       if (is_selected) {
-        new_knots[dst.first()] = new_span;
-        new_knots[dst.last()] = new_span;
+        new_knot_spans[dst.first()] = new_span;
+        new_knot_spans[dst.last()] = new_span;
       }
       is_selected = !is_selected;
     }
 
     if (!cyclic[curve]) {
-      MutableSpan<float> new_curve_knots = new_knots.slice(
+      MutableSpan<float> new_curve_knot_spans = new_knot_spans.slice(
           IndexRange::from_begin_end(new_offsets[curve], new_offsets[curve + 1]));
-      new_curve_knots.first() = 0.0f;
-      new_curve_knots.take_back(order - 2).fill(0.0f);
+      new_curve_knot_spans.first() = 0.0f;
+      new_curve_knot_spans.take_back(order - 2).fill(0.0f);
     }
   });
 }
@@ -388,8 +388,10 @@ static void extrude_curves(Curves &curves_id)
            src_attributes,
            dst_attributes,
            ATTR_DOMAIN_MASK_POINT,
-           bke::attribute_filter_from_skip_ref(
-               {".selection", ".selection_handle_left", ".selection_handle_right", "nurbs_knot"})))
+           bke::attribute_filter_from_skip_ref({".selection",
+                                                ".selection_handle_left",
+                                                ".selection_handle_right",
+                                                "nurbs_knot_span"})))
   {
     const CPPType &type = attribute.src.type();
     threading::parallel_for(compact_intervals.index_range(), 512, [&](IndexRange range) {

@@ -483,17 +483,17 @@ TEST(curves_geometry, CustomKnots)
   static const Span<float> custom_knots(
       {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 5.0f, 8.0f, 8.0f, 8.0f, 8.0f});
   /* Spans between first 8 knots loop shifted to the left by (order - 2). */
-  static const Span<float> expected_compact({0.0f, 1.0f, 1.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f});
+  static const Span<float> expected_spans({0.0f, 1.0f, 1.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f});
   static const int order = 4;
 
-  Array<float> compact_knots(expected_compact.size());
-  curves::nurbs::compact_knots(order, custom_knots, compact_knots);
-  for (const int i : compact_knots.index_range()) {
-    EXPECT_NEAR(compact_knots[i], expected_compact[i], 1e-6f);
+  Array<float> knot_spans(expected_spans.size());
+  curves::nurbs::knots_to_spans(order, custom_knots, knot_spans);
+  for (const int i : knot_spans.index_range()) {
+    EXPECT_NEAR(knot_spans[i], expected_spans[i], 1e-6f);
   }
 
   Array<float> expanded_knots(custom_knots.size());
-  curves::nurbs::expand_knots(order, compact_knots, expanded_knots);
+  curves::nurbs::spans_to_knots(order, knot_spans, expanded_knots);
   for (const int i : expanded_knots.index_range()) {
     EXPECT_NEAR(expanded_knots[i], custom_knots[i], 1e-6f);
   }
@@ -502,16 +502,16 @@ TEST(curves_geometry, CustomKnots)
   static const Span<float> custom_cyclic_knots(
       {0.0f, 0.5f, 1.5f, 3.0f, 5.0f, 7.5f, 8.0f, 9.0f, 10.5f, 12.5f, 15.0f});
   /* Spans between first 5 knots loop shifted to the left by (order - 2). */
-  static const Span<float> expected_cyclic_knots{1.5f, 2.0f, 2.5f, 0.5f, 1.0f};
+  static const Span<float> expected_cyclic_knot_spans{1.5f, 2.0f, 2.5f, 0.5f, 1.0f};
 
-  Array<float> compact_cyclic_knots(expected_cyclic_knots.size());
-  curves::nurbs::compact_knots(order, custom_cyclic_knots, compact_cyclic_knots);
-  for (const int i : compact_cyclic_knots.index_range()) {
-    EXPECT_NEAR(compact_cyclic_knots[i], expected_cyclic_knots[i], 1e-6f);
+  Array<float> cyclic_knot_spans(expected_cyclic_knot_spans.size());
+  curves::nurbs::knots_to_spans(order, custom_cyclic_knots, cyclic_knot_spans);
+  for (const int i : cyclic_knot_spans.index_range()) {
+    EXPECT_NEAR(cyclic_knot_spans[i], expected_cyclic_knot_spans[i], 1e-6f);
   }
 
   Array<float> expanded_cyclic_knots(custom_cyclic_knots.size());
-  curves::nurbs::expand_knots(order, compact_cyclic_knots, expanded_cyclic_knots);
+  curves::nurbs::spans_to_knots(order, cyclic_knot_spans, expanded_cyclic_knots);
   for (const int i : expanded_cyclic_knots.index_range()) {
     EXPECT_NEAR(expanded_cyclic_knots[i], custom_cyclic_knots[i], 1e-6f);
   }

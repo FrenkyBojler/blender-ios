@@ -52,26 +52,26 @@ int knots_num(const int points_num, const int8_t order, const bool cyclic)
   return points_num + order;
 }
 
-void compact_knots(const int8_t order, const Span<float> src_knots, MutableSpan<float> knots)
+void knots_to_spans(const int8_t order, const Span<float> knots, MutableSpan<float> knot_spans)
 {
   const int8_t degree = order - 1;
-  for (const int i : knots.index_range()) {
-    knots[i] = src_knots[i + degree] - src_knots[i + degree - 1];
+  for (const int i : knot_spans.index_range()) {
+    knot_spans[i] = knots[i + degree] - knots[i + degree - 1];
   }
 }
 
-void expand_knots(const int8_t order, const Span<float> compact_knots, MutableSpan<float> knots)
+void spans_to_knots(const int8_t order, const Span<float> knot_spans, MutableSpan<float> knots)
 {
   const int8_t degree = order - 1;
 
   knots[0] = 0.0f;
-  Span<float> src_knots_tail = compact_knots.slice(compact_knots.size() - degree, degree);
+  Span<float> knot_spans_tail = knot_spans.slice(knot_spans.size() - degree, degree);
   for (const int i : IndexRange::from_begin_size(1, degree - 1)) {
-    knots[i] = knots[i - 1] + src_knots_tail[i];
+    knots[i] = knots[i - 1] + knot_spans_tail[i];
   }
 
   for (const int i : IndexRange::from_begin_end(degree, knots.size())) {
-    knots[i] = knots[i - 1] + compact_knots[(i - degree) % compact_knots.size()];
+    knots[i] = knots[i - 1] + knot_spans[(i - degree) % knot_spans.size()];
   }
 }
 
