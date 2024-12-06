@@ -57,6 +57,7 @@ void VKScheduler::select_all_nodes(const VKRenderGraph &render_graph)
 
 void VKScheduler::reorder_nodes(const VKRenderGraph &render_graph)
 {
+  move_initial_transfer_to_start(render_graph);
   move_transfer_and_dispatch_outside_rendering_scope(render_graph);
 }
 
@@ -78,6 +79,45 @@ std::optional<std::pair<int64_t, int64_t>> VKScheduler::find_rendering_scope(
   BLI_assert(rendering_start == -1);
 
   return std::nullopt;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Reorder - Move initial data transfers to the start
+ * \{ */
+
+void VKScheduler::move_initial_transfer_to_start(const VKRenderGraph &render_graph)
+{
+  /* Make a list of initial transfer and other node. */
+  initial_data_transfers_nodes_.clear();
+  other_nodes_.clear();
+
+  for (const int64_t index : result_.index_range()) {
+    NodeHandle node_handle = result_[index];
+    const VKRenderGraphNode &node = render_graph.nodes_[node_handle];
+    if (ELEM(node.type,
+             VKNodeType::COPY_BUFFER,
+             VKNodeType::UPDATE_BUFFER,
+             VKNodeType::COPY_BUFFER_TO_IMAGE,
+             VKNodeType::COPY_IMAGE_TO_BUFFER))
+    {
+      const VKRenderGraphNodeLinks &links = render_graph.links_[node_handle];
+      if (links.inputs[0].resource.stamp == 0 && links.outputs[0].resource.stamp == 0) {
+        initial_data_transfers_nodes_.append(index);
+        continue;
+      }
+    }
+
+    other_nodes_.append(index);
+  }
+
+  MutableSpan<NodeHandle> store_data_transfers = result_.as_mutable_span().slice(
+      0, initial_data_transfers_nodes_.size());
+  MutableSpan<NodeHandle> store_other = result_.as_mutable_span().slice(
+      initial_data_transfers_nodes_.size(), other_nodes_.size());
+  store_data_transfers.copy_from(initial_data_transfers_nodes_);
+  store_other.copy_from(other_nodes_);
 }
 
 /** \} */

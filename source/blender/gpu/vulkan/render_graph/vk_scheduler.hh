@@ -51,6 +51,9 @@ class VKScheduler {
    */
   Vector<NodeHandle> result_;
 
+  Vector<NodeHandle> initial_data_transfers_nodes_;
+  Vector<NodeHandle> other_nodes_;
+
  public:
   /**
    * Determine which nodes of the render graph should be selected and in what order they should
@@ -82,6 +85,12 @@ class VKScheduler {
   void select_all_nodes(const VKRenderGraph &render_graph);
 
   void reorder_nodes(const VKRenderGraph &render_graph);
+
+  /**
+   * When a data transfer command writes to a resource which is initial it can be grouped at the
+   * beginning of the render graph. This reduces datatransfer<->graphics context switches.
+   */
+  void move_initial_transfer_to_start(const VKRenderGraph &render_graph);
 
   /**
    * Any data transfer or dispatch nodes should be scheduled before or after a rendering scope.
