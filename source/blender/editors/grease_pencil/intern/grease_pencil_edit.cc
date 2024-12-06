@@ -1804,8 +1804,8 @@ static int grease_pencil_move_to_layer_exec(bContext *C, wmOperator *op)
       curves_src.remove_curves(selected_strokes, {});
       drawing_dst.tag_topology_changed();
     }
-    else if (Drawing *drawing_dst = grease_pencil.get_editable_drawing_at(
-                 layer_dst, info.frame_number, true))
+    else if (Drawing *drawing_dst = grease_pencil.get_editable_drawing_at(layer_dst,
+                                                                          info.frame_number))
     {
       /* Append geometry to drawing in target layer. */
       bke::CurvesGeometry selected_elems = curves_copy_curve_selection(
@@ -1847,13 +1847,6 @@ static int grease_pencil_move_to_layer_invoke(bContext *C, wmOperator *op, const
 
     return WM_operator_props_popup_confirm_ex(
         C, op, event, IFACE_("Move to New Layer"), IFACE_("Create"));
-  }
-  /* Show the move menu if this operator is invoked from operator search without any property
-   * pre-set. */
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target_layer_name");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    WM_menu_name_call(C, "GREASE_PENCIL_MT_move_to_layer", 0);
-    return OPERATOR_FINISHED;
   }
   return grease_pencil_move_to_layer_exec(C, op);
 }
