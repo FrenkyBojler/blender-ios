@@ -191,7 +191,7 @@ void curve_populate_trans_data_structs(
     const blender::IndexMask &affected_curves,
     bool use_connected_only,
     const blender::IndexMask &bezier_curves,
-    const void *extra = nullptr);
+    void *extra = nullptr);
 
 CurvesTransformData *create_curves_transform_custom_data(TransCustomData &custom_data);
 

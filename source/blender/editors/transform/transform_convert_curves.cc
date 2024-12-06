@@ -448,7 +448,7 @@ void curve_populate_trans_data_structs(
     const blender::IndexMask &affected_curves,
     bool use_connected_only,
     const blender::IndexMask &bezier_curves,
-    const void *const extra)
+    void *extra)
 {
   using namespace blender;
   const std::array<Span<float3>, 3> src_positions_per_selection_attr = {
