@@ -363,7 +363,7 @@ struct GeometrySet {
    */
   const CurvesEditHints *get_curve_edit_hints() const;
   /**
-   * Returns read-only curve edit hints or null.
+   * Returns read-only Grease Pencil edit hints or null.
    */
   const GreasePencilEditHints *get_grease_pencil_edit_hints() const;
   /**
@@ -400,7 +400,7 @@ struct GeometrySet {
    */
   CurvesEditHints *get_curve_edit_hints_for_write();
   /**
-   * Returns mutable grease pencil edit hints or null.
+   * Returns mutable Grease Pencil edit hints or null.
    */
   GreasePencilEditHints *get_grease_pencil_edit_hints_for_write();
   /**
