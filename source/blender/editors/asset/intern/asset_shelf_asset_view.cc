@@ -108,10 +108,9 @@ void AssetView::build_items()
         const bool show_names = (shelf_.settings.display_flag & ASSETSHELF_SHOW_NAMES);
 
         const StringRef identifier = asset->library_relative_identifier();
-        const int preview_id = handle_get_preview_or_type_icon_id(&asset_handle);
 
         AssetViewItem &item = this->add_item<AssetViewItem>(
-            asset_handle, identifier, asset->get_name(), preview_id);
+            asset_handle, identifier, asset->get_name());
         if (!show_names) {
           item.hide_label();
         }
@@ -185,16 +184,17 @@ AssetViewItem::AssetViewItem(const AssetHandle &asset, StringRef identifier, Str
     const AssetView &asset_view = dynamic_cast<const AssetView &>(get_view());
     const AssetLibraryReference &library_ref = asset_view.library_ref_;
 
-    const BIFIconID preview_icon_id = ED_assetlist_asset_preview_request(&library_ref, &asset_);
+    const BIFIconID preview_icon_id = list::ED_assetlist_asset_preview_request(&library_ref,
+                                                                               &asset_);
 
-    if (ED_assetlist_asset_image_is_loading(&library_ref, &asset_)) {
+    if (list::asset_image_is_loading(&library_ref, &asset_)) {
       return ICON_TEMP;
     }
 
     if (preview_icon_id != ICON_NONE) {
       return preview_icon_id;
     }
-    return ED_asset_handle_get_type_icon(&asset_);
+    return handle_get_preview_or_type_icon_id(&asset_);
   });
 }
 
@@ -357,7 +357,6 @@ void build_asset_view(uiLayout &layout,
                       const bContext &C)
 {
   list::storage_fetch(&library_ref, &C);
-  list::previews_fetch(&library_ref, &C);
 
   const asset_system::AssetLibrary *library = list::library_get_once_available(library_ref);
   if (!library) {

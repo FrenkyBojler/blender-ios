@@ -91,12 +91,10 @@ class AssetList : NonCopyable {
 
   void setup();
   void fetch(const bContext &C);
-  void update_previews(const bContext &C);
   void clear(const bContext *C);
 
   AssetHandle asset_get_by_index(int index) const;
 
-  void previews_job_update(const bContext *C);
   bool needs_refetch() const;
   BIFIconID requestPreview(AssetHandle &asset) const;
   bool is_loaded() const;
@@ -166,16 +164,6 @@ void AssetList::fetch(const bContext &C)
   filelist_filter(files);
 }
 
-void AssetList::update_previews(const bContext &C)
-{
-  if (filelist_cache_previews_enabled(filelist_)) {
-    /* Get newest loaded previews from the background thread queue. */
-    filelist_cache_previews_update(filelist_);
-  }
-  /* Update preview job, it might have to be stopped. */
-  this->previews_job_update(&C);
-}
-
 bool AssetList::needs_refetch() const
 {
   return filelist_needs_force_reset(filelist_) || filelist_needs_reading(filelist_);
@@ -186,13 +174,14 @@ BIFIconID AssetList::requestPreview(AssetHandle &asset) const
   return filelist_file_request_preview(filelist_, const_cast<FileDirEntry *>(asset.file_data));
 }
 
-bool AssetList::isLoaded() const
+bool AssetList::is_loaded() const
 {
   return filelist_is_ready(filelist_);
 }
 
-void AssetList::ensure_asset_preview_requested(const bContext &C, AssetHandle &asset)
+void AssetList::ensure_asset_preview_requested(const bContext & /*C*/, AssetHandle & /*asset*/)
 {
+#if 0
   /* Ensure previews are enabled. */
   filelist_cache_previews_set(filelist_, true);
 
@@ -201,6 +190,7 @@ void AssetList::ensure_asset_preview_requested(const bContext &C, AssetHandle &a
   {
     previews_timer_.ensure_running(&C);
   }
+#endif
 }
 
 bool AssetList::is_asset_preview_loading(const AssetHandle &asset) const
@@ -399,7 +389,7 @@ void asset_reading_region_listen_fn(const wmRegionListenerParams *params)
 
   switch (wmn->category) {
     case NC_ASSET:
-      if (ELEM(wmn->data, ND_ASSET_LIST_READING, ND_ASSET_LIST_PREVIEW)) {
+      if (ELEM(wmn->data, ND_ASSET_LIST_READING)) {
         ED_region_tag_refresh_ui(region);
       }
       break;
@@ -434,14 +424,6 @@ bool is_loaded(const AssetLibraryReference *library_reference)
     return false;
   }
   return list->is_loaded();
-}
-
-void previews_fetch(const AssetLibraryReference *library_reference, const bContext *C)
-{
-  AssetList *list = lookup_list(*library_reference);
-  if (list) {
-    list->update_previews(*C);
-  }
 }
 
 void clear(const AssetLibraryReference *library_reference, const bContext *C)
@@ -531,7 +513,7 @@ asset_system::AssetRepresentation *asset_get_by_index(
 BIFIconID ED_assetlist_asset_preview_request(const AssetLibraryReference *library_reference,
                                              AssetHandle *asset_handle)
 {
-  const AssetList *list = AssetListStorage::lookup_list(*library_reference);
+  const AssetList *list = lookup_list(*library_reference);
   return list->requestPreview(*asset_handle);
 }
 

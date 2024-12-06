@@ -254,7 +254,6 @@ void uiTemplateAssetView(uiLayout *layout,
   }
 
   asset::list::storage_fetch(&asset_library_ref, C);
-  asset::list::previews_fetch(&asset_library_ref, C);
   const int tot_items = asset::list::size(&asset_library_ref);
 
   populate_asset_collection(asset_library_ref, *assets_dataptr, assets_propname);

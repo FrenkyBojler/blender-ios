@@ -87,7 +87,7 @@ bool filelist_file_is_preview_pending(const FileList *filelist, const FileDirEnt
  * \return True if a new preview request was pushed, false otherwise (e.g. because the preview is
  * already loaded, invalid or not supported).
  */
-bool filelist_file_ensure_preview_requested(FileList *filelist, FileDirEntry *file);
+// bool filelist_file_ensure_preview_requested(FileList *filelist, FileDirEntry *file);
 ImBuf *filelist_getimage(FileList *filelist, int index);
 ImBuf *filelist_file_getimage(const FileDirEntry *file);
 ImBuf *filelist_geticon_image_ex(const FileDirEntry *file);
@@ -234,7 +234,6 @@ void filelist_readjob_stop(FileList *filelist, wmWindowManager *wm);
 int filelist_readjob_running(FileList *filelist, wmWindowManager *wm);
 
 void filelist_cache_previews_ensure_running(FileList *filelist);
-bool filelist_cache_previews_update(FileList *filelist);
 bool filelist_cache_previews_enabled(const FileList *filelist);
 bool filelist_cache_previews_running(FileList *filelist);
 bool filelist_cache_previews_done(FileList *filelist);

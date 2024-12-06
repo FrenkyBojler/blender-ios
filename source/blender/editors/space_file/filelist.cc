@@ -352,8 +352,6 @@ static int groupname_to_code(const char *group);
 
 static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size);
 static bool filelist_intern_entry_is_main_file(const FileListInternEntry *intern_entry);
-static bool filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry, const int index);
-static bool filelist_file_preview_load_poll(const FileDirEntry *entry);
 
 /* ********** Sort helpers ********** */
 
@@ -1247,6 +1245,7 @@ bool filelist_file_is_preview_pending(const FileList *filelist, const FileDirEnt
   return !file->preview || !BKE_previewimg_is_finished(file->preview, ICON_SIZE_PREVIEW);
 }
 
+#if 0
 bool filelist_file_ensure_preview_requested(FileList *filelist, FileDirEntry *file)
 {
   if (file->preview_icon_id) {
@@ -1275,6 +1274,8 @@ bool filelist_file_ensure_preview_requested(FileList *filelist, FileDirEntry *fi
 
   return false;
 }
+
+#endif
 
 static FileDirEntry *filelist_geticon_get_file(FileList *filelist, const int index)
 {
@@ -2477,7 +2478,7 @@ bool filelist_file_cache_block(const bContext *C, FileList *filelist, const int 
 
 bool filelist_cache_previews_enabled(const FileList *filelist)
 {
-  return (filelist->filelist_cache.flags & FLC_PREVIEWS_ACTIVE) != 0;
+  return (filelist->flags & FL_USE_PREVIEWS) != 0;
 }
 
 /* would recognize .blend as well */

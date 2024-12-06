@@ -1844,7 +1844,7 @@ void PreviewLoadJob::run_fn(void *customdata, wmJobWorkerStatus *worker_status)
       preview->flag[request->icon_size] |= PRV_DEFERRED_NOT_FOUND;
     }
 
-    preview->tag &= ~PRV_TAG_DEFFERED_RENDERING;
+    preview->runtime->tag &= ~PRV_TAG_DEFFERED_RENDERING;
     BKE_previewimg_finish(preview, request->icon_size);
     worker_status->do_update = true;
   }

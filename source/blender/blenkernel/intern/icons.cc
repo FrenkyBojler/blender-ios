@@ -368,7 +368,7 @@ int BKE_icon_preview_ensure(ID *id, PreviewImage *preview)
   }
 
   Icon *icon = icon_create(preview->runtime->icon_id, ICON_DATA_PREVIEW, preview);
-  if ((preview->runtime->tag & PRV_TAG_DEFFERED) == 0) {
+  if (preview->runtime->deferred_loading_data == nullptr) {
     icon->flag = ICON_FLAG_MANAGED;
   }
 
