@@ -86,8 +86,8 @@ class VKScheduler {
   /**
    * When a data transfer command writes to a resource which is initial it can be grouped at the
    * beginning of the render graph.
-   * 
-   * This reduces graphics context switches when executing the commands on the GPU.
+   *
+   * This reduces context switches when executing commands on the GPU.
    */
   void move_initial_transfer_to_start(const VKRenderGraph &render_graph);
 
