@@ -5710,7 +5710,7 @@ int ED_screen_animation_play_ex(Main *bmain,
 
     /* these settings are currently only available from a menu in the TimeLine */
     if (play_direction == 1) { /* XXX only play audio forwards!? */
-      BKE_sound_play_scene(scene_eval);
+      BKE_sound_play_scene(scene_eval, true);
     }
 
     ED_screen_animation_timer_ex(

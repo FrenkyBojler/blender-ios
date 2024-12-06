@@ -174,6 +174,20 @@ void WM_init_gpu()
   gpu_is_init = true;
 }
 
+static void sound_jack_sync_audio_handle_pos(Scene *scene_eval, double time)
+{
+  /* Only seek the handle here to make sure that we don't get a feedback loop where we will signal
+   * a seek on the jack transport bus which in turn would make us get an other seek callback.
+   */
+#ifdef WITH_AUDASPACE
+  if (scene_eval->playback_handle) {
+    BKE_sound_lock();
+    AUD_Handle_setPosition(scene_eval->playback_handle, time);
+    BKE_sound_unlock();
+  }
+#endif
+}
+
 static void sound_jack_sync_callback(Main *bmain, int mode, double time)
 {
   /* Ugly: Blender doesn't like it when the animation is played back during rendering. */
@@ -217,22 +231,24 @@ static void sound_jack_sync_callback(Main *bmain, int mode, double time)
     else if (!ED_screen_animation_playing(wm)) {
       /* Start playback. */
       int sync_mode = 1; /* Doesn't really matter as the AUDIO_SYNC flag has priority over this. */
-      int play_direction = 1;
+      /* Hack to not call the "start sound playback" function as that will seek the jack transport
+       * bus. Instead we manually start the sound playback ourselves without seeking the
+       * syncronizer. '2' will make it start all playback timers but not start sound playback.
+       */
+      int play_direction = 2;
+
       scene->r.cfra = new_playback_frame;
       ED_screen_animation_play_ex(
           bmain, screen, scene, depsgraph, wm, window, region, area, sync_mode, play_direction);
+      Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+      BKE_sound_play_scene(scene_eval, false);
+      sound_jack_sync_audio_handle_pos(scene_eval, time);
     }
     else {
-#ifdef WITH_AUDASPACE
       /* We are scrubbing. We need to update the sound position as Audaspace can't seek it's own
        * audio buffer when scrubbing. */
       Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-      if (scene_eval->playback_handle) {
-        BKE_sound_lock();
-        AUD_Handle_setPosition(scene_eval->playback_handle, time);
-        BKE_sound_unlock();
-      }
-#endif
+      sound_jack_sync_audio_handle_pos(scene_eval, time);
     }
     /* There can only be one scene playing back audio at a time.
      * No need to continue looking for scenes to change playback mode for.

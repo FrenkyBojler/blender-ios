@@ -43,3 +43,4 @@ JACK_SYMBOL(jack_get_ports);
 JACK_SYMBOL(jack_port_name);
 JACK_SYMBOL(jack_connect);
 JACK_SYMBOL(jack_free);
+JACK_SYMBOL(jack_frames_since_cycle_start);

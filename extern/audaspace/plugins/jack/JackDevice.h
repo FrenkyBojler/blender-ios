@@ -71,7 +71,7 @@ private:
 	 */
 	bool m_valid;
 
-	bool m_playing;
+	jack_transport_state_t m_prev_jack_state;
 
 	/// Synchronizer.
 	JackSynchronizer m_synchronizer;

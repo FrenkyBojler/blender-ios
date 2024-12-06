@@ -908,7 +908,7 @@ static double get_cur_time(Scene *scene)
   return FRA2TIME((scene->r.cfra + scene->r.subframe) / double(scene->r.framelen));
 }
 
-void BKE_sound_play_scene(Scene *scene)
+void BKE_sound_play_scene(Scene *scene, bool synchronize)
 {
   sound_verify_evaluated_id(&scene->id);
 
@@ -944,11 +944,13 @@ void BKE_sound_play_scene(Scene *scene)
   if (status != AUD_STATUS_PLAYING) {
     /* Seeking the synchronizer will also seek the playback handle.
      * Even if we don't have A/V sync on, keep the synchronizer and handle seek time in sync. */
-    AUD_seekSynchronizer(scene->playback_handle, cur_time);
+    if (synchronize) {
+      AUD_seekSynchronizer(scene->playback_handle, cur_time);
+    }
     AUD_Handle_resume(scene->playback_handle);
   }
 
-  if (scene->audio.flag & AUDIO_SYNC) {
+  if (synchronize && scene->audio.flag & AUDIO_SYNC) {
     AUD_playSynchronizer();
   }
 

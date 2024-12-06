@@ -42,14 +42,19 @@ void JackDevice::updateRingBuffers()
 	while(m_valid)
 	{
 		/* Check if we have a desync between the JACK playback state and our own state. */
-		bool signal_stop = m_playing && !doesPlayback();
+		state = AUD_jack_transport_query(m_client, nullptr);
+		/* We only need to check here if the state changed from something to "stopped" as the other
+		 * states will trigger a callback first (m_sync == SYNCING).
+		 */
+		bool signal_stop = m_prev_jack_state != JackTransportStopped && state == JackTransportStopped;
+		m_prev_jack_state = state;
 
 		if(m_sync == SYNCING || signal_stop)
 		{
 			if(m_syncFunc)
 			{
-				state = AUD_jack_transport_query(m_client, &position);
-				m_syncFunc(m_syncFuncData, state != JackTransportStopped, position.frame / (float) m_specs.rate);
+				AUD_jack_transport_query(m_client, &position);
+				m_syncFunc(m_syncFuncData, state != JackTransportStopped, position.frame / (double) position.frame_rate);
 			}
 
 			for(i = 0; i < channels; i++)
@@ -132,16 +137,6 @@ int JackDevice::jack_sync(jack_transport_state_t state, jack_position_t* pos, vo
 {
 	JackDevice* device = (JackDevice*)data;
 
-	printf("jack state: %d\n", state);
-	if(state == JackTransportStopped) {
-		/* This seems to be called when seeking, so update our timeline. */
-		if(device->m_syncFunc)
-		{
-			device->m_syncFunc(device->m_syncFuncData, state != JackTransportStopped, pos->frame / (float) device->m_specs.rate);
-		}
-		return 1;
-	}
-
 	device->m_mixingLock.lock();
 	if (device->m_sync == SYNC_DONE) {
 		device->m_sync = SYNC_IDLE;
@@ -218,7 +213,7 @@ JackDevice::JackDevice(const std::string &name, DeviceSpecs specs, int buffersiz
 	create();
 
 	m_valid = true;
-	m_playing = false;
+	m_prev_jack_state = JackTransportStopped;
 	m_sync = SYNC_IDLE;
 	m_syncFunc = nullptr;
 
@@ -277,7 +272,6 @@ ISynchronizer* JackDevice::getSynchronizer()
 void JackDevice::playing(bool playing)
 {
 	// Do nothing.
-	m_playing = playing;
 }
 
 void JackDevice::startPlayback()
@@ -305,15 +299,24 @@ void JackDevice::setSyncCallback(ISynchronizer::syncFunction sync, void* data)
 double JackDevice::getPlaybackPosition()
 {
 	jack_position_t position;
-	AUD_jack_transport_query(m_client, &position);
-	return position.frame / (double) m_specs.rate;
+	jack_transport_state_t state = AUD_jack_transport_query(m_client, &position);
+	double pos_sec = position.frame / (double) position.frame_rate;
+	if (state == JackTransportRolling)
+	{
+		/* Get the amount of time passed since we processed a frame and add it to
+		 * get the estimated timeline position.
+		 */
+		double est_sec = AUD_jack_frames_since_cycle_start(m_client) / (double) position.frame_rate;
+		return pos_sec + est_sec;
+	}
+	return pos_sec;
 }
 
 bool JackDevice::doesPlayback()
 {
 	jack_transport_state_t state = AUD_jack_transport_query(m_client, nullptr);
 
-	return state != JackTransportStopped;
+	return state == JackTransportRolling;
 }
 
 class JackDeviceFactory : public IDeviceFactory

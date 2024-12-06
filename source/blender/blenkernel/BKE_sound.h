@@ -172,7 +172,7 @@ void BKE_sound_set_scene_sound_pan_at_frame(void *handle, int frame, float pan, 
 
 void BKE_sound_update_sequencer(struct Main *main, struct bSound *sound);
 
-void BKE_sound_play_scene(struct Scene *scene);
+void BKE_sound_play_scene(struct Scene *scene, bool synchronize);
 
 void BKE_sound_stop_scene(struct Scene *scene);
 
