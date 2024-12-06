@@ -1643,6 +1643,16 @@ static_assert_align(KernelLightDistribution, 16);
 struct KernelBoundingBox {
   packed_float3 min;
   packed_float3 max;
+
+  ccl_device_inline_method float3 center() const
+  {
+    return 0.5f * (min + max);
+  }
+
+  ccl_device_inline_method float3 size() const
+  {
+    return max - min;
+  }
 };
 
 struct KernelBoundingCone {

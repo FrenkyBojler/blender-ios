@@ -35,6 +35,9 @@ struct OctreeNode {
   OctreeNode() : bbox(BoundBox::empty), depth(0) {}
   OctreeNode(BoundBox bbox_, int depth_) : bbox(bbox_), depth(depth_) {}
   virtual ~OctreeNode() = default;
+
+  /* Visualize node. */
+  void visualize(std::string &str) const;
 };
 
 struct OctreeInternalNode : public OctreeNode {
@@ -68,6 +71,9 @@ class Octree {
   int get_num_nodes() const;
   std::shared_ptr<OctreeNode> get_root() const;
   bool is_built() const;
+
+  /* Draw octree nodes as empty boxes with Blender Python API. */
+  void visualize(std::ofstream &file) const;
 
  private:
   /* The bounding box of the octree is divided into a regular grid with the same resolution in each

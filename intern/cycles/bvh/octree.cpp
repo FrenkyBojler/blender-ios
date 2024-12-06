@@ -331,4 +331,65 @@ std::shared_ptr<OctreeNode> Octree::get_root() const
   return root_;
 }
 
+void OctreeNode::visualize(std::string &str) const
+{
+  if (const auto *internal = dynamic_cast<const OctreeInternalNode *>(this)) {
+    const float3 mid = bbox.center();
+    const float3 max = bbox.max;
+    const float3 min = bbox.min;
+    const std::string mid_x = to_string(mid.x), mid_y = to_string(mid.y), mid_z = to_string(mid.z),
+                      min_x = to_string(min.x), min_y = to_string(min.y), min_z = to_string(min.z),
+                      max_x = to_string(max.x), max_y = to_string(max.y), max_z = to_string(max.z);
+    /* Create three orthogonal faces. */
+    // clang-format off
+    str += "(" + mid_x + "," + mid_y + "," + min_z + "),"
+           "(" + mid_x + "," + mid_y + "," + max_z + "), "
+           "(" + mid_x + "," + max_y + "," + max_z + "), "
+           "(" + mid_x + "," + max_y + "," + min_z + "), "
+           "(" + mid_x + "," + min_y + "," + min_z + "), "
+           "(" + mid_x + "," + min_y + "," + max_z + "), ";
+    str += "(" + min_x + "," + mid_y + "," + mid_z + "), "
+           "(" + max_x + "," + mid_y + "," + mid_z + "), "
+           "(" + max_x + "," + mid_y + "," + max_z + "), "
+           "(" + min_x + "," + mid_y + "," + max_z + "), "
+           "(" + min_x + "," + mid_y + "," + min_z + "), "
+           "(" + max_x + "," + mid_y + "," + min_z + "), ";
+    str += "(" + mid_x + "," + min_y + "," + mid_z + "), "
+           "(" + mid_x + "," + max_y + "," + mid_z + "), "
+           "(" + max_x + "," + max_y + "," + mid_z + "), "
+           "(" + max_x + "," + min_y + "," + mid_z + "), "
+           "(" + min_x + "," + min_y + "," + mid_z + "), "
+           "(" + min_x + "," + max_y + "," + mid_z + "), ";
+    // clang-format on
+    for (const auto &child : internal->children_) {
+      child->visualize(str);
+    }
+  }
+  /* Skip leaf nodes. */
+}
+
+void Octree::visualize(std::ofstream &file) const
+{
+  std::string str = "vertices = [";
+  root_->visualize(str);
+  str +=
+      "]\nr = range(len(vertices))\n"
+      "edges = [(i, i+1 if i%6<5 else i-4) for i in r]\n"
+      "mesh = bpy.data.meshes.new('Octree')\n"
+      "mesh.from_pydata(vertices, edges, [])\n"
+      "mesh.update()\n"
+      "obj = bpy.data.objects.new('Octree', mesh)\n"
+      "octree.objects.link(obj)\n"
+      "bpy.context.view_layer.objects.active = obj\n"
+      "bpy.ops.object.mode_set(mode='EDIT')\n";
+  file << str;
+
+  const float3 center = root_->bbox.center();
+  const float3 size = root_->bbox.size() * 0.5f;
+  file << "bpy.ops.mesh.primitive_cube_add(location = " << center << ", scale = " << size << ")\n";
+  file << "bpy.ops.mesh.delete(type='ONLY_FACE')\n"
+          "bpy.ops.object.mode_set(mode='OBJECT')\n"
+          "obj.select_set(True)\n";
+}
+
 CCL_NAMESPACE_END

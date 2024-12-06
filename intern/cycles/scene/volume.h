@@ -51,6 +51,10 @@ class VolumeManager {
   /* Count all the nodes of the octrees. */
   int num_octree_nodes() const;
 
+  /* When running Blender with `--verbose 5`, an octree visualization is written to `filename`,
+   * which is a Python script that can be run inside Blender. */
+  std::string visualize_octree(const char *filename) const;
+
   /* One octree per object per shader. */
   std::map<std::pair<const Object *, const Shader *>, std::shared_ptr<Octree>> object_octrees_;
 

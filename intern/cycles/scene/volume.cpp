@@ -24,6 +24,8 @@
 
 #include "bvh/octree.h"
 
+#include <filesystem>
+
 CCL_NAMESPACE_BEGIN
 
 NODE_DEFINE(Volume)
@@ -957,6 +959,46 @@ void VolumeManager::flatten_octree(DeviceScene *dscene, const Scene *scene) cons
             << "Mb.";
 }
 
+std::string VolumeManager::visualize_octree(const char *filename) const
+{
+  int node_index = 0;
+  std::map<const Octree *, int> octree_root_indices;
+  for (const auto &it : object_octrees_) {
+    const Octree *octree = it.second.get();
+    if (octree_root_indices.find(octree) == octree_root_indices.end()) {
+      octree_root_indices[octree] = node_index;
+      node_index += octree->get_num_nodes();
+    }
+  }
+
+  std::ofstream file(filename);
+  if (file.is_open()) {
+    std::ostringstream buffer;
+    file << "# Visualize volume octree.\n\n"
+            "import bpy\nimport mathutils\n\n"
+            "octree = bpy.data.collections.new(name='Octree')\n"
+            "bpy.context.scene.collection.children.link(octree)\n\n";
+
+    for (const auto &it : object_octrees_) {
+      /* Draw Octree. */
+      const auto octree = it.second;
+      octree->visualize(file);
+
+      /* Apply transform. */
+      const Object *object = it.first.first;
+      if (object && !object->get_geometry()->transform_applied) {
+        const Transform t = object->get_tfm();
+        file << "obj.matrix_world = mathutils.Matrix((" << t.x << ", " << t.y << ", " << t.z
+             << ", (" << 0 << "," << 0 << "," << 0 << "," << 1 << ")))\n\n";
+      }
+    }
+
+    file.close();
+  }
+
+  return (std::filesystem::current_path() / filename).string();
+}
+
 void VolumeManager::device_update(Device *device,
                                   DeviceScene *dscene,
                                   const Scene *scene,
@@ -966,6 +1008,7 @@ void VolumeManager::device_update(Device *device,
     initialize_octree(scene);
     build_octree(device, progress);
     flatten_octree(dscene, scene);
+    VLOG_DEBUG << "Octree visualization has been written to " << visualize_octree("octree.py");
 
     need_rebuild_ = false;
   }
