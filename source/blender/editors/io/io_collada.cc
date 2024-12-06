@@ -301,7 +301,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
               imfptr,
               "export_animation_transformation_type_selection",
               UI_ITEM_NONE,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
     }
     else {
@@ -309,7 +309,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
               imfptr,
               "export_object_transformation_type_selection",
               UI_ITEM_NONE,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
     }
   }
@@ -339,7 +339,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
               imfptr,
               "export_animation_transformation_type_selection",
               UI_ITEM_NONE,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
     }
     else {
@@ -347,7 +347,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
               imfptr,
               "export_object_transformation_type_selection",
               UI_ITEM_NONE,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
     }
 
