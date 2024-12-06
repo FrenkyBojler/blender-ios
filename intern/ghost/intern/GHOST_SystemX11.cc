@@ -1525,7 +1525,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
         XFlush(m_display);
       }
       else {
-        /* Change property to None because we do not support selection request target */
+        /* Change property to None because we do not support the selection request target. */
         nxe.xselection.property = None;
       }
 
