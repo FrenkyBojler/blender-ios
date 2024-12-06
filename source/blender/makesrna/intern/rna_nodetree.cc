@@ -96,27 +96,27 @@ const EnumPropertyItem rna_enum_node_socket_data_type_items[] = {
 };
 
 const EnumPropertyItem rna_enum_node_color_tag_items[] = {
-    {int(blender::bke::NodeColorTag::None),
+    {int(blender::bke::NodeGroupColorTag::None),
      "NONE",
      0,
      "None",
      "Default color tag for new nodes and node groups"},
-    {int(blender::bke::NodeColorTag::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
-    {int(blender::bke::NodeColorTag::Color), "COLOR", 0, "Color", ""},
-    {int(blender::bke::NodeColorTag::Converter), "CONVERTER", 0, "Converter", ""},
-    {int(blender::bke::NodeColorTag::Distort), "DISTORT", 0, "Distort", ""},
-    {int(blender::bke::NodeColorTag::Filter), "FILTER", 0, "Filter", ""},
-    {int(blender::bke::NodeColorTag::Geometry), "GEOMETRY", 0, "Geometry", ""},
-    {int(blender::bke::NodeColorTag::Input), "INPUT", 0, "Input", ""},
-    {int(blender::bke::NodeColorTag::Matte), "MATTE", 0, "Matte", ""},
-    {int(blender::bke::NodeColorTag::Output), "OUTPUT", 0, "Output", ""},
-    {int(blender::bke::NodeColorTag::Script), "SCRIPT", 0, "Script", ""},
-    {int(blender::bke::NodeColorTag::Shader), "SHADER", 0, "Shader", ""},
-    {int(blender::bke::NodeColorTag::Texture), "TEXTURE", 0, "Texture", ""},
-    {int(blender::bke::NodeColorTag::Vector), "VECTOR", 0, "Vector", ""},
-    {int(blender::bke::NodeColorTag::Pattern), "PATTERN", 0, "Pattern", ""},
-    {int(blender::bke::NodeColorTag::Interface), "INTERFACE", 0, "Interface", ""},
-    {int(blender::bke::NodeColorTag::Group), "GROUP", 0, "Group", ""},
+    {int(blender::bke::NodeGroupColorTag::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
+    {int(blender::bke::NodeGroupColorTag::Color), "COLOR", 0, "Color", ""},
+    {int(blender::bke::NodeGroupColorTag::Converter), "CONVERTER", 0, "Converter", ""},
+    {int(blender::bke::NodeGroupColorTag::Distort), "DISTORT", 0, "Distort", ""},
+    {int(blender::bke::NodeGroupColorTag::Filter), "FILTER", 0, "Filter", ""},
+    {int(blender::bke::NodeGroupColorTag::Geometry), "GEOMETRY", 0, "Geometry", ""},
+    {int(blender::bke::NodeGroupColorTag::Input), "INPUT", 0, "Input", ""},
+    {int(blender::bke::NodeGroupColorTag::Matte), "MATTE", 0, "Matte", ""},
+    {int(blender::bke::NodeGroupColorTag::Output), "OUTPUT", 0, "Output", ""},
+    {int(blender::bke::NodeGroupColorTag::Script), "SCRIPT", 0, "Script", ""},
+    {int(blender::bke::NodeGroupColorTag::Shader), "SHADER", 0, "Shader", ""},
+    {int(blender::bke::NodeGroupColorTag::Texture), "TEXTURE", 0, "Texture", ""},
+    {int(blender::bke::NodeGroupColorTag::Vector), "VECTOR", 0, "Vector", ""},
+    {int(blender::bke::NodeGroupColorTag::Pattern), "PATTERN", 0, "Pattern", ""},
+    {int(blender::bke::NodeGroupColorTag::Interface), "INTERFACE", 0, "Interface", ""},
+    {int(blender::bke::NodeGroupColorTag::Group), "GROUP", 0, "Group", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1136,32 +1136,32 @@ static const EnumPropertyItem *rna_NodeTree_color_tag_itemf(bContext * /*C*/,
   int items_num = 0;
 
   for (const EnumPropertyItem *item = rna_enum_node_color_tag_items; item->identifier; item++) {
-    switch (blender::bke::NodeColorTag(item->value)) {
-      case blender::bke::NodeColorTag::Attribute:
-      case blender::bke::NodeColorTag::Geometry: {
+    switch (blender::bke::NodeGroupColorTag(item->value)) {
+      case blender::bke::NodeGroupColorTag::Attribute:
+      case blender::bke::NodeGroupColorTag::Geometry: {
         if (ntree.type == NTREE_GEOMETRY) {
           RNA_enum_item_add(&items, &items_num, item);
         }
         break;
       }
-      case blender::bke::NodeColorTag::Shader:
-      case blender::bke::NodeColorTag::Script: {
+      case blender::bke::NodeGroupColorTag::Shader:
+      case blender::bke::NodeGroupColorTag::Script: {
         if (ntree.type == NTREE_SHADER) {
           RNA_enum_item_add(&items, &items_num, item);
         }
         break;
       }
-      case blender::bke::NodeColorTag::Distort:
-      case blender::bke::NodeColorTag::Filter:
-      case blender::bke::NodeColorTag::Matte: {
+      case blender::bke::NodeGroupColorTag::Distort:
+      case blender::bke::NodeGroupColorTag::Filter:
+      case blender::bke::NodeGroupColorTag::Matte: {
         if (ntree.type == NTREE_COMPOSIT) {
           RNA_enum_item_add(&items, &items_num, item);
         }
         break;
       }
-      case blender::bke::NodeColorTag::Pattern:
-      case blender::bke::NodeColorTag::Interface:
-      case blender::bke::NodeColorTag::Group: {
+      case blender::bke::NodeGroupColorTag::Pattern:
+      case blender::bke::NodeGroupColorTag::Interface:
+      case blender::bke::NodeGroupColorTag::Group: {
         break;
       }
       default: {
@@ -2450,47 +2450,47 @@ static int rna_Node_color_tag_get(PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
 
-  const int nclass = node->typeinfo->ui_class == nullptr ? node->typeinfo->nclass :
+  const blender::bke::NodeClass nclass = node->typeinfo->ui_class == nullptr ? node->typeinfo->nclass :
                                                            node->typeinfo->ui_class(node);
 
   switch (nclass) {
-    case NODE_CLASS_INPUT:
-      return int(blender::bke::NodeColorTag::Input);
-    case NODE_CLASS_OUTPUT:
-      return int(blender::bke::NodeColorTag::Output);
-    case NODE_CLASS_OP_COLOR:
-      return int(blender::bke::NodeColorTag::Color);
-    case NODE_CLASS_OP_VECTOR:
-      return int(blender::bke::NodeColorTag::Vector);
-    case NODE_CLASS_OP_FILTER:
-      return int(blender::bke::NodeColorTag::Filter);
-    case NODE_CLASS_CONVERTER:
-      return int(blender::bke::NodeColorTag::Converter);
-    case NODE_CLASS_MATTE:
-      return int(blender::bke::NodeColorTag::Matte);
-    case NODE_CLASS_DISTORT:
-      return int(blender::bke::NodeColorTag::Distort);
-    case NODE_CLASS_PATTERN:
-      return int(blender::bke::NodeColorTag::Pattern);
-    case NODE_CLASS_TEXTURE:
-      return int(blender::bke::NodeColorTag::Texture);
-    case NODE_CLASS_SCRIPT:
-      return int(blender::bke::NodeColorTag::Script);
-    case NODE_CLASS_INTERFACE:
-      return int(blender::bke::NodeColorTag::Interface);
-    case NODE_CLASS_SHADER:
-      return int(blender::bke::NodeColorTag::Shader);
-    case NODE_CLASS_GEOMETRY:
-      return int(blender::bke::NodeColorTag::Geometry);
-    case NODE_CLASS_ATTRIBUTE:
-      return int(blender::bke::NodeColorTag::Attribute);
-    case NODE_CLASS_GROUP:
-      return int(blender::bke::NodeColorTag::Group);
-    case NODE_CLASS_LAYOUT:
+    case blender::bke::NodeClass::Input:
+      return int(blender::bke::NodeGroupColorTag::Input);
+    case blender::bke::NodeClass::Output:
+      return int(blender::bke::NodeGroupColorTag::Output);
+    case blender::bke::NodeClass::OpColor:
+      return int(blender::bke::NodeGroupColorTag::Color);
+    case blender::bke::NodeClass::OpVector:
+      return int(blender::bke::NodeGroupColorTag::Vector);
+    case blender::bke::NodeClass::OpFilter:
+      return int(blender::bke::NodeGroupColorTag::Filter);
+    case blender::bke::NodeClass::Converter:
+      return int(blender::bke::NodeGroupColorTag::Converter);
+    case blender::bke::NodeClass::Matte:
+      return int(blender::bke::NodeGroupColorTag::Matte);
+    case blender::bke::NodeClass::Distort:
+      return int(blender::bke::NodeGroupColorTag::Distort);
+    case blender::bke::NodeClass::Pattern:
+      return int(blender::bke::NodeGroupColorTag::Pattern);
+    case blender::bke::NodeClass::Texture:
+      return int(blender::bke::NodeGroupColorTag::Texture);
+    case blender::bke::NodeClass::Script:
+      return int(blender::bke::NodeGroupColorTag::Script);
+    case blender::bke::NodeClass::Interface:
+      return int(blender::bke::NodeGroupColorTag::Interface);
+    case blender::bke::NodeClass::Shader:
+      return int(blender::bke::NodeGroupColorTag::Shader);
+    case blender::bke::NodeClass::Geometry:
+      return int(blender::bke::NodeGroupColorTag::Geometry);
+    case blender::bke::NodeClass::Attribute:
+      return int(blender::bke::NodeGroupColorTag::Attribute);
+    case blender::bke::NodeClass::Group:
+      return int(blender::bke::NodeGroupColorTag::Group);
+    case blender::bke::NodeClass::Layout:
       break;
   }
 
-  return int(blender::bke::NodeColorTag::None);
+  return int(blender::bke::NodeGroupColorTag::None);
 }
 
 static bool allow_changing_sockets(bNode *node)
