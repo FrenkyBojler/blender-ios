@@ -70,7 +70,7 @@ static void transdata_elem_shear(const TransInfo *t,
 
   if (t->options & CTX_GPENCIL_STROKES) {
     /* Grease pencil multi-frame falloff. */
-    float *gp_falloff = (float *)td->extra;
+    float *gp_falloff = static_cast<float *>(td->extra);
     if (gp_falloff != nullptr) {
       mul_v3_fl(vec, td->factor * *gp_falloff);
     }

@@ -110,7 +110,7 @@ static void transdata_elem_bend(const TransInfo *t,
 
   if (t->options & CTX_GPENCIL_STROKES) {
     /* Grease pencil multi-frame falloff. */
-    float *gp_falloff = (float *)td->extra;
+    float *gp_falloff = static_cast<float *>(td->extra);
     if (gp_falloff != nullptr) {
       fac_scaled = fac * td->factor * *gp_falloff;
     }
