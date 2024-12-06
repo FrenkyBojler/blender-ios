@@ -110,7 +110,7 @@ VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronizat
 
     if (vk_binary_semaphore) {
       signal_semaphores.append(vk_binary_semaphore);
-      signal_values.append(1);
+      signal_values.append(0);
     }
 
     vk_submit_info.signalSemaphoreCount = signal_semaphores.size();
@@ -125,7 +125,7 @@ VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronizat
       timeline_submit_info.waitSemaphoreValueCount = 1;
       timeline_submit_info.pWaitSemaphoreValues = &(*submit_sync_info.wait_info).value;
     }
-
+    vk_submit_info.pNext = &timeline_submit_info;
     vkQueueSubmit(device.queue_get(), 1, &vk_submit_info, vk_fence);
     return {submit_sync_info.signal_info.semaphore, submit_sync_info.signal_info.value};
   }();
