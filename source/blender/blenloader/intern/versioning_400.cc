@@ -122,6 +122,10 @@ static void convert_action_in_place(blender::animrig::Action &action)
   const int16_t idtype = action.idroot;
   action.idroot = 0;
 
+  /* Initialise the Action's last_slot_handle field to its default value, before
+   * we create a new slot. */
+  action.last_slot_handle = DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE;
+
   Slot &slot = action.slot_add();
   slot.idtype = idtype;
   slot.identifier_ensure_prefix();
