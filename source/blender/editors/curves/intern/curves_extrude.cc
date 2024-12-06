@@ -222,7 +222,7 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
     const int first_index = intervals_by_curve[curve].start();
     const int first_value = copy_intervals[first_index].start();
     bool is_selected = is_first_selected[curve];
-    Array<float> curve_knots_buff;
+    Array<float> curve_knots_buff(points.size());
 
     Span<float> curve_knots = knots.slice(points);
     /* TODO: Could be 1.0f, but tesselation must divide separate knot spans instead of whole
@@ -232,13 +232,12 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
     const float new_span = max_span > 0.0001f ? max_span : 1.0f;
 
     if (!cyclic[curve]) {
-      curve_knots_buff.reinitialize(points.size());
-      curve_knots_buff.as_mutable_span().copy_from(knots.slice(points));
+      MutableSpan<float> buff_span = curve_knots_buff.as_mutable_span();
+      buff_span.copy_from(knots.slice(points));
 
-      curve_knots_buff.first() = new_span;
-      MutableSpan<float> tail = curve_knots_buff.as_mutable_span().take_back(order - 2);
-      tail.fill(new_span);
-      curve_knots = curve_knots_buff.as_span();
+      buff_span.first() = new_span;
+      buff_span.take_back(order - 2).fill(new_span);
+      curve_knots = buff_span;
     }
 
     for (const int i : intervals_by_curve[curve].drop_back(1)) {
