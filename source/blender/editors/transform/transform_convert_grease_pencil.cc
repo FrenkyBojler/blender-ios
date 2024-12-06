@@ -146,7 +146,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
         tc.data_len += curves.points_num() + 2 * bezier_points.size();
         points_to_transform_per_attribute[layer_offset].append(curves.points_range());
 
-        if (!bezier_points.is_empty()) {
+        if (selection_attribute_names.size() > 1) {
           points_to_transform_per_attribute[layer_offset].append(bezier_points);
           points_to_transform_per_attribute[layer_offset].append(bezier_points);
         }
