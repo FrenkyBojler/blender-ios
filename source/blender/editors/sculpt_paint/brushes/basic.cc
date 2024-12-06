@@ -136,10 +136,8 @@ void do_basic_brush(const Depsgraph &depsgraph,
                     Object &object,
                     const IndexMask &node_mask)
 {
-  // const SculptSession &ss = *object.sculpt;
-  const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  bke::pbvh::Tree& pbvh = *bke::object::pbvh_get(object);
+  const Brush& brush = *BKE_paint_brush_for_read(&sd.paint);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {

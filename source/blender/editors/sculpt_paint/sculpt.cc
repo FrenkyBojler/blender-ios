@@ -2262,6 +2262,7 @@ void sculpt_apply_texture(const SculptSession &ss,
     if (cache.radial_symmetry_pass) {
       mul_m4_v3(cache.symm_rot_mat_inv.ptr(), point);
     }
+
     float3 symm_point = blender::ed::sculpt_paint::symmetry_flip(point,
                                                                  cache.mirror_symmetry_pass);
 
@@ -4076,6 +4077,7 @@ static void brush_delta_update(const Depsgraph &depsgraph,
 
   if (!ELEM(brush_type,
             SCULPT_BRUSH_TYPE_PAINT,
+            SCULPT_BRUSH_TYPE_BASIC,
             SCULPT_BRUSH_TYPE_GRAB,
             SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
             SCULPT_BRUSH_TYPE_CLOTH,

@@ -15,12 +15,46 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 
+#include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_vector.hh"
+
 #include "FN_field.hh"
 #include "FN_lazy_function_execute.hh"
 
 #include "editors/sculpt_paint/sculpt_intern.hh"
 
 namespace blender::ed::sculpt_paint {
+
+/* TODO: move to more appropriate file */
+static float4x4& calc_texture_space_matrix(StrokeCache& cache)
+{
+  float4x4 mat = math::from_location<float4x4>(float3(0.5f, 0.5f, 0.0f));
+  mat *= math::from_scale<float4x4>(float3(0.5f, 0.5f, 1.0f));
+  mat *= cache.brush_local_mat;
+
+  float4x4 mirror_symmetry_mat = float4x4::identity();
+
+  if (cache.mirror_symmetry_pass & PAINT_SYMM_X) {
+    mirror_symmetry_mat[0][0] = -1;
+  }
+
+  if (cache.mirror_symmetry_pass & PAINT_SYMM_Y) {
+    mirror_symmetry_mat[1][1] = -1;
+  }
+
+  if (cache.mirror_symmetry_pass & PAINT_SYMM_Z) {
+    mirror_symmetry_mat[2][2] = -1;
+  }
+
+  mat *= mirror_symmetry_mat;
+
+  if (cache.radial_symmetry_pass) {
+    mat *= cache.symm_rot_mat_inv;
+  }
+
+  return mat;
+}
 
 template <typename T>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
@@ -65,7 +99,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_data.strength = cache.bstrength;
   sculpt_data.is_first_step = cache.first_time;
   sculpt_data.step = cache.step;
-  sculpt_data.local_transform = cache.brush_local_mat;
+  sculpt_data.local_transform = calc_texture_space_matrix(cache);
   sculpt_data.depsgraph = &depsgraph;
   sculpt_data.self_object = &object;
 
