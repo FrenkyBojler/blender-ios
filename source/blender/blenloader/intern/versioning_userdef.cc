@@ -1392,7 +1392,6 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
   if (!USER_VERSION_ATLEAST(404, 10)) {
-    /* Rename Hide Collection to Isolate Collection */
     LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
       LISTBASE_FOREACH (wmKeyMapDiffItem *, kmdi, &keymap->diff_items) {
         if (STREQ("OBJECT_OT_hide_collection", kmdi->remove_item->idname)) {
