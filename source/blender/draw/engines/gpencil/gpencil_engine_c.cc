@@ -444,7 +444,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
   for (const DrawingInfo info : drawings) {
     const Layer &layer = *layers[info.layer_index];
 
-    const Span<Vector<uint3>> triangles = info.drawing.triangles();
+    const OffsetIndices<int> triangle_offsets = info.drawing.triangle_offsets();
 
     const bke::CurvesGeometry &curves = info.drawing.strokes();
     const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
@@ -467,7 +467,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
     visible_shapes.foreach_index([&](const int shape_index) {
       const IndexMask &shape = shapes[shape_index];
 
-      const int num_stroke_triangles = triangles[shape_index].size();
+      const int num_stroke_triangles = triangle_offsets[shape_index].size();
       num_triangles_per_shape[shape_index] = num_stroke_triangles;
       total_num_triangles += num_stroke_triangles;
 
@@ -537,12 +537,12 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
       /* The material index is allowed to be negative as it's stored as a generic attribute. We
        * clamp it here to avoid crashing in the rendering code. Any stroke with a material < 0 will
        * use the first material in the first material slot. */
-      const int material_index = std::max(stroke_materials[stroke_i], 0);
+      const int material_index = std::max(stroke_materials[curve_i], 0);
       const MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
 
       const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
       const bool show_stroke = ((gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0);
-      const bool show_fill = (!triangles[shape_index].is_empty()) &&
+      const bool show_fill = (!triangle_offsets[shape_index].is_empty()) &&
                              ((gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0) &&
                              (!pd->simplify_fill);
       const bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0 ||
@@ -598,19 +598,23 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
 
       if (show_fill) {
         const int v_first = t_offset * 3;
-        const int v_count = num_triangles_per_stroke[pos] * 3;
+        const int v_count = num_triangles_per_shape[shape_index] * 3;
         drawcall_add(pass, geom, v_first, v_count);
       }
 
       t_offset += num_triangles_per_shape[shape_index];
 
-      if (show_stroke) {
-        const int v_first = t_offset * 3;
-        const int v_count = num_vertices_per_stroke[pos] * 2 * 3;
-        drawcall_add(pass, geom, v_first, v_count);
-      }
+      shape.foreach_index([&](const int curve_i) {
+        const IndexRange points = points_by_curve[curve_i];
+
+        if (show_stroke) {
+          const int v_first = t_offset * 3;
+          const int v_count = num_vertices_per_stroke[curve_i] * 2 * 3;
+          drawcall_add(pass, geom, v_first, v_count);
+        }
 
         t_offset += num_vertices_per_stroke[curve_i] * 2;
+      });
     });
   }
 

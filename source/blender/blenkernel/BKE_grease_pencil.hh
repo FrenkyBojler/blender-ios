@@ -92,7 +92,12 @@ class Drawing : public ::GreasePencilDrawing {
   const bke::CurvesGeometry &strokes() const;
   bke::CurvesGeometry &strokes_for_write();
 
-  Vector<IndexMask> shapes(IndexMaskMemory &memory) const;
+  /**
+   * The offset indices for each stroke in the flat triangle cache.
+   */
+  OffsetIndices<int> triangle_offsets() const;
+
+  Vector<IndexMask, 4> shapes(IndexMaskMemory &memory) const;
 
   /**
    * The triangles for fill geometry. Grouped by each stroke.
@@ -179,12 +184,6 @@ class Drawing : public ::GreasePencilDrawing {
    * Return the number of users (keyframes) of this drawing.
    */
   int user_count() const;
-
- private:
-  /**
-   * The offset indices for each stroke in the flat triangle cache.
-   */
-  OffsetIndices<int> triangle_offsets() const;
 };
 static_assert(sizeof(Drawing) == sizeof(::GreasePencilDrawing));
 

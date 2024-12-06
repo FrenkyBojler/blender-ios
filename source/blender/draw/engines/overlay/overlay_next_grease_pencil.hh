@@ -313,7 +313,7 @@ class GreasePencil : Overlay {
       const bke::CurvesGeometry &curves = info.drawing.strokes();
       const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
       const bke::AttributeAccessor attributes = curves.attributes();
-      const Span<Vector<uint3>> triangles = info.drawing.triangles();
+      const OffsetIndices<int> triangle_offsets = info.drawing.triangle_offsets();
       const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
           "material_index", bke::AttrDomain::Curve, 0);
       const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(
@@ -334,7 +334,7 @@ class GreasePencil : Overlay {
 
         const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
 
-        const int num_stroke_triangles = triangles[shape_index].size();
+        const int num_stroke_triangles = triangle_offsets[shape_index].size();
 
         if (hide_material || hide_onion) {
           t_offset += num_stroke_triangles;

@@ -1089,7 +1089,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         object, info.drawing, memory);
     const Vector<IndexMask> shapes = info.drawing.shapes(memory);
 
-    const Span<Vector<uint3>> triangles = info.drawing.triangles();
+    const OffsetIndices<int> triangle_offsets = info.drawing.triangle_offsets();
 
     Array<int> verts_start_offsets(curves.curves_num(), 0);
 
@@ -1099,7 +1099,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     visible_shapes.foreach_index([&](const int shape_index) {
       const IndexMask &shape = shapes[shape_index];
 
-      total_triangles_num += triangles[shape_index].size();
+      total_triangles_num += triangle_offsets[shape_index].size();
 
       shape.foreach_index([&](const int curve_i) {
         IndexRange points = points_by_curve[curve_i];
@@ -1187,6 +1187,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
 
+    const OffsetIndices<int> triangle_offsets = info.drawing.triangle_offsets();
     const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
     const Span<int> verts_start_offsets = verts_start_offsets_per_visible_drawing[drawing_i];
@@ -1236,40 +1237,19 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       GPU_indexbuf_add_tri_verts(&ibo, v_mat + 2, v_mat + 1, v_mat + 3);
     };
 
-    visible_strokes.foreach_index([&](const int curve_i, const int pos) {
-      const IndexRange points = points_by_curve[curve_i];
-      const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
-      const int verts_start_offset = verts_start_offsets[pos];
-      const int tris_start_offset = tris_start_offsets[pos];
-      const int num_verts = 1 + points.size() + (is_cyclic ? 1 : 0) + 1;
-      const IndexRange verts_range = IndexRange(verts_start_offset, num_verts);
-      MutableSpan<GreasePencilStrokeVert> verts_slice = verts.slice(verts_range);
-      MutableSpan<GreasePencilColorVert> cols_slice = cols.slice(verts_range);
-      const float4x2 texture_matrix = texture_matrices[curve_i] * object_space_to_layer_space;
-
-      const Span<float> lengths = curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
-
-      /* First vertex is not drawn. */
-      verts_slice.first().mat = -1;
-
-      /* If the stroke has more than 2 points, add the triangle indices to the index buffer. */
-      if (points.size() >= 3) {
-        const Span<int3> tris_slice = triangles.slice(tris_start_offset, points.size() - 2);
-        for (const int3 tri : tris_slice) {
-          GPU_indexbuf_add_tri_verts(&ibo,
-                                     (verts_range[1] + tri.x) << GP_VERTEX_ID_SHIFT,
-                                     (verts_range[1] + tri.y) << GP_VERTEX_ID_SHIFT,
-                                     (verts_range[1] + tri.z) << GP_VERTEX_ID_SHIFT);
-        }
-      }
+    auto point_to_id = [&](int32_t p) {
+      const int curve_ = point_to_curve_map[p];
+      const IndexRange points_ = points_by_curve[curve_];
+      return (1 + (p - points_.first()) + verts_start_offsets[curve_]) << GP_VERTEX_ID_SHIFT;
+    };
 
     visible_shapes.foreach_index([&](const int shape_index) {
       const IndexMask &shape = shapes[shape_index];
-      const Span<uint3> tris_slice = triangles[shape_index];
+      const Span<int3> tris_slice = triangles.slice(triangle_offsets[shape_index]);
 
       /* Add the triangle indices to the index buffer. */
-      for (const uint3 tri : tris_slice) {
-        const uint3 tri_verts = uint3(point_to_id(tri.x), point_to_id(tri.y), point_to_id(tri.z));
+      for (const int3 tri : tris_slice) {
+        const int3 tri_verts = int3(point_to_id(tri.x), point_to_id(tri.y), point_to_id(tri.z));
         GPU_indexbuf_add_tri_verts(&ibo, tri_verts.x, tri_verts.y, tri_verts.z);
       }
 
