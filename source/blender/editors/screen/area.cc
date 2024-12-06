@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "DNA_screen_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
@@ -1882,7 +1883,7 @@ static void ed_default_handlers(
     }
   }
   if (flag & ED_KEYMAP_VIEW2D) {
-    if (area->spacetype == SPACE_SEQ && region->type->regionid == 7) {
+    if (area->spacetype == SPACE_SEQ && region->runtime->type->regionid == RGN_TYPE_PREVIEW) {
       printf("handlers are %p - %p\n", handlers->first, handlers->last);
     }
 
