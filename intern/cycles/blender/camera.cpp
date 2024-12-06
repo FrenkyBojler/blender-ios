@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 class BlenderCamera {
  public:
-  BlenderCamera(BL::RenderSettings &b_render)
+  explicit BlenderCamera(BL::RenderSettings &b_render)
   {
     full_width = render_width = render_resolution_x(b_render);
     full_height = render_height = render_resolution_y(b_render);
