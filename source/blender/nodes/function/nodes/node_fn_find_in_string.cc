@@ -13,11 +13,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("String").hide_label();
   b.add_input<decl::String>("Search");
-  b.add_input<decl::Int>("Start Char").min(0);
-  b.add_input<decl::Int>("Next Find").min(0).default_value(1);
-  b.add_input<decl::Bool>("Overlap Matches");
-  b.add_output<decl::Int>("Position");
-  b.add_output<decl::Bool>("Position Found");
+  b.add_output<decl::Int>("First Position");
   b.add_output<decl::Int>("Count");
 }
 
@@ -45,8 +41,7 @@ std::u32string bli_str_utf8_as_u32string(const StringRef u8src)
 }
 
 static std::vector<int> string_find_tokens(const StringRef text,
-                                           const StringRef token,
-                                           bool overlap)
+                                           const StringRef token)
 {
   std::vector<int> positions;
   if (text.is_empty() || token.is_empty()) {
@@ -55,99 +50,39 @@ static std::vector<int> string_find_tokens(const StringRef text,
   std::u32string a_u32 = bli_str_utf8_as_u32string(text);
   std::u32string b_u32 = bli_str_utf8_as_u32string(token);
 
-  int Matche_len;
-  if (!overlap) {
-    Matche_len = b_u32.size();
-  }
-  else {
-    Matche_len = 1;
-  }
+  int matche_len = b_u32.size();
   int pos = 0;
   if (a_u32.substr(0, b_u32.size()) == b_u32) {
     positions.push_back(0);
-    pos += Matche_len;
+    pos += matche_len;
   }
   while ((pos = a_u32.find(b_u32, pos)) != std::u32string::npos) {
     positions.push_back(pos);
-    pos += Matche_len;
+    pos += matche_len;
   }
   return positions;
 }
-static void out_finded_token_position(const std::vector<int> *positions,
-                                      const int start,
-                                      const int next,
-                                      int &out_position,
-                                      bool &out_found)
+static int out_finded_first_position(const std::vector<int> *positions)
 {
-  if (next <= 0) {
-    out_position = 0;
-    out_found = false;
-    return;
-  }
-  if (positions->empty() || start > positions->back()) {
-    out_position = 0;
-    out_found = false;
-    return;
-  }
-  auto it = std::lower_bound(positions->begin(), positions->end(), start);
-  if (it == positions->end()) {
-    out_position = 0;
-    out_found = false;
-    return;
-  }
-  int index = std::distance(positions->begin(), it) + next;
-  if (index > positions->size()) {
-    out_position = 0;
-    out_found = false;
-    return;
-  }
-  out_position = (*positions)[index - 1];
-  out_found = true;
-}
-static int out_finded_tokens_count(const std::vector<int> *positions, const int start)
-{
-  if (positions->empty() || start > positions->back()) {
+  if (positions->empty()) {
     return 0;
   }
-  auto it = std::lower_bound(positions->begin(), positions->end(), start);
-  if (it == positions->end()) {
-    return 0;
-  }
-  return static_cast<int>(positions->end() - it);
+  return positions->front();
 }
 
-static void string_find_count_out(const StringRef text,
-                                  const StringRef token,
-                                  const int start,
-                                  const int next,
-                                  const bool overlap,
-                                  int &out_pos,
-                                  int &out_count,
-                                  bool &out_found)
-{
-  std::vector<int> positions = string_find_tokens(text, token, overlap);
-  out_finded_token_position(&positions, start, next, out_pos, out_found);
-  out_count = out_finded_tokens_count(&positions, start);
-  out_found = !positions.empty();
-}
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  static auto token_position_count =
-      mf::build::SI5_SO3<std::string, std::string, int, int, bool, int, bool, int>(
-          "Find in String",
-          [](const std::string &text,
-             const std::string &token,
-             const int &start,
-             const int &next,
-             const bool &overlap,
-             int &position,
-             bool &found,
-             int &count) -> void {
-            std::vector<int> positions = string_find_tokens(text, token, overlap);
-            out_finded_token_position(&positions, start, next, position, found);
-            count = out_finded_tokens_count(&positions, start);
-          },
-          mf::build::exec_presets::AllSpanOrSingle());
+  static auto token_position_count = mf::build::SI2_SO2<std::string, std::string, int, int>(
+      "Find in String",
+      [](const std::string &text,
+         const std::string &token,
+         int &first,
+         int &count) -> void {
+        std::vector<int> positions = string_find_tokens(text, token);
+        first = out_finded_first_position(&positions);
+        count = positions.size();
+      },
+      mf::build::exec_presets::AllSpanOrSingle());
 
   builder.set_matching_fn(&token_position_count);
 }
