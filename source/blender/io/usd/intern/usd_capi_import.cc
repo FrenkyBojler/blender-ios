@@ -295,6 +295,9 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   *data->do_update = true;
   *data->progress = 0.15f;
 
+  /* Ensure Python types for invoking hooks are registered. */
+  register_hook_converters();
+
   USDStageReader *archive = new USDStageReader(stage, data->params, data->settings);
 
   data->archive = archive;
@@ -454,8 +457,7 @@ static void import_endjob(void *customdata)
       data->archive->fake_users_for_unused_materials();
     }
 
-    /* Ensure Python types for invoking hooks are registered. */
-    register_hook_converters();
+    data->archive->call_material_import_hooks(data->bmain);
 
     call_import_hooks(data->archive->stage(), data->params.worker_status->reports);
 

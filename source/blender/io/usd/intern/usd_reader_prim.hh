@@ -45,6 +45,11 @@ struct ImportSettings {
    * This map is updated by readers during stage traversal,
    * and is mutable similar to the map above. */
   mutable blender::Map<std::string, Material *> mat_name_to_mat{};
+  /* Map a USD material prim path to a Blender material to be
+   * converted by invoking the 'on_material_import' USD hook.
+   * This map is updated by readers during stage traversal,
+   * and is mutable similar to the map above. */
+  mutable blender::Map<std::string, Material *> usd_path_to_mat_for_hook{};
 
   /* We use the stage metersPerUnit to convert camera properties from USD scene units to the
    * correct millimeter scale that Blender uses for camera parameters. */

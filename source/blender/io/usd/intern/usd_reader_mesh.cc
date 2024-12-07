@@ -9,6 +9,7 @@
 #include "usd.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
+#include "usd_hook.hh"
 #include "usd_mesh_utils.hh"
 #include "usd_reader_material.hh"
 #include "usd_skel_convert.hh"
@@ -93,7 +94,9 @@ static void assign_materials(Main *bmain,
                              const blender::io::usd::USDImportParams &params,
                              pxr::UsdStageRefPtr stage,
                              blender::Map<std::string, Material *> &mat_name_to_mat,
-                             blender::Map<std::string, std::string> &usd_path_to_mat_name)
+                             blender::Map<std::string, std::string> &usd_path_to_mat_name,
+                             blender::Map<std::string, Material *> &usd_path_to_mat_for_hook,
+                             ReportList *reports)
 {
   using namespace blender::io::usd;
   if (!(stage && bmain && ob)) {
@@ -122,8 +125,11 @@ static void assign_materials(Main *bmain,
         continue;
       }
 
-      /* Add the Blender material. */
-      assigned_mat = mat_reader.add_material(usd_mat);
+      bool have_import_hook = have_material_import_hook(stage, usd_mat, reports);
+
+      /* Add the Blender material. If we have an import hook which can handle this material
+       * we don't import USD Preview Surface shaders. */
+      assigned_mat = mat_reader.add_material(usd_mat, !have_import_hook);
 
       if (!assigned_mat) {
         CLOG_WARN(&LOG,
@@ -139,6 +145,12 @@ static void assign_materials(Main *bmain,
         /* Record the name of the Blender material we created for the USD material
          * with the given path. */
         usd_path_to_mat_name.lookup_or_add_default(item.key.GetAsString()) = mat_name;
+      }
+
+      if (have_import_hook) {
+        /* Defer invoking the hook to convert the material till we can do so from
+         * the main thread. */
+        usd_path_to_mat_for_hook.lookup_or_add_default(item.key.GetAsString()) = assigned_mat;
       }
     }
 
@@ -742,7 +754,9 @@ void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const double mot
                           this->import_params_,
                           this->prim_.GetStage(),
                           this->settings_->mat_name_to_mat,
-                          this->settings_->usd_path_to_mat_name);
+                          this->settings_->usd_path_to_mat_name,
+                          this->settings_->usd_path_to_mat_for_hook,
+                          this->reports());
 }
 
 Mesh *USDMeshReader::read_mesh(Mesh *existing_mesh,
