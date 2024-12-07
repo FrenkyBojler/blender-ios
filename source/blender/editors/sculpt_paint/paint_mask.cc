@@ -65,7 +65,7 @@ Array<float> duplicate_mask(const Object &object)
       const VArray mask = *attributes.lookup_or_default<float>(
           ".sculpt_mask", bke::AttrDomain::Point, 0.0f);
       Array<float> result(mask.size());
-      mask.materialize(result);
+      array_utils::copy(mask, result.as_mutable_span());
       return result;
     }
     case bke::pbvh::Type::Grids: {
@@ -73,7 +73,9 @@ Array<float> duplicate_mask(const Object &object)
       if (subdiv_ccg.masks.is_empty()) {
         return Array<float>(subdiv_ccg.positions.size(), 0.0f);
       }
-      return subdiv_ccg.masks;
+      Array<float> result(subdiv_ccg.masks.size());
+      array_utils::copy(subdiv_ccg.masks.as_span(), result.as_mutable_span());
+      return result;
     }
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *ss.bm;
