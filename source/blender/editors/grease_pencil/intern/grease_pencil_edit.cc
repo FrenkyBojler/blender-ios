@@ -1184,7 +1184,6 @@ static void GREASE_PENCIL_OT_stroke_switch_direction(wmOperatorType *ot)
 static bke::CurvesGeometry set_start_point(const bke::CurvesGeometry &curves,
                                            const IndexMask &mask)
 {
-  std::cout << "\n\n##########set_start_point function begin#############\n";
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const VArray<bool> src_cyclic = curves.cyclic();
@@ -1197,69 +1196,26 @@ static bke::CurvesGeometry set_start_point(const bke::CurvesGeometry &curves,
   int curr_dst_point_id = 0;
   Array<int> dst_to_src_point(curves.points_num());
 
-  std::cout << "\ndst_to_src_point: ";
-  for (int i : curves.points_range()) {
-    std::cout << i << ": " << dst_to_src_point[i] << ", ";
-  }
-
   for (const int curve_i : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve_i];
     const Span<bool> curve_i_selected_points = start_set_points.as_span().slice(points);
     const int first_selected = curve_i_selected_points.first_index_try(true);
 
-    std::cout << "\n\ncurve: " << curve_i;
-    std::cout << "\npoints: ";
-    for (int i : points) {
-      std::cout << i << ", ";
-    }
-
     Array<int> dst_to_src_slice = dst_to_src_point.as_span().slice(points);
-
-    std::cout << "\n\ndst_to_src_slice inital: ";
-    for (int i : dst_to_src_slice.index_range()) {
-      std::cout << i << ": " << dst_to_src_slice[i] << ", ";
-    }
 
     array_utils::fill_index_range<int>(dst_to_src_slice, points.start());
 
-    /* map 1:1 for points that aren't changing */
+    /* map 1:1 for points that aren't changing or non cyclic*/
     if (first_selected == -1 || src_cyclic[curve_i] == false) {
-
-      // dst_to_src_point[curr_dst_point_id++] = src_point;
       array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
-
       continue;
     }
-
-    /* oldPoint shift logic
-    for (const int src_point : points.drop_front(first_selected)) {
-      dst_to_src_point[curr_dst_point_id++] = src_point;
-    }
-
-    for (const int src_point : points.take_front(first_selected)) {
-      dst_to_src_point[curr_dst_point_id++] = src_point;
-    } */
 
     std::rotate(dst_to_src_slice.begin(),
                 dst_to_src_slice.begin() + first_selected,
                 dst_to_src_slice.end());
 
-    std::cout << "\n\ndst_to_src_slice rotated: ";
-    for (int i : dst_to_src_slice.index_range()) {
-      std::cout << i << ": " << dst_to_src_slice[i] << ", ";
-    }
-
     array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
-
-    std::cout << "\n\ndst_to_src_point after " << curve_i << ": ";
-    for (int i : curves.points_range()) {
-      std::cout << i << ": " << dst_to_src_point[i] << ", ";
-    }
-  }
-
-  std::cout << "\ndst_to_src_point final state: ";
-  for (int i : curves.points_range()) {
-    std::cout << i << ": " << dst_to_src_point[i] << ", ";
   }
 
   /* New CurvesGeometry to copy to*/
