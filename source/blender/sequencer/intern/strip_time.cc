@@ -23,6 +23,7 @@
 
 #include "MOV_read.hh"
 
+#include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_render.hh"
@@ -551,8 +552,12 @@ void strip_time_translate_handles(const Scene *scene, Strip *strip, const int of
   time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
 }
 
-static void strip_time_slip_strip_ex(
-    const Scene *scene, Strip *strip, int delta, float subframe_delta, bool recursed)
+static void strip_time_slip_strip_ex(const Scene *scene,
+                                     Strip *strip,
+                                     int delta,
+                                     float subframe_delta,
+                                     bool slip_keyframes,
+                                     bool recursed)
 {
   if (strip->type == STRIP_TYPE_SOUND_RAM && subframe_delta != 0.0f) {
     strip->sound_offset += subframe_delta / FPS;
@@ -580,12 +585,22 @@ static void strip_time_slip_strip_ex(
     if (BLI_listbase_is_empty(&strip->seqbase)) {
       return;
     }
+
     LISTBASE_FOREACH (Strip *, strip_child, &strip->seqbase) {
-      strip_time_slip_strip_ex(scene, strip_child, delta, subframe_delta, true);
+      strip_time_slip_strip_ex(scene, strip_child, delta, subframe_delta, true, true);
     }
   }
 
   strip->start = strip->start + delta;
+
+  if (slip_keyframes) {
+    float anim_offset = delta;
+    if (strip->type == STRIP_TYPE_SOUND_RAM) {
+      anim_offset += subframe_delta;
+    }
+    offset_animdata(scene, strip, anim_offset);
+  }
+
   if (!recursed) {
     strip->startofs = strip->startofs - delta;
     strip->endofs = strip->endofs + delta;
@@ -599,9 +614,10 @@ static void strip_time_slip_strip_ex(
   strip_time_update_effects_strip_range(scene, effects);
 }
 
-void time_slip_strip(const Scene *scene, Strip *strip, int delta, float subframe_delta)
+void time_slip_strip(
+    const Scene *scene, Strip *strip, int delta, float subframe_delta, bool slip_keyframes)
 {
-  strip_time_slip_strip_ex(scene, strip, delta, subframe_delta, false);
+  strip_time_slip_strip_ex(scene, strip, delta, subframe_delta, slip_keyframes, false);
 }
 
 int time_get_rounded_sound_offset(const Strip *strip, const float frames_per_second)
