@@ -337,7 +337,8 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
                                const Sculpt &sd,
                                const float strength,
                                Object &object,
-                               const IndexMask &node_mask)
+                               const IndexMask &node_mask,
+                               const bool use_original_position)
 {
   struct LocalData {
     Vector<float> factors;
@@ -362,6 +363,7 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         const Span<int> verts = nodes[i].verts();
+        const Span<float3> positions = gather_data_mesh(position_data.eval, verts, tls.positions);
         const OrigPositionData orig_data = orig_position_data_get_mesh(object, nodes[i]);
 
         tls.factors.resize(verts.size());
@@ -389,8 +391,16 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
 
         tls.translations.resize(verts.size());
         const MutableSpan<float3> translations = tls.translations;
-        translations_from_new_positions(new_positions, orig_data.positions, translations);
+        if (use_original_position) {
+          translations_from_new_positions(new_positions, orig_data.positions, translations);
+        }
+        else {
+          translations_from_new_positions(new_positions, positions, translations);
+        }
         scale_translations(translations, factors);
+        if (use_original_position) {
+          reset_translations_to_original(translations, positions, orig_data.positions);
+        }
 
         zero_disabled_axis_components(*ss.filter_cache, translations);
         clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
@@ -2104,7 +2114,7 @@ static void sculpt_mesh_update_status_bar(bContext *C, wmOperator * /*op*/)
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
 }
 
-static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op)
+static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay = false)
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &ob = *CTX_data_active_object(C);
@@ -2118,7 +2128,7 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op)
   const IndexMask &node_mask = ss.filter_cache->node_mask;
   switch (filter_type) {
     case MeshFilterType::Smooth:
-      calc_smooth_filter(depsgraph, sd, strength, ob, node_mask);
+      calc_smooth_filter(depsgraph, sd, strength, ob, node_mask, is_replay && ss.filter_cache->iteration_count == 0);
       break;
     case MeshFilterType::Scale:
       calc_scale_filter(depsgraph, sd, strength, ob, node_mask);
@@ -2196,7 +2206,7 @@ static void sculpt_mesh_filter_apply_with_history(bContext *C, wmOperator *op)
     }
 
     sculpt_mesh_update_strength(op, ss, start_mouse, mouse);
-    sculpt_mesh_filter_apply(C, op);
+    sculpt_mesh_filter_apply(C, op, true);
   }
   RNA_END;
 
