@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "draw_model_lib.glsl"
+#include "draw_view_lib.glsl"
 
 void main()
 {
-  GPU_INTEL_VERTEX_SHADER_WORKAROUND
-
-  gl_Position = point_world_to_ndc(pPosition);
+  gl_Position = drw_point_world_to_homogenous(pPosition);
   finalColor = pColor;
   gl_PointSize = pSize;
 

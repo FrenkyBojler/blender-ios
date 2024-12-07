@@ -4,7 +4,8 @@
 
 #include "common_math_lib.glsl"
 #include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "draw_model_lib.glsl"
+#include "draw_view_lib.glsl"
 
 #define M_TAN_PI_BY_8 tan(M_PI / 8)
 #define M_TAN_3_PI_BY_8 tan(3 * M_PI / 8)

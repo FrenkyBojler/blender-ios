@@ -4,11 +4,23 @@
 
 #pragma once
 
+#include "draw_view_lib.glsl"
+
 #define OVERLAY_UV_LINE_STYLE_OUTLINE 0
 #define OVERLAY_UV_LINE_STYLE_DASH 1
 #define OVERLAY_UV_LINE_STYLE_BLACK 2
 #define OVERLAY_UV_LINE_STYLE_WHITE 3
 #define OVERLAY_UV_LINE_STYLE_SHADOW 4
+
+/* Wire Color Types, matching eV3DShadingColorType. */
+#define V3D_SHADING_SINGLE_COLOR 2
+#define V3D_SHADING_OBJECT_COLOR 4
+#define V3D_SHADING_RANDOM_COLOR 1
+
+#define DRW_BASE_SELECTED (1 << 1)
+#define DRW_BASE_FROM_DUPLI (1 << 2)
+#define DRW_BASE_FROM_SET (1 << 3)
+#define DRW_BASE_ACTIVE (1 << 4)
 
 mat4 extract_matrix_packed_data(mat4 mat, out vec4 dataA, out vec4 dataB)
 {

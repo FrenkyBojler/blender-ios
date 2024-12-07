@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "draw_model_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "overlay_common_lib.glsl"
 
 void main()
@@ -12,7 +13,7 @@ void main()
   mat4 model_mat = extract_matrix_packed_data(inst_obmat, state_color, bone_color);
 
   vec3 world_pos = (model_mat * vec4(pos, 1.0)).xyz;
-  gl_Position = point_world_to_ndc(world_pos);
+  gl_Position = drw_point_world_to_homogenous(world_pos);
 
   geometry_in.finalColor.rgb = mix(state_color.rgb, bone_color.rgb, 0.5);
   geometry_in.finalColor.a = 1.0;

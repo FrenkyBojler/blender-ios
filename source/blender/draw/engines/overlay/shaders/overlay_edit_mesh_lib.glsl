@@ -5,7 +5,8 @@
 #pragma once
 
 #include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "draw_model_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
@@ -43,13 +44,11 @@ struct VertOut {
 
 VertOut vertex_main(VertIn vert_in)
 {
-  GPU_INTEL_VERTEX_SHADER_WORKAROUND
-
   VertOut vert_out;
 
-  vec3 world_pos = point_object_to_world(vert_in.lP);
-  vec3 view_pos = point_world_to_view(world_pos);
-  vert_out.gpu_position = point_view_to_ndc(view_pos);
+  vec3 world_pos = drw_point_object_to_world(vert_in.lP);
+  vec3 view_pos = drw_point_world_to_view(world_pos);
+  vert_out.gpu_position = drw_point_view_to_homogenous(view_pos);
 
   /* Offset Z position for retopology overlay. */
   vert_out.gpu_position.z += get_homogenous_z_offset(
@@ -116,7 +115,7 @@ VertOut vertex_main(VertIn vert_in)
 
 #if !defined(FACE)
   /* Facing based color blend */
-  vec3 view_normal = normalize(normal_object_to_view(vert_in.lN) + 1e-4);
+  vec3 view_normal = normalize(drw_normal_object_to_view(vert_in.lN) + 1e-4);
   vec3 view_vec = (drw_view.winmat[3][3] == 0.0) ? normalize(view_pos) : vec3(0.0, 0.0, 1.0);
   float facing = dot(view_vec, view_normal);
   facing = 1.0 - abs(facing) * 0.2;
