@@ -1174,9 +1174,6 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_DRAW_FACE_SETS:
       if (ss.cache->alt_smooth) {
         restore_position_from_undo_step(depsgraph, object);
-        /* Update normals for potentially-changed positions. Theoretically this may be unnecessary
-         * if the brush restoring to the initial state doesn't use the normals, but we have no easy
-         * way to know that from here. */
         bke::pbvh::update_normals(depsgraph, object, *bke::object::pbvh_get(object));
       }
       else {
@@ -1185,9 +1182,6 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
       break;
     default:
       restore_position_from_undo_step(depsgraph, object);
-      /* Update normals for potentially-changed positions. Theoretically this may be unnecessary if
-       * the brush restoring to the initial state doesn't use the normals, but we have no easy way
-       * to know that from here. */
       bke::pbvh::update_normals(depsgraph, object, *bke::object::pbvh_get(object));
       break;
   }

@@ -2267,9 +2267,6 @@ static void sculpt_mesh_filter_cancel(bContext *C, wmOperator * /*op*/)
   }
 
   undo::restore_position_from_undo_step(depsgraph, ob);
-  /* Update normals for potentially-changed positions. Theoretically this may be unnecessary if
-   * the brush restoring to the initial state doesn't use the normals, but we have no easy way to
-   * know that from here. */
   bke::pbvh::update_normals(depsgraph, ob, *pbvh);
   bke::pbvh::update_bounds(depsgraph, ob, *pbvh);
 }
