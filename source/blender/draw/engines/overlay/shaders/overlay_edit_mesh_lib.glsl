@@ -8,6 +8,7 @@
 #include "common_view_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+#include "overlay_common_lib.glsl"
 #include "overlay_edit_mesh_common_lib.glsl"
 
 struct VertIn {
@@ -52,7 +53,7 @@ VertOut vertex_main(VertIn vert_in)
 
   /* Offset Z position for retopology overlay. */
   vert_out.gpu_position.z += get_homogenous_z_offset(
-      view_pos.z, vert_out.gpu_position.w, retopologyOffset);
+      drw_view.winmat, view_pos.z, vert_out.gpu_position.w, retopologyOffset);
 
   uvec4 m_data = vert_in.e_data & uvec4(dataMask);
 

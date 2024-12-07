@@ -119,7 +119,8 @@ void main()
       if (is_persp) {
         float dist_fac = length(cameraPos - world_pos);
         float cos_fac = dot(cameraForward, cameraVec(world_pos));
-        world_pos += n * normalScreenSize * dist_fac * cos_fac * pixelFac * sizePixel;
+        world_pos += n * normalScreenSize * dist_fac * cos_fac * globalsBlock.pixel_fac *
+                     sizePixel;
       }
       else {
         float frustrum_fac = mul_project_m4_v3_zfac(n) * sizePixel;

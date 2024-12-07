@@ -4,6 +4,7 @@
 
 #include "common_view_clipping_lib.glsl"
 #include "common_view_lib.glsl"
+#include "overlay_common_lib.glsl"
 
 void main()
 {
@@ -14,7 +15,8 @@ void main()
   gl_Position = point_view_to_ndc(view_pos);
 
   /* Offset Z position for retopology overlay. */
-  gl_Position.z += get_homogenous_z_offset(view_pos.z, gl_Position.w, retopologyOffset);
+  gl_Position.z += get_homogenous_z_offset(
+      ProjectionMatrix, view_pos.z, gl_Position.w, retopologyOffset);
 
   view_clipping_distances(world_pos);
 }
