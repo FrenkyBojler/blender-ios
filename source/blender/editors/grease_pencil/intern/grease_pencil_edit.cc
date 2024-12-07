@@ -1207,19 +1207,26 @@ static bke::CurvesGeometry set_start_point(const bke::CurvesGeometry &curves,
     const Span<bool> curve_i_selected_points = start_set_points.as_span().slice(points);
     const int first_selected = curve_i_selected_points.first_index_try(true);
 
+    std::cout << "\n\ncurve: " << curve_i;
+    std::cout << "\npoints: ";
+    for (int i : points) {
+      std::cout << i << ", ";
+    }
+
     Array<int> dst_to_src_slice = dst_to_src_point.as_span().slice(points);
 
     std::cout << "\n\ndst_to_src_slice inital: ";
-    for (int i : points) {
+    for (int i : dst_to_src_slice.index_range()) {
       std::cout << i << ": " << dst_to_src_slice[i] << ", ";
     }
 
     array_utils::fill_index_range<int>(dst_to_src_slice, points.start());
 
-        /* map 1:1 for points that aren't changing */
+    /* map 1:1 for points that aren't changing */
     if (first_selected == -1 || src_cyclic[curve_i] == false) {
 
       // dst_to_src_point[curr_dst_point_id++] = src_point;
+      array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
 
       continue;
     }
@@ -1238,7 +1245,7 @@ static bke::CurvesGeometry set_start_point(const bke::CurvesGeometry &curves,
                 dst_to_src_slice.end());
 
     std::cout << "\n\ndst_to_src_slice rotated: ";
-    for (int i : points) {
+    for (int i : dst_to_src_slice.index_range()) {
       std::cout << i << ": " << dst_to_src_slice[i] << ", ";
     }
 
