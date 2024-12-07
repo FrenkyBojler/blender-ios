@@ -1892,7 +1892,6 @@ static void calc_erase_displacement_filter(const Depsgraph &depsgraph,
     LocalData &tls = all_tls.local();
     const Span<int> grids = nodes[i].grids();
     const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
-    const OrigPositionData orig_data = orig_position_data_get_grids(object, nodes[i]);
 
     tls.factors.resize(positions.size());
     const MutableSpan<float> factors = tls.factors;
@@ -2229,8 +2228,6 @@ static int sculpt_mesh_filter_confirm(SculptSession &ss,
 
 static void sculpt_mesh_filter_cancel(bContext *C, wmOperator * /*op*/)
 {
-  printf("cancel!\n");
-
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &ob = *CTX_data_active_object(C);
   SculptSession *ss = ob.sculpt;
@@ -2306,7 +2303,9 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
     RNA_float_set(&itemptr, "pressure", WM_event_tablet_data(event, nullptr, nullptr));
   }
 
+  if (filter_type != MeshFilterType::Sharpen) {
     undo::restore_position_from_undo_step(*depsgraph, ob);
+  }
 
 
   float2 prev_mval(float(event->prev_press_xy[0]), float(event->prev_press_xy[1]));
