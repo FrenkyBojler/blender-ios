@@ -437,12 +437,19 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
 
         tls.translations.resize(positions.size());
         const MutableSpan<float3> translations = tls.translations;
-        translations_from_new_positions(new_positions, orig_data.positions, translations);
+        if (use_original_position) {
+          translations_from_new_positions(new_positions, orig_data.positions, translations);
+        }
+        else {
+          translations_from_new_positions(new_positions, positions, translations);
+        }
         scale_translations(translations, factors);
-        reset_translations_to_original(translations, positions, orig_data.positions);
+        if (use_original_position) {
+          reset_translations_to_original(translations, positions, orig_data.positions);
+        }
 
         zero_disabled_axis_components(*ss.filter_cache, translations);
-        clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+        clip_and_lock_translations(sd, ss, positions, translations);
         apply_translations(translations, grids, subdiv_ccg);
       });
       break;
@@ -472,12 +479,19 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
 
         tls.translations.resize(verts.size());
         const MutableSpan<float3> translations = tls.translations;
-        translations_from_new_positions(new_positions, orig_positions, translations);
+        if (use_original_position) {
+          translations_from_new_positions(new_positions, orig_positions, translations);
+        }
+        else {
+          translations_from_new_positions(new_positions, positions, translations);
+        }
         scale_translations(translations, factors);
-        reset_translations_to_original(translations, positions, orig_positions);
+        if (use_original_position) {
+          reset_translations_to_original(translations, positions, orig_positions);
+        }
 
         zero_disabled_axis_components(*ss.filter_cache, translations);
-        clip_and_lock_translations(sd, ss, orig_positions, translations);
+        clip_and_lock_translations(sd, ss, positions, translations);
         apply_translations(translations, verts);
       });
       break;
