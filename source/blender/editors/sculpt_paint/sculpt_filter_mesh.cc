@@ -2302,8 +2302,7 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
     RNA_float_set_array(&itemptr, "mouse_event", mouse);
     RNA_float_set(&itemptr, "pressure", WM_event_tablet_data(event, nullptr, nullptr));
   }
-
-  if (filter_type != MeshFilterType::Sharpen) {
+  else {
     undo::restore_position_from_undo_step(*depsgraph, ob);
   }
 
