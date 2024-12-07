@@ -181,7 +181,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   /* set background_color */
   rgb_uchar_to_float(background_color, theme->inner);
 
-  /* `normal_color` is just theme color. */
+  /* `normal_color` is just tooltip text color. */
   rgb_uchar_to_float(main_color, theme->text);
   copy_v3_v3(normal_color, main_color);
 
@@ -193,13 +193,13 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   copy_v3_v3(python_color, main_color);
   color_blend_f3_f3(python_color, background_color, 0.5f);
 
-  /* `active_color` is a light blue. */
+  /* `active_color` is a light blue, push a bit toward text color. */
   active_color[0] = 0.4f;
   active_color[1] = 0.55f;
   active_color[2] = 0.75f;
   color_blend_f3_f3(active_color, main_color, 0.3f);
 
-  /* `alert_color` is red. */
+  /* `alert_color` is red, push a bit toward text color. */
   alert_color[0] = 0.7f;
   alert_color[1] = 0.0f;
   alert_color[2] = 0.0f;
