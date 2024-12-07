@@ -1196,27 +1196,29 @@ static bke::CurvesGeometry set_start_point(const bke::CurvesGeometry &curves,
   int curr_dst_point_id = 0;
   Array<int> dst_to_src_point(curves.points_num());
 
-  for (const int curve_i : curves.curves_range()) {
-    const IndexRange points = points_by_curve[curve_i];
-    const Span<bool> curve_i_selected_points = start_set_points.as_span().slice(points);
-    const int first_selected = curve_i_selected_points.first_index_try(true);
+  threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {
+    for (const int curve_i : range) {
+      const IndexRange points = points_by_curve[curve_i];
+      const Span<bool> curve_i_selected_points = start_set_points.as_span().slice(points);
+      const int first_selected = curve_i_selected_points.first_index_try(true);
 
-    Array<int> dst_to_src_slice = dst_to_src_point.as_span().slice(points);
+      Array<int> dst_to_src_slice = dst_to_src_point.as_span().slice(points);
 
-    array_utils::fill_index_range<int>(dst_to_src_slice, points.start());
+      array_utils::fill_index_range<int>(dst_to_src_slice, points.start());
 
-    /* map 1:1 for points that aren't changing or non cyclic*/
-    if (first_selected == -1 || src_cyclic[curve_i] == false) {
+      /* map 1:1 for points that aren't changing or non cyclic*/
+      if (first_selected == -1 || src_cyclic[curve_i] == false) {
+        array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
+        continue;
+      }
+
+      std::rotate(dst_to_src_slice.begin(),
+                  dst_to_src_slice.begin() + first_selected,
+                  dst_to_src_slice.end());
+
       array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
-      continue;
     }
-
-    std::rotate(dst_to_src_slice.begin(),
-                dst_to_src_slice.begin() + first_selected,
-                dst_to_src_slice.end());
-
-    array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
-  }
+  });
 
   /* New CurvesGeometry to copy to*/
   bke::CurvesGeometry dst_curves(curves.points_num(), curves.curves_num());
