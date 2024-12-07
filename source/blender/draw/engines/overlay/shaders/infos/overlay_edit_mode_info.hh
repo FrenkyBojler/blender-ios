@@ -719,6 +719,7 @@ VERTEX_SOURCE("overlay_edit_particle_point_vert.glsl")
 FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
 ADDITIONAL_INFO(draw_mesh)
 ADDITIONAL_INFO(draw_globals);
+GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_edit_curves_point_clipped)
 DO_STATIC_COMPILATION()
