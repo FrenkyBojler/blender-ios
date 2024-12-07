@@ -37,20 +37,14 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool)
 {
   std::scoped_lock mutex(mutex_);
   std::scoped_lock mutex_src(src_pool.mutex_);
-  buffers_.extend(src_pool.buffers_);
-  image_views_.extend(src_pool.image_views_);
-  images_.extend(src_pool.images_);
-  shader_modules_.extend(src_pool.shader_modules_);
-  pipeline_layouts_.extend(src_pool.pipeline_layouts_);
-  framebuffers_.extend(src_pool.framebuffers_);
-  render_passes_.extend(src_pool.render_passes_);
-  src_pool.buffers_.clear();
-  src_pool.image_views_.clear();
-  src_pool.images_.clear();
-  src_pool.shader_modules_.clear();
-  src_pool.pipeline_layouts_.clear();
-  src_pool.framebuffers_.clear();
-  src_pool.render_passes_.clear();
+  buffers_.move_elements_from(src_pool.buffers_);
+  image_views_.move_elements_from(src_pool.image_views_);
+  images_.move_elements_from(src_pool.images_);
+  shader_modules_.move_elements_from(src_pool.shader_modules_);
+  pipeline_layouts_.move_elements_from(src_pool.pipeline_layouts_);
+  framebuffers_.move_elements_from(src_pool.framebuffers_);
+  render_passes_.move_elements_from(src_pool.render_passes_);
+
   for (const Map<VkCommandPool, Vector<VkCommandBuffer>>::Item &item :
        src_pool.command_buffers_.items())
   {

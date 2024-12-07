@@ -567,6 +567,27 @@ class Vector {
   }
 
   /**
+   * Moves the elements of another vector tho the end of this vector.
+   *
+   * This can be used in vectors that manages resources, allowing acquiring resources from another
+   * vector, preventing shared ownership of managed resources.
+   */
+  template<int64_t OtherInlineBufferCapacity>
+  void move_elements_from(Vector<T, OtherInlineBufferCapacity, Allocator> &other)
+  {
+    if (this == &other || other.is_empty()) {
+      return;
+    }
+    this->reserve(this->size() + other.size());
+    BLI_assert(begin_ + other.size() <= capacity_end_);
+    uninitialized_move_n(other.begin(), other.size(), end_);
+    end_ += other.size();
+    UPDATE_VECTOR_SIZE(this);
+
+    other.clear();
+  }
+
+  /**
    * Adds all elements from the array that are not already in the vector. This is an expensive
    * operation when the vector is large, but can be very cheap when it is known that the vector is
    * small.
