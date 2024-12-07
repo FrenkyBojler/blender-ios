@@ -29,7 +29,7 @@
 
 namespace blender::ed::sculpt_paint {
 
-inline namespace basic_cc {
+inline namespace barebone_cc {
 
 struct LocalData {
   Vector<float3> positions;
@@ -49,24 +49,26 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const PositionDeformData &position_data)
 {
   const SculptSession &ss = *object.sculpt;
+  const StrokeCache& cache = *ss.cache;
+
   const Span<int> verts = node.verts();
 
-  calc_factors_common_mesh_indexed(depsgraph,
-                                   brush,
-                                   object,
-                                   attribute_data,
-                                   position_data.eval,
-                                   vert_normals,
-                                   node,
-                                   tls.factors,
-                                   tls.distances);
+  tls.factors.resize(verts.size());
+  const MutableSpan<float> factors = tls.factors;
+  fill_factor_from_hide_and_mask(attribute_data.hide_vert, attribute_data.mask, verts, factors);
+  filter_region_clip_factors(ss, position_data.eval, verts, factors);
+
+  if (brush.flag & BRUSH_FRONTFACE) {
+    calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
+  }
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
+
   mesh_sculpt_nodes_evaluate<float3>(
       depsgraph, object, *ss.cache, position_data.eval, verts, translations);
+
   scale_translations(translations, tls.factors);
-  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
@@ -81,11 +83,19 @@ static void calc_grids(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *object.sculpt;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  const StrokeCache& cache = *ss.cache;
 
   const Span<int> grids = node.grids();
   const MutableSpan<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
 
-  calc_factors_common_grids(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
+  tls.factors.resize(positions.size());
+  const MutableSpan<float> factors = tls.factors;
+  fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+  filter_region_clip_factors(ss, positions, factors);
+
+  if (brush.flag & BRUSH_FRONTFACE) {
+    calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
+  }
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -94,7 +104,6 @@ static void calc_grids(const Depsgraph &depsgraph,
       depsgraph, object, *ss.cache, subdiv_ccg, grids, positions, translations);
 
   scale_translations(translations, tls.factors);
-  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, grids, subdiv_ccg);
@@ -108,25 +117,32 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
+  const StrokeCache& cache = *ss.cache;
 
-  const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
-  const MutableSpan<float3> positions = gather_bmesh_positions(verts, tls.positions);
+  const Set<BMVert*, 0>& verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
 
-  calc_factors_common_bmesh(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
+  tls.factors.resize(verts.size());
+  const MutableSpan<float> factors = tls.factors;
+  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  filter_region_clip_factors(ss, positions, factors);
+
+  if (brush.flag & BRUSH_FRONTFACE) {
+    calc_front_face(cache.view_normal_symm, verts, factors);
+  }
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   bmesh_sculpt_nodes_evaluate<float3>(depsgraph, object, *ss.cache, verts, positions, translations);
   scale_translations(translations, tls.factors);
-  scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, verts);
 }
 
-}  // namespace basic_cc
+}  // namespace barebone_cc
 
-void do_basic_brush(const Depsgraph &depsgraph,
+void do_barebone_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
                     const IndexMask &node_mask)

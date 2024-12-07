@@ -149,6 +149,7 @@ set(SRC
   sculpt_smooth.hh
   sculpt_undo.hh
 
+  brushes/barebone.cc
   brushes/basic.cc
   brushes/bmesh_topology_rake.cc
   brushes/clay.cc

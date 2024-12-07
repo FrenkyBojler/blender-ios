@@ -2110,6 +2110,8 @@ static float brush_strength(const Sculpt &sd,
       final_pressure = pow4f(pressure);
       overlap = (1.0f + overlap) / 2.0f;
       return 0.25f * alpha * flip * final_pressure * overlap * feather;
+    case SCULPT_BRUSH_TYPE_BAREBONE:
+      return alpha * pressure * overlap * feather;
     case SCULPT_BRUSH_TYPE_BASIC:
     case SCULPT_BRUSH_TYPE_DRAW:
     case SCULPT_BRUSH_TYPE_DRAW_SHARP:
@@ -3167,6 +3169,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
 
   /* Apply one type of brush action. */
   switch (brush.sculpt_brush_type) {
+    case SCULPT_BRUSH_TYPE_BAREBONE:
+      do_barebone_brush(depsgraph, sd, ob, node_mask);
+      break;
     case SCULPT_BRUSH_TYPE_BASIC:
       do_basic_brush(depsgraph, sd, ob, node_mask);
       break;
@@ -3644,6 +3649,8 @@ static const char *sculpt_brush_type_name(const Sculpt &sd)
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   switch (eBrushSculptType(brush.sculpt_brush_type)) {
+    case SCULPT_BRUSH_TYPE_BAREBONE:
+      return "Barebone Brush";
     case SCULPT_BRUSH_TYPE_BASIC:
       return "Basic Brush";
     case SCULPT_BRUSH_TYPE_DRAW:

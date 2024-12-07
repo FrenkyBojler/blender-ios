@@ -447,6 +447,7 @@ typedef enum eBrushSculptType {
   SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER = 31,
   SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR = 32,
   SCULPT_BRUSH_TYPE_BASIC = 33,
+  SCULPT_BRUSH_TYPE_BAREBONE = 34,
 } eBrushSculptType;
 
 /* Brush.curves_sculpt_brush_type. */
