@@ -1906,7 +1906,7 @@ static void calc_erase_displacement_filter(const Depsgraph &depsgraph,
         subdiv_ccg, ss.filter_cache->limit_surface_co.as_span(), grids, tls.new_positions);
     tls.translations.resize(positions.size());
     const MutableSpan<float3> translations = tls.translations;
-    translations_from_new_positions(new_positions, orig_data.positions, translations);
+    translations_from_new_positions(new_positions, positions, translations);
     scale_translations(translations, factors);
 
     zero_disabled_axis_components(*ss.filter_cache, translations);
