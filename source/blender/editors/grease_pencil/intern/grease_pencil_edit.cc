@@ -358,22 +358,22 @@ static void grease_pencil_simplify_ui(bContext *C, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, &ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, &ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const SimplifyMode mode = SimplifyMode(RNA_enum_get(op->ptr, "mode"));
 
   switch (mode) {
     case SimplifyMode::FIXED:
-      uiItemR(layout, &ptr, "steps", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, &ptr, "steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SimplifyMode::ADAPTIVE:
-      uiItemR(layout, &ptr, "factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, &ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SimplifyMode::SAMPLE:
-      uiItemR(layout, &ptr, "length", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, &ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SimplifyMode::MERGE:
-      uiItemR(layout, &ptr, "distance", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, &ptr, "distance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     default:
       break;
@@ -1804,9 +1804,7 @@ static int grease_pencil_move_to_layer_exec(bContext *C, wmOperator *op)
       curves_src.remove_curves(selected_strokes, {});
       drawing_dst.tag_topology_changed();
     }
-    else if (Drawing *drawing_dst = grease_pencil.get_editable_drawing_at(layer_dst,
-                                                                          info.frame_number))
-    {
+    else if (Drawing *drawing_dst = grease_pencil.get_drawing_at(layer_dst, info.frame_number)) {
       /* Append geometry to drawing in target layer. */
       bke::CurvesGeometry selected_elems = curves_copy_curve_selection(
           curves_src, selected_strokes, {});
@@ -1848,6 +1846,15 @@ static int grease_pencil_move_to_layer_invoke(bContext *C, wmOperator *op, const
     return WM_operator_props_popup_confirm_ex(
         C, op, event, IFACE_("Move to New Layer"), IFACE_("Create"));
   }
+
+  /* Show the move menu if this operator is invoked from operator search without any property
+   * pre-set. */
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target_layer_name");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    WM_menu_name_call(C, "GREASE_PENCIL_MT_move_to_layer", 0);
+    return OPERATOR_FINISHED;
+  }
+
   return grease_pencil_move_to_layer_exec(C, op);
 }
 
@@ -1923,13 +1930,18 @@ static Object *duplicate_grease_pencil_object(Main *bmain,
   Base *base_new = object::add_duplicate(bmain, scene, view_layer, base_prev, dupflag);
   Object *object_dst = base_new->object;
   object_dst->mode = OB_MODE_OBJECT;
-  object_dst->data = BKE_grease_pencil_add(bmain, grease_pencil_src.id.name + 2);
+  GreasePencil *grease_pencil_dst = BKE_grease_pencil_add(bmain, grease_pencil_src.id.name + 2);
+  BKE_grease_pencil_copy_parameters(grease_pencil_src, *grease_pencil_dst);
+  object_dst->data = grease_pencil_dst;
 
   return object_dst;
 }
 
 static bke::greasepencil::Layer &find_or_create_layer_in_dst_by_name(
-    const int layer_index, const GreasePencil &grease_pencil_src, GreasePencil &grease_pencil_dst)
+    const int layer_index,
+    const GreasePencil &grease_pencil_src,
+    GreasePencil &grease_pencil_dst,
+    Vector<int> &src_to_dst_layer_indices)
 {
   using namespace bke::greasepencil;
 
@@ -1941,14 +1953,8 @@ static bke::greasepencil::Layer &find_or_create_layer_in_dst_by_name(
 
   /* If the layer can't be found in `grease_pencil_dst` by name add a new layer. */
   Layer &new_layer = grease_pencil_dst.add_layer(layer_src.name());
-
-  /* Transfer Layer attributes. */
-  bke::gather_attributes(grease_pencil_src.attributes(),
-                         bke::AttrDomain::Layer,
-                         bke::AttrDomain::Layer,
-                         {},
-                         Span({layer_index}),
-                         grease_pencil_dst.attributes_for_write());
+  BKE_grease_pencil_copy_layer_parameters(layer_src, new_layer);
+  src_to_dst_layer_indices.append(layer_index);
 
   return new_layer;
 }
@@ -1971,6 +1977,7 @@ static bool grease_pencil_separate_selected(bContext &C,
   /* Iterate through all the drawings at current scene frame. */
   const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings(scene,
                                                                              grease_pencil_src);
+  Vector<int> src_to_dst_layer_indices;
   for (const MutableDrawingInfo &info : drawings_src) {
     bke::CurvesGeometry &curves_src = info.drawing.strokes_for_write();
     IndexMaskMemory memory;
@@ -1981,10 +1988,9 @@ static bool grease_pencil_separate_selected(bContext &C,
 
     /* Insert Keyframe at current frame/layer. */
     Layer &layer_dst = find_or_create_layer_in_dst_by_name(
-        info.layer_index, grease_pencil_src, grease_pencil_dst);
+        info.layer_index, grease_pencil_src, grease_pencil_dst, src_to_dst_layer_indices);
 
     Drawing *drawing_dst = grease_pencil_dst.insert_frame(layer_dst, info.frame_number);
-    /* TODO: Can we assume the insert never fails? */
     BLI_assert(drawing_dst != nullptr);
 
     /* Copy strokes to new CurvesGeometry. */
@@ -1999,7 +2005,22 @@ static bool grease_pencil_separate_selected(bContext &C,
   }
 
   if (changed) {
-    grease_pencil_dst.set_active_layer(nullptr);
+    /* Transfer layer attributes. */
+    bke::gather_attributes(grease_pencil_src.attributes(),
+                           bke::AttrDomain::Layer,
+                           bke::AttrDomain::Layer,
+                           {},
+                           src_to_dst_layer_indices.as_span(),
+                           grease_pencil_dst.attributes_for_write());
+
+    /* Set the active layer in the target object. */
+    if (grease_pencil_src.has_active_layer()) {
+      const Layer &active_layer_src = *grease_pencil_src.get_active_layer();
+      TreeNode *active_layer_dst = grease_pencil_dst.find_node_by_name(active_layer_src.name());
+      if (active_layer_dst && active_layer_dst->is_layer()) {
+        grease_pencil_dst.set_active_layer(&active_layer_dst->as_layer());
+      }
+    }
 
     /* Add object materials to target object. */
     BKE_object_material_array_assign(&bmain,
@@ -2037,8 +2058,9 @@ static bool grease_pencil_separate_layer(bContext &C,
     Object *object_dst = duplicate_grease_pencil_object(
         &bmain, &scene, &view_layer, &base_prev, grease_pencil_src);
     GreasePencil &grease_pencil_dst = *static_cast<GreasePencil *>(object_dst->data);
+    Vector<int> src_to_dst_layer_indices;
     Layer &layer_dst = find_or_create_layer_in_dst_by_name(
-        layer_i, grease_pencil_src, grease_pencil_dst);
+        layer_i, grease_pencil_src, grease_pencil_dst, src_to_dst_layer_indices);
 
     /* Iterate through all the drawings at current frame. */
     const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings_from_layer(
@@ -2075,6 +2097,14 @@ static bool grease_pencil_separate_layer(bContext &C,
       changed = true;
     }
 
+    /* Transfer layer attributes. */
+    bke::gather_attributes(grease_pencil_src.attributes(),
+                           bke::AttrDomain::Layer,
+                           bke::AttrDomain::Layer,
+                           {},
+                           src_to_dst_layer_indices.as_span(),
+                           grease_pencil_dst.attributes_for_write());
+
     remove_unused_materials(&bmain, object_dst);
 
     DEG_id_tag_update(&grease_pencil_dst.id, ID_RECALC_GEOMETRY);
@@ -2105,6 +2135,7 @@ static bool grease_pencil_separate_material(bContext &C,
 
     Object *object_dst = duplicate_grease_pencil_object(
         &bmain, &scene, &view_layer, &base_prev, grease_pencil_src);
+    GreasePencil &grease_pencil_dst = *static_cast<GreasePencil *>(object_dst->data);
 
     /* Add object materials. */
     BKE_object_material_array_assign(&bmain,
@@ -2116,6 +2147,7 @@ static bool grease_pencil_separate_material(bContext &C,
     /* Iterate through all the drawings at current scene frame. */
     const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings(scene,
                                                                                grease_pencil_src);
+    Vector<int> src_to_dst_layer_indices;
     for (const MutableDrawingInfo &info : drawings_src) {
       bke::CurvesGeometry &curves_src = info.drawing.strokes_for_write();
       IndexMaskMemory memory;
@@ -2125,11 +2157,9 @@ static bool grease_pencil_separate_material(bContext &C,
         continue;
       }
 
-      GreasePencil &grease_pencil_dst = *static_cast<GreasePencil *>(object_dst->data);
-
       /* Insert Keyframe at current frame/layer. */
       Layer &layer_dst = find_or_create_layer_in_dst_by_name(
-          info.layer_index, grease_pencil_src, grease_pencil_dst);
+          info.layer_index, grease_pencil_src, grease_pencil_dst, src_to_dst_layer_indices);
 
       Drawing *drawing_dst = grease_pencil_dst.insert_frame(layer_dst, info.frame_number);
       /* TODO: Can we assume the insert never fails? */
@@ -2141,13 +2171,22 @@ static bool grease_pencil_separate_material(bContext &C,
 
       info.drawing.tag_topology_changed();
       drawing_dst->tag_topology_changed();
-      DEG_id_tag_update(&grease_pencil_dst.id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &grease_pencil_dst);
 
       changed = true;
     }
 
+    /* Transfer layer attributes. */
+    bke::gather_attributes(grease_pencil_src.attributes(),
+                           bke::AttrDomain::Layer,
+                           bke::AttrDomain::Layer,
+                           {},
+                           src_to_dst_layer_indices.as_span(),
+                           grease_pencil_dst.attributes_for_write());
+
     remove_unused_materials(&bmain, object_dst);
+
+    DEG_id_tag_update(&grease_pencil_dst.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &grease_pencil_dst);
   }
 
   if (changed) {
@@ -2835,7 +2874,8 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
 
   ViewDepths *view_depths = nullptr;
   if (mode == ReprojectMode::Surface) {
-    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, &view_depths);
+    ED_view3d_depth_override(
+        depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &view_depths);
   }
 
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
@@ -2890,8 +2930,14 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
 
       const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      /* Pass in a copy of view_depths, DrawingPlacement fully owns (and frees) them. */
+      ViewDepths *view_depths_copy = nullptr;
+      if (view_depths != nullptr) {
+        view_depths_copy = static_cast<ViewDepths *>(MEM_dupallocN(view_depths));
+        view_depths_copy->depths = static_cast<float *>(MEM_dupallocN(view_depths->depths));
+      }
       const DrawingPlacement drawing_placement(
-          scene, *region, *v3d, *object, &layer, mode, offset, view_depths);
+          scene, *region, *v3d, *object, &layer, mode, offset, view_depths_copy);
 
       MutableSpan<float3> positions = curves.positions_for_write();
       points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
@@ -2901,6 +2947,10 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
 
       changed.store(true, std::memory_order_relaxed);
     });
+  }
+
+  if (view_depths != nullptr) {
+    ED_view3d_depths_free(view_depths);
   }
 
   if (mode == ReprojectMode::Surface) {
@@ -2926,14 +2976,14 @@ static void grease_pencil_reproject_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
   row = uiLayoutRow(layout, true);
-  uiItemR(row, op->ptr, "type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (type == ReprojectMode::Surface) {
     row = uiLayoutRow(layout, true);
-    uiItemR(row, op->ptr, "offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(row, op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   row = uiLayoutRow(layout, true);
-  uiItemR(row, op->ptr, "keep_original", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void GREASE_PENCIL_OT_reproject(wmOperatorType *ot)
