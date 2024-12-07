@@ -268,6 +268,9 @@ struct StrokeCache {
   float3 sculpt_normal;
   float3 sculpt_normal_symm;
 
+  /* The center of the brush plane. For non-planar brushes, this coincides with the cursor location */
+  float3 sculpt_center_symm;
+
   /* Used for area texture mode, local_mat gets calculated by
    * calc_brush_local_mat() and used in sculpt_apply_texture().
    * Transforms from model-space coords to local area coords.

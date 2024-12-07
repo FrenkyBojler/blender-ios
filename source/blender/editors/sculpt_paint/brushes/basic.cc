@@ -136,8 +136,27 @@ void do_basic_brush(const Depsgraph &depsgraph,
                     Object &object,
                     const IndexMask &node_mask)
 {
+  SculptSession& ss = *object.sculpt;
+
+  if (math::is_zero(ss.cache->grab_delta_symm)) {
+    return;
+  }
+
   bke::pbvh::Tree& pbvh = *bke::object::pbvh_get(object);
   const Brush& brush = *BKE_paint_brush_for_read(&sd.paint);
+
+  float3 plane_normal;
+  float3 plane_center;
+
+  calc_brush_plane(depsgraph, brush, object, node_mask, plane_normal, plane_center);
+  SCULPT_tilt_apply_to_normal(plane_normal, ss.cache, brush.tilt_strength_factor);
+
+  if (brush.sculpt_plane != SCULPT_DISP_DIR_AREA || (brush.flag & BRUSH_ORIGINAL_NORMAL)) {
+    plane_normal = calc_area_normal(depsgraph, brush, object, node_mask).value_or(float3(0));
+  }
+
+  ss.cache->sculpt_normal_symm = plane_normal;
+  ss.cache->sculpt_center_symm = plane_center;
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
