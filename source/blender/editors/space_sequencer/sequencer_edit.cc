@@ -362,8 +362,6 @@ static int sequencer_snap_exec(bContext *C, wmOperator *op)
 
   /* Check meta-strips. */
   LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-    // Ernst Ellert: i use the sequencer_view_preview_only_poll to detemine if in preview mode or
-    // seqencer
     if (seq->flag & SELECT && !SEQ_transform_is_locked(channels, seq) &&
         SEQ_transform_sequence_can_be_translated(seq) && sequencer_view_preview_only_poll(C) == false)
     {
