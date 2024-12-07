@@ -76,6 +76,8 @@
 #include "UI_resources.hh"
 #include <limits>
 
+#include <iostream>
+
 namespace blender::ed::greasepencil {
 
 /* -------------------------------------------------------------------- */
@@ -1182,35 +1184,75 @@ static void GREASE_PENCIL_OT_stroke_switch_direction(wmOperatorType *ot)
 static bke::CurvesGeometry set_start_point(const bke::CurvesGeometry &curves,
                                            const IndexMask &mask)
 {
+  std::cout << "\n\n##########set_start_point function begin#############\n";
+
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const VArray<bool> src_cyclic = curves.cyclic();
   Array<bool> start_set_points(curves.points_num());
+
+  // early exit here
+
   mask.to_bools(start_set_points.as_mutable_span());
 
   int curr_dst_point_id = 0;
   Array<int> dst_to_src_point(curves.points_num());
 
+  std::cout << "\ndst_to_src_point: ";
+  for (int i : curves.points_range()) {
+    std::cout << i << ": " << dst_to_src_point[i] << ", ";
+  }
+
   for (const int curve_i : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve_i];
     const Span<bool> curve_i_selected_points = start_set_points.as_span().slice(points);
-    int first_selected = curve_i_selected_points.first_index_try(true);
+    const int first_selected = curve_i_selected_points.first_index_try(true);
 
-    /* map 1:1 for points that aren't changing */
+    Array<int> dst_to_src_slice = dst_to_src_point.as_span().slice(points);
+
+    std::cout << "\n\ndst_to_src_slice inital: ";
+    for (int i : points) {
+      std::cout << i << ": " << dst_to_src_slice[i] << ", ";
+    }
+
+    array_utils::fill_index_range<int>(dst_to_src_slice, points.start());
+
+        /* map 1:1 for points that aren't changing */
     if (first_selected == -1 || src_cyclic[curve_i] == false) {
-      for (const int src_point : points) {
-        dst_to_src_point[curr_dst_point_id++] = src_point;
-      }
+
+      // dst_to_src_point[curr_dst_point_id++] = src_point;
+
       continue;
     }
 
-    /* Point shift logic */
+    /* oldPoint shift logic
     for (const int src_point : points.drop_front(first_selected)) {
       dst_to_src_point[curr_dst_point_id++] = src_point;
     }
 
     for (const int src_point : points.take_front(first_selected)) {
       dst_to_src_point[curr_dst_point_id++] = src_point;
+    } */
+
+    std::rotate(dst_to_src_slice.begin(),
+                dst_to_src_slice.begin() + first_selected,
+                dst_to_src_slice.end());
+
+    std::cout << "\n\ndst_to_src_slice rotated: ";
+    for (int i : points) {
+      std::cout << i << ": " << dst_to_src_slice[i] << ", ";
     }
+
+    array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
+
+    std::cout << "\n\ndst_to_src_point after " << curve_i << ": ";
+    for (int i : curves.points_range()) {
+      std::cout << i << ": " << dst_to_src_point[i] << ", ";
+    }
+  }
+
+  std::cout << "\ndst_to_src_point final state: ";
+  for (int i : curves.points_range()) {
+    std::cout << i << ": " << dst_to_src_point[i] << ", ";
   }
 
   /* New CurvesGeometry to copy to*/
@@ -1218,9 +1260,7 @@ static bke::CurvesGeometry set_start_point(const bke::CurvesGeometry &curves,
   BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &curves.vertex_group_names);
 
   /* Copy offsets */
-  MutableSpan<int> dst_offsets = dst_curves.offsets_for_write();
-  Span<int> src_offsets = curves.offsets();
-  array_utils::copy(src_offsets, dst_offsets);
+  array_utils::copy(curves.offsets(), dst_curves.offsets_for_write());
 
   /* Attribute accessors for copying */
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
@@ -1250,7 +1290,7 @@ static int grease_pencil_set_start_point_exec(bContext *C, wmOperator *)
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
-  bool changed = false;
+  std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
@@ -1282,7 +1322,7 @@ static void GREASE_PENCIL_OT_set_start_point(wmOperatorType *ot)
 
   /* Callbacks */
   ot->exec = grease_pencil_set_start_point_exec;
-  ot->poll = editable_grease_pencil_poll;
+  ot->poll = editable_grease_pencil_point_selection_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
