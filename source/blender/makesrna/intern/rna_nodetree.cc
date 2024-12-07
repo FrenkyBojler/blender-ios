@@ -2450,8 +2450,9 @@ static int rna_Node_color_tag_get(PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
 
-  const blender::bke::NodeClass nclass = node->typeinfo->ui_class == nullptr ? node->typeinfo->nclass :
-                                                           node->typeinfo->ui_class(node);
+  const blender::bke::NodeClass nclass = node->typeinfo->ui_class == nullptr ?
+                                             node->typeinfo->nclass :
+                                             node->typeinfo->ui_class(node);
 
   switch (nclass) {
     case blender::bke::NodeClass::Input:
