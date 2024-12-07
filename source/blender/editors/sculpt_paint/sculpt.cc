@@ -3532,18 +3532,7 @@ static void do_brush_action(const Sculpt &sd,
       break;
     case SCULPT_TOOL_SMOOTH:
       if (brush.smooth_deform_type == BRUSH_SMOOTH_DEFORM_LAPLACIAN) {
-        /* NOTE: The enhance brush needs to initialize its state on the first brush step. The
-         * stroke strength can become 0 during the stroke, but it can not change sign (the sign is
-         * determined in the beginning of the stroke. So here it is important to not switch to
-         * enhance brush in the middle of the stroke. */
-        if (ss.cache->bstrength < 0.0f) {
-          /* Invert mode, intensify details. */
-          do_enhance_details_brush(depsgraph, sd, ob, node_mask);
-        }
-        else {
-          do_smooth_brush(
-              depsgraph, sd, ob, node_mask, std::clamp(ss.cache->bstrength, 0.0f, 1.0f));
-        }
+        smooth::do_smooth_brush(sd, ob, nodes);
       }
       else if (brush.smooth_deform_type == BRUSH_SMOOTH_DEFORM_SURFACE) {
         smooth::do_surface_smooth_brush(sd, ob, nodes);
