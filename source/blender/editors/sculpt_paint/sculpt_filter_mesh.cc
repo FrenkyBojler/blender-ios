@@ -2142,7 +2142,12 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay
   const IndexMask &node_mask = ss.filter_cache->node_mask;
   switch (filter_type) {
     case MeshFilterType::Smooth:
-      calc_smooth_filter(depsgraph, sd, strength, ob, node_mask, is_replay && ss.filter_cache->iteration_count == 0);
+      calc_smooth_filter(depsgraph,
+                         sd,
+                         strength,
+                         ob,
+                         node_mask,
+                         is_replay && ss.filter_cache->iteration_count == 0);
       break;
     case MeshFilterType::Scale:
       calc_scale_filter(depsgraph, sd, strength, ob, node_mask);
@@ -2329,7 +2334,6 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
   else {
     undo::restore_position_from_undo_step(*depsgraph, ob);
   }
-
 
   float2 prev_mval(float(event->prev_press_xy[0]), float(event->prev_press_xy[1]));
   float2 mval(float(event->xy[0]), float(event->xy[1]));
