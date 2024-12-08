@@ -437,16 +437,16 @@ constexpr StringRefNull::StringRefNull() : StringRefBase("", 0) {}
 constexpr StringRefNull::StringRefNull(const char *str, const int64_t size)
     : StringRefBase(str, size)
 {
-  BLI_assert(int64_t(std::char_traits<char>::length(str)) == size);
+  BLI_assert(str && int64_t(std::char_traits<char>::length(str)) == size);
 }
 
 /**
  * Construct a StringRefNull from a null terminated c-string. The pointer must not point to
  * NULL.
  */
-inline StringRefNull::StringRefNull(const char *str) : StringRefBase(str, int64_t(strlen(str)))
+inline StringRefNull::StringRefNull(const char *str) : StringRefBase(str?str:"",str? int64_t(strlen(str)):0)
 {
-  BLI_assert(str != nullptr);
+  BLI_assert(data_ != nullptr);
   BLI_assert(data_[size_] == '\0');
 }
 
