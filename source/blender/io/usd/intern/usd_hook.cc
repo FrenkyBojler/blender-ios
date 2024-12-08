@@ -451,15 +451,19 @@ class OnImportInvoker : public USDHookInvoker {
 
 class CanImportMaterialInvoker : public USDHookInvoker {
  private:
-  USDSceneImportContext hook_context_;
+  USDMaterialImportContext hook_context_;
   pxr::UsdShadeMaterial usd_material_;
   bool result_;
 
  public:
   CanImportMaterialInvoker(pxr::UsdStageRefPtr stage,
                            const pxr::UsdShadeMaterial &usd_material,
+                           const USDImportParams &import_params,
                            ReportList *reports)
-      : USDHookInvoker(reports), hook_context_(stage), usd_material_(usd_material), result_(false)
+      : USDHookInvoker(reports),
+        hook_context_(stage, import_params, reports),
+        usd_material_(usd_material),
+        result_(false)
   {
   }
 
@@ -561,13 +565,14 @@ void call_import_hooks(pxr::UsdStageRefPtr stage, ReportList *reports)
 
 bool have_material_import_hook(pxr::UsdStageRefPtr stage,
                                const pxr::UsdShadeMaterial &usd_material,
+                               const USDImportParams &import_params,
                                ReportList *reports)
 {
   if (hook_list().empty()) {
     return false;
   }
 
-  CanImportMaterialInvoker can_import(stage, usd_material, reports);
+  CanImportMaterialInvoker can_import(stage, usd_material, import_params, reports);
   can_import.call();
 
   return can_import.result();

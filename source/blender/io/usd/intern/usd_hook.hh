@@ -35,6 +35,7 @@ void call_import_hooks(pxr::UsdStageRefPtr stage, ReportList *reports);
 /** Returns true if there is a registered #USDHook class that can convert the given material. */
 bool have_material_import_hook(pxr::UsdStageRefPtr stage,
                                const pxr::UsdShadeMaterial &usd_material,
+                               const USDImportParams &import_params,
                                ReportList *reports);
 
 /** Call the 'on_material_import' hook functions defined in the registered #USDHook classes.

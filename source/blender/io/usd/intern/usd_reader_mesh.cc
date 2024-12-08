@@ -125,7 +125,7 @@ static void assign_materials(Main *bmain,
         continue;
       }
 
-      bool have_import_hook = have_material_import_hook(stage, usd_mat, reports);
+      bool have_import_hook = have_material_import_hook(stage, usd_mat, params, reports);
 
       /* Add the Blender material. If we have an import hook which can handle this material
        * we don't import USD Preview Surface shaders. */
