@@ -28,6 +28,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_span.hh"
+#include "BLI_vector_set.hh"
 
 #include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
@@ -436,7 +437,7 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
   mesh_prim_.GetCreaseIndicesAttr().Get(&crease_indices, motionSampleTime);
   mesh_prim_.GetCreaseSharpnessesAttr().Get(&crease_sharpness, motionSampleTime);
 
-  /* Prevent the creation of the `crease_vert` attribute if we have no data. */
+  /* Prevent the creation of the `crease_edge` attribute if we have no data. */
   if (crease_lengths.empty() || crease_indices.empty() || crease_sharpness.empty()) {
     return;
   }
@@ -448,12 +449,18 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
   }
 
   /* Build mapping from vert pairs to edge index. */
+  using EdgeMap = VectorSet<OrderedEdge,
+                            DefaultProbingStrategy,
+                            DefaultHash<OrderedEdge>,
+                            DefaultEquality<OrderedEdge>,
+                            SimpleVectorSetSlot<OrderedEdge, int>,
+                            GuardedAllocator>;
   Span<int2> edges = mesh->edges();
-  Map<OrderedEdge, int> edge_hash;
-  edge_hash.reserve(edges.size());
+  EdgeMap edge_map;
+  edge_map.reserve(edges.size());
 
   for (const int i : edges.index_range()) {
-    edge_hash.add(edges[i], i);
+    edge_map.add(edges[i]);
   }
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
@@ -480,12 +487,12 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
     for (size_t j = 0; j < length - 1; j++) {
       const int v1 = crease_indices[index_start + j];
       const int v2 = crease_indices[index_start + j + 1];
-      const int *index = edge_hash.lookup_ptr({v1, v2});
-      if (!index) {
+      const int edge_i = edge_map.index_of_try({v1, v2});
+      if (edge_i < 0) {
         continue;
       }
 
-      creases.span[*index] = sharpness;
+      creases.span[edge_i] = sharpness;
     }
 
     index_start += length;
