@@ -1202,20 +1202,17 @@ static bke::CurvesGeometry set_start_point(const bke::CurvesGeometry &curves,
       const Span<bool> curve_i_selected_points = start_set_points.as_span().slice(points);
       const int first_selected = curve_i_selected_points.first_index_try(true);
 
-      Array<int> dst_to_src_slice = dst_to_src_point.as_span().slice(points);
+      MutableSpan<int> dst_to_src_slice = dst_to_src_point.as_mutable_span().slice(points);
 
       array_utils::fill_index_range<int>(dst_to_src_slice, points.start());
 
       if (first_selected == -1 || src_cyclic[curve_i] == false) {
-        array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
         continue;
       }
 
       std::rotate(dst_to_src_slice.begin(),
                   dst_to_src_slice.begin() + first_selected,
                   dst_to_src_slice.end());
-
-      array_utils::scatter<int>(dst_to_src_slice, points, dst_to_src_point);
     }
   });
 
