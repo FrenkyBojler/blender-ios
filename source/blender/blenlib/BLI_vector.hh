@@ -567,7 +567,7 @@ class Vector {
   }
 
   /**
-   * Moves the elements of another vector tho the end of this vector.
+   * Moves the elements of another vector to the end of this vector.
    *
    * This can be used in vectors that manages resources, allowing acquiring resources from another
    * vector, preventing shared ownership of managed resources.
@@ -575,15 +575,10 @@ class Vector {
   template<int64_t OtherInlineBufferCapacity>
   void move_elements_from(Vector<T, OtherInlineBufferCapacity, Allocator> &other)
   {
-    if (this == &other || other.is_empty()) {
+    if (this == &other) {
       return;
     }
-    this->reserve(this->size() + other.size());
-    BLI_assert(begin_ + other.size() <= capacity_end_);
-    uninitialized_move_n(other.begin(), other.size(), end_);
-    end_ += other.size();
-    UPDATE_VECTOR_SIZE(this);
-
+    this->extend(std::make_move_iterator(other.begin()), std::make_move_iterator(other.end()));
     other.clear();
   }
 
@@ -672,7 +667,12 @@ class Vector {
     }
 
     try {
-      std::uninitialized_copy_n(first, insert_amount, begin_ + insert_index);
+      if constexpr (std::is_rvalue_reference_v<decltype(*first)>) {
+        std::uninitialized_move_n(first, insert_amount, begin_ + insert_index);
+      }
+      else {
+        std::uninitialized_copy_n(first, insert_amount, begin_ + insert_index);
+      }
     }
     catch (...) {
       /* Destruct all values that have been moved. */
