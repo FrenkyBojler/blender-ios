@@ -7,7 +7,7 @@
  * https://colinbarrebrisebois.com/2017/04/18/hexagonal-bokeh-blur-revisited-part-1-basic-3-pass-version/
  * Converted and adapted from HLSL to GLSL by Clément Foucault
  */
- 
+
 #include "gpu_shader_math_vector_lib.glsl"
 
 #define dof_aperturesize dofParams.x

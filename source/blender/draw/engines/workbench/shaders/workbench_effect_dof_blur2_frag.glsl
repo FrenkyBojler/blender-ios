@@ -7,7 +7,7 @@
  * https://colinbarrebrisebois.com/2017/04/18/hexagonal-bokeh-blur-revisited-part-1-basic-3-pass-version/
  * Converted and adapted from HLSL to GLSL by Clément Foucault
  */
- 
+
 #include "infos/workbench_effect_dof_info.hh"
 
 #include "draw_view_lib.glsl"
@@ -37,39 +37,39 @@ void main()
    * and can bleed a bit. */
   float rad = clamp(coc - 9.0, 0.0, 1.0);
 
-#  define vec vec4
-#  define toVec(x) x.rgba
+#define vec vec4
+#define toVec(x) x.rgba
 
-#  define s2(a, b) \
-    temp = a; \
-    a = min(a, b); \
-    b = max(temp, b);
-#  define mn3(a, b, c) \
-    s2(a, b); \
-    s2(a, c);
-#  define mx3(a, b, c) \
-    s2(b, c); \
-    s2(a, c);
+#define s2(a, b) \
+  temp = a; \
+  a = min(a, b); \
+  b = max(temp, b);
+#define mn3(a, b, c) \
+  s2(a, b); \
+  s2(a, c);
+#define mx3(a, b, c) \
+  s2(b, c); \
+  s2(a, c);
 
-#  define mnmx3(a, b, c) \
-    mx3(a, b, c); \
-    s2(a, b); /* 3 exchanges */
-#  define mnmx4(a, b, c, d) \
-    s2(a, b); \
-    s2(c, d); \
-    s2(a, c); \
-    s2(b, d); /* 4 exchanges */
-#  define mnmx5(a, b, c, d, e) \
-    s2(a, b); \
-    s2(c, d); \
-    mn3(a, c, e); \
-    mx3(b, d, e); /* 6 exchanges */
-#  define mnmx6(a, b, c, d, e, f) \
-    s2(a, d); \
-    s2(b, e); \
-    s2(c, f); \
-    mn3(a, b, c); \
-    mx3(d, e, f); /* 7 exchanges */
+#define mnmx3(a, b, c) \
+  mx3(a, b, c); \
+  s2(a, b); /* 3 exchanges */
+#define mnmx4(a, b, c, d) \
+  s2(a, b); \
+  s2(c, d); \
+  s2(a, c); \
+  s2(b, d); /* 4 exchanges */
+#define mnmx5(a, b, c, d, e) \
+  s2(a, b); \
+  s2(c, d); \
+  mn3(a, c, e); \
+  mx3(b, d, e); /* 6 exchanges */
+#define mnmx6(a, b, c, d, e, f) \
+  s2(a, d); \
+  s2(b, e); \
+  s2(c, f); \
+  mn3(a, b, c); \
+  mx3(d, e, f); /* 7 exchanges */
 
   vec v[9];
 

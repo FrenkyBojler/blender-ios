@@ -21,7 +21,6 @@ FRAGMENT_SHADER_CREATE_INFO(workbench_effect_dof_downsample)
  * Custom COC aware down-sampling. Quarter res pass.
  */
 
-
 void main()
 {
   vec4 texel = vec4(gl_FragCoord.xyxy) * 2.0 + vec4(0.0, 0.0, 1.0, 1.0);
