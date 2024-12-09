@@ -455,7 +455,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
     IndexMaskMemory memory;
     const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
         *ob, info.drawing, memory);
-    const Vector<IndexMask> shapes = info.drawing.shapes(memory);
+    const OffsetIndices<int> shapes = info.drawing.shapes();
 
     /* Precompute all the triangle and vertex counts.
      * In case the drawing should not be rendered, we need to compute the offset where the next
@@ -465,19 +465,19 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
     int total_num_triangles = 0;
     int total_num_vertices = 0;
     visible_shapes.foreach_index([&](const int shape_index) {
-      const IndexMask &shape = shapes[shape_index];
+      const IndexRange shape = shapes[shape_index];
 
       const int num_stroke_triangles = triangle_offsets[shape_index].size();
       num_triangles_per_shape[shape_index] = num_stroke_triangles;
       total_num_triangles += num_stroke_triangles;
 
-      shape.foreach_index([&](const int curve_i) {
+      for (const int curve_i : shape) {
         const IndexRange points = points_by_curve[curve_i];
         const int num_stroke_vertices = (points.size() +
                                          int(cyclic[curve_i] && (points.size() >= 3)));
         num_vertices_per_stroke[curve_i] = num_stroke_vertices;
         total_num_vertices += num_stroke_vertices;
-      });
+      };
     });
 
     bool is_layer_used_as_mask = false;
