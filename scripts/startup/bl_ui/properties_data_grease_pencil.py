@@ -151,11 +151,12 @@ class GreasePencil_LayerDisplayPanel:
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
 
         grease_pencil = context.grease_pencil
         layer = grease_pencil.layers.active
 
-        layout.prop(layer, "channel_color", text="Channel color")
+        layout.prop(layer, "channel_color", text="Channel Color")
 
 
 class GREASE_PENCIL_MT_layer_mask_add(Menu):

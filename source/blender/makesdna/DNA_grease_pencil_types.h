@@ -261,7 +261,7 @@ typedef struct GreasePencilLayerTreeNode {
   int8_t type;
   char _pad[7];
   /**
-   * Color tag.
+   * Channel color for dopesheet.
    */
   float color[3];
   /**
@@ -313,7 +313,6 @@ typedef struct GreasePencilLayer {
    */
   float translation[3], rotation[3], scale[3];
   char _pad3[4];
-
   /** Name of the view layer used to filter render output. */
   char *viewlayername;
   /**
