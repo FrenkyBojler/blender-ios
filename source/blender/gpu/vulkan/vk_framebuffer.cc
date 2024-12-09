@@ -38,9 +38,9 @@ VKFrameBuffer::VKFrameBuffer(const char *name)
 
 VKFrameBuffer::~VKFrameBuffer()
 {
-  VKContext &context = *VKContext::get();
-  if (context.active_framebuffer_get() == this) {
-    context.deactivate_framebuffer();
+  VKContext *context = VKContext::get();
+  if (context && context->active_framebuffer_get() == this) {
+    context->deactivate_framebuffer();
   }
   render_pass_free();
 }
@@ -940,8 +940,12 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
 
 void VKFrameBuffer::rendering_ensure(VKContext &context)
 {
-  if (is_rendering_) {
+  if (!dirty_state_ && is_rendering_) {
     return;
+  }
+
+  if (is_rendering_) {
+    rendering_end(context);
   }
 
 #ifndef NDEBUG
