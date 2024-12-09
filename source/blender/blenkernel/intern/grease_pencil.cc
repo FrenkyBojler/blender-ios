@@ -395,6 +395,7 @@ OffsetIndices<int> Drawing::shapes() const
 
     r_offsets.clear_and_shrink();
 
+    /* Just set to something that is not the first element. */
     int last = shape_ids[0] - 1;
     for (const int curve_i : curves.curves_range()) {
       if (shape_ids[curve_i] != last) {
@@ -517,6 +518,7 @@ static bool check_valid_shape(Span<float2> projverts, const OffsetIndices<int> p
                 }
               }
             }
+            return false;
           },
           std::logical_or<bool>()))
   {
