@@ -14,6 +14,8 @@
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
+#include "DNA_action_defaults.h"
+#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
@@ -109,13 +111,6 @@ static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
   }
 }
 
-struct ActionUserInfo {
-  ID *id;
-  blender::animrig::slot_handle_t *slot_handle;
-  bAction **action_ptr_ptr;
-  char *slot_name;
-};
-
 static void convert_action_in_place(blender::animrig::Action &action)
 {
   using namespace blender::animrig;
@@ -128,6 +123,10 @@ static void convert_action_in_place(blender::animrig::Action &action)
    * so we don't depend on esoteric behavior in `slot_add()`. */
   const int16_t idtype = action.idroot;
   action.idroot = 0;
+
+  /* Initialize the Action's last_slot_handle field to its default value, before
+   * we create a new slot. */
+  action.last_slot_handle = DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE;
 
   Slot &slot = action.slot_add();
   slot.idtype = idtype;
@@ -179,6 +178,14 @@ static void convert_action_in_place(blender::animrig::Action &action)
 static void version_legacy_actions_to_layered(Main *bmain)
 {
   using namespace blender::animrig;
+
+  struct ActionUserInfo {
+    ID *id;
+    slot_handle_t *slot_handle;
+    bAction **action_ptr_ptr;
+    char *slot_name;
+  };
+
   blender::Map<bAction *, blender::Vector<ActionUserInfo>> action_users;
   LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
     Action &action = dna_action->wrap();
@@ -188,54 +195,37 @@ static void version_legacy_actions_to_layered(Main *bmain)
     action_users.add(dna_action, {});
   }
 
+  auto callback = [&](ID &animated_id,
+                      bAction *&action_ptr_ref,
+                      slot_handle_t &slot_handle_ref,
+                      char *slot_name) -> bool {
+    blender::Vector<ActionUserInfo> *action_user_vector = action_users.lookup_ptr(action_ptr_ref);
+    /* Only actions that need to be converted are in this map. */
+    if (!action_user_vector) {
+      return true;
+    }
+    ActionUserInfo user_info;
+    user_info.id = &animated_id;
+    user_info.action_ptr_ptr = &action_ptr_ref;
+    user_info.slot_handle = &slot_handle_ref;
+    user_info.slot_name = slot_name;
+    action_user_vector->append(user_info);
+    return true;
+  };
+
   ID *id;
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    auto callback = [&](ID &animated_id,
-                        bAction *&action_ptr_ref,
-                        slot_handle_t &slot_handle_ref,
-                        char *slot_name) -> bool {
-      blender::Vector<ActionUserInfo> *action_user_vector = action_users.lookup_ptr(
-          action_ptr_ref);
-      /* Only actions that need to be converted are in this map. */
-      if (!action_user_vector) {
-        return true;
-      }
-      ActionUserInfo user_info;
-      user_info.id = &animated_id;
-      user_info.action_ptr_ptr = &action_ptr_ref;
-      user_info.slot_handle = &slot_handle_ref;
-      user_info.slot_name = slot_name;
-      action_user_vector->append(user_info);
-      return true;
-    };
-
-    auto embedded_id_callback = [&](LibraryIDLinkCallbackData *cb_data) -> int {
-      ID *linked_id = *cb_data->id_pointer;
-
-      /* We only process embedded IDs with this callback. */
-      if (!linked_id || (linked_id->flag & ID_FLAG_EMBEDDED_DATA) == 0) {
-        return IDWALK_RET_STOP_RECURSION;
-      }
-
-      foreach_action_slot_use_with_references(*linked_id, callback);
-
-      return IDWALK_RET_NOP;
-    };
-
-    /* Process the main ID itself. */
+    /* Process the ID itself. */
     foreach_action_slot_use_with_references(*id, callback);
 
     /* Process embedded IDs, as these are not listed in bmain, but still can
-     * have their own Action+Slot. */
-    BKE_library_foreach_ID_link(
-        bmain,
-        id,
-        embedded_id_callback,
-        nullptr,
-        IDWALK_RECURSE | IDWALK_READONLY |
-            /* This is more about "we don't care" than "must be ignored". We don't pass an owner
-             * ID, and it's not used in the callback either, so don't bother looking it up.  */
-            IDWALK_IGNORE_MISSING_OWNER_ID);
+     * have their own Action+Slot. Unfortunately there is no generic looper
+     * for embedded IDs. At this moment the only animatable embedded ID is a
+     * node tree. */
+    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
+    if (node_tree) {
+      foreach_action_slot_use_with_references(node_tree->id, callback);
+    }
   }
   FOREACH_MAIN_ID_END;
 
@@ -5231,7 +5221,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 9)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
     LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
       blender::animrig::Action &action = dna_action->wrap();
       blender::animrig::foreach_fcurve_in_action(
@@ -5250,6 +5240,18 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_MAIN_ID_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 11)) {
+    /* #update_paint_modes_for_brush_assets() didn't handle image editor tools for some time. 4.3
+     * files saved during that period could have invalid tool references stored. */
+    LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
+      LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
+        if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
+          STRNCPY(tref->idname, "builtin.brush");
+        }
+      }
+    }
   }
 
   /* Always run this versioning; data is written with the legacy format which always needs to
