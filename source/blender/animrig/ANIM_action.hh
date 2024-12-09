@@ -210,7 +210,11 @@ class Action : public ::bAction {
   Slot &slot_add_for_id_type(ID_Type idtype);
 
   /**
-   * Create a new slot, named after the given ID, and limited to the ID's type.
+   * Create a new slot suitable for the ID's type.
+   *
+   * The slot will be named after `animated_id.adt.last_slot_identifier`, defaulting to the ID's
+   * name when that is not set. This is done so that toggling Actions works transparently, when
+   * toggling between `this` and the Action last assigned to the ID.
    *
    * Note that this assigns neither this Action nor the new Slot to the ID. This function
    * merely initializes the Slot itself to suitable values to start animating this ID.
@@ -1532,7 +1536,7 @@ void action_fcurve_move(Action &action_dst,
  *
  * If the F-Curves belonged to channel groups, the group membership also carries
  * over to the destination Channelbag. If groups with the same names don't
- * exist, they are created. \see blender::animrig::action_fcurve_detach
+ * exist, they are created. \see #blender::animrig::action_fcurve_detach
  *
  * The order of existing channel groups in the destination Channelbag are not
  * changed, and any new groups are placed after those in the order they appeared
