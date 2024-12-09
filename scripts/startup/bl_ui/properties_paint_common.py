@@ -1160,6 +1160,7 @@ def brush_settings_advanced(layout, context, brush, popover=False):
 
     if mode == 'SCULPT':
         layout.prop(brush, "sculpt_tool")
+        layout.prop(brush, "sculpt_brush_shape")
         layout.separator()
 
         capabilities = brush.sculpt_capabilities

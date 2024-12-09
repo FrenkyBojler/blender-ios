@@ -197,6 +197,12 @@ const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_brush_sculpt_shape_items[] = {
+    {SCULPT_BRUSH_SHAPE_SPHERE, "SPHERE", 0, "Sphere", ""},
+    {SCULPT_BRUSH_SHAPE_CUBE, "CUBE", 0, "Cube", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_brush_vertex_brush_type_items[] = {
     {VPAINT_BRUSH_TYPE_DRAW, "DRAW", 0, "Draw", ""},
     {VPAINT_BRUSH_TYPE_BLUR, "BLUR", 0, "Blur", ""},
@@ -2612,6 +2618,13 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   /** End per mode brush type properties. */
+
+  prop = RNA_def_property(srna, "sculpt_brush_shape", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "sculpt_brush_shape");
+  RNA_def_property_enum_items(prop, rna_enum_brush_sculpt_shape_items);
+  RNA_def_property_ui_text(prop, "Shape", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
+  RNA_def_property_update(prop, 0, "rna_Brush_update_and_reset_icon");
 
   prop = RNA_def_property(srna, "direction", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");

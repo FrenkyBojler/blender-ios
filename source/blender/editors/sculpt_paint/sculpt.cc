@@ -7605,4 +7605,63 @@ void filter_above_plane_factors(const Span<float3> positions,
   }
 }
 
+void calc_brush_radius_factors(const Brush& brush,
+  const float3& center,
+  const float radius,
+  const Span<int> verts,
+  const Span<float3> positions,
+  const MutableSpan<float> factors)
+{
+  const float radius_sq = radius * radius;
+
+  switch (brush.sculpt_brush_shape) {
+    case SCULPT_BRUSH_SHAPE_SPHERE:
+      for (const int i : verts.index_range()) {
+        const float distance_sq = math::distance_squared(positions[verts[i]], center);
+        if (distance_sq >= radius_sq) {
+          factors[i] = 0.0f;
+        }
+      }
+      break;
+    case SCULPT_BRUSH_SHAPE_CUBE:
+      for (const int i : verts.index_range()) {
+        const float3 delta = math::abs(positions[verts[i]] - center);
+
+        if (delta.x >= radius || delta.y >= radius || delta.z >= radius) {
+          factors[i] = 0.0f;
+        }
+      }
+      break;
+  }
+}
+
+void calc_brush_radius_factors(const Brush& brush,
+  const float3& center,
+  const float radius,
+  const Span<float3> positions,
+  const MutableSpan<float> factors)
+{
+  const float radius_sq = radius * radius;
+
+  switch (brush.sculpt_brush_shape) {
+    case SCULPT_BRUSH_SHAPE_SPHERE:
+      for (const int i : positions.index_range()) {
+        const float distance_sq = math::distance_squared(positions[i], center);
+        if (distance_sq >= radius_sq) {
+          factors[i] = 0.0f;
+        }
+      }
+      break;
+    case SCULPT_BRUSH_SHAPE_CUBE:
+      for (const int i : positions.index_range()) {
+        const float3 delta = math::abs(positions[i] - center);
+
+        if (delta.x >= radius || delta.y >= radius || delta.z >= radius) {
+          factors[i] = 0.0f;
+        }
+      }
+      break;
+  }
+}
+
 }  // namespace blender::ed::sculpt_paint

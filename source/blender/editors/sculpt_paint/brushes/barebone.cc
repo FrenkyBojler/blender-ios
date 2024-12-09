@@ -62,6 +62,10 @@ static void calc_faces(const Depsgraph &depsgraph,
     calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
   }
 
+  auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
+
+  calc_brush_radius_factors(brush, cache.sculpt_center_symm, cache.radius, verts, position_data.eval, factors);
+
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
 
@@ -97,6 +101,10 @@ static void calc_grids(const Depsgraph &depsgraph,
     calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
   }
 
+  auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
+
+  calc_brush_radius_factors(brush, cache.sculpt_center_symm, cache.radius, positions, factors);
+
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
 
@@ -130,6 +138,10 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, verts, factors);
   }
+
+  auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
+
+  calc_brush_radius_factors(brush, cache.sculpt_center_symm, cache.radius, positions, factors);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;

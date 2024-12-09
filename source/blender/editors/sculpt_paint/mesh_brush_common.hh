@@ -328,6 +328,19 @@ void calc_brush_cube_distances(const Brush &brush,
                                MutableSpan<float> r_distances,
                                MutableSpan<float> factors);
 
+void calc_brush_radius_factors(const Brush& brush,
+  const float3& center,
+  const float radius,
+  const Span<int> verts,
+  const Span<float3> positions,
+  const MutableSpan<float> factors);
+
+void calc_brush_radius_factors(const Brush& brush,
+  const float3& center,
+  const float radius,
+  const Span<float3> positions,
+  const MutableSpan<float> factors);
+
 /**
  * Scale the distances based on the brush radius and the cached "hardness" setting, which increases
  * the strength of the effect for vertices towards the outside of the radius.

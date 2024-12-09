@@ -450,6 +450,11 @@ typedef enum eBrushSculptType {
   SCULPT_BRUSH_TYPE_BAREBONE = 34,
 } eBrushSculptType;
 
+typedef enum eBrushSculptShape {
+  SCULPT_BRUSH_SHAPE_SPHERE = 1,
+  SCULPT_BRUSH_SHAPE_CUBE = 2,
+} eBrushSculptShape;
+
 /* Brush.curves_sculpt_brush_type. */
 typedef enum eBrushCurvesSculptType {
   CURVES_SCULPT_BRUSH_TYPE_COMB = 0,
