@@ -918,7 +918,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
     /* Truncating time in ms to uint32 then we don't lose precision in lower bits. */
     const uint32_t clamped_init_time = static_cast<uint32_t>(
         std::clamp(gps->inittime * double(1e3),
-                   0.0,
+                   double(0.0),
                    static_cast<double>(std::numeric_limits<uint32_t>::max())));
     stroke_init_times.span[stroke_i] = float(clamped_init_time) / float(1e3);
     stroke_start_caps.span[stroke_i] = int8_t(gps->caps[0]);
