@@ -1749,7 +1749,7 @@ static void GREASE_PENCIL_OT_fill(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static bke::greasepencil::Drawing *ensure_duplicated_drawing_for_autokey_if_necessary(
+static bke::greasepencil::Drawing *duplicate_drawing_for_autokey_if_necessary(
     const Scene &scene, GreasePencil &grease_pencil, const int layer_index)
 {
   using namespace bke::greasepencil;
@@ -1783,7 +1783,7 @@ static bool remove_points_and_split_from_drawings(
       continue;
     }
 
-    if (Drawing *drawing = ensure_duplicated_drawing_for_autokey_if_necessary(
+    if (Drawing *drawing = duplicate_drawing_for_autokey_if_necessary(
             scene, grease_pencil, info.layer_index))
     {
       drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
@@ -1794,11 +1794,6 @@ static bool remove_points_and_split_from_drawings(
   }
 
   return changed;
-}
-
-static inline Bounds<int2> get_pixel_bounds(const Bounds<float2> bounds)
-{
-  return Bounds<int2>(int2(math::floor(bounds.min)), int2(math::ceil(bounds.max)));
 }
 
 static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 point)
@@ -1822,6 +1817,9 @@ static int grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
   if (lasso.is_empty()) {
     return OPERATOR_FINISHED;
   }
+
+  const Bounds<int2> lasso_bounds_int = *bounds::min_max(lasso.as_span());
+  const Bounds<float2> lasso_bounds(float2(lasso_bounds_int.min), float2(lasso_bounds_int.max));
 
   const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
       *scene, grease_pencil);
@@ -1859,12 +1857,9 @@ static int grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
       });
 
       IndexMaskMemory &memory = memories[drawing_i];
-      const Bounds<int2> lasso_bounds = *bounds::min_max(lasso.as_span());
       const IndexMask curve_selection = IndexMask::from_predicate(
           curves.curves_range(), GrainSize(512), memory, [&](const int64_t index) {
-            return bounds::intersect(lasso_bounds,
-                                     get_pixel_bounds(screen_space_curve_bounds[index]))
-                .has_value();
+            return bounds::intersect(lasso_bounds, screen_space_curve_bounds[index]).has_value();
           });
 
       if (curve_selection.is_empty()) {
