@@ -387,13 +387,13 @@ OffsetIndices<int> Drawing::shapes() const
 
     if (!shape_ids) {
       /* If the attribute does not exist then the default is each shape containing one curve. */
-      r_offsets.reinitialize(curves.curves_num() + 1);
+      r_offsets.resize(curves.curves_num() + 1);
       array_utils::fill_index_range(r_offsets.as_mutable_span());
 
       return;
     }
 
-    r_offsets.resize(0);
+    r_offsets.clear_and_shrink();
 
     int last = shape_ids[0] - 1;
     for (const int curve_i : curves.curves_range()) {
