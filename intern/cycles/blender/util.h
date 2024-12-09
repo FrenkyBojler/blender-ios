@@ -358,15 +358,20 @@ static inline void render_add_metadata(BL::RenderResult &b_rr, string name, stri
 
 static inline Transform get_transform(const BL::Array<float, 16> &array)
 {
-  ProjectionTransform projection;
-
-  /* We assume both types to be just 16 floats, and transpose because blender
-   * use column major matrix order while we use row major. */
-  memcpy((void *)&projection, &array, sizeof(float) * 16);
-  projection = projection_transpose(projection);
-
-  /* Drop last row, matrix is assumed to be affine transform. */
-  return projection_to_transform(projection);
+  /* Blender is column-major, Cycles is row-major.
+   * Also, assume that the matrix is an affine transform. */
+  return make_transform(array[0],
+                        array[4],
+                        array[8],
+                        array[12],
+                        array[1],
+                        array[5],
+                        array[9],
+                        array[13],
+                        array[2],
+                        array[6],
+                        array[10],
+                        array[14]);
 }
 
 static inline float2 get_float2(const BL::Array<float, 2> &array)
