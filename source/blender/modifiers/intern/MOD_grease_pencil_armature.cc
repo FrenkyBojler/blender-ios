@@ -105,6 +105,18 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Armature Modifier");
 }
 
+static ImplicitSharingPtrAndData save_shared_attribute(const bke::GAttributeReader &attribute)
+{
+  if (attribute.sharing_info && attribute.varray.is_span()) {
+    const void *data = attribute.varray.get_internal_span().data();
+    attribute.sharing_info->add_user();
+    return {ImplicitSharingPtr(attribute.sharing_info), data};
+  }
+  auto *data = new ImplicitSharedValue<GArray<>>(attribute.varray.type(), attribute.varray.size());
+  attribute.varray.materialize(data->data.data());
+  return {ImplicitSharingPtr<>(data), data->data.data()};
+}
+
 static void modify_curves(ModifierData &md,
                           const ModifierEvalContext &ctx,
                           Drawing &drawing,
@@ -134,11 +146,13 @@ static void modify_curves(ModifierData &md,
     return;
   }
 
-  Vector<float3> old_positions;
+  ImplicitSharingPtrAndData old_positions_data = save_shared_attribute(
+      curves.attributes().lookup("position", CD_PROP_FLOAT3));
+  Span<float3> old_positions = {static_cast<const float3 *>(old_positions_data.data),
+                                curves.points_num()};
+
   std::optional<MutableSpan<float3x3>> deform_mats;
   if (edit_hints) {
-    old_positions = Vector<float3>(positions);
-
     if (!edit_hints->deform_mats.has_value()) {
       edit_hints->deform_mats.emplace(drawing.strokes().points_num(), float3x3::identity());
     }
@@ -148,10 +162,10 @@ static void modify_curves(ModifierData &md,
   curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
     const IndexRange points = points_by_curve[curve_i];
 
-    std::optional<MutableSpan<float3>> old_positions_for_curve;
+    std::optional<Span<float3>> old_positions_for_curve;
     std::optional<MutableSpan<float3x3>> deform_mats_for_curve;
     if (deform_mats) {
-      old_positions_for_curve = old_positions.as_mutable_span().slice(points);
+      old_positions_for_curve = old_positions.slice(points);
       deform_mats_for_curve = deform_mats->slice(points);
     }
 
