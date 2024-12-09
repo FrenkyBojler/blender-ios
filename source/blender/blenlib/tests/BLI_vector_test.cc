@@ -468,7 +468,7 @@ TEST(vector, ExtendArray)
   EXPECT_EQ(a[1], 4);
 }
 
-TEST(vector, MoveElementsFromSmallVector)
+TEST(vector, ExtendMoveFromSmallVector)
 {
   Vector<Vector<uint64_t, 0>> a = {
       {1, 2, 3, 4, 5},
@@ -485,13 +485,13 @@ TEST(vector, MoveElementsFromSmallVector)
       {13, 14, 15, 16},
   };
 
-  a.move_elements_from(b);
+  a.extend(std::move(b));
 
   EXPECT_EQ(a, c);
   EXPECT_TRUE(b.is_empty());
 }
 
-TEST(vector, MoveElementsFromUniquePtrVector)
+TEST(vector, ExtendFromUniquePtrVector)
 {
   Vector<int *> ptr_vec;
 
@@ -517,7 +517,7 @@ TEST(vector, MoveElementsFromUniquePtrVector)
   ASSERT_EQ(a.size(), 3);
   ASSERT_EQ(b.size(), 4);
 
-  a.move_elements_from(b);
+  a.extend(std::move(b));
 
   int values[] = {0, 1, 2, 7, 8, 9, 20};
 

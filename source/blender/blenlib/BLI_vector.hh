@@ -569,11 +569,13 @@ class Vector {
   /**
    * Moves the elements of another vector to the end of this vector.
    *
+   * This may result in reallocation to fit other vector elements, other vector will keep it
+   * buffer allocation, but it will become empty.
    * This can be used in vectors that manages resources, allowing acquiring resources from another
    * vector, preventing shared ownership of managed resources.
    */
   template<int64_t OtherInlineBufferCapacity>
-  void move_elements_from(Vector<T, OtherInlineBufferCapacity, Allocator> &other)
+  void extend(Vector<T, OtherInlineBufferCapacity, Allocator> &&other)
   {
     if (this == &other) {
       return;
