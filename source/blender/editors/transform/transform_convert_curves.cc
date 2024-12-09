@@ -484,6 +484,9 @@ void curve_populate_trans_data_structs(
     selection_attrs.append(selection_attr);
   }
 
+  const float3x3 mtx_base = transform.view<3, 3>();
+  const float3x3 smtx_base = math::pseudo_invert(mtx_base);
+
   for (const int selection_i : position_offsets_in_td.index_range()) {
     if (position_offsets_in_td[selection_i].is_empty()) {
       continue;
@@ -517,14 +520,16 @@ void curve_populate_trans_data_structs(
         }
         td.ext = nullptr;
 
-        const float3x3 mtx = (deformation.deform_mats.is_empty() ?
-                                  transform.view<3, 3>() :
-                                  deformation.deform_mats[point_in_domain_i] *
-                                      transform.view<3, 3>());
-        const float3x3 smtx = math::pseudo_invert(mtx);
-
-        copy_m3_m3(td.smtx, smtx.ptr());
-        copy_m3_m3(td.mtx, mtx.ptr());
+        if (deformation.deform_mats.is_empty()) {
+          copy_m3_m3(td.smtx, smtx_base.ptr());
+          copy_m3_m3(td.mtx, mtx_base.ptr());
+        }
+        else {
+          const float3x3 mtx = deformation.deform_mats[point_in_domain_i] * mtx_base;
+          const float3x3 smtx = math::pseudo_invert(mtx);
+          copy_m3_m3(td.smtx, smtx.ptr());
+          copy_m3_m3(td.mtx, mtx.ptr());
+        }
       }
     });
   }
