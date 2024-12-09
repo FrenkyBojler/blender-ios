@@ -563,7 +563,7 @@ OffsetIndices<int> Drawing::triangle_offsets() const
       offset_indices::accumulate_counts_to_offsets(offsets_data);
       const OffsetIndices<int> points_by_shape = OffsetIndices<int>(offsets_data);
 
-      const int num_points = points_by_shape.total_size();
+      const int num_points = points_by_curve[shape].size();
 
       float(*projverts)[2] = static_cast<float(*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
@@ -591,7 +591,6 @@ OffsetIndices<int> Drawing::triangle_offsets() const
       Array<double2> verts(num_points);
       Array<std::pair<int, int>> edges(num_points);
       Array<Vector<int>> faces(shape.size());
-      Array<int> vert_to_point_map(num_points);
 
       for (const int i : shape.index_range()) {
         const int curve_i = shape[i];
@@ -600,7 +599,6 @@ OffsetIndices<int> Drawing::triangle_offsets() const
         faces[i].resize(points.size());
         threading::parallel_for(points.index_range(), 512, [&](const IndexRange range) {
           for (const int p_id : range) {
-            vert_to_point_map[point_group[p_id]] = points[p_id];
             verts[point_group[p_id]] = double2(projverts[point_group[p_id]]);
             edges[point_group[p_id]] = std::pair<int, int>(
                 point_group[p_id], point_group[(p_id + 1) % points.size()]);
@@ -661,7 +659,7 @@ static void update_triangle_cache(const Span<float3> positions,
     offset_indices::accumulate_counts_to_offsets(offsets_data);
     const OffsetIndices<int> points_by_shape = OffsetIndices<int>(offsets_data);
 
-    const int num_points = points_by_shape.total_size();
+    const int num_points = points_by_curve[shape].size();
     if (num_points < 3) {
       continue;
     }
@@ -701,7 +699,6 @@ static void update_triangle_cache(const Span<float3> positions,
     Array<double2> verts(num_points);
     Array<std::pair<int, int>> edges(num_points);
     Array<Vector<int>> faces(shape.size());
-    Array<int> vert_to_point_map(num_points);
 
     for (const int i : shape.index_range()) {
       const int curve_i = shape[i];
@@ -710,7 +707,6 @@ static void update_triangle_cache(const Span<float3> positions,
       faces[i].resize(points.size());
       threading::parallel_for(points.index_range(), 512, [&](const IndexRange range) {
         for (const int p_id : range) {
-          vert_to_point_map[point_group[p_id]] = points[p_id];
           verts[point_group[p_id]] = double2(projverts[point_group[p_id]]);
           edges[point_group[p_id]] = std::pair<int, int>(point_group[p_id],
                                                          point_group[(p_id + 1) % points.size()]);
@@ -718,6 +714,8 @@ static void update_triangle_cache(const Span<float3> positions,
         }
       });
     };
+
+    const int first_point = points_by_curve[shape.first()].first();
 
     meshintersect::CDT_input<double> input;
     input.vert = verts;
@@ -730,9 +728,9 @@ static void update_triangle_cache(const Span<float3> positions,
     threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
       for (const int i : range) {
         BLI_assert(result.face[i].size() == 3);
-        r_tris[i] = int3(vert_to_point_map[result.face[i][0]],
-                         vert_to_point_map[result.face[i][1]],
-                         vert_to_point_map[result.face[i][2]]);
+        r_tris[i] = int3(result.face[i][0] + first_point,
+                         result.face[i][1] + first_point,
+                         result.face[i][2] + first_point);
       }
     });
 
