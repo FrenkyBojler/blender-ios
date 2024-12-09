@@ -1399,7 +1399,7 @@ void blo_do_versions_userdef(UserDef *userdef)
         {
           STRNCPY(kmdi->remove_item->idname, "OBJECT_OT_isolate_collection");
         }
-        if (kmdi->remove_item != nullptr &&
+        if (kmdi->add_item != nullptr &&
             STREQ("OBJECT_OT_hide_collection", kmdi->add_item->idname))
         {
           STRNCPY(kmdi->add_item->idname, "OBJECT_OT_isolate_collection");
