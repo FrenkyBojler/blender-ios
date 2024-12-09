@@ -31,7 +31,7 @@ void main()
   /* Half Res pass */
   vec2 pixel_size = 1.0 / vec2(textureSize(blurTex, 0).xy);
   vec2 uv = gl_FragCoord.xy * pixel_size.xy;
-  float coc = decode_coc(texture(inputCocTex, uv).rg);
+  float coc = dof_decode_coc(texture(inputCocTex, uv).rg);
   /* Only use this filter if coc is > 9.0
    * since this filter is not weighted by CoC
    * and can bleed a bit. */

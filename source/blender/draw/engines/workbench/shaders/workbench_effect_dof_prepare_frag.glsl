@@ -36,8 +36,8 @@ void main()
   depths.z = texelFetch(sceneDepthTex, texel.zy, 0).x;
   depths.w = texelFetch(sceneDepthTex, texel.xw, 0).x;
 
-  vec4 zdepths = linear_depth(depths);
-  vec4 cocs_near = calculate_coc(zdepths);
+  vec4 zdepths = dof_linear_depth(depths);
+  vec4 cocs_near = dof_calculate_coc(zdepths);
   vec4 cocs_far = -cocs_near;
 
   float coc_near = max(reduce_max(cocs_near), 0.0);
@@ -54,5 +54,5 @@ void main()
   halfResColor = weighted_sum(color1, color2, color3, color4, w);
   halfResColor = clamp(halfResColor, 0.0, 3.0);
 
-  normalizedCoc = encode_coc(coc_near, coc_far);
+  normalizedCoc = dof_encode_coc(coc_near, coc_far);
 }

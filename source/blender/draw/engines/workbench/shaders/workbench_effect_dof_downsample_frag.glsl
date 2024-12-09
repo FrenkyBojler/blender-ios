@@ -54,5 +54,5 @@ void main()
   vec4 w = any(notEqual(far_weights, vec4(0.0))) ? far_weights : near_weights;
   outColor = weighted_sum(color1, color2, color3, color4, w);
 
-  outCocs = encode_coc(coc_near, coc_far);
+  outCocs = dof_encode_coc(coc_near, coc_far);
 }

@@ -44,14 +44,14 @@ void main()
   vec4 color = vec4(0.0);
   float tot = 0.0;
 
-  float coc = decode_coc(texelFetch(inputCocTex, texel, 0).rg);
+  float coc = dof_decode_coc(texelFetch(inputCocTex, texel, 0).rg);
   float max_radius = coc;
   vec2 noise = get_random_vector(noiseOffset) * 0.2 * clamp(max_radius * 0.2 - 4.0, 0.0, 1.0);
   for (int i = 0; i < NUM_SAMPLES; i++) {
     vec2 tc = uv + (noise + samples[i].xy) * invertedViewportSize * max_radius;
 
     /* decode_signed_coc return biggest coc. */
-    coc = abs(decode_signed_coc(texture(inputCocTex, tc).rg));
+    coc = abs(dof_decode_signed_coc(texture(inputCocTex, tc).rg));
 
     float lod = log2(clamp((coc + min(coc, max_radius)) * 0.5 - 21.0, 0.0, 16.0) * 0.25);
     vec4 samp = textureLod(halfResColorTex, tc, lod);

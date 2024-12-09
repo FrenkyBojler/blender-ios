@@ -28,8 +28,8 @@ void main()
 
   /* TODO: MAKE SURE TO ALIGN SAMPLE POSITION TO AVOID OFFSET IN THE BOKEH. */
   float depth = texelFetch(sceneDepthTex, ivec2(gl_FragCoord.xy), 0).r;
-  float zdepth = linear_depth(depth);
-  float coc = calculate_coc(zdepth);
+  float zdepth = dof_linear_depth(depth);
+  float coc = dof_calculate_coc(zdepth);
 
   float blend = smoothstep(1.0, 3.0, abs(coc));
   finalColorAdd = texture(halfResColorTex, uv) * blend;
