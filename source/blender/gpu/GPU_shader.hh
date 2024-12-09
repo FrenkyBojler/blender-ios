@@ -191,6 +191,7 @@ void GPU_shader_uniform_2fv(GPUShader *sh, const char *name, const float data[2]
 void GPU_shader_uniform_3fv(GPUShader *sh, const char *name, const float data[3]);
 void GPU_shader_uniform_4fv(GPUShader *sh, const char *name, const float data[4]);
 void GPU_shader_uniform_2iv(GPUShader *sh, const char *name, const int data[2]);
+void GPU_shader_uniform_3iv(GPUShader *sh, const char *name, const int data[3]);
 void GPU_shader_uniform_mat4(GPUShader *sh, const char *name, const float data[4][4]);
 void GPU_shader_uniform_mat3_as_mat4(GPUShader *sh, const char *name, const float data[3][3]);
 void GPU_shader_uniform_1f_array(GPUShader *sh, const char *name, int len, const float *val);
@@ -307,14 +308,6 @@ GPUShader *GPU_shader_create_ex(std::optional<blender::StringRefNull> vertcode,
  */
 bool GPU_shader_transform_feedback_enable(GPUShader *shader, blender::gpu::VertBuf *vertbuf);
 void GPU_shader_transform_feedback_disable(GPUShader *shader);
-
-/**
- * SSBO Vertex-fetch is used as an alternative path to geometry shaders wherein the vertex count is
- * expanded up-front. This function fetches the number of specified output vertices per input
- * primitive.
- */
-int GPU_shader_get_ssbo_vertex_fetch_num_verts_per_prim(GPUShader *shader);
-bool GPU_shader_uses_ssbo_vertex_fetch(GPUShader *shader);
 
 /**
  * Shader cache warming.
