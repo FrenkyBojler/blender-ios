@@ -568,7 +568,14 @@ void ElementRotation_ex(const TransInfo *t,
 
     /* Apply gpencil falloff. */
     if (t->options & CTX_GPENCIL_STROKES) {
-      /* Pass. */
+      if (t->obedit_type == OB_GREASE_PENCIL) {
+        float *gp_falloff = static_cast<float *>(td->extra);
+        if (gp_falloff != nullptr && *gp_falloff != 1.0f) {
+          float ident_mat[3][3];
+          unit_m3(ident_mat);
+          interp_m3_m3m3(smat, ident_mat, smat, *gp_falloff);
+        }
+      }
     }
 
     sub_v3_v3v3(vec, td->iloc, center);
