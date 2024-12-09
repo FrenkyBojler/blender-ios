@@ -259,10 +259,11 @@ typedef struct GreasePencilLayerTreeNode {
    * Indicates the type of struct this element is.
    */
   int8_t type;
+  char _pad[7];
   /**
    * Color tag.
    */
-  uint8_t color[3];
+  float color[3];
   /**
    * Flag. Used to set e.g. the selection, visibility, ... status.
    * See `GreasePencilLayerTreeNodeFlag`.
@@ -313,7 +314,6 @@ typedef struct GreasePencilLayer {
   float translation[3], rotation[3], scale[3];
   char _pad3[4];
 
-  float channel_color[4];
   /** Name of the view layer used to filter render output. */
   char *viewlayername;
   /**

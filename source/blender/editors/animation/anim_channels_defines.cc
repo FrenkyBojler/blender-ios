@@ -3906,8 +3906,8 @@ static void *layer_setting_ptr(bAnimListElem *ale,
 static bool layer_channel_color(const bAnimListElem *ale, uint8_t r_color[3])
 {
   using namespace bke::greasepencil;
-  Layer &layer = *static_cast<Layer *>(ale->data);
-  rgb_float_to_uchar(r_color, layer.channel_color);
+  GreasePencilLayerTreeNode &layer = *static_cast<GreasePencilLayerTreeNode *>(ale->data);
+  rgb_float_to_uchar(r_color, layer.color);
   return true;
 }
 
