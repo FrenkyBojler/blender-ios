@@ -1350,7 +1350,11 @@ Slot *generic_slot_for_autoassign(const ID &animated_id,
     }
   }
 
-  /* If there is only one slot, and it has never been assigned to anything, use that. */
+  /* If there is only one slot, and it is not specific to any ID type, use that.
+   *
+   * This should only trigger in some special cases, like legacy Actions that
+   * were converted to slotted Actions by the versioning code, where the legacy
+   * Action was never assigned to anything (and thus had idroot = 0). */
   if (action.slots().size() == 1) {
     Slot *slot = action.slot(0);
     if (!slot->has_idtype()) {
