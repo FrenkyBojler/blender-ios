@@ -1749,9 +1749,8 @@ static void GREASE_PENCIL_OT_fill(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static bke::greasepencil::Drawing *get_drawing_for_erasing(const Scene &scene,
-                                                           GreasePencil &grease_pencil,
-                                                           const int layer_index)
+static bke::greasepencil::Drawing *ensure_duplicated_drawing_for_autokey_if_necessary(
+    const Scene &scene, GreasePencil &grease_pencil, const int layer_index)
 {
   using namespace bke::greasepencil;
   const int current_frame = scene.r.cfra;
@@ -1766,6 +1765,35 @@ static bke::greasepencil::Drawing *get_drawing_for_erasing(const Scene &scene,
     grease_pencil.insert_duplicate_frame(layer, *previous_key_frame_start, current_frame, false);
   }
   return grease_pencil.get_drawing_at(layer, current_frame);
+}
+
+static bool remove_points_and_split_from_drawings(
+    const Scene &scene,
+    GreasePencil &grease_pencil,
+    const Span<ed::greasepencil::MutableDrawingInfo> drawings,
+    const Span<IndexMask> points_to_remove_per_drawing)
+{
+  using namespace bke::greasepencil;
+  using namespace ed::greasepencil;
+  bool changed = false;
+  for (const int drawing_i : drawings.index_range()) {
+    const MutableDrawingInfo &info = drawings[drawing_i];
+    const IndexMask points_to_remove = points_to_remove_per_drawing[drawing_i];
+    if (points_to_remove.is_empty()) {
+      continue;
+    }
+
+    if (Drawing *drawing = ensure_duplicated_drawing_for_autokey_if_necessary(
+            scene, grease_pencil, info.layer_index))
+    {
+      drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
+                                                                               points_to_remove);
+      drawing->tag_topology_changed();
+      changed = true;
+    }
+  }
+
+  return changed;
 }
 
 static inline Bounds<int2> get_pixel_bounds(const Bounds<float2> bounds)
@@ -1853,22 +1881,8 @@ static int grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
     }
   });
 
-  bool changed = false;
-  for (const int drawing_i : drawings.index_range()) {
-    const MutableDrawingInfo &info = drawings[drawing_i];
-    const IndexMask points_to_remove = points_to_remove_per_drawing[drawing_i];
-    if (points_to_remove.is_empty()) {
-      continue;
-    }
-
-    if (Drawing *drawing = get_drawing_for_erasing(*scene, grease_pencil, info.layer_index)) {
-      drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
-                                                                               points_to_remove);
-      drawing->tag_topology_changed();
-      changed = true;
-    }
-  }
-
+  const bool changed = remove_points_and_split_from_drawings(
+      *scene, grease_pencil, drawings.as_span(), points_to_remove_per_drawing);
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
@@ -1960,22 +1974,8 @@ static int grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
     }
   });
 
-  bool changed = false;
-  for (const int drawing_i : drawings.index_range()) {
-    const MutableDrawingInfo &info = drawings[drawing_i];
-    const IndexMask points_to_remove = points_to_remove_per_drawing[drawing_i];
-    if (points_to_remove.is_empty()) {
-      continue;
-    }
-
-    if (Drawing *drawing = get_drawing_for_erasing(*scene, grease_pencil, info.layer_index)) {
-      drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
-                                                                               points_to_remove);
-      drawing->tag_topology_changed();
-      changed = true;
-    }
-  }
-
+  const bool changed = remove_points_and_split_from_drawings(
+      *scene, grease_pencil, drawings.as_span(), points_to_remove_per_drawing);
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
