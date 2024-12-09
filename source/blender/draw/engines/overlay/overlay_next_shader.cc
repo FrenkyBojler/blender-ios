@@ -200,286 +200,60 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
 
   /** Selectable Shaders */
 
-  armature_envelope_fill = selectable_shader(
-      "overlay_armature_envelope_solid", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_info("draw_globals");
-        info.storage_buf(0, Qualifier::READ, "BoneEnvelopeData", "data_buf[]");
-        info.define("headSphere", "data_buf[gl_InstanceID].head_sphere");
-        info.define("tailSphere", "data_buf[gl_InstanceID].tail_sphere");
-        info.define("xAxis", "data_buf[gl_InstanceID].x_axis.xyz");
-        info.define("stateColor", "data_buf[gl_InstanceID].state_color.xyz");
-        info.define("boneColor", "data_buf[gl_InstanceID].bone_color_and_wire_width.xyz");
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-      });
+  armature_envelope_fill = static_selectable_shader("overlay_armature_envelope_solid");
+  armature_envelope_outline = static_selectable_shader("overlay_armature_envelope_outline");
+  armature_shape_outline = static_selectable_shader("overlay_armature_shape_outline");
+  armature_shape_fill = static_selectable_shader("overlay_armature_shape_solid");
+  armature_shape_wire = static_selectable_shader("overlay_armature_shape_wire");
+  armature_sphere_outline = static_selectable_shader("overlay_armature_sphere_outline");
+  armature_sphere_fill = static_selectable_shader("overlay_armature_sphere_solid");
+  armature_stick = static_selectable_shader("overlay_armature_stick");
+  armature_wire = static_selectable_shader("overlay_armature_wire");
 
-  armature_envelope_outline = selectable_shader(
-      "overlay_armature_envelope_outline", [](gpu::shader::ShaderCreateInfo &info) {
-        info.storage_buf(0, Qualifier::READ, "BoneEnvelopeData", "data_buf[]");
-        info.define("headSphere", "data_buf[gl_InstanceID].head_sphere");
-        info.define("tailSphere", "data_buf[gl_InstanceID].tail_sphere");
-        info.define("outlineColorSize", "data_buf[gl_InstanceID].bone_color_and_wire_width");
-        info.define("xAxis", "data_buf[gl_InstanceID].x_axis.xyz");
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-      });
+  facing = static_clippable_shader("overlay_facing");
 
-  armature_shape_outline = selectable_shader("overlay_armature_shape_outline_next",
-                                             [](gpu::shader::ShaderCreateInfo & /*info*/) {});
+  fluid_grid_lines_flags = static_selectable_shader("overlay_volume_gridlines_flags");
+  fluid_grid_lines_flat = static_selectable_shader("overlay_volume_gridlines_flat");
+  fluid_grid_lines_range = static_selectable_shader("overlay_volume_gridlines_range");
+  fluid_velocity_streamline = static_selectable_shader("overlay_volume_velocity_streamline");
+  fluid_velocity_mac = static_selectable_shader("overlay_volume_velocity_mac");
+  fluid_velocity_needle = static_selectable_shader("overlay_volume_velocity_needle");
 
-  armature_shape_fill = selectable_shader(
-      "overlay_armature_shape_solid", [](gpu::shader::ShaderCreateInfo &info) {
-        info.storage_buf(0, Qualifier::READ, "mat4", "data_buf[]");
-        info.define("inst_obmat", "data_buf[gl_InstanceID]");
-        info.vertex_inputs_.pop_last();
-      });
+  extra_shape = static_selectable_shader("overlay_extra");
+  extra_wire = static_selectable_shader("overlay_extra_wire");
+  extra_wire_object = static_selectable_shader("overlay_extra_wire_object");
 
-  armature_shape_wire = selectable_shader("overlay_armature_shape_wire_next",
-                                          [](gpu::shader::ShaderCreateInfo & /*info*/) {});
+  extra_loose_points = static_selectable_shader("overlay_extra_loose_point");
 
-  armature_sphere_outline = selectable_shader(
-      "overlay_armature_sphere_outline", [](gpu::shader::ShaderCreateInfo &info) {
-        info.storage_buf(0, Qualifier::READ, "mat4", "data_buf[]");
-        info.define("inst_obmat", "data_buf[gl_InstanceID]");
-        info.vertex_inputs_.pop_last();
-      });
-  armature_sphere_fill = selectable_shader(
-      "overlay_armature_sphere_solid", [](gpu::shader::ShaderCreateInfo &info) {
-        info.storage_buf(0, Qualifier::READ, "mat4", "data_buf[]");
-        info.define("inst_obmat", "data_buf[gl_InstanceID]");
-        info.vertex_inputs_.pop_last();
-      });
+  lattice_points = static_clippable_shader("overlay_edit_lattice_point");
 
-  armature_stick = selectable_shader(
-      "overlay_armature_stick", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info("overlay_frag_output",
-                             "overlay_armature_common",
-                             "draw_resource_handle_new",
-                             "draw_modelmat_new",
-                             "draw_globals");
-        info.storage_buf(0, Qualifier::READ, "BoneStickData", "data_buf[]");
-        info.define("boneStart", "data_buf[gl_InstanceID].bone_start.xyz");
-        info.define("boneEnd", "data_buf[gl_InstanceID].bone_end.xyz");
-        info.define("wireColor", "data_buf[gl_InstanceID].wire_color");
-        info.define("boneColor", "data_buf[gl_InstanceID].bone_color");
-        info.define("headColor", "data_buf[gl_InstanceID].head_color");
-        info.define("tailColor", "data_buf[gl_InstanceID].tail_color");
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.vertex_in(1, gpu::shader::Type::INT, "vclass");
-        info.define("flag", "vclass");
-      });
+  lattice_wire = static_clippable_shader("overlay_edit_lattice_wire");
 
-  armature_wire = selectable_shader(
-      "overlay_armature_wire", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info("draw_view",
-                             "overlay_frag_output",
-                             "draw_resource_handle_new",
-                             "draw_modelmat_new",
-                             "draw_globals");
-        info.storage_buf(0, Qualifier::READ, "VertexData", "data_buf[]");
-        info.define("pos", "data_buf[gl_VertexID].pos_.xyz");
-        info.define("color", "data_buf[gl_VertexID].color_");
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-      });
+  extra_grid = static_selectable_shader("overlay_extra_grid");
 
-  facing = shader("overlay_facing", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.additional_info(
-        "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-  });
+  extra_ground_line = static_selectable_shader("overlay_extra_groundline");
 
-  fluid_grid_lines_flags = selectable_shader(
-      "overlay_volume_gridlines_flags", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info("draw_volume_new", "draw_view", "overlay_volume_gridlines");
-      });
+  image_plane = static_selectable_shader("overlay_image");
 
-  fluid_grid_lines_flat = selectable_shader(
-      "overlay_volume_gridlines_flat", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info("draw_volume_new", "draw_view", "overlay_volume_gridlines");
-      });
+  image_plane_depth_bias = static_selectable_shader("overlay_image_depth_bias");
 
-  fluid_grid_lines_range = selectable_shader(
-      "overlay_volume_gridlines_range", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info("draw_volume_new", "draw_view", "overlay_volume_gridlines");
-      });
+  light_spot_cone = static_clippable_shader("overlay_extra_spot_cone");
 
-  fluid_velocity_streamline = selectable_shader(
-      "overlay_volume_velocity_streamline", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info("draw_volume_new", "draw_view", "overlay_volume_velocity");
-      });
+  particle_dot = static_selectable_shader("overlay_particle_dot");
 
-  fluid_velocity_mac = selectable_shader(
-      "overlay_volume_velocity_mac", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info("draw_volume_new", "draw_view", "overlay_volume_velocity");
-      });
+  particle_shape = static_selectable_shader("overlay_particle_shape");
 
-  fluid_velocity_needle = selectable_shader(
-      "overlay_volume_velocity_needle", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info("draw_volume_new", "draw_view", "overlay_volume_velocity");
-      });
+  particle_hair = static_selectable_shader("overlay_particle_hair");
 
-  extra_shape = selectable_shader("overlay_extra", [](gpu::shader::ShaderCreateInfo &info) {
-    info.storage_buf(0, Qualifier::READ, "ExtraInstanceData", "data_buf[]");
-    info.define("color", "data_buf[gl_InstanceID].color_");
-    info.define("inst_obmat", "data_buf[gl_InstanceID].object_to_world_");
-    info.vertex_inputs_.pop_last();
-    info.vertex_inputs_.pop_last();
-  });
+  uniform_color = static_clippable_shader("overlay_uniform_color");
 
-  extra_wire = selectable_shader("overlay_extra_wire", [](gpu::shader::ShaderCreateInfo &info) {
-    info.typedef_source("overlay_shader_shared.h");
-    info.storage_buf(0, Qualifier::READ, "VertexData", "data_buf[]");
-    info.push_constant(gpu::shader::Type::INT, "colorid");
-    info.define("pos", "data_buf[gl_VertexID].pos_.xyz");
-    info.define("color", "data_buf[gl_VertexID].color_");
-    info.additional_infos_.clear();
-    info.additional_info(
-        "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-    info.vertex_inputs_.pop_last();
-    info.vertex_inputs_.pop_last();
-    info.vertex_inputs_.pop_last();
-  });
+  uniform_color_batch = static_clippable_shader("overlay_uniform_color_batch");
 
-  extra_wire_object = selectable_shader(
-      "overlay_extra_wire", [](gpu::shader::ShaderCreateInfo &info) {
-        info.define("OBJECT_WIRE");
-        info.additional_infos_.clear();
-        info.additional_info(
-            "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-      });
+  wireframe_mesh = static_selectable_shader("overlay_wireframe");
 
-  extra_loose_points = selectable_shader(
-      "overlay_extra_loose_point", [](gpu::shader::ShaderCreateInfo &info) {
-        info.typedef_source("overlay_shader_shared.h");
-        info.storage_buf(0, Qualifier::READ, "VertexData", "data_buf[]");
-        info.define("pos", "data_buf[gl_VertexID].pos_.xyz");
-        info.define("vertex_color", "data_buf[gl_VertexID].color_");
-        info.vertex_inputs_.pop_last();
-        info.vertex_inputs_.pop_last();
-        info.additional_infos_.clear();
-        info.additional_info("draw_view", "draw_modelmat_new", "draw_globals");
-      });
+  wireframe_points = static_selectable_shader("overlay_wireframe_points");
 
-  lattice_points = shader("overlay_edit_lattice_point", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.additional_info(
-        "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-  });
-
-  lattice_wire = shader("overlay_edit_lattice_wire", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.additional_info(
-        "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-  });
-
-  extra_grid = selectable_shader("overlay_extra_grid", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.additional_info(
-        "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-  });
-
-  extra_ground_line = selectable_shader(
-      "overlay_extra_groundline", [](gpu::shader::ShaderCreateInfo &info) {
-        info.storage_buf(0, Qualifier::READ, "vec4", "data_buf[]");
-        info.define("inst_pos", "data_buf[gl_InstanceID].xyz");
-        info.vertex_inputs_.pop_last();
-      });
-
-  image_plane = selectable_shader("overlay_image", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.additional_info(
-        "draw_view", "draw_globals", "draw_modelmat_new", "draw_resource_handle_new");
-  });
-
-  image_plane_depth_bias = selectable_shader(
-      "overlay_image", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info(
-            "draw_view", "draw_globals", "draw_modelmat_new", "draw_resource_handle_new");
-        info.define("DEPTH_BIAS");
-        info.push_constant(gpu::shader::Type::MAT4, "depth_bias_winmat");
-      });
-
-  light_spot_cone = shader("overlay_extra", [](gpu::shader::ShaderCreateInfo &info) {
-    info.storage_buf(0, Qualifier::READ, "ExtraInstanceData", "data_buf[]");
-    info.define("color", "data_buf[gl_InstanceID].color_");
-    info.define("inst_obmat", "data_buf[gl_InstanceID].object_to_world_");
-    info.vertex_inputs_.pop_last();
-    info.vertex_inputs_.pop_last();
-    info.define("IS_SPOT_CONE");
-  });
-
-  particle_dot = selectable_shader("overlay_particle_dot",
-                                   [](gpu::shader::ShaderCreateInfo &info) {
-                                     info.additional_infos_.clear();
-                                     info.additional_info("overlay_particle",
-                                                          "draw_view",
-                                                          "draw_modelmat_new",
-                                                          "draw_resource_handle_new",
-                                                          "draw_globals");
-                                   });
-
-  particle_shape = selectable_shader("overlay_particle_shape_next",
-                                     [](gpu::shader::ShaderCreateInfo & /*info*/) {});
-
-  particle_hair = selectable_shader("overlay_particle_hair_next",
-                                    [](gpu::shader::ShaderCreateInfo & /*info*/) {});
-
-  uniform_color = shader("overlay_uniform_color", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.additional_info(
-        "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-  });
-
-  uniform_color_batch = shader("overlay_uniform_color", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.additional_info("draw_view", "draw_globals")
-        .typedef_source("draw_shader_shared.hh")
-        .storage_buf(0, Qualifier::READ, "ObjectMatrices", "matrix_buf[]")
-        .define("DRAW_MODELMAT_CREATE_INFO")
-        .define("drw_ModelMatrixInverse", "matrix_buf[gl_InstanceID].model_inverse")
-        .define("drw_ModelMatrix", "matrix_buf[gl_InstanceID].model")
-        /* TODO For compatibility with old shaders. To be removed. */
-        .define("ModelMatrixInverse", "drw_ModelMatrixInverse")
-        .define("ModelMatrix", "drw_ModelMatrix");
-  });
-
-  wireframe_mesh = selectable_shader("overlay_wireframe", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.define("CUSTOM_DEPTH_BIAS_CONST");
-    info.specialization_constant(gpu::shader::Type::BOOL, "use_custom_depth_bias", true);
-    info.additional_info("draw_view",
-                         "draw_modelmat_new",
-                         "draw_resource_handle_new",
-                         "draw_object_infos_new",
-                         "draw_globals");
-  });
-
-  wireframe_points = selectable_shader("overlay_wireframe_points",
-                                       [](gpu::shader::ShaderCreateInfo & /*info*/) {});
-
-  wireframe_curve = selectable_shader("overlay_wireframe_curve",
-                                      [](gpu::shader::ShaderCreateInfo & /*info*/) {});
+  wireframe_curve = static_selectable_shader("overlay_wireframe_curve");
 }
 
 ShaderModule &ShaderModule::module_get(SelectionType selection_type, bool clipping_enabled)

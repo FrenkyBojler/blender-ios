@@ -453,11 +453,11 @@ class ShaderModule {
   ShaderPtr armature_sphere_fill;
   ShaderPtr armature_stick;
   ShaderPtr armature_wire;
-  ShaderPtr depth_curves = selectable_shader("overlay_depth_curves");
-  ShaderPtr depth_grease_pencil = selectable_shader("overlay_depth_gpencil");
-  ShaderPtr depth_mesh = selectable_shader("overlay_depth_mesh");
-  ShaderPtr depth_mesh_conservative = selectable_shader("overlay_depth_mesh_conservative");
-  ShaderPtr depth_point_cloud = selectable_shader("overlay_depth_pointcloud");
+  ShaderPtr depth_curves = static_selectable_shader("overlay_depth_curves");
+  ShaderPtr depth_grease_pencil = static_selectable_shader("overlay_depth_gpencil");
+  ShaderPtr depth_mesh = static_selectable_shader("overlay_depth_mesh");
+  ShaderPtr depth_mesh_conservative = static_selectable_shader("overlay_depth_mesh_conservative");
+  ShaderPtr depth_point_cloud = static_selectable_shader("overlay_depth_pointcloud");
   ShaderPtr extra_grid;
   ShaderPtr extra_shape;
   ShaderPtr extra_wire_object;
