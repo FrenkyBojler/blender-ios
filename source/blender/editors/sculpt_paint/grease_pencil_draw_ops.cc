@@ -1779,7 +1779,7 @@ static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 poi
       point, reinterpret_cast<const int(*)[2]>(lasso.data()), uint(lasso.size()));
 }
 
-static int grease_pencil_lasso_erase_exec(bContext *C, wmOperator *op)
+static int grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
   using namespace ed::greasepencil;
@@ -1883,15 +1883,15 @@ static int grease_pencil_lasso_erase_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void GREASE_PENCIL_OT_lasso_erase(wmOperatorType *ot)
+static void GREASE_PENCIL_OT_erase_lasso(wmOperatorType *ot)
 {
-  ot->name = "Grease Pencil Lasso Erase";
-  ot->idname = "GREASE_PENCIL_OT_lasso_erase";
+  ot->name = "Grease Pencil Erase Lasso";
+  ot->idname = "GREASE_PENCIL_OT_erase_lasso";
   ot->description = "Erase points in the lasso region";
 
   ot->poll = ed::greasepencil::grease_pencil_painting_poll;
   ot->invoke = WM_gesture_lasso_invoke;
-  ot->exec = grease_pencil_lasso_erase_exec;
+  ot->exec = grease_pencil_erase_lasso_exec;
   ot->modal = WM_gesture_lasso_modal;
   ot->cancel = WM_gesture_lasso_cancel;
 
@@ -1917,7 +1917,7 @@ static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 
   return true;
 }
 
-static int grease_pencil_box_erase_exec(bContext *C, wmOperator *op)
+static int grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
   using namespace ed::greasepencil;
@@ -1998,15 +1998,15 @@ static int grease_pencil_box_erase_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void GREASE_PENCIL_OT_box_erase(wmOperatorType *ot)
+static void GREASE_PENCIL_OT_erase_box(wmOperatorType *ot)
 {
   ot->name = "Grease Pencil Box Erase";
-  ot->idname = "GREASE_PENCIL_OT_box_erase";
+  ot->idname = "GREASE_PENCIL_OT_erase_box";
   ot->description = "Erase points in the box region";
 
   ot->poll = ed::greasepencil::grease_pencil_painting_poll;
   ot->invoke = WM_gesture_box_invoke;
-  ot->exec = grease_pencil_box_erase_exec;
+  ot->exec = grease_pencil_erase_box_exec;
   ot->modal = WM_gesture_box_modal;
   ot->cancel = WM_gesture_box_cancel;
 
@@ -2031,8 +2031,8 @@ void ED_operatortypes_grease_pencil_draw()
   WM_operatortype_append(GREASE_PENCIL_OT_weight_brush_stroke);
   WM_operatortype_append(GREASE_PENCIL_OT_vertex_brush_stroke);
   WM_operatortype_append(GREASE_PENCIL_OT_fill);
-  WM_operatortype_append(GREASE_PENCIL_OT_lasso_erase);
-  WM_operatortype_append(GREASE_PENCIL_OT_box_erase);
+  WM_operatortype_append(GREASE_PENCIL_OT_erase_lasso);
+  WM_operatortype_append(GREASE_PENCIL_OT_erase_box);
 }
 
 void ED_filltool_modal_keymap(wmKeyConfig *keyconf)
