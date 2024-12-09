@@ -1823,9 +1823,9 @@ static int grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  IndexMaskMemory memory;
   const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
       *scene, grease_pencil);
+  Array<IndexMaskMemory> memories(drawings.size());
   Array<IndexMask> points_to_remove_per_drawing(drawings.size());
   threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange range) {
     for (const int drawing_i : range) {
@@ -1858,6 +1858,7 @@ static int grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
         }
       });
 
+      IndexMaskMemory &memory = memories[drawing_i];
       const Bounds<int2> lasso_bounds = *bounds::min_max(lasso.as_span());
       const IndexMask curve_selection = IndexMask::from_predicate(
           curves.curves_range(), GrainSize(512), memory, [&](const int64_t index) {
@@ -1941,9 +1942,9 @@ static int grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  IndexMaskMemory memory;
   const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
       *scene, grease_pencil);
+  Array<IndexMaskMemory> memories(drawings.size());
   Array<IndexMask> points_to_remove_per_drawing(drawings.size());
   threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange range) {
     for (const int drawing_i : range) {
@@ -1967,6 +1968,7 @@ static int grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
         }
       });
 
+      IndexMaskMemory &memory = memories[drawing_i];
       points_to_remove_per_drawing[drawing_i] = IndexMask::from_predicate(
           curves.points_range(), GrainSize(4096), memory, [&](const int64_t index) {
             return is_point_inside_bounds(box_bounds, int2(screen_space_positions[index]));
