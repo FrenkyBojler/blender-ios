@@ -1749,6 +1749,25 @@ static void GREASE_PENCIL_OT_fill(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+static bke::greasepencil::Drawing *get_drawing_for_erasing(const Scene &scene,
+                                                           GreasePencil &grease_pencil,
+                                                           const int layer_index)
+{
+  using namespace bke::greasepencil;
+  const int current_frame = scene.r.cfra;
+  Layer &layer = grease_pencil.layer(layer_index);
+  if (!layer.has_drawing_at(current_frame) && !blender::animrig::is_autokey_on(&scene)) {
+    return nullptr;
+  }
+
+  const std::optional<int> previous_key_frame_start = layer.start_frame_at(current_frame);
+  const bool has_previous_key = previous_key_frame_start.has_value();
+  if (blender::animrig::is_autokey_on(&scene) && has_previous_key) {
+    grease_pencil.insert_duplicate_frame(layer, *previous_key_frame_start, current_frame, false);
+  }
+  return grease_pencil.get_drawing_at(layer, current_frame);
+}
+
 static inline Bounds<int2> get_pixel_bounds(const Bounds<float2> bounds)
 {
   return Bounds<int2>(int2(math::floor(bounds.min)), int2(math::ceil(bounds.max)));
@@ -1776,74 +1795,85 @@ static int grease_pencil_lasso_erase_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
       *scene, grease_pencil);
-  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
-    const bke::crazyspace::GeometryDeformation deformation =
-        bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-            ob_eval, *object, info.layer_index, info.frame_number);
-    const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
+  Array<Vector<bool>> points_to_remove_per_drawing(drawings.size());
+  threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange range) {
+    for (const int drawing_i : range) {
+      const MutableDrawingInfo &info = drawings[drawing_i];
+      const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
+      const bke::crazyspace::GeometryDeformation deformation =
+          bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
+              ob_eval, *object, info.layer_index, info.frame_number);
+      const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
 
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
-    Array<float2> screen_space_positions(curves.points_num());
-    threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
-      for (const int point : points) {
-        const float3 pos = math::transform_point(layer_to_world, deformation.positions[point]);
-        eV3DProjStatus result = ED_view3d_project_float_global(
-            region, pos, screen_space_positions[point], V3D_PROJ_TEST_NOP);
-        if (result != V3D_PROJ_RET_OK) {
-          screen_space_positions[point] = float2(0);
+      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      Array<float2> screen_space_positions(curves.points_num());
+      threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
+        for (const int point : points) {
+          const float3 pos = math::transform_point(layer_to_world, deformation.positions[point]);
+          eV3DProjStatus result = ED_view3d_project_float_global(
+              region, pos, screen_space_positions[point], V3D_PROJ_TEST_NOP);
+          if (result != V3D_PROJ_RET_OK) {
+            screen_space_positions[point] = float2(0);
+          }
         }
+      });
+
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      Array<Bounds<float2>> screen_space_curve_bounds(curves.curves_num());
+      threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
+        for (const int curve : range) {
+          screen_space_curve_bounds[curve] = *bounds::min_max(
+              screen_space_positions.as_span().slice(points_by_curve[curve]));
+        }
+      });
+
+      const Bounds<int2> lasso_bounds = *bounds::min_max(lasso.as_span());
+
+      IndexMaskMemory memory;
+      const IndexMask selection = IndexMask::from_predicate(
+          curves.curves_range(), GrainSize(512), memory, [&](const int64_t index) {
+            return bounds::intersect(lasso_bounds,
+                                     get_pixel_bounds(screen_space_curve_bounds[index]))
+                .has_value();
+          });
+
+      if (selection.is_empty()) {
+        return;
       }
-    });
 
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-    Array<Bounds<float2>> screen_space_curve_bounds(curves.curves_num());
-    threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
-      for (const int curve : range) {
-        screen_space_curve_bounds[curve] = *bounds::min_max(
-            screen_space_positions.as_span().slice(points_by_curve[curve]));
-      }
-    });
-
-    const Bounds<int2> lasso_bounds = *bounds::min_max(lasso.as_span());
-
-    IndexMaskMemory memory;
-    const IndexMask selection = IndexMask::from_predicate(
-        curves.curves_range(), GrainSize(512), memory, [&](const int64_t index) {
-          return bounds::intersect(lasso_bounds,
-                                   get_pixel_bounds(screen_space_curve_bounds[index]))
-              .has_value();
-        });
-
-    if (selection.is_empty()) {
-      return;
+      Vector<bool> &points_to_remove = points_to_remove_per_drawing[drawing_i];
+      points_to_remove.resize(curves.points_num(), false);
+      selection.foreach_index(GrainSize(512), [&](const int64_t index) {
+        for (const int point : points_by_curve[index]) {
+          points_to_remove[point] = is_point_inside_lasso(lasso,
+                                                          int2(screen_space_positions[point]));
+        }
+      });
     }
-
-    Array<bool> points_to_remove(curves.points_num(), false);
-    selection.foreach_index(GrainSize(512), [&](const int64_t index) {
-      for (const int point : points_by_curve[index]) {
-        points_to_remove[point] = is_point_inside_lasso(lasso,
-                                                        int2(screen_space_positions[point]));
-      }
-    });
-
-    /* Return if there is no point to remove. */
-    if (std::all_of(points_to_remove.begin(), points_to_remove.end(), [&](const bool value) {
-          return value == false;
-        }))
-    {
-      return;
-    }
-
-    info.drawing.strokes_for_write() = ed::greasepencil::remove_points_and_split(
-        curves, IndexMask::from_bools(points_to_remove, memory));
-    info.drawing.tag_topology_changed();
-
-    changed.store(true, std::memory_order_relaxed);
   });
+
+  bool changed = false;
+  for (const int drawing_i : drawings.index_range()) {
+    const MutableDrawingInfo &info = drawings[drawing_i];
+    const Span<bool> points_to_remove = points_to_remove_per_drawing[drawing_i].as_span();
+    if (points_to_remove.is_empty()) {
+      continue;
+    }
+    IndexMaskMemory memory;
+    const IndexMask selection = IndexMask::from_bools(points_to_remove, memory);
+    if (selection.is_empty()) {
+      continue;
+    }
+
+    if (Drawing *drawing = get_drawing_for_erasing(*scene, grease_pencil, info.layer_index)) {
+      drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
+                                                                               selection);
+      drawing->tag_topology_changed();
+      changed = true;
+    }
+  }
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
@@ -1903,52 +1933,62 @@ static int grease_pencil_box_erase_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
       *scene, grease_pencil);
-  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
-    const bke::crazyspace::GeometryDeformation deformation =
-        bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-            ob_eval, *object, info.layer_index, info.frame_number);
-    const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
+  Array<Vector<bool>> points_to_remove_per_drawing(drawings.size());
+  threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange range) {
+    for (const int drawing_i : range) {
+      const MutableDrawingInfo &info = drawings[drawing_i];
+      const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
+      const bke::crazyspace::GeometryDeformation deformation =
+          bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
+              ob_eval, *object, info.layer_index, info.frame_number);
+      const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
 
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
-    Array<float2> screen_space_positions(curves.points_num());
-    threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
-      for (const int point : points) {
-        const float3 pos = math::transform_point(layer_to_world, deformation.positions[point]);
-        eV3DProjStatus result = ED_view3d_project_float_global(
-            region, pos, screen_space_positions[point], V3D_PROJ_TEST_NOP);
-        if (result != V3D_PROJ_RET_OK) {
-          screen_space_positions[point] = float2(0);
+      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      Array<float2> screen_space_positions(curves.points_num());
+      threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
+        for (const int point : points) {
+          const float3 pos = math::transform_point(layer_to_world, deformation.positions[point]);
+          eV3DProjStatus result = ED_view3d_project_float_global(
+              region, pos, screen_space_positions[point], V3D_PROJ_TEST_NOP);
+          if (result != V3D_PROJ_RET_OK) {
+            screen_space_positions[point] = float2(0);
+          }
         }
-      }
-    });
+      });
 
-    Array<bool> points_to_remove(curves.points_num(), false);
-    threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
-      for (const int point : points) {
-        points_to_remove[point] = is_point_inside_bounds(box_bounds,
-                                                         int2(screen_space_positions[point]));
-      }
-    });
+      Vector<bool> &points_to_remove = points_to_remove_per_drawing[drawing_i];
+      points_to_remove.resize(curves.points_num(), false);
+      threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
+        for (const int point : points) {
+          points_to_remove[point] = is_point_inside_bounds(box_bounds,
+                                                           int2(screen_space_positions[point]));
+        }
+      });
+    }
+  });
 
-    /* Return if there is no point to remove. */
-    if (std::all_of(points_to_remove.begin(), points_to_remove.end(), [&](const bool value) {
-          return value == false;
-        }))
-    {
-      return;
+  bool changed = false;
+  for (const int drawing_i : drawings.index_range()) {
+    const MutableDrawingInfo &info = drawings[drawing_i];
+    const Span<bool> points_to_remove = points_to_remove_per_drawing[drawing_i].as_span();
+    if (points_to_remove.is_empty()) {
+      continue;
+    }
+    IndexMaskMemory memory;
+    const IndexMask selection = IndexMask::from_bools(points_to_remove, memory);
+    if (selection.is_empty()) {
+      continue;
     }
 
-    IndexMaskMemory memory;
-    info.drawing.strokes_for_write() = ed::greasepencil::remove_points_and_split(
-        curves, IndexMask::from_bools(points_to_remove, memory));
-    info.drawing.tag_topology_changed();
-
-    changed.store(true, std::memory_order_relaxed);
-  });
+    if (Drawing *drawing = get_drawing_for_erasing(*scene, grease_pencil, info.layer_index)) {
+      drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
+                                                                               selection);
+      drawing->tag_topology_changed();
+      changed = true;
+    }
+  }
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
