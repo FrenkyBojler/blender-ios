@@ -569,7 +569,7 @@ void ElementRotation_ex(const TransInfo *t,
     /* Apply gpencil falloff. */
     if (t->options & CTX_GPENCIL_STROKES) {
       if (t->obedit_type == OB_GREASE_PENCIL) {
-        float *gp_falloff = static_cast<float *>(td->extra);
+        const float *gp_falloff = static_cast<const float *>(td->extra);
         if (gp_falloff != nullptr && *gp_falloff != 1.0f) {
           float ident_mat[3][3];
           unit_m3(ident_mat);
@@ -1038,7 +1038,9 @@ void ElementResize(const TransInfo *t,
    *   Operating on copies as a temporary solution.
    */
   if (t->options & CTX_GPENCIL_STROKES) {
-    mul_v3_fl(vec, td->factor);
+    const float *gp_falloff_ptr = static_cast<const float *>(td->extra);
+    const float gp_falloff = gp_falloff_ptr != nullptr ? *gp_falloff_ptr : 1.0f;
+    mul_v3_fl(vec, td->factor * gp_falloff);
 
     /* Scale stroke thickness. */
     if (td->val) {
@@ -1050,7 +1052,7 @@ void ElementResize(const TransInfo *t,
 
       float ratio = values_final_evil[0];
       float transformed_value = td->ival * fabs(ratio);
-      *td->val = transformed_value;
+      *td->val = max_ff(interpf(transformed_value, td->ival, gp_falloff), 0.001f);
     }
   }
   else {
