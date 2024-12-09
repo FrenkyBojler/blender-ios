@@ -8,12 +8,12 @@
  * A minimalist lib for functions doing stuff with rectangle structs.
  */
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <float.h>
-#include <limits.h>
+#include <algorithm>
+#include <cfloat>
+#include <climits>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 #include "BLI_math_base.h"
 #include "BLI_rect.h"
@@ -205,17 +205,15 @@ bool BLI_rcti_inside_rcti(const rcti *rct_a, const rcti *rct_b)
  * but in modified so corner cases are treated as intersections */
 static int isect_segments_i(const int v1[2], const int v2[2], const int v3[2], const int v4[2])
 {
-  const double div = (double)((v2[0] - v1[0]) * (v4[1] - v3[1]) -
-                              (v2[1] - v1[1]) * (v4[0] - v3[0]));
+  const double div = double((v2[0] - v1[0]) * (v4[1] - v3[1]) - (v2[1] - v1[1]) * (v4[0] - v3[0]));
   if (div == 0.0) {
     return 1; /* co-linear */
   }
 
-  const double lambda = (double)((v1[1] - v3[1]) * (v4[0] - v3[0]) -
-                                 (v1[0] - v3[0]) * (v4[1] - v3[1])) /
+  const double lambda = double((v1[1] - v3[1]) * (v4[0] - v3[0]) -
+                               (v1[0] - v3[0]) * (v4[1] - v3[1])) /
                         div;
-  const double mu = (double)((v1[1] - v3[1]) * (v2[0] - v1[0]) -
-                             (v1[0] - v3[0]) * (v2[1] - v1[1])) /
+  const double mu = double((v1[1] - v3[1]) * (v2[0] - v1[0]) - (v1[0] - v3[0]) * (v2[1] - v1[1])) /
                     div;
   return (lambda >= 0.0 && lambda <= 1.0 && mu >= 0.0 && mu <= 1.0);
 }
@@ -224,17 +222,15 @@ static int isect_segments_fl(const float v1[2],
                              const float v3[2],
                              const float v4[2])
 {
-  const double div = (double)((v2[0] - v1[0]) * (v4[1] - v3[1]) -
-                              (v2[1] - v1[1]) * (v4[0] - v3[0]));
+  const double div = double((v2[0] - v1[0]) * (v4[1] - v3[1]) - (v2[1] - v1[1]) * (v4[0] - v3[0]));
   if (div == 0.0) {
     return 1; /* co-linear */
   }
 
-  const double lambda = (double)((v1[1] - v3[1]) * (v4[0] - v3[0]) -
-                                 (v1[0] - v3[0]) * (v4[1] - v3[1])) /
+  const double lambda = double((v1[1] - v3[1]) * (v4[0] - v3[0]) -
+                               (v1[0] - v3[0]) * (v4[1] - v3[1])) /
                         div;
-  const double mu = (double)((v1[1] - v3[1]) * (v2[0] - v1[0]) -
-                             (v1[0] - v3[0]) * (v2[1] - v1[1])) /
+  const double mu = double((v1[1] - v3[1]) * (v2[0] - v1[0]) - (v1[0] - v3[0]) * (v2[1] - v1[1])) /
                     div;
   return (lambda >= 0.0 && lambda <= 1.0 && mu >= 0.0 && mu <= 1.0);
 }
@@ -1111,8 +1107,8 @@ void BLI_rctf_rotate_expand(rctf *dst, const rctf *src, const float angle)
 
   corner[1] *= -1;
   ROTATE_SINCOS(corner_rot, mat2, corner);
-  corder_max[0] = MAX2(corder_max[0], fabsf(corner_rot[0]));
-  corder_max[1] = MAX2(corder_max[1], fabsf(corner_rot[1]));
+  corder_max[0] = std::max(corder_max[0], fabsf(corner_rot[0]));
+  corder_max[1] = std::max(corder_max[1], fabsf(corner_rot[1]));
 
   dst->xmin = cent[0] - corder_max[0];
   dst->xmax = cent[0] + corder_max[0];
