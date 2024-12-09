@@ -1795,9 +1795,10 @@ static int grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
+  IndexMaskMemory memory;
   const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
       *scene, grease_pencil);
-  Array<Vector<bool>> points_to_remove_per_drawing(drawings.size());
+  Array<IndexMask> points_to_remove_per_drawing(drawings.size());
   threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange range) {
     for (const int drawing_i : range) {
       const MutableDrawingInfo &info = drawings[drawing_i];
@@ -1830,46 +1831,39 @@ static int grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
       });
 
       const Bounds<int2> lasso_bounds = *bounds::min_max(lasso.as_span());
-
-      IndexMaskMemory memory;
-      const IndexMask selection = IndexMask::from_predicate(
+      const IndexMask curve_selection = IndexMask::from_predicate(
           curves.curves_range(), GrainSize(512), memory, [&](const int64_t index) {
             return bounds::intersect(lasso_bounds,
                                      get_pixel_bounds(screen_space_curve_bounds[index]))
                 .has_value();
           });
 
-      if (selection.is_empty()) {
+      if (curve_selection.is_empty()) {
         return;
       }
 
-      Vector<bool> &points_to_remove = points_to_remove_per_drawing[drawing_i];
-      points_to_remove.resize(curves.points_num(), false);
-      selection.foreach_index(GrainSize(512), [&](const int64_t index) {
-        for (const int point : points_by_curve[index]) {
+      Array<bool> points_to_remove(curves.points_num(), false);
+      curve_selection.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
+        for (const int point : points_by_curve[curve_i]) {
           points_to_remove[point] = is_point_inside_lasso(lasso,
                                                           int2(screen_space_positions[point]));
         }
       });
+      points_to_remove_per_drawing[drawing_i] = IndexMask::from_bools(points_to_remove, memory);
     }
   });
 
   bool changed = false;
   for (const int drawing_i : drawings.index_range()) {
     const MutableDrawingInfo &info = drawings[drawing_i];
-    const Span<bool> points_to_remove = points_to_remove_per_drawing[drawing_i].as_span();
+    const IndexMask points_to_remove = points_to_remove_per_drawing[drawing_i];
     if (points_to_remove.is_empty()) {
-      continue;
-    }
-    IndexMaskMemory memory;
-    const IndexMask selection = IndexMask::from_bools(points_to_remove, memory);
-    if (selection.is_empty()) {
       continue;
     }
 
     if (Drawing *drawing = get_drawing_for_erasing(*scene, grease_pencil, info.layer_index)) {
       drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
-                                                                               selection);
+                                                                               points_to_remove);
       drawing->tag_topology_changed();
       changed = true;
     }
@@ -1933,9 +1927,10 @@ static int grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
+  IndexMaskMemory memory;
   const Vector<MutableDrawingInfo> drawings = ed::greasepencil::retrieve_editable_drawings(
       *scene, grease_pencil);
-  Array<Vector<bool>> points_to_remove_per_drawing(drawings.size());
+  Array<IndexMask> points_to_remove_per_drawing(drawings.size());
   threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange range) {
     for (const int drawing_i : range) {
       const MutableDrawingInfo &info = drawings[drawing_i];
@@ -1958,33 +1953,24 @@ static int grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
         }
       });
 
-      Vector<bool> &points_to_remove = points_to_remove_per_drawing[drawing_i];
-      points_to_remove.resize(curves.points_num(), false);
-      threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
-        for (const int point : points) {
-          points_to_remove[point] = is_point_inside_bounds(box_bounds,
-                                                           int2(screen_space_positions[point]));
-        }
-      });
+      points_to_remove_per_drawing[drawing_i] = IndexMask::from_predicate(
+          curves.points_range(), GrainSize(4096), memory, [&](const int64_t index) {
+            return is_point_inside_bounds(box_bounds, int2(screen_space_positions[index]));
+          });
     }
   });
 
   bool changed = false;
   for (const int drawing_i : drawings.index_range()) {
     const MutableDrawingInfo &info = drawings[drawing_i];
-    const Span<bool> points_to_remove = points_to_remove_per_drawing[drawing_i].as_span();
+    const IndexMask points_to_remove = points_to_remove_per_drawing[drawing_i];
     if (points_to_remove.is_empty()) {
-      continue;
-    }
-    IndexMaskMemory memory;
-    const IndexMask selection = IndexMask::from_bools(points_to_remove, memory);
-    if (selection.is_empty()) {
       continue;
     }
 
     if (Drawing *drawing = get_drawing_for_erasing(*scene, grease_pencil, info.layer_index)) {
       drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
-                                                                               selection);
+                                                                               points_to_remove);
       drawing->tag_topology_changed();
       changed = true;
     }
