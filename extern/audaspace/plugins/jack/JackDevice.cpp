@@ -137,15 +137,17 @@ int JackDevice::jack_sync(jack_transport_state_t state, jack_position_t* pos, vo
 {
 	JackDevice* device = (JackDevice*)data;
 
-	device->m_mixingLock.lock();
 	if (device->m_sync == SYNC_DONE) {
 		device->m_sync = SYNC_IDLE;
-		device->m_mixingLock.unlock();
-        return 1;
+		return 1;
 	}
-	device->m_sync = SYNCING;
-	device->m_mixingCondition.notify_all();
-	device->m_mixingLock.unlock();
+
+	if (device->m_mixingLock.try_lock())
+	{
+		device->m_sync = SYNCING;
+		device->m_mixingCondition.notify_all();
+		device->m_mixingLock.unlock();
+	}
 
 	return 0;
 }
