@@ -8,6 +8,7 @@
 
 struct Depsgraph;
 struct Material;
+struct PointerRNA;
 struct ReportList;
 
 namespace blender::io::usd {
