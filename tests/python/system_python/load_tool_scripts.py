@@ -37,8 +37,6 @@ EXCLUDED_FILE_PATHS = {
     # FIXME: Should be reasonably trivial to fix/cleanup for most of them.
     "build_files/cmake/cmake_netbeans_project.py",
     "build_files/cmake/clang_array_check.py",
-    "build_files/package_spec/build_archive.py",
-    "build_files/utils/make_test.py",
     "doc/python_api/conf.py",
 }
 
