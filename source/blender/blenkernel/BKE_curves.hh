@@ -33,6 +33,7 @@ class AttributeAccessor;
 class MutableAttributeAccessor;
 enum class AttrDomain : int8_t;
 struct AttributeAccessorFunctions;
+class GeometryAttributeProviders;
 }  // namespace blender::bke
 namespace blender::bke::bake {
 struct BakeMaterialsList;
@@ -126,6 +127,9 @@ class CurvesGeometryRuntime {
    * otherwise.
    */
   bool check_type_counts = true;
+
+
+  bool use_grease_pencil_drawing_attribute_providers = false;
 };
 
 /**
@@ -1023,6 +1027,7 @@ inline float3 calculate_vector_handle(const float3 &point, const float3 &next_po
 
 /** \} */
 
+GeometryAttributeProviders create_attribute_providers_for_curve();
 const AttributeAccessorFunctions &get_attribute_accessor_functions();
 
 }  // namespace curves

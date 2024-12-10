@@ -157,7 +157,7 @@ class CurvesVertexGroupsAttributeProvider final : public DynamicAttributesProvid
  * In this function all the attribute providers for a curves component are created.
  * Most data in this function is statically allocated, because it does not change over time.
  */
-static GeometryAttributeProviders create_attribute_providers_for_curve()
+GeometryAttributeProviders create_attribute_providers_for_curve()
 {
   static CustomDataAccessInfo curve_access = {
       [](void *owner) -> CustomData * {

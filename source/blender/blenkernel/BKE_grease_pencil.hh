@@ -894,6 +894,10 @@ TREENODE_COMMON_METHODS_FORWARD_IMPL(LayerGroup);
 
 const AttributeAccessorFunctions &get_attribute_accessor_functions();
 
+namespace drawing {
+const AttributeAccessorFunctions &get_attribute_accessor_functions();
+}  // namespace drawing
+
 }  // namespace greasepencil
 
 class GreasePencilRuntime {

@@ -710,11 +710,13 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
 
 const bke::CurvesGeometry &Drawing::strokes() const
 {
+  this->geometry.runtime->use_grease_pencil_drawing_attribute_providers = true;
   return this->geometry.wrap();
 }
 
 bke::CurvesGeometry &Drawing::strokes_for_write()
 {
+  this->geometry.runtime->use_grease_pencil_drawing_attribute_providers = true;
   return this->geometry.wrap();
 }
 

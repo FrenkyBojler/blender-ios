@@ -228,14 +228,13 @@ class GeometryAttributeProviders {
   VectorSet<AttrDomain> supported_domains_;
 
  public:
+  GeometryAttributeProviders() {}
   GeometryAttributeProviders(Span<const BuiltinAttributeProvider *> builtin_attribute_providers,
                              Span<const DynamicAttributesProvider *> dynamic_attribute_providers)
       : dynamic_attribute_providers_(dynamic_attribute_providers)
   {
     for (const BuiltinAttributeProvider *provider : builtin_attribute_providers) {
-      /* Use #add_new to make sure that no two builtin attributes have the same name. */
-      builtin_attribute_providers_.add_new(provider->name(), provider);
-      supported_domains_.add(provider->domain());
+      add_builtin_attribute_provider(provider);
     }
     for (const DynamicAttributesProvider *provider : dynamic_attribute_providers) {
       provider->foreach_domain([&](AttrDomain domain) { supported_domains_.add(domain); });
@@ -255,6 +254,19 @@ class GeometryAttributeProviders {
   Span<AttrDomain> supported_domains() const
   {
     return supported_domains_;
+  }
+
+  void add_builtin_attribute_provider(const BuiltinAttributeProvider *provider)
+  {
+    /* Use #add_new to make sure that no two builtin attributes have the same name. */
+    builtin_attribute_providers_.add_new(provider->name(), provider);
+    supported_domains_.add(provider->domain());
+  }
+
+  void add_dynamic_attribute_provider(const DynamicAttributesProvider *provider)
+  {
+    dynamic_attribute_providers_.append(provider);
+    provider->foreach_domain([&](AttrDomain domain) { supported_domains_.add(domain); });
   }
 };
 

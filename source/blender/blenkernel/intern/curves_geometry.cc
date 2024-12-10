@@ -32,6 +32,7 @@
 #include "BKE_curves_utils.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
+#include "BKE_grease_pencil.hh"
 
 namespace blender::bke {
 
@@ -1571,11 +1572,18 @@ GVArray CurvesGeometry::adapt_domain(const GVArray &varray,
 
 AttributeAccessor CurvesGeometry::attributes() const
 {
+  if (this->runtime->use_grease_pencil_drawing_attribute_providers) {
+    return AttributeAccessor(this, greasepencil::drawing::get_attribute_accessor_functions());
+  }
   return AttributeAccessor(this, curves::get_attribute_accessor_functions());
 }
 
 MutableAttributeAccessor CurvesGeometry::attributes_for_write()
 {
+  if (this->runtime->use_grease_pencil_drawing_attribute_providers) {
+    return MutableAttributeAccessor(this,
+                                    greasepencil::drawing::get_attribute_accessor_functions());
+  }
   return MutableAttributeAccessor(this, curves::get_attribute_accessor_functions());
 }
 
