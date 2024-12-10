@@ -155,11 +155,6 @@ struct USDSceneImportContext {
           list.append(ptr_rna);
         }
       }
-
-      boost::python::dict materials;
-      imported_materials.foreach_item([&](const std::string &path, const std::string &name) {
-        append(path, &IDType_ID_MA, name.c_str());
-      });
     }
 
     return *links;

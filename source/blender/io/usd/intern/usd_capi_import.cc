@@ -37,6 +37,7 @@
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
 #include "DNA_object_types.h"
+#include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -381,6 +382,14 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
       return;
     }
   }
+
+  data->settings.usd_path_to_mat_name.foreach_item([&](const std::string &path, const std::string &name) {
+    Material* mat = data->settings.mat_name_to_mat.lookup_default(name, nullptr);
+    if (mat) {
+      ID* id = &mat->id;
+      data->imported_id_links[path].push_back(RNA_pointer_create(id, ID_code_to_RNA_type(GS(id->name)), id));
+    }
+  });
 
   if (data->params.import_skeletons) {
     archive->process_armature_modifiers();
