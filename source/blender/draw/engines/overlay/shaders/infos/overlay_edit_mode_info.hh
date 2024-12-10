@@ -1083,7 +1083,8 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_curves, overlay_depth_curves_base
 /** \name Uniform color
  * \{ */
 
-GPU_SHADER_CREATE_INFO(overlay_uniform_color_common)
+GPU_SHADER_CREATE_INFO(overlay_uniform_color)
+DO_STATIC_COMPILATION()
 VERTEX_IN(0, VEC3, pos)
 PUSH_CONSTANT(VEC4, ucolor)
 FRAGMENT_OUT(0, VEC4, fragColor)
@@ -1091,31 +1092,11 @@ VERTEX_SOURCE("overlay_depth_only_vert.glsl")
 FRAGMENT_SOURCE("overlay_uniform_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(overlay_uniform_color)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(overlay_uniform_color_common)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_modelmat_new)
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_CLIP_VARIATION(overlay_uniform_color)
-
-GPU_SHADER_CREATE_INFO(overlay_uniform_color_batch)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(overlay_uniform_color_common)
-TYPEDEF_SOURCE("draw_shader_shared.hh")
-STORAGE_BUF(0, READ, ObjectMatrices, matrix_buf[])
-DEFINE("DRAW_MODELMAT_CREATE_INFO")
-DEFINE_VALUE("drw_ModelMatrixInverse", "matrix_buf[gl_InstanceID].model_inverse")
-DEFINE_VALUE("drw_ModelMatrix", "matrix_buf[gl_InstanceID].model")
-/* TODO For compatibility with old shaders. To be removed. */
-DEFINE_VALUE("ModelMatrixInverse", "drw_ModelMatrixInverse")
-DEFINE_VALUE("ModelMatrix", "drw_ModelMatrix")
-GPU_SHADER_CREATE_END()
-
-OVERLAY_INFO_CLIP_VARIATION(overlay_uniform_color_batch)
 
 GPU_SHADER_CREATE_INFO(overlay_uniform_color_pointcloud)
 DO_STATIC_COMPILATION()

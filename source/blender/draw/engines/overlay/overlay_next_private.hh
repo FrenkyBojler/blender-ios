@@ -112,83 +112,60 @@ using blender::draw::TextureFromPool;
 using blender::draw::TextureRef;
 
 struct State {
-  Depsgraph *depsgraph;
-  const ViewLayer *view_layer;
-  const Scene *scene;
-  const View3D *v3d;
-  const SpaceLink *space_data;
-  const ARegion *region;
-  const RegionView3D *rv3d;
-  DRWTextStore *dt;
-  View3DOverlay overlay;
-  float pixelsize;
-  eSpace_Type space_type;
-  eContextObjectMode ctx_mode;
-  eObjectMode object_mode;
-  const Object *object_active;
-  bool clear_in_front;
-  bool use_in_front;
-  bool is_wireframe_mode;
+  Depsgraph *depsgraph = nullptr;
+  const ViewLayer *view_layer = nullptr;
+  const Scene *scene = nullptr;
+  const View3D *v3d = nullptr;
+  const SpaceLink *space_data = nullptr;
+  const ARegion *region = nullptr;
+  const RegionView3D *rv3d = nullptr;
+  DRWTextStore *dt = nullptr;
+  View3DOverlay overlay = {};
+  eSpace_Type space_type = SPACE_EMPTY;
+  eContextObjectMode ctx_mode = CTX_MODE_EDIT_MESH;
+  eObjectMode object_mode = OB_MODE_OBJECT;
+  const Object *object_active = nullptr;
+  bool clear_in_front = false;
+  bool use_in_front = false;
+  bool is_wireframe_mode = false;
   /** Whether we are rendering for an image (viewport render). */
-  bool is_viewport_image_render;
+  bool is_viewport_image_render = false;
   /** Whether we are rendering for an image. */
-  bool is_image_render;
+  bool is_image_render = false;
   /** True if rendering only to query the depth. Can be for auto-depth rotation. */
-  bool is_depth_only_drawing;
+  bool is_depth_only_drawing = false;
   /** When drag-dropping material onto objects to assignment. */
-  bool is_material_select;
+  bool is_material_select = false;
   /** Whether we should render the background or leave it transparent. */
-  bool draw_background;
+  bool draw_background = false;
   /** Should text draw in this mode? */
-  bool show_text;
-  bool hide_overlays;
-  bool xray_enabled;
-  bool xray_enabled_and_not_wire;
+  bool show_text = false;
+  bool hide_overlays = false;
+  bool xray_enabled = false;
+  bool xray_enabled_and_not_wire = false;
   /* Brings the active pose armature in front of all objects. */
-  bool do_pose_xray;
+  bool do_pose_xray = false;
   /* Add a veil on top of all surfaces to make the active pose armature pop out. */
-  bool do_pose_fade_geom;
-  float xray_opacity;
-  short v3d_flag;     /* TODO: move to #View3DOverlay. */
-  short v3d_gridflag; /* TODO: move to #View3DOverlay. */
-  int cfra;
-  float3 camera_position;
-  float3 camera_forward;
-  int clipping_plane_count;
+  bool do_pose_fade_geom = false;
+  float xray_opacity = 0.0f;
+  short v3d_flag = 0;     /* TODO: move to #View3DOverlay. */
+  short v3d_gridflag = 0; /* TODO: move to #View3DOverlay. */
+  int cfra = 0;
+  float3 camera_position = float3(0.0f);
+  float3 camera_forward = float3(0.0f);
+  int clipping_plane_count = 0;
 
   /* Active Image properties. Only valid image space only. */
-  int2 image_size;
-  float2 image_uv_aspect;
-  float2 image_aspect;
+  int2 image_size = int2(0);
+  float2 image_uv_aspect = float2(0.0f);
+  float2 image_aspect = float2(0.0f);
 
-  /* Data to save per overlay to not rely on rv3d for rendering.
-   * TODO(fclem): Compute offset directly from the view. */
-  struct ViewOffsetData {
-    /* Copy of rv3d->dist. */
-    float dist;
-    /* Copy of rv3d->persp. */
-    char persp;
-    /* Copy of rv3d->is_persp. */
-    bool is_persp;
-  };
-
-  ViewOffsetData offset_data_get() const
+  View::OffsetData offset_data_get() const
   {
     if (rv3d == nullptr) {
-      return {0.0f, 0, false};
+      return View::OffsetData();
     }
-    return {rv3d->dist, rv3d->persp, rv3d->is_persp != 0};
-  }
-
-  static float view_dist_get(const ViewOffsetData &offset_data, const float4x4 &winmat)
-  {
-    float view_dist = offset_data.dist;
-    /* Special exception for orthographic camera:
-     * `view_dist` isn't used as the depth range isn't the same. */
-    if (offset_data.persp == RV3D_CAMOB && offset_data.is_persp == false) {
-      view_dist = 1.0f / max_ff(fabsf(winmat[0][0]), fabsf(winmat[1][1]));
-    }
-    return view_dist;
+    return View::OffsetData(*rv3d);
   }
 
   /** Convenience functions. */
@@ -263,12 +240,6 @@ struct State {
     return (this->overlay.flag & V3D_OVERLAY_SHOW_LIGHT_COLORS);
   }
 };
-
-static inline float4x4 winmat_polygon_offset(float4x4 winmat, float view_dist, float offset)
-{
-  winmat[3][2] -= GPU_polygon_offset_calc(winmat.ptr(), view_dist, offset);
-  return winmat;
-}
 
 /**
  * Contains all overlay generic geometry batches.
@@ -430,7 +401,6 @@ class ShaderModule {
   ShaderPtr sculpt_curves;
   ShaderPtr sculpt_curves_cage;
   ShaderPtr uniform_color;
-  ShaderPtr uniform_color_batch;
   ShaderPtr uv_analysis_stretch_angle;
   ShaderPtr uv_analysis_stretch_area;
   ShaderPtr uv_brush_stencil;
@@ -525,6 +495,8 @@ struct Resources : public select::SelectMap {
   Framebuffer overlay_line_in_front_fb = {"overlay_line_in_front_fb"};
 
   /* Output Color. */
+  Framebuffer overlay_output_color_only_fb = {"overlay_output_color_only_fb"};
+  /* Depth, Output Color. */
   Framebuffer overlay_output_fb = {"overlay_output_fb"};
 
   /* Render Frame-buffers. Only used for multiplicative blending on top of the render. */
@@ -674,10 +646,10 @@ struct Resources : public select::SelectMap {
                                       GPU_ATTACHMENT_TEXTURE(this->line_tx));
     this->overlay_color_only_fb.ensure(GPU_ATTACHMENT_NONE,
                                        GPU_ATTACHMENT_TEXTURE(this->overlay_tx));
-    /* The v2d path writes to the overlay output directly, but it needs a depth attachment. */
-    this->overlay_output_fb.ensure(state.is_space_image() ?
-                                       GPUAttachment GPU_ATTACHMENT_TEXTURE(this->depth_tx) :
-                                       GPUAttachment GPU_ATTACHMENT_NONE,
+
+    this->overlay_output_color_only_fb.ensure(GPU_ATTACHMENT_NONE,
+                                              GPU_ATTACHMENT_TEXTURE(this->color_overlay_tx));
+    this->overlay_output_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                                    GPU_ATTACHMENT_TEXTURE(this->color_overlay_tx));
   }
 

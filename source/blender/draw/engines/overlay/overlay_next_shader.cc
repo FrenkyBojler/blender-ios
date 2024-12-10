@@ -155,8 +155,6 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
 
   uniform_color = static_clippable_shader("overlay_uniform_color");
 
-  uniform_color_batch = static_clippable_shader("overlay_uniform_color_batch");
-
   wireframe_mesh = static_selectable_shader("overlay_wireframe");
 
   wireframe_points = static_selectable_shader("overlay_wireframe_points");
