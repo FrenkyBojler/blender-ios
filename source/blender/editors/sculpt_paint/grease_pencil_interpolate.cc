@@ -414,6 +414,7 @@ static Vector<int> find_curve_pair_offsets(const InterpolationPairs &curve_pairs
     return {};
   }
 
+  /* Extra element for the total size needed for OffsetIndices. */
   pair_offsets.append(0);
   offset_indices::accumulate_counts_to_offsets(pair_offsets);
 
