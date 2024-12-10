@@ -1355,8 +1355,10 @@ static void cloth_brush_satisfy_constraints(const Depsgraph &depsgraph,
                                         (cloth_sim.length_constraint_tweak[v2] * 0.5f);
 
       if (current_distance > 0.0f) {
-        correction_vector = v1_to_v2 * CLOTH_SOLVER_DISPLACEMENT_FACTOR *
-                            (1.0f - (constraint_distance / current_distance));
+        const float distance_factor = 1.0f - std::clamp(constraint_distance / current_distance,
+                                                        0.0f,
+                                                        1.0f);
+        correction_vector = v1_to_v2 * CLOTH_SOLVER_DISPLACEMENT_FACTOR * distance_factor;
       }
       else {
         correction_vector = v1_to_v2 * CLOTH_SOLVER_DISPLACEMENT_FACTOR;
