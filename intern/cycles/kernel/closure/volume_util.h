@@ -263,22 +263,23 @@ ccl_device void phase_mie_fitted_parameters(float d,
   }
   else if (d < 1.5f) {
     /* Eq (15 - 18). */
-    *g_HG = 0.862f - 0.143f * sqr(fast_logf(d));
-    const float a = (fast_logf(d) - 0.238604f) * (fast_logf(d) + 1.00667f);
-    const float b = 0.507522f - 0.15677f * fast_logf(d);
-    const float c = 1.19692f * fast_cosf(a / b) + 1.37932f * fast_logf(d) + 0.0625835f;
+    const float log_d = fast_logf(d);
+    *g_HG = 0.862f - 0.143f * sqr(log_d);
+    const float a = (log_d - 0.238604f) * (log_d + 1.00667f);
+    const float b = 0.507522f - 0.15677f * log_d;
+    const float c = 1.19692f * fast_cosf(a / b) + 1.37932f * log_d + 0.0625835f;
     *g_D = 0.379685f * fast_cosf(c) + 0.344213f;
     *alpha = 250.0f;
-    *w = 0.146209f * fast_cosf(3.38707f * fast_logf(d) + 2.11193f) + 0.316072f +
-         0.0778917f * fast_logf(d);
+    *w = 0.146209f * fast_cosf(3.38707f * log_d + 2.11193f) + 0.316072f + 0.0778917f * log_d;
   }
   else if (d < 5.0f) {
     /* Eq (19 - 22). */
-    *g_HG = 0.0604931f * fast_logf(fast_logf(d)) + 0.940256f;
-    *g_D = 0.500411f - (0.081287f / (-2.0f * fast_logf(d) + fast_tanf(fast_logf(d)) + 1.27551f));
-    *alpha = 7.30354f * fast_logf(d) + 6.31675f;
-    const float temp = fast_cosf(5.68947f * (fast_logf(fast_logf(d)) - 0.0292149f));
-    *w = 0.026914f * (fast_logf(d) - temp) + 0.3764f;
+    const float log_d = fast_logf(d);
+    *g_HG = 0.0604931f * fast_logf(log_d) + 0.940256f;
+    *g_D = 0.500411f - (0.081287f / (-2.0f * log_d + fast_tanf(log_d) + 1.27551f));
+    *alpha = 7.30354f * log_d + 6.31675f;
+    const float temp = fast_cosf(5.68947f * (fast_logf(log_d) - 0.0292149f));
+    *w = 0.026914f * (log_d - temp) + 0.3764f;
   }
   else {
     /* Eq (7 - 10). */
