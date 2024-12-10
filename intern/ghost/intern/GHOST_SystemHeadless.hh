@@ -113,7 +113,6 @@ class GHOST_SystemHeadless : public GHOST_System {
 
 #if defined(WITH_OPENGL_BACKEND) && defined(__linux__)
       case GHOST_kDrawingContextTypeOpenGL: {
-
         GHOST_Context *context;
         for (int minor = 6; minor >= 3; --minor) {
           context = new GHOST_ContextEGL((GHOST_System *)this,
