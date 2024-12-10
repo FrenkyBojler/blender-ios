@@ -19,7 +19,6 @@
 
 #include "vk_batch.hh"
 #include "vk_context.hh"
-#include "vk_drawlist.hh"
 #include "vk_fence.hh"
 #include "vk_framebuffer.hh"
 #include "vk_ghost_api.hh"
@@ -145,6 +144,9 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (!extensions.contains(VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
     missing_capabilities.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
+  if (!extensions.contains(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME)) {
+    missing_capabilities.append(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+  }
 
   return missing_capabilities;
 }
@@ -267,7 +269,9 @@ void VKBackend::platform_init()
   vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, vk_physical_devices.data());
   int index = 0;
   for (VkPhysicalDevice vk_physical_device : vk_physical_devices) {
-    if (missing_capabilities_get(vk_physical_device).is_empty()) {
+    if (missing_capabilities_get(vk_physical_device).is_empty() &&
+        GPU_vulkan_is_supported_driver(vk_physical_device))
+    {
       VkPhysicalDeviceProperties vk_properties = {};
       vkGetPhysicalDeviceProperties(vk_physical_device, &vk_properties);
       std::stringstream identifier;
@@ -343,6 +347,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     workarounds.fragment_shader_barycentric = true;
     workarounds.dynamic_rendering = true;
     workarounds.dynamic_rendering_unused_attachments = true;
+    workarounds.local_size_execution_mode = true;
 
     GCaps.render_pass_workaround = true;
 
@@ -382,6 +387,9 @@ void VKBackend::detect_workarounds(VKDevice &device)
       VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   workarounds.dynamic_rendering_unused_attachments = !device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
+
+  workarounds.local_size_execution_mode = !device.supports_extension(
+      VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
 
   device.workarounds_ = workarounds;
 }
@@ -453,11 +461,6 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
 Batch *VKBackend::batch_alloc()
 {
   return new VKBatch();
-}
-
-DrawList *VKBackend::drawlist_alloc(int list_length)
-{
-  return new VKDrawList(list_length);
 }
 
 Fence *VKBackend::fence_alloc()
