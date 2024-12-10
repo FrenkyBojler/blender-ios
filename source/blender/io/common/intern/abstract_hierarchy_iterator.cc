@@ -602,13 +602,15 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
       transform_writer->write(*context);
     }
 
-    if (!context->weak_export) {
+    if (!context->weak_export && include_data_writers(context)) {
       make_writers_particle_systems(context);
       make_writer_object_data(context);
     }
 
-    /* Recurse into this object's children. */
-    make_writers(context);
+    if (include_child_writers(context)) {
+      /* Recurse into this object's children. */
+      make_writers(context);
+    }
   }
 
   /* TODO(Sybren): iterate over all unused writers and call unused_during_iteration() or something.

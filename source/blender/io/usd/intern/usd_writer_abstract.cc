@@ -283,6 +283,8 @@ bool USDAbstractWriter::mark_as_instance(const HierarchyContext &context, const 
     return false;
   }
 
+  prim.SetInstanceable(true);
+
   return true;
 }
 
