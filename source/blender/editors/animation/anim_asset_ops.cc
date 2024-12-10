@@ -176,46 +176,49 @@ static void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull c
   }
 }
 
-static blender::animrig::Action &extract_pose(Main &bmain, Object &pose_object)
+static blender::animrig::Action &extract_pose(Main &bmain, blender::Span<Object *> pose_objects)
 {
   /* This currently only looks at the pose and not other things that could go onto different
    * slots on the same action. */
 
   using namespace blender::animrig;
   Action &action = action_add(bmain, "pose_create");
-  Slot &slot = action.slot_add_for_id(pose_object.id);
   Layer &layer = action.layer_add("pose");
   Strip &strip = layer.strip_add(action, Strip::Type::Keyframe);
   StripKeyframeData &strip_data = strip.data<StripKeyframeData>(action);
+  const KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
 
-  KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
+  for (Object *pose_object : pose_objects) {
+    BLI_assert(pose_object->pose);
+    Slot &slot = action.slot_add_for_id(pose_object->id);
 
-  LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object.pose->chanbase) {
-    if (!(pose_bone->bone->flag & BONE_SELECTED)) {
-      continue;
-    }
-    PointerRNA bone_pointer = RNA_pointer_create(&pose_object.id, &RNA_PoseBone, pose_bone);
-    Vector<RNAPath> rna_paths = construct_rna_paths(&bone_pointer);
-    for (const RNAPath &rna_path : rna_paths) {
-      PointerRNA resolved_pointer;
-      PropertyRNA *resolved_property;
-      if (!RNA_path_resolve(
-              &bone_pointer, rna_path.path.c_str(), &resolved_pointer, &resolved_property))
-      {
+    LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object->pose->chanbase) {
+      if (!(pose_bone->bone->flag & BONE_SELECTED)) {
         continue;
       }
-      Vector<float> values = blender::animrig::get_rna_values(&resolved_pointer,
-                                                              resolved_property);
-      const std::optional<std::string> rna_path_id_to_prop = RNA_path_from_ID_to_property(
-          &resolved_pointer, resolved_property);
-      if (!rna_path_id_to_prop.has_value()) {
-        continue;
-      }
-      int i = 0;
-      for (const float value : values) {
-        strip_data.keyframe_insert(
-            &bmain, slot, {rna_path_id_to_prop.value(), i}, {1, value}, key_settings);
-        i++;
+      PointerRNA bone_pointer = RNA_pointer_create(&pose_object->id, &RNA_PoseBone, pose_bone);
+      Vector<RNAPath> rna_paths = construct_rna_paths(&bone_pointer);
+      for (const RNAPath &rna_path : rna_paths) {
+        PointerRNA resolved_pointer;
+        PropertyRNA *resolved_property;
+        if (!RNA_path_resolve(
+                &bone_pointer, rna_path.path.c_str(), &resolved_pointer, &resolved_property))
+        {
+          continue;
+        }
+        Vector<float> values = blender::animrig::get_rna_values(&resolved_pointer,
+                                                                resolved_property);
+        const std::optional<std::string> rna_path_id_to_prop = RNA_path_from_ID_to_property(
+            &resolved_pointer, resolved_property);
+        if (!rna_path_id_to_prop.has_value()) {
+          continue;
+        }
+        int i = 0;
+        for (const float value : values) {
+          strip_data.keyframe_insert(
+              &bmain, slot, {rna_path_id_to_prop.value(), i}, {1, value}, key_settings);
+          i++;
+        }
       }
     }
   }
@@ -288,13 +291,30 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Object *pose_object = CTX_data_active_object(C);
-  if (!pose_object || !pose_object->pose) {
+  blender::Vector<PointerRNA> selected_objects;
+  CTX_data_selected_objects(C, &selected_objects);
+
+  blender::Vector<Object *> selected_pose_objects;
+  for (const PointerRNA &ptr : selected_objects) {
+    Object *object = reinterpret_cast<Object *>(ptr.owner_id);
+    if (!object->pose) {
+      continue;
+    }
+    selected_pose_objects.append(object);
+  }
+  Object *active_object = CTX_data_active_object(C);
+  /* The active object may not be selected, it should be added because you can still switch to pose
+   * mode. */
+  if (active_object && active_object->pose && !selected_pose_objects.contains(active_object)) {
+    selected_pose_objects.append(active_object);
+  }
+
+  if (selected_pose_objects.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
   /* Temporary action in current main that will be exported and later deleted. */
-  blender::animrig::Action &pose_action = extract_pose(*bmain, *pose_object);
+  blender::animrig::Action &pose_action = extract_pose(*bmain, selected_pose_objects);
   asset::mark_id(&pose_action.id);
   asset::generate_preview(C, &pose_action.id);
 
