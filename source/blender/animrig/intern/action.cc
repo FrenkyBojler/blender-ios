@@ -6,6 +6,12 @@
  * \ingroup animrig
  */
 
+/* This is just for the legacy vs layered action checks, which need to access
+ * `chanbase`. This is because these methods are used in versioning code, and
+ * depend on understanding that actions that have a non-empty `chanbase` are
+ * neither layered nor empty and must be versioned. */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_action_defaults.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
@@ -211,7 +217,8 @@ bool Action::is_empty() const
    * `join_groups_action_temp` the ownership of FCurves is temporarily transferred to the `groups`
    * ListBase leaving `curves` potentially empty. */
   return this->layer_array_num == 0 && this->slot_array_num == 0 &&
-         BLI_listbase_is_empty(&this->curves) && BLI_listbase_is_empty(&this->groups);
+         BLI_listbase_is_empty(&this->curves) && BLI_listbase_is_empty(&this->groups) &&
+         BLI_listbase_is_empty(&this->chanbase);
 }
 bool Action::is_action_legacy() const
 {
@@ -223,7 +230,8 @@ bool Action::is_action_layered() const
   /* This is a valid layered Action if there is ANY layered info (because that
    * takes precedence) or when there is no legacy info. */
   return this->layer_array_num > 0 || this->slot_array_num > 0 ||
-         (BLI_listbase_is_empty(&this->curves) && BLI_listbase_is_empty(&this->groups));
+         (BLI_listbase_is_empty(&this->curves) && BLI_listbase_is_empty(&this->groups) &&
+          BLI_listbase_is_empty(&this->chanbase));
 }
 
 blender::Span<const Layer *> Action::layers() const
