@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "ANIM_action.hh"
+#include "action_internal.hh"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -12,6 +13,7 @@
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 
+#include "DNA_action_defaults.h"
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 
@@ -27,6 +29,17 @@
 #include "testing/testing.h"
 
 namespace blender::animrig::tests {
+
+TEST(action, low_level_initialisation)
+{
+  bAction *action = static_cast<bAction *>(BKE_id_new_nomain(ID_AC, "ACNewAction"));
+
+  EXPECT_NE(action->last_slot_handle, 0)
+      << "bAction::last_slot_handle should not be initialised to 0";
+
+  BKE_id_free(nullptr, action);
+}
+
 class ActionLayersTest : public testing::Test {
  public:
   Main *bmain;
@@ -275,8 +288,8 @@ TEST_F(ActionLayersTest, add_slot)
 {
   { /* Creating an 'unused' Slot should just be called 'Slot'. */
     Slot &slot = action->slot_add();
-    EXPECT_EQ(1, action->last_slot_handle);
-    EXPECT_EQ(1, slot.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, slot.handle);
 
     EXPECT_STREQ("XXSlot", slot.identifier);
     EXPECT_EQ(0, slot.idtype);
@@ -284,10 +297,26 @@ TEST_F(ActionLayersTest, add_slot)
 
   { /* Creating a Slot for a specific ID should name it after the ID. */
     Slot &slot = action->slot_add_for_id(cube->id);
-    EXPECT_EQ(2, action->last_slot_handle);
-    EXPECT_EQ(2, slot.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, slot.handle);
 
     EXPECT_STREQ(cube->id.name, slot.identifier);
+    EXPECT_EQ(ID_OB, slot.idtype);
+  }
+
+  { /* Creating a Slot for a specific ID that already had a slot assigned before should name it
+     * after that previous slot. This should also ensure that the first two characters are actually
+     * correct for the ID type. */
+    AnimData *adt = BKE_animdata_ensure_id(&cube->id);
+    STRNCPY_UTF8(adt->last_slot_identifier, "$$Kübuš 😹");
+    Slot &slot = action->slot_add_for_id(cube->id);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, slot.handle);
+
+    EXPECT_STREQ("Kübuš 😹", slot.identifier + 2)
+        << "The last-assigned slot name should be reused";
+    EXPECT_STREQ("OBKübuš 😹", slot.identifier)
+        << "The ID type encoded in the slot identifier should be correct";
     EXPECT_EQ(ID_OB, slot.idtype);
   }
 }
@@ -315,20 +344,20 @@ TEST_F(ActionLayersTest, add_slot_multiple)
   EXPECT_TRUE(assign_action(action, suzanne->id));
   EXPECT_EQ(assign_action_slot(&slot_suzanne, suzanne->id), ActionSlotAssignmentResult::OK);
 
-  EXPECT_EQ(2, action->last_slot_handle);
-  EXPECT_EQ(1, slot_cube.handle);
-  EXPECT_EQ(2, slot_suzanne.handle);
+  EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, action->last_slot_handle);
+  EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, slot_cube.handle);
+  EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, slot_suzanne.handle);
 }
 
 TEST_F(ActionLayersTest, slot_remove)
 {
   { /* Canary test: removing a just-created slot on an otherwise empty Action should work. */
     Slot &slot = action->slot_add();
-    EXPECT_EQ(1, slot.handle);
-    EXPECT_EQ(1, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, slot.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, action->last_slot_handle);
 
     EXPECT_TRUE(action->slot_remove(slot));
-    EXPECT_EQ(1, action->last_slot_handle)
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, action->last_slot_handle)
         << "Removing a slot should not change the last-used slot handle.";
     EXPECT_EQ(0, action->slot_array_num);
   }
@@ -341,8 +370,8 @@ TEST_F(ActionLayersTest, slot_remove)
   { /* Removing a slot should remove its Channelbag. */
     Slot &slot = action->slot_add();
     const slot_handle_t slot_handle = slot.handle;
-    EXPECT_EQ(2, slot.handle);
-    EXPECT_EQ(2, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, slot.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, action->last_slot_handle);
 
     /* Create an F-Curve in a Channelbag for the slot. */
     action->layer_keystrip_ensure();
@@ -352,7 +381,7 @@ TEST_F(ActionLayersTest, slot_remove)
 
     /* Remove the slot. */
     EXPECT_TRUE(action->slot_remove(slot));
-    EXPECT_EQ(2, action->last_slot_handle)
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, action->last_slot_handle)
         << "Removing a slot should not change the last-used slot handle.";
     EXPECT_EQ(0, action->slot_array_num);
 
@@ -365,10 +394,10 @@ TEST_F(ActionLayersTest, slot_remove)
     Slot &slot1 = action->slot_add();
     Slot &slot2 = action->slot_add();
     Slot &slot3 = action->slot_add();
-    EXPECT_EQ(3, slot1.handle);
-    EXPECT_EQ(4, slot2.handle);
-    EXPECT_EQ(5, slot3.handle);
-    EXPECT_EQ(5, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, slot1.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 4, slot2.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 5, slot3.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 5, action->last_slot_handle);
 
     /* For referencing the slot handle after the slot is removed. */
     const slot_handle_t slot2_handle = slot2.handle;
@@ -382,7 +411,7 @@ TEST_F(ActionLayersTest, slot_remove)
 
     /* Remove the slot. */
     EXPECT_TRUE(action->slot_remove(slot2));
-    EXPECT_EQ(5, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 5, action->last_slot_handle);
 
     /* Check the correct slot + channel-bag are removed. */
     EXPECT_EQ(action->slot_for_handle(slot1.handle), &slot1);
@@ -596,11 +625,11 @@ TEST_F(ActionLayersTest, rename_slot_identifier_collision)
   EXPECT_STREQ("New Slot Name.001", slot2.identifier);
 }
 
-TEST_F(ActionLayersTest, find_suitable_slot)
+TEST_F(ActionLayersTest, generic_slot_for_autoassign)
 {
   /* ===
    * Empty case, no slots exist yet and the ID doesn't even have an AnimData. */
-  EXPECT_EQ(nullptr, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(nullptr, generic_slot_for_autoassign(cube->id, *this->action, ""));
 
   /* ===
    * Slot exists with the same name & type as the ID, but the ID doesn't have any AnimData yet.
@@ -609,7 +638,7 @@ TEST_F(ActionLayersTest, find_suitable_slot)
   slot.handle = 327;
   STRNCPY_UTF8(slot.identifier, "OBKüüübus");
   slot.idtype = GS(cube->id.name);
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot, generic_slot_for_autoassign(cube->id, *this->action, ""));
 
   /* ===
    * Slot exists with the same name & type as the ID, and the ID has an AnimData with the same
@@ -626,22 +655,16 @@ TEST_F(ActionLayersTest, find_suitable_slot)
   /* Configure adt to use the handle of one slot, and the identifier of the other. */
   adt->slot_handle = other_slot.handle;
   STRNCPY_UTF8(adt->last_slot_identifier, slot.identifier);
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot,
+            generic_slot_for_autoassign(cube->id, *this->action, cube->adt->last_slot_identifier));
 
   /* ===
-   * Same situation as above (AnimData has identifier of one slot, but the handle of another),
-   * except that the Action has already been assigned. In this case the handle should take
-   * precedence. */
-  adt->action = action;
-  id_us_plus(&action->id);
-  EXPECT_EQ(&other_slot, action->find_suitable_slot_for(cube->id));
-
-  /* ===
-   * A slot exists, but doesn't match anything in the action data of the cube. This should fall
-   * back to using the ID name. */
+   * Assigned slot info exists, but doesn't match anything in the action data of the cube. This
+   * should fall back to using the ID name. */
   adt->slot_handle = 161;
   STRNCPY_UTF8(adt->last_slot_identifier, "¿¿What's this??");
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot,
+            generic_slot_for_autoassign(cube->id, *this->action, cube->adt->last_slot_identifier));
 }
 
 TEST_F(ActionLayersTest, active_slot)

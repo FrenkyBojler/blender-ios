@@ -47,7 +47,10 @@ static void draw_node_input(bContext *C,
   if (!socket.is_available()) {
     return;
   }
-  if ((socket.flag & (SOCK_IS_LINKED | SOCK_HIDE_VALUE)) != 0) {
+  if (socket.is_directly_linked()) {
+    return;
+  }
+  if (socket.flag & SOCK_HIDE_VALUE) {
     return;
   }
   if (socket.typeinfo->draw == nullptr) {
@@ -58,6 +61,9 @@ static void draw_node_input(bContext *C,
   }
   const bNode &node = *static_cast<bNode *>(node_ptr->data);
   if (node.is_reroute()) {
+    return;
+  }
+  if (socket.idname == StringRef("NodeSocketVirtual")) {
     return;
   }
 
