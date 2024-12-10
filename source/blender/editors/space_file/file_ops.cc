@@ -2142,7 +2142,6 @@ void FILE_OT_execute(wmOperatorType *ot)
   ot->name = "Execute File Window";
   ot->description = "Execute selected file";
   ot->idname = "FILE_OT_execute";
-
   ot->get_description = file_execute_get_description;
 
   /* api callbacks */
