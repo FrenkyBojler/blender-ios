@@ -2,15 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd.hh"
-
 #include "usd_hook.hh"
-
-#include <boost/python/call_method.hpp>
-#include <boost/python/class.hpp>
-#include <boost/python/import.hpp>
-#include <boost/python/return_value_policy.hpp>
-#include <boost/python/to_python_converter.hpp>
+#include "usd.hh"
 
 #include "BLI_utildefines.h"
 
@@ -27,7 +20,26 @@
 #include <list>
 #include <memory>
 
+#if PXR_VERSION >= 2411
+#  include <pxr/external/boost/python/call_method.hpp>
+#  include <pxr/external/boost/python/class.hpp>
+#  include <pxr/external/boost/python/import.hpp>
+#  include <pxr/external/boost/python/ref.hpp>
+#  include <pxr/external/boost/python/return_value_policy.hpp>
+#  include <pxr/external/boost/python/to_python_converter.hpp>
+#  define REF python::ref
+
+using namespace pxr::pxr_boost;
+#else
+#  include <boost/python/call_method.hpp>
+#  include <boost/python/class.hpp>
+#  include <boost/python/import.hpp>
+#  include <boost/python/return_value_policy.hpp>
+#  include <boost/python/to_python_converter.hpp>
+#  define REF boost::ref
+
 using namespace boost;
+#endif
 
 namespace blender::io::usd {
 
@@ -315,7 +327,7 @@ class OnExportInvoker : public USDHookInvoker {
 
   void call_hook(PyObject *hook_obj) const override
   {
-    python::call_method<bool>(hook_obj, function_name(), ref(hook_context_));
+    python::call_method<bool>(hook_obj, function_name(), REF(hook_context_));
   }
 };
 
@@ -345,7 +357,7 @@ class OnMaterialExportInvoker : public USDHookInvoker {
   void call_hook(PyObject *hook_obj) const override
   {
     python::call_method<bool>(
-        hook_obj, function_name(), ref(hook_context_), material_ptr_, usd_material_);
+        hook_obj, function_name(), REF(hook_context_), material_ptr_, usd_material_);
   }
 };
 
@@ -370,7 +382,7 @@ class OnImportInvoker : public USDHookInvoker {
 
   void call_hook(PyObject *hook_obj) const override
   {
-    python::call_method<bool>(hook_obj, function_name(), ref(hook_context_));
+    python::call_method<bool>(hook_obj, function_name(), REF(hook_context_));
   }
 
   void release_in_gil() override
@@ -415,3 +427,5 @@ void call_import_hooks(pxr::UsdStageRefPtr stage,
 }
 
 }  // namespace blender::io::usd
+
+#undef REF

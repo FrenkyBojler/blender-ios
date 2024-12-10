@@ -33,6 +33,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "CLG_log.h"
+
 #include "BLI_array.hh"
 #include "BLI_bit_group_vector.hh"
 #include "BLI_enumerable_thread_specific.hh"
@@ -86,6 +88,8 @@
 #include "sculpt_dyntopo.hh"
 #include "sculpt_face_set.hh"
 #include "sculpt_intern.hh"
+
+static CLG_LogRef LOG = {"ed.sculpt.undo"};
 
 namespace blender::ed::sculpt_paint::undo {
 
@@ -826,6 +830,18 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
   /* Switching to sculpt mode does not push a particular type.
    * See #124484. */
   if (step_data.type == Type::None && step_data.nodes.is_empty()) {
+    return;
+  }
+
+  /* Adding multires via the `subdivision_set` operator results in the subsequent undo step
+   * not correctly performing a global undo step; we exit early here to avoid crashing.
+   * See: #131478 */
+  const bool multires_undo_step = use_multires_undo(step_data, ss);
+  if ((multires_undo_step && pbvh.type() != bke::pbvh::Type::Grids) ||
+      (!multires_undo_step && pbvh.type() != bke::pbvh::Type::Mesh))
+  {
+    CLOG_WARN(&LOG,
+              "Undo step type and sculpt geometry type do not match: skipping undo state restore");
     return;
   }
 
@@ -1658,8 +1674,9 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
 }
 
 /**
- * Does not save topology counts, as that data is unneded for full geometry pushes and
- * requires the PBVH to exist. */
+ * Does not save topology counts, as that data is unneeded for full geometry pushes and
+ * requires the PBVH to exist.
+ */
 static void save_common_data(Object &ob, SculptUndoStep *us)
 {
   us->data.object_name = ob.id.name;
@@ -1727,6 +1744,23 @@ void push_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
 void push_begin(const Scene &scene, Object &ob, const wmOperator *op)
 {
   push_begin_ex(scene, ob, op->type->name);
+}
+
+void push_enter_sculpt_mode(const Scene & /*scene*/, Object &ob, const wmOperator *op)
+{
+  UndoStack *ustack = ED_undo_stack_get();
+
+  /* If possible, we need to tag the object and its geometry data as 'changed in the future' in
+   * the previous undo step if it's a memfile one. */
+  ED_undosys_stack_memfile_id_changed_tag(ustack, &ob.id);
+  ED_undosys_stack_memfile_id_changed_tag(ustack, static_cast<ID *>(ob.data));
+
+  /* Special case, we never read from this. */
+  bContext *C = nullptr;
+
+  SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(
+      BKE_undosys_step_push_init_with_type(ustack, C, op->type->name, BKE_UNDOSYS_TYPE_SCULPT));
+  save_common_data(ob, us);
 }
 
 static size_t node_size_in_bytes(const Node &node)

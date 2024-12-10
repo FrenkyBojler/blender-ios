@@ -699,16 +699,6 @@ int GPU_shader_get_program(GPUShader *shader)
   return unwrap(shader)->program_handle_get();
 }
 
-int GPU_shader_get_ssbo_vertex_fetch_num_verts_per_prim(GPUShader *shader)
-{
-  return unwrap(shader)->get_ssbo_vertex_fetch_output_num_verts();
-}
-
-bool GPU_shader_uses_ssbo_vertex_fetch(GPUShader *shader)
-{
-  return unwrap(shader)->get_uses_ssbo_vertex_fetch();
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -784,6 +774,12 @@ void GPU_shader_uniform_2iv(GPUShader *sh, const char *name, const int data[2])
 {
   const int loc = GPU_shader_get_uniform(sh, name);
   GPU_shader_uniform_int_ex(sh, loc, 2, 1, data);
+}
+
+void GPU_shader_uniform_3iv(GPUShader *sh, const char *name, const int data[3])
+{
+  const int loc = GPU_shader_get_uniform(sh, name);
+  GPU_shader_uniform_int_ex(sh, loc, 3, 1, data);
 }
 
 void GPU_shader_uniform_mat4(GPUShader *sh, const char *name, const float data[4][4])
@@ -879,6 +875,11 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   Shader *shader = GPUBackend::get()->shader_alloc(info.name_.c_str());
   shader->init(info, is_batch_compilation);
   shader->specialization_constants_init(info);
+
+  shader->fragment_output_bits = 0;
+  for (const shader::ShaderCreateInfo::FragOut &frag_out : info.fragment_outputs_) {
+    shader->fragment_output_bits |= 1u << frag_out.index;
+  }
 
   std::string defines = shader->defines_declare(info);
   std::string resources = shader->resources_declare(info);

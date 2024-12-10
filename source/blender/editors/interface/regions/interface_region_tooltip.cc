@@ -145,18 +145,13 @@ void UI_tooltip_image_field_add(uiTooltipData &data, const uiTooltipImage &image
 /** \name ToolTip Callbacks (Draw & Free)
  * \{ */
 
-static void rgb_tint(float col[3], float h, float h_strength, float v, float v_strength)
+static void color_blend_f3_f3(float dest[3], const float source[3], const float fac)
 {
-  float col_hsv_from[3];
-  float col_hsv_to[3];
-
-  rgb_to_hsv_v(col, col_hsv_from);
-
-  col_hsv_to[0] = h;
-  col_hsv_to[1] = h_strength;
-  col_hsv_to[2] = (col_hsv_from[2] * (1.0f - v_strength)) + (v * v_strength);
-
-  hsv_to_rgb_v(col_hsv_to, col);
+  if (fac != 0.0f) {
+    dest[0] = (1.0f - fac) * dest[0] + (fac * source[0]);
+    dest[1] = (1.0f - fac) * dest[1] + (fac * source[1]);
+    dest[2] = (1.0f - fac) * dest[2] + (fac * source[2]);
+  }
 }
 
 static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
@@ -186,25 +181,29 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   /* set background_color */
   rgb_uchar_to_float(background_color, theme->inner);
 
-  /* Calculate `normal_color`. */
+  /* `normal_color` is just tooltip text color. */
   rgb_uchar_to_float(main_color, theme->text);
-  copy_v3_v3(active_color, main_color);
   copy_v3_v3(normal_color, main_color);
-  copy_v3_v3(python_color, main_color);
-  copy_v3_v3(alert_color, main_color);
+
+  /* `value_color` mixes with some background for less strength. */
   copy_v3_v3(value_color, main_color);
+  color_blend_f3_f3(value_color, background_color, 0.2f);
 
-  /* Find the brightness difference between background and text colors. */
+  /* `python_color` mixes with more background to be even dimmer. */
+  copy_v3_v3(python_color, main_color);
+  color_blend_f3_f3(python_color, background_color, 0.5f);
 
-  const float tone_bg = rgb_to_grayscale(background_color);
-  // tone_fg = rgb_to_grayscale(main_color);
+  /* `active_color` is a light blue, push a bit toward text color. */
+  active_color[0] = 0.4f;
+  active_color[1] = 0.55f;
+  active_color[2] = 0.75f;
+  color_blend_f3_f3(active_color, main_color, 0.3f);
 
-  /* Mix the colors. */
-  rgb_tint(value_color, 0.0f, 0.0f, tone_bg, 0.2f);  /* Light gray. */
-  rgb_tint(active_color, 0.6f, 0.2f, tone_bg, 0.2f); /* Light blue. */
-  rgb_tint(normal_color, 0.0f, 0.0f, tone_bg, 0.4f); /* Gray. */
-  rgb_tint(python_color, 0.0f, 0.0f, tone_bg, 0.5f); /* Dark gray. */
-  rgb_tint(alert_color, 0.0f, 0.8f, tone_bg, 0.1f);  /* Red. */
+  /* `alert_color` is red, push a bit toward text color. */
+  alert_color[0] = 0.7f;
+  alert_color[1] = 0.0f;
+  alert_color[2] = 0.0f;
+  color_blend_f3_f3(alert_color, main_color, 0.3f);
 
   /* Draw text. */
   BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
@@ -550,7 +549,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
                                 {},
                                 UI_TIP_STYLE_NORMAL,
                                 (is_error) ? UI_TIP_LC_ALERT : UI_TIP_LC_MAIN,
-                                true);
+                                false);
       MEM_freeN(expr_result);
     }
   }
@@ -1134,7 +1133,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     UI_tooltip_text_field_add(*data, rgba_st, {}, UI_TIP_STYLE_MONO, UI_TIP_LC_NORMAL, false);
     UI_tooltip_text_field_add(*data, hsva_st, {}, UI_TIP_STYLE_MONO, UI_TIP_LC_NORMAL, false);
 
-    /* Tooltip now owns a copy of the ImBuf, so we can delete ours.*/
+    /* Tooltip now owns a copy of the ImBuf, so we can delete ours. */
     IMB_freeImBuf(image_data.ibuf);
   }
 
@@ -1246,7 +1245,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   type.draw = ui_tooltip_region_draw_cb;
   type.free = ui_tooltip_region_free_cb;
   type.regionid = RGN_TYPE_TEMPORARY;
-  region->type = &type;
+  region->runtime->type = &type;
   /* Move ownership to region data. The region type free callback puts it back into a unique
    * pointer for save freeing. */
   region->regiondata = data_uptr.release();
@@ -1712,7 +1711,7 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
 static void ui_tooltip_from_vfont(const VFont &font, uiTooltipData &data)
 {
   if (!font.filepath[0]) {
-    /* Let's not bother with packed files _for now_.*/
+    /* Let's not bother with packed files _for now_. */
     return;
   }
 

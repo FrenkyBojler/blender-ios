@@ -19,6 +19,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.h"
 #include "BKE_paint.hh"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -784,7 +785,7 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
   grease_pencil_primitive_update_view(C, ptd);
 
   ptd.draw_handle = ED_region_draw_cb_activate(
-      ptd.region->type, grease_pencil_primitive_draw, ptd_pointer, REGION_DRAW_POST_VIEW);
+      ptd.region->runtime->type, grease_pencil_primitive_draw, ptd_pointer, REGION_DRAW_POST_VIEW);
 
   /* Updates indicator in header. */
   grease_pencil_primitive_status_indicators(C, op, ptd);
@@ -806,7 +807,7 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
   WM_cursor_modal_restore(ptd->vc.win);
 
   /* Deactivate the extra drawing stuff in 3D-View. */
-  ED_region_draw_cb_exit(ptd->region->type, ptd->draw_handle);
+  ED_region_draw_cb_exit(ptd->region->runtime->type, ptd->draw_handle);
 
   ED_view3d_navigation_free(C, ptd->vod);
 
@@ -834,7 +835,7 @@ static float2 snap_diagonals_box(float2 p)
 static float2 snap_8_angles(float2 p)
 {
   using namespace math;
-  /* sin(pi/8) or sin of 22.5 degrees.*/
+  /* sin(pi/8) or sin of 22.5 degrees. */
   const float sin225 = 0.3826834323650897717284599840304f;
   return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
 }
@@ -914,7 +915,7 @@ static void grease_pencil_primitive_grab_update(PrimitiveToolOperation &ptd, con
                               control_point_last :
                               control_point_first;
 
-  /* Get the location of the other control point.*/
+  /* Get the location of the other control point. */
   const float2 other_point_2d = primitive_local_to_screen(ptd,
                                                           ptd.temp_control_points[other_point]);
 

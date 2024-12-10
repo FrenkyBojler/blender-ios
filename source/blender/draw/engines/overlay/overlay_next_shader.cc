@@ -129,27 +129,33 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
   attribute_viewer_mesh = shader(
       "overlay_viewer_attribute_mesh", [](gpu::shader::ShaderCreateInfo &info) {
         info.additional_infos_.clear();
-        info.additional_info("overlay_viewer_attribute_common", "draw_view", "draw_modelmat_new");
+        info.additional_info(
+            "overlay_viewer_attribute_common", "draw_view", "draw_modelmat_new", "draw_globals");
       });
   attribute_viewer_pointcloud = shader("overlay_viewer_attribute_pointcloud",
                                        [](gpu::shader::ShaderCreateInfo &info) {
                                          info.additional_infos_.clear();
                                          info.additional_info("overlay_viewer_attribute_common",
                                                               "draw_pointcloud_new",
+                                                              "draw_globals",
                                                               "draw_view",
                                                               "draw_modelmat_new");
                                        });
   attribute_viewer_curve = shader(
       "overlay_viewer_attribute_curve", [](gpu::shader::ShaderCreateInfo &info) {
         info.additional_infos_.clear();
-        info.additional_info("overlay_viewer_attribute_common", "draw_view", "draw_modelmat_new");
-      });
-  attribute_viewer_curves = shader(
-      "overlay_viewer_attribute_curves", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
         info.additional_info(
-            "overlay_viewer_attribute_common", "draw_hair_new", "draw_view", "draw_modelmat_new");
+            "overlay_viewer_attribute_common", "draw_view", "draw_globals", "draw_modelmat_new");
       });
+  attribute_viewer_curves = shader("overlay_viewer_attribute_curves",
+                                   [](gpu::shader::ShaderCreateInfo &info) {
+                                     info.additional_infos_.clear();
+                                     info.additional_info("overlay_viewer_attribute_common",
+                                                          "draw_hair_new",
+                                                          "draw_view",
+                                                          "draw_globals",
+                                                          "draw_modelmat_new");
+                                   });
 
   armature_degrees_of_freedom = shader(
       "overlay_armature_dof", [](gpu::shader::ShaderCreateInfo &info) {
@@ -357,12 +363,14 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
 
   xray_fade = shader("overlay_xray_fade", [](gpu::shader::ShaderCreateInfo &info) {
     info.sampler(2, ImageType::DEPTH_2D, "xrayDepthTexInfront");
+    info.sampler(3, ImageType::DEPTH_2D, "depthTexInfront");
   });
 
   /** Selectable Shaders */
 
   armature_envelope_fill = selectable_shader(
       "overlay_armature_envelope_solid", [](gpu::shader::ShaderCreateInfo &info) {
+        info.additional_info("draw_globals");
         info.storage_buf(0, Qualifier::READ, "BoneEnvelopeData", "data_buf[]");
         info.define("headSphere", "data_buf[gl_InstanceID].head_sphere");
         info.define("tailSphere", "data_buf[gl_InstanceID].tail_sphere");
@@ -540,19 +548,17 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
         info.additional_info("draw_view", "draw_modelmat_new", "draw_globals");
       });
 
-  lattice_points = selectable_shader(
-      "overlay_edit_lattice_point", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info(
-            "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-      });
+  lattice_points = shader("overlay_edit_lattice_point", [](gpu::shader::ShaderCreateInfo &info) {
+    info.additional_infos_.clear();
+    info.additional_info(
+        "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
+  });
 
-  lattice_wire = selectable_shader(
-      "overlay_edit_lattice_wire", [](gpu::shader::ShaderCreateInfo &info) {
-        info.additional_infos_.clear();
-        info.additional_info(
-            "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-      });
+  lattice_wire = shader("overlay_edit_lattice_wire", [](gpu::shader::ShaderCreateInfo &info) {
+    info.additional_infos_.clear();
+    info.additional_info(
+        "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
+  });
 
   extra_grid = selectable_shader("overlay_extra_grid", [](gpu::shader::ShaderCreateInfo &info) {
     info.additional_infos_.clear();
@@ -611,19 +617,6 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
     info.additional_infos_.clear();
     info.additional_info(
         "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-  });
-
-  uniform_color_batch = shader("overlay_uniform_color", [](gpu::shader::ShaderCreateInfo &info) {
-    info.additional_infos_.clear();
-    info.additional_info("draw_view", "draw_globals")
-        .typedef_source("draw_shader_shared.hh")
-        .storage_buf(0, Qualifier::READ, "ObjectMatrices", "matrix_buf[]")
-        .define("DRAW_MODELMAT_CREATE_INFO")
-        .define("drw_ModelMatrixInverse", "matrix_buf[gl_InstanceID].model_inverse")
-        .define("drw_ModelMatrix", "matrix_buf[gl_InstanceID].model")
-        /* TODO For compatibility with old shaders. To be removed. */
-        .define("ModelMatrixInverse", "drw_ModelMatrixInverse")
-        .define("ModelMatrix", "drw_ModelMatrix");
   });
 
   wireframe_mesh = selectable_shader("overlay_wireframe", [](gpu::shader::ShaderCreateInfo &info) {
