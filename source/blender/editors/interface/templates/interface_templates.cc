@@ -1080,7 +1080,6 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
           DEG_relations_tag_update(bmain);
         }
-        ED_node_tree_propagate_change(C, CTX_data_main(C), nullptr);
         undo_push_label = "Make Single User";
       }
       break;
@@ -1089,6 +1088,9 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       break;
 #endif
   }
+
+  /* Update node tree invariants in case any node tree has changed. */
+  ED_node_tree_propagate_change(C, CTX_data_main(C), nullptr);
 
   if (undo_push_label != nullptr) {
     ED_undo_push(C, undo_push_label);

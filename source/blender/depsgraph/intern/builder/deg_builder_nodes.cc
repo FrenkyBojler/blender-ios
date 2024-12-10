@@ -1928,6 +1928,11 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
   if (built_map_.checkIsBuiltAndTag(ntree)) {
     return;
   }
+  /* Check that the node tree is properly updated, which implies that invariants are up to date.
+   * If this fails, it likely means that a call to #ED_node_tree_propagate_change or
+   * #BKE_ntree_update_main is missing after a node tree has been modified. */
+  BLI_assert(ntree->runtime->changed_flag == 0);
+
   /* nodetree itself */
   add_id_node(&ntree->id);
   /* General parameters. */
