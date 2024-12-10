@@ -9,7 +9,6 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_noise.hh"
-#include "BLI_string.h"
 
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
