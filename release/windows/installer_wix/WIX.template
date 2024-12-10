@@ -55,7 +55,7 @@
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
         <UIRef Id="WixUI_ErrorProgressText" />
         <CustomAction Id="LaunchBrowser"
-             ExeCommand="explorer.exe &quot;https://fund.blender.org/?utm_source=blender-$(var.CPACK_PACKAGE_VERSION)-installer_msi&quot;"
+             ExeCommand="explorer.exe &quot;https://fund.blender.org/?utm_source=blender-$(var.CPACK_PACKAGE_VERSION)-installer-msi&quot;"
              Directory="INSTALL_ROOT"
               Return="asyncNoWait" >
            REMOVE="ALL"
