@@ -14,6 +14,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -1052,7 +1053,8 @@ void ElementResize(const TransInfo *t,
 
       float ratio = values_final_evil[0];
       float transformed_value = td->ival * fabs(ratio);
-      *td->val = max_ff(interpf(transformed_value, td->ival, gp_falloff), 0.001f);
+      *td->val = blender::math::max(
+          blender::math::interpolate(transformed_value, td->ival, gp_falloff), 0.001f);
     }
   }
   else {
