@@ -151,9 +151,8 @@ struct USDSceneImportContext {
 
       for (auto &[path, ids] : imported_id_links) {
         boost::python::list list = get_list(path);
-        for (ID *id : ids) {
-          PointerRNA ptr = RNA_pointer_create(id, ID_code_to_RNA_type(GS(id->name)), id);
-          list.append(ptr);
+        for (auto& ptr_rna : ids) {
+          list.append(ptr_rna);
         }
       }
 

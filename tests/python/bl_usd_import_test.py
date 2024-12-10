@@ -1497,13 +1497,13 @@ class USDImportTest(AbstractUSDTest):
         bpy.utils.unregister_class(GetLinksUsdImportHook)
 
         expected_links = {
-            "/Cube": [("objects", "Cube.002"), ("meshes", "Cube.002")],
-            "/XformThenCube": [("objects", "XformThenCube")],
-            "/XformThenCube/Cube": [("objects", "Cube"), ("meshes", "Cube")],
-            "/XformThenXformCube": [("objects", "XformThenXformCube")],
-            "/XformThenXformCube/XformIntermediate": [("objects", "XformIntermediate")],
-            "/XformThenXformCube/XformIntermediate/Cube": [("objects", "Cube.001"), ("meshes", "Cube.001")],
-            "/Material": [("materials", "Material")],
+            "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
+            "/XformThenCube": [bpy.data.objects["XformThenCube"]],
+            "/XformThenCube/Cube": [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
+            "/XformThenXformCube": [bpy.data.objects["XformThenXformCube"]],
+            "/XformThenXformCube/XformIntermediate": [bpy.data.objects["XformIntermediate"]],
+            "/XformThenXformCube/XformIntermediate/Cube": [bpy.data.objects["Cube.001"], bpy.data.meshes["Cube.001"]],
+            "/Material": [bpy.data.materials["Material"]],
         }
 
         self.assertDictEqual(links, expected_links)
@@ -1515,13 +1515,13 @@ class USDImportTest(AbstractUSDTest):
         bpy.utils.unregister_class(GetLinksUsdImportHook)
 
         expected_links = {
-            "/Cube": [("objects", "Cube.002"), ("meshes", "Cube.002")],
-            "/XformThenCube": [("objects", "Cube")],
-            "/XformThenCube/Cube": [("meshes", "Cube")],
-            "/XformThenXformCube": [("objects", "XformThenXformCube")],
-            "/XformThenXformCube/XformIntermediate": [("objects", "Cube.001")],
-            "/XformThenXformCube/XformIntermediate/Cube": [("meshes", "Cube.001")],
-            "/Material": [("materials", "Material")],
+            "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
+            "/XformThenCube": [bpy.data.objects["Cube"]],
+            "/XformThenCube/Cube": [bpy.data.meshes["Cube"]],
+            "/XformThenXformCube": [bpy.data.objects["XformThenXformCube"]],
+            "/XformThenXformCube/XformIntermediate": [bpy.data.objects["Cube.001"]],
+            "/XformThenXformCube/XformIntermediate/Cube": [bpy.data.meshes["Cube.001"]],
+            "/Material": [bpy.data.materials["Material"]],
         }
 
         self.assertDictEqual(links, expected_links)

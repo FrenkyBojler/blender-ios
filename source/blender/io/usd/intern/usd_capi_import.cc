@@ -44,6 +44,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_access.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -354,9 +356,12 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 
     reader->read_object_data(data->bmain, 0.0);
 
-    data->imported_id_links[reader->object_prim_path()].push_back(&ob->id);
+    ID* id = &ob->id;
+    data->imported_id_links[reader->object_prim_path()].push_back(RNA_pointer_create(id, ID_code_to_RNA_type(GS(id->name)), id));
+
     if (ob->data) {
-      data->imported_id_links[reader->data_prim_path()].push_back(static_cast<ID *>(ob->data));
+      id = static_cast<ID *>(ob->data);
+      data->imported_id_links[reader->data_prim_path()].push_back(RNA_pointer_create(id, ID_code_to_RNA_type(GS(id->name)), id));
     }
 
     USDPrimReader *parent = reader->parent();

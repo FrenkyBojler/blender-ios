@@ -14,7 +14,7 @@ struct ReportList;
 
 namespace blender::io::usd {
 
-using ImportedIDLinks = std::map<std::string, std::vector<ID *>>;
+using ImportedIDLinks = std::map<std::string, std::vector<PointerRNA>>;
 
 /** Ensure classes and type converters necessary for invoking import and export hooks
  * are registered. */
