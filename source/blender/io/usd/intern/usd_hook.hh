@@ -14,7 +14,7 @@ struct ReportList;
 
 namespace blender::io::usd {
 
-using ImportedIDLinks = std::map<std::string, std::vector<PointerRNA>>;
+using ImportedPrimMap = std::map<std::string, std::vector<PointerRNA>>;
 
 /** Ensure classes and type converters necessary for invoking import and export hooks
  * are registered. */
@@ -31,7 +31,7 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
 
 /** Call the 'on_import' chaser function defined in the registered USDHook classes. */
 void call_import_hooks(pxr::UsdStageRefPtr stage,
-                       const ImportedIDLinks &imported_id_links,
+                       const ImportedPrimMap &imported_id_links,
                        ReportList *reports);
 
 }  // namespace blender::io::usd

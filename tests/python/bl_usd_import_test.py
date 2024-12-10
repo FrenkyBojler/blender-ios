@@ -1490,13 +1490,13 @@ class USDImportTest(AbstractUSDTest):
         check_image("color_121212.hdr", 1, 4, False)
         check_materials()
 
-    def test_get_links_parent_xform_not_merged(self):
-        bpy.utils.register_class(GetLinksUsdImportHook)
+    def test_get_prim_map_parent_xform_not_merged(self):
+        bpy.utils.register_class(GetPrimMapUsdImportHook)
         bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=False)
-        links = GetLinksUsdImportHook.links
-        bpy.utils.unregister_class(GetLinksUsdImportHook)
+        prim_map = GetPrimMapUsdImportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdImportHook)
 
-        expected_links = {
+        expected_prim_map = {
             "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
             "/XformThenCube": [bpy.data.objects["XformThenCube"]],
             "/XformThenCube/Cube": [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
@@ -1506,15 +1506,15 @@ class USDImportTest(AbstractUSDTest):
             "/Material": [bpy.data.materials["Material"]],
         }
 
-        self.assertDictEqual(links, expected_links)
+        self.assertDictEqual(prim_map, expected_prim_map)
 
-    def test_get_links_parent_xform_merged(self):
-        bpy.utils.register_class(GetLinksUsdImportHook)
+    def test_get_prim_map_parent_xform_merged(self):
+        bpy.utils.register_class(GetPrimMapUsdImportHook)
         bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=True)
-        links = GetLinksUsdImportHook.links
-        bpy.utils.unregister_class(GetLinksUsdImportHook)
+        prim_map = GetPrimMapUsdImportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdImportHook)
 
-        expected_links = {
+        expected_prim_map = {
             "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
             "/XformThenCube": [bpy.data.objects["Cube"]],
             "/XformThenCube/Cube": [bpy.data.meshes["Cube"]],
@@ -1524,18 +1524,18 @@ class USDImportTest(AbstractUSDTest):
             "/Material": [bpy.data.materials["Material"]],
         }
 
-        self.assertDictEqual(links, expected_links)
+        self.assertDictEqual(prim_map, expected_prim_map)
 
 
-class GetLinksUsdImportHook(bpy.types.USDHook):
-    bl_idname = "get_links_usd_import_hook"
-    bl_label = "Get Links Usd Import Hook"
+class GetPrimMapUsdImportHook(bpy.types.USDHook):
+    bl_idname = "get_prim_map_usd_import_hook"
+    bl_label = "Get Prim Map Usd Import Hook"
 
-    links = None
+    prim_map = None
 
     @staticmethod
     def on_import(context):
-        GetLinksUsdImportHook.links = context.get_links()
+        GetPrimMapUsdImportHook.prim_map = context.get_prim_map()
 
 
 def main():

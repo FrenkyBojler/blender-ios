@@ -112,16 +112,16 @@ struct USDSceneImportContext {
   USDSceneImportContext() = default;
 
   USDSceneImportContext(pxr::UsdStageRefPtr in_stage,
-                        const ImportedIDLinks &in_imported_id_links)
+                        const ImportedPrimMap &in_prim_map)
       : stage(in_stage),
-        imported_id_links(in_imported_id_links)
+        prim_map(in_prim_map)
   {
   }
 
   void release()
   {
-    if (links) {
-      delete links;
+    if (prim_map_dict) {
+      delete prim_map_dict;
     }
   }
 
@@ -130,16 +130,16 @@ struct USDSceneImportContext {
     return stage;
   }
 
-  boost::python::dict get_links()
+  boost::python::dict get_prim_map()
   {
-    if (!links) {
-      links = new boost::python::dict;
+    if (!prim_map_dict) {
+      prim_map_dict = new boost::python::dict;
 
-      for (auto &[path, ids] : imported_id_links) {
-        if (!links->has_key(path)) {
-          (*links)[path] = boost::python::list();
+      for (auto &[path, ids] : prim_map) {
+        if (!prim_map_dict->has_key(path)) {
+          (*prim_map_dict)[path] = boost::python::list();
         }
-        boost::python::list list = boost::python::extract<boost::python::list>((*links)[path]);
+        boost::python::list list = boost::python::extract<boost::python::list>((*prim_map_dict)[path]);
 
         for (auto& ptr_rna : ids) {
           list.append(ptr_rna);
@@ -147,12 +147,12 @@ struct USDSceneImportContext {
       }
     }
 
-    return *links;
+    return *prim_map_dict;
   }
 
   pxr::UsdStageRefPtr stage;
-  ImportedIDLinks imported_id_links;
-  boost::python::dict *links = nullptr;
+  ImportedPrimMap prim_map;
+  boost::python::dict *prim_map_dict = nullptr;
 };
 
 /* Encapsulate arguments for material export. */
@@ -205,7 +205,7 @@ void register_hook_converters()
 
   python::class_<USDSceneImportContext>("USDSceneImportContext")
       .def("get_stage", &USDSceneImportContext::get_stage)
-      .def("get_links", &USDSceneImportContext::get_links);
+      .def("get_prim_map", &USDSceneImportContext::get_prim_map);
 
   PyGILState_Release(gilstate);
 }
@@ -355,9 +355,9 @@ class OnImportInvoker : public USDHookInvoker {
 
  public:
   OnImportInvoker(pxr::UsdStageRefPtr stage,
-                  const ImportedIDLinks &imported_id_links,
+                  const ImportedPrimMap &prim_map,
                   ReportList *reports)
-      : hook_context_(stage, imported_id_links)
+      : hook_context_(stage, prim_map)
   {
     reports_ = reports;
   }
@@ -403,14 +403,14 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
 }
 
 void call_import_hooks(pxr::UsdStageRefPtr stage,
-                       const ImportedIDLinks &imported_id_links,
+                       const ImportedPrimMap &prim_map,
                        ReportList *reports)
 {
   if (hook_list().empty()) {
     return;
   }
 
-  OnImportInvoker on_import(stage, imported_id_links, reports);
+  OnImportInvoker on_import(stage, prim_map, reports);
   on_import.call();
 }
 
