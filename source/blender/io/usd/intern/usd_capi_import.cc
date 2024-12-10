@@ -54,8 +54,6 @@
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/tokens.h>
 
-#include <boost/python/dict.hpp>
-
 #include <fmt/core.h>
 
 namespace blender::io::usd {
