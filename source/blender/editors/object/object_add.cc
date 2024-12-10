@@ -3340,49 +3340,6 @@ static Object *convert_grease_pencil(Base &base,
   return nullptr;
 }
 
-static Object *convert_curves_legacy_to_mesh(Base &base,
-                                             ObjectConversionInfo &info,
-                                             Base **r_new_base)
-{
-  Object *ob = base.object;
-  ob->flag |= OB_DONE;
-  Object *newob = get_object_for_conversion(base, info, r_new_base);
-
-  /* No assumption should be made that the resulting objects is a mesh, as conversion can
-   * fail. */
-  object_data_convert_curve_to_mesh(info.bmain, info.depsgraph, newob);
-  /* Meshes don't use the "curve cache". */
-  BKE_object_free_curve_cache(newob);
-
-  return newob;
-}
-
-static Object *convert_curves_legacy_to_curves(Base &base,
-                                               ObjectConversionInfo &info,
-                                               Base **r_new_base)
-{
-  Object *newob = convert_curves_component_to_curves(base, info, r_new_base);
-  if (newob) {
-    return newob;
-  }
-  return convert_grease_pencil_component_to_curves(base, info, r_new_base);
-}
-
-static Object *convert_curves_legacy(Base &base,
-                                     const ObjectType target,
-                                     ObjectConversionInfo &info,
-                                     Base **r_new_base)
-{
-  switch (target) {
-    case OB_MESH:
-      return convert_curves_legacy_to_mesh(base, info, r_new_base);
-    case OB_CURVES:
-      return convert_curves_legacy_to_curves(base, info, r_new_base);
-    default:
-      return nullptr;
-  }
-}
-
 static Object *convert_font_to_curve_legacy_generic(Object *ob,
                                                     Object *newob,
                                                     ObjectConversionInfo &info)
@@ -3464,23 +3421,18 @@ static Object *convert_font_to_curves(Base &base, ObjectConversionInfo &info, Ba
   Object *curve_ob = convert_font_to_curve_legacy_generic(ob, newob, info);
   BLI_assert(curve_ob->type == OB_CURVES_LEGACY);
 
-  Curve *curve = static_cast<Curve *>(curve_ob->data);
-  /* Cancel all the fills in the text so it became wires. */
-  curve->flag &= ~(CU_BACK | CU_FRONT);
+  Curve *curve_id = static_cast<Curve *>(curve_ob->data);
+  Curves *curves_nomain = bke::curve_legacy_to_curves(*curve_id);
 
-  Curves *curves = bke::curve_legacy_to_curves(*curve);
+  Curves *curves_id = BKE_curves_add(info.bmain, BKE_id_name(curve_id->id));
+  curves_id->geometry.wrap() = curves_nomain->geometry.wrap();
 
-  Curves *id_curves = BKE_curves_add(info.bmain, BKE_id_name(curve->id));
-  id_curves->geometry.wrap() = curves->geometry.wrap();
+  blender::bke::curves_copy_parameters(*curves_nomain, *curves_id);
 
-  blender::bke::curves_copy_parameters(*curves, *id_curves);
-
-  curve_ob->data = id_curves;
+  curve_ob->data = curves_id;
   curve_ob->type = OB_CURVES;
 
-  id_us_min(&curve->id);
-
-  BKE_id_free(nullptr, curves);
+  BKE_id_free(nullptr, curves_nomain);
 
   return curve_ob;
 }
@@ -3495,22 +3447,18 @@ static Object *convert_font_to_grease_pencil(Base &base,
   Object *curve_ob = convert_font_to_curve_legacy_generic(ob, newob, info);
   BLI_assert(curve_ob->type == OB_CURVES_LEGACY);
 
-  Curve *curve = static_cast<Curve *>(curve_ob->data);
+  Curve *curve_id = static_cast<Curve *>(curve_ob->data);
+  Curves *curves_nomain = bke::curve_legacy_to_curves(*curve_id);
 
-  /* Cancel all the fills in the text so it became wires. */
-  curve->flag &= ~(CU_BACK | CU_FRONT);
-
-  Curves *curves = bke::curve_legacy_to_curves(*curve);
-
-  GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain, BKE_id_name(curve->id));
-  bke::greasepencil::Layer &layer = grease_pencil->add_layer("Converted Layer");
+  GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain, BKE_id_name(curve_id->id));
+  bke::greasepencil::Layer &layer = grease_pencil->add_layer(DATA_("Converted Layer"));
 
   const int current_frame = info.scene->r.cfra;
 
   bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, current_frame);
 
   blender::bke::CurvesGeometry &curves_geometry = reinterpret_cast<blender::bke::CurvesGeometry &>(
-      curves->geometry);
+      curves_nomain->geometry);
 
   drawing->strokes_for_write() = std::move(curves_geometry);
   /* Default radius (1.0 unit) is too thick for converted strokes. */
@@ -3519,8 +3467,6 @@ static Object *convert_font_to_grease_pencil(Base &base,
 
   curve_ob->data = grease_pencil;
   curve_ob->type = OB_GREASE_PENCIL;
-
-  id_us_min(&curve->id);
 
   return curve_ob;
 }
@@ -3556,6 +3502,49 @@ static Object *convert_font(Base &base,
       return nullptr;
   }
   return nullptr;
+}
+
+static Object *convert_curves_legacy_to_mesh(Base &base,
+                                             ObjectConversionInfo &info,
+                                             Base **r_new_base)
+{
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
+
+  /* No assumption should be made that the resulting objects is a mesh, as conversion can
+   * fail. */
+  object_data_convert_curve_to_mesh(info.bmain, info.depsgraph, newob);
+  /* Meshes don't use the "curve cache". */
+  BKE_object_free_curve_cache(newob);
+
+  return newob;
+}
+
+static Object *convert_curves_legacy_to_curves(Base &base,
+                                               ObjectConversionInfo &info,
+                                               Base **r_new_base)
+{
+  Object *newob = convert_curves_component_to_curves(base, info, r_new_base);
+  if (newob) {
+    return newob;
+  }
+  return convert_grease_pencil_component_to_curves(base, info, r_new_base);
+}
+
+static Object *convert_curves_legacy(Base &base,
+                                     const ObjectType target,
+                                     ObjectConversionInfo &info,
+                                     Base **r_new_base)
+{
+  switch (target) {
+    case OB_MESH:
+      return convert_curves_legacy_to_mesh(base, info, r_new_base);
+    case OB_CURVES:
+      return convert_curves_legacy_to_curves(base, info, r_new_base);
+    default:
+      return nullptr;
+  }
 }
 
 static Object *convert_mball_to_mesh(Base &base,
