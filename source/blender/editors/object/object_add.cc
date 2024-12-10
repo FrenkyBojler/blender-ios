@@ -3478,8 +3478,9 @@ static Object *convert_font_to_mesh(Base &base, ObjectConversionInfo &info, Base
   /* No assumption should be made that the resulting objects is a mesh, as conversion can
    * fail. */
   object_data_convert_curve_to_mesh(info.bmain, info.depsgraph, newob);
+
   /* Meshes doesn't use the "curve cache". */
-  BKE_object_free_curve_cache(newob);
+  BKE_object_free_derived_caches(newob);
 
   return newob;
 }
@@ -3515,8 +3516,9 @@ static Object *convert_curves_legacy_to_mesh(Base &base,
   /* No assumption should be made that the resulting objects is a mesh, as conversion can
    * fail. */
   object_data_convert_curve_to_mesh(info.bmain, info.depsgraph, newob);
-  /* Meshes don't use the "curve cache". */
-  BKE_object_free_curve_cache(newob);
+
+  /* Meshes doesn't use the "curve cache". */
+  BKE_object_free_derived_caches(newob);
 
   return newob;
 }
