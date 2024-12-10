@@ -12,91 +12,6 @@ namespace blender::draw::overlay {
 
 ShaderModule *ShaderModule::g_shader_modules[2][2] = {{nullptr}};
 
-ShaderModule::ShaderPtr ShaderModule::shader(
-    const char *create_info_name,
-    const FunctionRef<void(gpu::shader::ShaderCreateInfo &info)> patch)
-{
-  /* Perform a copy for patching. */
-  gpu::shader::ShaderCreateInfo info(create_info_name);
-  GPU_shader_create_info_get_unfinalized_copy(create_info_name,
-                                              reinterpret_cast<GPUShaderCreateInfo &>(info));
-
-  patch(info);
-
-  if (clipping_enabled_) {
-    info.define("USE_WORLD_CLIP_PLANES");
-  }
-
-  return ShaderPtr(
-      GPU_shader_create_from_info(reinterpret_cast<const GPUShaderCreateInfo *>(&info)));
-}
-
-ShaderModule::ShaderPtr ShaderModule::selectable_shader(const char *create_info_name)
-{
-  /* TODO: This is what it should be like with all variations defined with create infos. */
-  // std::string create_info_name = base_create_info;
-  // create_info_name += SelectEngineT::shader_suffix;
-  // create_info_name += clipping_enabled_ ? "_clipped" : "";
-  // this->shader_ = GPU_shader_create_from_info_name(create_info_name.c_str());
-
-  /* WORKAROUND: ... but for now, we have to patch the create info used by the old engine. */
-
-  /* Perform a copy for patching. */
-  gpu::shader::ShaderCreateInfo info(create_info_name);
-  GPU_shader_create_info_get_unfinalized_copy(create_info_name,
-                                              reinterpret_cast<GPUShaderCreateInfo &>(info));
-
-  if (selection_type_ != SelectionType::DISABLED) {
-    info.define("SELECT_ENABLE");
-    info.depth_write(gpu::shader::DepthWrite::UNCHANGED);
-    /* Replace additional info. */
-    for (StringRefNull &str : info.additional_infos_) {
-      if (str == "draw_modelmat_new") {
-        str = "draw_modelmat_new_with_custom_id";
-      }
-    }
-    info.additional_info("select_id_patch");
-  }
-
-  if (clipping_enabled_) {
-    info.define("USE_WORLD_CLIP_PLANES");
-  }
-
-  return ShaderPtr(
-      GPU_shader_create_from_info(reinterpret_cast<const GPUShaderCreateInfo *>(&info)));
-}
-
-ShaderModule::ShaderPtr ShaderModule::selectable_shader(
-    const char *create_info_name,
-    const FunctionRef<void(gpu::shader::ShaderCreateInfo &info)> patch)
-{
-  /* Perform a copy for patching. */
-  gpu::shader::ShaderCreateInfo info(create_info_name);
-  GPU_shader_create_info_get_unfinalized_copy(create_info_name,
-                                              reinterpret_cast<GPUShaderCreateInfo &>(info));
-
-  patch(info);
-
-  if (selection_type_ != SelectionType::DISABLED) {
-    info.define("SELECT_ENABLE");
-    info.depth_write(gpu::shader::DepthWrite::UNCHANGED);
-    /* Replace additional info. */
-    for (StringRefNull &str : info.additional_infos_) {
-      if (str == "draw_modelmat_new") {
-        str = "draw_modelmat_new_with_custom_id";
-      }
-    }
-    info.additional_info("select_id_patch");
-  }
-
-  if (clipping_enabled_) {
-    info.define("USE_WORLD_CLIP_PLANES");
-  }
-
-  return ShaderPtr(
-      GPU_shader_create_from_info(reinterpret_cast<const GPUShaderCreateInfo *>(&info)));
-}
-
 ShaderModule::ShaderPtr ShaderModule::static_clippable_shader(const char *create_info_name)
 {
   std::string name = create_info_name;
@@ -124,13 +39,6 @@ ShaderModule::ShaderPtr ShaderModule::static_selectable_shader(const char *creat
 }
 
 using namespace blender::gpu::shader;
-
-static void shader_patch_common(gpu::shader::ShaderCreateInfo &info)
-{
-  info.additional_infos_.clear();
-  info.additional_info(
-      "draw_view", "draw_modelmat_new", "draw_resource_handle_new", "draw_globals");
-}
 
 ShaderModule::ShaderModule(const SelectionType selection_type, const bool clipping_enabled)
     : selection_type_(selection_type), clipping_enabled_(clipping_enabled)
