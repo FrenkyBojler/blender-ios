@@ -250,8 +250,9 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
       return true;
     }
   }
-  BLI_assert(tree->runtime->geometry_nodes_eval_dependencies);
-  return tree->runtime->geometry_nodes_eval_dependencies->time_dependent;
+  nodes::GeometryNodesEvalDependencies eval_deps =
+      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
+  return eval_deps.time_dependent;
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
