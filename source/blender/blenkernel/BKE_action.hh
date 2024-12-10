@@ -62,6 +62,24 @@ bAction *BKE_action_add(Main *bmain, const char name[]);
 /* Action API ----------------- */
 
 /**
+ * Return whether an action is layered (as opposed to legacy).
+ *
+ * This will return false for both Animato and pre-Animato actions. It is used
+ * during file read and versioning to determine how forward-compatible and
+ * legacy data should be handled.
+ *
+ * NOTE: this is semi-duplicated from `Action::is_action_layered()`, but with
+ * tweaks to also recognize ultra-legacy (pre-Animato) data. Semantically, the
+ * difference is that use of this function indicates code that should be kept
+ * for the long-term (e.g. in file reading and versioning code), whereas code
+ * that calls `Action::is_action_layered()` and friends are candidates for
+ * removal/reworking when we remove runtime support for legacy actions.
+ *
+ * \see Action::is_action_layered()
+ */
+bool is_action_layered(const bAction &action);
+
+/**
  * Remove all fcurves from the action.
  *
  * \note This function only supports legacy Actions.

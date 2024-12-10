@@ -51,6 +51,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -113,8 +114,12 @@ static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
 
 static void convert_action_in_place(blender::animrig::Action &action)
 {
+  BLI_assert_msg(
+      BLI_listbase_is_empty(&action.chanbase),
+      "Pre-Animato actions should already have been versioned to Animato actions by this point.");
+
   using namespace blender::animrig;
-  if (action.is_action_layered()) {
+  if (is_action_layered(action)) {
     return;
   }
 
@@ -189,7 +194,11 @@ static void version_legacy_actions_to_layered(Main *bmain)
   blender::Map<bAction *, blender::Vector<ActionUserInfo>> action_users;
   LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
     Action &action = dna_action->wrap();
-    if (action.is_action_layered()) {
+    BLI_assert_msg(BLI_listbase_is_empty(&action.chanbase),
+                   "Pre-Animato actions should already have been versioned to Animato actions by "
+                   "this point.");
+
+    if (is_action_layered(action)) {
       continue;
     }
     action_users.add(dna_action, {});

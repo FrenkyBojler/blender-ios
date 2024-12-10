@@ -682,9 +682,8 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
   read_layers(reader, action);
   read_slots(reader, action);
 
-  if (action.is_action_layered()) {
+  if (is_action_layered(action)) {
     /* Clear the forward-compatible storage (see action_blend_write_data()). */
-    BLI_listbase_clear(&action.chanbase);
     BLI_listbase_clear(&action.curves);
     BLI_listbase_clear(&action.groups);
   }
@@ -2172,6 +2171,21 @@ void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose
         bmain, &ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
     BKE_pose_tag_recalc(bmain, pose);
   }
+}
+
+bool is_action_layered(const bAction &dna_action)
+{
+  const animrig::Action &action = dna_action.wrap();
+
+  const bool has_layered_data = action.layer_array_num > 0 || action.slot_array_num > 0;
+  const bool has_animato_data = !BLI_listbase_is_empty(&action.curves) ||
+                                BLI_listbase_is_empty(&action.groups);
+  const bool has_pre_animato_data = !BLI_listbase_is_empty(&action.chanbase);
+
+  BLI_assert_msg(!(has_layered_data && (has_animato_data || has_pre_animato_data)),
+                 "Action should not have both layered and legacy data at the same time.");
+
+  return has_layered_data || (!has_animato_data && !has_pre_animato_data);
 }
 
 void BKE_action_fcurves_clear(bAction *act)
