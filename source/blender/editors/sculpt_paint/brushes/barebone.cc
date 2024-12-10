@@ -41,6 +41,7 @@ struct LocalData {
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
+                       const float3 &origin,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
                        const bke::pbvh::MeshNode &node,
@@ -64,7 +65,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
-  calc_brush_radius_factors(brush, cache.sculpt_center_symm, cache.radius, verts, position_data.eval, factors);
+  calc_brush_radius_factors(brush, origin, cache.radius, verts, position_data.eval, factors);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -82,6 +83,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        Object &object,
                        const Brush &brush,
+                       const float3 &origin,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
@@ -103,7 +105,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
-  calc_brush_radius_factors(brush, cache.sculpt_center_symm, cache.radius, positions, factors);
+  calc_brush_radius_factors(brush, origin, cache.radius, positions, factors);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -121,6 +123,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        Object &object,
                        const Brush &brush,
+                       const float3 &origin,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
@@ -141,7 +144,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
-  calc_brush_radius_factors(brush, cache.sculpt_center_symm, cache.radius, positions, factors);
+  calc_brush_radius_factors(brush, origin, cache.radius, positions, factors);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -160,13 +163,13 @@ void do_barebone_brush(const Depsgraph &depsgraph,
                     const IndexMask &node_mask)
 {
   SculptSession& ss = *object.sculpt;
+  const Brush& brush = *BKE_paint_brush_for_read(&sd.paint);
 
-  if (math::is_zero(ss.cache->grab_delta_symm)) {
+  if (math::is_zero(ss.cache->grab_delta_symm) && !(brush.flag & BRUSH_ANCHORED)) {
     return;
   }
 
   bke::pbvh::Tree& pbvh = *bke::object::pbvh_get(object);
-  const Brush& brush = *BKE_paint_brush_for_read(&sd.paint);
 
   float3 plane_normal;
   float3 plane_center;
@@ -181,6 +184,8 @@ void do_barebone_brush(const Depsgraph &depsgraph,
   ss.cache->sculpt_normal_symm = plane_normal;
   ss.cache->sculpt_center_symm = plane_center;
 
+  const float3 origin = (brush.flag2 & BRUSH_USE_CURSOR_AS_ORIGIN) ? ss.cache->location_symm : plane_center;
+
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
@@ -194,6 +199,7 @@ void do_barebone_brush(const Depsgraph &depsgraph,
         calc_faces(depsgraph,
                    sd,
                    brush,
+                   origin,
                    attribute_data,
                    vert_normals,
                    nodes[i],
@@ -210,7 +216,7 @@ void do_barebone_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_grids(depsgraph, sd, object, brush, nodes[i], tls);
+        calc_grids(depsgraph, sd, object, brush, origin, nodes[i], tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -219,7 +225,7 @@ void do_barebone_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_bmesh(depsgraph, sd, object, brush, nodes[i], tls);
+        calc_bmesh(depsgraph, sd, object, brush, origin, nodes[i], tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;

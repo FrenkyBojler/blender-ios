@@ -827,6 +827,15 @@ def brush_settings(layout, context, brush, popover=False):
 
             row = layout.row()
             row.prop(brush, "tip_scale_x")
+            
+        elif sculpt_tool == 'BASIC':
+            row = layout.row()
+            row.prop(brush, "use_cursor_as_origin");
+            
+        elif sculpt_tool == 'BAREBONE':
+            row = layout.row()
+            layout.prop(brush, "sculpt_brush_shape")
+            row.prop(brush, "use_cursor_as_origin");
 
         elif sculpt_tool == 'ELASTIC_DEFORM':
             layout.separator()
@@ -1160,7 +1169,6 @@ def brush_settings_advanced(layout, context, brush, popover=False):
 
     if mode == 'SCULPT':
         layout.prop(brush, "sculpt_tool")
-        layout.prop(brush, "sculpt_brush_shape")
         layout.separator()
 
         capabilities = brush.sculpt_capabilities
