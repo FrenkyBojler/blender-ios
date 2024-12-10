@@ -577,9 +577,7 @@ class Vector {
   template<int64_t OtherInlineBufferCapacity>
   void extend(Vector<T, OtherInlineBufferCapacity, Allocator> &&other)
   {
-    if (this == &other) {
-      return;
-    }
+    BLI_assert(this != &other);
     this->extend(std::make_move_iterator(other.begin()), std::make_move_iterator(other.end()));
     other.clear();
   }

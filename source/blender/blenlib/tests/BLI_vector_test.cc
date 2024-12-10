@@ -491,7 +491,7 @@ TEST(vector, ExtendMoveFromSmallVector)
   EXPECT_TRUE(b.is_empty());
 }
 
-TEST(vector, ExtendFromUniquePtrVector)
+TEST(vector, ExtendMoveFromUniquePtrVector)
 {
   Vector<int *> ptr_vec;
 
@@ -519,13 +519,13 @@ TEST(vector, ExtendFromUniquePtrVector)
 
   a.extend(std::move(b));
 
-  int values[] = {0, 1, 2, 7, 8, 9, 20};
+  std::array<int, 7> values = {0, 1, 2, 7, 8, 9, 20};
 
-  ASSERT_EQ(a.size(), ARRAY_SIZE(values));
+  ASSERT_EQ(size_t(a.size()), values.size());
   ASSERT_TRUE(b.is_empty());
   ASSERT_EQ(a.size(), ptr_vec.size());
 
-  for (int i = 0; i < ARRAY_SIZE(values); i++) {
+  for (size_t i = 0; i < values.size(); i++) {
     ASSERT_EQ(*a[i], values[i]);
     ASSERT_EQ(a[i].get(), ptr_vec[i]);
   }
