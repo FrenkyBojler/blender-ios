@@ -178,10 +178,8 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
   DEG_add_node_tree_output_relation(ctx->node, nmd->node_group, "Nodes Modifier");
 
-  BLI_assert(nmd->node_group->runtime->geometry_nodes_eval_dependencies);
-  /* This intentionally makes a copy because a few extra dependencies are added below. */
   nodes::GeometryNodesEvalDependencies eval_deps =
-      *nmd->node_group->runtime->geometry_nodes_eval_dependencies;
+      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
 
   /* Create dependencies to data-blocks referenced by the settings in the modifier. */
   find_dependencies_from_settings(nmd->settings, eval_deps);
