@@ -44,8 +44,8 @@ class Prefs(bpy.types.KeyConfigPreferences):
              1),
             ('TOOL', "Tools",
              "Open the popup tool-bar or brush asset popup\n"
-             "When 'Space' is held and used as a modifier:\n"
-             "\u2022 Pressing the tools binding key switches to it immediately.\n"
+             "When holding 'Space' for the tool-bar popup:\n"
+             "\u2022 Pressing the a tool shortcut switches to it immediately.\n"
              "\u2022 Dragging the cursor over a tool and releasing activates it (like a pie menu).\n"
              "For Play use 'Shift-Space'",
              0),
