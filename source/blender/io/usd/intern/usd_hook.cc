@@ -112,11 +112,9 @@ struct USDSceneImportContext {
   USDSceneImportContext() = default;
 
   USDSceneImportContext(pxr::UsdStageRefPtr in_stage,
-                        const ImportedIDLinks &in_imported_id_links,
-                        const blender::Map<std::string, std::string> &in_imported_materials)
+                        const ImportedIDLinks &in_imported_id_links)
       : stage(in_stage),
-        imported_id_links(in_imported_id_links),
-        imported_materials(in_imported_materials)
+        imported_id_links(in_imported_id_links)
   {
   }
 
@@ -144,11 +142,6 @@ struct USDSceneImportContext {
         return boost::python::extract<boost::python::list>((*links)[path]);
       };
 
-      auto append = [&](const std::string &path, const IDTypeInfo *type_info, const char *name) {
-        boost::python::list list = get_list(path);
-        list.append(boost::python::make_tuple(type_info->name_plural, name));
-      };
-
       for (auto &[path, ids] : imported_id_links) {
         boost::python::list list = get_list(path);
         for (auto& ptr_rna : ids) {
@@ -162,7 +155,6 @@ struct USDSceneImportContext {
 
   pxr::UsdStageRefPtr stage;
   ImportedIDLinks imported_id_links;
-  blender::Map<std::string, std::string> imported_materials;
   boost::python::dict *links = nullptr;
 };
 
@@ -367,9 +359,8 @@ class OnImportInvoker : public USDHookInvoker {
  public:
   OnImportInvoker(pxr::UsdStageRefPtr stage,
                   const ImportedIDLinks &imported_id_links,
-                  const blender::Map<std::string, std::string> &imported_materials,
                   ReportList *reports)
-      : hook_context_(stage, imported_id_links, imported_materials)
+      : hook_context_(stage, imported_id_links)
   {
     reports_ = reports;
   }
@@ -416,14 +407,13 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
 
 void call_import_hooks(pxr::UsdStageRefPtr stage,
                        const ImportedIDLinks &imported_id_links,
-                       const blender::Map<std::string, std::string> &imported_materials,
                        ReportList *reports)
 {
   if (hook_list().empty()) {
     return;
   }
 
-  OnImportInvoker on_import(stage, imported_id_links, imported_materials, reports);
+  OnImportInvoker on_import(stage, imported_id_links, reports);
   on_import.call();
 }
 

@@ -484,7 +484,6 @@ static void import_endjob(void *customdata)
 
     call_import_hooks(data->archive->stage(),
                       data->imported_id_links,
-                      data->settings.usd_path_to_mat_name,
                       data->params.worker_status->reports);
 
     if (data->is_background_job) {

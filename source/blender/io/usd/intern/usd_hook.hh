@@ -32,7 +32,6 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
 /** Call the 'on_import' chaser function defined in the registered USDHook classes. */
 void call_import_hooks(pxr::UsdStageRefPtr stage,
                        const ImportedIDLinks &imported_id_links,
-                       const blender::Map<std::string, std::string> &imported_materials,
                        ReportList *reports);
 
 }  // namespace blender::io::usd
