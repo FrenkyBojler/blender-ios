@@ -55,6 +55,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_idmap.hh"
 #include "BKE_main_namemap.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_preferences.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -1288,6 +1289,7 @@ void BKE_blendfile_read_setup_readfile(bContext *C,
   if (startup_update_defaults) {
     if ((params->skip_flags & BLO_READ_SKIP_DATA) == 0) {
       BLO_update_defaults_startup_blend(bfd->main, startup_app_template);
+      BKE_ntree_update_main(bfd->main, nullptr);
     }
   }
   setup_app_blend_file_data(C, bfd, params, wm_setup_data, reports);
