@@ -31,7 +31,9 @@ def get_arguments(filepath, output_filepath):
 
 
 def create_argparse():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Run test script for each blend file in TESTDIR, comparing the render result with known output."
+    )
     parser.add_argument("--blender", required=True)
     parser.add_argument("--testdir", required=True)
     parser.add_argument("--outdir", required=True)
