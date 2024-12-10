@@ -150,11 +150,10 @@ struct USDSceneImportContext {
       };
 
       for (auto &[path, ids] : imported_id_links) {
-        for (const ID *id : ids) {
-          const IDTypeInfo *type_info = nullptr;
-          if (id && (type_info = BKE_idtype_get_info_from_id(id))) {
-            append(path, type_info, id->name + 2);
-          }
+        boost::python::list list = get_list(path);
+        for (ID *id : ids) {
+          PointerRNA ptr = RNA_pointer_create(id, ID_code_to_RNA_type(GS(id->name)), id);
+          list.append(ptr);
         }
       }
 
