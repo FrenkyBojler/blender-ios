@@ -114,8 +114,8 @@ void VKBuffer::update_immediately(const void *data) const
   BLI_assert_msg(is_mapped(), "Cannot update a non-mapped buffer.");
   Span<uint8_t> src(static_cast<const uint8_t *>(data), size_in_bytes_);
   MutableSpan<uint8_t> dst(static_cast<uint8_t *>(mapped_memory_), size_in_bytes_);
-  threading::memory_bandwidth_bound_task(size_in_bytes_, [&]() { array_utils::copy(src, dst); });
-  flush();
+  threading::memory_bandwidth_bound_task(size_in_bytes_,
+                                         [&]() { array_utils::copy(src, dst, 64 * 1024); });
 }
 
 void VKBuffer::update_render_graph(VKContext &context, void *data) const
