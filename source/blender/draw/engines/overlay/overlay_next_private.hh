@@ -32,6 +32,77 @@
 
 namespace blender::draw::overlay {
 
+struct BoneInstanceData {
+  /* Keep sync with bone instance vertex format (OVERLAY_InstanceFormats) */
+  union {
+    float4x4 mat44;
+    float mat[4][4];
+    struct {
+      float _pad0[3], color_hint_a;
+      float _pad1[3], color_hint_b;
+      float _pad2[3], color_a;
+      float _pad3[3], color_b;
+    };
+    struct {
+      float _pad00[3], amin_a;
+      float _pad01[3], amin_b;
+      float _pad02[3], amax_a;
+      float _pad03[3], amax_b;
+    };
+  };
+
+  BoneInstanceData() = default;
+
+  /* Constructor used by metaball overlays and expected to be used for drawing
+   * metaball edit circles with armature wire shader that produces wide-lines. */
+  BoneInstanceData(const float4x4 &ob_mat,
+                   const float3 &pos,
+                   const float radius,
+                   const float color[4])
+
+  {
+    mat44[0] = ob_mat[0] * radius;
+    mat44[1] = ob_mat[1] * radius;
+    mat44[2] = ob_mat[2] * radius;
+    mat44[3] = float4(blender::math::transform_point(ob_mat, pos));
+    set_color(color);
+  }
+
+  BoneInstanceData(const float4x4 &bone_mat, const float4 &bone_color, const float4 &hint_color)
+      : mat44(bone_mat)
+  {
+    set_color(bone_color);
+    set_hint_color(hint_color);
+  };
+
+  BoneInstanceData(const float4x4 &bone_mat, const float4 &bone_color) : mat44(bone_mat)
+  {
+    set_color(bone_color);
+  };
+
+  void set_color(const float4 &bone_color)
+  {
+    /* Encoded color into 2 floats to be able to use the matrix to color the custom bones. */
+    color_a = encode_2f_to_float(bone_color[0], bone_color[1]);
+    color_b = encode_2f_to_float(bone_color[2], bone_color[3]);
+  }
+
+  void set_hint_color(const float4 &hint_color)
+  {
+    /* Encoded color into 2 floats to be able to use the matrix to color the custom bones. */
+    color_hint_a = encode_2f_to_float(hint_color[0], hint_color[1]);
+    color_hint_b = encode_2f_to_float(hint_color[2], hint_color[3]);
+  }
+
+ private:
+  /* Encode 2 units float with byte precision into a float. */
+  float encode_2f_to_float(float a, float b) const
+  {
+    /* NOTE: `b` can go up to 2. Needed to encode wire size. */
+    return float(int(clamp_f(a, 0.0f, 1.0f) * 255) | (int(clamp_f(b, 0.0f, 2.0f) * 255) << 8));
+  }
+};
+
 using SelectionType = select::SelectionType;
 
 using blender::draw::Framebuffer;
@@ -90,34 +161,12 @@ struct State {
   float2 image_uv_aspect;
   float2 image_aspect;
 
-  /* Data to save per overlay to not rely on rv3d for rendering.
-   * TODO(fclem): Compute offset directly from the view. */
-  struct ViewOffsetData {
-    /* Copy of rv3d->dist. */
-    float dist;
-    /* Copy of rv3d->persp. */
-    char persp;
-    /* Copy of rv3d->is_persp. */
-    bool is_persp;
-  };
-
-  ViewOffsetData offset_data_get() const
+  View::OffsetData offset_data_get() const
   {
     if (rv3d == nullptr) {
-      return {0.0f, 0, false};
+      return View::OffsetData();
     }
-    return {rv3d->dist, rv3d->persp, rv3d->is_persp != 0};
-  }
-
-  static float view_dist_get(const ViewOffsetData &offset_data, const float4x4 &winmat)
-  {
-    float view_dist = offset_data.dist;
-    /* Special exception for orthographic camera:
-     * `view_dist` isn't used as the depth range isn't the same. */
-    if (offset_data.persp == RV3D_CAMOB && offset_data.is_persp == false) {
-      view_dist = 1.0f / max_ff(fabsf(winmat[0][0]), fabsf(winmat[1][1]));
-    }
-    return view_dist;
+    return View::OffsetData(*rv3d);
   }
 
   /** Convenience functions. */
@@ -193,12 +242,6 @@ struct State {
   }
 };
 
-static inline float4x4 winmat_polygon_offset(float4x4 winmat, float view_dist, float offset)
-{
-  winmat[3][2] -= GPU_polygon_offset_calc(winmat.ptr(), view_dist, offset);
-  return winmat;
-}
-
 /**
  * Contains all overlay generic geometry batches.
  */
@@ -255,6 +298,9 @@ class ShapeCache {
   BatchPtr sphere_low_detail;
 
   BatchPtr ground_line;
+
+  /* Batch drawing a quad with coordinate [0..1] at 0.75 depth. */
+  BatchPtr image_quad;
 
   BatchPtr light_icon_outer_lines;
   BatchPtr light_icon_inner_lines;
@@ -356,7 +402,6 @@ class ShaderModule {
   ShaderPtr sculpt_curves;
   ShaderPtr sculpt_curves_cage;
   ShaderPtr uniform_color;
-  ShaderPtr uniform_color_batch;
   ShaderPtr uv_analysis_stretch_angle;
   ShaderPtr uv_analysis_stretch_area;
   ShaderPtr uv_brush_stencil;
@@ -454,6 +499,8 @@ struct Resources : public select::SelectMap {
   Framebuffer overlay_line_in_front_fb = {"overlay_line_in_front_fb"};
 
   /* Output Color. */
+  Framebuffer overlay_output_color_only_fb = {"overlay_output_color_only_fb"};
+  /* Depth, Output Color. */
   Framebuffer overlay_output_fb = {"overlay_output_fb"};
 
   /* Render Frame-buffers. Only used for multiplicative blending on top of the render. */
@@ -603,10 +650,10 @@ struct Resources : public select::SelectMap {
                                       GPU_ATTACHMENT_TEXTURE(this->line_tx));
     this->overlay_color_only_fb.ensure(GPU_ATTACHMENT_NONE,
                                        GPU_ATTACHMENT_TEXTURE(this->overlay_tx));
-    /* The v2d path writes to the overlay output directly, but it needs a depth attachment. */
-    this->overlay_output_fb.ensure(state.is_space_image() ?
-                                       GPUAttachment GPU_ATTACHMENT_TEXTURE(this->depth_tx) :
-                                       GPUAttachment GPU_ATTACHMENT_NONE,
+
+    this->overlay_output_color_only_fb.ensure(GPU_ATTACHMENT_NONE,
+                                              GPU_ATTACHMENT_TEXTURE(this->color_overlay_tx));
+    this->overlay_output_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                                    GPU_ATTACHMENT_TEXTURE(this->color_overlay_tx));
   }
 
