@@ -875,6 +875,12 @@ enum {
    * NOTE: DEPRECATED, use (id->tag & ID_TAG_LOCALIZED) instead.
    */
   // NTREE_IS_LOCALIZED = 1 << 5,
+  /**
+   * Socket locations are in global space rather than the coordinate space of their parent.
+   * Used to avoid running versioning code to change from the old parent space. This should always
+   * be set at runtime.
+   */
+  NTREE_SOCKET_LOCATIONS_GLOBAL = 1 << 6,
 };
 
 typedef enum eNodeTreeRuntimeFlag {
