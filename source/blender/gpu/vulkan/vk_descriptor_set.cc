@@ -412,7 +412,6 @@ void VKDescriptorSetTracker::upload_descriptor_sets()
               << ", storage_buffer=" << storage_buffer_count
               << ", input_attachment=" << input_attachment_count << "\n";
   }
-
 #endif
 
   /* Update the descriptor set on the device. */
