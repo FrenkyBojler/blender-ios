@@ -135,15 +135,12 @@ struct USDSceneImportContext {
     if (!links) {
       links = new boost::python::dict;
 
-      auto get_list = [&](const std::string &path) {
+      for (auto &[path, ids] : imported_id_links) {
         if (!links->has_key(path)) {
           (*links)[path] = boost::python::list();
         }
-        return boost::python::extract<boost::python::list>((*links)[path]);
-      };
+        boost::python::list list = boost::python::extract<boost::python::list>((*links)[path]);
 
-      for (auto &[path, ids] : imported_id_links) {
-        boost::python::list list = get_list(path);
         for (auto& ptr_rna : ids) {
           list.append(ptr_rna);
         }
