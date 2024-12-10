@@ -3974,7 +3974,7 @@ static void read_drawing_array(GreasePencil &grease_pencil, BlendDataReader *rea
     switch (GreasePencilDrawingType(drawing_base->type)) {
       case GP_DRAWING: {
         GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-        drawing->wrap().strokes_for_write().blend_read(*reader);
+        drawing->wrap().geometry.wrap().blend_read(*reader);
         /* Initialize runtime data. */
         drawing->runtime = MEM_new<blender::bke::greasepencil::DrawingRuntime>(__func__);
         break;
@@ -3996,9 +3996,9 @@ static void write_drawing_array(GreasePencil &grease_pencil, BlendWriter *writer
       case GP_DRAWING: {
         GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
         bke::CurvesGeometry::BlendWriteData write_data =
-            drawing->wrap().strokes_for_write().blend_write_prepare();
+            drawing->wrap().geometry.wrap().blend_write_prepare();
         BLO_write_struct(writer, GreasePencilDrawing, drawing);
-        drawing->wrap().strokes_for_write().blend_write(*writer, grease_pencil.id, write_data);
+        drawing->wrap().geometry.wrap().blend_write(*writer, grease_pencil.id, write_data);
         break;
       }
       case GP_DRAWING_REFERENCE: {
