@@ -914,7 +914,7 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 
   PointerRNA opptr;
 #if 0
-  uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_OBJECT);
+  uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_OBJECT);
 #else
   uiItemFullO_ptr(
       layout, ot, IFACE_("Object"), ICON_NONE, nullptr, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE, &opptr);
@@ -958,7 +958,7 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
     if (child->type == OB_MESH) {
       has_children_of_type.mesh = true;
     }
-    if (ELEM(child->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+    if (ELEM(child->type, OB_GREASE_PENCIL)) {
       has_children_of_type.gpencil = true;
     }
     if (child->type == OB_CURVES) {
@@ -968,22 +968,22 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   CTX_DATA_END;
 
   if (parent->type == OB_ARMATURE) {
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_ARMATURE);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_ARMATURE_NAME);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_ARMATURE_ENVELOPE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_NAME);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_ENVELOPE);
     if (has_children_of_type.mesh || has_children_of_type.gpencil) {
-      uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_ARMATURE_AUTO);
+      uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_AUTO);
     }
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_BONE);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_BONE_RELATIVE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_BONE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_BONE_RELATIVE);
   }
   else if (parent->type == OB_CURVES_LEGACY) {
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_CURVE);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_FOLLOW);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_PATH_CONST);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_CURVE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_FOLLOW);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_PATH_CONST);
   }
   else if (parent->type == OB_LATTICE) {
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_LATTICE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_LATTICE);
   }
   else if (parent->type == OB_MESH) {
     if (has_children_of_type.curves) {
@@ -993,8 +993,8 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 
   /* vertex parenting */
   if (OB_TYPE_SUPPORT_PARVERT(parent->type)) {
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_VERTEX);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_VERTEX_TRI);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_VERTEX);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_VERTEX_TRI);
   }
 
   UI_popup_menu_end(C, pup);
@@ -1915,13 +1915,6 @@ static void single_obdata_users(
                                                  LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
             break;
           case OB_LIGHTPROBE:
-            ob->data = ID_NEW_SET(ob->data,
-                                  BKE_id_copy_ex(bmain,
-                                                 static_cast<const ID *>(ob->data),
-                                                 nullptr,
-                                                 LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
-            break;
-          case OB_GPENCIL_LEGACY:
             ob->data = ID_NEW_SET(ob->data,
                                   BKE_id_copy_ex(bmain,
                                                  static_cast<const ID *>(ob->data),

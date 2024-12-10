@@ -355,8 +355,13 @@ void USDMeshReader::read_vertex_creases(Mesh *mesh, const double motionSampleTim
     return;
   }
 
-  pxr::VtIntArray corner_sharpnesses;
+  pxr::VtFloatArray corner_sharpnesses;
   if (!mesh_prim_.GetCornerSharpnessesAttr().Get(&corner_sharpnesses, motionSampleTime)) {
+    return;
+  }
+
+  /* Prevent the creation of the `crease_vert` attribute if we have no data. */
+  if (corner_indices.empty() || corner_sharpnesses.empty()) {
     return;
   }
 
@@ -375,9 +380,10 @@ void USDMeshReader::read_vertex_creases(Mesh *mesh, const double motionSampleTim
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter creases = attributes.lookup_or_add_for_write_only_span<float>(
       "crease_vert", bke::AttrDomain::Point);
+  creases.span.fill(0.0f);
 
   for (size_t i = 0; i < corner_indices.size(); i++) {
-    creases.span[corner_indices[i]] = corner_sharpnesses[i];
+    creases.span[corner_indices[i]] = std::clamp(corner_sharpnesses[i], 0.0f, 1.0f);
   }
   creases.finish();
 }
@@ -755,9 +761,6 @@ Mesh *USDMeshReader::read_mesh(Mesh *existing_mesh,
    * the topology is consistent, as in the Alembic importer. */
 
   ImportSettings settings;
-  if (settings_) {
-    settings.validate_meshes = settings_->validate_meshes;
-  }
   settings.read_flag |= params.read_flags;
 
   if (topology_changed(existing_mesh, params.motion_sample_time)) {
@@ -784,7 +787,7 @@ Mesh *USDMeshReader::read_mesh(Mesh *existing_mesh,
     }
   }
 
-  if (settings.validate_meshes) {
+  if (import_params_.validate_meshes) {
     if (BKE_mesh_validate(active_mesh, false, false)) {
       BKE_reportf(reports(), RPT_INFO, "Fixed mesh for prim: %s", mesh_prim_.GetPath().GetText());
     }

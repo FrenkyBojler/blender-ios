@@ -370,6 +370,7 @@ static bke::CurvesGeometry build_sequential(bke::greasepencil::Drawing &drawing,
       dst_to_src_point[next_point] = point;
       next_point++;
     }
+    dst_to_src_curve[next_curve - 1] = stroke;
     dst_offsets[next_curve] = next_point;
     next_curve++;
   });
@@ -507,7 +508,7 @@ static float get_factor_from_draw_speed(const bke::CurvesGeometry &curves,
     accumulated_shift_delta_time += math::max(shifted_start_time - start_times[curve], 0.0f);
   }
 
-  /* Caclulates the maximum time of this frame, which is the time between the beginning of the
+  /* Calculates the maximum time of this frame, which is the time between the beginning of the
    * first stroke and the end of the last stroke. `start_times.last()` gives the starting time of
    * the last stroke related to frame beginning, and `delta_time.last()` gives how long that stroke
    * lasted.  */
@@ -707,13 +708,14 @@ static void modify_geometry_set(ModifierData *md,
   threading::parallel_for_each(
       drawing_infos, [&](modifier::greasepencil::LayerDrawingInfo drawing_info) {
         const bke::greasepencil::Layer &layer = *layers[drawing_info.layer_index];
-        const bke::greasepencil::Drawing *prev_drawing = grease_pencil.get_drawing_at(
-            layer, eval_frame - 1);
 
         /* This will always return a valid start frame because we're iterating over the valid
          * drawings on `eval_frame`. Each drawing will have a start frame. */
         const int start_frame = *layer.start_frame_at(eval_frame);
         BLI_assert(start_frame <= eval_frame);
+
+        const bke::greasepencil::Drawing *prev_drawing = grease_pencil.get_drawing_at(
+            layer, start_frame - 1);
 
         const int relative_start_frame = eval_frame - start_frame;
 
@@ -749,9 +751,9 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   /* First: Build mode and build settings. */
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (mode == MOD_GREASE_PENCIL_BUILD_MODE_SEQUENTIAL) {
-    uiItemR(layout, ptr, "transition", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "transition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   if (mode == MOD_GREASE_PENCIL_BUILD_MODE_CONCURRENT) {
     /* Concurrent mode doesn't support MOD_GREASE_PENCIL_BUILD_TIMEMODE_DRAWSPEED, so unset it. */
@@ -759,35 +761,35 @@ static void panel_draw(const bContext *C, Panel *panel)
       RNA_enum_set(ptr, "time_mode", MOD_GREASE_PENCIL_BUILD_TIMEMODE_FRAMES);
       time_mode = MOD_GREASE_PENCIL_BUILD_TIMEMODE_FRAMES;
     }
-    uiItemR(layout, ptr, "transition", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "transition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   uiItemS(layout);
 
   /* Second: Time mode and time settings. */
 
-  uiItemR(layout, ptr, "time_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "time_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (mode == MOD_GREASE_PENCIL_BUILD_MODE_CONCURRENT) {
-    uiItemR(layout, ptr, "concurrent_time_alignment", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "concurrent_time_alignment", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   switch (time_mode) {
     case MOD_GREASE_PENCIL_BUILD_TIMEMODE_DRAWSPEED:
-      uiItemR(layout, ptr, "speed_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, ptr, "speed_maxgap", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, ptr, "speed_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, ptr, "speed_maxgap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case MOD_GREASE_PENCIL_BUILD_TIMEMODE_FRAMES:
       uiItemR(layout, ptr, "length", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
       if (mode != MOD_GREASE_PENCIL_BUILD_MODE_ADDITIVE) {
-        uiItemR(layout, ptr, "start_delay", UI_ITEM_NONE, nullptr, ICON_NONE);
+        uiItemR(layout, ptr, "start_delay", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
       break;
     case MOD_GREASE_PENCIL_BUILD_TIMEMODE_PERCENTAGE:
-      uiItemR(layout, ptr, "percentage_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, ptr, "percentage_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     default:
       break;
   }
   uiItemS(layout);
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (uiLayout *panel = uiLayoutPanelProp(
           C, layout, ptr, "open_frame_range_panel", IFACE_("Effective Range")))

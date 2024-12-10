@@ -45,7 +45,7 @@ static void create_aligned_handles_masks(
   CurvesTransformData &transform_data = *static_cast<CurvesTransformData *>(custom_data.data);
 
   IndexMaskMemory memory;
-  /* When control point is selected both handles are treaded as selected and transformed together.
+  /* When control point is selected both handles are threaded as selected and transformed together.
    * So these will be excluded from alignment. */
   const IndexMask &selected_points = points_to_transform_per_attr[0];
   const IndexMask selected_left_handles = IndexMask::from_difference(
@@ -260,7 +260,7 @@ static void createTransCurvesVerts(bContext * /*C*/, TransInfo *t)
       tc.data_len = curves.points_num() + 2 * bezier_points.size();
       points_to_transform_per_attribute[i].append(curves.points_range());
 
-      if (bezier_points.size() > 0) {
+      if (selection_attribute_names.size() > 1) {
         points_to_transform_per_attribute[i].append(bezier_points);
         points_to_transform_per_attribute[i].append(bezier_points);
       }
@@ -448,7 +448,8 @@ void curve_populate_trans_data_structs(
     const blender::IndexMask &affected_curves,
     bool use_connected_only,
     const blender::IndexMask &bezier_curves,
-    bool is_individual_origin)
+    bool is_individual_origin,
+    void *extra)
 {
   using namespace blender;
   const std::array<Span<float3>, 3> src_positions_per_selection_attr = {
@@ -513,6 +514,8 @@ void curve_populate_trans_data_structs(
         if (selection[point_in_domain_i]) {
           td.flag = TD_SELECTED;
         }
+
+        td.extra = extra;
 
         if (value_attribute) {
           float *value = &((*value_attribute)[point_in_domain_i]);
