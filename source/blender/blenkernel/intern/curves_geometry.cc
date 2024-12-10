@@ -121,7 +121,8 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
                             other.runtime->evaluated_tangent_cache,
                             other.runtime->evaluated_normal_cache,
                             {},
-                            true});
+                            true,
+                            other.runtime->use_grease_pencil_drawing_attribute_providers});
 
   if (other.runtime->bake_materials) {
     this->runtime->bake_materials = std::make_unique<bake::BakeMaterialsList>(
