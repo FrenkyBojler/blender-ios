@@ -357,12 +357,10 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 
     reader->read_object_data(data->bmain, 0.0);
 
-    ID* id = &ob->id;
-    data->imported_id_links[reader->object_prim_path()].push_back(RNA_pointer_create(id, ID_code_to_RNA_type(GS(id->name)), id));
+    data->imported_id_links[reader->object_prim_path()].push_back(RNA_id_pointer_create(&ob->id));
 
     if (ob->data) {
-      id = static_cast<ID *>(ob->data);
-      data->imported_id_links[reader->data_prim_path()].push_back(RNA_pointer_create(id, ID_code_to_RNA_type(GS(id->name)), id));
+      data->imported_id_links[reader->data_prim_path()].push_back(RNA_id_pointer_create(static_cast<ID *>(ob->data)));
     }
 
     USDPrimReader *parent = reader->parent();
@@ -386,8 +384,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   data->settings.usd_path_to_mat_name.foreach_item([&](const std::string &path, const std::string &name) {
     Material* mat = data->settings.mat_name_to_mat.lookup_default(name, nullptr);
     if (mat) {
-      ID* id = &mat->id;
-      data->imported_id_links[path].push_back(RNA_pointer_create(id, ID_code_to_RNA_type(GS(id->name)), id));
+      data->imported_id_links[path].push_back(RNA_id_pointer_create(&mat->id));
     }
   });
 
