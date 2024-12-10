@@ -1749,7 +1749,7 @@ static void GREASE_PENCIL_OT_fill(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static bke::greasepencil::Drawing *duplicate_drawing_for_autokey_if_necessary(
+static bke::greasepencil::Drawing *get_current_drawing_or_duplicate_for_autokey(
     const Scene &scene, GreasePencil &grease_pencil, const int layer_index)
 {
   using namespace bke::greasepencil;
@@ -1783,7 +1783,7 @@ static bool remove_points_and_split_from_drawings(
       continue;
     }
 
-    if (Drawing *drawing = duplicate_drawing_for_autokey_if_necessary(
+    if (Drawing *drawing = get_current_drawing_or_duplicate_for_autokey(
             scene, grease_pencil, info.layer_index))
     {
       drawing->strokes_for_write() = ed::greasepencil::remove_points_and_split(drawing->strokes(),
