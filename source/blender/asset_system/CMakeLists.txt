@@ -7,6 +7,7 @@ set(INC
   intern
   intern/library_types
   ../blenkernel
+  ../imbuf
 )
 
 set(INC_SYS
@@ -49,6 +50,7 @@ set(LIB
   bf_blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  bf_imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )

@@ -26,6 +26,7 @@
 
 struct AssetMetaData;
 struct ID;
+struct PreviewImage;
 
 namespace blender::asset_system {
 
@@ -44,6 +45,8 @@ class AssetRepresentation : NonCopyable, NonMovable {
     std::string name;
     int id_type = 0;
     std::unique_ptr<AssetMetaData> metadata_ = nullptr;
+    /** Owning pointer. */
+    PreviewImage *preview_ = nullptr;
   };
   std::variant<ExternalAsset, ID *> asset_;
 
@@ -63,7 +66,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
   AssetRepresentation(StringRef relative_asset_path,
                       ID &id,
                       const AssetLibrary &owner_asset_library);
-  ~AssetRepresentation() = default;
+  ~AssetRepresentation();
 
   /**
    * Create a weak reference for this asset that can be written to files, but can break under a
@@ -71,6 +74,9 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * A weak reference can only be created if an asset representation is owned by an asset library.
    */
   AssetWeakReference make_weak_reference() const;
+
+  PreviewImage *ensure_preview_storage();
+  PreviewImage *preview_storage() const;
 
   StringRefNull get_name() const;
   ID_Type get_id_type() const;

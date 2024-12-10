@@ -16,6 +16,7 @@
 #include <string>
 
 #include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -32,6 +33,7 @@
 #include "../space_file/file_indexer.hh"
 #include "../space_file/filelist.hh"
 
+#include "ED_asset_handle.hh"
 #include "ED_asset_indexer.hh"
 #include "ED_asset_list.hh"
 #include "ED_fileselect.hh"
@@ -208,21 +210,26 @@ bool AssetList::is_loaded() const
   return filelist_is_ready(filelist_);
 }
 
-void AssetList::ensure_asset_preview_requested(const bContext &C, AssetHandle &asset)
+void AssetList::ensure_asset_preview_requested(const bContext & /*C*/, AssetHandle &asset_handle)
 {
-  /* Ensure previews are enabled. */
-  filelist_cache_previews_set(filelist_, true);
+  asset_system::AssetRepresentation &asset = *handle_get_representation(&asset_handle);
+  asset.ensure_preview_storage();
 
-  if (filelist_file_ensure_preview_requested(filelist_,
-                                             const_cast<FileDirEntry *>(asset.file_data)))
-  {
-    previews_timer_.ensure_running(&C);
-  }
+  // /* Ensure previews are enabled. */
+  // filelist_cache_previews_set(filelist_, true);
+
+  // if (filelist_file_ensure_preview_requested(filelist_,
+  //                                            const_cast<FileDirEntry *>(asset.file_data)))
+  // {
+  //   previews_timer_.ensure_running(&C);
+  // }
 }
 
 bool AssetList::is_asset_preview_loading(const AssetHandle &asset) const
 {
-  return filelist_file_is_preview_pending(filelist_, asset.file_data);
+  const bool filelist_ready = filelist_is_ready(filelist_);
+  return !filelist_ready || false;
+  // return filelist_file_is_preview_pending(filelist_, asset.file_data);
 }
 
 asset_system::AssetLibrary *AssetList::asset_library() const
