@@ -1043,9 +1043,9 @@ static void write_libraries(WriteData *wd, Main *bmain)
     FOREACH_MAIN_ID_END;
   }
 
-  for (const auto &&iter_item : linked_ids_by_library.items()) {
-    Library &library = *iter_item.key;
-    const blender::Span<ID *> ids = iter_item.value;
+  LISTBASE_FOREACH (Library *, library_ptr, &bmain->libraries) {
+    Library &library = *library_ptr;
+    const blender::Span<ID *> ids = linked_ids_by_library.lookup(&library);
 
     /* Gather IDs that are somehow directly referenced by data in the current blend file. */
     blender::Vector<ID *> ids_used_from_library;
