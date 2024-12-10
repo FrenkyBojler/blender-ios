@@ -525,8 +525,8 @@ TEST(vector, ExtendMoveFromUniquePtrVector)
   ASSERT_TRUE(b.is_empty());
   ASSERT_EQ(a.size(), ptr_vec.size());
 
-  for (size_t i = 0; i < values.size(); i++) {
-    ASSERT_EQ(*a[i], values[i]);
+  for (int64_t i = 0; i < a.size(); i++) {
+    ASSERT_EQ(*a[i], values[size_t(i)]);
     ASSERT_EQ(a[i].get(), ptr_vec[i]);
   }
 }
