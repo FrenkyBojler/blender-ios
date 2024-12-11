@@ -142,7 +142,8 @@ class RootGeometryViewItem : public InstancesTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_GEOMETRY_SET);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_GEOMETRY_SET, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
   }
 };
 
@@ -167,7 +168,8 @@ class InstanceReferenceViewItem : public InstancesTreeViewItem {
     if (name.is_empty()) {
       name = IFACE_("(Geometry)");
     }
-    uiItemL(&row, name, icon);
+    uiBut *but = uiItemL_ex(&row, name, icon, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
     draw_count(*this, user_count_);
   }
 
@@ -242,7 +244,8 @@ class MeshViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_MESH_DATA);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_MESH_DATA, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
   }
 };
 
@@ -265,7 +268,8 @@ class MeshDomainViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     const BIFIconID icon = mesh_domain_to_icon(domain_);
-    uiItemL(&row, label_, icon);
+    uiBut *but = uiItemL_ex(&row, label_, icon, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
 
     const int count = mesh_ ? mesh_->attributes().domain_size(domain_) : 0;
     draw_count(*this, count);
@@ -281,7 +285,8 @@ class CurvesViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_CURVE_DATA);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_CURVE_DATA, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
   }
 };
 
@@ -305,7 +310,8 @@ class CurvesDomainViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     const BIFIconID icon = curves_domain_to_icon(domain_);
-    uiItemL(&row, label_, icon);
+    uiBut *but = uiItemL_ex(&row, label_, icon, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
 
     const int count = curves_ ? curves_->geometry.wrap().attributes().domain_size(domain_) : 0;
     draw_count(*this, count);
@@ -321,7 +327,8 @@ class GreasePencilViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_OUTLINER_DATA_GREASEPENCIL);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_OUTLINER_DATA_GREASEPENCIL, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
   }
 };
 
@@ -344,7 +351,9 @@ class GreasePencilLayersViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     const int count = grease_pencil_ ? grease_pencil_->layers().size() : 0;
-    uiItemL(&row, label_, ICON_OUTLINER_DATA_GP_LAYER);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_OUTLINER_DATA_GP_LAYER, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
+
     draw_count(*this, count);
   }
 };
@@ -366,7 +375,8 @@ class GreasePencilLayerViewItem : public DataSetViewItem {
     if (name.is_empty()) {
       name = IFACE_("(Layer)");
     }
-    uiItemL(&row, name, ICON_CURVE_DATA);
+    uiBut *but = uiItemL_ex(&row, name, ICON_CURVE_DATA, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
   }
 };
 
@@ -394,7 +404,8 @@ class GreasePencilLayerCurvesDomainViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     const BIFIconID icon = curves_domain_to_icon(domain_);
-    uiItemL(&row, label_, icon);
+    uiBut *but = uiItemL_ex(&row, label_, icon, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
 
     const bke::greasepencil::Drawing *drawing = grease_pencil_.get_eval_drawing(
         grease_pencil_.layer(layer_index_));
@@ -412,7 +423,8 @@ class PointCloudViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_POINTCLOUD_DATA);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_POINTCLOUD_DATA, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
   }
 };
 
@@ -434,7 +446,8 @@ class PointsViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_POINTCLOUD_POINT);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_POINTCLOUD_POINT, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
     const int count = pointcloud_ ? pointcloud_->totpoint : 0;
     draw_count(*this, count);
   }
@@ -458,7 +471,9 @@ class VolumeGridsViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_VOLUME_DATA);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_VOLUME_DATA, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
+
     const int count = volume_ ? BKE_volume_num_grids(volume_) : 0;
     draw_count(*this, count);
   }
@@ -482,7 +497,8 @@ class InstancesViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_EMPTY_AXIS);
+    uiBut *but = uiItemL_ex(&row, label_, ICON_EMPTY_AXIS, false, false);
+    UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
     const int count = instances_ ? instances_->instances_num() : 0;
     draw_count(*this, count);
   }
