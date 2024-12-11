@@ -134,8 +134,6 @@ GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_armature_shape_wire)
 DO_STATIC_COMPILATION()
-/* TODO(pragma37): Remove. */
-DEFINE("NO_GEOM")
 PUSH_CONSTANT(BOOL, do_smooth_wire)
 STORAGE_BUF_FREQ(0, READ, float, pos[], GEOMETRY)
 STORAGE_BUF(1, READ, mat4, data_buf[])

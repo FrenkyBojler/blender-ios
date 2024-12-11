@@ -38,9 +38,8 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_modelmat_new)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
-PUSH_CONSTANT(VEC3, tile_scale)
-/* TODO(pragma37): Remove? */
 DEFINE_VALUE("tile_pos", "vec3(0.0)")
+PUSH_CONSTANT(VEC3, tile_scale)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_grid_image)
