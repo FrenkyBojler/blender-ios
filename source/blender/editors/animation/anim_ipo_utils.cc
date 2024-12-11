@@ -20,7 +20,10 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_node_runtime.hh"
 #include "DNA_anim_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_node_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -147,20 +150,46 @@ std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
      * the node iterates all nodes & sockets which would result in bad performance in some
      * circumstances). */
     if (RNA_struct_is_a(ptr.type, &RNA_NodeSocket)) {
-      char nodename[name_maxncpy];
-      if (BLI_str_quoted_substr(fcu->rna_path, "nodes[", nodename, sizeof(nodename))) {
-        const char *structname_all = BLI_sprintfN("%s : %s", nodename, structname);
-        if (free_structname) {
-          MEM_freeN((void *)structname);
-        }
-        structname = structname_all;
-        free_structname = true;
+      BLI_assert(GS(ptr.owner_id->name) == ID_NT);
+      const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr.owner_id);
+      ntree->ensure_topology_cache();
+      const bNodeSocket *socket = static_cast<const bNodeSocket *>(ptr.data);
+      const bNode &node = socket->owner_node();
+      if (free_structname) {
+        MEM_freeN((void *)structname);
       }
+      structname = node.label_or_name().c_str();
+      free_structname = false;
+    }
+    else if (RNA_struct_is_a(ptr.type, &RNA_Node)) {
+      BLI_assert(GS(ptr.owner_id->name) == ID_NT);
+      const bNode *node = static_cast<const bNode *>(ptr.data);
+      if (free_structname) {
+        MEM_freeN((void *)structname);
+      }
+      structname = node->label_or_name().c_str();
+      free_structname = false;
     }
   }
 
-  /* Property Name is straightforward */
   propname = RNA_property_ui_name(prop);
+
+  /* Display geometry node properties as node-tree socket labels. */
+  if (RNA_struct_is_a(ptr.type, &RNA_NodesModifier)) {
+    const NodesModifierData *nmd = static_cast<const NodesModifierData *>(ptr.data);
+    if (const bNodeTree *node_group = nmd->node_group) {
+      node_group->ensure_interface_cache();
+      for (const bNodeTreeInterfaceSocket *input : node_group->interface_inputs()) {
+        if (STREQ(input->identifier, propname)) {
+          propname = input->name;
+        }
+      }
+    }
+  }
+  else if (RNA_struct_is_a(ptr.type, &RNA_NodeSocket)) {
+    const bNodeSocket *socket = static_cast<const bNodeSocket *>(ptr.data);
+    propname = socket->name;
+  }
 
   /* Array Index - only if applicable */
   if (RNA_property_array_check(prop)) {
