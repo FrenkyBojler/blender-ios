@@ -19,40 +19,35 @@ import shutil
 import sys
 import zipfile
 
-from typing import (
+from collections.abc import (
     Callable,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Tuple,
 )
 
-WheelSource = Tuple[
+WheelSource = tuple[
     # Key - doesn't matter what this is... it's just a handle.
     str,
     # A list of absolute wheel file-paths.
-    List[str],
+    list[str],
 ]
 
 
-def _read_records_csv(filepath: str) -> List[List[str]]:
+def _read_records_csv(filepath: str) -> list[list[str]]:
     import csv
     with open(filepath, encoding="utf8", errors="surrogateescape") as fh:
         return list(csv.reader(fh.read().splitlines()))
 
 
-def _wheels_from_dir(dirpath: str) -> Tuple[
+def _wheels_from_dir(dirpath: str) -> tuple[
         # The key is:
         #   wheel_id
         # The values are:
         #   Top level directories.
-        Dict[str, List[str]],
+        dict[str, list[str]],
         # Unknown paths.
-        List[str],
+        list[str],
 ]:
-    result: Dict[str, List[str]] = {}
-    paths_unused: Set[str] = set()
+    result: dict[str, list[str]] = {}
+    paths_unused: set[str] = set()
 
     if not os.path.exists(dirpath):
         return result, list(paths_unused)
@@ -73,7 +68,7 @@ def _wheels_from_dir(dirpath: str) -> Tuple[
         record_rows = _read_records_csv(filepath_record)
 
         # Build top-level paths.
-        toplevel_paths_set: Set[str] = set()
+        toplevel_paths_set: set[str] = set()
         for row in record_rows:
             if not row:
                 continue
@@ -93,6 +88,10 @@ def _wheels_from_dir(dirpath: str) -> Tuple[
 
             toplevel_paths_set.add(path_split[0])
 
+        # Some wheels contain `{name}.libs` which are *not* listed in `RECORD`.
+        # Always add the path, the value will be skipped if it's missing.
+        toplevel_paths_set.add(os.path.join(dirpath, name.partition("-")[0] + ".libs"))
+
         result[name] = list(sorted(toplevel_paths_set))
         del toplevel_paths_set
 
@@ -106,14 +105,14 @@ def _wheels_from_dir(dirpath: str) -> Tuple[
     return result, paths_unused_list
 
 
-def _wheel_info_dir_from_zip(filepath_wheel: str) -> Optional[Tuple[str, List[str]]]:
+def _wheel_info_dir_from_zip(filepath_wheel: str) -> tuple[str, list[str]] | None:
     """
     Return:
     - The "*-info" directory name which contains meta-data.
     - The top-level path list (excluding "..").
     """
     dir_info = ""
-    toplevel_paths: Set[str] = set()
+    toplevel_paths: set[str] = set()
 
     with zipfile.ZipFile(filepath_wheel, mode="r") as zip_fh:
         # This file will always exist.
@@ -141,7 +140,7 @@ def _wheel_info_dir_from_zip(filepath_wheel: str) -> Optional[Tuple[str, List[st
     return dir_info, toplevel_paths_list
 
 
-def _rmtree_safe(dir_remove: str, expected_root: str) -> Optional[Exception]:
+def _rmtree_safe(dir_remove: str, expected_root: str) -> Exception | None:
     if not dir_remove.startswith(expected_root):
         raise Exception("Expected prefix not found")
 
@@ -165,7 +164,7 @@ def _rmtree_safe(dir_remove: str, expected_root: str) -> Optional[Exception]:
     return ex_result
 
 
-def _remove_safe(file_remove: str) -> Optional[Exception]:
+def _remove_safe(file_remove: str) -> Exception | None:
     ex_result = None
 
     try:
@@ -224,7 +223,7 @@ WHEEL_VERSION_RE = re.compile(r"(\d+)?(?:\.(\d+))?(?:\.(\d+))")
 
 def wheel_version_from_filename_for_cmp(
     filename: str,
-) -> Tuple[int, int, int, str]:
+) -> tuple[int, int, int, str]:
     """
     Extract the version number for comparison.
     Note that this only handled the first 3 numbers,
@@ -252,13 +251,13 @@ def wheel_version_from_filename_for_cmp(
 
 
 def wheel_list_deduplicate_as_skip_set(
-        wheel_list: List[WheelSource],
-) -> Set[str]:
+        wheel_list: list[WheelSource],
+) -> set[str]:
     """
     Return all wheel paths to skip.
     """
-    wheels_to_skip: Set[str] = set()
-    all_wheels: Set[str] = {
+    wheels_to_skip: set[str] = set()
+    all_wheels: set[str] = {
         filepath
         for _, wheels in wheel_list
         for filepath in wheels
@@ -269,7 +268,7 @@ def wheel_list_deduplicate_as_skip_set(
 
     # Keep a map from the base name to the "best" wheel,
     # the other wheels get added to `wheels_to_skip` to be ignored.
-    all_wheels_by_base: Dict[str, str] = {}
+    all_wheels_by_base: dict[str, str] = {}
 
     for wheel in all_wheels:
         wheel_filename = os.path.basename(wheel)
@@ -311,7 +310,7 @@ def apply_action(
         *,
         local_dir: str,
         local_dir_site_packages: str,
-        wheel_list: List[WheelSource],
+        wheel_list: list[WheelSource],
         remove_error_fn: Callable[[str, Exception], None],
         debug: bool,
 ) -> None:
@@ -333,10 +332,10 @@ def apply_action(
     wheels_installed, _paths_unknown = _wheels_from_dir(local_dir_site_packages)
 
     # Wheels and their top level directories (which would be installed).
-    wheels_packages: Dict[str, List[str]] = {}
+    wheels_packages: dict[str, list[str]] = {}
 
     # Map the wheel ID to path.
-    wheels_dir_info_to_filepath_map: Dict[str, str] = {}
+    wheels_dir_info_to_filepath_map: dict[str, str] = {}
 
     # NOTE(@ideasman42): the wheels skip-set only de-duplicates at the level of the base-name of the wheels filename.
     # So the wheel file-paths:
@@ -389,7 +388,7 @@ def apply_action(
             if debug:
                 print("removing wheel:", filepath_rel)
 
-            ex: Optional[Exception] = None
+            ex: Exception | None = None
             if os.path.isdir(filepath_abs):
                 ex = _rmtree_safe(filepath_abs, local_dir)
                 # For symbolic-links, use remove as a fallback.

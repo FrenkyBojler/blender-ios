@@ -86,18 +86,22 @@ void free_trace(Trace *trace);
  * Pixels are interpreted as (x, y, 0) coordinates and transformed.
  */
 bke::CurvesGeometry trace_to_curves(const Trace &trace,
-                                    const bke::AttributeIDRef &hole_attribute_id,
+                                    StringRef hole_attribute_id,
                                     const float4x4 &transform);
 /**
  * Create curves from trace data.
  * Pixels are transformed by the \a pixel_to_position function.
  */
 bke::CurvesGeometry trace_to_curves(const Trace &trace,
-                                    const bke::AttributeIDRef &hole_attribute_id,
+                                    StringRef hole_attribute_id,
                                     FunctionRef<float3(const int2 &)> pixel_to_position);
 
 /* Inline functions. */
 
+/**
+ * Convert an image to a potrace bitmap representing foreground and background regions.
+ * \param fn Function that returns true if the given color is a foreground color.
+ */
 template<typename ThresholdFn> Bitmap *image_to_bitmap(const ImBuf &ibuf, ThresholdFn fn)
 {
 #ifdef WITH_POTRACE

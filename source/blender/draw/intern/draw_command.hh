@@ -49,6 +49,8 @@ struct RecordingState {
   int clip_plane_count = 0;
   /** Used for gl_BaseInstance workaround. */
   GPUStorageBuf *resource_id_buf = nullptr;
+  /** Used for pass simple resource ID. Starts at 1 as 0 is the identity handle. */
+  int instance_offset = 1;
 
   void front_facing_set(bool facing)
   {
@@ -350,25 +352,12 @@ struct SpecializeConstant {
 
 struct Draw {
   gpu::Batch *batch;
-  /* Negative instance count denote expanded draw. */
-  int32_t instance_len;
+  uint16_t instance_len;
+  uint8_t expand_prim_type; /* #GPUPrimType */
+  uint8_t expand_prim_len;
   uint32_t vertex_first;
-  union {
-    /* Ugly packing to support expanded draws without inflating the struct.
-     * Makes vertex range restricted to smaller range for expanded draw. */
-    struct {
-      uint32_t prim_type : 4;
-      uint32_t prim_len : 3;
-      uint32_t vertex_len : 25;
-    } expand;
-    uint32_t vertex_len;
-  };
+  uint32_t vertex_len;
   ResourceHandle handle;
-#ifdef WITH_METAL_BACKEND
-  /* Shader is required for extracting SSBO vertex fetch expansion parameters during draw command
-   * generation. */
-  GPUShader *shader;
-#endif
 
   Draw() = default;
 
@@ -376,53 +365,24 @@ struct Draw {
        uint instance_len,
        uint vertex_len,
        uint vertex_first,
-#ifdef WITH_METAL_BACKEND
-       GPUShader *shader,
-#endif
        GPUPrimType expanded_prim_type,
        uint expanded_prim_len,
        ResourceHandle handle)
   {
+    BLI_assert(batch != nullptr);
     this->batch = batch;
     this->handle = handle;
-#ifdef WITH_METAL_BACKEND
-    this->shader = shader;
-#endif
-    BLI_assert((instance_len > 0) && (instance_len < ~uint32_t(0)));
-    if (expanded_prim_type != GPU_PRIM_NONE) {
-      this->instance_len = -int32_t(instance_len);
-      BLI_assert(expanded_prim_type < (1 << 4));
-      BLI_assert(expanded_prim_len < (1 << 3));
-      BLI_assert(vertex_len == uint(-1) || vertex_len < (1 << 25));
-      BLI_assert(vertex_len != 0);
-      this->expand.prim_type = expanded_prim_type;
-      this->expand.prim_len = expanded_prim_len;
-      /* Cannot store auto vertex len value, store it as 0 as this is an invalid input here. */
-      this->expand.vertex_len = (vertex_len == uint(-1)) ? 0 : vertex_len;
-    }
-    else {
-      this->instance_len = instance_len;
-      this->vertex_len = vertex_len;
-    }
+    BLI_assert(instance_len < SHRT_MAX);
+    this->instance_len = uint16_t(instance_len);
+    this->vertex_len = vertex_len;
     this->vertex_first = vertex_first;
+    this->expand_prim_type = expanded_prim_type;
+    this->expand_prim_len = expanded_prim_len;
   }
 
   bool is_primitive_expansion() const
   {
-    return instance_len < 0;
-  }
-
-  uint32_t instance_len_get() const
-  {
-    return is_primitive_expansion() ? -instance_len : instance_len;
-  }
-
-  uint32_t vertex_len_get() const
-  {
-    if (is_primitive_expansion()) {
-      return (expand.vertex_len == 0) ? uint(-1) : vertex_len;
-    }
-    return vertex_len;
+    return expand_prim_type != GPU_PRIM_NONE;
   }
 
   void execute(RecordingState &state) const;
@@ -503,6 +463,9 @@ struct StateSet {
 
   void execute(RecordingState &state) const;
   std::string serialize() const;
+
+  /* Set state of the GPU module manually. */
+  static void set(DRWState state = DRW_STATE_DEFAULT);
 };
 
 struct StencilSet {
@@ -535,12 +498,7 @@ union Undetermined {
 
 /** Try to keep the command size as low as possible for performance. */
 
-#ifdef WITH_METAL_BACKEND
-/* TODO(fclem): Remove. */
-BLI_STATIC_ASSERT(sizeof(Undetermined) <= 32, "One of the command type is too large.")
-#else
 BLI_STATIC_ASSERT(sizeof(Undetermined) <= 24, "One of the command type is too large.")
-#endif
 
 /** \} */
 
@@ -578,35 +536,36 @@ class DrawCommandBuf {
                    uint instance_len,
                    uint vertex_len,
                    uint vertex_first,
-                   ResourceHandle handle,
-                   uint /*custom_id*/,
-#ifdef WITH_METAL_BACKEND
-                   GPUShader *shader,
-#endif
+                   ResourceHandleRange handle_range,
+                   uint custom_id,
                    GPUPrimType expanded_prim_type,
                    uint16_t expanded_prim_len)
   {
+    BLI_assert(batch != nullptr);
     vertex_first = vertex_first != -1 ? vertex_first : 0;
     instance_len = instance_len != -1 ? instance_len : 1;
 
-    int64_t index = commands.append_and_get_index({});
-    headers.append({Type::Draw, uint(index)});
-    commands[index].draw = {batch,
-                            instance_len,
-                            vertex_len,
-                            vertex_first,
-#ifdef WITH_METAL_BACKEND
-                            shader,
-#endif
-                            expanded_prim_type,
-                            expanded_prim_len,
-                            handle};
+    BLI_assert_msg(custom_id == 0, "Custom ID is not supported in PassSimple");
+    UNUSED_VARS_NDEBUG(custom_id);
+
+    for (auto handle : handle_range.index_range()) {
+      int64_t index = commands.append_and_get_index({});
+      headers.append({Type::Draw, uint(index)});
+      commands[index].draw = {batch,
+                              instance_len,
+                              vertex_len,
+                              vertex_first,
+                              expanded_prim_type,
+                              expanded_prim_len,
+                              ResourceHandle(handle)};
+    }
   }
 
-  void bind(RecordingState &state,
-            Vector<Header, 0> &headers,
-            Vector<Undetermined, 0> &commands,
-            SubPassVector &sub_passes);
+  void generate_commands(Vector<Header, 0> &headers,
+                         Vector<Undetermined, 0> &commands,
+                         SubPassVector &sub_passes);
+
+  void bind(RecordingState &state);
 
  private:
   static void finalize_commands(Vector<Header, 0> &headers,
@@ -698,14 +657,12 @@ class DrawMultiBuf {
                    uint instance_len,
                    uint vertex_len,
                    uint vertex_first,
-                   ResourceHandle handle,
+                   ResourceHandleRange handle_range,
                    uint custom_id,
-#ifdef WITH_METAL_BACKEND
-                   GPUShader *shader,
-#endif
                    GPUPrimType expanded_prim_type,
                    uint16_t expanded_prim_len)
   {
+    BLI_assert(batch != nullptr);
     /* Custom draw-calls cannot be batched and will produce one group per draw. */
     const bool custom_group = ((vertex_first != 0 && vertex_first != -1) || vertex_len != -1);
 
@@ -724,68 +681,67 @@ class DrawMultiBuf {
 
     uint &group_id = group_ids_.lookup_or_add(DrawGroupKey(cmd.uuid, batch), uint(-1));
 
-    bool inverted = handle.has_inverted_handedness();
+    bool inverted = handle_range.handle_first.has_inverted_handedness();
 
-    DrawPrototype &draw = prototype_buf_.get_or_resize(prototype_count_++);
-    draw.resource_handle = handle.raw;
-    draw.custom_id = custom_id;
-    draw.instance_len = instance_len;
-    draw.group_id = group_id;
+    for (auto handle : handle_range.index_range()) {
+      DrawPrototype &draw = prototype_buf_.get_or_resize(prototype_count_++);
+      draw.res_handle = uint32_t(handle);
+      draw.custom_id = custom_id;
+      draw.instance_len = instance_len;
+      draw.group_id = group_id;
 
-    if (group_id == uint(-1) || custom_group) {
-      uint new_group_id = group_count_++;
-      draw.group_id = new_group_id;
+      if (group_id == uint(-1) || custom_group) {
+        uint new_group_id = group_count_++;
+        draw.group_id = new_group_id;
 
-      DrawGroup &group = group_buf_.get_or_resize(new_group_id);
-      group.next = cmd.group_first;
-      group.len = instance_len;
-      group.front_facing_len = inverted ? 0 : instance_len;
-      group.front_facing_counter = 0;
-      group.back_facing_counter = 0;
-      group.desc.vertex_len = vertex_len;
-      group.desc.vertex_first = vertex_first;
-      group.desc.gpu_batch = batch;
-      group.desc.expand_prim_type = expanded_prim_type;
-      group.desc.expand_prim_len = expanded_prim_len;
-#ifdef WITH_METAL_BACKEND
-      group.desc.gpu_shader = shader;
-#endif
-      /* Custom group are not to be registered in the group_ids_. */
-      if (!custom_group) {
-        group_id = new_group_id;
+        DrawGroup &group = group_buf_.get_or_resize(new_group_id);
+        group.next = cmd.group_first;
+        group.len = instance_len;
+        group.front_facing_len = inverted ? 0 : instance_len;
+        group.front_facing_counter = 0;
+        group.back_facing_counter = 0;
+        group.desc.vertex_len = vertex_len;
+        group.desc.vertex_first = vertex_first;
+        group.desc.gpu_batch = batch;
+        group.desc.expand_prim_type = expanded_prim_type;
+        group.desc.expand_prim_len = expanded_prim_len;
+        BLI_assert_msg(expanded_prim_len < (1 << 3),
+                       "Not enough bits to store primitive expansion");
+        /* Custom group are not to be registered in the group_ids_. */
+        if (!custom_group) {
+          group_id = new_group_id;
+        }
+        /* For serialization only. Reset before use on GPU. */
+        (inverted ? group.back_facing_counter : group.front_facing_counter)++;
+        /* Append to list. */
+        cmd.group_first = new_group_id;
       }
-      /* For serialization only. Reset before use on GPU. */
-      (inverted ? group.back_facing_counter : group.front_facing_counter)++;
-      /* Append to list. */
-      cmd.group_first = new_group_id;
-    }
-    else {
-      DrawGroup &group = group_buf_[group_id];
-      group.len += instance_len;
-      group.front_facing_len += inverted ? 0 : instance_len;
-      /* For serialization only. Reset before use on GPU. */
-      (inverted ? group.back_facing_counter : group.front_facing_counter)++;
-      /* NOTE: We assume that primitive expansion is coupled to the shader itself. Meaning we rely
-       * on shader bind to isolate the expanded draws into their own group (as there could be
-       * regular draws and extended draws using the same batch mixed inside the same pass). This
-       * will cause issues if this assumption is broken. Also it is very hard to detect this case
-       * for error checking. At least we can check that expansion settings don't change inside a
-       * group. */
-      BLI_assert(group.desc.expand_prim_type == expanded_prim_type);
-      BLI_assert(group.desc.expand_prim_len == expanded_prim_len);
-#ifdef WITH_METAL_BACKEND
-      BLI_assert(group.desc.gpu_shader == shader);
-#endif
+      else {
+        DrawGroup &group = group_buf_[group_id];
+        group.len += instance_len;
+        group.front_facing_len += inverted ? 0 : instance_len;
+        /* For serialization only. Reset before use on GPU. */
+        (inverted ? group.back_facing_counter : group.front_facing_counter)++;
+        /* NOTE: We assume that primitive expansion is coupled to the shader itself. Meaning we
+         * rely on shader bind to isolate the expanded draws into their own group (as there could
+         * be regular draws and extended draws using the same batch mixed inside the same pass).
+         * This will cause issues if this assumption is broken. Also it is very hard to detect this
+         * case for error checking. At least we can check that expansion settings don't change
+         * inside a group. */
+        BLI_assert(group.desc.expand_prim_type == expanded_prim_type);
+        BLI_assert(group.desc.expand_prim_len == expanded_prim_len);
+      }
     }
   }
 
-  void bind(RecordingState &state,
-            Vector<Header, 0> &headers,
-            Vector<Undetermined, 0> &commands,
-            VisibilityBuf &visibility_buf,
-            int visibility_word_per_draw,
-            int view_len,
-            bool use_custom_ids);
+  void generate_commands(Vector<Header, 0> &headers,
+                         Vector<Undetermined, 0> &commands,
+                         VisibilityBuf &visibility_buf,
+                         int visibility_word_per_draw,
+                         int view_len,
+                         bool use_custom_ids);
+
+  void bind(RecordingState &state);
 };
 
 /** \} */

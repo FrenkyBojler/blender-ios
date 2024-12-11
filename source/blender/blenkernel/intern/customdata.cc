@@ -27,8 +27,9 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_memory_counter.hh"
 #include "BLI_mempool.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
@@ -1829,17 +1830,17 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
      nullptr,
      nullptr,
      nullptr},
-    /* 22: CD_TEXTURE_MCOL */
-    {sizeof(MCol[4]),
-     alignof(MCol[4]),
-     "MCol",
-     4,
-     N_("TexturedCol"),
+    /* 22: CD_PROP_INT16_2D */
+    {sizeof(blender::short2),
+     alignof(blender::short2),
+     "vec2s",
+     1,
+     N_("2D 16-Bit Integer"),
      nullptr,
      nullptr,
-     layerInterp_mcol,
-     layerSwap_mcol,
-     layerDefault_mcol},
+     nullptr,
+     nullptr,
+     nullptr},
     /* 23: CD_CLOTH_ORCO */
     {sizeof(float[3]),
      alignof(float[3]),
@@ -1999,17 +2000,8 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
      nullptr,
      layerSwap_flnor,
      nullptr},
-    /* 41: CD_CUSTOMLOOPNORMAL */
-    {sizeof(short[2]),
-     alignof(short[2]),
-     "vec2s",
-     1,
-     nullptr,
-     nullptr,
-     nullptr,
-     nullptr,
-     nullptr,
-     nullptr},
+    /* 41: CD_CUSTOMLOOPNORMAL */ /* DEPRECATED */
+    {sizeof(short[2]), alignof(short[2]), "vec2s", 1},
     /* 42: CD_SCULPT_FACE_SETS */ /* DEPRECATED */
     {sizeof(int), alignof(int), ""},
     /* 43: CD_LOCATION */
@@ -2237,7 +2229,7 @@ const CustomData_MeshMasks CD_MASK_MESH = {
     /*pmask*/
     (CD_MASK_FREESTYLE_FACE | CD_MASK_PROP_ALL),
     /*lmask*/
-    (CD_MASK_MDISPS | CD_MASK_CUSTOMLOOPNORMAL | CD_MASK_GRID_PAINT_MASK | CD_MASK_PROP_ALL),
+    (CD_MASK_MDISPS | CD_MASK_GRID_PAINT_MASK | CD_MASK_PROP_ALL),
 };
 const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
     /*vmask*/ (CD_MASK_ORIGINDEX | CD_MASK_MDEFORMVERT | CD_MASK_SHAPEKEY | CD_MASK_MVERT_SKIN |
@@ -2248,8 +2240,7 @@ const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
     /*pmask*/
     (CD_MASK_ORIGINDEX | CD_MASK_FREESTYLE_FACE | CD_MASK_PROP_ALL),
     /*lmask*/
-    (CD_MASK_CUSTOMLOOPNORMAL | CD_MASK_ORIGSPACE_MLOOP |
-     CD_MASK_PROP_ALL), /* XXX: MISSING #CD_MASK_MLOOPTANGENT ? */
+    (CD_MASK_ORIGSPACE_MLOOP | CD_MASK_PROP_ALL), /* XXX: MISSING #CD_MASK_MLOOPTANGENT ? */
 };
 const CustomData_MeshMasks CD_MASK_BMESH = {
     /*vmask*/ (CD_MASK_MDEFORMVERT | CD_MASK_MVERT_SKIN | CD_MASK_SHAPEKEY |
@@ -2259,7 +2250,7 @@ const CustomData_MeshMasks CD_MASK_BMESH = {
     /*pmask*/
     (CD_MASK_FREESTYLE_FACE | CD_MASK_PROP_ALL),
     /*lmask*/
-    (CD_MASK_MDISPS | CD_MASK_CUSTOMLOOPNORMAL | CD_MASK_GRID_PAINT_MASK | CD_MASK_PROP_ALL),
+    (CD_MASK_MDISPS | CD_MASK_GRID_PAINT_MASK | CD_MASK_PROP_ALL),
 };
 const CustomData_MeshMasks CD_MASK_EVERYTHING = {
     /*vmask*/ (CD_MASK_BM_ELEM_PYPTR | CD_MASK_ORIGINDEX | CD_MASK_MDEFORMVERT |
@@ -2273,8 +2264,8 @@ const CustomData_MeshMasks CD_MASK_EVERYTHING = {
     /*pmask*/
     (CD_MASK_BM_ELEM_PYPTR | CD_MASK_ORIGINDEX | CD_MASK_FREESTYLE_FACE | CD_MASK_PROP_ALL),
     /*lmask*/
-    (CD_MASK_BM_ELEM_PYPTR | CD_MASK_MDISPS | CD_MASK_NORMAL | CD_MASK_CUSTOMLOOPNORMAL |
-     CD_MASK_MLOOPTANGENT | CD_MASK_ORIGSPACE_MLOOP | CD_MASK_GRID_PAINT_MASK | CD_MASK_PROP_ALL),
+    (CD_MASK_BM_ELEM_PYPTR | CD_MASK_MDISPS | CD_MASK_NORMAL | CD_MASK_MLOOPTANGENT |
+     CD_MASK_ORIGSPACE_MLOOP | CD_MASK_GRID_PAINT_MASK | CD_MASK_PROP_ALL),
 };
 
 static const LayerTypeInfo *layerType_getInfo(const eCustomDataType type)
@@ -2486,11 +2477,6 @@ static bool customdata_merge_internal(const CustomData *source,
     new_layer->active_clone = last_clone;
     new_layer->active_mask = last_mask;
     changed = true;
-
-    if (src_layer.anonymous_id != nullptr) {
-      new_layer->anonymous_id = src_layer.anonymous_id;
-      new_layer->anonymous_id->add_user();
-    }
   }
 
   CustomData_update_typemap(dest);
@@ -2686,7 +2672,10 @@ void CustomData_realloc(CustomData *data,
   }
 }
 
-void CustomData_copy(const CustomData *source, CustomData *dest, eCustomDataMask mask, int totelem)
+void CustomData_init_from(const CustomData *source,
+                          CustomData *dest,
+                          eCustomDataMask mask,
+                          int totelem)
 {
   CustomData_reset(dest);
 
@@ -2697,11 +2686,11 @@ void CustomData_copy(const CustomData *source, CustomData *dest, eCustomDataMask
   CustomData_merge(source, dest, mask, totelem);
 }
 
-void CustomData_copy_layout(const CustomData *source,
-                            CustomData *dest,
-                            eCustomDataMask mask,
-                            eCDAllocType alloctype,
-                            int totelem)
+void CustomData_init_layout_from(const CustomData *source,
+                                 CustomData *dest,
+                                 eCustomDataMask mask,
+                                 eCDAllocType alloctype,
+                                 int totelem)
 {
   CustomData_reset(dest);
 
@@ -2714,10 +2703,6 @@ void CustomData_copy_layout(const CustomData *source,
 
 static void customData_free_layer__internal(CustomDataLayer *layer, const int totelem)
 {
-  if (layer->anonymous_id != nullptr) {
-    layer->anonymous_id->remove_user_and_delete_if_last();
-    layer->anonymous_id = nullptr;
-  }
   const eCustomDataType type = eCustomDataType(layer->type);
   if (layer->sharing_info == nullptr) {
     if (layer->data) {
@@ -3077,7 +3062,7 @@ bool CustomData_layer_is_anonymous(const CustomData *data, eCustomDataType type,
 
   BLI_assert(layer_index >= 0);
 
-  return data->layers[layer_index].anonymous_id != nullptr;
+  return blender::bke::attribute_name_is_anonymous(data->layers[layer_index].name);
 }
 
 static void customData_resize(CustomData *data, const int grow_amount)
@@ -3279,47 +3264,6 @@ const void *CustomData_add_layer_named_with_data(CustomData *data,
   return nullptr;
 }
 
-void *CustomData_add_layer_anonymous(CustomData *data,
-                                     const eCustomDataType type,
-                                     const eCDAllocType alloctype,
-                                     const int totelem,
-                                     const AnonymousAttributeIDHandle *anonymous_id)
-{
-  const StringRef name = anonymous_id->name().c_str();
-  CustomDataLayer *layer = customData_add_layer__internal(
-      data, type, alloctype, nullptr, nullptr, totelem, name);
-  CustomData_update_typemap(data);
-
-  if (layer == nullptr) {
-    return nullptr;
-  }
-
-  anonymous_id->add_user();
-  layer->anonymous_id = anonymous_id;
-  return layer->data;
-}
-
-const void *CustomData_add_layer_anonymous_with_data(
-    CustomData *data,
-    const eCustomDataType type,
-    const AnonymousAttributeIDHandle *anonymous_id,
-    const int totelem,
-    void *layer_data,
-    const ImplicitSharingInfo *sharing_info)
-{
-  const StringRef name = anonymous_id->name().c_str();
-  CustomDataLayer *layer = customData_add_layer__internal(
-      data, type, std::nullopt, layer_data, sharing_info, totelem, name);
-  CustomData_update_typemap(data);
-
-  if (layer == nullptr) {
-    return nullptr;
-  }
-  anonymous_id->add_user();
-  layer->anonymous_id = anonymous_id;
-  return layer->data;
-}
-
 bool CustomData_free_layer(CustomData *data,
                            const eCustomDataType type,
                            const int totelem,
@@ -3434,7 +3378,9 @@ int CustomData_number_of_anonymous_layers(const CustomData *data, const eCustomD
   int number = 0;
 
   for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type && data->layers[i].anonymous_id != nullptr) {
+    if (data->layers[i].type == type &&
+        blender::bke::attribute_name_is_anonymous(data->layers[i].name))
+    {
       number++;
     }
   }
@@ -4471,7 +4417,7 @@ void CustomData_blend_write_prepare(CustomData &data,
     if (layer.flag & CD_FLAG_NOCOPY) {
       continue;
     }
-    if (layer.anonymous_id != nullptr) {
+    if (blender::bke::attribute_name_is_anonymous(layer.name)) {
       continue;
     }
     if (skip_names.contains(layer.name)) {
@@ -5636,4 +5582,17 @@ std::optional<eCustomDataType> volume_grid_type_to_custom_data_type(const Volume
 size_t CustomData_get_elem_size(const CustomDataLayer *layer)
 {
   return LAYERTYPEINFO[layer->type].size;
+}
+
+void CustomData_count_memory(const CustomData &data,
+                             const int totelem,
+                             blender::MemoryCounter &memory)
+{
+  for (const CustomDataLayer &layer : Span{data.layers, data.totlayer}) {
+    memory.add_shared(layer.sharing_info, [&](blender::MemoryCounter &shared_memory) {
+      /* Not quite correct for all types, but this is only a rough approximation anyway. */
+      const int64_t elem_size = CustomData_get_elem_size(&layer);
+      shared_memory.add(totelem * elem_size);
+    });
+  }
 }

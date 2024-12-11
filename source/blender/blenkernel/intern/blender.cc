@@ -44,6 +44,8 @@
 
 #include "BLF_api.hh"
 
+#include "SEQ_utils.hh"
+
 Global G;
 UserDef U;
 
@@ -76,11 +78,12 @@ void BKE_blender_free()
   BKE_callback_global_finalize();
 
   IMB_moviecache_destruct();
+  SEQ_fontmap_clear();
 #ifdef WITH_FFMPEG
   BKE_ffmpeg_exit();
 #endif
 
-  blender::bke::BKE_node_system_exit();
+  blender::bke::node_system_exit();
 }
 
 /** \} */
@@ -246,7 +249,7 @@ static void keymap_item_free(wmKeyMapItem *kmi)
     IDP_FreeProperty(kmi->properties);
   }
   if (kmi->ptr) {
-    MEM_freeN(kmi->ptr);
+    MEM_delete(kmi->ptr);
   }
 }
 

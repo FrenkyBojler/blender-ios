@@ -31,6 +31,9 @@
 #include "ply_import_data.hh"
 #include "ply_import_mesh.hh"
 
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.ply"};
+
 namespace blender::io::ply {
 
 /* If line starts with keyword, returns true and drops it from the line. */
@@ -169,7 +172,7 @@ static Mesh *read_ply_to_mesh(const PLYImportParams &import_params, const char *
   PlyHeader header;
   const char *err = read_header(file, header);
   if (err != nullptr) {
-    fprintf(stderr, "PLY Importer: %s: %s\n", ob_name, err);
+    CLOG_ERROR(&LOG, "PLY Importer: %s: %s", ob_name, err);
     BKE_reportf(import_params.reports, RPT_ERROR, "PLY Importer: %s: %s", ob_name, err);
     return nullptr;
   }
@@ -177,17 +180,17 @@ static Mesh *read_ply_to_mesh(const PLYImportParams &import_params, const char *
   /* Parse actual file data. */
   std::unique_ptr<PlyData> data = import_ply_data(file, header);
   if (data == nullptr) {
-    fprintf(stderr, "PLY Importer: failed importing %s, unknown error\n", ob_name);
+    CLOG_ERROR(&LOG, "PLY Importer: failed importing %s, unknown error", ob_name);
     BKE_report(import_params.reports, RPT_ERROR, "PLY Importer: failed importing, unknown error");
     return nullptr;
   }
   if (!data->error.empty()) {
-    fprintf(stderr, "PLY Importer: failed importing %s: %s\n", ob_name, data->error.c_str());
+    CLOG_ERROR(&LOG, "PLY Importer: failed importing %s: %s", ob_name, data->error.c_str());
     BKE_report(import_params.reports, RPT_ERROR, "PLY Importer: failed importing, unknown error");
     return nullptr;
   }
   if (data->vertices.is_empty()) {
-    fprintf(stderr, "PLY Importer: file %s contains no vertices\n", ob_name);
+    CLOG_ERROR(&LOG, "PLY Importer: file %s contains no vertices", ob_name);
     BKE_report(import_params.reports, RPT_ERROR, "PLY Importer: failed importing, no vertices");
     return nullptr;
   }
@@ -247,7 +250,7 @@ void importer_main(Main *bmain,
   /* Object matrix and finishing up. */
   float global_scale = import_params.global_scale;
   if ((scene->unit.system != USER_UNIT_NONE) && import_params.use_scene_unit) {
-    global_scale *= scene->unit.scale_length;
+    global_scale /= scene->unit.scale_length;
   }
   float scale_vec[3] = {global_scale, global_scale, global_scale};
   float obmat3x3[3][3];

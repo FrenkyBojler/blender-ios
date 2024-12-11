@@ -99,9 +99,6 @@ class ProximityFunction : public mf::MultiFunction {
   ~ProximityFunction()
   {
     for (BVHTrees &trees : bvh_trees_) {
-      if (trees.mesh_bvh.tree) {
-        free_bvhtree_from_mesh(&trees.mesh_bvh);
-      }
       if (trees.pointcloud_bvh.tree) {
         free_bvhtree_from_pointcloud(&trees.pointcloud_bvh);
       }
@@ -329,7 +326,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

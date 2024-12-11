@@ -14,8 +14,8 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "BLT_translation.hh"
@@ -55,11 +55,13 @@ static const EnumPropertyItem image_source_items[] = {
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
+#  include <fmt/format.h>
 
 #  include "BLI_math_base.h"
 #  include "BLI_math_vector.h"
 
 #  include "BKE_global.hh"
+#  include "BKE_screen.hh"
 
 #  include "GPU_texture.hh"
 
@@ -67,6 +69,8 @@ static const EnumPropertyItem image_source_items[] = {
 #  include "IMB_imbuf_types.hh"
 
 #  include "ED_node.hh"
+
+#  include "DNA_space_types.h"
 
 static bool rna_Image_is_stereo_3d_get(PointerRNA *ptr)
 {
@@ -267,8 +271,6 @@ static void rna_ImageUser_relations_update(Main *bmain, Scene *scene, PointerRNA
 static std::optional<std::string> rna_ImageUser_path(const PointerRNA *ptr)
 {
   if (ptr->owner_id) {
-    // ImageUser *iuser = ptr->data;
-
     switch (GS(ptr->owner_id->name)) {
       case ID_OB:
       case ID_TE:
@@ -277,8 +279,23 @@ static std::optional<std::string> rna_ImageUser_path(const PointerRNA *ptr)
         return rna_Node_ImageUser_path(ptr);
       case ID_CA:
         return rna_CameraBackgroundImage_image_or_movieclip_user_path(ptr);
-      case ID_SCR:
+      case ID_SCR: {
+        const bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
+        const ImageUser *iuser = static_cast<ImageUser *>(ptr->data);
+        int area_index;
+        int space_index;
+        LISTBASE_FOREACH_INDEX (ScrArea *, area, &screen->areabase, area_index) {
+          LISTBASE_FOREACH_INDEX (SpaceLink *, sl, &area->spacedata, space_index) {
+            if (sl->spacetype == SPACE_IMAGE) {
+              SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+              if (&sima->iuser == iuser) {
+                return fmt::format("areas[{}].spaces[{}].image_user", area_index, space_index);
+              }
+            }
+          }
+        }
         return " ... image_user";
+      }
       default:
         break;
     }
@@ -1031,6 +1048,11 @@ static void rna_def_udim_tile(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Float Buffer", "Generate floating-point buffer");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_UDIMTile_generated_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "is_generated_tile", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gen_flag", IMA_GEN_TILE);
+  RNA_def_property_ui_text(prop, "Is Generated Tile", "Is this image tile generated");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "generated_color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "gen_color");
