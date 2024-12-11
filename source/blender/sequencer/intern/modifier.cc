@@ -91,17 +91,21 @@ static inline void store_pixel_raw(float4 pix, float *ptr)
 /* Byte mask */
 static inline void apply_and_advance_mask(float4 input, float4 &result, const uchar *&mask)
 {
-  float4 m;
+  float3 m;
   rgb_uchar_to_float(m, mask);
-  result = math::interpolate(input, result, m);
+  result.x = math::interpolate(input.x, result.x, m.x);
+  result.y = math::interpolate(input.y, result.y, m.y);
+  result.z = math::interpolate(input.z, result.z, m.z);
   mask += 4;
 }
 
 /* Float mask */
 static inline void apply_and_advance_mask(float4 input, float4 &result, const float *&mask)
 {
-  float4 m(mask);
-  result = math::interpolate(input, result, m);
+  float3 m(mask);
+  result.x = math::interpolate(input.x, result.x, m.x);
+  result.y = math::interpolate(input.y, result.y, m.y);
+  result.z = math::interpolate(input.z, result.z, m.z);
   mask += 4;
 }
 
@@ -819,7 +823,8 @@ static void maskmodifier_apply(const StripScreenQuad & /*quad*/,
                                ImBuf *ibuf,
                                ImBuf *mask)
 {
-  if (mask == nullptr || mask->byte_buffer.data == nullptr && mask->float_buffer.data == nullptr) {
+  if (mask == nullptr || (mask->byte_buffer.data == nullptr && mask->float_buffer.data == nullptr))
+  {
     return;
   }
 
