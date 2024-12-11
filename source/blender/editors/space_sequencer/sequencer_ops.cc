@@ -158,7 +158,6 @@ void ED_operatormacros_sequencer()
 
   WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
   WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-  WM_operatortype_macro_define(ot, "SEQUENCER_OT_snap");
 
   ot = WM_operatortype_append_macro("SEQUENCER_OT_retiming_add_freeze_frame_slide",
                                     "Add Freeze Frame And Slide",
