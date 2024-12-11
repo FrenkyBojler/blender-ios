@@ -578,7 +578,7 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
     return false;
   }
 
-  if (load_tex(brush, vc, zoom, col, primary)) {
+  if (load_tex(brush, vc, zoom, col, primary) && WM_toolsystem_active_tool_is_brush(vc->C)) {
     GPU_color_mask(true, true, true, true);
     GPU_depth_test(GPU_DEPTH_NONE);
 
@@ -1313,9 +1313,7 @@ static bool paint_cursor_context_init(bContext *C,
   if (pcontext->paint == nullptr) {
     return false;
   }
-  pcontext->brush = pcontext->brush = WM_toolsystem_active_tool_is_brush(pcontext->C) ?
-                                          BKE_paint_brush(pcontext->paint) :
-                                          nullptr;
+  pcontext->brush = BKE_paint_brush(pcontext->paint);
   if (pcontext->brush == nullptr) {
     return false;
   }
