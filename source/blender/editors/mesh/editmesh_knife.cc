@@ -221,7 +221,6 @@ struct KnifeTool_OpData {
   ARegion *region;   /* Region that knifetool was activated in. */
   void *draw_handle; /* For drawing preview loop. */
   ViewContext vc;    /* NOTE: _don't_ use 'mval', instead use the one we define below. */
-  float mval[2];     /* Mouse value with snapping applied. */
 
   Scene *scene;
 
@@ -324,6 +323,27 @@ struct KnifeTool_OpData {
   bool is_drag_undo;
 
   bool depth_test;
+
+  /* Mouse and ray with snapping applied. */
+  float2 mval;
+  float3 ray_orig;
+  float3 ray_dir;
+  void set_mval(const float2 &mouse_val)
+  {
+    this->mval = mouse_val;
+    ED_view3d_win_to_ray_clipped(this->vc.depsgraph,
+                                 this->region,
+                                 this->vc.v3d,
+                                 mouse_val,
+                                 this->ray_orig,
+                                 this->ray_dir,
+                                 false);
+  }
+  void set_mval(const float2 &mouse_val, const float3 &target)
+  {
+    this->mval = mouse_val;
+    this->ray_dir = math::normalize(target - this->ray_orig);
+  }
 };
 
 enum {
@@ -1832,13 +1852,14 @@ static void knife_join_edge(KnifeEdge *newkfe, KnifeEdge *kfe)
 /** \name Cut/Hit Utils
  * \{ */
 
-static void knife_snap_curr(KnifeTool_OpData *kcd, const float2 &mval);
+static void knife_snap_curr(KnifeTool_OpData *kcd);
 
 /* User has just clicked for first time or first time after a restart (E key).
  * Copy the current position data into prev. */
 static void knife_start_cut(KnifeTool_OpData *kcd, const float2 &mval)
 {
-  knife_snap_curr(kcd, mval);
+  kcd->set_mval(mval);
+  knife_snap_curr(kcd);
   kcd->prev = kcd->curr;
   kcd->mdata.is_stored = false;
 }
@@ -3090,18 +3111,14 @@ static void knife_pos_data_clear(KnifePosData *kpd)
 /** \name Snapping (#knife_snap_update_from_mval)
  * \{ */
 
-static bool knife_find_closest_face(KnifeTool_OpData *kcd,
-                                    const float3 &ray_origin,
-                                    const float3 &ray_normal,
-                                    const float2 &mval,
-                                    KnifePosData *r_kpd)
+static bool knife_find_closest_face(KnifeTool_OpData *kcd, KnifePosData *r_kpd)
 {
   float3 cage;
   int ob_index;
   BMFace *f;
   float dist = KMAXDIST;
 
-  f = knife_bvh_raycast(kcd, ray_origin, ray_normal, 0.0f, nullptr, cage, &ob_index);
+  f = knife_bvh_raycast(kcd, kcd->ray_orig, kcd->ray_dir, 0.0f, nullptr, cage, &ob_index);
 
   if (f && kcd->only_select && BM_elem_flag_test(f, BM_ELEM_SELECT) == 0) {
     f = nullptr;
@@ -3115,8 +3132,8 @@ static bool knife_find_closest_face(KnifeTool_OpData *kcd,
        * Apply the mouse coordinates to a copy of the view-context
        * since we don't want to rely on this being set elsewhere. */
       ViewContext vc = kcd->vc;
-      vc.mval[0] = int(mval[0]);
-      vc.mval[1] = int(mval[1]);
+      vc.mval[0] = int(kcd->mval[0]);
+      vc.mval[1] = int(kcd->mval[1]);
 
       if (BKE_object_is_visible_in_viewport(vc.v3d, vc.obact)) {
         f = EDBM_face_find_nearest(&vc, &dist);
@@ -3126,7 +3143,7 @@ static bool knife_find_closest_face(KnifeTool_OpData *kcd,
         /* Cheat for now; just put in the origin instead
          * of a true coordinate on the face.
          * This just puts a point 1.0f in front of the view. */
-        cage = ray_origin + ray_normal;
+        cage = kcd->ray_orig + kcd->ray_dir;
 
         ob_index = 0;
         BLI_assert(ob_index == kcd->objects.first_index_of_try(vc.obact));
@@ -3138,7 +3155,7 @@ static bool knife_find_closest_face(KnifeTool_OpData *kcd,
     r_kpd->cage = cage;
     r_kpd->bmface = f;
     r_kpd->ob_index = ob_index;
-    r_kpd->mval = mval;
+    r_kpd->mval = kcd->mval;
 
     return true;
   }
@@ -3247,8 +3264,6 @@ static bool knife_closest_constrain_to_edge(KnifeTool_OpData *kcd,
 static bool knife_find_closest_edge_of_face(KnifeTool_OpData *kcd,
                                             int ob_index,
                                             BMFace *f,
-                                            const float3 &ray_origin,
-                                            const float3 &ray_normal,
                                             const float2 &curr_cage_ss,
                                             KnifePosData *r_kpd)
 {
@@ -3290,7 +3305,7 @@ static bool knife_find_closest_edge_of_face(KnifeTool_OpData *kcd,
     }
     else {
       closest_ray_to_segment_v3(
-          ray_origin, ray_normal, kfe->v1->cageco, kfe->v2->cageco, test_cagep);
+          kcd->ray_orig, kcd->ray_dir, kfe->v1->cageco, kfe->v2->cageco, test_cagep);
     }
 
     /* Check if we're close enough. */
@@ -3435,8 +3450,7 @@ static bool knife_snap_angle_screen(KnifeTool_OpData *kcd)
   kcd->angle = snap_v2_angle(dvec_snap, dvec, dvec_ref, snap_step);
 
   add_v2_v2v2(kcd->curr.mval, kcd->prev.mval, dvec_snap);
-
-  copy_v2_v2(kcd->mval, kcd->curr.mval);
+  kcd->set_mval(kcd->curr.mval);
 
   return true;
 }
@@ -3592,7 +3606,7 @@ static bool knife_snap_angle_relative(KnifeTool_OpData *kcd)
     add_v3_v3(rotated_vec, kcd->prev.cage);
 
     knife_project_v2(kcd, rotated_vec, kcd->curr.mval);
-    copy_v2_v2(kcd->mval, kcd->curr.mval);
+    kcd->set_mval(kcd->curr.mval);
     return true;
   }
   return false;
@@ -3657,71 +3671,52 @@ static void knife_reset_snap_angle_input(KnifeTool_OpData *kcd)
  */
 static void knife_constrain_axis(KnifeTool_OpData *kcd)
 {
-  /* Obtain current mouse position in world space. */
-  float curr_cage_adjusted[3];
-  ED_view3d_win_to_3d(
-      kcd->vc.v3d, kcd->region, kcd->prev.cage, kcd->curr.mval, curr_cage_adjusted);
+  float3 constrain_dir;
+  {
+    /* Constrain axes. */
+    Scene *scene = kcd->scene;
+    ViewLayer *view_layer = kcd->vc.view_layer;
+    Object *obedit = (kcd->prev.ob_index != -1) ? kcd->objects[kcd->prev.ob_index] :
+                                                  kcd->vc.obedit;
+    RegionView3D *rv3d = static_cast<RegionView3D *>(kcd->region->regiondata);
+    const short scene_orientation = BKE_scene_orientation_get_index(scene, SCE_ORIENT_DEFAULT);
+    /* Scene orientation takes priority. */
+    const short orientation_type = scene_orientation ? scene_orientation :
+                                                       kcd->constrain_axis_mode - 1;
+    const int pivot_point = scene->toolsettings->transform_pivot_point;
+    float mat[3][3];
+    ED_transform_calc_orientation_from_type_ex(
+        scene, view_layer, kcd->vc.v3d, rv3d, obedit, obedit, orientation_type, pivot_point, mat);
 
-  /* Constrain axes. */
-  Scene *scene = kcd->scene;
-  ViewLayer *view_layer = kcd->vc.view_layer;
-  Object *obedit = (kcd->prev.ob_index != -1) ? kcd->objects[kcd->prev.ob_index] : kcd->vc.obedit;
-  RegionView3D *rv3d = static_cast<RegionView3D *>(kcd->region->regiondata);
-  const short scene_orientation = BKE_scene_orientation_get_index(scene, SCE_ORIENT_DEFAULT);
-  /* Scene orientation takes priority. */
-  const short orientation_type = scene_orientation ? scene_orientation :
-                                                     kcd->constrain_axis_mode - 1;
-  const int pivot_point = scene->toolsettings->transform_pivot_point;
-  float mat[3][3];
-  ED_transform_calc_orientation_from_type_ex(
-      scene, view_layer, kcd->vc.v3d, rv3d, obedit, obedit, orientation_type, pivot_point, mat);
+    constrain_dir = mat[kcd->constrain_axis - 1];
+  }
 
-  /* Apply orientation matrix (can be simplified?). */
-  float co[3][3];
-  copy_v3_v3(co[0], kcd->prev.cage);
-  copy_v3_v3(co[2], curr_cage_adjusted);
-  invert_m3(mat);
-  mul_m3_m3_pre(co, mat);
-  for (int i = 0; i <= 2; i++) {
-    if ((kcd->constrain_axis - 1) != i) {
-      // kcd->curr_cage_adjusted[i] = prev_cage_adjusted[i];
-      co[2][i] = co[0][i];
-    }
+  float lambda;
+  if (!isect_ray_ray_v3(
+          kcd->prev.cage, constrain_dir, kcd->ray_orig, kcd->ray_dir, &lambda, nullptr))
+  {
+    return;
   }
-  invert_m3(mat);
-  mul_m3_m3_pre(co, mat);
-  copy_v3_v3(kcd->prev.cage, co[0]);
-  copy_v3_v3(curr_cage_adjusted, co[2]);
 
-  /* Set mval to closest point on constrained line in screen space. */
-  float curr_screenspace[2];
-  float prev_screenspace[2];
-  knife_project_v2(kcd, curr_cage_adjusted, curr_screenspace);
-  knife_project_v2(kcd, kcd->prev.cage, prev_screenspace);
-  float intersection[2];
-  if (closest_to_line_v2(intersection, kcd->curr.mval, prev_screenspace, curr_screenspace)) {
-    copy_v2_v2(kcd->curr.mval, intersection);
+  float3 cage_dir = constrain_dir * lambda;
+  if (math::is_zero(cage_dir)) {
+    return;
   }
-  else {
-    copy_v2_v2(kcd->curr.mval, curr_screenspace);
-  }
-  copy_v2_v2(kcd->mval, kcd->curr.mval);
+
+  kcd->curr.cage = kcd->prev.cage + cage_dir;
+  knife_project_v2(kcd, kcd->curr.cage, kcd->curr.mval);
+  kcd->set_mval(kcd->curr.mval, kcd->curr.cage);
 }
 
-static void knife_snap_curr(KnifeTool_OpData *kcd, const float2 &mval)
+static void knife_snap_curr(KnifeTool_OpData *kcd)
 {
   knife_pos_data_clear(&kcd->curr);
 
-  float3 ray_origin;
-  float3 ray_normal;
-  ED_view3d_win_to_ray_clipped(
-      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, ray_origin, ray_normal, false);
-
-  if (knife_find_closest_face(kcd, ray_origin, ray_normal, mval, &kcd->curr)) {
+  if (knife_find_closest_face(kcd, &kcd->curr)) {
     if (!kcd->ignore_edge_snapping || !kcd->ignore_vert_snapping) {
       KnifePosData kpos_tmp = kcd->curr;
       if (knife_find_closest_edge_of_face(
-              kcd, kpos_tmp.ob_index, kpos_tmp.bmface, ray_origin, ray_normal, mval, &kpos_tmp))
+              kcd, kpos_tmp.ob_index, kpos_tmp.bmface, kcd->curr.mval, &kpos_tmp))
       {
         if (!kcd->ignore_edge_snapping) {
           kcd->curr = kpos_tmp;
@@ -3745,7 +3740,7 @@ static void knife_snap_curr(KnifeTool_OpData *kcd, const float2 &mval)
   float origin[3];
   float origin_ofs[3];
 
-  copy_v2_v2(kcd->curr.mval, mval);
+  kcd->curr.mval = kcd->mval;
   knife_input_ray_segment(kcd, kcd->curr.mval, origin, origin_ofs);
 
   if (!isect_line_plane_v3(
@@ -3766,10 +3761,10 @@ static void knife_snap_curr(KnifeTool_OpData *kcd, const float2 &mval)
  * In this case the selection-buffer is used to select the face,
  * then the closest `vert` or `edge` is set, and those will enable `is_co_set`.
  */
-static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float mval[2])
+static void knife_snap_update_from_mval(KnifeTool_OpData *kcd)
 {
   knife_pos_data_clear(&kcd->curr);
-  copy_v2_v2(kcd->curr.mval, mval);
+  kcd->curr.mval = kcd->mval;
 
   /* view matrix may have changed, reproject */
   knife_project_v2(kcd, kcd->prev.cage, kcd->prev.mval);
@@ -3793,9 +3788,7 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float mval[
     }
   }
 
-  /* Use `kcd->mval` as this is the value of the snap point in screen space that can change in
-   * angle snapping or axis constrained modes. */
-  knife_snap_curr(kcd, kcd->mval);
+  knife_snap_curr(kcd);
 }
 
 /**
@@ -4097,7 +4090,7 @@ static void knifetool_exit(wmOperator *op)
 /** Update active knife edge/vert pointers. */
 static int knife_update_active(KnifeTool_OpData *kcd)
 {
-  knife_snap_update_from_mval(kcd, kcd->mval);
+  knife_snap_update_from_mval(kcd);
 
   if (kcd->mode == MODE_DRAGGING) {
     knife_find_line_hits(kcd);
@@ -4108,7 +4101,7 @@ static int knife_update_active(KnifeTool_OpData *kcd)
 static void knifetool_update_mval(KnifeTool_OpData *kcd, const float mval[2])
 {
   knife_recalc_ortho(kcd);
-  copy_v2_v2(kcd->mval, mval);
+  kcd->set_mval(mval);
 
   if (knife_update_active(kcd)) {
     ED_region_tag_redraw(kcd->region);
