@@ -3294,11 +3294,9 @@ static blender::Vector<bNode *> flatten_parent_tree(bNodeTree &ntree)
 static void version_node_locations_to_global(bNodeTree &ntree)
 {
   using namespace blender;
-  if (ntree.flag & NTREE_SOCKET_LOCATIONS_GLOBAL) {
-    return;
-  }
+  Vector<bNode *> nodes = flatten_parent_tree(ntree);
 
-  for (bNode *node : flatten_parent_tree(ntree)) {
+  for (bNode *node : nodes) {
     for (const bNode *parent = node->parent; parent; parent = parent->parent) {
       node->locx += parent->locx;
       node->locy += parent->locy;
@@ -3309,8 +3307,6 @@ static void version_node_locations_to_global(bNodeTree &ntree)
     node->offsetx_legacy = 0.0f;
     node->offsety_legacy = 0.0f;
   }
-
-  ntree.flag |= NTREE_SOCKET_LOCATIONS_GLOBAL;
 }
 
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)

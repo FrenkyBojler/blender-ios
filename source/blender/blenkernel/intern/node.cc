@@ -989,9 +989,6 @@ static void ntree_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     forward_compat::construct_interface_as_legacy_sockets(ntree);
   }
 
-  /* TODO: Remove when switching to new socket location format in 5.0. */
-  ntree->flag &= ~NTREE_SOCKET_LOCATIONS_GLOBAL;
-
   BLO_write_id_struct(writer, bNodeTree, id_address, &ntree->id);
 
   node_tree_blend_write(writer, ntree);
