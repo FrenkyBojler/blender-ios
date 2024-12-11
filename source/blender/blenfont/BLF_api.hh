@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 #include "BLI_vector.hh"
@@ -53,6 +55,10 @@ void BLF_cache_flush_set_fn(void (*cache_flush_fn)());
 
 /**
  * Loads a font, or returns an already loaded font and increments its reference count.
+ *
+ * Note that while loading fonts is thread-safe, most of font usage via BLF
+ * state modification functions is not. If you need to use fonts from multiple threads,
+ * use unique font instances for threaded parts, see #BLF_load_unique.
  */
 int BLF_load(const char *filepath) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 int BLF_load_mem(const char *name, const unsigned char *mem, int mem_size) ATTR_WARN_UNUSED_RESULT
@@ -60,18 +66,39 @@ int BLF_load_mem(const char *name, const unsigned char *mem, int mem_size) ATTR_
 
 bool BLF_is_loaded(const char *filepath) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 bool BLF_is_loaded_mem(const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+bool BLF_is_loaded_id(int fontid) ATTR_WARN_UNUSED_RESULT;
 
+/**
+ * Loads a font into a new font object.
+ *
+ * Unlike #BLF_load, it does not look whether a font with the same
+ * path or name is already loaded. Primary use case is when using BLF
+ * functions from a non-main thread.
+ */
 int BLF_load_unique(const char *filepath) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 int BLF_load_mem_unique(const char *name, const unsigned char *mem, int mem_size)
     ATTR_NONNULL(1, 2);
 
+/**
+ * Decreases font reference count, if it reaches zero the font is unloaded.
+ */
 void BLF_unload(const char *filepath) ATTR_NONNULL(1);
 #if 0 /* Not needed at the moment. */
 void BLF_unload_mem(const char *name) ATTR_NONNULL(1);
 #endif
 
-void BLF_unload_id(int fontid);
+/**
+ * Decreases font reference count, if it reaches zero the font is unloaded.
+ * Returns true if font got unloaded.
+ */
+bool BLF_unload_id(int fontid);
+
 void BLF_unload_all();
+
+/**
+ * Increases font reference count.
+ */
+void BLF_addref_id(int fontid);
 
 char *BLF_display_name_from_file(const char *filepath) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 
@@ -109,6 +136,12 @@ void BLF_size(int fontid, float size);
  */
 void BLF_character_weight(int fontid, int weight);
 
+/* Return the font's default design weight (100-900). */
+int BLF_default_weight(int fontid) ATTR_WARN_UNUSED_RESULT;
+
+/* Return true if the font has a variable (multiple master) weight axis. */
+bool BLF_has_variable_weight(int fontid) ATTR_WARN_UNUSED_RESULT;
+
 /* Goal: small but useful color API. */
 
 void BLF_color4ubv(int fontid, const unsigned char rgba[4]);
@@ -138,6 +171,23 @@ void BLF_draw(int fontid, const char *str, size_t str_len, ResultBLF *r_info = n
     ATTR_NONNULL(2);
 int BLF_draw_mono(int fontid, const char *str, size_t str_len, int cwidth, int tab_columns)
     ATTR_NONNULL(2);
+
+void BLF_draw_svg_icon(uint icon_id,
+                       float x,
+                       float y,
+                       float size,
+                       const float color[4] = nullptr,
+                       float outline_alpha = 1.0f,
+                       bool multicolor = false,
+                       blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
+
+blender::Array<uchar> BLF_svg_icon_bitmap(
+    uint icon_id,
+    float size,
+    int *r_width,
+    int *r_height,
+    bool multicolor = false,
+    blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
 typedef bool (*BLF_GlyphBoundsFn)(const char *str,
                                   size_t str_step_ofs,
@@ -172,13 +222,14 @@ size_t BLF_str_offset_from_cursor_position(int fontid,
 bool BLF_str_offset_to_glyph_bounds(int fontid,
                                     const char *str,
                                     size_t str_offset,
-                                    rcti *glyph_bounds) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(2, 4);
+                                    rcti *r_glyph_bounds) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(2, 4);
 
 /**
  * Return left edge of text cursor (caret), given a character offset and cursor width.
  */
 int BLF_str_offset_to_cursor(
-    int fontid, const char *str, size_t str_len, size_t str_offset, float cursor_width);
+    int fontid, const char *str, size_t str_len, size_t str_offset, int cursor_width);
 
 /**
  * Return bounds of selection boxes. There is just one normally but there could
@@ -246,6 +297,11 @@ void BLF_width_and_height(
 float BLF_fixed_width(int fontid) ATTR_WARN_UNUSED_RESULT;
 
 /**
+ * Returns offset for drawing next character in the string.
+ */
+int BLF_glyph_advance(int fontid, const char *str);
+
+/**
  * By default, rotation and clipping are disable and
  * have to be enable/disable using BLF_enable/disable.
  */
@@ -300,7 +356,7 @@ void BLF_draw_buffer(int fontid, const char *str, size_t str_len, ResultBLF *r_i
  *
  * \note called from a thread, so it bypasses the normal BLF_* api (which isn't thread-safe).
  */
-bool BLF_thumb_preview(const char *filename, unsigned char *buf, int w, int h, int channels)
+bool BLF_thumb_preview(const char *filepath, unsigned char *buf, int w, int h, int channels)
     ATTR_NONNULL();
 
 /* `blf_default.cc` */

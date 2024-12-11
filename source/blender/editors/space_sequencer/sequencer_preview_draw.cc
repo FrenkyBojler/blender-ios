@@ -89,15 +89,18 @@ void ED_sequencer_special_preview_clear()
   sequencer_special_update_set(nullptr);
 }
 
-ImBuf *sequencer_ibuf_get(Main *bmain,
-                          ARegion *region,
-                          Depsgraph *depsgraph,
-                          Scene *scene,
-                          SpaceSeq *sseq,
+ImBuf *sequencer_ibuf_get(const bContext *C,
                           int timeline_frame,
                           int frame_ofs,
                           const char *viewname)
 {
+  Main *bmain = CTX_data_main(C);
+  ARegion *region = CTX_wm_region(C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  bScreen *screen = CTX_wm_screen(C);
+
   SeqRenderData context = {nullptr};
   ImBuf *ibuf;
   int rectx, recty;
@@ -122,9 +125,11 @@ ImBuf *sequencer_ibuf_get(Main *bmain,
       bmain, depsgraph, scene, rectx, recty, sseq->render_size, false, &context);
   context.view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
   context.use_proxies = (sseq->flag & SEQ_USE_PROXIES) != 0;
+  context.is_playing = screen->animtimer != nullptr;
+  context.is_scrubbing = screen->scrubbing;
 
-  /* Sequencer could start rendering, in this case we need to be sure it wouldn't be canceled
-   * by Escape pressed somewhere in the past. */
+  /* Sequencer could start rendering, in this case we need to be sure it wouldn't be
+   * canceled by Escape pressed somewhere in the past. */
   G.is_break = false;
 
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
@@ -173,7 +178,6 @@ static ImBuf *sequencer_make_scope(Scene *scene,
       display_ibuf, &scene->view_settings, &scene->display_settings);
 
   scope = make_scope_fn(display_ibuf);
-  IMB_rectfill_alpha(scope, 1.0f);
 
   IMB_freeImBuf(display_ibuf);
 
@@ -322,15 +326,15 @@ static void *sequencer_OCIO_transform_ibuf(const bContext *C,
 
     *r_data = GPU_DATA_FLOAT;
     if (ibuf->channels == 4) {
-      *r_format = GPU_RGBA16F;
+      *r_format = GPU_RGBA32F;
     }
     else if (ibuf->channels == 3) {
       /* Alpha is implicitly 1. */
-      *r_format = GPU_RGB16F;
+      *r_format = GPU_RGB32F;
     }
     else {
       BLI_assert_msg(0, "Incompatible number of channels for float buffer in sequencer");
-      *r_format = GPU_RGBA16F;
+      *r_format = GPU_RGBA32F;
       display_buffer = nullptr;
     }
 
@@ -352,8 +356,7 @@ static void *sequencer_OCIO_transform_ibuf(const bContext *C,
     display_buffer = nullptr;
   }
 
-  /* There is data to be displayed, but GLSL is not initialized
-   * properly, in this case we fallback to CPU-based display transform. */
+  /* If we need to fallback to CPU based display transform, do that here. */
   if ((ibuf->byte_buffer.data || ibuf->float_buffer.data) && !*r_glsl_used) {
     display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, r_buffer_cache_handle);
     *r_format = GPU_RGBA8;
@@ -812,11 +815,7 @@ static void sequencer_draw_scopes(Scene *scene, ARegion *region, SpaceSeq *sseq)
 
   bool use_blend = sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA;
 
-  /* Draw opaque black rectangle over whole preview area. The scope texture
-   * with clamp to border extend mode should be enough, but results in
-   * garbage pixels around the actual scope on some GPUs/drivers (#119505).
-   * To fix that, background must be drawn, and then the scopes texture be
-   * blended on top. */
+  /* Draw black rectangle over scopes area. */
   if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
     GPU_blend(GPU_BLEND_NONE);
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -825,7 +824,6 @@ static void sequencer_draw_scopes(Scene *scene, ARegion *region, SpaceSeq *sseq)
     immUniformColor4ubv(black);
     immRectf(pos, preview.xmin, preview.ymin, preview.xmax, preview.ymax);
     immUnbindProgram();
-    use_blend = true;
   }
 
   /* Draw scope image if there is one. */
@@ -1081,8 +1079,6 @@ void sequencer_draw_preview(const bContext *C,
                             bool draw_overlay,
                             bool draw_backdrop)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   View2D *v2d = &region->v2d;
   ImBuf *ibuf = nullptr;
   float viewrect[2];
@@ -1101,8 +1097,7 @@ void sequencer_draw_preview(const bContext *C,
   }
 
   /* Get image. */
-  ibuf = sequencer_ibuf_get(
-      bmain, region, depsgraph, scene, sseq, preview_frame, offset, names[sseq->multiview_eye]);
+  ibuf = sequencer_ibuf_get(C, preview_frame, offset, names[sseq->multiview_eye]);
 
   /* Setup off-screen buffers. */
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
@@ -1117,7 +1112,7 @@ void sequencer_draw_preview(const bContext *C,
 
   /* Setup view. */
   sequencer_display_size(scene, viewrect);
-  UI_view2d_totRect_set(v2d, roundf(viewrect[0] + 0.5f), roundf(viewrect[1] + 0.5f));
+  UI_view2d_totRect_set(v2d, roundf(viewrect[0]), roundf(viewrect[1]));
   UI_view2d_curRect_validate(v2d);
   UI_view2d_view_ortho(v2d);
 

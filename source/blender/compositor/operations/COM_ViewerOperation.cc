@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_ViewerOperation.h"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_scene.hh"
 #include "COM_ExecutionSystem.h"
 
@@ -165,6 +165,10 @@ void ViewerOperation::update_memory_buffer_finished(MemoryBuffer * /*output*/,
                                                     const rcti & /*area*/,
                                                     Span<MemoryBuffer *> /*inputs*/)
 {
+  if (!image_) {
+    return;
+  }
+
   const std::unique_ptr<MetaData> meta_data =
       this->get_input_socket(0)->get_reader()->get_meta_data();
 

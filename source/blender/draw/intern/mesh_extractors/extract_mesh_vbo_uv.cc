@@ -22,14 +22,14 @@ namespace blender::draw {
 static bool mesh_extract_uv_format_init(GPUVertFormat *format,
                                         const MeshBatchCache &cache,
                                         const CustomData *cd_ldata,
-                                        const eMRExtractType extract_type,
+                                        const MeshExtractType extract_type,
                                         uint32_t &r_uv_layers)
 {
   GPU_vertformat_deinterleave(format);
 
   uint32_t uv_layers = cache.cd_used.uv;
   /* HACK to fix #68857 */
-  if (extract_type == MR_EXTRACT_BMESH && cache.cd_used.edit_uv == 1) {
+  if (extract_type == MeshExtractType::BMesh && cache.cd_used.edit_uv == 1) {
     int layer = CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2);
     if (layer != -1 && !CustomData_layer_is_anonymous(cd_ldata, CD_PROP_FLOAT2, layer)) {
       uv_layers |= (1 << layer);
@@ -83,8 +83,8 @@ void extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache, gpu:
 {
   GPUVertFormat format = {0};
 
-  const CustomData *cd_ldata = (mr.extract_type == MR_EXTRACT_BMESH) ? &mr.bm->ldata :
-                                                                       &mr.mesh->corner_data;
+  const CustomData *cd_ldata = (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->ldata :
+                                                                             &mr.mesh->corner_data;
   int v_len = mr.corners_num;
   uint32_t uv_layers = cache.cd_used.uv;
   if (!mesh_extract_uv_format_init(&format, cache, cd_ldata, mr.extract_type, uv_layers)) {
@@ -95,38 +95,40 @@ void extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache, gpu:
   GPU_vertbuf_init_with_format(vbo, format);
   GPU_vertbuf_data_alloc(vbo, v_len);
 
-  MutableSpan<float2> uv_data(static_cast<float2 *>(GPU_vertbuf_get_data(vbo)),
-                              v_len * format.attr_len);
+  Vector<int> uv_indices;
+  for (const int i : IndexRange(MAX_MTFACE)) {
+    if (uv_layers & (1 << i)) {
+      uv_indices.append(i);
+    }
+  }
+
+  MutableSpan<float2> uv_data = vbo.data<float2>();
   threading::memory_bandwidth_bound_task(uv_data.size_in_bytes() * 2, [&]() {
-    if (mr.extract_type == MR_EXTRACT_BMESH) {
+    if (mr.extract_type == MeshExtractType::BMesh) {
       const BMesh &bm = *mr.bm;
-      for (const int i : IndexRange(MAX_MTFACE)) {
-        if (uv_layers & (1 << i)) {
-          MutableSpan<float2> data = uv_data.slice(i * bm.totloop, bm.totloop);
-          const int offset = CustomData_get_n_offset(cd_ldata, CD_PROP_FLOAT2, i);
-          threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
-            for (const int face_index : range) {
-              const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), face_index);
-              const BMLoop *loop = BM_FACE_FIRST_LOOP(&face);
-              for ([[maybe_unused]] const int i : IndexRange(face.len)) {
-                const int index = BM_elem_index_get(loop);
-                data[index] = BM_ELEM_CD_GET_FLOAT_P(loop, offset);
-                loop = loop->next;
-              }
+      for (const int i : uv_indices.index_range()) {
+        MutableSpan<float2> data = uv_data.slice(i * bm.totloop, bm.totloop);
+        const int offset = CustomData_get_n_offset(cd_ldata, CD_PROP_FLOAT2, uv_indices[i]);
+        threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
+          for (const int face_index : range) {
+            const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), face_index);
+            const BMLoop *loop = BM_FACE_FIRST_LOOP(&face);
+            for ([[maybe_unused]] const int i : IndexRange(face.len)) {
+              const int index = BM_elem_index_get(loop);
+              data[index] = BM_ELEM_CD_GET_FLOAT_P(loop, offset);
+              loop = loop->next;
             }
-          });
-        }
+          }
+        });
       }
     }
     else {
       const bke::AttributeAccessor attributes = mr.mesh->attributes();
-      for (const int i : IndexRange(MAX_MTFACE)) {
-        if (uv_layers & (1 << i)) {
-          const StringRef name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
-          const VArray uv_map = *attributes.lookup_or_default<float2>(
-              name, bke::AttrDomain::Corner, float2(0));
-          array_utils::copy(uv_map, uv_data.slice(i * mr.corners_num, mr.corners_num));
-        }
+      for (const int i : uv_indices.index_range()) {
+        const StringRef name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, uv_indices[i]);
+        const VArray uv_map = *attributes.lookup_or_default<float2>(
+            name, bke::AttrDomain::Corner, float2(0));
+        array_utils::copy(uv_map, uv_data.slice(i * mr.corners_num, mr.corners_num));
       }
     }
   });
@@ -142,7 +144,7 @@ void extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
   uint v_len = subdiv_cache.num_subdiv_loops;
   uint uv_layers;
   if (!mesh_extract_uv_format_init(
-          &format, cache, &coarse_mesh->corner_data, MR_EXTRACT_MESH, uv_layers))
+          &format, cache, &coarse_mesh->corner_data, MeshExtractType::Mesh, uv_layers))
   {
     /* TODO(kevindietrich): handle this more gracefully. */
     v_len = 1;

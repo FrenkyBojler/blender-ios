@@ -32,6 +32,21 @@ enum eGPUKeyframeShapes : uint32_t {
                                GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL),
 };
 
+#define MAX_SOCKET_PARAMETERS 4
+#define MAX_SOCKET_INSTANCE 32
+
+/* Node Socket shader parameters. Must match the shader layout of "gpu_shader_2D_node_socket". */
+struct NodeSocketShaderParameters {
+  float4 rect;
+  float4 color_inner;
+  float4 color_outline;
+  float outline_thickness;
+  float outline_offset;
+  float shape;
+  float aspect;
+};
+BLI_STATIC_ASSERT_ALIGN(NodeSocketShaderParameters, 16)
+
 struct NodeLinkData {
   float4 colors[3];
   /* bezierPts Is actually a float2, but due to std140 each element needs to be aligned to 16
@@ -42,9 +57,10 @@ struct NodeLinkData {
   float dim_factor;
   float thickness;
   float4 dash_params;
+  bool32_t has_back_link;
   float aspect;
   float arrowSize;
-  float2 _pad;
+  float _pad;
 };
 BLI_STATIC_ASSERT_ALIGN(NodeLinkData, 16)
 
@@ -93,7 +109,7 @@ BLI_STATIC_ASSERT_ALIGN(MultiIconCallData, 16)
 #define GPU_SEQ_STRIP_DRAW_DATA_LEN 256
 
 enum eGPUSeqFlags : uint32_t {
-  GPU_SEQ_FLAG_BACKGROUND_PART = (1u << 0u),
+  GPU_SEQ_FLAG_BACKGROUND = (1u << 0u),
   GPU_SEQ_FLAG_SINGLE_IMAGE = (1u << 1u),
   GPU_SEQ_FLAG_COLOR_BAND = (1u << 2u),
   GPU_SEQ_FLAG_TRANSITION = (1u << 3u),
@@ -103,7 +119,15 @@ enum eGPUSeqFlags : uint32_t {
   GPU_SEQ_FLAG_SELECTED = (1u << 7u),
   GPU_SEQ_FLAG_ACTIVE = (1u << 8u),
   GPU_SEQ_FLAG_HIGHLIGHT = (1u << 9u),
-  GPU_SEQ_FLAG_HANDLES = (1u << 10u),
+  GPU_SEQ_FLAG_BORDER = (1u << 10u),
+  GPU_SEQ_FLAG_SELECTED_LH = (1u << 11u),
+  GPU_SEQ_FLAG_SELECTED_RH = (1u << 12u),
+  GPU_SEQ_FLAG_DRAW_LH = (1u << 13u),
+  GPU_SEQ_FLAG_DRAW_RH = (1u << 14u),
+  GPU_SEQ_FLAG_OVERLAP = (1u << 15u),
+
+  GPU_SEQ_FLAG_ANY_HANDLE = GPU_SEQ_FLAG_SELECTED_LH | GPU_SEQ_FLAG_SELECTED_RH |
+                            GPU_SEQ_FLAG_DRAW_LH | GPU_SEQ_FLAG_DRAW_RH
 };
 
 /* VSE per-strip data for timeline rendering. */
@@ -111,7 +135,7 @@ struct SeqStripDrawData {
   /* Horizontal strip positions (1.0 is one frame). */
   float left_handle, right_handle;  /* Left and right strip sides. */
   float content_start, content_end; /* Start and end of actual content (only relevant for strips
-                                       that have holdout regions). */
+                                     * that have holdout regions). */
   float handle_width;
   /* Vertical strip positions (1.0 is one channel). */
   float bottom;
@@ -123,21 +147,38 @@ struct SeqStripDrawData {
   uint col_outline;
   uint col_color_band;
   uint col_transition_in, col_transition_out;
-  uint col_handle_left, col_handle_right;
+  float _pad0, _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(SeqStripDrawData, 16)
 BLI_STATIC_ASSERT(sizeof(SeqStripDrawData) * GPU_SEQ_STRIP_DRAW_DATA_LEN <= 16384,
-                  "SeqStripDrawData UBO must not exceed minspec UBO size (16K)")
+                  "SeqStripDrawData UBO must not exceed minspec UBO size (16384)")
+
+/* VSE per-thumbnail data for timeline rendering. */
+struct SeqStripThumbData {
+  float left, right, bottom, top; /* Strip rectangle positions. */
+  float x1, y1, x2, y2;           /* Thumbnail rectangle positions. */
+  float u1, v1, u2, v2;           /* Thumbnail UVs. */
+  float4 tint_color;
+};
+BLI_STATIC_ASSERT_ALIGN(SeqStripThumbData, 16)
+BLI_STATIC_ASSERT(sizeof(SeqStripThumbData) * GPU_SEQ_STRIP_DRAW_DATA_LEN <= 16384,
+                  "SeqStripThumbData UBO must not exceed minspec UBO size (16384)")
 
 /* VSE global data for timeline rendering. */
 struct SeqContextDrawData {
-  float pixelx, pixely; /* Size of one pixel in timeline coordinate space. */
-  float inv_pixelx, inv_pixely;
   float round_radius;
+  float pixelsize;
   uint col_back;
-  float _pad0, _pad1;
+  float _pad0;
 };
 BLI_STATIC_ASSERT_ALIGN(SeqContextDrawData, 16)
+
+struct GreasePencilStrokeData {
+  packed_float3 position;
+  float stroke_thickness;
+  float4 stroke_color;
+};
+BLI_STATIC_ASSERT_ALIGN(GreasePencilStrokeData, 16)
 
 enum TestStatus : uint32_t {
   TEST_STATUS_NONE = 0u,

@@ -14,6 +14,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_duplilist.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_pointcache.h"
@@ -27,7 +28,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "physics_intern.hh"
 

@@ -4,6 +4,7 @@
 
 # This is a data file that is evaluated directly (not imported).
 # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
+# pylint: disable-next=pointless-statement
 {
     "remote_url": "https://extensions.blender.org/api/v1/extensions",
     "extensions": {
@@ -22,7 +23,6 @@
         "ant_landscape": ("antlandscape", "A.N.T.Landscape"),
         "archimesh": ("archimesh", "Archimesh"),
         "blender_id": ("blender_id_authentication", "Blender ID authentication"),
-        "bone_selection_sets": ("bone_selection_sets", "Bone Selection Sets"),
         "btrace": ("btracer", "BTracer"),
         "camera_turnaround": ("turnaround_camera", "Turnaround Camera"),
         "curve_assign_shapekey": ("assign_shape_keys", "Assign Shape Keys"),
@@ -77,7 +77,6 @@
         "render_freestyle_svg": ("freestyle_svg_exporter", "Freestyle SVG Exporter"),
         "render_povray": ("pov_at_ble", "POV@Ble"),
         "render_ui_animation_render": ("ui_animation_render", "UI Animation Render"),
-        "rigify": ("rigify", "Rigify"),
         "space_clip_editor_refine_solution": ("refine_tracking_solution", "Refine tracking solution"),
         "space_view3d_3d_navigation": ("navigation", "3D Navigation"),
         "space_view3d_align_tools": ("align_tools", "Align Tools"),
@@ -94,12 +93,5 @@
         "system_demo_mode": ("demo_mode", "Demo Mode"),
         "system_property_chart": ("property_chart", "Property Chart"),
         "vdm_brush_baker": ("vdm_brush_baker", "VDM Brush Baker"),
-
-        # These were built-in but not mapped to an extension ("install" won't be shown in the UI).
-        "io_coat3D": ("", "3D-Coat Applink"),  # External dependencies.
-        "depsgraph_debug": ("", "Dependency Graph Debug"),  # External dependencies.
-        "io_import_images_as_planes": ("", "Import Images as Planes"),  # Integrated with Blender.
-        "io_mesh_stl": ("", "STL Format"),  # Was on by default.
-        "io_scene_x3d": ("", "Web3D X3D/VRML2 format"),  # Was on by default.
     },
 }

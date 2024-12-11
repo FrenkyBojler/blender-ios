@@ -14,8 +14,10 @@
 #include "vk_common.hh"
 
 namespace blender::gpu {
+namespace render_graph {
+class VKRenderGraph;
+}
 class VKContext;
-class VKCommandBuffers;
 
 #if (defined(__GNUC__) && __GNUC__ >= 14 && !defined(__clang__))
 #  pragma GCC diagnostic push
@@ -40,6 +42,8 @@ class VKCommandBuffers;
  * being recorded.
  */
 struct VKSubmissionID {
+  friend class render_graph::VKRenderGraph;
+
  private:
   int64_t id_ = -1;
 
@@ -87,8 +91,6 @@ struct VKSubmissionID {
   {
     return id_ != other.id_;
   }
-
-  friend class VKCommandBuffers;
 };
 
 /**
@@ -103,7 +105,7 @@ class VKSubmissionTracker {
    * Check if the submission_id has changed since the last time it was called
    * on this VKSubmissionTracker.
    */
-  bool is_changed(VKContext &context);
+  bool is_changed(const VKContext &context);
 };
 
 /**
@@ -114,8 +116,8 @@ template<typename Resource> class VKResourceTracker : NonCopyable {
   Vector<std::unique_ptr<Resource>> tracked_resources_;
 
  protected:
-  VKResourceTracker<Resource>() = default;
-  VKResourceTracker<Resource>(VKResourceTracker<Resource> &&other)
+  VKResourceTracker() = default;
+  VKResourceTracker(VKResourceTracker<Resource> &&other)
       : submission_tracker_(other.submission_tracker_),
         tracked_resources_(std::move(other.tracked_resources_))
   {

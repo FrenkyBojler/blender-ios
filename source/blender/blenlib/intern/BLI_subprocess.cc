@@ -6,10 +6,10 @@
 
 #if BLI_SUBPROCESS_SUPPORT
 
-/* Based on https://github.com/jarikomppa/ipc (Unlicensed) */
+/* Based on https://github.com/jarikomppa/ipc (Unlicense) */
 
 #  include "BLI_assert.h"
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string_utf8.h"
 #  include <iostream>
 
@@ -56,6 +56,34 @@ static void check(bool result, const char *function, const char *msg)
 #    undef ERROR /* Defined in wingdi.h */
 #    define ERROR(msg) check(false, __func__, msg)
 
+/* Owning process group that will close subprocesses assigned to it when the instance is destructed
+ * or the creator process ends. */
+class ProcessGroup {
+ private:
+  HANDLE handle_;
+
+ public:
+  ProcessGroup()
+  {
+    handle_ = CreateJobObject(nullptr, nullptr);
+    CHECK(handle_);
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {0};
+    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    CHECK(
+        SetInformationJobObject(handle_, JobObjectExtendedLimitInformation, &info, sizeof(info)));
+  }
+
+  ~ProcessGroup()
+  {
+    CHECK(CloseHandle(handle_));
+  }
+
+  void assign_subprocess(HANDLE subprocess)
+  {
+    CHECK(AssignProcessToJobObject(handle_, subprocess));
+  }
+};
+
 bool BlenderSubprocess::create(Span<StringRefNull> args)
 {
   BLI_assert(handle_ == nullptr);
@@ -91,7 +119,7 @@ bool BlenderSubprocess::create(Span<StringRefNull> args)
                       nullptr,
                       nullptr,
                       false,
-                      0,
+                      CREATE_BREAKAWAY_FROM_JOB,
                       nullptr,
                       nullptr,
                       &startup_info,
@@ -103,6 +131,10 @@ bool BlenderSubprocess::create(Span<StringRefNull> args)
 
   handle_ = process_info.hProcess;
   CHECK(CloseHandle(process_info.hThread));
+
+  static ProcessGroup group;
+  /* Don't let the subprocess outlive its parent. */
+  group.assign_subprocess(handle_);
 
   return true;
 }
@@ -237,8 +269,8 @@ bool BlenderSubprocess::create(Span<StringRefNull> args)
   }
 
   char path[PATH_MAX + 1];
-  size_t len = readlink("/proc/self/exe", path, PATH_MAX);
-  if (len == -1) {
+  const size_t len = readlink("/proc/self/exe", path, PATH_MAX);
+  if (len == size_t(-1)) {
     ERROR("readlink");
     return false;
   }
@@ -264,9 +296,16 @@ bool BlenderSubprocess::create(Span<StringRefNull> args)
   /* Child process initialization. */
   execv(path, char_args.data());
 
+  /* This should only be reached if `execvp` fails and stack isn't replaced. */
   ERROR("execv");
-  exit(errno);
 
+  /* Ensure outputs are flushed as `_exit` doesn't flush. */
+  fflush(stdout);
+  fflush(stderr);
+
+  /* Use `_exit` instead of `exit` so Blender's `atexit` cleanup functions don't run. */
+  _exit(errno);
+  BLI_assert_unreachable();
   return false;
 }
 

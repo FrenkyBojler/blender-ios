@@ -2,15 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd.hh"
-
 #include "usd_hook.hh"
-
-#include <boost/python/call_method.hpp>
-#include <boost/python/class.hpp>
-#include <boost/python/import.hpp>
-#include <boost/python/return_value_policy.hpp>
-#include <boost/python/to_python_converter.hpp>
+#include "usd.hh"
 
 #include "BLI_utildefines.h"
 
@@ -19,14 +12,33 @@
 #include "DNA_windowmanager_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 #include "RNA_types.hh"
-#include "bpy_rna.h"
+#include "bpy_rna.hh"
 
 #include <list>
 #include <memory>
 
+#if PXR_VERSION >= 2411
+#  include <pxr/external/boost/python/call_method.hpp>
+#  include <pxr/external/boost/python/class.hpp>
+#  include <pxr/external/boost/python/import.hpp>
+#  include <pxr/external/boost/python/ref.hpp>
+#  include <pxr/external/boost/python/return_value_policy.hpp>
+#  include <pxr/external/boost/python/to_python_converter.hpp>
+#  define REF python::ref
+
+using namespace pxr::pxr_boost;
+#else
+#  include <boost/python/call_method.hpp>
+#  include <boost/python/class.hpp>
+#  include <boost/python/import.hpp>
+#  include <boost/python/return_value_policy.hpp>
+#  include <boost/python/to_python_converter.hpp>
+#  define REF boost::ref
+
 using namespace boost;
+#endif
 
 namespace blender::io::usd {
 
@@ -85,14 +97,14 @@ struct PointerRNAToPython {
 /* Encapsulate arguments for scene export. */
 struct USDSceneExportContext {
 
-  USDSceneExportContext() : depsgraph_ptr({}) {}
+  USDSceneExportContext() = default;
 
   USDSceneExportContext(pxr::UsdStageRefPtr in_stage, Depsgraph *depsgraph) : stage(in_stage)
   {
     depsgraph_ptr = RNA_pointer_create(nullptr, &RNA_Depsgraph, depsgraph);
   }
 
-  pxr::UsdStageRefPtr get_stage()
+  pxr::UsdStageRefPtr get_stage() const
   {
     return stage;
   }
@@ -103,17 +115,16 @@ struct USDSceneExportContext {
   }
 
   pxr::UsdStageRefPtr stage;
-  PointerRNA depsgraph_ptr;
+  PointerRNA depsgraph_ptr{};
 };
 
 /* Encapsulate arguments for scene import. */
 struct USDSceneImportContext {
-
-  USDSceneImportContext() {}
+  USDSceneImportContext() = default;
 
   USDSceneImportContext(pxr::UsdStageRefPtr in_stage) : stage(in_stage) {}
 
-  pxr::UsdStageRefPtr get_stage()
+  pxr::UsdStageRefPtr get_stage() const
   {
     return stage;
   }
@@ -123,11 +134,11 @@ struct USDSceneImportContext {
 
 /* Encapsulate arguments for material export. */
 struct USDMaterialExportContext {
-  USDMaterialExportContext() {}
+  USDMaterialExportContext() = default;
 
   USDMaterialExportContext(pxr::UsdStageRefPtr in_stage) : stage(in_stage) {}
 
-  pxr::UsdStageRefPtr get_stage()
+  pxr::UsdStageRefPtr get_stage() const
   {
     return stage;
   }
@@ -275,7 +286,7 @@ class OnExportInvoker : public USDHookInvoker {
 
   void call_hook(PyObject *hook_obj) const override
   {
-    python::call_method<bool>(hook_obj, function_name(), hook_context_);
+    python::call_method<bool>(hook_obj, function_name(), REF(hook_context_));
   }
 };
 
@@ -288,7 +299,7 @@ class OnMaterialExportInvoker : public USDHookInvoker {
  public:
   OnMaterialExportInvoker(pxr::UsdStageRefPtr stage,
                           Material *material,
-                          pxr::UsdShadeMaterial &usd_material,
+                          const pxr::UsdShadeMaterial &usd_material,
                           ReportList *reports)
       : hook_context_(stage), usd_material_(usd_material)
   {
@@ -305,7 +316,7 @@ class OnMaterialExportInvoker : public USDHookInvoker {
   void call_hook(PyObject *hook_obj) const override
   {
     python::call_method<bool>(
-        hook_obj, function_name(), hook_context_, material_ptr_, usd_material_);
+        hook_obj, function_name(), REF(hook_context_), material_ptr_, usd_material_);
   }
 };
 
@@ -327,7 +338,7 @@ class OnImportInvoker : public USDHookInvoker {
 
   void call_hook(PyObject *hook_obj) const override
   {
-    python::call_method<bool>(hook_obj, function_name(), hook_context_);
+    python::call_method<bool>(hook_obj, function_name(), REF(hook_context_));
   }
 };
 
@@ -343,7 +354,7 @@ void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportLi
 
 void call_material_export_hooks(pxr::UsdStageRefPtr stage,
                                 Material *material,
-                                pxr::UsdShadeMaterial &usd_material,
+                                const pxr::UsdShadeMaterial &usd_material,
                                 ReportList *reports)
 {
   if (hook_list().empty()) {
@@ -365,3 +376,5 @@ void call_import_hooks(pxr::UsdStageRefPtr stage, ReportList *reports)
 }
 
 }  // namespace blender::io::usd
+
+#undef REF

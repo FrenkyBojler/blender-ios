@@ -75,9 +75,9 @@ void extract_vert_normals(const MeshRenderData &mr, gpu::VertBuf &vbo)
   const int size = mr.corners_num + mr.loose_indices_num;
   GPU_vertbuf_init_with_format(vbo, format);
   GPU_vertbuf_data_alloc(vbo, size);
-  MutableSpan vbo_data(static_cast<GPUPackedNormal *>(GPU_vertbuf_get_data(vbo)), size);
+  MutableSpan vbo_data = vbo.data<GPUPackedNormal>();
 
-  if (mr.extract_type == MR_EXTRACT_MESH) {
+  if (mr.extract_type == MeshExtractType::Mesh) {
     extract_vert_normals_mesh(mr, vbo_data);
   }
   else {

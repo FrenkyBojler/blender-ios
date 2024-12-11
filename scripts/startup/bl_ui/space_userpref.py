@@ -545,6 +545,7 @@ class USERPREF_PT_edit_sequence_editor(EditingPanel, CenterAlignMixIn, Panel):
         edit = prefs.edit
 
         layout.prop(edit, "use_sequencer_simplified_tweaking")
+        layout.prop(edit, "connect_strips_by_default")
 
 
 class USERPREF_PT_edit_misc(EditingPanel, CenterAlignMixIn, Panel):
@@ -676,6 +677,36 @@ class USERPREF_PT_system_cycles_devices(SystemPanel, CenterAlignMixIn, Panel):
             layout.label(text="Cycles is disabled in this build", icon='INFO')
 
 
+class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
+    bl_label = "Display Graphics"
+
+    @classmethod
+    def poll(cls, _context):
+        import platform
+        return platform.system() != 'Darwin'
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        system = prefs.system
+
+        col = layout.column()
+        col.prop(system, "gpu_backend", text="Backend")
+
+        import gpu
+        if system.gpu_backend != gpu.platform.backend_type_get():
+            layout.label(text="A restart of Blender is required", icon='INFO')
+
+        if system.gpu_backend == gpu.platform.backend_type_get() == 'VULKAN':
+            col = layout.column()
+            col.prop(system, "gpu_preferred_device")
+
+        if system.gpu_backend == 'VULKAN':
+            col = layout.column()
+            col.label(text="The Vulkan backend is experimental:", icon='INFO')
+            col.label(text="\u2022 OpenXR and GPU subdivision are not supported", icon='BLANK1')
+            col.label(text="\u2022 Expect reduced performance", icon='BLANK1')
+
+
 class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
     bl_label = "Operating System Settings"
 
@@ -735,11 +766,14 @@ class USERPREF_PT_system_network(SystemPanel, CenterAlignMixIn, Panel):
         if system.use_online_access != runtime_online_access:
             row = layout.split(factor=0.4)
             row.label(text="")
-            row.label(
-                text="{:s} on startup, overriding the preference.".format(
-                    "Enabled" if runtime_online_access else "Disabled"
-                ),
-            )
+            if runtime_online_access:
+                text = iface_("Enabled on startup, overriding the preference.")
+            else:
+                text = iface_("Disabled on startup, overriding the preference.")
+            row.label(text=text, translate=False)
+
+        layout.row().prop(system, "network_timeout", text="Time Out")
+        layout.row().prop(system, "network_connection_limit", text="Connection Limit")
 
 
 class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
@@ -897,6 +931,12 @@ class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
     bl_label = "Subdivision"
     bl_options = {'DEFAULT_CLOSED'}
 
+    @classmethod
+    def poll(cls, context):
+        import gpu
+        backend = gpu.platform.backend_type_get()
+        return backend == "OPENGL"
+
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system
@@ -922,6 +962,43 @@ class USERPREF_MT_interface_theme_presets(Menu):
         ("preferences.themes[0]", "Theme"),
         ("preferences.ui_styles[0]", "ThemeStyle"),
     )
+    # Prevent untrusted XML files "escaping" from these types.
+    preset_xml_secure_types = {
+        "Theme",
+        "ThemeAssetShelf",
+        "ThemeBoneColorSet",
+        "ThemeClipEditor",
+        "ThemeCollectionColor",
+        "ThemeConsole",
+        "ThemeDopeSheet",
+        "ThemeFileBrowser",
+        "ThemeFontStyle",
+        "ThemeGradientColors",
+        "ThemeGraphEditor",
+        "ThemeImageEditor",
+        "ThemeInfo",
+        "ThemeNLAEditor",
+        "ThemeNodeEditor",
+        "ThemeOutliner",
+        "ThemePanelColors",
+        "ThemePreferences",
+        "ThemeProperties",
+        "ThemeSequenceEditor",
+        "ThemeSpaceGeneric",
+        "ThemeSpaceGradient",
+        "ThemeSpaceListGeneric",
+        "ThemeSpreadsheet",
+        "ThemeStatusBar",
+        "ThemeStripColor",
+        "ThemeStyle",
+        "ThemeTextEditor",
+        "ThemeTopBar",
+        "ThemeUserInterface",
+        "ThemeView3D",
+        "ThemeWidgetColors",
+        "ThemeWidgetStateColors",
+    }
+
     draw = Menu.draw_preset
 
     @staticmethod
@@ -1080,16 +1157,22 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column(align=True)
-        col.prop(ui, "menu_shadow_fac")
-        col.prop(ui, "menu_shadow_width", text="Shadow Width")
+        col.prop(ui, "editor_border")
+        col.prop(ui, "editor_outline")
+        col.prop(ui, "editor_outline_active")
+
+        col = flow.column()
+        col.prop(ui, "widget_text_cursor")
 
         col = flow.column(align=True)
         col.prop(ui, "icon_alpha")
         col.prop(ui, "icon_saturation", text="Saturation")
 
+        col = flow.column(align=True)
+        col.prop(ui, "menu_shadow_fac")
+        col.prop(ui, "menu_shadow_width", text="Shadow Width")
+
         col = flow.column()
-        col.prop(ui, "widget_text_cursor")
-        col.prop(ui, "editor_outline")
         col.prop(ui, "widget_emboss")
         col.prop(ui, "panel_roundness")
 
@@ -1157,6 +1240,7 @@ class USERPREF_PT_theme_interface_icons(ThemePanel, CenterAlignMixIn, Panel):
         flow.prop(ui, "icon_modifier")
         flow.prop(ui, "icon_shading")
         flow.prop(ui, "icon_folder")
+        flow.prop(ui, "icon_autokey")
         flow.prop(ui, "icon_border_intensity")
 
 
@@ -1195,13 +1279,13 @@ class USERPREF_PT_theme_text_style(ThemePanel, CenterAlignMixIn, Panel):
 
         layout.separator()
 
-        layout.label(text="Widget Label")
-        self._ui_font_style(layout, style.widget_label)
+        layout.label(text="Widget")
+        self._ui_font_style(layout, style.widget)
 
         layout.separator()
 
-        layout.label(text="Widget")
-        self._ui_font_style(layout, style.widget)
+        layout.label(text="Tooltip")
+        self._ui_font_style(layout, style.tooltip)
 
 
 class USERPREF_PT_theme_bone_color_sets(ThemePanel, CenterAlignMixIn, Panel):
@@ -1249,7 +1333,7 @@ class USERPREF_PT_theme_collection_colors(ThemePanel, CenterAlignMixIn, Panel):
 
 
 class USERPREF_PT_theme_strip_colors(ThemePanel, CenterAlignMixIn, Panel):
-    bl_label = "Strip Colors"
+    bl_label = "Strip Color Tags"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, _context):
@@ -1270,36 +1354,8 @@ class USERPREF_PT_theme_strip_colors(ThemePanel, CenterAlignMixIn, Panel):
 # Base class for dynamically defined theme-space panels.
 # This is not registered.
 class PreferenceThemeSpacePanel:
-
-    # not essential, hard-coded UI delimiters for the theme layout
-    ui_delimiters = {
-        'VIEW_3D': {
-            "text_grease_pencil",
-            "text_keyframe",
-            "speaker",
-            "freestyle_face_mark",
-            "split_normal",
-            "bone_solid",
-            "bone_locked_weight",
-            "paint_curve_pivot",
-        },
-        'GRAPH_EDITOR': {
-            "handle_vertex_select",
-        },
-        'IMAGE_EDITOR': {
-            "paint_curve_pivot",
-        },
-        'NODE_EDITOR': {
-            "layout_node",
-        },
-        'CLIP_EDITOR': {
-            "handle_vertex_select",
-        },
-    }
-
-    # TODO theme_area should be deprecated
     @staticmethod
-    def _theme_generic(layout, themedata, theme_area):
+    def _theme_generic(layout, themedata):
 
         layout.use_property_split = True
 
@@ -1313,19 +1369,12 @@ class PreferenceThemeSpacePanel:
 
             props_type.setdefault((prop.type, prop.subtype), []).append(prop)
 
-        th_delimiters = PreferenceThemeSpacePanel.ui_delimiters.get(theme_area)
         for props_type, props_ls in sorted(props_type.items()):
             if props_type[0] == 'POINTER':
                 continue
 
-            if th_delimiters is None:
-                # simple, no delimiters
-                for prop in props_ls:
-                    flow.prop(themedata, prop.identifier)
-            else:
-
-                for prop in props_ls:
-                    flow.prop(themedata, prop.identifier)
+            for prop in props_ls:
+                flow.prop(themedata, prop.identifier)
 
     def draw_header(self, _context):
         icon = getattr(self, "icon", 'NONE')
@@ -1341,7 +1390,7 @@ class PreferenceThemeSpacePanel:
         data = theme
         for datapath_item in datapath_list:
             data = getattr(data, datapath_item)
-        PreferenceThemeSpacePanel._theme_generic(layout, data, self.theme_area)
+        PreferenceThemeSpacePanel._theme_generic(layout, data)
 
 
 class ThemeGenericClassGenerator:
@@ -1706,8 +1755,9 @@ class USERPREF_UL_extension_repos(UIList):
         for index, orig_index in enumerate(sorted(
             range(len(items)),
             key=lambda i: (
-                items[i].use_remote_url is False,
-                items[i].name.lower(),
+                # Order [Remote, User, System].
+                0 if (repo := items[i]).use_remote_url else (1 if (repo.source != 'SYSTEM') else 2),
+                repo.name.casefold(),
             )
         )):
             indices[orig_index] = index
@@ -2145,7 +2195,7 @@ class USERPREF_MT_extensions_active_repo_remove(Menu):
         except IndexError:
             active_repo = None
 
-        is_system_repo = (active_repo.use_custom_directory is False) and (active_repo.source == 'SYSTEM')
+        is_system_repo = (active_repo.use_remote_url is False) and (active_repo.source == 'SYSTEM')
 
         props = layout.operator("preferences.extension_repo_remove", text="Remove Repository")
         props.index = active_repo_index
@@ -2203,7 +2253,8 @@ class USERPREF_PT_extensions_repos(Panel):
         # For now it can be accessed from Python if someone is.
         # `layout.prop(active_repo, "use_remote_url", text="Use Remote URL")`
 
-        if active_repo.use_remote_url:
+        use_remote_url = active_repo.use_remote_url
+        if use_remote_url:
             row = layout.row()
             split = row.split(factor=0.936)
             if active_repo.remote_url == "":
@@ -2244,18 +2295,34 @@ class USERPREF_PT_extensions_repos(Panel):
                 # valid UTF-8 which will raise a Python exception when passed in as text.
                 sub.prop(active_repo, "directory", text="")
 
-            row = layout_panel.row()
-            row.active = not use_custom_directory
-            row.prop(active_repo, "source")
-
-            if active_repo.use_remote_url:
+            if use_remote_url:
                 row = layout_panel.row(align=True, heading="Authentication")
                 row.prop(active_repo, "use_access_token")
 
-            layout_panel.prop(active_repo, "use_cache")
+                layout_panel.prop(active_repo, "use_cache")
+            else:
+                layout_panel.prop(active_repo, "source")
+
             layout_panel.separator()
 
             layout_panel.prop(active_repo, "module")
+
+
+# -----------------------------------------------------------------------------
+# Extensions Panels
+
+class ExtensionsPanel:
+    bl_space_type = 'PREFERENCES'
+    bl_region_type = 'WINDOW'
+    bl_context = "extensions"
+
+
+class USERPREF_PT_extensions(ExtensionsPanel, Panel):
+    bl_label = "Extensions"
+    bl_options = {'HIDE_HEADER'}
+
+    def draw(self, context):
+        pass
 
 
 # -----------------------------------------------------------------------------
@@ -2276,7 +2343,7 @@ class USERPREF_PT_addons_filter(Panel):
 class AddOnPanel:
     bl_space_type = 'PREFERENCES'
     bl_region_type = 'WINDOW'
-    bl_context = "extensions"
+    bl_context = "addons"
 
 
 class USERPREF_PT_addons(AddOnPanel, Panel):
@@ -2312,13 +2379,12 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
             return
 
         addon_preferences_class = type(addon_preferences)
+        layout.label(text=" Preferences")
         box_prefs = layout.box()
-        box_prefs.label(text="Preferences")
-        box_prefs.separator(type='LINE')
         addon_preferences_class.layout = box_prefs
         try:
             draw(context)
-        except BaseException:
+        except Exception:
             import traceback
             traceback.print_exc()
             box_prefs.label(text="Error (see console)", icon='ERROR')
@@ -2331,8 +2397,8 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
         sub = box.row()
         sub.label(text=lines[0])
         sub.label(icon='ERROR')
-        for l in lines[1:]:
-            box.label(text=l)
+        for line in lines[1:]:
+            box.label(text=line)
 
     @staticmethod
     def _draw_addon_header(layout, prefs, wm):
@@ -2390,9 +2456,6 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
             if p
         )
 
-        # Collect the categories that can be filtered on.
-        addon_modules = addon_utils.modules(refresh=False)
-
         self._draw_addon_header(layout, prefs, wm)
 
         layout_topmost = layout.column()
@@ -2422,15 +2485,17 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
 
         show_enabled_only = prefs.view.show_addons_enabled_only
         filter = wm.addon_filter
-        search = wm.addon_search.lower()
+        search = wm.addon_search.casefold()
         support = wm.addon_support
+
+        module_names = set()
 
         # initialized on demand
         user_addon_paths = []
 
-        for mod in addon_modules:
+        for mod in addon_utils.modules(refresh=False):
+            module_names.add(addon_module_name := mod.__name__)
             bl_info = addon_utils.module_bl_info(mod)
-            addon_module_name = mod.__name__
 
             is_enabled = addon_module_name in used_addon_module_name_map
 
@@ -2450,11 +2515,11 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 continue
 
             if search and not (
-                    (search in bl_info["name"].lower() or
-                     search in iface_(bl_info["name"]).lower()) or
-                    (bl_info["author"] and (search in bl_info["author"].lower())) or
-                    ((filter == "All") and (search in bl_info["category"].lower() or
-                                            search in iface_(bl_info["category"]).lower()))
+                    (search in bl_info["name"].casefold() or
+                     search in iface_(bl_info["name"]).casefold()) or
+                    (bl_info["author"] and (search in bl_info["author"].casefold())) or
+                    ((filter == "All") and (search in bl_info["category"].casefold() or
+                                            search in iface_(bl_info["category"]).casefold()))
             ):
                 continue
 
@@ -2463,8 +2528,6 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
             box = col_box.box()
             colsub = box.column()
             row = colsub.row(align=True)
-
-            is_extension = addon_utils.check_extension(addon_module_name)
 
             row.operator(
                 "preferences.addon_expand",
@@ -2509,11 +2572,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 if value := bl_info["version"]:
                     split = colsub.row().split(factor=0.15)
                     split.label(text="Version:")
-                    # Extensions use SEMVER.
-                    if is_extension:
-                        split.label(text=value, translate=False)
-                    else:
-                        split.label(text=".".join(str(x) for x in value), translate=False)
+                    split.label(text=".".join(str(x) for x in value), translate=False)
                 if value := bl_info["warning"]:
                     split = colsub.row().split(factor=0.15)
                     split.label(text="Warning:")
@@ -2529,22 +2588,12 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                         sub.operator(
                             "wm.url_open", text="Documentation", icon='HELP',
                         ).url = bl_info["doc_url"]
-                    # Only add "Report a Bug" button if tracker_url is set
-                    # or the add-on is bundled (use official tracker then).
+                    # Only add "Report a Bug" button if tracker_url is set.
+                    # None of the core add-ons are expected to have tracker info (glTF is the exception).
                     if bl_info.get("tracker_url"):
                         sub.operator(
                             "wm.url_open", text="Report a Bug", icon='URL',
                         ).url = bl_info["tracker_url"]
-                    elif not user_addon:
-                        addon_info = (
-                            "Name: {:s} {:s}\n"
-                            "Author: {:s}\n"
-                        ).format(bl_info["name"], str(bl_info["version"]), bl_info["author"])
-                        props = sub.operator(
-                            "wm.url_open_preset", text="Report a Bug", icon='URL',
-                        )
-                        props.type = 'BUG_ADDON'
-                        props.id = addon_info
 
                 if user_addon:
                     split = colsub.row().split(factor=0.15)
@@ -2561,7 +2610,6 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
         if filter in {"All", "Enabled"}:
             # Append missing scripts
             # First collect scripts that are used but have no script file.
-            module_names = {mod.__name__ for mod in addon_modules}
             missing_modules = {
                 addon_module_name for addon_module_name in used_addon_module_name_map
                 if addon_module_name not in module_names
@@ -2571,7 +2619,6 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 layout_topmost.column().separator()
                 layout_topmost.column().label(text="Missing script files")
 
-                module_names = {mod.__name__ for mod in addon_modules}
                 for addon_module_name in sorted(missing_modules):
                     is_enabled = addon_module_name in used_addon_module_name_map
                     # Addon UI Code
@@ -2798,6 +2845,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_extended_asset_browser"},
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_new_volume_nodes"}, ("blender/blender/issues/103248", "#103248")),
+                ({"property": "use_new_file_import_nodes"}, ("blender/blender/issues/122846", "#122846")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
             ),
         )
@@ -2812,10 +2860,7 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
                 ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
                 ({"property": "use_new_point_cloud_type"}, ("blender/blender/issues/75717", "#75717")),
                 ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
-                ({"property": "use_grease_pencil_version3"}, ("blender/blender/projects/6", "Grease Pencil 3.0")),
-                ({"property": "use_grease_pencil_version3_convert_on_load"}, ("blender/blender/projects/6", "Grease Pencil 3.0")),
-                ({"property": "enable_overlay_next"}, ("blender/blender/issues/102179", "#102179")),
-                ({"property": "use_animation_baklava"}, ("/blender/blender/issues/120406", "#120406")),
+                ({"property": "enable_new_cpu_compositor"}, ("/blender/blender/issues/125968", "#125968")),
             ),
         )
 
@@ -2849,6 +2894,8 @@ class USERPREF_PT_experimental_debugging(ExperimentalPanel, Panel):
             context, (
                 ({"property": "use_undo_legacy"}, ("blender/blender/issues/60695", "#60695")),
                 ({"property": "override_auto_resync"}, ("blender/blender/issues/83811", "#83811")),
+                ({"property": "use_all_linked_data_direct"}, None),
+                ({"property": "use_recompute_usercount_on_save_debug"}, None),
                 ({"property": "use_cycles_debug"}, None),
                 ({"property": "show_asset_debug_info"}, None),
                 ({"property": "use_asset_indexing"}, None),
@@ -2907,6 +2954,7 @@ classes = (
     USERPREF_PT_animation_fcurves,
 
     USERPREF_PT_system_cycles_devices,
+    USERPREF_PT_system_display_graphics,
     USERPREF_PT_system_os_settings,
     USERPREF_PT_system_network,
     USERPREF_PT_system_memory,
@@ -2953,6 +3001,7 @@ classes = (
 
     USERPREF_PT_keymap,
 
+    USERPREF_PT_extensions,
     USERPREF_PT_addons,
 
     USERPREF_MT_extensions_active_repo,

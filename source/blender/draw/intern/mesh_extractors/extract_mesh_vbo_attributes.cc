@@ -67,7 +67,7 @@ static void extract_data_mesh_mapped_corner(const Span<T> attribute,
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
-  MutableSpan data(static_cast<VBOType *>(GPU_vertbuf_get_data(vbo)), indices.size());
+  MutableSpan data = vbo.data<VBOType>();
 
   if constexpr (std::is_same_v<T, VBOType>) {
     array_utils::gather(attribute, indices, data);
@@ -88,7 +88,7 @@ static void extract_data_mesh_face(const OffsetIndices<int> faces,
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
-  MutableSpan data(static_cast<VBOType *>(GPU_vertbuf_get_data(vbo)), faces.total_size());
+  MutableSpan data = vbo.data<VBOType>();
 
   threading::parallel_for(faces.index_range(), 2048, [&](const IndexRange range) {
     for (const int i : range) {
@@ -102,7 +102,7 @@ static void extract_data_bmesh_vert(const BMesh &bm, const int cd_offset, gpu::V
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
-  VBOType *data = static_cast<VBOType *>(GPU_vertbuf_get_data(vbo));
+  VBOType *data = vbo.data<VBOType>().data();
 
   const BMFace *face;
   BMIter f_iter;
@@ -122,7 +122,7 @@ static void extract_data_bmesh_edge(const BMesh &bm, const int cd_offset, gpu::V
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
-  VBOType *data = static_cast<VBOType *>(GPU_vertbuf_get_data(vbo));
+  VBOType *data = vbo.data<VBOType>().data();
 
   const BMFace *face;
   BMIter f_iter;
@@ -142,7 +142,7 @@ static void extract_data_bmesh_face(const BMesh &bm, const int cd_offset, gpu::V
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
-  VBOType *data = static_cast<VBOType *>(GPU_vertbuf_get_data(vbo));
+  VBOType *data = vbo.data<VBOType>().data();
 
   const BMFace *face;
   BMIter f_iter;
@@ -158,7 +158,7 @@ static void extract_data_bmesh_loop(const BMesh &bm, const int cd_offset, gpu::V
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
-  VBOType *data = static_cast<VBOType *>(GPU_vertbuf_get_data(vbo));
+  VBOType *data = vbo.data<VBOType>().data();
 
   const BMFace *face;
   BMIter f_iter;
@@ -193,7 +193,7 @@ static void extract_attribute(const MeshRenderData &mr,
                               const DRW_AttributeRequest &request,
                               gpu::VertBuf &vbo)
 {
-  if (mr.extract_type == MR_EXTRACT_BMESH) {
+  if (mr.extract_type == MeshExtractType::BMesh) {
     const CustomData &custom_data = *get_custom_data_for_domain(*mr.bm, request.domain);
     const char *name = request.attribute_name;
     const int cd_offset = CustomData_get_offset_named(&custom_data, request.cd_type, name);
@@ -313,7 +313,7 @@ void extract_attr_viewer(const MeshRenderData &mr, gpu::VertBuf &vbo)
 
   GPU_vertbuf_init_with_format(vbo, format);
   GPU_vertbuf_data_alloc(vbo, mr.corners_num);
-  MutableSpan vbo_data(static_cast<ColorGeometry4f *>(GPU_vertbuf_get_data(vbo)), mr.corners_num);
+  MutableSpan vbo_data = vbo.data<ColorGeometry4f>();
 
   const StringRefNull attr_name = ".viewer";
   const bke::AttributeAccessor attributes = mr.mesh->attributes();

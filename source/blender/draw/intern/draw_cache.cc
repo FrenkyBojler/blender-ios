@@ -387,6 +387,7 @@ static blender::gpu::VertBuf *sphere_wire_vbo(const float rad, int flag)
 }
 
 /* Quads */
+
 blender::gpu::Batch *DRW_cache_fullscreen_quad_get()
 {
   if (!SHC.drw_fullscreen_quad) {
@@ -622,17 +623,6 @@ static const float bone_box_verts[8][3] = {
     {-1.0f, 1.0f, 1.0f},
 };
 
-static const float bone_box_smooth_normals[8][3] = {
-    {M_SQRT3, -M_SQRT3, M_SQRT3},
-    {M_SQRT3, -M_SQRT3, -M_SQRT3},
-    {-M_SQRT3, -M_SQRT3, -M_SQRT3},
-    {-M_SQRT3, -M_SQRT3, M_SQRT3},
-    {M_SQRT3, M_SQRT3, M_SQRT3},
-    {M_SQRT3, M_SQRT3, -M_SQRT3},
-    {-M_SQRT3, M_SQRT3, -M_SQRT3},
-    {-M_SQRT3, M_SQRT3, M_SQRT3},
-};
-
 static const uint bone_box_wire[24] = {
     0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7,
 };
@@ -823,7 +813,7 @@ void DRW_vertbuf_create_wiredata(blender::gpu::VertBuf *vbo, const int vert_len)
   GPU_vertbuf_data_alloc(*vbo, vert_len);
 
   if (GPU_vertbuf_get_format(vbo)->stride == 1) {
-    memset(GPU_vertbuf_get_data(*vbo), 0xFF, size_t(vert_len));
+    memset(vbo->data<uint8_t>().data(), 0xFF, size_t(vert_len));
   }
   else {
     GPUVertBufRaw wd_step;
@@ -891,7 +881,7 @@ blender::gpu::Batch *DRW_cache_object_edge_detection_get(Object *ob, bool *r_is_
   }
 }
 
-blender::gpu::Batch *DRW_cache_object_face_wireframe_get(Object *ob)
+blender::gpu::Batch *DRW_cache_object_face_wireframe_get(const Scene *scene, Object *ob)
 {
   using namespace blender::draw;
   switch (ob->type) {
@@ -901,8 +891,8 @@ blender::gpu::Batch *DRW_cache_object_face_wireframe_get(Object *ob)
       return DRW_pointcloud_batch_cache_get_dots(ob);
     case OB_VOLUME:
       return DRW_cache_volume_face_wireframe_get(ob);
-    case OB_GPENCIL_LEGACY:
-      return DRW_cache_gpencil_face_wireframe_get(ob);
+    case OB_GREASE_PENCIL:
+      return DRW_cache_grease_pencil_face_wireframe_get(scene, ob);
     default:
       return nullptr;
   }
@@ -931,7 +921,7 @@ blender::gpu::Batch *DRW_cache_object_surface_get(Object *ob)
 blender::gpu::VertBuf *DRW_cache_object_pos_vertbuf_get(Object *ob)
 {
   using namespace blender::draw;
-  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(ob);
+  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob);
   short type = (mesh != nullptr) ? short(OB_MESH) : ob->type;
 
   switch (type) {
@@ -948,7 +938,7 @@ int DRW_cache_object_material_count_get(const Object *ob)
   using namespace blender::draw;
   short type = ob->type;
 
-  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(ob);
+  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob);
   if (mesh != nullptr && type != OB_POINTCLOUD) {
     /* Some object types can have one data type in ob->data, but will be rendered as mesh.
      * For point clouds this never happens. Ideally this check would happen at another level
@@ -970,8 +960,6 @@ int DRW_cache_object_material_count_get(const Object *ob)
       return DRW_pointcloud_material_count_get(static_cast<const PointCloud *>(ob->data));
     case OB_VOLUME:
       return DRW_volume_material_count_get(static_cast<const Volume *>(ob->data));
-    case OB_GPENCIL_LEGACY:
-      return DRW_gpencil_material_count_get(static_cast<const bGPdata *>(ob->data));
     default:
       BLI_assert(0);
       return 0;
@@ -1980,22 +1968,6 @@ static const float bone_octahedral_verts[6][3] = {
     {0.0f, 1.0f, 0.0f},
 };
 
-static const float bone_octahedral_smooth_normals[6][3] = {
-    {0.0f, -1.0f, 0.0f},
-#if 0 /* creates problems for outlines when scaled */
-    {0.943608f * M_SQRT1_2, -0.331048f, 0.943608f * M_SQRT1_2},
-    {0.943608f * M_SQRT1_2, -0.331048f, -0.943608f * M_SQRT1_2},
-    {-0.943608f * M_SQRT1_2, -0.331048f, -0.943608f * M_SQRT1_2},
-    {-0.943608f * M_SQRT1_2, -0.331048f, 0.943608f * M_SQRT1_2},
-#else
-    {M_SQRT1_2, 0.0f, M_SQRT1_2},
-    {M_SQRT1_2, 0.0f, -M_SQRT1_2},
-    {-M_SQRT1_2, 0.0f, -M_SQRT1_2},
-    {-M_SQRT1_2, 0.0f, M_SQRT1_2},
-#endif
-    {0.0f, 1.0f, 0.0f},
-};
-
 #if 0 /* UNUSED */
 
 static const uint bone_octahedral_wire[24] = {
@@ -2080,12 +2052,11 @@ blender::gpu::Batch *DRW_cache_bone_octahedral_get()
 
     static GPUVertFormat format = {0};
     static struct {
-      uint pos, nor, snor;
+      uint pos, nor;
     } attr_id;
     if (format.attr_len == 0) {
       attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
       attr_id.nor = GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-      attr_id.snor = GPU_vertformat_attr_add(&format, "snor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     }
 
     /* Vertices */
@@ -2095,10 +2066,6 @@ blender::gpu::Batch *DRW_cache_bone_octahedral_get()
     for (int i = 0; i < 8; i++) {
       for (int j = 0; j < 3; j++) {
         GPU_vertbuf_attr_set(vbo, attr_id.nor, v_idx, bone_octahedral_solid_normals[i]);
-        GPU_vertbuf_attr_set(vbo,
-                             attr_id.snor,
-                             v_idx,
-                             bone_octahedral_smooth_normals[bone_octahedral_solid_tris[i][j]]);
         GPU_vertbuf_attr_set(
             vbo, attr_id.pos, v_idx++, bone_octahedral_verts[bone_octahedral_solid_tris[i][j]]);
       }
@@ -2141,12 +2108,11 @@ blender::gpu::Batch *DRW_cache_bone_box_get()
 
     static GPUVertFormat format = {0};
     static struct {
-      uint pos, nor, snor;
+      uint pos, nor;
     } attr_id;
     if (format.attr_len == 0) {
       attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
       attr_id.nor = GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-      attr_id.snor = GPU_vertformat_attr_add(&format, "snor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     }
 
     /* Vertices */
@@ -2156,8 +2122,6 @@ blender::gpu::Batch *DRW_cache_bone_box_get()
     for (int i = 0; i < 12; i++) {
       for (int j = 0; j < 3; j++) {
         GPU_vertbuf_attr_set(vbo, attr_id.nor, v_idx, bone_box_solid_normals[i]);
-        GPU_vertbuf_attr_set(
-            vbo, attr_id.snor, v_idx, bone_box_smooth_normals[bone_box_solid_tris[i][j]]);
         GPU_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, bone_box_verts[bone_box_solid_tris[i][j]]);
       }
     }
@@ -3266,8 +3230,8 @@ blender::gpu::Batch *DRW_cache_cursor_get(bool crosshair_lines)
     const int vert_len = segments + 8;
     const int index_len = vert_len + 5;
 
-    const uchar red[3] = {255, 0, 0};
-    const uchar white[3] = {255, 255, 255};
+    const float red[3] = {1.0f, 0.0f, 0.0f};
+    const float white[3] = {1.0f, 1.0f, 1.0f};
 
     static GPUVertFormat format = {0};
     static struct {
@@ -3275,8 +3239,7 @@ blender::gpu::Batch *DRW_cache_cursor_get(bool crosshair_lines)
     } attr_id;
     if (format.attr_len == 0) {
       attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-      attr_id.color = GPU_vertformat_attr_add(
-          &format, "color", GPU_COMP_U8, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      attr_id.color = GPU_vertformat_attr_add(&format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     }
 
     GPUIndexBufBuilder elb;
@@ -3299,9 +3262,10 @@ blender::gpu::Batch *DRW_cache_cursor_get(bool crosshair_lines)
     GPU_indexbuf_add_generic_vert(&elb, 0);
 
     if (crosshair_lines) {
-      uchar crosshair_color[3];
-      UI_GetThemeColor3ubv(TH_VIEW_OVERLAY, crosshair_color);
+      float crosshair_color[3];
+      UI_GetThemeColor3fv(TH_VIEW_OVERLAY, crosshair_color);
 
+      /* TODO(fclem): Remove primitive restart. Incompatible with wide lines. */
       GPU_indexbuf_add_primitive_restart(&elb);
 
       GPU_vertbuf_attr_set(vbo, attr_id.pos, v, blender::float2{-f20, 0});
@@ -3397,7 +3361,7 @@ void drw_batch_cache_generate_requested(Object *ob)
   const bool use_hide = ((ob->type == OB_MESH) &&
                          ((is_paint_mode && (ob == draw_ctx->obact) &&
                            DRW_object_use_hide_faces(ob)) ||
-                          ((mode == CTX_MODE_EDIT_MESH) && DRW_object_is_in_edit_mode(ob))));
+                          ((mode == CTX_MODE_EDIT_MESH) && (ob->mode == OB_MODE_EDIT))));
 
   switch (ob->type) {
     case OB_MESH:
@@ -3436,9 +3400,9 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
   const bool use_hide = ((ob->type == OB_MESH) &&
                          ((is_paint_mode && (ob == draw_ctx->obact) &&
                            DRW_object_use_hide_faces(ob)) ||
-                          ((mode == CTX_MODE_EDIT_MESH) && DRW_object_is_in_edit_mode(ob))));
+                          ((mode == CTX_MODE_EDIT_MESH) && (ob->mode == OB_MODE_EDIT))));
 
-  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(ob);
+  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob);
   /* Try getting the mesh first and if that fails, try getting the curve data.
    * If the curves are surfaces or have certain modifiers applied to them, the will have mesh data
    * of the final result.

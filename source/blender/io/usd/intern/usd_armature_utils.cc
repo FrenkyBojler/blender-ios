@@ -36,7 +36,7 @@ const ModifierData *get_enabled_modifier(const Object &obj,
 {
   BLI_assert(depsgraph);
 
-  Scene *scene = DEG_get_input_scene(depsgraph);
+  const Scene *scene = DEG_get_input_scene(depsgraph);
   eEvaluationMode mode = DEG_get_mode(depsgraph);
 
   LISTBASE_FOREACH (ModifierData *, md, &obj.modifiers) {
@@ -98,15 +98,15 @@ void get_armature_bone_names(const Object *ob_arm,
 
 pxr::TfToken build_usd_joint_path(const Bone *bone, bool allow_unicode)
 {
-  std::string path(bone->name);
+  std::string path(make_safe_name(bone->name, allow_unicode));
 
   const Bone *parent = bone->parent;
   while (parent) {
-    path = parent->name + std::string("/") + path;
+    path = make_safe_name(parent->name, allow_unicode) + std::string("/") + path;
     parent = parent->parent;
   }
 
-  return pxr::TfToken(make_safe_name(path, allow_unicode));
+  return pxr::TfToken(path);
 }
 
 void create_pose_joints(pxr::UsdSkelAnimation &skel_anim,
