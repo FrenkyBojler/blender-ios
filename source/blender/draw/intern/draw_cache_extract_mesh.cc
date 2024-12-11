@@ -17,6 +17,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_editmesh.hh"
+#include "BKE_material.h"
 #include "BKE_object.hh"
 
 #include "GPU_capabilities.hh"
@@ -34,17 +35,6 @@
 #endif
 
 namespace blender::draw {
-
-int mesh_render_mat_len_get(const Object &object, const Mesh &mesh)
-{
-  if (mesh.runtime->edit_mesh != nullptr) {
-    const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(&object);
-    if (editmesh_eval_final != nullptr) {
-      return std::max<int>(1, editmesh_eval_final->totcol);
-    }
-  }
-  return std::max<int>(1, mesh.totcol);
-}
 
 struct MeshRenderDataUpdateTaskData {
   std::unique_ptr<MeshRenderData> mr;
