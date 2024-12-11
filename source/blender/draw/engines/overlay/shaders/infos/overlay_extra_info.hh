@@ -215,32 +215,9 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_extra_loose_point, overlay_extra_loose_
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_motion_path_line_iface, interp)
 SMOOTH(VEC4, color)
 GPU_SHADER_NAMED_INTERFACE_END(interp)
-GPU_SHADER_NAMED_INTERFACE_INFO(overlay_motion_path_line_flat_iface, interp_flat)
-FLAT(VEC2, ss_pos)
-GPU_SHADER_NAMED_INTERFACE_END(interp_flat)
 
+/*TODO(pragma37): This used to have a clipped variation*/
 GPU_SHADER_CREATE_INFO(overlay_motion_path_line)
-DO_STATIC_COMPILATION()
-VERTEX_IN(0, VEC3, pos)
-PUSH_CONSTANT(IVEC4, mpathLineSettings)
-PUSH_CONSTANT(BOOL, selected)
-PUSH_CONSTANT(VEC3, customColorPre)
-PUSH_CONSTANT(VEC3, customColorPost)
-PUSH_CONSTANT(INT, lineThickness) /* In pixels. */
-PUSH_CONSTANT(MAT4, camera_space_matrix)
-VERTEX_OUT(overlay_motion_path_line_iface)
-VERTEX_OUT(overlay_motion_path_line_flat_iface)
-GEOMETRY_OUT(overlay_motion_path_line_iface)
-GEOMETRY_LAYOUT(PrimitiveIn::LINES, PrimitiveOut::TRIANGLE_STRIP, 4)
-FRAGMENT_OUT(0, VEC4, fragColor)
-VERTEX_SOURCE("overlay_motion_path_line_vert.glsl")
-GEOMETRY_SOURCE("overlay_motion_path_line_geom.glsl")
-FRAGMENT_SOURCE("overlay_motion_path_line_frag.glsl")
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(draw_globals)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(overlay_motion_path_line_next)
 DO_STATIC_COMPILATION()
 STORAGE_BUF_FREQ(0, READ, float, pos[], GEOMETRY)
 PUSH_CONSTANT(IVEC2, gpu_attr_0)
@@ -252,23 +229,18 @@ PUSH_CONSTANT(INT, lineThickness) /* In pixels. */
 PUSH_CONSTANT(MAT4, camera_space_matrix)
 VERTEX_OUT(overlay_motion_path_line_iface)
 FRAGMENT_OUT(0, VEC4, fragColor)
-VERTEX_SOURCE("overlay_motion_path_line_next_vert.glsl")
+VERTEX_SOURCE("overlay_motion_path_line_vert.glsl")
 FRAGMENT_SOURCE("overlay_motion_path_line_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(overlay_motion_path_line_clipped)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(overlay_motion_path_line)
-ADDITIONAL_INFO(drw_clipped)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_INTERFACE_INFO(overlay_motion_path_point_iface)
 FLAT(VEC4, finalColor)
 GPU_SHADER_INTERFACE_END()
 
+/* TODO(pragma37): This used to have a clipped version. */
 GPU_SHADER_CREATE_INFO(overlay_motion_path_point)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.h")
@@ -285,12 +257,6 @@ VERTEX_SOURCE("overlay_motion_path_point_vert.glsl")
 FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(overlay_motion_path_point_clipped)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(overlay_motion_path_point)
-ADDITIONAL_INFO(drw_clipped)
 GPU_SHADER_CREATE_END()
 
 /** \} */
@@ -336,6 +302,7 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_image_depth_bias, overlay_image_depth_b
 /** \name GPencil Canvas
  * \{ */
 
+/* TODO(pragma37): This used to have a clipped version. */
 GPU_SHADER_CREATE_INFO(overlay_gpencil_canvas)
 DO_STATIC_COMPILATION()
 VERTEX_OUT(overlay_extra_iface)
@@ -350,12 +317,6 @@ VERTEX_SOURCE("overlay_edit_gpencil_canvas_vert.glsl")
 FRAGMENT_SOURCE("overlay_extra_frag.glsl")
 ADDITIONAL_INFO(draw_mesh)
 ADDITIONAL_INFO(draw_globals)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(overlay_gpencil_canvas_clipped)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(overlay_gpencil_canvas)
-ADDITIONAL_INFO(drw_clipped)
 GPU_SHADER_CREATE_END()
 
 /** \} */

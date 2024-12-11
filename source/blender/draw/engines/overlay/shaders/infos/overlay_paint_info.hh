@@ -90,37 +90,6 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_paint_texture)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name OVERLAY_shader_paint_vertcol.
- *
- * It should be used to draw a Vertex Paint overlay. But it is currently unreachable.
- * \{ */
-
-GPU_SHADER_INTERFACE_INFO(overlay_paint_vertcol_iface)
-SMOOTH(VEC3, finalColor)
-GPU_SHADER_INTERFACE_END()
-
-GPU_SHADER_CREATE_INFO(overlay_paint_vertcol)
-DO_STATIC_COMPILATION()
-VERTEX_IN(0, VEC3, pos)
-VERTEX_IN(1, VEC3, ac) /* Active color. */
-VERTEX_OUT(overlay_paint_vertcol_iface)
-PUSH_CONSTANT(FLOAT, opacity)      /* `1.0` by default. */
-PUSH_CONSTANT(BOOL, useAlphaBlend) /* `false` by default. */
-FRAGMENT_OUT(0, VEC4, fragColor)
-VERTEX_SOURCE("overlay_paint_vertcol_vert.glsl")
-FRAGMENT_SOURCE("overlay_paint_vertcol_frag.glsl")
-ADDITIONAL_INFO(draw_modelmat)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(overlay_paint_vertcol_clipped)
-ADDITIONAL_INFO(overlay_paint_vertcol)
-ADDITIONAL_INFO(drw_clipped)
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name OVERLAY_shader_paint_weight.
  *
  * Used to display Vertex Weights.

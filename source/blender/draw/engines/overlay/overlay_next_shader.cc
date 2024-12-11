@@ -65,6 +65,8 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
 
   mesh_analysis = static_clippable_shader("overlay_edit_mesh_analysis");
 
+  /* TODO(pragma37): These are initialized with `shader()` in the header.
+   * Are these the correct ones? */
   mesh_edit_face = static_clippable_shader("overlay_edit_mesh_face");
   mesh_edit_vert = static_clippable_shader("overlay_edit_mesh_vert");
   mesh_edit_depth = static_clippable_shader("overlay_edit_mesh_depth");
