@@ -3273,38 +3273,14 @@ static void add_subsurf_node_limit_surface_option(Main &bmain)
   }
 }
 
-static blender::Vector<bNode *> flatten_parent_tree(bNodeTree &ntree)
-{
-  using namespace blender;
-  VectorSet<bNode *> nodes;
-  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
-    Vector<bNode *> parents;
-    for (bNode *parent = node->parent; parent; parent = parent->parent) {
-      parents.append(parent);
-    }
-    std::reverse(parents.begin(), parents.end());
-    nodes.add_multiple(parents);
-    nodes.add(node);
-  }
-  Vector<bNode *> vector = nodes.extract_vector();
-  std::reverse(vector.begin(), vector.end());
-  return vector;
-}
-
 static void version_node_locations_to_global(bNodeTree &ntree)
 {
-  using namespace blender;
-  Vector<bNode *> nodes = flatten_parent_tree(ntree);
-
-  for (bNode *node : nodes) {
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
     node->location[0] = node->locx_legacy;
     node->location[1] = node->locy_legacy;
-  }
-
-  for (bNode *node : nodes) {
     for (const bNode *parent = node->parent; parent; parent = parent->parent) {
-      node->location[0] += parent->location[0];
-      node->location[1] += parent->location[1];
+      node->location[0] += parent->locx_legacy;
+      node->location[1] += parent->locy_legacy;
     }
 
     node->location[0] += node->offsetx_legacy;
@@ -5259,12 +5235,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /* Always run this versioning; data is written with the legacy format which always needs to
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 12)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      version_node_locations_to_global(*ntree);
+    }
+  }
+
+  /* Always run this versioning; meshes are written with the legacy format which always needs to
    * be converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
-  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-    version_node_locations_to_global(*ntree);
-  }
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
