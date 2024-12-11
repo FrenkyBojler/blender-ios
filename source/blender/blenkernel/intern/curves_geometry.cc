@@ -1466,6 +1466,7 @@ void CurvesGeometry::remove_attributes_based_on_types()
     attributes.remove(ATTR_NURBS_WEIGHT);
     attributes.remove(ATTR_NURBS_ORDER);
     attributes.remove(ATTR_NURBS_KNOTS_MODE);
+    attributes.remove(ATTR_NURBS_KNOT_SPAN);
   }
   if (!this->has_curve_with_type({CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
     attributes.remove(ATTR_RESOLUTION);
