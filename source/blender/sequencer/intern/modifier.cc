@@ -267,6 +267,11 @@ static void make_cb_table_sop(
 }
 
 struct ColorBalanceApplyOp {
+  int method;
+  float3 lift, gain, gamma;
+  float3 slope, offset, power;
+  float multiplier;
+  float lut[3][CB_TABLE_SIZE];
 
   /* Apply on a byte image via a table lookup. */
   template<typename MaskT> void apply(uchar *image, const MaskT *mask, IndexRange size)
@@ -278,9 +283,9 @@ struct ColorBalanceApplyOp {
       int p0 = int(input.x * (CB_TABLE_SIZE - 1.0f) + 0.5f);
       int p1 = int(input.y * (CB_TABLE_SIZE - 1.0f) + 0.5f);
       int p2 = int(input.z * (CB_TABLE_SIZE - 1.0f) + 0.5f);
-      result.x = cb_tab[0][p0];
-      result.y = cb_tab[1][p1];
-      result.z = cb_tab[2][p2];
+      result.x = this->lut[0][p0];
+      result.y = this->lut[1][p1];
+      result.z = this->lut[2][p2];
       result.w = input.w;
 
       apply_and_advance_mask(input, result, mask);
@@ -292,15 +297,18 @@ struct ColorBalanceApplyOp {
   /* Apply on a float image by doing full math. */
   template<typename MaskT> void apply(float *image, const MaskT *mask, IndexRange size)
   {
-    if (cb_method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
+    if (this->method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
       /* Lift/Gamma/Gain */
       for ([[maybe_unused]] int64_t i : size) {
         float4 input = load_pixel_premul(image);
 
         float4 result;
-        result.x = color_balance_lgg(input.x, lift.x, gain.x, gamma.x, mul);
-        result.y = color_balance_lgg(input.y, lift.y, gain.y, gamma.y, mul);
-        result.z = color_balance_lgg(input.z, lift.z, gain.z, gamma.z, mul);
+        result.x = color_balance_lgg(
+            input.x, this->lift.x, this->gain.x, this->gamma.x, this->multiplier);
+        result.y = color_balance_lgg(
+            input.y, this->lift.y, this->gain.y, this->gamma.y, this->multiplier);
+        result.z = color_balance_lgg(
+            input.z, this->lift.z, this->gain.z, this->gamma.z, this->multiplier);
         result.w = input.w;
 
         apply_and_advance_mask(input, result, mask);
@@ -308,15 +316,18 @@ struct ColorBalanceApplyOp {
         image += 4;
       }
     }
-    else if (cb_method == SEQ_COLOR_BALANCE_METHOD_SLOPEOFFSETPOWER) {
+    else if (this->method == SEQ_COLOR_BALANCE_METHOD_SLOPEOFFSETPOWER) {
       /* Slope/Offset/Power */
       for ([[maybe_unused]] int64_t i : size) {
         float4 input = load_pixel_premul(image);
 
         float4 result;
-        result.x = color_balance_sop(input.x, slope.x, offset.x, power.x, mul);
-        result.y = color_balance_sop(input.y, slope.y, offset.y, power.y, mul);
-        result.z = color_balance_sop(input.z, slope.z, offset.z, power.z, mul);
+        result.x = color_balance_sop(
+            input.x, this->slope.x, this->offset.x, this->power.x, this->multiplier);
+        result.y = color_balance_sop(
+            input.y, this->slope.y, this->offset.y, this->power.y, this->multiplier);
+        result.z = color_balance_sop(
+            input.z, this->slope.z, this->offset.z, this->power.z, this->multiplier);
         result.w = input.w;
 
         apply_and_advance_mask(input, result, mask);
@@ -333,26 +344,26 @@ struct ColorBalanceApplyOp {
   {
     BLI_assert(data.method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN);
 
-    lift = 2.0f - float3(data.lift);
+    this->lift = 2.0f - float3(data.lift);
     if (data.flag & SEQ_COLOR_BALANCE_INVERSE_LIFT) {
       for (int c = 0; c < 3; c++) {
         /* tweak to give more subtle results
          * values above 1.0 are scaled */
-        if (lift[c] > 1.0f) {
-          lift[c] = powf(lift[c] - 1.0f, 2.0f) + 1.0f;
+        if (this->lift[c] > 1.0f) {
+          this->lift[c] = powf(this->lift[c] - 1.0f, 2.0f) + 1.0f;
         }
-        lift[c] = 2.0f - lift[c];
+        this->lift[c] = 2.0f - this->lift[c];
       }
     }
 
-    gain = float3(data.gain);
+    this->gain = float3(data.gain);
     if (data.flag & SEQ_COLOR_BALANCE_INVERSE_GAIN) {
-      gain = math::rcp(math::max(gain, float3(1.0e-6f)));
+      this->gain = math::rcp(math::max(this->gain, float3(1.0e-6f)));
     }
 
-    gamma = float3(data.gamma);
+    this->gamma = float3(data.gamma);
     if (!(data.flag & SEQ_COLOR_BALANCE_INVERSE_GAMMA)) {
-      gamma = math::rcp(math::max(gamma, float3(1.0e-6f)));
+      this->gamma = math::rcp(math::max(this->gamma, float3(1.0e-6f)));
     }
   }
 
@@ -360,40 +371,42 @@ struct ColorBalanceApplyOp {
   {
     BLI_assert(data.method == SEQ_COLOR_BALANCE_METHOD_SLOPEOFFSETPOWER);
 
-    slope = float3(data.slope);
+    this->slope = float3(data.slope);
     if (data.flag & SEQ_COLOR_BALANCE_INVERSE_SLOPE) {
-      slope = math::rcp(math::max(slope, float3(1.0e-6f)));
+      this->slope = math::rcp(math::max(this->slope, float3(1.0e-6f)));
     }
 
-    offset = float3(data.offset) - 1.0f;
+    this->offset = float3(data.offset) - 1.0f;
     if (data.flag & SEQ_COLOR_BALANCE_INVERSE_OFFSET) {
-      offset = -offset;
+      this->offset = -this->offset;
     }
 
-    power = float3(data.power);
+    this->power = float3(data.power);
     if (!(data.flag & SEQ_COLOR_BALANCE_INVERSE_POWER)) {
-      power = math::rcp(math::max(power, float3(1.0e-6f)));
+      this->power = math::rcp(math::max(this->power, float3(1.0e-6f)));
     }
   }
 
   void init(const ColorBalanceModifierData &data, bool byte_image)
   {
-    mul = data.color_multiply;
-    cb_method = data.color_balance.method;
+    this->multiplier = data.color_multiply;
+    this->method = data.color_balance.method;
 
-    if (cb_method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
+    if (this->method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
       init_lgg(data.color_balance);
       if (byte_image) {
         for (int c = 0; c < 3; c++) {
-          make_cb_table_lgg(lift[c], gain[c], gamma[c], mul, cb_tab[c]);
+          make_cb_table_lgg(
+              this->lift[c], this->gain[c], this->gamma[c], this->multiplier, this->lut[c]);
         }
       }
     }
-    else if (cb_method == SEQ_COLOR_BALANCE_METHOD_SLOPEOFFSETPOWER) {
+    else if (this->method == SEQ_COLOR_BALANCE_METHOD_SLOPEOFFSETPOWER) {
       init_sop(data.color_balance);
       if (byte_image) {
         for (int c = 0; c < 3; c++) {
-          make_cb_table_sop(slope[c], offset[c], power[c], mul, cb_tab[c]);
+          make_cb_table_sop(
+              this->slope[c], this->offset[c], this->power[c], this->multiplier, this->lut[c]);
         }
       }
     }
@@ -401,13 +414,6 @@ struct ColorBalanceApplyOp {
       BLI_assert_unreachable();
     }
   }
-
-  float cb_tab[3][CB_TABLE_SIZE];
-
-  int cb_method;
-  float3 lift, gain, gamma;
-  float3 slope, offset, power;
-  float mul;
 };
 
 static void colorBalance_init_data(SequenceModifierData *smd)
@@ -462,6 +468,8 @@ static void whiteBalance_init_data(SequenceModifierData *smd)
 }
 
 struct WhiteBalanceApplyOp {
+  float multiplier[3];
+
   template<typename ImageT, typename MaskT>
   void apply(ImageT *image, const MaskT *mask, IndexRange size)
   {
@@ -479,7 +487,7 @@ struct WhiteBalanceApplyOp {
          * breaks down overall with any HDR colors; would be good to
          * revisit and do something more proper. */
         float f = max_ff(1.0f - input[i], 0.0f);
-        result[i] = 1.0f - powf(f, multiplier[i]);
+        result[i] = 1.0f - powf(f, this->multiplier[i]);
       }
 #endif
 
@@ -488,8 +496,6 @@ struct WhiteBalanceApplyOp {
       image += 4;
     }
   }
-
-  float multiplier[3];
 };
 
 static void whiteBalance_apply(const StripScreenQuad & /*quad*/,
@@ -545,6 +551,8 @@ static void curves_copy_data(SequenceModifierData *target, SequenceModifierData 
 }
 
 struct CurvesApplyOp {
+  const CurveMapping *curve_mapping;
+
   template<typename ImageT, typename MaskT>
   void apply(ImageT *image, const MaskT *mask, IndexRange size)
   {
@@ -552,7 +560,7 @@ struct CurvesApplyOp {
       float4 input = load_pixel_premul(image);
 
       float4 result;
-      BKE_curvemapping_evaluate_premulRGBF(curve_mapping, result, input);
+      BKE_curvemapping_evaluate_premulRGBF(this->curve_mapping, result, input);
       result.w = input.w;
 
       apply_and_advance_mask(input, result, mask);
@@ -560,8 +568,6 @@ struct CurvesApplyOp {
       image += 4;
     }
   }
-
-  const CurveMapping *curve_mapping;
 };
 
 static void curves_apply(const StripScreenQuad & /*quad*/,
@@ -637,6 +643,8 @@ static void hue_correct_copy_data(SequenceModifierData *target, SequenceModifier
 }
 
 struct HueCorrectApplyOp {
+  const CurveMapping *curve_mapping;
+
   template<typename ImageT, typename MaskT>
   void apply(ImageT *image, const MaskT *mask, IndexRange size)
   {
@@ -652,15 +660,15 @@ struct HueCorrectApplyOp {
 
       /* adjust hue, scaling returned default 0.5 up to 1 */
       float f;
-      f = BKE_curvemapping_evaluateF(curve_mapping, 0, hsv.x);
+      f = BKE_curvemapping_evaluateF(this->curve_mapping, 0, hsv.x);
       hsv.x += f - 0.5f;
 
       /* adjust saturation, scaling returned default 0.5 up to 1 */
-      f = BKE_curvemapping_evaluateF(curve_mapping, 1, hsv.x);
+      f = BKE_curvemapping_evaluateF(this->curve_mapping, 1, hsv.x);
       hsv.y *= (f * 2.0f);
 
       /* adjust value, scaling returned default 0.5 up to 1 */
-      f = BKE_curvemapping_evaluateF(curve_mapping, 2, hsv.x);
+      f = BKE_curvemapping_evaluateF(this->curve_mapping, 2, hsv.x);
       hsv.z *= (f * 2.0f);
 
       hsv.x = hsv.x - floorf(hsv.x); /* mod 1.0 */
@@ -674,8 +682,6 @@ struct HueCorrectApplyOp {
       image += 4;
     }
   }
-
-  const CurveMapping *curve_mapping;
 };
 
 static void hue_correct_apply(const StripScreenQuad & /*quad*/,
@@ -709,6 +715,9 @@ static SequenceModifierTypeInfo seqModifier_HueCorrect = {
  * \{ */
 
 struct BrightContrastApplyOp {
+  float mul;
+  float add;
+
   template<typename ImageT, typename MaskT>
   void apply(ImageT *image, const MaskT *mask, IndexRange size)
   {
@@ -718,7 +727,7 @@ struct BrightContrastApplyOp {
       float4 input = load_pixel_raw(image);
 
       float4 result;
-      result = input * factorA + factorB;
+      result = input * this->mul + this->add;
       result.w = input.w;
 
       apply_and_advance_mask(input, result, mask);
@@ -726,9 +735,6 @@ struct BrightContrastApplyOp {
       image += 4;
     }
   }
-
-  float factorA;
-  float factorB;
 };
 
 static void brightcontrast_apply(const StripScreenQuad & /*quad*/,
@@ -748,14 +754,14 @@ static void brightcontrast_apply(const StripScreenQuad & /*quad*/,
   float delta = contrast / 200.0f;
 
   if (contrast > 0) {
-    op.factorA = 1.0f - delta * 2.0f;
-    op.factorA = 1.0f / max_ff(op.factorA, FLT_EPSILON);
-    op.factorB = op.factorA * (brightness - delta);
+    op.mul = 1.0f - delta * 2.0f;
+    op.mul = 1.0f / max_ff(op.mul, FLT_EPSILON);
+    op.add = op.mul * (brightness - delta);
   }
   else {
     delta *= -1;
-    op.factorA = max_ff(1.0f - delta * 2.0f, 0.0f);
-    op.factorB = op.factorA * brightness + delta;
+    op.mul = max_ff(1.0f - delta * 2.0f, 0.0f);
+    op.add = op.mul * brightness + delta;
   }
 
   apply_modifier_op(op, ibuf, mask);
