@@ -556,7 +556,7 @@ class AttributeAccessor {
   /**
    * \return The required domain and type for the attribute, if it is builtin.
    */
-  std::optional<AttributeDomainAndType> is_builtin_domain_and_type(const StringRef name) const
+  std::optional<AttributeDomainAndType> get_builtin_domain_and_type(const StringRef name) const
   {
     return fn_->builtin_domain_and_type(owner_, name);
   }

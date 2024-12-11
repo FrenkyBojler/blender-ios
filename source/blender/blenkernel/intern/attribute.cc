@@ -227,7 +227,7 @@ static bool name_valid_for_builtin_domain_and_type(
     const eCustomDataType data_type,
     ReportList *reports)
 {
-  if (const std::optional metadata = attributes.is_builtin_domain_and_type(name)) {
+  if (const std::optional metadata = attributes.get_builtin_domain_and_type(name)) {
     if (domain != metadata->domain) {
       BKE_reportf(reports, RPT_ERROR, "Domain unsupported for \"%s\" attribute", name.c_str());
       return false;
