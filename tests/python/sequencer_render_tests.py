@@ -8,7 +8,7 @@
 #    * Output Path should be empty and File Format set to PNG
 #    * Each .blend is used to render 1 frame
 #  * Add [your_test] entry to "SEQUENCER RENDER TESTS" section in tests/python/CMakeLists.txt
-#  * Run BLENDER_TEST_UPDATE=1 ctest -R [your_test] to generate reference images
+#  * Run `BLENDER_TEST_UPDATE=1 ctest -R [your_test]` to generate reference images
 
 import argparse
 import os
