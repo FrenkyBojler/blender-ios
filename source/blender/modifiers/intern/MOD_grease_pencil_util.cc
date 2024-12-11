@@ -195,7 +195,7 @@ static Vector<int> get_grease_pencil_material_passes(const Object *ob)
   for (short i = 0; i < *totcol; i++) {
     ma = BKE_object_material_get(const_cast<Object *>(ob), i + 1);
     if (UNLIKELY(!ma)) {
-      /* When material isn't a grease pencil material, `ma` could be nullptr. */
+      /* When a material slot isn't assigned, `ma` could be nullptr. */
       result[i] = 0;
       continue;
     }
