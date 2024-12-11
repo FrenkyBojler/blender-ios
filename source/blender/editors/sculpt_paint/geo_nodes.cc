@@ -27,23 +27,6 @@
 namespace blender::ed::sculpt_paint {
 
 /* TODO: move to more appropriate file */
-static float4x4 calc_local_space_matrix(StrokeCache& cache)
-{
-  float4x4 mat = float4x4::identity();
-  mat.x_axis() = math::cross(cache.sculpt_normal_symm, cache.grab_delta_symm);
-  mat.y_axis() = math::cross(cache.sculpt_normal_symm, float3(mat[0]));
-  mat.z_axis() = cache.sculpt_normal_symm;
-  mat.location() = cache.sculpt_center_symm;
-  mat = math::normalize(mat);
-
-  float4x4 scale = math::from_scale<float4x4>(float3(cache.radius));
-  float4x4 scaled_mat = mat * scale;
-  float4x4 inv_mat = math::invert(scaled_mat);
-
-  return inv_mat;
-}
-
-/* TODO: move to more appropriate file */
 static float4x4 calc_texture_space_matrix(StrokeCache& cache)
 {
   float4x4 mat = math::from_location<float4x4>(float3(0.5f, 0.5f, 0.0f));
@@ -117,7 +100,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_data.strength = cache.bstrength;
   sculpt_data.is_first_step = cache.first_time;
   sculpt_data.step = cache.step;
-  sculpt_data.local_transform = calc_local_space_matrix(cache);
+  sculpt_data.local_transform = calc_local_space_matrix(cache, cache.sculpt_center_symm);
   sculpt_data.texture_transform = calc_texture_space_matrix(cache);
   sculpt_data.depsgraph = &depsgraph;
   sculpt_data.self_object = &object;

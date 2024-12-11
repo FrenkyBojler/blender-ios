@@ -2367,6 +2367,45 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
   return dist_sq < radius_sq || true;
 }
 
+/* TODO: try to replace with existing AABB intersection tests */
+bool node_in_cube(const bke::pbvh::Node &node, const float4x4 &mat)
+{
+  const Bounds<float3> bounds = bke::pbvh::node_bounds(node);
+
+  Array<float3, 8> corners = { float3(bounds.min.x, bounds.min.y, bounds.min.z),
+                                   float3(bounds.min.x, bounds.min.y, bounds.max.z),
+                                   float3(bounds.min.x, bounds.max.y, bounds.min.z),
+                                   float3(bounds.min.x, bounds.max.y, bounds.max.z),
+                                   float3(bounds.max.x, bounds.min.y, bounds.min.z),
+                                   float3(bounds.max.x, bounds.min.y, bounds.max.z),
+                                   float3(bounds.max.x, bounds.max.y, bounds.min.z),
+                                   float3(bounds.max.x, bounds.max.y, bounds.max.z) };
+
+  /* convert node bounding box corners to local brush coordinates */
+  for (float3& corner : corners) {
+    corner = math::transform_point(mat, corner);
+  }
+
+  float node_min_x = corners[0].x, node_max_x = corners[0].x;
+  float node_min_y = corners[0].y, node_max_y = corners[0].y;
+  float node_min_z = corners[0].z, node_max_z = corners[0].z;
+
+  for (const float3& corner : corners) {
+    node_min_x = std::min(node_min_x, corner.x);
+    node_max_x = std::max(node_max_x, corner.x);
+    node_min_y = std::min(node_min_y, corner.y);
+    node_max_y = std::max(node_max_y, corner.y);
+    node_min_z = std::min(node_min_z, corner.z);
+    node_max_z = std::max(node_max_z, corner.z);
+  }
+
+  const bool overlap_x = (-1.0f <= node_max_x && 1.0f >= node_min_x);
+  const bool overlap_y = (-1.0f <= node_max_y && 1.0f >= node_min_y);
+  const bool overlap_z = (-1.0f <= node_max_z && 1.0f >= node_min_z);
+
+  return overlap_x && overlap_y && overlap_z;
+}
+
 static IndexMask pbvh_gather_cursor_update(Object &ob, bool use_original, IndexMaskMemory &memory)
 {
   SculptSession &ss = *ob.sculpt;
@@ -3004,7 +3043,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   mul_m4_v3(ob.object_to_world().ptr(), location);
 }
 
-static void push_undo_nodes(const Depsgraph &depsgraph,
+void push_undo_nodes(const Depsgraph &depsgraph,
                             Object &ob,
                             const Brush &brush,
                             const IndexMask &node_mask)
@@ -3133,7 +3172,10 @@ static void do_brush_action(const Depsgraph &depsgraph,
   float location[3];
 
   if (!use_pixels) {
-    push_undo_nodes(depsgraph, ob, brush, node_mask);
+    /* Barebone brush might either have a different plane origin or a cubic shape. Therefore, it uses a different node mask */
+    if (brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_BAREBONE) {
+      push_undo_nodes(depsgraph, ob, brush, node_mask);
+    }
   }
 
   if (sculpt_brush_needs_normal(ss, sd, brush)) {
@@ -7662,6 +7704,22 @@ void calc_brush_radius_factors(const Brush& brush,
       }
       break;
   }
+}
+
+float4x4 calc_local_space_matrix(StrokeCache& cache, const float3& origin)
+{
+  float4x4 mat = float4x4::identity();
+  mat.x_axis() = math::cross(cache.sculpt_normal_symm, cache.grab_delta_symm);
+  mat.y_axis() = math::cross(cache.sculpt_normal_symm, float3(mat[0]));
+  mat.z_axis() = cache.sculpt_normal_symm;
+  mat.location() = origin;
+  mat = math::normalize(mat);
+
+  float4x4 scale = math::from_scale<float4x4>(float3(cache.radius));
+  float4x4 scaled_mat = mat * scale;
+  float4x4 inv_mat = math::invert(scaled_mat);
+
+  return inv_mat;
 }
 
 }  // namespace blender::ed::sculpt_paint

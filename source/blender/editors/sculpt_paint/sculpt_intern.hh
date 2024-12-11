@@ -973,11 +973,19 @@ BLI_INLINE bool SCULPT_brush_type_is_attribute_only(int tool)
 
 namespace blender::ed::sculpt_paint {
 void ensure_valid_pivot(const Object &ob, Scene &scene);
-}
 
-namespace blender::ed::sculpt_paint {
 float sculpt_calc_radius(const ViewContext &vc,
                          const Brush &brush,
                          const Scene &scene,
                          float3 location);
+
+float4x4 calc_local_space_matrix(StrokeCache& cache, const float3& origin);
+
+bool node_in_cube(const bke::pbvh::Node& node,
+                  const float4x4& mat);
+
+void push_undo_nodes(const Depsgraph& depsgraph,
+                    Object& ob,
+                    const Brush& brush,
+                    const IndexMask& node_mask);
 }
