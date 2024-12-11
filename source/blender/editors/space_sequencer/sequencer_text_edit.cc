@@ -6,7 +6,6 @@
  * \ingroup spseq
  */
 
-#include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.hh"
@@ -15,6 +14,7 @@
 #include "BLI_string_utf8.h"
 
 #include "DNA_scene_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BKE_context.hh"
 
@@ -829,7 +829,7 @@ static int sequencer_text_edit_paste_exec(bContext *C, wmOperator * /*op*/)
   std::memmove(cursor_addr + clipboard_len, cursor_addr, move_len);
   std::memcpy(cursor_addr, clipboard_buf, clipboard_len);
 
-  data->cursor_offset += clipboard_len;
+  data->cursor_offset += BLI_strlen_utf8(clipboard_buf);
 
   text_editing_update(C);
   return OPERATOR_FINISHED;
