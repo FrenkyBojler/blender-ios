@@ -1011,6 +1011,7 @@ class SEQUENCER_MT_strip(Menu):
 
         layout.separator()
         layout.operator("sequencer.delete", text="Delete")
+        layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
 
         strip = context.active_sequence_strip
 
