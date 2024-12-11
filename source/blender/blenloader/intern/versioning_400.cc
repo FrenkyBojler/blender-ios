@@ -5249,6 +5249,9 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           continue;
         }
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(modifier);
+        if (!nmd->settings.properties) {
+          continue;
+        }
         LISTBASE_FOREACH (IDProperty *, idprop, &nmd->settings.properties->data.group) {
           if (idprop->type != IDP_STRING) {
             continue;
