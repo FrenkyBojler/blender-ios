@@ -47,7 +47,6 @@ set(SRC
   curves_sculpt_slide.cc
   curves_sculpt_smooth.cc
   curves_sculpt_snake_hook.cc
-  geo_nodes.cc
   grease_pencil_draw_ops.cc
   grease_pencil_erase.cc
   grease_pencil_fill.cc
@@ -111,6 +110,7 @@ set(SRC
   sculpt_gesture.cc
   sculpt_hide.cc
   sculpt_mask_init.cc
+  sculpt_nodes_evaluation.cc
   sculpt_ops.cc
   sculpt_paint_color.cc
   sculpt_paint_image.cc
@@ -123,7 +123,6 @@ set(SRC
   sculpt_uv.cc
 
   curves_sculpt_intern.hh
-  geo_nodes.hh
   grease_pencil_intern.hh
   grease_pencil_trace_util.hh
   grease_pencil_weight_paint.hh
@@ -145,6 +144,7 @@ set(SRC
   sculpt_hide.hh
   sculpt_intern.hh
   sculpt_islands.hh
+  sculpt_nodes_evaluation.hh
   sculpt_pose.hh
   sculpt_smooth.hh
   sculpt_undo.hh

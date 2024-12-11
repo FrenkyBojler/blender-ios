@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_brush_types.h"
+
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
@@ -23,6 +25,7 @@
 #include "FN_lazy_function_execute.hh"
 
 #include "editors/sculpt_paint/sculpt_intern.hh"
+#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 
 namespace blender::ed::sculpt_paint {
 
@@ -64,11 +67,11 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
   nodes::GeoNodesSculptData sculpt_data;
   sculpt_data.plane_normal = cache.sculpt_normal_symm;
-  sculpt_data.plane_center = cache.location_symm;
+  sculpt_data.plane_center = cache.sculpt_center_symm;
   sculpt_data.cursor_location = cache.location_symm;
   sculpt_data.pen_pressure = cache.pressure;
   sculpt_data.radius = cache.radius;
-  sculpt_data.strength = brush.strength;
+  sculpt_data.strength = brush.alpha;
   sculpt_data.is_first_step = cache.first_time;
   sculpt_data.step = cache.step;
   sculpt_data.local_transform = calc_local_space_matrix(cache, cache.sculpt_center_symm);
@@ -182,18 +185,18 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_nodes_evaluate<T>(depsgraph, object, brush, cache, context, translations);
 }
 
-template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
-                                Object& object,
-                                const Brush& brush,
-                                StrokeCache& cache,
+template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph &depsgraph,
+                                Object &object,
+                                const Brush &brush,
+                                StrokeCache &cache,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
                                 MutableSpan<float3> translations);
 
 template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
-                                Object& object,
-                                const Brush& brush,
-                                StrokeCache& cache,
+                                Object &object,
+                                const Brush &brush,
+                                StrokeCache &cache,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
                                 MutableSpan<float3> factors);
@@ -213,20 +216,20 @@ void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 }
 
 
-template void grids_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
-                                Object& object,
-                                const Brush& brush,
-                                StrokeCache& cache,
-                                SubdivCCG& subdiv_ccg,
+template void grids_sculpt_nodes_evaluate<float3>(const Depsgraph &depsgraph,
+                                Object &object,
+                                const Brush &brush,
+                                StrokeCache &cache,
+                                SubdivCCG &subdiv_ccg,
                                 Span<int> grids,
                                 Span<float3> positions,
                                 MutableSpan<float3> translations);
 
-template void grids_sculpt_nodes_evaluate<float>(const Depsgraph& depsgraph,
-                                Object& object,
-                                const Brush& brush,
-                                StrokeCache& cache,
-                                SubdivCCG& subdiv_ccg,
+template void grids_sculpt_nodes_evaluate<float>(const Depsgraph &depsgraph,
+                                Object &object,
+                                const Brush &brush,
+                                StrokeCache &cache,
+                                SubdivCCG &subdiv_ccg,
                                 Span<int> grids,
                                 Span<float3> positions,
                                 MutableSpan<float> factors);
@@ -234,7 +237,7 @@ template void grids_sculpt_nodes_evaluate<float>(const Depsgraph& depsgraph,
 template <typename T>
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
-                                 const Brush& brush,
+                                 const Brush &brush,
                                  StrokeCache &cache,
                                  const Set<BMVert *, 0> &verts,
                                  Span<float3> positions,
@@ -244,19 +247,19 @@ void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_nodes_evaluate<T>(depsgraph, object, brush, cache, context, translations);
 }
 
-template void bmesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
-                                                  Object& object,
-                                                  const Brush& brush,
-                                                  StrokeCache& cache,
-                                                  const Set<BMVert*, 0>& verts,
+template void bmesh_sculpt_nodes_evaluate<float3>(const Depsgraph &depsgraph,
+                                                  Object &object,
+                                                  const Brush &brush,
+                                                  StrokeCache &cache,
+                                                  const Set<BMVert*, 0> &verts,
                                                   Span<float3> positions,
                                                   MutableSpan<float3> translations);
 
-template void bmesh_sculpt_nodes_evaluate<float>(const Depsgraph& depsgraph,
-                                                  Object& object,
-                                                  const Brush& brush,
-                                                  StrokeCache& cache,
-                                                  const Set<BMVert*, 0>& verts,
+template void bmesh_sculpt_nodes_evaluate<float>(const Depsgraph &depsgraph,
+                                                  Object &object,
+                                                  const Brush &brush,
+                                                  StrokeCache &cache,
+                                                  const Set<BMVert*, 0> &verts,
                                                   Span<float3> positions,
                                                   MutableSpan<float> factors);
 

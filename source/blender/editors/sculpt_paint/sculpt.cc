@@ -2111,7 +2111,7 @@ static float brush_strength(const Sculpt &sd,
       overlap = (1.0f + overlap) / 2.0f;
       return 0.25f * alpha * flip * final_pressure * overlap * feather;
     case SCULPT_BRUSH_TYPE_BAREBONE:
-      return alpha * pressure * overlap * feather;
+      return overlap * feather;
     case SCULPT_BRUSH_TYPE_BASIC:
     case SCULPT_BRUSH_TYPE_DRAW:
     case SCULPT_BRUSH_TYPE_DRAW_SHARP:
