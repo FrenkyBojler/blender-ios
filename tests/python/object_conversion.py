@@ -135,7 +135,7 @@ def main():
         ConversionPair('Curves 5', 'Suzanne', 'CURVES', 'CURVES'),
         ConversionPair('Curves 6', 'BezierCircle', 'CURVES', 'CURVES'),
         ConversionPair('Curves 7', 'BezierCurve', 'CURVES', 'CURVES'),
-        ConversionPair('Curves 8', 'Text', 'CURVES', 'GREASEPENCIL'),
+        ConversionPair('Curves 8', 'Text', 'CURVES', 'CURVES'),
         ConversionPair('GreasePencil 1', 'Cube', 'GREASEPENCIL', 'MESH'),
         ConversionPair('GreasePencil 2', 'CubeWithEdges', 'GREASEPENCIL', 'MESH'),
         ConversionPair('GreasePencil 3', 'Plane', 'GREASEPENCIL', 'MESH'),
