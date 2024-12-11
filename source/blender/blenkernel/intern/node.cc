@@ -670,28 +670,9 @@ static void cleanup_legacy_sockets(bNodeTree *ntree)
   BLI_listbase_clear(&ntree->outputs_legacy);
 }
 
-static blender::Vector<bNode *> flatten_parent_tree(bNodeTree &ntree)
-{
-  using namespace blender;
-  VectorSet<bNode *> nodes;
-  nodes.reserve(ntree.all_nodes().size());
-  for (bNode *node : ntree.all_nodes()) {
-    Vector<bNode *> parents;
-    for (bNode *parent = node->parent; parent; parent = parent->parent) {
-      parents.append(parent);
-    }
-    std::reverse(parents.begin(), parents.end());
-    nodes.add_multiple(parents);
-    nodes.add(node);
-  }
-  Vector<bNode *> vector = nodes.extract_vector();
-  std::reverse(vector.begin(), vector.end());
-  return vector;
-}
-
 static void update_node_location_legacy(bNodeTree &ntree)
 {
-  for (bNode *node : flatten_parent_tree(ntree)) {
+  for (bNode *node : ntree.all_nodes()) {
     node->locx_legacy = node->location[0];
     node->locy_legacy = node->location[1];
     if (const bNode *parent = node->parent) {
