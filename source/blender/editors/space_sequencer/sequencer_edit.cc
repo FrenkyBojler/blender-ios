@@ -1653,6 +1653,8 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_get(scene);
+  // get region for checking if the operator is called from preview
+  ARegion *region = CTX_wm_region(C);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
@@ -1693,6 +1695,14 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
     SEQ_animation_duplicate_backup_to_scene(scene, seq, &animation_backup);
     SEQ_ensure_unique_name(seq, scene);
+    // check if the operator is called from preview
+    if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C))
+    {
+      // if called from preview handle overlap
+      if (SEQ_transform_test_overlap(scene, ed->seqbasep, seq)) {
+        SEQ_transform_seqbase_shuffle(ed->seqbasep, seq, scene);
+      }
+    }
   }
 
   SEQ_animation_restore_original(scene, &animation_backup);
