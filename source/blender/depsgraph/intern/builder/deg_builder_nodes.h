@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_span.hh"
+#include "BLI_struct_equality_utils.hh"
 
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_key.h"
@@ -159,6 +160,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   OperationNode *find_operation_node(const OperationKey &key);
 
   virtual void build_id(ID *id, bool force_be_visible = false);
+  virtual void build_id_impl(ID *id, bool force_be_visible);
 
   /* Build function for ID types that do not need their own build_xxx() function. */
   virtual void build_generic_id(ID *id);
@@ -294,6 +296,20 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
     /* Mesh CustomData mask from the previous depsgraph. */
     DEGCustomDataMeshMasks previous_customdata_masks;
   };
+
+  struct DeferredID {
+    ID *id;
+    bool force_be_visible;
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(DeferredID, id, force_be_visible)
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->id, this->force_be_visible);
+    }
+  };
+
+  std::optional<VectorSet<DeferredID>> deferred_ids_to_build_;
 
  protected:
   /* Entry tags and non-updated operations from the previous state of the dependency graph.

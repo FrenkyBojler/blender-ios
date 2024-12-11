@@ -19,6 +19,7 @@
 
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_struct_equality_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "intern/builder/deg_builder.h"
@@ -120,6 +121,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   void add_special_eval_flag(ID *id, uint32_t flag);
 
   virtual void build_id(ID *id);
+  virtual void build_id_impl(ID *id);
 
   /* Build function for ID types that do not need their own build_xxx() function. */
   virtual void build_generic_id(ID *id);
@@ -346,6 +348,8 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   BuilderMap built_map_;
   RNANodeQuery rna_node_query_;
   BuilderStack stack_;
+
+  std::optional<VectorSet<ID *>> deferred_ids_to_build_;
 };
 
 struct DepsNodeHandle {

@@ -515,7 +515,22 @@ void DepsgraphRelationBuilder::build_id(ID *id)
   if (id == nullptr) {
     return;
   }
+  const bool is_root = !deferred_ids_to_build_.has_value();
+  if (is_root) {
+    deferred_ids_to_build_.emplace();
+  }
+  deferred_ids_to_build_->add(id);
+  if (is_root) {
+    while (!deferred_ids_to_build_->is_empty()) {
+      ID *deferred_id = deferred_ids_to_build_->pop();
+      this->build_id_impl(deferred_id);
+    }
+    deferred_ids_to_build_.reset();
+  }
+}
 
+void DepsgraphRelationBuilder::build_id_impl(ID *id)
+{
   const ID_Type id_type = GS(id->name);
   switch (id_type) {
     case ID_AC:

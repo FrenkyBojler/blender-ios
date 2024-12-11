@@ -567,7 +567,22 @@ void DepsgraphNodeBuilder::build_id(ID *id, const bool force_be_visible)
   if (id == nullptr) {
     return;
   }
+  const bool is_root = !deferred_ids_to_build_.has_value();
+  if (is_root) {
+    deferred_ids_to_build_.emplace();
+  }
+  deferred_ids_to_build_->add({id, force_be_visible});
+  if (is_root) {
+    while (!deferred_ids_to_build_->is_empty()) {
+      const DeferredID deferred_id = deferred_ids_to_build_->pop();
+      this->build_id_impl(deferred_id.id, deferred_id.force_be_visible);
+    }
+    deferred_ids_to_build_.reset();
+  }
+}
 
+void DepsgraphNodeBuilder::build_id_impl(ID *id, const bool force_be_visible)
+{
   const ID_Type id_type = GS(id->name);
   switch (id_type) {
     case ID_AC:
