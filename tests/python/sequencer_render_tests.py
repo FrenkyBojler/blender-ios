@@ -3,6 +3,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# Quick guide for adding tests:
+#  * Add .blend file(s) to tests/data/sequence_editing/[your_test]/
+#    * Output Path should be empty and File Format set to PNG
+#    * Each .blend is used to render 1 frame
+#  * Add [your_test] entry to "SEQUENCER RENDER TESTS" section in tests/python/CMakeLists.txt
+#  * Run BLENDER_TEST_UPDATE=1 ctest -R [your_test] to generate reference images
+
 import argparse
 import os
 import sys
