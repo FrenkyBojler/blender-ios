@@ -3273,6 +3273,40 @@ static void add_subsurf_node_limit_surface_option(Main &bmain)
   }
 }
 
+static void rename_mesh_uv_seam_attribute(Mesh &mesh)
+{
+  using namespace blender;
+  /* Skip renaming the ".uv_seam" attribute if a "uv_seam" attribute already exists. In the
+   * unlikely case a user already made an attribute with the new name, it's probably better to use
+   * that instead. */
+  for (const CustomDataLayer &layer : Span(mesh.vert_data.layers, mesh.vert_data.totlayer)) {
+    if (STREQ(layer.name, "uv_seam")) {
+      return;
+    }
+  }
+  for (const CustomDataLayer &layer : Span(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
+    if (STREQ(layer.name, "uv_seam")) {
+      return;
+    }
+  }
+  for (const CustomDataLayer &layer : Span(mesh.face_data.layers, mesh.face_data.totlayer)) {
+    if (STREQ(layer.name, "uv_seam")) {
+      return;
+    }
+  }
+  for (const CustomDataLayer &layer : Span(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
+    if (STREQ(layer.name, "uv_seam")) {
+      return;
+    }
+  }
+  for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      STRNCPY(layer.name, "uv_seam");
+      return;
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5224,14 +5258,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
-    for (CustomDataLayer &layer :
-         blender::MutableSpan(mesh->edge_data.layers, mesh->edge_data.totlayer))
-    {
-      if (STREQ(layer.name, ".uv_seam")) {
-        STRNCPY(layer.name, "uv_seam");
-        break;
-      }
-    }
+    rename_mesh_uv_seam_attribute(*mesh);
   }
 
   /**
