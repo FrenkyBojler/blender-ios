@@ -123,10 +123,8 @@ struct USDSceneExportContext {
 struct USDSceneImportContext {
   USDSceneImportContext() = default;
 
-  USDSceneImportContext(pxr::UsdStageRefPtr in_stage,
-                        const ImportedPrimMap &in_prim_map)
-      : stage(in_stage),
-        prim_map(in_prim_map)
+  USDSceneImportContext(pxr::UsdStageRefPtr in_stage, const ImportedPrimMap &in_prim_map)
+      : stage(in_stage), prim_map(in_prim_map)
   {
   }
 
@@ -151,9 +149,10 @@ struct USDSceneImportContext {
         if (!prim_map_dict->has_key(path)) {
           (*prim_map_dict)[path] = boost::python::list();
         }
-        boost::python::list list = boost::python::extract<boost::python::list>((*prim_map_dict)[path]);
+        boost::python::list list = boost::python::extract<boost::python::list>(
+            (*prim_map_dict)[path]);
 
-        for (auto& ptr_rna : ids) {
+        for (auto &ptr_rna : ids) {
           list.append(ptr_rna);
         }
       }
@@ -366,9 +365,7 @@ class OnImportInvoker : public USDHookInvoker {
   USDSceneImportContext hook_context_;
 
  public:
-  OnImportInvoker(pxr::UsdStageRefPtr stage,
-                  const ImportedPrimMap &prim_map,
-                  ReportList *reports)
+  OnImportInvoker(pxr::UsdStageRefPtr stage, const ImportedPrimMap &prim_map, ReportList *reports)
       : hook_context_(stage, prim_map)
   {
     reports_ = reports;
