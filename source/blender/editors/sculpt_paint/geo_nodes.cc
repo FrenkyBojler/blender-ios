@@ -59,6 +59,7 @@ static float4x4 calc_texture_space_matrix(StrokeCache& cache)
 template <typename T>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   Object &object,
+                                  const Brush &brush,
                                   StrokeCache &cache,
                                   bke::SculptFieldContext &context,
                                   MutableSpan<T> outputs)
@@ -97,7 +98,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_data.cursor_location = cache.location_symm;
   sculpt_data.pen_pressure = cache.pressure;
   sculpt_data.radius = cache.radius;
-  sculpt_data.strength = cache.bstrength;
+  sculpt_data.strength = brush.strength;
   sculpt_data.is_first_step = cache.first_time;
   sculpt_data.step = cache.step;
   sculpt_data.local_transform = calc_local_space_matrix(cache, cache.sculpt_center_symm);
@@ -193,6 +194,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 template <typename T>
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                 Object &object,
+                                const Brush& brush,
                                 StrokeCache &cache,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
@@ -207,11 +209,12 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
   bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts);
 
-  sculpt_nodes_evaluate<T>(depsgraph, object, cache, context, translations);
+  sculpt_nodes_evaluate<T>(depsgraph, object, brush, cache, context, translations);
 }
 
 template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
                                 Object& object,
+                                const Brush& brush,
                                 StrokeCache& cache,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
@@ -219,6 +222,7 @@ template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
 
 template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
                                 Object& object,
+                                const Brush& brush,
                                 StrokeCache& cache,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
@@ -227,6 +231,7 @@ template void mesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
 template <typename T>
 void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
+                                 const Brush& brush,
                                  StrokeCache &cache,
                                  SubdivCCG &subdiv_ccg,
                                  Span<int> grids,
@@ -234,12 +239,13 @@ void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  MutableSpan<T> translations)
 {
   bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
-  sculpt_nodes_evaluate<T>(depsgraph, object, cache, context, translations);
+  sculpt_nodes_evaluate<T>(depsgraph, object, brush, cache, context, translations);
 }
 
 
 template void grids_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
                                 Object& object,
+                                const Brush& brush,
                                 StrokeCache& cache,
                                 SubdivCCG& subdiv_ccg,
                                 Span<int> grids,
@@ -248,6 +254,7 @@ template void grids_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
 
 template void grids_sculpt_nodes_evaluate<float>(const Depsgraph& depsgraph,
                                 Object& object,
+                                const Brush& brush,
                                 StrokeCache& cache,
                                 SubdivCCG& subdiv_ccg,
                                 Span<int> grids,
@@ -257,28 +264,31 @@ template void grids_sculpt_nodes_evaluate<float>(const Depsgraph& depsgraph,
 template <typename T>
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
+                                 const Brush& brush,
                                  StrokeCache &cache,
                                  const Set<BMVert *, 0> &verts,
                                  Span<float3> positions,
                                  MutableSpan<T> translations)
 {
   bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
-  sculpt_nodes_evaluate<T>(depsgraph, object, cache, context, translations);
+  sculpt_nodes_evaluate<T>(depsgraph, object, brush, cache, context, translations);
 }
 
 template void bmesh_sculpt_nodes_evaluate<float3>(const Depsgraph& depsgraph,
-  Object& object,
-  StrokeCache& cache,
-  const Set<BMVert*, 0>& verts,
-  Span<float3> positions,
-  MutableSpan<float3> translations);
+                                                  Object& object,
+                                                  const Brush& brush,
+                                                  StrokeCache& cache,
+                                                  const Set<BMVert*, 0>& verts,
+                                                  Span<float3> positions,
+                                                  MutableSpan<float3> translations);
 
 template void bmesh_sculpt_nodes_evaluate<float>(const Depsgraph& depsgraph,
-  Object& object,
-  StrokeCache& cache,
-  const Set<BMVert*, 0>& verts,
-  Span<float3> positions,
-  MutableSpan<float> factors);
+                                                  Object& object,
+                                                  const Brush& brush,
+                                                  StrokeCache& cache,
+                                                  const Set<BMVert*, 0>& verts,
+                                                  Span<float3> positions,
+                                                  MutableSpan<float> factors);
 
 
 

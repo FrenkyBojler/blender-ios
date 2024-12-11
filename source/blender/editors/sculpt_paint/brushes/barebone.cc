@@ -38,25 +38,6 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-static IndexMask gather_nodes(const bke::pbvh::Tree& pbvh, const Brush &brush, const float4x4 &mat, const float3 &center, const float radius, IndexMaskMemory& memory)
-{
-  const float radius_sq = radius * radius;
-
-  return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node& node) {
-    if (node_fully_masked_or_hidden(node)) {
-      return false;
-    }
-    switch (brush.sculpt_brush_shape) {
-      case SCULPT_BRUSH_SHAPE_SPHERE:
-        return node_in_sphere(node, center, radius_sq, false);
-      case SCULPT_BRUSH_SHAPE_CUBE:
-        return node_in_cube(node, mat);
-    }
-
-    return false;
-  });
-}
-
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
@@ -90,9 +71,10 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   translations.fill(float3(0.0f));
   mesh_sculpt_nodes_evaluate<float3>(
-      depsgraph, object, *ss.cache, position_data.eval, verts, translations);
+      depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
 
   scale_translations(translations, tls.factors);
+  scale_translations(translations, cache.bstrength);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
@@ -130,9 +112,10 @@ static void calc_grids(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
 
   grids_sculpt_nodes_evaluate<float3>(
-      depsgraph, object, *ss.cache, subdiv_ccg, grids, positions, translations);
+      depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
 
   scale_translations(translations, tls.factors);
+  scale_translations(translations, cache.bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, grids, subdiv_ccg);
@@ -167,8 +150,9 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  bmesh_sculpt_nodes_evaluate<float3>(depsgraph, object, *ss.cache, verts, positions, translations);
+  bmesh_sculpt_nodes_evaluate<float3>(depsgraph, object, brush, *ss.cache, verts, positions, translations);
   scale_translations(translations, tls.factors);
+  scale_translations(translations, cache.bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, verts);
