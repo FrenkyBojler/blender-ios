@@ -372,10 +372,10 @@ float2 node_to_view(const float2 &co)
 static rctf node_to_rect(const bNode &node)
 {
   rctf rect{};
-  rect.xmin = node.locx;
-  rect.ymin = node.locy - node.height;
-  rect.xmax = node.locx + node.width;
-  rect.ymax = node.locy;
+  rect.xmin = node.location[0];
+  rect.ymin = node.location[1] - node.height;
+  rect.xmax = node.location[0] + node.width;
+  rect.ymax = node.location[1];
   return rect;
 }
 
@@ -412,7 +412,7 @@ static bool node_update_basis_buttons(const bContext &C,
   PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
 
   /* Round the node origin because text contents are always pixel-aligned. */
-  const float2 loc = node_to_view(math::round(float2(node.locx, node.locy)));
+  const float2 loc = math::round(node_to_view(node.location));
 
   dy -= NODE_DYS / 4;
 
@@ -1097,7 +1097,7 @@ static void node_update_basis_from_declaration(
           else if constexpr (std::is_same_v<ItemT, flat_item::Layout>) {
             const nodes::LayoutDeclaration &decl = *item.decl;
             /* Round the node origin because text contents are always pixel-aligned. */
-            const float2 loc = math::round(node_to_view(float2(node.locx, node.locy)));
+            const float2 loc = math::round(node_to_view(node.location));
             uiLayout *layout = UI_block_layout(&block,
                                                UI_LAYOUT_VERTICAL,
                                                UI_LAYOUT_PANEL,
@@ -1221,7 +1221,7 @@ static void node_update_basis(const bContext &C,
                               uiBlock &block)
 {
   /* Round the node origin because text contents are always pixel-aligned. */
-  const float2 loc = node_to_view(math::round(float2(node.locx, node.locy)));
+  const float2 loc = math::round(node_to_view(node.location));
 
   int dy = loc.y;
 
@@ -1257,7 +1257,7 @@ static void node_update_hidden(bNode &node, uiBlock &block)
   int totin = 0, totout = 0;
 
   /* Round the node origin because text contents are always pixel-aligned. */
-  const float2 loc = math::round(node_to_view(float2(node.locx, node.locy)));
+  const float2 loc = math::round(node_to_view(node.location));
 
   /* Calculate minimal radius. */
   for (const bNodeSocket *socket : node.input_sockets()) {
@@ -3920,8 +3920,8 @@ static rctf calc_node_frame_dimensions(bNode &node)
   /* Now adjust the frame size from view-space bounding box. */
   const float2 min = node_from_view({rect.xmin, rect.ymin});
   const float2 max = node_from_view({rect.xmax, rect.ymax});
-  node.locx = min.x;
-  node.locy = max.y;
+  node.location[0] = min.x;
+  node.location[1] = max.y;
   node.width = max.x - min.x;
   node.height = max.y - min.y;
 
@@ -3931,7 +3931,7 @@ static rctf calc_node_frame_dimensions(bNode &node)
 
 static void reroute_node_prepare_for_draw(bNode &node)
 {
-  const float2 loc = node_to_view({node.locx, node.locy});
+  const float2 loc = node_to_view(node.location);
 
   /* When the node is hidden, the input and output socket are both in the same place. */
   node.input_socket(0).runtime->location = loc;

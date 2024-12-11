@@ -892,20 +892,20 @@ static const EnumPropertyItem *rna_node_static_type_itemf(bContext * /*C*/,
 
 static float2 node_parent_offset(const bNode &node)
 {
-  return node.parent ? float2(node.parent->locx, node.parent->locy) : float2(0);
+  return node.parent ? float2(node.parent->location[0], node.parent->location[1]) : float2(0);
 }
 
 static void rna_Node_location_get(PointerRNA *ptr, float *value)
 {
   const bNode *node = static_cast<bNode *>(ptr->data);
-  copy_v2_v2(value, float2(node->locx, node->locy) - node_parent_offset(*node));
+  copy_v2_v2(value, float2(node->location[0], node->location[1]) - node_parent_offset(*node));
 }
 
 static void move_child_nodes(bNode &node, const float2 &delta)
 {
   for (bNode *child : node.direct_children_in_frame()) {
-    child->locx += delta.x;
-    child->locy += delta.y;
+    child->location[0] += delta.x;
+    child->location[1] += delta.y;
     if (child->is_frame()) {
       move_child_nodes(*child, delta);
     }
@@ -917,10 +917,10 @@ static void rna_Node_location_set(PointerRNA *ptr, const float *value)
   bNode *node = static_cast<bNode *>(ptr->data);
   const float2 new_location = float2(value) + node_parent_offset(*node);
   if (node->is_frame()) {
-    move_child_nodes(*node, new_location - float2(node->locx, node->locy));
+    move_child_nodes(*node, new_location - float2(node->location[0], node->location[1]));
   }
-  node->locx = new_location.x;
-  node->locy = new_location.y;
+  node->location[0] = new_location.x;
+  node->location[1] = new_location.y;
 }
 
 /* ******** Node Tree ******** */
@@ -10838,7 +10838,7 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 
   prop = RNA_def_property(srna, "location_absolute", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, nullptr, "locx");
+  RNA_def_property_float_sdna(prop, nullptr, "location");
   RNA_def_property_array(prop, 2);
   RNA_def_property_range(prop, -100000.0f, 100000.0f);
   RNA_def_property_ui_text(prop, "Absolute Location", "Location of the node in the entire canvas");

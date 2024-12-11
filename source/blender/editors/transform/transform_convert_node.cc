@@ -50,7 +50,7 @@ static void create_transform_data_for_node(TransData &td,
                                            const float dpi_fac)
 {
   /* Account for parents (nested nodes). */
-  float2 loc = float2(node.locx, node.locy) * dpi_fac;
+  float2 loc = float2(node.location) * dpi_fac;
 
   /* Use top-left corner as the transform origin for nodes. */
   /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
@@ -188,8 +188,8 @@ static void node_snap_grid_apply(TransInfo *t)
 static void move_child_nodes(bNode &node, const float2 &delta)
 {
   for (bNode *child : node.direct_children_in_frame()) {
-    child->locx += delta.x;
-    child->locy += delta.y;
+    child->location[0] += delta.x;
+    child->location[1] += delta.y;
     if (child->is_frame()) {
       move_child_nodes(*child, delta);
     }
@@ -242,12 +242,12 @@ static void flushTransNodes(TransInfo *t)
       loc /= dpi_fac;
 
       if (node->is_frame()) {
-        const float2 delta = loc - float2(node->locx, node->locy);
+        const float2 delta = loc - float2(node->location);
         move_child_nodes(*node, delta);
       }
 
-      node->locx = loc.x;
-      node->locy = loc.y;
+      node->location[0] = loc.x;
+      node->location[1] = loc.y;
     }
 
     /* Handle intersection with noodles. */

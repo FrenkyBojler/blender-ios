@@ -426,12 +426,13 @@ typedef struct bNode {
   struct bNode *parent;
 
   /** The location of the top left corner of the node on the canvas. */
-  float locx, locy;
+  float location[2];
   /**
    * Custom width and height controlled by users. Height is calculate automatically for most
    * nodes.
    */
   float width, height;
+  float locx_legacy, locy_legacy;
   float offsetx_legacy, offsety_legacy;
 
   /** Custom user-defined label, MAX_NAME. */

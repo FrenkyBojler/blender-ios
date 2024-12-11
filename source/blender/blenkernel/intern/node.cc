@@ -689,28 +689,15 @@ static blender::Vector<bNode *> flatten_parent_tree(bNodeTree &ntree)
   return vector;
 }
 
-static void move_nodes_to_parent_space(bNodeTree &ntree, Array<float2> &orig_positions)
+static void update_node_location_legacy(bNodeTree &ntree)
 {
-  const Span<bNode *> nodes = ntree.all_nodes();
-  orig_positions.reinitialize(nodes.size());
-  for (const int i : nodes.index_range()) {
-    orig_positions[i] = float2(nodes[i]->locx, nodes[i]->locy);
-  }
-
   for (bNode *node : flatten_parent_tree(ntree)) {
+    node->locx_legacy = node->location[0];
+    node->locy_legacy = node->location[1];
     if (const bNode *parent = node->parent) {
-      node->locx -= parent->locx;
-      node->locy -= parent->locy;
+      node->locx_legacy -= parent->location[0];
+      node->locy_legacy -= parent->location[1];
     }
-  }
-}
-
-static void restore_node_locations(bNodeTree &ntree, const Span<float2> orig_positions)
-{
-  const Span<bNode *> nodes = ntree.all_nodes();
-  for (const int i : nodes.index_range()) {
-    nodes[i]->locx = orig_positions[i].x;
-    nodes[i]->locy = orig_positions[i].y;
   }
 }
 
@@ -794,9 +781,8 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   BKE_id_blend_write(writer, &ntree->id);
   BLO_write_string(writer, ntree->description);
 
-  Array<float2> orig_positions;
   if (!BLO_write_is_undo(writer)) {
-    forward_compat::move_nodes_to_parent_space(*ntree, orig_positions);
+    forward_compat::update_node_location_legacy(*ntree);
   }
 
   for (bNode *node : ntree->all_nodes()) {
@@ -951,10 +937,6 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
       nodes::socket_items::blend_write<nodes::ForeachGeometryElementMainItemsAccessor>(writer,
                                                                                        *node);
     }
-  }
-
-  if (!BLO_write_is_undo(writer)) {
-    forward_compat::restore_node_locations(*ntree, orig_positions);
   }
 
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
@@ -3188,8 +3170,8 @@ void node_position_relative(bNode *from_node,
 
   offset_y -= U.widget_unit * tot_sock_idx;
 
-  from_node->locx = to_node->locx + offset_x;
-  from_node->locy = to_node->locy - offset_y;
+  from_node->location[0] = to_node->location[0] + offset_x;
+  from_node->location[1] = to_node->location[1] - offset_y;
 }
 
 void node_position_propagate(bNode *node)
