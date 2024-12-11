@@ -1079,7 +1079,7 @@ class VIEW3D_HT_header(Header):
             sub.popover(panel="VIEW3D_PT_overlay_bones", text="", icon='POSE_HLT')
 
         row = layout.row()
-        row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
+        row.active = object_mode in {'EDIT', 'POSE'} or shading.type in {'WIREFRAME', 'SOLID'}
 
         # While exposing `shading.show_xray(_wireframe)` is correct.
         # this hides the key shortcut from users: #70433.
