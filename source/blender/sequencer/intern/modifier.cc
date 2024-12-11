@@ -634,7 +634,9 @@ static void hue_correct_copy_data(SequenceModifierData *target, SequenceModifier
 
 struct HueCorrectApplyOp {
   template<typename ImageT, typename MaskT>
-  void apply(ImageT *image, const MaskT *mask, IndexRange size)
+  /* Note: no inline to work around VS2022 (17.12) compiler issue, where it decides
+   * to inline the function, and mis-compiles ImageT=float, MaskT=byte instantiation. */
+  BLI_NOINLINE void apply(ImageT *image, const MaskT *mask, IndexRange size)
   {
     for ([[maybe_unused]] int64_t i : size) {
       /* NOTE: arguably incorrect usage of "raw" values, should be un-premultiplied.
