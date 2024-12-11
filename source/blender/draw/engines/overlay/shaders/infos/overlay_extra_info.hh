@@ -29,8 +29,6 @@ ADDITIONAL_INFO(draw_globals)
 STORAGE_BUF(0, READ, ExtraInstanceData, data_buf[])
 DEFINE_VALUE("color", "data_buf[gl_InstanceID].color_")
 DEFINE_VALUE("inst_obmat", "data_buf[gl_InstanceID].object_to_world_")
-/* TODO(pragma37): Remove */
-DEFINE("SELECT_EDGES")
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS(overlay_extra)
@@ -130,8 +128,6 @@ DEFINE_VALUE("color", "data_buf[gl_VertexID].color_")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
-/* TODO(pragma37): Remove */
-DEFINE("SELECT_EDGES")
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_extra_wire, overlay_extra_wire_base)
@@ -150,8 +146,6 @@ DEFINE("OBJECT_WIRE")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
-/* TODO(pragma37): Remove */
-DEFINE("SELECT_EDGES")
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_extra_wire_object, overlay_extra_wire_object_base)

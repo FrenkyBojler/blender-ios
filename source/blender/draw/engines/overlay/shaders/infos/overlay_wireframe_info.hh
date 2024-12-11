@@ -35,8 +35,6 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_object_infos_new)
 ADDITIONAL_INFO(draw_globals)
-/* TODO(pragma37): Remove. */
-DEFINE("SELECT_EDGES")
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_wireframe, overlay_wireframe_base)
