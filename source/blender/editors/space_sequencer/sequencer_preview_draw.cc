@@ -1089,24 +1089,25 @@ static void seq_draw_image_origin_and_outline(const bContext *C, Sequence *seq, 
   GPU_line_smooth(false);
 }
 
-static void text_selection_draw(const bContext *C, Sequence *seq, uint pos)
+static void text_selection_draw(const bContext *C, const Sequence *seq, uint pos)
 {
-  TextVars *data = static_cast<TextVars *>(seq->effectdata);
-  TextVarsRuntime *text = data->runtime;
+  const TextVars *data = static_cast<TextVars *>(seq->effectdata);
+  const TextVarsRuntime *text = data->runtime;
   const Scene *scene = CTX_data_scene(C);
 
   if (data->selection_start_offset == -1 || seq_text_selection_range_get(data).is_empty()) {
     return;
   }
 
-  blender::IndexRange sel_range = seq_text_selection_range_get(data);
-  blender::int2 selection_start = seq_text_cursor_offset_to_position(text, sel_range.first());
-  blender::int2 selection_end = seq_text_cursor_offset_to_position(text, sel_range.last());
+  const blender::IndexRange sel_range = seq_text_selection_range_get(data);
+  const blender::int2 selection_start = seq_text_cursor_offset_to_position(text,
+                                                                           sel_range.first());
+  const blender::int2 selection_end = seq_text_cursor_offset_to_position(text, sel_range.last());
   const int line_start = selection_start.y;
   const int line_end = selection_end.y;
 
   for (int line_index = line_start; line_index <= line_end; line_index++) {
-    blender::seq::LineInfo line = text->lines[line_index];
+    const blender::seq::LineInfo line = text->lines[line_index];
     blender::seq::CharInfo character_start = line.characters.first();
     blender::seq::CharInfo character_end = line.characters.last();
 
@@ -1146,7 +1147,7 @@ static void text_selection_draw(const bContext *C, Sequence *seq, uint pos)
   }
 }
 
-static blender::float2 coords_region_view_align(const View2D *v2d, blender::float2 coords)
+static blender::float2 coords_region_view_align(const View2D *v2d, const blender::float2 coords)
 {
   blender::int2 coords_view;
   UI_view2d_view_to_region(v2d, coords.x, coords.y, &coords_view.x, &coords_view.y);
@@ -1158,10 +1159,10 @@ static blender::float2 coords_region_view_align(const View2D *v2d, blender::floa
   return coords_region_aligned;
 }
 
-static void text_edit_draw_cursor(const bContext *C, Sequence *seq, uint pos)
+static void text_edit_draw_cursor(const bContext *C, const Sequence *seq, uint pos)
 {
-  TextVars *data = static_cast<TextVars *>(seq->effectdata);
-  TextVarsRuntime *text = data->runtime;
+  const TextVars *data = static_cast<TextVars *>(seq->effectdata);
+  const TextVarsRuntime *text = data->runtime;
   const Scene *scene = CTX_data_scene(C);
 
   const blender::float3 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f, 0.0f};
@@ -1179,7 +1180,8 @@ static void text_edit_draw_cursor(const bContext *C, Sequence *seq, uint pos)
   text_boundbox.xmax -= cursor_width + U.pixelsize;
   text_boundbox.xmin += U.pixelsize;
 
-  CLAMP(cursor_coords.x, text_boundbox.xmin, text_boundbox.xmax);
+  cursor_coords.x = std::clamp(
+      cursor_coords.x, float(text_boundbox.xmin), float(text_boundbox.xmax));
   cursor_coords = coords_region_view_align(UI_view2d_fromcontext(C), cursor_coords);
 
   blender::float4x3 cursor_quad{
@@ -1205,10 +1207,10 @@ static void text_edit_draw_cursor(const bContext *C, Sequence *seq, uint pos)
   immEnd();
 }
 
-static void text_edit_draw_box(const bContext *C, Sequence *seq, uint pos)
+static void text_edit_draw_box(const bContext *C, const Sequence *seq, uint pos)
 {
-  TextVars *data = static_cast<TextVars *>(seq->effectdata);
-  TextVarsRuntime *text = data->runtime;
+  const TextVars *data = static_cast<TextVars *>(seq->effectdata);
+  const TextVarsRuntime *text = data->runtime;
   const Scene *scene = CTX_data_scene(C);
 
   blender::float3 col;
@@ -1243,13 +1245,13 @@ static void text_edit_draw(const bContext *C)
     return;
   }
 
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   if (!SEQ_effects_can_render_text(seq)) {
     return;
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_width(2);

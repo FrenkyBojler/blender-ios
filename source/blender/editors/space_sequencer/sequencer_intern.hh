@@ -395,7 +395,7 @@ void SEQUENCER_OT_text_edit_copy(wmOperatorType *ot);
 void SEQUENCER_OT_text_edit_paste(wmOperatorType *ot);
 void SEQUENCER_OT_text_edit_cut(wmOperatorType *ot);
 blender::int2 seq_text_cursor_offset_to_position(const TextVarsRuntime *text, int cursor_offset);
-blender::IndexRange seq_text_selection_range_get(TextVars *data);
+blender::IndexRange seq_text_selection_range_get(const TextVars *data);
 
 /* `sequencer_timeline_draw.cc` */
 blender::Vector<Sequence *> sequencer_visible_strips_get(const bContext *C);

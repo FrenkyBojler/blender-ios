@@ -681,30 +681,6 @@ static void seq_image_transform_quad_get_ex(const Scene *scene,
     image_size[1] = seq->strip->stripdata->orig_height;
   }
 
-// XXX this is just not correct and will have to think about how this will be done.
-// when not correct, it will prevent text selection working properly, so disabling for now
-#if 0
-  if (seq->type == SEQ_TYPE_TEXT && seq->effectdata != nullptr) {
-    TextVars *data = static_cast<TextVars *>(seq->effectdata);
-    if (data->runtime != nullptr) {
-      if (data->runtime->character_count > 0) {
-        image_size[0] = BLI_rcti_size_x(&data->runtime->text_boundbox);
-        image_size[1] = BLI_rcti_size_y(&data->runtime->text_boundbox);
-      }
-      else {
-        /* Size of default string "Text" with changed font size. */
-        image_size[1] = data->runtime->line_height;
-        image_size[0] = image_size[1] * 2.48f;
-      }
-    }
-    else {
-      /* Arbitrary size for empty text box. Currently matching default text settings. */
-      image_size[0] = 174;
-      image_size[1] = 70;
-    }
-  }
-#endif
-
   float transform_matrix[4][4];
   float rotation_matrix[3][3];
   axis_angle_to_mat3_single(rotation_matrix, 'Z', apply_rotation ? transform->rotation : 0.0f);

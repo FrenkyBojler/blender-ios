@@ -9,7 +9,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "DNA_screen_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
@@ -1883,10 +1882,6 @@ static void ed_default_handlers(
     }
   }
   if (flag & ED_KEYMAP_VIEW2D) {
-    if (area->spacetype == SPACE_SEQ && region->runtime->type->regionid == RGN_TYPE_PREVIEW) {
-      printf("handlers are %p - %p\n", handlers->first, handlers->last);
-    }
-
     /* 2d-viewport handling+manipulation */
     wmKeyMap *keymap = WM_keymap_ensure(wm->defaultconf, "View2D", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(handlers, keymap);

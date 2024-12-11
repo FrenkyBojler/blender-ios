@@ -6,6 +6,7 @@
  * \ingroup spseq
  */
 
+#include "DNA_sequence_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.hh"
@@ -45,12 +46,12 @@ static bool sequencer_text_editing_poll(bContext *C)
     return false;
   }
 
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   if (seq == nullptr || seq->type != SEQ_TYPE_TEXT || !SEQ_effects_can_render_text(seq)) {
     return false;
   }
 
-  TextVars *data = static_cast<TextVars *>(seq->effectdata);
+  const TextVars *data = static_cast<TextVars *>(seq->effectdata);
   if (data == nullptr || data->runtime == nullptr) {
     return false;
   }
@@ -64,7 +65,7 @@ bool sequencer_text_editing_active_poll(bContext *C)
     return false;
   }
 
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   return (seq->flag & SEQ_FLAG_TEXT_EDITING_ACTIVE) != 0;
 }
 
@@ -102,7 +103,7 @@ static seq::CharInfo character_at_cursor_offset_get(const TextVarsRuntime *text,
   return character_at_cursor_pos_get(text, cursor_pos);
 }
 
-static int cursor_position_to_offset(TextVarsRuntime *text, int2 cursor_position)
+static int cursor_position_to_offset(const TextVarsRuntime *text, int2 cursor_position)
 {
   return character_at_cursor_pos_get(text, cursor_position).index;
 }
@@ -113,7 +114,7 @@ static void text_selection_cancel(TextVars *data)
   data->selection_end_offset = 0;
 }
 
-IndexRange seq_text_selection_range_get(TextVars *data)
+IndexRange seq_text_selection_range_get(const TextVars *data)
 {
   /* Ensure, that selection start < selection end. */
   int sel_start_offset = data->selection_start_offset;
@@ -125,7 +126,7 @@ IndexRange seq_text_selection_range_get(TextVars *data)
   return IndexRange(sel_start_offset, sel_end_offset - sel_start_offset);
 }
 
-static bool text_has_selection(TextVars *data)
+static bool text_has_selection(const TextVars *data)
 {
   return !seq_text_selection_range_get(data).is_empty();
 }
@@ -142,7 +143,7 @@ static void delete_selected_text(TextVars *data)
   }
 
   TextVarsRuntime *text = data->runtime;
-  IndexRange sel_range = seq_text_selection_range_get(data);
+  IndexRange sel_range = seq_text_selection_range_get(const_cast<const TextVars *>(data));
 
   seq::CharInfo char_start = character_at_cursor_offset_get(text, sel_range.first());
   seq::CharInfo char_end = character_at_cursor_offset_get(text, sel_range.last());
@@ -153,7 +154,7 @@ static void delete_selected_text(TextVars *data)
   const int move_len = strlen_include_null_terminator(addr_end, sizeof(data->text));
   std::memmove(addr_start, addr_end, move_len);
 
-  int2 sel_start = seq_text_cursor_offset_to_position(text, sel_range.first());
+  const int2 sel_start = seq_text_cursor_offset_to_position(text, sel_range.first());
   data->cursor_offset = cursor_position_to_offset(text, sel_start);
   text_selection_cancel(data);
 }
@@ -192,9 +193,9 @@ static const EnumPropertyItem move_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int2 cursor_move_by_character(int2 cursor_position, TextVarsRuntime *text, int offset)
+static int2 cursor_move_by_character(int2 cursor_position, const TextVarsRuntime *text, int offset)
 {
-  seq::LineInfo cur_line = text->lines[cursor_position.y];
+  const seq::LineInfo cur_line = text->lines[cursor_position.y];
   /* Move to next line. */
   if (cursor_position.x + offset > cur_line.characters.size() - 1 &&
       cursor_position.y < text->lines.size() - 1)
@@ -215,14 +216,14 @@ static int2 cursor_move_by_character(int2 cursor_position, TextVarsRuntime *text
   return cursor_position;
 }
 
-static int2 cursor_move_by_line(int2 cursor_position, TextVarsRuntime *text, int offset)
+static int2 cursor_move_by_line(int2 cursor_position, const TextVarsRuntime *text, int offset)
 {
-  seq::LineInfo cur_line = text->lines[cursor_position.y];
+  const seq::LineInfo cur_line = text->lines[cursor_position.y];
   const int cur_pos_x = cur_line.characters[cursor_position.x].position.x;
 
   const int line_max = text->lines.size() - 1;
-  int new_line_index = std::clamp(cursor_position.y + offset, 0, line_max);
-  seq::LineInfo new_line = text->lines[new_line_index];
+  const int new_line_index = std::clamp(cursor_position.y + offset, 0, line_max);
+  const seq::LineInfo new_line = text->lines[new_line_index];
 
   if (cursor_position.y == new_line_index) {
     return cursor_position;
@@ -246,9 +247,9 @@ static int2 cursor_move_by_line(int2 cursor_position, TextVarsRuntime *text, int
   return cursor_position;
 }
 
-static int2 cursor_move_line_end(int2 cursor_position, TextVarsRuntime *text)
+static int2 cursor_move_line_end(int2 cursor_position, const TextVarsRuntime *text)
 {
-  seq::LineInfo cur_line = text->lines[cursor_position.y];
+  const seq::LineInfo cur_line = text->lines[cursor_position.y];
   cursor_position.x = cur_line.characters.size() - 1;
   return cursor_position;
 }
@@ -258,14 +259,14 @@ static bool is_whitespace_transition(char chr1, char chr2)
   return ELEM(chr1, ' ', '\t', '\n') && !ELEM(chr2, ' ', '\t', '\n');
 }
 
-static int2 cursor_move_prev_word(int2 cursor_position, TextVarsRuntime *text)
+static int2 cursor_move_prev_word(int2 cursor_position, const TextVarsRuntime *text)
 {
   cursor_position = cursor_move_by_character(cursor_position, text, -1);
 
   while (cursor_position.x > 0 || cursor_position.y > 0) {
-    seq::CharInfo character = character_at_cursor_pos_get(text, cursor_position);
-    int2 prev_cursor_pos = cursor_move_by_character(cursor_position, text, -1);
-    seq::CharInfo prev_character = character_at_cursor_pos_get(text, prev_cursor_pos);
+    const seq::CharInfo character = character_at_cursor_pos_get(text, cursor_position);
+    const int2 prev_cursor_pos = cursor_move_by_character(cursor_position, text, -1);
+    const seq::CharInfo prev_character = character_at_cursor_pos_get(text, prev_cursor_pos);
 
     if (is_whitespace_transition(prev_character.str_ptr[0], character.str_ptr[0])) {
       break;
@@ -275,15 +276,15 @@ static int2 cursor_move_prev_word(int2 cursor_position, TextVarsRuntime *text)
   return cursor_position;
 }
 
-static int2 cursor_move_next_word(int2 cursor_position, TextVarsRuntime *text)
+static int2 cursor_move_next_word(int2 cursor_position, const TextVarsRuntime *text)
 {
   const int maxline = text->lines.size() - 1;
   const int maxchar = text->lines.last().characters.size() - 1;
 
   while ((cursor_position.x < maxchar) || (cursor_position.y < maxline)) {
-    seq::CharInfo character = character_at_cursor_pos_get(text, cursor_position);
+    const seq::CharInfo character = character_at_cursor_pos_get(text, cursor_position);
     cursor_position = cursor_move_by_character(cursor_position, text, 1);
-    seq::CharInfo next_character = character_at_cursor_pos_get(text, cursor_position);
+    const seq::CharInfo next_character = character_at_cursor_pos_get(text, cursor_position);
 
     if (is_whitespace_transition(next_character.str_ptr[0], character.str_ptr[0])) {
       break;
@@ -294,9 +295,9 @@ static int2 cursor_move_next_word(int2 cursor_position, TextVarsRuntime *text)
 
 static int sequencer_text_cursor_move_exec(bContext *C, wmOperator *op)
 {
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
-  TextVarsRuntime *text = data->runtime;
+  const TextVarsRuntime *text = data->runtime;
 
   if (RNA_boolean_get(op->ptr, "select_text") && !text_has_selection(data)) {
     data->selection_start_offset = data->cursor_offset;
@@ -382,19 +383,19 @@ void SEQUENCER_OT_text_cursor_move(wmOperatorType *ot)
 
 static bool text_insert(TextVars *data, const char *buf)
 {
-  TextVarsRuntime *text = data->runtime;
+  const TextVarsRuntime *text = data->runtime;
   delete_selected_text(data);
 
-  size_t in_buf_len = BLI_strnlen(buf, sizeof(buf));
-  size_t text_buf_len = strlen_include_null_terminator(data->text, sizeof(data->text));
+  const size_t in_buf_len = BLI_strnlen(buf, sizeof(buf));
+  const size_t text_buf_len = strlen_include_null_terminator(data->text, sizeof(data->text));
 
   if (text_buf_len + in_buf_len > sizeof(data->text)) {
     return false;
   }
 
-  seq::CharInfo cur_char = character_at_cursor_offset_get(text, data->cursor_offset);
+  const seq::CharInfo cur_char = character_at_cursor_offset_get(text, data->cursor_offset);
   char *cursor_addr = const_cast<char *>(cur_char.str_ptr);
-  size_t move_len = strlen_include_null_terminator(cursor_addr, sizeof(data->text));
+  const size_t move_len = strlen_include_null_terminator(cursor_addr, sizeof(data->text));
 
   std::memmove(cursor_addr + in_buf_len, cursor_addr, move_len);
   std::memcpy(cursor_addr, buf, in_buf_len);
@@ -405,13 +406,13 @@ static bool text_insert(TextVars *data, const char *buf)
 
 static int sequencer_text_insert_exec(bContext *C, wmOperator *op)
 {
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
 
   char str[512];
   RNA_string_get(op->ptr, "string", str);
 
-  size_t in_buf_len = BLI_strnlen(str, sizeof(str));
+  const size_t in_buf_len = BLI_strnlen(str, sizeof(str));
   if (in_buf_len == 0) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
@@ -459,7 +460,7 @@ static const EnumPropertyItem delete_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void delete_character(seq::CharInfo character, TextVars *data)
+static void delete_character(const seq::CharInfo character, const TextVars *data)
 {
   char *cursor_addr = const_cast<char *>(character.str_ptr);
   char *next_char_addr = cursor_addr + character.byte_length;
@@ -469,9 +470,9 @@ static void delete_character(seq::CharInfo character, TextVars *data)
 
 static int sequencer_text_delete_exec(bContext *C, wmOperator *op)
 {
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
-  TextVarsRuntime *text = data->runtime;
+  const TextVarsRuntime *text = data->runtime;
   const int type = RNA_enum_get(op->ptr, "type");
 
   if (text_has_selection(data)) {
@@ -525,7 +526,7 @@ void SEQUENCER_OT_text_delete(wmOperatorType *ot)
 
 static int sequencer_text_line_break_exec(bContext *C, wmOperator * /*op*/)
 {
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
 
   if (!text_insert(data, "\n")) {
@@ -553,7 +554,7 @@ void SEQUENCER_OT_text_line_break(wmOperatorType *ot)
 
 static int sequencer_text_select_all(bContext *C, wmOperator * /*op*/)
 {
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
   data->selection_start_offset = 0;
   data->selection_end_offset = data->runtime->character_count;
@@ -637,14 +638,14 @@ void SEQUENCER_OT_text_edit_mode_toggle(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static int find_closest_cursor_offset(TextVars *data, float2 mouse_loc)
+static int find_closest_cursor_offset(const TextVars *data, float2 mouse_loc)
 {
-  TextVarsRuntime *text = data->runtime;
+  const TextVarsRuntime *text = data->runtime;
   int best_cursor_offset = 0;
   float best_distance = std::numeric_limits<float>::max();
 
-  for (seq::LineInfo line : text->lines) {
-    for (seq::CharInfo character : line.characters) {
+  for (const seq::LineInfo &line : text->lines) {
+    for (const seq::CharInfo &character : line.characters) {
       const float distance = math::distance(mouse_loc, character.position);
       if (distance < best_distance) {
         best_distance = distance;
@@ -659,9 +660,9 @@ static int find_closest_cursor_offset(TextVars *data, float2 mouse_loc)
 static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
-  Sequence *seq = SEQ_select_active_get(scene);
+  const Sequence *seq = SEQ_select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
-  View2D *v2d = UI_view2d_fromcontext(C);
+  const View2D *v2d = UI_view2d_fromcontext(C);
 
   int2 mval_region;
   WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
@@ -684,7 +685,7 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
 static int sequencer_text_cursor_set_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
-  Sequence *seq = SEQ_select_active_get(scene);
+  const Sequence *seq = SEQ_select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
   bool make_selection = false;
 
@@ -720,7 +721,7 @@ static int sequencer_text_cursor_set_invoke(bContext *C, wmOperator *op, const w
   const Scene *scene = CTX_data_scene(C);
   Sequence *seq = SEQ_select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
-  View2D *v2d = UI_view2d_fromcontext(C);
+  const View2D *v2d = UI_view2d_fromcontext(C);
 
   int2 mval_region;
   WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
@@ -762,12 +763,12 @@ void SEQUENCER_OT_text_cursor_set(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static void text_edit_copy(TextVars *data)
+static void text_edit_copy(const TextVars *data)
 {
-  TextVarsRuntime *text = data->runtime;
-  IndexRange selection_range = seq_text_selection_range_get(data);
-  seq::CharInfo start = character_at_cursor_offset_get(text, selection_range.first());
-  seq::CharInfo end = character_at_cursor_offset_get(text, selection_range.last());
+  const TextVarsRuntime *text = data->runtime;
+  const IndexRange selection_range = seq_text_selection_range_get(data);
+  const seq::CharInfo start = character_at_cursor_offset_get(text, selection_range.first());
+  const seq::CharInfo end = character_at_cursor_offset_get(text, selection_range.last());
   const size_t len = end.str_ptr + end.byte_length - start.str_ptr;
 
   char clipboard_buf[sizeof(data->text)] = {0};
@@ -777,8 +778,8 @@ static void text_edit_copy(TextVars *data)
 
 static int sequencer_text_edit_copy_exec(bContext *C, wmOperator * /*op*/)
 {
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
-  TextVars *data = static_cast<TextVars *>(seq->effectdata);
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const TextVars *data = static_cast<TextVars *>(seq->effectdata);
 
   if (!text_has_selection(data)) {
     return OPERATOR_CANCELLED;
@@ -806,25 +807,25 @@ void SEQUENCER_OT_text_edit_copy(wmOperatorType *ot)
 
 static int sequencer_text_edit_paste_exec(bContext *C, wmOperator * /*op*/)
 {
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
-  TextVarsRuntime *text = data->runtime;
+  const TextVarsRuntime *text = data->runtime;
   delete_selected_text(data);
 
   int clipboard_len;
-  char *clipboard_buf = WM_clipboard_text_get(false, true, &clipboard_len);
+  const char *clipboard_buf = WM_clipboard_text_get(false, true, &clipboard_len);
 
   if (clipboard_len == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  int max_len = sizeof(data->text) -
-                strlen_include_null_terminator(data->text, sizeof(data->text));
+  const int max_len = sizeof(data->text) -
+                      strlen_include_null_terminator(data->text, sizeof(data->text));
   clipboard_len = std::min(clipboard_len, max_len);
 
-  seq::CharInfo cur_char = character_at_cursor_offset_get(text, data->cursor_offset);
+  const seq::CharInfo cur_char = character_at_cursor_offset_get(text, data->cursor_offset);
   char *cursor_addr = const_cast<char *>(cur_char.str_ptr);
-  size_t move_len = strlen_include_null_terminator(cursor_addr, sizeof(data->text));
+  const size_t move_len = strlen_include_null_terminator(cursor_addr, sizeof(data->text));
 
   std::memmove(cursor_addr + clipboard_len, cursor_addr, move_len);
   std::memcpy(cursor_addr, clipboard_buf, clipboard_len);
@@ -852,7 +853,7 @@ void SEQUENCER_OT_text_edit_paste(wmOperatorType *ot)
 
 static int sequencer_text_edit_cut_exec(bContext *C, wmOperator * /*op*/)
 {
-  Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
 
   if (!text_has_selection(data)) {
