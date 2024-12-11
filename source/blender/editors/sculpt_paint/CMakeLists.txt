@@ -36,6 +36,7 @@ set(SRC
   curves_sculpt_add.cc
   curves_sculpt_brush.cc
   curves_sculpt_comb.cc
+  curves_sculpt_cut.cc
   curves_sculpt_delete.cc
   curves_sculpt_density.cc
   curves_sculpt_grow_shrink.cc

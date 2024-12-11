@@ -144,6 +144,8 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
       return new_density_operation(mode, C, stroke_start);
     case CURVES_SCULPT_BRUSH_TYPE_SLIDE:
       return new_slide_operation();
+    case CURVES_SCULPT_BRUSH_TYPE_CUT:
+      return new_cut_operation();
   }
   BLI_assert_unreachable();
   return {};

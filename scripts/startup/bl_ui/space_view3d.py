@@ -557,7 +557,7 @@ class _draw_tool_settings_context_mode:
             header=True,
         )
 
-        if brush.curves_sculpt_tool not in {'ADD', 'DELETE'}:
+        if brush.curves_sculpt_tool not in {'ADD', 'DELETE', 'CUT'}:
             use_strength_pressure = brush.curves_sculpt_tool not in {'SLIDE'}
             UnifiedPaintPanel.prop_unified(
                 layout,
@@ -619,6 +619,8 @@ class _draw_tool_settings_context_mode:
             layout.popover("VIEW3D_PT_curves_sculpt_add_shape", text="Curve Shape")
         elif curves_tool == 'SLIDE':
             layout.popover("VIEW3D_PT_tools_brush_falloff")
+        elif curves_tool == 'CUT':
+            layout.prop(brush, "falloff_shape", expand=True)
 
         return True
 

@@ -461,6 +461,7 @@ typedef enum eBrushCurvesSculptType {
   CURVES_SCULPT_BRUSH_TYPE_PUFF = 8,
   CURVES_SCULPT_BRUSH_TYPE_DENSITY = 9,
   CURVES_SCULPT_BRUSH_TYPE_SLIDE = 10,
+  CURVES_SCULPT_BRUSH_TYPE_CUT = 11,
 } eBrushCurvesSculptType;
 
 /** When #BRUSH_ACCUMULATE is used */

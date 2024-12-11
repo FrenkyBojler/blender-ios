@@ -75,6 +75,7 @@ std::unique_ptr<CurvesSculptStrokeOperation> new_puff_operation();
 std::unique_ptr<CurvesSculptStrokeOperation> new_density_operation(
     const BrushStrokeMode brush_mode, const bContext &C, const StrokeExtension &stroke_start);
 std::unique_ptr<CurvesSculptStrokeOperation> new_slide_operation();
+std::unique_ptr<CurvesSculptStrokeOperation> new_cut_operation();
 
 struct CurvesBrush3D {
   float3 position_cu;
