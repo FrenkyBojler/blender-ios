@@ -127,15 +127,15 @@ template<typename T> static void apply_modifier_op(T &op, ImBuf *ibuf, const ImB
   if (ibuf == nullptr) {
     return;
   }
-  uchar *image_byte = ibuf->byte_buffer.data;
-  float *image_float = ibuf->float_buffer.data;
-  const uchar *mask_byte = mask ? mask->byte_buffer.data : nullptr;
-  const float *mask_float = mask ? mask->float_buffer.data : nullptr;
-  const void *mask_none = nullptr;
 
   threading::parallel_for(IndexRange(size_t(ibuf->x) * ibuf->y), 32 * 1024, [&](IndexRange range) {
+    uchar *image_byte = ibuf->byte_buffer.data;
+    float *image_float = ibuf->float_buffer.data;
+    const uchar *mask_byte = mask ? mask->byte_buffer.data : nullptr;
+    const float *mask_float = mask ? mask->float_buffer.data : nullptr;
+    const void *mask_none = nullptr;
     int64_t offset = range.first() * 4;
-    IndexRange size(range.size());
+
     /* Instantiate the needed processing function based on image/mask
      * data types. */
     if (image_byte) {
@@ -634,9 +634,7 @@ static void hue_correct_copy_data(SequenceModifierData *target, SequenceModifier
 
 struct HueCorrectApplyOp {
   template<typename ImageT, typename MaskT>
-  /* Note: no inline to work around VS2022 (17.12) compiler issue, where it decides
-   * to inline the function, and mis-compiles ImageT=float, MaskT=byte instantiation. */
-  BLI_NOINLINE void apply(ImageT *image, const MaskT *mask, IndexRange size)
+  void apply(ImageT *image, const MaskT *mask, IndexRange size)
   {
     for ([[maybe_unused]] int64_t i : size) {
       /* NOTE: arguably incorrect usage of "raw" values, should be un-premultiplied.
