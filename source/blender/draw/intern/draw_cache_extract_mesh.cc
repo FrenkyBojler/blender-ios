@@ -17,7 +17,6 @@
 #include "BLI_vector.hh"
 
 #include "BKE_editmesh.hh"
-#include "BKE_material.h"
 #include "BKE_object.hh"
 
 #include "GPU_capabilities.hh"
