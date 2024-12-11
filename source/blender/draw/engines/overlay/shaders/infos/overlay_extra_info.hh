@@ -35,20 +35,7 @@ OVERLAY_INFO_VARIATIONS(overlay_extra)
 
 GPU_SHADER_CREATE_INFO(overlay_extra_spot_cone)
 DO_STATIC_COMPILATION()
-TYPEDEF_SOURCE("overlay_shader_shared.h")
-VERTEX_IN(0, VEC3, pos)
-VERTEX_IN(1, INT, vclass)
-VERTEX_OUT(overlay_extra_iface)
-FRAGMENT_OUT(0, VEC4, fragColor)
-FRAGMENT_OUT(1, VEC4, lineOutput)
-VERTEX_SOURCE("overlay_extra_vert.glsl")
-FRAGMENT_SOURCE("overlay_extra_frag.glsl")
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(draw_globals)
-STORAGE_BUF(0, READ, ExtraInstanceData, data_buf[])
-DEFINE_VALUE("color", "data_buf[gl_InstanceID].color_")
-DEFINE_VALUE("inst_obmat", "data_buf[gl_InstanceID].object_to_world_")
-/* TODO(pragma37): Re-use overlay_extra */
+ADDITIONAL_INFO(overlay_extra)
 DEFINE("IS_SPOT_CONE")
 GPU_SHADER_CREATE_END()
 
@@ -210,7 +197,6 @@ GPU_SHADER_NAMED_INTERFACE_INFO(overlay_motion_path_line_iface, interp)
 SMOOTH(VEC4, color)
 GPU_SHADER_NAMED_INTERFACE_END(interp)
 
-/*TODO(pragma37): This used to have a clipped variation*/
 GPU_SHADER_CREATE_INFO(overlay_motion_path_line)
 DO_STATIC_COMPILATION()
 STORAGE_BUF_FREQ(0, READ, float, pos[], GEOMETRY)
@@ -230,11 +216,12 @@ ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
+OVERLAY_INFO_CLIP_VARIATION(overlay_motion_path_line)
+
 GPU_SHADER_INTERFACE_INFO(overlay_motion_path_point_iface)
 FLAT(VEC4, finalColor)
 GPU_SHADER_INTERFACE_END()
 
-/* TODO(pragma37): This used to have a clipped version. */
 GPU_SHADER_CREATE_INFO(overlay_motion_path_point)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.h")
@@ -252,6 +239,8 @@ FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_motion_path_point)
 
 /** \} */
 
@@ -296,7 +285,6 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_image_depth_bias, overlay_image_depth_b
 /** \name GPencil Canvas
  * \{ */
 
-/* TODO(pragma37): This used to have a clipped version. */
 GPU_SHADER_CREATE_INFO(overlay_gpencil_canvas)
 DO_STATIC_COMPILATION()
 VERTEX_OUT(overlay_extra_iface)
@@ -312,6 +300,8 @@ FRAGMENT_SOURCE("overlay_extra_frag.glsl")
 ADDITIONAL_INFO(draw_mesh)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_gpencil_canvas)
 
 /** \} */
 

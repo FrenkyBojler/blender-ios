@@ -71,23 +71,6 @@ GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_vert)
 
-/* TODO(pragma37): Remove */
-GPU_SHADER_CREATE_INFO(overlay_edit_mesh_vert_next)
-DO_STATIC_COMPILATION()
-BUILTINS(BuiltinBits::POINT_SIZE)
-DEFINE("VERT")
-VERTEX_IN(0, VEC3, pos)
-VERTEX_IN(1, UVEC4, data)
-VERTEX_IN(2, VEC3, vnor)
-VERTEX_SOURCE("overlay_edit_mesh_vertex_vert.glsl")
-VERTEX_OUT(overlay_edit_mesh_vert_iface)
-FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(draw_modelmat_new)
-ADDITIONAL_INFO(draw_resource_handle_new)
-ADDITIONAL_INFO(overlay_edit_mesh_common)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_edit_mesh_edge_geom_iface, geometry_out)
 SMOOTH(VEC4, finalColor)
 GPU_SHADER_NAMED_INTERFACE_END(geometry_out)
@@ -99,7 +82,7 @@ GPU_SHADER_NAMED_INTERFACE_INFO(overlay_edit_mesh_edge_geom_noperspective_iface,
 NO_PERSPECTIVE(FLOAT, edgeCoord)
 GPU_SHADER_NAMED_INTERFACE_END(geometry_noperspective_out)
 
-/* TODO(pragma37): This used to have a clipping version. */
+/* TODO(pragma37): This one is not selectable? */
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_edge)
 DO_STATIC_COMPILATION()
 DEFINE("EDGE")
@@ -140,22 +123,6 @@ GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_face)
 
-GPU_SHADER_CREATE_INFO(overlay_edit_mesh_face_next)
-DO_STATIC_COMPILATION()
-DEFINE("FACE")
-DEFINE_VALUE("vnor", "vec3(0.0)")
-VERTEX_IN(0, VEC3, pos)
-VERTEX_IN(1, UVEC4, data)
-VERTEX_SOURCE("overlay_edit_mesh_face_vert.glsl")
-VERTEX_OUT(overlay_edit_flat_color_iface)
-FRAGMENT_SOURCE("overlay_varying_color.glsl")
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(draw_modelmat_new)
-ADDITIONAL_INFO(draw_resource_handle_new)
-ADDITIONAL_INFO(overlay_edit_mesh_common)
-GPU_SHADER_CREATE_END()
-
-/* TODO(pragma37): This used to have a clipped version. */
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_facedot)
 DO_STATIC_COMPILATION()
 DEFINE("FACEDOT")
@@ -285,7 +252,6 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-/* TODO(pragma37): Remove? */
 OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_analysis)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_skin_root)
@@ -355,9 +321,6 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_uv_faces)
-
 GPU_SHADER_CREATE_INFO(overlay_edit_uv_face_dots)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, VEC2, au)
@@ -372,9 +335,6 @@ ADDITIONAL_INFO(draw_modelmat_new)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
-
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_uv_face_dots)
 
 GPU_SHADER_INTERFACE_INFO(overlay_edit_uv_vert_iface)
 SMOOTH(VEC4, fillColor)
@@ -399,9 +359,6 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_uv_verts)
-
 GPU_SHADER_CREATE_INFO(overlay_edit_uv_tiled_image_borders)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, VEC3, pos)
@@ -413,9 +370,6 @@ PUSH_CONSTANT(VEC3, tile_pos)
 DEFINE_VALUE("tile_scale", "vec3(1.0)")
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
-
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_uv_tiled_image_borders)
 
 GPU_SHADER_INTERFACE_INFO(edit_uv_image_iface)
 SMOOTH(VEC2, uvs)
@@ -437,9 +391,6 @@ PUSH_CONSTANT(VEC2, brush_scale)
 ADDITIONAL_INFO(draw_view);
 GPU_SHADER_CREATE_END()
 
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_uv_stencil_image)
-
 GPU_SHADER_CREATE_INFO(overlay_edit_uv_mask_image)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, VEC3, pos)
@@ -454,9 +405,6 @@ PUSH_CONSTANT(VEC2, brush_offset)
 PUSH_CONSTANT(VEC2, brush_scale)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
-
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_uv_mask_image)
 
 /** \} */
 
@@ -486,9 +434,6 @@ ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(overlay_edit_uv_stretching)
 GPU_SHADER_CREATE_END()
 
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_uv_stretching_area)
-
 GPU_SHADER_CREATE_INFO(overlay_edit_uv_stretching_angle)
 DO_STATIC_COMPILATION()
 DEFINE("STRETCH_ANGLE")
@@ -501,16 +446,12 @@ ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(overlay_edit_uv_stretching)
 GPU_SHADER_CREATE_END()
 
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_uv_stretching_angle)
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Edit Curve
  * \{ */
 
-/* TODO(pragma37): This used to have a clipped version. */
 GPU_SHADER_CREATE_INFO(overlay_edit_curve_handle)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.h")
@@ -531,6 +472,8 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curve_handle)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_curve_point)
 DO_STATIC_COMPILATION()
@@ -599,7 +542,6 @@ GPU_SHADER_CREATE_END()
 /** \name Edit Curves
  * \{ */
 
-/* TODO(pragma37): This used to have a clipped version. */
 GPU_SHADER_CREATE_INFO(overlay_edit_curves_handle)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.h")
@@ -620,6 +562,8 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curves_handle)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_curves_point)
 DO_STATIC_COMPILATION()

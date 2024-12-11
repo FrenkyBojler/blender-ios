@@ -27,6 +27,3 @@ ADDITIONAL_INFO(draw_fullscreen)
 SAMPLER(2, DEPTH_2D, xrayDepthTexInfront)
 SAMPLER(3, DEPTH_2D, depthTexInfront)
 GPU_SHADER_CREATE_END()
-
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_xray_fade)

@@ -53,7 +53,6 @@ GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_CLIP_VARIATION(overlay_outline_prepass_curves)
 
-/*TODO(pragma37): This used to have a clipped version.*/
 GPU_SHADER_CREATE_INFO(overlay_outline_prepass_wire)
 DO_STATIC_COMPILATION()
 ADDITIONAL_INFO(overlay_outline_prepass)
@@ -66,6 +65,8 @@ STORAGE_BUF_FREQ(0, READ, float, pos[], GEOMETRY)
 PUSH_CONSTANT(IVEC2, gpu_attr_0)
 VERTEX_SOURCE("overlay_outline_prepass_wire_vert.glsl")
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_outline_prepass_wire)
 
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_outline_prepass_gpencil_flat_iface, gp_interp_flat)
 FLAT(VEC2, aspect)

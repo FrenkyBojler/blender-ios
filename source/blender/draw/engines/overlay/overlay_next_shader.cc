@@ -56,17 +56,13 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
 
   extra_point = static_selectable_shader("overlay_extra_point");
 
-  grid_background = static_clippable_shader("overlay_grid_background");
-
-  grid_image = static_clippable_shader("overlay_grid_image");
+  grid_background = shader("overlay_grid_background");
+  grid_image = shader("overlay_grid_image");
 
   legacy_curve_edit_wires = static_clippable_shader("overlay_edit_curve_wire");
   legacy_curve_edit_points = static_clippable_shader("overlay_edit_curve_point");
 
   mesh_analysis = static_clippable_shader("overlay_edit_mesh_analysis");
-
-  /* TODO(pragma37): These are initialized with `shader()` in the header.
-   * Are these the correct ones? */
   mesh_edit_face = static_clippable_shader("overlay_edit_mesh_face");
   mesh_edit_vert = static_clippable_shader("overlay_edit_mesh_vert");
   mesh_edit_depth = static_clippable_shader("overlay_edit_mesh_depth");
@@ -97,16 +93,16 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
   sculpt_curves = static_clippable_shader("overlay_sculpt_curves_selection");
   sculpt_curves_cage = static_clippable_shader("overlay_sculpt_curves_cage");
 
-  uv_analysis_stretch_angle = static_clippable_shader("overlay_edit_uv_stretching_angle");
-  uv_analysis_stretch_area = static_clippable_shader("overlay_edit_uv_stretching_area");
-  uv_edit_vert = static_clippable_shader("overlay_edit_uv_verts");
-  uv_edit_face = static_clippable_shader("overlay_edit_uv_faces");
-  uv_edit_facedot = static_clippable_shader("overlay_edit_uv_face_dots");
-  uv_image_borders = static_clippable_shader("overlay_edit_uv_tiled_image_borders");
-  uv_brush_stencil = static_clippable_shader("overlay_edit_uv_stencil_image");
-  uv_paint_mask = static_clippable_shader("overlay_edit_uv_mask_image");
+  uv_analysis_stretch_angle = shader("overlay_edit_uv_stretching_angle");
+  uv_analysis_stretch_area = shader("overlay_edit_uv_stretching_area");
+  uv_edit_vert = shader("overlay_edit_uv_verts");
+  uv_edit_face = shader("overlay_edit_uv_faces");
+  uv_edit_facedot = shader("overlay_edit_uv_face_dots");
+  uv_image_borders = shader("overlay_edit_uv_tiled_image_borders");
+  uv_brush_stencil = shader("overlay_edit_uv_stencil_image");
+  uv_paint_mask = shader("overlay_edit_uv_mask_image");
 
-  xray_fade = static_clippable_shader("overlay_xray_fade");
+  xray_fade = shader("overlay_xray_fade");
 
   /** Selectable Shaders */
 

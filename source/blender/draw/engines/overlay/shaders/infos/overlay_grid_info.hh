@@ -43,9 +43,6 @@ PUSH_CONSTANT(VEC3, tile_scale)
 DEFINE_VALUE("tile_pos", "vec3(0.0)")
 GPU_SHADER_CREATE_END()
 
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_grid_background)
-
 GPU_SHADER_CREATE_INFO(overlay_grid_image)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, VEC3, pos)
@@ -61,6 +58,3 @@ STORAGE_BUF(0, READ, vec3, tile_pos_buf[])
 DEFINE_VALUE("tile_pos", "tile_pos_buf[gl_InstanceID]")
 DEFINE_VALUE("tile_scale", "vec3(1.0)");
 GPU_SHADER_CREATE_END()
-
-/* TODO(pragma37): Remove? */
-OVERLAY_INFO_CLIP_VARIATION(overlay_grid_image)
