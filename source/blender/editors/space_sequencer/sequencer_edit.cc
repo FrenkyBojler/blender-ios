@@ -1653,7 +1653,6 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_get(scene);
-  // get region for checking if the operator is called from preview
   ARegion *region = CTX_wm_region(C);
 
   if (ed == nullptr) {
@@ -1695,10 +1694,9 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
     SEQ_animation_duplicate_backup_to_scene(scene, seq, &animation_backup);
     SEQ_ensure_unique_name(seq, scene);
-    // check if the operator is called from preview
+    /* Handle overlap when the operator is called from the preview. This is necessary for the preview_duplicate_move macro. */
     if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C))
     {
-      // if called from preview handle overlap
       if (SEQ_transform_test_overlap(scene, ed->seqbasep, seq)) {
         SEQ_transform_seqbase_shuffle(ed->seqbasep, seq, scene);
       }
