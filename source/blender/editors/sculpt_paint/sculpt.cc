@@ -1156,11 +1156,6 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       break;
     }
   }
-
-  /* Update normals for potentially-changed positions. Theoretically this may be unnecessary if
-   * the brush restoring to the initial state doesn't use the normals, but we have no easy way to
-   * know that from here. */
-  bke::pbvh::update_normals(depsgraph, object, pbvh);
 }
 
 static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd, Object &object)
@@ -1179,6 +1174,7 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_DRAW_FACE_SETS:
       if (ss.cache->alt_smooth) {
         restore_position_from_undo_step(depsgraph, object);
+        bke::pbvh::update_normals(depsgraph, object, *bke::object::pbvh_get(object));
       }
       else {
         restore_face_set_from_undo_step(object);
@@ -1186,6 +1182,7 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
       break;
     default:
       restore_position_from_undo_step(depsgraph, object);
+      bke::pbvh::update_normals(depsgraph, object, *bke::object::pbvh_get(object));
       break;
   }
   /* Disable multi-threading when dynamic-topology is enabled. Otherwise,
@@ -5234,7 +5231,9 @@ static void stroke_undo_end(const bContext *C, Brush *brush)
   }
 }
 
-bool SCULPT_handles_colors_report(const Object &object, ReportList *reports)
+namespace blender::ed::sculpt_paint {
+
+bool color_supported_check(const Object &object, ReportList *reports)
 {
   switch (blender::bke::object::pbvh_get(object)->type()) {
     case blender::bke::pbvh::Type::Mesh:
@@ -5249,8 +5248,6 @@ bool SCULPT_handles_colors_report(const Object &object, ReportList *reports)
   BLI_assert_unreachable();
   return false;
 }
-
-namespace blender::ed::sculpt_paint {
 
 static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
 {
@@ -5424,7 +5421,7 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
   Brush &brush = *BKE_paint_brush(&sd.paint);
 
   if (SCULPT_brush_type_is_paint(brush.sculpt_brush_type) &&
-      !SCULPT_handles_colors_report(ob, op->reports))
+      !color_supported_check(ob, op->reports))
   {
     return OPERATOR_CANCELLED;
   }

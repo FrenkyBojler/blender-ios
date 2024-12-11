@@ -262,12 +262,13 @@ static void select_draw_scene(void *vedata)
   SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
 
   {
-    /* Create view with depth offset */
-    const DRWView *view_default = DRW_view_default_get();
     const DRWContextState *draw_ctx = DRW_context_state_get();
-    inst.view_faces.sync(view_default);
-    inst.view_edges.sync(DRW_view_create_with_zoffset(view_default, draw_ctx->rv3d, 1.0f));
-    inst.view_verts.sync(DRW_view_create_with_zoffset(view_default, draw_ctx->rv3d, 1.1f));
+    View::OffsetData offset_data(*draw_ctx->rv3d);
+    /* Create view with depth offset */
+    const View &view = View::default_get();
+    inst.view_faces.sync(view.viewmat(), view.winmat());
+    inst.view_edges.sync(view.viewmat(), offset_data.winmat_polygon_offset(view.winmat(), 1.0f));
+    inst.view_verts.sync(view.viewmat(), offset_data.winmat_polygon_offset(view.winmat(), 1.1f));
   }
 
   {
@@ -304,11 +305,11 @@ static void select_engine_free()
   SelectEngineData &e_data = get_engine_data();
   for (int sh_data_index = 0; sh_data_index < ARRAY_SIZE(e_data.sh_data); sh_data_index++) {
     SELECTID_Shaders *sh_data = &e_data.sh_data[sh_data_index];
-    DRW_SHADER_FREE_SAFE(sh_data->select_id_flat);
-    DRW_SHADER_FREE_SAFE(sh_data->select_id_uniform);
+    GPU_SHADER_FREE_SAFE(sh_data->select_id_flat);
+    GPU_SHADER_FREE_SAFE(sh_data->select_id_uniform);
   }
 
-  DRW_TEXTURE_FREE_SAFE(e_data.texture_u32);
+  GPU_TEXTURE_FREE_SAFE(e_data.texture_u32);
   GPU_FRAMEBUFFER_FREE_SAFE(e_data.framebuffer_select_id);
 }
 
