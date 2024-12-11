@@ -21,22 +21,23 @@
 #  include "GHOST_ContextVK.hh"
 #endif
 
-#include <Cocoa/Cocoa.h>
-#include <Metal/Metal.h>
-#include <QuartzCore/QuartzCore.h>
+#import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/QuartzCore.h>
 
 #include <sys/sysctl.h>
 
-#pragma mark Cocoa window delegate object
+/* --------------------------------------------------------------------
+ * Blender window delegate object.
+ */
 
-@interface CocoaWindowDelegate : NSObject <NSWindowDelegate>
-{
-  GHOST_SystemCocoa *systemCocoa;
-  GHOST_WindowCocoa *associatedWindow;
-}
+@interface BlenderWindowDelegate : NSObject <NSWindowDelegate>
 
-- (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa
-                    windowCocoa:(GHOST_WindowCocoa *)winCocoa;
+@property(nonatomic, readonly, assign) GHOST_SystemCocoa *systemCocoa;
+@property(nonatomic, readonly, assign) GHOST_WindowCocoa *windowCocoa;
+
+- (instancetype)initWithSystemCocoa:(GHOST_SystemCocoa *)sysCocoa
+                        windowCocoa:(GHOST_WindowCocoa *)winCocoa;
 - (void)windowDidBecomeKey:(NSNotification *)notification;
 - (void)windowDidResignKey:(NSNotification *)notification;
 - (void)windowDidExpose:(NSNotification *)notification;
@@ -45,46 +46,57 @@
 - (void)windowWillMove:(NSNotification *)notification;
 - (BOOL)windowShouldClose:(id)sender;
 - (void)windowDidChangeBackingProperties:(NSNotification *)notification;
+
 @end
 
-@implementation CocoaWindowDelegate : NSObject
-- (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa
-                    windowCocoa:(GHOST_WindowCocoa *)winCocoa
+@implementation BlenderWindowDelegate : NSObject
+
+@synthesize systemCocoa = m_systemCocoa;
+@synthesize windowCocoa = m_windowCocoa;
+
+- (instancetype)initWithSystemCocoa:(GHOST_SystemCocoa *)sysCocoa
+                        windowCocoa:(GHOST_WindowCocoa *)winCocoa
 {
-  systemCocoa = sysCocoa;
-  associatedWindow = winCocoa;
+  self = [super init];
+
+  if (self) {
+    m_systemCocoa = sysCocoa;
+    m_windowCocoa = winCocoa;
+  }
+
+  return self;
 }
 
 - (void)windowDidBecomeKey:(NSNotification *)notification
 {
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowActivate, associatedWindow);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowActivate, m_windowCocoa);
   /* Workaround for broken app-switching when combining Command-Tab and mission-control. */
-  [(NSWindow *)associatedWindow->getOSWindow() orderFrontRegardless];
+  [(NSWindow *)m_windowCocoa->getOSWindow() orderFrontRegardless];
 }
 
 - (void)windowDidResignKey:(NSNotification *)notification
 {
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowDeactivate, associatedWindow);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowDeactivate, m_windowCocoa);
 }
 
 - (void)windowDidExpose:(NSNotification *)notification
 {
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowUpdate, associatedWindow);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowUpdate, m_windowCocoa);
 }
 
 - (void)windowDidMove:(NSNotification *)notification
 {
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowMove, associatedWindow);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowMove, m_windowCocoa);
 }
 
 - (void)windowWillMove:(NSNotification *)notification
 {
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowMove, associatedWindow);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowMove, m_windowCocoa);
 }
 
 - (void)windowWillEnterFullScreen:(NSNotification *)notification
 {
-  associatedWindow->setImmediateDraw(true);
+  m_windowCocoa->setImmediateDraw(true);
 }
 
 - (void)windowDidEnterFullScreen:(NSNotification *)notification
@@ -92,21 +104,21 @@
   /* macOS does not send a window resize event when switching between zoomed
    * and full-screen, when automatic show/hide of dock and menu bar are enabled.
    * Send our own to prevent artifacts. */
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, associatedWindow);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, m_windowCocoa);
 
-  associatedWindow->setImmediateDraw(false);
+  m_windowCocoa->setImmediateDraw(false);
 }
 
 - (void)windowWillExitFullScreen:(NSNotification *)notification
 {
-  associatedWindow->setImmediateDraw(true);
+  m_windowCocoa->setImmediateDraw(true);
 }
 
 - (void)windowDidExitFullScreen:(NSNotification *)notification
 {
   /* See comment for windowWillEnterFullScreen. */
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, associatedWindow);
-  associatedWindow->setImmediateDraw(false);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, m_windowCocoa);
+  m_windowCocoa->setImmediateDraw(false);
 }
 
 - (void)windowDidResize:(NSNotification *)notification
@@ -116,60 +128,75 @@
 #endif
   {
     /* Send event only once, at end of resize operation (when user has released mouse button). */
-    systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, associatedWindow);
+    m_systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, m_windowCocoa);
   }
   /* Live resize, send event, gets handled in wm_window.c.
    * Needed because live resize runs in a modal loop, not letting main loop run */
   if ([[notification object] inLiveResize]) {
-    systemCocoa->dispatchEvents();
+    m_systemCocoa->dispatchEvents();
   }
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification *)notification
 {
-  systemCocoa->handleWindowEvent(GHOST_kEventNativeResolutionChange, associatedWindow);
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, associatedWindow);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventNativeResolutionChange, m_windowCocoa);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, m_windowCocoa);
 }
 
 - (BOOL)windowShouldClose:(id)sender;
 {
   /* Let Blender close the window rather than closing immediately. */
-  systemCocoa->handleWindowEvent(GHOST_kEventWindowClose, associatedWindow);
+  m_systemCocoa->handleWindowEvent(GHOST_kEventWindowClose, m_windowCocoa);
   return false;
 }
 
 @end
 
-#pragma mark NSWindow subclass
-/* We need to subclass it to tell that even borderless (full-screen),
- * it can become key (receive user events). */
-@interface CocoaWindow : NSWindow
-{
-  GHOST_SystemCocoa *systemCocoa;
-  GHOST_WindowCocoa *associatedWindow;
-  GHOST_TDragnDropTypes m_draggedObjectType;
-}
-- (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa
-                    windowCocoa:(GHOST_WindowCocoa *)winCocoa;
-- (GHOST_SystemCocoa *)systemCocoa;
+@interface BlenderWindow : NSWindow
+
+@property(nonatomic, readonly, assign) GHOST_SystemCocoa *systemCocoa;
+@property(nonatomic, readonly, assign) GHOST_WindowCocoa *windowCocoa;
+@property(nonatomic, readonly, assign) GHOST_TDragnDropTypes draggedObjectType;
+
+- (instancetype)initWithSystemCocoa:(GHOST_SystemCocoa *)sysCocoa
+                        windowCocoa:(GHOST_WindowCocoa *)winCocoa
+                        contentRect:(NSRect)contentRect
+                          styleMask:(NSWindowStyleMask)style
+                            backing:(NSBackingStoreType)backingStoreType
+                              defer:(BOOL)flag;
+
 @end
 
-@implementation CocoaWindow
-- (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa
-                    windowCocoa:(GHOST_WindowCocoa *)winCocoa
+@implementation BlenderWindow
+
+@synthesize systemCocoa = m_systemCocoa;
+@synthesize windowCocoa = m_windowCocoa;
+@synthesize draggedObjectType = m_draggedObjectType;
+
+- (instancetype)initWithSystemCocoa:(GHOST_SystemCocoa *)sysCocoa
+                        windowCocoa:(GHOST_WindowCocoa *)winCocoa
+                        contentRect:(NSRect)contentRect
+                          styleMask:(NSWindowStyleMask)style
+                            backing:(NSBackingStoreType)backingStoreType
+                              defer:(BOOL)flag
 {
-  systemCocoa = sysCocoa;
-  associatedWindow = winCocoa;
-}
-- (GHOST_SystemCocoa *)systemCocoa
-{
-  return systemCocoa;
+  self = [super initWithContentRect:contentRect
+                          styleMask:style
+                            backing:backingStoreType
+                              defer:flag];
+
+  if (self) {
+    m_systemCocoa = sysCocoa;
+    m_windowCocoa = winCocoa;
+  }
+
+  return self;
 }
 
 - (BOOL)canBecomeKeyWindow
 {
   /* Don't make other windows active when a dialog window is open. */
-  return (associatedWindow->isDialog() || !systemCocoa->hasDialogWindow());
+  return (m_windowCocoa->isDialog() || !m_systemCocoa->hasDialogWindow());
 }
 
 /* The drag & drop dragging destination methods. */
@@ -191,13 +218,13 @@
     }
 
     const NSPoint mouseLocation = sender.draggingLocation;
-    associatedWindow->setAcceptDragOperation(TRUE); /* Drag operation is accepted by default. */
-    systemCocoa->handleDraggingEvent(GHOST_kEventDraggingEntered,
-                                     m_draggedObjectType,
-                                     associatedWindow,
-                                     mouseLocation.x,
-                                     mouseLocation.y,
-                                     nil);
+    m_windowCocoa->setAcceptDragOperation(TRUE); /* Drag operation is accepted by default. */
+    m_systemCocoa->handleDraggingEvent(GHOST_kEventDraggingEntered,
+                                       m_draggedObjectType,
+                                       m_windowCocoa,
+                                       mouseLocation.x,
+                                       mouseLocation.y,
+                                       nil);
   }
   return NSDragOperationCopy;
 }
@@ -209,30 +236,30 @@
 
 - (NSDragOperation)draggingUpdated:(id<NSDraggingInfo>)sender
 {
-  NSPoint mouseLocation = [sender draggingLocation];
+  const NSPoint mouseLocation = [sender draggingLocation];
 
-  systemCocoa->handleDraggingEvent(GHOST_kEventDraggingUpdated,
-                                   m_draggedObjectType,
-                                   associatedWindow,
-                                   mouseLocation.x,
-                                   mouseLocation.y,
-                                   nil);
-  return associatedWindow->canAcceptDragOperation() ? NSDragOperationCopy : NSDragOperationNone;
+  m_systemCocoa->handleDraggingEvent(GHOST_kEventDraggingUpdated,
+                                     m_draggedObjectType,
+                                     m_windowCocoa,
+                                     mouseLocation.x,
+                                     mouseLocation.y,
+                                     nil);
+  return m_windowCocoa->canAcceptDragOperation() ? NSDragOperationCopy : NSDragOperationNone;
 }
 
 - (void)draggingExited:(id<NSDraggingInfo>)sender
 {
-  systemCocoa->handleDraggingEvent(
-      GHOST_kEventDraggingExited, m_draggedObjectType, associatedWindow, 0, 0, nil);
+  m_systemCocoa->handleDraggingEvent(
+      GHOST_kEventDraggingExited, m_draggedObjectType, m_windowCocoa, 0, 0, nil);
   m_draggedObjectType = GHOST_kDragnDropTypeUnknown;
 }
 
 - (BOOL)prepareForDragOperation:(id<NSDraggingInfo>)sender
 {
-  if (associatedWindow->canAcceptDragOperation())
+  if (m_windowCocoa->canAcceptDragOperation()) {
     return YES;
-  else
-    return NO;
+  }
+  return NO;
 }
 
 - (BOOL)performDragOperation:(id<NSDraggingInfo>)sender
@@ -265,12 +292,12 @@
     }
 
     const NSPoint mouseLocation = sender.draggingLocation;
-    systemCocoa->handleDraggingEvent(GHOST_kEventDraggingDropDone,
-                                     m_draggedObjectType,
-                                     associatedWindow,
-                                     mouseLocation.x,
-                                     mouseLocation.y,
-                                     (void *)data);
+    m_systemCocoa->handleDraggingEvent(GHOST_kEventDraggingDropDone,
+                                       m_draggedObjectType,
+                                       m_windowCocoa,
+                                       mouseLocation.x,
+                                       mouseLocation.y,
+                                       (void *)data);
   }
   return YES;
 }
@@ -290,7 +317,9 @@
 #undef COCOA_VIEW_CLASS
 #undef COCOA_VIEW_BASE_CLASS
 
-#pragma mark initialization / finalization
+/* --------------------------------------------------------------------
+ * Initialization / Finalization.
+ */
 
 GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
                                      const char *title,
@@ -303,16 +332,18 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
                                      const bool stereoVisual,
                                      bool is_debug,
                                      bool is_dialog,
-                                     GHOST_WindowCocoa *parentWindow)
+                                     GHOST_WindowCocoa *parentWindow,
+                                     const GHOST_GPUDevice &preferred_device)
     : GHOST_Window(width, height, state, stereoVisual, false),
       m_openGLView(nil),
       m_metalView(nil),
       m_metalLayer(nil),
       m_systemCocoa(systemCocoa),
-      m_customCursor(0),
+      m_customCursor(nullptr),
       m_immediateDraw(false),
       m_debug_context(is_debug),
-      m_is_dialog(is_dialog)
+      m_is_dialog(is_dialog),
+      m_preferred_device(preferred_device)
 {
   m_fullScreen = false;
 
@@ -330,11 +361,12 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
       styleMask |= NSWindowStyleMaskMiniaturizable;
     }
 
-    m_window = [[CocoaWindow alloc] initWithContentRect:rect
-                                              styleMask:styleMask
-                                                backing:NSBackingStoreBuffered
-                                                  defer:NO];
-    [m_window setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
+    m_window = [[BlenderWindow alloc] initWithSystemCocoa:systemCocoa
+                                              windowCocoa:this
+                                              contentRect:rect
+                                                styleMask:styleMask
+                                                  backing:NSBackingStoreBuffered
+                                                    defer:NO];
 
     /* Forbid to resize the window below the blender defined minimum one. */
     const NSSize minSize = {320, 240};
@@ -370,16 +402,18 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
         CGColorSpaceRelease(colorspace);
       }
 
-      m_metalView = [[CocoaMetalView alloc] initWithFrame:rect];
+      m_metalView = [[CocoaMetalView alloc] initWithSystemCocoa:systemCocoa
+                                                    windowCocoa:this
+                                                          frame:rect];
       m_metalView.wantsLayer = YES;
       m_metalView.layer = m_metalLayer;
-      [m_metalView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
       view = m_metalView;
     }
     else {
       /* Fallback to OpenGL view if there is no Metal support. */
-      m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect];
-      [m_openGLView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
+      m_openGLView = [[CocoaOpenGLView alloc] initWithSystemCocoa:systemCocoa
+                                                      windowCocoa:this
+                                                            frame:rect];
       view = m_openGLView;
     }
 
@@ -404,8 +438,9 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
 
     m_tablet = GHOST_TABLET_DATA_NONE;
 
-    CocoaWindowDelegate *windowDelegate = [[CocoaWindowDelegate alloc] init];
-    [windowDelegate setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
+    BlenderWindowDelegate *windowDelegate = [[BlenderWindowDelegate alloc]
+        initWithSystemCocoa:systemCocoa
+                windowCocoa:this];
     m_window.delegate = windowDelegate;
 
     m_window.acceptsMouseMovedEvents = YES;
@@ -419,7 +454,7 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
                                                                 nil]];
 
     if (is_dialog && parentWindow) {
-      [parentWindow->getCocoaWindow() addChildWindow:m_window ordered:NSWindowAbove];
+      [parentWindow->getViewWindow() addChildWindow:m_window ordered:NSWindowAbove];
       m_window.collectionBehavior = NSWindowCollectionBehaviorFullScreenAuxiliary;
     }
     else {
@@ -465,7 +500,7 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
      * NOTE: for some reason the closed window is still in the list. */
     NSArray *windowsList = [NSApp orderedWindows];
     for (int a = 0; a < [windowsList count]; a++) {
-      if (m_window != (CocoaWindow *)[windowsList objectAtIndex:a]) {
+      if (m_window != (BlenderWindow *)[windowsList objectAtIndex:a]) {
         [[windowsList objectAtIndex:a] makeKeyWindow];
         break;
       }
@@ -473,6 +508,10 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
     m_window = nil;
   }
 }
+
+/* --------------------------------------------------------------------
+ * Accessors.
+ */
 
 bool GHOST_WindowCocoa::getValid() const
 {
@@ -540,7 +579,6 @@ void GHOST_WindowCocoa::getWindowBounds(GHOST_Rect &bounds) const
 
   @autoreleasepool {
     const NSRect screenSize = m_window.screen.visibleFrame;
-
     const NSRect rect = m_window.frame;
 
     bounds.m_b = screenSize.size.height - (rect.origin.y - screenSize.origin.y);
@@ -558,8 +596,8 @@ void GHOST_WindowCocoa::getClientBounds(GHOST_Rect &bounds) const
     const NSRect screenSize = m_window.screen.visibleFrame;
 
     /* Max window contents as screen size (excluding title bar...). */
-    const NSRect contentRect = [CocoaWindow contentRectForFrameRect:screenSize
-                                                          styleMask:[m_window styleMask]];
+    const NSRect contentRect = [BlenderWindow contentRectForFrameRect:screenSize
+                                                            styleMask:[m_window styleMask]];
 
     const NSRect rect = [m_window contentRectForFrameRect:[m_window frame]];
 
@@ -579,7 +617,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setClientWidth(uint32_t width)
     GHOST_Rect cBnds;
     getClientBounds(cBnds);
 
-    if (((uint32_t)cBnds.getWidth()) != width) {
+    if ((uint32_t(cBnds.getWidth())) != width) {
       const NSSize size = {(CGFloat)width, (CGFloat)cBnds.getHeight()};
       [m_window setContentSize:size];
     }
@@ -595,7 +633,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setClientHeight(uint32_t height)
     GHOST_Rect cBnds;
     getClientBounds(cBnds);
 
-    if (((uint32_t)cBnds.getHeight()) != height) {
+    if ((uint32_t(cBnds.getHeight())) != height) {
       const NSSize size = {(CGFloat)cBnds.getWidth(), (CGFloat)height};
       [m_window setContentSize:size];
     }
@@ -608,9 +646,9 @@ GHOST_TSuccess GHOST_WindowCocoa::setClientSize(uint32_t width, uint32_t height)
   GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setClientSize(): window invalid");
 
   @autoreleasepool {
-    GHOST_Rect cBnds, wBnds;
+    GHOST_Rect cBnds;
     getClientBounds(cBnds);
-    if ((((uint32_t)cBnds.getWidth()) != width) || (((uint32_t)cBnds.getHeight()) != height)) {
+    if (((uint32_t(cBnds.getWidth())) != width) || ((uint32_t(cBnds.getHeight())) != height)) {
       const NSSize size = {(CGFloat)width, (CGFloat)height};
       [m_window setContentSize:size];
     }
@@ -709,7 +747,7 @@ NSScreen *GHOST_WindowCocoa::getScreen()
 }
 
 /* called for event, when window leaves monitor to another */
-void GHOST_WindowCocoa::setNativePixelSize(void)
+void GHOST_WindowCocoa::setNativePixelSize()
 {
   NSView *view = (m_openGLView) ? m_openGLView : m_metalView;
   const NSRect backingBounds = [view convertRectToBacking:[view bounds]];
@@ -717,7 +755,7 @@ void GHOST_WindowCocoa::setNativePixelSize(void)
   GHOST_Rect rect;
   getClientBounds(rect);
 
-  m_nativePixelSize = (float)backingBounds.size.width / (float)rect.getWidth();
+  m_nativePixelSize = float(backingBounds.size.width) / float(rect.getWidth());
 }
 
 /**
@@ -741,7 +779,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
         break;
 
       case GHOST_kWindowStateFullScreen: {
-        NSUInteger masks = m_window.styleMask;
+        const NSUInteger masks = m_window.styleMask;
 
         if (!(masks & NSWindowStyleMaskFullScreen)) {
           [m_window toggleFullScreen:nil];
@@ -751,7 +789,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
       case GHOST_kWindowStateNormal:
       default:
         @autoreleasepool {
-          NSUInteger masks = m_window.styleMask;
+          const NSUInteger masks = m_window.styleMask;
 
           if (masks & NSWindowStyleMaskFullScreen) {
             /* Lion style full-screen. */
@@ -802,14 +840,17 @@ GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
   return GHOST_kSuccess;
 }
 
-#pragma mark Drawing context
+/* --------------------------------------------------------------------
+ * Drawing context.
+ */
 
 GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType type)
 {
   switch (type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
-      GHOST_Context *context = new GHOST_ContextVK(m_wantStereoVisual, m_metalLayer, 1, 2, true);
+      GHOST_Context *context = new GHOST_ContextVK(
+          m_wantStereoVisual, m_metalLayer, 1, 2, true, m_preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -836,7 +877,9 @@ GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
   }
 }
 
-#pragma mark invalidate
+/* --------------------------------------------------------------------
+ * Invalidate.
+ */
 
 GHOST_TSuccess GHOST_WindowCocoa::invalidate()
 {
@@ -849,7 +892,9 @@ GHOST_TSuccess GHOST_WindowCocoa::invalidate()
   return GHOST_kSuccess;
 }
 
-#pragma mark Progress bar
+/* --------------------------------------------------------------------
+ * Progress bar.
+ */
 
 GHOST_TSuccess GHOST_WindowCocoa::setProgressBar(float progress)
 {
@@ -911,14 +956,16 @@ GHOST_TSuccess GHOST_WindowCocoa::endProgressBar()
   return GHOST_kSuccess;
 }
 
-#pragma mark Cursor handling
+/* --------------------------------------------------------------------
+ * Cursor handling.
+ */
 
 static NSCursor *getImageCursor(GHOST_TStandardCursor shape, NSString *name, NSPoint hotspot)
 {
-  static NSCursor *cursors[(int)GHOST_kStandardCursorNumCursors] = {0};
-  static bool loaded[(int)GHOST_kStandardCursorNumCursors] = {false};
+  static NSCursor *cursors[GHOST_kStandardCursorNumCursors] = {nullptr};
+  static bool loaded[GHOST_kStandardCursorNumCursors] = {false};
 
-  const int index = (int)shape;
+  const int index = int(shape);
   if (!loaded[index]) {
     /* Load image from file in application Resources folder. */
     @autoreleasepool {
@@ -969,6 +1016,12 @@ NSCursor *GHOST_WindowCocoa::getStandardCursor(GHOST_TStandardCursor shape) cons
         return [NSCursor operationNotAllowedCursor];
       case GHOST_kStandardCursorMove:
         return [NSCursor openHandCursor];
+      case GHOST_kStandardCursorHandOpen:
+        return [NSCursor openHandCursor];
+      case GHOST_kStandardCursorHandClosed:
+        return [NSCursor closedHandCursor];
+      case GHOST_kStandardCursorHandPoint:
+        return [NSCursor pointingHandCursor];
       case GHOST_kStandardCursorDefault:
         return [NSCursor arrowCursor];
       case GHOST_kStandardCursorKnife:

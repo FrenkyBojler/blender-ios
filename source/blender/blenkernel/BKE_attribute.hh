@@ -16,6 +16,7 @@
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.h"
+#include "BKE_attribute_filters.hh"
 
 struct Mesh;
 struct PointCloud;
@@ -48,18 +49,6 @@ enum class AttrDomain : int8_t {
 };
 #define ATTR_DOMAIN_NUM 7
 
-/**
- * Checks if the attribute name has the `.a_` prefix which indicates that it is an anonymous
- * attribute. I.e. it is just internally used by Blender and the name should not be exposed to the
- * user.
- *
- * Use #hash_to_anonymous_attribute_name to generate names for anonymous attributes.
- */
-inline bool attribute_name_is_anonymous(const StringRef name)
-{
-  return name.startswith(".a_");
-}
-
 const CPPType *custom_data_type_to_cpp_type(eCustomDataType type);
 eCustomDataType cpp_type_to_custom_data_type(const CPPType &type);
 
@@ -75,7 +64,7 @@ struct AttributeMetaData {
   BLI_STRUCT_EQUALITY_OPERATORS_2(AttributeMetaData, domain, data_type)
 };
 
-struct AttributeKind {
+struct AttributeDomainAndType {
   AttrDomain domain;
   eCustomDataType data_type;
 };
@@ -399,6 +388,71 @@ struct GSpanAttributeWriter {
 };
 
 /**
+ * This is used when iterating over attributes, e.g. with #foreach_attribute. It contains meta-data
+ * for the current attribute and provides easy access to the actual attribute data.
+ */
+class AttributeIter {
+ public:
+  StringRefNull name;
+  AttrDomain domain;
+  eCustomDataType data_type;
+  bool is_builtin = false;
+  mutable const AttributeAccessor *accessor = nullptr;
+
+ private:
+  FunctionRef<GAttributeReader()> get_fn_;
+  mutable bool stop_iteration_ = false;
+
+ public:
+  AttributeIter(const StringRefNull name,
+                const AttrDomain domain,
+                const eCustomDataType data_type,
+                const FunctionRef<GAttributeReader()> get_fn)
+      : name(name), domain(domain), data_type(data_type), get_fn_(get_fn)
+  {
+  }
+
+  /** Stops the iteration. Remaining attributes will be skipped. */
+  void stop() const
+  {
+    stop_iteration_ = true;
+  }
+
+  bool is_stopped() const
+  {
+    return stop_iteration_;
+  }
+
+  /** Get read-only access to the current attribute. This method always succeeds. */
+  GAttributeReader get() const
+  {
+    return get_fn_();
+  }
+
+  /** Same as above, but may perform type and domain interpolation. This may return none. */
+  GAttributeReader get(std::optional<AttrDomain> domain,
+                       std::optional<eCustomDataType> data_type) const;
+
+  GAttributeReader get(const AttrDomain domain) const
+  {
+    return this->get(domain, std::nullopt);
+  }
+
+  GAttributeReader get(const eCustomDataType data_type) const
+  {
+    return this->get(std::nullopt, data_type);
+  }
+
+  template<typename T>
+  AttributeReader<T> get(const std::optional<AttrDomain> domain = std::nullopt) const
+  {
+    const CPPType &cpp_type = CPPType::get<T>();
+    const eCustomDataType data_type = cpp_type_to_custom_data_type(cpp_type);
+    return this->get(domain, data_type).typed<T>();
+  }
+};
+
+/**
  * Core functions which make up the attribute API. They should not be called directly, but through
  * #AttributesAccessor or #MutableAttributesAccessor.
  *
@@ -407,18 +461,18 @@ struct GSpanAttributeWriter {
  * makes it easy to return the attribute accessor for a geometry from a function.
  */
 struct AttributeAccessorFunctions {
-  bool (*contains)(const void *owner, StringRef attribute_id);
-  std::optional<AttributeMetaData> (*lookup_meta_data)(const void *owner, StringRef attribute_id);
   bool (*domain_supported)(const void *owner, AttrDomain domain);
   int (*domain_size)(const void *owner, AttrDomain domain);
-  bool (*is_builtin)(const void *owner, StringRef attribute_id);
+  std::optional<AttributeDomainAndType> (*builtin_domain_and_type)(const void *owner,
+                                                                   StringRef attribute_id);
   GAttributeReader (*lookup)(const void *owner, StringRef attribute_id);
   GVArray (*adapt_domain)(const void *owner,
                           const GVArray &varray,
                           AttrDomain from_domain,
                           AttrDomain to_domain);
-  bool (*for_all)(const void *owner,
-                  FunctionRef<bool(StringRefNull, const AttributeMetaData &)> fn);
+  void (*foreach_attribute)(const void *owner,
+                            FunctionRef<void(const AttributeIter &iter)> fn,
+                            const AttributeAccessor &accessor);
   AttributeValidator (*lookup_validator)(const void *owner, StringRef attribute_id);
   GAttributeWriter (*lookup_for_write)(void *owner, StringRef attribute_id);
   bool (*remove)(void *owner, StringRef attribute_id);
@@ -441,8 +495,8 @@ class AttributeAccessor {
    * The data that actually owns the attributes, for example, a pointer to a #Mesh or #PointCloud
    * Most commonly this is a pointer to a #Mesh or #PointCloud.
    * Under some circumstances this can be null. In that case most methods can't be used. Allowed
-   * methods are #domain_size, #for_all and #is_builtin. We could potentially make these methods
-   * accessible without #AttributeAccessor and then #owner_ could always be non-null.
+   * methods are #domain_size, #foreach_attribute and #is_builtin. We could potentially make these
+   * methods accessible without #AttributeAccessor and then #owner_ could always be non-null.
    *
    * \note This class cannot modify the owner's attributes, but the pointer is still non-const, so
    * this class can be a base class for the mutable version.
@@ -467,18 +521,12 @@ class AttributeAccessor {
   /**
    * \return True, when the attribute is available.
    */
-  bool contains(const StringRef attribute_id) const
-  {
-    return fn_->contains(owner_, attribute_id);
-  }
+  bool contains(const StringRef attribute_id) const;
 
   /**
    * \return Information about the attribute if it exists.
    */
-  std::optional<AttributeMetaData> lookup_meta_data(const StringRef attribute_id) const
-  {
-    return fn_->lookup_meta_data(owner_, attribute_id);
-  }
+  std::optional<AttributeMetaData> lookup_meta_data(const StringRef attribute_id) const;
 
   /**
    * \return True, when attributes can exist on that domain.
@@ -502,7 +550,15 @@ class AttributeAccessor {
    */
   bool is_builtin(const StringRef attribute_id) const
   {
-    return fn_->is_builtin(owner_, attribute_id);
+    return fn_->builtin_domain_and_type(owner_, attribute_id).has_value();
+  }
+
+  /**
+   * \return The required domain and type for the attribute, if it is builtin.
+   */
+  std::optional<AttributeDomainAndType> get_builtin_domain_and_type(const StringRef name) const
+  {
+    return fn_->builtin_domain_and_type(owner_, name);
   }
 
   /**
@@ -611,12 +667,11 @@ class AttributeAccessor {
    * Run the provided function for every attribute.
    * Attributes should not be removed or added during iteration.
    */
-  bool for_all(const AttributeForeachCallback fn) const
+  void foreach_attribute(const FunctionRef<void(const AttributeIter &)> fn) const
   {
     if (owner_ != nullptr) {
-      return fn_->for_all(owner_, fn);
+      fn_->foreach_attribute(owner_, fn, *this);
     }
-    return true;
   }
 
   /**
@@ -690,6 +745,9 @@ class MutableAttributeAccessor : public AttributeAccessor {
            const eCustomDataType data_type,
            const AttributeInit &initializer)
   {
+    if (this->contains(attribute_id)) {
+      return false;
+    }
     return fn_->add(owner_, attribute_id, domain, data_type, initializer);
   }
   template<typename T>
@@ -813,8 +871,7 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes,
     AttrDomainMask domain_mask,
-    const AnonymousAttributePropagationInfo &propagation_info,
-    const Set<std::string> &skip = {});
+    const AttributeFilter &attribute_filter = {});
 
 bool allow_procedural_attribute_access(StringRef attribute_name);
 extern const char *no_procedural_access_message;
@@ -827,9 +884,9 @@ eCustomDataType attribute_data_type_highest_complexity(Span<eCustomDataType> dat
 AttrDomain attribute_domain_highest_priority(Span<AttrDomain> domains);
 
 void gather_attributes(AttributeAccessor src_attributes,
-                       AttrDomain domain,
-                       const AnonymousAttributePropagationInfo &propagation_info,
-                       const Set<std::string> &skip,
+                       AttrDomain src_domain,
+                       AttrDomain dst_domain,
+                       const AttributeFilter &attribute_filter,
                        const IndexMask &selection,
                        MutableAttributeAccessor dst_attributes);
 
@@ -837,9 +894,9 @@ void gather_attributes(AttributeAccessor src_attributes,
  * Fill the destination attribute by gathering indexed values from src attributes.
  */
 void gather_attributes(AttributeAccessor src_attributes,
-                       AttrDomain domain,
-                       const AnonymousAttributePropagationInfo &propagation_info,
-                       const Set<std::string> &skip,
+                       AttrDomain src_domain,
+                       AttrDomain dst_domain,
+                       const AttributeFilter &attribute_filter,
                        Span<int> indices,
                        MutableAttributeAccessor dst_attributes);
 
@@ -849,32 +906,32 @@ void gather_attributes(AttributeAccessor src_attributes,
  * source and result group must be the same.
  */
 void gather_attributes_group_to_group(AttributeAccessor src_attributes,
-                                      AttrDomain domain,
-                                      const AnonymousAttributePropagationInfo &propagation_info,
-                                      const Set<std::string> &skip,
+                                      AttrDomain src_domain,
+                                      AttrDomain dst_domain,
+                                      const AttributeFilter &attribute_filter,
                                       OffsetIndices<int> src_offsets,
                                       OffsetIndices<int> dst_offsets,
                                       const IndexMask &selection,
                                       MutableAttributeAccessor dst_attributes);
 
 void gather_attributes_to_groups(AttributeAccessor src_attributes,
-                                 AttrDomain domain,
-                                 const AnonymousAttributePropagationInfo &propagation_info,
-                                 const Set<std::string> &skip,
+                                 AttrDomain src_domain,
+                                 AttrDomain dst_domain,
+                                 const AttributeFilter &attribute_filter,
                                  OffsetIndices<int> dst_offsets,
                                  const IndexMask &src_selection,
                                  MutableAttributeAccessor dst_attributes);
 
 void copy_attributes(const AttributeAccessor src_attributes,
-                     const AttrDomain domain,
-                     const AnonymousAttributePropagationInfo &propagation_info,
-                     const Set<std::string> &skip,
+                     AttrDomain src_domain,
+                     AttrDomain dst_domain,
+                     const AttributeFilter &attribute_filter,
                      MutableAttributeAccessor dst_attributes);
 
 void copy_attributes_group_to_group(AttributeAccessor src_attributes,
-                                    AttrDomain domain,
-                                    const AnonymousAttributePropagationInfo &propagation_info,
-                                    const Set<std::string> &skip,
+                                    AttrDomain src_domain,
+                                    AttrDomain dst_domain,
+                                    const AttributeFilter &attribute_filter,
                                     OffsetIndices<int> src_offsets,
                                     OffsetIndices<int> dst_offsets,
                                     const IndexMask &selection,
@@ -882,7 +939,7 @@ void copy_attributes_group_to_group(AttributeAccessor src_attributes,
 
 void fill_attribute_range_default(MutableAttributeAccessor dst_attributes,
                                   AttrDomain domain,
-                                  const Set<std::string> &skip,
+                                  const AttributeFilter &attribute_filter,
                                   IndexRange range);
 
 }  // namespace blender::bke

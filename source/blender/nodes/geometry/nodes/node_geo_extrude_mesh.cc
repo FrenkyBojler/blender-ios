@@ -39,12 +39,20 @@ static void node_declare(NodeDeclarationBuilder &b)
       .implicit_field_on_all(implicit_field_inputs::normal)
       .hide_value();
   b.add_input<decl::Float>("Offset Scale").default_value(1.0f).field_on_all();
-  b.add_input<decl::Bool>("Individual").default_value(true).make_available([](bNode &node) {
-    node_storage(node).mode = GEO_NODE_EXTRUDE_MESH_FACES;
-  });
+  auto &individual =
+      b.add_input<decl::Bool>("Individual").default_value(true).make_available([](bNode &node) {
+        node_storage(node).mode = GEO_NODE_EXTRUDE_MESH_FACES;
+      });
   b.add_output<decl::Geometry>("Mesh").propagate_all();
   b.add_output<decl::Bool>("Top").field_on_all().translation_context(BLT_I18NCONTEXT_ID_NODETREE);
   b.add_output<decl::Bool>("Side").field_on_all();
+
+  const bNode *node = b.node_or_null();
+  if (node != nullptr) {
+    const NodeGeometryExtrudeMesh &storage = node_storage(*node);
+    const GeometryNodeExtrudeMeshMode mode = GeometryNodeExtrudeMeshMode(storage.mode);
+    individual.available(mode == GEO_NODE_EXTRUDE_MESH_FACES);
+  }
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -59,16 +67,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   NodeGeometryExtrudeMesh *data = MEM_cnew<NodeGeometryExtrudeMesh>(__func__);
   data->mode = GEO_NODE_EXTRUDE_MESH_FACES;
   node->storage = data;
-}
-
-static void node_update(bNodeTree *ntree, bNode *node)
-{
-  const NodeGeometryExtrudeMesh &storage = node_storage(*node);
-  const GeometryNodeExtrudeMeshMode mode = GeometryNodeExtrudeMeshMode(storage.mode);
-
-  bNodeSocket *individual_socket = static_cast<bNodeSocket *>(node->inputs.last);
-
-  bke::node_set_socket_availability(ntree, individual_socket, mode == GEO_NODE_EXTRUDE_MESH_FACES);
 }
 
 struct AttributeOutputs {
@@ -88,23 +86,17 @@ static void save_selection_as_attribute(MutableAttributeAccessor attributes,
   attribute.finish();
 }
 
-static void remove_non_propagated_attributes(
-    MutableAttributeAccessor attributes, const AnonymousAttributePropagationInfo &propagation_info)
+static void remove_non_propagated_attributes(MutableAttributeAccessor attributes,
+                                             const AttributeFilter &attribute_filter)
 {
-  if (propagation_info.propagate_all) {
-    return;
+  Vector<std::string> names_to_remove;
+  const Set<StringRefNull> all_names = attributes.all_ids();
+  for (const StringRefNull name : all_names) {
+    if (attribute_filter.allow_skip(name)) {
+      names_to_remove.append(name);
+    }
   }
-  Set<StringRefNull> ids_to_remove = attributes.all_ids();
-  ids_to_remove.remove_if([&](const StringRef id) {
-    if (!bke::attribute_name_is_anonymous(id)) {
-      return true;
-    }
-    if (propagation_info.propagate(id)) {
-      return true;
-    }
-    return false;
-  });
-  for (const StringRef id : ids_to_remove) {
+  for (const StringRef id : names_to_remove) {
     attributes.remove(id);
   }
 }
@@ -133,7 +125,6 @@ static void remove_unsupported_corner_data(Mesh &mesh)
   CustomData_free_layers(&mesh.corner_data, CD_TANGENT, mesh.corners_num);
   CustomData_free_layers(&mesh.corner_data, CD_MLOOPTANGENT, mesh.corners_num);
   CustomData_free_layers(&mesh.corner_data, CD_GRID_PAINT_MASK, mesh.corners_num);
-  CustomData_free_layers(&mesh.corner_data, CD_CUSTOMLOOPNORMAL, mesh.corners_num);
 }
 
 static void expand_mesh(Mesh &mesh,
@@ -277,15 +268,14 @@ static IDsByDomain attribute_ids_by_domain(const AttributeAccessor attributes,
                                            const Set<StringRef> &skip)
 {
   IDsByDomain ids_by_domain;
-  attributes.for_all([&](const StringRef id, const AttributeMetaData meta_data) {
-    if (meta_data.data_type == CD_PROP_STRING) {
-      return true;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
     }
-    if (skip.contains(id)) {
-      return true;
+    if (skip.contains(iter.name)) {
+      return;
     }
-    ids_by_domain[int(meta_data.domain)].append(id);
-    return true;
+    ids_by_domain[int(iter.domain)].append(iter.name);
   });
   return ids_by_domain;
 }
@@ -295,18 +285,18 @@ static bool is_empty_domain(const AttributeAccessor attributes,
                             const AttrDomain domain)
 {
   bool is_empty = true;
-  attributes.for_all([&](const StringRef id, const AttributeMetaData meta_data) {
-    if (meta_data.data_type == CD_PROP_STRING) {
-      return true;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
     }
-    if (meta_data.domain != domain) {
-      return true;
+    if (iter.domain != domain) {
+      return;
     }
-    if (skip.contains(id)) {
-      return true;
+    if (skip.contains(iter.name)) {
+      return;
     }
     is_empty = false;
-    return false;
+    iter.stop();
   });
   return is_empty;
 }
@@ -389,7 +379,7 @@ static void extrude_mesh_vertices(Mesh &mesh,
                                   const Field<bool> &selection_field,
                                   const Field<float3> &offset_field,
                                   const AttributeOutputs &attribute_outputs,
-                                  const AnonymousAttributePropagationInfo &propagation_info)
+                                  const AttributeFilter &attribute_filter)
 {
   const int orig_vert_size = mesh.verts_num;
   const int orig_edge_size = mesh.edges_num;
@@ -408,7 +398,7 @@ static void extrude_mesh_vertices(Mesh &mesh,
   }
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  remove_non_propagated_attributes(attributes, propagation_info);
+  remove_non_propagated_attributes(attributes, attribute_filter);
 
   const IDsByDomain ids_by_domain = attribute_ids_by_domain(attributes,
                                                             {"position", ".edge_verts"});
@@ -570,7 +560,7 @@ static void extrude_mesh_edges(Mesh &mesh,
                                const Field<bool> &selection_field,
                                const Field<float3> &offset_field,
                                const AttributeOutputs &attribute_outputs,
-                               const AnonymousAttributePropagationInfo &propagation_info)
+                               const AttributeFilter &attribute_filter)
 {
   const int orig_vert_size = mesh.verts_num;
   const Span<int2> orig_edges = mesh.edges();
@@ -618,7 +608,7 @@ static void extrude_mesh_edges(Mesh &mesh,
   const IndexRange new_loop_range{orig_loop_size, new_face_range.size() * 4};
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  remove_non_propagated_attributes(attributes, propagation_info);
+  remove_non_propagated_attributes(attributes, attribute_filter);
 
   Array<int> edge_to_face_offsets;
   Array<int> edge_to_face_indices;
@@ -851,7 +841,7 @@ static void extrude_mesh_face_regions(Mesh &mesh,
                                       const Field<bool> &selection_field,
                                       const Field<float3> &offset_field,
                                       const AttributeOutputs &attribute_outputs,
-                                      const AnonymousAttributePropagationInfo &propagation_info)
+                                      const AttributeFilter &attribute_filter)
 {
   const int orig_vert_size = mesh.verts_num;
   const Span<int2> orig_edges = mesh.edges();
@@ -973,7 +963,7 @@ static void extrude_mesh_face_regions(Mesh &mesh,
   const IndexRange side_loop_range{orig_corner_verts.size(), side_face_range.size() * 4};
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  remove_non_propagated_attributes(attributes, propagation_info);
+  remove_non_propagated_attributes(attributes, attribute_filter);
 
   remove_unsupported_vert_data(mesh);
   remove_unsupported_edge_data(mesh);
@@ -1225,12 +1215,11 @@ static void extrude_mesh_face_regions(Mesh &mesh,
   tag_mesh_added_faces(mesh);
 }
 
-static void extrude_individual_mesh_faces(
-    Mesh &mesh,
-    const Field<bool> &selection_field,
-    const Field<float3> &offset_field,
-    const AttributeOutputs &attribute_outputs,
-    const AnonymousAttributePropagationInfo &propagation_info)
+static void extrude_individual_mesh_faces(Mesh &mesh,
+                                          const Field<bool> &selection_field,
+                                          const Field<float3> &offset_field,
+                                          const AttributeOutputs &attribute_outputs,
+                                          const AttributeFilter &attribute_filter)
 {
   const int orig_vert_size = mesh.verts_num;
   const int orig_edge_size = mesh.edges_num;
@@ -1269,7 +1258,7 @@ static void extrude_individual_mesh_faces(
   const IndexRange side_loop_range{orig_loop_size, side_face_range.size() * 4};
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  remove_non_propagated_attributes(attributes, propagation_info);
+  remove_non_propagated_attributes(attributes, attribute_filter);
 
   remove_unsupported_vert_data(mesh);
   remove_unsupported_edge_data(mesh);
@@ -1498,8 +1487,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool extrude_individual = mode == GEO_NODE_EXTRUDE_MESH_FACES &&
                                   params.extract_input<bool>("Individual");
 
-  const AnonymousAttributePropagationInfo &propagation_info = params.get_output_propagation_info(
-      "Mesh");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
@@ -1507,19 +1495,19 @@ static void node_geo_exec(GeoNodeExecParams params)
       switch (mode) {
         case GEO_NODE_EXTRUDE_MESH_VERTICES:
           extrude_mesh_vertices(
-              *mesh, selection, final_offset, attribute_outputs, propagation_info);
+              *mesh, selection, final_offset, attribute_outputs, attribute_filter);
           break;
         case GEO_NODE_EXTRUDE_MESH_EDGES:
-          extrude_mesh_edges(*mesh, selection, final_offset, attribute_outputs, propagation_info);
+          extrude_mesh_edges(*mesh, selection, final_offset, attribute_outputs, attribute_filter);
           break;
         case GEO_NODE_EXTRUDE_MESH_FACES: {
           if (extrude_individual) {
             extrude_individual_mesh_faces(
-                *mesh, selection, final_offset, attribute_outputs, propagation_info);
+                *mesh, selection, final_offset, attribute_outputs, attribute_filter);
           }
           else {
             extrude_mesh_face_regions(
-                *mesh, selection, final_offset, attribute_outputs, propagation_info);
+                *mesh, selection, final_offset, attribute_outputs, attribute_filter);
           }
           break;
         }
@@ -1556,7 +1544,6 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_EXTRUDE_MESH, "Extrude Mesh", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  ntype.updatefunc = node_update;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryExtrudeMesh", node_free_standard_storage, node_copy_standard_storage);

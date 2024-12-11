@@ -12,18 +12,19 @@
 #include "BKE_global.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
+#include "BKE_nla.hh"
 
 #include "BLI_set.hh"
 
+#include "DNA_anim_types.h"
+
 #include "ANIM_action.hh"
+#include "ANIM_action_iterators.hh"
 
 #include "action_runtime.hh"
 
 namespace blender::animrig::internal {
 
-/**
- * Rebuild the slot user cache for a specific bmain.
- */
 void rebuild_slot_user_cache(Main &bmain)
 {
   /* Loop over all Actions and clear their slots' user cache. */
@@ -53,11 +54,17 @@ void rebuild_slot_user_cache(Main &bmain)
       return false;
     }
 
-    std::optional<std::pair<Action *, Slot *>> action_slot = get_action_slot_pair(*id);
-    if (action_slot) {
-      Slot &slot = *action_slot->second;
-      slot.users_add(*id);
-    }
+    foreach_action_slot_use(*id, [&](const Action &action, slot_handle_t slot_handle) {
+      const Slot *slot = action.slot_for_handle(slot_handle);
+      if (!slot) {
+        return true;
+      }
+      /* Constant cast because the `foreach` produces const Actions, and I (Sybren)
+       * didn't want to make a non-const duplicate. */
+      const_cast<Slot *>(slot)->users_add(*id);
+      return true;
+    });
+
     return true;
   };
 
@@ -89,7 +96,7 @@ void rebuild_slot_user_cache(Main &bmain)
     FOREACH_MAIN_LISTBASE_ID_BEGIN (ids_of_idtype, id) {
       BLI_assert(id_can_have_animdata(id));
 
-      /* Process the ID itself.*/
+      /* Process the ID itself. */
       if (!visit_id(id)) {
         continue;
       }
