@@ -266,6 +266,7 @@ void immEnd()
     imm->batch = nullptr; /* don't free, batch belongs to caller */
   }
   else {
+    Context::get()->assert_framebuffer_shader_compatibility(unwrap(imm->shader));
     imm->end();
   }
 
@@ -320,10 +321,13 @@ void Immediate::polyline_draw_workaround(uint64_t offset)
       else if (col_attr_id == -1 && blender::StringRefNull(name) == "color") {
         int descriptor[2] = {int(format.stride) / 4, int(a->offset) / 4};
         /* Maybe we can relax this if needed. */
-        BLI_assert_msg(a->comp_type == GPU_COMP_F32, "Only support float attributes");
+        BLI_assert_msg((a->comp_type == GPU_COMP_F32) ||
+                           ((a->comp_type == GPU_COMP_U8) && (a->comp_len == 4)),
+                       "Only support float attributes or uchar4");
         BLI_assert_msg((a->offset % 4) == 0, "Only support 4byte aligned attributes");
         GPU_shader_uniform_2iv(imm->shader, "gpu_attr_1", descriptor);
         GPU_shader_uniform_1i(imm->shader, "gpu_attr_1_len", a->comp_len);
+        GPU_shader_uniform_1i(imm->shader, "gpu_attr_1_fetch_unorm8", a->comp_type == GPU_COMP_U8);
         col_attr_id = a_idx;
       }
       if (pos_attr_id != -1 && col_attr_id != -1) {
