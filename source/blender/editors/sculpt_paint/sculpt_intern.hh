@@ -988,4 +988,11 @@ void push_undo_nodes(const Depsgraph& depsgraph,
                     Object& ob,
                     const Brush& brush,
                     const IndexMask& node_mask);
+
+IndexMask gather_nodes(const bke::pbvh::Tree& pbvh,
+  const Brush& brush,
+  const float4x4& mat,
+  const float3& center,
+  const float radius,
+  IndexMaskMemory& memory);
 }

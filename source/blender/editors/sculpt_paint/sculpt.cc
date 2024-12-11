@@ -3172,8 +3172,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
   float location[3];
 
   if (!use_pixels) {
-    /* Barebone brush might either have a different plane origin or a cubic shape. Therefore, it uses a different node mask */
-    if (brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_BAREBONE) {
+    /* Barebone and Basic brushes might either have a different plane origin or a cubic shape. Therefore, it uses a different node mask */
+    if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_BAREBONE, SCULPT_BRUSH_TYPE_BASIC)) {
       push_undo_nodes(depsgraph, ob, brush, node_mask);
     }
   }
@@ -7720,6 +7720,30 @@ float4x4 calc_local_space_matrix(StrokeCache& cache, const float3& origin)
   float4x4 inv_mat = math::invert(scaled_mat);
 
   return inv_mat;
+}
+
+IndexMask gather_nodes(const bke::pbvh::Tree& pbvh,
+  const Brush& brush,
+  const float4x4& mat,
+  const float3& center,
+  const float radius,
+  IndexMaskMemory& memory)
+{
+  const float radius_sq = radius * radius;
+
+  return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node& node) {
+    if (node_fully_masked_or_hidden(node)) {
+      return false;
+    }
+    switch (brush.sculpt_brush_shape) {
+    case SCULPT_BRUSH_SHAPE_SPHERE:
+      return node_in_sphere(node, center, radius_sq, false);
+    case SCULPT_BRUSH_SHAPE_CUBE:
+      return node_in_cube(node, mat);
+    }
+
+    return false;
+    });
 }
 
 }  // namespace blender::ed::sculpt_paint

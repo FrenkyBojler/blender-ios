@@ -38,10 +38,8 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-static IndexMask gather_nodes(const Object& ob, const Brush &brush, const float4x4 &mat, const float3 &center, const float radius, IndexMaskMemory& memory)
+static IndexMask gather_nodes(const bke::pbvh::Tree& pbvh, const Brush &brush, const float4x4 &mat, const float3 &center, const float radius, IndexMaskMemory& memory)
 {
-  SculptSession& ss = *ob.sculpt;
-  const bke::pbvh::Tree& pbvh = *bke::object::pbvh_get(ob);
   const float radius_sq = radius * radius;
 
   return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node& node) {
@@ -54,7 +52,9 @@ static IndexMask gather_nodes(const Object& ob, const Brush &brush, const float4
       case SCULPT_BRUSH_SHAPE_CUBE:
         return node_in_cube(node, mat);
     }
-    });
+
+    return false;
+  });
 }
 
 static void calc_faces(const Depsgraph &depsgraph,
@@ -209,7 +209,7 @@ void do_barebone_brush(const Depsgraph &depsgraph,
   const float4x4 mat = calc_local_space_matrix(cache, origin);
 
   IndexMaskMemory memory;
-  IndexMask final_node_mask = gather_nodes(object, brush, mat, origin, cache.radius, memory);
+  IndexMask final_node_mask = gather_nodes(pbvh, brush, mat, origin, cache.radius, memory);
 
   push_undo_nodes(depsgraph, object, brush, final_node_mask);
 
