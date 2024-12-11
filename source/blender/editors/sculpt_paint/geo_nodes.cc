@@ -26,36 +26,6 @@
 
 namespace blender::ed::sculpt_paint {
 
-/* TODO: move to more appropriate file */
-static float4x4 calc_texture_space_matrix(StrokeCache& cache)
-{
-  float4x4 mat = math::from_location<float4x4>(float3(0.5f, 0.5f, 0.0f));
-  mat *= math::from_scale<float4x4>(float3(0.5f, 0.5f, 1.0f));
-  mat *= cache.brush_local_mat;
-
-  float4x4 mirror_symmetry_mat = float4x4::identity();
-
-  if (cache.mirror_symmetry_pass & PAINT_SYMM_X) {
-    mirror_symmetry_mat[0][0] = -1;
-  }
-
-  if (cache.mirror_symmetry_pass & PAINT_SYMM_Y) {
-    mirror_symmetry_mat[1][1] = -1;
-  }
-
-  if (cache.mirror_symmetry_pass & PAINT_SYMM_Z) {
-    mirror_symmetry_mat[2][2] = -1;
-  }
-
-  mat *= mirror_symmetry_mat;
-
-  if (cache.radial_symmetry_pass) {
-    mat *= cache.symm_rot_mat_inv;
-  }
-
-  return mat;
-}
-
 template <typename T>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   Object &object,
