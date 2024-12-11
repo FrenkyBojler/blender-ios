@@ -85,12 +85,9 @@ set(SRC
   intern/draw_instance_data.cc
   intern/draw_manager.cc
   intern/draw_manager_c.cc
-  intern/draw_manager_data.cc
-  intern/draw_manager_exec.cc
   intern/draw_manager_profiling.cc
   intern/draw_manager_shader.cc
   intern/draw_manager_text.cc
-  intern/draw_manager_texture.cc
   intern/draw_pbvh.cc
   intern/draw_pointcloud.cc
   intern/draw_resource.cc
@@ -103,8 +100,8 @@ set(SRC
   intern/draw_view_data.cc
   intern/draw_volume.cc
   engines/compositor/compositor_engine.cc
-  engines/image/image_engine.cc
   engines/image/image_drawing_mode.cc
+  engines/image/image_engine.cc
   engines/image/image_shader.cc
   engines/eevee_next/eevee_ambient_occlusion.cc
   engines/eevee_next/eevee_camera.cc
@@ -245,7 +242,6 @@ set(SRC
   engines/image/image_drawing_mode.hh
   engines/image/image_engine.h
   engines/image/image_enums.hh
-  engines/image/image_state.hh
   engines/image/image_partial_updater.hh
   engines/image/image_private.hh
   engines/image/image_shader.hh
@@ -253,6 +249,7 @@ set(SRC
   engines/image/image_space.hh
   engines/image/image_space_image.hh
   engines/image/image_space_node.hh
+  engines/image/image_state.hh
   engines/image/image_texture_info.hh
   engines/image/image_usage.hh
   engines/overlay/overlay_engine.h
@@ -511,7 +508,12 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_common_lib.glsl
   engines/workbench/shaders/workbench_composite_frag.glsl
   engines/workbench/shaders/workbench_curvature_lib.glsl
-  engines/workbench/shaders/workbench_effect_dof_frag.glsl
+  engines/workbench/shaders/workbench_effect_dof_prepare_frag.glsl
+  engines/workbench/shaders/workbench_effect_dof_downsample_frag.glsl
+  engines/workbench/shaders/workbench_effect_dof_blur1_frag.glsl
+  engines/workbench/shaders/workbench_effect_dof_blur2_frag.glsl
+  engines/workbench/shaders/workbench_effect_dof_resolve_frag.glsl
+  engines/workbench/shaders/workbench_effect_dof_lib.glsl
   engines/workbench/shaders/workbench_effect_outline_frag.glsl
   engines/workbench/shaders/workbench_effect_smaa_frag.glsl
   engines/workbench/shaders/workbench_effect_smaa_vert.glsl
