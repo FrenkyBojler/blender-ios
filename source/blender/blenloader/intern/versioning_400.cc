@@ -5224,8 +5224,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
-    AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    BKE_attribute_rename(owner, ".uv_seam", "uv_seam", nullptr);
+    for (CustomDataLayer &layer :
+         blender::MutableSpan(mesh->edge_data.layers, mesh->edge_data.totlayer))
+    {
+      if (STREQ(layer.name, ".uv_seam")) {
+        STRNCPY(layer.name, "uv_seam");
+        break;
+      }
+    }
   }
 
   /**
