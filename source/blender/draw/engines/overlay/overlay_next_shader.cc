@@ -38,6 +38,18 @@ ShaderModule::ShaderPtr ShaderModule::static_selectable_shader(const char *creat
   return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
 }
 
+ShaderModule::ShaderPtr ShaderModule::static_selectable_shader_no_clip(
+    const char *create_info_name)
+{
+  std::string name = create_info_name;
+
+  if (selection_type_ != SelectionType::DISABLED) {
+    name += "_selectable";
+  }
+
+  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
+}
+
 using namespace blender::gpu::shader;
 
 ShaderModule::ShaderModule(const SelectionType selection_type, const bool clipping_enabled)
@@ -118,12 +130,13 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
 
   facing = static_clippable_shader("overlay_facing");
 
-  fluid_grid_lines_flags = static_selectable_shader("overlay_volume_gridlines_flags");
-  fluid_grid_lines_flat = static_selectable_shader("overlay_volume_gridlines_flat");
-  fluid_grid_lines_range = static_selectable_shader("overlay_volume_gridlines_range");
-  fluid_velocity_streamline = static_selectable_shader("overlay_volume_velocity_streamline");
-  fluid_velocity_mac = static_selectable_shader("overlay_volume_velocity_mac");
-  fluid_velocity_needle = static_selectable_shader("overlay_volume_velocity_needle");
+  fluid_grid_lines_flags = static_selectable_shader_no_clip("overlay_volume_gridlines_flags");
+  fluid_grid_lines_flat = static_selectable_shader_no_clip("overlay_volume_gridlines_flat");
+  fluid_grid_lines_range = static_selectable_shader_no_clip("overlay_volume_gridlines_range");
+  fluid_velocity_streamline = static_selectable_shader_no_clip(
+      "overlay_volume_velocity_streamline");
+  fluid_velocity_mac = static_selectable_shader_no_clip("overlay_volume_velocity_mac");
+  fluid_velocity_needle = static_selectable_shader_no_clip("overlay_volume_velocity_needle");
 
   extra_shape = static_selectable_shader("overlay_extra");
   extra_wire = static_selectable_shader("overlay_extra_wire");

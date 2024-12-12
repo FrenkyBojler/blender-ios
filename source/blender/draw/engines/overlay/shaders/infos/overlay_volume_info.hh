@@ -41,8 +41,7 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_velocity)
 GPU_SHADER_CREATE_END()
 
-/*TODO(pragma37): Should these use no clipping variations? */
-OVERLAY_INFO_VARIATIONS(overlay_volume_velocity_streamline)
+OVERLAY_INFO_SELECT_VARIATION(overlay_volume_velocity_streamline)
 
 GPU_SHADER_CREATE_INFO(overlay_volume_velocity_mac)
 DO_STATIC_COMPILATION()
@@ -55,8 +54,7 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_velocity)
 GPU_SHADER_CREATE_END()
 
-/*TODO(pragma37): Should these use no clipping variations? */
-OVERLAY_INFO_VARIATIONS(overlay_volume_velocity_mac)
+OVERLAY_INFO_SELECT_VARIATION(overlay_volume_velocity_mac)
 
 GPU_SHADER_CREATE_INFO(overlay_volume_velocity_needle)
 DO_STATIC_COMPILATION()
@@ -66,8 +64,7 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_velocity)
 GPU_SHADER_CREATE_END()
 
-/*TODO(pragma37): Should these use no clipping variations? */
-OVERLAY_INFO_VARIATIONS(overlay_volume_velocity_needle)
+OVERLAY_INFO_SELECT_VARIATION(overlay_volume_velocity_needle)
 
 /** \} */
 
@@ -104,8 +101,7 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_gridlines)
 GPU_SHADER_CREATE_END()
 
-/*TODO(pragma37): Should these use no clipping variations? */
-OVERLAY_INFO_VARIATIONS(overlay_volume_gridlines_flat)
+OVERLAY_INFO_SELECT_VARIATION(overlay_volume_gridlines_flat)
 
 GPU_SHADER_CREATE_INFO(overlay_volume_gridlines_flags)
 DO_STATIC_COMPILATION()
@@ -116,8 +112,7 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_gridlines)
 GPU_SHADER_CREATE_END()
 
-/*TODO(pragma37): Should these use no clipping variations? */
-OVERLAY_INFO_VARIATIONS(overlay_volume_gridlines_flags)
+OVERLAY_INFO_SELECT_VARIATION(overlay_volume_gridlines_flags)
 
 GPU_SHADER_CREATE_INFO(overlay_volume_gridlines_range)
 DO_STATIC_COMPILATION()
@@ -133,7 +128,6 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(overlay_volume_gridlines)
 GPU_SHADER_CREATE_END()
 
-/*TODO(pragma37): Should these use no clipping variations? */
-OVERLAY_INFO_VARIATIONS(overlay_volume_gridlines_range)
+OVERLAY_INFO_SELECT_VARIATION(overlay_volume_gridlines_range)
 
 /** \} */

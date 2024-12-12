@@ -466,6 +466,7 @@ class ShaderModule {
   }
   ShaderPtr static_clippable_shader(const char *create_info_name);
   ShaderPtr static_selectable_shader(const char *create_info_name);
+  ShaderPtr static_selectable_shader_no_clip(const char *create_info_name);
 };
 
 struct GreasePencilDepthPlane {
