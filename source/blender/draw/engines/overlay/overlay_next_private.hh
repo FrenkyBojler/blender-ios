@@ -457,15 +457,15 @@ class ShaderModule {
   ShaderPtr fluid_velocity_mac = shader_selectable_no_clip("overlay_volume_velocity_mac");
   ShaderPtr fluid_velocity_needle = shader_selectable_no_clip("overlay_volume_velocity_needle");
 
-  ShaderModule(const SelectionType selection_type, const bool clipping_enabled)
-      : selection_type_(selection_type), clipping_enabled_(clipping_enabled){};
-
   /** Module */
   /** Only to be used by Instance constructor. */
   static ShaderModule &module_get(SelectionType selection_type, bool clipping_enabled);
   static void module_free();
 
  private:
+  ShaderModule(const SelectionType selection_type, const bool clipping_enabled)
+      : selection_type_(selection_type), clipping_enabled_(clipping_enabled){};
+
   ShaderPtr shader(const char *create_info_name)
   {
     return ShaderPtr(GPU_shader_create_from_info_name(create_info_name));
