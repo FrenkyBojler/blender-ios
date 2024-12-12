@@ -20,7 +20,7 @@
 #include "RNA_types.hh"
 #include "bpy_rna.hh"
 
-#include <boost/python/tuple.hpp>
+
 
 #include <list>
 #include <memory>
@@ -32,6 +32,7 @@
 #  include <pxr/external/boost/python/ref.hpp>
 #  include <pxr/external/boost/python/return_value_policy.hpp>
 #  include <pxr/external/boost/python/to_python_converter.hpp>
+#  include <pxr/external/boost/python/touple.hpp>
 #  define REF python::ref
 
 using namespace pxr::pxr_boost;
@@ -41,6 +42,7 @@ using namespace pxr::pxr_boost;
 #  include <boost/python/import.hpp>
 #  include <boost/python/return_value_policy.hpp>
 #  include <boost/python/to_python_converter.hpp>
+#  include <boost/python/tuple.hpp>
 #  define REF boost::ref
 
 using namespace boost;
@@ -494,17 +496,17 @@ class OnImportInvoker : public USDHookInvoker {
   }
 };
 
-class CanImportMaterialInvoker : public USDHookInvoker {
+class MaterialImportPollInvoker : public USDHookInvoker {
  private:
   USDMaterialImportContext hook_context_;
   pxr::UsdShadeMaterial usd_material_;
   bool result_;
 
  public:
-  CanImportMaterialInvoker(pxr::UsdStageRefPtr stage,
-                           const pxr::UsdShadeMaterial &usd_material,
-                           const USDImportParams &import_params,
-                           ReportList *reports)
+  MaterialImportPollInvoker(pxr::UsdStageRefPtr stage,
+                            const pxr::UsdShadeMaterial &usd_material,
+                            const USDImportParams &import_params,
+                            ReportList *reports)
       : USDHookInvoker(reports),
         hook_context_(stage, import_params, reports),
         usd_material_(usd_material),
@@ -520,7 +522,7 @@ class CanImportMaterialInvoker : public USDHookInvoker {
  protected:
   const char *function_name() const override
   {
-    return "can_import_material";
+    return "material_import_poll";
   }
 
   void call_hook(PyObject *hook_obj) override
@@ -529,7 +531,7 @@ class CanImportMaterialInvoker : public USDHookInvoker {
     // because it returned true in a previous invocation of the callback, we skip the call.
     if (!result_) {
       result_ = python::call_method<bool>(
-          hook_obj, function_name(), ref(hook_context_), usd_material_);
+          hook_obj, function_name(), REF(hook_context_), usd_material_);
     }
   }
 };
@@ -569,7 +571,7 @@ class OnMaterialImportInvoker : public USDHookInvoker {
   void call_hook(PyObject *hook_obj) override
   {
     result_ |= python::call_method<bool>(
-        hook_obj, function_name(), ref(hook_context_), material_ptr_, usd_material_);
+        hook_obj, function_name(), REF(hook_context_), material_ptr_, usd_material_);
   }
 };
 
@@ -619,10 +621,10 @@ bool have_material_import_hook(pxr::UsdStageRefPtr stage,
     return false;
   }
 
-  CanImportMaterialInvoker can_import(stage, usd_material, import_params, reports);
-  can_import.call();
+  MaterialImportPollInvoker poll(stage, usd_material, import_params, reports);
+  poll.call();
 
-  return can_import.result();
+  return poll.result();
 }
 
 bool call_material_import_hooks(pxr::UsdStageRefPtr stage,

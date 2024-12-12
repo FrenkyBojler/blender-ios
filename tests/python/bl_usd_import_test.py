@@ -1679,7 +1679,7 @@ class ImportMtlxColorUSDHook(bpy.types.USDHook):
     imported_color = None
 
     @staticmethod
-    def can_import_material(import_context, usd_material):
+    def material_import_poll(import_context, usd_material):
         # We can import the material if it has an 'mtlx' context.
         surf_output = usd_material.GetSurfaceOutput("mtlx")
         return bool(surf_output)
@@ -1725,7 +1725,7 @@ class ImportMtlxTextureUSDHook(bpy.types.USDHook):
     result = None
 
     @staticmethod
-    def can_import_material(import_context, usd_material):
+    def material_import_poll(import_context, usd_material):
         # We can import the material if it has an 'mtlx' context.
         surf_output = usd_material.GetSurfaceOutput("mtlx")
         return bool(surf_output)
