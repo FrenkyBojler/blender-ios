@@ -970,6 +970,13 @@ static void id_swap(Main *bmain,
         bmain, {id_b}, ID_REMAP_TYPE_REMAP, *remapper_id_b, self_remap_flags);
   }
 
+  if ((id_type->flags & IDTYPE_FLAGS_NO_ANIMDATA) == 0) {
+    /* Action Slots point to the IDs they animate, and thus now also need some swappage. Instead of
+     * doing this here (and requiring knowledge of how that's supposed to be done), just mark these
+     * pointers as dirty so that they're rebuilt at first use. */
+    blender::bke::animdata::action_slots_user_cache_invalidate(*bmain);
+  }
+
   if (input_remapper_id_a == nullptr && remapper_id_a != nullptr) {
     MEM_delete(remapper_id_a);
   }
