@@ -862,9 +862,6 @@ class NodeTreeMainUpdater {
 
   void update_socket_shapes(bNodeTree &ntree)
   {
-    if (ntree.type != NTREE_GEOMETRY) {
-      return;
-    }
     ntree.ensure_topology_cache();
     const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
     for (bNodeSocket *socket : ntree.all_sockets()) {
