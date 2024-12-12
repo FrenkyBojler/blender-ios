@@ -130,12 +130,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
             [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
   }
 
-  ~SampleNearestSurfaceFunction()
-  {
-    for (BVHTreeFromMesh &tree : bvh_trees_) {
-      free_bvhtree_from_mesh(&tree);
-    }
-  }
+  ~SampleNearestSurfaceFunction() = default;
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
@@ -162,6 +157,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
       const BVHTreeFromMesh &bvh = bvh_trees_[group_index];
       BVHTreeNearest nearest;
       nearest.dist_sq = FLT_MAX;
+      nearest.index = -1;
       BLI_bvhtree_find_nearest(
           bvh.tree, position, &nearest, bvh.nearest_callback, const_cast<BVHTreeFromMesh *>(&bvh));
       triangle_index[i] = nearest.index;

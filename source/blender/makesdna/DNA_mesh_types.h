@@ -46,6 +46,7 @@ typedef struct MeshRuntimeHandle MeshRuntimeHandle;
 #endif
 
 struct AnimData;
+struct BVHTreeFromMesh;
 struct Ipo;
 struct Key;
 struct MCol;
@@ -104,6 +105,8 @@ typedef struct Mesh {
   /**
    * The index of the active attribute in the UI. The attribute list is a combination of the
    * generic type attributes from vertex, edge, face, and corner custom data.
+   *
+   * Set to -1 when none is active.
    */
   int attributes_active_index;
 
@@ -396,6 +399,16 @@ typedef struct Mesh {
    */
   blender::Span<blender::float3> corner_normals() const;
 
+  BVHTreeFromMesh bvh_verts() const;
+  BVHTreeFromMesh bvh_edges() const;
+  BVHTreeFromMesh bvh_legacy_faces() const;
+  BVHTreeFromMesh bvh_corner_tris() const;
+  BVHTreeFromMesh bvh_corner_tris_no_hidden() const;
+  BVHTreeFromMesh bvh_loose_verts() const;
+  BVHTreeFromMesh bvh_loose_edges() const;
+  BVHTreeFromMesh bvh_loose_no_hidden_verts() const;
+  BVHTreeFromMesh bvh_loose_no_hidden_edges() const;
+
   void count_memory(blender::MemoryCounter &memory) const;
 
   /** Call after changing vertex positions to tag lazily calculated caches for recomputation. */
@@ -406,7 +419,7 @@ typedef struct Mesh {
   void tag_positions_changed_no_normals();
   /** Call when changing "sharp_face" or "sharp_edge" data. */
   void tag_sharpness_changed();
-  /** Call when changing #CD_CUSTOMLOOPNORMAL data. */
+  /** Call when changing "custom_normal" data. */
   void tag_custom_normals_changed();
   /** Call when face vertex order has changed but positions and faces haven't changed. */
   void tag_face_winding_changed();
@@ -414,6 +427,8 @@ typedef struct Mesh {
   void tag_edges_split();
   /** Call for topology updates not described by other update tags. */
   void tag_topology_changed();
+  /** Call when changing the ".hide_vert", ".hide_edge", or ".hide_poly" attributes. */
+  void tag_visibility_changed();
 #endif
 } Mesh;
 
