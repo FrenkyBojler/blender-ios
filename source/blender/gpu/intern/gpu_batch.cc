@@ -274,6 +274,11 @@ static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
       BLI_assert((offset % 4) == 0);
       int descriptor[2] = {int(stride) / 4, int(offset) / 4};
       GPU_shader_uniform_2iv(shader, uniform_name, descriptor);
+      /* WORKAROUND: Fix for polyline workaround. Ideally should be fused with `gpu_attr_0`.
+       * But for now, changes are a bit too invasive. Will need to be revisited later on. */
+      char uniform_name_len[] = "gpu_attr_0_len";
+      uniform_name_len[9] = '0' + input->location;
+      GPU_shader_uniform_1i(shader, uniform_name_len, a->comp_len);
     }
   }
   return bound_attr;
@@ -394,6 +399,19 @@ static void polyline_draw_workaround(
    * attribute. */
   GPU_shader_uniform_1b(batch->shader, "gpu_attr_0_fetch_int", false);
 
+  /* Allow byte color fetch. */
+  const GPUVertFormat *format = GPU_vertbuf_get_format(batch->verts[0]);
+  int id = GPU_vertformat_attr_id_get(format, "color");
+  if (id != -1) {
+    const GPUVertAttr &attr = format->attrs[id];
+    BLI_assert_msg(ELEM(attr.fetch_mode, GPU_FETCH_INT_TO_FLOAT_UNIT, GPU_FETCH_FLOAT),
+                   "color attribute for polylines can only use GPU_FETCH_INT_TO_FLOAT_UNIT or "
+                   "GPU_FETCH_FLOAT");
+    GPU_shader_uniform_1b(batch->shader,
+                          "gpu_attr_1_fetch_unorm8",
+                          (attr.fetch_mode == GPU_FETCH_INT_TO_FLOAT_UNIT));
+  }
+
   GPU_batch_draw_advanced(tri_batch, range.start(), range.size(), instance_first, instance_count);
 }
 
@@ -437,6 +455,7 @@ void GPU_batch_draw_advanced(
 {
   BLI_assert(gpu_batch != nullptr);
   BLI_assert(Context::get()->shader != nullptr);
+  Context::get()->assert_framebuffer_shader_compatibility(Context::get()->shader);
   Batch *batch = static_cast<Batch *>(gpu_batch);
 
   if (vertex_count == 0) {
@@ -466,8 +485,9 @@ void GPU_batch_draw_advanced(
 void GPU_batch_draw_indirect(Batch *gpu_batch, GPUStorageBuf *indirect_buf, intptr_t offset)
 {
   BLI_assert(gpu_batch != nullptr);
-  BLI_assert(Context::get()->shader != nullptr);
   BLI_assert(indirect_buf != nullptr);
+  BLI_assert(Context::get()->shader != nullptr);
+  Context::get()->assert_framebuffer_shader_compatibility(Context::get()->shader);
   Batch *batch = static_cast<Batch *>(gpu_batch);
 
   batch->draw_indirect(indirect_buf, offset);
@@ -477,8 +497,9 @@ void GPU_batch_multi_draw_indirect(
     Batch *gpu_batch, GPUStorageBuf *indirect_buf, int count, intptr_t offset, intptr_t stride)
 {
   BLI_assert(gpu_batch != nullptr);
-  BLI_assert(Context::get()->shader != nullptr);
   BLI_assert(indirect_buf != nullptr);
+  BLI_assert(Context::get()->shader != nullptr);
+  Context::get()->assert_framebuffer_shader_compatibility(Context::get()->shader);
   Batch *batch = static_cast<Batch *>(gpu_batch);
 
   batch->multi_draw_indirect(indirect_buf, count, offset, stride);

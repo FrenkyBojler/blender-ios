@@ -12,7 +12,6 @@
 #include "mtl_backend.hh"
 #include "mtl_batch.hh"
 #include "mtl_context.hh"
-#include "mtl_drawlist.hh"
 #include "mtl_framebuffer.hh"
 #include "mtl_immediate.hh"
 #include "mtl_index_buffer.hh"
@@ -52,11 +51,6 @@ Context *MTLBackend::context_alloc(void *ghost_window, void *ghost_context)
 Batch *MTLBackend::batch_alloc()
 {
   return new MTLBatch();
-};
-
-DrawList *MTLBackend::drawlist_alloc(int list_length)
-{
-  return new MTLDrawList(list_length);
 };
 
 Fence *MTLBackend::fence_alloc()
@@ -503,6 +497,7 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
    * Can use argument buffers if a higher limit is required. */
   GCaps.max_shader_storage_buffer_bindings = 14;
   GCaps.max_storage_buffer_size = size_t(ctx->device.maxBufferLength);
+  GCaps.storage_buffer_alignment = 256; /* TODO(fclem): But also unused. */
 
   GCaps.max_work_group_count[0] = 65535;
   GCaps.max_work_group_count[1] = 65535;
@@ -527,7 +522,6 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.depth_blitting_workaround = false;
   GCaps.use_main_context_workaround = false;
   GCaps.broken_amd_driver = false;
-  GCaps.clear_viewport_workaround = true;
 
   /* Metal related workarounds. */
   /* Minimum per-vertex stride is 4 bytes in Metal.
