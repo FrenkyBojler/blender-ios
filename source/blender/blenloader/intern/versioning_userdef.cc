@@ -1391,7 +1391,7 @@ void blo_do_versions_userdef(UserDef *userdef)
       }
     }
   }
-  if (!USER_VERSION_ATLEAST(404, 12)) {
+  if (!USER_VERSION_ATLEAST(404, 14)) {
     LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
       LISTBASE_FOREACH (wmKeyMapDiffItem *, kmdi, &keymap->diff_items) {
         if (kmdi->remove_item != nullptr &&
