@@ -710,7 +710,7 @@ bool ED_view3d_camera_autokey(
       rna_paths.append({"location"});
     }
 
-    animrig::autokeyframe_object(C, scene, camera_object, rna_paths.as_span());
+    animrig::autokeyframe_object(C, scene, camera_object, rna_paths);
 
     return true;
   }
