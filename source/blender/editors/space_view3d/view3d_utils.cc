@@ -711,7 +711,7 @@ bool ED_view3d_camera_autokey(
     }
 
     animrig::autokeyframe_object(C, scene, camera_object, rna_paths);
-
+    WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
     return true;
   }
   return false;
