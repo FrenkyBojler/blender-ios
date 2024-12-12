@@ -1135,12 +1135,11 @@ class USDExportTest(AbstractUSDTest):
 
         export_path = self.tempdir / "usd_materials_export.usda"
 
-        res = bpy.ops.wm.usd_export(
+        self.export_and_validate(
             filepath=str(export_path),
             export_materials=True,
             generate_preview_surface=False,
         )
-        self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
 
         # Verify that the exported texture paths were returned as expected.
         expected = {'/root/_materials/Transforms': './textures/test_grid_<UDIM>.png',
