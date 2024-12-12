@@ -126,8 +126,18 @@ const char *GHOST_SystemPathsUnix::getUserSpecialDir(GHOST_TUserSpecialDirTypes 
       if (cache_dir) {
         return cache_dir;
       }
-      /* Fallback to ~home/.cache/.
-       * When invoking `xdg-user-dir` without parameters the user folder
+
+      /* If `XDG_CACHE_HOME` is not set, then try to use `xdg-user-dir` or getenv("HOME") to get
+       * home directory, then add a `/.cache` to the path. */
+
+      if (system("which xdg-user-dir > /dev/null 2>&1")) {
+        /* Use `getenv("HOME")` when `xdg-user-dir` doesn't exist. */
+        const char *home_dir = getenv("HOME");
+        string cache_path = string(home_dir) + "/.cache";
+        return cache_path.c_str();
+      }
+
+      /* When invoking `xdg-user-dir` without parameters the user folder
        * will be read. `.cache` will be appended. */
       type_str = "";
       add_path = ".cache";
