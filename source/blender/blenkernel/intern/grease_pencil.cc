@@ -452,8 +452,8 @@ static bool check_other_intersections(Span<float2> projverts1, Span<float2> proj
         if (value) {
           return value;
         }
-        for (const int e2_id : range) {
-          for (const int e1_id : projverts2.index_range()) {
+        for (const int e1_id : range) {
+          for (const int e2_id : projverts2.index_range()) {
             const int p11 = e1_id;
             const int p12 = (e1_id + 1) % projverts1.size();
             const int p21 = e2_id;
@@ -465,7 +465,7 @@ static bool check_other_intersections(Span<float2> projverts1, Span<float2> proj
               return true;
             }
           }
-        };
+        }
         return false;
       },
       std::logical_or<bool>());
