@@ -278,7 +278,7 @@ inline std::optional<AttributeDomainAndType> builtin_domain_and_type(const void 
 }
 
 template<const GeometryAttributeProviders &providers>
-inline GPointer get_default_value(const void * /*owner*/, const StringRef attribute_id)
+inline GPointer builtin_default_value(const void * /*owner*/, const StringRef attribute_id)
 {
   if (const BuiltinAttributeProvider *provider =
           providers.builtin_attribute_providers().lookup_default_as(attribute_id, nullptr))
@@ -413,9 +413,8 @@ inline AttributeAccessorFunctions accessor_functions_for_providers()
 {
   return AttributeAccessorFunctions{nullptr,
                                     nullptr,
-                                    is_builtin<providers>,
-                                    get_default_value<providers>,
                                     builtin_domain_and_type<providers>,
+                                    builtin_default_value<providers>,
                                     lookup<providers>,
                                     nullptr,
                                     foreach_attribute<providers>,
