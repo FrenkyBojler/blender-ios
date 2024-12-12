@@ -76,17 +76,18 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
     return false;
   }
 
-  /* NVIDIA drivers below 550 don't work. When sending command to the GPU there is no reply back
-   * when they are finished. Driver 550 should support GTX 700 and above GPUs.
-   *
-   * NOTE: We should retest later after fixing other issues. Allowing more drivers is always
-   * better as reporting to the user is quite limited.
+#ifndef _WIN32
+  /* NVIDIA drivers below 550 don't work on Linux. When sending command to the GPU there is not
+   * always a reply back when they are finished. The issue is reported on the Internet many times,
+   * but there is no mention of a solution. This means that on Linux we can only support GTX900 and
+   * or use MesaNVK.
    */
   if (vk_physical_device_driver_properties.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY &&
       conformance_version < VK_MAKE_API_VERSION(1, 3, 7, 2))
   {
     return false;
   }
+#endif
 
   return true;
 }
@@ -347,7 +348,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
     workarounds.fragment_shader_barycentric = true;
     workarounds.dynamic_rendering = true;
     workarounds.dynamic_rendering_unused_attachments = true;
-    workarounds.local_size_execution_mode = true;
 
     GCaps.render_pass_workaround = true;
 
@@ -387,9 +387,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
       VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   workarounds.dynamic_rendering_unused_attachments = !device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
-
-  workarounds.local_size_execution_mode = !device.supports_extension(
-      VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
 
   device.workarounds_ = workarounds;
 }
