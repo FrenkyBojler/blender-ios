@@ -49,7 +49,7 @@ void main()
 
   /* Loading the matrix first before doing the manipulation fixes an issue
    * with the Metal compiler on older Intel macs (see #130867). */
-  mat4 inst_obmat = data_buf[gl_InstanceID].object_to_world_;
+  mat4 inst_obmat = data_buf[gl_InstanceID].object_to_world;
   mat4x4 input_mat = inst_obmat;
 
   /* Extract data packed inside the unused mat4 members. */
