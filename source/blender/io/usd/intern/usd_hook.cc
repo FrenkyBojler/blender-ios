@@ -10,6 +10,7 @@
 
 #include "BLI_utildefines.h"
 
+#include "BKE_idtype.hh"
 #include "BKE_report.hh"
 
 #include "DNA_windowmanager_types.h"
@@ -127,14 +128,47 @@ struct USDSceneExportContext {
 struct USDSceneImportContext {
   USDSceneImportContext() = default;
 
-  USDSceneImportContext(pxr::UsdStageRefPtr in_stage) : stage(in_stage) {}
+  USDSceneImportContext(pxr::UsdStageRefPtr in_stage, const ImportedPrimMap &in_prim_map)
+      : stage(in_stage), prim_map(in_prim_map)
+  {
+  }
+
+  void release()
+  {
+    if (prim_map_dict) {
+      delete prim_map_dict;
+    }
+  }
 
   pxr::UsdStageRefPtr get_stage() const
   {
     return stage;
   }
 
+  boost::python::dict get_prim_map()
+  {
+    if (!prim_map_dict) {
+      prim_map_dict = new boost::python::dict;
+
+      prim_map.foreach_item([&](const std::string &path, const Vector<PointerRNA> &ids) {
+        if (!prim_map_dict->has_key(path)) {
+          (*prim_map_dict)[path] = boost::python::list();
+        }
+        boost::python::list list = boost::python::extract<boost::python::list>(
+            (*prim_map_dict)[path]);
+
+        for (auto &ptr_rna : ids) {
+          list.append(ptr_rna);
+        }
+      });
+    }
+
+    return *prim_map_dict;
+  }
+
   pxr::UsdStageRefPtr stage;
+  ImportedPrimMap prim_map;
+  boost::python::dict *prim_map_dict = nullptr;
 };
 
 /* Encapsulate arguments for material export. */
@@ -281,7 +315,8 @@ void register_hook_converters()
       .def("export_texture", &USDMaterialExportContext::export_texture);
 
   python::class_<USDSceneImportContext>("USDSceneImportContext")
-      .def("get_stage", &USDSceneImportContext::get_stage);
+      .def("get_stage", &USDSceneImportContext::get_stage)
+      .def("get_prim_map", &USDSceneImportContext::get_prim_map);
 
   python::class_<USDMaterialImportContext>("USDMaterialImportContext")
       .def("get_stage", &USDMaterialImportContext::get_stage)
@@ -322,6 +357,7 @@ class USDHookInvoker {
     }
 
     PyGILState_STATE gilstate = PyGILState_Ensure();
+    init_in_gil();
 
     /* Iterate over the hooks and invoke the hook function, if it's defined. */
     USDHookList::const_iterator hook_iter = hook_list().begin();
@@ -357,6 +393,7 @@ class USDHookInvoker {
       }
     }
 
+    release_in_gil();
     PyGILState_Release(gilstate);
   }
 
@@ -368,6 +405,9 @@ class USDHookInvoker {
    *
    * python::call_method<void>(hook_obj, function_name(), arg1, arg2); */
   virtual void call_hook(PyObject *hook_obj) = 0;
+
+  virtual void init_in_gil(){};
+  virtual void release_in_gil(){};
 
   /* Reports list provided when constructing the subclass, used by #call() to store reports. */
   ReportList *reports_;
@@ -432,8 +472,13 @@ class OnImportInvoker : public USDHookInvoker {
   USDSceneImportContext hook_context_;
 
  public:
+<<<<<<< HEAD
   OnImportInvoker(pxr::UsdStageRefPtr stage, ReportList *reports)
       : USDHookInvoker(reports), hook_context_(stage)
+=======
+  OnImportInvoker(pxr::UsdStageRefPtr stage, const ImportedPrimMap &prim_map, ReportList *reports)
+      : hook_context_(stage, prim_map)
+>>>>>>> main
   {
   }
 
@@ -446,6 +491,11 @@ class OnImportInvoker : public USDHookInvoker {
   void call_hook(PyObject *hook_obj) override
   {
     python::call_method<bool>(hook_obj, function_name(), REF(hook_context_));
+  }
+
+  void release_in_gil() override
+  {
+    hook_context_.release();
   }
 };
 
@@ -553,13 +603,15 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
   on_material_export.call();
 }
 
-void call_import_hooks(pxr::UsdStageRefPtr stage, ReportList *reports)
+void call_import_hooks(pxr::UsdStageRefPtr stage,
+                       const ImportedPrimMap &prim_map,
+                       ReportList *reports)
 {
   if (hook_list().empty()) {
     return;
   }
 
-  OnImportInvoker on_import(stage, reports);
+  OnImportInvoker on_import(stage, prim_map, reports);
   on_import.call();
 }
 
