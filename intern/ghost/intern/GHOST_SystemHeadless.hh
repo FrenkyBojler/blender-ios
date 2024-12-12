@@ -91,6 +91,13 @@ class GHOST_SystemHeadless : public GHOST_System {
 #ifdef WITH_VULKAN_BACKEND
       case GHOST_kDrawingContextTypeVulkan: {
         const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
+#  ifdef _WIN32
+        GHOST_Context *context = new GHOST_ContextVK(
+            false, (HWND)0, 1, 2, debug_context, gpuSettings.preferred_device);
+#  elif defined(__APPLE__)
+        GHOST_Context *context = new GHOST_ContextVK(
+            false, nullptr, 1, 2, debug_context, gpuSettings.preferred_device);
+#  else
         GHOST_Context *context = new GHOST_ContextVK(false,
                                                      GHOST_kVulkanPlatformHeadless,
                                                      0,
@@ -102,6 +109,7 @@ class GHOST_SystemHeadless : public GHOST_System {
                                                      2,
                                                      debug_context,
                                                      gpuSettings.preferred_device);
+#  endif
         if (context->initializeDrawingContext()) {
           return context;
         }
