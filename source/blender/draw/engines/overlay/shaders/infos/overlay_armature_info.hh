@@ -57,7 +57,6 @@ FRAGMENT_SOURCE("overlay_armature_sphere_solid_frag.glsl")
 ADDITIONAL_INFO(overlay_frag_output)
 ADDITIONAL_INFO(overlay_armature_common)
 ADDITIONAL_INFO(draw_globals)
-DEPTH_WRITE(DepthWrite::ANY)
 STORAGE_BUF(0, READ, mat4, data_buf[])
 GPU_SHADER_CREATE_END()
 

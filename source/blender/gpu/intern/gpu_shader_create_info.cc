@@ -152,6 +152,7 @@ void ShaderCreateInfo::finalize(const bool recursive)
 
     if (info.early_fragment_test_) {
       early_fragment_test_ = true;
+      depth_write_ = DepthWrite::UNCHANGED;
     }
     /* Modify depth write if has been changed from default.
      * `UNCHANGED` implies gl_FragDepth is not used at all. */
