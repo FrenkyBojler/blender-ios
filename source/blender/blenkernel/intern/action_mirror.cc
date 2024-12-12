@@ -451,15 +451,23 @@ static void action_flip_pchan_rna_paths(bAction *act)
   }
 }
 
-void BKE_action_flip_with_pose(bAction *act, Object *ob_arm)
+void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
 {
-  Vector<FCurve *> fcurves = animrig::legacy::fcurves_first_slot(act);
-  FCurvePathCache *fcache = BKE_fcurve_pathcache_create(fcurves);
-  int i;
-  LISTBASE_FOREACH_INDEX (bPoseChannel *, pchan, &ob_arm->pose->chanbase, i) {
-    action_flip_pchan(ob_arm, pchan, fcache);
+  animrig::Action &action = act->wrap();
+  blender::Set<animrig::Slot *> flipped_slots;
+  for (Object *obj : objects) {
+    animrig::Slot *slot = animrig::slot_for_id(obj->id, action);
+    if (!slot || flipped_slots.contains(slot)) {
+      continue;
+    }
+    Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, slot->handle);
+    FCurvePathCache *fcache = BKE_fcurve_pathcache_create(fcurves);
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &obj->pose->chanbase) {
+      action_flip_pchan(obj, pchan, fcache);
+    }
+    BKE_fcurve_pathcache_destroy(fcache);
+    flipped_slots.add(slot);
   }
-  BKE_fcurve_pathcache_destroy(fcache);
 
   action_flip_pchan_rna_paths(act);
 

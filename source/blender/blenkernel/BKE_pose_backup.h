@@ -15,12 +15,14 @@
 #include <stdbool.h>
 
 #include "BLI_listbase.h"
+#include "BLI_span.hh"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct PoseBackup;
+struct Object;
 
 /**
  * Create a backup of those bones that are selected AND animated in the given action.
@@ -28,7 +30,7 @@ struct PoseBackup;
  * The backup is owned by the caller, and should be freed with `BKE_pose_backup_free()`.
  */
 struct PoseBackup *BKE_pose_backup_create_selected_bones(
-    const struct Object *ob, const struct bAction *action) ATTR_WARN_UNUSED_RESULT;
+    blender::Span<Object *> objects, const struct bAction *action) ATTR_WARN_UNUSED_RESULT;
 
 /**
  * Create a backup of those bones that are animated in the given action.

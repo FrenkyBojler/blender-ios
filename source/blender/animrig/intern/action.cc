@@ -3036,4 +3036,9 @@ void move_slot(Main &bmain, Slot &source_slot, Action &from_action, Action &to_a
   from_action.slot_remove(source_slot);
 }
 
+Slot *slot_for_id(const ID &animated_id, Action &action)
+{
+  return generic_slot_for_autoassign(animated_id, action, "");
+}
+
 }  // namespace blender::animrig

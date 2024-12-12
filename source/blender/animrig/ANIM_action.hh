@@ -1648,6 +1648,8 @@ Action *convert_to_layered_action(Main &bmain, const Action &legacy_action);
  */
 void move_slot(Main &bmain, Slot &slot, Action &from_action, Action &to_action);
 
+Slot *slot_for_id(const ID &animated_id, Action &action);
+
 /**
  * Deselect the keys of all actions in the Span. Duplicate entries are only visited once.
  */

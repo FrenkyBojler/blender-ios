@@ -14,6 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_string.h"
+#include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
 
@@ -82,7 +83,8 @@ struct PoseBlendData {
   bool is_flipped;
   PoseBackup *pose_backup;
 
-  Object *ob;           /* Object to work on. */
+  /* This is a pointer because the memory allocation doesn't work properly otherwise. */
+  blender::Vector<Object *> *objects; /* Object to work on. */
   bAction *act;         /* Pose to blend into the current pose. */
   bAction *act_flipped; /* Flipped copy of `act`. */
 
@@ -108,7 +110,7 @@ static bAction *poselib_action_to_blend(PoseBlendData *pbd)
 static void poselib_backup_posecopy(PoseBlendData *pbd)
 {
   const bAction *action = poselib_action_to_blend(pbd);
-  pbd->pose_backup = BKE_pose_backup_create_selected_bones(pbd->ob, action);
+  pbd->pose_backup = BKE_pose_backup_create_selected_bones(*pbd->objects, action);
 
   if (pbd->state == POSE_BLEND_INIT) {
     /* Ready for blending now. */
@@ -121,51 +123,54 @@ static void poselib_backup_posecopy(PoseBlendData *pbd)
 /* Auto-key/tag bones affected by the pose Action. */
 static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
 {
-  if (!blender::animrig::autokeyframe_cfra_can_key(scene, &pbd->ob->id)) {
-    return;
-  }
-
-  AnimData *adt = BKE_animdata_from_id(&pbd->ob->id);
-  if (adt != nullptr && adt->action != nullptr &&
-      !BKE_id_is_editable(CTX_data_main(C), &adt->action->id))
-  {
-    /* Changes to linked-in Actions are not allowed. */
-    return;
-  }
-
-  bPose *pose = pbd->ob->pose;
-  bAction *act = poselib_action_to_blend(pbd);
-
-  KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene,
-                                                                 ANIM_KS_WHOLE_CHARACTER_ID);
-  blender::Vector<PointerRNA> sources;
-
-  /* start tagging/keying */
-  const bArmature *armature = static_cast<const bArmature *>(pbd->ob->data);
-  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
-    /* Only for selected bones unless there aren't any selected, in which case all are included. */
-    bPoseChannel *pchan = BKE_pose_channel_find_name(pose, agrp->name);
-    if (pchan == nullptr) {
-      continue;
+  for (Object *ob : *pbd->objects) {
+    if (!blender::animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
+      return;
     }
 
-    if (BKE_pose_backup_is_selection_relevant(pbd->pose_backup) &&
-        !PBONE_SELECTED(armature, pchan->bone))
+    AnimData *adt = BKE_animdata_from_id(&ob->id);
+    if (adt != nullptr && adt->action != nullptr &&
+        !BKE_id_is_editable(CTX_data_main(C), &adt->action->id))
     {
-      continue;
+      /* Changes to linked-in Actions are not allowed. */
+      return;
     }
 
-    /* Add data-source override for the PoseChannel, to be used later. */
-    blender::animrig::relative_keyingset_add_source(sources, &pbd->ob->id, &RNA_PoseBone, pchan);
-  }
+    bPose *pose = ob->pose;
+    bAction *act = poselib_action_to_blend(pbd);
 
-  if (adt->action) {
-    blender::animrig::action_deselect_keys(adt->action->wrap());
-  }
+    KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene,
+                                                                   ANIM_KS_WHOLE_CHARACTER_ID);
+    blender::Vector<PointerRNA> sources;
 
-  /* Perform actual auto-keying. */
-  blender::animrig::apply_keyingset(
-      C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, float(scene->r.cfra));
+    /* start tagging/keying */
+    const bArmature *armature = static_cast<const bArmature *>(ob->data);
+    for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
+      /* Only for selected bones unless there aren't any selected, in which case all are included.
+       */
+      bPoseChannel *pchan = BKE_pose_channel_find_name(pose, agrp->name);
+      if (pchan == nullptr) {
+        continue;
+      }
+
+      if (BKE_pose_backup_is_selection_relevant(pbd->pose_backup) &&
+          !PBONE_SELECTED(armature, pchan->bone))
+      {
+        continue;
+      }
+
+      /* Add data-source override for the PoseChannel, to be used later. */
+      blender::animrig::relative_keyingset_add_source(sources, &ob->id, &RNA_PoseBone, pchan);
+    }
+
+    if (adt->action) {
+      blender::animrig::action_deselect_keys(adt->action->wrap());
+    }
+
+    /* Perform actual auto-keying. */
+    blender::animrig::apply_keyingset(
+        C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, float(scene->r.cfra));
+  }
 
   /* send notifiers for this */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
@@ -185,22 +190,32 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
 
   /* The pose needs updating, whether it's for restoring the original pose or for showing the
    * result of the blend. */
-  DEG_id_tag_update(&pbd->ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, pbd->ob);
+  for (Object *ob : *pbd->objects) {
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  }
 
   if (pbd->state != POSE_BLEND_BLENDING) {
     return;
   }
 
+  Main *bmain = CTX_data_main(C);
   /* Perform the actual blending. */
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph, 0.0f);
   bAction *to_blend = poselib_action_to_blend(pbd);
-  blender::animrig::slot_handle_t to_blend_slot_handle = blender::animrig::first_slot_handle(
-      *to_blend);
-
-  blender::animrig::pose_apply_action_blend(
-      pbd->ob, to_blend, to_blend_slot_handle, &anim_eval_context, pbd->blend_factor);
+  blender::animrig::Action &pose = to_blend->wrap();
+  for (Object *ob : *pbd->objects) {
+    blender::animrig::Slot *slot = blender::animrig::slot_for_id(ob->id, pose);
+    if (!slot && pose.slot_array_num > 0) {
+      slot = pose.slot(0);
+    }
+    if (!slot) {
+      continue;
+    }
+    blender::animrig::pose_apply_action_blend(
+        ob, to_blend, slot->handle, &anim_eval_context, pbd->blend_factor);
+  }
 }
 
 /* ---------------------------- */
@@ -287,12 +302,26 @@ static int poselib_blend_handle_event(bContext * /*C*/, wmOperator *op, const wm
 
 /* ---------------------------- */
 
-static Object *get_poselib_object(bContext *C)
+static blender::Vector<Object *> get_poselib_objects(bContext *C)
 {
-  if (C == nullptr) {
-    return nullptr;
+  blender::Vector<PointerRNA> selected_objects;
+  CTX_data_selected_objects(C, &selected_objects);
+
+  blender::Vector<Object *> selected_pose_objects;
+  for (const PointerRNA &ptr : selected_objects) {
+    Object *object = reinterpret_cast<Object *>(ptr.owner_id);
+    if (!object || !object->pose) {
+      continue;
+    }
+    selected_pose_objects.append(object);
   }
-  return BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Object *active_object = CTX_data_active_object(C);
+  /* The active object may not be selected, it should be added because you can still switch to pose
+   * mode. */
+  if (active_object && active_object->pose && !selected_pose_objects.contains(active_object)) {
+    selected_pose_objects.append(active_object);
+  }
+  return selected_pose_objects;
 }
 
 static void poselib_tempload_exit(PoseBlendData *pbd)
@@ -313,7 +342,7 @@ static bAction *poselib_blend_init_get_action(bContext *C, wmOperator *op)
       pbd->temp_id_consumer, ID_AC, CTX_data_main(C), op->reports);
 }
 
-static bAction *flip_pose(bContext *C, Object *ob, bAction *action)
+static bAction *flip_pose(bContext *C, blender::Span<Object *> objects, bAction *action)
 {
   bAction *action_copy = (bAction *)BKE_id_copy_ex(
       nullptr, &action->id, nullptr, LIB_ID_COPY_LOCALIZE);
@@ -324,7 +353,7 @@ static bAction *flip_pose(bContext *C, Object *ob, bAction *action)
   const bool interface_was_locked = CTX_wm_interface_locked(C);
   WM_set_locked_interface(wm, true);
 
-  BKE_action_flip_with_pose(action_copy, ob);
+  BKE_action_flip_with_pose(action_copy, objects);
 
   WM_set_locked_interface(wm, interface_was_locked);
   return action_copy;
@@ -336,8 +365,8 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   op->customdata = nullptr;
 
   /* check if valid poselib */
-  Object *ob = get_poselib_object(C);
-  if (ELEM(nullptr, ob, ob->pose, ob->data)) {
+  blender::Vector<Object *> selected_pose_objects = get_poselib_objects(C);
+  if (selected_pose_objects.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "Pose lib is only for armatures in pose mode");
     return false;
   }
@@ -358,12 +387,11 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   /* Only construct the flipped pose if there is a chance it's actually needed. */
   const bool is_interactive = (event != nullptr);
   if (is_interactive || pbd->is_flipped) {
-    pbd->act_flipped = flip_pose(C, ob, pbd->act);
+    pbd->act_flipped = flip_pose(C, selected_pose_objects, pbd->act);
   }
 
   /* Get the basic data. */
-  pbd->ob = ob;
-  pbd->ob->pose = ob->pose;
+  pbd->objects = new blender::Vector<Object *>(selected_pose_objects);
 
   pbd->scene = CTX_data_scene(C);
   pbd->area = CTX_wm_area(C);
@@ -403,8 +431,10 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   poselib_backup_posecopy(pbd);
 
   /* Set pose flags to ensure the depsgraph evaluation doesn't overwrite it. */
-  pbd->ob->pose->flag &= ~POSE_DO_UNLOCK;
-  pbd->ob->pose->flag |= POSE_LOCKED;
+  for (Object *ob : *pbd->objects) {
+    ob->pose->flag &= ~POSE_DO_UNLOCK;
+    ob->pose->flag |= POSE_LOCKED;
+  }
 
   return true;
 }
@@ -423,8 +453,10 @@ static void poselib_blend_cleanup(bContext *C, wmOperator *op)
   }
 
   /* This signals the depsgraph to unlock and reevaluate the pose on the next evaluation. */
-  bPose *pose = pbd->ob->pose;
-  pose->flag |= POSE_DO_UNLOCK;
+  for (Object *ob : *pbd->objects) {
+    bPose *pose = ob->pose;
+    pose->flag |= POSE_DO_UNLOCK;
+  }
 
   switch (pbd->state) {
     case POSE_BLEND_CONFIRM: {
@@ -449,8 +481,10 @@ static void poselib_blend_cleanup(bContext *C, wmOperator *op)
       break;
   }
 
-  DEG_id_tag_update(&pbd->ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, pbd->ob);
+  for (Object *ob : *pbd->objects) {
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  }
   /* Update mouse-hover highlights. */
   WM_event_add_mousemove(win);
 }
@@ -481,6 +515,7 @@ static int poselib_blend_exit(bContext *C, wmOperator *op)
 
   poselib_blend_cleanup(C, op);
   poselib_blend_free(op);
+  delete pbd->objects;
 
   wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_restore(win);
@@ -575,8 +610,8 @@ static bool poselib_asset_in_context(bContext *C)
 /* Poll callback for operators that require existing PoseLib data (with poses) to work. */
 static bool poselib_blend_poll(bContext *C)
 {
-  Object *ob = get_poselib_object(C);
-  if (ELEM(nullptr, ob, ob->pose, ob->data)) {
+  blender::Vector<Object *> selected_pose_objects = get_poselib_objects(C);
+  if (selected_pose_objects.is_empty()) {
     /* Pose lib is only for armatures in pose mode. */
     return false;
   }
