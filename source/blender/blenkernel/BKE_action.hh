@@ -14,6 +14,7 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
 
+#include "DNA_action_defaults.h"
 #include "DNA_listBase.h"
 
 struct BlendDataReader;
@@ -78,6 +79,8 @@ bAction *BKE_action_add(Main *bmain, const char name[]);
  * \see Action::is_action_layered()
  */
 bool is_action_layered(const bAction &action);
+
+void convert_animato_action_to_layered_action_in_place(bAction &dna_action);
 
 /**
  * Remove all fcurves from the action.
