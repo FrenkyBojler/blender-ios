@@ -465,6 +465,7 @@ struct wmNotifier {
 #define ND_NLA_ACTCHANGE (74 << 16)
 #define ND_FCURVES_ORDER (75 << 16)
 #define ND_NLA_ORDER (76 << 16)
+#define ND_KEYFRAME_AUTO (77 << 16)
 
 /* NC_GPENCIL. */
 #define ND_GPENCIL_EDITMODE (85 << 16)
@@ -594,7 +595,7 @@ struct wmGesture {
   int modal_state;
   /** Optional, draw the active side of the straight-line gesture. */
   bool draw_active_side;
-  /** Latest mouse position relative to area. Currently only used by lasso drawing code.*/
+  /** Latest mouse position relative to area. Currently only used by lasso drawing code. */
   blender::int2 mval;
 
   /**
@@ -622,9 +623,9 @@ struct wmGesture {
   /**
    * customdata
    * - for border is a #rcti.
-   * - for circle is #rcti, (xmin, ymin) is center, xmax radius.
+   * - for circle is #rcti, (`xmin`, `ymin`) is center, `xmax` radius.
    * - for lasso is short array.
-   * - for straight line is a #rcti: (xmin, ymin) is start, (xmax, ymax) is end.
+   * - for straight line is a #rcti: (`xmin`, `ymin`) is start, (`xmax`, `ymax`) is end.
    */
   void *customdata;
 
@@ -1271,6 +1272,8 @@ struct wmDragActiveDropState {
    */
   const char *disabled_info;
   bool free_disabled_info;
+
+  std::string tooltip;
 };
 
 struct wmDrag {

@@ -287,6 +287,8 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
   Map<const bNode *, bNode *> node_map;
   Map<const bNodeSocket *, bNodeSocket *> socket_map;
 
+  node_select_paired(tree);
+
   for (const bNode *node : tree.all_nodes()) {
     if (node->flag & SELECT) {
       clipboard.copy_add_node(*node, node_map, socket_map);
@@ -437,8 +439,8 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
     for (bNode *new_node : node_map.values()) {
       /* Skip the offset for parented nodes since the location is in parent space. */
       if (new_node->parent == nullptr) {
-        new_node->locx += offset.x;
-        new_node->locy += offset.y;
+        new_node->location[0] += offset.x;
+        new_node->location[1] += offset.y;
       }
     }
   }

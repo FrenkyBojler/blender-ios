@@ -32,7 +32,7 @@ static void cmp_node_composite_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_buts_composite(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "use_alpha", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_alpha", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::realtime_compositor;
@@ -135,7 +135,7 @@ class CompositeOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min, float4(image.load_pixel(texel).xyz(), 1.0f));
+      output.store_pixel(texel + bounds.min, float4(image.load_pixel<float4>(texel).xyz(), 1.0f));
     });
   }
 
@@ -187,7 +187,7 @@ class CompositeOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min, image.load_pixel(texel));
+      output.store_pixel(texel + bounds.min, image.load_pixel<float4>(texel));
     });
   }
 
@@ -243,8 +243,9 @@ class CompositeOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min,
-                         float4(image.load_pixel(texel).xyz(), alpha.load_pixel(texel).x));
+      output.store_pixel(
+          texel + bounds.min,
+          float4(image.load_pixel<float4>(texel).xyz(), alpha.load_pixel<float>(texel)));
     });
   }
 
@@ -290,7 +291,6 @@ void register_node_type_cmp_composite()
   ntype.declare = file_ns::cmp_node_composite_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_composite;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  ntype.flag |= NODE_PREVIEW;
   ntype.no_muting = true;
 
   blender::bke::node_register_type(&ntype);
