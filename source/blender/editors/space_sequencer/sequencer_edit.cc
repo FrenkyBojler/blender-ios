@@ -1694,9 +1694,9 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
     SEQ_animation_duplicate_backup_to_scene(scene, seq, &animation_backup);
     SEQ_ensure_unique_name(seq, scene);
-    /* Handle overlap when the operator is called from the preview. This is necessary for the preview_duplicate_move macro. */
-    if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C))
-    {
+    /* Handle overlap when the operator is called from the preview. This is necessary for the
+     * preview_duplicate_move macro. */
+    if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C)) {
       if (SEQ_transform_test_overlap(scene, ed->seqbasep, seq)) {
         SEQ_transform_seqbase_shuffle(ed->seqbasep, seq, scene);
       }
