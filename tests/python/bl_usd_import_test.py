@@ -1553,7 +1553,42 @@ class USDImportTest(AbstractUSDTest):
         check_image("color_121212.hdr", 1, 4, False)
         check_materials()
 
-<<<<<<< HEAD
+    def test_get_prim_map_parent_xform_not_merged(self):
+        bpy.utils.register_class(GetPrimMapUsdImportHook)
+        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=False)
+        prim_map = GetPrimMapUsdImportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdImportHook)
+
+        expected_prim_map = {
+            "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
+            "/XformThenCube": [bpy.data.objects["XformThenCube"]],
+            "/XformThenCube/Cube": [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
+            "/XformThenXformCube": [bpy.data.objects["XformThenXformCube"]],
+            "/XformThenXformCube/XformIntermediate": [bpy.data.objects["XformIntermediate"]],
+            "/XformThenXformCube/XformIntermediate/Cube": [bpy.data.objects["Cube.001"], bpy.data.meshes["Cube.001"]],
+            "/Material": [bpy.data.materials["Material"]],
+        }
+
+        self.assertDictEqual(prim_map, expected_prim_map)
+
+    def test_get_prim_map_parent_xform_merged(self):
+        bpy.utils.register_class(GetPrimMapUsdImportHook)
+        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=True)
+        prim_map = GetPrimMapUsdImportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdImportHook)
+
+        expected_prim_map = {
+            "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
+            "/XformThenCube": [bpy.data.objects["Cube"]],
+            "/XformThenCube/Cube": [bpy.data.meshes["Cube"]],
+            "/XformThenXformCube": [bpy.data.objects["XformThenXformCube"]],
+            "/XformThenXformCube/XformIntermediate": [bpy.data.objects["Cube.001"]],
+            "/XformThenXformCube/XformIntermediate/Cube": [bpy.data.meshes["Cube.001"]],
+            "/Material": [bpy.data.materials["Material"]],
+        }
+
+        self.assertDictEqual(prim_map, expected_prim_map)
+
     def test_material_import_usd_hook(self):
         """Test importing color from an mtlx shader."""
 
@@ -1620,6 +1655,17 @@ class USDImportTest(AbstractUSDTest):
                         "Imported texture should be temporary")
 
         bpy.utils.unregister_class(ImportMtlxTextureUSDHook)
+
+
+class GetPrimMapUsdImportHook(bpy.types.USDHook):
+    bl_idname = "get_prim_map_usd_import_hook"
+    bl_label = "Get Prim Map Usd Import Hook"
+
+    prim_map = None
+
+    @staticmethod
+    def on_import(context):
+        GetPrimMapUsdImportHook.prim_map = context.get_prim_map()
 
 
 class ImportMtlxColorUSDHook(bpy.types.USDHook):
@@ -1713,54 +1759,6 @@ class ImportMtlxTextureUSDHook(bpy.types.USDHook):
         ImportMtlxTextureUSDHook.result = result
 
         return True
-=======
-    def test_get_prim_map_parent_xform_not_merged(self):
-        bpy.utils.register_class(GetPrimMapUsdImportHook)
-        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=False)
-        prim_map = GetPrimMapUsdImportHook.prim_map
-        bpy.utils.unregister_class(GetPrimMapUsdImportHook)
-
-        expected_prim_map = {
-            "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
-            "/XformThenCube": [bpy.data.objects["XformThenCube"]],
-            "/XformThenCube/Cube": [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
-            "/XformThenXformCube": [bpy.data.objects["XformThenXformCube"]],
-            "/XformThenXformCube/XformIntermediate": [bpy.data.objects["XformIntermediate"]],
-            "/XformThenXformCube/XformIntermediate/Cube": [bpy.data.objects["Cube.001"], bpy.data.meshes["Cube.001"]],
-            "/Material": [bpy.data.materials["Material"]],
-        }
-
-        self.assertDictEqual(prim_map, expected_prim_map)
-
-    def test_get_prim_map_parent_xform_merged(self):
-        bpy.utils.register_class(GetPrimMapUsdImportHook)
-        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=True)
-        prim_map = GetPrimMapUsdImportHook.prim_map
-        bpy.utils.unregister_class(GetPrimMapUsdImportHook)
-
-        expected_prim_map = {
-            "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
-            "/XformThenCube": [bpy.data.objects["Cube"]],
-            "/XformThenCube/Cube": [bpy.data.meshes["Cube"]],
-            "/XformThenXformCube": [bpy.data.objects["XformThenXformCube"]],
-            "/XformThenXformCube/XformIntermediate": [bpy.data.objects["Cube.001"]],
-            "/XformThenXformCube/XformIntermediate/Cube": [bpy.data.meshes["Cube.001"]],
-            "/Material": [bpy.data.materials["Material"]],
-        }
-
-        self.assertDictEqual(prim_map, expected_prim_map)
-
-
-class GetPrimMapUsdImportHook(bpy.types.USDHook):
-    bl_idname = "get_prim_map_usd_import_hook"
-    bl_label = "Get Prim Map Usd Import Hook"
-
-    prim_map = None
-
-    @staticmethod
-    def on_import(context):
-        GetPrimMapUsdImportHook.prim_map = context.get_prim_map()
->>>>>>> main
 
 
 def main():

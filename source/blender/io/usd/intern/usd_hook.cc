@@ -472,13 +472,8 @@ class OnImportInvoker : public USDHookInvoker {
   USDSceneImportContext hook_context_;
 
  public:
-<<<<<<< HEAD
-  OnImportInvoker(pxr::UsdStageRefPtr stage, ReportList *reports)
-      : USDHookInvoker(reports), hook_context_(stage)
-=======
   OnImportInvoker(pxr::UsdStageRefPtr stage, const ImportedPrimMap &prim_map, ReportList *reports)
-      : hook_context_(stage, prim_map)
->>>>>>> main
+      : USDHookInvoker(reports), hook_context_(stage, prim_map)
   {
   }
 
