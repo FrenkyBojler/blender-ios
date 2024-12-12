@@ -1697,7 +1697,7 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator * /*op*/)
     /* Handle overlap when the operator is called from the preview. This is necessary for the
      * preview_duplicate_move macro. */
     if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C)) {
-      if (seq->type == SEQ_TYPE_SOUND_RAM && SEQ_is_strip_connected(seq) == false) {
+      if (seq->type == SEQ_TYPE_SOUND_RAM) {
         SEQ_edit_flag_for_removal(scene, ed->seqbasep, seq);
         SEQ_edit_remove_flagged_sequences(scene, ed->seqbasep);
       }
