@@ -259,7 +259,6 @@ ADDITIONAL_INFO(overlay_frag_output)
 ADDITIONAL_INFO(overlay_armature_common)
 ADDITIONAL_INFO(draw_globals)
 STORAGE_BUF(0, READ, ExtraInstanceData, data_buf[])
-/*TODO(pragma37): Remove?*/
 DEFINE_VALUE("inst_obmat", "data_buf[gl_InstanceID].object_to_world_")
 DEFINE_VALUE("color", "data_buf[gl_InstanceID].color_")
 GPU_SHADER_CREATE_END()

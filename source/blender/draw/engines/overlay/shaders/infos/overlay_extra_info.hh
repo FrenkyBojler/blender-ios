@@ -160,7 +160,6 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
 TYPEDEF_SOURCE("overlay_shader_shared.h")
 STORAGE_BUF(0, READ, VertexData, data_buf[])
-/*TODO(pragma37): Remove?*/
 DEFINE_VALUE("pos", "data_buf[gl_VertexID].pos_.xyz")
 DEFINE_VALUE("ucolor", "data_buf[gl_VertexID].color_");
 GPU_SHADER_CREATE_END()
