@@ -263,24 +263,43 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
    * `deg_eval_copy_on_write.cc`, function `deg_expand_eval_copy_datablock`. */
   Main *bmain = BKE_lib_query_foreachid_process_main_get(data);
 
-  /* This function should not rebuild the slot user map, because that in turn loops over all IDs.
-   * The pointers in the user map should be valid enough to process here, though. */
-  bool should_invalidate = false;
-  for (animrig::Slot *slot : action.slots()) {
-    for (ID *&slot_user : slot->runtime_users()) {
-      ID *const old_pointer = slot_user;
-      BKE_LIB_FOREACHID_PROCESS_ID(data, slot_user, idwalk_flags);
-      /* If slot_user changed, the cache should be invalidated. Not all pointer changes are
-       * semantically correct for our use. For example, when ID-remapping is used to replace MECube
-       * with MESuzanne. If MECube is animated by some slot before the remap, it will remain
-       * animated by that slot after the remap, even when all `object->data` pointers now reference
-       * MESuzanne instead. */
-      should_invalidate |= (slot_user != old_pointer);
-    }
-  }
+  /* If the reason for making this call is read-only, that likely means that the caller intends to
+   * do something with the returned pointers. An example is BKE_main_relations_create() (which will
+   * access id->session_uid on visited pointers).
+   *
+   * Non-read-only uses are typically things like ID remapping, ensuring pointers to deleted IDs
+   * are nulled, etc. This is fine even when the slot user caches are marked as dirty.
+   *
+   * When the caller intends to do something with the visited pointers, this should only be allowed
+   * when the cache is known to be valid.
+   *
+   * NOTE: the above reasoning is to motivate the code below. If it's wrong, so is the code.
+   *
+   * NOTE: This function should not rebuild the slot user map, because that in turn loops over all
+   * IDs. It is really up to the caller to ensure things are clean when the slot user pointers
+   * should be reported. */
+  const bool slot_user_cache_is_known_clean = bmain && !bmain->is_action_slot_to_id_map_dirty;
+  const bool may_visit_slot_users = slot_user_cache_is_known_clean ||
+                                    ((flag | IDWALK_READONLY) == 0);
 
-  if (should_invalidate && bmain) {
-    animrig::Slot::users_invalidate(*bmain);
+  if (may_visit_slot_users) {
+    bool should_invalidate = false;
+    for (animrig::Slot *slot : action.slots()) {
+      for (ID *&slot_user : slot->runtime_users()) {
+        ID *const old_pointer = slot_user;
+        BKE_LIB_FOREACHID_PROCESS_ID(data, slot_user, idwalk_flags);
+        /* If slot_user changed, the cache should be invalidated. Not all pointer changes are
+         * semantically correct for our use. For example, when ID-remapping is used to replace
+         * MECube with MESuzanne. If MECube is animated by some slot before the remap, it will
+         * remain animated by that slot after the remap, even when all `object->data` pointers now
+         * reference MESuzanne instead. */
+        should_invalidate |= (slot_user != old_pointer);
+      }
+    }
+
+    if (should_invalidate && bmain) {
+      animrig::Slot::users_invalidate(*bmain);
+    }
   }
 
   /* Note that, even though `BKE_fcurve_foreach_id()` exists, it is not called here. That function
