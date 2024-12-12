@@ -62,17 +62,6 @@ AnimData *BKE_animdata_from_id(const ID *id);
 AnimData *BKE_animdata_ensure_id(ID *id);
 
 /**
- * After id_a and id_b have been swapped, go over their assigned Action Slots to
- * ensure the list of slot users is correct.
- *
- * This is a low-level function, that's basically only called from BKE_lib_id_swap() and
- * BKE_lib_id_swap_full() to ensure the bookkeeping is accurate.
- *
- * Note that calling this without actually swapping the IDs will introduce a bug.
- */
-void post_idswap_update_action_slot_users(ID *id_a, ID *id_b);
-
-/**
  * Set active action used by AnimData from the given ID-block.
  *
  * Called when user tries to change the active action of an #AnimData block
@@ -197,3 +186,24 @@ void BKE_fcurves_id_cb(struct ID *id, blender::FunctionRef<void(ID *, FCurve *)>
 
 /* ************************************* */
 /* TODO: overrides, remapping, and path-finding API's. */
+
+namespace blender::bke::animdata {
+
+/**
+ * Action Slots keep a runtime list of the IDs animated by them.
+ *
+ * This function mark this 'user cache' as 'dirty', triggering a full rebuild
+ * next time it is accessed.
+ *
+ * This is typically only necessary after remapping IDs, swapping them, etc ,
+ * and only called from low-level code.
+ *
+ * \note This function invalidates all user caches of all Action Slots of all
+ * Actions in this `bmain`.
+ *
+ * \see #blender::animrig::Slot::users_invalidate()
+ * \see #blender::animrig::internal::rebuild_slot_user_cache()
+ */
+void action_slots_user_cache_invalidate(Main &bmain);
+
+}  // namespace blender::bke::animdata

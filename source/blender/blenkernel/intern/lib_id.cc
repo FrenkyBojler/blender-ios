@@ -953,10 +953,6 @@ static void id_swap(Main *bmain,
                      remapper_id_a,
                      remapper_id_b);
   }
-  if ((id_type->flags & IDTYPE_FLAGS_NO_ANIMDATA) == 0) {
-    /* Animatable types need to ensure that their action slot user tracking is correct. */
-    post_idswap_update_action_slot_users(id_a, id_b);
-  }
 
   if (remapper_id_a != nullptr) {
     remapper_id_a->add(id_b, id_a);
@@ -971,6 +967,13 @@ static void id_swap(Main *bmain,
         bmain, {id_a}, ID_REMAP_TYPE_REMAP, *remapper_id_a, self_remap_flags);
     BKE_libblock_relink_multiple(
         bmain, {id_b}, ID_REMAP_TYPE_REMAP, *remapper_id_b, self_remap_flags);
+  }
+
+  if ((id_type->flags & IDTYPE_FLAGS_NO_ANIMDATA) == 0) {
+    /* Action Slots point to the IDs they animate, and thus now also need some swappage. Instead of
+     * doing this here (and requiring knowledge of how that's supposed to be done), just mark these
+     * pointers as dirty so that they're rebuilt at first use. */
+    blender::bke::animdata::action_slots_user_cache_invalidate(*bmain);
   }
 
   if (input_remapper_id_a == nullptr && remapper_id_a != nullptr) {
