@@ -3924,6 +3924,69 @@ static void GREASE_PENCIL_OT_reset_uvs(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Separate Shapes Operator
+ * \{ */
+
+static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator * /*op*/)
+{
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  bool changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    IndexMaskMemory memory;
+    const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (strokes.is_empty()) {
+      return;
+    }
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_for_write_span<int>("shape_id");
+
+    if (!shape_ids) {
+      return;
+    }
+
+    const int max_shape_id = *std::max_element(shape_ids.span.begin(), shape_ids.span.end());
+
+    strokes.foreach_index(
+        [&](const int64_t i, const int64_t pos) { shape_ids.span[i] = pos + max_shape_id + 1; });
+
+    shape_ids.finish();
+    info.drawing.tag_topology_changed();
+
+    changed = true;
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_separate_shapes(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Separate Shapes";
+  ot->idname = "GREASE_PENCIL_OT_separate_shapes";
+  ot->description = "Separate the selected strokes into unique shapes";
+
+  /* callbacks */
+  ot->exec = grease_pencil_separate_shapes_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
@@ -3963,6 +4026,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_set_handle_type);
   WM_operatortype_append(GREASE_PENCIL_OT_reset_uvs);
   WM_operatortype_append(GREASE_PENCIL_OT_texture_gradient);
+  WM_operatortype_append(GREASE_PENCIL_OT_separate_shapes);
 }
 
 /* -------------------------------------------------------------------- */
