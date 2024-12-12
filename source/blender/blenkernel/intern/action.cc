@@ -256,8 +256,8 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
    * NOTE: early-returns by BKE_LIB_FOREACHID_PROCESS_... macros are forbidden in non-readonly
    * cases (see #IDWALK_RET_STOP_ITER documentation). */
 
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-  constexpr int idwalk_flags = IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK;
+  const LibraryForeachIDFlag flag = BKE_lib_query_foreachid_process_flags_get(data);
+  constexpr LibraryForeachIDCallbackFlag idwalk_flags = IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK;
 
   /* Note that `bmain` can be `nullptr`. An example is in
    * `deg_eval_copy_on_write.cc`, function `deg_expand_eval_copy_datablock`. */
