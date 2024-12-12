@@ -1072,11 +1072,9 @@ class VIEW3D_HT_header(Header):
             sub.popover(panel="VIEW3D_PT_overlay_grease_pencil_options", text="", icon='OUTLINER_DATA_GREASEPENCIL')
 
         # Separate from `elif` chain because it may coexist with weight-paint.
-        if (
-            has_pose_mode or
-            (object_mode in {'EDIT_ARMATURE', 'OBJECT'} and VIEW3D_PT_overlay_bones.is_using_wireframe(context))
-        ):
-            sub.popover(panel="VIEW3D_PT_overlay_bones", text="", icon='POSE_HLT')
+        if has_pose_mode or mode_string == 'EDIT_ARMATURE':
+            bone_overlay_icon = 'POSE_HLT' if has_pose_mode else 'EDITMODE_HLT'
+            sub.popover(panel="VIEW3D_PT_overlay_bones", text="", icon=bone_overlay_icon)
 
         row = layout.row()
         row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
@@ -7364,28 +7362,10 @@ class VIEW3D_PT_overlay_bones(Panel):
     bl_region_type = 'HEADER'
     bl_label = "Bones"
 
-    @staticmethod
-    def is_using_wireframe(context):
-        mode = context.mode
-
-        if mode in {'POSE', 'PAINT_WEIGHT'}:
-            armature = context.pose_object
-        elif mode == 'EDIT_ARMATURE':
-            armature = context.edit_object
-        else:
-            return False
-
-        return armature and armature.display_type == 'WIRE'
-
     @classmethod
     def poll(cls, context):
         mode = context.mode
-        return (
-            (mode == 'POSE') or
-            (mode == 'PAINT_WEIGHT' and context.pose_object) or
-            (mode == 'EDIT_ARMATURE' and
-             VIEW3D_PT_overlay_bones.is_using_wireframe(context))
-        )
+        return mode in {'POSE', 'EDIT_ARMATURE'} or (mode == 'PAINT_WEIGHT' and context.pose_object)
 
     def draw(self, context):
         layout = self.layout
@@ -7394,7 +7374,10 @@ class VIEW3D_PT_overlay_bones(Panel):
         overlay = view.overlay
         display_all = overlay.show_overlays
 
-        layout.label(text="Armature Overlays")
+        if mode == 'EDIT_ARMATURE':
+            layout.label(text="Armature Edit Overlays")
+        else:
+            layout.label(text="Armature Overlays")
 
         col = layout.column()
         col.active = display_all
@@ -7408,6 +7391,8 @@ class VIEW3D_PT_overlay_bones(Panel):
         elif mode == 'PAINT_WEIGHT':
             row = col.row()
             row.prop(overlay, "show_xray_bone")
+
+        col.prop(overlay, "show_wireframe_bone")
 
 
 class VIEW3D_PT_overlay_texture_paint(Panel):
