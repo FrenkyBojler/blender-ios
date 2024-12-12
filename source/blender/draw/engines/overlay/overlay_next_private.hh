@@ -360,19 +360,19 @@ class ShaderModule {
   ShaderPtr background_clip_bound = shader("overlay_clipbound");
   ShaderPtr curve_edit_points;
   ShaderPtr curve_edit_line;
-  ShaderPtr curve_edit_handles = static_clippable_shader("overlay_edit_curves_handle");
+  ShaderPtr curve_edit_handles = shader_clippable("overlay_edit_curves_handle");
   ShaderPtr extra_point;
   ShaderPtr facing;
   ShaderPtr grid = shader("overlay_grid_next");
   ShaderPtr grid_background;
-  ShaderPtr grid_grease_pencil = static_clippable_shader("overlay_gpencil_canvas");
+  ShaderPtr grid_grease_pencil = shader_clippable("overlay_gpencil_canvas");
   ShaderPtr grid_image;
   ShaderPtr legacy_curve_edit_wires;
   ShaderPtr legacy_curve_edit_normals = shader("overlay_edit_curve_normals");
-  ShaderPtr legacy_curve_edit_handles = static_clippable_shader("overlay_edit_curve_handle");
+  ShaderPtr legacy_curve_edit_handles = shader_clippable("overlay_edit_curve_handle");
   ShaderPtr legacy_curve_edit_points;
-  ShaderPtr motion_path_line = static_clippable_shader("overlay_motion_path_line");
-  ShaderPtr motion_path_vert = static_clippable_shader("overlay_motion_path_point");
+  ShaderPtr motion_path_line = shader_clippable("overlay_motion_path_line");
+  ShaderPtr motion_path_vert = shader_clippable("overlay_motion_path_point");
   ShaderPtr mesh_analysis;
   ShaderPtr mesh_edit_depth;
   ShaderPtr mesh_edit_edge = shader("overlay_edit_mesh_edge");
@@ -384,7 +384,7 @@ class ShaderModule {
   ShaderPtr mesh_loop_normal, mesh_loop_normal_subdiv;
   ShaderPtr mesh_vert_normal;
   ShaderPtr outline_prepass_mesh;
-  ShaderPtr outline_prepass_wire = static_clippable_shader("overlay_outline_prepass_wire");
+  ShaderPtr outline_prepass_wire = shader_clippable("overlay_outline_prepass_wire");
   ShaderPtr outline_prepass_curves;
   ShaderPtr outline_prepass_pointcloud;
   ShaderPtr outline_prepass_gpencil;
@@ -423,11 +423,11 @@ class ShaderModule {
   ShaderPtr armature_sphere_fill;
   ShaderPtr armature_stick;
   ShaderPtr armature_wire;
-  ShaderPtr depth_curves = static_selectable_shader("overlay_depth_curves");
-  ShaderPtr depth_grease_pencil = static_selectable_shader("overlay_depth_gpencil");
-  ShaderPtr depth_mesh = static_selectable_shader("overlay_depth_mesh");
-  ShaderPtr depth_mesh_conservative = static_selectable_shader("overlay_depth_mesh_conservative");
-  ShaderPtr depth_point_cloud = static_selectable_shader("overlay_depth_pointcloud");
+  ShaderPtr depth_curves = shader_selectable("overlay_depth_curves");
+  ShaderPtr depth_grease_pencil = shader_selectable("overlay_depth_gpencil");
+  ShaderPtr depth_mesh = shader_selectable("overlay_depth_mesh");
+  ShaderPtr depth_mesh_conservative = shader_selectable("overlay_depth_mesh_conservative");
+  ShaderPtr depth_point_cloud = shader_selectable("overlay_depth_pointcloud");
   ShaderPtr extra_grid;
   ShaderPtr extra_shape;
   ShaderPtr extra_wire_object;
@@ -464,9 +464,9 @@ class ShaderModule {
   {
     return ShaderPtr(GPU_shader_create_from_info_name(create_info_name));
   }
-  ShaderPtr static_clippable_shader(const char *create_info_name);
-  ShaderPtr static_selectable_shader(const char *create_info_name);
-  ShaderPtr static_selectable_shader_no_clip(const char *create_info_name);
+  ShaderPtr shader_clippable(const char *create_info_name);
+  ShaderPtr shader_selectable(const char *create_info_name);
+  ShaderPtr shader_selectable_no_clip(const char *create_info_name);
 };
 
 struct GreasePencilDepthPlane {

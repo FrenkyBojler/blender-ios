@@ -12,7 +12,7 @@ namespace blender::draw::overlay {
 
 ShaderModule *ShaderModule::g_shader_modules[2][2] = {{nullptr}};
 
-ShaderModule::ShaderPtr ShaderModule::static_clippable_shader(const char *create_info_name)
+ShaderModule::ShaderPtr ShaderModule::shader_clippable(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -23,7 +23,7 @@ ShaderModule::ShaderPtr ShaderModule::static_clippable_shader(const char *create
   return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
 }
 
-ShaderModule::ShaderPtr ShaderModule::static_selectable_shader(const char *create_info_name)
+ShaderModule::ShaderPtr ShaderModule::shader_selectable(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -38,8 +38,7 @@ ShaderModule::ShaderPtr ShaderModule::static_selectable_shader(const char *creat
   return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
 }
 
-ShaderModule::ShaderPtr ShaderModule::static_selectable_shader_no_clip(
-    const char *create_info_name)
+ShaderModule::ShaderPtr ShaderModule::shader_selectable_no_clip(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -56,54 +55,54 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
     : selection_type_(selection_type), clipping_enabled_(clipping_enabled)
 {
   /** Shaders */
-  attribute_viewer_mesh = static_clippable_shader("overlay_viewer_attribute_mesh");
-  attribute_viewer_pointcloud = static_clippable_shader("overlay_viewer_attribute_pointcloud");
-  attribute_viewer_curve = static_clippable_shader("overlay_viewer_attribute_curve");
-  attribute_viewer_curves = static_clippable_shader("overlay_viewer_attribute_curves");
+  attribute_viewer_mesh = shader_clippable("overlay_viewer_attribute_mesh");
+  attribute_viewer_pointcloud = shader_clippable("overlay_viewer_attribute_pointcloud");
+  attribute_viewer_curve = shader_clippable("overlay_viewer_attribute_curve");
+  attribute_viewer_curves = shader_clippable("overlay_viewer_attribute_curves");
 
-  armature_degrees_of_freedom = static_clippable_shader("overlay_armature_dof");
+  armature_degrees_of_freedom = shader_clippable("overlay_armature_dof");
 
-  curve_edit_points = static_clippable_shader("overlay_edit_curves_point");
-  curve_edit_line = static_clippable_shader("overlay_edit_particle_strand");
+  curve_edit_points = shader_clippable("overlay_edit_curves_point");
+  curve_edit_line = shader_clippable("overlay_edit_particle_strand");
 
-  extra_point = static_selectable_shader("overlay_extra_point");
+  extra_point = shader_selectable("overlay_extra_point");
 
   grid_background = shader("overlay_grid_background");
   grid_image = shader("overlay_grid_image");
 
-  legacy_curve_edit_wires = static_clippable_shader("overlay_edit_curve_wire");
-  legacy_curve_edit_points = static_clippable_shader("overlay_edit_curve_point");
+  legacy_curve_edit_wires = shader_clippable("overlay_edit_curve_wire");
+  legacy_curve_edit_points = shader_clippable("overlay_edit_curve_point");
 
-  mesh_analysis = static_clippable_shader("overlay_edit_mesh_analysis");
-  mesh_edit_face = static_clippable_shader("overlay_edit_mesh_face");
-  mesh_edit_vert = static_clippable_shader("overlay_edit_mesh_vert");
-  mesh_edit_depth = static_clippable_shader("overlay_edit_mesh_depth");
-  mesh_edit_skin_root = static_clippable_shader("overlay_edit_mesh_skin_root");
+  mesh_analysis = shader_clippable("overlay_edit_mesh_analysis");
+  mesh_edit_face = shader_clippable("overlay_edit_mesh_face");
+  mesh_edit_vert = shader_clippable("overlay_edit_mesh_vert");
+  mesh_edit_depth = shader_clippable("overlay_edit_mesh_depth");
+  mesh_edit_skin_root = shader_clippable("overlay_edit_mesh_skin_root");
 
-  mesh_face_normal = static_clippable_shader("overlay_mesh_face_normal");
-  mesh_face_normal_subdiv = static_clippable_shader("overlay_mesh_face_normal_subdiv");
-  mesh_loop_normal = static_clippable_shader("overlay_mesh_loop_normal");
-  mesh_loop_normal_subdiv = static_clippable_shader("overlay_mesh_loop_normal_subdiv");
-  mesh_vert_normal = static_clippable_shader("overlay_mesh_vert_normal");
+  mesh_face_normal = shader_clippable("overlay_mesh_face_normal");
+  mesh_face_normal_subdiv = shader_clippable("overlay_mesh_face_normal_subdiv");
+  mesh_loop_normal = shader_clippable("overlay_mesh_loop_normal");
+  mesh_loop_normal_subdiv = shader_clippable("overlay_mesh_loop_normal_subdiv");
+  mesh_vert_normal = shader_clippable("overlay_mesh_vert_normal");
 
-  outline_prepass_mesh = static_clippable_shader("overlay_outline_prepass_mesh");
-  outline_prepass_curves = static_clippable_shader("overlay_outline_prepass_curves");
-  outline_prepass_pointcloud = static_clippable_shader("overlay_outline_prepass_pointcloud");
-  outline_prepass_gpencil = static_clippable_shader("overlay_outline_prepass_gpencil");
+  outline_prepass_mesh = shader_clippable("overlay_outline_prepass_mesh");
+  outline_prepass_curves = shader_clippable("overlay_outline_prepass_curves");
+  outline_prepass_pointcloud = shader_clippable("overlay_outline_prepass_pointcloud");
+  outline_prepass_gpencil = shader_clippable("overlay_outline_prepass_gpencil");
 
-  particle_edit_vert = static_clippable_shader("overlay_edit_particle_point");
-  particle_edit_edge = static_clippable_shader("overlay_edit_particle_strand");
+  particle_edit_vert = shader_clippable("overlay_edit_particle_point");
+  particle_edit_edge = shader_clippable("overlay_edit_particle_strand");
 
-  paint_region_edge = static_clippable_shader("overlay_paint_wire");
-  paint_region_face = static_clippable_shader("overlay_paint_face");
-  paint_region_vert = static_clippable_shader("overlay_paint_point");
-  paint_texture = static_clippable_shader("overlay_paint_texture");
-  paint_weight = static_clippable_shader("overlay_paint_weight");
-  paint_weight_fake_shading = static_clippable_shader("overlay_paint_weight_fake_shading");
+  paint_region_edge = shader_clippable("overlay_paint_wire");
+  paint_region_face = shader_clippable("overlay_paint_face");
+  paint_region_vert = shader_clippable("overlay_paint_point");
+  paint_texture = shader_clippable("overlay_paint_texture");
+  paint_weight = shader_clippable("overlay_paint_weight");
+  paint_weight_fake_shading = shader_clippable("overlay_paint_weight_fake_shading");
 
-  sculpt_mesh = static_clippable_shader("overlay_sculpt_mask");
-  sculpt_curves = static_clippable_shader("overlay_sculpt_curves_selection");
-  sculpt_curves_cage = static_clippable_shader("overlay_sculpt_curves_cage");
+  sculpt_mesh = shader_clippable("overlay_sculpt_mask");
+  sculpt_curves = shader_clippable("overlay_sculpt_curves_selection");
+  sculpt_curves_cage = shader_clippable("overlay_sculpt_curves_cage");
 
   uv_analysis_stretch_angle = shader("overlay_edit_uv_stretching_angle");
   uv_analysis_stretch_area = shader("overlay_edit_uv_stretching_area");
@@ -118,59 +117,58 @@ ShaderModule::ShaderModule(const SelectionType selection_type, const bool clippi
 
   /** Selectable Shaders */
 
-  armature_envelope_fill = static_selectable_shader("overlay_armature_envelope_solid");
-  armature_envelope_outline = static_selectable_shader("overlay_armature_envelope_outline");
-  armature_shape_outline = static_selectable_shader("overlay_armature_shape_outline");
-  armature_shape_fill = static_selectable_shader("overlay_armature_shape_solid");
-  armature_shape_wire = static_selectable_shader("overlay_armature_shape_wire");
-  armature_sphere_outline = static_selectable_shader("overlay_armature_sphere_outline");
-  armature_sphere_fill = static_selectable_shader("overlay_armature_sphere_solid");
-  armature_stick = static_selectable_shader("overlay_armature_stick");
-  armature_wire = static_selectable_shader("overlay_armature_wire");
+  armature_envelope_fill = shader_selectable("overlay_armature_envelope_solid");
+  armature_envelope_outline = shader_selectable("overlay_armature_envelope_outline");
+  armature_shape_outline = shader_selectable("overlay_armature_shape_outline");
+  armature_shape_fill = shader_selectable("overlay_armature_shape_solid");
+  armature_shape_wire = shader_selectable("overlay_armature_shape_wire");
+  armature_sphere_outline = shader_selectable("overlay_armature_sphere_outline");
+  armature_sphere_fill = shader_selectable("overlay_armature_sphere_solid");
+  armature_stick = shader_selectable("overlay_armature_stick");
+  armature_wire = shader_selectable("overlay_armature_wire");
 
-  facing = static_clippable_shader("overlay_facing");
+  facing = shader_clippable("overlay_facing");
 
-  fluid_grid_lines_flags = static_selectable_shader_no_clip("overlay_volume_gridlines_flags");
-  fluid_grid_lines_flat = static_selectable_shader_no_clip("overlay_volume_gridlines_flat");
-  fluid_grid_lines_range = static_selectable_shader_no_clip("overlay_volume_gridlines_range");
-  fluid_velocity_streamline = static_selectable_shader_no_clip(
-      "overlay_volume_velocity_streamline");
-  fluid_velocity_mac = static_selectable_shader_no_clip("overlay_volume_velocity_mac");
-  fluid_velocity_needle = static_selectable_shader_no_clip("overlay_volume_velocity_needle");
+  fluid_grid_lines_flags = shader_selectable_no_clip("overlay_volume_gridlines_flags");
+  fluid_grid_lines_flat = shader_selectable_no_clip("overlay_volume_gridlines_flat");
+  fluid_grid_lines_range = shader_selectable_no_clip("overlay_volume_gridlines_range");
+  fluid_velocity_streamline = shader_selectable_no_clip("overlay_volume_velocity_streamline");
+  fluid_velocity_mac = shader_selectable_no_clip("overlay_volume_velocity_mac");
+  fluid_velocity_needle = shader_selectable_no_clip("overlay_volume_velocity_needle");
 
-  extra_shape = static_selectable_shader("overlay_extra");
-  extra_wire = static_selectable_shader("overlay_extra_wire");
-  extra_wire_object = static_selectable_shader("overlay_extra_wire_object");
+  extra_shape = shader_selectable("overlay_extra");
+  extra_wire = shader_selectable("overlay_extra_wire");
+  extra_wire_object = shader_selectable("overlay_extra_wire_object");
 
-  extra_loose_points = static_selectable_shader("overlay_extra_loose_point");
+  extra_loose_points = shader_selectable("overlay_extra_loose_point");
 
-  lattice_points = static_clippable_shader("overlay_edit_lattice_point");
+  lattice_points = shader_clippable("overlay_edit_lattice_point");
 
-  lattice_wire = static_clippable_shader("overlay_edit_lattice_wire");
+  lattice_wire = shader_clippable("overlay_edit_lattice_wire");
 
-  extra_grid = static_selectable_shader("overlay_extra_grid");
+  extra_grid = shader_selectable("overlay_extra_grid");
 
-  extra_ground_line = static_selectable_shader("overlay_extra_groundline");
+  extra_ground_line = shader_selectable("overlay_extra_groundline");
 
-  image_plane = static_selectable_shader("overlay_image");
+  image_plane = shader_selectable("overlay_image");
 
-  image_plane_depth_bias = static_selectable_shader("overlay_image_depth_bias");
+  image_plane_depth_bias = shader_selectable("overlay_image_depth_bias");
 
-  light_spot_cone = static_clippable_shader("overlay_extra_spot_cone");
+  light_spot_cone = shader_clippable("overlay_extra_spot_cone");
 
-  particle_dot = static_selectable_shader("overlay_particle_dot");
+  particle_dot = shader_selectable("overlay_particle_dot");
 
-  particle_shape = static_selectable_shader("overlay_particle_shape");
+  particle_shape = shader_selectable("overlay_particle_shape");
 
-  particle_hair = static_selectable_shader("overlay_particle_hair");
+  particle_hair = shader_selectable("overlay_particle_hair");
 
-  uniform_color = static_clippable_shader("overlay_uniform_color");
+  uniform_color = shader_clippable("overlay_uniform_color");
 
-  wireframe_mesh = static_selectable_shader("overlay_wireframe");
+  wireframe_mesh = shader_selectable("overlay_wireframe");
 
-  wireframe_points = static_selectable_shader("overlay_wireframe_points");
+  wireframe_points = shader_selectable("overlay_wireframe_points");
 
-  wireframe_curve = static_selectable_shader("overlay_wireframe_curve");
+  wireframe_curve = shader_selectable("overlay_wireframe_curve");
 }
 
 ShaderModule &ShaderModule::module_get(SelectionType selection_type, bool clipping_enabled)
