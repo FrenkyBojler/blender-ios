@@ -4721,6 +4721,10 @@ void ui_but_rna_menu_convert_to_menu_type(uiBut *but, const char *menu_type)
   BLI_assert(but->menu_create_func == ui_def_but_rna__menu);
   BLI_assert((void *)but->poin == but);
   but->menu_create_func = ui_def_but_rna__menu_type;
+
+  if (but->func_argN && but->func_argN_free_fn) {
+    but->func_argN_free_fn(but->func_argN);
+  }
   but->func_argN_free_fn = MEM_freeN;
   but->func_argN_copy_fn = MEM_dupallocN;
   but->func_argN = BLI_strdup(menu_type);
