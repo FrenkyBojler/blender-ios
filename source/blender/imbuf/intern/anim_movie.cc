@@ -356,6 +356,8 @@ static int startffmpeg(ImBufAnim *anim)
 
   anim->x = pCodecCtx->width;
   anim->y = pCodecCtx->height;
+  anim->video_rotation = ffmpeg_get_video_rotation(video_stream);
+
   /* Decode >8bit videos into floating point image. */
   anim->is_float = calc_pix_fmt_max_component_bits(pCodecCtx->pix_fmt) > 8;
 
@@ -651,6 +653,11 @@ static void ffmpeg_postprocess(ImBufAnim *anim, AVFrame *input, ImBuf *ibuf)
 
   if (filter_y) {
     IMB_filtery(ibuf);
+  }
+
+  /* Rotate video if display matrix is multiple of 90 degrees. */
+  if (ELEM(anim->video_rotation, 90, 180, 270)) {
+    IMB_rotate_orthogonal(ibuf, anim->video_rotation);
   }
 }
 
@@ -1028,7 +1035,11 @@ static int ffmpeg_seek_to_key_frame(ImBufAnim *anim,
 
     AVFormatContext *format_ctx = anim->pFormatCtx;
 
-    if (format_ctx->iformat->read_seek2 || format_ctx->iformat->read_seek) {
+    /* This used to check if the codec implemented "read_seek" or "read_seek2". However this is
+     * now hidden from us in ffmpeg 7.0. While not as accurate, usually the AVFMT_TS_DISCONT is
+     * set for formats where we need to apply the seek workaround to (like in mpegts).
+     */
+    if (!(format_ctx->iformat->flags & AVFMT_TS_DISCONT)) {
       ret = av_seek_frame(anim->pFormatCtx, anim->videoStream, seek_pos, AVSEEK_FLAG_BACKWARD);
     }
     else {
@@ -1355,10 +1366,10 @@ bool IMB_anim_get_fps(const ImBufAnim *anim,
 
 int IMB_anim_get_image_width(ImBufAnim *anim)
 {
-  return anim->x;
+  return ELEM(anim->video_rotation, 90, 270) ? anim->y : anim->x;
 }
 
 int IMB_anim_get_image_height(ImBufAnim *anim)
 {
-  return anim->y;
+  return ELEM(anim->video_rotation, 90, 270) ? anim->x : anim->y;
 }

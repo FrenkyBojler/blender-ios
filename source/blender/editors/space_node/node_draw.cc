@@ -446,15 +446,16 @@ const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_l
 {
   /* Get the short label if possible. This is used when grouping sockets under panels,
    * to avoid redundancy in the label. */
-  const char *socket_short_label = bke::nodeSocketShortLabel(socket);
+  const std::optional<StringRefNull> socket_short_label = bke::nodeSocketShortLabel(socket);
   const char *socket_translation_context = node_socket_get_translation_context(*socket);
 
-  if (socket_short_label) {
-    return CTX_IFACE_(socket_translation_context, socket_short_label);
+  if (socket_short_label.has_value()) {
+    return CTX_IFACE_(socket_translation_context, socket_short_label->c_str());
   }
 
-  const char *socket_label = bke::nodeSocketLabel(socket);
-  const char *translated_socket_label = CTX_IFACE_(socket_translation_context, socket_label);
+  const StringRefNull socket_label = bke::nodeSocketLabel(socket);
+  const char *translated_socket_label = CTX_IFACE_(socket_translation_context,
+                                                   socket_label.c_str());
 
   /* Shorten socket label if it begins with the panel label. */
   if (panel_label) {
@@ -653,7 +654,7 @@ static void determine_visible_panels_impl_recursive(const bNode &node,
                                                     MutableSpan<bool> r_result)
 {
   if (!potentially_visible_states[panel_decl.index]) {
-    /* This panel does not contain any visible sockets.*/
+    /* This panel does not contain any visible sockets. */
     return;
   }
   r_result[panel_decl.index] = true;
@@ -700,6 +701,9 @@ static void add_flat_items_for_socket(bNode &node,
                                       Vector<FlatNodeItem> &r_items)
 {
   bNodeSocket &socket = node.socket_by_decl(socket_decl);
+  if (!socket.is_visible()) {
+    return;
+  }
   if (!socket_decl.align_with_previous_socket) {
     r_items.append({flat_item::Socket()});
   }
@@ -827,7 +831,7 @@ static float get_margin_to_bottom(const Span<FlatNodeItem> items)
   const flat_item::Type last_item_type = last_item.type();
   switch (last_item_type) {
     case flat_item::Type::Socket:
-      return 5 * NODE_ITEM_SPACING_Y;
+      return 2 * NODE_ITEM_SPACING_Y;
     case flat_item::Type::Separator:
       return NODE_ITEM_SPACING_Y;
     case flat_item::Type::Layout:
@@ -1058,7 +1062,7 @@ static void node_update_basis_from_declaration(
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
   }
 
-  /* Gather flattened list of items in the node.*/
+  /* Gather flattened list of items in the node. */
   const Vector<FlatNodeItem> flat_items = make_flat_node_items(node);
   if (flat_items.is_empty()) {
     const float margin = get_margin_empty();
@@ -1068,7 +1072,7 @@ static void node_update_basis_from_declaration(
 
   for (const int item_i : flat_items.index_range()) {
     /* Apply margins. This should be the only place that applies margins between elements so that
-     * it is easy change later on.*/
+     * it is easy change later on. */
     if (item_i == 0) {
       const float margin = get_margin_from_top(flat_items);
       locy -= margin;
@@ -1393,10 +1397,8 @@ static void node_socket_tooltip_set(uiBlock &block,
 {
   /* Ideally sockets themselves should be buttons, but they aren't currently. So add an invisible
    * button on top of them for the tooltip. */
-  const eUIEmbossType old_emboss = UI_block_emboss_get(&block);
-  UI_block_emboss_set(&block, UI_EMBOSS_NONE);
   uiBut *but = uiDefIconBut(&block,
-                            UI_BTYPE_BUT,
+                            UI_BTYPE_LABEL,
                             0,
                             ICON_NONE,
                             location.x - size.x / 2.0f,
@@ -1407,7 +1409,6 @@ static void node_socket_tooltip_set(uiBlock &block,
                             0,
                             0,
                             nullptr);
-
   UI_but_func_tooltip_set(
       but,
       [](bContext *C, void *argN, const char * /*tip*/) {
@@ -1419,9 +1420,6 @@ static void node_socket_tooltip_set(uiBlock &block,
       },
       POINTER_FROM_INT(socket_index_in_tree),
       nullptr);
-  /* Disable the button so that clicks on it are ignored the link operator still works. */
-  UI_but_flag_enable(but, UI_BUT_DISABLED);
-  UI_block_emboss_set(&block, old_emboss);
 }
 
 static const float virtual_node_socket_outline_color[4] = {0.5, 0.5, 0.5, 1.0};
