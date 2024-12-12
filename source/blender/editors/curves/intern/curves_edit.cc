@@ -7,6 +7,7 @@
  */
 
 #include "BLI_array_utils.hh"
+#include "BLI_index_mask_expression.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
@@ -225,26 +226,24 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
   }
 }
 
-static IndexMask shift_ranges(const IndexMask &mask, IndexMaskMemory &memory)
+static IndexMask drop_singles(const IndexMask &mask, IndexMaskMemory &memory)
 {
   IndexMask to_left = IndexMask::from_difference(
                           mask, IndexMask::from_indices<int>({0}, memory), memory)
                           .shift(-1, memory);
   IndexMask to_right = mask.shift(1, memory);
-  return IndexMask::from_union(to_left, to_right, memory);
-}
 
-static IndexMask drop_singles(const IndexMask &mask, IndexMaskMemory &memory)
-{
-  return IndexMask::from_intersection(mask, shift_ranges(mask, memory), memory);
+  index_mask::ExprBuilder builder;
+  const index_mask::Expr &shifted_to_sides = builder.merge({&to_left, &to_right});
+  return evaluate_expression(builder.intersect({&mask, &shifted_to_sides}), memory);
 }
 
 void split_points(const IndexMask &points_to_split,
                   bke::CurvesGeometry &curves,
                   IndexMaskMemory &memory)
 {
-  IndexMask preserved_points = IndexMask::from_difference(
-      curves.points_range(), drop_singles(points_to_split, memory), memory);
+  IndexMask preserved_points =
+      drop_singles(points_to_split, memory).complement(curves.points_range(), memory);
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
   Vector<int> curve_map;
