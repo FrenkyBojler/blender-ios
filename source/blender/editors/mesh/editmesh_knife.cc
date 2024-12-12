@@ -3352,7 +3352,6 @@ static bool knife_find_closest_vert_of_edge(KnifeTool_OpData *kcd,
 static float knife_snap_v3_angle(
     float3 &r, const float3 &dvec, const float3 &vecx, const float3 &axis, float angle_snap)
 {
-  BLI_ASSERT_UNIT_V3(vecx);
   float angle = angle_signed_on_axis_v3v3_v3(dvec, vecx, axis);
   float angle_delta = (roundf(angle / angle_snap) * angle_snap) - angle;
   rotate_normalized_v3_v3v3fl(r, dvec, axis, angle_delta);
