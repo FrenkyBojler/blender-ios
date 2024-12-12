@@ -276,6 +276,7 @@ BLI_STATIC_ASSERT_ALIGN(ParticlePointData, 16)
 struct BoneEnvelopeData {
   float4 head_sphere;
   float4 tail_sphere;
+  /* TODO(pragma37): wire width is never used in the shader. */
   float4 bone_color_and_wire_width;
   float4 state_color;
   float4 x_axis;

@@ -7,9 +7,9 @@
 
 void main()
 {
-  finalColor = vertex_color;
+  finalColor = data_buf[gl_VertexID].color_;
 
-  vec3 world_pos = (ModelMatrix * vec4(pos, 1.0)).xyz;
+  vec3 world_pos = (ModelMatrix * vec4(data_buf[gl_VertexID].pos_.xyz, 1.0)).xyz;
   gl_Position = point_world_to_ndc(world_pos);
 
   gl_PointSize = sizeVertex * 2.0;

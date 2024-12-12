@@ -177,6 +177,7 @@ void main()
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
                            ouput_invocation_count;
 
+  mat4 inst_obmat = data_buf[gl_InstanceID];
   mat4x4 inst_matrix = inst_obmat;
 
   VertIn vert_in[input_primitive_vertex_count];
