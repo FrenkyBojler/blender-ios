@@ -3979,7 +3979,7 @@ static int grease_pencil_join_shapes_exec(bContext *C, wmOperator * /*op*/)
     const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
         *object, info.drawing, info.layer_index, memory);
     if (strokes.is_empty()) {
-      continue;
+      return;
     }
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
@@ -3998,20 +3998,19 @@ static int grease_pencil_join_shapes_exec(bContext *C, wmOperator * /*op*/)
     index_mask::masked_fill(shape_ids.span, shape_ids.span[active_curve], strokes);
     shape_ids.finish();
 
-    /* Copy curve attributes from the active to all other selected curves. */
     Set<std::string> attributes_to_skip{{"curve_type", "cyclic", "shape_id"}};
-    attributes.for_all([&](const bke::AttributeIDRef &id, const bke::AttributeMetaData meta_data) {
-      if (meta_data.domain != bke::AttrDomain::Curve) {
-        return true;
+    /* Copy curve attributes from the active to all other selected curves. */
+    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (iter.domain != bke::AttrDomain::Curve) {
+        return;
       }
-      if (attributes_to_skip.contains(id.name())) {
-        return true;
+      if (attributes_to_skip.contains(iter.name)) {
+        return;
       }
-      bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
+      bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
       const CPPType &type = attribute.span.type();
       type.fill_assign_indices(attribute.span[active_curve], attribute.span.data(), strokes);
       attribute.finish();
-      return true;
     });
 
     Array<int> indices = get_gapless_indices(curves.curves_range(), strokes);
