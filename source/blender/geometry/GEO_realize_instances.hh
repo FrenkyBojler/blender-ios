@@ -8,6 +8,11 @@
 
 namespace blender::geometry {
 
+struct CustomAttributeFallbackValues {
+  /* Map of attribute fallback values per geometry component. */
+  std::array<Map<std::string, GPointer>, GEO_COMPONENT_TYPE_ENUM_SIZE> components;
+};
+
 /**
  * General options for realize_instances.
  */
@@ -27,6 +32,17 @@ struct RealizeInstancesOptions {
 
   std::reference_wrapper<const bke::AttributeFilter> attribute_filter =
       bke::AttributeFilter::default_filter();
+
+  /**
+   * Attribute fallback values per geometry component.
+   * During realization, when an attribute is created
+   *  - the #BuiltinAttributeProvider::default_value() is used if the attribute is a builtin
+   *    attribute, or
+   *  - the #CPPType::default_value() of the attribute type is used if the attribute is a generic
+   *    attribute.
+   * These defaults can be overriden by the fallback values.
+   */
+  CustomAttributeFallbackValues custom_attribute_fallback_values = {};
 };
 
 /**

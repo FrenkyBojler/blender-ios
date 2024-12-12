@@ -235,9 +235,6 @@ struct AllCurvesInfo {
   Array<RealizeCurveInfo> realize_info;
   bool create_id_attribute = false;
   bool create_handle_postion_attributes = false;
-  bool create_radius_attribute = false;
-  bool create_resolution_attribute = false;
-  bool create_nurbs_weight_attribute = false;
   bool create_custom_normal_attribute = false;
 };
 
@@ -1669,9 +1666,6 @@ static OrderedAttributes gather_generic_curve_attributes_to_propagate(
   Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Curve, options, varied_depth_option);
   attributes_to_propagate.remove("position");
-  attributes_to_propagate.remove("radius");
-  attributes_to_propagate.remove("nurbs_weight");
-  attributes_to_propagate.remove("resolution");
   attributes_to_propagate.remove("handle_right");
   attributes_to_propagate.remove("handle_left");
   attributes_to_propagate.remove("custom_normal");
@@ -1734,21 +1728,7 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
       }
     }
 
-    if (attributes.contains("radius")) {
-      curve_info.radius =
-          attributes.lookup<float>("radius", bke::AttrDomain::Point).varray.get_internal_span();
-      info.create_radius_attribute = true;
-    }
-    if (attributes.contains("nurbs_weight")) {
-      curve_info.nurbs_weight = attributes.lookup<float>("nurbs_weight", bke::AttrDomain::Point)
-                                    .varray.get_internal_span();
-      info.create_nurbs_weight_attribute = true;
-    }
-    curve_info.resolution = curves.resolution();
-    if (attributes.contains("resolution")) {
-      info.create_resolution_attribute = true;
-    }
-    if (attributes.contains("handle_right")) {
+    if (attributes.contains("handle_right") || attributes.contains("handle_left")) {
       curve_info.handle_left = attributes.lookup<float3>("handle_left", bke::AttrDomain::Point)
                                    .varray.get_internal_span();
       curve_info.handle_right = attributes.lookup<float3>("handle_right", bke::AttrDomain::Point)
@@ -1764,6 +1744,29 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
   return info;
 }
 
+static void initialize_curves_builtin_attribute_defaults(
+    const AllCurvesInfo &all_curves_info,
+    const Map<std::string, GPointer> &custom_fallback_values,
+    InstanceContext &attribute_fallbacks)
+{
+  if (all_curves_info.order.is_empty()) {
+    return;
+  }
+  const Curves *first = all_curves_info.order[0];
+  const bke::CurvesGeometry &first_curves = first->geometry.wrap();
+  for (const int attribute_i : attribute_fallbacks.curves.array.index_range()) {
+    const StringRef attribute_id = all_curves_info.attributes.ids[attribute_i];
+    if (custom_fallback_values.contains(attribute_id)) {
+      attribute_fallbacks.curves.array[attribute_i] =
+          custom_fallback_values.lookup(attribute_id).get();
+    }
+    else if (first_curves.attributes().is_builtin(attribute_id)) {
+      attribute_fallbacks.curves.array[attribute_i] =
+          first_curves.attributes().get_builtin_default(attribute_id).get();
+    }
+  }
+}
+
 static void execute_realize_curve_task(const RealizeInstancesOptions &options,
                                        const AllCurvesInfo &all_curves_info,
                                        const RealizeCurveTask &task,
@@ -1773,9 +1776,6 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
                                        MutableSpan<int> all_dst_ids,
                                        MutableSpan<float3> all_handle_left,
                                        MutableSpan<float3> all_handle_right,
-                                       MutableSpan<float> all_radii,
-                                       MutableSpan<float> all_nurbs_weights,
-                                       MutableSpan<int> all_resolutions,
                                        MutableSpan<float3> all_custom_normals)
 {
   const RealizeCurveInfo &curves_info = *task.curve_info;
@@ -1804,26 +1804,6 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       copy_transformed_positions(
           curves_info.handle_right, task.transform, all_handle_right.slice(dst_point_range));
     }
-  }
-
-  auto copy_point_span_with_default =
-      [&](const Span<float> src, MutableSpan<float> all_dst, const float value) {
-        if (src.is_empty()) {
-          all_dst.slice(dst_point_range).fill(value);
-        }
-        else {
-          all_dst.slice(dst_point_range).copy_from(src);
-        }
-      };
-  if (all_curves_info.create_radius_attribute) {
-    copy_point_span_with_default(curves_info.radius, all_radii, 1.0f);
-  }
-  if (all_curves_info.create_nurbs_weight_attribute) {
-    copy_point_span_with_default(curves_info.nurbs_weight, all_nurbs_weights, 1.0f);
-  }
-
-  if (all_curves_info.create_resolution_attribute) {
-    curves_info.resolution.materialize(all_resolutions.slice(dst_curve_range));
   }
 
   if (all_curves_info.create_custom_normal_attribute) {
@@ -1935,21 +1915,6 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
         "handle_right", bke::AttrDomain::Point);
   }
 
-  SpanAttributeWriter<float> radius;
-  if (all_curves_info.create_radius_attribute) {
-    radius = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
-                                                                     bke::AttrDomain::Point);
-  }
-  SpanAttributeWriter<float> nurbs_weight;
-  if (all_curves_info.create_nurbs_weight_attribute) {
-    nurbs_weight = dst_attributes.lookup_or_add_for_write_only_span<float>("nurbs_weight",
-                                                                           bke::AttrDomain::Point);
-  }
-  SpanAttributeWriter<int> resolution;
-  if (all_curves_info.create_resolution_attribute) {
-    resolution = dst_attributes.lookup_or_add_for_write_only_span<int>("resolution",
-                                                                       bke::AttrDomain::Curve);
-  }
   SpanAttributeWriter<float3> custom_normal;
   if (all_curves_info.create_custom_normal_attribute) {
     custom_normal = dst_attributes.lookup_or_add_for_write_only_span<float3>(
@@ -1969,9 +1934,6 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
                                  point_ids.span,
                                  handle_left.span,
                                  handle_right.span,
-                                 radius.span,
-                                 nurbs_weight.span,
-                                 resolution.span,
                                  custom_normal.span);
     }
   });
@@ -1990,12 +1952,8 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     dst_attribute.finish();
   }
   point_ids.finish();
-  radius.finish();
-  resolution.finish();
-  nurbs_weight.finish();
   handle_left.finish();
   handle_right.finish();
-  custom_normal.finish();
 }
 
 /** \} */
@@ -2344,6 +2302,12 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
 
   const float4x4 transform = float4x4::identity();
   InstanceContext attribute_fallbacks(gather_info);
+
+  initialize_curves_builtin_attribute_defaults(
+      all_curves_info,
+      options.custom_attribute_fallback_values
+          .components[size_t(bke::GeometryComponent::Type::Curve)],
+      attribute_fallbacks);
 
   gather_realize_tasks_recursive(
       gather_info, 0, VariedDepthOptions::MAX_DEPTH, geometry_set, transform, attribute_fallbacks);
