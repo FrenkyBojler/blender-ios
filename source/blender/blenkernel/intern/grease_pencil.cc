@@ -394,9 +394,10 @@ OffsetIndices<int> Drawing::shapes() const
     }
 
     r_offsets.clear_and_shrink();
-
     /* Just set to something that is not the first element. */
     int last = shape_ids[0] - 1;
+
+    /* Group all consecutive elements into shapes. */
     for (const int curve_i : curves.curves_range()) {
       if (shape_ids[curve_i] != last) {
         r_offsets.append(curve_i);
