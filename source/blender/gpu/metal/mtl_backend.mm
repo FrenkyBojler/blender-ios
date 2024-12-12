@@ -35,7 +35,6 @@ namespace blender::gpu {
 /* Global per-thread AutoReleasePool. */
 thread_local NSAutoreleasePool *g_autoreleasepool = nil;
 thread_local int g_autoreleasepool_depth = 0;
-std::mutex g_autoreleasepool_mutex;
 
 /* -------------------------------------------------------------------- */
 /** \name Metal Backend
@@ -112,8 +111,6 @@ VertBuf *MTLBackend::vertbuf_alloc()
 
 void MTLBackend::render_begin()
 {
-  std::scoped_lock lock(g_autoreleasepool_mutex);
-  
   /* All Rendering must occur within a render boundary */
   /* Track a call-count for nested calls, used to ensure we are inside an
    * autoreleasepool from all rendering path. */
@@ -128,8 +125,6 @@ void MTLBackend::render_begin()
 
 void MTLBackend::render_end()
 {
-  std::scoped_lock lock(g_autoreleasepool_mutex);
-  
   /* If call-count reaches zero, drain auto release pool.
    * Ensures temporary objects are freed within a frame's lifetime. */
   BLI_assert(g_autoreleasepool != nil);
@@ -142,7 +137,7 @@ void MTLBackend::render_end()
   }
 }
 
-void MTLBackend::render_step(bool forceResourceRelease)
+void MTLBackend::render_step(bool force_resource_release)
 {
   /* NOTE(Metal): Primarily called from main thread, but below data-structures
    * and operations are thread-safe, and GPUContext rendering coordination
@@ -161,19 +156,14 @@ void MTLBackend::render_step(bool forceResourceRelease)
     MTLContext::get_global_memory_manager()->begin_new_safe_list();
   }
 
-  std::scoped_lock lock(g_autoreleasepool_mutex);
-  
-  if (forceResourceRelease && g_autoreleasepool) {
+  if (force_resource_release && g_autoreleasepool) {
     [g_autoreleasepool drain];
-    printf("render_step(): Draining g_autoreleasepool");
     g_autoreleasepool = [[NSAutoreleasePool alloc] init];
   }
 }
 
 bool MTLBackend::is_inside_render_boundary()
 {
-  std::scoped_lock lock(g_autoreleasepool_mutex);
-
   return (g_autoreleasepool != nil);
 }
 
