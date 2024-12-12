@@ -20,10 +20,12 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_node_runtime.hh"
 #include "DNA_anim_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
+
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -43,6 +45,7 @@ struct StructRNA;
 
 std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
 {
+  using namespace blender;
   /* Could make an argument, it's a documented limit at the moment. */
   constexpr size_t name_maxncpy = 256;
 
@@ -152,9 +155,8 @@ std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
     if (RNA_struct_is_a(ptr.type, &RNA_NodeSocket)) {
       BLI_assert(GS(ptr.owner_id->name) == ID_NT);
       const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr.owner_id);
-      ntree->ensure_topology_cache();
       const bNodeSocket *socket = static_cast<const bNodeSocket *>(ptr.data);
-      const bNode &node = socket->owner_node();
+      const bNode &node = bke::node_find_node(*ntree, *socket);
       if (free_structname) {
         MEM_freeN((void *)structname);
       }
@@ -178,11 +180,10 @@ std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
   if (RNA_struct_is_a(ptr.type, &RNA_NodesModifier)) {
     const NodesModifierData *nmd = static_cast<const NodesModifierData *>(ptr.data);
     if (const bNodeTree *node_group = nmd->node_group) {
-      node_group->ensure_interface_cache();
-      for (const bNodeTreeInterfaceSocket *input : node_group->interface_inputs()) {
-        if (STREQ(input->identifier, propname)) {
-          propname = input->name;
-        }
+      if (const bNodeTreeInterfaceSocket *input = bke::node_find_interface_input_by_identifier(
+              *node_group, propname))
+      {
+        propname = input->name;
       }
     }
   }
