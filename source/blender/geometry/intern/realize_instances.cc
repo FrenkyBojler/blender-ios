@@ -235,6 +235,8 @@ struct AllCurvesInfo {
   Array<RealizeCurveInfo> realize_info;
   bool create_id_attribute = false;
   bool create_handle_postion_attributes = false;
+  bool create_radius_attribute = false;
+  bool create_nurbs_weight_attribute = false;
   bool create_custom_normal_attribute = false;
 };
 
@@ -1666,6 +1668,8 @@ static OrderedAttributes gather_generic_curve_attributes_to_propagate(
   Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Curve, options, varied_depth_option);
   attributes_to_propagate.remove("position");
+  attributes_to_propagate.remove("radius");
+  attributes_to_propagate.remove("nurbs_weight");
   attributes_to_propagate.remove("handle_right");
   attributes_to_propagate.remove("handle_left");
   attributes_to_propagate.remove("custom_normal");
@@ -1728,7 +1732,17 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
       }
     }
 
-    if (attributes.contains("handle_right") || attributes.contains("handle_left")) {
+    if (attributes.contains("radius")) {
+      curve_info.radius =
+          attributes.lookup<float>("radius", bke::AttrDomain::Point).varray.get_internal_span();
+      info.create_radius_attribute = true;
+    }
+    if (attributes.contains("nurbs_weight")) {
+      curve_info.nurbs_weight = attributes.lookup<float>("nurbs_weight", bke::AttrDomain::Point)
+                                    .varray.get_internal_span();
+      info.create_nurbs_weight_attribute = true;
+    }
+    if (attributes.contains("handle_right")) {
       curve_info.handle_left = attributes.lookup<float3>("handle_left", bke::AttrDomain::Point)
                                    .varray.get_internal_span();
       curve_info.handle_right = attributes.lookup<float3>("handle_right", bke::AttrDomain::Point)
@@ -1776,6 +1790,8 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
                                        MutableSpan<int> all_dst_ids,
                                        MutableSpan<float3> all_handle_left,
                                        MutableSpan<float3> all_handle_right,
+                                       MutableSpan<float> all_radii,
+                                       MutableSpan<float> all_nurbs_weights,
                                        MutableSpan<float3> all_custom_normals)
 {
   const RealizeCurveInfo &curves_info = *task.curve_info;
@@ -1804,6 +1820,22 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       copy_transformed_positions(
           curves_info.handle_right, task.transform, all_handle_right.slice(dst_point_range));
     }
+  }
+
+  auto copy_point_span_with_default =
+      [&](const Span<float> src, MutableSpan<float> all_dst, const float value) {
+        if (src.is_empty()) {
+          all_dst.slice(dst_point_range).fill(value);
+        }
+        else {
+          all_dst.slice(dst_point_range).copy_from(src);
+        }
+      };
+  if (all_curves_info.create_radius_attribute) {
+    copy_point_span_with_default(curves_info.radius, all_radii, 1.0f);
+  }
+  if (all_curves_info.create_nurbs_weight_attribute) {
+    copy_point_span_with_default(curves_info.nurbs_weight, all_nurbs_weights, 1.0f);
   }
 
   if (all_curves_info.create_custom_normal_attribute) {
@@ -1915,6 +1947,16 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
         "handle_right", bke::AttrDomain::Point);
   }
 
+  SpanAttributeWriter<float> radius;
+  if (all_curves_info.create_radius_attribute) {
+    radius = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
+                                                                     bke::AttrDomain::Point);
+  }
+  SpanAttributeWriter<float> nurbs_weight;
+  if (all_curves_info.create_nurbs_weight_attribute) {
+    nurbs_weight = dst_attributes.lookup_or_add_for_write_only_span<float>("nurbs_weight",
+                                                                           bke::AttrDomain::Point);
+  }
   SpanAttributeWriter<float3> custom_normal;
   if (all_curves_info.create_custom_normal_attribute) {
     custom_normal = dst_attributes.lookup_or_add_for_write_only_span<float3>(
@@ -1934,6 +1976,8 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
                                  point_ids.span,
                                  handle_left.span,
                                  handle_right.span,
+                                 radius.span,
+                                 nurbs_weight.span,
                                  custom_normal.span);
     }
   });
@@ -1952,8 +1996,11 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     dst_attribute.finish();
   }
   point_ids.finish();
+  radius.finish();
+  nurbs_weight.finish();
   handle_left.finish();
   handle_right.finish();
+  custom_normal.finish();
 }
 
 /** \} */
