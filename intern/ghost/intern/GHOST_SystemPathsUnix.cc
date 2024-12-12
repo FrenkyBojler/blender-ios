@@ -133,7 +133,7 @@ const char *GHOST_SystemPathsUnix::getUserSpecialDir(GHOST_TUserSpecialDirTypes 
       if (system("which xdg-user-dir > /dev/null 2>&1")) {
         /* Use `getenv("HOME")` when `xdg-user-dir` doesn't exist. */
         const char *home_dir = getenv("HOME");
-        string cache_path = string(home_dir) + "/.cache";
+        string cache_path = (home_dir ? (string(home_dir) + "/") : string("")) + ".cache";
         return cache_path.c_str();
       }
 
