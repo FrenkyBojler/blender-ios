@@ -282,19 +282,6 @@ const void *CustomData_add_layer_named_with_data(CustomData *data,
                                                  blender::StringRef name,
                                                  const blender::ImplicitSharingInfo *sharing_info);
 
-void *CustomData_add_layer_anonymous(CustomData *data,
-                                     eCustomDataType type,
-                                     eCDAllocType alloctype,
-                                     int totelem,
-                                     const AnonymousAttributeIDHandle *anonymous_id);
-const void *CustomData_add_layer_anonymous_with_data(
-    CustomData *data,
-    eCustomDataType type,
-    const AnonymousAttributeIDHandle *anonymous_id,
-    int totelem,
-    void *layer_data,
-    const blender::ImplicitSharingInfo *sharing_info);
-
 /**
  * Frees the active or first data layer with the give type.
  * returns 1 on success, 0 if no layer with the given type is found
@@ -712,8 +699,7 @@ enum {
       CD_FAKE |
       CD_PROP_FLOAT2, /* UV flag, because we handle both loop's UVs and face's textures. */
 
-  CD_FAKE_LNOR = CD_FAKE |
-                 CD_CUSTOMLOOPNORMAL, /* Because we play with clnor and temp lnor layers here. */
+  CD_FAKE_LNOR = CD_FAKE | 500,
 
   CD_FAKE_SHARP = CD_FAKE | 200, /* Sharp flag for edges, smooth flag for faces. */
 

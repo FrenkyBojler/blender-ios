@@ -47,7 +47,11 @@ def gather_image(
         uri, factor_uri = __gather_uri(image_data, mime_type, name, export_settings)
     else:
         # Retrieve URI relative to exported glTF files
-        uri = __gather_original_uri(image_data.original.filepath, export_settings)
+        uri = __gather_original_uri(
+            image_data.original.filepath,
+            blender_shader_sockets[0].socket.id_data.library,
+            export_settings
+        )
         # In case we can't retrieve image (for example packed images, with original moved)
         # We don't create invalid image without uri
         factor_uri = None
@@ -74,9 +78,9 @@ def gather_image(
     return image, image_data, factor, None
 
 
-def __gather_original_uri(original_uri, export_settings):
+def __gather_original_uri(original_uri, library, export_settings):
+    path_to_image = bpy.path.abspath(original_uri, library=library)
 
-    path_to_image = bpy.path.abspath(original_uri)
     if not os.path.exists(path_to_image):
         return None
     try:
@@ -408,7 +412,7 @@ def __get_image_data_grayscale_anisotropy(sockets, results, export_settings) -> 
 
 
 def __is_blender_image_a_jpeg(image: bpy.types.Image) -> bool:
-    if image.source != 'FILE':
+    if image.source not in ['FILE', 'TILED']:
         return False
     if image.filepath_raw == '' and image.packed_file:
         return image.packed_file.data[:3] == b'\xff\xd8\xff'
@@ -418,7 +422,7 @@ def __is_blender_image_a_jpeg(image: bpy.types.Image) -> bool:
 
 
 def __is_blender_image_a_webp(image: bpy.types.Image) -> bool:
-    if image.source != 'FILE':
+    if image.source not in ['FILE', 'TILED']:
         return False
     if image.filepath_raw == '' and image.packed_file:
         return image.packed_file.data[8:12] == b'WEBP'

@@ -23,7 +23,7 @@
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -255,7 +255,7 @@ static PackedFile *get_builtin_packedfile()
   return BKE_packedfile_new_from_memory(mem, builtin_font_size);
 }
 
-static VFontData *vfont_get_data(VFont *vfont)
+static VFontData *vfont_data_ensure(VFont *vfont)
 {
   if (vfont == nullptr) {
     return nullptr;
@@ -514,7 +514,7 @@ void BKE_vfont_build_char(Curve *cu,
                           int charidx,
                           const float fsize)
 {
-  VFontData *vfd = vfont_get_data(which_vfont(cu, info));
+  VFontData *vfd = vfont_data_ensure(which_vfont(cu, info));
   if (!vfd) {
     return;
   }
@@ -835,6 +835,7 @@ static bool vfont_to_curve(Object *ob,
   float twidth = 0, maxlen = 0;
   int i, slen, j;
   int curbox;
+  /* These values are only set to the selection range when `selboxes` is non-null. */
   int selstart = 0, selend = 0;
   int cnr = 0, lnr = 0, wsnr = 0;
   const char32_t *mem = nullptr;
@@ -853,8 +854,7 @@ static bool vfont_to_curve(Object *ob,
 
   /* Text at the beginning of the last used text-box (use for y-axis alignment).
    * We over-allocate by one to simplify logic of getting last char. */
-  int *i_textbox_array = static_cast<int *>(
-      MEM_callocN(sizeof(*i_textbox_array) * (cu->totbox + 1), "TextBox initial char index"));
+  blender::Array<int> i_textbox_array(cu->totbox + 1, 0);
 
 #define MARGIN_X_MIN (xof_scale + tb_scale.x)
 #define MARGIN_Y_MIN (yof_scale + tb_scale.y)
@@ -874,7 +874,7 @@ static bool vfont_to_curve(Object *ob,
     return ok;
   }
 
-  vfd = vfont_get_data(vfont);
+  vfd = vfont_data_ensure(vfont);
 
   /* The VFont Data can not be found */
   if (!vfd) {
@@ -905,6 +905,7 @@ static bool vfont_to_curve(Object *ob,
     }
     custrinfo = cu->strinfo;
     if (!custrinfo) {
+      MEM_freeN(mem_tmp);
       return ok;
     }
 
@@ -989,13 +990,11 @@ static bool vfont_to_curve(Object *ob,
     }
 
     vfont = which_vfont(cu, info);
-
-    if (vfont == nullptr) {
-      break;
-    }
+    /* This can't happen as `cu->vfont` is is never null and is used if others are null. */
+    BLI_assert(vfont != nullptr);
 
     if (vfont != oldvfont) {
-      vfd = vfont_get_data(vfont);
+      vfd = vfont_data_ensure(vfont);
       oldvfont = vfont;
     }
 
@@ -1208,7 +1207,7 @@ static bool vfont_to_curve(Object *ob,
     }
   }
 
-  if (ef && ef->selboxes) {
+  if (ef && selboxes) {
     /* Set combined style flags for the selected string. Start with all styles then
      * remove one if ANY characters do not have it. Break out if we've removed them all. */
     ef->select_char_info_flag = CU_CHINFO_STYLE_ALL;
@@ -1415,7 +1414,6 @@ static bool vfont_to_curve(Object *ob,
   }
 
   MEM_freeN(lineinfo);
-  MEM_freeN(i_textbox_array);
 
   /* TEXT ON CURVE */
   /* NOTE: Only #OB_CURVES_LEGACY objects could have a path. */
