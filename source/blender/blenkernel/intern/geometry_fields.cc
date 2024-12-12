@@ -865,10 +865,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
      * - The field does not depend on that attribute (we can't easily check for that yet). */
     void *buffer = MEM_mallocN_aligned(type.size() * domain_size, type.alignment(), __func__);
     if (!selection_is_full) {
-      /* TODO: Retrieve proper default for potentially built-in attribute. */
-      const void *attribute_default = nullptr;
-      const GAttributeReader old_attribute = attributes.lookup_or_default(
-          id, domain, data_type, attribute_default);
+      const GAttributeReader old_attribute = attributes.lookup_or_default(id, domain, data_type);
       old_attribute.varray.materialize(buffer);
     }
 
