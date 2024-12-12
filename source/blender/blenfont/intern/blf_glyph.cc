@@ -57,6 +57,19 @@
  */
 #define BLF_GAMMA_CORRECT_GLYPHS
 
+/**
+ * What type of character to return when not found in the font stack.
+ */
+enum class GlyphNotFoundResponse : int8_t {
+  SourceNotDef,     /* NotDef defined in source font. Might not exist. */
+  SourceQuestion,   /* Question mark from source font. */
+  SourceSpace,      /* Space character from source font. */
+  LastResortGlyph,  /* Complex per-range Last Resort glyph. */
+  LastResortNotDef, /* Simple rectangle NotDef from Last Resort font. */
+  Rectangle,        /* U+25AF White Vertical Rectangle. */
+  ZeroWidthSpace,   /* U+200B Zero-Width Space. */
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
  * \{ */
@@ -782,7 +795,10 @@ static bool blf_font_has_coverage_bit(const FontBLF *font, int coverage_bit)
  * Return a glyph index from `charcode`. Not found returns zero, which is a valid
  * printable character (`.notdef` or `tofu`). Font is allowed to change here.
  */
-static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode)
+static FT_UInt blf_glyph_index_from_charcode(
+    FontBLF **font,
+    const uint charcode,
+    const GlyphNotFoundResponse NotFound = GlyphNotFoundResponse::LastResortGlyph)
 {
   FT_UInt glyph_index = blf_get_char_index(*font, charcode);
   if (glyph_index) {
@@ -856,14 +872,32 @@ static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode
 #endif
 
   /* Not found in the stack, return from Last Resort if there is one. */
-  if (last_resort) {
+  if (ELEM(NotFound,
+           GlyphNotFoundResponse::LastResortGlyph,
+           GlyphNotFoundResponse::LastResortNotDef) &&
+      last_resort)
+  {
     glyph_index = blf_get_char_index(last_resort, charcode);
     if (glyph_index) {
       *font = last_resort;
-      return glyph_index;
+      return (NotFound == GlyphNotFoundResponse::LastResortGlyph) ? glyph_index : 0;
     }
   }
 
+  if (NotFound == GlyphNotFoundResponse::SourceQuestion) {
+    return blf_get_char_index(*font, U'?');
+  }
+  if (NotFound == GlyphNotFoundResponse::SourceSpace) {
+    return blf_get_char_index(*font, U' ');
+  }
+  if (NotFound == GlyphNotFoundResponse::Rectangle) {
+    return blf_glyph_index_from_charcode(font, 0x25af, GlyphNotFoundResponse::SourceNotDef);
+  }
+  if (NotFound == GlyphNotFoundResponse::ZeroWidthSpace) {
+    return blf_glyph_index_from_charcode(font, 0x200b, GlyphNotFoundResponse::SourceNotDef);
+  }
+
+  /* GlyphNotFoundResponse::SourceNotDef. Don't change font, return 0. */
   return 0;
 }
 
@@ -1858,7 +1892,8 @@ static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, const uint charc
 {
   /* Glyph might not come from the initial font. */
   FontBLF *font_with_glyph = font;
-  FT_UInt glyph_index = blf_glyph_index_from_charcode(&font_with_glyph, charcode);
+  FT_UInt glyph_index = blf_glyph_index_from_charcode(
+      &font_with_glyph, charcode, GlyphNotFoundResponse::LastResortNotDef);
 
   if (!blf_ensure_face(font_with_glyph)) {
     return nullptr;
