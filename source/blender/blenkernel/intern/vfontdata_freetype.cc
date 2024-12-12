@@ -105,7 +105,8 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, ulong character)
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);
 
-  che->width = BLF_character_to_curves(font_id, character, &che->nurbsbase, vfont->data->scale);
+  che->width = BLF_character_to_curves(
+      font_id, character, &che->nurbsbase, vfont->data->scale, BKE_vfont_is_builtin(vfont));
 
   BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(che->index), che);
   BLF_unload_id(font_id);
