@@ -33,6 +33,7 @@
 #include "sculpt_automask.hh"
 #include "sculpt_color.hh"
 #include "sculpt_intern.hh"
+#include "sculpt_nodes_evaluation.hh"
 #include "sculpt_smooth.hh"
 
 #include "IMB_imbuf.hh"
@@ -449,16 +450,25 @@ static void do_paint_brush_task(const Scene &scene,
                                    verts[i]);
   }
 
+  /* TODO: avoid using brush_colors if there is no node tree connected to the brush */
+  Vector<float4> brush_colors(verts.size());
+  brush_colors.fill(brush_color);
+
+  paint_sculpt_nodes_evaluate(
+    depsgraph, object, brush, *ss.cache, vert_positions, verts, brush_colors);
+
   for (const int i : verts.index_range()) {
     /* Brush paint color, brush test falloff and flow. */
-    float4 paint_color = brush_color * factors[i] * ss.cache->paint_brush.flow;
+    float4 paint_color = brush_colors[i] * factors[i] * ss.cache->paint_brush.flow;
     float4 wet_mix_color = wet_mix_sampled_color * factors[i] * ss.cache->paint_brush.flow;
 
     /* Interpolate with the wet_mix color for wet paint mixing. */
     blend_color_interpolate_float(
-        paint_color, paint_color, wet_mix_color, ss.cache->paint_brush.wet_mix);
+      paint_color, paint_color, wet_mix_color, ss.cache->paint_brush.wet_mix);
     blend_color_mix_float(color_buffer[i], color_buffer[i], paint_color);
+  }
 
+  for (const int i : verts.index_range()) {
     /* Final mix over the original color using brush alpha. We apply auto-making again
      * at this point to avoid washing out non-binary masking modes like cavity masking. */
     float automasking = auto_mask.is_empty() ? 1.0f : auto_mask[i];

@@ -7313,6 +7313,16 @@ void scale_factors(const MutableSpan<float> factors, const Span<float> strengths
   }
 }
 
+void translations_from_factors(const Span<float> factors,
+  const MutableSpan<float3> r_translations)
+{
+  BLI_assert(r_translations.size() == factors.size());
+
+  for (const int i : factors.index_range()) {
+    r_translations[i] = float3(factors[i]);
+  }
+}
+
 void translations_from_offset_and_factors(const float3 &offset,
                                           const Span<float> factors,
                                           const MutableSpan<float3> r_translations)

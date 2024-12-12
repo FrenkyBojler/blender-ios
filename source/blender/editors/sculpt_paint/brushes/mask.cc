@@ -22,6 +22,7 @@
 #include "editors/sculpt_paint/paint_mask.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
+#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 
 #include "bmesh.hh"
 

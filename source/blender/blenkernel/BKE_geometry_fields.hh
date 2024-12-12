@@ -150,8 +150,8 @@ class SculptFieldContext : public fn::FieldContext {
  private:
   /* Having object and depsgraph is needed here to have access to them in some field inputs.
      A better solution might be necessary. */
-  const Depsgraph &depsgraph_;  // = nullptr;
-  const Object &object_;        // = nullptr;
+  const Depsgraph& depsgraph_;
+  const Object &object_;
 
   const Span<float3> positions_;
 
@@ -181,14 +181,16 @@ class MeshSculptFieldContext : public SculptFieldContext {
  private:
   const Mesh &mesh_;
   const Span<int> indices_;
+  const Span<float4> colors_;
 
  public:
   MeshSculptFieldContext(const Depsgraph &depsgraph,
                          const Object &object,
                          const Mesh &mesh,
                          const Span<float3> positions,
-                         const Span<int> indices)
-      : SculptFieldContext(depsgraph, object, positions), mesh_(mesh), indices_(indices)
+                         const Span<int> indices,
+                         const Span<float4> colors)
+      : SculptFieldContext(depsgraph, object, positions), mesh_(mesh), indices_(indices), colors_(colors)
   {
   }
 
@@ -199,6 +201,10 @@ class MeshSculptFieldContext : public SculptFieldContext {
   const Span<int> indices() const
   {
     return indices_;
+  }
+  const Span<float4> colors() const
+  {
+    return colors_;
   }
 };
 

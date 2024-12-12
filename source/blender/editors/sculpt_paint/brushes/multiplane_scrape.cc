@@ -32,6 +32,7 @@
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
+#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 
 namespace blender::ed::sculpt_paint {
 
@@ -388,6 +389,9 @@ static void calc_faces(const Depsgraph &depsgraph,
   MutableSpan<float3> translations = tls.translations;
   calc_translations(positions, local_positions, scrape_planes, translations);
 
+  mesh_sculpt_nodes_evaluate(
+    depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
+
   filter_plane_trim_limit_factors(brush, cache, translations, factors);
 
   scale_factors(factors, strength);
@@ -446,7 +450,8 @@ static void calc_grids(const Depsgraph &depsgraph,
   tls.translations.resize(positions.size());
   MutableSpan<float3> translations = tls.translations;
   calc_translations(positions, local_positions, scrape_planes, translations);
-
+  grids_sculpt_nodes_evaluate(
+    depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
   filter_plane_trim_limit_factors(brush, cache, translations, factors);
 
   scale_factors(factors, strength);
@@ -504,7 +509,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   tls.translations.resize(verts.size());
   MutableSpan<float3> translations = tls.translations;
   calc_translations(positions, local_positions, scrape_planes, translations);
-
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, *ss.cache, verts, positions, translations);
   filter_plane_trim_limit_factors(brush, cache, translations, factors);
 
   scale_factors(factors, strength);

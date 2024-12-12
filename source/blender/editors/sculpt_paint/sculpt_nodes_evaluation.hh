@@ -4,16 +4,14 @@
 
 namespace blender::ed::sculpt_paint {
 
-template <typename T>
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                 Object &object,
                                 const Brush &brush,
                                 StrokeCache &cache,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
-                                MutableSpan<T> translations);
+                                MutableSpan<float3> translations);
 
-template <typename T>
 void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  const Brush &brush,
@@ -21,14 +19,21 @@ void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  SubdivCCG &subdiv_ccg,
                                  Span<int> grids,
                                  Span<float3> positions,
-                                 MutableSpan<T> translations);
+                                 MutableSpan<float3> translations);
 
-template <typename T>
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  const Brush &brush,
                                  StrokeCache &cache,
                                  const Set<BMVert *, 0> &verts,
                                  Span<float3> positions,
-                                 MutableSpan<T> translations);
+                                 MutableSpan<float3> translations);
+
+void paint_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
+  Object& object,
+  const Brush& brush,
+  StrokeCache& cache,
+  Span<float3> positions,
+  Span<int> verts,
+  MutableSpan<float4> colors);
 }  // namespace blender::ed::sculpt_paint
