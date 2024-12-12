@@ -225,6 +225,95 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
   }
 }
 
+static IndexMask shift_ranges(const IndexMask &mask, IndexMaskMemory &memory)
+{
+  IndexMask to_left = IndexMask::from_difference(
+                          mask, IndexMask::from_indices<int>({0}, memory), memory)
+                          .shift(-1, memory);
+  IndexMask to_right = mask.shift(1, memory);
+  return IndexMask::from_union(to_left, to_right, memory);
+}
+
+static IndexMask drop_singles(const IndexMask &mask, IndexMaskMemory &memory)
+{
+  return IndexMask::from_intersection(mask, shift_ranges(mask, memory), memory);
+}
+
+void split_points(const IndexMask &points_to_split,
+                  bke::CurvesGeometry &curves,
+                  IndexMaskMemory &memory)
+{
+  IndexMask preserved_points = IndexMask::from_difference(
+      curves.points_range(), drop_singles(points_to_split, memory), memory);
+
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  Vector<int> curve_map;
+  Vector<int> new_curve_map;
+  Vector<int> new_curve_sizes;
+  Vector<int> new_offsets({0});
+
+  Vector<IndexMask::Initializer> copy_ranges;
+
+  for (const int curve : curves.curves_range()) {
+    const IndexRange points = points_by_curve[curve];
+
+    preserved_points.slice_content(points).foreach_range([&](const IndexRange range) {
+      const IndexRange inclusive_range = IndexRange::from_begin_end_inclusive(
+          math::max(points.first(), range.first() - 1),
+          math::min(points.last(), range.last() + 1));
+      new_offsets.append(new_offsets.last() + inclusive_range.size());
+      copy_ranges.append(inclusive_range);
+      curve_map.append(curve);
+    });
+
+    points_to_split.slice_content(points).foreach_range([&](const IndexRange range) {
+      new_curve_map.append(curve);
+      new_curve_sizes.append(range.size());
+    });
+  }
+  for (const int size : new_curve_sizes) {
+    new_offsets.append(new_offsets.last() + size);
+  }
+  curve_map.extend(new_curve_map);
+
+  bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
+  new_curves.resize(new_offsets.last(), curve_map.size());
+  std::copy_n(new_offsets.data(), new_offsets.size(), new_curves.offsets_for_write().data());
+  const bke::AttributeFilter filter = bke::attribute_filter_from_skip_ref(
+      ed::curves::get_curves_selection_attribute_names(curves));
+  const bke::AttributeAccessor src_attributes = curves.attributes();
+  bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Curve,
+                         bke::AttrDomain::Curve,
+                         {},
+                         curve_map,
+                         dst_attributes);
+
+  IndexMask points_to_copy = IndexMask::from_initializers(copy_ranges, memory);
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, filter))
+  {
+    array_utils::gather(
+        attribute.src, points_to_copy, attribute.dst.span.take_front(points_to_copy.size()));
+    array_utils::gather(
+        attribute.src, points_to_split, attribute.dst.span.take_back(points_to_split.size()));
+    attribute.dst.finish();
+  };
+
+  foreach_selection_attribute_writer(
+      new_curves, bke::AttrDomain::Curve, [&](bke::GSpanAttributeWriter &selection) {
+        fill_selection_false(selection.span.drop_back(new_curve_sizes.size()));
+        fill_selection_true(selection.span.take_back(new_curve_sizes.size()));
+      });
+
+  new_curves.update_curve_types();
+  new_curves.tag_topology_changed();
+
+  curves = std::move(new_curves);
+}
+
 void add_curves(bke::CurvesGeometry &curves, const Span<int> new_sizes)
 {
   const int orig_points_num = curves.points_num();

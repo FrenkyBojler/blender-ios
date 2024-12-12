@@ -9,6 +9,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_assert.h"
 #include "BLI_index_mask.hh"
+#include "BLI_index_mask_expression.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_geom.h"
 #include "BLI_rand.hh"
@@ -66,6 +67,21 @@ IndexMask retrieve_selected_curves(const Curves &curves_id, IndexMaskMemory &mem
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
 {
   return retrieve_selected_points(curves, ".selection", memory);
+}
+
+IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
+{
+  Vector<IndexMask> selection_by_attribute;
+  for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves)) {
+    selection_by_attribute.append(
+        ed::curves::retrieve_selected_points(curves, selection_name, memory));
+  }
+  Array<index_mask::ExprBuilder::Term> terms(selection_by_attribute.size());
+  for (const int i : selection_by_attribute.index_range()) {
+    terms[i] = &selection_by_attribute[i];
+  }
+  index_mask::ExprBuilder builder;
+  return index_mask::evaluate_expression(builder.merge(terms.as_span()), memory);
 }
 
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
