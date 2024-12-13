@@ -978,7 +978,14 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
 
   /* Create a backup of the current pose. */
   bAction *action = (bAction *)preview->id;
-  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(object, action);
+  blender::animrig::Action &pose_data = action->wrap();
+  if (pose_data.slot_array_num == 0) {
+    WM_report(RPT_WARNING, "Action has no data, cannot render preview");
+    return nullptr;
+  }
+
+  blender::animrig::Slot &slot = blender::animrig::get_best_slot_for_id(object->id, pose_data);
+  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(object, action, slot.handle);
 
   /* Apply the Action as pose, so that it can be rendered. This assumes the Action represents a
    * single pose, and that thus the evaluation time doesn't matter. */

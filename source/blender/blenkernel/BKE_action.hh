@@ -383,7 +383,11 @@ using FoundFCurveCallbackConst =
  * library code, which currently (as of writing this) only use the first slot in
  * layered actions.
  */
-void BKE_action_find_fcurves_with_bones(bAction *action, FoundFCurveCallback callback);
-void BKE_action_find_fcurves_with_bones(const bAction *action, FoundFCurveCallbackConst callback);
+void BKE_action_find_fcurves_with_bones(bAction *action,
+                                        blender::animrig::slot_handle_t slot_handle,
+                                        FoundFCurveCallback callback);
+void BKE_action_find_fcurves_with_bones(const bAction *action,
+                                        blender::animrig::slot_handle_t slot_handle,
+                                        FoundFCurveCallbackConst callback);
 
 };  // namespace blender::bke
