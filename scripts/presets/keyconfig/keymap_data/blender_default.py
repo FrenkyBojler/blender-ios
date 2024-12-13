@@ -435,9 +435,9 @@ def _template_items_hide_reveal_actions(op_hide, op_reveal):
     ]
 
 
-def _template_object_isolate_collection_from_number_keys():
+def _template_object_hide_collection_from_number_keys():
     return [
-        ("object.isolate_collection", {
+        ("object.hide_collection", {
             "type": NUMBERS_1[i], "value": 'PRESS',
             **({"shift": True} if extend else {}),
             **({"alt": True} if add_10 else {}),
@@ -4302,8 +4302,8 @@ def km_object_mode(params):
         ("object.move_to_collection", {"type": 'M', "value": 'PRESS'}, None),
         ("object.link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}, None),
         *_template_items_hide_reveal_actions("object.hide_view_set", "object.hide_view_clear"),
-        ("object.isolate_collection", {"type": 'H', "value": 'PRESS', "ctrl": True}, None),
-        *_template_object_isolate_collection_from_number_keys(),
+        ("object.hide_collection", {"type": 'H', "value": 'PRESS', "ctrl": True}, None),
+        *_template_object_hide_collection_from_number_keys(),
         *_template_items_context_menu("VIEW3D_MT_object_context_menu", params.context_menu_event),
     ])
 

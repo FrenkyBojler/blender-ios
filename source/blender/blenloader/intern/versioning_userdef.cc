@@ -1391,22 +1391,6 @@ void blo_do_versions_userdef(UserDef *userdef)
       }
     }
   }
-  if (!USER_VERSION_ATLEAST(404, 14)) {
-    LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
-      LISTBASE_FOREACH (wmKeyMapDiffItem *, kmdi, &keymap->diff_items) {
-        if (kmdi->remove_item != nullptr &&
-            STREQ("OBJECT_OT_hide_collection", kmdi->remove_item->idname))
-        {
-          STRNCPY(kmdi->remove_item->idname, "OBJECT_OT_isolate_collection");
-        }
-        if (kmdi->add_item != nullptr &&
-            STREQ("OBJECT_OT_hide_collection", kmdi->add_item->idname))
-        {
-          STRNCPY(kmdi->add_item->idname, "OBJECT_OT_isolate_collection");
-        }
-      }
-    }
-  }
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
