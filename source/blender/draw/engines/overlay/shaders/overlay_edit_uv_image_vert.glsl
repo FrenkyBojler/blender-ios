@@ -9,11 +9,7 @@ void main()
   /* `pos` contains the coordinates of a quad (-1..1). but we need the coordinates of an image
    * plane (0..1) */
   vec3 image_pos = pos * 0.5 + 0.5;
-#ifdef OVERLAY_NEXT
   gl_Position = drw_point_world_to_homogenous(
       vec3(image_pos.xy * brush_scale + brush_offset, 0.0));
-#else
-  gl_Position = drw_point_object_to_homogenous(image_pos);
-#endif
   uvs = image_pos.xy;
 }

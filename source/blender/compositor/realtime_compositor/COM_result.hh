@@ -341,10 +341,10 @@ class Result {
    * result, the reference count of the master result is incremented instead. */
   void increment_reference_count(int count = 1);
 
-  /* Decrement the reference count of the result and free its texture if the reference count
-   * reaches zero. This should be called when an operation that used this result no longer needs
-   * it. If this result have a master result, the master result is released instead. */
-  void release();
+  /* Decrement the reference count of the result by the given count and free its data if it reaches
+   * zero. The given count should not be more than the current reference count. If this result have
+   * a master result, the master result is released instead. */
+  void release(const int count = 1);
 
   /* Frees the result data. If the result is not allocated or wraps external data, then this does
    * nothing. If this result have a master result, the master result is freed instead. */
@@ -412,15 +412,6 @@ class Result {
    * have its vales initialized as follows: float4(0, 0, 0, 1). This is similar to how the
    * texelFetch function in GLSL works.  */
   float4 load_pixel_generic_type(const int2 &texel) const;
-
-  /* Identical to load_pixel_generic_type but with extended boundary condition. */
-  float4 load_pixel_extended_generic_type(const int2 &texel) const;
-
-  /* Identical to load_pixel_generic_type but with a fallback value for out of bound access. */
-  float4 load_pixel_fallback_generic_type(const int2 &texel, const float4 &fallback) const;
-
-  /* Identical to load_pixel_generic_type but with zero boundary condition. */
-  float4 load_pixel_zero_generic_type(const int2 &texel) const;
 
   /* Stores the given pixel value in the pixel at the given texel coordinates. Asserts if the
    * template type doesn't match the result's type. */
@@ -634,42 +625,6 @@ inline float4 Result::load_pixel_generic_type(const int2 &texel) const
   }
   else {
     this->copy_pixel(pixel_value, this->get_float_pixel(texel));
-  }
-  return pixel_value;
-}
-
-inline float4 Result::load_pixel_extended_generic_type(const int2 &texel) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->copy_pixel(pixel_value, float_texture_);
-  }
-  else {
-    const int2 clamped_texel = math::clamp(texel, int2(0), domain_.size - int2(1));
-    this->copy_pixel(pixel_value, this->get_float_pixel(clamped_texel));
-  }
-  return pixel_value;
-}
-
-inline float4 Result::load_pixel_zero_generic_type(const int2 &texel) const
-{
-  return this->load_pixel_fallback(texel, float4(0.0f));
-}
-
-inline float4 Result::load_pixel_fallback_generic_type(const int2 &texel,
-                                                       const float4 &fallback) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->copy_pixel(pixel_value, float_texture_);
-  }
-  else {
-    if (texel.x >= 0 && texel.y >= 0 && texel.x < domain_.size.x && texel.y < domain_.size.y) {
-      this->copy_pixel(pixel_value, this->get_float_pixel(texel));
-    }
-    else {
-      this->copy_pixel(pixel_value, fallback);
-    }
   }
   return pixel_value;
 }

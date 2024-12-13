@@ -670,6 +670,18 @@ static void cleanup_legacy_sockets(bNodeTree *ntree)
   BLI_listbase_clear(&ntree->outputs_legacy);
 }
 
+static void update_node_location_legacy(bNodeTree &ntree)
+{
+  for (bNode *node : ntree.all_nodes()) {
+    node->locx_legacy = node->location[0];
+    node->locy_legacy = node->location[1];
+    if (const bNode *parent = node->parent) {
+      node->locx_legacy -= parent->location[0];
+      node->locy_legacy -= parent->location[1];
+    }
+  }
+}
+
 }  // namespace forward_compat
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
@@ -749,6 +761,10 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 {
   BKE_id_blend_write(writer, &ntree->id);
   BLO_write_string(writer, ntree->description);
+
+  if (!BLO_write_is_undo(writer)) {
+    forward_compat::update_node_location_legacy(*ntree);
+  }
 
   for (bNode *node : ntree->all_nodes()) {
     if (ntree->type == NTREE_SHADER && node->type == SH_NODE_BSDF_HAIR_PRINCIPLED) {
@@ -2442,41 +2458,41 @@ bNode *node_find_node_by_name(bNodeTree *ntree, const StringRefNull name)
       BLI_findstring(&ntree->nodes, name.c_str(), offsetof(bNode, name)));
 }
 
-void node_find_node(bNodeTree *ntree, bNodeSocket *sock, bNode **r_node, int *r_sockindex)
+bNode &node_find_node(bNodeTree &ntree, bNodeSocket &socket)
 {
-  *r_node = nullptr;
-  if (ntree->runtime->topology_cache_mutex.is_cached()) {
-    bNode *node = &sock->owner_node();
-    *r_node = node;
-    if (r_sockindex) {
-      const ListBase *sockets = (sock->in_out == SOCK_IN) ? &node->inputs : &node->outputs;
-      *r_sockindex = BLI_findindex(sockets, sock);
-    }
-    return;
-  }
-  const bool success = node_find_node_try(ntree, sock, r_node, r_sockindex);
-  BLI_assert(success);
-  UNUSED_VARS_NDEBUG(success);
+  ntree.ensure_topology_cache();
+  return socket.owner_node();
 }
 
-bool node_find_node_try(bNodeTree *ntree, bNodeSocket *sock, bNode **r_node, int *r_sockindex)
+const bNode &node_find_node(const bNodeTree &ntree, const bNodeSocket &socket)
 {
-  for (bNode *node : ntree->all_nodes()) {
-    const ListBase *sockets = (sock->in_out == SOCK_IN) ? &node->inputs : &node->outputs;
-    int i;
-    LISTBASE_FOREACH_INDEX (const bNodeSocket *, tsock, sockets, i) {
-      if (sock == tsock) {
-        if (r_node != nullptr) {
-          *r_node = node;
-        }
-        if (r_sockindex != nullptr) {
-          *r_sockindex = i;
-        }
-        return true;
+  ntree.ensure_topology_cache();
+  return socket.owner_node();
+}
+
+bNode *node_find_node_try(bNodeTree &ntree, bNodeSocket &socket)
+{
+  for (bNode *node : ntree.all_nodes()) {
+    const ListBase *sockets = (socket.in_out == SOCK_IN) ? &node->inputs : &node->outputs;
+    LISTBASE_FOREACH (const bNodeSocket *, socket_iter, sockets) {
+      if (socket_iter == &socket) {
+        return node;
       }
     }
   }
-  return false;
+  return nullptr;
+}
+
+const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bNodeTree &ntree,
+                                                                        const StringRef identifier)
+{
+  ntree.ensure_interface_cache();
+  for (const bNodeTreeInterfaceSocket *input : ntree.interface_inputs()) {
+    if (input->identifier == identifier) {
+      return input;
+    }
+  }
+  return nullptr;
 }
 
 bNode *node_find_root_parent(bNode *node)
@@ -3080,48 +3096,18 @@ void node_internal_relink(bNodeTree *ntree, bNode *node)
   }
 }
 
-float2 node_to_view(const bNode *node, const float2 loc)
-{
-  float2 view_loc = loc;
-  for (const bNode *node_iter = node; node_iter; node_iter = node_iter->parent) {
-    view_loc += float2(node_iter->locx, node_iter->locy);
-  }
-  return view_loc;
-}
-
-float2 node_from_view(const bNode *node, const float2 view_loc)
-{
-  float2 loc = view_loc;
-  for (const bNode *node_iter = node; node_iter; node_iter = node_iter->parent) {
-    loc -= float2(node_iter->locx, node_iter->locy);
-  }
-  return loc;
-}
-
 void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)
 {
   BLI_assert(parent->type == NODE_FRAME);
   BLI_assert(!node_is_parent_and_child(parent, node));
-
-  const float2 loc = node_to_view(node, {});
-
   node->parent = parent;
   BKE_ntree_update_tag_parent_change(ntree, node);
-  /* transform to parent space */
-  const float2 new_loc = node_from_view(parent, loc);
-  node->locx = new_loc.x;
-  node->locy = new_loc.y;
 }
 
 void node_detach_node(bNodeTree *ntree, bNode *node)
 {
   if (node->parent) {
     BLI_assert(node->parent->type == NODE_FRAME);
-
-    /* transform to view space */
-    const float2 loc = node_to_view(node, {});
-    node->locx = loc.x;
-    node->locy = loc.y;
     node->parent = nullptr;
     BKE_ntree_update_tag_parent_change(ntree, node);
   }
@@ -3165,8 +3151,8 @@ void node_position_relative(bNode *from_node,
 
   offset_y -= U.widget_unit * tot_sock_idx;
 
-  from_node->locx = to_node->locx + offset_x;
-  from_node->locy = to_node->locy - offset_y;
+  from_node->location[0] = to_node->location[0] + offset_x;
+  from_node->location[1] = to_node->location[1] - offset_y;
 }
 
 void node_position_propagate(bNode *node)
@@ -3323,9 +3309,6 @@ static void node_preview_init_tree_recursive(bNodeInstanceHash *previews,
     bNodeInstanceKey key = node_instance_key(parent_key, ntree, node);
 
     if (node_preview_used(node)) {
-      node->runtime->preview_xsize = xsize;
-      node->runtime->preview_ysize = ysize;
-
       node_preview_verify(previews, key, xsize, ysize, false);
     }
 
@@ -3692,6 +3675,10 @@ void node_tree_set_output(bNodeTree *ntree)
 
 bNodeTree **node_tree_ptr_from_id(ID *id)
 {
+  /* If this is ever extended such that a non-animatable ID type can embed a node
+   * tree, update blender::animrig::internal::rebuild_slot_user_cache(). That
+   * function assumes that node trees can only be embedded by animatable IDs. */
+
   switch (GS(id->name)) {
     case ID_MA:
       return &reinterpret_cast<Material *>(id)->nodetree;
@@ -3981,8 +3968,8 @@ bool node_declaration_ensure(bNodeTree *ntree, bNode *node)
 
 void node_dimensions_get(const bNode *node, float *r_width, float *r_height)
 {
-  *r_width = node->runtime->totr.xmax - node->runtime->totr.xmin;
-  *r_height = node->runtime->totr.ymax - node->runtime->totr.ymin;
+  *r_width = node->runtime->draw_bounds.xmax - node->runtime->draw_bounds.xmin;
+  *r_height = node->runtime->draw_bounds.ymax - node->runtime->draw_bounds.ymin;
 }
 
 void node_tag_update_id(bNode *node)
