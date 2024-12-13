@@ -214,22 +214,6 @@ void AssetList::ensure_asset_preview_requested(const bContext & /*C*/, AssetHand
 {
   asset_system::AssetRepresentation &asset = *handle_get_representation(&asset_handle);
   asset.ensure_preview_storage();
-
-  // /* Ensure previews are enabled. */
-  // filelist_cache_previews_set(filelist_, true);
-
-  // if (filelist_file_ensure_preview_requested(filelist_,
-  //                                            const_cast<FileDirEntry *>(asset.file_data)))
-  // {
-  //   previews_timer_.ensure_running(&C);
-  // }
-}
-
-bool AssetList::is_asset_preview_loading(const AssetHandle &asset) const
-{
-  const bool filelist_ready = filelist_is_ready(filelist_);
-  return !filelist_ready || false;
-  // return filelist_file_is_preview_pending(filelist_, asset.file_data);
 }
 
 asset_system::AssetLibrary *AssetList::asset_library() const
@@ -572,13 +556,6 @@ asset_system::AssetRepresentation *asset_get_by_index(
 {
   AssetHandle asset_handle = asset_handle_get_by_index(&library_reference, asset_index);
   return reinterpret_cast<asset_system::AssetRepresentation *>(asset_handle.file_data->asset);
-}
-
-bool asset_image_is_loading(const AssetLibraryReference *library_reference,
-                            const AssetHandle *asset_handle)
-{
-  const AssetList *list = lookup_list(*library_reference);
-  return list->is_asset_preview_loading(*asset_handle);
 }
 
 void asset_preview_ensure_requested(const bContext &C,

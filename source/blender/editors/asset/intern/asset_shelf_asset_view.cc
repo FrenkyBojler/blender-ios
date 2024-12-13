@@ -59,10 +59,7 @@ class AssetViewItem : public ui::PreviewGridItem {
   bool allow_asset_drag_ = true;
 
  public:
-  AssetViewItem(const AssetHandle &asset,
-                StringRef identifier,
-                StringRef label,
-                int preview_icon_id);
+  AssetViewItem(const AssetHandle &asset, StringRef identifier, StringRef label);
 
   void disable_asset_drag();
   void build_grid_tile(const bContext &C, uiLayout &layout) const override;
@@ -111,10 +108,9 @@ void AssetView::build_items()
         const bool show_names = (shelf_.settings.display_flag & ASSETSHELF_SHOW_NAMES);
 
         const StringRef identifier = asset->library_relative_identifier();
-        const int preview_id = handle_get_preview_or_type_icon_id(&asset_handle);
 
         AssetViewItem &item = this->add_item<AssetViewItem>(
-            asset_handle, identifier, asset->get_name(), preview_id);
+            asset_handle, identifier, asset->get_name());
         if (!show_names) {
           item.hide_label();
         }
@@ -181,11 +177,8 @@ static std::optional<asset_system::AssetCatalogFilter> catalog_filter_from_shelf
 
 /* ---------------------------------------------------------------------- */
 
-AssetViewItem::AssetViewItem(const AssetHandle &asset,
-                             StringRef identifier,
-                             StringRef label,
-                             int preview_icon_id)
-    : ui::PreviewGridItem(identifier, label, preview_icon_id), asset_(asset)
+AssetViewItem::AssetViewItem(const AssetHandle &asset, StringRef identifier, StringRef label)
+    : ui::PreviewGridItem(identifier, label, ICON_NONE), asset_(asset)
 {
 }
 
@@ -265,10 +258,14 @@ void AssetViewItem::build_grid_tile(const bContext &C, uiLayout &layout) const
       C, &asset_view.library_ref_, const_cast<AssetHandle *>(&asset_));
 
   const int preview_id = [&]() -> int {
-    if (list::asset_image_is_loading(&asset_view.library_ref_, &asset_)) {
+    /* Show loading icon while list is loading still. Previews might get pushed out of view again
+     * while the list grows, which can cause a lot of flickering. Note that this also means the
+     * actual loading of previews is delayed, because that only happens when a preview icon-ID is
+     * attached to a button. */
+    if (!list::is_loaded(&asset_view.library_ref_)) {
       return ICON_TEMP;
     }
-    return handle_get_preview_or_type_icon_id(&asset_);
+    return asset_preview_or_icon(*asset);
   }();
 
   ui::PreviewGridItem::build_grid_tile_button(layout, preview_id);

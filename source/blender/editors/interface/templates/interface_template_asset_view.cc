@@ -56,9 +56,10 @@ static void asset_view_item_but_drag_set(uiBut *but, AssetHandle *asset_handle)
   const eAssetImportMethod import_method = asset->get_import_method().value_or(
       ASSET_IMPORT_APPEND_REUSE);
 
+  /* TODO don't use imbufs anymore? */
   ImBuf *imbuf = asset::list::asset_image_get(asset_handle);
   UI_but_drag_set_asset(
-      but, asset, import_method, asset::handle_get_preview_icon_id(asset_handle), imbuf, 1.0f);
+      but, asset, import_method, asset::asset_preview_icon_id(*asset), imbuf, 1.0f);
 }
 
 static void asset_view_draw_item(uiList *ui_list,
@@ -76,6 +77,7 @@ static void asset_view_draw_item(uiList *ui_list,
 
   AssetHandle asset_handle = asset::list::asset_handle_get_by_index(&list_data->asset_library_ref,
                                                                     index);
+  asset_system::AssetRepresentation *asset = asset::handle_get_representation(&asset_handle);
 
   PointerRNA file_ptr = RNA_pointer_create(&list_data->screen->id,
                                            &RNA_FileSelectEntry,
@@ -88,22 +90,21 @@ static void asset_view_draw_item(uiList *ui_list,
   const bool show_names = list_data->show_names;
   const float size_x = UI_preview_tile_size_x();
   const float size_y = show_names ? UI_preview_tile_size_y() : UI_preview_tile_size_y_no_label();
-  uiBut *but = uiDefIconTextBut(
-      block,
-      UI_BTYPE_PREVIEW_TILE,
-      0,
-      asset::handle_get_preview_icon_id(&asset_handle),
-      show_names ? asset::handle_get_representation(&asset_handle)->get_name().c_str() : "",
-      0,
-      0,
-      size_x,
-      size_y,
-      nullptr,
-      0,
-      0,
-      "");
+  uiBut *but = uiDefIconTextBut(block,
+                                UI_BTYPE_PREVIEW_TILE,
+                                0,
+                                asset::asset_preview_icon_id(*asset),
+                                show_names ? asset->get_name().c_str() : "",
+                                0,
+                                0,
+                                size_x,
+                                size_y,
+                                nullptr,
+                                0,
+                                0,
+                                "");
   ui_def_but_icon(but,
-                  asset::handle_get_preview_icon_id(&asset_handle),
+                  asset::asset_preview_icon_id(*asset),
                   /* NOLINTNEXTLINE: bugprone-suspicious-enum-usage */
                   UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
   but->emboss = UI_EMBOSS_NONE;

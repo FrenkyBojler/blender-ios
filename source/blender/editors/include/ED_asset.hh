@@ -27,10 +27,16 @@
 #include "../asset/ED_asset_import.hh"
 #include "../asset/ED_asset_list.hh"
 
+/** From UI_resources.hh. */
+using BIFIconID = int;
+
 namespace blender::ed::asset {
 
 std::string asset_tooltip(const asset_system::AssetRepresentation &asset,
                           bool include_name = true);
+
+BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset);
+BIFIconID asset_preview_or_icon(const asset_system::AssetRepresentation &asset);
 
 void operatortypes_asset();
 
