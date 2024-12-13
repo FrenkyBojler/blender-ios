@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_math_base_lib.glsl"
+
 /* 4x4 bayer matrix prepared for 8bit UNORM precision error. */
 #define P(x) (((x + 0.5) * (1.0 / 16.0) - 0.5) * (1.0 / 255.0))
 
