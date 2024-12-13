@@ -691,12 +691,17 @@ std::string GLShader::vertex_interface_declare(const ShaderCreateInfo &info) con
   for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
     print_interface(ss, "out", *iface);
   }
-  if (!GLContext::layered_rendering_support && bool(info.builtins_ & BuiltinBits::LAYER)) {
-    ss << "out int gpu_Layer;\n";
-  }
-  if (!GLContext::layered_rendering_support && bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX))
+  if (bool(info.builtins_ &
+           (BuiltinBits::BARYCENTRIC_COORD | BuiltinBits::LAYER | BuiltinBits::VIEWPORT_INDEX)))
   {
-    ss << "out int gpu_ViewportIndex;\n";
+    if (do_geometry_shader_injection(&info)) {
+      ss << "out int gpu_Layer;\n";
+      ss << "out int gpu_ViewportIndex;\n";
+    }
+    else {
+      ss << "#define gpu_Layer gl_Layer\n";
+      ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
+    }
   }
   if (bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD)) {
     if (!GLContext::native_barycentric_support) {
@@ -731,11 +736,10 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
   for (const StageInterfaceInfo *iface : in_interfaces) {
     print_interface(ss, "in", *iface);
   }
-  if (!GLContext::layered_rendering_support && bool(info.builtins_ & BuiltinBits::LAYER)) {
-    ss << "#define gpu_Layer gl_Layer\n";
-  }
-  if (!GLContext::layered_rendering_support && bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX))
+  if (bool(info.builtins_ &
+           (BuiltinBits::BARYCENTRIC_COORD | BuiltinBits::LAYER | BuiltinBits::VIEWPORT_INDEX)))
   {
+    ss << "#define gpu_Layer gl_Layer\n";
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
   if (bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD)) {
@@ -931,10 +935,6 @@ std::string GLShader::workaround_geometry_shader_source_create(
 {
   std::stringstream ss;
 
-  const bool do_layer_workaround = !GLContext::layered_rendering_support &&
-                                   bool(info.builtins_ & BuiltinBits::LAYER);
-  const bool do_viewport_workaround = !GLContext::layered_rendering_support &&
-                                      bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
   const bool do_barycentric_workaround = !GLContext::native_barycentric_support &&
                                          bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
 
@@ -948,12 +948,8 @@ std::string GLShader::workaround_geometry_shader_source_create(
 
   ss << geometry_layout_declare(info_modified);
   ss << geometry_interface_declare(info_modified);
-  if (do_layer_workaround) {
-    ss << "in int gpu_Layer[];\n";
-  }
-  if (do_viewport_workaround) {
-    ss << "in int gpu_ViewportIndex[];\n";
-  }
+  ss << "in int gpu_Layer[];\n";
+  ss << "in int gpu_ViewportIndex[];\n";
   if (do_barycentric_workaround) {
     ss << "flat out vec4 gpu_pos[3];\n";
     ss << "smooth out vec3 gpu_BaryCoord;\n";
@@ -980,19 +976,15 @@ std::string GLShader::workaround_geometry_shader_source_create(
       ss << " vec3(" << int(i == 0) << ", " << int(i == 1) << ", " << int(i == 2) << ");\n";
     }
     ss << "  gl_Position = gl_in[" << i << "].gl_Position;\n";
-    if (do_layer_workaround) {
-      ss << "  gl_Layer = gpu_Layer[" << i << "];\n";
-    }
-    if (do_viewport_workaround) {
-      ss << "  gl_ViewportIndex = gpu_ViewportIndex[" << i << "];\n";
-    }
+    ss << "  gl_Layer = gpu_Layer[" << i << "];\n";
+    ss << "  gl_ViewportIndex = gpu_ViewportIndex[" << i << "];\n";
     ss << "  EmitVertex();\n";
   }
   ss << "}\n";
   return ss.str();
 }
 
-bool GLShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info)
+bool GLShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info) const
 {
   BuiltinBits builtins = info->builtins_;
   if (!GLContext::native_barycentric_support && bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
@@ -1039,8 +1031,6 @@ static StringRefNull glsl_patch_default_get()
   }
   if (GLContext::layered_rendering_support) {
     ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
-    ss << "#define gpu_Layer gl_Layer\n";
-    ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
   if (GLContext::native_barycentric_support) {
     ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
