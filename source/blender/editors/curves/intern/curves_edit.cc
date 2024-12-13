@@ -238,6 +238,32 @@ static IndexMask drop_singles(const IndexMask &mask, IndexMaskMemory &memory)
   return evaluate_expression(builder.intersect({&mask, &shifted_to_sides}), memory);
 }
 
+static void curves_from_selection(const IndexMask &selected_points,
+                                  const IndexRange points,
+                                  const int curve,
+                                  const bool extend_ranges,
+                                  Vector<int> &new_curve_offsets,
+                                  Vector<int> &src_offsets,
+                                  Vector<int> &dst_offsets,
+                                  Vector<int> &curve_map)
+{
+  int curves_added = 0;
+  selected_points.foreach_range([&](const IndexRange range) {
+    const IndexRange extended_range = extend_ranges ?
+                                          IndexRange::from_begin_end_inclusive(
+                                              math::max(points.first(), range.first() - 1),
+                                              math::min(points.last(), range.last() + 1)) :
+                                          range;
+    new_curve_offsets.append(new_curve_offsets.last() + extended_range.size());
+    src_offsets.append(extended_range.first());
+    src_offsets.append(extended_range.one_after_last());
+    dst_offsets.append(dst_offsets.last() + extended_range.size());
+    dst_offsets.append(dst_offsets.last() + 0 /* to make rvalue */);
+    curves_added++;
+  });
+  curve_map.append_n_times(curve, curves_added);
+}
+
 void split_points(const IndexMask &points_to_split,
                   bke::CurvesGeometry &curves,
                   IndexMaskMemory &memory)
@@ -248,8 +274,8 @@ void split_points(const IndexMask &points_to_split,
   const OffsetIndices points_by_curve = curves.points_by_curve();
   Vector<int> curve_map;
   Vector<int> new_curve_map;
-  Vector<int> split_curve_sizes;
   Vector<int> new_offsets({0});
+  Vector<int> split_curve_offsets({0});
 
   Vector<int> preserved_src_offsets;
   Vector<int> preserved_dst_offsets({0});
@@ -259,33 +285,34 @@ void split_points(const IndexMask &points_to_split,
   for (const int curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve];
 
-    preserved_points.slice_content(points).foreach_range([&](const IndexRange range) {
-      const IndexRange inclusive_range = IndexRange::from_begin_end_inclusive(
-          math::max(points.first(), range.first() - 1),
-          math::min(points.last(), range.last() + 1));
-      new_offsets.append(new_offsets.last() + inclusive_range.size());
-      preserved_src_offsets.append(inclusive_range.first());
-      preserved_src_offsets.append(inclusive_range.one_after_last());
-      preserved_dst_offsets.append(preserved_dst_offsets.last() + inclusive_range.size());
-      preserved_dst_offsets.append(preserved_dst_offsets.last() + 0);
-      curve_map.append(curve);
-    });
+    curves_from_selection(preserved_points.slice_content(points),
+                          points,
+                          curve,
+                          true,
+                          new_offsets,
+                          preserved_src_offsets,
+                          preserved_dst_offsets,
+                          curve_map);
 
-    points_to_split.slice_content(points).foreach_range([&](const IndexRange range) {
-      new_curve_map.append(curve);
-      split_curve_sizes.append(range.size());
-      split_src_offsets.append(range.first());
-      split_src_offsets.append(range.one_after_last());
-      split_dst_offsets.append(split_dst_offsets.last() + range.size());
-      split_dst_offsets.append(split_dst_offsets.last() + 0 /* to make rvalue */);
-    });
+    curves_from_selection(points_to_split.slice_content(points),
+                          points,
+                          curve,
+                          false,
+                          split_curve_offsets,
+                          split_src_offsets,
+                          split_dst_offsets,
+                          new_curve_map);
   }
+
   for (const int i : split_dst_offsets.index_range()) {
     split_dst_offsets[i] += preserved_dst_offsets.last();
   }
-  for (const int size : split_curve_sizes) {
-    new_offsets.append(new_offsets.last() + size);
+
+  const int last_preserved_offset = new_offsets.last();
+  for (const int offset : split_curve_offsets.as_span().drop_front(1)) {
+    new_offsets.append(last_preserved_offset + offset);
   }
+
   curve_map.extend(new_curve_map);
 
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
@@ -325,8 +352,8 @@ void split_points(const IndexMask &points_to_split,
 
   foreach_selection_attribute_writer(
       new_curves, bke::AttrDomain::Curve, [&](bke::GSpanAttributeWriter &selection) {
-        fill_selection_false(selection.span.drop_back(split_curve_sizes.size()));
-        fill_selection_true(selection.span.take_back(split_curve_sizes.size()));
+        fill_selection_false(selection.span.drop_back(split_curve_offsets.size() - 1));
+        fill_selection_true(selection.span.take_back(split_curve_offsets.size() - 1));
       });
 
   new_curves.update_curve_types();
