@@ -127,7 +127,7 @@ static void version_legacy_actions_to_layered(Main *bmain)
   LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
     Action &action = dna_action->wrap();
 
-    if (is_action_layered(action)) {
+    if (BKE_is_action_layered(action)) {
       continue;
     }
     action_users.add(dna_action, {});
