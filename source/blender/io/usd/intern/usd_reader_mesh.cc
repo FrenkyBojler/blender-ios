@@ -93,8 +93,7 @@ static void assign_materials(Main *bmain,
                              const blender::Map<pxr::SdfPath, int> &mat_index_map,
                              const blender::io::usd::USDImportParams &params,
                              pxr::UsdStageRefPtr stage,
-                             const blender::io::usd::ImportSettings &settings,
-                             ReportList *reports)
+                             const blender::io::usd::ImportSettings &settings)
 {
   using namespace blender::io::usd;
   if (!(stage && bmain && ob)) {
@@ -748,13 +747,8 @@ void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const double mot
   if (this->settings_->mat_name_to_mat.is_empty()) {
     build_material_map(bmain, &this->settings_->mat_name_to_mat);
   }
-  utils::assign_materials(bmain,
-                          object_,
-                          mat_map,
-                          this->import_params_,
-                          this->prim_.GetStage(),
-                          *this->settings_,
-                          this->reports());
+  utils::assign_materials(
+      bmain, object_, mat_map, this->import_params_, this->prim_.GetStage(), *this->settings_);
 }
 
 Mesh *USDMeshReader::read_mesh(Mesh *existing_mesh,

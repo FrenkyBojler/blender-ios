@@ -32,7 +32,7 @@
 #  include <pxr/external/boost/python/ref.hpp>
 #  include <pxr/external/boost/python/return_value_policy.hpp>
 #  include <pxr/external/boost/python/to_python_converter.hpp>
-#  include <pxr/external/boost/python/touple.hpp>
+#  include <pxr/external/boost/python/tuple.hpp>
 #  define PYTHON_NS pxr::pxr_boost::python
 #  define REF pxr::pxr_boost::python::ref
 
@@ -195,7 +195,7 @@ struct USDMaterialExportContext {
    * to the export directory if exporting textures is enabled in the export options.  The
    * function may return an empty string in case of an error.
    */
-  std::string export_texture(boost::python::object obj)
+  std::string export_texture(PYTHON_NS::object obj)
   {
     ID *id;
     if (!pyrna_id_FromPyObject(obj.ptr(), &id)) {
