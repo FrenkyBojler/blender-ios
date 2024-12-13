@@ -290,8 +290,8 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
   const int global_forward = RNA_enum_get(op->ptr, "export_global_forward_selection");
   const int global_up = RNA_enum_get(op->ptr, "export_global_up_selection");
 
-  const bool convert_world_material = RNA_boolean_get(op->ptr, "convert_world_material")
-                                      && export_lights;
+  const bool convert_world_material = RNA_boolean_get(op->ptr, "convert_world_material") &&
+                                      export_lights;
 
   const eUSDXformOpMode xform_op_mode = eUSDXformOpMode(RNA_enum_get(op->ptr, "xform_op_mode"));
 
@@ -951,7 +951,8 @@ static int wm_usd_import_exec(bContext *C, wmOperator *op)
 
   const bool validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
 
-  const bool create_world_material = RNA_boolean_get(op->ptr, "create_world_material") && import_lights;
+  const bool create_world_material = RNA_boolean_get(op->ptr, "create_world_material") &&
+                                     import_lights;
 
   const bool merge_parent_xform = RNA_boolean_get(op->ptr, "merge_parent_xform");
 
