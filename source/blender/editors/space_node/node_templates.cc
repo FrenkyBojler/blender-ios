@@ -463,7 +463,8 @@ static void ui_node_sock_name(const bNodeTree *ntree,
 
 static int ui_compatible_sockets(int typeA, int typeB)
 {
-  return (typeA == typeB);
+  return (typeA == typeB) ||
+         (ELEM(typeA, SOCK_FLOAT, SOCK_RGBA) && ELEM(typeB, SOCK_FLOAT, SOCK_RGBA));
 }
 
 static int ui_node_item_name_compare(const void *a, const void *b)
