@@ -461,7 +461,7 @@ static void do_paint_brush_task(const Scene &scene,
   brush_colors.fill(brush_color);
 
   paint_sculpt_nodes_evaluate(
-    depsgraph, object, brush, *ss.cache, vert_positions, verts, brush_colors, new_colors);
+      depsgraph, object, brush, *ss.cache, vert_positions, verts, brush_colors, new_colors);
 
   for (const int i : verts.index_range()) {
     /* Brush paint color, brush test falloff and flow. */
@@ -470,7 +470,7 @@ static void do_paint_brush_task(const Scene &scene,
 
     /* Interpolate with the wet_mix color for wet paint mixing. */
     blend_color_interpolate_float(
-      paint_color, paint_color, wet_mix_color, ss.cache->paint_brush.wet_mix);
+        paint_color, paint_color, wet_mix_color, ss.cache->paint_brush.wet_mix);
     blend_color_mix_float(color_buffer[i], color_buffer[i], paint_color);
   }
 

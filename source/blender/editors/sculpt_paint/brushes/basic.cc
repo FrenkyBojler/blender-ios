@@ -9,11 +9,11 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_brush.hh"
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_brush.hh"
 
 #include "BLI_array.hh"
 #include "BLI_enumerable_thread_specific.hh"
@@ -39,19 +39,19 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-static void calc_distances(const float3& center,
-  const Span<int> verts,
-  const Span<float3> positions,
-  const MutableSpan<float> distances)
+static void calc_distances(const float3 &center,
+                           const Span<int> verts,
+                           const Span<float3> positions,
+                           const MutableSpan<float> distances)
 {
   for (const int i : verts.index_range()) {
     distances[i] = math::distance(positions[verts[i]], center);
   }
 }
 
-static void calc_distances(const float3& center,
-  const Span<float3> positions,
-  const MutableSpan<float> distances)
+static void calc_distances(const float3 &center,
+                           const Span<float3> positions,
+                           const MutableSpan<float> distances)
 {
   for (const int i : positions.index_range()) {
     distances[i] = math::distance(positions[i], center);
@@ -69,8 +69,8 @@ static void calc_faces(const Depsgraph &depsgraph,
                        LocalData &tls,
                        const PositionDeformData &position_data)
 {
-  const SculptSession& ss = *object.sculpt;
-  const StrokeCache& cache = *ss.cache;
+  const SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
 
@@ -87,7 +87,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   calc_distances(origin, verts, position_data.eval, distances);
   apply_hardness_to_distances(cache.radius, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
-    eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
   calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
@@ -114,7 +114,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
-  const StrokeCache& cache = *ss.cache;
+  const StrokeCache &cache = *ss.cache;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
   const Span<int> grids = node.grids();
@@ -133,7 +133,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   calc_distances(origin, positions, distances);
   apply_hardness_to_distances(cache.radius, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
-    eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
   calc_brush_texture_factors(ss, brush, positions, factors);
@@ -143,7 +143,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   translations_from_factors(factors, translations);
 
   grids_sculpt_nodes_evaluate(
-    depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
+      depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
 
   scale_translations(translations, cache.bstrength);
 
@@ -160,7 +160,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
-  const StrokeCache& cache = *ss.cache;
+  const StrokeCache &cache = *ss.cache;
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
   const MutableSpan<float3> positions = gather_bmesh_positions(verts, tls.positions);
 
@@ -177,7 +177,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   calc_distances(origin, positions, distances);
   apply_hardness_to_distances(cache.radius, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
-    eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
   calc_brush_texture_factors(ss, brush, positions, factors);
@@ -200,15 +200,15 @@ void do_basic_brush(const Depsgraph &depsgraph,
                     Object &object,
                     const IndexMask &node_mask)
 {
-  SculptSession& ss = *object.sculpt;
-  StrokeCache& cache = *ss.cache;
-  const Brush& brush = *BKE_paint_brush_for_read(&sd.paint);
+  SculptSession &ss = *object.sculpt;
+  StrokeCache &cache = *ss.cache;
+  const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   if (math::is_zero(ss.cache->grab_delta_symm) && !(brush.flag & BRUSH_ANCHORED)) {
     return;
   }
 
-  bke::pbvh::Tree& pbvh = *bke::object::pbvh_get(object);
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   float3 plane_normal;
   float3 plane_center;
@@ -223,7 +223,8 @@ void do_basic_brush(const Depsgraph &depsgraph,
   ss.cache->sculpt_normal_symm = plane_normal;
   ss.cache->sculpt_center_symm = plane_center;
 
-  const float3 origin = (brush.flag2 & BRUSH_USE_CURSOR_AS_ORIGIN) ? ss.cache->location_symm : plane_center;
+  const float3 origin = (brush.flag2 & BRUSH_USE_CURSOR_AS_ORIGIN) ? ss.cache->location_symm :
+                                                                     plane_center;
 
   const float4x4 mat = calc_local_space_matrix(cache, origin);
 

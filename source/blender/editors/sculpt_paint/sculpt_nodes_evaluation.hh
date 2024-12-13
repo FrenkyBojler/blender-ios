@@ -29,12 +29,12 @@ void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Span<float3> positions,
                                  MutableSpan<float3> translations);
 
-void paint_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
-  Object& object,
-  const Brush& brush,
-  StrokeCache& cache,
-  Span<float3> positions,
-  Span<int> verts,
-  MutableSpan<float4> brush_colors,
-  MutableSpan<float4> current_colors);
+void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                 Object &object,
+                                 const Brush &brush,
+                                 StrokeCache &cache,
+                                 Span<float3> positions,
+                                 Span<int> verts,
+                                 MutableSpan<float4> brush_colors,
+                                 MutableSpan<float4> current_colors);
 }  // namespace blender::ed::sculpt_paint

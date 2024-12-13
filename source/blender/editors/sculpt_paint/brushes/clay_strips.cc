@@ -129,7 +129,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   calc_translations_to_plane(position_data.eval, verts, plane, translations);
   mesh_sculpt_nodes_evaluate(
-    depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
+      depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
   filter_plane_trim_limit_factors(brush, cache, translations, factors);
   scale_translations(translations, factors);
 
@@ -189,7 +189,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   calc_translations_to_plane(positions, plane, translations);
   grids_sculpt_nodes_evaluate(
-    depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
+      depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
   filter_plane_trim_limit_factors(brush, cache, translations, factors);
   scale_translations(translations, factors);
 

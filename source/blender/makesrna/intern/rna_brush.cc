@@ -3030,10 +3030,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_cursor_as_origin", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_USE_CURSOR_AS_ORIGIN);
-  RNA_def_property_ui_text(
-    prop,
-    "Use cursor as origin",
-    "Use cursor as origin");
+  RNA_def_property_ui_text(prop, "Use cursor as origin", "Use cursor as origin");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "normal_weight", PROP_FLOAT, PROP_FACTOR);

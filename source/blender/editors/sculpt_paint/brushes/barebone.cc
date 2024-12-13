@@ -50,7 +50,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const PositionDeformData &position_data)
 {
   const SculptSession &ss = *object.sculpt;
-  const StrokeCache& cache = *ss.cache;
+  const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
 
@@ -90,7 +90,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *object.sculpt;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-  const StrokeCache& cache = *ss.cache;
+  const StrokeCache &cache = *ss.cache;
 
   const Span<int> grids = node.grids();
   const MutableSpan<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
@@ -129,9 +129,9 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
-  const StrokeCache& cache = *ss.cache;
+  const StrokeCache &cache = *ss.cache;
 
-  const Set<BMVert*, 0>& verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
   const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
 
   tls.factors.resize(verts.size());
@@ -160,19 +160,19 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 }  // namespace barebone_cc
 
 void do_barebone_brush(const Depsgraph &depsgraph,
-                    const Sculpt &sd,
-                    Object &object,
-                    const IndexMask &node_mask)
+                       const Sculpt &sd,
+                       Object &object,
+                       const IndexMask &node_mask)
 {
-  SculptSession& ss = *object.sculpt;
-  StrokeCache& cache = *ss.cache;
-  const Brush& brush = *BKE_paint_brush_for_read(&sd.paint);
+  SculptSession &ss = *object.sculpt;
+  StrokeCache &cache = *ss.cache;
+  const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   if (math::is_zero(ss.cache->grab_delta_symm) && !(brush.flag & BRUSH_ANCHORED)) {
     return;
   }
 
-  bke::pbvh::Tree& pbvh = *bke::object::pbvh_get(object);
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   float3 plane_normal;
   float3 plane_center;
@@ -187,7 +187,8 @@ void do_barebone_brush(const Depsgraph &depsgraph,
   ss.cache->sculpt_normal_symm = plane_normal;
   ss.cache->sculpt_center_symm = plane_center;
 
-  const float3 origin = (brush.flag2 & BRUSH_USE_CURSOR_AS_ORIGIN) ? ss.cache->location_symm : plane_center;
+  const float3 origin = (brush.flag2 & BRUSH_USE_CURSOR_AS_ORIGIN) ? ss.cache->location_symm :
+                                                                     plane_center;
 
   const float4x4 mat = calc_local_space_matrix(cache, origin);
 

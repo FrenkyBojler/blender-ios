@@ -21,8 +21,8 @@ class SculptVertexColorFieldInput final : public fn::FieldInput {
             dynamic_cast<const bke::MeshSculptFieldContext *>(&context))
     {
       const Span<float4> colors = mesh_sculpt_context->colors();
-      return VArray<ColorGeometry4f>::ForSpan(
-        Span<ColorGeometry4f>(reinterpret_cast<const ColorGeometry4f*>(colors.data()), colors.size()));
+      return VArray<ColorGeometry4f>::ForSpan(Span<ColorGeometry4f>(
+          reinterpret_cast<const ColorGeometry4f *>(colors.data()), colors.size()));
     }
 
     return {};

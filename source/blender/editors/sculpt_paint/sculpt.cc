@@ -2400,17 +2400,17 @@ bool node_in_cube(const bke::pbvh::Node &node, const float4x4 &mat)
 {
   const Bounds<float3> bounds = bke::pbvh::node_bounds(node);
 
-  Array<float3, 8> corners = { float3(bounds.min.x, bounds.min.y, bounds.min.z),
-                                   float3(bounds.min.x, bounds.min.y, bounds.max.z),
-                                   float3(bounds.min.x, bounds.max.y, bounds.min.z),
-                                   float3(bounds.min.x, bounds.max.y, bounds.max.z),
-                                   float3(bounds.max.x, bounds.min.y, bounds.min.z),
-                                   float3(bounds.max.x, bounds.min.y, bounds.max.z),
-                                   float3(bounds.max.x, bounds.max.y, bounds.min.z),
-                                   float3(bounds.max.x, bounds.max.y, bounds.max.z) };
+  Array<float3, 8> corners = {float3(bounds.min.x, bounds.min.y, bounds.min.z),
+                              float3(bounds.min.x, bounds.min.y, bounds.max.z),
+                              float3(bounds.min.x, bounds.max.y, bounds.min.z),
+                              float3(bounds.min.x, bounds.max.y, bounds.max.z),
+                              float3(bounds.max.x, bounds.min.y, bounds.min.z),
+                              float3(bounds.max.x, bounds.min.y, bounds.max.z),
+                              float3(bounds.max.x, bounds.max.y, bounds.min.z),
+                              float3(bounds.max.x, bounds.max.y, bounds.max.z)};
 
   /* convert node bounding box corners to local brush coordinates */
-  for (float3& corner : corners) {
+  for (float3 &corner : corners) {
     corner = math::transform_point(mat, corner);
   }
 
@@ -2418,7 +2418,7 @@ bool node_in_cube(const bke::pbvh::Node &node, const float4x4 &mat)
   float node_min_y = corners[0].y, node_max_y = corners[0].y;
   float node_min_z = corners[0].z, node_max_z = corners[0].z;
 
-  for (const float3& corner : corners) {
+  for (const float3 &corner : corners) {
     node_min_x = std::min(node_min_x, corner.x);
     node_max_x = std::max(node_max_x, corner.x);
     node_min_y = std::min(node_min_y, corner.y);
@@ -3072,9 +3072,9 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
 }
 
 void push_undo_nodes(const Depsgraph &depsgraph,
-                            Object &ob,
-                            const Brush &brush,
-                            const IndexMask &node_mask)
+                     Object &ob,
+                     const Brush &brush,
+                     const IndexMask &node_mask)
 {
   SculptSession &ss = *ob.sculpt;
   bool need_coords = ss.cache->supports_gravity;
@@ -3200,7 +3200,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
   float location[3];
 
   if (!use_pixels) {
-    /* Barebone and Basic brushes might either have a different plane origin or a cubic shape. Therefore, it uses a different node mask */
+    /* Barebone and Basic brushes might either have a different plane origin or a cubic shape.
+     * Therefore, it uses a different node mask */
     if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_BAREBONE, SCULPT_BRUSH_TYPE_BASIC)) {
       push_undo_nodes(depsgraph, ob, brush, node_mask);
     }
@@ -7347,8 +7348,7 @@ void scale_factors(const MutableSpan<float> factors, const Span<float> strengths
   }
 }
 
-void translations_from_factors(const Span<float> factors,
-  const MutableSpan<float3> r_translations)
+void translations_from_factors(const Span<float> factors, const MutableSpan<float3> r_translations)
 {
   BLI_assert(r_translations.size() == factors.size());
 
@@ -7715,12 +7715,12 @@ void filter_above_plane_factors(const Span<float3> positions,
   }
 }
 
-void calc_brush_radius_factors(const Brush& brush,
-  const float3& center,
-  const float radius,
-  const Span<int> verts,
-  const Span<float3> positions,
-  const MutableSpan<float> factors)
+void calc_brush_radius_factors(const Brush &brush,
+                               const float3 &center,
+                               const float radius,
+                               const Span<int> verts,
+                               const Span<float3> positions,
+                               const MutableSpan<float> factors)
 {
   const float radius_sq = radius * radius;
 
@@ -7745,11 +7745,11 @@ void calc_brush_radius_factors(const Brush& brush,
   }
 }
 
-void calc_brush_radius_factors(const Brush& brush,
-  const float3& center,
-  const float radius,
-  const Span<float3> positions,
-  const MutableSpan<float> factors)
+void calc_brush_radius_factors(const Brush &brush,
+                               const float3 &center,
+                               const float radius,
+                               const Span<float3> positions,
+                               const MutableSpan<float> factors)
 {
   const float radius_sq = radius * radius;
 
@@ -7774,7 +7774,7 @@ void calc_brush_radius_factors(const Brush& brush,
   }
 }
 
-float4x4 calc_local_space_matrix(StrokeCache& cache, const float3& origin)
+float4x4 calc_local_space_matrix(StrokeCache &cache, const float3 &origin)
 {
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(cache.sculpt_normal_symm, cache.grab_delta_symm);
@@ -7790,7 +7790,7 @@ float4x4 calc_local_space_matrix(StrokeCache& cache, const float3& origin)
   return inv_mat;
 }
 
-float4x4 calc_texture_space_matrix(StrokeCache& cache)
+float4x4 calc_texture_space_matrix(StrokeCache &cache)
 {
   float4x4 mat = math::from_location<float4x4>(float3(0.5f, 0.5f, 0.0f));
   mat *= math::from_scale<float4x4>(float3(0.5f, 0.5f, 1.0f));
@@ -7819,28 +7819,28 @@ float4x4 calc_texture_space_matrix(StrokeCache& cache)
   return mat;
 }
 
-IndexMask gather_nodes(const bke::pbvh::Tree& pbvh,
-  const Brush& brush,
-  const float4x4& mat,
-  const float3& center,
-  const float radius,
-  IndexMaskMemory& memory)
+IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
+                       const Brush &brush,
+                       const float4x4 &mat,
+                       const float3 &center,
+                       const float radius,
+                       IndexMaskMemory &memory)
 {
   const float radius_sq = radius * radius;
 
-  return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node& node) {
+  return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
     if (node_fully_masked_or_hidden(node)) {
       return false;
     }
     switch (brush.sculpt_brush_shape) {
-    case SCULPT_BRUSH_SHAPE_SPHERE:
-      return node_in_sphere(node, center, radius_sq, false);
-    case SCULPT_BRUSH_SHAPE_CUBE:
-      return node_in_cube(node, mat);
+      case SCULPT_BRUSH_SHAPE_SPHERE:
+        return node_in_sphere(node, center, radius_sq, false);
+      case SCULPT_BRUSH_SHAPE_CUBE:
+        return node_in_cube(node, mat);
     }
 
     return false;
-    });
+  });
 }
 
 }  // namespace blender::ed::sculpt_paint

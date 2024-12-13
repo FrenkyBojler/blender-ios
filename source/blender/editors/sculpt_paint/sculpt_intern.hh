@@ -268,7 +268,8 @@ struct StrokeCache {
   float3 sculpt_normal;
   float3 sculpt_normal_symm;
 
-  /* The center of the brush plane. For non-planar brushes, this coincides with the cursor location */
+  /* The center of the brush plane. For non-planar brushes, this coincides with the cursor location
+   */
   float3 sculpt_center_symm;
 
   /* Used for area texture mode, local_mat gets calculated by
@@ -982,22 +983,21 @@ float sculpt_calc_radius(const ViewContext &vc,
                          const Scene &scene,
                          float3 location);
 
-float4x4 calc_local_space_matrix(StrokeCache& cache, const float3& origin);
+float4x4 calc_local_space_matrix(StrokeCache &cache, const float3 &origin);
 
-float4x4 calc_texture_space_matrix(StrokeCache& cache);
+float4x4 calc_texture_space_matrix(StrokeCache &cache);
 
-bool node_in_cube(const bke::pbvh::Node& node,
-                  const float4x4& mat);
+bool node_in_cube(const bke::pbvh::Node &node, const float4x4 &mat);
 
-void push_undo_nodes(const Depsgraph& depsgraph,
-                    Object& ob,
-                    const Brush& brush,
-                    const IndexMask& node_mask);
+void push_undo_nodes(const Depsgraph &depsgraph,
+                     Object &ob,
+                     const Brush &brush,
+                     const IndexMask &node_mask);
 
-IndexMask gather_nodes(const bke::pbvh::Tree& pbvh,
-  const Brush& brush,
-  const float4x4& mat,
-  const float3& center,
-  const float radius,
-  IndexMaskMemory& memory);
-}
+IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
+                       const Brush &brush,
+                       const float4x4 &mat,
+                       const float3 &center,
+                       const float radius,
+                       IndexMaskMemory &memory);
+}  // namespace blender::ed::sculpt_paint

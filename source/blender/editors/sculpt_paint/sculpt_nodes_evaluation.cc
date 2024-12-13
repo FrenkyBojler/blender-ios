@@ -37,8 +37,8 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   bke::SculptFieldContext &context,
                                   MutableSpan<float3> outputs)
 {
-  //const bNodeTree* tree = brush.node_tree; 
-  const bNodeTree* tree = cache.node_tree;
+  // const bNodeTree* tree = brush.node_tree;
+  const bNodeTree *tree = cache.node_tree;
 
   if (tree == nullptr) {
     return;
@@ -178,7 +178,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                 Object &object,
-                                const Brush& brush,
+                                const Brush &brush,
                                 StrokeCache &cache,
                                 const Span<float3> vert_positions,
                                 const Span<int> verts,
@@ -196,14 +196,14 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations);
 }
 
-void paint_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
-  Object& object,
-  const Brush& brush,
-  StrokeCache& cache,
-  Span<float3> vert_positions,
-  Span<int> verts,
-  MutableSpan<float4> brush_colors,
-  MutableSpan<float4> current_colors)
+void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                 Object &object,
+                                 const Brush &brush,
+                                 StrokeCache &cache,
+                                 Span<float3> vert_positions,
+                                 Span<int> verts,
+                                 MutableSpan<float4> brush_colors,
+                                 MutableSpan<float4> current_colors)
 {
   Vector<float3> positions(verts.size());
 
@@ -211,7 +211,7 @@ void paint_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
     positions[i] = vert_positions[verts[i]];
   }
 
-  const Mesh* mesh = static_cast<const Mesh*>(object.data);
+  const Mesh *mesh = static_cast<const Mesh *>(object.data);
   bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts, current_colors);
 
   Vector<float3> outputs(verts.size());
@@ -226,7 +226,7 @@ void paint_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
 
 void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
-                                 const Brush& brush,
+                                 const Brush &brush,
                                  StrokeCache &cache,
                                  SubdivCCG &subdiv_ccg,
                                  Span<int> grids,

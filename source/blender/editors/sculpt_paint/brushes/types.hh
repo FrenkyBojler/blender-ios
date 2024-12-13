@@ -17,10 +17,10 @@ class Node;
 
 namespace blender::ed::sculpt_paint {
 
-void do_barebone_brush(const Depsgraph& depsgraph,
-                    const Sculpt& sd,
-                    Object& ob,
-                    const IndexMask& node_mask);
+void do_barebone_brush(const Depsgraph &depsgraph,
+                       const Sculpt &sd,
+                       Object &ob,
+                       const IndexMask &node_mask);
 void do_basic_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &ob,

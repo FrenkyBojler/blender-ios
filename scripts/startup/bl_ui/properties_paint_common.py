@@ -744,7 +744,7 @@ def brush_settings(layout, context, brush, popover=False):
         row.prop(brush, "hardness", slider=True)
         row.prop(brush, "invert_hardness_pressure", text="")
         row.prop(brush, "use_hardness_pressure", text="")
-        
+
         row = layout.row()
         row.template_ID(brush, "node_tree")
 
@@ -830,15 +830,15 @@ def brush_settings(layout, context, brush, popover=False):
 
             row = layout.row()
             row.prop(brush, "tip_scale_x")
-            
+
         elif sculpt_tool == 'BASIC':
             row = layout.row()
-            row.prop(brush, "use_cursor_as_origin");
-            
+            row.prop(brush, "use_cursor_as_origin")
+
         elif sculpt_tool == 'BAREBONE':
             row = layout.row()
             layout.prop(brush, "sculpt_brush_shape")
-            row.prop(brush, "use_cursor_as_origin");
+            row.prop(brush, "use_cursor_as_origin")
 
         elif sculpt_tool == 'ELASTIC_DEFORM':
             layout.separator()
