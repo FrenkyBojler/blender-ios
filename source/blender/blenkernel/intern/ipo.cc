@@ -1789,14 +1789,13 @@ static void ipo_to_animato(ID *id,
 }
 
 /**
- * Ensure that the action is a modern layered action, upgrading if necessary.
+ * Convert a pre-Animato Action to an Animato Action and drivers.
  *
- * This deals with both Animato and pre-Animato actions, ensuring that they are
- * fully upgraded. In the case of a pre-Animato action, it may contain drivers
- * as well, which are converted and added to `drivers`.
  *
  * New curves may not be converted directly into the given Action (i.e. for Actions linked
  * to Objects, where ob->ipo and ob->action need to be combined).
+ *
+ * Pre-Animato Actions can contain drivers, which are added to `drivers`.
  *
  * Note: this was refactored from older code. In general `groups` and `curves`
  * should just be from `act`, and `drivers` should be from the adt of `id`.
@@ -1804,6 +1803,60 @@ static void ipo_to_animato(ID *id,
  * spaghetti of where this is called it wasn't clear to me (Nathan) if that's
  * actually *always* the case for `groups` and `curves` either, so I left them
  * as separate parameters to be on the safe side.
+ */
+static void convert_pre_animato_action_to_animato_action_in_place(
+    ID *id, bAction *act, ListBase *groups, ListBase *curves, ListBase *drivers)
+{
+  const bool is_pre_animato_action = !BLI_listbase_is_empty(&act->chanbase);
+  BLI_assert_msg(is_pre_animato_action, "Action is not pre-Animato.");
+
+  /* get rid of all Action Groups */
+  /* XXX this is risky if there's some old + some new data in the Action... */
+  if (act->groups.first) {
+    BLI_freelistN(&act->groups);
+  }
+
+  /* loop through Action-Channels, converting data, freeing as we go */
+  LISTBASE_FOREACH_MUTABLE (bActionChannel *, achan, &act->chanbase) {
+    /* convert Action Channel's IPO data */
+    if (achan->ipo) {
+      ipo_to_animato(id, achan->ipo, achan->name, nullptr, nullptr, groups, curves, drivers);
+      id_us_min(&achan->ipo->id);
+      achan->ipo = nullptr;
+    }
+
+    /* convert constraint channel IPO-data */
+    LISTBASE_FOREACH_MUTABLE (bConstraintChannel *, conchan, &achan->constraintChannels) {
+      /* convert Constraint Channel's IPO data */
+      if (conchan->ipo) {
+        ipo_to_animato(
+            id, conchan->ipo, achan->name, conchan->name, nullptr, groups, curves, drivers);
+        id_us_min(&conchan->ipo->id);
+        conchan->ipo = nullptr;
+      }
+
+      /* free Constraint Channel */
+      BLI_freelinkN(&achan->constraintChannels, conchan);
+    }
+
+    /* free Action Channel */
+    BLI_freelinkN(&act->chanbase, achan);
+  }
+}
+
+/**
+ * Ensure that the action is a modern layered action, upgrading if necessary.
+ *
+ * This deals with both Animato and pre-Animato actions, ensuring that they are
+ * fully upgraded. In the case of a pre-Animato action, it may contain drivers
+ * as well, which are converted and added to `drivers`.
+ *
+ * Much of the behavior of this function, and the reason for most of the
+ * parameters, is due to
+ * `convert_pre_animato_action_to_animato_action_in_place()`. See its
+ * documentation for more details.
+ *
+ * \see convert_pre_animato_action_to_animato_action_in_place()
  */
 static void ensure_action_is_layered(
     ID *id, bAction *act, ListBase *groups, ListBase *curves, ListBase *drivers)
@@ -1818,38 +1871,7 @@ static void ensure_action_is_layered(
    * to Animato data. Note that pre-Animato actions may include drivers! */
   const bool is_pre_animato_action = !BLI_listbase_is_empty(&act->chanbase);
   if (is_pre_animato_action) {
-    /* get rid of all Action Groups */
-    /* XXX this is risky if there's some old + some new data in the Action... */
-    if (act->groups.first) {
-      BLI_freelistN(&act->groups);
-    }
-
-    /* loop through Action-Channels, converting data, freeing as we go */
-    LISTBASE_FOREACH_MUTABLE (bActionChannel *, achan, &act->chanbase) {
-      /* convert Action Channel's IPO data */
-      if (achan->ipo) {
-        ipo_to_animato(id, achan->ipo, achan->name, nullptr, nullptr, groups, curves, drivers);
-        id_us_min(&achan->ipo->id);
-        achan->ipo = nullptr;
-      }
-
-      /* convert constraint channel IPO-data */
-      LISTBASE_FOREACH_MUTABLE (bConstraintChannel *, conchan, &achan->constraintChannels) {
-        /* convert Constraint Channel's IPO data */
-        if (conchan->ipo) {
-          ipo_to_animato(
-              id, conchan->ipo, achan->name, conchan->name, nullptr, groups, curves, drivers);
-          id_us_min(&conchan->ipo->id);
-          conchan->ipo = nullptr;
-        }
-
-        /* free Constraint Channel */
-        BLI_freelinkN(&achan->constraintChannels, conchan);
-      }
-
-      /* free Action Channel */
-      BLI_freelinkN(&act->chanbase, achan);
-    }
+    convert_pre_animato_action_to_animato_action_in_place(id, act, groups, curves, drivers);
   }
 
   /* Convert to layered action. */
