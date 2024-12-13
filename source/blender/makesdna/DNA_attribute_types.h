@@ -15,9 +15,16 @@
 #include "BLI_implicit_sharing.h"
 
 #ifdef __cplusplus
+
+#  include "BLI_span.hh"
+#  include "BLI_string_ref.hh"
+
 namespace blender {
 namespace bke {
 struct AttributeStorageRuntime;
+enum class AttrDomain : int8_t;
+enum class AttrType : int16_t;
+enum class AttrStorageType : int8_t;
 }  // namespace bke
 }  // namespace blender
 using AttributeStorageRuntimeHandle = blender::bke::AttributeStorageRuntime;
@@ -34,6 +41,10 @@ struct Attribute {
   /* What's stored here can depend on the storage type. */
   void *data;
   const ImplicitSharingInfoHandle *sharing_info;
+
+#ifdef __cplusplus
+  void ensure_mutable();
+#endif
 };
 
 struct AttributeStorage {
@@ -43,14 +54,23 @@ struct AttributeStorage {
 
   AttributeStorageRuntimeHandle *runtime;
 
-  // #ifdef __cplusplus
-  //   blender::Span<Attribute *> items() const
-  //   {
-  //     return blender::Span(this->attributes_array, this->attributes_num);
-  //   }
-  //   blender::MutableSpan<Attribute *> items()
-  //   {
-  //     return blender::MutableSpan(this->attributes_array, this->attributes_num);
-  //   }
-  // #endif
+#ifdef __cplusplus
+  blender::Span<const Attribute *> items() const
+  {
+    return blender::Span(this->attributes_array, this->attributes_num);
+  }
+  blender::MutableSpan<Attribute *> items()
+  {
+    return blender::MutableSpan(this->attributes_array, this->attributes_num);
+  }
+  const Attribute *lookup(blender::StringRef name) const;
+  Attribute *lookup_for_write(blender::StringRef name);
+  bool remove(blender::StringRef name);
+  Attribute *add(blender::StringRef attribute_id,
+                 blender::bke::AttrDomain domain,
+                 blender::bke::AttrType data_type,
+                 blender::bke::AttrStorageType storage_type,
+                 const void *data,
+                 const blender::ImplicitSharingInfo *sharing_info);
+#endif
 };

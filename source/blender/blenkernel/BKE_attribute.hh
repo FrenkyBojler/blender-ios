@@ -31,10 +31,6 @@ class GField;
 
 namespace blender::bke {
 
-class AttributeStorageRuntime {
-  Map<StringRef, Attribute *> name_map;
-};
-
 /** Some storage types are only relevant for certain attribute types. */
 enum class AttrStorageType : int8_t {
   /** A contiguous array of values. */
