@@ -5370,9 +5370,6 @@ static void stroke_update_step(bContext *C,
     cache->step++;
   }
 
-  Main *bmain = CTX_data_main(C);
-  cache->node_tree = (bNodeTree *)BKE_libblock_find_name(bmain, ID_NT, "brush");
-
   SCULPT_stroke_modifiers_check(C, ob, brush);
   sculpt_update_cache_variants(C, sd, ob, itemptr);
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);

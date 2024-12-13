@@ -377,8 +377,6 @@ struct StrokeCache {
   rcti previous_r; /* previous redraw rectangle */
   rcti current_r;  /* current redraw rectangle */
 
-  bNodeTree *node_tree;
-
   ~StrokeCache();
 };
 

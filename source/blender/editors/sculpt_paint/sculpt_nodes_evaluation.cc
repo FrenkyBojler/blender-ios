@@ -37,8 +37,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   bke::SculptFieldContext &context,
                                   MutableSpan<float3> outputs)
 {
-  // const bNodeTree* tree = brush.node_tree;
-  const bNodeTree *tree = cache.node_tree;
+  const bNodeTree* tree = brush.node_tree;
 
   if (tree == nullptr) {
     return;
