@@ -459,10 +459,14 @@ DefNode(GeometryNode, GEO_NODE_SAMPLE_NEAREST, 0, "SAMPLE_NEAREST", SampleNeares
 DefNode(GeometryNode, GEO_NODE_SAMPLE_UV_SURFACE, 0, "SAMPLE_UV_SURFACE", SampleUVSurface, "Sample UV Surface", "Calculate the interpolated values of a mesh attribute at a UV coordinate")
 DefNode(GeometryNode, GEO_NODE_SCALE_ELEMENTS, 0, "SCALE_ELEMENTS", ScaleElements, "Scale Elements", "Scale groups of connected edges and faces")
 DefNode(GeometryNode, GEO_NODE_SCALE_INSTANCES, 0, "SCALE_INSTANCES", ScaleInstances, "Scale Instances", "Scale geometry instances in local or global space")
+
+/* TODO: add proper descriptions */
 DefNode(GeometryNode, GEO_NODE_SCULPT_ACTIVE_MESH, 0, "SCULPT_ACTIVE_MESH", SculptActiveMesh, "Active Mesh", "Active Mesh")
 DefNode(GeometryNode, GEO_NODE_SCULPT_BRUSH_INFO, 0, "SCULPT_BRUSH_INFO", SculptBrushInfo, "Brush Info", "Brush Info")
 DefNode(GeometryNode, GEO_NODE_SCULPT_PEN_PRESSURE, 0, "SCULPT_PEN_PRESSURE", SculptPenPressure, "Pen Pressure", "Pen Pressure")
 DefNode(GeometryNode, GEO_NODE_SCULPT_STROKE_INFO, 0, "SCULPT_STROKE_INFO", SculptStrokeInfo, "Stroke Info", "Stroke Info")
+DefNode(GeometryNode, GEO_NODE_SCULPT_VERTEX_COLOR, 0, "SCULPT_VERTEX_COLOR", SculptVertexColor, "Vertex Color", "Vertex Color")
+
 DefNode(GeometryNode, GEO_NODE_SDF_GRID_BOOLEAN, 0, "SDF_GRID_BOOLEAN", SDFGridBoolean, "SDF Grid Boolean", "Cut, subtract, or join multiple SDF volume grid inputs")
 DefNode(GeometryNode, GEO_NODE_SELF_OBJECT, 0, "SELF_OBJECT", SelfObject, "Self Object", "Retrieve the object that contains the geometry nodes modifier currently being executed")
 DefNode(GeometryNode, GEO_NODE_SEPARATE_COMPONENTS, 0, "SEPARATE_COMPONENTS",SeparateComponents, "Separate Components", "Split a geometry into a separate output for each type of data in the geometry")

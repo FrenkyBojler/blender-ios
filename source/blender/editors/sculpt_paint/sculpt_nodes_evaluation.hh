@@ -35,5 +35,6 @@ void paint_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
   StrokeCache& cache,
   Span<float3> positions,
   Span<int> verts,
-  MutableSpan<float4> colors);
+  MutableSpan<float4> brush_colors,
+  MutableSpan<float4> current_colors);
 }  // namespace blender::ed::sculpt_paint

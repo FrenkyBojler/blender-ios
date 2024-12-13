@@ -457,7 +457,7 @@ static void do_paint_brush_task(const Scene &scene,
   brush_colors.fill(brush_color);
 
   paint_sculpt_nodes_evaluate(
-    depsgraph, object, brush, *ss.cache, vert_positions, verts, brush_colors);
+    depsgraph, object, brush, *ss.cache, vert_positions, verts, brush_colors, new_colors);
 
   for (const int i : verts.index_range()) {
     /* Brush paint color, brush test falloff and flow. */
