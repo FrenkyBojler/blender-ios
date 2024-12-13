@@ -10,6 +10,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Float>("Strength").description("Strength");
   b.add_output<decl::Float>("Radius").description("Radius");
+  b.add_output<decl::Color>("Color").description("Color");
   b.add_output<decl::Float>("Flip").description("Flip");
 }
 
@@ -20,9 +21,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (call_data && call_data->sculpt_data) {
     const float strength = call_data->sculpt_data->strength;
     const float radius = call_data->sculpt_data->radius;
+    const float4 color = call_data->sculpt_data->color;
     const bool flip = call_data->sculpt_data->flip;
     params.set_output("Strength", strength);
     params.set_output("Radius", radius);
+    params.set_output("Color", ColorGeometry4f(color));
     params.set_output("Flip", flip);
   }
   else {

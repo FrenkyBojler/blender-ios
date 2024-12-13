@@ -9,6 +9,7 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
+#include "BKE_brush.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
@@ -73,6 +74,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_data.strength = brush.alpha;
   sculpt_data.is_first_step = cache.first_time;
   sculpt_data.step = cache.step;
+  sculpt_data.color = cache.paint_brush.color;
   sculpt_data.local_transform = calc_local_space_matrix(cache, cache.sculpt_center_symm);
   sculpt_data.texture_transform = calc_texture_space_matrix(cache);
   sculpt_data.depsgraph = &depsgraph;

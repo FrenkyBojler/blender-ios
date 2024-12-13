@@ -358,7 +358,7 @@ static void do_paint_brush_task(const Scene &scene,
                                 bke::GSpanAttributeWriter &color_attribute)
 {
   const SculptSession &ss = *object.sculpt;
-  const StrokeCache &cache = *ss.cache;
+  StrokeCache &cache = *ss.cache;
 
   const float bstrength = fabsf(ss.cache->bstrength);
   const float alpha = BKE_brush_alpha_get(&scene, &brush);
@@ -416,6 +416,8 @@ static void do_paint_brush_task(const Scene &scene,
                                      BKE_brush_color_get(&scene, &paint, &brush);
   float4 brush_color(brush_color_rgb, 1.0f);
   IMB_colormanagement_srgb_to_scene_linear_v3(brush_color, brush_color);
+
+  cache.paint_brush.color = brush_color;
 
   const Span<float4> orig_colors = orig_color_data_get_mesh(object, node);
 

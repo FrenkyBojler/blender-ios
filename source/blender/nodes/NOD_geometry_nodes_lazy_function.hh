@@ -214,6 +214,7 @@ struct GeoNodesSculptData {
   float flip;
   bool is_first_step;
   int step;
+  float4 color;
   float pen_pressure;
   float3 cursor_location;
   float3 plane_normal;

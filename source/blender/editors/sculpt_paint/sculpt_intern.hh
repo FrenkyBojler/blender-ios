@@ -296,6 +296,7 @@ struct StrokeCache {
 
   /* Paint Brush. */
   struct {
+    float4 color;
     float flow;
 
     float4 wet_mix_prev_color;
