@@ -425,15 +425,15 @@ typedef struct bNode {
   /** Parent node (for frame nodes). */
   struct bNode *parent;
 
-  /** Root location in the node canvas (in parent space). */
-  float locx, locy;
+  /** The location of the top left corner of the node on the canvas. */
+  float location[2];
   /**
    * Custom width and height controlled by users. Height is calculate automatically for most
    * nodes.
    */
   float width, height;
-  /** Additional offset from loc. TODO: Redundant with #locx and #locy, remove/deprecate. */
-  float offsetx, offsety;
+  float locx_legacy, locy_legacy;
+  float offsetx_legacy, offsety_legacy;
 
   /** Custom user-defined label, MAX_NAME. */
   char label[64];
@@ -2902,19 +2902,6 @@ typedef enum GeometryNodeCurveHandleMode {
   GEO_NODE_CURVE_HANDLE_LEFT = (1 << 0),
   GEO_NODE_CURVE_HANDLE_RIGHT = (1 << 1)
 } GeometryNodeCurveHandleMode;
-
-typedef enum GeometryNodeTriangulateNGons {
-  GEO_NODE_TRIANGULATE_NGON_BEAUTY = 0,
-  GEO_NODE_TRIANGULATE_NGON_EARCLIP = 1,
-} GeometryNodeTriangulateNGons;
-
-typedef enum GeometryNodeTriangulateQuads {
-  GEO_NODE_TRIANGULATE_QUAD_BEAUTY = 0,
-  GEO_NODE_TRIANGULATE_QUAD_FIXED = 1,
-  GEO_NODE_TRIANGULATE_QUAD_ALTERNATE = 2,
-  GEO_NODE_TRIANGULATE_QUAD_SHORTEDGE = 3,
-  GEO_NODE_TRIANGULATE_QUAD_LONGEDGE = 4,
-} GeometryNodeTriangulateQuads;
 
 typedef enum GeometryNodeDistributePointsInVolumeMode {
   GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME_DENSITY_RANDOM = 0,

@@ -136,6 +136,7 @@ struct USDExportParams {
   bool only_deform_bones = false;
 
   bool convert_world_material = true;
+  bool merge_parent_xform = false;
 
   bool use_instancing = false;
   bool export_custom_properties = true;

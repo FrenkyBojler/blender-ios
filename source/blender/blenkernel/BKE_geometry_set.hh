@@ -28,10 +28,9 @@ struct PointCloud;
 struct Volume;
 struct GreasePencil;
 namespace blender::bke {
-struct AttributeKind;
+struct AttributeDomainAndType;
 class AttributeAccessor;
 struct AttributeMetaData;
-class ComponentAttributeProviders;
 class CurvesEditHints;
 class Instances;
 class GeometryComponent;
@@ -255,11 +254,12 @@ struct GeometrySet {
                          bool include_instances,
                          AttributeForeachCallback callback) const;
 
-  void gather_attributes_for_propagation(Span<GeometryComponent::Type> component_types,
-                                         GeometryComponent::Type dst_component_type,
-                                         bool include_instances,
-                                         const AttributeFilter &attribute_filter,
-                                         Map<StringRef, AttributeKind> &r_attributes) const;
+  void gather_attributes_for_propagation(
+      Span<GeometryComponent::Type> component_types,
+      GeometryComponent::Type dst_component_type,
+      bool include_instances,
+      const AttributeFilter &attribute_filter,
+      Map<StringRef, AttributeDomainAndType> &r_attributes) const;
 
   Vector<GeometryComponent::Type> gather_component_types(bool include_instances,
                                                          bool ignore_empty) const;
@@ -363,6 +363,10 @@ struct GeometrySet {
    */
   const CurvesEditHints *get_curve_edit_hints() const;
   /**
+   * Returns read-only Grease Pencil edit hints or null.
+   */
+  const GreasePencilEditHints *get_grease_pencil_edit_hints() const;
+  /**
    * Returns read-only gizmo edit hints or null.
    */
   const GizmoEditHints *get_gizmo_edit_hints() const;
@@ -395,6 +399,10 @@ struct GeometrySet {
    * Returns mutable curve edit hints or null.
    */
   CurvesEditHints *get_curve_edit_hints_for_write();
+  /**
+   * Returns mutable Grease Pencil edit hints or null.
+   */
+  GreasePencilEditHints *get_grease_pencil_edit_hints_for_write();
   /**
    * Returns mutable gizmo edit hints or null.
    */

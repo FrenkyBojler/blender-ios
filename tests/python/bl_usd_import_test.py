@@ -18,12 +18,15 @@ class AbstractUSDTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.testdir = args.testdir
-        cls._tempdir = tempfile.TemporaryDirectory()
-        cls.tempdir = pathlib.Path(cls._tempdir.name)
 
     def setUp(self):
+        self._tempdir = tempfile.TemporaryDirectory()
+        self.tempdir = pathlib.Path(self._tempdir.name)
+
         self.assertTrue(self.testdir.exists(),
                         'Test dir {0} should exist'.format(self.testdir))
+        self.assertTrue(self.tempdir.exists(),
+                        'Temp dir {0} should exist'.format(self.tempdir))
 
         # Make sure we always start with a known-empty file.
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
@@ -36,8 +39,8 @@ class USDImportTest(AbstractUSDTest):
     # Utility function to round each component of a vector to a few digits. The "+ 0" is to
     # ensure that any negative zeros (-0.0) are converted to positive zeros (0.0).
     @staticmethod
-    def round_vector(vector):
-        return [round(c, 5) + 0 for c in vector]
+    def round_vector(vector, digits=5):
+        return [round(c, digits) + 0 for c in vector]
 
     def test_import_operator(self):
         """Test running the import operator on valid and invalid files."""
@@ -198,6 +201,28 @@ class USDImportTest(AbstractUSDTest):
         coords = list(filter(lambda x: x[0] > 1.0, coords))
         self.assertGreater(len(coords), 16)
 
+    def test_import_mesh_subd(self):
+        """Test importing meshes with subdivision attributes."""
+
+        # Use the existing mesh subd test file to create the USD file
+        # for import. It is validated as part of the bl_usd_export test.
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_mesh_subd.blend"))
+        testfile = str(self.tempdir / "usd_mesh_subd.usda")
+        bpy.ops.wm.usd_export(filepath=testfile, export_subdivision='BEST_MATCH', evaluation_mode="RENDER")
+        res = bpy.ops.wm.usd_export(filepath=testfile, export_materials=True)
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {testfile}")
+
+        # Reload the empty file and import back in
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        res = bpy.ops.wm.usd_import(filepath=testfile)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        # Validate crease attributes
+
+        mesh = bpy.data.objects["crease_verts"].data
+        blender_crease_vert_data = [round(d.value, 5) for d in mesh.attributes["crease_vert"].data]
+        self.assertEqual(blender_crease_vert_data, [0.3, 0.0, 0.2, 0.1, 0.8, 0.7, 1.0, 0.9])
+
     def test_import_camera_properties(self):
         """Test importing camera to ensure properties set correctly."""
 
@@ -232,13 +257,19 @@ class USDImportTest(AbstractUSDTest):
         self.assertAlmostEqual(2.281, test_cam.shift_x, 3)
         self.assertAlmostEqual(0.496, test_cam.shift_y, 3)
 
-    def test_import_materials(self):
+    def assert_all_nodes_present(self, mat, node_list):
+        nodes = mat.node_tree.nodes
+        self.assertEqual(len(nodes), len(node_list))
+        for node in node_list:
+            self.assertTrue(nodes.find(node) >= 0, f"Could not find node '{node}' in material '{mat.name}'")
+
+    def test_import_materials1(self):
         """Validate UsdPreviewSurface shader graphs."""
 
         # Use the existing materials test file to create the USD file
         # for import. It is validated as part of the bl_usd_export test.
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_export.blend"))
-        testfile = str(self.tempdir / "temp_materials.usda")
+        testfile = str(self.tempdir / "usd_materials_export.usda")
         res = bpy.ops.wm.usd_export(filepath=str(testfile), export_materials=True)
         self.assertEqual({'FINISHED'}, res, f"Unable to export to {testfile}")
 
@@ -250,43 +281,77 @@ class USDImportTest(AbstractUSDTest):
         # Most shader graph validation should occur through the Hydra render test suite. Here we
         # will only check some high-level criteria for each expected node graph.
 
-        def assert_all_nodes_present(mat, node_list):
-            nodes = mat.node_tree.nodes
-            self.assertEqual(len(nodes), len(node_list))
-            for node in node_list:
-                self.assertTrue(nodes.find(node) >= 0, f"Could not find node '{node}' in material '{mat.name}'")
-
-        mat = bpy.data.materials["Material"]
-        assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map", "Material Output"])
-
-        mat = bpy.data.materials["Clip_With_LessThanInvert"]
-        assert_all_nodes_present(
-            mat, ["Principled BSDF", "Image Texture", "UV Map", "Math", "Math.001", "Material Output"])
-        node = [n for n in mat.node_tree.nodes if n.type == 'MATH' and n.operation == "LESS_THAN"][0]
-        self.assertAlmostEqual(node.inputs[1].default_value, 0.2, 3)
-
-        mat = bpy.data.materials["Clip_With_Round"]
-        assert_all_nodes_present(
-            mat, ["Principled BSDF", "Image Texture", "UV Map", "Math", "Math.001", "Material Output"])
-        node = [n for n in mat.node_tree.nodes if n.type == 'MATH' and n.operation == "LESS_THAN"][0]
-        self.assertAlmostEqual(node.inputs[1].default_value, 0.5, 3)
-
         mat = bpy.data.materials["Transforms"]
-        assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map", "Mapping", "Material Output"])
+        self.assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map", "Mapping", "Material Output"])
         node = mat.node_tree.nodes["Mapping"]
         self.assertEqual(self.round_vector(node.inputs[1].default_value), [0.75, 0.75, 0])
         self.assertEqual(self.round_vector(node.inputs[2].default_value), [0, 0, 3.14159])
         self.assertEqual(self.round_vector(node.inputs[3].default_value), [0.5, 0.5, 1])
 
         mat = bpy.data.materials["NormalMap"]
-        assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map", "Normal Map", "Material Output"])
+        self.assert_all_nodes_present(
+            mat, ["Principled BSDF", "Image Texture", "UV Map", "Normal Map", "Material Output"])
 
         mat = bpy.data.materials["NormalMap_Scale_Bias"]
-        assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map",
-                                       "Normal Map", "Vector Math", "Vector Math.001", "Material Output"])
+        self.assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map",
+                                            "Normal Map", "Vector Math", "Vector Math.001", "Material Output"])
         node = mat.node_tree.nodes["Vector Math"]
         self.assertEqual(self.round_vector(node.inputs[1].default_value), [2, -2, 2])
         self.assertEqual(self.round_vector(node.inputs[2].default_value), [-1, 1, -1])
+
+    def test_import_materials2(self):
+        """Validate UsdPreviewSurface shader graphs."""
+
+        # Use the existing materials test file to create the USD file
+        # for import. It is validated as part of the bl_usd_export test.
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_channels.blend"))
+        testfile = str(self.tempdir / "usd_materials_channels.usda")
+        res = bpy.ops.wm.usd_export(filepath=str(testfile), export_materials=True)
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {testfile}")
+
+        # Reload the empty file and import back in
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        res = bpy.ops.wm.usd_import(filepath=testfile)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        # Most shader graph validation should occur through the Hydra render test suite. Here we
+        # will only check some high-level criteria for each expected node graph.
+
+        mat = bpy.data.materials["Opaque"]
+        self.assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map", "Material Output"])
+
+        mat = bpy.data.materials["Alpha"]
+        self.assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map", "Material Output"])
+
+        mat = bpy.data.materials["AlphaClip_LessThan"]
+        self.assert_all_nodes_present(
+            mat, ["Principled BSDF", "Image Texture", "UV Map", "Math", "Math.001", "Material Output"])
+        node = [n for n in mat.node_tree.nodes if n.type == 'MATH' and n.operation == "LESS_THAN"][0]
+        self.assertAlmostEqual(node.inputs[1].default_value, 0.8, 3)
+
+        mat = bpy.data.materials["AlphaClip_Round"]
+        self.assert_all_nodes_present(
+            mat, ["Principled BSDF", "Image Texture", "UV Map", "Math", "Math.001", "Material Output"])
+        node = [n for n in mat.node_tree.nodes if n.type == 'MATH' and n.operation == "LESS_THAN"][0]
+        self.assertAlmostEqual(node.inputs[1].default_value, 0.5, 3)
+
+        mat = bpy.data.materials["Channel"]
+        self.assert_all_nodes_present(
+            mat, ["Principled BSDF", "Image Texture", "Separate Color", "UV Map", "Material Output"])
+
+        mat = bpy.data.materials["ChannelClip_LessThan"]
+        self.assert_all_nodes_present(
+            mat,
+            ["Principled BSDF", "Image Texture", "Separate Color", "UV Map", "Math", "Math.001", "Material Output"])
+        node = [n for n in mat.node_tree.nodes if n.type == 'MATH' and n.operation == "LESS_THAN"][0]
+        self.assertAlmostEqual(node.inputs[1].default_value, 0.2, 3)
+
+        mat = bpy.data.materials["ChannelClip_Round"]
+        self.assert_all_nodes_present(
+            mat,
+            ["Principled BSDF", "Image Texture", "Separate Color", "UV Map", "Math", "Math.001", "Material Output"])
+        node = [n for n in mat.node_tree.nodes if n.type == 'MATH' and n.operation == "LESS_THAN"][0]
+        self.assertAlmostEqual(node.inputs[1].default_value, 0.5, 3)
 
     def test_import_material_subsets(self):
         """Validate multiple materials assigned to the same mesh work correctly."""
@@ -493,6 +558,7 @@ class USDImportTest(AbstractUSDTest):
         ob_arm = bpy.data.objects["column_anim_armature"]
         ob_arm2_side_a = bpy.data.objects["side_a"]
         ob_arm2_side_b = bpy.data.objects["side_b"]
+        self.assertEqual(bpy.data.objects["Armature"].animation_data.action.name, "ArmatureAction_001")
 
         bpy.context.scene.frame_set(1)
         self.assertEqual(len(ob_xform.constraints), 1)
@@ -638,7 +704,7 @@ class USDImportTest(AbstractUSDTest):
             self.assertAlmostEqual(mesh_obj.vertex_groups['Elbow'].weight(
                 8 + i), 1.0, 2, "Unexpected weight for Elbow deform vert")
 
-        action = bpy.data.actions['SkelAction']
+        action = bpy.data.actions['Anim1']
 
         # Verify the Elbow joint rotation animation.
         curve_path = 'pose.bones["Elbow"].rotation_quaternion'
@@ -862,6 +928,58 @@ class USDImportTest(AbstractUSDTest):
         horizontal_points = len(bpy.data.pointclouds['horizontalpoints'].attributes["position"].data)
         self.assertEqual(3, vertical_points)
         self.assertEqual(2, horizontal_points)
+
+    def test_import_point_instancer_animation(self):
+        """Test importing an animated point instancer setup."""
+
+        infile = str(self.testdir / "usd_point_instancer_anim.usda")
+        res = bpy.ops.wm.usd_import(filepath=infile)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
+
+        prev_unique_positions = set()
+        prev_unique_scales = set()
+        prev_unique_quats = set()
+
+        # Check all frames to ensure instances are moving correctly
+        for frame in range(1, 5):
+            bpy.context.scene.frame_set(frame)
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+
+            # Gather the instance data in a set so we can detect unique values
+            unique_positions = set()
+            unique_scales = set()
+            unique_quats = set()
+            mesh_count = 0
+            for inst in depsgraph.object_instances:
+                if inst.is_instance and inst.object.type == 'MESH':
+                    mesh_count += 1
+                    unique_positions.add(tuple(self.round_vector(inst.matrix_world.to_translation())))
+                    unique_scales.add(tuple(self.round_vector(inst.matrix_world.to_scale(), 1)))
+                    unique_quats.add(tuple(self.round_vector(inst.matrix_world.to_quaternion())))
+
+            # There should be 6 total mesh instances
+            self.assertEqual(mesh_count, 6)
+
+            # Positions: All positions should be unique during each frame.
+            # Scale and Orientation: One unique value on frame 1. Subsequent frames have different
+            # combinations of unique values.
+            self.assertEqual(len(unique_positions), 6, f"Frame {frame}: positions are unexpected")
+            if frame == 1:
+                self.assertEqual(len(unique_scales), 1, f"Frame {frame}: scales are unexpected")
+                self.assertEqual(len(unique_quats), 1, f"Frame {frame}: orientations are unexpected")
+            else:
+                self.assertEqual(len(unique_scales), 2, f"Frame {frame}: scales are unexpected")
+                self.assertEqual(len(unique_quats), 3, f"Frame {frame}: orientations are unexpected")
+
+            # Every frame is different. Ensure that the current frame's values do NOT match the
+            # previous frame's data.
+            self.assertNotEqual(unique_positions, prev_unique_positions)
+            self.assertNotEqual(unique_scales, prev_unique_scales)
+            self.assertNotEqual(unique_quats, prev_unique_quats)
+
+            prev_unique_positions = unique_positions
+            prev_unique_scales = unique_scales
+            prev_unique_quats = unique_quats
 
     def test_import_light_types(self):
         """Test importing light types and attributes."""
@@ -1434,6 +1552,53 @@ class USDImportTest(AbstractUSDTest):
         check_image("test_normal_invertY.exr", 1, 128, False)
         check_image("color_121212.hdr", 1, 4, False)
         check_materials()
+
+    def test_get_prim_map_parent_xform_not_merged(self):
+        bpy.utils.register_class(GetPrimMapUsdImportHook)
+        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=False)
+        prim_map = GetPrimMapUsdImportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdImportHook)
+
+        expected_prim_map = {
+            "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
+            "/XformThenCube": [bpy.data.objects["XformThenCube"]],
+            "/XformThenCube/Cube": [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
+            "/XformThenXformCube": [bpy.data.objects["XformThenXformCube"]],
+            "/XformThenXformCube/XformIntermediate": [bpy.data.objects["XformIntermediate"]],
+            "/XformThenXformCube/XformIntermediate/Cube": [bpy.data.objects["Cube.001"], bpy.data.meshes["Cube.001"]],
+            "/Material": [bpy.data.materials["Material"]],
+        }
+
+        self.assertDictEqual(prim_map, expected_prim_map)
+
+    def test_get_prim_map_parent_xform_merged(self):
+        bpy.utils.register_class(GetPrimMapUsdImportHook)
+        bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_name_property_template.usda"), merge_parent_xform=True)
+        prim_map = GetPrimMapUsdImportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdImportHook)
+
+        expected_prim_map = {
+            "/Cube": [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
+            "/XformThenCube": [bpy.data.objects["Cube"]],
+            "/XformThenCube/Cube": [bpy.data.meshes["Cube"]],
+            "/XformThenXformCube": [bpy.data.objects["XformThenXformCube"]],
+            "/XformThenXformCube/XformIntermediate": [bpy.data.objects["Cube.001"]],
+            "/XformThenXformCube/XformIntermediate/Cube": [bpy.data.meshes["Cube.001"]],
+            "/Material": [bpy.data.materials["Material"]],
+        }
+
+        self.assertDictEqual(prim_map, expected_prim_map)
+
+
+class GetPrimMapUsdImportHook(bpy.types.USDHook):
+    bl_idname = "get_prim_map_usd_import_hook"
+    bl_label = "Get Prim Map Usd Import Hook"
+
+    prim_map = None
+
+    @staticmethod
+    def on_import(context):
+        GetPrimMapUsdImportHook.prim_map = context.get_prim_map()
 
 
 def main():

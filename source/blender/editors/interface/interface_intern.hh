@@ -1048,7 +1048,7 @@ uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
  */
 void ui_pie_menu_level_create(uiBlock *block,
                               wmOperatorType *ot,
-                              const char *propname,
+                              const blender::StringRefNull propname,
                               IDProperty *properties,
                               const EnumPropertyItem *items,
                               int totitem,
@@ -1609,7 +1609,10 @@ void ui_interface_tag_script_reload_queries();
 /* interface_view.cc */
 
 void ui_block_free_views(uiBlock *block);
-void ui_block_views_bounds_calc(const uiBlock *block);
+void ui_block_views_end(ARegion *region, const uiBlock *block);
+void ui_block_view_persistent_state_restore(const ARegion &region,
+                                            const uiBlock &block,
+                                            blender::ui::AbstractView &view);
 void ui_block_views_listen(const uiBlock *block, const wmRegionListenerParams *listener_params);
 void ui_block_views_draw_overlays(const ARegion *region, const uiBlock *block);
 blender::ui::AbstractView *ui_block_view_find_matching_in_old_block(
