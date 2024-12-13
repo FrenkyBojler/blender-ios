@@ -47,7 +47,7 @@ class VKBuffer : public NonCopyable {
   bool create(size_t size,
               GPUUsageType usage,
               VkBufferUsageFlags buffer_usage,
-              bool is_host_visible = true);
+              bool is_host_visible);
   void clear(VKContext &context, uint32_t clear_value);
   void update_immediately(const void *data) const;
 
