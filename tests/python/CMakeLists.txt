@@ -638,8 +638,8 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     message(
       WARNING "Disabling render tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
     )
-  elseif(NOT WITH_COMPOSITOR_CPU)
-    message(WARNING "Disabling render tests because WITH_COMPOSITOR_CPU is disabled")
+  elseif(NOT WITH_COMPOSITOR)
+    message(WARNING "Disabling render tests because WITH_COMPOSITOR is disabled")
   elseif(NOT WITH_OPENCOLORIO)
     message(WARNING "Disabling render tests because WITH_OPENCOLORIO is disabled")
   else()
@@ -867,9 +867,9 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
   endif()
 endif()
 
-if(WITH_COMPOSITOR_CPU)
+if(WITH_COMPOSITOR)
   if(NOT OPENIMAGEIO_TOOL)
-    message(WARNING "Disabling Compositor CPU tests because OIIO oiiotool does not exist")
+    message(WARNING "Disabling Compositor tests because OIIO oiiotool does not exist")
   else()
     set(compositor_tests
       color
@@ -898,8 +898,8 @@ if(WITH_COMPOSITOR_CPU)
   endif()
 endif()
 
-# NOTE: WITH_COMPOSITOR_CPU is needed for rendering.
-if(WITH_COMPOSITOR_REALTIME_TESTS AND WITH_COMPOSITOR_CPU)
+# NOTE: WITH_COMPOSITOR is needed for rendering.
+if(WITH_COMPOSITOR_REALTIME_TESTS AND WITH_COMPOSITOR)
   if(NOT OPENIMAGEIO_TOOL)
     message(WARNING "Disabling realtime compositor tests because OIIO oiiotool does not exist")
   else()

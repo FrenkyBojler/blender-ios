@@ -103,7 +103,7 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_COMPOSITOR_CPU
+#ifdef WITH_COMPOSITOR
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);

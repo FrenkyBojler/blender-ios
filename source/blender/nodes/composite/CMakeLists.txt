@@ -144,11 +144,11 @@ if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_OPENEXR)
 endif()
 
-if(WITH_COMPOSITOR_CPU)
+if(WITH_COMPOSITOR)
   list(APPEND INC
     ../../compositor
   )
-  add_definitions(-DWITH_COMPOSITOR_CPU)
+  add_definitions(-DWITH_COMPOSITOR)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)

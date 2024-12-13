@@ -181,11 +181,11 @@ if(WITH_INPUT_IME)
   add_definitions(-DWITH_INPUT_IME)
 endif()
 
-if(WITH_COMPOSITOR_CPU)
+if(WITH_COMPOSITOR)
   list(APPEND LIB
     bf_compositor
   )
-  add_definitions(-DWITH_COMPOSITOR_CPU)
+  add_definitions(-DWITH_COMPOSITOR)
 endif()
 
 if(WITH_XR_OPENXR)

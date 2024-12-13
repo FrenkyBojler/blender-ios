@@ -4,7 +4,7 @@
 
 add_subdirectory(realtime_compositor)
 
-if(WITH_COMPOSITOR_CPU)
+if(WITH_COMPOSITOR)
   set(INC
     .
     intern
@@ -87,5 +87,5 @@ if(WITH_COMPOSITOR_CPU)
   # RNA_prototypes.hh
   add_dependencies(bf_compositor bf_rna)
 
-# End WITH_COMPOSITOR_CPU.
+# End WITH_COMPOSITOR.
 endif()

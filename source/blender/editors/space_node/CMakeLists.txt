@@ -64,8 +64,8 @@ set(LIB
   PRIVATE bf::extern::fmtlib
 )
 
-if(WITH_COMPOSITOR_CPU)
-  add_definitions(-DWITH_COMPOSITOR_CPU)
+if(WITH_COMPOSITOR)
+  add_definitions(-DWITH_COMPOSITOR)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)
