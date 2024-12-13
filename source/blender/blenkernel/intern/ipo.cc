@@ -1816,7 +1816,8 @@ static void ensure_action_is_layered(
 
   /* If there are Action Channels, indicating a pre-Animato action, then convert
    * to Animato data. Note that pre-Animato actions may include drivers! */
-  if (!BLI_listbase_is_empty(&act->chanbase)) {
+  const bool is_pre_animato_action = !BLI_listbase_is_empty(&act->chanbase);
+  if (is_pre_animato_action) {
     /* get rid of all Action Groups */
     /* XXX this is risky if there's some old + some new data in the Action... */
     if (act->groups.first) {
