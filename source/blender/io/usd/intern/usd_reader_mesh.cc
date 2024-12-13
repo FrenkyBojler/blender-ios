@@ -123,7 +123,8 @@ static void assign_materials(Main *bmain,
         continue;
       }
 
-      const bool have_import_hook = settings.mat_import_hook_sources.contains(item.key.GetAsString());
+      const bool have_import_hook = settings.mat_import_hook_sources.contains(
+          item.key.GetAsString());
 
       /* Add the Blender material. If we have an import hook which can handle this material
        * we don't import USD Preview Surface shaders. */
@@ -148,7 +149,8 @@ static void assign_materials(Main *bmain,
       if (have_import_hook) {
         /* Defer invoking the hook to convert the material till we can do so from
          * the main thread. */
-        settings.usd_path_to_mat_for_hook.lookup_or_add_default(item.key.GetAsString()) = assigned_mat;
+        settings.usd_path_to_mat_for_hook.lookup_or_add_default(
+            item.key.GetAsString()) = assigned_mat;
       }
     }
 

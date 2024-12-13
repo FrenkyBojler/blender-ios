@@ -20,8 +20,6 @@
 #include "RNA_types.hh"
 #include "bpy_rna.hh"
 
-
-
 #include <list>
 #include <memory>
 

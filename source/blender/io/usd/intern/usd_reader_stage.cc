@@ -587,8 +587,7 @@ void USDStageReader::find_material_import_hook_sources()
   for (pxr::UsdPrim prim : range) {
     if (prim.IsA<pxr::UsdShadeMaterial>()) {
       pxr::UsdShadeMaterial usd_mat(prim);
-      if (have_material_import_hook(stage_, usd_mat, params_, reports()))
-      {
+      if (have_material_import_hook(stage_, usd_mat, params_, reports())) {
         settings_.mat_import_hook_sources.add(prim.GetPath().GetAsString());
       }
     }
