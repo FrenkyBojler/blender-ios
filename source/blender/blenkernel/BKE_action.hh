@@ -81,7 +81,7 @@ bAction *BKE_action_add(Main *bmain, const char name[]);
 bool is_action_layered(const bAction &action);
 
 /**
- * Convert a legacy Animato action to a modern legacy Action.
+ * Convert a legacy Animato action to a modern layered Action.
  *
  * This conversion is done in-place, modifying the action. This function does
  * *not* work on pre-Animato actions.
