@@ -485,8 +485,8 @@ class Armatures : Overlay {
 
     ctx.bone_buf = is_transparent ? &transparent_ : &opaque_;
 
-    ctx.is_filled = ((!draw_transparent && !draw_as_wire) || is_edit_or_pose_mode) &&
-                    !state.show_wireframe_bone();
+    ctx.is_filled = (!draw_transparent && !draw_as_wire) ||
+                    (is_edit_or_pose_mode && !state.show_wireframe_bone());
     ctx.show_relations = show_relations;
     ctx.do_relations = show_relations && is_edit_or_pose_mode;
     ctx.draw_envelope_distance = is_edit_or_pose_mode;
