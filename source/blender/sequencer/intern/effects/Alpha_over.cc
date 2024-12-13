@@ -11,7 +11,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <mutex>
 
 #include "MEM_guardedalloc.h"
 
