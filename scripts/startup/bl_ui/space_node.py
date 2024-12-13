@@ -921,6 +921,8 @@ class NODE_PT_node_tree_interface(Panel):
             return False
         if tree.is_embedded_data:
             return False
+        if not tree.bl_use_group_interface:
+            return False
         return True
 
     def draw(self, context):
@@ -1002,6 +1004,9 @@ class NODE_PT_node_tree_properties(Panel):
             layout.prop(group.asset_data, "description", text="Description")
         else:
             layout.prop(group, "description", text="Description")
+
+        if not group.bl_use_group_interface:
+            return
 
         layout.prop(group, "color_tag")
         row = layout.row(align=True)
