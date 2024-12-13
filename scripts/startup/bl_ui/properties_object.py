@@ -200,6 +200,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
         is_wire = (obj_type in {'CAMERA', 'EMPTY'})
         is_empty_image = (obj_type == 'EMPTY' and obj.empty_display_type == 'IMAGE')
         is_dupli = (obj.instance_type != 'NONE')
+        is_gpencil = (obj_type == 'GREASEPENCIL')
 
         col = layout.column(heading="Show")
         col.prop(obj, "show_name", text="Name")
@@ -223,7 +224,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
             sub.active = is_dupli
         sub.prop(obj, "display_type", text="Display As")
 
-        if is_geometry or is_dupli or is_empty_image:
+        if is_geometry or is_dupli or is_empty_image or is_gpencil:
             # Only useful with object having faces/materials...
             col.prop(obj, "color")
 
