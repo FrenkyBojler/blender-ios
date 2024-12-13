@@ -568,7 +568,7 @@ static bool mesh_batch_cache_valid(Object &object, Mesh &mesh)
     return false;
   }
 
-  if (cache->mat_len != BKE_object_material_count_eval(&object)) {
+  if (cache->mat_len != BKE_object_material_count_with_fallback_eval(&object)) {
     return false;
   }
 
@@ -594,7 +594,7 @@ static void mesh_batch_cache_init(Object &object, Mesh &mesh)
     // cache->vert_len = mesh_render_verts_len_get(mesh);
   }
 
-  cache->mat_len = BKE_object_material_count_eval(&object);
+  cache->mat_len = BKE_object_material_count_with_fallback_eval(&object);
   cache->surface_per_mat = Array<gpu::Batch *>(cache->mat_len, nullptr);
   cache->tris_per_mat = Array<gpu::IndexBuf *>(cache->mat_len, nullptr);
 

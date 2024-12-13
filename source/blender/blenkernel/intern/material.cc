@@ -798,6 +798,12 @@ int BKE_object_material_count_eval(const Object *ob)
   return std::max(ob->totcol, len_p ? *len_p : 0);
 }
 
+int BKE_object_material_count_with_fallback_eval(const Object *ob)
+{
+  const int actual_count = BKE_object_material_count_eval(ob);
+  return std::max(1, actual_count);
+}
+
 void BKE_id_material_eval_assign(ID *id, int slot, Material *material)
 {
   BLI_assert(slot >= 1);

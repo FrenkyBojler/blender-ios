@@ -935,7 +935,7 @@ blender::gpu::VertBuf *DRW_cache_object_pos_vertbuf_get(Object *ob)
 
 int DRW_cache_object_material_count_get(const Object *ob)
 {
-  return BKE_object_material_count_eval(ob);
+  return BKE_object_material_count_with_fallback_eval(ob);
 }
 
 blender::gpu::Batch **DRW_cache_object_surface_material_get(Object *ob,

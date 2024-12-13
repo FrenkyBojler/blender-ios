@@ -540,7 +540,7 @@ std::unique_ptr<MeshRenderData> mesh_render_data_create(Object &object,
 {
   std::unique_ptr<MeshRenderData> mr = std::make_unique<MeshRenderData>();
   mr->toolsettings = ts;
-  mr->materials_num = BKE_object_material_count_eval(&object);
+  mr->materials_num = BKE_object_material_count_with_fallback_eval(&object);
 
   mr->object_to_world = object_to_world;
 
