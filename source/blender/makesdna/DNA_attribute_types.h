@@ -32,15 +32,19 @@ using AttributeStorageRuntimeHandle = blender::bke::AttributeStorageRuntime;
 typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 #endif
 
+struct AttributeDataArray {
+  const void *data;
+  const ImplicitSharingInfoHandle *sharing_info;
+};
+
 struct Attribute {
   char *name;
   int8_t domain;       /* bke::AttrDomain. */
   int16_t data_type;   /* bke::AttrType. */
   int8_t storage_type; /* bke::AttrStorageType */
 
-  /* What's stored here can depend on the storage type. */
+  /** Type depends on storage type. */
   const void *data;
-  const ImplicitSharingInfoHandle *sharing_info;
 
 #ifdef __cplusplus
   void ensure_mutable();
@@ -69,11 +73,13 @@ struct AttributeStorage {
   Attribute &add(blender::StringRef name,
                  blender::bke::AttrDomain domain,
                  blender::bke::AttrType data_type,
-                 blender::bke::AttrStorageType storage_type,
-                 const void *data,
-                 const blender::ImplicitSharingInfo *sharing_info);
+                 const AttributeDataArray *data);
 
  private:
   void ensure_attribute_array_capacity(int attributes_num);
+  Attribute &add_without_data(blender::StringRef name,
+                              blender::bke::AttrDomain domain,
+                              blender::bke::AttrType data_type,
+                              blender::bke::AttrStorageType storage_type);
 #endif
 };

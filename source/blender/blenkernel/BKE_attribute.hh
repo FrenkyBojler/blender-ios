@@ -33,7 +33,7 @@ namespace blender::bke {
 
 /** Some storage types are only relevant for certain attribute types. */
 enum class AttrStorageType : int8_t {
-  /** A contiguous array of values. */
+  /** #AttributeDataArray. */
   Array,
   /** A single value for the whole attribute. */
   Single,

@@ -9,7 +9,11 @@
 
 #include "BKE_attribute.hh"
 
+using blender::ImplicitSharingInfo;
 using blender::StringRef;
+using blender::bke::AttrDomain;
+using blender::bke::AttrStorageType;
+using blender::bke::AttrType;
 
 namespace blender::bke {
 
@@ -21,7 +25,30 @@ struct AttributeStorageRuntime {
 
 void Attribute::ensure_mutable()
 {
-  // TODO
+  switch (AttrStorageType(this->storage_type)) {
+    case AttrStorageType::Array: {
+      const AttributeDataArray &data = *static_cast<const AttributeDataArray *>(this->data);
+      if (data.sharing_info->is_mutable()) {
+        data.sharing_info->tag_ensured_mutable();
+        return;
+      }
+      AttributeDataArray *new_data = static_cast<AttributeDataArray *>(
+          MEM_mallocN(sizeof(AttributeDataArray), __func__));
+
+      const AttrType type = AttrType(this->data_type);
+      //   const void *old_data = data.data;
+      //   /* Copy the layer before removing the user because otherwise the data might be freed
+      //   while
+      //    * we're still copying from it here. */
+      //   data.data = copy_layer_data(type, old_data, totelem);
+      //   data.sharing_info->remove_user_and_delete_if_last();
+      //   data.sharing_info = make_implicit_sharing_info_for_layer(type, layer.data, totelem);
+      break;
+    }
+    case AttrStorageType::Single:
+      BLI_assert_unreachable();
+      break;
+  }
 }
 
 const Attribute *AttributeStorage::lookup(const StringRef name) const
@@ -55,6 +82,17 @@ bool AttributeStorage::remove(const StringRef name)
   return true;
 }
 
+Attribute &AttributeStorage::add(const StringRef name,
+                                 const AttrDomain domain,
+                                 const AttrType data_type,
+                                 const AttributeDataArray *data)
+{
+  Attribute &attribute = this->add_without_data(name, domain, data_type, AttrStorageType::Array);
+  data->sharing_info->add_user();
+  attribute.data = data;
+  return attribute;
+}
+
 void AttributeStorage::ensure_attribute_array_capacity(const int attributes_num)
 {
   if (attributes_num > this->attributes_capacity) {
@@ -65,15 +103,16 @@ void AttributeStorage::ensure_attribute_array_capacity(const int attributes_num)
   }
 }
 
-Attribute &AttributeStorage::add(const StringRef name,
-                                 const blender::bke::AttrDomain domain,
-                                 const blender::bke::AttrType data_type,
-                                 const blender::bke::AttrStorageType storage_type,
-                                 const void *data,
-                                 const blender::ImplicitSharingInfo *sharing_info)
+Attribute &AttributeStorage::add_without_data(const StringRef name,
+                                              const AttrDomain domain,
+                                              const AttrType data_type,
+                                              const AttrStorageType storage_type)
 {
   BLI_assert(!this->lookup(name));
   this->ensure_attribute_array_capacity(this->attributes_num + 1);
+
+  this->attributes_array[this->attributes_num] = static_cast<Attribute *>(
+      MEM_mallocN(sizeof(Attribute), __func__));
   Attribute &attribute = *this->attributes_array[this->attributes_num];
   this->attributes_num++;
 
@@ -81,9 +120,7 @@ Attribute &AttributeStorage::add(const StringRef name,
   attribute.domain = int8_t(domain);
   attribute.data_type = int16_t(data_type);
   attribute.storage_type = int8_t(storage_type);
-  attribute.data = data;
-  attribute.sharing_info = sharing_info;
-  attribute.sharing_info->add_user();
   this->runtime->name_map.add_new(StringRef(attribute.name, name.size()), attribute);
+
   return attribute;
 }
