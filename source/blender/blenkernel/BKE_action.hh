@@ -78,7 +78,7 @@ bAction *BKE_action_add(Main *bmain, const char name[]);
  *
  * \see Action::is_action_layered()
  */
-bool BKE_is_action_layered(const bAction &action);
+bool BKE_action_is_layered(const bAction &action);
 
 /**
  * Convert a legacy Animato action to a modern layered Action.

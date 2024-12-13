@@ -682,7 +682,7 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
   read_layers(reader, action);
   read_slots(reader, action);
 
-  if (BKE_is_action_layered(action)) {
+  if (BKE_action_is_layered(action)) {
     /* Clear the forward-compatible storage (see action_blend_write_data()). */
     BLI_listbase_clear(&action.curves);
     BLI_listbase_clear(&action.groups);
@@ -2177,7 +2177,7 @@ void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose
   }
 }
 
-bool BKE_is_action_layered(const bAction &dna_action)
+bool BKE_action_is_layered(const bAction &dna_action)
 {
   const animrig::Action &action = dna_action.wrap();
 
@@ -2198,7 +2198,7 @@ void convert_animato_action_to_layered_action_in_place(bAction &dna_action)
                  "does not handle pre-Animato animation data.");
 
   using namespace blender::animrig;
-  if (BKE_is_action_layered(action)) {
+  if (BKE_action_is_layered(action)) {
     return;
   }
 

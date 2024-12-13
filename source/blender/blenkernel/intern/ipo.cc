@@ -1810,7 +1810,7 @@ static void ensure_action_is_layered(
 {
   /* Already converted to the most modern kind of action, so no need to
    * convert. */
-  if (BKE_is_action_layered(*act)) {
+  if (BKE_action_is_layered(*act)) {
     return;
   }
 
