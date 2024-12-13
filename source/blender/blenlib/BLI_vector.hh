@@ -250,14 +250,18 @@ class Vector {
                   sizeof(inline_buffer_) <= max_full_copy_size)
     {
       if (other.is_inline()) {
-        /* Copy the full inline buffer instead of only the used parts. This may copy uninitialized
-         * values but allows producing more optimal code than when the copy size would depend on a
-         * dynamic value. */
-        memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
-        this->increase_size_by_unchecked(size);
-
-        /* Reset other vector. */
-        other.end_ = other.inline_buffer_;
+        /* This check is technically optional. However, benchmarking shows that skipping work
+         * for empty vectors (which is a common case) is worth the extra check even in the case
+         * when the vector is not empty. */
+        if (size > 0) {
+          /* Copy the full inline buffer instead of only the used parts. This may copy
+           * uninitialized values but allows producing more optimal code than when the copy size
+           * would depend on a dynamic value. */
+          memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
+          this->increase_size_by_unchecked(size);
+          /* Reset other vector. */
+          other.end_ = other.inline_buffer_;
+        }
       }
       else {
         /* Steal the pointer. */
