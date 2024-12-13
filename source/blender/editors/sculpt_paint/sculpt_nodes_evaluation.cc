@@ -37,10 +37,15 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   bke::SculptFieldContext &context,
                                   MutableSpan<float3> outputs)
 {
-  const bNodeTree &tree = *cache.node_tree;
+  //const bNodeTree* tree = brush.node_tree; 
+  const bNodeTree* tree = cache.node_tree;
+
+  if (tree == nullptr) {
+    return;
+  }
 
   const nodes::GeometryNodesLazyFunctionGraphInfo &lf_graph_info =
-      *nodes::ensure_geometry_nodes_lazy_function_graph(tree);
+      *nodes::ensure_geometry_nodes_lazy_function_graph(*tree);
   const nodes::GeometryNodesGroupFunction &function = lf_graph_info.function;
   const lf::LazyFunction &lazy_function = *function.function;
   const int num_inputs = lazy_function.inputs().size();
@@ -81,7 +86,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   sculpt_data.self_object = &object;
 
   nodes::GeoNodesCallData call_data;
-  call_data.root_ntree = &tree;
+  call_data.root_ntree = tree;
   call_data.side_effect_nodes = {};
   call_data.sculpt_data = &sculpt_data;
 
@@ -94,11 +99,11 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   LinearAllocator<> allocator;
   Vector<GMutablePointer> inputs_to_destruct;
 
-  tree.ensure_interface_cache();
+  tree->ensure_interface_cache();
 
   /* Prepare main inputs. */
-  for (const int i : tree.interface_inputs().index_range()) {
-    const bNodeTreeInterfaceSocket &interface_socket = *tree.interface_inputs()[i];
+  for (const int i : tree->interface_inputs().index_range()) {
+    const bNodeTreeInterfaceSocket &interface_socket = *tree->interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
     const eNodeSocketDatatype socket_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
                                                        SOCK_CUSTOM;
@@ -112,8 +117,8 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
 
   /* Prepare used-outputs inputs. */
-  Array<bool> output_used_inputs(tree.interface_outputs().size(), true);
-  for (const int i : tree.interface_outputs().index_range()) {
+  Array<bool> output_used_inputs(tree->interface_outputs().size(), true);
+  for (const int i : tree->interface_outputs().index_range()) {
     param_inputs[function.inputs.output_usages[i]] = &output_used_inputs[i];
   }
 
@@ -197,24 +202,25 @@ void paint_sculpt_nodes_evaluate(const Depsgraph& depsgraph,
   StrokeCache& cache,
   Span<float3> vert_positions,
   Span<int> verts,
-  MutableSpan<float4> colors)
+  MutableSpan<float4> brush_colors,
+  MutableSpan<float4> current_colors)
 {
-  Array<float3> positions(verts.size());
+  Vector<float3> positions(verts.size());
 
   for (const int i : positions.index_range()) {
     positions[i] = vert_positions[verts[i]];
   }
 
   const Mesh* mesh = static_cast<const Mesh*>(object.data);
-  bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts, colors);
+  bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts, current_colors);
 
-  Array<float3> outputs(verts.size());
+  Vector<float3> outputs(verts.size());
   outputs.fill(float3(1.0f));
 
   sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, outputs);
 
-  for (const int i : colors.index_range()) {
-    colors[i] = float4(outputs[i], colors[i].w);
+  for (const int i : brush_colors.index_range()) {
+    brush_colors[i] = float4(outputs[i], brush_colors[i].w);
   }
 }
 
