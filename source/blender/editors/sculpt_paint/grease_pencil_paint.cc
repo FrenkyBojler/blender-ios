@@ -1034,7 +1034,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   if (placement_.use_project_to_surface()) {
     placement_.cache_viewport_depths(depsgraph, region, view3d);
   }
-  else if (placement_.use_project_to_nearest_stroke()) {
+  else if (placement_.use_project_to_stroke()) {
     placement_.cache_viewport_depths(depsgraph, region, view3d);
     placement_.set_origin_to_nearest_stroke(start_sample.mouse_position);
   }

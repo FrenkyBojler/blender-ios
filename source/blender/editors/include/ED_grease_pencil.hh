@@ -113,7 +113,7 @@ namespace blender::ed::greasepencil {
 
 enum class ReprojectMode : int8_t { Front, Side, Top, View, Cursor, Surface, Keep };
 
-enum class DrawingPlacementDepth : int8_t { ObjectOrigin, Cursor, Surface, NearestStroke };
+enum class DrawingPlacementDepth : int8_t { ObjectOrigin, Cursor, Surface, Stroke };
 
 enum class DrawingPlacementPlane : int8_t { View, Front, Side, Top, Cursor };
 
@@ -161,7 +161,7 @@ class DrawingPlacement {
 
  public:
   bool use_project_to_surface() const;
-  bool use_project_to_nearest_stroke() const;
+  bool use_project_to_stroke() const;
 
   void cache_viewport_depths(Depsgraph *depsgraph, ARegion *region, View3D *view3d);
   void set_origin_to_nearest_stroke(float2 co);

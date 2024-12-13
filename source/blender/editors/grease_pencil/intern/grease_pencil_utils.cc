@@ -95,7 +95,7 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
       placement_loc_ = layer_space_to_world_space_.location();
     }
     else if (align_flag & GP_PROJECT_DEPTH_STROKE) {
-      depth_ = DrawingPlacementDepth::NearestStroke;
+      depth_ = DrawingPlacementDepth::Stroke;
       surface_offset_ = 0.0f;
       /* Default to view placement with the object origin if we don't hit a stroke. */
       placement_loc_ = layer_space_to_world_space_.location();
@@ -271,9 +271,9 @@ bool DrawingPlacement::use_project_to_surface() const
   return depth_ == DrawingPlacementDepth::Surface;
 }
 
-bool DrawingPlacement::use_project_to_nearest_stroke() const
+bool DrawingPlacement::use_project_to_stroke() const
 {
-  return depth_ == DrawingPlacementDepth::NearestStroke;
+  return depth_ == DrawingPlacementDepth::Stroke;
 }
 
 void DrawingPlacement::cache_viewport_depths(Depsgraph *depsgraph, ARegion *region, View3D *view3d)
