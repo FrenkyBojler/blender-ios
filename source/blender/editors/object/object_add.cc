@@ -3085,6 +3085,73 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
   return newob;
 }
 
+static void mesh_to_grease_pencil_info(const bool generate_faces,
+                                       const Span<int2> edges,
+                                       const OffsetIndices<int> faces,
+                                       int &r_total_points,
+                                       int &r_total_curves)
+{
+  if (!generate_faces) {
+    r_total_curves = edges.size();
+    r_total_points = r_total_curves * 2;
+    return;
+  }
+
+  r_total_curves = edges.size() + faces.size();
+  r_total_points = r_total_curves * 2 + faces.total_size();
+}
+
+static Object *convert_mesh_to_grease_pencil(Base &base,
+                                             ObjectConversionInfo &info,
+                                             Base **r_new_base)
+{
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
+
+  const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+
+  GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain, BKE_id_name(mesh_eval->id));
+  bke::greasepencil::Layer &layer = grease_pencil->add_layer(DATA_("Converted Layer"));
+
+  const int current_frame = info.scene->r.cfra;
+  bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, current_frame);
+
+  const int edge_num = mesh_eval->edges_num;
+  const Span<float3> mesh_positions = mesh_eval->vert_positions();
+  const Span<int2> edges = mesh_eval->edges();
+  const OffsetIndices<int> faces = mesh_eval->faces();
+  const Span<int> corner_verts = mesh_eval->corner_verts();
+
+  int total_points, total_curves;
+  mesh_to_grease_pencil_info(false, edges, faces, total_points, total_curves);
+
+  bke::CurvesGeometry curves(total_points, total_curves);
+  MutableSpan<float3> positions = curves.positions_for_write();
+
+  for (const int edge_i : IndexRange(edge_num)) {
+    const int2 edge = edges[edge_i];
+    positions[edge_i * 2] = mesh_positions[edge[0]];
+    positions[edge_i * 2 + 1] = mesh_positions[edge[1]];
+  }
+
+  MutableSpan<int> offsets = curves.offsets_for_write();
+  offsets.fill(2);
+  offset_indices::accumulate_counts_to_offsets(offsets);
+
+  BKE_object_free_derived_caches(newob);
+  BKE_object_free_modifiers(newob, 0);
+
+  drawing->strokes_for_write() = std::move(curves);
+  drawing->tag_positions_changed();
+
+  newob->data = grease_pencil;
+  newob->type = OB_GREASE_PENCIL;
+
+  return newob;
+}
+
 static Object *convert_mesh(Base &base,
                             const ObjectType target,
                             ObjectConversionInfo &info,
@@ -3099,6 +3166,8 @@ static Object *convert_mesh(Base &base,
       return convert_mesh_to_point_cloud(base, info, r_new_base);
     case OB_MESH:
       return convert_mesh_to_mesh(base, info, r_new_base);
+    case OB_GREASE_PENCIL:
+      return convert_mesh_to_grease_pencil(base, info, r_new_base);
     default:
       /* Current logic does convert mesh to mesh for any other target types. This would change
        * after other types of conversion are designed and implemented. */
