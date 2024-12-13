@@ -426,7 +426,7 @@ struct bNodeType {
  * This is separate from the `NODE_CLASS_*` enum, because those have some additional items and are
  * not purely color tags. Some classes also have functional effects (e.g. `NODE_CLASS_INPUT`).
  */
-enum class NodeGroupColorTag {
+enum class NodeColorTag {
   None = 0,
   Attribute = 1,
   Color = 2,
@@ -441,6 +441,9 @@ enum class NodeGroupColorTag {
   Shader = 11,
   Texture = 12,
   Vector = 13,
+  Pattern = 14,
+  Interface = 15,
+  Group = 16,
 };
 
 using bNodeClassCallback = void (*)(void *calldata, int nclass, StringRefNull name);
@@ -693,18 +696,27 @@ void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent);
 void node_detach_node(bNodeTree *ntree, bNode *node);
 
 /**
- * Finds a node based on given socket and returns true on success.
+ * Finds a node based on given socket, returning null in the case where the socket is not part of
+ * the node tree.
  */
-bool node_find_node_try(bNodeTree *ntree, bNodeSocket *sock, bNode **r_node, int *r_sockindex);
+bNode *node_find_node_try(bNodeTree &ntree, bNodeSocket &socket);
 
 /**
- * Same as #node_find_node_try but expects that the socket definitely is in the node tree.
+ * Find the node that contains the given socket. This uses the node topology cache, meaning
+ * subsequent access after changing the node tree will be more expensive, but ammortized over time,
+ * the cost is constant.
  */
-void node_find_node(bNodeTree *ntree, bNodeSocket *sock, bNode **r_node, int *r_sockindex);
+bNode &node_find_node(bNodeTree &ntree, bNodeSocket &socket);
+const bNode &node_find_node(const bNodeTree &ntree, const bNodeSocket &socket);
+
 /**
  * Finds a node based on its name.
  */
 bNode *node_find_node_by_name(bNodeTree *ntree, StringRefNull name);
+
+/** Try to find an input item with the given identifier in the entire node interface tree. */
+const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bNodeTree &ntree,
+                                                                        StringRef identifier);
 
 bool node_is_parent_and_child(const bNode *parent, const bNode *child);
 
@@ -1383,11 +1395,13 @@ void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index);
 #define GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT 2148
 #define GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT 2149
 #define GEO_NODE_MERGE_LAYERS 2150
-#define GEO_NODE_SCULPT_BRUSH_INFO 2151
-#define GEO_NODE_SCULPT_PEN_PRESSURE 2152
-#define GEO_NODE_SCULPT_STROKE_INFO 2153
-#define GEO_NODE_SCULPT_ACTIVE_MESH 2155
-#define GEO_NODE_SCULPT_VERTEX_COLOR 2156
+#define GEO_NODE_INPUT_COLLECTION 2151
+#define GEO_NODE_INPUT_OBJECT 2152
+#define GEO_NODE_SCULPT_BRUSH_INFO 2153
+#define GEO_NODE_SCULPT_PEN_PRESSURE 2154
+#define GEO_NODE_SCULPT_STROKE_INFO 2155
+#define GEO_NODE_SCULPT_ACTIVE_MESH 2156
+#define GEO_NODE_SCULPT_VERTEX_COLOR 2157
 
 /** \} */
 
@@ -1556,10 +1570,6 @@ void node_link_set_mute(bNodeTree *ntree, bNodeLink *link, const bool muted);
 bool node_link_is_selected(const bNodeLink *link);
 
 void node_internal_relink(bNodeTree *ntree, bNode *node);
-
-float2 node_to_view(const bNode *node, float2 loc);
-
-float2 node_from_view(const bNode *node, float2 view_loc);
 
 void node_position_relative(bNode *from_node,
                             const bNode *to_node,
