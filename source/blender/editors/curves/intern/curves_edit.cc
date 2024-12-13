@@ -254,18 +254,18 @@ static IndexRange extend_range(const IndexRange &range, const bool extend)
                   range;
 }
 
-static void curves_from_selection(const IndexMask &selected_points,
-                                  const IndexRange points,
-                                  const int curve,
-                                  const bool extend_ranges,
-                                  const VArray<bool> cyclic,
-                                  Vector<int> &new_curve_offsets,
-                                  Vector<bool> &new_cyclic,
-                                  Vector<int> &src_offsets,
-                                  Vector<int> &dst_offsets,
-                                  Vector<int> &roll_src_offsets,
-                                  Vector<int> &roll_dst_offsets,
-                                  Vector<int> &curve_map)
+static void curve_offsets_from_selection(const IndexMask &selected_points,
+                                         const IndexRange points,
+                                         const int curve,
+                                         const bool extend_ranges,
+                                         const VArray<bool> cyclic,
+                                         Vector<int> &new_curve_offsets,
+                                         Vector<bool> &new_cyclic,
+                                         Vector<int> &src_offsets,
+                                         Vector<int> &dst_offsets,
+                                         Vector<int> &roll_src_offsets,
+                                         Vector<int> &roll_dst_offsets,
+                                         Vector<int> &curve_map)
 {
   if (selected_points.is_empty()) {
     return;
@@ -345,31 +345,31 @@ void split_points(const IndexMask &points_to_split,
     const IndexMask preserved_points =
         drop_singles(points_to_split.slice_content(points), points, cyclic[curve], memory)
             .complement(points, memory);
-    curves_from_selection(preserved_points,
-                          points,
-                          curve,
-                          true,
-                          cyclic,
-                          new_offsets,
-                          preserved_cyclic,
-                          preserved_src_offsets,
-                          preserved_dst_offsets,
-                          preserved_roll_src_offsets,
-                          preserved_roll_dst_offsets,
-                          curve_map);
+    curve_offsets_from_selection(preserved_points,
+                                 points,
+                                 curve,
+                                 true,
+                                 cyclic,
+                                 new_offsets,
+                                 preserved_cyclic,
+                                 preserved_src_offsets,
+                                 preserved_dst_offsets,
+                                 preserved_roll_src_offsets,
+                                 preserved_roll_dst_offsets,
+                                 curve_map);
 
-    curves_from_selection(points_to_split.slice_content(points),
-                          points,
-                          curve,
-                          false,
-                          cyclic,
-                          split_curve_offsets,
-                          split_cyclic,
-                          split_src_offsets,
-                          split_dst_offsets,
-                          split_roll_src_offsets,
-                          split_roll_dst_offsets,
-                          new_curve_map);
+    curve_offsets_from_selection(points_to_split.slice_content(points),
+                                 points,
+                                 curve,
+                                 false,
+                                 cyclic,
+                                 split_curve_offsets,
+                                 split_cyclic,
+                                 split_src_offsets,
+                                 split_dst_offsets,
+                                 split_roll_src_offsets,
+                                 split_roll_dst_offsets,
+                                 new_curve_map);
   }
 
   for (int &offset : split_dst_offsets) {
