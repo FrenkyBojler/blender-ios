@@ -40,10 +40,9 @@ std::u32string bli_str_utf8_as_u32string(const StringRef u8src)
   return u32out;
 }
 
-static std::vector<int> string_find_tokens(const StringRef text,
-                                           const StringRef token)
+static Vector<int> string_find_tokens(const StringRef text, const StringRef token)
 {
-  std::vector<int> positions;
+  Vector<int> positions;
   if (text.is_empty() || token.is_empty()) {
     return positions;
   }
@@ -53,32 +52,29 @@ static std::vector<int> string_find_tokens(const StringRef text,
   int matche_len = b_u32.size();
   int pos = 0;
   if (a_u32.substr(0, b_u32.size()) == b_u32) {
-    positions.push_back(0);
+    positions.append(0);
     pos += matche_len;
   }
   while ((pos = a_u32.find(b_u32, pos)) != std::u32string::npos) {
-    positions.push_back(pos);
+    positions.append(pos);
     pos += matche_len;
   }
   return positions;
 }
-static int out_finded_first_position(const std::vector<int> *positions)
+static int out_finded_first_position(const Vector<int> *positions)
 {
-  if (positions->empty()) {
+  if (positions->is_empty()) {
     return 0;
   }
-  return positions->front();
+  return positions->first();
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   static auto token_position_count = mf::build::SI2_SO2<std::string, std::string, int, int>(
       "Find in String",
-      [](const std::string &text,
-         const std::string &token,
-         int &first,
-         int &count) -> void {
-        std::vector<int> positions = string_find_tokens(text, token);
+      [](const std::string &text, const std::string &token, int &first, int &count) -> void {
+        Vector<int> positions = string_find_tokens(text, token);
         first = out_finded_first_position(&positions);
         count = positions.size();
       },
