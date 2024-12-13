@@ -45,7 +45,6 @@ class AssetRepresentation : NonCopyable, NonMovable {
     std::string name;
     int id_type = 0;
     std::unique_ptr<AssetMetaData> metadata_ = nullptr;
-    /** Owning pointer. */
     PreviewImage *preview_ = nullptr;
   };
   std::variant<ExternalAsset, ID *> asset_;

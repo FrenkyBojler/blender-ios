@@ -63,7 +63,7 @@ static void asset_view_item_but_drag_set(uiBut *but, AssetHandle *asset_handle)
 }
 
 static void asset_view_draw_item(uiList *ui_list,
-                                 const bContext *C,
+                                 const bContext * /*C*/,
                                  uiLayout *layout,
                                  PointerRNA * /*dataptr*/,
                                  PointerRNA * /*itemptr*/,
@@ -84,7 +84,7 @@ static void asset_view_draw_item(uiList *ui_list,
                                            const_cast<FileDirEntry *>(asset_handle.file_data));
   uiLayoutSetContextPointer(layout, "active_file", &file_ptr);
 
-  asset::list::asset_preview_ensure_requested(*C, &list_data->asset_library_ref, &asset_handle);
+  asset->ensure_preview_storage();
 
   uiBlock *block = uiLayoutGetBlock(layout);
   const bool show_names = list_data->show_names;
@@ -255,7 +255,6 @@ void uiTemplateAssetView(uiLayout *layout,
   }
 
   asset::list::storage_fetch(&asset_library_ref, C);
-  asset::list::previews_fetch(&asset_library_ref, C);
   const int tot_items = asset::list::size(&asset_library_ref);
 
   populate_asset_collection(asset_library_ref, *assets_dataptr, assets_propname);

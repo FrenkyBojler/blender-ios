@@ -208,11 +208,11 @@ static std::optional<wmOperatorCallParams> create_activate_operator_params(
   return wmOperatorCallParams{ot, op_props, WM_OP_INVOKE_REGION_WIN};
 }
 
-void AssetViewItem::build_grid_tile(const bContext &C, uiLayout &layout) const
+void AssetViewItem::build_grid_tile(const bContext & /*C*/, uiLayout &layout) const
 {
   const AssetView &asset_view = reinterpret_cast<const AssetView &>(this->get_view());
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
-  const asset_system::AssetRepresentation *asset = handle_get_representation(&asset_);
+  asset_system::AssetRepresentation *asset = handle_get_representation(&asset_);
 
   PointerRNA file_ptr = RNA_pointer_create(
       nullptr,
@@ -254,8 +254,7 @@ void AssetViewItem::build_grid_tile(const bContext &C, uiLayout &layout) const
   /* Request preview when drawing. Grid views have an optimization to only draw items that are
    * actually visible, so only previews scrolled into view will be loaded this way. This reduces
    * total loading time and memory footprint. */
-  list::asset_preview_ensure_requested(
-      C, &asset_view.library_ref_, const_cast<AssetHandle *>(&asset_));
+  asset->ensure_preview_storage();
 
   const int preview_id = [&]() -> int {
     /* Show loading icon while list is loading still. Previews might get pushed out of view again
@@ -345,7 +344,6 @@ void build_asset_view(uiLayout &layout,
                       const bContext &C)
 {
   list::storage_fetch(&library_ref, &C);
-  list::previews_fetch(&library_ref, &C);
 
   const asset_system::AssetLibrary *library = list::library_get_once_available(library_ref);
   if (!library) {
