@@ -26,12 +26,15 @@
 #if PXR_VERSION >= 2411
 #  include <pxr/external/boost/python/call_method.hpp>
 #  include <pxr/external/boost/python/class.hpp>
+#  include <pxr/external/boost/python/dict.hpp>
 #  include <pxr/external/boost/python/import.hpp>
+#  include <pxr/external/boost/python/list.hpp>
 #  include <pxr/external/boost/python/ref.hpp>
 #  include <pxr/external/boost/python/return_value_policy.hpp>
 #  include <pxr/external/boost/python/to_python_converter.hpp>
 #  include <pxr/external/boost/python/touple.hpp>
-#  define REF python::ref
+#  define PYTHON_NS pxr::pxr_boost::python
+#  define REF pxr::pxr_boost::python::ref
 
 using namespace pxr::pxr_boost;
 #else
@@ -41,6 +44,7 @@ using namespace pxr::pxr_boost;
 #  include <boost/python/return_value_policy.hpp>
 #  include <boost/python/to_python_converter.hpp>
 #  include <boost/python/tuple.hpp>
+#  define PYTHON_NS boost::python
 #  define REF boost::ref
 
 using namespace boost;
@@ -145,17 +149,16 @@ struct USDSceneImportContext {
     return stage;
   }
 
-  boost::python::dict get_prim_map()
+  PYTHON_NS::dict get_prim_map()
   {
     if (!prim_map_dict) {
-      prim_map_dict = new boost::python::dict;
+      prim_map_dict = new PYTHON_NS::dict;
 
       prim_map.foreach_item([&](const std::string &path, const Vector<PointerRNA> &ids) {
         if (!prim_map_dict->has_key(path)) {
-          (*prim_map_dict)[path] = boost::python::list();
+          (*prim_map_dict)[path] = PYTHON_NS::list();
         }
-        boost::python::list list = boost::python::extract<boost::python::list>(
-            (*prim_map_dict)[path]);
+        PYTHON_NS::list list = PYTHON_NS::extract<PYTHON_NS::list>((*prim_map_dict)[path]);
 
         for (auto &ptr_rna : ids) {
           list.append(ptr_rna);
@@ -168,7 +171,7 @@ struct USDSceneImportContext {
 
   pxr::UsdStageRefPtr stage;
   ImportedPrimMap prim_map;
-  boost::python::dict *prim_map_dict = nullptr;
+  PYTHON_NS::dict *prim_map_dict = nullptr;
 };
 
 /* Encapsulate arguments for material export. */
@@ -246,11 +249,11 @@ struct USDMaterialImportContext {
    * imported textures should be packed). The original asset path will be returned unchanged if
    * it's alreay a local file or if it could not be copied to a local destination.
    */
-  boost::python::tuple import_texture(const std::string &asset_path) const
+  PYTHON_NS::tuple import_texture(const std::string &asset_path) const
   {
     if (!should_import_asset(asset_path)) {
       /* This path does not need to be imported, so return it unchanged. */
-      return boost::python::make_tuple(asset_path, false);
+      return PYTHON_NS::make_tuple(asset_path, false);
     }
 
     const char *textures_dir = params.import_textures_mode == USD_TEX_IMPORT_PACK ?
@@ -267,11 +270,11 @@ struct USDMaterialImportContext {
 
     if (import_path == asset_path) {
       /* Path is unchanged. */
-      return boost::python::make_tuple(asset_path, false);
+      return PYTHON_NS::make_tuple(asset_path, false);
     }
 
     const bool is_temporary = params.import_textures_mode == USD_TEX_IMPORT_PACK;
-    return boost::python::make_tuple(import_path, is_temporary);
+    return PYTHON_NS::make_tuple(import_path, is_temporary);
   }
 
   pxr::UsdStageRefPtr stage;
@@ -644,3 +647,4 @@ bool call_material_import_hooks(pxr::UsdStageRefPtr stage,
 }  // namespace blender::io::usd
 
 #undef REF
+#undef PYTHON_NS
