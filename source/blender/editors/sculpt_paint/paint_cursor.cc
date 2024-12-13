@@ -578,7 +578,11 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
     return false;
   }
 
-  if (load_tex(brush, vc, zoom, col, primary) && WM_toolsystem_active_tool_is_brush(vc->C)) {
+  if (!WM_toolsystem_active_tool_is_brush(vc->C)) {
+    return false;
+  }
+
+  if (load_tex(brush, vc, zoom, col, primary)) {
     GPU_color_mask(true, true, true, true);
     GPU_depth_test(GPU_DEPTH_NONE);
 
