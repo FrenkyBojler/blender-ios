@@ -538,8 +538,12 @@ void USDStageReader::import_all_materials(Main *bmain)
       continue;
     }
 
-    /* Add the material now. */
-    Material *new_mtl = mtl_reader.add_material(usd_mtl);
+    /* Can the material be handled by an iport hook? */
+    const bool have_import_hook = settings_.mat_import_hook_sources.contains(mtl_path);
+
+    /* Add the Blender material. If we have an import hook which can handle this material
+     * we don't import USD Preview Surface shaders. */
+    Material *new_mtl = mtl_reader.add_material(usd_mtl, !have_import_hook);
     BLI_assert_msg(new_mtl, "Failed to create material");
 
     const std::string mtl_name = make_safe_name(new_mtl->id.name + 2, true);
@@ -551,6 +555,12 @@ void USDStageReader::import_all_materials(Main *bmain)
        * materials to objects elsewhere in the code. */
       settings_.usd_path_to_mat_name.lookup_or_add_default(
           prim.GetPath().GetAsString()) = mtl_name;
+    }
+
+    if (have_import_hook) {
+      /* Defer invoking the hook to convert the material till we can do so from
+       * the main thread. */
+      settings_.usd_path_to_mat_for_hook.lookup_or_add_default(mtl_path) = new_mtl;
     }
   }
 }
