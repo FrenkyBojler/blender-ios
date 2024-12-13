@@ -1186,6 +1186,7 @@ static void sound_update_base(Scene *scene, Object *object, void *new_set)
       if (strip->speaker_handle) {
         const bool mute = ((strip->flag & NLASTRIP_FLAG_MUTED) || (speaker->flag & SPK_MUTED));
         AUD_addSet(new_set, strip->speaker_handle);
+        AUD_SequenceEntry_setMuted(strip->speaker_handle, mute);
         AUD_SequenceEntry_setVolumeMaximum(strip->speaker_handle, speaker->volume_max);
         AUD_SequenceEntry_setVolumeMinimum(strip->speaker_handle, speaker->volume_min);
         AUD_SequenceEntry_setDistanceMaximum(strip->speaker_handle, speaker->distance_max);
@@ -1205,8 +1206,9 @@ static void sound_update_base(Scene *scene, Object *object, void *new_set)
             strip->speaker_handle, AUD_AP_VOLUME, scene->r.cfra, &speaker->volume, 1);
         AUD_SequenceEntry_setAnimationData(
             strip->speaker_handle, AUD_AP_PITCH, scene->r.cfra, &speaker->pitch, 1);
+        /* This needs to be done last as the sound data is updated with the set data above
+         * in this function call. */
         AUD_SequenceEntry_setSound(strip->speaker_handle, speaker->sound->playback_handle);
-        AUD_SequenceEntry_setMuted(strip->speaker_handle, mute);
       }
     }
   }
