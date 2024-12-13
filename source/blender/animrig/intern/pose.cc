@@ -33,7 +33,9 @@ void pose_apply_restore_fcurves(bAction *action)
 }
 
 void pose_apply_disable_fcurves_for_unselected_bones(
-    bAction *action, const blender::bke::BoneNameSet &selected_bone_names)
+    bAction *action,
+    const slot_handle_t slot_handle,
+    const blender::bke::BoneNameSet &selected_bone_names)
 {
   auto disable_unselected_fcurve = [&](FCurve *fcu, const char *bone_name) {
     const bool is_bone_selected = selected_bone_names.contains(bone_name);
@@ -41,7 +43,7 @@ void pose_apply_disable_fcurves_for_unselected_bones(
       fcu->flag |= FCURVE_DISABLED;
     }
   };
-  blender::bke::BKE_action_find_fcurves_with_bones(action, disable_unselected_fcurve);
+  blender::bke::BKE_action_find_fcurves_with_bones(action, slot_handle, disable_unselected_fcurve);
 }
 
 void pose_apply(Object *ob,
@@ -63,7 +65,7 @@ void pose_apply(Object *ob,
   if (limit_to_selected_bones) {
     /* Mute all FCurves that are not associated with selected bones. This separates the concept of
      * bone selection from the FCurve evaluation code. */
-    pose_apply_disable_fcurves_for_unselected_bones(action, selected_bone_names);
+    pose_apply_disable_fcurves_for_unselected_bones(action, slot_handle, selected_bone_names);
   }
 
   /* Apply the Action. */

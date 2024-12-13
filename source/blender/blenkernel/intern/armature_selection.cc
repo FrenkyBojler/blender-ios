@@ -36,6 +36,7 @@ void find_selected_bones__visit_bone(const bArmature *armature,
     find_selected_bones__visit_bone(armature, callback, result, child_bone);
   }
 }
+
 }  // namespace
 
 SelectedBonesResult BKE_armature_find_selected_bones(const bArmature *armature,
