@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_attribute_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_defs.h"
 #include "DNA_session_uid_types.h"
@@ -88,6 +89,8 @@ typedef struct Mesh {
    * Avoid accessing directly when possible.
    */
   int *face_offset_indices;
+
+  AttributeStorage attributes;
 
   CustomData vert_data;
   CustomData edge_data;

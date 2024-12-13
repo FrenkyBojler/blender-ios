@@ -14,6 +14,8 @@
 #include "BLI_set.hh"
 #include "BLI_struct_equality_utils.hh"
 
+#include "DNA_attribute_types.h"
+
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.h"
 #include "BKE_attribute_filters.hh"
@@ -28,6 +30,34 @@ class GField;
 }  // namespace blender::fn
 
 namespace blender::bke {
+
+class AttributeStorageRuntime {
+  Map<StringRef, Attribute *> name_map;
+};
+
+/** Some storage types are only relevant for certain attribute types. */
+enum class AttrStorageType : int8_t {
+  /** A contiguous array of values. */
+  Array,
+  /** A single value for the whole attribute. */
+  Single,
+};
+
+enum class AttrType : int16_t {
+  Bool,
+  Int8,
+  Int16_2D,
+  Int32,
+  Int32_2D,
+  Float,
+  Float2,
+  Float3,
+  Float4x4,
+  ColorByte,
+  ColorFloat,
+  Quaternion,
+  String,
+};
 
 enum class AttrDomain : int8_t {
   /* Used to choose automatically based on other data. */

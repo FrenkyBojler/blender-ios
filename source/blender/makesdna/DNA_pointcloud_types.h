@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_attribute_types.h"
 #include "DNA_customdata_types.h"
 
 #ifdef __cplusplus
@@ -42,6 +43,8 @@ typedef struct PointCloud {
 
   /* Geometry */
   int totpoint;
+
+  AttributeStorage attributes;
 
   /* Custom Data */
   struct CustomData pdata;
