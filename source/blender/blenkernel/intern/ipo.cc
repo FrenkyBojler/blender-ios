@@ -1808,8 +1808,6 @@ static void ipo_to_animato(ID *id,
 static void ensure_action_is_modern(
     ID *id, bAction *act, ListBase *groups, ListBase *curves, ListBase *drivers)
 {
-  printf("ensure_action_is_modern(): %s\n", act->id.name);
-
   /* Already converted to the most modern kind of action, so no need to
    * convert. */
   if (is_action_layered(*act)) {
