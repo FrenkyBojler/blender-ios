@@ -245,9 +245,9 @@ class Vector {
     constexpr bool other_is_same_type = std::is_same_v<Vector, std::decay_t<decltype(other)>>;
 
     /* Can optimize for this common case which requires less branches. */
-    constexpr size_t max_full_copy_size = 64;
+    constexpr size_t max_full_copy_size = 32;
     if constexpr (other_is_same_type && std::is_trivial_v<T> &&
-                  sizeof(inline_buffer_) <= max_full_copy_size)
+                  sizeof(inline_buffer_) <= max_full_copy_size && false)
     {
       if (other.is_inline()) {
         /* Copy the full inline buffer instead of only the used parts. This may copy uninitialized
