@@ -39,7 +39,7 @@ struct Attribute {
   int8_t storage_type; /* bke::AttrStorageType */
 
   /* What's stored here can depend on the storage type. */
-  void *data;
+  const void *data;
   const ImplicitSharingInfoHandle *sharing_info;
 
 #ifdef __cplusplus
@@ -66,11 +66,14 @@ struct AttributeStorage {
   const Attribute *lookup(blender::StringRef name) const;
   Attribute *lookup_for_write(blender::StringRef name);
   bool remove(blender::StringRef name);
-  Attribute *add(blender::StringRef attribute_id,
+  Attribute &add(blender::StringRef name,
                  blender::bke::AttrDomain domain,
                  blender::bke::AttrType data_type,
                  blender::bke::AttrStorageType storage_type,
                  const void *data,
                  const blender::ImplicitSharingInfo *sharing_info);
+
+ private:
+  void ensure_attribute_array_capacity(int attributes_num);
 #endif
 };
