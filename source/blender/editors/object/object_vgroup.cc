@@ -2544,12 +2544,7 @@ static void grease_pencil_clear_from_vgroup(Scene &scene,
       bke::greasepencil::remove_from_vertex_group(drawing, dg->name, use_selection);
     }
     /* Remove vgroup from the list. */
-    ListBase *defbase = BKE_object_defgroup_list_mutable(&ob);
-    const int def_nr = BLI_findindex(defbase, dg);
-    BLI_freelinkN(defbase, dg);
-    if (def_nr > 0) {
-      BKE_object_defgroup_active_index_set(&ob, def_nr);
-    }
+    BKE_object_defgroup_remove(&ob, dg);
   }
   else {
     Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
