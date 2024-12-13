@@ -4107,11 +4107,7 @@ Mesh *BKE_object_get_evaluated_mesh_unchecked(const Object *object_eval)
   if (!mesh) {
     return nullptr;
   }
-
-  if (object_eval->data && GS(((const ID *)object_eval->data)->name) == ID_ME) {
-    mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
-  }
-
+  mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
   return mesh;
 }
 
