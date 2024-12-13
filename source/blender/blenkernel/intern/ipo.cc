@@ -1915,7 +1915,7 @@ static void ipo_to_animdata(
       }
     }
 
-    /* Add F-Curves to action, creating an Animato-style action. */
+    /* Add F-Curves to action, creating an Animato action. */
     BLI_movelisttolist(&adt->action->curves, &anim);
 
     /* Upgrade Animato action to a layered action. */
