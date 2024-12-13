@@ -244,7 +244,7 @@ class Vector {
 
     constexpr bool other_is_same_type = std::is_same_v<Vector, std::decay_t<decltype(other)>>;
 
-    /* Can optimize for this common case. */
+    /* Can optimize for this common case which requires less branches. */
     constexpr size_t max_full_copy_size = 64;
     if constexpr (other_is_same_type && std::is_trivial_v<T> &&
                   sizeof(inline_buffer_) <= max_full_copy_size)
