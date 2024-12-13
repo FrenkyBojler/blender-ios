@@ -951,7 +951,7 @@ static int wm_usd_import_exec(bContext *C, wmOperator *op)
 
   const bool validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
 
-  const bool create_world_material = RNA_boolean_get(op->ptr, "create_world_material");
+  const bool create_world_material = RNA_boolean_get(op->ptr, "create_world_material") && import_lights;
 
   const bool merge_parent_xform = RNA_boolean_get(op->ptr, "merge_parent_xform");
 
@@ -1069,6 +1069,12 @@ static void wm_usd_import_draw(bContext *C, wmOperator *op)
     uiItemR(col, ptr, "import_cameras", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "import_curves", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "import_lights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+    uiLayout *row = uiLayoutRow(col, true);
+    uiItemR(row, ptr, "create_world_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    const bool import_lights = RNA_boolean_get(ptr, "import_lights");
+    uiLayoutSetActive(row, import_lights);
+
     uiItemR(col, ptr, "import_materials", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "import_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "import_volumes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1109,7 +1115,6 @@ static void wm_usd_import_draw(bContext *C, wmOperator *op)
 
     uiItemR(col, ptr, "import_all_materials", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "import_usd_preview", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "create_world_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayoutSetEnabled(col, RNA_boolean_get(ptr, "import_materials"));
 
     uiLayout *row = uiLayoutRow(col, true);
@@ -1335,7 +1340,7 @@ void WM_OT_usd_import(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "create_world_material",
                   true,
-                  "Create World Material",
+                  "World Dome Light",
                   "Convert the first discovered USD dome light to a world background shader");
 
   RNA_def_boolean(ot->srna,
