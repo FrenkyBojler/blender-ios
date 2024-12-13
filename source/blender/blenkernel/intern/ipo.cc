@@ -2113,7 +2113,7 @@ static bool seq_convert_callback(Sequence *seq, void *userdata)
 /* *************************************************** */
 /* External API - Only Called from do_versions() */
 
-void do_versions_ipos_to_modern_animation(Main *bmain)
+void do_versions_ipos_to_layered_actions(Main *bmain)
 {
   ListBase drivers = {nullptr, nullptr};
   ID *id;

@@ -171,7 +171,7 @@ static void version_legacy_actions_to_layered(Main *bmain)
     Action &action = item.key->wrap();
 
     /* Skip all handling of pre-Animato actions. These are handled in a later
-     * versioning step. See `do_versions_ipos_to_modern_animation()`. */
+     * versioning step. See `do_versions_ipos_to_layered_actions()`. */
     if (!BLI_listbase_is_empty(&action.chanbase)) {
       continue;
     }

@@ -34,7 +34,7 @@ struct Main;
  *
  * \note Currently done after all file reading.
  */
-void do_versions_ipos_to_modern_animation(struct Main *bmain);
+void do_versions_ipos_to_layered_actions(struct Main *bmain);
 
 /* --------------------- xxx stuff ------------------------ */
 
