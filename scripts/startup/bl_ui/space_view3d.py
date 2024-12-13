@@ -3019,7 +3019,7 @@ class VIEW3D_MT_object_context_menu(Menu):
 
                 layout.separator()
 
-            if obj.type in {'MESH', 'CURVE', 'SURFACE', 'ARMATURE', 'GPENCIL'}:
+            if obj.type in {'MESH', 'CURVE', 'SURFACE', 'ARMATURE', 'GREASEPENCIL'}:
                 if selected_objects_len > 1:
                     layout.operator("object.join")
 
@@ -3027,7 +3027,7 @@ class VIEW3D_MT_object_context_menu(Menu):
                 layout.operator_menu_enum("object.convert", "target")
 
             if (obj.type in {
-                'MESH', 'CURVE', 'CURVES', 'SURFACE', 'GPENCIL', 'LATTICE', 'ARMATURE', 'META', 'FONT', 'POINTCLOUD',
+                'MESH', 'CURVE', 'CURVES', 'SURFACE', 'GREASEPENCIL', 'LATTICE', 'ARMATURE', 'META', 'FONT', 'POINTCLOUD',
             } or (obj.type == 'EMPTY' and obj.instance_collection is not None)):
                 layout.operator_context = 'INVOKE_REGION_WIN'
                 layout.operator_menu_enum("object.origin_set", text="Set Origin", property="type")
@@ -3237,8 +3237,6 @@ class VIEW3D_MT_object_modifiers(Menu):
         if active_object:
             if active_object.type in supported_types:
                 layout.menu("OBJECT_MT_modifier_add", text="Add Modifier")
-            elif active_object.type == 'GPENCIL':
-                layout.operator("object.gpencil_modifier_add", text="Add Modifier")
 
         layout.operator("object.modifiers_copy_to_selected", text="Copy Modifiers to Selected Objects")
 
