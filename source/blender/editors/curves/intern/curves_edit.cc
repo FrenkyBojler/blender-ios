@@ -226,7 +226,10 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
   }
 }
 
-static IndexMask drop_singles(const IndexMask &mask, IndexMaskMemory &memory)
+static IndexMask drop_singles(const IndexMask &mask,
+                              const IndexRange universe,
+                              const bool cyclic,
+                              IndexMaskMemory &memory)
 {
   IndexMask to_left = IndexMask::from_difference(
                           mask, IndexMask::from_indices<int>({0}, memory), memory)
@@ -235,43 +238,91 @@ static IndexMask drop_singles(const IndexMask &mask, IndexMaskMemory &memory)
 
   index_mask::ExprBuilder builder;
   const index_mask::Expr &shifted_to_sides = builder.merge({&to_left, &to_right});
-  return evaluate_expression(builder.intersect({&mask, &shifted_to_sides}), memory);
+  IndexMask ensure_cycle_ends;
+  if (cyclic && mask.first() == universe.first() && mask.last() == universe.last()) {
+    ensure_cycle_ends = IndexMask::from_indices<int64_t>({universe.first(), universe.last()},
+                                                         memory);
+  }
+  return evaluate_expression(
+      builder.merge({&builder.intersect({&mask, &shifted_to_sides}), &ensure_cycle_ends}), memory);
+}
+
+static IndexRange extend_range(const IndexRange &range, const bool extend)
+{
+  return extend ? IndexRange::from_begin_end_inclusive(math::max(range.start() - 1, int64_t(0)),
+                                                       range.one_after_last()) :
+                  range;
 }
 
 static void curves_from_selection(const IndexMask &selected_points,
                                   const IndexRange points,
                                   const int curve,
                                   const bool extend_ranges,
+                                  const VArray<bool> cyclic,
                                   Vector<int> &new_curve_offsets,
+                                  Vector<bool> &new_cyclic,
                                   Vector<int> &src_offsets,
                                   Vector<int> &dst_offsets,
+                                  Vector<int> &roll_src_offsets,
+                                  Vector<int> &roll_dst_offsets,
                                   Vector<int> &curve_map)
 {
+  if (selected_points.is_empty()) {
+    return;
+  }
   int curves_added = 0;
-  selected_points.foreach_range([&](const IndexRange range) {
-    const IndexRange extended_range = extend_ranges ?
-                                          IndexRange::from_begin_end_inclusive(
-                                              math::max(points.first(), range.first() - 1),
-                                              math::min(points.last(), range.last() + 1)) :
-                                          range;
+  int roll_by = 0;
+  Vector<IndexRange> ranges = selected_points.to_ranges();
+  if (cyclic[curve] && selected_points.size() < points.size()) {
+    const IndexRange first_range = ranges.first();
+    const IndexRange last_range = ranges.last();
+    auto setup_roll = [&](const IndexRange rolled_range) {
+      roll_by = rolled_range.size();
+      roll_src_offsets.append(rolled_range.first());
+      roll_src_offsets.append(rolled_range.one_after_last());
+      roll_dst_offsets.append(dst_offsets.last() + 0);
+      roll_dst_offsets.append(roll_dst_offsets.last() + roll_by);
+      dst_offsets.last() += roll_by;
+    };
+    if (first_range.first() == points.first() && last_range.last() == points.last()) {
+      setup_roll(extend_range(ranges.last(), extend_ranges).intersect(points));
+      ranges.remove_last();
+    }
+    else if (extend_ranges && first_range.first() == points.first()) {
+      setup_roll(points.take_back(1));
+    }
+    else if (extend_ranges && last_range.last() == points.last()) {
+      setup_roll(extend_range(ranges.last(), extend_ranges).intersect(points));
+      ranges.remove_last();
+      ranges.prepend(points.take_front(!extend_ranges));
+    }
+  }
+
+  for (const IndexRange range : ranges) {
+    const IndexRange extended_range = extend_range(range, extend_ranges).intersect(points);
     new_curve_offsets.append(new_curve_offsets.last() + extended_range.size());
     src_offsets.append(extended_range.first());
     src_offsets.append(extended_range.one_after_last());
-    dst_offsets.append(dst_offsets.last() + extended_range.size());
-    dst_offsets.append(dst_offsets.last() + 0 /* to make rvalue */);
+    dst_offsets.append_n_times(dst_offsets.last() + extended_range.size(), 2);
     curves_added++;
-  });
+  };
+  if (roll_by > 0) {
+    for (auto &offset : new_curve_offsets.as_mutable_span().take_back(curves_added)) {
+      offset += roll_by;
+    }
+  }
   curve_map.append_n_times(curve, curves_added);
+  new_cyclic.append_n_times(
+      cyclic[curve] && selected_points.size() == points.size() && roll_by == 0, curves_added);
 }
 
 void split_points(const IndexMask &points_to_split,
                   bke::CurvesGeometry &curves,
                   IndexMaskMemory &memory)
 {
-  IndexMask preserved_points =
-      drop_singles(points_to_split, memory).complement(curves.points_range(), memory);
-
   const OffsetIndices points_by_curve = curves.points_by_curve();
+  const VArray<bool> cyclic = curves.cyclic();
+
   Vector<int> curve_map;
   Vector<int> new_curve_map;
   Vector<int> new_offsets({0});
@@ -279,33 +330,54 @@ void split_points(const IndexMask &points_to_split,
 
   Vector<int> preserved_src_offsets;
   Vector<int> preserved_dst_offsets({0});
+  Vector<int> preserved_roll_src_offsets;
+  Vector<int> preserved_roll_dst_offsets;
+  Vector<bool> preserved_cyclic;
+
   Vector<int> split_src_offsets;
   Vector<int> split_dst_offsets({0});
+  Vector<int> split_roll_src_offsets;
+  Vector<int> split_roll_dst_offsets;
+  Vector<bool> split_cyclic;
 
   for (const int curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve];
-
-    curves_from_selection(preserved_points.slice_content(points),
+    const IndexMask preserved_points =
+        drop_singles(points_to_split.slice_content(points), points, cyclic[curve], memory)
+            .complement(points, memory);
+    curves_from_selection(preserved_points,
                           points,
                           curve,
                           true,
+                          cyclic,
                           new_offsets,
+                          preserved_cyclic,
                           preserved_src_offsets,
                           preserved_dst_offsets,
+                          preserved_roll_src_offsets,
+                          preserved_roll_dst_offsets,
                           curve_map);
 
     curves_from_selection(points_to_split.slice_content(points),
                           points,
                           curve,
                           false,
+                          cyclic,
                           split_curve_offsets,
+                          split_cyclic,
                           split_src_offsets,
                           split_dst_offsets,
+                          split_roll_src_offsets,
+                          split_roll_dst_offsets,
                           new_curve_map);
   }
 
-  for (const int i : split_dst_offsets.index_range()) {
-    split_dst_offsets[i] += preserved_dst_offsets.last();
+  for (int &offset : split_dst_offsets) {
+    offset += preserved_dst_offsets.last();
+  }
+
+  for (int &offset : split_roll_dst_offsets) {
+    offset += preserved_dst_offsets.last();
   }
 
   const int last_preserved_offset = new_offsets.last();
@@ -318,37 +390,59 @@ void split_points(const IndexMask &points_to_split,
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
   new_curves.resize(new_offsets.last(), curve_map.size());
   std::copy_n(new_offsets.data(), new_offsets.size(), new_curves.offsets_for_write().data());
-  const bke::AttributeFilter filter = bke::attribute_filter_from_skip_ref(
-      ed::curves::get_curves_selection_attribute_names(curves));
+  MutableSpan<bool> new_cyclic = new_curves.cyclic_for_write();
+  new_cyclic.take_front(preserved_cyclic.size()).copy_from(preserved_cyclic);
+  new_cyclic.take_back(split_cyclic.size()).copy_from(split_cyclic);
+
   const bke::AttributeAccessor src_attributes = curves.attributes();
   bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
 
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
-                         {},
+                         bke::attribute_filter_from_skip_ref({"cyclic"}),
                          curve_map,
                          dst_attributes);
 
-  IndexMask groups_to_copy = IndexMask::from_every_nth(
-      2, preserved_src_offsets.size() / 2, 0, memory);
-  copy_attributes_group_to_group(src_attributes,
-                                 bke::AttrDomain::Point,
-                                 bke::AttrDomain::Point,
-                                 filter,
-                                 preserved_src_offsets.as_span(),
-                                 preserved_dst_offsets.as_span(),
-                                 groups_to_copy,
-                                 dst_attributes);
-  groups_to_copy = IndexMask::from_every_nth(2, split_src_offsets.size() / 2, 0, memory);
-  copy_attributes_group_to_group(src_attributes,
-                                 bke::AttrDomain::Point,
-                                 bke::AttrDomain::Point,
-                                 filter,
-                                 split_src_offsets.as_span(),
-                                 split_dst_offsets.as_span(),
-                                 groups_to_copy,
-                                 dst_attributes);
+  const int max_size = math::max(preserved_src_offsets.size(), split_src_offsets.size());
+  const IndexMask groups_to_copy = IndexMask::from_every_nth(2, max_size / 2, 0, memory);
+  const IndexMask preserved_to_copy = groups_to_copy.slice(
+      IndexRange(preserved_src_offsets.size() / 2));
+  const IndexMask preserved_roll_to_copy = groups_to_copy.slice(
+      IndexRange(preserved_roll_src_offsets.size() / 2));
+  const IndexMask split_to_copy = groups_to_copy.slice(IndexRange(split_src_offsets.size() / 2));
+  const IndexMask split_roll_to_copy = groups_to_copy.slice(
+      IndexRange(split_roll_src_offsets.size() / 2));
+
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes,
+           dst_attributes,
+           ATTR_DOMAIN_MASK_POINT,
+           bke::attribute_filter_from_skip_ref(
+               ed::curves::get_curves_selection_attribute_names(curves))))
+  {
+    array_utils::copy_group_to_group(preserved_src_offsets.as_span(),
+                                     preserved_dst_offsets.as_span(),
+                                     preserved_to_copy,
+                                     attribute.src,
+                                     attribute.dst.span);
+    array_utils::copy_group_to_group(preserved_roll_src_offsets.as_span(),
+                                     preserved_roll_dst_offsets.as_span(),
+                                     preserved_roll_to_copy,
+                                     attribute.src,
+                                     attribute.dst.span);
+    array_utils::copy_group_to_group(split_src_offsets.as_span(),
+                                     split_dst_offsets.as_span(),
+                                     split_to_copy,
+                                     attribute.src,
+                                     attribute.dst.span);
+    array_utils::copy_group_to_group(split_roll_src_offsets.as_span(),
+                                     split_roll_dst_offsets.as_span(),
+                                     split_roll_to_copy,
+                                     attribute.src,
+                                     attribute.dst.span);
+    attribute.dst.finish();
+  };
 
   foreach_selection_attribute_writer(
       new_curves, bke::AttrDomain::Curve, [&](bke::GSpanAttributeWriter &selection) {
