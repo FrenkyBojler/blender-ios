@@ -147,12 +147,9 @@ std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
         }
       }
     }
-    /* For node sockets, it is useful to include the node name as well (multiple similar nodes
-     * are not distinguishable otherwise). Unfortunately, the node label cannot be retrieved
-     * from the rna path, for this to work access to the underlying node is needed (but finding
-     * the node iterates all nodes & sockets which would result in bad performance in some
-     * circumstances). */
+
     if (RNA_struct_is_a(ptr.type, &RNA_NodeSocket)) {
+      /* Display the name/label of a node socket's node to allow distinguishing multiple nodes. */
       BLI_assert(GS(ptr.owner_id->name) == ID_NT);
       const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr.owner_id);
       const bNodeSocket *socket = static_cast<const bNodeSocket *>(ptr.data);
@@ -164,6 +161,7 @@ std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
       free_structname = false;
     }
     else if (RNA_struct_is_a(ptr.type, &RNA_Node)) {
+      /* Display the label of the node if available to distinguish nodes like "Value". */
       BLI_assert(GS(ptr.owner_id->name) == ID_NT);
       const bNode *node = static_cast<const bNode *>(ptr.data);
       if (free_structname) {
@@ -176,8 +174,8 @@ std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
 
   propname = RNA_property_ui_name(prop);
 
-  /* Display geometry node properties as node-tree socket labels. */
   if (RNA_struct_is_a(ptr.type, &RNA_NodesModifier)) {
+    /* Display geometry node properties with node-tree socket labels. */
     const NodesModifierData *nmd = static_cast<const NodesModifierData *>(ptr.data);
     if (const bNodeTree *node_group = nmd->node_group) {
       if (const bNodeTreeInterfaceSocket *input = bke::node_find_interface_input_by_identifier(
@@ -188,6 +186,7 @@ std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
     }
   }
   else if (RNA_struct_is_a(ptr.type, &RNA_NodeSocket)) {
+    /* Use the socket's name rather than the "Default Value" name of the socket's RNA property. */
     const bNodeSocket *socket = static_cast<const bNodeSocket *>(ptr.data);
     propname = socket->name;
   }
