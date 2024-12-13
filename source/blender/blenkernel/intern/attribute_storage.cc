@@ -9,6 +9,7 @@
 
 #include "BKE_attribute.hh"
 
+using blender::CPPType;
 using blender::ImplicitSharingInfo;
 using blender::StringRef;
 using blender::bke::AttrDomain;
@@ -25,24 +26,23 @@ struct AttributeStorageRuntime {
 
 void Attribute::ensure_mutable()
 {
+  using namespace blender::bke;
   switch (AttrStorageType(this->storage_type)) {
     case AttrStorageType::Array: {
-      const AttributeDataArray &data = *static_cast<const AttributeDataArray *>(this->data);
+      AttributeDataArray &data = *static_cast<AttributeDataArray *>(this->data);
       if (data.sharing_info->is_mutable()) {
         data.sharing_info->tag_ensured_mutable();
         return;
       }
-      AttributeDataArray *new_data = static_cast<AttributeDataArray *>(
-          MEM_mallocN(sizeof(AttributeDataArray), __func__));
 
-      const AttrType type = AttrType(this->data_type);
-      //   const void *old_data = data.data;
-      //   /* Copy the layer before removing the user because otherwise the data might be freed
-      //   while
-      //    * we're still copying from it here. */
-      //   data.data = copy_layer_data(type, old_data, totelem);
-      //   data.sharing_info->remove_user_and_delete_if_last();
-      //   data.sharing_info = make_implicit_sharing_info_for_layer(type, layer.data, totelem);
+      const CPPType &cpp_type = attribute_type_to_cpp_type(AttrType(this->data_type));
+      void *new_data = MEM_mallocN_aligned(data.elements_num, cpp_type.alignment(), __func__);
+      cpp_type.copy_construct_n(data.data, new_data, data.elements_num);
+      data.data = new_data;
+
+      data.sharing_info->remove_user_and_delete_if_last();
+      data.sharing_info = make_implicit_sharing_info_for_layer(
+          cpp_type, new_data, data.elements_num);
       break;
     }
     case AttrStorageType::Single:
@@ -85,11 +85,15 @@ bool AttributeStorage::remove(const StringRef name)
 Attribute &AttributeStorage::add(const StringRef name,
                                  const AttrDomain domain,
                                  const AttrType data_type,
-                                 const AttributeDataArray *data)
+                                 const AttributeDataArray &data)
 {
   Attribute &attribute = this->add_without_data(name, domain, data_type, AttrStorageType::Array);
-  data->sharing_info->add_user();
-  attribute.data = data;
+
+  data.sharing_info->add_user();
+  AttributeDataArray *attribute_data = static_cast<AttributeDataArray *>(
+      MEM_mallocN(sizeof(AttributeDataArray), __func__));
+  memcpy(attribute_data, &data, sizeof(AttributeDataArray));
+  attribute.data = attribute_data;
   return attribute;
 }
 

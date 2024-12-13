@@ -20,6 +20,7 @@
 #  include "BLI_string_ref.hh"
 
 namespace blender {
+class CPPType;
 namespace bke {
 struct AttributeStorageRuntime;
 enum class AttrDomain : int8_t;
@@ -34,6 +35,7 @@ typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 
 struct AttributeDataArray {
   const void *data;
+  int elements_num;
   const ImplicitSharingInfoHandle *sharing_info;
 };
 
@@ -44,7 +46,7 @@ struct Attribute {
   int8_t storage_type; /* bke::AttrStorageType */
 
   /** Type depends on storage type. */
-  const void *data;
+  void *data;
 
 #ifdef __cplusplus
   void ensure_mutable();
@@ -73,7 +75,7 @@ struct AttributeStorage {
   Attribute &add(blender::StringRef name,
                  blender::bke::AttrDomain domain,
                  blender::bke::AttrType data_type,
-                 const AttributeDataArray *data);
+                 const AttributeDataArray &data);
 
  private:
   void ensure_attribute_array_capacity(int attributes_num);

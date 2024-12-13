@@ -55,6 +55,9 @@ enum class AttrType : int16_t {
   String,
 };
 
+const CPPType &attribute_type_to_cpp_type(AttrType type);
+AttrType cpp_type_to_attribute_type(const CPPType &type);
+
 enum class AttrDomain : int8_t {
   /* Used to choose automatically based on other data. */
   Auto = -1,
