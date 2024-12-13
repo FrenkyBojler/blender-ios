@@ -2196,6 +2196,9 @@ void convert_animato_action_to_layered_action_in_place(bAction &dna_action)
   BLI_assert_msg(BLI_listbase_is_empty(&action.chanbase),
                  "This function can only upgrade from Animato actions to Layered Actions, and "
                  "does not handle pre-Animato animation data.");
+  if (!BLI_listbase_is_empty(&action.chanbase)) {
+    return;
+  }
 
   using namespace blender::animrig;
   if (BKE_action_is_layered(action)) {
