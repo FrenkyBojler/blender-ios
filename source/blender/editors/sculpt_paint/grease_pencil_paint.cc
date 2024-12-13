@@ -246,6 +246,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
 
   /* Helper class to project screen space coordinates to 3d. */
   ed::greasepencil::DrawingPlacement placement_;
+  /* Last valid stroke intersection, for use in Stroke projection mode. */
+  std::optional<float3> last_stroke_placement_loc_;
 
   /* Direction the pen is moving in smoothed over time. */
   float2 smoothed_pen_direction_ = float2(0.0f);
@@ -279,6 +281,9 @@ class PaintOperation : public GreasePencilStrokeOperation {
   void on_stroke_done(const bContext &C) override;
 
   PaintOperation(const bool temp_draw = false) : temp_draw_(temp_draw) {}
+
+  void update_stroke_depth_placement(const bContext &C, const InputSample &sample);
+  void reproject_samples_on_strokes(const IndexRange points) const;
 };
 
 /**
@@ -1000,6 +1005,63 @@ struct PaintOperationExecutor {
   }
 };
 
+enum class StrokeSnapMode {
+  AllPoints,
+  EndPoints,
+  FirstPoint,
+};
+
+static StrokeSnapMode get_snap_mode(const bContext &C)
+{
+  /* gpencil_v3d_align is an awkward combination of multiple properties. If none of the non-zero
+   * flags are set the AllPoints mode is the default. */
+  const Scene &scene = *CTX_data_scene(&C);
+  const char align_flags = scene.toolsettings->gpencil_v3d_align;
+  if (align_flags & GP_PROJECT_DEPTH_STROKE_ENDPOINTS) {
+    return StrokeSnapMode::EndPoints;
+  }
+  if (align_flags & GP_PROJECT_DEPTH_STROKE_FIRST) {
+    return StrokeSnapMode::FirstPoint;
+  }
+  return StrokeSnapMode::AllPoints;
+}
+
+void PaintOperation::update_stroke_depth_placement(const bContext &C, const InputSample &sample)
+{
+  BLI_assert(placement_.use_project_to_stroke());
+  const RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
+
+  const std::optional<float3> new_stroke_placement_loc = placement_.project_depth(
+      sample.mouse_position);
+  if (new_stroke_placement_loc) {
+    if (last_stroke_placement_loc_) {
+      const float3 origin = *new_stroke_placement_loc;
+      const float3 direction = (*last_stroke_placement_loc_) - origin;
+      // TODO construct reliably from direction and arbitrary up axis
+      // (rv3d.viewmat[0] or rv3d.viewmat[1])
+      const float3 up_axis = ...;
+      const float3 normal = math::normalize(math::cross(up_axis, direction));
+      placement_.set_stroke_projection_plane(origin, normal);
+    }
+    else {
+      /* Use view direction as the normal when there is no previous depth yet. */
+      const float3 origin = *new_stroke_placement_loc;
+      const float3 normal = rv3d.viewmat[2];
+      placement_.set_stroke_projection_plane(origin, normal);
+    }
+  }
+
+  last_stroke_placement_loc_ = new_stroke_placement_loc;
+}
+
+void PaintOperation::reproject_samples_on_strokes(const IndexRange points) const
+{
+  // TODO
+  // for (const int point_i : points) {
+  //   positions[point_i] = placement_.reproject(positions[point_i]);
+  // }
+}
+
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
@@ -1036,7 +1098,8 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   }
   else if (placement_.use_project_to_stroke()) {
     placement_.cache_viewport_depths(depsgraph, region, view3d);
-    placement_.set_origin_to_nearest_stroke(start_sample.mouse_position);
+    /* Initialize the snap point. */
+    this->update_stroke_depth_placement(C, start_sample);
   }
 
   texture_space_ = ed::greasepencil::calculate_texture_space(
@@ -1080,11 +1143,29 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
 void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
+
   Object *object = CTX_data_active_object(&C);
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
 
   PaintOperationExecutor executor{C};
   executor.execute(*this, C, extension_sample);
+
+  if (placement_.use_project_to_stroke()) {
+    const StrokeSnapMode snap_mode = get_snap_mode(C);
+    switch (snap_mode) {
+      case StrokeSnapMode::AllPoints:
+        /* Apply the current projection if it exists and then update the snap point. */
+        this->update_stroke_depth_placement(C, extension_sample);
+        // TODO keep track of samples that are added after the last reprojection
+        this->reproject_samples_on_strokes(newly_added_points_range);
+        break;
+
+      case StrokeSnapMode::EndPoints:
+      case StrokeSnapMode::FirstPoint:
+        /* In these cases the first snap point remains unchanged during the operation. */
+        break;
+    }
+  }
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
@@ -1485,6 +1566,24 @@ void PaintOperation::on_stroke_done(const bContext &C)
                                                            bke::AttrDomain::Point);
   screen_space_positions.span.slice(points).copy_from(this->screen_space_final_coords_);
   screen_space_positions.finish();
+
+  if (placement_.use_project_to_stroke()) {
+    const StrokeSnapMode snap_mode = get_snap_mode(C);
+    switch (snap_mode) {
+      case StrokeSnapMode::AllPoints:
+        /* This mode already reprojects when adding points, nothing to do here. */
+        break;
+
+      case StrokeSnapMode::EndPoints:
+        /* Finalize projection after the stroke is finished. */
+        this->reproject_samples_on_strokes(all_points);
+        break;
+
+      case StrokeSnapMode::FirstPoint:
+        /* Only the initial snap point is used. */
+        break;
+    }
+  }
 
   /* Remove trailing points with radii close to zero. */
   trim_end_points(drawing, 1e-5f, on_back, active_curve);

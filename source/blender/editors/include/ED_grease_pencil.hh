@@ -164,7 +164,17 @@ class DrawingPlacement {
   bool use_project_to_stroke() const;
 
   void cache_viewport_depths(Depsgraph *depsgraph, ARegion *region, View3D *view3d);
-  void set_origin_to_nearest_stroke(float2 co);
+
+  /**
+   * Set the placement plane, must only be called in Stroke depth mode.
+   */
+  void set_stroke_projection_plane(const float3 &origin, const float3 &normal);
+
+  /**
+   * Attempt to project from the depth buffer.
+   * \return Un-projected position if a valid depth is found at the screen position.
+   */
+  std::optional<float3> project_depth(float2 co) const;
 
   /**
    * Projects a screen space coordinate to the local drawing space.
@@ -185,7 +195,7 @@ class DrawingPlacement {
   float4x4 to_world_space() const;
 
  private:
-  float3 project_depth(float2 co) const;
+  float3 project_depth_or_view(float2 co) const;
 };
 
 void set_selected_frames_type(bke::greasepencil::Layer &layer,
