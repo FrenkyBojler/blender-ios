@@ -265,11 +265,14 @@ class DenoiseOperation : public NodeOperation {
     const CMPNodeDenoiseQuality node_quality = static_cast<CMPNodeDenoiseQuality>(
         node_storage(bnode()).quality);
 
-    /* TODO: Switch based on if we're using the viewport or the final render */
-    const eCompositorDenoiseQaulity scene_quality = false ? context().denoise_preview_quality() :
-                                                            context().denoise_final_quality();
-
     if (node_quality == CMP_NODE_DENOISE_QUALITY_DEFAULT) {
+      /* context().render_context() is true directly after rendering, but false if a user changes a
+       * setting in a compositor setup after the render is finished. Is this a issue we need to
+       * address? */
+      const bool is_final_render = context().render_context();
+      const eCompositorDenoiseQaulity scene_quality = is_final_render ?
+                                                          context().denoise_final_quality() :
+                                                          context().denoise_preview_quality();
       switch (scene_quality) {
 #  if OIDN_VERSION >= 20300
         case SCE_COMPOSITOR_DENOISE_FAST:
