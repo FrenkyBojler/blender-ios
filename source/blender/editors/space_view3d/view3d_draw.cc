@@ -2403,6 +2403,9 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   if (use_overlay) {
     v3d->flag2 &= ~V3D_HIDE_OVERLAYS;
   }
+  else {
+    v3d->flag2 |= V3D_HIDE_OVERLAYS;
+  }
 
   /* Tools may request depth outside of regular drawing code. */
   UI_Theme_Store(&theme_state);
