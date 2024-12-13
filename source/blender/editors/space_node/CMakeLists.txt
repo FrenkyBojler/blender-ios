@@ -64,10 +64,6 @@ set(LIB
   PRIVATE bf::extern::fmtlib
 )
 
-if(WITH_COMPOSITOR)
-  add_definitions(-DWITH_COMPOSITOR)
-endif()
-
 if(WITH_OPENIMAGEDENOISE)
   add_definitions(-DWITH_OPENIMAGEDENOISE)
 endif()
