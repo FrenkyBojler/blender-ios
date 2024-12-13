@@ -133,7 +133,6 @@ void AssetList::setup()
       true,
       "",
       "");
-  filelist_set_no_preview_auto_cache(files);
 
   const bool use_asset_indexer = !USER_EXPERIMENTAL_TEST(&U, no_asset_indexing);
   filelist_setindexer(files, use_asset_indexer ? &index::file_indexer_asset : &file_indexer_noop);
