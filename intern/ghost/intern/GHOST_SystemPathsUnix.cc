@@ -100,6 +100,7 @@ const char *GHOST_SystemPathsUnix::getUserDir(int version, const char *versionst
 const char *GHOST_SystemPathsUnix::getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const
 {
   const char *type_str;
+  static string path = "";
 
   switch (type) {
     case GHOST_kUserSpecialDirDesktop:
@@ -128,8 +129,8 @@ const char *GHOST_SystemPathsUnix::getUserSpecialDir(GHOST_TUserSpecialDirTypes 
 
       /* If `XDG_CACHE_HOME` is not set, then `$HOME/.cache is used`. */
       const char *home_dir = getenv("HOME");
-      string cache_path = string(home_dir) + "/.cache";
-      return cache_path.c_str();
+      path = string(home_dir) + "/.cache";
+      return path.c_str();
     }
     default:
       GHOST_ASSERT(
@@ -138,7 +139,6 @@ const char *GHOST_SystemPathsUnix::getUserSpecialDir(GHOST_TUserSpecialDirTypes 
       return nullptr;
   }
 
-  static string path = "";
   /* Pipe `stderr` to `/dev/null` to avoid error prints. We will fail gracefully still. */
   string command = string("xdg-user-dir ") + type_str + " 2> /dev/null";
 
