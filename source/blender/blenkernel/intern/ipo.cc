@@ -1805,7 +1805,7 @@ static void ipo_to_animato(ID *id,
  * actually *always* the case for `groups` and `curves` either, so I left them
  * as separate parameters to be on the safe side.
  */
-static void ensure_action_is_modern(
+static void ensure_action_is_layered(
     ID *id, bAction *act, ListBase *groups, ListBase *curves, ListBase *drivers)
 {
   /* Already converted to the most modern kind of action, so no need to
@@ -1956,7 +1956,7 @@ static void action_to_animdata(ID *id, bAction *act)
   }
 
   /* convert Action data */
-  ensure_action_is_modern(id, act, &adt->action->groups, &adt->action->curves, &adt->drivers);
+  ensure_action_is_layered(id, act, &adt->action->groups, &adt->action->curves, &adt->drivers);
 }
 
 /* ------------------------- */
@@ -1980,7 +1980,7 @@ static void nlastrips_to_animdata(ID *id, ListBase *strips)
     /* this old strip is only worth something if it had an action... */
     if (as->act) {
       /* convert Action data (if not yet converted), storing the results in the same Action */
-      ensure_action_is_modern(id, as->act, &as->act->groups, &as->act->curves, &adt->drivers);
+      ensure_action_is_layered(id, as->act, &as->act->groups, &as->act->curves, &adt->drivers);
 
       /* Create a new-style NLA-strip which references this Action,
        * then copy over relevant settings. */
@@ -2473,7 +2473,7 @@ void do_versions_ipos_to_modern_animation(Main *bmain)
     }
 
     /* be careful! some of the actions we encounter will be converted ones... */
-    ensure_action_is_modern(nullptr, act, &act->groups, &act->curves, &drivers);
+    ensure_action_is_layered(nullptr, act, &act->groups, &act->curves, &drivers);
   }
 
   /* ipo's */
