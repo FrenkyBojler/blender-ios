@@ -299,10 +299,12 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   *data->do_update = true;
   *data->progress = 0.15f;
 
+  USDStageReader *archive = new USDStageReader(stage, data->params, data->settings);
+
   /* Ensure Python types for invoking hooks are registered. */
   register_hook_converters();
 
-  USDStageReader *archive = new USDStageReader(stage, data->params, data->settings);
+  archive->find_material_import_hook_sources();
 
   data->archive = archive;
 

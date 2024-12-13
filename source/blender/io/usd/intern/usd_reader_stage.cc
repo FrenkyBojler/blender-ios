@@ -22,6 +22,7 @@
 #include "usd_utils.hh"
 
 #include <pxr/pxr.h>
+#include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
 #include <pxr/usd/usdGeom/capsule.h>
 #include <pxr/usd/usdGeom/cone.h>
@@ -566,6 +567,20 @@ void USDStageReader::fake_users_for_unused_materials()
 
     if (mat->id.us == 0) {
       id_fake_user_set(&mat->id);
+    }
+  }
+}
+
+void USDStageReader::find_material_import_hook_sources()
+{
+  pxr::UsdPrimRange range = stage_->Traverse();
+  for (pxr::UsdPrim prim : range) {
+    if (prim.IsA<pxr::UsdShadeMaterial>()) {
+      pxr::UsdShadeMaterial usd_mat(prim);
+      if (have_material_import_hook(stage_, usd_mat, params_, reports()))
+      {
+        settings_.mat_import_hook_sources.add(prim.GetPath().GetAsString());
+      }
     }
   }
 }
