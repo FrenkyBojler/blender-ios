@@ -42,7 +42,8 @@ static VmaAllocationCreateFlags vma_allocation_flags(GPUUsageType usage)
 
 static VkMemoryPropertyFlags vma_preferred_flags(const bool is_host_visible)
 {
-  /* When is_host_visible is true, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT is set in `vma_required_flags`. We set the reverse to support ReBAR. */
+  /* When is_host_visible is true, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT is set in
+   * `vma_required_flags`. We set the reverse to support ReBAR. */
   return is_host_visible ?
              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT :
              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
@@ -58,12 +59,6 @@ bool VKBuffer::create(size_t size_in_bytes,
                       VkBufferUsageFlags buffer_usage,
                       const bool is_host_visible)
 {
-  /*
-   * TODO: Check which memory is selected and adjust the creation flag to add mapping. This way the
-   * staging buffer can be skipped, or in case of a vertex buffer an intermediate buffer can be
-   * removed.
-   */
-
   BLI_assert(!is_allocated());
   BLI_assert(vk_buffer_ == VK_NULL_HANDLE);
   BLI_assert(mapped_memory_ == nullptr);
