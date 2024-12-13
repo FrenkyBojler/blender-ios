@@ -89,10 +89,18 @@ void VKVertexBuffer::acquire_data()
     return;
   }
 
-  /* Discard previous data if any. */
-  /* TODO: Use mapped memory. */
-  MEM_SAFE_FREE(data_);
-  data_ = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+  if (!buffer_.is_allocated()) {
+    allocate();
+    device_format_ensure();
+  }
+
+  BLI_assert(data_ == nullptr);
+  if (buffer_.is_mapped()) {
+    data_ = static_cast<uchar *>(buffer_.mapped_memory_get());
+  }
+  else {
+    data_ = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+  }
 }
 
 void VKVertexBuffer::resize_data()
@@ -101,7 +109,14 @@ void VKVertexBuffer::resize_data()
     return;
   }
 
-  data_ = (uchar *)MEM_reallocN(data_, sizeof(uchar) * this->size_alloc_get());
+  if (buffer_.is_mapped()) {
+    /* DO nothing we assume previous requested memory is larger then new one. In blender this is
+     * only used by the sphere batch, which IMO should be fixed there. */
+    return;
+  }
+  else {
+    data_ = (uchar *)MEM_reallocN(data_, sizeof(uchar) * this->size_alloc_get());
+  }
 }
 
 void VKVertexBuffer::release_data()
@@ -112,7 +127,12 @@ void VKVertexBuffer::release_data()
     vk_buffer_view_ = VK_NULL_HANDLE;
   }
 
-  MEM_SAFE_FREE(data_);
+  if (buffer_.is_mapped()) {
+    data_ = nullptr;
+  }
+  else {
+    MEM_SAFE_FREE(data_);
+  }
 }
 
 void VKVertexBuffer::upload_data_direct(const VKBuffer &host_buffer)
@@ -149,14 +169,19 @@ void VKVertexBuffer::upload_data()
   if (flag & GPU_VERTBUF_DATA_DIRTY) {
     device_format_ensure();
     if (buffer_.is_mapped() && !data_uploaded_) {
-      upload_data_direct(buffer_);
+      // upload_data_direct(buffer_);
     }
     else {
       VKContext &context = *VKContext::get();
       upload_data_via_staging_buffer(context);
     }
     if (usage_ == GPU_USAGE_STATIC) {
-      MEM_SAFE_FREE(data_);
+      if (buffer_.is_mapped()) {
+        data_ = nullptr;
+      }
+      else {
+        MEM_SAFE_FREE(data_);
+      }
     }
     data_uploaded_ = true;
 
