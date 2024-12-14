@@ -52,7 +52,7 @@
 #include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
-#include "BKE_lib_ID.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
