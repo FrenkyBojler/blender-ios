@@ -3846,12 +3846,12 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Brush_icon_update");
 
   /* node tree */
-  prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "node_tree");
+  prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "node_group");
   RNA_def_property_struct_type(prop, "GeometryNodeTree");
   RNA_def_property_clear_flag(prop, PROP_PTR_NO_OWNERSHIP);
   RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Node Tree", "Node Tree");
+  RNA_def_property_ui_text(prop, "Node Group", "Node group for brush calculation");
   RNA_def_property_update(prop, NC_BRUSH | ND_DATA, "rna_Brush_update");
 
   /* clone brush */

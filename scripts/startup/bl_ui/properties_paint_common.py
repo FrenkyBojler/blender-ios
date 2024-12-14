@@ -746,7 +746,7 @@ def brush_settings(layout, context, brush, popover=False):
         row.prop(brush, "use_hardness_pressure", text="")
 
         row = layout.row()
-        row.template_ID(brush, "node_tree")
+        row.template_ID(brush, "node_group")
 
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:

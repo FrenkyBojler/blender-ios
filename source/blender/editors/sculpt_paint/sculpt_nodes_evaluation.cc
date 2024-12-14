@@ -37,7 +37,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   bke::SculptFieldContext &context,
                                   MutableSpan<float3> outputs)
 {
-  const bNodeTree* tree = brush.node_tree;
+  const bNodeTree *tree = brush.node_group;
 
   if (tree == nullptr) {
     return;
@@ -192,9 +192,8 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
   bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts, {});
 
-  threading::isolate_task([&]() {
-    sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations);
-  });
+  threading::isolate_task(
+      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations); });
 }
 
 void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
@@ -218,9 +217,8 @@ void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   Vector<float3> outputs(verts.size());
   outputs.fill(float3(1.0f));
 
-  threading::isolate_task([&]() {
-    sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, outputs);
-  });
+  threading::isolate_task(
+      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, outputs); });
 
   for (const int i : brush_colors.index_range()) {
     brush_colors[i] = float4(outputs[i], brush_colors[i].w);
@@ -238,9 +236,8 @@ void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 {
   bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
 
-  threading::isolate_task([&]() {
-    sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations);
-  });
+  threading::isolate_task(
+      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations); });
 }
 
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
@@ -253,9 +250,8 @@ void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 {
   bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
 
-  threading::isolate_task([&]() {
-    sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations);
-  });
+  threading::isolate_task(
+      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations); });
 }
 
 }  // namespace blender::ed::sculpt_paint

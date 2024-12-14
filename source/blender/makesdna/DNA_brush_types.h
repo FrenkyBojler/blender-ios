@@ -181,7 +181,7 @@ typedef struct Brush {
   struct MTex mtex;
   struct MTex mask_mtex;
 
-  struct bNodeTree *node_tree;
+  struct bNodeTree *node_group;
 
   struct Brush *toggle_brush;
 
