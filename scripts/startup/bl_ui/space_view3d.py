@@ -557,7 +557,7 @@ class _draw_tool_settings_context_mode:
             header=True,
         )
 
-        if brush.curves_sculpt_tool not in {'ADD', 'DELETE', 'CUT'}:
+        if brush.curves_sculpt_tool not in {'ADD', 'DELETE'}:
             use_strength_pressure = brush.curves_sculpt_tool not in {'SLIDE'}
             UnifiedPaintPanel.prop_unified(
                 layout,

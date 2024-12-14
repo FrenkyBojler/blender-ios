@@ -17,6 +17,8 @@
 #include "WM_api.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_ghash.h"
+#include "BLI_rand.h"
 #include "BLI_task.hh"
 
 #include "curves_sculpt_intern.hh"
@@ -55,6 +57,7 @@ struct CutOperationExecutor {
   float brush_radius_base_re_;
   float brush_radius_factor_;
   float2 brush_pos_re_;
+  float brush_strength_;
 
   CurvesSurfaceTransforms transforms_;
 
@@ -77,6 +80,7 @@ struct CutOperationExecutor {
     brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
+    brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
 
     point_factors_ = *curves_->attributes().lookup_or_default<float>(
         ".selection", bke::AttrDomain::Point, 1.0f);
@@ -154,7 +158,10 @@ struct CutOperationExecutor {
           continue;
         }
 
-        const bool in_stroke = point_factors_[point_i] > 0.0f;
+        const bool in_stroke = point_factors_[point_i] > 0.0f &&
+                               (brush_strength_ >= 0.999999f ||
+                                BLI_hash_frand(BLI_ghashutil_combine_hash(
+                                    pos_cu.hash(), brush_pos_re_.hash())) <= brush_strength_);
         r_points_in_stroke[point_i] |= in_stroke;
       }
     });
@@ -199,7 +206,10 @@ struct CutOperationExecutor {
           continue;
         }
 
-        const bool in_stroke = point_factors_[point_i] > 0.0f;
+        const bool in_stroke = point_factors_[point_i] > 0.0f &&
+                               (brush_strength_ >= 0.999999f ||
+                                BLI_hash_frand(BLI_ghashutil_combine_hash(
+                                    pos_cu.hash(), brush_pos_cu.hash())) <= brush_strength_);
         r_points_in_stroke[point_i] |= in_stroke;
       }
     });
