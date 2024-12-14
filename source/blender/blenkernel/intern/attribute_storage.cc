@@ -24,6 +24,37 @@ struct AttributeStorageRuntime {
 
 }  // namespace blender::bke
 
+class ArrayDataImplicitSharing : public ImplicitSharingInfo {
+ private:
+  const void *data_;
+  int totelem_;
+  const CPPType &cpp_type_;
+
+ public:
+  ArrayDataImplicitSharing(const void *data, const int totelem, const CPPType &cpp_type)
+      : ImplicitSharingInfo(), data_(data), totelem_(totelem), cpp_type_(cpp_type)
+  {
+  }
+
+ private:
+  void delete_self_with_data() override
+  {
+    if (data_ != nullptr) {
+      cpp_type_.destruct_n(const_cast<void *>(data_), totelem_);
+      MEM_freeN(const_cast<void *>(data_));
+    }
+    MEM_delete(this);
+  }
+
+  void delete_data_only() override
+  {
+    cpp_type_.destruct_n(const_cast<void *>(data_), totelem_);
+    MEM_freeN(const_cast<void *>(data_));
+    data_ = nullptr;
+    totelem_ = 0;
+  }
+};
+
 void Attribute::ensure_mutable()
 {
   using namespace blender::bke;
@@ -41,8 +72,8 @@ void Attribute::ensure_mutable()
       data.data = new_data;
 
       data.sharing_info->remove_user_and_delete_if_last();
-      data.sharing_info = make_implicit_sharing_info_for_layer(
-          cpp_type, new_data, data.elements_num);
+      data.sharing_info = MEM_new<ArrayDataImplicitSharing>(
+          __func__, data, data.elements_num, cpp_type);
       break;
     }
     case AttrStorageType::Single:
