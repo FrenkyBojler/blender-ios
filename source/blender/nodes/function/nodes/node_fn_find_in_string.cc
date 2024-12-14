@@ -17,46 +17,22 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Count");
 }
 
-std::u32string bli_str_utf8_as_u32string(const StringRef u8src)
-{
-  std::u32string u32out;
-  const size_t u8src_len = u8src.size();
-  u32out.reserve(u8src_len);
-  const char *src_c_end = u8src.data() + u8src_len;
-  size_t index = 0;
-
-  while (index < u8src_len) {
-    const uint unicode = BLI_str_utf8_as_unicode_step_or_error(u8src.data(), u8src_len, &index);
-    if (unicode != BLI_UTF8_ERR) {
-      u32out.push_back(unicode);
-    }
-    else {
-      u32out.push_back(' ');
-      const char *src_c_next = BLI_str_find_next_char_utf8(u8src.data() + index, src_c_end);
-      index = size_t(src_c_next - u8src.data());
-    }
-  }
-
-  return u32out;
-}
-
 static Vector<int> string_find_tokens(const StringRef text, const StringRef token)
 {
   Vector<int> positions;
   if (text.is_empty() || token.is_empty()) {
     return positions;
   }
-  std::u32string a_u32 = bli_str_utf8_as_u32string(text);
-  std::u32string b_u32 = bli_str_utf8_as_u32string(token);
-
-  int matche_len = b_u32.size();
+  int matche_len = token.size();
   int pos = 0;
-  if (a_u32.substr(0, b_u32.size()) == b_u32) {
+  if (text.substr(0, token.size()) == token) {
     positions.append(0);
     pos += matche_len;
   }
-  while ((pos = a_u32.find(b_u32, pos)) != std::u32string::npos) {
-    positions.append(pos);
+  size_t r_len_bytes;
+  while ((pos = text.find(token, pos)) != StringRef::not_found) {
+    int pos_n = BLI_strnlen_utf8_ex(text.data(),pos,&r_len_bytes);
+    positions.append(pos_n);
     pos += matche_len;
   }
   return positions;
