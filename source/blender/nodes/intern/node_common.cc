@@ -582,20 +582,14 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
    * a trees and all possible targets for each tree. */
   blender::DisjointSet reroutes_groups(reroute_nodes.size());
 
-  blender::BitVector<> begin_reroute(reroute_nodes.size(), true);
-
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
     const bNode *src_node = link->fromnode;
     const bNode *dst_node = link->tonode;
 
-    if (dst_node->is_reroute()) {
+    if (dst_node->is_reroute() && src_node->is_reroute()) {
       const int dst_reroute_i = reroute_nodes.index_of(dst_node->index());
-      begin_reroute[dst_reroute_i].reset();
-
-      if (src_node->is_reroute()) {
-        const int src_reroute_i = reroute_nodes.index_of(src_node->index());
-        reroutes_groups.join(src_reroute_i, dst_reroute_i);
-      }
+      const int src_reroute_i = reroute_nodes.index_of(src_node->index());
+      reroutes_groups.join(src_reroute_i, dst_reroute_i);
     }
   }
 
@@ -642,26 +636,11 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
   }
 
-  blender::Array<const blender::bke::bNodeSocketType *> reroute_group_begin_types(
-      reroute_groups.size(), nullptr);
-  blender::bits::foreach_1_index(
-      blender::bits::to_best_bit_span(begin_reroute), [&](const int reroute_i) {
-        const int src_reroute_root_i = reroutes_groups.find_root(reroute_i);
-        const int src_reroute_group_i = reroute_groups.index_of(src_reroute_root_i);
-        const bNode &reroute = *all_nodes[reroute_nodes[reroute_i]];
-        const bNodeSocket *begin_reroute_socket = static_cast<const bNodeSocket *>(
-            reroute.inputs.first);
-        reroute_group_begin_types[src_reroute_group_i] = begin_reroute_socket->typeinfo;
-      });
-
   for (const int reroute_i : reroute_nodes.index_range()) {
     const int reroute_root_i = reroutes_groups.find_root(reroute_i);
     const int reroute_root_index = reroute_groups.index_of(reroute_root_i);
 
     const blender::bke::bNodeSocketType *reroute_type = nullptr;
-    if (reroute_group_begin_types[reroute_root_index] != nullptr) {
-      reroute_type = reroute_group_begin_types[reroute_root_index];
-    }
     if (reroute_group_dst_types[reroute_root_index] != nullptr) {
       reroute_type = reroute_group_dst_types[reroute_root_index];
     }
