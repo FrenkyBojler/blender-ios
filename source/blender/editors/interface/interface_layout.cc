@@ -437,7 +437,7 @@ static void ui_item_position(uiItem *item, const int x, const int y, const int w
     bitem->but->rect.xmax = x + w;
     bitem->but->rect.ymax = y + h;
 
-    ui_but_update(bitem->but); /* for strlen */
+    ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
     uiLayout *litem = static_cast<uiLayout *>(item);
@@ -457,7 +457,7 @@ static void ui_item_move(uiItem *item, const int delta_xmin, const int delta_xma
     bitem->but->rect.xmin += delta_xmin;
     bitem->but->rect.xmax += delta_xmax;
 
-    ui_but_update(bitem->but); /* for strlen */
+    ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
     uiLayout *litem = static_cast<uiLayout *>(item);
@@ -6079,6 +6079,12 @@ void uiLayoutSetContextPointer(uiLayout *layout, StringRef name, PointerRNA *ptr
 }
 
 void uiLayoutSetContextString(uiLayout *layout, StringRef name, blender::StringRef value)
+{
+  uiBlock *block = layout->root->block;
+  layout->context = CTX_store_add(block->contexts, name, value);
+}
+
+void uiLayoutSetContextInt(uiLayout *layout, StringRef name, int64_t value)
 {
   uiBlock *block = layout->root->block;
   layout->context = CTX_store_add(block->contexts, name, value);
