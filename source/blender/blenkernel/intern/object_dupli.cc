@@ -9,7 +9,6 @@
 #include <climits>
 #include <cstddef>
 #include <cstdlib>
-#include <sstream>
 
 #include <fmt/format.h>
 
