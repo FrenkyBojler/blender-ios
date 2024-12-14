@@ -910,18 +910,23 @@ Mesh *BKE_modifier_modify_mesh(ModifierData *md, const ModifierEvalContext *ctx,
   return mti->modify_mesh(md, ctx, mesh);
 }
 
-void BKE_modifier_deform_verts(ModifierData *md,
+bool BKE_modifier_deform_verts(ModifierData *md,
                                const ModifierEvalContext *ctx,
                                Mesh *mesh,
                                blender::MutableSpan<blender::float3> positions)
 {
   using namespace blender::bke;
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+
   if (mti->deform_verts) {
     mti->deform_verts(md, ctx, mesh, positions);
+    if (mesh) {
+      mesh->tag_positions_changed();
+    }
+    return true;
   }
   /* Try to emulate #deform_verts by deforming a mesh or pointcloud. */
-  else if (mti->modify_geometry_set) {
+  if (mti->modify_geometry_set) {
     /* Prepare mesh with vertices at the given positions. */
     GeometrySet geometry;
     if (mesh) {
@@ -941,12 +946,14 @@ void BKE_modifier_deform_verts(ModifierData *md,
     if (const Mesh *deformed_mesh = geometry.get_mesh()) {
       if (deformed_mesh->verts_num == positions.size()) {
         positions.copy_from(deformed_mesh->vert_positions());
+        if (mesh) {
+          mesh->tag_positions_changed();
+        }
+        return true;
       }
     }
   }
-  if (mesh) {
-    mesh->tag_positions_changed();
-  }
+  return false;
 }
 
 void BKE_modifier_deform_vertsEM(ModifierData *md,
