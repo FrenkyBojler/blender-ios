@@ -86,26 +86,18 @@ static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomD
 }
 
 AttributeStorage attribute_legacy_convert_customdata_to_storage(
-    const Span<std::pair<AttrDomain, const CustomData *>> custom_data_domains)
+    const Map < AttrDomain,
+    Array const Span<std::pair<AttrDomain, const CustomData *>> custom_data_domains)
 {
   AttributeStorage r_storage{};
-
-  struct AttributeToMove {
-    StringRef name;
-    AttrType attr_type;
-    AttrDomain domain;
-    void *data;
-    const ImplicitSharingInfo *sharing_info;
-  };
-  Vector<AttributeToMove> attributes_to_move;
   for (auto &[domain, custom_data] : custom_data_domains) {
     Vector<CustomDataLayer> kept_layers;
     for (CustomDataLayer &layer : MutableSpan(custom_data->layers, custom_data->totlayer)) {
-      std::optional<AttrType> attr_type = custom_data_type_to_attribute_type(
-          eCustomDataType(layer.type));
-      if (attr_type) {
-        attributes_to_move.append(
-            {layer.name, *attr_type, domain, layer.data, layer.sharing_info});
+      if (std::optional<AttrType> attr_type = custom_data_type_to_attribute_type(
+              eCustomDataType(layer.type)))
+      {
+        const AttributeDataArray data{layer.data, layer.elements_num, layer.sharing_info};
+        r_storage.add(layer.name, *attr_type, domain, layer.data, layer.sharing_info);
       }
       else {
         kept_layers.append(layer);
