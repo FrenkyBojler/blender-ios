@@ -119,6 +119,7 @@ struct CutOperationExecutor {
     IndexMaskMemory memory;
     curves_->remove_points(IndexMask::from_bools(to_delete.as_span(), memory), {});
 
+    curves_->update_curve_types();
     curves_->tag_topology_changed();
 
     if (includes_cyclic) {

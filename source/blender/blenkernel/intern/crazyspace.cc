@@ -590,12 +590,12 @@ GeometryDeformation get_evaluated_curves_deformation(const Object *ob_eval, cons
     const CurvesEditHints *edit_hints = edit_component_eval->curves_edit_hints_.get();
     if (edit_hints != nullptr && &edit_hints->curves_id_orig == &curves_id_orig) {
       if (const std::optional<Span<float3>> positions = edit_hints->positions()) {
-        // BLI_assert(positions->size() == points_num);
+        BLI_assert(positions->size() == points_num);
         deformation.positions = *positions;
         uses_extra_positions = true;
       }
       if (edit_hints->deform_mats.has_value()) {
-        // BLI_assert(edit_hints->deform_mats->size() == points_num);
+        BLI_assert(edit_hints->deform_mats->size() == points_num);
         deformation.deform_mats = *edit_hints->deform_mats;
       }
     }
