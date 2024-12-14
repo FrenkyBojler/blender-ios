@@ -8,6 +8,7 @@
  * This file defines the 'imbuf' image manipulation module.
  */
 
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
 #include "BLI_rect.h"
@@ -563,6 +564,52 @@ static PyObject *M_imbuf_load(PyObject * /*self*/, PyObject *args, PyObject *kw)
   return result;
 }
 
+static PyObject *imbuf_imageFromMemory_impl(const uint8_t * data, const size_t data_len)
+{
+  ImBuf *ibuf = IMB_ibImageFromMemory(data, data_len, IB_rect, nullptr, "<memory>");
+
+  if (ibuf == nullptr) {
+    PyErr_Format(
+        PyExc_ValueError, "imageFromMemory: Unable to recognize image format");
+    return nullptr;
+  }
+
+  return Py_ImBuf_CreatePyObject(ibuf);
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    M_imbuf_imageFromMemory_doc,
+    ".. function:: imageFromMemory(data)\n"
+    "\n"
+    "   Load an image from a buffer.\n"
+    "\n"
+    "   :arg data: the data of the image.\n"
+    "   :type data: bytes\n"
+    "   :return: the newly image created from memory.\n"
+    "   :rtype: :class:`ImBuf`\n");
+static PyObject *M_imbuf_imageFromMemory(PyObject * /*self*/, PyObject *args, PyObject *kw)
+{
+  uint8_t *data_data;
+  size_t data_len;
+
+  static const char *_keywords[] = {"data", nullptr};
+  static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
+      "y#" /* `data` */
+      ":imageFromMemory",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kw, &_parser, &data_data, &data_len))
+  {
+    return nullptr;
+  }
+
+  return imbuf_imageFromMemory_impl(data_data, data_len);
+}
+
 static PyObject *imbuf_write_impl(ImBuf *ibuf, const char *filepath)
 {
   const bool ok = IMB_saveiff(ibuf, filepath, IB_rect);
@@ -635,6 +682,7 @@ static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw
 static PyMethodDef IMB_methods[] = {
     {"new", (PyCFunction)M_imbuf_new, METH_VARARGS | METH_KEYWORDS, M_imbuf_new_doc},
     {"load", (PyCFunction)M_imbuf_load, METH_VARARGS | METH_KEYWORDS, M_imbuf_load_doc},
+    {"imageFromMemory", (PyCFunction)M_imbuf_imageFromMemory, METH_VARARGS | METH_KEYWORDS, M_imbuf_imageFromMemory_doc},
     {"write", (PyCFunction)M_imbuf_write, METH_VARARGS | METH_KEYWORDS, M_imbuf_write_doc},
     {nullptr, nullptr, 0, nullptr},
 };
