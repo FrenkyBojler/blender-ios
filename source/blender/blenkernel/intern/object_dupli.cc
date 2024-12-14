@@ -11,6 +11,8 @@
 #include <cstdlib>
 #include <sstream>
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -208,19 +210,25 @@ static bool copy_dupli_context(DupliContext *r_ctx,
 
   if (r_ctx->level == MAX_DUPLI_RECUR - 1) {
     const blender::StringRef object_name = ob ? ob->id.name + 2 : "";
-    const blender::StringRef geometry_name = geometry ? blender::StringRef(geometry->name) : "";
-    std::stringstream error_message;
-    error_message << "Warning: Maximum instance recursion level reached";
-    if (!geometry_name.is_empty()) {
-      error_message << " at " << geometry_name;
-      if (!object_name.is_empty()) {
-        error_message << " in " << object_name;
-      }
+    const blender::StringRef geometry_name = geometry ? geometry->name : "";
+
+    if (geometry_name.is_empty() && !object_name.is_empty()) {
+      std::cerr << fmt::format(
+          "Warning: Maximum instance recursion level reached in \"{}\" object.\n", object_name);
     }
-    else if (!object_name.is_empty()) {
-      error_message << " at " << object_name;
+    if (!geometry_name.is_empty() && object_name.is_empty()) {
+      std::cerr << fmt::format(
+          "Warning: Maximum instance recursion level reached at \"{}\" geometry.\n",
+          geometry_name);
     }
-    std::cerr << error_message.str() << ".\n";
+    if (!geometry_name.is_empty() && !object_name.is_empty()) {
+      std::cerr << fmt::format(
+          "Warning: Maximum instance recursion level reached at \"{}\" geometry in \"{}\" "
+          "object.\n",
+          geometry_name,
+          object_name);
+    }
+
     return false;
   }
 
