@@ -48,8 +48,6 @@ set(SRC
   intern/channels.cc
   intern/disk_cache.cc
   intern/disk_cache.hh
-  intern/effects.cc
-  intern/effects.hh
   intern/image_cache.cc
   intern/image_cache.hh
   intern/iterator.cc
@@ -81,6 +79,8 @@ set(SRC
   intern/utils.cc
   intern/utils.hh
   intern/effects/alpha_over.cc
+  intern/effects/effects.cc
+  intern/effects/effects.hh
 )
 
 set(LIB
