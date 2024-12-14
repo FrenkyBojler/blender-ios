@@ -205,10 +205,11 @@ struct CutOperationExecutor {
         else if (first_point_in_stroke == i) {
           // Brush boundary is cutting straight through i-1 and i. Delete all points after i.
           const int prev_point_i = points[i - 1];
-          const float3 &prev_pos_cu = deformation.positions[prev_point_i];
+          const float3 &prev_pos_cu = math::transform_point(brush_transform_inv,
+                                                            deformation.positions[prev_point_i]);
           const float3 boundary = find_projected_cut_boundary(
               prev_pos_cu, pos_cu, brush_pos_re_, brush_radius_re, projection);
-          r_positions[point_i] = boundary;
+          r_positions[point_i] = math::transform_point(brush_transform, boundary);
         }
         else {
           // Brush is encompassing a boundary between selected and unselected points.
