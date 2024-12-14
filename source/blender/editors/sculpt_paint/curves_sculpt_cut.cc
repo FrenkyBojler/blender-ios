@@ -100,44 +100,52 @@ struct CutOperationExecutor {
       }
     }
 
+    Array<bool> to_delete(curves_->points_num(), false);
+    Array<float3> positions(curves_->positions());
+
     bool includes_cyclic = false;
     if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
-      this->cut_projected_points_in_stroke_with_symmetry(includes_cyclic);
+      this->cut_projected_points_in_stroke_with_symmetry(includes_cyclic, to_delete, positions);
     }
     else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
-      this->cut_spherical_points_in_stroke_with_symmetry(includes_cyclic);
+      this->cut_spherical_points_in_stroke_with_symmetry(includes_cyclic, to_delete, positions);
     }
     else {
       BLI_assert_unreachable();
     }
 
+    curves_->positions_for_write().copy_from(positions.as_span());
+
+    IndexMaskMemory memory;
+    curves_->remove_points(IndexMask::from_bools(to_delete.as_span(), memory), {});
+
+    curves_->tag_topology_changed();
+
     if (includes_cyclic) {
       report_cyclic_not_supported(stroke_extension.reports);
     }
 
-    curves_->tag_topology_changed();
     DEG_id_tag_update(&curves_id_->id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GEOM | ND_DATA, &curves_id_->id);
     ED_region_tag_redraw(ctx_.region);
   }
 
-  void cut_projected_points_in_stroke_with_symmetry(bool &r_includes_cyclic)
+  void cut_projected_points_in_stroke_with_symmetry(bool &r_includes_cyclic,
+                                                    MutableSpan<bool> r_to_delete,
+                                                    MutableSpan<float3> r_positions)
   {
-    Array<bool> to_delete(curves_->points_num(), false);
-
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         eCurvesSymmetryType(curves_id_->symmetry));
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      this->cut_projected_points_in_stroke(brush_transform, r_includes_cyclic, to_delete);
+      this->cut_projected_points_in_stroke(
+          brush_transform, r_includes_cyclic, r_to_delete, r_positions);
     }
-
-    IndexMaskMemory memory;
-    curves_->remove_points(IndexMask::from_bools(to_delete.as_span(), memory), {});
   }
 
   void cut_projected_points_in_stroke(const float4x4 &brush_transform,
                                       bool &r_includes_cyclic,
-                                      MutableSpan<bool> r_to_delete)
+                                      MutableSpan<bool> r_to_delete,
+                                      MutableSpan<float3> r_positions)
   {
     const float4x4 brush_transform_inv = math::invert(brush_transform);
 
@@ -152,7 +160,6 @@ struct CutOperationExecutor {
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
     VArray<bool> cyclic = curves_->cyclic();
-    MutableSpan<float3> positions = curves_->positions_for_write();
 
     curve_selection_.foreach_index(GrainSize(256), [&](const int curve_i) {
       if (cyclic[curve_i]) {
@@ -200,7 +207,7 @@ struct CutOperationExecutor {
           const float3 &prev_pos_cu = deformation.positions[prev_point_i];
           const float3 boundary = find_projected_cut_boundary(
               prev_pos_cu, pos_cu, brush_pos_re_, brush_radius_re, projection);
-          positions[point_i] = boundary;
+          r_positions[point_i] = boundary;
         }
         else {
           // Brush is encompassing a boundary between selected and unselected points.
@@ -208,11 +215,11 @@ struct CutOperationExecutor {
         }
       }
     });
-
-    curves_->tag_positions_changed();
   }
 
-  void cut_spherical_points_in_stroke_with_symmetry(bool &r_includes_cyclic)
+  void cut_spherical_points_in_stroke_with_symmetry(bool &r_includes_cyclic,
+                                                    MutableSpan<bool> r_to_delete,
+                                                    MutableSpan<float3> r_positions)
   {
     float3 brush_pos_wo;
     ED_view3d_win_to_3d(
@@ -224,25 +231,22 @@ struct CutOperationExecutor {
     const float3 brush_pos_cu = math::transform_point(transforms_.world_to_curves, brush_pos_wo);
     const float brush_radius_cu = self_->brush_3d_.radius_cu * brush_radius_factor_;
 
-    Array<bool> to_delete(curves_->points_num(), false);
-
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         eCurvesSymmetryType(curves_id_->symmetry));
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
       this->cut_spherical_points_in_stroke(math::transform_point(brush_transform, brush_pos_cu),
                                            brush_radius_cu,
                                            r_includes_cyclic,
-                                           to_delete);
+                                           r_to_delete,
+                                           r_positions);
     }
-
-    IndexMaskMemory memory;
-    curves_->remove_points(IndexMask::from_bools(to_delete.as_span(), memory), {});
   }
 
   void cut_spherical_points_in_stroke(const float3 &brush_pos_cu,
                                       const float brush_radius_cu,
                                       bool &r_includes_cyclic,
-                                      MutableSpan<bool> r_to_delete)
+                                      MutableSpan<bool> r_to_delete,
+                                      MutableSpan<float3> r_positions)
   {
     const float brush_radius_sq_cu = pow2f(brush_radius_cu);
     const uint64_t brush_pos_hash = brush_pos_cu.hash();
@@ -251,7 +255,6 @@ struct CutOperationExecutor {
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
     VArray<bool> cyclic = curves_->cyclic();
-    MutableSpan<float3> positions = curves_->positions_for_write();
 
     curve_selection_.foreach_index(GrainSize(256), [&](const int curve_i) {
       if (cyclic[curve_i]) {
@@ -297,7 +300,7 @@ struct CutOperationExecutor {
           const float3 &prev_pos_cu = deformation.positions[prev_point_i];
           const float3 boundary = find_spherical_cut_boundary(
               prev_pos_cu, pos_cu, brush_pos_cu, brush_radius_cu);
-          positions[point_i] = boundary;
+          r_positions[point_i] = boundary;
         }
         else {
           // Brush is encompassing a boundary between selected and unselected points.
@@ -305,8 +308,6 @@ struct CutOperationExecutor {
         }
       }
     });
-
-    curves_->tag_positions_changed();
   }
 
   /**
