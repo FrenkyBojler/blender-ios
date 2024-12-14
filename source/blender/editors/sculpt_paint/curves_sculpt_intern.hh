@@ -92,6 +92,12 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
                                                     const float2 &brush_pos_re,
                                                     const float brush_radius_re);
 
+/**
+ * Updates the position of the stroke so that it can be used by the orbit-around-selection
+ * navigation method.
+ */
+void remember_stroke_position(Scene &scene, const float3 &brush_position_wo);
+
 Vector<float4x4> get_symmetry_brush_transforms(eCurvesSymmetryType symmetry);
 
 bke::SpanAttributeWriter<float> float_selection_ensure(Curves &curves_id);
