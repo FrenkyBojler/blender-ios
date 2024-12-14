@@ -12,6 +12,10 @@
 #include "DNA_asset_types.h"
 #include "DNA_node_types.h"
 
+#include "BLI_array.hh"
+#include "BLI_bit_span_ops.hh"
+#include "BLI_bit_vector.hh"
+#include "BLI_disjoint_set.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
@@ -20,6 +24,7 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
+#include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
 
@@ -559,88 +564,112 @@ void register_node_type_reroute()
   blender::bke::node_register_type(ntype);
 }
 
-static void propagate_reroute_type_from_start_socket(
-    bNodeSocket *start_socket,
-    const MultiValueMap<bNodeSocket *, bNodeLink *> &links_map,
-    Map<bNode *, const blender::bke::bNodeSocketType *> &r_reroute_types)
-{
-  Stack<bNode *> nodes_to_check;
-  for (bNodeLink *link : links_map.lookup(start_socket)) {
-    if (link->tonode->type == NODE_REROUTE) {
-      nodes_to_check.push(link->tonode);
-    }
-    if (link->fromnode->type == NODE_REROUTE) {
-      nodes_to_check.push(link->fromnode);
-    }
-  }
-  const blender::bke::bNodeSocketType *current_type = start_socket->typeinfo;
-  while (!nodes_to_check.is_empty()) {
-    bNode *reroute_node = nodes_to_check.pop();
-    BLI_assert(reroute_node->type == NODE_REROUTE);
-    if (r_reroute_types.add(reroute_node, current_type)) {
-      for (bNodeLink *link : links_map.lookup((bNodeSocket *)reroute_node->inputs.first)) {
-        if (link->fromnode->type == NODE_REROUTE) {
-          nodes_to_check.push(link->fromnode);
-        }
-      }
-      for (bNodeLink *link : links_map.lookup((bNodeSocket *)reroute_node->outputs.first)) {
-        if (link->tonode->type == NODE_REROUTE) {
-          nodes_to_check.push(link->tonode);
-        }
-      }
-    }
-  }
-}
-
 void ntree_update_reroute_nodes(bNodeTree *ntree)
 {
-  /* Contains nodes that are linked to at least one reroute node. */
-  Set<bNode *> nodes_linked_with_reroutes;
-  /* Contains all links that are linked to at least one reroute node. */
-  MultiValueMap<bNodeSocket *, bNodeLink *> links_map;
-  /* Build acceleration data structures for the algorithm below. */
+  const blender::Span<bNode *> all_nodes = ntree->all_nodes();
+  blender::VectorSet<int> reroute_nodes;
+
+  for (const bNode *node : all_nodes) {
+    if (node->is_reroute()) {
+      reroute_nodes.add(node->index());
+    }
+  }
+
+  blender::DisjointSet reroutes_groups(reroute_nodes.size());
+
+  blender::BitVector<> begin_reroute(reroute_nodes.size(), true);
+
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
-    if (link->fromsock == nullptr || link->tosock == nullptr) {
+    const bNode *src_node = link->fromnode;
+    const bNode *dst_node = link->tonode;
+
+    if (dst_node->is_reroute()) {
+      const int dst_reroute_i = reroute_nodes.index_of(dst_node->index());
+      begin_reroute[dst_reroute_i].reset();
+
+      if (src_node->is_reroute()) {
+        const int src_reroute_i = reroute_nodes.index_of(src_node->index());
+        reroutes_groups.join(src_reroute_i, dst_reroute_i);
+      }
+    }
+  }
+
+  blender::VectorSet<int> reroute_groups;
+
+  for (const int reroute_i : reroute_nodes.index_range()) {
+    const int root_reroute_i = reroutes_groups.find_root(reroute_i);
+    reroute_groups.add(root_reroute_i);
+  }
+
+  blender::Array<const blender::bke::bNodeSocketType *> reroute_group_dst_types(
+      reroute_groups.size(), nullptr);
+  blender::Array<const blender::bke::bNodeSocketType *> reroute_group_src_types(
+      reroute_groups.size(), nullptr);
+
+  LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
+    const bNode *src_node = link->fromnode;
+    const bNode *dst_node = link->tonode;
+
+    if (src_node->is_reroute() == dst_node->is_reroute()) {
       continue;
     }
-    if (link->fromnode->type != NODE_REROUTE && link->tonode->type != NODE_REROUTE) {
-      continue;
-    }
-    if (link->fromnode->type != NODE_REROUTE) {
-      nodes_linked_with_reroutes.add(link->fromnode);
-    }
-    if (link->tonode->type != NODE_REROUTE) {
-      nodes_linked_with_reroutes.add(link->tonode);
-    }
-    links_map.add(link->fromsock, link);
-    links_map.add(link->tosock, link);
-  }
 
-  /* Will contain the socket type for every linked reroute node. */
-  Map<bNode *, const blender::bke::bNodeSocketType *> reroute_types;
+    if (!dst_node->is_reroute()) {
+      const int src_reroute_i = reroute_nodes.index_of(src_node->index());
+      const int src_reroute_root_i = reroutes_groups.find_root(src_reroute_i);
+      const int src_reroute_group_i = reroute_groups.index_of(src_reroute_root_i);
 
-  /* Propagate socket types from left to right. */
-  for (bNode *start_node : nodes_linked_with_reroutes) {
-    LISTBASE_FOREACH (bNodeSocket *, output_socket, &start_node->outputs) {
-      propagate_reroute_type_from_start_socket(output_socket, links_map, reroute_types);
+      const bNodeSocket *dst_socket = link->tosock;
+      /* There could be a function which will choose best from from
+       * #reroute_group_dst_types and #dst_socket, but right now this much behavior as-is. */
+      reroute_group_dst_types[src_reroute_group_i] = dst_socket->typeinfo;
     }
-  }
 
-  /* Propagate socket types from right to left. This affects reroute nodes that haven't been
-   * changed in the loop above. */
-  for (bNode *start_node : nodes_linked_with_reroutes) {
-    LISTBASE_FOREACH (bNodeSocket *, input_socket, &start_node->inputs) {
-      propagate_reroute_type_from_start_socket(input_socket, links_map, reroute_types);
+    if (!src_node->is_reroute()) {
+      const int dst_reroute_i = reroute_nodes.index_of(dst_node->index());
+      const int dst_reroute_root_i = reroutes_groups.find_root(dst_reroute_i);
+      const int dst_reroute_group_i = reroute_groups.index_of(dst_reroute_root_i);
+
+      const bNodeSocket *src_socket = link->fromsock;
+      /* There could be a function which will choose best from from
+       * #reroute_group_src_types and #src_socket, but right now this much behavior as-is. */
+      reroute_group_src_types[dst_reroute_group_i] = src_socket->typeinfo;
     }
   }
 
-  /* Actually update reroute nodes with changed types. */
-  for (const auto item : reroute_types.items()) {
-    bNode *reroute_node = item.key;
-    const blender::bke::bNodeSocketType *socket_type = item.value;
-    NodeReroute *storage = static_cast<NodeReroute *>(reroute_node->storage);
-    STRNCPY(storage->type_idname, socket_type->idname);
-    blender::nodes::update_node_declaration_and_sockets(*ntree, *reroute_node);
+  blender::Array<const blender::bke::bNodeSocketType *> reroute_group_begin_types(
+      reroute_groups.size(), nullptr);
+  blender::bits::foreach_1_index(
+      blender::bits::to_best_bit_span(begin_reroute), [&](const int reroute_i) {
+        const int src_reroute_root_i = reroutes_groups.find_root(reroute_i);
+        const int src_reroute_group_i = reroute_groups.index_of(src_reroute_root_i);
+        const bNode &reroute = *all_nodes[reroute_nodes[reroute_i]];
+        const bNodeSocket *begin_reroute_socket = static_cast<const bNodeSocket *>(
+            reroute.inputs.first);
+        reroute_group_begin_types[src_reroute_group_i] = begin_reroute_socket->typeinfo;
+      });
+
+  for (const int reroute_i : reroute_nodes.index_range()) {
+    const int reroute_root_i = reroutes_groups.find_root(reroute_i);
+    const int reroute_root_index = reroute_groups.index_of(reroute_root_i);
+
+    const blender::bke::bNodeSocketType *reroute_type = nullptr;
+    if (reroute_group_begin_types[reroute_root_index] != nullptr) {
+      reroute_type = reroute_group_begin_types[reroute_root_index];
+    }
+    if (reroute_group_dst_types[reroute_root_index] != nullptr) {
+      reroute_type = reroute_group_dst_types[reroute_root_index];
+    }
+    if (reroute_group_src_types[reroute_root_index] != nullptr) {
+      reroute_type = reroute_group_src_types[reroute_root_index];
+    }
+    BLI_assert(reroute_type != nullptr);
+
+    const int reroute_index = reroute_nodes[reroute_i];
+    bNode &reoute_node = *all_nodes[reroute_index];
+    NodeReroute *storage = static_cast<NodeReroute *>(reoute_node.storage);
+    STRNCPY(storage->type_idname, reroute_type->idname);
+    blender::nodes::update_node_declaration_and_sockets(*ntree, reoute_node);
   }
 }
 
