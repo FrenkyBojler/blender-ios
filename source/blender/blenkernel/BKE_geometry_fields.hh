@@ -163,6 +163,10 @@ class SculptFieldContext : public fn::FieldContext {
   {
   }
 
+  GVArray get_varray_for_input(const fn::FieldInput& field_input,
+                               const IndexMask& mask,
+                               ResourceScope& scope) const;
+
   const Depsgraph &depsgraph() const
   {
     return depsgraph_;
@@ -171,9 +175,16 @@ class SculptFieldContext : public fn::FieldContext {
   {
     return object_;
   }
-  const Span<float3> positions() const
+  virtual const Span<float3> positions() const
   {
     return positions_;
+  }
+
+  virtual const Span<float3> normals() const = 0;
+
+  virtual const Span<int> indices() const
+  {
+    return {};
   }
 };
 
@@ -201,6 +212,9 @@ class MeshSculptFieldContext : public SculptFieldContext {
   {
     return mesh_;
   }
+
+  const Span<float3> normals() const override;
+
   const Span<int> indices() const
   {
     return indices_;
@@ -234,6 +248,8 @@ class GridsSculptFieldContext : public SculptFieldContext {
   {
     return grids_;
   }
+
+  const Span<float3> normals() const override;
 };
 
 class BMeshSculptFieldContext : public SculptFieldContext {
@@ -253,6 +269,8 @@ class BMeshSculptFieldContext : public SculptFieldContext {
   {
     return verts_;
   }
+
+  const Span<float3> normals() const override;
 };
 
 /**
