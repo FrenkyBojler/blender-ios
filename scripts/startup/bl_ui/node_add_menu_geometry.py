@@ -237,6 +237,7 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeProximity")
         node_add_menu.add_node_type(layout, "GeometryNodeIndexOfNearest")
         node_add_menu.add_node_type(layout, "GeometryNodeRaycast")
+        node_add_menu.add_node_type(layout, "GeometryNodeSampleInSpace")
         node_add_menu.add_node_type(layout, "GeometryNodeSampleIndex")
         node_add_menu.add_node_type(layout, "GeometryNodeSampleNearest")
         node_add_menu.draw_assets_for_catalog(layout, "Geometry/Sample")

@@ -101,12 +101,15 @@ template<typename T> inline T safe_inf_divide(const T &a, const T &b)
 */
 }  // namespace blender
 
-namespace blender::nodes::node_geo_evaluate_in_space_cc {
+namespace blender::nodes::node_geo_sample_in_space_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.add_input<decl::Geometry>("Geometry");
   b.add_input<decl::Vector>("Position").implicit_field(implicit_field_inputs::position);
   b.add_input<decl::Vector>("Value").supports_field().hide_value();
+
+  b.add_input<decl::Vector>("Sample Position").implicit_field(implicit_field_inputs::position);
 
   b.add_input<decl::Int>("Power").default_value(2).hide_value();
   b.add_input<decl::Float>("Error").min(1.0f).default_value(2.0f);
@@ -3118,11 +3121,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_EVALUATE_IN_SPACE, "Field in Space", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, GEO_NODE_SAMPLE_IN_SPACE, "Sample in Space", NODE_CLASS_CONVERTER);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_evaluate_in_space_cc
+}  // namespace blender::nodes::node_geo_sample_in_space_cc

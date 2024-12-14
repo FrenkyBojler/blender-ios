@@ -57,6 +57,7 @@ set(SRC
   intern/uv_parametrizer.cc
   intern/volume_grid_resample.cc
 
+  GEO_abstract_kd_bucket_hierarchy.hh
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
   GEO_extend_curves.hh

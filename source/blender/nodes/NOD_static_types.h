@@ -457,6 +457,7 @@ DefNode(GeometryNode, GEO_NODE_SAMPLE_CURVE, def_geo_curve_sample, "SAMPLE_CURVE
 DefNode(GeometryNode, GEO_NODE_SAMPLE_GRID_INDEX, 0, "SAMPLE_GRID_INDEX", SampleGridIndex, "Sample Grid Index", "Retrieve volume grid values at specific voxels")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_GRID, 0, "SAMPLE_GRID", SampleGrid, "Sample Grid", "")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_INDEX, def_geo_sample_index, "SAMPLE_INDEX", SampleIndex, "Sample Index", "Retrieve values from specific geometry elements")
+DefNode(GeometryNode, GEO_NODE_SAMPLE_IN_SPACE, 0, "SAMPLE_IN_SPACE", SampleInSpace, "Sample in Space", "")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_NEAREST_SURFACE, 0, "SAMPLE_NEAREST_SURFACE", SampleNearestSurface, "Sample Nearest Surface", "Calculate the interpolated value of a mesh attribute on the closest point of its surface")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_NEAREST, 0, "SAMPLE_NEAREST", SampleNearest, "Sample Nearest", "Find the element of a geometry closest to a position. Similar to the \"Index of Nearest\" node")
 DefNode(GeometryNode, GEO_NODE_SAMPLE_UV_SURFACE, 0, "SAMPLE_UV_SURFACE", SampleUVSurface, "Sample UV Surface", "Calculate the interpolated values of a mesh attribute at a UV coordinate")
