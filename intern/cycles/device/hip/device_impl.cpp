@@ -331,7 +331,7 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   source_path = path_join(path_join(source_path, "kernel"),
                           path_join("device", path_join(base, string_printf("%s.cpp", name))));
 
-  string command = string_printf("%s %s -I %s --%s %s -o \"%s\" %s",
+  string command = string_printf("%s %s -I \"%s\" --%s \"%s\" -o \"%s\" %s",
                                  hipcc,
                                  options.c_str(),
                                  include_path.c_str(),
