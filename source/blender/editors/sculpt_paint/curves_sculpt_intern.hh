@@ -145,6 +145,7 @@ void report_missing_surface(ReportList *reports);
 void report_missing_uv_map_on_original_surface(ReportList *reports);
 void report_missing_uv_map_on_evaluated_surface(ReportList *reports);
 void report_invalid_uv_map(ReportList *reports);
+void report_cyclic_not_supported(ReportList *reports);
 
 /**
  * Utility class to make it easy for brushes to implement length preservation and surface
