@@ -652,8 +652,9 @@ inline int bNode::index() const
 {
   const int index = this->runtime->index_in_tree;
   /* The order of nodes should always be consistent with the `nodes_by_id` vector. */
-  BLI_assert(index ==
-             this->runtime->owner_tree->runtime->nodes_by_id.index_of_as(this->identifier));
+  BLI_assert(
+      !blender::bke::node_tree_runtime::topology_cache_is_available(*this) ||
+      (index == this->runtime->owner_tree->runtime->nodes_by_id.index_of_as(this->identifier)));
   return index;
 }
 
