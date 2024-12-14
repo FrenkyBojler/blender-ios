@@ -51,6 +51,7 @@
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
 #include "BKE_fluid.h"
+#include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
@@ -914,8 +915,35 @@ void BKE_modifier_deform_verts(ModifierData *md,
                                Mesh *mesh,
                                blender::MutableSpan<blender::float3> positions)
 {
+  using namespace blender::bke;
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
-  mti->deform_verts(md, ctx, mesh, positions);
+  if (mti->deform_verts) {
+    mti->deform_verts(md, ctx, mesh, positions);
+  }
+  /* Try to emulate #deform_verts by deforming a mesh or pointcloud. */
+  else if (mti->modify_geometry_set) {
+    /* Prepare mesh with vertices at the given positions. */
+    GeometrySet geometry;
+    if (mesh) {
+      geometry = GeometrySet::from_mesh(mesh, GeometryOwnershipType::ReadOnly);
+    }
+    else {
+      geometry = GeometrySet::from_mesh(BKE_mesh_new_nomain(positions.size(), 0, 0, 0));
+    }
+    Mesh *mesh_to_deform = geometry.get_mesh_for_write();
+    mesh_to_deform->vert_positions_for_write().copy_from(positions);
+    mesh_to_deform->tag_positions_changed();
+
+    /* Call the modifier and "hope" that it just deforms the mesh. */
+    mti->modify_geometry_set(md, ctx, &geometry);
+
+    /* Extract the deformed vertex positions if possible. */
+    if (const Mesh *deformed_mesh = geometry.get_mesh()) {
+      if (deformed_mesh->verts_num == positions.size()) {
+        positions.copy_from(deformed_mesh->vert_positions());
+      }
+    }
+  }
   if (mesh) {
     mesh->tag_positions_changed();
   }
