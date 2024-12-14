@@ -63,6 +63,7 @@
 
 #include "effects.hh"
 #include "render.hh"
+#include "Alpha_over.cc"
 
 using namespace blender;
 
