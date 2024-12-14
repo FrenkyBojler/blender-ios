@@ -80,6 +80,7 @@ set(SRC
   intern/thumbnail_cache.cc
   intern/utils.cc
   intern/utils.hh
+  intern/effects/Alpha_over.cc
 )
 
 set(LIB
