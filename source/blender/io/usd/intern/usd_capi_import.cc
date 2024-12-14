@@ -23,7 +23,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
 
@@ -36,11 +36,16 @@
 #include "DNA_collection_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
+#include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "ED_undo.hh"
+
 #include "MEM_guardedalloc.h"
+
+#include "RNA_access.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -49,7 +54,7 @@
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/tokens.h>
 
-#include <iostream>
+#include <fmt/core.h>
 
 namespace blender::io::usd {
 
@@ -156,6 +161,7 @@ enum {
 };
 
 struct ImportJobData {
+  bContext *C;
   Main *bmain;
   Scene *scene;
   ViewLayer *view_layer;
@@ -166,6 +172,7 @@ struct ImportJobData {
   ImportSettings settings;
 
   USDStageReader *archive;
+  ImportedPrimMap prim_map;
 
   bool *stop;
   bool *do_update;
@@ -174,6 +181,7 @@ struct ImportJobData {
   char error_code;
   bool was_canceled;
   bool import_ok;
+  bool is_background_job;
   timeit::TimePoint start_time;
 
   CacheFile *cache_file;
@@ -182,9 +190,9 @@ struct ImportJobData {
 static void report_job_duration(const ImportJobData *data)
 {
   timeit::Nanoseconds duration = timeit::Clock::now() - data->start_time;
-  std::cout << "USD import of '" << data->filepath << "' took ";
+  fmt::print("USD import of '{}' took ", data->filepath);
   timeit::print_duration(duration);
-  std::cout << '\n';
+  fmt::print("\n");
 }
 
 static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
@@ -210,7 +218,6 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
         display_name, sizeof(display_name), BLI_path_basename(data->filepath));
     Collection *import_collection = BKE_collection_add(
         data->bmain, data->scene->master_collection, display_name);
-    id_fake_user_set(&import_collection->id);
 
     DEG_id_tag_update(&import_collection->id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(data->bmain);
@@ -294,6 +301,11 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 
   USDStageReader *archive = new USDStageReader(stage, data->params, data->settings);
 
+  /* Ensure Python types for invoking hooks are registered. */
+  register_hook_converters();
+
+  archive->find_material_import_hook_sources();
+
   data->archive = archive;
 
   archive->collect_readers();
@@ -336,14 +348,24 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   /* Setup parenthood and read actual object data. */
   i = 0;
   for (USDPrimReader *reader : archive->readers()) {
-
     if (!reader) {
       continue;
     }
 
     Object *ob = reader->object();
+    if (!ob) {
+      continue;
+    }
 
     reader->read_object_data(data->bmain, 0.0);
+
+    /* TODO: Move this outside the loop once when we support reading object data in parallel. */
+    data->prim_map.lookup_or_add_default(reader->object_prim_path())
+        .append(RNA_id_pointer_create(&ob->id));
+    if (ob->data) {
+      data->prim_map.lookup_or_add_default(reader->data_prim_path())
+          .append(RNA_id_pointer_create(static_cast<ID *>(ob->data)));
+    }
 
     USDPrimReader *parent = reader->parent();
 
@@ -362,6 +384,14 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
       return;
     }
   }
+
+  data->settings.usd_path_to_mat_name.foreach_item(
+      [&](const std::string &path, const std::string &name) {
+        Material *mat = data->settings.mat_name_to_mat.lookup_default(name, nullptr);
+        if (mat) {
+          data->prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(&mat->id));
+        }
+      });
 
   if (data->params.import_skeletons) {
     archive->process_armature_modifiers();
@@ -451,10 +481,15 @@ static void import_endjob(void *customdata)
       data->archive->fake_users_for_unused_materials();
     }
 
-    /* Ensure Python types for invoking hooks are registered. */
-    register_hook_converters();
+    data->archive->call_material_import_hooks(data->bmain);
 
-    call_import_hooks(data->archive->stage(), data->params.worker_status->reports);
+    call_import_hooks(data->archive->stage(), data->prim_map, data->params.worker_status->reports);
+
+    if (data->is_background_job) {
+      /* Blender already returned from the import operator, so we need to store our own extra undo
+       * step. */
+      ED_undo_push(data->C, "USD Import Finished");
+    }
   }
 
   WM_set_locked_interface(data->wm, false);
@@ -485,7 +520,7 @@ static void import_freejob(void *user_data)
   delete data;
 }
 
-bool USD_import(bContext *C,
+bool USD_import(const bContext *C,
                 const char *filepath,
                 const USDImportParams *params,
                 bool as_background_job,
@@ -493,19 +528,15 @@ bool USD_import(bContext *C,
 {
   /* Using new here since `MEM_*` functions do not call constructor to properly initialize data. */
   ImportJobData *job = new ImportJobData();
+  job->C = const_cast<bContext *>(C);
   job->bmain = CTX_data_main(C);
   job->scene = CTX_data_scene(C);
   job->view_layer = CTX_data_view_layer(C);
   job->wm = CTX_wm_manager(C);
   job->import_ok = false;
+  job->is_background_job = as_background_job;
   STRNCPY(job->filepath, filepath);
 
-  job->settings.scale = params->scale;
-  job->settings.sequence_offset = params->offset;
-  job->settings.is_sequence = params->is_sequence;
-  job->settings.sequence_len = params->sequence_len;
-  job->settings.validate_meshes = params->validate_meshes;
-  job->settings.sequence_len = params->sequence_len;
   job->error_code = USD_NO_ERROR;
   job->was_canceled = false;
   job->archive = nullptr;
@@ -551,13 +582,13 @@ bool USD_import(bContext *C,
  * Alembic importer code. */
 static USDPrimReader *get_usd_reader(CacheReader *reader,
                                      const Object * /*ob*/,
-                                     const char **err_str)
+                                     const char **r_err_str)
 {
   USDPrimReader *usd_reader = reinterpret_cast<USDPrimReader *>(reader);
   pxr::UsdPrim iobject = usd_reader->prim();
 
   if (!iobject.IsValid()) {
-    *err_str = RPT_("Invalid object: verify object path");
+    *r_err_str = RPT_("Invalid object: verify object path");
     return nullptr;
   }
 
@@ -573,39 +604,33 @@ USDMeshReadParams create_mesh_read_params(const double motion_sample_time, const
 }
 
 void USD_read_geometry(CacheReader *reader,
-                       Object *ob,
+                       const Object *ob,
                        blender::bke::GeometrySet &geometry_set,
                        const USDMeshReadParams params,
-                       const char **err_str)
+                       const char **r_err_str)
 {
-  USDGeomReader *usd_reader = dynamic_cast<USDGeomReader *>(get_usd_reader(reader, ob, err_str));
+  USDGeomReader *usd_reader = dynamic_cast<USDGeomReader *>(get_usd_reader(reader, ob, r_err_str));
 
   if (usd_reader == nullptr) {
     return;
   }
 
-  return usd_reader->read_geometry(geometry_set, params, err_str);
+  return usd_reader->read_geometry(geometry_set, params, r_err_str);
 }
 
 bool USD_mesh_topology_changed(CacheReader *reader,
                                const Object *ob,
                                const Mesh *existing_mesh,
                                const double time,
-                               const char **err_str)
+                               const char **r_err_str)
 {
-  USDGeomReader *usd_reader = dynamic_cast<USDGeomReader *>(get_usd_reader(reader, ob, err_str));
+  USDGeomReader *usd_reader = dynamic_cast<USDGeomReader *>(get_usd_reader(reader, ob, r_err_str));
 
   if (usd_reader == nullptr) {
     return false;
   }
 
   return usd_reader->topology_changed(existing_mesh, time);
-}
-
-void USD_CacheReader_incref(CacheReader *reader)
-{
-  USDPrimReader *usd_reader = reinterpret_cast<USDPrimReader *>(reader);
-  usd_reader->incref();
 }
 
 CacheReader *CacheReader_open_usd_object(CacheArchiveHandle *handle,
@@ -638,6 +663,10 @@ CacheReader *CacheReader_open_usd_object(CacheArchiveHandle *handle,
 
   if (usd_reader == nullptr) {
     /* This object is not supported. */
+    return nullptr;
+  }
+  if (!usd_reader->valid()) {
+    /* This object is invalid for some reason. */
     return nullptr;
   }
   usd_reader->object(object);

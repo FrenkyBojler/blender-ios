@@ -28,7 +28,6 @@ set(SRC
   transform_convert_cursor.cc
   transform_convert_curve.cc
   transform_convert_curves.cc
-  transform_convert_gpencil_legacy.cc
   transform_convert_graph.cc
   transform_convert_grease_pencil.cc
   transform_convert_lattice.cc
@@ -72,7 +71,6 @@ set(SRC
   transform_mode_edge_seq_slide.cc
   transform_mode_edge_slide.cc
   transform_mode_gpopacity.cc
-  transform_mode_gpshrinkfatten.cc
   transform_mode_maskshrinkfatten.cc
   transform_mode_mirror.cc
   transform_mode_push_pull.cc
@@ -105,7 +103,6 @@ set(SRC
   transform.hh
   transform_constraints.hh
   transform_convert.hh
-  transform_data.hh
   transform_draw_cursors.hh
   transform_gizmo.hh
   transform_mode.hh
@@ -127,18 +124,6 @@ set(LIB
   bf_gpu
   PRIVATE bf::intern::guardedalloc
 )
-
-if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
-
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
-endif()
 
 blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 

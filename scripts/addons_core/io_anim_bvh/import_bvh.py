@@ -155,9 +155,10 @@ def read_bvh(context, file_path, rotate_mode='XYZ', global_scale=1.0):
             ))
             lineIdx += 1  # Increment to the next line (Channels)
 
-            # newChannel[Xposition, Yposition, Zposition, Xrotation, Yrotation, Zrotation]
-            # newChannel references indices to the motiondata,
-            # if not assigned then -1 refers to the last value that will be added on loading at a value of zero, this is appended
+            # `newChannel[Xposition, Yposition, Zposition, Xrotation, Yrotation, Zrotation]`
+            # newChannel references indices to the `motiondata`,
+            # if not assigned then -1 refers to the last value that will be added
+            # on loading at a value of zero, this is appended.
             # We'll add a zero value onto the end of the MotionDATA so this always refers to a value.
             my_channel = [-1, -1, -1, -1, -1, -1]
             my_rot_order = [None, None, None]
@@ -321,7 +322,7 @@ def read_bvh(context, file_path, rotate_mode='XYZ', global_scale=1.0):
                     rest_tail_local += bvh_node_child.rest_head_local
 
                 bvh_node.rest_tail_world = rest_tail_world * (1.0 / len(bvh_node.children))
-                bvh_node.rest_tail_local = rest_tail_local * (1.0 / len(bvh_node.children))
+                bvh_node.rest_tail_local = bvh_node.rest_head_local + (rest_tail_local * (1.0 / len(bvh_node.children)))
 
         # Make sure tail isn't the same location as the head.
         if (bvh_node.rest_tail_local - bvh_node.rest_head_local).length <= 0.001 * global_scale:

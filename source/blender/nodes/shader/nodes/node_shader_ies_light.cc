@@ -28,7 +28,8 @@ static void node_shader_buts_ies(uiLayout *layout, bContext * /*C*/, PointerRNA 
   uiLayout *row;
 
   row = uiLayoutRow(layout, false);
-  uiItemR(row, ptr, "mode", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(
+      row, ptr, "mode", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   row = uiLayoutRow(layout, true);
 
@@ -62,5 +63,5 @@ void register_node_type_sh_tex_ies()
   blender::bke::node_type_storage(
       &ntype, "NodeShaderTexIES", node_free_standard_storage, node_copy_standard_storage);
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

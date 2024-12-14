@@ -33,9 +33,9 @@
 #include "BKE_customdata.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
-#include "BKE_image_save.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
+#include "BKE_image_save.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
@@ -67,6 +67,9 @@
 
 #include "SEQ_render.hh"
 
+#include "ANIM_action_legacy.hh"
+
+#include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_matrix.hh"
 #include "GPU_viewport.hh"
@@ -398,6 +401,13 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
     RE_render_result_rect_from_ibuf(rr, ibuf_result, oglrender->view_id);
     IMB_freeImBuf(ibuf_result);
   }
+
+  /* Perform render step between renders to allow
+   * flushing of freed GPUBackend resources. */
+  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+    GPU_flush();
+  }
+  GPU_render_step(true);
 }
 
 static void screen_opengl_render_write(OGLRender *oglrender)
@@ -512,7 +522,7 @@ static void gather_frames_to_render_for_adt(const OGLRender *oglrender, const An
   int frame_start = PSFRA;
   int frame_end = PEFRA;
 
-  LISTBASE_FOREACH (FCurve *, fcu, &adt->action->curves) {
+  for (const FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(adt)) {
     if (fcu->driver != nullptr || fcu->fpt != nullptr) {
       /* Drivers have values for any point in time, so to get "the keyed frames" they are
        * useless. Same for baked FCurves, they also have keys for every frame, which is not
@@ -569,7 +579,7 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
   ID *id = *id_p;
 
   ID *self_id = cb_data->self_id;
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   if (cb_flag == IDWALK_CB_LOOPBACK || id == self_id) {
     /* IDs may end up referencing themselves one way or the other, and those
      * (the self_id ones) have always already been processed. */

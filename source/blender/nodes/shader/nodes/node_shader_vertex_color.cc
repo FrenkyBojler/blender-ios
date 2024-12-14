@@ -37,7 +37,7 @@ static void node_shader_buts_vertex_color(uiLayout *layout, bContext *C, Pointer
     }
   }
 
-  uiItemR(layout, ptr, "layer_name", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_GROUP_VCOL);
+  uiItemR(layout, ptr, "layer_name", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_GROUP_VCOL);
   uiItemL(layout, RPT_("No mesh in active object"), ICON_ERROR);
 }
 
@@ -97,5 +97,5 @@ void register_node_type_sh_vertex_color()
   ntype.gpu_fn = file_ns::node_shader_gpu_vertex_color;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

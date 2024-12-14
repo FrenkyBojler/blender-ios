@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "BKE_geometry_set.hh"
 
@@ -80,6 +80,7 @@ struct OBJImportParams {
   bool use_split_groups = false;
   bool import_vertex_groups = false;
   bool validate_meshes = true;
+  bool close_spline_loops = true;
   bool relative_paths = true;
   bool clear_selection = true;
 

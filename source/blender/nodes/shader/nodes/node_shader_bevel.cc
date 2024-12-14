@@ -18,7 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_bevel(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "samples", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "samples", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static void node_shader_init_bevel(bNodeTree * /*ntree*/, bNode *node)
@@ -64,5 +64,5 @@ void register_node_type_sh_bevel()
   ntype.gpu_fn = file_ns::gpu_shader_bevel;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -17,7 +17,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
@@ -25,11 +25,13 @@
 
 #include "BIK_api.h"
 
+#include "ED_anim_api.hh"
 #include "ED_armature.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "ANIM_action.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_rna.hh"
@@ -392,7 +394,6 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
   copy_v3_v3(vec, pchan->pose_mat[3]);
   copy_v3_v3(td->center, vec);
 
-  td->ob = ob;
   td->flag = TD_SELECTED;
   if (bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
     td->flag |= TD_NOCENTER;
@@ -831,7 +832,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
 
             td->loc = nullptr;
             td->ext = nullptr;
-            td->ob = tc->obedit;
 
             td++;
           }
@@ -846,7 +846,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
 
             td->loc = nullptr;
             td->ext = nullptr;
-            td->ob = tc->obedit;
 
             td++;
           }
@@ -876,7 +875,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
             normalize_m3(td->axismtx);
 
             td->ext = nullptr;
-            td->ob = tc->obedit;
 
             td++;
           }
@@ -891,7 +889,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
             td->flag = TD_SELECTED;
 
             td->ext = nullptr;
-            td->ob = tc->obedit;
 
             td++;
           }
@@ -931,7 +928,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
 
             td->ext = nullptr;
             td->val = nullptr;
-            td->ob = tc->obedit;
 
             td++;
           }
@@ -954,7 +950,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
 
             td->ext = nullptr;
             td->val = nullptr;
-            td->ob = tc->obedit;
 
             td++;
           }
@@ -1660,6 +1655,11 @@ static void special_aftertrans_update__pose(bContext *C, TransInfo *t)
   }
   else {
     const bool canceled = (t->state == TRANS_CANCEL);
+
+    if (blender::animrig::is_autokey_on(t->scene) && !canceled) {
+      ANIM_deselect_keys_in_animation_editors(C);
+    }
+
     GSet *motionpath_updates = BLI_gset_ptr_new("motionpath updates");
 
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
