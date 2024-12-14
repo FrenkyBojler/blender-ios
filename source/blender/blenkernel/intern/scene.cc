@@ -468,7 +468,7 @@ static void scene_free_data(ID *id)
 static void scene_foreach_rigidbodyworldSceneLooper(RigidBodyWorld * /*rbw*/,
                                                     ID **id_pointer,
                                                     void *user_data,
-                                                    int cb_flag)
+                                                    const LibraryForeachIDCallbackFlag cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
@@ -787,7 +787,8 @@ static void scene_foreach_layer_collection(LibraryForeachIDData *data,
     if ((data_flags & IDWALK_NO_ORIG_POINTERS_ACCESS) == 0 && lc->collection != nullptr) {
       BLI_assert(is_master == ((lc->collection->id.flag & ID_FLAG_EMBEDDED_DATA) != 0));
     }
-    const int cb_flag = is_master ? IDWALK_CB_EMBEDDED_NOT_OWNING : IDWALK_CB_NOP;
+    const LibraryForeachIDCallbackFlag cb_flag = is_master ? IDWALK_CB_EMBEDDED_NOT_OWNING :
+                                                             IDWALK_CB_NOP;
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lc->collection, cb_flag | IDWALK_CB_DIRECT_WEAK_LINK);
     scene_foreach_layer_collection(data, &lc->layer_collections, false);
   }
@@ -1007,8 +1008,6 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 {
   Scene *sce = (Scene *)id;
 
-  BLO_Write_IDBuffer *temp_embedded_id_buffer = BLO_write_allocate_id_buffer();
-
   if (BLO_write_is_undo(writer)) {
     /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     /* XXX This UI data should not be stored in Scene at all... */
@@ -1122,10 +1121,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   if (sce->nodetree) {
-    BLO_write_init_id_buffer_from_id(
-        temp_embedded_id_buffer, &sce->nodetree->id, BLO_write_is_undo(writer));
-    bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(
-        BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
+    BLO_Write_IDBuffer temp_embedded_id_buffer{sce->nodetree->id, writer};
+    bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
     /* Set deprecated chunksize for forward compatibility. */
     temp_nodetree->chunksize = 256;
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
@@ -1156,26 +1153,17 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   if (sce->master_collection) {
-    BLO_write_init_id_buffer_from_id(
-        temp_embedded_id_buffer, &sce->master_collection->id, BLO_write_is_undo(writer));
-    BKE_collection_blend_write_prepare_nolib(
-        writer,
-        reinterpret_cast<Collection *>(BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer)));
-    BLO_write_struct_at_address(writer,
-                                Collection,
-                                sce->master_collection,
-                                BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
-    BKE_collection_blend_write_nolib(
-        writer,
-        reinterpret_cast<Collection *>(BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer)));
+    BLO_Write_IDBuffer temp_embedded_id_buffer{sce->master_collection->id, writer};
+    Collection *temp_collection = reinterpret_cast<Collection *>(temp_embedded_id_buffer.get());
+    BKE_collection_blend_write_prepare_nolib(writer, temp_collection);
+    BLO_write_struct_at_address(writer, Collection, sce->master_collection, temp_collection);
+    BKE_collection_blend_write_nolib(writer, temp_collection);
   }
 
   BKE_screen_view3d_shading_blend_write(writer, &sce->display.shading);
 
   /* Freed on `do_versions()`. */
   BLI_assert(sce->layer_properties == nullptr);
-
-  BLO_write_destroy_id_buffer(&temp_embedded_id_buffer);
 }
 
 static void direct_link_paint_helper(BlendDataReader *reader, const Scene *scene, Paint **paint)

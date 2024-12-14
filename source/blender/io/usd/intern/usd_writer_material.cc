@@ -992,9 +992,11 @@ static bNode *find_bsdf_node(Material *material)
   return nullptr;
 }
 
-/* Returns the first occurrence of a scalar Displacment node found in the given
- * material's node tree. Vector Displacement is not supported in the UsdPreviewSurface.
- * Returns null if no instance of either type was found. */
+/**
+ * Returns the first occurrence of a scalar Displacement node found in the given
+ * material's node tree. Vector Displacement is not supported in the #UsdPreviewSurface.
+ * Returns null if no instance of either type was found.
+ */
 static bNode *find_displacement_node(Material *material)
 {
   for (bNode *node : material->nodetree->all_nodes()) {
@@ -1285,10 +1287,10 @@ static void copy_single_file(const Image *ima,
   }
 }
 
-static void export_texture(Image *ima,
-                           const pxr::UsdStageRefPtr stage,
-                           const bool allow_overwrite,
-                           ReportList *reports)
+void export_texture(Image *ima,
+                    const pxr::UsdStageRefPtr stage,
+                    const bool allow_overwrite,
+                    ReportList *reports)
 {
   std::string dest_dir = get_export_textures_dir(stage);
   if (dest_dir.empty()) {
@@ -1616,7 +1618,8 @@ pxr::UsdShadeMaterial create_usd_material(const USDExporterContext &usd_export_c
   }
 #endif
 
-  call_material_export_hooks(usd_export_context.stage, material, usd_material, reports);
+  call_material_export_hooks(
+      usd_export_context.stage, material, usd_material, usd_export_context.export_params, reports);
 
   return usd_material;
 }
