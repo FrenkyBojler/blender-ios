@@ -678,6 +678,15 @@ static bool rna_BrushCapabilitiesImagePaint_has_radius_get(PointerRNA *ptr)
   return (br->image_brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL);
 }
 
+static bool rna_Brush_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  bNodeTree *ntree = static_cast<bNodeTree *>(value.data);
+  if (ntree->type != NTREE_GEOMETRY) {
+    return false;
+  }
+  return true;
+}
+
 static PointerRNA rna_Sculpt_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
@@ -3847,11 +3856,9 @@ static void rna_def_brush(BlenderRNA *brna)
 
   /* node tree */
   prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "node_group");
-  RNA_def_property_struct_type(prop, "GeometryNodeTree");
-  RNA_def_property_clear_flag(prop, PROP_PTR_NO_OWNERSHIP);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Node Group", "Node group for brush calculation");
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Brush_node_group_poll");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_BRUSH | ND_DATA, "rna_Brush_update");
 
   /* clone brush */
