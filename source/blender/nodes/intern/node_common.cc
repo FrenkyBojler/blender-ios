@@ -575,6 +575,11 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
   }
 
+  /* Any reroute can be connected only to one source, or can be not connected at all.
+   * So reroute forms a trees. It is possible that there will be cycle, but such cycle
+   * can be only one in strongly connected set of reroutes. To propagate a types from
+   * some certain target to all the reroutes in such a tree we need to know all such
+   * a trees and all possible targets for each tree. */
   blender::DisjointSet reroutes_groups(reroute_nodes.size());
 
   blender::BitVector<> begin_reroute(reroute_nodes.size(), true);
@@ -620,8 +625,8 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
       const int src_reroute_group_i = reroute_groups.index_of(src_reroute_root_i);
 
       const bNodeSocket *dst_socket = link->tosock;
-      /* There could be a function which will choose best from from
-       * #reroute_group_dst_types and #dst_socket, but right now this much behavior as-is. */
+      /* There could be a function which will choose best from
+       * #reroute_group_dst_types and #dst_socket, but right now this match behavior as-is. */
       reroute_group_dst_types[src_reroute_group_i] = dst_socket->typeinfo;
     }
 
@@ -631,8 +636,8 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
       const int dst_reroute_group_i = reroute_groups.index_of(dst_reroute_root_i);
 
       const bNodeSocket *src_socket = link->fromsock;
-      /* There could be a function which will choose best from from
-       * #reroute_group_src_types and #src_socket, but right now this much behavior as-is. */
+      /* There could be a function which will choose best from
+       * #reroute_group_src_types and #src_socket, but right now this match behavior as-is. */
       reroute_group_src_types[dst_reroute_group_i] = src_socket->typeinfo;
     }
   }
@@ -663,7 +668,15 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     if (reroute_group_src_types[reroute_root_index] != nullptr) {
       reroute_type = reroute_group_src_types[reroute_root_index];
     }
-    BLI_assert(reroute_type != nullptr);
+
+    if (reroute_type == nullptr) {
+      /* Case of cycle of reroutes. Just use some _random_ reoute as a root, but here could be some
+       * more smart statistic. */
+      const int root_in_cycle_i = reroute_nodes[reroute_root_i];
+      const bNode &root_reroute = *all_nodes[root_in_cycle_i];
+      const bNodeSocket *root_socket = static_cast<const bNodeSocket *>(root_reroute.inputs.first);
+      reroute_type = root_socket->typeinfo;
+    }
 
     const int reroute_index = reroute_nodes[reroute_i];
     bNode &reoute_node = *all_nodes[reroute_index];
