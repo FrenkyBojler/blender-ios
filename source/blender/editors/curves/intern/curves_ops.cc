@@ -1157,6 +1157,8 @@ static int split_exec(bContext *C, wmOperator * /*op*/)
     }
     split_points(points_to_split, curves, memory);
 
+    curves.calculate_bezier_auto_handles();
+
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
