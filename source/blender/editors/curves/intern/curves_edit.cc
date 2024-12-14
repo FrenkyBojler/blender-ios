@@ -280,7 +280,7 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
       roll_by = rolled_range.size();
       roll_src_offsets.append(rolled_range.first());
       roll_src_offsets.append(rolled_range.one_after_last());
-      roll_dst_offsets.append(dst_offsets.last() + 0);
+      roll_dst_offsets.append(dst_offsets.last());
       roll_dst_offsets.append(roll_dst_offsets.last() + roll_by);
       dst_offsets.last() += roll_by;
     };
@@ -342,10 +342,11 @@ void split_points(const IndexMask &points_to_split,
 
   for (const int curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve];
-    const IndexMask preserved_points =
-        drop_singles(points_to_split.slice_content(points), points, cyclic[curve], memory)
+    const IndexMask curve_points_to_split = points_to_split.slice_content(points);
+    const IndexMask curve_preserved_points =
+        drop_singles(curve_points_to_split, points, cyclic[curve], memory)
             .complement(points, memory);
-    curve_offsets_from_selection(preserved_points,
+    curve_offsets_from_selection(curve_preserved_points,
                                  points,
                                  curve,
                                  true,
@@ -358,7 +359,7 @@ void split_points(const IndexMask &points_to_split,
                                  preserved_roll_dst_offsets,
                                  curve_map);
 
-    curve_offsets_from_selection(points_to_split.slice_content(points),
+    curve_offsets_from_selection(curve_points_to_split,
                                  points,
                                  curve,
                                  false,
