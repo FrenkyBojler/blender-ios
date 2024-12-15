@@ -63,7 +63,7 @@
 
 #include "effects.hh"
 #include "render.hh"
-#include "alpha_over.cc"
+#include "sequencer_effect_alpha_over.hh"
 
 using namespace blender;
 
