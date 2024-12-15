@@ -48,6 +48,8 @@ set(SRC
   intern/channels.cc
   intern/disk_cache.cc
   intern/disk_cache.hh
+  intern/effects.cc
+  intern/effects.hh
   intern/image_cache.cc
   intern/image_cache.hh
   intern/iterator.cc
@@ -65,6 +67,7 @@ set(SRC
   intern/sequence_lookup.cc
   intern/sequencer.cc
   intern/sequencer.hh
+  intern/sequencer_effect_alpha_over.cc
   intern/sound.cc
   intern/strip_add.cc
   intern/strip_connect.cc
@@ -78,9 +81,6 @@ set(SRC
   intern/thumbnail_cache.cc
   intern/utils.cc
   intern/utils.hh
-  intern/effects/alpha_over.cc
-  intern/effects/effects.cc
-  intern/effects/effects.hh
 )
 
 set(LIB
