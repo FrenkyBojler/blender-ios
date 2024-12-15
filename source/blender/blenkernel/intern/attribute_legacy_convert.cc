@@ -86,45 +86,61 @@ static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomD
 }
 
 AttributeStorage attribute_legacy_convert_customdata_to_storage(
-    const Map < AttrDomain,
-    Array const Span<std::pair<AttrDomain, const CustomData *>> custom_data_domains)
+    const Span<AttrDomain> domains,
+    const Span<CustomData *> custom_datas,
+    const Span<int> domain_sizes)
 {
   AttributeStorage r_storage{};
-  for (auto &[domain, custom_data] : custom_data_domains) {
+  struct AttributeToAdd {
+    StringRef name;
+    AttrDomain domain;
+    AttrType type;
+    void *array_data;
+    int array_size;
+    const ImplicitSharingInfo *sharing_info;
+  };
+  Vector<AttributeToAdd> attributes_to_add;
+  for (const int i : domains.index_range()) {
+    CustomData &custom_data = *custom_datas[i];
     Vector<CustomDataLayer> kept_layers;
-    for (CustomDataLayer &layer : MutableSpan(custom_data->layers, custom_data->totlayer)) {
+    for (CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
       if (std::optional<AttrType> attr_type = custom_data_type_to_attribute_type(
               eCustomDataType(layer.type)))
       {
-        const AttributeDataArray data{layer.data, layer.elements_num, layer.sharing_info};
-        r_storage.add(layer.name, *attr_type, domain, layer.data, layer.sharing_info);
+        attributes_to_add.append(
+            {layer.name, domains[i], *attr_type, layer.data, domain_sizes[i], layer.sharing_info});
+        layer.data = nullptr;
+        layer.sharing_info = nullptr;
       }
       else {
         kept_layers.append(layer);
       }
     }
     VectorData<CustomDataLayer, GuardedAllocator> kept_layers_data = kept_layers.release();
-    custom_data->layers = kept_layers_data.data;
-    custom_data->totlayer = kept_layers_data.size;
-    custom_data->maxlayer = kept_layers_data.capacity;
+    custom_data.layers = kept_layers_data.data;
+    custom_data.totlayer = kept_layers_data.size;
+    custom_data.maxlayer = kept_layers_data.capacity;
   }
 
   r_storage.attributes_array = static_cast<Attribute **>(
-      MEM_malloc_arrayN(attributes_to_move.size(), sizeof(Attribute *), __func__));
-  r_storage.attributes_num = attributes_to_move.size();
-  r_storage.attributes_capacity = attributes_to_move.size();
+      MEM_malloc_arrayN(attributes_to_add.size(), sizeof(Attribute *), __func__));
+  r_storage.attributes_num = attributes_to_add.size();
+  r_storage.attributes_capacity = attributes_to_add.size();
 
-  for (const int i : attributes_to_move.index_range()) {
-    AttributeToMove &src = attributes_to_move[i];
+  for (const int i : attributes_to_add.index_range()) {
+    AttributeToAdd &src = attributes_to_add[i];
     Attribute *dst = MEM_cnew<Attribute>(__func__);
     r_storage.attributes_array[i] = dst;
 
     dst->name = BLI_strdupn(src.name.data(), src.name.size());
     dst->domain = int16_t(src.domain);
-    dst->data_type = int16_t(src.attr_type);
+    dst->data_type = int16_t(src.type);
     dst->storage_type = int8_t(AttrStorageType::Array);
-    dst->data = src.data;
-    dst->sharing_info = src.sharing_info;
+    AttributeDataArray *data = MEM_cnew<AttributeDataArray>(__func__);
+    dst->data = data;
+    data->data = src.array_data;
+    data->sharing_info = src.sharing_info;
+    data->elements_num = src.array_size;
   }
 }
 
@@ -165,15 +181,20 @@ void attribute_legacy_convert_storage_to_customdata(
     AttributeStorage &storage, const std::array<CustomData *, ATTR_DOMAIN_NUM> custom_data_domains)
 {
   for (Attribute *attribute : Span(storage.attributes_array, storage.attributes_num)) {
-    if (const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
-            AttrType(attribute->data_type)))
-    {
-      CustomData_add_layer_named_with_data(custom_data_domains[attribute->domain],
-                                           *data_type,
-                                           attribute->data,
-                                           0,  // TODO
-                                           attribute->name,
-                                           attribute->sharing_info);
+    if (AttrStorageType(attribute->storage_type) != AttrStorageType::Array) {
+      continue;
     }
+    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+        AttrType(attribute->data_type));
+    if (!data_type) {
+      continue;
+    }
+    const auto &array_data = *static_cast<const AttributeDataArray *>(attribute->data);
+    CustomData_add_layer_named_with_data(custom_data_domains[attribute->domain],
+                                         *data_type,
+                                         attribute->data,
+                                         array_data.elements_num,
+                                         attribute->name,
+                                         array_data.sharing_info);
   }
 }  // namespace blender::bke
