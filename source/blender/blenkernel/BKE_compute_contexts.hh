@@ -164,13 +164,13 @@ class OperatorComputeContext : public ComputeContext {
   void print_current_in_line(std::ostream &stream) const override;
 };
 
-class SculptingComputeContext : public ComputeContext {
+class SculptComputeContext : public ComputeContext {
  private:
-  static constexpr const char *s_static_type = "SCULPTING";
+  static constexpr const char *s_static_type = "SCULPT";
 
  public:
-  SculptingComputeContext() : SculptingComputeContext(nullptr) {}
-  SculptingComputeContext(const ComputeContext *parent) : ComputeContext(s_static_type, parent) {}
+  SculptComputeContext() : SculptComputeContext(nullptr) {}
+  SculptComputeContext(const ComputeContext *parent) : ComputeContext(s_static_type, parent) {}
 
  private:
   void print_current_in_line(std::ostream & /* stream */) const override {}

@@ -89,7 +89,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   call_data.side_effect_nodes = {};
   call_data.sculpt_data = &sculpt_data;
 
-  bke::SculptingComputeContext compute_context;
+  bke::SculptComputeContext compute_context;
 
   nodes::GeoNodesLFUserData user_data;
   user_data.call_data = &call_data;
