@@ -39,6 +39,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 {
   const bNodeTree *tree = brush.node_group;
 
+  /* The brush doesn't have an associated node group */
   if (tree == nullptr) {
     return;
   }
@@ -52,7 +53,14 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
   /* Nothing to do */
   if (num_outputs == 0) {
-    outputs.fill(float3(0.0f));
+    return;
+  }
+
+  const bNodeTreeInterfaceSocket* first_output = tree->interface_outputs()[0];
+
+  /* Only allow Vector outputs for now.
+     TODO: Add support for Float and RGBA */
+  if (first_output->socket_typeinfo()->type != SOCK_VECTOR) {
     return;
   }
 
@@ -154,10 +162,10 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
     ptr.destruct();
   }
 
-  bke::SocketValueVariant output = std::move(*param_outputs[0].get<bke::SocketValueVariant>());
+  bke::SocketValueVariant output_socket = std::move(*param_outputs[0].get<bke::SocketValueVariant>());
 
-  fn::Field<float3> output_field = output.get<fn::Field<float3>>();
-  fn::FieldEvaluator evaluator{context, outputs.size()};
+  fn::Field<float3> output_field = output_socket.get<fn::Field<float3>>();
+  fn::FieldEvaluator evaluator{ context, outputs.size() };
 
   Vector<float3> tmp_outputs(outputs.size());
   evaluator.add_with_destination(output_field, tmp_outputs.as_mutable_span());
