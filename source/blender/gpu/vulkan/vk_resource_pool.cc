@@ -32,17 +32,17 @@ void VKDiscardPool::deinit(VKDevice &device)
 {
   destroy_discarded_resources(device);
   /* Other Vulkan objects may check when a timeline semaphore has reach to certain value, if the
-   * timeline semaphore is included in `timeline_semaphores_pool` that means it already has reached
-   * the last expected value, however we must keep those semaphores alive to be able to
+   * timeline semaphore is included in `timeline_semaphores_pool_` that means it already has
+   * reached the last expected value, however we must keep those semaphores alive to be able to
    * make that checks, so keep them until device is destroyed. */
   if (&device.orphaned_data != this) {
     device.orphaned_data.move_data(*this);
   }
   else {
-    for (VKTimelineSemaphore &timeline_semaphore : timeline_semaphores_pool) {
+    for (VKTimelineSemaphore &timeline_semaphore : timeline_semaphores_pool_) {
       vkDestroySemaphore(device.vk_handle(), timeline_semaphore.semaphore(), nullptr);
     }
-    timeline_semaphores_pool.clear();
+    timeline_semaphores_pool_.clear();
   }
 }
 
@@ -58,7 +58,7 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool)
   framebuffers_.extend(std::move(src_pool.framebuffers_));
   render_passes_.extend(std::move(src_pool.render_passes_));
   submit_semaphores_.extend(std::move(src_pool.submit_semaphores_));
-  timeline_semaphores_pool.extend(std::move(src_pool.timeline_semaphores_pool));
+  timeline_semaphores_pool_.extend(std::move(src_pool.timeline_semaphores_pool_));
   for (const Map<VkCommandPool, Vector<VkCommandBuffer>>::Item &item :
        src_pool.command_buffers_.items())
   {
@@ -151,8 +151,7 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
     vkWaitSemaphores(device.vk_handle(), &wait_info, UINT64_MAX);
   }
 
-  timeline_semaphores_pool.extend(submit_semaphores_);
-  submit_semaphores_.clear();
+  timeline_semaphores_pool_.extend(std::move(submit_semaphores_));
 
   while (!image_views_.is_empty()) {
     VkImageView vk_image_view = image_views_.pop_last();
@@ -205,8 +204,8 @@ SubmitSyncInfo VKDiscardPool::submit_sync_info(VKDevice &device)
   if (!submit_semaphores_.is_empty()) {
     wait_semaphore.emplace(submit_semaphores_.last().wait_info());
   }
-  if (!timeline_semaphores_pool.is_empty()) {
-    submit_semaphores_.append(timeline_semaphores_pool.pop_last());
+  if (!timeline_semaphores_pool_.is_empty()) {
+    submit_semaphores_.append(timeline_semaphores_pool_.pop_last());
   }
   else {
     submit_semaphores_.append(VKTimelineSemaphore::create_timeline_semaphore(device.vk_handle()));

@@ -77,11 +77,6 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
 
 void VKRenderGraph::submit()
 {
-  submit_synchronization_event(VK_NULL_HANDLE);
-}
-
-void VKRenderGraph::submit_and_wait()
-{
   wait_synchronization_event(submit_synchronization_event(VK_NULL_HANDLE));
 }
 

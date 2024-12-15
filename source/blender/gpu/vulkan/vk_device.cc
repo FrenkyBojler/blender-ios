@@ -50,7 +50,7 @@ void VKDevice::deinit()
     thread_data_.clear();
   }
 
-  for (VKTimelineSemaphore timeline_semaphore : orphaned_data.timeline_semaphores_pool) {
+  for (VKTimelineSemaphore timeline_semaphore : orphaned_data.timeline_semaphores_pool_) {
     vkDestroySemaphore(vk_handle(), timeline_semaphore.semaphore(), nullptr);
   }
 

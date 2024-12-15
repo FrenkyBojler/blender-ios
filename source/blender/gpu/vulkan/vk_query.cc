@@ -93,7 +93,7 @@ void VKQueryPool::get_occlusion_result(MutableSpan<uint32_t> r_values)
    * ensure the END_RENDERING node */
   context.rendering_end();
   context.descriptor_set_get().upload_descriptor_sets();
-  context.render_graph.submit_and_wait();
+  context.render_graph.submit();
 
   int queries_left = queries_issued_;
   int pool_index = 0;
