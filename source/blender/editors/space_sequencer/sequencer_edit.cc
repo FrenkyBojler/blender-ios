@@ -1699,13 +1699,13 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator * /*op*/)
     if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C)) {
       if (seq->type == SEQ_TYPE_SOUND_RAM) {
         SEQ_edit_flag_for_removal(scene, ed->seqbasep, seq);
-        SEQ_edit_remove_flagged_sequences(scene, ed->seqbasep);
       }
       if (SEQ_transform_test_overlap(scene, ed->seqbasep, seq)) {
         SEQ_transform_seqbase_shuffle(ed->seqbasep, seq, scene);
       }
     }
   }
+  SEQ_edit_remove_flagged_sequences(scene, ed->seqbasep);
 
   SEQ_animation_restore_original(scene, &animation_backup);
 
