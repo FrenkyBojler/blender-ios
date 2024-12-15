@@ -437,7 +437,7 @@ static void ui_item_position(uiItem *item, const int x, const int y, const int w
     bitem->but->rect.xmax = x + w;
     bitem->but->rect.ymax = y + h;
 
-    ui_but_update(bitem->but); /* for strlen */
+    ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
     uiLayout *litem = static_cast<uiLayout *>(item);
@@ -457,7 +457,7 @@ static void ui_item_move(uiItem *item, const int delta_xmin, const int delta_xma
     bitem->but->rect.xmin += delta_xmin;
     bitem->but->rect.xmax += delta_xmax;
 
-    ui_but_update(bitem->but); /* for strlen */
+    ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
     uiLayout *litem = static_cast<uiLayout *>(item);
@@ -2632,24 +2632,6 @@ void uiItemEnumR_prop(uiLayout *layout,
   uiItemFullR(layout, ptr, prop, RNA_ENUM_VALUE, value, UI_ITEM_NONE, name, icon);
 }
 
-void uiItemEnumR(uiLayout *layout,
-                 const std::optional<StringRefNull> name,
-                 int icon,
-                 PointerRNA *ptr,
-                 const StringRefNull propname,
-                 int value)
-{
-  PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-
-  if (prop == nullptr) {
-    ui_item_disabled(layout, propname.c_str());
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
-    return;
-  }
-
-  uiItemFullR(layout, ptr, prop, RNA_ENUM_VALUE, value, UI_ITEM_NONE, name, icon);
-}
-
 void uiItemEnumR_string_prop(uiLayout *layout,
                              PointerRNA *ptr,
                              PropertyRNA *prop,
@@ -2686,10 +2668,9 @@ void uiItemEnumR_string_prop(uiLayout *layout,
       continue;
     }
     if (item[a].value == ivalue) {
-      const char *item_name = name.has_value() ?
-                                  name->c_str() :
-                                  CTX_IFACE_(RNA_property_translation_context(prop), item[a].name);
-      const eUI_Item_Flag flag = item_name[0] ? UI_ITEM_NONE : UI_ITEM_R_ICON_ONLY;
+      const StringRefNull item_name = name.value_or(
+          CTX_IFACE_(RNA_property_translation_context(prop), item[a].name));
+      const eUI_Item_Flag flag = !item_name.is_empty() ? UI_ITEM_NONE : UI_ITEM_R_ICON_ONLY;
 
       uiItemFullR(
           layout, ptr, prop, RNA_ENUM_VALUE, ivalue, flag, item_name, icon ? icon : item[a].icon);
@@ -6098,6 +6079,12 @@ void uiLayoutSetContextPointer(uiLayout *layout, StringRef name, PointerRNA *ptr
 }
 
 void uiLayoutSetContextString(uiLayout *layout, StringRef name, blender::StringRef value)
+{
+  uiBlock *block = layout->root->block;
+  layout->context = CTX_store_add(block->contexts, name, value);
+}
+
+void uiLayoutSetContextInt(uiLayout *layout, StringRef name, int64_t value)
 {
   uiBlock *block = layout->root->block;
   layout->context = CTX_store_add(block->contexts, name, value);

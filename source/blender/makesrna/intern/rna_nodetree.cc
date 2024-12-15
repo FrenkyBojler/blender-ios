@@ -659,6 +659,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "DNA_scene_types.h"
 #  include "WM_api.hh"
 
+using blender::float2;
 using blender::nodes::BakeItemsAccessor;
 using blender::nodes::CaptureAttributeItemsAccessor;
 using blender::nodes::ForeachGeometryElementGenerationItemsAccessor;
@@ -887,6 +888,39 @@ static const EnumPropertyItem *rna_node_static_type_itemf(bContext * /*C*/,
   *r_free = true;
 
   return item;
+}
+
+static float2 node_parent_offset(const bNode &node)
+{
+  return node.parent ? float2(node.parent->location[0], node.parent->location[1]) : float2(0);
+}
+
+static void rna_Node_location_get(PointerRNA *ptr, float *value)
+{
+  const bNode *node = static_cast<bNode *>(ptr->data);
+  copy_v2_v2(value, float2(node->location[0], node->location[1]) - node_parent_offset(*node));
+}
+
+static void move_child_nodes(bNode &node, const float2 &delta)
+{
+  for (bNode *child : node.direct_children_in_frame()) {
+    child->location[0] += delta.x;
+    child->location[1] += delta.y;
+    if (child->is_frame()) {
+      move_child_nodes(*child, delta);
+    }
+  }
+}
+
+static void rna_Node_location_set(PointerRNA *ptr, const float *value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  const float2 new_location = float2(value) + node_parent_offset(*node);
+  if (node->is_frame()) {
+    move_child_nodes(*node, new_location - float2(node->location[0], node->location[1]));
+  }
+  node->location[0] = new_location.x;
+  node->location[1] = new_location.y;
 }
 
 /* ******** Node Tree ******** */
@@ -1321,15 +1355,12 @@ static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
                                         bool verify_limits,
                                         bool handle_dynamic_sockets)
 {
-  bNodeLink *ret;
-  bNode *fromnode = nullptr, *tonode = nullptr;
-
   if (!rna_NodeTree_check(ntree, reports)) {
     return nullptr;
   }
 
-  blender::bke::node_find_node_try(ntree, fromsock, &fromnode, nullptr);
-  blender::bke::node_find_node_try(ntree, tosock, &tonode, nullptr);
+  bNode *fromnode = blender::bke::node_find_node_try(*ntree, *fromsock);
+  bNode *tonode = blender::bke::node_find_node_try(*ntree, *tosock);
   /* check validity of the sockets:
    * if sockets from different trees are passed in this will fail!
    */
@@ -1390,7 +1421,7 @@ static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
     }
   }
 
-  ret = blender::bke::node_add_link(ntree, fromnode, fromsock, tonode, tosock);
+  bNodeLink *ret = blender::bke::node_add_link(ntree, fromnode, fromsock, tonode, tosock);
 
   if (ret) {
 
@@ -2507,6 +2538,10 @@ static bNodeSocket *rna_Node_inputs_new(ID *id,
   if (!allow_changing_sockets(node)) {
     BKE_report(reports, RPT_ERROR, "Cannot add socket to built-in node");
     return nullptr;
+  }
+  if (identifier == nullptr) {
+    /* Use the name as default identifier if no separate identifier is provided. */
+    identifier = name;
   }
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
@@ -10430,8 +10465,9 @@ static void def_geo_string_to_curves(StructRNA *srna)
   RNA_def_property_enum_sdna(prop, nullptr, "align_x");
   RNA_def_property_enum_items(prop, rna_node_geometry_string_to_curves_align_x_items);
   RNA_def_property_enum_default(prop, GEO_NODE_STRING_TO_CURVES_ALIGN_X_LEFT);
-  RNA_def_property_ui_text(
-      prop, "Horizontal Alignment", "Text horizontal alignment from the object center");
+  RNA_def_property_ui_text(prop,
+                           "Horizontal Alignment",
+                           "Text horizontal alignment from the object or text box center");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "align_y", PROP_ENUM, PROP_NONE);
@@ -10792,10 +10828,17 @@ static void rna_def_node(BlenderRNA *brna)
       "Node type (deprecated, use bl_static_type or bl_idname for the actual identifier string)");
 
   prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, nullptr, "locx");
+  RNA_def_property_array(prop, 2);
+  RNA_def_property_float_funcs(prop, "rna_Node_location_get", "rna_Node_location_set", nullptr);
+  RNA_def_property_range(prop, -100000.0f, 100000.0f);
+  RNA_def_property_ui_text(prop, "Location", "Location of the node within its parent frame");
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "location_absolute", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "location");
   RNA_def_property_array(prop, 2);
   RNA_def_property_range(prop, -100000.0f, 100000.0f);
-  RNA_def_property_ui_text(prop, "Location", "");
+  RNA_def_property_ui_text(prop, "Absolute Location", "Location of the node in the entire canvas");
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 
   prop = RNA_def_property(srna, "width", PROP_FLOAT, PROP_XYZ);
@@ -11419,6 +11462,14 @@ static void rna_def_nodetree(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, ICON_NODETREE);
   RNA_def_property_flag(prop, PROP_REGISTER);
   RNA_def_property_ui_text(prop, "Icon", "The node tree icon");
+
+  prop = RNA_def_property(srna, "bl_use_group_interface", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "typeinfo->no_group_interface", 1);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(prop,
+                           "Use Group Interface",
+                           "Determines the visibility of some UI elements related to node groups");
 
   /* poll */
   func = RNA_def_function(srna, "poll", nullptr);
