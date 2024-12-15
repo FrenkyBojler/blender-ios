@@ -44,52 +44,52 @@ static bool modifierTypesInit = false;
 
 /* -------------------------------------------------------------------- */
 
-static inline float4 load_pixel_premul(const uchar *ptr)
+static float4 load_pixel_premul(const uchar *ptr)
 {
   float4 res;
   straight_uchar_to_premul_float(res, ptr);
   return res;
 }
 
-static inline float4 load_pixel_premul(const float *ptr)
+static float4 load_pixel_premul(const float *ptr)
 {
   return float4(ptr);
 }
 
-static inline void store_pixel_premul(float4 pix, uchar *ptr)
+static void store_pixel_premul(float4 pix, uchar *ptr)
 {
   premul_float_to_straight_uchar(ptr, pix);
 }
 
-static inline void store_pixel_premul(float4 pix, float *ptr)
+static void store_pixel_premul(float4 pix, float *ptr)
 {
   *reinterpret_cast<float4 *>(ptr) = pix;
 }
 
-static inline float4 load_pixel_raw(const uchar *ptr)
+static float4 load_pixel_raw(const uchar *ptr)
 {
   float4 res;
   rgba_uchar_to_float(res, ptr);
   return res;
 }
 
-static inline float4 load_pixel_raw(const float *ptr)
+static float4 load_pixel_raw(const float *ptr)
 {
   return float4(ptr);
 }
 
-static inline void store_pixel_raw(float4 pix, uchar *ptr)
+static void store_pixel_raw(float4 pix, uchar *ptr)
 {
   rgba_float_to_uchar(ptr, pix);
 }
 
-static inline void store_pixel_raw(float4 pix, float *ptr)
+static void store_pixel_raw(float4 pix, float *ptr)
 {
   *reinterpret_cast<float4 *>(ptr) = pix;
 }
 
 /* Byte mask */
-static inline void apply_and_advance_mask(float4 input, float4 &result, const uchar *&mask)
+static void apply_and_advance_mask(float4 input, float4 &result, const uchar *&mask)
 {
   float3 m;
   rgb_uchar_to_float(m, mask);
@@ -100,7 +100,7 @@ static inline void apply_and_advance_mask(float4 input, float4 &result, const uc
 }
 
 /* Float mask */
-static inline void apply_and_advance_mask(float4 input, float4 &result, const float *&mask)
+static void apply_and_advance_mask(float4 input, float4 &result, const float *&mask)
 {
   float3 m(mask);
   result.x = math::interpolate(input.x, result.x, m.x);
@@ -110,9 +110,7 @@ static inline void apply_and_advance_mask(float4 input, float4 &result, const fl
 }
 
 /* No mask */
-static inline void apply_and_advance_mask(float4 /*input*/,
-                                          float4 & /*result*/,
-                                          const void *& /*mask*/)
+static void apply_and_advance_mask(float4 /*input*/, float4 & /*result*/, const void *& /*mask*/)
 {
 }
 
@@ -783,19 +781,19 @@ static SequenceModifierTypeInfo seqModifier_BrightContrast = {
 /** \name Mask Modifier
  * \{ */
 
-static inline float load_mask_min(const uchar *&mask)
+static float load_mask_min(const uchar *&mask)
 {
   float m = float(min_iii(mask[0], mask[1], mask[2])) * (1.0f / 255.0f);
   mask += 4;
   return m;
 }
-static inline float load_mask_min(const float *&mask)
+static float load_mask_min(const float *&mask)
 {
   float m = min_fff(mask[0], mask[1], mask[2]);
   mask += 4;
   return m;
 }
-static inline float load_mask_min(const void *& /*mask*/)
+static float load_mask_min(const void *& /*mask*/)
 {
   return 1.0f;
 }
