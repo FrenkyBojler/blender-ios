@@ -2719,7 +2719,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :arg poll: function to be called to determine whether an item is valid for this " \
   "property.\n" \
   "              The function must take 2 values (self, object) and return Bool.\n" \
-  "   :type poll: Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.bpy_struct`], " \
+  "   :type poll: Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.ID`], " \
   "bool]\n"
 
 #define BPY_PROPDEF_GET_DOC(ty) \
