@@ -40,12 +40,7 @@ class CutOperation : public CurvesSculptStrokeOperation {
 
 struct BrushProjectionInfo {
   float distance = std::numeric_limits<float>::max();
-  union {
-    /** Used for projection falloff. */
-    float4x4 brush_transform_inv;
-    /** Used for sphere falloff. */
-    float3 brush_pos_cu;
-  };
+  float4x4 brush_transform_inv;
 };
 
 /**
@@ -167,16 +162,14 @@ struct CutOperationExecutor {
         eCurvesSymmetryType(curves_id_->symmetry));
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
       this->find_projected_points_in_stroke(
-          brush_transform, r_includes_cyclic, r_brush_projection_info);
+          math::invert(brush_transform), r_includes_cyclic, r_brush_projection_info);
     }
   }
 
-  void find_projected_points_in_stroke(const float4x4 &brush_transform,
+  void find_projected_points_in_stroke(const float4x4 &brush_transform_inv,
                                        bool &r_includes_cyclic,
                                        MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
-    const float4x4 brush_transform_inv = math::invert(brush_transform);
-
     const float4x4 projection = ED_view3d_ob_project_mat_get(ctx_.rv3d, object_);
 
     const bke::crazyspace::GeometryDeformation deformation =
@@ -222,13 +215,15 @@ struct CutOperationExecutor {
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         eCurvesSymmetryType(curves_id_->symmetry));
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      this->find_spherical_points_in_stroke(math::transform_point(brush_transform, brush_pos_cu),
+      this->find_spherical_points_in_stroke(math::invert(brush_transform),
+                                            math::transform_point(brush_transform, brush_pos_cu),
                                             r_includes_cyclic,
                                             r_brush_projection_info);
     }
   }
 
-  void find_spherical_points_in_stroke(const float3 &brush_pos_cu,
+  void find_spherical_points_in_stroke(const float4x4 &brush_transform_inv,
+                                       const float3 &brush_pos_cu,
                                        bool &r_includes_cyclic,
                                        MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
@@ -252,7 +247,7 @@ struct CutOperationExecutor {
         const float dist_to_brush_sq_cu = math::distance_squared(pos_cu, brush_pos_cu);
         if (dist_to_brush_sq_cu < r_brush_projection_info[point_i].distance) {
           r_brush_projection_info[point_i].distance = dist_to_brush_sq_cu;
-          r_brush_projection_info[point_i].brush_pos_cu = brush_pos_cu;
+          r_brush_projection_info[point_i].brush_transform_inv = brush_transform_inv;
         }
       }
     });
@@ -338,6 +333,8 @@ struct CutOperationExecutor {
 
     /** cu or re, depending on falloff shape */
     float brush_radius;
+    /** Only used for sphere falloff. */
+    float3 brush_pos_cu;
 
     const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
     if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
@@ -345,6 +342,15 @@ struct CutOperationExecutor {
     }
     else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
       brush_radius = self_->brush_3d_.radius_cu * brush_radius_factor_;
+
+      float3 brush_pos_wo;
+      ED_view3d_win_to_3d(
+          ctx_.v3d,
+          ctx_.region,
+          math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu),
+          brush_pos_re_,
+          brush_pos_wo);
+      brush_pos_cu = math::transform_point(transforms_.world_to_curves, brush_pos_wo);
     }
     else {
       BLI_assert_unreachable();
@@ -391,8 +397,8 @@ struct CutOperationExecutor {
         r_curves_to_keep[curve_i] = false;
       }
       else if (first_point_in_stroke == point_to_cut) {
-        // Brush boundary is cutting straight through previous and current point. Delete all points
-        // after current.
+        // Brush boundary is cutting straight through previous and current point.
+        // Delete all points after current.
         const int current_point = points[point_to_cut];
         const int previous_point = points[point_to_cut - 1];
         const float3 &curr_pos_cu = deformation.positions[current_point];
@@ -407,13 +413,15 @@ struct CutOperationExecutor {
         }
         else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
           boundary_cu = find_spherical_cut_boundary(
-              prev_pos_cu, curr_pos_cu, first_point_in_stroke_bpi->brush_pos_cu, brush_radius);
+              prev_pos_cu,
+              curr_pos_cu,
+              math::transform_point(first_point_in_stroke_bpi->brush_transform_inv, brush_pos_cu),
+              brush_radius);
         }
         else {
           BLI_assert_unreachable();
         }
 
-        // TODO: Use proper evaluation function for point on curve (based on curve type).
         const float boundary_length = math::distance(curr_pos_cu, boundary_cu);
         r_ends[curve_i] = point_lengths[current_point] - boundary_length;
       }
