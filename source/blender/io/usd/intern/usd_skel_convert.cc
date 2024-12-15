@@ -66,7 +66,7 @@ FCurve *create_fcurve(const int array_index, const std::string &rna_path, const 
   fcu->flag = (FCURVE_VISIBLE | FCURVE_SELECTED);
   fcu->rna_path = BLI_strdup(rna_path.c_str());
   fcu->array_index = array_index;
-  fcu->bezt = static_cast<BezTriple *>(MEM_callocN(sizeof(BezTriple) * totvert, "beztriple"));
+  fcu->bezt = MEM_cnew_array<BezTriple>(totvert, "beztriple");
   fcu->totvert = totvert;
 
   return fcu;
@@ -82,7 +82,7 @@ void resize_fcurve(FCurve *fcu, uint bezt_count)
   BezTriple *new_bezt = nullptr;
   if (bezt_count > 0) {
     const size_t new_size = sizeof(BezTriple) * bezt_count;
-    new_bezt = static_cast<BezTriple *>(MEM_callocN(new_size, "beztriple"));
+    new_bezt = MEM_cnew_array<BezTriple>(bezt_count, "beztriple");
     memcpy(new_bezt, fcu->bezt, new_size);
   }
 
