@@ -56,7 +56,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
     return;
   }
 
-  const bNodeTreeInterfaceSocket* first_output = tree->interface_outputs()[0];
+  const bNodeTreeInterfaceSocket *first_output = tree->interface_outputs()[0];
 
   /* Only allow Vector outputs for now.
      TODO: Add support for Float and RGBA */
@@ -162,10 +162,11 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
     ptr.destruct();
   }
 
-  bke::SocketValueVariant output_socket = std::move(*param_outputs[0].get<bke::SocketValueVariant>());
+  bke::SocketValueVariant output_socket = std::move(
+      *param_outputs[0].get<bke::SocketValueVariant>());
 
   fn::Field<float3> output_field = output_socket.get<fn::Field<float3>>();
-  fn::FieldEvaluator evaluator{ context, outputs.size() };
+  fn::FieldEvaluator evaluator{context, outputs.size()};
 
   Vector<float3> tmp_outputs(outputs.size());
   evaluator.add_with_destination(output_field, tmp_outputs.as_mutable_span());

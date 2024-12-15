@@ -163,9 +163,9 @@ class SculptFieldContext : public fn::FieldContext {
   {
   }
 
-  GVArray get_varray_for_input(const fn::FieldInput& field_input,
-                               const IndexMask& mask,
-                               ResourceScope& scope) const;
+  GVArray get_varray_for_input(const fn::FieldInput &field_input,
+                               const IndexMask &mask,
+                               ResourceScope &scope) const;
 
   const Depsgraph &depsgraph() const
   {

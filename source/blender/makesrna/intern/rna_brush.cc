@@ -564,9 +564,9 @@ static bool rna_BrushCapabilitiesSculpt_has_space_attenuation_get(PointerRNA *pt
                 SCULPT_BRUSH_TYPE_SNAKE_HOOK));
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_node_group_get(PointerRNA* ptr)
+static bool rna_BrushCapabilitiesSculpt_has_node_group_get(PointerRNA *ptr)
 {
-  Brush* br = (Brush*)ptr->data;
+  Brush *br = (Brush *)ptr->data;
   return SCULPT_BRUSH_TYPE_HAS_NODE_GROUP(br->sculpt_brush_type);
 }
 
