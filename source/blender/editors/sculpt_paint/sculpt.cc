@@ -2591,7 +2591,7 @@ void SCULPT_tilt_apply_to_normal(float r_normal[3],
                                  blender::ed::sculpt_paint::StrokeCache *cache,
                                  const float tilt_strength)
 {
-  if (!U.experimental.use_sculpt_tools_tilt) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_sculpt_tools_tilt)) {
     return;
   }
   const float rot_max = M_PI_2 * tilt_strength * SCULPT_TILT_SENSITIVITY;
@@ -2635,7 +2635,7 @@ static bool sculpt_needs_pbvh_pixels(PaintModeSettings &paint_mode_settings,
                                      Object &ob)
 {
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
-      U.experimental.use_sculpt_texture_paint)
+      USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint))
   {
     Image *image;
     ImageUser *image_user;
@@ -5231,7 +5231,9 @@ static void stroke_undo_end(const bContext *C, Brush *brush)
   }
 }
 
-bool SCULPT_handles_colors_report(const Object &object, ReportList *reports)
+namespace blender::ed::sculpt_paint {
+
+bool color_supported_check(const Object &object, ReportList *reports)
 {
   switch (blender::bke::object::pbvh_get(object)->type()) {
     case blender::bke::pbvh::Type::Mesh:
@@ -5246,8 +5248,6 @@ bool SCULPT_handles_colors_report(const Object &object, ReportList *reports)
   BLI_assert_unreachable();
   return false;
 }
-
-namespace blender::ed::sculpt_paint {
 
 static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
 {
@@ -5421,7 +5421,7 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
   Brush &brush = *BKE_paint_brush(&sd.paint);
 
   if (SCULPT_brush_type_is_paint(brush.sculpt_brush_type) &&
-      !SCULPT_handles_colors_report(ob, op->reports))
+      !color_supported_check(ob, op->reports))
   {
     return OPERATOR_CANCELLED;
   }
@@ -6447,7 +6447,7 @@ void calc_factors_common_from_orig_data_grids(const Depsgraph &depsgraph,
   fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal_symm, normals, grids, factors);
+    calc_front_face(cache.view_normal_symm, normals, factors);
   }
 
   r_distances.resize(positions.size());
