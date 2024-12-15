@@ -23,6 +23,10 @@
 #include "IMB_metadata.hh"
 
 #include "BLI_math_color_blend.h"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_path_utils.hh"
+#include "BLI_rect.h"
 
 #include "SEQ_channels.hh"
 #include "SEQ_effects.hh"
