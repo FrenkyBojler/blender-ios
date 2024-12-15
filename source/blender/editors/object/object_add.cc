@@ -3091,14 +3091,41 @@ static void mesh_to_grease_pencil_info(const bool generate_faces,
                                        int &r_total_points,
                                        int &r_total_curves)
 {
+  const int edges_num = edges.size();
   if (!generate_faces) {
-    r_total_curves = edges.size();
+    r_total_curves = edges_num;
     r_total_points = r_total_curves * 2;
     return;
   }
 
-  r_total_curves = edges.size() + faces.size();
-  r_total_points = r_total_curves * 2 + faces.total_size();
+  r_total_curves = edges_num + faces.size();
+  r_total_points = edges_num * 2 + faces.total_size();
+}
+
+static int mesh_to_grease_pencil_add_material(Main &bmain,
+                                              Object &ob_grease_pencil,
+                                              const char *name,
+                                              std::optional<float4> stroke_color,
+                                              std::optional<float4> fill_color)
+{
+  int index;
+  Material *ma = BKE_grease_pencil_object_material_ensure_by_name(
+      &bmain, &ob_grease_pencil, DATA_(name), &index);
+
+  if (stroke_color.has_value()) {
+    copy_v4_v4(ma->gp_style->stroke_rgba, stroke_color.value());
+    srgb_to_linearrgb_v4(ma->gp_style->stroke_rgba, ma->gp_style->stroke_rgba);
+  }
+
+  if (fill_color.has_value()) {
+    copy_v4_v4(ma->gp_style->fill_rgba, fill_color.value());
+    srgb_to_linearrgb_v4(ma->gp_style->fill_rgba, ma->gp_style->fill_rgba);
+  }
+
+  SET_FLAG_FROM_TEST(ma->gp_style->flag, stroke_color.has_value(), GP_MATERIAL_STROKE_SHOW);
+  SET_FLAG_FROM_TEST(ma->gp_style->flag, fill_color.has_value(), GP_MATERIAL_FILL_SHOW);
+
+  return index;
 }
 
 static Object *convert_mesh_to_grease_pencil(Base &base,
@@ -3109,12 +3136,31 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   ob->flag |= OB_DONE;
   Object *newob = get_object_for_conversion(base, info, r_new_base);
 
+  const bool generate_faces = true;
+
   const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
-  GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain, BKE_id_name(mesh_eval->id));
-  bke::greasepencil::Layer &layer = grease_pencil->add_layer(DATA_("Converted Layer"));
+  BKE_object_free_derived_caches(newob);
+  BKE_object_free_modifiers(newob, 0);
 
+  GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain, BKE_id_name(mesh_eval->id));
+  newob->data = grease_pencil;
+  newob->type = OB_GREASE_PENCIL;
+
+  /* Reset `ob->totcol` since currently the generic / grease pencil material functions still
+   * depends on this value being coherent (The same value as `GreasePencil::material_array_num`).
+   */
+  short *totcol = BKE_object_material_len_p(ob);
+  ob->totcol = *totcol;
+
+  mesh_to_grease_pencil_add_material(
+      *info.bmain, *newob, DATA_("Stroke"), float4(0.0f, 0.0f, 0.0f, 1.0f), {});
+  if (generate_faces) {
+    mesh_to_grease_pencil_add_material(*info.bmain, *newob, DATA_("Fill"), {}, float4(1.0f));
+  }
+
+  bke::greasepencil::Layer &layer = grease_pencil->add_layer(DATA_("Converted Layer"));
   const int current_frame = info.scene->r.cfra;
   bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, current_frame);
 
@@ -3125,29 +3171,55 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const Span<int> corner_verts = mesh_eval->corner_verts();
 
   int total_points, total_curves;
-  mesh_to_grease_pencil_info(false, edges, faces, total_points, total_curves);
+  mesh_to_grease_pencil_info(generate_faces, edges, faces, total_points, total_curves);
 
   bke::CurvesGeometry curves(total_points, total_curves);
   MutableSpan<float3> positions = curves.positions_for_write();
+  MutableSpan<int> offsets = curves.offsets_for_write();
+  MutableSpan<bool> cyclic = curves.cyclic_for_write();
+  bke::SpanAttributeWriter<int> stroke_materials =
+      curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
+                                                                      bke::AttrDomain::Curve);
 
-  for (const int edge_i : IndexRange(edge_num)) {
-    const int2 edge = edges[edge_i];
-    positions[edge_i * 2] = mesh_positions[edge[0]];
-    positions[edge_i * 2 + 1] = mesh_positions[edge[1]];
+  /* Need to set poly type because otherwise it will all be curvy by default. */
+  curves.fill_curve_types(CURVE_TYPE_POLY);
+
+  /* Fill faces first, so this way strokes can draw on top of the filled faces. */
+
+  const int total_fills = total_curves - edge_num;
+  IndexRange fills_range = IndexRange(total_fills);
+  int point_i = 0;
+  if (generate_faces) {
+    for (const int face_i : faces.index_range()) {
+      const IndexRange face = faces[face_i];
+      /* Fill face point count into offset as well. They will be cyclic filled strokes so no need
+       * to add one more point. Later `offsets` will be accumulated to a proper offset array. */
+      offsets[face_i] = face.size();
+      for (const int corner_i : face) {
+        positions[point_i] = mesh_positions[corner_verts[corner_i]];
+        point_i++;
+      }
+    }
+    cyclic.slice(fills_range).fill(true);
+    stroke_materials.span.slice(fills_range).fill(1);
   }
 
-  MutableSpan<int> offsets = curves.offsets_for_write();
-  offsets.fill(2);
+  const int strokes_start = point_i;
+  IndexRange edges_range = IndexRange(total_fills, edge_num);
+  for (const int edge_i : IndexRange(edge_num)) {
+    const int2 edge = edges[edge_i];
+    positions[strokes_start + edge_i * 2] = mesh_positions[edge[0]];
+    positions[strokes_start + edge_i * 2 + 1] = mesh_positions[edge[1]];
+  }
+  offsets.slice(IndexRange(edges_range)).fill(2);
+  stroke_materials.span.slice(IndexRange(edges_range)).fill(0);
+
   offset_indices::accumulate_counts_to_offsets(offsets);
 
-  BKE_object_free_derived_caches(newob);
-  BKE_object_free_modifiers(newob, 0);
+  stroke_materials.finish();
 
   drawing->strokes_for_write() = std::move(curves);
   drawing->tag_positions_changed();
-
-  newob->data = grease_pencil;
-  newob->type = OB_GREASE_PENCIL;
 
   return newob;
 }
