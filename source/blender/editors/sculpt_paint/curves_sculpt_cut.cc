@@ -111,13 +111,21 @@ struct CutOperationExecutor {
       }
     }
 
+    const VArray<bool> cyclic = curves_->cyclic();
+    Array<bool> cyclic_array(cyclic.size());
+    array_utils::copy(cyclic, cyclic_array.as_mutable_span());
+    IndexMask curve_selection_without_cyclic = IndexMask::from_bools_inverse(
+        curve_selection_, cyclic_array, selected_curve_memory_);
+    const bool selection_has_cyclic = curve_selection_without_cyclic.size() <
+                                      curve_selection_.size();
+    curve_selection_ = curve_selection_without_cyclic;
+
     Array<BrushProjectionInfo> brush_projection_info(curves_->points_num());
-    bool includes_cyclic = false;
     if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
-      this->find_projected_points_in_stroke_with_symmetry(includes_cyclic, brush_projection_info);
+      this->find_projected_points_in_stroke_with_symmetry(brush_projection_info);
     }
     else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
-      this->find_spherical_points_in_stroke_with_symmetry(includes_cyclic, brush_projection_info);
+      this->find_spherical_points_in_stroke_with_symmetry(brush_projection_info);
     }
     else {
       BLI_assert_unreachable();
@@ -146,7 +154,7 @@ struct CutOperationExecutor {
                                        {});
     }
 
-    if (includes_cyclic) {
+    if (selection_has_cyclic) {
       report_cyclic_not_supported(stroke_extension.reports);
     }
 
@@ -156,18 +164,17 @@ struct CutOperationExecutor {
   }
 
   void find_projected_points_in_stroke_with_symmetry(
-      bool &r_includes_cyclic, MutableSpan<BrushProjectionInfo> r_brush_projection_info)
+      MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         eCurvesSymmetryType(curves_id_->symmetry));
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      this->find_projected_points_in_stroke(
-          math::invert(brush_transform), r_includes_cyclic, r_brush_projection_info);
+      this->find_projected_points_in_stroke(math::invert(brush_transform),
+                                            r_brush_projection_info);
     }
   }
 
   void find_projected_points_in_stroke(const float4x4 &brush_transform_inv,
-                                       bool &r_includes_cyclic,
                                        MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
     const float4x4 projection = ED_view3d_ob_project_mat_get(ctx_.rv3d, object_);
@@ -176,14 +183,7 @@ struct CutOperationExecutor {
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    const VArray<bool> cyclic = curves_->cyclic();
-
     curve_selection_.foreach_index(GrainSize(256), [&](const int curve_i) {
-      if (cyclic[curve_i]) {
-        r_includes_cyclic = true;
-        return;
-      }
-
       const IndexRange points = points_by_curve[curve_i];
       for (const int i : IndexRange(points.size())) {
         const int point_i = points[i];
@@ -201,7 +201,7 @@ struct CutOperationExecutor {
   }
 
   void find_spherical_points_in_stroke_with_symmetry(
-      bool &r_includes_cyclic, MutableSpan<BrushProjectionInfo> r_brush_projection_info)
+      MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
     float3 brush_pos_wo;
     ED_view3d_win_to_3d(
@@ -217,28 +217,19 @@ struct CutOperationExecutor {
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
       this->find_spherical_points_in_stroke(math::invert(brush_transform),
                                             math::transform_point(brush_transform, brush_pos_cu),
-                                            r_includes_cyclic,
                                             r_brush_projection_info);
     }
   }
 
   void find_spherical_points_in_stroke(const float4x4 &brush_transform_inv,
                                        const float3 &brush_pos_cu,
-                                       bool &r_includes_cyclic,
                                        MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
     const bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    const VArray<bool> cyclic = curves_->cyclic();
-
     curve_selection_.foreach_index(GrainSize(256), [&](const int curve_i) {
-      if (cyclic[curve_i]) {
-        r_includes_cyclic = true;
-        return;
-      }
-
       const IndexRange points = points_by_curve[curve_i];
       for (const int i : IndexRange(points.size())) {
         const int point_i = points[i];
