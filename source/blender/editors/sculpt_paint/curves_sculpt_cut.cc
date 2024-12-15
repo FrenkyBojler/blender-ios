@@ -329,7 +329,26 @@ struct CutOperationExecutor {
                   MutableSpan<float> r_ends)
   {
     const OffsetIndices points_by_curve = curves_->points_by_curve();
-    const Array<float> point_lengths = calculate_point_lengths();
+    const Span<float3> positions = curves_->positions();
+
+    Array<float> segment_lengths(curves_->points_num());
+    curve_selection_.foreach_segment(GrainSize(256), [&](const IndexMaskSegment segment) {
+      for (const int curve_i : segment) {
+        const IndexRange points = points_by_curve[curve_i];
+        float accumulated_length = 0.0f;
+        for (const int i : points.index_range()) {
+          const int point_i = points[i];
+          if (i == 0) {
+            segment_lengths[point_i] = 0.0f;
+            continue;
+          }
+          const float3 &p1 = positions[point_i - 1];
+          const float3 &p2 = positions[point_i];
+          accumulated_length += math::distance(p1, p2);
+          segment_lengths[point_i] = accumulated_length;
+        }
+      }
+    });
 
     const bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
@@ -427,91 +446,14 @@ struct CutOperationExecutor {
         }
 
         const float boundary_length = math::distance(curr_pos_cu, boundary_cu);
-        r_ends[curve_i] = point_lengths[current_point] - boundary_length;
+        r_ends[curve_i] = segment_lengths[current_point] - boundary_length;
       }
       else {
         // Brush is encompassing a boundary between selected and unselected points.
         const int previous_point = points[point_to_cut - 1];
-        r_ends[curve_i] = point_lengths[previous_point];
+        r_ends[curve_i] = segment_lengths[previous_point];
       }
     });
-  }
-
-  /**
-   * TODO: COPIED from curve_spline_parameter.cc
-   * Return the length of each control point along each curve, starting at zero for the first
-   * point. Importantly, this is different than the length at each evaluated point. The
-   * implementation is different for every curve type:
-   *  - Catmull Rom Curves: Use the resolution to find the evaluated point for each control point.
-   *  - Poly Curves: Copy the evaluated lengths, but we need to add a zero to the front of the
-   * array.
-   *  - Bezier Curves: Use the evaluated offsets to find the evaluated point for each control
-   * point.
-   *  - NURBS Curves: Treat the control points as if they were a poly curve, because there
-   *    is no obvious mapping from each control point to a specific evaluated point.
-   */
-  Array<float> calculate_point_lengths()
-  {
-    curves_->ensure_evaluated_lengths();
-    const OffsetIndices points_by_curve = curves_->points_by_curve();
-    const VArray<int8_t> types = curves_->curve_types();
-    const VArray<int> resolutions = curves_->resolution();
-    const VArray<bool> cyclic = curves_->cyclic();
-
-    Array<float> result(curves_->points_num());
-
-    threading::parallel_for(curves_->curves_range(), 128, [&](IndexRange range) {
-      for (const int i_curve : range) {
-        const IndexRange points = points_by_curve[i_curve];
-        const bool is_cyclic = cyclic[i_curve];
-        const Span<float> evaluated_lengths = curves_->evaluated_lengths_for_curve(i_curve,
-                                                                                   is_cyclic);
-        MutableSpan<float> lengths = result.as_mutable_span().slice(points);
-        lengths.first() = 0.0f;
-        const float last_evaluated_length = evaluated_lengths.is_empty() ?
-                                                0.0f :
-                                                evaluated_lengths.last();
-
-        float total;
-        switch (types[i_curve]) {
-          case CURVE_TYPE_CATMULL_ROM: {
-            const int resolution = resolutions[i_curve];
-            for (const int i : IndexRange(points.size()).drop_back(1)) {
-              lengths[i + 1] = evaluated_lengths[resolution * (i + 1) - 1];
-            }
-            total = last_evaluated_length;
-            break;
-          }
-          case CURVE_TYPE_POLY:
-            lengths.drop_front(1).copy_from(evaluated_lengths.take_front(lengths.size() - 1));
-            total = last_evaluated_length;
-            break;
-          case CURVE_TYPE_BEZIER: {
-            const Span<int> offsets = curves_->bezier_evaluated_offsets_for_curve(i_curve);
-            for (const int i : IndexRange(points.size()).drop_back(1)) {
-              lengths[i + 1] = evaluated_lengths[offsets[i + 1] - 1];
-            }
-            total = last_evaluated_length;
-            break;
-          }
-          case CURVE_TYPE_NURBS: {
-            const Span<float3> positions = curves_->positions().slice(points);
-            float length = 0.0f;
-            for (const int i : positions.index_range().drop_back(1)) {
-              lengths[i] = length;
-              length += math::distance(positions[i], positions[i + 1]);
-            }
-            lengths.last() = length;
-            if (is_cyclic) {
-              length += math::distance(positions.first(), positions.last());
-            }
-            total = length;
-            break;
-          }
-        }
-      }
-    });
-    return result;
   }
 };
 
