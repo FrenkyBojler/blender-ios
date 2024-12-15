@@ -564,6 +564,12 @@ static bool rna_BrushCapabilitiesSculpt_has_space_attenuation_get(PointerRNA *pt
                 SCULPT_BRUSH_TYPE_SNAKE_HOOK));
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_node_group_get(PointerRNA* ptr)
+{
+  Brush* br = (Brush*)ptr->data;
+  return SCULPT_BRUSH_TYPE_HAS_NODE_GROUP(br->sculpt_brush_type);
+}
+
 static bool rna_BrushCapabilitiesImagePaint_has_space_attenuation_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
@@ -1290,6 +1296,7 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
   SCULPT_BRUSH_CAPABILITY(has_direction, "Has Direction");
   SCULPT_BRUSH_CAPABILITY(has_gravity, "Has Gravity");
   SCULPT_BRUSH_CAPABILITY(has_tilt, "Has Tilt");
+  SCULPT_BRUSH_CAPABILITY(has_node_group, "Has Node Group");
 
 #  undef SCULPT_CAPABILITY
 }
