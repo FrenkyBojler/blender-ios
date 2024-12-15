@@ -16,6 +16,7 @@
 
 #include "WM_api.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_ghash.h"
 #include "BLI_rand.h"
@@ -107,7 +108,7 @@ struct CutOperationExecutor {
     }
 
     Array<bool> curves_to_keep(curves_->curves_num(), true);
-    Array<float> ends(curves_->curves_num(), FLT_MAX);
+    Array<float> ends(curves_->curves_num(), std::numeric_limits<float>::max());
 
     bool includes_cyclic = false;
     if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
@@ -120,17 +121,21 @@ struct CutOperationExecutor {
       BLI_assert_unreachable();
     }
 
-    *curves_ = geometry::trim_curves(*curves_,
-                                     curve_selection_,
-                                     VArray<float>::ForSingle(0.0f, curves_->curves_num()),
-                                     VArray<float>::ForSpan(ends),
-                                     GeometryNodeCurveSampleMode::GEO_NODE_CURVE_SAMPLE_LENGTH,
-                                     {});
-
     IndexMaskMemory mask_memory;
     const IndexMask mask_to_keep = IndexMask::from_bools(curves_to_keep, mask_memory);
 
     *curves_ = bke::curves_copy_curve_selection(*curves_, mask_to_keep, {});
+    curves_->tag_topology_changed();
+
+    Array<float> kept_ends(mask_to_keep.size());
+    array_utils::gather(ends.as_span(), mask_to_keep, kept_ends.as_mutable_span());
+
+    *curves_ = geometry::trim_curves(*curves_,
+                                     IndexMask(curves_->curves_num()),
+                                     VArray<float>::ForSingle(0.0f, curves_->curves_num()),
+                                     VArray<float>::ForSpan(kept_ends),
+                                     GeometryNodeCurveSampleMode::GEO_NODE_CURVE_SAMPLE_LENGTH,
+                                     {});
 
     if (includes_cyclic) {
       report_cyclic_not_supported(stroke_extension.reports);
@@ -170,8 +175,8 @@ struct CutOperationExecutor {
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    VArray<bool> cyclic = curves_->cyclic();
-    Array<float> point_lengths = calculate_point_lengths();
+    const VArray<bool> cyclic = curves_->cyclic();
+    const Array<float> point_lengths = calculate_point_lengths();
 
     curve_selection_.foreach_index(GrainSize(256), [&](const int curve_i) {
       if (cyclic[curve_i]) {
@@ -268,8 +273,8 @@ struct CutOperationExecutor {
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    VArray<bool> cyclic = curves_->cyclic();
-    Array<float> point_lengths = calculate_point_lengths();
+    const VArray<bool> cyclic = curves_->cyclic();
+    const Array<float> point_lengths = calculate_point_lengths();
 
     curve_selection_.foreach_index(GrainSize(256), [&](const int curve_i) {
       if (cyclic[curve_i]) {
