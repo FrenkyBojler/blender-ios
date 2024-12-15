@@ -292,7 +292,9 @@ struct CutOperationExecutor {
     const float c = dot_v2v2(brush_to_outside_re, brush_to_outside_re) -
                     brush_radius_re * brush_radius_re;
 
-    const float d = b * b - 4.0f * a * c;
+    float d = b * b - 4.0f * a * c;
+    // It shouldn't be possible to have no intersection (d < 0), so assume to be tangential.
+    d = math::max(d, 0.0f);
     const float t = (-b - sqrtf(d)) / (2.0f * a);
 
     const float3 line_cu = point_inside_cu - point_outside_cu;
@@ -313,7 +315,9 @@ struct CutOperationExecutor {
     const float c = dot_v3v3(brush_to_outside_cu, brush_to_outside_cu) -
                     brush_radius_cu * brush_radius_cu;
 
-    const float d = b * b - 4.0f * a * c;
+    float d = b * b - 4.0f * a * c;
+    // It shouldn't be possible to have no intersection (d < 0), so assume to be tangential.
+    d = math::max(d, 0.0f);
     const float t = (-b - sqrtf(d)) / (2.0f * a);
 
     const float3 intersection_cu = point_outside_cu + t * line_cu;
