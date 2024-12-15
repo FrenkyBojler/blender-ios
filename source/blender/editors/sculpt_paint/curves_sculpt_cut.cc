@@ -106,14 +106,15 @@ struct CutOperationExecutor {
       }
     }
 
+    Array<bool> curves_to_keep(curves_->curves_num(), true);
     Array<float> ends(curves_->curves_num(), FLT_MAX);
 
     bool includes_cyclic = false;
     if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
-      this->cut_projected_points_in_stroke_with_symmetry(includes_cyclic, ends);
+      this->cut_projected_points_in_stroke_with_symmetry(includes_cyclic, curves_to_keep, ends);
     }
     else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
-      this->cut_spherical_points_in_stroke_with_symmetry(includes_cyclic, ends);
+      this->cut_spherical_points_in_stroke_with_symmetry(includes_cyclic, curves_to_keep, ends);
     }
     else {
       BLI_assert_unreachable();
@@ -126,6 +127,11 @@ struct CutOperationExecutor {
                                      GeometryNodeCurveSampleMode::GEO_NODE_CURVE_SAMPLE_LENGTH,
                                      {});
 
+    IndexMaskMemory mask_memory;
+    const IndexMask mask_to_keep = IndexMask::from_bools(curves_to_keep, mask_memory);
+
+    *curves_ = bke::curves_copy_curve_selection(*curves_, mask_to_keep, {});
+
     if (includes_cyclic) {
       report_cyclic_not_supported(stroke_extension.reports);
     }
@@ -136,17 +142,20 @@ struct CutOperationExecutor {
   }
 
   void cut_projected_points_in_stroke_with_symmetry(bool &r_includes_cyclic,
+                                                    MutableSpan<bool> r_curves_to_keep,
                                                     MutableSpan<float> r_ends)
   {
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         eCurvesSymmetryType(curves_id_->symmetry));
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      this->cut_projected_points_in_stroke(brush_transform, r_includes_cyclic, r_ends);
+      this->cut_projected_points_in_stroke(
+          brush_transform, r_includes_cyclic, r_curves_to_keep, r_ends);
     }
   }
 
   void cut_projected_points_in_stroke(const float4x4 &brush_transform,
                                       bool &r_includes_cyclic,
+                                      MutableSpan<bool> r_curves_to_keep,
                                       MutableSpan<float> r_ends)
   {
     const float4x4 brush_transform_inv = math::invert(brush_transform);
@@ -194,8 +203,8 @@ struct CutOperationExecutor {
         }
 
         if (i == 0) {
-          // TODO: Delete entire curve. This leaves behind the root control point.
-          r_ends[curve_i] = 0.0f;
+          // Delete entire curve. Simply trimming would leave behind the root control point.
+          r_curves_to_keep[curve_i] = false;
         }
         else if (first_point_in_stroke == i) {
           // Brush boundary is cutting straight through i-1 and i. Delete all points after i.
@@ -223,6 +232,7 @@ struct CutOperationExecutor {
   }
 
   void cut_spherical_points_in_stroke_with_symmetry(bool &r_includes_cyclic,
+                                                    MutableSpan<bool> r_curves_to_keep,
                                                     MutableSpan<float> r_ends)
   {
     float3 brush_pos_wo;
@@ -241,6 +251,7 @@ struct CutOperationExecutor {
       this->cut_spherical_points_in_stroke(math::transform_point(brush_transform, brush_pos_cu),
                                            brush_radius_cu,
                                            r_includes_cyclic,
+                                           r_curves_to_keep,
                                            r_ends);
     }
   }
@@ -248,6 +259,7 @@ struct CutOperationExecutor {
   void cut_spherical_points_in_stroke(const float3 &brush_pos_cu,
                                       const float brush_radius_cu,
                                       bool &r_includes_cyclic,
+                                      MutableSpan<bool> r_curves_to_keep,
                                       MutableSpan<float> r_ends)
   {
     const float brush_radius_sq_cu = pow2f(brush_radius_cu);
@@ -287,8 +299,8 @@ struct CutOperationExecutor {
         }
 
         if (i == 0) {
-          // TODO: Delete entire curve. This leaves behind the root control point.
-          r_ends[curve_i] = 0.0f;
+          // Delete entire curve. Simply trimming would leave behind the root control point.
+          r_curves_to_keep[curve_i] = false;
         }
         else if (first_point_in_stroke == i) {
           // Brush boundary is cutting straight through i-1 and i. Delete all points after i.
