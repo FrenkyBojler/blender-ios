@@ -248,6 +248,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
   ed::greasepencil::DrawingPlacement placement_;
   /* Last valid stroke intersection, for use in Stroke projection mode. */
   std::optional<float3> last_stroke_placement_loc_;
+  /* Point index of the last valid stroke placement. */
+  int last_stroke_placement_point_ = -1;
 
   /* Direction the pen is moving in smoothed over time. */
   float2 smoothed_pen_direction_ = float2(0.0f);
@@ -282,8 +284,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
 
   PaintOperation(const bool temp_draw = false) : temp_draw_(temp_draw) {}
 
-  void update_stroke_depth_placement(const bContext &C, const InputSample &sample);
-  void reproject_samples_on_strokes(const IndexRange points) const;
+  bool update_stroke_depth_placement(const bContext &C, const InputSample &sample);
+  void reproject_samples_on_strokes(const bContext &C);
 };
 
 /**
@@ -1026,42 +1028,68 @@ static StrokeSnapMode get_snap_mode(const bContext &C)
   return StrokeSnapMode::AllPoints;
 }
 
-void PaintOperation::update_stroke_depth_placement(const bContext &C, const InputSample &sample)
+bool PaintOperation::update_stroke_depth_placement(const bContext &C, const InputSample &sample)
 {
   BLI_assert(placement_.use_project_to_stroke());
   const RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
 
   const std::optional<float3> new_stroke_placement_loc = placement_.project_depth(
       sample.mouse_position);
-  if (new_stroke_placement_loc) {
-    if (last_stroke_placement_loc_) {
-      const float3 origin = *new_stroke_placement_loc;
-      const float3 direction = (*last_stroke_placement_loc_) - origin;
-      /* Chose x or y axis of the view matrix for the largest cross product. */
-      const float3 up_axis = (math::dot(direction, float3(rv3d.viewmat[0])) >
-                                      math::dot(direction, float3(rv3d.viewmat[1])) ?
-                                  rv3d.viewmat[1] :
-                                  rv3d.viewmat[0]);
-      const float3 normal = math::normalize(math::cross(up_axis, direction));
-      placement_.set_stroke_projection_plane(origin, normal);
-    }
-    else {
-      /* Use view direction as the normal when there is no previous depth yet. */
-      const float3 origin = *new_stroke_placement_loc;
-      const float3 normal = rv3d.viewmat[2];
-      placement_.set_stroke_projection_plane(origin, normal);
-    }
+  if (!new_stroke_placement_loc) {
+    return false;
+  }
+
+  if (last_stroke_placement_loc_) {
+    const float3 origin = *new_stroke_placement_loc;
+    const float3 direction = (*last_stroke_placement_loc_) - origin;
+    /* Chose x or y axis of the view matrix for the largest cross product. */
+    const float3 up_axis = (math::dot(direction, float3(rv3d.viewmat[0])) >
+                                    math::dot(direction, float3(rv3d.viewmat[1])) ?
+                                rv3d.viewmat[1] :
+                                rv3d.viewmat[0]);
+    const float3 normal = math::normalize(math::cross(up_axis, direction));
+    placement_.set_stroke_projection_plane(origin, normal);
+  }
+  else {
+    /* Use view direction as the normal when there is no previous depth yet. */
+    const float3 origin = *new_stroke_placement_loc;
+    const float3 normal = rv3d.viewmat[2];
+    placement_.set_stroke_projection_plane(origin, normal);
   }
 
   last_stroke_placement_loc_ = new_stroke_placement_loc;
+  return true;
 }
 
-void PaintOperation::reproject_samples_on_strokes(const IndexRange points) const
+void PaintOperation::reproject_samples_on_strokes(const bContext &C)
 {
-  // TODO
-  // for (const int point_i : points) {
-  //   positions[point_i] = placement_.reproject(positions[point_i]);
-  // }
+  using namespace blender::bke;
+
+  Scene *scene = CTX_data_scene(&C);
+  Object *object = CTX_data_active_object(&C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
+
+  /* Grease Pencil should have an active layer. */
+  BLI_assert(grease_pencil.has_active_layer());
+  bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer();
+  /* Drawing should exist. */
+  bke::greasepencil::Drawing &drawing = *grease_pencil.get_editable_drawing_at(active_layer,
+                                                                               scene->r.cfra);
+  const int active_curve = on_back ? drawing.strokes().curves_range().first() :
+                                     drawing.strokes().curves_range().last();
+  const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
+  MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write();
+
+  const IndexRange all_points = points_by_curve[active_curve];
+  const IndexRange active_points = last_stroke_placement_point_ < 0 ?
+                                       all_points :
+                                       all_points.drop_front(last_stroke_placement_point_);
+
+  MutableSpan<float3> active_positions = positions.slice(active_points);
+  placement_.reproject(active_positions, active_positions);
+
+  last_stroke_placement_point_ = all_points.one_after_last();
 }
 
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
@@ -1157,9 +1185,9 @@ void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &ex
     switch (snap_mode) {
       case StrokeSnapMode::AllPoints:
         /* Apply the current projection if it exists and then update the snap point. */
-        this->update_stroke_depth_placement(C, extension_sample);
-        // TODO keep track of samples that are added after the last reprojection
-        this->reproject_samples_on_strokes(newly_added_points_range);
+        if (this->update_stroke_depth_placement(C, extension_sample)) {
+          this->reproject_samples_on_strokes(C);
+        }
         break;
 
       case StrokeSnapMode::EndPoints:
@@ -1578,7 +1606,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
 
       case StrokeSnapMode::EndPoints:
         /* Finalize projection after the stroke is finished. */
-        this->reproject_samples_on_strokes(all_points);
+        this->reproject_samples_on_strokes(C);
         break;
 
       case StrokeSnapMode::FirstPoint:
