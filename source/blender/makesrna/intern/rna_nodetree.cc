@@ -10752,11 +10752,6 @@ static void rna_def_node(BlenderRNA *brna)
   FunctionRNA *func;
   PropertyRNA *parm;
 
-  static const EnumPropertyItem dummy_static_type_items[] = {
-      {NODE_CUSTOM, "CUSTOM", 0, "Custom", "Custom Node"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem warning_propagation_items[] = {
       {NODE_WARNING_PROPAGATION_ALL, "ALL", 0, "All", ""},
       {NODE_WARNING_PROPAGATION_NONE, "NONE", 0, "None", ""},
@@ -10975,13 +10970,10 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(prop, "Icon", "The node icon");
 
-  prop = RNA_def_property(srna, "bl_static_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "typeinfo->type");
-  RNA_def_property_enum_items(prop, dummy_static_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_node_static_type_itemf");
-  RNA_def_property_enum_default(prop, NODE_CUSTOM);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(prop, "Static Type", "Node type (deprecated, use with care)");
+  prop = RNA_def_property(srna, "bl_static_type", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop, "rna_node_type_get", "rna_node_type_length", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Static Type", "Legacy node type, use bl_idname instead");
 
   /* type-based size properties */
   prop = RNA_def_property(srna, "bl_width_default", PROP_FLOAT, PROP_UNSIGNED);
