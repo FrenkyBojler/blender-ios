@@ -33,18 +33,18 @@ static int string_count(const StringRef text, const StringRef token)
   if (text.is_empty() || token.is_empty()) {
     return 0;
   }
-  int position = 0;
+  int count = 0;
   int matche_len = token.size();
   int pos = 0;
   if (text.substr(0, token.size()) == token) {
-    position++;
+    count++;
     pos += matche_len;
   }
   while ((pos = text.find_first_of(token, pos)) != StringRef::not_found) {
-    position++;
+    count++;
     pos += matche_len;
   }
-  return position;
+  return count;
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
