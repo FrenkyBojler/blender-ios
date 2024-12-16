@@ -11,13 +11,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "BKE_attribute.hh"
-
-using blender::CPPType;
-using blender::ImplicitSharingInfo;
-using blender::StringRef;
-using blender::bke::AttrDomain;
-using blender::bke::AttrStorageType;
-using blender::bke::AttrType;
+#include "BKE_attribute_storage.hh"
 
 namespace blender::bke {
 
@@ -62,11 +56,8 @@ static ImplicitSharingInfo *create_sharing_info_for_array(const AttributeDataArr
   return MEM_new<ArrayDataImplicitSharing>(__func__, data.data, data.elements_num, type);
 }
 
-}  // namespace blender::bke
-
 void Attribute::ensure_mutable()
 {
-  using namespace blender::bke;
   switch (AttrStorageType(this->storage_type)) {
     case AttrStorageType::Array: {
       AttributeDataArray &data = *static_cast<AttributeDataArray *>(this->data);
@@ -88,6 +79,67 @@ void Attribute::ensure_mutable()
       BLI_assert_unreachable();
       break;
   }
+}
+
+AttributeStorage::AttributeStorage()
+    : attributes_array(nullptr),
+      attributes_num(0),
+      attributes_capacity(0),
+      runtime(MEM_new<AttributeStorageRuntime>(__func__))
+{
+}
+
+AttributeStorage::AttributeStorage(const AttributeStorage &other) {}
+
+AttributeStorage &AttributeStorage::operator=(const AttributeStorage &other)
+{
+  if (this == &other) {
+    return *this;
+  }
+  std::destroy_at(this);
+  new (this) AttributeStorage(other);
+  return *this;
+}
+
+AttributeStorage::AttributeStorage(AttributeStorage &&other)
+    : attributes_array(std::exchange(other.attributes_array, nullptr)),
+      attributes_num(std::exchange(other.attributes_num, 0)),
+      attributes_capacity(std::exchange(other.attributes_capacity, 0)),
+      runtime(std::exchange(other.runtime, nullptr))
+{
+}
+
+AttributeStorage &AttributeStorage::operator=(AttributeStorage &&other)
+{
+  if (this == &other) {
+    return *this;
+  }
+  std::destroy_at(this);
+  new (this) AttributeStorage(std::move(other));
+  return *this;
+}
+
+AttributeStorage::~AttributeStorage()
+{
+  for (Attribute *attribute : Span(this->attributes_array, this->attributes_num)) {
+    switch (AttrStorageType(attribute->storage_type)) {
+      case AttrStorageType::Array: {
+        AttributeDataArray &attribute_data = *static_cast<AttributeDataArray *>(attribute->data);
+        if (attribute_data.sharing_info) {
+          attribute_data.sharing_info->remove_user_and_delete_if_last();
+        }
+        MEM_freeN(static_cast<AttributeDataArray *>(attribute->data));
+        break;
+      }
+      case AttrStorageType::Single: {
+        BLI_assert_unreachable();
+        break;
+      }
+    }
+    MEM_freeN(attribute);
+  }
+  MEM_freeN(this->attributes_array);
+  MEM_delete(this->runtime);
 }
 
 const Attribute *AttributeStorage::lookup(const StringRef name) const
@@ -174,7 +226,6 @@ static void read_attribute_data_array(BlendDataReader &reader,
                                       const AttrType data_type,
                                       AttributeDataArray &array_data)
 {
-  using namespace blender::bke;
   array_data.sharing_info = BLO_read_shared(
       &reader, &array_data.data, [&]() -> const ImplicitSharingInfo * {
         switch (data_type) {
@@ -236,7 +287,6 @@ static void read_attribute_data_array(BlendDataReader &reader,
 
 void AttributeStorage::blend_read(BlendDataReader &reader)
 {
-  using namespace blender;
   BLO_read_pointer_array(&reader, this->attributes_num, (void **)(this->attributes_array));
   for (const int i : IndexRange(this->attributes_num)) {
     BLO_read_struct(&reader, Attribute, &this->attributes_array[i]);
@@ -354,3 +404,5 @@ void AttributeStorage::blend_write(BlendWriter &writer) const
     }
   }
 }
+
+}  // namespace blender::bke

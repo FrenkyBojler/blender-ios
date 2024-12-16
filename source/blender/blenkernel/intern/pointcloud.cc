@@ -25,6 +25,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
@@ -62,6 +63,7 @@ static void pointcloud_init_data(ID *id)
 
   MEMCPY_STRUCT_AFTER(pointcloud, DNA_struct_default_get(PointCloud), id);
 
+  new (&pointcloud->attribute_storage) blender::bke::AttributeStorage();
   pointcloud->runtime = new blender::bke::PointCloudRuntime();
 
   CustomData_reset(&pointcloud->pdata);
@@ -81,6 +83,7 @@ static void pointcloud_copy_data(Main * /*bmain*/,
 
   CustomData_init_from(
       &pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, pointcloud_dst->totpoint);
+  pointcloud_dst->attribute_storage.wrap() = pointcloud_src->attribute_storage.wrap();
 
   pointcloud_dst->runtime = new blender::bke::PointCloudRuntime();
   pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;
@@ -99,6 +102,7 @@ static void pointcloud_free_data(ID *id)
   BKE_animdata_free(&pointcloud->id, false);
   BKE_pointcloud_batch_cache_free(pointcloud);
   CustomData_free(&pointcloud->pdata, pointcloud->totpoint);
+  pointcloud->attribute_storage.wrap().~AttributeStorage();
   MEM_SAFE_FREE(pointcloud->mat);
   delete pointcloud->runtime;
 }

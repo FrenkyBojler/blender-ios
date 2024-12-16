@@ -27,6 +27,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
@@ -67,6 +68,8 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
   CustomData_reset(&this->curve_data);
   BLI_listbase_clear(&this->vertex_group_names);
 
+  new (&this->attribute_storage) blender::bke::AttributeStorage();
+
   this->attributes_for_write().add<float3>(
       "position", AttrDomain::Point, AttributeInitConstruct());
 
@@ -99,6 +102,8 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
 
   CustomData_init_from(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
   CustomData_init_from(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
+
+  this->attribute_storage.wrap() = other.attribute_storage.wrap();
 
   this->point_num = other.point_num;
   this->curve_num = other.curve_num;
@@ -149,6 +154,8 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
   this->curve_data = other.curve_data;
   CustomData_reset(&other.curve_data);
 
+  this->attribute_storage.wrap() = std::move(other.attribute_storage.wrap());
+
   this->point_num = other.point_num;
   other.point_num = 0;
 
@@ -182,6 +189,7 @@ CurvesGeometry::~CurvesGeometry()
 {
   CustomData_free(&this->point_data, this->point_num);
   CustomData_free(&this->curve_data, this->curve_num);
+  this->attribute_storage.wrap().~AttributeStorage();
   BLI_freelistN(&this->vertex_group_names);
   if (this->runtime) {
     implicit_sharing::free_shared_data(&this->curve_offsets,

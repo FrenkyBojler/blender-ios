@@ -47,6 +47,7 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_attribute.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_bpath.hh"
 #include "BKE_deform.hh"
@@ -97,6 +98,7 @@ static void mesh_init_data(ID *id)
   CustomData_reset(&mesh->face_data);
   CustomData_reset(&mesh->corner_data);
 
+  new (&mesh->attribute_storage) blender::bke::AttributeStorage();
   mesh->runtime = new blender::bke::MeshRuntime();
 
   mesh->face_sets_color_seed = BLI_hash_int(BLI_time_now_seconds_i() & UINT_MAX);
@@ -203,6 +205,7 @@ static void mesh_copy_data(Main *bmain,
       &mesh_src->corner_data, &mesh_dst->corner_data, mask.lmask, mesh_dst->corners_num);
   CustomData_init_from(
       &mesh_src->face_data, &mesh_dst->face_data, mask.pmask, mesh_dst->faces_num);
+  mesh_dst->attribute_storage.wrap() = mesh_src->attribute_storage.wrap();
   blender::implicit_sharing::copy_shared_pointer(mesh_src->face_offset_indices,
                                                  mesh_src->runtime->face_offsets_sharing_info,
                                                  &mesh_dst->face_offset_indices,
@@ -538,6 +541,7 @@ static void mesh_clear_geometry(Mesh &mesh)
   CustomData_free(&mesh.fdata_legacy, mesh.totface_legacy);
   CustomData_free(&mesh.corner_data, mesh.corners_num);
   CustomData_free(&mesh.face_data, mesh.faces_num);
+  mesh.attribute_storage.wrap().~AttributeStorage();
   if (mesh.face_offset_indices) {
     blender::implicit_sharing::free_shared_data(&mesh.face_offset_indices,
                                                 &mesh.runtime->face_offsets_sharing_info);
