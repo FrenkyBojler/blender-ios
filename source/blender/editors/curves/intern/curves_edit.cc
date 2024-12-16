@@ -366,6 +366,13 @@ static void foreach_mask_content_slice_by_offsets(const IndexMask &mask,
   }
 }
 
+static void add_to_every(const int a, MutableSpan<int> span)
+{
+  for (int &offset : span) {
+    offset += a;
+  }
+}
+
 bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                                  const bke::CurvesGeometry &curves)
 {
@@ -427,19 +434,11 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                                      new_curve_map);
       });
 
-  for (int &offset : split_dst_offsets) {
-    offset += preserved_dst_offsets.last();
-  }
+  add_to_every(preserved_dst_offsets.last(), split_dst_offsets);
+  add_to_every(preserved_dst_offsets.last(), split_roll_dst_offsets);
+  add_to_every(new_offsets.last(), split_curve_offsets);
 
-  for (int &offset : split_roll_dst_offsets) {
-    offset += preserved_dst_offsets.last();
-  }
-
-  const int last_preserved_offset = new_offsets.last();
-  for (const int offset : split_curve_offsets.as_span().drop_front(1)) {
-    new_offsets.append(last_preserved_offset + offset);
-  }
-
+  new_offsets.extend(split_curve_offsets.as_span().drop_front(1));
   curve_map.extend(new_curve_map);
 
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
