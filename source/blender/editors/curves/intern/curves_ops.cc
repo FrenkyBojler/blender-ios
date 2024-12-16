@@ -1155,7 +1155,7 @@ static int split_exec(bContext *C, wmOperator * /*op*/)
     if (points_to_split.is_empty()) {
       continue;
     }
-    curves = std::move(split_points(points_to_split, curves, memory));
+    curves = std::move(split_points(points_to_split, curves));
 
     curves.calculate_bezier_auto_handles();
 

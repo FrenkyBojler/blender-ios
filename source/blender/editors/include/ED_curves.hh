@@ -439,8 +439,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask);
 void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask);
 
 bke::CurvesGeometry split_points(const IndexMask &points_to_split,
-                                 const bke::CurvesGeometry &curves,
-                                 IndexMaskMemory &memory);
+                                 const bke::CurvesGeometry &curves);
 
 /**
  * Adds new curves to \a curves.

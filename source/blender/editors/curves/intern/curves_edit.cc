@@ -317,8 +317,7 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
 }
 
 bke::CurvesGeometry split_points(const IndexMask &points_to_split,
-                                 const bke::CurvesGeometry &curves,
-                                 IndexMaskMemory &memory)
+                                 const bke::CurvesGeometry &curves)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
@@ -339,6 +338,8 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
   Vector<int> split_roll_src_offsets;
   Vector<int> split_roll_dst_offsets;
   Vector<bool> split_cyclic;
+
+  IndexMaskMemory memory;
 
   for (const int curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve];
