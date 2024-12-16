@@ -226,6 +226,12 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
   }
 }
 
+/**
+ * Removes single point ranges from the mask.
+ * For mask [1, 5, 7, 8, 10] result is [7, 8] if cyclic is false.
+ * If cyclic is true indexes 1 and 10 are considered as adjacent and
+ * result is [1, 7, 8, 10].
+ */
 static IndexMask drop_singles(const IndexMask &mask,
                               const IndexRange universe,
                               const bool cyclic,
@@ -389,6 +395,8 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
       points_to_split,
       points_by_curve,
       [&](const IndexMask curve_points_to_split, const IndexRange points, const int curve) {
+        /* Singles are removed as singular selected points are only duplicated without affecting
+         * original curve. */
         const IndexMask curve_preserved_points =
             drop_singles(curve_points_to_split, points, cyclic[curve], memory)
                 .complement(points, memory);
