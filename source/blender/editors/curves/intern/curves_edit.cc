@@ -316,9 +316,9 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
       cyclic[curve] && selected_points.size() == points.size() && roll_by == 0, curves_added);
 }
 
-void split_points(const IndexMask &points_to_split,
-                  bke::CurvesGeometry &curves,
-                  IndexMaskMemory &memory)
+bke::CurvesGeometry split_points(const IndexMask &points_to_split,
+                                 const bke::CurvesGeometry &curves,
+                                 IndexMaskMemory &memory)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
@@ -454,7 +454,7 @@ void split_points(const IndexMask &points_to_split,
   new_curves.update_curve_types();
   new_curves.tag_topology_changed();
 
-  curves = std::move(new_curves);
+  return new_curves;
 }
 
 void add_curves(bke::CurvesGeometry &curves, const Span<int> new_sizes)
