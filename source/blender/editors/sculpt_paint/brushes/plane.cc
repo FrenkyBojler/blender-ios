@@ -16,6 +16,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_brush.hh"
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
@@ -49,9 +50,20 @@ struct LocalData {
   Vector<float3> translations;
 };
 
+static void calc_local_positions(const float4x4& mat,
+  const Span<int> verts,
+  const Span<float3> positions,
+  const MutableSpan<float3> local_positions)
+{
+  for (const int i : verts.index_range()) {
+    local_positions[i] = math::transform_point(mat, positions[verts[i]]);
+  }
+}
+
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
+                       const float4x4 &mat,
                        const float4 &plane,
                        const float strength,
                        const MeshAttributeData &attribute_data,
@@ -62,20 +74,36 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const PositionDeformData &position_data,
                        const IndexedFilterFn filter)
 {
-  SculptSession &ss = *object.sculpt;
-  const StrokeCache &cache = *ss.cache;
+  const SculptSession& ss = *object.sculpt;
+  const StrokeCache& cache = *ss.cache;
 
   const Span<int> verts = node.verts();
 
-  calc_factors_common_mesh_indexed(depsgraph,
-                                   brush,
-                                   object,
-                                   attribute_data,
-                                   position_data.eval,
-                                   vert_normals,
-                                   node,
-                                   tls.factors,
-                                   tls.distances);
+  tls.factors.resize(verts.size());
+  const MutableSpan<float> factors = tls.factors;
+  fill_factor_from_hide_and_mask(attribute_data.hide_vert, attribute_data.mask, verts, factors);
+  filter_region_clip_factors(ss, position_data.eval, verts, factors);
+
+  if (brush.flag & BRUSH_FRONTFACE) {
+    calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
+  }
+
+  tls.positions.resize(verts.size());
+  const MutableSpan<float3> local_positions = tls.positions;
+  calc_local_positions(mat, verts, position_data.eval, local_positions);
+
+  tls.distances.resize(verts.size());
+  const MutableSpan<float> distances = tls.distances;
+  calc_brush_distances(
+    ss, local_positions, eBrushFalloffShape(brush.falloff_shape), distances);
+  filter_distances_with_radius(1.0f, distances, factors);
+  apply_hardness_to_distances(1.0f, cache.hardness, distances);
+  BKE_brush_calc_curve_factors(
+    eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+
+  auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
+
+  calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
 
   scale_factors(tls.factors, strength);
 
@@ -180,6 +208,19 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   float4 plane;
   plane_from_point_normal_v3(plane, area_co, area_no);
 
+  float4x4 mat;
+  float4x4 mat = float4x4::identity();
+  mat.x_axis() = math::cross(area_no, ss.cache->grab_delta_symm);
+  mat.y_axis() = math::cross(area_no, float3(mat[0]));
+  mat.z_axis() = area_no;
+  mat.location() = area_co;
+  mat = math::normalize(mat);
+
+  const float4x4 scale = math::from_scale<float4x4>(float3(ss.cache->radius));
+  float4x4 tmat = mat * scale;
+
+  mat = math::invert(tmat);
+
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
@@ -193,6 +234,7 @@ static void do_plane_brush(const Depsgraph &depsgraph,
         calc_faces(depsgraph,
                    sd,
                    brush,
+                   mat,
                    plane,
                    ss.cache->bstrength,
                    attribute_data,
