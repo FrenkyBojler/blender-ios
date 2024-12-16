@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2024 Blender Foundation
+/* SPDX-FileCopyrightText: 2024 Blender Foundation
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
