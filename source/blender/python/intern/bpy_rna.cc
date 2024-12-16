@@ -1256,6 +1256,12 @@ static const char *pyrna_enum_as_string(PointerRNA *ptr, PropertyRNA *prop)
   return result;
 }
 
+static void report_icon_fallback(const char *icon_name)
+{
+  /* Don't let fickle internal icon changes corrupt entire add-ons between Blender versions.*/
+  printf("Icon '%s' not found, falling back to 'NONE'.\n", icon_name ? icon_name : "<null>");
+}
+
 static int pyrna_string_to_enum(
     PyObject *item, PointerRNA *ptr, PropertyRNA *prop, int *r_value, const char *error_prefix)
 {
@@ -1270,14 +1276,24 @@ static int pyrna_string_to_enum(
   }
 
   if (!RNA_property_enum_value(BPY_context_get(), ptr, prop, param, r_value)) {
-    const char *enum_str = pyrna_enum_as_string(ptr, prop);
-    PyErr_Format(PyExc_TypeError,
-                 "%.200s enum \"%.200s\" not found in (%s)",
-                 error_prefix,
-                 param,
-                 enum_str);
-    MEM_freeN((void *)enum_str);
-    return -1;
+    const char *property_name = RNA_property_identifier(prop);
+    if (STREQ(property_name, "icon")) {
+      const char *icon_name = param ? param : "<null>";
+      report_icon_fallback(icon_name);
+      *r_value = 0;
+      return 0;
+    }
+    
+    else {
+      const char *enum_str = pyrna_enum_as_string(ptr, prop);
+      PyErr_Format(PyExc_TypeError,
+                   "%.200s enum \"%.200s\" not found in (%s)",
+                   error_prefix,
+                   param,
+                   enum_str);
+      MEM_freeN((void *)enum_str);
+      return -1;
+    }
   }
 
   return 0;
@@ -8683,8 +8699,17 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
     }
     else {
       if (pyrna_py_to_prop(dummy_ptr, prop, nullptr, item, "validating class:") != 0) {
-        Py_DECREF(item);
-        return -1;
+          if (RNA_property_type(prop) == PROP_ENUM && STREQ(RNA_property_identifier(prop), "bl_icon")) {
+              PyErr_Clear();
+              int value = 0;
+              RNA_property_enum_set(dummy_ptr, prop, value);
+              const char *icon_value_str = PyUnicode_Check(item) ? PyUnicode_AsUTF8(item) : "<non-string value>";
+              report_icon_fallback(icon_value_str);
+
+          } else {
+              Py_DECREF(item);
+              return -1;
+          }
       }
       Py_DECREF(item);
     }
