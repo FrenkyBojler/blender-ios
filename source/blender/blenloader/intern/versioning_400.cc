@@ -5265,6 +5265,23 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 14)) {
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_viewport_quality"))
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->r.compositor_denoise_viewport_quality = SCE_COMPOSITOR_DENOISE_BALANCED;
+      }
+    }
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_final_quality"))
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->r.compositor_denoise_final_quality = SCE_COMPOSITOR_DENOISE_HIGH;
+      }
+    }
+  }
+
   /* Always run this versioning; meshes are written with the legacy format which always needs to
    * be converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
