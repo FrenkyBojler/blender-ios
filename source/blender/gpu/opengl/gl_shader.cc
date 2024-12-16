@@ -691,15 +691,23 @@ std::string GLShader::vertex_interface_declare(const ShaderCreateInfo &info) con
   for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
     print_interface(ss, "out", *iface);
   }
-  if (bool(info.builtins_ &
-           (BuiltinBits::BARYCENTRIC_COORD | BuiltinBits::LAYER | BuiltinBits::VIEWPORT_INDEX)))
-  {
-    if (do_geometry_shader_injection(&info)) {
+  const bool has_geometry_stage = do_geometry_shader_injection(&info) ||
+                                  !info.geometry_source_.is_empty();
+  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
+  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  if (has_geometry_stage) {
+    if (do_layer_output) {
       ss << "out int gpu_Layer;\n";
+    }
+    if (do_viewport_output) {
       ss << "out int gpu_ViewportIndex;\n";
     }
-    else {
+  }
+  else {
+    if (do_layer_output) {
       ss << "#define gpu_Layer gl_Layer\n";
+    }
+    if (do_viewport_output) {
       ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
     }
   }
@@ -736,10 +744,10 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
   for (const StageInterfaceInfo *iface : in_interfaces) {
     print_interface(ss, "in", *iface);
   }
-  if (bool(info.builtins_ &
-           (BuiltinBits::BARYCENTRIC_COORD | BuiltinBits::LAYER | BuiltinBits::VIEWPORT_INDEX)))
-  {
+  if (bool(info.builtins_ & BuiltinBits::LAYER)) {
     ss << "#define gpu_Layer gl_Layer\n";
+  }
+  if (bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX)) {
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
   if (bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD)) {
@@ -935,6 +943,8 @@ std::string GLShader::workaround_geometry_shader_source_create(
 {
   std::stringstream ss;
 
+  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
+  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
   const bool do_barycentric_workaround = !GLContext::native_barycentric_support &&
                                          bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
 
@@ -948,8 +958,13 @@ std::string GLShader::workaround_geometry_shader_source_create(
 
   ss << geometry_layout_declare(info_modified);
   ss << geometry_interface_declare(info_modified);
-  ss << "in int gpu_Layer[];\n";
-  ss << "in int gpu_ViewportIndex[];\n";
+  if (do_layer_output) {
+    ss << "in int gpu_Layer[];\n";
+  }
+  if (do_viewport_output) {
+    ss << "in int gpu_ViewportIndex[];\n";
+  }
+
   if (do_barycentric_workaround) {
     ss << "flat out vec4 gpu_pos[3];\n";
     ss << "smooth out vec3 gpu_BaryCoord;\n";
@@ -976,8 +991,12 @@ std::string GLShader::workaround_geometry_shader_source_create(
       ss << " vec3(" << int(i == 0) << ", " << int(i == 1) << ", " << int(i == 2) << ");\n";
     }
     ss << "  gl_Position = gl_in[" << i << "].gl_Position;\n";
-    ss << "  gl_Layer = gpu_Layer[" << i << "];\n";
-    ss << "  gl_ViewportIndex = gpu_ViewportIndex[" << i << "];\n";
+    if (do_layer_output) {
+      ss << "  gl_Layer = gpu_Layer[" << i << "];\n";
+    }
+    if (do_viewport_output) {
+      ss << "  gl_ViewportIndex = gpu_ViewportIndex[" << i << "];\n";
+    }
     ss << "  EmitVertex();\n";
   }
   ss << "}\n";
