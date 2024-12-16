@@ -2873,6 +2873,7 @@ struct ObjectConversionInfo {
   Object *obact;
   bool keep_original;
   bool do_merge_customdata;
+  PointerRNA *op_props;
   ReportList *reports;
 };
 
@@ -3136,7 +3137,12 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   ob->flag |= OB_DONE;
   Object *newob = get_object_for_conversion(base, info, r_new_base);
 
-  const bool generate_faces = true;
+  const bool generate_faces = RNA_boolean_get(info.op_props, "faces");
+  const int thickness = RNA_int_get(info.op_props, "thickness");
+  const float offset = RNA_float_get(info.op_props, "offset");
+
+  /* To be compatible with the thickness value prior to Grease Pencil v3. */
+  const float stroke_radius = thickness / 1000.0f;
 
   const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
@@ -3166,6 +3172,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
 
   const int edge_num = mesh_eval->edges_num;
   const Span<float3> mesh_positions = mesh_eval->vert_positions();
+  const Span<float3> vert_normals = mesh_eval->vert_normals();
   const Span<int2> edges = mesh_eval->edges();
   const OffsetIndices<int> faces = mesh_eval->faces();
   const Span<int> corner_verts = mesh_eval->corner_verts();
@@ -3173,10 +3180,13 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   int total_points, total_curves;
   mesh_to_grease_pencil_info(generate_faces, edges, faces, total_points, total_curves);
 
-  bke::CurvesGeometry curves(total_points, total_curves);
+  drawing->strokes_for_write() = bke::CurvesGeometry(total_points, total_curves);
+  bke::CurvesGeometry &curves = drawing->strokes_for_write();
+
   MutableSpan<float3> positions = curves.positions_for_write();
   MutableSpan<int> offsets = curves.offsets_for_write();
   MutableSpan<bool> cyclic = curves.cyclic_for_write();
+  MutableSpan<float> radii = drawing->radii_for_write();
   bke::SpanAttributeWriter<int> stroke_materials =
       curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
                                                                       bke::AttrDomain::Curve);
@@ -3204,22 +3214,22 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
     stroke_materials.span.slice(fills_range).fill(1);
   }
 
-  const int strokes_start = point_i;
   IndexRange edges_range = IndexRange(total_fills, edge_num);
   for (const int edge_i : IndexRange(edge_num)) {
     const int2 edge = edges[edge_i];
-    positions[strokes_start + edge_i * 2] = mesh_positions[edge[0]];
-    positions[strokes_start + edge_i * 2 + 1] = mesh_positions[edge[1]];
+    positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
+    positions[point_i + 1] = mesh_positions[edge[1]] + offset * vert_normals[edge[1]];
+    point_i += 2;
   }
-  offsets.slice(IndexRange(edges_range)).fill(2);
-  stroke_materials.span.slice(IndexRange(edges_range)).fill(0);
+  offsets.slice(edges_range).fill(2);
+  stroke_materials.span.slice(edges_range).fill(0);
+  radii.slice(edges_range).fill(stroke_radius);
 
   offset_indices::accumulate_counts_to_offsets(offsets);
 
   stroke_materials.finish();
 
-  drawing->strokes_for_write() = std::move(curves);
-  drawing->tag_positions_changed();
+  drawing->tag_topology_changed();
 
   return newob;
 }
@@ -3760,6 +3770,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   info.obact = obact;
   info.keep_original = keep_original;
   info.do_merge_customdata = do_merge_customdata;
+  info.op_props = op->ptr;
   info.reports = op->reports;
 
   Base *act_base = nullptr;
@@ -3945,11 +3956,9 @@ static void object_convert_ui(bContext * /*C*/, wmOperator *op)
   if (target == OB_MESH) {
     uiItemR(layout, op->ptr, "merge_customdata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  else if (target == OB_GPENCIL_LEGACY) {
+  else if (target == OB_GREASE_PENCIL) {
     uiItemR(layout, op->ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(layout, op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(layout, op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(layout, op->ptr, "seams", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(layout, op->ptr, "faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
@@ -3991,20 +4000,7 @@ void OBJECT_OT_convert(wmOperatorType *ot)
       "Merge UVs",
       "Merge UV coordinates that share a vertex to account for imprecision in some modifiers");
 
-  prop = RNA_def_float_rotation(ot->srna,
-                                "angle",
-                                0,
-                                nullptr,
-                                DEG2RADF(0.0f),
-                                DEG2RADF(180.0f),
-                                "Threshold Angle",
-                                "Threshold to determine ends of the strokes",
-                                DEG2RADF(0.0f),
-                                DEG2RADF(180.0f));
-  RNA_def_property_float_default(prop, DEG2RADF(70.0f));
-
   RNA_def_int(ot->srna, "thickness", 5, 1, 100, "Thickness", "", 1, 100);
-  RNA_def_boolean(ot->srna, "seams", false, "Only Seam Edges", "Convert only seam edges");
   RNA_def_boolean(ot->srna, "faces", true, "Export Faces", "Export faces as filled strokes");
   RNA_def_float_distance(ot->srna,
                          "offset",
