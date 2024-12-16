@@ -34,6 +34,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
+#include "BLI_array_state.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -910,6 +911,34 @@ Mesh *BKE_modifier_modify_mesh(ModifierData *md, const ModifierEvalContext *ctx,
   return mti->modify_mesh(md, ctx, mesh);
 }
 
+template<typename T>
+blender::ArrayState<T> get_array_state(const blender::bke::AttributeReader<T> &attr)
+{
+  if (!attr) {
+    return {};
+  }
+  return {attr.varray, attr.sharing_info};
+}
+
+class MeshTopologyState {
+ private:
+  blender::ArrayState<int> edge_verts_;
+  blender::ArrayState<int> corner_verts_;
+  blender::ArrayState<int> corner_edges_;
+  blender::ArrayState<int> face_offset_indices_;
+
+  MeshTopologyState(Mesh &mesh)
+  {
+    const blender::bke::AttributeAccessor attributes = mesh.attributes();
+    edge_verts_ = get_array_state(attributes.lookup<int>(".edge_vert"));
+    corner_verts_ = get_array_state(attributes.lookup<int>(".corner_vert"));
+    corner_edges_ = get_array_state(attributes.lookup<int>(".corner_edge"));
+    face_offset_indices_ = blender::ArrayState<int>(
+        blender::VArray<int>::ForSpan(mesh.face_offsets()),
+        mesh.runtime->face_offsets_sharing_info);
+  }
+};
+
 bool BKE_modifier_deform_verts(ModifierData *md,
                                const ModifierEvalContext *ctx,
                                Mesh *mesh,
@@ -938,6 +967,8 @@ bool BKE_modifier_deform_verts(ModifierData *md,
     Mesh *mesh_to_deform = geometry.get_mesh_for_write();
     mesh_to_deform->vert_positions_for_write().copy_from(positions);
     mesh_to_deform->tag_positions_changed();
+
+    AttributeAccessor mesh_attributes = mesh_to_deform->attributes();
 
     /* Call the modifier and "hope" that it just deforms the mesh. */
     mti->modify_geometry_set(md, ctx, &geometry);
