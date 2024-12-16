@@ -45,9 +45,9 @@ static void node_composit_buts_antialiasing(uiLayout *layout, bContext * /*C*/, 
 
   col = uiLayoutColumn(layout, false);
 
-  uiItemR(col, ptr, "threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "contrast_limit", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "corner_rounding", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "contrast_limit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "corner_rounding", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::realtime_compositor;
@@ -58,17 +58,6 @@ class AntiAliasingOperation : public NodeOperation {
 
   void execute() override
   {
-    /* Not yet supported on CPU. */
-    if (!context().use_gpu()) {
-      for (const bNodeSocket *output : this->node()->output_sockets()) {
-        Result &output_result = get_result(output->identifier);
-        if (output_result.should_compute()) {
-          output_result.allocate_invalid();
-        }
-      }
-      return;
-    }
-
     smaa(context(),
          get_input("Image"),
          get_result("Image"),

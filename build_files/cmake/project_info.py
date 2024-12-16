@@ -27,11 +27,9 @@ __all__ = (
     "init",
 )
 
-from typing import (
-    Generator,
-)
 from collections.abc import (
     Callable,
+    Iterator,
 )
 
 
@@ -85,7 +83,7 @@ def init(cmake_path: str) -> bool:
 def source_list(
         path: str,
         filename_check: Callable[[str], bool] | None = None,
-) -> Generator[str, None, None]:
+) -> Iterator[str]:
     for dirpath, dirnames, filenames in os.walk(path):
         # skip '.git'
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
@@ -126,14 +124,8 @@ def is_c_any(filename: str) -> bool:
     return is_c(filename) or is_c_header(filename)
 
 
-def is_svn_file(filename: str) -> bool:
-    dn, fn = os.path.split(filename)
-    filename_svn = join(dn, ".svn", "text-base", "%s.svn-base" % fn)
-    return exists(filename_svn)
-
-
 def is_project_file(filename: str) -> bool:
-    return (is_c_any(filename) or is_cmake(filename) or is_glsl(filename))  # and is_svn_file(filename)
+    return (is_c_any(filename) or is_cmake(filename) or is_glsl(filename))
 
 
 def cmake_advanced_info() -> (

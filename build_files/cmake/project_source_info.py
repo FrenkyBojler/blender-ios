@@ -22,11 +22,11 @@ import subprocess
 
 from typing import (
     Any,
-    Generator,
     IO,
 )
 from collections.abc import (
     Callable,
+    Iterator,
     Sequence,
 )
 
@@ -56,7 +56,7 @@ def is_c_any(filename: str) -> bool:
 CMAKE_DIR = "."
 
 
-def cmake_cache_var_iter() -> Generator[tuple[str, str, str], None, None]:
+def cmake_cache_var_iter() -> Iterator[tuple[str, str, str]]:
     import re
     re_cache = re.compile(r'([A-Za-z0-9_\-]+)?:?([A-Za-z0-9_\-]+)?=(.*)$')
     with open(join(CMAKE_DIR, "CMakeCache.txt"), 'r', encoding='utf-8') as cache_file:
@@ -68,7 +68,7 @@ def cmake_cache_var_iter() -> Generator[tuple[str, str, str], None, None]:
 
 
 def cmake_cache_var(var: str) -> str | None:
-    for var_iter, type_iter, value_iter in cmake_cache_var_iter():
+    for var_iter, _type_iter, value_iter in cmake_cache_var_iter():
         if var == var_iter:
             return value_iter
     return None

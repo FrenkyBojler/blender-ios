@@ -477,9 +477,6 @@ void BKE_lib_id_expand_local(Main *bmain, ID *id, const int flags)
       bmain, id, lib_id_expand_local_cb, POINTER_FROM_INT(flags), IDWALK_READONLY);
 }
 
-/**
- * Ensure new (copied) ID is fully made local.
- */
 void lib_id_copy_ensure_local(Main *bmain, const ID *old_id, ID *new_id, const int flags)
 {
   if (ID_IS_LINKED(old_id)) {
@@ -624,7 +621,7 @@ static int id_copy_libmanagement_cb(LibraryIDLinkCallbackData *cb_data)
 {
   ID **id_pointer = cb_data->id_pointer;
   ID *id = *id_pointer;
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   IDCopyLibManagementData *data = static_cast<IDCopyLibManagementData *>(cb_data->user_data);
 
   /* Remap self-references to new copied ID. */
@@ -864,8 +861,14 @@ ID *BKE_id_copy_for_use_in_bmain(Main *bmain, const ID *id)
 
 void BKE_id_move_to_same_lib(Main &bmain, ID &id, const ID &owner_id)
 {
-  BLI_assert(id.lib == nullptr);
-  if (owner_id.lib == nullptr) {
+  if (owner_id.lib == id.lib) {
+    /* `id` is already in the target library, nothing to do. */
+    return;
+  }
+  if (ID_IS_LINKED(&id)) {
+    BLI_assert_msg(false, "Only local IDs can be moved into a library");
+    /* Protect release builds against errors in calling code, as continuing here can lead to
+     * critical Main data-base corruption. */
     return;
   }
 
@@ -1049,14 +1052,6 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
         RNA_property_pointer_set(ptr, prop, idptr, nullptr);
         RNA_property_update(C, ptr, prop);
 
-        /* tag grease pencil data-block and disable onion */
-        if (GS(id->name) == ID_GD_LEGACY) {
-          DEG_id_tag_update(id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-          DEG_id_tag_update(newid, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-          bGPdata *gpd = (bGPdata *)newid;
-          gpd->flag &= ~GP_DATA_SHOW_ONIONSKINS;
-        }
-
         return true;
       }
     }
@@ -1068,7 +1063,7 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
 static int libblock_management_us_plus(LibraryIDLinkCallbackData *cb_data)
 {
   ID **id_pointer = cb_data->id_pointer;
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   if (cb_flag & IDWALK_CB_USER) {
     id_us_plus(*id_pointer);
   }
@@ -1082,7 +1077,7 @@ static int libblock_management_us_plus(LibraryIDLinkCallbackData *cb_data)
 static int libblock_management_us_min(LibraryIDLinkCallbackData *cb_data)
 {
   ID **id_pointer = cb_data->id_pointer;
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   if (cb_flag & IDWALK_CB_USER) {
     id_us_min(*id_pointer);
   }
@@ -1918,6 +1913,7 @@ IDNewNameResult BKE_id_new_name_validate(Main &bmain,
         result.action = IDNewNameResult::Action::RENAMED_COLLISION_FORCED;
       }
       id_sort_by_name(&lb, &id, nullptr);
+
       return result;
     }
   }
@@ -1954,7 +1950,7 @@ void BKE_main_id_newptr_and_tag_clear(Main *bmain)
 static int id_refcount_recompute_callback(LibraryIDLinkCallbackData *cb_data)
 {
   ID **id_pointer = cb_data->id_pointer;
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   const bool do_linked_only = bool(POINTER_AS_INT(cb_data->user_data));
 
   if (*id_pointer == nullptr) {
@@ -2339,10 +2335,8 @@ IDNewNameResult BKE_id_rename(Main &bmain,
 {
   const IDNewNameResult result = BKE_libblock_rename(bmain, id, name, mode);
 
-  if (!ELEM(result.action,
-            IDNewNameResult::Action::UNCHANGED,
-            IDNewNameResult::Action::UNCHANGED_COLLISION))
-  {
+  auto deg_tag_id = [](ID &id) -> void {
+    DEG_id_tag_update(&id, ID_RECALC_SYNC_TO_EVAL);
     switch (GS(id.name)) {
       case ID_OB: {
         Object &ob = reinterpret_cast<Object &>(id);
@@ -2354,6 +2348,21 @@ IDNewNameResult BKE_id_rename(Main &bmain,
       default:
         break;
     }
+  };
+
+  switch (result.action) {
+    case IDNewNameResult::Action::UNCHANGED:
+    case IDNewNameResult::Action::UNCHANGED_COLLISION:
+      break;
+    case IDNewNameResult::Action::RENAMED_NO_COLLISION:
+    case IDNewNameResult::Action::RENAMED_COLLISION_ADJUSTED:
+      deg_tag_id(id);
+      break;
+    case IDNewNameResult::Action::RENAMED_COLLISION_FORCED:
+      BLI_assert(result.other_id);
+      deg_tag_id(*result.other_id);
+      deg_tag_id(id);
+      break;
   }
 
   return result;

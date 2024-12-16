@@ -38,7 +38,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.h"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
@@ -111,6 +111,8 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "ANIM_keyingsets.hh"
 
 #include "DRW_engine.hh"
 
@@ -586,9 +588,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   UV_clipboard_free();
   wm_clipboard_free();
 
-#ifdef WITH_COMPOSITOR_CPU
   COM_deinitialize();
-#endif
 
   bke::subdiv::exit();
 
@@ -629,7 +629,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   BLT_lang_free();
 
-  ANIM_keyingset_infos_exit();
+  blender::animrig::keyingset_infos_exit();
 
   //  free_txt_data();
 
