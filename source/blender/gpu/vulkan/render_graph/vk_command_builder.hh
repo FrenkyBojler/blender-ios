@@ -31,6 +31,48 @@ struct LayeredImageBinding {
  * barriers and commands.
  */
 class VKCommandBuilder {
+  struct SubBuilder {
+    struct Group {
+      struct Barrier {
+        IndexRange buffer_memory_barriers;
+        IndexRange image_memory_barriers;
+
+        VkPipelineStageFlags src_stage_mask = VK_PIPELINE_STAGE_NONE;
+        VkPipelineStageFlags dst_stage_mask = VK_PIPELINE_STAGE_NONE;
+      };
+
+      /** Barriers to record before the group commands are recorded. */
+      Barrier pre_barrier;
+
+      /**
+       * Barriers to record after the group commands are recorded.
+       *
+       * Post barriers are mainly used
+       * to ensure each image resource is in a single known image layout. When attaching a
+       * sub-resource (layers/mipmaps) a resource can have multiple layouts.
+       */
+      Barrier post_barrier;
+
+      /**
+       * Index range of the nodes that are part of this node group.
+       *
+       * The indexes are to `VKScheduler::result_` that is passed along `Span<NodeHandle> nodes` of
+       * `build_nodes`.
+       */
+      IndexRange nodes;
+    };
+
+    Vector<Group> groups;
+
+    /**
+     * State of the bound pipelines during command building.
+     *
+     * NOTE: Unsure this needs to be stored as it is only used when building the nodes
+     * sequentially.
+     */
+    VKBoundPipelines active_pipelines;
+  };
+
  private:
   /* Pool of VKBufferMemoryBarriers that can be reused when building barriers */
   Vector<VkBufferMemoryBarrier> vk_buffer_memory_barriers_;
@@ -81,6 +123,8 @@ class VKCommandBuilder {
     }
   } state_;
 
+  Vector<SubBuilder> sub_builders_;
+
  public:
   VKCommandBuilder();
 
@@ -102,13 +146,35 @@ class VKCommandBuilder {
 
  private:
   /**
-   * Build the commands of the node group provided by the `node_group` parameter. The commands are
-   * recorded into the given `command_buffer`.
+   * Create sub builders for the given node_handles.
    *
-   * build_nodes splits the given node_handles into groups. All synchronization events inside the
-   * group will be pushed to the front or back of this group. This allows us to record resource
-   * usage on node level, perform reordering and then invoke the synchronization events outside
-   * rendering scopes.
+   * Currently will only create a single sub_builder but will eventually split node handles into
+   * multiple SubBuffers so we can multi-thread the command building.
+   */
+  void sub_builders_init(const VKRenderGraph &render_graph, Span<NodeHandle> node_handles);
+
+  /**
+   * Extract the memory/buffer/image barriers from the command groups and add them to the pre/post
+   * barriers.
+   *
+   * This process is single threaded as resource states change during the extraction process. The
+   * result of this function would allow the sub builders to be built in parallel.
+   */
+  void sub_builders_extract_barriers();
+  void sub_builders_build_commands(VKRenderGraph &render_graph,
+                                   VKCommandBufferInterface &command_buffer,
+                                   Span<NodeHandle> node_handles);
+  /** Record the secondary command buffers from the sub builders to the primary command buffer. */
+  void sub_builders_record_to_primary_command_buffer(VKCommandBufferInterface &command_buffer);
+
+  /**
+   * Build the commands of the node group provided by the `node_group` parameter. The commands
+   * are recorded into the given `command_buffer`.
+   *
+   * build_nodes splits the given node_handles into groups. All synchronization events inside
+   * the group will be pushed to the front or back of this group. This allows us to record
+   * resource usage on node level, perform reordering and then invoke the synchronization
+   * events outside rendering scopes.
    */
   void build_node_group(VKRenderGraph &render_graph,
                         VKCommandBufferInterface &command_buffer,

@@ -159,16 +159,6 @@ ResourceWithStamp VKResourceStateTracker::get_image(VkImage vk_image) const
   return get_stamp(handle, resource);
 }
 
-void VKResourceStateTracker::reset_image_layouts()
-{
-  for (ResourceHandle image_handle : image_resources_.values()) {
-    VKResourceStateTracker::Resource &resource = resources_.lookup(image_handle);
-    if (resource.owner == ResourceOwner::SWAP_CHAIN) {
-      resource.reset_image_layout();
-    }
-  }
-}
-
 #ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
 void VKResourceStateTracker::validate() const
 {

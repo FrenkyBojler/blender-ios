@@ -50,37 +50,78 @@ void VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
                                    VKCommandBufferInterface &command_buffer,
                                    Span<NodeHandle> nodes)
 {
-  /* Swap chain images layouts needs to be reset as the image layouts are changed externally.  */
-  render_graph.resources_.reset_image_layouts();
+  sub_builders_init(render_graph, nodes);
+  sub_builders_extract_barriers();
+  sub_builders_build_commands(render_graph, command_buffer, nodes);
+  sub_builders_record_to_primary_command_buffer(command_buffer);
+}
 
-  state_.active_pipelines = {};
+void VKCommandBuilder::sub_builders_init(const VKRenderGraph &render_graph,
+                                         Span<NodeHandle> node_handles)
+{
+  /* Currently only use a single thread. For multithreaded approach we should use multiple
+   * SubBuilders. Split by the amount of nodes added to the sub_builder. The sub builder should
+   * eventually put all commands in the same order to the queue.*/
+  sub_builders_.clear();
+  sub_builders_.append({});
+  SubBuilder &sub_builder = sub_builders_.last();
 
-  command_buffer.begin_recording();
-  state_.debug_level = 0;
-  state_.active_debug_group_id = -1;
-  std::optional<NodeHandle> rendering_scope;
-  IndexRange nodes_range = nodes.index_range();
+  IndexRange nodes_range = node_handles.index_range();
   while (!nodes_range.is_empty()) {
+
     IndexRange node_group = nodes_range.slice(0, 1);
-    NodeHandle node_handle = nodes[nodes_range.first()];
-    VKRenderGraphNode &node = render_graph.nodes_[node_handle];
+    NodeHandle node_handle = node_handles[nodes_range.first()];
+    const VKRenderGraphNode &node = render_graph.nodes_[node_handle];
     while (node_type_is_rendering(node.type) && node_group.size() < nodes_range.size()) {
-      NodeHandle node_handle = nodes[nodes_range[node_group.size()]];
-      VKRenderGraphNode &node = render_graph.nodes_[node_handle];
+      NodeHandle node_handle = node_handles[nodes_range[node_group.size()]];
+      const VKRenderGraphNode &node = render_graph.nodes_[node_handle];
       if (!node_type_is_rendering(node.type) || node.type == VKNodeType::BEGIN_RENDERING) {
         break;
       }
       node_group = nodes_range.slice(0, node_group.size() + 1);
     }
 
-    build_node_group(render_graph, command_buffer, nodes.slice(node_group), rendering_scope);
+    SubBuilder::Group group = {};
+    group.nodes = node_group;
+    sub_builder.groups.append(std::move(group));
+
     nodes_range = nodes_range.drop_front(node_group.size());
   }
+}
 
-  finish_debug_groups(command_buffer);
-  state_.debug_level = 0;
+void VKCommandBuilder::sub_builders_extract_barriers() {}
 
+void VKCommandBuilder::sub_builders_build_commands(VKRenderGraph &render_graph,
+                                                   VKCommandBufferInterface &command_buffer,
+                                                   Span<NodeHandle> node_handles)
+{
+  for (SubBuilder &sub_builder : sub_builders_) {
+    command_buffer.begin_recording();
+    state_.debug_level = 0;
+    state_.active_debug_group_id = -1;
+    std::optional<NodeHandle> rendering_scope;
+    state_.active_pipelines = {};
+
+    for (SubBuilder::Group &group : sub_builder.groups) {
+      build_node_group(
+          render_graph, command_buffer, node_handles.slice(group.nodes), rendering_scope);
+    }
+
+    finish_debug_groups(command_buffer);
+    state_.debug_level = 0;
+
+    command_buffer.end_recording();
+  }
+}
+
+void VKCommandBuilder::sub_builders_record_to_primary_command_buffer(
+    VKCommandBufferInterface &command_buffer)
+{
+#if 0
+  command_buffer.begin_recording();
+  command_buffer.execute_commands(sub_command_buffers_);
   command_buffer.end_recording();
+#endif
 }
 
 void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,

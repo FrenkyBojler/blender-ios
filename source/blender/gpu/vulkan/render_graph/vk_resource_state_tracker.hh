@@ -302,17 +302,6 @@ class VKResourceStateTracker {
    */
   ResourceWithStamp get_image(VkImage vk_image) const;
 
-  /**
-   * Reset the swap chain image layouts to its original layout.
-   *
-   * The layout of swap chain images are externally managed. When they are reused we need to
-   * ensure the correct state.
-   *
-   * NOTE: This is also needed when working with external memory (Cycles, OpenXR, multi device
-   * rendering).
-   */
-  void reset_image_layouts();
-
   /** Get the resource type for the given handle. */
   VKResourceType resource_type_get(ResourceHandle resource_handle) const
   {
