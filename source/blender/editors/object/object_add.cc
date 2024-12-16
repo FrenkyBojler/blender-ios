@@ -3142,7 +3142,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const float offset = RNA_float_get(info.op_props, "offset");
 
   /* To be compatible with the thickness value prior to Grease Pencil v3. */
-  const float stroke_radius = thickness / 1000.0f;
+  const float stroke_radius = float(thickness) / 1000.0f;
 
   const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
@@ -3157,8 +3157,8 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   /* Reset `ob->totcol` since currently the generic / grease pencil material functions still
    * depends on this value being coherent (The same value as `GreasePencil::material_array_num`).
    */
-  short *totcol = BKE_object_material_len_p(ob);
-  ob->totcol = *totcol;
+  short *totcol = BKE_object_material_len_p(newob);
+  newob->totcol = *totcol;
 
   mesh_to_grease_pencil_add_material(
       *info.bmain, *newob, DATA_("Stroke"), float4(0.0f, 0.0f, 0.0f, 1.0f), {});
@@ -3219,11 +3219,11 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
     const int2 edge = edges[edge_i];
     positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
     positions[point_i + 1] = mesh_positions[edge[1]] + offset * vert_normals[edge[1]];
+    radii[point_i] = radii[point_i + 1] = stroke_radius;
     point_i += 2;
   }
   offsets.slice(edges_range).fill(2);
   stroke_materials.span.slice(edges_range).fill(0);
-  radii.slice(edges_range).fill(stroke_radius);
 
   offset_indices::accumulate_counts_to_offsets(offsets);
 
