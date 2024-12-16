@@ -3465,9 +3465,8 @@ static Object *convert_font_to_grease_pencil(Base &base,
   curve_ob->data = grease_pencil;
   curve_ob->type = OB_GREASE_PENCIL;
 
-  /* We don't need the intermediate font/curve data ID, but since it's linked main, we only
-   * decrease the user count. */
-  id_us_min(&legacy_curve_id->id);
+  /* We don't need the intermediate font/curve data ID any more. */
+  BKE_id_delete(info.bmain, legacy_curve_id);
 
   BKE_id_free(nullptr, curves_nomain);
 
