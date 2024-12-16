@@ -548,6 +548,39 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
   }
 }
 
+static std::tuple<int, int, float> preview_image_scaled_dimensions_get(const int image_width,
+                                                                       const int image_height,
+                                                                       FileLayout &layout,
+                                                                       const bool never_scale_up)
+{
+  const float ui_imbx = image_width * UI_SCALE_FAC;
+  const float ui_imby = image_height * UI_SCALE_FAC;
+
+  float scale;
+  float scaledx, scaledy;
+  if (((ui_imbx > layout.prv_w) || (ui_imby > layout.prv_h)) ||
+      (!never_scale_up && ((ui_imbx < layout.prv_w) || (ui_imby < layout.prv_h))))
+  {
+    if (image_width > image_height) {
+      scaledx = float(layout.prv_w);
+      scaledy = (float(image_height) / float(image_width)) * layout.prv_w;
+      scale = scaledx / image_width;
+    }
+    else {
+      scaledy = float(layout.prv_h);
+      scaledx = (float(image_width) / float(image_height)) * layout.prv_h;
+      scale = scaledy / image_height;
+    }
+  }
+  else {
+    scaledx = ui_imbx;
+    scaledy = ui_imby;
+    scale = UI_SCALE_FAC;
+  }
+
+  return std::make_tuple(int(scaledx), int(scaledy), scale);
+}
+
 static void file_draw_preview(const FileList *files,
                               const FileDirEntry *file,
                               const rcti *tile_draw_rect,
@@ -557,55 +590,24 @@ static void file_draw_preview(const FileList *files,
                               FileLayout *layout,
                               const bool is_special_file_image,
                               const bool dimmed,
-                              const bool is_link,
                               float *r_scale)
 {
-  float fx, fy;
-  float dx, dy;
-  int xco, yco;
-  float ui_imbx, ui_imby;
-  float scaledx, scaledy;
-  float scale;
-  int ex, ey;
-  bool show_outline = !is_special_file_image &&
-                      (file->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_OBJECT_IO | FILE_TYPE_MOVIE |
-                                         FILE_TYPE_BLENDER));
-  const bool is_offline = (file->attributes & FILE_ATTR_OFFLINE);
   const bool is_loading = filelist_file_is_preview_pending(files, file);
 
   BLI_assert(imb != nullptr);
 
-  ui_imbx = imb->x * UI_SCALE_FAC;
-  ui_imby = imb->y * UI_SCALE_FAC;
   /* Unlike thumbnails, icons are not scaled up. */
-  if (((ui_imbx > layout->prv_w) || (ui_imby > layout->prv_h)) ||
-      (!is_special_file_image && ((ui_imbx < layout->prv_w) || (ui_imby < layout->prv_h))))
-  {
-    if (imb->x > imb->y) {
-      scaledx = float(layout->prv_w);
-      scaledy = (float(imb->y) / float(imb->x)) * layout->prv_w;
-      scale = scaledx / imb->x;
-    }
-    else {
-      scaledy = float(layout->prv_h);
-      scaledx = (float(imb->x) / float(imb->y)) * layout->prv_h;
-      scale = scaledy / imb->y;
-    }
-  }
-  else {
-    scaledx = ui_imbx;
-    scaledy = ui_imby;
-    scale = UI_SCALE_FAC;
-  }
+  const bool never_scale_up = is_special_file_image;
 
-  ex = int(scaledx);
-  ey = int(scaledy);
-  fx = (float(layout->prv_w) - float(ex)) / 2.0f;
-  fy = (float(layout->prv_h) - float(ey)) / 2.0f;
-  dx = (fx + 0.5f + layout->prv_border_x);
-  dy = (fy + 0.5f - layout->prv_border_y);
-  xco = tile_draw_rect->xmin + int(dx);
-  yco = tile_draw_rect->ymax - layout->prv_h + int(dy);
+  const auto [scaled_width, scaled_height, scale] = preview_image_scaled_dimensions_get(
+      imb->x, imb->y, *layout, never_scale_up);
+
+  /* Additional offset to keep the scaled image centered. Difference between maximum
+   * width/height and the actual width/height, divided by two for centering.  */
+  const float ofs_x = (float(layout->prv_w) - float(scaled_width)) / 2.0f;
+  const float ofs_y = (float(layout->prv_h) - float(scaled_height)) / 2.0f;
+  const int xmin = tile_draw_rect->xmin + layout->prv_border_x + int(ofs_x + 0.5f);
+  const int ymin = tile_draw_rect->ymax - layout->prv_border_y - layout->prv_h + int(ofs_y + 0.5f);
 
   GPU_blend(GPU_BLEND_ALPHA);
 
@@ -630,7 +632,8 @@ static void file_draw_preview(const FileList *files,
 
   if (!is_special_file_image && ELEM(file->typeflag, FILE_TYPE_IMAGE, FILE_TYPE_OBJECT_IO)) {
     /* Draw checker pattern behind image previews in case they have transparency. */
-    imm_draw_box_checker_2d(float(xco), float(yco), float(xco + ex), float(yco + ey));
+    imm_draw_box_checker_2d(
+        float(xmin), float(ymin), float(xmin + scaled_width), float(ymin + scaled_height));
   }
 
   if (!is_special_file_image && file->typeflag & FILE_TYPE_BLENDERLIB) {
@@ -646,8 +649,9 @@ static void file_draw_preview(const FileList *files,
                                                                 ICON_FILE_LARGE;
       uchar icon_col[4];
       rgba_float_to_uchar(icon_col, document_img_col);
-      float icon_x = float(xco) + (file->typeflag & FILE_TYPE_DIR ? 0.0f : ex * -0.142f);
-      float icon_y = float(yco) + (file->typeflag & FILE_TYPE_DIR ? ex * -0.11f : 0.0f);
+      float icon_x = float(xmin) +
+                     (file->typeflag & FILE_TYPE_DIR ? 0.0f : scaled_width * -0.142f);
+      float icon_y = float(ymin) + (file->typeflag & FILE_TYPE_DIR ? scaled_width * -0.11f : 0.0f);
       UI_icon_draw_ex(icon_x,
                       icon_y,
                       icon_large,
@@ -661,8 +665,8 @@ static void file_draw_preview(const FileList *files,
     else {
       IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
       immDrawPixelsTexTiled_scaling(&state,
-                                    float(xco),
-                                    float(yco),
+                                    float(xmin),
+                                    float(ymin),
                                     imb->x,
                                     imb->y,
                                     GPU_RGBA8,
@@ -692,8 +696,9 @@ static void file_draw_preview(const FileList *files,
       UI_GetThemeColor4ubv(TH_TEXT, icon_color);
     }
 
-    icon_x = xco + (file->typeflag & FILE_TYPE_DIR ? ex * 0.31f : ex * 0.178f);
-    icon_y = yco + (file->typeflag & FILE_TYPE_DIR ? ex * 0.19f : ex * 0.15f);
+    icon_x = xmin +
+             (file->typeflag & FILE_TYPE_DIR ? scaled_width * 0.31f : scaled_width * 0.178f);
+    icon_y = ymin + (file->typeflag & FILE_TYPE_DIR ? scaled_width * 0.19f : scaled_width * 0.15f);
     UI_icon_draw_ex(icon_x,
                     icon_y,
                     is_loading ? ICON_TEMP : file_type_icon,
@@ -705,7 +710,54 @@ static void file_draw_preview(const FileList *files,
                     UI_NO_ICON_OVERLAY_TEXT);
   }
 
-  if (icon_aspect < 2.0f) {
+  const bool show_outline = !is_special_file_image &&
+                            (file->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_OBJECT_IO |
+                                               FILE_TYPE_MOVIE | FILE_TYPE_BLENDER));
+  /* Contrasting outline around some preview types. */
+  if (show_outline) {
+    GPU_blend(GPU_BLEND_ALPHA);
+
+    GPUVertFormat *format = immVertexFormat();
+    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
+    float bgcolor[4];
+    UI_GetThemeColor4fv(TH_BACK, bgcolor);
+    if (rgb_to_grayscale(bgcolor) > 0.5f) {
+      border_color[0] = 0.0f;
+      border_color[1] = 0.0f;
+      border_color[2] = 0.0f;
+    }
+    immUniformColor4fv(border_color);
+    imm_draw_box_wire_2d(pos,
+                         float(xmin),
+                         float(ymin),
+                         float(xmin + scaled_width + 1),
+                         float(ymin + scaled_height + 1));
+    immUnbindProgram();
+  }
+
+  GPU_blend(GPU_BLEND_NONE);
+
+  if (r_scale) {
+    *r_scale = scale;
+  }
+}
+
+static void file_draw_indicator_icons(const FileList *files,
+                                      const FileDirEntry *file,
+                                      const rcti *tile_draw_rect,
+                                      const float preview_icon_aspect,
+                                      const int file_type_icon,
+                                      const bool has_special_file_image)
+{
+  const bool is_offline = (file->attributes & FILE_ATTR_OFFLINE);
+  const bool is_link = (file->attributes & FILE_ATTR_ANY_LINK);
+  const bool is_loading = filelist_file_is_preview_pending(files, file);
+
+  /* Don't draw these icons if the preview image is small. They are just indicators and shouldn't
+   * cover the preview. */
+  if (preview_icon_aspect < 2.0f) {
     const float icon_x = float(tile_draw_rect->xmin) + (3.0f * UI_SCALE_FAC);
     const float icon_y = float(tile_draw_rect->ymin) + (17.0f * UI_SCALE_FAC);
     const uchar light[4] = {255, 255, 255, 255};
@@ -733,19 +785,25 @@ static void file_draw_preview(const FileList *files,
                       false,
                       UI_NO_ICON_OVERLAY_TEXT);
     }
-    else if (file_type_icon &&
-             ((!is_special_file_image && !(file->typeflag & FILE_TYPE_FTFONT)) || is_loading))
-    {
-      /* Smaller, fainter icon at bottom-left for preview image thumbnail, but not for fonts. */
-      UI_icon_draw_ex(icon_x,
-                      icon_y,
-                      file_type_icon,
-                      1.0f / UI_SCALE_FAC,
-                      0.6f,
-                      0.0f,
-                      light,
-                      true,
-                      UI_NO_ICON_OVERLAY_TEXT);
+    else if (file_type_icon) {
+      /* Smaller, fainter type icon at bottom-left.
+       *
+       * Always draw while loading, the preview shows a loading icon and doesn't indicate the type
+       * yet then. After loading, the special file image may already draw the type icon in
+       * #file_draw_preview(), don't draw it again here. Also don't draw it for font files, they
+       * render a font preview already, the type indicator would be redundant.
+       */
+      if (is_loading || !(has_special_file_image || (file->typeflag & FILE_TYPE_FTFONT))) {
+        UI_icon_draw_ex(icon_x,
+                        icon_y,
+                        file_type_icon,
+                        1.0f / UI_SCALE_FAC,
+                        0.6f,
+                        0.0f,
+                        light,
+                        true,
+                        UI_NO_ICON_OVERLAY_TEXT);
+      }
     }
   }
 
@@ -766,32 +824,6 @@ static void file_draw_preview(const FileList *files,
                     light,
                     true,
                     UI_NO_ICON_OVERLAY_TEXT);
-  }
-
-  /* Contrasting outline around some preview types. */
-  if (show_outline) {
-    GPU_blend(GPU_BLEND_ALPHA);
-
-    GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
-    float bgcolor[4];
-    UI_GetThemeColor4fv(TH_BACK, bgcolor);
-    if (rgb_to_grayscale(bgcolor) > 0.5f) {
-      border_color[0] = 0.0f;
-      border_color[1] = 0.0f;
-      border_color[2] = 0.0f;
-    }
-    immUniformColor4fv(border_color);
-    imm_draw_box_wire_2d(pos, float(xco), float(yco), float(xco + ex + 1), float(yco + ey + 1));
-    immUnbindProgram();
-  }
-
-  GPU_blend(GPU_BLEND_NONE);
-
-  if (r_scale) {
-    *r_scale = scale;
   }
 }
 
@@ -1232,7 +1264,6 @@ void file_draw_list(const bContext *C, ARegion *region)
     /* don't drag parent or refresh items */
     do_drag = !FILENAME_IS_CURRPAR(file->relpath);
     const bool is_hidden = (file->attributes & FILE_ATTR_HIDDEN);
-    const bool is_link = (file->attributes & FILE_ATTR_ANY_LINK);
 
     if (FILE_IMGDISPLAY == params->display) {
       const int file_type_icon = filelist_geticon_file_type(files, i, false);
@@ -1254,9 +1285,10 @@ void file_draw_list(const bContext *C, ARegion *region)
                         layout,
                         is_special_file_image,
                         is_hidden,
-                        is_link,
                         /* Returns the scale which is needed below. */
                         &scale);
+      file_draw_indicator_icons(
+          files, file, &tile_draw_rect, thumb_icon_aspect, file_type_icon, is_special_file_image);
       if (do_drag) {
         file_add_preview_drag_but(
             sfile, block, layout, file, path, &tile_draw_rect, imb, file_type_icon, scale);
