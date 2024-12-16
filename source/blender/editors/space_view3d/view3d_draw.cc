@@ -2400,10 +2400,7 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
     use_overlay = false;
   }
 
-  if (use_overlay) {
-    v3d->flag2 &= ~V3D_HIDE_OVERLAYS;
-  }
-  else {
+  if (!use_overlay) {
     v3d->flag2 |= V3D_HIDE_OVERLAYS;
   }
 
