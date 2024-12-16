@@ -2873,6 +2873,7 @@ struct ObjectConversionInfo {
   Object *obact;
   bool keep_original;
   bool do_merge_customdata;
+  PointerRNA *op_props;
   ReportList *reports;
 };
 
@@ -3086,20 +3087,40 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
 }
 
 static void mesh_to_grease_pencil_info(const bool generate_faces,
+                                       const float crease_angle,
+                                       const float only_seams,  // inop
                                        const Span<int2> edges,
                                        const OffsetIndices<int> faces,
+                                       const VArray<float> crease_angles,
                                        int &r_total_points,
-                                       int &r_total_curves)
+                                       int &r_total_curves,
+                                       int &r_total_fills,
+                                       int &r_total_strokes,
+                                       MutableSpan<bool> r_edge_selection)
 {
-  const int edges_num = edges.size();
+  int edge_num = 0;
+  for (const int edge_i : edges.index_range()) {
+    if (crease_angle < fabs(crease_angles[edge_i])) {
+      r_edge_selection[edge_i] = true;
+      edge_num++;
+    }
+    else {
+      r_edge_selection[edge_i] = false;
+    }
+  }
+
   if (!generate_faces) {
-    r_total_curves = edges_num;
+    r_total_curves = edge_num;
     r_total_points = r_total_curves * 2;
+    r_total_fills = 0;
+    r_total_strokes = edge_num;
     return;
   }
 
-  r_total_curves = edges_num + faces.size();
-  r_total_points = edges_num * 2 + faces.total_size();
+  r_total_fills = faces.size();
+  r_total_strokes = edge_num;
+  r_total_curves = edge_num + r_total_fills;
+  r_total_points = edge_num * 2 + faces.total_size();
 }
 
 static int mesh_to_grease_pencil_add_material(Main &bmain,
@@ -3136,7 +3157,11 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   ob->flag |= OB_DONE;
   Object *newob = get_object_for_conversion(base, info, r_new_base);
 
-  const bool generate_faces = true;
+  const bool generate_faces = RNA_boolean_get(info.op_props, "faces");
+  const bool only_seams = RNA_boolean_get(info.op_props, "seams");
+  const float stroke_offset = RNA_float_get(info.op_props, "offset");
+  const int stroke_thickness = RNA_int_get(info.op_props, "thickness");
+  const float crease_angle = RNA_float_get(info.op_props, "angle");
 
   const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
@@ -3164,14 +3189,29 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const int current_frame = info.scene->r.cfra;
   bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, current_frame);
 
-  const int edge_num = mesh_eval->edges_num;
   const Span<float3> mesh_positions = mesh_eval->vert_positions();
   const Span<int2> edges = mesh_eval->edges();
   const OffsetIndices<int> faces = mesh_eval->faces();
   const Span<int> corner_verts = mesh_eval->corner_verts();
+  const bke::AttributeReader<float> crease_angles =
+      mesh_eval->attributes().lookup_or_default<float>("crease_edge", bke::AttrDomain::Edge, 0.0f);
+  Array<bool> edge_selection(edges.size());
 
-  int total_points, total_curves;
-  mesh_to_grease_pencil_info(generate_faces, edges, faces, total_points, total_curves);
+  int total_points, total_curves, total_fills, total_strokes;
+  mesh_to_grease_pencil_info(generate_faces,
+                             crease_angle,
+                             only_seams,
+                             edges,
+                             faces,
+                             crease_angles.varray,
+                             total_points,
+                             total_curves,
+                             total_fills,
+                             total_strokes,
+                             edge_selection);
+
+  IndexMaskMemory memory;
+  IndexMask edge_mask = IndexMask::from_bools(edge_selection, memory);
 
   bke::CurvesGeometry curves(total_points, total_curves);
   MutableSpan<float3> positions = curves.positions_for_write();
@@ -3186,7 +3226,6 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
 
   /* Fill faces first, so this way strokes can draw on top of the filled faces. */
 
-  const int total_fills = total_curves - edge_num;
   IndexRange fills_range = IndexRange(total_fills);
   int point_i = 0;
   if (generate_faces) {
@@ -3204,15 +3243,15 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
     stroke_materials.span.slice(fills_range).fill(1);
   }
 
-  const int strokes_start = point_i;
-  IndexRange edges_range = IndexRange(total_fills, edge_num);
-  for (const int edge_i : IndexRange(edge_num)) {
+  IndexRange strokes_range = IndexRange(total_fills, total_strokes);
+  edge_mask.foreach_index([&](const int edge_i) {
     const int2 edge = edges[edge_i];
-    positions[strokes_start + edge_i * 2] = mesh_positions[edge[0]];
-    positions[strokes_start + edge_i * 2 + 1] = mesh_positions[edge[1]];
-  }
-  offsets.slice(IndexRange(edges_range)).fill(2);
-  stroke_materials.span.slice(IndexRange(edges_range)).fill(0);
+    positions[point_i] = mesh_positions[edge[0]];
+    positions[point_i + 1] = mesh_positions[edge[1]];
+    point_i += 2;
+  });
+  offsets.slice(IndexRange(strokes_range)).fill(2);
+  stroke_materials.span.slice(IndexRange(strokes_range)).fill(0);
 
   offset_indices::accumulate_counts_to_offsets(offsets);
 
@@ -3760,6 +3799,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   info.obact = obact;
   info.keep_original = keep_original;
   info.do_merge_customdata = do_merge_customdata;
+  info.op_props = op->ptr;
   info.reports = op->reports;
 
   Base *act_base = nullptr;
@@ -3945,7 +3985,7 @@ static void object_convert_ui(bContext * /*C*/, wmOperator *op)
   if (target == OB_MESH) {
     uiItemR(layout, op->ptr, "merge_customdata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  else if (target == OB_GPENCIL_LEGACY) {
+  else if (target == OB_GREASE_PENCIL) {
     uiItemR(layout, op->ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(layout, op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(layout, op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
