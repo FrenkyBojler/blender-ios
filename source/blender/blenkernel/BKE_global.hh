@@ -284,7 +284,7 @@ enum {
 
   /**
    * When in background mode, do not automatically build a depsgraph when loading a blendfile.
-   * Typically set by the `--disable-depsgraph-on-fileload` command-line argument.
+   * Typically set by the `--disable-depsgraph-on-file-load` command-line argument.
    *
    * NOTE: This is a temporary option, it is intended to be removed in blender 5.0.
    * The default behavior will then be changed to never automatically generate a depsgraph on

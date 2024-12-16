@@ -1105,7 +1105,7 @@ static int arg_handle_command_set(int argc, const char **argv, void *data)
   return argc - 1;
 }
 
-static const char arg_handle_disable_depsgraph_on_fileload_doc[] =
+static const char arg_handle_disable_depsgraph_on_file_load_doc[] =
     "\n"
     "\tBackround mode: Do not systematically build and evaluate ViewLayers' dependency graphs\n"
     "\twhen loading a blendfile in background mode (`-b` or `-c` options).\n"
@@ -1116,9 +1116,9 @@ static const char arg_handle_disable_depsgraph_on_fileload_doc[] =
     "\n"
     "\tNOTE: this is a temporary option, in the future depsgraph will never be\n"
     "\tautomatically generated on file load in background mode.";
-static int arg_handle_disable_depsgraph_on_fileload(int /*argc*/,
-                                                    const char ** /*argv*/,
-                                                    void * /*data*/)
+static int arg_handle_disable_depsgraph_on_file_load(int /*argc*/,
+                                                     const char ** /*argv*/,
+                                                     void * /*data*/)
 {
   G.fileflags |= G_BACKGROUND_NO_DEPSGRAPH;
   return 0;
@@ -2689,8 +2689,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
 
   BLI_args_add(ba,
                nullptr,
-               "--disable-depsgraph-on-fileload",
-               CB(arg_handle_disable_depsgraph_on_fileload),
+               "--disable-depsgraph-on-file-load",
+               CB(arg_handle_disable_depsgraph_on_file_load),
                nullptr);
 
   BLI_args_add(ba, "-a", nullptr, CB(arg_handle_playback_mode), nullptr);
