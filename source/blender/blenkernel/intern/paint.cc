@@ -578,6 +578,8 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
         return PaintMode::SculptCurves;
       case CTX_MODE_PAINT_GREASE_PENCIL:
         return PaintMode::GPencil;
+      case CTX_MODE_SCULPT_GREASE_PENCIL:
+        return PaintMode::SculptGPencil;
     }
   }
   else if (tref->space_type == SPACE_IMAGE) {
