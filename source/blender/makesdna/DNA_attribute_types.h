@@ -1,16 +1,8 @@
-/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+/* SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup DNA
- *
- * Used for custom mesh data types (stored per vert/edge/loop/face)
- */
-
 #pragma once
-
-#include "DNA_defs.h"
 
 #include "BLI_implicit_sharing.h"
 
@@ -19,6 +11,8 @@
 #  include "BLI_span.hh"
 #  include "BLI_string_ref.hh"
 
+struct BlendDataReader;
+struct BlendWriter;
 namespace blender {
 class CPPType;
 namespace bke {
@@ -33,17 +27,19 @@ using AttributeStorageRuntimeHandle = blender::bke::AttributeStorageRuntime;
 typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 #endif
 
-struct AttributeDataArray {
-  const void *data;
-  int elements_num;
+typedef struct AttributeDataArray {
+  void *data;
   const ImplicitSharingInfoHandle *sharing_info;
-};
+  int elements_num;
+  char _pad[4];
+} AttributeDataArray;
 
-struct Attribute {
+typedef struct Attribute {
   char *name;
-  int8_t domain;       /* bke::AttrDomain. */
   int16_t data_type;   /* bke::AttrType. */
+  int8_t domain;       /* bke::AttrDomain. */
   int8_t storage_type; /* bke::AttrStorageType */
+  char _pad[4];
 
   /** Type depends on storage type. */
   void *data;
@@ -51,9 +47,9 @@ struct Attribute {
 #ifdef __cplusplus
   void ensure_mutable();
 #endif
-};
+} Attribute;
 
-struct AttributeStorage {
+typedef struct AttributeStorage {
   Attribute **attributes_array;
   int attributes_num;
   int attributes_capacity;
@@ -83,5 +79,8 @@ struct AttributeStorage {
                               blender::bke::AttrDomain domain,
                               blender::bke::AttrType data_type,
                               blender::bke::AttrStorageType storage_type);
+
+  void blend_read(BlendDataReader &reader);
+  void blend_write(BlendWriter &writer) const;
 #endif
-};
+} AttributeStorage;

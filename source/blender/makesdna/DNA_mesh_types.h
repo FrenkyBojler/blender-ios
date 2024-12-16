@@ -90,7 +90,7 @@ typedef struct Mesh {
    */
   int *face_offset_indices;
 
-  AttributeStorage attributes;
+  AttributeStorage attribute_storage;
 
   CustomData vert_data;
   CustomData edge_data;

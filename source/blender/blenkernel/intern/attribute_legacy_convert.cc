@@ -33,6 +33,7 @@ static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomD
     case CD_PAINT_MASK:
     case CD_CUSTOMLOOPNORMAL:
     case CD_SCULPT_FACE_SETS:
+    case CD_NUMTYPES:
       BLI_assert_unreachable();
       return std::nullopt;
     case CD_MDEFORMVERT:
@@ -90,7 +91,7 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
     const Span<CustomData *> custom_datas,
     const Span<int> domain_sizes)
 {
-  AttributeStorage r_storage{};
+  AttributeStorage storage{};
   struct AttributeToAdd {
     StringRef name;
     AttrDomain domain;
@@ -122,15 +123,15 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
     custom_data.maxlayer = kept_layers_data.capacity;
   }
 
-  r_storage.attributes_array = static_cast<Attribute **>(
+  storage.attributes_array = static_cast<Attribute **>(
       MEM_malloc_arrayN(attributes_to_add.size(), sizeof(Attribute *), __func__));
-  r_storage.attributes_num = attributes_to_add.size();
-  r_storage.attributes_capacity = attributes_to_add.size();
+  storage.attributes_num = attributes_to_add.size();
+  storage.attributes_capacity = attributes_to_add.size();
 
   for (const int i : attributes_to_add.index_range()) {
     AttributeToAdd &src = attributes_to_add[i];
     Attribute *dst = MEM_cnew<Attribute>(__func__);
-    r_storage.attributes_array[i] = dst;
+    storage.attributes_array[i] = dst;
 
     dst->name = BLI_strdupn(src.name.data(), src.name.size());
     dst->domain = int16_t(src.domain);
@@ -142,6 +143,7 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
     data->sharing_info = src.sharing_info;
     data->elements_num = src.array_size;
   }
+  return storage;
 }
 
 static std::optional<eCustomDataType> attribute_to_to_custom_data_type(const AttrType attr_type)
@@ -197,4 +199,6 @@ void attribute_legacy_convert_storage_to_customdata(
                                          attribute->name,
                                          array_data.sharing_info);
   }
+}
+
 }  // namespace blender::bke

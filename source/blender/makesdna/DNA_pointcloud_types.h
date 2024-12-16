@@ -44,7 +44,7 @@ typedef struct PointCloud {
   /* Geometry */
   int totpoint;
 
-  AttributeStorage attributes;
+  AttributeStorage attribute_storage;
 
   /* Custom Data */
   struct CustomData pdata;
