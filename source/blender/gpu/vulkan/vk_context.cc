@@ -151,7 +151,7 @@ void VKContext::flush_render_graph()
     }
   }
   descriptor_set_get().upload_descriptor_sets();
-  render_graph.submit();
+  render_graph.submit(false);
 }
 
 void VKContext::finish() {}

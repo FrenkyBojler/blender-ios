@@ -606,7 +606,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
     render_graph.add_node(end_rendering);
   }
 
-  render_graph.submit();
+  render_graph.submit(true);
   ASSERT_EQ(12, log.size());
 
   EXPECT_EQ(
@@ -824,7 +824,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     render_graph.add_node(end_rendering);
   }
 
-  render_graph.submit();
+  render_graph.submit(true);
   ASSERT_EQ(17, log.size());
   EXPECT_EQ("update_buffer(dst_buffer=0x1, dst_offset=0, data_size=16)", log[0]);
   EXPECT_EQ("update_buffer(dst_buffer=0x2, dst_offset=0, data_size=24)", log[1]);
@@ -1023,7 +1023,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
     render_graph.add_node(end_rendering);
   }
 
-  render_graph.submit();
+  render_graph.submit(true);
   ASSERT_EQ(11, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "

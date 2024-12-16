@@ -241,7 +241,7 @@ class VKRenderGraph : public NonCopyable {
   /**
    * Submit full graph.
    */
-  void submit();
+  void submit(bool sync);
 
   /**  Submit render graph with CPU synchronization event. */
   VKTimelineSemaphoreWaitInfo submit_synchronization_event(VkFence vk_fence);

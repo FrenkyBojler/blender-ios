@@ -16,15 +16,6 @@
 namespace blender::gpu {
 class VKDevice;
 
-/** Semaphores syncronization info for sequential submissions. */
-struct SubmitSyncInfo {
-  /** Previous frame submit signal info that must we used as wait info for the current submit,
-   * valueless for the first `SubmitSyncInfo` requested in the frame. */
-  std ::optional<VKTimelineSemaphoreWaitInfo> wait_info;
-  /** Submit Signal info. */
-  VKTimelineSemaphoreSignalInfo signal_info;
-};
-
 /**
  * Pool of resources that are discarded, but can still be in used and cannot be destroyed.
  *
@@ -86,16 +77,14 @@ class VKDiscardPool {
   void destroy_discarded_resources(VKDevice &device);
 
   /**
-   * Request submit syncronization info.
+   * Request a submit signal info.
    *
-   * This will define a sequential syncronization in the GPU,
-   * each submit would wait on the previous submission batch in the frame to finish, and then when
-   * the submission batch is completed this will signal to the following submission in the frame
-   * that is waiting so can be executed. `SubmitSyncInfo::signal_info` data must used only once as
-   * signal paramether in `VkSubmitInfo` for the following `vkQueueSubmit` call, after this can be
-   * used this `signal_info` as a wait info for syncronization.
+   * Each submission must signal to the provided semaphore with the following signal value, and
+   * submit for present must use previous submissions in the frame as wait semaphores. After
+   * submiting, caller can use this info for wait in the provided semaphore, if no blocking
+   * preconditions applies.
    */
-  SubmitSyncInfo submit_sync_info(VKDevice &device);
+  VKTimelineSemaphoreSignalInfo submit_signal_info(VKDevice &device);
 };
 
 class VKResourcePool {

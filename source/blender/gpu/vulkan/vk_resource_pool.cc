@@ -197,20 +197,16 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
   command_buffers_.clear();
 }
 
-SubmitSyncInfo VKDiscardPool::submit_sync_info(VKDevice &device)
+VKTimelineSemaphoreSignalInfo VKDiscardPool::submit_signal_info(VKDevice &device)
 {
   std::scoped_lock mutex(mutex_);
-  std::optional<VKTimelineSemaphoreWaitInfo> wait_semaphore = std::nullopt;
-  if (!submit_semaphores_.is_empty()) {
-    wait_semaphore.emplace(submit_semaphores_.last().wait_info());
-  }
   if (!timeline_semaphores_pool_.is_empty()) {
     submit_semaphores_.append(timeline_semaphores_pool_.pop_last());
   }
   else {
     submit_semaphores_.append(VKTimelineSemaphore::create_timeline_semaphore(device.vk_handle()));
   }
-  return {wait_semaphore, submit_semaphores_.last().new_signal_info()};
+  return submit_semaphores_.last().new_signal_info();
 }
 
 }  // namespace blender::gpu

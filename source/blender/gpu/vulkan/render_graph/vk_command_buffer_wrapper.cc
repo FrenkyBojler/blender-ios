@@ -84,7 +84,7 @@ void VKCommandBufferWrapper::end_recording()
 }
 
 VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronization(
-    VkFence vk_fence, VkSemaphore vk_binary_semaphore)
+    VkFence vk_fence, VkSemaphore vk_present_signal_semaphore)
 {
   VKDevice &device = VKBackend::get().device;
   if (vk_fence) {
@@ -92,24 +92,33 @@ VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronizat
   }
   VKTimelineSemaphoreWaitInfo wait_signal_info = [&]() -> VKTimelineSemaphoreWaitInfo {
     std::scoped_lock lock(device.queue_mutex_get());
-    SubmitSyncInfo submit_sync_info =
-        device.discard_pool_for_current_thread(true).submit_sync_info(device);
+    VKTimelineSemaphoreSignalInfo submit_signal_info =
+        device.discard_pool_for_current_thread(true).submit_signal_info(device);
     VkSubmitInfo vk_submit_info = vk_submit_info_;
 
-    VkPipelineStageFlags wait_stages = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-
-    if (submit_sync_info.wait_info) {
-      vk_submit_info.waitSemaphoreCount = 1;
-      vk_submit_info.pWaitSemaphores = &(*submit_sync_info.wait_info).semaphore;
-      vk_submit_info.pWaitDstStageMask = &wait_stages;
+    Vector<VkSemaphore> wait_semaphores;
+    Vector<uint64_t> wait_values;
+    if (vk_present_signal_semaphore) {
+      /* Submit for present must wait previous submissions in frame. */
+      for (auto &wait_info : waits_for_present) {
+        wait_semaphores.append(wait_info.semaphore);
+        wait_values.append(wait_info.value);
+      }
     }
+    Vector<VkPipelineStageFlags> wait_stages(wait_semaphores.size(),
+                                             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
+    vk_submit_info.waitSemaphoreCount = wait_semaphores.size();
+    vk_submit_info.pWaitSemaphores = wait_semaphores.is_empty() ? nullptr : wait_semaphores.data();
+    vk_submit_info.pWaitDstStageMask = wait_semaphores.is_empty() ? nullptr : wait_stages.data();
+
     Vector<VkSemaphore> signal_semaphores;
     Vector<uint64_t> signal_values;
-    signal_semaphores.append(submit_sync_info.signal_info.semaphore);
-    signal_values.append(submit_sync_info.signal_info.value);
+    signal_semaphores.append(submit_signal_info.semaphore);
+    signal_values.append(submit_signal_info.value);
 
-    if (vk_binary_semaphore) {
-      signal_semaphores.append(vk_binary_semaphore);
+    if (vk_present_signal_semaphore) {
+      signal_semaphores.append(vk_present_signal_semaphore);
       signal_values.append(0);
     }
 
@@ -121,13 +130,20 @@ VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronizat
     timeline_submit_info.signalSemaphoreValueCount = signal_semaphores.size();
     timeline_submit_info.pSignalSemaphoreValues = signal_values.begin();
 
-    if (submit_sync_info.wait_info) {
-      timeline_submit_info.waitSemaphoreValueCount = 1;
-      timeline_submit_info.pWaitSemaphoreValues = &(*submit_sync_info.wait_info).value;
-    }
+    timeline_submit_info.waitSemaphoreValueCount = wait_semaphores.size();
+    timeline_submit_info.pWaitSemaphoreValues = wait_values.is_empty() ? nullptr :
+                                                                         wait_values.data();
+
     vk_submit_info.pNext = &timeline_submit_info;
     vkQueueSubmit(device.queue_get(), 1, &vk_submit_info, vk_fence);
-    return {submit_sync_info.signal_info.semaphore, submit_sync_info.signal_info.value};
+    if (vk_present_signal_semaphore) {
+      /* When is submission for present, clear previous submissions wait info whiting frame now. */
+      waits_for_present.clear();
+    }
+    else {
+      waits_for_present.append({submit_signal_info.semaphore, submit_signal_info.value});
+    }
+    return {submit_signal_info.semaphore, submit_signal_info.value};
   }();
   device.discard_pool_for_current_thread(true).discard_command_buffer(vk_command_buffer_,
                                                                       vk_command_pool_);
@@ -144,6 +160,9 @@ void VKCommandBufferWrapper::wait_for_cpu_synchronization(VKTimelineSemaphoreWai
   vk_wait_info.pValues = &wait_info.value;
   VKDevice &device = VKBackend::get().device;
   vkWaitSemaphores(device.vk_handle(), &vk_wait_info, UINT64_MAX);
+  waits_for_present.remove_if([&](VKTimelineSemaphoreWaitInfo &test) {
+    return test.semaphore == wait_info.semaphore && test.value <= wait_info.value;
+  });
 }
 
 void VKCommandBufferWrapper::wait_for_cpu_synchronization(VkFence vk_fence)
