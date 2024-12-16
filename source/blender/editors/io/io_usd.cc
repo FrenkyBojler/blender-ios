@@ -193,14 +193,14 @@ const EnumPropertyItem rna_enum_usd_mtl_purpose_items[] = {
 };
 
 const EnumPropertyItem rna_enum_usd_convert_scene_units_items[] = {
-    {USD_SCENE_UNITS_METERS, "METERS", 0, "Meters", "Scene Scale of 1.0"},
-    {USD_SCENE_UNITS_KILOMETERS, "KILOMETERS", 0, "Kilometers", "Scene Scale of 0.001"},
-    {USD_SCENE_UNITS_CENTIMETERS, "CENTIMETERS", 0, "Centimeters", "Scene scale of 100.0"},
-    {USD_SCENE_UNITS_MILLIMETERS, "MILLIMETERS", 0, "Millimeters", "Scene scale of 1000.0"},
-    {USD_SCENE_UNITS_INCHES, "INCHES", 0, "Inches", "Scene scale of 0.0254"},
-    {USD_SCENE_UNITS_FEET, "FEET", 0, "Feet", "Scene scale of 0.3048"},
-    {USD_SCENE_UNITS_YARDS, "YARDS", 0, "Yards", "Scene scale of 0.9144"},
-    {USD_SCENE_UNITS_CUSTOM, "CUSTOM", 0, "Custom", "Specify a custom scene scale value"},
+    {USD_SCENE_UNITS_METERS, "METERS", 0, "Meters", "Scene meters per unit to 1.0"},
+    {USD_SCENE_UNITS_KILOMETERS, "KILOMETERS", 0, "Kilometers", "Scene meters per unit to 1000.0"},
+    {USD_SCENE_UNITS_CENTIMETERS, "CENTIMETERS", 0, "Centimeters", "Scene meters per unit to 0.01"},
+    {USD_SCENE_UNITS_MILLIMETERS, "MILLIMETERS", 0, "Millimeters", "Scene meters per unit to 0.001"},
+    {USD_SCENE_UNITS_INCHES, "INCHES", 0, "Inches", "Scene meters per unit to 0.0254"},
+    {USD_SCENE_UNITS_FEET, "FEET", 0, "Feet", "Scene meters per unit to 0.3048"},
+    {USD_SCENE_UNITS_YARDS, "YARDS", 0, "Yards", "Scene meters per unit to 0.9144"},
+    {USD_SCENE_UNITS_CUSTOM, "CUSTOM", 0, "Custom", "Specify a custom scene meters per unit value"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -887,8 +887,8 @@ void WM_OT_usd_export(wmOperatorType *ot)
                "convert_scene_units",
                rna_enum_usd_convert_scene_units_items,
                eUSDSceneUnits::USD_SCENE_UNITS_METERS,
-               "Convert Scene Units",
-               "Set the USD units to the chosen measurement, or a custom value");
+               "Stage Meters Per Unit",
+               "Set the USD Stage meters per unit to the chosen measurement, or a custom value");
 
   RNA_def_float(ot->srna,
                 "meters_per_unit",
@@ -1419,30 +1419,30 @@ void usd_file_handler_add()
 
 namespace blender::io::usd {
 
-float get_scene_scale_from_export_params(const struct USDExportParams *params)
+double get_scene_scale_from_export_params(const struct USDExportParams *params)
 {
   double result;
   switch (params->convert_scene_units) {
     case USD_SCENE_UNITS_CENTIMETERS:
-      result = 100.0;
+      result = 0.01;
       break;
     case USD_SCENE_UNITS_MILLIMETERS:
-      result = 1000.0;
-      break;
-    case USD_SCENE_UNITS_KILOMETERS:
       result = 0.001;
       break;
+    case USD_SCENE_UNITS_KILOMETERS:
+      result = 1000.0;
+      break;
     case USD_SCENE_UNITS_INCHES:
-      result = 1.0 / 0.0254;
+      result = 0.0254;
       break;
     case USD_SCENE_UNITS_FEET:
-      result = 1.0 / 0.3048;
+      result = 0.3048;
       break;
     case USD_SCENE_UNITS_YARDS:
-      result = 1.0 / 0.9144;
+      result = 0.9144;
       break;
     case USD_SCENE_UNITS_CUSTOM:
-      result = 1.0 / double(params->meters_per_unit);
+      result = double(params->meters_per_unit);
       break;
     default:
       result = 1.0;

@@ -173,7 +173,7 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
   }
 
   if (params.convert_scene_units) {
-    xf_api.SetScale(pxr::GfVec3f(get_scene_scale_from_export_params(&params)));
+    xf_api.SetScale(pxr::GfVec3f(float(1.0 / get_scene_scale_from_export_params(&params))));
   }
 
   if (params.convert_orientation) {
@@ -443,7 +443,7 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
 
   usd_stage->SetMetadata(pxr::UsdGeomTokens->upAxis, upAxis);
 
-  const double meters_per_unit = 1.0f / get_scene_scale_from_export_params(&params);
+  const double meters_per_unit = get_scene_scale_from_export_params(&params);
   pxr::UsdGeomSetStageMetersPerUnit(usd_stage, meters_per_unit);
 
   ensure_root_prim(usd_stage, params);
