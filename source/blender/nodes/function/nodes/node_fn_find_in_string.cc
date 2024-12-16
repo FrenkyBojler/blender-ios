@@ -22,7 +22,7 @@ static int string_find(const StringRef text, const StringRef token)
   if (text.is_empty() || token.is_empty()) {
     return 0;
   }
-  int pos = text.find_first_of(token, 0);
+  int pos = text.find(token, 0);
   size_t r_len_bytes;
   int pos_n = BLI_strnlen_utf8_ex(text.data(), pos, &r_len_bytes);
   return pos_n;
@@ -40,7 +40,7 @@ static int string_count(const StringRef text, const StringRef token)
     count++;
     pos += matche_len;
   }
-  while ((pos = text.find_first_of(token, pos)) != StringRef::not_found) {
+  while ((pos = text.find(token, pos)) != StringRef::not_found) {
     count++;
     pos += matche_len;
   }
