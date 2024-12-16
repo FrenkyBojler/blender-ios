@@ -76,12 +76,7 @@ IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves, IndexM
     selection_by_attribute.append(
         ed::curves::retrieve_selected_points(curves, selection_name, memory));
   }
-  Array<index_mask::ExprBuilder::Term> terms(selection_by_attribute.size());
-  for (const int i : selection_by_attribute.index_range()) {
-    terms[i] = &selection_by_attribute[i];
-  }
-  index_mask::ExprBuilder builder;
-  return index_mask::evaluate_expression(builder.merge(terms.as_span()), memory);
+  return IndexMask::from_union(selection_by_attribute, memory);
 }
 
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
