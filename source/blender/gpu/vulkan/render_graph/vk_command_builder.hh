@@ -31,47 +31,40 @@ struct LayeredImageBinding {
  * barriers and commands.
  */
 class VKCommandBuilder {
-  struct SubBuilder {
-    struct Group {
-      struct Barrier {
-        IndexRange buffer_memory_barriers;
-        IndexRange image_memory_barriers;
+  struct Barrier {
+    IndexRange buffer_memory_barriers;
+    IndexRange image_memory_barriers;
 
-        VkPipelineStageFlags src_stage_mask = VK_PIPELINE_STAGE_NONE;
-        VkPipelineStageFlags dst_stage_mask = VK_PIPELINE_STAGE_NONE;
-      };
+    VkPipelineStageFlags src_stage_mask = VK_PIPELINE_STAGE_NONE;
+    VkPipelineStageFlags dst_stage_mask = VK_PIPELINE_STAGE_NONE;
+  };
+  struct GroupNodeBarriers {
 
-      /** Barriers to record before the group commands are recorded. */
-      Barrier pre_barrier;
-
-      /**
-       * Barriers to record after the group commands are recorded.
-       *
-       * Post barriers are mainly used
-       * to ensure each image resource is in a single known image layout. When attaching a
-       * sub-resource (layers/mipmaps) a resource can have multiple layouts.
-       */
-      Barrier post_barrier;
-
-      /**
-       * Index range of the nodes that are part of this node group.
-       *
-       * The indexes are to `VKScheduler::result_` that is passed along `Span<NodeHandle> nodes` of
-       * `build_nodes`.
-       */
-      IndexRange nodes;
-    };
-
-    Vector<Group> groups;
+    /** Barriers to record before the group commands are recorded. */
+    Barrier pre_barrier;
 
     /**
-     * State of the bound pipelines during command building.
+     * Barriers to record after the group commands are recorded.
      *
-     * NOTE: Unsure this needs to be stored as it is only used when building the nodes
-     * sequentially.
+     * Post barriers are mainly used
+     * to ensure each image resource is in a single known image layout. When attaching a
+     * sub-resource (layers/mipmaps) a resource can have multiple layouts.
      */
-    VKBoundPipelines active_pipelines;
+    Barrier post_barrier;
   };
+
+  /**
+   * Range of indices that refers to the node groups that are part of the sub builder.
+   */
+  using SubBuilder = IndexRange;
+
+  /**
+   * Index range of the nodes of a group.
+   *
+   * The indexes are to `VKScheduler::result_` that is passed along `Span<NodeHandle> nodes` of
+   * `build_nodes`.
+   */
+  using GroupNodes = IndexRange;
 
  private:
   /* Pool of VKBufferMemoryBarriers that can be reused when building barriers */
@@ -88,16 +81,6 @@ class VKCommandBuilder {
      * State of the bound pipelines during command building.
      */
     VKBoundPipelines active_pipelines;
-
-    /**
-     * When building memory barriers we need to track the src_stage_mask and dst_stage_mask and
-     * pass them to
-     * `https://docs.vulkan.org/spec/latest/chapters/synchronization.html#vkCmdPipelineBarrier`
-     *
-     * NOTE: Only valid between `reset_barriers` and `send_pipeline_barriers`.
-     */
-    VkPipelineStageFlags src_stage_mask = VK_PIPELINE_STAGE_NONE;
-    VkPipelineStageFlags dst_stage_mask = VK_PIPELINE_STAGE_NONE;
 
     /**
      * Index of the active debug_group. Points to an element in
@@ -123,7 +106,14 @@ class VKCommandBuilder {
     }
   } state_;
 
+  /** Per sub builder store the index in the group_nodes_ and related other vectors. */
   Vector<SubBuilder> sub_builders_;
+  /** Per group store the indices of the nodes. */
+  Vector<GroupNodes> group_nodes_;
+  /** Per group per node in group its pre execution barriers. */
+  Vector<Vector<Barrier>> group_pre_barriers_;
+  /** Per group per node in group its post execution barriers. */
+  Vector<Vector<Barrier>> group_post_barriers_;
 
  public:
   VKCommandBuilder();
@@ -146,21 +136,31 @@ class VKCommandBuilder {
 
  private:
   /**
-   * Create sub builders for the given node_handles.
+   * Split the node_handles in logical groups.
    *
-   * Currently will only create a single sub_builder but will eventually split node handles into
-   * multiple SubBuffers so we can multi-thread the command building.
+   * A new group is created when the next node is switching from data/compute to graphics and each
+   * data/compute is also put in its own group.
    */
-  void sub_builders_init(const VKRenderGraph &render_graph, Span<NodeHandle> node_handles);
+
+  void groups_init(const VKRenderGraph &render_graph, Span<NodeHandle> node_handles);
 
   /**
-   * Extract the memory/buffer/image barriers from the command groups and add them to the pre/post
+   * Extract the memory/buffer/image barriers from the commadn groups and add them to the pre/post
    * barriers.
    *
    * This process is single threaded as resource states change during the extraction process. The
    * result of this function would allow the sub builders to be built in parallel.
    */
-  void sub_builders_extract_barriers();
+  void groups_extract_barriers(VKRenderGraph &render_graph);
+
+  /**
+   * Create sub builders for the given node_handles.
+   *
+   * Currently will only create a single sub_builder but will eventually split node handles into
+   * multiple SubBuffers so we can multi-thread the command building.
+   */
+  void sub_builders_init(Span<NodeHandle> node_handles);
+
   void sub_builders_build_commands(VKRenderGraph &render_graph,
                                    VKCommandBufferInterface &command_buffer,
                                    Span<NodeHandle> node_handles);
@@ -178,7 +178,8 @@ class VKCommandBuilder {
    */
   void build_node_group(VKRenderGraph &render_graph,
                         VKCommandBufferInterface &command_buffer,
-                        Span<NodeHandle> node_group,
+                        Span<NodeHandle> node_handles,
+                        int64_t node_group_index,
                         std::optional<NodeHandle> &r_rendering_scope);
 
   /**
@@ -189,26 +190,35 @@ class VKCommandBuilder {
                                VKCommandBufferInterface &command_buffer,
                                NodeHandle node_handle,
                                VkPipelineStageFlags pipeline_stage);
-  void reset_barriers();
-  void send_pipeline_barriers(VKCommandBufferInterface &command_buffer);
+  void build_pipeline_barriers(VKRenderGraph &render_graph,
+                               NodeHandle node_handle,
+                               VkPipelineStageFlags pipeline_stage,
+                               Barrier &r_barrier);
+  void reset_barriers(Barrier &r_barrier);
+  void send_pipeline_barriers(VKCommandBufferInterface &command_buffer, const Barrier &barrier);
 
   void add_buffer_barriers(VKRenderGraph &render_graph,
                            NodeHandle node_handle,
-                           VkPipelineStageFlags node_stages);
+                           VkPipelineStageFlags node_stages,
+                           Barrier &r_barrier);
   void add_buffer_barrier(VkBuffer vk_buffer,
                           VkAccessFlags src_access_mask,
                           VkAccessFlags dst_access_mask);
   void add_buffer_read_barriers(VKRenderGraph &render_graph,
                                 NodeHandle node_handle,
-                                VkPipelineStageFlags node_stages);
+                                VkPipelineStageFlags node_stages,
+                                Barrier &r_barrier);
   void add_buffer_write_barriers(VKRenderGraph &render_graph,
                                  NodeHandle node_handle,
-                                 VkPipelineStageFlags node_stages);
+                                 VkPipelineStageFlags node_stages,
+                                 Barrier &r_barrier);
 
   void add_image_barriers(VKRenderGraph &render_graph,
                           NodeHandle node_handle,
-                          VkPipelineStageFlags node_stages);
+                          VkPipelineStageFlags node_stages,
+                          Barrier &r_barrier);
   void add_image_barrier(VkImage vk_image,
+                         Barrier &r_barrier,
                          VkAccessFlags src_access_mask,
                          VkAccessFlags dst_access_mask,
                          VkImageLayout old_image_layout,
@@ -218,10 +228,12 @@ class VKCommandBuilder {
                          uint32_t layer_count = VK_REMAINING_ARRAY_LAYERS);
   void add_image_read_barriers(VKRenderGraph &render_graph,
                                NodeHandle node_handle,
-                               VkPipelineStageFlags node_stages);
+                               VkPipelineStageFlags node_stages,
+                               Barrier &r_barrier);
   void add_image_write_barriers(VKRenderGraph &render_graph,
                                 NodeHandle node_handle,
-                                VkPipelineStageFlags node_stages);
+                                VkPipelineStageFlags node_stages,
+                                Barrier &r_barrier);
 
   /**
    * Ensure that the debug group associated with the given node_handle is activated.
@@ -255,7 +267,8 @@ class VKCommandBuilder {
                              uint32_t layer,
                              uint32_t layer_count,
                              VkImageLayout old_layout,
-                             VkImageLayout new_layout);
+                             VkImageLayout new_layout,
+                             Barrier &r_barrier);
 
   /**
    * End layer tracking.
