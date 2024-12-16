@@ -3418,10 +3418,10 @@ static Object *convert_font_to_curves(Base &base, ObjectConversionInfo &info, Ba
   Object *curve_ob = convert_font_to_curve_legacy_generic(ob, newob, info);
   BLI_assert(curve_ob->type == OB_CURVES_LEGACY);
 
-  Curve *curve_id = static_cast<Curve *>(curve_ob->data);
-  Curves *curves_nomain = bke::curve_legacy_to_curves(*curve_id);
+  Curve *legacy_curve_id = static_cast<Curve *>(curve_ob->data);
+  Curves *curves_nomain = bke::curve_legacy_to_curves(*legacy_curve_id);
 
-  Curves *curves_id = BKE_curves_add(info.bmain, BKE_id_name(curve_id->id));
+  Curves *curves_id = BKE_curves_add(info.bmain, BKE_id_name(legacy_curve_id->id));
   curves_id->geometry.wrap() = curves_nomain->geometry.wrap();
 
   blender::bke::curves_copy_parameters(*curves_nomain, *curves_id);
@@ -3444,26 +3444,28 @@ static Object *convert_font_to_grease_pencil(Base &base,
   Object *curve_ob = convert_font_to_curve_legacy_generic(ob, newob, info);
   BLI_assert(curve_ob->type == OB_CURVES_LEGACY);
 
-  Curve *curve_id = static_cast<Curve *>(curve_ob->data);
-  Curves *curves_nomain = bke::curve_legacy_to_curves(*curve_id);
+  Curve *legacy_curve_id = static_cast<Curve *>(curve_ob->data);
+  Curves *curves_nomain = bke::curve_legacy_to_curves(*legacy_curve_id);
 
-  GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain, BKE_id_name(curve_id->id));
+  GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain,
+                                                      BKE_id_name(legacy_curve_id->id));
   bke::greasepencil::Layer &layer = grease_pencil->add_layer(DATA_("Converted Layer"));
 
   const int current_frame = info.scene->r.cfra;
 
   bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, current_frame);
 
-  blender::bke::CurvesGeometry &curves_geometry = reinterpret_cast<blender::bke::CurvesGeometry &>(
-      curves_nomain->geometry);
+  blender::bke::CurvesGeometry &curves = curves_nomain->geometry.wrap();
 
-  drawing->strokes_for_write() = std::move(curves_geometry);
+  drawing->strokes_for_write() = std::move(curves);
   /* Default radius (1.0 unit) is too thick for converted strokes. */
   drawing->radii_for_write().fill(0.01f);
   drawing->tag_positions_changed();
 
   curve_ob->data = grease_pencil;
   curve_ob->type = OB_GREASE_PENCIL;
+
+  BKE_id_free(nullptr, curves_nomain);
 
   return curve_ob;
 }
