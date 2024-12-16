@@ -521,7 +521,7 @@ PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
         case OB_MODE_SCULPT:
           return PaintMode::Sculpt;
         case OB_MODE_SCULPT_GREASE_PENCIL:
-          if (obact->type == OB_GPENCIL_LEGACY) {
+          if (obact->type == OB_GREASE_PENCIL) {
             return PaintMode::SculptGPencil;
           }
           return PaintMode::Invalid;
