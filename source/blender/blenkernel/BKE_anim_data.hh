@@ -195,7 +195,7 @@ namespace blender::bke::animdata {
  * This function mark this 'user cache' as 'dirty', triggering a full rebuild
  * next time it is accessed.
  *
- * This is typically only necessary after remapping IDs, swapping them, etc ,
+ * This is typically only necessary after remapping IDs, swapping them, etc,
  * and only called from low-level code.
  *
  * \note This function invalidates all user caches of all Action Slots of all
