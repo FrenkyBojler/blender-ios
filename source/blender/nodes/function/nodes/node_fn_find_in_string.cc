@@ -17,32 +17,34 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Count");
 }
 
-static Vector<int> string_find_tokens(const StringRef text, const StringRef token)
+static int string_find(const StringRef text, const StringRef token)
 {
-  Vector<int> positions;
   if (text.is_empty() || token.is_empty()) {
-    return positions;
+    return 0;
   }
+  int pos = text.find_first_of(token, 0);
+  size_t r_len_bytes;
+  int pos_n = BLI_strnlen_utf8_ex(text.data(), pos, &r_len_bytes);
+  return pos_n;
+}
+
+static int string_count(const StringRef text, const StringRef token)
+{
+  if (text.is_empty() || token.is_empty()) {
+    return 0;
+  }
+  int position = 0;
   int matche_len = token.size();
   int pos = 0;
   if (text.substr(0, token.size()) == token) {
-    positions.append(0);
+    position++;
     pos += matche_len;
   }
-  size_t r_len_bytes;
-  while ((pos = text.find(token, pos)) != StringRef::not_found) {
-    int pos_n = BLI_strnlen_utf8_ex(text.data(),pos,&r_len_bytes);
-    positions.append(pos_n);
+  while ((pos = text.find_first_of(token, pos)) != StringRef::not_found) {
+    position++;
     pos += matche_len;
   }
-  return positions;
-}
-static int out_finded_first_position(const Vector<int> *positions)
-{
-  if (positions->is_empty()) {
-    return 0;
-  }
-  return positions->first();
+  return position;
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -50,9 +52,8 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   static auto token_position_count = mf::build::SI2_SO2<std::string, std::string, int, int>(
       "Find in String",
       [](const std::string &text, const std::string &token, int &first, int &count) -> void {
-        Vector<int> positions = string_find_tokens(text, token);
-        first = out_finded_first_position(&positions);
-        count = positions.size();
+        first = string_find(text, token);
+        count = string_count(text, token);
       },
       mf::build::exec_presets::AllSpanOrSingle());
 
