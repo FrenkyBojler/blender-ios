@@ -17,7 +17,7 @@ bke::CurvesGeometry fillet_curves_poly(
     const VArray<int> &counts,
     const bool limit_radius,
     const bool remove_zero_length_edges,
-    const bke::AnonymousAttributePropagationInfo &propagation_info);
+    const bke::AttributeFilter &attribute_filter);
 
 bke::CurvesGeometry fillet_curves_bezier(
     const bke::CurvesGeometry &src_curves,
@@ -25,5 +25,5 @@ bke::CurvesGeometry fillet_curves_bezier(
     const VArray<float> &radius,
     const bool limit_radius,
     const bool remove_zero_length_edges,
-    const bke::AnonymousAttributePropagationInfo &propagation_info);
+    const bke::AttributeFilter &attribute_filter);
 }  // namespace blender::geometry
