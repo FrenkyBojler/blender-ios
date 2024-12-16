@@ -371,10 +371,6 @@ void DrawingPlacement::project(const Span<float2> src, MutableSpan<float3> dst) 
   });
 }
 
-// void DrawingPlacement::set_depth_projection_plane(const float3 &origin, const float3 &normal) {
-//   this->placement_loc_
-// }
-
 float3 DrawingPlacement::reproject(const float3 pos) const
 {
   const float3 world_pos = math::transform_point(layer_space_to_world_space_, pos);
