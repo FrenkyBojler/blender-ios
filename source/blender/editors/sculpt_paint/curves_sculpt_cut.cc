@@ -284,7 +284,7 @@ struct CutOperationExecutor {
                     brush_radius_re * brush_radius_re;
 
     float d = b * b - 4.0f * a * c;
-    // It shouldn't be possible to have no intersection (d < 0), so assume to be tangential.
+    /* It shouldn't be possible to have no intersection (d < 0), so assume to be tangential. */
     d = math::max(d, 0.0f);
     const float t = (-b - sqrtf(d)) / (2.0f * a);
 
@@ -307,7 +307,7 @@ struct CutOperationExecutor {
                     brush_radius_cu * brush_radius_cu;
 
     float d = b * b - 4.0f * a * c;
-    // It shouldn't be possible to have no intersection (d < 0), so assume to be tangential.
+    /* It shouldn't be possible to have no intersection (d < 0), so assume to be tangential. */
     d = math::max(d, 0.0f);
     const float t = (-b - sqrtf(d)) / (2.0f * a);
 
@@ -407,12 +407,12 @@ struct CutOperationExecutor {
       const int point_to_cut = std::distance(points.begin(), point_to_cut_iter);
 
       if (point_to_cut == 0) {
-        // Delete entire curve. Simply trimming would leave behind the root control point.
+        /* Delete entire curve. Simply trimming would leave behind the root control point. */
         r_curves_to_keep[curve_i] = false;
       }
       else if (first_point_in_stroke == point_to_cut) {
-        // Brush boundary is cutting straight through previous and current point.
-        // Delete all points after current.
+        /* Brush boundary is cutting straight through previous and current point.
+         * Delete all points after current. */
         const int current_point = points[point_to_cut];
         const int previous_point = points[point_to_cut - 1];
         const float3 &curr_pos_cu = deformation.positions[current_point];
@@ -440,7 +440,7 @@ struct CutOperationExecutor {
         r_ends[curve_i] = segment_lengths[current_point] - boundary_length;
       }
       else {
-        // Brush is encompassing a boundary between selected and unselected points.
+        /* Brush is encompassing a boundary between selected and unselected points. */
         const int previous_point = points[point_to_cut - 1];
         r_ends[curve_i] = segment_lengths[previous_point];
       }
