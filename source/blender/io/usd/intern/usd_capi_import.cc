@@ -288,7 +288,12 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 
   convert_to_z_up(stage, &data->settings);
   find_prefix_to_skip(stage, &data->settings);
-  data->settings.stage_meters_per_unit = UsdGeomGetStageMetersPerUnit(stage);
+  const double stage_meters_per_unit = UsdGeomGetStageMetersPerUnit(stage);
+  data->settings.stage_meters_per_unit = stage_meters_per_unit;
+
+  if (data->params.apply_unit_conversion_scale) {
+    data->params.scale *= stage_meters_per_unit;
+  }
 
   /* Set up the stage for animated data. */
   if (data->params.set_frame_range) {

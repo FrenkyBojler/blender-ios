@@ -237,6 +237,8 @@ struct USDImportParams {
   eUSDTexNameCollisionMode tex_name_collision_mode;
   eUSDAttrImportMode attr_import_mode;
 
+  bool apply_unit_conversion_scale;
+
   /**
    * Communication structure between the wmJob management code and the worker code. Currently used
    * to generate safely reports from the worker thread.
