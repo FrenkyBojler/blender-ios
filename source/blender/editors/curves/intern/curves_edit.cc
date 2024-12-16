@@ -231,6 +231,9 @@ static IndexMask drop_singles(const IndexMask &mask,
                               const bool cyclic,
                               IndexMaskMemory &memory)
 {
+  if (mask.is_empty()) {
+    return mask;
+  }
   IndexMask to_left = IndexMask::from_difference(
                           mask, IndexMask::from_indices<int>({0}, memory), memory)
                           .shift(-1, memory);
@@ -316,6 +319,47 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
       cyclic[curve] && selected_points.size() == points.size() && roll_by == 0, curves_added);
 }
 
+template<typename Fn>
+static void foreach_mask_content_slice_by_offsets(const IndexMask &mask,
+                                                  const OffsetIndices<int> offset_indices,
+                                                  Fn &&fn)
+{
+  IndexMask empty_mask;
+  Span<int> offsets = offset_indices.data();
+  int offset = 0;
+  int slice_start = -1;
+  int slice_end = -1;
+
+  mask.foreach_index([&](const int64_t index, const int64_t position) {
+    if (!offset_indices[offset].contains(index)) {
+      if (slice_start != -1) {
+        fn(mask.slice(IndexRange::from_begin_end_inclusive(slice_start, slice_end)),
+           offset_indices[offset],
+           offset);
+        offset++;
+        slice_start = -1;
+      }
+      while (!offset_indices[offset].contains(index)) {
+        fn(empty_mask, offset_indices[offset], offset);
+        offset++;
+      }
+    }
+    if (slice_start == -1) {
+      slice_start = position;
+    }
+    slice_end = position;
+  });
+
+  fn(mask.slice(IndexRange::from_begin_end_inclusive(slice_start, slice_end)),
+     offset_indices[offset],
+     offset);
+  offset++;
+
+  for (const int o : IndexRange::from_begin_end(offset, offset_indices.size())) {
+    fn(empty_mask, offset_indices[o], o);
+  }
+}
+
 bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                                  const bke::CurvesGeometry &curves)
 {
@@ -341,38 +385,39 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
 
   IndexMaskMemory memory;
 
-  for (const int curve : curves.curves_range()) {
-    const IndexRange points = points_by_curve[curve];
-    const IndexMask curve_points_to_split = points_to_split.slice_content(points);
-    const IndexMask curve_preserved_points =
-        drop_singles(curve_points_to_split, points, cyclic[curve], memory)
-            .complement(points, memory);
-    curve_offsets_from_selection(curve_preserved_points,
-                                 points,
-                                 curve,
-                                 true,
-                                 cyclic,
-                                 new_offsets,
-                                 preserved_cyclic,
-                                 preserved_src_offsets,
-                                 preserved_dst_offsets,
-                                 preserved_roll_src_offsets,
-                                 preserved_roll_dst_offsets,
-                                 curve_map);
+  foreach_mask_content_slice_by_offsets(
+      points_to_split,
+      points_by_curve,
+      [&](const IndexMask curve_points_to_split, const IndexRange points, const int curve) {
+        const IndexMask curve_preserved_points =
+            drop_singles(curve_points_to_split, points, cyclic[curve], memory)
+                .complement(points, memory);
+        curve_offsets_from_selection(curve_preserved_points,
+                                     points,
+                                     curve,
+                                     true,
+                                     cyclic,
+                                     new_offsets,
+                                     preserved_cyclic,
+                                     preserved_src_offsets,
+                                     preserved_dst_offsets,
+                                     preserved_roll_src_offsets,
+                                     preserved_roll_dst_offsets,
+                                     curve_map);
 
-    curve_offsets_from_selection(curve_points_to_split,
-                                 points,
-                                 curve,
-                                 false,
-                                 cyclic,
-                                 split_curve_offsets,
-                                 split_cyclic,
-                                 split_src_offsets,
-                                 split_dst_offsets,
-                                 split_roll_src_offsets,
-                                 split_roll_dst_offsets,
-                                 new_curve_map);
-  }
+        curve_offsets_from_selection(curve_points_to_split,
+                                     points,
+                                     curve,
+                                     false,
+                                     cyclic,
+                                     split_curve_offsets,
+                                     split_cyclic,
+                                     split_src_offsets,
+                                     split_dst_offsets,
+                                     split_roll_src_offsets,
+                                     split_roll_dst_offsets,
+                                     new_curve_map);
+      });
 
   for (int &offset : split_dst_offsets) {
     offset += preserved_dst_offsets.last();
