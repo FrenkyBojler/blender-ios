@@ -13,6 +13,7 @@
 
 namespace blender {
 namespace bke {
+class Attribute;
 class AttributeStorage;
 struct AttributeStorageRuntime;
 enum class AttrDomain : int8_t;
@@ -41,6 +42,11 @@ typedef struct Attribute {
 
   /** Type depends on storage type. */
   void *data;
+
+#ifdef __cplusplus
+  blender::bke::Attribute &wrap();
+  const blender::bke::Attribute &wrap() const;
+#endif
 } Attribute;
 
 typedef struct AttributeStorage {

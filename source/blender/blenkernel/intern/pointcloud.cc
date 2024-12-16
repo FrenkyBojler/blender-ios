@@ -134,6 +134,8 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
                          CD_MASK_ALL,
                          &pointcloud->id);
 
+  pointcloud->attribute_storage.wrap().blend_write(*writer);
+
   BLO_write_pointer_array(writer, pointcloud->totcol, pointcloud->mat);
 }
 
@@ -143,6 +145,7 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
 
   /* Geometry */
   CustomData_blend_read(reader, &pointcloud->pdata, pointcloud->totpoint);
+  pointcloud->attribute_storage.wrap().blend_read(*reader);
 
   /* Materials */
   BLO_read_pointer_array(reader, pointcloud->totcol, (void **)&pointcloud->mat);

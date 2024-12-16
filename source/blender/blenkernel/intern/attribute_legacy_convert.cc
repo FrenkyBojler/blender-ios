@@ -11,6 +11,8 @@
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 
+#include "BKE_attribute_legacy_convert.hh"
+
 namespace blender::bke {
 
 static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomDataType data_type)
@@ -123,8 +125,8 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
     custom_data.maxlayer = kept_layers_data.capacity;
   }
 
-  storage.attributes_array = static_cast<Attribute **>(
-      MEM_malloc_arrayN(attributes_to_add.size(), sizeof(Attribute *), __func__));
+  storage.attributes_array = static_cast<::Attribute **>(
+      MEM_malloc_arrayN(attributes_to_add.size(), sizeof(::Attribute *), __func__));
   storage.attributes_num = attributes_to_add.size();
   storage.attributes_capacity = attributes_to_add.size();
 
@@ -182,7 +184,7 @@ static std::optional<eCustomDataType> attribute_to_to_custom_data_type(const Att
 void attribute_legacy_convert_storage_to_customdata(
     AttributeStorage &storage, const std::array<CustomData *, ATTR_DOMAIN_NUM> custom_data_domains)
 {
-  for (Attribute *attribute : Span(storage.attributes_array, storage.attributes_num)) {
+  for (::Attribute *attribute : Span(storage.attributes_array, storage.attributes_num)) {
     if (AttrStorageType(attribute->storage_type) != AttrStorageType::Array) {
       continue;
     }

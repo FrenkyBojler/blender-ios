@@ -309,6 +309,8 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     }
   }
 
+  mesh->attribute_storage.wrap().blend_write(*writer);
+
   const blender::bke::MeshRuntime *mesh_runtime = mesh->runtime;
   mesh->runtime = nullptr;
 
@@ -372,6 +374,7 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   CustomData_blend_read(reader, &mesh->fdata_legacy, mesh->totface_legacy);
   CustomData_blend_read(reader, &mesh->corner_data, mesh->corners_num);
   CustomData_blend_read(reader, &mesh->face_data, mesh->faces_num);
+  mesh->attribute_storage.wrap().blend_read(*reader);
   if (mesh->deform_verts().is_empty()) {
     /* Vertex group data was also an owning pointer in old Blender versions.
      * Don't read them again if they were read as part of #CustomData. */

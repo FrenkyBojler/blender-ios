@@ -37,15 +37,15 @@ class AttributeStorage : public ::AttributeStorage {
                  bke::AttrType data_type,
                  const AttributeDataArray &data);
 
+  void blend_read(BlendDataReader &reader);
+  void blend_write(BlendWriter &writer) const;
+
  private:
   void ensure_attribute_array_capacity(int attributes_num);
   Attribute &add_without_data(StringRef name,
                               bke::AttrDomain domain,
                               bke::AttrType data_type,
                               bke::AttrStorageType storage_type);
-
-  void blend_read(BlendDataReader &reader);
-  void blend_write(BlendWriter &writer) const;
 };
 
 inline Span<const Attribute *> AttributeStorage::items() const
@@ -58,6 +58,15 @@ inline MutableSpan<Attribute *> AttributeStorage::items()
 }
 
 }  // namespace blender::bke
+
+inline blender::bke::Attribute &Attribute::wrap()
+{
+  return *reinterpret_cast<blender::bke::Attribute *>(this);
+}
+inline const blender::bke::Attribute &Attribute::wrap() const
+{
+  return *reinterpret_cast<const blender::bke::Attribute *>(this);
+}
 
 inline blender::bke::AttributeStorage &AttributeStorage::wrap()
 {

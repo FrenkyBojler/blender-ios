@@ -11,6 +11,7 @@
 #include "DNA_attribute_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_storage.hh"
 
 struct CustomData;
 

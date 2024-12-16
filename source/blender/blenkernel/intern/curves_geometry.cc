@@ -1599,6 +1599,7 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
 
   CustomData_blend_read(&reader, &this->point_data, this->point_num);
   CustomData_blend_read(&reader, &this->curve_data, this->curve_num);
+  this->attribute_storage.wrap().blend_read(reader);
 
   if (this->curve_offsets) {
     this->runtime->curve_offsets_sharing_info = BLO_read_shared(
@@ -1630,6 +1631,7 @@ void CurvesGeometry::blend_write(BlendWriter &writer,
       &writer, &this->point_data, write_data.point_layers, this->point_num, CD_MASK_ALL, &id);
   CustomData_blend_write(
       &writer, &this->curve_data, write_data.curve_layers, this->curve_num, CD_MASK_ALL, &id);
+  this->attribute_storage.wrap().blend_write(writer);
 
   if (this->curve_offsets) {
     BLO_write_shared(

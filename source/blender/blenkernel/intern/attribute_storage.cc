@@ -82,14 +82,56 @@ void Attribute::ensure_mutable()
 }
 
 AttributeStorage::AttributeStorage()
-    : attributes_array(nullptr),
-      attributes_num(0),
-      attributes_capacity(0),
-      runtime(MEM_new<AttributeStorageRuntime>(__func__))
 {
+  this->attributes_array = nullptr;
+  this->attributes_num = 0;
+  this->attributes_capacity = 0;
+  this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
 }
 
-AttributeStorage::AttributeStorage(const AttributeStorage &other) {}
+AttributeStorage::AttributeStorage(const AttributeStorage &other)
+{
+  this->attributes_array = static_cast<::Attribute **>(
+      MEM_malloc_arrayN(other.attributes_num, sizeof(::Attribute *), __func__));
+  this->attributes_num = other.attributes_num;
+  this->attributes_capacity = other.attributes_capacity;
+  this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
+  this->runtime->name_map.reserve(other.runtime->name_map.size());
+
+  const Span<const Attribute *> src_attributes = other.items();
+  MutableSpan<Attribute *> dst_attributes = this->items();
+
+  for (const int i : src_attributes.index_range()) {
+    const Attribute &src_attribute = *src_attributes[i];
+    const StringRef src_name = src_attribute.name;
+    dst_attributes[i] = static_cast<Attribute *>(MEM_mallocN(sizeof(Attribute), __func__));
+    Attribute &dst_attribute = *dst_attributes[i];
+    dst_attribute.name = BLI_strdupn(src_name.data(), src_name.size());
+    dst_attribute.domain = src_attribute.domain;
+    dst_attribute.data_type = src_attribute.data_type;
+    dst_attribute.storage_type = src_attribute.storage_type;
+
+    this->runtime->name_map.add_new(StringRef(dst_attribute.name, src_name.size()), dst_attribute);
+    switch (AttrStorageType(dst_attribute.storage_type)) {
+      case AttrStorageType::Array: {
+        const AttributeDataArray &src_data = *static_cast<AttributeDataArray *>(
+            src_attribute.data);
+        AttributeDataArray *new_data = static_cast<AttributeDataArray *>(
+            MEM_mallocN(sizeof(AttributeDataArray), __func__));
+        new_data->elements_num = src_data.elements_num;
+        new_data->data = src_data.data;
+        new_data->sharing_info = src_data.sharing_info;
+        new_data->sharing_info->add_user();
+        dst_attribute.data = new_data;
+        break;
+      }
+      case AttrStorageType::Single: {
+        BLI_assert_unreachable();
+        break;
+      }
+    }
+  }
+}
 
 AttributeStorage &AttributeStorage::operator=(const AttributeStorage &other)
 {
@@ -102,11 +144,11 @@ AttributeStorage &AttributeStorage::operator=(const AttributeStorage &other)
 }
 
 AttributeStorage::AttributeStorage(AttributeStorage &&other)
-    : attributes_array(std::exchange(other.attributes_array, nullptr)),
-      attributes_num(std::exchange(other.attributes_num, 0)),
-      attributes_capacity(std::exchange(other.attributes_capacity, 0)),
-      runtime(std::exchange(other.runtime, nullptr))
 {
+  this->attributes_array = std::exchange(other.attributes_array, nullptr);
+  this->attributes_num = std::exchange(other.attributes_num, 0);
+  this->attributes_capacity = std::exchange(other.attributes_capacity, 0);
+  this->runtime = std::exchange(other.runtime, nullptr);
 }
 
 AttributeStorage &AttributeStorage::operator=(AttributeStorage &&other)
@@ -121,7 +163,7 @@ AttributeStorage &AttributeStorage::operator=(AttributeStorage &&other)
 
 AttributeStorage::~AttributeStorage()
 {
-  for (Attribute *attribute : Span(this->attributes_array, this->attributes_num)) {
+  for (::Attribute *attribute : Span(this->attributes_array, this->attributes_num)) {
     switch (AttrStorageType(attribute->storage_type)) {
       case AttrStorageType::Array: {
         AttributeDataArray &attribute_data = *static_cast<AttributeDataArray *>(attribute->data);
@@ -168,7 +210,7 @@ bool AttributeStorage::remove(const StringRef name)
     return false;
   }
   this->runtime->name_map.remove(name);
-  Attribute **result = std::remove(
+  ::Attribute **result = std::remove(
       this->attributes_array, this->attributes_array + this->attributes_num, attribute);
   BLI_assert(std::distance(this->attributes_array, result) == this->attributes_num - 1);
   this->attributes_num = std::distance(this->attributes_array, result);
@@ -194,8 +236,8 @@ void AttributeStorage::ensure_attribute_array_capacity(const int attributes_num)
 {
   if (attributes_num > this->attributes_capacity) {
     this->attributes_capacity *= 2;
-    this->attributes_array = static_cast<Attribute **>(
-        MEM_reallocN(this->attributes_array, sizeof(Attribute) * attributes_num));
+    this->attributes_array = static_cast<::Attribute **>(
+        MEM_reallocN(this->attributes_array, sizeof(::Attribute) * attributes_num));
     this->attributes_capacity = attributes_num;
   }
 }
@@ -210,7 +252,7 @@ Attribute &AttributeStorage::add_without_data(const StringRef name,
 
   this->attributes_array[this->attributes_num] = static_cast<Attribute *>(
       MEM_mallocN(sizeof(Attribute), __func__));
-  Attribute &attribute = *this->attributes_array[this->attributes_num];
+  Attribute &attribute = this->attributes_array[this->attributes_num]->wrap();
   this->attributes_num++;
 
   attribute.name = BLI_strdupn(name.data(), name.size());
@@ -287,9 +329,16 @@ static void read_attribute_data_array(BlendDataReader &reader,
 
 void AttributeStorage::blend_read(BlendDataReader &reader)
 {
+  this->runtime = MEM_new<blender::bke::AttributeStorageRuntime>(__func__);
+
   BLO_read_pointer_array(&reader, this->attributes_num, (void **)(this->attributes_array));
   for (const int i : IndexRange(this->attributes_num)) {
     BLO_read_struct(&reader, Attribute, &this->attributes_array[i]);
+    BLO_read_string(&reader, &this->attributes_array[i]->name);
+
+    this->runtime->name_map.add_new(this->attributes_array[i]->name,
+                                    this->attributes_array[i]->wrap());
+
     switch (AttrStorageType(this->attributes_array[i]->storage_type)) {
       case AttrStorageType::Array: {
         BLO_read_struct(&reader, AttributeDataArray, &this->attributes_array[i]->data);
@@ -389,6 +438,7 @@ void AttributeStorage::blend_write(BlendWriter &writer) const
   BLO_write_pointer_array(&writer, this->attributes_num, this->attributes_array);
   for (const Attribute *attribute : this->items()) {
     BLO_write_struct(&writer, Attribute, &attribute->data);
+    BLO_write_string(&writer, attribute->name);
     switch (AttrStorageType(attribute->storage_type)) {
       case AttrStorageType::Array: {
         BLO_write_struct(&writer, AttributeDataArray, &attribute->data);
