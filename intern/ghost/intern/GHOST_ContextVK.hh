@@ -199,7 +199,7 @@ class GHOST_ContextVK : public GHOST_Context {
   VkSwapchainKHR m_swapchain;
   std::vector<VkImage> m_swapchain_images;
 
-  std::vector<GHOST_VulkanBinarySemaphore> m_images_present_semaphores_;
+  std::vector<GHOST_VulkanBinarySemaphore> m_images_present_wait_semaphores_;
 
   VkExtent2D m_render_extent;
   VkExtent2D m_render_extent_min;

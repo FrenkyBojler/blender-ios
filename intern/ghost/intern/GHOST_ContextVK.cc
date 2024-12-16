@@ -501,10 +501,10 @@ GHOST_ContextVK::~GHOST_ContextVK()
 
     destroySwapchain();
 
-    for (GHOST_VulkanBinarySemaphore &present_semaphore : m_images_present_semaphores_) {
+    for (GHOST_VulkanBinarySemaphore &present_semaphore : m_images_present_wait_semaphores_) {
       present_semaphore.destroy(device_vk.device);
     }
-    m_images_present_semaphores_.clear();
+    m_images_present_wait_semaphores_.clear();
     if (m_command_buffer != VK_NULL_HANDLE) {
       vkFreeCommandBuffers(device_vk.device, m_command_pool, 1, &m_command_buffer);
       m_command_buffer = VK_NULL_HANDLE;
@@ -609,13 +609,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VK_CHECK(vkResetFences(device, 1, &m_fence));
   // printf("%d\n", image_index);
 
-  GHOST_VulkanBinarySemaphore &present_semaphore = m_images_present_semaphores_[image_index];
+  GHOST_VulkanBinarySemaphore &present_wait_semaphore =
+      m_images_present_wait_semaphores_[image_index];
 
   GHOST_VulkanSwapChainData swap_chain_data;
   swap_chain_data.image = m_swapchain_images[image_index];
   swap_chain_data.format = m_surface_format.format;
   swap_chain_data.extent = m_render_extent;
-  swap_chain_data.present_wait_semaphore = present_semaphore.get(device);
+  swap_chain_data.present_wait_semaphore = present_wait_semaphore.get(device);
 
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
@@ -644,11 +645,11 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     if (swap_buffers_post_callback_) {
       swap_buffers_post_callback_();
     }
-    present_semaphore.tag_dirty();
+    present_wait_semaphore.tag_dirty();
     return GHOST_kSuccess;
   }
   else if (result != VK_SUCCESS) {
-    present_semaphore.tag_dirty();
+    present_wait_semaphore.tag_dirty();
     fprintf(stderr,
             "Error: Failed to present swap chain image : %s\n",
             vulkan_error_as_string(result));
@@ -949,8 +950,8 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr);
   m_swapchain_images.resize(image_count);
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
-  while (m_images_present_semaphores_.size() < image_count) {
-    m_images_present_semaphores_.push_back({});
+  while (m_images_present_wait_semaphores_.size() < image_count) {
+    m_images_present_wait_semaphores_.push_back({});
   }
   VkFenceCreateInfo fence_info = {};
   fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;

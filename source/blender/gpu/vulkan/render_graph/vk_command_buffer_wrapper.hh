@@ -148,7 +148,7 @@ class VKCommandBufferInterface {
 
 class VKCommandBufferWrapper : public VKCommandBufferInterface {
  private:
-  Vector<VKTimelineSemaphoreWaitInfo> waits_for_present;
+  Vector<VKTimelineSemaphoreWaitInfo> submit_for_present_wait_info_;
   VkCommandPoolCreateInfo vk_command_pool_create_info_;
   VkCommandBufferAllocateInfo vk_command_buffer_allocate_info_;
   VkCommandBufferBeginInfo vk_command_buffer_begin_info_;

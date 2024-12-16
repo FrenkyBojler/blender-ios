@@ -32,7 +32,6 @@ class VKDiscardPool {
  private:
   Vector<VKTimelineSemaphore> timeline_semaphores_pool_;
   Vector<VKTimelineSemaphore> submit_semaphores_;
-  VkFence semaphores_guard_;
 
   Vector<std::pair<VkImage, VmaAllocation>> images_;
   Vector<std::pair<VkBuffer, VmaAllocation>> buffers_;

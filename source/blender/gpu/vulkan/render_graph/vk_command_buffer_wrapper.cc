@@ -100,10 +100,15 @@ VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronizat
     Vector<uint64_t> wait_values;
     if (vk_present_signal_semaphore) {
       /* Submit for present must wait previous submissions in frame. */
-      for (auto &wait_info : waits_for_present) {
+      for (auto &wait_info : submit_for_present_wait_info_) {
         wait_semaphores.append(wait_info.semaphore);
         wait_values.append(wait_info.value);
       }
+      submit_for_present_wait_info_.clear();
+    }
+    else {
+      submit_for_present_wait_info_.append(
+          {submit_signal_info.semaphore, submit_signal_info.value});
     }
     Vector<VkPipelineStageFlags> wait_stages(wait_semaphores.size(),
                                              VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
@@ -136,13 +141,7 @@ VKTimelineSemaphoreWaitInfo VKCommandBufferWrapper::submit_with_cpu_synchronizat
 
     vk_submit_info.pNext = &timeline_submit_info;
     vkQueueSubmit(device.queue_get(), 1, &vk_submit_info, vk_fence);
-    if (vk_present_signal_semaphore) {
-      /* When is submission for present, clear previous submissions wait info whiting frame now. */
-      waits_for_present.clear();
-    }
-    else {
-      waits_for_present.append({submit_signal_info.semaphore, submit_signal_info.value});
-    }
+
     return {submit_signal_info.semaphore, submit_signal_info.value};
   }();
   device.discard_pool_for_current_thread(true).discard_command_buffer(vk_command_buffer_,
@@ -160,7 +159,7 @@ void VKCommandBufferWrapper::wait_for_cpu_synchronization(VKTimelineSemaphoreWai
   vk_wait_info.pValues = &wait_info.value;
   VKDevice &device = VKBackend::get().device;
   vkWaitSemaphores(device.vk_handle(), &vk_wait_info, UINT64_MAX);
-  waits_for_present.remove_if([&](VKTimelineSemaphoreWaitInfo &test) {
+  submit_for_present_wait_info_.remove_if([&](VKTimelineSemaphoreWaitInfo &test) {
     return test.semaphore == wait_info.semaphore && test.value <= wait_info.value;
   });
 }
