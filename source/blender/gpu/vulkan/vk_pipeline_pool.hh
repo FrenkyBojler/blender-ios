@@ -113,11 +113,12 @@ struct VKGraphicsInfo {
                  viewports.size() * sizeof(VkViewport)) != 0)
       {
         return false;
-      };
+      }
+
       if (memcmp(scissors.data(), other.scissors.data(), scissors.size() * sizeof(VkRect2D)) != 0)
       {
         return false;
-      };
+      }
 
       return true;
     }
