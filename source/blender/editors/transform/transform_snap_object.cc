@@ -5,7 +5,7 @@
 /** \file
  * \ingroup edtransform
  */
-
+#include <cstdio>
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
@@ -854,14 +854,8 @@ eSnapMode snap_object_center(SnapObjectContext *sctx,
                              const float4x4 &obmat,
                              eSnapMode snap_to_flag)
 {
-  /* May extend later (for now just snaps to empty or camera center). */
 
-  if (ob_eval->transflag & OB_DUPLI) {
-    return SCE_SNAP_TO_NONE;
-  }
-
-  /* For now only vertex supported. */
-  if ((snap_to_flag & SCE_SNAP_TO_POINT) == 0) {
+  if ((snap_to_flag & SCE_SNAP_TO_ORIGIN) == 0) {
     return SCE_SNAP_TO_NONE;
   }
 
@@ -871,7 +865,7 @@ eSnapMode snap_object_center(SnapObjectContext *sctx,
 
   if (nearest2d.snap_point(float3(0.0f))) {
     nearest2d.register_result(sctx, ob_eval, static_cast<const ID *>(ob_eval->data));
-    return SCE_SNAP_TO_POINT;
+    return SCE_SNAP_TO_ORIGIN;
   }
 
   return SCE_SNAP_TO_NONE;
@@ -901,39 +895,38 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     return SCE_SNAP_TO_NONE;
   }
 
+  eSnapMode retval, tmp = SCE_SNAP_TO_NONE;
+
+  retval = snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+
   if (GS(ob_data->name) == ID_ME) {
     if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_SURF) &&
         (sctx->runtime.params.edit_mode_type != SNAP_GEOM_FINAL))
     {
       /* The final Curves geometry is generated as a Mesh. Skip this Mesh if the target is not
        * #SNAP_GEOM_FINAL. */
-      return SCE_SNAP_TO_NONE;
+      tmp = SCE_SNAP_TO_NONE;
     }
-    return snap_object_mesh(sctx, ob_eval, ob_data, obmat, sctx->runtime.snap_to_flag, use_hide);
+    tmp = snap_object_mesh(sctx, ob_eval, ob_data, obmat, sctx->runtime.snap_to_flag, use_hide);
   }
 
-  eSnapMode retval = SCE_SNAP_TO_NONE;
   switch (ob_eval->type) {
-    case OB_MESH: {
+    case OB_CAMERA:
+      tmp = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
       break;
-    }
     case OB_ARMATURE:
-      retval = snapArmature(sctx, ob_eval, obmat, is_object_active);
+      tmp = snapArmature(sctx, ob_eval, obmat, is_object_active);
       break;
     case OB_CURVES_LEGACY:
     case OB_SURF:
       if (ob_eval->type == OB_CURVES_LEGACY || BKE_object_is_in_editmode(ob_eval)) {
-        retval = snapCurve(sctx, ob_eval, obmat);
+        tmp = snapCurve(sctx, ob_eval, obmat);
       }
       break;
-    case OB_FONT:
-    case OB_EMPTY:
-    case OB_LAMP:
-      retval = snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
-      break;
-    case OB_CAMERA:
-      retval = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
-      break;
+  }
+
+  if (tmp != SCE_SNAP_TO_NONE) {
+    retval = tmp;
   }
 
   return retval;
@@ -1387,7 +1380,7 @@ eSnapMode ED_transform_snap_object_project_view3d_ex(SnapObjectContext *sctx,
 
   snap_to_flag = sctx->runtime.snap_to_flag;
 
-  BLI_assert(snap_to_flag & (SCE_SNAP_TO_GEOM | SCE_SNAP_TO_GRID | SCE_SNAP_INDIVIDUAL_NEAREST));
+  BLI_assert(snap_to_flag & (SCE_SNAP_TO_GEOM | SCE_SNAP_TO_GRID | SCE_SNAP_INDIVIDUAL_NEAREST | SCE_SNAP_TO_ORIGIN));
 
   bool has_hit = false;
 
@@ -1415,7 +1408,7 @@ eSnapMode ED_transform_snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (snap_to_flag & (SCE_SNAP_TO_POINT | SNAP_TO_EDGE_ELEMENTS)) {
+  if (snap_to_flag & (SCE_SNAP_TO_POINT | SNAP_TO_EDGE_ELEMENTS | SCE_SNAP_TO_ORIGIN)) {
     eSnapMode elem_test, elem = SCE_SNAP_TO_NONE;
 
     /* Remove what has already been computed. */
