@@ -10,6 +10,8 @@
 #include "vk_render_graph.hh"
 #include "vk_to_string.hh"
 
+#include <sstream>
+
 namespace blender::gpu::render_graph {
 
 VKCommandBuilder::VKCommandBuilder()
@@ -105,19 +107,14 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
       build_pipeline_barriers(render_graph, node_handle, node.pipeline_stage_get(), barrier);
       if (!barrier.is_empty()) {
 #if 1
-        for (const VkImageMemoryBarrier &image_memory_barrier :
-             vk_image_memory_barriers_.as_span().slice(barrier.image_memory_barriers))
-        {
-          std::cout << __func__ << "  - vk_image=" << image_memory_barrier.image
-                    << ", old_layout=" << to_string(image_memory_barrier.oldLayout)
-                    << ", new_layout=" << to_string(image_memory_barrier.newLayout) << "\n";
-        }
+        std::cout << __func__ << ": " << to_string_barrier(barrier);
 #endif
         barrier_list_.append(barrier);
       }
     }
     group_pre_barriers_.append(group_barriers.with_new_end(barrier_list_.size()));
   }
+  BLI_assert(group_pre_barriers_.size() == group_nodes_.size());
 }
 
 void VKCommandBuilder::sub_builders_init(Span<NodeHandle> /*node_handles*/)
@@ -170,6 +167,10 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
   /* Record group pre barriers. */
   for (BarrierIndex barrier_index : group_pre_barriers_[group_index]) {
     Barrier &barrier = barrier_list_[barrier_index];
+#if 1
+    std::cout << __func__ << ": node_group=" << group_index << ", barrier=("
+              << to_string_barrier(barrier) << ")\n";
+#endif
     send_pipeline_barriers(command_buffer, barrier);
   }
 
@@ -431,7 +432,7 @@ void VKCommandBuilder::add_buffer_read_barriers(VKRenderGraph &render_graph,
       resource_state.vk_pipeline_stages |= node_stages;
     }
 
-    add_buffer_barrier(resource.buffer.vk_buffer, wait_access, link.vk_access_flags);
+    add_buffer_barrier(resource.buffer.vk_buffer, r_barrier, wait_access, link.vk_access_flags);
   }
 }
 
@@ -458,16 +459,20 @@ void VKCommandBuilder::add_buffer_write_barriers(VKRenderGraph &render_graph,
     resource_state.vk_pipeline_stages = node_stages;
 
     if (wait_access != VK_ACCESS_NONE) {
-      add_buffer_barrier(resource.buffer.vk_buffer, wait_access, link.vk_access_flags);
+      add_buffer_barrier(resource.buffer.vk_buffer, r_barrier, wait_access, link.vk_access_flags);
     }
   }
 }
 
 void VKCommandBuilder::add_buffer_barrier(VkBuffer vk_buffer,
+                                          Barrier &r_barrier,
                                           VkAccessFlags src_access_mask,
                                           VkAccessFlags dst_access_mask)
 {
-  for (VkBufferMemoryBarrier &vk_buffer_memory_barrier : vk_buffer_memory_barriers_) {
+  for (VkBufferMemoryBarrier &vk_buffer_memory_barrier :
+       vk_buffer_memory_barriers_.as_mutable_span().drop_front(
+           r_barrier.buffer_memory_barriers.start()))
+  {
     if (vk_buffer_memory_barrier.buffer == vk_buffer) {
       /* When registering read/write buffers, it can be that the node internally requires
        * read/write. In this case we adjust the dstAccessMask of the read barrier. */
@@ -625,9 +630,9 @@ void VKCommandBuilder::add_image_barrier(VkImage vk_image,
                                          uint32_t layer_count)
 {
   BLI_assert(aspect_mask != VK_IMAGE_ASPECT_NONE);
-  // TODO: We should only check the barriers inside the current node.
   for (VkImageMemoryBarrier &vk_image_memory_barrier :
-       vk_image_memory_barriers_.as_mutable_span().slice(r_barrier.image_memory_barriers))
+       vk_image_memory_barriers_.as_mutable_span().drop_front(
+           r_barrier.image_memory_barriers.start()))
   {
     if (vk_image_memory_barrier.image == vk_image) {
       /* When registering read/write buffers, it can be that the node internally requires
@@ -656,8 +661,6 @@ void VKCommandBuilder::add_image_barrier(VkImage vk_image,
   vk_image_memory_barrier_.subresourceRange.baseArrayLayer = layer_base;
   vk_image_memory_barrier_.subresourceRange.layerCount = layer_count;
   vk_image_memory_barriers_.append(vk_image_memory_barrier_);
-  r_barrier.image_memory_barriers = r_barrier.image_memory_barriers.with_new_end(
-      vk_image_memory_barriers_.size());
   /* Reset state for reuse. */
   vk_image_memory_barrier_.srcAccessMask = VK_ACCESS_NONE;
   vk_image_memory_barrier_.dstAccessMask = VK_ACCESS_NONE;
@@ -818,6 +821,41 @@ void VKCommandBuilder::layer_tracking_resume(VKCommandBufferInterface &command_b
                                              vk_image_memory_barriers_.size() - start_index);
   send_pipeline_barriers(command_buffer, barrier);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Debugging tools
+ * \{ */
+
+std::string VKCommandBuilder::to_string_barrier(const Barrier &barrier)
+{
+  std::stringstream ss;
+  ss << "src_stage_mask=" << to_string_vk_pipeline_stage_flags(barrier.src_stage_mask)
+     << ", dst_stage_mask=" << to_string_vk_pipeline_stage_flags(barrier.dst_stage_mask) << "\n";
+  for (const VkBufferMemoryBarrier &buffer_memory_barrier :
+       vk_buffer_memory_barriers_.as_span().slice(barrier.buffer_memory_barriers))
+  {
+    ss << "  - vk_buffer=" << buffer_memory_barrier.buffer
+       << ", src_access_mask=" << to_string_vk_access_flags(buffer_memory_barrier.srcAccessMask)
+       << ", dst_access_mask=" << to_string_vk_access_flags(buffer_memory_barrier.dstAccessMask)
+       << "\n";
+  }
+
+  for (const VkImageMemoryBarrier &image_memory_barrier :
+       vk_image_memory_barriers_.as_span().slice(barrier.image_memory_barriers))
+  {
+    ss << "  - vk_image=" << image_memory_barrier.image
+       << ", old_layout=" << to_string(image_memory_barrier.oldLayout)
+       << ", new_layout=" << to_string(image_memory_barrier.newLayout)
+       << ", src_access_mask=" << to_string_vk_access_flags(image_memory_barrier.srcAccessMask)
+       << ", dst_access_mask=" << to_string_vk_access_flags(image_memory_barrier.dstAccessMask)
+       << "\n";
+  }
+
+  return ss.str();
+}
+
 /** \} */
 
 }  // namespace blender::gpu::render_graph

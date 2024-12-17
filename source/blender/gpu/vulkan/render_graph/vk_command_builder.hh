@@ -214,6 +214,7 @@ class VKCommandBuilder {
                            VkPipelineStageFlags node_stages,
                            Barrier &r_barrier);
   void add_buffer_barrier(VkBuffer vk_buffer,
+                          Barrier &r_barrier,
                           VkAccessFlags src_access_mask,
                           VkAccessFlags dst_access_mask);
   void add_buffer_read_barriers(VKRenderGraph &render_graph,
@@ -265,6 +266,8 @@ class VKCommandBuilder {
   void finish_debug_groups(VKCommandBufferInterface &command_buffer);
 
  private:
+  std::string to_string_barrier(const Barrier &barrier);
+
   /**
    * Update the layered attachments list when beginning a new render scope.
    */
