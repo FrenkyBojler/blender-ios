@@ -48,12 +48,12 @@ VKCommandBuilder::VKCommandBuilder()
 
 void VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
                                    VKCommandBufferInterface &command_buffer,
-                                   Span<NodeHandle> nodes)
+                                   Span<NodeHandle> node_handles)
 {
-  groups_init(render_graph, nodes);
-  sub_builders_init(nodes);
-  groups_extract_barriers(render_graph);
-  sub_builders_build_commands(render_graph, command_buffer, nodes);
+  groups_init(render_graph, node_handles);
+  groups_extract_barriers(render_graph, node_handles);
+  sub_builders_init(node_handles);
+  sub_builders_build_commands(render_graph, command_buffer, node_handles);
   sub_builders_record_to_primary_command_buffer(command_buffer);
 }
 
@@ -80,7 +80,8 @@ void VKCommandBuilder::groups_init(const VKRenderGraph &render_graph,
   }
 }
 
-void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph)
+void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
+                                               Span<NodeHandle> node_handles)
 {
   barrier_list_.clear();
   vk_buffer_memory_barriers_.clear();
@@ -91,8 +92,8 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph)
   for (const int64_t group_index : group_nodes_.index_range()) {
     Barriers group_barriers(barrier_list_.size(), 0);
     const GroupNodes &node_group = group_nodes_[group_index];
-    for (const int64_t group_node_index : node_group.index_range()) {
-      NodeHandle node_handle = node_group[group_node_index];
+    for (const int64_t group_node_index : node_group) {
+      NodeHandle node_handle = node_handles[group_node_index];
       VKRenderGraphNode &node = render_graph.nodes_[node_handle];
       Barrier barrier = {};
 #if 1
@@ -103,6 +104,15 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph)
 #endif
       build_pipeline_barriers(render_graph, node_handle, node.pipeline_stage_get(), barrier);
       if (!barrier.is_empty()) {
+#if 1
+        for (const VkImageMemoryBarrier &image_memory_barrier :
+             vk_image_memory_barriers_.as_span().slice(barrier.image_memory_barriers))
+        {
+          std::cout << __func__ << "  - vk_image=" << image_memory_barrier.image
+                    << ", old_layout=" << to_string(image_memory_barrier.oldLayout)
+                    << ", new_layout=" << to_string(image_memory_barrier.newLayout) << "\n";
+        }
+#endif
         barrier_list_.append(barrier);
       }
     }
@@ -154,19 +164,18 @@ void VKCommandBuilder::sub_builders_record_to_primary_command_buffer(
 void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
                                         VKCommandBufferInterface &command_buffer,
                                         Span<NodeHandle> node_handles,
-                                        int64_t node_group_index,
+                                        int64_t group_index,
                                         std::optional<NodeHandle> &r_rendering_scope)
 {
-  bool is_rendering = false;
-  IndexRange group_nodes = group_nodes_[node_group_index];
-  Span<NodeHandle> group_node_handles = node_handles.slice(group_nodes);
-
   /* Record group pre barriers. */
-  for (BarrierIndex barrier_index : group_pre_barriers_[node_group_index]) {
-    Barrier barrier = barrier_list_[barrier_index];
+  for (BarrierIndex barrier_index : group_pre_barriers_[group_index]) {
+    Barrier &barrier = barrier_list_[barrier_index];
     send_pipeline_barriers(command_buffer, barrier);
   }
 
+  bool is_rendering = false;
+  IndexRange group_nodes = group_nodes_[group_index];
+  Span<NodeHandle> group_node_handles = node_handles.slice(group_nodes);
   for (int64_t group_node_index : group_nodes.index_range()) {
     NodeHandle node_handle = group_nodes[group_node_index];
     VKRenderGraphNode &node = render_graph.nodes_[node_handle];
@@ -215,9 +224,11 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
     if (G.debug & G_DEBUG_GPU) {
       activate_debug_group(render_graph, command_buffer, node_handle);
     }
-#if 0
-    std::cout << "node_group=" << node_group.first() << "-" << node_group.last()
-              << ", node_handle=" << node_handle << ", node_type=" << node.type
+#if 1
+    std::cout << __func__ << ": node_group=" << group_index
+              << ", node_group_range=" << group_node_handles.first() << "-"
+              << group_node_handles.last() << ", node_handle=" << node_handle
+              << ", node_type=" << node.type
               << ", debug group=" << render_graph.full_debug_group(node_handle) << "\n";
 
 #endif

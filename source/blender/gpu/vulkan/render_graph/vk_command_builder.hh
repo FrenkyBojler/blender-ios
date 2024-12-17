@@ -163,7 +163,7 @@ class VKCommandBuilder {
    * This process is single threaded as resource states change during the extraction process. The
    * result of this function would allow the sub builders to be built in parallel.
    */
-  void groups_extract_barriers(VKRenderGraph &render_graph);
+  void groups_extract_barriers(VKRenderGraph &render_graph, Span<NodeHandle> node_handles);
 
   /**
    * Create sub builders for the given node_handles.
