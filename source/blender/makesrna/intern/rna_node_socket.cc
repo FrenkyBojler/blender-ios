@@ -427,7 +427,7 @@ void rna_NodeSocketStandard_vector_range(
 float rna_NodeSocketStandard_float_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
-  if (!sock->runtime || !sock->runtime->declaration) {
+  if (!sock->runtime->declaration) {
     return 0.0f;
   }
   auto *decl = static_cast<const blender::nodes::decl::Float *>(sock->runtime->declaration);
