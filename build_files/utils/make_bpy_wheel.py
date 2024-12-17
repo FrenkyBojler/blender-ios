@@ -37,6 +37,9 @@ import string
 import setuptools
 import sys
 
+from typing import (
+    Tuple,
+)
 from collections.abc import (
     Iterator,
     Sequence,
@@ -95,7 +98,7 @@ def find_dominating_file(
 # ------------------------------------------------------------------------------
 # CMake Cache Access
 
-def cmake_cache_var_iter(filepath_cmake_cache: str) -> Iterator[tuple[str, str, str]]:
+def cmake_cache_var_iter(filepath_cmake_cache: str) -> Iterator[Tuple[str, str, str]]:
     re_cache = re.compile(r"([A-Za-z0-9_\-]+)?:?([A-Za-z0-9_\-]+)?=(.*)$")
     with open(filepath_cmake_cache, "r", encoding="utf-8") as cache_file:
         for l in cache_file:
