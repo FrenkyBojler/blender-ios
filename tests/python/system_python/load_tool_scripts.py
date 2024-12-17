@@ -30,13 +30,8 @@ EXCLUDED_FILE_PATHS = {
     # Require `bpy` module.
     "doc/python_api/sphinx_doc_gen.py",
 
-    # Require `clang` module.
-    "build_files/cmake/cmake_static_check_clang.py",
-
     # XXX These scripts execute on import! bad, need to be fixed or removed.
     # FIXME: Should be reasonably trivial to fix/cleanup for most of them.
-    "build_files/cmake/cmake_netbeans_project.py",
-    "build_files/cmake/clang_array_check.py",
     "doc/python_api/conf.py",
 }
 
