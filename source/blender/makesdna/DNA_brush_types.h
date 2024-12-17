@@ -316,6 +316,9 @@ typedef struct Brush {
   /** Affectable height of brush (layer height for layer tool, i.e.). */
   float height;
 
+  float plane_depth;
+  float plane_height;
+
   float texture_sample_bias;
 
   int curve_preset;

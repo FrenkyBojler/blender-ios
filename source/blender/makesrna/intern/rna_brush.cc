@@ -425,6 +425,24 @@ static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
   return br->sculpt_brush_type == SCULPT_BRUSH_TYPE_LAYER;
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_plane_depth_get(PointerRNA* ptr)
+{
+  Brush* br = (Brush*)ptr->data;
+  return ELEM(br->sculpt_brush_type,
+    SCULPT_BRUSH_TYPE_FLATTEN,
+    SCULPT_BRUSH_TYPE_SCRAPE,
+    SCULPT_BRUSH_TYPE_FILL);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA* ptr)
+{
+  Brush* br = (Brush*)ptr->data;
+  return ELEM(br->sculpt_brush_type,
+    SCULPT_BRUSH_TYPE_FLATTEN,
+    SCULPT_BRUSH_TYPE_SCRAPE,
+    SCULPT_BRUSH_TYPE_FILL);
+}
+
 static bool rna_BrushCapabilitiesSculpt_has_jitter_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
@@ -1257,6 +1275,8 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
   SCULPT_BRUSH_CAPABILITY(has_auto_smooth, "Has Auto Smooth");
   SCULPT_BRUSH_CAPABILITY(has_topology_rake, "Has Topology Rake");
   SCULPT_BRUSH_CAPABILITY(has_height, "Has Height");
+  SCULPT_BRUSH_CAPABILITY(has_plane_depth, "Has Plane Depth");
+  SCULPT_BRUSH_CAPABILITY(has_plane_height, "Has Plane Height");
   SCULPT_BRUSH_CAPABILITY(has_jitter, "Has Jitter");
   SCULPT_BRUSH_CAPABILITY(has_normal_weight, "Has Crease/Pinch Factor");
   SCULPT_BRUSH_CAPABILITY(has_rake_factor, "Has Rake Factor");
@@ -2996,6 +3016,28 @@ static void rna_def_brush(BlenderRNA *brna)
       prop,
       "Brush Height",
       "Affectable height of brush (i.e. the layer height for the layer tool)");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "plane_depth", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "plane_depth");
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_range(prop, 0, 1.0f);
+  RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
+  RNA_def_property_ui_text(
+    prop,
+    "Depth",
+    "Depth"); //TODO: add description
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "plane_height", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "plane_height");
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_range(prop, 0, 1.0f);
+  RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
+  RNA_def_property_ui_text(
+    prop,
+    "Height",
+    "Height"); //TODO: add description
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);
