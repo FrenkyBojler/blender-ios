@@ -854,6 +854,10 @@ DEF_ICON(USER)
 DEF_ICON(EXPERIMENTAL)
 DEF_ICON(MEMORY)
 
+/* TEXT CHARACTERS */
+DEF_ICON(CHAR_NOTDEF)
+DEF_ICON(CHAR_REPLACEMENT)
+
 /* The items above are initiated sequentially while the ones that
  * follow are initiated individually. Therefore this item marks
  * the boundary. Add regular SVG icons above this one. */

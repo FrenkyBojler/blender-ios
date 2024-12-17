@@ -408,8 +408,6 @@ enum {
   BLF_MONOSPACED = 1 << 13,
   /** A font within the default stack of fonts. */
   BLF_DEFAULT = 1 << 14,
-  /** Must only be used as last font in the stack. */
-  BLF_LAST_RESORT = 1 << 15,
   /** Failure to load this font. Don't try again. */
   BLF_BAD_FONT = 1 << 16,
   /** This font is managed by the FreeType cache subsystem. */

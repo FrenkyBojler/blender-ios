@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 1250 1700"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="char_notdef.svg"
+   width="1250"
+   height="1700"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#6f9aba"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="0.45254834"
+     inkscape:cx="398.85242"
+     inkscape:cy="538.06407"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1"
+     showguides="false">
+    <inkscape:grid
+       id="grid1"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="50"
+       spacingy="50"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="2"
+       dotted="false"
+       gridanglex="30"
+       gridanglez="30"
+       visible="true" />
+  </sodipodi:namedview>
+  <!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+  <path
+     d="M 177.58991,1378.5458 472.08466,950.06894 177.58991,526.6302 Z m 70.28339,145.3936 H 847.74571 L 548.02961,1083.17 Z M 628.12587,950.06894 922.20023,1381.6708 V 526.6302 Z M 849.04715,381.72278 H 247.8733 l 298.59381,438.37055 z m -799.107825,-1.9269 c 0,-72.65498 56.125625,-131.60148 125.303845,-131.60148 H 927.066 c 69.17834,0 120.6159,58.9465 120.6159,131.60148 V 1520.3421 c 0,72.655 -51.43756,131.6014 -120.6159,131.6014 H 175.24317 c -69.17822,0 -125.303845,-58.9464 -125.303845,-131.6014 z"
+     id="path1"
+     style="fill:#ffffff;stroke-width:2.6753"
+     sodipodi:nodetypes="ccccccccccccccccsssssssss" />
+</svg>

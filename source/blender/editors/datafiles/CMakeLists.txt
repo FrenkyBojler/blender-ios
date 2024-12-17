@@ -234,6 +234,8 @@ if(WITH_BLENDER)
       cancel
       cancel_large
       center_only
+      char_notdef
+      char_replacement
       checkbox_dehlt
       checkbox_hlt
       checkmark
