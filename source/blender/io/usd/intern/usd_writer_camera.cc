@@ -58,7 +58,8 @@ static void camera_sensor_size_for_render(const Camera *camera,
 
 void USDCameraWriter::do_write(HierarchyContext &context)
 {
-  const float unit_scale = float(get_scene_scale_from_export_params(&usd_export_context_.export_params));
+  const float unit_scale = float(
+      get_scene_scale_from_export_params(&usd_export_context_.export_params));
 
   pxr::UsdTimeCode timecode = get_export_time_code();
   pxr::UsdGeomCamera usd_camera = pxr::UsdGeomCamera::Define(usd_export_context_.stage,

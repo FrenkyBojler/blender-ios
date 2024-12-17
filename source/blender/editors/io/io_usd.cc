@@ -195,12 +195,24 @@ const EnumPropertyItem rna_enum_usd_mtl_purpose_items[] = {
 const EnumPropertyItem rna_enum_usd_convert_scene_units_items[] = {
     {USD_SCENE_UNITS_METERS, "METERS", 0, "Meters", "Scene meters per unit to 1.0"},
     {USD_SCENE_UNITS_KILOMETERS, "KILOMETERS", 0, "Kilometers", "Scene meters per unit to 1000.0"},
-    {USD_SCENE_UNITS_CENTIMETERS, "CENTIMETERS", 0, "Centimeters", "Scene meters per unit to 0.01"},
-    {USD_SCENE_UNITS_MILLIMETERS, "MILLIMETERS", 0, "Millimeters", "Scene meters per unit to 0.001"},
+    {USD_SCENE_UNITS_CENTIMETERS,
+     "CENTIMETERS",
+     0,
+     "Centimeters",
+     "Scene meters per unit to 0.01"},
+    {USD_SCENE_UNITS_MILLIMETERS,
+     "MILLIMETERS",
+     0,
+     "Millimeters",
+     "Scene meters per unit to 0.001"},
     {USD_SCENE_UNITS_INCHES, "INCHES", 0, "Inches", "Scene meters per unit to 0.0254"},
     {USD_SCENE_UNITS_FEET, "FEET", 0, "Feet", "Scene meters per unit to 0.3048"},
     {USD_SCENE_UNITS_YARDS, "YARDS", 0, "Yards", "Scene meters per unit to 0.9144"},
-    {USD_SCENE_UNITS_CUSTOM, "CUSTOM", 0, "Custom", "Specify a custom scene meters per unit value"},
+    {USD_SCENE_UNITS_CUSTOM,
+     "CUSTOM",
+     0,
+     "Custom",
+     "Specify a custom scene meters per unit value"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -406,7 +418,6 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
   params.usdz_downscale_custom_size = usdz_downscale_custom_size;
   params.convert_scene_units = convert_scene_units;
   params.meters_per_unit = meters_per_unit;
-
 
   params.merge_parent_xform = merge_parent_xform;
 
@@ -887,7 +898,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
                "convert_scene_units",
                rna_enum_usd_convert_scene_units_items,
                eUSDSceneUnits::USD_SCENE_UNITS_METERS,
-               "Stage Meters Per Unit",
+               "t",
                "Set the USD Stage meters per unit to the chosen measurement, or a custom value");
 
   RNA_def_float(ot->srna,

@@ -43,7 +43,7 @@ pxr::UsdGeomXformable USDTransformWriter::create_xformable() const
 bool USDTransformWriter::should_apply_root_xform(const HierarchyContext &context) const
 {
   if (!(usd_export_context_.export_params.convert_orientation ||
-       usd_export_context_.export_params.convert_scene_units))
+        usd_export_context_.export_params.convert_scene_units))
   {
     return false;
   }
@@ -98,8 +98,9 @@ void USDTransformWriter::do_write(HierarchyContext &context)
         eUSDSceneUnits::USD_SCENE_UNITS_METERS)
     {
       float scale_mat[4][4];
-      scale_m4_fl(scale_mat,
-                  float(1.0 / get_scene_scale_from_export_params(&usd_export_context_.export_params)));
+      scale_m4_fl(
+          scale_mat,
+          float(1.0 / get_scene_scale_from_export_params(&usd_export_context_.export_params)));
       mul_m4_m4m4(matrix_world, scale_mat, matrix_world);
     }
 
