@@ -60,6 +60,14 @@ static void calc_local_positions(const float4x4& mat,
   }
 }
 
+static void calc_distances(const Span<float3> local_positions,
+  MutableSpan<float> distances)
+{
+  for (const int i : local_positions.index_range()) {
+    distances[i] = math::length(local_positions[i]);
+  }
+}
+
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
@@ -94,8 +102,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_distances(
-    ss, local_positions, eBrushFalloffShape(brush.falloff_shape), distances);
+  calc_distances(local_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -208,7 +215,6 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   float4 plane;
   plane_from_point_normal_v3(plane, area_co, area_no);
 
-  float4x4 mat;
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(area_no, ss.cache->grab_delta_symm);
   mat.y_axis() = math::cross(area_no, float3(mat[0]));
