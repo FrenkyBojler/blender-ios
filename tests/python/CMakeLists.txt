@@ -638,8 +638,6 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     message(
       WARNING "Disabling render tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
     )
-  elseif(NOT WITH_COMPOSITOR_CPU)
-    message(WARNING "Disabling render tests because WITH_COMPOSITOR_CPU is disabled")
   elseif(NOT WITH_OPENCOLORIO)
     message(WARNING "Disabling render tests because WITH_OPENCOLORIO is disabled")
   else()
@@ -657,7 +655,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       light_linking
       mesh
       pointcloud
-      principled
+      principled_bsdf
       shader
       shadow_catcher
       sss
@@ -727,7 +725,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
           if(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL)
             # OSL is only supported with CPU and OptiX
             # TODO: Enable OptiX support once it's more stable
-            if("${_cycles_device_lower}" STREQUAL "cpu")
+            if(("${_cycles_device_lower}" STREQUAL "cpu") OR ("${_cycles_device_lower}" STREQUAL "optix"))
               add_render_test(
                 ${_cycles_test_name}_osl
                 ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
@@ -736,7 +734,6 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
                 --device ${_cycles_device}
                 --osl
               )
-              # Doesn't do anything until OptiX is enabled
               if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
                 set_tests_properties(${_cycles_test_name}_osl PROPERTIES RUN_SERIAL TRUE)
               endif()
@@ -785,7 +782,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND)
+      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
             eevee_next_${render_test}_vulkan
@@ -825,7 +822,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND)
+      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
             workbench_${render_test}_vulkan
@@ -867,39 +864,36 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
   endif()
 endif()
 
-if(WITH_COMPOSITOR_CPU)
-  if(NOT OPENIMAGEIO_TOOL)
-    message(WARNING "Disabling Compositor CPU tests because OIIO oiiotool does not exist")
-  else()
-    set(compositor_tests
-      color
-      converter
-      filter
-      input
-      output
-      vector
+if(NOT OPENIMAGEIO_TOOL)
+  message(WARNING "Disabling Compositor tests because OIIO oiiotool does not exist")
+else()
+  set(compositor_tests
+    color
+    converter
+    filter
+    input
+    output
+    vector
 
-      multiple_node_setups
-    )
+    multiple_node_setups
+  )
 
-    if(WITH_LIBMV)
-      list(APPEND compositor_tests distort matte)
-    endif()
-
-    foreach(comp_test ${compositor_tests})
-      add_render_test(
-        compositor_${comp_test}_cpu
-        ${CMAKE_CURRENT_LIST_DIR}/compositor_cpu_render_tests.py
-        --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-        --outdir "${TEST_OUT_DIR}/compositor_cpu"
-      )
-    endforeach()
-
+  if(WITH_LIBMV)
+    list(APPEND compositor_tests distort matte)
   endif()
+
+  foreach(comp_test ${compositor_tests})
+    add_render_test(
+      compositor_${comp_test}_cpu
+      ${CMAKE_CURRENT_LIST_DIR}/compositor_cpu_render_tests.py
+      --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+      --outdir "${TEST_OUT_DIR}/compositor_cpu"
+    )
+  endforeach()
+
 endif()
 
-# NOTE: WITH_COMPOSITOR_CPU is needed for rendering.
-if(WITH_COMPOSITOR_REALTIME_TESTS AND WITH_COMPOSITOR_CPU)
+if(WITH_COMPOSITOR_REALTIME_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(WARNING "Disabling realtime compositor tests because OIIO oiiotool does not exist")
   else()
