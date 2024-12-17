@@ -681,40 +681,41 @@ bool ED_view3d_camera_autokey(
   using namespace blender;
 
   /* While `autokeyframe_object` does already call `autokeyframe_cfra_can_key` we need this here
-   * because at the time of writing this it returns void. Once the keying result is returned, this
-   * if can be removed.  */
-  if (animrig::autokeyframe_cfra_can_key(scene, id_key)) {
-    Object *camera_object = reinterpret_cast<Object *>(id_key);
-
-    Vector<RNAPath> rna_paths;
-
-    if (do_rotate) {
-      switch (camera_object->rotmode) {
-        case ROT_MODE_QUAT:
-          rna_paths.append({"rotation_quaternion"});
-          break;
-
-        case ROT_MODE_AXISANGLE:
-          rna_paths.append({"rotation_axis_angle"});
-          break;
-
-        case ROT_MODE_EUL:
-          rna_paths.append({"rotation_euler"});
-          break;
-
-        default:
-          break;
-      }
-    }
-    if (do_translate) {
-      rna_paths.append({"location"});
-    }
-
-    animrig::autokeyframe_object(C, scene, camera_object, rna_paths);
-    WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
-    return true;
+   * because at the time of writing this it returns void. Once the keying result is returned, like
+   * implemented for `blender::animrig::insert_keyframes`, this `if` can be removed. */
+  if (!animrig::autokeyframe_cfra_can_key(scene, id_key)) {
+    return false;
   }
-  return false;
+
+  Object *camera_object = reinterpret_cast<Object *>(id_key);
+
+  Vector<RNAPath> rna_paths;
+
+  if (do_rotate) {
+    switch (camera_object->rotmode) {
+      case ROT_MODE_QUAT:
+        rna_paths.append({"rotation_quaternion"});
+        break;
+
+      case ROT_MODE_AXISANGLE:
+        rna_paths.append({"rotation_axis_angle"});
+        break;
+
+      case ROT_MODE_EUL:
+        rna_paths.append({"rotation_euler"});
+        break;
+
+      default:
+        break;
+    }
+  }
+  if (do_translate) {
+    rna_paths.append({"location"});
+  }
+
+  animrig::autokeyframe_object(C, scene, camera_object, rna_paths);
+  WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  return true;
 }
 
 bool ED_view3d_camera_lock_autokey(
