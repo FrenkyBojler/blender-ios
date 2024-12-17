@@ -471,7 +471,7 @@ void VKCommandBuilder::add_image_read_barriers(VKRenderGraph &render_graph,
       continue;
     }
     if (within_rendering && link.vk_image_layout != VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) {
-      // allow only local read barriers inside rendering scope
+      /* allow only local read barriers inside rendering scope */
       continue;
     }
 
@@ -697,9 +697,7 @@ void VKCommandBuilder::layer_tracking_suspend(VKCommandBufferInterface &command_
             VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
         binding.vk_image_layout,
         supports_local_read ?
-              VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :  // support usage as both a color
-                                                          // attachment and input attachment
-                                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+              VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_IMAGE_ASPECT_COLOR_BIT,
         binding.layer,
         binding.layer_count);
