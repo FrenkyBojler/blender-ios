@@ -94,6 +94,7 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
         BLI_assert(!rendering_active);
         rendering_scope = node_handle;
         rendering_active = true;
+        // TODO: layered_image_tracker_.begin(render_graph, node_handle);
       }
 
       else if (node.type == VKNodeType::END_RENDERING) {
@@ -117,11 +118,25 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
         if (!barrier.is_empty()) {
           barrier_list_.append(barrier);
         }
+        // TODO: add layered_image_tracker_.resume() barriers to the group_pre_barriers.
         rendering_active = true;
       }
     }
 
     group_pre_barriers_.append(group_pre_barriers.with_new_end(barrier_list_.size()));
+
+    // TODO:  if last node is end_rendering we should add layered tracking.end to
+    // group_post_barriers.
+    //  This should be done at the end of rendering as they must be executed after the
+    //  RENDERING_END commands.
+
+    if (rendering_active) {
+#if 0
+    /* Suspend layered image tracker. When active the next group will always be a compute/data
+     * transfer group. */
+    layered_image_tracker_.suspend(...)
+#endif
+    }
   }
 
   BLI_assert(group_pre_barriers_.size() == group_nodes_.size());
@@ -170,6 +185,7 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
     bool is_rendering = false;
     IndexRange group_nodes = group_nodes_[group_index];
     Span<NodeHandle> group_node_handles = node_handles.slice(group_nodes);
+#if 0
     for (int64_t group_node_index : group_nodes.index_range()) {
       NodeHandle node_handle = group_nodes[group_node_index];
       VKRenderGraphNode &node = render_graph.nodes_[node_handle];
@@ -177,6 +193,7 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
         layered_image_tracker_.begin(render_graph, node_handle);
       }
     }
+#endif
 
     for (NodeHandle node_handle : group_node_handles) {
       VKRenderGraphNode &node = render_graph.nodes_[node_handle];
