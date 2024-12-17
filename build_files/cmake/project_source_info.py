@@ -92,7 +92,7 @@ def do_ignore(filepath: str, ignore_prefix_list: Union[Sequence[str], None]) -> 
     return any([relpath.startswith(prefix) for prefix in ignore_prefix_list])
 
 
-def makefile_log() -> list[str]:
+def makefile_log() -> List[str]:
     import subprocess
     import time
 
