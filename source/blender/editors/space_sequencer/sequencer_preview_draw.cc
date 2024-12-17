@@ -1125,7 +1125,10 @@ static void text_selection_draw(const bContext *C, const Sequence *seq, uint pos
         {character_end.position.x + character_end.advance_x, line_y, 0.0f},
     };
 
-    immUniformColor4fv(blender::float4(1.0f, 1.0f, 1.0f, 0.3f));
+    blender::float4 col;
+    UI_GetThemeColor4fv(TH_SEQ_SELECTED_TEXT, col);
+    immUniformColor4fv(col);
+
     immBegin(GPU_PRIM_TRIS, 6);
 
     for (int i : blender::IndexRange(0, 4)) {
@@ -1186,7 +1189,10 @@ static void text_edit_draw_cursor(const bContext *C, const Sequence *seq, uint p
   };
   const blender::float3 descender_offs{0.0f, float(text->font_descender), 0.0f};
 
-  immUniformColor4fv(blender::float4(0.43f, 0.65f, 1.0f, 0.8f));
+  blender::float4 col;
+  UI_GetThemeColor4fv(TH_SEQ_TEXT_CURSOR, col);
+  immUniformColor4fv(col);
+
   immBegin(GPU_PRIM_TRIS, 6);
 
   for (int i : blender::IndexRange(0, 4)) {
