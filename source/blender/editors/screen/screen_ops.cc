@@ -3130,7 +3130,7 @@ void ED_areas_do_frame_follow(bContext *C, bool center_view)
 
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-        /* Only frame/center the playhead here if editor type supports it */
+        /* Only frame/center the current-frame indicator here if editor type supports it */
         if (!screen_animation_region_supports_time_follow(eSpace_Type(area->spacetype),
                                                           eRegion_Type(region->regiontype)))
         {
@@ -3138,7 +3138,7 @@ void ED_areas_do_frame_follow(bContext *C, bool center_view)
         }
 
         if ((current_frame >= region->v2d.cur.xmin) && (current_frame <= region->v2d.cur.xmax)) {
-          /* The playhead is already in view, do nothing. */
+          /* The current-frame indicator is already in view, do nothing. */
           continue;
         }
 
@@ -5072,9 +5072,9 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
     RNA_boolean_set(&ptr, "use_hide_panels", true);
   }
 
-  uiItemO(layout, nullptr, ICON_NONE, "SCREEN_OT_area_dupli");
+  uiItemO(layout, std::nullopt, ICON_NONE, "SCREEN_OT_area_dupli");
   uiItemS(layout);
-  uiItemO(layout, nullptr, ICON_X, "SCREEN_OT_area_close");
+  uiItemO(layout, std::nullopt, ICON_X, "SCREEN_OT_area_close");
 }
 
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
@@ -5619,10 +5619,9 @@ static void SCREEN_OT_animation_step(wmOperatorType *ot)
 void ED_reset_audio_device(bContext *C)
 {
   /* If sound was playing back when we changed any sound settings, we need to make sure that
-   * we reinitalize the playback state properly. Audaspace pauses playback on re-initializing
-   * the playback device, so we need to make sure we re-initalize the playback state on our
-   * end as well. (Otherwise the sound device might be in a weird state and crashes Blender)
-   */
+   * we reinitialize the playback state properly. Audaspace pauses playback on re-initializing
+   * the playback device, so we need to make sure we reinitialize the playback state on our
+   * end as well. (Otherwise the sound device might be in a weird state and crashes Blender). */
   bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
   wmWindow *timer_win = nullptr;
   const bool is_playing = screen != nullptr;
@@ -5639,7 +5638,7 @@ void ED_reset_audio_device(bContext *C)
     ED_screen_animation_play(C, 0, 0);
   }
   Main *bmain = CTX_data_main(C);
-  /* Re-initalize the audio device. */
+  /* Re-initialize the audio device. */
   BKE_sound_init(bmain);
   if (is_playing) {
     /* We need to set the context window to the window that was playing back previously.
@@ -5768,20 +5767,21 @@ static int screen_animation_cancel_exec(bContext *C, wmOperator *op)
   bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
 
   if (screen) {
-    if (RNA_boolean_get(op->ptr, "restore_frame") && screen->animtimer) {
+    bool restore_start_frame = RNA_boolean_get(op->ptr, "restore_frame") && screen->animtimer;
+    int frame;
+    if (restore_start_frame) {
       ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
-      Scene *scene = CTX_data_scene(C);
-
-      /* reset current frame before stopping, and just send a notifier to deal with the rest
-       * (since playback still needs to be stopped)
-       */
-      scene->r.cfra = sad->sfra;
-
-      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+      frame = sad->sfra;
     }
 
-    /* call the other "toggling" operator to clean up now */
+    /* Stop playback */
     ED_screen_animation_play(C, 0, 0);
+    if (restore_start_frame) {
+      Scene *scene = CTX_data_scene(C);
+      /* reset current frame and just send a notifier to deal with the rest */
+      scene->r.cfra = frame;
+      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+    }
   }
 
   return OPERATOR_PASS_THROUGH;

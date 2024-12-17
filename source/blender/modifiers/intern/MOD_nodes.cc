@@ -172,13 +172,14 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   if (nmd->node_group == nullptr) {
     return;
   }
+  if (ID_MISSING(nmd->node_group)) {
+    return;
+  }
 
   DEG_add_node_tree_output_relation(ctx->node, nmd->node_group, "Nodes Modifier");
 
-  BLI_assert(nmd->node_group->runtime->geometry_nodes_eval_dependencies);
-  /* This intentionally makes a copy because a few extra dependencies are added below. */
   nodes::GeometryNodesEvalDependencies eval_deps =
-      *nmd->node_group->runtime->geometry_nodes_eval_dependencies;
+      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
 
   /* Create dependencies to data-blocks referenced by the settings in the modifier. */
   find_dependencies_from_settings(nmd->settings, eval_deps);
@@ -241,13 +242,17 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
   if (tree == nullptr) {
     return false;
   }
+  if (ID_MISSING(tree)) {
+    return false;
+  }
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
     if (bake.bake_mode == NODES_MODIFIER_BAKE_MODE_ANIMATION) {
       return true;
     }
   }
-  BLI_assert(tree->runtime->geometry_nodes_eval_dependencies);
-  return tree->runtime->geometry_nodes_eval_dependencies->time_dependent;
+  nodes::GeometryNodesEvalDependencies eval_deps =
+      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
+  return eval_deps.time_dependent;
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)

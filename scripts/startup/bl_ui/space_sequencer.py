@@ -885,6 +885,7 @@ class SEQUENCER_MT_strip_transform(Menu):
 
             layout.separator()
             layout.operator("sequencer.gap_remove").all = False
+            layout.operator("sequencer.gap_remove", text="Remove Gaps (All)").all = True
             layout.operator("sequencer.gap_insert")
 
 
@@ -990,9 +991,18 @@ class SEQUENCER_MT_strip(Menu):
 
         layout = self.layout
         st = context.space_data
-        has_sequencer, _has_preview = _space_view_types(st)
+        has_sequencer, has_preview = _space_view_types(st)
+
+        if has_preview:
+            layout.operator_context = 'INVOKE_REGION_PREVIEW'
+        else:
+            layout.operator_context = 'INVOKE_REGION_WIN'
 
         layout.menu("SEQUENCER_MT_strip_transform")
+
+        if has_preview:
+            layout.separator()
+            layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
 
         if has_sequencer:
             layout.menu("SEQUENCER_MT_strip_retiming")
@@ -1009,7 +1019,7 @@ class SEQUENCER_MT_strip(Menu):
 
             layout.operator("sequencer.copy", text="Copy")
             layout.operator("sequencer.paste", text="Paste")
-            layout.operator("sequencer.duplicate_move")
+            layout.operator("sequencer.duplicate_move", text="Duplicate")
 
         layout.separator()
         layout.operator("sequencer.delete", text="Delete")

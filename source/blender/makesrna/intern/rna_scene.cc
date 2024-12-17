@@ -4008,7 +4008,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Auto Keying", "Automatic keyframe insertion for objects, bones and masks");
   RNA_def_property_ui_icon(prop, ICON_RECORD_OFF, 1);
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_TIME, nullptr);
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_AUTO, nullptr);
 
   prop = RNA_def_property(srna, "auto_keying_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "autokey_mode");
@@ -7525,12 +7525,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, compositor_precision_items);
   RNA_def_property_ui_text(
       prop, "Compositor Precision", "The precision of compositor intermediate result");
-  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
-
-  prop = RNA_def_property(srna, "use_new_cpu_compositor", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "use_old_cpu_compositor", 1);
-  RNA_def_property_ui_text(
-      prop, "Use New CPU Compositor", "Use the new CPU compositor implementation");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
   /* Nestled Data. */
