@@ -723,6 +723,8 @@ void VKCommandBuilder::layer_tracking_resume(VKCommandBufferInterface &command_b
   /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
   state_.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
   state_.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  const VKDevice& device = VKBackend::get().device;
+  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
   for (const LayeredImageBinding &binding : state_.layered_bindings) {
     add_image_barrier(
         binding.vk_image,
@@ -732,7 +734,7 @@ void VKCommandBuilder::layer_tracking_resume(VKCommandBufferInterface &command_b
         VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
             VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
             VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        supports_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR  : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         binding.vk_image_layout,
         VK_IMAGE_ASPECT_COLOR_BIT,
         binding.layer,
