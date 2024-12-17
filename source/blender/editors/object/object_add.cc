@@ -3086,23 +3086,6 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
   return newob;
 }
 
-static void mesh_to_grease_pencil_info(const bool generate_faces,
-                                       const Span<int2> edges,
-                                       const OffsetIndices<int> faces,
-                                       int &r_total_points,
-                                       int &r_total_curves)
-{
-  const int edges_num = edges.size();
-  if (!generate_faces) {
-    r_total_curves = edges_num;
-    r_total_points = r_total_curves * 2;
-    return;
-  }
-
-  r_total_curves = edges_num + faces.size();
-  r_total_points = edges_num * 2 + faces.total_size();
-}
-
 static int mesh_to_grease_pencil_add_material(Main &bmain,
                                               Object &ob_grease_pencil,
                                               const char *name,
@@ -3178,9 +3161,17 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const Span<int> corner_verts = mesh_eval->corner_verts();
 
   int total_points, total_curves;
-  mesh_to_grease_pencil_info(generate_faces, edges, faces, total_points, total_curves);
+  const int edges_num = edges.size();
+  if (generate_faces) {
+    total_curves = edges_num + faces.size();
+    total_points = edges_num * 2 + faces.total_size();
+  }
+  else {
+    total_curves = edges_num;
+    total_points = total_curves * 2;
+  }
 
-  drawing->strokes_for_write() = bke::CurvesGeometry(total_points, total_curves);
+  drawing->strokes_for_write().resize(total_points, total_curves);
   bke::CurvesGeometry &curves = drawing->strokes_for_write();
 
   MutableSpan<float3> positions = curves.positions_for_write();
@@ -3191,7 +3182,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
       curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
                                                                       bke::AttrDomain::Curve);
 
-  /* Need to set poly type because otherwise it will all be curvy by default. */
+  /* The default curve type is #CURVE_TYPE_CATMULL_ROM, but we need poly curves. */
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
   /* Fill faces first, so this way strokes can draw on top of the filled faces. */
