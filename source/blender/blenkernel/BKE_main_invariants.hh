@@ -1,0 +1,28 @@
+/* SPDX-FileCopyrightText: 2024 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+struct Main;
+
+/**
+ * Makes sure that invariants in original DNA data are maintained after changes.
+ *
+ * This function has to be idempotent, i.e. after calling it once, additional calls should not
+ * modify DNA data further. If it would, it would imply that this function does more than
+ * maintaining invariants.
+ *
+ * This has to be called after any kind of change to original DNA data that may be involved in some
+ * of the maintained invariants. It's possible to do multiple changes in a row and then fixing all
+ * invariants with a single call in the end. Obviously, the invariants are not maintained in the
+ * meantime then.
+ *
+ * If nothing is changed, this function does nothing and it should not be slower than checking a
+ * flag on every data-block in the given bmain.
+ *
+ * Examples of maintained invariants:
+ * - Group nodes need to have the correct sockets based on the referenced node group.
+ * - The geometry nodes modifier needs to have the correct inputs based on the referenced group.
+ */
+void BKE_main_ensure_invariants(Main &bmain);
