@@ -1785,6 +1785,29 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
   return info;
 }
 
+static void initialize_curves_builtin_attribute_defaults(
+    const AllCurvesInfo &all_curves_info,
+    const Map<std::string, GPointer> &custom_fallback_values,
+    InstanceContext &attribute_fallbacks)
+{
+  if (all_curves_info.order.is_empty()) {
+    return;
+  }
+  const Curves *first = all_curves_info.order[0];
+  const bke::CurvesGeometry &first_curves = first->geometry.wrap();
+  for (const int attribute_i : attribute_fallbacks.curves.array.index_range()) {
+    const StringRef attribute_id = all_curves_info.attributes.ids[attribute_i];
+    if (custom_fallback_values.contains(attribute_id)) {
+      attribute_fallbacks.curves.array[attribute_i] =
+          custom_fallback_values.lookup(attribute_id).get();
+    }
+    else if (first_curves.attributes().is_builtin(attribute_id)) {
+      attribute_fallbacks.curves.array[attribute_i] =
+          first_curves.attributes().get_builtin_default(attribute_id).get();
+    }
+  }
+}
+
 static void execute_realize_curve_task(const RealizeInstancesOptions &options,
                                        const AllCurvesInfo &all_curves_info,
                                        const RealizeCurveTask &task,
@@ -2365,6 +2388,12 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
 
   const float4x4 transform = float4x4::identity();
   InstanceContext attribute_fallbacks(gather_info);
+
+  initialize_curves_builtin_attribute_defaults(
+      all_curves_info,
+      options.custom_attribute_fallback_values
+          .components[size_t(bke::GeometryComponent::Type::Curve)],
+      attribute_fallbacks);
 
   gather_realize_tasks_recursive(
       gather_info, 0, VariedDepthOptions::MAX_DEPTH, geometry_set, transform, attribute_fallbacks);
