@@ -75,16 +75,10 @@ class Context : public realtime_compositor::Context {
     return true;
   }
 
-  const eCompositorDenoiseQaulity denoise_preview_quality() const override
+  eCompositorDenoiseQaulity get_denoise_quality() const override
   {
     return static_cast<eCompositorDenoiseQaulity>(
         this->get_render_data().compositor_denoise_viewport_quality);
-  }
-
-  const eCompositorDenoiseQaulity denoise_final_quality() const override
-  {
-    return static_cast<eCompositorDenoiseQaulity>(
-        this->get_render_data().compositor_denoise_final_quality);
   }
 
   bool use_file_output() const override
