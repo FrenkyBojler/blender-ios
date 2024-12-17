@@ -813,7 +813,7 @@ static int sequencer_text_edit_paste_exec(bContext *C, wmOperator * /*op*/)
   delete_selected_text(data);
 
   int clipboard_len;
-  const char *clipboard_buf = WM_clipboard_text_get(false, true, &clipboard_len);
+  char *clipboard_buf = WM_clipboard_text_get(false, true, &clipboard_len);
 
   if (clipboard_len == 0) {
     return OPERATOR_CANCELLED;
@@ -832,6 +832,7 @@ static int sequencer_text_edit_paste_exec(bContext *C, wmOperator * /*op*/)
 
   data->cursor_offset += BLI_strlen_utf8(clipboard_buf);
 
+  MEM_freeN(clipboard_buf);
   text_editing_update(C);
   return OPERATOR_FINISHED;
 }
