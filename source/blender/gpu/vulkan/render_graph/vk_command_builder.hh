@@ -37,6 +37,11 @@ class VKCommandBuilder {
 
     VkPipelineStageFlags src_stage_mask = VK_PIPELINE_STAGE_NONE;
     VkPipelineStageFlags dst_stage_mask = VK_PIPELINE_STAGE_NONE;
+
+    bool is_empty()
+    {
+      return buffer_memory_barriers.is_empty() && image_memory_barriers.is_empty();
+    }
   };
   struct GroupNodeBarriers {
 
@@ -65,6 +70,12 @@ class VKCommandBuilder {
    * `build_nodes`.
    */
   using GroupNodes = IndexRange;
+
+  /**
+   * Index range into barrier_list_;
+   */
+  using Barriers = IndexRange;
+  using BarrierIndex = int64_t;
 
  private:
   /* Pool of VKBufferMemoryBarriers that can be reused when building barriers */
@@ -111,9 +122,10 @@ class VKCommandBuilder {
   /** Per group store the indices of the nodes. */
   Vector<GroupNodes> group_nodes_;
   /** Per group per node in group its pre execution barriers. */
-  Vector<Vector<Barrier>> group_pre_barriers_;
-  /** Per group per node in group its post execution barriers. */
-  Vector<Vector<Barrier>> group_post_barriers_;
+  Vector<Barriers> group_pre_barriers_;
+
+  /** List of all generated barriers. */
+  Vector<Barrier> barrier_list_;
 
  public:
   VKCommandBuilder();

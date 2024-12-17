@@ -82,21 +82,19 @@ void VKCommandBuilder::groups_init(const VKRenderGraph &render_graph,
 
 void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph)
 {
+  barrier_list_.clear();
   vk_buffer_memory_barriers_.clear();
   vk_image_memory_barriers_.clear();
 
-  // TODO: do custom clearing this way internal vectors are not destructed.
   /* Extract the pre barriers. */
   group_pre_barriers_.clear();
-  group_pre_barriers_.append_n_times({}, group_nodes_.size());
   for (const int64_t group_index : group_nodes_.index_range()) {
+    Barriers group_barriers(barrier_list_.size(), 0);
     const GroupNodes &node_group = group_nodes_[group_index];
-    Vector<Barrier> &group_barriers = group_pre_barriers_[group_index];
-    group_barriers.append_n_times({}, node_group.size());
     for (const int64_t group_node_index : node_group.index_range()) {
       NodeHandle node_handle = node_group[group_node_index];
       VKRenderGraphNode &node = render_graph.nodes_[node_handle];
-      Barrier &barrier = group_barriers[group_node_index];
+      Barrier barrier = {};
 #if 1
       std::cout << __func__ << ": node_group=" << group_index
                 << ", node_group_range=" << node_group.first() << "-" << node_group.last()
@@ -104,7 +102,11 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph)
                 << ", debug_group=" << render_graph.full_debug_group(node_handle) << "\n";
 #endif
       build_pipeline_barriers(render_graph, node_handle, node.pipeline_stage_get(), barrier);
+      if (!barrier.is_empty()) {
+        barrier_list_.append(barrier);
+      }
     }
+    group_pre_barriers_.append(group_barriers.with_new_end(barrier_list_.size()));
   }
 }
 
@@ -159,20 +161,15 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
   IndexRange group_nodes = group_nodes_[node_group_index];
   Span<NodeHandle> group_node_handles = node_handles.slice(group_nodes);
 
+  /* Record group pre barriers. */
+  for (BarrierIndex barrier_index : group_pre_barriers_[node_group_index]) {
+    Barrier barrier = barrier_list_[barrier_index];
+    send_pipeline_barriers(command_buffer, barrier);
+  }
+
   for (int64_t group_node_index : group_nodes.index_range()) {
     NodeHandle node_handle = group_nodes[group_node_index];
     VKRenderGraphNode &node = render_graph.nodes_[node_handle];
-#if 0
-    std::cout << "node_group=" << node_group.first() << "-" << node_group.last()
-              << ", node_handle=" << node_handle << ", node_type=" << node.type
-              << ", debug_group=" << render_graph.full_debug_group(node_handle) << "\n";
-#endif
-#if 0
-    render_graph.debug_print(node_handle);
-#endif
-
-    Barrier &barrier = group_pre_barriers_[node_group_index][group_node_index];
-    send_pipeline_barriers(command_buffer, barrier);
     if (node.type == VKNodeType::BEGIN_RENDERING) {
       layer_tracking_begin(render_graph, node_handle);
     }
