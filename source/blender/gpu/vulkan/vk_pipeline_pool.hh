@@ -10,6 +10,8 @@
 
 #include <mutex>
 
+#include "xxhash.h"
+
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 
@@ -61,19 +63,12 @@ struct VKGraphicsInfo {
 
     uint64_t hash() const
     {
-      uint64_t hash = 0;
-      hash = hash * 33 ^ uint64_t(vk_topology);
-      for (const VkVertexInputAttributeDescription &attribute : attributes) {
-        hash = hash * 33 ^ uint64_t(attribute.location);
-        hash = hash * 33 ^ uint64_t(attribute.binding);
-        hash = hash * 33 ^ uint64_t(attribute.format);
-        hash = hash * 33 ^ uint64_t(attribute.offset);
-      }
-      for (const VkVertexInputBindingDescription &binding : bindings) {
-        hash = hash * 33 ^ uint64_t(binding.binding);
-        hash = hash * 33 ^ uint64_t(binding.inputRate);
-        hash = hash * 33 ^ uint64_t(binding.stride);
-      }
+      uint64_t hash = uint64_t(vk_topology);
+      hash = hash * 33 ^
+             XXH3_64bits(attributes.data(),
+                         attributes.size() * sizeof(VkVertexInputAttributeDescription));
+      hash = hash * 33 ^ XXH3_64bits(bindings.data(),
+                                     bindings.size() * sizeof(VkVertexInputBindingDescription));
       return hash;
     }
   };
@@ -140,19 +135,9 @@ struct VKGraphicsInfo {
     uint64_t calc_hash() const
     {
       uint64_t hash = uint64_t(vk_fragment_module);
-      for (const VkViewport &vk_viewport : viewports) {
-        hash = hash * 33 ^ (uint64_t(vk_viewport.x) | (uint64_t(vk_viewport.y) << sizeof(float)));
-        hash = hash * 33 ^
-               (uint64_t(vk_viewport.width) | (uint64_t(vk_viewport.height) << sizeof(float)));
-        hash = hash * 33 ^ (uint64_t(vk_viewport.minDepth) |
-                            (uint64_t(vk_viewport.maxDepth) << sizeof(float)));
-      }
-      for (const VkRect2D &scissor : scissors) {
-        hash = hash * 33 ^
-               (uint64_t(scissor.offset.x) | (uint64_t(scissor.offset.y) << sizeof(int32_t)));
-        hash = hash * 33 ^ (uint64_t(scissor.extent.width) |
-                            (uint64_t(scissor.extent.height) << sizeof(int32_t)));
-      }
+      hash = hash * 33 ^ XXH3_64bits(viewports.data(), viewports.size() * sizeof(VkViewport));
+      hash = hash * 33 ^ XXH3_64bits(scissors.data(), scissors.size() * sizeof(VkRect2D));
+
       return hash;
     }
   };
@@ -194,10 +179,8 @@ struct VKGraphicsInfo {
       uint64_t hash = uint64_t(vk_render_pass);
       hash = hash * 33 ^ uint64_t(depth_attachment_format);
       hash = hash * 33 ^ uint64_t(stencil_attachment_format);
-      for (VkFormat color_attachment_format : color_attachment_formats) {
-        hash = hash * 33 ^ uint64_t(color_attachment_format);
-      }
-
+      hash = hash * 33 ^ XXH3_64bits(color_attachment_formats.data(),
+                                     color_attachment_formats.size() * sizeof(VkFormat));
       return hash;
     }
   };
