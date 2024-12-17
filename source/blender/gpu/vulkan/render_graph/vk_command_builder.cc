@@ -89,10 +89,15 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
   vk_buffer_memory_barriers_.clear();
   vk_image_memory_barriers_.clear();
 
-  /* Extract the pre barriers. */
+  /* Extract barriers. */
   group_pre_barriers_.clear();
+
+  NodeHandle rendering_scope;
+  bool rendering_active = false;
+
   for (const int64_t group_index : group_nodes_.index_range()) {
-    Barriers group_barriers(barrier_list_.size(), 0);
+    /* Extract the pre-barriers of this group. */
+    Barriers group_pre_barriers(barrier_list_.size(), 0);
     const GroupNodes &node_group = group_nodes_[group_index];
     for (const int64_t group_node_index : node_group) {
       NodeHandle node_handle = node_handles[group_node_index];
@@ -109,9 +114,46 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
 #endif
         barrier_list_.append(barrier);
       }
+      /* Check for additional barriers when resuming rendering.
+       *
+       * Between suspending rendering and resuming the state/layout of resources can change and
+       * require additional barriers.
+       */
+      if (node.type == VKNodeType::BEGIN_RENDERING) {
+        /* Begin rendering scope. */
+        BLI_assert(!rendering_active);
+        rendering_scope = node_handle;
+        rendering_active = true;
+      }
+
+      else if (node.type == VKNodeType::END_RENDERING) {
+        /* End rendering scope. */
+        BLI_assert(rendering_active);
+        rendering_scope = 0;
+        rendering_active = false;
+      }
+
+      else if (rendering_active && !node_type_is_within_rendering(node.type)) {
+        /* Suspend active rendering scope. */
+        rendering_active = false;
+      }
+
+      else if (!rendering_active && node_type_is_within_rendering(node.type)) {
+        /* Resume rendering scope. */
+        VKRenderGraphNode &rendering_node = render_graph.nodes_[rendering_scope];
+        Barrier barrier = {};
+        build_pipeline_barriers(
+            render_graph, rendering_scope, rendering_node.pipeline_stage_get(), barrier);
+        if (!barrier.is_empty()) {
+          barrier_list_.append(barrier);
+        }
+        rendering_active = true;
+      }
     }
-    group_pre_barriers_.append(group_barriers.with_new_end(barrier_list_.size()));
+
+    group_pre_barriers_.append(group_pre_barriers.with_new_end(barrier_list_.size()));
   }
+
   BLI_assert(group_pre_barriers_.size() == group_nodes_.size());
 }
 
@@ -208,10 +250,10 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
     else if (node_type_is_within_rendering(node.type)) {
       BLI_assert(r_rendering_scope.has_value());
       if (!is_rendering) {
-        // Resuming paused rendering scope.
+        /* Resume rendering scope.
+         *
+         * The pre barriers of the group already transitioned the resources to what is needed. */
         VKRenderGraphNode &rendering_node = render_graph.nodes_[*r_rendering_scope];
-        build_pipeline_barriers(
-            render_graph, command_buffer, *r_rendering_scope, rendering_node.pipeline_stage_get());
         if (state_.subresource_tracking_enabled()) {
           layer_tracking_resume(command_buffer);
         }
