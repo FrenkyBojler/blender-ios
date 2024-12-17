@@ -78,6 +78,7 @@ static CLG_LogRef LOG = {"bke.liboverride"};
 static CLG_LogRef LOG_RESYNC = {"bke.liboverride_resync"};
 
 namespace blender::bke::liboverride {
+
 bool is_auto_resync_enabled()
 {
   return !USER_EXPERIMENTAL_TEST(&U, no_override_auto_resync) &&
