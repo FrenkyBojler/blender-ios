@@ -424,7 +424,8 @@ void VKShaderInterface::init_descriptor_set_layout_info(
     UNUSED_VARS(index);
     descriptor_set_layout_info_.bindings.append_n_times(
         workarounds.dynamic_rendering ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT :
-                                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            workarounds.dynamic_rendering_local_read ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
+              VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
         info.subpass_inputs_.size());
   }
   for (const shader::ShaderCreateInfo::Resource &res : all_resources) {
