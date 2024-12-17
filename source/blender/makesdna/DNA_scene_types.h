@@ -831,8 +831,8 @@ typedef struct RenderData {
   int compositor_precision; /* eCompositorPrecision */
 
   /** Global configuration for denoise compositor nodes. */
-  int compositor_denoise_viewport_quality; /* eCompositorDenoiseQaulity */
-  int compositor_denoise_final_quality;    /* eCompositorDenoiseQaulity */
+  int compositor_denoise_preview_quality; /* eCompositorDenoiseQaulity */
+  int compositor_denoise_final_quality;   /* eCompositorDenoiseQaulity */
 } RenderData;
 
 /** #RenderData::quality_flag */
@@ -865,7 +865,7 @@ typedef enum eCompositorPrecision {
   SCE_COMPOSITOR_PRECISION_FULL = 1,
 } eCompositorPrecision;
 
-/** #RenderData::compositor_denoise_viewport_quality */
+/** #RenderData::compositor_denoise_preview_quality */
 /** #RenderData::compositor_denoise_final_quality */
 typedef enum eCompositorDenoiseQaulity {
   SCE_COMPOSITOR_DENOISE_HIGH = 0,

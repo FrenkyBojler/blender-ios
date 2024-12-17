@@ -7538,13 +7538,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       prop, "Compositor Precision", "The precision of compositor intermediate result");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
-  prop = RNA_def_property(srna, "compositor_denoise_viewport_quality", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "compositor_denoise_viewport_quality");
+  prop = RNA_def_property(srna, "compositor_denoise_preview_quality", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "compositor_denoise_preview_quality");
   RNA_def_property_enum_items(prop, compositor_denoise_quality_items);
   RNA_def_property_enum_default(prop, SCE_COMPOSITOR_DENOISE_BALANCED);
-  RNA_def_property_ui_text(prop,
-                           "Compositor Preview Denoise Quality",
-                           "The quality setting denoise nodes use during viewport compositing");
+  RNA_def_property_ui_text(
+      prop,
+      "Compositor Preview Denoise Quality",
+      "The quality setting denoise nodes use during viewport and interactive compositing");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
   prop = RNA_def_property(srna, "compositor_denoise_final_quality", PROP_ENUM, PROP_NONE);

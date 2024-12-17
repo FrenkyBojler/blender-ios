@@ -5267,10 +5267,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 14)) {
     if (!DNA_struct_member_exists(
-            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_viewport_quality"))
+            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_preview_quality"))
     {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->r.compositor_denoise_viewport_quality = SCE_COMPOSITOR_DENOISE_BALANCED;
+        scene->r.compositor_denoise_preview_quality = SCE_COMPOSITOR_DENOISE_BALANCED;
       }
     }
     if (!DNA_struct_member_exists(

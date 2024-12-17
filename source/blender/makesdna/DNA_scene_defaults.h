@@ -131,7 +131,7 @@
     .motion_blur_shutter = 0.5f, \
 \
     .compositor_denoise_final_quality = SCE_COMPOSITOR_DENOISE_HIGH, \
-    .compositor_denoise_viewport_quality = SCE_COMPOSITOR_DENOISE_BALANCED, \
+    .compositor_denoise_preview_quality = SCE_COMPOSITOR_DENOISE_BALANCED, \
   }
 
 #define _DNA_DEFAULT_AudioData \
