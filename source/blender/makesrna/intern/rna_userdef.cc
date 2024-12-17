@@ -7510,7 +7510,8 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "No Override Auto Resync",
                            "Disable library overrides automatic resync detection and process on "
-                           "file load (can be useful to help fixing broken files)");
+                           "file load (can be useful to help fixing broken files). Also see the "
+                           "`--disable-liboverride-auto-resync` command line option");
 
   prop = RNA_def_property(srna, "use_new_point_cloud_type", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_new_point_cloud_type", 1);
@@ -7569,10 +7570,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Enable viewport debugging options for developers in the overlays "
                            "pop-over");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
-
-  prop = RNA_def_property(srna, "enable_new_cpu_compositor", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "enable_new_cpu_compositor", 1);
-  RNA_def_property_ui_text(prop, "CPU Compositor", "Enable the new CPU compositor");
 
   prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

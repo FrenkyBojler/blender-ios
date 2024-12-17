@@ -77,11 +77,11 @@ namespace inverse_eval {
 class InverseEvalParams;
 }  // namespace inverse_eval
 }  // namespace nodes
-namespace realtime_compositor {
+namespace compositor {
 class Context;
 class NodeOperation;
 class ShaderNode;
-}  // namespace realtime_compositor
+}  // namespace compositor
 }  // namespace blender
 
 namespace blender::bke {
@@ -133,10 +133,11 @@ using NodeGatherSocketLinkOperationsFunction =
 using NodeGatherAddOperationsFunction =
     void (*)(blender::nodes::GatherAddNodeSearchParams &params);
 
-using NodeGetCompositorOperationFunction = blender::realtime_compositor::NodeOperation
-    *(*)(blender::realtime_compositor::Context &context, blender::nodes::DNode node);
+using NodeGetCompositorOperationFunction =
+    blender::compositor::NodeOperation *(*)(blender::compositor::Context &context,
+                                            blender::nodes::DNode node);
 using NodeGetCompositorShaderNodeFunction =
-    blender::realtime_compositor::ShaderNode *(*)(blender::nodes::DNode node);
+    blender::compositor::ShaderNode *(*)(blender::nodes::DNode node);
 using NodeExtraInfoFunction = void (*)(blender::nodes::NodeExtraInfoParams &params);
 using NodeInverseElemEvalFunction =
     void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);
@@ -327,10 +328,10 @@ struct bNodeType {
    * responsibility of the caller. */
   NodeGetCompositorShaderNodeFunction get_compositor_shader_node;
 
-  /* A message to display in the node header for unsupported realtime compositor nodes. The message
+  /* A message to display in the node header for unsupported compositor nodes. The message
    * is assumed to be static and thus require no memory handling. This field is to be removed when
    * all nodes are supported. */
-  const char *realtime_compositor_unsupported_message;
+  const char *compositor_unsupported_message;
 
   /* Build a multi-function for this node. */
   NodeMultiFunctionBuildFunction build_multi_function;
@@ -481,6 +482,14 @@ struct bNodeTreeType {
 
   /* Check if the socket type is valid for this tree type. */
   bool (*valid_socket_type)(bNodeTreeType *ntreetype, bNodeSocketType *socket_type);
+
+  /**
+   * If true, then some UI elements related to building node groups will be hidden.
+   * This can be used by Python-defined custom node tree types.
+   *
+   * This is a uint8_t instead of bool to avoid compiler warnings in generated RNA code.
+   */
+  uint8_t no_group_interface;
 
   /* RNA integration */
   ExtensionRNA rna_ext;
@@ -696,18 +705,27 @@ void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent);
 void node_detach_node(bNodeTree *ntree, bNode *node);
 
 /**
- * Finds a node based on given socket and returns true on success.
+ * Finds a node based on given socket, returning null in the case where the socket is not part of
+ * the node tree.
  */
-bool node_find_node_try(bNodeTree *ntree, bNodeSocket *sock, bNode **r_node, int *r_sockindex);
+bNode *node_find_node_try(bNodeTree &ntree, bNodeSocket &socket);
 
 /**
- * Same as #node_find_node_try but expects that the socket definitely is in the node tree.
+ * Find the node that contains the given socket. This uses the node topology cache, meaning
+ * subsequent access after changing the node tree will be more expensive, but amortized over time,
+ * the cost is constant.
  */
-void node_find_node(bNodeTree *ntree, bNodeSocket *sock, bNode **r_node, int *r_sockindex);
+bNode &node_find_node(bNodeTree &ntree, bNodeSocket &socket);
+const bNode &node_find_node(const bNodeTree &ntree, const bNodeSocket &socket);
+
 /**
  * Finds a node based on its name.
  */
 bNode *node_find_node_by_name(bNodeTree *ntree, StringRefNull name);
+
+/** Try to find an input item with the given identifier in the entire node interface tree. */
+const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bNodeTree &ntree,
+                                                                        StringRef identifier);
 
 bool node_is_parent_and_child(const bNode *parent, const bNode *child);
 

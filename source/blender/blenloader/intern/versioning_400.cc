@@ -3290,6 +3290,39 @@ static void version_node_locations_to_global(bNodeTree &ntree)
   }
 }
 
+/**
+ * Clear unnecessary pointers to data blocks on output sockets group input nodes.
+ * These values should never have been set in the first place. They are not harmful on their own,
+ * but can pull in additional data-blocks when the node group is linked/appended.
+ */
+static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+    if (node->type != NODE_GROUP_INPUT) {
+      continue;
+    }
+    LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+      switch (socket->type) {
+        case SOCK_OBJECT:
+          socket->default_value_typed<bNodeSocketValueObject>()->value = nullptr;
+          break;
+        case SOCK_IMAGE:
+          socket->default_value_typed<bNodeSocketValueImage>()->value = nullptr;
+          break;
+        case SOCK_COLLECTION:
+          socket->default_value_typed<bNodeSocketValueCollection>()->value = nullptr;
+          break;
+        case SOCK_TEXTURE:
+          socket->default_value_typed<bNodeSocketValueTexture>()->value = nullptr;
+          break;
+        case SOCK_MATERIAL:
+          socket->default_value_typed<bNodeSocketValueMaterial>()->value = nullptr;
+          break;
+      }
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5240,6 +5273,35 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       version_node_locations_to_global(*ntree);
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 13)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
+        if (modifier->type != eModifierType_Nodes) {
+          continue;
+        }
+        NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(modifier);
+        if (!nmd->settings.properties) {
+          continue;
+        }
+        LISTBASE_FOREACH (IDProperty *, idprop, &nmd->settings.properties->data.group) {
+          if (idprop->type != IDP_STRING) {
+            continue;
+          }
+          blender::StringRef prop_name(idprop->name);
+          if (prop_name.endswith("_attribute_name") || prop_name.endswith("_use_attribute")) {
+            idprop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY | IDP_FLAG_STATIC_TYPE;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 14)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      version_group_input_socket_data_block_reference(*ntree);
+    }
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
