@@ -37,6 +37,7 @@ namespace blender::geometry::boolean {
 
 /* Some debug output functions. */
 
+#if 0
 static std::ostream &operator<<(std::ostream &os, const glm::vec3 &v)
 {
   os << "(" << v[0] << "," << v[1] << "," << v[2] << ")";
@@ -48,6 +49,7 @@ static std::ostream &operator<<(std::ostream &os, const glm::ivec3 &v)
   os << "(" << v[0] << "," << v[1] << "," << v[2] << ")";
   return os;
 }
+#endif
 
 template<typename T>
 static void dump_vector(const std::vector<T> &vec, int stride, const std::string &name)
@@ -81,12 +83,14 @@ static void dump_meshgl(const MeshGL &mgl, const std::string &name)
   dump_vector(mgl.runOriginalID, 1, "runOrigiinalID");
 }
 
+#if 0
 static void dump_manmesh(const manifold::Mesh &mmesh, const std::string &name)
 {
   std::cout << "\nmanifold::Mesh " << name << ":\n";
   dump_vector(mmesh.vertPos, 1, "vertPos");
   dump_vector(mmesh.triVerts, 1, "triVerts");
 }
+#endif
 
 template<typename T> static void dump_span(Span<T> span, const std::string &name)
 {
@@ -118,7 +122,7 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   bke::AttributeAccessor attrs = mesh->attributes();
   attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
-      return true;
+      return;
     }
     static const char *domain_names[] = {
         "point", "edge", "face", "corner", "curve", "instance", "layer"};
@@ -147,7 +151,6 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
         std::cout << label << " attribute not dumped\n";
         break;
     }
-    return true;
   });
   std::cout << "materials:\n";
   for (int i = 0; i < mesh->totcol; i++) {
@@ -226,6 +229,7 @@ template<typename T> static int which_offset_index(T x, Span<T> offset_indices)
   return -1;
 }
 
+#if 0
 /* Given an output triangle index \a output_tri in \a output_mesh_gl,
  * what is the corresponding input mesh index and face index? */
 static std::pair<int, int> mesh_and_face(int output_tri,
@@ -245,6 +249,7 @@ static std::pair<int, int> mesh_and_face(int output_tri,
   int face_in_input_mesh = tri_faceid - mesh_face_offsets[input_mesh_index];
   return {input_mesh_index, face_in_input_mesh};
 }
+#endif
 
 class GAttributeReadWriteSpans {
  public:
@@ -278,22 +283,21 @@ GAttributeReadWriteSpans::GAttributeReadWriteSpans(Span<const Mesh *> input_mesh
     input_accessors.append(input_meshes[i]->attributes());
   }
   bke::MutableAttributeAccessor output_accessor = output_mesh->attributes_for_write();
-  output_accessor.foreach_attribute(
-      [&](const bke::AttributeIter &iter) {
-        if (iter.domain != domain) {
-          return true;
-        }
-        this->attrs.append(iter.name);
-        this->data_types.append(iter.data_type);
-        this->dest_writers.append(output_accessor.lookup_or_add_for_write_only_span(
-            iter.name, iter.domain, iter.data_type));
-        this->dest.append(this->dest_writers.last().span);
-        for (int i : IndexRange(num_mesh)) {
-          this->sources[i].append(
-              *input_accessors[i].lookup_or_default(iter.name, domain, iter.data_type));
-        }
-        return true;
-      });
+  output_accessor.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain != domain) {
+      return;
+    }
+    this->attrs.append(iter.name);
+    this->data_types.append(iter.data_type);
+    this->dest_writers.append(
+        output_accessor.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
+    this->dest.append(this->dest_writers.last().span);
+    for (int i : IndexRange(num_mesh)) {
+      this->sources[i].append(
+          *input_accessors[i].lookup_or_default(iter.name, domain, iter.data_type));
+    }
+    return;
+  });
 }
 
 GAttributeReadWriteSpans::~GAttributeReadWriteSpans()
@@ -313,6 +317,7 @@ int GAttributeReadWriteSpans::find_attr_index(const char *name) const
   return -1;
 }
 
+#if 0
 static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
                             int input_mesh_index,
                             int input_face,
@@ -347,6 +352,7 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
     }
   }
 }
+#endif
 
 /* Holds cumulative offsets for the given elements of a number
  * of concatenated Meshes. The sizes are one greater than the
@@ -634,7 +640,7 @@ static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces)
   return ans;
 }
 
-static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshGL &mgl)
+static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshGL & /*mgl*/)
 {
   constexpr int dbg_level = 1;
   if (group.size() <= 1) {
@@ -651,11 +657,10 @@ static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshG
   if (dbg_level > 0) {
     std::cout << "shared edges:\n";
     for (const SharedEdge &se : shared_edges) {
-      std::cout << "(e" << se.e1 << ",e" << se.e2
-      << ";v" << se.v1 << ",v" << se.v2 << ")";
+      std::cout << "(e" << se.e1 << ",e" << se.e2 << ";v" << se.v1 << ",v" << se.v2 << ")";
     }
     std::cout << "\n";
-    //dump_span(shared_edges.as_span(), "shared edges");
+    // dump_span(shared_edges.as_span(), "shared edges");
   }
 }
 
@@ -740,9 +745,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       positions[i] = pos;
     }
   });
-  GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
-  int material_span_index = face_attrs.find_attr_index("material_index");
 #if 0
+ GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
+  int material_span_index = face_attrs.find_attr_index("material_index");
   /* TODO: following is very specific to all-triangle output, */
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
