@@ -1082,9 +1082,14 @@ void PaintOperation::reproject_samples_on_strokes(const bContext &C)
   MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write();
 
   const IndexRange all_points = points_by_curve[active_curve];
+  if (all_points.is_empty()) {
+    return;
+  }
+
   const IndexRange active_points = last_stroke_placement_point_ < 0 ?
                                        all_points :
-                                       all_points.drop_front(last_stroke_placement_point_);
+                                       IndexRange::from_begin_end_inclusive(
+                                           last_stroke_placement_point_, all_points.last());
 
   MutableSpan<float3> active_positions = positions.slice(active_points);
   placement_.reproject(active_positions, active_positions);
