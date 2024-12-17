@@ -40,7 +40,7 @@ struct RealizeInstancesOptions {
    *    attribute, or
    *  - the #CPPType::default_value() of the attribute type is used if the attribute is a generic
    *    attribute.
-   * These defaults can be overriden by the fallback values.
+   * These values are used as fallback if the attributes don't exist exist on the geometry.
    */
   CustomAttributeFallbackValues custom_attribute_fallback_values = {};
 };
