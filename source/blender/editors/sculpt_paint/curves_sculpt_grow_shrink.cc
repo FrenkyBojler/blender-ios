@@ -302,7 +302,7 @@ struct CurvesEffectOperationExecutor {
         {
           self.brush_3d_ = *brush_3d;
           remember_stroke_position(
-              const_cast<Scene &>(*ctx_.scene),
+              *ctx_.scene,
               math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
         }
       }

@@ -123,7 +123,7 @@ void move_last_point_and_resample(MoveAndResampleBuffers &buffer,
 class CurvesSculptCommonContext {
  public:
   const Depsgraph *depsgraph = nullptr;
-  const Scene *scene = nullptr;
+  Scene *scene = nullptr;
   ARegion *region = nullptr;
   const View3D *v3d = nullptr;
   RegionView3D *rv3d = nullptr;

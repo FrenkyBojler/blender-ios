@@ -293,8 +293,7 @@ struct DensityAddOperationExecutor {
               curves_orig_->positions().slice(add_outputs.new_points_range)))
       {
         remember_stroke_position(
-            const_cast<Scene &>(*ctx_.scene),
-            math::transform_point(transforms_.curves_to_world, center_cu->center()));
+            *ctx_.scene, math::transform_point(transforms_.curves_to_world, center_cu->center()));
       }
     }
 

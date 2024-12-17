@@ -240,8 +240,7 @@ struct SlideOperationExecutor {
       return;
     }
     remember_stroke_position(
-        const_cast<Scene &>(*ctx_.scene),
-        math::transform_point(transforms_.curves_to_world, brush_3d->position_cu));
+        *ctx_.scene, math::transform_point(transforms_.curves_to_world, brush_3d->position_cu));
 
     const ReverseUVSampler reverse_uv_sampler_orig{surface_uv_map_orig_,
                                                    surface_corner_tris_orig_};
