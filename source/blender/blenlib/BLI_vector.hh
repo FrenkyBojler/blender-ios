@@ -240,16 +240,15 @@ class Vector {
       is_nothrow_move_constructible())
       : Vector(NoExceptConstructor(), other.allocator_)
   {
-    const int64_t size = other.size();
+    if (other.is_inline()) {
+      const int64_t size = other.size();
 
-    constexpr bool other_is_same_type = std::is_same_v<Vector, std::decay_t<decltype(other)>>;
-
-    /* Can optimize for this common case which requires less branches. */
-    constexpr size_t max_full_copy_size = 32;
-    if constexpr (other_is_same_type && std::is_trivial_v<T> &&
-                  sizeof(inline_buffer_) <= max_full_copy_size)
-    {
-      if (other.is_inline()) {
+      /* Can optimize for this common case which requires less branches. */
+      constexpr bool other_is_same_type = std::is_same_v<Vector, std::decay_t<decltype(other)>>;
+      constexpr size_t max_full_copy_size = 32;
+      if constexpr (other_is_same_type && std::is_trivial_v<T> &&
+                    sizeof(inline_buffer_) <= max_full_copy_size)
+      {
         /* This check is technically optional. However, benchmarking shows that skipping work
          * for empty vectors (which is a common case) is worth the extra check even in the case
          * when the vector is not empty. */
@@ -264,19 +263,6 @@ class Vector {
         }
       }
       else {
-        /* Steal the pointer. */
-        begin_ = other.begin_;
-        end_ = other.end_;
-        capacity_end_ = other.capacity_end_;
-
-        /* Reset other vector. */
-        other.begin_ = other.inline_buffer_;
-        other.end_ = other.inline_buffer_;
-        other.capacity_end_ = other.inline_buffer_ + OtherInlineBufferCapacity;
-      }
-    }
-    else {
-      if (other.is_inline()) {
         /* This first check is not strictly necessary, but improves performance because it can be
          * done at compile time and makes the size check at run-time unnecessary. */
         if (OtherInlineBufferCapacity <= InlineBufferCapacity || size <= InlineBufferCapacity) {
@@ -293,18 +279,22 @@ class Vector {
           uninitialized_relocate_n(other.begin_, size, begin_);
           end_ = begin_ + size;
         }
+        /* Reset other vector. */
+        other.end_ = other.inline_buffer_;
       }
-      else {
-        /* Steal the pointer. */
-        begin_ = other.begin_;
-        end_ = other.end_;
-        capacity_end_ = other.capacity_end_;
-      }
-
-      other.begin_ = other.inline_buffer_;
-      other.end_ = other.begin_;
-      other.capacity_end_ = other.begin_ + OtherInlineBufferCapacity;
     }
+    else {
+      /* Steal the pointer. */
+      begin_ = other.begin_;
+      end_ = other.end_;
+      capacity_end_ = other.capacity_end_;
+
+      /* Reset other vector. */
+      other.begin_ = other.inline_buffer_;
+      other.end_ = other.inline_buffer_;
+      other.capacity_end_ = other.inline_buffer_ + OtherInlineBufferCapacity;
+    }
+
     UPDATE_VECTOR_SIZE(this);
     UPDATE_VECTOR_SIZE(&other);
   }
