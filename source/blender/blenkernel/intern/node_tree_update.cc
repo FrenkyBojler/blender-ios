@@ -287,10 +287,10 @@ struct NodeTreeRelations {
     return group_node_users_->lookup(ntree);
   }
 
-  ID *get_owner_id(bNodeTree *ntree)
+  ID &get_owner_id(bNodeTree *ntree)
   {
     BLI_assert(owner_ids_.has_value());
-    return owner_ids_->lookup_default(ntree, &ntree->id);
+    return *owner_ids_->lookup_default(ntree, &ntree->id);
   }
 };
 
@@ -396,12 +396,12 @@ class NodeTreeMainUpdater {
 
       if (params_) {
         relations_.ensure_owner_ids();
-        ID *id = relations_.get_owner_id(ntree);
+        ID &owner_id = relations_.get_owner_id(ntree);
         if (params_->tree_changed_fn) {
-          params_->tree_changed_fn(id, ntree, params_->user_data);
+          params_->tree_changed_fn(*ntree, owner_id);
         }
         if (params_->tree_output_changed_fn && result.output_changed) {
-          params_->tree_output_changed_fn(id, ntree, params_->user_data);
+          params_->tree_output_changed_fn(*ntree, owner_id);
         }
       }
     }
@@ -721,6 +721,9 @@ class NodeTreeMainUpdater {
     if (node.type == GEO_NODE_BAKE) {
       /* Internal links should always map corresponding input and output sockets. */
       return &node.input_by_identifier(output_socket->identifier);
+    }
+    if (node.type == GEO_NODE_CAPTURE_ATTRIBUTE) {
+      return &node.input_socket(output_socket->index());
     }
     for (const bNodeSocket *input_socket : node.input_sockets()) {
       if (!input_socket->is_available()) {
