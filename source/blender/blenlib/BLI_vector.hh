@@ -243,7 +243,7 @@ class Vector {
     if (other.is_inline()) {
       const int64_t size = other.size();
 
-      /* Can optimize for this common case which requires less branches. */
+      /* Optimize the case by copying the full inline buffer. */
       constexpr bool other_is_same_type = std::is_same_v<Vector, std::decay_t<decltype(other)>>;
       constexpr size_t max_full_copy_size = 32;
       if constexpr (other_is_same_type && std::is_trivial_v<T> &&
