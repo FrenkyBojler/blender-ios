@@ -218,7 +218,7 @@ def build_defines_as_source() -> str:
     return stdout.read().strip().decode('ascii')
 
 
-def build_defines_as_args() -> list[str]:
+def build_defines_as_args() -> List[str]:
     return [
         ("-D" + "=".join(l.split(maxsplit=2)[1:]))
         for l in build_defines_as_source().split("\n")
@@ -298,7 +298,7 @@ def queue_processes(
             ) -> Union[int, None]:
                 return p.poll()
 
-        processes: list[tuple[subprocess.Popen[Any], list[bytes], list[bytes]]] = []
+        processes: list[tuple[subprocess.Popen[Any], List[bytes], List[bytes]]] = []
         for func, args in process_funcs:
             # wait until a thread is free
             while 1:
