@@ -98,15 +98,13 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
       NodeHandle node_handle = node_handles[group_node_index];
       VKRenderGraphNode &node = render_graph.nodes_[node_handle];
       Barrier barrier = {};
-#if 1
-      std::cout << __func__ << ": node_group=" << group_index
-                << ", node_group_range=" << node_group.first() << "-" << node_group.last()
-                << ", node_handle=" << node_handle << ", node_type=" << node.type
-                << ", debug_group=" << render_graph.full_debug_group(node_handle) << "\n";
-#endif
       build_pipeline_barriers(render_graph, node_handle, node.pipeline_stage_get(), barrier);
       if (!barrier.is_empty()) {
-#if 1
+#if 0
+        std::cout << __func__ << ": node_group=" << group_index
+                  << ", node_group_range=" << node_group.first() << "-" << node_group.last()
+                  << ", node_handle=" << node_handle << ", node_type=" << node.type
+                  << ", debug_group=" << render_graph.full_debug_group(node_handle) << "\n";
         std::cout << __func__ << ": " << to_string_barrier(barrier);
 #endif
         barrier_list_.append(barrier);
@@ -167,7 +165,7 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
   /* Record group pre barriers. */
   for (BarrierIndex barrier_index : group_pre_barriers_[group_index]) {
     Barrier &barrier = barrier_list_[barrier_index];
-#if 1
+#if 0
     std::cout << __func__ << ": node_group=" << group_index << ", barrier=("
               << to_string_barrier(barrier) << ")\n";
 #endif
@@ -225,7 +223,7 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
     if (G.debug & G_DEBUG_GPU) {
       activate_debug_group(render_graph, command_buffer, node_handle);
     }
-#if 1
+#if 0
     std::cout << __func__ << ": node_group=" << group_index
               << ", node_group_range=" << group_node_handles.first() << "-"
               << group_node_handles.last() << ", node_handle=" << node_handle
