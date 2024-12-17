@@ -11789,7 +11789,7 @@ static int ui_handle_menus_recursive(bContext *C,
     else {
       uiBlock *block = static_cast<uiBlock *>(menu->region->runtime->uiblocks.first);
 
-      if (block->flag & UI_BLOCK_PIE_MENU) {
+      if (block && (block->flag & UI_BLOCK_PIE_MENU)) {
         retval = ui_pie_handler(C, event, menu);
       }
       else if (event->type == LEFTMOUSE || event->val != KM_DBL_CLICK) {
