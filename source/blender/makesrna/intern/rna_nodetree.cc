@@ -10776,7 +10776,8 @@ static void rna_def_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "type", PROP_STRING, PROP_NONE);
   RNA_def_property_string_funcs(prop, "rna_node_type_get", "rna_node_type_length", nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Type", "Legacy node type, use bl_idname instead");
+  RNA_def_property_ui_text(
+      prop, "Type", "Legacy unique node type identifier, redundant with bl_idname property");
 
   prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_array(prop, 2);
@@ -10973,7 +10974,10 @@ static void rna_def_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bl_static_type", PROP_STRING, PROP_NONE);
   RNA_def_property_string_funcs(prop, "rna_node_type_get", "rna_node_type_length", nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Static Type", "Legacy node type, use bl_idname instead");
+  RNA_def_property_ui_text(
+      prop,
+      "Static Type",
+      "Legacy unique node type identifier, redundant with bl_idname property");
 
   /* type-based size properties */
   prop = RNA_def_property(srna, "bl_width_default", PROP_FLOAT, PROP_UNSIGNED);
