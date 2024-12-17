@@ -103,7 +103,7 @@ struct CompoJob {
   float *progress;
   bool cancelled;
 
-  realtime_compositor::Profiler profiler;
+  compositor::Profiler profiler;
 };
 
 float node_socket_calculate_height(const bNodeSocket &socket)
@@ -499,13 +499,13 @@ void ED_node_tree_propagate_change(const bContext *C, Main *bmain, bNodeTree *ro
     }
   }
 
-  NodeTreeUpdateExtraParams params = {nullptr};
-  params.tree_changed_fn = [](ID *id, bNodeTree *ntree, void * /*user_data*/) {
-    blender::ed::space_node::send_notifiers_after_tree_change(id, ntree);
-    DEG_id_tag_update(&ntree->id, ID_RECALC_SYNC_TO_EVAL);
+  NodeTreeUpdateExtraParams params;
+  params.tree_changed_fn = [](bNodeTree &ntree, ID &owner_id) {
+    blender::ed::space_node::send_notifiers_after_tree_change(&owner_id, &ntree);
+    DEG_id_tag_update(&ntree.id, ID_RECALC_SYNC_TO_EVAL);
   };
-  params.tree_output_changed_fn = [](ID * /*id*/, bNodeTree *ntree, void * /*user_data*/) {
-    DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
+  params.tree_output_changed_fn = [](bNodeTree &ntree, ID & /*owner_id*/) {
+    DEG_id_tag_update(&ntree.id, ID_RECALC_NTREE_OUTPUT);
   };
 
   BKE_ntree_update_main_tree(bmain, root_ntree, &params);
@@ -544,7 +544,7 @@ bool ED_node_is_geometry(SpaceNode *snode)
 bool ED_node_supports_preview(SpaceNode *snode)
 {
   return ED_node_is_compositor(snode) ||
-         (U.experimental.use_shader_node_previews && ED_node_is_shader(snode));
+         (USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) && ED_node_is_shader(snode));
 }
 
 void ED_node_shader_default(const bContext *C, ID *id)
@@ -872,7 +872,7 @@ void ED_node_set_active(
 void ED_node_post_apply_transform(bContext * /*C*/, bNodeTree * /*ntree*/)
 {
   /* XXX This does not work due to layout functions relying on node->block,
-   * which only exists during actual drawing. Can we rely on valid totr rects?
+   * which only exists during actual drawing. Can we rely on valid draw_bounds rects?
    */
   /* make sure nodes have correct bounding boxes after transform */
   // node_update_nodetree(C, ntree, 0.0f, 0.0f);
@@ -899,7 +899,7 @@ static bool socket_is_occluded(const float2 &location,
     rctf socket_hitbox;
     const float socket_hitbox_radius = NODE_SOCKSIZE - 0.1f * U.widget_unit;
     BLI_rctf_init_pt_radius(&socket_hitbox, location, socket_hitbox_radius);
-    if (BLI_rctf_inside_rctf(&node->runtime->totr, &socket_hitbox)) {
+    if (BLI_rctf_inside_rctf(&node->runtime->draw_bounds, &socket_hitbox)) {
       return true;
     }
   }
@@ -1173,7 +1173,7 @@ bool node_is_previewable(const SpaceNode &snode, const bNodeTree &ntree, const b
     return false;
   }
   if (ntree.type == NTREE_SHADER) {
-    return U.experimental.use_shader_node_previews && !node.is_frame();
+    return USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) && !node.is_frame();
   }
   return node.typeinfo->flag & NODE_PREVIEW;
 }
@@ -1231,7 +1231,9 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
 
   for (bNode *node : sorted_nodes) {
     const bool node_hidden = node->flag & NODE_HIDDEN;
-    if (!node->is_reroute() && !node_hidden && node->runtime->totr.ymax - cursor.y < NODE_DY) {
+    if (!node->is_reroute() && !node_hidden &&
+        node->runtime->draw_bounds.ymax - cursor.y < NODE_DY)
+    {
       /* Don't pick socket when cursor is over node header. This allows the user to always resize
        * by dragging on the left and right side of the header. */
       continue;

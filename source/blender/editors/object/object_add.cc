@@ -2109,7 +2109,7 @@ void OBJECT_OT_curves_empty_hair_add(wmOperatorType *ot)
 
 static bool object_pointcloud_add_poll(bContext *C)
 {
-  if (!U.experimental.use_new_point_cloud_type) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_new_point_cloud_type)) {
     return false;
   }
   return ED_operator_objectmode(C);
@@ -2476,7 +2476,7 @@ static void make_object_duplilist_real(bContext *C,
     return;
   }
 
-  GHash *dupli_gh = BLI_ghash_ptr_new(__func__);
+  blender::Map<const DupliObject *, Object *> dupli_map;
   if (use_hierarchy) {
     parent_gh = BLI_ghash_new(dupliobject_hash, dupliobject_cmp, __func__);
 
@@ -2525,7 +2525,8 @@ static void make_object_duplilist_real(bContext *C,
     copy_m4_m4(ob_dst->runtime->object_to_world.ptr(), dob->mat);
     BKE_object_apply_mat4(ob_dst, ob_dst->object_to_world().ptr(), false, false);
 
-    BLI_ghash_insert(dupli_gh, dob, ob_dst);
+    dupli_map.add(dob, ob_dst);
+
     if (parent_gh) {
       void **val;
       /* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
@@ -2546,7 +2547,7 @@ static void make_object_duplilist_real(bContext *C,
 
   LISTBASE_FOREACH (DupliObject *, dob, lb_duplis) {
     Object *ob_src = dob->ob;
-    Object *ob_dst = static_cast<Object *>(BLI_ghash_lookup(dupli_gh, dob));
+    Object *ob_dst = dupli_map.lookup(dob);
 
     /* Remap new object to itself, and clear again newid pointer of orig object. */
     BKE_libblock_relink_to_newid(bmain, &ob_dst->id, 0);
@@ -2632,7 +2633,6 @@ static void make_object_duplilist_real(bContext *C,
   base_select(base, BA_DESELECT);
   DEG_id_tag_update(&base->object->id, ID_RECALC_SELECT);
 
-  BLI_ghash_free(dupli_gh, nullptr, nullptr);
   if (parent_gh) {
     BLI_ghash_free(parent_gh, nullptr, nullptr);
   }
@@ -2752,7 +2752,7 @@ static const EnumPropertyItem *convert_target_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_MESH);
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_CURVES_LEGACY);
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_CURVES);
-  if (U.experimental.use_new_point_cloud_type) {
+  if (USER_EXPERIMENTAL_TEST(&U, use_new_point_cloud_type)) {
     RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_POINTCLOUD);
   }
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_GREASE_PENCIL);
