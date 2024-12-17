@@ -6,7 +6,6 @@ set(INC
   .
   algorithms
   cached_resources
-  intern
   utilities
   ../blenkernel
   ../blentranslation
@@ -16,14 +15,8 @@ set(INC
   ../imbuf
   ../makesrna
   ../nodes
-  ../windowmanager
-  ../nodes/composite
-  ../nodes/intern
   ../render
   ../render/intern
-
-  # RNA_prototypes.hh
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -159,14 +152,10 @@ set(LIB
   bf_functions
   bf_gpu
   bf_imbuf
-  bf_nodes
   bf_render
   PRIVATE bf::blenlib
-  PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::intern::atomic
 )
 
 set(GLSL_SRC
@@ -376,6 +365,3 @@ blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 if(CXX_WARN_NO_SUGGEST_OVERRIDE)
   target_compile_options(bf_compositor PRIVATE "-Wsuggest-override")
 endif()
-
-# RNA_prototypes.hh
-add_dependencies(bf_compositor bf_rna)
