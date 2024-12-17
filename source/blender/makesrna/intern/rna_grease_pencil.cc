@@ -1144,7 +1144,7 @@ static void rna_def_grease_pencil_layers(BlenderRNA *brna, PropertyRNA *cprop)
 }
 
 const EnumPropertyItem enum_layergroup_color_items[] = {
-    {LAYERGROUP_COLOR_NONE, "NONE", ICON_X, "Set Default icon", ""},
+    {LAYERGROUP_COLOR_NONE, "NONE", ICON_X, "Reset color tag", ""},
     {LAYERGROUP_COLOR_01, "COLOR1", ICON_LAYERGROUP_COLOR_01, "Color tag 1", ""},
     {LAYERGROUP_COLOR_02, "COLOR2", ICON_LAYERGROUP_COLOR_02, "Color tag 2", ""},
     {LAYERGROUP_COLOR_03, "COLOR3", ICON_LAYERGROUP_COLOR_03, "Color tag 3", ""},
