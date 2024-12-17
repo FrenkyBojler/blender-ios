@@ -3303,26 +3303,21 @@ static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
     }
     LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
       switch (socket->type) {
-        case SOCK_OBJECT: {
+        case SOCK_OBJECT:
           socket->default_value_typed<bNodeSocketValueObject>()->value = nullptr;
           break;
-        }
-        case SOCK_IMAGE: {
+        case SOCK_IMAGE:
           socket->default_value_typed<bNodeSocketValueImage>()->value = nullptr;
           break;
-        }
-        case SOCK_COLLECTION: {
+        case SOCK_COLLECTION:
           socket->default_value_typed<bNodeSocketValueCollection>()->value = nullptr;
           break;
-        }
-        case SOCK_TEXTURE: {
+        case SOCK_TEXTURE:
           socket->default_value_typed<bNodeSocketValueTexture>()->value = nullptr;
           break;
-        }
-        case SOCK_MATERIAL: {
+        case SOCK_MATERIAL:
           socket->default_value_typed<bNodeSocketValueMaterial>()->value = nullptr;
           break;
-        }
       }
     }
   }
