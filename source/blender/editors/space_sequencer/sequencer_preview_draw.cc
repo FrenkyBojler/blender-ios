@@ -1033,9 +1033,6 @@ static void seq_draw_image_origin_and_outline(const bContext *C, Sequence *seq, 
   {
     return;
   }
-  if (sequencer_text_editing_active_poll(const_cast<bContext *>(C))) {
-    return;
-  }
 
   float origin[2];
   SEQ_image_transform_origin_offset_pixelspace_get(CTX_data_scene(C), seq, origin);
@@ -1125,11 +1122,8 @@ static void text_selection_draw(const bContext *C, const Sequence *seq, uint pos
         {character_end.position.x + character_end.advance_x, line_y, 0.0f},
     };
 
-    blender::float4 col;
-    UI_GetThemeColor4fv(TH_SEQ_SELECTED_TEXT, col);
-    immUniformColor4fv(col);
-
     immBegin(GPU_PRIM_TRIS, 6);
+    immUniformThemeColor(TH_SEQ_SELECTED_TEXT);
 
     for (int i : blender::IndexRange(0, 4)) {
       selection_quad[i] += view_offs;
@@ -1189,11 +1183,8 @@ static void text_edit_draw_cursor(const bContext *C, const Sequence *seq, uint p
   };
   const blender::float3 descender_offs{0.0f, float(text->font_descender), 0.0f};
 
-  blender::float4 col;
-  UI_GetThemeColor4fv(TH_SEQ_TEXT_CURSOR, col);
-  immUniformColor4fv(col);
-
   immBegin(GPU_PRIM_TRIS, 6);
+  immUniformThemeColor(TH_SEQ_TEXT_CURSOR);
 
   for (int i : blender::IndexRange(0, 4)) {
     cursor_quad[i] += descender_offs + view_offs;
@@ -1213,12 +1204,6 @@ static void text_edit_draw_box(const bContext *C, const Sequence *seq, uint pos)
   const TextVarsRuntime *text = data->runtime;
   const Scene *scene = CTX_data_scene(C);
 
-  blender::float3 col;
-  UI_GetThemeColor3fv(TH_SEQ_ACTIVE, col);
-  immUniformColor3fv(col);
-  immUniform1f("lineWidth", U.pixelsize);
-  immBegin(GPU_PRIM_LINE_LOOP, 4);
-
   const blender::float3 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f, 0.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
   blender::float4x4 transform_mat;
@@ -1230,13 +1215,24 @@ static void text_edit_draw_box(const bContext *C, const Sequence *seq, uint pos)
       {float(text->text_boundbox.xmax), float(text->text_boundbox.ymin), 0.0f},
   };
 
+  GPU_blend(GPU_BLEND_NONE);
+  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
+  blender::float3 col;
+  UI_GetThemeColorShade4fv(TH_SEQ_ACTIVE, -50, col);
+  immUniformColor3fv(col);
+  immUniform1f("lineWidth", U.pixelsize);
+  immUniform1f("dash_width", 10.0f);
+  immBegin(GPU_PRIM_LINE_LOOP, 4);
+
   for (int i : blender::IndexRange(0, 4)) {
     box_quad[i] += view_offs;
     box_quad[i] = blender::math::transform_point(transform_mat, box_quad[i]);
     box_quad[i].x *= view_aspect;
     immVertex2f(pos, box_quad[i][0], box_quad[i][1]);
   }
+
   immEnd();
+  immUnbindProgram();
 }
 
 static void text_edit_draw(const bContext *C)
@@ -1254,17 +1250,16 @@ static void text_edit_draw(const bContext *C)
   const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
-  GPU_line_width(2);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   text_selection_draw(C, seq, pos);
-  text_edit_draw_box(C, seq, pos);
   text_edit_draw_cursor(C, seq, pos);
 
   immUnbindProgram();
-  GPU_line_width(1);
   GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
+
+  text_edit_draw_box(C, seq, pos);
 }
 
 void sequencer_draw_preview(const bContext *C,
