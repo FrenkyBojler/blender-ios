@@ -138,7 +138,7 @@ def draw_add_menu(self, context):
     if context.space_data.tree_type != MyCustomTree.bl_idname:
         # Avoid adding nodes to built-in node tree
         return
-    # Add nodes to the layout. Can use submenus, separators etc. as in any other menu.
+    # Add nodes to the layout. Can use submenus, separators, etc. as in any other menu.
     node_add_menu.add_node_type(layout, "CustomNodeType")
 
 
