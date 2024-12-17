@@ -62,6 +62,7 @@
 #include "BKE_lib_override.hh"
 #include "BKE_linestyle.h"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_modifier.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
@@ -1080,7 +1081,6 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
           DEG_relations_tag_update(bmain);
         }
-        ED_node_tree_propagate_change(C, CTX_data_main(C), nullptr);
         undo_push_label = "Make Single User";
       }
       break;
@@ -1089,6 +1089,8 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       break;
 #endif
   }
+
+  BKE_main_ensure_invariants(*CTX_data_main(C));
 
   if (undo_push_label != nullptr) {
     ED_undo_push(C, undo_push_label);
