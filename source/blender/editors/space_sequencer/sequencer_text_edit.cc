@@ -205,12 +205,12 @@ static int2 cursor_move_by_character(int2 cursor_position, const TextVarsRuntime
 
 static int2 cursor_move_by_line(int2 cursor_position, const TextVarsRuntime *text, int offset)
 {
-  const seq::LineInfo & cur_line = text->lines[cursor_position.y];
+  const seq::LineInfo &cur_line = text->lines[cursor_position.y];
   const int cur_pos_x = cur_line.characters[cursor_position.x].position.x;
 
   const int line_max = text->lines.size() - 1;
   const int new_line_index = std::clamp(cursor_position.y + offset, 0, line_max);
-  const seq::LineInfo & new_line = text->lines[new_line_index];
+  const seq::LineInfo &new_line = text->lines[new_line_index];
 
   if (cursor_position.y == new_line_index) {
     return cursor_position;
@@ -236,7 +236,7 @@ static int2 cursor_move_by_line(int2 cursor_position, const TextVarsRuntime *tex
 
 static int2 cursor_move_line_end(int2 cursor_position, const TextVarsRuntime *text)
 {
-  const seq::LineInfo & cur_line = text->lines[cursor_position.y];
+  const seq::LineInfo &cur_line = text->lines[cursor_position.y];
   cursor_position.x = cur_line.characters.size() - 1;
   return cursor_position;
 }
