@@ -13,12 +13,16 @@
  * by Jorge Jimenez
  */
 
+#include "infos/eevee_motion_blur_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_motion_blur_gather)
+
 #include "draw_view_lib.glsl"
 #include "eevee_motion_blur_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 
-const int gather_sample_count = 8;
+#define gather_sample_count 8
 
 /* Converts uv velocity into pixel space. Assumes velocity_tx is the same resolution as the
  * target post-FX frame-buffer. */
@@ -219,5 +223,5 @@ void main()
   out_color.rg += max_motion.xy;
 #endif
 
-  imageStore(out_color_img, texel, out_color);
+  imageStoreFast(out_color_img, texel, out_color);
 }
