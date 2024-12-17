@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+/* SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,23 +6,17 @@
  * \ingroup spseq
  */
 
+#include <cstddef>
+
 #include "DNA_sequence_types.h"
-#include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "DNA_scene_types.h"
-#include "DNA_windowmanager_types.h"
-
 #include "BKE_context.hh"
 
-#include "ED_select_utils.hh"
-#include "ED_sequencer.hh"
-
-#include "RNA_access.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_select.hh"
@@ -36,7 +30,6 @@
 
 /* Own include. */
 #include "sequencer_intern.hh"
-#include <cstddef>
 
 using namespace blender;
 
@@ -74,7 +67,7 @@ int2 seq_text_cursor_offset_to_position(const TextVarsRuntime *text, int cursor_
   cursor_offset = std::clamp(cursor_offset, 0, text->character_count);
 
   int2 cursor_position{0, 0};
-  for (seq::LineInfo line : text->lines) {
+  for (const seq::LineInfo &line : text->lines) {
     if (cursor_offset < line.characters.size()) {
       cursor_position.x = cursor_offset;
       break;
@@ -90,14 +83,14 @@ int2 seq_text_cursor_offset_to_position(const TextVarsRuntime *text, int cursor_
   return cursor_position;
 }
 
-static seq::CharInfo character_at_cursor_pos_get(const TextVarsRuntime *text,
-                                                 const int2 cursor_pos)
+static const seq::CharInfo &character_at_cursor_pos_get(const TextVarsRuntime *text,
+                                                        const int2 cursor_pos)
 {
   return text->lines[cursor_pos.y].characters[cursor_pos.x];
 }
 
-static seq::CharInfo character_at_cursor_offset_get(const TextVarsRuntime *text,
-                                                    const int cursor_offset)
+static const seq::CharInfo &character_at_cursor_offset_get(const TextVarsRuntime *text,
+                                                           const int cursor_offset)
 {
   const int2 cursor_pos = seq_text_cursor_offset_to_position(text, cursor_offset);
   return character_at_cursor_pos_get(text, cursor_pos);
@@ -138,7 +131,7 @@ static void delete_selected_text(TextVars *data)
   }
 
   TextVarsRuntime *text = data->runtime;
-  IndexRange sel_range = seq_text_selection_range_get(const_cast<const TextVars *>(data));
+  IndexRange sel_range = seq_text_selection_range_get(data);
 
   seq::CharInfo char_start = character_at_cursor_offset_get(text, sel_range.first());
   seq::CharInfo char_end = character_at_cursor_offset_get(text, sel_range.last());
@@ -189,7 +182,7 @@ static const EnumPropertyItem move_type_items[] = {
 
 static int2 cursor_move_by_character(int2 cursor_position, const TextVarsRuntime *text, int offset)
 {
-  const seq::LineInfo cur_line = text->lines[cursor_position.y];
+  const seq::LineInfo &cur_line = text->lines[cursor_position.y];
   /* Move to next line. */
   if (cursor_position.x + offset > cur_line.characters.size() - 1 &&
       cursor_position.y < text->lines.size() - 1)
@@ -212,12 +205,12 @@ static int2 cursor_move_by_character(int2 cursor_position, const TextVarsRuntime
 
 static int2 cursor_move_by_line(int2 cursor_position, const TextVarsRuntime *text, int offset)
 {
-  const seq::LineInfo cur_line = text->lines[cursor_position.y];
+  const seq::LineInfo & cur_line = text->lines[cursor_position.y];
   const int cur_pos_x = cur_line.characters[cursor_position.x].position.x;
 
   const int line_max = text->lines.size() - 1;
   const int new_line_index = std::clamp(cursor_position.y + offset, 0, line_max);
-  const seq::LineInfo new_line = text->lines[new_line_index];
+  const seq::LineInfo & new_line = text->lines[new_line_index];
 
   if (cursor_position.y == new_line_index) {
     return cursor_position;
@@ -243,7 +236,7 @@ static int2 cursor_move_by_line(int2 cursor_position, const TextVarsRuntime *tex
 
 static int2 cursor_move_line_end(int2 cursor_position, const TextVarsRuntime *text)
 {
-  const seq::LineInfo cur_line = text->lines[cursor_position.y];
+  const seq::LineInfo & cur_line = text->lines[cursor_position.y];
   cursor_position.x = cur_line.characters.size() - 1;
   return cursor_position;
 }
