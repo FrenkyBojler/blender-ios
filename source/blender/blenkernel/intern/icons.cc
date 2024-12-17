@@ -21,9 +21,9 @@
 
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
-#include "BLI_linklist_lockfree.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_global.hh" /* only for G.background test */
 #include "BKE_icons.h"
@@ -58,13 +58,8 @@ static int gFirstIconId = 1;
 
 static std::mutex gIconMutex;
 
-/* Queue of icons for deferred deletion. */
-struct DeferredIconDeleteNode {
-  DeferredIconDeleteNode *next;
-  int icon_id;
-};
 /* Protected by gIconMutex. */
-static LockfreeLinkList g_icon_delete_queue;
+static blender::Vector<int> g_icon_delete_queue;
 
 static void icon_free(void *val)
 {
@@ -172,7 +167,7 @@ void BKE_icons_init(int first_dyn_id)
 
   if (!gIcons) {
     gIcons = BLI_ghash_int_new(__func__);
-    BLI_linklist_lockfree_init(&g_icon_delete_queue);
+    g_icon_delete_queue = blender::Vector<int>();
   }
 }
 
@@ -184,22 +179,16 @@ void BKE_icons_free()
     BLI_ghash_free(gIcons, nullptr, icon_free);
     gIcons = nullptr;
   }
-
-  BLI_linklist_lockfree_free(&g_icon_delete_queue, MEM_freeN);
+  g_icon_delete_queue.clear_and_shrink();
 }
 
 void BKE_icons_deferred_free()
 {
   std::scoped_lock lock(gIconMutex);
-
-  for (DeferredIconDeleteNode *node =
-           (DeferredIconDeleteNode *)BLI_linklist_lockfree_begin(&g_icon_delete_queue);
-       node != nullptr;
-       node = node->next)
-  {
-    BLI_ghash_remove(gIcons, POINTER_FROM_INT(node->icon_id), nullptr, icon_free);
+  for (const int icon_id : g_icon_delete_queue) {
+    BLI_ghash_remove(gIcons, POINTER_FROM_INT(icon_id), nullptr, icon_free);
   }
-  BLI_linklist_lockfree_clear(&g_icon_delete_queue, MEM_freeN);
+  g_icon_delete_queue.clear_and_shrink();
 }
 
 void BKE_icon_changed(const int icon_id)
@@ -441,11 +430,8 @@ void BKE_icon_set(const int icon_id, Icon *icon)
 
 static void icon_add_to_deferred_delete_queue(int icon_id)
 {
-  DeferredIconDeleteNode *node = (DeferredIconDeleteNode *)MEM_mallocN(
-      sizeof(DeferredIconDeleteNode), __func__);
-  node->icon_id = icon_id;
-  /* Doesn't need lock. */
-  BLI_linklist_lockfree_insert(&g_icon_delete_queue, (LockfreeLinkNode *)node);
+  std::scoped_lock lock(gIconMutex);
+  g_icon_delete_queue.append(icon_id);
 }
 
 void BKE_icon_id_delete(ID *id)

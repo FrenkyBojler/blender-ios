@@ -32,7 +32,6 @@ set(SRC
   intern/BLI_heap_simple.c
   intern/BLI_kdopbvh.c
   intern/BLI_linklist.c
-  intern/BLI_linklist_lockfree.c
   intern/BLI_memarena.c
   intern/BLI_memblock.c
   intern/BLI_memiter.c
@@ -279,7 +278,6 @@ set(SRC
   BLI_linear_allocator_chunked_list.hh
   BLI_link_utils.h
   BLI_linklist.h
-  BLI_linklist_lockfree.h
   BLI_linklist_stack.h
   BLI_listbase.h
   BLI_listbase_wrapper.hh
@@ -552,7 +550,6 @@ if(WITH_GTESTS)
     tests/BLI_length_parameterize_test.cc
     tests/BLI_linear_allocator_chunked_list_test.cc
     tests/BLI_linear_allocator_test.cc
-    tests/BLI_linklist_lockfree_test.cc
     tests/BLI_listbase_test.cc
     tests/BLI_map_test.cc
     tests/BLI_math_base_safe_test.cc
