@@ -66,45 +66,48 @@ enum BVHCacheType {
 
 /**
  * Builds a BVH-tree where nodes are the given vertices (NOTE: does not copy given `vert`!).
+ * \param vert_allocated: if true, vert freeing will be done when freeing data.
  * \param verts_mask: if not null, true elements give which vert to add to BVH-tree.
  * \param verts_num_active: if >= 0, number of active verts to add to BVH-tree
  * (else will be computed from `verts_mask`).
  */
-void bvhtree_from_mesh_verts_ex(BVHTreeFromMesh *data,
-                                blender::Span<blender::float3> vert_positions,
-                                blender::BitSpan verts_mask,
-                                int verts_num_active,
-                                float epsilon,
-                                int tree_type,
-                                int axis);
+BVHTree *bvhtree_from_mesh_verts_ex(BVHTreeFromMesh *data,
+                                    blender::Span<blender::float3> vert_positions,
+                                    blender::BitSpan verts_mask,
+                                    int verts_num_active,
+                                    float epsilon,
+                                    int tree_type,
+                                    int axis);
 
 /**
  * Builds a BVH-tree where nodes are the given edges.
+ * \param vert, vert_allocated: if true, elem freeing will be done when freeing data.
+ * \param edge, edge_allocated: if true, elem freeing will be done when freeing data.
  * \param edges_mask: if not null, true elements give which vert to add to BVH-tree.
  * \param edges_num_active: if >= 0, number of active edges to add to BVH-tree
  * (else will be computed from `edges_mask`).
  */
-void bvhtree_from_mesh_edges_ex(BVHTreeFromMesh *data,
-                                blender::Span<blender::float3> vert_positions,
-                                blender::Span<blender::int2> edges,
-                                blender::BitSpan edges_mask,
-                                int edges_num_active,
-                                float epsilon,
-                                int tree_type,
-                                int axis);
+BVHTree *bvhtree_from_mesh_edges_ex(BVHTreeFromMesh *data,
+                                    blender::Span<blender::float3> vert_positions,
+                                    blender::Span<blender::int2> edges,
+                                    blender::BitSpan edges_mask,
+                                    int edges_num_active,
+                                    float epsilon,
+                                    int tree_type,
+                                    int axis);
 
 /**
  * Builds a BVH-tree where nodes are the triangle faces (#Mesh::corner_tris()) of the given mesh.
  */
-void bvhtree_from_mesh_corner_tris_ex(BVHTreeFromMesh *data,
-                                      blender::Span<blender::float3> vert_positions,
-                                      blender::Span<int> corner_verts,
-                                      blender::Span<blender::int3> corner_tris,
-                                      blender::BitSpan corner_tris_mask,
-                                      int corner_tris_num_active,
-                                      float epsilon,
-                                      int tree_type,
-                                      int axis);
+BVHTree *bvhtree_from_mesh_corner_tris_ex(BVHTreeFromMesh *data,
+                                          blender::Span<blender::float3> vert_positions,
+                                          blender::Span<int> corner_verts,
+                                          blender::Span<blender::int3> corner_tris,
+                                          blender::BitSpan corner_tris_mask,
+                                          int corner_tris_num_active,
+                                          float epsilon,
+                                          int tree_type,
+                                          int axis);
 
 /**
  * Build a bvh tree from the triangles in the mesh that correspond to the faces in the given mask.

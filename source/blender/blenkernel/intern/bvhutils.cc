@@ -30,10 +30,6 @@ using blender::VArray;
 /** \name BVHCache
  * \{ */
 
-namespace blender::bke {
-
-}  // namespace blender::bke
-
 static void bvhtree_balance(BVHTree *tree)
 {
   if (tree) {
@@ -415,11 +411,20 @@ static BVHTreeFromMesh bvhtree_from_mesh_setup_data(BVHTree *tree,
   return data;
 }
 
-static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_new_common(float epsilon,
-                                                                   int tree_type,
-                                                                   int axis,
-                                                                   int elems_num)
+static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_new_common(
+    float epsilon, int tree_type, int axis, int elems_num, int &elems_num_active)
 {
+  if (elems_num_active != -1) {
+    BLI_assert(IN_RANGE_INCL(elems_num_active, 0, elems_num));
+  }
+  else {
+    elems_num_active = elems_num;
+  }
+
+  if (elems_num_active == 0) {
+    return nullptr;
+  }
+
   return std::unique_ptr<BVHTree, BVHTreeDeleter>(
       BLI_bvhtree_new(elems_num, epsilon, tree_type, axis));
 }
@@ -439,7 +444,7 @@ static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_from_mesh_verts_create_t
     int verts_num_active)
 {
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_new_common(
-      epsilon, tree_type, axis, verts_num_active);
+      epsilon, tree_type, axis, positions.size(), verts_num_active);
   if (!tree) {
     return nullptr;
   }
@@ -454,13 +459,13 @@ static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_from_mesh_verts_create_t
   return tree;
 }
 
-void bvhtree_from_mesh_verts_ex(BVHTreeFromMesh *data,
-                                const Span<float3> vert_positions,
-                                const BitSpan verts_mask,
-                                int verts_num_active,
-                                float epsilon,
-                                int tree_type,
-                                int axis)
+BVHTree *bvhtree_from_mesh_verts_ex(BVHTreeFromMesh *data,
+                                    const Span<float3> vert_positions,
+                                    const BitSpan verts_mask,
+                                    int verts_num_active,
+                                    float epsilon,
+                                    int tree_type,
+                                    int axis)
 {
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_from_mesh_verts_create_tree(
       epsilon, tree_type, axis, vert_positions, verts_mask, verts_num_active);
@@ -475,6 +480,7 @@ void bvhtree_from_mesh_verts_ex(BVHTreeFromMesh *data,
 
   data->owned_tree = std::move(tree);
   data->tree = data->owned_tree.get();
+  return data->owned_tree.get();
 }
 
 /** \} */
@@ -493,7 +499,7 @@ static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_from_mesh_edges_create_t
     int axis)
 {
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_new_common(
-      epsilon, tree_type, axis, edges_num_active);
+      epsilon, tree_type, axis, edges.size(), edges_num_active);
   if (!tree) {
     return nullptr;
   }
@@ -512,14 +518,14 @@ static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_from_mesh_edges_create_t
   return tree;
 }
 
-void bvhtree_from_mesh_edges_ex(BVHTreeFromMesh *data,
-                                const Span<float3> vert_positions,
-                                const Span<blender::int2> edges,
-                                const BitSpan edges_mask,
-                                int edges_num_active,
-                                float epsilon,
-                                int tree_type,
-                                int axis)
+BVHTree *bvhtree_from_mesh_edges_ex(BVHTreeFromMesh *data,
+                                    const Span<float3> vert_positions,
+                                    const Span<blender::int2> edges,
+                                    const BitSpan edges_mask,
+                                    int edges_num_active,
+                                    float epsilon,
+                                    int tree_type,
+                                    int axis)
 {
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_from_mesh_edges_create_tree(
       vert_positions, edges, edges_mask, edges_num_active, epsilon, tree_type, axis);
@@ -534,6 +540,7 @@ void bvhtree_from_mesh_edges_ex(BVHTreeFromMesh *data,
 
   data->owned_tree = std::move(tree);
   data->tree = data->owned_tree.get();
+  return data->owned_tree.get();
 }
 
 /** \} */
@@ -553,7 +560,7 @@ static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_from_mesh_faces_create_t
     int faces_num_active)
 {
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_new_common(
-      epsilon, tree_type, axis, faces_num_active);
+      epsilon, tree_type, axis, faces_num, faces_num_active);
   if (!tree) {
     return nullptr;
   }
@@ -600,7 +607,7 @@ static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_from_mesh_corner_tris_cr
   }
 
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_new_common(
-      epsilon, tree_type, axis, corner_tris_num_active);
+      epsilon, tree_type, axis, corner_tris.size(), corner_tris_num_active);
   if (!tree) {
     return nullptr;
   }
@@ -621,15 +628,15 @@ static std::unique_ptr<BVHTree, BVHTreeDeleter> bvhtree_from_mesh_corner_tris_cr
   return tree;
 }
 
-void bvhtree_from_mesh_corner_tris_ex(BVHTreeFromMesh *data,
-                                      const Span<float3> vert_positions,
-                                      const Span<int> corner_verts,
-                                      const Span<int3> corner_tris,
-                                      const BitSpan corner_tris_mask,
-                                      int corner_tris_num_active,
-                                      float epsilon,
-                                      int tree_type,
-                                      int axis)
+BVHTree *bvhtree_from_mesh_corner_tris_ex(BVHTreeFromMesh *data,
+                                          const Span<float3> vert_positions,
+                                          const Span<int> corner_verts,
+                                          const Span<int3> corner_tris,
+                                          const BitSpan corner_tris_mask,
+                                          int corner_tris_num_active,
+                                          float epsilon,
+                                          int tree_type,
+                                          int axis)
 {
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_from_mesh_corner_tris_create_tree(
       epsilon,
@@ -656,6 +663,7 @@ void bvhtree_from_mesh_corner_tris_ex(BVHTreeFromMesh *data,
 
   data->owned_tree = std::move(tree);
   data->tree = data->owned_tree.get();
+  return data->owned_tree.get();
 }
 
 static BitVector<> loose_verts_no_hidden_mask_get(const Mesh &mesh, int *r_elem_active_len)
@@ -974,7 +982,9 @@ void BKE_bvhtree_from_mesh_tris_init(const Mesh &mesh,
   faces_mask.foreach_index(
       [&](const int i) { tris_num += mesh::face_triangles_num(faces[i].size()); });
 
-  std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_new_common(0.0f, 2, 6, tris_num);
+  int active_num = -1;
+  std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_new_common(
+      0.0f, 2, 6, tris_num, active_num);
   if (tree == nullptr) {
     return;
   }
@@ -1014,8 +1024,9 @@ void BKE_bvhtree_from_mesh_edges_init(const Mesh &mesh,
   r_data = bvhtree_from_mesh_setup_data(
       nullptr, BVHTREE_FROM_EDGES, positions, edges, {}, {}, nullptr);
 
+  int active_num = -1;
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_new_common(
-      0.0f, 2, 6, edges_mask.size());
+      0.0f, 2, 6, edges_mask.size(), active_num);
   if (tree == nullptr) {
     return;
   }
@@ -1050,8 +1061,9 @@ void BKE_bvhtree_from_mesh_verts_init(const Mesh &mesh,
   r_data = bvhtree_from_mesh_setup_data(
       nullptr, BVHTREE_FROM_VERTS, positions, {}, {}, {}, nullptr);
 
+  int active_num = -1;
   std::unique_ptr<BVHTree, BVHTreeDeleter> tree = bvhtree_new_common(
-      0.0f, 2, 6, verts_mask.size());
+      0.0f, 2, 6, verts_mask.size(), active_num);
   if (tree == nullptr) {
     return;
   }
@@ -1076,7 +1088,8 @@ void BKE_bvhtree_from_pointcloud_get(const PointCloud &pointcloud,
                                      const blender::IndexMask &points_mask,
                                      BVHTreeFromPointCloud &r_data)
 {
-  BVHTree *tree = bvhtree_new_common(0.0f, 2, 6, points_mask.size()).release();
+  int active_num = -1;
+  BVHTree *tree = bvhtree_new_common(0.0f, 2, 6, points_mask.size(), active_num).release();
   r_data.tree = tree;
   if (!tree) {
     return;
