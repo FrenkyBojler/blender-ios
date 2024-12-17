@@ -101,8 +101,25 @@ struct VKGraphicsInfo {
 
     bool operator==(const FragmentShader &other) const
     {
-      /* TODO: Do not use hash. */
-      return vk_fragment_module == other.vk_fragment_module && hash() == other.hash();
+      if (vk_fragment_module != other.vk_fragment_module ||
+          viewports.size() != other.viewports.size() || scissors.size() != other.scissors.size() ||
+          hash() != other.hash())
+      {
+        return false;
+      }
+
+      if (memcmp(viewports.data(),
+                 other.viewports.data(),
+                 viewports.size() * sizeof(VkViewport)) != 0)
+      {
+        return false;
+      };
+      if (memcmp(scissors.data(), other.scissors.data(), scissors.size() * sizeof(VkRect2D)) != 0)
+      {
+        return false;
+      };
+
+      return true;
     }
 
     uint64_t hash() const
@@ -121,21 +138,19 @@ struct VKGraphicsInfo {
    private:
     uint64_t calc_hash() const
     {
-      uint64_t hash = 0;
-      hash = hash * 33 ^ uint64_t(vk_fragment_module);
+      uint64_t hash = uint64_t(vk_fragment_module);
       for (const VkViewport &vk_viewport : viewports) {
-        hash = hash * 33 ^ uint64_t(vk_viewport.x);
-        hash = hash * 33 ^ uint64_t(vk_viewport.y);
-        hash = hash * 33 ^ uint64_t(vk_viewport.width);
-        hash = hash * 33 ^ uint64_t(vk_viewport.height);
-        hash = hash * 33 ^ uint64_t(vk_viewport.minDepth);
-        hash = hash * 33 ^ uint64_t(vk_viewport.maxDepth);
+        hash = hash * 33 ^ (uint64_t(vk_viewport.x) | (uint64_t(vk_viewport.y) << sizeof(float)));
+        hash = hash * 33 ^
+               (uint64_t(vk_viewport.width) | (uint64_t(vk_viewport.height) << sizeof(float)));
+        hash = hash * 33 ^ (uint64_t(vk_viewport.minDepth) |
+                            (uint64_t(vk_viewport.maxDepth) << sizeof(float)));
       }
       for (const VkRect2D &scissor : scissors) {
-        hash = hash * 33 ^ uint64_t(scissor.offset.x);
-        hash = hash * 33 ^ uint64_t(scissor.offset.y);
-        hash = hash * 33 ^ uint64_t(scissor.extent.width);
-        hash = hash * 33 ^ uint64_t(scissor.extent.height);
+        hash = hash * 33 ^
+               (uint64_t(scissor.offset.x) | (uint64_t(scissor.offset.y) << sizeof(int32_t)));
+        hash = hash * 33 ^ (uint64_t(scissor.extent.width) |
+                            (uint64_t(scissor.extent.height) << sizeof(int32_t)));
       }
       return hash;
     }
@@ -152,7 +167,25 @@ struct VKGraphicsInfo {
 
     bool operator==(const FragmentOut &other) const
     {
+#if 1
       return hash() == other.hash();
+#else
+      if (depth_attachment_format != other.depth_attachment_format ||
+          stencil_attachment_format != other.stencil_attachment_format ||
+          vk_render_pass != other.vk_render_pass ||
+          color_attachment_formats.size() != other.color_attachment_formats.size())
+      {
+        return false;
+      }
+
+      if (memcmp(color_attachment_formats.data(),
+                 other.color_attachment_formats.data(),
+                 color_attachment_formats.size() * sizeof(VkFormat)) == 0)
+      {
+        return false;
+      }
+      return true;
+#endif
     }
 
     uint64_t hash() const
