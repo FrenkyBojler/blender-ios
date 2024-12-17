@@ -984,7 +984,8 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
     return nullptr;
   }
 
-  blender::animrig::Slot &slot = blender::animrig::get_best_slot_for_id(object->id, pose_data);
+  blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(object->id,
+                                                                             pose_data);
   PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(object, action, slot.handle);
 
   /* Apply the Action as pose, so that it can be rendered. This assumes the Action represents a

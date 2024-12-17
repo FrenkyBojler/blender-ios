@@ -109,7 +109,8 @@ static void poselib_backup_posecopy(PoseBlendData *pbd)
 {
   bAction *action = poselib_action_to_blend(pbd);
   blender::animrig::Action &pose_data = action->wrap();
-  blender::animrig::Slot &slot = blender::animrig::get_best_slot_for_id(pbd->ob->id, pose_data);
+  blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(pbd->ob->id,
+                                                                             pose_data);
   pbd->pose_backup = BKE_pose_backup_create_selected_bones(pbd->ob, action, slot.handle);
 
   if (pbd->state == POSE_BLEND_INIT) {

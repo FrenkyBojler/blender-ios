@@ -21,8 +21,9 @@ class PoseTest : public testing::Test {
  public:
   Main *bmain;
   Action *pose_data;
-  Object *obj_a;
-  Object *obj_b;
+  Object *obj_empty;
+  Object *obj_armature;
+  StripKeyframeData *keyframe_data;
 
   static void SetUpTestSuite()
   {
@@ -42,8 +43,12 @@ class PoseTest : public testing::Test {
   {
     bmain = BKE_main_new();
     pose_data = static_cast<Action *>(BKE_id_new(bmain, ID_AC, "pose_data"));
-    obj_a = BKE_object_add_only_object(bmain, OB_EMPTY, "obj_a");
-    obj_b = BKE_object_add_only_object(bmain, OB_EMPTY, "obj_b");
+    Layer &layer = pose_data->layer_add("first_layer");
+    Strip &strip = layer.strip_add(*pose_data, Strip::Type::Keyframe);
+    keyframe_data = &strip.data<StripKeyframeData>(*pose_data);
+
+    obj_empty = BKE_object_add_only_object(bmain, OB_EMPTY, "obj_empty");
+    obj_armature = BKE_object_add_only_object(bmain, OB_ARMATURE, "obj_armature");
   }
 
   void TearDown() override
@@ -55,9 +60,16 @@ class PoseTest : public testing::Test {
 TEST_F(PoseTest, get_best_slot)
 {
   Slot &first_slot = pose_data->slot_add();
-  Slot &second_slot = pose_data->slot_add_for_id(obj_a->id);
+  Slot &second_slot = pose_data->slot_add_for_id(obj_empty->id);
 
-  EXPECT_EQ(&get_best_slot_for_id(obj_a->id, *pose_data), &second_slot);
-  EXPECT_EQ(&get_best_slot_for_id(obj_b->id, *pose_data), &first_slot);
+  EXPECT_EQ(&get_best_pose_slot_for_id(obj_empty->id, *pose_data), &second_slot);
+  EXPECT_EQ(&get_best_pose_slot_for_id(obj_armature->id, *pose_data), &first_slot);
 }
+
+TEST_F(PoseTest, apply_action_all_bones) {}
+
+TEST_F(PoseTest, apply_action_selected_bones) {}
+
+TEST_F(PoseTest, apply_action_blend) {}
+
 }  // namespace blender::animrig::tests

@@ -44,5 +44,5 @@ void pose_apply_action_blend(Object *ob,
  * Will always return a Slot as it falls back to the first Slot.
  *
  * Assumes that the Action has at least one Slot.*/
-Slot &get_best_slot_for_id(const ID &id, Action &pose_data);
+Slot &get_best_pose_slot_for_id(const ID &id, Action &pose_data);
 }  // namespace blender::animrig

@@ -71,7 +71,7 @@ void pose_apply(Object *ob,
   if (limit_to_selected_bones) {
     /* Mute all FCurves that are not associated with selected bones. This separates the concept of
      * bone selection from the FCurve evaluation code. */
-    Slot &slot = get_best_slot_for_id(ob->id, pose_data);
+    Slot &slot = get_best_pose_slot_for_id(ob->id, pose_data);
     pose_apply_disable_fcurves_for_unselected_bones(action, slot.handle, selected_bone_names);
   }
 
@@ -127,7 +127,7 @@ void pose_apply_action_blend(Object *ob,
   pose_apply(ob, action, slot_handle, anim_eval_context, evaluate_and_blend);
 }
 
-Slot &get_best_slot_for_id(const ID &id, Action &pose_data)
+Slot &get_best_pose_slot_for_id(const ID &id, Action &pose_data)
 {
   BLI_assert_msg(pose_data.slot_array_num > 0,
                  "Actions without slots have no data. This should have been caught earlier.");
