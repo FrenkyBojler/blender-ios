@@ -124,9 +124,6 @@ class PropertiesAnimationMixin:
 
         layout.template_action(animated_id, new="action.new", unlink="action.unlink")
 
-        if not context.preferences.experimental.use_animation_baklava:
-            return
-
         adt = animated_id.animation_data
         if not adt or not adt.action:
             return
@@ -136,7 +133,7 @@ class PropertiesAnimationMixin:
             layout.context_pointer_set("animated_id", animated_id)
             layout.template_search(
                 adt, "action_slot",
-                adt, "action_slots",
+                adt, "action_suitable_slots",
                 new="anim.slot_new_for_id",
                 unlink="anim.slot_unassign_from_id",
             )

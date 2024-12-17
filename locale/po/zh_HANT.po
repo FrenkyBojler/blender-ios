@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'58c660c9615d')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'2eb53ba3b21b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-10-20 15:55+0000\n"
+"POT-Creation-Date: 2024-12-16 09:31+0000\n"
 "PO-Revision-Date: 2024-03-05 22:56+0000\n"
 "Last-Translator: 居樂行 <oscilloscope9705@gmail.com>\n"
 "Language-Team: Chinese (Traditional) <https://translate.blender.org/projects/blender-ui/ui/zh_Hant/>\n"
@@ -9922,6 +9922,10 @@ msgid "Amount of fine level detail present in the noise"
 msgstr "噪訊中呈現的精細等級細節量"
 
 
+msgid "Lacunarity"
+msgstr "缺空"
+
+
 msgid "Time offset for the noise effect"
 msgstr "噪訊效果的時間偏移"
 
@@ -9932,6 +9936,10 @@ msgstr "相位"
 
 msgid "A random seed for the noise effect"
 msgstr "噪訊效果的隨機種子"
+
+
+msgid "Roughness"
+msgstr "粗糙度"
 
 
 msgid "Scaling (in time) of the noise"
@@ -14813,20 +14821,12 @@ msgid "Power"
 msgstr "次方"
 
 
-msgid "Shadow Buffer Bias"
-msgstr "陰影緩衝偏差"
-
-
 msgid "Shadow Buffer Clip Start"
 msgstr "陰影緩衝剪輯開始"
 
 
 msgid "Shadow map clip start, below which objects will not generate shadows"
 msgstr "陰影映射剪輯結束，沒到這裡物體不會生成陰影"
-
-
-msgid "Shadow Color"
-msgstr "陰影色彩"
 
 
 msgid "Shadow Soft Size"
@@ -15028,26 +15028,6 @@ msgstr "布料"
 
 msgid "Refraction Depth"
 msgstr "折射深度"
-
-
-msgid "Roughness"
-msgstr "粗糙度"
-
-
-msgid "Shadow Mode"
-msgstr "陰影模式"
-
-
-msgid "Opaque"
-msgstr "不透明"
-
-
-msgid "Alpha Clip"
-msgstr "Alpha 剪輯"
-
-
-msgid "Alpha Hashed"
-msgstr "Alpha 雜湊化"
 
 
 msgid "Show Backface"
@@ -15382,12 +15362,16 @@ msgid "Shader"
 msgstr "著色器"
 
 
-msgid "Grease Pencil Data"
-msgstr "蠟筆資料"
+msgid "Pattern"
+msgstr "樣式"
 
 
 msgid "Interface"
 msgstr "介面"
+
+
+msgid "Grease Pencil Data"
+msgstr "蠟筆資料"
 
 
 msgid "Links"
@@ -18008,10 +17992,6 @@ msgid "Marble Texture"
 msgstr "大理石紋理"
 
 
-msgid "Pattern"
-msgstr "樣式"
-
-
 msgid "Use soft marble"
 msgstr "使用柔大理石"
 
@@ -18082,10 +18062,6 @@ msgstr "增益"
 
 msgid "The gain multiplier"
 msgstr "增益乘數"
-
-
-msgid "Lacunarity"
-msgstr "缺空"
 
 
 msgid "Gap between successive frequencies"
@@ -20921,124 +20897,132 @@ msgid "Material slot name"
 msgstr "材質槽名稱"
 
 
-msgid "Names"
-msgstr "名稱"
-
-
-msgid "Propagate"
-msgstr "增生"
-
-
-msgid "In-Betweens"
-msgstr "內部之間"
-
-
-msgid "Clear Transform"
-msgstr "清除變換"
-
-
-msgid "Random Mask"
-msgstr "隨機遮罩"
-
-
-msgid "Align View"
-msgstr "對齊視圖"
-
-
-msgid "Face Data"
-msgstr "面資料"
-
-
-msgid "Mesh Select Mode"
-msgstr "網格選取模式"
-
-
-msgid "Navigation"
-msgstr "導覽"
-
-
-msgid "Disable Bone Options"
-msgstr "停用骨骼設定"
-
-
-msgid "Viewpoint"
-msgstr "視點"
-
-
-msgid "Enable Bone Options"
-msgstr "啟用骨骼設定"
-
-
-msgid "Local View"
-msgstr "區域視圖"
-
-
-msgid "Toggle Bone Options"
-msgstr "開關骨骼選項"
-
-
-msgid "Show/Hide"
-msgstr "顯示/隱藏"
-
-
-msgid "UV Mapping"
-msgstr "UV 映射處理"
+msgid "Mirror"
+msgstr "鏡像"
 
 
 msgid "Snap"
 msgstr "吸附"
 
 
-msgid "Mirror"
-msgstr "鏡像"
+msgid "UV Mapping"
+msgstr "UV 映射處理"
 
 
-msgid "Sculpt Set Pivot"
-msgstr "設定樞紐點"
+msgid "Local View"
+msgstr "區域視圖"
 
 
-msgid "Hooks"
-msgstr "鉤"
+msgid "Viewpoint"
+msgstr "視點"
 
 
-msgid "Make Single User"
-msgstr "製作單一使用者"
+msgid "Navigation"
+msgstr "導覽"
 
 
-msgid "Clean Up"
-msgstr "清理"
+msgid "Align View"
+msgstr "對齊視圖"
 
 
-msgid "Quick Effects"
-msgstr "快速效果"
-
-
-msgid "Track"
-msgstr "追蹤"
-
-
-msgid "Apply"
-msgstr "套用"
-
-
-msgid "Rigid Body"
-msgstr "剛體"
-
-
-msgid "Relations"
-msgstr "關係"
-
-
-msgid "Select Similar"
-msgstr "選取相似者"
+msgid "Align View to Active"
+msgstr "對齊視圖至作用項"
 
 
 msgid "Select More/Less"
 msgstr "較多/較少選取"
 
 
+msgid "Select Similar"
+msgstr "選取相似者"
+
+
 msgid "Select Linked"
 msgstr "選取連結項"
+
+
+msgid "Relations"
+msgstr "關係"
+
+
+msgid "Rigid Body"
+msgstr "剛體"
+
+
+msgid "Apply"
+msgstr "套用"
+
+
+msgid "Track"
+msgstr "追蹤"
+
+
+msgid "Quick Effects"
+msgstr "快速效果"
+
+
+msgid "Show/Hide"
+msgstr "顯示/隱藏"
+
+
+msgid "Clean Up"
+msgstr "清理"
+
+
+msgid "Make Single User"
+msgstr "製作單一使用者"
+
+
+msgid "Hooks"
+msgstr "鉤"
+
+
+msgid "Sculpt Set Pivot"
+msgstr "設定樞紐點"
+
+
+msgid "Random Mask"
+msgstr "隨機遮罩"
+
+
+msgid "Clear Transform"
+msgstr "清除變換"
+
+
+msgid "In-Betweens"
+msgstr "內部之間"
+
+
+msgid "Propagate"
+msgstr "增生"
+
+
+msgid "Names"
+msgstr "名稱"
+
+
+msgid "Toggle Bone Options"
+msgstr "開關骨骼選項"
+
+
+msgid "Enable Bone Options"
+msgstr "啟用骨骼設定"
+
+
+msgid "Disable Bone Options"
+msgstr "停用骨骼設定"
+
+
+msgid "Mesh Select Mode"
+msgstr "網格選取模式"
+
+
+msgid "Face Data"
+msgstr "面資料"
+
+
+msgid "Merge"
+msgstr "合併"
 
 
 msgid "Special Characters"
@@ -21047,14 +21031,6 @@ msgstr "特殊字元"
 
 msgid "Bone Roll"
 msgstr "骨骼滾動"
-
-
-msgid "Align View to Active"
-msgstr "對齊視圖至作用項"
-
-
-msgid "Merge"
-msgstr "合併"
 
 
 msgid "Pivot Point"
@@ -29009,6 +28985,16 @@ msgid "Add Hair Dynamics Preset"
 msgstr "添加毛髮動力學預設置"
 
 
+msgctxt "Operator"
+msgid "Disable Add-on"
+msgstr "停用附加元件"
+
+
+msgctxt "Operator"
+msgid "Enable Add-on"
+msgstr "啟用附加元件"
+
+
 msgid "Display information and preferences for this add-on"
 msgstr "顯示此附加元件的資訊和偏好設定"
 
@@ -29487,16 +29473,6 @@ msgstr "添加或移除操作器預設置"
 msgctxt "Operator"
 msgid "Operator Preset"
 msgstr "操作器預設置"
-
-
-msgctxt "Operator"
-msgid "Disable Add-on"
-msgstr "停用附加元件"
-
-
-msgctxt "Operator"
-msgid "Enable Add-on"
-msgstr "啟用附加元件"
 
 
 msgid "Open a path in a file browser"
@@ -32220,6 +32196,10 @@ msgid "(De)select all control points"
 msgstr "(取消)全選控制點"
 
 
+msgid "Deselect linked control points rather than selecting them"
+msgstr "取消選取已連結的控制點，而不是選取它們"
+
+
 msgctxt "Operator"
 msgid "Select Random"
 msgstr "選取隨機"
@@ -32442,10 +32422,6 @@ msgstr "設定用作倒角窄縮的各點半徑"
 
 msgid "Select all control points linked to already selected ones"
 msgstr "選取所有連結至已選取項目的控制點"
-
-
-msgid "Deselect linked control points rather than selecting them"
-msgstr "取消選取已連結的控制點，而不是選取它們"
 
 
 msgctxt "Operator"
@@ -33038,15 +33014,6 @@ msgstr "刪除所選的書籤"
 msgctxt "Operator"
 msgid "Move Bookmark"
 msgstr "移動書籤"
-
-
-msgctxt "Operator"
-msgid "Cancel File Load"
-msgstr "取消檔案載入"
-
-
-msgid "Cancel loading of selected file"
-msgstr "取消載入選取的檔案"
 
 
 msgctxt "Operator"
@@ -36505,10 +36472,6 @@ msgid "Clear Constraints"
 msgstr "清除約束"
 
 
-msgid "Remove all constraints from keyed object/bones, and do 'visual' keying"
-msgstr "從鍵處理的物體/骨骼移除所有約束，並執行「視覺」鍵處理"
-
-
 msgid "Clear Parents"
 msgstr "清除親代"
 
@@ -39161,11 +39124,6 @@ msgstr "從作用中攝影機向物體投射回一個編輯過的算繪"
 
 msgid "Use the mouse to sample a color in the image"
 msgstr "使用滑鼠取樣影像中的色彩"
-
-
-msgctxt "Operator"
-msgid "Texture Paint Toggle"
-msgstr "紋理繪製切換"
 
 
 msgid "Toggle texture paint mode in 3D view"
@@ -44624,22 +44582,6 @@ msgid "Palette Color"
 msgstr "色版色彩"
 
 
-msgid "Wire Color"
-msgstr "線色"
-
-
-msgid "Render Pass"
-msgstr "算繪通遞"
-
-
-msgid "Compositor"
-msgstr "合成器"
-
-
-msgid "Overlays"
-msgstr "疊層"
-
-
 msgid "Motion Tracking"
 msgstr "運動跟蹤"
 
@@ -44666,6 +44608,22 @@ msgstr "VR"
 
 msgid "Active Tool"
 msgstr "作用中工具"
+
+
+msgid "Wire Color"
+msgstr "線色"
+
+
+msgid "Render Pass"
+msgstr "算繪通遞"
+
+
+msgid "Compositor"
+msgstr "合成器"
+
+
+msgid "Overlays"
+msgstr "疊層"
 
 
 msgid "Chain Scaling"
@@ -45058,10 +45016,6 @@ msgstr "診斷"
 
 msgid "Helpers"
 msgstr "輔助器"
-
-
-msgid "Indirect Lighting"
-msgstr "間接光照"
 
 
 msgid "Shadows"
@@ -49189,20 +49143,8 @@ msgid "Over-blur"
 msgstr "過度模糊"
 
 
-msgid "Factor for ambient occlusion blending"
-msgstr "周遭遮擋其混合的係數"
-
-
 msgid "Screen-Trace"
 msgstr "畫面追蹤"
-
-
-msgid "Screen Space Refractions"
-msgstr "螢幕空間折射"
-
-
-msgid "Enable screen space Refractions"
-msgstr "啟用螢幕空間折射"
 
 
 msgid "USD"
@@ -49616,6 +49558,10 @@ msgstr "減去序段"
 
 msgid "Align X"
 msgstr "對齊 X"
+
+
+msgid "Shadow Color"
+msgstr "陰影色彩"
 
 
 msgctxt "Sequence"
@@ -53383,34 +53329,6 @@ msgid "Snap to all geometry"
 msgstr "吸附至所有幾何"
 
 
-msgid "Snap Node Element"
-msgstr "吸附節點元素"
-
-
-msgid "Node X"
-msgstr "節點 X"
-
-
-msgid "Snap to left/right node border"
-msgstr "吸附左/右節點邊緣"
-
-
-msgid "Node Y"
-msgstr "節點 Y"
-
-
-msgid "Snap to top/bottom node border"
-msgstr "吸附上/下節點邊緣"
-
-
-msgid "Node X / Y"
-msgstr "節點 X / Y"
-
-
-msgid "Snap to any node border"
-msgstr "吸附任意節點邊緣"
-
-
 msgid "Snap Target"
 msgstr "吸附目標"
 
@@ -54190,6 +54108,10 @@ msgid "Multiplication factor when using the fast or slow modifiers"
 msgstr "當使用快速或慢速修改器時的相乘係數"
 
 
+msgid "Factor for ambient occlusion blending"
+msgstr "周遭遮擋其混合的係數"
+
+
 msgid "Length of rays, defines how far away other faces give occlusion effect"
 msgstr "光線長度，定義其他表面生成遮擋效果的距離有多遠"
 
@@ -54610,11 +54532,6 @@ msgstr "NLA 編輯器"
 msgctxt "WindowManager"
 msgid "NLA Generic"
 msgstr "NLA 通用"
-
-
-msgctxt "WindowManager"
-msgid "Timeline"
-msgstr "時間軸"
 
 
 msgctxt "WindowManager"
@@ -55594,10 +55511,6 @@ msgstr "大寫"
 
 msgid "Auto-Step"
 msgstr "自動步進"
-
-
-msgid "Refraction"
-msgstr "折射"
 
 
 msgid "Paths:"
@@ -57285,6 +57198,10 @@ msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %
 msgstr "無法清除鍵幀，因為給定 ID 的 RNA 路徑無效 (ID = %s，路徑 = %s)"
 
 
+msgid "Skipping path in keying set, as it has no ID (KS = '%s', path = '%s[%d]')"
+msgstr "略過鍵處理集中的路徑，因為它沒有 ID (KS = '%s'，路徑 = '%s[%d]')"
+
+
 msgid "Could not set action '%s' onto ID '%s', as it does not have suitably rooted paths for this purpose"
 msgstr "無法設定動作「%s」於 ID「%s」上，因為對於此用途來說它沒有適當根生的路徑"
 
@@ -57331,10 +57248,6 @@ msgstr "藏庫重載：若重新載入者失敗則將所有參照取代為「%s�
 
 msgid "Total files %d | Changed %d | Failed %d"
 msgstr "總計檔案 %d | 更動 %d | 失敗 %d"
-
-
-msgid "Path '%s' not found"
-msgstr "找不到路徑「%s」"
 
 
 msgid "Could not find '%s' in '%s'"
@@ -57436,10 +57349,6 @@ msgstr "鍵 %d"
 
 msgid "Modifier requires original data, bad stack position"
 msgstr "修改器需要原始資料，不良的堆疊位置"
-
-
-msgid "GPencil"
-msgstr "蠟筆"
 
 
 msgid "No new files have been packed"
@@ -57617,10 +57526,6 @@ msgstr "找不到庫「%s」"
 
 msgid "Unable to open blend <memory>"
 msgstr "無法開啟 blend <記憶體>"
-
-
-msgid "Failed to read blend file '%s', not a blend file"
-msgstr "無法讀取 blend 檔「%s」，並非 blend 檔"
 
 
 msgid "Unable to open '%s': %s"
@@ -57813,10 +57718,6 @@ msgstr "無法從內建的鍵處理集中移除屬性"
 
 msgid "Property added to Keying Set: '%s'"
 msgstr "屬性已添加至鍵處理集：「%s」"
-
-
-msgid "Skipping path in keying set, as it has no ID (KS = '%s', path = '%s[%d]')"
-msgstr "略過鍵處理集中的路徑，因為它沒有 ID (KS = '%s'，路徑 = '%s[%d]')"
 
 
 msgid "No region view3d available"
@@ -61910,10 +61811,6 @@ msgstr "遮罩"
 
 msgid "Pose Library"
 msgstr "姿勢庫"
-
-
-msgid "All Add-ons"
-msgstr "所有附加元件"
 
 
 msgid "All Add-ons Installed by User"

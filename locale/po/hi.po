@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'58c660c9615d')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'2eb53ba3b21b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-10-20 15:55+0000\n"
+"POT-Creation-Date: 2024-12-16 09:31+0000\n"
 "PO-Revision-Date: 2015-03-03 16:21+0530\n"
 "Last-Translator: Roshan Lal Gumasta <roshan@anisecrets.com>\n"
 "Language-Team: Hindi <www.anisecrets.com>\n"
@@ -2672,60 +2672,60 @@ msgid "Flip"
 msgstr "पलटें"
 
 
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Enable Bone Options"
-msgstr "हड्डी विकल्प को सक्षम करें"
-
-
-msgid "Toggle Bone Options"
-msgstr "हड्डी विकल्प बंद/बुझ"
-
-
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
+msgid "Mirror"
+msgstr "दर्पण"
 
 
 msgid "Snap"
 msgstr "स्नैप"
 
 
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "Hooks"
-msgstr "खूँटी"
-
-
-msgid "Make Single User"
-msgstr "एकल प्रयोक्ता बनाएँ"
-
-
-msgid "Quick Effects"
-msgstr "त्वरित प्रभाव"
-
-
-msgid "Track"
-msgstr "ट्रैक"
+msgid "Rigid Body"
+msgstr "कठोर-पदार्थ"
 
 
 msgid "Apply"
 msgstr "लागू करें"
 
 
-msgid "Rigid Body"
-msgstr "कठोर-पदार्थ"
+msgid "Track"
+msgstr "ट्रैक"
 
 
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
+msgid "Quick Effects"
+msgstr "त्वरित प्रभाव"
+
+
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
+msgid "Make Single User"
+msgstr "एकल प्रयोक्ता बनाएँ"
+
+
+msgid "Hooks"
+msgstr "खूँटी"
+
+
+msgid "Names"
+msgstr "नाम"
+
+
+msgid "Toggle Bone Options"
+msgstr "हड्डी विकल्प बंद/बुझ"
+
+
+msgid "Enable Bone Options"
+msgstr "हड्डी विकल्प को सक्षम करें"
 
 
 msgid "Merge"
 msgstr "विलय करें"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
 
 
 msgid "Basic"
@@ -5446,10 +5446,6 @@ msgid "Auto-Step"
 msgstr "स्वत:-चरण"
 
 
-msgid "Refraction"
-msgstr "अपवर्तन"
-
-
 msgid "Paths:"
 msgstr "पथ:"
 
@@ -5877,10 +5873,6 @@ msgstr "सतह"
 
 msgid "Key %d"
 msgstr "कुंजी %d"
-
-
-msgid "GPencil"
-msgstr "तैलीय पेंसिल"
 
 
 msgid "No new files have been packed"
