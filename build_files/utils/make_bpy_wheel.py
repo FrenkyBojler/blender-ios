@@ -39,8 +39,7 @@ import sys
 
 from typing import (
     Tuple,
-)
-from collections.abc import (
+    # Proxies for `collections.abc`
     Iterator,
     Sequence,
 )

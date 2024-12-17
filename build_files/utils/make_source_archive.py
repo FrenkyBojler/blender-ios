@@ -14,8 +14,7 @@ from typing import (
     TextIO,
     Any,
     Union,
-)
-from collections.abc import (
+    # Proxies for `collections.abc`
     Iterable,
 )
 
