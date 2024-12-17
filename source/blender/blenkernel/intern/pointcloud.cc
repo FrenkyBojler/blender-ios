@@ -83,7 +83,8 @@ static void pointcloud_copy_data(Main * /*bmain*/,
 
   CustomData_init_from(
       &pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, pointcloud_dst->totpoint);
-  pointcloud_dst->attribute_storage.wrap() = pointcloud_src->attribute_storage.wrap();
+  new (&pointcloud_dst->attribute_storage.wrap())
+      blender::bke::AttributeStorage(pointcloud_src->attribute_storage.wrap());
 
   pointcloud_dst->runtime = new blender::bke::PointCloudRuntime();
   pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;

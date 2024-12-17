@@ -180,7 +180,9 @@ AttributeStorage::~AttributeStorage()
     }
     MEM_freeN(attribute);
   }
-  MEM_freeN(this->attributes_array);
+  if (this->attributes_array) {
+    MEM_freeN(this->attributes_array);
+  }
   MEM_delete(this->runtime);
 }
 
@@ -329,9 +331,9 @@ static void read_attribute_data_array(BlendDataReader &reader,
 
 void AttributeStorage::blend_read(BlendDataReader &reader)
 {
-  this->runtime = MEM_new<blender::bke::AttributeStorageRuntime>(__func__);
+  this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
 
-  BLO_read_pointer_array(&reader, this->attributes_num, (void **)(this->attributes_array));
+  BLO_read_pointer_array(&reader, this->attributes_num, (void **)(&this->attributes_array));
   for (const int i : IndexRange(this->attributes_num)) {
     BLO_read_struct(&reader, Attribute, &this->attributes_array[i]);
     BLO_read_string(&reader, &this->attributes_array[i]->name);

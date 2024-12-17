@@ -103,7 +103,7 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
   CustomData_init_from(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
   CustomData_init_from(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
 
-  this->attribute_storage.wrap() = other.attribute_storage.wrap();
+  new (&this->attribute_storage.wrap()) AttributeStorage(other.attribute_storage.wrap());
 
   this->point_num = other.point_num;
   this->curve_num = other.curve_num;
@@ -154,7 +154,8 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
   this->curve_data = other.curve_data;
   CustomData_reset(&other.curve_data);
 
-  this->attribute_storage.wrap() = std::move(other.attribute_storage.wrap());
+  new (&this->attribute_storage.wrap())
+      AttributeStorage(std::move(other.attribute_storage.wrap()));
 
   this->point_num = other.point_num;
   other.point_num = 0;
