@@ -280,34 +280,29 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
     return;
   }
   int curves_added = 0;
-  int roll_by = 0;
+  IndexRange rolled_range;
+  int dropped_front_ranges = 0;
   Vector<IndexRange> ranges = selected_points.to_ranges();
+
   if (cyclic[curve] && selected_points.size() < points.size()) {
     const IndexRange first_range = ranges.first();
     const IndexRange last_range = ranges.last();
-    auto setup_roll = [&](const IndexRange rolled_range) {
-      roll_by = rolled_range.size();
-      roll_src_offsets.append(rolled_range.first());
-      roll_src_offsets.append(rolled_range.one_after_last());
-      roll_dst_offsets.append(dst_offsets.last());
-      roll_dst_offsets.append(roll_dst_offsets.last() + roll_by);
-      dst_offsets.last() += roll_by;
-    };
+
     if (first_range.first() == points.first() && last_range.last() == points.last()) {
-      setup_roll(extend_range(ranges.last(), extend_ranges).intersect(points));
-      ranges.remove_last();
+      rolled_range = extend_range(ranges.first(), extend_ranges).intersect(points);
+      dropped_front_ranges = 1;
     }
     else if (extend_ranges && first_range.first() == points.first()) {
-      setup_roll(points.take_back(1));
+      rolled_range = extend_range(ranges.first(), extend_ranges).intersect(points);
+      dropped_front_ranges = 1;
+      ranges.append(points.take_back(0));
     }
     else if (extend_ranges && last_range.last() == points.last()) {
-      setup_roll(extend_range(ranges.last(), extend_ranges).intersect(points));
-      ranges.remove_last();
-      ranges.prepend(points.take_front(!extend_ranges));
+      rolled_range = points.take_front(1);
     }
   }
 
-  for (const IndexRange range : ranges) {
+  for (const IndexRange range : ranges.as_span().drop_front(dropped_front_ranges)) {
     const IndexRange extended_range = extend_range(range, extend_ranges).intersect(points);
     new_curve_offsets.append(new_curve_offsets.last() + extended_range.size());
     src_offsets.append(extended_range.first());
@@ -315,14 +310,18 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
     dst_offsets.append_n_times(dst_offsets.last() + extended_range.size(), 2);
     curves_added++;
   };
-  if (roll_by > 0) {
-    for (auto &offset : new_curve_offsets.as_mutable_span().take_back(curves_added)) {
-      offset += roll_by;
-    }
+  if (!rolled_range.is_empty()) {
+    roll_src_offsets.append(rolled_range.first());
+    roll_src_offsets.append(rolled_range.one_after_last());
+    roll_dst_offsets.append(dst_offsets.last());
+    roll_dst_offsets.append(roll_dst_offsets.last() + rolled_range.size());
+    new_curve_offsets.last() += rolled_range.size();
+    dst_offsets.last() += rolled_range.size();
   }
   curve_map.append_n_times(curve, curves_added);
-  new_cyclic.append_n_times(
-      cyclic[curve] && selected_points.size() == points.size() && roll_by == 0, curves_added);
+  new_cyclic.append_n_times(cyclic[curve] && selected_points.size() == points.size() &&
+                                rolled_range.size() == 0,
+                            curves_added);
 }
 
 template<typename Fn>
