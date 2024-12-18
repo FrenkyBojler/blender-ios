@@ -476,11 +476,8 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
     }
   }
 
-  /* We need the PBVH to tell what mode we are in */
-  bke::object::pbvh_ensure(*CTX_data_ensure_evaluated_depsgraph(C), ob);
-
   /* Disable for multires and dyntopo for now */
-  if (!color_supported_check(ob, op->reports)) {
+  if (!color_supported_check(scene, ob, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
