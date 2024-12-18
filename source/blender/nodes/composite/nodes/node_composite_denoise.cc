@@ -135,8 +135,7 @@ class DenoiseOperation : public NodeOperation {
     filter.setImage("output", output_color, oidn::Format::Float3, width, height, 0, pixel_stride);
     filter.set("hdr", use_hdr());
     filter.set("cleanAux", auxiliary_passes_are_clean());
-    OIDNQuality quality_setting = get_quality();
-    set_filter_quality(filter, quality_setting);
+    this->set_filter_quality(filter);
     filter.setProgressMonitorFunction(oidn_progress_monitor_function, &context());
 
     /* If the albedo input is not a single value input, download the albedo texture, denoise it
@@ -153,7 +152,7 @@ class DenoiseOperation : public NodeOperation {
 
       if (should_denoise_auxiliary_passes()) {
         oidn::FilterRef albedoFilter = device.newFilter("RT");
-        set_filter_quality(albedoFilter, quality_setting);
+        this->set_filter_quality(albedoFilter);
         albedoFilter.setImage(
             "albedo", albedo, oidn::Format::Float3, width, height, 0, pixel_stride);
         albedoFilter.setImage(
@@ -182,7 +181,7 @@ class DenoiseOperation : public NodeOperation {
 
       if (should_denoise_auxiliary_passes()) {
         oidn::FilterRef normalFilter = device.newFilter("RT");
-        set_filter_quality(normalFilter, quality_setting);
+        this->set_filter_quality(normalFilter);
         normalFilter.setImage(
             "normal", normal, oidn::Format::Float3, width, height, 0, pixel_stride);
         normalFilter.setImage(
@@ -287,13 +286,11 @@ class DenoiseOperation : public NodeOperation {
     }
   }
 
-  void set_filter_quality(oidn::FilterRef &filter, OIDNQuality quality)
+  void set_filter_quality([[maybe_unused]] oidn::FilterRef &filter)
   {
 #  if OIDN_VERSION_MAJOR >= 2
+    OIDNQuality quality = this->get_quality();
     filter.set("quality", quality);
-#  else
-    (void)filter;
-    (void)quality;
 #  endif
   }
 #endif /* WITH_OPENIMAGEDENOISE */
