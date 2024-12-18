@@ -2380,7 +2380,6 @@ class _defs_grease_pencil_edit:
     @ToolDef.from_fn
     def shear():
         def draw_settings(context, layout, _tool):
-            # props = tool.operator_properties("transform.shear")
             _template_widget.VIEW3D_GGT_xform_gizmo.draw_settings_with_index(context, layout, 2)
         return dict(
             idname="builtin.shear",
