@@ -344,6 +344,7 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
         }
       }
     }
+    load_stores.fill(default_load_store());
   }
   else {
     VKContext &context = *VKContext::get();
