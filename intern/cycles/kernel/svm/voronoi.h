@@ -1151,7 +1151,7 @@ ccl_device_noinline int svm_node_tex_voronoi(KernelGlobals kg,
                          stack,
                          output.distance,
                          output.color,
-                         float4_to_float3(output.position),
+                         make_float3(output.position),
                          output.position.w,
                          0.0f);
       break;
