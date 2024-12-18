@@ -10,6 +10,10 @@
 
 #ifdef WITH_FFMPEG
 
+extern "C" {
+#  include <libavutil/pixfmt.h>
+}
+
 struct AVFrame;
 
 int ffmpeg_deinterlace(

@@ -135,9 +135,6 @@ if(WITH_CODEC_FFMPEG)
     movie/intern/writeffmpeg.cc
     movie/intern/writeffmpeg.hh
   )
-  list(APPEND INC
-    ../../../intern/ffmpeg
-  )
   list(APPEND INC_SYS
     ${FFMPEG_INCLUDE_DIRS}
   )
