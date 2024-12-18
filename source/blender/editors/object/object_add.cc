@@ -3536,6 +3536,41 @@ static Object *convert_curves_legacy_to_curves(Base &base,
   return convert_grease_pencil_component_to_curves(base, info, r_new_base);
 }
 
+static Object *convert_curves_legacy_to_grease_pencil(Base &base,
+                                                      ObjectConversionInfo &info,
+                                                      Base **r_new_base)
+{
+  Object *ob = base.object;
+  ob->flag |= OB_DONE;
+  Object *newob = get_object_for_conversion(base, info, r_new_base);
+  BLI_assert(newob->type == OB_CURVES_LEGACY);
+
+  Curve *legacy_curve_id = static_cast<Curve *>(newob->data);
+  Curves *curves_nomain = bke::curve_legacy_to_curves(*legacy_curve_id);
+
+  GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain,
+                                                      BKE_id_name(legacy_curve_id->id));
+  bke::greasepencil::Layer &layer = grease_pencil->add_layer(DATA_("Converted Layer"));
+
+  const int current_frame = info.scene->r.cfra;
+
+  bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, current_frame);
+
+  blender::bke::CurvesGeometry &curves = curves_nomain->geometry.wrap();
+
+  drawing->strokes_for_write() = std::move(curves);
+  /* Default radius (1.0 unit) is too thick for converted strokes. */
+  drawing->radii_for_write().fill(0.01f);
+  drawing->tag_positions_changed();
+
+  newob->data = grease_pencil;
+  newob->type = OB_GREASE_PENCIL;
+
+  BKE_id_free(nullptr, curves_nomain);
+
+  return newob;
+}
+
 static Object *convert_curves_legacy(Base &base,
                                      const ObjectType target,
                                      ObjectConversionInfo &info,
@@ -3546,6 +3581,8 @@ static Object *convert_curves_legacy(Base &base,
       return convert_curves_legacy_to_mesh(base, info, r_new_base);
     case OB_CURVES:
       return convert_curves_legacy_to_curves(base, info, r_new_base);
+    case OB_GREASE_PENCIL:
+      return convert_curves_legacy_to_grease_pencil(base, info, r_new_base);
     default:
       return nullptr;
   }
