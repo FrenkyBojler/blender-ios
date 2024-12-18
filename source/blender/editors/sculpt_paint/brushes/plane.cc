@@ -48,6 +48,7 @@ struct LocalData {
   Vector<float> factors;
   Vector<float> distances;
   Vector<float> local_z_distances;
+  Vector<float> local_z_positions;
   Vector<float3> translations;
 };
 
@@ -61,22 +62,10 @@ static void calc_local_positions(const float4x4& mat,
   }
 }
 
-static void calc_distances(const Span<float3> local_positions,
-  MutableSpan<float> local_z_distances,
-  MutableSpan<float> distances)
-{
-  for (const int i : local_positions.index_range()) {
-    const float local_x = local_positions[i].x;
-    const float local_y = local_positions[i].y;
-    const float z_dist_sq = local_z_distances[i] * local_z_distances[i];
-    distances[i] = math::sqrt(local_x * local_x + local_y * local_y + z_dist_sq);
-  }
-}
-
-static void calc_local_z_distances(const float depth,
+static void calc_distances(const float depth,
   const float height,
   const MutableSpan<float3> local_positions,
-  const MutableSpan<float> local_z_distances)
+  const MutableSpan<float> distances)
 {
   if (depth != 0.0f)
   {
@@ -84,17 +73,17 @@ static void calc_local_z_distances(const float depth,
 
     for (const int i : local_positions.index_range())
     {
-      const float local_z = local_positions[i].z;
-      if (local_z > 0.0f) {
-        local_z_distances[i] = local_z * inv_depth;
+      const float3 pos = local_positions[i];
+      if (pos.z >= 0.0f) {
+        distances[i] = math::length(float3(pos.x, pos.y, pos.z * inv_depth));
       }
     }
   }
   else {
     for (const int i : local_positions.index_range())
     {
-      if (local_positions[i].z > 0.0f) {
-        local_z_distances[i] = 1.0f;
+      if (local_positions[i].z >= 0.0f) {
+        distances[i] = 1.0f;
       }
     }
   }
@@ -105,9 +94,9 @@ static void calc_local_z_distances(const float depth,
 
     for (const int i : local_positions.index_range())
     {
-      const float local_z = local_positions[i].z;
-      if (local_z < 0.0f) {
-        local_z_distances[i] = local_z * inv_height;
+      const float3 pos = local_positions[i];
+      if (pos.z < 0.0f) {
+        distances[i] = math::length(float3(pos.x, pos.y, pos.z * inv_height));
       }
     }
   }
@@ -115,7 +104,7 @@ static void calc_local_z_distances(const float depth,
     for (const int i : local_positions.index_range())
     {
       if (local_positions[i].z < 0.0f) {
-        local_z_distances[i] = 1.0f;
+        distances[i] = 1.0f;
       }
     }
   }
@@ -133,8 +122,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const bke::pbvh::MeshNode &node,
                        Object &object,
                        LocalData &tls,
-                       const PositionDeformData &position_data,
-                       const IndexedFilterFn filter)
+                       const PositionDeformData &position_data)
 {
   const SculptSession& ss = *object.sculpt;
   const StrokeCache& cache = *ss.cache;
@@ -154,14 +142,10 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> local_positions = tls.positions;
   calc_local_positions(mat, verts, position_data.eval, local_positions);
 
-  tls.local_z_distances.resize(verts.size());
-  const MutableSpan<float> local_z_distances = tls.local_z_distances;
-  calc_local_z_distances(depth, height, local_positions, local_z_distances);
-
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_distances(local_positions, local_z_distances, distances);
-  filter_distances_with_radius(1.0f, distances, factors);
+  calc_distances(depth, height, local_positions, distances);
+
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
     eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
@@ -261,7 +245,7 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   if (math::is_zero(ss.cache->grab_delta_symm)) {
-    return;
+    //return;
   }
 
   float3 area_no;
@@ -277,7 +261,7 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   plane_from_point_normal_v3(plane, area_co, area_no);
 
   float4x4 mat = float4x4::identity();
-  mat.x_axis() = math::cross(area_no, ss.cache->grab_delta_symm);
+  mat.x_axis() = math::cross(area_no, float3(1, 0, 0)); // ss.cache->grab_delta_symm);
   mat.y_axis() = math::cross(area_no, float3(mat[0]));
   mat.z_axis() = area_no;
   mat.location() = area_co;
@@ -301,19 +285,18 @@ static void do_plane_brush(const Depsgraph &depsgraph,
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         calc_faces(depsgraph,
-                   sd,
-                   brush,
-                   mat,
-                   plane_offset,
-                   brush.plane_depth,
-                   brush.plane_height,
-                   attribute_data,
-                   vert_normals,
-                   nodes[i],
-                   object,
-                   tls,
-                   position_data,
-                   indexed_filter);
+          sd,
+          brush,
+          mat,
+          plane_offset,
+          brush.plane_depth,
+          brush.plane_height,
+          attribute_data,
+          vert_normals,
+          nodes[i],
+          object,
+          tls,
+          position_data);
         bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i]);
       });
       break;
