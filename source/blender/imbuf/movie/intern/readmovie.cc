@@ -34,8 +34,8 @@
 #include "IMB_colormanagement.hh"
 #include "intern/IMB_colormanagement_intern.hh"
 
+#include "movie_proxy_indexer.hh"
 #include "readmovie.hh"
-#include "intern/IMB_indexer.hh"
 #include "IMB_metadata.hh"
 
 #ifdef WITH_FFMPEG

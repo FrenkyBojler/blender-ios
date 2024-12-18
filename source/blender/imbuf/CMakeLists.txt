@@ -34,7 +34,6 @@ set(SRC
   intern/format_targa.cc
   intern/format_tiff.cc
   intern/imageprocess.cc
-  intern/indexer.cc
   intern/interp.cc
   intern/iris.cc
   intern/jpeg.cc
@@ -67,9 +66,10 @@ set(SRC
   intern/IMB_colormanagement_intern.hh
   intern/IMB_filetype.hh
   intern/IMB_filter.hh
-  intern/IMB_indexer.hh
   intern/imbuf.hh
 
+  movie/intern/movie_proxy_indexer.cc
+  movie/intern/movie_proxy_indexer.hh
   movie/intern/readmovie.cc
   movie/intern/readmovie.hh
   movie/intern/writemovie.cc

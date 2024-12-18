@@ -32,11 +32,12 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include "IMB_imbuf.hh"
+
 #include "movie/IMB_writeffmpeg.hh"
 
-#include "movie/intern/readmovie.hh"
-#include "IMB_imbuf.hh"
-#include "IMB_indexer.hh"
+#include "movie_proxy_indexer.hh"
+#include "readmovie.hh"
 
 #ifdef WITH_FFMPEG
 extern "C" {
