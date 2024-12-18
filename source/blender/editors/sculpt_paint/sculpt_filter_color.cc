@@ -481,6 +481,9 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* Ensure that we have a PBVH to be able to push changes on only visible nodes. */
+  bke::object::pbvh_ensure(*CTX_data_ensure_evaluated_depsgraph(C), ob);
+
   undo::push_begin(scene, ob, op);
   BKE_sculpt_color_layer_create_if_needed(&ob);
 
