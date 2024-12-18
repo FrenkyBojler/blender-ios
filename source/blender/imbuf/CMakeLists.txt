@@ -68,6 +68,7 @@ set(SRC
   intern/IMB_filter.hh
   intern/imbuf.hh
 
+  movie/intern/ffmpeg_compat.h
   movie/intern/ffmpeg_util.cc
   movie/intern/ffmpeg_util.hh
   movie/intern/movie_proxy_indexer.cc
@@ -78,8 +79,6 @@ set(SRC
   movie/IMB_anim.hh
   movie/IMB_movie_enums.hh
   movie/IMB_writemovie.hh
-  # orphan include
-  ../../../intern/ffmpeg/ffmpeg_compat.h
 )
 
 set(LIB
@@ -213,4 +212,29 @@ if(WITH_GTESTS)
   )
   blender_add_test_suite_lib(imbuf "${TEST_SRC}" "${INC}" "${INC_SYS}" "${LIB}")
   add_subdirectory(tests/performance)
+endif()
+
+if(WITH_GTESTS AND WITH_CODEC_FFMPEG)
+  set(TEST_SRC
+    movie/tests/ffmpeg_codecs.cc
+    movie/tests/ffmpeg_cpu_flags.cc
+  )
+  set(TEST_INC
+    movie/intern
+  )
+  set(TEST_INC_SYS
+    ${FFMPEG_INCLUDE_DIRS}
+    ${PNG_INCLUDE_DIRS}
+    ${ZLIB_INCLUDE_DIRS}
+  )
+  set(TEST_LIB
+    ${PNG_LIBRARIES}
+    ${FFMPEG_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+  )
+  if(WITH_IMAGE_OPENJPEG)
+    set(TEST_LIB ${TEST_LIB} ${OPENJPEG_LIBRARIES})
+  endif()
+  blender_add_test_suite_lib(ffmpeg_libs "${TEST_SRC}" "${TEST_INC}" "${TEST_INC_SYS}" "${TEST_LIB}")
+
 endif()
