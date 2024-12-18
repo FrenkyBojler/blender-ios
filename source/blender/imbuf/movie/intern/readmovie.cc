@@ -1323,7 +1323,7 @@ int IMB_anim_get_duration(ImBufAnim *anim, IMB_Timecode_Type tc)
   return IMB_indexer_get_duration(idx);
 }
 
-double IMD_anim_get_offset(ImBufAnim *anim)
+double IMB_anim_get_offset(ImBufAnim *anim)
 {
   return anim->start_offset;
 }

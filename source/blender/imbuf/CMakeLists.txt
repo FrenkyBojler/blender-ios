@@ -68,6 +68,8 @@ set(SRC
   intern/IMB_filter.hh
   intern/imbuf.hh
 
+  movie/intern/ffmpeg_util.cc
+  movie/intern/ffmpeg_util.hh
   movie/intern/movie_proxy_indexer.cc
   movie/intern/movie_proxy_indexer.hh
   movie/intern/readmovie.cc

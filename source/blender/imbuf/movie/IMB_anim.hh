@@ -58,7 +58,7 @@ int IMB_anim_get_duration(ImBufAnim *anim, IMB_Timecode_Type tc);
 /**
  * Return the encoded start offset (in seconds) of the given \a anim.
  */
-double IMD_anim_get_offset(ImBufAnim *anim);
+double IMB_anim_get_offset(ImBufAnim *anim);
 
 /**
  * Return the fps contained in movie files (function rval is false,
@@ -108,4 +108,3 @@ bool IMB_isanim(const char *filepath);
 /* FFMPEG */
 
 void IMB_ffmpeg_init();
-const char *IMB_ffmpeg_last_error();

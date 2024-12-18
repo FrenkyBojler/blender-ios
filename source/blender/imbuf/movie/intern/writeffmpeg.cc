@@ -36,9 +36,9 @@
 #  include "BKE_sound.h"
 
 #  include "IMB_imbuf.hh"
-#  include "movie/IMB_anim.hh"
 #  include "movie/IMB_writeffmpeg.hh"
 
+#  include "ffmpeg_util.hh"
 #  include "swscale.hh"
 
 /* This needs to be included after BLI_math_base.h otherwise it will redefine some math defines
@@ -1037,7 +1037,7 @@ static AVStream *alloc_video_stream(FFMpegContext *context,
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
     fprintf(stderr, "Couldn't initialize video codec: %s\n", error_str);
-    BLI_strncpy(error, IMB_ffmpeg_last_error(), error_size);
+    BLI_strncpy(error, ffmpeg_last_error(), error_size);
     av_dict_free(&opts);
     avcodec_free_context(&c);
     context->video_codec = nullptr;
@@ -1202,7 +1202,7 @@ static AVStream *alloc_audio_stream(FFMpegContext *context,
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
     fprintf(stderr, "Couldn't initialize audio codec: %s\n", error_str);
-    BLI_strncpy(error, IMB_ffmpeg_last_error(), error_size);
+    BLI_strncpy(error, ffmpeg_last_error(), error_size);
     avcodec_free_context(&c);
     context->audio_codec = nullptr;
     return nullptr;
