@@ -2193,6 +2193,8 @@ static void draw_property_for_socket(const bContext &C,
       ATTR_FALLTHROUGH;
     }
     default: {
+      uiItemR(row, md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+      /*
       if (nodes::input_has_attribute_toggle(*nmd->node_group, input_index)) {
         add_attribute_search_or_value_buttons(
             C, row, *nmd, md_ptr, socket_id_esc, rna_path, socket);
@@ -2200,11 +2202,14 @@ static void draw_property_for_socket(const bContext &C,
       else {
         uiItemR(row, md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
       }
+      */
     }
   }
+  /*
   if (!nodes::input_has_attribute_toggle(*nmd->node_group, input_index)) {
     uiItemL(row, "", ICON_BLANK1);
   }
+  */
 }
 
 static void draw_property_for_output_socket(const bContext &C,

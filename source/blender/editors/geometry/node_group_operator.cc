@@ -760,16 +760,21 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
       uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "images", name, ICON_IMAGE);
       break;
     default:
+      uiItemR(row, op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+      /*
       if (nodes::input_has_attribute_toggle(node_tree, socket_index)) {
         add_attribute_search_or_value_buttons(row, op_ptr, socket_id_esc, rna_path, socket);
       }
       else {
         uiItemR(row, op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
       }
+      */
   }
+  /*
   if (!nodes::input_has_attribute_toggle(node_tree, socket_index)) {
     uiItemL(row, "", ICON_BLANK1);
   }
+  */
 }
 
 static void run_node_group_ui(bContext *C, wmOperator *op)
