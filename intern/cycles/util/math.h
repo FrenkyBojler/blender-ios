@@ -532,11 +532,6 @@ ccl_device_inline float3 float2_to_float3(const float2 a, const float z)
   return make_float3(a.x, a.y, z);
 }
 
-ccl_device_inline float2 float3_to_float2(const float3 a)
-{
-  return make_float2(a.x, a.y);
-}
-
 ccl_device_inline float3 float4_to_float3(const float4 a)
 {
   return make_float3(a.x, a.y, a.z);

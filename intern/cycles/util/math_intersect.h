@@ -361,8 +361,8 @@ ccl_device_inline bool ray_infinite_cylinder_intersect(const float3 P,
 {
   /* Convert to a 2D problem. */
   const float2 inv_len = 1.0f / make_float2(len_u, len_v);
-  float2 P_proj = float3_to_float2(P) * inv_len;
-  const float2 D_proj = float3_to_float2(D) * inv_len;
+  float2 P_proj = make_float2(P) * inv_len;
+  const float2 D_proj = make_float2(D) * inv_len;
 
   /* Solve quadratic equation a*t^2 + 2b*t + c = 0. */
   const float a = dot(D_proj, D_proj);
