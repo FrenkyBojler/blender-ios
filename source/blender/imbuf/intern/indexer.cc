@@ -34,7 +34,7 @@
 
 #include "movie/IMB_writeffmpeg.hh"
 
-#include "IMB_anim.hh"
+#include "movie/intern/readmovie.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_indexer.hh"
 

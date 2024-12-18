@@ -20,7 +20,6 @@ set(INC_SYS
 
 set(SRC
   intern/allocimbuf.cc
-  intern/anim_movie.cc
   intern/colormanagement.cc
   intern/colormanagement_inline.h
   intern/divers.cc
@@ -65,13 +64,14 @@ set(SRC
   IMB_openexr.hh
   IMB_thumbs.hh
   intern/IMB_allocimbuf.hh
-  intern/IMB_anim.hh
   intern/IMB_colormanagement_intern.hh
   intern/IMB_filetype.hh
   intern/IMB_filter.hh
   intern/IMB_indexer.hh
   intern/imbuf.hh
 
+  movie/intern/readmovie.cc
+  movie/intern/readmovie.hh
   movie/intern/writemovie.cc
   movie/IMB_writemovie.hh
   # orphan include

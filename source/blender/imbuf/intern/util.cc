@@ -24,7 +24,7 @@
 #include "IMB_imbuf_types.hh"
 #include "imbuf.hh"
 
-#include "IMB_anim.hh"
+#include "movie/intern/readmovie.hh"
 
 #ifdef WITH_FFMPEG
 #  include "BLI_string.h" /* BLI_vsnprintf */

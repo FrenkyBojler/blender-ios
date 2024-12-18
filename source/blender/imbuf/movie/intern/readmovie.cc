@@ -32,10 +32,10 @@
 #include "IMB_imbuf_types.hh"
 
 #include "IMB_colormanagement.hh"
-#include "IMB_colormanagement_intern.hh"
+#include "intern/IMB_colormanagement_intern.hh"
 
-#include "IMB_anim.hh"
-#include "IMB_indexer.hh"
+#include "readmovie.hh"
+#include "intern/IMB_indexer.hh"
 #include "IMB_metadata.hh"
 
 #ifdef WITH_FFMPEG
