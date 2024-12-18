@@ -611,9 +611,7 @@ static void update_triangle_cache(const Span<float3> positions,
     threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
       for (const int i : range) {
         BLI_assert(result.face[i].size() == 3);
-        r_tris[i] = int3(result.face[i][0] + first_point,
-                         result.face[i][1] + first_point,
-                         result.face[i][2] + first_point);
+        r_tris[i] = int3(result.face[i][0], result.face[i][1], result.face[i][2]) + first_point;
       }
     });
 
