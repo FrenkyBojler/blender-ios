@@ -57,6 +57,11 @@ int BLI_thread_is_main(void);
 int BLI_system_thread_count(void);
 void BLI_system_num_threads_override_set(int num);
 int BLI_system_num_threads_override_get(void);
+/**
+ * \return recommended thread count for optimal performance or zero if this
+ * platform does not have a recommendation.
+ */
+int BLI_recommended_thread_count(void);
 
 /**
  * Global Mutex Locks

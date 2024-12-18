@@ -34,14 +34,20 @@ static tbb::global_control *task_scheduler_global_control = nullptr;
 void BLI_task_scheduler_init()
 {
 #ifdef WITH_TBB_GLOBAL_CONTROL
-  const int threads_override_num = BLI_system_num_threads_override_get();
+  /* Check for the thread count being specified from the command line. */
+  int explicit_tbb_thread_count = BLI_system_num_threads_override_get();
+  
+  /* If not check if this platform has a recommended thread count. */
+  if (!explicit_tbb_thread_count) {
+    explicit_tbb_thread_count =  BLI_recommended_thread_count();
+  }
 
-  if (threads_override_num > 0) {
-    /* Override number of threads. This settings is used within the lifetime
+  if (explicit_tbb_thread_count > 0) {
+    /* Override number of threads. This setting is used within the lifetime
      * of tbb::global_control, so we allocate it on the heap. */
     task_scheduler_global_control = MEM_new<tbb::global_control>(
-        __func__, tbb::global_control::max_allowed_parallelism, threads_override_num);
-    task_scheduler_num_threads = threads_override_num;
+        __func__, tbb::global_control::max_allowed_parallelism, explicit_tbb_thread_count);
+    task_scheduler_num_threads = explicit_tbb_thread_count;
   }
   else {
     /* Let TBB choose the number of threads. For (legacy) code that calls
