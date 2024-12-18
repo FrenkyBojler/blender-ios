@@ -779,7 +779,7 @@ static void reuse_bmain_data_invalid_local_usages_fix(ReuseOldBMainData *reuse_d
                                     nullptr;
 
     BKE_library_foreach_ID_link(
-        new_bmain, id_iter, reuse_bmain_data_invalid_local_usages_fix_cb, reuse_data, 0);
+        new_bmain, id_iter, reuse_bmain_data_invalid_local_usages_fix_cb, reuse_data, IDWALK_NOP);
 
     /* Liboverrides who lost their reference should not be liboverrides anymore, but regular IDs.
      */
@@ -1202,7 +1202,7 @@ static void setup_app_data(bContext *C,
 
   BLI_assert(BKE_main_namemap_validate(bmain));
 
-  if (mode != LOAD_UNDO && !USER_EXPERIMENTAL_TEST(&U, no_override_auto_resync)) {
+  if (mode != LOAD_UNDO && liboverride::is_auto_resync_enabled()) {
     reports->duration.lib_overrides_resync = BLI_time_now_seconds();
 
     BKE_lib_override_library_main_resync(
