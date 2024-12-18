@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+
+# Needed for type hints like `subprocess.Popen[Any]`
+from __future__ import annotations
+
+
 __all__ = (
     "build_info",
     "SOURCE_DIR",
@@ -20,7 +25,6 @@ from os.path import join, dirname, normpath, abspath
 
 import subprocess
 
-from __future__ import annotations  # Needed for type hints like `subprocess.Popen[Any]`
 from typing import (
     Any,
     IO,
