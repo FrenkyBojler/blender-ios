@@ -397,7 +397,8 @@ float3 DrawingPlacement::reproject(const float3 pos) const
       ray_no = -float3(rv3d->viewinv[2]);
     }
     float4 plane;
-    if (plane_ == DrawingPlacementPlane::View) {
+    /* Note: in stroke depth mode the plane is defined explicitly. */
+    if (plane_ == DrawingPlacementPlane::View && depth_ != DrawingPlacementDepth::Stroke) {
       plane_from_point_normal_v3(plane, placement_loc_, rv3d->viewinv[2]);
     }
     else {
