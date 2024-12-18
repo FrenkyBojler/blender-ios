@@ -59,7 +59,7 @@ extern "C" {
 
 struct StampData;
 
-struct FFMpegContext {
+struct ImbMovieWriter {
   int ffmpeg_type;
   AVCodecID ffmpeg_codec;
   AVCodecID ffmpeg_audio_codec;
@@ -108,7 +108,7 @@ struct FFMpegContext {
     printf
 
 static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value);
-static void ffmpeg_filepath_get(FFMpegContext *context,
+static void ffmpeg_filepath_get(ImbMovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const RenderData *rd,
                                 bool preview,
@@ -132,7 +132,7 @@ static int request_float_audio_buffer(int codec_id)
 
 #  ifdef WITH_AUDASPACE
 
-static int write_audio_frame(FFMpegContext *context)
+static int write_audio_frame(ImbMovieWriter *context)
 {
   AVFrame *frame = nullptr;
   AVCodecContext *c = context->audio_codec;
@@ -322,7 +322,7 @@ static const char **get_file_extensions(int format)
 }
 
 /* Write a frame to the output file */
-static bool write_video_frame(FFMpegContext *context, AVFrame *frame, ReportList *reports)
+static bool write_video_frame(ImbMovieWriter *context, AVFrame *frame, ReportList *reports)
 {
   int ret, success = 1;
   AVPacket *packet = av_packet_alloc();
@@ -378,7 +378,7 @@ static bool write_video_frame(FFMpegContext *context, AVFrame *frame, ReportList
 }
 
 /* read and encode a frame of video from the buffer */
-static AVFrame *generate_video_frame(FFMpegContext *context, const ImBuf *image)
+static AVFrame *generate_video_frame(ImbMovieWriter *context, const ImBuf *image)
 {
   const uint8_t *pixels = image->byte_buffer.data;
   const float *pixels_fl = image->float_buffer.data;
@@ -513,7 +513,7 @@ static AVRational calc_time_base(uint den, double num, int codec_id)
 }
 
 static const AVCodec *get_av1_encoder(
-    FFMpegContext *context, RenderData *rd, AVDictionary **opts, int rectx, int recty)
+    ImbMovieWriter *context, RenderData *rd, AVDictionary **opts, int rectx, int recty)
 {
   /* There are three possible encoders for AV1: `libaom-av1`, librav1e, and `libsvtav1`. librav1e
    * tends to give the best compression quality while `libsvtav1` tends to be the fastest encoder.
@@ -726,7 +726,7 @@ static int remap_crf_to_h264_10bpp_crf(int crf)
   return crf;
 }
 
-static void set_quality_rate_options(const FFMpegContext *context,
+static void set_quality_rate_options(const ImbMovieWriter *context,
                                      const AVCodecID codec_id,
                                      const RenderData *rd,
                                      AVDictionary **opts)
@@ -805,7 +805,7 @@ static void set_quality_rate_options(const FFMpegContext *context,
 
 /* prepare a video stream for the output file */
 
-static AVStream *alloc_video_stream(FFMpegContext *context,
+static AVStream *alloc_video_stream(ImbMovieWriter *context,
                                     RenderData *rd,
                                     AVCodecID codec_id,
                                     AVFormatContext *of,
@@ -1087,7 +1087,7 @@ static AVStream *alloc_video_stream(FFMpegContext *context,
   return st;
 }
 
-static AVStream *alloc_audio_stream(FFMpegContext *context,
+static AVStream *alloc_audio_stream(ImbMovieWriter *context,
                                     RenderData *rd,
                                     AVCodecID codec_id,
                                     AVFormatContext *of,
@@ -1257,7 +1257,7 @@ static void ffmpeg_add_metadata_callback(void *data,
   av_dict_set(metadata, propname, propvalue, 0);
 }
 
-static bool start_ffmpeg_impl(FFMpegContext *context,
+static bool start_ffmpeg_impl(ImbMovieWriter *context,
                               RenderData *rd,
                               int rectx,
                               int recty,
@@ -1532,7 +1532,7 @@ static void flush_ffmpeg(AVCodecContext *c, AVStream *stream, AVFormatContext *o
  * ********************************************************************** */
 
 /* Get the output filename-- similar to the other output formats */
-static void ffmpeg_filepath_get(FFMpegContext *context,
+static void ffmpeg_filepath_get(ImbMovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const RenderData *rd,
                                 bool preview,
@@ -1609,22 +1609,32 @@ void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
   ffmpeg_filepath_get(nullptr, filepath, rd, preview, suffix);
 }
 
-bool ffmpeg_movie_open(void *context_v,
-                       const Scene *scene,
-                       RenderData *rd,
-                       int rectx,
-                       int recty,
-                       ReportList *reports,
-                       bool preview,
-                       const char *suffix)
+ImbMovieWriter *ffmpeg_movie_open(const Scene *scene,
+                                  RenderData *rd,
+                                  int rectx,
+                                  int recty,
+                                  ReportList *reports,
+                                  bool preview,
+                                  const char *suffix)
 {
-  FFMpegContext *context = static_cast<FFMpegContext *>(context_v);
+  ImbMovieWriter *context = static_cast<ImbMovieWriter *>(
+      MEM_callocN(sizeof(ImbMovieWriter), "new FFMPEG context"));
+
+  context->ffmpeg_codec = AV_CODEC_ID_MPEG4;
+  context->ffmpeg_audio_codec = AV_CODEC_ID_NONE;
+  context->ffmpeg_video_bitrate = 1150;
+  context->ffmpeg_audio_bitrate = 128;
+  context->ffmpeg_gop_size = 12;
+  context->ffmpeg_autosplit = 0;
+  context->stamp_data = nullptr;
+  context->audio_time_total = 0.0;
 
   context->ffmpeg_autosplit_count = 0;
   context->ffmpeg_preview = preview;
   context->stamp_data = BKE_stamp_info_from_scene_static(scene);
 
   bool success = start_ffmpeg_impl(context, rd, rectx, recty, suffix, reports);
+
 #  ifdef WITH_AUDASPACE
   if (context->audio_stream) {
     AVCodecContext *c = context->audio_codec;
@@ -1653,21 +1663,29 @@ bool ffmpeg_movie_open(void *context_v,
         specs.format = AUD_FORMAT_FLOAT64;
         break;
       default:
-        return -31415;
+        success = false;
+        break;
     }
 
     specs.rate = rd->ffcodecdata.audio_mixrate;
-    context->audio_mixdown_device = BKE_sound_mixdown(
-        scene, specs, preview ? rd->psfra : rd->sfra, rd->ffcodecdata.audio_volume);
+    if (success) {
+      context->audio_mixdown_device = BKE_sound_mixdown(
+          scene, specs, preview ? rd->psfra : rd->sfra, rd->ffcodecdata.audio_volume);
+    }
   }
 #  endif
-  return success;
+
+  if (!success) {
+    ffmpeg_movie_close(context);
+    return nullptr;
+  }
+  return context;
 }
 
-static void end_ffmpeg_impl(FFMpegContext *context, int is_autosplit);
+static void end_ffmpeg_impl(ImbMovieWriter *context, int is_autosplit);
 
 #  ifdef WITH_AUDASPACE
-static void write_audio_frames(FFMpegContext *context, double to_pts)
+static void write_audio_frames(ImbMovieWriter *context, double to_pts)
 {
   AVCodecContext *c = context->audio_codec;
 
@@ -1681,7 +1699,7 @@ static void write_audio_frames(FFMpegContext *context, double to_pts)
 }
 #  endif
 
-bool ffmpeg_movie_append(void *context_v,
+bool ffmpeg_movie_append(ImbMovieWriter *context,
                          RenderData *rd,
                          int start_frame,
                          int frame,
@@ -1689,7 +1707,6 @@ bool ffmpeg_movie_append(void *context_v,
                          const char *suffix,
                          ReportList *reports)
 {
-  FFMpegContext *context = static_cast<FFMpegContext *>(context_v);
   AVFrame *avframe;
   bool success = true;
 
@@ -1719,7 +1736,7 @@ bool ffmpeg_movie_append(void *context_v,
   return success;
 }
 
-static void end_ffmpeg_impl(FFMpegContext *context, int is_autosplit)
+static void end_ffmpeg_impl(ImbMovieWriter *context, int is_autosplit)
 {
   PRINT("Closing FFMPEG...\n");
 
@@ -1804,10 +1821,16 @@ static void end_ffmpeg_impl(FFMpegContext *context, int is_autosplit)
   }
 }
 
-void ffmpeg_movie_close(void *context_v)
+void ffmpeg_movie_close(ImbMovieWriter *context)
 {
-  FFMpegContext *context = static_cast<FFMpegContext *>(context_v);
+  if (context == nullptr) {
+    return;
+  }
   end_ffmpeg_impl(context, false);
+  if (context->stamp_data) {
+    MEM_freeN(context->stamp_data);
+  }
+  MEM_freeN(context);
 }
 
 static void ffmpeg_preset_set(RenderData *rd, int preset)
@@ -1931,38 +1954,6 @@ bool IMB_ffmpeg_codec_supports_crf(int av_codec_id)
               AV_CODEC_ID_MPEG4,
               AV_CODEC_ID_VP9,
               AV_CODEC_ID_AV1);
-}
-
-void *ffmpeg_context_create()
-{
-  /* New FFMPEG data struct. */
-  FFMpegContext *context = static_cast<FFMpegContext *>(
-      MEM_callocN(sizeof(FFMpegContext), "new FFMPEG context"));
-
-  context->ffmpeg_codec = AV_CODEC_ID_MPEG4;
-  context->ffmpeg_audio_codec = AV_CODEC_ID_NONE;
-  context->ffmpeg_video_bitrate = 1150;
-  context->ffmpeg_audio_bitrate = 128;
-  context->ffmpeg_gop_size = 12;
-  context->ffmpeg_autosplit = 0;
-  context->ffmpeg_autosplit_count = 0;
-  context->ffmpeg_preview = false;
-  context->stamp_data = nullptr;
-  context->audio_time_total = 0.0;
-
-  return context;
-}
-
-void ffmpeg_context_free(void *context_v)
-{
-  FFMpegContext *context = static_cast<FFMpegContext *>(context_v);
-  if (context == nullptr) {
-    return;
-  }
-  if (context->stamp_data) {
-    MEM_freeN(context->stamp_data);
-  }
-  MEM_freeN(context);
 }
 
 #endif /* WITH_FFMPEG */
