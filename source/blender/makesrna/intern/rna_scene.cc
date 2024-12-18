@@ -53,9 +53,7 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#ifdef WITH_FFMPEG
-#  include "movie/IMB_anim.hh"
-#endif
+#include "movie/IMB_anim.hh"
 
 #include "ED_render.hh"
 #include "ED_transform.hh"
@@ -1346,10 +1344,7 @@ static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
   if (id && GS(id->name) == ID_SCE) {
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
-#  ifdef WITH_FFMPEG
     IMB_ffmpeg_image_type_verify(rd, imf);
-#  endif
-    (void)rd;
   }
 
   BKE_image_format_update_color_space_for_type(imf);
@@ -1385,7 +1380,6 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
   char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
                    (is_render ? IMA_CHAN_FLAG_BW : 0);
 
-#  ifdef WITH_FFMPEG
   /* a WAY more crappy case than B&W flag: depending on codec, file format MIGHT support
    * alpha channel. for example MPEG format with h264 codec can't do alpha channel, but
    * the same MPEG format with QTRLE codec can easily handle alpha channel.
@@ -1394,11 +1388,10 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 
-    if (IMB_ffmpeg_alpha_channel_is_supported(rd)) {
+    if (IMB_ffmpeg_alpha_channel_is_supported(rd->ffcodecdata.codec)) {
       chan_flag |= IMA_CHAN_FLAG_RGBA;
     }
   }
-#  endif
 
   if (chan_flag == (IMA_CHAN_FLAG_BW | IMA_CHAN_FLAG_RGB | IMA_CHAN_FLAG_RGBA)) {
     return rna_enum_image_color_mode_items;

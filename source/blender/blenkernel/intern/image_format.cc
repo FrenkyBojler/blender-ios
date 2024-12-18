@@ -17,13 +17,10 @@
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
+#include "movie/IMB_anim.hh"
 
 #include "BKE_colortools.hh"
 #include "BKE_image_format.hh"
-
-#ifdef WITH_FFMPEG
-#  include "movie/IMB_anim.hh"
-#endif
 
 /* Init/Copy/Free */
 
@@ -329,7 +326,6 @@ char BKE_imtype_valid_depths_with_video(char imtype, const ID *owner_id)
   UNUSED_VARS(owner_id); /* Might be unused depending on build options. */
 
   int depths = BKE_imtype_valid_depths(imtype);
-#ifdef WITH_FFMPEG
   /* Depending on video codec selected, valid color bit depths might vary. */
   if (imtype == R_IMF_IMTYPE_FFMPEG) {
     const bool is_render_out = (owner_id && GS(owner_id->name) == ID_SCE);
@@ -338,7 +334,6 @@ char BKE_imtype_valid_depths_with_video(char imtype, const ID *owner_id)
       depths |= IMB_ffmpeg_valid_bit_depths(scene->r.ffcodecdata.codec);
     }
   }
-#endif
   return depths;
 }
 

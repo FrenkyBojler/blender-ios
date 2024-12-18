@@ -10,6 +10,8 @@
 
 #include "DNA_scene_types.h"
 
+#include "movie/IMB_movie_enums.hh"
+
 #include "ffmpeg_util.hh"
 #include "swscale.hh"
 
@@ -63,25 +65,6 @@ static void ffmpeg_log_callback(void *ptr, int level, const char *format, va_lis
 const char *ffmpeg_last_error()
 {
   return ffmpeg_last_error_buffer;
-}
-
-void IMB_ffmpeg_init()
-{
-  avdevice_register_all();
-
-  ffmpeg_last_error_buffer[0] = '\0';
-
-  if (G.debug & G_DEBUG_FFMPEG) {
-    av_log_set_level(AV_LOG_DEBUG);
-  }
-
-  /* set separate callback which could store last error to report to UI */
-  av_log_set_callback(ffmpeg_log_callback);
-}
-
-void IMB_ffmpeg_exit()
-{
-  ffmpeg_sws_exit();
 }
 
 static int isffmpeg(const char *filepath)
@@ -162,9 +145,33 @@ bool IMB_isanim(const char *filepath)
   return false;
 }
 
+void IMB_ffmpeg_init()
+{
+#ifdef WITH_FFMPEG
+  avdevice_register_all();
+
+  ffmpeg_last_error_buffer[0] = '\0';
+
+  if (G.debug & G_DEBUG_FFMPEG) {
+    av_log_set_level(AV_LOG_DEBUG);
+  }
+
+  /* set separate callback which could store last error to report to UI */
+  av_log_set_callback(ffmpeg_log_callback);
+#endif
+}
+
+void IMB_ffmpeg_exit()
+{
+#ifdef WITH_FFMPEG
+  ffmpeg_sws_exit();
+#endif
+}
+
 int IMB_ffmpeg_valid_bit_depths(int av_codec_id)
 {
   int bit_depths = R_IMF_CHAN_DEPTH_8;
+#ifdef WITH_FFMPEG
   /* Note: update properties_output.py `use_bpp` when changing this function. */
   if (ELEM(av_codec_id, AV_CODEC_ID_H264, AV_CODEC_ID_H265, AV_CODEC_ID_AV1)) {
     bit_depths |= R_IMF_CHAN_DEPTH_10;
@@ -172,5 +179,139 @@ int IMB_ffmpeg_valid_bit_depths(int av_codec_id)
   if (ELEM(av_codec_id, AV_CODEC_ID_H265, AV_CODEC_ID_AV1)) {
     bit_depths |= R_IMF_CHAN_DEPTH_12;
   }
+#endif
   return bit_depths;
+}
+
+#ifdef WITH_FFMPEG
+static void ffmpeg_preset_set(RenderData *rd, int preset)
+{
+  bool is_ntsc = (rd->frs_sec != 25);
+
+  switch (preset) {
+    case FFMPEG_PRESET_H264:
+      rd->ffcodecdata.type = FFMPEG_AVI;
+      rd->ffcodecdata.codec = AV_CODEC_ID_H264;
+      rd->ffcodecdata.video_bitrate = 6000;
+      rd->ffcodecdata.gop_size = is_ntsc ? 18 : 15;
+      rd->ffcodecdata.rc_max_rate = 9000;
+      rd->ffcodecdata.rc_min_rate = 0;
+      rd->ffcodecdata.rc_buffer_size = 224 * 8;
+      rd->ffcodecdata.mux_packet_size = 2048;
+      rd->ffcodecdata.mux_rate = 10080000;
+      break;
+
+    case FFMPEG_PRESET_THEORA:
+    case FFMPEG_PRESET_XVID:
+      if (preset == FFMPEG_PRESET_XVID) {
+        rd->ffcodecdata.type = FFMPEG_AVI;
+        rd->ffcodecdata.codec = AV_CODEC_ID_MPEG4;
+      }
+      else if (preset == FFMPEG_PRESET_THEORA) {
+        rd->ffcodecdata.type = FFMPEG_OGG; /* XXX broken */
+        rd->ffcodecdata.codec = AV_CODEC_ID_THEORA;
+      }
+
+      rd->ffcodecdata.video_bitrate = 6000;
+      rd->ffcodecdata.gop_size = is_ntsc ? 18 : 15;
+      rd->ffcodecdata.rc_max_rate = 9000;
+      rd->ffcodecdata.rc_min_rate = 0;
+      rd->ffcodecdata.rc_buffer_size = 224 * 8;
+      rd->ffcodecdata.mux_packet_size = 2048;
+      rd->ffcodecdata.mux_rate = 10080000;
+      break;
+
+    case FFMPEG_PRESET_AV1:
+      rd->ffcodecdata.type = FFMPEG_AV1;
+      rd->ffcodecdata.codec = AV_CODEC_ID_AV1;
+      rd->ffcodecdata.video_bitrate = 6000;
+      rd->ffcodecdata.gop_size = is_ntsc ? 18 : 15;
+      rd->ffcodecdata.rc_max_rate = 9000;
+      rd->ffcodecdata.rc_min_rate = 0;
+      rd->ffcodecdata.rc_buffer_size = 224 * 8;
+      rd->ffcodecdata.mux_packet_size = 2048;
+      rd->ffcodecdata.mux_rate = 10080000;
+      break;
+  }
+}
+#endif
+
+void IMB_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf)
+{
+#ifdef WITH_FFMPEG
+  int audio = 0;
+
+  if (imf->imtype == R_IMF_IMTYPE_FFMPEG) {
+    if (rd->ffcodecdata.type <= 0 || rd->ffcodecdata.codec <= 0 ||
+        rd->ffcodecdata.audio_codec <= 0 || rd->ffcodecdata.video_bitrate <= 1)
+    {
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
+      rd->ffcodecdata.constant_rate_factor = FFM_CRF_MEDIUM;
+      rd->ffcodecdata.ffmpeg_preset = FFM_PRESET_GOOD;
+      rd->ffcodecdata.type = FFMPEG_MKV;
+    }
+    if (rd->ffcodecdata.type == FFMPEG_OGG) {
+      rd->ffcodecdata.type = FFMPEG_MPEG2;
+    }
+
+    audio = 1;
+  }
+  else if (imf->imtype == R_IMF_IMTYPE_H264) {
+    if (rd->ffcodecdata.codec != AV_CODEC_ID_H264) {
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
+      audio = 1;
+    }
+  }
+  else if (imf->imtype == R_IMF_IMTYPE_XVID) {
+    if (rd->ffcodecdata.codec != AV_CODEC_ID_MPEG4) {
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_XVID);
+      audio = 1;
+    }
+  }
+  else if (imf->imtype == R_IMF_IMTYPE_THEORA) {
+    if (rd->ffcodecdata.codec != AV_CODEC_ID_THEORA) {
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_THEORA);
+      audio = 1;
+    }
+  }
+  else if (imf->imtype == R_IMF_IMTYPE_AV1) {
+    if (rd->ffcodecdata.codec != AV_CODEC_ID_AV1) {
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_AV1);
+      audio = 1;
+    }
+  }
+
+  if (audio && rd->ffcodecdata.audio_codec < 0) {
+    rd->ffcodecdata.audio_codec = AV_CODEC_ID_NONE;
+    rd->ffcodecdata.audio_bitrate = 128;
+  }
+#endif
+}
+
+bool IMB_ffmpeg_alpha_channel_is_supported(int av_codec_id)
+{
+#if WITH_FFMPEG
+  return ELEM(av_codec_id,
+              AV_CODEC_ID_FFV1,
+              AV_CODEC_ID_QTRLE,
+              AV_CODEC_ID_PNG,
+              AV_CODEC_ID_VP9,
+              AV_CODEC_ID_HUFFYUV);
+#else
+  return false;
+#endif
+}
+
+bool IMB_ffmpeg_codec_supports_crf(int av_codec_id)
+{
+#if WITH_FFMPEG
+  return ELEM(av_codec_id,
+              AV_CODEC_ID_H264,
+              AV_CODEC_ID_H265,
+              AV_CODEC_ID_MPEG4,
+              AV_CODEC_ID_VP9,
+              AV_CODEC_ID_AV1);
+#else
+  return false;
+#endif
 }

@@ -110,7 +110,7 @@ bool IMB_isanim(const char *filepath);
 void IMB_ffmpeg_init();
 void IMB_ffmpeg_exit();
 
-bool IMB_ffmpeg_alpha_channel_is_supported(const RenderData *rd);
+bool IMB_ffmpeg_alpha_channel_is_supported(int av_codec_id);
 bool IMB_ffmpeg_codec_supports_crf(int av_codec_id);
 void IMB_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf);
 

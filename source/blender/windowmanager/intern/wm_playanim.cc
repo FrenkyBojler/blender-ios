@@ -1718,9 +1718,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
   ps.font_id = -1;
 
   IMB_init();
-#ifdef WITH_FFMPEG
   IMB_ffmpeg_init();
-#endif
 
   STRNCPY(ps.display_ctx.display_settings.display_device,
           IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
