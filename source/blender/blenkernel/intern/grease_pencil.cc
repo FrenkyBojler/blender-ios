@@ -410,125 +410,6 @@ OffsetIndices<int> Drawing::shapes() const
   return this->runtime->shapes_cache.data().as_span();
 }
 
-static bool check_self_intersections(Span<float2> projverts)
-{
-  /* Check all pairs of edges that do not share a point (without duplicates) */
-  return threading::parallel_reduce(
-      projverts.index_range(),
-      4096,
-      false,
-      [&](const IndexRange range, const bool value) {
-        if (value) {
-          return value;
-        }
-        for (const int e2_id : range) {
-          for (const int e1_id : projverts.index_range().drop_front(e2_id)) {
-            const int p1 = e1_id;
-            const int p2 = (e1_id + 1) % projverts.size();
-            const int p3 = e2_id;
-            const int p4 = (e2_id + 1) % projverts.size();
-            if (p1 == p4 || p2 == p3) {
-              continue;
-            }
-
-            if (isect_seg_seg_v2_simple(
-                    projverts[p1], projverts[p2], projverts[p3], projverts[p4])) {
-              return true;
-            }
-          }
-        };
-        return false;
-      },
-      std::logical_or<bool>());
-}
-
-static bool check_other_intersections(Span<float2> projverts1, Span<float2> projverts2)
-{
-  /* Check all pairs of edges. */
-  return threading::parallel_reduce(
-      projverts1.index_range(),
-      4096,
-      false,
-      [&](const IndexRange range, const bool value) {
-        if (value) {
-          return value;
-        }
-        for (const int e1_id : range) {
-          for (const int e2_id : projverts2.index_range()) {
-            const int p11 = e1_id;
-            const int p12 = (e1_id + 1) % projverts1.size();
-            const int p21 = e2_id;
-            const int p22 = (e2_id + 1) % projverts2.size();
-
-            if (isect_seg_seg_v2_simple(
-                    projverts1[p11], projverts1[p12], projverts2[p21], projverts2[p22]))
-            {
-              return true;
-            }
-          }
-        }
-        return false;
-      },
-      std::logical_or<bool>());
-}
-
-static bool check_valid_shape(Span<float2> projverts, const OffsetIndices<int> points_by_shape)
-{
-  /* Check for self intersections for every curve in the shape. */
-  if (threading::parallel_reduce(
-          points_by_shape.index_range(),
-          4096,
-          false,
-          [&](const IndexRange range, const bool value) {
-            if (value) {
-              return value;
-            }
-            for (const int curve : range) {
-              const IndexRange points = points_by_shape[curve];
-              if (check_self_intersections(projverts.slice(points))) {
-                return true;
-              }
-            };
-            return false;
-          },
-          std::logical_or<bool>()))
-  {
-    return false;
-  }
-
-  if (threading::parallel_reduce(
-          points_by_shape.index_range(),
-          4096,
-          false,
-          [&](const IndexRange range, const bool value) {
-            if (value) {
-              return value;
-            }
-            for (const int pos1 : range) {
-              const IndexRange point_group1 = points_by_shape[pos1];
-              for (const int pos2 : points_by_shape.index_range()) {
-                if (pos2 >= pos1) {
-                  continue;
-                }
-
-                const IndexRange point_group2 = points_by_shape[pos2];
-                if (check_other_intersections(projverts.slice(point_group1),
-                                              projverts.slice(point_group2)))
-                {
-                  return true;
-                }
-              }
-            }
-            return false;
-          },
-          std::logical_or<bool>()))
-  {
-    return false;
-  }
-
-  return true;
-}
-
 OffsetIndices<int> Drawing::triangle_offsets() const
 {
   this->runtime->triangle_offsets_cache.ensure([&](Vector<int> &r_offsets) {
@@ -580,17 +461,7 @@ OffsetIndices<int> Drawing::triangle_offsets() const
         });
       }
 
-      /* If geometry can not meshed then simple poly fill will be used with the first curve in the
-       * group. */
-      if (!check_valid_shape({reinterpret_cast<float2 *>(projverts), num_points}, points_by_shape))
-      {
-        const IndexRange points = points_by_curve[shape.first()];
-        offset += std::max(int(points.size() - 2), 0);
-        continue;
-      }
-
       Array<double2> verts(num_points);
-      Array<std::pair<int, int>> edges(num_points);
       Array<Vector<int>> faces(shape.size());
 
       for (const int i : shape.index_range()) {
@@ -601,8 +472,6 @@ OffsetIndices<int> Drawing::triangle_offsets() const
         threading::parallel_for(points.index_range(), 512, [&](const IndexRange range) {
           for (const int p_id : range) {
             verts[point_group[p_id]] = double2(projverts[point_group[p_id]]);
-            edges[point_group[p_id]] = std::pair<int, int>(
-                point_group[p_id], point_group[(p_id + 1) % points.size()]);
             faces[i][p_id] = point_group[p_id];
           }
         });
@@ -610,11 +479,18 @@ OffsetIndices<int> Drawing::triangle_offsets() const
 
       meshintersect::CDT_input<double> input;
       input.vert = verts;
-      input.edge = edges;
       input.face = faces;
       input.need_ids = false;
 
       meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_INSIDE_WITH_HOLES);
+
+      /* If geometry can not meshed then simple poly fill will be used with the first curve in the
+       * group. */
+      if (result.vert.size() != num_points) {
+        const IndexRange points = points_by_curve[shape.first()];
+        offset += std::max(int(points.size() - 2), 0);
+        continue;
+      }
 
       offset += result.face.size();
     }
@@ -681,11 +557,8 @@ static void update_triangle_cache(const Span<float3> positions,
       });
     }
 
-    /* If there is only one stroke or the geometry can not meshed then use simple poly fill
-     * using the first curve in the group. */
-    if (shape.size() == 1 ||
-        !check_valid_shape({reinterpret_cast<float2 *>(projverts), num_points}, points_by_shape))
-    {
+    /* If there is only one stroke then simple poly fill will be used. */
+    if (shape.size() == 1) {
       const IndexRange points = points_by_curve[shape.first()];
 
       BLI_polyfill_calc_arena(
@@ -698,7 +571,6 @@ static void update_triangle_cache(const Span<float3> positions,
     }
 
     Array<double2> verts(num_points);
-    Array<std::pair<int, int>> edges(num_points);
     Array<Vector<int>> faces(shape.size());
 
     for (const int i : shape.index_range()) {
@@ -709,23 +581,33 @@ static void update_triangle_cache(const Span<float3> positions,
       threading::parallel_for(points.index_range(), 512, [&](const IndexRange range) {
         for (const int p_id : range) {
           verts[point_group[p_id]] = double2(projverts[point_group[p_id]]);
-          edges[point_group[p_id]] = std::pair<int, int>(point_group[p_id],
-                                                         point_group[(p_id + 1) % points.size()]);
           faces[i][p_id] = point_group[p_id];
         }
       });
     };
 
-    const int first_point = points_by_curve[shape.first()].first();
-
     meshintersect::CDT_input<double> input;
     input.vert = verts;
-    input.edge = edges;
     input.face = faces;
     input.need_ids = false;
 
     meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_INSIDE_WITH_HOLES);
 
+    /* If the geometry can not meshed then use simple poly fill using the first curve in the shape.
+     */
+    if (result.vert.size() != num_points) {
+      const IndexRange points = points_by_curve[shape.first()];
+
+      BLI_polyfill_calc_arena(
+          projverts, points.size(), 0, reinterpret_cast<uint32_t(*)[3]>(r_tris.data()), pf_arena);
+      for (const int i : r_tris.index_range()) {
+        r_tris[i] += points.first();
+      }
+      BLI_memarena_clear(pf_arena);
+      continue;
+    }
+
+    const int first_point = points_by_curve[shape.first()].first();
     threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
       for (const int i : range) {
         BLI_assert(result.face[i].size() == 3);
