@@ -11,7 +11,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -233,7 +233,7 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
       const IndexRange points = points_by_curve[curve_i];
       merge_indices_per_curve[curve_i].reinitialize(points.size());
 
-      Array<float> distances_along_curve(points.size());
+      Array<float> distances_along_curve(points.size() + int(cyclic[curve_i]));
       distances_along_curve.first() = 0.0f;
       const Span<float> lengths = src_curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
       distances_along_curve.as_mutable_span().drop_front(1).copy_from(lengths);

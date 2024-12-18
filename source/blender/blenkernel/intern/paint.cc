@@ -528,9 +528,6 @@ PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
         case OB_MODE_SCULPT:
           return PaintMode::Sculpt;
         case OB_MODE_SCULPT_GREASE_PENCIL:
-          if (obact->type == OB_GPENCIL_LEGACY) {
-            return PaintMode::SculptGPencil;
-          }
           if (obact->type == OB_GREASE_PENCIL) {
             return PaintMode::SculptGreasePencil;
           }
@@ -2469,7 +2466,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
      *
      * The relevant changes are stored/encoded in the paint canvas key.
      * These include the active uv map, and resolutions. */
-    if (U.experimental.use_sculpt_texture_paint) {
+    if (USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
       char *paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode, ob);
       if (ss.last_paint_canvas_key == nullptr ||
           !STREQ(paint_canvas_key, ss.last_paint_canvas_key))
