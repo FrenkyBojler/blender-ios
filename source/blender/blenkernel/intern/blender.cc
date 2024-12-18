@@ -80,7 +80,7 @@ void BKE_blender_free()
   IMB_moviecache_destruct();
   SEQ_fontmap_clear();
 #ifdef WITH_FFMPEG
-  BKE_ffmpeg_exit();
+  IMB_ffmpeg_exit();
 #endif
 
   blender::bke::node_system_exit();

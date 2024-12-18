@@ -1350,7 +1350,7 @@ static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 #  ifdef WITH_FFMPEG
-    BKE_ffmpeg_image_type_verify(rd, imf);
+    IMB_ffmpeg_image_type_verify(rd, imf);
 #  endif
     (void)rd;
   }
@@ -1397,7 +1397,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 
-    if (BKE_ffmpeg_alpha_channel_is_supported(rd)) {
+    if (IMB_ffmpeg_alpha_channel_is_supported(rd)) {
       chan_flag |= IMA_CHAN_FLAG_RGBA;
     }
   }
@@ -2947,7 +2947,7 @@ static std::optional<std::string> rna_FFmpegSettings_path(const PointerRNA * /*p
 static void rna_FFmpegSettings_codec_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   FFMpegCodecData *codec_data = (FFMpegCodecData *)ptr->data;
-  if (!BKE_ffmpeg_codec_supports_crf(codec_data->codec)) {
+  if (!IMB_ffmpeg_codec_supports_crf(codec_data->codec)) {
     /* Constant Rate Factor (CRF) setting is only available for some codecs. Change encoder quality
      * mode to CBR for others. */
     codec_data->constant_rate_factor = FFM_CRF_NONE;

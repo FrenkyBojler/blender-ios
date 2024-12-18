@@ -1,4 +1,5 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -34,9 +35,9 @@
 #include "IMB_colormanagement.hh"
 #include "intern/IMB_colormanagement_intern.hh"
 
+#include "IMB_metadata.hh"
 #include "movie_proxy_indexer.hh"
 #include "readmovie.hh"
-#include "IMB_metadata.hh"
 
 #ifdef WITH_FFMPEG
 #  include "movie/IMB_writeffmpeg.hh"

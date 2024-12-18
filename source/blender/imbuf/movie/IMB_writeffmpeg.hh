@@ -1,11 +1,12 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
- * \ingroup bke
+ * \ingroup imbuf
  */
 
 #ifdef WITH_FFMPEG
@@ -43,41 +44,40 @@ struct ReportList;
 struct Scene;
 struct SwsContext;
 
-bool BKE_ffmpeg_start(void *context_v,
-                      const Scene *scene,
-                      RenderData *rd,
-                      int rectx,
-                      int recty,
-                      ReportList *reports,
-                      bool preview,
-                      const char *suffix);
-void BKE_ffmpeg_end(void *context_v);
-bool BKE_ffmpeg_append(void *context_v,
+bool ffmpeg_movie_open(void *context_v,
+                       const Scene *scene,
                        RenderData *rd,
-                       int start_frame,
-                       int frame,
-                       const ImBuf *image,
-                       const char *suffix,
-                       ReportList *reports);
-void BKE_ffmpeg_filepath_get(char filepath[/*FILE_MAX*/ 1024],
-                             const RenderData *rd,
-                             bool preview,
-                             const char *suffix);
+                       int rectx,
+                       int recty,
+                       ReportList *reports,
+                       bool preview,
+                       const char *suffix);
+void ffmpeg_movie_close(void *context_v);
+bool ffmpeg_movie_append(void *context_v,
+                         RenderData *rd,
+                         int start_frame,
+                         int frame,
+                         const ImBuf *image,
+                         const char *suffix,
+                         ReportList *reports);
+void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
+                         const RenderData *rd,
+                         bool preview,
+                         const char *suffix);
 
-void BKE_ffmpeg_preset_set(RenderData *rd, int preset);
-void BKE_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf);
-bool BKE_ffmpeg_alpha_channel_is_supported(const RenderData *rd);
-bool BKE_ffmpeg_codec_supports_crf(int av_codec_id);
+void IMB_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf);
+bool IMB_ffmpeg_alpha_channel_is_supported(const RenderData *rd);
+bool IMB_ffmpeg_codec_supports_crf(int av_codec_id);
 /**
  * Which pixel bit depths are supported by a given video codec.
  * Returns bitmask of `R_IMF_CHAN_DEPTH_` flags.
  */
-int BKE_ffmpeg_valid_bit_depths(int av_codec_id);
+int IMB_ffmpeg_valid_bit_depths(int av_codec_id);
 
-void *BKE_ffmpeg_context_create();
-void BKE_ffmpeg_context_free(void *context_v);
+void *ffmpeg_context_create();
+void ffmpeg_context_free(void *context_v);
 
-void BKE_ffmpeg_exit();
+void IMB_ffmpeg_exit();
 
 /**
  * Gets a `libswscale` context for given size and format parameters.

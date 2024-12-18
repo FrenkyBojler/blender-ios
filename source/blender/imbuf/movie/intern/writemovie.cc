@@ -1,10 +1,11 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * Functions for writing movie files.
- * \ingroup bke
+ * \ingroup imbuf
  */
 
 #include <cstring>
@@ -76,12 +77,12 @@ bMovieHandle *BKE_movie_handle_get(const char imtype)
            R_IMF_IMTYPE_THEORA,
            R_IMF_IMTYPE_AV1))
   {
-    mh.start_movie = BKE_ffmpeg_start;
-    mh.append_movie = BKE_ffmpeg_append;
-    mh.end_movie = BKE_ffmpeg_end;
-    mh.get_movie_path = BKE_ffmpeg_filepath_get;
-    mh.context_create = BKE_ffmpeg_context_create;
-    mh.context_free = BKE_ffmpeg_context_free;
+    mh.start_movie = ffmpeg_movie_open;
+    mh.append_movie = ffmpeg_movie_append;
+    mh.end_movie = ffmpeg_movie_close;
+    mh.get_movie_path = ffmpeg_get_filepath;
+    mh.context_create = ffmpeg_context_create;
+    mh.context_free = ffmpeg_context_free;
   }
 #else
   (void)imtype;

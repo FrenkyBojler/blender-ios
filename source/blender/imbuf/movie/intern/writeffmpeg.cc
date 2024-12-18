@@ -1,10 +1,10 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2006 Peter Schlaile.
+ * SPDX-FileCopyrightText: 2023-2024 Blender Authors
  *
- * SPDX-License-Identifier: GPL-2.0-or-later
- * Partial Copyright 2006 Peter Schlaile. */
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup imbuf
  */
 
 #ifdef WITH_FFMPEG
@@ -873,7 +873,7 @@ void BKE_ffmpeg_sws_release_context(SwsContext *ctx)
   BLI_mutex_unlock(&swscale_cache_lock);
 }
 
-void BKE_ffmpeg_exit()
+void IMB_ffmpeg_exit()
 {
   BLI_mutex_lock(&swscale_cache_lock);
   if (swscale_cache != nullptr) {
@@ -935,7 +935,7 @@ static void set_quality_rate_options(const FFMpegContext *context,
   AVCodecContext *c = context->video_codec;
 
   /* Handle constant bit rate (CBR) case. */
-  if (!BKE_ffmpeg_codec_supports_crf(codec_id) || context->ffmpeg_crf < 0) {
+  if (!IMB_ffmpeg_codec_supports_crf(codec_id) || context->ffmpeg_crf < 0) {
     c->bit_rate = context->ffmpeg_video_bitrate * 1000;
     c->rc_max_rate = rd->ffcodecdata.rc_max_rate * 1000;
     c->rc_min_rate = rd->ffcodecdata.rc_min_rate * 1000;
@@ -1802,22 +1802,22 @@ static void ffmpeg_filepath_get(FFMpegContext *context,
   BLI_path_suffix(filepath, FILE_MAX, suffix, "");
 }
 
-void BKE_ffmpeg_filepath_get(char filepath[/*FILE_MAX*/ 1024],
-                             const RenderData *rd,
-                             bool preview,
-                             const char *suffix)
+void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
+                         const RenderData *rd,
+                         bool preview,
+                         const char *suffix)
 {
   ffmpeg_filepath_get(nullptr, filepath, rd, preview, suffix);
 }
 
-bool BKE_ffmpeg_start(void *context_v,
-                      const Scene *scene,
-                      RenderData *rd,
-                      int rectx,
-                      int recty,
-                      ReportList *reports,
-                      bool preview,
-                      const char *suffix)
+bool ffmpeg_movie_open(void *context_v,
+                       const Scene *scene,
+                       RenderData *rd,
+                       int rectx,
+                       int recty,
+                       ReportList *reports,
+                       bool preview,
+                       const char *suffix)
 {
   FFMpegContext *context = static_cast<FFMpegContext *>(context_v);
 
@@ -1882,13 +1882,13 @@ static void write_audio_frames(FFMpegContext *context, double to_pts)
 }
 #  endif
 
-bool BKE_ffmpeg_append(void *context_v,
-                       RenderData *rd,
-                       int start_frame,
-                       int frame,
-                       const ImBuf *image,
-                       const char *suffix,
-                       ReportList *reports)
+bool ffmpeg_movie_append(void *context_v,
+                         RenderData *rd,
+                         int start_frame,
+                         int frame,
+                         const ImBuf *image,
+                         const char *suffix,
+                         ReportList *reports)
 {
   FFMpegContext *context = static_cast<FFMpegContext *>(context_v);
   AVFrame *avframe;
@@ -2005,13 +2005,13 @@ static void end_ffmpeg_impl(FFMpegContext *context, int is_autosplit)
   }
 }
 
-void BKE_ffmpeg_end(void *context_v)
+void ffmpeg_movie_close(void *context_v)
 {
   FFMpegContext *context = static_cast<FFMpegContext *>(context_v);
   end_ffmpeg_impl(context, false);
 }
 
-void BKE_ffmpeg_preset_set(RenderData *rd, int preset)
+static void ffmpeg_preset_set(RenderData *rd, int preset)
 {
   bool is_ntsc = (rd->frs_sec != 25);
 
@@ -2062,7 +2062,7 @@ void BKE_ffmpeg_preset_set(RenderData *rd, int preset)
   }
 }
 
-void BKE_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf)
+void IMB_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf)
 {
   int audio = 0;
 
@@ -2070,7 +2070,7 @@ void BKE_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf)
     if (rd->ffcodecdata.type <= 0 || rd->ffcodecdata.codec <= 0 ||
         rd->ffcodecdata.audio_codec <= 0 || rd->ffcodecdata.video_bitrate <= 1)
     {
-      BKE_ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
       rd->ffcodecdata.constant_rate_factor = FFM_CRF_MEDIUM;
       rd->ffcodecdata.ffmpeg_preset = FFM_PRESET_GOOD;
       rd->ffcodecdata.type = FFMPEG_MKV;
@@ -2083,25 +2083,25 @@ void BKE_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf)
   }
   else if (imf->imtype == R_IMF_IMTYPE_H264) {
     if (rd->ffcodecdata.codec != AV_CODEC_ID_H264) {
-      BKE_ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
       audio = 1;
     }
   }
   else if (imf->imtype == R_IMF_IMTYPE_XVID) {
     if (rd->ffcodecdata.codec != AV_CODEC_ID_MPEG4) {
-      BKE_ffmpeg_preset_set(rd, FFMPEG_PRESET_XVID);
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_XVID);
       audio = 1;
     }
   }
   else if (imf->imtype == R_IMF_IMTYPE_THEORA) {
     if (rd->ffcodecdata.codec != AV_CODEC_ID_THEORA) {
-      BKE_ffmpeg_preset_set(rd, FFMPEG_PRESET_THEORA);
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_THEORA);
       audio = 1;
     }
   }
   else if (imf->imtype == R_IMF_IMTYPE_AV1) {
     if (rd->ffcodecdata.codec != AV_CODEC_ID_AV1) {
-      BKE_ffmpeg_preset_set(rd, FFMPEG_PRESET_AV1);
+      ffmpeg_preset_set(rd, FFMPEG_PRESET_AV1);
       audio = 1;
     }
   }
@@ -2112,7 +2112,7 @@ void BKE_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf)
   }
 }
 
-bool BKE_ffmpeg_alpha_channel_is_supported(const RenderData *rd)
+bool IMB_ffmpeg_alpha_channel_is_supported(const RenderData *rd)
 {
   int codec = rd->ffcodecdata.codec;
 
@@ -2124,7 +2124,7 @@ bool BKE_ffmpeg_alpha_channel_is_supported(const RenderData *rd)
               AV_CODEC_ID_HUFFYUV);
 }
 
-bool BKE_ffmpeg_codec_supports_crf(int av_codec_id)
+bool IMB_ffmpeg_codec_supports_crf(int av_codec_id)
 {
   return ELEM(av_codec_id,
               AV_CODEC_ID_H264,
@@ -2134,7 +2134,7 @@ bool BKE_ffmpeg_codec_supports_crf(int av_codec_id)
               AV_CODEC_ID_AV1);
 }
 
-int BKE_ffmpeg_valid_bit_depths(int av_codec_id)
+int IMB_ffmpeg_valid_bit_depths(int av_codec_id)
 {
   int bit_depths = R_IMF_CHAN_DEPTH_8;
   /* Note: update properties_output.py `use_bpp` when changing this function. */
@@ -2147,7 +2147,7 @@ int BKE_ffmpeg_valid_bit_depths(int av_codec_id)
   return bit_depths;
 }
 
-void *BKE_ffmpeg_context_create()
+void *ffmpeg_context_create()
 {
   /* New FFMPEG data struct. */
   FFMpegContext *context = static_cast<FFMpegContext *>(
@@ -2167,7 +2167,7 @@ void *BKE_ffmpeg_context_create()
   return context;
 }
 
-void BKE_ffmpeg_context_free(void *context_v)
+void ffmpeg_context_free(void *context_v)
 {
   FFMpegContext *context = static_cast<FFMpegContext *>(context_v);
   if (context == nullptr) {

@@ -1,14 +1,13 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
- * \ingroup bke
+ * \ingroup imbuf
  */
-
-/* generic blender movie support, could move to own module */
 
 struct ImBuf;
 struct RenderData;

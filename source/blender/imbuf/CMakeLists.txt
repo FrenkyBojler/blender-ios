@@ -143,6 +143,18 @@ if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
 endif()
 
+if(WITH_AUDASPACE)
+  list(APPEND INC_SYS
+    ${AUDASPACE_C_INCLUDE_DIRS}
+  )
+  if(WITH_SYSTEM_AUDASPACE)
+    list(APPEND LIB
+      ${AUDASPACE_C_LIBRARIES}
+    )
+  endif()
+  add_definitions(-DWITH_AUDASPACE)
+endif()
+
 if(WITH_IMAGE_CINEON)
   list(APPEND SRC
     intern/format_dpx.cc
