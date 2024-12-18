@@ -279,18 +279,17 @@ class DenoiseOperation : public NodeOperation {
           return OIDN_QUALITY_HIGH;
       }
     }
-    else {
-      switch (node_quality) {
+
+    switch (node_quality) {
 #  if OIDN_VERSION >= 20300
-        case CMP_NODE_DENOISE_QUALITY_FAST:
-          return OIDN_QUALITY_FAST;
+      case CMP_NODE_DENOISE_QUALITY_FAST:
+        return OIDN_QUALITY_FAST;
 #  endif
-        case CMP_NODE_DENOISE_QUALITY_BALANCED:
-          return OIDN_QUALITY_BALANCED;
-        case CMP_NODE_DENOISE_QUALITY_HIGH:
-        default:
-          return OIDN_QUALITY_HIGH;
-      }
+      case CMP_NODE_DENOISE_QUALITY_BALANCED:
+        return OIDN_QUALITY_BALANCED;
+      case CMP_NODE_DENOISE_QUALITY_HIGH:
+      default:
+        return OIDN_QUALITY_HIGH;
     }
   }
 #endif

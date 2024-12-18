@@ -213,10 +213,9 @@ class Context : public compositor::Context {
       return static_cast<eCompositorDenoiseQaulity>(
           this->get_render_data().compositor_denoise_final_quality);
     }
-    else {
-      return static_cast<eCompositorDenoiseQaulity>(
-          this->get_render_data().compositor_denoise_preview_quality);
-    }
+
+    return static_cast<eCompositorDenoiseQaulity>(
+        this->get_render_data().compositor_denoise_preview_quality);
   }
 
   bool use_file_output() const override
