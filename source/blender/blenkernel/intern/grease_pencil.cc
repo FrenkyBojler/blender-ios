@@ -532,6 +532,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
   }
 
   r_triangles_offsets.last() = offset;
+  BLI_memarena_free(pf_arena);
 }
 
 OffsetIndices<int> Drawing::triangle_offsets() const
