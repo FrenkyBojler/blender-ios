@@ -40,8 +40,8 @@
 #include "movie_read.hh"
 
 #ifdef WITH_FFMPEG
-#  include "ffmpeg_util.hh"
 #  include "ffmpeg_swscale.hh"
+#  include "ffmpeg_util.hh"
 
 extern "C" {
 #  include <libavcodec/avcodec.h>
