@@ -47,6 +47,7 @@ struct LocalData {
   Vector<float3> positions;
   Vector<float> factors;
   Vector<float> distances;
+  Vector<float> local_z_distances;
   Vector<float3> translations;
 };
 
@@ -61,10 +62,62 @@ static void calc_local_positions(const float4x4& mat,
 }
 
 static void calc_distances(const Span<float3> local_positions,
+  MutableSpan<float> local_z_distances,
   MutableSpan<float> distances)
 {
   for (const int i : local_positions.index_range()) {
-    distances[i] = math::length(local_positions[i]);
+    const float local_x = local_positions[i].x;
+    const float local_y = local_positions[i].y;
+    const float z_dist_sq = local_z_distances[i] * local_z_distances[i];
+    distances[i] = math::sqrt(local_x * local_x + local_y * local_y + z_dist_sq);
+  }
+}
+
+static void calc_local_z_distances(const float depth,
+  const float height,
+  const MutableSpan<float3> local_positions,
+  const MutableSpan<float> local_z_distances)
+{
+  if (depth != 0.0f)
+  {
+    const float inv_depth = 1.0f / depth;
+
+    for (const int i : local_positions.index_range())
+    {
+      const float local_z = local_positions[i].z;
+      if (local_z > 0.0f) {
+        local_z_distances[i] = local_z * inv_depth;
+      }
+    }
+  }
+  else {
+    for (const int i : local_positions.index_range())
+    {
+      if (local_positions[i].z > 0.0f) {
+        local_z_distances[i] = 1.0f;
+      }
+    }
+  }
+
+  if (height != 0.0f)
+  {
+    const float inv_height = 1.0f / height;
+
+    for (const int i : local_positions.index_range())
+    {
+      const float local_z = local_positions[i].z;
+      if (local_z < 0.0f) {
+        local_z_distances[i] = local_z * inv_height;
+      }
+    }
+  }
+  else {
+    for (const int i : local_positions.index_range())
+    {
+      if (local_positions[i].z < 0.0f) {
+        local_z_distances[i] = 1.0f;
+      }
+    }
   }
 }
 
@@ -72,8 +125,9 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
                        const float4x4 &mat,
-                       const float4 &plane,
-                       const float strength,
+                       const float3 &offset,
+                       const float depth,
+                       const float height,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
                        const bke::pbvh::MeshNode &node,
@@ -100,9 +154,13 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> local_positions = tls.positions;
   calc_local_positions(mat, verts, position_data.eval, local_positions);
 
+  tls.local_z_distances.resize(verts.size());
+  const MutableSpan<float> local_z_distances = tls.local_z_distances;
+  calc_local_z_distances(depth, height, local_positions, local_z_distances);
+
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_distances(local_positions, distances);
+  calc_distances(local_positions, local_z_distances, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -112,15 +170,14 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
 
-  scale_factors(tls.factors, strength);
-
-  filter(position_data.eval, verts, plane, tls.factors);
-
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  calc_translations_to_plane(position_data.eval, verts, plane, translations);
-  filter_plane_trim_limit_factors(brush, cache, translations, tls.factors);
-  scale_translations(translations, tls.factors);
+
+  for (const int i : local_positions.index_range()) {
+    factors[i] *= local_positions[i].z;
+  }
+
+  translations_from_offset_and_factors(offset, factors, translations);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
@@ -203,6 +260,10 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
+  if (math::is_zero(ss.cache->grab_delta_symm)) {
+    return;
+  }
+
   float3 area_no;
   float3 area_co;
   calc_brush_plane(depsgraph, brush, object, node_mask, area_no, area_co);
@@ -227,6 +288,8 @@ static void do_plane_brush(const Depsgraph &depsgraph,
 
   mat = math::invert(tmat);
 
+  const float3 plane_offset = -area_no * ss.cache->radius * ss.cache->bstrength;
+
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
@@ -241,8 +304,9 @@ static void do_plane_brush(const Depsgraph &depsgraph,
                    sd,
                    brush,
                    mat,
-                   plane,
-                   ss.cache->bstrength,
+                   plane_offset,
+                   brush.plane_depth,
+                   brush.plane_height,
                    attribute_data,
                    vert_normals,
                    nodes[i],
