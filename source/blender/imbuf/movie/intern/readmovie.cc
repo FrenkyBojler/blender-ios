@@ -40,6 +40,7 @@
 #include "readmovie.hh"
 
 #ifdef WITH_FFMPEG
+#  include "ffmpeg_util.hh"
 #  include "swscale.hh"
 
 extern "C" {
@@ -562,11 +563,11 @@ static void ffmpeg_postprocess(ImBufAnim *anim, AVFrame *input, ImBuf *ibuf)
          input->data[3]);
 
   if (anim->ib_flags & IB_animdeinterlace) {
-    if (av_image_deinterlace(anim->pFrameDeinterlaced,
-                             anim->pFrame,
-                             anim->pCodecCtx->pix_fmt,
-                             anim->pCodecCtx->width,
-                             anim->pCodecCtx->height) < 0)
+    if (ffmpeg_deinterlace(anim->pFrameDeinterlaced,
+                           anim->pFrame,
+                           anim->pCodecCtx->pix_fmt,
+                           anim->pCodecCtx->width,
+                           anim->pCodecCtx->height) < 0)
     {
       filter_y = true;
     }

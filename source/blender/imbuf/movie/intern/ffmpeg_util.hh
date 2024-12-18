@@ -10,6 +10,11 @@
 
 #ifdef WITH_FFMPEG
 
+struct AVFrame;
+
+int ffmpeg_deinterlace(
+    AVFrame *dst, const AVFrame *src, enum AVPixelFormat pix_fmt, int width, int height);
+
 const char *ffmpeg_last_error();
 
 #endif /* WITH_FFMPEG */
