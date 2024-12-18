@@ -433,7 +433,7 @@ ccl_device float voronoi_n_sphere_radius(ccl_private const VoronoiParams &params
 
 ccl_device float4 voronoi_position(const float3 coord)
 {
-  return float3_to_float4(coord);
+  return make_float4(coord);
 }
 
 ccl_device VoronoiOutput voronoi_f1(ccl_private const VoronoiParams &params, const float3 coord)
@@ -1074,7 +1074,7 @@ ccl_device_noinline int svm_node_tex_voronoi(KernelGlobals kg,
           distance = fractal_voronoi_distance_to_edge(params, coord);
           break;
         case 4:
-          distance = fractal_voronoi_distance_to_edge(params, float3_to_float4(coord, w));
+          distance = fractal_voronoi_distance_to_edge(params, make_float4(coord, w));
           break;
       }
 
@@ -1094,7 +1094,7 @@ ccl_device_noinline int svm_node_tex_voronoi(KernelGlobals kg,
           radius = voronoi_n_sphere_radius(params, coord);
           break;
         case 4:
-          radius = voronoi_n_sphere_radius(params, float3_to_float4(coord, w));
+          radius = voronoi_n_sphere_radius(params, make_float4(coord, w));
           break;
       }
 
@@ -1142,7 +1142,7 @@ ccl_device_noinline int svm_node_tex_voronoi(KernelGlobals kg,
                                                                0.5f + 0.5f * params.randomness),
                                                    params) *
                                   ((params.feature == NODE_VORONOI_F2) ? 2.0f : 1.0f);
-            output = fractal_voronoi_x_fx(params, float3_to_float4(coord, w));
+            output = fractal_voronoi_x_fx(params, make_float4(coord, w));
           }
           break;
       }

@@ -638,14 +638,14 @@ void ShaderManager::device_update_common(Device * /*device*/,
   /* film */
   KernelFilm *kfilm = &dscene->data.film;
   /* color space, needs to be here because e.g. displacement shaders could depend on it */
-  kfilm->xyz_to_r = float3_to_float4(xyz_to_r);
-  kfilm->xyz_to_g = float3_to_float4(xyz_to_g);
-  kfilm->xyz_to_b = float3_to_float4(xyz_to_b);
-  kfilm->rgb_to_y = float3_to_float4(rgb_to_y);
-  kfilm->white_xyz = float3_to_float4(white_xyz);
-  kfilm->rec709_to_r = float3_to_float4(rec709_to_r);
-  kfilm->rec709_to_g = float3_to_float4(rec709_to_g);
-  kfilm->rec709_to_b = float3_to_float4(rec709_to_b);
+  kfilm->xyz_to_r = make_float4(xyz_to_r);
+  kfilm->xyz_to_g = make_float4(xyz_to_g);
+  kfilm->xyz_to_b = make_float4(xyz_to_b);
+  kfilm->rgb_to_y = make_float4(rgb_to_y);
+  kfilm->white_xyz = make_float4(white_xyz);
+  kfilm->rec709_to_r = make_float4(rec709_to_r);
+  kfilm->rec709_to_g = make_float4(rec709_to_g);
+  kfilm->rec709_to_b = make_float4(rec709_to_b);
   kfilm->is_rec709 = is_rec709;
 }
 

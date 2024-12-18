@@ -253,7 +253,7 @@ void PointCloud::apply_transform(const Transform &tfm, const bool apply_to_motio
 
         /* scale for curve radius is only correct for uniform
          * scale */
-        point_steps[i] = float3_to_float4(co);
+        point_steps[i] = make_float4(co);
         point_steps[i].w = radius;
       }
     }

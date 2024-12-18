@@ -339,8 +339,8 @@ ccl_device bool ray_aabb_intersect(const float3 bbox_min,
   const float3 t_upper = (bbox_max - ray_P) * inv_ray_D;
 
   /* The four t-intervals (for x-/y-/z-slabs, and ray p(t)). */
-  const float4 tmins = float3_to_float4(min(t_lower, t_upper), t_range->min);
-  const float4 tmaxes = float3_to_float4(max(t_lower, t_upper), t_range->max);
+  const float4 tmins = make_float4(min(t_lower, t_upper), t_range->min);
+  const float4 tmaxes = make_float4(max(t_lower, t_upper), t_range->max);
 
   /* Max of mins and min of maxes. */
   const float tmin = reduce_max(tmins);

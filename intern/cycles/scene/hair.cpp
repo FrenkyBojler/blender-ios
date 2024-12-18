@@ -474,7 +474,7 @@ void Hair::apply_transform(const Transform &tfm, const bool apply_to_motion)
         float radius = key_steps[i].w * scalar;
 
         /* scale for curve radius is only correct for uniform scale */
-        key_steps[i] = float3_to_float4(co);
+        key_steps[i] = make_float4(co);
         key_steps[i].w = radius;
       }
     }
