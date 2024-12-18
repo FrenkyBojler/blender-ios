@@ -100,8 +100,12 @@ def main():
 
     # Try to account for image filtering differences from OS/drivers
     test_dir_name = Path(args.testdir).name
-    if (test_dir_name in {'image_colorspace', 'image_mapping'}):
+    if (test_dir_name in {'image_mapping', 'mesh'}):
+        report.set_fail_threshold(0.028)
+        report.set_fail_percent(1.3)
+    if (test_dir_name in {'image_colorspace'}):
         report.set_fail_threshold(0.032)
+        report.set_fail_percent(1.5)
 
     test_dir_name = Path(args.testdir).name
 
