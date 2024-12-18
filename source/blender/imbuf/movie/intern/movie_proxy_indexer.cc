@@ -33,7 +33,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#include "IMB_imbuf.hh"
+#include "movie/IMB_anim.hh"
 
 #include "movie_proxy_indexer.hh"
 #include "readmovie.hh"

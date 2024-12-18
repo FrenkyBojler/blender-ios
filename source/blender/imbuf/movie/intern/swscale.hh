@@ -20,12 +20,12 @@ struct SwsContext;
  * pool/cache.
  */
 SwsContext *ffmpeg_sws_get_context(int src_width,
-                                       int src_height,
-                                       int av_src_format,
-                                       int dst_width,
-                                       int dst_height,
-                                       int av_dst_format,
-                                       int sws_flags);
+                                   int src_height,
+                                   int av_src_format,
+                                   int dst_width,
+                                   int dst_height,
+                                   int av_dst_format,
+                                   int sws_flags);
 void ffmpeg_sws_release_context(SwsContext *ctx);
 
 void ffmpeg_sws_scale_frame(SwsContext *ctx, AVFrame *dst, const AVFrame *src);

@@ -16,8 +16,8 @@
 #  include "BLI_vector.hh"
 
 extern "C" {
-#  include <libavutil/pixfmt.h>
 #  include <libavutil/opt.h>
+#  include <libavutil/pixfmt.h>
 #  include <libswscale/swscale.h>
 
 #  include "ffmpeg_compat.h"
@@ -132,12 +132,12 @@ static void maintain_swscale_cache_size()
 }
 
 SwsContext *ffmpeg_sws_get_context(int src_width,
-                                       int src_height,
-                                       int av_src_format,
-                                       int dst_width,
-                                       int dst_height,
-                                       int av_dst_format,
-                                       int sws_flags)
+                                   int src_height,
+                                   int av_src_format,
+                                   int dst_width,
+                                   int dst_height,
+                                   int av_dst_format,
+                                   int sws_flags)
 {
   std::lock_guard lock(swscale_cache_lock);
 

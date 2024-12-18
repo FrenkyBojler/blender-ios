@@ -60,6 +60,7 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
+#include "movie/IMB_anim.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"

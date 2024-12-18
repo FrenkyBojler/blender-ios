@@ -15,6 +15,7 @@
 #include "BKE_scene.hh"
 
 #include "IMB_imbuf.hh"
+#include "movie/IMB_anim.hh"
 
 #include "multiview.hh"
 

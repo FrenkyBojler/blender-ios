@@ -71,7 +71,8 @@
 #  include "movie/IMB_writeffmpeg.hh"
 #endif
 
-#include "IMB_imbuf.hh" /* for proxy / time-code versioning stuff. */
+#include "IMB_imbuf_enums.h"
+#include "movie/IMB_movie_enums.hh"
 
 #include "NOD_common.h"
 #include "NOD_composite.hh"

@@ -20,6 +20,7 @@
 #include "DNA_sequence_types.h"
 
 #include "IMB_imbuf.hh"
+#include "movie/IMB_anim.hh"
 
 #include "SEQ_render.hh"
 #include "SEQ_thumbnail_cache.hh"

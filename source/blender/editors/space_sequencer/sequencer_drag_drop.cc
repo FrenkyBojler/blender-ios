@@ -35,6 +35,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+#include "movie/IMB_anim.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

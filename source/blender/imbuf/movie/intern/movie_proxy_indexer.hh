@@ -12,7 +12,8 @@
 #  include <io.h>
 #endif
 
-#include "movie/intern/readmovie.hh"
+#include "movie/IMB_movie_enums.hh"
+#include "readmovie.hh"
 #include <stdio.h>
 #include <stdlib.h>
 /*

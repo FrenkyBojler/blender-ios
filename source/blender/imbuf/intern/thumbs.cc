@@ -31,6 +31,7 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
 #include "IMB_thumbs.hh"
+#include "movie/IMB_anim.hh"
 
 #include <cctype>
 #include <cstring>

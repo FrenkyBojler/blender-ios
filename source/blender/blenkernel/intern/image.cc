@@ -35,6 +35,7 @@
 #include "IMB_metadata.hh"
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
+#include "movie/IMB_anim.hh"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW

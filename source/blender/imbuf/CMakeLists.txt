@@ -73,6 +73,8 @@ set(SRC
   movie/intern/readmovie.cc
   movie/intern/readmovie.hh
   movie/intern/writemovie.cc
+  movie/IMB_anim.hh
+  movie/IMB_movie_enums.hh
   movie/IMB_writemovie.hh
   # orphan include
   ../../../intern/ffmpeg/ffmpeg_compat.h

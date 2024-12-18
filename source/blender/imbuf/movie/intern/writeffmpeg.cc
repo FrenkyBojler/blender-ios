@@ -36,6 +36,7 @@
 #  include "BKE_sound.h"
 
 #  include "IMB_imbuf.hh"
+#  include "movie/IMB_anim.hh"
 #  include "movie/IMB_writeffmpeg.hh"
 
 #  include "swscale.hh"
