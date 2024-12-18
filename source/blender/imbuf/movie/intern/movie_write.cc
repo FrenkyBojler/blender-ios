@@ -39,8 +39,8 @@
 #  include "IMB_imbuf.hh"
 
 #  include "ffmpeg_util.hh"
-#  include "swscale.hh"
-#  include "writeffmpeg.hh"
+#  include "ffmpeg_swscale.hh"
+#  include "movie_write.hh"
 
 /* This needs to be included after BLI_math_base.h otherwise it will redefine some math defines
  * like M_SQRT1_2 leading to warnings with MSVC */

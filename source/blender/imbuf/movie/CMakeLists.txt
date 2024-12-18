@@ -14,15 +14,15 @@ set(INC_SYS
 set(SRC
   IMB_anim.hh
   IMB_movie_enums.hh
-  IMB_writemovie.hh
+  IMB_movie_write.hh
 
   intern/ffmpeg_compat.h
   intern/ffmpeg_util.cc
   intern/ffmpeg_util.hh
   intern/movie_proxy_indexer.cc
   intern/movie_proxy_indexer.hh
-  intern/readmovie.cc
-  intern/readmovie.hh
+  intern/movie_read.cc
+  intern/movie_read.hh
   intern/writemovie.cc
 )
 
@@ -35,10 +35,10 @@ set(LIB
 
 if(WITH_CODEC_FFMPEG)
   list(APPEND SRC
-    intern/swscale.cc
-    intern/swscale.hh
-    intern/writeffmpeg.cc
-    intern/writeffmpeg.hh
+    intern/ffmpeg_swscale.cc
+    intern/ffmpeg_swscale.hh
+    intern/movie_write.cc
+    intern/movie_write.hh
   )
   list(APPEND INC_SYS
     ${FFMPEG_INCLUDE_DIRS}

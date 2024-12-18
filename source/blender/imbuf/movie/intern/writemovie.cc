@@ -19,10 +19,10 @@
 #include "BKE_report.hh"
 
 #ifdef WITH_FFMPEG
-#  include "writeffmpeg.hh"
+#  include "movie_write.hh"
 #endif
 
-#include "IMB_writemovie.hh"
+#include "IMB_movie_write.hh"
 
 static bool is_imtype_ffmpeg(const char imtype)
 {

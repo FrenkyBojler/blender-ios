@@ -7,7 +7,7 @@
  */
 
 #ifdef WITH_FFMPEG
-#  include "swscale.hh"
+#  include "ffmpeg_swscale.hh"
 
 #  include <cstdint>
 #  include <mutex>

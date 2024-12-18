@@ -12,8 +12,8 @@
 
 #include "IMB_anim.hh"
 
+#include "ffmpeg_swscale.hh"
 #include "ffmpeg_util.hh"
-#include "swscale.hh"
 
 #ifdef WITH_FFMPEG
 

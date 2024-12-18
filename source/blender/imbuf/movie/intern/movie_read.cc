@@ -37,11 +37,11 @@
 
 #include "IMB_metadata.hh"
 #include "movie_proxy_indexer.hh"
-#include "readmovie.hh"
+#include "movie_read.hh"
 
 #ifdef WITH_FFMPEG
 #  include "ffmpeg_util.hh"
-#  include "swscale.hh"
+#  include "ffmpeg_swscale.hh"
 
 extern "C" {
 #  include <libavcodec/avcodec.h>

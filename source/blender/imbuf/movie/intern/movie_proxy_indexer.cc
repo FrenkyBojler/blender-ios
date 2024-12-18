@@ -35,9 +35,9 @@
 
 #include "IMB_anim.hh"
 
+#include "ffmpeg_swscale.hh"
 #include "movie_proxy_indexer.hh"
-#include "readmovie.hh"
-#include "swscale.hh"
+#include "movie_read.hh"
 
 #ifdef WITH_FFMPEG
 extern "C" {

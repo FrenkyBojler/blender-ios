@@ -13,7 +13,7 @@
 #endif
 
 #include "IMB_movie_enums.hh"
-#include "readmovie.hh"
+#include "movie_read.hh"
 #include <stdio.h>
 #include <stdlib.h>
 /*

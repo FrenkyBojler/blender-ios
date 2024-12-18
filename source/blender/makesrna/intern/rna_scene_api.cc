@@ -41,7 +41,7 @@
 #  include "ED_transform_snap_object_context.hh"
 #  include "ED_uvedit.hh"
 
-#  include "IMB_writemovie.hh"
+#  include "IMB_movie_write.hh"
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern.hh"
