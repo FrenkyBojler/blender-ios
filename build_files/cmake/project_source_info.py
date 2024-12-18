@@ -3,10 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-# Needed for type hints like `subprocess.Popen[Any]`
-from __future__ import annotations
-
-
 __all__ = (
     "build_info",
     "SOURCE_DIR",
@@ -231,7 +227,7 @@ def build_defines_as_args() -> List[str]:
     ]
 
 
-def process_make_non_blocking(proc: subprocess.Popen[Any]) -> subprocess.Popen[Any]:
+def process_make_non_blocking(proc: subprocess.Popen) -> subprocess.Popen:
     import fcntl
     for fh in (proc.stderr, proc.stdout):
         if fh is None:
@@ -245,11 +241,11 @@ def process_make_non_blocking(proc: subprocess.Popen[Any]) -> subprocess.Popen[A
 # could be moved elsewhere!, this just happens to be used by scripts that also
 # use this module.
 def queue_processes(
-        process_funcs: Sequence[Tuple[Callable[..., subprocess.Popen[Any]], Tuple[Any, ...]]],
+        process_funcs: Sequence[Tuple[Callable[..., subprocess.Popen], Tuple[Any, ...]]],
         *,
         job_total: int = -1,
         sleep: float = 0.1,
-        process_finalize: Union[Callable[[subprocess.Popen[Any], bytes, bytes], Union[int, None]], None] = None,
+        process_finalize: Union[Callable[[subprocess.Popen, bytes, bytes], Union[int, None]], None] = None,
 ) -> None:
     """ Takes a list of function arg pairs, each function must return a process
     """
@@ -273,7 +269,7 @@ def queue_processes(
 
         if process_finalize is not None:
             def poll_and_finalize(
-                    p: subprocess.Popen[Any],
+                    p: subprocess.Popen,
                     stdout: List[bytes],
                     stderr: List[bytes],
             ) -> Union[int, None]:
@@ -297,13 +293,13 @@ def queue_processes(
                 return returncode
         else:
             def poll_and_finalize(
-                    p: subprocess.Popen[Any],
+                    p: subprocess.Popen,
                     stdout: List[bytes],
                     stderr: List[bytes],
             ) -> Union[int, None]:
                 return p.poll()
 
-        processes: List[Tuple[subprocess.Popen[Any], List[bytes], List[bytes]]] = []
+        processes: List[Tuple[subprocess.Popen, List[bytes], List[bytes]]] = []
         for func, args in process_funcs:
             # wait until a thread is free
             while 1:
