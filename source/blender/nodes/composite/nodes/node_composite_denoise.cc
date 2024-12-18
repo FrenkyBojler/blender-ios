@@ -253,6 +253,7 @@ class DenoiseOperation : public NodeOperation {
   }
 
 #ifdef WITH_OPENIMAGEDENOISE
+#  if OIDN_VERSION_MAJOR >= 2
   OIDNQuality get_quality()
   {
     const CMPNodeDenoiseQuality node_quality = static_cast<CMPNodeDenoiseQuality>(
@@ -261,10 +262,10 @@ class DenoiseOperation : public NodeOperation {
     if (node_quality == CMP_NODE_DENOISE_QUALITY_DEFAULT) {
       const eCompositorDenoiseQaulity scene_quality = context().get_denoise_quality();
       switch (scene_quality) {
-#  if OIDN_VERSION >= 20300
+#    if OIDN_VERSION >= 20300
         case SCE_COMPOSITOR_DENOISE_FAST:
           return OIDN_QUALITY_FAST;
-#  endif
+#    endif
         case SCE_COMPOSITOR_DENOISE_BALANCED:
           return OIDN_QUALITY_BALANCED;
         case SCE_COMPOSITOR_DENOISE_HIGH:
@@ -274,10 +275,10 @@ class DenoiseOperation : public NodeOperation {
     }
 
     switch (node_quality) {
-#  if OIDN_VERSION >= 20300
+#    if OIDN_VERSION >= 20300
       case CMP_NODE_DENOISE_QUALITY_FAST:
         return OIDN_QUALITY_FAST;
-#  endif
+#    endif
       case CMP_NODE_DENOISE_QUALITY_BALANCED:
         return OIDN_QUALITY_BALANCED;
       case CMP_NODE_DENOISE_QUALITY_HIGH:
@@ -285,6 +286,7 @@ class DenoiseOperation : public NodeOperation {
         return OIDN_QUALITY_HIGH;
     }
   }
+#  endif /* OIDN_VERSION_MAJOR >= 2 */
 
   void set_filter_quality([[maybe_unused]] oidn::FilterRef &filter)
   {
