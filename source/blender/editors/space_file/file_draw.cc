@@ -556,7 +556,10 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
   rcti drag_rect = *tile_draw_rect;
   /* A bit smaller than the full tile, to increase the gap between items that users can drag from
    * for box select. */
-  BLI_rcti_pad(&drag_rect, -layout->tile_border_x, -layout->tile_border_y);
+  drag_rect.xmin -= int(UI_SCALE_FAC * 1.0f);
+  drag_rect.xmax -= int(UI_SCALE_FAC * 2.0f);
+  drag_rect.ymin -= int(UI_SCALE_FAC * 1.0f);
+  drag_rect.ymax -= int(UI_SCALE_FAC * 2.0f);
 
   uiBut *but = uiDefBut(block,
                         UI_BTYPE_LABEL,
