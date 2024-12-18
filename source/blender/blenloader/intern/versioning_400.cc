@@ -76,7 +76,7 @@
 #include "BKE_screen.hh"
 #include "BKE_tracking.h"
 
-#include "movie/IMB_movie_enums.hh"
+#include "IMB_movie_enums.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"

@@ -53,7 +53,7 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "movie/IMB_anim.hh"
+#include "IMB_anim.hh"
 
 #include "ED_render.hh"
 #include "ED_transform.hh"

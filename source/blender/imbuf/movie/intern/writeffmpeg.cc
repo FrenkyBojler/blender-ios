@@ -35,8 +35,8 @@
 #  include "BKE_report.hh"
 #  include "BKE_sound.h"
 
+#  include "IMB_anim.hh"
 #  include "IMB_imbuf.hh"
-#  include "movie/IMB_anim.hh"
 
 #  include "ffmpeg_util.hh"
 #  include "swscale.hh"

@@ -2,8 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+add_subdirectory(movie)
+
 set(INC
   .
+  ./movie
   ../blenkernel
   ../blenloader
   ../gpu
@@ -67,18 +70,6 @@ set(SRC
   intern/IMB_filetype.hh
   intern/IMB_filter.hh
   intern/imbuf.hh
-
-  movie/intern/ffmpeg_compat.h
-  movie/intern/ffmpeg_util.cc
-  movie/intern/ffmpeg_util.hh
-  movie/intern/movie_proxy_indexer.cc
-  movie/intern/movie_proxy_indexer.hh
-  movie/intern/readmovie.cc
-  movie/intern/readmovie.hh
-  movie/intern/writemovie.cc
-  movie/IMB_anim.hh
-  movie/IMB_movie_enums.hh
-  movie/IMB_writemovie.hh
 )
 
 set(LIB
@@ -126,35 +117,6 @@ if(WITH_IMAGE_OPENJPEG)
   )
 
   add_definitions(-DWITH_OPENJPEG ${OPENJPEG_DEFINES})
-endif()
-
-if(WITH_CODEC_FFMPEG)
-  list(APPEND SRC
-    movie/intern/swscale.cc
-    movie/intern/swscale.hh
-    movie/intern/writeffmpeg.cc
-    movie/intern/writeffmpeg.hh
-  )
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-    ${OPENJPEG_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFMPEG)
-endif()
-
-if(WITH_AUDASPACE)
-  list(APPEND INC_SYS
-    ${AUDASPACE_C_INCLUDE_DIRS}
-  )
-  if(WITH_SYSTEM_AUDASPACE)
-    list(APPEND LIB
-      ${AUDASPACE_C_LIBRARIES}
-    )
-  endif()
-  add_definitions(-DWITH_AUDASPACE)
 endif()
 
 if(WITH_IMAGE_CINEON)
@@ -209,29 +171,4 @@ if(WITH_GTESTS)
   )
   blender_add_test_suite_lib(imbuf "${TEST_SRC}" "${INC}" "${INC_SYS}" "${LIB}")
   add_subdirectory(tests/performance)
-endif()
-
-if(WITH_GTESTS AND WITH_CODEC_FFMPEG)
-  set(TEST_SRC
-    movie/tests/ffmpeg_codecs.cc
-    movie/tests/ffmpeg_cpu_flags.cc
-  )
-  set(TEST_INC
-    movie/intern
-  )
-  set(TEST_INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-    ${PNG_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIRS}
-  )
-  set(TEST_LIB
-    ${PNG_LIBRARIES}
-    ${FFMPEG_LIBRARIES}
-    ${ZLIB_LIBRARIES}
-  )
-  if(WITH_IMAGE_OPENJPEG)
-    set(TEST_LIB ${TEST_LIB} ${OPENJPEG_LIBRARIES})
-  endif()
-  blender_add_test_suite_lib(ffmpeg_libs "${TEST_SRC}" "${TEST_INC}" "${TEST_INC_SYS}" "${TEST_LIB}")
-
 endif()

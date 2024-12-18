@@ -49,11 +49,11 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_moviecache.hh"
-#include "movie/IMB_anim.hh"
 
 #include "RE_pipeline.h"
 

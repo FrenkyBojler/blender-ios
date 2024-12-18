@@ -249,6 +249,7 @@ set(INC
   ../../gpu
   ../../ikplugin
   ../../imbuf
+  ../../imbuf/movie
   ../../io/usd
   ../../modifiers
   ../../nodes

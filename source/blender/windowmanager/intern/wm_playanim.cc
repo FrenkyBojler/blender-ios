@@ -40,10 +40,10 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
+#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "movie/IMB_anim.hh"
 
 #include "BKE_image.hh"
 

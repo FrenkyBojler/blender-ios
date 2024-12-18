@@ -64,10 +64,10 @@
 #include "ED_datafiles.h"
 #include "ED_fileselect.hh"
 
+#include "IMB_anim.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_thumbs.hh"
-#include "movie/IMB_anim.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

@@ -29,11 +29,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "intern/IMB_colormanagement_intern.hh"
-#include "movie/IMB_anim.hh"
 
 #include "IMB_metadata.hh"
 #include "movie_proxy_indexer.hh"

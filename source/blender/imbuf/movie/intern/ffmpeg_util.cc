@@ -10,7 +10,7 @@
 
 #include "DNA_scene_types.h"
 
-#include "movie/IMB_anim.hh"
+#include "IMB_anim.hh"
 
 #include "ffmpeg_util.hh"
 #include "swscale.hh"

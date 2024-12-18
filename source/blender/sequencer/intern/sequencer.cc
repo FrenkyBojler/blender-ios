@@ -35,8 +35,8 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "IMB_anim.hh"
 #include "IMB_imbuf.hh"
-#include "movie/IMB_anim.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_connect.hh"

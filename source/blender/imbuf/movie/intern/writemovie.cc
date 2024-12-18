@@ -22,7 +22,7 @@
 #  include "writeffmpeg.hh"
 #endif
 
-#include "movie/IMB_writemovie.hh"
+#include "IMB_writemovie.hh"
 
 static bool is_imtype_ffmpeg(const char imtype)
 {

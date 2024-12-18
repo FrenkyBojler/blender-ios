@@ -55,12 +55,12 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_tracking.h"
 
+#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
-#include "movie/IMB_anim.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"

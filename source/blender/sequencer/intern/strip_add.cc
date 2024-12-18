@@ -33,11 +33,11 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
-#include "movie/IMB_anim.hh"
 
 #include "SEQ_add.hh"
 #include "SEQ_edit.hh"
