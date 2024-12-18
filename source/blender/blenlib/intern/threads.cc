@@ -302,47 +302,45 @@ int BLI_recommended_thread_count()
 #ifndef __APPLE__
   return 0;
 #else
-  
+
   /* Define a point at which we switch to solely using the performance cores.
    * This is possible as MacOS shceduling will schedule all threads on P-Cores
    * first by default so we if limit the thread count we should stay on them. */
-#define APPLE_SILLICON_PERF_CORES_ONLY_COUNT 16
+#  define APPLE_SILLICON_PERF_CORES_ONLY_COUNT 16
 
   /* Default to no recommended thread count.  */
   int recommended_num_threads = 0;
-  
+
   int64_t is_arm64 = 0;
   size_t size = sizeof(is_arm64);
- 
+
   /* Query system to see if we're on Apple Sillicon. */
   if (sysctlbyname("hw.optional.arm64", &is_arm64, &size, NULL, 0) == -1) {
     return recommended_num_threads;
   }
   /* On Apple Sillicon count the number of P-Cores and E-Cores. */
   if (is_arm64) {
-    
+
     const int SYSCTL_BUF_LENGTH = 16;
     int num_performance_cores = -1;
     unsigned char sysctl_buffer[SYSCTL_BUF_LENGTH];
     size_t sysctl_buffer_length = SYSCTL_BUF_LENGTH;
-    
+
     /* Query the number of performance cores. */
-    if (sysctlbyname("hw.perflevel0.logicalcpu",
-                     &sysctl_buffer,
-                     &sysctl_buffer_length,
-                     nullptr,
-                     0) == 0) {
+    if (sysctlbyname(
+            "hw.perflevel0.logicalcpu", &sysctl_buffer, &sysctl_buffer_length, nullptr, 0) == 0)
+    {
       num_performance_cores = sysctl_buffer[0];
     }
     BLI_assert(num_performance_cores != -1);
-    
+
     /* If the number of P-Cores cores meets the threshold then recommend we
        limit multi-threading to only those. */
     if (num_performance_cores >= APPLE_SILLICON_PERF_CORES_ONLY_COUNT) {
       recommended_num_threads = num_performance_cores;
     }
   }
-  
+
   return recommended_num_threads;
 #endif
 }

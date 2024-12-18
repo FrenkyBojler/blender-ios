@@ -36,10 +36,10 @@ void BLI_task_scheduler_init()
 #ifdef WITH_TBB_GLOBAL_CONTROL
   /* Check for the thread count being specified from the command line. */
   int explicit_tbb_thread_count = BLI_system_num_threads_override_get();
-  
+
   /* If not check if this platform has a recommended thread count. */
   if (!explicit_tbb_thread_count) {
-    explicit_tbb_thread_count =  BLI_recommended_thread_count();
+    explicit_tbb_thread_count = BLI_recommended_thread_count();
   }
 
   if (explicit_tbb_thread_count > 0) {
