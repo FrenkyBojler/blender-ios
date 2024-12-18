@@ -20,7 +20,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_moviecache.hh"
-#include "movie/IMB_writeffmpeg.hh"
+#include "movie/IMB_anim.hh"
 
 #include "BKE_addon.h"
 #include "BKE_asset.hh"

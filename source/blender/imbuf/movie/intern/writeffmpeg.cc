@@ -36,10 +36,11 @@
 #  include "BKE_sound.h"
 
 #  include "IMB_imbuf.hh"
-#  include "movie/IMB_writeffmpeg.hh"
+#  include "movie/IMB_anim.hh"
 
 #  include "ffmpeg_util.hh"
 #  include "swscale.hh"
+#  include "writeffmpeg.hh"
 
 /* This needs to be included after BLI_math_base.h otherwise it will redefine some math defines
  * like M_SQRT1_2 leading to warnings with MSVC */
@@ -691,11 +692,6 @@ static const AVCodec *get_av1_encoder(
   }
 
   return codec;
-}
-
-void IMB_ffmpeg_exit()
-{
-  ffmpeg_sws_exit();
 }
 
 /* Remap H.264 CRF to H.265 CRF: 17..32 range (23 default) to 20..37 range (28 default).
@@ -1935,19 +1931,6 @@ bool IMB_ffmpeg_codec_supports_crf(int av_codec_id)
               AV_CODEC_ID_MPEG4,
               AV_CODEC_ID_VP9,
               AV_CODEC_ID_AV1);
-}
-
-int IMB_ffmpeg_valid_bit_depths(int av_codec_id)
-{
-  int bit_depths = R_IMF_CHAN_DEPTH_8;
-  /* Note: update properties_output.py `use_bpp` when changing this function. */
-  if (ELEM(av_codec_id, AV_CODEC_ID_H264, AV_CODEC_ID_H265, AV_CODEC_ID_AV1)) {
-    bit_depths |= R_IMF_CHAN_DEPTH_10;
-  }
-  if (ELEM(av_codec_id, AV_CODEC_ID_H265, AV_CODEC_ID_AV1)) {
-    bit_depths |= R_IMF_CHAN_DEPTH_12;
-  }
-  return bit_depths;
 }
 
 void *ffmpeg_context_create()

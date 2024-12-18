@@ -134,7 +134,7 @@ if(WITH_CODEC_FFMPEG)
     movie/intern/swscale.cc
     movie/intern/swscale.hh
     movie/intern/writeffmpeg.cc
-    movie/IMB_writeffmpeg.hh
+    movie/intern/writeffmpeg.hh
   )
   list(APPEND INC
     ../../../intern/ffmpeg

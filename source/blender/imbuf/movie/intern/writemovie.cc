@@ -19,7 +19,7 @@
 #include "BKE_report.hh"
 
 #ifdef WITH_FFMPEG
-#  include "movie/IMB_writeffmpeg.hh"
+#  include "writeffmpeg.hh"
 #endif
 
 #include "movie/IMB_writemovie.hh"

@@ -11,31 +11,6 @@
 
 #ifdef WITH_FFMPEG
 
-enum {
-  FFMPEG_MPEG1 = 0,
-  FFMPEG_MPEG2 = 1,
-  FFMPEG_MPEG4 = 2,
-  FFMPEG_AVI = 3,
-  FFMPEG_MOV = 4,
-  FFMPEG_DV = 5,
-  FFMPEG_H264 = 6,
-  FFMPEG_XVID = 7,
-  FFMPEG_FLV = 8,
-  FFMPEG_MKV = 9,
-  FFMPEG_OGG = 10,
-  FFMPEG_INVALID = 11,
-  FFMPEG_WEBM = 12,
-  FFMPEG_AV1 = 13,
-};
-
-enum {
-  FFMPEG_PRESET_NONE = 0,
-  FFMPEG_PRESET_H264 = 1,
-  FFMPEG_PRESET_THEORA = 2,
-  FFMPEG_PRESET_XVID = 3,
-  FFMPEG_PRESET_AV1 = 4,
-};
-
 struct ImageFormatData;
 struct ImBuf;
 struct RenderData;
@@ -63,18 +38,7 @@ void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
                          bool preview,
                          const char *suffix);
 
-void IMB_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf);
-bool IMB_ffmpeg_alpha_channel_is_supported(const RenderData *rd);
-bool IMB_ffmpeg_codec_supports_crf(int av_codec_id);
-/**
- * Which pixel bit depths are supported by a given video codec.
- * Returns bitmask of `R_IMF_CHAN_DEPTH_` flags.
- */
-int IMB_ffmpeg_valid_bit_depths(int av_codec_id);
-
 void *ffmpeg_context_create();
 void ffmpeg_context_free(void *context_v);
-
-void IMB_ffmpeg_exit();
 
 #endif

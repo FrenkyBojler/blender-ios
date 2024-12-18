@@ -8,7 +8,10 @@
 
 #include "BLI_utildefines.h"
 
+#include "DNA_scene_types.h"
+
 #include "ffmpeg_util.hh"
+#include "swscale.hh"
 
 #ifdef WITH_FFMPEG
 
@@ -74,6 +77,11 @@ void IMB_ffmpeg_init()
 
   /* set separate callback which could store last error to report to UI */
   av_log_set_callback(ffmpeg_log_callback);
+}
+
+void IMB_ffmpeg_exit()
+{
+  ffmpeg_sws_exit();
 }
 
 static int isffmpeg(const char *filepath)
@@ -152,4 +160,17 @@ bool IMB_isanim(const char *filepath)
 #endif
 
   return false;
+}
+
+int IMB_ffmpeg_valid_bit_depths(int av_codec_id)
+{
+  int bit_depths = R_IMF_CHAN_DEPTH_8;
+  /* Note: update properties_output.py `use_bpp` when changing this function. */
+  if (ELEM(av_codec_id, AV_CODEC_ID_H264, AV_CODEC_ID_H265, AV_CODEC_ID_AV1)) {
+    bit_depths |= R_IMF_CHAN_DEPTH_10;
+  }
+  if (ELEM(av_codec_id, AV_CODEC_ID_H265, AV_CODEC_ID_AV1)) {
+    bit_depths |= R_IMF_CHAN_DEPTH_12;
+  }
+  return bit_depths;
 }
