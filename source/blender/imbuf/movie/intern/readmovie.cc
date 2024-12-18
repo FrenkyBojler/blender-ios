@@ -40,7 +40,7 @@
 #include "readmovie.hh"
 
 #ifdef WITH_FFMPEG
-#  include "movie/IMB_writeffmpeg.hh"
+#  include "swscale.hh"
 
 extern "C" {
 #  include <libavcodec/avcodec.h>
@@ -421,14 +421,14 @@ static int startffmpeg(ImBufAnim *anim)
    * the conversion is not fully accurate and introduces some banding and color
    * shifts, particularly in dark regions. See issue #111703 or upstream
    * ffmpeg ticket https://trac.ffmpeg.org/ticket/1582 */
-  anim->img_convert_ctx = BKE_ffmpeg_sws_get_context(anim->x,
-                                                     anim->y,
-                                                     anim->pCodecCtx->pix_fmt,
-                                                     anim->x,
-                                                     anim->y,
-                                                     anim->pFrameRGB->format,
-                                                     SWS_POINT | SWS_FULL_CHR_H_INT |
-                                                         SWS_ACCURATE_RND);
+  anim->img_convert_ctx = ffmpeg_sws_get_context(anim->x,
+                                                 anim->y,
+                                                 anim->pCodecCtx->pix_fmt,
+                                                 anim->x,
+                                                 anim->y,
+                                                 anim->pFrameRGB->format,
+                                                 SWS_POINT | SWS_FULL_CHR_H_INT |
+                                                     SWS_ACCURATE_RND);
 
   if (!anim->img_convert_ctx) {
     fprintf(stderr,
@@ -580,7 +580,7 @@ static void ffmpeg_postprocess(ImBufAnim *anim, AVFrame *input, ImBuf *ibuf)
      * it does not support direct YUV->RGBA float interleaved conversion).
      * Do vertical flip and interleave into RGBA manually. */
     /* Decode, then do vertical flip into destination. */
-    BKE_ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
+    ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
 
     const size_t src_linesize = anim->pFrameRGB->linesize[0];
     BLI_assert_msg(anim->pFrameRGB->linesize[1] == src_linesize &&
@@ -624,14 +624,14 @@ static void ffmpeg_postprocess(ImBufAnim *anim, AVFrame *input, ImBuf *ibuf)
       anim->pFrameRGB->linesize[0] = -ibuf_linesize;
       anim->pFrameRGB->data[0] = ibuf->byte_buffer.data + (ibuf->y - 1) * ibuf_linesize;
 
-      BKE_ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
+      ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
 
       anim->pFrameRGB->linesize[0] = rgb_linesize;
       anim->pFrameRGB->data[0] = rgb_data;
     }
     else {
       /* Decode, then do vertical flip into destination. */
-      BKE_ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
+      ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
 
       /* Use negative line size to do vertical image flip. */
       const int src_linesize[4] = {-rgb_linesize, 0, 0, 0};
@@ -1188,7 +1188,7 @@ static void free_anim_ffmpeg(ImBufAnim *anim)
       MEM_freeN(anim->pFrameDeinterlaced->data[0]);
     }
     av_frame_free(&anim->pFrameDeinterlaced);
-    BKE_ffmpeg_sws_release_context(anim->img_convert_ctx);
+    ffmpeg_sws_release_context(anim->img_convert_ctx);
   }
   anim->duration_in_frames = 0;
 }

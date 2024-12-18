@@ -36,13 +36,11 @@ enum {
   FFMPEG_PRESET_AV1 = 4,
 };
 
-struct AVFrame;
 struct ImageFormatData;
 struct ImBuf;
 struct RenderData;
 struct ReportList;
 struct Scene;
-struct SwsContext;
 
 bool ffmpeg_movie_open(void *context_v,
                        const Scene *scene,
@@ -78,22 +76,5 @@ void *ffmpeg_context_create();
 void ffmpeg_context_free(void *context_v);
 
 void IMB_ffmpeg_exit();
-
-/**
- * Gets a `libswscale` context for given size and format parameters.
- * After you're done using the context, call #BKE_ffmpeg_sws_release_context
- * to release it. Internally the contexts are coming from the context
- * pool/cache.
- */
-SwsContext *BKE_ffmpeg_sws_get_context(int src_width,
-                                       int src_height,
-                                       int av_src_format,
-                                       int dst_width,
-                                       int dst_height,
-                                       int av_dst_format,
-                                       int sws_flags);
-void BKE_ffmpeg_sws_release_context(SwsContext *ctx);
-
-void BKE_ffmpeg_sws_scale_frame(SwsContext *ctx, AVFrame *dst, const AVFrame *src);
 
 #endif

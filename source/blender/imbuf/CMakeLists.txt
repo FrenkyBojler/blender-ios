@@ -127,6 +127,8 @@ endif()
 
 if(WITH_CODEC_FFMPEG)
   list(APPEND SRC
+    movie/intern/swscale.cc
+    movie/intern/swscale.hh
     movie/intern/writeffmpeg.cc
     movie/IMB_writeffmpeg.hh
   )
