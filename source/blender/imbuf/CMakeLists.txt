@@ -72,6 +72,8 @@ set(SRC
   intern/IMB_indexer.hh
   intern/imbuf.hh
 
+  movie/intern/writemovie.cc
+  movie/IMB_writemovie.hh
   # orphan include
   ../../../intern/ffmpeg/ffmpeg_compat.h
 )
@@ -124,6 +126,10 @@ if(WITH_IMAGE_OPENJPEG)
 endif()
 
 if(WITH_CODEC_FFMPEG)
+  list(APPEND SRC
+    movie/intern/writeffmpeg.cc
+    movie/IMB_writeffmpeg.hh
+  )
   list(APPEND INC
     ../../../intern/ffmpeg
   )

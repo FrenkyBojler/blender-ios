@@ -40,7 +40,6 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_writemovie.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -57,6 +56,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+#include "movie/IMB_writemovie.hh"
 
 #include "RE_pipeline.h"
 

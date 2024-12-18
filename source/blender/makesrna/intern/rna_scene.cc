@@ -54,8 +54,8 @@
 #include "RE_pipeline.h"
 
 #ifdef WITH_FFMPEG
-#  include "BKE_writeffmpeg.hh"
 #  include "ffmpeg_compat.h"
+#  include "movie/IMB_writeffmpeg.hh"
 #  include <libavcodec/avcodec.h>
 #  include <libavformat/avformat.h>
 #endif

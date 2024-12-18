@@ -22,7 +22,7 @@
 #include "BKE_image_format.hh"
 
 #ifdef WITH_FFMPEG
-#  include "BKE_writeffmpeg.hh"
+#  include "movie/IMB_writeffmpeg.hh"
 #endif
 
 /* Init/Copy/Free */

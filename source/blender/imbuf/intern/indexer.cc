@@ -32,7 +32,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#include "BKE_writeffmpeg.hh"
+#include "movie/IMB_writeffmpeg.hh"
 
 #include "IMB_anim.hh"
 #include "IMB_imbuf.hh"

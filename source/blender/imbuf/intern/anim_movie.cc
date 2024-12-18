@@ -39,7 +39,7 @@
 #include "IMB_metadata.hh"
 
 #ifdef WITH_FFMPEG
-#  include "BKE_writeffmpeg.hh"
+#  include "movie/IMB_writeffmpeg.hh"
 
 extern "C" {
 #  include <libavcodec/avcodec.h>

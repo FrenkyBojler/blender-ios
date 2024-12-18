@@ -18,10 +18,10 @@
 #include "BKE_report.hh"
 
 #ifdef WITH_FFMPEG
-#  include "BKE_writeffmpeg.hh"
+#  include "movie/IMB_writeffmpeg.hh"
 #endif
 
-#include "BKE_writemovie.hh"
+#include "movie/IMB_writemovie.hh"
 
 static bool start_stub(void * /*context_v*/,
                        const Scene * /*scene*/,

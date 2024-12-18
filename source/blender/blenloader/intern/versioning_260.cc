@@ -68,7 +68,7 @@
 #include "SEQ_utils.hh"
 
 #ifdef WITH_FFMPEG
-#  include "BKE_writeffmpeg.hh"
+#  include "movie/IMB_writeffmpeg.hh"
 #endif
 
 #include "IMB_imbuf.hh" /* for proxy / time-code versioning stuff. */

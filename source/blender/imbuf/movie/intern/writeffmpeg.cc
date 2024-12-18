@@ -35,9 +35,9 @@
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 #  include "BKE_sound.h"
-#  include "BKE_writeffmpeg.hh"
 
 #  include "IMB_imbuf.hh"
+#  include "movie/IMB_writeffmpeg.hh"
 
 /* This needs to be included after BLI_math_base.h otherwise it will redefine some math defines
  * like M_SQRT1_2 leading to warnings with MSVC */

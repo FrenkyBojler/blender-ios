@@ -63,7 +63,6 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_sound.h"
-#include "BKE_writemovie.hh"
 
 #include "NOD_composite.hh"
 
@@ -78,6 +77,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
+#include "movie/IMB_writemovie.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"

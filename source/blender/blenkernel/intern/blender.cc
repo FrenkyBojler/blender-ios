@@ -20,6 +20,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_moviecache.hh"
+#include "movie/IMB_writeffmpeg.hh"
 
 #include "BKE_addon.h"
 #include "BKE_asset.hh"
@@ -36,7 +37,6 @@
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 #include "BKE_studiolight.h"
-#include "BKE_writeffmpeg.hh"
 
 #include "DEG_depsgraph.hh"
 
