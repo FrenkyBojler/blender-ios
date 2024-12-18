@@ -20,6 +20,7 @@ from os.path import join, dirname, normpath, abspath
 
 import subprocess
 
+from __future__ import annotations  # Needed for type hints like `subprocess.Popen[Any]`
 from typing import (
     Any,
     IO,
@@ -293,12 +294,12 @@ def queue_processes(
         else:
             def poll_and_finalize(
                     p: subprocess.Popen[Any],
-                    stdout: list[bytes],
-                    stderr: list[bytes],
+                    stdout: List[bytes],
+                    stderr: List[bytes],
             ) -> Union[int, None]:
                 return p.poll()
 
-        processes: list[tuple[subprocess.Popen[Any], List[bytes], List[bytes]]] = []
+        processes: List[Tuple[subprocess.Popen[Any], List[bytes], List[bytes]]] = []
         for func, args in process_funcs:
             # wait until a thread is free
             while 1:
