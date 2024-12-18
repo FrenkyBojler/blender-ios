@@ -165,8 +165,17 @@ m_audio_unit(nullptr)
 
 	m_specs = specs;
 	open();
-	// NOTE: Keep the device open until #121911 is investigated/resolved from Apple side.
-	// close();
+  
+#ifdef __APPLE__
+  /* Closing coreAudio handles had issues on versions of MacOS < 15.2.
+   * See #121911 */
+  if (__builtin_available(macOS 15.2, *)) {
+    close();
+  }
+#else
+  close();
+#endif
+  
 	create();
 }
 
