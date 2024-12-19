@@ -909,7 +909,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       )
 
     if(WITH_LIBMV)
-      list(APPEND compositor_tests distort matte)
+      list(APPEND compositor_tests distort matte anisotropic_filtering)
     endif()
 
     foreach(comp_test ${compositor_tests})
