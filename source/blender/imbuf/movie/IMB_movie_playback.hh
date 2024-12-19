@@ -77,7 +77,6 @@ bool IMB_anim_can_produce_frames(const ImBufAnim *anim);
 
 int IMB_anim_get_image_width(ImBufAnim *anim);
 int IMB_anim_get_image_height(ImBufAnim *anim);
-bool IMB_get_gop_decode_time(ImBufAnim *anim);
 
 /**
  * Fetches a frame from a movie at given frame position.

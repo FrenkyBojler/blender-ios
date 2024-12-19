@@ -27,10 +27,10 @@
 
 #include "RE_pipeline.h"
 
-#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+#include "IMB_movie_playback.hh"
 
 #include "ED_image.hh"
 #include "ED_screen.hh"

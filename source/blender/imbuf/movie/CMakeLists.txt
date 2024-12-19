@@ -12,9 +12,9 @@ set(INC_SYS
 )
 
 set(SRC
-  IMB_anim.hh
   IMB_movie_enums.hh
   IMB_movie_util.hh
+  IMB_movie_playback.hh
   IMB_movie_write.hh
 
   intern/ffmpeg_compat.h

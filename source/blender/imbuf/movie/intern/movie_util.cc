@@ -11,7 +11,7 @@
 
 #include "DNA_scene_types.h"
 
-#include "IMB_anim.hh"
+#include "IMB_movie_playback.hh"
 
 #include "ffmpeg_swscale.hh"
 #include "movie_util.hh"
@@ -439,7 +439,7 @@ static void ffmpeg_preset_set(RenderData *rd, int preset)
 }
 #endif
 
-void IMB_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf)
+void IMB_movie_validate_output_settings(RenderData *rd, const ImageFormatData *imf)
 {
 #ifdef WITH_FFMPEG
   int audio = 0;
