@@ -8,6 +8,8 @@
 
 #include <cstdlib>
 
+#include "CLG_log.h"
+
 #include "DNA_anim_types.h"
 
 #include "BLI_function_ref.hh"
@@ -24,6 +26,8 @@
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+
+static CLG_LogRef LOG = {"bke.lib_query"};
 
 /* status */
 enum {
@@ -750,7 +754,7 @@ static void lib_query_unused_ids_untag_id(ID &id, UnusedIDsData &data)
   }
 }
 
-/* Certain corner-cases require to consiuder an ID as used, even if there are no 'real' refcounting
+/* Certain corner-cases require to consider an ID as used, even if there are no 'real' refcounting
  * usages of these. */
 static bool lib_query_unused_ids_has_exception_user(ID &id, UnusedIDsData &data)
 {
@@ -758,7 +762,7 @@ static bool lib_query_unused_ids_has_exception_user(ID &id, UnusedIDsData &data)
     case ID_OB: {
       /* FIXME: This is a workaround until Object usages are handled more soundly.
        *
-       * Historically, only refcounting Object usages were the Collectoin ones. All other
+       * Historically, only refcounting Object usages were the Collection ones. All other
        * references (e.g. as Constraints or Modifiers targets) did not increase their usercount.
        *
        * This is not entirely true anymore (e.g. some type-agnostic ID usages like IDPointer custom
@@ -769,7 +773,7 @@ static bool lib_query_unused_ids_has_exception_user(ID &id, UnusedIDsData &data)
        * the scene is not enforced (to avoid cluttering the scene), which leaves some actually used
        * linked objects with a `0` usercount.
        *
-       * So this is a special check to consider linked objects are used also in case some other
+       * So this is a special check to consider linked objects as used also in case some other
        * used ID uses them.
        */
       if (!ID_IS_LINKED(&id)) {
@@ -934,16 +938,28 @@ static void lib_query_unused_ids_tag(UnusedIDsData &data)
    * #lib_query_unused_ids_has_exception_user for details.
    *
    * NOTE: Here needs to be in a separate loop, so that all directly unused users of objects have
-   * been tagged as such already byt the previous loop. */
-  FOREACH_MAIN_LISTBASE_ID_BEGIN (&data.bmain->objects, id) {
-    if (!data.unused_ids.contains(id)) {
-      continue;
+   * been tagged as such already by the previous loop. */
+  constexpr int max_loop_num = 10;
+  int loop_num;
+  for (loop_num = 0; loop_num < max_loop_num; loop_num++) {
+    bool do_loop = false;
+    FOREACH_MAIN_LISTBASE_ID_BEGIN (&data.bmain->objects, id) {
+      if (!data.unused_ids.contains(id)) {
+        continue;
+      }
+      if (lib_query_unused_ids_has_exception_user(*id, data)) {
+        lib_query_unused_ids_untag_id(*id, data);
+        do_loop = true;
+      }
     }
-    if (lib_query_unused_ids_has_exception_user(*id, data)) {
-      lib_query_unused_ids_untag_id(*id, data);
+    FOREACH_MAIN_LISTBASE_ID_END;
+    if (!do_loop) {
+      break;
     }
   }
-  FOREACH_MAIN_LISTBASE_ID_END;
+  if (loop_num >= max_loop_num) {
+    CLOG_WARN(&LOG, "Unexpected levels of dependencies between non-instantiated but used Objects");
+  }
 
   if (!data.do_recursive) {
     return;
