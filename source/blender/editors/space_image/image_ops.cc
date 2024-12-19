@@ -52,8 +52,8 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_moviecache.hh"
 #include "IMB_movie_playback.hh"
+#include "IMB_moviecache.hh"
 
 #include "RE_pipeline.h"
 
@@ -1726,7 +1726,7 @@ static int image_match_len_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  ImBufAnim *anim = ((ImageAnim *)ima->anims.first)->anim;
+  MoviePlayback *anim = ((ImageAnim *)ima->anims.first)->anim;
   if (!anim) {
     return OPERATOR_CANCELLED;
   }

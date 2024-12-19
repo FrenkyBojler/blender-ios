@@ -61,7 +61,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   float fps = 0.0f;
 
   if (ImageAnim *ianim = static_cast<ImageAnim *>(image->anims.first)) {
-    ImBufAnim *anim = ianim->anim;
+    MoviePlayback *anim = ianim->anim;
     if (anim) {
       frames = IMB_anim_get_duration(anim, IMB_TC_NONE);
 

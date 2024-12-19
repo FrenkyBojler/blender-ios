@@ -25,7 +25,7 @@ struct SwsContext;
 struct IDProperty;
 struct ImBufAnimIndex;
 
-struct ImBufAnim {
+struct MoviePlayback {
   enum class State { Uninitialized, Failed, Valid };
   int ib_flags;
   State state;
@@ -69,7 +69,7 @@ struct ImBufAnim {
   int proxies_tried;
   int indices_tried;
 
-  ImBufAnim *proxy_anim[IMB_PROXY_MAX_SLOT];
+  MoviePlayback *proxy_anim[IMB_PROXY_MAX_SLOT];
   ImBufAnimIndex *record_run;
   ImBufAnimIndex *no_gaps;
 

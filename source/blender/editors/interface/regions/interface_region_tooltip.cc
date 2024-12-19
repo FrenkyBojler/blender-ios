@@ -1619,7 +1619,7 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
   }
 
   if (BKE_image_has_anim(&ima)) {
-    ImBufAnim *anim = static_cast<ImBufAnim *>(ima.anims.first);
+    MoviePlayback *anim = static_cast<MoviePlayback *>(ima.anims.first);
     if (anim) {
       int duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
       UI_tooltip_text_field_add(
@@ -1671,7 +1671,7 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
   UI_tooltip_text_field_add(data, image_type, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
 
   if (clip.anim) {
-    ImBufAnim *anim = clip.anim;
+    MoviePlayback *anim = clip.anim;
 
     UI_tooltip_text_field_add(data,
                               fmt::format("{} \u00D7 {}",

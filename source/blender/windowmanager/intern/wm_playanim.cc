@@ -342,7 +342,7 @@ struct PlayAnimPict {
   /** The allocated error message to show if the file cannot be loaded. */
   char *error_message;
   ImBuf *ibuf;
-  ImBufAnim *anim;
+  MoviePlayback *anim;
   int frame;
   int IB_flags;
 
@@ -847,7 +847,7 @@ static void build_pict_list_from_anim(ListBase &picsbase,
                                       const int frame_offset)
 {
   /* OCIO_TODO: support different input color space. */
-  ImBufAnim *anim = IMB_open_anim(filepath_first, IB_rect, 0, nullptr);
+  MoviePlayback *anim = IMB_open_anim(filepath_first, IB_rect, 0, nullptr);
   if (anim == nullptr) {
     CLOG_WARN(&LOG, "couldn't open anim '%s'", filepath_first);
     return;
@@ -1811,7 +1811,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 
   if (IMB_is_movie_file(filepath)) {
     /* OCIO_TODO: support different input color spaces. */
-    ImBufAnim *anim = IMB_open_anim(filepath, IB_rect, 0, nullptr);
+    MoviePlayback *anim = IMB_open_anim(filepath, IB_rect, 0, nullptr);
     if (anim) {
       ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
       IMB_close_anim(anim);
@@ -1923,7 +1923,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 #ifdef WITH_AUDASPACE
   g_audaspace.source = AUD_Sound_file(filepath);
   if (!BLI_listbase_is_empty(&ps.picsbase)) {
-    const ImBufAnim *anim_movie = static_cast<PlayAnimPict *>(ps.picsbase.first)->anim;
+    const MoviePlayback *anim_movie = static_cast<PlayAnimPict *>(ps.picsbase.first)->anim;
     if (anim_movie) {
       short frs_sec = 25;
       float frs_sec_base = 1.0;

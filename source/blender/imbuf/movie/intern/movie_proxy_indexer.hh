@@ -92,10 +92,10 @@ int IMB_indexer_get_duration(ImBufAnimIndex *idx);
 
 void IMB_indexer_close(ImBufAnimIndex *idx);
 
-void IMB_free_indices(ImBufAnim *anim);
+void IMB_free_indices(MoviePlayback *anim);
 
-ImBufAnim *IMB_anim_open_proxy(ImBufAnim *anim, IMB_Proxy_Size preview_size);
-ImBufAnimIndex *IMB_anim_open_index(ImBufAnim *anim, IMB_Timecode_Type tc);
+MoviePlayback *IMB_anim_open_proxy(MoviePlayback *anim, IMB_Proxy_Size preview_size);
+ImBufAnimIndex *IMB_anim_open_index(MoviePlayback *anim, IMB_Timecode_Type tc);
 
 int IMB_proxy_size_to_array_index(IMB_Proxy_Size pr_size);
 int IMB_timecode_to_array_index(IMB_Timecode_Type tc);

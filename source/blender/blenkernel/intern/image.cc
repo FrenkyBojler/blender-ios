@@ -2705,23 +2705,23 @@ bool BKE_imbuf_write_stamp(const Scene *scene,
   return BKE_imbuf_write(ibuf, filepath, imf);
 }
 
-ImBufAnim *openanim_noload(const char *filepath,
-                           int flags,
-                           int streamindex,
-                           char colorspace[IMA_MAX_SPACE])
+MoviePlayback *openanim_noload(const char *filepath,
+                               int flags,
+                               int streamindex,
+                               char colorspace[IMA_MAX_SPACE])
 {
-  ImBufAnim *anim;
+  MoviePlayback *anim;
 
   anim = IMB_open_anim(filepath, flags, streamindex, colorspace);
   return anim;
 }
 
-ImBufAnim *openanim(const char *filepath,
-                    int flags,
-                    int streamindex,
-                    char colorspace[IMA_MAX_SPACE])
+MoviePlayback *openanim(const char *filepath,
+                        int flags,
+                        int streamindex,
+                        char colorspace[IMA_MAX_SPACE])
 {
-  ImBufAnim *anim;
+  MoviePlayback *anim;
   ImBuf *ibuf;
 
   anim = IMB_open_anim(filepath, flags, streamindex, colorspace);
