@@ -125,6 +125,7 @@ struct SmoothOperationExecutor {
                               nullptr;
 
     IndexMaskMemory memory;
+    /* TODO: Improve index mask. */
     self_->constraint_solver_.solve_step(*curves_, curves_->curves_range(), surface, transforms_);
 
     curves_->tag_positions_changed();
