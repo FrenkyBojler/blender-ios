@@ -125,8 +125,19 @@ struct SmoothOperationExecutor {
                               nullptr;
 
     IndexMaskMemory memory;
-    /* TODO: Improve index mask. */
-    self_->constraint_solver_.solve_step(*curves_, curves_->curves_range(), surface, transforms_);
+    const OffsetIndices points_by_curve = curves_->points_by_curve();
+    const IndexMask changed_curves = IndexMask::from_predicate(
+        curves_->curves_range(), GrainSize(512), memory, [&](const int curve_i) {
+          const IndexRange points = points_by_curve[curve_i];
+          for (const int point_i : points) {
+            if (point_smooth_factors[point_i] > 0.0f) {
+              return true;
+            }
+          }
+          return false;
+        });
+    /* TODO: Check if we need to disable length preservation. */
+    self_->constraint_solver_.solve_step(*curves_, changed_curves, surface, transforms_);
 
     curves_->tag_positions_changed();
     DEG_id_tag_update(&curves_id_->id, ID_RECALC_GEOMETRY);
