@@ -138,6 +138,7 @@ void *BLI_listbase_bytes_rfind(const ListBase *listbase,
  * Removes and disposes of the entire contents of \a listbase using guardedalloc.
  */
 void BLI_freelistN(struct ListBase *listbase) ATTR_NONNULL(1);
+void BLI_deletelist(struct ListBase *listbase) ATTR_NONNULL(1);
 /**
  * Appends \a vlink (assumed to begin with a Link) onto listbase.
  */
