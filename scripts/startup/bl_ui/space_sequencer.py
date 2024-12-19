@@ -1015,9 +1015,19 @@ class SEQUENCER_MT_strip(Menu):
 
         layout.menu("SEQUENCER_MT_strip_transform")
 
+        if has_preview:
+            layout.operator_context = 'INVOKE_REGION_PREVIEW'
+        else:
+            layout.operator_context = 'INVOKE_REGION_WIN'
+
         strip = context.active_sequence_strip
-        if has_preview and strip and strip.type == 'TEXT':
-            layout.menu("SEQUENCER_MT_strip_text")
+
+        if has_preview:
+            layout.separator()
+            layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.separator()
+            if strip and strip.type == 'TEXT':
+                layout.menu("SEQUENCER_MT_strip_text")
 
         if has_sequencer:
             layout.menu("SEQUENCER_MT_strip_retiming")
