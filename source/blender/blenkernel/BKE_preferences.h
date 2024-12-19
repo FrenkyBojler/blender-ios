@@ -31,7 +31,7 @@ struct bUserAssetShelfSettings;
 
 namespace blender::bke::preferences {
 
-bool exists(void);
+bool exists();
 
 }  // namespace blender::bke::preferences
 
