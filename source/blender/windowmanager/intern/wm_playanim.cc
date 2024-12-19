@@ -1011,7 +1011,7 @@ static void build_pict_list(ListBase &picsbase,
   const int frame_offset = picture_last ? (picture_last->frame + 1) : 0;
 
   bool do_image_load = false;
-  if (IMB_isanim(filepath_first)) {
+  if (IMB_is_movie_file(filepath_first)) {
     build_pict_list_from_anim(picsbase, ghost_data, display_ctx, filepath_first, frame_offset);
 
     if (picsbase.last == picture_last) {
@@ -1719,7 +1719,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
   ps.font_id = -1;
 
   IMB_init();
-  IMB_ffmpeg_init();
+  IMB_movie_init();
 
   STRNCPY(ps.display_ctx.display_settings.display_device,
           IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
@@ -1809,7 +1809,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 
   const char *filepath = argv[0];
 
-  if (IMB_isanim(filepath)) {
+  if (IMB_is_movie_file(filepath)) {
     /* OCIO_TODO: support different input color spaces. */
     ImBufAnim *anim = IMB_open_anim(filepath, IB_rect, 0, nullptr);
     if (anim) {
@@ -2150,8 +2150,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
   BLF_exit();
 
   /* NOTE: Must happen before GPU Context destruction as GPU resources are released via
-   * Color Management module.
-   * NOTE: there is no #IMB_ffmpeg_exit. */
+   * Color Management module. */
   IMB_exit();
 
   if (ps.ghost_data.gpu_context) {
