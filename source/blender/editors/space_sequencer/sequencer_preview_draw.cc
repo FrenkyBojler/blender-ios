@@ -1240,9 +1240,7 @@ static void text_edit_draw(const bContext *C)
   if (!sequencer_text_editing_active_poll(const_cast<bContext *>(C))) {
     return;
   }
-  if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
-    return;
-  }
+
   const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   if (!SEQ_effects_can_render_text(seq)) {
     return;

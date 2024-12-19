@@ -60,6 +60,10 @@ bool sequencer_text_editing_active_poll(bContext *C)
   if (seq == nullptr || !sequencer_text_editing_poll(C)) {
     return false;
   }
+  
+  if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
+    return false;
+  }
 
   const Scene *scene = CTX_data_scene(C);
 
