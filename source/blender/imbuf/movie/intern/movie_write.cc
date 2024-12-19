@@ -7,6 +7,10 @@
  * \ingroup imbuf
  */
 
+#include "DNA_scene_types.h"
+
+#include "IMB_movie_write.hh"
+
 #ifdef WITH_FFMPEG
 #  include <cstdio>
 #  include <cstring>
@@ -14,8 +18,6 @@
 #  include <cstdlib>
 
 #  include "MEM_guardedalloc.h"
-
-#  include "DNA_scene_types.h"
 
 #  include "BLI_blenlib.h"
 
@@ -37,7 +39,6 @@
 
 #  include "IMB_anim.hh"
 #  include "IMB_imbuf.hh"
-#  include "IMB_movie_write.hh"
 
 #  include "ffmpeg_swscale.hh"
 #  include "ffmpeg_util.hh"
@@ -1864,6 +1865,8 @@ ImbMovieWriter *IMB_movie_write_begin(const char imtype,
   ImbMovieWriter *writer = nullptr;
 #ifdef WITH_FFMPEG
   writer = ffmpeg_movie_open(scene, rd, rectx, recty, reports, preview, suffix);
+#else
+  UNUSED_VARS(scene, rd, rectx, recty, reports, preview, suffix);
 #endif
   return writer;
 }
@@ -1884,6 +1887,7 @@ bool IMB_movie_write_append(ImbMovieWriter *writer,
   bool ok = ffmpeg_movie_append(writer, rd, start_frame, frame, image, suffix, reports);
   return ok;
 #else
+  UNUSED_VARS(rd, start_frame, frame, image, suffix, reports);
   return false;
 #endif
 }
@@ -1894,6 +1898,8 @@ void IMB_movie_write_end(ImbMovieWriter *writer)
   if (writer) {
     ffmpeg_movie_close(writer);
   }
+#else
+  UNUSED_VARS(writer);
 #endif
 }
 
@@ -1907,6 +1913,8 @@ void IMB_movie_filepath_get(char filepath[/*FILE_MAX*/ 1024],
     ffmpeg_get_filepath(filepath, rd, preview, suffix);
     return;
   }
+#else
+  UNUSED_VARS(rd, preview, suffix);
 #endif
   filepath[0] = '\0';
 }

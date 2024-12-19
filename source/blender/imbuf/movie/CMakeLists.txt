@@ -23,6 +23,7 @@ set(SRC
   intern/movie_proxy_indexer.hh
   intern/movie_read.cc
   intern/movie_read.hh
+  intern/movie_write.cc
 )
 
 set(LIB
@@ -36,7 +37,6 @@ if(WITH_CODEC_FFMPEG)
   list(APPEND SRC
     intern/ffmpeg_swscale.cc
     intern/ffmpeg_swscale.hh
-    intern/movie_write.cc
   )
   list(APPEND INC_SYS
     ${FFMPEG_INCLUDE_DIRS}

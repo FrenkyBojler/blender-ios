@@ -6,6 +6,7 @@
  * \ingroup imbuf
  */
 
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
@@ -17,7 +18,6 @@
 
 #ifdef WITH_FFMPEG
 
-#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 
 #  include "BKE_global.hh"
@@ -378,6 +378,8 @@ int IMB_ffmpeg_valid_bit_depths(int av_codec_id)
   if (ELEM(av_codec_id, AV_CODEC_ID_H265, AV_CODEC_ID_AV1)) {
     bit_depths |= R_IMF_CHAN_DEPTH_12;
   }
+#else
+  UNUSED_VARS(av_codec_id);
 #endif
   return bit_depths;
 }
@@ -484,6 +486,8 @@ void IMB_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf)
     rd->ffcodecdata.audio_codec = AV_CODEC_ID_NONE;
     rd->ffcodecdata.audio_bitrate = 128;
   }
+#else
+  UNUSED_VARS(rd, imf);
 #endif
 }
 
@@ -497,6 +501,7 @@ bool IMB_ffmpeg_alpha_channel_is_supported(int av_codec_id)
               AV_CODEC_ID_VP9,
               AV_CODEC_ID_HUFFYUV);
 #else
+  UNUSED_VARS(av_codec_id);
   return false;
 #endif
 }
@@ -511,6 +516,7 @@ bool IMB_ffmpeg_codec_supports_crf(int av_codec_id)
               AV_CODEC_ID_VP9,
               AV_CODEC_ID_AV1);
 #else
+  UNUSED_VARS(av_codec_id);
   return false;
 #endif
 }
