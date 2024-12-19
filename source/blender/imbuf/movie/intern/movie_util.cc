@@ -11,7 +11,8 @@
 
 #include "DNA_scene_types.h"
 
-#include "MOV_playback.hh"
+#include "MOV_enums.hh"
+#include "MOV_util.hh"
 
 #include "ffmpeg_swscale.hh"
 #include "movie_util.hh"
