@@ -289,6 +289,14 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
     if (should_invalidate) {
       animrig::Slot::users_invalidate(*bmain);
     }
+
+#ifndef NDEBUG
+    const bool is_readonly = flag & IDWALK_READONLY;
+    if (is_readonly) {
+      BLI_assert_msg(!should_invalidate,
+                     "pointers were changed while IDWALK_READONLY flag was set");
+    }
+#endif
   }
 
   /* Note that, even though `BKE_fcurve_foreach_id()` exists, it is not called here. That function
