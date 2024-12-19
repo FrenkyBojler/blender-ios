@@ -97,7 +97,7 @@ class Drawing : public ::GreasePencilDrawing {
   bke::CurvesGeometry &strokes_for_write();
 
   /**
-   * The offset indices for each stroke in the flat triangle cache.
+   * The offset indices for each shape in the flat triangle cache.
    */
   OffsetIndices<int> triangle_offsets() const;
 
@@ -107,7 +107,7 @@ class Drawing : public ::GreasePencilDrawing {
   OffsetIndices<int> shapes() const;
 
   /**
-   * The triangles for fill geometry. Grouped by each stroke.
+   * The triangles for fill geometry. Grouped by each shape.
    */
   Span<int3> triangles() const;
   /**

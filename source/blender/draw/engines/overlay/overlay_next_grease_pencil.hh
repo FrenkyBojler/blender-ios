@@ -338,13 +338,14 @@ class GreasePencil : Overlay {
 
         if (hide_material || hide_onion) {
           t_offset += num_stroke_triangles;
+          return;
         }
+
+        blender::gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
 
         const bool show_stroke = (gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0;
         const bool show_fill = (num_stroke_triangles != 0) &&
                                (gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
-
-        blender::gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
 
         if (show_fill) {
           const int v_first = t_offset * 3;
@@ -362,7 +363,7 @@ class GreasePencil : Overlay {
 
           if (hide_material || hide_onion) {
             t_offset += num_stroke_vertices * 2;
-            return;
+            continue;
           }
 
           if (show_stroke) {

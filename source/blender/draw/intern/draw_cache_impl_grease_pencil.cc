@@ -1088,7 +1088,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
         object, info.drawing, memory);
     const OffsetIndices<int> shapes = info.drawing.shapes();
-
     const OffsetIndices<int> triangle_offsets = info.drawing.triangle_offsets();
 
     Array<int> verts_start_offsets(curves.curves_num(), 0);
@@ -1250,8 +1249,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
       /* Add the triangle indices to the index buffer. */
       for (const int3 tri : tris_slice) {
-        const int3 tri_verts = int3(point_to_id(tri.x), point_to_id(tri.y), point_to_id(tri.z));
-        GPU_indexbuf_add_tri_verts(&ibo, tri_verts.x, tri_verts.y, tri_verts.z);
+        GPU_indexbuf_add_tri_verts(
+            &ibo, point_to_id(tri.x), point_to_id(tri.y), point_to_id(tri.z));
       }
 
       const float4x2 texture_matrix = texture_matrices[shape.first()] *

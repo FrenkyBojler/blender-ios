@@ -48,7 +48,6 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
-#include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 #include "BLI_virtual_array.hh"
 

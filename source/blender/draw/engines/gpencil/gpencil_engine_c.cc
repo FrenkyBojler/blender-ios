@@ -523,14 +523,12 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
     const bool is_onion = info.onion_id != 0;
 
     visible_shapes.foreach_index([&](const int shape_index) {
-      const IndexMask &shape = shapes[shape_index];
-
-      const int curve_i = shape.first();
+      const IndexRange shape = shapes[shape_index];
 
       /* The material index is allowed to be negative as it's stored as a generic attribute. We
        * clamp it here to avoid crashing in the rendering code. Any stroke with a material < 0 will
        * use the first material in the first material slot. */
-      const int material_index = std::max(stroke_materials[curve_i], 0);
+      const int material_index = std::max(stroke_materials[shape.first()], 0);
       const MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
 
       const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
@@ -545,8 +543,9 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
 
       if (skip_stroke) {
         t_offset += num_triangles_per_shape[shape_index];
-        shape.foreach_index(
-            [&](const int curve_i) { t_offset += num_vertices_per_stroke[curve_i] * 2; });
+        for (const int curve_i : shape) {
+          t_offset += num_vertices_per_stroke[curve_i] * 2;
+        }
         return;
       }
 
@@ -597,7 +596,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
 
       t_offset += num_triangles_per_shape[shape_index];
 
-      shape.foreach_index([&](const int curve_i) {
+      for (const int curve_i : shape) {
         const IndexRange points = points_by_curve[curve_i];
 
         if (show_stroke) {
@@ -607,7 +606,7 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
         }
 
         t_offset += num_vertices_per_stroke[curve_i] * 2;
-      });
+      }
     });
   }
 
