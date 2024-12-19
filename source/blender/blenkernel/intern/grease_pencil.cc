@@ -453,21 +453,14 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
       float(*projverts)[2] = static_cast<float(*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
 
-      for (const int i : shape.index_range()) {
-        const int curve_i = shape[i];
-        const IndexRange point_group = points_by_shape[i];
-        const IndexRange points = points_by_curve[curve_i];
-        threading::parallel_for(points.index_range(), 512, [&](const IndexRange range) {
-          for (const int p_id : range) {
-            mul_v2_m3v3(projverts[point_group[p_id]], axis_mat.ptr(), positions[points[p_id]]);
-          }
-        });
+      const IndexRange points = points_by_curve[shape];
+
+      for (const int i : IndexRange(points.size())) {
+        mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[points[i]]);
       }
 
       /* If there is only one stroke then simple poly fill will be used. */
       if (shape.size() == 1) {
-        const IndexRange points = points_by_curve[shape.first()];
-
         triangle_results[shape_index].resize(std::max(int(points.size() - 2), 0));
         MutableSpan<int3> r_tris = triangle_results[shape_index];
 
