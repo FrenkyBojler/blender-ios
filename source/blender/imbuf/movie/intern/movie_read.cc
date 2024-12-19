@@ -13,11 +13,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <sys/types.h>
-#ifndef _WIN32
-#  include <dirent.h>
-#else
-#  include <io.h>
-#endif
 
 #include "BLI_math_base.hh"
 #include "BLI_path_utils.hh"
@@ -33,7 +28,6 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_movie_playback.hh"
-#include "intern/IMB_colormanagement_intern.hh"
 
 #include "IMB_metadata.hh"
 #include "movie_proxy_indexer.hh"
@@ -68,7 +62,7 @@ void MOV_close(MoviePlayback *anim)
 #ifdef WITH_FFMPEG
   free_anim_ffmpeg(anim);
 #endif
-  IMB_free_indices(anim);
+  MOV_close_proxies(anim);
   IMB_metadata_free(anim->metadata);
 
   MEM_freeN(anim);
@@ -77,15 +71,6 @@ void MOV_close(MoviePlayback *anim)
 void MOV_get_filename(const MoviePlayback *anim, char *filename, int filename_maxncpy)
 {
   BLI_path_split_file_part(anim->filepath, filename, filename_maxncpy);
-}
-
-void MOV_close_proxies(MoviePlayback *anim)
-{
-  if (anim == nullptr) {
-    return;
-  }
-
-  IMB_free_indices(anim);
 }
 
 IDProperty *IMB_anim_load_metadata(MoviePlayback *anim)
@@ -831,14 +816,14 @@ static int64_t ffmpeg_get_seek_pts(MoviePlayback *anim, int64_t pts_to_search)
  * Note that this might be off a bit in certain video files, but it should still be close enough.
  */
 static int64_t ffmpeg_get_pts_to_search(MoviePlayback *anim,
-                                        ImBufAnimIndex *tc_index,
+                                        const MovieIndex *tc_index,
                                         int position)
 {
   int64_t pts_to_search;
 
   if (tc_index) {
-    int new_frame_index = IMB_indexer_get_frame_index(tc_index, position);
-    pts_to_search = IMB_indexer_get_pts(tc_index, new_frame_index);
+    int new_frame_index = tc_index->get_frame_index(position);
+    pts_to_search = tc_index->get_pts(new_frame_index);
   }
   else {
     AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
@@ -1004,7 +989,7 @@ static bool ffmpeg_seek_buffers_need_flushing(MoviePlayback *anim, int position,
 /* Seek to last necessary key frame. */
 static int ffmpeg_seek_to_key_frame(MoviePlayback *anim,
                                     int position,
-                                    ImBufAnimIndex *tc_index,
+                                    const MovieIndex *tc_index,
                                     int64_t pts_to_search)
 {
   int64_t seek_pos;
@@ -1012,10 +997,10 @@ static int ffmpeg_seek_to_key_frame(MoviePlayback *anim,
 
   if (tc_index) {
     /* We can use timestamps generated from our indexer to seek. */
-    int new_frame_index = IMB_indexer_get_frame_index(tc_index, position);
+    int new_frame_index = tc_index->get_frame_index(position);
 
-    uint64_t pts = IMB_indexer_get_seek_pos_pts(tc_index, new_frame_index);
-    uint64_t dts = IMB_indexer_get_seek_pos_dts(tc_index, new_frame_index);
+    uint64_t pts = tc_index->get_seek_pos_pts(new_frame_index);
+    uint64_t dts = tc_index->get_seek_pos_dts(new_frame_index);
 
     anim->cur_key_frame_pts = timestamp_from_pts_or_dts(pts, dts);
 
@@ -1099,7 +1084,7 @@ static ImBuf *ffmpeg_fetchibuf(MoviePlayback *anim, int position, IMB_Timecode_T
 
   av_log(anim->pFormatCtx, AV_LOG_DEBUG, "FETCH: seek_pos=%d\n", position);
 
-  ImBufAnimIndex *tc_index = IMB_anim_open_index(anim, tc);
+  const MovieIndex *tc_index = movie_open_index(anim, tc);
   int64_t pts_to_search = ffmpeg_get_pts_to_search(anim, tc_index, position);
   AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
   double frame_rate = av_q2d(v_st->r_frame_rate);
@@ -1280,7 +1265,7 @@ ImBuf *MOV_decode_frame(MoviePlayback *anim,
     }
   }
   else {
-    MoviePlayback *proxy = IMB_anim_open_proxy(anim, preview_size);
+    MoviePlayback *proxy = movie_open_proxy(anim, preview_size);
 
     if (proxy) {
       position = MOV_calc_frame_index_with_timecode(anim, tc, position);
@@ -1306,17 +1291,16 @@ ImBuf *MOV_decode_frame(MoviePlayback *anim,
 
 int MOV_get_duration_frames(MoviePlayback *anim, IMB_Timecode_Type tc)
 {
-  ImBufAnimIndex *idx;
   if (tc == IMB_TC_NONE) {
     return anim->duration_in_frames;
   }
 
-  idx = IMB_anim_open_index(anim, tc);
+  const MovieIndex *idx = movie_open_index(anim, tc);
   if (!idx) {
     return anim->duration_in_frames;
   }
 
-  return IMB_indexer_get_duration(idx);
+  return idx->get_duration();
 }
 
 double MOV_get_start_offset_seconds(const MoviePlayback *anim)
