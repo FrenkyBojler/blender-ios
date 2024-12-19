@@ -43,11 +43,7 @@ void main()
   int step = quad_i + ((in_quad_i < 2 || in_quad_i == 3) ? 0 : 1);
   float u = float(step) / vert_in.resolution;
 
-  vec3 q[4] = float3_array(
-    point_object_to_world(vert_in.p[0]),
-    point_object_to_world(vert_in.p[1]), 
-    point_object_to_world(vert_in.p[2]), 
-    point_object_to_world(vert_in.p[3]));
+  vec3 q[4] = float3_array(vert_in.p[0], vert_in.p[1], vert_in.p[2], vert_in.p[3]);
 
   q[0] += (q[1] - q[0]) * u;
   q[1] += (q[2] - q[1]) * u;
@@ -56,18 +52,19 @@ void main()
   q[0] += (q[1] - q[0]) * u;
   q[1] += (q[2] - q[1]) * u;
 
-  vec4 c0 = point_world_to_ndc(q[0]);
-  vec4 c1 = point_world_to_ndc(q[1]);
+  vec4 c0 = point_object_to_ndc(q[0]);
+  vec4 c1 = point_object_to_ndc(q[1]);
   vec2 tangent = c1.xy / c1.w - c0.xy / c0.w;
   
   q[0] += (q[1] - q[0]) * u;
 
-  vec4 ndc_pos = point_world_to_ndc(q[0]);
+  vec3 world_pos = point_object_to_world(q[0]);
+  vec4 ndc_pos = point_world_to_ndc(world_pos);
 
   vec2 normal = normalize(vec2(-tangent.y, tangent.x)) * 2 * sizeViewportInv;
   normal *= gl_VertexID % 2 ? -1.0 : 1.0;
   ndc_pos.xy += normal * ndc_pos.w;
   gl_Position = ndc_pos;
-  view_clipping_distances(q[0]);
+  view_clipping_distances(world_pos);
   finalColor = vec4(0.0, 0.0, 0.0, 1.0);
 }
