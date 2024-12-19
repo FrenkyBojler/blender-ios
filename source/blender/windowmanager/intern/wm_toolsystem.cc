@@ -429,6 +429,46 @@ static void toolsystem_brush_activate_from_toolref(Main *bmain,
   }
 }
 
+static void toolsystem_sync_brush_toolref_runtime(const bToolRef &src, bToolRef &dst)
+{
+  STRNCPY(dst.idname, src.idname);
+
+  if (dst.runtime == nullptr) {
+    dst.runtime = static_cast<bToolRef_Runtime *>(MEM_callocN(sizeof(*dst.runtime), __func__));
+  }
+
+  dst.runtime->cursor = src.runtime->cursor;
+  STRNCPY(dst.runtime->keymap, src.runtime->keymap);
+  STRNCPY(dst.runtime->gizmo_group, src.runtime->gizmo_group);
+  STRNCPY(dst.runtime->data_block, src.runtime->data_block);
+  dst.runtime->brush_type = src.runtime->brush_type;
+  STRNCPY(dst.runtime->keymap_fallback, src.runtime->keymap_fallback);
+  STRNCPY(dst.runtime->op, src.runtime->op);
+  dst.runtime->index = src.runtime->index;
+  dst.runtime->flag = src.runtime->flag;
+}
+
+static void toolsystem_sync_texture_paint_tools(Main * /*bmain*/,
+                                                WorkSpace *workspace,
+                                                const bToolRef *tref)
+{
+  BLI_assert(tref->runtime->flag & TOOLREF_FLAG_USE_BRUSHES);
+  bToolRef *sync_tref;
+  bToolKey tkey{};
+  if (tref->space_type == SPACE_VIEW3D && tref->mode == CTX_MODE_PAINT_TEXTURE) {
+    tkey.space_type = SPACE_IMAGE;
+    tkey.mode = SI_MODE_PAINT;
+    WM_toolsystem_ref_ensure(workspace, &tkey, &sync_tref);
+    toolsystem_sync_brush_toolref_runtime(*tref, *sync_tref);
+  }
+  else if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
+    tkey.space_type = SPACE_VIEW3D;
+    tkey.mode = CTX_MODE_PAINT_TEXTURE;
+    WM_toolsystem_ref_ensure(workspace, &tkey, &sync_tref);
+    toolsystem_sync_brush_toolref_runtime(*tref, *sync_tref);
+  }
+}
+
 /** \} */
 
 static void toolsystem_ref_link(Main *bmain, WorkSpace *workspace, bToolRef *tref)
@@ -454,6 +494,7 @@ static void toolsystem_ref_link(Main *bmain, WorkSpace *workspace, bToolRef *tre
 
   if (tref_rt->flag & TOOLREF_FLAG_USE_BRUSHES) {
     toolsystem_brush_activate_from_toolref(bmain, workspace, tref);
+    toolsystem_sync_texture_paint_tools(bmain, workspace, tref);
   }
 }
 
