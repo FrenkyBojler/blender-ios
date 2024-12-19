@@ -2092,7 +2092,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
  * Calculates the sign of the direction of the brush stroke, typically indicates whether the stroke
  * will deform a surface inwards or outwards along the brush normal.
  */
-static float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::StrokeCache &cache)
+float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::StrokeCache &cache)
 {
   const float dir = (brush.flag & BRUSH_DIR_IN) ? -1.0f : 1.0f;
   const float pen_flip = cache.pen_flip ? -1.0f : 1.0f;
@@ -2203,12 +2203,12 @@ static float brush_strength(const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_FILL:
     case SCULPT_BRUSH_TYPE_SCRAPE:
     case SCULPT_BRUSH_TYPE_FLATTEN:
-      if (flip > 0.0f) {
+      if (flip > 0.0f || brush.plane_inversion_mode == BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT) {
         overlap = (1.0f + overlap) / 2.0f;
         return alpha * pressure * overlap * feather;
       }
       else {
-        /* Reduce strength for DEEPEN, PEAKS, and CONTRAST. */
+        /* Reduce strength for increase contrast mode */
         return 0.5f * alpha * pressure * overlap * feather;
       }
 
@@ -3264,20 +3264,10 @@ static void do_brush_action(const Depsgraph &depsgraph,
       do_clay_thumb_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_FILL:
-      if (invert && brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
-        do_scrape_brush(depsgraph, sd, ob, node_mask);
-      }
-      else {
-        do_fill_brush(depsgraph, sd, ob, node_mask);
-      }
+      do_fill_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_SCRAPE:
-      if (invert && brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
-        do_fill_brush(depsgraph, sd, ob, node_mask);
-      }
-      else {
-        do_scrape_brush(depsgraph, sd, ob, node_mask);
-      }
+       do_scrape_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_MASK:
       switch ((BrushMaskTool)brush.mask_tool) {

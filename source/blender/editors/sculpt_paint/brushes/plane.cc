@@ -47,8 +47,6 @@ struct LocalData {
   Vector<float3> positions;
   Vector<float> factors;
   Vector<float> distances;
-  Vector<float> local_z_distances;
-  Vector<float> local_z_positions;
   Vector<float3> translations;
 };
 
@@ -69,13 +67,34 @@ static void calc_distances(const float depth,
 {
   if (depth != 0.0f)
   {
-    const float inv_depth = 1.0f / depth;
+    const float depth_rcp = math::rcp(depth);
 
     for (const int i : local_positions.index_range())
     {
-      const float3 pos = local_positions[i];
-      if (pos.z >= 0.0f) {
-        distances[i] = math::length(float3(pos.x, pos.y, pos.z * inv_depth));
+      const float3 position = local_positions[i];
+      if (position.z < 0.0f) {
+        distances[i] = math::length(float3(position.x, position.y, position.z * depth_rcp));
+      }
+    }
+  }
+  else {
+    for (const int i : local_positions.index_range())
+    {
+      if (local_positions[i].z < 0.0f) {
+        distances[i] = 1.0f;
+      }
+    }
+  }
+
+  if (height != 0.0f)
+  {
+    const float height_rcp = math::rcp(height);
+
+    for (const int i : local_positions.index_range())
+    {
+      const float3 position = local_positions[i];
+      if (position.z >= 0.0f) {
+        distances[i] = math::length(float3(position.x, position.y, position.z * height_rcp));
       }
     }
   }
@@ -87,26 +106,12 @@ static void calc_distances(const float depth,
       }
     }
   }
-
-  if (height != 0.0f)
-  {
-    const float inv_height = 1.0f / height;
-
-    for (const int i : local_positions.index_range())
-    {
-      const float3 pos = local_positions[i];
-      if (pos.z < 0.0f) {
-        distances[i] = math::length(float3(pos.x, pos.y, pos.z * inv_height));
-      }
-    }
-  }
-  else {
-    for (const int i : local_positions.index_range())
-    {
-      if (local_positions[i].z < 0.0f) {
-        distances[i] = 1.0f;
-      }
-    }
+}
+void scale_factors_by_local_translations(MutableSpan<float3> local_positions,
+  MutableSpan<float> factors)
+{
+  for (const int i : local_positions.index_range()) {
+    factors[i] *= local_positions[i].z;
   }
 }
 
@@ -157,10 +162,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
 
-  for (const int i : local_positions.index_range()) {
-    factors[i] *= local_positions[i].z;
-  }
-
+  scale_factors_by_local_translations(local_positions, factors);
   translations_from_offset_and_factors(offset, factors, translations);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
@@ -245,7 +247,7 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   if (math::is_zero(ss.cache->grab_delta_symm)) {
-    //return;
+    return;
   }
 
   float3 area_no;
@@ -261,7 +263,7 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   plane_from_point_normal_v3(plane, area_co, area_no);
 
   float4x4 mat = float4x4::identity();
-  mat.x_axis() = math::cross(area_no, float3(1, 0, 0)); // ss.cache->grab_delta_symm);
+  mat.x_axis() = math::cross(area_no, ss.cache->grab_delta_symm);
   mat.y_axis() = math::cross(area_no, float3(mat[0]));
   mat.z_axis() = area_no;
   mat.location() = area_co;
@@ -272,7 +274,26 @@ static void do_plane_brush(const Depsgraph &depsgraph,
 
   mat = math::invert(tmat);
 
-  const float3 plane_offset = -area_no * ss.cache->radius * ss.cache->bstrength;
+  float3 plane_offset = -area_no;
+  float depth = brush.plane_depth;
+  float height = brush.plane_height;
+
+  const bool flip = brush_flip(brush, *ss.cache) < 0.0f;
+
+  if (flip) {
+    switch (brush.plane_inversion_mode) {
+      case BRUSH_PLANE_INVERT_DISPLACEMENT: {
+        plane_offset = area_no;
+        break;
+      }
+      case BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT: {
+        std::swap(depth, height);
+        break;
+      }
+    }
+  }
+
+  plane_offset *= ss.cache->radius * ss.cache->bstrength;
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
