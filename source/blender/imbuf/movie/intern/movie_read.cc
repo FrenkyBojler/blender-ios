@@ -1283,7 +1283,7 @@ ImBuf *MOV_decode_frame(MoviePlayback *anim,
     MoviePlayback *proxy = IMB_anim_open_proxy(anim, preview_size);
 
     if (proxy) {
-      position = IMB_anim_index_get_frame_index(anim, tc, position);
+      position = MOV_calc_frame_index_with_timecode(anim, tc, position);
 
       return MOV_decode_frame(proxy, position, IMB_TC_NONE, IMB_PROXY_NONE);
     }

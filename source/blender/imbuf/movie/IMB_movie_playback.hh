@@ -15,7 +15,7 @@
 
 struct ImBuf;
 struct MoviePlayback;
-struct IndexBuildContext;
+struct MovieProxyBuilder;
 struct GSet;
 
 /**
@@ -118,6 +118,11 @@ bool MOV_is_initialized_and_valid(const MoviePlayback *anim);
  */
 void MOV_get_filename(const MoviePlayback *anim, char *filename, int filename_maxncpy);
 
+/*-------------------------------------------------------------------- */
+/*
+ * Movie proxy / timecode index related functionality.
+ */
+
 /**
  * Sets multi-view suffix to be used when building proxies for this movie.
  */
@@ -129,34 +134,53 @@ void MOV_set_multiview_suffix(MoviePlayback *anim, const char *suffix);
 void MOV_close_proxies(MoviePlayback *anim);
 
 /**
- * Defaults to BL_proxy within the directory of the animation.
+ * Custom directory to be used for loading or building proxies.
+ * By default "BL_proxy" within the directory of the movie file is used.
  */
-void IMB_anim_set_index_dir(MoviePlayback *anim, const char *dir);
-
-int IMB_anim_index_get_frame_index(MoviePlayback *anim, IMB_Timecode_Type tc, int position);
-
-int IMB_anim_proxy_get_existing(MoviePlayback *anim);
+void MOV_set_custom_proxy_dir(MoviePlayback *anim, const char *dir);
 
 /**
- * Prepare context for proxies/time-codes builder
+ * Given a frame index, calculate final frame index taking timecode into account.
+ *
+ * This does nothing (returns input frame position) if #IMB_TC_NONE is used,
+ * or movie proxy/index file is not built.
+ *
+ * When a timecode index file is present and is requested to be used, this can
+ * return a different frame index than input frame, particularly for
+ * #IMB_TC_RECORD_RUN_NO_GAPS.
  */
-IndexBuildContext *IMB_anim_index_rebuild_context(MoviePlayback *anim,
-                                                  IMB_Timecode_Type tcs_in_use,
-                                                  int proxy_sizes_in_use,
-                                                  int quality,
-                                                  const bool overwrite,
-                                                  GSet *file_list,
-                                                  bool build_only_on_bad_performance);
+int MOV_calc_frame_index_with_timecode(MoviePlayback *anim, IMB_Timecode_Type tc, int position);
+
+/**
+ * Queries which proxies exist for this movie.
+ *
+ * Note that it does not check whether proxies are up to date,
+ * or valid files; just merely whether the expected files exist.
+ *
+ * Returns bitmask of #IMB_Proxy_Size flags.
+ */
+int MOV_get_existing_proxies(const MoviePlayback *anim);
+
+/**
+ * Initialize movie proxies / time-code indices builder.
+ */
+MovieProxyBuilder *MOV_proxy_builder_start(MoviePlayback *anim,
+                                           IMB_Timecode_Type tcs_in_use,
+                                           int proxy_sizes_in_use,
+                                           int quality,
+                                           const bool overwrite,
+                                           GSet *file_list,
+                                           bool build_only_on_bad_performance);
 
 /**
  * Will rebuild all used indices and proxies at once.
  */
-void IMB_anim_index_rebuild(IndexBuildContext *context,
-                            bool *stop,
-                            bool *do_update,
-                            float *progress);
+void MOV_proxy_builder_process(MovieProxyBuilder *context,
+                               bool *stop,
+                               bool *do_update,
+                               float *progress);
 
 /**
- * Finish rebuilding proxies/time-codes and free temporary contexts used.
+ * Finish building proxies / time-codes indices, and delete the builder.
  */
-void IMB_anim_index_rebuild_finish(IndexBuildContext *context, bool stop);
+void MOV_proxy_builder_finish(MovieProxyBuilder *context, bool stop);

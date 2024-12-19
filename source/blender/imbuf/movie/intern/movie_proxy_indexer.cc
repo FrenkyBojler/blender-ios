@@ -346,7 +346,7 @@ int IMB_timecode_to_array_index(IMB_Timecode_Type tc)
  * - rebuild helper functions
  * ---------------------------------------------------------------------- */
 
-static void get_index_dir(MoviePlayback *anim, char *index_dir, size_t index_dir_maxncpy)
+static void get_index_dir(const MoviePlayback *anim, char *index_dir, size_t index_dir_maxncpy)
 {
   if (!anim->index_dir[0]) {
     char filename[FILE_MAXFILE];
@@ -359,7 +359,7 @@ static void get_index_dir(MoviePlayback *anim, char *index_dir, size_t index_dir
   }
 }
 
-static bool get_proxy_filepath(MoviePlayback *anim,
+static bool get_proxy_filepath(const MoviePlayback *anim,
                                IMB_Proxy_Size preview_size,
                                char *filepath,
                                bool temp)
@@ -423,7 +423,7 @@ static void get_tc_filepath(MoviePlayback *anim, IMB_Timecode_Type tc, char *fil
  * - common rebuilder structures
  * ---------------------------------------------------------------------- */
 
-struct IndexBuildContext {};
+struct MovieProxyBuilder {};
 
 /* ----------------------------------------------------------------------
  * - ffmpeg rebuilder
@@ -750,7 +750,7 @@ static void free_proxy_output_ffmpeg(proxy_output_ctx *ctx, int rollback)
 
 static blender::Array<IMB_Timecode_Type> tc_types{IMB_TC_RECORD_RUN, IMB_TC_RECORD_RUN_NO_GAPS};
 
-struct FFmpegIndexBuilderContext : public IndexBuildContext {
+struct FFmpegIndexBuilderContext : public MovieProxyBuilder {
 
   AVFormatContext *iFormatCtx;
   AVCodecContext *iCodecCtx;
@@ -780,7 +780,7 @@ struct FFmpegIndexBuilderContext : public IndexBuildContext {
   bool building_cancelled;
 };
 
-static IndexBuildContext *index_ffmpeg_create_context(MoviePlayback *anim,
+static MovieProxyBuilder *index_ffmpeg_create_context(MoviePlayback *anim,
                                                       int tcs_in_use,
                                                       int proxy_sizes_in_use,
                                                       int quality,
@@ -902,7 +902,7 @@ static IndexBuildContext *index_ffmpeg_create_context(MoviePlayback *anim,
     }
   }
 
-  return (IndexBuildContext *)context;
+  return (MovieProxyBuilder *)context;
 }
 
 static void index_rebuild_ffmpeg_finish(FFmpegIndexBuilderContext *context, const bool stop)
@@ -1193,13 +1193,13 @@ static bool indexer_need_to_build_proxy(FFmpegIndexBuilderContext *context)
  * - public API
  * ---------------------------------------------------------------------- */
 
-IndexBuildContext *IMB_anim_index_rebuild_context(MoviePlayback *anim,
-                                                  IMB_Timecode_Type tcs_in_use,
-                                                  int proxy_sizes_in_use,
-                                                  int quality,
-                                                  const bool overwrite,
-                                                  GSet *file_list,
-                                                  bool build_only_on_bad_performance)
+MovieProxyBuilder *MOV_proxy_builder_start(MoviePlayback *anim,
+                                           IMB_Timecode_Type tcs_in_use,
+                                           int proxy_sizes_in_use,
+                                           int quality,
+                                           const bool overwrite,
+                                           GSet *file_list,
+                                           bool build_only_on_bad_performance)
 {
   int proxy_sizes_to_build = proxy_sizes_in_use;
   int i;
@@ -1226,7 +1226,7 @@ IndexBuildContext *IMB_anim_index_rebuild_context(MoviePlayback *anim,
   }
 
   if (!overwrite) {
-    int built_proxies = IMB_anim_proxy_get_existing(anim);
+    int built_proxies = MOV_get_existing_proxies(anim);
     if (built_proxies != 0) {
 
       for (i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
@@ -1249,7 +1249,7 @@ IndexBuildContext *IMB_anim_index_rebuild_context(MoviePlayback *anim,
     return nullptr;
   }
 
-  IndexBuildContext *context = nullptr;
+  MovieProxyBuilder *context = nullptr;
 #ifdef WITH_FFMPEG
   if (anim->state == MoviePlayback::State::Valid) {
     context = index_ffmpeg_create_context(
@@ -1264,13 +1264,13 @@ IndexBuildContext *IMB_anim_index_rebuild_context(MoviePlayback *anim,
   UNUSED_VARS(tcs_in_use, proxy_sizes_in_use, quality);
 }
 
-void IMB_anim_index_rebuild(IndexBuildContext *context,
-                            /* NOLINTNEXTLINE: readability-non-const-parameter. */
-                            bool *stop,
-                            /* NOLINTNEXTLINE: readability-non-const-parameter. */
-                            bool *do_update,
-                            /* NOLINTNEXTLINE: readability-non-const-parameter. */
-                            float *progress)
+void MOV_proxy_builder_process(MovieProxyBuilder *context,
+                               /* NOLINTNEXTLINE: readability-non-const-parameter. */
+                               bool *stop,
+                               /* NOLINTNEXTLINE: readability-non-const-parameter. */
+                               bool *do_update,
+                               /* NOLINTNEXTLINE: readability-non-const-parameter. */
+                               float *progress)
 {
 #ifdef WITH_FFMPEG
   if (context != nullptr) {
@@ -1282,7 +1282,7 @@ void IMB_anim_index_rebuild(IndexBuildContext *context,
   UNUSED_VARS(context, stop, do_update, progress);
 }
 
-void IMB_anim_index_rebuild_finish(IndexBuildContext *context, const bool stop)
+void MOV_proxy_builder_finish(MovieProxyBuilder *context, const bool stop)
 {
 #ifdef WITH_FFMPEG
   if (context != nullptr) {
@@ -1317,7 +1317,7 @@ void IMB_free_indices(MoviePlayback *anim)
   anim->indices_tried = 0;
 }
 
-void IMB_anim_set_index_dir(MoviePlayback *anim, const char *dir)
+void MOV_set_custom_proxy_dir(MoviePlayback *anim, const char *dir)
 {
   if (STREQ(anim->index_dir, dir)) {
     return;
@@ -1383,7 +1383,7 @@ ImBufAnimIndex *IMB_anim_open_index(MoviePlayback *anim, IMB_Timecode_Type tc)
   return *index;
 }
 
-int IMB_anim_index_get_frame_index(MoviePlayback *anim, IMB_Timecode_Type tc, int position)
+int MOV_calc_frame_index_with_timecode(MoviePlayback *anim, IMB_Timecode_Type tc, int position)
 {
   ImBufAnimIndex *idx = IMB_anim_open_index(anim, tc);
 
@@ -1394,12 +1394,11 @@ int IMB_anim_index_get_frame_index(MoviePlayback *anim, IMB_Timecode_Type tc, in
   return IMB_indexer_get_frame_index(idx, position);
 }
 
-int IMB_anim_proxy_get_existing(MoviePlayback *anim)
+int MOV_get_existing_proxies(const MoviePlayback *anim)
 {
   const int num_proxy_sizes = IMB_PROXY_MAX_SLOT;
   int existing = IMB_PROXY_NONE;
-  int i;
-  for (i = 0; i < num_proxy_sizes; i++) {
+  for (int i = 0; i < num_proxy_sizes; i++) {
     IMB_Proxy_Size proxy_size = proxy_sizes[i];
     char filepath[FILE_MAX];
     get_proxy_filepath(anim, proxy_size, filepath, false);

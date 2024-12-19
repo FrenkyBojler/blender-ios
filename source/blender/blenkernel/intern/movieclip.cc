@@ -589,7 +589,7 @@ static void movieclip_open_anim_file(MovieClip *clip)
         char dir[FILE_MAX];
         STRNCPY(dir, clip->proxy.dir);
         BLI_path_abs(dir, BKE_main_blendfile_path_from_global());
-        IMB_anim_set_index_dir(clip->anim, dir);
+        MOV_set_custom_proxy_dir(clip->anim, dir);
       }
     }
   }
