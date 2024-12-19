@@ -43,12 +43,11 @@ class VKCommandBuilder {
    * resources only when building the barriers.
    */
   struct LayeredImageTracker {
-    struct TrackedImage {
-      VkImage vk_image;
-      VkImageLayout vk_image_layout;
-      uint32_t layer;
-      uint32_t layer_count;
-    };
+    /**
+     * Local reference to the active command builder.
+     *
+     * The reference is used to add VkImageMemoryBarrier's to the command builder.
+     */
     VKCommandBuilder &command_builder;
     LayeredImageTracker(VKCommandBuilder &command_builder) : command_builder(command_builder) {}
 
@@ -61,12 +60,29 @@ class VKCommandBuilder {
      */
     Set<VkImage> layered_attachments;
 
+    struct TrackedImage {
+      VkImage vk_image;
+      VkImageLayout vk_image_layout;
+      uint32_t layer;
+      uint32_t layer_count;
+    };
     Vector<TrackedImage> layered_bindings;
 
     /**
      * Update the layered attachments list when beginning a new render scope.
+     *
+     * node_handle should be a handle that points to a VKNodeType::BEGIN_RENDERING.
+     * Any attachments that are layered will be added to the `layered_attachments` list.
      */
     void begin(const VKRenderGraph &render_graph, NodeHandle node_handle);
+
+    /**
+     * Is layered tracking enabled for the given vk_image.
+     */
+    inline bool contains(VkImage vk_image) const
+    {
+      return layered_attachments.contains(vk_image);
+    }
 
     /**
      * Ensure the layout of a layer.
@@ -88,8 +104,7 @@ class VKCommandBuilder {
      *
      * Render suspension/resuming will not work after calling this method.
      */
-    // TODO: command buffer should not be used, but the barriers should be extracted.
-    void end(VKCommandBufferInterface &command_buffer);
+    void end(Barrier &r_barrier);
 
     /**
      * Suspend layer tracking
@@ -99,8 +114,7 @@ class VKCommandBuilder {
      * NOTE: Only call this method when you the rendering will be resumed, otherwise use
      * `layer_tracking_end`.
      */
-    // TODO: command buffer should not be used, but the barriers should be extracted.
-    void suspend(VKCommandBufferInterface &command_buffer);
+    void suspend(Barrier &r_barrier);
 
     /**
      * Resume suspended layer tracking.
@@ -108,8 +122,7 @@ class VKCommandBuilder {
      * Resume suspended layer tracking. This transits all registered layers back to its modified
      * state.
      */
-    // TODO: command buffer should not be used, but the barriers should be extracted.
-    void resume(VKCommandBufferInterface &command_buffer);
+    void resume(Barrier &r_barrier);
   };
 
   /**
@@ -138,11 +151,6 @@ class VKCommandBuilder {
 
   struct {
     /**
-     * State of the bound pipelines during command building.
-     */
-    VKBoundPipelines active_pipelines;
-
-    /**
      * Index of the active debug_group. Points to an element in
      * `VKRenderGraph.debug_.used_groups`.
      */
@@ -156,17 +164,15 @@ class VKCommandBuilder {
   Vector<SubBuilder> sub_builders_;
   /** Per group store the indices of the nodes. */
   Vector<GroupNodes> group_nodes_;
-  /** Per group per node in group its pre execution barriers. */
+  /** Barriers that will be recorded just before the commands of a group is recorded. */
   Vector<Barriers> group_pre_barriers_;
+  /** Barriers that will be recorded after a group is recorded. */
+  Vector<Barriers> group_post_barriers_;
 
   /** List of all generated barriers. */
   Vector<Barrier> barrier_list_;
 
-  LayeredImageTracker layered_image_tracker_;
-
  public:
-  VKCommandBuilder() : layered_image_tracker_(*this) {}
-
   /**
    * Build the commands of the nodes provided by the `node_handles` parameter. The commands are
    * recorded into the given `command_buffer`.
@@ -230,17 +236,14 @@ class VKCommandBuilder {
                                   Span<NodeHandle> node_handles,
                                   const SubBuilder &sub_builder);
 
-  /**
-   * Build the pipeline barriers that should be recorded before any other commands of the node
-   * group the given node is part of is being recorded.
-   */
-  void build_pipeline_barriers(VKRenderGraph &render_graph,
-                               VKCommandBufferInterface &command_buffer,
-                               NodeHandle node_handle,
-                               VkPipelineStageFlags pipeline_stage);
+/**
+ * Build the pipeline barriers that should be recorded before any other commands of the node
+ * group the given node is part of is being recorded.
+ */
   void build_pipeline_barriers(VKRenderGraph &render_graph,
                                NodeHandle node_handle,
                                VkPipelineStageFlags pipeline_stage,
+                               LayeredImageTracker &layered_tracker,
                                Barrier &r_barrier);
   void reset_barriers(Barrier &r_barrier);
   void send_pipeline_barriers(VKCommandBufferInterface &command_buffer, const Barrier &barrier);
@@ -265,6 +268,7 @@ class VKCommandBuilder {
   void add_image_barriers(VKRenderGraph &render_graph,
                           NodeHandle node_handle,
                           VkPipelineStageFlags node_stages,
+                          LayeredImageTracker &layered_tracker,
                           Barrier &r_barrier);
   void add_image_barrier(VkImage vk_image,
                          Barrier &r_barrier,
@@ -278,10 +282,12 @@ class VKCommandBuilder {
   void add_image_read_barriers(VKRenderGraph &render_graph,
                                NodeHandle node_handle,
                                VkPipelineStageFlags node_stages,
+                               LayeredImageTracker &layered_tracker,
                                Barrier &r_barrier);
   void add_image_write_barriers(VKRenderGraph &render_graph,
                                 NodeHandle node_handle,
                                 VkPipelineStageFlags node_stages,
+                                LayeredImageTracker &layered_tracker,
                                 Barrier &r_barrier);
 
   /**
