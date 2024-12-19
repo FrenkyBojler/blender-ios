@@ -28,7 +28,6 @@ struct bUserAssetShelfSettings;
 /**
  * Return true if a preferences file exists for this Blender version.
  */
-
 namespace blender::bke::preferences {
 
 bool exists();
