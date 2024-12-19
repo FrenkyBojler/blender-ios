@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "IMB_movie_enums.hh"
+#include "MOV_enums.hh"
 #include "movie_read.hh"
 #include <stdio.h>
 #include <stdlib.h>

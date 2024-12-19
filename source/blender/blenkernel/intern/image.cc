@@ -33,9 +33,10 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
-#include "IMB_movie_playback.hh"
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
+
+#include "MOV_playback.hh"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW

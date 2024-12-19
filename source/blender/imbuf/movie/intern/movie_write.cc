@@ -9,7 +9,7 @@
 
 #include "DNA_scene_types.h"
 
-#include "IMB_movie_write.hh"
+#include "MOV_write.hh"
 
 #ifdef WITH_FFMPEG
 #  include <cstdio>
@@ -38,8 +38,9 @@
 #  include "BKE_sound.h"
 
 #  include "IMB_imbuf.hh"
-#  include "IMB_movie_enums.hh"
-#  include "IMB_movie_util.hh"
+
+#  include "MOV_enums.hh"
+#  include "MOV_util.hh"
 
 #  include "ffmpeg_swscale.hh"
 #  include "movie_util.hh"

@@ -66,8 +66,9 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_movie_util.hh"
 #include "IMB_thumbs.hh"
+
+#include "MOV_util.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

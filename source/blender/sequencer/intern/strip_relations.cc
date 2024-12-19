@@ -22,7 +22,8 @@
 #include "DEG_depsgraph.hh"
 
 #include "IMB_imbuf.hh"
-#include "IMB_movie_playback.hh"
+
+#include "MOV_playback.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"

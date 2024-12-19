@@ -17,7 +17,8 @@
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_movie_util.hh"
+
+#include "MOV_util.hh"
 
 #include "BKE_colortools.hh"
 #include "BKE_image_format.hh"

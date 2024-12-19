@@ -57,7 +57,8 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_movie_write.hh"
+
+#include "MOV_write.hh"
 
 #include "RE_pipeline.h"
 

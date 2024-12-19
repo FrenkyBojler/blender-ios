@@ -60,7 +60,8 @@
 #include "DEG_depsgraph.hh"
 
 #include "IMB_imbuf.hh" /* For #IMB_init. */
-#include "IMB_movie_util.hh"
+
+#include "MOV_util.hh"
 
 #include "RE_engine.h"
 #include "RE_texture.h"

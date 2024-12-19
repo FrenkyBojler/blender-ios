@@ -25,8 +25,9 @@
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_movie_enums.hh"
-#include "IMB_movie_util.hh"
+
+#include "MOV_enums.hh"
+#include "MOV_util.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"

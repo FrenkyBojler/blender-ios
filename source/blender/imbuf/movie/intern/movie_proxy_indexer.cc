@@ -33,7 +33,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#include "IMB_movie_playback.hh"
+#include "MOV_playback.hh"
 
 #include "ffmpeg_swscale.hh"
 #include "movie_proxy_indexer.hh"

@@ -12,10 +12,10 @@ set(INC_SYS
 )
 
 set(SRC
-  IMB_movie_enums.hh
-  IMB_movie_util.hh
-  IMB_movie_playback.hh
-  IMB_movie_write.hh
+  MOV_enums.hh
+  MOV_util.hh
+  MOV_playback.hh
+  MOV_write.hh
 
   intern/ffmpeg_compat.h
   intern/movie_proxy_indexer.cc

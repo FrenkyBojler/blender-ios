@@ -39,7 +39,8 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_movie_playback.hh"
+
+#include "MOV_playback.hh"
 
 #include "multiview.hh"
 #include "proxy.hh"

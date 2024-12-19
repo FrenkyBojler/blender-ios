@@ -26,7 +26,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "IMB_movie_playback.hh"
+#include "MOV_playback.hh"
 
 #include "rna_internal.hh"
 

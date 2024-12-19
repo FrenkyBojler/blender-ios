@@ -11,7 +11,8 @@
 #pragma once
 
 #include "IMB_imbuf_enums.h"
-#include "IMB_movie_enums.hh"
+
+#include "MOV_enums.hh"
 
 struct IDProperty;
 struct ImBuf;

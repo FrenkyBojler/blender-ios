@@ -65,7 +65,8 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 
 #  include "IMB_colormanagement.hh"
 #  include "IMB_imbuf.hh"
-#  include "IMB_movie_playback.hh"
+
+#  include "MOV_playback.hh"
 
 #  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"

@@ -43,8 +43,9 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_movie_playback.hh"
-#include "IMB_movie_util.hh"
+
+#include "MOV_playback.hh"
+#include "MOV_util.hh"
 
 #include "BKE_image.hh"
 

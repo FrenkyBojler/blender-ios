@@ -58,9 +58,10 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_movie_playback.hh"
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
+
+#include "MOV_playback.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
