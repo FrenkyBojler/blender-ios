@@ -2146,7 +2146,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
                               RenderResult *rr,
                               Scene *scene,
                               RenderData *rd,
-                              ImbMovieWriter **movie_writers,
+                              MovieWriter **movie_writers,
                               const int totvideos,
                               bool preview)
 {
@@ -2171,13 +2171,13 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       IMB_colormanagement_imbuf_for_write(ibuf, true, false, &image_format);
 
       BLI_assert(movie_writers[view_id] != nullptr);
-      if (!IMB_movie_write_append(movie_writers[view_id],
-                                  rd,
-                                  preview ? scene->r.psfra : scene->r.sfra,
-                                  scene->r.cfra,
-                                  ibuf,
-                                  suffix,
-                                  reports))
+      if (!MOV_write_append(movie_writers[view_id],
+                            rd,
+                            preview ? scene->r.psfra : scene->r.sfra,
+                            scene->r.cfra,
+                            ibuf,
+                            suffix,
+                            reports))
       {
         ok = false;
       }
@@ -2206,13 +2206,13 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
     ibuf_arr[2] = IMB_stereo3d_ImBuf(&image_format, ibuf_arr[0], ibuf_arr[1]);
 
     BLI_assert(movie_writers[0] != nullptr);
-    if (!IMB_movie_write_append(movie_writers[0],
-                                rd,
-                                preview ? scene->r.psfra : scene->r.sfra,
-                                scene->r.cfra,
-                                ibuf_arr[2],
-                                "",
-                                reports))
+    if (!MOV_write_append(movie_writers[0],
+                          rd,
+                          preview ? scene->r.psfra : scene->r.sfra,
+                          scene->r.cfra,
+                          ibuf_arr[2],
+                          "",
+                          reports))
     {
       ok = false;
     }
@@ -2327,8 +2327,8 @@ static void get_videos_dimensions(const Render *re,
 
 static void re_movie_free_all(Render *re)
 {
-  for (ImbMovieWriter *writer : re->movie_writers) {
-    IMB_movie_write_end(writer);
+  for (MovieWriter *writer : re->movie_writers) {
+    MOV_write_end(writer);
   }
   re->movie_writers.clear_and_shrink();
 }
@@ -2377,14 +2377,14 @@ void RE_RenderAnim(Render *re,
     re->movie_writers.reserve(totvideos);
     for (int i = 0; i < totvideos; i++) {
       const char *suffix = BKE_scene_multiview_view_id_suffix_get(&re->r, i);
-      ImbMovieWriter *writer = IMB_movie_write_begin(rd.im_format.imtype,
-                                                     re->pipeline_scene_eval,
-                                                     &re->r,
-                                                     width,
-                                                     height,
-                                                     re->reports,
-                                                     false,
-                                                     suffix);
+      MovieWriter *writer = MOV_write_begin(rd.im_format.imtype,
+                                            re->pipeline_scene_eval,
+                                            &re->r,
+                                            width,
+                                            height,
+                                            re->reports,
+                                            false,
+                                            suffix);
       if (writer == nullptr) {
         is_error = true;
         break;
