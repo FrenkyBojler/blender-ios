@@ -1623,9 +1623,7 @@ bool peelObjectsTransform(TransInfo *t,
     r_no[1] = 0.0;
     r_no[2] = 1.0;
 
-    LISTBASE_FOREACH_MUTABLE (SnapObjectHitDepth *, link, &depths_peel) {
-      MEM_delete(link);
-    }
+    BLI_freelistN(&depths_peel);
     return true;
   }
   return false;
