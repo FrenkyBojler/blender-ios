@@ -214,8 +214,7 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
                                                   const SubBuilder &sub_builder)
 {
   command_buffer.begin_recording();
-  state_.debug_level = 0;
-  state_.active_debug_group_id = -1;
+  DebugGroups debug_groups = {};
   VKBoundPipelines active_pipelines = {};
 
   NodeHandle rendering_scope = 0;
@@ -244,7 +243,7 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
       VKRenderGraphNode &node = render_graph.nodes_[node_handle];
 
       if (G.debug & G_DEBUG_GPU) {
-        activate_debug_group(render_graph, command_buffer, node_handle);
+        activate_debug_group(render_graph, command_buffer, debug_groups, node_handle);
       }
 
       if (node.type == VKNodeType::BEGIN_RENDERING) {
@@ -314,8 +313,7 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
     }
   }
 
-  finish_debug_groups(command_buffer);
-  state_.debug_level = 0;
+  finish_debug_groups(command_buffer, debug_groups);
 
   command_buffer.end_recording();
 }
@@ -332,10 +330,11 @@ void VKCommandBuilder::sub_builders_record_to_primary_command_buffer(
 
 void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
                                             VKCommandBufferInterface &command_buffer,
+                                            DebugGroups &debug_groups,
                                             NodeHandle node_handle)
 {
   VKRenderGraph::DebugGroupID debug_group = render_graph.debug_.node_group_map[node_handle];
-  if (debug_group == state_.active_debug_group_id) {
+  if (debug_group == debug_groups.active_debug_group_id) {
     return;
   }
 
@@ -344,14 +343,14 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
   int num_begins = 0;
 
   if (debug_group == -1) {
-    num_ends = state_.debug_level;
+    num_ends = debug_groups.debug_level;
   }
   else {
     Vector<VKRenderGraph::DebugGroupNameID> &to_group =
         render_graph.debug_.used_groups[debug_group];
-    if (state_.active_debug_group_id != -1) {
+    if (debug_groups.active_debug_group_id != -1) {
       Vector<VKRenderGraph::DebugGroupNameID> &from_group =
-          render_graph.debug_.used_groups[state_.active_debug_group_id];
+          render_graph.debug_.used_groups[debug_groups.active_debug_group_id];
 
       num_ends = max_ii(from_group.size() - to_group.size(), 0);
       int num_checks = min_ii(from_group.size(), to_group.size());
@@ -363,14 +362,14 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
       }
     }
 
-    num_begins = to_group.size() - (state_.debug_level - num_ends);
+    num_begins = to_group.size() - (debug_groups.debug_level - num_ends);
   }
 
   /* Perform the pops from the debug stack. */
   for (int index = 0; index < num_ends; index++) {
     command_buffer.end_debug_utils_label();
   }
-  state_.debug_level -= num_ends;
+  debug_groups.debug_level -= num_ends;
 
   /* Perform the pushes to the debug stack. */
   if (num_begins > 0) {
@@ -378,7 +377,7 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
         render_graph.debug_.used_groups[debug_group];
     VkDebugUtilsLabelEXT debug_utils_label = {};
     debug_utils_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-    for (int index : IndexRange(state_.debug_level, num_begins)) {
+    for (int index : IndexRange(debug_groups.debug_level, num_begins)) {
       const VKRenderGraph::DebugGroup &debug_group = render_graph.debug_.groups[to_group[index]];
       debug_utils_label.pLabelName = debug_group.name.c_str();
       copy_v4_v4(debug_utils_label.color, debug_group.color);
@@ -386,16 +385,17 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
     }
   }
 
-  state_.debug_level += num_begins;
-  state_.active_debug_group_id = debug_group;
+  debug_groups.debug_level += num_begins;
+  debug_groups.active_debug_group_id = debug_group;
 }
 
-void VKCommandBuilder::finish_debug_groups(VKCommandBufferInterface &command_buffer)
+void VKCommandBuilder::finish_debug_groups(VKCommandBufferInterface &command_buffer,
+                                           DebugGroups &debug_groups)
 {
-  for (int i = 0; i < state_.debug_level; i++) {
+  for (int i = 0; i < debug_groups.debug_level; i++) {
     command_buffer.end_debug_utils_label();
   }
-  state_.debug_level = 0;
+  debug_groups = {};
 }
 
 void VKCommandBuilder::build_pipeline_barriers(VKRenderGraph &render_graph,

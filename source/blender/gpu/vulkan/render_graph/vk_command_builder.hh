@@ -24,8 +24,22 @@ class VKRenderGraph;
  * barriers and commands.
  */
 class VKCommandBuilder {
+  /**
+   * List of all extracted VkBufferMemoryBarriers. These barriers will be referenced by
+   * Barrier::buffer_memory_barriers.
+   */
+  Vector<VkBufferMemoryBarrier> vk_buffer_memory_barriers_;
+
+  /**
+   * List of all extracted VkImageMemoryBarriers. These barriers will be referenced by
+   * Barrier::image_memory_barriers.
+   */
+  Vector<VkImageMemoryBarrier> vk_image_memory_barriers_;
+
   struct Barrier {
+    /** Index range into `VKCommandBuilder::vk_buffer_memory_barriers_` */
     IndexRange buffer_memory_barriers;
+    /** Index range into `VKCommandBuilder::vk_image_memory_barriers_` */
     IndexRange image_memory_barriers;
 
     VkPipelineStageFlags src_stage_mask = VK_PIPELINE_STAGE_NONE;
@@ -144,22 +158,6 @@ class VKCommandBuilder {
   using Barriers = IndexRange;
   using BarrierIndex = int64_t;
 
- private:
-  /* Pool of VKBufferMemoryBarriers that can be reused when building barriers */
-  Vector<VkBufferMemoryBarrier> vk_buffer_memory_barriers_;
-  Vector<VkImageMemoryBarrier> vk_image_memory_barriers_;
-
-  struct {
-    /**
-     * Index of the active debug_group. Points to an element in
-     * `VKRenderGraph.debug_.used_groups`.
-     */
-    int64_t active_debug_group_id = -1;
-    /** Current level of debug groups. (number of nested debug groups). */
-    int debug_level = 0;
-
-  } state_;
-
   /** Per sub builder store the index in the group_nodes_ and related other vectors. */
   Vector<SubBuilder> sub_builders_;
   /** Per group store the indices of the nodes. */
@@ -236,10 +234,10 @@ class VKCommandBuilder {
                                   Span<NodeHandle> node_handles,
                                   const SubBuilder &sub_builder);
 
-/**
- * Build the pipeline barriers that should be recorded before any other commands of the node
- * group the given node is part of is being recorded.
- */
+  /**
+   * Build the pipeline barriers that should be recorded before any other commands of the node
+   * group the given node is part of is being recorded.
+   */
   void build_pipeline_barriers(VKRenderGraph &render_graph,
                                NodeHandle node_handle,
                                VkPipelineStageFlags pipeline_stage,
@@ -290,6 +288,16 @@ class VKCommandBuilder {
                                 LayeredImageTracker &layered_tracker,
                                 Barrier &r_barrier);
 
+  struct DebugGroups {
+    /**
+     * Index of the active debug_group. Points to an element in
+     * `VKRenderGraph.debug_.used_groups`.
+     */
+    int64_t active_debug_group_id = -1;
+    /** Current level of debug groups. (number of nested debug groups). */
+    int debug_level = 0;
+  };
+
   /**
    * Ensure that the debug group associated with the given node_handle is activated.
    *
@@ -300,12 +308,13 @@ class VKCommandBuilder {
    */
   void activate_debug_group(VKRenderGraph &render_graph,
                             VKCommandBufferInterface &command_buffer,
+                            DebugGroups &debug_groups,
                             NodeHandle node_handle);
 
   /**
    * Make sure no debugging groups are active anymore.
    */
-  void finish_debug_groups(VKCommandBufferInterface &command_buffer);
+  void finish_debug_groups(VKCommandBufferInterface &command_buffer, DebugGroups &debug_groups);
 
  private:
   std::string to_string_barrier(const Barrier &barrier);
