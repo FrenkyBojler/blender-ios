@@ -62,6 +62,8 @@
 /* Only for types. */
 #include "BKE_node.hh"
 
+#include "WM_api.hh"
+
 #include "DEG_depsgraph_query.hh"
 
 #include "../generic/idprop_py_api.hh" /* For IDprop lookups. */
@@ -3410,6 +3412,19 @@ static int pyrna_prop_collection_contains(BPy_PropertyRNA *self, PyObject *key)
   return 0;
 }
 
+static void pyrna_struct_idprop_update(BPy_StructRNA *self)
+{
+  if (!self->ptr.has_value()) {
+    return;
+  }
+  PointerRNA &self_ptr = *self->ptr;
+  if (self->ptr->type == &RNA_NodesModifier) {
+    ID *owner_id = self->ptr->owner_id;
+    DEG_id_tag_update(owner_id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, owner_id);
+  }
+}
+
 static int pyrna_struct_contains(BPy_StructRNA *self, PyObject *value)
 {
   const char *name = PyUnicode_AsUTF8(value);
@@ -3544,8 +3559,11 @@ static int pyrna_struct_ass_subscript(BPy_StructRNA *self, PyObject *key, PyObje
       }
     }
   }
-
-  return BPy_Wrap_SetMapItem(group, key, value);
+  const int result = BPy_Wrap_SetMapItem(group, key, value);
+  if (result == 0) {
+    pyrna_struct_idprop_update(self);
+  }
+  return result;
 }
 
 static PyMappingMethods pyrna_struct_as_mapping = {
