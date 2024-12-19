@@ -37,11 +37,12 @@
 #  include "BKE_report.hh"
 #  include "BKE_sound.h"
 
-#  include "IMB_anim.hh"
 #  include "IMB_imbuf.hh"
+#  include "IMB_movie_enums.hh"
+#  include "IMB_movie_util.hh"
 
 #  include "ffmpeg_swscale.hh"
-#  include "ffmpeg_util.hh"
+#  include "movie_util.hh"
 
 /* This needs to be included after BLI_math_base.h otherwise it will redefine some math defines
  * like M_SQRT1_2 leading to warnings with MSVC */

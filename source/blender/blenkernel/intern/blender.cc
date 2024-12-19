@@ -18,8 +18,8 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "IMB_anim.hh"
 #include "IMB_imbuf.hh"
+#include "IMB_movie_util.hh"
 #include "IMB_moviecache.hh"
 
 #include "BKE_addon.h"

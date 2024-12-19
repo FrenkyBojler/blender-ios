@@ -41,7 +41,7 @@
 
 #ifdef WITH_FFMPEG
 #  include "ffmpeg_swscale.hh"
-#  include "ffmpeg_util.hh"
+#  include "movie_util.hh"
 
 extern "C" {
 #  include <libavcodec/avcodec.h>

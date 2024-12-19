@@ -11,12 +11,10 @@
 #include "IMB_imbuf_enums.h"
 #include "IMB_movie_enums.hh"
 
-struct ImageFormatData;
 struct ImBuf;
 struct ImBufAnim;
 struct IndexBuildContext;
 struct GSet;
-struct RenderData;
 
 /**
  * Defaults to BL_proxy within the directory of the animation.
@@ -100,22 +98,3 @@ ImBuf *IMB_anim_absolute(ImBufAnim *anim,
 ImBuf *IMB_anim_previewframe(ImBufAnim *anim);
 
 void IMB_free_anim(ImBufAnim *anim);
-
-/**
- * Test if the file is a video file (known format, has a video stream and
- * supported video codec).
- */
-bool IMB_isanim(const char *filepath);
-
-void IMB_ffmpeg_init();
-void IMB_ffmpeg_exit();
-
-bool IMB_ffmpeg_alpha_channel_is_supported(int av_codec_id);
-bool IMB_ffmpeg_codec_supports_crf(int av_codec_id);
-void IMB_ffmpeg_image_type_verify(RenderData *rd, const ImageFormatData *imf);
-
-/**
- * Which pixel bit depths are supported by a given video codec.
- * Returns bitmask of `R_IMF_CHAN_DEPTH_` flags.
- */
-int IMB_ffmpeg_valid_bit_depths(int av_codec_id);

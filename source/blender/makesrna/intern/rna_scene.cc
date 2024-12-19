@@ -25,6 +25,8 @@
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
+#include "IMB_movie_enums.hh"
+#include "IMB_movie_util.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -52,8 +54,6 @@
 /* Include for Bake Options */
 #include "RE_engine.h"
 #include "RE_pipeline.h"
-
-#include "IMB_anim.hh"
 
 #include "ED_render.hh"
 #include "ED_transform.hh"

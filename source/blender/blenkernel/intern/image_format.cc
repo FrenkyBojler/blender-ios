@@ -15,9 +15,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
+#include "IMB_movie_util.hh"
 
 #include "BKE_colortools.hh"
 #include "BKE_image_format.hh"
