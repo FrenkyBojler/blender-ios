@@ -507,6 +507,20 @@ void BLI_freelistN(ListBase *listbase)
   BLI_listbase_clear(listbase);
 }
 
+void BLI_deletelist(ListBase *listbase)
+{
+  Link *link, *next;
+
+  link = static_cast<Link *>(listbase->first);
+  while (link) {
+    next = link->next;
+    MEM_delete(link);
+    link = next;
+  }
+
+  BLI_listbase_clear(listbase);
+}
+
 int BLI_listbase_count_at_most(const ListBase *listbase, const int count_max)
 {
   Link *link;
