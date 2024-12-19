@@ -234,6 +234,19 @@ static void wm_event_custom_free(wmEvent *event)
     ListBase *lb = static_cast<ListBase *>(event->customdata);
     WM_drag_free_list(lb);
   }
+#if defined(WITH_INPUT_IME) && defined(WIN32)
+  if (event->custom == EVT_DATA_IME) {
+    /* `customdata` is allocated by #malloc. */
+    wmIMEData *ime_data = static_cast<wmIMEData *>(event->customdata);
+    if (ime_data->str_result != nullptr) {
+      free(ime_data->str_result);
+    }
+    if (ime_data->str_composite != nullptr) {
+      free(ime_data->str_composite);
+    }
+    free(event->customdata);
+  }
+#endif
   else {
     MEM_freeN(event->customdata);
   }
@@ -6196,7 +6209,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       break;
     }
 
-#ifdef WITH_INPUT_IME
+#if defined(WITH_INPUT_IME) && !defined(WIN32)
     case GHOST_kEventImeCompositionStart: {
       event.val = KM_PRESS;
       win->ime_data = static_cast<const wmIMEData *>(customdata);
@@ -6219,7 +6232,31 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       wm_event_add(win, &event);
       break;
     }
-#endif /* WITH_INPUT_IME */
+#endif /* WITH_INPUT_IME && !WIN32 */
+
+#if defined(WITH_INPUT_IME) && defined(WIN32)
+    case GHOST_kEventImeCompositionStart: {
+      event.val = KM_PRESS;
+      event.type = WM_IME_COMPOSITE_START;
+      wm_event_add(win, &event);
+      break;
+    }
+    case GHOST_kEventImeComposition: {
+      event.val = KM_PRESS;
+      event.custom = EVT_DATA_IME;
+      event.customdata = (void *)(customdata);
+      event.customdata_free = true;
+      event.type = WM_IME_COMPOSITE_EVENT;
+      wm_event_add(win, &event);
+      break;
+    }
+    case GHOST_kEventImeCompositionEnd: {
+      event.val = KM_PRESS;
+      event.type = WM_IME_COMPOSITE_END;
+      wm_event_add(win, &event);
+      break;
+    }
+#endif /* WITH_INPUT_IME && WIN32 */
   }
 
 #if 0
