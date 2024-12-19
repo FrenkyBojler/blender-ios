@@ -28,6 +28,9 @@ class SmoothOperation : public CurvesSculptStrokeOperation {
   /** Only used when a 3D brush is used. */
   CurvesBrush3D brush_3d_;
 
+  /** Solver for length and collision constraints. */
+  CurvesConstraintSolver constraint_solver_;
+
   friend struct SmoothOperationExecutor;
 
  public:
@@ -99,6 +102,8 @@ struct SmoothOperationExecutor {
             *ctx_.scene,
             math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
       }
+      self_->constraint_solver_.initialize(
+          *curves_, curve_selection_, curves_id_->flag & CV_SCULPT_COLLISION_ENABLED);
     }
 
     Array<float> point_smooth_factors(curves_->points_num(), 0.0f);
@@ -114,6 +119,14 @@ struct SmoothOperationExecutor {
     }
 
     this->smooth(point_smooth_factors);
+
+    const Mesh *surface = curves_id_->surface && curves_id_->surface->type == OB_MESH ?
+                              static_cast<Mesh *>(curves_id_->surface->data) :
+                              nullptr;
+
+    IndexMaskMemory memory;
+    self_->constraint_solver_.solve_step(*curves_, curves_->curves_range(), surface, transforms_);
+
     curves_->tag_positions_changed();
     DEG_id_tag_update(&curves_id_->id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GEOM | ND_DATA, &curves_id_->id);
