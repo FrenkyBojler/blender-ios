@@ -22,6 +22,22 @@ struct bUserAssetLibrary;
 struct bUserAssetShelfSettings;
 
 /* -------------------------------------------------------------------- */
+/** \name Preferences File
+ * \{ */
+
+/**
+ * Return true if a preferences file exists for this Blender version.
+ */
+
+namespace blender::bke::preferences {
+
+bool exists(void);
+
+}  // namespace blender::bke::preferences
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Assert Libraries
  * \{ */
 
