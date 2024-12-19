@@ -2094,10 +2094,6 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
  */
 static float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::StrokeCache &cache)
 {
-  if (brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
-    return 1.0f;
-  }
-
   const float dir = (brush.flag & BRUSH_DIR_IN) ? -1.0f : 1.0f;
   const float pen_flip = cache.pen_flip ? -1.0f : 1.0f;
   const float invert = cache.invert ? -1.0f : 1.0f;
@@ -2209,11 +2205,11 @@ static float brush_strength(const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_FLATTEN:
       if (flip > 0.0f) {
         overlap = (1.0f + overlap) / 2.0f;
-        return alpha * flip * pressure * overlap * feather;
+        return alpha * pressure * overlap * feather;
       }
       else {
         /* Reduce strength for DEEPEN, PEAKS, and CONTRAST. */
-        return 0.5f * alpha * flip * pressure * overlap * feather;
+        return 0.5f * alpha * pressure * overlap * feather;
       }
 
     case SCULPT_BRUSH_TYPE_SMOOTH:
