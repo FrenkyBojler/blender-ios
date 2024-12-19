@@ -225,7 +225,6 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
                                         affected_strokes,
                                         use_connected_only,
                                         bezier_curves[layer_offset],
-                                        use_individual_origins,
                                         &drawing_falloff);
       layer_offset++;
     }

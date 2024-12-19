@@ -458,7 +458,6 @@ void curve_populate_trans_data_structs(
     const blender::IndexMask &affected_curves,
     bool use_connected_only,
     const blender::IndexMask &bezier_curves,
-    bool is_individual_origin,
     void *extra)
 {
   using namespace blender;
@@ -467,6 +466,7 @@ void curve_populate_trans_data_structs(
   const View3D *v3d = static_cast<const View3D *>(t.view);
   const bool hide_handles = (v3d != nullptr) ? (v3d->overlay.handle_display == CURVE_HANDLE_NONE) :
                                                false;
+  const bool use_individual_origin = (t.around == V3D_AROUND_LOCAL_ORIGINS);
   const Span<float3> point_positions = curves.positions();
   const VArray<bool> point_selection = *curves.attributes().lookup_or_default<bool>(
       ".selection", bke::AttrDomain::Point, true);
@@ -498,7 +498,7 @@ void curve_populate_trans_data_structs(
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   Array<float3> center_point_per_curve(curves.curves_num());
-  if (is_individual_origin) {
+  if (use_individual_origin) {
     affected_curves.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
       const IndexRange points = points_by_curve[curve_i];
       IndexMaskMemory memory;
@@ -530,10 +530,9 @@ void curve_populate_trans_data_structs(
           float3 *elem = &positions[transform_i];
 
           float3 center;
-          const bool use_local_center = hide_handles || (t.around == V3D_AROUND_LOCAL_ORIGINS) ||
-                                        point_selection[domain_i];
+          const bool use_local_center = hide_handles || point_selection[domain_i];
           const int curve_i = point_to_curve_map[domain_i];
-          if (is_individual_origin) {
+          if (use_individual_origin) {
             center = center_point_per_curve[curve_i];
           }
           else if (use_local_center) {
