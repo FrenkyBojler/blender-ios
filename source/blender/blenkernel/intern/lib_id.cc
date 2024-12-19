@@ -974,7 +974,7 @@ static void id_swap(Main *bmain,
   }
 
   if ((id_type->flags & IDTYPE_FLAGS_NO_ANIMDATA) == 0 && bmain) {
-    /* Action Slots point to the IDs they animate, and thus now also need some swappage. Instead of
+    /* Action Slots point to the IDs they animate, and thus now also needs swapping. Instead of
      * doing this here (and requiring knowledge of how that's supposed to be done), just mark these
      * pointers as dirty so that they're rebuilt at first use.
      *
