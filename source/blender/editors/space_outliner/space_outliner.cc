@@ -506,7 +506,7 @@ static void outliner_foreach_id(SpaceLink *space_link, LibraryForeachIDData *dat
       const LibraryForeachIDCallbackFlag cb_flag = (tselem->id != nullptr &&
                                                     allow_pointer_access &&
                                                     (tselem->id->flag & ID_FLAG_EMBEDDED_DATA) !=
-                                                        IDWALK_CB_NOP) ?
+                                                        0) ?
                                                        IDWALK_CB_EMBEDDED_NOT_OWNING :
                                                        IDWALK_CB_NOP;
       BKE_LIB_FOREACHID_PROCESS_ID(data, tselem->id, cb_flag);
