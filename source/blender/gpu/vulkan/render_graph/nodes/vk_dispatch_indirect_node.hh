@@ -81,15 +81,17 @@ class VKDispatchIndirectNode
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines &r_bound_pipelines) override
   {
     vk_pipeline_data_build_commands(command_buffer,
+                                    vk_command_buffer,
                                     data.pipeline_data,
                                     r_bound_pipelines.compute,
                                     VK_PIPELINE_BIND_POINT_COMPUTE,
                                     VK_SHADER_STAGE_COMPUTE_BIT);
-    command_buffer.dispatch_indirect(data.buffer, data.offset);
+    command_buffer.dispatch_indirect(vk_command_buffer, data.buffer, data.offset);
   }
 };
 }  // namespace blender::gpu::render_graph

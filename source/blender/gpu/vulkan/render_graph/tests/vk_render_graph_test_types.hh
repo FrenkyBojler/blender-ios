@@ -28,10 +28,14 @@ class CommandBufferLog : public VKCommandBufferInterface {
   Vector<std::string> &log_;
   bool is_recording_ = false;
   bool is_cpu_synchronizing_ = false;
+  Vector<VKCommandBufferInterface *> secondary_command_buffers_;
 
  public:
   CommandBufferLog(Vector<std::string> &log) : log_(log) {}
-  virtual ~CommandBufferLog() {}
+  virtual ~CommandBufferLog()
+  {
+    secondary_command_buffers_.clear();
+  }
 
   void begin_recording() override
   {
@@ -462,6 +466,17 @@ class CommandBufferLog : public VKCommandBufferInterface {
   void reset_query_pool(VkQueryPool /*vk_query_pool*/,
                         uint32_t /*first_query*/,
                         uint32_t /*query_count*/) override
+  {
+  }
+  Span<VKCommandBufferInterface *> allocate_secondary_command_buffers(
+      uint32_t command_buffer_count) override
+  {
+    secondary_command_buffers_.clear();
+    secondary_command_buffers_.append_n_times(this, command_buffer_count);
+    return secondary_command_buffers_.as_span();
+  }
+  void execute_commands(uint32_t /*command_buffer_count*/,
+                        const VkCommandBuffer * /*p_command_buffers*/) override
   {
   }
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT * /*vk_debug_utils_label*/) override {}

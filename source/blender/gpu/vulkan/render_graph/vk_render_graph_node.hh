@@ -176,6 +176,7 @@ struct VKRenderGraphNode {
    * `VKCommandBuilder::build_node` and `VKCommandBuilder::build_pipeline_barriers.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       VKBoundPipelines &r_bound_pipelines)
   {
     switch (type) {
@@ -185,7 +186,8 @@ struct VKRenderGraphNode {
 #define BUILD_COMMANDS(NODE_TYPE, NODE_CLASS, ATTRIBUTE_NAME) \
   case NODE_TYPE: { \
     NODE_CLASS node_info; \
-    node_info.build_commands(command_buffer, ATTRIBUTE_NAME, r_bound_pipelines); \
+    node_info.build_commands( \
+        command_buffer, vk_command_buffer, ATTRIBUTE_NAME, r_bound_pipelines); \
     break; \
   }
 

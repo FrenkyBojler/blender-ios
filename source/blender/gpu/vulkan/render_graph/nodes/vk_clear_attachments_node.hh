@@ -56,11 +56,12 @@ class VKClearAttachmentsNode : public VKNodeInfo<VKNodeType::CLEAR_ATTACHMENTS,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
     command_buffer.clear_attachments(
-        data.attachment_count, data.attachments, 1, &data.vk_clear_rect);
+        vk_command_buffer, data.attachment_count, data.attachments, 1, &data.vk_clear_rect);
   }
 };
 }  // namespace blender::gpu::render_graph

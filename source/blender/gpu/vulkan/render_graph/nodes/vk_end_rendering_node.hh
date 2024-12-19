@@ -58,15 +58,16 @@ class VKEndRenderingNode : public VKNodeInfo<VKNodeType::END_RENDERING,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
     const bool is_dynamic_rendering = data.vk_render_pass == VK_NULL_HANDLE;
     if (is_dynamic_rendering) {
-      command_buffer.end_rendering();
+      command_buffer.end_rendering(vk_command_buffer);
     }
     else {
-      command_buffer.end_render_pass();
+      command_buffer.end_render_pass(vk_command_buffer);
     }
   }
 };

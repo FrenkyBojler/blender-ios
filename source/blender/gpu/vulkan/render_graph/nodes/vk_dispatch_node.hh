@@ -73,15 +73,18 @@ class VKDispatchNode : public VKNodeInfo<VKNodeType::DISPATCH,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines &r_bound_pipelines) override
   {
     vk_pipeline_data_build_commands(command_buffer,
+                                    vk_command_buffer,
                                     data.pipeline_data,
                                     r_bound_pipelines.compute,
                                     VK_PIPELINE_BIND_POINT_COMPUTE,
                                     VK_SHADER_STAGE_COMPUTE_BIT);
-    command_buffer.dispatch(data.group_count_x, data.group_count_y, data.group_count_z);
+    command_buffer.dispatch(
+        vk_command_buffer, data.group_count_x, data.group_count_y, data.group_count_z);
   }
 };
 }  // namespace blender::gpu::render_graph

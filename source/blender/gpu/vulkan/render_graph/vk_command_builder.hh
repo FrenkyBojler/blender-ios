@@ -182,10 +182,12 @@ class VKCommandBuilder {
    * Post-condition:
    * - `command_buffer` will be in executable state according to
    *   https://docs.vulkan.org/spec/latest/chapters/cmdbuffers.html#commandbuffers-lifecycle
+   *
+   * Returns the primary command buffer that can be submitted.
    */
-  void build_nodes(VKRenderGraph &render_graph,
-                   VKCommandBufferInterface &command_buffer,
-                   Span<NodeHandle> node_handles);
+  VkCommandBuffer build_nodes(VKRenderGraph &render_graph,
+                              VKCommandBufferInterface &command_buffer,
+                              Span<NodeHandle> node_handles);
 
  private:
   /**
@@ -214,11 +216,14 @@ class VKCommandBuilder {
    */
   void sub_builders_init(Span<NodeHandle> node_handles);
 
-  void sub_builders_build_commands(VKRenderGraph &render_graph,
-                                   VKCommandBufferInterface &command_buffer,
-                                   Span<NodeHandle> node_handles);
+  Span<VkCommandBuffer> sub_builders_build_commands(VKRenderGraph &render_graph,
+                                                    VKCommandBufferInterface &command_buffer,
+                                                    Span<NodeHandle> node_handles);
   /** Record the secondary command buffers from the sub builders to the primary command buffer. */
-  void sub_builders_record_to_primary_command_buffer(VKCommandBufferInterface &command_buffer);
+  void sub_builders_record_to_primary_command_buffer(
+      VKCommandBufferInterface &command_buffer,
+      VkCommandBuffer primary_command_buffer,
+      Span<VkCommandBuffer> secondary_command_buffer);
 
   /**
    * Build the commands of the node group provided by the `sub_group` parameter. The commands
@@ -231,6 +236,7 @@ class VKCommandBuilder {
    */
   void sub_builder_build_commands(VKRenderGraph &render_graph,
                                   VKCommandBufferInterface &command_buffer,
+                                  VkCommandBuffer vk_command_buffer,
                                   Span<NodeHandle> node_handles,
                                   const SubBuilder &sub_builder);
 
@@ -244,7 +250,9 @@ class VKCommandBuilder {
                                LayeredImageTracker &layered_tracker,
                                Barrier &r_barrier);
   void reset_barriers(Barrier &r_barrier);
-  void send_pipeline_barriers(VKCommandBufferInterface &command_buffer, const Barrier &barrier);
+  void send_pipeline_barriers(VKCommandBufferInterface &command_buffer,
+                              VkCommandBuffer vk_command_buffer,
+                              const Barrier &barrier);
 
   void add_buffer_barriers(VKRenderGraph &render_graph,
                            NodeHandle node_handle,
@@ -308,13 +316,16 @@ class VKCommandBuilder {
    */
   void activate_debug_group(VKRenderGraph &render_graph,
                             VKCommandBufferInterface &command_buffer,
+                            VkCommandBuffer vk_command_buffer,
                             DebugGroups &debug_groups,
                             NodeHandle node_handle);
 
   /**
    * Make sure no debugging groups are active anymore.
    */
-  void finish_debug_groups(VKCommandBufferInterface &command_buffer, DebugGroups &debug_groups);
+  void finish_debug_groups(VKCommandBufferInterface &command_buffer,
+                           VkCommandBuffer vk_command_buffer,
+                           DebugGroups &debug_groups);
 
  private:
   std::string to_string_barrier(const Barrier &barrier);

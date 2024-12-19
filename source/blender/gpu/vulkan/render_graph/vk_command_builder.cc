@@ -18,17 +18,23 @@ namespace blender::gpu::render_graph {
 /** \name Build nodes
  * \{ */
 
-void VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
-                                   VKCommandBufferInterface &command_buffer,
-                                   Span<NodeHandle> node_handles)
+VkCommandBuffer VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
+                                              VKCommandBufferInterface &command_buffer,
+                                              Span<NodeHandle> node_handles)
 {
   /* Swap chain images layouts needs to be reset as the image layouts are changed externally. */
   render_graph.resources_.reset_image_layouts();
   groups_init(render_graph, node_handles);
   groups_extract_barriers(render_graph, node_handles);
+
   sub_builders_init(node_handles);
-  sub_builders_build_commands(render_graph, command_buffer, node_handles);
-  sub_builders_record_to_primary_command_buffer(command_buffer);
+  Vector<VkCommandBuffer> secondary_command_buffers = sub_builders_build_commands(
+      render_graph, command_buffer, node_handles);
+
+  VkCommandBuffer primary_command_buffer = command_buffer.allocate_primary_command_buffer();
+  sub_builders_record_to_primary_command_buffer(
+      command_buffer, primary_command_buffer, secondary_command_buffers);
+  return primary_command_buffer;
 }
 
 void VKCommandBuilder::groups_init(const VKRenderGraph &render_graph,
@@ -199,21 +205,29 @@ void VKCommandBuilder::sub_builders_init(Span<NodeHandle> /*node_handles*/)
   sub_builders_.append(group_nodes_.index_range());
 }
 
-void VKCommandBuilder::sub_builders_build_commands(VKRenderGraph &render_graph,
-                                                   VKCommandBufferInterface &command_buffer,
-                                                   Span<NodeHandle> node_handles)
+Span<VkCommandBuffer> VKCommandBuilder::sub_builders_build_commands(
+    VKRenderGraph &render_graph,
+    VKCommandBufferInterface &command_buffer,
+    Span<NodeHandle> node_handles)
 {
-  for (const SubBuilder &sub_builder : sub_builders_) {
-    sub_builder_build_commands(render_graph, command_buffer, node_handles, sub_builder);
+  Span<VkCommandBuffer> secondary_command_buffers =
+      command_buffer.allocate_secondary_command_buffers(sub_builders_.size());
+  for (int64_t sub_builder_index : sub_builders_.index_range()) {
+    VkCommandBuffer vk_command_buffer = secondary_command_buffers[sub_builder_index];
+    const SubBuilder sub_builder = sub_builders_[sub_builder_index];
+    sub_builder_build_commands(
+        render_graph, command_buffer, vk_command_buffer, node_handles, sub_builder);
   }
+  return secondary_command_buffers;
 }
 
 void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
                                                   VKCommandBufferInterface &command_buffer,
+                                                  VkCommandBuffer vk_command_buffer,
                                                   Span<NodeHandle> node_handles,
                                                   const SubBuilder &sub_builder)
 {
-  command_buffer.begin_recording();
+  command_buffer.begin_recording(vk_command_buffer);
   DebugGroups debug_groups = {};
   VKBoundPipelines active_pipelines = {};
 
@@ -235,7 +249,7 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
                 << group_node_handles.last() << ", pre_barrier=(" << to_string_barrier(barrier)
                 << ")\n";
 #endif
-      send_pipeline_barriers(command_buffer, barrier);
+      send_pipeline_barriers(command_buffer, vk_command_buffer, barrier);
     }
 
     /* Record group node commands. */
@@ -243,7 +257,8 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
       VKRenderGraphNode &node = render_graph.nodes_[node_handle];
 
       if (G.debug & G_DEBUG_GPU) {
-        activate_debug_group(render_graph, command_buffer, debug_groups, node_handle);
+        activate_debug_group(
+            render_graph, command_buffer, vk_command_buffer, debug_groups, node_handle);
       }
 
       if (node.type == VKNodeType::BEGIN_RENDERING) {
@@ -267,7 +282,7 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
           /* Resume rendering scope. */
           VKRenderGraphNode &rendering_node = render_graph.nodes_[rendering_scope];
           rendering_node.begin_rendering.vk_rendering_info.flags = VK_RENDERING_RESUMING_BIT;
-          rendering_node.build_commands(command_buffer, active_pipelines);
+          rendering_node.build_commands(command_buffer, vk_command_buffer, active_pipelines);
           rendering_active = true;
         }
       }
@@ -281,17 +296,17 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
                 << ", node_type=" << node.type
                 << ", debug group=" << render_graph.full_debug_group(node_handle) << "\n";
 #endif
-      node.build_commands(command_buffer, active_pipelines);
+      node.build_commands(command_buffer, vk_command_buffer, active_pipelines);
     }
 
     if (rendering_active) {
       /* Suspend rendering as the next node group will contain data transfer/dispatch commands. */
       rendering_active = false;
       if (command_buffer.use_dynamic_rendering) {
-        command_buffer.end_rendering();
+        command_buffer.end_rendering(vk_command_buffer);
       }
       else {
-        command_buffer.end_render_pass();
+        command_buffer.end_render_pass(vk_command_buffer);
       }
 
       VKRenderGraphNode &rendering_node = render_graph.nodes_[rendering_scope];
@@ -309,27 +324,29 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
                 << group_node_handles.last() << ", post_barrier=(" << to_string_barrier(barrier)
                 << ")\n";
 #endif
-      send_pipeline_barriers(command_buffer, barrier);
+      send_pipeline_barriers(command_buffer, vk_command_buffer, barrier);
     }
   }
 
-  finish_debug_groups(command_buffer, debug_groups);
+  finish_debug_groups(command_buffer, vk_command_buffer, debug_groups);
 
-  command_buffer.end_recording();
+  command_buffer.end_recording(vk_command_buffer);
 }
 
 void VKCommandBuilder::sub_builders_record_to_primary_command_buffer(
-    VKCommandBufferInterface &command_buffer)
+    VKCommandBufferInterface &command_buffer,
+    VkCommandBuffer primary_command__buffer,
+    Span<VkCommandBuffer> secondary_command_buffers)
 {
-#if 0
-  command_buffer.begin_recording();
-  command_buffer.execute_commands(sub_command_buffers_);
-  command_buffer.end_recording();
-#endif
+  command_buffer.begin_recording(primary_command__buffer);
+  command_buffer.execute_commands(
+      primary_command__buffer, secondary_command_buffers.size(), secondary_command_buffers.data());
+  command_buffer.end_recording(primary_command__buffer);
 }
 
 void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
                                             VKCommandBufferInterface &command_buffer,
+                                            VkCommandBuffer vk_command_buffer,
                                             DebugGroups &debug_groups,
                                             NodeHandle node_handle)
 {
@@ -367,7 +384,7 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
 
   /* Perform the pops from the debug stack. */
   for (int index = 0; index < num_ends; index++) {
-    command_buffer.end_debug_utils_label();
+    command_buffer.end_debug_utils_label(vk_command_buffer);
   }
   debug_groups.debug_level -= num_ends;
 
@@ -381,7 +398,7 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
       const VKRenderGraph::DebugGroup &debug_group = render_graph.debug_.groups[to_group[index]];
       debug_utils_label.pLabelName = debug_group.name.c_str();
       copy_v4_v4(debug_utils_label.color, debug_group.color);
-      command_buffer.begin_debug_utils_label(&debug_utils_label);
+      command_buffer.begin_debug_utils_label(vk_command_buffer, &debug_utils_label);
     }
   }
 
@@ -390,10 +407,11 @@ void VKCommandBuilder::activate_debug_group(VKRenderGraph &render_graph,
 }
 
 void VKCommandBuilder::finish_debug_groups(VKCommandBufferInterface &command_buffer,
+                                           VkCommandBuffer vk_command_buffer,
                                            DebugGroups &debug_groups)
 {
   for (int i = 0; i < debug_groups.debug_level; i++) {
-    command_buffer.end_debug_utils_label();
+    command_buffer.end_debug_utils_label(vk_command_buffer);
   }
   debug_groups = {};
 }
@@ -421,6 +439,7 @@ void VKCommandBuilder::reset_barriers(Barrier &r_barrier)
 }
 
 void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_buffer,
+                                              VkCommandBuffer vk_command_buffer,
                                               const Barrier &barrier)
 {
   if (barrier.buffer_memory_barriers.is_empty() && barrier.image_memory_barriers.is_empty()) {
@@ -437,7 +456,8 @@ void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_
   Span<VkImageMemoryBarrier> image_barriers = vk_image_memory_barriers_.as_span().slice(
       barrier.image_memory_barriers);
 
-  command_buffer.pipeline_barrier(src_stage_mask,
+  command_buffer.pipeline_barrier(vk_command_buffer,
+                                  src_stage_mask,
                                   barrier.dst_stage_mask,
                                   VK_DEPENDENCY_BY_REGION_BIT,
                                   0,

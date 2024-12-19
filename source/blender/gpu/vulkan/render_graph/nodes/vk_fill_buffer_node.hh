@@ -53,10 +53,11 @@ class VKFillBufferNode : public VKNodeInfo<VKNodeType::FILL_BUFFER,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.fill_buffer(data.vk_buffer, 0, data.size, data.data);
+    command_buffer.fill_buffer(vk_command_buffer, data.vk_buffer, 0, data.size, data.data);
   }
 };
 }  // namespace blender::gpu::render_graph

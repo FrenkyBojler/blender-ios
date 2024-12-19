@@ -55,10 +55,12 @@ class VKUpdateBufferNode : public VKNodeInfo<VKNodeType::UPDATE_BUFFER,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.update_buffer(data.dst_buffer, data.dst_offset, data.data_size, data.data);
+    command_buffer.update_buffer(
+        vk_command_buffer, data.dst_buffer, data.dst_offset, data.data_size, data.data);
   }
 
   void free_data(Data &data)

@@ -103,6 +103,7 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src);
  * `vk_shader_stage_flags`.
  */
 void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
+                                     VkCommandBuffer vk_command_buffer,
                                      const VKPipelineData &pipeline_data,
                                      VKBoundPipeline &r_bound_pipeline,
                                      VkPipelineBindPoint vk_pipeline_bind_point,
@@ -117,12 +118,14 @@ void vk_index_buffer_binding_build_links(VKResourceStateTracker &resources,
                                          VKRenderGraphNodeLinks &node_links,
                                          const VKIndexBufferBinding &index_buffer_binding);
 void vk_index_buffer_binding_build_commands(VKCommandBufferInterface &command_buffer,
+                                            VkCommandBuffer vk_command_buffer,
                                             const VKIndexBufferBinding &index_buffer_binding,
                                             VKIndexBufferBinding &r_bound_index_buffer);
 void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
                                            VKRenderGraphNodeLinks &node_links,
                                            const VKVertexBufferBindings &vertex_buffer_bindings);
 void vk_vertex_buffer_bindings_build_commands(VKCommandBufferInterface &command_buffer,
+                                              VkCommandBuffer vk_command_buffer,
                                               const VKVertexBufferBindings &vertex_buffer_bindings,
                                               VKVertexBufferBindings &r_bound_vertex_buffers);
 

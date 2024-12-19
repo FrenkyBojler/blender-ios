@@ -93,6 +93,7 @@ class VKBeginRenderingNode : public VKNodeInfo<VKNodeType::BEGIN_RENDERING,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
@@ -110,10 +111,10 @@ class VKBeginRenderingNode : public VKNodeInfo<VKNodeType::BEGIN_RENDERING,
       if (data.vk_rendering_info.pStencilAttachment) {
         data.vk_rendering_info.pStencilAttachment = &data.stencil_attachment;
       }
-      command_buffer.begin_rendering(&data.vk_rendering_info);
+      command_buffer.begin_rendering(vk_command_buffer, &data.vk_rendering_info);
     }
     else {
-      command_buffer.begin_render_pass(&data.vk_render_pass_begin_info);
+      command_buffer.begin_render_pass(vk_command_buffer, &data.vk_render_pass_begin_info);
     }
   }
 };

@@ -59,10 +59,12 @@ class VKResetQueryPoolNode : public VKNodeInfo<VKNodeType::RESET_QUERY_POOL,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.reset_query_pool(data.vk_query_pool, data.first_query, data.query_count);
+    command_buffer.reset_query_pool(
+        vk_command_buffer, data.vk_query_pool, data.first_query, data.query_count);
   }
 };
 }  // namespace blender::gpu::render_graph

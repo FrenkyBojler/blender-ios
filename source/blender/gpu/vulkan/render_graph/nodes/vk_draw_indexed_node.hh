@@ -69,19 +69,26 @@ class VKDrawIndexedNode : public VKNodeInfo<VKNodeType::DRAW_INDEXED,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines &r_bound_pipelines) override
   {
     vk_pipeline_data_build_commands(command_buffer,
+                                    vk_command_buffer,
                                     data.pipeline_data,
                                     r_bound_pipelines.graphics.pipeline,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     VK_SHADER_STAGE_ALL_GRAPHICS);
-    vk_index_buffer_binding_build_commands(
-        command_buffer, data.index_buffer, r_bound_pipelines.graphics.index_buffer);
-    vk_vertex_buffer_bindings_build_commands(
-        command_buffer, data.vertex_buffers, r_bound_pipelines.graphics.vertex_buffers);
-    command_buffer.draw_indexed(data.index_count,
+    vk_index_buffer_binding_build_commands(command_buffer,
+                                           vk_command_buffer,
+                                           data.index_buffer,
+                                           r_bound_pipelines.graphics.index_buffer);
+    vk_vertex_buffer_bindings_build_commands(command_buffer,
+                                             vk_command_buffer,
+                                             data.vertex_buffers,
+                                             r_bound_pipelines.graphics.vertex_buffers);
+    command_buffer.draw_indexed(vk_command_buffer,
+                                data.index_count,
                                 data.instance_count,
                                 data.first_index,
                                 data.vertex_offset,

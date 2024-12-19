@@ -64,6 +64,7 @@ class VKUpdateMipmapsNode : public VKNodeInfo<VKNodeType::UPDATE_MIPMAPS,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
@@ -99,7 +100,8 @@ class VKUpdateMipmapsNode : public VKNodeInfo<VKNodeType::UPDATE_MIPMAPS,
 
       /* Update the source mipmap level to be in src optimal layout. */
       image_memory_barrier.subresourceRange.baseMipLevel = src_mipmap;
-      command_buffer.pipeline_barrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+      command_buffer.pipeline_barrier(vk_command_buffer,
+                                      VK_PIPELINE_STAGE_TRANSFER_BIT,
                                       VK_PIPELINE_STAGE_TRANSFER_BIT,
                                       VK_DEPENDENCY_BY_REGION_BIT,
                                       0,
@@ -114,7 +116,8 @@ class VKUpdateMipmapsNode : public VKNodeInfo<VKNodeType::UPDATE_MIPMAPS,
       image_blit.srcOffsets[1] = {src_size.x, src_size.y, src_size.z};
       image_blit.dstSubresource.mipLevel = dst_mipmap;
       image_blit.dstOffsets[1] = {dst_size.x, dst_size.y, dst_size.z};
-      command_buffer.blit_image(data.vk_image,
+      command_buffer.blit_image(vk_command_buffer,
+                                data.vk_image,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 data.vk_image,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -129,7 +132,8 @@ class VKUpdateMipmapsNode : public VKNodeInfo<VKNodeType::UPDATE_MIPMAPS,
     image_memory_barrier.subresourceRange.levelCount = data.mipmaps - 1;
     image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    command_buffer.pipeline_barrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+    command_buffer.pipeline_barrier(vk_command_buffer,
+                                    VK_PIPELINE_STAGE_TRANSFER_BIT,
                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
                                     VK_DEPENDENCY_BY_REGION_BIT,
                                     0,

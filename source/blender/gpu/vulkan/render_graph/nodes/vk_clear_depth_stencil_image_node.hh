@@ -69,10 +69,12 @@ class VKClearDepthStencilImageNode : public VKNodeInfo<VKNodeType::CLEAR_DEPTH_S
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.clear_depth_stencil_image(data.vk_image,
+    command_buffer.clear_depth_stencil_image(vk_command_buffer,
+                                             data.vk_image,
                                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                              &data.vk_clear_depth_stencil_value,
                                              1,

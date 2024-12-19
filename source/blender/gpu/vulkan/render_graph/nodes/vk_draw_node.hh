@@ -66,19 +66,26 @@ class VKDrawNode : public VKNodeInfo<VKNodeType::DRAW,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines &r_bound_pipelines) override
   {
     vk_pipeline_data_build_commands(command_buffer,
+                                    vk_command_buffer,
                                     data.pipeline_data,
                                     r_bound_pipelines.graphics.pipeline,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     VK_SHADER_STAGE_ALL_GRAPHICS);
-    vk_vertex_buffer_bindings_build_commands(
-        command_buffer, data.vertex_buffers, r_bound_pipelines.graphics.vertex_buffers);
+    vk_vertex_buffer_bindings_build_commands(command_buffer,
+                                             vk_command_buffer,
+                                             data.vertex_buffers,
+                                             r_bound_pipelines.graphics.vertex_buffers);
 
-    command_buffer.draw(
-        data.vertex_count, data.instance_count, data.first_vertex, data.first_instance);
+    command_buffer.draw(vk_command_buffer,
+                        data.vertex_count,
+                        data.instance_count,
+                        data.first_vertex,
+                        data.first_instance);
   }
 
   void free_data(Data &data)

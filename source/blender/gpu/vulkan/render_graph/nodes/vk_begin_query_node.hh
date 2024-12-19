@@ -59,10 +59,12 @@ class VKBeginQueryNode : public VKNodeInfo<VKNodeType::BEGIN_QUERY,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.begin_query(data.vk_query_pool, data.query_index, data.vk_query_control_flags);
+    command_buffer.begin_query(
+        vk_command_buffer, data.vk_query_pool, data.query_index, data.vk_query_control_flags);
   }
 };
 }  // namespace blender::gpu::render_graph

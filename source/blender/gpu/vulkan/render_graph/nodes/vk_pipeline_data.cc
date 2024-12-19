@@ -24,19 +24,22 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
 }
 
 void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
+                                     VkCommandBuffer vk_command_buffer,
                                      const VKPipelineData &pipeline_data,
                                      VKBoundPipeline &r_bound_pipeline,
                                      VkPipelineBindPoint vk_pipeline_bind_point,
                                      VkShaderStageFlags vk_shader_stage_flags)
 {
   if (assign_if_different(r_bound_pipeline.vk_pipeline, pipeline_data.vk_pipeline)) {
-    command_buffer.bind_pipeline(vk_pipeline_bind_point, r_bound_pipeline.vk_pipeline);
+    command_buffer.bind_pipeline(
+        vk_command_buffer, vk_pipeline_bind_point, r_bound_pipeline.vk_pipeline);
   }
 
   if (assign_if_different(r_bound_pipeline.vk_descriptor_set, pipeline_data.vk_descriptor_set) &&
       r_bound_pipeline.vk_descriptor_set != VK_NULL_HANDLE)
   {
-    command_buffer.bind_descriptor_sets(vk_pipeline_bind_point,
+    command_buffer.bind_descriptor_sets(vk_command_buffer,
+                                        vk_pipeline_bind_point,
                                         pipeline_data.vk_pipeline_layout,
                                         0,
                                         1,
@@ -46,7 +49,8 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
   }
 
   if (pipeline_data.push_constants_size) {
-    command_buffer.push_constants(pipeline_data.vk_pipeline_layout,
+    command_buffer.push_constants(vk_command_buffer,
+                                  pipeline_data.vk_pipeline_layout,
                                   vk_shader_stage_flags,
                                   0,
                                   pipeline_data.push_constants_size,
@@ -68,12 +72,13 @@ void vk_index_buffer_binding_build_links(VKResourceStateTracker &resources,
 }
 
 void vk_index_buffer_binding_build_commands(VKCommandBufferInterface &command_buffer,
+                                            VkCommandBuffer vk_command_buffer,
                                             const VKIndexBufferBinding &index_buffer_binding,
                                             VKIndexBufferBinding &r_bound_index_buffer)
 {
   if (assign_if_different(r_bound_index_buffer, index_buffer_binding)) {
     command_buffer.bind_index_buffer(
-        r_bound_index_buffer.buffer, 0, r_bound_index_buffer.index_type);
+        vk_command_buffer, r_bound_index_buffer.buffer, 0, r_bound_index_buffer.index_type);
   }
 }
 
@@ -90,13 +95,15 @@ void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
 }
 
 void vk_vertex_buffer_bindings_build_commands(VKCommandBufferInterface &command_buffer,
+                                              VkCommandBuffer vk_command_buffer,
                                               const VKVertexBufferBindings &vertex_buffer_bindings,
                                               VKVertexBufferBindings &r_bound_vertex_buffers)
 {
   if (assign_if_different(r_bound_vertex_buffers, vertex_buffer_bindings) &&
       r_bound_vertex_buffers.buffer_count)
   {
-    command_buffer.bind_vertex_buffers(0,
+    command_buffer.bind_vertex_buffers(vk_command_buffer,
+                                       0,
                                        r_bound_vertex_buffers.buffer_count,
                                        r_bound_vertex_buffers.buffer,
                                        r_bound_vertex_buffers.offset);

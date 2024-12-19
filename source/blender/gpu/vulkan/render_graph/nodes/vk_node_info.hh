@@ -207,6 +207,7 @@ class VKNodeInfo : public NonCopyable {
    * cases. The test cases will validate the log to find out if the correct commands where added.
    */
   virtual void build_commands(VKCommandBufferInterface &command_buffer,
+                              VkCommandBuffer vk_command_buffer,
                               Data &data,
                               VKBoundPipelines &r_bound_pipelines) = 0;
 };

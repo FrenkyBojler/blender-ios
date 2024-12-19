@@ -69,11 +69,16 @@ class VKCopyImageToBufferNode : public VKNodeInfo<VKNodeType::COPY_IMAGE_TO_BUFF
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.copy_image_to_buffer(
-        data.src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, data.dst_buffer, 1, &data.region);
+    command_buffer.copy_image_to_buffer(vk_command_buffer,
+                                        data.src_image,
+                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                        data.dst_buffer,
+                                        1,
+                                        &data.region);
   }
 };
 }  // namespace blender::gpu::render_graph

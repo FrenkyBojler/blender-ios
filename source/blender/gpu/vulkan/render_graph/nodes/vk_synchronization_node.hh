@@ -61,10 +61,11 @@ class VKSynchronizationNode : public VKNodeInfo<VKNodeType::SYNCHRONIZATION,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    UNUSED_VARS(command_buffer, data);
+    UNUSED_VARS(command_buffer, vk_command_buffer, data);
     /* Intentionally left empty: A pipeline barrier has already been send to the command buffer.
      */
   }

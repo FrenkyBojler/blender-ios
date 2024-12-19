@@ -70,10 +70,12 @@ class VKBlitImageNode : public VKNodeInfo<VKNodeType::BLIT_IMAGE,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.blit_image(data.src_image,
+    command_buffer.blit_image(vk_command_buffer,
+                              data.src_image,
                               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                               data.dst_image,
                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,

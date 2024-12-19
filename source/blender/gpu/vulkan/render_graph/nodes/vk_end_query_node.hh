@@ -58,10 +58,11 @@ class VKEndQueryNode : public VKNodeInfo<VKNodeType::END_QUERY,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
+                      VkCommandBuffer vk_command_buffer,
                       Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.end_query(data.vk_query_pool, data.query_index);
+    command_buffer.end_query(vk_command_buffer, data.vk_query_pool, data.query_index);
   }
 };
 }  // namespace blender::gpu::render_graph
