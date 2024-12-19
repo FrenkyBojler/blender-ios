@@ -470,8 +470,9 @@ void curve_populate_trans_data_structs(
   const Span<float3> point_positions = curves.positions();
   const VArray<bool> point_selection = *curves.attributes().lookup_or_default<bool>(
       ".selection", bke::AttrDomain::Point, true);
-  std::array<MutableSpan<float3>, 3> positions_per_selection_attr;
+  const VArray<int8_t> curve_types = curves.curve_types();
 
+  std::array<MutableSpan<float3>, 3> positions_per_selection_attr;
   for (const int selection_i : points_to_transform_per_attr.index_range()) {
     positions_per_selection_attr[selection_i] =
         ed::transform::curves::append_positions_to_custom_data(
@@ -526,13 +527,14 @@ void curve_populate_trans_data_structs(
 
     points_to_transform.foreach_index(
         GrainSize(1024), [&](const int64_t domain_i, const int64_t transform_i) {
+          const int curve_i = point_to_curve_map[domain_i];
+
           TransData &td = tc_data[transform_i];
           float3 *elem = &positions[transform_i];
 
           float3 center;
           const bool use_local_center = hide_handles || point_selection[domain_i];
-          const int curve_i = point_to_curve_map[domain_i];
-          if (use_individual_origin) {
+          if (use_individual_origin && !(curve_types[curve_i] == CURVE_TYPE_BEZIER)) {
             center = center_point_per_curve[curve_i];
           }
           else if (use_local_center) {
@@ -573,7 +575,6 @@ void curve_populate_trans_data_structs(
         });
   }
   if (use_connected_only) {
-    const VArray<int8_t> curve_types = curves.curve_types();
     Array<int> bezier_offsets_in_td(curves.curves_num() + 1, 0);
     offset_indices::copy_group_sizes(points_by_curve, bezier_curves, bezier_offsets_in_td);
     offset_indices::accumulate_counts_to_offsets(bezier_offsets_in_td);
