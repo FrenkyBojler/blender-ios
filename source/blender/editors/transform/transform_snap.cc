@@ -1623,7 +1623,7 @@ bool peelObjectsTransform(TransInfo *t,
     r_no[1] = 0.0;
     r_no[2] = 1.0;
 
-    BLI_freelistN(&depths_peel);
+    BLI_deletelist(&depths_peel);
     return true;
   }
   return false;
