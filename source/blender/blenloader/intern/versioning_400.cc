@@ -50,6 +50,7 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -3296,38 +3297,42 @@ static void version_node_locations_to_global(bNodeTree &ntree)
   }
 }
 
+static CustomDataLayer *find_old_seam_layer(CustomData &custom_data, const blender::StringRef name)
+{
+  for (CustomDataLayer &layer : blender::MutableSpan(custom_data.layers, custom_data.totlayer)) {
+    if (layer.name == name) {
+      return &layer;
+    }
+  }
+  return nullptr;
+}
+
 static void rename_mesh_uv_seam_attribute(Mesh &mesh)
 {
   using namespace blender;
-  /* Skip renaming the ".uv_seam" attribute if a "uv_seam" attribute already exists. In the
-   * unlikely case a user already made an attribute with the new name, it's probably better to use
-   * that instead. */
+  CustomDataLayer *old_seam_layer = find_old_seam_layer(mesh.edge_data, ".uv_seam");
+  if (!old_seam_layer) {
+    return;
+  }
+  Set<StringRef> names;
   for (const CustomDataLayer &layer : Span(mesh.vert_data.layers, mesh.vert_data.totlayer)) {
-    if (STREQ(layer.name, "uv_seam")) {
-      return;
-    }
+    names.add_new(layer.name);
   }
   for (const CustomDataLayer &layer : Span(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
-    if (STREQ(layer.name, "uv_seam")) {
-      return;
-    }
+    names.add_new(layer.name);
   }
   for (const CustomDataLayer &layer : Span(mesh.face_data.layers, mesh.face_data.totlayer)) {
-    if (STREQ(layer.name, "uv_seam")) {
-      return;
-    }
+    names.add_new(layer.name);
   }
   for (const CustomDataLayer &layer : Span(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
-    if (STREQ(layer.name, "uv_seam")) {
-      return;
-    }
+    names.add_new(layer.name);
   }
-  for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
-    if (STREQ(layer.name, ".uv_seam")) {
-      STRNCPY(layer.name, "uv_seam");
-      return;
-    }
-  }
+
+  /* If the new UV name is already taken, still rename the attribute so it becomes visible in the
+   * list. Then the user can deal with the name conflict themselves. */
+  const std::string new_name = BLI_uniquename_cb(
+      [&](const StringRef name) { return names.contains(name); }, '.', "uv_seam");
+  STRNCPY(old_seam_layer->name, new_name.c_str());
 }
 
 /**

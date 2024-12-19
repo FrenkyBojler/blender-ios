@@ -37,6 +37,7 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -263,13 +264,45 @@ static void mesh_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   }
 }
 
-static void rename_to_old_attribute_names(MutableSpan<CustomDataLayer> layers)
+static void rename_seam_layer_to_old_name(const Span<CustomDataLayer> vert_layers,
+                                          MutableSpan<CustomDataLayer> edge_layers,
+                                          const Span<CustomDataLayer> face_layers,
+                                          const Span<CustomDataLayer> corner_layers)
 {
-  for (CustomDataLayer &layer : layers) {
-    if (STREQ(layer.name, "uv_seam")) {
-      STRNCPY(layer.name, ".uv_seam");
+  CustomDataLayer *seam_layer = nullptr;
+  for (CustomDataLayer &layer : edge_layers) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+    if (layer.type == CD_PROP_BOOL && STREQ(layer.name, "uv_seam")) {
+      seam_layer = &layer;
     }
   }
+
+  if (!seam_layer) {
+    return;
+  }
+
+  /* Current files are not expected to have a ".uv_seam" attribute (the old name) except in the
+   * rare case users created it themselves. If that happens, avoid renaming the current UV seam
+   * attribute so that at least it's not hidden in the old version. */
+  for (const CustomDataLayer &layer : vert_layers) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+  }
+  for (const CustomDataLayer &layer : face_layers) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+  }
+  for (const CustomDataLayer &layer : corner_layers) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+  }
+
+  STRNCPY(seam_layer->name, ".uv_seam");
 }
 
 static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -311,7 +344,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
     if (!is_undo) {
       /* Write forward compatible format. To be removed in 5.0. */
-      rename_to_old_attribute_names(edge_layers);
+      rename_seam_layer_to_old_name(vert_layers, edge_layers, face_layers, loop_layers);
       mesh_sculpt_mask_to_legacy(vert_layers);
       mesh_custom_normals_to_legacy(loop_layers);
     }
