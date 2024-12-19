@@ -6,6 +6,8 @@
  * \ingroup gpu
  */
 
+#include "BLI_task.hh"
+
 #include "vk_command_builder.hh"
 #include "vk_render_graph.hh"
 #include "vk_to_string.hh"
@@ -27,7 +29,7 @@ VkCommandBuffer VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
   groups_init(render_graph, node_handles);
   groups_extract_barriers(render_graph, node_handles);
 
-  sub_builders_init(node_handles);
+  sub_builders_init(render_graph, node_handles);
   Span<VkCommandBuffer> secondary_command_buffers =
       command_buffer.allocate_secondary_command_buffers(sub_builders_.size());
   sub_builders_build_commands(
@@ -199,27 +201,69 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
   BLI_assert(group_post_barriers_.size() == group_nodes_.size());
 }
 
-void VKCommandBuilder::sub_builders_init(Span<NodeHandle> /*node_handles*/)
+void VKCommandBuilder::sub_builders_init(const VKRenderGraph &render_graph,
+                                         Span<NodeHandle> node_handles)
 {
-  /* Currently only use a single thread. For multithreaded approach we should use multiple
-   * SubBuilders. Split by the amount of nodes added to the sub_builder. The sub builder should
-   * eventually put all commands in the same order to the queue.*/
   sub_builders_.clear();
-  sub_builders_.append(group_nodes_.index_range());
+  IndexRange current_range;
+  int64_t node_count = 0;
+
+  constexpr int64_t min_size = 100;
+
+  for (const IndexRange &group_range : group_nodes_) {
+    current_range = IndexRange::from_begin_size(current_range.start(), current_range.size() + 1);
+    node_count += group_range.size();
+
+    /* Check for minimum number of nodes to add to a single sub builder. */
+    if (node_count < min_size) {
+      continue;
+    }
+
+    // TODO: Split immediately when outside a rendering scope, eg performing many data
+    // transfer/compute commands.
+    /* Only split right after an END_RENDERING to reduce complexity when state tracking. It also
+     * removed the need to construct an inheritance struct. */
+    NodeHandle node_handle = node_handles[group_range.last()];
+    const VKRenderGraphNode &node = render_graph.nodes_[node_handle];
+    if (node.type != VKNodeType::END_RENDERING) {
+      continue;
+    }
+
+    sub_builders_.append(current_range);
+    current_range = IndexRange::from_begin_size(current_range.one_after_last(), 0);
+    node_count = 0;
+  }
+
+  if (!current_range.is_empty()) {
+    sub_builders_.append(current_range);
+  }
 }
 
-void VKCommandBuilder::sub_builders_build_commands(
-    VKRenderGraph &render_graph,
-    VKCommandBufferInterface &command_buffer,
-    Span<VkCommandBuffer> secondary_command_buffers,
-    Span<NodeHandle> node_handles)
+void VKCommandBuilder::sub_builders_build_commands(VKRenderGraph &render_graph,
+                                                   VKCommandBufferInterface &command_buffer,
+                                                   Span<VkCommandBuffer> secondary_command_buffers,
+                                                   Span<NodeHandle> node_handles)
 {
+  /* */
+#if 1
   for (int64_t sub_builder_index : sub_builders_.index_range()) {
     VkCommandBuffer vk_command_buffer = secondary_command_buffers[sub_builder_index];
     const SubBuilder sub_builder = sub_builders_[sub_builder_index];
     sub_builder_build_commands(
         render_graph, command_buffer, vk_command_buffer, node_handles, sub_builder);
   }
+#else
+  blender::threading::parallel_for(
+      sub_builders_.index_range(), 1, [&](IndexRange sub_builder_range) {
+        // TODO: command pools should be kept per thread.
+        for (int64_t sub_builder_index : sub_builder_range) {
+          VkCommandBuffer vk_command_buffer = secondary_command_buffers[sub_builder_index];
+          const SubBuilder sub_builder = sub_builders_[sub_builder_index];
+          sub_builder_build_commands(
+              render_graph, command_buffer, vk_command_buffer, node_handles, sub_builder);
+        }
+      });
+#endif
 }
 
 void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
@@ -301,7 +345,8 @@ void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
     }
 
     if (rendering_active) {
-      /* Suspend rendering as the next node group will contain data transfer/dispatch commands. */
+      /* Suspend rendering as the next node group will contain data transfer/dispatch commands.
+       */
       rendering_active = false;
       if (command_buffer.use_dynamic_rendering) {
         command_buffer.end_rendering(vk_command_buffer);

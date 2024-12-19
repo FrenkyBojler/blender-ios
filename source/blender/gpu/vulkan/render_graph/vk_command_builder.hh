@@ -214,7 +214,7 @@ class VKCommandBuilder {
    * Currently will only create a single sub_builder but will eventually split node handles into
    * multiple SubBuffers so we can multi-thread the command building.
    */
-  void sub_builders_init(Span<NodeHandle> node_handles);
+  void sub_builders_init(const VKRenderGraph &render_graph, Span<NodeHandle> node_handles);
 
   void sub_builders_build_commands(VKRenderGraph &render_graph,
                                    VKCommandBufferInterface &command_buffer,

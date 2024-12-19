@@ -420,7 +420,10 @@ Span<VkCommandBuffer> VKCommandBufferWrapper::allocate_secondary_command_buffers
 {
   VKDevice &device = VKBackend::get().device;
   ensure_command_buffer_pool(device);
+
   IndexRange range = IndexRange::from_begin_size(command_buffers_.size(), command_buffer_count);
+  // TODO: +1 for storing the primary command buffer later on :-(
+  command_buffers_.reserve(command_buffers_.size() + command_buffer_count + 1);
   VkCommandBuffer *command_buffers = command_buffers_.end();
   command_buffers_.append_n_times(VK_NULL_HANDLE, command_buffer_count);
 
