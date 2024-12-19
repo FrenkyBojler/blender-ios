@@ -163,6 +163,7 @@ const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
     {SCULPT_BRUSH_TYPE_FLATTEN, "FLATTEN", 0, "Flatten", ""},
     {SCULPT_BRUSH_TYPE_FILL, "FILL", 0, "Fill", ""},
     {SCULPT_BRUSH_TYPE_SCRAPE, "SCRAPE", 0, "Scrape", ""},
+    {SCULPT_BRUSH_TYPE_PLANE, "PLANE", 0, "Plane", ""},
     {SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE, "MULTIPLANE_SCRAPE", 0, "Multi-plane Scrape", ""},
     {SCULPT_BRUSH_TYPE_PINCH, "PINCH", 0, "Pinch", ""},
     RNA_ENUM_ITEM_SEPR,
