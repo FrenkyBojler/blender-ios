@@ -136,6 +136,7 @@ blender::gpu::Batch *DRW_curves_batch_cache_get_edit_points(Curves *curves);
 blender::gpu::Batch *DRW_curves_batch_cache_get_sculpt_curves_cage(Curves *curves);
 blender::gpu::Batch *DRW_curves_batch_cache_get_edit_curves_handles(Curves *curves);
 blender::gpu::Batch *DRW_curves_batch_cache_get_edit_curves_lines(Curves *curves);
+blender::gpu::Batch *DRW_curves_batch_cache_get_edit_bezier_segments(Curves *curves);
 
 void DRW_curves_batch_cache_create_requested(Object *ob);
 

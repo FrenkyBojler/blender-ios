@@ -88,6 +88,10 @@ struct CurvesBatchCache {
 
   gpu::IndexBuf *edit_handles_ibo;
 
+  gpu::Batch *edit_bezier_segments;
+  gpu::VertBuf *edit_bezier_segment_data;
+  gpu::IndexBuf *edit_bezier_segment_ibo;
+
   gpu::Batch *edit_curves_lines;
   gpu::VertBuf *edit_curves_lines_pos;
   gpu::IndexBuf *edit_curves_lines_ibo;
@@ -167,6 +171,10 @@ static void clear_edit_data(CurvesBatchCache *cache)
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_curves_lines_pos);
   GPU_INDEXBUF_DISCARD_SAFE(cache->edit_curves_lines_ibo);
   GPU_BATCH_DISCARD_SAFE(cache->edit_curves_lines);
+
+  GPU_VERTBUF_DISCARD_SAFE(cache->edit_bezier_segment_data);
+  GPU_INDEXBUF_DISCARD_SAFE(cache->edit_bezier_segment_ibo);
+  GPU_BATCH_DISCARD_SAFE(cache->edit_bezier_segments);
 }
 
 static void clear_final_data(CurvesEvalFinalCache &final_cache)
@@ -970,6 +978,12 @@ gpu::Batch *DRW_curves_batch_cache_get_edit_curves_lines(Curves *curves)
   return DRW_batch_request(&cache.edit_curves_lines);
 }
 
+gpu::Batch *DRW_curves_batch_cache_get_edit_bezier_segments(Curves *curves)
+{
+  CurvesBatchCache &cache = get_batch_cache(*curves);
+  return DRW_batch_request(&cache.edit_bezier_segments);
+}
+
 gpu::VertBuf **DRW_curves_texture_for_evaluated_attribute(Curves *curves,
                                                           const char *name,
                                                           bool *r_is_point_domain)
@@ -1007,18 +1021,25 @@ static void create_edit_lines_ibo(const bke::CurvesGeometry &curves, CurvesBatch
 {
   const OffsetIndices points_by_curve = curves.evaluated_points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
+  const VArray<int8_t> curve_types = curves.curve_types();
 
   int edges_len = 0;
   for (const int i : curves.curves_range()) {
-    edges_len += bke::curves::segments_num(points_by_curve[i].size(), cyclic[i]);
+    if (curve_types[i] != CURVE_TYPE_BEZIER) {
+      edges_len += bke::curves::segments_num(points_by_curve[i].size(), cyclic[i]);
+    }
   }
 
-  const int index_len = edges_len + curves.curves_num() * 2;
+  const int non_bezier_num = curves.curves_num() - curves.curve_type_counts()[CURVE_TYPE_BEZIER];
+  const int index_len = edges_len + non_bezier_num * 2;
 
   GPUIndexBufBuilder elb;
   GPU_indexbuf_init_ex(&elb, GPU_PRIM_LINE_STRIP, index_len, points_by_curve.total_size());
 
   for (const int i : curves.curves_range()) {
+    if (curve_types[i] == CURVE_TYPE_BEZIER) {
+      continue;
+    }
     const IndexRange points = points_by_curve[i];
     if (cyclic[i] && points.size() > 1) {
       GPU_indexbuf_add_generic_vert(&elb, points.last());
@@ -1047,6 +1068,84 @@ static void create_edit_points_position_vbo(
   GPU_vertbuf_init_with_format(*cache.edit_curves_lines_pos, format);
   GPU_vertbuf_data_alloc(*cache.edit_curves_lines_pos, positions.size());
   GPU_vertbuf_attr_fill(cache.edit_curves_lines_pos, attr_id, positions.data());
+}
+
+/* MUST match the format below. */
+struct BezierSegmentVert {
+  /** Indices of [point, point's right handle, next point's left handle, next point]. */
+  int32_t point_indices[4];
+
+  int32_t first_vertex_id;
+  int32_t resolution;
+};
+
+static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves,
+                                               const IndexMask &bezier_curves,
+                                               const OffsetIndices<int> bezier_offsets,
+                                               CurvesBatchCache &cache)
+{
+  static GPUVertFormat format_segments = []() {
+    GPUVertFormat format{};
+    GPU_vertformat_attr_add(&format, "segments", GPU_COMP_I32, 4, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "first_id", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "resolution", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    return format;
+  }();
+
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  const VArray<bool> cyclic = curves.cyclic();
+  const VArray<int> resolution = curves.resolution();
+  const int left_handle_offset = points_by_curve.total_size();
+  const int right_handle_offset = left_handle_offset + bezier_offsets.total_size();
+
+  Vector<int> segment_line_offsets({0});
+  Vector<BezierSegmentVert> segment_data;
+
+  bezier_curves.foreach_index([&](const int64_t curve, const int64_t bezier_curve) {
+    const IndexRange points = points_by_curve[curve];
+    const IndexRange bezier_points = bezier_offsets[bezier_curve];
+    const int segment_count = points.size() - 1 + cyclic[curve];
+
+    for (const int segment : IndexRange(segment_count)) {
+      BezierSegmentVert seg_data{{int32_t(points[segment]),
+                                  int32_t(right_handle_offset + bezier_points[segment]),
+                                  int32_t(left_handle_offset + bezier_points[segment] + 1),
+                                  int32_t(points[segment] + 1)},
+                                 segment_line_offsets.as_span().last(),
+                                 resolution[curve]};
+      segment_data.append(seg_data);
+      segment_line_offsets.append(segment_line_offsets.last() + resolution[curve] * 2);
+    }
+    if (cyclic[curve]) {
+      BezierSegmentVert &last = segment_data.last();
+      last.point_indices[2] = left_handle_offset + bezier_points[0];
+      last.point_indices[3] = points[0];
+    }
+  });
+  Array<int> vertex_to_segment(segment_line_offsets.last());
+  Array<int> seq(segment_line_offsets.size() - 1);
+  array_utils::fill_index_range(seq.as_mutable_span());
+  array_utils::gather_to_groups(segment_line_offsets.as_span(),
+                                seq.index_range(),
+                                seq.as_span(),
+                                vertex_to_segment.as_mutable_span());
+
+  GPU_vertbuf_init_with_format(*cache.edit_bezier_segment_data, format_segments);
+  GPU_vertbuf_data_alloc(*cache.edit_bezier_segment_data, segment_data.size());
+  std::copy_n(segment_data.data(),
+              segment_data.size(),
+              cache.edit_bezier_segment_data->data<BezierSegmentVert>().data());
+
+  GPUIndexBufBuilder elb;
+  GPU_indexbuf_init_ex(&elb,
+                       GPU_PRIM_LINES,
+                       vertex_to_segment.size(),
+                       points_by_curve.total_size() + 2 * bezier_offsets.total_size());
+
+  for (const int i : vertex_to_segment) {
+    GPU_indexbuf_add_generic_vert(&elb, i);
+  }
+  GPU_indexbuf_build_in_place(&elb, cache.edit_bezier_segment_ibo);
 }
 
 void DRW_curves_batch_cache_create_requested(Object *ob)
@@ -1094,6 +1193,16 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
   if (DRW_batch_requested(cache.edit_curves_lines, GPU_PRIM_LINE_STRIP)) {
     DRW_vbo_request(cache.edit_curves_lines, &cache.edit_curves_lines_pos);
     DRW_ibo_request(cache.edit_curves_lines, &cache.edit_curves_lines_ibo);
+  }
+  if (DRW_batch_requested(cache.edit_bezier_segments, GPU_PRIM_LINES)) {
+    DRW_vbo_request(cache.edit_bezier_segments, &cache.edit_bezier_segment_data);
+    DRW_ibo_request(cache.edit_bezier_segments, &cache.edit_bezier_segment_ibo);
+    DRW_vbo_request(cache.edit_bezier_segments, &cache.edit_points_pos);
+  }
+  if (DRW_vbo_requested(cache.edit_bezier_segment_data) ||
+      DRW_ibo_requested(cache.edit_bezier_segment_ibo))
+  {
+    create_edit_bezier_segment_vbo_ibo(curves_orig, bezier_curves, bezier_offsets, cache);
   }
   if (DRW_vbo_requested(cache.edit_points_pos)) {
     create_edit_points_position_and_data(

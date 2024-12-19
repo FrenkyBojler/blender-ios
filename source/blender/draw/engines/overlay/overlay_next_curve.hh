@@ -29,6 +29,7 @@ class Curves : Overlay {
   PassSimple edit_curves_ps_ = {"Curve Edit"};
   PassSimple::Sub *edit_curves_points_ = nullptr;
   PassSimple::Sub *edit_curves_lines_ = nullptr;
+  PassSimple::Sub *edit_bezier_segments_ = nullptr;
   PassSimple::Sub *edit_curves_handles_ = nullptr;
 
   PassSimple edit_legacy_curve_ps_ = {"Legacy Curve Edit"};
@@ -72,6 +73,14 @@ class Curves : Overlay {
         sub.push_constant("useWeight", false);
         sub.push_constant("useGreasePencil", false);
         edit_curves_lines_ = &sub;
+      }
+      {
+        auto &sub = pass.sub("BezierSegments");
+        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA |
+                          DRW_STATE_WRITE_DEPTH,
+                      state.clipping_plane_count);
+        sub.shader_set(res.shaders.curve_edit_bezier_segments.get());
+        edit_bezier_segments_ = &sub;
       }
       {
         auto &sub = pass.sub("Handles");
@@ -194,6 +203,10 @@ class Curves : Overlay {
     {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_curves_lines(&curves);
       edit_curves_lines_->draw(geom, manager.unique_handle(ob_ref));
+    }
+    {
+      gpu::Batch *geom = DRW_curves_batch_cache_get_edit_bezier_segments(&curves);
+      edit_bezier_segments_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
     }
   }
 
