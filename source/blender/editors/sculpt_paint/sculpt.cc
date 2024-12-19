@@ -3248,9 +3248,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
     case SCULPT_BRUSH_TYPE_LAYER:
       do_layer_brush(depsgraph, sd, ob, node_mask);
       break;
-    case SCULPT_BRUSH_TYPE_FLATTEN:
-      do_flatten_brush(depsgraph, sd, ob, node_mask);
-      break;
     case SCULPT_BRUSH_TYPE_CLAY:
       do_clay_brush(depsgraph, sd, ob, node_mask);
       break;
@@ -3262,12 +3259,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_CLAY_THUMB:
       do_clay_thumb_brush(depsgraph, sd, ob, node_mask);
-      break;
-    case SCULPT_BRUSH_TYPE_FILL:
-      do_fill_brush(depsgraph, sd, ob, node_mask);
-      break;
-    case SCULPT_BRUSH_TYPE_SCRAPE:
-       do_scrape_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_MASK:
       switch ((BrushMaskTool)brush.mask_tool) {
@@ -3322,6 +3313,13 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_SMEAR:
       color::do_smear_brush(depsgraph, sd, ob, node_mask);
+      break;
+
+    case SCULPT_BRUSH_TYPE_PLANE:
+    case SCULPT_BRUSH_TYPE_FLATTEN:
+    case SCULPT_BRUSH_TYPE_FILL:
+    case SCULPT_BRUSH_TYPE_SCRAPE:
+      do_plane_brush(depsgraph, sd, ob, node_mask);
       break;
   }
 

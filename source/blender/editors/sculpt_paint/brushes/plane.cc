@@ -37,11 +37,7 @@
 
 namespace blender::ed::sculpt_paint {
 
-inline namespace flatten_cc {
-
-using IndexedFilterFn =
-    FunctionRef<void(Span<float3>, Span<int>, const float4 &, MutableSpan<float>)>;
-using GenericFilterFn = FunctionRef<void(Span<float3>, const float4 &, MutableSpan<float>)>;
+inline namespace plane_cc {
 
 struct LocalData {
   Vector<float3> positions;
@@ -117,7 +113,8 @@ static void calc_distances(const float depth,
     }
   }
 }
-void scale_factors_by_local_translations(MutableSpan<float3> local_positions,
+
+static void scale_factors_by_local_translations(MutableSpan<float3> local_positions,
   MutableSpan<float> factors)
 {
   for (const int i : local_positions.index_range()) {
@@ -283,13 +280,12 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   apply_translations(translations, verts);
 }
 
-static void do_plane_brush(const Depsgraph &depsgraph,
+}  // namespace plane_cc
+
+void do_plane_brush(const Depsgraph &depsgraph,
                            const Sculpt &sd,
                            Object &object,
-                           const IndexMask &node_mask,
-                           const float direction,
-                           const IndexedFilterFn indexed_filter,
-                           const GenericFilterFn generic_filter)
+                           const IndexMask &node_mask)
 {
   const SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -305,7 +301,7 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   SCULPT_tilt_apply_to_normal(area_no, ss.cache, brush.tilt_strength_factor);
 
   const float offset = SCULPT_brush_plane_offset_get(sd, ss);
-  const float displace = direction * ss.cache->radius * offset;
+  const float displace =  ss.cache->radius * offset;
   area_co += area_no * ss.cache->scale * displace;
 
   float4 plane;
@@ -414,70 +410,6 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   bke::pbvh::flush_bounds_to_parents(pbvh);
 }
 
-}  // namespace flatten_cc
 
-void do_flatten_brush(const Depsgraph &depsgraph,
-                      const Sculpt &sd,
-                      Object &object,
-                      const IndexMask &node_mask)
-{
-  do_plane_brush(
-      depsgraph,
-      sd,
-      object,
-      node_mask,
-      1.0f,
-      [](const Span<float3> /*vert_positions*/,
-         const Span<int> /*verts*/,
-         const float4 & /*plane*/,
-         const MutableSpan<float> /*factors*/) {},
-      [](const Span<float3> /*positions*/,
-         const float4 & /*plane*/,
-         const MutableSpan<float> /*factors*/) {});
-}
-
-void do_fill_brush(const Depsgraph &depsgraph,
-                   const Sculpt &sd,
-                   Object &object,
-                   const IndexMask &node_mask)
-{
-  do_plane_brush(
-      depsgraph,
-      sd,
-      object,
-      node_mask,
-      1.0f,
-      [](const Span<float3> vert_positions,
-         const Span<int> verts,
-         const float4 &plane,
-         const MutableSpan<float> factors) {
-        filter_above_plane_factors(vert_positions, verts, plane, factors);
-      },
-      [](const Span<float3> positions, const float4 &plane, const MutableSpan<float> factors) {
-        filter_above_plane_factors(positions, plane, factors);
-      });
-}
-
-void do_scrape_brush(const Depsgraph &depsgraph,
-                     const Sculpt &sd,
-                     Object &object,
-                     const IndexMask &node_mask)
-{
-  do_plane_brush(
-      depsgraph,
-      sd,
-      object,
-      node_mask,
-      -1.0f,
-      [](const Span<float3> vert_positions,
-         const Span<int> verts,
-         const float4 &plane,
-         const MutableSpan<float> factors) {
-        filter_below_plane_factors(vert_positions, verts, plane, factors);
-      },
-      [](const Span<float3> positions, const float4 &plane, const MutableSpan<float> factors) {
-        filter_below_plane_factors(positions, plane, factors);
-      });
-}
 
 }  // namespace blender::ed::sculpt_paint
