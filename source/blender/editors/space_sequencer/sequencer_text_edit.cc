@@ -16,10 +16,12 @@
 #include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
+#include "BKE_scene.hh"
 
 #include "SEQ_effects.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_select.hh"
+#include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
 #include "WM_api.hh"
@@ -54,11 +56,17 @@ static bool sequencer_text_editing_poll(bContext *C)
 
 bool sequencer_text_editing_active_poll(bContext *C)
 {
-  if (!sequencer_text_editing_poll(C)) {
+  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  if (seq == nullptr || !sequencer_text_editing_poll(C)) {
     return false;
   }
 
-  const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
+  const Scene *scene = CTX_data_scene(C);
+
+  if (!SEQ_time_strip_intersects_frame(scene, seq, BKE_scene_frame_get(scene))) {
+    return false;
+  }
+
   return (seq->flag & SEQ_FLAG_TEXT_EDITING_ACTIVE) != 0;
 }
 

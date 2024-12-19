@@ -1218,7 +1218,7 @@ static void text_edit_draw_box(const bContext *C, const Sequence *seq, uint pos)
   GPU_blend(GPU_BLEND_NONE);
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
   blender::float3 col;
-  UI_GetThemeColorShade4fv(TH_SEQ_ACTIVE, -50, col);
+  UI_GetThemeColorShade3fv(TH_SEQ_ACTIVE, -50, col);
   immUniformColor3fv(col);
   immUniform1f("lineWidth", U.pixelsize);
   immUniform1f("dash_width", 10.0f);
@@ -1240,7 +1240,9 @@ static void text_edit_draw(const bContext *C)
   if (!sequencer_text_editing_active_poll(const_cast<bContext *>(C))) {
     return;
   }
-
+  if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
+    return;
+  }
   const Sequence *seq = SEQ_select_active_get(CTX_data_scene(C));
   if (!SEQ_effects_can_render_text(seq)) {
     return;
