@@ -343,6 +343,8 @@ typedef struct Brush {
   /* snake hook */
   int snake_hook_deform_type;
 
+  int plane_inversion_mode;
+
   /* pose */
   int pose_deform_type;
   float pose_offset;
