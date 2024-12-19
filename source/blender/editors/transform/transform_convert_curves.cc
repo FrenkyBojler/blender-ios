@@ -498,7 +498,7 @@ void curve_populate_trans_data_structs(
   const float3x3 smtx_base = math::pseudo_invert(mtx_base);
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-  Array<float3> center_point_per_curve(curves.curves_num());
+  Array<float3> mean_center_point_per_curve(curves.curves_num());
   if (use_individual_origin) {
     affected_curves.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
       const IndexRange points = points_by_curve[curve_i];
@@ -511,7 +511,7 @@ void curve_populate_trans_data_structs(
       float3 center(0.0f);
       selection.foreach_index([&](const int64_t point_i) { center += point_positions[point_i]; });
       center /= selection.size();
-      center_point_per_curve[curve_i] = center;
+      mean_center_point_per_curve[curve_i] = center;
     });
   }
 
@@ -533,9 +533,12 @@ void curve_populate_trans_data_structs(
           float3 *elem = &positions[transform_i];
 
           float3 center;
-          const bool use_local_center = hide_handles || point_selection[domain_i];
-          if (use_individual_origin && !(curve_types[curve_i] == CURVE_TYPE_BEZIER)) {
-            center = center_point_per_curve[curve_i];
+          const bool use_local_center = hide_handles || use_individual_origin ||
+                                        point_selection[domain_i];
+          const bool use_mean_center = use_individual_origin &&
+                                       !(curve_types[curve_i] == CURVE_TYPE_BEZIER);
+          if (use_mean_center) {
+            center = mean_center_point_per_curve[curve_i];
           }
           else if (use_local_center) {
             center = point_positions[domain_i];
