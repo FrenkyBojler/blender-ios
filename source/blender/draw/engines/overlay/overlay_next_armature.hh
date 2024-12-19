@@ -605,7 +605,7 @@ class Armatures : Overlay {
         item.value->end_sync(*bb.shape_wire, item.key, GPU_PRIM_TRIS, 2);
       }
       for (CustomShapeBuf item : bb.custom_shape_wire_strip.items()) {
-        item.value->end_sync(*bb.shape_wire_strip, item.key);
+        item.value->end_sync(*bb.shape_wire_strip, item.key, GPU_PRIM_TRIS, 2);
       }
     };
 
