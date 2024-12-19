@@ -415,16 +415,13 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                                               const IndexMask &curve_mask,
                                               const OffsetIndices<int> shapes,
                                               Vector<int3> &r_triangles,
-                                              MutableSpan<int> r_triangles_offsets)
+                                              MutableSpan<int> r_triangle_offsets)
 {
+  Array<Vector<int3>> triangle_results(shapes.size());
   MemArena *pf_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "Drawing::triangles");
-
-  int offset = 0;
 
   for (const int shape_index : shapes.index_range()) {
     const IndexRange shape = shapes[shape_index];
-
-    r_triangles_offsets[shape_index] = offset;
 
     float3x3 axis_mat;
     axis_dominant_v3_to_m3(axis_mat.ptr(), normals[shape.first()]);
@@ -458,10 +455,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
     if (shape.size() == 1) {
       const IndexRange points = points_by_curve[shape.first()];
 
-      const int added_num = std::max(int(points.size() - 2), 0);
-      r_triangles.resize(offset + added_num);
-      MutableSpan<int3> r_tris = r_triangles.as_mutable_span().drop_front(offset);
-      offset += added_num;
+      triangle_results[shape_index].resize(std::max(int(points.size() - 2), 0));
+      MutableSpan<int3> r_tris = triangle_results[shape_index];
 
       BLI_polyfill_calc_arena(
           projverts, points.size(), 0, reinterpret_cast<uint32_t(*)[3]>(r_tris.data()), pf_arena);
@@ -500,10 +495,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
     if (result.vert.size() != num_points) {
       const IndexRange points = points_by_curve[shape.first()];
 
-      const int added_num = std::max(int(points.size() - 2), 0);
-      r_triangles.resize(offset + added_num);
-      MutableSpan<int3> r_tris = r_triangles.as_mutable_span().drop_front(offset);
-      offset += added_num;
+      triangle_results[shape_index].resize(std::max(int(points.size() - 2), 0));
+      MutableSpan<int3> r_tris = triangle_results[shape_index];
 
       BLI_polyfill_calc_arena(
           projverts, points.size(), 0, reinterpret_cast<uint32_t(*)[3]>(r_tris.data()), pf_arena);
@@ -514,10 +507,9 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
       continue;
     }
 
-    const int added_num = result.face.size();
-    r_triangles.resize(offset + added_num);
-    MutableSpan<int3> r_tris = r_triangles.as_mutable_span().drop_front(offset);
-    offset += added_num;
+    triangle_results[shape_index].resize(result.face.size());
+
+    MutableSpan<int3> r_tris = triangle_results[shape_index];
 
     const int first_point = points_by_curve[shape.first()].first();
     threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
@@ -530,7 +522,20 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
     BLI_memarena_clear(pf_arena);
   }
 
-  r_triangles_offsets.last() = offset;
+  for (const int i : triangle_results.index_range()) {
+    r_triangle_offsets[i] = triangle_results[i].size();
+  }
+  offset_indices::accumulate_counts_to_offsets(r_triangle_offsets);
+
+  r_triangles.resize(r_triangle_offsets.last());
+
+  for (const int shape_index : shapes.index_range()) {
+    IndexRange range = IndexRange::from_begin_end(r_triangle_offsets[shape_index],
+                                                  r_triangle_offsets[shape_index + 1]);
+    MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(range);
+    array_utils::copy(triangle_results[shape_index].as_span(), r_tris);
+  }
+
   BLI_memarena_free(pf_arena);
 }
 
