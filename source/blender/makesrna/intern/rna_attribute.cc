@@ -644,21 +644,26 @@ bool rna_AttributeGroup_lookup_string(PointerRNA *ptr, const char *key, PointerR
 {
   AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
 
+  if (CustomDataLayer *layer = BKE_attribute_search_for_write(
+          owner, key, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL))
+  {
+    *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_Attribute, layer);
+    return true;
+  }
+
   /* Support retrieving UV seam name convention with older name. To be removed as part of 5.0
    * breaking changes. */
   if (STREQ(key, ".uv_seam")) {
-    key = "uv_seam";
+    if (CustomDataLayer *layer = BKE_attribute_search_for_write(
+            owner, "uv_seam", CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL))
+    {
+      *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_Attribute, layer);
+      return true;
+    }
   }
 
-  CustomDataLayer *layer = BKE_attribute_search_for_write(
-      owner, key, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-  if (!layer) {
-    *r_ptr = PointerRNA_NULL;
-    return false;
-  }
-
-  *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_Attribute, layer);
-  return true;
+  *r_ptr = PointerRNA_NULL;
+  return false;
 }
 
 static int rna_AttributeGroupID_active_index_get(PointerRNA *ptr)
