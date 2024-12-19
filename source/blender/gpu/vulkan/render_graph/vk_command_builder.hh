@@ -216,9 +216,10 @@ class VKCommandBuilder {
    */
   void sub_builders_init(Span<NodeHandle> node_handles);
 
-  Span<VkCommandBuffer> sub_builders_build_commands(VKRenderGraph &render_graph,
-                                                    VKCommandBufferInterface &command_buffer,
-                                                    Span<NodeHandle> node_handles);
+  void sub_builders_build_commands(VKRenderGraph &render_graph,
+                                   VKCommandBufferInterface &command_buffer,
+                                   Span<VkCommandBuffer> secondary_command_buffers,
+                                   Span<NodeHandle> node_handles);
   /** Record the secondary command buffers from the sub builders to the primary command buffer. */
   void sub_builders_record_to_primary_command_buffer(
       VKCommandBufferInterface &command_buffer,

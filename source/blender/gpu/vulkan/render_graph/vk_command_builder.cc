@@ -28,12 +28,15 @@ VkCommandBuffer VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
   groups_extract_barriers(render_graph, node_handles);
 
   sub_builders_init(node_handles);
-  Vector<VkCommandBuffer> secondary_command_buffers = sub_builders_build_commands(
-      render_graph, command_buffer, node_handles);
+  Span<VkCommandBuffer> secondary_command_buffers =
+      command_buffer.allocate_secondary_command_buffers(sub_builders_.size());
+  sub_builders_build_commands(
+      render_graph, command_buffer, secondary_command_buffers, node_handles);
 
   VkCommandBuffer primary_command_buffer = command_buffer.allocate_primary_command_buffer();
   sub_builders_record_to_primary_command_buffer(
       command_buffer, primary_command_buffer, secondary_command_buffers);
+
   return primary_command_buffer;
 }
 
@@ -205,20 +208,18 @@ void VKCommandBuilder::sub_builders_init(Span<NodeHandle> /*node_handles*/)
   sub_builders_.append(group_nodes_.index_range());
 }
 
-Span<VkCommandBuffer> VKCommandBuilder::sub_builders_build_commands(
+void VKCommandBuilder::sub_builders_build_commands(
     VKRenderGraph &render_graph,
     VKCommandBufferInterface &command_buffer,
+    Span<VkCommandBuffer> secondary_command_buffers,
     Span<NodeHandle> node_handles)
 {
-  Span<VkCommandBuffer> secondary_command_buffers =
-      command_buffer.allocate_secondary_command_buffers(sub_builders_.size());
   for (int64_t sub_builder_index : sub_builders_.index_range()) {
     VkCommandBuffer vk_command_buffer = secondary_command_buffers[sub_builder_index];
     const SubBuilder sub_builder = sub_builders_[sub_builder_index];
     sub_builder_build_commands(
         render_graph, command_buffer, vk_command_buffer, node_handles, sub_builder);
   }
-  return secondary_command_buffers;
 }
 
 void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,
