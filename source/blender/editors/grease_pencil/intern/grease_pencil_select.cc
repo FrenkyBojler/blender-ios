@@ -977,13 +977,15 @@ static int grease_pencil_material_select_exec(bContext *C, wmOperator *op)
         break;
       }
       case bke::AttrDomain::Point: {
-        OffsetIndices<int> points_by_curve = curves.points_by_curve();
+        const OffsetIndices<int> points_by_curve = curves.points_by_curve();
         strokes.foreach_index([&](const int curve_index) {
-          IndexRange points = points_by_curve[curve_index];
+          const IndexRange points = points_by_curve[curve_index];
           ed::curves::fill_selection(selection.span.slice(points), select);
         });
         break;
       }
+      default:
+        BLI_assert_unreachable();
     }
     selection.finish();
   });
