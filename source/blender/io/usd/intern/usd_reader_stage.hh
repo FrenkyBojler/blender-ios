@@ -38,7 +38,7 @@ class USDStageReader {
  protected:
   pxr::UsdStageRefPtr stage_;
   USDImportParams params_;
-  const ImportSettings &settings_;
+  ImportSettings settings_;
 
   blender::Vector<USDPrimReader *> readers_;
 
@@ -57,9 +57,7 @@ class USDStageReader {
   ProtoReaderMap instancer_proto_readers_;
 
  public:
-  USDStageReader(pxr::UsdStageRefPtr stage,
-                 const USDImportParams &params,
-                 const ImportSettings &settings);
+  USDStageReader(pxr::UsdStageRefPtr stage, const USDImportParams &params);
 
   ~USDStageReader();
 
@@ -111,7 +109,7 @@ class USDStageReader {
     return params_;
   }
 
-  const ImportSettings &settings() const
+  ImportSettings &settings()
   {
     return settings_;
   }
