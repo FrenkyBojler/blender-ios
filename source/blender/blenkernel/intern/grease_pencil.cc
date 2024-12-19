@@ -439,13 +439,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
       float3x3 axis_mat;
       axis_dominant_v3_to_m3(axis_mat.ptr(), normals[shape.first()]);
 
-      Array<int> offsets_data(shape.size() + 1);
-      offset_indices::gather_group_sizes(
-          points_by_curve, shape, offsets_data.as_mutable_span().drop_back(1));
-      offset_indices::accumulate_counts_to_offsets(offsets_data);
-      const OffsetIndices<int> points_by_shape = OffsetIndices<int>(offsets_data);
-
-      const int num_points = points_by_curve[shape].size();
+      const IndexRange points = points_by_curve[shape];
+      const int num_points = points.size();
       if (num_points < 3) {
         continue;
       }
@@ -453,9 +448,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
       float(*projverts)[2] = static_cast<float(*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
 
-      const IndexRange points = points_by_curve[shape];
-
-      for (const int i : IndexRange(points.size())) {
+      for (const int i : points.index_range()) {
         mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[points[i]]);
       }
 
@@ -479,18 +472,19 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
       Array<double2> verts(num_points);
       Array<Vector<int>> faces(shape.size());
 
+      for (const int i : points.index_range()) {
+        verts[i] = double2(projverts[i]);
+      }
+
+      int cur_p = 0;
       for (const int i : shape.index_range()) {
-        const int curve_i = shape[i];
-        const IndexRange point_group = points_by_shape[i];
-        const IndexRange points = points_by_curve[curve_i];
+        const IndexRange points = points_by_curve[shape[i]];
         faces[i].resize(points.size());
-        threading::parallel_for(points.index_range(), 512, [&](const IndexRange range) {
-          for (const int p_id : range) {
-            verts[point_group[p_id]] = double2(projverts[point_group[p_id]]);
-            faces[i][p_id] = point_group[p_id];
-          }
-        });
-      };
+        for (const int p_id : points.index_range()) {
+          faces[i][p_id] = cur_p;
+          cur_p++;
+        }
+      }
 
       meshintersect::CDT_input<double> input;
       input.vert = verts;
