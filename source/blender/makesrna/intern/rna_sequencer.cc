@@ -888,7 +888,7 @@ static PointerRNA rna_MovieSequence_metadata_get(ID *scene_id, Sequence *seq)
     return PointerRNA_NULL;
   }
 
-  IDProperty *metadata = IMB_anim_load_metadata(sanim->anim);
+  IDProperty *metadata = MOV_load_metadata(sanim->anim);
   if (metadata == nullptr) {
     return PointerRNA_NULL;
   }

@@ -13,6 +13,7 @@
 #include "IMB_imbuf_enums.h"
 #include "IMB_movie_enums.hh"
 
+struct IDProperty;
 struct ImBuf;
 struct MoviePlayback;
 struct MovieProxyBuilder;
@@ -117,6 +118,12 @@ bool MOV_is_initialized_and_valid(const MoviePlayback *anim);
  * Gets filename (without the folder) part of the movie.
  */
 void MOV_get_filename(const MoviePlayback *anim, char *filename, int filename_maxncpy);
+
+/**
+ * Loads metadata of the movie.
+ * Metadata is only loaded for already initialized movies.
+ */
+IDProperty *MOV_load_metadata(MoviePlayback *anim);
 
 /*-------------------------------------------------------------------- */
 /*

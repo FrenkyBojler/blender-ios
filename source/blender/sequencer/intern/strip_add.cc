@@ -483,7 +483,7 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   if (anim_arr[0] != nullptr) {
     seq->len = MOV_get_duration_frames(anim_arr[0], IMB_TC_RECORD_RUN);
 
-    IMB_anim_load_metadata(anim_arr[0]);
+    MOV_load_metadata(anim_arr[0]);
 
     /* Set initial scale based on load_data->fit_method. */
     orig_width = MOV_get_image_width(anim_arr[0]);
@@ -621,7 +621,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
         return;
       }
 
-      IMB_anim_load_metadata(sanim->anim);
+      MOV_load_metadata(sanim->anim);
 
       seq->len = MOV_get_duration_frames(
           sanim->anim,

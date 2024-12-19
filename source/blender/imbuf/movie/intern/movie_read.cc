@@ -73,7 +73,7 @@ void MOV_get_filename(const MoviePlayback *anim, char *filename, int filename_ma
   BLI_path_split_file_part(anim->filepath, filename, filename_maxncpy);
 }
 
-IDProperty *IMB_anim_load_metadata(MoviePlayback *anim)
+IDProperty *MOV_load_metadata(MoviePlayback *anim)
 {
   if (anim->state == MoviePlayback::State::Valid) {
 #ifdef WITH_FFMPEG
