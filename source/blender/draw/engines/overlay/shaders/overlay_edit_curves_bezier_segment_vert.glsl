@@ -34,10 +34,11 @@ VertIn input_assembly(uint vertex_id)
 
 void main()
 {
-  VertIn vert_in = input_assembly(gl_VertexID / 3);
-  int segment_vertex_i = gl_VertexID - vert_in.first_vertex_id * 3;
-  int quad_i = segment_vertex_i / 6;
-  int in_quad_i = segment_vertex_i % 6;
+  const int vertex_per_quad = 6;
+  VertIn vert_in = input_assembly(gl_VertexID / vertex_per_quad);
+  int segment_vertex_i = gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
+  int quad_i = segment_vertex_i / vertex_per_quad;
+  int in_quad_i = segment_vertex_i % vertex_per_quad;
 
   int step = quad_i + ((in_quad_i < 2 || in_quad_i == 3) ? 0 : 1);
   float u = float(step) / vert_in.resolution;

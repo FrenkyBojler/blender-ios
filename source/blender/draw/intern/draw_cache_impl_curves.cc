@@ -1114,7 +1114,7 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
                                  segment_line_offsets.as_span().last(),
                                  resolution[curve]};
       segment_data.append(seg_data);
-      segment_line_offsets.append(segment_line_offsets.last() + resolution[curve] * 2);
+      segment_line_offsets.append(segment_line_offsets.last() + resolution[curve]);
     }
     if (cyclic[curve]) {
       BezierSegmentVert &last = segment_data.last();
@@ -1138,7 +1138,7 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
 
   GPUIndexBufBuilder elb;
   GPU_indexbuf_init_ex(&elb,
-                       GPU_PRIM_LINES,
+                       GPU_PRIM_POINTS,
                        vertex_to_segment.size(),
                        points_by_curve.total_size() + 2 * bezier_offsets.total_size());
 
@@ -1194,7 +1194,7 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
     DRW_vbo_request(cache.edit_curves_lines, &cache.edit_curves_lines_pos);
     DRW_ibo_request(cache.edit_curves_lines, &cache.edit_curves_lines_ibo);
   }
-  if (DRW_batch_requested(cache.edit_bezier_segments, GPU_PRIM_LINES)) {
+  if (DRW_batch_requested(cache.edit_bezier_segments, GPU_PRIM_POINTS)) {
     DRW_vbo_request(cache.edit_bezier_segments, &cache.edit_bezier_segment_data);
     DRW_ibo_request(cache.edit_bezier_segments, &cache.edit_bezier_segment_ibo);
     DRW_vbo_request(cache.edit_bezier_segments, &cache.edit_points_pos);
