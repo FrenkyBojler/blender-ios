@@ -1229,7 +1229,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
     if (ima->source == IMA_SRC_MOVIE && BKE_image_has_anim(ima)) {
       MoviePlayback *anim = ((ImageAnim *)ima->anims.first)->anim;
       if (anim) {
-        duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+        duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       }
     }
 

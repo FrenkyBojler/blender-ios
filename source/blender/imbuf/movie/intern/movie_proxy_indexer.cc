@@ -359,11 +359,6 @@ static void get_index_dir(MoviePlayback *anim, char *index_dir, size_t index_dir
   }
 }
 
-void IMB_anim_get_filename(MoviePlayback *anim, char *filename, int filename_maxncpy)
-{
-  BLI_path_split_file_part(anim->filepath, filename, filename_maxncpy);
-}
-
 static bool get_proxy_filepath(MoviePlayback *anim,
                                IMB_Proxy_Size preview_size,
                                char *filepath,
@@ -1304,7 +1299,7 @@ void IMB_free_indices(MoviePlayback *anim)
 
   for (i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
     if (anim->proxy_anim[i]) {
-      IMB_close_anim(anim->proxy_anim[i]);
+      MOV_close(anim->proxy_anim[i]);
       anim->proxy_anim[i] = nullptr;
     }
   }
@@ -1352,7 +1347,7 @@ MoviePlayback *IMB_anim_open_proxy(MoviePlayback *anim, IMB_Proxy_Size preview_s
   get_proxy_filepath(anim, preview_size, filepath, false);
 
   /* proxies are generated in the same color space as animation itself */
-  anim->proxy_anim[i] = IMB_open_anim(filepath, 0, 0, anim->colorspace);
+  anim->proxy_anim[i] = MOV_open_file(filepath, 0, 0, anim->colorspace);
 
   anim->proxies_tried |= preview_size;
 

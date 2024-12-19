@@ -1621,7 +1621,7 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
   if (BKE_image_has_anim(&ima)) {
     MoviePlayback *anim = static_cast<MoviePlayback *>(ima.anims.first);
     if (anim) {
-      int duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+      int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       UI_tooltip_text_field_add(
           data, fmt::format("Frames: {}", duration), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
     }
@@ -1673,22 +1673,21 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
   if (clip.anim) {
     MoviePlayback *anim = clip.anim;
 
-    UI_tooltip_text_field_add(data,
-                              fmt::format("{} \u00D7 {}",
-                                          IMB_anim_get_image_width(anim),
-                                          IMB_anim_get_image_height(anim)),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_NORMAL);
-
     UI_tooltip_text_field_add(
         data,
-        fmt::format("Frames: {}", IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN)),
+        fmt::format("{} \u00D7 {}", MOV_get_image_width(anim), MOV_get_image_height(anim)),
         {},
         UI_TIP_STYLE_NORMAL,
         UI_TIP_LC_NORMAL);
 
-    ImBuf *ibuf = IMB_anim_previewframe(anim);
+    UI_tooltip_text_field_add(
+        data,
+        fmt::format("Frames: {}", MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN)),
+        {},
+        UI_TIP_STYLE_NORMAL,
+        UI_TIP_LC_NORMAL);
+
+    ImBuf *ibuf = MOV_decode_preview_frame(anim);
 
     if (ibuf) {
       /* Resize. */

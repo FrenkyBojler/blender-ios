@@ -940,7 +940,7 @@ static void rna_Sequence_proxy_filepath_set(PointerRNA *ptr, const char *value)
   BLI_path_split_dir_file(
       value, proxy->dirpath, sizeof(proxy->dirpath), proxy->filename, sizeof(proxy->filename));
   if (proxy->anim) {
-    IMB_free_anim(proxy->anim);
+    MOV_close(proxy->anim);
     proxy->anim = nullptr;
   }
 }

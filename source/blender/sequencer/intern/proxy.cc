@@ -230,7 +230,7 @@ ImBuf *seq_proxy_fetch(const SeqRenderData *context, Sequence *seq, int timeline
     frameno = IMB_anim_index_get_frame_index(
         sanim ? sanim->anim : nullptr, IMB_Timecode_Type(seq->strip->proxy->tc), frameno);
 
-    return IMB_anim_absolute(proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
+    return MOV_decode_frame(proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
   }
 
   if (seq_proxy_get_filepath(
@@ -578,7 +578,7 @@ void SEQ_proxy_rebuild_finish(SeqIndexBuildContext *context, bool stop)
 {
   if (context->index_context) {
     LISTBASE_FOREACH (StripAnim *, sanim, &context->seq->anims) {
-      IMB_close_anim_proxies(sanim->anim);
+      MOV_close_proxies(sanim->anim);
     }
 
     IMB_anim_index_rebuild_finish(context->index_context, stop);
@@ -607,7 +607,7 @@ void seq_proxy_index_dir_set(MoviePlayback *anim, const char *base_dir)
   char dirname[FILE_MAX];
   char filename[FILE_MAXFILE];
 
-  IMB_anim_get_filename(anim, filename, FILE_MAXFILE);
+  MOV_get_filename(anim, filename, FILE_MAXFILE);
   BLI_path_join(dirname, sizeof(dirname), base_dir, filename);
   IMB_anim_set_index_dir(anim, dirname);
 }
@@ -615,7 +615,7 @@ void seq_proxy_index_dir_set(MoviePlayback *anim, const char *base_dir)
 void free_proxy_seq(Sequence *seq)
 {
   if (seq->strip && seq->strip->proxy && seq->strip->proxy->anim) {
-    IMB_free_anim(seq->strip->proxy->anim);
+    MOV_close(seq->strip->proxy->anim);
     seq->strip->proxy->anim = nullptr;
   }
 }

@@ -350,18 +350,18 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
           /* Are we switching to a different movie file / stream? */
           if (request.file_path != cur_anim_path || request.stream_index != cur_stream) {
             if (cur_anim != nullptr) {
-              IMB_free_anim(cur_anim);
+              MOV_close(cur_anim);
               cur_anim = nullptr;
             }
 
             cur_anim_path = request.file_path;
             cur_stream = request.stream_index;
-            cur_anim = IMB_open_anim(cur_anim_path.c_str(), IB_rect, cur_stream, nullptr);
+            cur_anim = MOV_open_file(cur_anim_path.c_str(), IB_rect, cur_stream, nullptr);
           }
 
           /* Decode the movie frame. */
           if (cur_anim != nullptr) {
-            thumb = IMB_anim_absolute(cur_anim, request.frame_index, IMB_TC_NONE, IMB_PROXY_NONE);
+            thumb = MOV_decode_frame(cur_anim, request.frame_index, IMB_TC_NONE, IMB_PROXY_NONE);
             if (thumb != nullptr) {
               seq_imbuf_assign_spaces(job->scene_, thumb);
             }
@@ -394,7 +394,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
         }
       }
       if (cur_anim != nullptr) {
-        IMB_free_anim(cur_anim);
+        MOV_close(cur_anim);
         cur_anim = nullptr;
       }
     });

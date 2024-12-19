@@ -393,17 +393,17 @@ static ImBuf *thumb_create_ex(const char *file_path,
       }
       else if (THB_SOURCE_MOVIE == source) {
         MoviePlayback *anim = nullptr;
-        anim = IMB_open_anim(file_path, IB_rect | IB_metadata, 0, nullptr);
+        anim = MOV_open_file(file_path, IB_rect | IB_metadata, 0, nullptr);
         if (anim != nullptr) {
-          img = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
+          img = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
           if (img == nullptr) {
             // printf("not an anim; %s\n", file_path);
           }
           else {
             IMB_freeImBuf(img);
-            img = IMB_anim_previewframe(anim);
+            img = MOV_decode_preview_frame(anim);
           }
-          IMB_free_anim(anim);
+          MOV_close(anim);
         }
         if (BLI_stat(file_path, &info) != -1) {
           SNPRINTF(mtime, "%ld", (long int)info.st_mtime);

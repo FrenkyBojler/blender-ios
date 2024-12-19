@@ -440,21 +440,21 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   load_data->r_video_stream_start = 0.0;
 
   if (anim_arr[0] != nullptr) {
-    short fps_denom;
-    float fps_num;
-
-    IMB_anim_get_fps(anim_arr[0], true, &fps_denom, &fps_num);
-
-    video_fps = fps_denom / fps_num;
+    short fps_num;
+    float fps_denom;
+    bool have_fps = MOV_get_fps_num_denom(anim_arr[0], fps_num, fps_denom);
+    if (have_fps) {
+      video_fps = fps_num / fps_denom;
+    }
 
     /* Adjust scene's frame rate settings to match. */
-    if (load_data->flags & SEQ_LOAD_MOVIE_SYNC_FPS) {
-      scene->r.frs_sec = fps_denom;
-      scene->r.frs_sec_base = fps_num;
+    if (have_fps && (load_data->flags & SEQ_LOAD_MOVIE_SYNC_FPS)) {
+      scene->r.frs_sec = fps_num;
+      scene->r.frs_sec_base = fps_denom;
       DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
     }
 
-    load_data->r_video_stream_start = IMB_anim_get_offset(anim_arr[0]);
+    load_data->r_video_stream_start = MOV_get_start_offset_seconds(anim_arr[0]);
   }
 
   Sequence *seq = SEQ_sequence_alloc(
@@ -481,20 +481,19 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   }
 
   if (anim_arr[0] != nullptr) {
-    seq->len = IMB_anim_get_duration(anim_arr[0], IMB_TC_RECORD_RUN);
+    seq->len = MOV_get_duration_frames(anim_arr[0], IMB_TC_RECORD_RUN);
 
     IMB_anim_load_metadata(anim_arr[0]);
 
     /* Set initial scale based on load_data->fit_method. */
-    orig_width = IMB_anim_get_image_width(anim_arr[0]);
-    orig_height = IMB_anim_get_image_height(anim_arr[0]);
+    orig_width = MOV_get_image_width(anim_arr[0]);
+    orig_height = MOV_get_image_height(anim_arr[0]);
     SEQ_set_scale_to_fit(
         seq, orig_width, orig_height, scene->r.xsch, scene->r.ysch, load_data->fit_method);
 
-    short frs_sec;
-    float frs_sec_base;
-    if (IMB_anim_get_fps(anim_arr[0], true, &frs_sec, &frs_sec_base)) {
-      seq->media_playback_rate = float(frs_sec) / frs_sec_base;
+    float fps = MOV_get_fps(anim_arr[0]);
+    if (fps > 0.0f) {
+      seq->media_playback_rate = fps;
     }
   }
 
@@ -624,7 +623,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
 
       IMB_anim_load_metadata(sanim->anim);
 
-      seq->len = IMB_anim_get_duration(
+      seq->len = MOV_get_duration_frames(
           sanim->anim,
           IMB_Timecode_Type(seq->strip->proxy ? IMB_Timecode_Type(seq->strip->proxy->tc) :
                                                 IMB_TC_RECORD_RUN));
@@ -715,7 +714,7 @@ void SEQ_add_movie_reload_if_needed(
   }
   else {
     LISTBASE_FOREACH (StripAnim *, sanim, &seq->anims) {
-      if (!IMB_anim_can_produce_frames(sanim->anim)) {
+      if (!MOV_is_initialized_and_valid(sanim->anim)) {
         /* Anim cannot produce frames, try reloading. */
         must_reload = true;
         break;
@@ -741,7 +740,7 @@ void SEQ_add_movie_reload_if_needed(
 
   /* Check if there are still anims that cannot produce frames. */
   LISTBASE_FOREACH (StripAnim *, sanim, &seq->anims) {
-    if (!IMB_anim_can_produce_frames(sanim->anim)) {
+    if (!MOV_is_initialized_and_valid(sanim->anim)) {
       /* There still is an anim that cannot produce frames. */
       *r_can_produce_frames = false;
       return;

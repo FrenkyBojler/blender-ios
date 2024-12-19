@@ -1498,7 +1498,7 @@ static void proxy_endjob(void *pjv)
   ProxyJob *pj = static_cast<ProxyJob *>(pjv);
 
   if (pj->clip->anim) {
-    IMB_close_anim_proxies(pj->clip->anim);
+    MOV_close_proxies(pj->clip->anim);
   }
 
   if (pj->index_context) {

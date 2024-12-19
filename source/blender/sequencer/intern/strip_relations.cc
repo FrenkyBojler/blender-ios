@@ -400,7 +400,7 @@ void SEQ_relations_sequence_free_anim(Sequence *seq)
     StripAnim *sanim = static_cast<StripAnim *>(seq->anims.last);
 
     if (sanim->anim) {
-      IMB_free_anim(sanim->anim);
+      MOV_close(sanim->anim);
       sanim->anim = nullptr;
     }
 

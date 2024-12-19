@@ -693,7 +693,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
           SEQ_relations_sequence_free_anim(seq);
 
           if (seq->strip->proxy && seq->strip->proxy->anim) {
-            IMB_free_anim(seq->strip->proxy->anim);
+            MOV_close(seq->strip->proxy->anim);
             seq->strip->proxy->anim = nullptr;
           }
 

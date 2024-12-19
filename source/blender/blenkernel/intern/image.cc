@@ -614,7 +614,7 @@ static void image_free_anims(Image *ima)
   while (ima->anims.last) {
     ImageAnim *ia = static_cast<ImageAnim *>(ima->anims.last);
     if (ia->anim) {
-      IMB_free_anim(ia->anim);
+      MOV_close(ia->anim);
       ia->anim = nullptr;
     }
     BLI_remlink(&ima->anims, ia);
@@ -2712,7 +2712,7 @@ MoviePlayback *openanim_noload(const char *filepath,
 {
   MoviePlayback *anim;
 
-  anim = IMB_open_anim(filepath, flags, streamindex, colorspace);
+  anim = MOV_open_file(filepath, flags, streamindex, colorspace);
   return anim;
 }
 
@@ -2724,12 +2724,12 @@ MoviePlayback *openanim(const char *filepath,
   MoviePlayback *anim;
   ImBuf *ibuf;
 
-  anim = IMB_open_anim(filepath, flags, streamindex, colorspace);
+  anim = MOV_open_file(filepath, flags, streamindex, colorspace);
   if (anim == nullptr) {
     return nullptr;
   }
 
-  ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
+  ibuf = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
   if (ibuf == nullptr) {
     const char *reason;
     if (!BLI_exists(filepath)) {
@@ -2740,7 +2740,7 @@ MoviePlayback *openanim(const char *filepath,
     }
     CLOG_INFO(&LOG, 1, "unable to load anim, %s: %s", reason, filepath);
 
-    IMB_free_anim(anim);
+    MOV_close(anim);
     return nullptr;
   }
   IMB_freeImBuf(ibuf);
@@ -4153,12 +4153,12 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
 
     /* let's initialize this user */
     if (ia->anim && iuser && iuser->frames == 0) {
-      iuser->frames = IMB_anim_get_duration(ia->anim, IMB_TC_RECORD_RUN);
+      iuser->frames = MOV_get_duration_frames(ia->anim, IMB_TC_RECORD_RUN);
     }
   }
 
   if (ia->anim) {
-    int dur = IMB_anim_get_duration(ia->anim, IMB_TC_RECORD_RUN);
+    int dur = MOV_get_duration_frames(ia->anim, IMB_TC_RECORD_RUN);
     int fra = frame - 1;
 
     if (fra < 0) {
@@ -4167,7 +4167,7 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
     if (fra > (dur - 1)) {
       fra = dur - 1;
     }
-    ibuf = IMB_makeSingleUser(IMB_anim_absolute(ia->anim, fra, IMB_TC_RECORD_RUN, IMB_PROXY_NONE));
+    ibuf = IMB_makeSingleUser(MOV_decode_frame(ia->anim, fra, IMB_TC_RECORD_RUN, IMB_PROXY_NONE));
 
     if (ibuf) {
       colormanage_imbuf_make_linear(ibuf, ima->colorspace_settings.name);

@@ -111,7 +111,7 @@ static void seq_free_strip(Strip *strip)
 
   if (strip->proxy) {
     if (strip->proxy->anim) {
-      IMB_free_anim(strip->proxy->anim);
+      MOV_close(strip->proxy->anim);
     }
 
     MEM_freeN(strip->proxy);

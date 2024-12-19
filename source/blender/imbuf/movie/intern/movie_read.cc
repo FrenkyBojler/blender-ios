@@ -59,10 +59,9 @@ extern "C" {
 static void free_anim_ffmpeg(MoviePlayback *anim);
 #endif
 
-void IMB_free_anim(MoviePlayback *anim)
+void MOV_close(MoviePlayback *anim)
 {
   if (anim == nullptr) {
-    printf("free anim, anim == nullptr\n");
     return;
   }
 
@@ -75,16 +74,12 @@ void IMB_free_anim(MoviePlayback *anim)
   MEM_freeN(anim);
 }
 
-void IMB_close_anim(MoviePlayback *anim)
+void MOV_get_filename(const MoviePlayback *anim, char *filename, int filename_maxncpy)
 {
-  if (anim == nullptr) {
-    return;
-  }
-
-  IMB_free_anim(anim);
+  BLI_path_split_file_part(anim->filepath, filename, filename_maxncpy);
 }
 
-void IMB_close_anim_proxies(MoviePlayback *anim)
+void MOV_close_proxies(MoviePlayback *anim)
 {
   if (anim == nullptr) {
     return;
@@ -116,7 +111,7 @@ IDProperty *IMB_anim_load_metadata(MoviePlayback *anim)
   return anim->metadata;
 }
 
-MoviePlayback *IMB_open_anim(const char *filepath,
+MoviePlayback *MOV_open_file(const char *filepath,
                              int ib_flags,
                              int streamindex,
                              char colorspace[IM_MAX_SPACE])
@@ -143,7 +138,7 @@ MoviePlayback *IMB_open_anim(const char *filepath,
   return anim;
 }
 
-bool IMB_anim_can_produce_frames(const MoviePlayback *anim)
+bool MOV_is_initialized_and_valid(const MoviePlayback *anim)
 {
 #if !defined(WITH_FFMPEG)
   UNUSED_VARS(anim);
@@ -157,7 +152,7 @@ bool IMB_anim_can_produce_frames(const MoviePlayback *anim)
   return false;
 }
 
-void IMB_suffix_anim(MoviePlayback *anim, const char *suffix)
+void MOV_set_multiview_suffix(MoviePlayback *anim, const char *suffix)
 {
   STRNCPY(anim->suffix, suffix);
 }
@@ -1222,16 +1217,16 @@ static bool anim_getnew(MoviePlayback *anim)
   return true;
 }
 
-ImBuf *IMB_anim_previewframe(MoviePlayback *anim)
+ImBuf *MOV_decode_preview_frame(MoviePlayback *anim)
 {
   ImBuf *ibuf = nullptr;
   int position = 0;
 
-  ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
+  ibuf = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
   if (ibuf) {
     IMB_freeImBuf(ibuf);
     position = anim->duration_in_frames / 2;
-    ibuf = IMB_anim_absolute(anim, position, IMB_TC_NONE, IMB_PROXY_NONE);
+    ibuf = MOV_decode_frame(anim, position, IMB_TC_NONE, IMB_PROXY_NONE);
 
     char value[128];
     IMB_metadata_ensure(&ibuf->metadata);
@@ -1260,10 +1255,10 @@ ImBuf *IMB_anim_previewframe(MoviePlayback *anim)
   return ibuf;
 }
 
-ImBuf *IMB_anim_absolute(MoviePlayback *anim,
-                         int position,
-                         IMB_Timecode_Type tc,
-                         IMB_Proxy_Size preview_size)
+ImBuf *MOV_decode_frame(MoviePlayback *anim,
+                        int position,
+                        IMB_Timecode_Type tc,
+                        IMB_Proxy_Size preview_size)
 {
   ImBuf *ibuf = nullptr;
   if (anim == nullptr) {
@@ -1290,7 +1285,7 @@ ImBuf *IMB_anim_absolute(MoviePlayback *anim,
     if (proxy) {
       position = IMB_anim_index_get_frame_index(anim, tc, position);
 
-      return IMB_anim_absolute(proxy, position, IMB_TC_NONE, IMB_PROXY_NONE);
+      return MOV_decode_frame(proxy, position, IMB_TC_NONE, IMB_PROXY_NONE);
     }
   }
 
@@ -1309,9 +1304,7 @@ ImBuf *IMB_anim_absolute(MoviePlayback *anim,
   return ibuf;
 }
 
-/***/
-
-int IMB_anim_get_duration(MoviePlayback *anim, IMB_Timecode_Type tc)
+int MOV_get_duration_frames(MoviePlayback *anim, IMB_Timecode_Type tc)
 {
   ImBufAnimIndex *idx;
   if (tc == IMB_TC_NONE) {
@@ -1326,53 +1319,42 @@ int IMB_anim_get_duration(MoviePlayback *anim, IMB_Timecode_Type tc)
   return IMB_indexer_get_duration(idx);
 }
 
-double IMB_anim_get_offset(MoviePlayback *anim)
+double MOV_get_start_offset_seconds(const MoviePlayback *anim)
 {
   return anim->start_offset;
 }
 
-bool IMB_anim_get_fps(const MoviePlayback *anim,
-                      bool no_av_base,
-                      short *r_frs_sec,
-                      float *r_frs_sec_base)
+float MOV_get_fps(const MoviePlayback *anim)
 {
-  double frs_sec_base_double;
-  if (anim->frs_sec) {
-    if (anim->frs_sec > SHRT_MAX) {
-      /* We cannot store original rational in our short/float format,
-       * we need to approximate it as best as we can... */
-      *r_frs_sec = SHRT_MAX;
-      frs_sec_base_double = anim->frs_sec_base * double(SHRT_MAX) / double(anim->frs_sec);
-    }
-    else {
-      *r_frs_sec = anim->frs_sec;
-      frs_sec_base_double = anim->frs_sec_base;
-    }
-#ifdef WITH_FFMPEG
-    if (no_av_base) {
-      *r_frs_sec_base = float(frs_sec_base_double / AV_TIME_BASE);
-    }
-    else {
-      *r_frs_sec_base = float(frs_sec_base_double);
-    }
-#else
-    UNUSED_VARS(no_av_base);
-    *r_frs_sec_base = float(frs_sec_base_double);
-#endif
-    BLI_assert(*r_frs_sec > 0);
-    BLI_assert(*r_frs_sec_base > 0.0f);
+  if (anim->frs_sec > 0 && anim->frs_sec_base > 0) {
+    return float(double(anim->frs_sec) / anim->frs_sec_base);
+  }
+  return 0.0f;
+}
 
+bool MOV_get_fps_num_denom(const MoviePlayback *anim, short &r_fps_num, float &r_fps_denom)
+{
+  if (anim->frs_sec > 0 && anim->frs_sec_base > 0) {
+    if (anim->frs_sec > SHRT_MAX) {
+      /* If numerator is larger than the max short, we need to approximate. */
+      r_fps_num = SHRT_MAX;
+      r_fps_denom = float(anim->frs_sec_base * double(SHRT_MAX) / double(anim->frs_sec));
+    }
+    else {
+      r_fps_num = anim->frs_sec;
+      r_fps_denom = float(anim->frs_sec_base);
+    }
     return true;
   }
   return false;
 }
 
-int IMB_anim_get_image_width(MoviePlayback *anim)
+int MOV_get_image_width(const MoviePlayback *anim)
 {
   return ELEM(anim->video_rotation, 90, 270) ? anim->y : anim->x;
 }
 
-int IMB_anim_get_image_height(MoviePlayback *anim)
+int MOV_get_image_height(const MoviePlayback *anim)
 {
   return ELEM(anim->video_rotation, 90, 270) ? anim->x : anim->y;
 }

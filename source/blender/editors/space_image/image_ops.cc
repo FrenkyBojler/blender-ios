@@ -1730,7 +1730,7 @@ static int image_match_len_exec(bContext *C, wmOperator * /*op*/)
   if (!anim) {
     return OPERATOR_CANCELLED;
   }
-  iuser->frames = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+  iuser->frames = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
   return OPERATOR_FINISHED;
