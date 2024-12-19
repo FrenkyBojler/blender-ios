@@ -1007,6 +1007,9 @@ static void paint_brush_default_essentials_name_get(
           case GPWEIGHT_BRUSH_TYPE_SMEAR:
             name = "Smear";
             break;
+          case GPWEIGHT_BRUSH_TYPE_GRADIENT:
+            name = "Gradient";
+            break;
           case GPWEIGHT_BRUSH_TYPE_DRAW:
             /* Use default, don't override. */
             break;

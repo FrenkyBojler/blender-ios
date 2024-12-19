@@ -2734,8 +2734,8 @@ class _defs_grease_pencil_weight:
     def gradient():
         return dict(
             idname="builtin_brush.gradient",
-            label="Smear",
-            icon="ops.gpencil.sculpt_gradient",
+            label="Gradient",
+            icon="ops.paint.weight_gradient",
             options={'USE_BRUSHES'},
             brush_type='GRADIENT',
         )

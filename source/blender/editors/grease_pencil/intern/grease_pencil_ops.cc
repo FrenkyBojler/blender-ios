@@ -155,7 +155,8 @@ bool grease_pencil_weight_painting_poll(bContext *C)
     return false;
   }
   Brush *brush = BKE_paint_brush(&ts->gp_weightpaint->paint);
-  return brush && brush->gpencil_settings && brush->gpencil_weight_tool != GPWEIGHT_TOOL_GRADIENT;
+  return brush && brush->gpencil_settings &&
+         brush->gpencil_weight_brush_type != GPWEIGHT_BRUSH_TYPE_GRADIENT;
 }
 
 bool grease_pencil_weight_gradient_poll(bContext *C)
@@ -164,7 +165,7 @@ bool grease_pencil_weight_gradient_poll(bContext *C)
     return false;
   }
   Object *object = CTX_data_active_object(C);
-  if ((object->mode & OB_MODE_WEIGHT_GPENCIL_LEGACY) == 0) {
+  if ((object->mode & OB_MODE_WEIGHT_GREASE_PENCIL) == 0) {
     return false;
   }
   ToolSettings *ts = CTX_data_tool_settings(C);
@@ -172,7 +173,8 @@ bool grease_pencil_weight_gradient_poll(bContext *C)
     return false;
   }
   Brush *brush = BKE_paint_brush(&ts->gp_weightpaint->paint);
-  return brush && brush->gpencil_settings && brush->gpencil_weight_tool == GPWEIGHT_TOOL_GRADIENT;
+  return brush && brush->gpencil_settings &&
+         brush->gpencil_weight_brush_type == GPWEIGHT_BRUSH_TYPE_GRADIENT;
 }
 
 bool grease_pencil_vertex_painting_poll(bContext *C)

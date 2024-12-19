@@ -8,6 +8,7 @@
 
 #include "BKE_armature.hh"
 #include "BKE_brush.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_deform.hh"
@@ -591,7 +592,8 @@ static bool toggle_weight_tool_direction_poll(bContext *C)
   if (brush == nullptr) {
     return false;
   }
-  return ELEM(brush->gpencil_weight_tool, GPWEIGHT_TOOL_DRAW, GPWEIGHT_TOOL_GRADIENT);
+  return ELEM(
+      brush->gpencil_weight_brush_type, GPWEIGHT_BRUSH_TYPE_DRAW, GPWEIGHT_BRUSH_TYPE_GRADIENT);
 }
 
 static void GREASE_PENCIL_OT_weight_toggle_direction(wmOperatorType *ot)
@@ -982,14 +984,15 @@ enum WeightGradientFlags : uint8_t {
 };
 ENUM_OPERATORS(WeightGradientFlags, WPAINT_GRADIENT_POINT_IS_MODIFIED);
 
+/* Cache for each editable drawing when applying the weight gradient interactively. */
 struct WeightGradientDrawingCache {
   int active_vertex_group;
   float multi_frame_falloff;
   MutableSpan<MDeformVert> deform_verts;
   VMutableArray<float> deform_weights;
 
-  Vector<bool> locked_vgroups;
-  Vector<bool> bone_deformed_vgroups;
+  Vector<bool> vertex_group_is_locked;
+  Vector<bool> vertex_group_is_bone_deformed;
 
   Array<float2> point_positions;
   Array<float> point_original_weights;
@@ -1003,8 +1006,8 @@ struct WeightGradientToolData {
   float brush_strength;
   float brush_weight;
   float weight_direction;
-
   bool auto_normalize;
+
   Array<bke::greasepencil::Drawing *> drawings;
   Array<WeightGradientDrawingCache> drawing_cache;
 };
@@ -1045,17 +1048,17 @@ static int weight_gradient_exec(bContext *C, wmOperator *op)
     threading::parallel_for(
         cache.point_flags.index_range(), 1024, [&](const IndexRange point_range) {
           for (const int point : point_range) {
-            /* Reset vertex weight. */
+            /* Revert vertex weight to original value. */
             if ((cache.point_flags[point] & WPAINT_GRADIENT_POINT_IS_MODIFIED) &&
                 cache.deform_verts[point].dw)
             {
               cache.deform_weights.set(point, cache.point_original_weights[point]);
             }
 
-            /* Get vector of gradient line starting point to the stroke point. */
+            /* Get the vector of gradient line starting point to the stroke point. */
             const float2 vec_point_to_gradient = cache.point_positions[point] - gradient_start;
 
-            /* Calculate weight change. */
+            /* Calculate the gradient weight for this point. */
             float gradient_factor = 0.0f;
             switch (gradient_type) {
               case WeightGradientType::Linear: {
@@ -1083,7 +1086,7 @@ static int weight_gradient_exec(bContext *C, wmOperator *op)
                 break;
             }
 
-            /* Set new weight. */
+            /* Set the new weight. */
             const float gradient_falloff = BKE_brush_curve_strength(
                 tool.brush, gradient_factor, gradient_length);
             const float weight_change = tool.brush_weight * tool.brush_strength *
@@ -1098,8 +1101,8 @@ static int weight_gradient_exec(bContext *C, wmOperator *op)
             if (tool.auto_normalize) {
               normalize_vertex_weights(cache.deform_verts[point],
                                        cache.active_vertex_group,
-                                       cache.locked_vgroups,
-                                       cache.bone_deformed_vgroups);
+                                       cache.vertex_group_is_locked,
+                                       cache.vertex_group_is_bone_deformed);
             }
           }
         });
@@ -1114,7 +1117,7 @@ static int weight_gradient_exec(bContext *C, wmOperator *op)
 
 static void weight_gradient_cancel(const bContext &C, WeightGradientToolData &tool)
 {
-  /* Reset vertex weights. */
+  /* Revert vertex weights to original values. */
   threading::parallel_for_each(tool.drawing_cache, [&](WeightGradientDrawingCache &cache) {
     threading::parallel_for(
         cache.point_flags.index_range(), 1024, [&](const IndexRange point_range) {
@@ -1164,22 +1167,9 @@ static int weight_gradient_modal(bContext *C, wmOperator *op, const wmEvent *eve
   return result;
 }
 
-static bool active_vertex_group_is_locked(const bContext &C)
-{
-  const Object *object = CTX_data_active_object(&C);
-  int object_defgroup_nr = BKE_object_defgroup_active_index_get(object) - 1;
-  if (object_defgroup_nr == -1) {
-    return false;
-  }
-  bDeformGroup *object_defgroup = static_cast<bDeformGroup *>(
-      BLI_findlink(BKE_object_defgroup_list(object), object_defgroup_nr));
-
-  return (object_defgroup->flag & DG_LOCK_WEIGHT);
-}
-
-static void init_weight_gradient_cache(const bContext &C,
-                                       const wmOperator &op,
-                                       WeightGradientToolData &tool)
+static void init_weight_gradient_tool(const bContext &C,
+                                      const wmOperator &op,
+                                      WeightGradientToolData &tool)
 {
   const Scene &scene = *CTX_data_scene(&C);
   Paint *paint = BKE_paint_get_active_from_context(&C);
@@ -1222,8 +1212,8 @@ static void init_weight_gradient_cache(const bContext &C,
   }
   object_bone_deformed_defgroups = get_bone_deformed_vertex_group_names(*tool.object);
 
-  /* Build a cache with screen space positions and initial weights of the stroke points in all
-   * editable drawings. */
+  /* Build a cache with screen space positions and initial vertex weights of the stroke points in
+   * all editable drawings. */
   const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
   const Object *ob_eval = DEG_get_evaluated_object(depsgraph, tool.object);
   const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
@@ -1256,8 +1246,9 @@ static void init_weight_gradient_cache(const bContext &C,
        * or not. */
       if (tool.auto_normalize) {
         LISTBASE_FOREACH (bDeformGroup *, dg, &curves.vertex_group_names) {
-          cache.locked_vgroups.append(object_locked_defgroups.contains(dg->name));
-          cache.bone_deformed_vgroups.append(object_bone_deformed_defgroups.contains(dg->name));
+          cache.vertex_group_is_locked.append(object_locked_defgroups.contains(dg->name));
+          cache.vertex_group_is_bone_deformed.append(
+              object_bone_deformed_defgroups.contains(dg->name));
         }
       }
 
@@ -1276,7 +1267,7 @@ static void init_weight_gradient_cache(const bContext &C,
           cache.point_positions[point] = ED_view3d_project_float_v2_m4(
               region, deformation.positions[point], projection);
 
-          /* Store original weight. */
+          /* Store original vertex weight. */
           if (cache.deform_verts[point].dw != nullptr) {
             cache.point_flags[point] = WPAINT_GRADIENT_POINT_DW_EXISTS;
           }
@@ -1285,6 +1276,19 @@ static void init_weight_gradient_cache(const bContext &C,
       });
     }
   });
+}
+
+static bool active_vertex_group_is_locked(const bContext &C)
+{
+  const Object *object = CTX_data_active_object(&C);
+  int object_defgroup_nr = BKE_object_defgroup_active_index_get(object) - 1;
+  if (object_defgroup_nr == -1) {
+    return false;
+  }
+  bDeformGroup *object_defgroup = static_cast<bDeformGroup *>(
+      BLI_findlink(BKE_object_defgroup_list(object), object_defgroup_nr));
+
+  return (object_defgroup->flag & DG_LOCK_WEIGHT);
 }
 
 static int weight_gradient_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1301,13 +1305,13 @@ static int weight_gradient_invoke(bContext *C, wmOperator *op, const wmEvent *ev
     return result;
   }
 
-  /* Initialize point weight caching for all editable drawings. */
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   gesture->user_data.data = MEM_new<WeightGradientToolData>(__func__);
   gesture->user_data.use_free = false;
   WeightGradientToolData *tool = static_cast<WeightGradientToolData *>(gesture->user_data.data);
 
-  init_weight_gradient_cache(*C, *op, *tool);
+  /* Initialize the interactive tool. */
+  init_weight_gradient_tool(*C, *op, *tool);
 
   return result;
 }
