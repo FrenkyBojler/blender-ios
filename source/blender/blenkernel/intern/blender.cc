@@ -79,7 +79,7 @@ void BKE_blender_free()
 
   IMB_moviecache_destruct();
   SEQ_fontmap_clear();
-  IMB_movie_exit();
+  MOV_exit();
 
   blender::bke::node_system_exit();
 }

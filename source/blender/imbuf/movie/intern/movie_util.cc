@@ -331,7 +331,7 @@ int ffmpeg_deinterlace(
 
 #endif /* WITH_FFMPEG */
 
-bool IMB_is_movie_file(const char *filepath)
+bool MOV_is_movie_file(const char *filepath)
 {
   BLI_assert(!BLI_path_is_rel(filepath));
 
@@ -346,7 +346,7 @@ bool IMB_is_movie_file(const char *filepath)
   return false;
 }
 
-void IMB_movie_init()
+void MOV_init()
 {
 #ifdef WITH_FFMPEG
   avdevice_register_all();
@@ -362,14 +362,14 @@ void IMB_movie_init()
 #endif
 }
 
-void IMB_movie_exit()
+void MOV_exit()
 {
 #ifdef WITH_FFMPEG
   ffmpeg_sws_exit();
 #endif
 }
 
-int IMB_movie_codec_valid_bit_depths(int av_codec_id)
+int MOV_codec_valid_bit_depths(int av_codec_id)
 {
   int bit_depths = R_IMF_CHAN_DEPTH_8;
 #ifdef WITH_FFMPEG
@@ -439,7 +439,7 @@ static void ffmpeg_preset_set(RenderData *rd, int preset)
 }
 #endif
 
-void IMB_movie_validate_output_settings(RenderData *rd, const ImageFormatData *imf)
+void MOV_validate_output_settings(RenderData *rd, const ImageFormatData *imf)
 {
 #ifdef WITH_FFMPEG
   int audio = 0;
@@ -493,7 +493,7 @@ void IMB_movie_validate_output_settings(RenderData *rd, const ImageFormatData *i
 #endif
 }
 
-bool IMB_movie_codec_supports_alpha(int av_codec_id)
+bool MOV_codec_supports_alpha(int av_codec_id)
 {
 #ifdef WITH_FFMPEG
   return ELEM(av_codec_id,
@@ -508,7 +508,7 @@ bool IMB_movie_codec_supports_alpha(int av_codec_id)
 #endif
 }
 
-bool IMB_movie_codec_supports_crf(int av_codec_id)
+bool MOV_codec_supports_crf(int av_codec_id)
 {
 #ifdef WITH_FFMPEG
   return ELEM(av_codec_id,

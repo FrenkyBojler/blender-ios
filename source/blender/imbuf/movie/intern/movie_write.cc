@@ -737,7 +737,7 @@ static void set_quality_rate_options(const ImbMovieWriter *context,
   AVCodecContext *c = context->video_codec;
 
   /* Handle constant bit rate (CBR) case. */
-  if (!IMB_movie_codec_supports_crf(codec_id) || context->ffmpeg_crf < 0) {
+  if (!MOV_codec_supports_crf(codec_id) || context->ffmpeg_crf < 0) {
     c->bit_rate = context->ffmpeg_video_bitrate * 1000;
     c->rc_max_rate = rd->ffcodecdata.rc_max_rate * 1000;
     c->rc_min_rate = rd->ffcodecdata.rc_min_rate * 1000;
