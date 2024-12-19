@@ -19,6 +19,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "IMB_anim.hh"
 #include "IMB_imbuf.hh"
 
 #include "SEQ_render.hh"
@@ -120,8 +121,8 @@ struct ThumbnailCache {
         IMB_freeImBuf(thumb.thumb);
       }
     }
-    map_.clear_and_shrink();
-    requests_.clear_and_shrink();
+    map_.clear();
+    requests_.clear();
     logical_time_ = 0;
   }
 
