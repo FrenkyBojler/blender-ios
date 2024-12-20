@@ -333,7 +333,8 @@ void VKShaderInterface::descriptor_set_location_update(
     vk_access_flags |= VK_ACCESS_UNIFORM_READ_BIT;
   }
   else if (bind_type == VKBindType::INPUT_ATTACHMENT) {
-    vk_access_flags |= supports_local_read ? VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT :
+    vk_access_flags |= supports_local_read ? VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
+                                                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT :
                                              VK_ACCESS_SHADER_READ_BIT;
   }
 
@@ -423,9 +424,9 @@ void VKShaderInterface::init_descriptor_set_layout_info(
   for (int index : IndexRange(info.subpass_inputs_.size())) {
     UNUSED_VARS(index);
     descriptor_set_layout_info_.bindings.append_n_times(
-        workarounds.dynamic_rendering ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT :
-            workarounds.dynamic_rendering_local_read ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
-              VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        workarounds.dynamic_rendering            ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT :
+        workarounds.dynamic_rendering_local_read ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
+                                                   VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
         info.subpass_inputs_.size());
   }
   for (const shader::ShaderCreateInfo::Resource &res : all_resources) {
