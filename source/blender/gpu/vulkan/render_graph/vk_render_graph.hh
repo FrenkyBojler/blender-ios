@@ -144,6 +144,7 @@ class VKRenderGraph : public NonCopyable {
 
   bool supports_local_read() const
   {
+    BLI_assert(command_buffer_);
     return command_buffer_->use_dynamic_rendering_local_read;
   }
 
