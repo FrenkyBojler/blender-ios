@@ -438,12 +438,12 @@ void recurs_sel_seq(Sequence *seq_meta)
   }
 }
 
-static bool seq_point_image_isect(const Scene *scene, const Sequence *seq, float point[2])
+bool seq_point_image_isect(const Scene *scene, const Sequence *seq, float point_view[2])
 {
   float seq_image_quad[4][2];
   SEQ_image_transform_final_quad_get(scene, seq, seq_image_quad);
   return isect_point_quad_v2(
-      point, seq_image_quad[0], seq_image_quad[1], seq_image_quad[2], seq_image_quad[3]);
+      point_view, seq_image_quad[0], seq_image_quad[1], seq_image_quad[2], seq_image_quad[3]);
 }
 
 static void sequencer_select_do_updates(bContext *C, Scene *scene)
@@ -1058,14 +1058,10 @@ static blender::Vector<Sequence *> mouseover_strips_sorted_get(const Scene *scen
     strips.append(seq);
   }
 
-  BLI_assert(strips.size() <= 2);
-
-  /* Ensure that `strips[0]` is the strip closest to the mouse cursor. */
-  if (strips.size() == 2 && strip_to_frame_distance(scene, v2d, strips[0], mouse_co[0]) >
-                                strip_to_frame_distance(scene, v2d, strips[1], mouse_co[0]))
-  {
-    std::swap(strips[0], strips[1]);
-  }
+  std::sort(strips.begin(), strips.end(), [&](const Sequence *seq1, const Sequence *seq2) {
+    return strip_to_frame_distance(scene, v2d, seq1, mouse_co[0]) <
+           strip_to_frame_distance(scene, v2d, seq2, mouse_co[0]);
+  });
 
   return strips;
 }

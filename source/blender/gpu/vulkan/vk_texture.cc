@@ -119,6 +119,14 @@ void VKTexture::copy_to(Texture *tex)
 
 void VKTexture::clear(eGPUDataFormat format, const void *data)
 {
+  if (format == GPU_DATA_UINT_24_8) {
+    float clear_depth = 0.0f;
+    convert_host_to_device(
+        &clear_depth, data, 1, format, GPU_DEPTH24_STENCIL8, GPU_DEPTH24_STENCIL8);
+    clear_depth_stencil(GPU_DEPTH_BIT | GPU_STENCIL_BIT, clear_depth, 0u);
+    return;
+  }
+
   render_graph::VKClearColorImageNode::CreateInfo clear_color_image = {};
   clear_color_image.vk_clear_color_value = to_vk_clear_color_value(format, data);
   clear_color_image.vk_image = vk_image_handle();
@@ -186,7 +194,8 @@ void VKTexture::read_sub(
   /* Vulkan images cannot be directly mapped to host memory and requires a staging buffer. */
   VKBuffer staging_buffer;
   size_t device_memory_size = sample_len * to_bytesize(device_format_);
-  staging_buffer.create(device_memory_size, GPU_USAGE_DYNAMIC, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+  staging_buffer.create(
+      device_memory_size, GPU_USAGE_DYNAMIC, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
 
   render_graph::VKCopyImageToBufferNode::CreateInfo copy_image_to_buffer = {};
   render_graph::VKCopyImageToBufferNode::Data &node_data = copy_image_to_buffer.node_data;
@@ -292,7 +301,8 @@ void VKTexture::update_sub(
   }
 
   VKBuffer staging_buffer;
-  staging_buffer.create(device_memory_size, GPU_USAGE_DYNAMIC, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+  staging_buffer.create(
+      device_memory_size, GPU_USAGE_DYNAMIC, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, true);
   /* Rows are sequentially stored, when unpack row length is 0, or equal to the extent width. In
    * other cases we unpack the rows to reduce the size of the staging buffer and data transfer. */
   const uint texture_unpack_row_length =

@@ -59,20 +59,28 @@ static void node_composit_buts_boxmask(uiLayout *layout, bContext * /*C*/, Point
   uiLayout *row;
 
   row = uiLayoutRow(layout, true);
-  uiItemR(row, ptr, "x", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "y", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "x", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(row, ptr, "y", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
   row = uiLayoutRow(layout, true);
-  uiItemR(
-      row, ptr, "mask_width", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-  uiItemR(
-      row, ptr, "mask_height", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(row,
+          ptr,
+          "mask_width",
+          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+          std::nullopt,
+          ICON_NONE);
+  uiItemR(row,
+          ptr,
+          "mask_height",
+          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+          std::nullopt,
+          ICON_NONE);
 
-  uiItemR(layout, ptr, "rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 template<CMPNodeMaskType MaskType>
 static void box_mask(const Result &base_mask,
@@ -91,8 +99,8 @@ static void box_mask(const Result &base_mask,
   uv = float2x2(float2(cos_angle, -sin_angle), float2(sin_angle, cos_angle)) * uv;
   bool is_inside = math::abs(uv.x) < size.x && math::abs(uv.y) < size.y;
 
-  float base_mask_value = base_mask.load_pixel<float>(texel);
-  float value = value_mask.load_pixel<float>(texel);
+  float base_mask_value = base_mask.load_pixel<float, true>(texel);
+  float value = value_mask.load_pixel<float, true>(texel);
 
   float output_mask_value = 0.0f;
   if constexpr (MaskType == CMP_NODE_MASKTYPE_ADD) {
@@ -296,6 +304,7 @@ void register_node_type_cmp_boxmask()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_MASK_BOX, "Box Mask", NODE_CLASS_MATTE);
+  ntype.enum_name_legacy = "BOXMASK";
   ntype.declare = file_ns::cmp_node_boxmask_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_boxmask;
   ntype.initfunc = file_ns::node_composit_init_boxmask;

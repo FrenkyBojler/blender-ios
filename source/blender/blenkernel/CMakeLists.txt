@@ -135,6 +135,7 @@ set(SRC
   intern/fluid.cc
   intern/fmodifier.cc
   intern/freestyle.cc
+  intern/geometry_compare.cc
   intern/geometry_component_curves.cc
   intern/geometry_component_edit_data.cc
   intern/geometry_component_grease_pencil.cc
@@ -200,7 +201,6 @@ set(SRC
   intern/mesh.cc
   intern/mesh_attributes.cc
   intern/mesh_calc_edges.cc
-  intern/geometry_compare.cc
   intern/mesh_convert.cc
   intern/mesh_data_update.cc
   intern/mesh_debug.cc
@@ -311,6 +311,7 @@ set(SRC
   intern/undo_system.cc
   intern/unit.cc
   intern/vfont.cc
+  intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
   intern/viewer_path.cc
   intern/volume.cc
@@ -321,7 +322,6 @@ set(SRC
   intern/wm_runtime.cc
   intern/workspace.cc
   intern/world.cc
-  intern/writemovie.cc
 
   BKE_action.hh
   BKE_addon.h
@@ -403,6 +403,7 @@ set(SRC
   BKE_file_handler.hh
   BKE_fluid.h
   BKE_freestyle.h
+  BKE_geometry_compare.hh
   BKE_geometry_fields.hh
   BKE_geometry_nodes_gizmos_transforms.hh
   BKE_geometry_nodes_reference_set.hh
@@ -449,7 +450,6 @@ set(SRC
   BKE_mball_tessellate.hh
   BKE_mesh.h
   BKE_mesh.hh
-  BKE_geometry_compare.hh
   BKE_mesh_fair.hh
   BKE_mesh_iterators.hh
   BKE_mesh_legacy_convert.hh
@@ -534,7 +534,6 @@ set(SRC
   BKE_wm_runtime.hh
   BKE_workspace.hh
   BKE_world.h
-  BKE_writemovie.hh
 
   nla_private.h
   particle_private.h
@@ -573,6 +572,7 @@ set(LIB
   bf_gpu
   bf_ikplugin
   bf_imbuf
+  bf::imbuf_movie
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
@@ -653,19 +653,6 @@ if(WITH_IMAGE_WEBP)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-  list(APPEND SRC
-    intern/writeffmpeg.cc
-    BKE_writeffmpeg.hh
-  )
-  list(APPEND INC
-    ../../../intern/ffmpeg
-  )
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-  )
   add_definitions(-DWITH_FFMPEG)
 endif()
 

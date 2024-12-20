@@ -478,7 +478,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   }
 
   /* Disable for multires and dyntopo for now */
-  if (!bke::object::pbvh_get(ob) || !SCULPT_handles_colors_report(ob, op->reports)) {
+  if (!bke::object::pbvh_get(ob) || !color_supported_check(scene, ob, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -552,10 +552,10 @@ static void sculpt_color_filter_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "strength", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill) {
-    uiItemR(layout, op->ptr, "fill_color", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

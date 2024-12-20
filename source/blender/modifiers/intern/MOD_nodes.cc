@@ -91,6 +91,7 @@
 #include "ED_viewer_path.hh"
 
 #include "NOD_geometry.hh"
+#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -119,11 +120,12 @@ static void init_data(ModifierData *md)
   nmd->runtime->cache = std::make_shared<bake::ModifierCache>();
 }
 
-static void find_used_ids_from_settings(const NodesModifierSettings &settings, Set<ID *> &ids)
+static void find_dependencies_from_settings(const NodesModifierSettings &settings,
+                                            nodes::GeometryNodesEvalDependencies &deps)
 {
   IDP_foreach_property(settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
     if (ID *id = IDP_Id(property)) {
-      ids.add(id);
+      deps.add_generic_id_full(id);
     }
   });
 }
@@ -142,10 +144,18 @@ static void add_collection_relation(const ModifierUpdateDepsgraphContext *ctx,
   DEG_add_collection_geometry_customdata_mask(ctx->node, &collection, &dependency_data_mask);
 }
 
-static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx, Object &object)
+static void add_object_relation(
+    const ModifierUpdateDepsgraphContext *ctx,
+    Object &object,
+    const nodes::GeometryNodesEvalDependencies::ObjectDependencyInfo &info)
 {
-  DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
-  if (&(ID &)object != &ctx->object->id) {
+  if (info.transform) {
+    DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
+  }
+  if (&(ID &)object == &ctx->object->id) {
+    return;
+  }
+  if (info.geometry) {
     if (object.type == OB_EMPTY && object.instance_collection != nullptr) {
       add_collection_relation(ctx, *object.instance_collection);
     }
@@ -162,36 +172,39 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   if (nmd->node_group == nullptr) {
     return;
   }
+  if (ID_MISSING(nmd->node_group)) {
+    return;
+  }
 
   DEG_add_node_tree_output_relation(ctx->node, nmd->node_group, "Nodes Modifier");
 
-  bool needs_own_transform_relation = false;
-  bool needs_scene_camera_relation = false;
-  Set<ID *> used_ids;
-  find_used_ids_from_settings(nmd->settings, used_ids);
-  nodes::find_node_tree_dependencies(
-      *nmd->node_group, used_ids, needs_own_transform_relation, needs_scene_camera_relation);
+  nodes::GeometryNodesEvalDependencies eval_deps =
+      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
+
+  /* Create dependencies to data-blocks referenced by the settings in the modifier. */
+  find_dependencies_from_settings(nmd->settings, eval_deps);
 
   if (ctx->object->type == OB_CURVES) {
     Curves *curves_id = static_cast<Curves *>(ctx->object->data);
     if (curves_id->surface != nullptr) {
-      used_ids.add(&curves_id->surface->id);
+      eval_deps.add_object(curves_id->surface);
     }
   }
 
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
     for (const NodesModifierDataBlock &data_block : Span(bake.data_blocks, bake.data_blocks_num)) {
       if (data_block.id) {
-        used_ids.add(data_block.id);
+        eval_deps.add_generic_id_full(data_block.id);
       }
     }
   }
 
-  for (ID *id : used_ids) {
+  for (ID *id : eval_deps.ids.values()) {
     switch ((ID_Type)GS(id->name)) {
       case ID_OB: {
         Object *object = reinterpret_cast<Object *>(id);
-        add_object_relation(ctx, *object);
+        add_object_relation(
+            ctx, *object, eval_deps.objects_info.lookup_default(object->id.session_uid, {}));
         break;
       }
       case ID_GR: {
@@ -212,36 +225,14 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     }
   }
 
-  if (needs_own_transform_relation) {
+  if (eval_deps.needs_own_transform) {
     DEG_add_depends_on_transform_relation(ctx->node, "Nodes Modifier");
   }
-  if (needs_scene_camera_relation) {
+  if (eval_deps.needs_active_camera) {
     DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
     /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
   }
-}
-
-static bool check_tree_for_time_node(const bNodeTree &tree, Set<const bNodeTree *> &checked_groups)
-{
-  if (!checked_groups.add(&tree)) {
-    return false;
-  }
-  tree.ensure_topology_cache();
-  if (!tree.nodes_by_type("GeometryNodeInputSceneTime").is_empty()) {
-    return true;
-  }
-  if (!tree.nodes_by_type("GeometryNodeSimulationInput").is_empty()) {
-    return true;
-  }
-  for (const bNode *node : tree.group_nodes()) {
-    if (const bNodeTree *sub_tree = reinterpret_cast<const bNodeTree *>(node->id)) {
-      if (check_tree_for_time_node(*sub_tree, checked_groups)) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
@@ -251,13 +242,17 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
   if (tree == nullptr) {
     return false;
   }
+  if (ID_MISSING(tree)) {
+    return false;
+  }
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
     if (bake.bake_mode == NODES_MODIFIER_BAKE_MODE_ANIMATION) {
       return true;
     }
   }
-  Set<const bNodeTree *> checked_groups;
-  return check_tree_for_time_node(*tree, checked_groups);
+  nodes::GeometryNodesEvalDependencies eval_deps =
+      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
+  return eval_deps.time_dependent;
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -2019,7 +2014,7 @@ static void add_attribute_search_button(const bContext &C,
                                         const bool is_output)
 {
   if (!nmd.runtime->eval_log) {
-    uiItemR(layout, md_ptr, rna_path_attribute_name.c_str(), UI_ITEM_NONE, "", ICON_NONE);
+    uiItemR(layout, md_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
 
@@ -2034,7 +2029,7 @@ static void add_attribute_search_button(const bContext &C,
                                  10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
                                  UI_UNIT_Y,
                                  md_ptr,
-                                 rna_path_attribute_name.c_str(),
+                                 rna_path_attribute_name,
                                  0,
                                  0.0f,
                                  0.0f,
@@ -2113,7 +2108,7 @@ static void add_attribute_search_or_value_buttons(const bContext &C,
   }
   else {
     const char *name = type == SOCK_BOOLEAN ? (socket.name ? IFACE_(socket.name) : "") : "";
-    uiItemR(prop_row, md_ptr, rna_path.c_str(), UI_ITEM_NONE, name, ICON_NONE);
+    uiItemR(prop_row, md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
     uiItemDecoratorR(layout, md_ptr, rna_path.c_str(), -1);
   }
 
@@ -2345,7 +2340,7 @@ static void draw_bake_panel(uiLayout *layout, PointerRNA *modifier_ptr)
   uiLayout *col = uiLayoutColumn(layout, false);
   uiLayoutSetPropSep(col, true);
   uiLayoutSetPropDecorate(col, false);
-  uiItemR(col, modifier_ptr, "bake_target", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, modifier_ptr, "bake_target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, modifier_ptr, "bake_directory", UI_ITEM_NONE, IFACE_("Bake Path"), ICON_NONE);
 }
 
@@ -2385,7 +2380,7 @@ static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd
             });
 
   for (const NameWithUsage &attribute : sorted_used_attribute) {
-    const StringRefNull attribute_name = attribute.name;
+    const StringRef attribute_name = attribute.name;
     const geo_log::NamedAttributeUsage usage = attribute.usage;
 
     /* #uiLayoutRowWithHeading doesn't seem to work in this case. */
@@ -2412,10 +2407,10 @@ static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd
     uiLayout *row = uiLayoutRow(split, false);
     uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
     uiLayoutSetActive(row, false);
-    uiItemL(row, ss.str().c_str(), ICON_NONE);
+    uiItemL(row, ss.str(), ICON_NONE);
 
     row = uiLayoutRow(split, false);
-    uiItemL(row, attribute_name.c_str(), ICON_NONE);
+    uiItemL(row, attribute_name, ICON_NONE);
   }
 }
 
@@ -2481,7 +2476,7 @@ static void draw_warnings(const bContext *C,
   uiLayout *col = uiLayoutColumn(panel.body, false);
   for (const NodeWarning *warning : warnings) {
     const int icon = node_warning_type_icon(warning->type);
-    uiItemL(col, warning->message.c_str(), icon);
+    uiItemL(col, warning->message, icon);
   }
 }
 

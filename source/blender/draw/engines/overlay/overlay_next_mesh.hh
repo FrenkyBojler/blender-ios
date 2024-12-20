@@ -77,7 +77,7 @@ class Meshes : Overlay {
   View view_edit_cage_ = {"view_edit_cage"};
   View view_edit_edge_ = {"view_edit_edge"};
   View view_edit_vert_ = {"view_edit_vert"};
-  State::ViewOffsetData offset_data_;
+  View::OffsetData offset_data_;
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -371,10 +371,9 @@ class Meshes : Overlay {
       return;
     }
 
-    float view_dist = State::view_dist_get(offset_data_, view.winmat());
-    view_edit_cage_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist, 0.5f));
-    view_edit_edge_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist, 1.0f));
-    view_edit_vert_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist, 1.5f));
+    view_edit_cage_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 0.5f));
+    view_edit_edge_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.0f));
+    view_edit_vert_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.5f));
 
     manager.submit(edit_mesh_normals_ps_, view);
     manager.submit(edit_mesh_faces_ps_, view);
@@ -399,10 +398,9 @@ class Meshes : Overlay {
 
     GPU_debug_group_begin("Mesh Edit Color Only");
 
-    float view_dist = State::view_dist_get(offset_data_, view.winmat());
-    view_edit_cage_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist, 0.5f));
-    view_edit_edge_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist, 1.0f));
-    view_edit_vert_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist, 1.5f));
+    view_edit_cage_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 0.5f));
+    view_edit_edge_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.0f));
+    view_edit_vert_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.5f));
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_normals_ps_, view);
@@ -824,13 +822,20 @@ class MeshUVs : Overlay {
       };
 
       ListBaseWrapper<ImageTile> tiles(image->tiles);
-
+      /* image->active_tile_index could point to a non existing ImageTile. To work around this we
+       * get the active tile when looping over all tiles. */
+      const ImageTile *active_tile = nullptr;
+      int tile_index = 0;
       for (const ImageTile *tile : tiles) {
         draw_tile(tile, false);
+        if (tile_index == image->active_tile_index) {
+          active_tile = tile;
+        }
+        tile_index++;
       }
       /* Draw active tile on top. */
-      if (show_tiled_image_active_) {
-        draw_tile(tiles.get(image->active_tile_index), true);
+      if (show_tiled_image_active_ && active_tile != nullptr) {
+        draw_tile(active_tile, true);
       }
     }
 
