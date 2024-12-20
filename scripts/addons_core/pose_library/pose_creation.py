@@ -205,9 +205,11 @@ class PoseActionCreator:
 
         if isinstance(value_or_array, str):
             # Enums resolve to a string.
-            bone_path, enum_property_name = data_path.rsplit("[", 1)
+            unescaped_data_path = bpy.utils.unescape_identifier(data_path)
+            bone_path, enum_property_name = unescaped_data_path.rsplit("[", 1)
             # enum_property_name still has the quotes and a bracket at the end hence the [1:-2].
             value_or_array = cls._path_resolve(datablock, bone_path).get(enum_property_name[1:-2])
+            assert isinstance(value_or_array, (int, float))
             return cast(FCurveValue, value_or_array)
 
         # Both indices -1 and 0 are used for non-array properties.
