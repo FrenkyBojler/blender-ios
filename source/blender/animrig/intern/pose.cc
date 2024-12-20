@@ -16,7 +16,6 @@
 #include "RNA_access.hh"
 
 #include "ANIM_action.hh"
-#include "action_internal.hh"
 
 namespace blender::animrig {
 
