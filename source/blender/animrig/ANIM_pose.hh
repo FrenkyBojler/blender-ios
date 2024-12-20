@@ -40,9 +40,11 @@ void pose_apply_action_blend(Object *ob,
                              const AnimationEvalContext *anim_eval_context,
                              float blend_factor);
 
-/** A function to get the best slot to read pose data from for the given ID.
+/**
+ * Get the best slot to read pose data from for the given ID.
  * Will always return a Slot as it falls back to the first Slot.
  *
- * Assumes that the Action has at least one Slot.*/
+ * Assumes that the Action has at least one Slot.
+ */
 Slot &get_best_pose_slot_for_id(const ID &id, Action &pose_data);
 }  // namespace blender::animrig
