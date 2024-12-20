@@ -8925,7 +8925,7 @@ static void button_activate_exit(
 #endif
 
   if (data->changed_cursor) {
-    WM_cursor_set(data->window, WM_CURSOR_DEFAULT);
+    win->tag_cursor_refresh = true;
   }
 
   /* redraw and refresh (for popups) */
