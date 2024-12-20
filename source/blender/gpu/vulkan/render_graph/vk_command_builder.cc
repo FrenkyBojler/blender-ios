@@ -103,8 +103,7 @@ void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
                                         std::optional<NodeHandle> &r_rendering_scope)
 {
   bool is_rendering = false;
-  const VKDevice &device = VKBackend::get().device;
-  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
+  const bool supports_local_read = command_buffer.use_dynamic_rendering_local_read;
 
   for (NodeHandle node_handle : node_group) {
     VKRenderGraphNode &node = render_graph.nodes_[node_handle];
@@ -675,8 +674,7 @@ void VKCommandBuilder::layer_tracking_end(VKCommandBufferInterface &command_buff
 
 void VKCommandBuilder::layer_tracking_suspend(VKCommandBufferInterface &command_buffer)
 {
-  const VKDevice &device = VKBackend::get().device;
-  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
+  const bool supports_local_read =command_buffer.use_dynamic_rendering_local_read;
 
   if (state_.layered_bindings.is_empty()) {
     return;
@@ -721,8 +719,7 @@ void VKCommandBuilder::layer_tracking_resume(VKCommandBufferInterface &command_b
   /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
   state_.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
   state_.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-  const VKDevice &device = VKBackend::get().device;
-  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
+  const bool supports_local_read = command_buffer.use_dynamic_rendering_local_read;
   for (const LayeredImageBinding &binding : state_.layered_bindings) {
     add_image_barrier(
         binding.vk_image,
