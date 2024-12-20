@@ -299,8 +299,8 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
         }
         else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
           /* Bone space without considering object transformations. */
-          mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
-          mul_m4_m3m4(cob.matrix, tc->imat3, cob.matrix);
+          mul_m3_v3(td->mtx, cob.matrix[3]);
+          mul_m3_v3(tc->imat3, cob.matrix[3]);
         }
         else if (con->ownspace != CONSTRAINT_SPACE_LOCAL) {
           /* Skip... incompatible spacetype. */
@@ -324,8 +324,8 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
           mul_m3_v3(td->smtx, cob.matrix[3]);
         }
         else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
-          mul_m4_m3m4(cob.matrix, tc->mat3, cob.matrix);
-          mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
+          mul_m3_v3(tc->mat3, cob.matrix[3]);
+          mul_m3_v3(td->smtx, cob.matrix[3]);
         }
 
         /* Free targets list. */
