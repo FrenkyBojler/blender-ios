@@ -1909,7 +1909,7 @@ static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
   ListBase *seqbase = SEQ_active_seqbase_get(ed);
 
   Sequence *seq, *seq_new;
-  StripData *strip_new;
+  StripData *data_new;
   StripElem *se, *se_new;
   int start_ofs, timeline_frame, frame_end;
   int step = RNA_int_get(op->ptr, "length");
@@ -1941,15 +1941,15 @@ static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
         seq_new->endofs = 1 - step;
 
         /* New strip. */
-        strip_new = seq_new->data;
-        strip_new->us = 1;
+        data_new = seq_new->data;
+        data_new->us = 1;
 
         /* New stripdata, only one element now. */
         /* Note this assume all elements (images) have the same dimension,
          * since we only copy the name here. */
-        se_new = static_cast<StripElem *>(MEM_reallocN(strip_new->stripdata, sizeof(*se_new)));
+        se_new = static_cast<StripElem *>(MEM_reallocN(data_new->stripdata, sizeof(*se_new)));
         STRNCPY(se_new->filename, se->filename);
-        strip_new->stripdata = se_new;
+        data_new->stripdata = se_new;
 
         if (step > 1) {
           seq_new->flag &= ~SEQ_OVERLAP;

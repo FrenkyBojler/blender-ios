@@ -78,53 +78,53 @@ StripProxy *seq_strip_proxy_alloc()
 
 static StripData *seq_strip_alloc(int type)
 {
-  StripData *strip = static_cast<StripData *>(MEM_callocN(sizeof(StripData), "strip"));
+  StripData *data = static_cast<StripData *>(MEM_callocN(sizeof(StripData), "strip"));
 
   if (type != SEQ_TYPE_SOUND_RAM) {
-    strip->transform = static_cast<StripTransform *>(
+    data->transform = static_cast<StripTransform *>(
         MEM_callocN(sizeof(StripTransform), "StripTransform"));
-    strip->transform->scale_x = 1;
-    strip->transform->scale_y = 1;
-    strip->transform->origin[0] = 0.5f;
-    strip->transform->origin[1] = 0.5f;
-    strip->transform->filter = SEQ_TRANSFORM_FILTER_AUTO;
-    strip->crop = static_cast<StripCrop *>(MEM_callocN(sizeof(StripCrop), "StripCrop"));
+    data->transform->scale_x = 1;
+    data->transform->scale_y = 1;
+    data->transform->origin[0] = 0.5f;
+    data->transform->origin[1] = 0.5f;
+    data->transform->filter = SEQ_TRANSFORM_FILTER_AUTO;
+    data->crop = static_cast<StripCrop *>(MEM_callocN(sizeof(StripCrop), "StripCrop"));
   }
 
-  strip->us = 1;
-  return strip;
+  data->us = 1;
+  return data;
 }
 
-static void seq_free_strip(StripData *strip)
+static void seq_free_strip(StripData *data)
 {
-  strip->us--;
-  if (strip->us > 0) {
+  data->us--;
+  if (data->us > 0) {
     return;
   }
-  if (strip->us < 0) {
+  if (data->us < 0) {
     printf("error: negative users in strip\n");
     return;
   }
 
-  if (strip->stripdata) {
-    MEM_freeN(strip->stripdata);
+  if (data->stripdata) {
+    MEM_freeN(data->stripdata);
   }
 
-  if (strip->proxy) {
-    if (strip->proxy->anim) {
-      MOV_close(strip->proxy->anim);
+  if (data->proxy) {
+    if (data->proxy->anim) {
+      MOV_close(data->proxy->anim);
     }
 
-    MEM_freeN(strip->proxy);
+    MEM_freeN(data->proxy);
   }
-  if (strip->crop) {
-    MEM_freeN(strip->crop);
+  if (data->crop) {
+    MEM_freeN(data->crop);
   }
-  if (strip->transform) {
-    MEM_freeN(strip->transform);
+  if (data->transform) {
+    MEM_freeN(data->transform);
   }
 
-  MEM_freeN(strip);
+  MEM_freeN(data);
 }
 
 Sequence *SEQ_sequence_alloc(ListBase *lb, int timeline_frame, int machine, int type)
@@ -762,28 +762,26 @@ static bool seq_write_data_cb(Sequence *seq, void *userdata)
 
     BLO_write_struct(writer, Stereo3dFormat, seq->stereo3d_format);
 
-    StripData *strip = seq->data;
-    BLO_write_struct(writer, StripData, strip);
-    if (strip->crop) {
-      BLO_write_struct(writer, StripCrop, strip->crop);
+    StripData *data = seq->data;
+    BLO_write_struct(writer, StripData, data);
+    if (data->crop) {
+      BLO_write_struct(writer, StripCrop, data->crop);
     }
-    if (strip->transform) {
-      BLO_write_struct(writer, StripTransform, strip->transform);
+    if (data->transform) {
+      BLO_write_struct(writer, StripTransform, data->transform);
     }
-    if (strip->proxy) {
-      BLO_write_struct(writer, StripProxy, strip->proxy);
+    if (data->proxy) {
+      BLO_write_struct(writer, StripProxy, data->proxy);
     }
     if (seq->type == SEQ_TYPE_IMAGE) {
-      BLO_write_struct_array(writer,
-                             StripElem,
-                             MEM_allocN_len(strip->stripdata) / sizeof(StripElem),
-                             strip->stripdata);
+      BLO_write_struct_array(
+          writer, StripElem, MEM_allocN_len(data->stripdata) / sizeof(StripElem), data->stripdata);
     }
     else if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_SOUND_RAM)) {
-      BLO_write_struct(writer, StripElem, strip->stripdata);
+      BLO_write_struct(writer, StripElem, data->stripdata);
     }
 
-    strip->done = true;
+    data->done = true;
   }
 
   if (seq->prop) {

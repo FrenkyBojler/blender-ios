@@ -233,8 +233,8 @@ Sequence *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   Sequence *seq = SEQ_sequence_alloc(
       seqbase, load_data->start_frame, load_data->channel, SEQ_TYPE_IMAGE);
   seq->len = load_data->image.len;
-  StripData *strip = seq->data;
-  strip->stripdata = static_cast<StripElem *>(
+  StripData *data = seq->data;
+  data->stripdata = static_cast<StripElem *>(
       MEM_callocN(load_data->image.len * sizeof(StripElem), "stripelem"));
 
   if (seq->len == 1) {
@@ -258,7 +258,7 @@ Sequence *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   if (ibuf != nullptr) {
     /* Set image resolution. Assume that all images in sequence are same size. This fields are only
      * informative. */
-    StripElem *strip_elem = strip->stripdata;
+    StripElem *strip_elem = data->stripdata;
     for (int i = 0; i < load_data->image.len; i++) {
       strip_elem->orig_width = ibuf->x;
       strip_elem->orig_height = ibuf->y;
@@ -323,12 +323,12 @@ Sequence *SEQ_add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
    * See #47135 for under shoot example. */
   seq->len = std::max(1, int(round((info.length - sound->offset_time) * FPS)));
 
-  StripData *strip = seq->data;
+  StripData *data = seq->data;
   /* We only need 1 element to store the filename. */
-  StripElem *se = strip->stripdata = static_cast<StripElem *>(
+  StripElem *se = data->stripdata = static_cast<StripElem *>(
       MEM_callocN(sizeof(StripElem), "stripelem"));
   BLI_path_split_dir_file(
-      load_data->path, strip->dirpath, sizeof(strip->dirpath), se->filename, sizeof(se->filename));
+      load_data->path, data->dirpath, sizeof(data->dirpath), se->filename, sizeof(se->filename));
 
   if (seq->sound != nullptr) {
     if (load_data->flags & SEQ_LOAD_SOUND_MONO) {
@@ -346,7 +346,7 @@ Sequence *SEQ_add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   }
 
   /* Set Last active directory. */
-  BLI_strncpy(scene->ed->act_sounddir, strip->dirpath, FILE_MAXDIR);
+  BLI_strncpy(scene->ed->act_sounddir, data->dirpath, FILE_MAXDIR);
   seq_add_set_name(scene, seq, load_data);
   seq_add_generic_update(scene, seq);
 
@@ -504,15 +504,15 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
 
   STRNCPY(seq->data->colorspace_settings.name, colorspace);
 
-  StripData *strip = seq->data;
+  StripData *data = seq->data;
   /* We only need 1 element for MOVIE strips. */
   StripElem *se;
-  strip->stripdata = se = static_cast<StripElem *>(MEM_callocN(sizeof(StripElem), "stripelem"));
-  strip->stripdata->orig_width = orig_width;
-  strip->stripdata->orig_height = orig_height;
-  strip->stripdata->orig_fps = video_fps;
+  data->stripdata = se = static_cast<StripElem *>(MEM_callocN(sizeof(StripElem), "stripelem"));
+  data->stripdata->orig_width = orig_width;
+  data->stripdata->orig_height = orig_height;
+  data->stripdata->orig_fps = video_fps;
   BLI_path_split_dir_file(
-      load_data->path, strip->dirpath, sizeof(strip->dirpath), se->filename, sizeof(se->filename));
+      load_data->path, data->dirpath, sizeof(data->dirpath), se->filename, sizeof(se->filename));
 
   seq_add_set_view_transform(scene, seq, load_data);
   seq_add_set_name(scene, seq, load_data);
