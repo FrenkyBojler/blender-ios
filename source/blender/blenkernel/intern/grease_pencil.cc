@@ -392,7 +392,7 @@ OffsetIndices<int> Drawing::shapes() const
       return;
     }
 
-    r_offsets.clear_and_shrink();
+    r_offsets.clear();
     /* Just set to something that is not the first element. */
     int last = shape_ids[0] - 1;
 
