@@ -64,9 +64,13 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     MEM_freeN(id->library_weak_reference);
   }
 
-  BLI_assert_msg(
-      id->runtime.readfile_data == nullptr,
-      "this data should have already been cleaned up at the end of the readfile process");
+  /* During "normal" file loading this data is released when versioning ends.
+   * Some versioning code also deletes IDs, though. For example, in the startup
+   * blend file, brushes that were replaced by assets are deleted.
+   *
+   * Note that this does not cover embedded IDs. Those are assumed to be deleted
+   * explicitly themselves before this one is deleted. */
+  MEM_SAFE_FREE(id->runtime.readfile_data);
 
   BKE_animdata_free(id, do_id_user);
 }

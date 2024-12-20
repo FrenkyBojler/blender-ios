@@ -1564,6 +1564,13 @@ void BKE_libblock_copy_in_lib(Main *bmain,
     new_id->tag &= ~ID_TAG_COPIED_ON_EVAL;
   }
 
+  BLI_assert(new_id->runtime.readfile_data == nullptr ||
+             new_id->runtime.readfile_data != id->runtime.readfile_data);
+  // if (id->runtime.readfile_data) {
+  //   new_id->runtime.readfile_data = static_cast<ID_Readfile_Data *>(
+  //       MEM_dupallocN(id->runtime.readfile_data));
+  // }
+
   const size_t id_len = BKE_libblock_get_alloc_info(GS(new_id->name), nullptr);
   const size_t id_offset = sizeof(ID);
   if (int(id_len) - int(id_offset) > 0) { /* signed to allow neg result */ /* XXX ????? */

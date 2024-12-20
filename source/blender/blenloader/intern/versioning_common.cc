@@ -679,7 +679,4 @@ void do_versions_after_setup(Main *new_bmain,
     /* Convert all the legacy grease pencil objects. This does not touch annotations. */
     blender::bke::greasepencil::convert::legacy_main(*new_bmain, lapp_context, *reports);
   }
-
-  /* Versioning is done. That was the last code that could use the ID 'readfile' runtime data. */
-  BLO_readfile_free_id_runtime_data(*new_bmain);
 }

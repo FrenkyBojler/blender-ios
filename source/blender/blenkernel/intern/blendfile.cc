@@ -1156,6 +1156,9 @@ static void setup_app_data(bContext *C,
     BLO_read_do_version_after_setup(bmain, nullptr, reports);
   }
 
+  // TODO: should this also be in the `if (mode != LOAD_UNDO)` block?
+  BLO_readfile_id_runtime_data_free_all(*bmain);
+
   bmain->recovered = false;
 
   /* `startup.blend` or recovered startup. */

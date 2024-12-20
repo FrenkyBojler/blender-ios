@@ -2145,6 +2145,37 @@ static int direct_link_id_restore_recalc(const FileData *fd,
   return recalc;
 }
 
+static void readfile_id_runtime_data_ensure(ID &id)
+{
+  if (id.runtime.readfile_data) {
+    return;
+  }
+  id.runtime.readfile_data = MEM_cnew<ID_Readfile_Data>(__func__);
+}
+
+void BLO_readfile_id_runtime_data_free_all(Main &bmain)
+{
+  ID *id;
+  FOREACH_MAIN_ID_BEGIN (&bmain, id) {
+    /* Handle the ID itself. */
+    MEM_SAFE_FREE(id->runtime.readfile_data);
+
+    /* Handle its embedded IDs, because they do not get referenced by bmain. */
+    if (GS(id->name) == ID_SCE) {
+      Collection *collection = reinterpret_cast<Scene *>(id)->master_collection;
+      if (collection) {
+        MEM_SAFE_FREE(collection->id.runtime.readfile_data);
+      }
+    }
+
+    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
+    if (node_tree) {
+      MEM_SAFE_FREE(node_tree->id.runtime.readfile_data);
+    }
+  }
+  FOREACH_MAIN_ID_END;
+}
+
 static void direct_link_id_common(
     BlendDataReader *reader, Library *current_library, ID *id, ID *id_old, const int id_tag)
 {
@@ -2173,17 +2204,6 @@ static void direct_link_id_common(
     id->tag = id_tag;
   }
 
-  BLI_assert_msg(
-      id->runtime.readfile_data == nullptr,
-      "IDs should not have their 'readfile_data' pointer set before this function is called");
-
-  if (!(id->tag & ID_TAG_ID_LINK_PLACEHOLDER)) {
-    /* Only allocate the readfile data on 'real' IDs, and not on link placeholders. If this ever
-     * changes, be aware that those IDs do not end up in the bmain, and thus
-     * BLO_readfile_free_id_runtime_data() will not free the memory allocated here. */
-    id->runtime.readfile_data = MEM_cnew<ID_Readfile_Data>("direct_link_id_common::readfile_data");
-  }
-
   if ((id_tag & ID_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uid_ensure(id);
   }
@@ -2195,7 +2215,9 @@ static void direct_link_id_common(
     BLO_read_struct(reader, LibraryWeakReference, &id->library_weak_reference);
   }
 
-  if (id_tag & ID_TAG_ID_LINK_PLACEHOLDER) {
+  readfile_id_runtime_data_ensure(*id);
+
+  if (id->runtime.readfile_data->is_id_link_placeholder) {
     /* For placeholder we only need to set the tag and properly initialize generic ID fields above,
      * no further data to read. */
     return;
@@ -2257,29 +2279,6 @@ static void direct_link_id_common(
 
   /* Handle 'private IDs'. */
   direct_link_id_embedded_id(reader, current_library, id, id_old);
-}
-
-void BLO_readfile_free_id_runtime_data(Main &bmain)
-{
-  ID *id;
-  FOREACH_MAIN_ID_BEGIN (&bmain, id) {
-    /* Handle the ID itself. */
-    MEM_SAFE_FREE(id->runtime.readfile_data);
-
-    /* Handle its embedded IDs, because they do not get referenced by bmain. */
-    if (GS(id->name) == ID_SCE) {
-      Collection *collection = reinterpret_cast<Scene *>(id)->master_collection;
-      if (collection) {
-        MEM_SAFE_FREE(collection->id.runtime.readfile_data);
-      }
-    }
-
-    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
-    if (node_tree) {
-      MEM_SAFE_FREE(node_tree->id.runtime.readfile_data);
-    }
-  }
-  FOREACH_MAIN_ID_END;
 }
 
 /** \} */
@@ -2525,7 +2524,7 @@ static bool direct_link_id(FileData *fd, Main *main, const int tag, ID *id, ID *
   /* Read part of datablock that is common between real and embedded datablocks. */
   direct_link_id_common(&reader, main->curlib, id, id_old, tag);
 
-  if (tag & ID_TAG_ID_LINK_PLACEHOLDER) {
+  if (id->runtime.readfile_data->is_id_link_placeholder) {
     /* For placeholder we only need to set the tag, no further data to read. */
     id->tag = tag;
     return true;
@@ -3035,9 +3034,11 @@ static BHead *read_libblock(FileData *fd,
    * to be done still. */
   id_tag |= (ID_TAG_NEED_LINK | ID_TAG_NEW);
 
+  readfile_id_runtime_data_ensure(*id);
+
   if (bhead->code == ID_LINK_PLACEHOLDER) {
     /* Read placeholder for linked datablock. */
-    id_tag |= ID_TAG_ID_LINK_PLACEHOLDER;
+    id->runtime.readfile_data->is_id_link_placeholder = true;
 
     if (placeholder_set_indirect_extern) {
       if (id->flag & ID_FLAG_INDIRECT_WEAK_LINK) {
@@ -4182,7 +4183,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
     else {
       /* Convert any previously read weak link to regular link
        * to signal that we want to read this data-block. */
-      if (id->tag & ID_TAG_ID_LINK_PLACEHOLDER) {
+      if (id->runtime.readfile_data->is_id_link_placeholder) {
         id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
       }
 
@@ -4221,7 +4222,12 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
     else {
       /* Convert any previously read weak link to regular link
        * to signal that we want to read this data-block. */
-      if (id->tag & ID_TAG_ID_LINK_PLACEHOLDER) {
+      printf("\033[96mChecking [%s]->runtime.readfile_data [%p] mainvar=[%p | %s]\033[0m\n",
+             id->name,
+             id->runtime.readfile_data,
+             mainvar,
+             mainvar->filepath);
+      if (id->runtime.readfile_data->is_id_link_placeholder) {
         id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
       }
 
@@ -4496,6 +4502,8 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
     BLI_path_rel(curlib->filepath, BKE_main_blendfile_path_from_global());
   }
 
+  BLO_readfile_id_runtime_data_free_all(*mainl);
+
   blo_join_main((*fd)->mainlist);
   mainvar = static_cast<Main *>((*fd)->mainlist->first);
   mainl = nullptr; /* blo_join_main free's mainl, can't use anymore */
@@ -4637,7 +4645,9 @@ static int has_linked_ids_to_read(Main *mainvar)
 
   while (a--) {
     LISTBASE_FOREACH (ID *, id, lbarray[a]) {
-      if ((id->tag & ID_TAG_ID_LINK_PLACEHOLDER) && !(id->flag & ID_FLAG_INDIRECT_WEAK_LINK)) {
+      if (id->runtime.readfile_data->is_id_link_placeholder &&
+          !(id->flag & ID_FLAG_INDIRECT_WEAK_LINK))
+      {
         return true;
       }
     }
@@ -4668,7 +4678,7 @@ static void read_library_linked_id(
                      library_parent_filepath(mainvar->curlib));
   }
 
-  id->tag &= ~ID_TAG_ID_LINK_PLACEHOLDER;
+  id->runtime.readfile_data->is_id_link_placeholder = false;
   id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
 
   if (bhead) {
@@ -4713,7 +4723,9 @@ static void read_library_linked_ids(FileData *basefd,
 
     while (id) {
       ID *id_next = static_cast<ID *>(id->next);
-      if ((id->tag & ID_TAG_ID_LINK_PLACEHOLDER) && !(id->flag & ID_FLAG_INDIRECT_WEAK_LINK)) {
+      if (id->runtime.readfile_data->is_id_link_placeholder &&
+          !(id->flag & ID_FLAG_INDIRECT_WEAK_LINK))
+      {
         BLI_remlink(lbarray[a], id);
         if (mainvar->id_map != nullptr) {
           BKE_main_idmap_remove_id(mainvar->id_map, id);
@@ -4738,6 +4750,19 @@ static void read_library_linked_ids(FileData *basefd,
          * libraries since multiple might be referencing this ID. */
         change_link_placeholder_to_real_ID_pointer(mainlist, basefd, id, realid);
 
+        /* Transfer the readfile data from the placeholder to the real ID, but
+         * only if the real ID has no readfile data yet. The same realid may be
+         * referred to by multiple placeholders. */
+        if (realid && !realid->runtime.readfile_data) {
+          realid->runtime.readfile_data = id->runtime.readfile_data;
+          id->runtime.readfile_data = nullptr;
+        }
+
+        /* The runtime data needs to be freed here, as this ID placeholder does not go through
+         * versioning (the usual place where this data is freed). Since `id` is not a real ID, this
+         * shouldn't follow any pointers to embedded IDs. */
+        MEM_SAFE_FREE(id->runtime.readfile_data);
+
         MEM_freeN(id);
       }
       id = id_next;
@@ -4759,7 +4784,9 @@ static void read_library_clear_weak_links(FileData *basefd, ListBase *mainlist, 
 
     while (id) {
       ID *id_next = static_cast<ID *>(id->next);
-      if ((id->tag & ID_TAG_ID_LINK_PLACEHOLDER) && (id->flag & ID_FLAG_INDIRECT_WEAK_LINK)) {
+      if (id->runtime.readfile_data->is_id_link_placeholder &&
+          (id->flag & ID_FLAG_INDIRECT_WEAK_LINK))
+      {
         CLOG_INFO(&LOG, 3, "Dropping weak link to '%s'", id->name);
         change_link_placeholder_to_real_ID_pointer(mainlist, basefd, id, nullptr);
         BLI_freelinkN(lbarray[a], id);

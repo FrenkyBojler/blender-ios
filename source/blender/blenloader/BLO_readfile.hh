@@ -557,4 +557,4 @@ struct ID_Readfile_Data {
  * This is typically called at the end of the versioning process, as after that
  * `ID.runtime.readfile_data` should no longer be needed.
  */
-void BLO_readfile_free_id_runtime_data(Main &bmain);
+void BLO_readfile_id_runtime_data_free_all(Main &bmain);

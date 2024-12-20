@@ -879,13 +879,6 @@ enum {
    */
   ID_TAG_NEED_EXPAND = 1 << 14,
   /**
-   * Tag used internally in `readfile.cc`, to mark ID placeholders for linked data-blocks needing
-   * to be read.
-   *
-   * RESET_AFTER_USE
-   */
-  ID_TAG_ID_LINK_PLACEHOLDER = 1 << 15,
-  /**
    * Tag used internally in `readfile.cc`, to mark IDs needing to be 'lib-linked', i.e. to get
    * their pointers to other data-blocks updated from the 'UID' values stored in `.blend` files to
    * the new, actual pointers.
