@@ -32,7 +32,7 @@
 #include "IMB_metadata.hh"
 #include "IMB_thumbs.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include <cctype>
 #include <cstring>
@@ -393,7 +393,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
         }
       }
       else if (THB_SOURCE_MOVIE == source) {
-        MoviePlayback *anim = nullptr;
+        MovieReader *anim = nullptr;
         anim = MOV_open_file(file_path, IB_rect | IB_metadata, 0, nullptr);
         if (anim != nullptr) {
           img = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);

@@ -58,7 +58,7 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_thumbs.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -1620,7 +1620,7 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
   }
 
   if (BKE_image_has_anim(&ima)) {
-    MoviePlayback *anim = static_cast<MoviePlayback *>(ima.anims.first);
+    MovieReader *anim = static_cast<MovieReader *>(ima.anims.first);
     if (anim) {
       int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       UI_tooltip_text_field_add(
@@ -1672,7 +1672,7 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
   UI_tooltip_text_field_add(data, image_type, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
 
   if (clip.anim) {
-    MoviePlayback *anim = clip.anim;
+    MovieReader *anim = clip.anim;
 
     UI_tooltip_text_field_add(
         data,

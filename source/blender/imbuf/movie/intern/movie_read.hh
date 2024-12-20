@@ -25,7 +25,7 @@ struct SwsContext;
 struct IDProperty;
 struct MovieIndex;
 
-struct MoviePlayback {
+struct MovieReader {
   enum class State { Uninitialized, Failed, Valid };
   int ib_flags;
   State state;
@@ -69,7 +69,7 @@ struct MoviePlayback {
   int proxies_tried;
   int indices_tried;
 
-  MoviePlayback *proxy_anim[IMB_PROXY_MAX_SLOT];
+  MovieReader *proxy_anim[IMB_PROXY_MAX_SLOT];
   MovieIndex *record_run;
   MovieIndex *no_gaps;
 

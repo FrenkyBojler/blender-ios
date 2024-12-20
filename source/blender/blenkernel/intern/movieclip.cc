@@ -61,7 +61,7 @@
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"

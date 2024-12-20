@@ -47,7 +47,7 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "RNA_prototypes.hh"
 

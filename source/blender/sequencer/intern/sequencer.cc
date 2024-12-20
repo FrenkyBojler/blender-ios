@@ -37,7 +37,7 @@
 
 #include "IMB_imbuf.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_connect.hh"

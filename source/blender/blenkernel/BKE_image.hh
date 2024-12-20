@@ -18,7 +18,7 @@ struct Depsgraph;
 struct GPUTexture;
 struct ID;
 struct ImBuf;
-struct MoviePlayback;
+struct MovieReader;
 struct Image;
 struct ImageFormatData;
 struct ImagePool;
@@ -112,14 +112,14 @@ bool BKE_imbuf_write_as(ImBuf *ibuf,
 /**
  * Used by sequencer too.
  */
-MoviePlayback *openanim(const char *filepath,
-                        int flags,
-                        int streamindex,
-                        char colorspace[IMA_MAX_SPACE]);
-MoviePlayback *openanim_noload(const char *filepath,
-                               int flags,
-                               int streamindex,
-                               char colorspace[IMA_MAX_SPACE]);
+MovieReader *openanim(const char *filepath,
+                      int flags,
+                      int streamindex,
+                      char colorspace[IMA_MAX_SPACE]);
+MovieReader *openanim_noload(const char *filepath,
+                             int flags,
+                             int streamindex,
+                             char colorspace[IMA_MAX_SPACE]);
 
 void BKE_image_tag_time(Image *ima);
 

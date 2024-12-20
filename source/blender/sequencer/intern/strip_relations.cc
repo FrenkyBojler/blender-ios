@@ -23,7 +23,7 @@
 
 #include "IMB_imbuf.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"

@@ -36,7 +36,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -553,7 +553,7 @@ static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_sta
   }
 
   char colorspace[64] = "\0"; /* 64 == MAX_COLORSPACE_NAME length. */
-  MoviePlayback *anim = openanim(job_data->path, IB_rect, 0, colorspace);
+  MovieReader *anim = openanim(job_data->path, IB_rect, 0, colorspace);
 
   if (anim != nullptr) {
     g_drop_coords.strip_len = MOV_get_duration_frames(anim, IMB_TC_NONE);

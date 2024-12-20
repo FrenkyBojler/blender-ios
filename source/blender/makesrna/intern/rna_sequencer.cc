@@ -129,7 +129,7 @@ const EnumPropertyItem rna_enum_strip_color_items[] = {
 
 #  include "IMB_imbuf.hh"
 
-#  include "MOV_playback.hh"
+#  include "MOV_read.hh"
 
 #  include "SEQ_edit.hh"
 

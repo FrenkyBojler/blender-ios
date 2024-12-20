@@ -7,7 +7,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "UI_resources.hh"
 
@@ -62,7 +62,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   float fps = 0.0f;
 
   if (ImageAnim *ianim = static_cast<ImageAnim *>(image->anims.first)) {
-    MoviePlayback *anim = ianim->anim;
+    MovieReader *anim = ianim->anim;
     if (anim) {
       frames = MOV_get_duration_frames(anim, IMB_TC_NONE);
       fps = MOV_get_fps(anim);

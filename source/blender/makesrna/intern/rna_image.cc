@@ -26,7 +26,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "rna_internal.hh"
 
@@ -601,7 +601,7 @@ static int rna_Image_frame_duration_get(PointerRNA *ptr)
   }
 
   if (BKE_image_has_anim(ima)) {
-    MoviePlayback *anim = ((ImageAnim *)ima->anims.first)->anim;
+    MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
     if (anim) {
       duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
     }

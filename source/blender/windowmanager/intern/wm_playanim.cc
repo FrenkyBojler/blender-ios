@@ -44,7 +44,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 #include "MOV_util.hh"
 
 #include "BKE_image.hh"
@@ -343,7 +343,7 @@ struct PlayAnimPict {
   /** The allocated error message to show if the file cannot be loaded. */
   char *error_message;
   ImBuf *ibuf;
-  MoviePlayback *anim;
+  MovieReader *anim;
   int frame;
   int IB_flags;
 
@@ -848,7 +848,7 @@ static void build_pict_list_from_anim(ListBase &picsbase,
                                       const int frame_offset)
 {
   /* OCIO_TODO: support different input color space. */
-  MoviePlayback *anim = MOV_open_file(filepath_first, IB_rect, 0, nullptr);
+  MovieReader *anim = MOV_open_file(filepath_first, IB_rect, 0, nullptr);
   if (anim == nullptr) {
     CLOG_WARN(&LOG, "couldn't open anim '%s'", filepath_first);
     return;
@@ -1812,7 +1812,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 
   if (MOV_is_movie_file(filepath)) {
     /* OCIO_TODO: support different input color spaces. */
-    MoviePlayback *anim = MOV_open_file(filepath, IB_rect, 0, nullptr);
+    MovieReader *anim = MOV_open_file(filepath, IB_rect, 0, nullptr);
     if (anim) {
       ibuf = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
       MOV_close(anim);
@@ -1924,7 +1924,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 #ifdef WITH_AUDASPACE
   g_audaspace.source = AUD_Sound_file(filepath);
   if (!BLI_listbase_is_empty(&ps.picsbase)) {
-    const MoviePlayback *anim_movie = static_cast<PlayAnimPict *>(ps.picsbase.first)->anim;
+    const MovieReader *anim_movie = static_cast<PlayAnimPict *>(ps.picsbase.first)->anim;
     if (anim_movie) {
       g_playanim.fps_movie = MOV_get_fps(anim_movie);
       /* Enforce same fps for movie as sound. */

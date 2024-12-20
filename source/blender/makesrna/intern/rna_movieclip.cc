@@ -28,7 +28,7 @@
 #include "IMB_imbuf_types.hh"
 
 #include "MOV_enums.hh"
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #ifdef RNA_RUNTIME
 

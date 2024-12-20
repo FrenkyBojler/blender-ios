@@ -36,7 +36,7 @@
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -2706,23 +2706,23 @@ bool BKE_imbuf_write_stamp(const Scene *scene,
   return BKE_imbuf_write(ibuf, filepath, imf);
 }
 
-MoviePlayback *openanim_noload(const char *filepath,
-                               int flags,
-                               int streamindex,
-                               char colorspace[IMA_MAX_SPACE])
+MovieReader *openanim_noload(const char *filepath,
+                             int flags,
+                             int streamindex,
+                             char colorspace[IMA_MAX_SPACE])
 {
-  MoviePlayback *anim;
+  MovieReader *anim;
 
   anim = MOV_open_file(filepath, flags, streamindex, colorspace);
   return anim;
 }
 
-MoviePlayback *openanim(const char *filepath,
-                        int flags,
-                        int streamindex,
-                        char colorspace[IMA_MAX_SPACE])
+MovieReader *openanim(const char *filepath,
+                      int flags,
+                      int streamindex,
+                      char colorspace[IMA_MAX_SPACE])
 {
-  MoviePlayback *anim;
+  MovieReader *anim;
   ImBuf *ibuf;
 
   anim = MOV_open_file(filepath, flags, streamindex, colorspace);

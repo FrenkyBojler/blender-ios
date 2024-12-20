@@ -16,11 +16,11 @@
 
 #include "IMB_imbuf.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "multiview.hh"
 
-void seq_anim_add_suffix(Scene *scene, MoviePlayback *anim, const int view_id)
+void seq_anim_add_suffix(Scene *scene, MovieReader *anim, const int view_id)
 {
   const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, view_id);
   MOV_set_multiview_suffix(anim, suffix);

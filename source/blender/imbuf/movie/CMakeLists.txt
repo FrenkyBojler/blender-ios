@@ -14,7 +14,7 @@ set(INC_SYS
 set(SRC
   MOV_enums.hh
   MOV_util.hh
-  MOV_playback.hh
+  MOV_read.hh
   MOV_write.hh
 
   intern/ffmpeg_compat.h

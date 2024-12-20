@@ -31,7 +31,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "ED_image.hh"
 #include "ED_screen.hh"
@@ -1228,7 +1228,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
     int duration = 0;
 
     if (ima->source == IMA_SRC_MOVIE && BKE_image_has_anim(ima)) {
-      MoviePlayback *anim = ((ImageAnim *)ima->anims.first)->anim;
+      MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
       if (anim) {
         duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       }

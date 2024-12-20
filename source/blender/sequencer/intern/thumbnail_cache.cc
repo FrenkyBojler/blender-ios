@@ -21,7 +21,7 @@
 
 #include "IMB_imbuf.hh"
 
-#include "MOV_playback.hh"
+#include "MOV_read.hh"
 
 #include "SEQ_render.hh"
 #include "SEQ_thumbnail_cache.hh"
@@ -320,9 +320,9 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
     int64_t grain_size = math::max<int64_t>(8, requests.size() / 4);
     threading::parallel_for(requests.index_range(), grain_size, [&](IndexRange range) {
       /* Often the same movie file is chopped into multiple strips next to each other.
-       * Since the requests are sorted by file path and frame index, we can reuse MoviePlayback
+       * Since the requests are sorted by file path and frame index, we can reuse MovieReader
        * objects between them for performance. */
-      MoviePlayback *cur_anim = nullptr;
+      MovieReader *cur_anim = nullptr;
       std::string cur_anim_path;
       int cur_stream = 0;
       for (const int i : range) {

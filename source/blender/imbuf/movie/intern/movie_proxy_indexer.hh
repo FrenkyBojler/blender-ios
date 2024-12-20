@@ -52,5 +52,5 @@ struct MovieIndex {
   int get_duration() const;
 };
 
-MoviePlayback *movie_open_proxy(MoviePlayback *anim, IMB_Proxy_Size preview_size);
-const MovieIndex *movie_open_index(MoviePlayback *anim, IMB_Timecode_Type tc);
+MovieReader *movie_open_proxy(MovieReader *anim, IMB_Proxy_Size preview_size);
+const MovieIndex *movie_open_index(MovieReader *anim, IMB_Timecode_Type tc);
