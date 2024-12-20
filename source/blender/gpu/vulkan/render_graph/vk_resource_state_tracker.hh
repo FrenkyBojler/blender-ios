@@ -41,6 +41,7 @@ namespace blender::gpu::render_graph {
 class VKCommandBuilder;
 struct VKRenderGraphLink;
 class VKScheduler;
+class VKRenderGraph;
 
 using ResourceHandle = uint64_t;
 
@@ -210,6 +211,7 @@ class VKResourceStateTracker {
   Vector<ResourceHandle> unused_handles_;
   Map<VkImage, ResourceHandle> image_resources_;
   Map<VkBuffer, ResourceHandle> buffer_resources_;
+  VKRenderGraph* render_graph_ = nullptr;
 
  public:
   /**
@@ -221,6 +223,18 @@ class VKResourceStateTracker {
    * - Device instance isn't accessible in test cases.
    */
   std::mutex mutex;
+
+  /* Get a pointer to the render graph (the parent object) */
+  const VKRenderGraph* get_render_graph() const
+  {
+    return render_graph_;
+  }
+
+  /* Store a pointer to the render graph (the parent object) */
+  void set_render_graph(VKRenderGraph* render_graph)
+  {
+    render_graph_ = render_graph;
+  }
 
   /**
    * Register a buffer resource.
