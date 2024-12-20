@@ -8,11 +8,6 @@
  */
 
 #include <cstdlib>
-#ifndef WIN32
-#  include <unistd.h>
-#else
-#  include <io.h>
-#endif
 
 #include "MEM_guardedalloc.h"
 
@@ -27,10 +22,6 @@
 #include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
-
-#ifdef _WIN32
-#  include "BLI_winstuff.h"
-#endif
 
 #include "MOV_read.hh"
 
@@ -68,8 +59,6 @@ static MovieIndexBuilder *index_builder_create(const char *filepath)
 {
   MovieIndexBuilder *rv = MEM_cnew<MovieIndexBuilder>("index builder");
 
-  fprintf(stderr, "Starting work on index: %s\n", filepath);
-
   STRNCPY(rv->filepath, filepath);
 
   STRNCPY(rv->filepath_temp, filepath);
@@ -81,8 +70,8 @@ static MovieIndexBuilder *index_builder_create(const char *filepath)
 
   if (!rv->fp) {
     fprintf(stderr,
-            "Couldn't open index target: %s! "
-            "Index build broken!\n",
+            "Failed to build index for '%s': could not open '%s' for writing\n",
+            filepath,
             rv->filepath_temp);
     MEM_freeN(rv);
     return nullptr;
@@ -405,8 +394,6 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
 
   rv->of->url = av_strdup(filepath);
 
-  fprintf(stderr, "Starting work on proxy: %s\n", rv->of->url);
-
   rv->st = avformat_new_stream(rv->of, nullptr);
   rv->st->id = 0;
 
@@ -415,9 +402,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c = avcodec_alloc_context3(rv->codec);
 
   if (!rv->codec) {
-    fprintf(stderr,
-            "No ffmpeg encoder available? "
-            "Proxy not built!\n");
+    fprintf(stderr, "Could not build proxy '%s': failed to create video encoder\n", filepath);
     avcodec_free_context(&rv->c);
     avformat_free_context(rv->of);
     MEM_freeN(rv);
@@ -491,8 +476,8 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
     fprintf(stderr,
-            "Couldn't open IO: %s\n"
-            "Proxy not built!\n",
+            "Could not build proxy '%s': failed to create output file (%s)\n",
+            filepath,
             error_str);
     avcodec_free_context(&rv->c);
     avformat_free_context(rv->of);
@@ -506,8 +491,8 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
     fprintf(stderr,
-            "Couldn't open codec: %s\n"
-            "Proxy not built!\n",
+            "Could not build proxy '%s': failed to open video codec (%s)\n",
+            filepath,
             error_str);
     avcodec_free_context(&rv->c);
     avformat_free_context(rv->of);
@@ -541,10 +526,8 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
-    fprintf(stderr,
-            "Couldn't write header: %s\n"
-            "Proxy not built!\n",
-            error_str);
+    fprintf(
+        stderr, "Could not build proxy '%s': failed to write header (%s)\n", filepath, error_str);
 
     if (rv->frame) {
       av_frame_free(&rv->frame);
@@ -583,7 +566,8 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx, AVFrame *frame)
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
-    fprintf(stderr, "Can't send video frame: %s\n", error_str);
+    fprintf(
+        stderr, "Building proxy '%s': failed to send video frame (%s)\n", ctx->of->url, error_str);
     return;
   }
   AVPacket *packet = av_packet_alloc();
@@ -600,9 +584,9 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx, AVFrame *frame)
       av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
       fprintf(stderr,
-              "Error encoding proxy frame %d for '%s': %s\n",
-              ctx->cfra - 1,
+              "Building proxy '%s': error encoding frame #%i (%s)\n",
               ctx->of->url,
+              ctx->cfra - 1,
               error_str);
       break;
     }
@@ -619,10 +603,9 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx, AVFrame *frame)
       av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, write_ret);
 
       fprintf(stderr,
-              "Error writing proxy frame %d "
-              "into '%s': %s\n",
-              ctx->cfra - 1,
+              "Building proxy '%s': error writing frame #%i (%s)\n",
               ctx->of->url,
+              ctx->cfra - 1,
               error_str);
       break;
     }
@@ -1140,7 +1123,6 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
       }
       if (!processed_paths->add(filepath)) {
         proxy_sizes_to_build &= ~int(proxy_size);
-        printf("Proxy: %s already registered for generation, skipping\n", filepath);
       }
     }
   }
@@ -1162,8 +1144,6 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
     }
     proxy_sizes_to_build &= ~built_proxies;
   }
-
-  fflush(stdout);
 
   if (proxy_sizes_to_build == 0) {
     return nullptr;
