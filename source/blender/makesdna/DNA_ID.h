@@ -29,6 +29,7 @@ extern "C" {
 struct FileData;
 struct GHash;
 struct ID;
+struct ID_Readfile_Data;
 struct Library;
 struct PackedFile;
 struct UniqueName_Map;
@@ -402,7 +403,12 @@ typedef struct ID_Runtime {
    * are not owned by any specific depsgraph and thus this pointer is null for those.
    */
   struct Depsgraph *depsgraph;
-  void *_pad;
+
+  /**
+   * This data is only allocated & used during the readfile process. After that, the memory is
+   * freed and the pointer set to `nullptr`.
+   */
+  struct ID_Readfile_Data *readfile_data;
 } ID_Runtime;
 
 typedef struct ID {

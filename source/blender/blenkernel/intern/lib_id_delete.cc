@@ -64,6 +64,10 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     MEM_freeN(id->library_weak_reference);
   }
 
+  BLI_assert_msg(
+      id->runtime.readfile_data == nullptr,
+      "this data should have already been cleaned up at the end of the readfile process");
+
   BKE_animdata_free(id, do_id_user);
 }
 

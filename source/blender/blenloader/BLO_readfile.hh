@@ -532,3 +532,29 @@ BlendThumbnail *BLO_thumbnail_from_file(const char *filepath);
  * \return The file version
  */
 short BLO_version_from_file(const char *filepath);
+
+/**
+ * Runtime structure on `ID.runtime.readfile_data` that is available during the readfile process.
+ *
+ * This is intended for short-lived data, for example for things that are detected in an early
+ * phase of versioning that should be used in a later stage of versioning.
+ */
+struct ID_Readfile_Data {
+  union {
+    struct {
+      bool is_id_link_placeholder : 1;
+    };
+
+    /* Unified access to all tags, to make it easy to copy/replace all tags
+     * without having to mention them individually. */
+    uint8_t tags;
+  };
+};
+
+/**
+ * Free the ID_Readfile_Data of all IDs in this bmain and all their embedded IDs.
+ *
+ * This is typically called at the end of the versioning process, as after that
+ * `ID.runtime.readfile_data` should no longer be needed.
+ */
+void BLO_readfile_free_id_runtime_data(Main &bmain);

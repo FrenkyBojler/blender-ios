@@ -2173,6 +2173,17 @@ static void direct_link_id_common(
     id->tag = id_tag;
   }
 
+  BLI_assert_msg(
+      id->runtime.readfile_data == nullptr,
+      "IDs should not have their 'readfile_data' pointer set before this function is called");
+
+  if (!(id->tag & ID_TAG_ID_LINK_PLACEHOLDER)) {
+    /* Only allocate the readfile data on 'real' IDs, and not on link placeholders. If this ever
+     * changes, be aware that those IDs do not end up in the bmain, and thus
+     * BLO_readfile_free_id_runtime_data() will not free the memory allocated here. */
+    id->runtime.readfile_data = MEM_cnew<ID_Readfile_Data>("direct_link_id_common::readfile_data");
+  }
+
   if ((id_tag & ID_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uid_ensure(id);
   }
@@ -2246,6 +2257,29 @@ static void direct_link_id_common(
 
   /* Handle 'private IDs'. */
   direct_link_id_embedded_id(reader, current_library, id, id_old);
+}
+
+void BLO_readfile_free_id_runtime_data(Main &bmain)
+{
+  ID *id;
+  FOREACH_MAIN_ID_BEGIN (&bmain, id) {
+    /* Handle the ID itself. */
+    MEM_SAFE_FREE(id->runtime.readfile_data);
+
+    /* Handle its embedded IDs, because they do not get referenced by bmain. */
+    if (GS(id->name) == ID_SCE) {
+      Collection *collection = reinterpret_cast<Scene *>(id)->master_collection;
+      if (collection) {
+        MEM_SAFE_FREE(collection->id.runtime.readfile_data);
+      }
+    }
+
+    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
+    if (node_tree) {
+      MEM_SAFE_FREE(node_tree->id.runtime.readfile_data);
+    }
+  }
+  FOREACH_MAIN_ID_END;
 }
 
 /** \} */
