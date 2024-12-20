@@ -993,7 +993,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
 
 static bool seq_colorbalance_update_cb(Sequence *seq, void * /*user_data*/)
 {
-  Strip *strip = seq->strip;
+  StripData *strip = seq->data;
 
   if (strip && strip->color_balance) {
     SequenceModifierData *smd = SEQ_modifier_new(seq, nullptr, seqModifierType_ColorBalance);

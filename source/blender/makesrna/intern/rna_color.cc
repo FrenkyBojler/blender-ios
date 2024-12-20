@@ -632,7 +632,7 @@ struct Seq_colorspace_cb_data {
 static bool seq_find_colorspace_settings_cb(Sequence *seq, void *user_data)
 {
   Seq_colorspace_cb_data *cd = (Seq_colorspace_cb_data *)user_data;
-  if (seq->strip && &seq->strip->colorspace_settings == cd->colorspace_settings) {
+  if (seq->data && &seq->data->colorspace_settings == cd->colorspace_settings) {
     cd->r_seq = seq;
     return false;
   }
@@ -692,9 +692,9 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
         if (seq) {
           SEQ_relations_sequence_free_anim(seq);
 
-          if (seq->strip->proxy && seq->strip->proxy->anim) {
-            IMB_free_anim(seq->strip->proxy->anim);
-            seq->strip->proxy->anim = nullptr;
+          if (seq->data->proxy && seq->data->proxy->anim) {
+            IMB_free_anim(seq->data->proxy->anim);
+            seq->data->proxy->anim = nullptr;
           }
 
           SEQ_relations_invalidate_cache_raw(scene, seq);

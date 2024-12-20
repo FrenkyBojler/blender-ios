@@ -106,7 +106,7 @@ static void seq_add_set_name(Scene *scene, Sequence *seq, SeqLoadData *load_data
 
 static void seq_add_set_view_transform(Scene *scene, Sequence *seq, SeqLoadData *load_data)
 {
-  const char *strip_colorspace = seq->strip->colorspace_settings.name;
+  const char *strip_colorspace = seq->data->colorspace_settings.name;
 
   if (load_data->flags & SEQ_LOAD_SET_VIEW_TRANSFORM) {
     const char *role_colorspace_byte;
@@ -188,7 +188,7 @@ Sequence *SEQ_add_effect_strip(Scene *scene, ListBase *seqbase, SeqLoadData *loa
 
 void SEQ_add_image_set_directory(Sequence *seq, const char *dirpath)
 {
-  STRNCPY(seq->strip->dirpath, dirpath);
+  STRNCPY(seq->data->dirpath, dirpath);
 }
 
 void SEQ_add_image_load_file(Scene *scene, Sequence *seq, size_t strip_frame, const char *filename)
@@ -200,18 +200,17 @@ void SEQ_add_image_load_file(Scene *scene, Sequence *seq, size_t strip_frame, co
 
 void SEQ_add_image_init_alpha_mode(Sequence *seq)
 {
-  if (seq->strip && seq->strip->stripdata) {
+  if (seq->data && seq->data->stripdata) {
     char filepath[FILE_MAX];
     ImBuf *ibuf;
 
-    BLI_path_join(
-        filepath, sizeof(filepath), seq->strip->dirpath, seq->strip->stripdata->filename);
+    BLI_path_join(filepath, sizeof(filepath), seq->data->dirpath, seq->data->stripdata->filename);
     BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
     /* Initialize input color space. */
     if (seq->type == SEQ_TYPE_IMAGE) {
       ibuf = IMB_loadiffname(
-          filepath, IB_test | IB_alphamode_detect, seq->strip->colorspace_settings.name);
+          filepath, IB_test | IB_alphamode_detect, seq->data->colorspace_settings.name);
 
       /* Byte images are default to straight alpha, however sequencer
        * works in premul space, so mark strip to be premultiplied first.
@@ -233,7 +232,7 @@ Sequence *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   Sequence *seq = SEQ_sequence_alloc(
       seqbase, load_data->start_frame, load_data->channel, SEQ_TYPE_IMAGE);
   seq->len = load_data->image.len;
-  Strip *strip = seq->strip;
+  StripData *strip = seq->data;
   strip->stripdata = static_cast<StripElem *>(
       MEM_callocN(load_data->image.len * sizeof(StripElem), "stripelem"));
 
@@ -254,7 +253,7 @@ Sequence *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   char file_path[FILE_MAX];
   STRNCPY(file_path, load_data->path);
   BLI_path_abs(file_path, BKE_main_blendfile_path(bmain));
-  ImBuf *ibuf = IMB_loadiffname(file_path, IB_rect, seq->strip->colorspace_settings.name);
+  ImBuf *ibuf = IMB_loadiffname(file_path, IB_rect, seq->data->colorspace_settings.name);
   if (ibuf != nullptr) {
     /* Set image resolution. Assume that all images in sequence are same size. This fields are only
      * informative. */
@@ -271,7 +270,7 @@ Sequence *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   }
 
   /* Set Last active directory. */
-  STRNCPY(scene->ed->act_imagedir, seq->strip->dirpath);
+  STRNCPY(scene->ed->act_imagedir, seq->data->dirpath);
   seq_add_set_view_transform(scene, seq, load_data);
   seq_add_set_name(scene, seq, load_data);
   seq_add_generic_update(scene, seq);
@@ -323,7 +322,7 @@ Sequence *SEQ_add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
    * See #47135 for under shoot example. */
   seq->len = std::max(1, int(round((info.length - sound->offset_time) * FPS)));
 
-  Strip *strip = seq->strip;
+  StripData *strip = seq->data;
   /* We only need 1 element to store the filename. */
   StripElem *se = strip->stripdata = static_cast<StripElem *>(
       MEM_callocN(sizeof(StripElem), "stripelem"));
@@ -503,9 +502,9 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
     seq->flag |= SEQ_AUTO_PLAYBACK_RATE;
   }
 
-  STRNCPY(seq->strip->colorspace_settings.name, colorspace);
+  STRNCPY(seq->data->colorspace_settings.name, colorspace);
 
-  Strip *strip = seq->strip;
+  StripData *strip = seq->data;
   /* We only need 1 element for MOVIE strips. */
   StripElem *se;
   strip->stripdata = se = static_cast<StripElem *>(MEM_callocN(sizeof(StripElem), "stripelem"));
@@ -549,7 +548,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
   switch (seq->type) {
     case SEQ_TYPE_IMAGE: {
       /* Hack? */
-      size_t olen = MEM_allocN_len(seq->strip->stripdata) / sizeof(StripElem);
+      size_t olen = MEM_allocN_len(seq->data->stripdata) / sizeof(StripElem);
 
       seq->len = olen;
       seq->len -= seq->anim_startofs;
@@ -567,7 +566,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
                                 (scene->r.scemode & R_MULTIVIEW) != 0;
 
       BLI_path_join(
-          filepath, sizeof(filepath), seq->strip->dirpath, seq->strip->stripdata->filename);
+          filepath, sizeof(filepath), seq->data->dirpath, seq->data->stripdata->filename);
       BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
       SEQ_relations_sequence_free_anim(seq);
@@ -589,7 +588,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
             anim = openanim(filepath_view,
                             IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                             seq->streamindex,
-                            seq->strip->colorspace_settings.name);
+                            seq->data->colorspace_settings.name);
 
             if (anim) {
               seq_anim_add_suffix(scene, anim, i);
@@ -607,7 +606,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
         anim = openanim(filepath,
                         IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                         seq->streamindex,
-                        seq->strip->colorspace_settings.name);
+                        seq->data->colorspace_settings.name);
         if (anim) {
           sanim = static_cast<StripAnim *>(MEM_mallocN(sizeof(StripAnim), "Strip Anim"));
           BLI_addtail(&seq->anims, sanim);
@@ -626,8 +625,8 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
 
       seq->len = IMB_anim_get_duration(
           sanim->anim,
-          IMB_Timecode_Type(seq->strip->proxy ? IMB_Timecode_Type(seq->strip->proxy->tc) :
-                                                IMB_TC_RECORD_RUN));
+          IMB_Timecode_Type(seq->data->proxy ? IMB_Timecode_Type(seq->data->proxy->tc) :
+                                               IMB_TC_RECORD_RUN));
 
       seq->len -= seq->anim_startofs;
       seq->len -= seq->anim_endofs;
