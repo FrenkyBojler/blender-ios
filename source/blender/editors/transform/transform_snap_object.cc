@@ -416,10 +416,6 @@ static bool snap_object_is_snappable(const SnapObjectContext *sctx,
     return true;
   }
 
-  if (base->flag_legacy & BA_SNAP_FIX_DEPS_FIASCO) {
-    return false;
-  }
-
   /* Get attributes of potential target. */
   const bool is_active = (base_act == base);
   const bool is_selected = (base->flag & BASE_SELECTED) || (base->flag_legacy & BA_WAS_SEL);
@@ -478,6 +474,21 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
 
     const bool is_object_active = (base == base_act);
     Object *obj_eval = DEG_get_evaluated_object(sctx->runtime.depsgraph, base->object);
+
+    bool use_hide = false;
+    ID *ob_data = data_for_snap(obj_eval, sctx->runtime.params.edit_mode_type, &use_hide);
+    if ((tmp = sob_callback(
+             sctx, obj_eval, ob_data, obj_eval->object_to_world(), is_object_active, use_hide)) !=
+        SCE_SNAP_TO_NONE)
+    {
+      ret = tmp;
+    }
+
+    /*Skip if self*/
+    if (base->flag_legacy & BA_SNAP_FIX_DEPS_FIASCO) {
+      continue;
+    }
+
     if (obj_eval->transflag & OB_DUPLI ||
         blender::bke::object_has_geometry_set_instances(*obj_eval))
     {
@@ -495,15 +506,6 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
         }
       }
       free_object_duplilist(lb);
-    }
-
-    bool use_hide = false;
-    ID *ob_data = data_for_snap(obj_eval, sctx->runtime.params.edit_mode_type, &use_hide);
-    if ((tmp = sob_callback(
-             sctx, obj_eval, ob_data, obj_eval->object_to_world(), is_object_active, use_hide)) !=
-        SCE_SNAP_TO_NONE)
-    {
-      ret = tmp;
     }
   }
   return ret;
@@ -881,15 +883,15 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
                              bool is_object_active,
                              bool use_hide)
 {
-  eSnapMode retval, tmp = SCE_SNAP_TO_NONE;
+
+  eSnapMode retval = SCE_SNAP_TO_NONE;
+
   if (ob_data == nullptr && (ob_eval->type == OB_MESH)) {
-    tmp = snap_object_editmesh(
+    retval = snap_object_editmesh(
         sctx, ob_eval, nullptr, obmat, sctx->runtime.snap_to_flag, use_hide);
 
-    retval = snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
-
-    if (tmp != SCE_SNAP_TO_NONE) {
-      retval = tmp;
+    if (retval == SCE_SNAP_TO_NONE) {
+      return snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
     }
 
     return retval;
@@ -910,31 +912,30 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     {
       /* The final Curves geometry is generated as a Mesh. Skip this Mesh if the target is not
        * #SNAP_GEOM_FINAL. */
-      tmp = SCE_SNAP_TO_NONE;
+      retval = SCE_SNAP_TO_NONE;
     }
-    tmp = snap_object_mesh(sctx, ob_eval, ob_data, obmat, sctx->runtime.snap_to_flag, use_hide);
+    retval = snap_object_mesh(sctx, ob_eval, ob_data, obmat, sctx->runtime.snap_to_flag, use_hide);
   }
 
   switch (ob_eval->type) {
     case OB_CAMERA:
-      tmp = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+      retval = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
       break;
     case OB_ARMATURE:
-      tmp = snapArmature(sctx, ob_eval, obmat, is_object_active);
+      retval = snapArmature(sctx, ob_eval, obmat, is_object_active);
       break;
     case OB_CURVES_LEGACY:
     case OB_SURF:
       if (ob_eval->type == OB_CURVES_LEGACY || BKE_object_is_in_editmode(ob_eval)) {
-        tmp = snapCurve(sctx, ob_eval, obmat);
+        retval = snapCurve(sctx, ob_eval, obmat);
       }
       break;
     // TODO: Add remaining object types (lattice, grease pencil, ...)
   }
 
-  if (tmp == SCE_SNAP_TO_NONE) {
+  if (retval == SCE_SNAP_TO_NONE) {
     return snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
   }
-  retval = tmp;
 
   return retval;
 }
