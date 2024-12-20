@@ -43,11 +43,14 @@ static void assign_material_to_id_geometry(ID *id,
   selection_evaluator.evaluate();
   const IndexMask selection = selection_evaluator.get_evaluated_selection_as_mask();
 
-  if (selection.size() != attributes.domain_size(domain)) {
-    /* If the entire geometry isn't selected, and there is no material slot yet, add an empty
-     * slot so that the faces that aren't selected can still refer to the default material. */
-    BKE_id_material_eval_ensure_default_slot(id);
+  if (selection.size() == domain_size) {
+    attributes.remove("material_index");
+    BKE_id_material_eval_assign(id, 1, material);
+    return;
   }
+  /* If the entire geometry isn't selected, and there is no material slot yet, add an empty
+   * slot so that the faces that aren't selected can still refer to the default material. */
+  BKE_id_material_eval_ensure_default_slot(id);
 
   int new_index = -1;
   const int orig_materials_num = *BKE_id_material_len_p(id);
