@@ -881,9 +881,18 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
                              bool is_object_active,
                              bool use_hide)
 {
+  eSnapMode retval, tmp = SCE_SNAP_TO_NONE;
   if (ob_data == nullptr && (ob_eval->type == OB_MESH)) {
-    return snap_object_editmesh(
+    tmp = snap_object_editmesh(
         sctx, ob_eval, nullptr, obmat, sctx->runtime.snap_to_flag, use_hide);
+
+    retval = snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+
+    if (tmp != SCE_SNAP_TO_NONE) {
+      retval = tmp;
+    }
+
+    return retval;
   }
 
   if (ob_data == nullptr) {
@@ -894,10 +903,6 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     /* Do not snap to objects that are in bounding box display mode. */
     return SCE_SNAP_TO_NONE;
   }
-
-  eSnapMode retval, tmp = SCE_SNAP_TO_NONE;
-
-  retval = snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
 
   if (GS(ob_data->name) == ID_ME) {
     if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_SURF) &&
@@ -926,9 +931,10 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     // TODO: Add remaining object types (lattice, grease pencil, ...)
   }
 
-  if (tmp != SCE_SNAP_TO_NONE) {
-    retval = tmp;
+  if (tmp == SCE_SNAP_TO_NONE) {
+    return snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
   }
+  retval = tmp;
 
   return retval;
 }
