@@ -1776,9 +1776,12 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                     col.label(text=rpt_("    %s or newer") % driver_version, icon='BLANK1', translate=False)
                     col.label(text=rpt_("  - oneAPI Level-Zero Loader"), icon='BLANK1', translate=False)
             elif device_type == 'METAL':
-                mac_version = "12.2"
-                col.label(text=rpt_("Requires Apple Silicon with macOS %s or newer") % mac_version,
+                silicon_mac_version = "12.2"
+                amd_mac_version = "12.3"
+                col.label(text=rpt_("Requires Apple Silicon with macOS %s or newer") % silicon_mac_version,
                           icon='BLANK1', translate=False)
+                col.label(text=rpt_("or AMD with macOS %s or newer") % amd_mac_version, icon='BLANK1',
+                          translate=False)
             return
 
         for device in devices:
@@ -1820,12 +1823,21 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         if compute_device_type == 'METAL':
             import platform
+            import re
+            is_navi_2 = False
+            for device in devices:
+                if re.search(r"((RX)|(Pro)|(PRO))\s+W?6\d00X", device.name):
+                    is_navi_2 = True
+                    break
 
-            # MetalRT only works on Apple Silicon.
-            if (platform.machine() == 'arm64'):
+            # MetalRT only works on Apple Silicon and Navi2.
+            is_arm64 = platform.machine() == 'arm64'
+            if is_arm64 or (is_navi_2 and has_rt_api_support['METAL']):
                 col = layout.column()
                 col.use_property_split = True
-                col.prop(self, "kernel_optimization_level")
+                # Kernel specialization is only supported on Apple Silicon
+                if is_arm64:
+                    col.prop(self, "kernel_optimization_level")
                 if has_rt_api_support['METAL']:
                     col.prop(self, "metalrt")
 
