@@ -5,7 +5,7 @@
 /** \file
  * \ingroup edtransform
  */
-#include <cstdio>
+
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
