@@ -70,8 +70,7 @@ void pose_apply(Object *ob,
   if (limit_to_selected_bones) {
     /* Mute all FCurves that are not associated with selected bones. This separates the concept of
      * bone selection from the FCurve evaluation code. */
-    Slot &slot = get_best_pose_slot_for_id(ob->id, pose_data);
-    pose_apply_disable_fcurves_for_unselected_bones(action, slot.handle, selected_bone_names);
+    pose_apply_disable_fcurves_for_unselected_bones(action, slot_handle, selected_bone_names);
   }
 
   /* Apply the Action. */
