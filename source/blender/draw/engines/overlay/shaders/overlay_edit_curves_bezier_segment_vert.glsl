@@ -61,7 +61,12 @@ void main()
   vec3 world_pos = point_object_to_world(q[0]);
   vec4 ndc_pos = point_world_to_ndc(world_pos);
 
-  vec2 normal = normalize(vec2(-tangent.y, tangent.x)) * 2 * sizeViewportInv;
+  float radius = 3.0;
+  vec3 view_radius = vec3(radius, 0.0, point_world_to_view(world_pos).z);
+  vec4 ndc_radius = point_view_to_ndc(view_radius);
+  float normal_size = ndc_radius.x / ndc_radius.w;
+
+  vec2 normal = normalize(vec2(-tangent.y, tangent.x)) * normal_size * 2 * sizeViewportInv;
   normal *= gl_VertexID % 2 ? -1.0 : 1.0;
   ndc_pos.xy += normal * ndc_pos.w;
   gl_Position = ndc_pos;
