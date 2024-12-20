@@ -439,8 +439,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
       float3x3 axis_mat;
       axis_dominant_v3_to_m3(axis_mat.ptr(), normals[shape.first()]);
 
-      const IndexRange points = points_by_curve[shape];
-      const int num_points = points.size();
+      const IndexRange all_points = points_by_curve[shape];
+      const int num_points = all_points.size();
       if (num_points < 3) {
         continue;
       }
@@ -448,22 +448,22 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
       float(*projverts)[2] = static_cast<float(*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
 
-      for (const int i : points.index_range()) {
-        mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[points[i]]);
+      for (const int i : all_points.index_range()) {
+        mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[all_points[i]]);
       }
 
       /* If there is only one stroke then simple poly fill will be used. */
       if (shape.size() == 1) {
-        triangle_results[shape_index].resize(std::max(int(points.size() - 2), 0));
+        triangle_results[shape_index].resize(std::max(int(all_points.size() - 2), 0));
         MutableSpan<int3> r_tris = triangle_results[shape_index];
 
         BLI_polyfill_calc_arena(projverts,
-                                points.size(),
+                                all_points.size(),
                                 0,
                                 reinterpret_cast<uint32_t(*)[3]>(r_tris.data()),
                                 pf_arena);
         for (const int i : r_tris.index_range()) {
-          r_tris[i] += points.first();
+          r_tris[i] += all_points.first();
         }
         BLI_memarena_clear(pf_arena);
         continue;
@@ -472,7 +472,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
       Array<double2> verts(num_points);
       Array<Vector<int>> faces(shape.size());
 
-      for (const int i : points.index_range()) {
+      for (const int i : all_points.index_range()) {
         verts[i] = double2(projverts[i]);
       }
 
@@ -493,24 +493,36 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
       meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_INSIDE_WITH_HOLES);
 
-      /* If the geometry can not meshed then use simple poly fill using the first curve in the
-       * shape.
+      /* If the geometry can not meshed then use simple poly fill for all curves in the shape.
        */
       if (result.vert.size() != num_points) {
-        const IndexRange points = points_by_curve[shape.first()];
-
-        triangle_results[shape_index].resize(std::max(int(points.size() - 2), 0));
-        MutableSpan<int3> r_tris = triangle_results[shape_index];
-
-        BLI_polyfill_calc_arena(projverts,
-                                points.size(),
-                                0,
-                                reinterpret_cast<uint32_t(*)[3]>(r_tris.data()),
-                                pf_arena);
-        for (const int i : r_tris.index_range()) {
-          r_tris[i] += points.first();
+        int offset_tris = 0;
+        for (const int i : shape.index_range()) {
+          const IndexRange points = points_by_curve[shape[i]];
+          offset_tris += std::max(int(points.size() - 2), 0);
         }
-        BLI_memarena_clear(pf_arena);
+        triangle_results[shape_index].resize(offset_tris);
+
+        offset_tris = 0; /* Reuse. */
+
+        for (const int i : shape.index_range()) {
+          const IndexRange points = points_by_curve[shape[i]];
+          const int tri_num = std::max(int(points.size() - 2), 0);
+
+          MutableSpan<int3> r_tris = triangle_results[shape_index].as_mutable_span().slice(
+              IndexRange(offset_tris, tri_num));
+          offset_tris += tri_num;
+
+          BLI_polyfill_calc_arena(projverts,
+                                  points.size(),
+                                  0,
+                                  reinterpret_cast<uint32_t(*)[3]>(r_tris.data()),
+                                  pf_arena);
+          for (const int i : r_tris.index_range()) {
+            r_tris[i] += points.first();
+          }
+          BLI_memarena_clear(pf_arena);
+        }
         continue;
       }
 
