@@ -13,11 +13,8 @@
 
 namespace blender::gpu::render_graph {
 
-VkImageLayout VKImageAccess::to_vk_image_layout() const
+VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
 {
-  const VKDevice &device = VKBackend::get().device;
-  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
-
   if (vk_access_flags & (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT)) {
     /* TODO: when read only use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL */
     return VK_IMAGE_LAYOUT_GENERAL;
@@ -77,8 +74,10 @@ void VKResourceAccessInfo::build_links(VKResourceStateTracker &resources,
     }
   }
 
+  const bool supports_local_read = resources.use_dynamic_rendering_local_read;
+
   for (const VKImageAccess &image_access : images) {
-    VkImageLayout image_layout = image_access.to_vk_image_layout();
+    VkImageLayout image_layout = image_access.to_vk_image_layout(supports_local_read);
     const bool writes_to_resource = bool(image_access.vk_access_flags & VK_ACCESS_WRITE_MASK);
     ResourceWithStamp versioned_resource = writes_to_resource ?
                                                resources.get_image_and_increase_stamp(
