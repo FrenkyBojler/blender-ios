@@ -25,7 +25,7 @@ class VKCommandBufferInterface {
 
   virtual void begin_recording(VkCommandBuffer vk_command_buffer) = 0;
   virtual void end_recording(VkCommandBuffer vk_command_buffer) = 0;
-  virtual void submit_with_cpu_synchronization(VkCommandBuffer vk_command_buffer,
+  virtual void submit_with_cpu_synchronization(Span<VkCommandBuffer> vk_command_buffers,
                                                VkFence vk_fence = VK_NULL_HANDLE) = 0;
   virtual void wait_for_cpu_synchronization(VkFence vk_fence = VK_NULL_HANDLE) = 0;
 
@@ -164,9 +164,8 @@ class VKCommandBufferInterface {
                                 uint32_t first_query,
                                 uint32_t query_count) = 0;
 
-  virtual VkCommandBuffer allocate_primary_command_buffer() = 0;
-  virtual Span<VkCommandBuffer> allocate_secondary_command_buffers(
-      uint32_t command_buffer_count) = 0;
+  virtual VkCommandBuffer allocate_command_buffer(
+      VkCommandBufferLevel vk_command_buffer_level) = 0;
   virtual void execute_commands(VkCommandBuffer vk_command_buffer,
                                 uint32_t command_buffer_count,
                                 const VkCommandBuffer *p_command_buffers) = 0;
@@ -186,17 +185,11 @@ class VKCommandBufferInterface {
 
 class VKCommandBufferWrapper : public VKCommandBufferInterface {
  private:
-  VkCommandPoolCreateInfo vk_command_pool_create_info_;
   VkCommandBufferBeginInfo vk_command_buffer_begin_info_;
   VkCommandBufferInheritanceInfo vk_command_buffer_inheritance_info_;
-  VkFenceCreateInfo vk_fence_create_info_;
   VkSubmitInfo vk_submit_info_;
 
-  VkCommandPool vk_command_pool_ = VK_NULL_HANDLE;
   VkFence vk_fence_ = VK_NULL_HANDLE;
-
-  /** All allocated command buffer since last submission. Will be discarded when submitted. */
-  Vector<VkCommandBuffer> command_buffers_;
 
  public:
   VKCommandBufferWrapper(const VKWorkarounds &workarounds);
@@ -205,7 +198,7 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
 
   void begin_recording(VkCommandBuffer vk_command_buffer) override;
   void end_recording(VkCommandBuffer vk_command_buffer) override;
-  void submit_with_cpu_synchronization(VkCommandBuffer vk_command_buffer,
+  void submit_with_cpu_synchronization(Span<VkCommandBuffer> vk_command_buffers,
                                        VkFence vk_fence) override;
   void wait_for_cpu_synchronization(VkFence vk_fence) override;
 
@@ -343,8 +336,7 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
                         VkQueryPool,
                         uint32_t first_query,
                         uint32_t query_count) override;
-  VkCommandBuffer allocate_primary_command_buffer() override;
-  Span<VkCommandBuffer> allocate_secondary_command_buffers(uint32_t command_buffer_count) override;
+  VkCommandBuffer allocate_command_buffer(VkCommandBufferLevel vk_command_buffer_level) override;
   void execute_commands(VkCommandBuffer vk_command_buffer,
                         uint32_t command_buffer_count,
                         const VkCommandBuffer *p_command_buffers) override
@@ -361,9 +353,6 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
   void begin_debug_utils_label(VkCommandBuffer vk_command_buffer,
                                const VkDebugUtilsLabelEXT *vk_debug_utils_label) override;
   void end_debug_utils_label(VkCommandBuffer vk_command_buffer) override;
-
- private:
-  void ensure_command_buffer_pool(VKDevice &device);
 };
 
 }  // namespace blender::gpu::render_graph

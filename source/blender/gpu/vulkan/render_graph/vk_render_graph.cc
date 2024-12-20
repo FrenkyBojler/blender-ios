@@ -14,8 +14,11 @@
 namespace blender::gpu::render_graph {
 
 VKRenderGraph::VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_buffer,
+                             VKCommandBuilder::ThreadingModel threading_model,
                              VKResourceStateTracker &resources)
-    : command_buffer_(std::move(command_buffer)), resources_(resources)
+    : command_builder_(threading_model),
+      command_buffer_(std::move(command_buffer)),
+      resources_(resources)
 {
   submission_id.reset();
 }
@@ -54,14 +57,14 @@ void VKRenderGraph::submit_for_present(VkImage vk_swapchain_image)
 
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_image(*this, vk_swapchain_image);
-  VkCommandBuffer vk_command_buffer = command_builder_.build_nodes(
+  Vector<VkCommandBuffer> vk_command_buffers = command_builder_.build_nodes(
       *this, *command_buffer_, node_handles);
   /* TODO: To improve performance it could be better to return a semaphore. This semaphore can be
    * passed in the swapchain to ensure GPU synchronization. This also require a second semaphore to
    * pause drawing until the swapchain has completed its drawing phase.
    *
    * Currently using CPU synchronization for safety. */
-  command_buffer_->submit_with_cpu_synchronization(vk_command_buffer);
+  command_buffer_->submit_with_cpu_synchronization(vk_command_buffers);
   submission_id.next();
   remove_nodes(node_handles);
   command_buffer_->wait_for_cpu_synchronization();
@@ -71,9 +74,9 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
 {
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_buffer(*this, vk_buffer);
-  VkCommandBuffer vk_command_buffer = command_builder_.build_nodes(
+  Vector<VkCommandBuffer> vk_command_buffers = command_builder_.build_nodes(
       *this, *command_buffer_, node_handles);
-  command_buffer_->submit_with_cpu_synchronization(vk_command_buffer);
+  command_buffer_->submit_with_cpu_synchronization(vk_command_buffers);
   submission_id.next();
   remove_nodes(node_handles);
   command_buffer_->wait_for_cpu_synchronization();
@@ -90,9 +93,9 @@ void VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
 {
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
-  VkCommandBuffer vk_command_buffer = command_builder_.build_nodes(
+  Vector<VkCommandBuffer> vk_command_buffers = command_builder_.build_nodes(
       *this, *command_buffer_, node_handles);
-  command_buffer_->submit_with_cpu_synchronization(vk_command_buffer, vk_fence);
+  command_buffer_->submit_with_cpu_synchronization(vk_command_buffers, vk_fence);
   submission_id.next();
   remove_nodes(node_handles);
 }

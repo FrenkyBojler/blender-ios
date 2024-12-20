@@ -11,6 +11,7 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
+#include "render_graph/vk_command_builder.hh"
 #include "render_graph/vk_render_graph.hh"
 #include "render_graph/vk_resource_state_tracker.hh"
 #include "vk_buffer.hh"
@@ -143,6 +144,7 @@ class VKDevice : public NonCopyable {
   uint32_t vk_queue_family_ = 0;
   VkQueue vk_queue_ = VK_NULL_HANDLE;
   std::mutex *queue_mutex_ = nullptr;
+  std::mutex thread_data_mutex;
 
   VKSamplers samplers_;
   VKDescriptorSetLayouts descriptor_set_layouts_;
@@ -182,6 +184,8 @@ class VKDevice : public NonCopyable {
 
  public:
   render_graph::VKResourceStateTracker resources;
+  render_graph::VKCommandBuilder::ThreadingModel threading_model =
+      render_graph::VKCommandBuilder::ThreadingModel::SINGLE_PRIMARY;
   VKDiscardPool orphaned_data;
   VKPipelinePool pipelines;
   /** Buffer to bind to unbound resource locations. */
@@ -340,8 +344,6 @@ class VKDevice : public NonCopyable {
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) const;
   static void debug_print(std::ostream &os, const VKDiscardPool &discard_pool);
   void debug_print();
-
-  void free_command_pool_buffers(VkCommandPool vk_command_pool);
 
   /** \} */
 

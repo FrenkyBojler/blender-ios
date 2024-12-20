@@ -355,6 +355,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     GCaps.render_pass_workaround = true;
 
     device.workarounds_ = workarounds;
+    device.threading_model = render_graph::VKCommandBuilder::ThreadingModel::SINGLE_PRIMARY;
     return;
   }
 
@@ -401,6 +402,22 @@ void VKBackend::detect_workarounds(VKDevice &device)
 #endif
 
   device.workarounds_ = workarounds;
+
+  /* Select the threading model based on the driver. */
+  using render_graph::VKCommandBuilder;
+  switch (device.vk_physical_device_driver_properties_.driverID) {
+    case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
+      device.threading_model = VKCommandBuilder::ThreadingModel::SINGLE_PRIMARY_MULTIPLE_SECONDARY;
+      device.threading_model = VKCommandBuilder::ThreadingModel::MULTIPLE_PRIMARY;
+      break;
+
+    case VK_DRIVER_ID_MESA_RADV:
+      device.threading_model = VKCommandBuilder::ThreadingModel::MULTIPLE_PRIMARY;
+      break;
+
+    default:
+      device.threading_model = VKCommandBuilder::ThreadingModel::SINGLE_PRIMARY;
+  }
 }
 
 void VKBackend::platform_exit()
@@ -545,7 +562,7 @@ void VKBackend::render_end()
       thread_data.resource_pool_next();
       VKResourcePool &resource_pool = thread_data.resource_pool_get();
       resource_pool.discard_pool.destroy_discarded_resources(device);
-      resource_pool.reset();
+      resource_pool.reset(device);
     }
   }
 
@@ -555,7 +572,7 @@ void VKBackend::render_end()
     if (thread_data.rendering_depth == 0) {
       VKResourcePool &resource_pool = thread_data.resource_pool_get();
       device.orphaned_data.move_data(resource_pool.discard_pool);
-      resource_pool.reset();
+      resource_pool.reset(device);
     }
   }
 }

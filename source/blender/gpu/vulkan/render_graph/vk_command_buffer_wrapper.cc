@@ -13,10 +13,6 @@
 namespace blender::gpu::render_graph {
 VKCommandBufferWrapper::VKCommandBufferWrapper(const VKWorkarounds &workarounds)
 {
-  vk_command_pool_create_info_ = {};
-  vk_command_pool_create_info_.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  vk_command_pool_create_info_.queueFamilyIndex = 0;
-
   vk_command_buffer_begin_info_ = {};
   vk_command_buffer_begin_info_.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   vk_command_buffer_begin_info_.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -24,10 +20,6 @@ VKCommandBufferWrapper::VKCommandBufferWrapper(const VKWorkarounds &workarounds)
 
   vk_command_buffer_inheritance_info_ = {};
   vk_command_buffer_inheritance_info_.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-
-  vk_fence_create_info_ = {};
-  vk_fence_create_info_.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  vk_fence_create_info_.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
   vk_submit_info_ = {};
   vk_submit_info_.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -40,16 +32,16 @@ VKCommandBufferWrapper::VKCommandBufferWrapper(const VKWorkarounds &workarounds)
   vk_submit_info_.pSignalSemaphores = nullptr;
 
   use_dynamic_rendering = !workarounds.dynamic_rendering;
+
+  VKDevice &device = VKBackend::get().device;
+  VkFenceCreateInfo vk_fence_create_info = {
+      VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+  vkCreateFence(device.vk_handle(), &vk_fence_create_info, nullptr, &vk_fence_);
 }
 
 VKCommandBufferWrapper::~VKCommandBufferWrapper()
 {
   VKDevice &device = VKBackend::get().device;
-  device.free_command_pool_buffers(vk_command_pool_);
-  if (vk_command_pool_ != VK_NULL_HANDLE) {
-    vkDestroyCommandPool(device.vk_handle(), vk_command_pool_, nullptr);
-    vk_command_pool_ = VK_NULL_HANDLE;
-  }
   if (vk_fence_ != VK_NULL_HANDLE) {
     vkDestroyFence(device.vk_handle(), vk_fence_, nullptr);
     vk_fence_ = VK_NULL_HANDLE;
@@ -58,10 +50,6 @@ VKCommandBufferWrapper::~VKCommandBufferWrapper()
 
 void VKCommandBufferWrapper::begin_recording(VkCommandBuffer vk_command_buffer)
 {
-  VKDevice &device = VKBackend::get().device;
-  if (vk_fence_ == VK_NULL_HANDLE) {
-    vkCreateFence(device.vk_handle(), &vk_fence_create_info_, nullptr, &vk_fence_);
-  }
 
   vkBeginCommandBuffer(vk_command_buffer, &vk_command_buffer_begin_info_);
 }
@@ -71,8 +59,8 @@ void VKCommandBufferWrapper::end_recording(VkCommandBuffer vk_command_buffer)
   vkEndCommandBuffer(vk_command_buffer);
 }
 
-void VKCommandBufferWrapper::submit_with_cpu_synchronization(VkCommandBuffer vk_command_buffer,
-                                                             VkFence vk_fence)
+void VKCommandBufferWrapper::submit_with_cpu_synchronization(
+    Span<VkCommandBuffer> vk_command_buffers, VkFence vk_fence)
 {
   if (vk_fence == VK_NULL_HANDLE) {
     vk_fence = vk_fence_;
@@ -81,16 +69,11 @@ void VKCommandBufferWrapper::submit_with_cpu_synchronization(VkCommandBuffer vk_
   vkResetFences(device.vk_handle(), 1, &vk_fence);
   {
     std::scoped_lock lock(device.queue_mutex_get());
-    vk_submit_info_.pCommandBuffers = &vk_command_buffer;
+    vk_submit_info_.pCommandBuffers = vk_command_buffers.data();
+    vk_submit_info_.commandBufferCount = vk_command_buffers.size();
+
     vkQueueSubmit(device.queue_get(), 1, &vk_submit_info_, vk_fence);
   }
-
-  /* Discard all command buffers that have been created since last submission. */
-  for (VkCommandBuffer vk_command_buffer : command_buffers_) {
-    device.discard_pool_for_current_thread(true).discard_command_buffer(vk_command_buffer,
-                                                                        vk_command_pool_);
-  }
-  command_buffers_.clear();
 }
 
 void VKCommandBufferWrapper::wait_for_cpu_synchronization(VkFence vk_fence)
@@ -397,45 +380,13 @@ void VKCommandBufferWrapper::reset_query_pool(VkCommandBuffer vk_command_buffer,
   vkCmdResetQueryPool(vk_command_buffer, vk_query_pool, first_query, query_count);
 }
 
-VkCommandBuffer VKCommandBufferWrapper::allocate_primary_command_buffer()
+VkCommandBuffer VKCommandBufferWrapper::allocate_command_buffer(
+    VkCommandBufferLevel vk_command_buffer_level)
 {
   VKDevice &device = VKBackend::get().device;
-  ensure_command_buffer_pool(device);
-  VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 
-  VkCommandBufferAllocateInfo command_buffer_allocation_info = {
-      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-      nullptr,
-      vk_command_pool_,
-      VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-      1};
-  vkAllocateCommandBuffers(device.vk_handle(), &command_buffer_allocation_info, &command_buffer);
-
-  command_buffers_.append(command_buffer);
-  return command_buffer;
-}
-
-Span<VkCommandBuffer> VKCommandBufferWrapper::allocate_secondary_command_buffers(
-    uint32_t command_buffer_count)
-{
-  VKDevice &device = VKBackend::get().device;
-  ensure_command_buffer_pool(device);
-
-  IndexRange range = IndexRange::from_begin_size(command_buffers_.size(), command_buffer_count);
-  // TODO: +1 for storing the primary command buffer later on :-(
-  command_buffers_.reserve(command_buffers_.size() + command_buffer_count + 1);
-  VkCommandBuffer *command_buffers = command_buffers_.end();
-  command_buffers_.append_n_times(VK_NULL_HANDLE, command_buffer_count);
-
-  VkCommandBufferAllocateInfo command_buffer_allocation_info = {
-      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-      nullptr,
-      vk_command_pool_,
-      VK_COMMAND_BUFFER_LEVEL_SECONDARY,
-      command_buffer_count};
-  vkAllocateCommandBuffers(device.vk_handle(), &command_buffer_allocation_info, command_buffers);
-
-  return command_buffers_.as_span().slice(range);
+  VKResourcePool &resource_pool = device.current_thread_data().resource_pool_get();
+  return resource_pool.allocate_command_buffer(device, vk_command_buffer_level);
 }
 
 void VKCommandBufferWrapper::begin_debug_utils_label(
@@ -452,16 +403,6 @@ void VKCommandBufferWrapper::end_debug_utils_label(VkCommandBuffer vk_command_bu
   const VKDevice &device = VKBackend::get().device;
   if (device.functions.vkCmdEndDebugUtilsLabel) {
     device.functions.vkCmdEndDebugUtilsLabel(vk_command_buffer);
-  }
-}
-
-void VKCommandBufferWrapper::ensure_command_buffer_pool(VKDevice &device)
-{
-  if (vk_command_pool_ == VK_NULL_HANDLE) {
-    vk_command_pool_create_info_.queueFamilyIndex = device.queue_family_get();
-    vkCreateCommandPool(
-        device.vk_handle(), &vk_command_pool_create_info_, nullptr, &vk_command_pool_);
-    vk_command_pool_create_info_.queueFamilyIndex = 0;
   }
 }
 

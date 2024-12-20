@@ -140,6 +140,7 @@ class VKRenderGraph : public NonCopyable {
    * parameter.
    */
   VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_buffer,
+                VKCommandBuilder::ThreadingModel threading_model,
                 VKResourceStateTracker &resources);
 
  private:

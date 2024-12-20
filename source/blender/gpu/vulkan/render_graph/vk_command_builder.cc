@@ -20,9 +20,9 @@ namespace blender::gpu::render_graph {
 /** \name Build nodes
  * \{ */
 
-VkCommandBuffer VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
-                                              VKCommandBufferInterface &command_buffer,
-                                              Span<NodeHandle> node_handles)
+Vector<VkCommandBuffer> VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
+                                                      VKCommandBufferInterface &command_buffer,
+                                                      Span<NodeHandle> node_handles)
 {
   /* Swap chain images layouts needs to be reset as the image layouts are changed externally. */
   render_graph.resources_.reset_image_layouts();
@@ -30,16 +30,10 @@ VkCommandBuffer VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
   groups_extract_barriers(render_graph, node_handles);
 
   sub_builders_init(render_graph, node_handles);
-  Span<VkCommandBuffer> secondary_command_buffers =
-      command_buffer.allocate_secondary_command_buffers(sub_builders_.size());
-  sub_builders_build_commands(
-      render_graph, command_buffer, secondary_command_buffers, node_handles);
+  Vector<VkCommandBuffer> result = sub_builders_build_commands(
+      render_graph, command_buffer, node_handles);
 
-  VkCommandBuffer primary_command_buffer = command_buffer.allocate_primary_command_buffer();
-  sub_builders_record_to_primary_command_buffer(
-      command_buffer, primary_command_buffer, secondary_command_buffers);
-
-  return primary_command_buffer;
+  return result;
 }
 
 void VKCommandBuilder::groups_init(const VKRenderGraph &render_graph,
@@ -205,10 +199,16 @@ void VKCommandBuilder::sub_builders_init(const VKRenderGraph &render_graph,
                                          Span<NodeHandle> node_handles)
 {
   sub_builders_.clear();
+
+  if (threading_model_ == ThreadingModel::SINGLE_PRIMARY) {
+    sub_builders_.append(group_nodes_.index_range());
+    return;
+  }
+
   IndexRange current_range;
   int64_t node_count = 0;
 
-  constexpr int64_t min_size = 100;
+  const int64_t min_size = 32;
 
   for (const IndexRange &group_range : group_nodes_) {
     current_range = IndexRange::from_begin_size(current_range.start(), current_range.size() + 1);
@@ -239,31 +239,85 @@ void VKCommandBuilder::sub_builders_init(const VKRenderGraph &render_graph,
   }
 }
 
-void VKCommandBuilder::sub_builders_build_commands(VKRenderGraph &render_graph,
-                                                   VKCommandBufferInterface &command_buffer,
-                                                   Span<VkCommandBuffer> secondary_command_buffers,
-                                                   Span<NodeHandle> node_handles)
+Vector<VkCommandBuffer> VKCommandBuilder::sub_builders_build_commands(
+    VKRenderGraph &render_graph,
+    VKCommandBufferInterface &command_buffer,
+    Span<NodeHandle> node_handles)
 {
-  /* */
-#if 1
-  for (int64_t sub_builder_index : sub_builders_.index_range()) {
-    VkCommandBuffer vk_command_buffer = secondary_command_buffers[sub_builder_index];
-    const SubBuilder sub_builder = sub_builders_[sub_builder_index];
-    sub_builder_build_commands(
-        render_graph, command_buffer, vk_command_buffer, node_handles, sub_builder);
+  auto reduce_command_buffers = [](const Vector<VkCommandBuffer> a,
+                                   const Vector<VkCommandBuffer> b) {
+    Vector<VkCommandBuffer> result;
+    result.reserve(a.size() + b.size());
+    result.extend(a);
+    result.extend(b);
+    return result;
+  };
+  VkCommandBufferLevel vk_command_buffer_level =
+      threading_model_ == ThreadingModel::SINGLE_PRIMARY_MULTIPLE_SECONDARY ?
+          VK_COMMAND_BUFFER_LEVEL_SECONDARY :
+          VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+  auto parallel_sub_builders = [&](IndexRange sub_builder_range, Vector<VkCommandBuffer> init) {
+    for (int64_t sub_builder_index : sub_builder_range) {
+      VkCommandBuffer vk_command_buffer = command_buffer.allocate_command_buffer(
+          vk_command_buffer_level);
+      init.append(vk_command_buffer);
+      const SubBuilder sub_builder = sub_builders_[sub_builder_index];
+      sub_builder_build_commands(
+          render_graph, command_buffer, vk_command_buffer, node_handles, sub_builder);
+    }
+    return init;
+  };
+
+  switch (threading_model_) {
+    case ThreadingModel::SINGLE_PRIMARY: {
+      VkCommandBuffer vk_command_buffer = command_buffer.allocate_command_buffer(
+          VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+      for (int64_t sub_builder_index : sub_builders_.index_range()) {
+        const SubBuilder sub_builder = sub_builders_[sub_builder_index];
+        sub_builder_build_commands(
+            render_graph, command_buffer, vk_command_buffer, node_handles, sub_builder);
+      }
+
+      Vector<VkCommandBuffer> result;
+      result.append(vk_command_buffer);
+      return result;
+    }
+
+    case ThreadingModel::MULTIPLE_PRIMARY: {
+      Vector<VkCommandBuffer> primary_command_buffers = blender::threading::parallel_reduce(
+          sub_builders_.index_range(),
+          1,
+          Vector<VkCommandBuffer>{},
+          parallel_sub_builders,
+          reduce_command_buffers);
+      return primary_command_buffers;
+    }
+
+    case ThreadingModel::SINGLE_PRIMARY_MULTIPLE_SECONDARY: {
+      Vector<VkCommandBuffer> secondary_command_buffers = blender::threading::parallel_reduce(
+          sub_builders_.index_range(),
+          1,
+          Vector<VkCommandBuffer>{},
+          parallel_sub_builders,
+          reduce_command_buffers);
+
+      /* Record the secondary command buffers into a primary command buffer. */
+      VkCommandBuffer vk_command_buffer = command_buffer.allocate_command_buffer(
+          VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+      command_buffer.begin_recording(vk_command_buffer);
+      command_buffer.execute_commands(
+          vk_command_buffer, secondary_command_buffers.size(), secondary_command_buffers.data());
+      command_buffer.end_recording(vk_command_buffer);
+
+      Vector<VkCommandBuffer> result;
+      result.append(vk_command_buffer);
+      return result;
+    }
   }
-#else
-  blender::threading::parallel_for(
-      sub_builders_.index_range(), 1, [&](IndexRange sub_builder_range) {
-        // TODO: command pools should be kept per thread.
-        for (int64_t sub_builder_index : sub_builder_range) {
-          VkCommandBuffer vk_command_buffer = secondary_command_buffers[sub_builder_index];
-          const SubBuilder sub_builder = sub_builders_[sub_builder_index];
-          sub_builder_build_commands(
-              render_graph, command_buffer, vk_command_buffer, node_handles, sub_builder);
-        }
-      });
-#endif
+
+  BLI_assert_unreachable();
+  return Vector<VkCommandBuffer>();
 }
 
 void VKCommandBuilder::sub_builder_build_commands(VKRenderGraph &render_graph,

@@ -14,18 +14,82 @@ namespace blender::gpu {
 void VKResourcePool::init(VKDevice &device)
 {
   descriptor_pools.init(device);
+
+  VkCommandPoolCreateInfo vk_command_pool_create_info_ = {};
+  vk_command_pool_create_info_.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  vk_command_pool_create_info_.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                       VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  vk_command_pool_create_info_.queueFamilyIndex = 0;
+  vk_command_pool_create_info_.queueFamilyIndex = device.queue_family_get();
+  vkCreateCommandPool(
+      device.vk_handle(), &vk_command_pool_create_info_, nullptr, &vk_command_pool_);
 }
 
 void VKResourcePool::deinit(VKDevice &device)
 {
   immediate.deinit(device);
   discard_pool.deinit(device);
+
+  auto free_command_buffers = [&](Vector<VkCommandBuffer> &vk_command_buffers) {
+    vkFreeCommandBuffers(device.vk_handle(),
+                         vk_command_pool_,
+                         vk_command_buffers.size(),
+                         vk_command_buffers.data());
+    vk_command_buffers.clear();
+  };
+  free_command_buffers(primary_command_buffers_);
+  free_command_buffers(primary_command_buffers_discarded_);
+  free_command_buffers(secondary_command_buffers_);
+  free_command_buffers(secondary_command_buffers_discarded_);
+
+  vkDestroyCommandPool(device.vk_handle(), vk_command_pool_, nullptr);
+  vk_command_pool_ = VK_NULL_HANDLE;
 }
 
-void VKResourcePool::reset()
+void VKResourcePool::reset(VKDevice & /*device*/)
 {
   descriptor_pools.reset();
   immediate.reset();
+
+  auto recycle_command_buffers = [](Vector<VkCommandBuffer> &command_buffers,
+                                    Vector<VkCommandBuffer> &command_buffers_discarded) {
+    while (!command_buffers_discarded.is_empty()) {
+      VkCommandBuffer vk_command_buffer = command_buffers_discarded.pop_last();
+      vkResetCommandBuffer(vk_command_buffer, 0);
+      command_buffers.append(vk_command_buffer);
+    }
+  };
+  recycle_command_buffers(primary_command_buffers_, primary_command_buffers_discarded_);
+  recycle_command_buffers(secondary_command_buffers_, secondary_command_buffers_discarded_);
+}
+
+VkCommandBuffer VKResourcePool::allocate_command_buffer(
+    VKDevice &device, VkCommandBufferLevel vk_command_buffer_level)
+{
+  Vector<VkCommandBuffer> &command_buffers = vk_command_buffer_level ==
+                                                     VK_COMMAND_BUFFER_LEVEL_PRIMARY ?
+                                                 primary_command_buffers_ :
+                                                 secondary_command_buffers_;
+  Vector<VkCommandBuffer> &discard_pool = vk_command_buffer_level ==
+                                                  VK_COMMAND_BUFFER_LEVEL_PRIMARY ?
+                                              primary_command_buffers_discarded_ :
+                                              secondary_command_buffers_discarded_;
+
+  if (command_buffers.is_empty()) {
+    command_buffers.append_n_times(VK_NULL_HANDLE, 256);
+    VkCommandBufferAllocateInfo command_buffer_allocation_info = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        nullptr,
+        vk_command_pool_,
+        vk_command_buffer_level,
+        256};
+    vkAllocateCommandBuffers(
+        device.vk_handle(), &command_buffer_allocation_info, command_buffers.data());
+  }
+
+  VkCommandBuffer vk_command_buffer = command_buffers.pop_last();
+  discard_pool.append(vk_command_buffer);
+  return vk_command_buffer;
 }
 
 void VKDiscardPool::deinit(VKDevice &device)
@@ -44,37 +108,12 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool)
   pipeline_layouts_.extend(std::move(src_pool.pipeline_layouts_));
   framebuffers_.extend(std::move(src_pool.framebuffers_));
   render_passes_.extend(std::move(src_pool.render_passes_));
-
-  for (const Map<VkCommandPool, Vector<VkCommandBuffer>>::Item &item :
-       src_pool.command_buffers_.items())
-  {
-    command_buffers_.lookup_or_add_default(item.key).extend(item.value);
-  }
-  src_pool.command_buffers_.clear();
 }
 
 void VKDiscardPool::discard_image(VkImage vk_image, VmaAllocation vma_allocation)
 {
   std::scoped_lock mutex(mutex_);
   images_.append(std::pair(vk_image, vma_allocation));
-}
-
-void VKDiscardPool::discard_command_buffer(VkCommandBuffer vk_command_buffer,
-                                           VkCommandPool vk_command_pool)
-{
-  std::scoped_lock mutex(mutex_);
-  command_buffers_.lookup_or_add_default(vk_command_pool).append(vk_command_buffer);
-}
-
-void VKDiscardPool::free_command_pool_buffers(VkCommandPool vk_command_pool, VKDevice &device)
-{
-  std::scoped_lock mutex(mutex_);
-  std::optional<blender::Vector<VkCommandBuffer>> buffers = command_buffers_.pop_try(
-      vk_command_pool);
-  if (!buffers) {
-    return;
-  }
-  vkFreeCommandBuffers(device.vk_handle(), vk_command_pool, (*buffers).size(), (*buffers).begin());
 }
 
 void VKDiscardPool::discard_image_view(VkImageView vk_image_view)
@@ -153,11 +192,6 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device)
     VkRenderPass vk_render_pass = render_passes_.pop_last();
     vkDestroyRenderPass(device.vk_handle(), vk_render_pass, nullptr);
   }
-
-  for (const Map<VkCommandPool, Vector<VkCommandBuffer>>::Item &item : command_buffers_.items()) {
-    vkFreeCommandBuffers(device.vk_handle(), item.key, item.value.size(), item.value.begin());
-  }
-  command_buffers_.clear();
 }
 
 }  // namespace blender::gpu

@@ -37,24 +37,13 @@ class VKDiscardPool {
   Vector<VkPipelineLayout> pipeline_layouts_;
   Vector<VkRenderPass> render_passes_;
   Vector<VkFramebuffer> framebuffers_;
-  Map<VkCommandPool, Vector<VkCommandBuffer>> command_buffers_;
 
   std::mutex mutex_;
-
-  /**
-   * Free command buffers generated from `vk_command_pool`.
-   *
-   * Command buffers are freed in `destroy_discarded_resources`, however if a `vk_command_pool` is
-   * going to be destroyed, commands buffers generated from this command pool needs to be freed at
-   * forehand.
-   */
-  void free_command_pool_buffers(VkCommandPool vk_command_pool, VKDevice &device);
 
  public:
   void deinit(VKDevice &device);
 
   void discard_image(VkImage vk_image, VmaAllocation vma_allocation);
-  void discard_command_buffer(VkCommandBuffer vk_command_buffer, VkCommandPool vk_command_pool);
   void discard_image_view(VkImageView vk_image_view);
   void discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocation);
   void discard_shader_module(VkShaderModule vk_shader_module);
@@ -83,6 +72,17 @@ class VKResourcePool {
 
   void init(VKDevice &device);
   void deinit(VKDevice &device);
-  void reset();
+  void reset(VKDevice &device);
+  VkCommandBuffer allocate_command_buffer(VKDevice &device,
+                                          VkCommandBufferLevel vk_command_buffer_level);
+
+ private:
+  VkCommandPool vk_command_pool_ = VK_NULL_HANDLE;
+
+  Vector<VkCommandBuffer> primary_command_buffers_;
+  Vector<VkCommandBuffer> secondary_command_buffers_;
+
+  Vector<VkCommandBuffer> primary_command_buffers_discarded_;
+  Vector<VkCommandBuffer> secondary_command_buffers_discarded_;
 };
 }  // namespace blender::gpu

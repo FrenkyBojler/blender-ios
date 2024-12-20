@@ -25,6 +25,7 @@ VKContext::VKContext(void *ghost_window,
                      render_graph::VKResourceStateTracker &resources)
     : render_graph(std::make_unique<render_graph::VKCommandBufferWrapper>(
                        VKBackend::get().device.workarounds_get()),
+                   VKBackend::get().device.threading_model,
                    resources)
 {
   ghost_window_ = ghost_window;
@@ -65,7 +66,7 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
       VKResourcePool &resource_pool = thread_data.resource_pool_get();
       imm = &resource_pool.immediate;
       resource_pool.discard_pool.destroy_discarded_resources(device);
-      resource_pool.reset();
+      resource_pool.reset(device);
       resource_pool.discard_pool.move_data(device.orphaned_data);
     }
 

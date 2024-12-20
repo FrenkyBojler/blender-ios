@@ -468,12 +468,9 @@ class CommandBufferLog : public VKCommandBufferInterface {
                         uint32_t /*query_count*/) override
   {
   }
-  Span<VKCommandBufferInterface *> allocate_secondary_command_buffers(
-      uint32_t command_buffer_count) override
+  VkCommandBuffer allocate_command_buffer(VkCommandBufferLevel vk_command_buffer_level) override
   {
-    secondary_command_buffers_.clear();
-    secondary_command_buffers_.append_n_times(this, command_buffer_count);
-    return secondary_command_buffers_.as_span();
+    return VK_NULL_HANDLE;
   }
   void execute_commands(uint32_t /*command_buffer_count*/,
                         const VkCommandBuffer * /*p_command_buffers*/) override

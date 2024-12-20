@@ -24,6 +24,19 @@ class VKRenderGraph;
  * barriers and commands.
  */
 class VKCommandBuilder {
+ public:
+  /**
+   * Threading model to use when building the command buffers.
+   *
+   * Different drivers have other ideal circumstances of threading models.
+   */
+  enum class ThreadingModel {
+    SINGLE_PRIMARY,
+    SINGLE_PRIMARY_MULTIPLE_SECONDARY,
+    MULTIPLE_PRIMARY
+  };
+
+ private:
   /**
    * List of all extracted VkBufferMemoryBarriers. These barriers will be referenced by
    * Barrier::buffer_memory_barriers.
@@ -170,7 +183,12 @@ class VKCommandBuilder {
   /** List of all generated barriers. */
   Vector<Barrier> barrier_list_;
 
+  /** The used threading model for building command buffers. */
+  ThreadingModel threading_model_;
+
  public:
+  VKCommandBuilder(ThreadingModel threading_model) : threading_model_(threading_model) {}
+
   /**
    * Build the commands of the nodes provided by the `node_handles` parameter. The commands are
    * recorded into the given `command_buffer`.
@@ -183,11 +201,11 @@ class VKCommandBuilder {
    * - `command_buffer` will be in executable state according to
    *   https://docs.vulkan.org/spec/latest/chapters/cmdbuffers.html#commandbuffers-lifecycle
    *
-   * Returns the primary command buffer that can be submitted.
+   * Returns the primary command buffers for submission.
    */
-  VkCommandBuffer build_nodes(VKRenderGraph &render_graph,
-                              VKCommandBufferInterface &command_buffer,
-                              Span<NodeHandle> node_handles);
+  Vector<VkCommandBuffer> build_nodes(VKRenderGraph &render_graph,
+                                      VKCommandBufferInterface &command_buffer,
+                                      Span<NodeHandle> node_handles);
 
  private:
   /**
@@ -216,10 +234,9 @@ class VKCommandBuilder {
    */
   void sub_builders_init(const VKRenderGraph &render_graph, Span<NodeHandle> node_handles);
 
-  void sub_builders_build_commands(VKRenderGraph &render_graph,
-                                   VKCommandBufferInterface &command_buffer,
-                                   Span<VkCommandBuffer> secondary_command_buffers,
-                                   Span<NodeHandle> node_handles);
+  Vector<VkCommandBuffer> sub_builders_build_commands(VKRenderGraph &render_graph,
+                                                      VKCommandBufferInterface &command_buffer,
+                                                      Span<NodeHandle> node_handles);
   /** Record the secondary command buffers from the sub builders to the primary command buffer. */
   void sub_builders_record_to_primary_command_buffer(
       VKCommandBufferInterface &command_buffer,
