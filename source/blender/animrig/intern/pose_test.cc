@@ -21,6 +21,9 @@
 #include "CLG_log.h"
 #include "testing/testing.h"
 
+constexpr char msg_unexpected_modification[] =
+    "Properties not stored in the pose are expected to not be modified.";
+
 namespace blender::animrig::tests {
 
 class PoseTest : public testing::Test {
@@ -31,6 +34,8 @@ class PoseTest : public testing::Test {
   Object *obj_armature_a;
   Object *obj_armature_b;
   StripKeyframeData *keyframe_data;
+  const blender::animrig::KeyframeSettings key_settings = {
+      BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
 
   static void SetUpTestSuite()
   {
@@ -110,27 +115,21 @@ TEST_F(PoseTest, apply_action_object)
    * transforms, even though the name suggests it only applies to bones. */
   Slot &first_slot = pose_data->slot_add();
   EXPECT_EQ(obj_empty->loc[0], 0.0f);
-  keyframe_data->keyframe_insert(
-      bmain, first_slot, {"location", 0}, {1, 10}, {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
+  keyframe_data->keyframe_insert(bmain, first_slot, {"location", 0}, {1, 10}, key_settings);
   AnimationEvalContext eval_context = {nullptr, 1.0f};
   blender::animrig::pose_apply_action_all_bones(
       obj_empty, pose_data, first_slot.handle, &eval_context);
   EXPECT_EQ(obj_empty->loc[0], 10.0f);
 }
 
-TEST_F(PoseTest, apply_action_all_bones_single_armature)
+TEST_F(PoseTest, apply_action_all_bones_single_slot)
 {
   Slot &first_slot = pose_data->slot_add();
-  keyframe_data->keyframe_insert(bmain,
-                                 first_slot,
-                                 {"pose.bones[\"BoneA\"].location", 0},
-                                 {1, 10},
-                                 {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
-  keyframe_data->keyframe_insert(bmain,
-                                 first_slot,
-                                 {"pose.bones[\"BoneB\"].location", 1},
-                                 {1, 5},
-                                 {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
+
+  keyframe_data->keyframe_insert(
+      bmain, first_slot, {"pose.bones[\"BoneA\"].location", 0}, {1, 10}, key_settings);
+  keyframe_data->keyframe_insert(
+      bmain, first_slot, {"pose.bones[\"BoneB\"].location", 1}, {1, 5}, key_settings);
 
   bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
   bPoseChannel *bone_b = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneB");
@@ -144,24 +143,67 @@ TEST_F(PoseTest, apply_action_all_bones_single_armature)
   EXPECT_EQ(bone_a->loc[0], 10.0);
   EXPECT_EQ(bone_b->loc[1], 5.0);
 
-  EXPECT_EQ(bone_a->loc[1], 1.0)
-      << "Properties not stored in the pose are expected to not be modified.";
+  EXPECT_EQ(bone_a->loc[1], 1.0) << msg_unexpected_modification;
   EXPECT_EQ(bone_a->loc[2], 2.0);
 }
 
-TEST_F(PoseTest, apply_action_selected_bones_single_armature)
+TEST_F(PoseTest, apply_action_all_bones_multiple_slots)
+{
+  Slot &slot_a = pose_data->slot_add_for_id(obj_armature_a->id);
+  Slot &slot_b = pose_data->slot_add_for_id(obj_armature_b->id);
+
+  keyframe_data->keyframe_insert(
+      bmain, slot_a, {"pose.bones[\"BoneA\"].location", 0}, {1, 5}, key_settings);
+  keyframe_data->keyframe_insert(
+      bmain, slot_a, {"pose.bones[\"BoneB\"].location", 0}, {1, 5}, key_settings);
+
+  keyframe_data->keyframe_insert(
+      bmain, slot_b, {"pose.bones[\"BoneA\"].location", 1}, {1, 10}, key_settings);
+  keyframe_data->keyframe_insert(
+      bmain, slot_b, {"pose.bones[\"BoneB\"].location", 1}, {1, 10}, key_settings);
+
+  bPoseChannel *arm_a_bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
+  bPoseChannel *arm_a_bone_b = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneB");
+
+  bPoseChannel *arm_b_bone_a = BKE_pose_channel_find_name(obj_armature_b->pose, "BoneA");
+  bPoseChannel *arm_b_bone_b = BKE_pose_channel_find_name(obj_armature_b->pose, "BoneB");
+
+  AnimationEvalContext eval_context = {nullptr, 1.0f};
+  blender::animrig::pose_apply_action_all_bones(
+      obj_armature_a, pose_data, slot_a.handle, &eval_context);
+
+  EXPECT_EQ(arm_a_bone_a->loc[0], 5.0);
+  EXPECT_EQ(arm_a_bone_a->loc[1], 0.0) << msg_unexpected_modification;
+  EXPECT_EQ(arm_a_bone_a->loc[2], 0.0) << msg_unexpected_modification;
+
+  EXPECT_EQ(arm_a_bone_b->loc[0], 5.0);
+
+  EXPECT_EQ(arm_b_bone_a->loc[1], 0.0) << "Other armature should not be affected yet.";
+
+  blender::animrig::pose_apply_action_all_bones(
+      obj_armature_b, pose_data, slot_b.handle, &eval_context);
+
+  EXPECT_EQ(arm_b_bone_b->loc[0], 0.0) << msg_unexpected_modification;
+  EXPECT_EQ(arm_b_bone_b->loc[1], 10.0);
+  EXPECT_EQ(arm_b_bone_b->loc[2], 0.0) << msg_unexpected_modification;
+
+  EXPECT_EQ(arm_a_bone_a->loc[0], 5.0) << "Other armature should not be affected.";
+
+  /* Any slot can be applied, even if it hasn't been added for the ID. */
+  blender::animrig::pose_apply_action_all_bones(
+      obj_armature_a, pose_data, slot_b.handle, &eval_context);
+
+  EXPECT_EQ(arm_b_bone_b->loc[1], arm_b_bone_a->loc[1])
+      << "Applying the same pose should result in the same values.";
+}
+
+TEST_F(PoseTest, apply_action_selected_bones_single_slot)
 {
   Slot &first_slot = pose_data->slot_add();
-  keyframe_data->keyframe_insert(bmain,
-                                 first_slot,
-                                 {"pose.bones[\"BoneA\"].location", 0},
-                                 {1, 10},
-                                 {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
-  keyframe_data->keyframe_insert(bmain,
-                                 first_slot,
-                                 {"pose.bones[\"BoneB\"].location", 1},
-                                 {1, 5},
-                                 {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
+  keyframe_data->keyframe_insert(
+      bmain, first_slot, {"pose.bones[\"BoneA\"].location", 0}, {1, 10}, key_settings);
+  keyframe_data->keyframe_insert(
+      bmain, first_slot, {"pose.bones[\"BoneB\"].location", 1}, {1, 5}, key_settings);
 
   bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
   bPoseChannel *bone_b = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneB");
@@ -181,24 +223,17 @@ TEST_F(PoseTest, apply_action_selected_bones_single_armature)
   EXPECT_EQ(bone_a->loc[0], 10.0);
   EXPECT_EQ(bone_b->loc[1], 0.0) << "Unselected bones should not be affected.";
 
-  EXPECT_EQ(bone_a->loc[1], 1.0)
-      << "Properties not stored in the pose are expected to not be modified.";
-  EXPECT_EQ(bone_a->loc[2], 2.0);
+  EXPECT_EQ(bone_a->loc[1], 1.0) << msg_unexpected_modification;
+  EXPECT_EQ(bone_a->loc[2], 2.0) << msg_unexpected_modification;
 }
 
-TEST_F(PoseTest, apply_action_blend_single_armature)
+TEST_F(PoseTest, apply_action_blend_single_slot)
 {
   Slot &first_slot = pose_data->slot_add();
-  keyframe_data->keyframe_insert(bmain,
-                                 first_slot,
-                                 {"pose.bones[\"BoneA\"].location", 0},
-                                 {1, 10},
-                                 {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
-  keyframe_data->keyframe_insert(bmain,
-                                 first_slot,
-                                 {"pose.bones[\"BoneB\"].location", 1},
-                                 {1, 5},
-                                 {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
+  keyframe_data->keyframe_insert(
+      bmain, first_slot, {"pose.bones[\"BoneA\"].location", 0}, {1, 10}, key_settings);
+  keyframe_data->keyframe_insert(
+      bmain, first_slot, {"pose.bones[\"BoneB\"].location", 1}, {1, 5}, key_settings);
 
   bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
   bPoseChannel *bone_b = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneB");
