@@ -331,7 +331,7 @@ static int startffmpeg(MoviePlayback *anim)
   }
 
   anim->frs_sec = frs_num;
-  anim->frs_sec_base = frs_den;
+  anim->frs_sec_base = frs_den / AV_TIME_BASE;
   /* Save the relative start time for the video. IE the start time in relation to where playback
    * starts. */
   anim->start_offset = ffmpeg_stream_start_time_get(video_stream);
