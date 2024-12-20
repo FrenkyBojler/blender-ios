@@ -378,7 +378,7 @@ using FoundFCurveCallbackConst =
 /**
  * Calls `callback` for every fcurve in `action` that targets any bone.
  *
- * \param slot_handle limits the search to FCurves for that slot.
+ * \param slot_handle limits the search for FCurves to that slot.
  */
 void BKE_action_find_fcurves_with_bones(bAction *action,
                                         blender::animrig::slot_handle_t slot_handle,
