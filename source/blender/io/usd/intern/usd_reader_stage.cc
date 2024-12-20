@@ -178,11 +178,14 @@ static void find_prefix_to_skip(pxr::UsdStageRefPtr stage, ImportSettings &setti
   settings.skip_prefix = path;
 }
 
-USDStageReader::USDStageReader(pxr::UsdStageRefPtr stage, const USDImportParams &params)
+USDStageReader::USDStageReader(pxr::UsdStageRefPtr stage,
+                               const USDImportParams &params,
+                               std::function<CacheFile *()> get_cache_file_fn)
     : stage_(stage), params_(params)
 {
   convert_to_z_up(stage_, settings_);
   find_prefix_to_skip(stage_, settings_);
+  settings_.get_cache_file = get_cache_file_fn;
   settings_.stage_meters_per_unit = pxr::UsdGeomGetStageMetersPerUnit(stage);
 }
 

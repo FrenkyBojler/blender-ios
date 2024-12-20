@@ -221,8 +221,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     return data->cache_file;
   };
 
-  USDStageReader *archive = new USDStageReader(stage, data->params);
-  archive->settings().get_cache_file = get_cache_file;
+  USDStageReader *archive = new USDStageReader(stage, data->params, get_cache_file);
 
   /* Ensure Python types for invoking hooks are registered. */
   register_hook_converters();

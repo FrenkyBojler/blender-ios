@@ -57,7 +57,9 @@ class USDStageReader {
   ProtoReaderMap instancer_proto_readers_;
 
  public:
-  USDStageReader(pxr::UsdStageRefPtr stage, const USDImportParams &params);
+  USDStageReader(pxr::UsdStageRefPtr stage,
+                 const USDImportParams &params,
+                 std::function<CacheFile *()> get_cache_file_fn = {});
 
   ~USDStageReader();
 
@@ -109,7 +111,7 @@ class USDStageReader {
     return params_;
   }
 
-  ImportSettings &settings()
+  const ImportSettings &settings() const
   {
     return settings_;
   }
