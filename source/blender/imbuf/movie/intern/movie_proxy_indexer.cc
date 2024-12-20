@@ -19,7 +19,6 @@
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
 #include "BLI_fileops.h"
-#include "BLI_ghash.h"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
 #include "BLI_path_utils.hh"
@@ -1123,42 +1122,38 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
                                            int proxy_sizes_in_use,
                                            int quality,
                                            const bool overwrite,
-                                           GSet *file_list,
+                                           blender::Set<std::string> *processed_paths,
                                            bool build_only_on_bad_performance)
 {
   int proxy_sizes_to_build = proxy_sizes_in_use;
-  int i;
 
-  /* Don't generate the same file twice! */
-  if (file_list) {
-    for (i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
+  /* Check which proxies are going to be generated in this session already. */
+  if (processed_paths != nullptr) {
+    for (int i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
       IMB_Proxy_Size proxy_size = proxy_sizes[i];
-      if (proxy_size & proxy_sizes_to_build) {
-        char filepath[FILE_MAX];
-        if (get_proxy_filepath(anim, proxy_size, filepath, false) == false) {
-          return nullptr;
-        }
-        void **filepath_key_p;
-        if (!BLI_gset_ensure_p_ex(file_list, filepath, &filepath_key_p)) {
-          *filepath_key_p = BLI_strdup(filepath);
-        }
-        else {
-          proxy_sizes_to_build &= ~int(proxy_size);
-          printf("Proxy: %s already registered for generation, skipping\n", filepath);
-        }
+      if ((proxy_size & proxy_sizes_to_build) == 0) {
+        continue;
+      }
+      char filepath[FILE_MAX];
+      if (!get_proxy_filepath(anim, proxy_size, filepath, false)) {
+        return nullptr;
+      }
+      if (!processed_paths->add(filepath)) {
+        proxy_sizes_to_build &= ~int(proxy_size);
+        printf("Proxy: %s already registered for generation, skipping\n", filepath);
       }
     }
   }
 
+  /* When not overwriting existing proxies, skip the ones that already exist. */
   if (!overwrite) {
     int built_proxies = MOV_get_existing_proxies(anim);
     if (built_proxies != 0) {
-
-      for (i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
+      for (int i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
         IMB_Proxy_Size proxy_size = proxy_sizes[i];
         if (proxy_size & built_proxies) {
           char filepath[FILE_MAX];
-          if (get_proxy_filepath(anim, proxy_size, filepath, false) == false) {
+          if (!get_proxy_filepath(anim, proxy_size, filepath, false)) {
             return nullptr;
           }
           printf("Skipping proxy: %s\n", filepath);
