@@ -28,7 +28,8 @@ class PoseTest : public testing::Test {
   Main *bmain;
   Action *pose_data;
   Object *obj_empty;
-  Object *obj_armature;
+  Object *obj_armature_a;
+  Object *obj_armature_b;
   StripKeyframeData *keyframe_data;
 
   static void SetUpTestSuite()
@@ -54,10 +55,11 @@ class PoseTest : public testing::Test {
     keyframe_data = &strip.data<StripKeyframeData>(*pose_data);
 
     obj_empty = BKE_object_add_only_object(bmain, OB_EMPTY, "obj_empty");
-    obj_armature = BKE_object_add_only_object(bmain, OB_ARMATURE, "obj_armature");
+    obj_armature_a = BKE_object_add_only_object(bmain, OB_ARMATURE, "obj_armature_a");
+    obj_armature_b = BKE_object_add_only_object(bmain, OB_ARMATURE, "obj_armature_b");
 
-    bArmature *armature = BKE_armature_add(bmain, "Armature");
-    obj_armature->data = armature;
+    bArmature *armature = BKE_armature_add(bmain, "ArmatureA");
+    obj_armature_a->data = armature;
 
     Bone *bone = static_cast<Bone *>(MEM_mallocN(sizeof(Bone), "BONE"));
     memset(bone, 0, sizeof(Bone));
@@ -69,7 +71,22 @@ class PoseTest : public testing::Test {
     STRNCPY(bone->name, "BoneB");
     BLI_addtail(&armature->bonebase, bone);
 
-    BKE_pose_ensure(bmain, obj_armature, armature, false);
+    BKE_pose_ensure(bmain, obj_armature_a, armature, false);
+
+    armature = BKE_armature_add(bmain, "ArmatureB");
+    obj_armature_b->data = armature;
+
+    bone = static_cast<Bone *>(MEM_mallocN(sizeof(Bone), "BONE"));
+    memset(bone, 0, sizeof(Bone));
+    STRNCPY(bone->name, "BoneA");
+    BLI_addtail(&armature->bonebase, bone);
+
+    bone = static_cast<Bone *>(MEM_mallocN(sizeof(Bone), "BONE"));
+    memset(bone, 0, sizeof(Bone));
+    STRNCPY(bone->name, "BoneB");
+    BLI_addtail(&armature->bonebase, bone);
+
+    BKE_pose_ensure(bmain, obj_armature_b, armature, false);
   }
 
   void TearDown() override
@@ -84,7 +101,7 @@ TEST_F(PoseTest, get_best_slot)
   Slot &second_slot = pose_data->slot_add_for_id(obj_empty->id);
 
   EXPECT_EQ(&get_best_pose_slot_for_id(obj_empty->id, *pose_data), &second_slot);
-  EXPECT_EQ(&get_best_pose_slot_for_id(obj_armature->id, *pose_data), &first_slot);
+  EXPECT_EQ(&get_best_pose_slot_for_id(obj_armature_a->id, *pose_data), &first_slot);
 }
 
 TEST_F(PoseTest, apply_action_object)
@@ -115,15 +132,15 @@ TEST_F(PoseTest, apply_action_all_bones_single_armature)
                                  {1, 5},
                                  {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
 
-  bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature->pose, "BoneA");
-  bPoseChannel *bone_b = BKE_pose_channel_find_name(obj_armature->pose, "BoneB");
+  bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
+  bPoseChannel *bone_b = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneB");
 
   bone_a->loc[1] = 1.0;
   bone_a->loc[2] = 2.0;
 
   AnimationEvalContext eval_context = {nullptr, 1.0f};
   blender::animrig::pose_apply_action_all_bones(
-      obj_armature, pose_data, first_slot.handle, &eval_context);
+      obj_armature_a, pose_data, first_slot.handle, &eval_context);
   EXPECT_EQ(bone_a->loc[0], 10.0);
   EXPECT_EQ(bone_b->loc[1], 5.0);
 
@@ -146,8 +163,8 @@ TEST_F(PoseTest, apply_action_selected_bones_single_armature)
                                  {1, 5},
                                  {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
 
-  bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature->pose, "BoneA");
-  bPoseChannel *bone_b = BKE_pose_channel_find_name(obj_armature->pose, "BoneB");
+  bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
+  bPoseChannel *bone_b = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneB");
 
   bone_a->loc[1] = 1.0;
   bone_a->loc[2] = 2.0;
@@ -159,7 +176,7 @@ TEST_F(PoseTest, apply_action_selected_bones_single_armature)
 
   AnimationEvalContext eval_context = {nullptr, 1.0f};
   blender::animrig::pose_apply_action_selected_bones(
-      obj_armature, pose_data, first_slot.handle, &eval_context);
+      obj_armature_a, pose_data, first_slot.handle, &eval_context);
 
   EXPECT_EQ(bone_a->loc[0], 10.0);
   EXPECT_EQ(bone_b->loc[1], 0.0) << "Unselected bones should not be affected.";
@@ -169,6 +186,41 @@ TEST_F(PoseTest, apply_action_selected_bones_single_armature)
   EXPECT_EQ(bone_a->loc[2], 2.0);
 }
 
-TEST_F(PoseTest, apply_action_blend_single_armature) {}
+TEST_F(PoseTest, apply_action_blend_single_armature)
+{
+  Slot &first_slot = pose_data->slot_add();
+  keyframe_data->keyframe_insert(bmain,
+                                 first_slot,
+                                 {"pose.bones[\"BoneA\"].location", 0},
+                                 {1, 10},
+                                 {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
+  keyframe_data->keyframe_insert(bmain,
+                                 first_slot,
+                                 {"pose.bones[\"BoneB\"].location", 1},
+                                 {1, 5},
+                                 {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ});
+
+  bPoseChannel *bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
+  bPoseChannel *bone_b = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneB");
+
+  bone_a->loc[0] = 0.0;
+  bone_b->loc[1] = 0.0;
+
+  AnimationEvalContext eval_context = {nullptr, 1.0f};
+  blender::animrig::pose_apply_action_blend(
+      obj_armature_a, pose_data, first_slot.handle, &eval_context, 1.0);
+
+  EXPECT_NEAR(bone_a->loc[0], 10.0, 0.001);
+  EXPECT_NEAR(bone_b->loc[1], 5.0, 0.001);
+
+  bone_a->loc[0] = 0.0;
+  bone_b->loc[1] = 0.0;
+
+  blender::animrig::pose_apply_action_blend(
+      obj_armature_a, pose_data, first_slot.handle, &eval_context, 0.5);
+
+  EXPECT_NEAR(bone_a->loc[0], 5.0, 0.001);
+  EXPECT_NEAR(bone_b->loc[1], 2.5, 0.001);
+}
 
 }  // namespace blender::animrig::tests
