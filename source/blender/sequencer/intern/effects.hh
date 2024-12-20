@@ -11,18 +11,18 @@
 #include "SEQ_effects.hh"
 
 struct Scene;
-struct Sequence;
+struct Strip;
 
-SeqEffectHandle seq_effect_get_sequence_blend(Sequence *seq);
+SeqEffectHandle seq_effect_get_sequence_blend(Strip *seq);
 /**
  * Build frame map when speed in mode #SEQ_SPEED_MULTIPLY is animated.
  * This is, because `target_frame` value is integrated over time.
  */
-void seq_effect_speed_rebuild_map(Scene *scene, Sequence *seq);
+void seq_effect_speed_rebuild_map(Scene *scene, Strip *seq);
 /**
  * Override timeline_frame when rendering speed effect input.
  */
 float seq_speed_effect_target_frame_get(Scene *scene,
-                                        Sequence *seq_speed,
+                                        Strip *seq_speed,
                                         float timeline_frame,
                                         int input);

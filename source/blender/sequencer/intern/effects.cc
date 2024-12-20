@@ -317,10 +317,10 @@ static ImBuf *prepare_effect_imbufs(const SeqRenderData *context,
 /** \name Alpha Over Effect
  * \{ */
 
-static void init_alpha_over_or_under(Sequence *seq)
+static void init_alpha_over_or_under(Strip *seq)
 {
-  Sequence *seq1 = seq->seq1;
-  Sequence *seq2 = seq->seq2;
+  Strip *seq1 = seq->seq1;
+  Strip *seq2 = seq->seq2;
 
   seq->seq2 = seq1;
   seq->seq1 = seq2;
@@ -369,7 +369,7 @@ static void do_alphaover_effect(
 }
 
 static void do_alphaover_effect(const SeqRenderData *context,
-                                Sequence * /*seq*/,
+                                Strip * /*seq*/,
                                 float /*timeline_frame*/,
                                 float fac,
                                 const ImBuf *ibuf1,
@@ -431,7 +431,7 @@ static void do_alphaunder_effect(
 }
 
 static void do_alphaunder_effect(const SeqRenderData *context,
-                                 Sequence * /*seq*/,
+                                 Strip * /*seq*/,
                                  float /*timeline_frame*/,
                                  float fac,
                                  const ImBuf *ibuf1,
@@ -508,7 +508,7 @@ static void do_cross_effect_float(float fac, int x, int y, float *rect1, float *
 }
 
 static void do_cross_effect(const SeqRenderData *context,
-                            Sequence * /*seq*/,
+                            Strip * /*seq*/,
                             float /*timeline_frame*/,
                             float fac,
                             const ImBuf *ibuf1,
@@ -580,7 +580,7 @@ static void do_gammacross_effect(
 }
 
 static void do_gammacross_effect(const SeqRenderData *context,
-                                 Sequence * /*seq*/,
+                                 Strip * /*seq*/,
                                  float /*timeline_frame*/,
                                  float fac,
                                  const ImBuf *ibuf1,
@@ -656,7 +656,7 @@ static void do_add_effect_float(float fac, int x, int y, float *rect1, float *re
 }
 
 static void do_add_effect(const SeqRenderData *context,
-                          Sequence * /*seq*/,
+                          Strip * /*seq*/,
                           float /*timeline_frame*/,
                           float fac,
                           const ImBuf *ibuf1,
@@ -734,7 +734,7 @@ static void do_sub_effect_float(float fac, int x, int y, float *rect1, float *re
 }
 
 static void do_sub_effect(const SeqRenderData *context,
-                          Sequence * /*seq*/,
+                          Strip * /*seq*/,
                           float /*timeline_frame*/,
                           float fac,
                           const ImBuf *ibuf1,
@@ -892,7 +892,7 @@ static void do_mul_effect_float(float fac, int x, int y, float *rect1, float *re
 }
 
 static void do_mul_effect(const SeqRenderData *context,
-                          Sequence * /*seq*/,
+                          Strip * /*seq*/,
                           float /*timeline_frame*/,
                           float fac,
                           const ImBuf *ibuf1,
@@ -1087,7 +1087,7 @@ static void do_blend_effect_byte(
 }
 
 static void do_blend_mode_effect(const SeqRenderData *context,
-                                 Sequence *seq,
+                                 Strip *seq,
                                  float /*timeline_frame*/,
                                  float fac,
                                  const ImBuf *ibuf1,
@@ -1116,7 +1116,7 @@ static void do_blend_mode_effect(const SeqRenderData *context,
 /** \name Color Mix Effect
  * \{ */
 
-static void init_colormix_effect(Sequence *seq)
+static void init_colormix_effect(Strip *seq)
 {
   if (seq->effectdata) {
     MEM_freeN(seq->effectdata);
@@ -1128,7 +1128,7 @@ static void init_colormix_effect(Sequence *seq)
 }
 
 static void do_colormix_effect(const SeqRenderData *context,
-                               Sequence *seq,
+                               Strip *seq,
                                float /*timeline_frame*/,
                                float /*fac*/,
                                const ImBuf *ibuf1,
@@ -1428,7 +1428,7 @@ static float check_zone(const WipeZone *wipezone, int x, int y, float fac)
   return output;
 }
 
-static void init_wipe_effect(Sequence *seq)
+static void init_wipe_effect(Strip *seq)
 {
   if (seq->effectdata) {
     MEM_freeN(seq->effectdata);
@@ -1442,19 +1442,19 @@ static int num_inputs_wipe()
   return 2;
 }
 
-static void free_wipe_effect(Sequence *seq, const bool /*do_id_user*/)
+static void free_wipe_effect(Strip *seq, const bool /*do_id_user*/)
 {
   MEM_SAFE_FREE(seq->effectdata);
 }
 
-static void copy_wipe_effect(Sequence *dst, const Sequence *src, const int /*flag*/)
+static void copy_wipe_effect(Strip *dst, const Strip *src, const int /*flag*/)
 {
   dst->effectdata = MEM_dupallocN(src->effectdata);
 }
 
 template<typename T>
 static void do_wipe_effect(
-    const Sequence *seq, float fac, int width, int height, const T *rect1, const T *rect2, T *out)
+    const Strip *seq, float fac, int width, int height, const T *rect1, const T *rect2, T *out)
 {
   using namespace blender;
   const WipeVars *wipe = (const WipeVars *)seq->effectdata;
@@ -1500,7 +1500,7 @@ static void do_wipe_effect(
 }
 
 static ImBuf *do_wipe_effect(const SeqRenderData *context,
-                             Sequence *seq,
+                             Strip *seq,
                              float /*timeline_frame*/,
                              float fac,
                              ImBuf *ibuf1,
@@ -1536,7 +1536,7 @@ static ImBuf *do_wipe_effect(const SeqRenderData *context,
 /** \name Transform Effect
  * \{ */
 
-static void init_transform_effect(Sequence *seq)
+static void init_transform_effect(Strip *seq)
 {
   if (seq->effectdata) {
     MEM_freeN(seq->effectdata);
@@ -1564,12 +1564,12 @@ static int num_inputs_transform()
   return 1;
 }
 
-static void free_transform_effect(Sequence *seq, const bool /*do_id_user*/)
+static void free_transform_effect(Strip *seq, const bool /*do_id_user*/)
 {
   MEM_SAFE_FREE(seq->effectdata);
 }
 
-static void copy_transform_effect(Sequence *dst, const Sequence *src, const int /*flag*/)
+static void copy_transform_effect(Strip *dst, const Strip *src, const int /*flag*/)
 {
   dst->effectdata = MEM_dupallocN(src->effectdata);
 }
@@ -1646,7 +1646,7 @@ static void transform_image(int x,
 }
 
 static void do_transform_effect(const SeqRenderData *context,
-                                Sequence *seq,
+                                Strip *seq,
                                 float /*timeline_frame*/,
                                 float /*fac*/,
                                 const ImBuf *ibuf1,
@@ -1812,7 +1812,7 @@ static void blur_isolate_highlights(const float4 *in,
   });
 }
 
-static void init_glow_effect(Sequence *seq)
+static void init_glow_effect(Strip *seq)
 {
   if (seq->effectdata) {
     MEM_freeN(seq->effectdata);
@@ -1834,17 +1834,17 @@ static int num_inputs_glow()
   return 1;
 }
 
-static void free_glow_effect(Sequence *seq, const bool /*do_id_user*/)
+static void free_glow_effect(Strip *seq, const bool /*do_id_user*/)
 {
   MEM_SAFE_FREE(seq->effectdata);
 }
 
-static void copy_glow_effect(Sequence *dst, const Sequence *src, const int /*flag*/)
+static void copy_glow_effect(Strip *dst, const Strip *src, const int /*flag*/)
 {
   dst->effectdata = MEM_dupallocN(src->effectdata);
 }
 
-static void do_glow_effect_byte(Sequence *seq,
+static void do_glow_effect_byte(Strip *seq,
                                 int render_size,
                                 float fac,
                                 int x,
@@ -1887,7 +1887,7 @@ static void do_glow_effect_byte(Sequence *seq,
   });
 }
 
-static void do_glow_effect_float(Sequence *seq,
+static void do_glow_effect_float(Strip *seq,
                                  int render_size,
                                  float fac,
                                  int x,
@@ -1912,7 +1912,7 @@ static void do_glow_effect_float(Sequence *seq,
 }
 
 static ImBuf *do_glow_effect(const SeqRenderData *context,
-                             Sequence *seq,
+                             Strip *seq,
                              float /*timeline_frame*/,
                              float fac,
                              ImBuf *ibuf1,
@@ -1952,7 +1952,7 @@ static ImBuf *do_glow_effect(const SeqRenderData *context,
 /** \name Solid Color Effect
  * \{ */
 
-static void init_solid_color(Sequence *seq)
+static void init_solid_color(Strip *seq)
 {
   if (seq->effectdata) {
     MEM_freeN(seq->effectdata);
@@ -1969,23 +1969,23 @@ static int num_inputs_color()
   return 0;
 }
 
-static void free_solid_color(Sequence *seq, const bool /*do_id_user*/)
+static void free_solid_color(Strip *seq, const bool /*do_id_user*/)
 {
   MEM_SAFE_FREE(seq->effectdata);
 }
 
-static void copy_solid_color(Sequence *dst, const Sequence *src, const int /*flag*/)
+static void copy_solid_color(Strip *dst, const Strip *src, const int /*flag*/)
 {
   dst->effectdata = MEM_dupallocN(src->effectdata);
 }
 
-static StripEarlyOut early_out_color(const Sequence * /*seq*/, float /*fac*/)
+static StripEarlyOut early_out_color(const Strip * /*seq*/, float /*fac*/)
 {
   return StripEarlyOut::NoInput;
 }
 
 static ImBuf *do_solid_color(const SeqRenderData *context,
-                             Sequence *seq,
+                             Strip *seq,
                              float /*timeline_frame*/,
                              float /*fac*/,
                              ImBuf *ibuf1,
@@ -2044,13 +2044,13 @@ static int num_inputs_multicam()
   return 0;
 }
 
-static StripEarlyOut early_out_multicam(const Sequence * /*seq*/, float /*fac*/)
+static StripEarlyOut early_out_multicam(const Strip * /*seq*/, float /*fac*/)
 {
   return StripEarlyOut::NoInput;
 }
 
 static ImBuf *do_multicam(const SeqRenderData *context,
-                          Sequence *seq,
+                          Strip *seq,
                           float timeline_frame,
                           float /*fac*/,
                           ImBuf * /*ibuf1*/,
@@ -2091,12 +2091,12 @@ static int num_inputs_adjustment()
   return 0;
 }
 
-static StripEarlyOut early_out_adjustment(const Sequence * /*seq*/, float /*fac*/)
+static StripEarlyOut early_out_adjustment(const Strip * /*seq*/, float /*fac*/)
 {
   return StripEarlyOut::NoInput;
 }
 
-static ImBuf *do_adjustment_impl(const SeqRenderData *context, Sequence *seq, float timeline_frame)
+static ImBuf *do_adjustment_impl(const SeqRenderData *context, Strip *seq, float timeline_frame)
 {
   Editing *ed;
   ImBuf *i = nullptr;
@@ -2123,7 +2123,7 @@ static ImBuf *do_adjustment_impl(const SeqRenderData *context, Sequence *seq, fl
    * a meta-strip and have that work on everything below the meta-strip. */
 
   if (!i) {
-    Sequence *meta;
+    Strip *meta;
 
     meta = SEQ_find_metastrip_by_sequence(&ed->seqbase, nullptr, seq);
 
@@ -2136,7 +2136,7 @@ static ImBuf *do_adjustment_impl(const SeqRenderData *context, Sequence *seq, fl
 }
 
 static ImBuf *do_adjustment(const SeqRenderData *context,
-                            Sequence *seq,
+                            Strip *seq,
                             float timeline_frame,
                             float /*fac*/,
                             ImBuf * /*ibuf1*/,
@@ -2162,7 +2162,7 @@ static ImBuf *do_adjustment(const SeqRenderData *context,
 /** \name Speed Effect
  * \{ */
 
-static void init_speed_effect(Sequence *seq)
+static void init_speed_effect(Strip *seq)
 {
   if (seq->effectdata) {
     MEM_freeN(seq->effectdata);
@@ -2177,7 +2177,7 @@ static void init_speed_effect(Sequence *seq)
   v->speed_fader_frame_number = 0.0f;
 }
 
-static void load_speed_effect(Sequence *seq)
+static void load_speed_effect(Strip *seq)
 {
   SpeedControlVars *v = (SpeedControlVars *)seq->effectdata;
   v->frameMap = nullptr;
@@ -2188,7 +2188,7 @@ static int num_inputs_speed()
   return 1;
 }
 
-static void free_speed_effect(Sequence *seq, const bool /*do_id_user*/)
+static void free_speed_effect(Strip *seq, const bool /*do_id_user*/)
 {
   SpeedControlVars *v = (SpeedControlVars *)seq->effectdata;
   if (v->frameMap) {
@@ -2197,7 +2197,7 @@ static void free_speed_effect(Sequence *seq, const bool /*do_id_user*/)
   MEM_SAFE_FREE(seq->effectdata);
 }
 
-static void copy_speed_effect(Sequence *dst, const Sequence *src, const int /*flag*/)
+static void copy_speed_effect(Strip *dst, const Strip *src, const int /*flag*/)
 {
   SpeedControlVars *v;
   dst->effectdata = MEM_dupallocN(src->effectdata);
@@ -2205,17 +2205,17 @@ static void copy_speed_effect(Sequence *dst, const Sequence *src, const int /*fl
   v->frameMap = nullptr;
 }
 
-static StripEarlyOut early_out_speed(const Sequence * /*seq*/, float /*fac*/)
+static StripEarlyOut early_out_speed(const Strip * /*seq*/, float /*fac*/)
 {
   return StripEarlyOut::DoEffect;
 }
 
-static FCurve *seq_effect_speed_speed_factor_curve_get(Scene *scene, Sequence *seq)
+static FCurve *seq_effect_speed_speed_factor_curve_get(Scene *scene, Strip *seq)
 {
-  return id_data_find_fcurve(&scene->id, seq, &RNA_Sequence, "speed_factor", 0, nullptr);
+  return id_data_find_fcurve(&scene->id, seq, &RNA_Strip, "speed_factor", 0, nullptr);
 }
 
-void seq_effect_speed_rebuild_map(Scene *scene, Sequence *seq)
+void seq_effect_speed_rebuild_map(Scene *scene, Strip *seq)
 {
   const int effect_strip_length = SEQ_time_right_handle_frame_get(scene, seq) -
                                   SEQ_time_left_handle_frame_get(scene, seq);
@@ -2246,7 +2246,7 @@ void seq_effect_speed_rebuild_map(Scene *scene, Sequence *seq)
   }
 }
 
-static void seq_effect_speed_frame_map_ensure(Scene *scene, Sequence *seq)
+static void seq_effect_speed_frame_map_ensure(Scene *scene, Strip *seq)
 {
   const SpeedControlVars *v = (SpeedControlVars *)seq->effectdata;
   if (v->frameMap != nullptr) {
@@ -2257,7 +2257,7 @@ static void seq_effect_speed_frame_map_ensure(Scene *scene, Sequence *seq)
 }
 
 float seq_speed_effect_target_frame_get(Scene *scene,
-                                        Sequence *seq_speed,
+                                        Strip *seq_speed,
                                         float timeline_frame,
                                         int input)
 {
@@ -2268,7 +2268,7 @@ float seq_speed_effect_target_frame_get(Scene *scene,
   SEQ_effect_handle_get(seq_speed); /* Ensure, that data are initialized. */
   int frame_index = round_fl_to_int(SEQ_give_frame_index(scene, seq_speed, timeline_frame));
   SpeedControlVars *s = (SpeedControlVars *)seq_speed->effectdata;
-  const Sequence *source = seq_speed->seq1;
+  const Strip *source = seq_speed->seq1;
 
   float target_frame = 0.0f;
   switch (s->speed_control_type) {
@@ -2315,7 +2315,7 @@ float seq_speed_effect_target_frame_get(Scene *scene,
 }
 
 static float speed_effect_interpolation_ratio_get(Scene *scene,
-                                                  Sequence *seq_speed,
+                                                  Strip *seq_speed,
                                                   float timeline_frame)
 {
   const float target_frame = seq_speed_effect_target_frame_get(
@@ -2324,7 +2324,7 @@ static float speed_effect_interpolation_ratio_get(Scene *scene,
 }
 
 static ImBuf *do_speed_effect(const SeqRenderData *context,
-                              Sequence *seq,
+                              Strip *seq,
                               float timeline_frame,
                               float fac,
                               ImBuf *ibuf1,
@@ -2353,7 +2353,7 @@ static ImBuf *do_speed_effect(const SeqRenderData *context,
  * \{ */
 
 static void do_overdrop_effect(const SeqRenderData *context,
-                               Sequence * /*seq*/,
+                               Strip * /*seq*/,
                                float /*timeline_frame*/,
                                float fac,
                                const ImBuf *ibuf1,
@@ -2389,7 +2389,7 @@ static void do_overdrop_effect(const SeqRenderData *context,
 /** \name Gaussian Blur
  * \{ */
 
-static void init_gaussian_blur_effect(Sequence *seq)
+static void init_gaussian_blur_effect(Strip *seq)
 {
   if (seq->effectdata) {
     MEM_freeN(seq->effectdata);
@@ -2403,17 +2403,17 @@ static int num_inputs_gaussian_blur()
   return 1;
 }
 
-static void free_gaussian_blur_effect(Sequence *seq, const bool /*do_id_user*/)
+static void free_gaussian_blur_effect(Strip *seq, const bool /*do_id_user*/)
 {
   MEM_SAFE_FREE(seq->effectdata);
 }
 
-static void copy_gaussian_blur_effect(Sequence *dst, const Sequence *src, const int /*flag*/)
+static void copy_gaussian_blur_effect(Strip *dst, const Strip *src, const int /*flag*/)
 {
   dst->effectdata = MEM_dupallocN(src->effectdata);
 }
 
-static StripEarlyOut early_out_gaussian_blur(const Sequence *seq, float /*fac*/)
+static StripEarlyOut early_out_gaussian_blur(const Strip *seq, float /*fac*/)
 {
   GaussianBlurVars *data = static_cast<GaussianBlurVars *>(seq->effectdata);
   if (data->size_x == 0.0f && data->size_y == 0) {
@@ -2527,7 +2527,7 @@ static void gaussian_blur_y(const Span<float> gaussian,
 }
 
 static ImBuf *do_gaussian_blur_effect(const SeqRenderData *context,
-                                      Sequence *seq,
+                                      Strip *seq,
                                       float /*timeline_frame*/,
                                       float /*fac*/,
                                       ImBuf *ibuf1,
@@ -2614,7 +2614,7 @@ static ImBuf *do_gaussian_blur_effect(const SeqRenderData *context,
  * \{ */
 
 /* `data->text[0] == 0` is ignored on purpose in order to make it possible to edit  */
-bool SEQ_effects_can_render_text(const Sequence *seq)
+bool SEQ_effects_can_render_text(const Strip *seq)
 {
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
   if (data->text_size < 1.0f ||
@@ -2628,7 +2628,7 @@ bool SEQ_effects_can_render_text(const Sequence *seq)
   return true;
 }
 
-static void init_text_effect(Sequence *seq)
+static void init_text_effect(Strip *seq)
 {
   if (seq->effectdata) {
     MEM_freeN(seq->effectdata);
@@ -2716,7 +2716,7 @@ void SEQ_effect_text_font_load(TextVars *data, const bool do_id_user)
   }
 }
 
-static void free_text_effect(Sequence *seq, const bool do_id_user)
+static void free_text_effect(Strip *seq, const bool do_id_user)
 {
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
   SEQ_effect_text_font_unload(data, do_id_user);
@@ -2728,13 +2728,13 @@ static void free_text_effect(Sequence *seq, const bool do_id_user)
   }
 }
 
-static void load_text_effect(Sequence *seq)
+static void load_text_effect(Strip *seq)
 {
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
   SEQ_effect_text_font_load(data, false);
 }
 
-static void copy_text_effect(Sequence *dst, const Sequence *src, const int flag)
+static void copy_text_effect(Strip *dst, const Strip *src, const int flag)
 {
   dst->effectdata = MEM_dupallocN(src->effectdata);
   TextVars *data = static_cast<TextVars *>(dst->effectdata);
@@ -2749,7 +2749,7 @@ static int num_inputs_text()
   return 0;
 }
 
-static StripEarlyOut early_out_text(const Sequence *seq, float /*fac*/)
+static StripEarlyOut early_out_text(const Strip *seq, float /*fac*/)
 {
   if (!SEQ_effects_can_render_text(seq)) {
     return StripEarlyOut::UseInput1;
@@ -3222,7 +3222,7 @@ static void fill_rect_alpha_under(
   });
 }
 
-static int text_effect_line_size_get(const SeqRenderData *context, const Sequence *seq)
+static int text_effect_line_size_get(const SeqRenderData *context, const Strip *seq)
 {
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
   /* Compensate text size for preview render size. */
@@ -3234,7 +3234,7 @@ static int text_effect_line_size_get(const SeqRenderData *context, const Sequenc
   return proxy_size_comp * data->text_size;
 }
 
-static int text_effect_font_init(const SeqRenderData *context, const Sequence *seq, int font_flags)
+static int text_effect_font_init(const SeqRenderData *context, const Strip *seq, int font_flags)
 {
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
   int font = blf_mono_font_render;
@@ -3434,7 +3434,7 @@ static void apply_text_alignment(const TextVars *data,
   }
 }
 
-static void calc_text_runtime(const Sequence *seq, int font, const int2 image_size)
+static void calc_text_runtime(const Strip *seq, int font, const int2 image_size)
 {
   TextVars *data = static_cast<TextVars *>(seq->effectdata);
 
@@ -3456,7 +3456,7 @@ static void calc_text_runtime(const Sequence *seq, int font, const int2 image_si
 }
 
 static ImBuf *do_text_effect(const SeqRenderData *context,
-                             Sequence *seq,
+                             Strip *seq,
                              float /*timeline_frame*/,
                              float /*fac*/,
                              ImBuf * /*ibuf1*/,
@@ -3514,33 +3514,33 @@ static ImBuf *do_text_effect(const SeqRenderData *context,
 /** \name Sequence Effect Factory
  * \{ */
 
-static void init_noop(Sequence * /*seq*/) {}
+static void init_noop(Strip * /*seq*/) {}
 
-static void load_noop(Sequence * /*seq*/) {}
+static void load_noop(Strip * /*seq*/) {}
 
-static void free_noop(Sequence * /*seq*/, const bool /*do_id_user*/) {}
+static void free_noop(Strip * /*seq*/, const bool /*do_id_user*/) {}
 
 static int num_inputs_default()
 {
   return 2;
 }
 
-static void copy_effect_default(Sequence *dst, const Sequence *src, const int /*flag*/)
+static void copy_effect_default(Strip *dst, const Strip *src, const int /*flag*/)
 {
   dst->effectdata = MEM_dupallocN(src->effectdata);
 }
 
-static void free_effect_default(Sequence *seq, const bool /*do_id_user*/)
+static void free_effect_default(Strip *seq, const bool /*do_id_user*/)
 {
   MEM_SAFE_FREE(seq->effectdata);
 }
 
-static StripEarlyOut early_out_noop(const Sequence * /*seq*/, float /*fac*/)
+static StripEarlyOut early_out_noop(const Strip * /*seq*/, float /*fac*/)
 {
   return StripEarlyOut::DoEffect;
 }
 
-static StripEarlyOut early_out_fade(const Sequence * /*seq*/, float fac)
+static StripEarlyOut early_out_fade(const Strip * /*seq*/, float fac)
 {
   if (fac == 0.0f) {
     return StripEarlyOut::UseInput1;
@@ -3551,7 +3551,7 @@ static StripEarlyOut early_out_fade(const Sequence * /*seq*/, float fac)
   return StripEarlyOut::DoEffect;
 }
 
-static StripEarlyOut early_out_mul_input2(const Sequence * /*seq*/, float fac)
+static StripEarlyOut early_out_mul_input2(const Strip * /*seq*/, float fac)
 {
   if (fac == 0.0f) {
     return StripEarlyOut::UseInput1;
@@ -3559,7 +3559,7 @@ static StripEarlyOut early_out_mul_input2(const Sequence * /*seq*/, float fac)
   return StripEarlyOut::DoEffect;
 }
 
-static StripEarlyOut early_out_mul_input1(const Sequence * /*seq*/, float fac)
+static StripEarlyOut early_out_mul_input1(const Strip * /*seq*/, float fac)
 {
   if (fac == 0.0f) {
     return StripEarlyOut::UseInput2;
@@ -3568,7 +3568,7 @@ static StripEarlyOut early_out_mul_input1(const Sequence * /*seq*/, float fac)
 }
 
 static void get_default_fac_noop(const Scene * /*scene*/,
-                                 const Sequence * /*seq*/,
+                                 const Strip * /*seq*/,
                                  float /*timeline_frame*/,
                                  float *fac)
 {
@@ -3576,7 +3576,7 @@ static void get_default_fac_noop(const Scene * /*scene*/,
 }
 
 static void get_default_fac_fade(const Scene *scene,
-                                 const Sequence *seq,
+                                 const Strip *seq,
                                  float timeline_frame,
                                  float *fac)
 {
@@ -3762,7 +3762,7 @@ static SeqEffectHandle get_sequence_effect_impl(int seq_type)
 /** \name Public Sequencer Effect API
  * \{ */
 
-SeqEffectHandle SEQ_effect_handle_get(Sequence *seq)
+SeqEffectHandle SEQ_effect_handle_get(Strip *seq)
 {
   SeqEffectHandle rval = {false, false, nullptr};
 
@@ -3777,7 +3777,7 @@ SeqEffectHandle SEQ_effect_handle_get(Sequence *seq)
   return rval;
 }
 
-SeqEffectHandle seq_effect_get_sequence_blend(Sequence *seq)
+SeqEffectHandle seq_effect_get_sequence_blend(Strip *seq)
 {
   SeqEffectHandle rval = {false, false, nullptr};
 
