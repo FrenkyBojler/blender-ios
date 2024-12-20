@@ -264,7 +264,8 @@ static void mesh_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   }
 }
 
-static void rename_seam_layer_to_old_name(const Span<CustomDataLayer> vert_layers,
+static void rename_seam_layer_to_old_name(const ListBase vertex_groups,
+                                          const Span<CustomDataLayer> vert_layers,
                                           MutableSpan<CustomDataLayer> edge_layers,
                                           const Span<CustomDataLayer> face_layers,
                                           const Span<CustomDataLayer> corner_layers)
@@ -298,6 +299,11 @@ static void rename_seam_layer_to_old_name(const Span<CustomDataLayer> vert_layer
   }
   for (const CustomDataLayer &layer : corner_layers) {
     if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+  }
+  LISTBASE_FOREACH (const bDeformGroup *, vertex_group, &vertex_groups) {
+    if (STREQ(vertex_group->name, ".uv_seam")) {
       return;
     }
   }
@@ -344,7 +350,8 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
     if (!is_undo) {
       /* Write forward compatible format. To be removed in 5.0. */
-      rename_seam_layer_to_old_name(vert_layers, edge_layers, face_layers, loop_layers);
+      rename_seam_layer_to_old_name(
+          mesh->vertex_group_names, vert_layers, edge_layers, face_layers, loop_layers);
       mesh_sculpt_mask_to_legacy(vert_layers);
       mesh_custom_normals_to_legacy(loop_layers);
     }

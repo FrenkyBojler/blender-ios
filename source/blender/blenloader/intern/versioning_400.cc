@@ -3327,6 +3327,9 @@ static void rename_mesh_uv_seam_attribute(Mesh &mesh)
   for (const CustomDataLayer &layer : Span(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
     names.add_new(layer.name);
   }
+  LISTBASE_FOREACH (const bDeformGroup *, vertex_group, &mesh.vertex_group_names) {
+    names.add(vertex_group->name);
+  }
 
   /* If the new UV name is already taken, still rename the attribute so it becomes visible in the
    * list. Then the user can deal with the name conflict themselves. */
