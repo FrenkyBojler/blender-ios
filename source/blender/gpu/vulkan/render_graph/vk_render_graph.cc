@@ -18,7 +18,6 @@ VKRenderGraph::VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_b
     : command_buffer_(std::move(command_buffer)), resources_(resources)
 {
   submission_id.reset();
-  resources.set_render_graph(this);
 }
 
 void VKRenderGraph::remove_nodes(Span<NodeHandle> node_handles)
