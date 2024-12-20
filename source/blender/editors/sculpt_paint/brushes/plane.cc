@@ -295,23 +295,20 @@ void do_plane_brush(const Depsgraph &depsgraph,
     return;
   }
 
-  float3 area_no;
-  float3 area_co;
-  calc_brush_plane(depsgraph, brush, object, node_mask, area_no, area_co);
-  SCULPT_tilt_apply_to_normal(area_no, ss.cache, brush.tilt_strength_factor);
+  float3 area_normal;
+  float3 area_center;
+  calc_brush_plane(depsgraph, brush, object, node_mask, area_normal, area_center);
+  SCULPT_tilt_apply_to_normal(area_normal, ss.cache, brush.tilt_strength_factor);
 
   const float offset = SCULPT_brush_plane_offset_get(sd, ss);
   const float displace =  ss.cache->radius * offset;
-  area_co += area_no * ss.cache->scale * displace;
-
-  float4 plane;
-  plane_from_point_normal_v3(plane, area_co, area_no);
+  area_center += area_normal * ss.cache->scale * displace;
 
   float4x4 mat = float4x4::identity();
-  mat.x_axis() = math::cross(area_no, ss.cache->grab_delta_symm);
-  mat.y_axis() = math::cross(area_no, float3(mat[0]));
-  mat.z_axis() = area_no;
-  mat.location() = area_co;
+  mat.x_axis() = math::cross(area_normal, ss.cache->grab_delta_symm);
+  mat.y_axis() = math::cross(area_normal, float3(mat[0]));
+  mat.z_axis() = area_normal;
+  mat.location() = area_center;
   mat = math::normalize(mat);
 
   const float4x4 scale = math::from_scale<float4x4>(float3(ss.cache->radius));
@@ -319,7 +316,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
 
   mat = math::invert(tmat);
 
-  float3 plane_offset = -area_no;
+  float3 plane_offset = -area_normal;
   float depth = brush.plane_depth;
   float height = brush.plane_height;
 
@@ -328,7 +325,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
   if (flip) {
     switch (brush.plane_inversion_mode) {
       case BRUSH_PLANE_INVERT_DISPLACEMENT: {
-        plane_offset = area_no;
+        plane_offset = area_normal;
         break;
       }
       case BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT: {

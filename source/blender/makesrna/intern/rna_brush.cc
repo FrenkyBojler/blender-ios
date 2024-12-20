@@ -427,18 +427,14 @@ static bool rna_BrushCapabilitiesSculpt_has_plane_depth_get(PointerRNA* ptr)
 {
   Brush* br = (Brush*)ptr->data;
   return ELEM(br->sculpt_brush_type,
-    SCULPT_BRUSH_TYPE_FLATTEN,
-    SCULPT_BRUSH_TYPE_SCRAPE,
-    SCULPT_BRUSH_TYPE_FILL);
+    SCULPT_BRUSH_TYPE_PLANE);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA* ptr)
 {
   Brush* br = (Brush*)ptr->data;
   return ELEM(br->sculpt_brush_type,
-    SCULPT_BRUSH_TYPE_FLATTEN,
-    SCULPT_BRUSH_TYPE_SCRAPE,
-    SCULPT_BRUSH_TYPE_FILL);
+    SCULPT_BRUSH_TYPE_PLANE);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_jitter_get(PointerRNA *ptr)

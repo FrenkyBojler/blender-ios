@@ -2200,6 +2200,7 @@ static float brush_strength(const Sculpt &sd,
       overlap = (1.0f + overlap) / 2.0f;
       return alpha * flip * pressure * overlap * feather;
 
+    case SCULPT_BRUSH_TYPE_PLANE:
     case SCULPT_BRUSH_TYPE_FILL:
     case SCULPT_BRUSH_TYPE_SCRAPE:
     case SCULPT_BRUSH_TYPE_FLATTEN:
@@ -4086,9 +4087,7 @@ static void brush_delta_update(const Depsgraph &depsgraph,
             SCULPT_BRUSH_TYPE_CLOTH,
             SCULPT_BRUSH_TYPE_NUDGE,
             SCULPT_BRUSH_TYPE_CLAY_STRIPS,
-            SCULPT_BRUSH_TYPE_FLATTEN,
-            SCULPT_BRUSH_TYPE_SCRAPE,
-            SCULPT_BRUSH_TYPE_FILL,
+            SCULPT_BRUSH_TYPE_PLANE,
             SCULPT_BRUSH_TYPE_PINCH,
             SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE,
             SCULPT_BRUSH_TYPE_CLAY_THUMB,
