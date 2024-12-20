@@ -406,9 +406,9 @@ void VKBackend::detect_workarounds(VKDevice &device)
   /* Select the threading model based on the driver. */
   using render_graph::VKCommandBuilder;
   switch (device.vk_physical_device_driver_properties_.driverID) {
+    case VK_DRIVER_ID_AMD_PROPRIETARY:
     case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
       device.threading_model = VKCommandBuilder::ThreadingModel::SINGLE_PRIMARY_MULTIPLE_SECONDARY;
-      device.threading_model = VKCommandBuilder::ThreadingModel::MULTIPLE_PRIMARY;
       break;
 
     case VK_DRIVER_ID_MESA_RADV:
