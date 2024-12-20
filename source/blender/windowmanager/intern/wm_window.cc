@@ -1997,7 +1997,6 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_emboss_set(block, UI_EMBOSS);
 
-  /* Title and explanation text. */
   const char *title = RPT_("Python script uses OpenGL for drawing");
   const char *message1 = RPT_("This may lead to unexpected behavior");
   const char *message2 = RPT_(
@@ -2006,10 +2005,9 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
       "Please contact the developer of the add-on to migrate to use 'gpu' module");
   const char *message4 = RPT_("See system tab in preferences to switch to OpenGL backend");
 
+  /* Measure strings to find the longest. */
   const uiStyle *style = UI_style_get_dpi();
   UI_fontstyle_set(&style->widget);
-
-  /* Width based on the text lengths. */
   int text_width = int(BLF_width(style->widget.uifont_id, title, BLF_DRAW_STR_DUMMY_MAX));
   text_width = std::max(text_width,
                         int(BLF_width(style->widget.uifont_id, message1, BLF_DRAW_STR_DUMMY_MAX)));
@@ -2020,8 +2018,8 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   text_width = std::max(text_width,
                         int(BLF_width(style->widget.uifont_id, message4, BLF_DRAW_STR_DUMMY_MAX)));
 
-  int dialog_width = std::max(int(200.0f * UI_SCALE_FAC),
-                              text_width + int(style->columnspace * 2.5));
+  const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
+                                    text_width + int(style->columnspace * 2.5));
 
   const short icon_size = 64 * UI_SCALE_FAC;
   uiLayout *layout = uiItemsAlertBox(
@@ -2030,6 +2028,7 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   uiLayout *col = uiLayoutColumn(layout, false);
   uiLayoutSetScaleY(col, 0.9f);
 
+  /* Title and explanation text. */
   uiItemL_ex(col, title, ICON_NONE, true, false);
   uiItemS_ex(col, 0.8f, LayoutSeparatorType::Space);
   uiItemL(col, message1, ICON_NONE);

@@ -4028,21 +4028,19 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   const char *message = RPT_("This may lead to unexpected behavior");
   const char *checkbox_text = RPT_("Permanently allow execution of scripts");
 
+  /* Measure strings to find the longest. */
   const uiStyle *style = UI_style_get_dpi();
   UI_fontstyle_set(&style->widget);
-
-  /* Width based on the text lengths. */
   int text_width = int(BLF_width(style->widget.uifont_id, title, BLF_DRAW_STR_DUMMY_MAX));
-  text_width = std::max(
-      text_width, int(BLF_width(style->widget.uifont_id, message, BLF_DRAW_STR_DUMMY_MAX)));
+  text_width = std::max(text_width,
+                        int(BLF_width(style->widget.uifont_id, message, BLF_DRAW_STR_DUMMY_MAX)));
   text_width = std::max(
       text_width,
       int(BLF_width(style->widget.uifont_id, checkbox_text, BLF_DRAW_STR_DUMMY_MAX) +
           (UI_SCALE_FAC * 25.0f)));
 
-  int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
-                              text_width + int(style->columnspace * 2.5));
-
+  const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
+                                    text_width + int(style->columnspace * 2.5));
   const short icon_size = 64 * UI_SCALE_FAC;
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
