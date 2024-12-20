@@ -15,11 +15,7 @@
 #  include <cstdio>
 #  include <cstring>
 
-#  include <cstdlib>
-
 #  include "MEM_guardedalloc.h"
-
-#  include "BLI_blenlib.h"
 
 #  ifdef WITH_AUDASPACE
 #    include <AUD_Device.h>
@@ -27,7 +23,10 @@
 #  endif
 
 #  include "BLI_endian_defines.h"
+#  include "BLI_fileops.h"
 #  include "BLI_math_base.h"
+#  include "BLI_path_utils.hh"
+#  include "BLI_string.h"
 #  include "BLI_threads.h"
 #  include "BLI_utildefines.h"
 
@@ -45,8 +44,6 @@
 #  include "ffmpeg_swscale.hh"
 #  include "movie_util.hh"
 
-/* This needs to be included after BLI_math_base.h otherwise it will redefine some math defines
- * like M_SQRT1_2 leading to warnings with MSVC */
 extern "C" {
 #  include <libavcodec/avcodec.h>
 #  include <libavformat/avformat.h>
@@ -60,7 +57,7 @@ extern "C" {
 #  include "ffmpeg_compat.h"
 }
 
-struct StampData;
+static constexpr int64_t ffmpeg_autosplit_size = 2'000'000'000;
 
 struct MovieWriter {
   int ffmpeg_type;
@@ -70,8 +67,8 @@ struct MovieWriter {
   int ffmpeg_audio_bitrate;
   int ffmpeg_gop_size;
   int ffmpeg_max_b_frames;
-  int ffmpeg_autosplit;
   int ffmpeg_autosplit_count;
+  bool ffmpeg_autosplit;
   bool ffmpeg_preview;
 
   int ffmpeg_crf;    /* set to 0 to not use CRF mode; we have another flag for lossless anyway. */
@@ -104,13 +101,15 @@ struct MovieWriter {
 #  endif
 };
 
-#  define FFMPEG_AUTOSPLIT_SIZE 2000000000
-
 #  define PRINT \
     if (G.debug & G_DEBUG_FFMPEG) \
     printf
 
-static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value);
+static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value)
+{
+  av_dict_set_int(dict, key, value, 0);
+}
+
 static void ffmpeg_movie_close(MovieWriter *context);
 static void ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
@@ -807,8 +806,6 @@ static void set_quality_rate_options(const MovieWriter *context,
   }
 }
 
-/* prepare a video stream for the output file */
-
 static AVStream *alloc_video_stream(MovieWriter *context,
                                     RenderData *rd,
                                     AVCodecID codec_id,
@@ -1241,16 +1238,6 @@ static AVStream *alloc_audio_stream(MovieWriter *context,
 
   return st;
 }
-/* essential functions -- start, append, end */
-
-static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value)
-{
-  char buffer[32];
-
-  SNPRINTF(buffer, "%d", value);
-
-  av_dict_set(dict, key, buffer, 0);
-}
 
 static void ffmpeg_add_metadata_callback(void *data,
                                          const char *propname,
@@ -1281,7 +1268,7 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   context->ffmpeg_video_bitrate = rd->ffcodecdata.video_bitrate;
   context->ffmpeg_audio_bitrate = rd->ffcodecdata.audio_bitrate;
   context->ffmpeg_gop_size = rd->ffcodecdata.gop_size;
-  context->ffmpeg_autosplit = rd->ffcodecdata.flags & FFMPEG_AUTOSPLIT_OUTPUT;
+  context->ffmpeg_autosplit = (rd->ffcodecdata.flags & FFMPEG_AUTOSPLIT_OUTPUT) != 0;
   context->ffmpeg_crf = rd->ffcodecdata.constant_rate_factor;
   context->ffmpeg_preset = rd->ffcodecdata.ffmpeg_preset;
 
@@ -1463,36 +1450,18 @@ fail:
     avio_close(of->pb);
   }
 
-  if (context->video_stream) {
-    context->video_stream = nullptr;
-  }
-
-  if (context->audio_stream) {
-    context->audio_stream = nullptr;
-  }
+  context->video_stream = nullptr;
+  context->audio_stream = nullptr;
 
   avformat_free_context(of);
   return false;
 }
 
-/**
- * Writes any delayed frames in the encoder. This function is called before
- * closing the encoder.
- *
- * <p>
- * Since an encoder may use both past and future frames to predict
- * inter-frames (H.264 B-frames, for example), it can output the frames
- * in a different order from the one it was given.
- * For example, when sending frames 1, 2, 3, 4 to the encoder, it may write
- * them in the order 1, 4, 2, 3 - first the two frames used for prediction,
- * and then the bidirectionally-predicted frames. What this means in practice
- * is that the encoder may not immediately produce one output frame for each
- * input frame. These delayed frames must be flushed before we close the
- * stream. We do this by calling avcodec_encode_video with NULL for the last
- * parameter.
- * </p>
- */
-static void flush_ffmpeg(AVCodecContext *c, AVStream *stream, AVFormatContext *outfile)
+/* Flush any pending frames. An encoder may use both past and future frames
+ * to predict inter-frames (H.264 B-frames, for example); it can output
+ * the frames in a different order from the one it was given. The delayed
+ * frames must be flushed before we close the stream. */
+static void flush_delayed_frames(AVCodecContext *c, AVStream *stream, AVFormatContext *outfile)
 {
   char error_str[AV_ERROR_MAX_STRING_SIZE];
   AVPacket *packet = av_packet_alloc();
@@ -1530,10 +1499,6 @@ static void flush_ffmpeg(AVCodecContext *c, AVStream *stream, AVFormatContext *o
 
   av_packet_free(&packet);
 }
-
-/* **********************************************************************
- * * public interface
- * ********************************************************************** */
 
 /* Get the output filename-- similar to the other output formats */
 static void ffmpeg_filepath_get(MovieWriter *context,
@@ -1629,7 +1594,7 @@ static MovieWriter *ffmpeg_movie_open(const Scene *scene,
   context->ffmpeg_video_bitrate = 1150;
   context->ffmpeg_audio_bitrate = 128;
   context->ffmpeg_gop_size = 12;
-  context->ffmpeg_autosplit = 0;
+  context->ffmpeg_autosplit = false;
   context->stamp_data = nullptr;
   context->audio_time_total = 0.0;
 
@@ -1728,7 +1693,7 @@ static bool ffmpeg_movie_append(MovieWriter *context,
 #  endif
 
     if (context->ffmpeg_autosplit) {
-      if (avio_tell(context->outfile->pb) > FFMPEG_AUTOSPLIT_SIZE) {
+      if (avio_tell(context->outfile->pb) > ffmpeg_autosplit_size) {
         end_ffmpeg_impl(context, true);
         context->ffmpeg_autosplit_count++;
 
@@ -1757,12 +1722,12 @@ static void end_ffmpeg_impl(MovieWriter *context, int is_autosplit)
 
   if (context->video_stream) {
     PRINT("Flushing delayed video frames...\n");
-    flush_ffmpeg(context->video_codec, context->video_stream, context->outfile);
+    flush_delayed_frames(context->video_codec, context->video_stream, context->outfile);
   }
 
   if (context->audio_stream) {
     PRINT("Flushing delayed audio frames...\n");
-    flush_ffmpeg(context->audio_codec, context->audio_stream, context->outfile);
+    flush_delayed_frames(context->audio_codec, context->audio_stream, context->outfile);
   }
 
   if (context->outfile) {
@@ -1771,14 +1736,8 @@ static void end_ffmpeg_impl(MovieWriter *context, int is_autosplit)
 
   /* Close the video codec */
 
-  if (context->video_stream != nullptr) {
-    PRINT("zero video stream %p\n", context->video_stream);
-    context->video_stream = nullptr;
-  }
-
-  if (context->audio_stream != nullptr) {
-    context->audio_stream = nullptr;
-  }
+  context->video_stream = nullptr;
+  context->audio_stream = nullptr;
 
   /* free the temp buffer */
   if (context->current_frame != nullptr) {
