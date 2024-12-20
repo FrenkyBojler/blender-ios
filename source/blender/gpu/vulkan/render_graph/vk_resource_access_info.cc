@@ -73,7 +73,7 @@ void VKResourceAccessInfo::build_links(VKResourceStateTracker &resources,
           {versioned_resource, buffer_access.vk_access_flags, VK_IMAGE_LAYOUT_UNDEFINED});
     }
   }
-  const bool supports_local_read = resources.get_render_graph()->supports_local_read();
+  const bool supports_local_read = resources.get_render_graph();
   for (const VKImageAccess &image_access : images) {
     VkImageLayout image_layout = image_access.to_vk_image_layout(supports_local_read);
     const bool writes_to_resource = bool(image_access.vk_access_flags & VK_ACCESS_WRITE_MASK);
