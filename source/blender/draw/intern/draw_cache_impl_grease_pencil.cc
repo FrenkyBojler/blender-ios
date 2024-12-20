@@ -1204,7 +1204,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                               int point_i,
                               int idx,
                               float u_stroke,
-                              float curve_shape,
+                              float first_curve,
+                              float first_vert,
                               const float4x2 &texture_matrix,
                               GreasePencilStrokeVert &s_vert,
                               GreasePencilColorVert &c_vert) {
@@ -1220,8 +1221,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       s_vert.opacity = opacities[point_i] *
                        ((start_cap == GP_STROKE_CAP_TYPE_ROUND) ? 1.0f : -1.0f);
       s_vert.point_id = verts_range[idx];
-      s_vert.stroke_id = curve_shape;
-      s_vert.mat = materials[curve_i] % GPENCIL_MATERIAL_BUFFER_LEN;
+      s_vert.stroke_id = first_vert;
+      s_vert.mat = materials[first_curve] % GPENCIL_MATERIAL_BUFFER_LEN;
 
       s_vert.packed_asp_hard_rot = pack_rotation_aspect_hardness(
           rotations[point_i], stroke_point_aspect_ratios[curve_i], stroke_softness[curve_i]);
@@ -1229,8 +1230,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       copy_v2_v2(s_vert.uv_fill, texture_matrix * float4(pos, 1.0f));
 
       copy_v4_v4(c_vert.vcol, vertex_colors[point_i]);
-      copy_v4_v4(c_vert.fcol, stroke_fill_colors[curve_i]);
-      c_vert.fcol[3] = (int(c_vert.fcol[3] * 10000.0f) * 10.0f) + fill_opacities[curve_i];
+      copy_v4_v4(c_vert.fcol, stroke_fill_colors[first_curve]);
+      c_vert.fcol[3] = (int(c_vert.fcol[3] * 10000.0f) * 10.0f) + fill_opacities[first_curve];
 
       int v_mat = (verts_range[idx] << GP_VERTEX_ID_SHIFT) | GP_IS_STROKE_VERTEX_BIT;
       GPU_indexbuf_add_tri_verts(&ibo, v_mat + 0, v_mat + 1, v_mat + 2);
@@ -1256,7 +1257,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       const float4x2 texture_matrix = texture_matrices[shape.first()] *
                                       object_space_to_layer_space;
 
-      const int curve_shape = verts_start_offsets[shape.first()];
+      const int first_curve = shape.first();
+      const int first_vert = verts_start_offsets[first_curve];
 
       for (const int curve_i : shape) {
         const IndexRange points = points_by_curve[curve_i];
@@ -1285,7 +1287,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                          points[i],
                          idx,
                          u_stroke,
-                         curve_shape,
+                         first_curve,
+                         first_vert,
                          texture_matrix,
                          verts_slice[idx],
                          cols_slice[idx]);
@@ -1302,7 +1305,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                          points[0],
                          idx,
                          u_stroke,
-                         curve_shape,
+                         first_curve,
+                         first_vert,
                          texture_matrix,
                          verts_slice[idx],
                          cols_slice[idx]);
