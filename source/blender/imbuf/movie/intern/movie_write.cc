@@ -117,15 +117,6 @@ static void ffmpeg_filepath_get(MovieWriter *context,
                                 bool preview,
                                 const char *suffix);
 
-/* Delete a picture buffer */
-
-static void delete_picture(AVFrame *f)
-{
-  if (f) {
-    av_frame_free(&f);
-  }
-}
-
 static int request_float_audio_buffer(int codec_id)
 {
   /* If any of these codecs, we prefer the float sample format (if supported) */
@@ -232,30 +223,20 @@ static int write_audio_frame(MovieWriter *context)
 }
 #  endif /* #ifdef WITH_AUDASPACE */
 
-/* Allocate a temporary frame */
-static AVFrame *alloc_picture(AVPixelFormat pix_fmt, int width, int height)
+static AVFrame *alloc_frame(AVPixelFormat pix_fmt, int width, int height)
 {
-  /* allocate space for the struct */
   AVFrame *f = av_frame_alloc();
   if (f == nullptr) {
     return nullptr;
   }
-
-  /* allocate the actual picture buffer */
   const size_t align = ffmpeg_get_buffer_alignment();
-  int size = av_image_get_buffer_size(pix_fmt, width, height, align);
-  AVBufferRef *buf = av_buffer_alloc(size);
-  if (buf == nullptr) {
-    av_frame_free(&f);
-    return nullptr;
-  }
-
-  av_image_fill_arrays(f->data, f->linesize, buf->data, pix_fmt, width, height, align);
-  f->buf[0] = buf;
   f->format = pix_fmt;
   f->width = width;
   f->height = height;
-
+  if (av_frame_get_buffer(f, align) < 0) {
+    av_frame_free(&f);
+    return nullptr;
+  }
   return f;
 }
 
@@ -1043,7 +1024,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   av_dict_free(&opts);
 
   /* FFMPEG expects its data in the output pixel format. */
-  context->current_frame = alloc_picture(c->pix_fmt, c->width, c->height);
+  context->current_frame = alloc_frame(c->pix_fmt, c->width, c->height);
 
   if (c->pix_fmt == AV_PIX_FMT_RGBA) {
     /* Output pixel format is the same we use internally, no conversion necessary. */
@@ -1053,7 +1034,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   else {
     /* Output pixel format is different, allocate frame for conversion. */
     AVPixelFormat src_format = is_10_bpp || is_12_bpp ? AV_PIX_FMT_GBRAPF32LE : AV_PIX_FMT_RGBA;
-    context->img_convert_frame = alloc_picture(src_format, c->width, c->height);
+    context->img_convert_frame = alloc_frame(src_format, c->width, c->height);
     context->img_convert_ctx = ffmpeg_sws_get_context(
         c->width, c->height, src_format, c->width, c->height, c->pix_fmt, SWS_BICUBIC);
 
@@ -1739,15 +1720,8 @@ static void end_ffmpeg_impl(MovieWriter *context, int is_autosplit)
   context->video_stream = nullptr;
   context->audio_stream = nullptr;
 
-  /* free the temp buffer */
-  if (context->current_frame != nullptr) {
-    delete_picture(context->current_frame);
-    context->current_frame = nullptr;
-  }
-  if (context->img_convert_frame != nullptr) {
-    delete_picture(context->img_convert_frame);
-    context->img_convert_frame = nullptr;
-  }
+  av_frame_free(&context->current_frame);
+  av_frame_free(&context->img_convert_frame);
 
   if (context->outfile != nullptr && context->outfile->oformat) {
     if (!(context->outfile->oformat->flags & AVFMT_NOFILE)) {
