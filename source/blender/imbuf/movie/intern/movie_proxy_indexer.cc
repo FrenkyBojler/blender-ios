@@ -102,11 +102,10 @@ static void index_builder_finish(MovieIndexBuilder *fp, bool rollback)
   fclose(fp->fp);
 
   if (rollback) {
-    unlink(fp->filepath_temp);
+    BLI_delete(fp->filepath_temp, false, false);
   }
   else {
-    unlink(fp->filepath);
-    BLI_rename(fp->filepath_temp, fp->filepath);
+    BLI_rename_overwrite(fp->filepath_temp, fp->filepath);
   }
 
   MEM_freeN(fp);
@@ -647,12 +646,11 @@ static void free_proxy_output_ffmpeg(proxy_output_ctx *ctx, int rollback)
   get_proxy_filepath(ctx->anim, ctx->proxy_size, filepath_tmp, true);
 
   if (rollback) {
-    unlink(filepath_tmp);
+    BLI_delete(filepath_tmp, false, false);
   }
   else {
     get_proxy_filepath(ctx->anim, ctx->proxy_size, filepath, false);
-    unlink(filepath);
-    BLI_rename(filepath_tmp, filepath);
+    BLI_rename_overwrite(filepath_tmp, filepath);
   }
 
   MEM_freeN(ctx);
