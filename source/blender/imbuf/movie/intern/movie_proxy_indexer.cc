@@ -114,22 +114,20 @@ static void index_builder_finish(MovieIndexBuilder *fp, bool rollback)
 
 static MovieIndex *movie_index_open(const char *filepath)
 {
-  char header[13];
-  MovieIndex *idx;
   FILE *fp = BLI_fopen(filepath, "rb");
-  int i;
-
   if (!fp) {
     return nullptr;
   }
 
-  if (fread(header, 12, 1, fp) != 1) {
+  constexpr int64_t header_size = 12;
+  char header[header_size + 1];
+  if (fread(header, header_size, 1, fp) != 1) {
     fprintf(stderr, "Couldn't read indexer file: %s\n", filepath);
     fclose(fp);
     return nullptr;
   }
 
-  header[12] = 0;
+  header[header_size] = 0;
 
   if (memcmp(header, binary_header_str, 8) != 0) {
     fprintf(stderr, "Error reading %s: Binary file type string mismatch\n", filepath);
@@ -143,27 +141,26 @@ static MovieIndex *movie_index_open(const char *filepath)
     return nullptr;
   }
 
-  idx = MEM_cnew<MovieIndex>("MovieIndex");
+  MovieIndex *idx = MEM_new<MovieIndex>("MovieIndex");
 
   STRNCPY(idx->filepath, filepath);
 
   fseek(fp, 0, SEEK_END);
 
-  idx->num_entries = (ftell(fp) - 12) / (sizeof(int) +      /* framepos */
-                                         sizeof(uint64_t) + /* _pad */
-                                         sizeof(uint64_t) + /* seek_pos_pts */
-                                         sizeof(uint64_t) + /* seek_pos_dts */
-                                         sizeof(uint64_t)   /* pts */
-                                        );
+  constexpr int64_t entry_size = sizeof(int) +      /* framepos */
+                                 sizeof(uint64_t) + /* _pad */
+                                 sizeof(uint64_t) + /* seek_pos_pts */
+                                 sizeof(uint64_t) + /* seek_pos_dts */
+                                 sizeof(uint64_t);  /* pts */
 
-  fseek(fp, 12, SEEK_SET);
+  int64_t num_entries = (ftell(fp) - header_size) / entry_size;
+  fseek(fp, header_size, SEEK_SET);
 
-  idx->entries = static_cast<MovieIndexFrame *>(
-      MEM_callocN(sizeof(MovieIndexFrame) * idx->num_entries, "anim_index_entries"));
+  idx->entries.resize(num_entries);
 
-  size_t items_read = 0;
+  int64_t items_read = 0;
   uint64_t pad;
-  for (i = 0; i < idx->num_entries; i++) {
+  for (int64_t i = 0; i < num_entries; i++) {
     items_read += fread(&idx->entries[i].frameno, sizeof(int), 1, fp);
     items_read += fread(&pad, sizeof(uint64_t), 1, fp);
     items_read += fread(&idx->entries[i].seek_pos_pts, sizeof(uint64_t), 1, fp);
@@ -171,16 +168,15 @@ static MovieIndex *movie_index_open(const char *filepath)
     items_read += fread(&idx->entries[i].pts, sizeof(uint64_t), 1, fp);
   }
 
-  if (UNLIKELY(items_read != idx->num_entries * 5)) {
+  if (items_read != num_entries * 5) {
     fprintf(stderr, "Error: Element data size mismatch in: %s\n", filepath);
-    MEM_freeN(idx->entries);
-    MEM_freeN(idx);
+    MEM_delete(idx);
     fclose(fp);
     return nullptr;
   }
 
   if ((ENDIAN_ORDER == B_ENDIAN) != (header[8] == 'V')) {
-    for (i = 0; i < idx->num_entries; i++) {
+    for (int64_t i = 0; i < num_entries; i++) {
       BLI_endian_switch_int32(&idx->entries[i].frameno);
       BLI_endian_switch_uint64(&idx->entries[i].seek_pos_pts);
       BLI_endian_switch_uint64(&idx->entries[i].seek_pos_dts);
@@ -195,19 +191,19 @@ static MovieIndex *movie_index_open(const char *filepath)
 
 uint64_t MovieIndex::get_seek_pos_pts(int frame_index) const
 {
-  frame_index = blender::math::clamp(frame_index, 0, this->num_entries - 1);
+  frame_index = blender::math::clamp<int>(frame_index, 0, this->entries.size() - 1);
   return this->entries[frame_index].seek_pos_pts;
 }
 
 uint64_t MovieIndex::get_seek_pos_dts(int frame_index) const
 {
-  frame_index = blender::math::clamp(frame_index, 0, this->num_entries - 1);
+  frame_index = blender::math::clamp<int>(frame_index, 0, this->entries.size() - 1);
   return this->entries[frame_index].seek_pos_dts;
 }
 
 int MovieIndex::get_frame_index(int frameno) const
 {
-  int len = this->num_entries;
+  int len = int(this->entries.size());
   int first = 0;
 
   /* Binary-search (lower bound) the right index. */
@@ -225,8 +221,8 @@ int MovieIndex::get_frame_index(int frameno) const
     }
   }
 
-  if (first == this->num_entries) {
-    return this->num_entries - 1;
+  if (first == this->entries.size()) {
+    return int(this->entries.size()) - 1;
   }
 
   return first;
@@ -234,22 +230,21 @@ int MovieIndex::get_frame_index(int frameno) const
 
 uint64_t MovieIndex::get_pts(int frame_index) const
 {
-  frame_index = blender::math::clamp(frame_index, 0, this->num_entries - 1);
+  frame_index = blender::math::clamp<int>(frame_index, 0, this->entries.size() - 1);
   return this->entries[frame_index].pts;
 }
 
 int MovieIndex::get_duration() const
 {
-  if (this->num_entries == 0) {
+  if (this->entries.is_empty()) {
     return 0;
   }
-  return this->entries[this->num_entries - 1].frameno + 1;
+  return this->entries.last().frameno + 1;
 }
 
 static void movie_index_free(MovieIndex *idx)
 {
-  MEM_freeN(idx->entries);
-  MEM_freeN(idx);
+  MEM_delete(idx);
 }
 
 static int proxy_size_to_array_index(IMB_Proxy_Size pr_size)
