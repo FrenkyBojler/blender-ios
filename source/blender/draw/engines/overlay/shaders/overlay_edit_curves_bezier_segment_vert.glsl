@@ -14,6 +14,7 @@ struct VertIn {
   vec3 p[4];
   int first_vertex_id;
   int resolution;
+  vec2 radius;
 };
 
 VertIn input_assembly(uint vertex_id)
@@ -22,12 +23,13 @@ VertIn input_assembly(uint vertex_id)
   ivec4 indices = gpu_attr_load_int4(segments, gpu_attr_0, segment_i);
 
   VertIn vert_in;
-  vert_in.p[0] = gpu_attr_load_float3(pos, gpu_attr_3, indices.x);
-  vert_in.p[1] = gpu_attr_load_float3(pos, gpu_attr_3, indices.y);
-  vert_in.p[2] = gpu_attr_load_float3(pos, gpu_attr_3, indices.z);
-  vert_in.p[3] = gpu_attr_load_float3(pos, gpu_attr_3, indices.w);
+  vert_in.p[0] = gpu_attr_load_float3(pos, gpu_attr_4, indices.x);
+  vert_in.p[1] = gpu_attr_load_float3(pos, gpu_attr_4, indices.y);
+  vert_in.p[2] = gpu_attr_load_float3(pos, gpu_attr_4, indices.z);
+  vert_in.p[3] = gpu_attr_load_float3(pos, gpu_attr_4, indices.w);
   vert_in.first_vertex_id = first_id[gpu_attr_load_index(segment_i, gpu_attr_1)];
   vert_in.resolution = resolution[gpu_attr_load_index(segment_i, gpu_attr_2)];
+  vert_in.radius = gpu_attr_load_float2(radius, gpu_attr_3, segment_i);
   return vert_in;
 }
 
@@ -61,7 +63,7 @@ void main()
   vec3 world_pos = point_object_to_world(q[0]);
   vec4 ndc_pos = point_world_to_ndc(world_pos);
 
-  float radius = 3.0;
+  float radius = mix(vert_in.radius.x, vert_in.radius.y, u) * 5;
   vec3 view_radius = vec3(radius, 0.0, point_world_to_view(world_pos).z);
   vec4 ndc_radius = point_view_to_ndc(view_radius);
   float normal_size = ndc_radius.x / ndc_radius.w;

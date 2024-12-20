@@ -1077,6 +1077,7 @@ struct BezierSegmentVert {
 
   int32_t first_vertex_id;
   int32_t resolution;
+  float radius[2];
 };
 
 static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves,
@@ -1089,11 +1090,13 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
     GPU_vertformat_attr_add(&format, "segments", GPU_COMP_I32, 4, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "first_id", GPU_COMP_I32, 1, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "resolution", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "radius", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     return format;
   }();
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
+  const VArray<float> radius = curves.radius();
   const VArray<int> resolution = curves.resolution();
   const int left_handle_offset = points_by_curve.total_size();
   const int right_handle_offset = left_handle_offset + bezier_offsets.total_size();
@@ -1107,12 +1110,14 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
     const int segment_count = points.size() - 1 + cyclic[curve];
 
     for (const int segment : IndexRange(segment_count)) {
-      BezierSegmentVert seg_data{{int32_t(points[segment]),
-                                  int32_t(right_handle_offset + bezier_points[segment]),
-                                  int32_t(left_handle_offset + bezier_points[segment] + 1),
-                                  int32_t(points[segment] + 1)},
-                                 segment_line_offsets.as_span().last(),
-                                 resolution[curve]};
+      BezierSegmentVert seg_data{
+          {int32_t(points[segment]),
+           int32_t(right_handle_offset + bezier_points[segment]),
+           int32_t(left_handle_offset + bezier_points[segment] + 1),
+           int32_t(points[segment] + 1)},
+          segment_line_offsets.as_span().last(),
+          resolution[curve],
+          {radius[points[segment]], radius[math::min(points[segment] + 1, points.last())]}};
       segment_data.append(seg_data);
       segment_line_offsets.append(segment_line_offsets.last() + resolution[curve]);
     }
@@ -1120,6 +1125,7 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
       BezierSegmentVert &last = segment_data.last();
       last.point_indices[2] = left_handle_offset + bezier_points[0];
       last.point_indices[3] = points[0];
+      last.radius[2] = radius[points[0]];
     }
   });
   Array<int> vertex_to_segment(segment_line_offsets.last());

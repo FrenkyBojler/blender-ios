@@ -219,6 +219,8 @@ class CurvesGeometry : public ::CurvesGeometry {
   /** Mutable access to curve cyclic values. Call #tag_topology_changed after changes. */
   MutableSpan<bool> cyclic_for_write();
 
+  VArray<float> radius() const;
+
   /**
    * How many evaluated points to create for each segment when evaluating Bezier,
    * Catmull Rom, and NURBS curves. On the curve domain. Values must be one or greater.
