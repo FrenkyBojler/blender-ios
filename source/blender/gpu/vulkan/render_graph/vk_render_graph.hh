@@ -142,6 +142,11 @@ class VKRenderGraph : public NonCopyable {
   VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_buffer,
                 VKResourceStateTracker &resources);
 
+  bool supports_local_read() const
+  {
+    return command_buffer_->use_dynamic_rendering_local_read;
+  }
+
  private:
   /**
    * Add a node to the render graph.
