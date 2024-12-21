@@ -295,6 +295,51 @@ static void handle_switch_node_input_usage(
   all_socket_usages[socket_tree_index] = is_used;
 }
 
+static void handle_menu_switch_node_input_usage(
+    const bNodeSocket &socket,
+    Stack<Task> &tasks,
+    MutableSpan<std::optional<bool>> all_socket_usages,
+    MutableSpan<std::optional<const void *>> all_socket_values)
+{
+  const bNode &node = socket.owner_node();
+  const int socket_tree_index = socket.index_in_tree();
+
+  const bNodeSocket &output_socket = node.output_socket(0);
+  const std::optional<bool> &output_usage = all_socket_usages[output_socket.index_in_tree()];
+  if (!output_usage.has_value()) {
+    tasks.push({TaskType::Usage, &output_socket});
+    return;
+  }
+  if (!*output_usage) {
+    all_socket_usages[socket_tree_index] = false;
+    return;
+  }
+  const bNodeSocket &condition_socket = node.input_socket(0);
+  if (&socket == &condition_socket) {
+    all_socket_usages[socket_tree_index] = true;
+    return;
+  }
+  const std::optional<const void *> &menu_value_ptr =
+      all_socket_values[condition_socket.index_in_tree()];
+  if (!menu_value_ptr.has_value()) {
+    tasks.push({TaskType::Value, &condition_socket});
+    return;
+  }
+  if (*menu_value_ptr == nullptr) {
+    /* Can't know the condition value, so assume it can be anything. */
+    all_socket_usages[socket_tree_index] = true;
+    return;
+  }
+  const int menu_value = *static_cast<const int *>(*menu_value_ptr);
+
+  const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(node.storage);
+  /* Subtract one because the first input is the menu socket. */
+  const int item_i = socket.index() - 1;
+  const NodeEnumItem &item = storage.enum_definition.items_array[item_i];
+  const bool is_used = menu_value == item.identifier;
+  all_socket_usages[socket_tree_index] = is_used;
+}
+
 static void handle_fallback_node_input_usage(const bNodeSocket &socket,
                                              Stack<Task> &tasks,
                                              MutableSpan<std::optional<bool>> all_socket_usages)
@@ -347,6 +392,10 @@ static void handle_input_usage_task(const bNodeSocket &socket,
   switch (node.type) {
     case GEO_NODE_SWITCH: {
       handle_switch_node_input_usage(socket, tasks, all_socket_usages, all_socket_values);
+      break;
+    }
+    case GEO_NODE_MENU_SWITCH: {
+      handle_menu_switch_node_input_usage(socket, tasks, all_socket_usages, all_socket_values);
       break;
     }
     default: {
@@ -421,6 +470,8 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
                                const Span<GPointer> tree_input_values,
                                const MutableSpan<bool> r_input_usages)
 {
+  tree.ensure_topology_cache();
+
   AlignedBuffer<1024, 8> scope_buffer;
   ResourceScope scope;
   scope.linear_allocator().provide_buffer(scope_buffer);
