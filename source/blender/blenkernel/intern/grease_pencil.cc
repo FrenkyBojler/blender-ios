@@ -564,10 +564,6 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
 OffsetIndices<int> Drawing::triangle_offsets() const
 {
-  if (this->runtime->triangles_cache.is_dirty()) {
-    this->runtime->triangle_offsets_cache.tag_dirty();
-  }
-
   const CurvesGeometry &curves = this->strokes();
   this->runtime->triangle_offsets_cache.ensure([&](Vector<int> &r_triangle_offsets_data) {
     Vector<int3> r_triangles;
@@ -590,10 +586,6 @@ OffsetIndices<int> Drawing::triangle_offsets() const
 
 Span<int3> Drawing::triangles() const
 {
-  if (!this->runtime->triangle_offsets_cache.is_dirty()) {
-    this->runtime->triangles_cache.tag_dirty();
-  }
-
   const CurvesGeometry &curves = this->strokes();
   this->runtime->triangles_cache.ensure([&](Vector<int3> &r_triangle_data) {
     Array<int> r_triangle_offsets(this->shapes().size() + 1);
