@@ -33,6 +33,7 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_usage_inference.hh"
 #include "NOD_texture.h"
 
 #include "DEG_depsgraph_build.hh"
@@ -530,6 +531,7 @@ class NodeTreeMainUpdater {
 
     result.output_changed = this->check_if_output_changed(ntree);
 
+    this->update_socket_usage(ntree);
     this->update_socket_link_and_use(ntree);
     this->update_link_validation(ntree);
 
@@ -558,6 +560,30 @@ class NodeTreeMainUpdater {
 #endif
 
     return result;
+  }
+
+  void update_socket_usage(bNodeTree &tree)
+  {
+    tree.ensure_topology_cache();
+
+    Array<bool> new_inferenced_socket_usage(tree.all_sockets().size(), true);
+
+    const Span<const bNode *> group_nodes = tree.group_nodes();
+    for (const bNode *group_node : group_nodes) {
+      const bNodeTree *group = reinterpret_cast<const bNodeTree *>(group_node->id);
+      if (group == nullptr) {
+        continue;
+      }
+      if (group->interface_inputs().is_empty()) {
+        continue;
+      }
+      MutableSpan<bool> inputs_usages = new_inferenced_socket_usage.as_mutable_span().slice(
+          group_node->input_socket_indices_in_tree());
+      nodes::socket_usage_inference::infer_inputs_socket_usage(
+          *group, group_node->input_sockets(), inputs_usages);
+    }
+
+    tree.runtime->inferenced_socket_usage = std::move(new_inferenced_socket_usage);
   }
 
   void update_socket_link_and_use(bNodeTree &tree)
