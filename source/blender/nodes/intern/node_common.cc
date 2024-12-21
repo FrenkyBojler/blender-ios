@@ -569,14 +569,13 @@ void register_node_type_reroute()
 void ntree_update_reroute_nodes(bNodeTree *ntree)
 {
   using namespace blender;
+  ntree->ensure_topology_cache();
 
-  const Span<bNode *> all_nodes = ntree->all_nodes();
+  const Span<bNode *> all_reroute_nodes = ntree->nodes_by_type("NodeReroute");
+
   VectorSet<int> reroute_nodes;
-
-  for (const bNode *node : all_nodes) {
-    if (node->is_reroute()) {
-      reroute_nodes.add(node->index());
-    }
+  for (const bNode *reroute : all_reroute_nodes) {
+    reroute_nodes.add(reroute->index());
   }
 
   /* Any reroute can be connected only to one source, or can be not connected at all.
@@ -586,19 +585,19 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
    * a trees and all possible targets for each tree. */
   DisjointSet reroutes_groups(reroute_nodes.size());
 
-  LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
-    const bNode *src_node = link->fromnode;
-    const bNode *dst_node = link->tonode;
-
-    if (dst_node->is_reroute() && src_node->is_reroute()) {
-      const int dst_reroute_i = reroute_nodes.index_of(dst_node->index());
-      const int src_reroute_i = reroute_nodes.index_of(src_node->index());
+  for (const bNode *src_reroute : all_reroute_nodes) {
+    const int src_reroute_i = reroute_nodes.index_of(src_reroute->index());
+    for (const bNodeSocket *dst_socket : src_reroute->output_sockets().first()->directly_linked_sockets()) {
+      const bNode &dst_node = dst_socket->owner_node();
+      if (!dst_node.is_reroute()) {
+        continue;
+      }
+      const int dst_reroute_i = reroute_nodes.index_of(dst_node.index());
       reroutes_groups.join(src_reroute_i, dst_reroute_i);
     }
   }
 
   VectorSet<int> reroute_groups;
-
   for (const int reroute_i : reroute_nodes.index_range()) {
     const int root_reroute_i = reroutes_groups.find_root(reroute_i);
     reroute_groups.add(root_reroute_i);
@@ -607,7 +606,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
   Array<const bke::bNodeSocketType *> reroute_group_dst_types(reroute_groups.size(), nullptr);
   Array<const bke::bNodeSocketType *> reroute_group_src_types(reroute_groups.size(), nullptr);
 
-  LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
+  for (const bNodeLink *link : ntree->all_links()) {
     const bNode *src_node = link->fromnode;
     const bNode *dst_node = link->tonode;
 
@@ -638,6 +637,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
   }
 
+  const Span<bNode *> all_nodes = ntree->all_nodes();
   for (const int reroute_i : reroute_nodes.index_range()) {
     const int reroute_root_i = reroutes_groups.find_root(reroute_i);
     const int reroute_root_index = reroute_groups.index_of(reroute_root_i);
