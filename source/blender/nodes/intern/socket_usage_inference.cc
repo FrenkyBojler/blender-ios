@@ -182,125 +182,145 @@ static void handle_value_task(const bNodeTree &tree,
   }
 }
 
-static void handle_usage_task(const bNodeSocket &socket,
-                              Stack<Task> &tasks,
-                              MutableSpan<std::optional<bool>> all_socket_usages,
-                              MutableSpan<std::optional<const void *>> all_socket_values)
+static void handle_input_usage_task(const bNodeSocket &socket,
+                                    Stack<Task> &tasks,
+                                    MutableSpan<std::optional<bool>> all_socket_usages,
+                                    MutableSpan<std::optional<const void *>> all_socket_values)
 {
   const bNode &node = socket.owner_node();
   const int socket_tree_index = socket.index_in_tree();
   const int prev_tasks_num = tasks.size();
 
+  if (node.output_sockets().is_empty()) {
+    all_socket_usages[socket_tree_index] = true;
+    return;
+  }
+  switch (node.type) {
+    case GEO_NODE_SWITCH: {
+      const bNodeSocket &output_socket = node.output_socket(0);
+      const std::optional<bool> &output_usage = all_socket_usages[output_socket.index_in_tree()];
+      if (!output_usage.has_value()) {
+        tasks.push({TaskType::Usage, &output_socket});
+        return;
+      }
+      if (!*output_usage) {
+        all_socket_usages[socket_tree_index] = false;
+        return;
+      }
+      const bNodeSocket &condition_socket = node.input_socket(0);
+      if (&socket == &condition_socket) {
+        all_socket_usages[socket_tree_index] = true;
+        return;
+      }
+      const std::optional<const void *> &switch_condition_ptr =
+          all_socket_values[condition_socket.index_in_tree()];
+      if (!switch_condition_ptr.has_value()) {
+        tasks.push({TaskType::Value, &condition_socket});
+        return;
+      }
+      if (*switch_condition_ptr == nullptr) {
+        /* Can't know the condition value, so assume it can be anything. */
+        all_socket_usages[socket_tree_index] = true;
+        return;
+      }
+      const bool switch_condition = *static_cast<const bool *>(*switch_condition_ptr);
+      const bNodeSocket &true_socket = node.input_socket(2);
+      const bool is_used = (&socket == &true_socket) == switch_condition;
+      all_socket_usages[socket_tree_index] = is_used;
+      return;
+    }
+    default: {
+      /* Check if any output of the node is used already.*/
+      bool is_used = false;
+      for (const bNodeSocket *output_socket : node.output_sockets()) {
+        const std::optional<bool> &output_usage =
+            all_socket_usages[output_socket->index_in_tree()];
+        if (output_usage.has_value()) {
+          if (*output_usage) {
+            is_used = true;
+            break;
+          }
+        }
+      }
+      if (is_used) {
+        all_socket_usages[socket_tree_index] = true;
+        return;
+      }
+      /* Create a task that checks if the next output is used. */
+      for (const bNodeSocket *output_socket : node.output_sockets()) {
+        const std::optional<bool> &output_usage =
+            all_socket_usages[output_socket->index_in_tree()];
+        if (!output_usage.has_value()) {
+          tasks.push({TaskType::Usage, output_socket});
+          return;
+        }
+      }
+      if (tasks.size() == prev_tasks_num) {
+        /* No task was added, so all of the outputs are already known to be unused. */
+        all_socket_usages[socket_tree_index] = false;
+      }
+    }
+  }
+}
+
+static void handle_output_usage_task(const bNodeSocket &socket,
+                                     Stack<Task> &tasks,
+                                     MutableSpan<std::optional<bool>> all_socket_usages)
+{
+  const int socket_tree_index = socket.index_in_tree();
+  const int prev_tasks_num = tasks.size();
+
+  bool is_used = false;
+  for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (!link->is_used()) {
+      continue;
+    }
+    const bNodeSocket &target_socket = *link->tosock;
+    const std::optional<bool> &target_usage = all_socket_usages[target_socket.index_in_tree()];
+    if (target_usage.has_value()) {
+      if (*target_usage) {
+        is_used = true;
+        break;
+      }
+    }
+  }
+  if (is_used) {
+    all_socket_usages[socket_tree_index] = true;
+    return;
+  }
+  /* Create task that checks if the next target is used. */
+  for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (!link->is_used()) {
+      continue;
+    }
+    const bNodeSocket &target_socket = *link->tosock;
+    const std::optional<bool> &target_usage = all_socket_usages[target_socket.index_in_tree()];
+    if (!target_usage.has_value()) {
+      tasks.push({TaskType::Usage, &target_socket});
+      return;
+    }
+  }
+  if (tasks.size() == prev_tasks_num) {
+    /* No task was added, so all of the targets are already known to be unused. */
+    all_socket_usages[socket_tree_index] = false;
+  }
+}
+
+static void handle_usage_task(const bNodeSocket &socket,
+                              Stack<Task> &tasks,
+                              MutableSpan<std::optional<bool>> all_socket_usages,
+                              MutableSpan<std::optional<const void *>> all_socket_values)
+{
+  const int socket_tree_index = socket.index_in_tree();
+
   if (all_socket_usages[socket_tree_index].has_value()) {
     return;
   }
   if (socket.is_input()) {
-    if (node.output_sockets().is_empty()) {
-      all_socket_usages[socket_tree_index] = true;
-      return;
-    }
-    switch (node.type) {
-      case GEO_NODE_SWITCH: {
-        const bNodeSocket &output_socket = node.output_socket(0);
-        const std::optional<bool> &output_usage = all_socket_usages[output_socket.index_in_tree()];
-        if (!output_usage.has_value()) {
-          tasks.push({TaskType::Usage, &output_socket});
-          return;
-        }
-        if (!*output_usage) {
-          all_socket_usages[socket_tree_index] = false;
-          return;
-        }
-        const bNodeSocket &condition_socket = node.input_socket(0);
-        if (&socket == &condition_socket) {
-          all_socket_usages[socket_tree_index] = true;
-          return;
-        }
-        const std::optional<const void *> &switch_condition_ptr =
-            all_socket_values[condition_socket.index_in_tree()];
-        if (!switch_condition_ptr.has_value()) {
-          tasks.push({TaskType::Value, &condition_socket});
-          return;
-        }
-        if (*switch_condition_ptr == nullptr) {
-          /* Can't know the condition value, so assume it can be anything. */
-          all_socket_usages[socket_tree_index] = true;
-          return;
-        }
-        const bool switch_condition = *static_cast<const bool *>(*switch_condition_ptr);
-        const bNodeSocket &true_socket = node.input_socket(2);
-        const bool is_used = (&socket == &true_socket) == switch_condition;
-        all_socket_usages[socket_tree_index] = is_used;
-        return;
-      }
-      default: {
-        /* Check if any output of the node is used already.*/
-        bool is_used = false;
-        for (const bNodeSocket *output_socket : node.output_sockets()) {
-          const std::optional<bool> &output_usage =
-              all_socket_usages[output_socket->index_in_tree()];
-          if (output_usage.has_value()) {
-            if (*output_usage) {
-              is_used = true;
-              break;
-            }
-          }
-        }
-        if (is_used) {
-          all_socket_usages[socket_tree_index] = true;
-          return;
-        }
-        /* Create a task that checks if the next output is used. */
-        for (const bNodeSocket *output_socket : node.output_sockets()) {
-          const std::optional<bool> &output_usage =
-              all_socket_usages[output_socket->index_in_tree()];
-          if (!output_usage.has_value()) {
-            tasks.push({TaskType::Usage, output_socket});
-            return;
-          }
-        }
-        if (tasks.size() == prev_tasks_num) {
-          /* No task was added, so all of the outputs are already known to be unused. */
-          all_socket_usages[socket_tree_index] = false;
-        }
-      }
-    }
+    handle_input_usage_task(socket, tasks, all_socket_usages, all_socket_values);
   }
   else {
-    bool is_used = false;
-    for (const bNodeLink *link : socket.directly_linked_links()) {
-      if (!link->is_used()) {
-        continue;
-      }
-      const bNodeSocket &target_socket = *link->tosock;
-      const std::optional<bool> &target_usage = all_socket_usages[target_socket.index_in_tree()];
-      if (target_usage.has_value()) {
-        if (*target_usage) {
-          is_used = true;
-          break;
-        }
-      }
-    }
-    if (is_used) {
-      all_socket_usages[socket_tree_index] = true;
-      return;
-    }
-    /* Create task that checks if the next target is used. */
-    for (const bNodeLink *link : socket.directly_linked_links()) {
-      if (!link->is_used()) {
-        continue;
-      }
-      const bNodeSocket &target_socket = *link->tosock;
-      const std::optional<bool> &target_usage = all_socket_usages[target_socket.index_in_tree()];
-      if (!target_usage.has_value()) {
-        tasks.push({TaskType::Usage, &target_socket});
-        return;
-      }
-    }
-    if (tasks.size() == prev_tasks_num) {
-      /* No task was added, so all of the targets are already known to be unused. */
-      all_socket_usages[socket_tree_index] = false;
-    }
+    handle_output_usage_task(socket, tasks, all_socket_usages);
   }
 }
 
