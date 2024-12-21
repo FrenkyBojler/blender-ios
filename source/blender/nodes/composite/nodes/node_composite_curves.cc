@@ -45,7 +45,7 @@ static void node_composit_init_curves_time(bNodeTree * /*ntree*/, bNode *node)
   node->storage = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class TimeCurveOperation : public NodeOperation {
  public:
@@ -106,7 +106,8 @@ void register_node_type_cmp_curve_time()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_TIME, "Time Curve", blender::bke::NodeClass::Input);
+  cmp_node_type_base(&ntype, CMP_NODE_TIME, "Time Curve", NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "TIME";
   ntype.declare = file_ns::cmp_node_time_declare;
   blender::bke::node_type_size(&ntype, 200, 140, 320);
   ntype.initfunc = file_ns::node_composit_init_curves_time;
@@ -140,7 +141,7 @@ static void node_buts_curvevec(uiLayout *layout, bContext * /*C*/, PointerRNA *p
   uiTemplateCurveMapping(layout, ptr, "mapping", 'v', false, false, false, false);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 static CurveMapping *get_curve_mapping(const bNode &node)
 {
@@ -217,8 +218,8 @@ void register_node_type_cmp_curve_vec()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, CMP_NODE_CURVE_VEC, "Vector Curves", blender::bke::NodeClass::OpVector);
+  cmp_node_type_base(&ntype, CMP_NODE_CURVE_VEC, "Vector Curves", NODE_CLASS_OP_VECTOR);
+  ntype.enum_name_legacy = "CURVE_VEC";
   ntype.declare = file_ns::cmp_node_curve_vec_declare;
   ntype.draw_buttons = file_ns::node_buts_curvevec;
   blender::bke::node_type_size(&ntype, 200, 140, 320);
@@ -261,7 +262,7 @@ static void node_composit_init_curve_rgb(bNodeTree * /*ntree*/, bNode *node)
   node->storage = BKE_curvemapping_add(4, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 static CurveMapping *get_curve_mapping(const bNode &node)
 {
@@ -388,7 +389,8 @@ void register_node_type_cmp_curve_rgb()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_CURVE_RGB, "RGB Curves", blender::bke::NodeClass::OpColor);
+  cmp_node_type_base(&ntype, CMP_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR);
+  ntype.enum_name_legacy = "CURVE_RGB";
   ntype.declare = file_ns::cmp_node_rgbcurves_declare;
   blender::bke::node_type_size(&ntype, 200, 140, 320);
   ntype.initfunc = file_ns::node_composit_init_curve_rgb;

@@ -139,8 +139,8 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_PRIMITIVE_LINE, "Curve Line", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(&ntype, GEO_NODE_CURVE_PRIMITIVE_LINE, "Curve Line", NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "CURVE_PRIMITIVE_LINE";
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(&ntype,
                                   "NodeGeometryCurvePrimitiveLine",

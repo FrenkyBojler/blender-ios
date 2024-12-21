@@ -41,7 +41,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_INPUT_COLOR, "Color", blender::bke::NodeClass::Input);
+  fn_node_type_base(&ntype, FN_NODE_INPUT_COLOR, "Color", NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "INPUT_COLOR";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(

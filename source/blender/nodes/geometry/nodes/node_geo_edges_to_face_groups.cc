@@ -102,10 +102,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     GEO_NODE_EDGES_TO_FACE_GROUPS,
-                     "Edges to Face Groups",
-                     blender::bke::NodeClass::Input);
+  geo_node_type_base(
+      &ntype, GEO_NODE_EDGES_TO_FACE_GROUPS, "Edges to Face Groups", NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "EDGES_TO_FACE_GROUPS";
   ntype.geometry_node_execute = geo_node_exec;
   ntype.declare = node_declare;
 

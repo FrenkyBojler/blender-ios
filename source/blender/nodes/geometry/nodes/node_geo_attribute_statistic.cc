@@ -364,11 +364,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     GEO_NODE_ATTRIBUTE_STATISTIC,
-                     "Attribute Statistic",
-                     blender::bke::NodeClass::Attribute);
-
+  geo_node_type_base(
+      &ntype, GEO_NODE_ATTRIBUTE_STATISTIC, "Attribute Statistic", NODE_CLASS_ATTRIBUTE);
+  ntype.enum_name_legacy = "ATTRIBUTE_STATISTIC";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

@@ -103,10 +103,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     GEO_NODE_POINTS_TO_VERTICES,
-                     "Points to Vertices",
-                     blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_POINTS_TO_VERTICES, "Points to Vertices", NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "POINTS_TO_VERTICES";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

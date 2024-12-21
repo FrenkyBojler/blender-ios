@@ -202,7 +202,8 @@ static void node_register()
   geo_node_type_base(&ntype,
                      GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT,
                      "For Each Geometry Element Input",
-                     blender::bke::NodeClass::Interface);
+                     NODE_CLASS_INTERFACE);
+  ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_INPUT";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
@@ -380,7 +381,8 @@ static void node_register()
   geo_node_type_base(&ntype,
                      GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
                      "For Each Geometry Element Output",
-                     blender::bke::NodeClass::Interface);
+                     NODE_CLASS_INTERFACE);
+  ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_OUTPUT";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = input_node::node_label;

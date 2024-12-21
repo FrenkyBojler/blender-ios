@@ -209,7 +209,7 @@ static void node_composit_buts_colorbalance_ex(uiLayout *layout, bContext * /*C*
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 static CMPNodeColorBalanceMethod get_color_balance_method(const bNode &node)
 {
@@ -386,8 +386,8 @@ void register_node_type_cmp_colorbalance()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, CMP_NODE_COLORBALANCE, "Color Balance", blender::bke::NodeClass::OpColor);
+  cmp_node_type_base(&ntype, CMP_NODE_COLORBALANCE, "Color Balance", NODE_CLASS_OP_COLOR);
+  ntype.enum_name_legacy = "COLORBALANCE";
   ntype.declare = file_ns::cmp_node_colorbalance_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_colorbalance;
   ntype.draw_buttons_ex = file_ns::node_composit_buts_colorbalance_ex;

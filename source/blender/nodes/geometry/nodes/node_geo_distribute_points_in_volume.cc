@@ -284,7 +284,8 @@ static void node_register()
   geo_node_type_base(&ntype,
                      GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME,
                      "Distribute Points in Volume",
-                     blender::bke::NodeClass::Geometry);
+                     NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "DISTRIBUTE_POINTS_IN_VOLUME";
   blender::bke::node_type_storage(&ntype,
                                   "NodeGeometryDistributePointsInVolume",
                                   node_free_standard_storage,

@@ -197,8 +197,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_FILLET_CURVE, "Fillet Curve", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(&ntype, GEO_NODE_FILLET_CURVE, "Fillet Curve", NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "FILLET_CURVE";
   ntype.draw_buttons = node_layout;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryCurveFillet", node_free_standard_storage, node_copy_standard_storage);

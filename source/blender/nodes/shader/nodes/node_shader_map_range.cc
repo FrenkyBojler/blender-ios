@@ -60,14 +60,14 @@ static void node_shader_buts_map_range(uiLayout *layout, bContext * /*C*/, Point
   }
 }
 
-static blender::bke::NodeClass node_shader_map_range_ui_class(const bNode *node)
+static int node_shader_map_range_ui_class(const bNode *node)
 {
   const NodeMapRange &storage = node_storage(*node);
   const eCustomDataType data_type = static_cast<eCustomDataType>(storage.data_type);
   if (data_type == CD_PROP_FLOAT3) {
-    return blender::bke::NodeClass::OpVector;
+    return NODE_CLASS_OP_VECTOR;
   }
-  return blender::bke::NodeClass::Converter;
+  return NODE_CLASS_CONVERTER;
 }
 
 static void node_shader_update_map_range(bNodeTree *ntree, bNode *node)
@@ -524,7 +524,8 @@ void register_node_type_sh_map_range()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_MAP_RANGE, "Map Range", blender::bke::NodeClass::Converter);
+  sh_fn_node_type_base(&ntype, SH_NODE_MAP_RANGE, "Map Range", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "MAP_RANGE";
   ntype.declare = file_ns::sh_node_map_range_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_map_range;
   ntype.ui_class = file_ns::node_shader_map_range_ui_class;

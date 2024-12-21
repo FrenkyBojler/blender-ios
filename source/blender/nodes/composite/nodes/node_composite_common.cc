@@ -23,7 +23,8 @@ void register_node_type_cmp_group()
   /* NOTE: Cannot use sh_node_type_base for node group, because it would map the node type
    * to the shared NODE_GROUP integer type id. */
   blender::bke::node_type_base_custom(
-      &ntype, "CompositorNodeGroup", "Group", "GROUP", blender::bke::NodeClass::Group);
+      &ntype, "CompositorNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
+  ntype.enum_name_legacy = "GROUP";
   ntype.type = NODE_GROUP;
   ntype.poll = cmp_node_poll_default;
   ntype.poll_instance = node_group_poll_instance;

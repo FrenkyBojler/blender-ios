@@ -609,7 +609,8 @@ static void node_register()
   geo_node_type_base(&ntype,
                      GEO_NODE_DISTRIBUTE_POINTS_ON_FACES,
                      "Distribute Points on Faces",
-                     blender::bke::NodeClass::Geometry);
+                     NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "DISTRIBUTE_POINTS_ON_FACES";
   blender::bke::node_type_size(&ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

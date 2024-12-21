@@ -212,7 +212,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_UV_UNWRAP, "UV Unwrap", blender::bke::NodeClass::Converter);
+  geo_node_type_base(&ntype, GEO_NODE_UV_UNWRAP, "UV Unwrap", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "UV_UNWRAP";
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(
       &ntype, "NodeGeometryUVUnwrap", node_free_standard_storage, node_copy_standard_storage);

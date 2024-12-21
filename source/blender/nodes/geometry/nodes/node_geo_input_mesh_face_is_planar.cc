@@ -111,10 +111,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     GEO_NODE_INPUT_MESH_FACE_IS_PLANAR,
-                     "Is Face Planar",
-                     blender::bke::NodeClass::Input);
+  geo_node_type_base(
+      &ntype, GEO_NODE_INPUT_MESH_FACE_IS_PLANAR, "Is Face Planar", NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "MESH_FACE_IS_PLANAR";
   ntype.geometry_node_execute = geo_node_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);
