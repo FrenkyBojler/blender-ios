@@ -725,7 +725,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
           if(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL)
             # OSL is only supported with CPU and OptiX
             # TODO: Enable OptiX support once it's more stable
-            if("${_cycles_device_lower}" STREQUAL "cpu")
+            if(("${_cycles_device_lower}" STREQUAL "cpu") OR ("${_cycles_device_lower}" STREQUAL "optix"))
               add_render_test(
                 ${_cycles_test_name}_osl
                 ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
@@ -734,7 +734,6 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
                 --device ${_cycles_device}
                 --osl
               )
-              # Doesn't do anything until OptiX is enabled
               if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
                 set_tests_properties(${_cycles_test_name}_osl PROPERTIES RUN_SERIAL TRUE)
               endif()
@@ -783,7 +782,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND)
+      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
             eevee_next_${render_test}_vulkan
@@ -823,7 +822,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND)
+      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
             workbench_${render_test}_vulkan
@@ -880,13 +879,13 @@ else()
   )
 
   if(WITH_LIBMV)
-    list(APPEND compositor_tests distort matte)
+    list(APPEND compositor_tests distort matte anisotropic_filtering)
   endif()
 
   foreach(comp_test ${compositor_tests})
     add_render_test(
-      compositor_${comp_test}_cpu
-      ${CMAKE_CURRENT_LIST_DIR}/compositor_cpu_render_tests.py
+      compositor_cpu_${comp_test}
+      ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
       --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
       --outdir "${TEST_OUT_DIR}/compositor_cpu"
     )
@@ -894,9 +893,9 @@ else()
 
 endif()
 
-if(WITH_COMPOSITOR_REALTIME_TESTS)
+if(WITH_GPU_COMPOSITOR_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
-    message(WARNING "Disabling realtime compositor tests because OIIO oiiotool does not exist")
+    message(WARNING "Disabling compositor tests because OIIO oiiotool does not exist")
   else()
     set(compositor_tests
         color
@@ -915,10 +914,11 @@ if(WITH_COMPOSITOR_REALTIME_TESTS)
 
     foreach(comp_test ${compositor_tests})
       add_render_test(
-        compositor_${comp_test}_realtime
-        ${CMAKE_CURRENT_LIST_DIR}/compositor_realtime_render_tests.py
+        compositor_gpu_${comp_test}
+        ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
         --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-        --outdir "${TEST_OUT_DIR}/compositor_realtime"
+        --outdir "${TEST_OUT_DIR}/compositor_gpu"
+        --gpu
       )
     endforeach()
   endif()
@@ -989,7 +989,7 @@ else()
 endif()
 
 
-if(WITH_GPU_DRAW_TESTS)
+if(WITH_GPU_RENDER_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(STATUS "Disabling OpenGL draw tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
