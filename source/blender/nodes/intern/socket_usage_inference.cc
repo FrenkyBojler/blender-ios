@@ -25,6 +25,36 @@ struct Task {
   const bNodeSocket *socket = nullptr;
 };
 
+static void handle_unlinked_input_value(const bNodeSocket &socket,
+                                        ResourceScope &scope,
+                                        MutableSpan<std::optional<const void *>> all_socket_values)
+{
+  const CPPType &base_type = *socket.typeinfo->base_cpp_type;
+  void *value_buffer = scope.linear_allocator().allocate(base_type.size(), base_type.alignment());
+  socket.typeinfo->get_base_cpp_value(socket.default_value, value_buffer);
+  all_socket_values[socket.index_in_tree()] = value_buffer;
+  if (!base_type.is_trivially_destructible()) {
+    scope.add_destruct_call([type = &base_type, value_buffer]() { type->destruct(value_buffer); });
+  }
+}
+
+static void handle_linked_input_value(const bNodeLink &link,
+                                      Stack<Task> &tasks,
+                                      MutableSpan<std::optional<const void *>> all_socket_values)
+{
+  const bNodeSocket &socket = *link.tosock;
+  const bNodeSocket &origin_socket = *link.fromsock;
+  /* TODO: type conversion */
+  BLI_assert(origin_socket.type == socket.type);
+  const std::optional<const void *> &origin_value =
+      all_socket_values[origin_socket.index_in_tree()];
+  if (!origin_value.has_value()) {
+    tasks.push({TaskType::Value, &origin_socket});
+    return;
+  }
+  all_socket_values[socket.index_in_tree()] = origin_value;
+}
+
 static void handle_input_value_task(const bNodeSocket &socket,
                                     Stack<Task> &tasks,
                                     ResourceScope &scope,
@@ -50,27 +80,10 @@ static void handle_input_value_task(const bNodeSocket &socket,
     break;
   }
   if (!source_link) {
-    const CPPType &base_type = *socket.typeinfo->base_cpp_type;
-    void *value_buffer = scope.linear_allocator().allocate(base_type.size(),
-                                                           base_type.alignment());
-    socket.typeinfo->get_base_cpp_value(socket.default_value, value_buffer);
-    all_socket_values[socket_tree_index] = value_buffer;
-    if (!base_type.is_trivially_destructible()) {
-      scope.add_destruct_call(
-          [type = &base_type, value_buffer]() { type->destruct(value_buffer); });
-    }
+    handle_unlinked_input_value(socket, scope, all_socket_values);
     return;
   }
-  const bNodeSocket &origin_socket = *source_link->fromsock;
-  /* TODO: type conversion */
-  BLI_assert(origin_socket.type == socket.type);
-  const std::optional<const void *> &origin_value =
-      all_socket_values[origin_socket.index_in_tree()];
-  if (!origin_value.has_value()) {
-    tasks.push({TaskType::Value, &origin_socket});
-    return;
-  }
-  all_socket_values[socket_tree_index] = origin_value;
+  handle_linked_input_value(*source_link, tasks, all_socket_values);
 }
 
 static void handle_output_value_task(const bNodeTree &tree,
