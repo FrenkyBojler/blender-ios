@@ -335,27 +335,25 @@ static void handle_index_switch_node_input_usage(
     Map<SocketInContext, bool> &all_socket_usages,
     Map<SocketInContext, const void *> &all_socket_values)
 {
-  const bNode &node = socket->owner_node();
-  const bNodeSocket &output_socket = node.output_socket(0);
-  const std::optional<bool> output_is_used = all_socket_usages.lookup_try(
-      {socket.context, &output_socket});
+  const NodeInContext node = socket.owner_node();
+  const SocketInContext output_socket = node.output_socket(0);
+  const std::optional<bool> output_is_used = all_socket_usages.lookup_try(output_socket);
   if (!output_is_used.has_value()) {
-    tasks.push({TaskType::Usage, {socket.context, &output_socket}});
+    tasks.push({TaskType::Usage, output_socket});
     return;
   }
   if (!*output_is_used) {
     all_socket_usages.add_new(socket, false);
     return;
   }
-  const bNodeSocket &index_socket = node.input_socket(0);
-  if (socket.socket == &index_socket) {
+  const SocketInContext index_socket = node.input_socket(0);
+  if (socket == index_socket) {
     all_socket_usages.add_new(socket, true);
     return;
   }
-  const std::optional<const void *> index_ptr = all_socket_values.lookup_try(
-      {socket.context, &index_socket});
+  const std::optional<const void *> index_ptr = all_socket_values.lookup_try(index_socket);
   if (!index_ptr.has_value()) {
-    tasks.push({TaskType::Value, {socket.context, &index_socket}});
+    tasks.push({TaskType::Value, index_socket});
     return;
   }
   if (*index_ptr == nullptr) {
