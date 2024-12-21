@@ -20,16 +20,18 @@ struct VertIn {
 VertIn input_assembly(uint vertex_id)
 {
   uint segment_i = gpu_index_load(vertex_id);
-  ivec4 indices = gpu_attr_load_int4(segments, gpu_attr_0, segment_i);
+  ivec4 start_indices = gpu_attr_load_int4(segments, gpu_attr_0, segment_i);
+  ivec4 end_indices = gpu_attr_load_int4(segments, gpu_attr_0, segment_i + 1);
 
   VertIn vert_in;
-  vert_in.p[0] = gpu_attr_load_float3(pos, gpu_attr_4, indices.x);
-  vert_in.p[1] = gpu_attr_load_float3(pos, gpu_attr_4, indices.y);
-  vert_in.p[2] = gpu_attr_load_float3(pos, gpu_attr_4, indices.z);
-  vert_in.p[3] = gpu_attr_load_float3(pos, gpu_attr_4, indices.w);
+  vert_in.p[0] = gpu_attr_load_float3(pos, gpu_attr_3, start_indices.y);
+  vert_in.p[1] = gpu_attr_load_float3(pos, gpu_attr_3, start_indices.z);
+  vert_in.p[2] = gpu_attr_load_float3(pos, gpu_attr_3, end_indices.x);
+  vert_in.p[3] = gpu_attr_load_float3(pos, gpu_attr_3, end_indices.y);
   vert_in.first_vertex_id = first_id[gpu_attr_load_index(segment_i, gpu_attr_1)];
-  vert_in.resolution = resolution[gpu_attr_load_index(segment_i, gpu_attr_2)];
-  vert_in.radius = gpu_attr_load_float2(radius, gpu_attr_3, segment_i);
+  vert_in.resolution = first_id[gpu_attr_load_index(segment_i + 1, gpu_attr_1)] - vert_in.first_vertex_id;
+  vert_in.radius = vec2(radius[gpu_attr_load_index(segment_i, gpu_attr_2)],
+                        radius[gpu_attr_load_index(segment_i + 1, gpu_attr_2)]);
   return vert_in;
 }
 

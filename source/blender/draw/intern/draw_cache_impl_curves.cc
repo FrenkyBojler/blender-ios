@@ -1073,11 +1073,10 @@ static void create_edit_points_position_vbo(
 /* MUST match the format below. */
 struct BezierSegmentVert {
   /** Indices of [point, point's right handle, next point's left handle, next point]. */
-  int32_t point_indices[4];
+  int32_t point_indices[3];
 
   int32_t first_vertex_id;
-  int32_t resolution;
-  float radius[2];
+  float radius;
 };
 
 static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves,
@@ -1087,10 +1086,9 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
 {
   static GPUVertFormat format_segments = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "segments", GPU_COMP_I32, 4, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "segments", GPU_COMP_I32, 3, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "first_id", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "resolution", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "radius", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "radius", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     return format;
   }();
 
@@ -1107,25 +1105,31 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
   bezier_curves.foreach_index([&](const int64_t curve, const int64_t bezier_curve) {
     const IndexRange points = points_by_curve[curve];
     const IndexRange bezier_points = bezier_offsets[bezier_curve];
-    const int segment_count = points.size() - 1 + cyclic[curve];
 
-    for (const int segment : IndexRange(segment_count)) {
-      BezierSegmentVert seg_data{
-          {int32_t(points[segment]),
-           int32_t(right_handle_offset + bezier_points[segment]),
-           int32_t(left_handle_offset + bezier_points[segment] + 1),
-           int32_t(points[segment] + 1)},
-          segment_line_offsets.as_span().last(),
-          resolution[curve],
-          {radius[points[segment]], radius[math::min(points[segment] + 1, points.last())]}};
+    if (points.size() <= 1) {
+      return;
+    }
+
+    for (const int point : points.index_range()) {
+      BezierSegmentVert seg_data{{int32_t(left_handle_offset + bezier_points[point]),
+                                  int32_t(points[point]),
+                                  int32_t(right_handle_offset + bezier_points[point])},
+                                 segment_line_offsets.last(),
+                                 radius[points[point]]};
       segment_data.append(seg_data);
       segment_line_offsets.append(segment_line_offsets.last() + resolution[curve]);
     }
     if (cyclic[curve]) {
-      BezierSegmentVert &last = segment_data.last();
-      last.point_indices[2] = left_handle_offset + bezier_points[0];
-      last.point_indices[3] = points[0];
-      last.radius[2] = radius[points[0]];
+      BezierSegmentVert seg_data{{int32_t(left_handle_offset + bezier_points[0]),
+                                  int32_t(points[0]),
+                                  int32_t(right_handle_offset + bezier_points[0])},
+                                 segment_line_offsets.last(),
+                                 radius[points[0]]};
+      segment_data.append(seg_data);
+      segment_line_offsets.append(segment_line_offsets.last() + 0);
+    }
+    else {
+      segment_line_offsets.last() = segment_line_offsets.last(1);
     }
   });
   Array<int> vertex_to_segment(segment_line_offsets.last());
