@@ -973,15 +973,18 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
   const OffsetIndices<int> changed_triangle_offsets = OffsetIndices<int>(
       changed_triangle_offsets_data);
 
-  Array<int> src_sizes(shapes.size());
+  Array<int> all_src_sizes(shapes.size());
   for (const int i : src_triangle_offsets.index_range()) {
-    src_sizes[i] = src_triangle_offsets[i].size();
+    all_src_sizes[i] = src_triangle_offsets[i].size();
   }
 
   Array<int> changed_sizes(changed_shapes.size());
   for (const int i : changed_triangle_offsets.index_range()) {
     changed_sizes[i] = changed_triangle_offsets[i].size();
   }
+
+  Array<int> src_sizes(unchanged_shapes.size());
+  array_utils::gather(all_src_sizes.as_span(), unchanged_shapes, src_sizes.as_mutable_span());
 
   array_utils::scatter(src_sizes.as_span(), unchanged_shapes, r_triangle_offsets);
   array_utils::scatter(changed_sizes.as_span(), changed_shapes, r_triangle_offsets);
@@ -995,11 +998,12 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                    unchanged_shapes,
                                    src_triangles,
                                    r_triangles.as_mutable_span());
-  array_utils::copy_group_to_group(changed_triangle_offsets,
-                                   OffsetIndices<int>(r_triangle_offsets),
-                                   changed_shapes,
-                                   changed_triangles.as_span(),
-                                   r_triangles.as_mutable_span());
+
+  changed_shapes.foreach_index(GrainSize(512), [&](const int i, const int pos) {
+    r_triangles.as_mutable_span()
+        .slice(OffsetIndices<int>(r_triangle_offsets)[i])
+        .copy_from(changed_triangles.as_span().slice(changed_triangle_offsets[pos]));
+  });
 }
 
 void Drawing::tag_positions_changed(const IndexMask &changed_curves)
