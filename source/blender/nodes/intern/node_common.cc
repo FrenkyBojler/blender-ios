@@ -568,8 +568,10 @@ void register_node_type_reroute()
 
 void ntree_update_reroute_nodes(bNodeTree *ntree)
 {
-  const blender::Span<bNode *> all_nodes = ntree->all_nodes();
-  blender::VectorSet<int> reroute_nodes;
+  using namespace blender;
+
+  const Span<bNode *> all_nodes = ntree->all_nodes();
+  VectorSet<int> reroute_nodes;
 
   for (const bNode *node : all_nodes) {
     if (node->is_reroute()) {
@@ -582,7 +584,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
    * can be only one in strongly connected set of reroutes. To propagate a types from
    * some certain target to all the reroutes in such a tree we need to know all such
    * a trees and all possible targets for each tree. */
-  blender::DisjointSet reroutes_groups(reroute_nodes.size());
+  DisjointSet reroutes_groups(reroute_nodes.size());
 
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
     const bNode *src_node = link->fromnode;
@@ -595,17 +597,15 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
   }
 
-  blender::VectorSet<int> reroute_groups;
+  VectorSet<int> reroute_groups;
 
   for (const int reroute_i : reroute_nodes.index_range()) {
     const int root_reroute_i = reroutes_groups.find_root(reroute_i);
     reroute_groups.add(root_reroute_i);
   }
 
-  blender::Array<const blender::bke::bNodeSocketType *> reroute_group_dst_types(
-      reroute_groups.size(), nullptr);
-  blender::Array<const blender::bke::bNodeSocketType *> reroute_group_src_types(
-      reroute_groups.size(), nullptr);
+  Array<const bke::bNodeSocketType *> reroute_group_dst_types(reroute_groups.size(), nullptr);
+  Array<const bke::bNodeSocketType *> reroute_group_src_types(reroute_groups.size(), nullptr);
 
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
     const bNode *src_node = link->fromnode;
@@ -642,7 +642,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     const int reroute_root_i = reroutes_groups.find_root(reroute_i);
     const int reroute_root_index = reroute_groups.index_of(reroute_root_i);
 
-    const blender::bke::bNodeSocketType *reroute_type = nullptr;
+    const bke::bNodeSocketType *reroute_type = nullptr;
     if (reroute_group_dst_types[reroute_root_index] != nullptr) {
       reroute_type = reroute_group_dst_types[reroute_root_index];
     }
@@ -651,8 +651,8 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
 
     if (reroute_type == nullptr) {
-      /* Case of cycle of reroutes. Just use some _random_ reoute as a root, but here could be some
-       * more smart statistic. */
+      /* Case of cycle of reroutes. Just use some _random_ reroute as a root, but there could be
+       * some more smart statistic. */
       const int root_in_cycle_i = reroute_nodes[reroute_root_i];
       const bNode &root_reroute = *all_nodes[root_in_cycle_i];
       const bNodeSocket *root_socket = static_cast<const bNodeSocket *>(root_reroute.inputs.first);
@@ -663,7 +663,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     bNode &reoute_node = *all_nodes[reroute_index];
     NodeReroute *storage = static_cast<NodeReroute *>(reoute_node.storage);
     STRNCPY(storage->type_idname, reroute_type->idname);
-    blender::nodes::update_node_declaration_and_sockets(*ntree, reoute_node);
+    nodes::update_node_declaration_and_sockets(*ntree, reoute_node);
   }
 }
 
