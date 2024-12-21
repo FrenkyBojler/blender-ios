@@ -47,6 +47,12 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
   }
 
   infer_inputs_socket_usage(tree, input_values, r_input_usages);
+
+  for (GPointer &value : input_values) {
+    if (const void *data = value.get()) {
+      value.type()->destruct(const_cast<void *>(data));
+    }
+  }
 }
 
 }  // namespace blender::nodes::socket_usage_inference
