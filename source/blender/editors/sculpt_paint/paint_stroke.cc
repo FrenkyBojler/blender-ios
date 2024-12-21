@@ -1727,7 +1727,7 @@ static const bToolRef *brush_tool_get(const bContext *C)
 
   if (paint && ob && BKE_paint_brush(paint) &&
       (area && ELEM(area->spacetype, SPACE_VIEW3D, SPACE_IMAGE)) &&
-      (region && region->regiontype == RGN_TYPE_WINDOW))
+      (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_UI)))
   {
     if (area->runtime.tool && area->runtime.tool->runtime &&
         (area->runtime.tool->runtime->flag & TOOLREF_FLAG_USE_BRUSHES))
