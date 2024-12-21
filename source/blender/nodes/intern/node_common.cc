@@ -86,40 +86,40 @@ blender::bke::NodeClass node_group_ui_class(const bNode *node)
   if (!group) {
     return blender::bke::NodeClass::Group;
   }
-  switch (blender::bke::NodeGroupColorTag(group->color_tag)) {
-    case blender::bke::NodeGroupColorTag::None:
+  switch (blender::bke::NodeColorTag(group->color_tag)) {
+    case blender::bke::NodeColorTag::None:
       return blender::bke::NodeClass::Group;
-    case blender::bke::NodeGroupColorTag::Attribute:
+    case blender::bke::NodeColorTag::Attribute:
       return blender::bke::NodeClass::Attribute;
-    case blender::bke::NodeGroupColorTag::Color:
+    case blender::bke::NodeColorTag::Color:
       return blender::bke::NodeClass::OpColor;
-    case blender::bke::NodeGroupColorTag::Converter:
+    case blender::bke::NodeColorTag::Converter:
       return blender::bke::NodeClass::Converter;
-    case blender::bke::NodeGroupColorTag::Distort:
+    case blender::bke::NodeColorTag::Distort:
       return blender::bke::NodeClass::Distort;
-    case blender::bke::NodeGroupColorTag::Filter:
+    case blender::bke::NodeColorTag::Filter:
       return blender::bke::NodeClass::OpFilter;
-    case blender::bke::NodeGroupColorTag::Geometry:
+    case blender::bke::NodeColorTag::Geometry:
       return blender::bke::NodeClass::Geometry;
-    case blender::bke::NodeGroupColorTag::Input:
+    case blender::bke::NodeColorTag::Input:
       return blender::bke::NodeClass::Input;
-    case blender::bke::NodeGroupColorTag::Matte:
+    case blender::bke::NodeColorTag::Matte:
       return blender::bke::NodeClass::Matte;
-    case blender::bke::NodeGroupColorTag::Output:
+    case blender::bke::NodeColorTag::Output:
       return blender::bke::NodeClass::Output;
-    case blender::bke::NodeGroupColorTag::Script:
+    case blender::bke::NodeColorTag::Script:
       return blender::bke::NodeClass::Script;
-    case blender::bke::NodeGroupColorTag::Shader:
+    case blender::bke::NodeColorTag::Shader:
       return blender::bke::NodeClass::Shader;
-    case blender::bke::NodeGroupColorTag::Texture:
+    case blender::bke::NodeColorTag::Texture:
       return blender::bke::NodeClass::Texture;
-    case blender::bke::NodeGroupColorTag::Vector:
+    case blender::bke::NodeColorTag::Vector:
       return blender::bke::NodeClass::OpVector;
-    case blender::bke::NodeGroupColorTag::Pattern:
+    case blender::bke::NodeColorTag::Pattern:
       return blender::bke::NodeClass::Pattern;
-    case blender::bke::NodeGroupColorTag::Interface:
+    case blender::bke::NodeColorTag::Interface:
       return blender::bke::NodeClass::Interface;
-    case blender::bke::NodeGroupColorTag::Group:
+    case blender::bke::NodeColorTag::Group:
       return blender::bke::NodeClass::Group;
   }
   return blender::bke::NodeClass::Group;
