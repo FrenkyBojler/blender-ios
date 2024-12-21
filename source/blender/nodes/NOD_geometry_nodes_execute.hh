@@ -6,7 +6,9 @@
 
 #include "BLI_compute_context.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_multi_value_map.hh"
+#include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 
 #include "BKE_idprop.hh"
@@ -65,5 +67,10 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
 void update_output_properties_from_node_tree(const bNodeTree &tree,
                                              const IDProperty *old_properties,
                                              IDProperty &properties);
+
+void get_geometry_nodes_input_base_values(const bNodeTree &btree,
+                                          const IDProperty *properties,
+                                          ResourceScope &scope,
+                                          MutableSpan<GPointer> r_values);
 
 }  // namespace blender::nodes

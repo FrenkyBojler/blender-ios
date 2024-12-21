@@ -96,6 +96,7 @@
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
+#include "NOD_socket_usage_inference.hh"
 
 #include "FN_field.hh"
 #include "FN_lazy_function_execute.hh"
@@ -2133,6 +2134,7 @@ static void draw_property_for_socket(const bContext &C,
                                      NodesModifierData *nmd,
                                      PointerRNA *bmain_ptr,
                                      PointerRNA *md_ptr,
+                                     const Span<bool> input_usages,
                                      const bNodeTreeInterfaceSocket &socket)
 {
   const StringRefNull identifier = socket.identifier;
@@ -2151,11 +2153,13 @@ static void draw_property_for_socket(const bContext &C,
   char rna_path[sizeof(socket_id_esc) + 4];
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
-  uiLayout *row = uiLayoutRow(layout, true);
-  uiLayoutSetPropDecorate(row, true);
-
   const int input_index =
       const_cast<const bNodeTree *>(nmd->node_group)->interface_inputs().first_index(&socket);
+  const bool is_used = input_usages[input_index];
+
+  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayoutSetActive(row, is_used);
+  uiLayoutSetPropDecorate(row, true);
 
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
    * information about what type of ID to select for editing the values. This is because
@@ -2263,6 +2267,7 @@ static void draw_interface_panel_content(const bContext *C,
                                          uiLayout *layout,
                                          PointerRNA *modifier_ptr,
                                          NodesModifierData &nmd,
+                                         const Span<bool> input_usages,
                                          const bNodeTreeInterfacePanel &interface_panel)
 {
   Main *bmain = CTX_data_main(C);
@@ -2289,14 +2294,16 @@ static void draw_interface_panel_content(const bContext *C,
           nullptr,
           nullptr);
       if (panel_layout.body) {
-        draw_interface_panel_content(C, panel_layout.body, modifier_ptr, nmd, sub_interface_panel);
+        draw_interface_panel_content(
+            C, panel_layout.body, modifier_ptr, nmd, input_usages, sub_interface_panel);
       }
     }
     else {
       const auto &interface_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
       if (interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
         if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
-          draw_property_for_socket(*C, layout, &nmd, &bmain_ptr, modifier_ptr, interface_socket);
+          draw_property_for_socket(
+              *C, layout, &nmd, &bmain_ptr, modifier_ptr, input_usages, interface_socket);
         }
       }
     }
@@ -2500,7 +2507,17 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
-    draw_interface_panel_content(C, layout, ptr, *nmd, nmd->node_group->tree_interface.root_panel);
+    const int inputs_num = nmd->node_group->interface_inputs().size();
+    Array<GPointer> input_values(inputs_num);
+    ResourceScope scope;
+    nodes::get_geometry_nodes_input_base_values(
+        *nmd->node_group, nmd->settings.properties, scope, input_values);
+    Array<bool> input_usages(inputs_num);
+    nodes::socket_usage_inference::infer_inputs_socket_usage(
+        *nmd->node_group, input_values, input_usages);
+
+    draw_interface_panel_content(
+        C, layout, ptr, *nmd, input_usages, nmd->node_group->tree_interface.root_panel);
   }
 
   modifier_panel_end(layout, ptr);
