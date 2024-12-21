@@ -329,6 +329,46 @@ static void handle_switch_node_input_usage(const SocketInContext &socket,
   all_socket_usages.add_new(socket, is_used);
 }
 
+static void handle_index_switch_node_input_usage(
+    const SocketInContext &socket,
+    Stack<Task> &tasks,
+    Map<SocketInContext, bool> &all_socket_usages,
+    Map<SocketInContext, const void *> &all_socket_values)
+{
+  const bNode &node = socket->owner_node();
+  const bNodeSocket &output_socket = node.output_socket(0);
+  const std::optional<bool> output_is_used = all_socket_usages.lookup_try(
+      {socket.context, &output_socket});
+  if (!output_is_used.has_value()) {
+    tasks.push({TaskType::Usage, {socket.context, &output_socket}});
+    return;
+  }
+  if (!*output_is_used) {
+    all_socket_usages.add_new(socket, false);
+    return;
+  }
+  const bNodeSocket &index_socket = node.input_socket(0);
+  if (socket.socket == &index_socket) {
+    all_socket_usages.add_new(socket, true);
+    return;
+  }
+  const std::optional<const void *> index_ptr = all_socket_values.lookup_try(
+      {socket.context, &index_socket});
+  if (!index_ptr.has_value()) {
+    tasks.push({TaskType::Value, {socket.context, &index_socket}});
+    return;
+  }
+  if (*index_ptr == nullptr) {
+    /* The index is unknown, so any input may be used. */
+    all_socket_usages.add_new(socket, true);
+    return;
+  }
+  const int index = *static_cast<const int *>(*index_ptr);
+  const int item_i = socket->index() - 1;
+  const bool is_used = index == item_i;
+  all_socket_usages.add_new(socket, is_used);
+}
+
 static void handle_menu_switch_node_input_usage(
     const SocketInContext &socket,
     Stack<Task> &tasks,
@@ -477,6 +517,10 @@ static void handle_input_usage_task(const SocketInContext &socket,
     }
     case GEO_NODE_SWITCH: {
       handle_switch_node_input_usage(socket, tasks, all_socket_usages, all_socket_values);
+      break;
+    }
+    case GEO_NODE_INDEX_SWITCH: {
+      handle_index_switch_node_input_usage(socket, tasks, all_socket_usages, all_socket_values);
       break;
     }
     case GEO_NODE_MENU_SWITCH: {
