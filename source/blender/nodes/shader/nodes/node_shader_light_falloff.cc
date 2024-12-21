@@ -54,7 +54,8 @@ void register_node_type_sh_light_falloff()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_LIGHT_FALLOFF, "Light Falloff", blender::bke::NodeClass::OpColor);
+  sh_node_type_base(
+      &ntype, SH_NODE_LIGHT_FALLOFF, "Light Falloff", blender::bke::NodeClass::OpColor);
   ntype.enum_name_legacy = "LIGHT_FALLOFF";
   ntype.declare = file_ns::node_declare;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);

@@ -73,7 +73,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_CURVE_TILT, "Set Curve Tilt", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_SET_CURVE_TILT, "Set Curve Tilt", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "SET_CURVE_TILT";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

@@ -103,7 +103,8 @@ void register_node_type_cmp_premulkey()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_PREMULKEY, "Alpha Convert", blender::bke::NodeClass::Converter);
+  cmp_node_type_base(
+      &ntype, CMP_NODE_PREMULKEY, "Alpha Convert", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "PREMULKEY";
   ntype.declare = file_ns::cmp_node_premulkey_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_premulkey;

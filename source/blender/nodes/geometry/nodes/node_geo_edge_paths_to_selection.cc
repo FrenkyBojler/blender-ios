@@ -132,8 +132,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_EDGE_PATHS_TO_SELECTION, "Edge Paths to Selection", blender::bke::NodeClass::Input);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_EDGE_PATHS_TO_SELECTION,
+                     "Edge Paths to Selection",
+                     blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "EDGE_PATHS_TO_SELECTION";
   ntype.declare = node_declare;
   blender::bke::node_type_size(&ntype, 150, 100, 300);

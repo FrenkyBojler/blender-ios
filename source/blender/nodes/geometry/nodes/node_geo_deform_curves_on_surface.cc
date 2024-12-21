@@ -394,8 +394,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_DEFORM_CURVES_ON_SURFACE, "Deform Curves on Surface", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_DEFORM_CURVES_ON_SURFACE,
+                     "Deform Curves on Surface",
+                     blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "DEFORM_CURVES_ON_SURFACE";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

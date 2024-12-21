@@ -496,7 +496,8 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_BLUR_ATTRIBUTE, "Blur Attribute", blender::bke::NodeClass::Attribute);
+  geo_node_type_base(
+      &ntype, GEO_NODE_BLUR_ATTRIBUTE, "Blur Attribute", blender::bke::NodeClass::Attribute);
   ntype.enum_name_legacy = "BLUR_ATTRIBUTE";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;

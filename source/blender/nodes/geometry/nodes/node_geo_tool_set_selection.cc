@@ -201,7 +201,8 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_TOOL_SET_SELECTION, "Set Selection", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_TOOL_SET_SELECTION, "Set Selection", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "TOOL_SELECTION_SET";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

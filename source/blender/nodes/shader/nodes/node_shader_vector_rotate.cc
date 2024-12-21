@@ -268,7 +268,8 @@ void register_node_type_sh_vector_rotate()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_VECTOR_ROTATE, "Vector Rotate", blender::bke::NodeClass::OpVector);
+  sh_fn_node_type_base(
+      &ntype, SH_NODE_VECTOR_ROTATE, "Vector Rotate", blender::bke::NodeClass::OpVector);
   ntype.enum_name_legacy = "VECTOR_ROTATE";
   ntype.declare = file_ns::sh_node_vector_rotate_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_vector_rotate;

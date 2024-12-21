@@ -25,7 +25,8 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_GEOMETRY_NAME, "Set Geometry Name", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_SET_GEOMETRY_NAME, "Set Geometry Name", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "SET_GEOMETRY_NAME";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

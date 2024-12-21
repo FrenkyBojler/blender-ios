@@ -28,7 +28,8 @@ static void node_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_SCENE_TIME, "Scene Time", blender::bke::NodeClass::Input);
+  geo_node_type_base(
+      &ntype, GEO_NODE_INPUT_SCENE_TIME, "Scene Time", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "INPUT_SCENE_TIME";
   ntype.geometry_node_execute = node_exec;
   ntype.declare = node_declare;

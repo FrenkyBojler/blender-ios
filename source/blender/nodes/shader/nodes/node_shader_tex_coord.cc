@@ -106,7 +106,8 @@ void register_node_type_sh_tex_coord()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_TEX_COORD, "Texture Coordinate", blender::bke::NodeClass::Input);
+  sh_node_type_base(
+      &ntype, SH_NODE_TEX_COORD, "Texture Coordinate", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "TEX_COORD";
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_coord;

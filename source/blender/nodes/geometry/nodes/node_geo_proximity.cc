@@ -308,7 +308,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_PROXIMITY, "Geometry Proximity", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_PROXIMITY, "Geometry Proximity", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "PROXIMITY";
   ntype.initfunc = geo_proximity_init;
   blender::bke::node_type_storage(

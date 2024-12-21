@@ -78,7 +78,8 @@ void register_node_type_sh_output_material()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_OUTPUT_MATERIAL, "Material Output", blender::bke::NodeClass::Output);
+  sh_node_type_base(
+      &ntype, SH_NODE_OUTPUT_MATERIAL, "Material Output", blender::bke::NodeClass::Output);
   ntype.enum_name_legacy = "OUTPUT_MATERIAL";
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;

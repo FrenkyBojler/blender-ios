@@ -784,7 +784,8 @@ void register_node_type_group_input()
   blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("node type");
   ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
 
-  blender::bke::node_type_base(ntype, NODE_GROUP_INPUT, "Group Input", blender::bke::NodeClass::Interface);
+  blender::bke::node_type_base(
+      ntype, NODE_GROUP_INPUT, "Group Input", blender::bke::NodeClass::Interface);
   ntype->enum_name_legacy = "GROUP_INPUT";
   blender::bke::node_type_size(ntype, 140, 80, 400);
   ntype->declare = blender::nodes::group_input_declare;
@@ -809,7 +810,8 @@ void register_node_type_group_output()
   blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("node type");
   ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
 
-  blender::bke::node_type_base(ntype, NODE_GROUP_OUTPUT, "Group Output", blender::bke::NodeClass::Interface);
+  blender::bke::node_type_base(
+      ntype, NODE_GROUP_OUTPUT, "Group Output", blender::bke::NodeClass::Interface);
   ntype->enum_name_legacy = "GROUP_OUTPUT";
   blender::bke::node_type_size(ntype, 140, 80, 400);
   ntype->declare = blender::nodes::group_output_declare;

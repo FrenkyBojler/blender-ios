@@ -222,7 +222,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_MESH_PRIMITIVE_LINE, "Mesh Line", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_MESH_PRIMITIVE_LINE, "Mesh Line", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "MESH_PRIMITIVE_LINE";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

@@ -370,7 +370,8 @@ static void register_node()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INDEX_SWITCH, "Index Switch", blender::bke::NodeClass::Converter);
+  geo_node_type_base(
+      &ntype, GEO_NODE_INDEX_SWITCH, "Index Switch", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "INDEX_SWITCH";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

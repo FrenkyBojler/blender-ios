@@ -71,7 +71,8 @@ void register_node_type_cmp_separate_xyz()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_SEPARATE_XYZ, "Separate XYZ", blender::bke::NodeClass::Converter);
+  cmp_node_type_base(
+      &ntype, CMP_NODE_SEPARATE_XYZ, "Separate XYZ", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "SEPARATE_XYZ";
   ntype.declare = file_ns::cmp_node_separate_xyz_declare;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
@@ -129,7 +130,8 @@ void register_node_type_cmp_combine_xyz()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_COMBINE_XYZ, "Combine XYZ", blender::bke::NodeClass::Converter);
+  cmp_node_type_base(
+      &ntype, CMP_NODE_COMBINE_XYZ, "Combine XYZ", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "COMBINE_XYZ";
   ntype.declare = file_ns::cmp_node_combine_xyz_declare;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;

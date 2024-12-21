@@ -33,7 +33,8 @@ void register_node_type_sh_shadertorgb()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_SHADERTORGB, "Shader to RGB", blender::bke::NodeClass::Converter);
+  sh_node_type_base(
+      &ntype, SH_NODE_SHADERTORGB, "Shader to RGB", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "SHADERTORGB";
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_eevee_shader_nodes_poll;

@@ -118,8 +118,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_CURVE_HANDLES, "Curve Handle Positions", blender::bke::NodeClass::Input);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_INPUT_CURVE_HANDLES,
+                     "Curve Handle Positions",
+                     blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "INPUT_CURVE_HANDLES";
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.geometry_node_execute = node_geo_exec;

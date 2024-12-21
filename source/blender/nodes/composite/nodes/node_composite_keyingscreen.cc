@@ -169,7 +169,8 @@ void register_node_type_cmp_keyingscreen()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_KEYINGSCREEN, "Keying Screen", blender::bke::NodeClass::Matte);
+  cmp_node_type_base(
+      &ntype, CMP_NODE_KEYINGSCREEN, "Keying Screen", blender::bke::NodeClass::Matte);
   ntype.enum_name_legacy = "KEYINGSCREEN";
   ntype.declare = file_ns::cmp_node_keyingscreen_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_keyingscreen;

@@ -310,8 +310,10 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_PRIMITIVE_QUADRILATERAL, "Quadrilateral", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_CURVE_PRIMITIVE_QUADRILATERAL,
+                     "Quadrilateral",
+                     blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "CURVE_PRIMITIVE_QUADRILATERAL";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

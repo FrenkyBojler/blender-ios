@@ -236,7 +236,8 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_COMBINE_MATRIX, "Combine Matrix", blender::bke::NodeClass::Converter);
+  fn_node_type_base(
+      &ntype, FN_NODE_COMBINE_MATRIX, "Combine Matrix", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "COMBINE_MATRIX";
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;

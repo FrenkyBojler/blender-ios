@@ -101,7 +101,8 @@ void register_node_type_cmp_antialiasing()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_ANTIALIASING, "Anti-Aliasing", blender::bke::NodeClass::OpFilter);
+  cmp_node_type_base(
+      &ntype, CMP_NODE_ANTIALIASING, "Anti-Aliasing", blender::bke::NodeClass::OpFilter);
   ntype.enum_name_legacy = "ANTIALIASING";
   ntype.declare = file_ns::cmp_node_antialiasing_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_antialiasing;

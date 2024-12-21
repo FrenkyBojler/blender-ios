@@ -154,7 +154,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_TRIANGULATE, "Triangulate", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_TRIANGULATE, "Triangulate", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "TRIANGULATE";
   ntype.declare = node_declare;
   ntype.initfunc = geo_triangulate_init;

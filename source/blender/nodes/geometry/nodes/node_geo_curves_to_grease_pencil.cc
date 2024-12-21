@@ -220,8 +220,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_CURVES_TO_GREASE_PENCIL, "Curves to Grease Pencil", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(&ntype,
+                     GEO_NODE_CURVES_TO_GREASE_PENCIL,
+                     "Curves to Grease Pencil",
+                     blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "CURVES_TO_GREASE_PENCIL";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

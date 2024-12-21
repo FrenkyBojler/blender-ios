@@ -79,7 +79,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_FLOAT_TO_INT, "Float to Integer", blender::bke::NodeClass::Converter);
+  fn_node_type_base(
+      &ntype, FN_NODE_FLOAT_TO_INT, "Float to Integer", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "FLOAT_TO_INT";
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;

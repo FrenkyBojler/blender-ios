@@ -378,7 +378,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_STRING_TO_CURVES, "String to Curves", blender::bke::NodeClass::Geometry);
+  geo_node_type_base(
+      &ntype, GEO_NODE_STRING_TO_CURVES, "String to Curves", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "STRING_TO_CURVES";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
