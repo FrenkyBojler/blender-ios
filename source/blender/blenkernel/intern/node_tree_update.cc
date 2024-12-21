@@ -571,6 +571,8 @@ class NodeTreeMainUpdater {
     const Span<const bNode *> group_nodes = tree.group_nodes();
     for (const bNode *group_node : group_nodes) {
       const bNodeTree *group = reinterpret_cast<const bNodeTree *>(group_node->id);
+      group->ensure_interface_cache();
+      group->ensure_topology_cache();
       if (group == nullptr) {
         continue;
       }
