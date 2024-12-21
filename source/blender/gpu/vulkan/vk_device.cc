@@ -103,6 +103,7 @@ void VKDevice::init(void *ghost_context)
   debug::object_label(queue_get(), "GenericQueue");
   init_glsl_patch();
 
+  resources.use_dynamic_rendering = !workarounds_.dynamic_rendering;
   resources.use_dynamic_rendering_local_read = !workarounds_.dynamic_rendering_local_read;
 }
 
