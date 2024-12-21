@@ -11,6 +11,7 @@
 #include "DNA_node_types.h"
 
 #include "BKE_node_runtime.hh"
+#include "BKE_type_conversions.hh"
 
 #include "BLI_stack.hh"
 
@@ -39,21 +40,50 @@ static void handle_unlinked_input_value(const bNodeSocket &socket,
   }
 }
 
+static const void *convert_type_if_necessary(const void *src,
+                                             ResourceScope &scope,
+                                             const bNodeSocket &from_socket,
+                                             const bNodeSocket &to_socket)
+{
+  if (!src) {
+    return nullptr;
+  }
+  const CPPType *from_type = from_socket.typeinfo->base_cpp_type;
+  const CPPType *to_type = to_socket.typeinfo->base_cpp_type;
+  if (from_type == to_type) {
+    return src;
+  }
+  if (!to_type) {
+    return nullptr;
+  }
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  if (!conversions.is_convertible(*from_type, *to_type)) {
+    return nullptr;
+  }
+  void *dst = scope.linear_allocator().allocate(to_type->size(), to_type->alignment());
+  conversions.convert_to_uninitialized(*from_type, *to_type, src, dst);
+  if (!to_type->is_trivially_destructible()) {
+    scope.add_destruct_call([to_type, dst]() { to_type->destruct(dst); });
+  }
+  return dst;
+}
+
 static void handle_linked_input_value(const bNodeLink &link,
                                       Stack<Task> &tasks,
+                                      ResourceScope &scope,
                                       MutableSpan<std::optional<const void *>> all_socket_values)
 {
   const bNodeSocket &socket = *link.tosock;
   const bNodeSocket &origin_socket = *link.fromsock;
-  /* TODO: type conversion */
-  BLI_assert(origin_socket.type == socket.type);
   const std::optional<const void *> &origin_value =
       all_socket_values[origin_socket.index_in_tree()];
   if (!origin_value.has_value()) {
     tasks.push({TaskType::Value, &origin_socket});
     return;
   }
-  all_socket_values[socket.index_in_tree()] = origin_value;
+  const void *converted_value = convert_type_if_necessary(
+      *origin_value, scope, origin_socket, socket);
+  all_socket_values[socket.index_in_tree()] = converted_value;
 }
 
 static void handle_input_value_task(const bNodeSocket &socket,
@@ -84,12 +114,13 @@ static void handle_input_value_task(const bNodeSocket &socket,
     handle_unlinked_input_value(socket, scope, all_socket_values);
     return;
   }
-  handle_linked_input_value(*source_link, tasks, all_socket_values);
+  handle_linked_input_value(*source_link, tasks, scope, all_socket_values);
 }
 
 static void handle_muted_node_output_value(
     const bNodeSocket &socket,
     Stack<Task> &tasks,
+    ResourceScope &scope,
     MutableSpan<std::optional<const void *>> all_socket_values)
 {
   const bNode &node = socket.owner_node();
@@ -112,8 +143,9 @@ static void handle_muted_node_output_value(
     tasks.push({TaskType::Value, input_socket});
     return;
   }
-  /* TODO: Handle type conversion. */
-  all_socket_values[socket_tree_index] = input_value;
+  const void *converted_value = convert_type_if_necessary(
+      *input_value, scope, *input_socket, socket);
+  all_socket_values[socket_tree_index] = converted_value;
 }
 
 static void handle_multi_function_node_output_value(
@@ -188,7 +220,7 @@ static void handle_output_value_task(const bNodeTree &tree,
   const int socket_tree_index = socket.index_in_tree();
 
   if (node.is_muted()) {
-    handle_muted_node_output_value(socket, tasks, all_socket_values);
+    handle_muted_node_output_value(socket, tasks, scope, all_socket_values);
     return;
   }
   if (node.typeinfo->build_multi_function) {
