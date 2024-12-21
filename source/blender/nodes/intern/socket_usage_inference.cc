@@ -86,40 +86,46 @@ static void handle_input_value_task(const bNodeSocket &socket,
   handle_linked_input_value(*source_link, tasks, all_socket_values);
 }
 
-static void handle_output_value_task(const bNodeTree &tree,
-                                     const bNodeSocket &socket,
-                                     Stack<Task> &tasks,
-                                     ResourceScope &scope,
-                                     MutableSpan<std::optional<const void *>> all_socket_values)
+static void handle_muted_node_output_value(
+    const bNodeSocket &socket,
+    Stack<Task> &tasks,
+    MutableSpan<std::optional<const void *>> all_socket_values)
+{
+  const bNode &node = socket.owner_node();
+  const int socket_tree_index = socket.index_in_tree();
+
+  const bNodeSocket *input_socket = nullptr;
+  for (const bNodeLink &internal_link : node.internal_links()) {
+    if (internal_link.tosock == &socket) {
+      input_socket = internal_link.fromsock;
+      break;
+    }
+  }
+  if (!input_socket) {
+    all_socket_values[socket_tree_index] = nullptr;
+    return;
+  }
+  const std::optional<const void *> &input_value =
+      all_socket_values[input_socket->index_in_tree()];
+  if (!input_value.has_value()) {
+    tasks.push({TaskType::Value, input_socket});
+    return;
+  }
+  /* TODO: Handle type conversion. */
+  all_socket_values[socket_tree_index] = input_value;
+}
+
+static void handle_multi_function_node_output_value(
+    const bNodeTree &tree,
+    const bNodeSocket &socket,
+    Stack<Task> &tasks,
+    ResourceScope &scope,
+    MutableSpan<std::optional<const void *>> all_socket_values)
 {
   const bNode &node = socket.owner_node();
   const int socket_tree_index = socket.index_in_tree();
   const int prev_tasks_num = tasks.size();
-  if (node.is_muted()) {
-    const bNodeSocket *input_socket = nullptr;
-    for (const bNodeLink &internal_link : node.internal_links()) {
-      if (internal_link.tosock == &socket) {
-        input_socket = internal_link.fromsock;
-        break;
-      }
-    }
-    if (!input_socket) {
-      all_socket_values[socket_tree_index] = nullptr;
-      return;
-    }
-    const std::optional<const void *> &input_value =
-        all_socket_values[input_socket->index_in_tree()];
-    if (!input_value.has_value()) {
-      tasks.push({TaskType::Value, input_socket});
-      return;
-    }
-    all_socket_values[socket_tree_index] = input_value;
-    return;
-  }
-  if (!node.typeinfo->build_multi_function) {
-    all_socket_values[socket_tree_index] = nullptr;
-    return;
-  }
+
   for (const bNodeSocket *input_socket : node.input_sockets()) {
     const std::optional<const void *> &input_value =
         all_socket_values[input_socket->index_in_tree()];
@@ -169,6 +175,26 @@ static void handle_output_value_task(const bNodeTree &tree,
   }
   mf::ContextBuilder context;
   fn.call(mask, params, context);
+}
+
+static void handle_output_value_task(const bNodeTree &tree,
+                                     const bNodeSocket &socket,
+                                     Stack<Task> &tasks,
+                                     ResourceScope &scope,
+                                     MutableSpan<std::optional<const void *>> all_socket_values)
+{
+  const bNode &node = socket.owner_node();
+  const int socket_tree_index = socket.index_in_tree();
+
+  if (node.is_muted()) {
+    handle_muted_node_output_value(socket, tasks, all_socket_values);
+    return;
+  }
+  if (node.typeinfo->build_multi_function) {
+    handle_multi_function_node_output_value(tree, socket, tasks, scope, all_socket_values);
+    return;
+  }
+  all_socket_values[socket_tree_index] = nullptr;
 }
 
 static void handle_value_task(const bNodeTree &tree,
