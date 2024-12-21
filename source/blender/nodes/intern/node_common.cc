@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <list>
 
 #include "DNA_asset_types.h"
 #include "DNA_node_types.h"
@@ -608,11 +609,36 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
 
     /* Special case when there is a reroute chain that is disconnected from any other nodes */
-    if (link->fromnode->type == NODE_REROUTE 
-        && link->tonode->type == NODE_REROUTE 
-        && !static_cast<bNodeSocket*>(link->fromnode->inputs.first)->is_directly_linked())
-    {
-      nodes_linked_with_reroutes.add(link->fromnode);
+    if (link->fromnode->type == NODE_REROUTE && link->tonode->type == NODE_REROUTE) {
+      ntree->ensure_topology_cache();
+      
+      if (!static_cast<bNodeSocket *>(link->fromnode->inputs.first)->is_directly_linked()) {
+
+        auto should_add_to_list = true;
+
+        auto links_from_reroute =
+            static_cast<bNodeSocket *>(link->tonode->outputs.first)->directly_linked_links();
+
+        std::list links_to_visit(links_from_reroute.begin(), links_from_reroute.end());
+
+        while (!links_to_visit.empty()) {
+          auto l = links_to_visit.front();
+          links_to_visit.pop_front();
+
+          if (l->tonode->type != NODE_REROUTE) {
+            should_add_to_list = false;
+            break;
+          }
+          links_from_reroute =
+              static_cast<bNodeSocket *>(l->tonode->outputs.first)->directly_linked_links();
+          links_to_visit.insert(
+              links_to_visit.end(), links_from_reroute.begin(), links_from_reroute.end());
+        }
+
+        if (should_add_to_list) {
+          nodes_linked_with_reroutes.add(link->fromnode);
+        }
+      }
     }
 
     links_map.add(link->fromsock, link);
