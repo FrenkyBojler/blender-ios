@@ -21,25 +21,10 @@ struct NodeInContext {
   const ComputeContext *context = nullptr;
   const bNode *node = nullptr;
 
-  uint64_t hash() const
-  {
-    return get_default_hash(this->context_hash(), this->node);
-  }
-
-  ComputeContextHash context_hash() const
-  {
-    return context ? context->hash() : ComputeContextHash{};
-  }
-
-  const bNode *operator->() const
-  {
-    return this->node;
-  }
-
-  operator bool() const
-  {
-    return this->node != nullptr;
-  }
+  uint64_t hash() const;
+  ComputeContextHash context_hash() const;
+  const bNode *operator->() const;
+  operator bool() const;
 
   /**
    * Two nodes in context compare equal if their context hash is equal, not the pointer to the
@@ -56,25 +41,10 @@ struct SocketInContext {
   const ComputeContext *context = nullptr;
   const bNodeSocket *socket = nullptr;
 
-  uint64_t hash() const
-  {
-    return get_default_hash(this->context_hash(), this->socket);
-  }
-
-  ComputeContextHash context_hash() const
-  {
-    return context ? context->hash() : ComputeContextHash{};
-  }
-
-  const bNodeSocket *operator->() const
-  {
-    return this->socket;
-  }
-
-  operator bool() const
-  {
-    return this->socket != nullptr;
-  }
+  uint64_t hash() const;
+  ComputeContextHash context_hash() const;
+  const bNodeSocket *operator->() const;
+  operator bool() const;
 
   /**
    * Two sockets in context compare equal if their context hash is equal, not the pointer to the
@@ -82,5 +52,45 @@ struct SocketInContext {
    */
   BLI_STRUCT_EQUALITY_OPERATORS_2(SocketInContext, context_hash(), socket)
 };
+
+inline uint64_t NodeInContext::hash() const
+{
+  return get_default_hash(this->context_hash(), this->node);
+}
+
+inline ComputeContextHash NodeInContext::context_hash() const
+{
+  return context ? context->hash() : ComputeContextHash{};
+}
+
+inline const bNode *NodeInContext::operator->() const
+{
+  return this->node;
+}
+
+inline NodeInContext::operator bool() const
+{
+  return this->node != nullptr;
+}
+
+inline uint64_t SocketInContext::hash() const
+{
+  return get_default_hash(this->context_hash(), this->socket);
+}
+
+inline ComputeContextHash SocketInContext::context_hash() const
+{
+  return context ? context->hash() : ComputeContextHash{};
+}
+
+inline const bNodeSocket *SocketInContext::operator->() const
+{
+  return this->socket;
+}
+
+inline SocketInContext::operator bool() const
+{
+  return this->socket != nullptr;
+}
 
 }  // namespace blender::nodes
