@@ -6,6 +6,7 @@
 
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_multi_function.hh"
+#include "NOD_node_in_compute_context.hh"
 #include "NOD_socket_usage_inference.hh"
 
 #include "DNA_node_types.h"
@@ -24,17 +25,17 @@ enum class TaskType {
 
 struct Task {
   TaskType type;
-  const bNodeSocket *socket = nullptr;
+  SocketInContext socket;
 };
 
-static void handle_unlinked_input_value(const bNodeSocket &socket,
+static void handle_unlinked_input_value(const SocketInContext &socket,
                                         ResourceScope &scope,
-                                        MutableSpan<std::optional<const void *>> all_socket_values)
+                                        Map<SocketInContext, const void *> &all_socket_values)
 {
-  const CPPType &base_type = *socket.typeinfo->base_cpp_type;
+  const CPPType &base_type = *socket->typeinfo->base_cpp_type;
   void *value_buffer = scope.linear_allocator().allocate(base_type.size(), base_type.alignment());
-  socket.typeinfo->get_base_cpp_value(socket.default_value, value_buffer);
-  all_socket_values[socket.index_in_tree()] = value_buffer;
+  socket->typeinfo->get_base_cpp_value(socket->default_value, value_buffer);
+  all_socket_values.add_new(socket, value_buffer);
   if (!base_type.is_trivially_destructible()) {
     scope.add_destruct_call([type = &base_type, value_buffer]() { type->destruct(value_buffer); });
   }
@@ -68,38 +69,33 @@ static const void *convert_type_if_necessary(const void *src,
   return dst;
 }
 
-static void handle_linked_input_value(const bNodeLink &link,
+static void handle_linked_input_value(const SocketInContext &from_socket,
+                                      const SocketInContext &to_socket,
                                       Stack<Task> &tasks,
                                       ResourceScope &scope,
-                                      MutableSpan<std::optional<const void *>> all_socket_values)
+                                      Map<SocketInContext, const void *> &all_socket_values)
 {
-  const bNodeSocket &socket = *link.tosock;
-  const bNodeSocket &origin_socket = *link.fromsock;
-  const std::optional<const void *> &origin_value =
-      all_socket_values[origin_socket.index_in_tree()];
-  if (!origin_value.has_value()) {
-    tasks.push({TaskType::Value, &origin_socket});
+  if (!all_socket_values.contains(from_socket)) {
+    tasks.push({TaskType::Value, from_socket});
     return;
   }
   const void *converted_value = convert_type_if_necessary(
-      *origin_value, scope, origin_socket, socket);
-  all_socket_values[socket.index_in_tree()] = converted_value;
+      all_socket_values.lookup(from_socket), scope, *from_socket.socket, *to_socket.socket);
+  all_socket_values.add_new(to_socket, converted_value);
 }
 
-static void handle_input_value_task(const bNodeSocket &socket,
+static void handle_input_value_task(const SocketInContext &socket,
                                     Stack<Task> &tasks,
                                     ResourceScope &scope,
-                                    MutableSpan<std::optional<const void *>> all_socket_values)
+                                    Map<SocketInContext, const void *> &all_socket_values)
 {
-  const int socket_tree_index = socket.index_in_tree();
-
-  if (socket.is_multi_input()) {
+  if (socket->is_multi_input()) {
     /* Can't know the single value of a multi-input. */
-    all_socket_values[socket_tree_index] = nullptr;
+    all_socket_values.add_new(socket, nullptr);
     return;
   }
   const bNodeLink *source_link = nullptr;
-  const Span<const bNodeLink *> connected_links = socket.directly_linked_links();
+  const Span<const bNodeLink *> connected_links = socket->directly_linked_links();
   for (const bNodeLink *link : connected_links) {
     if (!link->is_used()) {
       continue;
@@ -114,70 +110,55 @@ static void handle_input_value_task(const bNodeSocket &socket,
     handle_unlinked_input_value(socket, scope, all_socket_values);
     return;
   }
-  handle_linked_input_value(*source_link, tasks, scope, all_socket_values);
+  handle_linked_input_value(
+      {socket.context, source_link->fromsock}, socket, tasks, scope, all_socket_values);
 }
 
-static void handle_muted_node_output_value(
-    const bNodeSocket &socket,
-    Stack<Task> &tasks,
-    ResourceScope &scope,
-    MutableSpan<std::optional<const void *>> all_socket_values)
+static void handle_muted_node_output_value(const SocketInContext &socket,
+                                           Stack<Task> &tasks,
+                                           ResourceScope &scope,
+                                           Map<SocketInContext, const void *> &all_socket_values)
 {
-  const bNode &node = socket.owner_node();
-  const int socket_tree_index = socket.index_in_tree();
+  const bNode &node = socket->owner_node();
 
-  const bNodeSocket *input_socket = nullptr;
+  SocketInContext input_socket;
   for (const bNodeLink &internal_link : node.internal_links()) {
-    if (internal_link.tosock == &socket) {
-      input_socket = internal_link.fromsock;
+    if (internal_link.tosock == socket.socket) {
+      input_socket = SocketInContext{socket.context, internal_link.fromsock};
       break;
     }
   }
   if (!input_socket) {
-    all_socket_values[socket_tree_index] = nullptr;
+    all_socket_values.add_new(socket, nullptr);
     return;
   }
-  const std::optional<const void *> &input_value =
-      all_socket_values[input_socket->index_in_tree()];
-  if (!input_value.has_value()) {
+  if (!all_socket_values.contains(input_socket)) {
     tasks.push({TaskType::Value, input_socket});
     return;
   }
   const void *converted_value = convert_type_if_necessary(
-      *input_value, scope, *input_socket, socket);
-  all_socket_values[socket_tree_index] = converted_value;
+      all_socket_values.lookup(input_socket), scope, *input_socket.socket, *socket.socket);
+  all_socket_values.add_new(socket, converted_value);
 }
 
 static void handle_multi_function_node_output_value(
     const bNodeTree &tree,
-    const bNodeSocket &socket,
+    const SocketInContext &socket,
     Stack<Task> &tasks,
     ResourceScope &scope,
-    MutableSpan<std::optional<const void *>> all_socket_values)
+    Map<SocketInContext, const void *> &all_socket_values)
 {
-  const bNode &node = socket.owner_node();
-  const int socket_tree_index = socket.index_in_tree();
-  const int prev_tasks_num = tasks.size();
+  const bNode &node = socket->owner_node();
 
   for (const bNodeSocket *input_socket : node.input_sockets()) {
-    const std::optional<const void *> &input_value =
-        all_socket_values[input_socket->index_in_tree()];
-    if (!input_value.has_value()) {
-      tasks.push({TaskType::Value, input_socket});
-      break;
+    if (!all_socket_values.contains({socket.context, input_socket})) {
+      tasks.push({TaskType::Value, {socket.context, input_socket}});
+      return;
     }
-    if (*input_value == nullptr) {
-      all_socket_values[socket_tree_index] = nullptr;
-      break;
+    if (all_socket_values.lookup({socket.context, input_socket}) == nullptr) {
+      all_socket_values.add_new(socket, nullptr);
+      return;
     }
-  }
-  if (tasks.size() > prev_tasks_num) {
-    /* Waiting for input value. */
-    return;
-  }
-  if (all_socket_values[socket_tree_index].has_value()) {
-    /* Done already. */
-    return;
   }
 
   NodeMultiFunctionBuilder builder{node, tree};
@@ -189,7 +170,7 @@ static void handle_multi_function_node_output_value(
     if (!input_socket->is_available()) {
       continue;
     }
-    const void *value = *all_socket_values[input_socket->index_in_tree()];
+    const void *value = all_socket_values.lookup({socket.context, input_socket});
     BLI_assert(value);
     params.add_readonly_single_input(GPointer(input_socket->typeinfo->base_cpp_type, value));
   }
@@ -200,7 +181,7 @@ static void handle_multi_function_node_output_value(
     const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
     void *value = scope.linear_allocator().allocate(base_type.size(), base_type.alignment());
     params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
-    all_socket_values[output_socket->index_in_tree()] = value;
+    all_socket_values.add_new({socket.context, output_socket}, value);
     if (!base_type.is_trivially_destructible()) {
       scope.add_destruct_call(
           [type = &base_type, value]() { type->destruct(const_cast<void *>(value)); });
@@ -211,14 +192,12 @@ static void handle_multi_function_node_output_value(
 }
 
 static void handle_output_value_task(const bNodeTree &tree,
-                                     const bNodeSocket &socket,
+                                     const SocketInContext &socket,
                                      Stack<Task> &tasks,
                                      ResourceScope &scope,
-                                     MutableSpan<std::optional<const void *>> all_socket_values)
+                                     Map<SocketInContext, const void *> &all_socket_values)
 {
-  const bNode &node = socket.owner_node();
-  const int socket_tree_index = socket.index_in_tree();
-
+  const bNode &node = socket->owner_node();
   if (node.is_muted()) {
     handle_muted_node_output_value(socket, tasks, scope, all_socket_values);
     return;
@@ -227,26 +206,24 @@ static void handle_output_value_task(const bNodeTree &tree,
     handle_multi_function_node_output_value(tree, socket, tasks, scope, all_socket_values);
     return;
   }
-  all_socket_values[socket_tree_index] = nullptr;
+  all_socket_values.add_new(socket, nullptr);
 }
 
 static void handle_value_task(const bNodeTree &tree,
-                              const bNodeSocket &socket,
+                              const SocketInContext &socket,
                               Stack<Task> &tasks,
                               ResourceScope &scope,
-                              MutableSpan<std::optional<const void *>> all_socket_values)
+                              Map<SocketInContext, const void *> &all_socket_values)
 {
-  const int socket_tree_index = socket.index_in_tree();
-
-  if (all_socket_values[socket_tree_index].has_value()) {
+  if (all_socket_values.contains(socket)) {
     return;
   }
-  const CPPType *base_type = socket.typeinfo->base_cpp_type;
+  const CPPType *base_type = socket.socket->typeinfo->base_cpp_type;
   if (!base_type) {
-    all_socket_values[socket_tree_index] = nullptr;
+    all_socket_values.add_new(socket, nullptr);
     return;
   }
-  if (socket.is_input()) {
+  if (socket->is_input()) {
     handle_input_value_task(socket, tasks, scope, all_socket_values);
   }
   else {
@@ -254,139 +231,121 @@ static void handle_value_task(const bNodeTree &tree,
   }
 }
 
-static void handle_switch_node_input_usage(
-    const bNodeSocket &socket,
-    Stack<Task> &tasks,
-    MutableSpan<std::optional<bool>> all_socket_usages,
-    MutableSpan<std::optional<const void *>> all_socket_values)
+static void handle_switch_node_input_usage(const SocketInContext &socket,
+                                           Stack<Task> &tasks,
+                                           Map<SocketInContext, bool> &all_socket_usages,
+                                           Map<SocketInContext, const void *> &all_socket_values)
 {
-  const bNode &node = socket.owner_node();
-  const int socket_tree_index = socket.index_in_tree();
+  const bNode &node = socket->owner_node();
 
   const bNodeSocket &output_socket = node.output_socket(0);
-  const std::optional<bool> &output_usage = all_socket_usages[output_socket.index_in_tree()];
-  if (!output_usage.has_value()) {
-    tasks.push({TaskType::Usage, &output_socket});
+  if (!all_socket_usages.contains({socket.context, &output_socket})) {
+    tasks.push({TaskType::Usage, {socket.context, &output_socket}});
     return;
   }
-  if (!*output_usage) {
-    all_socket_usages[socket_tree_index] = false;
+  if (!all_socket_usages.lookup({socket.context, &output_socket})) {
+    all_socket_usages.add_new({socket.context, &output_socket}, false);
     return;
   }
   const bNodeSocket &condition_socket = node.input_socket(0);
-  if (&socket == &condition_socket) {
-    all_socket_usages[socket_tree_index] = true;
+  if (socket.socket == &condition_socket) {
+    all_socket_usages.add_new(socket, true);
     return;
   }
-  const std::optional<const void *> &switch_condition_ptr =
-      all_socket_values[condition_socket.index_in_tree()];
-  if (!switch_condition_ptr.has_value()) {
-    tasks.push({TaskType::Value, &condition_socket});
+  if (!all_socket_values.contains({socket.context, &condition_socket})) {
+    tasks.push({TaskType::Value, {socket.context, &condition_socket}});
     return;
   }
-  if (*switch_condition_ptr == nullptr) {
+  const void *switch_condition_ptr = all_socket_values.lookup({socket.context, &condition_socket});
+  if (switch_condition_ptr == nullptr) {
     /* Can't know the condition value, so assume it can be anything. */
-    all_socket_usages[socket_tree_index] = true;
+    all_socket_usages.add_new(socket, true);
     return;
   }
-  const bool switch_condition = *static_cast<const bool *>(*switch_condition_ptr);
+  const bool switch_condition = *static_cast<const bool *>(switch_condition_ptr);
   const bNodeSocket &true_socket = node.input_socket(2);
-  const bool is_used = (&socket == &true_socket) == switch_condition;
-  all_socket_usages[socket_tree_index] = is_used;
+  const bool is_used = (socket.socket == &true_socket) == switch_condition;
+  all_socket_usages.add_new(socket, is_used);
 }
 
 static void handle_menu_switch_node_input_usage(
-    const bNodeSocket &socket,
+    const SocketInContext &socket,
     Stack<Task> &tasks,
-    MutableSpan<std::optional<bool>> all_socket_usages,
-    MutableSpan<std::optional<const void *>> all_socket_values)
+    Map<SocketInContext, bool> &all_socket_usages,
+    Map<SocketInContext, const void *> &all_socket_values)
 {
-  const bNode &node = socket.owner_node();
-  const int socket_tree_index = socket.index_in_tree();
+  const bNode &node = socket->owner_node();
 
   const bNodeSocket &output_socket = node.output_socket(0);
-  const std::optional<bool> &output_usage = all_socket_usages[output_socket.index_in_tree()];
-  if (!output_usage.has_value()) {
-    tasks.push({TaskType::Usage, &output_socket});
+  if (!all_socket_usages.contains({socket.context, &output_socket})) {
+    tasks.push({TaskType::Usage, {socket.context, &output_socket}});
     return;
   }
-  if (!*output_usage) {
-    all_socket_usages[socket_tree_index] = false;
+  if (!all_socket_usages.lookup({socket.context, &output_socket})) {
+    all_socket_usages.add_new(socket, false);
     return;
   }
   const bNodeSocket &condition_socket = node.input_socket(0);
-  if (&socket == &condition_socket) {
-    all_socket_usages[socket_tree_index] = true;
+  if (socket.socket == &condition_socket) {
+    all_socket_usages.add_new(socket, true);
     return;
   }
-  const std::optional<const void *> &menu_value_ptr =
-      all_socket_values[condition_socket.index_in_tree()];
-  if (!menu_value_ptr.has_value()) {
-    tasks.push({TaskType::Value, &condition_socket});
+  if (!all_socket_values.contains({socket.context, &condition_socket})) {
+    tasks.push({TaskType::Value, {socket.context, &condition_socket}});
     return;
   }
-  if (*menu_value_ptr == nullptr) {
+  const void *menu_value_ptr = all_socket_values.lookup({socket.context, &condition_socket});
+  if (menu_value_ptr == nullptr) {
     /* Can't know the condition value, so assume it can be anything. */
-    all_socket_usages[socket_tree_index] = true;
+    all_socket_usages.add_new(socket, true);
     return;
   }
-  const int menu_value = *static_cast<const int *>(*menu_value_ptr);
+  const int menu_value = *static_cast<const int *>(menu_value_ptr);
 
   const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(node.storage);
   /* Subtract one because the first input is the menu socket. */
-  const int item_i = socket.index() - 1;
+  const int item_i = socket->index() - 1;
   const NodeEnumItem &item = storage.enum_definition.items_array[item_i];
   const bool is_used = menu_value == item.identifier;
-  all_socket_usages[socket_tree_index] = is_used;
+  all_socket_usages.add_new(socket, is_used);
 }
 
-static void handle_fallback_node_input_usage(const bNodeSocket &socket,
+static void handle_fallback_node_input_usage(const SocketInContext &socket,
                                              Stack<Task> &tasks,
-                                             MutableSpan<std::optional<bool>> all_socket_usages)
+                                             Map<SocketInContext, bool> &all_socket_usages)
 {
-  const bNode &node = socket.owner_node();
-  const int socket_tree_index = socket.index_in_tree();
+  const bNode &node = socket->owner_node();
   const int prev_tasks_num = tasks.size();
 
   /* Check if any output of the node is used already.*/
-  bool is_used = false;
   for (const bNodeSocket *output_socket : node.output_sockets()) {
-    const std::optional<bool> &output_usage = all_socket_usages[output_socket->index_in_tree()];
-    if (output_usage.has_value()) {
-      if (*output_usage) {
-        is_used = true;
-        break;
-      }
+    if (all_socket_usages.lookup_default({socket.context, output_socket}, false)) {
+      all_socket_usages.add_new(socket, true);
+      return;
     }
-  }
-  if (is_used) {
-    all_socket_usages[socket_tree_index] = true;
-    return;
   }
   /* Create a task that checks if the next output is used. */
   for (const bNodeSocket *output_socket : node.output_sockets()) {
-    const std::optional<bool> &output_usage = all_socket_usages[output_socket->index_in_tree()];
-    if (!output_usage.has_value()) {
-      tasks.push({TaskType::Usage, output_socket});
+    if (!all_socket_usages.contains({socket.context, output_socket})) {
+      tasks.push({TaskType::Usage, {socket.context, output_socket}});
       return;
     }
   }
   if (tasks.size() == prev_tasks_num) {
     /* No task was added, so all of the outputs are already known to be unused. */
-    all_socket_usages[socket_tree_index] = false;
+    all_socket_usages.add_new(socket, false);
   }
 }
 
-static void handle_input_usage_task(const bNodeSocket &socket,
+static void handle_input_usage_task(const SocketInContext &socket,
                                     Stack<Task> &tasks,
-                                    MutableSpan<std::optional<bool>> all_socket_usages,
-                                    MutableSpan<std::optional<const void *>> all_socket_values)
+                                    Map<SocketInContext, bool> &all_socket_usages,
+                                    Map<SocketInContext, const void *> &all_socket_values)
 {
-  const bNode &node = socket.owner_node();
-  const int socket_tree_index = socket.index_in_tree();
+  const bNode &node = socket->owner_node();
 
   if (node.output_sockets().is_empty()) {
-    all_socket_usages[socket_tree_index] = true;
+    all_socket_usages.add_new(socket, true);
     return;
   }
   switch (node.type) {
@@ -405,60 +364,44 @@ static void handle_input_usage_task(const bNodeSocket &socket,
   }
 }
 
-static void handle_output_usage_task(const bNodeSocket &socket,
+static void handle_output_usage_task(const SocketInContext &socket,
                                      Stack<Task> &tasks,
-                                     MutableSpan<std::optional<bool>> all_socket_usages)
+                                     Map<SocketInContext, bool> &all_socket_usages)
 {
-  const int socket_tree_index = socket.index_in_tree();
-  const int prev_tasks_num = tasks.size();
-
-  bool is_used = false;
-  for (const bNodeLink *link : socket.directly_linked_links()) {
+  for (const bNodeLink *link : socket->directly_linked_links()) {
     if (!link->is_used()) {
       continue;
     }
     const bNodeSocket &target_socket = *link->tosock;
-    const std::optional<bool> &target_usage = all_socket_usages[target_socket.index_in_tree()];
-    if (target_usage.has_value()) {
-      if (*target_usage) {
-        is_used = true;
-        break;
-      }
-    }
-  }
-  if (is_used) {
-    all_socket_usages[socket_tree_index] = true;
-    return;
-  }
-  /* Create task that checks if the next target is used. */
-  for (const bNodeLink *link : socket.directly_linked_links()) {
-    if (!link->is_used()) {
-      continue;
-    }
-    const bNodeSocket &target_socket = *link->tosock;
-    const std::optional<bool> &target_usage = all_socket_usages[target_socket.index_in_tree()];
-    if (!target_usage.has_value()) {
-      tasks.push({TaskType::Usage, &target_socket});
+    if (all_socket_usages.lookup_default({socket.context, &target_socket}, false)) {
+      all_socket_usages.add_new(socket, true);
       return;
     }
   }
-  if (tasks.size() == prev_tasks_num) {
-    /* No task was added, so all of the targets are already known to be unused. */
-    all_socket_usages[socket_tree_index] = false;
+  /* Create task that checks if the next target is used. */
+  for (const bNodeLink *link : socket->directly_linked_links()) {
+    if (!link->is_used()) {
+      continue;
+    }
+    const bNodeSocket &target_socket = *link->tosock;
+    if (!all_socket_usages.contains({socket.context, &target_socket})) {
+      tasks.push({TaskType::Usage, {socket.context, &target_socket}});
+      return;
+    }
   }
+  /* No task was added, so all of the targets are already known to be unused. */
+  all_socket_usages.add_new(socket, false);
 }
 
-static void handle_usage_task(const bNodeSocket &socket,
+static void handle_usage_task(const SocketInContext &socket,
                               Stack<Task> &tasks,
-                              MutableSpan<std::optional<bool>> all_socket_usages,
-                              MutableSpan<std::optional<const void *>> all_socket_values)
+                              Map<SocketInContext, bool> &all_socket_usages,
+                              Map<SocketInContext, const void *> &all_socket_values)
 {
-  const int socket_tree_index = socket.index_in_tree();
-
-  if (all_socket_usages[socket_tree_index].has_value()) {
+  if (all_socket_usages.contains(socket)) {
     return;
   }
-  if (socket.is_input()) {
+  if (socket->is_input()) {
     handle_input_usage_task(socket, tasks, all_socket_usages, all_socket_values);
   }
   else {
@@ -476,31 +419,30 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
   ResourceScope scope;
   scope.linear_allocator().provide_buffer(scope_buffer);
 
-  Array<std::optional<bool>> all_socket_usages(tree.all_sockets().size());
-  Array<std::optional<const void *>> all_socket_values(tree.all_sockets().size());
+  Map<SocketInContext, bool> all_socket_usages;
+  Map<SocketInContext, const void *> all_socket_values;
 
   Stack<Task> tasks;
 
   for (const bNode *node : tree.group_input_nodes()) {
     for (const int i : tree.interface_inputs().index_range()) {
       const bNodeSocket &socket = node->output_socket(i);
-      tasks.push({TaskType::Usage, &socket});
-      all_socket_values[socket.index_in_tree()] = tree_input_values[i].get();
+      tasks.push({TaskType::Usage, {nullptr, &socket}});
+      all_socket_values.add_new({nullptr, &socket}, tree_input_values[i].get());
     }
   }
 
   while (!tasks.is_empty()) {
     const Task &task = tasks.peek();
     const int prev_tasks_num = tasks.size();
-    const bNodeSocket &socket = *task.socket;
 
     switch (task.type) {
       case TaskType::Value: {
-        handle_value_task(tree, socket, tasks, scope, all_socket_values);
+        handle_value_task(tree, task.socket, tasks, scope, all_socket_values);
         break;
       }
       case TaskType::Usage: {
-        handle_usage_task(socket, tasks, all_socket_usages, all_socket_values);
+        handle_usage_task(task.socket, tasks, all_socket_usages, all_socket_values);
         break;
       }
     }
@@ -514,9 +456,7 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
   for (const bNode *node : tree.group_input_nodes()) {
     for (const int i : tree.interface_inputs().index_range()) {
       const bNodeSocket &socket = node->output_socket(i);
-      const std::optional<bool> &socket_usage = all_socket_usages[socket.index_in_tree()];
-      BLI_assert(socket_usage.has_value());
-      r_input_usages[i] |= *socket_usage;
+      r_input_usages[i] |= all_socket_usages.lookup({nullptr, &socket});
     }
   }
 }

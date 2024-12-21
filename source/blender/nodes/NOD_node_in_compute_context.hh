@@ -31,6 +31,16 @@ struct NodeInContext {
     return context ? context->hash() : ComputeContextHash{};
   }
 
+  const bNode *operator->() const
+  {
+    return this->node;
+  }
+
+  operator bool() const
+  {
+    return this->node != nullptr;
+  }
+
   /**
    * Two nodes in context compare equal if their context hash is equal, not the pointer to the
    * context. This is important as the same compute context may be constructed multiple times.
@@ -54,6 +64,16 @@ struct SocketInContext {
   ComputeContextHash context_hash() const
   {
     return context ? context->hash() : ComputeContextHash{};
+  }
+
+  const bNodeSocket *operator->() const
+  {
+    return this->socket;
+  }
+
+  operator bool() const
+  {
+    return this->socket != nullptr;
   }
 
   /**
