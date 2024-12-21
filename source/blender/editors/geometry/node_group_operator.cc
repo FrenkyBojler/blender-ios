@@ -67,6 +67,7 @@
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_socket_usage_inference.hh"
 
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_path.hh"
@@ -715,7 +716,8 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
                                      PointerRNA *bmain_ptr,
                                      PointerRNA *op_ptr,
                                      const bNodeTreeInterfaceSocket &socket,
-                                     const int socket_index)
+                                     const int socket_index,
+                                     const bool is_used)
 {
   bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
@@ -736,6 +738,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
   uiLayout *row = uiLayoutRow(layout, true);
+  uiLayoutSetActive(row, is_used);
   uiLayoutSetPropDecorate(row, false);
 
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
@@ -786,10 +789,24 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   }
 
   node_tree->ensure_interface_cache();
+
+  const int inputs_num = node_tree->interface_inputs().size();
+  Array<GPointer> input_values(inputs_num);
+  ResourceScope scope;
+  nodes::get_geometry_nodes_input_base_values(*node_tree, op->properties, scope, input_values);
+  Array<bool> input_usages(inputs_num);
+  nodes::socket_usage_inference::infer_inputs_socket_usage(*node_tree, input_values, input_usages);
+
   int input_index = 0;
   for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {
-    draw_property_for_socket(
-        *node_tree, layout, op->properties, &bmain_ptr, op->ptr, *io_socket, input_index);
+    draw_property_for_socket(*node_tree,
+                             layout,
+                             op->properties,
+                             &bmain_ptr,
+                             op->ptr,
+                             *io_socket,
+                             input_index,
+                             input_usages[input_index]);
     ++input_index;
   }
 }
