@@ -87,7 +87,7 @@ void register_node_type_sh_group()
    * to the shared #NODE_GROUP integer type id. */
 
   blender::bke::node_type_base_custom(
-      &ntype, "ShaderNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
+      &ntype, "ShaderNodeGroup", "Group", "GROUP", blender::bke::NodeClass::Group);
   ntype.enum_name_legacy = "GROUP";
   ntype.type = NODE_GROUP;
   ntype.poll = sh_node_poll_default;

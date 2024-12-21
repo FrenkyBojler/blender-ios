@@ -74,7 +74,7 @@ void register_node_type_sh_bsdf_sheen()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BSDF_SHEEN, "Sheen BSDF", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, SH_NODE_BSDF_SHEEN, "Sheen BSDF", blender::bke::NodeClass::Shader);
   ntype.enum_name_legacy = "BSDF_SHEEN";
   ntype.add_ui_poll = object_cycles_shader_nodes_poll;
   ntype.declare = file_ns::node_declare;

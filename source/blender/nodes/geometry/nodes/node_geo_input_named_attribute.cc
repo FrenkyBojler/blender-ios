@@ -121,7 +121,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_NAMED_ATTRIBUTE, "Named Attribute", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, GEO_NODE_INPUT_NAMED_ATTRIBUTE, "Named Attribute", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "INPUT_ATTRIBUTE";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;

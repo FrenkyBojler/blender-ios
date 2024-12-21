@@ -21,7 +21,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_SPLINE_CYCLIC, "Is Spline Cyclic", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, GEO_NODE_INPUT_SPLINE_CYCLIC, "Is Spline Cyclic", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "INPUT_SPLINE_CYCLIC";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

@@ -54,7 +54,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_GIZMO_LINEAR, "Linear Gizmo", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, GEO_NODE_GIZMO_LINEAR, "Linear Gizmo", blender::bke::NodeClass::Interface);
   ntype.enum_name_legacy = "GIZMO_LINEAR";
   bke::node_type_storage(
       &ntype, "NodeGeometryLinearGizmo", node_free_standard_storage, node_copy_standard_storage);

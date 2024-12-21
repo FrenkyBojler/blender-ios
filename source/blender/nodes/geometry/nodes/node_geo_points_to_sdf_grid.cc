@@ -108,7 +108,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_POINTS_TO_SDF_GRID, "Points to SDF Grid", NODE_CLASS_GEOMETRY);
+      &ntype, GEO_NODE_POINTS_TO_SDF_GRID, "Points to SDF Grid", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "POINTS_TO_SDF_GRID";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

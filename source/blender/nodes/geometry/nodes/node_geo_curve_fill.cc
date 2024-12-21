@@ -340,7 +340,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_FILL_CURVE, "Fill Curve", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, GEO_NODE_FILL_CURVE, "Fill Curve", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "FILL_CURVE";
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(

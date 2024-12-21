@@ -38,7 +38,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_TOOL_VIEWPORT_TRANSFORM, "Viewport Transform", NODE_CLASS_INPUT);
+      &ntype, GEO_NODE_TOOL_VIEWPORT_TRANSFORM, "Viewport Transform", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "VIEWPORT_TRANFORM";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

@@ -121,7 +121,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_SET_HANDLE_TYPE, "Set Handle Type", NODE_CLASS_GEOMETRY);
+      &ntype, GEO_NODE_CURVE_SET_HANDLE_TYPE, "Set Handle Type", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "CURVE_SET_HANDLES";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

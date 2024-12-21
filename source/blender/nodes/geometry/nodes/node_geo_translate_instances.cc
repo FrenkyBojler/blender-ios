@@ -60,7 +60,7 @@ static void register_node()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_TRANSLATE_INSTANCES, "Translate Instances", NODE_CLASS_GEOMETRY);
+      &ntype, GEO_NODE_TRANSLATE_INSTANCES, "Translate Instances", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "TRANSLATE_INSTANCES";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

@@ -106,7 +106,7 @@ void register_node_type_cmp_curve_time()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_TIME, "Time Curve", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, CMP_NODE_TIME, "Time Curve", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "TIME";
   ntype.declare = file_ns::cmp_node_time_declare;
   blender::bke::node_type_size(&ntype, 200, 140, 320);
@@ -218,7 +218,7 @@ void register_node_type_cmp_curve_vec()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_CURVE_VEC, "Vector Curves", NODE_CLASS_OP_VECTOR);
+  cmp_node_type_base(&ntype, CMP_NODE_CURVE_VEC, "Vector Curves", blender::bke::NodeClass::OpVector);
   ntype.enum_name_legacy = "CURVE_VEC";
   ntype.declare = file_ns::cmp_node_curve_vec_declare;
   ntype.draw_buttons = file_ns::node_buts_curvevec;
@@ -389,7 +389,7 @@ void register_node_type_cmp_curve_rgb()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR);
+  cmp_node_type_base(&ntype, CMP_NODE_CURVE_RGB, "RGB Curves", blender::bke::NodeClass::OpColor);
   ntype.enum_name_legacy = "CURVE_RGB";
   ntype.declare = file_ns::cmp_node_rgbcurves_declare;
   blender::bke::node_type_size(&ntype, 200, 140, 320);

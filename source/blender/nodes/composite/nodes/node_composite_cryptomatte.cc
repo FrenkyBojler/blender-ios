@@ -907,7 +907,7 @@ void register_node_type_cmp_cryptomatte()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_CRYPTOMATTE, "Cryptomatte", NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, CMP_NODE_CRYPTOMATTE, "Cryptomatte", blender::bke::NodeClass::Matte);
   ntype.enum_name_legacy = "CRYPTOMATTE";
   ntype.declare = file_ns::cmp_node_cryptomatte_declare;
   blender::bke::node_type_size(&ntype, 240, 100, 700);
@@ -1006,7 +1006,7 @@ void register_node_type_cmp_cryptomatte_legacy()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
-      &ntype, CMP_NODE_CRYPTOMATTE_LEGACY, "Cryptomatte (Legacy)", NODE_CLASS_MATTE);
+      &ntype, CMP_NODE_CRYPTOMATTE_LEGACY, "Cryptomatte (Legacy)", blender::bke::NodeClass::Matte);
   ntype.enum_name_legacy = "CRYPTOMATTE";
   blender::bke::node_type_socket_templates(&ntype, nullptr, file_ns::cmp_node_cryptomatte_out);
   ntype.initfunc = legacy_file_ns::node_init_cryptomatte_legacy;

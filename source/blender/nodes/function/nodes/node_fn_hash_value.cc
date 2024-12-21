@@ -177,7 +177,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_HASH_VALUE, "Hash Value", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, FN_NODE_HASH_VALUE, "Hash Value", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "HASH_VALUE";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

@@ -99,7 +99,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_EVALUATE_AT_INDEX, "Evaluate at Index", NODE_CLASS_CONVERTER);
+      &ntype, GEO_NODE_EVALUATE_AT_INDEX, "Evaluate at Index", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "FIELD_AT_INDEX";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;

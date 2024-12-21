@@ -106,7 +106,7 @@ void register_node_type_sh_attribute()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_ATTRIBUTE, "Attribute", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, SH_NODE_ATTRIBUTE, "Attribute", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "ATTRIBUTE";
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_attribute;

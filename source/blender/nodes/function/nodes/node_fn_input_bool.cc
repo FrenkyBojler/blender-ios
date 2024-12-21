@@ -37,7 +37,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_INPUT_BOOL, "Boolean", 0);
+  fn_node_type_base(&ntype, FN_NODE_INPUT_BOOL, "Boolean", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "INPUT_BOOL";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

@@ -171,7 +171,7 @@ void register_node_type_sh_normal_map()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_NORMAL_MAP, "Normal Map", NODE_CLASS_OP_VECTOR);
+  sh_node_type_base(&ntype, SH_NODE_NORMAL_MAP, "Normal Map", blender::bke::NodeClass::OpVector);
   ntype.enum_name_legacy = "NORMAL_MAP";
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_normal_map;

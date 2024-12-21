@@ -95,7 +95,7 @@ void register_node_type_sh_bsdf_glossy()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BSDF_GLOSSY, "Glossy BSDF", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, SH_NODE_BSDF_GLOSSY, "Glossy BSDF", blender::bke::NodeClass::Shader);
   ntype.enum_name_legacy = "BSDF_GLOSSY";
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;

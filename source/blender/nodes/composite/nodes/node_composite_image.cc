@@ -509,7 +509,7 @@ void register_node_type_cmp_image()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_IMAGE, "Image", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, CMP_NODE_IMAGE, "Image", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "IMAGE";
   ntype.initfunc = file_ns::node_composit_init_image;
   blender::bke::node_type_storage(
@@ -819,7 +819,7 @@ void register_node_type_cmp_rlayers()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_R_LAYERS, "Render Layers", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, CMP_NODE_R_LAYERS, "Render Layers", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "R_LAYERS";
   blender::bke::node_type_socket_templates(&ntype, nullptr, cmp_node_rlayers_out);
   ntype.draw_buttons = file_ns::node_composit_buts_viewlayers;

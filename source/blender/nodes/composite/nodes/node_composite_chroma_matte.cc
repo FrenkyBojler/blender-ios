@@ -188,7 +188,7 @@ void register_node_type_cmp_chroma_matte()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_CHROMA_MATTE, "Chroma Key", NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, CMP_NODE_CHROMA_MATTE, "Chroma Key", blender::bke::NodeClass::Matte);
   ntype.enum_name_legacy = "CHROMA_MATTE";
   ntype.declare = file_ns::cmp_node_chroma_matte_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_chroma_matte;

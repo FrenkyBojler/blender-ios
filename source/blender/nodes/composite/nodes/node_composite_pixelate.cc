@@ -132,7 +132,7 @@ void register_node_type_cmp_pixelate()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_PIXELATE, "Pixelate", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, CMP_NODE_PIXELATE, "Pixelate", blender::bke::NodeClass::OpFilter);
   ntype.enum_name_legacy = "PIXELATE";
   ntype.declare = file_ns::cmp_node_pixelate_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_pixelate;

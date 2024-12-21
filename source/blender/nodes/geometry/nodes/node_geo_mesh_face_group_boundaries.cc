@@ -126,7 +126,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_MESH_FACE_GROUP_BOUNDARIES, "Face Group Boundaries", NODE_CLASS_INPUT);
+      &ntype, GEO_NODE_MESH_FACE_GROUP_BOUNDARIES, "Face Group Boundaries", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "MESH_FACE_SET_BOUNDARIES";
   bke::node_type_size_preset(&ntype, bke::eNodeSizePreset::Middle);
   ntype.declare = node_declare;

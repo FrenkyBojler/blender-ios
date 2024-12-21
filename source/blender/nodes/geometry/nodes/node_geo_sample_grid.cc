@@ -283,7 +283,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SAMPLE_GRID, "Sample Grid", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, GEO_NODE_SAMPLE_GRID, "Sample Grid", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "SAMPLE_GRID";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;

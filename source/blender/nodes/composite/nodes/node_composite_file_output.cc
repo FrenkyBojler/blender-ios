@@ -919,7 +919,7 @@ void register_node_type_cmp_output_file()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_OUTPUT_FILE, "File Output", NODE_CLASS_OUTPUT);
+  cmp_node_type_base(&ntype, CMP_NODE_OUTPUT_FILE, "File Output", blender::bke::NodeClass::Output);
   ntype.enum_name_legacy = "OUTPUT_FILE";
   ntype.draw_buttons = file_ns::node_composit_buts_file_output;
   ntype.draw_buttons_ex = file_ns::node_composit_buts_file_output_ex;

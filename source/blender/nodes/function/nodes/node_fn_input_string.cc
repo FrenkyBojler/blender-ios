@@ -61,7 +61,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_INPUT_STRING, "String", NODE_CLASS_INPUT);
+  fn_node_type_base(&ntype, FN_NODE_INPUT_STRING, "String", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "INPUT_STRING";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

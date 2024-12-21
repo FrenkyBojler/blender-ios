@@ -103,7 +103,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_EDGE_PATHS_TO_CURVES, "Edge Paths to Curves", NODE_CLASS_GEOMETRY);
+      &ntype, GEO_NODE_EDGE_PATHS_TO_CURVES, "Edge Paths to Curves", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "EDGE_PATHS_TO_CURVES";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

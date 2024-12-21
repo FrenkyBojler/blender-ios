@@ -76,7 +76,7 @@ void register_node_type_cmp_gamma()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_GAMMA, "Gamma", NODE_CLASS_OP_COLOR);
+  cmp_node_type_base(&ntype, CMP_NODE_GAMMA, "Gamma", blender::bke::NodeClass::OpColor);
   ntype.enum_name_legacy = "GAMMA";
   ntype.declare = file_ns::cmp_node_gamma_declare;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;

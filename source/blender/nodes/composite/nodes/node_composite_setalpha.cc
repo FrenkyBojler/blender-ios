@@ -112,7 +112,7 @@ void register_node_type_cmp_setalpha()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_SETALPHA, "Set Alpha", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, CMP_NODE_SETALPHA, "Set Alpha", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "SETALPHA";
   ntype.declare = file_ns::cmp_node_setalpha_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_set_alpha;

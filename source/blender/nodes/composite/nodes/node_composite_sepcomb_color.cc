@@ -240,7 +240,7 @@ void register_node_type_cmp_separate_color()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_SEPARATE_COLOR, "Separate Color", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, CMP_NODE_SEPARATE_COLOR, "Separate Color", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "SEPARATE_COLOR";
   ntype.declare = file_ns::cmp_node_separate_color_declare;
   ntype.initfunc = node_cmp_combsep_color_init;
@@ -463,7 +463,7 @@ void register_node_type_cmp_combine_color()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_COMBINE_COLOR, "Combine Color", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, CMP_NODE_COMBINE_COLOR, "Combine Color", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "COMBINE_COLOR";
   ntype.declare = file_ns::cmp_node_combine_color_declare;
   ntype.initfunc = node_cmp_combsep_color_init;

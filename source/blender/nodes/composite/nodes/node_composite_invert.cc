@@ -160,7 +160,7 @@ void register_node_type_cmp_invert()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_INVERT, "Invert Color", NODE_CLASS_OP_COLOR);
+  cmp_node_type_base(&ntype, CMP_NODE_INVERT, "Invert Color", blender::bke::NodeClass::OpColor);
   ntype.enum_name_legacy = "INVERT";
   ntype.declare = file_ns::cmp_node_invert_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_invert;

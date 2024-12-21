@@ -47,7 +47,7 @@ void register_node_type_sh_hair_info()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_HAIR_INFO, "Curves Info", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, SH_NODE_HAIR_INFO, "Curves Info", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "HAIR_INFO";
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_hair_info;

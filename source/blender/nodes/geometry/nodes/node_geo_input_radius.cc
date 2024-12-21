@@ -21,7 +21,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_RADIUS, "Radius", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, GEO_NODE_INPUT_RADIUS, "Radius", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "INPUT_RADIUS";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

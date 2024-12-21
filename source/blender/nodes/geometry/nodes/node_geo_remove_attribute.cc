@@ -172,7 +172,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_REMOVE_ATTRIBUTE, "Remove Named Attribute", NODE_CLASS_ATTRIBUTE);
+      &ntype, GEO_NODE_REMOVE_ATTRIBUTE, "Remove Named Attribute", blender::bke::NodeClass::Attribute);
   ntype.enum_name_legacy = "REMOVE_ATTRIBUTE";
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;

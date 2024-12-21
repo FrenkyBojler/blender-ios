@@ -99,7 +99,7 @@ void register_node_type_sh_clamp()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_CLAMP, "Clamp", NODE_CLASS_CONVERTER);
+  sh_fn_node_type_base(&ntype, SH_NODE_CLAMP, "Clamp", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "CLAMP";
   ntype.declare = file_ns::sh_node_clamp_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_clamp;

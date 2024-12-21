@@ -331,7 +331,7 @@ void register_node_type_tex_math()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_MATH, "Math", NODE_CLASS_CONVERTER);
+  tex_node_type_base(&ntype, TEX_NODE_MATH, "Math", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "MATH";
   blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.labelfunc = node_math_label;

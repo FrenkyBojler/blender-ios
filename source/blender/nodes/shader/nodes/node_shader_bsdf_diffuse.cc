@@ -61,7 +61,7 @@ void register_node_type_sh_bsdf_diffuse()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BSDF_DIFFUSE, "Diffuse BSDF", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, SH_NODE_BSDF_DIFFUSE, "Diffuse BSDF", blender::bke::NodeClass::Shader);
   ntype.enum_name_legacy = "DIFFUSE_BSDF";
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;

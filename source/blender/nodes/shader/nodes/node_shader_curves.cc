@@ -132,7 +132,7 @@ void register_node_type_sh_curve_vec()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_VEC, "Vector Curves", NODE_CLASS_OP_VECTOR);
+  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_VEC, "Vector Curves", blender::bke::NodeClass::OpVector);
   ntype.enum_name_legacy = "CURVE_VEC";
   ntype.declare = file_ns::sh_node_curve_vec_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_vec;
@@ -293,7 +293,7 @@ void register_node_type_sh_curve_rgb()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR);
+  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_RGB, "RGB Curves", blender::bke::NodeClass::OpColor);
   ntype.enum_name_legacy = "CURVE_RGB";
   ntype.declare = file_ns::sh_node_curve_rgb_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_rgb;
@@ -422,7 +422,7 @@ void register_node_type_sh_curve_float()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_FLOAT, "Float Curve", NODE_CLASS_CONVERTER);
+  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_FLOAT, "Float Curve", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "CURVE_FLOAT";
   ntype.declare = file_ns::sh_node_curve_float_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_float;

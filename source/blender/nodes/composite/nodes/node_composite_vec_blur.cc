@@ -677,7 +677,7 @@ void register_node_type_cmp_vecblur()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_VECBLUR, "Vector Blur", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, CMP_NODE_VECBLUR, "Vector Blur", blender::bke::NodeClass::OpFilter);
   ntype.enum_name_legacy = "VECBLUR";
   ntype.declare = file_ns::cmp_node_vec_blur_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_vecblur;

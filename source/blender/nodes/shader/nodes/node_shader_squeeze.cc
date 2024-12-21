@@ -35,7 +35,7 @@ void register_node_type_sh_squeeze()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_SQUEEZE, "Squeeze Value (Legacy)", NODE_CLASS_CONVERTER);
+  sh_node_type_base(&ntype, SH_NODE_SQUEEZE, "Squeeze Value (Legacy)", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "SQUEEZE";
   ntype.gather_link_search_ops = nullptr;
   ntype.declare = file_ns::node_declare;

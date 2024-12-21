@@ -245,7 +245,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INDEX_OF_NEAREST, "Index of Nearest", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, GEO_NODE_INDEX_OF_NEAREST, "Index of Nearest", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "INDEX_OF_NEAREST";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

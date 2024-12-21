@@ -80,7 +80,7 @@ void register_node_type_sh_seprgb()
   static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(
-      &ntype, SH_NODE_SEPRGB_LEGACY, "Separate RGB (Legacy)", NODE_CLASS_CONVERTER);
+      &ntype, SH_NODE_SEPRGB_LEGACY, "Separate RGB (Legacy)", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "SEPRGB";
   ntype.declare = file_ns::sh_node_seprgb_declare;
   ntype.gpu_fn = file_ns::gpu_shader_seprgb;
@@ -126,7 +126,7 @@ void register_node_type_sh_combrgb()
   static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(
-      &ntype, SH_NODE_COMBRGB_LEGACY, "Combine RGB (Legacy)", NODE_CLASS_CONVERTER);
+      &ntype, SH_NODE_COMBRGB_LEGACY, "Combine RGB (Legacy)", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "COMBRGB";
   ntype.declare = file_ns::sh_node_combrgb_declare;
   ntype.gpu_fn = file_ns::gpu_shader_combrgb;

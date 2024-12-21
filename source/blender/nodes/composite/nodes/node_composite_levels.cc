@@ -198,7 +198,7 @@ void register_node_type_cmp_view_levels()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_VIEW_LEVELS, "Levels", NODE_CLASS_OUTPUT);
+  cmp_node_type_base(&ntype, CMP_NODE_VIEW_LEVELS, "Levels", blender::bke::NodeClass::Output);
   ntype.enum_name_legacy = "LEVELS";
   ntype.declare = file_ns::cmp_node_levels_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_view_levels;

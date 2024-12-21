@@ -235,7 +235,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_SAMPLE_NEAREST_SURFACE, "Sample Nearest Surface", NODE_CLASS_GEOMETRY);
+      &ntype, GEO_NODE_SAMPLE_NEAREST_SURFACE, "Sample Nearest Surface", blender::bke::NodeClass::Geometry);
   ntype.enum_name_legacy = "SAMPLE_NEAREST_SURFACE";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;

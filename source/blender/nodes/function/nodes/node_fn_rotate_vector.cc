@@ -27,7 +27,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_ROTATE_VECTOR, "Rotate Vector", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, FN_NODE_ROTATE_VECTOR, "Rotate Vector", blender::bke::NodeClass::Converter);
   ntype.enum_name_legacy = "ROTATE_VECTOR";
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;

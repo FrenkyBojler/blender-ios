@@ -116,7 +116,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_TOPOLOGY_CURVE_OF_POINT, "Curve of Point", NODE_CLASS_INPUT);
+      &ntype, GEO_NODE_CURVE_TOPOLOGY_CURVE_OF_POINT, "Curve of Point", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "CURVE_OF_POINT";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

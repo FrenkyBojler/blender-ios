@@ -202,7 +202,7 @@ static void node_register()
   geo_node_type_base(&ntype,
                      GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT,
                      "For Each Geometry Element Input",
-                     NODE_CLASS_INTERFACE);
+                     blender::bke::NodeClass::Interface);
   ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_INPUT";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -381,7 +381,7 @@ static void node_register()
   geo_node_type_base(&ntype,
                      GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
                      "For Each Geometry Element Output",
-                     NODE_CLASS_INTERFACE);
+                     blender::bke::NodeClass::Interface);
   ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_OUTPUT";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;

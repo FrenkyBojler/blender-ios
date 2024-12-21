@@ -20,7 +20,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SELF_OBJECT, "Self Object", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, GEO_NODE_SELF_OBJECT, "Self Object", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "SELF_OBJECT";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

@@ -54,7 +54,7 @@ void register_node_type_tex_curve_time()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_CURVE_TIME, "Time", NODE_CLASS_INPUT);
+  tex_node_type_base(&ntype, TEX_NODE_CURVE_TIME, "Time", blender::bke::NodeClass::Input);
   ntype.enum_name_legacy = "CURVE_TIME";
   blender::bke::node_type_socket_templates(&ntype, nullptr, time_outputs);
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
@@ -105,7 +105,7 @@ void register_node_type_tex_curve_rgb()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR);
+  tex_node_type_base(&ntype, TEX_NODE_CURVE_RGB, "RGB Curves", blender::bke::NodeClass::OpColor);
   ntype.enum_name_legacy = "CURVE_RGB";
   blender::bke::node_type_socket_templates(&ntype, rgb_inputs, rgb_outputs);
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
