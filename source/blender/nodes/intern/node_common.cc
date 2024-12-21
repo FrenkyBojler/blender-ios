@@ -587,7 +587,9 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
 
   for (const bNode *src_reroute : all_reroute_nodes) {
     const int src_reroute_i = reroute_nodes.index_of(src_reroute->index());
-    for (const bNodeSocket *dst_socket : src_reroute->output_sockets().first()->directly_linked_sockets()) {
+    for (const bNodeSocket *dst_socket :
+         src_reroute->output_sockets().first()->directly_linked_sockets())
+    {
       const bNode &dst_node = dst_socket->owner_node();
       if (!dst_node.is_reroute()) {
         continue;
