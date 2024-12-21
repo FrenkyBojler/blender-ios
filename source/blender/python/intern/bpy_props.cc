@@ -4403,7 +4403,13 @@ PyDoc_STRVAR(
     "   Returns a new pointer property definition.\n"
     "\n" BPY_PROPDEF_POINTER_TYPE_DOC BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC
         BPY_PROPDEF_CTXT_DOC BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC
-            BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_POLL_DOC BPY_PROPDEF_UPDATE_DOC);
+            BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_POLL_DOC BPY_PROPDEF_UPDATE_DOC
+      "\n"
+      ".. note:: Pointer properties do not support storing references to embedded IDs "
+      "(e.g. `bpy.types.Scene.collection`, `bpy.types.Material.node_tree`).\n"
+      "   As a workaround, store the reference to the parent ID (e.g. a scene or a material)"
+      " in a pointer property and access embedded ID through it's attribute.\n"
+);
 PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
