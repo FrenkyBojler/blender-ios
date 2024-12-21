@@ -25,15 +25,146 @@ struct Task {
   const bNodeSocket *socket = nullptr;
 };
 
+static void handle_input_value_task(const bNodeSocket &socket,
+                                    Stack<Task> &tasks,
+                                    ResourceScope &scope,
+                                    MutableSpan<std::optional<const void *>> all_socket_values)
+{
+  const int socket_tree_index = socket.index_in_tree();
+
+  if (socket.is_multi_input()) {
+    /* Can't know the single value of a multi-input. */
+    all_socket_values[socket_tree_index] = nullptr;
+    return;
+  }
+  const bNodeLink *source_link = nullptr;
+  const Span<const bNodeLink *> connected_links = socket.directly_linked_links();
+  for (const bNodeLink *link : connected_links) {
+    if (!link->is_used()) {
+      continue;
+    }
+    if (link->fromnode->is_dangling_reroute()) {
+      continue;
+    }
+    source_link = link;
+    break;
+  }
+  if (!source_link) {
+    const CPPType &base_type = *socket.typeinfo->base_cpp_type;
+    void *value_buffer = scope.linear_allocator().allocate(base_type.size(),
+                                                           base_type.alignment());
+    socket.typeinfo->get_base_cpp_value(socket.default_value, value_buffer);
+    all_socket_values[socket_tree_index] = value_buffer;
+    if (!base_type.is_trivially_destructible()) {
+      scope.add_destruct_call(
+          [type = &base_type, value_buffer]() { type->destruct(value_buffer); });
+    }
+    return;
+  }
+  const bNodeSocket &origin_socket = *source_link->fromsock;
+  /* TODO: type conversion */
+  BLI_assert(origin_socket.type == socket.type);
+  const std::optional<const void *> &origin_value =
+      all_socket_values[origin_socket.index_in_tree()];
+  if (!origin_value.has_value()) {
+    tasks.push({TaskType::Value, &origin_socket});
+    return;
+  }
+  all_socket_values[socket_tree_index] = origin_value;
+}
+
+static void handle_output_value_task(const bNodeTree &tree,
+                                     const bNodeSocket &socket,
+                                     Stack<Task> &tasks,
+                                     ResourceScope &scope,
+                                     MutableSpan<std::optional<const void *>> all_socket_values)
+{
+  const bNode &node = socket.owner_node();
+  const int socket_tree_index = socket.index_in_tree();
+  const int prev_tasks_num = tasks.size();
+  if (node.is_muted()) {
+    const bNodeSocket *input_socket = nullptr;
+    for (const bNodeLink &internal_link : node.internal_links()) {
+      if (internal_link.tosock == &socket) {
+        input_socket = internal_link.fromsock;
+        break;
+      }
+    }
+    if (!input_socket) {
+      all_socket_values[socket_tree_index] = nullptr;
+      return;
+    }
+    const std::optional<const void *> &input_value =
+        all_socket_values[input_socket->index_in_tree()];
+    if (!input_value.has_value()) {
+      tasks.push({TaskType::Value, input_socket});
+      return;
+    }
+    all_socket_values[socket_tree_index] = input_value;
+    return;
+  }
+  if (!node.typeinfo->build_multi_function) {
+    all_socket_values[socket_tree_index] = nullptr;
+    return;
+  }
+  for (const bNodeSocket *input_socket : node.input_sockets()) {
+    const std::optional<const void *> &input_value =
+        all_socket_values[input_socket->index_in_tree()];
+    if (!input_value.has_value()) {
+      tasks.push({TaskType::Value, input_socket});
+      break;
+    }
+    if (*input_value == nullptr) {
+      all_socket_values[socket_tree_index] = nullptr;
+      break;
+    }
+  }
+  if (tasks.size() > prev_tasks_num) {
+    /* Waiting for input value. */
+    return;
+  }
+  if (all_socket_values[socket_tree_index].has_value()) {
+    /* Done already. */
+    return;
+  }
+
+  NodeMultiFunctionBuilder builder{node, tree};
+  node.typeinfo->build_multi_function(builder);
+  const mf::MultiFunction &fn = builder.function();
+  const IndexMask mask(1);
+  mf::ParamsBuilder params{fn, &mask};
+  for (const bNodeSocket *input_socket : node.input_sockets()) {
+    if (!input_socket->is_available()) {
+      continue;
+    }
+    const void *value = *all_socket_values[input_socket->index_in_tree()];
+    BLI_assert(value);
+    params.add_readonly_single_input(GPointer(input_socket->typeinfo->base_cpp_type, value));
+  }
+  for (const bNodeSocket *output_socket : node.output_sockets()) {
+    if (!output_socket->is_available()) {
+      continue;
+    }
+    const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
+    void *value = scope.linear_allocator().allocate(base_type.size(), base_type.alignment());
+    params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
+    all_socket_values[output_socket->index_in_tree()] = value;
+    if (!base_type.is_trivially_destructible()) {
+      scope.add_destruct_call(
+          [type = &base_type, value]() { type->destruct(const_cast<void *>(value)); });
+    }
+  }
+  mf::ContextBuilder context;
+  fn.call(mask, params, context);
+}
+
 static void handle_value_task(const bNodeTree &tree,
                               const bNodeSocket &socket,
                               Stack<Task> &tasks,
                               ResourceScope &scope,
                               MutableSpan<std::optional<const void *>> all_socket_values)
 {
-  const bNode &node = socket.owner_node();
   const int socket_tree_index = socket.index_in_tree();
-  const int prev_tasks_num = tasks.size();
 
   if (all_socket_values[socket_tree_index].has_value()) {
     return;
@@ -44,120 +175,10 @@ static void handle_value_task(const bNodeTree &tree,
     return;
   }
   if (socket.is_input()) {
-    if (socket.is_multi_input()) {
-      /* Can't know the single value of a multi-input. */
-      all_socket_values[socket_tree_index] = nullptr;
-      return;
-    }
-    const bNodeLink *source_link = nullptr;
-    const Span<const bNodeLink *> connected_links = socket.directly_linked_links();
-    for (const bNodeLink *link : connected_links) {
-      if (!link->is_used()) {
-        continue;
-      }
-      if (link->fromnode->is_dangling_reroute()) {
-        continue;
-      }
-      source_link = link;
-      break;
-    }
-    if (!source_link) {
-      void *value_buffer = scope.linear_allocator().allocate(base_type->size(),
-                                                             base_type->alignment());
-      socket.typeinfo->get_base_cpp_value(socket.default_value, value_buffer);
-      all_socket_values[socket_tree_index] = value_buffer;
-      if (!base_type->is_trivially_destructible()) {
-        scope.add_destruct_call(
-            [type = base_type, value_buffer]() { type->destruct(value_buffer); });
-      }
-      return;
-    }
-    const bNodeSocket &origin_socket = *source_link->fromsock;
-    /* TODO: type conversion */
-    BLI_assert(origin_socket.type == socket.type);
-    const std::optional<const void *> &origin_value =
-        all_socket_values[origin_socket.index_in_tree()];
-    if (!origin_value.has_value()) {
-      tasks.push({TaskType::Value, &origin_socket});
-      return;
-    }
-    all_socket_values[socket_tree_index] = origin_value;
+    handle_input_value_task(socket, tasks, scope, all_socket_values);
   }
   else {
-    if (node.is_muted()) {
-      const bNodeSocket *input_socket = nullptr;
-      for (const bNodeLink &internal_link : node.internal_links()) {
-        if (internal_link.tosock == &socket) {
-          input_socket = internal_link.fromsock;
-          break;
-        }
-      }
-      if (!input_socket) {
-        all_socket_values[socket_tree_index] = nullptr;
-        return;
-      }
-      const std::optional<const void *> &input_value =
-          all_socket_values[input_socket->index_in_tree()];
-      if (!input_value.has_value()) {
-        tasks.push({TaskType::Value, input_socket});
-        return;
-      }
-      all_socket_values[socket_tree_index] = input_value;
-      return;
-    }
-    if (!node.typeinfo->build_multi_function) {
-      all_socket_values[socket_tree_index] = nullptr;
-      return;
-    }
-    for (const bNodeSocket *input_socket : node.input_sockets()) {
-      const std::optional<const void *> &input_value =
-          all_socket_values[input_socket->index_in_tree()];
-      if (!input_value.has_value()) {
-        tasks.push({TaskType::Value, input_socket});
-        break;
-      }
-      if (*input_value == nullptr) {
-        all_socket_values[socket_tree_index] = nullptr;
-        break;
-      }
-    }
-    if (tasks.size() > prev_tasks_num) {
-      /* Waiting for input value. */
-      return;
-    }
-    if (all_socket_values[socket_tree_index].has_value()) {
-      /* Done already. */
-      return;
-    }
-
-    NodeMultiFunctionBuilder builder{node, tree};
-    node.typeinfo->build_multi_function(builder);
-    const mf::MultiFunction &fn = builder.function();
-    const IndexMask mask(1);
-    mf::ParamsBuilder params{fn, &mask};
-    for (const bNodeSocket *input_socket : node.input_sockets()) {
-      if (!input_socket->is_available()) {
-        continue;
-      }
-      const void *value = *all_socket_values[input_socket->index_in_tree()];
-      BLI_assert(value);
-      params.add_readonly_single_input(GPointer(input_socket->typeinfo->base_cpp_type, value));
-    }
-    for (const bNodeSocket *output_socket : node.output_sockets()) {
-      if (!output_socket->is_available()) {
-        continue;
-      }
-      const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
-      void *value = scope.linear_allocator().allocate(base_type.size(), base_type.alignment());
-      params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
-      all_socket_values[output_socket->index_in_tree()] = value;
-      if (!base_type.is_trivially_destructible()) {
-        scope.add_destruct_call(
-            [type = &base_type, value]() { type->destruct(const_cast<void *>(value)); });
-      }
-    }
-    mf::ContextBuilder context;
-    fn.call(mask, params, context);
+    handle_output_value_task(tree, socket, tasks, scope, all_socket_values);
   }
 }
 
