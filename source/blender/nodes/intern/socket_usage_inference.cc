@@ -4,6 +4,7 @@
 
 #include <functional>
 
+#include "NOD_geometry_nodes_execute.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_socket_usage_inference.hh"
 
@@ -471,6 +472,17 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
       value.type()->destruct(const_cast<void *>(data));
     }
   }
+}
+
+void infer_inputs_socket_usage(const bNodeTree &tree,
+                               const IDProperty *properties,
+                               MutableSpan<bool> r_input_usages)
+{
+  const int inputs_num = tree.interface_inputs().size();
+  Array<GPointer> input_values(inputs_num);
+  ResourceScope scope;
+  nodes::get_geometry_nodes_input_base_values(tree, properties, scope, input_values);
+  nodes::socket_usage_inference::infer_inputs_socket_usage(tree, input_values, r_input_usages);
 }
 
 }  // namespace blender::nodes::socket_usage_inference

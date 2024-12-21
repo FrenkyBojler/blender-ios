@@ -20,4 +20,8 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
                                Span<const bNodeSocket *> input_sockets,
                                MutableSpan<bool> r_input_usages);
 
+void infer_inputs_socket_usage(const bNodeTree &tree,
+                               const IDProperty *properties,
+                               MutableSpan<bool> r_input_usages);
+
 }  // namespace blender::nodes::socket_usage_inference

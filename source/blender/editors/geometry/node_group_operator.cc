@@ -790,12 +790,9 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
 
   node_tree->ensure_interface_cache();
 
-  const int inputs_num = node_tree->interface_inputs().size();
-  Array<GPointer> input_values(inputs_num);
-  ResourceScope scope;
-  nodes::get_geometry_nodes_input_base_values(*node_tree, op->properties, scope, input_values);
-  Array<bool> input_usages(inputs_num);
-  nodes::socket_usage_inference::infer_inputs_socket_usage(*node_tree, input_values, input_usages);
+  Array<bool> input_usages(node_tree->interface_inputs().size());
+  nodes::socket_usage_inference::infer_inputs_socket_usage(
+      *node_tree, op->properties, input_usages);
 
   int input_index = 0;
   for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {

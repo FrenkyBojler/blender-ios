@@ -2507,15 +2507,9 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
-    const int inputs_num = nmd->node_group->interface_inputs().size();
-    Array<GPointer> input_values(inputs_num);
-    ResourceScope scope;
-    nodes::get_geometry_nodes_input_base_values(
-        *nmd->node_group, nmd->settings.properties, scope, input_values);
-    Array<bool> input_usages(inputs_num);
+    Array<bool> input_usages(nmd->node_group->interface_inputs().size());
     nodes::socket_usage_inference::infer_inputs_socket_usage(
-        *nmd->node_group, input_values, input_usages);
-
+        *nmd->node_group, nmd->settings.properties, input_usages);
     draw_interface_panel_content(
         C, layout, ptr, *nmd, input_usages, nmd->node_group->tree_interface.root_panel);
   }
