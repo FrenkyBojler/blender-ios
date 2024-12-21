@@ -8,17 +8,16 @@
 
 namespace blender::gpu::render_graph {
 
+class vk_render_graph_test_scheduler : public vk_render_graph_p {};
+
 /** Copy buffer should be done after the end rendering. */
-TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
+TEST_P(vk_render_graph_test_scheduler, begin_rendering_copy_buffer_end_rendering)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
   VkHandle<VkBuffer> buffer_src(3u);
   VkHandle<VkBuffer> buffer_dst(4u);
 
-  Vector<std::string> log;
-  VKResourceStateTracker resources;
-  VKRenderGraph render_graph(std::make_unique<CommandBufferLog>(log), resources);
   resources.add_image(image, 1, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ResourceOwner::SWAP_CHAIN);
   resources.add_buffer(buffer_src);
   resources.add_buffer(buffer_dst);
@@ -31,7 +30,7 @@ TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
     begin_rendering.node_data.color_attachments[0].imageLayout =
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentLayout();
     begin_rendering.node_data.color_attachments[0].imageView = image_view;
     begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -41,22 +40,22 @@ TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
         begin_rendering.node_data.color_attachments;
 
-    render_graph.add_node(begin_rendering);
+    render_graph->add_node(begin_rendering);
   }
 
   {
     VKCopyBufferNode::CreateInfo copy_buffer = {};
     copy_buffer.src_buffer = buffer_src;
     copy_buffer.dst_buffer = buffer_dst;
-    render_graph.add_node(copy_buffer);
+    render_graph->add_node(copy_buffer);
   }
 
   {
     VKEndRenderingNode::CreateInfo end_rendering = {};
-    render_graph.add_node(end_rendering);
+    render_graph->add_node(end_rendering);
   }
 
-  render_graph.submit_for_present(image);
+  render_graph->submit_for_present(image);
   EXPECT_EQ(6, log.size());
 
   EXPECT_EQ(
@@ -70,7 +69,6 @@ TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
   EXPECT_EQ("copy_buffer(src_buffer=0x3, dst_buffer=0x4" + endl() +
                 " - region(src_offset=0, dst_offset=0, size=0)" + endl() + ")",
             log[1]);
-
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
@@ -78,7 +76,7 @@ TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x1, subresource_range=" +
+          "new_layout=" + colorAttachmentLayoutStr() + ", image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -89,7 +87,7 @@ TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
                 "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
                 "p_color_attachments=" +
                 endl() +
-                "  image_view=0x2, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+                "  image_view=0x2, image_layout=" + colorAttachmentLayoutStr() +", "
                 "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
                 "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
                 "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -102,7 +100,7 @@ TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "dst_access_mask=, "
-          "old_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "old_layout=" + colorAttachmentLayoutStr() +", "
           "new_layout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
@@ -111,16 +109,13 @@ TEST(vk_render_graph, begin_rendering_copy_buffer_end_rendering)
       log[5]);
 }
 
-TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
+TEST_P(vk_render_graph_test_scheduler, begin_clear_attachments_copy_buffer_end)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
   VkHandle<VkBuffer> buffer_src(3u);
   VkHandle<VkBuffer> buffer_dst(4u);
 
-  Vector<std::string> log;
-  VKResourceStateTracker resources;
-  VKRenderGraph render_graph(std::make_unique<CommandBufferLog>(log), resources);
   resources.add_image(image, 1, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ResourceOwner::SWAP_CHAIN);
   resources.add_buffer(buffer_src);
   resources.add_buffer(buffer_dst);
@@ -133,7 +128,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
     begin_rendering.node_data.color_attachments[0].imageLayout =
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentLayout();
     begin_rendering.node_data.color_attachments[0].imageView = image_view;
     begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -143,7 +138,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
         begin_rendering.node_data.color_attachments;
 
-    render_graph.add_node(begin_rendering);
+    render_graph->add_node(begin_rendering);
   }
 
   {
@@ -159,22 +154,22 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
     clear_attachments.vk_clear_rect.layerCount = 1;
     clear_attachments.vk_clear_rect.rect.extent.width = 1920;
     clear_attachments.vk_clear_rect.rect.extent.height = 1080;
-    render_graph.add_node(clear_attachments);
+    render_graph->add_node(clear_attachments);
   }
 
   {
     VKCopyBufferNode::CreateInfo copy_buffer = {};
     copy_buffer.src_buffer = buffer_src;
     copy_buffer.dst_buffer = buffer_dst;
-    render_graph.add_node(copy_buffer);
+    render_graph->add_node(copy_buffer);
   }
 
   {
     VKEndRenderingNode::CreateInfo end_rendering = {};
-    render_graph.add_node(end_rendering);
+    render_graph->add_node(end_rendering);
   }
 
-  render_graph.submit_for_present(image);
+  render_graph->submit_for_present(image);
   EXPECT_EQ(7, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
@@ -194,7 +189,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x1, subresource_range=" +
+          "new_layout=" + colorAttachmentLayoutStr() +", image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -205,7 +200,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
                 "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
                 "p_color_attachments=" +
                 endl() +
-                "  image_view=0x2, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+                "  image_view=0x2, image_layout=" + colorAttachmentLayoutStr() +", "
                 "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
                 "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
                 "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -225,7 +220,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "dst_access_mask=, "
-          "old_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "old_layout=" + colorAttachmentLayoutStr() +", "
           "new_layout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
@@ -234,16 +229,13 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_end)
       log[6]);
 }
 
-TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
+TEST_P(vk_render_graph_test_scheduler, begin_copy_buffer_clear_attachments_end)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
   VkHandle<VkBuffer> buffer_src(3u);
   VkHandle<VkBuffer> buffer_dst(4u);
 
-  Vector<std::string> log;
-  VKResourceStateTracker resources;
-  VKRenderGraph render_graph(std::make_unique<CommandBufferLog>(log), resources);
   resources.add_image(image, 1, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ResourceOwner::SWAP_CHAIN);
   resources.add_buffer(buffer_src);
   resources.add_buffer(buffer_dst);
@@ -256,7 +248,7 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
     begin_rendering.node_data.color_attachments[0].imageLayout =
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentLayout();
     begin_rendering.node_data.color_attachments[0].imageView = image_view;
     begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -266,14 +258,14 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
         begin_rendering.node_data.color_attachments;
 
-    render_graph.add_node(begin_rendering);
+    render_graph->add_node(begin_rendering);
   }
 
   {
     VKCopyBufferNode::CreateInfo copy_buffer = {};
     copy_buffer.src_buffer = buffer_src;
     copy_buffer.dst_buffer = buffer_dst;
-    render_graph.add_node(copy_buffer);
+    render_graph->add_node(copy_buffer);
   }
 
   {
@@ -289,15 +281,15 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
     clear_attachments.vk_clear_rect.layerCount = 1;
     clear_attachments.vk_clear_rect.rect.extent.width = 1920;
     clear_attachments.vk_clear_rect.rect.extent.height = 1080;
-    render_graph.add_node(clear_attachments);
+    render_graph->add_node(clear_attachments);
   }
 
   {
     VKEndRenderingNode::CreateInfo end_rendering = {};
-    render_graph.add_node(end_rendering);
+    render_graph->add_node(end_rendering);
   }
 
-  render_graph.submit_for_present(image);
+  render_graph->submit_for_present(image);
   EXPECT_EQ(7, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
@@ -317,7 +309,7 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x1, subresource_range=" +
+          "new_layout=" + colorAttachmentLayoutStr() +", image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -328,7 +320,7 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
                 "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
                 "p_color_attachments=" +
                 endl() +
-                "  image_view=0x2, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+                "  image_view=0x2, image_layout=" + colorAttachmentLayoutStr() +", "
                 "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
                 "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
                 "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -348,7 +340,7 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "dst_access_mask=, "
-          "old_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "old_layout=" + colorAttachmentLayoutStr() +", "
           "new_layout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
@@ -357,16 +349,13 @@ TEST(vk_render_graph, begin_copy_buffer_clear_attachments_end)
       log[6]);
 }
 
-TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
+TEST_P(vk_render_graph_test_scheduler, begin_clear_attachments_copy_buffer_clear_attachments_end)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
   VkHandle<VkBuffer> buffer_src(3u);
   VkHandle<VkBuffer> buffer_dst(4u);
 
-  Vector<std::string> log;
-  VKResourceStateTracker resources;
-  VKRenderGraph render_graph(std::make_unique<CommandBufferLog>(log), resources);
   resources.add_image(image, 1, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ResourceOwner::SWAP_CHAIN);
   resources.add_buffer(buffer_src);
   resources.add_buffer(buffer_dst);
@@ -379,7 +368,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
     begin_rendering.node_data.color_attachments[0].imageLayout =
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentLayout();
     begin_rendering.node_data.color_attachments[0].imageView = image_view;
     begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -389,7 +378,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
         begin_rendering.node_data.color_attachments;
 
-    render_graph.add_node(begin_rendering);
+    render_graph->add_node(begin_rendering);
   }
 
   {
@@ -405,14 +394,14 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
     clear_attachments.vk_clear_rect.layerCount = 1;
     clear_attachments.vk_clear_rect.rect.extent.width = 1920;
     clear_attachments.vk_clear_rect.rect.extent.height = 1080;
-    render_graph.add_node(clear_attachments);
+    render_graph->add_node(clear_attachments);
   }
 
   {
     VKCopyBufferNode::CreateInfo copy_buffer = {};
     copy_buffer.src_buffer = buffer_src;
     copy_buffer.dst_buffer = buffer_dst;
-    render_graph.add_node(copy_buffer);
+    render_graph->add_node(copy_buffer);
   }
 
   {
@@ -428,15 +417,15 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
     clear_attachments.vk_clear_rect.layerCount = 1;
     clear_attachments.vk_clear_rect.rect.extent.width = 1920;
     clear_attachments.vk_clear_rect.rect.extent.height = 1080;
-    render_graph.add_node(clear_attachments);
+    render_graph->add_node(clear_attachments);
   }
 
   {
     VKEndRenderingNode::CreateInfo end_rendering = {};
-    render_graph.add_node(end_rendering);
+    render_graph->add_node(end_rendering);
   }
 
-  render_graph.submit_for_present(image);
+  render_graph->submit_for_present(image);
   ASSERT_EQ(8, log.size());
 
   EXPECT_EQ(
@@ -457,7 +446,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x1, subresource_range=" +
+          "new_layout=" + colorAttachmentLayoutStr() +", image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -468,7 +457,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
                 "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
                 "p_color_attachments=" +
                 endl() +
-                "  image_view=0x2, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+                "  image_view=0x2, image_layout=" + colorAttachmentLayoutStr() +", "
                 "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
                 "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
                 "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -494,7 +483,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
       "dst_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
-          "dst_access_mask=, old_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "dst_access_mask=, old_layout=" + colorAttachmentLayoutStr() +", "
           "new_layout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
@@ -509,7 +498,7 @@ TEST(vk_render_graph, begin_clear_attachments_copy_buffer_clear_attachments_end)
  * This happens in EEVEE where the feedback radiance is copied before the world background is added
  * to the combined texture.
  */
-TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
+TEST_P(vk_render_graph_test_scheduler, begin_draw_copy_framebuffer_draw_end)
 {
   VkHandle<VkImage> image_attachment(1u);
   VkHandle<VkImage> image_feedback(2u);
@@ -519,9 +508,6 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
   VkHandle<VkPipelineLayout> pipeline_layout_background(6u);
   VkHandle<VkPipeline> pipeline_background(7u);
 
-  Vector<std::string> log;
-  VKResourceStateTracker resources;
-  VKRenderGraph render_graph(std::make_unique<CommandBufferLog>(log), resources);
   resources.add_image(
       image_attachment, 1, VK_IMAGE_LAYOUT_UNDEFINED, render_graph::ResourceOwner::APPLICATION);
   resources.add_image(
@@ -535,7 +521,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
     begin_rendering.node_data.color_attachments[0].imageLayout =
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentLayout();
     begin_rendering.node_data.color_attachments[0].imageView = image_view_attachment;
     begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -545,7 +531,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
         begin_rendering.node_data.color_attachments;
 
-    render_graph.add_node(begin_rendering);
+    render_graph->add_node(begin_rendering);
   }
 
   {
@@ -560,7 +546,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline_combine;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout_combine;
-    render_graph.add_node(draw);
+    render_graph->add_node(draw);
   }
 
   {
@@ -575,7 +561,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
     copy_image.node_data.region.srcSubresource.baseArrayLayer = 0;
     copy_image.node_data.region.srcSubresource.layerCount = 1;
     copy_image.node_data.region.srcSubresource.mipLevel = 0;
-    render_graph.add_node(copy_image);
+    render_graph->add_node(copy_image);
   }
 
   {
@@ -590,15 +576,15 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline_background;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout_background;
-    render_graph.add_node(draw);
+    render_graph->add_node(draw);
   }
 
   {
     VKEndRenderingNode::CreateInfo end_rendering = {};
-    render_graph.add_node(end_rendering);
+    render_graph->add_node(end_rendering);
   }
 
-  render_graph.submit();
+  render_graph->submit();
   ASSERT_EQ(12, log.size());
 
   EXPECT_EQ(
@@ -608,7 +594,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x1, subresource_range=" +
+          "new_layout=" + colorAttachmentLayoutStr() +", image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -621,7 +607,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
           "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
           "p_color_attachments=" +
           endl() +
-          "  image_view=0x3, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "  image_view=0x3, image_layout=" + colorAttachmentLayoutStr() +", "
           "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
           "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
           "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -637,7 +623,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "dst_access_mask=VK_ACCESS_TRANSFER_READ_BIT, "
-          "old_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "old_layout=" + colorAttachmentLayoutStr() +", "
           "new_layout=VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
@@ -669,7 +655,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
           " - image_barrier(src_access_mask=VK_ACCESS_TRANSFER_READ_BIT, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x1, subresource_range=" +
+          "new_layout=" + colorAttachmentLayoutStr() +", image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -682,7 +668,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
           "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
           "p_color_attachments=" +
           endl() +
-          "  image_view=0x3, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "  image_view=0x3, image_layout=" + colorAttachmentLayoutStr() +", "
           "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
           "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
           "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -698,7 +684,7 @@ TEST(vk_render_graph, begin_draw_copy_framebuffer_draw_end)
  * Update buffers can be moved to before the rendering scope as when the destination buffer isn't
  * used.
  */
-TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
+TEST_P(vk_render_graph_test_scheduler, begin_update_draw_update_draw_update_draw_end)
 {
   VkHandle<VkBuffer> buffer_a(1u);
   VkHandle<VkBuffer> buffer_b(2u);
@@ -706,10 +692,6 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
   VkHandle<VkImageView> image_view(4u);
   VkHandle<VkPipelineLayout> pipeline_layout(5u);
   VkHandle<VkPipeline> pipeline(6u);
-
-  Vector<std::string> log;
-  VKResourceStateTracker resources;
-  VKRenderGraph render_graph(std::make_unique<CommandBufferLog>(log), resources);
 
   resources.add_image(image, 1, VK_IMAGE_LAYOUT_UNDEFINED, ResourceOwner::APPLICATION);
   resources.add_buffer(buffer_a);
@@ -723,7 +705,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
     begin_rendering.node_data.color_attachments[0].imageLayout =
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentLayout();
     begin_rendering.node_data.color_attachments[0].imageView = image_view;
     begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -733,7 +715,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
         begin_rendering.node_data.color_attachments;
 
-    render_graph.add_node(begin_rendering);
+    render_graph->add_node(begin_rendering);
   }
 
   {
@@ -742,7 +724,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     update_buffer.data_size = 16;
     update_buffer.data = MEM_callocN(16, __func__);
 
-    render_graph.add_node(update_buffer);
+    render_graph->add_node(update_buffer);
   }
 
   {
@@ -758,7 +740,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    render_graph.add_node(draw);
+    render_graph->add_node(draw);
   }
 
   {
@@ -767,7 +749,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     update_buffer.data_size = 24;
     update_buffer.data = MEM_callocN(24, __func__);
 
-    render_graph.add_node(update_buffer);
+    render_graph->add_node(update_buffer);
   }
 
   {
@@ -783,7 +765,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    render_graph.add_node(draw);
+    render_graph->add_node(draw);
   }
 
   {
@@ -792,7 +774,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     update_buffer.data_size = 16;
     update_buffer.data = MEM_callocN(16, __func__);
 
-    render_graph.add_node(update_buffer);
+    render_graph->add_node(update_buffer);
   }
 
   {
@@ -808,15 +790,15 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    render_graph.add_node(draw);
+    render_graph->add_node(draw);
   }
 
   {
     VKEndRenderingNode::CreateInfo end_rendering = {};
-    render_graph.add_node(end_rendering);
+    render_graph->add_node(end_rendering);
   }
 
-  render_graph.submit();
+  render_graph->submit();
   ASSERT_EQ(17, log.size());
   EXPECT_EQ("update_buffer(dst_buffer=0x1, dst_offset=0, data_size=16)", log[0]);
   EXPECT_EQ("update_buffer(dst_buffer=0x2, dst_offset=0, data_size=24)", log[1]);
@@ -827,7 +809,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "new_layout=" + colorAttachmentLayoutStr() +", "
           "image=0x3, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, "
@@ -862,7 +844,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
           "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
           "p_color_attachments=" +
           endl() +
-          "  image_view=0x4, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "  image_view=0x4, image_layout=" + colorAttachmentLayoutStr() +", "
           "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
           "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
           "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -898,8 +880,8 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
-          "old_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x3, subresource_range=" +
+          "old_layout=" + colorAttachmentLayoutStr() +", "
+          "new_layout=" + colorAttachmentLayoutStr() +", image=0x3, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -912,7 +894,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
           "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
           "p_color_attachments=" +
           endl() +
-          "  image_view=0x4, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "  image_view=0x4, image_layout=" + colorAttachmentLayoutStr() +", "
           "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
           "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
           "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -928,7 +910,7 @@ TEST(vk_render_graph, begin_update_draw_update_draw_update_draw_end)
  *
  * This case happens when updating the swap-chain image with the result of editors.
  */
-TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
+TEST_P(vk_render_graph_test_scheduler, begin_draw_copy_to_attachment_draw_end)
 {
   VkHandle<VkImage> image_attachment(1u);
   VkHandle<VkImage> image_editor(2u);
@@ -936,9 +918,6 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
   VkHandle<VkPipelineLayout> pipeline_layout(4u);
   VkHandle<VkPipeline> pipeline(5u);
 
-  Vector<std::string> log;
-  VKResourceStateTracker resources;
-  VKRenderGraph render_graph(std::make_unique<CommandBufferLog>(log), resources);
   resources.add_image(
       image_attachment, 1, VK_IMAGE_LAYOUT_UNDEFINED, render_graph::ResourceOwner::APPLICATION);
   resources.add_image(
@@ -952,7 +931,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
     begin_rendering.node_data.color_attachments[0].imageLayout =
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentLayout();
     begin_rendering.node_data.color_attachments[0].imageView = image_view_attachment;
     begin_rendering.node_data.color_attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     begin_rendering.node_data.color_attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -962,7 +941,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
         begin_rendering.node_data.color_attachments;
 
-    render_graph.add_node(begin_rendering);
+    render_graph->add_node(begin_rendering);
   }
 
   {
@@ -977,7 +956,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    render_graph.add_node(draw);
+    render_graph->add_node(draw);
   }
 
   {
@@ -992,7 +971,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
     copy_image.node_data.region.srcSubresource.baseArrayLayer = 0;
     copy_image.node_data.region.srcSubresource.layerCount = 1;
     copy_image.node_data.region.srcSubresource.mipLevel = 0;
-    render_graph.add_node(copy_image);
+    render_graph->add_node(copy_image);
   }
 
   {
@@ -1007,15 +986,15 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    render_graph.add_node(draw);
+    render_graph->add_node(draw);
   }
 
   {
     VKEndRenderingNode::CreateInfo end_rendering = {};
-    render_graph.add_node(end_rendering);
+    render_graph->add_node(end_rendering);
   }
 
-  render_graph.submit();
+  render_graph->submit();
   ASSERT_EQ(11, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
@@ -1024,7 +1003,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
           " - image_barrier(src_access_mask=, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x1, subresource_range=" +
+          "new_layout=" + colorAttachmentLayoutStr() +", image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -1037,7 +1016,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
           "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
           "p_color_attachments=" +
           endl() +
-          "  image_view=0x3, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "  image_view=0x3, image_layout=" + colorAttachmentLayoutStr() +", "
           "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
           "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
           "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -1060,7 +1039,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "dst_access_mask=VK_ACCESS_TRANSFER_WRITE_BIT, "
-          "old_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "old_layout=" + colorAttachmentLayoutStr() +", "
           "new_layout=VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
@@ -1085,7 +1064,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
           " - image_barrier(src_access_mask=VK_ACCESS_TRANSFER_WRITE_BIT, "
           "dst_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "old_layout=VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, "
-          "new_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, image=0x1, subresource_range=" +
+          "new_layout=" + colorAttachmentLayoutStr() +", image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=0, layer_count=4294967295  )" +
@@ -1098,7 +1077,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
           "    width=0, height=0  , layer_count=1, view_mask=0, color_attachment_count=1, "
           "p_color_attachments=" +
           endl() +
-          "  image_view=0x3, image_layout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, "
+          "  image_view=0x3, image_layout=" + colorAttachmentLayoutStr() +", "
           "resolve_mode=VK_RESOLVE_MODE_NONE, resolve_image_view=0, "
           "resolve_image_layout=VK_IMAGE_LAYOUT_UNDEFINED, "
           "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
@@ -1107,5 +1086,7 @@ TEST(vk_render_graph, begin_draw_copy_to_attachment_draw_end)
   EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[9]);
   EXPECT_EQ("end_rendering()", log[10]);
 }
+
+INSTANTIATE_TEST_SUITE_P(, vk_render_graph_test_scheduler, ::testing::Values(std::make_tuple(true, true), std::make_tuple(true, false)));
 
 }  // namespace blender::gpu::render_graph
