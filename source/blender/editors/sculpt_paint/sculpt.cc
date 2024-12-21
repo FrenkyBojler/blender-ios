@@ -1353,8 +1353,11 @@ static float area_normal_and_center_get_position_radius(const SculptSession &ss,
   float test_radius = ss.cache ? ss.cache->radius : ss.cursor_radius;
   if (brush.ob_mode == OB_MODE_SCULPT) {
     /* Layer brush produces artifacts with normal and area radius */
-    /* Enable area radius control only on Scrape for now */
-    if (ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SCRAPE, SCULPT_BRUSH_TYPE_FILL) &&
+    if (ELEM(brush.sculpt_brush_type,
+      SCULPT_BRUSH_TYPE_PLANE,
+      SCULPT_BRUSH_TYPE_FLATTEN,
+      SCULPT_BRUSH_TYPE_SCRAPE,
+      SCULPT_BRUSH_TYPE_FILL) &&
         brush.area_radius_factor > 0.0f)
     {
       test_radius *= brush.area_radius_factor;
