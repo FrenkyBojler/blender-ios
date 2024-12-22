@@ -1395,7 +1395,6 @@ def draw_color_settings(context, layout, brush, color_type=False):
         row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="", emboss=False)
         row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
 
-
         mode = UnifiedPaintPanel.get_brush_mode(context)
         if mode in ('PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX', 'SCULPT'):
             header, panel = layout.panel("use_color_jitter", default_closed=True)
@@ -1412,25 +1411,18 @@ def draw_color_settings(context, layout, brush, color_type=False):
                 row.prop(brush, "hue_jitter", slider=True, text="Hue")
                 row.prop(brush, "use_stroke_random_hue", text="", icon='GP_SELECT_STROKES')
                 row.prop(brush, "use_random_press_hue", text="", icon='STYLUS_PRESSURE')
-                if brush.use_random_press_hue:
-                    col.template_curve_mapping(brush, "curve_random_hue", brush=True, use_negative_slope=True)
 
                 row = col.row(align=True)
                 row.enabled = brush.use_color_jitter
                 row.prop(brush, "saturation_jitter", slider=True, text="Saturation")
                 row.prop(brush, "use_stroke_random_sat", text="", icon='GP_SELECT_STROKES')
                 row.prop(brush, "use_random_press_sat", text="", icon='STYLUS_PRESSURE')
-                if brush.use_random_press_sat:
-                    col.template_curve_mapping(brush, "curve_random_saturation", brush=True, use_negative_slope=True)
 
                 row = col.row(align=True)
                 row.enabled = brush.use_color_jitter
                 row.prop(brush, "value_jitter", slider=True, text="Value")
                 row.prop(brush, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
                 row.prop(brush, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
-                if brush.use_random_press_val:
-                    col.template_curve_mapping(brush, "curve_random_value", brush=True, use_negative_slope=True)
-
 
     # Gradient
     elif brush.color_type == 'GRADIENT':

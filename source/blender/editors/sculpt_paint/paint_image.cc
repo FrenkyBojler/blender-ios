@@ -10,6 +10,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
@@ -370,7 +371,7 @@ bool paint_use_opacity_masking(Brush *brush)
 void paint_brush_color_get(Scene *scene,
                            const Paint *paint,
                            Brush *br,
-                           StrokeFactors stroke_factors,
+                           blender::float3 &initial_hsv_jitter,
                            bool color_correction,
                            bool invert,
                            float distance,
@@ -403,9 +404,10 @@ void paint_brush_color_get(Scene *scene,
       IMB_colormanagement_scene_linear_to_srgb_v3(r_color, color_gr);
     }
     else if (br->flag2 & BRUSH_JITTER_COLOR) {
-      blender::float3 r = BKE_paint_randomize_color(
-          br, stroke_factors, distance, pressure, BKE_brush_color_get(scene, paint, br));
-      copy_v3_v3(r_color, r);
+      copy_v3_v3(
+          r_color,
+          BKE_paint_randomize_color(
+              br, initial_hsv_jitter, distance, pressure, BKE_brush_color_get(scene, paint, br)));
     }
     else {
       copy_v3_v3(r_color, BKE_brush_color_get(scene, paint, br));
@@ -1149,10 +1151,10 @@ static bool texture_paint_poll(bContext *C)
   return false;
 }
 
-struct StrokeFactors stroke_factors_new()
+blender::float3 seed_hsv_jitter()
 {
   blender::RandomNumberGenerator rng = blender::RandomNumberGenerator::from_random_seed();
-  return StrokeFactors{rng.get_float(), rng.get_float(), rng.get_float()};
+  return blender::float3{rng.get_float(), rng.get_float(), rng.get_float()};
 }
 
 bool image_texture_paint_poll(bContext *C)

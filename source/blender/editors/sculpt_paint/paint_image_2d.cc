@@ -12,6 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
@@ -77,7 +78,7 @@ struct BrushPainter {
   Scene *scene;
   const Paint *paint;
   Brush *brush;
-  StrokeFactors stroke_factors;
+  blender::float3 initial_hsv_jitter;
 
   bool firsttouch; /* first paint op */
 
@@ -146,7 +147,7 @@ static BrushPainter *brush_painter_2d_new(Scene *scene,
   painter->brush = brush;
   painter->scene = scene;
   painter->paint = paint;
-  painter->stroke_factors = stroke_factors_new();
+  painter->initial_hsv_jitter = seed_hsv_jitter();
   painter->firsttouch = true;
   painter->cache_invert = invert;
 
@@ -290,8 +291,8 @@ static void brush_painter_mask_imbuf_update(BrushPainter *painter,
 
 /**
  * Update the brush mask image by trying to reuse the cached texture result.
- * This can be considerably faster for brushes that change size due to pressure
- * or textures that stick to the surface where only part of the pixels are new
+ * This can be considerably faster for brushes that change size due to pressure or
+ * textures that stick to the surface where only part of the pixels are new
  */
 static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter,
                                                     ImagePaintTile *tile,
@@ -399,7 +400,7 @@ static ImBuf *brush_painter_imbuf_new(
     paint_brush_color_get(scene,
                           paint,
                           brush,
-                          painter->stroke_factors,
+                          painter->initial_hsv_jitter,
                           use_color_correction,
                           cache->invert,
                           distance,
@@ -492,7 +493,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
     paint_brush_color_get(scene,
                           paint,
                           brush,
-                          painter->stroke_factors,
+                          painter->initial_hsv_jitter,
                           use_color_correction,
                           cache->invert,
                           0.0f,
@@ -786,8 +787,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
     }
   }
 
-  /* Re-initialize the curve mask. Mask is always recreated due to the change of
-   * position. */
+  /* Re-initialize the curve mask. Mask is always recreated due to the change of position. */
   paint_curve_mask_cache_update(&cache->curve_mask_cache, brush, diameter, size, pos);
 
   /* detect if we need to recreate image brush buffer */
@@ -1010,8 +1010,7 @@ static void paint_2d_lift_soften(ImagePaintState *s,
         }
       }
       else {
-        /* coordinates have been clipped properly here, it should be safe to do
-         * this */
+        /* coordinates have been clipped properly here, it should be safe to do this */
         paint_2d_ibuf_rgb_get(ibuf, xi, yi, rgba);
       }
       zero_v4(outrgb);
@@ -1034,9 +1033,8 @@ static void paint_2d_lift_soften(ImagePaintState *s,
           /* subtract blurred image from normal image gives high pass filter */
           sub_v3_v3v3(outrgb, rgba, outrgb);
 
-          /* Now rgba_ub contains the edge result, but this should be converted
-           * to luminance to avoid colored speckles appearing in final image,
-           * and also to check for threshold. */
+          /* Now rgba_ub contains the edge result, but this should be converted to luminance to
+           * avoid colored speckles appearing in final image, and also to check for threshold. */
           outrgb[0] = outrgb[1] = outrgb[2] = IMB_colormanagement_get_luminance(outrgb);
           if (fabsf(outrgb[0]) > threshold) {
             float mask = BKE_brush_alpha_get(s->scene, s->brush);
@@ -1373,8 +1371,7 @@ static int paint_2d_op(void *state,
                              true);
 
     if (s->do_masking) {
-      /* masking, find original pixels tiles from undo buffer to composite over
-       */
+      /* masking, find original pixels tiles from undo buffer to composite over */
       int tilex, tiley, tilew, tileh;
 
       imapaint_region_tiles(canvas,
@@ -1573,9 +1570,8 @@ void paint_2d_stroke(void *ps,
 
     ImBuf *ibuf = tile->canvas;
 
-    /* OCIO_TODO: float buffers are now always linear, so always use color
-     * correction this should probably be changed when texture painting color
-     * space is supported
+    /* OCIO_TODO: float buffers are now always linear, so always use color correction
+     *            this should probably be changed when texture painting color space is supported
      */
     brush_painter_2d_require_imbuf(painter->brush,
                                    tile,
@@ -1654,8 +1650,8 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   s->tiles[0].canvas = ibuf;
   s->tiles[0].state = PAINT2D_TILE_READY;
 
-  /* Initialize offsets here, they're needed for the uv space clip test before
-   * lazy-loading the tile properly. */
+  /* Initialize offsets here, they're needed for the uv space clip test before lazy-loading the
+   * tile properly. */
   int tile_idx = 0;
   for (ImageTile *tile = static_cast<ImageTile *>(s->image->tiles.first); tile;
        tile = tile->next, tile_idx++)
@@ -1892,8 +1888,8 @@ void paint_2d_bucket_fill(const bContext *C,
     }
   }
   else {
-    /* second case, start sweeping the neighboring pixels, looking for pixels
-     * whose value is within the brush fill threshold from the fill color */
+    /* second case, start sweeping the neighboring pixels, looking for pixels whose
+     * value is within the brush fill threshold from the fill color */
     BLI_Stack *stack;
     BLI_bitmap *touched;
     size_t coordinate;

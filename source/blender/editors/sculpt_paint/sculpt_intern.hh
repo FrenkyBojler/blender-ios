@@ -230,7 +230,7 @@ struct StrokeCache {
 
   /* The rest is temporary storage that isn't saved as a property */
 
-  StrokeFactors stroke_factors;
+  blender::float3 initial_hsv_jitter;
   /* Beginning of stroke may do some things special. */
   bool first_time = false;
 

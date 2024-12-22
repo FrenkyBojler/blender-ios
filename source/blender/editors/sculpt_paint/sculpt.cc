@@ -4039,7 +4039,7 @@ static void sculpt_update_cache_invariants(
     cache->accum = true;
   }
 
-  cache->stroke_factors = stroke_factors_new();
+  cache->initial_hsv_jitter = seed_hsv_jitter();
   cache->first_time = true;
   cache->plane_brush.first_time = true;
 

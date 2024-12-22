@@ -18,6 +18,8 @@
 #include "BLI_color.hh"
 #include "BLI_color_mix.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -493,6 +495,8 @@ void update_cache_invariants(
   cache->is_last_valid = false;
 
   cache->accum = true;
+
+  cache->initial_hsv_jitter = seed_hsv_jitter();
 }
 
 void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
@@ -710,15 +714,17 @@ static Color vpaint_blend(const VPaint &vp,
   return color_blend;
 }
 
+/* If in accumulate mode, blend brush mark directly onto mesh, else blend into temporary
+ * stroke_buffer and blend the stroke onto the mesh. */
 template<typename Color, typename Traits>
-static Color vpaint_blend_draw(const VPaint &vp,
-                               MutableSpan<Color> prev_vertex_colors,
-                               MutableSpan<Color> vertex_colors,
-                               MutableSpan<Color> stroke_buffer,
-                               Color brush_mark_color,
-                               float brush_mark_alpha,
-                               float brush_strength,
-                               int vert)
+static Color vpaint_blend_stroke(const VPaint &vp,
+                                 MutableSpan<Color> prev_vertex_colors,
+                                 MutableSpan<Color> vertex_colors,
+                                 MutableSpan<Color> stroke_buffer,
+                                 Color brush_mark_color,
+                                 float brush_mark_alpha,
+                                 float brush_strength,
+                                 int vert)
 {
   Color result;
   if (!vwpaint::brush_use_accumulate(vp)) {
@@ -729,6 +735,8 @@ static Color vpaint_blend_draw(const VPaint &vp,
       prev_vertex_colors[vert] = vertex_colors[vert];
     }
 
+    // Mix with mesh color under the stroke (a bit easier than trying to premultiply byte
+    // Color types)
     if (isZero(stroke_buffer[vert])) {
       stroke_buffer[vert] = vertex_colors[vert];
       stroke_buffer[vert].a = 0;
@@ -1703,6 +1711,19 @@ static float paint_and_tex_color_alpha(const VPaint &vp,
   return rgba[3];
 }
 
+/* Compute brush color, using jitter if it's enabled */
+static blender::float3 get_brush_color(const Brush &brush,
+                                       const StrokeCache &cache,
+                                       const ColorPaint4f &paint_color)
+{
+  blender::float3 brush_color = blender::float3(paint_color.r, paint_color.g, paint_color.b);
+  if (brush.flag2 & BRUSH_JITTER_COLOR) {
+    brush_color = BKE_paint_randomize_color(
+        &brush, cache.initial_hsv_jitter, cache.stroke_distance, cache.pressure, brush_color);
+  }
+  return brush_color;
+}
+
 static void vpaint_do_draw(const bContext *C,
                            const VPaint &vp,
                            VPaintData &vpd,
@@ -1748,14 +1769,7 @@ static void vpaint_do_draw(const bContext *C,
     select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
   }
 
-  blender::float3 brush_color = blender::float3(vpd.paintcol.r, vpd.paintcol.g, vpd.paintcol.b);
-  if (brush.flag2 & BRUSH_JITTER_COLOR) {
-    brush_color = BKE_paint_randomize_color(&brush,
-                                            ss.cache->stroke_factors,
-                                            ss.cache->stroke_distance,
-                                            ss.cache->pressure,
-                                            brush_color);
-  }
+  const blender::float3 brush_color = get_brush_color(brush, cache, vpd.paintcol);
 
   struct LocalData {
     Vector<float> factors;
@@ -1834,14 +1848,14 @@ static void vpaint_do_draw(const bContext *C,
                                   brush_alpha_pressure;
 
         if (vpd.domain == AttrDomain::Point) {
-          colors[vert] = vpaint_blend_draw<Color, Traits>(vp,
-                                                          previous_color,
-                                                          colors,
-                                                          stroke_buffer,
-                                                          color_final,
-                                                          alpha_final,
-                                                          brush_strength,
-                                                          vert);
+          colors[vert] = vpaint_blend_stroke<Color, Traits>(vp,
+                                                            previous_color,
+                                                            colors,
+                                                            stroke_buffer,
+                                                            color_final,
+                                                            alpha_final,
+                                                            brush_strength,
+                                                            vert);
         }
         else {
           /* For each face owning this vert, paint each loop belonging to this vert. */
@@ -1851,14 +1865,14 @@ static void vpaint_do_draw(const bContext *C,
             if (!select_poly.is_empty() && !select_poly[face]) {
               continue;
             }
-            colors[corner] = vpaint_blend_draw<Color, Traits>(vp,
-                                                              previous_color,
-                                                              colors,
-                                                              stroke_buffer,
-                                                              color_final,
-                                                              alpha_final,
-                                                              brush_strength,
-                                                              corner);
+            colors[corner] = vpaint_blend_stroke<Color, Traits>(vp,
+                                                                previous_color,
+                                                                colors,
+                                                                stroke_buffer,
+                                                                color_final,
+                                                                alpha_final,
+                                                                brush_strength,
+                                                                corner);
           }
         }
       });

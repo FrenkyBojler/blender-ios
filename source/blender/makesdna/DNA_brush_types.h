@@ -154,6 +154,14 @@ typedef struct BrushCurvesSculptSettings {
   struct CurveMapping *curve_parameter_falloff;
 } BrushCurvesSculptSettings;
 
+typedef struct BrushColorJitterSettings {
+  int flag;
+  /** Jitter amounts */
+  float hue;
+  float saturation;
+  float value;
+} BrushColorJitterSettings;
+
 /** Max number of propagation steps for automasking settings. */
 #define AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS 20
 /**
@@ -223,9 +231,7 @@ typedef struct Brush {
 
   /** Color. */
   float rgb[3];
-  float hue_jitter;
-  float saturation_jitter;
-  float value_jitter;
+  BrushColorJitterSettings color_jitter;
 
   /** Opacity. */
   float alpha;
@@ -295,7 +301,7 @@ typedef struct Brush {
   char gpencil_weight_brush_type;
   /** Active curves sculpt brush type (#eBrushCurvesSculptType). */
   char curves_sculpt_brush_type;
-  char _pad1[10];
+  char _pad1[6];
 
   float autosmooth_factor;
 
@@ -415,10 +421,6 @@ typedef struct Brush {
   float automasking_cavity_factor;
 
   struct CurveMapping *automasking_cavity_curve;
-
-  struct CurveMapping *curve_rand_hue;
-  struct CurveMapping *curve_rand_saturation;
-  struct CurveMapping *curve_rand_value;
 } Brush;
 
 /* Struct to hold palette colors for sorting. */
