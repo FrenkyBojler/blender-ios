@@ -1604,7 +1604,7 @@ static bool weight_paint_poll_ex(bContext *C, bool check_tool)
       (area = CTX_wm_area(C)) && (area->spacetype == SPACE_VIEW3D))
   {
     ARegion *region = CTX_wm_region(C);
-    if (ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_HUD)) {
+    if (ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_HUD, RGN_TYPE_UI)) {
       if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
         return true;
       }

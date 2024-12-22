@@ -3631,7 +3631,7 @@ static bool is_brush_related_tool(bContext *C)
 
   if (paint && ob && BKE_paint_brush(paint) &&
       (area && ELEM(area->spacetype, SPACE_VIEW3D, SPACE_IMAGE)) &&
-      (region && region->regiontype == RGN_TYPE_WINDOW))
+      (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_UI)))
   {
     bToolRef *tref = area->runtime.tool;
     if (tref && tref->runtime && tref->runtime->keymap[0]) {

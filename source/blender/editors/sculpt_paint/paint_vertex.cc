@@ -627,7 +627,7 @@ static bool vertex_paint_poll_ex(bContext *C, bool check_tool)
     ScrArea *area = CTX_wm_area(C);
     if (area && area->spacetype == SPACE_VIEW3D) {
       ARegion *region = CTX_wm_region(C);
-      if (region->regiontype == RGN_TYPE_WINDOW) {
+      if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_UI)) {
         if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
           return true;
         }

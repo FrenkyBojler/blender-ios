@@ -288,9 +288,13 @@ static bool image_paint_poll_ex(bContext *C, bool check_tool)
   }
 
   obact = CTX_data_active_object(C);
-  if ((obact && obact->mode & OB_MODE_TEXTURE_PAINT) && CTX_wm_region_view3d(C)) {
-    if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
-      return true;
+  ScrArea *area = CTX_wm_area(C);
+  if (obact && obact->mode & OB_MODE_TEXTURE_PAINT && area && area->spacetype == SPACE_VIEW3D) {
+    ARegion *region = CTX_wm_region(C);
+    if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_UI)) {
+      if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
+        return true;
+      }
     }
   }
   else {
@@ -304,7 +308,7 @@ static bool image_paint_poll_ex(bContext *C, bool check_tool)
       }
       if (sima->mode == SI_MODE_PAINT) {
         const ARegion *region = CTX_wm_region(C);
-        if (region->regiontype == RGN_TYPE_WINDOW) {
+        if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_UI)) {
           return true;
         }
       }
