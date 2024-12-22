@@ -20,7 +20,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_multi_value_map.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
@@ -54,7 +54,7 @@
 
 #undef DNA_GENFILE_VERSIONING_MACROS
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -70,14 +70,14 @@
 #include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
@@ -561,26 +561,26 @@ static bNodeTree *add_realize_node_tree(Main *bmain)
       "Geometry", "", "NodeSocketGeometry", NODE_INTERFACE_SOCKET_INPUT, nullptr);
 
   bNode *group_input = blender::bke::node_add_static_node(nullptr, node_tree, NODE_GROUP_INPUT);
-  group_input->locx = -400.0f;
+  group_input->locx_legacy = -400.0f;
   bNode *group_output = blender::bke::node_add_static_node(nullptr, node_tree, NODE_GROUP_OUTPUT);
-  group_output->locx = 500.0f;
+  group_output->locx_legacy = 500.0f;
   group_output->flag |= NODE_DO_OUTPUT;
 
   bNode *join = blender::bke::node_add_static_node(nullptr, node_tree, GEO_NODE_JOIN_GEOMETRY);
-  join->locx = group_output->locx - 175.0f;
-  join->locy = group_output->locy;
+  join->locx_legacy = group_output->locx_legacy - 175.0f;
+  join->locy_legacy = group_output->locy_legacy;
   bNode *conv = blender::bke::node_add_static_node(
       nullptr, node_tree, GEO_NODE_POINTS_TO_VERTICES);
-  conv->locx = join->locx - 175.0f;
-  conv->locy = join->locy - 70.0;
+  conv->locx_legacy = join->locx_legacy - 175.0f;
+  conv->locy_legacy = join->locy_legacy - 70.0;
   bNode *separate = blender::bke::node_add_static_node(
       nullptr, node_tree, GEO_NODE_SEPARATE_COMPONENTS);
-  separate->locx = join->locx - 350.0f;
-  separate->locy = join->locy + 50.0f;
+  separate->locx_legacy = join->locx_legacy - 350.0f;
+  separate->locy_legacy = join->locy_legacy + 50.0f;
   bNode *realize = blender::bke::node_add_static_node(
       nullptr, node_tree, GEO_NODE_REALIZE_INSTANCES);
-  realize->locx = separate->locx - 200.0f;
-  realize->locy = join->locy;
+  realize->locx_legacy = separate->locx_legacy - 200.0f;
+  realize->locy_legacy = join->locy_legacy;
 
   blender::bke::node_add_link(node_tree,
                               group_input,
@@ -697,8 +697,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
             nullptr, ntree, GEO_NODE_SAMPLE_NEAREST_SURFACE);
         sample_nearest_surface->parent = node->parent;
         sample_nearest_surface->custom1 = storage->data_type;
-        sample_nearest_surface->locx = node->locx;
-        sample_nearest_surface->locy = node->locy;
+        sample_nearest_surface->locx_legacy = node->locx_legacy;
+        sample_nearest_surface->locy_legacy = node->locy_legacy;
         static auto socket_remap = []() {
           Map<std::string, std::string> map;
           map.add_new("Attribute", "Value");
@@ -729,8 +729,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         sample_storage->data_type = storage->data_type;
         sample_storage->domain = int8_t(domain);
         sample_index->parent = node->parent;
-        sample_index->locx = node->locx + 25.0f;
-        sample_index->locy = node->locy;
+        sample_index->locx_legacy = node->locx_legacy + 25.0f;
+        sample_index->locy_legacy = node->locy_legacy;
         if (old_geometry_socket->link) {
           blender::bke::node_add_link(
               ntree,
@@ -745,8 +745,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         sample_nearest->parent = node->parent;
         sample_nearest->custom1 = storage->data_type;
         sample_nearest->custom2 = int8_t(domain);
-        sample_nearest->locx = node->locx - 25.0f;
-        sample_nearest->locy = node->locy;
+        sample_nearest->locx_legacy = node->locx_legacy - 25.0f;
+        sample_nearest->locy_legacy = node->locy_legacy;
         if (old_geometry_socket->link) {
           blender::bke::node_add_link(
               ntree,
@@ -791,8 +791,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         sample_storage->domain = storage->domain;
         sample_storage->clamp = 1;
         sample_index->parent = node->parent;
-        sample_index->locx = node->locx;
-        sample_index->locy = node->locy;
+        sample_index->locx_legacy = node->locx_legacy;
+        sample_index->locy_legacy = node->locy_legacy;
         const bool index_was_linked =
             blender::bke::node_find_socket(node, SOCK_IN, "Index")->link != nullptr;
         static auto socket_remap = []() {
@@ -812,8 +812,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
           /* Add an index input node, since the new node doesn't use an implicit input. */
           bNode *index = blender::bke::node_add_static_node(nullptr, ntree, GEO_NODE_INPUT_INDEX);
           index->parent = node->parent;
-          index->locx = node->locx - 25.0f;
-          index->locy = node->locy - 25.0f;
+          index->locx_legacy = node->locx_legacy - 25.0f;
+          index->locy_legacy = node->locy_legacy - 25.0f;
           blender::bke::node_add_link(
               ntree,
               index,
@@ -869,10 +869,8 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
                                                           "GeometryNodeStoreNamedAttribute");
     new_nodes.append(store_attribute_node);
     store_attribute_node->parent = node->parent;
-    store_attribute_node->locx = node->locx + 25;
-    store_attribute_node->locy = node->locy;
-    store_attribute_node->offsetx = node->offsetx;
-    store_attribute_node->offsety = node->offsety;
+    store_attribute_node->locx_legacy = node->locx_legacy + 25;
+    store_attribute_node->locy_legacy = node->locy_legacy;
     auto &storage = *MEM_cnew<NodeGeometryStoreNamedAttribute>(__func__);
     store_attribute_node->storage = &storage;
     storage.domain = int8_t(blender::bke::AttrDomain::Corner);
@@ -1000,8 +998,8 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
 
     bNode &capture_node = version_node_add_empty(ntree, "GeometryNodeCaptureAttribute");
     capture_node.parent = node->parent;
-    capture_node.locx = node->locx - 25;
-    capture_node.locy = node->locy;
+    capture_node.locx_legacy = node->locx_legacy - 25;
+    capture_node.locy_legacy = node->locy_legacy;
     new_nodes.append(&capture_node);
     auto *capture_node_storage = MEM_cnew<NodeGeometryAttributeCapture>(__func__);
     capture_node.storage = capture_node_storage;
@@ -1018,8 +1016,8 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
 
     bNode &is_smooth_node = version_node_add_empty(ntree, "GeometryNodeInputShadeSmooth");
     is_smooth_node.parent = node->parent;
-    is_smooth_node.locx = capture_node.locx - 25;
-    is_smooth_node.locy = capture_node.locy;
+    is_smooth_node.locx_legacy = capture_node.locx_legacy - 25;
+    is_smooth_node.locy_legacy = capture_node.locy_legacy;
     bNodeSocket &is_smooth_out = version_node_add_socket(
         ntree, is_smooth_node, SOCK_OUT, "NodeSocketBool", "Smooth");
     new_nodes.append(&is_smooth_node);
@@ -1032,8 +1030,8 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
     bNode &set_smooth_node = version_node_add_empty(ntree, "GeometryNodeSetShadeSmooth");
     set_smooth_node.custom1 = int16_t(blender::bke::AttrDomain::Face);
     set_smooth_node.parent = node->parent;
-    set_smooth_node.locx = node->locx + 25;
-    set_smooth_node.locy = node->locy;
+    set_smooth_node.locx_legacy = node->locx_legacy + 25;
+    set_smooth_node.locy_legacy = node->locy_legacy;
     new_nodes.append(&set_smooth_node);
     bNodeSocket &set_smooth_node_geo_in = version_node_add_socket(
         ntree, set_smooth_node, SOCK_IN, "NodeSocketGeometry", "Geometry");
@@ -1459,15 +1457,6 @@ static void do_version_bbone_len_scale_fcurve_fix(FCurve *fcu)
   replace_bbone_len_scale_rnapath(&fcu->rna_path, &fcu->array_index);
 }
 
-static void do_version_bbone_len_scale_animdata_cb(ID * /*id*/,
-                                                   AnimData *adt,
-                                                   void * /*wrapper_data*/)
-{
-  LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &adt->drivers) {
-    do_version_bbone_len_scale_fcurve_fix(fcu);
-  }
-}
-
 static void do_version_bones_bbone_len_scale(ListBase *lb)
 {
   LISTBASE_FOREACH (Bone *, bone, lb) {
@@ -1506,7 +1495,7 @@ static bNodeSocket *do_version_replace_float_size_with_vector(bNodeTree *ntree,
       ntree,
       node,
       SOCK_IN,
-      blender::bke::node_static_socket_type(SOCK_VECTOR, PROP_TRANSLATION),
+      *blender::bke::node_static_socket_type(SOCK_VECTOR, PROP_TRANSLATION),
       "Size",
       "Size");
   bNodeSocketValueVector *value_vector = (bNodeSocketValueVector *)new_socket->default_value;
@@ -2369,7 +2358,7 @@ static void version_liboverride_nla_strip_frame_start_end(IDOverrideLibrary *lib
 }
 
 /** Fix the `frame_start` and `frame_end` overrides on NLA strips. See #102662. */
-static void version_liboverride_nla_frame_start_end(ID *id, AnimData *adt, void * /*user_data*/)
+static void version_liboverride_nla_frame_start_end(ID *id, AnimData *adt)
 {
   IDOverrideLibrary *liboverride = id->override_library;
   if (!liboverride) {
@@ -2511,7 +2500,11 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
 
-      BKE_animdata_main_cb(bmain, do_version_bbone_len_scale_animdata_cb, nullptr);
+      BKE_animdata_main_cb(bmain, [](ID * /*id*/, AnimData *adt) {
+        LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &adt->drivers) {
+          do_version_bbone_len_scale_fcurve_fix(fcu);
+        }
+      });
     }
   }
 
@@ -3058,7 +3051,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
                                                                      &sl->regionbase;
               LISTBASE_FOREACH (ARegion *, region, regionbase) {
                 if (region->regiontype == RGN_TYPE_WINDOW) {
-                  region->v2d.max[1] = MAXSEQ;
+                  region->v2d.max[1] = SEQ_MAX_CHANNELS;
                 }
               }
               break;
@@ -4012,6 +4005,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
           ARegion *channels_region = BKE_region_find_in_listbase_by_type(regionbase,
                                                                          RGN_TYPE_CHANNELS);
           if (channels_region) {
+            MEM_delete(channels_region->runtime);
             BLI_freelinkN(regionbase, channels_region);
           }
         }
@@ -4516,7 +4510,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 306, 11)) {
-    BKE_animdata_main_cb(bmain, version_liboverride_nla_frame_start_end, nullptr);
+    BKE_animdata_main_cb(bmain, version_liboverride_nla_frame_start_end);
 
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -4545,6 +4539,15 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  {
+    /* Keep this block, even when empty. */
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->toolsettings->uvcalc_iterations = 10;
+      scene->toolsettings->uvcalc_weight_factor = 1.0f;
+      STRNCPY(scene->toolsettings->uvcalc_weight_group, "uv_importance");
+    }
   }
 
   /**

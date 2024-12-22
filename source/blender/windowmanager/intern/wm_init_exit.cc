@@ -23,7 +23,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -38,7 +38,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.h"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
@@ -62,8 +62,8 @@
 #include "RE_pipeline.h" /* `RE_` free stuff. */
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_python.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_python.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "GHOST_C-api.h"
@@ -111,6 +111,8 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "ANIM_keyingsets.hh"
 
 #include "DRW_engine.hh"
 
@@ -474,7 +476,8 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
       /* Save quit.blend. */
       Main *bmain = CTX_data_main(C);
       char filepath[FILE_MAX];
-      const int fileflags = G.fileflags & ~G_FILE_COMPRESS;
+      int fileflags = G.fileflags & ~G_FILE_COMPRESS;
+      fileflags |= G_FILE_RECOVER_WRITE;
 
       BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
@@ -532,8 +535,9 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * Which can happen when the GPU backend fails to initialize.
    */
   if (C && CTX_py_init_get(C)) {
-    const char *imports[2] = {"addon_utils", nullptr};
-    BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
+    /* Calls `addon_utils.disable_all()` as well as unregistering all "startup" modules.  */
+    const char *imports[] = {"bpy", "bpy.utils", nullptr};
+    BPY_run_string_eval(C, imports, "bpy.utils._on_exit()");
   }
 #endif
 
@@ -584,9 +588,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   UV_clipboard_free();
   wm_clipboard_free();
 
-#ifdef WITH_COMPOSITOR_CPU
   COM_deinitialize();
-#endif
 
   bke::subdiv::exit();
 
@@ -627,7 +629,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   BLT_lang_free();
 
-  ANIM_keyingset_infos_exit();
+  blender::animrig::keyingset_infos_exit();
 
   //  free_txt_data();
 
@@ -655,6 +657,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
     DRW_gpu_context_enable_ex(false);
     UI_exit();
     GPU_pass_cache_free();
+    GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();
@@ -689,10 +692,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   wm_autosave_delete();
 
   BKE_tempdir_session_purge();
-
-#if defined(WITH_OPENGL_BACKEND) && BLI_SUBPROCESS_SUPPORT
-  GPU_shader_cache_dir_clear_old();
-#endif
 
   /* Logging cannot be called after exiting (#CLOG_INFO, #CLOG_WARN etc will crash).
    * So postpone exiting until other sub-systems that may use logging have shut down. */

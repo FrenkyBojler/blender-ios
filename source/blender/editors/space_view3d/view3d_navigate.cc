@@ -207,7 +207,8 @@ static eViewOpsFlag navigate_pivot_get(bContext *C,
     negate_v3_v3(fallback_depth_pt, static_cast<RegionView3D *>(region->regiondata)->ofs);
 
     if (!ED_view3d_has_depth_buffer_updated(depsgraph, v3d)) {
-      ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+      ED_view3d_depth_override(
+          depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, true, nullptr);
     }
 
     const bool is_set = ED_view3d_autodist(region, v3d, event->mval, r_pivot, fallback_depth_pt);
@@ -467,9 +468,7 @@ struct ViewOpsData_Utility : ViewOpsData {
     WM_keyconfig_update_suppress_end();
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("ViewOpsData_Utility")
-#endif
 };
 
 static bool view3d_navigation_poll_impl(bContext *C, const char viewlock)
@@ -802,6 +801,10 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
     BKE_paint_stroke_get_average(scene, ob_act_eval, lastofs);
     is_set = true;
   }
+  else if (ob_act && (ob_act->mode & OB_MODE_SCULPT_CURVES)) {
+    BKE_paint_stroke_get_average(scene, ob_act_eval, lastofs);
+    is_set = true;
+  }
   else if (ob_act && (ob_act->mode & OB_MODE_EDIT) && (ob_act->type == OB_FONT)) {
     Curve *cu = static_cast<Curve *>(ob_act_eval->data);
     EditFont *ef = cu->editfont;
@@ -897,6 +900,8 @@ void axis_set_view(bContext *C,
 
   float quat[4];
   const short orig_persp = rv3d->persp;
+  const char orig_view = rv3d->view;
+  const char orig_view_axis_roll = rv3d->view_axis_roll;
 
   normalize_qt_qt(quat, quat_);
 
@@ -905,14 +910,21 @@ void axis_set_view(bContext *C,
     rv3d->view = view = RV3D_VIEW_USER;
     rv3d->view_axis_roll = RV3D_VIEW_AXIS_ROLL_0;
   }
-
-  if (align_to_quat == nullptr) {
+  else {
     rv3d->view = view;
     rv3d->view_axis_roll = view_axis_roll;
   }
 
-  if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION) {
+  /* Redrawing when changes are detected is needed because the current view
+   * orientation may be a "User" view that matches the axis exactly.
+   * In this case smooth-view exits early as no view transition is needed.
+   * However, changing the view must redraw the region as it changes the
+   * viewport name & grid drawing. */
+  if ((rv3d->view != orig_view) || (rv3d->view_axis_roll != orig_view_axis_roll)) {
     ED_region_tag_redraw(region);
+  }
+
+  if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION) {
     return;
   }
 
@@ -921,6 +933,9 @@ void axis_set_view(bContext *C,
   }
   else if (rv3d->persp == RV3D_CAMOB) {
     rv3d->persp = perspo;
+  }
+  if (rv3d->persp != orig_persp) {
+    ED_region_tag_redraw(region);
   }
 
   if (rv3d->persp == RV3D_CAMOB && v3d->camera) {

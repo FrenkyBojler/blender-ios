@@ -58,7 +58,6 @@ set(SRC
   intern/appdir.cc
   intern/armature.cc
   intern/armature_deform.cc
-  intern/armature_pose.cc
   intern/armature_selection.cc
   intern/armature_update.cc
   intern/asset.cc
@@ -70,6 +69,7 @@ set(SRC
   intern/autoexec.cc
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
+  intern/bake_geometry_nodes_modifier_pack.cc
   intern/bake_items.cc
   intern/bake_items_paths.cc
   intern/bake_items_serialize.cc
@@ -113,6 +113,7 @@ set(SRC
   intern/curve_to_mesh_convert.cc
   intern/curveprofile.cc
   intern/curves.cc
+  intern/curves_attributes.cc
   intern/curves_geometry.cc
   intern/curves_utils.cc
   intern/customdata.cc
@@ -134,6 +135,7 @@ set(SRC
   intern/fluid.cc
   intern/fmodifier.cc
   intern/freestyle.cc
+  intern/geometry_compare.cc
   intern/geometry_component_curves.cc
   intern/geometry_component_edit_data.cc
   intern/geometry_component_grease_pencil.cc
@@ -144,12 +146,11 @@ set(SRC
   intern/geometry_fields.cc
   intern/geometry_set.cc
   intern/geometry_set_instances.cc
-  intern/gpencil_curve_legacy.cc
   intern/gpencil_geom_legacy.cc
   intern/gpencil_legacy.cc
   intern/gpencil_modifier_legacy.cc
-  intern/gpencil_update_cache_legacy.cc
   intern/grease_pencil.cc
+  intern/grease_pencil_attributes.cc
   intern/grease_pencil_convert_legacy.cc
   intern/grease_pencil_vertex_groups.cc
   intern/icons.cc
@@ -166,6 +167,7 @@ set(SRC
   intern/image_partial_update.cc
   intern/image_save.cc
   intern/instances.cc
+  intern/instances_attributes.cc
   intern/ipo.cc
   intern/kelvinlet.cc
   intern/key.cc
@@ -197,8 +199,8 @@ set(SRC
   intern/mball.cc
   intern/mball_tessellate.cc
   intern/mesh.cc
+  intern/mesh_attributes.cc
   intern/mesh_calc_edges.cc
-  intern/mesh_compare.cc
   intern/mesh_convert.cc
   intern/mesh_data_update.cc
   intern/mesh_debug.cc
@@ -238,10 +240,10 @@ set(SRC
   intern/node_enum_definition.cc
   intern/node_runtime.cc
   intern/node_socket_value.cc
-  intern/node_tree_anonymous_attributes.cc
   intern/node_tree_dot_export.cc
   intern/node_tree_field_inferencing.cc
   intern/node_tree_interface.cc
+  intern/node_tree_reference_lifetimes.cc
   intern/node_tree_update.cc
   intern/node_tree_zones.cc
   intern/object.cc
@@ -265,6 +267,7 @@ set(SRC
   intern/pbvh_uv_islands.cc
   intern/pointcache.cc
   intern/pointcloud.cc
+  intern/pointcloud_attributes.cc
   intern/pose_backup.cc
   intern/preferences.cc
   intern/preview_image.cc
@@ -308,6 +311,7 @@ set(SRC
   intern/undo_system.cc
   intern/unit.cc
   intern/vfont.cc
+  intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
   intern/viewer_path.cc
   intern/volume.cc
@@ -320,7 +324,6 @@ set(SRC
   intern/world.cc
   intern/writemovie.cc
 
-  BKE_action.h
   BKE_action.hh
   BKE_addon.h
   BKE_anim_data.hh
@@ -335,11 +338,14 @@ set(SRC
   BKE_asset_edit.hh
   BKE_attribute.h
   BKE_attribute.hh
+  BKE_attribute_filter.hh
+  BKE_attribute_filters.hh
   BKE_attribute_math.hh
   BKE_autoexec.hh
   BKE_bake_data_block_id.hh
   BKE_bake_data_block_map.hh
   BKE_bake_geometry_nodes_modifier.hh
+  BKE_bake_geometry_nodes_modifier_pack.hh
   BKE_bake_items.hh
   BKE_bake_items_paths.hh
   BKE_bake_items_serialize.hh
@@ -389,7 +395,7 @@ set(SRC
   BKE_dynamicpaint.h
   BKE_editlattice.h
   BKE_editmesh.hh
-  BKE_editmesh_bvh.h
+  BKE_editmesh_bvh.hh
   BKE_editmesh_cache.hh
   BKE_editmesh_tangent.hh
   BKE_effect.h
@@ -398,16 +404,16 @@ set(SRC
   BKE_file_handler.hh
   BKE_fluid.h
   BKE_freestyle.h
+  BKE_geometry_compare.hh
   BKE_geometry_fields.hh
   BKE_geometry_nodes_gizmos_transforms.hh
+  BKE_geometry_nodes_reference_set.hh
   BKE_geometry_set.hh
   BKE_geometry_set_instances.hh
   BKE_global.hh
-  BKE_gpencil_curve_legacy.h
   BKE_gpencil_geom_legacy.h
   BKE_gpencil_legacy.h
   BKE_gpencil_modifier_legacy.h
-  BKE_gpencil_update_cache_legacy.h
   BKE_grease_pencil.h
   BKE_grease_pencil.hh
   BKE_grease_pencil_legacy_convert.hh
@@ -415,10 +421,10 @@ set(SRC
   BKE_icons.h
   BKE_idprop.hh
   BKE_idtype.hh
-  BKE_image.h
-  BKE_image_format.h
+  BKE_image.hh
+  BKE_image_format.hh
   BKE_image_partial_update.hh
-  BKE_image_save.h
+  BKE_image_save.hh
   BKE_image_wrappers.hh
   BKE_instances.hh
   BKE_ipo.h
@@ -445,7 +451,6 @@ set(SRC
   BKE_mball_tessellate.hh
   BKE_mesh.h
   BKE_mesh.hh
-  BKE_mesh_compare.hh
   BKE_mesh_fair.hh
   BKE_mesh_iterators.hh
   BKE_mesh_legacy_convert.hh
@@ -462,14 +467,14 @@ set(SRC
   BKE_modifier.hh
   BKE_movieclip.h
   BKE_multires.hh
-  BKE_nla.h
+  BKE_nla.hh
   BKE_node.hh
   BKE_node_enum.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
-  BKE_node_tree_anonymous_attributes.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
+  BKE_node_tree_reference_lifetimes.hh
   BKE_node_tree_update.hh
   BKE_node_tree_zones.hh
   BKE_object.hh
@@ -479,10 +484,9 @@ set(SRC
   BKE_outliner_treehash.hh
   BKE_packedFile.hh
   BKE_paint.hh
+  BKE_paint_bvh.hh
+  BKE_paint_bvh_pixels.hh
   BKE_particle.h
-  BKE_pbvh.hh
-  BKE_pbvh_api.hh
-  BKE_pbvh_pixels.hh
   BKE_pointcache.h
   BKE_pointcloud.hh
   BKE_polygon_clipping_2d.hh
@@ -810,10 +814,6 @@ endif()
 
 if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
-endif()
-
-if(WITH_EXPERIMENTAL_FEATURES)
-  add_definitions(-DWITH_ANIM_BAKLAVA)
 endif()
 
 # # Warnings as errors, this is too strict!

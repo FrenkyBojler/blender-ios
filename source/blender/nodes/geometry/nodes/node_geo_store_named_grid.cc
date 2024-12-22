@@ -21,7 +21,7 @@ namespace blender::nodes::node_geo_store_named_grid_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Volume");
-  b.add_input<decl::String>("Name");
+  b.add_input<decl::String>("Name").hide_label();
   b.add_output<decl::Geometry>("Volume");
 
   const bNode *node = b.node_or_null();
@@ -34,7 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void search_link_ops(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_new_volume_nodes) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
     return;
   }
   if (params.other_socket().type == SOCK_GEOMETRY) {

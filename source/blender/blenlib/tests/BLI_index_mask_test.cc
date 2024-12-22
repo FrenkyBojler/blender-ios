@@ -370,6 +370,19 @@ TEST(index_mask, FromUnion)
     EXPECT_EQ(mask_union[4], 20001);
     EXPECT_EQ(mask_union[5], 20002);
   }
+  {
+    IndexMaskMemory memory;
+    IndexMask mask_union = IndexMask::from_union({}, memory);
+    EXPECT_TRUE(mask_union.is_empty());
+  }
+  {
+    IndexMaskMemory memory;
+    IndexMask mask_union = IndexMask::from_union({IndexRange::from_begin_end(0, 10000),
+                                                  IndexRange::from_begin_end(20000, 30000),
+                                                  IndexRange::from_begin_end(40000, 50000)},
+                                                 memory);
+    EXPECT_EQ(mask_union.size(), 30000);
+  }
 }
 
 TEST(index_mask, FromDifference)
@@ -471,6 +484,39 @@ TEST(index_mask, ToRange)
     const IndexMask mask{range};
     EXPECT_TRUE(mask.to_range().has_value());
     EXPECT_EQ(*mask.to_range(), range);
+  }
+}
+
+TEST(index_mask, ToBits)
+{
+  IndexMaskMemory memory;
+  {
+    const IndexMask mask = IndexMask::from_indices<int>({4, 5, 6, 7}, memory);
+    BitVector<> bits(mask.min_array_size());
+    mask.to_bits(bits);
+    EXPECT_EQ(bits[0].test(), false);
+    EXPECT_EQ(bits[1].test(), false);
+    EXPECT_EQ(bits[2].test(), false);
+    EXPECT_EQ(bits[3].test(), false);
+    EXPECT_EQ(bits[4].test(), true);
+    EXPECT_EQ(bits[5].test(), true);
+    EXPECT_EQ(bits[6].test(), true);
+    EXPECT_EQ(bits[7].test(), true);
+  }
+  {
+    const IndexMask mask = IndexMask::from_indices<int>({4, 5, 6, 7}, memory);
+    BitVector<> bits(mask.min_array_size());
+    bits[0].set();
+    bits[2].set();
+    mask.set_bits(bits);
+    EXPECT_EQ(bits[0].test(), true);
+    EXPECT_EQ(bits[1].test(), false);
+    EXPECT_EQ(bits[2].test(), true);
+    EXPECT_EQ(bits[3].test(), false);
+    EXPECT_EQ(bits[4].test(), true);
+    EXPECT_EQ(bits[5].test(), true);
+    EXPECT_EQ(bits[6].test(), true);
+    EXPECT_EQ(bits[7].test(), true);
   }
 }
 

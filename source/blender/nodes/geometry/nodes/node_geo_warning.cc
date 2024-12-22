@@ -7,7 +7,11 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "BLI_string_utf8.h"
+
 #include "NOD_rna_define.hh"
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 namespace blender::nodes::node_geo_warning_cc {
 
@@ -15,6 +19,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
+
+  b.add_default_layout();
 
   b.add_input<decl::Bool>("Show").default_value(true).hide_value();
   b.add_output<decl::Bool>("Show").align_with_previous();
@@ -71,19 +77,25 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_rna(StructRNA *srna)
 {
-  static EnumPropertyItem warning_type_items[] = {
-      {int(NodeWarningType::Error), "ERROR", 0, "Error", ""},
-      {int(NodeWarningType::Warning), "WARNING", 0, "Warning", ""},
-      {int(NodeWarningType::Info), "INFO", 0, "Info", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   RNA_def_node_enum(srna,
                     "warning_type",
                     "Warning Type",
                     "",
-                    warning_type_items,
+                    rna_enum_node_warning_type_items,
                     NOD_inline_enum_accessors(custom1));
+}
+
+static void node_label(const bNodeTree * /*ntree*/,
+                       const bNode *node,
+                       char *label,
+                       int label_maxncpy)
+{
+  const char *name;
+  bool enum_label = RNA_enum_name(rna_enum_node_warning_type_items, node->custom1, &name);
+  if (!enum_label) {
+    name = IFACE_("Unknown");
+  }
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
 
 static void node_register()
@@ -92,6 +104,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, GEO_NODE_WARNING, "Warning", NODE_CLASS_INTERFACE);
   ntype.declare = node_declare;
+  ntype.labelfunc = node_label;
   ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(&ntype);
 

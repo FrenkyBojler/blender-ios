@@ -15,9 +15,10 @@ set(INC
   ../../makesrna
   ../../render
   ../../windowmanager
-  ../../compositor/realtime_compositor
-  ../../compositor/realtime_compositor/algorithms
-  ../../compositor/realtime_compositor/cached_resources
+  ../../compositor
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/utilities
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -129,9 +130,10 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  bf_functions
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
-  bf_realtime_compositor
+  bf_compositor
 )
 
 if(WITH_OPENCOLORIO)
@@ -140,13 +142,6 @@ endif()
 
 if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_OPENEXR)
-endif()
-
-if(WITH_COMPOSITOR_CPU)
-  list(APPEND INC
-    ../../compositor
-  )
-  add_definitions(-DWITH_COMPOSITOR_CPU)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)

@@ -9,7 +9,7 @@
 #pragma once
 
 #ifndef __cplusplus
-#  include "../generic/py_capi_utils.h"
+#  include "../generic/py_capi_utils.hh"
 #endif
 
 struct GPUShaderCreateInfo;
@@ -68,3 +68,4 @@ struct BPyGPUShaderCreateInfo {
 
 PyObject *BPyGPUStageInterfaceInfo_CreatePyObject(GPUStageInterfaceInfo *interface);
 PyObject *BPyGPUShaderCreateInfo_CreatePyObject(GPUShaderCreateInfo *info);
+bool bpygpu_shader_is_polyline(GPUShader *shader);
