@@ -223,7 +223,8 @@ TEST_F(vk_render_graph_test_compute, dispatch_dispatch_read_back_with_changing_p
  * Test that the descriptor sets are updated when chaining dispatching with different pipelines and
  * descriptor sets.
  */
-TEST_F(vk_render_graph_test_compute, dispatch_dispatch_read_back_with_changing_pipelines_descriptor_sets)
+TEST_F(vk_render_graph_test_compute,
+       dispatch_dispatch_read_back_with_changing_pipelines_descriptor_sets)
 {
   VkHandle<VkBuffer> buffer(1u);
   VkHandle<VkPipeline> pipeline_a(2u);

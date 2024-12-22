@@ -30,8 +30,10 @@ class CommandBufferLog : public VKCommandBufferInterface {
   bool is_cpu_synchronizing_ = false;
 
  public:
-  CommandBufferLog(Vector<std::string> &log, bool use_dynamic_rendering_ = true, bool use_dynamic_rendering_local_read_ = true)
-    : log_(log)
+  CommandBufferLog(Vector<std::string> &log,
+                   bool use_dynamic_rendering_ = true,
+                   bool use_dynamic_rendering_local_read_ = true)
+      : log_(log)
   {
     use_dynamic_rendering = use_dynamic_rendering_;
     use_dynamic_rendering_local_read = use_dynamic_rendering_local_read_;
@@ -473,16 +475,19 @@ class CommandBufferLog : public VKCommandBufferInterface {
   void end_debug_utils_label() override {}
 };
 
-class vk_render_graph : public ::testing::Test
-{
-public:
+class vk_render_graph : public ::testing::Test {
+ public:
   vk_render_graph()
   {
     resources.use_dynamic_rendering = use_dynamic_rendering;
     resources.use_dynamic_rendering_local_read = use_dynamic_rendering_local_read;
-    render_graph = std::make_unique<VKRenderGraph>(std::make_unique<CommandBufferLog>(log, use_dynamic_rendering, use_dynamic_rendering_local_read), resources);
+    render_graph = std::make_unique<VKRenderGraph>(
+        std::make_unique<CommandBufferLog>(
+            log, use_dynamic_rendering, use_dynamic_rendering_local_read),
+        resources);
   }
-protected:
+
+ protected:
   Vector<std::string> log;
   VKResourceStateTracker resources;
   std::unique_ptr<VKRenderGraph> render_graph;
@@ -490,25 +495,30 @@ protected:
   bool use_dynamic_rendering_local_read = true;
 };
 
-class vk_render_graph_p : public ::testing::TestWithParam<std::tuple<bool, bool>>
-{
-public:
+class vk_render_graph_p : public ::testing::TestWithParam<std::tuple<bool, bool>> {
+ public:
   vk_render_graph_p()
   {
     use_dynamic_rendering = std::get<0>(GetParam());
     use_dynamic_rendering_local_read = std::get<1>(GetParam());
     resources.use_dynamic_rendering = use_dynamic_rendering;
     resources.use_dynamic_rendering_local_read = use_dynamic_rendering_local_read;
-    render_graph = std::make_unique<VKRenderGraph>(std::make_unique<CommandBufferLog>(log, use_dynamic_rendering, use_dynamic_rendering_local_read), resources);
+    render_graph = std::make_unique<VKRenderGraph>(
+        std::make_unique<CommandBufferLog>(
+            log, use_dynamic_rendering, use_dynamic_rendering_local_read),
+        resources);
   }
-protected:
+
+ protected:
   VkImageLayout colorAttachmentLayout() const
   {
-    return use_dynamic_rendering_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    return use_dynamic_rendering_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
+                                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   }
   std::string colorAttachmentLayoutStr() const
   {
-    return use_dynamic_rendering_local_read ? "VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR" : "VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL";
+    return use_dynamic_rendering_local_read ? "VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR" :
+                                              "VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL";
   }
 
   Vector<std::string> log;

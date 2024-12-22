@@ -674,7 +674,7 @@ void VKCommandBuilder::layer_tracking_end(VKCommandBufferInterface &command_buff
 
 void VKCommandBuilder::layer_tracking_suspend(VKCommandBufferInterface &command_buffer)
 {
-  const bool supports_local_read =command_buffer.use_dynamic_rendering_local_read;
+  const bool supports_local_read = command_buffer.use_dynamic_rendering_local_read;
 
   if (state_.layered_bindings.is_empty()) {
     return;
