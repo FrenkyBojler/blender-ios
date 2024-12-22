@@ -166,17 +166,6 @@ struct SocketUsageInferencer {
     }
   }
 
-  void usage_task__output(const SocketInContext &socket)
-  {
-    Vector<const bNodeSocket *> dependent_sockets;
-    for (const bNodeLink *link : socket->directly_linked_links()) {
-      if (link->is_used()) {
-        dependent_sockets.append(link->tosock);
-      }
-    }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
-  }
-
   void usage_task__input__switch_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
@@ -340,6 +329,17 @@ struct SocketUsageInferencer {
       return;
     }
     all_socket_usages_.add_new(socket, *is_used);
+  }
+
+  void usage_task__output(const SocketInContext &socket)
+  {
+    Vector<const bNodeSocket *> dependent_sockets;
+    for (const bNodeLink *link : socket->directly_linked_links()) {
+      if (link->is_used()) {
+        dependent_sockets.append(link->tosock);
+      }
+    }
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
   }
 
   void usage_task__with_dependent_sockets(const SocketInContext &socket,
