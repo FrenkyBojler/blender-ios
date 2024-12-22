@@ -478,31 +478,110 @@ static void handle_group_output_node_input_usage(const SocketInContext &socket,
   all_socket_usages.add_new(socket, *is_used);
 }
 
-static void handle_fallback_node_input_usage(const SocketInContext &socket,
-                                             Stack<Task> &tasks,
-                                             Map<SocketInContext, bool> &all_socket_usages)
+static void handle_node_input_usage_with_dependent_sockets(
+    const SocketInContext &socket,
+    const Span<const bNodeSocket *> dependent_sockets,
+    Stack<Task> &tasks,
+    Map<SocketInContext, bool> &all_socket_usages)
 {
-  const NodeInContext node = socket.owner_node();
-  const int outputs_num = node->output_sockets().size();
-
-  /* Check if any output of the node is used already.*/
-  for (const int output_i : IndexRange(outputs_num)) {
-    const SocketInContext output_socket = node.output_socket(output_i);
-    if (all_socket_usages.lookup_default(output_socket, false)) {
+  /* Check if any of the dependent sockets is used. */
+  SocketInContext next_unknown_socket;
+  for (const bNodeSocket *dependent_socket_ptr : dependent_sockets) {
+    const SocketInContext dependent_socket{socket.context, dependent_socket_ptr};
+    const std::optional<bool> is_used = all_socket_usages.lookup_try(dependent_socket);
+    if (!is_used.has_value() && !next_unknown_socket) {
+      next_unknown_socket = dependent_socket;
+      continue;
+    }
+    if (is_used.value_or(false)) {
       all_socket_usages.add_new(socket, true);
       return;
     }
   }
-  /* Create a task that checks if the next output is used. */
-  for (const int output_i : node->output_sockets().index_range()) {
-    const SocketInContext output_socket = node.output_socket(output_i);
-    if (!all_socket_usages.contains(output_socket)) {
-      tasks.push({TaskType::Usage, output_socket});
-      return;
-    }
+  /* Create a task that checks if the next output is used.*/
+  if (next_unknown_socket) {
+    tasks.push({TaskType::Usage, next_unknown_socket});
+    return;
   }
-  /* No task was added, so all of the outputs are already known to be unused. */
+  /* None of the dependent sockets is used, so the current socket is not used either. */
   all_socket_usages.add_new(socket, false);
+}
+
+static void handle_simulation_input_node_input_usage(const SocketInContext &socket,
+                                                     Stack<Task> &tasks,
+                                                     Map<SocketInContext, bool> &all_socket_usages)
+{
+  const NodeInContext node = socket.owner_node();
+  const bNodeTree &tree = socket->owner_tree();
+
+  const NodeGeometrySimulationInput &storage = *static_cast<const NodeGeometrySimulationInput *>(
+      node->storage);
+  const bNode *sim_output_node = tree.node_by_id(storage.output_node_id);
+  if (!sim_output_node) {
+    all_socket_usages.add_new(socket, false);
+    return;
+  }
+  Vector<const bNodeSocket *, 16> dependent_sockets;
+  dependent_sockets.extend(node->output_sockets());
+  dependent_sockets.extend(sim_output_node->output_sockets());
+  handle_node_input_usage_with_dependent_sockets(
+      socket, dependent_sockets, tasks, all_socket_usages);
+}
+
+static void handle_repeat_input_node_input_usage(const SocketInContext &socket,
+                                                 Stack<Task> &tasks,
+                                                 Map<SocketInContext, bool> &all_socket_usages)
+{
+  const NodeInContext node = socket.owner_node();
+  const bNodeTree &tree = socket->owner_tree();
+
+  const NodeGeometryRepeatInput &storage = *static_cast<const NodeGeometryRepeatInput *>(
+      node->storage);
+  const bNode *repeat_output_node = tree.node_by_id(storage.output_node_id);
+  if (!repeat_output_node) {
+    all_socket_usages.add_new(socket, false);
+    return;
+  }
+  Vector<const bNodeSocket *, 16> dependent_sockets;
+  dependent_sockets.extend(node->output_sockets());
+  dependent_sockets.extend(repeat_output_node->output_sockets());
+  handle_node_input_usage_with_dependent_sockets(
+      socket, dependent_sockets, tasks, all_socket_usages);
+}
+
+static void handle_foreach_element_input_node_input_usage(
+    const SocketInContext &socket,
+    Stack<Task> &tasks,
+    Map<SocketInContext, bool> &all_socket_usages)
+{
+  const NodeInContext node = socket.owner_node();
+  const bNodeTree &tree = socket->owner_tree();
+
+  const NodeGeometryForeachGeometryElementInput &storage =
+      *static_cast<const NodeGeometryForeachGeometryElementInput *>(node->storage);
+  const bNode *foreach_output_node = tree.node_by_id(storage.output_node_id);
+  if (!foreach_output_node) {
+    all_socket_usages.add_new(socket, false);
+    return;
+  }
+  Vector<const bNodeSocket *, 16> dependent_sockets;
+  if (StringRef(socket->identifier).startswith("Input_")) {
+    dependent_sockets.append(&node->output_by_identifier(socket->identifier));
+  }
+  else {
+    dependent_sockets.extend(node->output_sockets());
+    dependent_sockets.extend(foreach_output_node->output_sockets());
+  }
+  handle_node_input_usage_with_dependent_sockets(
+      socket, dependent_sockets, tasks, all_socket_usages);
+}
+
+static void handle_fallback_node_input_usage(const SocketInContext &socket,
+                                             Stack<Task> &tasks,
+                                             Map<SocketInContext, bool> &all_socket_usages)
+{
+  handle_node_input_usage_with_dependent_sockets(
+      socket, socket->owner_node().output_sockets(), tasks, all_socket_usages);
 }
 
 static void handle_input_usage_task(const SocketInContext &socket,
@@ -532,6 +611,18 @@ static void handle_input_usage_task(const SocketInContext &socket,
     }
     case GEO_NODE_MENU_SWITCH: {
       handle_menu_switch_node_input_usage(socket, tasks, all_socket_usages, all_socket_values);
+      break;
+    }
+    case GEO_NODE_SIMULATION_INPUT: {
+      handle_simulation_input_node_input_usage(socket, tasks, all_socket_usages);
+      break;
+    }
+    case GEO_NODE_REPEAT_INPUT: {
+      handle_repeat_input_node_input_usage(socket, tasks, all_socket_usages);
+      break;
+    }
+    case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT: {
+      handle_foreach_element_input_node_input_usage(socket, tasks, all_socket_usages);
       break;
     }
     default: {
