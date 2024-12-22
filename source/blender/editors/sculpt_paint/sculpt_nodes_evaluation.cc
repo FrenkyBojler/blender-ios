@@ -52,6 +52,17 @@ static void evaluate(const bke::SocketValueVariant &output_socket,
   }
 }
 
+/**
+ * Evaluates the Geometry Nodes node group associated with the given brush and context.
+ *
+ * `outputs` represents:
+ * - A translation in object space when used by sculpt brushes.
+ * - A color when used by paint brushes.
+ *
+ * Only the first output socket is evaluted; others are ignored.
+ * Currently supports the following output types: vector, float, and
+ * color.
+ */
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   Object &object,
                                   const Brush &brush,
@@ -153,13 +164,6 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   for (const int i : tree->interface_outputs().index_range()) {
     param_inputs[function.inputs.output_usages[i]] = &output_used_inputs[i];
   }
-
-  /* No anonymous attributes have to be propagated. */
-  /*Array<bke::GeometryNodesReferenceSet> references_to_propagate(
-    function.inputs.references_to_propagate.geometry_outputs.size());
-  for (const int i : references_to_propagate.index_range()) {
-    param_inputs[function.inputs.references_to_propagate.range[i]] = &references_to_propagate[i];
-  }*/
 
   /* Prepare memory for output values. */
   for (const int i : IndexRange(num_outputs)) {
