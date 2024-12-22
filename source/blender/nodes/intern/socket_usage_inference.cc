@@ -582,10 +582,18 @@ static void handle_foreach_element_output_node_input_usage(
     Map<SocketInContext, bool> &all_socket_usages)
 {
   const NodeInContext node = socket.owner_node();
-  Vector<const bNodeSocket *> dependent_sockets;
-  dependent_sockets.append(&node->output_by_identifier(socket->identifier));
   handle_node_input_usage_with_dependent_sockets(
-      socket, dependent_sockets, tasks, all_socket_usages);
+      socket, {&node->output_by_identifier(socket->identifier)}, tasks, all_socket_usages);
+}
+
+static void handle_capture_attribute_node_input_usage(
+    const SocketInContext &socket,
+    Stack<Task> &tasks,
+    Map<SocketInContext, bool> &all_socket_usages)
+{
+  const NodeInContext node = socket.owner_node();
+  handle_node_input_usage_with_dependent_sockets(
+      socket, {&node->output_socket(socket->index())}, tasks, all_socket_usages);
 }
 
 static void handle_fallback_node_input_usage(const SocketInContext &socket,
@@ -639,6 +647,10 @@ static void handle_input_usage_task(const SocketInContext &socket,
     }
     case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
       handle_foreach_element_output_node_input_usage(socket, tasks, all_socket_usages);
+      break;
+    }
+    case GEO_NODE_CAPTURE_ATTRIBUTE: {
+      handle_capture_attribute_node_input_usage(socket, tasks, all_socket_usages);
       break;
     }
     default: {
