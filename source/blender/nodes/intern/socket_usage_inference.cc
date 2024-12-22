@@ -20,8 +20,10 @@
 namespace blender::nodes::socket_usage_inference {
 
 enum class TaskType {
-  Value,
+  /** Indicates that the task is to check if a socket is used. */
   Usage,
+  /** Indicates that the task is to try to compute the value of a socket. */
+  Value,
 };
 
 struct Task {
@@ -31,21 +33,54 @@ struct Task {
 
 /** Utility class to simplify passing global state into all the functions during inferencing. */
 struct SocketUsageInferencer {
+  /** Owns e.g. intermediate evaluated values. */
   ResourceScope scope_;
-  const bNodeTree &tree_;
-  const Span<GPointer> tree_input_values_;
-  const MutableSpan<bool> r_input_usages_;
+
+  /** Root node tree. */
+  const bNodeTree &root_tree_;
+
+  /**
+   * Input values of the root node tree provided by the caller. Those may come input sockets or
+   * e.g. input settings in the Geometry Nodes modifier. Each input may be null, which indicates
+   * that the input does not have a "static" input value.
+   *
+   * The data-type is the #base_cpp_type of the socket. So e.g. `float` for float sockets.
+   */
+  const Span<GPointer> root_tree_input_values_;
+
+  /**
+   * Where the result of the inference is stored. Each entry corresponds to one input of the tree.
+   */
+  const MutableSpan<bool> r_root_input_usages_;
+
+  /**
+   * Stack of tasks that allows depth-first (partial) evaluation of the tree.
+   */
   Stack<Task> tasks_;
+
+  /**
+   * If the usage of a socket is known, it is added to this map. Sockets not in this map are not
+   * known yet.
+   */
   Map<SocketInContext, bool> all_socket_usages_;
+
+  /**
+   * If the value of a socket is known, it is added to this map. The value may be null, which means
+   * that the value can be anything. Sockets not in this map have not been evaluated yet.
+   */
   Map<SocketInContext, const void *> all_socket_values_;
-  AlignedBuffer<1024, 8> scope_buffer;
+
+  /** Some inline storage to reduce the number of allocations. */
+  AlignedBuffer<1024, 8> scope_buffer_;
 
   SocketUsageInferencer(const bNodeTree &tree,
                         const Span<GPointer> tree_input_values,
                         const MutableSpan<bool> r_input_usages)
-      : tree_(tree), tree_input_values_(tree_input_values), r_input_usages_(r_input_usages)
+      : root_tree_(tree),
+        root_tree_input_values_(tree_input_values),
+        r_root_input_usages_(r_input_usages)
   {
-    scope_.linear_allocator().provide_buffer(scope_buffer);
+    scope_.linear_allocator().provide_buffer(scope_buffer_);
   }
 
   void do_inference()
@@ -57,12 +92,12 @@ struct SocketUsageInferencer {
 
   void schedule_root_tasks_and_store_tree_inputs()
   {
-    tree_.ensure_topology_cache();
-    for (const bNode *node : tree_.group_input_nodes()) {
-      for (const int i : tree_.interface_inputs().index_range()) {
+    root_tree_.ensure_topology_cache();
+    for (const bNode *node : root_tree_.group_input_nodes()) {
+      for (const int i : root_tree_.interface_inputs().index_range()) {
         const bNodeSocket &socket = node->output_socket(i);
         tasks_.push({TaskType::Usage, {nullptr, &socket}});
-        all_socket_values_.add_new({nullptr, &socket}, tree_input_values_[i].get());
+        all_socket_values_.add_new({nullptr, &socket}, root_tree_input_values_[i].get());
       }
     }
   }
@@ -92,11 +127,11 @@ struct SocketUsageInferencer {
 
   void gather_finalized_input_usages()
   {
-    r_input_usages_.fill(false);
-    for (const bNode *node : tree_.group_input_nodes()) {
-      for (const int i : tree_.interface_inputs().index_range()) {
+    r_root_input_usages_.fill(false);
+    for (const bNode *node : root_tree_.group_input_nodes()) {
+      for (const int i : root_tree_.interface_inputs().index_range()) {
         const bNodeSocket &socket = node->output_socket(i);
-        r_input_usages_[i] |= all_socket_usages_.lookup({nullptr, &socket});
+        r_root_input_usages_[i] |= all_socket_usages_.lookup({nullptr, &socket});
       }
     }
   }
