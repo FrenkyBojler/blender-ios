@@ -96,7 +96,7 @@ struct SocketUsageInferencer {
     for (const bNode *node : root_tree_.group_input_nodes()) {
       for (const int i : root_tree_.interface_inputs().index_range()) {
         const bNodeSocket &socket = node->output_socket(i);
-        tasks_.push({TaskType::Usage, {nullptr, &socket}});
+        this->push_usage_task({nullptr, &socket});
         all_socket_values_.add_new({nullptr, &socket}, root_tree_input_values_[i].get());
       }
     }
@@ -120,6 +120,7 @@ struct SocketUsageInferencer {
       }
 
       if (tasks_.size() == prev_tasks_num) {
+        /* The task is finished if it hasn't added any new task it depends on.*/
         tasks_.pop();
       }
     }
@@ -248,7 +249,7 @@ struct SocketUsageInferencer {
     const SocketInContext output_socket = node.output_socket(0);
     const std::optional<bool> output_is_used = all_socket_usages_.lookup_try(output_socket);
     if (!output_is_used.has_value()) {
-      tasks_.push({TaskType::Usage, output_socket});
+      this->push_usage_task(output_socket);
       return;
     }
     if (!*output_is_used) {
@@ -263,7 +264,7 @@ struct SocketUsageInferencer {
     const std::optional<const void *> condition_value = all_socket_values_.lookup_try(
         condition_socket);
     if (!condition_value.has_value()) {
-      tasks_.push({TaskType::Value, condition_socket});
+      this->push_value_task(condition_socket);
       return;
     }
     if (*condition_value == nullptr) {
@@ -419,7 +420,7 @@ struct SocketUsageInferencer {
     }
     /* Create a task that checks if the next output is used.*/
     if (next_unknown_socket) {
-      tasks_.push({TaskType::Usage, next_unknown_socket});
+      this->push_usage_task(next_unknown_socket);
       return;
     }
     /* None of the dependent sockets is used, so the current socket is not used either. */
@@ -491,7 +492,7 @@ struct SocketUsageInferencer {
                                           &group_output_node->input_socket(socket->index())};
     const std::optional<const void *> value = all_socket_values_.lookup_try(socket_in_group);
     if (!value.has_value()) {
-      tasks_.push({TaskType::Value, socket_in_group});
+      this->push_value_task(socket_in_group);
       return;
     }
     all_socket_values_.add_new(socket, *value);
@@ -508,7 +509,7 @@ struct SocketUsageInferencer {
         group_context.parent(), &group_context.caller_group_node()->input_socket(socket->index())};
     const std::optional<const void *> value = all_socket_values_.lookup_try(group_node_input);
     if (!value.has_value()) {
-      tasks_.push({TaskType::Value, group_node_input});
+      this->push_value_task(group_node_input);
       return;
     }
     all_socket_values_.add_new(socket, *value);
@@ -523,7 +524,7 @@ struct SocketUsageInferencer {
       const SocketInContext input_socket = node.input_socket(input_i);
       const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
       if (!input_value.has_value()) {
-        tasks_.push({TaskType::Value, input_socket});
+        this->push_value_task(input_socket);
         return;
       }
       if (*input_value == nullptr) {
@@ -581,7 +582,7 @@ struct SocketUsageInferencer {
     }
     const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
     if (!input_value.has_value()) {
-      tasks_.push({TaskType::Value, input_socket});
+      this->push_value_task(input_socket);
       return;
     }
     const void *converted_value = this->convert_type_if_necessary(
@@ -633,7 +634,7 @@ struct SocketUsageInferencer {
   {
     const std::optional<const void *> from_value = all_socket_values_.lookup_try(from_socket);
     if (!from_value.has_value()) {
-      tasks_.push({TaskType::Value, from_socket});
+      this->push_value_task(from_socket);
       return;
     }
     const void *converted_value = this->convert_type_if_necessary(
@@ -666,6 +667,16 @@ struct SocketUsageInferencer {
       scope_.add_destruct_call([to_type, dst]() { to_type->destruct(dst); });
     }
     return dst;
+  }
+
+  void push_usage_task(const SocketInContext &socket)
+  {
+    tasks_.push({TaskType::Usage, socket});
+  }
+
+  void push_value_task(const SocketInContext &socket)
+  {
+    tasks_.push({TaskType::Value, socket});
   }
 };
 
