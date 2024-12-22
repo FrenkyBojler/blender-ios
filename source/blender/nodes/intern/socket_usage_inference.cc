@@ -50,8 +50,14 @@ struct SocketUsageInferencer {
 
   void do_inference()
   {
-    tree_.ensure_topology_cache();
+    this->schedule_root_tasks_and_store_tree_inputs();
+    this->process_tasks_until_empty();
+    this->gather_finalized_input_usages();
+  }
 
+  void schedule_root_tasks_and_store_tree_inputs()
+  {
+    tree_.ensure_topology_cache();
     for (const bNode *node : tree_.group_input_nodes()) {
       for (const int i : tree_.interface_inputs().index_range()) {
         const bNodeSocket &socket = node->output_socket(i);
@@ -59,7 +65,10 @@ struct SocketUsageInferencer {
         all_socket_values_.add_new({nullptr, &socket}, tree_input_values_[i].get());
       }
     }
+  }
 
+  void process_tasks_until_empty()
+  {
     while (!tasks_.is_empty()) {
       const Task &task = tasks_.peek();
       const int prev_tasks_num = tasks_.size();
@@ -79,7 +88,10 @@ struct SocketUsageInferencer {
         tasks_.pop();
       }
     }
+  }
 
+  void gather_finalized_input_usages()
+  {
     r_input_usages_.fill(false);
     for (const bNode *node : tree_.group_input_nodes()) {
       for (const int i : tree_.interface_inputs().index_range()) {
