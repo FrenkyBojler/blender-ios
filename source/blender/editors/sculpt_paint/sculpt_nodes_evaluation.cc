@@ -30,12 +30,34 @@
 
 namespace blender::ed::sculpt_paint {
 
+static bool is_socket_type_supported(eNodeSocketDatatype type)
+{
+  return ELEM(type, SOCK_VECTOR, SOCK_RGBA, SOCK_FLOAT);
+}
+
+template<typename T>
+static void evaluate(const bke::SocketValueVariant output_socket,
+                     const MutableSpan<float3> outputs,
+                     const bke::SculptFieldContext &context)
+{
+  Array<T> tmp_outputs(outputs.size());
+  fn::Field<T> output_field = output_socket.get<fn::Field<T>>();
+
+  fn::FieldEvaluator evaluator{context, outputs.size()};
+  evaluator.add_with_destination(output_field, tmp_outputs.as_mutable_span());
+  evaluator.evaluate();
+
+  for (const int i : outputs.index_range()) {
+    outputs[i] *= float3(tmp_outputs[i]);
+  }
+}
+
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   Object &object,
                                   const Brush &brush,
                                   StrokeCache &cache,
-                                  bke::SculptFieldContext &context,
-                                  MutableSpan<float3> outputs)
+                                  const bke::SculptFieldContext &context,
+                                  const MutableSpan<float3> outputs)
 {
   const bNodeTree *tree = brush.node_group;
 
@@ -57,10 +79,9 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
 
   const bNodeTreeInterfaceSocket *first_output = tree->interface_outputs()[0];
+  const eNodeSocketDatatype type = (eNodeSocketDatatype)first_output->socket_typeinfo()->type;
 
-  /* Only allow Vector outputs for now.
-     TODO: Add support for Float and RGBA */
-  if (first_output->socket_typeinfo()->type != SOCK_VECTOR) {
+  if (!is_socket_type_supported(type)) {
     return;
   }
 
@@ -158,22 +179,29 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
   lazy_function.destruct_storage(lf_context.storage);
 
-  for (GMutablePointer &ptr : inputs_to_destruct) {
-    ptr.destruct();
-  }
-
-  bke::SocketValueVariant output_socket = std::move(
+  /* Only consider the first output. The other outputs are not evaluated. */
+  const bke::SocketValueVariant output_socket = std::move(
       *param_outputs[0].get<bke::SocketValueVariant>());
 
-  fn::Field<float3> output_field = output_socket.get<fn::Field<float3>>();
-  fn::FieldEvaluator evaluator{context, outputs.size()};
+  switch (type) {
+    case SOCK_VECTOR: {
+      evaluate<float3>(output_socket, outputs, context);
+      break;
+    }
+    case SOCK_FLOAT: {
+      evaluate<float>(output_socket, outputs, context);
+      break;
+    }
+    case SOCK_RGBA: {
+      evaluate<ColorGeometry4f>(output_socket, outputs, context);
+      break;
+    }
+    default:
+      BLI_assert_unreachable();
+  }
 
-  Vector<float3> tmp_outputs(outputs.size());
-  evaluator.add_with_destination(output_field, tmp_outputs.as_mutable_span());
-  evaluator.evaluate();
-
-  for (const int i : outputs.index_range()) {
-    outputs[i] *= tmp_outputs[i];
+  for (GMutablePointer &ptr : inputs_to_destruct) {
+    ptr.destruct();
   }
 
   for (const int i : param_outputs.index_range()) {
