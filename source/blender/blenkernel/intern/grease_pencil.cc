@@ -562,47 +562,43 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
   }
 }
 
+static void ensure_triangle_and_offset_cache(const Drawing &drawing)
+{
+  if (drawing.runtime->triangles_cache.is_cached() &&
+      drawing.runtime->triangle_offsets_cache.is_cached())
+  {
+    return;
+  }
+
+  Vector<int3> r_triangle;
+  Vector<int> r_triangle_offsets(drawing.shapes().size() + 1);
+
+  const CurvesGeometry &curves = drawing.strokes();
+  update_triangle_and_offsets_cache(curves.evaluated_positions(),
+                                    drawing.curve_plane_normals(),
+                                    curves.evaluated_points_by_curve(),
+                                    drawing.shapes().index_range(),
+                                    drawing.shapes(),
+                                    r_triangle,
+                                    r_triangle_offsets.as_mutable_span());
+
+  drawing.runtime->triangle_offsets_cache.ensure([&](Vector<int> &r_triangle_offsets_data) {
+    r_triangle_offsets_data = std::move(r_triangle_offsets);
+  });
+  drawing.runtime->triangles_cache.ensure(
+      [&](Vector<int3> &r_triangle_data) { r_triangle_data = std::move(r_triangle); });
+}
+
 OffsetIndices<int> Drawing::triangle_offsets() const
 {
-  const CurvesGeometry &curves = this->strokes();
-  this->runtime->triangle_offsets_cache.ensure([&](Vector<int> &r_triangle_offsets_data) {
-    Vector<int3> r_triangles;
+  ensure_triangle_and_offset_cache(*this);
 
-    r_triangle_offsets_data.resize(this->shapes().size() + 1);
-
-    update_triangle_and_offsets_cache(curves.evaluated_positions(),
-                                      this->curve_plane_normals(),
-                                      curves.evaluated_points_by_curve(),
-                                      this->shapes().index_range(),
-                                      this->shapes(),
-                                      r_triangles,
-                                      r_triangle_offsets_data.as_mutable_span());
-
-    this->runtime->triangles_cache.update(
-        [&](Vector<int3> &r_triangle_data) { r_triangle_data = std::move(r_triangles); });
-  });
   return this->runtime->triangle_offsets_cache.data().as_span();
 }
 
 Span<int3> Drawing::triangles() const
 {
-  const CurvesGeometry &curves = this->strokes();
-  this->runtime->triangles_cache.ensure([&](Vector<int3> &r_triangle_data) {
-    Array<int> r_triangle_offsets(this->shapes().size() + 1);
-
-    update_triangle_and_offsets_cache(curves.evaluated_positions(),
-                                      this->curve_plane_normals(),
-                                      curves.evaluated_points_by_curve(),
-                                      this->shapes().index_range(),
-                                      this->shapes(),
-                                      r_triangle_data,
-                                      r_triangle_offsets.as_mutable_span());
-
-    this->runtime->triangle_offsets_cache.update([&](Vector<int> &r_triangle_offsets_data) {
-      r_triangle_offsets_data.resize(r_triangle_offsets.size());
-      array_utils::copy(r_triangle_offsets.as_span(), r_triangle_offsets_data.as_mutable_span());
-    });
-  });
+  ensure_triangle_and_offset_cache(*this);
 
   return this->runtime->triangles_cache.data().as_span();
 }
