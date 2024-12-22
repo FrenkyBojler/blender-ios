@@ -232,7 +232,7 @@ struct SocketUsageInferencer {
 
   /**
    * Assumes that the first input is a condition that selects one of the remaining inputs which is
-   * then output.
+   * then output. If necessary, this can trigger a value task for the condition socket.
    */
   void usage_task__input__generic_switch(
       const SocketInContext &socket,
@@ -285,12 +285,14 @@ struct SocketUsageInferencer {
       return;
     }
     group->ensure_topology_cache();
-    const int input_i = socket->index();
+
+    /* The group node input is used iff any of the matching group inputs within the group is
+     * used. */
     const ComputeContext &group_context = scope_.construct<bke::GroupNodeComputeContext>(
         socket.context, *node, node->owner_tree());
     Vector<const bNodeSocket *> dependent_sockets;
     for (const bNode *group_input_node : group->group_input_nodes()) {
-      dependent_sockets.append(&group_input_node->output_socket(input_i));
+      dependent_sockets.append(&group_input_node->output_socket(socket->index()));
     }
     this->usage_task__with_dependent_sockets(socket, dependent_sockets, &group_context);
   }
@@ -303,6 +305,7 @@ struct SocketUsageInferencer {
       all_socket_usages_.add_new(socket, true);
       return;
     }
+    /* The group output node is used iff the matching output of the parent group node is used. */
     const bke::GroupNodeComputeContext &group_context =
         *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
     const bNodeSocket &group_node_output = group_context.caller_group_node()->output_socket(
@@ -312,6 +315,7 @@ struct SocketUsageInferencer {
 
   void usage_task__output(const SocketInContext &socket)
   {
+    /* An output socket is used if any of the sockets it is connected to is used. */
     Vector<const bNodeSocket *> dependent_sockets;
     for (const bNodeLink *link : socket->directly_linked_links()) {
       if (link->is_used()) {
@@ -333,6 +337,7 @@ struct SocketUsageInferencer {
       all_socket_usages_.add_new(socket, false);
       return;
     }
+    /* Simulation inputs are also used when any of the simulation outputs are used. */
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(sim_output_node->output_sockets());
@@ -351,6 +356,8 @@ struct SocketUsageInferencer {
       all_socket_usages_.add_new(socket, false);
       return;
     }
+    /* Assume that all repeat inputs are used when any of the outputs are used. This check could
+     * become more precise in the future if necessary. */
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(repeat_output_node->output_sockets());
@@ -394,12 +401,17 @@ struct SocketUsageInferencer {
       dependent_sockets.append(&node->output_by_identifier(socket->identifier));
     }
     else {
+      /* The geometry and selection inputs are used whenever any of the zone outputs is used. */
       dependent_sockets.extend(node->output_sockets());
       dependent_sockets.extend(foreach_output_node->output_sockets());
     }
     this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
   }
 
+  /**
+   * Utility that handles simple cases where a socket is used if any of its dependent sockets is
+   * used.
+   */
   void usage_task__with_dependent_sockets(const SocketInContext &socket,
                                           const Span<const bNodeSocket *> dependent_sockets,
                                           const ComputeContext *dependent_socket_context)
@@ -418,8 +430,10 @@ struct SocketUsageInferencer {
         return;
       }
     }
-    /* Create a task that checks if the next output is used.*/
     if (next_unknown_socket) {
+      /* Create a task that checks if the next dependent socket is used. Intentionally only create
+       * a task for the very next one and not for all, because that could potentially trigger a lot
+       * of unnecessary evaluations. */
       this->push_usage_task(next_unknown_socket);
       return;
     }
@@ -430,10 +444,12 @@ struct SocketUsageInferencer {
   void value_task(const SocketInContext &socket)
   {
     if (all_socket_values_.contains(socket)) {
+      /* Task is done already. */
       return;
     }
     const CPPType *base_type = socket->typeinfo->base_cpp_type;
     if (!base_type) {
+      /* The socket type is unknown for some reason (maybe a socket type from the future?).*/
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
@@ -470,6 +486,8 @@ struct SocketUsageInferencer {
         break;
       }
     }
+    /* If none of the above cases work, the socket value is set to null which means that it is
+     * unknown/dynamic. */
     all_socket_values_.add_new(socket, nullptr);
   }
 
@@ -483,6 +501,7 @@ struct SocketUsageInferencer {
     }
     const bNode *group_output_node = group->group_output_node();
     if (!group_output_node) {
+      /* Can't compute the value if the group does not have an output node. */
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
@@ -519,6 +538,8 @@ struct SocketUsageInferencer {
   {
     const NodeInContext node = socket.owner_node();
     const int inputs_num = node->input_sockets().size();
+
+    /* Gather all input values are return early if any of them is not known.*/
     Vector<const void *> input_values(inputs_num);
     for (const int input_i : IndexRange(inputs_num)) {
       const SocketInContext input_socket = node.input_socket(input_i);
@@ -534,10 +555,15 @@ struct SocketUsageInferencer {
       input_values[input_i] = *input_value;
     }
 
+    /* Get the multi-function for the node. */
     NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
     node->typeinfo->build_multi_function(builder);
     const mf::MultiFunction &fn = builder.function();
+
+    /* We only evaluate the node for a single value here. */
     const IndexMask mask(1);
+
+    /* Prepare parameters for the multi-function evaluation. */
     mf::ParamsBuilder params{fn, &mask};
     for (const int input_i : IndexRange(inputs_num)) {
       const SocketInContext input_socket = node.input_socket(input_i);
@@ -552,6 +578,7 @@ struct SocketUsageInferencer {
       if (!output_socket->is_available()) {
         continue;
       }
+      /* Allocate memory for the output value. */
       const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
       void *value = scope_.linear_allocator().allocate(base_type.size(), base_type.alignment());
       params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
@@ -562,6 +589,8 @@ struct SocketUsageInferencer {
       }
     }
     mf::ContextBuilder context;
+    /* Actually evaluate the multi-function. The outputs will be written into the memory allocated
+     * earlier, which has been added to #all_socket_values_ already. */
     fn.call(mask, params, context);
   }
 
@@ -577,6 +606,7 @@ struct SocketUsageInferencer {
       }
     }
     if (!input_socket) {
+      /* The output does not have an internal link to an input. */
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
