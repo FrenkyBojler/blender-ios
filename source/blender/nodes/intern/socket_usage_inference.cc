@@ -508,7 +508,7 @@ struct SocketUsageInferencer {
     all_socket_usages_.add_new(socket, *is_used);
   }
 
-  void handle_node_input_usage_with_dependent_sockets(
+  void handle_socket_usage_with_dependent_sockets(
       const SocketInContext &socket, const Span<const bNodeSocket *> dependent_sockets)
   {
     /* Check if any of the dependent sockets is used. */
@@ -549,7 +549,7 @@ struct SocketUsageInferencer {
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(sim_output_node->output_sockets());
-    this->handle_node_input_usage_with_dependent_sockets(socket, dependent_sockets);
+    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
   }
 
   void handle_repeat_input_node_input_usage(const SocketInContext &socket)
@@ -567,7 +567,7 @@ struct SocketUsageInferencer {
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(repeat_output_node->output_sockets());
-    this->handle_node_input_usage_with_dependent_sockets(socket, dependent_sockets);
+    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
   }
 
   void handle_foreach_element_input_node_input_usage(const SocketInContext &socket)
@@ -590,27 +590,27 @@ struct SocketUsageInferencer {
       dependent_sockets.extend(node->output_sockets());
       dependent_sockets.extend(foreach_output_node->output_sockets());
     }
-    this->handle_node_input_usage_with_dependent_sockets(socket, dependent_sockets);
+    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
   }
 
   void handle_foreach_element_output_node_input_usage(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    this->handle_node_input_usage_with_dependent_sockets(
+    this->handle_socket_usage_with_dependent_sockets(
         socket, {&node->output_by_identifier(socket->identifier)});
   }
 
   void handle_capture_attribute_node_input_usage(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    this->handle_node_input_usage_with_dependent_sockets(socket,
-                                                         {&node->output_socket(socket->index())});
+    this->handle_socket_usage_with_dependent_sockets(socket,
+                                                     {&node->output_socket(socket->index())});
   }
 
   void handle_fallback_node_input_usage(const SocketInContext &socket)
   {
-    this->handle_node_input_usage_with_dependent_sockets(socket,
-                                                         socket->owner_node().output_sockets());
+    this->handle_socket_usage_with_dependent_sockets(socket,
+                                                     socket->owner_node().output_sockets());
   }
 
   void handle_input_usage_task(const SocketInContext &socket)
@@ -667,29 +667,13 @@ struct SocketUsageInferencer {
 
   void handle_output_usage_task(const SocketInContext &socket)
   {
+    Vector<const bNodeSocket *> dependent_sockets;
     for (const bNodeLink *link : socket->directly_linked_links()) {
-      if (!link->is_used()) {
-        continue;
-      }
-      const SocketInContext target_socket = {socket.context, link->tosock};
-      if (all_socket_usages_.lookup_default(target_socket, false)) {
-        all_socket_usages_.add_new(socket, true);
-        return;
+      if (link->is_used()) {
+        dependent_sockets.append(link->tosock);
       }
     }
-    /* Create task that checks if the next target is used. */
-    for (const bNodeLink *link : socket->directly_linked_links()) {
-      if (!link->is_used()) {
-        continue;
-      }
-      const SocketInContext target_socket = {socket.context, link->tosock};
-      if (!all_socket_usages_.contains(target_socket)) {
-        tasks_.push({TaskType::Usage, target_socket});
-        return;
-      }
-    }
-    /* No task was added, so all of the targets are already known to be unused. */
-    all_socket_usages_.add_new(socket, false);
+    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
   }
 
   void handle_usage_task(const SocketInContext &socket)
