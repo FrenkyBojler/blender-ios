@@ -29,6 +29,7 @@ struct NodeInContext {
   uint64_t hash() const;
   ComputeContextHash context_hash() const;
   const bNode *operator->() const;
+  const bNode &operator*() const;
   operator bool() const;
 
   SocketInContext input_socket(int index) const;
@@ -52,6 +53,7 @@ struct SocketInContext {
   uint64_t hash() const;
   ComputeContextHash context_hash() const;
   const bNodeSocket *operator->() const;
+  const bNodeSocket &operator*() const;
   operator bool() const;
 
   NodeInContext owner_node() const;
@@ -80,6 +82,11 @@ inline ComputeContextHash NodeInContext::context_hash() const
 inline const bNode *NodeInContext::operator->() const
 {
   return this->node;
+}
+
+inline const bNode &NodeInContext::operator*() const
+{
+  return *this->node;
 }
 
 inline NodeInContext::operator bool() const
@@ -116,6 +123,11 @@ inline ComputeContextHash SocketInContext::context_hash() const
 inline const bNodeSocket *SocketInContext::operator->() const
 {
   return this->socket;
+}
+
+inline const bNodeSocket &SocketInContext::operator*() const
+{
+  return *this->socket;
 }
 
 inline SocketInContext::operator bool() const
