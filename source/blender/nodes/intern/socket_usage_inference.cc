@@ -75,11 +75,11 @@ struct SocketUsageInferencer {
 
       switch (task.type) {
         case TaskType::Value: {
-          this->handle_value_task(task.socket);
+          this->value_task(task.socket);
           break;
         }
         case TaskType::Usage: {
-          this->handle_usage_task(task.socket);
+          this->usage_task(task.socket);
           break;
         }
       }
@@ -101,72 +101,72 @@ struct SocketUsageInferencer {
     }
   }
 
-  void handle_usage_task(const SocketInContext &socket)
+  void usage_task(const SocketInContext &socket)
   {
     if (all_socket_usages_.contains(socket)) {
       return;
     }
     if (socket->is_input()) {
-      this->handle_input_usage_task(socket);
+      this->usage_task__input(socket);
     }
     else {
-      this->handle_output_usage_task(socket);
+      this->usage_task__output(socket);
     }
   }
 
-  void handle_input_usage_task(const SocketInContext &socket)
+  void usage_task__input(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     switch (node->type) {
       case NODE_GROUP:
       case NODE_CUSTOM_GROUP: {
-        this->handle_group_node_input_usage(socket);
+        this->usage_task__input__group_node(socket);
         break;
       }
       case NODE_GROUP_OUTPUT: {
-        this->handle_group_output_node_input_usage(socket);
+        this->usage_task__input__group_output_node(socket);
         break;
       }
       case GEO_NODE_SWITCH: {
-        this->handle_switch_node_input_usage(socket);
+        this->usage_task__input__switch_node(socket);
         break;
       }
       case GEO_NODE_INDEX_SWITCH: {
-        this->handle_index_switch_node_input_usage(socket);
+        this->usage_task__input__index_switch_node(socket);
         break;
       }
       case GEO_NODE_MENU_SWITCH: {
-        this->handle_menu_switch_node_input_usage(socket);
+        this->usage_task__input__menu_switch_node(socket);
         break;
       }
       case GEO_NODE_SIMULATION_INPUT: {
-        this->handle_simulation_input_node_input_usage(socket);
+        this->usage_task__input__simulation_input_node(socket);
         break;
       }
       case GEO_NODE_REPEAT_INPUT: {
-        this->handle_repeat_input_node_input_usage(socket);
+        this->usage_task__input__repeat_input_node(socket);
         break;
       }
       case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT: {
-        this->handle_foreach_element_input_node_input_usage(socket);
+        this->usage_task__input__foreach_element_input_node(socket);
         break;
       }
       case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
-        this->handle_foreach_element_output_node_input_usage(socket);
+        this->usage_task__input__foreach_element_output_node(socket);
         break;
       }
       case GEO_NODE_CAPTURE_ATTRIBUTE: {
-        this->handle_capture_attribute_node_input_usage(socket);
+        this->usage_task__input__capture_attribute_node(socket);
         break;
       }
       default: {
-        this->handle_fallback_node_input_usage(socket);
+        this->usage_task__input__fallback(socket);
         break;
       }
     }
   }
 
-  void handle_output_usage_task(const SocketInContext &socket)
+  void usage_task__output(const SocketInContext &socket)
   {
     Vector<const bNodeSocket *> dependent_sockets;
     for (const bNodeLink *link : socket->directly_linked_links()) {
@@ -174,10 +174,10 @@ struct SocketUsageInferencer {
         dependent_sockets.append(link->tosock);
       }
     }
-    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
   }
 
-  void handle_switch_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__switch_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
 
@@ -213,7 +213,7 @@ struct SocketUsageInferencer {
     all_socket_usages_.add_new(socket, is_used);
   }
 
-  void handle_index_switch_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__index_switch_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const SocketInContext output_socket = node.output_socket(0);
@@ -247,7 +247,7 @@ struct SocketUsageInferencer {
     all_socket_usages_.add_new(socket, is_used);
   }
 
-  void handle_menu_switch_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__menu_switch_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
 
@@ -287,7 +287,7 @@ struct SocketUsageInferencer {
     all_socket_usages_.add_new(socket, is_used);
   }
 
-  void handle_group_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__group_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
@@ -322,7 +322,7 @@ struct SocketUsageInferencer {
     all_socket_usages_.add_new(socket, false);
   }
 
-  void handle_group_output_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__group_output_node(const SocketInContext &socket)
   {
     const int output_i = socket->index();
     if (socket.context == nullptr) {
@@ -342,8 +342,8 @@ struct SocketUsageInferencer {
     all_socket_usages_.add_new(socket, *is_used);
   }
 
-  void handle_socket_usage_with_dependent_sockets(
-      const SocketInContext &socket, const Span<const bNodeSocket *> dependent_sockets)
+  void usage_task__with_dependent_sockets(const SocketInContext &socket,
+                                          const Span<const bNodeSocket *> dependent_sockets)
   {
     /* Check if any of the dependent sockets is used. */
     SocketInContext next_unknown_socket;
@@ -368,7 +368,7 @@ struct SocketUsageInferencer {
     all_socket_usages_.add_new(socket, false);
   }
 
-  void handle_simulation_input_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__simulation_input_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const bNodeTree &tree = socket->owner_tree();
@@ -383,10 +383,10 @@ struct SocketUsageInferencer {
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(sim_output_node->output_sockets());
-    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
   }
 
-  void handle_repeat_input_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__repeat_input_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const bNodeTree &tree = socket->owner_tree();
@@ -401,30 +401,28 @@ struct SocketUsageInferencer {
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(repeat_output_node->output_sockets());
-    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
   }
 
-  void handle_foreach_element_output_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__foreach_element_output_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    this->handle_socket_usage_with_dependent_sockets(
-        socket, {&node->output_by_identifier(socket->identifier)});
+    this->usage_task__with_dependent_sockets(socket,
+                                             {&node->output_by_identifier(socket->identifier)});
   }
 
-  void handle_capture_attribute_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__capture_attribute_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    this->handle_socket_usage_with_dependent_sockets(socket,
-                                                     {&node->output_socket(socket->index())});
+    this->usage_task__with_dependent_sockets(socket, {&node->output_socket(socket->index())});
   }
 
-  void handle_fallback_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__fallback(const SocketInContext &socket)
   {
-    this->handle_socket_usage_with_dependent_sockets(socket,
-                                                     socket->owner_node().output_sockets());
+    this->usage_task__with_dependent_sockets(socket, socket->owner_node().output_sockets());
   }
 
-  void handle_foreach_element_input_node_input_usage(const SocketInContext &socket)
+  void usage_task__input__foreach_element_input_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const bNodeTree &tree = socket->owner_tree();
@@ -444,10 +442,10 @@ struct SocketUsageInferencer {
       dependent_sockets.extend(node->output_sockets());
       dependent_sockets.extend(foreach_output_node->output_sockets());
     }
-    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
   }
 
-  void handle_value_task(const SocketInContext &socket)
+  void value_task(const SocketInContext &socket)
   {
     if (all_socket_values_.contains(socket)) {
       return;
@@ -458,33 +456,33 @@ struct SocketUsageInferencer {
       return;
     }
     if (socket->is_input()) {
-      this->handle_input_value_task(socket);
+      this->value_task__input(socket);
     }
     else {
-      this->handle_output_value_task(socket);
+      this->value_task__output(socket);
     }
   }
 
-  void handle_output_value_task(const SocketInContext &socket)
+  void value_task__output(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     if (node->is_muted()) {
-      this->handle_muted_node_output_value(socket);
+      this->value_task__output__muted_node(socket);
       return;
     }
     switch (node->type) {
       case NODE_GROUP:
       case NODE_CUSTOM_GROUP: {
-        this->handle_group_node_output_value(socket);
+        this->value_task__output__group_node(socket);
         return;
       }
       case NODE_GROUP_INPUT: {
-        this->handle_group_input_node_value(socket);
+        this->value_task__output__group_input_node(socket);
         return;
       }
       default: {
         if (node->typeinfo->build_multi_function) {
-          this->handle_multi_function_node_output_value(socket);
+          this->value_task__output__multi_function_node(socket);
           return;
         }
         break;
@@ -493,7 +491,7 @@ struct SocketUsageInferencer {
     all_socket_values_.add_new(socket, nullptr);
   }
 
-  void handle_group_node_output_value(const SocketInContext &socket)
+  void value_task__output__group_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
@@ -518,7 +516,7 @@ struct SocketUsageInferencer {
     all_socket_values_.add_new(socket, *value);
   }
 
-  void handle_group_input_node_value(const SocketInContext &socket)
+  void value_task__output__group_input_node(const SocketInContext &socket)
   {
     /* Group inputs for the root context should be initialized already. */
     BLI_assert(socket.context != nullptr);
@@ -535,7 +533,7 @@ struct SocketUsageInferencer {
     all_socket_values_.add_new(socket, *value);
   }
 
-  void handle_multi_function_node_output_value(const SocketInContext &socket)
+  void value_task__output__multi_function_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const int inputs_num = node->input_sockets().size();
@@ -585,7 +583,7 @@ struct SocketUsageInferencer {
     fn.call(mask, params, context);
   }
 
-  void handle_muted_node_output_value(const SocketInContext &socket)
+  void value_task__output__muted_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
 
@@ -610,7 +608,7 @@ struct SocketUsageInferencer {
     all_socket_values_.add_new(socket, converted_value);
   }
 
-  void handle_input_value_task(const SocketInContext &socket)
+  void value_task__input(const SocketInContext &socket)
   {
     if (socket->is_multi_input()) {
       /* Can't know the single value of a multi-input. */
@@ -630,13 +628,13 @@ struct SocketUsageInferencer {
       break;
     }
     if (!source_link) {
-      this->handle_unlinked_input_value(socket);
+      this->value_task__input__unlinked(socket);
       return;
     }
-    this->handle_linked_input_value({socket.context, source_link->fromsock}, socket);
+    this->value_task__input__linked({socket.context, source_link->fromsock}, socket);
   }
 
-  void handle_unlinked_input_value(const SocketInContext &socket)
+  void value_task__input__unlinked(const SocketInContext &socket)
   {
     const CPPType &base_type = *socket->typeinfo->base_cpp_type;
     void *value_buffer = scope_.linear_allocator().allocate(base_type.size(),
@@ -649,7 +647,7 @@ struct SocketUsageInferencer {
     }
   }
 
-  void handle_linked_input_value(const SocketInContext &from_socket,
+  void value_task__input__linked(const SocketInContext &from_socket,
                                  const SocketInContext &to_socket)
   {
     const std::optional<const void *> from_value = all_socket_values_.lookup_try(from_socket);
