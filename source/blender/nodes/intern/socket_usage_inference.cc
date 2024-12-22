@@ -101,246 +101,80 @@ struct SocketUsageInferencer {
     }
   }
 
-  void handle_unlinked_input_value(const SocketInContext &socket)
+  void handle_usage_task(const SocketInContext &socket)
   {
-    const CPPType &base_type = *socket->typeinfo->base_cpp_type;
-    void *value_buffer = scope_.linear_allocator().allocate(base_type.size(),
-                                                            base_type.alignment());
-    socket->typeinfo->get_base_cpp_value(socket->default_value, value_buffer);
-    all_socket_values_.add_new(socket, value_buffer);
-    if (!base_type.is_trivially_destructible()) {
-      scope_.add_destruct_call(
-          [type = &base_type, value_buffer]() { type->destruct(value_buffer); });
-    }
-  }
-
-  const void *convert_type_if_necessary(const void *src,
-                                        const bNodeSocket &from_socket,
-                                        const bNodeSocket &to_socket)
-  {
-    if (!src) {
-      return nullptr;
-    }
-    const CPPType *from_type = from_socket.typeinfo->base_cpp_type;
-    const CPPType *to_type = to_socket.typeinfo->base_cpp_type;
-    if (from_type == to_type) {
-      return src;
-    }
-    if (!to_type) {
-      return nullptr;
-    }
-    const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-    if (!conversions.is_convertible(*from_type, *to_type)) {
-      return nullptr;
-    }
-    void *dst = scope_.linear_allocator().allocate(to_type->size(), to_type->alignment());
-    conversions.convert_to_uninitialized(*from_type, *to_type, src, dst);
-    if (!to_type->is_trivially_destructible()) {
-      scope_.add_destruct_call([to_type, dst]() { to_type->destruct(dst); });
-    }
-    return dst;
-  }
-
-  void handle_linked_input_value(const SocketInContext &from_socket,
-                                 const SocketInContext &to_socket)
-  {
-    const std::optional<const void *> from_value = all_socket_values_.lookup_try(from_socket);
-    if (!from_value.has_value()) {
-      tasks_.push({TaskType::Value, from_socket});
-      return;
-    }
-    const void *converted_value = this->convert_type_if_necessary(
-        *from_value, *from_socket.socket, *to_socket.socket);
-    all_socket_values_.add_new(to_socket, converted_value);
-  }
-
-  void handle_input_value_task(const SocketInContext &socket)
-  {
-    if (socket->is_multi_input()) {
-      /* Can't know the single value of a multi-input. */
-      all_socket_values_.add_new(socket, nullptr);
-      return;
-    }
-    const bNodeLink *source_link = nullptr;
-    const Span<const bNodeLink *> connected_links = socket->directly_linked_links();
-    for (const bNodeLink *link : connected_links) {
-      if (!link->is_used()) {
-        continue;
-      }
-      if (link->fromnode->is_dangling_reroute()) {
-        continue;
-      }
-      source_link = link;
-      break;
-    }
-    if (!source_link) {
-      this->handle_unlinked_input_value(socket);
-      return;
-    }
-    this->handle_linked_input_value({socket.context, source_link->fromsock}, socket);
-  }
-
-  void handle_muted_node_output_value(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-
-    SocketInContext input_socket;
-    for (const bNodeLink &internal_link : node->internal_links()) {
-      if (internal_link.tosock == socket.socket) {
-        input_socket = SocketInContext{socket.context, internal_link.fromsock};
-        break;
-      }
-    }
-    if (!input_socket) {
-      all_socket_values_.add_new(socket, nullptr);
-      return;
-    }
-    const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
-    if (!input_value.has_value()) {
-      tasks_.push({TaskType::Value, input_socket});
-      return;
-    }
-    const void *converted_value = this->convert_type_if_necessary(
-        *input_value, *input_socket.socket, *socket.socket);
-    all_socket_values_.add_new(socket, converted_value);
-  }
-
-  void handle_multi_function_node_output_value(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    const int inputs_num = node->input_sockets().size();
-    Vector<const void *> input_values(inputs_num);
-    for (const int input_i : IndexRange(inputs_num)) {
-      const SocketInContext input_socket = node.input_socket(input_i);
-      const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
-      if (!input_value.has_value()) {
-        tasks_.push({TaskType::Value, input_socket});
-        return;
-      }
-      if (*input_value == nullptr) {
-        all_socket_values_.add_new(socket, nullptr);
-        return;
-      }
-      input_values[input_i] = *input_value;
-    }
-
-    NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
-    node->typeinfo->build_multi_function(builder);
-    const mf::MultiFunction &fn = builder.function();
-    const IndexMask mask(1);
-    mf::ParamsBuilder params{fn, &mask};
-    for (const int input_i : IndexRange(inputs_num)) {
-      const SocketInContext input_socket = node.input_socket(input_i);
-      if (!input_socket->is_available()) {
-        continue;
-      }
-      params.add_readonly_single_input(
-          GPointer(input_socket->typeinfo->base_cpp_type, input_values[input_i]));
-    }
-    for (const int output_i : node->output_sockets().index_range()) {
-      const SocketInContext output_socket = node.output_socket(output_i);
-      if (!output_socket->is_available()) {
-        continue;
-      }
-      const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
-      void *value = scope_.linear_allocator().allocate(base_type.size(), base_type.alignment());
-      params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
-      all_socket_values_.add_new(output_socket, value);
-      if (!base_type.is_trivially_destructible()) {
-        scope_.add_destruct_call(
-            [type = &base_type, value]() { type->destruct(const_cast<void *>(value)); });
-      }
-    }
-    mf::ContextBuilder context;
-    fn.call(mask, params, context);
-  }
-
-  void handle_group_node_output_value(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
-    if (!group || ID_MISSING(&group->id)) {
-      all_socket_values_.add_new(socket, nullptr);
-      return;
-    }
-    const bNode *group_output_node = group->group_output_node();
-    if (!group_output_node) {
-      all_socket_values_.add_new(socket, nullptr);
-      return;
-    }
-    const ComputeContext &group_context = scope_.construct<bke::GroupNodeComputeContext>(
-        socket.context, *node, node->owner_tree());
-    const SocketInContext socket_in_group{&group_context,
-                                          &group_output_node->input_socket(socket->index())};
-    const std::optional<const void *> value = all_socket_values_.lookup_try(socket_in_group);
-    if (!value.has_value()) {
-      tasks_.push({TaskType::Value, socket_in_group});
-      return;
-    }
-    all_socket_values_.add_new(socket, *value);
-  }
-
-  void handle_group_input_node_value(const SocketInContext &socket)
-  {
-    /* Group inputs for the root context should be initialized already. */
-    BLI_assert(socket.context != nullptr);
-
-    const bke::GroupNodeComputeContext &group_context =
-        *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
-    const SocketInContext group_node_input{
-        group_context.parent(), &group_context.caller_group_node()->input_socket(socket->index())};
-    const std::optional<const void *> value = all_socket_values_.lookup_try(group_node_input);
-    if (!value.has_value()) {
-      tasks_.push({TaskType::Value, group_node_input});
-      return;
-    }
-    all_socket_values_.add_new(socket, *value);
-  }
-
-  void handle_output_value_task(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    if (node->is_muted()) {
-      this->handle_muted_node_output_value(socket);
-      return;
-    }
-    switch (node->type) {
-      case NODE_GROUP:
-      case NODE_CUSTOM_GROUP: {
-        this->handle_group_node_output_value(socket);
-        return;
-      }
-      case NODE_GROUP_INPUT: {
-        this->handle_group_input_node_value(socket);
-        return;
-      }
-      default: {
-        if (node->typeinfo->build_multi_function) {
-          this->handle_multi_function_node_output_value(socket);
-          return;
-        }
-        break;
-      }
-    }
-    all_socket_values_.add_new(socket, nullptr);
-  }
-
-  void handle_value_task(const SocketInContext &socket)
-  {
-    if (all_socket_values_.contains(socket)) {
-      return;
-    }
-    const CPPType *base_type = socket->typeinfo->base_cpp_type;
-    if (!base_type) {
-      all_socket_values_.add_new(socket, nullptr);
+    if (all_socket_usages_.contains(socket)) {
       return;
     }
     if (socket->is_input()) {
-      this->handle_input_value_task(socket);
+      this->handle_input_usage_task(socket);
     }
     else {
-      this->handle_output_value_task(socket);
+      this->handle_output_usage_task(socket);
     }
+  }
+
+  void handle_input_usage_task(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    switch (node->type) {
+      case NODE_GROUP:
+      case NODE_CUSTOM_GROUP: {
+        this->handle_group_node_input_usage(socket);
+        break;
+      }
+      case NODE_GROUP_OUTPUT: {
+        this->handle_group_output_node_input_usage(socket);
+        break;
+      }
+      case GEO_NODE_SWITCH: {
+        this->handle_switch_node_input_usage(socket);
+        break;
+      }
+      case GEO_NODE_INDEX_SWITCH: {
+        this->handle_index_switch_node_input_usage(socket);
+        break;
+      }
+      case GEO_NODE_MENU_SWITCH: {
+        this->handle_menu_switch_node_input_usage(socket);
+        break;
+      }
+      case GEO_NODE_SIMULATION_INPUT: {
+        this->handle_simulation_input_node_input_usage(socket);
+        break;
+      }
+      case GEO_NODE_REPEAT_INPUT: {
+        this->handle_repeat_input_node_input_usage(socket);
+        break;
+      }
+      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT: {
+        this->handle_foreach_element_input_node_input_usage(socket);
+        break;
+      }
+      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
+        this->handle_foreach_element_output_node_input_usage(socket);
+        break;
+      }
+      case GEO_NODE_CAPTURE_ATTRIBUTE: {
+        this->handle_capture_attribute_node_input_usage(socket);
+        break;
+      }
+      default: {
+        this->handle_fallback_node_input_usage(socket);
+        break;
+      }
+    }
+  }
+
+  void handle_output_usage_task(const SocketInContext &socket)
+  {
+    Vector<const bNodeSocket *> dependent_sockets;
+    for (const bNodeLink *link : socket->directly_linked_links()) {
+      if (link->is_used()) {
+        dependent_sockets.append(link->tosock);
+      }
+    }
+    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
   }
 
   void handle_switch_node_input_usage(const SocketInContext &socket)
@@ -570,6 +404,26 @@ struct SocketUsageInferencer {
     this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
   }
 
+  void handle_foreach_element_output_node_input_usage(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    this->handle_socket_usage_with_dependent_sockets(
+        socket, {&node->output_by_identifier(socket->identifier)});
+  }
+
+  void handle_capture_attribute_node_input_usage(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    this->handle_socket_usage_with_dependent_sockets(socket,
+                                                     {&node->output_socket(socket->index())});
+  }
+
+  void handle_fallback_node_input_usage(const SocketInContext &socket)
+  {
+    this->handle_socket_usage_with_dependent_sockets(socket,
+                                                     socket->owner_node().output_sockets());
+  }
+
   void handle_foreach_element_input_node_input_usage(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
@@ -593,100 +447,246 @@ struct SocketUsageInferencer {
     this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
   }
 
-  void handle_foreach_element_output_node_input_usage(const SocketInContext &socket)
+  void handle_value_task(const SocketInContext &socket)
   {
-    const NodeInContext node = socket.owner_node();
-    this->handle_socket_usage_with_dependent_sockets(
-        socket, {&node->output_by_identifier(socket->identifier)});
-  }
-
-  void handle_capture_attribute_node_input_usage(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    this->handle_socket_usage_with_dependent_sockets(socket,
-                                                     {&node->output_socket(socket->index())});
-  }
-
-  void handle_fallback_node_input_usage(const SocketInContext &socket)
-  {
-    this->handle_socket_usage_with_dependent_sockets(socket,
-                                                     socket->owner_node().output_sockets());
-  }
-
-  void handle_input_usage_task(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    switch (node->type) {
-      case NODE_GROUP:
-      case NODE_CUSTOM_GROUP: {
-        this->handle_group_node_input_usage(socket);
-        break;
-      }
-      case NODE_GROUP_OUTPUT: {
-        this->handle_group_output_node_input_usage(socket);
-        break;
-      }
-      case GEO_NODE_SWITCH: {
-        this->handle_switch_node_input_usage(socket);
-        break;
-      }
-      case GEO_NODE_INDEX_SWITCH: {
-        this->handle_index_switch_node_input_usage(socket);
-        break;
-      }
-      case GEO_NODE_MENU_SWITCH: {
-        this->handle_menu_switch_node_input_usage(socket);
-        break;
-      }
-      case GEO_NODE_SIMULATION_INPUT: {
-        this->handle_simulation_input_node_input_usage(socket);
-        break;
-      }
-      case GEO_NODE_REPEAT_INPUT: {
-        this->handle_repeat_input_node_input_usage(socket);
-        break;
-      }
-      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT: {
-        this->handle_foreach_element_input_node_input_usage(socket);
-        break;
-      }
-      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
-        this->handle_foreach_element_output_node_input_usage(socket);
-        break;
-      }
-      case GEO_NODE_CAPTURE_ATTRIBUTE: {
-        this->handle_capture_attribute_node_input_usage(socket);
-        break;
-      }
-      default: {
-        this->handle_fallback_node_input_usage(socket);
-        break;
-      }
+    if (all_socket_values_.contains(socket)) {
+      return;
     }
-  }
-
-  void handle_output_usage_task(const SocketInContext &socket)
-  {
-    Vector<const bNodeSocket *> dependent_sockets;
-    for (const bNodeLink *link : socket->directly_linked_links()) {
-      if (link->is_used()) {
-        dependent_sockets.append(link->tosock);
-      }
-    }
-    this->handle_socket_usage_with_dependent_sockets(socket, dependent_sockets);
-  }
-
-  void handle_usage_task(const SocketInContext &socket)
-  {
-    if (all_socket_usages_.contains(socket)) {
+    const CPPType *base_type = socket->typeinfo->base_cpp_type;
+    if (!base_type) {
+      all_socket_values_.add_new(socket, nullptr);
       return;
     }
     if (socket->is_input()) {
-      this->handle_input_usage_task(socket);
+      this->handle_input_value_task(socket);
     }
     else {
-      this->handle_output_usage_task(socket);
+      this->handle_output_value_task(socket);
     }
+  }
+
+  void handle_output_value_task(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    if (node->is_muted()) {
+      this->handle_muted_node_output_value(socket);
+      return;
+    }
+    switch (node->type) {
+      case NODE_GROUP:
+      case NODE_CUSTOM_GROUP: {
+        this->handle_group_node_output_value(socket);
+        return;
+      }
+      case NODE_GROUP_INPUT: {
+        this->handle_group_input_node_value(socket);
+        return;
+      }
+      default: {
+        if (node->typeinfo->build_multi_function) {
+          this->handle_multi_function_node_output_value(socket);
+          return;
+        }
+        break;
+      }
+    }
+    all_socket_values_.add_new(socket, nullptr);
+  }
+
+  void handle_group_node_output_value(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
+    if (!group || ID_MISSING(&group->id)) {
+      all_socket_values_.add_new(socket, nullptr);
+      return;
+    }
+    const bNode *group_output_node = group->group_output_node();
+    if (!group_output_node) {
+      all_socket_values_.add_new(socket, nullptr);
+      return;
+    }
+    const ComputeContext &group_context = scope_.construct<bke::GroupNodeComputeContext>(
+        socket.context, *node, node->owner_tree());
+    const SocketInContext socket_in_group{&group_context,
+                                          &group_output_node->input_socket(socket->index())};
+    const std::optional<const void *> value = all_socket_values_.lookup_try(socket_in_group);
+    if (!value.has_value()) {
+      tasks_.push({TaskType::Value, socket_in_group});
+      return;
+    }
+    all_socket_values_.add_new(socket, *value);
+  }
+
+  void handle_group_input_node_value(const SocketInContext &socket)
+  {
+    /* Group inputs for the root context should be initialized already. */
+    BLI_assert(socket.context != nullptr);
+
+    const bke::GroupNodeComputeContext &group_context =
+        *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
+    const SocketInContext group_node_input{
+        group_context.parent(), &group_context.caller_group_node()->input_socket(socket->index())};
+    const std::optional<const void *> value = all_socket_values_.lookup_try(group_node_input);
+    if (!value.has_value()) {
+      tasks_.push({TaskType::Value, group_node_input});
+      return;
+    }
+    all_socket_values_.add_new(socket, *value);
+  }
+
+  void handle_multi_function_node_output_value(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const int inputs_num = node->input_sockets().size();
+    Vector<const void *> input_values(inputs_num);
+    for (const int input_i : IndexRange(inputs_num)) {
+      const SocketInContext input_socket = node.input_socket(input_i);
+      const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
+      if (!input_value.has_value()) {
+        tasks_.push({TaskType::Value, input_socket});
+        return;
+      }
+      if (*input_value == nullptr) {
+        all_socket_values_.add_new(socket, nullptr);
+        return;
+      }
+      input_values[input_i] = *input_value;
+    }
+
+    NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
+    node->typeinfo->build_multi_function(builder);
+    const mf::MultiFunction &fn = builder.function();
+    const IndexMask mask(1);
+    mf::ParamsBuilder params{fn, &mask};
+    for (const int input_i : IndexRange(inputs_num)) {
+      const SocketInContext input_socket = node.input_socket(input_i);
+      if (!input_socket->is_available()) {
+        continue;
+      }
+      params.add_readonly_single_input(
+          GPointer(input_socket->typeinfo->base_cpp_type, input_values[input_i]));
+    }
+    for (const int output_i : node->output_sockets().index_range()) {
+      const SocketInContext output_socket = node.output_socket(output_i);
+      if (!output_socket->is_available()) {
+        continue;
+      }
+      const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
+      void *value = scope_.linear_allocator().allocate(base_type.size(), base_type.alignment());
+      params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
+      all_socket_values_.add_new(output_socket, value);
+      if (!base_type.is_trivially_destructible()) {
+        scope_.add_destruct_call(
+            [type = &base_type, value]() { type->destruct(const_cast<void *>(value)); });
+      }
+    }
+    mf::ContextBuilder context;
+    fn.call(mask, params, context);
+  }
+
+  void handle_muted_node_output_value(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+
+    SocketInContext input_socket;
+    for (const bNodeLink &internal_link : node->internal_links()) {
+      if (internal_link.tosock == socket.socket) {
+        input_socket = SocketInContext{socket.context, internal_link.fromsock};
+        break;
+      }
+    }
+    if (!input_socket) {
+      all_socket_values_.add_new(socket, nullptr);
+      return;
+    }
+    const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
+    if (!input_value.has_value()) {
+      tasks_.push({TaskType::Value, input_socket});
+      return;
+    }
+    const void *converted_value = this->convert_type_if_necessary(
+        *input_value, *input_socket.socket, *socket.socket);
+    all_socket_values_.add_new(socket, converted_value);
+  }
+
+  void handle_input_value_task(const SocketInContext &socket)
+  {
+    if (socket->is_multi_input()) {
+      /* Can't know the single value of a multi-input. */
+      all_socket_values_.add_new(socket, nullptr);
+      return;
+    }
+    const bNodeLink *source_link = nullptr;
+    const Span<const bNodeLink *> connected_links = socket->directly_linked_links();
+    for (const bNodeLink *link : connected_links) {
+      if (!link->is_used()) {
+        continue;
+      }
+      if (link->fromnode->is_dangling_reroute()) {
+        continue;
+      }
+      source_link = link;
+      break;
+    }
+    if (!source_link) {
+      this->handle_unlinked_input_value(socket);
+      return;
+    }
+    this->handle_linked_input_value({socket.context, source_link->fromsock}, socket);
+  }
+
+  void handle_unlinked_input_value(const SocketInContext &socket)
+  {
+    const CPPType &base_type = *socket->typeinfo->base_cpp_type;
+    void *value_buffer = scope_.linear_allocator().allocate(base_type.size(),
+                                                            base_type.alignment());
+    socket->typeinfo->get_base_cpp_value(socket->default_value, value_buffer);
+    all_socket_values_.add_new(socket, value_buffer);
+    if (!base_type.is_trivially_destructible()) {
+      scope_.add_destruct_call(
+          [type = &base_type, value_buffer]() { type->destruct(value_buffer); });
+    }
+  }
+
+  void handle_linked_input_value(const SocketInContext &from_socket,
+                                 const SocketInContext &to_socket)
+  {
+    const std::optional<const void *> from_value = all_socket_values_.lookup_try(from_socket);
+    if (!from_value.has_value()) {
+      tasks_.push({TaskType::Value, from_socket});
+      return;
+    }
+    const void *converted_value = this->convert_type_if_necessary(
+        *from_value, *from_socket.socket, *to_socket.socket);
+    all_socket_values_.add_new(to_socket, converted_value);
+  }
+
+  const void *convert_type_if_necessary(const void *src,
+                                        const bNodeSocket &from_socket,
+                                        const bNodeSocket &to_socket)
+  {
+    if (!src) {
+      return nullptr;
+    }
+    const CPPType *from_type = from_socket.typeinfo->base_cpp_type;
+    const CPPType *to_type = to_socket.typeinfo->base_cpp_type;
+    if (from_type == to_type) {
+      return src;
+    }
+    if (!to_type) {
+      return nullptr;
+    }
+    const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+    if (!conversions.is_convertible(*from_type, *to_type)) {
+      return nullptr;
+    }
+    void *dst = scope_.linear_allocator().allocate(to_type->size(), to_type->alignment());
+    conversions.convert_to_uninitialized(*from_type, *to_type, src, dst);
+    if (!to_type->is_trivially_destructible()) {
+      scope_.add_destruct_call([to_type, dst]() { to_type->destruct(dst); });
+    }
+    return dst;
   }
 };
 
