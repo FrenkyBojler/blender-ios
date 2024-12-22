@@ -168,78 +168,48 @@ struct SocketUsageInferencer {
 
   void usage_task__input__switch_node(const SocketInContext &socket)
   {
-    const NodeInContext node = socket.owner_node();
-
-    const SocketInContext output_socket = node.output_socket(0);
-    const std::optional<bool> output_is_used = all_socket_usages_.lookup_try(output_socket);
-    if (!output_is_used.has_value()) {
-      tasks_.push({TaskType::Usage, output_socket});
-      return;
-    }
-    if (!*output_is_used) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    const SocketInContext condition_socket = node.input_socket(0);
-    if (socket == condition_socket) {
-      all_socket_usages_.add_new(socket, true);
-      return;
-    }
-    const std::optional<const void *> condition_value = all_socket_values_.lookup_try(
-        condition_socket);
-    if (!condition_value.has_value()) {
-      tasks_.push({TaskType::Value, condition_socket});
-      return;
-    }
-    if (*condition_value == nullptr) {
-      /* Can't know the condition value, so assume it can be anything. */
-      all_socket_usages_.add_new(socket, true);
-      return;
-    }
-    const bool switch_condition = *static_cast<const bool *>(*condition_value);
-    const SocketInContext true_socket = node.input_socket(2);
-    const bool is_used = (socket == true_socket) == switch_condition;
-    all_socket_usages_.add_new(socket, is_used);
+    this->usage_task__input__generic_switch(socket, [&](const void *condition) {
+      const bool is_true = *static_cast<const bool *>(condition);
+      const int selected_index = is_true ? 2 : 1;
+      return socket->index() == selected_index;
+    });
   }
 
   void usage_task__input__index_switch_node(const SocketInContext &socket)
   {
-    const NodeInContext node = socket.owner_node();
-    const SocketInContext output_socket = node.output_socket(0);
-    const std::optional<bool> output_is_used = all_socket_usages_.lookup_try(output_socket);
-    if (!output_is_used.has_value()) {
-      tasks_.push({TaskType::Usage, output_socket});
-      return;
-    }
-    if (!*output_is_used) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    const SocketInContext index_socket = node.input_socket(0);
-    if (socket == index_socket) {
-      all_socket_usages_.add_new(socket, true);
-      return;
-    }
-    const std::optional<const void *> index_ptr = all_socket_values_.lookup_try(index_socket);
-    if (!index_ptr.has_value()) {
-      tasks_.push({TaskType::Value, index_socket});
-      return;
-    }
-    if (*index_ptr == nullptr) {
-      /* The index is unknown, so any input may be used. */
-      all_socket_usages_.add_new(socket, true);
-      return;
-    }
-    const int index = *static_cast<const int *>(*index_ptr);
-    const int item_i = socket->index() - 1;
-    const bool is_used = index == item_i;
-    all_socket_usages_.add_new(socket, is_used);
+    this->usage_task__input__generic_switch(socket, [&](const void *condition) {
+      const int index = *static_cast<const int *>(condition);
+      return socket->index() == index + 1;
+    });
   }
 
   void usage_task__input__menu_switch_node(const SocketInContext &socket)
   {
-    const NodeInContext node = socket.owner_node();
+    this->usage_task__input__generic_switch(socket, [&](const void *condition) {
+      const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(
+          socket->owner_node().storage);
+      const int menu_value = *static_cast<const int *>(condition);
+      const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
+      return menu_value == item.identifier;
+    });
+  }
 
+  /**
+   * Assumes that the first input is a condition that selects one of the remaining inputs which is
+   * then output.
+   */
+  void usage_task__input__generic_switch(
+      const SocketInContext &socket,
+      const FunctionRef<bool(const void *condition)> is_selected_socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    BLI_assert(node->input_sockets().size() >= 1);
+    BLI_assert(node->output_sockets().size() == 1);
+
+    if (socket->type == SOCK_CUSTOM && STREQ(socket->idname, "NodeSocketVirtual")) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
     const SocketInContext output_socket = node.output_socket(0);
     const std::optional<bool> output_is_used = all_socket_usages_.lookup_try(output_socket);
     if (!output_is_used.has_value()) {
@@ -262,17 +232,11 @@ struct SocketUsageInferencer {
       return;
     }
     if (*condition_value == nullptr) {
-      /* Can't know the condition value, so assume it can be anything. */
+      /* The exact condition value is unknown, so any input may be used. */
       all_socket_usages_.add_new(socket, true);
       return;
     }
-    const int menu_value = *static_cast<const int *>(*condition_value);
-
-    const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(node->storage);
-    /* Subtract one because the first input is the menu socket. */
-    const int item_i = socket->index() - 1;
-    const NodeEnumItem &item = storage.enum_definition.items_array[item_i];
-    const bool is_used = menu_value == item.identifier;
+    const bool is_used = is_selected_socket(*condition_value);
     all_socket_usages_.add_new(socket, is_used);
   }
 
