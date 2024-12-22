@@ -36,7 +36,7 @@ static bool is_socket_type_supported(eNodeSocketDatatype type)
 }
 
 template<typename T>
-static void evaluate(const bke::SocketValueVariant output_socket,
+static void evaluate(const bke::SocketValueVariant &output_socket,
                      const MutableSpan<float3> outputs,
                      const bke::SculptFieldContext &context)
 {
@@ -61,7 +61,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 {
   const bNodeTree *tree = brush.node_group;
 
-  /* The brush doesn't have an associated node group */
+  /* The brush doesn't have an associated node group. */
   if (tree == nullptr) {
     return;
   }
@@ -73,7 +73,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   const int num_inputs = lazy_function.inputs().size();
   const int num_outputs = lazy_function.outputs().size();
 
-  /* Nothing to do */
+  /* Nothing to do. */
   if (num_outputs == 0) {
     return;
   }
@@ -81,6 +81,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   const bNodeTreeInterfaceSocket *first_output = tree->interface_outputs()[0];
   const eNodeSocketDatatype type = (eNodeSocketDatatype)first_output->socket_typeinfo()->type;
 
+  /* Output type is unsupported. TODO: warn user? */
   if (!is_socket_type_supported(type)) {
     return;
   }
@@ -139,7 +140,10 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
     const CPPType *type = typeinfo->geometry_nodes_cpp_type;
     BLI_assert(type != nullptr);
     void *value = allocator.allocate(type->size(), type->alignment());
-    // initialize_group_input(btree, properties, i, value);
+
+    /* Initialiaze with default values, Group Input is not supported for now. */
+    typeinfo->get_geometry_nodes_cpp_value(interface_socket.socket_data, value);
+
     param_inputs[function.inputs.main[i]] = {type, value};
     inputs_to_destruct.append({type, value});
   }
@@ -200,6 +204,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
       BLI_assert_unreachable();
   }
 
+  /* Destruct inputs and outputs */
   for (GMutablePointer &ptr : inputs_to_destruct) {
     ptr.destruct();
   }
