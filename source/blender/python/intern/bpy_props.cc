@@ -4407,8 +4407,8 @@ PyDoc_STRVAR(
       "\n"
       ".. note:: Pointer properties do not support storing references to embedded IDs "
       "(e.g. `bpy.types.Scene.collection`, `bpy.types.Material.node_tree`).\n"
-      "   As a workaround, store the reference to the parent ID (e.g. a scene or a material)"
-      " in a pointer property and access embedded ID through it's attribute.\n"
+      "   These should exclusively be referenced and accessed through their owner ID "
+      "(e.g. the scene or material).\n"
 );
 PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
