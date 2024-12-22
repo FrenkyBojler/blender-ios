@@ -26,9 +26,9 @@
 #include "BLI_array_utils.hh"
 #include "BLI_binary_search.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_generic_span.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_base.hh"
-#include "BLI_generic_span.hh"
 #include "BLI_math_bits.h"
 #include "BLI_sort.hh"
 #include "BLI_task.hh"
@@ -105,16 +105,33 @@ namespace blender::nodes::node_geo_evaluate_in_space_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Position").implicit_field(implicit_field_inputs::position);
-  b.add_input<decl::Vector>("Value").supports_field().hide_value();
+  const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Int>("Power").default_value(2).hide_value();
+  b.add_input<decl::Vector>("Position").implicit_field(implicit_field_inputs::position);
+
+  if (node != nullptr) {
+    const eCustomDataType data_type = eCustomDataType(node->custom1);
+    b.add_input(data_type, "Value").supports_field().hide_value();
+  }
+
+  b.add_input<decl::Int>("Power").default_value(2).min(0).hide_value();
   b.add_input<decl::Float>("Error").min(1.0f).default_value(2.0f);
   b.add_input<decl::Float>("Offset");
 
-  b.add_output<decl::Vector>("Mean").field_source_reference_all();
-  b.add_output<decl::Vector>("Difference Mean").field_source_reference_all();
-  b.add_output<decl::Vector>("Gradient").field_source_reference_all();
+  if (node != nullptr) {
+    const eCustomDataType data_type = eCustomDataType(node->custom1);
+    b.add_output(data_type, "Value").field_source_reference_all();
+  }
+}
+
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  node->custom1 = CD_PROP_FLOAT;
+}
+
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 template<typename InT, typename OutT, typename FuncT>
@@ -655,15 +672,13 @@ static void sample_average(const OffsetIndices<int> buckets_offsets,
       powered_rcp_for_squared(power_value);
 
   threading::parallel_for(src_bucket_value.index_range(), 1024 * 8, [&](const IndexRange range) {
+    /*
 
-/*
-
-  constexpr int grain_size = 1024;
-  for (const int grain_i : IndexRange((src_bucket_value.size() + grain_size - 1) / grain_size)) {
-    const IndexRange range =
-        src_bucket_value.index_range().drop_front(grain_i * grain_size).take_front(grain_size);
-*/
-
+      constexpr int grain_size = 1024;
+      for (const int grain_i : IndexRange((src_bucket_value.size() + grain_size - 1) / grain_size))
+      { const IndexRange range = src_bucket_value.index_range().drop_front(grain_i *
+      grain_size).take_front(grain_size);
+    */
 
     Vector<float> buffer;
     buffer.reserve(range.size());
@@ -673,13 +688,16 @@ static void sample_average(const OffsetIndices<int> buckets_offsets,
         total_depth,
         range,
         [&](const int joint_index, const int value_i) -> bool {
-          return (math::distance(src_joints_centre[joint_index], src_bucket_position[value_i]) + offset_value) <= src_joints_min_distance[joint_index];
+          return (math::distance(src_joints_centre[joint_index], src_bucket_position[value_i]) +
+                  offset_value) <= src_joints_min_distance[joint_index];
         },
         [&](const IndexRange buckets_range, const int joint_index, const Span<int> value_indices) {
           buffer.resize(value_indices.size());
           for (const int value_i : value_indices.index_range()) {
             const int value_index = value_indices[value_i];
-            buffer[value_i] = math::square(math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) + offset_value);
+            buffer[value_i] = math::square(
+                math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) +
+                offset_value);
           }
 
           squared_distance_invertion(power_value, buffer.as_mutable_span());
@@ -687,7 +705,9 @@ static void sample_average(const OffsetIndices<int> buckets_offsets,
           const float total_factor = buckets_range.size();
           for (const int value_i : value_indices.index_range()) {
             const int value_index = value_indices[value_i];
-            dst_buckets_data[value_index] += (src_joints_value[joint_index] - src_bucket_value[value_index]) * buffer[value_i] * total_factor;
+            dst_buckets_data[value_index] += (src_joints_value[joint_index] -
+                                              src_bucket_value[value_index]) *
+                                             buffer[value_i] * total_factor;
           }
         },
         [&](const IndexRange bucket_range, const Span<int> value_indices) {
@@ -696,7 +716,9 @@ static void sample_average(const OffsetIndices<int> buckets_offsets,
             const float3 position = src_bucket_position[value_i];
 
             for (const int index : bucket_range.index_range()) {
-              buffer[index] = math::square(math::distance(src_bucket_position[bucket_range[index]], position) + offset_value);
+              buffer[index] = math::square(
+                  math::distance(src_bucket_position[bucket_range[index]], position) +
+                  offset_value);
             }
 
             squared_distance_invertion(power_value, buffer.as_mutable_span());
@@ -715,15 +737,15 @@ static void sample_average(const OffsetIndices<int> buckets_offsets,
 }
 
 static void sample_mean_average(const OffsetIndices<int> buckets_offsets,
-                           const int total_depth,
-                           const Span<float3> src_joints_centre,
-                           const Span<float> src_joints_min_distance,
-                           const Span<float3> src_joints_value,
-                           const Span<float3> src_bucket_position,
-                           const Span<float3> src_bucket_value,
-                           const int power_value,
-                           const float offset_value,
-                           MutableSpan<float3> dst_buckets_data)
+                                const int total_depth,
+                                const Span<float3> src_joints_centre,
+                                const Span<float> src_joints_min_distance,
+                                const Span<float3> src_joints_value,
+                                const Span<float3> src_bucket_position,
+                                const Span<float3> src_bucket_value,
+                                const int power_value,
+                                const float offset_value,
+                                MutableSpan<float3> dst_buckets_data)
 {
   BLI_assert(src_joints_centre.size() == src_joints_min_distance.size());
   BLI_assert(src_bucket_value.size() == dst_buckets_data.size());
@@ -733,15 +755,13 @@ static void sample_mean_average(const OffsetIndices<int> buckets_offsets,
       powered_rcp_for_squared(power_value);
 
   threading::parallel_for(src_bucket_value.index_range(), 1024 * 8, [&](const IndexRange range) {
+    /*
 
-/*
-
-  constexpr int grain_size = 1024;
-  for (const int grain_i : IndexRange((src_bucket_value.size() + grain_size - 1) / grain_size)) {
-    const IndexRange range =
-        src_bucket_value.index_range().drop_front(grain_i * grain_size).take_front(grain_size);
-*/
-
+      constexpr int grain_size = 1024;
+      for (const int grain_i : IndexRange((src_bucket_value.size() + grain_size - 1) / grain_size))
+      { const IndexRange range = src_bucket_value.index_range().drop_front(grain_i *
+      grain_size).take_front(grain_size);
+    */
 
     Vector<float> buffer;
     buffer.reserve(range.size());
@@ -751,13 +771,16 @@ static void sample_mean_average(const OffsetIndices<int> buckets_offsets,
         total_depth,
         range,
         [&](const int joint_index, const int value_i) -> bool {
-          return (math::distance(src_joints_centre[joint_index], src_bucket_position[value_i]) + offset_value) <= src_joints_min_distance[joint_index];
+          return (math::distance(src_joints_centre[joint_index], src_bucket_position[value_i]) +
+                  offset_value) <= src_joints_min_distance[joint_index];
         },
         [&](const IndexRange buckets_range, const int joint_index, const Span<int> value_indices) {
           buffer.resize(value_indices.size());
           for (const int value_i : value_indices.index_range()) {
             const int value_index = value_indices[value_i];
-            buffer[value_i] = math::square(math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) + offset_value);
+            buffer[value_i] = math::square(
+                math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) +
+                offset_value);
           }
 
           squared_distance_invertion(power_value, buffer.as_mutable_span());
@@ -765,7 +788,8 @@ static void sample_mean_average(const OffsetIndices<int> buckets_offsets,
           const float total_factor = buckets_range.size();
           for (const int value_i : value_indices.index_range()) {
             const int value_index = value_indices[value_i];
-            dst_buckets_data[value_index] += src_joints_value[joint_index] * buffer[value_i] * total_factor;
+            dst_buckets_data[value_index] += src_joints_value[joint_index] * buffer[value_i] *
+                                             total_factor;
           }
         },
         [&](const IndexRange bucket_range, const Span<int> value_indices) {
@@ -774,7 +798,9 @@ static void sample_mean_average(const OffsetIndices<int> buckets_offsets,
             const float3 position = src_bucket_position[value_i];
 
             for (const int index : bucket_range.index_range()) {
-              buffer[index] = math::square(math::distance(src_bucket_position[bucket_range[index]], position) + offset_value);
+              buffer[index] = math::square(
+                  math::distance(src_bucket_position[bucket_range[index]], position) +
+                  offset_value);
             }
 
             squared_distance_invertion(power_value, buffer.as_mutable_span());
@@ -791,15 +817,15 @@ static void sample_mean_average(const OffsetIndices<int> buckets_offsets,
 }
 
 static void sample_gradient_average(const OffsetIndices<int> buckets_offsets,
-                           const int total_depth,
-                           const Span<float3> src_joints_centre,
-                           const Span<float> src_joints_min_distance,
-                           const Span<float3> src_joints_value,
-                           const Span<float3> src_bucket_position,
-                           const Span<float3> src_bucket_value,
-                           const int power_value,
-                           const float offset_value,
-                           MutableSpan<float3> dst_buckets_data)
+                                    const int total_depth,
+                                    const Span<float3> src_joints_centre,
+                                    const Span<float> src_joints_min_distance,
+                                    const Span<float3> src_joints_value,
+                                    const Span<float3> src_bucket_position,
+                                    const Span<float3> src_bucket_value,
+                                    const int power_value,
+                                    const float offset_value,
+                                    MutableSpan<float3> dst_buckets_data)
 {
   BLI_assert(src_joints_centre.size() == src_joints_min_distance.size());
   BLI_assert(src_bucket_value.size() == dst_buckets_data.size());
@@ -809,15 +835,13 @@ static void sample_gradient_average(const OffsetIndices<int> buckets_offsets,
       powered_rcp_for_squared(power_value);
 
   threading::parallel_for(src_bucket_value.index_range(), 1024 * 8, [&](const IndexRange range) {
+    /*
 
-/*
-
-  constexpr int grain_size = 1024;
-  for (const int grain_i : IndexRange((src_bucket_value.size() + grain_size - 1) / grain_size)) {
-    const IndexRange range =
-        src_bucket_value.index_range().drop_front(grain_i * grain_size).take_front(grain_size);
-*/
-
+      constexpr int grain_size = 1024;
+      for (const int grain_i : IndexRange((src_bucket_value.size() + grain_size - 1) / grain_size))
+      { const IndexRange range = src_bucket_value.index_range().drop_front(grain_i *
+      grain_size).take_front(grain_size);
+    */
 
     Vector<float> buffer;
     buffer.reserve(range.size());
@@ -827,13 +851,16 @@ static void sample_gradient_average(const OffsetIndices<int> buckets_offsets,
         total_depth,
         range,
         [&](const int joint_index, const int value_i) -> bool {
-          return (math::distance(src_joints_centre[joint_index], src_bucket_position[value_i]) + offset_value) <= src_joints_min_distance[joint_index];
+          return (math::distance(src_joints_centre[joint_index], src_bucket_position[value_i]) +
+                  offset_value) <= src_joints_min_distance[joint_index];
         },
         [&](const IndexRange buckets_range, const int joint_index, const Span<int> value_indices) {
           buffer.resize(value_indices.size());
           for (const int value_i : value_indices.index_range()) {
             const int value_index = value_indices[value_i];
-            buffer[value_i] = math::square(math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) + offset_value);
+            buffer[value_i] = math::square(
+                math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) +
+                offset_value);
           }
 
           squared_distance_invertion(power_value, buffer.as_mutable_span());
@@ -841,7 +868,10 @@ static void sample_gradient_average(const OffsetIndices<int> buckets_offsets,
           const float total_factor = buckets_range.size();
           for (const int value_i : value_indices.index_range()) {
             const int value_index = value_indices[value_i];
-            dst_buckets_data[value_index] += math::normalize(src_joints_centre[joint_index] - src_bucket_position[value_index]) * src_joints_value[joint_index] * buffer[value_i] * total_factor;
+            dst_buckets_data[value_index] += math::normalize(src_joints_centre[joint_index] -
+                                                             src_bucket_position[value_index]) *
+                                             src_joints_value[joint_index] * buffer[value_i] *
+                                             total_factor;
           }
         },
         [&](const IndexRange bucket_range, const Span<int> value_indices) {
@@ -851,7 +881,8 @@ static void sample_gradient_average(const OffsetIndices<int> buckets_offsets,
 
             for (const int i : bucket_range.index_range()) {
               const int index = bucket_range[i];
-              buffer[i] = math::square(math::distance(src_bucket_position[index], position) + offset_value);
+              buffer[i] = math::square(math::distance(src_bucket_position[index], position) +
+                                       offset_value);
             }
 
             squared_distance_invertion(power_value, buffer.as_mutable_span());
@@ -861,7 +892,8 @@ static void sample_gradient_average(const OffsetIndices<int> buckets_offsets,
               const int index = bucket_range[i];
               const float relation_factor = buffer[i];
               const float safe_relation_factor = index == value_i ? 0.0f : relation_factor;
-              dst_buckets_data[value_i] += math::normalize(src_bucket_position[index] - position) * src_bucket_value[index] * safe_relation_factor;
+              dst_buckets_data[value_i] += math::normalize(src_bucket_position[index] - position) *
+                                           src_bucket_value[index] * safe_relation_factor;
             }
           }
         });
@@ -1881,9 +1913,7 @@ static void for_each_to_bottom_latest_linear(const OffsetIndices<int> buckets_of
   }
 
   threading::parallel_for(
-      range_to_joint.index_range(),
-      1024'00000000,
-      [&](const IndexRange range) {
+      range_to_joint.index_range(), 1024'00000000, [&](const IndexRange range) {
         for (const std::pair<int2, int> to_pass : range_to_joint.as_span().slice(range)) {
           joint_func(IndexRange::from_begin_size(to_pass.first[0], to_pass.first[1]),
                      to_pass.second);
@@ -1891,9 +1921,7 @@ static void for_each_to_bottom_latest_linear(const OffsetIndices<int> buckets_of
       });
 
   threading::parallel_for(
-      leafs_to_joint.index_range(),
-      1024'00000000,
-      [&](const IndexRange range) {
+      leafs_to_joint.index_range(), 1024'00000000, [&](const IndexRange range) {
         for (const std::pair<int2, int2> leaf : leafs_to_joint.as_span().slice(range)) {
           leaf_func(IndexRange::from_begin_size(leaf.first[0], leaf.first[1]),
                     IndexRange::from_begin_size(leaf.second[0], leaf.second[1]));
@@ -2395,10 +2423,10 @@ class MeanSumFieldInput final : public bke::GeometryFieldInput {
 
  public:
   MeanSumFieldInput(Field<float3> positions_field,
-                          Field<float3> value_field,
-                          const int distance_power,
-                          const float precision,
-                          const float offset_value)
+                    Field<float3> value_field,
+                    const int distance_power,
+                    const float precision,
+                    const float offset_value)
       : bke::GeometryFieldInput(CPPType::get<float3>(), "Weighed Mean Sum"),
         positions_field_(std::move(positions_field)),
         value_field_(std::move(value_field)),
@@ -2487,15 +2515,15 @@ class MeanSumFieldInput final : public bke::GeometryFieldInput {
     if constexpr (true) {
       // SCOPED_TIMER_AVERAGED("akdbt::sample_mean_average");
       akdbt::sample_mean_average(base_offsets,
-                            total_depth,
-                            joints_positions,
-                            joints_min_distance,
-                            joints_values,
-                            bucket_positions,
-                            bucket_values,
-                            distance_power_,
-                            offset_value_,
-                            sampled_bucket_values);
+                                 total_depth,
+                                 joints_positions,
+                                 joints_min_distance,
+                                 joints_values,
+                                 bucket_positions,
+                                 bucket_values,
+                                 distance_power_,
+                                 offset_value_,
+                                 sampled_bucket_values);
     }
 
     Array<float3> sampled_bucket_values_latest(domain_size, float3(0));
@@ -2560,10 +2588,10 @@ class GradientSumFieldInput final : public bke::GeometryFieldInput {
 
  public:
   GradientSumFieldInput(Field<float3> positions_field,
-                          Field<float3> value_field,
-                          const int distance_power,
-                          const float precision,
-                          const float offset_value)
+                        Field<float3> value_field,
+                        const int distance_power,
+                        const float precision,
+                        const float offset_value)
       : bke::GeometryFieldInput(CPPType::get<float3>(), "Mean Gradient Sum"),
         positions_field_(std::move(positions_field)),
         value_field_(std::move(value_field)),
@@ -2652,15 +2680,15 @@ class GradientSumFieldInput final : public bke::GeometryFieldInput {
     if constexpr (true) {
       // SCOPED_TIMER_AVERAGED("akdbt::sample_mean_average");
       akdbt::sample_gradient_average(base_offsets,
-                            total_depth,
-                            joints_positions,
-                            joints_min_distance,
-                            joints_values,
-                            bucket_positions,
-                            bucket_values,
-                            distance_power_,
-                            offset_value_,
-                            sampled_bucket_values);
+                                     total_depth,
+                                     joints_positions,
+                                     joints_min_distance,
+                                     joints_values,
+                                     bucket_positions,
+                                     bucket_values,
+                                     distance_power_,
+                                     offset_value_,
+                                     sampled_bucket_values);
     }
 
     Array<float3> sampled_bucket_values_latest(domain_size, float3(0));
@@ -2949,7 +2977,7 @@ class GradientSumFunction : public mf::MultiFunction {
   int total_depth;
   int total_buckets;
   int total_joints;
-  
+
   Array<int> start_indices;
   Array<int> indices;
   Array<float3> bucket_positions;
@@ -2959,17 +2987,21 @@ class GradientSumFunction : public mf::MultiFunction {
   Array<float3> joints_positions;
   Array<float> joints_min_radii;
   Array<float> joints_min_distance;
-  
+
  public:
-  GradientSumFunction(const GeometrySet &geometry_set, const Field<float3> position_field, const Field<float3> value_field, const float precision, const int power_value, const float offset_value) :
-    power_value_(power_value), offset_value_(offset_value)
+  GradientSumFunction(const GeometrySet &geometry_set,
+                      const Field<float3> position_field,
+                      const Field<float3> value_field,
+                      const float precision,
+                      const int power_value,
+                      const float offset_value)
+      : power_value_(power_value), offset_value_(offset_value)
   {
     mf::SignatureBuilder builder{"Gradient Sum", signature_};
     builder.single_input<float3>("Position");
     builder.single_output<float3>("Value");
     this->set_signature(&signature_);
-    
-    
+
     const PointCloud *point_cloud = geometry_set.get_pointcloud();
     if (point_cloud == nullptr) {
       return;
@@ -3001,12 +3033,15 @@ class GradientSumFunction : public mf::MultiFunction {
     akdbt::fill_buckets_linear(domain_size, start_indices);
     const OffsetIndices<int> base_offsets(start_indices);
     akdbt::from_positions(positions, base_offsets, total_depth, indices);
-    array_utils::gather(Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
-    array_utils::gather(Span<float3>(src_values), indices.as_span(), bucket_values.as_mutable_span());
+    array_utils::gather(
+        Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
+    array_utils::gather(
+        Span<float3>(src_values), indices.as_span(), bucket_values.as_mutable_span());
     akdbt::mean_sums<float3>(base_offsets, total_depth, bucket_values, joints_values);
     akdbt::normalize_for_size<float3>(base_offsets, total_depth, joints_values);
     akdbt::accumulate_size<float>(base_offsets, total_depth, joints_values_factors);
-    packing_spheres(base_offsets, total_depth, bucket_positions, joints_positions, joints_min_radii);
+    packing_spheres(
+        base_offsets, total_depth, bucket_positions, joints_positions, joints_min_radii);
     cloud_radii_to_min_distance(joints_min_radii, power_value, precision, joints_min_distance);
   }
 
@@ -3016,7 +3051,8 @@ class GradientSumFunction : public mf::MultiFunction {
     MutableSpan<float3> results = params.uninitialized_single_output<float3>(1, "Value");
     results.fill(float3(0.0f));
 
-    const FunctionRef<void(int, MutableSpan<float>)> squared_distance_invertion = akdbt::powered_rcp_for_squared(power_value_);
+    const FunctionRef<void(int, MutableSpan<float>)> squared_distance_invertion =
+        akdbt::powered_rcp_for_squared(power_value_);
 
     Vector<float> buffer;
     buffer.reserve(positions.size());
@@ -3025,13 +3061,16 @@ class GradientSumFunction : public mf::MultiFunction {
         total_depth,
         positions.index_range(),
         [&](const int joint_index, const int value_i) -> bool {
-          return (math::distance(joints_positions[joint_index], positions[value_i]) + offset_value_) <= joints_min_distance[joint_index];
+          return (math::distance(joints_positions[joint_index], positions[value_i]) +
+                  offset_value_) <= joints_min_distance[joint_index];
         },
         [&](const IndexRange buckets_range, const int joint_index, const Span<int> value_indices) {
           buffer.resize(value_indices.size());
           for (const int value_i : value_indices.index_range()) {
             const int value_index = value_indices[value_i];
-            buffer[value_i] = math::square(math::distance(joints_positions[joint_index], positions[value_index]) + offset_value_);
+            buffer[value_i] = math::square(
+                math::distance(joints_positions[joint_index], positions[value_index]) +
+                offset_value_);
           }
 
           squared_distance_invertion(power_value_, buffer.as_mutable_span());
@@ -3039,7 +3078,9 @@ class GradientSumFunction : public mf::MultiFunction {
           const float total_factor = buckets_range.size();
           for (const int value_i : value_indices.index_range()) {
             const int value_index = value_indices[value_i];
-            results[value_index] += math::normalize(joints_positions[joint_index] - positions[value_index]) * joints_values[joint_index] * buffer[value_i] * total_factor;
+            results[value_index] += math::normalize(joints_positions[joint_index] -
+                                                    positions[value_index]) *
+                                    joints_values[joint_index] * buffer[value_i] * total_factor;
           }
         },
         [&](const IndexRange bucket_range, const Span<int> value_indices) {
@@ -3048,14 +3089,16 @@ class GradientSumFunction : public mf::MultiFunction {
             const float3 position = positions[value_i];
 
             for (const int index : bucket_range.index_range()) {
-              buffer[index] = math::square(math::distance(bucket_positions[bucket_range[index]], position) + offset_value_);
+              buffer[index] = math::square(
+                  math::distance(bucket_positions[bucket_range[index]], position) + offset_value_);
             }
 
             squared_distance_invertion(power_value_, buffer.as_mutable_span());
 
             // const float3 self_value = bucket_values[value_i];
             for (const int i : bucket_range.index_range()) {
-              results[value_i] += math::normalize(bucket_positions[bucket_range[i]] - position) * bucket_values[bucket_range[i]] * buffer[i];
+              results[value_i] += math::normalize(bucket_positions[bucket_range[i]] - position) *
+                                  bucket_values[bucket_range[i]] * buffer[i];
             }
           }
         });
@@ -3079,9 +3122,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float offset_value = params.extract_input<float>("Offset");
 
   if (params.output_is_required("Difference Mean")) {
-    params.set_output("Difference Mean",
-                      Field<float3>(std::make_shared<DifferenceSumFieldInput>(
-                          position_field, value_field, power_value, precision_value, offset_value)));
+    params.set_output(
+        "Difference Mean",
+        Field<float3>(std::make_shared<DifferenceSumFieldInput>(
+            position_field, value_field, power_value, precision_value, offset_value)));
   }
 
   if (params.output_is_required("Tree")) {
@@ -3091,27 +3135,52 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (params.output_is_required("Mean")) {
-    params.set_output("Mean",
-                      Field<float3>(std::make_shared<MeanSumFieldInput>(
-                          position_field, value_field, power_value, precision_value, offset_value)));
+    params.set_output(
+        "Mean",
+        Field<float3>(std::make_shared<MeanSumFieldInput>(
+            position_field, value_field, power_value, precision_value, offset_value)));
   }
 
   if (params.output_is_required("Gradient")) {
-    params.set_output("Gradient",
-                      Field<float3>(std::make_shared<GradientSumFieldInput>(
-                          position_field, value_field, power_value, precision_value, offset_value)));
+    params.set_output(
+        "Gradient",
+        Field<float3>(std::make_shared<GradientSumFieldInput>(
+            position_field, value_field, power_value, precision_value, offset_value)));
   }
 
   if (params.output_is_required("Sample Gradient")) {
     std::shared_ptr<FieldOperation> sample_op = FieldOperation::Create(
-        std::make_unique<GradientSumFunction>(
-            params.extract_input<bke::GeometrySet>("Domain"), position_field, value_field, precision_value, power_value, offset_value), {params.extract_input<Field<float3>>("Sample Position")});
+        std::make_unique<GradientSumFunction>(params.extract_input<bke::GeometrySet>("Domain"),
+                                              position_field,
+                                              value_field,
+                                              precision_value,
+                                              power_value,
+                                              offset_value),
+        {params.extract_input<Field<float3>>("Sample Position")});
 
     params.set_output("Sample Gradient", Field<float3>(sample_op, 0));
   }
-  
-  
-    params.set_default_remaining_outputs();
+
+  params.set_default_remaining_outputs();
+}
+
+static void node_rna(StructRNA *srna)
+{
+  RNA_def_node_enum(
+      srna,
+      "data_type",
+      "Data Type",
+      "",
+      rna_enum_attribute_type_items,
+      NOD_inline_enum_accessors(custom1),
+      CD_PROP_FLOAT,
+      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+        *r_free = true;
+        return enum_items_filter(rna_enum_attribute_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   return ELEM(item.value, CD_PROP_FLOAT, CD_PROP_FLOAT3);
+                                 });
+      });
 }
 
 static void node_register()
@@ -3122,7 +3191,11 @@ static void node_register()
   ntype.enum_name_legacy = "EVALUATE_IN_SPACE";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.initfunc = node_init;
+  ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
