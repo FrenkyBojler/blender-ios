@@ -512,11 +512,11 @@ DefNode(GeometryNode, GEO_NODE_VOLUME_TO_MESH, 0, VolumeToMesh, "Volume to Mesh"
 DefNode(GeometryNode, GEO_NODE_WARNING, 0, Warning, "Warning", "Create custom warnings in node groups")
 
 /* TODO: add proper descriptions */
-DefNode(GeometryNode, GEO_NODE_SCULPT_ACTIVE_MESH, 0, "SCULPT_ACTIVE_MESH", SculptActiveMesh, "Active Mesh", "Active Mesh")
-DefNode(GeometryNode, GEO_NODE_SCULPT_BRUSH_INFO, 0, "SCULPT_BRUSH_INFO", SculptBrushInfo, "Brush Info", "Brush Info")
-DefNode(GeometryNode, GEO_NODE_SCULPT_PEN_PRESSURE, 0, "SCULPT_PEN_PRESSURE", SculptPenPressure, "Pen Pressure", "Pen Pressure")
-DefNode(GeometryNode, GEO_NODE_SCULPT_STROKE_INFO, 0, "SCULPT_STROKE_INFO", SculptStrokeInfo, "Stroke Info", "Stroke Info")
-DefNode(GeometryNode, GEO_NODE_SCULPT_VERTEX_COLOR, 0, "SCULPT_VERTEX_COLOR", SculptVertexColor, "Vertex Color", "Vertex Color")
+DefNode(GeometryNode, GEO_NODE_SCULPT_ACTIVE_MESH, 0, SculptActiveMesh, "Active Mesh", "Active Mesh")
+DefNode(GeometryNode, GEO_NODE_SCULPT_BRUSH_INFO, 0, SculptBrushInfo, "Brush Info", "Brush Info")
+DefNode(GeometryNode, GEO_NODE_SCULPT_PEN_PRESSURE, 0, SculptPenPressure, "Pen Pressure", "Pen Pressure")
+DefNode(GeometryNode, GEO_NODE_SCULPT_STROKE_INFO, 0, SculptStrokeInfo, "Stroke Info", "Stroke Info")
+DefNode(GeometryNode, GEO_NODE_SCULPT_VERTEX_COLOR, 0, SculptVertexColor, "Vertex Color", "Vertex Color")
 
 /* undefine macros */
 #undef DefNode
