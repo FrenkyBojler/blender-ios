@@ -252,27 +252,11 @@ struct SocketUsageInferencer {
     const int input_i = socket->index();
     const ComputeContext &group_context = scope_.construct<bke::GroupNodeComputeContext>(
         socket.context, *node, node->owner_tree());
-
-    /* Check if we know that the socket is used.*/
+    Vector<const bNodeSocket *> dependent_sockets;
     for (const bNode *group_input_node : group->group_input_nodes()) {
-      const bNodeSocket &group_input_socket = group_input_node->output_socket(input_i);
-      if (all_socket_usages_.lookup_default({&group_context, &group_input_socket}, false)) {
-        all_socket_usages_.add_new(socket, true);
-        return;
-      }
+      dependent_sockets.append(&group_input_node->output_socket(input_i));
     }
-
-    /* Schedule next socket. */
-    for (const bNode *group_input_node : group->group_input_nodes()) {
-      const bNodeSocket &group_input_socket = group_input_node->output_socket(input_i);
-      if (all_socket_usages_.contains({&group_context, &group_input_socket})) {
-        continue;
-      }
-      tasks_.push({TaskType::Usage, {&group_context, &group_input_socket}});
-      return;
-    }
-
-    all_socket_usages_.add_new(socket, false);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, &group_context);
   }
 
   void usage_task__input__group_output_node(const SocketInContext &socket)
@@ -285,14 +269,9 @@ struct SocketUsageInferencer {
     }
     const bke::GroupNodeComputeContext &group_context =
         *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
-    const SocketInContext group_node_output{
-        socket.context->parent(), &group_context.caller_group_node()->output_socket(output_i)};
-    const std::optional<bool> is_used = all_socket_usages_.lookup_try(group_node_output);
-    if (!is_used.has_value()) {
-      tasks_.push({TaskType::Usage, group_node_output});
-      return;
-    }
-    all_socket_usages_.add_new(socket, *is_used);
+    const bNodeSocket &group_node_output = group_context.caller_group_node()->output_socket(
+        output_i);
+    this->usage_task__with_dependent_sockets(socket, {&group_node_output}, group_context.parent());
   }
 
   void usage_task__output(const SocketInContext &socket)
@@ -303,33 +282,7 @@ struct SocketUsageInferencer {
         dependent_sockets.append(link->tosock);
       }
     }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
-  }
-
-  void usage_task__with_dependent_sockets(const SocketInContext &socket,
-                                          const Span<const bNodeSocket *> dependent_sockets)
-  {
-    /* Check if any of the dependent sockets is used. */
-    SocketInContext next_unknown_socket;
-    for (const bNodeSocket *dependent_socket_ptr : dependent_sockets) {
-      const SocketInContext dependent_socket{socket.context, dependent_socket_ptr};
-      const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
-      if (!is_used.has_value() && !next_unknown_socket) {
-        next_unknown_socket = dependent_socket;
-        continue;
-      }
-      if (is_used.value_or(false)) {
-        all_socket_usages_.add_new(socket, true);
-        return;
-      }
-    }
-    /* Create a task that checks if the next output is used.*/
-    if (next_unknown_socket) {
-      tasks_.push({TaskType::Usage, next_unknown_socket});
-      return;
-    }
-    /* None of the dependent sockets is used, so the current socket is not used either. */
-    all_socket_usages_.add_new(socket, false);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
   }
 
   void usage_task__input__simulation_input_node(const SocketInContext &socket)
@@ -347,7 +300,7 @@ struct SocketUsageInferencer {
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(sim_output_node->output_sockets());
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
   }
 
   void usage_task__input__repeat_input_node(const SocketInContext &socket)
@@ -365,25 +318,27 @@ struct SocketUsageInferencer {
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(repeat_output_node->output_sockets());
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
   }
 
   void usage_task__input__foreach_element_output_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    this->usage_task__with_dependent_sockets(socket,
-                                             {&node->output_by_identifier(socket->identifier)});
+    this->usage_task__with_dependent_sockets(
+        socket, {&node->output_by_identifier(socket->identifier)}, socket.context);
   }
 
   void usage_task__input__capture_attribute_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    this->usage_task__with_dependent_sockets(socket, {&node->output_socket(socket->index())});
+    this->usage_task__with_dependent_sockets(
+        socket, {&node->output_socket(socket->index())}, socket.context);
   }
 
   void usage_task__input__fallback(const SocketInContext &socket)
   {
-    this->usage_task__with_dependent_sockets(socket, socket->owner_node().output_sockets());
+    this->usage_task__with_dependent_sockets(
+        socket, socket->owner_node().output_sockets(), socket.context);
   }
 
   void usage_task__input__foreach_element_input_node(const SocketInContext &socket)
@@ -406,7 +361,34 @@ struct SocketUsageInferencer {
       dependent_sockets.extend(node->output_sockets());
       dependent_sockets.extend(foreach_output_node->output_sockets());
     }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
+  }
+
+  void usage_task__with_dependent_sockets(const SocketInContext &socket,
+                                          const Span<const bNodeSocket *> dependent_sockets,
+                                          const ComputeContext *dependent_socket_context)
+  {
+    /* Check if any of the dependent sockets is used. */
+    SocketInContext next_unknown_socket;
+    for (const bNodeSocket *dependent_socket_ptr : dependent_sockets) {
+      const SocketInContext dependent_socket{dependent_socket_context, dependent_socket_ptr};
+      const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
+      if (!is_used.has_value() && !next_unknown_socket) {
+        next_unknown_socket = dependent_socket;
+        continue;
+      }
+      if (is_used.value_or(false)) {
+        all_socket_usages_.add_new(socket, true);
+        return;
+      }
+    }
+    /* Create a task that checks if the next output is used.*/
+    if (next_unknown_socket) {
+      tasks_.push({TaskType::Usage, next_unknown_socket});
+      return;
+    }
+    /* None of the dependent sockets is used, so the current socket is not used either. */
+    all_socket_usages_.add_new(socket, false);
   }
 
   void value_task(const SocketInContext &socket)
