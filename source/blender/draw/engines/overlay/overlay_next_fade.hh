@@ -154,7 +154,7 @@ class Fade : Overlay {
       return false;
     }
 
-    if (STREQ(active_object->id.name, ob->id.name)) {
+    if (active_object == ob) {
       return false;
     }
 
