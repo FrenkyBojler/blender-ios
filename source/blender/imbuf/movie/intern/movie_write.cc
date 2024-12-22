@@ -101,7 +101,7 @@ struct MovieWriter {
 #  endif
 };
 
-#  define PRINT \
+#  define FF_DEBUG_PRINT \
     if (G.debug & G_DEBUG_FFMPEG) \
     printf
 
@@ -353,7 +353,7 @@ static bool write_video_frame(MovieWriter *context, AVFrame *frame, ReportList *
   if (!success) {
     BKE_report(reports, RPT_ERROR, "Error writing frame");
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-    PRINT("Error writing frame: %s\n", error_str);
+    FF_DEBUG_PRINT("ffmpeg: error writing video frame: %s\n", error_str);
   }
 
   av_packet_free(&packet);
@@ -975,7 +975,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   if (of->oformat->flags & AVFMT_GLOBALHEADER) {
-    PRINT("Using global header\n");
+    FF_DEBUG_PRINT("ffmpeg: using global video header\n");
     c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
   }
 
@@ -1259,12 +1259,12 @@ static bool start_ffmpeg_impl(MovieWriter *context,
 
   /* Determine the correct filename */
   ffmpeg_filepath_get(context, filepath, rd, context->ffmpeg_preview, suffix);
-  PRINT(
-      "Starting output to %s(FFMPEG)...\n"
-      "  Using type=%d, codec=%d, audio_codec=%d,\n"
+  FF_DEBUG_PRINT(
+      "ffmpeg: starting output to %s:\n"
+      "  type=%d, codec=%d, audio_codec=%d,\n"
       "  video_bitrate=%d, audio_bitrate=%d,\n"
       "  gop_size=%d, autosplit=%d\n"
-      "  render width=%d, render height=%d\n",
+      "  width=%d, height=%d\n",
       filepath,
       context->ffmpeg_type,
       context->ffmpeg_codec,
@@ -1369,15 +1369,15 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   if (video_codec != AV_CODEC_ID_NONE) {
     context->video_stream = alloc_video_stream(
         context, rd, video_codec, of, rectx, recty, error, sizeof(error));
-    PRINT("alloc video stream %p\n", context->video_stream);
+    FF_DEBUG_PRINT("ffmpeg: alloc video stream %p\n", context->video_stream);
     if (!context->video_stream) {
       if (error[0]) {
         BKE_report(reports, RPT_ERROR, error);
-        PRINT("Video stream error: %s\n", error);
+        FF_DEBUG_PRINT("ffmpeg: video stream error: %s\n", error);
       }
       else {
         BKE_report(reports, RPT_ERROR, "Error initializing video stream");
-        PRINT("Error initializing video stream");
+        FF_DEBUG_PRINT("ffmpeg: error initializing video stream\n");
       }
       goto fail;
     }
@@ -1388,11 +1388,11 @@ static bool start_ffmpeg_impl(MovieWriter *context,
     if (!context->audio_stream) {
       if (error[0]) {
         BKE_report(reports, RPT_ERROR, error);
-        PRINT("Audio stream error: %s\n", error);
+        FF_DEBUG_PRINT("ffmpeg: audio stream error: %s\n", error);
       }
       else {
         BKE_report(reports, RPT_ERROR, "Error initializing audio stream");
-        PRINT("Error initializing audio stream");
+        FF_DEBUG_PRINT("ffmpeg: error initializing audio stream\n");
       }
       goto fail;
     }
@@ -1400,7 +1400,7 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   if (!(fmt->flags & AVFMT_NOFILE)) {
     if (avio_open(&of->pb, filepath, AVIO_FLAG_WRITE) < 0) {
       BKE_report(reports, RPT_ERROR, "Could not open file for writing");
-      PRINT("Could not open file for writing\n");
+      FF_DEBUG_PRINT("ffmpeg: could not open file %s for writing\n", filepath);
       goto fail;
     }
   }
@@ -1417,7 +1417,7 @@ static bool start_ffmpeg_impl(MovieWriter *context,
                "Could not initialize streams, probably unsupported codec combination");
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-    PRINT("Could not write media header: %s\n", error_str);
+    FF_DEBUG_PRINT("ffmpeg: could not write media header: %s\n", error_str);
     goto fail;
   }
 
@@ -1660,7 +1660,7 @@ static bool ffmpeg_movie_append(MovieWriter *context,
   AVFrame *avframe;
   bool success = true;
 
-  PRINT("Writing frame %i, render width=%d, render height=%d\n", frame, image->x, image->y);
+  FF_DEBUG_PRINT("ffmpeg: writing frame #%i (%ix%i)\n", frame, image->x, image->y);
 
   if (context->video_stream) {
     avframe = generate_video_frame(context, image);
@@ -1688,7 +1688,7 @@ static bool ffmpeg_movie_append(MovieWriter *context,
 
 static void end_ffmpeg_impl(MovieWriter *context, int is_autosplit)
 {
-  PRINT("Closing FFMPEG...\n");
+  FF_DEBUG_PRINT("ffmpeg: closing\n");
 
 #  ifdef WITH_AUDASPACE
   if (is_autosplit == false) {
@@ -1702,12 +1702,12 @@ static void end_ffmpeg_impl(MovieWriter *context, int is_autosplit)
 #  endif
 
   if (context->video_stream) {
-    PRINT("Flushing delayed video frames...\n");
+    FF_DEBUG_PRINT("ffmpeg: flush delayed video frames\n");
     flush_delayed_frames(context->video_codec, context->video_stream, context->outfile);
   }
 
   if (context->audio_stream) {
-    PRINT("Flushing delayed audio frames...\n");
+    FF_DEBUG_PRINT("ffmpeg: flush delayed audio frames\n");
     flush_delayed_frames(context->audio_codec, context->audio_stream, context->outfile);
   }
 
