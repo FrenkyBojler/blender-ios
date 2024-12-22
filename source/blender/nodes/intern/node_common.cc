@@ -608,6 +608,12 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
   Array<const bke::bNodeSocketType *> reroute_group_dst_types(reroute_groups.size(), nullptr);
   Array<const bke::bNodeSocketType *> reroute_group_src_types(reroute_groups.size(), nullptr);
 
+  /* Reroute type priority based on the indices of target sockets in the node and the nodes in the
+   * tree. */
+  Array<std::pair<int, int>> reroute_group_dst_type_priority(
+      reroute_groups.size(),
+      std::make_pair(std::numeric_limits<int>::min(), std::numeric_limits<int>::min()));
+
   for (const bNodeLink *link : ntree->all_links()) {
     const bNode *src_node = link->fromnode;
     const bNode *dst_node = link->tonode;
@@ -621,22 +627,31 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
       const int src_reroute_root_i = reroutes_groups.find_root(src_reroute_i);
       const int src_reroute_group_i = reroute_groups.index_of(src_reroute_root_i);
 
+      /* Direct dependence on the nodes order, but sockets from top to bottom. */
+      const std::pair<int, int> type_priority = std::make_pair(dst_node->index(),
+                                                               -link->tosock->index());
+      if (reroute_group_dst_type_priority[src_reroute_group_i] > type_priority) {
+        continue;
+      }
+
+      reroute_group_dst_type_priority[src_reroute_group_i] = type_priority;
+
       const bNodeSocket *dst_socket = link->tosock;
       /* There could be a function which will choose best from
        * #reroute_group_dst_types and #dst_socket, but right now this match behavior as-is. */
       reroute_group_dst_types[src_reroute_group_i] = dst_socket->typeinfo;
+      continue;
     }
 
-    if (!src_node->is_reroute()) {
-      const int dst_reroute_i = reroute_nodes.index_of(dst_node->index());
-      const int dst_reroute_root_i = reroutes_groups.find_root(dst_reroute_i);
-      const int dst_reroute_group_i = reroute_groups.index_of(dst_reroute_root_i);
+    BLI_assert(!src_node->is_reroute());
+    const int dst_reroute_i = reroute_nodes.index_of(dst_node->index());
+    const int dst_reroute_root_i = reroutes_groups.find_root(dst_reroute_i);
+    const int dst_reroute_group_i = reroute_groups.index_of(dst_reroute_root_i);
 
-      const bNodeSocket *src_socket = link->fromsock;
-      /* There could be a function which will choose best from
-       * #reroute_group_src_types and #src_socket, but right now this match behavior as-is. */
-      reroute_group_src_types[dst_reroute_group_i] = src_socket->typeinfo;
-    }
+    const bNodeSocket *src_socket = link->fromsock;
+    /* There could be a function which will choose best from
+     * #reroute_group_src_types and #src_socket, but right now this match behavior as-is. */
+    reroute_group_src_types[dst_reroute_group_i] = src_socket->typeinfo;
   }
 
   const Span<bNode *> all_nodes = ntree->all_nodes();
