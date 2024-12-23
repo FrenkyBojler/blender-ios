@@ -274,9 +274,6 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
                                          Vector<int> &r_roll_dst_offsets,
                                          Vector<int> &r_curve_map)
 {
-  if (selected_points.is_empty()) {
-    return;
-  }
   int curves_added = 0;
   IndexRange rolled_range;
   int dropped_front_ranges = 0;
@@ -307,7 +304,7 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
     r_dst_offsets.last() += rolled_range.size();
   }
   r_curve_map.append_n_times(curve, curves_added);
-  r_new_cyclic.append_n_times(cyclic[curve] && selected_points.size() == points.size() &&
+  r_new_cyclic.append_n_times(cyclic[curve] && selected_points.first().size() == points.size() &&
                                   rolled_range.size() == 0,
                               curves_added);
 }
@@ -326,10 +323,15 @@ static void foreach_mask_content_slice_by_offsets(
   mask.foreach_range([&](const IndexRange range) {
     IndexRange points = offset_indices[current_offset];
 
-    while (range.first() > points.last()) {
-      fn(ranges, points, current_offset++);
-      points = offset_indices[current_offset];
-      ranges.clear();
+    if (range.first() > points.last()) {
+      if (!ranges.is_empty()) {
+        fn(ranges, points, current_offset++);
+        points = offset_indices[current_offset];
+        ranges.clear();
+      }
+      while (range.first() > points.last()) {
+        points = offset_indices[++current_offset];
+      }
     }
 
     IndexRange intersect = points.intersect(range);
@@ -346,9 +348,8 @@ static void foreach_mask_content_slice_by_offsets(
     };
   });
 
-  for (const int o : IndexRange::from_begin_end(current_offset, offset_indices.size())) {
-    fn(ranges, offset_indices[o], o);
-    ranges.clear();
+  if (!ranges.is_empty()) {
+    fn(ranges, offset_indices[current_offset], current_offset);
   }
 }
 
@@ -390,9 +391,6 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
       [&](const Span<IndexRange> curve_points_to_preserve,
           const IndexRange points,
           const int curve) {
-        if (curve_points_to_preserve.is_empty()) {
-          return;
-        }
         /* Singles are removed as singular selected points are only duplicated without affecting
          * original curve. */
         Vector<IndexRange> curve_points_to_preserve_expanded = extend_and_merge(
