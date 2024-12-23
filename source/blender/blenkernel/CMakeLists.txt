@@ -3,13 +3,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   ../asset_system
   ../blenloader
   ../blentranslation
   ../draw
   ../functions
-  ../gpu
   ../ikplugin
   ../imbuf
   ../makesrna
@@ -568,7 +567,7 @@ set(LIB
   bf_draw
   PRIVATE bf::extern::curve_fit_nd
   bf_functions
-  bf_gpu
+  PRIVATE bf::gpu
   bf_ikplugin
   bf_imbuf
   bf::imbuf_movie
@@ -806,6 +805,7 @@ endif()
 # endif()
 
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::blenkernel ALIAS bf_blenkernel)
 
 # RNA_prototypes.hh
 add_dependencies(bf_blenkernel bf_rna)

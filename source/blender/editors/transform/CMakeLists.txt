@@ -4,9 +4,7 @@
 
 set(INC
   ../include
-  ../../blenkernel
   ../../blentranslation
-  ../../gpu
   ../../ikplugin
   ../../makesrna
   ../../render
@@ -114,13 +112,13 @@ set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::blenfont
   PRIVATE bf::extern::fmtlib
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_mask
-  bf_gpu
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
 )
 
