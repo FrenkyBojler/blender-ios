@@ -16,6 +16,7 @@ struct ObjectInfos;
 struct ObjectBounds;
 struct VolumeInfos;
 struct CurvesInfos;
+struct CurvesData;
 struct ObjectAttribute;
 struct LayerAttribute;
 struct DrawCommand;
@@ -265,6 +266,13 @@ struct CurvesInfos {
   uint4 is_point_attribute[DRW_ATTRIBUTE_PER_CURVES_MAX];
 };
 BLI_STATIC_ASSERT_ALIGN(CurvesInfos, 16)
+
+struct CurvesData {
+  uint point_num;
+  uint bezier_point_num;
+  uint _pad1, _pad2;
+};
+BLI_STATIC_ASSERT_ALIGN(CurvesData, 16)
 
 #pragma pack(push, 4)
 struct ObjectAttribute {

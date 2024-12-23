@@ -38,6 +38,7 @@
 #include "GPU_context.hh"
 #include "GPU_material.hh"
 #include "GPU_texture.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "DRW_render.hh"
 
@@ -45,6 +46,7 @@
 #include "draw_cache_impl.hh" /* own include */
 #include "draw_cache_inline.hh"
 #include "draw_curves_private.hh" /* own include */
+#include "draw_shader_shared.hh"
 
 namespace blender::draw {
 
@@ -87,6 +89,8 @@ struct CurvesBatchCache {
   gpu::VertBuf *edit_points_selection;
 
   gpu::IndexBuf *edit_handles_ibo;
+
+  GPUUniformBuf *curves_data;
 
   gpu::Batch *edit_bezier_segments;
   gpu::VertBuf *edit_bezier_segment_data;
@@ -171,6 +175,8 @@ static void clear_edit_data(CurvesBatchCache *cache)
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_curves_lines_pos);
   GPU_INDEXBUF_DISCARD_SAFE(cache->edit_curves_lines_ibo);
   GPU_BATCH_DISCARD_SAFE(cache->edit_curves_lines);
+
+  GPU_UBO_FREE_SAFE(cache->curves_data);
 
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_bezier_segment_data);
   GPU_INDEXBUF_DISCARD_SAFE(cache->edit_bezier_segment_ibo);
@@ -984,6 +990,12 @@ gpu::Batch *DRW_curves_batch_cache_get_edit_bezier_segments(Curves *curves)
   return DRW_batch_request(&cache.edit_bezier_segments);
 }
 
+GPUUniformBuf **DRW_curves_batch_cache_get_curves_data(Curves *curves)
+{
+  CurvesBatchCache &cache = get_batch_cache(*curves);
+  return &cache.curves_data;
+}
+
 gpu::VertBuf **DRW_curves_texture_for_evaluated_attribute(Curves *curves,
                                                           const char *name,
                                                           bool *r_is_point_domain)
@@ -1073,7 +1085,7 @@ static void create_edit_points_position_vbo(
 /* MUST match the format below. */
 struct BezierSegmentVert {
   /** Indices of [point, point's right handle, next point's left handle, next point]. */
-  int32_t point_indices[3];
+  int32_t point_index;
 
   int32_t first_vertex_id;
   float radius;
@@ -1086,45 +1098,42 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
 {
   static GPUVertFormat format_segments = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "segments", GPU_COMP_I32, 3, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "point_index", GPU_COMP_I32, 1, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "first_id", GPU_COMP_I32, 1, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "radius", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     return format;
   }();
 
+  CurvesData data;
+  data.point_num = curves.points_num();
+  data.bezier_point_num = bezier_offsets.total_size();
+
+  cache.curves_data = GPU_uniformbuf_create_ex(sizeof(CurvesData), &data, __func__);
+
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
   const VArray<float> radius = curves.radius();
   const VArray<int> resolution = curves.resolution();
-  const int left_handle_offset = points_by_curve.total_size();
-  const int right_handle_offset = left_handle_offset + bezier_offsets.total_size();
 
   Vector<int> segment_line_offsets({0});
   Vector<BezierSegmentVert> segment_data;
 
-  bezier_curves.foreach_index([&](const int64_t curve, const int64_t bezier_curve) {
+  bezier_curves.foreach_index([&](const int64_t curve) {
     const IndexRange points = points_by_curve[curve];
-    const IndexRange bezier_points = bezier_offsets[bezier_curve];
 
     if (points.size() <= 1) {
       return;
     }
 
     for (const int point : points.index_range()) {
-      BezierSegmentVert seg_data{{int32_t(left_handle_offset + bezier_points[point]),
-                                  int32_t(points[point]),
-                                  int32_t(right_handle_offset + bezier_points[point])},
-                                 segment_line_offsets.last(),
-                                 radius[points[point]]};
+      BezierSegmentVert seg_data{
+          int32_t(points[point]), segment_line_offsets.last(), radius[points[point]]};
       segment_data.append(seg_data);
       segment_line_offsets.append(segment_line_offsets.last() + resolution[curve]);
     }
     if (cyclic[curve]) {
-      BezierSegmentVert seg_data{{int32_t(left_handle_offset + bezier_points[0]),
-                                  int32_t(points[0]),
-                                  int32_t(right_handle_offset + bezier_points[0])},
-                                 segment_line_offsets.last(),
-                                 radius[points[0]]};
+      BezierSegmentVert seg_data{
+          int32_t(points[0]), segment_line_offsets.last(), radius[points[0]]};
       segment_data.append(seg_data);
       segment_line_offsets.append(segment_line_offsets.last() + 0);
     }

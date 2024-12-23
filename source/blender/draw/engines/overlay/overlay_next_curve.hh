@@ -206,6 +206,8 @@ class Curves : Overlay {
     }
     {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_bezier_segments(&curves);
+      edit_bezier_segments_->bind_ubo("curves_data",
+                                      DRW_curves_batch_cache_get_curves_data(&curves));
       edit_bezier_segments_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
     }
   }
