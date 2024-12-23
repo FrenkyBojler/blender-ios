@@ -226,47 +226,45 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
   }
 }
 
-/**
- * Removes single point ranges from the mask.
- * For mask [1, 5, 7, 8, 10] result is [7, 8] if cyclic is false.
- * If cyclic is true indexes 1 and 10 are considered as adjacent and
- * result is [1, 7, 8, 10].
- */
-static IndexMask drop_singles(const IndexMask &mask,
-                              const IndexRange universe,
-                              const bool cyclic,
-                              IndexMaskMemory &memory)
+static IndexRange extend_range(const IndexRange range, const IndexRange universe)
 {
-  if (mask.is_empty()) {
-    return mask;
-  }
-  IndexMask to_left = IndexMask::from_difference(
-                          mask, IndexMask::from_indices<int>({0}, memory), memory)
-                          .shift(-1, memory);
-  IndexMask to_right = mask.shift(1, memory);
-
-  index_mask::ExprBuilder builder;
-  const index_mask::Expr &shifted_to_sides = builder.merge({&to_left, &to_right});
-  IndexMask ensure_cycle_ends;
-  if (cyclic && mask.first() == universe.first() && mask.last() == universe.last()) {
-    ensure_cycle_ends = IndexMask::from_indices<int64_t>({universe.first(), universe.last()},
-                                                         memory);
-  }
-  return evaluate_expression(
-      builder.merge({&builder.intersect({&mask, &shifted_to_sides}), &ensure_cycle_ends}), memory);
+  return IndexRange::from_begin_end_inclusive(math::max(range.start() - 1, universe.start()),
+                                              math::min(range.one_after_last(), universe.last()));
 }
 
-static IndexRange extend_range(const IndexRange &range, const bool extend)
+static Vector<IndexRange> extend_and_merge(const Span<IndexRange> ranges,
+                                           const IndexRange universe,
+                                           const bool cyclic)
 {
-  return extend ? IndexRange::from_begin_end_inclusive(math::max(range.start() - 1, int64_t(0)),
-                                                       range.one_after_last()) :
-                  range;
+  const bool must_add_first = cyclic && ranges.last().last() == universe.last() &&
+                              ranges.first().first() != universe.first();
+  const bool must_add_last = cyclic && ranges.first().first() == universe.first() &&
+                             ranges.last().last() != universe.last();
+
+  Vector<IndexRange> out;
+  out.append(must_add_first ? IndexRange::from_single(universe.first()) :
+                              extend_range(ranges.first(), universe));
+
+  for (const IndexRange range : ranges) {
+    const IndexRange extended = extend_range(range, universe);
+    IndexRange &last = out.last();
+    if (!extended.intersect(last).is_empty()) {
+      last = IndexRange::from_begin_end_inclusive(last.start(), extended.last());
+    }
+    else {
+      out.append(extended);
+    }
+  }
+  if (must_add_last) {
+    out.append(IndexRange::from_single(universe.last()));
+  }
+
+  return out;
 }
 
-static void curve_offsets_from_selection(const IndexMask &selected_points,
+static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
                                          const IndexRange points,
                                          const int curve,
-                                         const bool extend_ranges,
                                          const VArray<bool> cyclic,
                                          Vector<int> &r_new_curve_offsets,
                                          Vector<bool> &r_new_cyclic,
@@ -282,32 +280,22 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
   int curves_added = 0;
   IndexRange rolled_range;
   int dropped_front_ranges = 0;
-  Vector<IndexRange> ranges = selected_points.to_ranges();
 
-  if (cyclic[curve] && selected_points.size() < points.size()) {
-    const IndexRange first_range = ranges.first();
-    const IndexRange last_range = ranges.last();
+  if (cyclic[curve] && selected_points.first().size() < points.size()) {
+    const IndexRange first_range = selected_points.first();
+    const IndexRange last_range = selected_points.last();
 
     if (first_range.first() == points.first() && last_range.last() == points.last()) {
-      rolled_range = extend_range(ranges.first(), extend_ranges).intersect(points);
+      rolled_range = selected_points.first();
       dropped_front_ranges = 1;
-    }
-    else if (extend_ranges && first_range.first() == points.first()) {
-      rolled_range = extend_range(ranges.first(), extend_ranges).intersect(points);
-      dropped_front_ranges = 1;
-      ranges.append(points.take_back(0));
-    }
-    else if (extend_ranges && last_range.last() == points.last()) {
-      rolled_range = points.take_front(1);
     }
   }
 
-  for (const IndexRange range : ranges.as_span().drop_front(dropped_front_ranges)) {
-    const IndexRange extended_range = extend_range(range, extend_ranges).intersect(points);
-    r_new_curve_offsets.append(r_new_curve_offsets.last() + extended_range.size());
-    r_src_offsets.append(extended_range.first());
-    r_src_offsets.append(extended_range.one_after_last());
-    r_dst_offsets.append_n_times(r_dst_offsets.last() + extended_range.size(), 2);
+  for (const IndexRange range : selected_points.drop_front(dropped_front_ranges)) {
+    r_new_curve_offsets.append(r_new_curve_offsets.last() + range.size());
+    r_src_offsets.append(range.first());
+    r_src_offsets.append(range.one_after_last());
+    r_dst_offsets.append_n_times(r_dst_offsets.last() + range.size(), 2);
     curves_added++;
   };
   if (!rolled_range.is_empty()) {
@@ -327,41 +315,40 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
 static void foreach_mask_content_slice_by_offsets(
     const IndexMask &mask,
     const OffsetIndices<int> offset_indices,
-    FunctionRef<
-        void(const IndexMask curve_points_to_split, const IndexRange points, const int curve)> fn)
+    FunctionRef<void(const Vector<IndexRange> &selected_curve_points,
+                     const IndexRange points,
+                     const int curve)> fn)
 {
-  IndexMask empty_mask;
-  int offset = 0;
-  int slice_start = -1;
-  int slice_end = -1;
+  Vector<IndexRange> ranges;
 
-  mask.foreach_index([&](const int64_t index, const int64_t position) {
-    if (!offset_indices[offset].contains(index)) {
-      if (slice_start != -1) {
-        fn(mask.slice(IndexRange::from_begin_end_inclusive(slice_start, slice_end)),
-           offset_indices[offset],
-           offset);
-        offset++;
-        slice_start = -1;
-      }
-      while (!offset_indices[offset].contains(index)) {
-        fn(empty_mask, offset_indices[offset], offset);
-        offset++;
-      }
+  int current_offset = 0;
+
+  mask.foreach_range([&](const IndexRange range) {
+    IndexRange points = offset_indices[current_offset];
+
+    while (range.first() > points.last()) {
+      fn(ranges, points, current_offset++);
+      points = offset_indices[current_offset];
+      ranges.clear();
     }
-    if (slice_start == -1) {
-      slice_start = position;
-    }
-    slice_end = position;
+
+    IndexRange intersect = points.intersect(range);
+    ranges.append(intersect);
+    IndexRange range_to_handle = range.drop_front(intersect.size());
+
+    while (!range_to_handle.is_empty()) {
+      fn(ranges, points, current_offset++);
+      points = offset_indices[current_offset];
+      ranges.clear();
+      intersect = points.intersect(range_to_handle);
+      ranges.append(intersect);
+      range_to_handle = range_to_handle.drop_front(intersect.size());
+    };
   });
 
-  fn(mask.slice(IndexRange::from_begin_end_inclusive(slice_start, slice_end)),
-     offset_indices[offset],
-     offset);
-  offset++;
-
-  for (const int o : IndexRange::from_begin_end(offset, offset_indices.size())) {
-    fn(empty_mask, offset_indices[o], o);
+  for (const int o : IndexRange::from_begin_end(current_offset, offset_indices.size())) {
+    fn(ranges, offset_indices[o], o);
+    ranges.clear();
   }
 }
 
@@ -398,18 +385,21 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
   IndexMaskMemory memory;
 
   foreach_mask_content_slice_by_offsets(
-      points_to_split,
+      points_to_split.complement(curves.points_range(), memory),
       points_by_curve,
-      [&](const IndexMask curve_points_to_split, const IndexRange points, const int curve) {
+      [&](const Span<IndexRange> curve_points_to_preserve,
+          const IndexRange points,
+          const int curve) {
+        if (curve_points_to_preserve.is_empty()) {
+          return;
+        }
         /* Singles are removed as singular selected points are only duplicated without affecting
          * original curve. */
-        const IndexMask curve_preserved_points =
-            drop_singles(curve_points_to_split, points, cyclic[curve], memory)
-                .complement(points, memory);
-        curve_offsets_from_selection(curve_preserved_points,
+        Vector<IndexRange> curve_points_to_preserve_expanded = extend_and_merge(
+            curve_points_to_preserve, points, cyclic[curve]);
+        curve_offsets_from_selection(curve_points_to_preserve_expanded,
                                      points,
                                      curve,
-                                     true,
                                      cyclic,
                                      new_offsets,
                                      preserved_cyclic,
@@ -418,11 +408,15 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                                      preserved_roll_src_offsets,
                                      preserved_roll_dst_offsets,
                                      curve_map);
+      });
 
+  foreach_mask_content_slice_by_offsets(
+      points_to_split,
+      points_by_curve,
+      [&](const Span<IndexRange> curve_points_to_split, const IndexRange points, const int curve) {
         curve_offsets_from_selection(curve_points_to_split,
                                      points,
                                      curve,
-                                     false,
                                      cyclic,
                                      split_curve_offsets,
                                      split_cyclic,
