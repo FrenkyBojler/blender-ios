@@ -525,7 +525,8 @@ class Map {
 
   /**
    * Returns a copy of the value that corresponds to the given key, or std::nullopt if the key is
-   * not in the map.
+   * not in the map. In some cases, one may not want a copy but an actual reference to the value.
+   * In that case it's better to use #lookup_ptr instead.
    */
   std::optional<Value> lookup_try(const Key &key) const
   {
