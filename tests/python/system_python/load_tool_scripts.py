@@ -66,13 +66,11 @@ def import_module(file_path):
         module_name = file_path.stem
 
     with add_to_sys_path(file_path.parent):
-        # ~ print(f"+++ Trying to import {module_name} from {file_path} (is_package: {is_package})")
         spec = importlib.util.spec_from_file_location(
             module_name, file_path, submodule_search_locations=file_path.parent)
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
-        # ~ print(f"+++ Import success")
 
     return module_name, is_package
 
@@ -89,7 +87,6 @@ def import_modules(root_dir):
         path = directories.pop(0)
         sub_directories = []
         is_package = False
-        # ~ print("+++", path)
         with os.scandir(path) as it:
             for entry in it:
                 if entry.is_dir():
@@ -120,7 +117,8 @@ def import_modules(root_dir):
         if not is_package:
             directories += sub_directories
 
-    assert (not has_failures)
+    if has_failures:
+        raise Exception("Some module imports failed")
 
 
 def main():
@@ -129,8 +127,7 @@ def main():
         root_dir = sys.argv[2]
         import_modules(root_dir=root_dir)
     else:
-        print("Missing --root-dir parameter")
-        assert (0)
+        raise Exception("Missing --root-dir parameter")
 
 
 if __name__ == "__main__":
