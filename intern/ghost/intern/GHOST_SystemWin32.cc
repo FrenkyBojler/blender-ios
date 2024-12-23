@@ -1283,7 +1283,7 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     const BOOL has_state = GetKeyboardState((PBYTE)state);
     const bool ctrl_pressed = has_state && state[VK_CONTROL] & 0x80;
     const bool alt_pressed = has_state && state[VK_MENU] & 0x80;
-    const bool win_pressed = (state[VK_LWIN] | state[VK_RWIN]) & 0x80;
+    const bool win_pressed = has_state && (state[VK_LWIN] | state[VK_RWIN]) & 0x80;
 
     /* We can be here with !key_down if processing dead keys (diacritics). See #103119. */
 
