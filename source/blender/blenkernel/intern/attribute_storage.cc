@@ -145,10 +145,17 @@ AttributeStorage &AttributeStorage::operator=(const AttributeStorage &other)
 
 AttributeStorage::AttributeStorage(AttributeStorage &&other)
 {
-  this->attributes_array = std::exchange(other.attributes_array, nullptr);
-  this->attributes_num = std::exchange(other.attributes_num, 0);
-  this->attributes_capacity = std::exchange(other.attributes_capacity, 0);
-  this->runtime = std::exchange(other.runtime, nullptr);
+  this->attributes_array = other.attributes_array;
+  other.attributes_array = nullptr;
+
+  this->attributes_num = other.attributes_num;
+  other.attributes_num = 0;
+
+  this->attributes_capacity = other.attributes_capacity;
+  other.attributes_capacity = 0;
+
+  this->runtime = other.runtime;
+  other.runtime = nullptr;
 }
 
 AttributeStorage &AttributeStorage::operator=(AttributeStorage &&other)
