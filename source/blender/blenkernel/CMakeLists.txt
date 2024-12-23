@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   ../asset_system
   ../blenloader
   ../blentranslation
-  ../bmesh
   ../draw
   ../functions
   ../gpu
@@ -567,7 +566,7 @@ set(LIB
   PRIVATE bf::blenlib
   bf_blenloader
   bf_blentranslation
-  bf_bmesh
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_draw
@@ -811,6 +810,7 @@ endif()
 # endif()
 
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::blenkernel ALIAS bf_blenkernel)
 
 # RNA_prototypes.hh
 add_dependencies(bf_blenkernel bf_rna)
