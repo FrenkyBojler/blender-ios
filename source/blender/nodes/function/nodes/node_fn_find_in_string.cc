@@ -22,9 +22,9 @@ static int string_find(const StringRef text, const StringRef token)
   if (text.is_empty() || token.is_empty()) {
     return 0;
   }
-  int pos = text.find(token, 0);
+  const int pos = text.find(token, 0);
   size_t r_len_bytes;
-  int pos_n = BLI_strnlen_utf8_ex(text.data(), pos, &r_len_bytes);
+  const int pos_n = BLI_strnlen_utf8_ex(text.data(), pos, &r_len_bytes);
   return pos_n;
 }
 
