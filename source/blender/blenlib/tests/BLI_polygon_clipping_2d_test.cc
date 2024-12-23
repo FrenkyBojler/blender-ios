@@ -96,7 +96,7 @@ static void CSS_setup_style(std::ofstream &f)
        "}\n";
 }
 
-class svg_mapping {
+class SVGMapping {
  public:
   float2 topleft;
   float scale;
@@ -112,43 +112,35 @@ class svg_mapping {
   {
     return ((topleft[1] - y) * scale);
   }
-};
 
-svg_mapping calculate_mapping_from_bounds(const Bounds<float2> &bounds)
-{
-  constexpr int max_draw_width = 800;
-  constexpr int max_draw_height = 600;
+  SVGMapping(const Bounds<float2> &bounds)
+  {
+    constexpr int max_draw_width = 800;
+    constexpr int max_draw_height = 600;
 
-  const float draw_margin = (bounds.size().x + bounds.size().y) * 0.05;
+    const float draw_margin = (bounds.size().x + bounds.size().y) * 0.05;
 
-  Bounds<float2> bounds_padded = bounds;
-  bounds_padded.pad(draw_margin);
+    Bounds<float2> bounds_padded = bounds;
+    bounds_padded.pad(draw_margin);
 
-  const float2 topleft = float2(bounds_padded.min.x, bounds_padded.max.y);
-  const float width = bounds_padded.size().x;
-  const float height = bounds_padded.size().y;
-  const float aspect = height / width;
-  int view_width = max_draw_width;
-  int view_height = int(view_width * aspect);
-  if (view_height > max_draw_height) {
-    view_height = max_draw_height;
-    view_width = int(view_height / aspect);
+    topleft = float2(bounds_padded.min.x, bounds_padded.max.y);
+    const float width = bounds_padded.size().x;
+    const float height = bounds_padded.size().y;
+    const float aspect = height / width;
+    view_width = max_draw_width;
+    view_height = int(view_width * aspect);
+    if (view_height > max_draw_height) {
+      view_height = max_draw_height;
+      view_width = int(view_height / aspect);
+    }
+    scale = view_width / width;
   }
-  const float scale = view_width / width;
-
-  svg_mapping mapping;
-  mapping.topleft = topleft;
-  mapping.scale = scale;
-  mapping.view_width = view_width;
-  mapping.view_height = view_height;
-
-  return mapping;
-}
+};
 
 static void SVG_add_polygon(std::ofstream &f,
                             const std::string &class_name,
                             const Span<float2> points,
-                            const svg_mapping &mapping)
+                            const SVGMapping &mapping)
 {
   f << "<polygon class = \"" << class_name << "\" points = \"";
   for (const int i : points.index_range()) {
@@ -165,7 +157,7 @@ static void SVG_add_polygons_as_path(std::ofstream &f,
                                      const std::string &class_name,
                                      const Span<float2> points,
                                      const OffsetIndices<int> points_by_polygon,
-                                     const svg_mapping &mapping)
+                                     const SVGMapping &mapping)
 {
   f << "<path class = \"" << class_name << "\" d = \"";
   for (const int polygon_id : points_by_polygon.index_range()) {
@@ -200,7 +192,7 @@ static void SVG_add_polygons_as_path(std::ofstream &f,
 static void SVG_add_line(std::ofstream &f,
                          const std::string &class_name,
                          const Span<float2> points,
-                         const svg_mapping &mapping)
+                         const SVGMapping &mapping)
 {
   f << "<path class = \"" << class_name << "\" d = \"";
 
@@ -226,7 +218,7 @@ static void SVG_add_lines(std::ofstream &f,
                           const std::string &class_name,
                           const Span<float2> points,
                           const OffsetIndices<int> points_by_polygon,
-                          const svg_mapping &mapping)
+                          const SVGMapping &mapping)
 {
   f << "<path class = \"" << class_name << "\" d = \"";
   for (const int polygon_id : points_by_polygon.index_range()) {
@@ -301,7 +293,7 @@ void draw_polygons(const std::string &label,
                    const BooleanResult &result)
 {
   const Bounds<float2> bounds = *bounds::merge(bounds::min_max(curve_a), bounds::min_max(curve_b));
-  svg_mapping mapping = calculate_mapping_from_bounds(bounds);
+  SVGMapping mapping = SVGMapping(bounds);
 
   std::ofstream f = get_file_stream();
   if (!f) {
@@ -339,7 +331,7 @@ void draw_cut(const std::string &label,
               const BooleanResult &result)
 {
   const Bounds<float2> bounds = *bounds::merge(bounds::min_max(curve_a), bounds::min_max(curve_b));
-  svg_mapping mapping = calculate_mapping_from_bounds(bounds);
+  SVGMapping mapping = SVGMapping(bounds);
 
   std::ofstream f = get_file_stream();
   if (!f) {
