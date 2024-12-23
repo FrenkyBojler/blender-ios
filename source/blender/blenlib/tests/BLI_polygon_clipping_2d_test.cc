@@ -114,23 +114,19 @@ class svg_mapping {
   }
 };
 
-svg_mapping calculate_mapping_from_bounds(const Bounds<float2> &bound)
+svg_mapping calculate_mapping_from_bounds(const Bounds<float2> &bounds)
 {
   constexpr int max_draw_width = 800;
   constexpr int max_draw_height = 600;
 
-  const float2 vmin = bound.min;
-  const float2 vmax = bound.max;
-  const float draw_margin = ((vmax.x - vmin.x) + (vmax.y - vmin.y)) * 0.05;
-  const float minx = vmin.x - draw_margin;
-  const float maxx = vmax.x + draw_margin;
-  const float miny = vmin.y - draw_margin;
-  const float maxy = vmax.y + draw_margin;
+  const float draw_margin = (bounds.size().x + bounds.size().y) * 0.05;
 
-  const float2 topleft = float2(minx, maxy);
+  Bounds<float2> bounds_padded = bounds;
+  bounds_padded.pad(draw_margin);
 
-  const float width = maxx - minx;
-  const float height = maxy - miny;
+  const float2 topleft = float2(bounds_padded.min.x, bounds_padded.max.y);
+  const float width = bounds_padded.size().x;
+  const float height = bounds_padded.size().y;
   const float aspect = height / width;
   int view_width = max_draw_width;
   int view_height = int(view_width * aspect);
