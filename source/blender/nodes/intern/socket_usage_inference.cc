@@ -489,6 +489,18 @@ struct SocketUsageInferencer {
         this->value_task__output__group_input_node(socket);
         return;
       }
+      case GEO_NODE_SWITCH: {
+        this->value_task__output__generic_switch(socket, switch__is_socket_selected);
+        return;
+      }
+      case GEO_NODE_INDEX_SWITCH: {
+        this->value_task__output__generic_switch(socket, index_switch__is_socket_selected);
+        return;
+      }
+      case GEO_NODE_MENU_SWITCH: {
+        this->value_task__output__generic_switch(socket, menu_switch__is_socket_selected);
+        return;
+      }
       default: {
         if (node->typeinfo->build_multi_function) {
           this->value_task__output__multi_function_node(socket);
@@ -543,6 +555,52 @@ struct SocketUsageInferencer {
       return;
     }
     all_socket_values_.add_new(socket, *value);
+  }
+
+  /**
+   * Assumes that the first input is a condition that selects one of the remaining inputs which is
+   * then output. If necessary, this can trigger a value task for the condition socket.
+   */
+  void value_task__output__generic_switch(
+      const SocketInContext &socket,
+      const FunctionRef<bool(const SocketInContext &socket, const void *condition)>
+          is_selected_socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    BLI_assert(node->input_sockets().size() >= 1);
+    BLI_assert(node->output_sockets().size() == 1);
+
+    const SocketInContext condition_socket = node.input_socket(0);
+    const std::optional<const void *> condition_value = all_socket_values_.lookup_try(
+        condition_socket);
+    if (!condition_value.has_value()) {
+      this->push_value_task(condition_socket);
+      return;
+    }
+    if (!*condition_value) {
+      /* The condition value is not a simple static value, so the output is unknown. */
+      all_socket_values_.add_new(socket, nullptr);
+      return;
+    }
+    for (const int input_i : node->input_sockets().index_range().drop_front(1)) {
+      const SocketInContext input_socket = node.input_socket(input_i);
+      if (input_socket->type == SOCK_CUSTOM && STREQ(input_socket->idname, "NodeSocketVirtual")) {
+        continue;
+      }
+      const bool is_selected = is_selected_socket(input_socket, *condition_value);
+      if (!is_selected) {
+        continue;
+      }
+      const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
+      if (!input_value.has_value()) {
+        this->push_value_task(input_socket);
+        return;
+      }
+      all_socket_values_.add_new(socket, *input_value);
+      return;
+    }
+    /* The condition did not match any of the inputs, so the output is unknown. */
+    all_socket_values_.add_new(socket, nullptr);
   }
 
   void value_task__output__multi_function_node(const SocketInContext &socket)
