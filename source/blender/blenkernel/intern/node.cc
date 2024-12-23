@@ -4665,7 +4665,7 @@ void node_system_exit()
 {
   get_node_type_alias_map().clear();
 
-  Vector<bNodeType *> node_types = get_node_type_map().extract_vector();
+  const Vector<bNodeType *> node_types = get_node_type_map().extract_vector();
   for (bNodeType *nt : node_types) {
     if (nt->rna_ext.free) {
       nt->rna_ext.free(nt->rna_ext.data);
@@ -4673,7 +4673,7 @@ void node_system_exit()
     node_free_type(nt);
   }
 
-  Vector<bNodeSocketType *> socket_types = get_socket_type_map().extract_vector();
+  const Vector<bNodeSocketType *> socket_types = get_socket_type_map().extract_vector();
   for (bNodeSocketType *st : socket_types) {
     if (st->ext_socket.free) {
       st->ext_socket.free(st->ext_socket.data);
@@ -4684,7 +4684,7 @@ void node_system_exit()
     node_free_socket_type(st);
   }
 
-  Vector<bNodeTreeType *> tree_types = get_node_tree_type_map().extract_vector();
+  const Vector<bNodeTreeType *> tree_types = get_node_tree_type_map().extract_vector();
   for (bNodeTreeType *nt : tree_types) {
     if (nt->rna_ext.free) {
       nt->rna_ext.free(nt->rna_ext.data);
