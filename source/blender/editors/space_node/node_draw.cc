@@ -2467,8 +2467,6 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
       continue;
     }
 
-    const bool only_inactive_inputs = panel_has_only_inactive_inputs(node, panel_decl);
-
     const rctf header_rect = {draw_bounds.xmin,
                               draw_bounds.xmax,
                               *panel_runtime.header_center_y - NODE_DYS,
@@ -2504,6 +2502,8 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
         0,
         0,
         "");
+
+    const bool only_inactive_inputs = panel_has_only_inactive_inputs(node, panel_decl);
     if ((node.flag & NODE_MUTED) || only_inactive_inputs) {
       UI_but_flag_enable(label_but, UI_BUT_INACTIVE);
     }
