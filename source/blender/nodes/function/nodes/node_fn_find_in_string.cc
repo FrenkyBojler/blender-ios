@@ -34,15 +34,15 @@ static int string_count(const StringRef text, const StringRef token)
     return 0;
   }
   int count = 0;
-  int matche_len = token.size();
+  const int match_len = token.size();
   int pos = 0;
   if (text.substr(0, token.size()) == token) {
     count++;
-    pos += matche_len;
+    pos += match_len;
   }
   while ((pos = text.find(token, pos)) != StringRef::not_found) {
     count++;
-    pos += matche_len;
+    pos += match_len;
   }
   return count;
 }
