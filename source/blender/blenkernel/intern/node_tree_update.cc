@@ -566,7 +566,7 @@ class NodeTreeMainUpdater {
   {
     tree.ensure_topology_cache();
 
-    Array<bool> new_inferenced_socket_usage(tree.all_sockets().size(), true);
+    Array<bool> new_inferenced_input_socket_usage(tree.all_input_sockets().size(), true);
 
     const Span<const bNode *> group_nodes = tree.group_nodes();
     for (const bNode *group_node : group_nodes) {
@@ -579,13 +579,13 @@ class NodeTreeMainUpdater {
       if (group->interface_inputs().is_empty()) {
         continue;
       }
-      MutableSpan<bool> inputs_usages = new_inferenced_socket_usage.as_mutable_span().slice(
-          group_node->input_socket_indices_in_tree());
+      MutableSpan<bool> inputs_usages = new_inferenced_input_socket_usage.as_mutable_span().slice(
+          group_node->input_socket_indices_in_all_inputs());
       nodes::socket_usage_inference::infer_inputs_socket_usage(
           *group, group_node->input_sockets(), inputs_usages);
     }
 
-    tree.runtime->inferenced_socket_usage = std::move(new_inferenced_socket_usage);
+    tree.runtime->inferenced_input_socket_usage = std::move(new_inferenced_input_socket_usage);
   }
 
   void update_socket_link_and_use(bNodeTree &tree)

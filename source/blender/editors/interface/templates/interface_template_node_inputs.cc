@@ -83,7 +83,7 @@ static bool panel_has_any_used_input(const bNode &node,
         continue;
       }
       const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
-      if (ntree.runtime->inferenced_socket_usage[socket.index_in_tree()]) {
+      if (ntree.runtime->inferenced_input_socket_usage[socket.index_in_all_inputs()]) {
         return true;
       }
     }
