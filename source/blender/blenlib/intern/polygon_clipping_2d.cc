@@ -155,10 +155,8 @@ static BooleanResult non_intersecting_result(const Operation mode,
     switch (mode) {
       case Operation::And:
         return result_from_curve(curve_a, true);
-      case Operation::NotB:
+      case Operation::Not:
         return result_none();
-      case Operation::NotA:
-        return result_BA(curve_a, curve_b);
       case Operation::Or:
         return result_from_curve(curve_b, false);
       default:
@@ -170,10 +168,8 @@ static BooleanResult non_intersecting_result(const Operation mode,
     switch (mode) {
       case Operation::And:
         return result_from_curve(curve_b, false);
-      case Operation::NotB:
+      case Operation::Not:
         return result_AB(curve_a, curve_b);
-      case Operation::NotA:
-        return result_none();
       case Operation::Or:
         return result_from_curve(curve_a, true);
       default:
@@ -185,10 +181,8 @@ static BooleanResult non_intersecting_result(const Operation mode,
     switch (mode) {
       case Operation::And:
         return result_none();
-      case Operation::NotB:
+      case Operation::Not:
         return result_from_curve(curve_a, true);
-      case Operation::NotA:
-        return result_from_curve(curve_b, false);
       case Operation::Or:
         return result_AB(curve_a, curve_b);
       default:
@@ -208,10 +202,8 @@ BooleanResult invalid_result(const Operation mode,
   switch (mode) {
     case Operation::And:
       return result_AB(curve_a, curve_b);
-    case Operation::NotB:
+    case Operation::Not:
       return result_from_curve(curve_a, true);
-    case Operation::NotA:
-      return result_from_curve(curve_b, false);
     case Operation::Or:
       return result_AB(curve_a, curve_b);
     default:
@@ -228,10 +220,8 @@ static std::pair<bool, bool> get_AB_mode(const Operation mode)
   switch (mode) {
     case Operation::And:
       return {false, false};
-    case Operation::NotB:
+    case Operation::Not:
       return {true, false};
-    case Operation::NotA:
-      return {false, true};
     case Operation::Or:
       return {true, true};
     default:

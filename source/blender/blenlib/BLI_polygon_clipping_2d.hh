@@ -38,9 +38,7 @@ enum class Operation : int8_t {
   /* Union of A and B. */
   Or,
   /* Differences of A with B. */
-  NotB,
-  /* Differences of B with A. */
-  NotA,
+  Not,
 };
 
 enum class VertexType : int8_t {
