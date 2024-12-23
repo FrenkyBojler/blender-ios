@@ -1715,8 +1715,8 @@ static void ntree_free_type(void *treetype_v)
 
 void node_tree_type_free_link(const bNodeTreeType *nt)
 {
-  ntree_free_type(const_cast<bNodeTreeType *>(nt));
   get_node_tree_type_map().remove(const_cast<bNodeTreeType *>(nt));
+  ntree_free_type(const_cast<bNodeTreeType *>(nt));
 }
 
 bool node_tree_is_registered(const bNodeTree *ntree)
@@ -1789,8 +1789,8 @@ void node_register_type(bNodeType *nt)
 
 void node_unregister_type(bNodeType *nt)
 {
-  node_free_type(nt);
   get_node_type_map().remove(nt);
+  node_free_type(nt);
 }
 
 Span<bNodeType *> node_types_get()
@@ -1861,8 +1861,8 @@ void node_register_socket_type(bNodeSocketType *st)
 
 void node_unregister_socket_type(bNodeSocketType *st)
 {
-  node_free_socket_type(st);
   get_socket_type_map().remove(st);
+  node_free_socket_type(st);
 }
 
 bool node_socket_is_registered(const bNodeSocket *sock)
@@ -4665,15 +4665,16 @@ void node_system_exit()
 {
   get_node_type_alias_map().clear();
 
-  for (bNodeType *nt : node_types_get()) {
+  Vector<bNodeType *> node_types = get_node_type_map().extract_vector();
+  for (bNodeType *nt : node_types) {
     if (nt->rna_ext.free) {
       nt->rna_ext.free(nt->rna_ext.data);
     }
     node_free_type(nt);
   }
-  get_node_type_map().clear();
 
-  for (bNodeSocketType *st : node_socket_types_get()) {
+  Vector<bNodeSocketType *> socket_types = get_socket_type_map().extract_vector();
+  for (bNodeSocketType *st : socket_types) {
     if (st->ext_socket.free) {
       st->ext_socket.free(st->ext_socket.data);
     }
@@ -4682,15 +4683,14 @@ void node_system_exit()
     }
     node_free_socket_type(st);
   }
-  get_socket_type_map().clear();
 
-  for (bNodeTreeType *nt : node_tree_types_get()) {
+  Vector<bNodeTreeType *> tree_types = get_node_tree_type_map().extract_vector();
+  for (bNodeTreeType *nt : tree_types) {
     if (nt->rna_ext.free) {
       nt->rna_ext.free(nt->rna_ext.data);
     }
     ntree_free_type(nt);
   }
-  get_node_tree_type_map().clear();
 }
 
 /* -------------------------------------------------------------------- */
