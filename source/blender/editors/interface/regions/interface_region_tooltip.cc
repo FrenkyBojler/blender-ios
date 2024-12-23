@@ -1062,10 +1062,12 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     float color[4];
     ui_but_v3_get(but, color);
     color[3] = 1.0f;
+    bool has_alpha = false;
 
     if (but->rnaprop) {
       BLI_assert(but->rnaindex == -1);
-      if (RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4) {
+      has_alpha = RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4;
+      if (has_alpha) {
         color[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
       }
     }
@@ -1076,14 +1078,19 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     uchar rgb_hex_uchar[4];
     rgba_float_to_uchar(rgb_hex_uchar, color);
-    const std::string hex_st = fmt::format("Hex: #{:02X}{:02X}{:02X}{:02X}",
+
+    std::string format;
+
+    format = "Hex: #{:02X}{:02X}{:02X}" + std::string(has_alpha ? "{:02X}" : "");
+    const std::string hex_st = fmt::format(fmt::runtime(format),
                                            int(rgb_hex_uchar[0]),
                                            int(rgb_hex_uchar[1]),
                                            int(rgb_hex_uchar[2]),
                                            int(rgb_hex_uchar[3]));
 
-    const std::string rgba_st = fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}",
-                                            TIP_("RGBA"),
+    format = "{}:  {:.3f}  {:.3f}  {:.3f}" + std::string(has_alpha ? "  {:.3f}" : "");
+    const std::string rgba_st = fmt::format(fmt::runtime(format),
+                                            has_alpha ? TIP_("RGBA") : TIP_("RGB"),
                                             color[0],
                                             color[1],
                                             color[2],
@@ -1091,8 +1098,13 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     float hsva[4];
     rgb_to_hsv_v(color, hsva);
     hsva[3] = color[3];
-    const std::string hsva_st = fmt::format(
-        "{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}", TIP_("HSVA"), hsva[0], hsva[1], hsva[2], hsva[3]);
+    format = "{}:  {:.3f}  {:.3f}  {:.3f}" + std::string(has_alpha ? "  {:.3f}" : "");
+    const std::string hsva_st = fmt::format(fmt::runtime(format),
+                                            has_alpha ? TIP_("HSVA") : TIP_("HSV"),
+                                            hsva[0],
+                                            hsva[1],
+                                            hsva[2],
+                                            hsva[3]);
 
     const uiFontStyle *fs = &UI_style_get()->tooltip;
     BLF_size(blf_mono_font, fs->points * UI_SCALE_FAC);
@@ -1100,7 +1112,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     uiTooltipImage image_data;
     image_data.width = int(w);
-    image_data.height = int(w / 4.0f);
+    image_data.height = int(w / (has_alpha ? 4.0f : 3.0f));
     image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_rect);
     image_data.border = true;
     image_data.premultiplied = false;
