@@ -204,30 +204,40 @@ struct SocketUsageInferencer {
 
   void usage_task__input__switch_node(const SocketInContext &socket)
   {
-    this->usage_task__input__generic_switch(socket, [&](const void *condition) {
-      const bool is_true = *static_cast<const bool *>(condition);
-      const int selected_index = is_true ? 2 : 1;
-      return socket->index() == selected_index;
-    });
+    this->usage_task__input__generic_switch(socket, switch__is_socket_selected);
+  }
+
+  static bool switch__is_socket_selected(const SocketInContext &socket, const void *condition)
+  {
+    const bool is_true = *static_cast<const bool *>(condition);
+    const int selected_index = is_true ? 2 : 1;
+    return socket->index() == selected_index;
   }
 
   void usage_task__input__index_switch_node(const SocketInContext &socket)
   {
-    this->usage_task__input__generic_switch(socket, [&](const void *condition) {
-      const int index = *static_cast<const int *>(condition);
-      return socket->index() == index + 1;
-    });
+    this->usage_task__input__generic_switch(socket, index_switch__is_socket_selected);
+  }
+
+  static bool index_switch__is_socket_selected(const SocketInContext &socket,
+                                               const void *condition)
+  {
+    const int index = *static_cast<const int *>(condition);
+    return socket->index() == index + 1;
   }
 
   void usage_task__input__menu_switch_node(const SocketInContext &socket)
   {
-    this->usage_task__input__generic_switch(socket, [&](const void *condition) {
-      const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(
-          socket->owner_node().storage);
-      const int menu_value = *static_cast<const int *>(condition);
-      const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
-      return menu_value == item.identifier;
-    });
+    this->usage_task__input__generic_switch(socket, menu_switch__is_socket_selected);
+  }
+
+  static bool menu_switch__is_socket_selected(const SocketInContext &socket, const void *condition)
+  {
+    const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(
+        socket->owner_node().storage);
+    const int menu_value = *static_cast<const int *>(condition);
+    const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
+    return menu_value == item.identifier;
   }
 
   /**
@@ -236,7 +246,8 @@ struct SocketUsageInferencer {
    */
   void usage_task__input__generic_switch(
       const SocketInContext &socket,
-      const FunctionRef<bool(const void *condition)> is_selected_socket)
+      const FunctionRef<bool(const SocketInContext &socket, const void *condition)>
+          is_selected_socket)
   {
     const NodeInContext node = socket.owner_node();
     BLI_assert(node->input_sockets().size() >= 1);
@@ -272,7 +283,7 @@ struct SocketUsageInferencer {
       all_socket_usages_.add_new(socket, true);
       return;
     }
-    const bool is_used = is_selected_socket(*condition_value);
+    const bool is_used = is_selected_socket(socket, *condition_value);
     all_socket_usages_.add_new(socket, is_used);
   }
 
