@@ -241,6 +241,7 @@ class LinearGizmo : public NodeGizmos {
 
     const float length = (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) ? 0.8f :
                                                                                         1.0f;
+    RNA_float_set(gizmo_->ptr, "length", length);
 
     if (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CONE) {
       /* Draw cone style arrow */
