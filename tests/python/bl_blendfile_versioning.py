@@ -54,7 +54,7 @@ class TestBlendFileOpenAllTestFiles(TestHelper):
         # Directories to exclude relative to `./tests/data/`.
         self.excluded_dirs = ()
 
-        if platform.system() == "Darwin":
+        if False and platform.system() == "Darwin":
             # NOTE(@ideasman42):
             # - `x86_64` fails often.
             # - `arm64` can succeed but is unreliable enough to keep disabled.
