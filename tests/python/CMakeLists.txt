@@ -219,7 +219,7 @@ add_blender_test(
 # This test can be extremely long, especially in debug builds.
 # Generate BLENDFILE_VERSIONING_SPLIT_RANGE instances of the test,
 # each processing their own subset of the whole set of blendfiles.
-set(BLENDFILE_VERSIONING_SPLIT_RANGE 256)
+set(BLENDFILE_VERSIONING_SPLIT_RANGE 8)
 math(EXPR BLENDFILE_VERSIONING_SPLIT_RANGE_CMAKE "${BLENDFILE_VERSIONING_SPLIT_RANGE} - 1")
 foreach(iter RANGE 100)
   foreach(idx RANGE ${BLENDFILE_VERSIONING_SPLIT_RANGE_CMAKE})

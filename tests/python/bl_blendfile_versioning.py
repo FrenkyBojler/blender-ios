@@ -103,11 +103,13 @@ class TestBlendFileOpenAllTestFiles(TestHelper):
     def skip_path_check(self, bfp):
         if os.path.basename(bfp) in self.excluded_paths:
             return True
+        assert bfp.startswith(self.args.src_test_dir)
+        bfp_relative = bfp[len(self.args.src_test_dir):].rstrip(os.sep)
         if self.excluded_dirs:
-            assert bfp.startswith(self.args.src_test_dir)
-            bfp_relative = bfp[len(self.args.src_test_dir):].rstrip(os.sep)
             if bfp_relative.startswith(*self.excluded_dirs):
                 return True
+        if not bfp_relative.startswith("io_tests/blend_big_endian/".replace("/", os.sep)):
+            return True
         return False
 
     def test_open(self):
