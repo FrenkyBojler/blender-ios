@@ -558,3 +558,8 @@ struct ID_Readfile_Data {
  * `ID.runtime.readfile_data` should no longer be needed.
  */
 void BLO_readfile_id_runtime_data_free_all(Main &bmain);
+
+/**
+ *  Free the ID_Readfile_Data of this ID. Does _not_ deal with embeded IDs.
+ */
+void BLO_readfile_id_runtime_data_free(ID &id);

@@ -2153,24 +2153,29 @@ static void readfile_id_runtime_data_ensure(ID &id)
   id.runtime.readfile_data = MEM_cnew<ID_Readfile_Data>(__func__);
 }
 
+void BLO_readfile_id_runtime_data_free(ID &id)
+{
+  MEM_SAFE_FREE(id.runtime.readfile_data);
+}
+
 void BLO_readfile_id_runtime_data_free_all(Main &bmain)
 {
   ID *id;
   FOREACH_MAIN_ID_BEGIN (&bmain, id) {
     /* Handle the ID itself. */
-    MEM_SAFE_FREE(id->runtime.readfile_data);
+    BLO_readfile_id_runtime_data_free(*id);
 
     /* Handle its embedded IDs, because they do not get referenced by bmain. */
     if (GS(id->name) == ID_SCE) {
       Collection *collection = reinterpret_cast<Scene *>(id)->master_collection;
       if (collection) {
-        MEM_SAFE_FREE(collection->id.runtime.readfile_data);
+        BLO_readfile_id_runtime_data_free(collection->id);
       }
     }
 
     bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
     if (node_tree) {
-      MEM_SAFE_FREE(node_tree->id.runtime.readfile_data);
+      BLO_readfile_id_runtime_data_free(node_tree->id);
     }
   }
   FOREACH_MAIN_ID_END;
@@ -2213,6 +2218,12 @@ static void direct_link_id_common(
   }
   else {
     BLO_read_struct(reader, LibraryWeakReference, &id->library_weak_reference);
+  }
+
+  if (!BLO_read_data_is_undo(reader)) {
+    /* Reset the runtime data, as there were versions of Blender that did not do
+     * this before writing to disk. */
+    memset(&id->runtime, 0, sizeof(id->runtime));
   }
 
   readfile_id_runtime_data_ensure(*id);
@@ -4502,8 +4513,6 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
     BLI_path_rel(curlib->filepath, BKE_main_blendfile_path_from_global());
   }
 
-  BLO_readfile_id_runtime_data_free_all(*mainl);
-
   blo_join_main((*fd)->mainlist);
   mainvar = static_cast<Main *>((*fd)->mainlist->first);
   mainl = nullptr; /* blo_join_main free's mainl, can't use anymore */
@@ -4761,7 +4770,7 @@ static void read_library_linked_ids(FileData *basefd,
         /* The runtime data needs to be freed here, as this ID placeholder does not go through
          * versioning (the usual place where this data is freed). Since `id` is not a real ID, this
          * shouldn't follow any pointers to embedded IDs. */
-        MEM_SAFE_FREE(id->runtime.readfile_data);
+        BKE_libblock_free_runtime_data(id);
 
         MEM_freeN(id);
       }

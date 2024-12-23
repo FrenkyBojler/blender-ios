@@ -33,6 +33,8 @@
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 
+#include "BLO_readfile.hh"
+
 #include "lib_intern.hh"
 
 #include "DEG_depsgraph.hh"
@@ -64,13 +66,7 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     MEM_freeN(id->library_weak_reference);
   }
 
-  /* During "normal" file loading this data is released when versioning ends.
-   * Some versioning code also deletes IDs, though. For example, in the startup
-   * blend file, brushes that were replaced by assets are deleted.
-   *
-   * Note that this does not cover embedded IDs. Those are assumed to be deleted
-   * explicitly themselves before this one is deleted. */
-  MEM_SAFE_FREE(id->runtime.readfile_data);
+  BKE_libblock_free_runtime_data(id);
 
   BKE_animdata_free(id, do_id_user);
 }
@@ -87,6 +83,15 @@ void BKE_libblock_free_datablock(ID *id, const int /*flag*/)
   }
 
   BLI_assert_msg(0, "IDType Missing IDTypeInfo");
+}
+
+void BKE_libblock_free_runtime_data(ID *id)
+{
+  /* During "normal" file loading this data is released when versioning ends. Some versioning code
+   * also deletes IDs, though. For example, in the startup blend file, brushes that were replaced
+   * by assets are deleted. This means that the regular "delete this ID" flow (aka this code here)
+   * also needs to free this data. */
+  BLO_readfile_id_runtime_data_free(*id);
 }
 
 static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
