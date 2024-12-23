@@ -38,8 +38,8 @@
 #include "gpu_shader_text_info.hh"
 #include "gpu_srgb_to_framebuffer_space_info.hh"
 
-#ifdef WITH_GTEST
-#  ifdef WITH_GPU_DRAW_TESTS
+#ifdef WITH_GTESTS
+#  ifdef WITH_GPU_BACKEND_TESTS
 #    include "gpu_shader_test_info.hh"
 #  endif
 #endif
@@ -50,7 +50,7 @@
 #  include "gpu_shader_fullscreen_blit_info.hh"
 #endif
 
-/* Realtime compositor. */
+/* Compositor. */
 #include "compositor_alpha_crop_info.hh"
 #include "compositor_bilateral_blur_info.hh"
 #include "compositor_bokeh_blur_info.hh"
@@ -70,6 +70,7 @@
 #include "compositor_ellipse_mask_info.hh"
 #include "compositor_filter_info.hh"
 #include "compositor_flip_info.hh"
+#include "compositor_gamma_correct_info.hh"
 #include "compositor_glare_info.hh"
 #include "compositor_id_mask_info.hh"
 #include "compositor_image_crop_info.hh"

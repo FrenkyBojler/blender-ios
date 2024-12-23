@@ -11,6 +11,7 @@ set(INC
   ../../blentranslation
   ../../gpu
   ../../imbuf
+  ../../imbuf/movie
   ../../makesrna
   ../../render
   ../../windowmanager
@@ -55,6 +56,9 @@ set(LIB
 
 if(WIN32)
   add_definitions(-DNOMINMAX)
+  list(APPEND LIB
+    PRIVATE bf::intern::utfconv
+  )
 endif()
 
 if(WITH_HEADLESS)

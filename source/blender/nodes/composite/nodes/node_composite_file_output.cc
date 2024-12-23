@@ -344,7 +344,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
     uiLayout *column = uiLayoutColumn(layout, true);
     uiLayoutSetPropSep(column, true);
     uiLayoutSetPropDecorate(column, false);
-    uiItemR(column, ptr, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+    uiItemR(column, ptr, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
   const bool save_as_render = RNA_boolean_get(ptr, "save_as_render");
   uiTemplateImageSettings(layout, &imfptr, save_as_render);
@@ -461,7 +461,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
               &active_input_ptr,
               "use_node_format",
               UI_ITEM_R_SPLIT_EMPTY_NAME,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
 
       const bool use_node_format = RNA_boolean_get(&active_input_ptr, "use_node_format");
@@ -475,7 +475,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
                   &active_input_ptr,
                   "save_as_render",
                   UI_ITEM_R_SPLIT_EMPTY_NAME,
-                  nullptr,
+                  std::nullopt,
                   ICON_NONE);
         }
 
@@ -503,7 +503,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class FileOutputOperation : public NodeOperation {
  public:
@@ -920,6 +920,7 @@ void register_node_type_cmp_output_file()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_OUTPUT_FILE, "File Output", NODE_CLASS_OUTPUT);
+  ntype.enum_name_legacy = "OUTPUT_FILE";
   ntype.draw_buttons = file_ns::node_composit_buts_file_output;
   ntype.draw_buttons_ex = file_ns::node_composit_buts_file_output_ex;
   ntype.initfunc_api = file_ns::init_output_file;

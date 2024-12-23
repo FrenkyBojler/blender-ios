@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'62b2bb48e8bf')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'2eb53ba3b21b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-02 16:18+0000\n"
+"POT-Creation-Date: 2024-12-16 09:31+0000\n"
 "PO-Revision-Date: 2024-11-17 07:56+0000\n"
 "Last-Translator: Satoshi Yamasaki <yamyam@yo.rim.or.jp>\n"
 "Language-Team: Japanese <https://translate.blender.org/projects/blender-ui/ui/ja/>\n"
@@ -13128,6 +13128,10 @@ msgid "Amount of fine level detail present in the noise"
 msgstr "ノイズ中で細かいレベルが現れる量"
 
 
+msgid "Lacunarity"
+msgstr "空隙性"
+
+
 msgid "Time offset for the noise effect"
 msgstr "ノイズエフェクト用の時間のオフセット"
 
@@ -13138,6 +13142,10 @@ msgstr "位相"
 
 msgid "A random seed for the noise effect"
 msgstr "ノイズエフェクト用のランダムシード"
+
+
+msgid "Roughness"
+msgstr "粗さ"
 
 
 msgid "Scaling (in time) of the noise"
@@ -14529,6 +14537,30 @@ msgid "Select the file format to be used for caching volumetric data"
 msgstr "ボリューメトリックデータのキャッシュに使用するファイルフォーマットの選択"
 
 
+msgid "Uni Cache"
+msgstr "Uniキャッシュ"
+
+
+msgid "Uni file format (.uni)"
+msgstr "Uni ファイルフォーマット（.uni）"
+
+
+msgid "OpenVDB"
+msgstr "OpenVDB"
+
+
+msgid "OpenVDB file format (.vdb)"
+msgstr "OpenVDB ファイルフォーマット（.vdb）"
+
+
+msgid "Raw Cache"
+msgstr "Rawキャッシュ"
+
+
+msgid "Raw file format (.raw)"
+msgstr "Raw ファイルフォーマット（.raw）"
+
+
 msgid "Cache directory"
 msgstr "キャッシュディレクトリ"
 
@@ -15512,16 +15544,6 @@ msgstr "適応ドメイン"
 
 msgid "Adapt simulation resolution and size to fluid"
 msgstr "シミュレーション解像度とサイズを流体に適応させます"
-
-
-msgid "Use Adaptive Time Steps"
-msgstr "適応タイムステップを使用"
-
-
-msgid "Lets the solver automatically decide when to perform multiple simulation steps per frame"
-msgstr ""
-"フレーム毎に複数のシミュレーションステップを実行する時，\n"
-"自動的にソルバーがその数を設定するようにします"
 
 
 msgid "Bubble"
@@ -21732,10 +21754,6 @@ msgid "Horizontal Alignment"
 msgstr "行揃え"
 
 
-msgid "Text horizontal alignment from the object center"
-msgstr "オブジェクト中央からのテキストの水平の整列方法"
-
-
 msgid "Align text to the left"
 msgstr "テキストを左揃えします"
 
@@ -24308,10 +24326,6 @@ msgid "Approximate the thickness of the object to compute two refraction events 
 msgstr "オブジェクトの厚みを近似し，二つの屈折事象を計算します（０で無効）（廃止予定）"
 
 
-msgid "Roughness"
-msgstr "粗さ"
-
-
 msgid "Roughness of the material"
 msgstr "素材の粗さ"
 
@@ -24964,10 +24978,6 @@ msgid "Color tag of the node group which influences the header color"
 msgstr "ノードグループのヘッダーカラーに影響するカラータグ"
 
 
-msgid "Default tag for new node groups"
-msgstr "新規ノードグループ用のデフォルトタグ"
-
-
 msgid "Attribute"
 msgstr "属性"
 
@@ -24992,6 +25002,14 @@ msgid "Shader"
 msgstr "シェーダー"
 
 
+msgid "Pattern"
+msgstr "パターン"
+
+
+msgid "Interface"
+msgstr "インターフェイス"
+
+
 msgid "Default Group Node Width"
 msgstr "デフォルトグループノード幅"
 
@@ -25006,10 +25024,6 @@ msgstr "ノードツリーの説明"
 
 msgid "Grease Pencil Data"
 msgstr "グリースペンシルデータ"
-
-
-msgid "Interface"
-msgstr "インターフェイス"
 
 
 msgid "Interface declaration for this node tree"
@@ -27679,10 +27693,6 @@ msgid "Show Subframe"
 msgstr "サブフレームを表示"
 
 
-msgid "Show current scene subframe and allow set it using interface tools"
-msgstr "現在のシーンサブフレームを表示し，インターフェイスツールで設定できるようにします"
-
-
 msgid "Simulation Frame End"
 msgstr "シミュレーションフレーム終了"
 
@@ -28833,10 +28843,6 @@ msgid "Marble Texture"
 msgstr "マーブルテクスチャ"
 
 
-msgid "Pattern"
-msgstr "パターン"
-
-
 msgid "Use soft marble"
 msgstr "ソフトマーブルを使用"
 
@@ -28907,10 +28913,6 @@ msgstr "ゲイン"
 
 msgid "The gain multiplier"
 msgstr "ゲイン乗数"
-
-
-msgid "Lacunarity"
-msgstr "空隙性"
 
 
 msgid "Gap between successive frequencies"
@@ -34190,52 +34192,52 @@ msgid "Editor menu containing buttons"
 msgstr "ボタンを含むエディターメニュー"
 
 
-msgid "Clean Up"
-msgstr "クリーンアップ"
+msgid "Mirror"
+msgstr "ミラー"
 
 
-msgid "Merge"
-msgstr "マージ"
+msgid "Snap"
+msgstr "スナップ"
 
 
-msgid "Show/Hide"
-msgstr "表示/隠す"
+msgid "UV Mapping"
+msgstr "UVマッピング"
 
 
 msgid "Local View"
 msgstr "ローカルビュー"
 
 
-msgid "Special Characters"
-msgstr "特殊文字"
-
-
-msgid "Kerning"
-msgstr "カーニング"
-
-
-msgid "Names"
-msgstr "名前"
-
-
 msgid "Viewpoint"
 msgstr "視点"
 
 
-msgid "Bone Roll"
-msgstr "ボーンロール"
+msgid "Navigation"
+msgstr "視点の操作"
 
 
-msgid "Toggle Bone Options"
-msgstr "ボーンオプションを切り替え"
+msgid "Align View"
+msgstr "視点を揃える"
 
 
-msgid "Enable Bone Options"
-msgstr "ボーンオプションを有効化"
+msgid "Align View to Active"
+msgstr "アクティブに視点を揃える"
 
 
-msgid "Disable Bone Options"
-msgstr "ボーンオプションを無効化"
+msgid "View Regions"
+msgstr "ビュー領域設定"
+
+
+msgid "Select More/Less"
+msgstr "選択の拡大縮小"
+
+
+msgid "Select Similar"
+msgstr "類似選択"
+
+
+msgid "Select All by Trait"
+msgstr "特徴で全選択"
 
 
 msgid "Select Linked"
@@ -34246,44 +34248,8 @@ msgid "Select Loops"
 msgstr "ループ選択"
 
 
-msgid "Mesh Select Mode"
-msgstr "メッシュ選択モード"
-
-
-msgid "Pivot Point"
-msgstr "ピボットポイント"
-
-
-msgid "Snap"
-msgstr "スナップ"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "プロポーショナル編集の減衰タイプ"
-
-
-msgid "Mask Edit"
-msgstr "マスク編集"
-
-
-msgid "Automasking"
-msgstr "自動マスク"
-
-
-msgid "Face Sets Edit"
-msgstr "面セット編集"
-
-
-msgid "Vertex Group Locks"
-msgstr "頂点グループのロック"
-
-
-msgid "Select More/Less"
-msgstr "選択の拡大縮小"
-
-
-msgid "View Regions"
-msgstr "ビュー領域設定"
+msgid "Assign Material"
+msgstr "マテリアルを割り当て"
 
 
 msgid "Add Image"
@@ -34306,16 +34272,16 @@ msgid "Track"
 msgstr "トラック"
 
 
-msgid "Navigation"
-msgstr "視点の操作"
-
-
-msgid "Select Similar"
-msgstr "類似選択"
-
-
 msgid "Quick Effects"
 msgstr "クイックエフェクト"
+
+
+msgid "Show/Hide"
+msgstr "表示/隠す"
+
+
+msgid "Clean Up"
+msgstr "クリーンアップ"
 
 
 msgid "Asset"
@@ -34334,12 +34300,12 @@ msgid "Link/Transfer Data"
 msgstr "データのリンク/転送"
 
 
-msgid "UV Mapping"
-msgstr "UVマッピング"
-
-
 msgid "Hooks"
 msgstr "フック"
+
+
+msgid "Vertex Group Locks"
+msgstr "頂点グループのロック"
 
 
 msgid "Trim/Add"
@@ -34358,24 +34324,12 @@ msgid "Random Mask"
 msgstr "ランダムマスク"
 
 
-msgid "Mirror"
-msgstr "ミラー"
-
-
-msgid "Assign Material"
-msgstr "マテリアルを割り当て"
-
-
 msgid "Clear Transform"
 msgstr "トランスフォームをクリア"
 
 
 msgid "In-Betweens"
 msgstr "中間ポーズ"
-
-
-msgid "Align View to Active"
-msgstr "アクティブに視点を揃える"
 
 
 msgid "Propagate"
@@ -34386,12 +34340,24 @@ msgid "Bone Collections"
 msgstr "ボーンコレクション"
 
 
-msgid "Align View"
-msgstr "視点を揃える"
+msgid "Names"
+msgstr "名前"
 
 
-msgid "Select All by Trait"
-msgstr "特徴で全選択"
+msgid "Toggle Bone Options"
+msgstr "ボーンオプションを切り替え"
+
+
+msgid "Enable Bone Options"
+msgstr "ボーンオプションを有効化"
+
+
+msgid "Disable Bone Options"
+msgstr "ボーンオプションを無効化"
+
+
+msgid "Mesh Select Mode"
+msgstr "メッシュ選択モード"
 
 
 msgid "Face Data"
@@ -34404,6 +34370,42 @@ msgstr "面の強さで選択"
 
 msgid "Set Face Strength"
 msgstr "面の強さを設定"
+
+
+msgid "Merge"
+msgstr "マージ"
+
+
+msgid "Special Characters"
+msgstr "特殊文字"
+
+
+msgid "Kerning"
+msgstr "カーニング"
+
+
+msgid "Bone Roll"
+msgstr "ボーンロール"
+
+
+msgid "Pivot Point"
+msgstr "ピボットポイント"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "プロポーショナル編集の減衰タイプ"
+
+
+msgid "Mask Edit"
+msgstr "マスク編集"
+
+
+msgid "Automasking"
+msgstr "自動マスク"
+
+
+msgid "Face Sets Edit"
+msgstr "面セット編集"
 
 
 msgid "Keyframe Insert Pie"
@@ -52987,61 +52989,6 @@ msgid "Collection of object effects"
 msgstr "オブジェクトエフェクトの集合"
 
 
-msgctxt "Operator"
-msgid "Display Variant"
-msgstr "バリアントを表示"
-
-
-msgctxt "Operator"
-msgid "Assign To Variant"
-msgstr "バリアントに割り当て"
-
-
-msgctxt "Operator"
-msgid "Reset to Original"
-msgstr "オリジナルにリセット"
-
-
-msgctxt "Operator"
-msgid "Assign as Original"
-msgstr "オリジナルとして割り当て"
-
-
-msgctxt "Operator"
-msgid "Add Material Variant"
-msgstr "マテリアルバリアントを追加"
-
-
-msgctxt "Operator"
-msgid "Remove Variant"
-msgstr "バリアントを削除"
-
-
-msgctxt "Operator"
-msgid "Operator"
-msgstr "オペレーター"
-
-
-msgctxt "Operator"
-msgid "Add new Slot"
-msgstr "新規スロットを追加"
-
-
-msgctxt "Operator"
-msgid "Assign Material To Variant"
-msgstr "マテリアルをバリアントに割り当て"
-
-
-msgctxt "Operator"
-msgid "Remove a variant Slot"
-msgstr "バリアントスロットを削除"
-
-
-msgctxt "Operator"
-msgid "Apply glTF animation"
-msgstr "glTFアニメーションを適用"
-
-
 msgid "Mark actions with no F-Curves for deletion after save and reload of file preserving \"action libraries\""
 msgstr ""
 "F カーブのないアクションをマークし\n"
@@ -55376,10 +55323,6 @@ msgstr "i18n ワーキングリポジトリ（po ファイル）を更新しま�
 msgctxt "Operator"
 msgid "Update I18n Work Repository"
 msgstr "I18nワークレポジトリを更新"
-
-
-msgid "Add an entry to the list"
-msgstr "リストにエントリを追加します"
 
 
 msgid "Align the UV island's rotation"
@@ -62872,15 +62815,6 @@ msgstr "リストの最初"
 
 msgid "Bottom of the list"
 msgstr "リストの最後"
-
-
-msgctxt "Operator"
-msgid "Cancel File Load"
-msgstr "ファイル読み込みを中止"
-
-
-msgid "Cancel loading of selected file"
-msgstr "選択したファイルの読み込みを中止します"
 
 
 msgctxt "Operator"
@@ -73484,11 +73418,6 @@ msgid "Maintain parent child relationships"
 msgstr "親子関係を維持します"
 
 
-msgctxt "Operator"
-msgid "Toggle Edit Mode"
-msgstr "編集モードに切り替え"
-
-
 msgid "Toggle object's edit mode"
 msgstr "オブジェクトの編集モードに切り替えます"
 
@@ -77648,11 +77577,6 @@ msgstr "出力表示色からサンプリングします"
 
 msgid "Add to Palette"
 msgstr "パレットに追加"
-
-
-msgctxt "Operator"
-msgid "Texture Paint Toggle"
-msgstr "テクスチャペイントの切り替え"
 
 
 msgid "Toggle texture paint mode in 3D view"
@@ -84622,6 +84546,10 @@ msgid "Reset this property's value to its default value"
 msgstr "このプロパティを初期値にリセットします"
 
 
+msgid "Add an entry to the list"
+msgstr "リストにエントリを追加します"
+
+
 msgctxt "Operator"
 msgid "Unset Property"
 msgstr "プロパティを未設定に"
@@ -90410,6 +90338,102 @@ msgid "Panel containing UI elements"
 msgstr "UIの要素を含むパネル"
 
 
+msgid "Viewer Node"
+msgstr "ビューアーノード"
+
+
+msgid "Motion Tracking"
+msgstr "モーショントラッキング"
+
+
+msgid "Mesh Edit Mode"
+msgstr "メッシュ編集モード"
+
+
+msgid "Measurement"
+msgstr "計測"
+
+
+msgid "Curve Edit Mode"
+msgstr "カーブ編集モード"
+
+
+msgid "Snapping"
+msgstr "スナップ"
+
+
+msgid "Transform Orientations"
+msgstr "トランスフォーム座標系"
+
+
+msgid "Stroke Placement"
+msgstr "ストロークの基準"
+
+
+msgid "Drawing Plane"
+msgstr "ドロー平面"
+
+
+msgid "Guides"
+msgstr "ガイド"
+
+
+msgid "Grease Pencil Options"
+msgstr "グリースペンシルオプション"
+
+
+msgid "Quad View"
+msgstr "四分割表示"
+
+
+msgid "Onion Skin"
+msgstr "オニオンスキン"
+
+
+msgid "Stereoscopy"
+msgstr "立体視"
+
+
+msgid "Multi Frame"
+msgstr "マルチフレーム"
+
+
+msgid "glTF Variants"
+msgstr "glTFバリアント"
+
+
+msgid "glTF Material Variants"
+msgstr "glTFマテリアルバリアント"
+
+
+msgid "Auto-Masking"
+msgstr "自動マスク"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "カーブスカルプトカーブ追加オプション"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "カーブスカルプトパラメーター減衰"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "カーブスケールを拡大/収縮"
+
+
+msgid "Viewport Debug"
+msgstr "ビューポートデバッグ"
+
+
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "glTFアニメーション"
+
+
 msgid "VR"
 msgstr "VR"
 
@@ -90452,102 +90476,6 @@ msgstr "コンポジター"
 
 msgid "Overlays"
 msgstr "オーバーレイ"
-
-
-msgid "Guides"
-msgstr "ガイド"
-
-
-msgid "Viewer Node"
-msgstr "ビューアーノード"
-
-
-msgid "Motion Tracking"
-msgstr "モーショントラッキング"
-
-
-msgid "Mesh Edit Mode"
-msgstr "メッシュ編集モード"
-
-
-msgid "Measurement"
-msgstr "計測"
-
-
-msgid "Curve Edit Mode"
-msgstr "カーブ編集モード"
-
-
-msgid "glTF Variants"
-msgstr "glTFバリアント"
-
-
-msgid "glTF Material Variants"
-msgstr "glTFマテリアルバリアント"
-
-
-msgid "Snapping"
-msgstr "スナップ"
-
-
-msgid "Transform Orientations"
-msgstr "トランスフォーム座標系"
-
-
-msgid "Stroke Placement"
-msgstr "ストロークの基準"
-
-
-msgid "Drawing Plane"
-msgstr "ドロー平面"
-
-
-msgid "Grease Pencil Options"
-msgstr "グリースペンシルオプション"
-
-
-msgid "Quad View"
-msgstr "四分割表示"
-
-
-msgid "Onion Skin"
-msgstr "オニオンスキン"
-
-
-msgid "Stereoscopy"
-msgstr "立体視"
-
-
-msgid "Multi Frame"
-msgstr "マルチフレーム"
-
-
-msgid "Auto-Masking"
-msgstr "自動マスク"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "カーブスカルプトカーブ追加オプション"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "カーブスカルプトパラメーター減衰"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "カーブスケールを拡大/収縮"
-
-
-msgid "Viewport Debug"
-msgstr "ビューポートデバッグ"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "glTFアニメーション"
 
 
 msgid "Chain Scaling"
@@ -93999,14 +93927,6 @@ msgstr ""
 
 msgid "Experimental features"
 msgstr "実験的機能"
-
-
-msgid "CPU Compositor"
-msgstr "CPU コンポジター"
-
-
-msgid "Enable the new CPU compositor"
-msgstr "CPU コンポジターを有効にします"
 
 
 msgid "No Override Auto Resync"
@@ -100421,14 +100341,6 @@ msgstr "3Dシーンをマルチサンプルしたモーションブラーを使�
 
 msgid "Use multiple views in the scene"
 msgstr "このシーンでマルチビューを使用します"
-
-
-msgid "Use New CPU Compositor"
-msgstr "新CPUコンポジターを使用"
-
-
-msgid "Use the new CPU compositor implementation"
-msgstr "新しい CPU コンポジターの実装を使用します"
 
 
 msgid "Overwrite existing files while rendering"
@@ -117378,8 +117290,28 @@ msgstr "アクションフィルター"
 
 
 msgctxt "Operator"
+msgid "Display Variant"
+msgstr "バリアントを表示"
+
+
+msgctxt "Operator"
+msgid "Assign To Variant"
+msgstr "バリアントに割り当て"
+
+
+msgctxt "Operator"
 msgid "Reset To Original"
 msgstr "オリジナルに再設定"
+
+
+msgctxt "Operator"
+msgid "Assign as Original"
+msgstr "オリジナルとして割り当て"
+
+
+msgctxt "Operator"
+msgid "Add Material Variant"
+msgstr "マテリアルバリアントを追加"
 
 
 msgid "No glTF Animation"
@@ -122774,11 +122706,6 @@ msgstr "フレームから削除"
 
 
 msgctxt "Operator"
-msgid "Insert Into Group"
-msgstr "グループに挿入"
-
-
-msgctxt "Operator"
 msgid "Mute"
 msgstr "ミュート"
 
@@ -122805,10 +122732,6 @@ msgstr "投影 X"
 msgctxt "Operator"
 msgid "Fit"
 msgstr "フィット"
-
-
-msgid "Experimental CPU Implementation"
-msgstr "実験的CPU実装"
 
 
 msgid "Node Editor Overlays"
@@ -122857,6 +122780,11 @@ msgstr "リンクし直し"
 
 
 msgctxt "Operator"
+msgid "Insert Into Group"
+msgstr "グループに挿入"
+
+
+msgctxt "Operator"
 msgid "Node Preview"
 msgstr "ノードプレビュー"
 
@@ -122874,11 +122802,6 @@ msgstr "検索..."
 msgctxt "Operator"
 msgid "Link to Viewer"
 msgstr "ビューアーにリンク"
-
-
-msgctxt "Operator"
-msgid "Exit Group"
-msgstr "グループ退出"
 
 
 msgctxt "Operator"
@@ -122906,6 +122829,11 @@ msgstr "背景をズームイン"
 msgctxt "Operator"
 msgid "Backdrop Zoom Out"
 msgstr "背景をズームアウト"
+
+
+msgctxt "Operator"
+msgid "Exit Group"
+msgstr "グループ退出"
 
 
 msgid "Closed by Default"
@@ -127021,18 +126949,6 @@ msgid "Saved \"%s\""
 msgstr "「%s」を保存"
 
 
-msgid "Unable to create builtin attribute in edit mode"
-msgstr "編集モード中はビルトイン属性を作成できません"
-
-
-msgid "Domain unsupported for \"id\" attribute"
-msgstr "「id」属性で未対応のドメインです"
-
-
-msgid "Type unsupported for \"id\" attribute"
-msgstr "「id」属性で未対応のタイプです"
-
-
 msgid "Attribute name cannot be empty"
 msgstr "属性名は空にできません"
 
@@ -128511,14 +128427,6 @@ msgstr "辺リングがつながっていません"
 
 msgid "color_index is invalid"
 msgstr "無効な color_index です"
-
-
-msgid "Compositing | Initializing execution"
-msgstr "コンポジティング | 実行の初期化"
-
-
-msgid "Compositing | Operation %i-%li"
-msgstr "コンポジティング | 処理 %i-%li"
 
 
 msgid "Compositor node tree has cyclic links!"
@@ -131954,12 +131862,12 @@ msgid "Deleted %u object(s)"
 msgstr "%u個のオブジェクトを削除しました"
 
 
-msgid "Object '%s' has no evaluated curves data"
-msgstr "オブジェクト「%s」に評価済みカーブデータがありません"
-
-
 msgid "Object '%s' has no evaluated mesh or curves data"
 msgstr "オブジェクト「%s」に評価済みメッシュやカーブデータがありません"
+
+
+msgid "Object '%s' has no evaluated curves data"
+msgstr "オブジェクト「%s」に評価済みカーブデータがありません"
 
 
 msgid "Cannot edit object '%s' as it is used by override collections"
@@ -138697,30 +138605,6 @@ msgstr "バイナリオブジェクトファイルフォーマット（.bobj.gz�
 
 msgid "Object file format (.obj)"
 msgstr "オブジェクトファイルフォーマット（.obj）"
-
-
-msgid "Uni Cache"
-msgstr "Uniキャッシュ"
-
-
-msgid "Uni file format (.uni)"
-msgstr "Uni ファイルフォーマット（.uni）"
-
-
-msgid "OpenVDB"
-msgstr "OpenVDB"
-
-
-msgid "OpenVDB file format (.vdb)"
-msgstr "OpenVDB ファイルフォーマット（.vdb）"
-
-
-msgid "Raw Cache"
-msgstr "Rawキャッシュ"
-
-
-msgid "Raw file format (.raw)"
-msgstr "Raw ファイルフォーマット（.raw）"
 
 
 msgid "Uni file format"
@@ -145787,10 +145671,6 @@ msgstr "VR シーン調査"
 
 msgid "View the viewport with virtual reality glasses (head-mounted displays)"
 msgstr "ビューポートを VR グラス（ヘッドマウントディスプレイ）で見ます"
-
-
-msgid "All Add-ons"
-msgstr "全アドオン"
 
 
 msgid "All Add-ons Installed by User"

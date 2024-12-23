@@ -58,7 +58,7 @@ struct SDefEdgePolys {
 };
 
 struct SDefBindCalcData {
-  BVHTreeFromMesh *treeData;
+  blender::bke::BVHTreeFromMesh *treeData;
   const SDefAdjacencyArray *vert_edges;
   const SDefEdgePolys *edge_polys;
   SDefVert *bind_verts;
@@ -261,7 +261,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
 
-  walk(user_data, ob, (ID **)&smd->target, IDWALK_NOP);
+  walk(user_data, ob, (ID **)&smd->target, IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -1212,7 +1212,7 @@ static bool surfacedeformBind(Object *ob,
     return false;
   }
 
-  BVHTreeFromMesh treeData = target->bvh_corner_tris();
+  blender::bke::BVHTreeFromMesh treeData = target->bvh_corner_tris();
   if (treeData.tree == nullptr) {
     BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Out of memory");
     freeAdjacencyMap(vert_edges, adj_array, edge_polys);
@@ -1600,17 +1600,17 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   col = uiLayoutColumn(layout, false);
   uiLayoutSetActive(col, !is_bound);
-  uiItemR(col, ptr, "target", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "falloff", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "falloff", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "strength", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   col = uiLayoutColumn(layout, false);
   uiLayoutSetEnabled(col, !is_bound);
   uiLayoutSetActive(col, !is_bound && RNA_string_length(ptr, "vertex_group") != 0);
-  uiItemR(col, ptr, "use_sparse_bind", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "use_sparse_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemS(layout);
 

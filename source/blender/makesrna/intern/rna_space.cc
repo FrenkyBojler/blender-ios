@@ -2453,12 +2453,12 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
   ProxyJob *pj = ED_seq_proxy_job_get(C, wm_job);
 
   LISTBASE_FOREACH (Sequence *, seq, seqbase) {
-    if (seq->type != SEQ_TYPE_MOVIE || seq->strip == nullptr || seq->strip->proxy == nullptr) {
+    if (seq->type != SEQ_TYPE_MOVIE || seq->data == nullptr || seq->data->proxy == nullptr) {
       continue;
     }
 
     /* Add new proxy size. */
-    seq->strip->proxy->build_size_flags |= SEQ_rendersize_to_proxysize(sseq->render_size);
+    seq->data->proxy->build_size_flags |= SEQ_rendersize_to_proxysize(sseq->render_size);
 
     /* Build proxy. */
     SEQ_proxy_rebuild_context(
@@ -4917,7 +4917,6 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Normal Size", "Display size for normals in the 3D view");
   RNA_def_property_range(prop, 0.00001, 100000.0);
   RNA_def_property_ui_range(prop, 0.01, 2.0, 1, 2);
-  RNA_def_property_float_default(prop, 0.02);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "normals_constant_screen_size", PROP_FLOAT, PROP_PIXEL);

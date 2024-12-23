@@ -179,7 +179,7 @@ static void SCULPT_OT_optimize(wmOperatorType *ot)
   ot->exec = optimize_exec;
   ot->poll = SCULPT_mode_poll;
 
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -621,7 +621,7 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent * /*ev
   Brush &brush = *BKE_paint_brush(&sd.paint);
   SculptSession &ss = *ob.sculpt;
 
-  if (!SCULPT_handles_colors_report(ob, op->reports)) {
+  if (!color_supported_check(scene, ob, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -824,7 +824,7 @@ static int mask_by_color_invoke(bContext *C, wmOperator *op, const wmEvent *even
   }
 
   /* Color data is not available in multi-resolution or dynamic topology. */
-  if (!SCULPT_handles_colors_report(ob, op->reports)) {
+  if (!color_supported_check(scene, ob, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1266,12 +1266,12 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
 
   switch (source) {
     case MaskSettingsSource::Operator: {
-      uiItemR(layout, op->ptr, "mix_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "mix_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "factor", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "blur_steps", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "invert", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "use_curve", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "blur_steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "invert", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "use_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       if (sd && RNA_boolean_get(op->ptr, "use_curve")) {
         PointerRNA sculpt_ptr = RNA_pointer_create(&scene->id, &RNA_Sculpt, sd);
@@ -1282,8 +1282,8 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
     }
     case MaskSettingsSource::Brush:
     case MaskSettingsSource::Scene:
-      uiItemR(layout, op->ptr, "mix_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "mix_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       break;
   }
@@ -1448,16 +1448,16 @@ static void mask_from_boundary_ui(bContext *C, wmOperator *op)
 
   switch (source) {
     case MaskSettingsSource::Operator: {
-      uiItemR(layout, op->ptr, "mix_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "mix_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "boundary_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "propagation_steps", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "boundary_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "propagation_steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case MaskSettingsSource::Brush:
     case MaskSettingsSource::Scene:
-      uiItemR(layout, op->ptr, "mix_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "mix_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 }

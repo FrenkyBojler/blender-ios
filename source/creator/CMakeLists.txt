@@ -7,6 +7,7 @@ set(INC
   ../blender/editors/include
   ../blender/gpu
   ../blender/imbuf
+  ../blender/imbuf/movie
   ../blender/io/usd
   ../blender/bmesh
   ../blender/makesrna
@@ -1512,6 +1513,13 @@ elseif(WIN32)
       DESTINATION ${TARGETDIR_EXE}
       RENAME blender_system_info.cmd
     )
+    if(WITH_CYCLES)
+      install(
+        FILES
+          ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_cycles.cmd
+        DESTINATION ${TARGETDIR_EXE}
+      )
+    endif()
     install(
       FILES
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_gpu.cmd

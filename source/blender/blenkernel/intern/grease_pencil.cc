@@ -635,7 +635,6 @@ Span<float4x2> Drawing::texture_matrices() const
 
 void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &selection)
 {
-  using namespace blender::math;
   CurvesGeometry &curves = this->strokes_for_write();
   MutableAttributeAccessor attributes = curves.attributes_for_write();
   SpanAttributeWriter<float> uv_rotations = attributes.lookup_or_add_for_write_span<float>(
@@ -677,9 +676,9 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
      * And `T()` is transpose and `()^-1` is the inverse.
      */
 
-    const double3x4 transpose_strokemat = transpose(strokemat4x3);
+    const double3x4 transpose_strokemat = math::transpose(strokemat4x3);
     const double3x4 right_inverse = transpose_strokemat *
-                                    invert(strokemat4x3 * transpose_strokemat);
+                                    math::invert(strokemat4x3 * transpose_strokemat);
 
     const float3x2 texture_matrix = float3x2(double4x2(texspace) * right_inverse);
 
@@ -687,15 +686,15 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
     const float2 uv_translation = texture_matrix[2];
 
     /* Solve rotation, the angle of the `u` basis is the rotation. */
-    const float uv_rotation = atan2(texture_matrix[0][1], texture_matrix[0][0]);
+    const float uv_rotation = math::atan2(texture_matrix[0][1], texture_matrix[0][0]);
 
     /* Calculate the determinant to check if the `v` scale is negative. */
-    const float det = determinant(float2x2(texture_matrix));
+    const float det = math::determinant(float2x2(texture_matrix));
 
     /* Solve scale, scaling is the only transformation that changes the length, so scale factor
      * is simply the length. And flip the sign of `v` if the determinant is negative. */
-    const float2 uv_scale = safe_rcp(
-        float2(length(texture_matrix[0]), sign(det) * length(texture_matrix[1])));
+    const float2 uv_scale = math::safe_rcp(float2(
+        math::length(texture_matrix[0]), math::sign(det) * math::length(texture_matrix[1])));
 
     uv_rotations.span[curve_i] = uv_rotation;
     uv_translations.span[curve_i] = uv_translation;
@@ -959,7 +958,7 @@ TreeNode::TreeNode(const TreeNode &other) : TreeNode(GreasePencilLayerTreeNodeTy
 {
   this->GreasePencilLayerTreeNode::name = BLI_strdup_null(other.GreasePencilLayerTreeNode::name);
   this->flag = other.flag;
-  copy_v3_v3_uchar(this->color, other.color);
+  copy_v3_v3(this->color, other.color);
 }
 
 TreeNode::~TreeNode()
@@ -1046,7 +1045,7 @@ LayerMask::~LayerMask()
 
 void LayerRuntime::clear()
 {
-  frames_.clear_and_shrink();
+  frames_.clear();
   sorted_keys_cache_.tag_dirty();
   masks_.clear_and_shrink();
   trans_data_ = {};
@@ -1946,7 +1945,7 @@ void BKE_grease_pencil_copy_layer_parameters(const blender::bke::greasepencil::L
 {
   using namespace blender::bke::greasepencil;
   dst.as_node().flag = src.as_node().flag;
-  copy_v3_v3_uchar(dst.as_node().color, src.as_node().color);
+  copy_v3_v3(dst.as_node().color, src.as_node().color);
 
   dst.blend_mode = src.blend_mode;
   dst.opacity = src.opacity;
@@ -1973,7 +1972,7 @@ void BKE_grease_pencil_copy_layer_group_parameters(
 {
   using namespace blender::bke::greasepencil;
   dst.as_node().flag = src.as_node().flag;
-  copy_v3_v3_uchar(dst.as_node().color, src.as_node().color);
+  copy_v3_v3(dst.as_node().color, src.as_node().color);
   dst.color_tag = src.color_tag;
 }
 
@@ -2192,9 +2191,9 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   if (layer_attributes.contains("tint_color") || layer_attributes.contains("radius_offset")) {
     grease_pencil_do_layer_adjustments(*geometry_set.get_grease_pencil_for_write());
   }
-  /* Only add the edit hint component in edit mode for now so users can properly select deformed
-   * drawings. */
-  if (object->mode == OB_MODE_EDIT) {
+  /* Only add the edit hint component in edit mode or sculpt mode for now so users can properly
+   * select deformed drawings. */
+  if (ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL)) {
     GeometryComponentEditData &edit_component =
         geometry_set.get_component_for_write<GeometryComponentEditData>();
     edit_component.grease_pencil_edit_hints_ = std::make_unique<GreasePencilEditHints>(
@@ -2796,6 +2795,10 @@ bool GreasePencil::insert_duplicate_frame(blender::bke::greasepencil::Layer &lay
   using namespace blender::bke::greasepencil;
 
   if (!layer.frames().contains(src_frame_number)) {
+    return false;
+  }
+
+  if (layer.is_locked()) {
     return false;
   }
   const GreasePencilFrame src_frame = layer.frames().lookup(src_frame_number);

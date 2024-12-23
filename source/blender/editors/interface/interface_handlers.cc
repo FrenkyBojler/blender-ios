@@ -3667,7 +3667,7 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 
   for (uiBut *but = actbut->next; but; but = but->next) {
     if (ui_but_is_editable_as_text(but)) {
-      if (!(but->flag & UI_BUT_DISABLED)) {
+      if (!(but->flag & (UI_BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
@@ -3676,7 +3676,7 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
   }
   for (uiBut *but = static_cast<uiBut *>(block->buttons.first); but != actbut; but = but->next) {
     if (ui_but_is_editable_as_text(but)) {
-      if (!(but->flag & UI_BUT_DISABLED)) {
+      if (!(but->flag & (UI_BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
@@ -3700,7 +3700,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 
   for (uiBut *but = actbut->prev; but; but = but->prev) {
     if (ui_but_is_editable_as_text(but)) {
-      if (!(but->flag & UI_BUT_DISABLED)) {
+      if (!(but->flag & (UI_BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
@@ -3709,7 +3709,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
   }
   for (uiBut *but = static_cast<uiBut *>(block->buttons.last); but != actbut; but = but->prev) {
     if (ui_but_is_editable_as_text(but)) {
-      if (!(but->flag & UI_BUT_DISABLED)) {
+      if (!(but->flag & (UI_BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
@@ -10679,12 +10679,11 @@ static int ui_handle_menu_event(bContext *C,
     else {
       if (event->type == MOUSEMOVE) {
         WM_cursor_set(win, PopupTitleDragCursor);
-        int mdiff[2];
+        blender::int2 mdiff = blender::int2(event->xy) - blender::int2(menu->grab_xy_prev);
 
-        sub_v2_v2v2_int(mdiff, event->xy, menu->grab_xy_prev);
         copy_v2_v2_int(menu->grab_xy_prev, event->xy);
 
-        add_v2_v2v2_int(menu->popup_create_vars.event_xy, menu->popup_create_vars.event_xy, mdiff);
+        menu->popup_create_vars.event_xy -= mdiff;
 
         ui_popup_translate(region, mdiff);
       }

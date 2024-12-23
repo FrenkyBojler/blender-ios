@@ -61,22 +61,35 @@ static void node_composit_buts_tonemap(uiLayout *layout, bContext * /*C*/, Point
   col = uiLayoutColumn(layout, false);
   uiItemR(col, ptr, "tonemap_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   if (RNA_enum_get(ptr, "tonemap_type") == 0) {
-    uiItemR(col, ptr, "key", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "offset", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "gamma", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+    uiItemR(
+        col, ptr, "key", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "offset", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "gamma", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(col, ptr, "intensity", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-    uiItemR(
-        col, ptr, "contrast", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-    uiItemR(
-        col, ptr, "adaptation", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-    uiItemR(
-        col, ptr, "correction", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "intensity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    uiItemR(col,
+            ptr,
+            "contrast",
+            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+            std::nullopt,
+            ICON_NONE);
+    uiItemR(col,
+            ptr,
+            "adaptation",
+            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+            std::nullopt,
+            ICON_NONE);
+    uiItemR(col,
+            ptr,
+            "correction",
+            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+            std::nullopt,
+            ICON_NONE);
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ToneMapOperation : public NodeOperation {
  public:
@@ -416,6 +429,7 @@ void register_node_type_cmp_tonemap()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_TONEMAP, "Tonemap", NODE_CLASS_OP_COLOR);
+  ntype.enum_name_legacy = "TONEMAP";
   ntype.declare = file_ns::cmp_node_tonemap_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_tonemap;
   ntype.initfunc = file_ns::node_composit_init_tonemap;

@@ -238,10 +238,8 @@ static void node_socket_add_replace(const bContext *C,
     node_from = bke::node_add_static_node(C, ntree, type);
     if (node_prev != nullptr) {
       /* If we're replacing existing node, use its location. */
-      node_from->locx = node_prev->locx;
-      node_from->locy = node_prev->locy;
-      node_from->offsetx = node_prev->offsetx;
-      node_from->offsety = node_prev->offsety;
+      node_from->location[0] = node_prev->location[0];
+      node_from->location[1] = node_prev->location[1];
     }
     else {
       sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
@@ -327,24 +325,13 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
 {
   Vector<NodeLinkItem> items;
 
-  /* XXX this should become a callback for node types! */
   if (arg->node_type->type == NODE_GROUP) {
-    bNodeTree *ngroup;
-
-    for (ngroup = (bNodeTree *)arg->bmain->nodetrees.first; ngroup;
-         ngroup = (bNodeTree *)ngroup->id.next)
-    {
-      const char *disabled_hint;
-      if ((ngroup->type != arg->ntree->type) ||
-          !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
-      {
+    LISTBASE_FOREACH (bNodeTree *, ngroup, &arg->bmain->nodetrees) {
+      if (BKE_id_name(ngroup->id)[0] == '.') {
+        /* Don't display hidden node groups, just like the add menu. */
         continue;
       }
-    }
 
-    for (ngroup = (bNodeTree *)arg->bmain->nodetrees.first; ngroup;
-         ngroup = (bNodeTree *)ngroup->id.next)
-    {
       const char *disabled_hint;
       if ((ngroup->type != arg->ntree->type) ||
           !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
@@ -984,7 +971,7 @@ static void ui_node_draw_input(uiLayout &layout,
   }
 
   if (add_dummy_decorator && split_wrapper.decorate_column) {
-    uiItemDecoratorR(split_wrapper.decorate_column, nullptr, nullptr, 0);
+    uiItemDecoratorR(split_wrapper.decorate_column, nullptr, std::nullopt, 0);
   }
 
   node_socket_add_tooltip(ntree, input, *row);
