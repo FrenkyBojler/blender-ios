@@ -236,9 +236,18 @@ static void mesh_free_data(ID *id)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
 
-  BKE_mesh_clear_geometry_and_metadata(mesh);
+  CustomData_free(&mesh->vert_data, mesh->verts_num);
+  CustomData_free(&mesh->edge_data, mesh->edges_num);
+  CustomData_free(&mesh->fdata_legacy, mesh->totface_legacy);
+  CustomData_free(&mesh->corner_data, mesh->corners_num);
+  CustomData_free(&mesh->face_data, mesh->faces_num);
+  mesh->attribute_storage.wrap().~AttributeStorage();
+  if (mesh->face_offset_indices) {
+    blender::implicit_sharing::free_shared_data(&mesh->face_offset_indices,
+                                                &mesh->runtime->face_offsets_sharing_info);
+  }
+  MEM_SAFE_FREE(mesh->mselect);
   MEM_SAFE_FREE(mesh->mat);
-
   delete mesh->runtime;
 }
 
