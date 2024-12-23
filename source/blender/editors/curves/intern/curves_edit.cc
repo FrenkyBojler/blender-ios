@@ -268,13 +268,13 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
                                          const int curve,
                                          const bool extend_ranges,
                                          const VArray<bool> cyclic,
-                                         Vector<int> &new_curve_offsets,
-                                         Vector<bool> &new_cyclic,
-                                         Vector<int> &src_offsets,
-                                         Vector<int> &dst_offsets,
-                                         Vector<int> &roll_src_offsets,
-                                         Vector<int> &roll_dst_offsets,
-                                         Vector<int> &curve_map)
+                                         Vector<int> &r_new_curve_offsets,
+                                         Vector<bool> &r_new_cyclic,
+                                         Vector<int> &r_src_offsets,
+                                         Vector<int> &r_dst_offsets,
+                                         Vector<int> &r_roll_src_offsets,
+                                         Vector<int> &r_roll_dst_offsets,
+                                         Vector<int> &r_curve_map)
 {
   if (selected_points.is_empty()) {
     return;
@@ -304,33 +304,33 @@ static void curve_offsets_from_selection(const IndexMask &selected_points,
 
   for (const IndexRange range : ranges.as_span().drop_front(dropped_front_ranges)) {
     const IndexRange extended_range = extend_range(range, extend_ranges).intersect(points);
-    new_curve_offsets.append(new_curve_offsets.last() + extended_range.size());
-    src_offsets.append(extended_range.first());
-    src_offsets.append(extended_range.one_after_last());
-    dst_offsets.append_n_times(dst_offsets.last() + extended_range.size(), 2);
+    r_new_curve_offsets.append(r_new_curve_offsets.last() + extended_range.size());
+    r_src_offsets.append(extended_range.first());
+    r_src_offsets.append(extended_range.one_after_last());
+    r_dst_offsets.append_n_times(r_dst_offsets.last() + extended_range.size(), 2);
     curves_added++;
   };
   if (!rolled_range.is_empty()) {
-    roll_src_offsets.append(rolled_range.first());
-    roll_src_offsets.append(rolled_range.one_after_last());
-    roll_dst_offsets.append(dst_offsets.last());
-    roll_dst_offsets.append(roll_dst_offsets.last() + rolled_range.size());
-    new_curve_offsets.last() += rolled_range.size();
-    dst_offsets.last() += rolled_range.size();
+    r_roll_src_offsets.append(rolled_range.first());
+    r_roll_src_offsets.append(rolled_range.one_after_last());
+    r_roll_dst_offsets.append(r_dst_offsets.last());
+    r_roll_dst_offsets.append(r_roll_dst_offsets.last() + rolled_range.size());
+    r_new_curve_offsets.last() += rolled_range.size();
+    r_dst_offsets.last() += rolled_range.size();
   }
-  curve_map.append_n_times(curve, curves_added);
-  new_cyclic.append_n_times(cyclic[curve] && selected_points.size() == points.size() &&
-                                rolled_range.size() == 0,
-                            curves_added);
+  r_curve_map.append_n_times(curve, curves_added);
+  r_new_cyclic.append_n_times(cyclic[curve] && selected_points.size() == points.size() &&
+                                  rolled_range.size() == 0,
+                              curves_added);
 }
 
-template<typename Fn>
-static void foreach_mask_content_slice_by_offsets(const IndexMask &mask,
-                                                  const OffsetIndices<int> offset_indices,
-                                                  Fn &&fn)
+static void foreach_mask_content_slice_by_offsets(
+    const IndexMask &mask,
+    const OffsetIndices<int> offset_indices,
+    FunctionRef<
+        void(const IndexMask curve_points_to_split, const IndexRange points, const int curve)> fn)
 {
   IndexMask empty_mask;
-  Span<int> offsets = offset_indices.data();
   int offset = 0;
   int slice_start = -1;
   int slice_end = -1;
