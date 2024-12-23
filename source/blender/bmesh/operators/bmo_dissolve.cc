@@ -274,8 +274,8 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 
   if (use_verts) {
     BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
-      BMO_vert_flag_set(bm, e->v1, VERT_MARK, !BM_vert_is_edge_pair(e->v1));
-      BMO_vert_flag_set(bm, e->v2, VERT_MARK, !BM_vert_is_edge_pair(e->v2));
+      BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
+      BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
     }
   }
 
