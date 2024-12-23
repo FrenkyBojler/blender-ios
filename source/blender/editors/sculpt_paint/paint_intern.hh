@@ -357,7 +357,7 @@ void paint_brush_color_get(Scene *scene,
                            float pressure,
                            const ColorManagedDisplay *display,
                            float r_color[3]);
-bool paint_use_opacity_masking(Brush *brush);
+bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Brush *brush);
 void paint_brush_init_tex(Brush *brush);
 void paint_brush_exit_tex(Brush *brush);
 

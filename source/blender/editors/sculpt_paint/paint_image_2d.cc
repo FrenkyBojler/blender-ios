@@ -727,7 +727,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
                              BRUSH_GRADIENT_SPACING_REPEAT,
                              BRUSH_GRADIENT_SPACING_CLAMP) ||
                         (cache->last_pressure != pressure))) ||
-                      (brush->flag2 & BRUSH_JITTER_COLOR);
+                      BKE_brush_color_jitter_get_settings(scene, painter->paint, brush) != nullptr;
   float tex_rotation = -brush->mtex.rot;
   float mask_rotation = -brush->mask_mtex.rot;
 
@@ -1433,7 +1433,7 @@ static int paint_2d_op(void *state,
   return 1;
 }
 
-static int paint_2d_canvas_set(ImagePaintState *s)
+static int paint_2d_canvas_set(ImagePaintState *s, const Paint *paint)
 {
   /* set clone canvas */
   if (s->brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) {
@@ -1458,7 +1458,7 @@ static int paint_2d_canvas_set(ImagePaintState *s)
   }
 
   /* set masking */
-  s->do_masking = paint_use_opacity_masking(s->brush);
+  s->do_masking = paint_use_opacity_masking(s->scene, paint, s->brush);
 
   return 1;
 }
@@ -1661,7 +1661,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
     s->tiles[tile_idx].uv_origin[1] = ((tile->tile_number - 1001) / 10);
   }
 
-  if (!paint_2d_canvas_set(s)) {
+  if (!paint_2d_canvas_set(s, paint)) {
     MEM_freeN(s->tiles);
 
     MEM_freeN(s);

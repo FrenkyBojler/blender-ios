@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "DNA_brush_types.h"
 #include "DNA_defs.h"
 
 /**
@@ -1423,8 +1424,12 @@ typedef struct UnifiedPaintSettings {
 
   /** Unified brush color. */
   float rgb[3];
+
   /** Unified brush secondary color. */
   float secondary_rgb[3];
+
+  /** Unified color jitter settings */
+  BrushColorJitterSettings color_jitter;
 
   /** Unified brush stroke input samples. */
   int input_samples;
@@ -1508,6 +1513,7 @@ typedef enum {
   UNIFIED_PAINT_WEIGHT = (1 << 5),
   UNIFIED_PAINT_COLOR = (1 << 6),
   UNIFIED_PAINT_INPUT_SAMPLES = (1 << 7),
+  UNIFIED_PAINT_COLOR_JITTER = (1 << 8),
 
 } eUnifiedPaintSettingsFlags;
 

@@ -331,7 +331,9 @@ void paint_update_brush_rake_rotation(UnifiedPaintSettings &ups,
 
 void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float stroke[3]);
 
-blender::float3 BKE_paint_randomize_color(const Brush *brush,
+blender::float3 BKE_paint_randomize_color(const Scene *scene,
+                                          const Paint *paint,
+                                          const Brush *brush,
                                           const blender::float3 &initial_hsv_jitter,
                                           const float distance,
                                           const float pressure,

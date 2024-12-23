@@ -1849,7 +1849,9 @@ void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float st
 }
 
 /* TODO: merge this functionality with greasepencil PaintOperationExecutor::randomize_color */
-blender::float3 BKE_paint_randomize_color(const Brush *brush,
+blender::float3 BKE_paint_randomize_color(const Scene *scene,
+                                          const Paint *paint,
+                                          const Brush *brush,
                                           const blender::float3 &initial_hsv_jitter,
                                           const float distance,
                                           const float pressure,
@@ -1858,7 +1860,13 @@ blender::float3 BKE_paint_randomize_color(const Brush *brush,
   constexpr float noise_scale = 1 / 20.0f;
 
   float random_hue = 0.0f;
-  if (brush->color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE) {
+  const BrushColorJitterSettings *color_jitter = BKE_brush_color_jitter_get_settings(
+      scene, paint, brush);
+  if (color_jitter == nullptr) {
+    return color;
+  }
+
+  if (color_jitter->flag & BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE) {
     random_hue = initial_hsv_jitter[0];
   }
   else {
@@ -1867,7 +1875,7 @@ blender::float3 BKE_paint_randomize_color(const Brush *brush,
   }
 
   float random_sat = 0.0f;
-  if (brush->color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE) {
+  if (color_jitter->flag & BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE) {
     random_sat = initial_hsv_jitter[1];
   }
   else {
@@ -1876,7 +1884,7 @@ blender::float3 BKE_paint_randomize_color(const Brush *brush,
   }
 
   float random_val = 0.0f;
-  if (brush->color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE) {
+  if (color_jitter->flag & BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE) {
     random_val = initial_hsv_jitter[2];
   }
   else {
@@ -1884,16 +1892,16 @@ blender::float3 BKE_paint_randomize_color(const Brush *brush,
         blender::float2(distance * noise_scale, initial_hsv_jitter[2] * 100));
   }
 
-  float hue_jitter_scale = brush->color_jitter.hue;
-  if ((brush->color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS) != 0) {
+  float hue_jitter_scale = color_jitter->hue;
+  if ((color_jitter->flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS) != 0) {
     hue_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
   }
-  float sat_jitter_scale = brush->color_jitter.saturation;
-  if ((brush->color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS) != 0) {
+  float sat_jitter_scale = color_jitter->saturation;
+  if ((color_jitter->flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS) != 0) {
     sat_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
   }
-  float val_jitter_scale = brush->color_jitter.value;
-  if ((brush->color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS) != 0) {
+  float val_jitter_scale = color_jitter->value;
+  if ((color_jitter->flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS) != 0) {
     val_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
   }
 

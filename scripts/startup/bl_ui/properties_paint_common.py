@@ -1395,10 +1395,12 @@ def draw_color_settings(context, layout, brush, color_type=False):
         row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="", emboss=False)
         row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
 
+        # color jitter panel
         mode = UnifiedPaintPanel.get_brush_mode(context)
         if mode in ('PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX', 'SCULPT'):
-            header, panel = layout.panel("use_color_jitter", default_closed=True)
-            header.prop(brush, "use_color_jitter", text="Randomize Color")
+            prop_owner = ups if ups.use_unified_color else brush
+            header, panel = layout.panel("color_jitter_panel", default_closed=True)
+            header.prop(prop_owner, "use_color_jitter", text="Randomize Color")
             if panel:
                 panel.use_property_split = True
                 panel.use_property_decorate = False
@@ -1407,22 +1409,22 @@ def draw_color_settings(context, layout, brush, color_type=False):
                 col.use_property_split = True
 
                 row = col.row(align=True)
-                row.enabled = brush.use_color_jitter
-                row.prop(brush, "hue_jitter", slider=True, text="Hue")
-                row.prop(brush, "use_stroke_random_hue", text="", icon='GP_SELECT_STROKES')
-                row.prop(brush, "use_random_press_hue", text="", icon='STYLUS_PRESSURE')
+                row.enabled = prop_owner.use_color_jitter
+                row.prop(prop_owner, "hue_jitter", slider=True, text="Hue")
+                row.prop(prop_owner, "use_stroke_random_hue", text="", icon='GP_SELECT_STROKES')
+                row.prop(prop_owner, "use_random_press_hue", text="", icon='STYLUS_PRESSURE')
 
                 row = col.row(align=True)
-                row.enabled = brush.use_color_jitter
-                row.prop(brush, "saturation_jitter", slider=True, text="Saturation")
-                row.prop(brush, "use_stroke_random_sat", text="", icon='GP_SELECT_STROKES')
-                row.prop(brush, "use_random_press_sat", text="", icon='STYLUS_PRESSURE')
+                row.enabled = prop_owner.use_color_jitter
+                row.prop(prop_owner, "saturation_jitter", slider=True, text="Saturation")
+                row.prop(prop_owner, "use_stroke_random_sat", text="", icon='GP_SELECT_STROKES')
+                row.prop(prop_owner, "use_random_press_sat", text="", icon='STYLUS_PRESSURE')
 
                 row = col.row(align=True)
-                row.enabled = brush.use_color_jitter
-                row.prop(brush, "value_jitter", slider=True, text="Value")
-                row.prop(brush, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
-                row.prop(brush, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
+                row.enabled = prop_owner.use_color_jitter
+                row.prop(prop_owner, "value_jitter", slider=True, text="Value")
+                row.prop(prop_owner, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
+                row.prop(prop_owner, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
 
     # Gradient
     elif brush.color_type == 'GRADIENT':

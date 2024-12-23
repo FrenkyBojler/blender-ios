@@ -729,7 +729,7 @@ static Color vpaint_blend_stroke(const VPaint &vp,
   Color result;
   if (!vwpaint::brush_use_accumulate(vp)) {
     BLI_assert(!stroke_buffer.is_empty());
-    BLI_assert(!prev_mesh_colors.is_empty());
+    BLI_assert(!prev_vertex_colors.is_empty());
 
     if (isZero(prev_vertex_colors[vert])) {
       prev_vertex_colors[vert] = vertex_colors[vert];
@@ -1712,14 +1712,21 @@ static float paint_and_tex_color_alpha(const VPaint &vp,
 }
 
 /* Compute brush color, using jitter if it's enabled */
-static blender::float3 get_brush_color(const Brush &brush,
+static blender::float3 get_brush_color(const Scene *scene,
+                                       const Brush *brush,
+                                       const Paint *paint,
                                        const StrokeCache &cache,
                                        const ColorPaint4f &paint_color)
 {
   blender::float3 brush_color = blender::float3(paint_color.r, paint_color.g, paint_color.b);
-  if (brush.flag2 & BRUSH_JITTER_COLOR) {
-    brush_color = BKE_paint_randomize_color(
-        &brush, cache.initial_hsv_jitter, cache.stroke_distance, cache.pressure, brush_color);
+  if (BKE_brush_color_jitter_get_settings(scene, paint, brush) != nullptr) {
+    brush_color = BKE_paint_randomize_color(scene,
+                                            paint,
+                                            brush,
+                                            cache.initial_hsv_jitter,
+                                            cache.stroke_distance,
+                                            cache.pressure,
+                                            brush_color);
   }
   return brush_color;
 }
@@ -1769,7 +1776,8 @@ static void vpaint_do_draw(const bContext *C,
     select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
   }
 
-  const blender::float3 brush_color = get_brush_color(brush, cache, vpd.paintcol);
+  const blender::float3 brush_color = get_brush_color(
+      &scene, &brush, &vp.paint, cache, vpd.paintcol);
 
   struct LocalData {
     Vector<float> factors;

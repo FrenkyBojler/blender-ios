@@ -5867,7 +5867,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
     }
 
     /* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
-    ps->do_masking = paint_use_opacity_masking(brush);
+    ps->do_masking = paint_use_opacity_masking(scene, ps->paint, brush);
     ps->is_texbrush = (brush->mtex.tex && ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) ? true :
                                                                                            false;
     ps->is_maskbrush = (brush->mask_mtex.tex) ? true : false;

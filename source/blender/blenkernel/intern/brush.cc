@@ -1082,6 +1082,20 @@ const float *BKE_brush_color_get(const Scene *scene, const Paint *paint, const B
   return brush->rgb;
 }
 
+/** Get color jitter settings or nullptr if not enabled. */
+const BrushColorJitterSettings *BKE_brush_color_jitter_get_settings(const Scene *scene,
+                                                                    const Paint *paint,
+                                                                    const Brush *brush)
+{
+  if (BKE_paint_use_unified_color(scene->toolsettings, paint)) {
+    const bool use_color_jitter = (scene->toolsettings->unified_paint_settings.flag &
+                                   UNIFIED_PAINT_COLOR_JITTER) != 0;
+    return use_color_jitter ? &scene->toolsettings->unified_paint_settings.color_jitter : nullptr;
+  }
+
+  return (brush->flag2 & BRUSH_JITTER_COLOR) ? &brush->color_jitter : nullptr;
+}
+
 const float *BKE_brush_secondary_color_get(const Scene *scene,
                                            const Paint *paint,
                                            const Brush *brush)
