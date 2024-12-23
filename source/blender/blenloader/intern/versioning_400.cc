@@ -5361,6 +5361,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  /* Fix incorrect identifier in the shader mix node. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 16)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_SHADER) {
