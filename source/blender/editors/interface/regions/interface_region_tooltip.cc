@@ -791,6 +791,41 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   return data->fields.is_empty() ? nullptr : std::move(data);
 }
 
+static std::string ui_tooltip_color_string(const float color[4],
+                                           const blender::StringRef title,
+                                           const bool show_alpha,
+                                           const bool show_hex = false)
+{
+  if (show_hex) {
+    uchar hex[4];
+    rgba_float_to_uchar(hex, color);
+    if (show_alpha) {
+      return fmt::format("{}: #{:02X}{:02X}{:02X}{:02X}",
+                         TIP_(title.data()),
+                         int(hex[0]),
+                         int(hex[1]),
+                         int(hex[2]),
+                         int(hex[3]));
+    }
+    else {
+      return fmt::format(
+          "{}: #{:02X}{:02X}{:02X}", TIP_(title.data()), int(hex[0]), int(hex[1]), int(hex[2]));
+    }
+  }
+
+  if (show_alpha) {
+    return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}",
+                       TIP_(title.data()),
+                       color[0],
+                       color[1],
+                       color[2],
+                       color[3]);
+  }
+
+  return fmt::format(
+      "{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title.data()), color[0], color[1], color[2]);
+};
+
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     bContext *C, uiBut *but, uiButExtraOpIcon *extra_icon, const bool is_label)
 {
@@ -1076,35 +1111,16 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       ui_block_cm_to_display_space_v3(but->block, color);
     }
 
-    uchar rgb_hex_uchar[4];
-    rgba_float_to_uchar(rgb_hex_uchar, color);
+    const std::string hex_st = ui_tooltip_color_string(color, "Hex", has_alpha, true);
 
-    std::string format;
+    const std::string rgba_st = ui_tooltip_color_string(
+        color, has_alpha ? "RGBA" : "RGB", has_alpha);
 
-    format = "Hex: #{:02X}{:02X}{:02X}" + std::string(has_alpha ? "{:02X}" : "");
-    const std::string hex_st = fmt::format(fmt::runtime(format),
-                                           int(rgb_hex_uchar[0]),
-                                           int(rgb_hex_uchar[1]),
-                                           int(rgb_hex_uchar[2]),
-                                           int(rgb_hex_uchar[3]));
-
-    format = "{}:  {:.3f}  {:.3f}  {:.3f}" + std::string(has_alpha ? "  {:.3f}" : "");
-    const std::string rgba_st = fmt::format(fmt::runtime(format),
-                                            has_alpha ? TIP_("RGBA") : TIP_("RGB"),
-                                            color[0],
-                                            color[1],
-                                            color[2],
-                                            color[3]);
     float hsva[4];
     rgb_to_hsv_v(color, hsva);
     hsva[3] = color[3];
-    format = "{}:  {:.3f}  {:.3f}  {:.3f}" + std::string(has_alpha ? "  {:.3f}" : "");
-    const std::string hsva_st = fmt::format(fmt::runtime(format),
-                                            has_alpha ? TIP_("HSVA") : TIP_("HSV"),
-                                            hsva[0],
-                                            hsva[1],
-                                            hsva[2],
-                                            hsva[3]);
+    const std::string hsva_st = ui_tooltip_color_string(
+        hsva, has_alpha ? "HSVA" : "HSV", has_alpha);
 
     const uiFontStyle *fs = &UI_style_get()->tooltip;
     BLF_size(blf_mono_font, fs->points * UI_SCALE_FAC);
