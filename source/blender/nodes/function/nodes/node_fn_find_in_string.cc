@@ -36,10 +36,6 @@ static int string_count(const StringRef text, const StringRef token)
   int count = 0;
   const int match_len = token.size();
   int pos = 0;
-  if (text.substr(0, token.size()) == token) {
-    count++;
-    pos += match_len;
-  }
   while ((pos = text.find(token, pos)) != StringRef::not_found) {
     count++;
     pos += match_len;
@@ -54,8 +50,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
       [](const std::string &text, const std::string &token, int &first, int &count) -> void {
         first = string_find(text, token);
         count = string_count(text, token);
-      },
-      mf::build::exec_presets::AllSpanOrSingle());
+      });
 
   builder.set_matching_fn(&token_position_count);
 }
