@@ -690,7 +690,7 @@ void rna_Node_socket_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr);
 int rna_node_tree_idname_to_enum(const char *idname)
 {
   using namespace blender;
-  Span<const bke::bNodeTreeType *> types = bke::registered_tree_types();
+  Span<const bke::bNodeTreeType *> types = bke::node_tree_types_get();
   for (const int i : types.index_range()) {
     const bke::bNodeTreeType *nt = types[i];
     if (STREQ(nt->idname, idname)) {
@@ -702,7 +702,7 @@ int rna_node_tree_idname_to_enum(const char *idname)
 
 blender::bke::bNodeTreeType *rna_node_tree_type_from_enum(int value)
 {
-  blender::Span<blender::bke::bNodeTreeType *> types = blender::bke::registered_tree_types();
+  blender::Span<blender::bke::bNodeTreeType *> types = blender::bke::node_tree_types_get();
   return types.index_range().contains(value) ? types[value] : nullptr;
 }
 
@@ -714,7 +714,7 @@ const EnumPropertyItem *rna_node_tree_type_itemf(
   EnumPropertyItem *item = nullptr;
   int totitem = 0;
 
-  const Span<bke::bNodeTreeType *> types = bke::registered_tree_types();
+  const Span<bke::bNodeTreeType *> types = bke::node_tree_types_get();
   for (const int i : types.index_range()) {
     bke::bNodeTreeType *nt = types[i];
     if (poll && !poll(data, nt)) {
@@ -744,7 +744,7 @@ const EnumPropertyItem *rna_node_tree_type_itemf(
 int rna_node_socket_idname_to_enum(const char *idname)
 {
   using namespace blender;
-  Span<const bke::bNodeSocketType *> types = bke::registered_socket_types();
+  Span<const bke::bNodeSocketType *> types = bke::node_socket_types_get();
   for (const int i : types.index_range()) {
     const bke::bNodeSocketType *nt = types[i];
     if (STREQ(nt->idname, idname)) {
@@ -756,7 +756,7 @@ int rna_node_socket_idname_to_enum(const char *idname)
 
 blender::bke::bNodeSocketType *rna_node_socket_type_from_enum(int value)
 {
-  blender::Span<blender::bke::bNodeSocketType *> types = blender::bke::registered_socket_types();
+  blender::Span<blender::bke::bNodeSocketType *> types = blender::bke::node_socket_types_get();
   return types.index_range().contains(value) ? types[value] : nullptr;
 }
 
@@ -769,7 +769,7 @@ const EnumPropertyItem *rna_node_socket_type_itemf(
   int totitem = 0;
   StructRNA *srna;
 
-  const Span<bke::bNodeSocketType *> types = bke::registered_socket_types();
+  const Span<bke::bNodeSocketType *> types = bke::node_socket_types_get();
   for (const int i : types.index_range()) {
     bke::bNodeSocketType *stype = types[i];
     if (poll && !poll(data, stype)) {

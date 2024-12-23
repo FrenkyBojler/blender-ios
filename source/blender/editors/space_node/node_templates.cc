@@ -489,7 +489,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   /* generate array of node types sorted by UI name */
   blender::Vector<bke::bNodeType *> sorted_ntypes;
 
-  for (blender::bke::bNodeType *ntype : blender::bke::registered_node_types()) {
+  for (blender::bke::bNodeType *ntype : blender::bke::node_types_get()) {
     const char *disabled_hint;
     if (!(ntype->poll && ntype->poll(ntype, ntree, &disabled_hint))) {
       continue;

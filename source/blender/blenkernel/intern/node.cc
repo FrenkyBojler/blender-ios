@@ -1724,7 +1724,7 @@ bool node_tree_is_registered(const bNodeTree *ntree)
   return (ntree->typeinfo != &NodeTreeTypeUndefined);
 }
 
-Span<bNodeTreeType *> registered_tree_types()
+Span<bNodeTreeType *> node_tree_types_get()
 {
   return get_node_tree_type_map().as_span();
 }
@@ -1793,7 +1793,7 @@ void node_unregister_type(bNodeType *nt)
   get_node_type_map().remove(nt);
 }
 
-Span<bNodeType *> registered_node_types()
+Span<bNodeType *> node_types_get()
 {
   return get_node_type_map().as_span();
 }
@@ -1825,7 +1825,7 @@ bool node_type_is_undefined(const bNode *node)
   return false;
 }
 
-Span<bNodeSocketType *> registered_socket_types()
+Span<bNodeSocketType *> node_socket_types_get()
 {
   return get_socket_type_map().as_span();
 }
@@ -2698,7 +2698,7 @@ bNode *node_add_static_node(const bContext *C, bNodeTree *ntree, const int type)
 {
   const char *idname = nullptr;
 
-  for (bNodeType *ntype : registered_node_types()) {
+  for (bNodeType *ntype : node_types_get()) {
     /* Do an extra poll here, because some int types are used
      * for multiple node types, this helps find the desired type. */
     if (ntype->type != type) {
@@ -4192,7 +4192,7 @@ void node_instance_hash_remove_untagged(bNodeInstanceHash *hash, bNodeInstanceVa
 static Set<int> get_known_node_types_set()
 {
   Set<int> result;
-  for (const bNodeType *ntype : registered_node_types()) {
+  for (const bNodeType *ntype : node_types_get()) {
     result.add(ntype->type);
   }
   return result;
@@ -4665,7 +4665,7 @@ void node_system_exit()
 {
   get_node_type_alias_map().clear();
 
-  for (bNodeType *nt : registered_node_types()) {
+  for (bNodeType *nt : node_types_get()) {
     if (nt->rna_ext.free) {
       nt->rna_ext.free(nt->rna_ext.data);
     }
@@ -4673,7 +4673,7 @@ void node_system_exit()
   }
   get_node_type_map().clear();
 
-  for (bNodeSocketType *st : registered_socket_types()) {
+  for (bNodeSocketType *st : node_socket_types_get()) {
     if (st->ext_socket.free) {
       st->ext_socket.free(st->ext_socket.data);
     }
@@ -4684,7 +4684,7 @@ void node_system_exit()
   }
   get_socket_type_map().clear();
 
-  for (bNodeTreeType *nt : registered_tree_types()) {
+  for (bNodeTreeType *nt : node_tree_types_get()) {
     if (nt->rna_ext.free) {
       nt->rna_ext.free(nt->rna_ext.data);
     }

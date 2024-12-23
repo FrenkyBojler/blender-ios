@@ -505,7 +505,7 @@ void node_tree_type_add(bNodeTreeType *nt);
 void node_tree_type_free_link(const bNodeTreeType *nt);
 bool node_tree_is_registered(const bNodeTree *ntree);
 
-Span<bNodeTreeType *> registered_tree_types();
+Span<bNodeTreeType *> node_tree_types_get();
 
 /**
  * Try to initialize all type-info in a node tree.
@@ -588,7 +588,7 @@ void node_register_type(bNodeType *ntype);
 void node_unregister_type(bNodeType *ntype);
 void node_register_alias(bNodeType *nt, StringRef alias);
 
-Span<bNodeType *> registered_node_types();
+Span<bNodeType *> node_types_get();
 
 bNodeSocketType *node_socket_type_find(StringRef idname);
 void node_register_socket_type(bNodeSocketType *stype);
@@ -600,7 +600,7 @@ std::optional<StringRefNull> node_static_socket_type(int type, int subtype);
 std::optional<StringRefNull> node_static_socket_interface_type_new(int type, int subtype);
 std::optional<StringRefNull> node_static_socket_label(int type, int subtype);
 
-Span<bNodeSocketType *> registered_socket_types();
+Span<bNodeSocketType *> node_socket_types_get();
 
 bNodeSocket *node_find_socket(bNode *node, eNodeSocketInOut in_out, StringRef identifier);
 const bNodeSocket *node_find_socket(const bNode *node,

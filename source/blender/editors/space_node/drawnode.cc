@@ -1103,7 +1103,7 @@ void ED_node_init_butfuncs()
   NodeSocketTypeUndefined.interface_draw = node_socket_undefined_interface_draw;
 
   /* node type ui functions */
-  for (blender::bke::bNodeType *ntype : blender::bke::registered_node_types()) {
+  for (blender::bke::bNodeType *ntype : blender::bke::node_types_get()) {
     node_common_set_butfunc(ntype);
 
     node_composit_set_butfunc(ntype);

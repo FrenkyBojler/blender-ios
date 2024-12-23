@@ -262,7 +262,7 @@ static void gather_socket_link_operations(const bContext &C,
                                           Vector<SocketLinkOperation> &search_link_ops)
 {
   const SpaceNode &snode = *CTX_wm_space_node(&C);
-  for (const bke::bNodeType *node_type : bke::registered_node_types()) {
+  for (const bke::bNodeType *node_type : bke::node_types_get()) {
     const char *disabled_hint;
     if (node_type->poll && !node_type->poll(node_type, &node_tree, &disabled_hint)) {
       continue;

@@ -375,7 +375,7 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
 static blender::bke::bNodeSocketType *find_supported_socket_type(
     blender::bke::bNodeTreeType *ntree_type)
 {
-  for (blender::bke::bNodeSocketType *socket_type : blender::bke::registered_socket_types()) {
+  for (blender::bke::bNodeSocketType *socket_type : blender::bke::node_socket_types_get()) {
     if (is_socket_type_supported(ntree_type, socket_type)) {
       return socket_type;
     }
