@@ -2153,8 +2153,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   char rna_path[sizeof(socket_id_esc) + 4];
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
-  const int input_index =
-      const_cast<const bNodeTree *>(ctx.nmd.node_group)->interface_inputs().first_index(&socket);
+  const int input_index = ctx.nmd.node_group->interface_input_index(socket);
 
   uiLayout *row = uiLayoutRow(layout, true);
   uiLayoutSetPropDecorate(row, true);
