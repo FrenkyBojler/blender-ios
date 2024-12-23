@@ -2429,6 +2429,30 @@ static void node_draw_panels_background(const bNode &node)
   }
 }
 
+static bool panel_has_only_inactive_inputs(const bNode &node,
+                                           const nodes::PanelDeclaration &panel_decl)
+{
+  const bNodeTree &ntree = node.owner_tree();
+  for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
+    if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
+      if (socket_decl->in_out == SOCK_OUT) {
+        return false;
+      }
+      const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
+      if (ntree.runtime->inferenced_socket_usage[socket.index_in_tree()]) {
+        return false;
+      }
+    }
+    else if (const auto *sub_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl))
+    {
+      if (!panel_has_only_inactive_inputs(node, *sub_panel_decl)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block)
 {
   BLI_assert(is_node_panels_supported(node));
@@ -2442,6 +2466,8 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
     if (!panel_runtime.header_center_y.has_value()) {
       continue;
     }
+
+    const bool only_inactive_inputs = panel_has_only_inactive_inputs(node, panel_decl);
 
     const rctf header_rect = {draw_bounds.xmin,
                               draw_bounds.xmax,
@@ -2478,7 +2504,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
         0,
         0,
         "");
-    if (node.flag & NODE_MUTED) {
+    if ((node.flag & NODE_MUTED) || only_inactive_inputs) {
       UI_but_flag_enable(label_but, UI_BUT_INACTIVE);
     }
 

@@ -73,6 +73,29 @@ static void draw_node_input(bContext *C,
   socket.typeinfo->draw(C, row, &socket_ptr, node_ptr, text);
 }
 
+static bool panel_has_any_used_input(const bNode &node,
+                                     const blender::nodes::PanelDeclaration &panel_decl)
+{
+  const bNodeTree &ntree = node.owner_tree();
+  for (const blender::nodes::ItemDeclaration *item_decl : panel_decl.items) {
+    if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
+      if (socket_decl->in_out == SOCK_OUT) {
+        continue;
+      }
+      const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
+      if (ntree.runtime->inferenced_socket_usage[socket.index_in_tree()]) {
+        return true;
+      }
+    }
+    else if (const auto *sub_panel_decl = dynamic_cast<const PanelDeclaration *>(item_decl)) {
+      if (panel_has_any_used_input(node, *sub_panel_decl)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 static void draw_node_inputs_recursive(bContext *C,
                                        uiLayout *layout,
                                        bNode &node,
@@ -82,6 +105,8 @@ static void draw_node_inputs_recursive(bContext *C,
   /* TODO: Use flag on the panel state instead which is better for dynamic panel amounts. */
   const std::string panel_idname = "NodePanel" + std::to_string(panel_decl.identifier);
   PanelLayout panel = uiLayoutPanel(C, layout, panel_idname.c_str(), panel_decl.default_collapsed);
+  const bool has_used_inputs = panel_has_any_used_input(node, panel_decl);
+  uiLayoutSetActive(panel.header, has_used_inputs);
   uiItemL(panel.header, IFACE_(panel_decl.name.c_str()), ICON_NONE);
   if (!panel.body) {
     return;
