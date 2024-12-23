@@ -34,6 +34,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
   MutableSpan<TransDataContainer> trans_data_contrainers(t->data_container, t->data_container_len);
   const bool use_proportional_edit = (t->flag & T_PROP_EDIT_ALL) != 0;
   const bool use_connected_only = (t->flag & T_PROP_CONNECTED) != 0;
+  const bool use_individual_origins = (t->around == V3D_AROUND_LOCAL_ORIGINS);
   ToolSettings *ts = scene->toolsettings;
   const bool is_scale_thickness = ((t->mode == TFM_CURVE_SHRINKFATTEN) ||
                                    (ts->gp_sculpt.flag & GP_SCULPT_SETT_FLAG_SCALE_THICKNESS));
@@ -191,6 +192,9 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
       const bke::greasepencil::Layer &layer = *layers[info.layer_index];
       const float4x4 layer_space_to_world_space = layer.to_world_space(*object_eval);
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      const bke::crazyspace::GeometryDeformation deformation =
+          bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
+              *CTX_data_depsgraph_pointer(C), *object, info.layer_index, info.frame_number);
 
       std::optional<MutableSpan<float>> value_attribute;
       if (is_scale_thickness) {
@@ -202,7 +206,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
         value_attribute = opacities;
       }
 
-      const IndexMask affected_strokes = use_proportional_edit ?
+      const IndexMask affected_strokes = use_proportional_edit || use_individual_origins ?
                                              ed::greasepencil::retrieve_editable_strokes(
                                                  *object, info.drawing, info.layer_index, memory) :
                                              IndexMask();
@@ -211,9 +215,11 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
           tc.custom.type.data);
       curves_transform_data.grease_pencil_falloffs[drawing] = info.multi_frame_falloff;
       float &drawing_falloff = curves_transform_data.grease_pencil_falloffs[drawing];
-      curve_populate_trans_data_structs(tc,
+      curve_populate_trans_data_structs(*t,
+                                        tc,
                                         curves,
                                         layer_space_to_world_space,
+                                        deformation,
                                         value_attribute,
                                         points_to_transform_per_attribute[layer_offset],
                                         affected_strokes,

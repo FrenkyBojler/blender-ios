@@ -5072,9 +5072,9 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
     RNA_boolean_set(&ptr, "use_hide_panels", true);
   }
 
-  uiItemO(layout, nullptr, ICON_NONE, "SCREEN_OT_area_dupli");
+  uiItemO(layout, std::nullopt, ICON_NONE, "SCREEN_OT_area_dupli");
   uiItemS(layout);
-  uiItemO(layout, nullptr, ICON_X, "SCREEN_OT_area_close");
+  uiItemO(layout, std::nullopt, ICON_X, "SCREEN_OT_area_close");
 }
 
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
@@ -5767,20 +5767,21 @@ static int screen_animation_cancel_exec(bContext *C, wmOperator *op)
   bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
 
   if (screen) {
-    if (RNA_boolean_get(op->ptr, "restore_frame") && screen->animtimer) {
+    bool restore_start_frame = RNA_boolean_get(op->ptr, "restore_frame") && screen->animtimer;
+    int frame;
+    if (restore_start_frame) {
       ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
-      Scene *scene = CTX_data_scene(C);
-
-      /* reset current frame before stopping, and just send a notifier to deal with the rest
-       * (since playback still needs to be stopped)
-       */
-      scene->r.cfra = sad->sfra;
-
-      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+      frame = sad->sfra;
     }
 
-    /* call the other "toggling" operator to clean up now */
+    /* Stop playback */
     ED_screen_animation_play(C, 0, 0);
+    if (restore_start_frame) {
+      Scene *scene = CTX_data_scene(C);
+      /* reset current frame and just send a notifier to deal with the rest */
+      scene->r.cfra = frame;
+      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+    }
   }
 
   return OPERATOR_PASS_THROUGH;

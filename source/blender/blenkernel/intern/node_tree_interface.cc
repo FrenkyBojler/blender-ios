@@ -1164,7 +1164,7 @@ void bNodeTreeInterface::read_data(BlendDataReader *reader)
 bNodeTreeInterfaceItem *bNodeTreeInterface::active_item()
 {
   bNodeTreeInterfaceItem *active = nullptr;
-  int count = active_index;
+  int count = this->active_index;
   this->foreach_item([&](bNodeTreeInterfaceItem &item) {
     if (count == 0) {
       active = &item;
@@ -1179,7 +1179,7 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::active_item()
 const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
 {
   const bNodeTreeInterfaceItem *active = nullptr;
-  int count = active_index;
+  int count = this->active_index;
   this->foreach_item([&](const bNodeTreeInterfaceItem &item) {
     if (count == 0) {
       active = &item;
@@ -1193,11 +1193,11 @@ const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
 
 void bNodeTreeInterface::active_item_set(bNodeTreeInterfaceItem *item)
 {
-  active_index = 0;
+  this->active_index = 0;
   int count = 0;
   this->foreach_item([&](bNodeTreeInterfaceItem &titem) {
     if (&titem == item) {
-      active_index = count;
+      this->active_index = count;
       return false;
     }
     ++count;
@@ -1221,7 +1221,7 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::add_socket(const blender::StringRe
   BLI_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceSocket *new_socket = make_socket(
-      next_uid++, name, description, socket_type, flag);
+      this->next_uid++, name, description, socket_type, flag);
   if (new_socket) {
     parent->add_item(new_socket->item);
   }
@@ -1243,7 +1243,7 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::insert_socket(const blender::Strin
   BLI_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceSocket *new_socket = make_socket(
-      next_uid++, name, description, socket_type, flag);
+      this->next_uid++, name, description, socket_type, flag);
   if (new_socket) {
     parent->insert_item(new_socket->item, position);
   }
@@ -1262,7 +1262,7 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::add_panel(const blender::StringRef 
   }
   BLI_assert(this->find_item(parent->item));
 
-  bNodeTreeInterfacePanel *new_panel = make_panel(next_uid++, name, description, flag);
+  bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
   if (new_panel) {
     parent->add_item(new_panel->item);
   }
@@ -1282,7 +1282,7 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::insert_panel(const blender::StringR
   }
   BLI_assert(this->find_item(parent->item));
 
-  bNodeTreeInterfacePanel *new_panel = make_panel(next_uid++, name, description, flag);
+  bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
   if (new_panel) {
     parent->insert_item(new_panel->item, position);
   }
@@ -1423,13 +1423,13 @@ void bNodeTreeInterface::ensure_items_cache() const
     bNodeTreeInterface &mutable_self = const_cast<bNodeTreeInterface &>(*this);
 
     mutable_self.foreach_item([&](bNodeTreeInterfaceItem &item) {
-      runtime.items_.append(&item);
+      runtime.items_.add_new(&item);
       if (bNodeTreeInterfaceSocket *socket = get_item_as<bNodeTreeInterfaceSocket>(&item)) {
         if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-          runtime.inputs_.append(socket);
+          runtime.inputs_.add_new(socket);
         }
         if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-          runtime.outputs_.append(socket);
+          runtime.outputs_.add_new(socket);
         }
       }
       return true;
