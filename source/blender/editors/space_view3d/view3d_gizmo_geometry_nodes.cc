@@ -229,8 +229,7 @@ class LinearGizmo : public NodeGizmos {
   void update_style(const NodeGeometryLinearGizmo &storage)
   {
     /* Make sure the enum values are in sync. */
-    static_assert(int(GEO_NyODE_LINEAR_GIZMO_DRAW_STYLE_ARROW) ==
-                  int(ED_GIZMO_ARROW_STYLE_NORMAL));
+    static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_ARROW) == int(ED_GIZMO_ARROW_STYLE_NORMAL));
     static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) == int(ED_GIZMO_ARROW_STYLE_BOX));
     static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CROSS) == int(ED_GIZMO_ARROW_STYLE_CROSS));
     static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CONE) ==
