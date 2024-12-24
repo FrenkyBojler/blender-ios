@@ -8,12 +8,10 @@ set(INC
   include
   ../intern
   ../../editors/include
-  ../../blenkernel
   ../../blenloader
   ../../blentranslation
   ../../functions
   ../../geometry
-  ../../gpu
   ../../imbuf
   ../../imbuf/movie
   ../../makesrna
@@ -247,12 +245,14 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_functions
   bf_geometry
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   bf_nodes
   PRIVATE bf::intern::atomic

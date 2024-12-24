@@ -3,13 +3,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   dummy
   intern
   metal
   opengl
   vulkan
-  ../blenkernel
   ../draw
   ../imbuf
   ../makesrna
@@ -380,6 +379,7 @@ set(METAL_SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::dna
@@ -745,6 +745,7 @@ if(WITH_GTESTS)
 endif()
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::gpu ALIAS bf_gpu)
 target_link_libraries(bf_gpu PUBLIC
   bf_compositor_shaders
   bf_draw_shaders

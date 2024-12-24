@@ -4,9 +4,7 @@
 
 set(INC
   ../include
-  ../../blenkernel
   ../../blentranslation
-  ../../gpu
   ../../imbuf
   ../../makesrna
   ../../windowmanager
@@ -33,11 +31,12 @@ set(SRC
 set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
 )
 

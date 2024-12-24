@@ -4,11 +4,9 @@
 
 set(INC
   ../include
-  ../../blenkernel
   ../../blentranslation
   ../../functions
   ../../geometry
-  ../../gpu
   ../../makesrna
   ../../windowmanager
 
@@ -34,13 +32,14 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::extern::curve_fit_nd
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )

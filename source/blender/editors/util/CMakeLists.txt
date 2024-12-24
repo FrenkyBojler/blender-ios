@@ -6,9 +6,7 @@ set(INC
   ../include
   ../space_sequencer
   ../../asset_system
-  ../../blenkernel
   ../../blentranslation
-  ../../gpu
   ../../imbuf
   ../../makesrna
   ../../sequencer
@@ -110,10 +108,12 @@ set(SRC
 set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )

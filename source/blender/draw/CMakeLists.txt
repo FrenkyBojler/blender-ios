@@ -6,13 +6,11 @@ set(INC
   .
   intern
 
-  ../blenkernel
   ../blenloader
   ../blentranslation
   ../editors/include
   ../editors/space_view3d
   ../functions
-  ../gpu
   ../gpu/intern
   ../imbuf
   ../makesrna
@@ -304,11 +302,12 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_compositor
