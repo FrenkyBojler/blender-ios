@@ -222,8 +222,6 @@ CachedImage::CachedImage(Context &context,
     return;
   }
 
-  /* Acquire the render result of the image for thread safety, which is assumed by the utility
-   * functions called later. */
   RenderResult *render_result = BKE_image_acquire_renderresult(nullptr, image);
 
   ImageUser image_user_for_pass = compute_image_user_for_pass(
