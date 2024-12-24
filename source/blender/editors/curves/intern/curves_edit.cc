@@ -296,11 +296,11 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
     curves_added++;
   };
   if (!rolled_range.is_empty()) {
+    r_new_curve_offsets.last() += rolled_range.size();
     r_roll_src_offsets.append(rolled_range.first());
     r_roll_src_offsets.append(rolled_range.one_after_last());
     r_roll_dst_offsets.append(r_dst_offsets.last());
     r_roll_dst_offsets.append(r_roll_dst_offsets.last() + rolled_range.size());
-    r_new_curve_offsets.last() += rolled_range.size();
     r_dst_offsets.last() += rolled_range.size();
   }
   r_curve_map.append_n_times(curve, curves_added);
@@ -312,9 +312,8 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
 static void foreach_mask_content_slice_by_offsets(
     const IndexMask &mask,
     const OffsetIndices<int> offset_indices,
-    FunctionRef<void(const Vector<IndexRange> &selected_curve_points,
-                     const IndexRange points,
-                     const int curve)> fn)
+    FunctionRef<void(Span<IndexRange> selected_points, IndexRange range_points, int range_index)>
+        fn)
 {
   Vector<IndexRange> ranges;
 
@@ -353,11 +352,17 @@ static void foreach_mask_content_slice_by_offsets(
   }
 }
 
-static void add_to_every(const int a, MutableSpan<int> span)
+static void copy_group_to_group(const Span<int> src_offsets,
+                                const Span<int> dst_offsets,
+                                const IndexMask &selection,
+                                const GSpan src,
+                                GMutableSpan dst)
 {
-  for (int &offset : span) {
-    offset += a;
-  }
+  /* Each group might be large, so a threaded copy might make sense here too. */
+  selection.foreach_index(GrainSize(512), [&](const int i) {
+    dst.slice(IndexRange::from_begin_end(dst_offsets[i], dst_offsets[i + 1]))
+        .copy_from(src.slice(IndexRange::from_begin_end(src_offsets[i], src_offsets[i + 1])));
+  });
 }
 
 bke::CurvesGeometry split_points(const IndexMask &points_to_split,
@@ -367,21 +372,13 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
   const VArray<bool> cyclic = curves.cyclic();
 
   Vector<int> curve_map;
-  Vector<int> new_curve_map;
   Vector<int> new_offsets({0});
-  Vector<int> split_curve_offsets({0});
 
-  Vector<int> preserved_src_offsets;
-  Vector<int> preserved_dst_offsets({0});
-  Vector<int> preserved_roll_src_offsets;
-  Vector<int> preserved_roll_dst_offsets;
-  Vector<bool> preserved_cyclic;
-
-  Vector<int> split_src_offsets;
-  Vector<int> split_dst_offsets({0});
-  Vector<int> split_roll_src_offsets;
-  Vector<int> split_roll_dst_offsets;
-  Vector<bool> split_cyclic;
+  Vector<int> src_offsets;
+  Vector<int> dst_offsets({0});
+  Vector<int> roll_src_offsets;
+  Vector<int> roll_dst_offsets;
+  Vector<bool> new_cyclic;
 
   IndexMaskMemory memory;
 
@@ -391,8 +388,8 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
       [&](const Span<IndexRange> curve_points_to_preserve,
           const IndexRange points,
           const int curve) {
-        /* Singles are removed as singular selected points are only duplicated without affecting
-         * original curve. */
+        /* Every range is extended to left and right by one point. Any resulting intersection
+         * is merged. */
         Vector<IndexRange> curve_points_to_preserve_expanded = extend_and_merge(
             curve_points_to_preserve, points, cyclic[curve]);
         curve_offsets_from_selection(curve_points_to_preserve_expanded,
@@ -400,13 +397,15 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                                      curve,
                                      cyclic,
                                      new_offsets,
-                                     preserved_cyclic,
-                                     preserved_src_offsets,
-                                     preserved_dst_offsets,
-                                     preserved_roll_src_offsets,
-                                     preserved_roll_dst_offsets,
+                                     new_cyclic,
+                                     src_offsets,
+                                     dst_offsets,
+                                     roll_src_offsets,
+                                     roll_dst_offsets,
                                      curve_map);
       });
+
+  const int non_selected_curve_num = new_offsets.size() - 1;
 
   foreach_mask_content_slice_by_offsets(
       points_to_split,
@@ -416,28 +415,19 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                                      points,
                                      curve,
                                      cyclic,
-                                     split_curve_offsets,
-                                     split_cyclic,
-                                     split_src_offsets,
-                                     split_dst_offsets,
-                                     split_roll_src_offsets,
-                                     split_roll_dst_offsets,
-                                     new_curve_map);
+                                     new_offsets,
+                                     new_cyclic,
+                                     src_offsets,
+                                     dst_offsets,
+                                     roll_src_offsets,
+                                     roll_dst_offsets,
+                                     curve_map);
       });
-
-  add_to_every(preserved_dst_offsets.last(), split_dst_offsets);
-  add_to_every(preserved_dst_offsets.last(), split_roll_dst_offsets);
-  add_to_every(new_offsets.last(), split_curve_offsets);
-
-  new_offsets.extend(split_curve_offsets.as_span().drop_front(1));
-  curve_map.extend(new_curve_map);
 
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
   new_curves.resize(new_offsets.last(), curve_map.size());
   std::copy_n(new_offsets.data(), new_offsets.size(), new_curves.offsets_for_write().data());
-  MutableSpan<bool> new_cyclic = new_curves.cyclic_for_write();
-  new_cyclic.take_front(preserved_cyclic.size()).copy_from(preserved_cyclic);
-  new_cyclic.take_back(split_cyclic.size()).copy_from(split_cyclic);
+  new_curves.cyclic_for_write().copy_from(new_cyclic);
 
   const bke::AttributeAccessor src_attributes = curves.attributes();
   bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
@@ -449,15 +439,8 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                          curve_map,
                          dst_attributes);
 
-  const int max_size = math::max(preserved_src_offsets.size(), split_src_offsets.size());
-  const IndexMask groups_to_copy = IndexMask::from_every_nth(2, max_size / 2, 0, memory);
-  const IndexMask preserved_to_copy = groups_to_copy.slice(
-      IndexRange(preserved_src_offsets.size() / 2));
-  const IndexMask preserved_roll_to_copy = groups_to_copy.slice(
-      IndexRange(preserved_roll_src_offsets.size() / 2));
-  const IndexMask split_to_copy = groups_to_copy.slice(IndexRange(split_src_offsets.size() / 2));
-  const IndexMask split_roll_to_copy = groups_to_copy.slice(
-      IndexRange(split_roll_src_offsets.size() / 2));
+  const IndexMask groups_to_copy = IndexMask::from_every_nth(2, src_offsets.size() / 2, 0, memory);
+  const IndexMask roll_to_copy = groups_to_copy.slice(IndexRange(roll_src_offsets.size() / 2));
 
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
@@ -466,33 +449,23 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
            bke::attribute_filter_from_skip_ref(
                ed::curves::get_curves_selection_attribute_names(curves))))
   {
-    array_utils::copy_group_to_group(preserved_src_offsets.as_span(),
-                                     preserved_dst_offsets.as_span(),
-                                     preserved_to_copy,
-                                     attribute.src,
-                                     attribute.dst.span);
-    array_utils::copy_group_to_group(preserved_roll_src_offsets.as_span(),
-                                     preserved_roll_dst_offsets.as_span(),
-                                     preserved_roll_to_copy,
-                                     attribute.src,
-                                     attribute.dst.span);
-    array_utils::copy_group_to_group(split_src_offsets.as_span(),
-                                     split_dst_offsets.as_span(),
-                                     split_to_copy,
-                                     attribute.src,
-                                     attribute.dst.span);
-    array_utils::copy_group_to_group(split_roll_src_offsets.as_span(),
-                                     split_roll_dst_offsets.as_span(),
-                                     split_roll_to_copy,
-                                     attribute.src,
-                                     attribute.dst.span);
+    copy_group_to_group(src_offsets.as_span(),
+                        dst_offsets.as_span(),
+                        groups_to_copy,
+                        attribute.src,
+                        attribute.dst.span);
+    copy_group_to_group(roll_src_offsets.as_span(),
+                        roll_dst_offsets.as_span(),
+                        roll_to_copy,
+                        attribute.src,
+                        attribute.dst.span);
     attribute.dst.finish();
   };
 
   foreach_selection_attribute_writer(
       new_curves, bke::AttrDomain::Curve, [&](bke::GSpanAttributeWriter &selection) {
-        fill_selection_false(selection.span.drop_back(split_curve_offsets.size() - 1));
-        fill_selection_true(selection.span.take_back(split_curve_offsets.size() - 1));
+        fill_selection_false(selection.span.take_front(non_selected_curve_num));
+        fill_selection_true(selection.span.drop_front(non_selected_curve_num));
       });
 
   new_curves.update_curve_types();
