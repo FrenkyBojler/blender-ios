@@ -18,6 +18,7 @@
 #include "bmesh_tools.hh"
 
 #include "intern/bmesh_operators_private.hh"
+#include <cmath>
 
 using blender::Vector;
 
@@ -248,7 +249,20 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
   BMEdge *e, *e_next;
   BMVert *v, *v_next;
 
-  const bool use_verts = BMO_slot_bool_get(op->slots_in, "use_verts");
+  /* Even when geometry has exact angles like 0 or 90 or 180 deg, `angle_on_axis_v3v3v3_v3`
+   * can return slightly incorrect values due to cos/sin functions, floating point error,
+   * etc. This lets the test ignore that tiny bit of math error so users won't notice. */
+  const float FLOATING_POINT_TOLERANCE = 0.00001745329f;  // 0.0001 deg.
+
+  const float angle_threshold = BMO_slot_float_get(op->slots_in, "angle_threshold");
+
+  /* Use verts when told to... except, do *not* use verts when angle_threshold is 0.0. */
+  const bool use_verts = BMO_slot_bool_get(op->slots_in, "use_verts") &&
+                         (angle_threshold > FLOATING_POINT_TOLERANCE);
+
+  /* If angle threshold is 180, don't bother with angle math, just dissolve everything. */
+  const bool dissolve_all = (angle_threshold > M_PI - FLOATING_POINT_TOLERANCE);
+
   const bool use_face_split = BMO_slot_bool_get(op->slots_in, "use_face_split");
 
   if (use_face_split) {
@@ -273,7 +287,6 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
   }
 
   if (use_verts) {
-
     /* Mark all verts that are candidates to be dissolved. */
     BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
       BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
@@ -339,11 +352,68 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 
   /* If dissolving verts, then evaluate each VERT_MARK vert. */
   if (use_verts) {
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      if (BMO_vert_flag_test(bm, v, VERT_MARK)) {
+
+        /* If it is not an edge pair, it cannot be merged */
+        BMEdge *e_pair[2];
+        if (BM_vert_edge_pair(v, &e_pair[0], &e_pair[1]) == false) {
+          BMO_vert_flag_disable(bm, v, VERT_MARK);
+          continue;
+        }
+
+        /* At an angle threshold of 180, dissolve everything, skip the math of the angle test. */
+        if (dissolve_all) {
+          continue;
+        }
+
+        /* There are two ways to measure the angle around a vert with two edges. The first is to
+         * measure the angle relative to the normal, the second is to use raw angle between the
+         * neighboring edges. The normal measurement is better in general. In the specific case of
+         * a vert between two faces, and the faces have a *very* sharp angle between them, the raw
+         * angle is better, because the normal is perpendicular to average of the two faces, and if
+         * the faces are folded almost 180 degrees, the vertex normal becomes more an more edge-on
+         * to the faces, meaning the angle *around the normal* becomes more and more flat, even if
+         * it makes a sharp angle when viewed from the side.
+         *
+         * When the faces become very folded, the raw_factor adds some of the "as seen from the
+         * side" angle back into the computation, making the algorithm behave more intuitively.
+         *
+         * raw_factor is computed as follows:
+         * - When not a face pair, raw_factor is 0.0.
+         * - When a face pair is coplanar, or has an angle up to 90 degrees, raw_factor is 0.0.
+         * - As angle increases from 90 to 180 degrees, raw_factor increases from 0.0 to 1.0.
+         */
+        float raw_factor = 0.0f;
+        BMFace *f_pair[2];
+        if (BM_edge_face_pair(v->e, &f_pair[0], &f_pair[1])) {
+          /* Due to merges, the normals are not currently trustworthy.  Recompute them.*/
+          BM_face_normal_update(f_pair[0]);
+          BM_face_normal_update(f_pair[1]);
+          /* Now determine the raw factor based on how folded the faces are.*/
+          raw_factor = std::max(-dot_v3v3(f_pair[0]->no, f_pair[1]->no), 0.0f);
+        }
+
+        /* Compute the angle between the edges.  Blend the two ways of computing the angle.*/
+        BMVert *u = BM_edge_other_vert(e_pair[0], v);
+        BMVert *w = BM_edge_other_vert(e_pair[1], v);
+        float angle = interpf(M_PI - angle_v3v3v3(u->co, v->co, w->co),
+                              M_PI - angle_on_axis_v3v3v3_v3(u->co, v->co, w->co, v->no),
+                              raw_factor);
+
+        /* If the angle at the vert is larger than the threshold, it cannot be merged. */
+        if (angle > angle_threshold - FLOATING_POINT_TOLERANCE) {
+          BMO_vert_flag_disable(bm, v, VERT_MARK);
+          continue;
+        }
+      }
+    }
+
+    /* Dissolve all verts that remain tagged. This is done in a separate iteration pass. Otherwise
+     * the early dissolves would alter the angles measured at neighboring verts tested later. */
     BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
       if (BMO_vert_flag_test(bm, v, VERT_MARK)) {
-        if (BM_vert_is_edge_pair(v)) {
-          BM_vert_collapse_edge(bm, v->e, v, true, true, true);
-        }
+        BM_vert_collapse_edge(bm, v->e, v, true, true, true);
       }
     }
   }
