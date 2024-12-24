@@ -48,8 +48,8 @@ set(SRC
   intern/channels.cc
   intern/disk_cache.cc
   intern/disk_cache.hh
-  intern/effects.cc
-  intern/effects.hh
+  intern/effects/effects.cc
+  intern/effects/effects.hh
   intern/image_cache.cc
   intern/image_cache.hh
   intern/iterator.cc
