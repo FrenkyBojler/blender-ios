@@ -55,14 +55,11 @@ set(INC
   texture
   ../animrig
   ../editors/include
-  ../blenkernel
   ../blenloader
   ../blentranslation
-  ../bmesh
   ../depsgraph
   ../functions
   ../geometry
-  ../gpu
   ../imbuf
   ../makesrna
   ../modifiers
@@ -141,11 +138,13 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_functions
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   bf_nodes_composite
   bf_nodes_function
