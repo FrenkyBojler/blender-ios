@@ -232,6 +232,8 @@ static IndexRange extend_range(const IndexRange range, const IndexRange universe
                                               math::min(range.one_after_last(), universe.last()));
 }
 
+/* Extends each range by one point at both ends of it. Merges adjacent ranges if intersections
+ * occur. */
 static Vector<IndexRange> extend_and_merge(const Span<IndexRange> ranges,
                                            const IndexRange universe,
                                            const bool cyclic)
@@ -378,6 +380,8 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
 
   IndexMaskMemory memory;
 
+  /* Appends offsets of non selected points, to copy them into sliced existing curves. Their ranges
+   * have to be extended to left and right to include edge points of selection ranges. */
   foreach_mask_content_slice_by_offsets(
       points_to_split.complement(curves.points_range(), memory),
       points_by_curve,
@@ -401,6 +405,7 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
 
   const int non_selected_curve_num = new_offsets.size() - 1;
 
+  /* Appends offsets of selected points, those will be copied into newly appended curves. */
   foreach_mask_content_slice_by_offsets(
       points_to_split,
       points_by_curve,
