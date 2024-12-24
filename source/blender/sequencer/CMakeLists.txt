@@ -67,7 +67,7 @@ set(SRC
   intern/sequence_lookup.cc
   intern/sequencer.cc
   intern/sequencer.hh
-  intern/sequencer_effect_alpha_over.cc
+  intern/sequencer_effect_alpha_over.hh
   intern/sound.cc
   intern/strip_add.cc
   intern/strip_connect.cc
