@@ -160,7 +160,6 @@ static bool asset_write_in_library(Main &bmain,
 
   ID &id = const_cast<ID &>(id_const);
 
-  printf("%s\n", BKE_main_blendfile_path(&bmain));
   PartialWriteContext lib_write_ctx{BKE_main_blendfile_path(&bmain)};
   ID *new_id = lib_write_ctx.id_add(&id,
                                     {PartialWriteContext::IDAddOperations(
@@ -176,7 +175,6 @@ static bool asset_write_in_library(Main &bmain,
 
   const int write_flags = G_FILE_COMPRESS | G_FILE_ASSET_EDIT_FILE;
   const int remap_mode = BLO_WRITE_PATH_REMAP_RELATIVE;
-  printf("%s\n", filepath.c_str());
   const bool success = lib_write_ctx.write(filepath.c_str(), write_flags, remap_mode, reports);
 
   if (success) {
