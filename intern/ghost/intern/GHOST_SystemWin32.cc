@@ -29,6 +29,8 @@
 #include "utf_winfunc.hh"
 #include "utfconv.hh"
 
+#include "BLI_string_utf8.h"
+
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
@@ -1250,6 +1252,187 @@ void GHOST_SystemWin32::processWheelEvent(GHOST_WindowWin32 *window,
   system->m_wheelDeltaAccum = acc * direction;
 }
 
+static char unicode_input[10] = {0};
+static char accent_char = '\0';
+
+struct SpecialCharacter {
+  char accent;
+  GHOST_TKey key;
+  bool shift;
+  char utf8_1;
+  char utf8_2;
+};
+
+static const SpecialCharacter ctrl_chars[] = {
+    {'`', GHOST_kKeyA, false, 0xC3, 0xA0},  /* à */
+    {'`', GHOST_kKeyA, true, 0xC3, 0x80},   /* À */
+    {'`', GHOST_kKeyE, false, 0xC3, 0xA8},  /* è */
+    {'`', GHOST_kKeyE, true, 0xC3, 0x88},   /* È */
+    {'`', GHOST_kKeyI, false, 0xC3, 0xAC},  /* ì */
+    {'`', GHOST_kKeyI, true, 0xC3, 0x8C},   /* Ì */
+    {'`', GHOST_kKeyO, false, 0xC3, 0xB2},  /* ò */
+    {'`', GHOST_kKeyO, true, 0xC3, 0x92},   /* Ò */
+    {'`', GHOST_kKeyU, false, 0xC3, 0xB9},  /* ù */
+    {'`', GHOST_kKeyU, true, 0xC3, 0x99},   /* Ù */
+    {'\'', GHOST_kKeyA, false, 0xC3, 0xA1}, /* á */
+    {'\'', GHOST_kKeyA, true, 0xC3, 0x81},  /* Á */
+    {'\'', GHOST_kKeyE, false, 0xC3, 0xA9}, /* é */
+    {'\'', GHOST_kKeyE, true, 0xC3, 0x89},  /* É */
+    {'\'', GHOST_kKeyI, false, 0xC3, 0xAD}, /* í */
+    {'\'', GHOST_kKeyI, true, 0xC3, 0x8D},  /* Í */
+    {'\'', GHOST_kKeyO, false, 0xC3, 0xB3}, /* ó */
+    {'\'', GHOST_kKeyO, true, 0xC3, 0x93},  /* Ó */
+    {'\'', GHOST_kKeyU, false, 0xC3, 0xBA}, /* ú */
+    {'\'', GHOST_kKeyU, true, 0xC3, 0x9A},  /* Ú */
+    {'\'', GHOST_kKeyY, false, 0xC3, 0xBD}, /* ý */
+    {'\'', GHOST_kKeyY, true, 0xC3, 0x9D},  /* Ý */
+    {'\'', GHOST_kKeyD, false, 0xC3, 0xB0}, /* ð */
+    {'\'', GHOST_kKeyD, true, 0xC3, 0x90},  /* Ð */
+    {'^', GHOST_kKeyA, false, 0xC3, 0xA2},  /* â */
+    {'^', GHOST_kKeyA, true, 0xC3, 0x82},   /* Â */
+    {'^', GHOST_kKeyE, false, 0xC3, 0xAA},  /* ê */
+    {'^', GHOST_kKeyE, true, 0xC3, 0x8A},   /* Ê */
+    {'^', GHOST_kKeyI, false, 0xC3, 0xAE},  /* î */
+    {'^', GHOST_kKeyI, true, 0xC3, 0x8E},   /* Î */
+    {'^', GHOST_kKeyO, false, 0xC3, 0xB4},  /* ô */
+    {'^', GHOST_kKeyO, true, 0xC3, 0x94},   /* Ô */
+    {'^', GHOST_kKeyU, false, 0xC3, 0xBB},  /* û */
+    {'^', GHOST_kKeyU, true, 0xC3, 0x9B},   /* Û */
+    {'~', GHOST_kKeyA, false, 0xC3, 0xA3},  /* ã */
+    {'~', GHOST_kKeyA, true, 0xC3, 0x83},   /* Ã */
+    {'~', GHOST_kKeyN, false, 0xC3, 0xB1},  /* ñ */
+    {'~', GHOST_kKeyN, true, 0xC3, 0x91},   /* Ñ */
+    {'~', GHOST_kKeyO, false, 0xC3, 0xB5},  /* õ */
+    {'~', GHOST_kKeyO, true, 0xC3, 0x95},   /* Õ */
+    {':', GHOST_kKeyA, false, 0xC3, 0xA4},  /* ä */
+    {':', GHOST_kKeyA, true, 0xC3, 0x84},   /* Ä */
+    {':', GHOST_kKeyE, false, 0xC3, 0xAB},  /* ë */
+    {':', GHOST_kKeyE, true, 0xC3, 0x8B},   /* Ë */
+    {':', GHOST_kKeyI, false, 0xC3, 0xAF},  /* ï */
+    {':', GHOST_kKeyI, true, 0xC3, 0x8F},   /* Ï */
+    {':', GHOST_kKeyO, false, 0xC3, 0xB6},  /* ö */
+    {':', GHOST_kKeyO, true, 0xC3, 0x96},   /* Ö */
+    {':', GHOST_kKeyU, false, 0xC3, 0xBC},  /* ü */
+    {':', GHOST_kKeyU, true, 0xC3, 0x9C},   /* Ü */
+    {':', GHOST_kKeyY, false, 0xC3, 0xBF},  /* ÿ */
+    {':', GHOST_kKeyY, true, 0xC5, 0xB8},   /* Ÿ */
+    {'@', GHOST_kKeyA, false, 0xC3, 0xA5},  /* å */
+    {'@', GHOST_kKeyA, true, 0xC3, 0x85},   /* Å */
+    {'&', GHOST_kKeyA, false, 0xC3, 0xA6},  /* æ */
+    {'&', GHOST_kKeyA, true, 0xC3, 0x86},   /* Æ */
+    {'&', GHOST_kKeyO, false, 0xC5, 0x93},  /* œ */
+    {'&', GHOST_kKeyO, true, 0xC5, 0x92},   /* Œ */
+    {'&', GHOST_kKeyS, false, 0xC3, 0x9F},  /* ß */
+    {',', GHOST_kKeyC, false, 0xC3, 0xA7},  /* ç */
+    {',', GHOST_kKeyC, true, 0xC3, 0x87},   /* Ç */
+    {'/', GHOST_kKeyO, false, 0xC3, 0xB8},  /* ø */
+    {'/', GHOST_kKeyO, true, 0xC3, 0x98},   /* Ø */
+};
+
+static bool process_special_key(GHOST_SystemWin32 *system,
+                                GHOST_WindowWin32 *window,
+                                GHOST_TKey key,
+                                char utf8_char[6],
+                                bool key_down,
+                                bool shift_pressed,
+                                bool ctrl_pressed,
+                                bool alt_pressed)
+{
+
+  if (key_down && ctrl_pressed && alt_pressed) {
+    /* Keys pressed while also holding Ctrl & Alt key. */
+    if (!shift_pressed && ((key >= GHOST_kKey0 && key <= GHOST_kKey9) ||
+                           (key >= GHOST_kKeyA && key <= GHOST_kKeyF) ||
+                           (key >= GHOST_kKeyNumpad0 && key <= GHOST_kKeyNumpad9)))
+    {
+      const int unicode_len = strlen(unicode_input);
+      if (unicode_len < ARRAY_SIZE(unicode_input) - 1) {
+        unicode_input[unicode_len] = (key >= GHOST_kKeyNumpad0 && key <= GHOST_kKeyNumpad9) ?
+                                         char(key - 233) :
+                                         char(key);
+        unicode_input[unicode_len + 1] = 0;
+        key = GHOST_kKeyUnknown;
+        return true;
+      }
+    }
+    else if (shift_pressed) {
+      const size_t pos = std::string("`267;").find(char(key));
+      if (pos != std::string::npos) {
+        accent_char = "~@^&:"[pos];
+        key = GHOST_kKeyUnknown;
+        return true;
+      }
+    }
+    else if (!shift_pressed) {
+      const size_t pos = std::string("`\',/").find(char(key));
+      if (pos != std::string::npos) {
+        accent_char = char(key);
+        key = GHOST_kKeyUnknown;
+        return true;
+      }
+    }
+  }
+
+  if (unicode_input[0] && !key_down &&
+      ELEM(key,
+           GHOST_kKeyLeftAlt,
+           GHOST_kKeyRightAlt,
+           GHOST_kKeyLeftControl,
+           GHOST_kKeyRightControl))
+  {
+    uint val = strtoul(unicode_input, NULL, 16);
+    if (val > 31 && val < 0x10FFFF) {
+      char32_t utf32[2] = {val, 0};
+      BLI_str_utf32_as_utf8(utf8_char, utf32, 5);
+    }
+
+    if (utf8_char[0]) {
+      GHOST_EventKey *event = new GHOST_EventKey(getMessageTime(system),
+                                                 GHOST_kEventKeyDown,
+                                                 window,
+                                                 GHOST_kKeyUnknown,
+                                                 false,
+                                                 utf8_char);
+      system->pushEvent(event);
+      utf8_char[0] = 0;
+      unicode_input[0] = 0;
+      return true;
+    }
+  }
+
+  if (accent_char && key_down && (key >= GHOST_kKeyA && key <= GHOST_kKeyZ)) {
+    for (SpecialCharacter ctrl_char : ctrl_chars) {
+      if (ctrl_char.accent == accent_char && ctrl_char.key == key &&
+          ctrl_char.shift == shift_pressed)
+      {
+        utf8_char[0] = ctrl_char.utf8_1;
+        utf8_char[1] = ctrl_char.utf8_2;
+        utf8_char[2] = 0;
+        key = GHOST_kKeyUnknown;
+        unicode_input[0] = 0;
+        accent_char = '\0';
+        return true;
+      }
+    }
+  }
+
+  if (ctrl_pressed && alt_pressed && shift_pressed && key_down && key == GHOST_kKeySlash) {
+    key = GHOST_kKeyUnknown;
+    utf8_char[0] = 0xC2;
+    utf8_char[1] = 0xBF; /* Inverted Question Mark. */
+    return true;
+  }
+
+  if (ctrl_pressed && alt_pressed && shift_pressed && key_down && key == GHOST_kKey1) {
+    key = GHOST_kKeyUnknown;
+    utf8_char[0] = 0xC2;
+    utf8_char[1] = 0xA1; /* Inverted Exclamation Mark. */
+    return true;
+  }
+
+  return false;
+}
+
 GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RAWINPUT const &raw)
 {
   const char vk = raw.data.keyboard.VKey;
@@ -1284,11 +1467,18 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     const bool ctrl_pressed = has_state && state[VK_CONTROL] & 0x80;
     const bool alt_pressed = has_state && state[VK_MENU] & 0x80;
     const bool win_pressed = has_state && (state[VK_LWIN] | state[VK_RWIN]) & 0x80;
+    const bool shift_pressed = has_state && state[VK_SHIFT] & 0x80;
 
     /* We can be here with !key_down if processing dead keys (diacritics). See #103119. */
 
+    if (process_special_key(
+            system, window, key, utf8_char, key_down, shift_pressed, ctrl_pressed, alt_pressed))
+    {
+      /* Pass */
+    }
+
     /* No text with control key pressed (Alt can be used to insert special characters though!). */
-    if (ctrl_pressed && !alt_pressed) {
+    else if (ctrl_pressed && !alt_pressed) {
       /* Pass. */
     }
     else if (win_pressed) {
