@@ -448,10 +448,13 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
     attribute.dst.finish();
   };
 
+  OffsetIndices<int> oi = new_offsets.as_span();
+  remove_selection_attributes(dst_attributes);
   foreach_selection_attribute_writer(
-      new_curves, bke::AttrDomain::Curve, [&](bke::GSpanAttributeWriter &selection) {
-        fill_selection_false(selection.span.take_front(non_selected_curve_num));
-        fill_selection_true(selection.span.drop_front(non_selected_curve_num));
+      new_curves, bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
+        for (const int curve : IndexRange(non_selected_curve_num)) {
+          fill_selection_false(selection.span.slice(oi[curve]));
+        }
       });
 
   new_curves.update_curve_types();
