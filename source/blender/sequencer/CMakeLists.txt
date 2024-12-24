@@ -50,6 +50,7 @@ set(SRC
   intern/disk_cache.hh
   intern/effects/effects.cc
   intern/effects/effects.hh
+  intern/effects/vse_effect_text.cc
   intern/image_cache.cc
   intern/image_cache.hh
   intern/iterator.cc

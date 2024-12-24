@@ -8,8 +8,12 @@
  * \ingroup sequencer
  */
 
+#include "BLI_array.hh"
+#include "BLI_math_color.h"
+#include "BLI_math_vector_types.hh"
 #include "SEQ_effects.hh"
 
+struct ImBuf;
 struct Scene;
 struct Sequence;
 
@@ -26,3 +30,50 @@ float seq_speed_effect_target_frame_get(Scene *scene,
                                         Sequence *seq_speed,
                                         float timeline_frame,
                                         int input);
+
+ImBuf *prepare_effect_imbufs(const SeqRenderData *context,
+                             ImBuf *ibuf1,
+                             ImBuf *ibuf2,
+                             bool uninitialized_pixels = true);
+
+blender::Array<float> make_gaussian_blur_kernel(float rad, int size);
+
+inline blender::float4 load_premul_pixel(const uchar *ptr)
+{
+  blender::float4 res;
+  straight_uchar_to_premul_float(res, ptr);
+  return res;
+}
+
+inline blender::float4 load_premul_pixel(const float *ptr)
+{
+  return blender::float4(ptr);
+}
+
+inline void store_premul_pixel(const blender::float4 &pix, uchar *dst)
+{
+  premul_float_to_straight_uchar(dst, pix);
+}
+
+inline void store_premul_pixel(const blender::float4 &pix, float *dst)
+{
+  *reinterpret_cast<blender::float4 *>(dst) = pix;
+}
+
+inline void store_opaque_black_pixel(uchar *dst)
+{
+  dst[0] = 0;
+  dst[1] = 0;
+  dst[2] = 0;
+  dst[3] = 255;
+}
+
+inline void store_opaque_black_pixel(float *dst)
+{
+  dst[0] = 0.0f;
+  dst[1] = 0.0f;
+  dst[2] = 0.0f;
+  dst[3] = 1.0f;
+}
+
+void text_effect_get_handle(SeqEffectHandle &rval);
