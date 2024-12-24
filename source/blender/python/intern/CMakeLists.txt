@@ -4,11 +4,9 @@
 
 set(INC
   ..
-  ../../blenkernel
   ../../blenloader
   ../../blentranslation
   ../../editors/include
-  ../../gpu
   ../../imbuf
   ../../imbuf/intern/oiio
   ../../makesrna
@@ -120,12 +118,14 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_animation
   bf_editor_interface
   bf_editor_space_api
+  PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig

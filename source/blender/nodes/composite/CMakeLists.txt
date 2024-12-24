@@ -7,10 +7,8 @@ set(INC
   ..
   ../intern
   ../../editors/include
-  ../../blenkernel
   ../../blentranslation
   ../../functions
-  ../../gpu
   ../../imbuf
   ../../makesrna
   ../../render
@@ -127,10 +125,12 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_functions
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   bf_compositor
