@@ -405,7 +405,7 @@ MutableSpan<int8_t> CurvesGeometry::normal_mode_for_write()
 
 VArray<float> CurvesGeometry::radius() const
 {
-  return get_varray_attribute<float>(*this, AttrDomain::Point, ATTR_RADIUS, 1.0f);
+  return get_varray_attribute<float>(*this, AttrDomain::Point, ATTR_RADIUS, 0.01f);
 }
 
 VArray<float> CurvesGeometry::tilt() const
