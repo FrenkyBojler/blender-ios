@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_string_utf8.h"
+
 #include "node_function_util.hh"
-#include <charconv>
-#include <iomanip>
 
 namespace blender::nodes::node_fn_find_in_string_cc {
 
