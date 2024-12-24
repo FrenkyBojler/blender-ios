@@ -54,19 +54,6 @@ class TestBlendFileOpenAllTestFiles(TestHelper):
         # Directories to exclude relative to `./tests/data/`.
         self.excluded_dirs = ()
 
-        if False and platform.system() == "Darwin":
-            # NOTE(@ideasman42):
-            # - `x86_64` fails often.
-            # - `arm64` can succeed but is unreliable enough to keep disabled.
-            # Keep both disabled.
-            self.excluded_dirs = (
-                *self.excluded_dirs,
-                # The assert in `BKE_libblock_alloc_in_lib` often fails:
-                # `BLI_assert(bmain->is_locked_for_linking == false || ELEM(type, ID_WS, ID_GR, ID_NT))`.
-                # This needs to be investigated.
-                "io_tests/blend_big_endian/",
-            )
-
         assert all(p.endswith("/") for p in self.excluded_dirs)
         self.excluded_dirs = tuple(p.replace("/", os.sep) for p in self.excluded_dirs)
 
@@ -103,13 +90,11 @@ class TestBlendFileOpenAllTestFiles(TestHelper):
     def skip_path_check(self, bfp):
         if os.path.basename(bfp) in self.excluded_paths:
             return True
-        assert bfp.startswith(self.args.src_test_dir)
-        bfp_relative = bfp[len(self.args.src_test_dir):].rstrip(os.sep)
         if self.excluded_dirs:
+            assert bfp.startswith(self.args.src_test_dir)
+            bfp_relative = bfp[len(self.args.src_test_dir):].rstrip(os.sep)
             if bfp_relative.startswith(*self.excluded_dirs):
                 return True
-        if not bfp_relative.startswith("io_tests/blend_big_endian/".replace("/", os.sep)):
-            return True
         return False
 
     def test_open(self):
