@@ -9,7 +9,6 @@
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-
 struct VertIn {
   vec3 p[4];
   int first_vertex_id;
@@ -31,22 +30,24 @@ VertIn input_assembly(uint vertex_id)
   vert_in.p[2] = gpu_attr_load_float3(pos, gpu_attr_3, end_index + left_handle_offset);
   vert_in.p[3] = gpu_attr_load_float3(pos, gpu_attr_3, end_index);
   vert_in.first_vertex_id = first_id[gpu_attr_load_index(segment_i, gpu_attr_1)];
-  vert_in.resolution = first_id[gpu_attr_load_index(segment_i + 1, gpu_attr_1)] - vert_in.first_vertex_id;
+  vert_in.resolution = first_id[gpu_attr_load_index(segment_i + 1, gpu_attr_1)] -
+                       vert_in.first_vertex_id;
   vert_in.radius = vec2(radius[gpu_attr_load_index(segment_i, gpu_attr_2)],
                         radius[gpu_attr_load_index(segment_i + 1, gpu_attr_2)]);
   return vert_in;
 }
 
-void calc_bezier_point(float u, in vec3 control_points[4], out vec3 curve_point, out vec3 tangent) {
+void calc_bezier_point(float u, in vec3 control_points[4], out vec3 curve_point, out vec3 tangent)
+{
   control_points[0] += (control_points[1] - control_points[0]) * u;
   control_points[1] += (control_points[2] - control_points[1]) * u;
   control_points[2] += (control_points[3] - control_points[2]) * u;
 
   control_points[0] += (control_points[1] - control_points[0]) * u;
   control_points[1] += (control_points[2] - control_points[1]) * u;
-  
+
   tangent = control_points[1] - control_points[0];
-  
+
   control_points[0] += (control_points[1] - control_points[0]) * u;
   curve_point = control_points[0];
 }
@@ -65,7 +66,7 @@ void main()
   vec3 curve_point;
   vec3 tangent;
   calc_bezier_point(u, vert_in.p, curve_point, tangent);
-  
+
   vec3 world_pos = point_object_to_world(curve_point);
   vec4 ndc_pos = point_world_to_ndc(world_pos);
   vec3 view_tan = normalize(normal_object_to_view(tangent));
@@ -75,7 +76,7 @@ void main()
   vec4 ndc_radius = point_view_to_ndc(view_radius);
   float normal_size = ndc_radius.x / ndc_radius.w;
 
-    vec2 normal = normalize(vec2(-view_tan.y, view_tan.x)) * normal_size * 2 * sizeViewportInv;
+  vec2 normal = normalize(vec2(-view_tan.y, view_tan.x)) * normal_size * 2 * sizeViewportInv;
   normal *= gl_VertexID % 2 ? -1.0 : 1.0;
   ndc_pos.xy += normal * ndc_pos.w;
   gl_Position = ndc_pos;
