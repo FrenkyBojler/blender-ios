@@ -55,6 +55,7 @@ set(SRC
   intern/effects/vse_effect_cross.cc
   intern/effects/vse_effect_gaussian_blur.cc
   intern/effects/vse_effect_glow.cc
+  intern/effects/vse_effect_multi_camera.cc
   intern/effects/vse_effect_solid_color.cc
   intern/effects/vse_effect_speed.cc
   intern/effects/vse_effect_text.cc

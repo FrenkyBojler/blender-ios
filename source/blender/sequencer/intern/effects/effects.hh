@@ -113,6 +113,7 @@ void gamma_cross_effect_get_handle(SeqEffectHandle &rval);
 void gaussian_blur_effect_get_handle(SeqEffectHandle &rval);
 void glow_effect_get_handle(SeqEffectHandle &rval);
 void mul_effect_get_handle(SeqEffectHandle &rval);
+void multi_camera_effect_get_handle(SeqEffectHandle &rval);
 void over_drop_effect_get_handle(SeqEffectHandle &rval);
 void solid_color_effect_get_handle(SeqEffectHandle &rval);
 void speed_effect_get_handle(SeqEffectHandle &rval);
