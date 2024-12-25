@@ -37,7 +37,7 @@ VertIn input_assembly(uint vertex_id)
   return vert_in;
 }
 
-void calc_bezier_point(float u, in vec3 control_points[4], out vec3 curve_point, out vec3 tangent)
+void calc_bezier_point(float u, in vec3 control_points[4], out vec3 curve_point)
 {
   control_points[0] += (control_points[1] - control_points[0]) * u;
   control_points[1] += (control_points[2] - control_points[1]) * u;
@@ -46,9 +46,8 @@ void calc_bezier_point(float u, in vec3 control_points[4], out vec3 curve_point,
   control_points[0] += (control_points[1] - control_points[0]) * u;
   control_points[1] += (control_points[2] - control_points[1]) * u;
 
-  tangent = control_points[1] - control_points[0];
-
   control_points[0] += (control_points[1] - control_points[0]) * u;
+
   curve_point = control_points[0];
 }
 
@@ -59,27 +58,38 @@ void main()
   int segment_vertex_i = gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
   int quad_i = segment_vertex_i / vertex_per_quad;
   int in_quad_i = segment_vertex_i % vertex_per_quad;
-
-  int step = quad_i + ((in_quad_i < 2 || in_quad_i == 3) ? 0 : 1);
+  bool quad_right = in_quad_i >= 2 && in_quad_i != 5; 
+  int step = quad_i + quad_right;
   float u = float(step) / vert_in.resolution;
 
+  int step2 = quad_right ? step - 1 : step + 1;
+  float u2 = float(step2) / vert_in.resolution;
+
+  vec3 points[4] = {vert_in.p[0], vert_in.p[1], vert_in.p[2], vert_in.p[3]};
+
   vec3 curve_point;
-  vec3 tangent;
-  calc_bezier_point(u, vert_in.p, curve_point, tangent);
+  calc_bezier_point(u, vert_in.p, curve_point);
+
+  vec3 curve_point2;
+  calc_bezier_point(u2, points, curve_point2);
 
   vec3 world_pos = point_object_to_world(curve_point);
   vec4 ndc_pos = point_world_to_ndc(world_pos);
-  vec3 view_tan = normalize(normal_object_to_view(tangent));
+  vec4 ndc_pos2 = point_object_to_ndc(curve_point2);
 
   float radius = mix(vert_in.radius.x, vert_in.radius.y, u) * 1000;
   vec3 view_radius = vec3(radius, 0.0, point_world_to_view(world_pos).z);
   vec4 ndc_radius = point_view_to_ndc(view_radius);
   float normal_size = ndc_radius.x / ndc_radius.w;
 
-  vec2 normal = normalize(vec2(-view_tan.y, view_tan.x)) * normal_size * 2 * sizeViewportInv;
-  normal *= gl_VertexID % 2 ? -1.0 : 1.0;
+  float c = quad_right ? 1.0 : -1.0;
+  vec2 tan = c * (ndc_pos2.xy / ndc_pos2.w - ndc_pos.xy / ndc_pos.w);
+
+  vec2 normal = normalize(vec2(-tan.y, tan.x)) * normal_size * 2 * sizeViewportInv;
+  normal *= in_quad_i % 2 ? -1.0 : 1.0;
+
   ndc_pos.xy += normal * ndc_pos.w;
   gl_Position = ndc_pos;
   view_clipping_distances(world_pos);
-  finalColor = vec4(0.0, 0.0, 0.0, 1.0);
+  finalColor = vec4(0.0, 0.0, 1.0, 1.0);
 }
