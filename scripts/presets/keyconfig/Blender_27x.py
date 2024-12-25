@@ -92,7 +92,7 @@ def load():
             use_select_all_toggle=True,
             use_gizmo_drag=False,
             legacy=True,
-            use_ime_input_win32 = (platform == 'win32' and bpy.app.build_options.input_ime),
+            use_ime_input_win32=(platform == 'win32' and bpy.app.build_options.input_ime),
         ),
     )
 

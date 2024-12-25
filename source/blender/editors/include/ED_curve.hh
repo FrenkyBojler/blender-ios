@@ -92,7 +92,9 @@ void ED_curve_editfont_make(Object *obedit);
 void ED_curve_editfont_free(Object *obedit);
 
 #if defined(WITH_INPUT_IME) && defined(WIN32)
-void ED_curve_editfont_reposition_ime_window(struct wmWindow *win, struct ScrArea *area, struct ARegion *region);
+void ED_curve_editfont_reposition_ime_window(struct wmWindow *win,
+                                             struct ScrArea *area,
+                                             struct ARegion *region);
 #endif
 
 void ED_text_to_object(bContext *C, const Text *text, bool split_lines);

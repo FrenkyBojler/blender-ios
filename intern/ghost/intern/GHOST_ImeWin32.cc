@@ -387,8 +387,8 @@ void GHOST_ImeWin32::GetCaret(HIMC himc, LPARAM lparam, ImeComposition *composit
    *
    * To achieve the same effect, some rules have been added here to calculate
    * the "Target" of other IMEs:
-   * 1. If IME generate `GCS_COMPCLAUSE`, use the clause that includes `GCS_CURSORPOS` as the target.
-   *    This mainly applies to some Chinese IMEs.
+   * 1. If IME generate `GCS_COMPCLAUSE`, use the clause that includes `GCS_CURSORPOS` as the
+   * target. This mainly applies to some Chinese IMEs.
    * 2. Otherwire, we treat whole composition string as a target.
    */
 

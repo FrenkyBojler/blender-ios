@@ -1114,7 +1114,8 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
     }
     if (screen->active_region != nullptr) {
       if (screen->active_region->type->on_activation_changed != nullptr) {
-        screen->active_region->type->on_activation_changed(C, win, area, screen->active_region, true);
+        screen->active_region->type->on_activation_changed(
+            C, win, area, screen->active_region, true);
       }
     }
   }

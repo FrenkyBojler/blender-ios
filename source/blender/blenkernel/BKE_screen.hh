@@ -262,7 +262,8 @@ struct ARegionType {
    * Params `C` may be nullptr.
    * Params `win` and `area` always relate to the active region, not the deactive region.
    */
-  void (*on_activation_changed)(const bContext *C, wmWindow *win, ScrArea *area, ARegion *region, bool active);
+  void (*on_activation_changed)(
+      const bContext *C, wmWindow *win, ScrArea *area, ARegion *region, bool active);
 
   /* custom drawing callbacks */
   ListBase drawcalls;

@@ -1047,7 +1047,8 @@ extern void GHOST_MoveIMEWithExclude(GHOST_WindowHandle windowhandle,
   window->moveIMEWithExclude(c_l, c_t, c_w, c_h, e_l, e_t, e_w, e_h);
 }
 
-extern void GHOST_StartIMECompositionByChar(GHOST_WindowHandle windowhandle, char c) {
+extern void GHOST_StartIMECompositionByChar(GHOST_WindowHandle windowhandle, char c)
+{
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
   window->startIMEComplsitionByChar(c);
 }

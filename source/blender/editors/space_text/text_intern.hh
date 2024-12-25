@@ -175,7 +175,10 @@ bool text_space_edit_poll(bContext *C);
 void TEXT_OT_ime_input(wmOperatorType *ot);
 void TEXT_OT_ime_insert(wmOperatorType *ot);
 
-void text_reposition_ime_window(wmWindow *win, ScrArea *area, ARegion *region, void* ime_input_data);
+void text_reposition_ime_window(wmWindow *win,
+                                ScrArea *area,
+                                ARegion *region,
+                                void *ime_input_data);
 #endif
 
 /* `text_autocomplete.cc` */

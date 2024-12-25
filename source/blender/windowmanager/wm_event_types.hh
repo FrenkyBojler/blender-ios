@@ -431,7 +431,7 @@ enum {
 /** Test whether the event is a text input event. */
 #define ISTEXTINPUT(event_type) \
   (event_type) == KM_TEXTINPUT || \
-  ((event_type) >= WM_IME_COMPOSITE_START && (event_type) <= WM_IME_COMPOSITE_END)
+      ((event_type) >= WM_IME_COMPOSITE_START && (event_type) <= WM_IME_COMPOSITE_END)
 
 #define IS_EVENT_ACTIONZONE(event_type) \
   ELEM(event_type, EVT_ACTIONZONE_AREA, EVT_ACTIONZONE_REGION, EVT_ACTIONZONE_FULLSCREEN)

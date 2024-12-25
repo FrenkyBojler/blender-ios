@@ -370,7 +370,7 @@ def load():
             use_pie_click_drag=kc_prefs.use_pie_click_drag,
             use_file_single_click=kc_prefs.use_file_single_click,
             use_alt_navigation=kc_prefs.use_alt_navigation,
-            use_ime_input_win32 = (platform == 'win32' and bpy.app.build_options.input_ime),
+            use_ime_input_win32=(platform == 'win32' and bpy.app.build_options.input_ime),
         ),
     )
 

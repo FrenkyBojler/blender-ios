@@ -2796,13 +2796,13 @@ static int ime_input_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
       if (ime_data->sel_start != -1 && ime_data->sel_end != -1) {
         data->target_start_idx = data->start_idx + 1 +
-                                BLI_str_utf8_offset_to_index(ime_data->str_composite,
-                                                             ime_data->composite_len,
-                                                             ime_data->sel_start);
+                                 BLI_str_utf8_offset_to_index(ime_data->str_composite,
+                                                              ime_data->composite_len,
+                                                              ime_data->sel_start);
         data->target_end_idx = data->start_idx + 1 +
-                              BLI_str_utf8_offset_to_index(ime_data->str_composite,
-                                                           ime_data->composite_len,
-                                                           ime_data->sel_end);
+                               BLI_str_utf8_offset_to_index(ime_data->str_composite,
+                                                            ime_data->composite_len,
+                                                            ime_data->sel_end);
       }
       else {
         data->target_start_idx = -1;
