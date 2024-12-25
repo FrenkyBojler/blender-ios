@@ -1692,7 +1692,7 @@ static void ime_input_clean(bContext * /*C*/, wmOperator *op)
 {
   ImeInputData *data = static_cast<ImeInputData *>(op->customdata);
   if (data->draw_handle) {
-    ED_region_draw_cb_exit(data->region->type, data->draw_handle);
+    ED_region_draw_cb_exit(data->region->runtime->type, data->draw_handle);
   }
 
   MEM_freeN(data);
@@ -1724,7 +1724,7 @@ static int ime_input_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
     data->region = region;
     data->draw_handle = ED_region_draw_cb_activate(
-        data->region->type, ime_input_draw, data, REGION_DRAW_POST_PIXEL);
+        data->region->runtime->type, ime_input_draw, data, REGION_DRAW_POST_PIXEL);
 
     console_textview_update_rect(sc, region);
     ED_area_tag_redraw(CTX_wm_area(C));

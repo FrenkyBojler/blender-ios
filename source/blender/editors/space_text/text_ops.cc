@@ -4619,7 +4619,7 @@ static void ime_input_clean(bContext * /*C*/, wmOperator *op)
 {
   ImeInputData *data = static_cast<ImeInputData *>(op->customdata);
   if (data->draw_handle) {
-    ED_region_draw_cb_exit(data->region->type, data->draw_handle);
+    ED_region_draw_cb_exit(data->region->runtime->type, data->draw_handle);
   }
 
   MEM_freeN(data);
@@ -4659,7 +4659,7 @@ static int ime_input_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     data->text = text;
     data->region = region;
     data->draw_handle = ED_region_draw_cb_activate(
-        region->type, ime_input_draw, data, REGION_DRAW_POST_PIXEL);
+        region->runtime->type, ime_input_draw, data, REGION_DRAW_POST_PIXEL);
 
     space_text_update_cursor_moved(C);
     WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
