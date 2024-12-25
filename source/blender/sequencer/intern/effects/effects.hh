@@ -107,4 +107,5 @@ void gaussian_blur_effect_get_handle(SeqEffectHandle &rval);
 void glow_effect_get_handle(SeqEffectHandle &rval);
 void speed_effect_get_handle(SeqEffectHandle &rval);
 void text_effect_get_handle(SeqEffectHandle &rval);
+void transform_effect_get_handle(SeqEffectHandle &rval);
 void wipe_effect_get_handle(SeqEffectHandle &rval);

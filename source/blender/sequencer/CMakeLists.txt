@@ -55,6 +55,7 @@ set(SRC
   intern/effects/vse_effect_glow.cc
   intern/effects/vse_effect_speed.cc
   intern/effects/vse_effect_text.cc
+  intern/effects/vse_effect_transform.cc
   intern/effects/vse_effect_wipe.cc
   intern/image_cache.cc
   intern/image_cache.hh
