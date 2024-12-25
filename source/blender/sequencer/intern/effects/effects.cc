@@ -138,10 +138,6 @@ Array<float> make_gaussian_blur_kernel(float rad, int size)
   return gaussian;
 }
 
-/* -------------------------------------------------------------------- */
-/** \name Sequence Effect Factory
- * \{ */
-
 static void init_noop(Sequence * /*seq*/) {}
 
 static void load_noop(Sequence * /*seq*/) {}
@@ -307,12 +303,6 @@ SeqEffectHandle get_sequence_effect_impl(int seq_type)
   return rval;
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Public Sequencer Effect API
- * \{ */
-
 SeqEffectHandle SEQ_effect_handle_get(Sequence *seq)
 {
   SeqEffectHandle rval = {false, false, nullptr};
@@ -360,5 +350,3 @@ int SEQ_effect_get_num_inputs(int seq_type)
   }
   return 0;
 }
-
-/** \} */
