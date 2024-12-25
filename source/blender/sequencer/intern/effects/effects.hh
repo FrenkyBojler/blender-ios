@@ -93,6 +93,8 @@ inline void store_opaque_black_pixel(float *dst)
   dst[3] = 1.0f;
 }
 
+StripEarlyOut early_out_mul_input1(const Sequence * /*seq*/, float fac);
+StripEarlyOut early_out_mul_input2(const Sequence * /*seq*/, float fac);
 StripEarlyOut early_out_fade(const Sequence * /*seq*/, float fac);
 void get_default_fac_fade(const Scene *scene,
                           const Sequence *seq,
@@ -101,10 +103,15 @@ void get_default_fac_fade(const Scene *scene,
 
 SeqEffectHandle get_sequence_effect_impl(int seq_type);
 
+void alpha_over_effect_get_handle(SeqEffectHandle &rval);
+void alpha_under_effect_get_handle(SeqEffectHandle &rval);
+void blend_mode_effect_get_handle(SeqEffectHandle &rval);
+void color_mix_effect_get_handle(SeqEffectHandle &rval);
 void cross_effect_get_handle(SeqEffectHandle &rval);
 void gamma_cross_effect_get_handle(SeqEffectHandle &rval);
 void gaussian_blur_effect_get_handle(SeqEffectHandle &rval);
 void glow_effect_get_handle(SeqEffectHandle &rval);
+void over_drop_effect_get_handle(SeqEffectHandle &rval);
 void solid_color_effect_get_handle(SeqEffectHandle &rval);
 void speed_effect_get_handle(SeqEffectHandle &rval);
 void text_effect_get_handle(SeqEffectHandle &rval);
