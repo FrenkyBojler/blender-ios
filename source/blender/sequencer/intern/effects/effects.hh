@@ -31,6 +31,23 @@ float seq_speed_effect_target_frame_get(Scene *scene,
                                         float timeline_frame,
                                         int input);
 
+void slice_get_byte_buffers(const SeqRenderData *context,
+                            const ImBuf *ibuf1,
+                            const ImBuf *ibuf2,
+                            const ImBuf *out,
+                            int start_line,
+                            uchar **rect1,
+                            uchar **rect2,
+                            uchar **rect_out);
+void slice_get_float_buffers(const SeqRenderData *context,
+                             const ImBuf *ibuf1,
+                             const ImBuf *ibuf2,
+                             const ImBuf *out,
+                             int start_line,
+                             float **rect1,
+                             float **rect2,
+                             float **rect_out);
+
 ImBuf *prepare_effect_imbufs(const SeqRenderData *context,
                              ImBuf *ibuf1,
                              ImBuf *ibuf2,
@@ -84,6 +101,8 @@ void get_default_fac_fade(const Scene *scene,
 
 SeqEffectHandle get_sequence_effect_impl(int seq_type);
 
+void cross_effect_get_handle(SeqEffectHandle &rval);
+void gamma_cross_effect_get_handle(SeqEffectHandle &rval);
 void gaussian_blur_effect_get_handle(SeqEffectHandle &rval);
 void glow_effect_get_handle(SeqEffectHandle &rval);
 void speed_effect_get_handle(SeqEffectHandle &rval);
