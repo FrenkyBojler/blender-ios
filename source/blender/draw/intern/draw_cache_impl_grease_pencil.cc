@@ -14,6 +14,7 @@
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
@@ -1198,7 +1199,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
 
-    const Span<uint3> triangles = info.drawing.triangles();
+    const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
     const Span<int> verts_start_offsets = verts_start_offsets_per_visible_drawing[drawing_i];
     const Span<int> tris_start_offsets = tris_start_offsets_per_visible_drawing[drawing_i];
@@ -1265,8 +1266,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
       /* If the stroke has more than 2 points, add the triangle indices to the index buffer. */
       if (points.size() >= 3) {
-        const Span<uint3> tris_slice = triangles.slice(tris_start_offset, points.size() - 2);
-        for (const uint3 tri : tris_slice) {
+        const Span<int3> tris_slice = triangles.slice(tris_start_offset, points.size() - 2);
+        for (const int3 tri : tris_slice) {
           GPU_indexbuf_add_tri_verts(&ibo,
                                      (verts_range[1] + tri.x) << GP_VERTEX_ID_SHIFT,
                                      (verts_range[1] + tri.y) << GP_VERTEX_ID_SHIFT,
@@ -1471,6 +1472,7 @@ gpu::Batch *DRW_cache_grease_pencil_edit_points_get(const Scene *scene, Object *
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
   grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene);
 
+  /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_points;
 }
 
@@ -1480,6 +1482,7 @@ gpu::Batch *DRW_cache_grease_pencil_edit_lines_get(const Scene *scene, Object *o
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
   grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene);
 
+  /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_lines;
 }
 
@@ -1507,6 +1510,7 @@ gpu::Batch *DRW_cache_grease_pencil_weight_points_get(const Scene *scene, Object
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
   grease_pencil_weight_batch_ensure(*ob, grease_pencil, *scene);
 
+  /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_points;
 }
 
@@ -1516,6 +1520,7 @@ gpu::Batch *DRW_cache_grease_pencil_weight_lines_get(const Scene *scene, Object 
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
   grease_pencil_weight_batch_ensure(*ob, grease_pencil, *scene);
 
+  /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_lines;
 }
 

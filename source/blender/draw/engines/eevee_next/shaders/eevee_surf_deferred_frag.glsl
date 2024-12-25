@@ -9,13 +9,21 @@
  * Some render-pass are written during this pass.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(common_hair_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_ambient_occlusion_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
+#include "infos/eevee_material_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_node_tree)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_deferred)
+FRAGMENT_SHADER_CREATE_INFO(eevee_render_pass_out)
+FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
+
+#include "common_hair_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "eevee_ambient_occlusion_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_nodetree_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_surf_lib.glsl"
 
 vec4 closure_to_rgba(Closure cl)
 {

@@ -11,7 +11,7 @@
 
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
@@ -23,6 +23,8 @@
 #include "editors/sculpt_paint/sculpt_intern.hh"
 #include "editors/sculpt_paint/sculpt_smooth.hh"
 
+#include "bmesh.hh"
+
 namespace blender::ed::sculpt_paint {
 
 inline namespace enhance_details_cc {
@@ -32,7 +34,8 @@ struct LocalData {
   Vector<float3> new_positions;
   Vector<float> factors;
   Vector<float> distances;
-  Vector<Vector<int>> vert_neighbors;
+  Vector<int> neighbor_offsets;
+  Vector<int> neighbor_data;
   Vector<float3> translations;
 };
 
@@ -136,9 +139,13 @@ static void calc_translations_faces(const Span<float3> vert_positions,
 {
   const Span<int> verts = node.verts();
 
-  tls.vert_neighbors.resize(verts.size());
-  const MutableSpan<Vector<int>> neighbors = tls.vert_neighbors;
-  calc_vert_neighbors(faces, corner_verts, vert_to_face_map, hide_poly, verts, neighbors);
+  const GroupedSpan<int> neighbors = calc_vert_neighbors(faces,
+                                                         corner_verts,
+                                                         vert_to_face_map,
+                                                         hide_poly,
+                                                         verts,
+                                                         tls.neighbor_offsets,
+                                                         tls.neighbor_data);
 
   tls.new_positions.resize(verts.size());
   const MutableSpan<float3> new_positions = tls.new_positions;

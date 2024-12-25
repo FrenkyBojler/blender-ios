@@ -5,14 +5,10 @@
 set(INC
   PUBLIC .
   ../animrig
-  ../blenkernel
-  ../bmesh
   ../draw
-  ../functions
   ../makesrna
   ../modifiers
   ../sequencer
-  ../windowmanager
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -152,11 +148,14 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::functions
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_PYTHON)
@@ -164,10 +163,6 @@ if(WITH_PYTHON)
   list(APPEND INC
     ../python
   )
-endif()
-
-if(WITH_EXPERIMENTAL_FEATURES)
-  add_definitions(-DWITH_ANIM_BAKLAVA)
 endif()
 
 blender_add_lib(bf_depsgraph "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -179,9 +179,11 @@ static int ensure_background_material(Main *bmain, Object *ob, const StringRefNu
 
 static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const ImBuf &ibuf)
 {
-  /* Trace the image. */
+  /* Trace the image.
+   * Note: Colors above threshold are interpreted as "background". This works well for images with
+   * black-on-white drawings, but is quite arbitrary. */
   potrace_bitmap_t *bm = image_trace::image_to_bitmap(ibuf, [&](const ColorGeometry4f &color) {
-    return math::average(float3(color.r, color.g, color.b)) * color.a > trace_job.threshold;
+    return math::average(float3(color.r, color.g, color.b)) * color.a <= trace_job.threshold;
   });
 
   image_trace::TraceParams params;
@@ -291,16 +293,20 @@ static void trace_end_job(void *customdata)
   TraceJob &trace_job = *static_cast<TraceJob *>(customdata);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(trace_job.ob_grease_pencil->data);
 
+  auto ensure_drawing_at_frame = [&](const int frame_number) {
+    const std::optional<int> start_frame = trace_job.layer->start_frame_at(frame_number);
+    if (start_frame && *start_frame == frame_number) {
+      return grease_pencil.get_editable_drawing_at(*trace_job.layer, frame_number);
+    }
+    return grease_pencil.insert_frame(*trace_job.layer, frame_number);
+  };
+
   /* Update all the drawings once the job is done and we're executing in the main thread again.
    * Changing drawing array or updating the drawing geometry is not thread-safe. */
   switch (trace_job.mode) {
     case TraceMode::Single: {
       BLI_assert(trace_job.traced_curves.size() == 1);
-      bke::greasepencil::Drawing *drawing = grease_pencil.get_drawing_at(*trace_job.layer,
-                                                                         trace_job.frame_target);
-      if (drawing == nullptr) {
-        drawing = grease_pencil.insert_frame(*trace_job.layer, trace_job.frame_target);
-      }
+      bke::greasepencil::Drawing *drawing = ensure_drawing_at_frame(trace_job.frame_target);
       BLI_assert(drawing != nullptr);
       drawing->strokes_for_write() = trace_job.traced_curves.first();
       drawing->tag_topology_changed();
@@ -314,11 +320,7 @@ static void trace_end_job(void *customdata)
       BLI_assert(trace_job.traced_curves.size() == num_frames);
       for (const int i : IndexRange(num_frames)) {
         const int frame_number = init_frame + i;
-        bke::greasepencil::Drawing *drawing = grease_pencil.get_drawing_at(*trace_job.layer,
-                                                                           frame_number);
-        if (drawing == nullptr) {
-          drawing = grease_pencil.insert_frame(*trace_job.layer, frame_number);
-        }
+        bke::greasepencil::Drawing *drawing = ensure_drawing_at_frame(frame_number);
         BLI_assert(drawing != nullptr);
         drawing->strokes_for_write() = trace_job.traced_curves[i];
         drawing->tag_topology_changed();
@@ -393,7 +395,7 @@ static int grease_pencil_trace_image_exec(bContext *C, wmOperator *op)
 
   if (job->ob_grease_pencil != nullptr) {
     if (job->ob_grease_pencil->type != OB_GREASE_PENCIL) {
-      BKE_report(op->reports, RPT_WARNING, "Target object not a grease pencil, ignoring!");
+      BKE_report(op->reports, RPT_WARNING, "Target object not a Grease Pencil, ignoring!");
       job->ob_grease_pencil = nullptr;
     }
     else if (BKE_object_obdata_is_libdata(job->ob_grease_pencil)) {
@@ -510,7 +512,7 @@ static void GREASE_PENCIL_OT_trace_image(wmOperatorType *ot)
                           target_object_modes,
                           int(TargetObjectMode::New),
                           "Target Object",
-                          "Target grease pencil");
+                          "Target Grease Pencil");
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 
   RNA_def_float(ot->srna, "radius", 0.01f, 0.001f, 1.0f, "Radius", "", 0.001, 1.0f);

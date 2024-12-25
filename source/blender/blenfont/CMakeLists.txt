@@ -4,9 +4,6 @@
 
 set(INC
   PUBLIC .
-  ../blenkernel
-  ../blentranslation
-  ../gpu
   ../imbuf
   ../makesrna
 )
@@ -29,9 +26,11 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
-  bf_gpu
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   ${FREETYPE_LIBRARIES} ${BROTLI_LIBRARIES}
 )

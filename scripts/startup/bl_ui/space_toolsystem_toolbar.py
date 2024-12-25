@@ -2378,6 +2378,19 @@ class _defs_grease_pencil_paint:
 
 class _defs_grease_pencil_edit:
     @ToolDef.from_fn
+    def shear():
+        def draw_settings(context, layout, _tool):
+            _template_widget.VIEW3D_GGT_xform_gizmo.draw_settings_with_index(context, layout, 2)
+        return dict(
+            idname="builtin.shear",
+            label="Shear",
+            icon="ops.gpencil.edit_shear",
+            widget="VIEW3D_GGT_xform_shear",
+            keymap="3D View Tool: Shear",
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
     def interpolate():
         def draw_settings(_context, layout, tool):
             props = tool.operator_properties("grease_pencil.interpolate")
@@ -3147,6 +3160,7 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             _brush_tool,
             _defs_texture_paint.blur,
             _defs_texture_paint.smear,
+            _defs_texture_paint.clone,
             _defs_texture_paint.fill,
             _defs_texture_paint.mask,
             None,
@@ -3453,7 +3467,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_edit_curve.curve_radius,
             _defs_transform.bend,
             (
-                _defs_transform.shear,
+                _defs_grease_pencil_edit.shear,
                 _defs_edit_mesh.tosphere,
             ),
             None,

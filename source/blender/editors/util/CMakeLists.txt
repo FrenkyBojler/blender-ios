@@ -6,14 +6,9 @@ set(INC
   ../include
   ../space_sequencer
   ../../asset_system
-  ../../blenkernel
-  ../../blentranslation
-  ../../bmesh
-  ../../gpu
   ../../imbuf
   ../../makesrna
   ../../sequencer
-  ../../windowmanager
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -111,11 +106,16 @@ set(SRC
 set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 

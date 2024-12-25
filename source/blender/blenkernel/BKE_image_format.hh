@@ -10,6 +10,7 @@
 
 struct BlendDataReader;
 struct BlendWriter;
+struct ID;
 struct ImbFormatOptions;
 struct ImageFormatData;
 struct ImBuf;
@@ -84,6 +85,7 @@ bool BKE_imtype_supports_quality(char imtype);
 bool BKE_imtype_requires_linear_float(char imtype);
 char BKE_imtype_valid_channels(char imtype, bool write_file);
 char BKE_imtype_valid_depths(char imtype);
+char BKE_imtype_valid_depths_with_video(char imtype, const ID *owner_id);
 
 /**
  * String is from command line `--render-format` argument,

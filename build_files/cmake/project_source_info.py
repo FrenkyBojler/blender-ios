@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+
 __all__ = (
     "build_info",
     "SOURCE_DIR",
@@ -22,14 +23,14 @@ import subprocess
 
 from typing import (
     Any,
-    Callable,
-    Generator,
     IO,
     List,
-    Optional,
-    Sequence,
     Tuple,
     Union,
+    # Proxies for `collections.abc`
+    Callable,
+    Iterator,
+    Sequence,
 )
 
 import shlex
@@ -58,7 +59,7 @@ def is_c_any(filename: str) -> bool:
 CMAKE_DIR = "."
 
 
-def cmake_cache_var_iter() -> Generator[Tuple[str, str, str], None, None]:
+def cmake_cache_var_iter() -> Iterator[Tuple[str, str, str]]:
     import re
     re_cache = re.compile(r'([A-Za-z0-9_\-]+)?:?([A-Za-z0-9_\-]+)?=(.*)$')
     with open(join(CMAKE_DIR, "CMakeCache.txt"), 'r', encoding='utf-8') as cache_file:
@@ -69,8 +70,8 @@ def cmake_cache_var_iter() -> Generator[Tuple[str, str, str], None, None]:
                 yield (var, type_ or "", val)
 
 
-def cmake_cache_var(var: str) -> Optional[str]:
-    for var_iter, type_iter, value_iter in cmake_cache_var_iter():
+def cmake_cache_var(var: str) -> Union[str, None]:
+    for var_iter, _type_iter, value_iter in cmake_cache_var_iter():
         if var == var_iter:
             return value_iter
     return None
@@ -84,7 +85,7 @@ def cmake_cache_var_or_exit(var: str) -> str:
     return value
 
 
-def do_ignore(filepath: str, ignore_prefix_list: Optional[Sequence[str]]) -> bool:
+def do_ignore(filepath: str, ignore_prefix_list: Union[Sequence[str], None]) -> bool:
     if ignore_prefix_list is None:
         return False
 
@@ -132,7 +133,7 @@ def makefile_log() -> List[str]:
 def build_info(
         use_c: bool = True,
         use_cxx: bool = True,
-        ignore_prefix_list: Optional[List[str]] = None,
+        ignore_prefix_list: Union[List[str], None] = None,
 ) -> List[Tuple[str, List[str], List[str]]]:
     makelog = makefile_log()
 
@@ -226,7 +227,7 @@ def build_defines_as_args() -> List[str]:
     ]
 
 
-def process_make_non_blocking(proc: subprocess.Popen[Any]) -> subprocess.Popen[Any]:
+def process_make_non_blocking(proc: subprocess.Popen) -> subprocess.Popen:
     import fcntl
     for fh in (proc.stderr, proc.stdout):
         if fh is None:
@@ -240,11 +241,11 @@ def process_make_non_blocking(proc: subprocess.Popen[Any]) -> subprocess.Popen[A
 # could be moved elsewhere!, this just happens to be used by scripts that also
 # use this module.
 def queue_processes(
-        process_funcs: Sequence[Tuple[Callable[..., subprocess.Popen[Any]], Tuple[Any, ...]]],
+        process_funcs: Sequence[Tuple[Callable[..., subprocess.Popen], Tuple[Any, ...]]],
         *,
         job_total: int = -1,
         sleep: float = 0.1,
-        process_finalize: Optional[Callable[[subprocess.Popen[Any], bytes, bytes], Optional[int]]] = None,
+        process_finalize: Union[Callable[[subprocess.Popen, bytes, bytes], Union[int, None]], None] = None,
 ) -> None:
     """ Takes a list of function arg pairs, each function must return a process
     """
@@ -268,18 +269,21 @@ def queue_processes(
 
         if process_finalize is not None:
             def poll_and_finalize(
-                    p: subprocess.Popen[Any],
+                    p: subprocess.Popen,
                     stdout: List[bytes],
                     stderr: List[bytes],
-            ) -> Optional[int]:
+            ) -> Union[int, None]:
                 assert p.stdout is not None
-                if data := p.stdout.read():
+                data = p.stdout.read()
+                if data:
                     stdout.append(data)
                 assert p.stderr is not None
-                if data := p.stderr.read():
+                data = p.stderr.read()
+                if data:
                     stderr.append(data)
 
-                if (returncode := p.poll()) is not None:
+                returncode = p.poll()
+                if returncode is not None:
                     data_stdout, data_stderr = p.communicate()
                     if data_stdout:
                         stdout.append(data_stdout)
@@ -289,13 +293,13 @@ def queue_processes(
                 return returncode
         else:
             def poll_and_finalize(
-                    p: subprocess.Popen[Any],
+                    p: subprocess.Popen,
                     stdout: List[bytes],
                     stderr: List[bytes],
-            ) -> Optional[int]:
+            ) -> Union[int, None]:
                 return p.poll()
 
-        processes: List[Tuple[subprocess.Popen[Any], List[bytes], List[bytes]]] = []
+        processes: List[Tuple[subprocess.Popen, List[bytes], List[bytes]]] = []
         for func, args in process_funcs:
             # wait until a thread is free
             while 1:

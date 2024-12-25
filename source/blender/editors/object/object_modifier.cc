@@ -31,6 +31,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -90,6 +91,7 @@
 #include "RNA_prototypes.hh"
 
 #include "ED_armature.hh"
+#include "ED_node.hh"
 #include "ED_object.hh"
 #include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
@@ -1050,7 +1052,7 @@ static void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
           layer_orig.opacity = layer_eval.opacity;
           layer_orig.set_local_transform(layer_eval.local_transform());
 
-          /* Add new mapping for layer_eval -> layer_orig*/
+          /* Add new mapping for `layer_eval` -> `layer_orig`. */
           eval_to_orig_layer_map.add_new(&layer_eval, &layer_orig);
         }
       }
@@ -1494,7 +1496,7 @@ static bool modifier_apply_obdata(ReportList *reports,
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     if (mti->modify_geometry_set == nullptr) {
-      BKE_report(reports, RPT_ERROR, "Cannot apply this modifier to grease pencil geometry");
+      BKE_report(reports, RPT_ERROR, "Cannot apply this modifier to Grease Pencil geometry");
       return false;
     }
     GreasePencil &grease_pencil_orig = *static_cast<GreasePencil *>(ob->data);
@@ -1514,7 +1516,7 @@ static bool modifier_apply_obdata(ReportList *reports,
     if (!success) {
       BKE_report(reports,
                  RPT_ERROR,
-                 "Evaluated geometry from modifier does not contain grease pencil geometry");
+                 "Evaluated geometry from modifier does not contain Grease Pencil geometry");
       return false;
     }
   }
@@ -2608,9 +2610,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = edit_modifier_liboverride_allowed_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
 }
@@ -3770,7 +3770,7 @@ void OBJECT_OT_geometry_nodes_input_attribute_toggle(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_geometry_nodes_input_attribute_toggle";
 
   ot->exec = geometry_nodes_input_attribute_toggle_exec;
-  ot->poll = ED_operator_object_active;
+  ot->poll = ED_operator_object_active_editable;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
@@ -3811,6 +3811,7 @@ static int geometry_node_tree_copy_assign_exec(bContext *C, wmOperator * /*op*/)
   nmd->node_group = new_tree;
   id_us_min(&tree->id);
 
+  ED_node_tree_propagate_change(C, bmain, new_tree);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);

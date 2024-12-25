@@ -9,6 +9,7 @@ __all__ = (
     "axis_conversion",
     "axis_conversion_ensure",
     "create_derived_objects",
+    "poll_file_object_drop",
     "unpack_list",
     "unpack_face_list",
     "path_reference",
@@ -548,13 +549,13 @@ def path_reference_copy(copy_set, report=print):
 
             try:
                 os.makedirs(dir_to, exist_ok=True)
-            except:
+            except Exception:
                 import traceback
                 traceback.print_exc()
 
             try:
                 shutil.copy(file_src, file_dst)
-            except:
+            except Exception:
                 import traceback
                 traceback.print_exc()
 

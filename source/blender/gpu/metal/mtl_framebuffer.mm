@@ -842,6 +842,7 @@ bool MTLFrameBuffer::add_color_attachment(gpu::MTLTexture *texture,
 {
   BLI_assert(this);
   BLI_assert(slot >= 0 && slot < this->get_attachment_limit());
+  set_color_attachment_bit(GPU_FB_COLOR_ATTACHMENT0 + int(slot), true);
 
   if (texture) {
     if (miplevel < 0 || miplevel >= MTL_MAX_MIPMAP_COUNT) {
@@ -1203,6 +1204,7 @@ bool MTLFrameBuffer::remove_color_attachment(uint slot)
 {
   BLI_assert(this);
   BLI_assert(slot >= 0 && slot < this->get_attachment_limit());
+  set_color_attachment_bit(GPU_FB_COLOR_ATTACHMENT0 + int(slot), false);
 
   if (this->has_attachment_at_slot(slot)) {
     colour_attachment_count_ -= (mtl_color_attachments_[slot].used) ? 1 : 0;
@@ -1306,11 +1308,16 @@ bool MTLFrameBuffer::set_color_attachment_clear_color(uint slot, const float cle
 
   /* Only mark as dirty if values have changed. */
   bool changed = mtl_color_attachments_[slot].load_action != GPU_LOADACTION_CLEAR;
-  changed = changed || (memcmp(mtl_color_attachments_[slot].clear_value.color,
-                               clear_color,
-                               sizeof(float) * 4) != 0);
+  float *attachment_clear_color = mtl_color_attachments_[slot].clear_value.color;
+  changed = changed || (attachment_clear_color[0] != clear_color[0] ||
+                        attachment_clear_color[1] != clear_color[1] ||
+                        attachment_clear_color[2] != clear_color[2] ||
+                        attachment_clear_color[3] != clear_color[3]);
   if (changed) {
-    memcpy(mtl_color_attachments_[slot].clear_value.color, clear_color, sizeof(float) * 4);
+    attachment_clear_color[0] = clear_color[0];
+    attachment_clear_color[1] = clear_color[1];
+    attachment_clear_color[2] = clear_color[2];
+    attachment_clear_color[3] = clear_color[3];
   }
   mtl_color_attachments_[slot].load_action = GPU_LOADACTION_CLEAR;
 

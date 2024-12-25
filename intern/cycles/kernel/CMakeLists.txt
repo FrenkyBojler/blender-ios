@@ -402,6 +402,7 @@ set(SRC_UTIL_HEADERS
   ../util/math_int8.h
   ../util/math_matrix.h
   ../util/projection.h
+  ../util/projection_inverse.h
   ../util/rect.h
   ../util/static_assert.h
   ../util/transform.h
@@ -1231,10 +1232,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   else() # Add Linux specific compiler flags.
     list(APPEND sycl_compiler_flags -fPIC)
     list(APPEND sycl_compiler_flags -fvisibility=hidden)
-
-    # We avoid getting __FAST_MATH__ to be defined when building on CentOS-7 and Rocky-8
-    # until the compilation issues it triggers at either AoT or JIT stages gets fixed.
-    list(APPEND sycl_compiler_flags -fhonor-nans)
 
     # Add $ORIGIN to `cycles_kernel_oneapi.so` RPATH so `libsycl.so` and
     # `libpi_level_zero.so` can be placed next to it and get found.

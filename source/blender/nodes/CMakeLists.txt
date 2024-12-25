@@ -55,19 +55,12 @@ set(INC
   texture
   ../animrig
   ../editors/include
-  ../blenkernel
-  ../blenloader
-  ../blentranslation
-  ../bmesh
   ../depsgraph
-  ../functions
   ../geometry
-  ../gpu
   ../imbuf
   ../makesrna
   ../modifiers
   ../render
-  ../windowmanager
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -78,10 +71,13 @@ set(INC_SYS
 
 set(SRC
   intern/derived_node_tree.cc
+  intern/geometry_nodes_dependencies.cc
   intern/geometry_nodes_execute.cc
+  intern/geometry_nodes_foreach_geometry_element_zone.cc
   intern/geometry_nodes_gizmos.cc
   intern/geometry_nodes_lazy_function.cc
   intern/geometry_nodes_log.cc
+  intern/geometry_nodes_repeat_zone.cc
   intern/inverse_eval.cc
   intern/math_functions.cc
   intern/node_common.cc
@@ -103,6 +99,7 @@ set(SRC
   NOD_derived_node_tree.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
+  NOD_geometry_nodes_dependencies.hh
   NOD_geometry_nodes_execute.hh
   NOD_geometry_nodes_gizmos.hh
   NOD_geometry_nodes_lazy_function.hh
@@ -123,7 +120,9 @@ set(SRC
   NOD_socket_declarations.hh
   NOD_socket_declarations_geometry.hh
   NOD_socket_items.hh
+  NOD_socket_items_blend.hh
   NOD_socket_items_ops.hh
+  NOD_socket_items_ui.hh
   NOD_socket_search_link.hh
   NOD_static_types.h
   NOD_texture.h
@@ -135,11 +134,15 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   bf_nodes_composite
   bf_nodes_function
@@ -148,6 +151,7 @@ set(LIB
   bf_nodes_texture
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_BULLET)

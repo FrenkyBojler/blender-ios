@@ -7,20 +7,14 @@ set(INC
   ../asset
   ../include
   ../../asset_system
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
   ../../draw
-  ../../functions
-  ../../gpu
   ../../imbuf
+  ../../imbuf/movie
   ../../makesrna
   ../../nodes
   ../../python
   ../../render
-  ../../windowmanager
   ../../../../intern/ghost
-  ../../bmesh
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -101,15 +95,21 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_datafiles
   bf_editor_id_management
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_INTERNATIONAL)
@@ -126,10 +126,6 @@ endif()
 
 if(WITH_INPUT_IME)
   add_definitions(-DWITH_INPUT_IME)
-endif()
-
-if(WITH_EXPERIMENTAL_FEATURES)
-  add_definitions(-DWITH_ANIM_BAKLAVA)
 endif()
 
 blender_add_lib(bf_editor_interface "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

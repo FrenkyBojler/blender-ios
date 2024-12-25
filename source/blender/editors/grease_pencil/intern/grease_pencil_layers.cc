@@ -33,6 +33,28 @@
 
 namespace blender::ed::greasepencil {
 
+/* This utility function is modified from `BKE_object_get_parent_matrix()`. */
+static void get_bone_mat(const Object *parent, const char *parsubstr, float4x4 &r_mat)
+{
+  if (parent->type != OB_ARMATURE) {
+    r_mat = float4x4::identity();
+    return;
+  }
+
+  const bPoseChannel *pchan = BKE_pose_channel_find_name(parent->pose, parsubstr);
+  if (!pchan || !pchan->bone) {
+    r_mat = float4x4::identity();
+    return;
+  }
+
+  if (pchan->bone->flag & BONE_RELATIVE_PARENTING) {
+    r_mat = float4x4(pchan->chan_mat);
+  }
+  else {
+    r_mat = float4x4(pchan->pose_mat);
+  }
+}
+
 bool grease_pencil_layer_parent_set(bke::greasepencil::Layer &layer,
                                     Object *parent,
                                     StringRefNull bone,
@@ -47,6 +69,12 @@ bool grease_pencil_layer_parent_set(bke::greasepencil::Layer &layer,
   /* Calculate inverse parent matrix. */
   if (parent) {
     copy_m4_m4(layer.parentinv, parent->world_to_object().ptr());
+    if (layer.parsubstr) {
+      float4x4 bone_mat;
+      get_bone_mat(parent, layer.parsubstr, bone_mat);
+      float4x4 bone_inverse = math::invert(bone_mat) * float4x4(layer.parentinv);
+      copy_m4_m4(layer.parentinv, bone_inverse.ptr());
+    }
   }
   else {
     unit_m4(layer.parentinv);
@@ -453,9 +481,8 @@ static void GREASE_PENCIL_OT_layer_group_add(wmOperatorType *ot)
 static int grease_pencil_layer_group_remove_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(C);
   const bool keep_children = RNA_boolean_get(op->ptr, "keep_children");
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
   if (!grease_pencil.has_active_group()) {
     return OPERATOR_CANCELLED;
@@ -1093,7 +1120,7 @@ static int grease_pencil_layer_group_color_tag_exec(bContext *C, wmOperator *op)
 static void GREASE_PENCIL_OT_layer_group_color_tag(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Grease Pencil group color tag";
+  ot->name = "Grease Pencil Group Color Tag";
   ot->idname = "GREASE_PENCIL_OT_layer_group_color_tag";
   ot->description = "Change layer group icon";
 
@@ -1102,7 +1129,7 @@ static void GREASE_PENCIL_OT_layer_group_color_tag(wmOperatorType *ot)
 
   ot->flag = OPTYPE_UNDO;
 
-  ot->prop = RNA_def_enum(ot->srna, "color_tag", enum_layergroup_color_items, 0, "color tag", "");
+  ot->prop = RNA_def_enum(ot->srna, "color_tag", enum_layergroup_color_items, 0, "Color Tag", "");
 }
 
 enum class DuplicateCopyMode {

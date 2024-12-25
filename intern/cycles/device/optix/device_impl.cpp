@@ -717,8 +717,7 @@ bool OptiXDevice::load_osl_kernels()
 
   struct OSLKernel {
     string ptx;
-    string init_entry;
-    string exec_entry;
+    string fused_entry;
   };
 
   /* This has to be in the same order as the ShaderType enum, so that the index calculation in
@@ -737,9 +736,8 @@ bool OptiXDevice::load_osl_kernels()
                                                      osl_globals.bump_state);
     for (const OSL::ShaderGroupRef &group : groups) {
       if (group) {
-        string osl_ptx, init_name, entry_name;
-        osl_globals.ss->getattribute(group.get(), "group_init_name", init_name);
-        osl_globals.ss->getattribute(group.get(), "group_entry_name", entry_name);
+        string osl_ptx, fused_name;
+        osl_globals.ss->getattribute(group.get(), "group_fused_name", fused_name);
         osl_globals.ss->getattribute(
             group.get(), "ptx_compiled_version", OSL::TypeDesc::PTR, &osl_ptx);
 
@@ -757,7 +755,7 @@ bool OptiXDevice::load_osl_kernels()
           return false;
         }
 
-        osl_kernels.push_back({std::move(osl_ptx), std::move(init_name), std::move(entry_name)});
+        osl_kernels.push_back({std::move(osl_ptx), std::move(fused_name)});
       }
       else {
         /* Add empty entry for non-existent shader groups, so that the index stays stable. */
@@ -795,7 +793,7 @@ bool OptiXDevice::load_osl_kernels()
   module_options.optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_3;
   module_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
 
-  osl_groups.resize(osl_kernels.size() * 2 + 1);
+  osl_groups.resize(osl_kernels.size() + 1);
   osl_modules.resize(osl_kernels.size() + 1);
 
   { /* Load and compile PTX module with OSL services. */
@@ -900,21 +898,18 @@ bool OptiXDevice::load_osl_kernels()
 
     if (results[i] != OPTIX_SUCCESS) {
       set_error(string_printf("Failed to load OptiX OSL kernel for %s (%s)",
-                              osl_kernels[i].init_entry.c_str(),
+                              osl_kernels[i].fused_entry.c_str(),
                               optixGetErrorName(results[i])));
       return false;
     }
 
-    OptixProgramGroupDesc group_descs[2] = {};
-    group_descs[0].kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
-    group_descs[0].callables.entryFunctionNameDC = osl_kernels[i].init_entry.c_str();
-    group_descs[0].callables.moduleDC = osl_modules[i];
-    group_descs[1].kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
-    group_descs[1].callables.entryFunctionNameDC = osl_kernels[i].exec_entry.c_str();
-    group_descs[1].callables.moduleDC = osl_modules[i];
+    OptixProgramGroupDesc group_desc = {};
+    group_desc.kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
+    group_desc.callables.entryFunctionNameDC = osl_kernels[i].fused_entry.c_str();
+    group_desc.callables.moduleDC = osl_modules[i];
 
     optix_assert(optixProgramGroupCreate(
-        context, group_descs, 2, &group_options, nullptr, 0, &osl_groups[i * 2]));
+        context, &group_desc, 1, &group_options, nullptr, 0, &osl_groups[i]));
   }
 
   /* Update SBT with new entries. */
@@ -1170,7 +1165,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
     /* Build bottom level acceleration structures (BLAS). */
     Geometry *const geom = bvh->geometry[0];
-    if (geom->geometry_type == Geometry::HAIR) {
+    if (geom->is_hair()) {
       /* Build BLAS for curve primitives. */
       Hair *const hair = static_cast<Hair *const>(geom);
       if (hair->num_segments() == 0) {
@@ -1369,7 +1364,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
         progress.set_error("Failed to build OptiX acceleration structure");
       }
     }
-    else if (geom->geometry_type == Geometry::MESH || geom->geometry_type == Geometry::VOLUME) {
+    else if (geom->is_mesh() || geom->is_volume()) {
       /* Build BLAS for triangle primitives. */
       Mesh *const mesh = static_cast<Mesh *const>(geom);
       if (mesh->num_triangles() == 0) {
@@ -1437,7 +1432,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
         progress.set_error("Failed to build OptiX acceleration structure");
       }
     }
-    else if (geom->geometry_type == Geometry::POINTCLOUD) {
+    else if (geom->is_pointcloud()) {
       /* Build BLAS for points primitives. */
       PointCloud *const pointcloud = static_cast<PointCloud *const>(geom);
       const size_t num_points = pointcloud->num_points();
@@ -1612,7 +1607,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
         instance.visibilityMask = 0xFF;
       }
 
-      if (ob->get_geometry()->geometry_type == Geometry::HAIR &&
+      if (ob->get_geometry()->is_hair() &&
           static_cast<const Hair *>(ob->get_geometry())->curve_shape == CURVE_THICK)
       {
         if (pipeline_options.usesMotionBlur && ob->get_geometry()->has_motion_blur()) {
@@ -1620,7 +1615,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
           instance.sbtOffset = PG_HITD_MOTION - PG_HITD;
         }
       }
-      else if (ob->get_geometry()->geometry_type == Geometry::POINTCLOUD) {
+      else if (ob->get_geometry()->is_pointcloud()) {
         /* Use the hit group that has an intersection program for point clouds. */
         instance.sbtOffset = PG_HITD_POINTCLOUD - PG_HITD;
 

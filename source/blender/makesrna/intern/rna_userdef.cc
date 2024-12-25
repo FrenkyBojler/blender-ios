@@ -37,6 +37,8 @@
 #include "BKE_sound.h"
 #include "BKE_studiolight.h"
 
+#include "ED_screen.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -340,11 +342,8 @@ static void rna_userdef_language_update(Main *bmain, Scene * /*scene*/, PointerR
 {
   BLT_lang_set(nullptr);
 
-  const char *uilng = BLT_lang_get();
-  if (STREQ(uilng, "en_US")) {
-    U.transopts &= ~(USER_TR_IFACE | USER_TR_TOOLTIPS | USER_TR_REPORTS | USER_TR_NEWDATANAME);
-  }
-  else {
+  if (!blender::bke::preferences::exists()) {
+    /* If changing language without current userprefs, enable all usage options. */
     U.transopts |= (USER_TR_IFACE | USER_TR_TOOLTIPS | USER_TR_REPORTS | USER_TR_NEWDATANAME);
   }
 
@@ -902,9 +901,9 @@ static void rna_UserDef_subdivision_update(Main *bmain, Scene *scene, PointerRNA
   rna_userdef_update(bmain, scene, ptr);
 }
 
-static void rna_UserDef_audio_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
+static void rna_UserDef_audio_update(bContext *C, PointerRNA * /*ptr*/)
 {
-  BKE_sound_init(bmain);
+  ED_reset_audio_device(C);
   USERDEF_TAG_DIRTY;
 }
 
@@ -3867,6 +3866,18 @@ static void rna_def_userdef_theme_space_seq(BlenderRNA *brna)
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Alternate Rows", "Overlay color on every other row");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "text_strip_cursor", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "text_strip_cursor");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Text Strip Cursor", "Text strip editing cursor");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "selected_text", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "selected_text");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Selected text", "Text strip editing selection");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
 static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
@@ -5343,6 +5354,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "Only show brushes applicable for the currently active tool in the "
                            "asset shelf. Stored in the Preferences, which may have to be saved "
                            "manually if Auto-Save Preferences is disabled");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   static const EnumPropertyItem header_align_items[] = {
       {0, "NONE", 0, "Keep Existing", "Keep existing header alignment"},
@@ -6427,6 +6439,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, audio_mixing_samples_items);
   RNA_def_property_ui_text(
       prop, "Audio Mixing Buffer", "Number of samples used by the audio mixing buffer");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_UserDef_audio_update");
 
   prop = RNA_def_property(srna, "audio_device", PROP_ENUM, PROP_NONE);
@@ -6434,24 +6447,28 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, audio_device_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_userdef_audio_device_itemf");
   RNA_def_property_ui_text(prop, "Audio Device", "Audio output device");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_UserDef_audio_update");
 
   prop = RNA_def_property(srna, "audio_sample_rate", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "audiorate");
   RNA_def_property_enum_items(prop, audio_rate_items);
   RNA_def_property_ui_text(prop, "Audio Sample Rate", "Audio sample rate");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_UserDef_audio_update");
 
   prop = RNA_def_property(srna, "audio_sample_format", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "audioformat");
   RNA_def_property_enum_items(prop, audio_format_items);
   RNA_def_property_ui_text(prop, "Audio Sample Format", "Audio sample format");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_UserDef_audio_update");
 
   prop = RNA_def_property(srna, "audio_channels", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "audiochannels");
   RNA_def_property_enum_items(prop, audio_channel_items);
   RNA_def_property_ui_text(prop, "Audio Channels", "Audio channel count");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_UserDef_audio_update");
 
 #  ifdef WITH_CYCLES
@@ -7502,7 +7519,8 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "No Override Auto Resync",
                            "Disable library overrides automatic resync detection and process on "
-                           "file load (can be useful to help fixing broken files)");
+                           "file load (can be useful to help fixing broken files). Also see the "
+                           "`--disable-liboverride-auto-resync` command line option");
 
   prop = RNA_def_property(srna, "use_new_point_cloud_type", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_new_point_cloud_type", 1);
@@ -7562,15 +7580,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "pop-over");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
 
-  prop = RNA_def_property(srna, "enable_overlay_next", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "enable_overlay_next", 1);
-  RNA_def_property_ui_text(
-      prop, "Overlay Next", "Enable the new Overlay code-base, requires restart");
-
-  prop = RNA_def_property(srna, "enable_new_cpu_compositor", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "enable_new_cpu_compositor", 1);
-  RNA_def_property_ui_text(prop, "CPU Compositor", "Enable the new CPU compositor");
-
   prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,
@@ -7604,20 +7613,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Recompute all ID usercounts before saving to a blendfile. Allows to "
                            "work around invalid usercount handling in code that may lead to loss "
                            "of data due to wrongly detected unused data-blocks");
-
-  prop = RNA_def_property(srna, "use_animation_baklava", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_animation_baklava", 1);
-  RNA_def_property_ui_text(
-      prop,
-      "Multi-Slot Actions",
-      "The new 'layered' Action can contain the animation for multiple data-blocks at once");
-#  ifndef WITH_ANIM_BAKLAVA
-  /* Only allow setting this to 'true' when actually built with Baklava. Some of the Baklava code
-   * is not guarded with `WITH_ANIM_BAKLAVA`, but rather assumes that this flag is always 'false'
-   * then. */
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-#  endif
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)

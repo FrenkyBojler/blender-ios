@@ -5,8 +5,6 @@
 set(INC
   .
   intern
-  ../blenkernel
-  ../functions
   ../imbuf
   ../makesrna
   ../nodes
@@ -30,10 +28,11 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
   PRIVATE bf::intern::guardedalloc
 )
 

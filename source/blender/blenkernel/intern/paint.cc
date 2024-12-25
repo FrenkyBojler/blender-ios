@@ -66,7 +66,7 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
@@ -528,9 +528,6 @@ PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
         case OB_MODE_SCULPT:
           return PaintMode::Sculpt;
         case OB_MODE_SCULPT_GREASE_PENCIL:
-          if (obact->type == OB_GPENCIL_LEGACY) {
-            return PaintMode::SculptGPencil;
-          }
           if (obact->type == OB_GREASE_PENCIL) {
             return PaintMode::SculptGreasePencil;
           }
@@ -2192,10 +2189,6 @@ int SculptSession::active_vert_index() const
   if (std::holds_alternative<int>(active_vert_)) {
     return std::get<int>(active_vert_);
   }
-  if (std::holds_alternative<SubdivCCGCoord>(active_vert_)) {
-    const SubdivCCGCoord coord = std::get<SubdivCCGCoord>(active_vert_);
-    return coord.to_index(BKE_subdiv_ccg_key_top_level(*this->subdiv_ccg));
-  }
   if (std::holds_alternative<BMVert *>(active_vert_)) {
     BMVert *bm_vert = std::get<BMVert *>(active_vert_);
     return BM_elem_index_get(bm_vert);
@@ -2209,10 +2202,6 @@ int SculptSession::last_active_vert_index() const
   if (std::holds_alternative<int>(last_active_vert_)) {
     return std::get<int>(last_active_vert_);
   }
-  if (std::holds_alternative<SubdivCCGCoord>(last_active_vert_)) {
-    const SubdivCCGCoord coord = std::get<SubdivCCGCoord>(last_active_vert_);
-    return coord.to_index(BKE_subdiv_ccg_key_top_level(*this->subdiv_ccg));
-  }
   if (std::holds_alternative<BMVert *>(last_active_vert_)) {
     BMVert *bm_vert = std::get<BMVert *>(last_active_vert_);
     return BM_elem_index_get(bm_vert);
@@ -2225,13 +2214,11 @@ blender::float3 SculptSession::active_vert_position(const Depsgraph &depsgraph,
                                                     const Object &object) const
 {
   if (std::holds_alternative<int>(active_vert_)) {
+    if (this->subdiv_ccg) {
+      return this->subdiv_ccg->positions[std::get<int>(active_vert_)];
+    }
     const Span<float3> positions = blender::bke::pbvh::vert_positions_eval(depsgraph, object);
     return positions[std::get<int>(active_vert_)];
-  }
-  if (std::holds_alternative<SubdivCCGCoord>(active_vert_)) {
-    const CCGKey key = BKE_subdiv_ccg_key_top_level(*this->subdiv_ccg);
-    const SubdivCCGCoord coord = std::get<SubdivCCGCoord>(active_vert_);
-    return this->subdiv_ccg->positions[coord.to_index(key)];
   }
   if (std::holds_alternative<BMVert *>(active_vert_)) {
     BMVert *bm_vert = std::get<BMVert *>(active_vert_);
@@ -2479,7 +2466,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
      *
      * The relevant changes are stored/encoded in the paint canvas key.
      * These include the active uv map, and resolutions. */
-    if (U.experimental.use_sculpt_texture_paint) {
+    if (USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
       char *paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode, ob);
       if (ss.last_paint_canvas_key == nullptr ||
           !STREQ(paint_canvas_key, ss.last_paint_canvas_key))

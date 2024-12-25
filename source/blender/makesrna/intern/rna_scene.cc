@@ -26,6 +26,9 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
 
+#include "MOV_enums.hh"
+#include "MOV_util.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -53,13 +56,6 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#ifdef WITH_FFMPEG
-#  include "BKE_writeffmpeg.hh"
-#  include "ffmpeg_compat.h"
-#  include <libavcodec/avcodec.h>
-#  include <libavformat/avformat.h>
-#endif
-
 #include "ED_render.hh"
 #include "ED_transform.hh"
 
@@ -68,20 +64,50 @@
 
 #include "BLI_threads.h"
 
+#include "ANIM_keyingsets.hh"
+
 #include "DEG_depsgraph.hh"
 
 #ifdef WITH_OPENEXR
 const EnumPropertyItem rna_enum_exr_codec_items[] = {
-    {R_IMF_EXR_CODEC_NONE, "NONE", 0, "None", ""},
-    {R_IMF_EXR_CODEC_PXR24, "PXR24", 0, "Pxr24 (lossy)", ""},
-    {R_IMF_EXR_CODEC_ZIP, "ZIP", 0, "ZIP (lossless)", ""},
-    {R_IMF_EXR_CODEC_PIZ, "PIZ", 0, "PIZ (lossless)", ""},
-    {R_IMF_EXR_CODEC_RLE, "RLE", 0, "RLE (lossless)", ""},
-    {R_IMF_EXR_CODEC_ZIPS, "ZIPS", 0, "ZIPS (lossless)", ""},
-    {R_IMF_EXR_CODEC_B44, "B44", 0, "B44 (lossy)", ""},
-    {R_IMF_EXR_CODEC_B44A, "B44A", 0, "B44A (lossy)", ""},
-    {R_IMF_EXR_CODEC_DWAA, "DWAA", 0, "DWAA (lossy)", ""},
-    {R_IMF_EXR_CODEC_DWAB, "DWAB", 0, "DWAB (lossy)", ""},
+    {R_IMF_EXR_CODEC_NONE, "NONE", 0, "None", "No compression"},
+    {R_IMF_EXR_CODEC_ZIP, "ZIP", 0, "ZIP", "Lossless zip compression of 16 row image blocks"},
+    {R_IMF_EXR_CODEC_PIZ,
+     "PIZ",
+     0,
+     "PIZ",
+     "Lossless wavelet compression, effective for noisy/grainy images"},
+    {R_IMF_EXR_CODEC_DWAA,
+     "DWAA",
+     0,
+     "DWAA (lossy)",
+     "JPEG-like lossy compression on 32 row image blocks"},
+    {R_IMF_EXR_CODEC_DWAB,
+     "DWAB",
+     0,
+     "DWAB (lossy)",
+     "JPEG-like lossy compression on 256 row image blocks"},
+    {R_IMF_EXR_CODEC_ZIPS,
+     "ZIPS",
+     0,
+     "ZIPS",
+     "Lossless zip compression, each image row compressed separately"},
+    {R_IMF_EXR_CODEC_RLE, "RLE", 0, "RLE", "Lossless run length encoding compression"},
+    {R_IMF_EXR_CODEC_PXR24,
+     "PXR24",
+     0,
+     "Pxr24 (lossy)",
+     "Lossy compression for 32 bit float images (stores 24 bits of each float)"},
+    {R_IMF_EXR_CODEC_B44,
+     "B44",
+     0,
+     "B44 (lossy)",
+     "Lossy compression for 16 bit float images, at fixed 2.3:1 ratio"},
+    {R_IMF_EXR_CODEC_B44A,
+     "B44A",
+     0,
+     "B44A (lossy)",
+     "Lossy compression for 16 bit float images, at fixed 2.3:1 ratio"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 #endif
@@ -175,18 +201,6 @@ static const EnumPropertyItem rna_enum_snap_element_base_items[] = {
 static const EnumPropertyItem *rna_enum_snap_element_individual_items =
     &rna_enum_snap_element_items[ARRAY_SIZE(rna_enum_snap_element_items) - 3];
 #endif
-
-const EnumPropertyItem rna_enum_snap_node_element_items[] = {
-    {SCE_SNAP_TO_GRID, "GRID", ICON_SNAP_GRID, "Grid", "Snap to grid"},
-    {SCE_SNAP_TO_NODE_X, "NODE_X", ICON_NODE_SIDE, "Node X", "Snap to left/right node border"},
-    {SCE_SNAP_TO_NODE_Y, "NODE_Y", ICON_NODE_TOP, "Node Y", "Snap to top/bottom node border"},
-    {SCE_SNAP_TO_NODE_X | SCE_SNAP_TO_NODE_Y,
-     "NODE_XY",
-     ICON_NODE_CORNER,
-     "Node X / Y",
-     "Snap to any node border"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
 
 const EnumPropertyItem rna_enum_snap_animation_element_items[] = {
     {SCE_SNAP_TO_FRAME, "FRAME", 0, "Frame", "Snap to frame"},
@@ -1083,7 +1097,8 @@ static void rna_Scene_frame_update(Main * /*bmain*/, Scene * /*current_scene*/, 
 static PointerRNA rna_Scene_active_keying_set_get(PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->data;
-  return rna_pointer_inherit_refine(ptr, &RNA_KeyingSet, ANIM_scene_get_active_keyingset(scene));
+  return rna_pointer_inherit_refine(
+      ptr, &RNA_KeyingSet, blender::animrig::scene_get_active_keyingset(scene));
 }
 
 static void rna_Scene_active_keying_set_set(PointerRNA *ptr,
@@ -1115,7 +1130,7 @@ static void rna_Scene_active_keying_set_index_set(PointerRNA *ptr, int value)
   scene->active_keyingset = value + 1;
 }
 
-/* XXX: evil... builtin_keyingsets is defined in `keyingsets.cc`! */
+/* XXX: evil... builtin_keyingsets is defined in `blender::animrig::keyingsets.cc`! */
 /* TODO: make API function to retrieve this... */
 extern ListBase builtin_keyingsets;
 
@@ -1279,6 +1294,27 @@ static bool rna_RenderSettings_is_movie_format_get(PointerRNA *ptr)
   return BKE_imtype_is_movie(rd->im_format.imtype);
 }
 
+static int get_first_valid_depth(const int valid_depths)
+{
+  /* set first available depth */
+  const char depth_ls[] = {
+      R_IMF_CHAN_DEPTH_32,
+      R_IMF_CHAN_DEPTH_24,
+      R_IMF_CHAN_DEPTH_16,
+      R_IMF_CHAN_DEPTH_12,
+      R_IMF_CHAN_DEPTH_10,
+      R_IMF_CHAN_DEPTH_8,
+      R_IMF_CHAN_DEPTH_1,
+      0,
+  };
+  for (int i = 0; depth_ls[i]; i++) {
+    if (valid_depths & depth_ls[i]) {
+      return depth_ls[i];
+    }
+  }
+  return R_IMF_CHAN_DEPTH_8;
+}
+
 static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
 {
   ImageFormatData *imf = (ImageFormatData *)ptr->data;
@@ -1302,35 +1338,14 @@ static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
   {
     const int depth_ok = BKE_imtype_valid_depths(imf->imtype);
     if ((imf->depth & depth_ok) == 0) {
-      /* set first available depth */
-      char depth_ls[] = {
-          R_IMF_CHAN_DEPTH_32,
-          R_IMF_CHAN_DEPTH_24,
-          R_IMF_CHAN_DEPTH_16,
-          R_IMF_CHAN_DEPTH_12,
-          R_IMF_CHAN_DEPTH_10,
-          R_IMF_CHAN_DEPTH_8,
-          R_IMF_CHAN_DEPTH_1,
-          0,
-      };
-      int i;
-
-      for (i = 0; depth_ls[i]; i++) {
-        if (depth_ok & depth_ls[i]) {
-          imf->depth = depth_ls[i];
-          break;
-        }
-      }
+      imf->depth = get_first_valid_depth(depth_ok);
     }
   }
 
   if (id && GS(id->name) == ID_SCE) {
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
-#  ifdef WITH_FFMPEG
-    BKE_ffmpeg_image_type_verify(rd, imf);
-#  endif
-    (void)rd;
+    MOV_validate_output_settings(rd, imf);
   }
 
   BKE_image_format_update_color_space_for_type(imf);
@@ -1366,7 +1381,6 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
   char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
                    (is_render ? IMA_CHAN_FLAG_BW : 0);
 
-#  ifdef WITH_FFMPEG
   /* a WAY more crappy case than B&W flag: depending on codec, file format MIGHT support
    * alpha channel. for example MPEG format with h264 codec can't do alpha channel, but
    * the same MPEG format with QTRLE codec can easily handle alpha channel.
@@ -1375,11 +1389,10 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 
-    if (BKE_ffmpeg_alpha_channel_is_supported(rd)) {
+    if (MOV_codec_supports_alpha(rd->ffcodecdata.codec)) {
       chan_flag |= IMA_CHAN_FLAG_RGBA;
     }
   }
-#  endif
 
   if (chan_flag == (IMA_CHAN_FLAG_BW | IMA_CHAN_FLAG_RGB | IMA_CHAN_FLAG_RGBA)) {
     return rna_enum_image_color_mode_items;
@@ -1416,7 +1429,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContex
     return rna_enum_image_color_depth_items;
   }
   else {
-    const int depth_ok = BKE_imtype_valid_depths(imf->imtype);
+    const int depth_ok = BKE_imtype_valid_depths_with_video(imf->imtype, ptr->owner_id);
     const int is_float = ELEM(
         imf->imtype, R_IMF_IMTYPE_RADHDR, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER);
 
@@ -1515,7 +1528,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_exr_codec_itemf(bContext 
   }
 
   for (i = 0; i < R_IMF_EXR_CODEC_MAX; i++) {
-    if (ELEM(i, R_IMF_EXR_CODEC_B44, R_IMF_EXR_CODEC_B44A)) {
+    if (ELEM(rna_enum_exr_codec_items[i].value, R_IMF_EXR_CODEC_B44, R_IMF_EXR_CODEC_B44A)) {
       continue; /* B44 and B44A are not defined for 32 bit floats */
     }
 
@@ -2925,17 +2938,21 @@ static std::optional<std::string> rna_FFmpegSettings_path(const PointerRNA * /*p
 static void rna_FFmpegSettings_codec_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   FFMpegCodecData *codec_data = (FFMpegCodecData *)ptr->data;
-  if (!ELEM(codec_data->codec,
-            AV_CODEC_ID_H264,
-            AV_CODEC_ID_MPEG4,
-            AV_CODEC_ID_VP9,
-            AV_CODEC_ID_DNXHD))
-  {
-    /* Constant Rate Factor (CRF) setting is only available for H264,
-     * MPEG4 and WEBM/VP9 codecs. So changing encoder quality mode to
-     * CBR as CRF is not supported.
-     */
+  if (!MOV_codec_supports_crf(codec_data->codec)) {
+    /* Constant Rate Factor (CRF) setting is only available for some codecs. Change encoder quality
+     * mode to CBR for others. */
     codec_data->constant_rate_factor = FFM_CRF_NONE;
+  }
+
+  /* Ensure valid color depth when changing the codec. */
+  const ID *id = ptr->owner_id;
+  const bool is_render = (id && GS(id->name) == ID_SCE);
+  if (is_render) {
+    Scene *scene = (Scene *)ptr->owner_id;
+    const int valid_depths = BKE_imtype_valid_depths_with_video(scene->r.im_format.imtype, id);
+    if ((scene->r.im_format.depth & valid_depths) == 0) {
+      scene->r.im_format.depth = get_first_valid_depth(valid_depths);
+    }
   }
 }
 #  endif
@@ -3607,14 +3624,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       "Snap to Same Target",
       "Snap only to target that source was initially near (\"Face Nearest\" only)");
 
-  /* node editor uses its own set of snap modes */
-  prop = RNA_def_property(srna, "snap_node_element", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_node_mode");
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
-  RNA_def_property_enum_items(prop, rna_enum_snap_node_element_items);
-  RNA_def_property_ui_text(prop, "Snap Node Element", "Type of element to snap to");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
-
   prop = RNA_def_property(srna, "use_snap_anim", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag_anim", SCE_SNAP);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
@@ -3819,7 +3828,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_struct_type(prop, "GPencilInterpolateSettings");
   RNA_def_property_ui_text(
-      prop, "Grease Pencil Interpolate", "Settings for grease pencil interpolation tools");
+      prop, "Grease Pencil Interpolate", "Settings for Grease Pencil interpolation tools");
 
   /* Grease Pencil - 3D View Stroke Placement */
   prop = RNA_def_property(srna, "gpencil_stroke_placement_view3d", PROP_ENUM, PROP_NONE);
@@ -3990,6 +3999,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Auto Keying", "Automatic keyframe insertion for objects, bones and masks");
   RNA_def_property_ui_icon(prop, ICON_RECORD_OFF, 1);
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_AUTO, nullptr);
 
   prop = RNA_def_property(srna, "auto_keying_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "autokey_mode");
@@ -4188,6 +4198,11 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "snap_to_markers", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_mode", SEQ_SNAP_TO_MARKERS);
   RNA_def_property_ui_text(prop, "Markers", "Snap to markers");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
+
+  prop = RNA_def_property(srna, "snap_to_retiming_keys", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "snap_mode", SEQ_SNAP_TO_RETIMING);
+  RNA_def_property_ui_text(prop, "Retiming Keys", "Snap to retiming keys");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_to_borders", PROP_BOOLEAN, PROP_NONE);
@@ -4780,6 +4795,12 @@ static void rna_def_view_layer_lightgroups(BlenderRNA *brna, PropertyRNA *cprop)
   parm = RNA_def_pointer(func, "lightgroup", "Lightgroup", "", "Newly created Lightgroup");
   RNA_def_function_return(func, parm);
   parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of newly created lightgroup");
+
+  func = RNA_def_function(srna, "remove", "BKE_view_layer_remove_lightgroup");
+  parm = RNA_def_pointer(func, "lightgroup", "Lightgroup", "", "Lightgroup to remove");
+  RNA_def_function_ui_description(func, "Remove given light group");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
 }
 
 static void rna_def_view_layer_lightgroup(BlenderRNA *brna)
@@ -6265,7 +6286,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "exr_codec");
   RNA_def_property_enum_items(prop, rna_enum_exr_codec_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ImageFormatSettings_exr_codec_itemf");
-  RNA_def_property_ui_text(prop, "Codec", "Codec settings for OpenEXR");
+  RNA_def_property_ui_text(prop, "Codec", "Compression codec settings for OpenEXR");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 #  endif
 
@@ -6380,35 +6401,44 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 #  ifdef WITH_FFMPEG
   /* Container types */
   static const EnumPropertyItem ffmpeg_format_items[] = {
+      {FFMPEG_MPEG4, "MPEG4", 0, "MPEG-4", ""},
+      {FFMPEG_MKV, "MKV", 0, "Matroska", ""},
+      {FFMPEG_WEBM, "WEBM", 0, "WebM", ""},
+      /* Legacy containers. */
+      RNA_ENUM_ITEM_SEPR,
+      {FFMPEG_AVI, "AVI", 0, "AVI", ""},
+      {FFMPEG_DV, "DV", 0, "DV", ""},
+      {FFMPEG_FLV, "FLASH", 0, "Flash", ""},
       {FFMPEG_MPEG1, "MPEG1", 0, "MPEG-1", ""},
       {FFMPEG_MPEG2, "MPEG2", 0, "MPEG-2", ""},
-      {FFMPEG_MPEG4, "MPEG4", 0, "MPEG-4", ""},
-      {FFMPEG_AVI, "AVI", 0, "AVI", ""},
-      {FFMPEG_MOV, "QUICKTIME", 0, "QuickTime", ""},
-      {FFMPEG_DV, "DV", 0, "DV", ""},
       {FFMPEG_OGG, "OGG", 0, "Ogg", ""},
-      {FFMPEG_MKV, "MKV", 0, "Matroska", ""},
-      {FFMPEG_FLV, "FLASH", 0, "Flash", ""},
-      {FFMPEG_WEBM, "WEBM", 0, "WebM", ""},
+      {FFMPEG_MOV, "QUICKTIME", 0, "QuickTime", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem ffmpeg_codec_items[] = {
-      {AV_CODEC_ID_NONE, "NONE", 0, "No Video", "Disables video output, for audio-only renders"},
-      {AV_CODEC_ID_DNXHD, "DNXHD", 0, "DNxHD", ""},
-      {AV_CODEC_ID_DVVIDEO, "DV", 0, "DV", ""},
-      {AV_CODEC_ID_FFV1, "FFV1", 0, "FFmpeg video codec #1", ""},
-      {AV_CODEC_ID_FLV1, "FLASH", 0, "Flash Video", ""},
-      {AV_CODEC_ID_H264, "H264", 0, "H.264", ""},
-      {AV_CODEC_ID_HUFFYUV, "HUFFYUV", 0, "HuffYUV", ""},
-      {AV_CODEC_ID_MPEG1VIDEO, "MPEG1", 0, "MPEG-1", ""},
-      {AV_CODEC_ID_MPEG2VIDEO, "MPEG2", 0, "MPEG-2", ""},
-      {AV_CODEC_ID_MPEG4, "MPEG4", 0, "MPEG-4 (divx)", ""},
-      {AV_CODEC_ID_PNG, "PNG", 0, "PNG", ""},
-      {AV_CODEC_ID_QTRLE, "QTRLE", 0, "QuickTime Animation", ""},
-      {AV_CODEC_ID_THEORA, "THEORA", 0, "Theora", ""},
-      {AV_CODEC_ID_VP9, "WEBM", 0, "WebM / VP9", ""},
-      {AV_CODEC_ID_AV1, "AV1", 0, "AV1", ""},
+      {FFMPEG_CODEC_ID_NONE,
+       "NONE",
+       0,
+       "No Video",
+       "Disables video output, for audio-only renders"},
+      {FFMPEG_CODEC_ID_AV1, "AV1", 0, "AV1", ""},
+      {FFMPEG_CODEC_ID_H264, "H264", 0, "H.264", ""},
+      {FFMPEG_CODEC_ID_H265, "H265", 0, "H.265 / HEVC", ""},
+      {FFMPEG_CODEC_ID_VP9, "WEBM", 0, "WebM / VP9", ""},
+      /* Legacy / rare codecs. */
+      RNA_ENUM_ITEM_SEPR,
+      {FFMPEG_CODEC_ID_DNXHD, "DNXHD", 0, "DNxHD", ""},
+      {FFMPEG_CODEC_ID_DVVIDEO, "DV", 0, "DV", ""},
+      {FFMPEG_CODEC_ID_FFV1, "FFV1", 0, "FFmpeg video codec #1", ""},
+      {FFMPEG_CODEC_ID_FLV1, "FLASH", 0, "Flash Video", ""},
+      {FFMPEG_CODEC_ID_HUFFYUV, "HUFFYUV", 0, "HuffYUV", ""},
+      {FFMPEG_CODEC_ID_MPEG1VIDEO, "MPEG1", 0, "MPEG-1", ""},
+      {FFMPEG_CODEC_ID_MPEG2VIDEO, "MPEG2", 0, "MPEG-2", ""},
+      {FFMPEG_CODEC_ID_MPEG4, "MPEG4", 0, "MPEG-4 (divx)", ""},
+      {FFMPEG_CODEC_ID_PNG, "PNG", 0, "PNG", ""},
+      {FFMPEG_CODEC_ID_QTRLE, "QTRLE", 0, "QuickTime Animation", ""},
+      {FFMPEG_CODEC_ID_THEORA, "THEORA", 0, "Theora", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6443,15 +6473,19 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem ffmpeg_audio_codec_items[] = {
-      {AV_CODEC_ID_NONE, "NONE", 0, "No Audio", "Disables audio output, for video-only renders"},
-      {AV_CODEC_ID_AAC, "AAC", 0, "AAC", ""},
-      {AV_CODEC_ID_AC3, "AC3", 0, "AC3", ""},
-      {AV_CODEC_ID_FLAC, "FLAC", 0, "FLAC", ""},
-      {AV_CODEC_ID_MP2, "MP2", 0, "MP2", ""},
-      {AV_CODEC_ID_MP3, "MP3", 0, "MP3", ""},
-      {AV_CODEC_ID_OPUS, "OPUS", 0, "Opus", ""},
-      {AV_CODEC_ID_PCM_S16LE, "PCM", 0, "PCM", ""},
-      {AV_CODEC_ID_VORBIS, "VORBIS", 0, "Vorbis", ""},
+      {FFMPEG_CODEC_ID_NONE,
+       "NONE",
+       0,
+       "No Audio",
+       "Disables audio output, for video-only renders"},
+      {FFMPEG_CODEC_ID_AAC, "AAC", 0, "AAC", ""},
+      {FFMPEG_CODEC_ID_AC3, "AC3", 0, "AC3", ""},
+      {FFMPEG_CODEC_ID_FLAC, "FLAC", 0, "FLAC", ""},
+      {FFMPEG_CODEC_ID_MP2, "MP2", 0, "MP2", ""},
+      {FFMPEG_CODEC_ID_MP3, "MP3", 0, "MP3", ""},
+      {FFMPEG_CODEC_ID_OPUS, "OPUS", 0, "Opus", ""},
+      {FFMPEG_CODEC_ID_PCM_S16LE, "PCM", 0, "PCM", ""},
+      {FFMPEG_CODEC_ID_VORBIS, "VORBIS", 0, "Vorbis", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 #  endif
@@ -6490,7 +6524,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "codec");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, ffmpeg_codec_items);
-  RNA_def_property_enum_default(prop, AV_CODEC_ID_H264);
+  RNA_def_property_enum_default(prop, FFMPEG_CODEC_ID_H264);
   RNA_def_property_ui_text(prop, "Video Codec", "FFmpeg codec to use for video output");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_FFmpegSettings_codec_update");
 
@@ -7490,12 +7524,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, compositor_precision_items);
   RNA_def_property_ui_text(
       prop, "Compositor Precision", "The precision of compositor intermediate result");
-  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
-
-  prop = RNA_def_property(srna, "use_new_cpu_compositor", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "use_old_cpu_compositor", 1);
-  RNA_def_property_ui_text(
-      prop, "Use New CPU Compositor", "Use the new CPU compositor implementation");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
   /* Nestled Data. */
@@ -8613,7 +8641,9 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_boolean_sdna(prop, nullptr, "r.flag", SCER_SHOW_SUBFRAME);
   RNA_def_property_ui_text(
-      prop, "Show Subframe", "Show current scene subframe and allow set it using interface tools");
+      prop,
+      "Show Subframe",
+      "Display and allow setting fractional frame values for the current frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, "rna_Scene_show_subframe_update");
 
   /* Timeline / Time Navigation settings */

@@ -87,11 +87,9 @@ typedef enum eFFMpegPreset {
 } eFFMpegPreset;
 
 /**
- * Mapping from easily-understandable descriptions to CRF values.
- * Assumes we output 8-bit video. Needs to be remapped if 10-bit
- * is output.
- * We use a slightly wider than "subjectively sane range" according
- * to https://trac.ffmpeg.org/wiki/Encode/H.264#a1.ChooseaCRFvalue
+ * Mapping from easily-understandable quality (Constant Rate Factor - CRF) descriptions
+ * to H.264 8-bit CRF values. https://trac.ffmpeg.org/wiki/Encode/H.264#a1.ChooseaCRFvalue
+ * For other video codecs these values might need to be remapped.
  */
 typedef enum eFFMpegCrf {
   FFM_CRF_NONE = -1,
@@ -414,7 +412,7 @@ typedef struct ImageFormatData {
 
   /* --- format specific --- */
 
-  /** OpenEXR. */
+  /** OpenEXR: R_IMF_EXR_CODEC_* values in low OPENEXR_CODEC_MASK bits. */
   char exr_codec;
 
   /** CINEON. */
@@ -831,11 +829,6 @@ typedef struct RenderData {
 
   /** Precision used by the GPU execution of the compositor tree. */
   int compositor_precision; /* eCompositorPrecision */
-
-  /* If false and the experimental enable_new_cpu_compositor is true, use the new experimental
-   * CPU compositor implementation, otherwise, use the old CPU compositor. */
-  char use_old_cpu_compositor;
-  char _pad10[7];
 } RenderData;
 
 /** #RenderData::quality_flag */
@@ -2428,10 +2421,6 @@ ENUM_OPERATORS(eSnapTargetOP, SCE_SNAP_TARGET_NOT_NONEDITED)
 typedef enum eSnapMode {
   SCE_SNAP_TO_NONE = 0,
 
-  /** #ToolSettings::snap_node_mode */
-  SCE_SNAP_TO_NODE_X = (1 << 0),
-  SCE_SNAP_TO_NODE_Y = (1 << 1),
-
   /** #ToolSettings::snap_anim_mode */
   SCE_SNAP_TO_FRAME = (1 << 0),
   SCE_SNAP_TO_SECOND = (1 << 1),
@@ -2471,6 +2460,7 @@ enum {
   SEQ_SNAP_TO_CURRENT_FRAME = 1 << 1,
   SEQ_SNAP_TO_STRIP_HOLD = 1 << 2,
   SEQ_SNAP_TO_MARKERS = 1 << 3,
+  SEQ_SNAP_TO_RETIMING = 1 << 4,
 
   /* Preview snapping. */
   SEQ_SNAP_TO_PREVIEW_BORDERS = 1 << 4,

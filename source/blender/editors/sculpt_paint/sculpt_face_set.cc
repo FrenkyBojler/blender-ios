@@ -42,7 +42,7 @@
 #include "BKE_mesh_mapping.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "DEG_depsgraph.hh"
@@ -769,7 +769,7 @@ static int init_op_exec(bContext *C, wmOperator *op)
     }
     case InitMode::UVSeams: {
       const VArraySpan<bool> uv_seams = *mesh->attributes().lookup_or_default<bool>(
-          ".uv_seam", bke::AttrDomain::Edge, false);
+          "uv_seam", bke::AttrDomain::Edge, false);
       init_flood_fill(ob,
                       [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
                         return !uv_seams[edge];

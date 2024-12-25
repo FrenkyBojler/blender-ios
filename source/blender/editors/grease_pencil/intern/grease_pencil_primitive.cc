@@ -19,6 +19,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.h"
 #include "BKE_paint.hh"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -29,6 +30,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_brush_types.h"
 #include "DNA_material_types.h"
 
 #include "ED_grease_pencil.hh"
@@ -617,12 +619,12 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
     return WM_modalkeymap_operator_items_to_string(op->type, int(id), true).value_or("");
   };
 
-  header += fmt::format(IFACE_("{}: confirm, {}: cancel, {}: panning, Shift: align"),
+  header += fmt::format(fmt::runtime(IFACE_("{}: confirm, {}: cancel, {}: panning, Shift: align")),
                         get_modal_key_str(ModalKeyMode::Confirm),
                         get_modal_key_str(ModalKeyMode::Cancel),
                         get_modal_key_str(ModalKeyMode::Panning));
 
-  header += fmt::format(IFACE_(", {}/{}: adjust subdivisions: {}"),
+  header += fmt::format(fmt::runtime(IFACE_(", {}/{}: adjust subdivisions: {}")),
                         get_modal_key_str(ModalKeyMode::IncreaseSubdivision),
                         get_modal_key_str(ModalKeyMode::DecreaseSubdivision),
                         int(ptd.subdivision));
@@ -637,10 +639,11 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
            PrimitiveType::Arc,
            PrimitiveType::Curve))
   {
-    header += fmt::format(IFACE_(", {}: extrude"), get_modal_key_str(ModalKeyMode::Extrude));
+    header += fmt::format(fmt::runtime(IFACE_(", {}: extrude")),
+                          get_modal_key_str(ModalKeyMode::Extrude));
   }
 
-  header += fmt::format(IFACE_(", {}: grab, {}: rotate, {}: scale"),
+  header += fmt::format(fmt::runtime(IFACE_(", {}: grab, {}: rotate, {}: scale")),
                         get_modal_key_str(ModalKeyMode::Grab),
                         get_modal_key_str(ModalKeyMode::Rotate),
                         get_modal_key_str(ModalKeyMode::Scale));
@@ -782,7 +785,7 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
   grease_pencil_primitive_update_view(C, ptd);
 
   ptd.draw_handle = ED_region_draw_cb_activate(
-      ptd.region->type, grease_pencil_primitive_draw, ptd_pointer, REGION_DRAW_POST_VIEW);
+      ptd.region->runtime->type, grease_pencil_primitive_draw, ptd_pointer, REGION_DRAW_POST_VIEW);
 
   /* Updates indicator in header. */
   grease_pencil_primitive_status_indicators(C, op, ptd);
@@ -804,7 +807,7 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
   WM_cursor_modal_restore(ptd->vc.win);
 
   /* Deactivate the extra drawing stuff in 3D-View. */
-  ED_region_draw_cb_exit(ptd->region->type, ptd->draw_handle);
+  ED_region_draw_cb_exit(ptd->region->runtime->type, ptd->draw_handle);
 
   ED_view3d_navigation_free(C, ptd->vod);
 
@@ -832,7 +835,7 @@ static float2 snap_diagonals_box(float2 p)
 static float2 snap_8_angles(float2 p)
 {
   using namespace math;
-  /* sin(pi/8) or sin of 22.5 degrees.*/
+  /* sin(pi/8) or sin of 22.5 degrees. */
   const float sin225 = 0.3826834323650897717284599840304f;
   return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
 }
@@ -912,7 +915,7 @@ static void grease_pencil_primitive_grab_update(PrimitiveToolOperation &ptd, con
                               control_point_last :
                               control_point_first;
 
-  /* Get the location of the other control point.*/
+  /* Get the location of the other control point. */
   const float2 other_point_2d = primitive_local_to_screen(ptd,
                                                           ptd.temp_control_points[other_point]);
 
@@ -1389,7 +1392,7 @@ static void GREASE_PENCIL_OT_primitive_line(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Grease Pencil Line Shape";
   ot->idname = "GREASE_PENCIL_OT_primitive_line";
-  ot->description = "Create predefined grease pencil stroke lines";
+  ot->description = "Create predefined Grease Pencil stroke lines";
 
   /* Callbacks. */
   ot->invoke = grease_pencil_primitive_invoke;
@@ -1408,7 +1411,7 @@ static void GREASE_PENCIL_OT_primitive_polyline(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Grease Pencil Polyline Shape";
   ot->idname = "GREASE_PENCIL_OT_primitive_polyline";
-  ot->description = "Create predefined grease pencil stroke polylines";
+  ot->description = "Create predefined Grease Pencil stroke polylines";
 
   /* Callbacks. */
   ot->invoke = grease_pencil_primitive_invoke;
@@ -1427,7 +1430,7 @@ static void GREASE_PENCIL_OT_primitive_arc(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Grease Pencil Arc Shape";
   ot->idname = "GREASE_PENCIL_OT_primitive_arc";
-  ot->description = "Create predefined grease pencil stroke arcs";
+  ot->description = "Create predefined Grease Pencil stroke arcs";
 
   /* Callbacks. */
   ot->invoke = grease_pencil_primitive_invoke;
@@ -1446,7 +1449,7 @@ static void GREASE_PENCIL_OT_primitive_curve(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Grease Pencil Curve Shape";
   ot->idname = "GREASE_PENCIL_OT_primitive_curve";
-  ot->description = "Create predefined grease pencil stroke curve shapes";
+  ot->description = "Create predefined Grease Pencil stroke curve shapes";
 
   /* Callbacks. */
   ot->invoke = grease_pencil_primitive_invoke;
@@ -1465,7 +1468,7 @@ static void GREASE_PENCIL_OT_primitive_box(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Grease Pencil Box Shape";
   ot->idname = "GREASE_PENCIL_OT_primitive_box";
-  ot->description = "Create predefined grease pencil stroke boxes";
+  ot->description = "Create predefined Grease Pencil stroke boxes";
 
   /* Callbacks. */
   ot->invoke = grease_pencil_primitive_invoke;
@@ -1484,7 +1487,7 @@ static void GREASE_PENCIL_OT_primitive_circle(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Grease Pencil Circle Shape";
   ot->idname = "GREASE_PENCIL_OT_primitive_circle";
-  ot->description = "Create predefined grease pencil stroke circles";
+  ot->description = "Create predefined Grease Pencil stroke circles";
 
   /* Callbacks. */
   ot->invoke = grease_pencil_primitive_invoke;

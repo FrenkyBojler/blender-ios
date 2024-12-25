@@ -309,7 +309,6 @@ static void detect_workarounds()
     /* Turn off Blender features. */
     GCaps.hdr_viewport_support = false;
     /* Turn off OpenGL 4.4 features. */
-    GLContext::clear_texture_support = false;
     GLContext::multi_bind_support = false;
     GLContext::multi_bind_image_support = false;
     /* Turn off OpenGL 4.5 features. */
@@ -428,24 +427,6 @@ static void detect_workarounds()
   {
     GLContext::unused_fb_slot_workaround = true;
   }
-  /* dFdx/dFdy calculation factors, those are dependent on driver. */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) && strstr(version, "3.3.10750"))
-  {
-    GLContext::derivative_signs[0] = 1.0;
-    GLContext::derivative_signs[1] = -1.0;
-  }
-  else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY)) {
-    if (strstr(version, "4.0.0 - Build 10.18.10.3308") ||
-        strstr(version, "4.0.0 - Build 9.18.10.3186") ||
-        strstr(version, "4.0.0 - Build 9.18.10.3165") ||
-        strstr(version, "3.1.0 - Build 9.17.10.3347") ||
-        strstr(version, "3.1.0 - Build 9.17.10.4101") ||
-        strstr(version, "3.3.0 - Build 8.15.10.2618"))
-    {
-      GLContext::derivative_signs[0] = -1.0;
-      GLContext::derivative_signs[1] = 1.0;
-    }
-  }
 
   /* Draw shader parameters are broken on Qualcomm Windows ARM64 devices
    * on Mesa version < 24.0.0 */
@@ -540,7 +521,6 @@ GLint GLContext::max_ssbo_binds = 0;
 
 /** Extensions. */
 
-bool GLContext::clear_texture_support = false;
 bool GLContext::debug_layer_support = false;
 bool GLContext::direct_state_access_support = false;
 bool GLContext::explicit_location_support = false;
@@ -560,7 +540,6 @@ bool GLContext::texture_filter_anisotropic_support = false;
 bool GLContext::debug_layer_workaround = false;
 bool GLContext::unused_fb_slot_workaround = false;
 bool GLContext::generate_mipmap_workaround = false;
-float GLContext::derivative_signs[2] = {1.0f, 1.0f};
 
 void GLBackend::capabilities_init()
 {
@@ -602,6 +581,9 @@ void GLBackend::capabilities_init()
   int64_t max_ssbo_size;
   glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &max_ssbo_size);
   GCaps.max_storage_buffer_size = size_t(max_ssbo_size);
+  GLint ssbo_alignment;
+  glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &ssbo_alignment);
+  GCaps.storage_buffer_alignment = size_t(ssbo_alignment);
 
   GCaps.transform_feedback_support = true;
   GCaps.texture_view_support = epoxy_gl_version() >= 43 ||
@@ -621,7 +603,6 @@ void GLBackend::capabilities_init()
   GLContext::max_ssbo_binds = min_ii(GLContext::max_ssbo_binds, max_ssbo_binds);
   glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &max_ssbo_binds);
   GLContext::max_ssbo_binds = min_ii(GLContext::max_ssbo_binds, max_ssbo_binds);
-  GLContext::clear_texture_support = epoxy_has_gl_extension("GL_ARB_clear_texture");
   GLContext::debug_layer_support = epoxy_gl_version() >= 43 ||
                                    epoxy_has_gl_extension("GL_KHR_debug") ||
                                    epoxy_has_gl_extension("GL_ARB_debug_output");

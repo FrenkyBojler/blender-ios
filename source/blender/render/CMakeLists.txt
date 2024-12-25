@@ -6,20 +6,17 @@
 set(INC
   .
   intern
-  ../blenkernel
-  ../blentranslation
-  ../compositor/realtime_compositor
-  ../compositor/realtime_compositor/cached_resources
+  ../compositor
+  ../compositor/cached_resources
   ../draw
   ../draw/intern
-  ../gpu
   ../gpu/intern
   ../imbuf
+  ../imbuf/movie
   ../makesrna
   ../nodes
   ../sequencer
   ../simulation
-  ../windowmanager
   ../../../intern/mikktspace
   ../../../intern/mantaflow/extern
 )
@@ -60,13 +57,17 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
-  bf_realtime_compositor
+  bf_compositor
   PRIVATE bf::intern::atomic
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_PYTHON)

@@ -392,7 +392,7 @@ class UpdateAnimatedTransformConstraint(Operator):
         to_paths = {"to_max_x", "to_max_y", "to_max_z", "to_min_x", "to_min_y", "to_min_z"}
         paths = from_paths | to_paths
 
-        def update_cb(base, class_name, old_path, fcurve, options):
+        def update_cb(base, _class_name, old_path, fcurve, options):
             # print(options)
 
             def handle_deg2rad(fcurve):
@@ -686,10 +686,13 @@ class ANIM_OT_slot_new_for_id(Operator):
         if not animated_id:
             return False
         if not animated_id.animation_data or not animated_id.animation_data.action:
-            cls.poll_message_set("An action slot can only be created when an action was assigned")
+            cls.poll_message_set("An action slot can only be created when an action is assigned")
             return False
         if not animated_id.animation_data.action.is_action_layered:
             cls.poll_message_set("Action slots are only supported by layered Actions. Upgrade this Action first")
+            return False
+        if not animated_id.animation_data.action.is_editable:
+            cls.poll_message_set("Creating a new Slot is not possible on a linked Action")
             return False
         return True
 
@@ -697,7 +700,7 @@ class ANIM_OT_slot_new_for_id(Operator):
         animated_id = context.animated_id
 
         action = animated_id.animation_data.action
-        slot = action.slots.new(for_id=animated_id)
+        slot = action.slots.new(animated_id.id_type, animated_id.name)
         animated_id.animation_data.action_slot = slot
         return {'FINISHED'}
 

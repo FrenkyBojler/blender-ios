@@ -4,10 +4,6 @@
 
 set(INC
   .
-  ../blenkernel
-  ../blentranslation
-  ../bmesh
-  ../functions
   ../makesrna
   ../../../intern/eigen
 )
@@ -37,6 +33,7 @@ set(SRC
   intern/mesh_split_edges.cc
   intern/mesh_to_curve_convert.cc
   intern/mesh_to_volume.cc
+  intern/mesh_triangulate.cc
   intern/mix_geometries.cc
   intern/point_merge_by_distance.cc
   intern/points_to_volume.cc
@@ -77,6 +74,7 @@ set(SRC
   GEO_mesh_split_edges.hh
   GEO_mesh_to_curve.hh
   GEO_mesh_to_volume.hh
+  GEO_mesh_triangulate.hh
   GEO_mix_geometries.hh
   GEO_point_merge_by_distance.hh
   GEO_points_to_volume.hh
@@ -98,9 +96,13 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
 )

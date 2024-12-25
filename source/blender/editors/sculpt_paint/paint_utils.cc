@@ -205,6 +205,12 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
                       "Stroke Mode",
                       "Action taken when a paint stroke is made");
   RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
+
+  /* TODO: Pen flip logic should likely be combined into the stroke mode logic instead of being
+   * an entirely separate concept. */
+  prop = RNA_def_boolean(
+      ot->srna, "pen_flip", false, "Pen Flip", "Whether a tablet's eraser mode is being used");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
 /* 3D Paint */
@@ -277,9 +283,7 @@ static int imapaint_pick_face(ViewContext *vc,
   const float3 start_object = math::transform_point(world_to_object, start_world);
   const float3 end_object = math::transform_point(world_to_object, end_world);
 
-  BVHTreeFromMesh mesh_bvh;
-  BKE_bvhtree_from_mesh_get(&mesh_bvh, &mesh, BVHTREE_FROM_CORNER_TRIS, 2);
-  BLI_SCOPED_DEFER([&]() { free_bvhtree_from_mesh(&mesh_bvh); });
+  bke::BVHTreeFromMesh mesh_bvh = mesh.bvh_corner_tris();
 
   BVHTreeRayHit ray_hit;
   ray_hit.dist = FLT_MAX;
