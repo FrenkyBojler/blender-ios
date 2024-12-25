@@ -736,7 +736,7 @@ void complex_B_NOT_A_test()
   const Array<float2> points_a = {{14, 1}, {0, 5}, {14, 10}, {5, 6}, {14, 6}, {5, 5}};
   const Array<float2> points_b = {{9, 13}, {13, 0}, {9, 9}, {6, 0}};
   std::optional<BooleanResult> result = polygonboolean::curve_boolean_calc(
-      Operation::NotA, points_a, points_b);
+      Operation::Not, points_a, points_b);
 
   if (!result.has_value()) {
     EXPECT_TRUE(false);
