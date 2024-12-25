@@ -104,6 +104,7 @@ void get_default_fac_fade(const Scene *scene,
 SeqEffectHandle get_sequence_effect_impl(int seq_type);
 
 void add_effect_get_handle(SeqEffectHandle &rval);
+void adjustment_effect_get_handle(SeqEffectHandle &rval);
 void alpha_over_effect_get_handle(SeqEffectHandle &rval);
 void alpha_under_effect_get_handle(SeqEffectHandle &rval);
 void blend_mode_effect_get_handle(SeqEffectHandle &rval);

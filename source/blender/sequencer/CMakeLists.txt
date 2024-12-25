@@ -51,6 +51,7 @@ set(SRC
   intern/effects/effects.cc
   intern/effects/effects.hh
   intern/effects/vse_effect_add_sub_mul.cc
+  intern/effects/vse_effect_adjustment.cc
   intern/effects/vse_effect_blend.cc
   intern/effects/vse_effect_cross.cc
   intern/effects/vse_effect_gaussian_blur.cc
