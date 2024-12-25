@@ -82,6 +82,9 @@ void get_default_fac_fade(const Scene *scene,
                           float timeline_frame,
                           float *fac);
 
+SeqEffectHandle get_sequence_effect_impl(int seq_type);
+
 void gaussian_blur_effect_get_handle(SeqEffectHandle &rval);
+void speed_effect_get_handle(SeqEffectHandle &rval);
 void text_effect_get_handle(SeqEffectHandle &rval);
 void wipe_effect_get_handle(SeqEffectHandle &rval);
