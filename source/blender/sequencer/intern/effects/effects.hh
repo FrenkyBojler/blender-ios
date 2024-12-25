@@ -76,4 +76,11 @@ inline void store_opaque_black_pixel(float *dst)
   dst[3] = 1.0f;
 }
 
+StripEarlyOut early_out_fade(const Sequence * /*seq*/, float fac);
+void get_default_fac_fade(const Scene *scene,
+                          const Sequence *seq,
+                          float timeline_frame,
+                          float *fac);
+
 void text_effect_get_handle(SeqEffectHandle &rval);
+void wipe_effect_get_handle(SeqEffectHandle &rval);
