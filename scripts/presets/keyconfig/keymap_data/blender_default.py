@@ -355,20 +355,37 @@ def _template_items_transform_actions(
         use_mirror=False,
         use_tosphere=False,
         use_shear=False,
+        use_unitless_translate=False
+
 ):
     items = [
-        op_tool_optional(
-            ("transform.translate", {"type": 'G', "value": 'PRESS'}, None),
-            (op_tool_cycle, "builtin.move"), params),
         op_tool_optional(
             ("transform.rotate", {"type": 'R', "value": 'PRESS'}, None),
             (op_tool_cycle, "builtin.rotate"), params),
         op_tool_optional(
             ("transform.resize", {"type": 'S', "value": 'PRESS'}, None),
             (op_tool_cycle, "builtin.scale"), params),
-
-        ("transform.translate", {"type": params.select_mouse, "value": 'CLICK_DRAG'}, None),
     ]
+
+    if use_unitless_translate:
+        items.append(
+            op_tool_optional(
+                ("transform.transform", {"type": 'G', "value": 'PRESS'}, None),
+                (op_tool_cycle, "builtin.move"), params),
+        )
+        items.append(
+            ("transform.transform", {"type": params.select_mouse, "value": 'CLICK_DRAG'}, None)
+        )
+    else:
+        items.append(
+            op_tool_optional(
+                ("transform.translate", {"type": 'G', "value": 'PRESS'}, None),
+                (op_tool_cycle, "builtin.move"), params),
+        )
+        items.append(
+            ("transform.translate", {"type": params.select_mouse, "value": 'CLICK_DRAG'}, None)
+        )
+
 
     if use_bend:
         items.append(
@@ -1407,7 +1424,7 @@ def km_uv_editor(params):
             params, connected=False, toggle_data_path="tool_settings.use_proportional_edit"),
 
         # Transform Actions.
-        *_template_items_transform_actions(params, use_mirror=True, use_shear=True),
+        *_template_items_transform_actions(params, use_mirror=True, use_shear=True, use_unitless_translate=True),
 
         ("wm.context_toggle", {"type": 'TAB', "value": 'PRESS', "shift": True},
          {"properties": [("data_path", "tool_settings.use_snap_uv")]}),
@@ -3165,7 +3182,7 @@ def km_sequencerpreview(params):
         op_menu_pie("SEQUENCER_MT_preview_view_pie", {"type": 'ACCENT_GRAVE', "value": 'PRESS'}),
 
         # Transform Actions.
-        *_template_items_transform_actions(params, use_mirror=True),
+        *_template_items_transform_actions(params, use_mirror=True, use_unitless_translate=True),
 
         # Edit.
         ("sequencer.strip_transform_clear", {"type": 'G', "alt": True, "value": 'PRESS'},
