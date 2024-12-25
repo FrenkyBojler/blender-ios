@@ -103,6 +103,7 @@ void get_default_fac_fade(const Scene *scene,
 
 SeqEffectHandle get_sequence_effect_impl(int seq_type);
 
+void add_effect_get_handle(SeqEffectHandle &rval);
 void alpha_over_effect_get_handle(SeqEffectHandle &rval);
 void alpha_under_effect_get_handle(SeqEffectHandle &rval);
 void blend_mode_effect_get_handle(SeqEffectHandle &rval);
@@ -111,9 +112,11 @@ void cross_effect_get_handle(SeqEffectHandle &rval);
 void gamma_cross_effect_get_handle(SeqEffectHandle &rval);
 void gaussian_blur_effect_get_handle(SeqEffectHandle &rval);
 void glow_effect_get_handle(SeqEffectHandle &rval);
+void mul_effect_get_handle(SeqEffectHandle &rval);
 void over_drop_effect_get_handle(SeqEffectHandle &rval);
 void solid_color_effect_get_handle(SeqEffectHandle &rval);
 void speed_effect_get_handle(SeqEffectHandle &rval);
+void sub_effect_get_handle(SeqEffectHandle &rval);
 void text_effect_get_handle(SeqEffectHandle &rval);
 void transform_effect_get_handle(SeqEffectHandle &rval);
 void wipe_effect_get_handle(SeqEffectHandle &rval);
