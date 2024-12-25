@@ -38,6 +38,7 @@
 #include "SEQ_effects.hh"
 #include "SEQ_proxy.hh"
 #include "SEQ_render.hh"
+#include "SEQ_utils.hh"
 
 #include "effects.hh"
 

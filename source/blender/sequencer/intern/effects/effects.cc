@@ -211,7 +211,6 @@ SeqEffectHandle get_sequence_effect_impl(int seq_type)
   int sequence_type = seq_type;
 
   rval.multithreaded = false;
-  rval.supports_mask = false;
   rval.init = init_noop;
   rval.num_inputs = num_inputs_default;
   rval.load = load_noop;

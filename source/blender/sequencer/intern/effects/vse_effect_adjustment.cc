@@ -90,7 +90,6 @@ static ImBuf *do_adjustment(const SeqRenderData *context,
 
 void adjustment_effect_get_handle(SeqEffectHandle &rval)
 {
-  rval.supports_mask = true;
   rval.num_inputs = num_inputs_adjustment;
   rval.early_out = early_out_adjustment;
   rval.execute = do_adjustment;
