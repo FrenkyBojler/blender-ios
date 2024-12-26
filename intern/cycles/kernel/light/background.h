@@ -446,7 +446,7 @@ ccl_device_forceinline bool background_light_tree_parameters(const float3 centro
                                                              ccl_private float &theta_d)
 {
   if (in_volume_segment) {
-    theta_d = t;
+    theta_d = t == FLT_MAX ? 1.0f : t;
   }
 
   /* Cover the whole sphere */
