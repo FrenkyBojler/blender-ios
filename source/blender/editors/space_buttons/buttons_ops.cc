@@ -347,11 +347,11 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     }
   }
 
+  const char *prop_id = RNA_property_identifier(prop);
+
   /* NOTE: relying on built-in names isn't useful for add-on authors.
    * The property itself should support this kind of meta-data. */
-  const char *prop_id = RNA_property_identifier(prop);
   if (STR_ELEM(prop_id, "font_path_ui", "font_path_ui_mono", "font_directory")) {
-    /* Show fonts list in a nice way.*/
     RNA_boolean_set(op->ptr, "filter_font", true);
     RNA_boolean_set(op->ptr, "filter_folder", true);
     RNA_enum_set(op->ptr, "display_type", FILE_IMGDISPLAY);
