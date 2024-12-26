@@ -139,10 +139,6 @@ ccl_device_forceinline bool distant_light_tree_parameters(const float3 centroid,
                                                           ccl_private float &theta_d)
 {
   if (in_volume_segment) {
-    if (t == FLT_MAX) {
-      /* In world volume, distant light has no contribution. */
-      return false;
-    }
     theta_d = t;
   }
 
