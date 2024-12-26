@@ -376,6 +376,7 @@ class ShaderModule {
   ShaderPtr curve_edit_points = shader_clippable("overlay_edit_curves_point");
   ShaderPtr curve_edit_line = shader_clippable("overlay_edit_particle_strand");
   ShaderPtr curve_edit_bezier_segments = shader_clippable("overlay_edit_curves_bezier_segment");
+  ShaderPtr curve_edit_segment_joint = shader_clippable("overlay_edit_curves_segment_joint");
   ShaderPtr curve_edit_handles = shader_clippable("overlay_edit_curves_handle");
   ShaderPtr facing = shader_clippable("overlay_facing");
   ShaderPtr grid = shader("overlay_grid_next");

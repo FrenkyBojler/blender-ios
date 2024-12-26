@@ -30,6 +30,7 @@ class Curves : Overlay {
   PassSimple::Sub *edit_curves_points_ = nullptr;
   PassSimple::Sub *edit_curves_lines_ = nullptr;
   PassSimple::Sub *edit_bezier_segments_ = nullptr;
+  PassSimple::Sub *edit_segment_joints_ = nullptr;
   PassSimple::Sub *edit_curves_handles_ = nullptr;
 
   PassSimple edit_legacy_curve_ps_ = {"Legacy Curve Edit"};
@@ -81,6 +82,14 @@ class Curves : Overlay {
                       state.clipping_plane_count);
         sub.shader_set(res.shaders.curve_edit_bezier_segments.get());
         edit_bezier_segments_ = &sub;
+      }
+      {
+        auto &sub = pass.sub("SegmentJoints");
+        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA |
+                          DRW_STATE_WRITE_DEPTH,
+                      state.clipping_plane_count);
+        sub.shader_set(res.shaders.curve_edit_segment_joint.get());
+        edit_segment_joints_ = &sub;
       }
       {
         auto &sub = pass.sub("Handles");
@@ -208,6 +217,7 @@ class Curves : Overlay {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_bezier_segments(&curves);
       edit_bezier_segments_->bind_ubo("curves_data",
                                       DRW_curves_batch_cache_get_curves_data(&curves));
+      edit_segment_joints_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
       edit_bezier_segments_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
     }
   }

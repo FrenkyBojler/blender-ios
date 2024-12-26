@@ -37,7 +37,23 @@ VertIn input_assembly(uint vertex_id)
   return vert_in;
 }
 
-void calc_bezier_point(float u, in vec3 control_points[4], out vec3 curve_point)
+vec2 circle_tangent(vec2 center_a, float radius_a, vec2 center_b, float radius_b, bool first)
+{
+  const vec2 delta = center_b - center_a;
+  const float delta_r = radius_a - radius_b;
+  const float squared = dot(delta, delta);
+  if (squared < delta_r * delta_r) {
+    return vec2();
+  }
+  const float dist = sqrt(squared);
+  const float gamma = atan2(delta.y, delta.x);
+  const float theta = acos(delta_r / dist);
+
+  const float alpha = gamma + (first ? theta : -theta);
+  return radius_a * vec2(cos(alpha), sin(alpha));
+}
+
+vec3 calc_bezier_point(float u, in vec3 control_points[4])
 {
   control_points[0] += (control_points[1] - control_points[0]) * u;
   control_points[1] += (control_points[2] - control_points[1]) * u;
@@ -46,50 +62,64 @@ void calc_bezier_point(float u, in vec3 control_points[4], out vec3 curve_point)
   control_points[0] += (control_points[1] - control_points[0]) * u;
   control_points[1] += (control_points[2] - control_points[1]) * u;
 
-  control_points[0] += (control_points[1] - control_points[0]) * u;
+  return control_points[0] + (control_points[1] - control_points[0]) * u;
+}
 
-  curve_point = control_points[0];
+float radius_to_ndc(float radius, vec3 view_point)
+{
+  const vec3 view_radius = vec3(radius, 0.0, view_point.z);
+  const vec4 ndc_radius = point_view_to_ndc(view_radius);
+  return ndc_radius.x / ndc_radius.w;
 }
 
 void main()
 {
   const int vertex_per_quad = 6;
   VertIn vert_in = input_assembly(gl_VertexID / vertex_per_quad);
-  int segment_vertex_i = gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
-  int quad_i = segment_vertex_i / vertex_per_quad;
-  int in_quad_i = segment_vertex_i % vertex_per_quad;
-  bool quad_right = in_quad_i >= 2 && in_quad_i != 5; 
-  int step = quad_i + quad_right;
-  float u = float(step) / vert_in.resolution;
+  const int segment_vertex_i = gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
+  const int quad_i = segment_vertex_i / vertex_per_quad;
+  const int in_quad_i = segment_vertex_i % vertex_per_quad;
+  const bool quad_right = in_quad_i >= 2 && in_quad_i != 5;
+  const bool bottom_edge = in_quad_i % 2;
 
-  int step2 = quad_right ? step - 1 : step + 1;
-  float u2 = float(step2) / vert_in.resolution;
+#ifndef JOINT
+  vec3 points[4] = float4_array(vert_in.p[0], vert_in.p[1], vert_in.p[2], vert_in.p[3]);
+  const int step = quad_i + quad_right;
+#else
+  const int step = quad_i;
+#endif
 
-  vec3 points[4] = {vert_in.p[0], vert_in.p[1], vert_in.p[2], vert_in.p[3]};
-
-  vec3 curve_point;
-  calc_bezier_point(u, vert_in.p, curve_point);
-
-  vec3 curve_point2;
-  calc_bezier_point(u2, points, curve_point2);
-
-  vec3 world_pos = point_object_to_world(curve_point);
+  const float u = float(step) / vert_in.resolution;
+  const vec3 curve_point = calc_bezier_point(u, vert_in.p);
+  const vec3 world_pos = point_object_to_world(curve_point);
   vec4 ndc_pos = point_world_to_ndc(world_pos);
+
+  const float radius = radius_to_ndc(mix(vert_in.radius.x, vert_in.radius.y, u) * sizeViewport.x,
+                                     point_world_to_view(world_pos));
+
+#ifndef JOINT
+  const int step2 = quad_right ? step - 1 : step + 1;
+  const float u2 = float(step2) / vert_in.resolution;
+  const vec3 curve_point2 = calc_bezier_point(u2, points);
+  const float radius2 = radius_to_ndc(mix(vert_in.radius.x, vert_in.radius.y, u2) * sizeViewport.x,
+                                      point_object_to_view(curve_point2));
   vec4 ndc_pos2 = point_object_to_ndc(curve_point2);
 
-  float radius = mix(vert_in.radius.x, vert_in.radius.y, u) * 1000;
-  vec3 view_radius = vec3(radius, 0.0, point_world_to_view(world_pos).z);
-  vec4 ndc_radius = point_view_to_ndc(view_radius);
-  float normal_size = ndc_radius.x / ndc_radius.w;
+  const vec2 offset = circle_tangent((ndc_pos.xy / ndc_pos.w) * sizeViewport,
+                                     radius,
+                                     (ndc_pos2.xy / ndc_pos2.w) * sizeViewport,
+                                     radius2,
+                                     quad_right ? bottom_edge : !bottom_edge);
+#else
+  const float x = quad_right ? 1.0 : -1.0;
+  const float y = bottom_edge ? -1.0 : 1.0;
+  const vec2 offset = vec2(x, y) * radius;
 
-  float c = quad_right ? 1.0 : -1.0;
-  vec2 tan = c * (ndc_pos2.xy / ndc_pos2.w - ndc_pos.xy / ndc_pos.w);
+  uv_coord = vec2(x, y);
+#endif
 
-  vec2 normal = normalize(vec2(-tan.y, tan.x)) * normal_size * 2 * sizeViewportInv;
-  normal *= in_quad_i % 2 ? -1.0 : 1.0;
-
-  ndc_pos.xy += normal * ndc_pos.w;
+  ndc_pos.xy += offset * ndc_pos.w * sizeViewportInv;
   gl_Position = ndc_pos;
+  finalColor = colorWireEdit;
   view_clipping_distances(world_pos);
-  finalColor = vec4(0.0, 0.0, 1.0, 1.0);
 }
