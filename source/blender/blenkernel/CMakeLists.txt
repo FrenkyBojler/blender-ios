@@ -5,12 +5,8 @@
 set(INC
   PUBLIC .
   ../asset_system
-  ../blenloader
-  ../blentranslation
   ../draw
-  ../functions
   ../ikplugin
-  ../imbuf
   ../makesrna
   ../modifiers
   ../nodes
@@ -559,17 +555,17 @@ set(LIB
   bf_asset_system
   PRIVATE bf::blenfont
   PRIVATE bf::blenlib
-  bf_blenloader
-  bf_blentranslation
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_draw
   PRIVATE bf::extern::curve_fit_nd
-  bf_functions
+  PRIVATE bf::functions
   PRIVATE bf::gpu
   bf_ikplugin
-  bf_imbuf
+  PRIVATE bf::imbuf
   bf::imbuf_movie
   PRIVATE bf::intern::clog
   bf_intern_ghost

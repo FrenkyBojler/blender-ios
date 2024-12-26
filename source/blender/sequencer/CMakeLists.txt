@@ -6,9 +6,6 @@ set(INC
   .
   intern
   ../animrig
-  ../blenloader
-  ../blentranslation
-  ../imbuf
   ../imbuf/movie
   ../makesrna
   ../render
@@ -85,8 +82,11 @@ set(LIB
   PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc

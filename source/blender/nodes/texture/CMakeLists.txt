@@ -7,8 +7,6 @@ set(INC
   ..
   ../intern
   ../../editors/include
-  ../../blentranslation
-  ../../imbuf
   ../../makesrna
   ../../render
   # RNA_prototypes.hh
@@ -56,9 +54,11 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   bf_nodes
   PRIVATE bf::windowmanager

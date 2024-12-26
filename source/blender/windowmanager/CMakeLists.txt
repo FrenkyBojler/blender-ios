@@ -7,12 +7,9 @@ set(INC
   gizmo
   gizmo/intern
   ../asset_system
-  ../blenloader
-  ../blentranslation
   ../compositor
   ../editors/include
   ../draw
-  ../imbuf
   ../imbuf/movie
   ../makesrna
   ../nodes
@@ -97,6 +94,8 @@ set(LIB
   PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
@@ -104,6 +103,7 @@ set(LIB
   bf_editor_undo
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig

@@ -6,13 +6,9 @@ set(INC
   ../include
   ../io
   ../../asset_system
-  ../../blenloader
-  ../../blentranslation
   ../../compositor
   ../../draw
-  ../../functions
   ../../geometry
-  ../../imbuf
   ../../makesrna
   ../../nodes
   ../../render
@@ -52,10 +48,14 @@ set(LIB
   PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_screen
+  PRIVATE bf::functions
   PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   bf_compositor
   PRIVATE bf::extern::fmtlib
