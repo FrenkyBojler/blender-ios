@@ -78,10 +78,10 @@ void do_enhance_details_brush(const Depsgraph &depsgraph,
                               const Sculpt &sd,
                               Object &object,
                               const IndexMask &node_mask);
-void do_plane_brush(const Depsgraph& depsgraph,
-                    const Sculpt& sd,
-                    Object& object,
-                    const IndexMask& node_mask);
+void do_plane_brush(const Depsgraph &depsgraph,
+                    const Sculpt &sd,
+                    Object &object,
+                    const IndexMask &node_mask);
 void do_grab_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &ob,

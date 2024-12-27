@@ -319,6 +319,9 @@ typedef struct Brush {
   float plane_depth;
   float plane_height;
 
+  float stable_normal;
+  float stable_plane;
+
   float texture_sample_bias;
 
   int curve_preset;

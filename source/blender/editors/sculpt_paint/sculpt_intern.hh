@@ -233,6 +233,8 @@ struct StrokeCache {
 
   bool first_time; /* Beginning of stroke may do some things special */
 
+  bool plane_brush_fist_time;
+
   /* from ED_view3d_ob_project_mat_get() */
   float4x4 projection_mat;
 
@@ -265,6 +267,9 @@ struct StrokeCache {
    * transforms */
   float3 sculpt_normal;
   float3 sculpt_normal_symm;
+
+  float3 last_plane_normal;
+  float3 last_plane_center;
 
   /* Used for area texture mode, local_mat gets calculated by
    * calc_brush_local_mat() and used in sculpt_apply_texture().
@@ -613,7 +618,7 @@ std::optional<BMVert *> nearest_vert_calc_bmesh(const bke::pbvh::Tree &pbvh,
                                                 bool use_original);
 }  // namespace blender::ed::sculpt_paint
 
-float brush_flip(const Brush& brush, const blender::ed::sculpt_paint::StrokeCache& cache);
+float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::StrokeCache &cache);
 
 float SCULPT_brush_plane_offset_get(const Sculpt &sd, const SculptSession &ss);
 

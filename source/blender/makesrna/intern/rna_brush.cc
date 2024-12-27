@@ -423,18 +423,16 @@ static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
   return br->sculpt_brush_type == SCULPT_BRUSH_TYPE_LAYER;
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_plane_depth_get(PointerRNA* ptr)
+static bool rna_BrushCapabilitiesSculpt_has_plane_depth_get(PointerRNA *ptr)
 {
-  Brush* br = (Brush*)ptr->data;
-  return ELEM(br->sculpt_brush_type,
-    SCULPT_BRUSH_TYPE_PLANE);
+  Brush *br = (Brush *)ptr->data;
+  return ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_PLANE);
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA* ptr)
+static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA *ptr)
 {
-  Brush* br = (Brush*)ptr->data;
-  return ELEM(br->sculpt_brush_type,
-    SCULPT_BRUSH_TYPE_PLANE);
+  Brush *br = (Brush *)ptr->data;
+  return ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_PLANE);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_jitter_get(PointerRNA *ptr)
@@ -2411,17 +2409,17 @@ static void rna_def_brush(BlenderRNA *brna)
 
   /* TODO: add descriptions */
   static const EnumPropertyItem brush_plane_inversion_mode_items[] = {
-    {BRUSH_PLANE_INVERT_DISPLACEMENT,
-     "INVERT_DISPLACEMENT",
-     0,
-     "Invert Displacement",
-     "Invert Displacement"},
-    {BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT,
-     "SWAP_DEPTH_AND_HEIGHT",
-     0,
-     "Swap depth and height",
-     "Swap depth and height"},
-    {0, nullptr, 0, nullptr, nullptr},
+      {BRUSH_PLANE_INVERT_DISPLACEMENT,
+       "INVERT_DISPLACEMENT",
+       0,
+       "Invert Displacement",
+       "Invert Displacement"},
+      {BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT,
+       "SWAP_DEPTH_AND_HEIGHT",
+       0,
+       "Swap depth and height",
+       "Swap depth and height"},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem brush_cloth_deform_type_items[] = {
@@ -3037,10 +3035,8 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(
-    prop,
-    "Depth",
-    "Depth"); //TODO: add description
+  RNA_def_property_ui_text(prop, "Depth",
+                           "Depth");  // TODO: add description
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "plane_height", PROP_FLOAT, PROP_DISTANCE);
@@ -3048,10 +3044,26 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(
-    prop,
-    "Height",
-    "Height"); //TODO: add description
+  RNA_def_property_ui_text(prop, "Height",
+                           "Height");  // TODO: add description
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "stable_normal", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "stable_normal");
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_range(prop, 0, 1.0f);
+  RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
+  RNA_def_property_ui_text(prop, "Stable Normal",
+                           "Stable Normal");  // TODO: add description
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "stable_plane", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "stable_plane");
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_range(prop, 0, 1.0f);
+  RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
+  RNA_def_property_ui_text(prop, "Stable Plane",
+                           "Stable Plane");  // TODO: add description
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);

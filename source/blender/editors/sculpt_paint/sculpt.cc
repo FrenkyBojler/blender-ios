@@ -1354,10 +1354,10 @@ static float area_normal_and_center_get_position_radius(const SculptSession &ss,
   if (brush.ob_mode == OB_MODE_SCULPT) {
     /* Layer brush produces artifacts with normal and area radius */
     if (ELEM(brush.sculpt_brush_type,
-      SCULPT_BRUSH_TYPE_PLANE,
-      SCULPT_BRUSH_TYPE_FLATTEN,
-      SCULPT_BRUSH_TYPE_SCRAPE,
-      SCULPT_BRUSH_TYPE_FILL) &&
+             SCULPT_BRUSH_TYPE_PLANE,
+             SCULPT_BRUSH_TYPE_FLATTEN,
+             SCULPT_BRUSH_TYPE_SCRAPE,
+             SCULPT_BRUSH_TYPE_FILL) &&
         brush.area_radius_factor > 0.0f)
     {
       test_radius *= brush.area_radius_factor;
@@ -1982,7 +1982,6 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
-  int n;
 
   AreaNormalCenterData anctd;
   threading::EnumerableThreadSpecific<SampleLocalData> all_tls;
@@ -2055,34 +2054,58 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
     }
   }
 
-  /* For flatten center. */
-  for (n = 0; n < anctd.area_cos.size(); n++) {
-    if (anctd.count_co[n] == 0) {
-      continue;
-    }
+  float3 plane_center = ss.cache ? ss.cache->location_symm : float3(0.0f);
+  float3 plane_normal = float3(0.0f);
 
-    mul_v3_v3fl(r_area_co, anctd.area_cos[n], 1.0f / anctd.count_co[n]);
-    break;
-  }
-
-  if (n == 2) {
-    zero_v3(r_area_co);
-  }
-
-  if (anctd.count_co[0] == 0 && anctd.count_co[1] == 0) {
-    if (ss.cache) {
-      copy_v3_v3(r_area_co, ss.cache->location_symm);
-    }
-  }
-
-  /* For area normal. */
-  for (n = 0; n < anctd.area_nos.size(); n++) {
-    if (normalize_v3_v3(r_area_no, anctd.area_nos[n]) != 0.0f) {
+  /* Area center. */
+  for (int i = 0; i < anctd.area_cos.size(); i++) {
+    if (anctd.count_co[i] > 0) {
+      plane_center = anctd.area_cos[i] * 1.0f / anctd.count_co[i];
       break;
     }
   }
-}
 
+  /* Area normal. */
+  for (int i = 0; i < anctd.count_no.size(); i++) {
+
+    if (anctd.count_no[i] > 0) {
+      plane_normal = math::normalize(anctd.area_nos[i]);
+      break;
+    }
+  }
+
+  const float normal_weight = brush.stable_normal;
+  const float plane_weight = brush.stable_plane;
+
+  float3 new_plane_normal;
+  float3 new_plane_center;
+
+  /* If it's the first step of the stroke, simply use the current center and normal. */
+  if (ss.cache->plane_brush_fist_time) {
+    new_plane_center = plane_center;
+    new_plane_normal = plane_normal;
+    ss.cache->plane_brush_fist_time = false;
+  }
+  else {
+    /* Interpolate between plane_normal and the last plane normal. */
+    new_plane_normal = math::normalize(
+        math::interpolate(plane_normal, ss.cache->last_plane_normal, normal_weight));
+
+    const float distance_to_last_plane = math::dot(plane_center - ss.cache->last_plane_center,
+                                                   ss.cache->last_plane_normal);
+
+    /* Interpolate between plane_center and its projection on the last plane. */
+    new_plane_center = plane_center -
+                       ss.cache->last_plane_normal *
+                           math::interpolate(0.0f, distance_to_last_plane, plane_weight);
+  }
+
+  copy_v3_v3(r_area_no, new_plane_normal);
+  ss.cache->last_plane_normal = new_plane_normal;
+
+  copy_v3_v3(r_area_co, new_plane_center);
+  ss.cache->last_plane_center = new_plane_center;
+}
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */
@@ -4001,6 +4024,7 @@ static void sculpt_update_cache_invariants(
   }
 
   cache->first_time = true;
+  cache->plane_brush_fist_time = true;
 
 #define PIXEL_INPUT_THRESHHOLD 5
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_ROTATE) {
