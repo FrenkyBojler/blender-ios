@@ -11,6 +11,8 @@
 #include "BLI_array.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_task.hh"
+#include "IMB_imbuf_types.hh"
 #include "SEQ_effects.hh"
 
 struct ImBuf;
@@ -122,3 +124,32 @@ void sub_effect_get_handle(SeqEffectHandle &rval);
 void text_effect_get_handle(SeqEffectHandle &rval);
 void transform_effect_get_handle(SeqEffectHandle &rval);
 void wipe_effect_get_handle(SeqEffectHandle &rval);
+
+/* Given `T` that implements an `apply` function:
+ *
+ *    template <typename T>
+ *    void apply(const T *src1, const T *src2, T *dst, int64_t size) const;
+ *
+ * this function calls the apply() function in parallel
+ * chunks of the image to process, and with uchar or float types
+ * All images are expected to have 4 (RGBA) color channels. */
+template<typename T>
+static void apply_effect_op(const T &op, const ImBuf *src1, const ImBuf *src2, ImBuf *dst)
+{
+  blender::threading::parallel_for(
+      blender::IndexRange(size_t(dst->x) * dst->y), 32 * 1024, [&](blender::IndexRange range) {
+        int64_t offset = range.first() * 4;
+        if (dst->float_buffer.data) {
+          const float *src1_ptr = src1->float_buffer.data + offset;
+          const float *src2_ptr = src2->float_buffer.data + offset;
+          float *dst_ptr = dst->float_buffer.data + offset;
+          op.apply(src1_ptr, src2_ptr, dst_ptr, range.size());
+        }
+        else {
+          const uchar *src1_ptr = src1->byte_buffer.data + offset;
+          const uchar *src2_ptr = src2->byte_buffer.data + offset;
+          uchar *dst_ptr = dst->byte_buffer.data + offset;
+          op.apply(src1_ptr, src2_ptr, dst_ptr, range.size());
+        }
+      });
+}
