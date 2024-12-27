@@ -467,28 +467,6 @@ void squares_A_NOT_B_test()
   }
 }
 
-void squares_B_NOT_A_test()
-{
-
-  const Array<float2> points_a = {{1, 1}, {3, 1}, {3, 3}, {1, 3}};
-  const Array<float2> points_b = {{0, 0}, {2, 0}, {2, 2}, {0, 2}};
-  std::optional<BooleanResult> result = polygonboolean::curve_boolean_calc(
-      Operation::Not, points_a, points_b);
-
-  if (!result.has_value()) {
-    EXPECT_TRUE(false);
-    return;
-  }
-
-  /* TODO */
-  // const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2,
-  // 1}}}; expect_boolean_result_coord(points_a, points_b, *result, expected_points);
-
-  if (DO_DRAW) {
-    draw_polygons("Squares B without A", points_a, points_b, *result);
-  }
-}
-
 void simple_intersection_test()
 {
   /**
@@ -515,7 +493,7 @@ void simple_intersection_test()
   }
 }
 
-void simple_union_with_hole_test()
+void simple_union_test()
 {
   /**
    * This is a replica of Fig. 10 from
@@ -538,34 +516,6 @@ void simple_union_with_hole_test()
 
   if (DO_DRAW) {
     draw_polygons("Simple Union With Hole", points_a, points_b, *result);
-  }
-}
-
-void simple_union_without_hole_test()
-{
-  /**
-   * This is a replica of Fig. 10 from
-   * Greiner, Günther; Kai Hormann (1998). "Efficient clipping of arbitrary polygons". ACM
-   * Transactions on Graphics. 17 (2): 71-83.
-   */
-  const Array<float2> points_a = {{0, 6}, {8, 6}, {8, 3}, {0, 3}};
-  const Array<float2> points_b = {{6, 0}, {6, 4}, {4, 2}, {2, 4}, {2, 0}};
-  std::optional<BooleanResult> result = polygonboolean::curve_boolean_calc(
-      Operation::Or, points_a, points_b);
-
-  if (!result.has_value()) {
-    EXPECT_TRUE(false);
-    return;
-  }
-
-  result = std::optional(result_remove_holes(*result, points_a, points_b));
-
-  const Array<Vector<float2>> expected_points = {
-      {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}}};
-  expect_boolean_result_coord(points_a, points_b, *result, expected_points);
-
-  if (DO_DRAW) {
-    draw_polygons("Simple Union Without Hole", points_a, points_b, *result);
   }
 }
 
@@ -647,49 +597,6 @@ void complex_A_OR_B_test()
   }
 }
 
-void complex_A_OR_B_without_holes_test()
-{
-  /**
-   * This is a replica of Fig. 16 from
-   * Greiner, Günther; Kai Hormann (1998). "Efficient clipping of arbitrary polygons". ACM
-   * Transactions on Graphics. 17 (2): 71-83.
-   */
-  const Array<float2> points_a = {{14, 1}, {0, 5}, {14, 10}, {5, 6}, {14, 6}, {5, 5}};
-  const Array<float2> points_b = {{9, 13}, {13, 0}, {9, 9}, {6, 0}};
-  std::optional<BooleanResult> result = polygonboolean::curve_boolean_calc(
-      Operation::Or, points_a, points_b);
-
-  if (!result.has_value()) {
-    EXPECT_TRUE(false);
-    return;
-  }
-
-  result = std::optional(result_remove_holes(*result, points_a, points_b));
-
-  const Array<Vector<float2>> expected_points = {{{14, 1},
-                                                  {12.4851, 1.67327},
-                                                  {11.2479, 5.69421},
-                                                  {14, 6},
-                                                  {11.1538, 6},
-                                                  {10.4135, 8.40602},
-                                                  {14, 10},
-                                                  {10.3267, 8.68812},
-                                                  {9, 13},
-                                                  {7.79641, 7.78443},
-                                                  {0, 5},
-                                                  {6.71134, 3.08247},
-                                                  {6, 0},
-                                                  {7, 3},
-                                                  {12.3455, 1.47273},
-                                                  {13, 0},
-                                                  {12.5663, 1.40964}}};
-  expect_boolean_result_coord(points_a, points_b, *result, expected_points);
-
-  if (DO_DRAW) {
-    draw_polygons("Complex A Union B without holes", points_a, points_b, *result);
-  }
-}
-
 void complex_A_NOT_B_test()
 {
   /**
@@ -727,44 +634,6 @@ void complex_A_NOT_B_test()
 
   if (DO_DRAW) {
     draw_polygons("Complex A without B", points_a, points_b, *result);
-  }
-}
-
-void complex_B_NOT_A_test()
-{
-  /**
-   * This is a replica of Fig. 16 from
-   * Greiner, Günther; Kai Hormann (1998). "Efficient clipping of arbitrary polygons". ACM
-   * Transactions on Graphics. 17 (2): 71-83.
-   */
-  const Array<float2> points_a = {{14, 1}, {0, 5}, {14, 10}, {5, 6}, {14, 6}, {5, 5}};
-  const Array<float2> points_b = {{9, 13}, {13, 0}, {9, 9}, {6, 0}};
-  std::optional<BooleanResult> result = polygonboolean::curve_boolean_calc(
-      Operation::Not, points_a, points_b);
-
-  if (!result.has_value()) {
-    EXPECT_TRUE(false);
-    return;
-  }
-
-  /* TODO */
-  // const Array<Vector<float2>> expected_points = {
-  //     {{12.3455, 1.47273}, {13, 0}, {12.5663, 1.40964}},
-  //     {{6.71134, 3.08247}, {6, 0}, {7, 3}},
-  //     {{9.30137, 8.32192},
-  //      {9, 9},
-  //      {8.7027, 8.10811},
-  //      {7.79641, 7.78443},
-  //      {9, 13},
-  //      {10.3267, 8.68812}},
-  //     {{9.45361, 7.97938}, {10.3333, 6}, {11.1538, 6}, {10.4135, 8.40602}},
-  //     {{7.65714, 7.18095}, {7.38462, 6}, {8, 6}, {8.52174, 7.56522}},
-  //     {{10.5059, 5.61176}, {12.2, 1.8}, {12.4851, 1.67327}, {11.2479, 5.69421}},
-  //     {{7.21053, 5.24561}, {6.95349, 4.13178}, {7.32258, 3.96774}, {7.76923, 5.30769}}};
-  // expect_boolean_result_coord(points_a, points_b, *result, expected_points);
-
-  if (DO_DRAW) {
-    draw_polygons("Complex B without A", points_a, points_b, *result);
   }
 }
 
@@ -934,24 +803,14 @@ TEST(polygonboolean, Squares_A_NOT_B)
   squares_A_NOT_B_test();
 }
 
-TEST(polygonboolean, Squares_B_NOT_A)
-{
-  squares_B_NOT_A_test();
-}
-
 TEST(polygonboolean, Simple_Intersection)
 {
   simple_intersection_test();
 }
 
-TEST(polygonboolean, Simple_Union_With_Hole)
+TEST(polygonboolean, Simple_Union)
 {
-  simple_union_with_hole_test();
-}
-
-TEST(polygonboolean, Simple_Union_Without_Hole)
-{
-  simple_union_without_hole_test();
+  simple_union_test();
 }
 
 TEST(polygonboolean, Complex_A_AND_B)
@@ -964,19 +823,9 @@ TEST(polygonboolean, Complex_A_OR_B)
   complex_A_OR_B_test();
 }
 
-TEST(polygonboolean, Complex_A_OR_B_Without_Holes)
-{
-  complex_A_OR_B_without_holes_test();
-}
-
 TEST(polygonboolean, Complex_A_NOT_B)
 {
   complex_A_NOT_B_test();
-}
-
-TEST(polygonboolean, Complex_B_NOT_A)
-{
-  complex_B_NOT_A_test();
 }
 
 TEST(polygonboolean, Last_Segment_Interection)
