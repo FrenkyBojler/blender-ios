@@ -51,7 +51,7 @@ struct AlphaOverEffectOp {
       return;
     }
 
-    for ([[maybe_unused]] int64_t idx = 0; idx < size; idx++) {
+    for (int64_t idx = 0; idx < size; idx++) {
       if (src1[3] <= 0.0f) {
         /* Alpha of zero. No color addition will happen as the colors are pre-multiplied. */
         memcpy(dst, src2, sizeof(T) * 4);
@@ -103,7 +103,7 @@ struct AlphaUnderEffectOp {
       return;
     }
 
-    for ([[maybe_unused]] int64_t idx = 0; idx < size; idx++) {
+    for (int64_t idx = 0; idx < size; idx++) {
       if (src2[3] <= 0.0f && fac >= 1.0f) {
         memcpy(dst, src1, sizeof(T) * 4);
       }
@@ -147,7 +147,7 @@ template<typename T, typename Func>
 static void apply_blend_function(
     float fac, int64_t size, const T *src1, const T *src2, T *dst, Func blend_function)
 {
-  for ([[maybe_unused]] int64_t i = 0; i < size; i++) {
+  for (int64_t i = 0; i < size; i++) {
     T achannel = src2[3];
     ((T *)src2)[3] = T(achannel * fac);
     blend_function(dst, src1, src2);

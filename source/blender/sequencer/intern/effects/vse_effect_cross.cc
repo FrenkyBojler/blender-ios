@@ -25,7 +25,7 @@ struct CrossEffectOp {
     const float mfac = 1.0f - fac;
     const int ifac = int(256.0f * fac);
     const int imfac = 256 - ifac;
-    for ([[maybe_unused]] int64_t idx = 0; idx < size; idx++) {
+    for (int64_t idx = 0; idx < size; idx++) {
       if constexpr (std::is_same_v<T, uchar>) {
         dst[0] = (imfac * src1[0] + ifac * src2[0]) >> 8;
         dst[1] = (imfac * src1[1] + ifac * src2[1]) >> 8;
@@ -83,7 +83,7 @@ struct GammaCrossEffectOp {
   {
     const float fac = this->factor;
     const float mfac = 1.0f - fac;
-    for ([[maybe_unused]] int64_t idx = 0; idx < size; idx++) {
+    for (int64_t idx = 0; idx < size; idx++) {
       float4 col1 = load_premul_pixel(src1);
       float4 col2 = load_premul_pixel(src2);
       float4 col;

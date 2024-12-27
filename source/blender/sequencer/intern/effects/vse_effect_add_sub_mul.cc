@@ -22,7 +22,7 @@ struct AddEffectOp {
   {
     const float fac = this->factor;
     int ifac = int(256.0f * fac);
-    for ([[maybe_unused]] int64_t idx = 0; idx < size; idx++) {
+    for (int64_t idx = 0; idx < size; idx++) {
       if constexpr (std::is_same_v<T, uchar>) {
         const int f = ifac * int(src2[3]);
         dst[0] = min_ii(src1[0] + ((f * src2[0]) >> 16), 255);
@@ -66,7 +66,7 @@ struct SubEffectOp {
   {
     const float fac = this->factor;
     int ifac = int(256.0f * fac);
-    for ([[maybe_unused]] int64_t idx = 0; idx < size; idx++) {
+    for (int64_t idx = 0; idx < size; idx++) {
       if constexpr (std::is_same_v<T, uchar>) {
         const int f = ifac * int(src2[3]);
         dst[0] = max_ii(src1[0] - ((f * src2[0]) >> 16), 0);
@@ -110,7 +110,7 @@ struct MulEffectOp {
   {
     const float fac = this->factor;
     int ifac = int(256.0f * fac);
-    for ([[maybe_unused]] int64_t idx = 0; idx < size; idx++) {
+    for (int64_t idx = 0; idx < size; idx++) {
       /* Formula: `fac * (a * b) + (1-fac) * a => fac * a * (b - 1) + a` */
       if constexpr (std::is_same_v<T, uchar>) {
         dst[0] = src1[0] + ((ifac * src1[0] * (src2[0] - 255)) >> 16);
