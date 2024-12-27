@@ -313,11 +313,7 @@ ccl_device void light_tree_node_importance(KernelGlobals kg,
     cos_theta_u = fast_cosf(bcone.theta_o + bcone.theta_e);
     distance = 1.0f;
     /* For distant lights, the integral in Eq. (4) gives the ray length. */
-    theta_d = t;
-    if (t == FLT_MAX) {
-      /* In world volume, distant light has no contribution. */
-      return;
-    }
+    theta_d = t == FLT_MAX ? 1.0f : t;
   }
   else {
     const float3 centroid = 0.5f * (bbox.min + bbox.max);
