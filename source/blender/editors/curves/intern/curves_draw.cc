@@ -650,8 +650,10 @@ static void create_Bezier(bke::CurvesGeometry &curves,
 
   const IndexRange new_points = curves.points_by_curve()[curve_index];
 
-  bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
-      "radius", bke::AttrDomain::Point);
+  bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
+      "radius",
+      bke::AttrDomain::Point,
+      bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.points_num())));
 
   const float *co = cubic_spline;
 

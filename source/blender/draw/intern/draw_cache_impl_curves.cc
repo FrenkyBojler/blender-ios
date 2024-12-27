@@ -1121,7 +1121,7 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
   bezier_curves.foreach_index([&](const int64_t curve) {
     const IndexRange points = points_by_curve[curve];
 
-    if (points.size() <= 1) {
+    if (points.size() == 0) {
       return;
     }
 
@@ -1131,7 +1131,8 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
       segment_data.append(seg_data);
       segment_line_offsets.append(segment_line_offsets.last() + resolution[curve]);
     }
-    if (cyclic[curve]) {
+
+    if (cyclic[curve] || points.size() == 1) {
       BezierSegmentVert seg_data{
           int32_t(points[0]), segment_line_offsets.last(), radius[points[0]]};
       segment_data.append(seg_data);
