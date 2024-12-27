@@ -215,11 +215,20 @@ class Curves : Overlay {
     }
     {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_bezier_segments(&curves);
-      edit_bezier_segments_->bind_ubo("curves_data",
-                                      DRW_curves_batch_cache_get_curves_data(&curves));
+      edit_segment_joints_->bind_ubo("curves_data",
+                                     DRW_curves_batch_cache_get_curves_data(&curves));
+      edit_segment_joints_->push_constant("endpointsOnly", false);
       edit_segment_joints_->draw_expand(
           geom, GPU_PRIM_POINTS, 1, 1, manager.unique_handle(ob_ref));
+
+      edit_bezier_segments_->bind_ubo("curves_data",
+                                      DRW_curves_batch_cache_get_curves_data(&curves));
       edit_bezier_segments_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
+
+      gpu::Batch *geom2 = DRW_curves_batch_cache_get_edit_bezier_segment_joints(&curves);
+      edit_segment_joints_->push_constant("endpointsOnly", true);
+      edit_segment_joints_->draw_expand(
+          geom2, GPU_PRIM_POINTS, 1, 1, manager.unique_handle(ob_ref));
     }
   }
 

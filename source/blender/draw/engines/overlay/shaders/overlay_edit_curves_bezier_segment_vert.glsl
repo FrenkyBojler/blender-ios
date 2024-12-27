@@ -74,7 +74,7 @@ float radius_to_ndc(float radius, vec3 view_point)
 
 void main()
 {
-#ifndef JOINT
+#ifdef SEGMENT
   const int vertex_per_quad = 6;
   VertIn vert_in = input_assembly(gl_VertexID / vertex_per_quad);
   const int segment_vertex_i = gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
@@ -84,20 +84,33 @@ void main()
   const bool bottom_edge = in_quad_i % 2;
   vec3 points[4] = float4_array(vert_in.p[0], vert_in.p[1], vert_in.p[2], vert_in.p[3]);
   const int step = quad_i + quad_right;
-#else
-  VertIn vert_in = input_assembly(gl_VertexID);
-  const int step = gl_VertexID - vert_in.first_vertex_id;
-#endif
-
   const float u = float(step) / vert_in.resolution;
   const vec3 curve_point = calc_bezier_point(u, vert_in.p);
+#else
+  VertIn vert_in = input_assembly(gl_VertexID);
+  vec3 curve_point;
+  float u = 0;
+  if (endpointsOnly) {
+    curve_point = vert_in.p[0];
+  }
+  else {
+    const int step = gl_VertexID - vert_in.first_vertex_id;
+    if (step == 0 || step == vert_in.resolution) {
+      gl_Position = vec4(NAN_FLT);
+      return;
+    }
+    u = float(step) / vert_in.resolution;
+    curve_point = calc_bezier_point(u, vert_in.p);
+  }
+#endif
+
   const vec3 world_pos = point_object_to_world(curve_point);
   vec4 ndc_pos = point_world_to_ndc(world_pos);
 
   const float radius = radius_to_ndc(mix(vert_in.radius.x, vert_in.radius.y, u) * sizeViewport.x,
                                      point_world_to_view(world_pos));
 
-#ifndef JOINT
+#ifdef SEGMENT
   const int step2 = quad_right ? step - 1 : step + 1;
   const float u2 = float(step2) / vert_in.resolution;
   const vec3 curve_point2 = calc_bezier_point(u2, points);

@@ -92,6 +92,8 @@ struct CurvesBatchCache {
 
   GPUUniformBuf *curves_data;
 
+  gpu::Batch *edit_bezier_segment_joints;
+
   gpu::Batch *edit_bezier_segments;
   gpu::VertBuf *edit_bezier_segment_data;
   gpu::IndexBuf *edit_bezier_segment_ibo;
@@ -177,6 +179,8 @@ static void clear_edit_data(CurvesBatchCache *cache)
   GPU_BATCH_DISCARD_SAFE(cache->edit_curves_lines);
 
   GPU_UBO_FREE_SAFE(cache->curves_data);
+
+  GPU_BATCH_DISCARD_SAFE(cache->edit_bezier_segment_joints);
 
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_bezier_segment_data);
   GPU_INDEXBUF_DISCARD_SAFE(cache->edit_bezier_segment_ibo);
@@ -990,6 +994,12 @@ gpu::Batch *DRW_curves_batch_cache_get_edit_bezier_segments(Curves *curves)
   return DRW_batch_request(&cache.edit_bezier_segments);
 }
 
+gpu::Batch *DRW_curves_batch_cache_get_edit_bezier_segment_joints(Curves *curves)
+{
+  CurvesBatchCache &cache = get_batch_cache(*curves);
+  return DRW_batch_request(&cache.edit_bezier_segment_joints);
+}
+
 GPUUniformBuf **DRW_curves_batch_cache_get_curves_data(Curves *curves)
 {
   CurvesBatchCache &cache = get_batch_cache(*curves);
@@ -1218,6 +1228,10 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
     DRW_vbo_request(cache.edit_bezier_segments, &cache.edit_bezier_segment_data);
     DRW_ibo_request(cache.edit_bezier_segments, &cache.edit_bezier_segment_ibo);
     DRW_vbo_request(cache.edit_bezier_segments, &cache.edit_points_pos);
+  }
+  if (DRW_batch_requested(cache.edit_bezier_segment_joints, GPU_PRIM_POINTS)) {
+    DRW_vbo_request(cache.edit_bezier_segment_joints, &cache.edit_bezier_segment_data);
+    DRW_vbo_request(cache.edit_bezier_segment_joints, &cache.edit_points_pos);
   }
   if (DRW_vbo_requested(cache.edit_bezier_segment_data) ||
       DRW_ibo_requested(cache.edit_bezier_segment_ibo))
