@@ -19,6 +19,9 @@ Checks:  >
   -readability-misleading-indentation,
   -readability-use-anyofallof,
   -readability-identifier-length,
+  -readability-enum-initial-value,
+  -readability-math-missing-parentheses,
+  -readability-avoid-nested-conditional-operator,
 
   -readability-function-cognitive-complexity,
 
