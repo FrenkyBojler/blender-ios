@@ -643,7 +643,6 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_edit_curve_handle_vert.glsl
   engines/overlay/shaders/overlay_edit_curve_point_vert.glsl
   engines/overlay/shaders/overlay_edit_curves_bezier_segment_vert.glsl
-  engines/overlay/shaders/overlay_edit_curves_segment_joint_frag.glsl
   engines/overlay/shaders/overlay_edit_curves_handle_vert.glsl
   engines/overlay/shaders/overlay_edit_curve_wire_vert.glsl
   engines/overlay/shaders/overlay_edit_curve_wire_next_vert.glsl
