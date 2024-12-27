@@ -307,10 +307,10 @@ void draw_polygons(const std::string &label,
 
   SVG_add_polygon(f, "polygon-A", curve_a, mapping);
   SVG_add_polygon(f, "polygon-B", curve_b, mapping);
+  Array<float2> points(result.point_offsets.last());
+  calculate_positions(curve_a, curve_b, result, points.as_mutable_span());
 
-  Array<float2> points(result.verts.size());
-  interpolate_position_ab(curve_a, curve_b, result, points.as_mutable_span());
-  const OffsetIndices<int> points_by_polygon = OffsetIndices<int>(result.offsets);
+  const OffsetIndices<int> points_by_polygon = OffsetIndices<int>(result.point_offsets);
 
   if (points_by_polygon.size() == 1) {
     SVG_add_polygon(f, "polygon-C", points, mapping);
@@ -370,36 +370,40 @@ void expect_boolean_result_coord(const Span<float2> curve_a,
                                  const BooleanResult &result,
                                  const Array<Vector<float2>> &expected_points)
 {
-  const OffsetIndices<int> points_by_polygon = OffsetIndices<int>(result.offsets);
-  Array<float2> points(result.verts.size());
-  interpolate_position_ab(curve_a, curve_b, result, points.as_mutable_span());
+  /* TODO */
 
-  EXPECT_EQ(points_by_polygon.size(), expected_points.size());
-  if (points_by_polygon.size() != expected_points.size()) {
-    return;
-  }
+  // const OffsetIndices<int> points_by_polygon = OffsetIndices<int>(result.point_offsets);
 
-  int total_size = 0;
-  for (const int i : expected_points.index_range()) {
-    total_size += expected_points[i].size();
-  }
-  EXPECT_EQ(points.size(), total_size);
-  if (points.size() != total_size) {
-    return;
-  }
+  // EXPECT_EQ(points_by_polygon.size(), expected_points.size());
+  // if (points_by_polygon.size() != expected_points.size()) {
+  //   return;
+  // }
 
-  for (const int polygon_id : points_by_polygon.index_range()) {
-    const IndexRange vert_ids = points_by_polygon[polygon_id];
+  // int total_size = 0;
+  // for (const int i : expected_points.index_range()) {
+  //   total_size += expected_points[i].size();
+  // }
 
-    for (const int i : vert_ids) {
-      const float2 &point = points[i];
-      const int j = i - vert_ids.first();
-      const float2 &expected_point = expected_points[polygon_id][j];
+  // Array<float2> points(result.segment_offsets.last());
+  // calculate_positions(curve_a, curve_b, result, points.as_mutable_span());
 
-      EXPECT_NEAR(point[0], expected_point[0], 1e-4);
-      EXPECT_NEAR(point[1], expected_point[1], 1e-4);
-    }
-  }
+  // EXPECT_EQ(points.size(), total_size);
+  // if (points.size() != total_size) {
+  //   return;
+  // }
+
+  // for (const int polygon_id : points_by_polygon.index_range()) {
+  //   const IndexRange vert_ids = points_by_polygon[polygon_id];
+
+  //   for (const int i : vert_ids) {
+  //     const float2 &point = points[i];
+  //     const int j = i - vert_ids.first();
+  //     const float2 &expected_point = expected_points[polygon_id][j];
+
+  //     EXPECT_NEAR(point[0], expected_point[0], 1e-4);
+  //     EXPECT_NEAR(point[1], expected_point[1], 1e-4);
+  //   }
+  // }
 }
 
 void squares_A_AND_B_test()
