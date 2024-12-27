@@ -789,12 +789,13 @@ def brush_settings(layout, context, brush, popover=False):
                 pressure_name="use_offset_pressure",
                 slider=True,
             )
-
-            row = layout.row(heading="Plane Trim")
-            row.prop(brush, "use_plane_trim", text="")
-            sub = row.row()
-            sub.active = brush.use_plane_trim
-            sub.prop(brush, "plane_trim", slider=True, text="")
+            
+            if sculpt_tool != 'PLANE':
+                row = layout.row(heading="Plane Trim")
+                row.prop(brush, "use_plane_trim", text="")
+                sub = row.row()
+                sub.active = brush.use_plane_trim
+                sub.prop(brush, "plane_trim", slider=True, text="")
 
             layout.separator()
 
