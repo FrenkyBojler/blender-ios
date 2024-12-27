@@ -406,7 +406,7 @@ void expect_boolean_result_coord(const Span<float2> curve_a,
   // }
 }
 
-void squares_A_AND_B_test()
+TEST(polygonboolean, Squares_A_And_B)
 {
   const Array<float2> points_a = {{0, 0}, {2, 0}, {2, 2}, {0, 2}};
   const Array<float2> points_b = {{1, 1}, {3, 1}, {3, 3}, {1, 3}};
@@ -426,7 +426,7 @@ void squares_A_AND_B_test()
   }
 }
 
-void squares_A_OR_B_test()
+TEST(polygonboolean, Squares_A_Or_B)
 {
   const Array<float2> points_a = {{0, 0}, {2, 0}, {2, 2}, {0, 2}};
   const Array<float2> points_b = {{1, 1}, {3, 1}, {3, 3}, {1, 3}};
@@ -443,11 +443,11 @@ void squares_A_OR_B_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_polygons("Squares A union B", points_a, points_b, *result);
+    draw_polygons("Squares A Union B", points_a, points_b, *result);
   }
 }
 
-void squares_A_NOT_B_test()
+TEST(polygonboolean, Squares_A_Not_B)
 {
   const Array<float2> points_a = {{0, 0}, {2, 0}, {2, 2}, {0, 2}};
   const Array<float2> points_b = {{1, 1}, {3, 1}, {3, 3}, {1, 3}};
@@ -463,11 +463,11 @@ void squares_A_NOT_B_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_polygons("Squares A without B", points_a, points_b, *result);
+    draw_polygons("Squares A Difference B", points_a, points_b, *result);
   }
 }
 
-void simple_intersection_test()
+TEST(polygonboolean, Simple_Intersection)
 {
   /**
    * This is a replica of Fig. 10 from
@@ -493,7 +493,7 @@ void simple_intersection_test()
   }
 }
 
-void simple_union_test()
+TEST(polygonboolean, Simple_Union)
 {
   /**
    * This is a replica of Fig. 10 from
@@ -515,11 +515,11 @@ void simple_union_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_polygons("Simple Union With Hole", points_a, points_b, *result);
+    draw_polygons("Simple Union", points_a, points_b, *result);
   }
 }
 
-void complex_A_AND_B_test()
+TEST(polygonboolean, Complex_A_And_B)
 {
   /**
    * This is a replica of Fig. 16 from
@@ -550,7 +550,7 @@ void complex_A_AND_B_test()
   }
 }
 
-void complex_A_OR_B_test()
+TEST(polygonboolean, Complex_A_Or_B)
 {
   /**
    * This is a replica of Fig. 16 from
@@ -597,7 +597,7 @@ void complex_A_OR_B_test()
   }
 }
 
-void complex_A_NOT_B_test()
+TEST(polygonboolean, Complex_A_Not_B)
 {
   /**
    * This is a replica of Fig. 16 from
@@ -633,11 +633,11 @@ void complex_A_NOT_B_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_polygons("Complex A without B", points_a, points_b, *result);
+    draw_polygons("Complex A Difference B", points_a, points_b, *result);
   }
 }
 
-void last_segment_interection_test()
+TEST(polygonboolean, Last_Segment_Interection)
 {
   /**
    * These shapes are designed to test the following:
@@ -672,11 +672,11 @@ void last_segment_interection_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_polygons("Last segment loop", points_a, points_b, *result);
+    draw_polygons("Last Segment Loop", points_a, points_b, *result);
   }
 }
 
-void simple_cut_test()
+TEST(polygonboolean, Simple_Cut)
 {
   const Array<float2> points_a = {{5, 7}, {3, 6}, {0, 2}, {0, 0}};
   const Array<float2> points_b = {{1, 6}, {3, 4}, {3, 1}, {0, 4}, {2, 3}};
@@ -694,11 +694,11 @@ void simple_cut_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_cut("Simple cut", false, points_a, points_b, *result);
+    draw_cut("Simple Cut", false, points_a, points_b, *result);
   }
 }
 
-void simple_cut_2_test()
+TEST(polygonboolean, Simple_Cut_2)
 {
   const Array<float2> points_a = {{5, 5}, {3, 5}, {1, 3}, {1, 1}};
   const Array<float2> points_b = {{5, 6}, {6, 5}, {1, 0}, {0, 1}};
@@ -714,11 +714,11 @@ void simple_cut_2_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_cut("Simple cut 2", false, points_a, points_b, *result);
+    draw_cut("Simple Cut 2", false, points_a, points_b, *result);
   }
 }
 
-void simple_cut_3_test()
+TEST(polygonboolean, Simple_Cut_3)
 {
   const Array<float2> points_a = {{6, 8}, {4, 7}, {1, 3}, {1, 1}};
   const Array<float2> points_b = {
@@ -738,11 +738,11 @@ void simple_cut_3_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_cut("Simple cut 3", false, points_a, points_b, *result);
+    draw_cut("Simple Cut 3", false, points_a, points_b, *result);
   }
 }
 
-void simple_cut_4_test()
+TEST(polygonboolean, Simple_Cut_4)
 {
   const Array<float2> points_a = {{6, 7}, {4, 6}, {1, 2}, {1, 0}};
   const Array<float2> points_b = {
@@ -762,11 +762,11 @@ void simple_cut_4_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_cut("Simple cut 4", false, points_a, points_b, *result);
+    draw_cut("Simple Cut 4", false, points_a, points_b, *result);
   }
 }
 
-void cyclical_cut_test()
+TEST(polygonboolean, Cyclical_Cut)
 {
   const Array<float2> points_a = {{6, 5}, {4, 5}, {1, 2}, {1, 0}};
   const Array<float2> points_b = {{1, 4}, {3, 1}, {5, 3}, {2, 5}, {3, 3}};
@@ -784,78 +784,8 @@ void cyclical_cut_test()
   expect_boolean_result_coord(points_a, points_b, *result, expected_points);
 
   if (DO_DRAW) {
-    draw_cut("Cyclical cut", true, points_a, points_b, *result);
+    draw_cut("Cyclical Cut", true, points_a, points_b, *result);
   }
-}
-
-TEST(polygonboolean, Squares_A_AND_B)
-{
-  squares_A_AND_B_test();
-}
-
-TEST(polygonboolean, Squares_A_OR_B)
-{
-  squares_A_OR_B_test();
-}
-
-TEST(polygonboolean, Squares_A_NOT_B)
-{
-  squares_A_NOT_B_test();
-}
-
-TEST(polygonboolean, Simple_Intersection)
-{
-  simple_intersection_test();
-}
-
-TEST(polygonboolean, Simple_Union)
-{
-  simple_union_test();
-}
-
-TEST(polygonboolean, Complex_A_AND_B)
-{
-  complex_A_AND_B_test();
-}
-
-TEST(polygonboolean, Complex_A_OR_B)
-{
-  complex_A_OR_B_test();
-}
-
-TEST(polygonboolean, Complex_A_NOT_B)
-{
-  complex_A_NOT_B_test();
-}
-
-TEST(polygonboolean, Last_Segment_Interection)
-{
-  last_segment_interection_test();
-}
-
-TEST(polygonboolean, Simple_Cut)
-{
-  simple_cut_test();
-}
-
-TEST(polygonboolean, Simple_Cut_2)
-{
-  simple_cut_2_test();
-}
-
-TEST(polygonboolean, Simple_Cut_3)
-{
-  simple_cut_3_test();
-}
-
-TEST(polygonboolean, Simple_Cut_4)
-{
-  simple_cut_4_test();
-}
-
-TEST(polygonboolean, Cyclical_Cut)
-{
-  cyclical_cut_test();
 }
 
 }  // namespace blender::polygonboolean
