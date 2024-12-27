@@ -55,6 +55,9 @@ def draw_node_group_add_menu(context, layout):
                 ops = props.settings.add()
                 ops.name = "width"
                 ops.value = repr(group.default_group_node_width)
+        else:
+            layout.separator()
+            layout.label(text="No nodegroups available")
 
 
 def draw_assets_for_catalog(layout, catalog_path):
