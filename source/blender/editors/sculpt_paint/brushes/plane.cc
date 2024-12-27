@@ -11,9 +11,9 @@
  * The z-distances of the vertices are affected by two parameters:
  *  - **Depth**: Affects the z-distances of the vertices below the plane.
  *  - **Height**: Affects the z-distances of the vertices above the plane.
- * 
+ *
  * Invert Modes:
- *  - **Invert Displacement**: Reverses the default behavior, displacing 
+ *  - **Invert Displacement**: Reverses the default behavior, displacing
  *    vertices away from the plane.
  *  - **Swap Depth and Height**: Exchanges the roles of **Depth** and **Height**.
  */
@@ -56,19 +56,19 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-static void calc_local_positions(const float4x4& mat,
-  const Span<int> verts,
-  const Span<float3> positions,
-  const MutableSpan<float3> local_positions)
+static void calc_local_positions(const float4x4 &mat,
+                                 const Span<int> verts,
+                                 const Span<float3> positions,
+                                 const MutableSpan<float3> local_positions)
 {
   for (const int i : verts.index_range()) {
     local_positions[i] = math::transform_point(mat, positions[verts[i]]);
   }
 }
 
-static void calc_local_positions(const float4x4& mat,
-  const Span<float3> positions,
-  const MutableSpan<float3> local_positions)
+static void calc_local_positions(const float4x4 &mat,
+                                 const Span<float3> positions,
+                                 const MutableSpan<float3> local_positions)
 {
   for (const int i : positions.index_range()) {
     local_positions[i] = math::transform_point(mat, positions[i]);
@@ -82,20 +82,18 @@ static void calc_local_positions(const float4x4& mat,
  * (0, 0, height) has a z-distance of 1.
  * When `height` is 0, the local distances are set to 1, resulting
  * in a falloff strength of 0 (no displacement).
- * 
+ *
  * The effect of `depth` on vertices below the plane is analogous.
  */
 static void calc_local_distances(const float depth,
-  const float height,
-  const MutableSpan<float3> local_positions,
-  const MutableSpan<float> distances)
+                                 const float height,
+                                 const MutableSpan<float3> local_positions,
+                                 const MutableSpan<float> distances)
 {
-  if (depth != 0.0f)
-  {
+  if (depth != 0.0f) {
     const float depth_rcp = math::rcp(depth);
 
-    for (const int i : local_positions.index_range())
-    {
+    for (const int i : local_positions.index_range()) {
       const float3 position = local_positions[i];
       if (position.z < 0.0f) {
         distances[i] = math::length(float3(position.x, position.y, position.z * depth_rcp));
@@ -103,20 +101,17 @@ static void calc_local_distances(const float depth,
     }
   }
   else {
-    for (const int i : local_positions.index_range())
-    {
+    for (const int i : local_positions.index_range()) {
       if (local_positions[i].z < 0.0f) {
         distances[i] = 1.0f;
       }
     }
   }
 
-  if (height != 0.0f)
-  {
+  if (height != 0.0f) {
     const float height_rcp = math::rcp(height);
 
-    for (const int i : local_positions.index_range())
-    {
+    for (const int i : local_positions.index_range()) {
       const float3 position = local_positions[i];
       if (position.z >= 0.0f) {
         distances[i] = math::length(float3(position.x, position.y, position.z * height_rcp));
@@ -124,8 +119,7 @@ static void calc_local_distances(const float depth,
     }
   }
   else {
-    for (const int i : local_positions.index_range())
-    {
+    for (const int i : local_positions.index_range()) {
       if (local_positions[i].z >= 0.0f) {
         distances[i] = 1.0f;
       }
@@ -146,23 +140,22 @@ static void calc_local_distances(const float depth,
  *   T = A * (0, 0, -z) * factors[i] * strength,
  * where `A` is the local-to-object transformation matrix.
  *
- * Given how the local space is defined, `A * (0, 0, -z)` simplifies to `-z * radius * plane_normal`.
- * Substituting this back, the translation becomes:
- *   T = -z * radius * plane_normal * factors[i] * strength
- *     = (factors[i] * z) * (-plane_normal * radius * strength).
+ * Given how the local space is defined, `A * (0, 0, -z)` simplifies to `-z * radius *
+ * plane_normal`. Substituting this back, the translation becomes: T = -z * radius * plane_normal *
+ * factors[i] * strength = (factors[i] * z) * (-plane_normal * radius * strength).
  */
-static void calc_translations(const float3& plane_normal,
-  const float radius,
-  const float strength,
-  const MutableSpan<float3> local_positions,
-  const MutableSpan<float> factors,
-  const MutableSpan<float3> r_translations)
+static void calc_translations(const float3 &plane_normal,
+                              const float radius,
+                              const float strength,
+                              const MutableSpan<float3> local_positions,
+                              const MutableSpan<float> factors,
+                              const MutableSpan<float3> r_translations)
 {
   for (const int i : local_positions.index_range()) {
     factors[i] *= local_positions[i].z;
   }
 
-  const float3& offset = -plane_normal * radius * strength;
+  const float3 &offset = -plane_normal * radius * strength;
   translations_from_offset_and_factors(offset, factors, r_translations);
 }
 
@@ -181,8 +174,8 @@ static void calc_faces(const Depsgraph &depsgraph,
                        LocalData &tls,
                        const PositionDeformData &position_data)
 {
-  const SculptSession& ss = *object.sculpt;
-  const StrokeCache& cache = *ss.cache;
+  const SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
 
@@ -205,7 +198,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
   BKE_brush_calc_curve_factors(
-    eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -257,7 +250,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
   BKE_brush_calc_curve_factors(
-    eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
@@ -275,8 +268,8 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        Object &object,
                        const Brush &brush,
-                       const float4x4& mat,
-                       const float3& plane_normal,
+                       const float4x4 &mat,
+                       const float3 &plane_normal,
                        const float strength,
                        const float depth,
                        const float height,
@@ -307,7 +300,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
   BKE_brush_calc_curve_factors(
-    eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -325,9 +318,9 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 }  // namespace plane_cc
 
 void do_plane_brush(const Depsgraph &depsgraph,
-                           const Sculpt &sd,
-                           Object &object,
-                           const IndexMask &node_mask)
+                    const Sculpt &sd,
+                    Object &object,
+                    const IndexMask &node_mask)
 {
   const SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -343,7 +336,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
   SCULPT_tilt_apply_to_normal(plane_normal, ss.cache, brush.tilt_strength_factor);
 
   const float offset = SCULPT_brush_plane_offset_get(sd, ss);
-  const float displace =  ss.cache->radius * offset;
+  const float displace = ss.cache->radius * offset;
   plane_center += plane_normal * ss.cache->scale * displace;
 
   float4x4 mat = float4x4::identity();
@@ -388,19 +381,19 @@ void do_plane_brush(const Depsgraph &depsgraph,
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         calc_faces(depsgraph,
-          sd,
-          brush,
-          mat,
-          plane_normal,
-          strength,
-          brush.plane_depth,
-          brush.plane_height,
-          attribute_data,
-          vert_normals,
-          nodes[i],
-          object,
-          tls,
-          position_data);
+                   sd,
+                   brush,
+                   mat,
+                   plane_normal,
+                   strength,
+                   depth,
+                   height,
+                   attribute_data,
+                   vert_normals,
+                   nodes[i],
+                   object,
+                   tls,
+                   position_data);
         bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i]);
       });
       break;
@@ -412,16 +405,16 @@ void do_plane_brush(const Depsgraph &depsgraph,
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         calc_grids(depsgraph,
-          sd,
-          object,
-          brush,
-          mat,
-          plane_normal,
-          strength,
-          brush.plane_depth,
-          brush.plane_height,
-          nodes[i],
-          tls);
+                   sd,
+                   object,
+                   brush,
+                   mat,
+                   plane_normal,
+                   strength,
+                   depth,
+                   height,
+                   nodes[i],
+                   tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -431,16 +424,16 @@ void do_plane_brush(const Depsgraph &depsgraph,
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         calc_bmesh(depsgraph,
-          sd,
-          object,
-          brush,
-          mat,
-          plane_normal,
-          strength,
-          brush.plane_depth,
-          brush.plane_height,
-          nodes[i],
-          tls);
+                   sd,
+                   object,
+                   brush,
+                   mat,
+                   plane_normal,
+                   strength,
+                   depth,
+                   height,
+                   nodes[i],
+                   tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;
@@ -449,7 +442,5 @@ void do_plane_brush(const Depsgraph &depsgraph,
   pbvh.tag_positions_changed(node_mask);
   bke::pbvh::flush_bounds_to_parents(pbvh);
 }
-
-
 
 }  // namespace blender::ed::sculpt_paint
