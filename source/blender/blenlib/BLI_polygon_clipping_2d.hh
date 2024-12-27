@@ -103,22 +103,12 @@ class Segment {
 
   float start_intersection() const
   {
-    if (reversed) {
-      return inter_index_2;
-    }
-    else {
-      return inter_index_1;
-    }
+    return reversed ? inter_index_2 : inter_index_1;
   }
 
   float end_intersection() const
   {
-    if (reversed) {
-      return inter_index_1;
-    }
-    else {
-      return inter_index_2;
-    }
+    return reversed ? inter_index_1 : inter_index_2;
   }
 
   bool has_start_intersection() const
@@ -141,22 +131,12 @@ class Segment {
 
   float start_alpha() const
   {
-    if (reversed) {
-      return alpha_2;
-    }
-    else {
-      return alpha_1;
-    }
+    return reversed ? alpha_2 : alpha_1;
   }
 
   float end_alpha() const
   {
-    if (reversed) {
-      return alpha_1;
-    }
-    else {
-      return alpha_2;
-    }
+    return reversed ? alpha_1 : alpha_2;
   }
 
   int2 start_edge() const
@@ -164,9 +144,7 @@ class Segment {
     if (reversed) {
       return int2(point_2, this->wrap_index(point_2 + 1));
     }
-    else {
-      return int2(point_1, this->wrap_index(point_1 + 1));
-    }
+    return int2(point_1, this->wrap_index(point_1 + 1));
   }
 
   int2 end_edge() const
@@ -174,9 +152,7 @@ class Segment {
     if (reversed) {
       return int2(point_1, this->wrap_index(point_1 + 1));
     }
-    else {
-      return int2(point_2, this->wrap_index(point_2 + 1));
-    }
+    return int2(point_2, this->wrap_index(point_2 + 1));
   }
 
   int wrap_index(const int i) const
@@ -203,12 +179,11 @@ class Segment {
       return IndexRange(0);
     }
 
-    if (point_1 < point_2) {
-      return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2);
-    }
-    else {
+    if (point_1 > point_2) {
       return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2 + points.size());
     }
+
+    return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2);
   }
 
   /**
