@@ -75,8 +75,8 @@ class TranslateOperation : public NodeOperation {
     const float3x3 transformation = math::from_location<float3x3>(translation);
 
     RealizationOptions realization_options = input.get_realization_options();
-    realization_options.wrap_x = get_wrap_x();
-    realization_options.wrap_y = get_wrap_y();
+    realization_options.repeat_x = get_wrap_x();
+    realization_options.repeat_y = get_wrap_y();
     realization_options.interpolation = get_interpolation();
 
     transform(context(), input, result, transformation, realization_options);

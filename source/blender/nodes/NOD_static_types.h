@@ -210,6 +210,7 @@ DefNode(CompositorNode, CMP_NODE_SEPRGBA_LEGACY,    0,                      SepR
 DefNode(CompositorNode, CMP_NODE_SEPYCCA_LEGACY, def_cmp_ycc,               SepYCCA,          "Separate YCbCrA",     "Deprecated")
 DefNode(CompositorNode, CMP_NODE_SEPYUVA_LEGACY, 0,                         SepYUVA,          "Separate YUVA",       "Deprecated")
 DefNode(CompositorNode, CMP_NODE_SETALPHA,          def_cmp_set_alpha,      SetAlpha,         "Set Alpha",           "Add an alpha channel to an image")
+DefNode(CompositorNode, CMP_NODE_SET_REALIZATION_OPTIONS,def_cmp_set_realization_options,SetRealizationOptions,"Set Realization Options",   "Sets the realization options used when realizing an image on a different domain")
 DefNode(CompositorNode, CMP_NODE_SPLIT,          def_cmp_split,             Split,            "Split",               "Combine two images for side-by-side display. Typically used in combination with a Viewer node")
 DefNode(CompositorNode, CMP_NODE_STABILIZE2D,    def_cmp_stabilize2d,       Stabilize,        "Stabilize 2D",        "Stabilize footage using 2D stabilization motion tracking settings")
 DefNode(CompositorNode, CMP_NODE_SUNBEAMS,       def_cmp_sunbeams,          SunBeams,         "Sun Beams",           "Create sun beams based on image brightness")

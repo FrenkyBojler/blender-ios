@@ -86,8 +86,8 @@ void transform(Context &context,
   /* If we are wrapping, the input is translated but the target domain remains fixed, which results
    * in the input clipping on one side and wrapping on the opposite side. This mask vector can be
    * multiplied to the translation component of the transformation to remove it. */
-  const float2 wrap_mask = float2(realization_options.wrap_x ? 0.0f : 1.0f,
-                                  realization_options.wrap_y ? 0.0f : 1.0f);
+  const float2 wrap_mask = float2(realization_options.repeat_x ? 0.0f : 1.0f,
+                                  realization_options.repeat_y ? 0.0f : 1.0f);
 
   /* Compute a transformed input domain, excluding translations of wrapped axes. */
   Domain input_domain = input.domain();

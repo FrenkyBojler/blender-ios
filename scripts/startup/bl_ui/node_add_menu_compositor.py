@@ -253,6 +253,8 @@ class NODE_MT_category_compositor_transform(Menu):
         node_add_menu.add_node_type(layout, "CompositorNodeTransform")
         node_add_menu.add_node_type(layout, "CompositorNodeTranslate")
         layout.separator()
+        node_add_menu.add_node_type(layout, "CompositorNodeSetRealizationOptions")
+        layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeCornerPin")
         node_add_menu.add_node_type(layout, "CompositorNodeCrop")
         layout.separator()
