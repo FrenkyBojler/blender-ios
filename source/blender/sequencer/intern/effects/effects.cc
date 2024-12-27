@@ -304,7 +304,7 @@ SeqEffectHandle get_sequence_effect_impl(int seq_type)
 
 SeqEffectHandle SEQ_effect_handle_get(Sequence *seq)
 {
-  SeqEffectHandle rval = {false, false, nullptr};
+  SeqEffectHandle rval = {};
 
   if (seq->type & SEQ_TYPE_EFFECT) {
     rval = get_sequence_effect_impl(seq->type);
@@ -319,7 +319,7 @@ SeqEffectHandle SEQ_effect_handle_get(Sequence *seq)
 
 SeqEffectHandle seq_effect_get_sequence_blend(Sequence *seq)
 {
-  SeqEffectHandle rval = {false, false, nullptr};
+  SeqEffectHandle rval = {};
 
   if (seq->blend_mode != 0) {
     if ((seq->flag & SEQ_EFFECT_NOT_LOADED) != 0) {
