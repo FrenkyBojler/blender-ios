@@ -54,7 +54,7 @@ static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
   NodeDenoise *ndg = MEM_cnew<NodeDenoise>(__func__);
   ndg->hdr = true;
   ndg->prefilter = CMP_NODE_DENOISE_PREFILTER_ACCURATE;
-  ndg->quality = CMP_NODE_DENOISE_QUALITY_DEFAULT;
+  ndg->quality = CMP_NODE_DENOISE_QUALITY_SCENE;
   node->storage = ndg;
 }
 
@@ -259,7 +259,7 @@ class DenoiseOperation : public NodeOperation {
     const CMPNodeDenoiseQuality node_quality = static_cast<CMPNodeDenoiseQuality>(
         node_storage(bnode()).quality);
 
-    if (node_quality == CMP_NODE_DENOISE_QUALITY_DEFAULT) {
+    if (node_quality == CMP_NODE_DENOISE_QUALITY_SCENE) {
       const eCompositorDenoiseQaulity scene_quality = context().get_denoise_quality();
       switch (scene_quality) {
 #    if OIDN_VERSION >= 20300

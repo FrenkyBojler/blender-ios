@@ -7544,7 +7544,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Compositor Preview Denoise Quality",
                            "The quality used by denoise nodes during viewport and interactive "
-                           "compositing if the nodes' quality option is set to Default");
+                           "compositing if the nodes' quality option is set to Follow Scene");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
   prop = RNA_def_property(srna, "compositor_denoise_final_quality", PROP_ENUM, PROP_NONE);
@@ -7554,7 +7554,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Compositor Final Denoise Quality",
                            "The quality used by denoise nodes during the compositing of final "
-                           "renders if the nodes' quality option is set to Default");
+                           "renders if the nodes' quality option is set to Follow Scene");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
   /* Nestled Data. */
