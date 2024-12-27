@@ -108,7 +108,7 @@ void text_effect_get_handle(SeqEffectHandle &rval);
 void transform_effect_get_handle(SeqEffectHandle &rval);
 void wipe_effect_get_handle(SeqEffectHandle &rval);
 
-/* Given `T` that implements an `apply` function:
+/* Given `OpT` that implements an `apply` function:
  *
  *    template <typename T>
  *    void apply(const T *src1, const T *src2, T *dst, int64_t size) const;
@@ -116,8 +116,8 @@ void wipe_effect_get_handle(SeqEffectHandle &rval);
  * this function calls the apply() function in parallel
  * chunks of the image to process, and with uchar or float types
  * All images are expected to have 4 (RGBA) color channels. */
-template<typename T>
-static void apply_effect_op(const T &op, const ImBuf *src1, const ImBuf *src2, ImBuf *dst)
+template<typename OpT>
+static void apply_effect_op(const OpT &op, const ImBuf *src1, const ImBuf *src2, ImBuf *dst)
 {
   blender::threading::parallel_for(
       blender::IndexRange(size_t(dst->x) * dst->y), 32 * 1024, [&](blender::IndexRange range) {
