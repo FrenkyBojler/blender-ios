@@ -130,7 +130,7 @@ std::string FileHandlerType::get_default_filename(const StringRefNull name)
                          std::all_of(name.begin(), name.end(), [](char c) { return c == ' '; });
 
   char filename[FILE_MAXFILE];
-  STRNCPY(filename, all_blank ? "untitled" : name.c_str());
+  STRNCPY(filename, all_blank ? "Untitled" : name.c_str());
   BLI_path_extension_ensure(filename,
                             sizeof(filename),
                             file_extensions.is_empty() ? "" : file_extensions.first().c_str());
