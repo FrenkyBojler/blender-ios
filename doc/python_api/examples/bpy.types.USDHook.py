@@ -3,7 +3,7 @@ USD Hook Example
 ++++++++++++++++
 
 This example shows an implementation of ``USDHook`` to extend USD
-export and import functionalty.
+export and import functionality.
 
 Callback Function API
 *********************
@@ -131,7 +131,7 @@ Argument for `on_import`_.
 
 Methods:
 
-- ``get_prim_map()`` returns a dict where the key is an imported USD Prim path and the value a list of the IDs created by the imported prim
+- ``get_prim_map()`` returns a ``dict`` where the key is an imported USD Prim path and the value a ``list`` of the IDs created by the imported prim
 - ``get_stage()`` returns the USD stage which was imported
 
 
