@@ -3826,11 +3826,11 @@ static void outliner_draw_tree(uiBlock *block,
                              UI_UNIT_X :
                              0;
   if (space_outliner->outlinevis == SO_VIEW_LAYER) {
-    if (!use_mode_column) {
-      columns_offset -= UI_UNIT_X;
+    if (space_outliner->filter & SO_FILTER_NO_COLLECTION) {
+      columns_offset = use_mode_column ? UI_UNIT_X : 0;
     }
-    else if (space_outliner->filter & SO_FILTER_NO_COLLECTION) {
-      columns_offset = UI_UNIT_X;
+    else if (!use_mode_column) {
+      columns_offset -= UI_UNIT_X;
     }
   }
 
