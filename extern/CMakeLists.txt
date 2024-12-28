@@ -5,6 +5,7 @@
 # Libs that adhere to strict flags
 add_subdirectory(curve_fit_nd)
 add_subdirectory(fmtlib)
+add_subdirectory(ufbx)
 
 # Otherwise we get warnings here that we cant fix in external projects
 remove_strict_flags()
