@@ -16,8 +16,8 @@
 
 #include "BLI_color.hh"
 #include "BLI_fileops.h"
+#include "BLI_map.hh"
 #include "BLI_math_matrix.h"
-#include "BLI_set.hh"
 #include "BLI_string.h"
 
 #include "DEG_depsgraph.hh"
@@ -41,7 +41,7 @@ struct FbxImportContext {
   Main *bmain;
   const ufbx_scene &fbx;
   const FBXImportParams &params;
-  Set<Object *> created_objects;
+  Map<const ufbx_node *, Object *> node_to_object;
 
   FbxImportContext(Main *main, const ufbx_scene *fbx, const FBXImportParams &params)
       : bmain(main), fbx(*fbx), params(params)
@@ -49,11 +49,43 @@ struct FbxImportContext {
   }
 
   void import_meshes();
+  void import_empties();
+  void setup_hierarchy();
 };
+
+static const char *get_node_name(const ufbx_node *node)
+{
+  return node->name.length > 0 ? node->name.data : "Untitled";
+}
+
+static void node_matrix_to_obj(const ufbx_node *node, Object *obj)
+{
+  ufbx_matrix mtx = ufbx_matrix_mul(node->node_depth <= 1 ? &node->node_to_world :
+                                                            &node->node_to_parent,
+                                    &node->geometry_to_node);
+  float obmat[4][4];
+  unit_m4(obmat);
+  obmat[0][0] = mtx.m00;
+  obmat[1][0] = mtx.m01;
+  obmat[2][0] = mtx.m02;
+  obmat[3][0] = mtx.m03;
+  obmat[0][1] = mtx.m10;
+  obmat[1][1] = mtx.m11;
+  obmat[2][1] = mtx.m12;
+  obmat[3][1] = mtx.m13;
+  obmat[0][2] = mtx.m20;
+  obmat[1][2] = mtx.m21;
+  obmat[2][2] = mtx.m22;
+  obmat[3][2] = mtx.m23;
+  BKE_object_apply_mat4(obj, obmat, true, false);
+}
 
 void FbxImportContext::import_meshes()
 {
   for (ufbx_mesh *fmesh : this->fbx.meshes) {
+    if (fmesh->instances.count == 0) {
+      continue; /* Ignore meshes that aren't used by any objects. */
+    }
 
     /* Create Mesh outside of main. */
     Mesh *mesh = BKE_mesh_new_nomain(
@@ -135,8 +167,10 @@ void FbxImportContext::import_meshes()
       }
       cols.finish();
     }
-    mesh->active_color_attribute = BLI_strdup(first_color_name);
-    mesh->default_color_attribute = BLI_strdup(first_color_name);
+    if (first_color_name) {
+      mesh->active_color_attribute = BLI_strdup(first_color_name);
+      mesh->default_color_attribute = BLI_strdup(first_color_name);
+    }
 
     /* Normals. */
     if (this->params.use_custom_normals && fmesh->vertex_normal.exists) {
@@ -159,43 +193,53 @@ void FbxImportContext::import_meshes()
       BKE_mesh_validate(mesh, verbose_validate, false);
     }
 
-    /* Determine object name. Use name of first user (only if that
-     * is not present, use mesh name). */
-    std::string ob_name;
-    if (fmesh->instances.count > 0) {
-      ob_name = fmesh->instances[0]->name.data;
-    }
-    if (ob_name.empty()) {
-      ob_name = fmesh->name.data;
-    }
-    if (ob_name.empty()) {
-      ob_name = "Untitled";
-    }
-    Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, ob_name.c_str());
-    obj->data = BKE_object_obdata_add_from_type(this->bmain, OB_MESH, ob_name.c_str());
+    /* Create object. */
+    const ufbx_node *node = fmesh->instances[0];
+    const char *ob_name = get_node_name(node);
+    const char *mesh_name = fmesh->name.length > 0 ? fmesh->name.data : ob_name;
+    Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, ob_name);
+    obj->data = BKE_object_obdata_add_from_type(this->bmain, OB_MESH, mesh_name);
     BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
 
     /* Transform matrix. */
-    if (fmesh->instances.count > 0) {
-      const ufbx_matrix &mtx = fmesh->instances[0]->geometry_to_world;
-      float obmat[4][4];
-      unit_m4(obmat);
-      obmat[0][0] = mtx.m00;
-      obmat[1][0] = mtx.m01;
-      obmat[2][0] = mtx.m02;
-      obmat[3][0] = mtx.m03;
-      obmat[0][1] = mtx.m10;
-      obmat[1][1] = mtx.m11;
-      obmat[2][1] = mtx.m12;
-      obmat[3][1] = mtx.m13;
-      obmat[0][2] = mtx.m20;
-      obmat[1][2] = mtx.m21;
-      obmat[2][2] = mtx.m22;
-      obmat[3][2] = mtx.m23;
-      BKE_object_apply_mat4(obj, obmat, true, false);
-    }
+    node_matrix_to_obj(node, obj);
 
-    this->created_objects.add(obj);
+    this->node_to_object.add(node, obj);
+  }
+}
+
+void FbxImportContext::import_empties()
+{
+  /* Ensure we have empties created for all the parent nodes. */
+  Map<const ufbx_node *, Object *> node_to_empty;
+  for (const auto &item : this->node_to_object.items()) {
+    const ufbx_node *node = item.key->parent;
+    while (node != nullptr && !node->is_root) {
+      if (!this->node_to_object.contains(node) && !node_to_empty.contains(node)) {
+        const char *ob_name = get_node_name(node);
+        Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, ob_name);
+        obj->data = nullptr;
+        node_matrix_to_obj(node, obj);
+        node_to_empty.add(node, obj);
+      }
+      node = node->parent;
+    }
+  }
+
+  /* Add all the created empties to the node->object map. */
+  for (const auto &item : node_to_empty.items()) {
+    this->node_to_object.add(item.key, item.value);
+  }
+}
+
+void FbxImportContext::setup_hierarchy()
+{
+  for (const auto &item : this->node_to_object.items()) {
+    const ufbx_node *node = item.key;
+    if (node->parent) {
+      Object *obj_par = this->node_to_object.lookup_default(node->parent, nullptr);
+      item.value->parent = obj_par;
+    }
   }
 }
 
@@ -243,18 +287,20 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
 
   FbxImportContext ctx(bmain, fbx, params);
   ctx.import_meshes();
+  ctx.import_empties();
+  ctx.setup_hierarchy();
 
   ufbx_free_scene(fbx);
 
   /* Add objects to collection. */
-  for (Object *obj : ctx.created_objects) {
+  for (Object *obj : ctx.node_to_object.values()) {
     BKE_collection_object_add(bmain, lc->collection, obj);
   }
 
   /* Select objects, sync layers etc. */
   BKE_view_layer_base_deselect_all(scene, view_layer);
   BKE_view_layer_synced_ensure(scene, view_layer);
-  for (Object *obj : ctx.created_objects) {
+  for (Object *obj : ctx.node_to_object.values()) {
     Base *base = BKE_view_layer_base_find(view_layer, obj);
     BKE_view_layer_base_select_and_set_active(view_layer, base);
 
