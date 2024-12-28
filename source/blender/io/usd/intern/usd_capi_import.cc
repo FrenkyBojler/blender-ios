@@ -49,6 +49,7 @@
 #include "WM_types.hh"
 
 #include <pxr/usd/usd/stage.h>
+#include <pxr/usd/usdGeom/metrics.h>
 
 #include <fmt/core.h>
 
@@ -191,18 +192,10 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     return;
   }
 
-<<<<<<< HEAD
-  convert_to_z_up(stage, &data->settings);
-  find_prefix_to_skip(stage, &data->settings);
-  const double stage_meters_per_unit = UsdGeomGetStageMetersPerUnit(stage);
-  data->settings.stage_meters_per_unit = stage_meters_per_unit;
-
   if (data->params.apply_unit_conversion_scale) {
-    data->params.scale *= stage_meters_per_unit;
+    data->params.scale *= pxr::UsdGeomGetStageMetersPerUnit(stage);
   }
 
-=======
->>>>>>> main
   /* Set up the stage for animated data. */
   if (data->params.set_frame_range) {
     data->scene->r.sfra = stage->GetStartTimeCode();
