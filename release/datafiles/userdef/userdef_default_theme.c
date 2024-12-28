@@ -206,10 +206,9 @@ const bTheme U_theme_default = {
       .roundness = 0.2f,
     },
     .wcol_state = {
-      .redalert = RGBA(0xf03c3cff),
-      .error = RGBA(0xb34c34ff),
-      .warning = RGBA(0xac8737ff),
-      .info = RGBA(0x1f3862ff),
+      .error = RGBA(0x4c1212ff),
+      .warning = RGBA(0x533800ff),
+      .info = RGBA(0x00266dff),
       .inner_anim = RGBA(0x53992eff),
       .inner_anim_sel = RGBA(0x38a600ff),
       .inner_key = RGBA(0xb3ae36ff),
@@ -703,6 +702,8 @@ const bTheme U_theme_default = {
     .row_alternate = RGBA(0xffffff05),
     .anim_preview_range = RGBA(0xa14d0066),
     .metadatatext = RGBA(0xffffffff),
+    .text_strip_cursor = RGBA(0x71a8ffff),
+    .selected_text = RGBA(0xffffff4d),
   },
   .space_image = {
     .back = RGBA(0x30303000),

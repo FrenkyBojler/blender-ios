@@ -90,8 +90,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = white;
           break;
         case TH_REDALERT:
-          cp = btheme->tui.wcol_state.redalert;
-          break;
         case TH_ERROR:
           cp = btheme->tui.wcol_state.error;
           break;
@@ -740,6 +738,12 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_SEQ_SELECTED:
           cp = ts->selected_strip;
+          break;
+        case TH_SEQ_TEXT_CURSOR:
+          cp = ts->text_strip_cursor;
+          break;
+        case TH_SEQ_SELECTED_TEXT:
+          cp = ts->selected_text;
           break;
 
         case TH_CONSOLE_OUTPUT:
