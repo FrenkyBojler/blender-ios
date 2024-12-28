@@ -25,13 +25,13 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
-  #PRIVATE bf::depsgraph
-  #PRIVATE bf::dna
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
   PRIVATE bf::extern::fmtlib
-  #PRIVATE bf::windowmanager
+  PRIVATE bf::extern::ufbx
 )
 
 blender_add_lib(bf_io_fbx "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

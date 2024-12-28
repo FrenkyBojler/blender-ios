@@ -37,7 +37,7 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
   params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   params.global_scale = RNA_float_get(op->ptr, "global_scale");
-  params.use_mesh_validate = RNA_boolean_get(op->ptr, "use_mesh_validate");
+  params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
 
   params.reports = op->reports;
 
@@ -88,7 +88,7 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
 
   if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_options", false, IFACE_("Options"))) {
     uiLayout *col = uiLayoutColumn(panel, false);
-    uiItemR(col, ptr, "use_mesh_validate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -127,9 +127,9 @@ void WM_OT_fbx_import(wmOperatorType *ot)
 
   RNA_def_boolean(
       ot->srna,
-      "use_mesh_validate",
+      "validate_meshes",
       true,
-      "Validate Mesh",
+      "Validate Meshes",
       "Ensure the data is valid "
       "(when disabled, data may be imported which causes crashes displaying or editing)");
 

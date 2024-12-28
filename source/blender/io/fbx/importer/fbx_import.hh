@@ -18,6 +18,6 @@ namespace blender::io::fbx {
 void importer_main(Main *bmain,
                    Scene *scene,
                    ViewLayer *view_layer,
-                   const FBXImportParams &import_params);
+                   const FBXImportParams &params);
 
 }  // namespace blender::io::fbx
