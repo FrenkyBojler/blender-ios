@@ -37,6 +37,7 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
   params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   params.global_scale = RNA_float_get(op->ptr, "global_scale");
+  params.use_custom_normals = RNA_boolean_get(op->ptr, "use_custom_normals");
   params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
 
   params.reports = op->reports;
@@ -88,6 +89,7 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
 
   if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_options", false, IFACE_("Options"))) {
     uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
@@ -125,6 +127,11 @@ void WM_OT_fbx_import(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "forward_axis", io_transform_axis, IO_AXIS_Y, "Forward Axis", "");
   RNA_def_enum(ot->srna, "up_axis", io_transform_axis, IO_AXIS_Z, "Up Axis", "");
 
+  RNA_def_boolean(ot->srna,
+                  "use_custom_normals",
+                  true,
+                  "Custom Normals",
+                  "Import custom normals, if available (otherwise Blender will compute them)");
   RNA_def_boolean(
       ot->srna,
       "validate_meshes",

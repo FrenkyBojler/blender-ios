@@ -24,6 +24,7 @@ struct FBXImportParams {
   eIOAxis up_axis = IO_AXIS_Z;
   float global_scale = 1.0f;
   bool validate_meshes = true;
+  bool use_custom_normals = true;
 
   ReportList *reports = nullptr;
 };

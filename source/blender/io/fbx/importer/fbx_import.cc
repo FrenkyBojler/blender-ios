@@ -8,14 +8,17 @@
 
 #include <cstdio>
 
+#include "BKE_attribute.hh"
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 
+#include "BLI_color.hh"
 #include "BLI_fileops.h"
 #include "BLI_math_matrix.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -53,10 +56,9 @@ void FbxImportContext::import_meshes()
   for (ufbx_mesh *fmesh : this->fbx.meshes) {
 
     /* Create Mesh outside of main. */
-    Mesh *mesh = BKE_mesh_new_nomain(fmesh->num_vertices,
-                                     fmesh->num_edges * 0 /*@TODO: edges */,
-                                     fmesh->num_faces,
-                                     fmesh->num_indices);
+    Mesh *mesh = BKE_mesh_new_nomain(
+        fmesh->num_vertices, fmesh->num_edges, fmesh->num_faces, fmesh->num_indices);
+    bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
 
     /* Vertex positions. */
     MutableSpan<float3> positions = mesh->vert_positions_for_write();
@@ -81,10 +83,72 @@ void FbxImportContext::import_meshes()
       }
     }
 
-    //@TODO: edges
-    /* Set argument `update` to true so that existing, explicitly imported edges can be merged
-     * with the new ones created from faces. */
+    /* Face material indices. */
+    if (fmesh->face_material.count == fmesh->num_faces) {
+      bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_only_span<int>(
+          "material_index", bke::AttrDomain::Face);
+      for (int i = 0; i < fmesh->face_material.count; i++) {
+        materials.span[i] = fmesh->face_material[i];
+      }
+      materials.finish();
+    }
+
+    /* Edges. */
+    MutableSpan<int2> edges = mesh->edges_for_write();
+    BLI_assert(edges.size() == fmesh->num_edges);
+    for (int edge_idx = 0; edge_idx < fmesh->num_edges; edge_idx++) {
+      const ufbx_edge &fedge = fmesh->edges[edge_idx];
+      int va = fmesh->vertex_indices[fedge.a];
+      int vb = fmesh->vertex_indices[fedge.b];
+      edges[edge_idx] = int2(va, vb);
+    }
     bke::mesh_calc_edges(*mesh, true, false);
+
+    /* UVs. */
+    for (const ufbx_uv_set &fuv_set : fmesh->uv_sets) {
+      bke::SpanAttributeWriter<float2> uvs = attributes.lookup_or_add_for_write_only_span<float2>(
+          fuv_set.name.data, bke::AttrDomain::Corner);
+      BLI_assert(fuv_set.vertex_uv.indices.count == uvs.span.size());
+      for (int i = 0; i < fuv_set.vertex_uv.indices.count; i++) {
+        int val_idx = fuv_set.vertex_uv.indices[i];
+        const ufbx_vec2 &uv = fuv_set.vertex_uv.values[val_idx];
+        uvs.span[i] = float2(uv.x, uv.y);
+      }
+      uvs.finish();
+    }
+
+    /* Colors. */
+    const char *first_color_name = nullptr;
+    for (const ufbx_color_set &fcol_set : fmesh->color_sets) {
+      if (first_color_name == nullptr) {
+        first_color_name = fcol_set.name.data;
+      }
+      bke::SpanAttributeWriter<ColorGeometry4f> cols =
+          attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(fcol_set.name.data,
+                                                                        bke::AttrDomain::Corner);
+      BLI_assert(fcol_set.vertex_color.indices.count == cols.span.size());
+      for (int i = 0; i < fcol_set.vertex_color.indices.count; i++) {
+        int val_idx = fcol_set.vertex_color.indices[i];
+        const ufbx_vec4 &col = fcol_set.vertex_color.values[val_idx];
+        //@TODO: linear/sRGB conversions if needed; use byte color for sRGB
+        cols.span[i] = ColorGeometry4f(col.x, col.y, col.z, col.w);
+      }
+      cols.finish();
+    }
+    mesh->active_color_attribute = BLI_strdup(first_color_name);
+    mesh->default_color_attribute = BLI_strdup(first_color_name);
+
+    /* Normals. */
+    if (this->params.use_custom_normals && fmesh->vertex_normal.exists) {
+      BLI_assert(fmesh->vertex_normal.indices.count == mesh->corners_num);
+      Array<float3> normals(mesh->corners_num);
+      for (int i = 0; i < mesh->corners_num; i++) {
+        int val_idx = fmesh->vertex_normal.indices[i];
+        const ufbx_vec3 &normal = fmesh->vertex_normal.values[val_idx];
+        normals[i] = float3(normal.x, normal.y, normal.z);
+      }
+      BKE_mesh_set_custom_normals(mesh, reinterpret_cast<float(*)[3]>(normals.data()));
+    }
 
     /* Validate if needed. */
     if (this->params.validate_meshes) {
