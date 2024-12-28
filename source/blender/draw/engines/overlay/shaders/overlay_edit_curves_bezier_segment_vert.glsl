@@ -74,31 +74,29 @@ float radius_to_ndc(float radius, vec3 view_point)
 
 void main()
 {
-#ifdef SEGMENT
   const int vertex_per_quad = 6;
   VertIn vert_in = input_assembly(gl_VertexID / vertex_per_quad);
-  const int segment_vertex_i = gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
+#ifdef SEGMENT
+  const int segment_vertex_i =  gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
+#else
+  const int segment_vertex_i =  gl_VertexID - (endpointsOnly ? 0 : vert_in.first_vertex_id * vertex_per_quad);
+#endif
   const int quad_i = segment_vertex_i / vertex_per_quad;
   const int in_quad_i = segment_vertex_i % vertex_per_quad;
   const bool quad_right = in_quad_i >= 2 && in_quad_i != 5;
   const bool bottom_edge = in_quad_i % 2;
+#ifdef SEGMENT
   vec3 points[4] = float4_array(vert_in.p[0], vert_in.p[1], vert_in.p[2], vert_in.p[3]);
   const int step = quad_i + quad_right;
   const float u = float(step) / vert_in.resolution;
   const vec3 curve_point = calc_bezier_point(u, vert_in.p);
 #else
-  VertIn vert_in = input_assembly(gl_VertexID);
   vec3 curve_point;
   float u = 0;
   if (endpointsOnly) {
     curve_point = vert_in.p[0];
-  }
-  else {
-    const int step = gl_VertexID - vert_in.first_vertex_id;
-    if (step == 0 || step == vert_in.resolution) {
-      gl_Position = vec4(NAN_FLT);
-      return;
-    }
+  } else {
+    const int step = quad_i;
     u = float(step) / vert_in.resolution;
     curve_point = calc_bezier_point(u, vert_in.p);
   }
@@ -123,11 +121,15 @@ void main()
                                      (ndc_pos2.xy / ndc_pos2.w) * sizeViewport,
                                      radius2,
                                      quad_right ? bottom_edge : !bottom_edge);
-  ndc_pos.xy += offset * ndc_pos.w * sizeViewportInv;
 #else
-  gl_PointSize = radius;
+  const float x = quad_right ? 1.0 : -1.0;
+  const float y = bottom_edge ? -1.0 : 1.0;
+  const vec2 offset = vec2(x, y) * radius;
+
+  uv_coord = vec2(x, y);
 #endif
 
+  ndc_pos.xy += offset * ndc_pos.w * sizeViewportInv;
   gl_Position = ndc_pos;
   finalColor = colorWireEdit;
   view_clipping_distances(world_pos);
