@@ -155,10 +155,6 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
     return;
   }
 
-  if (!(params.convert_orientation || params.convert_scene_units)) {
-    return;
-  }
-
   pxr::UsdGeomXform root_xf = pxr::UsdGeomXform::Define(stage,
                                                         pxr::SdfPath(params.root_prim_path));
 
