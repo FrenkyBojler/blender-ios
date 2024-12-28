@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2024 Blender Authors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+set(INC
+  .
+  importer
+  ../common
+  ../../editors/include
+  ../../makesrna
+)
+
+set(INC_SYS
+)
+
+set(SRC
+  IO_fbx.cc
+  importer/fbx_import.cc
+
+  IO_fbx.hh
+  importer/fbx_import.hh
+)
+
+set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
+  #PRIVATE bf::depsgraph
+  #PRIVATE bf::dna
+  PRIVATE bf::intern::clog
+  PRIVATE bf::intern::guardedalloc
+  bf_io_common
+  PRIVATE bf::extern::fmtlib
+  #PRIVATE bf::windowmanager
+)
+
+blender_add_lib(bf_io_fbx "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
