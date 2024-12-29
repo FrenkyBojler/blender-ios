@@ -10,6 +10,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_camera.h"
+#include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_light.h"
 #include "BKE_mesh.hh"
@@ -28,6 +29,7 @@
 
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
+#include "DNA_key_types.h"
 #include "DNA_light_types.h"
 #include "DNA_scene_types.h"
 
@@ -207,6 +209,39 @@ void FbxImportContext::import_meshes()
     Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, ob_name);
     obj->data = BKE_object_obdata_add_from_type(this->bmain, OB_MESH, mesh_name);
     BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
+    mesh = (Mesh *)obj->data;
+
+    /* Blend shapes. */
+    Key *mesh_key = nullptr;
+    for (const ufbx_blend_deformer *fdeformer : fmesh->blend_deformers) {
+      for (const ufbx_blend_channel *fchan : fdeformer->channels) {
+        /* In theory fbx supports multiple keyframes within one blend shape
+         * channel; we only take the final target keyframe. */
+        if (fchan->target_shape == nullptr) {
+          continue;
+        }
+
+        if (mesh_key == nullptr) {
+          mesh_key = BKE_key_add(this->bmain, (ID *)mesh);
+          mesh_key->type = KEY_RELATIVE;
+          mesh->key = mesh_key;
+
+          KeyBlock *kb = BKE_keyblock_add(mesh_key, "Basis");
+          BKE_keyblock_convert_from_mesh(mesh, mesh_key, kb);
+          obj->shapenr = 1;
+        }
+
+        KeyBlock *kb = BKE_keyblock_add(mesh_key, fchan->target_shape->name.data);
+        kb->curval = fchan->weight;
+        BKE_keyblock_convert_from_mesh(mesh, mesh_key, kb);
+        float3 *kb_data = (float3 *)kb->data;
+        for (int i = 0; i < fchan->target_shape->num_offsets; i++) {
+          int idx = fchan->target_shape->offset_vertices[i];
+          const ufbx_vec3 &delta = fchan->target_shape->position_offsets[i];
+          kb_data[idx] += float3(delta.x, delta.y, delta.z);
+        }
+      }
+    }
 
     node_matrix_to_obj(node, obj);
     this->node_to_object.add(node, obj);
