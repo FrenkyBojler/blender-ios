@@ -898,7 +898,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
                "convert_scene_units",
                rna_enum_usd_convert_scene_units_items,
                eUSDSceneUnits::USD_SCENE_UNITS_METERS,
-               "t",
+               "Units",
                "Set the USD Stage meters per unit to the chosen measurement, or a custom value");
 
   RNA_def_float(ot->srna,
