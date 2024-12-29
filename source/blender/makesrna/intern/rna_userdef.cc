@@ -3413,11 +3413,6 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 10);
   RNA_def_property_ui_text(prop, "Noodle Curving", "Curving of the noodle");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-  
-  prop = RNA_def_property(srna, "align_to_grid", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "align_to_grid", 0);
-  RNA_def_property_ui_text(prop, "Align To Grid", "Aligns the sockets on nodes to the grid");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "grid_levels", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "grid_levels");

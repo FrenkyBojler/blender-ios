@@ -980,7 +980,6 @@
         matte_node="#973c3c"
         distor_node="#4c9797"
         noodle_curving="4"
-        align_to_grid="FALSE"
         grid_levels="3"
         dash_alpha="0.5"
         input_node="#ff3371"

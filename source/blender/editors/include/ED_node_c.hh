@@ -24,7 +24,7 @@ struct bNodeType;
 struct bNodeSocketType;
 }  // namespace blender::bke
 
-#define NODE_GRID_STEP_SIZE (20.0f * UI_SCALE_FAC) /* Based on the grid nodes snap to. */
+#define NODE_GRID_STEP_SIZE (NODE_DY + NODE_ITEM_SPACING_Y) /* What the grid nodes snap to. */
 #define NODE_EDGE_PAN_INSIDE_PAD 2
 #define NODE_EDGE_PAN_OUTSIDE_PAD 0 /* Disable clamping for node panning, use whole screen. */
 #define NODE_EDGE_PAN_SPEED_RAMP 1

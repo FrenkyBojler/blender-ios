@@ -149,12 +149,6 @@ struct TreeDrawContext {
 
 float ED_node_grid_size()
 {
-  const bool align_to_grid = UI_GetThemeValueType(TH_NODE_ALIGN_TO_GRID, SPACE_NODE);
-
-  if (align_to_grid) {
-    return NODE_DY + NODE_ITEM_SPACING_Y;
-  }
-
   return NODE_GRID_STEP_SIZE;
 }
 
@@ -426,12 +420,6 @@ static bool node_update_basis_buttons(const bContext &C,
   /* Round the node origin because text contents are always pixel-aligned. */
   const float2 loc = math::round(node_to_view(node.location));
 
-  const bool align_to_grid = UI_GetThemeValueType(TH_NODE_ALIGN_TO_GRID, SPACE_NODE);
-
-  if (!align_to_grid) {
-    dy -= NODE_DYS / 4;
-  }
-
   uiLayout *layout = UI_block_layout(&block,
                                      UI_LAYOUT_VERTICAL,
                                      UI_LAYOUT_PANEL,
@@ -455,9 +443,6 @@ static bool node_update_basis_buttons(const bContext &C,
   UI_block_layout_resolve(&block, nullptr, &buty);
 
   dy = buty;
-  if (!align_to_grid) {
-    dy -= NODE_DYS / 4;
-  }
 
   return true;
 }
@@ -507,8 +492,6 @@ static bool node_update_basis_socket(const bContext &C,
     return false;
   }
 
-  const bool align_to_grid = UI_GetThemeValueType(TH_NODE_ALIGN_TO_GRID, SPACE_NODE);
-
   const int topy = locy;
 
   /* Add the half the height of a multi-input socket to cursor Y
@@ -517,17 +500,8 @@ static bool node_update_basis_socket(const bContext &C,
   float multi_input_socket_offset = 0.0f;
 
   if (is_multi_input) {
-    if (align_to_grid) {
-      if (input_socket->runtime->total_inputs > 1) {
-        multi_input_socket_offset = (input_socket->runtime->total_inputs - 1) *
-                                    ED_node_grid_size();
-      }
-    }
-    else {
-      if (input_socket->runtime->total_inputs > 2) {
-        multi_input_socket_offset = (input_socket->runtime->total_inputs - 2) *
-                                    NODE_MULTI_INPUT_LINK_GAP;
-      }
+    if (input_socket->runtime->total_inputs > 1) {
+      multi_input_socket_offset = (input_socket->runtime->total_inputs - 1) * ED_node_grid_size();
     }
   }
 
@@ -1199,12 +1173,12 @@ static void node_update_basis_from_declaration(
 static void node_update_basis_from_socket_lists(
     const bContext &C, bNodeTree &ntree, bNode &node, uiBlock &block, const int locx, int &locy)
 {
+  const int topy = locy;
+
   /* Space at the top. */
   locy -= NODE_DYS / 2;
 
-  if (align_to_grid) {
-    locy = grid_snap_floor(locy, topy + NODE_DYS);
-  }
+  locy = grid_snap_floor(locy, topy + NODE_DYS);
 
   /* Output sockets. */
   bool add_output_space = false;
@@ -1213,9 +1187,7 @@ static void node_update_basis_from_socket_lists(
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
-    if (align_to_grid) {
-      locy = grid_snap_floor(locy, topy + NODE_DYS);
-    }
+    locy = grid_snap_floor(locy, topy + NODE_DYS);
 
     if (node_update_basis_socket(C, ntree, node, nullptr, nullptr, socket, block, locx, locy)) {
       if (socket->next) {
@@ -1223,10 +1195,6 @@ static void node_update_basis_from_socket_lists(
       }
       add_output_space = true;
     }
-  }
-
-  if (add_output_space && !align_to_grid) {
-    locy -= NODE_DY / 4;
   }
 
   const bool add_button_space = node_update_basis_buttons(
@@ -1239,9 +1207,7 @@ static void node_update_basis_from_socket_lists(
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
-    if (align_to_grid) {
-      locy = grid_snap_floor(locy, topy + NODE_DYS);
-    }
+    locy = grid_snap_floor(locy, topy + NODE_DYS);
 
     if (node_update_basis_socket(C, ntree, node, nullptr, socket, nullptr, block, locx, locy)) {
       if (socket->next) {
@@ -1256,9 +1222,7 @@ static void node_update_basis_from_socket_lists(
     locy -= NODE_DYS / 2;
   }
 
-  if (align_to_grid) {
-    locy = grid_snap_floor(locy, topy);
-  }
+  locy = grid_snap_floor(locy, topy);
 }
 
 /**
@@ -1278,11 +1242,7 @@ static void node_update_basis(const bContext &C,
   /* Header. */
   dy -= NODE_DY;
 
-  const bool align_to_grid = UI_GetThemeValueType(TH_NODE_ALIGN_TO_GRID, SPACE_NODE);
-
-  if (align_to_grid) {
-    dy -= NODE_ITEM_SPACING_Y;
-  }
+  dy -= NODE_ITEM_SPACING_Y;
 
   if (is_node_panels_supported(node)) {
     node_update_basis_from_declaration(C, ntree, node, block, loc.x, dy);
@@ -4925,7 +4885,7 @@ void node_draw_space(const bContext &C, ARegion &region)
   snode_set_context(C);
 
   const int grid_levels = UI_GetThemeValueType(TH_NODE_GRID_LEVELS, SPACE_NODE);
-  UI_view2d_dot_grid_draw(&v2d, TH_GRID, ED_node_grid_size(), grid_levels);
+  UI_view2d_dot_grid_draw(&v2d, TH_GRID, NODE_GRID_STEP_SIZE, grid_levels);
 
   /* Draw parent node trees. */
   if (snode.treepath.last) {

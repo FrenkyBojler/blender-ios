@@ -663,9 +663,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_NODE_CURVING:
           cp = &ts->noodle_curving;
           break;
-        case TH_NODE_ALIGN_TO_GRID:
-          cp = &ts->align_to_grid;
-          break;
         case TH_NODE_GRID_LEVELS:
           cp = &ts->grid_levels;
           break;
