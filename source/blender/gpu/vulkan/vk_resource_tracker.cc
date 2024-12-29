@@ -10,10 +10,9 @@
 #include "vk_context.hh"
 
 namespace blender::gpu {
-bool VKSubmissionTracker::is_changed(VKContext &context)
+bool VKSubmissionTracker::is_changed(const VKContext &context)
 {
-  VKCommandBuffer &command_buffer = context.command_buffer_get();
-  const VKSubmissionID &current_id = command_buffer.submission_id_get();
+  const VKSubmissionID &current_id = context.render_graph.submission_id;
   if (last_known_id_ != current_id) {
     last_known_id_ = current_id;
     return true;

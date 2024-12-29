@@ -2,8 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
+#pragma once
+
+#include "draw_view_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
 
 /**
  * Return the corresponding list index in the `list_start_buf` for a given world position.
@@ -12,10 +14,9 @@
  */
 int surfel_list_index_get(ivec2 ray_grid_size, vec3 P, out float r_ray_distance)
 {
-  vec4 hP = point_world_to_ndc(P);
-  r_ray_distance = -hP.z;
-  vec2 ssP = hP.xy * 0.5 + 0.5;
-  ivec2 ray_coord_on_grid = ivec2(ssP * vec2(ray_grid_size));
+  vec3 ssP = drw_point_world_to_screen(P);
+  r_ray_distance = -ssP.z;
+  ivec2 ray_coord_on_grid = ivec2(ssP.xy * vec2(ray_grid_size));
   ray_coord_on_grid = clamp(ray_coord_on_grid, ivec2(0), ray_grid_size - 1);
 
   int list_index = ray_coord_on_grid.y * ray_grid_size.x + ray_coord_on_grid.x;

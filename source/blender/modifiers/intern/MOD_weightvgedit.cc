@@ -14,7 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_rand.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_color_types.h" /* CurveMapping. */
 #include "DNA_defaults.h"
@@ -24,13 +24,12 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_colortools.h" /* CurveMapping. */
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_lib_query.h"
+#include "BKE_colortools.hh" /* CurveMapping. */
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.hh"
+#include "BKE_modifier.hh"
 #include "BKE_texture.h" /* Texture masking. */
 
 #include "UI_interface.hh"
@@ -39,14 +38,13 @@
 #include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 #include "MOD_weightvg_util.hh"
@@ -93,8 +91,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   if (wmd->mask_tex_mapping == MOD_DISP_MAP_UV) {
     r_cddata_masks->fmask |= CD_MASK_MTFACE;
   }
-
-  /* No need to ask for CD_PREVIEW_MLOOPCOL... */
 }
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
@@ -117,7 +113,9 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  walk(user_data, ob, md, "mask_texture");
+  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "mask_texture");
+  walk(user_data, ob, md, &ptr, prop);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -171,7 +169,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 #endif
 
   /* Get number of verts. */
-  const int verts_num = mesh->totvert;
+  const int verts_num = mesh->verts_num;
 
   /* Check if we can just return the original mesh.
    * Must have verts and therefore verts assigned to vgroups to do anything useful!
@@ -195,7 +193,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
   }
 
-  MDeformVert *dvert = BKE_mesh_deform_verts_for_write(mesh);
+  MDeformVert *dvert = mesh->deform_verts_for_write().data();
 
   /* Ultimate security check. */
   if (!dvert) {
@@ -296,9 +294,10 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, true);
-  uiItemPointerR(col, ptr, "vertex_group", &ob_ptr, "vertex_groups", nullptr, ICON_NONE);
+  uiItemPointerR(
+      col, ptr, "vertex_group", &ob_ptr, "vertex_groups", std::nullopt, ICON_GROUP_VERTEX);
 
-  uiItemR(layout, ptr, "default_weight", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "default_weight", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   col = uiLayoutColumnWithHeading(layout, false, IFACE_("Group Add"));
   row = uiLayoutRow(col, true);
@@ -322,7 +321,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiItemR(sub, ptr, "remove_threshold", UI_ITEM_R_SLIDER, IFACE_("Threshold"), ICON_NONE);
   uiItemDecoratorR(row, ptr, "remove_threshold", 0);
 
-  uiItemR(layout, ptr, "normalize", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
@@ -382,7 +381,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
 
-  BLO_read_data_address(reader, &wmd->cmap_curve);
+  BLO_read_struct(reader, CurveMapping, &wmd->cmap_curve);
   if (wmd->cmap_curve) {
     BKE_curvemapping_blend_read(reader, wmd->cmap_curve);
   }
@@ -394,9 +393,9 @@ ModifierTypeInfo modifierType_WeightVGEdit = {
     /*struct_name*/ "WeightVGEditModifierData",
     /*struct_size*/ sizeof(WeightVGEditModifierData),
     /*srna*/ &RNA_VertexWeightEditModifier,
-    /*type*/ eModifierTypeType_NonGeometrical,
+    /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
-        eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_UsesPreview,
+        eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_VERTEX_WEIGHT,
 
     /*copy_data*/ copy_data,
@@ -421,4 +420,5 @@ ModifierTypeInfo modifierType_WeightVGEdit = {
     /*panel_register*/ panel_register,
     /*blend_write*/ blend_write,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

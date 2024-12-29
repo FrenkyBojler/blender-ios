@@ -6,7 +6,7 @@
  * \ingroup edmask
  */
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mask.h"
 
 #include "DNA_scene_types.h"
@@ -21,7 +21,7 @@
 
 #include "RNA_access.hh"
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Poll Functions

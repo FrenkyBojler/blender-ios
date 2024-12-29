@@ -20,10 +20,19 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   )
 endif()
 
+if(WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
+  # Disable ASAN for extern dependencies, as it can lead to linking issues due to too large binaries.
+  string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -fno-sanitize=all")
+  string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " -fno-sanitize=all")
+  string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fno-sanitize=all")
+  string(APPEND CMAKE_C_FLAGS_DEBUG " -fno-sanitize=all")
+endif()
+
 
 add_subdirectory(rangetree)
 add_subdirectory(nanosvg)
 add_subdirectory(wcwidth)
+add_subdirectory(xxhash)
 
 if(WITH_BULLET)
   if(NOT WITH_SYSTEM_BULLET)
@@ -47,8 +56,7 @@ if(WITH_LZMA)
   add_subdirectory(lzma)
 endif()
 
-if(WITH_CYCLES OR WITH_COMPOSITOR_CPU OR WITH_OPENSUBDIV)
-  add_subdirectory(clew)
+if(WITH_CYCLES OR WITH_OPENSUBDIV)
   if((WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX) AND WITH_CUDA_DYNLOAD)
     add_subdirectory(cuew)
   endif()
@@ -77,10 +85,6 @@ if(WITH_GTESTS)
   add_subdirectory(gmock)
 endif()
 
-if(WITH_SDL AND WITH_SDL_DYNLOAD)
-  add_subdirectory(sdlew)
-endif()
-
 if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
   set(AUDASPACE_CMAKE_CFG ${CMAKE_CURRENT_SOURCE_DIR}/audaspace/blender_config.cmake)
   set(LIB_SUFFIX "")  # Quiet uninitialized warning.
@@ -95,10 +99,6 @@ endif()
 
 if(WITH_MOD_FLUID)
   add_subdirectory(mantaflow)
-endif()
-
-if(WITH_COMPOSITOR_CPU)
-  add_subdirectory(smaa_areatex)
 endif()
 
 if(WITH_VULKAN_BACKEND)

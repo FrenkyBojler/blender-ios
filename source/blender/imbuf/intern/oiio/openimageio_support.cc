@@ -8,12 +8,12 @@
 
 #include "BLI_blenlib.h"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "DNA_ID.h" /* ID property definitions. */
 
-#include "IMB_allocimbuf.h"
-#include "IMB_colormanagement.h"
-#include "IMB_metadata.h"
+#include "IMB_allocimbuf.hh"
+#include "IMB_colormanagement.hh"
+#include "IMB_metadata.hh"
 
 OIIO_NAMESPACE_USING
 
@@ -100,7 +100,7 @@ static ImBuf *load_pixels(
 {
   /* Allocate the ImBuf for the image. */
   constexpr bool is_float = sizeof(T) > 1;
-  const uint format_flag = is_float ? IB_rectfloat : IB_rect;
+  const uint format_flag = (is_float ? IB_rectfloat : IB_rect) | IB_uninitialized_pixels;
   const uint ibuf_flags = (flags & IB_test) ? 0 : format_flag;
   const int planes = use_all_planes ? 32 : 8 * channels;
   ImBuf *ibuf = IMB_allocImBuf(width, height, planes, ibuf_flags);
@@ -250,7 +250,7 @@ static unique_ptr<ImageInput> get_oiio_reader(const char *format,
 {
   /* Attempt to create a reader based on the passed in format. */
   unique_ptr<ImageInput> in = ImageInput::create(format);
-  if (!in) {
+  if (!(in && in->valid_file(&mem_reader))) {
     return nullptr;
   }
 
@@ -258,7 +258,7 @@ static unique_ptr<ImageInput> get_oiio_reader(const char *format,
   in->set_ioproxy(&mem_reader);
   bool ok = in->open("", r_newspec, config);
   if (!ok) {
-    in.reset();
+    return nullptr;
   }
 
   return in;
@@ -270,8 +270,8 @@ bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format)
 
   /* This memory proxy must remain alive for the full duration of the read. */
   Filesystem::IOMemReader mem_reader(cspan<uchar>(mem, mem_size));
-  unique_ptr<ImageInput> in = get_oiio_reader(file_format, config, mem_reader, spec);
-  return in ? true : false;
+  unique_ptr<ImageInput> in = ImageInput::create(file_format);
+  return in && in->valid_file(&mem_reader);
 }
 
 ImBuf *imb_oiio_read(const ReadContext &ctx,
@@ -301,13 +301,28 @@ bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSp
 
   /* Grayscale images need to be based on luminance weights rather than only
    * using a single channel from the source. */
-  if (file_spec.nchannels == 1) {
-    float weights[4]{};
+  if (ctx.ibuf->channels > 1 && file_spec.nchannels == 1) {
+    float weights[4] = {};
     IMB_colormanagement_get_luminance_coefficients(weights);
     ImageBufAlgo::channel_sum(final_buf, orig_buf, {weights, orig_buf.nchannels()});
   }
   else {
-    final_buf = std::move(orig_buf);
+    /* If we are moving from an 1-channel format to n-channel we need to
+     * ensure the original data is copied into the higher channels. */
+    if (ctx.ibuf->channels == 1 && file_spec.nchannels > 1) {
+      final_buf = ImageBuf(file_spec, InitializePixels::No);
+      ImageBufAlgo::paste(final_buf, 0, 0, 0, 0, orig_buf);
+      ImageBufAlgo::paste(final_buf, 0, 0, 0, 1, orig_buf);
+      ImageBufAlgo::paste(final_buf, 0, 0, 0, 2, orig_buf);
+      if (file_spec.alpha_channel == 3) {
+        ROI alpha_roi = file_spec.roi();
+        alpha_roi.chbegin = file_spec.alpha_channel;
+        ImageBufAlgo::fill(final_buf, {0, 0, 0, 1.0f}, alpha_roi);
+      }
+    }
+    else {
+      final_buf = std::move(orig_buf);
+    }
   }
 
   bool write_ok = false;

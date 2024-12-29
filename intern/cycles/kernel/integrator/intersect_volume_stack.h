@@ -15,6 +15,7 @@ ccl_device void integrator_volume_stack_update_for_subsurface(KernelGlobals kg,
                                                               const float3 from_P,
                                                               const float3 to_P)
 {
+#ifdef __VOLUME__
   PROFILING_INIT(kg, PROFILING_INTERSECT_VOLUME_STACK);
 
   ShaderDataTinyStorage stack_sd_storage;
@@ -37,7 +38,7 @@ ccl_device void integrator_volume_stack_update_for_subsurface(KernelGlobals kg,
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
   const uint32_t visibility = SHADOW_CATCHER_PATH_VISIBILITY(path_flag, PATH_RAY_ALL_VISIBILITY);
 
-#ifdef __VOLUME_RECORD_ALL__
+#  ifdef __VOLUME_RECORD_ALL__
   Intersection hits[2 * MAX_VOLUME_STACK_SIZE + 1];
   uint num_hits = scene_intersect_volume(kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
   if (num_hits > 0) {
@@ -46,25 +47,32 @@ ccl_device void integrator_volume_stack_update_for_subsurface(KernelGlobals kg,
     qsort(hits, num_hits, sizeof(Intersection), intersections_compare);
 
     for (uint hit = 0; hit < num_hits; ++hit, ++isect) {
+      /* Ignore self, SSS itself already enters and exits the object. */
+      if (isect->object == volume_ray.self.object) {
+        continue;
+      }
       shader_setup_from_ray(kg, stack_sd, &volume_ray, isect);
       volume_stack_enter_exit(kg, state, stack_sd);
     }
   }
-#else
+#  else
   Intersection isect;
   int step = 0;
   while (step < 2 * volume_stack_size &&
-         scene_intersect_volume(kg, &volume_ray, &isect, visibility)) {
-    shader_setup_from_ray(kg, stack_sd, &volume_ray, &isect);
-    volume_stack_enter_exit(kg, state, stack_sd);
-
+         scene_intersect_volume(kg, &volume_ray, &isect, visibility))
+  {
+    /* Ignore self, SSS itself already enters and exits the object. */
+    if (isect.object != volume_ray.self.object) {
+      shader_setup_from_ray(kg, stack_sd, &volume_ray, &isect);
+      volume_stack_enter_exit(kg, state, stack_sd);
+    }
     /* Move ray forward. */
     volume_ray.tmin = intersection_t_offset(isect.t);
     volume_ray.self.object = isect.object;
     volume_ray.self.prim = isect.prim;
     ++step;
   }
-#endif
+#  endif
 }
 
 ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState state)
@@ -107,7 +115,7 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
   /* Store to avoid global fetches on every intersection step. */
   const uint volume_stack_size = kernel_data.volume_stack_size;
 
-#ifdef __VOLUME_RECORD_ALL__
+#  ifdef __VOLUME_RECORD_ALL__
   Intersection hits[2 * MAX_VOLUME_STACK_SIZE + 1];
   uint num_hits = scene_intersect_volume(kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
   if (num_hits > 0) {
@@ -150,7 +158,7 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
       }
     }
   }
-#else
+#  else
   /* CUDA does not support definition of a variable size arrays, so use the maximum possible. */
   int enclosed_volumes[MAX_VOLUME_STACK_SIZE];
   int step = 0;
@@ -204,29 +212,35 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
     volume_ray.self.prim = isect.prim;
     ++step;
   }
-#endif
+#  endif
 
   /* Write terminator. */
   const VolumeStack new_entry = {OBJECT_NONE, SHADER_NONE};
   integrator_state_write_volume_stack(state, stack_index, new_entry);
+#endif
 }
 
 ccl_device void integrator_intersect_volume_stack(KernelGlobals kg, IntegratorState state)
 {
+#ifdef __VOLUME__
   integrator_volume_stack_init(kg, state);
 
+#  ifdef __SHADOW_CATCHER__
   if (INTEGRATOR_STATE(state, path, flag) & PATH_RAY_SHADOW_CATCHER_PASS) {
     /* Volume stack re-init for shadow catcher, continue with shading of hit. */
     integrator_intersect_next_kernel_after_shadow_catcher_volume<
         DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK>(kg, state);
   }
-  else {
+  else
+#  endif
+  {
     /* Volume stack init for camera rays, continue with intersection of camera ray. */
     integrator_path_next(kg,
                          state,
                          DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK,
                          DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST);
   }
+#endif
 }
 
 CCL_NAMESPACE_END

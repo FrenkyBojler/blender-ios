@@ -13,7 +13,7 @@
 #include "BLI_linklist.h"
 #include "BLI_math_matrix.h"
 
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 
 UnitConverter::UnitConverter() : up_axis(COLLADAFW::FileInfo::Z_UP)
 {
@@ -260,7 +260,7 @@ std::string id_name(void *id)
   return ((ID *)id)->name + 2;
 }
 
-std::string encode_xml(std::string xml)
+std::string encode_xml(const std::string &xml)
 {
   const std::map<char, std::string> escape{
       {'<', "&lt;"}, {'>', "&gt;"}, {'"', "&quot;"}, {'\'', "&apos;"}, {'&', "&amp;"}};

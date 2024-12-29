@@ -288,7 +288,7 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
   foreach (Geometry *geom, scene->geometry) {
     bool prim_offset_changed = false;
 
-    if (geom->geometry_type == Geometry::MESH || geom->geometry_type == Geometry::VOLUME) {
+    if (geom->is_mesh() || geom->is_volume()) {
       Mesh *mesh = static_cast<Mesh *>(geom);
 
       prim_offset_changed = (mesh->prim_offset != tri_size);
@@ -436,7 +436,7 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     /* Re-create volume mesh if we will rebuild or refit the BVH. Note we
      * should only do it in that case, otherwise the BVH and mesh can go
      * out of sync. */
-    if (geom->is_modified() && geom->geometry_type == Geometry::VOLUME) {
+    if (geom->is_modified() && geom->is_volume()) {
       /* Create volume meshes if there is voxel data. */
       if (!volume_images_updated) {
         progress.set_status("Updating Meshes Volume Bounds");
@@ -613,14 +613,16 @@ void GeometryManager::device_update_displacement_images(Device *device,
   TaskPool pool;
   ImageManager *image_manager = scene->image_manager;
   set<int> bump_images;
+#ifdef WITH_OSL
   bool has_osl_node = false;
+#endif
   foreach (Geometry *geom, scene->geometry) {
     if (geom->is_modified()) {
       /* Geometry-level check for hair shadow transparency.
        * This matches the logic in the `Hair::update_shadow_transparency()`, avoiding access to
        * possible non-loaded images. */
       bool need_shadow_transparency = false;
-      if (geom->geometry_type == Geometry::HAIR) {
+      if (geom->is_hair()) {
         Hair *hair = static_cast<Hair *>(geom);
         need_shadow_transparency = hair->need_shadow_transparency();
       }
@@ -633,9 +635,11 @@ void GeometryManager::device_update_displacement_images(Device *device,
           continue;
         }
         foreach (ShaderNode *node, shader->graph->nodes) {
+#ifdef WITH_OSL
           if (node->special_type == SHADER_SPECIAL_TYPE_OSL) {
             has_osl_node = true;
           }
+#endif
           if (node->special_type != SHADER_SPECIAL_TYPE_IMAGE_SLOT) {
             continue;
           }
@@ -727,7 +731,7 @@ void GeometryManager::device_update(Device *device,
 
     foreach (Geometry *geom, scene->geometry) {
       if (geom->is_modified()) {
-        if ((geom->geometry_type == Geometry::MESH || geom->geometry_type == Geometry::VOLUME)) {
+        if (geom->is_mesh() || geom->is_volume()) {
           Mesh *mesh = static_cast<Mesh *>(geom);
 
           /* Update normals. */
@@ -748,7 +752,7 @@ void GeometryManager::device_update(Device *device,
             true_displacement_used = true;
           }
         }
-        else if (geom->geometry_type == Geometry::HAIR) {
+        else if (geom->is_hair()) {
           Hair *hair = static_cast<Hair *>(geom);
           if (hair->need_shadow_transparency()) {
             curve_shadow_transparency_used = true;
@@ -817,7 +821,6 @@ void GeometryManager::device_update(Device *device,
   }
 
   /* Update images needed for true displacement. */
-  bool old_need_object_flags_update = false;
   if (true_displacement_used || curve_shadow_transparency_used) {
     scoped_callback_timer timer([scene](double time) {
       if (scene->update_stats) {
@@ -826,7 +829,6 @@ void GeometryManager::device_update(Device *device,
       }
     });
     device_update_displacement_images(device, scene, progress);
-    old_need_object_flags_update = scene->object_manager->need_flags_update;
     scene->object_manager->device_update_flags(device, dscene, scene, progress, false);
   }
 
@@ -884,7 +886,7 @@ void GeometryManager::device_update(Device *device,
             displacement_done = true;
           }
         }
-        else if (geom->geometry_type == Geometry::HAIR) {
+        else if (geom->is_hair()) {
           Hair *hair = static_cast<Hair *>(geom);
           if (hair->update_shadow_transparency(device, scene, progress)) {
             curve_shadow_transparency_done = true;
@@ -1009,16 +1011,6 @@ void GeometryManager::device_update(Device *device,
     if (progress.get_cancel()) {
       return;
     }
-  }
-
-  if (true_displacement_used) {
-    /* Re-tag flags for update, so they're re-evaluated
-     * for meshes with correct bounding boxes.
-     *
-     * This wouldn't cause wrong results, just true
-     * displacement might be less optimal to calculate.
-     */
-    scene->object_manager->need_flags_update = old_need_object_flags_update;
   }
 
   /* unset flags */

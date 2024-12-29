@@ -6,9 +6,7 @@
  * \ingroup spoutliner
  */
 
-#include "BLI_listbase.h"
-
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "DNA_space_types.h"
 

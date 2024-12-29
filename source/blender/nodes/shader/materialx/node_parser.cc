@@ -1,6 +1,10 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#ifdef WITH_USD
+#  include <pxr/base/tf/stringUtils.h>
+#endif
 
 #include "node_parser.h"
 
@@ -10,7 +14,7 @@
 
 namespace blender::nodes::materialx {
 
-static const std::string TEXCOORD_NODE_NAME = "node_texcoord";
+constexpr StringRef TEXCOORD_NODE_NAME = "node_texcoord";
 
 CLG_LOGREF_DECLARE_GLOBAL(LOG_MATERIALX_SHADER, "materialx.shader");
 
@@ -21,7 +25,7 @@ NodeParser::NodeParser(MaterialX::GraphElement *graph,
                        const bNodeSocket *socket_out,
                        NodeItem::Type to_type,
                        GroupNodeParser *group_parser,
-                       ExportImageFunction export_image_fn)
+                       const ExportParams &export_params)
     : graph_(graph),
       depsgraph_(depsgraph),
       material_(material),
@@ -29,7 +33,7 @@ NodeParser::NodeParser(MaterialX::GraphElement *graph,
       socket_out_(socket_out),
       to_type_(to_type),
       group_parser_(group_parser),
-      export_image_fn_(export_image_fn)
+      export_params_(export_params)
 {
 }
 
@@ -58,26 +62,44 @@ NodeItem NodeParser::compute_full()
   return res;
 }
 
-std::string NodeParser::node_name() const
+std::string NodeParser::node_name(bool with_out_socket) const
 {
+  auto valid_name = [](const std::string &name) {
+#ifdef WITH_USD
+    /* Node name should suite to MatX and USD valid names.
+     * It shouldn't start from '_', due to error occurred in Storm delegate. */
+    std::string res = MaterialX::createValidName(pxr::TfMakeValidIdentifier(name));
+#else
+    std::string res = MaterialX::createValidName(name);
+#endif
+    if (res[0] == '_') {
+      res = "node" + res;
+    }
+    return res;
+  };
+
   std::string name = node_->name;
-  if (node_->output_sockets().size() > 1) {
-    name += std::string("_") + socket_out_->name;
-  }
-  if (ELEM(to_type_, NodeItem::Type::BSDF, NodeItem::Type::EDF, NodeItem::Type::SurfaceOpacity)) {
-    name += "_" + NodeItem::type(to_type_);
+  if (with_out_socket) {
+    if (node_->output_sockets().size() > 1) {
+      name += std::string("_") + socket_out_->name;
+    }
+    if (ELEM(to_type_, NodeItem::Type::BSDF, NodeItem::Type::EDF, NodeItem::Type::SurfaceOpacity))
+    {
+      name += "_" + NodeItem::type(to_type_);
+    }
   }
 #ifdef USE_MATERIALX_NODEGRAPH
-  return MaterialX::createValidName(name);
+  return valid_name(name);
 #else
+
   std::string prefix;
   GroupNodeParser *gr = group_parser_;
   while (gr) {
     const bNodeTree *ngroup = reinterpret_cast<const bNodeTree *>(gr->node_->id);
-    prefix = MaterialX::createValidName(ngroup->id.name) + "_" + prefix;
+    prefix = valid_name(ngroup->id.name) + "_" + prefix;
     gr = gr->group_parser_;
   }
-  return prefix + MaterialX::createValidName(name);
+  return prefix + valid_name(name);
 #endif
 }
 
@@ -148,7 +170,7 @@ NodeItem NodeParser::empty() const
   return NodeItem(graph_);
 }
 
-NodeItem NodeParser::texcoord_node(NodeItem::Type type)
+NodeItem NodeParser::texcoord_node(NodeItem::Type type, const std::string &attribute_name)
 {
   BLI_assert(ELEM(type, NodeItem::Type::Vector2, NodeItem::Type::Vector3));
   std::string name = TEXCOORD_NODE_NAME;
@@ -158,7 +180,18 @@ NodeItem NodeParser::texcoord_node(NodeItem::Type type)
   NodeItem res = empty();
   res.node = graph_->getNode(name);
   if (!res.node) {
-    res = create_node("texcoord", type);
+    /* TODO: Use "Pref" generated texture coordinates for 3D, but needs
+     * work in USD and Hydra mesh export. */
+    const bool is_active_uvmap = attribute_name == "" ||
+                                 attribute_name == export_params_.original_active_uvmap_name;
+    if (export_params_.new_active_uvmap_name == "st" && is_active_uvmap) {
+      res = create_node("texcoord", type);
+    }
+    else {
+      const std::string &geomprop = (is_active_uvmap) ? export_params_.new_active_uvmap_name :
+                                                        attribute_name;
+      res = create_node("geompropvalue", type, {{"geomprop", val(geomprop)}});
+    }
     res.node->setName(name);
   }
   return res;
@@ -227,7 +260,7 @@ NodeItem NodeParser::get_input_link(const bNodeSocket &socket,
                            link->fromsock,
                            to_type,
                            group_parser_,
-                           export_image_fn_,
+                           export_params_,
                            use_group_default)
         .compute_full();
   }
@@ -239,7 +272,7 @@ NodeItem NodeParser::get_input_link(const bNodeSocket &socket,
                                 link->fromsock,
                                 to_type,
                                 group_parser_,
-                                export_image_fn_,
+                                export_params_,
                                 use_group_default)
         .compute_full();
   }
@@ -253,7 +286,7 @@ NodeItem NodeParser::get_input_link(const bNodeSocket &socket,
   }
 
   NodeParserData data = {
-      graph_, depsgraph_, material_, to_type, group_parser_, empty(), export_image_fn_};
+      graph_, depsgraph_, material_, to_type, group_parser_, empty(), export_params_};
   from_node->typeinfo->materialx_fn(&data, const_cast<bNode *>(from_node), link->fromsock);
   return data.result;
 }

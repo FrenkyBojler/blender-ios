@@ -15,11 +15,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "GPU_framebuffer.h"
+#include "GPU_framebuffer.hh"
 
 struct GPUTexture;
 
-typedef enum GPUAttachmentType : int {
+enum GPUAttachmentType : int {
   GPU_FB_DEPTH_ATTACHMENT = 0,
   GPU_FB_DEPTH_STENCIL_ATTACHMENT,
   GPU_FB_COLOR_ATTACHMENT0,
@@ -35,7 +35,7 @@ typedef enum GPUAttachmentType : int {
    * the maximum number of COLOR attachments specified by glDrawBuffers. */
   GPU_FB_MAX_ATTACHMENT,
 
-} GPUAttachmentType;
+};
 
 #define GPU_FB_MAX_COLOR_ATTACHMENT (GPU_FB_MAX_ATTACHMENT - GPU_FB_COLOR_ATTACHMENT0)
 
@@ -61,10 +61,9 @@ inline GPUAttachmentType &operator--(GPUAttachmentType &a)
   return a;
 }
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #  define DEBUG_NAME_LEN 64
 #else
 #  define DEBUG_NAME_LEN 16
@@ -86,9 +85,13 @@ class FrameBuffer {
   bool multi_viewport_ = false;
   bool scissor_test_ = false;
   bool dirty_state_ = true;
+  /* Flag specifying the current bind operation should use explicit load-store state. */
+  bool use_explicit_load_store_ = false;
+  /** Bit-set indicating the color attachments slots in use. */
+  uint16_t color_attachments_bits_ = 0;
 
-#ifndef GPU_NO_USE_PY_REFERENCES
  public:
+#ifndef GPU_NO_USE_PY_REFERENCES
   /**
    * Reference of a pointer that needs to be cleaned when deallocating the frame-buffer.
    * Points to #BPyGPUFrameBuffer.fb
@@ -96,7 +99,6 @@ class FrameBuffer {
   void **py_ref = nullptr;
 #endif
 
- public:
   FrameBuffer(const char *name);
   virtual ~FrameBuffer();
 
@@ -127,8 +129,21 @@ class FrameBuffer {
                        int dst_offset_x,
                        int dst_offset_y) = 0;
 
-  virtual void subpass_transition(const GPUAttachmentState depth_attachment_state,
-                                  Span<GPUAttachmentState> color_attachment_states) = 0;
+ protected:
+  virtual void subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
+                                       Span<GPUAttachmentState> color_attachment_states) = 0;
+
+  inline void set_color_attachment_bit(GPUAttachmentType type, bool value)
+  {
+    if (type >= GPU_FB_COLOR_ATTACHMENT0) {
+      int color_index = type - GPU_FB_COLOR_ATTACHMENT0;
+      SET_FLAG_FROM_TEST(color_attachments_bits_, value, 1u << color_index);
+    }
+  }
+
+ public:
+  void subpass_transition(const GPUAttachmentState depth_attachment_state,
+                          Span<GPUAttachmentState> color_attachment_states);
 
   void load_store_config_array(const GPULoadStore *load_store_actions, uint actions_len);
 
@@ -188,6 +203,7 @@ class FrameBuffer {
   inline void scissor_test_set(bool test)
   {
     scissor_test_ = test;
+    dirty_state_ = true;
   }
 
   inline void viewport_get(int r_viewport[4]) const
@@ -230,10 +246,25 @@ class FrameBuffer {
     return attachments_[GPU_FB_COLOR_ATTACHMENT0 + slot].tex;
   };
 
-  inline const char *const name_get() const
+  inline const char *name_get() const
   {
     return name_;
   };
+
+  inline void set_use_explicit_loadstore(bool use_explicit_loadstore)
+  {
+    use_explicit_load_store_ = use_explicit_loadstore;
+  }
+
+  inline bool get_use_explicit_loadstore() const
+  {
+    return use_explicit_load_store_;
+  }
+
+  inline uint16_t get_color_attachments_bitset()
+  {
+    return color_attachments_bits_;
+  }
 };
 
 /* Syntactic sugar. */
@@ -252,5 +283,4 @@ static inline const FrameBuffer *unwrap(const GPUFrameBuffer *vert)
 
 #undef DEBUG_NAME_LEN
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

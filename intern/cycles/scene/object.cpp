@@ -318,7 +318,7 @@ float Object::compute_volume_step_size() const
   /* Compute step size from voxel grids. */
   float step_size = FLT_MAX;
 
-  if (geometry->geometry_type == Geometry::VOLUME) {
+  if (geometry->is_volume()) {
     Volume *volume = static_cast<Volume *>(geometry);
 
     foreach (Attribute &attr, volume->attributes.attributes) {
@@ -366,6 +366,7 @@ float Object::compute_volume_step_size() const
 
   if (step_size == FLT_MAX) {
     /* Fall back to 1/10th of bounds for procedural volumes. */
+    assert(bounds.valid());
     step_size = 0.1f * average(bounds.size());
   }
 
@@ -390,7 +391,9 @@ bool Object::usable_as_light() const
     return false;
   }
   /* Skip if we are not visible for BSDFs. */
-  if (!(get_visibility() & (PATH_RAY_DIFFUSE | PATH_RAY_GLOSSY | PATH_RAY_TRANSMIT))) {
+  if (!(get_visibility() &
+        (PATH_RAY_DIFFUSE | PATH_RAY_GLOSSY | PATH_RAY_TRANSMIT | PATH_RAY_VOLUME_SCATTER)))
+  {
     return false;
   }
   /* Skip if we have no emission shaders. */
@@ -445,7 +448,7 @@ ObjectManager::~ObjectManager() {}
 
 static float object_volume_density(const Transform &tfm, Geometry *geom)
 {
-  if (geom->geometry_type == Geometry::VOLUME) {
+  if (geom->is_volume()) {
     /* Volume density automatically adjust to object scale. */
     if (static_cast<Volume *>(geom)->get_object_space()) {
       const float3 unit = normalize(one_float3());
@@ -507,7 +510,7 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
     flag |= SD_OBJECT_NEGATIVE_SCALE;
   }
 
-  if (geom->geometry_type == Geometry::MESH || geom->geometry_type == Geometry::POINTCLOUD) {
+  if (geom->is_mesh() || geom->is_pointcloud()) {
     /* TODO: why only mesh? */
     Mesh *mesh = static_cast<Mesh *>(geom);
     if (mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)) {
@@ -569,19 +572,15 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   kobject.dupli_generated[0] = ob->dupli_generated[0];
   kobject.dupli_generated[1] = ob->dupli_generated[1];
   kobject.dupli_generated[2] = ob->dupli_generated[2];
-  kobject.numkeys = (geom->geometry_type == Geometry::HAIR) ?
-                        static_cast<Hair *>(geom)->get_curve_keys().size() :
-                    (geom->geometry_type == Geometry::POINTCLOUD) ?
-                        static_cast<PointCloud *>(geom)->num_points() :
-                        0;
   kobject.dupli_uv[0] = ob->dupli_uv[0];
   kobject.dupli_uv[1] = ob->dupli_uv[1];
   int totalsteps = geom->get_motion_steps();
   kobject.numsteps = (totalsteps - 1) / 2;
-  kobject.numverts = (geom->geometry_type == Geometry::MESH ||
-                      geom->geometry_type == Geometry::VOLUME) ?
+  kobject.numverts = (geom->is_mesh() || geom->is_volume()) ?
                          static_cast<Mesh *>(geom)->get_verts().size() :
-                         0;
+                     geom->is_hair()       ? static_cast<Hair *>(geom)->get_curve_keys().size() :
+                     geom->is_pointcloud() ? static_cast<PointCloud *>(geom)->num_points() :
+                                             0;
   kobject.patch_map_offset = 0;
   kobject.attribute_map_offset = 0;
 
@@ -615,13 +614,13 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   state->object_volume_step[ob->index] = FLT_MAX;
 
   /* Have curves. */
-  if (geom->geometry_type == Geometry::HAIR) {
+  if (geom->is_hair()) {
     state->have_curves = true;
   }
-  if (geom->geometry_type == Geometry::POINTCLOUD) {
+  if (geom->is_pointcloud()) {
     state->have_points = true;
   }
-  if (geom->geometry_type == Geometry::VOLUME) {
+  if (geom->is_volume()) {
     state->have_volumes = true;
   }
 
@@ -653,7 +652,7 @@ void ObjectManager::device_update_prim_offsets(Device *device, DeviceScene *dsce
   foreach (Object *ob, scene->objects) {
     uint32_t prim_offset = 0;
     if (Geometry *const geom = ob->geometry) {
-      if (geom->geometry_type == Geometry::HAIR) {
+      if (geom->is_hair()) {
         prim_offset = ((Hair *const)geom)->curve_segment_offset;
       }
       else {
@@ -857,8 +856,15 @@ void ObjectManager::device_update_flags(
     }
   });
 
-  update_flags = UPDATE_NONE;
-  need_flags_update = false;
+  if (bounds_valid) {
+    /* Object flags and calculations related to volume depend on proper bounds calculated, which
+     * might not be available yet when object flags are updated for displacement or hair
+     * transparency calculation. In this case do not clear the need_flags_update, so that these
+     * values which depend on bounds are re-calculated when the device_update process comes back
+     * here from the "Updating Objects Flags" stage. */
+    update_flags = UPDATE_NONE;
+    need_flags_update = false;
+  }
 
   if (scene->objects.size() == 0) {
     return;
@@ -873,11 +879,17 @@ void ObjectManager::device_update_flags(
   bool has_volume_objects = false;
   foreach (Object *object, scene->objects) {
     if (object->geometry->has_volume) {
+      /* If the bounds are not valid it is not always possible to calculate the volume step, and
+       * the step size is not needed for the displacement. So, delay calculation of the volume
+       * step size until the final bounds are known. */
       if (bounds_valid) {
         volume_objects.push_back(object);
+        object_volume_step[object->index] = object->compute_volume_step_size();
+      }
+      else {
+        object_volume_step[object->index] = FLT_MAX;
       }
       has_volume_objects = true;
-      object_volume_step[object->index] = object->compute_volume_step_size();
     }
     else {
       object_volume_step[object->index] = FLT_MAX;
@@ -948,7 +960,7 @@ void ObjectManager::device_update_geom_offsets(Device *, DeviceScene *dscene, Sc
   foreach (Object *object, scene->objects) {
     Geometry *geom = object->geometry;
 
-    if (geom->geometry_type == Geometry::MESH) {
+    if (geom->is_mesh()) {
       Mesh *mesh = static_cast<Mesh *>(geom);
       if (mesh->patch_table) {
         uint patch_map_offset = 2 * (mesh->patch_table_offset + mesh->patch_table->total_size() -
@@ -1030,11 +1042,11 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, P
     bool apply = (geometry_users[geom] == 1) && !geom->has_surface_bssrdf &&
                  !geom->has_true_displacement();
 
-    if (geom->geometry_type == Geometry::MESH) {
+    if (geom->is_mesh()) {
       Mesh *mesh = static_cast<Mesh *>(geom);
       apply = apply && mesh->get_subdivision_type() == Mesh::SUBDIVISION_NONE;
     }
-    else if (geom->geometry_type == Geometry::HAIR) {
+    else if (geom->is_hair()) {
       /* Can't apply non-uniform scale to curves, this can't be represented by
        * control points and radius alone. */
       float scale;
@@ -1102,7 +1114,7 @@ string ObjectManager::get_cryptomatte_objects(Scene *scene)
 {
   string manifest = "{";
 
-  unordered_set<ustring, ustringHash> objects;
+  unordered_set<ustring> objects;
   foreach (Object *object, scene->objects) {
     if (objects.count(object->name)) {
       continue;
@@ -1118,7 +1130,7 @@ string ObjectManager::get_cryptomatte_objects(Scene *scene)
 string ObjectManager::get_cryptomatte_assets(Scene *scene)
 {
   string manifest = "{";
-  unordered_set<ustring, ustringHash> assets;
+  unordered_set<ustring> assets;
   foreach (Object *ob, scene->objects) {
     if (assets.count(ob->asset_name)) {
       continue;

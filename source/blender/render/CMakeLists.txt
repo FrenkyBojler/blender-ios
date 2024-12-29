@@ -8,10 +8,10 @@ set(INC
   intern
   ../blenkernel
   ../blentranslation
-  ../compositor/realtime_compositor
-  ../compositor/realtime_compositor/cached_resources
-  ../depsgraph
+  ../compositor
+  ../compositor/cached_resources
   ../draw
+  ../draw/intern
   ../gpu
   ../gpu/intern
   ../imbuf
@@ -61,9 +61,11 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::guardedalloc
-  bf_realtime_compositor
+  bf_compositor
   PRIVATE bf::intern::atomic
 )
 
@@ -91,9 +93,8 @@ if(WITH_FREESTYLE)
   add_definitions(-DWITH_FREESTYLE)
 endif()
 
-
-blender_add_lib_nolist(bf_render "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
-
 if(WITH_HYDRA)
   add_subdirectory(hydra)
 endif()
+
+blender_add_lib_nolist(bf_render "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

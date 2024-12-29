@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <functional>
+
 #include "BLI_array_utils.hh"
 #include "BLI_threads.h"
 
@@ -48,6 +50,18 @@ void gather(const GSpan src, const IndexMask &indices, GMutableSpan dst, const i
   gather(GVArray::ForSpan(src), indices, dst, grain_size);
 }
 
+void copy_group_to_group(const OffsetIndices<int> src_offsets,
+                         const OffsetIndices<int> dst_offsets,
+                         const IndexMask &selection,
+                         const GSpan src,
+                         GMutableSpan dst)
+{
+  /* Each group might be large, so a threaded copy might make sense here too. */
+  selection.foreach_index(GrainSize(512), [&](const int i) {
+    dst.slice(dst_offsets[i]).copy_from(src.slice(src_offsets[i]));
+  });
+}
+
 void count_indices(const Span<int> indices, MutableSpan<int> counts)
 {
   if (indices.size() < 8192 || BLI_system_thread_count() < 4) {
@@ -73,6 +87,22 @@ void invert_booleans(MutableSpan<bool> span)
   });
 }
 
+void invert_booleans(MutableSpan<bool> span, const IndexMask &mask)
+{
+  mask.foreach_index_optimized<int64_t>([&](const int64_t i) { span[i] = !span[i]; });
+}
+
+static bool all_equal(const Span<bool> span, const bool test)
+{
+  return std::all_of(span.begin(), span.end(), [&](const bool value) { return value == test; });
+}
+
+static bool all_equal(const VArray<bool> &varray, const IndexRange range, const bool test)
+{
+  return std::all_of(
+      range.begin(), range.end(), [&](const int64_t i) { return varray[i] == test; });
+}
+
 BooleanMix booleans_mix_calc(const VArray<bool> &varray, const IndexRange range_to_check)
 {
   if (varray.is_empty()) {
@@ -92,15 +122,13 @@ BooleanMix booleans_mix_calc(const VArray<bool> &varray, const IndexRange range_
           if (init == BooleanMix::Mixed) {
             return init;
           }
-
           const Span<bool> slice = span.slice(range);
-          const bool first = slice.first();
-          for (const bool value : slice.drop_front(1)) {
-            if (value != first) {
-              return BooleanMix::Mixed;
-            }
+          const bool compare = (init == BooleanMix::None) ? slice.first() :
+                                                            (init == BooleanMix::AllTrue);
+          if (all_equal(slice, compare)) {
+            return compare ? BooleanMix::AllTrue : BooleanMix::AllFalse;
           }
-          return first ? BooleanMix::AllTrue : BooleanMix::AllFalse;
+          return BooleanMix::Mixed;
         },
         [&](BooleanMix a, BooleanMix b) { return (a == b) ? a : BooleanMix::Mixed; });
   }
@@ -113,15 +141,87 @@ BooleanMix booleans_mix_calc(const VArray<bool> &varray, const IndexRange range_
           return init;
         }
         /* Alternatively, this could use #materialize to retrieve many values at once. */
-        const bool first = varray[range.first()];
-        for (const int64_t i : range.drop_front(1)) {
-          if (varray[i] != first) {
-            return BooleanMix::Mixed;
-          }
+        const bool compare = (init == BooleanMix::None) ? varray[range.first()] :
+                                                          (init == BooleanMix::AllTrue);
+        if (all_equal(varray, range, compare)) {
+          return compare ? BooleanMix::AllTrue : BooleanMix::AllFalse;
         }
-        return first ? BooleanMix::AllTrue : BooleanMix::AllFalse;
+        return BooleanMix::Mixed;
       },
       [&](BooleanMix a, BooleanMix b) { return (a == b) ? a : BooleanMix::Mixed; });
+}
+
+int64_t count_booleans(const VArray<bool> &varray, const IndexMask &mask)
+{
+  if (varray.is_empty() || mask.is_empty()) {
+    return 0;
+  }
+  /* Check if mask is full. */
+  if (varray.size() == mask.size()) {
+    const CommonVArrayInfo info = varray.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      return *static_cast<const bool *>(info.data) ? varray.size() : 0;
+    }
+    if (info.type == CommonVArrayInfo::Type::Span) {
+      const Span<bool> span(static_cast<const bool *>(info.data), varray.size());
+      return threading::parallel_reduce(
+          varray.index_range(),
+          4096,
+          0,
+          [&](const IndexRange range, const int64_t init) {
+            const Span<bool> slice = span.slice(range);
+            return init + std::count(slice.begin(), slice.end(), true);
+          },
+          std::plus<int64_t>());
+    }
+    return threading::parallel_reduce(
+        varray.index_range(),
+        2048,
+        0,
+        [&](const IndexRange range, const int64_t init) {
+          int64_t value = init;
+          /* Alternatively, this could use #materialize to retrieve many values at once. */
+          for (const int64_t i : range) {
+            value += int64_t(varray[i]);
+          }
+          return value;
+        },
+        std::plus<int64_t>());
+  }
+  const CommonVArrayInfo info = varray.common_info();
+  if (info.type == CommonVArrayInfo::Type::Single) {
+    return *static_cast<const bool *>(info.data) ? mask.size() : 0;
+  }
+  int64_t value = 0;
+  mask.foreach_segment([&](const IndexMaskSegment segment) {
+    for (const int64_t i : segment) {
+      value += int64_t(varray[i]);
+    }
+  });
+  return value;
+}
+
+int64_t count_booleans(const VArray<bool> &varray)
+{
+  return count_booleans(varray, IndexMask(varray.size()));
+}
+
+bool indices_are_range(Span<int> indices, IndexRange range)
+{
+  if (indices.size() != range.size()) {
+    return false;
+  }
+  return threading::parallel_reduce(
+      range.index_range(),
+      4096,
+      true,
+      [&](const IndexRange part, const bool is_range) {
+        const Span<int> local_indices = indices.slice(part);
+        const IndexRange local_range = range.slice(part);
+        return is_range &&
+               std::equal(local_indices.begin(), local_indices.end(), local_range.begin());
+      },
+      std::logical_and<bool>());
 }
 
 }  // namespace blender::array_utils

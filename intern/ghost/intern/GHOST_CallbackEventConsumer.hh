@@ -36,7 +36,7 @@ class GHOST_CallbackEventConsumer : public GHOST_IEventConsumer {
    * \param event: The event that can be handled or ignored.
    * \return Indication as to whether the event was handled.
    */
-  bool processEvent(GHOST_IEvent *event);
+  bool processEvent(const GHOST_IEvent *event);
 
  protected:
   /** The call-back routine invoked. */
@@ -44,7 +44,5 @@ class GHOST_CallbackEventConsumer : public GHOST_IEventConsumer {
   /** The data passed back through the call-back routine. */
   GHOST_TUserDataPtr m_userData;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_CallbackEventConsumer")
-#endif
 };

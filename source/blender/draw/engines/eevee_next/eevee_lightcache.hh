@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_vector.hh"
+#include <string>
 
 struct wmWindowManager;
 struct wmWindow;
@@ -17,6 +18,7 @@ struct ViewLayer;
 struct Scene;
 struct Object;
 struct wmJob;
+struct wmJobWorkerStatus;
 
 /** Opaque type hiding eevee::LightBake. */
 struct EEVEE_NEXT_LightBake;
@@ -37,6 +39,7 @@ wmJob *EEVEE_NEXT_lightbake_job_create(wmWindowManager *wm,
                                        ViewLayer *view_layer,
                                        Scene *scene,
                                        blender::Vector<Object *> original_probes,
+                                       std::string &report,
                                        int delay_ms,
                                        int frame);
 
@@ -52,6 +55,7 @@ void *EEVEE_NEXT_lightbake_job_data_alloc(Main *bmain,
                                           ViewLayer *view_layer,
                                           Scene *scene,
                                           blender::Vector<Object *> original_probes,
+                                          std::string &report,
                                           int frame);
 
 /**
@@ -72,8 +76,6 @@ void EEVEE_NEXT_lightbake_update(/*EEVEE_NEXT_LightBake*/ void *job_data);
  * Will call `EEVEE_NEXT_lightbake_update()` on finish.
  */
 void EEVEE_NEXT_lightbake_job(/*EEVEE_NEXT_LightBake*/ void *job_data,
-                              bool *stop,
-                              bool *do_update,
-                              float *progress);
+                              wmJobWorkerStatus *worker_status);
 
 /** \} */

@@ -886,7 +886,7 @@ Sound_fadeout(Sound* self, PyObject* args)
 }
 
 PyDoc_STRVAR(M_aud_Sound_filter_doc,
-			 ".. method:: filter(b, a = (1))\n\n"
+			 ".. method:: filter(b, a = (1,))\n\n"
 			 "   Filters a sound with the supplied IIR filter coefficients.\n"
 			 "   Without the second parameter you'll get a FIR filter.\n\n"
 			 "   If the first value of the a sequence is 0,\n"
@@ -1269,12 +1269,12 @@ Sound_rechannel(Sound* self, PyObject* args)
 }
 
 PyDoc_STRVAR(M_aud_Sound_resample_doc,
-			 ".. method:: resample(rate, high_quality)\n\n"
+			 ".. method:: resample(rate, quality)\n\n"
 			 "   Resamples the sound.\n\n"
 			 "   :arg rate: The new sample rate.\n"
 			 "   :type rate: double\n"
-			 "   :arg high_quality: When true use a higher quality but slower resampler.\n"
-			 "   :type high_quality: bool\n"
+			 "   :arg quality: Resampler performance vs quality choice (0=fastest, 3=slowest).\n"
+			 "   :type quality: int\n"
 			 "   :return: The created :class:`Sound` object.\n"
 			 "   :rtype: :class:`Sound`");
 
@@ -1282,19 +1282,10 @@ static PyObject *
 Sound_resample(Sound* self, PyObject* args)
 {
 	double rate;
-	PyObject* high_qualityo;
-	bool high_quality = false;
+	int quality = 0;
 
-	if(!PyArg_ParseTuple(args, "d|O:resample", &rate, &high_qualityo))
+	if(!PyArg_ParseTuple(args, "d|i:resample", &rate, &quality))
 		return nullptr;
-
-	if(!PyBool_Check(high_qualityo))
-	{
-		PyErr_SetString(PyExc_TypeError, "high_quality is not a boolean!");
-		return nullptr;
-	}
-
-	high_quality = high_qualityo == Py_True;
 
 	PyTypeObject* type = Py_TYPE(self);
 	Sound* parent = (Sound*)type->tp_alloc(type, 0);
@@ -1307,10 +1298,10 @@ Sound_resample(Sound* self, PyObject* args)
 			specs.channels = CHANNELS_INVALID;
 			specs.rate = rate;
 			specs.format = FORMAT_INVALID;
-			if(high_quality)
-				parent->sound = new std::shared_ptr<ISound>(new JOSResample(*reinterpret_cast<std::shared_ptr<ISound>*>(self->sound), specs));
-			else
+			if (quality == int(ResampleQuality::FASTEST))
 				parent->sound = new std::shared_ptr<ISound>(new LinearResample(*reinterpret_cast<std::shared_ptr<ISound>*>(self->sound), specs));
+			else
+				parent->sound = new std::shared_ptr<ISound>(new JOSResample(*reinterpret_cast<std::shared_ptr<ISound>*>(self->sound), specs, static_cast<ResampleQuality>(quality)));
 		}
 		catch(Exception& e)
 		{

@@ -12,12 +12,12 @@
 #include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
@@ -95,7 +95,7 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
      ICON_MODIFIER,
      "Backbone Stretcher",
      ""},
-    {LS_MODIFIER_BEZIER_CURVE, "BEZIER_CURVE", ICON_MODIFIER, "Bezier Curve", ""},
+    {LS_MODIFIER_BEZIER_CURVE, "BEZIER_CURVE", ICON_MODIFIER, "Bézier Curve", ""},
     {LS_MODIFIER_BLUEPRINT, "BLUEPRINT", ICON_MODIFIER, "Blueprint", ""},
     {LS_MODIFIER_GUIDING_LINES, "GUIDING_LINES", ICON_MODIFIER, "Guiding Lines", ""},
     {LS_MODIFIER_PERLIN_NOISE_1D, "PERLIN_NOISE_1D", ICON_MODIFIER, "Perlin Noise 1D", ""},
@@ -115,7 +115,9 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BLI_string_utils.h"
+#  include <fmt/format.h>
+
+#  include "BLI_string_utils.hh"
 
 #  include "BKE_linestyle.h"
 #  include "BKE_texture.h"
@@ -244,36 +246,36 @@ static StructRNA *rna_LineStyle_geometry_modifier_refine(PointerRNA *ptr)
   }
 }
 
-static char *rna_LineStyle_color_modifier_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_LineStyle_color_modifier_path(const PointerRNA *ptr)
 {
   const LineStyleModifier *m = (LineStyleModifier *)ptr->data;
   char name_esc[sizeof(m->name) * 2];
   BLI_str_escape(name_esc, m->name, sizeof(name_esc));
-  return BLI_sprintfN("color_modifiers[\"%s\"]", name_esc);
+  return fmt::format("color_modifiers[\"{}\"]", name_esc);
 }
 
-static char *rna_LineStyle_alpha_modifier_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_LineStyle_alpha_modifier_path(const PointerRNA *ptr)
 {
   const LineStyleModifier *m = (LineStyleModifier *)ptr->data;
   char name_esc[sizeof(m->name) * 2];
   BLI_str_escape(name_esc, m->name, sizeof(name_esc));
-  return BLI_sprintfN("alpha_modifiers[\"%s\"]", name_esc);
+  return fmt::format("alpha_modifiers[\"{}\"]", name_esc);
 }
 
-static char *rna_LineStyle_thickness_modifier_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_LineStyle_thickness_modifier_path(const PointerRNA *ptr)
 {
   const LineStyleModifier *m = (LineStyleModifier *)ptr->data;
   char name_esc[sizeof(m->name) * 2];
   BLI_str_escape(name_esc, m->name, sizeof(name_esc));
-  return BLI_sprintfN("thickness_modifiers[\"%s\"]", name_esc);
+  return fmt::format("thickness_modifiers[\"{}\"]", name_esc);
 }
 
-static char *rna_LineStyle_geometry_modifier_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_LineStyle_geometry_modifier_path(const PointerRNA *ptr)
 {
   const LineStyleModifier *m = (LineStyleModifier *)ptr->data;
   char name_esc[sizeof(m->name) * 2];
   BLI_str_escape(name_esc, m->name, sizeof(name_esc));
-  return BLI_sprintfN("geometry_modifiers[\"%s\"]", name_esc);
+  return fmt::format("geometry_modifiers[\"{}\"]", name_esc);
 }
 
 static void rna_LineStyleColorModifier_name_set(PointerRNA *ptr, const char *value)
@@ -614,6 +616,7 @@ static void rna_def_linestyle_mtex(BlenderRNA *brna)
   prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "texco");
   RNA_def_property_enum_items(prop, texco_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_ui_text(prop,
                            "Texture Coordinates",
                            "Texture coordinates used to map the texture onto the background");
@@ -634,7 +637,6 @@ static void rna_def_linestyle_mtex(BlenderRNA *brna)
 
 static void rna_def_modifier_type_common(StructRNA *srna,
                                          const EnumPropertyItem *modifier_type_items,
-                                         const char *set_name_func,
                                          const bool blend,
                                          const bool color)
 {
@@ -658,13 +660,6 @@ static void rna_def_modifier_type_common(StructRNA *srna,
   RNA_def_property_enum_items(prop, modifier_type_items);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Modifier Type", "Type of the modifier");
-
-  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "modifier.name");
-  RNA_def_property_string_funcs(prop, nullptr, nullptr, set_name_func);
-  RNA_def_property_ui_text(prop, "Modifier Name", "Name of the modifier");
-  RNA_def_property_update(prop, NC_LINESTYLE, nullptr);
-  RNA_def_struct_name_property(srna, prop);
 
   if (blend) {
     prop = RNA_def_property(srna, "blend", PROP_ENUM, PROP_NONE);
@@ -694,38 +689,24 @@ static void rna_def_modifier_type_common(StructRNA *srna,
 
 static void rna_def_color_modifier(StructRNA *srna)
 {
-  rna_def_modifier_type_common(srna,
-                               rna_enum_linestyle_color_modifier_type_items,
-                               "rna_LineStyleColorModifier_name_set",
-                               true,
-                               true);
+  rna_def_modifier_type_common(srna, rna_enum_linestyle_color_modifier_type_items, true, true);
 }
 
 static void rna_def_alpha_modifier(StructRNA *srna)
 {
-  rna_def_modifier_type_common(srna,
-                               rna_enum_linestyle_alpha_modifier_type_items,
-                               "rna_LineStyleAlphaModifier_name_set",
-                               true,
-                               false);
+  rna_def_modifier_type_common(srna, rna_enum_linestyle_alpha_modifier_type_items, true, false);
 }
 
 static void rna_def_thickness_modifier(StructRNA *srna)
 {
-  rna_def_modifier_type_common(srna,
-                               rna_enum_linestyle_thickness_modifier_type_items,
-                               "rna_LineStyleThicknessModifier_name_set",
-                               true,
-                               false);
+  rna_def_modifier_type_common(
+      srna, rna_enum_linestyle_thickness_modifier_type_items, true, false);
 }
 
 static void rna_def_geometry_modifier(StructRNA *srna)
 {
-  rna_def_modifier_type_common(srna,
-                               rna_enum_linestyle_geometry_modifier_type_items,
-                               "rna_LineStyleGeometryModifier_name_set",
-                               false,
-                               false);
+  rna_def_modifier_type_common(
+      srna, rna_enum_linestyle_geometry_modifier_type_items, false, false);
 }
 
 static void rna_def_modifier_color_ramp_common(StructRNA *srna, int range)
@@ -882,6 +863,13 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
   RNA_def_struct_ui_text(
       srna, "Line Style Color Modifier", "Base type to define line color modifiers");
 
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "name");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_LineStyleColorModifier_name_set");
+  RNA_def_property_ui_text(prop, "Modifier Name", "Name of the modifier");
+  RNA_def_property_update(prop, NC_LINESTYLE, nullptr);
+  RNA_def_struct_name_property(srna, prop);
+
   srna = RNA_def_struct(brna, "LineStyleColorModifier_AlongStroke", "LineStyleColorModifier");
   RNA_def_struct_ui_text(srna, "Along Stroke", "Change line color along stroke");
   rna_def_color_modifier(srna);
@@ -985,6 +973,13 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_LineStyle_alpha_modifier_path");
   RNA_def_struct_ui_text(
       srna, "Line Style Alpha Modifier", "Base type to define alpha transparency modifiers");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "name");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_LineStyleAlphaModifier_name_set");
+  RNA_def_property_ui_text(prop, "Modifier Name", "Name of the modifier");
+  RNA_def_property_update(prop, NC_LINESTYLE, nullptr);
+  RNA_def_struct_name_property(srna, prop);
 
   srna = RNA_def_struct(brna, "LineStyleAlphaModifier_AlongStroke", "LineStyleAlphaModifier");
   RNA_def_struct_ui_text(srna, "Along Stroke", "Change alpha transparency along stroke");
@@ -1090,6 +1085,13 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_LineStyle_thickness_modifier_path");
   RNA_def_struct_ui_text(
       srna, "Line Style Thickness Modifier", "Base type to define line thickness modifiers");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "name");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_LineStyleThicknessModifier_name_set");
+  RNA_def_property_ui_text(prop, "Modifier Name", "Name of the modifier");
+  RNA_def_property_update(prop, NC_LINESTYLE, nullptr);
+  RNA_def_struct_name_property(srna, prop);
 
   srna = RNA_def_struct(brna, "LineStyleThicknessModifier_Tangent", "LineStyleThicknessModifier");
   RNA_def_struct_ui_text(srna, "Tangent", "Thickness based on the direction of the stroke");
@@ -1263,6 +1265,13 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
   RNA_def_struct_ui_text(
       srna, "Line Style Geometry Modifier", "Base type to define stroke geometry modifiers");
 
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "name");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_LineStyleGeometryModifier_name_set");
+  RNA_def_property_ui_text(prop, "Modifier Name", "Name of the modifier");
+  RNA_def_property_update(prop, NC_LINESTYLE, nullptr);
+  RNA_def_struct_name_property(srna, prop);
+
   srna = RNA_def_struct(brna, "LineStyleGeometryModifier_Sampling", "LineStyleGeometryModifier");
   RNA_def_struct_ui_text(
       srna,
@@ -1280,8 +1289,8 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
   srna = RNA_def_struct(
       brna, "LineStyleGeometryModifier_BezierCurve", "LineStyleGeometryModifier");
   RNA_def_struct_ui_text(srna,
-                         "Bezier Curve",
-                         "Replace stroke backbone geometry by a Bezier curve approximation of the "
+                         "Bézier Curve",
+                         "Replace stroke backbone geometry by a Bézier curve approximation of the "
                          "original backbone geometry");
   rna_def_geometry_modifier(srna);
 
@@ -1289,7 +1298,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "error");
   RNA_def_property_ui_text(prop,
                            "Error",
-                           "Maximum distance allowed between the new Bezier curve and the "
+                           "Maximum distance allowed between the new Bézier curve and the "
                            "original backbone geometry");
   RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 

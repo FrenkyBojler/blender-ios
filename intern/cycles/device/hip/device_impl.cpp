@@ -53,8 +53,8 @@ void HIPDevice::set_error(const string &error)
   }
 }
 
-HIPDevice::HIPDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler)
-    : GPUDevice(info, stats, profiler)
+HIPDevice::HIPDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless)
+    : GPUDevice(info, stats, profiler, headless)
 {
   /* Verify that base class types can be used with specific backend types */
   static_assert(sizeof(texMemObject) == sizeof(hipTextureObject_t));
@@ -116,6 +116,9 @@ HIPDevice::HIPDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler)
   hipDeviceGetAttribute(&minor, hipDeviceAttributeComputeCapabilityMinor, hipDevId);
   hipDevArchitecture = major * 100 + minor * 10;
 
+  /* Get hip runtime Version needed for memory types. */
+  hip_assert(hipRuntimeGetVersion(&hipRuntimeVersion));
+
   /* Pop context set by hipCtxCreate. */
   hipCtxPopCurrent(NULL);
 }
@@ -123,7 +126,9 @@ HIPDevice::HIPDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler)
 HIPDevice::~HIPDevice()
 {
   texture_info.free();
-
+  if (hipModule) {
+    hip_assert(hipModuleUnload(hipModule));
+  }
   hip_assert(hipCtxDestroy(hipContext));
 }
 
@@ -205,7 +210,6 @@ string HIPDevice::compile_kernel_get_common_cflags(const uint kernel_features)
   const string include_path = source_path;
   string cflags = string_printf(
       "-m%d "
-      "--use_fast_math "
       "-DHIPCC "
       "-I\"%s\"",
       machine,
@@ -213,6 +217,20 @@ string HIPDevice::compile_kernel_get_common_cflags(const uint kernel_features)
   if (use_adaptive_compilation()) {
     cflags += " -D__KERNEL_FEATURES__=" + to_string(kernel_features);
   }
+
+  const char *extra_cflags = getenv("CYCLES_HIP_EXTRA_CFLAGS");
+  if (extra_cflags) {
+    cflags += string(" ") + string(extra_cflags);
+  }
+
+#  ifdef WITH_NANOVDB
+  cflags += " -DWITH_NANOVDB";
+#  endif
+
+#  ifdef WITH_CYCLES_DEBUG
+  cflags += " -DWITH_CYCLES_DEBUG";
+#  endif
+
   return cflags;
 }
 
@@ -222,19 +240,11 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   int major, minor;
   hipDeviceGetAttribute(&major, hipDeviceAttributeComputeCapabilityMajor, hipDevId);
   hipDeviceGetAttribute(&minor, hipDeviceAttributeComputeCapabilityMinor, hipDevId);
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, hipDevId);
-
-  /* gcnArchName can contain tokens after the arch name with features, ie.
-   * `gfx1010:sramecc-:xnack-` so we tokenize it to get the first part. */
-  char *arch = strtok(props.gcnArchName, ":");
-  if (arch == NULL) {
-    arch = props.gcnArchName;
-  }
+  const std::string arch = hipDeviceArch(hipDevId);
 
   /* Attempt to use kernel provided with Blender. */
   if (!use_adaptive_compilation()) {
-    const string fatbin = path_get(string_printf("lib/%s_%s.fatbin", name, arch));
+    const string fatbin = path_get(string_printf("lib/%s_%s.fatbin.zst", name, arch.c_str()));
     VLOG_INFO << "Testing for pre-compiled kernel " << fatbin << ".";
     if (path_exists(fatbin)) {
       VLOG_INFO << "Using precompiled kernel.";
@@ -253,19 +263,20 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   const string kernel_md5 = util_md5_string(source_md5 + common_cflags);
 
   const char *const kernel_ext = "genco";
-  std::string options;
-#  ifdef _WIN32
-  options.append("Wno-parentheses-equality -Wno-unused-value --hipcc-func-supp -ffast-math");
-#  else
-  options.append("Wno-parentheses-equality -Wno-unused-value --hipcc-func-supp -O3 -ffast-math");
-#  endif
-#  ifdef _DEBUG
+  std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math";
+
+#  ifndef NDEBUG
   options.append(" -save-temps");
 #  endif
-  options.append(" --amdgpu-target=").append(arch);
+  if (major == 9 && minor == 0) {
+    /* Reduce optimization level on VEGA GPUs to avoid some rendering artifacts */
+    options.append(" -O1");
+  }
+  options.append(" --offload-arch=").append(arch.c_str());
 
   const string include_path = source_path;
-  const string fatbin_file = string_printf("cycles_%s_%s_%s", name, arch, kernel_md5.c_str());
+  const string fatbin_file = string_printf(
+      "cycles_%s_%s_%s", name, arch.c_str(), kernel_md5.c_str());
   const string fatbin = path_cache_get(path_join("kernels", fatbin_file));
   VLOG_INFO << "Testing for locally compiled kernel " << fatbin << ".";
   if (path_exists(fatbin)) {
@@ -302,16 +313,17 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
     return string();
   }
 
-  const int hipcc_hip_version = hipewCompilerVersion();
-  VLOG_INFO << "Found hipcc " << hipcc << ", HIP version " << hipcc_hip_version << ".";
-  if (hipcc_hip_version < 40) {
-    printf(
-        "Unsupported HIP version %d.%d detected, "
-        "you need HIP 4.0 or newer.\n",
-        hipcc_hip_version / 10,
-        hipcc_hip_version % 10);
+#  ifdef WITH_HIP_SDK_5
+  int hip_major_ver = hipRuntimeVersion / 10000000;
+  if (hip_major_ver > 5) {
+    set_error(string_printf(
+        "HIP Runtime version %d does not work with kernels compiled with HIP SDK 5\n",
+        hip_major_ver));
     return string();
   }
+#  endif
+  const int hipcc_hip_version = hipewCompilerVersion();
+  VLOG_INFO << "Found hipcc " << hipcc << ", HIP version " << hipcc_hip_version << ".";
 
   double starttime = time_dt();
 
@@ -320,13 +332,14 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   source_path = path_join(path_join(source_path, "kernel"),
                           path_join("device", path_join(base, string_printf("%s.cpp", name))));
 
-  string command = string_printf("%s -%s -I %s --%s %s -o \"%s\"",
+  string command = string_printf("%s %s -I \"%s\" --%s \"%s\" -o \"%s\" %s",
                                  hipcc,
                                  options.c_str(),
                                  include_path.c_str(),
                                  kernel_ext,
                                  source_path.c_str(),
-                                 fatbin.c_str());
+                                 fatbin.c_str(),
+                                 common_cflags.c_str());
 
   printf("Compiling %sHIP kernel ...\n%s\n",
          (use_adaptive_compilation()) ? "adaptive " : "",
@@ -389,7 +402,7 @@ bool HIPDevice::load_kernels(const uint kernel_features)
   string fatbin_data;
   hipError_t result;
 
-  if (path_read_text(fatbin, fatbin_data))
+  if (path_read_compressed_text(fatbin, fatbin_data))
     result = hipModuleLoadData(&hipModule, fatbin_data.c_str());
   else
     result = hipErrorFileNotFound;
@@ -658,9 +671,7 @@ void HIPDevice::tex_alloc(device_texture &mem)
       address_mode = hipAddressModeClamp;
       break;
     case EXTENSION_CLIP:
-      /* TODO(@arya): setting this to Mode Clamp instead of Mode Border
-       * because it's unsupported in HIP. */
-      address_mode = hipAddressModeClamp;
+      address_mode = hipAddressModeBorder;
       break;
     case EXTENSION_MIRROR:
       address_mode = hipAddressModeMirror;
@@ -852,7 +863,11 @@ void HIPDevice::tex_alloc(device_texture &mem)
     thread_scoped_lock lock(device_mem_map_mutex);
     cmem = &device_mem_map[&mem];
 
-    hip_assert(hipTexObjectCreate(&cmem->texobject, &resDesc, &texDesc, NULL));
+    if (hipTexObjectCreate(&cmem->texobject, &resDesc, &texDesc, NULL) != hipSuccess) {
+      set_error(
+          "Failed to create texture. Maximum GPU texture size or available GPU memory was likely "
+          "exceeded.");
+    }
 
     texture_info[slot].data = (uint64_t)cmem->texobject;
   }
@@ -906,6 +921,12 @@ bool HIPDevice::should_use_graphics_interop()
    * Using HIP device for graphics interoperability which is not part of the OpenGL context is
    * possible, but from the empiric measurements it can be considerably slower than using naive
    * pixels copy. */
+
+  if (headless) {
+    /* Avoid any call which might involve interaction with a graphics backend when we know that
+     * we don't have active graphics context. This avoids potential crash in the driver. */
+    return false;
+  }
 
   /* Disable graphics interop for now, because of driver bug in 21.40. See #92972 */
 #  if 0

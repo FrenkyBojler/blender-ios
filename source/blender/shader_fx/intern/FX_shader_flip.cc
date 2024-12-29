@@ -15,9 +15,9 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_screen.hh"
 
 #include "UI_interface.hh"
@@ -50,8 +50,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   row = uiLayoutRowWithHeading(layout, true, IFACE_("Axis"));
-  uiItemR(row, ptr, "use_flip_x", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_flip_y", toggles_flag, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "use_flip_x", toggles_flag, std::nullopt, ICON_NONE);
+  uiItemR(row, ptr, "use_flip_y", toggles_flag, std::nullopt, ICON_NONE);
 
   shaderfx_panel_end(layout, ptr);
 }

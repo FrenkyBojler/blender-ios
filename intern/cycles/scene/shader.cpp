@@ -54,6 +54,7 @@ NODE_DEFINE(Shader)
               EMISSION_SAMPLING_AUTO);
 
   SOCKET_BOOLEAN(use_transparent_shadow, "Use Transparent Shadow", true);
+  SOCKET_BOOLEAN(use_bump_map_correction, "Bump Map Correction", true);
   SOCKET_BOOLEAN(heterogeneous_volume, "Heterogeneous Volume", true);
 
   static NodeEnum volume_sampling_method_enum;
@@ -263,7 +264,7 @@ void Shader::estimate_emission()
   }
 
   ShaderInput *surf = graph->output()->input("Surface");
-  emission_estimate = fabs(output_estimate_emission(surf->link, emission_is_constant));
+  emission_estimate = output_estimate_emission(surf->link, emission_is_constant);
 
   if (is_zero(emission_estimate)) {
     emission_sampling = EMISSION_SAMPLING_NONE;
@@ -273,8 +274,9 @@ void Shader::estimate_emission()
      * using a lot of memory in the light tree and potentially wasting samples
      * where indirect light samples are sufficient.
      * Possible optimization: estimate front and back emission separately. */
-    emission_sampling = (reduce_max(emission_estimate) > 0.5f) ? EMISSION_SAMPLING_FRONT_BACK :
-                                                                 EMISSION_SAMPLING_NONE;
+    emission_sampling = (reduce_max(fabs(emission_estimate)) > 0.5f) ?
+                            EMISSION_SAMPLING_FRONT_BACK :
+                            EMISSION_SAMPLING_NONE;
   }
   else {
     emission_sampling = emission_sampling_method;
@@ -347,13 +349,22 @@ void Shader::tag_update(Scene *scene)
   has_volume = has_volume || output->input("Volume")->link;
   has_displacement = has_displacement || output->input("Displacement")->link;
 
-  if (!has_surface) {
+  if (!has_surface && !has_volume) {
+    /* If we need to output surface AOVs, add a Transparent BSDF so that the
+     * surface shader runs. */
     foreach (ShaderNode *node, graph->nodes) {
       if (node->special_type == SHADER_SPECIAL_TYPE_OUTPUT_AOV) {
         foreach (const ShaderInput *in, node->inputs) {
           if (in->link) {
+            TransparentBsdfNode *transparent = graph->create_node<TransparentBsdfNode>();
+            graph->add(transparent);
+            graph->connect(transparent->output("BSDF"), output->input("Surface"));
             has_surface = true;
+            break;
           }
+        }
+        if (has_surface) {
+          break;
         }
       }
     }
@@ -581,6 +592,9 @@ void ShaderManager::device_update_common(Device * /*device*/,
     if (shader->get_displacement_method() != DISPLACE_BUMP) {
       flag |= SD_HAS_DISPLACEMENT;
     }
+    if (shader->get_use_bump_map_correction()) {
+      flag |= SD_USE_BUMP_MAP_CORRECTION;
+    }
 
     /* constant emission check */
     if (shader->emission_is_constant) {
@@ -628,6 +642,7 @@ void ShaderManager::device_update_common(Device * /*device*/,
   kfilm->xyz_to_g = float3_to_float4(xyz_to_g);
   kfilm->xyz_to_b = float3_to_float4(xyz_to_b);
   kfilm->rgb_to_y = float3_to_float4(rgb_to_y);
+  kfilm->white_xyz = float3_to_float4(white_xyz);
   kfilm->rec709_to_r = float3_to_float4(rec709_to_r);
   kfilm->rec709_to_g = float3_to_float4(rec709_to_g);
   kfilm->rec709_to_b = float3_to_float4(rec709_to_b);
@@ -798,13 +813,13 @@ float ShaderManager::linear_rgb_to_gray(float3 c)
 
 float3 ShaderManager::rec709_to_scene_linear(float3 c)
 {
-  return make_float3(dot(rec709_to_r, c), dot(rec709_to_g, c), dot(rec709_to_b, c));
+  return to_local(c, rec709_to_r, rec709_to_g, rec709_to_b);
 }
 
 string ShaderManager::get_cryptomatte_materials(Scene *scene)
 {
   string manifest = "{";
-  unordered_set<ustring, ustringHash> materials;
+  unordered_set<ustring> materials;
   foreach (Shader *shader, scene->shaders) {
     if (materials.count(shader->name)) {
       continue;
@@ -880,6 +895,7 @@ void ShaderManager::init_xyz_transforms()
   xyz_to_g = float4_to_float3(xyz_to_rec709.y);
   xyz_to_b = float4_to_float3(xyz_to_rec709.z);
   rgb_to_y = make_float3(0.2126729f, 0.7151522f, 0.0721750f);
+  white_xyz = make_float3(0.95047f, 1.0f, 1.08883f);
 
   rec709_to_r = make_float3(1.0f, 0.0f, 0.0f);
   rec709_to_g = make_float3(0.0f, 1.0f, 0.0f);
@@ -936,6 +952,7 @@ void ShaderManager::init_xyz_transforms()
 
   const Transform rgb_to_xyz = transform_inverse(xyz_to_rgb);
   rgb_to_y = float4_to_float3(rgb_to_xyz.y);
+  white_xyz = transform_direction(&rgb_to_xyz, one_float3());
 
   const Transform rec709_to_rgb = xyz_to_rgb * transform_inverse(xyz_to_rec709);
   rec709_to_r = float4_to_float3(rec709_to_rgb.x);

@@ -7,12 +7,11 @@ set(INC
   ../../blenkernel
   ../../blenloader
   ../../blentranslation
-  ../../depsgraph
   ../../gpu
   ../../makesrna
   ../../windowmanager
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -30,14 +29,16 @@ set(SRC
   graph_view.cc
   space_graph.cc
 
-  graph_intern.h
+  graph_intern.hh
 )
 
 set(LIB
   bf_blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::animrig
 )
 
 if(WITH_AUDASPACE)
@@ -59,5 +60,5 @@ endif()
 
 blender_add_lib(bf_editor_space_graph "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_graph bf_rna)

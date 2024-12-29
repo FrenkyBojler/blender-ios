@@ -54,6 +54,11 @@ bool PathTraceTile::get_pass_pixels(const string_view pass_name,
   }
 
   pass = buffer_params.get_actual_display_pass(pass);
+  if (pass == nullptr) {
+    /* Happens when interactive session changes display pass but render
+     * buffer does not contain it yet. */
+    return false;
+  }
 
   const float exposure = buffer_params.exposure;
   const int num_samples = path_trace_.get_num_render_tile_samples();
@@ -79,6 +84,10 @@ bool PathTraceTile::set_pass_pixels(const string_view pass_name,
   const BufferParams &buffer_params = path_trace_.get_render_tile_params();
   const BufferPass *pass = buffer_params.find_pass(pass_name);
   if (!pass) {
+    return false;
+  }
+  if (pass->offset == PASS_UNUSED) {
+    /* Happens when attempting to set pixels of a pass with compositing when baking. */
     return false;
   }
 

@@ -6,12 +6,12 @@
  * \ingroup draw
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "BLI_string.h"
 #include "BLI_vector.hh"
 
-#include "draw_texture_pool.h"
+#include "draw_texture_pool.hh"
 
 using namespace blender;
 
@@ -186,6 +186,8 @@ void DRW_texture_pool_give_texture_ownership(DRWTexturePool *pool, GPUTexture *t
 
 void DRW_texture_pool_reset(DRWTexturePool *pool)
 {
+  /** Defer deallocation enough cycles to avoid interleaved calls to different DRW_draw/DRW_render
+   * functions causing constant allocation/deallocation (See #113024). */
   const int max_orphan_cycles = 8;
 
   pool->last_user_id = -1;

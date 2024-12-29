@@ -17,8 +17,8 @@ set(SRC
   intern/blt_lang.cc
   intern/blt_translation.cc
 
-  BLT_lang.h
-  BLT_translation.h
+  BLT_lang.hh
+  BLT_translation.hh
 )
 
 set(LIB
@@ -42,10 +42,8 @@ if(WITH_PYTHON)
   )
 endif()
 
-if(WIN32 OR APPLE)
-  if(WITH_INPUT_IME)
-    add_definitions(-DWITH_INPUT_IME)
-  endif()
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
 endif()
 
 blender_add_lib(bf_blentranslation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

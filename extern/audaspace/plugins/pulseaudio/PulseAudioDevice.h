@@ -45,10 +45,16 @@ private:
 	class PulseAudioSynchronizer : public DefaultSynchronizer
 	{
 		PulseAudioDevice* m_device;
+		bool m_playing = false;
+		pa_usec_t m_time_start = 0;
+		double m_seek_pos = 0.0f;
 
 	public:
 		PulseAudioSynchronizer(PulseAudioDevice* device);
 
+		virtual void play();
+		virtual void stop();
+		virtual void seek(std::shared_ptr<IHandle> handle, double time);
 		virtual double getPosition(std::shared_ptr<IHandle> handle);
 	};
 
@@ -128,7 +134,7 @@ public:
 	 * \note The specification really used for opening the device may differ.
 	 * \exception Exception Thrown if the audio device cannot be opened.
 	 */
-	PulseAudioDevice(std::string name, DeviceSpecs specs, int buffersize = AUD_DEFAULT_BUFFER_SIZE);
+	PulseAudioDevice(const std::string &name, DeviceSpecs specs, int buffersize = AUD_DEFAULT_BUFFER_SIZE);
 
 	/**
 	 * Closes the PulseAudio audio device.

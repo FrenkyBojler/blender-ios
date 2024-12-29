@@ -4,6 +4,10 @@
 
 /* Float Math */
 
+#pragma once
+
+#include "gpu_glsl_cpp_stubs.hh"
+
 /* WORKAROUND: To be removed once we port all code to use `gpu_shader_math_base_lib.glsl`. */
 #ifndef GPU_SHADER_MATH_BASE_LIB_GLSL
 
@@ -22,6 +26,24 @@ float compatible_fmod(float a, float b)
     return a - N * b;
   }
   return 0.0;
+}
+
+vec2 compatible_fmod(vec2 a, float b)
+{
+  return vec2(compatible_fmod(a.x, b), compatible_fmod(a.y, b));
+}
+
+vec3 compatible_fmod(vec3 a, float b)
+{
+  return vec3(compatible_fmod(a.x, b), compatible_fmod(a.y, b), compatible_fmod(a.z, b));
+}
+
+vec4 compatible_fmod(vec4 a, float b)
+{
+  return vec4(compatible_fmod(a.x, b),
+              compatible_fmod(a.y, b),
+              compatible_fmod(a.z, b),
+              compatible_fmod(a.w, b));
 }
 
 float compatible_pow(float x, float y)
@@ -60,7 +82,9 @@ float fallback_pow(float x, float y, float fallback)
 float wrap(float a, float b, float c)
 {
   float range = b - c;
-  return (range != 0.0) ? a - (range * floor((a - c) / range)) : c;
+  /* Avoid discrepancy on some hardware due to floating point accuracy and fast math. */
+  float s = (a != b) ? floor((a - c) / range) : 1.0;
+  return (range != 0.0) ? a - range * s : c;
 }
 
 vec3 wrap(vec3 a, vec3 b, vec3 c)
@@ -156,12 +180,12 @@ vec3 fallback_pow(vec3 a, float b, vec3 fallback)
 
 /* Matrix Math */
 
-/* Return a 2D rotation matrix with the angle that the input 2D vector makes with the x axis. */
+/* Return a 2D rotation matrix with the angle that the input 2D vector makes with the x axis.
+ * Assumes the vector is normalized. */
 mat2 vector_to_rotation_matrix(vec2 vector)
 {
-  vec2 normalized_vector = normalize(vector);
-  float cos_angle = normalized_vector.x;
-  float sin_angle = normalized_vector.y;
+  float cos_angle = vector.x;
+  float sin_angle = vector.y;
   return mat2(cos_angle, sin_angle, -sin_angle, cos_angle);
 }
 

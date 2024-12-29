@@ -294,9 +294,14 @@ int SVMCompiler::stack_assign(ShaderOutput *output)
   return output->stack_offset;
 }
 
+bool SVMCompiler::is_linked(ShaderInput *input)
+{
+  return (input->link || input->constant_folded_in);
+}
+
 int SVMCompiler::stack_assign_if_linked(ShaderInput *input)
 {
-  if (input->link || input->constant_folded_in) {
+  if (is_linked(input)) {
     return stack_assign(input);
   }
 
@@ -798,7 +803,7 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
     switch (type) {
       case SHADER_TYPE_SURFACE: /* generate surface shader */
         find_aov_nodes_and_dependencies(state.aov_nodes, graph, &state);
-        if (clin->link || state.aov_nodes.size() > 0) {
+        if (clin->link) {
           shader->has_surface = true;
           state.node_feature_mask = KERNEL_FEATURE_NODE_MASK_SURFACE;
         }

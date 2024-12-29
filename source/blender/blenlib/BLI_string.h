@@ -27,6 +27,9 @@ extern "C" {
 /* Buffer size of maximum `int64` formatted as byte size (with GiB for example). */
 #define BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE 15
 
+/* Buffer size of maximum `int64` formatted as byte size, minimum length (".1G" for example). */
+#define BLI_STR_FORMAT_INT64_BYTE_UNIT_COMPACT_SIZE 5
+
 /* Buffer size of maximum `int32` formatted as compact decimal size ("15.6M" for example). */
 #define BLI_STR_FORMAT_INT32_DECIMAL_UNIT_SIZE 7
 
@@ -305,6 +308,33 @@ size_t BLI_str_format_uint64_grouped(char dst[BLI_STR_FORMAT_UINT64_GROUPED_SIZE
 void BLI_str_format_byte_unit(char dst[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE],
                               long long int bytes,
                               bool base_10) ATTR_NONNULL(1);
+
+/**
+ * Format a size in bytes using binary units in compact (max 4 chars) format.
+ *
+ * It shows a lower bound instead of rounding the number.
+ *
+ * 1 -> 1B
+ * 15 -> 15B
+ * 155 -> 155B
+ * 1555 -> 1K
+ * 15555 -> 15K
+ * 155555 -> .1M
+ * 1555555 -> 1M
+ * 15555555 -> 15M
+ * 155555555 -> .1G
+ * 1000000000 -> 1G
+ * ...
+ *
+ * \param dst: The resulting string.
+ * Dimension of 5 to support largest possible value for \a bytes (#LLONG_MAX).
+ * \param bytes: Number to format.
+ * \param base_10: Calculate using base 10 (GB, MB, ...) or 2 (GiB, MiB, ...).
+ */
+void BLI_str_format_byte_unit_compact(char dst[BLI_STR_FORMAT_INT64_BYTE_UNIT_COMPACT_SIZE],
+                                      long long int bytes,
+                                      bool base_10) ATTR_NONNULL(1);
+
 /**
  * Format a count to up to 6 places (plus `\0` terminator) string using long number
  * names abbreviations. Used to produce a compact representation of large numbers.
@@ -458,10 +488,10 @@ bool BLI_str_startswith(const char *__restrict str,
  *
  * \param str: The string to search within.
  * \param end: The string we look for at the end.
- * \return If str ends with end.
+ * \return If `str` ends with `end`.
  */
 bool BLI_str_endswith(const char *__restrict str, const char *__restrict end) ATTR_NONNULL(1, 2);
-bool BLI_strn_endswith(const char *__restrict str, const char *__restrict end, size_t length)
+bool BLI_strn_endswith(const char *__restrict str, const char *__restrict end, size_t str_len)
     ATTR_NONNULL(1, 2);
 
 /**
@@ -531,6 +561,27 @@ int BLI_string_find_split_words(const char *str,
                                 char delim,
                                 int r_words[][2],
                                 int words_max) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 4);
+
+/**
+ * A version of `STR_ELEM(..)` that treats `haystack` as multiple elements split by `delim`.
+ * Return true when `needle` is found in `haystack`.
+ *
+ * \param haystack: The string to search in.
+ * \param delim: The delimiter which divides haystack.
+ * \param needle: The string to search for
+ * (must not contain `delim` or the result will never be true).
+ *
+ * The following guarantees are made:
+ * - Only an exact match returns true, requiring the strings length and case be match.
+ * - Successive delimiters are supported.
+ * - An empty needle will match against:
+ *   - A blank string.
+ *   - Delimiters at the beginning or end of the string
+ *   - Two successive delimiters.
+ */
+bool BLI_string_elem_split_by_delim(const char *haystack,
+                                    const char delim,
+                                    const char *needle) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 3);
 
 /* -------------------------------------------------------------------- */
 /** \name String Copy/Format Macros

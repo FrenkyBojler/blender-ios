@@ -6,7 +6,7 @@
  * \ingroup spview3d
  */
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -14,11 +14,9 @@
 
 #include "WM_api.hh"
 
-#include "RNA_access.hh"
-
 #include "ED_screen.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */

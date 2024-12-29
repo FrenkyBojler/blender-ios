@@ -49,6 +49,9 @@ CCL_NAMESPACE_BEGIN
 #ifndef M_1_2PI_F
 #  define M_1_2PI_F (0.1591549430918953f) /* 1/(2*pi) */
 #endif
+#ifndef M_1_4PI_F
+#  define M_1_4PI_F (0.0795774715459476f) /* 1/(4*pi) */
+#endif
 #ifndef M_SQRT_PI_8_F
 #  define M_SQRT_PI_8_F (0.6266570686577501f) /* sqrt(pi/8) */
 #endif
@@ -63,10 +66,19 @@ CCL_NAMESPACE_BEGIN
 #ifndef M_4PI_F
 #  define M_4PI_F (12.566370614359172f) /* 4*pi */
 #endif
+#ifndef M_PI_4F
+#  define M_PI_4F 0.78539816339744830962f /* pi/4 */
+#endif
 
 /* Float sqrt variations */
 #ifndef M_SQRT2_F
 #  define M_SQRT2_F (1.4142135623730950f) /* sqrt(2) */
+#endif
+#ifndef M_CBRT2_F
+#  define M_CBRT2_F 1.2599210498948732f /* cbrt(2) */
+#endif
+#ifndef M_SQRT1_2F
+#  define M_SQRT1_2F 0.70710678118654752440f /* sqrt(1/2) */
 #endif
 #ifndef M_SQRT3_F
 #  define M_SQRT3_F (1.7320508075688772f) /* sqrt(3) */
@@ -474,6 +486,14 @@ ccl_device_inline float nonzerof(float f, float eps)
   }
 }
 
+/* The behavior of `atan2(0, 0)` is undefined on many platforms, to ensure consistent behavior, we
+ * return 0 in this case. See !126951.
+ * Computes the angle between the positive x axis and the vector pointing from origin to (x, y). */
+ccl_device_inline float compatible_atan2(const float y, const float x)
+{
+  return (x == 0.0f && y == 0.0f) ? 0.0f : atan2f(y, x);
+}
+
 /* `signum` function testing for zero. Matches GLSL and OSL functions. */
 ccl_device_inline float compatible_signf(float f)
 {
@@ -505,6 +525,11 @@ ccl_device_inline int mod(int x, int m)
 ccl_device_inline float3 float2_to_float3(const float2 a)
 {
   return make_float3(a.x, a.y, 0.0f);
+}
+
+ccl_device_inline float3 float2_to_float3(const float2 a, const float z)
+{
+  return make_float3(a.x, a.y, z);
 }
 
 ccl_device_inline float2 float3_to_float2(const float3 a)
@@ -571,15 +596,29 @@ ccl_device_inline float triangle_area(ccl_private const float3 &v1,
 /* Orthonormal vectors */
 
 ccl_device_inline void make_orthonormals(const float3 N,
-                                         ccl_private float3 *T,
-                                         ccl_private float3 *B)
+                                         ccl_private float3 *a,
+                                         ccl_private float3 *b)
 {
-  /* Duff, Tom, et al. "Building an orthonormal basis, revisited." JCGT 6.1 (2017). */
-  float sign = signf(N.z);
-  float a = -1.0f / (sign + N.z);
-  float b = N.x * N.y * a;
-  *T = make_float3(1.0f + sign * N.x * N.x * a, sign * b, -sign * N.x);
-  *B = make_float3(b, sign + N.y * N.y * a, -N.y);
+#if 0
+  if (fabsf(N.y) >= 0.999f) {
+    *a = make_float3(1, 0, 0);
+    *b = make_float3(0, 0, 1);
+    return;
+  }
+  if (fabsf(N.z) >= 0.999f) {
+    *a = make_float3(1, 0, 0);
+    *b = make_float3(0, 1, 0);
+    return;
+  }
+#endif
+
+  if (N.x != N.y || N.x != N.z)
+    *a = make_float3(N.z - N.y, N.x - N.z, N.y - N.x);  //(1,1,1)x N
+  else
+    *a = make_float3(N.z - N.y, N.x + N.z, -N.y - N.x);  //(-1,1,1)x N
+
+  *a = normalize(*a);
+  *b = cross(N, *a);
 }
 
 /* Color division */
@@ -595,12 +634,13 @@ ccl_device_inline Spectrum safe_invert_color(Spectrum a)
   return a;
 }
 
-ccl_device_inline Spectrum safe_divide_color(Spectrum a, Spectrum b)
+/* Returns `a/b`, and replace the channel value with `fallback` if `b == 0`. */
+ccl_device_inline Spectrum safe_divide_color(Spectrum a, Spectrum b, const float fallback = 0.0f)
 {
   FOREACH_SPECTRUM_CHANNEL (i) {
     GET_SPECTRUM_CHANNEL(a, i) = (GET_SPECTRUM_CHANNEL(b, i) != 0.0f) ?
                                      GET_SPECTRUM_CHANNEL(a, i) / GET_SPECTRUM_CHANNEL(b, i) :
-                                     0.0f;
+                                     fallback;
   }
 
   return a;
@@ -986,7 +1026,7 @@ ccl_device_inline uint32_t reverse_integer_bits(uint32_t x)
   return __brev(x);
 #elif defined(__KERNEL_METAL__)
   return reverse_bits(x);
-#elif defined(__aarch64__) || defined(_M_ARM64)
+#elif defined(__aarch64__) || (defined(_M_ARM64) && !defined(_MSC_VER))
   /* Assume the rbit is always available on 64bit ARM architecture. */
   __asm__("rbit %w0, %w1" : "=r"(x) : "r"(x));
   return x;
@@ -1014,6 +1054,65 @@ ccl_device_inline uint32_t reverse_integer_bits(uint32_t x)
   return __builtin_bswap32(x);
 #  endif
 #endif
+}
+
+/* Solve quadratic equation a*x^2 + b*x + c = 0, adapted from Mitsuba 3
+ * The solution is ordered so that x1 <= x2.
+ * Returns true if at least one solution is found.  */
+ccl_device_inline bool solve_quadratic(
+    const float a, const float b, const float c, ccl_private float &x1, ccl_private float &x2)
+{
+  /* If the equation is linear, the solution is -c/b, but b has to be non-zero. */
+  const bool valid_linear = (a == 0.0f) && (b != 0.0f);
+  x1 = x2 = -c / b;
+
+  const float discriminant = sqr(b) - 4.0f * a * c;
+  /* Allow slightly negative discriminant in case of numerical precision issues. */
+  const bool valid_quadratic = (a != 0.0f) && (discriminant > -1e-5f);
+
+  if (valid_quadratic) {
+    /* Numerically stable version of (-b ± sqrt(discriminant)) / (2 * a), avoiding catastrophic
+     * cancellation when `b` is very close to `sqrt(discriminant)`, by finding the solution of
+     * greater magnitude which does not suffer from loss of precision, then using the identity
+     * x1 * x2 = c / a. */
+    const float temp = -0.5f * (b + copysignf(safe_sqrtf(discriminant), b));
+    const float r1 = temp / a;
+    const float r2 = c / temp;
+
+    x1 = fminf(r1, r2);
+    x2 = fmaxf(r1, r2);
+  }
+
+  return (valid_linear || valid_quadratic);
+}
+
+/* Defines a closed interval [min, max]. */
+template<typename T> struct Interval {
+  T min;
+  T max;
+
+  ccl_device_inline_method bool is_empty() const
+  {
+    return min >= max;
+  }
+
+  ccl_device_inline_method bool contains(T value) const
+  {
+    return value >= min && value <= max;
+  }
+
+  ccl_device_inline_method T length() const
+  {
+    return max - min;
+  }
+};
+
+/* Computes the intersection of two intervals. */
+template<typename T>
+ccl_device_inline Interval<T> intervals_intersection(ccl_private const Interval<T> &first,
+                                                     ccl_private const Interval<T> &second)
+{
+  return {max(first.min, second.min), min(first.max, second.max)};
 }
 
 CCL_NAMESPACE_END

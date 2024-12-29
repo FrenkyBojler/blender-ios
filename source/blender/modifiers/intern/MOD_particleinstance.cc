@@ -15,35 +15,30 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
-#include "BLI_string.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_effect.h"
-#include "BKE_lattice.h"
-#include "BKE_lib_query.h"
+#include "BKE_customdata.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 static void init_data(ModifierData *md)
@@ -273,7 +268,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       break;
     case eParticleInstanceSpace_Local:
       /* get particle states in the particle object's local space */
-      invert_m4_m4(spacemat, pimd->ob->object_to_world);
+      invert_m4_m4(spacemat, pimd->ob->object_to_world().ptr());
       break;
     default:
       /* should not happen */
@@ -281,10 +276,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       break;
   }
 
-  totvert = mesh->totvert;
+  totvert = mesh->verts_num;
   faces_num = mesh->faces_num;
-  totloop = mesh->totloop;
-  totedge = mesh->totedge;
+  totloop = mesh->corners_num;
+  totedge = mesh->edges_num;
 
   /* count particles */
   maxvert = 0;
@@ -324,9 +319,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   blender::MutableSpan<int> corner_edges = result->corner_edges_for_write();
 
   MLoopCol *mloopcols_index = static_cast<MLoopCol *>(CustomData_get_layer_named_for_write(
-      &result->loop_data, CD_PROP_BYTE_COLOR, pimd->index_layer_name, result->totloop));
+      &result->corner_data, CD_PROP_BYTE_COLOR, pimd->index_layer_name, result->corners_num));
   MLoopCol *mloopcols_value = static_cast<MLoopCol *>(CustomData_get_layer_named_for_write(
-      &result->loop_data, CD_PROP_BYTE_COLOR, pimd->value_layer_name, result->totloop));
+      &result->corner_data, CD_PROP_BYTE_COLOR, pimd->value_layer_name, result->corners_num));
   int *vert_part_index = nullptr;
   float *vert_part_value = nullptr;
   if (mloopcols_index != nullptr) {
@@ -451,7 +446,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
           cross_v3_v3v3(cross, temp, state.vel);
 
           /* state.vel[axis] is the only component surviving from a dot product with the axis */
-          axis_angle_to_quat(state.rot, cross, saacos(state.vel[axis]));
+          axis_angle_to_quat(state.rot, cross, safe_acosf(state.vel[axis]));
         }
 #endif
       }
@@ -491,7 +486,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
         int j = in_face.size();
 
         CustomData_copy_data(
-            &mesh->loop_data, &result->loop_data, in_face.start(), dst_face_start, j);
+            &mesh->corner_data, &result->corner_data, in_face.start(), dst_face_start, j);
         for (; j; j--, orig_corner_i++, dst_corner_i++) {
           corner_verts[dst_corner_i] = orig_corner_verts[orig_corner_i] + (p_skip * totvert);
           corner_edges[dst_corner_i] = orig_corner_edges[orig_corner_i] + (p_skip * totedge);
@@ -536,7 +531,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_pointer_is_null(&particle_obj_ptr)) {
     uiItemPointerR(layout,
                    ptr,
@@ -554,14 +549,14 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiItemS(layout);
 
   row = uiLayoutRowWithHeading(layout, true, IFACE_("Create Instances"));
-  uiItemR(row, ptr, "use_normal", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_children", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_size", toggles_flag, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "use_normal", toggles_flag, std::nullopt, ICON_NONE);
+  uiItemR(row, ptr, "use_children", toggles_flag, std::nullopt, ICON_NONE);
+  uiItemR(row, ptr, "use_size", toggles_flag, std::nullopt, ICON_NONE);
 
   row = uiLayoutRowWithHeading(layout, true, IFACE_("Show"));
-  uiItemR(row, ptr, "show_alive", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "show_dead", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "show_unborn", toggles_flag, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "show_alive", toggles_flag, std::nullopt, ICON_NONE);
+  uiItemR(row, ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
+  uiItemR(row, ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
 
   uiItemR(layout, ptr, "particle_amount", UI_ITEM_NONE, IFACE_("Amount"), ICON_NONE);
   uiItemR(layout, ptr, "particle_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
@@ -570,7 +565,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiItemR(layout, ptr, "space", UI_ITEM_NONE, IFACE_("Coordinate Space"), ICON_NONE);
   row = uiLayoutRow(layout, true);
-  uiItemR(row, ptr, "axis", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
@@ -597,13 +592,13 @@ static void path_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_path"));
 
   col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "position", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "position", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "random_position", UI_ITEM_R_SLIDER, IFACE_("Random"), ICON_NONE);
   col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "rotation", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "rotation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "random_rotation", UI_ITEM_R_SLIDER, IFACE_("Random"), ICON_NONE);
 
-  uiItemR(layout, ptr, "use_preserve_shape", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_preserve_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void layers_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -641,7 +636,7 @@ ModifierTypeInfo modifierType_ParticleInstance = {
     /*struct_name*/ "ParticleInstanceModifierData",
     /*struct_size*/ sizeof(ParticleInstanceModifierData),
     /*srna*/ &RNA_ParticleInstanceModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_PARTICLE_INSTANCE,
@@ -668,4 +663,5 @@ ModifierTypeInfo modifierType_ParticleInstance = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

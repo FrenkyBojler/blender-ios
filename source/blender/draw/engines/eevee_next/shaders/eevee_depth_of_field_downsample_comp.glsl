@@ -9,7 +9,12 @@
  * Also does not weight luma for the bilateral weights.
  */
 
-#pragma BLENDER_REQUIRE(eevee_depth_of_field_lib.glsl)
+#include "infos/eevee_depth_of_field_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_downsample)
+
+#include "eevee_depth_of_field_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 
 void main()
 {
@@ -27,7 +32,7 @@ void main()
 
   vec4 weights = dof_bilateral_coc_weights(cocs);
   /* Normalize so that the sum is 1. */
-  weights *= safe_rcp(sum(weights));
+  weights *= safe_rcp(reduce_add(weights));
 
   vec4 out_color = weighted_sum_array(colors, weights);
 

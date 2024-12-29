@@ -37,9 +37,14 @@ set LLVM_DIR=
 :DetectionComplete	
 	set CC=%LLVM_DIR%\bin\clang-cl
 	set CXX=%LLVM_DIR%\bin\clang-cl
-	rem build and tested against 2019 16.2
-	set CFLAGS=-m64 -fmsc-version=1922
-	set CXXFLAGS=-m64 -fmsc-version=1922
+	if "%PROCESSOR_ARCHITECTURE%" == "ARM64" (
+		set CFLAGS=-m64
+		set CXXFLAGS=-m64
+	) else (
+		rem build and tested against 2019 16.2
+		set CFLAGS=-m64 -fmsc-version=1922
+		set CXXFLAGS=-m64 -fmsc-version=1922
+	)
 )
 
 if "%WITH_ASAN%"=="1" (
@@ -57,14 +62,14 @@ if NOT EXIST %BUILD_DIR%\nul (
 if "%MUST_CLEAN%"=="1" (
 	echo Cleaning %BUILD_DIR%
 	cd %BUILD_DIR%
-	%CMAKE% cmake --build . --config Clean
+	"%CMAKE%" --build . --config Clean
 )
 
 if NOT EXIST %BUILD_DIR%\build.ninja set MUST_CONFIGURE=1
 if "%NOBUILD%"=="1" set MUST_CONFIGURE=1
 
 if "%MUST_CONFIGURE%"=="1" (
-	cmake ^
+	"%CMAKE%" ^
 		%BUILD_CMAKE_ARGS% ^
 		-H%BLENDER_DIR% ^
 		-B%BUILD_DIR% 

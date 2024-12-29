@@ -8,6 +8,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -21,22 +22,18 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_read_write.hh"
-
-#include "BKE_colortools.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
+#include "BKE_colortools.hh"
 #include "BKE_sound.h"
 
 #ifdef WITH_CONVOLUTION
 #  include "AUD_Sound.h"
 #endif
 
-#include "SEQ_sound.h"
-#include "SEQ_time.h"
+#include "SEQ_sound.hh"
+#include "SEQ_time.hh"
 
-#include "sequencer.h"
-#include "strip_time.h"
+#include "sequencer.hh"
+#include "strip_time.hh"
 
 /* Unlike _update_sound_ functions,
  * these ones take info from audaspace to update sequence length! */
@@ -63,7 +60,7 @@ static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, 
       int old = seq->len;
       float fac;
 
-      seq->len = MAX2(1, round((info.length - seq->sound->offset_time) * FPS));
+      seq->len = std::max(1, int(round((info.length - seq->sound->offset_time) * FPS)));
       fac = float(seq->len) / float(old);
       old = seq->startofs;
       seq->startofs *= fac;
@@ -167,7 +164,7 @@ EQCurveMappingData *SEQ_sound_equalizer_add(SoundEqualizerModifierData *semd,
   if (minX < 0) {
     minX = 0.0;
   }
-  /* It's the same as BKE_curvemapping_add , but changing the name */
+  /* It's the same as #BKE_curvemapping_add, but changing the name. */
   eqcmd = MEM_cnew<EQCurveMappingData>("Equalizer");
   BKE_curvemapping_set_defaults(&eqcmd->curve_mapping,
                                 1, /* Total. */
@@ -275,7 +272,7 @@ void *SEQ_sound_equalizermodifier_recreator(Sequence *seq, SequenceModifierData 
 
   SoundEqualizerModifierData *semd = (SoundEqualizerModifierData *)smd;
 
-  // No Equalizer definition
+  /* No equalizer definition. */
   if (BLI_listbase_is_empty(&semd->graphics)) {
     return sound;
   }
@@ -289,7 +286,7 @@ void *SEQ_sound_equalizermodifier_recreator(Sequence *seq, SequenceModifierData 
   float maxX;
   float interval = SOUND_EQUALIZER_DEFAULT_MAX_FREQ / float(SOUND_EQUALIZER_SIZE_DEFINITION);
 
-  // Visit all equalizer definitions
+  /* Visit all equalizer definitions. */
   LISTBASE_FOREACH (EQCurveMappingData *, mapping, &semd->graphics) {
     eq_mapping = &mapping->curve_mapping;
     BKE_curvemapping_init(eq_mapping);

@@ -6,12 +6,13 @@
 
 #include "BLI_fileops.h"
 
+#include <cstdio>
 #include <cstring>
 #include <stdexcept>
 
 static inline bool is_newline(char ch)
 {
-  return ch == '\n' || ch == '\r';
+  return ch == '\n';
 }
 
 namespace blender::io::ply {
@@ -48,8 +49,12 @@ Span<char> PlyReadBuffer::read_line()
     pos_++;
   }
   int res_end = pos_;
-  /* Move past newlines (possibly multiple for different line endings). */
-  while (pos_ < buf_used_ && is_newline(buffer_[pos_])) {
+  /* Remove possible trailing CR from the result. */
+  if (res_end > res_begin && buffer_[res_end - 1] == '\r') {
+    --res_end;
+  }
+  /* Move cursor past newline. */
+  if (pos_ < buf_used_ && is_newline(buffer_[pos_])) {
     pos_++;
   }
   return Span<char>(buffer_.data() + res_begin, res_end - res_begin);
@@ -96,8 +101,12 @@ bool PlyReadBuffer::refill_buffer()
   pos_ = 0;
   buf_used_ = int(read);
 
-  /* Find last newline. */
+  /* Skip past newlines at the front of the buffer and find last newline. */
   if (!is_binary_) {
+    while (pos_ < buf_used_ && is_newline(buffer_[pos_])) {
+      pos_++;
+    }
+
     int last_nl = buf_used_;
     if (!at_eof_) {
       while (last_nl > 0) {

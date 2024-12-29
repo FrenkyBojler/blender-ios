@@ -52,6 +52,11 @@ ccl_device_inline void shaderdata_to_shaderglobals(KernelGlobals kg,
 
   /* shader data to be used in services callbacks */
   globals->renderstate = sd;
+#if OSL_LIBRARY_VERSION_CODE >= 11304
+  globals->shadingStateUniform = nullptr;
+  globals->thread_index = 0;
+  globals->shade_index = 0;
+#endif
 
   /* hacky, we leave it to services to fetch actual object matrix */
   globals->shader2common = sd;
@@ -103,14 +108,20 @@ ccl_device void flatten_closure_tree(KernelGlobals kg,
         /* Layer closures may not appear in the top layer subtree of another layer closure. */
         kernel_assert(layer_stack_level == -1);
 
-        /* Push base layer onto the stack, will be handled after the top layers */
-        weight_stack[stack_size] = weight;
-        closure_stack[stack_size] = layer->base;
-        /* Start accumulating albedo of the top layers */
-        layer_stack_level = stack_size++;
-        layer_albedo = zero_float3();
-        /* Continue with the top layers */
-        closure = layer->top;
+        if (layer->top != nullptr) {
+          /* Push base layer onto the stack, will be handled after the top layers */
+          weight_stack[stack_size] = weight;
+          closure_stack[stack_size] = layer->base;
+          /* Start accumulating albedo of the top layers */
+          layer_stack_level = stack_size++;
+          layer_albedo = zero_float3();
+          /* Continue with the top layers */
+          closure = layer->top;
+        }
+        else {
+          /* No top layer, just continue with base. */
+          closure = layer->base;
+        }
         continue;
       }
 #define OSL_CLOSURE_STRUCT_BEGIN(Upper, lower) \
@@ -145,7 +156,7 @@ ccl_device void flatten_closure_tree(KernelGlobals kg,
       if (stack_size == layer_stack_level) {
         /* We just finished processing the top layers of a Layer closure, so adjust the weight to
          * account for the layering. */
-        weight *= saturatef(1.0f - reduce_max(safe_divide_color(layer_albedo, weight)));
+        weight = closure_layering_weight(layer_albedo, weight);
         layer_stack_level = -1;
         /* If it's fully occluded, skip the base layer we just popped from the stack and grab
          * the next entry instead. */
@@ -179,24 +190,18 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
   const int shader = sd->shader & SHADER_MASK;
 
 #  ifdef __KERNEL_OPTIX__
-  uint8_t group_data[2048];
   uint8_t closure_pool[1024];
   sd->osl_closure_pool = closure_pool;
 
   unsigned int optix_dc_index = 2 /* NUM_CALLABLE_PROGRAM_GROUPS */ +
-                                (shader + type * kernel_data.max_shaders) * 2;
-  optixDirectCall<void>(optix_dc_index + 0,
+                                (shader + type * kernel_data.max_shaders);
+  optixDirectCall<void>(optix_dc_index,
                         /* shaderglobals_ptr = */ &globals,
-                        /* groupdata_ptr = */ (void *)group_data,
+                        /* groupdata_ptr = */ (void *)nullptr,
                         /* userdata_base_ptr = */ (void *)nullptr,
                         /* output_base_ptr = */ (void *)nullptr,
-                        /* shadeindex = */ 0);
-  optixDirectCall<void>(optix_dc_index + 1,
-                        /* shaderglobals_ptr = */ &globals,
-                        /* groupdata_ptr = */ (void *)group_data,
-                        /* userdata_base_ptr = */ (void *)nullptr,
-                        /* output_base_ptr = */ (void *)nullptr,
-                        /* shadeindex = */ 0);
+                        /* shadeindex = */ 0,
+                        /* interactive_params_ptr */ (void *)nullptr);
 #  endif
 
 #  if __cplusplus < 201703L

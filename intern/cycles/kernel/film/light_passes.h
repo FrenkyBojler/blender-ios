@@ -254,9 +254,8 @@ ccl_device bool film_write_shadow_catcher_transparent(KernelGlobals kg,
   if (kernel_shadow_catcher_is_matte_path(path_flag)) {
     const float3 contribution_rgb = spectrum_to_rgb(contribution);
 
-    film_write_pass_float4(
-        buffer + kernel_data.film.pass_shadow_catcher_matte,
-        make_float4(contribution_rgb.x, contribution_rgb.y, contribution_rgb.z, transparent));
+    film_write_pass_float4(buffer + kernel_data.film.pass_shadow_catcher_matte,
+                           make_float4(contribution_rgb, transparent));
     /* NOTE: Accumulate the combined pass and to the samples count pass, so that the adaptive
      * sampling is based on how noisy the combined pass is as if there were no catchers in the
      * scene. */
@@ -353,9 +352,8 @@ ccl_device_inline void film_write_combined_transparent_pass(KernelGlobals kg,
   if (kernel_data.film.light_pass_flag & PASSMASK(COMBINED)) {
     const float3 contribution_rgb = spectrum_to_rgb(contribution);
 
-    film_write_pass_float4(
-        buffer + kernel_data.film.pass_combined,
-        make_float4(contribution_rgb.x, contribution_rgb.y, contribution_rgb.z, transparent));
+    film_write_pass_float4(buffer + kernel_data.film.pass_combined,
+                           make_float4(contribution_rgb, transparent));
   }
 
   film_write_adaptive_buffer(kg, sample, contribution, buffer);
@@ -466,10 +464,7 @@ ccl_device_inline void film_write_direct_light(KernelGlobals kg,
   Spectrum contribution = INTEGRATOR_STATE(state, shadow_path, throughput);
   film_clamp_light(kg, &contribution, INTEGRATOR_STATE(state, shadow_path, bounce));
 
-  const uint32_t render_pixel_index = INTEGRATOR_STATE(state, shadow_path, render_pixel_index);
-  const uint64_t render_buffer_offset = (uint64_t)render_pixel_index *
-                                        kernel_data.film.pass_stride;
-  ccl_global float *buffer = render_buffer + render_buffer_offset;
+  ccl_global float *buffer = film_pass_pixel_render_buffer_shadow(kg, state, render_buffer);
 
   const uint32_t path_flag = INTEGRATOR_STATE(state, shadow_path, flag);
   const int sample = INTEGRATOR_STATE(state, shadow_path, sample);
@@ -574,7 +569,9 @@ ccl_device_inline void film_write_transparent(KernelGlobals kg,
     film_write_pass_float(buffer + kernel_data.film.pass_combined + 3, transparent);
   }
 
+#ifdef __SHADOW_CATCHER__
   film_write_shadow_catcher_transparent_only(kg, path_flag, transparent, buffer);
+#endif
 }
 
 /* Write holdout to render buffer. */
