@@ -336,6 +336,6 @@ void USD_register_hook(std::unique_ptr<USDHook> hook);
 void USD_unregister_hook(USDHook *hook);
 USDHook *USD_find_hook_name(const char idname[]);
 
-double get_scene_scale_from_export_params(const USDExportParams *params);
+double get_meters_per_unit(const USDExportParams *params);
 
 };  // namespace blender::io::usd

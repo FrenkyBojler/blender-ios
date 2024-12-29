@@ -169,7 +169,7 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
   }
 
   if (params.convert_scene_units) {
-    xf_api.SetScale(pxr::GfVec3f(float(1.0 / get_scene_scale_from_export_params(&params))));
+    xf_api.SetScale(pxr::GfVec3f(float(1.0 / get_meters_per_unit(&params))));
   }
 
   if (params.convert_orientation) {
@@ -439,7 +439,7 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
 
   usd_stage->SetMetadata(pxr::UsdGeomTokens->upAxis, upAxis);
 
-  const double meters_per_unit = get_scene_scale_from_export_params(&params);
+  const double meters_per_unit = get_meters_per_unit(&params);
   pxr::UsdGeomSetStageMetersPerUnit(usd_stage, meters_per_unit);
 
   ensure_root_prim(usd_stage, params);
@@ -740,6 +740,39 @@ int USD_get_version()
    * So the major version is implicit/invisible in the public version number.
    */
   return PXR_VERSION;
+}
+
+double get_meters_per_unit(const struct USDExportParams* params)
+{
+  double result;
+  switch (params->convert_scene_units) {
+  case USD_SCENE_UNITS_CENTIMETERS:
+    result = 0.01;
+    break;
+  case USD_SCENE_UNITS_MILLIMETERS:
+    result = 0.001;
+    break;
+  case USD_SCENE_UNITS_KILOMETERS:
+    result = 1000.0;
+    break;
+  case USD_SCENE_UNITS_INCHES:
+    result = 0.0254;
+    break;
+  case USD_SCENE_UNITS_FEET:
+    result = 0.3048;
+    break;
+  case USD_SCENE_UNITS_YARDS:
+    result = 0.9144;
+    break;
+  case USD_SCENE_UNITS_CUSTOM:
+    result = double(params->meters_per_unit);
+    break;
+  default:
+    result = 1.0;
+    break;
+  }
+
+  return result;
 }
 
 }  // namespace blender::io::usd

@@ -1428,41 +1428,4 @@ void usd_file_handler_add()
 }
 }  // namespace blender::ed::io
 
-namespace blender::io::usd {
-
-double get_scene_scale_from_export_params(const struct USDExportParams *params)
-{
-  double result;
-  switch (params->convert_scene_units) {
-    case USD_SCENE_UNITS_CENTIMETERS:
-      result = 0.01;
-      break;
-    case USD_SCENE_UNITS_MILLIMETERS:
-      result = 0.001;
-      break;
-    case USD_SCENE_UNITS_KILOMETERS:
-      result = 1000.0;
-      break;
-    case USD_SCENE_UNITS_INCHES:
-      result = 0.0254;
-      break;
-    case USD_SCENE_UNITS_FEET:
-      result = 0.3048;
-      break;
-    case USD_SCENE_UNITS_YARDS:
-      result = 0.9144;
-      break;
-    case USD_SCENE_UNITS_CUSTOM:
-      result = double(params->meters_per_unit);
-      break;
-    default:
-      result = 1.0;
-      break;
-  }
-
-  return result;
-}
-
-}  // end namespace blender::io::usd
-
 #endif /* WITH_USD */
