@@ -3822,15 +3822,12 @@ static void outliner_draw_tree(uiBlock *block,
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 
   /* Move the tree a unit left in view layer mode */
-  short columns_offset = (use_mode_column && (space_outliner->outlinevis == SO_SCENES)) ?
-                             UI_UNIT_X :
-                             0;
+  short columns_offset = use_mode_column ? UI_UNIT_X : 0;
+
   if (space_outliner->outlinevis == SO_VIEW_LAYER) {
+    columns_offset -= UI_UNIT_X;
     if (space_outliner->filter & SO_FILTER_NO_COLLECTION) {
-      columns_offset = use_mode_column ? UI_UNIT_X : 0;
-    }
-    else if (!use_mode_column) {
-      columns_offset -= UI_UNIT_X;
+      columns_offset += UI_UNIT_X;
     }
   }
 
