@@ -58,8 +58,7 @@ static void camera_sensor_size_for_render(const Camera *camera,
 
 void USDCameraWriter::do_write(HierarchyContext &context)
 {
-  const float unit_scale = float(
-      get_meters_per_unit(&usd_export_context_.export_params));
+  const double meters_per_unit = get_meters_per_unit(&usd_export_context_.export_params);
 
   pxr::UsdTimeCode timecode = get_export_time_code();
   pxr::UsdGeomCamera usd_camera = pxr::UsdGeomCamera::Define(usd_export_context_.stage,
@@ -78,7 +77,7 @@ void USDCameraWriter::do_write(HierarchyContext &context)
    * tenth_unit_to_millimeters = 1000 * unit_to_tenth_unit
    *                           = 100 * stage_meters_per_unit
    */
-  const float tenth_unit_to_mm = float(unit_scale * 100.0);
+  const float tenth_unit_to_mm = float(100.0 * meters_per_unit * scene->unit.scale_length);
 
   float sensor_size, aperture_x, aperture_y;
   camera_sensor_size_for_render(camera, &scene->r, &sensor_size, &aperture_x, &aperture_y);
