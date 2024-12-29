@@ -531,14 +531,14 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
   /* New / Unsaved file default title. Shows "Untitled" on macOS following the Apple HIGs.*/
   else {
 #ifdef __APPLE__
-    win_title.append("Untitled");
+    win_title.append(IFACE_("Untitled"));
 #else
-    win_title.append("(Unsaved)");
+    win_title.append(IFACE_("(Unsaved)"));
 #endif
   }
 
   if (G_MAIN->recovered) {
-    win_title.append(" (Recovered)");
+    win_title.append(IFACE_(" (Recovered)"));
   }
 
   if (include_filepath) {
