@@ -2762,8 +2762,8 @@ class USERPREF_PT_studiolight_light_editor(StudioLightPanel, Panel):
         flow = layout.grid_flow(row_major=True, columns=2, even_rows=True, even_columns=True)
         flow.active = system.use_studio_light_edit
 
-        for i, solid_light in enumerate(system.solid_lights):
-            self.opengl_light_buttons(flow, light=solid_light)
+        for i, light in enumerate(system.solid_lights):
+            self.opengl_light_buttons(flow, light)
 
         layout.prop(system, "light_ambient")
 
