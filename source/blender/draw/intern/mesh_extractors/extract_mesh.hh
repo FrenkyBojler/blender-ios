@@ -12,6 +12,7 @@
 
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_task.hh"
 #include "BLI_virtual_array.hh"
 
@@ -402,11 +403,11 @@ void extract_orco(const MeshRenderData &mr, gpu::VertBuf &vbo);
 void extract_mesh_analysis(const MeshRenderData &mr, gpu::VertBuf &vbo);
 
 void extract_attributes(const MeshRenderData &mr,
-                        const Span<DRW_AttributeRequest> requests,
+                        const Span<StringRef> requests,
                         const Span<gpu::VertBuf *> vbos);
 void extract_attributes_subdiv(const MeshRenderData &mr,
                                const DRWSubdivCache &subdiv_cache,
-                               const Span<DRW_AttributeRequest> requests,
+                               const Span<StringRef> requests,
                                const Span<gpu::VertBuf *> vbos);
 void extract_attr_viewer(const MeshRenderData &mr, gpu::VertBuf &vbo);
 

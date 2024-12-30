@@ -36,25 +36,13 @@ class Tree;
 
 namespace blender::draw::pbvh {
 
-class GenericRequest {
- public:
-  std::string name;
-  eCustomDataType type;
-  bke::AttrDomain domain;
-  GenericRequest(const StringRef name, const eCustomDataType type, const bke::AttrDomain domain)
-      : name(name), type(type), domain(domain)
-  {
-  }
-  BLI_STRUCT_EQUALITY_OPERATORS_3(GenericRequest, type, domain, name);
-};
-
 enum class CustomRequest : int8_t {
   Position,
   Normal,
   Mask,
   FaceSet,
 };
-
+using GenericRequest = std::string;
 using AttributeRequest = std::variant<CustomRequest, GenericRequest>;
 
 struct ViewportRequest {

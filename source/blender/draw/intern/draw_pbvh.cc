@@ -44,7 +44,7 @@ template<> struct DefaultHash<draw::pbvh::AttributeRequest> {
       return get_default_hash(*request_type);
     }
     const GenericRequest &attr = std::get<GenericRequest>(value);
-    return get_default_hash(attr.name);
+    return get_default_hash(attr);
   }
 };
 
@@ -237,7 +237,7 @@ void DrawCacheImpl::tag_attribute_changed(const IndexMask &node_mask, StringRef 
 {
   for (const auto &[data_request, data] : attribute_vbos_.items()) {
     if (const GenericRequest *request = std::get_if<GenericRequest>(&data_request)) {
-      if (request->name == attribute_name) {
+      if (*request == attribute_name) {
         data.tag_dirty(node_mask);
       }
     }
@@ -357,28 +357,6 @@ static GPUVertFormat format_for_request(const OrigMeshData &orig_mesh_data,
   }
   BLI_assert_unreachable();
   return {};
-}
-
-static bool pbvh_attr_supported(const AttributeRequest &request)
-{
-  if (std::holds_alternative<CustomRequest>(request)) {
-    return true;
-  }
-  const GenericRequest &attr = std::get<GenericRequest>(request);
-  if (!ELEM(attr.domain, bke::AttrDomain::Point, bke::AttrDomain::Face, bke::AttrDomain::Corner)) {
-    /* blender::bke::pbvh::Tree drawing does not support edge domain attributes. */
-    return false;
-  }
-  bool type_supported = false;
-  bke::attribute_math::convert_to_static_type(attr.type, [&](auto dummy) {
-    using T = decltype(dummy);
-    using Converter = AttributeConverter<T>;
-    using VBOType = typename Converter::VBOType;
-    if constexpr (!std::is_void_v<VBOType>) {
-      type_supported = true;
-    }
-  });
-  return type_supported;
 }
 
 inline short4 normal_float_to_short(const float3 &value)
@@ -516,8 +494,9 @@ void extract_data_corner_bmesh(const Set<BMFace *, 0> &faces,
   }
 }
 
-static const CustomData *get_cdata(const BMesh &bm, const bke::AttrDomain domain)
+static const CustomDataLayer *bmesh_attribute_lookup(const BMesh &bm, const StringRef name)
 {
+
   switch (domain) {
     case bke::AttrDomain::Point:
       return &bm.vdata;
@@ -928,7 +907,6 @@ static void fill_vbos_grids(const Object &object,
     }
   }
   else {
-    const eCustomDataType type = std::get<GenericRequest>(request).type;
     node_mask.foreach_index(GrainSize(1), [&](const int i) {
       bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
         using T = decltype(dummy);
@@ -1016,13 +994,15 @@ static void fill_vbos_mesh(const Object &object,
   }
   else {
     const GenericRequest &attr = std::get<GenericRequest>(request);
-    const StringRef name = attr.name;
-    const bke::AttrDomain domain = attr.domain;
-    const eCustomDataType data_type = attr.type;
     const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-    const GVArraySpan attribute = *attributes.lookup_or_default(name, domain, data_type);
+    const bke::GAttributeReader attribute = attributes.lookup(attr);
     node_mask.foreach_index(GrainSize(1), [&](const int i) {
-      fill_vbo_attribute_mesh(faces, corner_verts, attribute, domain, nodes[i].faces(), *vbos[i]);
+      fill_vbo_attribute_mesh(faces,
+                              corner_verts,
+                              GVArraySpan(attribute.varray),
+                              attribute.domain,
+                              nodes[i].faces(),
+                              *vbos[i]);
     });
   }
 }
@@ -1805,9 +1785,6 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
                                                           const AttributeRequest &attr,
                                                           const IndexMask &node_mask)
 {
-  if (!pbvh_attr_supported(attr)) {
-    return {};
-  }
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   AttributeData &data = attribute_vbos_.lookup_or_add_default(attr);
   Vector<gpu::VertBuf *> &vbos = data.vbos;

@@ -13,7 +13,6 @@
 
 #include "GPU_shader.hh"
 
-#include "draw_attributes.hh"
 
 namespace blender::gpu {
 class Batch;
@@ -25,6 +24,19 @@ namespace blender::draw {
 
 struct MeshRenderData;
 struct DRWSubdivCache;
+
+struct MeshAttributeRequests {
+  VectorSet<StringRef> generic_requests;
+  VectorSet<StringRef> uv_maps;
+  VectorSet<StringRef> tangents;
+  bool orco = false;
+  bool tan_orco = false;
+  bool sculpt_overlays = false;
+  /**
+   * Edit uv layer is from the base edit mesh as modifiers could remove it. (see #68857)
+   */
+  bool edit_uv = false;
+};
 
 /* Vertex Group Selection and display options */
 struct DRW_MeshWeightState {
@@ -255,9 +267,7 @@ struct MeshBatchCache {
 
   DRW_MeshWeightState weight_state;
 
-  DRW_MeshCDMask cd_used, cd_needed, cd_used_over_time;
-
-  DRW_Attributes attr_used, attr_needed, attr_used_over_time;
+  MeshAttributeRequests attr_used, attr_needed, attr_used_over_time;
 
   int lastmatch;
 

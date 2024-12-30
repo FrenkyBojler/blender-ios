@@ -22,7 +22,6 @@
 #include "DRW_gpu_wrapper.hh"
 #include "DRW_render.hh"
 
-#include "draw_attributes.hh"
 #include "draw_cache_impl.hh"
 #include "draw_common.hh"
 #include "draw_common_c.hh"

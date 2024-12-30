@@ -150,7 +150,7 @@ static void drw_curves_cache_update_compute(CurvesEvalCache *cache)
 
   drw_curves_cache_update_compute(cache, curves_num, cache->final.proc_buf, cache->proc_point_buf);
 
-  const DRW_Attributes &attrs = cache->final.attr_used;
+  // const DRW_Attributes &attrs = cache->final.attr_used;
   for (int i = 0; i < attrs.num_requests; i++) {
     /* Only refine point attributes. */
     if (attrs.requests[i].domain == bke::AttrDomain::Curve) {
@@ -282,7 +282,7 @@ static CurvesEvalCache *curves_cache_get(Curves &curves,
   if (final_points_len > 0) {
     cache_update(cache->final.proc_buf, cache->proc_point_buf);
 
-    const DRW_Attributes &attrs = cache->final.attr_used;
+    // const DRW_Attributes &attrs = cache->final.attr_used;
     for (int i : IndexRange(attrs.num_requests)) {
       /* Only refine point attributes. */
       if (attrs.requests[i].domain != bke::AttrDomain::Curve) {

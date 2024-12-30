@@ -781,7 +781,7 @@ class LazyFunctionForViewerNode : public LazyFunction {
       BLI_assert(value_variant != nullptr);
       GField field = value_variant->extract<GField>();
       const AttrDomain domain = AttrDomain(storage->domain);
-      const StringRefNull viewer_attribute_name = ".viewer";
+      const StringRef viewer_attribute_name = ".viewer";
       if (domain == AttrDomain::Instance) {
         if (geometry.has_instances()) {
           GeometryComponent &component = geometry.get_component_for_write(

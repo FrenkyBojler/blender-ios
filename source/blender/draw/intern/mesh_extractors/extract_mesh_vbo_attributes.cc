@@ -12,12 +12,12 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_mesh.hh"
 
 #include "attribute_convert.hh"
-#include "draw_attributes.hh"
 #include "draw_cache_inline.hh"
 #include "draw_subdivision.hh"
 #include "extract_mesh.hh"
@@ -32,22 +32,24 @@ namespace blender::draw {
 
 static void init_vbo_for_attribute(const MeshRenderData &mr,
                                    gpu::VertBuf &vbo,
-                                   const DRW_AttributeRequest &request,
+                                   const StringRef name,
+                                   const eCustomDataType data_type,
+                                   const bke::AttrDomain domain,
                                    bool build_on_device,
                                    uint32_t len)
 {
   char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-  GPU_vertformat_safe_attr_name(request.attribute_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
+  GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
   /* Attributes use auto-name. */
   SNPRINTF(attr_name, "a%s", attr_safe_name);
 
-  GPUVertFormat format = init_format_for_attribute(request.cd_type, attr_name);
+  GPUVertFormat format = init_format_for_attribute(data_type, attr_name);
   GPU_vertformat_deinterleave(&format);
 
-  if (mr.active_color_name && STREQ(request.attribute_name, mr.active_color_name)) {
+  if (mr.active_color_name && name == mr.active_color_name) {
     GPU_vertformat_alias_add(&format, "ac");
   }
-  if (mr.default_color_name && STREQ(request.attribute_name, mr.default_color_name)) {
+  if (mr.default_color_name && name == mr.default_color_name) {
     GPU_vertformat_alias_add(&format, "c");
   }
 
@@ -189,14 +191,18 @@ static const CustomData *get_custom_data_for_domain(const BMesh &bm, bke::AttrDo
   }
 }
 
-static void extract_attribute(const MeshRenderData &mr,
-                              const DRW_AttributeRequest &request,
-                              gpu::VertBuf &vbo)
+static void extract_attribute(const MeshRenderData &mr, const StringRef name, gpu::VertBuf &vbo)
 {
   if (mr.extract_type == MeshExtractType::BMesh) {
     const CustomData &custom_data = *get_custom_data_for_domain(*mr.bm, request.domain);
-    const char *name = request.attribute_name;
-    const int cd_offset = CustomData_get_offset_named(&custom_data, request.cd_type, name);
+    init_vbo_for_attribute(mr,
+                           vbo,
+                           name,
+                           bke::cpp_type_to_custom_data_type(attribute.varray.type()),
+                           attribute.domain,
+                           false,
+                           uint32_t(mr.corners_num));
+    const int cd_offset = CustomData_get_named_layer_index_notype(&custom_data, name);
 
     bke::attribute_math::convert_to_static_type(request.cd_type, [&](auto dummy) {
       using T = decltype(dummy);
@@ -222,25 +228,30 @@ static void extract_attribute(const MeshRenderData &mr,
   }
   else {
     const bke::AttributeAccessor attributes = mr.mesh->attributes();
-    const StringRef name = request.attribute_name;
-    const eCustomDataType data_type = request.cd_type;
-    const GVArraySpan attribute = *attributes.lookup_or_default(name, request.domain, data_type);
-
-    bke::attribute_math::convert_to_static_type(request.cd_type, [&](auto dummy) {
+    const bke::GAttributeReader attribute = attributes.lookup(name);
+    init_vbo_for_attribute(mr,
+                           vbo,
+                           name,
+                           bke::cpp_type_to_custom_data_type(attribute.varray.type()),
+                           attribute.domain,
+                           false,
+                           uint32_t(mr.corners_num));
+    bke::attribute_math::convert_to_static_type(attribute.varray.type(), [&](auto dummy) {
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
-        switch (request.domain) {
+        const VArraySpan<T> data = attribute.varray.typed<T>();
+        switch (attribute.domain) {
           case bke::AttrDomain::Point:
-            extract_data_mesh_mapped_corner(attribute.typed<T>(), mr.corner_verts, vbo);
+            extract_data_mesh_mapped_corner(data, mr.corner_verts, vbo);
             break;
           case bke::AttrDomain::Edge:
-            extract_data_mesh_mapped_corner(attribute.typed<T>(), mr.corner_edges, vbo);
+            extract_data_mesh_mapped_corner(data, mr.corner_edges, vbo);
             break;
           case bke::AttrDomain::Face:
-            extract_data_mesh_face(mr.faces, attribute.typed<T>(), vbo);
+            extract_data_mesh_face(mr.faces, data, vbo);
             break;
           case bke::AttrDomain::Corner:
-            vertbuf_data_extract_direct(attribute.typed<T>(), vbo);
+            vertbuf_data_extract_direct(data, vbo);
             break;
           default:
             BLI_assert_unreachable();
@@ -251,12 +262,11 @@ static void extract_attribute(const MeshRenderData &mr,
 }
 
 void extract_attributes(const MeshRenderData &mr,
-                        const Span<DRW_AttributeRequest> requests,
+                        const Span<StringRef> requests,
                         const Span<gpu::VertBuf *> vbos)
 {
   for (const int i : vbos.index_range()) {
     if (DRW_vbo_requested(vbos[i])) {
-      init_vbo_for_attribute(mr, *vbos[i], requests[i], false, uint32_t(mr.corners_num));
       extract_attribute(mr, requests[i], *vbos[i]);
     }
   }
@@ -264,12 +274,12 @@ void extract_attributes(const MeshRenderData &mr,
 
 void extract_attributes_subdiv(const MeshRenderData &mr,
                                const DRWSubdivCache &subdiv_cache,
-                               const Span<DRW_AttributeRequest> requests,
+                               const Span<StringRef> requests,
                                const Span<gpu::VertBuf *> vbos)
 {
   for (const int i : vbos.index_range()) {
     if (DRW_vbo_requested(vbos[i])) {
-      const DRW_AttributeRequest &request = requests[i];
+      const StringRef &request = requests[i];
 
       const Mesh *coarse_mesh = subdiv_cache.mesh;
 

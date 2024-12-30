@@ -26,6 +26,7 @@
 #include "GPU_uniform_buffer.hh"
 #include "GPU_viewport.hh"
 
+#include "draw_cache_extract.hh"
 #include "draw_instance_data.hh"
 #include "draw_shader_shared.hh"
 
@@ -36,7 +37,6 @@ struct DupliObject;
 struct Object;
 namespace blender::draw {
 struct CurvesUniformBufPool;
-struct DRW_Attributes;
 struct DRW_MeshCDMask;
 class CurveRefinePass;
 class View;
@@ -255,8 +255,7 @@ void DRW_mesh_get_attributes(const Object &object,
                              const Mesh &mesh,
                              const GPUMaterial *const *gpumat_array,
                              int gpumat_array_len,
-                             DRW_Attributes *r_attrs,
-                             DRW_MeshCDMask *r_cd_needed);
+                             MeshAttributeRequests *r_attrs);
 
 }  // namespace blender::draw
 

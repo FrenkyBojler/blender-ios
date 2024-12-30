@@ -8,7 +8,6 @@
 
 #include "draw_sculpt.hh"
 
-#include "draw_attributes.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
@@ -137,14 +136,14 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
       if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
               name))
       {
-        attrs.append(pbvh::GenericRequest{name, meta_data->data_type, meta_data->domain});
+        attrs.append(pbvh::GenericRequest{name});
       }
     }
   }
 
   if (features & SCULPT_BATCH_UV) {
     if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-      attrs.append(pbvh::GenericRequest{name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
+      attrs.append(pbvh::GenericRequest{name});
     }
   }
 
@@ -157,29 +156,20 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   BLI_assert(ob->type == OB_MESH);
   const Mesh *mesh = static_cast<const Mesh *>(ob->data);
 
-  DRW_Attributes draw_attrs;
-  DRW_MeshCDMask cd_needed;
-  DRW_mesh_get_attributes(*ob, *mesh, materials.data(), materials.size(), &draw_attrs, &cd_needed);
+  MeshAttributeRequests draw_attrs;
+  DRW_mesh_get_attributes(*ob, *mesh, materials.data(), materials.size(), &draw_attrs);
 
   Vector<pbvh::AttributeRequest, 16> attrs;
 
   attrs.append(pbvh::CustomRequest::Position);
   attrs.append(pbvh::CustomRequest::Normal);
 
-  for (int i = 0; i < draw_attrs.num_requests; i++) {
-    const DRW_AttributeRequest &req = draw_attrs.requests[i];
-    attrs.append(pbvh::GenericRequest{req.attribute_name, req.cd_type, req.domain});
+  for (const StringRef name : draw_attrs.generic_requests) {
+    attrs.append(pbvh::GenericRequest{name});
   }
 
-  /* UV maps are not in attribute requests. */
-  for (uint i = 0; i < 32; i++) {
-    if (cd_needed.uv & (1 << i)) {
-      int layer_i = CustomData_get_layer_index_n(&mesh->corner_data, CD_PROP_FLOAT2, i);
-      CustomDataLayer *layer = layer_i != -1 ? mesh->corner_data.layers + layer_i : nullptr;
-      if (layer) {
-        attrs.append(pbvh::GenericRequest{layer->name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
-      }
-    }
+  for (const StringRef name : draw_attrs.uv_maps) {
+    attrs.append(pbvh::GenericRequest{name});
   }
 
   return sculpt_batches_get_ex(ob, false, attrs);

@@ -20,6 +20,7 @@
 #include <cstring>
 
 #include "BLI_ghash.h"
+#include "BLI_hash_mm2a.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -244,10 +245,12 @@ static void safe_bytes(char out[11], const char data[8])
   }
 }
 
-void GPU_vertformat_safe_attr_name(const char *attr_name, char *r_safe_name, uint /*max_len*/)
+void GPU_vertformat_safe_attr_name(const blender::StringRef attr_name,
+                                   char *r_safe_name,
+                                   uint /*max_len*/)
 {
   char data[8] = {0};
-  uint len = strlen(attr_name);
+  uint len = attr_name.size();
 
   if (len > 8) {
     /* Start with the first 4 chars of the name. */
@@ -257,7 +260,8 @@ void GPU_vertformat_safe_attr_name(const char *attr_name, char *r_safe_name, uin
     /* We use a hash to identify each data layer based on its name.
      * NOTE: This is still prone to hash collision but the risks are very low. */
     /* Start hashing after the first 2 chars. */
-    *(uint *)&data[4] = BLI_ghashutil_strhash_p_murmur(attr_name + 4);
+    *(uint *)&data[4] = BLI_hash_mm2(
+        reinterpret_cast<const uchar *>(attr_name.data() + 4), attr_name.size() - 4, 0);
   }
   else {
     /* Copy the whole name. Collision is barely possible

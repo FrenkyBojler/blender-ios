@@ -29,7 +29,6 @@
 #include "GPU_batch.hh"
 #include "GPU_material.hh"
 
-#include "draw_attributes.hh"
 #include "draw_cache_impl.hh"
 #include "draw_cache_inline.hh"
 #include "draw_pointcloud_private.hh" /* own include */
@@ -58,12 +57,12 @@ struct PointCloudEvalCache {
   gpu::VertBuf *attributes_buf[GPU_MAX_ATTR];
 
   /** Attributes currently being drawn or about to be drawn. */
-  DRW_Attributes attr_used;
+  VectorSet<std::string> attr_used;
   /**
    * Attributes that were used at some point. This is used for garbage collection, to remove
    * attributes that are not used in shaders anymore due to user edits.
    */
-  DRW_Attributes attr_used_over_time;
+  VectorSet<std::string> attr_used_over_time;
 
   /**
    * The last time in seconds that the `attr_used` and `attr_used_over_time` were exactly the same.
@@ -147,7 +146,7 @@ static void pointcloud_discard_attributes(PointCloudBatchCache &cache)
     GPU_VERTBUF_DISCARD_SAFE(cache.eval_cache.attributes_buf[j]);
   }
 
-  drw_attributes_clear(&cache.eval_cache.attr_used);
+  cache.eval_cache.attr_used = {};
 }
 
 static void pointcloud_batch_cache_clear(PointCloud &pointcloud)
@@ -197,7 +196,11 @@ void DRW_pointcloud_batch_cache_free_old(PointCloud *pointcloud, int ctime)
 
   bool do_discard = false;
 
-  if (drw_attributes_overlap(&cache->eval_cache.attr_used_over_time, &cache->eval_cache.attr_used))
+  if (std::all_of(cache->eval_cache.attr_used.begin(),
+                  cache->eval_cache.attr_used.end(),
+                  [&](const std::string &name) {
+                    return cache->eval_cache.attr_used_over_time.contains(name);
+                  }))
   {
     cache->eval_cache.last_attr_matching_time = ctime;
   }
@@ -206,7 +209,7 @@ void DRW_pointcloud_batch_cache_free_old(PointCloud *pointcloud, int ctime)
     do_discard = true;
   }
 
-  drw_attributes_clear(&cache->eval_cache.attr_used_over_time);
+  cache->eval_cache.attr_used_over_time = {};
 
   if (do_discard) {
     pointcloud_discard_attributes(*cache);
@@ -293,7 +296,7 @@ static void pointcloud_extract_position_and_radius(const PointCloud &pointcloud,
 
 static void pointcloud_extract_attribute(const PointCloud &pointcloud,
                                          PointCloudBatchCache &cache,
-                                         const DRW_AttributeRequest &request,
+                                         const StringRef request_name,
                                          int index)
 {
   gpu::VertBuf &attr_buf = *cache.eval_cache.attributes_buf[index];
@@ -306,7 +309,7 @@ static void pointcloud_extract_attribute(const PointCloud &pointcloud,
    * similar texture state swizzle to map the attribute correctly as for volume attributes, so we
    * can control the conversion ourselves. */
   bke::AttributeReader<ColorGeometry4f> attribute = attributes.lookup_or_default<ColorGeometry4f>(
-      request.attribute_name, request.domain, {0.0f, 0.0f, 0.0f, 1.0f});
+      request_name, bke::AttrDomain::Point, {0.0f, 0.0f, 0.0f, 1.0f});
 
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
@@ -337,33 +340,28 @@ gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
                                            int mat_len)
 {
   PointCloudBatchCache *cache = pointcloud_batch_cache_get(*pointcloud);
-  DRW_Attributes attrs_needed;
-  drw_attributes_clear(&attrs_needed);
+  VectorSet<std::string> attrs_needed;
 
   for (GPUMaterial *gpu_material : Span<GPUMaterial *>(gpu_materials, mat_len)) {
     ListBase gpu_attrs = GPU_material_attributes(gpu_material);
     LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
-      const char *name = gpu_attr->name;
-
-      int layer_index;
-      eCustomDataType type;
-      bke::AttrDomain domain = bke::AttrDomain::Point;
-      if (!drw_custom_data_match_attribute(pointcloud->pdata, name, &layer_index, &type)) {
-        continue;
-      }
-
-      drw_attributes_add_request(&attrs_needed, name, type, layer_index, domain);
+      attrs_needed.add_as(gpu_attr->name);
     }
   }
 
-  if (!drw_attributes_overlap(&cache->eval_cache.attr_used, &attrs_needed)) {
+  if (std::any_of(attrs_needed.begin(), attrs_needed.end(), [&](const std::string &name) {
+        return !cache->eval_cache.attr_used.contains(name);
+      }))
+  {
     /* Some new attributes have been added, free all and start over. */
     for (const int i : IndexRange(GPU_MAX_ATTR)) {
       GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.attributes_buf[i]);
     }
-    drw_attributes_merge(&cache->eval_cache.attr_used, &attrs_needed, cache->render_mutex);
+    /* TODO: Locking and performance. */
+    cache->eval_cache.attr_used = attrs_needed;
   }
-  drw_attributes_merge(&cache->eval_cache.attr_used_over_time, &attrs_needed, cache->render_mutex);
+  /* TODO: Locking and performance. */
+  cache->eval_cache.attr_used_over_time = attrs_needed;
 
   DRW_batch_request(&cache->eval_cache.surface_per_mat[0]);
   return cache->eval_cache.surface_per_mat;
@@ -398,26 +396,14 @@ gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, const 
 {
   PointCloudBatchCache &cache = *pointcloud_batch_cache_get(*pointcloud);
 
-  int layer_index;
-  eCustomDataType type;
-  bke::AttrDomain domain = bke::AttrDomain::Point;
-  if (drw_custom_data_match_attribute(pointcloud->pdata, name, &layer_index, &type)) {
-    DRW_Attributes attributes{};
-    drw_attributes_add_request(&attributes, name, type, layer_index, domain);
-    drw_attributes_merge(&cache.eval_cache.attr_used, &attributes, cache.render_mutex);
-  }
-
-  int request_i = -1;
-  for (const int i : IndexRange(cache.eval_cache.attr_used.num_requests)) {
-    if (STREQ(cache.eval_cache.attr_used.requests[i].attribute_name, name)) {
-      request_i = i;
-      break;
+  int request_i = 0;
+  for (const StringRef request_name : cache.eval_cache.attr_used) {
+    if (request_name == name) {
+      return &cache.eval_cache.attributes_buf[request_i];
     }
+    request_i++;
   }
-  if (request_i == -1) {
-    return nullptr;
-  }
-  return &cache.eval_cache.attributes_buf[request_i];
+  return nullptr;
 }
 
 void DRW_pointcloud_batch_cache_create_requested(Object *ob)
@@ -439,14 +425,15 @@ void DRW_pointcloud_batch_cache_create_requested(Object *ob)
       DRW_ibo_request(cache.eval_cache.surface_per_mat[i], &cache.eval_cache.geom_indices);
     }
   }
-  for (int j = 0; j < cache.eval_cache.attr_used.num_requests; j++) {
-    DRW_vbo_request(nullptr, &cache.eval_cache.attributes_buf[j]);
+  int request_i = 0;
+  for (const StringRef request_name : cache.eval_cache.attr_used) {
+    DRW_vbo_request(nullptr, &cache.eval_cache.attributes_buf[request_i]);
 
-    if (DRW_vbo_requested(cache.eval_cache.attributes_buf[j])) {
-      pointcloud_extract_attribute(*pointcloud, cache, cache.eval_cache.attr_used.requests[j], j);
+    if (DRW_vbo_requested(cache.eval_cache.attributes_buf[request_i])) {
+      pointcloud_extract_attribute(*pointcloud, cache, request_name, request_i);
     }
+    request_i++;
   }
-
   if (DRW_ibo_requested(cache.eval_cache.geom_indices)) {
     pointcloud_extract_indices(*pointcloud, cache);
   }

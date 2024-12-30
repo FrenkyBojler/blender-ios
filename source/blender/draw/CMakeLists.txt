@@ -159,7 +159,6 @@ set(SRC
   intern/DRW_gpu_wrapper.hh
   intern/DRW_render.hh
   intern/attribute_convert.hh
-  intern/draw_attributes.hh
   intern/draw_cache.hh
   intern/draw_cache_extract.hh
   intern/draw_cache_impl.hh
