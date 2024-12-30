@@ -423,13 +423,13 @@ static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
   return br->sculpt_brush_type == SCULPT_BRUSH_TYPE_LAYER;
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_plane_depth_get(PointerRNA *ptr)
+static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA* ptr)
 {
-  Brush *br = (Brush *)ptr->data;
+  Brush* br = (Brush*)ptr->data;
   return ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_PLANE);
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA *ptr)
+static bool rna_BrushCapabilitiesSculpt_has_plane_depth_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
   return ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_PLANE);
@@ -2415,11 +2415,11 @@ static void rna_def_brush(BlenderRNA *brna)
        0,
        "Invert Displacement",
        "Invert Displacement"},
-      {BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT,
+      {BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH,
        "SWAP_DEPTH_AND_HEIGHT",
        0,
-       "Swap depth and height",
-       "Swap depth and height"},
+       "Swap Height and Depth",
+       "Swap Height and Depth"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

@@ -265,7 +265,7 @@ typedef enum eBrushSnakeHookDeformType {
 
 typedef enum eBrushPlaneInversionMode {
   BRUSH_PLANE_INVERT_DISPLACEMENT = 0,
-  BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT = 1,
+  BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH = 1,
 } eBrushPlaneInversionMode;
 
 /** #Gpencilsettings.Vertex_mode */

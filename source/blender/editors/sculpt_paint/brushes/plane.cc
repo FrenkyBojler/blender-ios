@@ -9,13 +9,13 @@
  * The vertices are displaced along the direction parallel to the normal of the plane.
  *
  * The z-distances of the vertices are affected by two parameters:
- *  - **Depth**: Affects the z-distances of the vertices below the plane.
- *  - **Height**: Affects the z-distances of the vertices above the plane.
+ *  - Height: Affects the z-distances of the vertices above the plane.
+ *  - Depth: Affects the z-distances of the vertices below the plane.
  *
  * Invert Modes:
- *  - **Invert Displacement**: Reverses the default behavior, displacing
+ *  - Invert Displacement: Reverses the default behavior, displacing
  *    vertices away from the plane.
- *  - **Swap Depth and Height**: Exchanges the roles of **Depth** and **Height**.
+ *  - Swap Height and Depth: Exchanges the roles of Height and Depth.
  */
 
 #include "editors/sculpt_paint/brushes/types.hh"
@@ -66,6 +66,8 @@ static void calc_local_positions(const float4x4 &mat,
   }
 }
 
+
+
 static void calc_local_positions(const float4x4 &mat,
                                  const Span<float3> positions,
                                  const MutableSpan<float3> local_positions)
@@ -77,37 +79,21 @@ static void calc_local_positions(const float4x4 &mat,
 
 /**
  * Computes the local distances. For vertices above the plane,
- * the z-distance is divided by `height`, effectively scaling the
- * z-distance so that a vertex of local coordinates
+ * the z-distances are divided by `height`, effectively scaling the
+ * z-distances so that a vertex of local coordinates
  * (0, 0, height) has a z-distance of 1.
- * When `height` is 0, the local distances are set to 1, resulting
- * in a falloff strength of 0 (no displacement).
+ .
+ * When `height` is 0, the local distances are set to 1. In object space, this is
+ * equivalent to setting the distances equal to the radius, resulting in
+ * a falloff strength of 0 (no displacement).
  *
  * The effect of `depth` on vertices below the plane is analogous.
  */
-static void calc_local_distances(const float depth,
-                                 const float height,
+static void calc_local_distances(const float height,
+                                 const float depth,
                                  const MutableSpan<float3> local_positions,
                                  const MutableSpan<float> distances)
 {
-  if (depth != 0.0f) {
-    const float depth_rcp = math::rcp(depth);
-
-    for (const int i : local_positions.index_range()) {
-      const float3 position = local_positions[i];
-      if (position.z < 0.0f) {
-        distances[i] = math::length(float3(position.x, position.y, position.z * depth_rcp));
-      }
-    }
-  }
-  else {
-    for (const int i : local_positions.index_range()) {
-      if (local_positions[i].z < 0.0f) {
-        distances[i] = 1.0f;
-      }
-    }
-  }
-
   if (height != 0.0f) {
     const float height_rcp = math::rcp(height);
 
@@ -125,24 +111,78 @@ static void calc_local_distances(const float depth,
       }
     }
   }
+
+  if (depth != 0.0f) {
+    const float depth_rcp = math::rcp(depth);
+
+    for (const int i : local_positions.index_range()) {
+      const float3 position = local_positions[i];
+      if (position.z < 0.0f) {
+        distances[i] = math::length(float3(position.x, position.y, position.z * depth_rcp));
+      }
+    }
+  }
+  else {
+    for (const int i : local_positions.index_range()) {
+      if (local_positions[i].z < 0.0f) {
+        distances[i] = 1.0f;
+      }
+    }
+  }
+}
+
+/*
+* Scales factors by `height` (if local z > 0) or `depth` (if local z < 0).
+* This is necessary to "normalize" the strength contribute given by the local z distance.
+* 
+* Note that if `height` = 0, the falloff strength of the vertices
+* above the plane is 0 (see `calc_local_distances`), hence
+* the factor for such vertices is already 0.
+* 
+* The same is true for vertices below the plane if `depth` = 0.
+*/
+static void scale_factors_by_height_and_depth(const float height,
+  const float depth,
+  const MutableSpan<float3> local_positions,
+  const MutableSpan<float> factors)
+{
+  if (height != 1.0f && height != 0.0f) {
+    for (const int i : factors.index_range()) {
+      if (local_positions[i].z > 0.0f) {
+        factors[i] *= height;
+      }
+    }
+  }
+
+  if (depth != 1.0f && depth != 0.0f) {
+    for (const int i : factors.index_range()) {
+      if (local_positions[i].z < 0.0f) {
+        factors[i] *= depth;
+      }
+    }
+  }
 }
 
 /*
  * Computes the translation vectors for the "Plane" brush.
  *
- * The translation of a vertex with index `i`, position `P`, and plane projection `Q`
- * is determined by the vector `PQ` scaled by `factors[i]` and `strength`.
+ * The translation of a vertex with index i, position P, and plane projection P'
+ * is determined by the vector PP' scaled by `factors[i]` and `strength`.
  *
- * In local (brush) space, `PQ` is calculated as:
- *   PQ = Q - P = (x, y, 0) - (x, y, z) = (0, 0, -z).
+ * In local (brush) space, PQ is given by:
+ *    PP' = P' - P = (x, y, 0) - (x, y, z) = (0, 0, -z).
  *
  * Therefore, the translation in object space is:
- *   T = A * (0, 0, -z) * factors[i] * strength,
- * where `A` is the local-to-object transformation matrix.
+ *    T = A * (0, 0, -z) * factors[i] * strength
  *
- * Given how the local space is defined, `A * (0, 0, -z)` simplifies to `-z * radius *
- * plane_normal`. Substituting this back, the translation becomes: T = -z * radius * plane_normal *
- * factors[i] * strength = (factors[i] * z) * (-plane_normal * radius * strength).
+ * where `A` is the 3x3 local-to-object transformation matrix.
+ *
+ * Given how the local space is defined, A * (0, 0, -z) simplifies to
+ *    -z * radius * plane_normal
+ *
+ * Substituting this back, the translation becomes:
+ *    T = -z * radius * plane_normal * factors[i] * strength
+ *  = (factors[i] * z) * (-plane_normal * radius * strength).
  */
 static void calc_translations(const float3 &plane_normal,
                               const float radius,
@@ -165,8 +205,8 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const float4x4 &mat,
                        const float3 &plane_normal,
                        const float strength,
-                       const float depth,
                        const float height,
+                       const float depth,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
                        const bke::pbvh::MeshNode &node,
@@ -194,7 +234,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.distances.resize(verts.size());
   const MutableSpan<float> local_distances = tls.distances;
-  calc_local_distances(depth, height, local_positions, local_distances);
+  calc_local_distances(height, depth, local_positions, local_distances);
 
   apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
   BKE_brush_calc_curve_factors(
@@ -206,6 +246,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
+  scale_factors_by_height_and_depth(height, depth, local_positions, factors);
   calc_translations(plane_normal, cache.radius, strength, local_positions, factors, translations);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
@@ -219,8 +260,8 @@ static void calc_grids(const Depsgraph &depsgraph,
                        const float4x4 &mat,
                        const float3 &plane_normal,
                        const float strength,
-                       const float depth,
                        const float height,
+                       const float depth,
                        bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
@@ -246,7 +287,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> local_distances = tls.distances;
-  calc_local_distances(depth, height, local_positions, local_distances);
+  calc_local_distances(height, depth, local_positions, local_distances);
 
   apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
   BKE_brush_calc_curve_factors(
@@ -258,6 +299,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
+  scale_factors_by_height_and_depth(height, depth, local_positions, factors);
   calc_translations(plane_normal, cache.radius, strength, local_positions, factors, translations);
 
   clip_and_lock_translations(sd, ss, positions, translations);
@@ -271,8 +313,8 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        const float4x4 &mat,
                        const float3 &plane_normal,
                        const float strength,
-                       const float depth,
                        const float height,
+                       const float depth,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
@@ -296,7 +338,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> local_distances = tls.distances;
-  calc_local_distances(depth, height, local_positions, local_distances);
+  calc_local_distances(height, depth, local_positions, local_distances);
 
   apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
   BKE_brush_calc_curve_factors(
@@ -308,7 +350,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
-
+  scale_factors_by_height_and_depth(height, depth, local_positions, factors);
   calc_translations(plane_normal, cache.radius, strength, local_positions, factors, translations);
 
   clip_and_lock_translations(sd, ss, positions, translations);
@@ -352,8 +394,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
   mat = math::invert(tmat);
 
   float strength = ss.cache->bstrength;
-  float depth = brush.plane_depth;
   float height = brush.plane_height;
+  float depth = brush.plane_depth;
 
   const bool flip = brush_flip(brush, *ss.cache) < 0.0f;
 
@@ -363,8 +405,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
         strength *= -1.0f;
         break;
       }
-      case BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT: {
-        std::swap(depth, height);
+      case BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH: {
+        std::swap(height, depth);
         break;
       }
     }
@@ -386,8 +428,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
                    mat,
                    plane_normal,
                    strength,
-                   depth,
                    height,
+                   depth,
                    attribute_data,
                    vert_normals,
                    nodes[i],
@@ -411,8 +453,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
                    mat,
                    plane_normal,
                    strength,
-                   depth,
                    height,
+                   depth,
                    nodes[i],
                    tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
@@ -430,8 +472,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
                    mat,
                    plane_normal,
                    strength,
-                   depth,
                    height,
+                   depth,
                    nodes[i],
                    tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
