@@ -7,6 +7,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_offset_indices.hh"
 
@@ -153,73 +154,18 @@ static void SVG_add_polygon(std::ofstream &f,
   f << "\"/>\n";
 }
 
-static void SVG_add_polygons_as_path(std::ofstream &f,
-                                     const std::string &class_name,
-                                     const Span<float2> points,
-                                     const OffsetIndices<int> points_by_polygon,
-                                     const SVGMapping &mapping)
-{
-  f << "<path class = \"" << class_name << "\" d = \"";
-  for (const int polygon_id : points_by_polygon.index_range()) {
-    const IndexRange vert_ids = points_by_polygon[polygon_id];
-    if (polygon_id != 0) {
-      f << " ";
-    }
-
-    f << "M ";
-    for (const int i : vert_ids) {
-      const float2 &point = points[i];
-      const int j = i - vert_ids.first();
-
-      if (j == 1) {
-        f << " L ";
-      }
-      else if (j != 0) {
-        f << ", ";
-      }
-      f << mapping.SX(point[0]) << "," << mapping.SY(point[1]);
-    }
-    f << " Z";
-  }
-
-  f << "\"";
-
-  f << " fill-rule=\"evenodd\"";
-
-  f << "/>\n";
-}
-
-static void SVG_add_line(std::ofstream &f,
+static void SVG_add_path(std::ofstream &f,
                          const std::string &class_name,
                          const Span<float2> points,
+                         const OffsetIndices<int> points_by_polygon,
+                         const Span<bool> cyclic,
                          const SVGMapping &mapping)
 {
-  f << "<path class = \"" << class_name << "\" d = \"";
-
-  f << "M ";
-  for (const int i : points.index_range()) {
-    const float2 &point = points[i];
-
-    if (i == 1) {
-      f << " L ";
-    }
-    else if (i != 0) {
-      f << ", ";
-    }
-    f << mapping.SX(point[0]) << "," << mapping.SY(point[1]);
+  if (points_by_polygon.size() == 1 && cyclic.first() == true) {
+    SVG_add_polygon(f, class_name, points, mapping);
+    return;
   }
 
-  f << "\"";
-
-  f << "/>\n";
-}
-
-static void SVG_add_lines(std::ofstream &f,
-                          const std::string &class_name,
-                          const Span<float2> points,
-                          const OffsetIndices<int> points_by_polygon,
-                          const SVGMapping &mapping)
-{
   f << "<path class = \"" << class_name << "\" d = \"";
   for (const int polygon_id : points_by_polygon.index_range()) {
     const IndexRange vert_ids = points_by_polygon[polygon_id];
@@ -240,9 +186,16 @@ static void SVG_add_lines(std::ofstream &f,
       }
       f << mapping.SX(point[0]) << "," << mapping.SY(point[1]);
     }
+    if (cyclic[polygon_id]) {
+      f << " Z";
+    }
   }
 
   f << "\"";
+
+  if (array_utils::count_booleans(VArray<bool>::ForSpan(cyclic)) != 0) {
+    f << " fill-rule=\"evenodd\"";
+  }
 
   f << "/>\n";
 }
@@ -287,10 +240,12 @@ std::ofstream get_file_stream()
   return f;
 }
 
-void draw_polygons(const std::string &label,
-                   const Span<float2> curve_a,
-                   const Span<float2> curve_b,
-                   const BooleanResult &result)
+void draw_results(const std::string &label,
+                  const std::string &type,
+                  const Span<bool> is_cyclic,
+                  const Span<float2> curve_a,
+                  const Span<float2> curve_b,
+                  const BooleanResult &result)
 {
   if (!DO_DRAW) {
     return;
@@ -309,67 +264,19 @@ void draw_polygons(const std::string &label,
 
   f << "<svg width=\"" << mapping.view_width << "\" height=\"" << mapping.view_height << "\">\n";
 
-  SVG_add_polygon(f, "polygon-A", curve_a, mapping);
-  SVG_add_polygon(f, "polygon-B", curve_b, mapping);
+  const Array<int> offset_a = {0, int(curve_a.size())};
+  const Array<int> offset_b = {0, int(curve_b.size())};
+
+  SVG_add_path(f, type + "-A", curve_a, OffsetIndices<int>(offset_a), {is_cyclic[0]}, mapping);
+  SVG_add_path(f, type + "-B", curve_b, OffsetIndices<int>(offset_b), {is_cyclic[1]}, mapping);
   Array<float2> points(result.point_offsets.last());
   calculate_positions(curve_a, curve_b, result, points.as_mutable_span());
 
   const OffsetIndices<int> points_by_polygon = OffsetIndices<int>(result.point_offsets);
 
-  if (points_by_polygon.size() == 1) {
-    SVG_add_polygon(f, "polygon-C", points, mapping);
-  }
-  else {
-    SVG_add_polygons_as_path(f, "polygon-C", points, points_by_polygon, mapping);
-  }
+  SVG_add_path(f, type + "-C", points, points_by_polygon, result.cyclic, mapping);
 
   f << "</svg>\n";
-
-  f << "</div>\n";
-}
-
-void draw_cut(const std::string &label,
-              const bool is_a_cyclic,
-              const Span<float2> curve_a,
-              const Span<float2> curve_b,
-              const BooleanResult &result)
-{
-  if (!DO_DRAW) {
-    return;
-  }
-
-  const Bounds<float2> bounds = *bounds::merge(bounds::min_max(curve_a), bounds::min_max(curve_b));
-  SVGMapping mapping = SVGMapping(bounds);
-
-  std::ofstream f = get_file_stream();
-  if (!f) {
-    return;
-  }
-
-  f << "<div>\n";
-  f << "<h1>" << label << "</h1>\n";
-
-  f << "<svg width=\"" << mapping.view_width << "\" height=\"" << mapping.view_height << "\">\n";
-
-  if (is_a_cyclic) {
-    SVG_add_polygon(f, "cut-A", curve_a, mapping);
-  }
-  else {
-    SVG_add_line(f, "cut-A", curve_a, mapping);
-  }
-  SVG_add_polygon(f, "cut-B", curve_b, mapping);
-
-  Array<float2> points(result.point_offsets.last());
-  calculate_positions(curve_a, curve_b, result, points.as_mutable_span());
-
-  const OffsetIndices<int> points_by_polygon = OffsetIndices<int>(result.point_offsets);
-
-  if (points_by_polygon.size() == 1) {
-    SVG_add_line(f, "cut-C", points, mapping);
-  }
-  else {
-    SVG_add_lines(f, "cut-C", points, points_by_polygon, mapping);
-  }
 
   f << "</div>\n";
 }
@@ -427,7 +334,7 @@ TEST(polygonboolean, Squares_A_And_B)
   const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Squares A intersection B", points_a, points_b, result);
+  draw_results("Squares A intersection B", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Squares_A_Or_B)
@@ -442,7 +349,7 @@ TEST(polygonboolean, Squares_A_Or_B)
       {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2, 1}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Squares A Union B", points_a, points_b, result);
+  draw_results("Squares A Union B", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Squares_A_Not_B)
@@ -457,7 +364,7 @@ TEST(polygonboolean, Squares_A_Not_B)
   const Array<Vector<float2>> expected_points = {{{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Squares A Difference B", points_a, points_b, result);
+  draw_results("Squares A Difference B", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Simple_Intersection)
@@ -478,7 +385,7 @@ TEST(polygonboolean, Simple_Intersection)
                                                  {{2, 3}, {2, 4}, {3, 3}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Simple Intersection", points_a, points_b, result);
+  draw_results("Simple Intersection", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Simple_Union)
@@ -498,7 +405,7 @@ TEST(polygonboolean, Simple_Union)
       {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}}, {{3, 3}, {4, 2}, {5, 3}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Simple Union", points_a, points_b, result);
+  draw_results("Simple Union", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Complex_A_And_B)
@@ -524,7 +431,7 @@ TEST(polygonboolean, Complex_A_And_B)
       {{7.38462, 6}, {7.21053, 5.24561}, {7.76923, 5.30769}, {8, 6}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Complex A Intersection B", points_a, points_b, result);
+  draw_results("Complex A Intersection B", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Complex_A_Or_B)
@@ -565,7 +472,7 @@ TEST(polygonboolean, Complex_A_Or_B)
       {{5, 5}, {6.95349, 4.13178}, {7.21053, 5.24561}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Complex A Union B", points_a, points_b, result);
+  draw_results("Complex A Union B", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Complex_A_Not_B)
@@ -600,7 +507,7 @@ TEST(polygonboolean, Complex_A_Not_B)
       {{8, 6}, {7.76923, 5.30769}, {10.5059, 5.61176}, {10.3333, 6}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Complex A Difference B", points_a, points_b, result);
+  draw_results("Complex A Difference B", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Last_Segment_Interection)
@@ -634,7 +541,7 @@ TEST(polygonboolean, Last_Segment_Interection)
                                                   {1, 5}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_polygons("Last Segment Loop", points_a, points_b, result);
+  draw_results("Last Segment Loop", "polygon", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Simple_Cut)
@@ -651,7 +558,7 @@ TEST(polygonboolean, Simple_Cut)
                                                  {{0.857143, 3.14286}, {0, 2}, {0, 0}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_cut("Simple Cut", false, points_a, points_b, result);
+  draw_results("Simple Cut", "cut", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Simple_Cut_2)
@@ -666,7 +573,7 @@ TEST(polygonboolean, Simple_Cut_2)
   const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_cut("Simple Cut 2", false, points_a, points_b, result);
+  draw_results("Simple Cut 2", "cut", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Simple_Cut_3)
@@ -685,7 +592,7 @@ TEST(polygonboolean, Simple_Cut_3)
                                                  {{1.6, 3.8}, {1.27273, 3.36364}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_cut("Simple Cut 3", false, points_a, points_b, result);
+  draw_results("Simple Cut 3", "cut", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Simple_Cut_4)
@@ -704,7 +611,7 @@ TEST(polygonboolean, Simple_Cut_4)
                                                  {{1.42857, 2.57143}, {1, 2}, {1, 0}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_cut("Simple Cut 4", false, points_a, points_b, result);
+  draw_results("Simple Cut 4", "cut", is_cyclic, points_a, points_b, result);
 }
 
 TEST(polygonboolean, Cyclical_Cut)
@@ -721,7 +628,7 @@ TEST(polygonboolean, Cyclical_Cut)
                                                  {{1.8, 2.8}, {1, 2}, {1, 0}, {2.6, 1.6}}};
   expect_boolean_result_coord(points_a, points_b, result, expected_points);
 
-  draw_cut("Cyclical Cut", true, points_a, points_b, result);
+  draw_results("Cyclical Cut", "cut", is_cyclic, points_a, points_b, result);
 }
 
 }  // namespace blender::polygonboolean
