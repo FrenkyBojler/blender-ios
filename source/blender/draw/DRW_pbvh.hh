@@ -36,13 +36,15 @@ class Tree;
 
 namespace blender::draw::pbvh {
 
+using GenericRequest = std::string;
+
 enum class CustomRequest : int8_t {
   Position,
   Normal,
   Mask,
   FaceSet,
 };
-using GenericRequest = std::string;
+
 using AttributeRequest = std::variant<CustomRequest, GenericRequest>;
 
 struct ViewportRequest {

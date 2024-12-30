@@ -336,8 +336,8 @@ static GPUVertFormat attribute_format(const OrigMeshData &orig_mesh_data,
   return format;
 }
 
-static GPUVertFormat format_for_request(const OrigMeshData &orig_mesh_data,
-                                        const AttributeRequest &request)
+static GPUVertFormat format_for_vbo(const OrigMeshData &orig_mesh_data,
+                                    const AttributeRequest &request)
 {
   if (const CustomRequest *request_type = std::get_if<CustomRequest>(&request)) {
     switch (*request_type) {
@@ -1803,7 +1803,7 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
       node_mask.slice_content(data.dirty_nodes.index_range()), data.dirty_nodes, memory);
   const IndexMask mask = IndexMask::from_union(empty_mask, dirty_mask, memory);
 
-  const GPUVertFormat format = format_for_request(orig_mesh_data, attr);
+  const GPUVertFormat format = format_for_vbo(orig_mesh_data, attr);
 
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
