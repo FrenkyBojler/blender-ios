@@ -949,7 +949,6 @@ static void read_edge_creases(Mesh *mesh,
   }
 
   const Span<int2> edges = mesh->edges_for_write();
-
   Map<OrderedEdge, int> edge_hash;
   edge_hash.reserve(edges.size());
   for (const int i : edges.index_range()) {
@@ -968,7 +967,7 @@ static void read_edge_creases(Mesh *mesh,
       continue;
     }
 
-    creases.span[*index] = (*sharpnesses)[s];
+    creases.span[*index] = std::clamp((*sharpnesses)[s], 0.0f, 1.0f);
   }
 }
 
