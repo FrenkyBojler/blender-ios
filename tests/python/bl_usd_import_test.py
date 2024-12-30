@@ -1653,7 +1653,6 @@ class USDImportTest(AbstractUSDTest):
         root = bpy.data.objects["root"]
         self.assertEqual(self.round_vector(root.scale), [0.01, 0.01, 0.01])
 
-
     def test_material_import_usd_hook(self):
         """Test importing color from an mtlx shader."""
 
