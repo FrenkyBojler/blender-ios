@@ -170,6 +170,10 @@ class Segment {
       return points;
     }
 
+    if (!this->has_start_intersection() && this->has_end_intersection()) {
+      return IndexRange::from_begin_end_inclusive(points.first(), point_2);
+    }
+
     /* If both intersection points are on the same edge, there's ether no points between or
      * all of the points are. */
     if (point_1 == point_2) {
@@ -326,7 +330,9 @@ void calculate_positions(Span<float2> pos_a,
 
 std::optional<BooleanResult> curve_boolean_calc(const Operation boolean_mode,
                                                 Span<float2> curve_a,
-                                                Span<float2> curve_b);
+                                                Span<float2> curve_b,
+                                                Span<bool> is_fill,
+                                                Span<bool> is_cyclic);
 /**
  * `Cut` behaves like `NotB` but with `A` not having any fill, and so `A` is cut into separate
  * parts without any segments of `B` is left in the result.

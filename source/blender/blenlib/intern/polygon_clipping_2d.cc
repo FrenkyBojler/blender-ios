@@ -1037,11 +1037,12 @@ void calculate_positions(const Span<float2> pos_a,
 
 std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
                                              const Span<float2> curve_a,
-                                             const Span<float2> curve_b)
+                                             const Span<float2> curve_b,
+                                             const Span<bool> is_fill,
+                                             const Span<bool> is_cyclic)
 {
   const int num_curves = 2;
   Array<IndexRange> points_per_curve({curve_a.index_range(), curve_b.index_range()});
-  Array<bool> input_cyclic({true, true});
 
   Vector<ExtendedIntersectionPoint> intersections;
   Array<Vector<int>> inters_per_curves(num_curves);
@@ -1054,8 +1055,11 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
     const IndexRange points_i = points_per_curve[curve_i];
     const IndexRange points_j = points_per_curve[curve_j];
 
-    for (const int i : points_i.index_range()) {
-      for (const int j : points_j.index_range()) {
+    const bool is_cyclic_i = is_cyclic[curve_i];
+    const bool is_cyclic_j = is_cyclic[curve_j];
+
+    for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
+      for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
         float alpha_a, alpha_b;
         const int val = intersect(curve_a[points_i[i]],
                                   curve_a[points_i[(i + 1) % points_i.size()]],
@@ -1099,7 +1103,7 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
     if (inters_per_curve.is_empty() &&
         contributing_rule(current_winding_order, is_subj, boolean_mode))
     {
-      if (input_cyclic[curve_i]) {
+      if (is_cyclic[curve_i]) {
         unsorted_segments.append(Segment::from_loop(curve_i, points));
       }
       else {
@@ -1122,7 +1126,7 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
       }
     });
 
-    if (input_cyclic[curve_i]) {
+    if (is_cyclic[curve_i]) {
       if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
         const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
         const int int_p_2 = inters_per_curve[inter_sorted_ids.last()];
@@ -1136,11 +1140,11 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
     }
     else {
       if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
-        const ExtendedIntersectionPoint &inter_first =
-            intersections[inters_per_curve[inter_sorted_ids.first()]];
+        const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
+        const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
 
-        unsorted_segments.append(Segment::from_start_to_intersection(
-            curve_i, points, inter_first, inters_per_curve[inter_sorted_ids.first()]));
+        unsorted_segments.append(
+            Segment::from_start_to_intersection(curve_i, points, inter_first, int_p_1));
       }
     }
 
@@ -1150,12 +1154,16 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
 
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
 
-      current_winding_order++; /* TODO */
-      // current_winding_order += seg_seg_winding(
-      //     curve_a[inter_first.point_a],
-      //     curve_a[(inter_first.point_a + 1) % curve_a.size()],
-      //     curve_b[inter_first.point_b],
-      //     curve_b[(inter_first.point_b + 1) % curve_b.size()]);
+      const int other_curve_i = 1 - curve_i; /* TODO */
+
+      if (is_fill[other_curve_i]) {
+        current_winding_order++; /* TODO */
+        // current_winding_order += seg_seg_winding(
+        //     curve_a[inter_first.point_a],
+        //     curve_a[(inter_first.point_a + 1) % curve_a.size()],
+        //     curve_b[inter_first.point_b],
+        //     curve_b[(inter_first.point_b + 1) % curve_b.size()]);
+      }
 
       if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
         const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
@@ -1165,13 +1173,22 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
       }
     }
 
-    if (!input_cyclic[curve_i] && contributing_rule(current_winding_order, is_subj, boolean_mode))
-    {
-      const ExtendedIntersectionPoint &inter_last =
-          intersections[inter_sorted_ids[inters_per_curve.last()]];
+    current_winding_order++; /* TODO */
+    // if (is_fill[other_curve_i]) {
+    //     current_winding_order++; /* TODO */
+    //     // current_winding_order += seg_seg_winding(
+    //     //     curve_a[inter_first.point_a],
+    //     //     curve_a[(inter_first.point_a + 1) % curve_a.size()],
+    //     //     curve_b[inter_first.point_b],
+    //     //     curve_b[(inter_first.point_b + 1) % curve_b.size()]);
+    //   }
 
-      unsorted_segments.append(Segment::from_intersection_to_end(
-          curve_i, points, inter_last, inter_sorted_ids[inters_per_curve.last()]));
+    if (!is_cyclic[curve_i] && contributing_rule(current_winding_order, is_subj, boolean_mode)) {
+      const int int_p_2 = inter_sorted_ids[inters_per_curve.last()];
+      const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
+
+      unsorted_segments.append(
+          Segment::from_intersection_to_end(curve_i, points, inter_last, int_p_2));
     }
   }
 
@@ -1239,9 +1256,11 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
 
 std::optional<BooleanResult> curve_boolean_calc(const Operation boolean_mode,
                                                 const Span<float2> curve_a,
-                                                const Span<float2> curve_b)
+                                                const Span<float2> curve_b,
+                                                const Span<bool> is_fill,
+                                                const Span<bool> is_cyclic)
 {
-  return execute_boolean(boolean_mode, curve_a, curve_b);
+  return execute_boolean(boolean_mode, curve_a, curve_b, is_fill, is_cyclic);
 }
 
 }  // namespace blender::polygonboolean
