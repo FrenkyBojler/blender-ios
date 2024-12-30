@@ -494,19 +494,28 @@ void extract_data_corner_bmesh(const Set<BMFace *, 0> &faces,
   }
 }
 
-static const CustomDataLayer *bmesh_attribute_lookup(const BMesh &bm, const StringRef name)
+const CustomDataLayer *lookup_layer_by_name(const CustomData &data, const StringRef name)
 {
-
-  switch (domain) {
-    case bke::AttrDomain::Point:
-      return &bm.vdata;
-    case bke::AttrDomain::Corner:
-      return &bm.ldata;
-    case bke::AttrDomain::Face:
-      return &bm.pdata;
-    default:
-      return nullptr;
+  const int index = CustomData_get_named_layer_index_notype(&data, name);
+  if (index == -1) {
+    return nullptr;
   }
+  return &data.layers[index];
+}
+
+static std::pair<const CustomDataLayer *, bke::AttrDomain> bmesh_attribute_lookup(
+    const BMesh &bm, const StringRef name)
+{
+  if (const CustomDataLayer *layer = lookup_layer_by_name(bm.vdata, name)) {
+    return {layer, bke::AttrDomain::Point};
+  }
+  if (const CustomDataLayer *layer = lookup_layer_by_name(bm.pdata, name)) {
+    return {layer, bke::AttrDomain::Face};
+  }
+  if (const CustomDataLayer *layer = lookup_layer_by_name(bm.ldata, name)) {
+    return {layer, bke::AttrDomain::Corner};
+  }
+  return {nullptr, bke::AttrDomain::Point};
 }
 
 template<typename T> T fallback_value_for_fill()
@@ -571,8 +580,8 @@ void DrawCacheImpl::free_nodes_with_changed_topology(const bke::pbvh::Tree &pbvh
   if (pbvh.type() == bke::pbvh::Type::BMesh) {
     /* For BMesh, VBOs are only filled with data for visible triangles, and topology can also
      * completely change due to dynamic topology, so VBOs must be rebuilt from scratch. For other
-     * types, actual topology doesn't change, and visibility changes are accounted for by the index
-     * buffers. */
+     * types, actual topology doesn't change, and visibility changes are accounted for by the
+     * index buffers. */
     for (AttributeData &data : attribute_vbos_.values()) {
       free_vbos(data.vbos, nodes_to_free);
     }
@@ -1181,14 +1190,12 @@ static void fill_vbos_bmesh(const Object &object,
   }
   else {
     const GenericRequest &attr = std::get<GenericRequest>(request);
-    const bke::AttrDomain domain = attr.domain;
-    const eCustomDataType data_type = attr.type;
-    const CustomData &custom_data = *get_cdata(bm, domain);
-    const int offset = CustomData_get_offset_named(&custom_data, data_type, attr.name);
+    const auto &[layer, domain] = bmesh_attribute_lookup(bm, attr);
+    const int offset = layer->offset;
     node_mask.foreach_index(GrainSize(1), [&](const int i) {
       fill_vbo_attribute_bmesh(
           BKE_pbvh_bmesh_node_faces(&const_cast<bke::pbvh::BMeshNode &>(nodes[i])),
-          data_type,
+          eCustomDataType(layer->type),
           domain,
           offset,
           *vbos[i]);
@@ -1791,8 +1798,8 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
   vbos.resize(pbvh.nodes_num(), nullptr);
 
   /* The nodes we recompute here are a combination of:
-   *   1. null VBOs, which correspond to nodes that either haven't been drawn before, or have been
-   *      cleared completely by #free_nodes_with_changed_topology.
+   *   1. null VBOs, which correspond to nodes that either haven't been drawn before, or have
+   * been cleared completely by #free_nodes_with_changed_topology.
    *   2. Nodes that have been tagged dirty as their values are changed.
    * We also only process a subset of the nodes referenced by the caller, for example to only
    * recompute visible nodes. */
@@ -1864,9 +1871,9 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
     }
     case bke::pbvh::Type::Grids: {
       /* Unlike the other geometry types, multires grids use indexed vertex buffers because when
-       * there are no flat faces, vertices can be shared between neighboring quads. This results in
-       * a 4x decrease in the amount of data uploaded. Theoretically it also means freeing VBOs
-       * because of visibility changes is unnecessary.
+       * there are no flat faces, vertices can be shared between neighboring quads. This results
+       * in a 4x decrease in the amount of data uploaded. Theoretically it also means freeing
+       * VBOs because of visibility changes is unnecessary.
        *
        * TODO: With the "flat layout" and no hidden faces, the index buffers are unnecessary, we
        * should avoid creating them in that case. */
@@ -1916,8 +1923,8 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
     this->ensure_attribute_data(object, orig_mesh_data, attr, nodes_to_update);
   }
 
-  /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the allocated
-   * arrays when its map is changed. */
+  /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the
+   * allocated arrays when its map is changed. */
   Vector<Span<gpu::VertBuf *>> attr_vbos;
   for (const AttributeRequest &attr : request.attributes) {
     const Span<gpu::VertBuf *> vbos = attribute_vbos_.lookup(attr).vbos;
