@@ -201,11 +201,11 @@ void calculate_positions(const Span<float2> pos_a,
   }
 }
 
-std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
-                                             const Span<float2> curve_a,
-                                             const Span<float2> curve_b,
-                                             const Span<bool> is_fill,
-                                             const Span<bool> is_cyclic)
+BooleanResult execute_boolean(const Operation boolean_mode,
+                              const Span<float2> curve_a,
+                              const Span<float2> curve_b,
+                              const Span<bool> is_fill,
+                              const Span<bool> is_cyclic)
 {
   const int num_curves = 2;
   Array<IndexRange> points_per_curve({curve_a.index_range(), curve_b.index_range()});
@@ -239,16 +239,11 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
           intersections.append(create_intersection(i, j, alpha_a, alpha_b));
         }
         else if (val == ISECT_LINE_LINE_EXACT) {
-          return std::nullopt;
+          /* TODO */
+          // return std::nullopt;
         }
       }
     }
-  }
-
-  if (intersections.is_empty()) {
-    /* TODO */
-    return std::nullopt;
-    // return std::optional(non_intersecting_result(boolean_mode, curve_a, curve_b));
   }
 
   /* Create all segments that are not internal. */
@@ -380,7 +375,7 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
     while (!PolygonDone) {
       if (processed_segments[current_segment] == true) {
         BLI_assert_unreachable();
-        return std::nullopt;
+        break;
       }
 
       unsorted_segments[current_segment].reversed = last_reversed;
@@ -389,7 +384,7 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
       result.segments.last().reversed = last_reversed;
 
       bool next_reversed;
-      int next_segment = get_next_segment(
+      const int next_segment = get_next_segment(
           unsorted_segments, current_segment, processed_segments, &next_reversed);
 
       if (next_segment == -1) {
@@ -421,11 +416,11 @@ std::optional<BooleanResult> execute_boolean(const Operation boolean_mode,
   return result;
 }
 
-std::optional<BooleanResult> curve_boolean_calc(const Operation boolean_mode,
-                                                const Span<float2> curve_a,
-                                                const Span<float2> curve_b,
-                                                const Span<bool> is_fill,
-                                                const Span<bool> is_cyclic)
+BooleanResult curve_boolean_calc(const Operation boolean_mode,
+                                 const Span<float2> curve_a,
+                                 const Span<float2> curve_b,
+                                 const Span<bool> is_fill,
+                                 const Span<bool> is_cyclic)
 {
   return execute_boolean(boolean_mode, curve_a, curve_b, is_fill, is_cyclic);
 }

@@ -291,10 +291,10 @@ void calculate_positions(Span<float2> pos_a,
                          const BooleanResult &result,
                          MutableSpan<float2> dst_pos);
 
-std::optional<BooleanResult> curve_boolean_calc(const Operation boolean_mode,
-                                                Span<float2> curve_a,
-                                                Span<float2> curve_b,
-                                                Span<bool> is_fill,
-                                                Span<bool> is_cyclic);
+BooleanResult curve_boolean_calc(const Operation boolean_mode,
+                                 Span<float2> curve_a,
+                                 Span<float2> curve_b,
+                                 Span<bool> is_fill,
+                                 Span<bool> is_cyclic);
 
 }  // namespace blender::polygonboolean
