@@ -791,8 +791,8 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   return data->fields.is_empty() ? nullptr : std::move(data);
 }
 
-static std::string ui_tooltip_color_string(const float color[4],
-                                           const blender::StringRef title,
+static std::string ui_tooltip_color_string(const blender::float4 &color,
+                                           const blender::StringRefNull title,
                                            const bool show_alpha,
                                            const bool show_hex = false)
 {
@@ -801,21 +801,19 @@ static std::string ui_tooltip_color_string(const float color[4],
     rgba_float_to_uchar(hex, color);
     if (show_alpha) {
       return fmt::format("{}: #{:02X}{:02X}{:02X}{:02X}",
-                         TIP_(title.data()),
+                         TIP_(title.c_str()),
                          int(hex[0]),
                          int(hex[1]),
                          int(hex[2]),
                          int(hex[3]));
     }
-    else {
-      return fmt::format(
-          "{}: #{:02X}{:02X}{:02X}", TIP_(title.data()), int(hex[0]), int(hex[1]), int(hex[2]));
-    }
+    return fmt::format(
+        "{}: #{:02X}{:02X}{:02X}", TIP_(title.c_str()), int(hex[0]), int(hex[1]), int(hex[2]));
   }
 
   if (show_alpha) {
     return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}",
-                       TIP_(title.data()),
+                       TIP_(title.c_str()),
                        color[0],
                        color[1],
                        color[2],
@@ -823,7 +821,7 @@ static std::string ui_tooltip_color_string(const float color[4],
   }
 
   return fmt::format(
-      "{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title.data()), color[0], color[1], color[2]);
+      "{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title.c_str()), color[0], color[1], color[2]);
 };
 
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
