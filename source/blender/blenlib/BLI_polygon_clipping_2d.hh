@@ -41,31 +41,6 @@ enum class Operation : int8_t {
   Not,
 };
 
-enum class VertexType : int8_t {
-  PointA,
-  PointB,
-  Intersection,
-};
-
-/**
- * `type` determent which array the `point_id` refers to.
- */
-struct Vertex {
-  VertexType type;
-  int point_id;
-};
-
-struct IntersectionPoint {
-  int point_a;
-  int point_b;
-  /**
-   * `alpha_a` is the factor between point_a and point_a + 1 (i.e. the next point)
-   * And the same is true for `B`
-   */
-  float alpha_a;
-  float alpha_b;
-};
-
 struct ExtendedIntersectionPoint {
   int point_a;
   int point_b;
@@ -305,23 +280,11 @@ class Segment {
 };
 
 struct BooleanResult {
-  Array<Vertex> verts;
-  Array<int> offsets;
-  Array<IntersectionPoint> intersections_data;
-
   Vector<Segment> segments;
   Vector<int> segment_offsets;
   Vector<bool> cyclic;
   Vector<int> point_offsets;
 };
-
-void interpolate_position_ab(Span<float2> pos_a,
-                             Span<float2> pos_b,
-                             const BooleanResult &result,
-                             MutableSpan<float2> dst_pos);
-void interpolate_position_a(const Span<float2> pos_a,
-                            const BooleanResult &result,
-                            MutableSpan<float2> dst_pos);
 
 void calculate_positions(Span<float2> pos_a,
                          Span<float2> pos_b,
@@ -333,24 +296,5 @@ std::optional<BooleanResult> curve_boolean_calc(const Operation boolean_mode,
                                                 Span<float2> curve_b,
                                                 Span<bool> is_fill,
                                                 Span<bool> is_cyclic);
-/**
- * `Cut` behaves like `NotB` but with `A` not having any fill, and so `A` is cut into separate
- * parts without any segments of `B` is left in the result.
- */
-std::optional<BooleanResult> curve_boolean_cut(const bool is_a_cyclic,
-                                               Span<float2> curve_a,
-                                               Span<float2> curve_b);
-
-BooleanResult result_remove_holes(const BooleanResult &in_result,
-                                  Span<float2> curve_a,
-                                  Span<float2> curve_b);
-BooleanResult result_sort_holes(const BooleanResult &in_result,
-                                Span<float2> curve_a,
-                                Span<float2> curve_b);
-
-/**
- * This returns the most appropriate result when the inputted geometry has an degeneracies.
- */
-BooleanResult invalid_result(const Operation mode, Span<float2> curve_a, Span<float2> curve_b);
 
 }  // namespace blender::polygonboolean
