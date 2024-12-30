@@ -22,6 +22,7 @@ Checks:  >
   -readability-enum-initial-value,
   -readability-math-missing-parentheses,
   -readability-avoid-nested-conditional-operator,
+  -readability-avoid-unconditional-preprocessor-if,
 
   -readability-function-cognitive-complexity,
 
