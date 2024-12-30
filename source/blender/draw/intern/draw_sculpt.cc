@@ -8,7 +8,6 @@
 
 #include "draw_sculpt.hh"
 
-
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh_types.hh"
@@ -157,7 +156,7 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   const Mesh *mesh = static_cast<const Mesh *>(ob->data);
 
   MeshAttributeRequests draw_attrs;
-  DRW_mesh_get_attributes(*ob, *mesh, materials.data(), materials.size(), &draw_attrs);
+  DRW_mesh_get_attributes(*ob, *mesh, materials, &draw_attrs);
 
   Vector<pbvh::AttributeRequest, 16> attrs;
 
