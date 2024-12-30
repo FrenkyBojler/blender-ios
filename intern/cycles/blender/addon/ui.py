@@ -2167,7 +2167,10 @@ class CYCLES_RENDER_PT_debug(CyclesDebugButtonsPanel, Panel):
         is_macos = platform.system() == 'Darwin'
         col.separator()
 
-        if not is_macos:
+        if is_macos:
+            col = layout.column(heading="Metal")
+            col.prop(cscene, "debug_use_metal_adaptive_compile")
+        else:
             col = layout.column(heading="CUDA")
             col.prop(cscene, "debug_use_cuda_adaptive_compile")
             col = layout.column(heading="OptiX")
@@ -2177,9 +2180,6 @@ class CYCLES_RENDER_PT_debug(CyclesDebugButtonsPanel, Panel):
 
             col = layout.column(heading="HIP")
             col.prop(cscene, "debug_use_hip_adaptive_compile")
-        else:
-            col = layout.column(heading="Metal")
-            col.prop(cscene, "debug_use_metal_adaptive_compile")
 
         col.separator()
 

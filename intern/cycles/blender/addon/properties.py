@@ -1056,7 +1056,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default='EMBREE',
     )
 
-    adaptive_compile_description = "When compiling Cycles GPU kerenls at runtime, only compile the kernel with the feature set required for the current scene"
+    adaptive_compile_description = "Compile the Cycles GPU kernel with only the feature set required for the current scene"
 
     debug_use_cuda_adaptive_compile: BoolProperty(
         name="Adaptive Compile",
