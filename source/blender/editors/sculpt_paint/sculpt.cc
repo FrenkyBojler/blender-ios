@@ -2057,7 +2057,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
   float3 plane_center = ss.cache ? ss.cache->location_symm : float3(0.0f);
   float3 plane_normal = float3(0.0f);
 
-  /* Area center. */
+  /* Plane center. */
   for (int i = 0; i < anctd.area_cos.size(); i++) {
     if (anctd.count_co[i] > 0) {
       plane_center = anctd.area_cos[i] * 1.0f / anctd.count_co[i];
@@ -2065,7 +2065,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
     }
   }
 
-  /* Area normal. */
+  /* Plane normal. */
   for (int i = 0; i < anctd.count_no.size(); i++) {
 
     if (anctd.count_no[i] > 0) {
@@ -2097,7 +2097,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
     /* Interpolate between plane_center and its projection on the last plane. */
     new_plane_center = plane_center -
                        ss.cache->last_plane_normal *
-                           math::interpolate(0.0f, distance_to_last_plane, plane_weight);
+                       math::interpolate(0.0f, distance_to_last_plane, plane_weight);
   }
 
   copy_v3_v3(r_area_no, new_plane_normal);
@@ -2230,12 +2230,11 @@ static float brush_strength(const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_FILL:
     case SCULPT_BRUSH_TYPE_SCRAPE:
     case SCULPT_BRUSH_TYPE_FLATTEN:
-      if (flip > 0.0f || brush.plane_inversion_mode == BRUSH_PLANE_SWAP_DEPTH_AND_HEIGHT) {
+      if (flip > 0.0f) {
         overlap = (1.0f + overlap) / 2.0f;
         return alpha * pressure * overlap * feather;
       }
       else {
-        /* Reduce strength for increase contrast mode */
         return 0.5f * alpha * pressure * overlap * feather;
       }
 
