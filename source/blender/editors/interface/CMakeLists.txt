@@ -104,7 +104,7 @@ set(SRC
   views/tree_view.cc
 
   eyedroppers/eyedropper_intern.hh
-  templates/interface_template_intern.hh
+  templates/interface_templates_intern.hh
   interface_intern.hh
   regions/interface_regions_intern.hh
   view2d_intern.hh

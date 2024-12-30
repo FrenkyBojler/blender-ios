@@ -40,7 +40,7 @@
 #include "UI_interface.hh"
 #include "UI_string_search.hh"
 #include "interface_intern.hh"
-#include "interface_template_intern.hh"
+#include "interface_templates_intern.hh"
 
 using blender::StringRef;
 using blender::StringRefNull;

@@ -27,7 +27,7 @@
 
 #include "UI_interface.hh"
 #include "interface_intern.hh"
-#include "interface_template_intern.hh"
+#include "interface_templates_intern.hh"
 
 static void constraint_active_func(bContext * /*C*/, void *ob_v, void *con_v)
 {
