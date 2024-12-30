@@ -4907,6 +4907,12 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
       prop, "Display Handles", "Limit the display of curve handles in edit mode");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
+  prop = RNA_def_property(srna, "curves_radius_display", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "overlay.curves_radius_display", V3D_OVERLAY_EDIT_CU_RADIUS);
+  RNA_def_property_ui_text(prop, "Curve radius", "Display radius of curves");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
   prop = RNA_def_property(srna, "show_curve_normals", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.edit_flag", V3D_OVERLAY_EDIT_CU_NORMALS);
   RNA_def_property_ui_text(prop, "Draw Normals", "Display 3D curve normals in editmode");

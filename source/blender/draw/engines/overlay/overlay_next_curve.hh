@@ -81,6 +81,7 @@ class Curves : Overlay {
                           DRW_STATE_WRITE_DEPTH,
                       state.clipping_plane_count);
         sub.shader_set(res.shaders.curve_edit_bezier_segments.get());
+        sub.push_constant("displayRadius", bool(state.overlay.curves_radius_display));
         edit_bezier_segments_ = &sub;
       }
       {
@@ -191,7 +192,7 @@ class Curves : Overlay {
   void edit_object_sync(Manager &manager,
                         const ObjectRef &ob_ref,
                         Resources & /*res*/,
-                        const State & /*state*/) final
+                        const State &state) final
   {
     if (!enabled_) {
       return;
@@ -215,18 +216,22 @@ class Curves : Overlay {
     }
     {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_bezier_segments(&curves);
-      edit_segment_joints_->bind_ubo("curves_data",
-                                     DRW_curves_batch_cache_get_curves_data(&curves));
-      edit_segment_joints_->push_constant("endpointsOnly", false);
-      edit_segment_joints_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
+      if (state.overlay.curves_radius_display) {
+        edit_segment_joints_->bind_ubo("curves_data",
+                                       DRW_curves_batch_cache_get_curves_data(&curves));
+        edit_segment_joints_->push_constant("endpointsOnly", false);
+        edit_segment_joints_->draw_expand(
+            geom, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
+
+        gpu::Batch *geom2 = DRW_curves_batch_cache_get_edit_bezier_segment_joints(&curves);
+        edit_segment_joints_->push_constant("endpointsOnly", true);
+        edit_segment_joints_->draw_expand(
+            geom2, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
+      }
 
       edit_bezier_segments_->bind_ubo("curves_data",
                                       DRW_curves_batch_cache_get_curves_data(&curves));
       edit_bezier_segments_->draw_expand(geom, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
-
-      gpu::Batch *geom2 = DRW_curves_batch_cache_get_edit_bezier_segment_joints(&curves);
-      edit_segment_joints_->push_constant("endpointsOnly", true);
-      edit_segment_joints_->draw_expand(geom2, GPU_PRIM_TRIS, 2, 1, manager.unique_handle(ob_ref));
     }
   }
 

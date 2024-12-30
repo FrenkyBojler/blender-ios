@@ -248,6 +248,9 @@ typedef struct View3DOverlay {
   float gpencil_vertex_paint_opacity;
   /** Handles display type for curves. */
   int handle_display;
+  /** Curves radius display. */
+  int curves_radius_display;
+  char _pad[4];
 
   /** Curves sculpt mode settings. */
   float sculpt_curves_cage_opacity;
@@ -635,6 +638,7 @@ enum {
 
   V3D_OVERLAY_EDIT_CU_NORMALS = (1 << 21),
   V3D_OVERLAY_EDIT_CONSTANT_SCREEN_SIZE_NORMALS = (1 << 22),
+  V3D_OVERLAY_EDIT_CU_RADIUS = (1 << 22),
 };
 
 /** #View3DOverlay.paint_flag */

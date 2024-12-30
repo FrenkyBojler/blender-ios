@@ -53,7 +53,37 @@ vec2 circle_tangent(vec2 center_a, float radius_a, vec2 center_b, float radius_b
   return radius_a * vec2(cos(alpha), sin(alpha));
 }
 
-vec3 calc_bezier_point(float u, in vec3 control_points[4])
+vec2 radius_offset(vec3 curve_point,
+                   vec4 ndc_curve_point,
+                   float u,
+                   float u2,
+                   inout vec3 points[4],
+                   vec2 radii,
+                   bool first_tangent)
+{
+  const vec3 curve_point2 = calc_bezier_point(u2, points);
+  const vec4 ndc_curve_point2 = point_object_to_ndc(curve_point2);
+  const float radius = radius_to_ndc(mix(radii.x, radii.y, u) * sizeViewport.x,
+                                     point_object_to_view(curve_point));
+  const float radius2 = radius_to_ndc(mix(radii.x, radii.y, u2) * sizeViewport.x,
+                                      point_object_to_view(curve_point2));
+
+  return circle_tangent((ndc_curve_point.xy / ndc_curve_point.w) * sizeViewport,
+                        radius,
+                        (ndc_curve_point2.xy / ndc_curve_point2.w) * sizeViewport,
+                        radius2,
+                        first_tangent);
+}
+
+vec2 tangent_offset(vec3 curve_point, vec4 ndc_curve_point, vec3 tangent)
+{
+  const vec4 ndc_tangent = point_object_to_ndc(curve_point + tangent);
+  const vec2 tangent_2d = normalize(ndc_tangent.xy * ndc_curve_point.w -
+                                    ndc_curve_point.xy * ndc_tangent.w);
+  return vec2(-tangent_2d.y, tangent_2d.x) * sizeEdge * 2 * (gl_VertexID % 2 ? -1.0 : 1.0);
+}
+
+vec3 calc_bezier_point(float u, inout vec3 control_points[4])
 {
   control_points[0] += (control_points[1] - control_points[0]) * u;
   control_points[1] += (control_points[2] - control_points[1]) * u;
@@ -77,9 +107,10 @@ void main()
   const int vertex_per_quad = 6;
   VertIn vert_in = input_assembly(gl_VertexID / vertex_per_quad);
 #ifdef SEGMENT
-  const int segment_vertex_i =  gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
+  const int segment_vertex_i = gl_VertexID - vert_in.first_vertex_id * vertex_per_quad;
 #else
-  const int segment_vertex_i =  gl_VertexID - (endpointsOnly ? 0 : vert_in.first_vertex_id * vertex_per_quad);
+  const int segment_vertex_i = gl_VertexID -
+                               (endpointsOnly ? 0 : vert_in.first_vertex_id * vertex_per_quad);
 #endif
   const int quad_i = segment_vertex_i / vertex_per_quad;
   const int in_quad_i = segment_vertex_i % vertex_per_quad;
@@ -95,7 +126,8 @@ void main()
   float u = 0;
   if (endpointsOnly) {
     curve_point = vert_in.p[0];
-  } else {
+  }
+  else {
     const int step = quad_i;
     u = float(step) / vert_in.resolution;
     curve_point = calc_bezier_point(u, vert_in.p);
@@ -105,25 +137,22 @@ void main()
   const vec3 world_pos = point_object_to_world(curve_point);
   vec4 ndc_pos = point_world_to_ndc(world_pos);
 
-  const float radius = radius_to_ndc(mix(vert_in.radius.x, vert_in.radius.y, u) * sizeViewport.x,
-                                     point_world_to_view(world_pos));
-
 #ifdef SEGMENT
-  const int step2 = quad_right ? step - 1 : step + 1;
-  const float u2 = float(step2) / vert_in.resolution;
-  const vec3 curve_point2 = calc_bezier_point(u2, points);
-  const float radius2 = radius_to_ndc(mix(vert_in.radius.x, vert_in.radius.y, u2) * sizeViewport.x,
-                                      point_object_to_view(curve_point2));
-  vec4 ndc_pos2 = point_object_to_ndc(curve_point2);
-
-  const vec2 offset = circle_tangent((ndc_pos.xy / ndc_pos.w) * sizeViewport,
-                                     radius,
-                                     (ndc_pos2.xy / ndc_pos2.w) * sizeViewport,
-                                     radius2,
-                                     quad_right ? bottom_edge : !bottom_edge);
+  const vec2 offset = displayRadius ?
+                          radius_offset(curve_point,
+                                        ndc_pos,
+                                        u,
+                                        float(quad_right ? step - 1 : step + 1) /
+                                            vert_in.resolution,
+                                        points,
+                                        vert_in.radius,
+                                        quad_right ? bottom_edge : !bottom_edge) :
+                          tangent_offset(curve_point, ndc_pos, vert_in.p[1] - vert_in.p[0]);
 #else
   const float x = quad_right ? 1.0 : -1.0;
   const float y = bottom_edge ? -1.0 : 1.0;
+  const float radius = radius_to_ndc(mix(vert_in.radius.x, vert_in.radius.y, u) * sizeViewport.x,
+                                     point_world_to_view(world_pos));
   const vec2 offset = vec2(x, y) * radius;
 
   uv_coord = vec2(x, y);

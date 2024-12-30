@@ -6,7 +6,8 @@ void main()
 {
   if (dot(uv_coord, uv_coord) <= 1.0) {
     fragColor = finalColor;
-  } else {
+  }
+  else {
     discard;
   }
 }
