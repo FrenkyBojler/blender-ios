@@ -1745,7 +1745,7 @@ def argparse_create():
         "--no-sudo",
         dest="no_sudo",
         action='store_true',
-        help="Disable use of sudo (this script won't be able to do much then, will just print needed packages).",
+        help="Disable use of `sudo` or `doas` (this script won't be able to do much then, will just print needed packages).",
     )
     parser.add_argument(
         "--all",
@@ -1781,10 +1781,10 @@ def main():
     logger.addHandler(stdout_handler)
     settings.logger = logger
 
-    if len(MAYSUDO) == 0:
-        logger.critical("`sudo` or `doas` command needed to escalate privileges,"
-                        "but they not found.")
-        return
+    if not settings.no_sudo and len(MAYSUDO) == 0:
+        logger.critical("`sudo` or `doas` commands are needed to escalate privileges,"
+                        " but they were not found.")
+        exit(42)
 
     distro_package_installer = (PackageInstaller(settings) if settings.show_deps
                                 else get_distro_package_installer(settings))
