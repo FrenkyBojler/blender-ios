@@ -11,6 +11,7 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
+  PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::gpu
@@ -134,11 +135,6 @@ endif()
 
 if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
-endif()
-
-if(WITH_GMP)
-  list(APPEND INC ${GMP_INCLUDE_DIRS})
-  add_definitions(-DWITH_GMP)
 endif()
 
 if(WITH_OPENCOLORIO)

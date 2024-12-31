@@ -134,6 +134,7 @@ set(LIB
   PRIVATE bf::blenloader
   PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
+  PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::depsgraph
   PUBLIC bf::dna
   PRIVATE bf::functions
@@ -198,18 +199,6 @@ endif()
 # To disable adaptive subdivision test in subsurf UI without cycles
 if(WITH_CYCLES)
   add_definitions(-DWITH_CYCLES)
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
-
-  list(APPEND INC_SYS
-    ${GMP_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${GMP_LIBRARIES}
-  )
 endif()
 
 if(WITH_TBB)

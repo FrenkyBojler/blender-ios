@@ -99,6 +99,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
+  PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::dna
   PRIVATE bf::functions
   PRIVATE bf::intern::atomic
@@ -126,18 +127,6 @@ if(WITH_OPENVDB)
     ${OPENVDB_LIBRARIES}
   )
   add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
-
-  list(APPEND INC_SYS
-    ${GMP_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${GMP_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

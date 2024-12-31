@@ -22,3 +22,15 @@ if(WITH_TBB)
   target_include_directories(bf_deps_optional_tbb SYSTEM INTERFACE ${TBB_INCLUDE_DIRS})
   target_link_libraries(bf_deps_optional_tbb INTERFACE ${TBB_LIBRARIES})
 endif()
+
+# -----------------------------------------------------------------------------
+# Configure GMP
+
+add_library(bf_deps_optional_gmp INTERFACE)
+add_library(bf::dependencies::optional::gmp ALIAS bf_deps_optional_gmp)
+
+if(WITH_GMP)
+  target_compile_definitions(bf_deps_optional_gmp INTERFACE WITH_GMP)
+  target_include_directories(bf_deps_optional_gmp SYSTEM INTERFACE ${GMP_INCLUDE_DIRS})
+  target_link_libraries(bf_deps_optional_gmp INTERFACE ${GMP_LIBRARIES})
+endif()

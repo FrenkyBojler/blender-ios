@@ -113,9 +113,6 @@ macro(blender_src_gtest_ex)
     if(WITH_TBB)
       target_link_libraries(${TARGET_NAME} PRIVATE ${TBB_LIBRARIES})
     endif()
-    if(WITH_GMP)
-      target_link_libraries(${TARGET_NAME} PRIVATE ${GMP_LIBRARIES})
-    endif()
 
     get_blender_test_install_dir(TEST_INSTALL_DIR)
     set_target_properties(${TARGET_NAME} PROPERTIES

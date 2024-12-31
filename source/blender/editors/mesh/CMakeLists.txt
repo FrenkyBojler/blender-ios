@@ -54,6 +54,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
+  PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::draw
@@ -75,10 +76,6 @@ endif()
 
 if(WITH_BULLET)
   add_definitions(-DWITH_BULLET)
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
 endif()
 
 blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
