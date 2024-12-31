@@ -1,6 +1,6 @@
 """
 USD Hook Example
-++++++++++++++++
+----------------
 
 This example shows an implementation of ``USDHook`` to extend USD
 export and import functionality.
