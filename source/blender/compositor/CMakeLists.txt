@@ -41,7 +41,7 @@ set(SRC
   COM_simple_operation.hh
   COM_static_cache_manager.hh
   COM_texture_pool.hh
-  COM_utilities.hh  
+  COM_utilities.hh
 
   intern/COM_compositor.cc
   intern/compile_state.cc
@@ -137,7 +137,7 @@ set(SRC
   cached_resources/COM_symmetric_separable_blur_weights.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
 
-  utilities/COM_utilities_diagonals.hh  
+  utilities/COM_utilities_diagonals.hh
 )
 
 set(LIB
@@ -192,6 +192,7 @@ set(GLSL_SRC
   shaders/compositor_glare_simple_star_vertical_pass.glsl
   shaders/compositor_glare_streaks_accumulate.glsl
   shaders/compositor_glare_streaks_filter.glsl
+  shaders/compositor_glare_upsample.glsl
   shaders/compositor_id_mask.glsl
   shaders/compositor_image_crop.glsl
   shaders/compositor_inpaint_compute_boundary.glsl

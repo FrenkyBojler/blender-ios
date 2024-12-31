@@ -7,6 +7,7 @@
  */
 
 #include <array>
+#include <cmath>
 #include <complex>
 #include <memory>
 
@@ -46,7 +47,6 @@
 #include "node_composite_util.hh"
 
 #define MAX_GLARE_ITERATIONS 5
-#define MAX_GLARE_SIZE 9
 
 namespace blender::nodes::node_composite_glare_cc {
 
@@ -57,7 +57,34 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
+  b.add_input<decl::Float>("Threshold")
+      .default_value(1.0f)
+      .min(0.0f)
+      .description(
+          "Defines the luminance at which the pixels start to be considered part of the "
+          "highlights that will produce a glare")
+      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Strength")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description("The strength the glare that will be added to the image")
+      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Size")
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description(
+          "The size of the glare relative to the image. 1 means the glare covers the entire "
+          "image, 0.5 means the glare covers half the image, and so on")
+      .compositor_expects_single_value();
+
+  b.add_output<decl::Color>("Image").description("The image with the generated glare added");
+  b.add_output<decl::Color>("Glare").description("The generated glare");
+  b.add_output<decl::Color>("Highlights")
+      .description("The extracted highlights from which the glare was generated");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -67,13 +94,10 @@ static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
   ndg->type = CMP_NODE_GLARE_STREAKS;
   ndg->iter = 3;
   ndg->colmod = 0.25;
-  ndg->mix = 0;
-  ndg->threshold = 1;
   ndg->star_45 = true;
   ndg->streaks = 4;
   ndg->angle_ofs = 0.0f;
   ndg->fade = 0.9;
-  ndg->size = 8;
   node->storage = ndg;
 }
 
@@ -102,9 +126,6 @@ static void node_composit_buts_glare(uiLayout *layout, bContext * /*C*/, Pointer
             ICON_NONE);
   }
 
-  uiItemR(layout, ptr, "mix", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "threshold", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-
   if (glare_type == CMP_NODE_GLARE_STREAKS) {
     uiItemR(layout, ptr, "streaks", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     uiItemR(layout, ptr, "angle_offset", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
@@ -122,10 +143,15 @@ static void node_composit_buts_glare(uiLayout *layout, bContext * /*C*/, Pointer
   if (glare_type == CMP_NODE_GLARE_SIMPLE_STAR) {
     uiItemR(layout, ptr, "use_rotate_45", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
+}
 
-  if (ELEM(glare_type, CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM)) {
-    uiItemR(layout, ptr, "size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  }
+static void node_update(bNodeTree *ntree, bNode *node)
+{
+  bNodeSocket *size_input = bke::node_find_socket(node, SOCK_IN, "Size");
+  blender::bke::node_set_socket_availability(
+      ntree,
+      size_input,
+      ELEM(node_storage(*node).type, CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM));
 }
 
 using namespace blender::compositor;
@@ -136,57 +162,101 @@ class GlareOperation : public NodeOperation {
 
   void execute() override
   {
-    if (is_identity()) {
-      get_input("Image").pass_through(get_result("Image"));
+    Result &image_input = this->get_input("Image");
+    Result &image_output = this->get_result("Image");
+    Result &glare_output = this->get_result("Glare");
+    Result &highlights_output = this->get_result("Highlights");
+
+    if (image_input.is_single_value()) {
+      if (image_output.should_compute()) {
+        image_input.pass_through(image_output);
+      }
+      if (glare_output.should_compute()) {
+        glare_output.allocate_invalid();
+      }
+      if (highlights_output.should_compute()) {
+        highlights_output.allocate_invalid();
+      }
       return;
     }
 
-    Result highlights_result = execute_highlights();
-    Result glare_result = execute_glare(highlights_result);
-    highlights_result.release();
-    execute_mix(glare_result);
-    glare_result.release();
+    Result highlights = this->compute_highlights();
+    Result glare = this->compute_glare(highlights);
+
+    if (highlights_output.should_compute()) {
+      if (highlights.domain().size != image_input.domain().size) {
+        /* The highlights were computed on a fraction of the image size, so we need to upsample
+         * them to the image original size. See the get_quality_factor method. */
+        this->upsample_result(highlights, image_input, highlights_output);
+      }
+      else {
+        highlights_output.steal_data(highlights);
+      }
+    }
+    highlights.release();
+
+    /* Combine the original input and the generated glare. */
+    execute_mix(glare);
+
+    if (glare_output.should_compute()) {
+      if (glare.domain().size != image_input.domain().size) {
+        /* The glare was computed on a fraction of the image size, so we need to upsample it to the
+         * image original size. See the get_quality_factor method. */
+        this->upsample_result(glare, image_input, glare_output);
+      }
+      else {
+        glare_output.steal_data(glare);
+      }
+    }
+    glare.release();
   }
 
-  bool is_identity()
+  /* Upsamples the given input using bilinear interpolation to match the size of the given original
+   * input. The output is allocated and the result is written to it. */
+  void upsample_result(const Result &input, const Result &original_input, Result &output)
   {
-    if (get_input("Image").is_single_value()) {
-      return true;
+    if (this->context().use_gpu()) {
+      this->upsample_result_gpu(input, original_input, output);
     }
-
-    /* A mix factor of -1 indicates that the original image is returned as is. See the execute_mix
-     * method for more information. */
-    if (node_storage(bnode()).mix == -1.0f) {
-      return true;
+    else {
+      this->upsample_result_cpu(input, original_input, output);
     }
-
-    return false;
   }
 
-  Result execute_glare(Result &highlights_result)
+  void upsample_result_gpu(const Result &input, const Result &original_input, Result &output)
   {
-    switch (node_storage(bnode()).type) {
-      case CMP_NODE_GLARE_SIMPLE_STAR:
-        return execute_simple_star(highlights_result);
-      case CMP_NODE_GLARE_FOG_GLOW:
-        return execute_fog_glow(highlights_result);
-      case CMP_NODE_GLARE_STREAKS:
-        return execute_streaks(highlights_result);
-      case CMP_NODE_GLARE_GHOST:
-        return execute_ghost(highlights_result);
-      case CMP_NODE_GLARE_BLOOM:
-        return execute_bloom(highlights_result);
-      default:
-        BLI_assert_unreachable();
-        return context().create_result(ResultType::Color);
-    }
+    GPUShader *shader = this->context().get_shader("compositor_glare_upsample");
+    GPU_shader_bind(shader);
+
+    GPU_texture_filter_mode(input, true);
+    input.bind_as_texture(shader, "input_tx");
+
+    output.allocate_texture(original_input.domain());
+    output.bind_as_image(shader, "output_img");
+
+    compute_dispatch_threads_at_least(shader, output.domain().size);
+
+    GPU_shader_unbind();
+    output.unbind_as_image();
+    input.unbind_as_texture();
+  }
+
+  void upsample_result_cpu(const Result &input, const Result &original_input, Result &output)
+  {
+    output.allocate_texture(original_input.domain());
+
+    const int2 size = original_input.domain().size;
+    parallel_for(size, [&](const int2 texel) {
+      float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(size);
+      output.store_pixel(texel, input.sample_bilinear_extended(normalized_coordinates));
+    });
   }
 
   /* -----------------
    * Glare Highlights.
    * ----------------- */
 
-  Result execute_highlights()
+  Result compute_highlights()
   {
     if (this->context().use_gpu()) {
       return this->execute_highlights_gpu();
@@ -199,18 +269,18 @@ class GlareOperation : public NodeOperation {
     GPUShader *shader = context().get_shader("compositor_glare_highlights");
     GPU_shader_bind(shader);
 
-    GPU_shader_uniform_1f(shader, "threshold", node_storage(bnode()).threshold);
+    GPU_shader_uniform_1f(shader, "threshold", this->get_threshold());
 
     const Result &input_image = get_input("Image");
     GPU_texture_filter_mode(input_image, true);
     input_image.bind_as_texture(shader, "input_tx");
 
-    const int2 glare_size = get_glare_size();
+    const int2 highlights_size = get_highlights_size();
     Result highlights_result = context().create_result(ResultType::Color);
-    highlights_result.allocate_texture(glare_size);
+    highlights_result.allocate_texture(highlights_size);
     highlights_result.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, glare_size);
+    compute_dispatch_threads_at_least(shader, highlights_size);
 
     GPU_shader_unbind();
     input_image.unbind_as_texture();
@@ -221,21 +291,21 @@ class GlareOperation : public NodeOperation {
 
   Result execute_highlights_cpu()
   {
-    const float threshold = node_storage(bnode()).threshold;
+    const float threshold = this->get_threshold();
 
     const Result &input = get_input("Image");
 
-    const int2 glare_size = this->get_glare_size();
+    const int2 highlights_size = this->get_highlights_size();
     Result output = context().create_result(ResultType::Color);
-    output.allocate_texture(glare_size);
+    output.allocate_texture(highlights_size);
 
     /* The dispatch domain covers the output image size, which might be a fraction of the input
      * image size, so you will notice the glare size used throughout the code instead of the input
      * one. */
-    parallel_for(glare_size, [&](const int2 texel) {
+    parallel_for(highlights_size, [&](const int2 texel) {
       /* Add 0.5 to evaluate the input sampler at the center of the pixel and divide by the image
        * size to get the coordinates into the sampler's expected [0, 1] range. */
-      float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(glare_size);
+      float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(highlights_size);
 
       float4 hsva;
       rgb_to_hsv_v(input.sample_bilinear_extended(normalized_coordinates), hsva);
@@ -252,6 +322,49 @@ class GlareOperation : public NodeOperation {
     });
 
     return output;
+  }
+
+  /* As a performance optimization, the operation can compute the glare on a fraction of the input
+   * image size, so we extract the highlights to a smaller result, whose size is returned by this
+   * method. */
+  int2 get_highlights_size()
+  {
+    return this->compute_domain().size / this->get_quality_factor();
+  }
+
+  /* ------
+   * Glare.
+   * ------ */
+
+  Result compute_glare(Result &highlights_result)
+  {
+    if (!this->should_compute_glare()) {
+      return this->context().create_result(ResultType::Color);
+    }
+
+    switch (node_storage(bnode()).type) {
+      case CMP_NODE_GLARE_SIMPLE_STAR:
+        return this->execute_simple_star(highlights_result);
+      case CMP_NODE_GLARE_FOG_GLOW:
+        return this->execute_fog_glow(highlights_result);
+      case CMP_NODE_GLARE_STREAKS:
+        return this->execute_streaks(highlights_result);
+      case CMP_NODE_GLARE_GHOST:
+        return this->execute_ghost(highlights_result);
+      case CMP_NODE_GLARE_BLOOM:
+        return this->execute_bloom(highlights_result);
+      default:
+        BLI_assert_unreachable();
+        return this->context().create_result(ResultType::Color);
+    }
+  }
+
+  /* Glare should be computed either because the glare output is needed directly or the image
+   * output is needed. */
+  bool should_compute_glare()
+  {
+    return this->get_result("Glare").should_compute() ||
+           this->get_result("Image").should_compute();
   }
 
   /* ------------------
@@ -289,7 +402,7 @@ class GlareOperation : public NodeOperation {
   {
     /* First, copy the highlights result to the output since we will be doing the computation
      * in-place. */
-    const int2 size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result vertical_pass_result = context().create_result(ResultType::Color);
     vertical_pass_result.allocate_texture(size);
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
@@ -321,7 +434,7 @@ class GlareOperation : public NodeOperation {
   {
     /* First, copy the highlights result to the output since we will be doing the computation
      * in-place. */
-    const int2 size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result output = this->context().create_result(ResultType::Color);
     output.allocate_texture(size);
     parallel_for(size, [&](const int2 texel) {
@@ -398,7 +511,7 @@ class GlareOperation : public NodeOperation {
   {
     /* First, copy the highlights result to the output since we will be doing the computation
      * in-place. */
-    const int2 size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result horizontal_pass_result = context().create_result(ResultType::Color);
     horizontal_pass_result.allocate_texture(size);
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
@@ -425,7 +538,7 @@ class GlareOperation : public NodeOperation {
   {
     /* First, copy the highlights result to the output since we will be doing the computation
      * in-place. */
-    const int2 size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result horizontal_pass_result = context().create_result(ResultType::Color);
     horizontal_pass_result.allocate_texture(size);
     parallel_for(size, [&](const int2 texel) {
@@ -504,9 +617,9 @@ class GlareOperation : public NodeOperation {
   {
     /* First, copy the highlights result to the output since we will be doing the computation
      * in-place. */
-    const int2 glare_size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result anti_diagonal_pass_result = context().create_result(ResultType::Color);
-    anti_diagonal_pass_result.allocate_texture(glare_size);
+    anti_diagonal_pass_result.allocate_texture(size);
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     GPU_texture_copy(anti_diagonal_pass_result, highlights);
 
@@ -521,7 +634,7 @@ class GlareOperation : public NodeOperation {
     anti_diagonal_pass_result.bind_as_image(shader, "anti_diagonal_img");
 
     /* Dispatch a thread for each diagonal in the image. */
-    compute_dispatch_threads_at_least(shader, int2(compute_number_of_diagonals(glare_size), 1));
+    compute_dispatch_threads_at_least(shader, int2(compute_number_of_diagonals(size), 1));
 
     diagonal_pass_result.unbind_as_texture();
     anti_diagonal_pass_result.unbind_as_image();
@@ -535,7 +648,7 @@ class GlareOperation : public NodeOperation {
   {
     /* First, copy the highlights result to the output since we will be doing the computation
      * in-place. */
-    const int2 size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result output = this->context().create_result(ResultType::Color);
     output.allocate_texture(size);
     parallel_for(size, [&](const int2 texel) {
@@ -615,9 +728,9 @@ class GlareOperation : public NodeOperation {
   {
     /* First, copy the highlights result to the output since we will be doing the computation
      * in-place. */
-    const int2 glare_size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result diagonal_pass_result = context().create_result(ResultType::Color);
-    diagonal_pass_result.allocate_texture(glare_size);
+    diagonal_pass_result.allocate_texture(size);
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     GPU_texture_copy(diagonal_pass_result, highlights);
 
@@ -630,7 +743,7 @@ class GlareOperation : public NodeOperation {
     diagonal_pass_result.bind_as_image(shader, "diagonal_img");
 
     /* Dispatch a thread for each diagonal in the image. */
-    compute_dispatch_threads_at_least(shader, int2(compute_number_of_diagonals(glare_size), 1));
+    compute_dispatch_threads_at_least(shader, int2(compute_number_of_diagonals(size), 1));
 
     diagonal_pass_result.unbind_as_image();
     GPU_shader_unbind();
@@ -642,7 +755,7 @@ class GlareOperation : public NodeOperation {
   {
     /* First, copy the highlights result to the output since we will be doing the computation
      * in-place. */
-    const int2 size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result diagonal_pass_result = this->context().create_result(ResultType::Color);
     diagonal_pass_result.allocate_texture(size);
     parallel_for(size, [&](const int2 texel) {
@@ -712,7 +825,7 @@ class GlareOperation : public NodeOperation {
   Result execute_streaks(const Result &highlights)
   {
     /* Create an initially zero image where streaks will be accumulated. */
-    const int2 size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result accumulated_streaks_result = context().create_result(ResultType::Color);
     accumulated_streaks_result.allocate_texture(size);
     if (this->context().use_gpu()) {
@@ -752,14 +865,14 @@ class GlareOperation : public NodeOperation {
 
     /* Copy the highlights result into a new result because the output will be copied to the input
      * after each iteration. */
-    const int2 glare_size = get_glare_size();
+    const int2 size = highlights.domain().size;
     Result input_streak_result = context().create_result(ResultType::Color);
-    input_streak_result.allocate_texture(glare_size);
+    input_streak_result.allocate_texture(size);
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     GPU_texture_copy(input_streak_result, highlights);
 
     Result output_streak_result = context().create_result(ResultType::Color);
-    output_streak_result.allocate_texture(glare_size);
+    output_streak_result.allocate_texture(size);
 
     /* For the given number of iterations, apply the streak filter in the given direction. The
      * result of the previous iteration is used as the input of the current iteration. */
@@ -780,7 +893,7 @@ class GlareOperation : public NodeOperation {
 
       output_streak_result.bind_as_image(shader, "output_streak_img");
 
-      compute_dispatch_threads_at_least(shader, glare_size);
+      compute_dispatch_threads_at_least(shader, size);
 
       input_streak_result.unbind_as_texture();
       output_streak_result.unbind_as_image();
@@ -804,7 +917,7 @@ class GlareOperation : public NodeOperation {
   {
     /* Copy the highlights result into a new result because the output will be copied to the input
      * after each iteration. */
-    const int2 size = this->get_glare_size();
+    const int2 size = highlights.domain().size;
     Result input = this->context().create_result(ResultType::Color);
     input.allocate_texture(size);
     parallel_for(size, [&](const int2 texel) {
@@ -894,8 +1007,7 @@ class GlareOperation : public NodeOperation {
     streak_result.bind_as_texture(shader, "streak_tx");
     accumulated_streaks_result.bind_as_image(shader, "accumulated_streaks_img", true);
 
-    const int2 glare_size = get_glare_size();
-    compute_dispatch_threads_at_least(shader, glare_size);
+    compute_dispatch_threads_at_least(shader, streak_result.domain().size);
 
     streak_result.unbind_as_texture();
     accumulated_streaks_result.unbind_as_image();
@@ -906,7 +1018,7 @@ class GlareOperation : public NodeOperation {
   {
     const float attenuation_factor = this->compute_streak_attenuation_factor();
 
-    const int2 size = get_glare_size();
+    const int2 size = streak.domain().size;
     parallel_for(size, [&](const int2 texel) {
       float4 attenuated_streak = streak.load_pixel<float4>(texel) * attenuation_factor;
       float4 current_accumulated_streaks = accumulated_streaks.load_pixel<float4>(texel);
@@ -1022,14 +1134,14 @@ class GlareOperation : public NodeOperation {
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
-    const int2 glare_size = get_glare_size();
-    accumulated_ghosts_result.allocate_texture(glare_size);
+    const int2 size = base_ghost_result.domain().size;
+    accumulated_ghosts_result.allocate_texture(size);
     GPU_texture_clear(accumulated_ghosts_result, GPU_DATA_FLOAT, zero_color);
 
     /* Copy the highlights result into a new result because the output will be copied to the input
      * after each iteration. */
     Result input_ghost_result = context().create_result(ResultType::Color);
-    input_ghost_result.allocate_texture(glare_size);
+    input_ghost_result.allocate_texture(size);
     GPU_texture_copy(input_ghost_result, base_ghost_result);
 
     /* For the given number of iterations, accumulate four ghosts with different scales and color
@@ -1044,7 +1156,7 @@ class GlareOperation : public NodeOperation {
       input_ghost_result.bind_as_texture(shader, "input_ghost_tx");
       accumulated_ghosts_result.bind_as_image(shader, "accumulated_ghost_img", true);
 
-      compute_dispatch_threads_at_least(shader, glare_size);
+      compute_dispatch_threads_at_least(shader, size);
 
       input_ghost_result.unbind_as_texture();
       accumulated_ghosts_result.unbind_as_image();
@@ -1068,7 +1180,7 @@ class GlareOperation : public NodeOperation {
     std::array<float4, 4> color_modulators = this->compute_ghost_color_modulators();
 
     /* Zero initialize output image where ghosts will be accumulated. */
-    const int2 size = get_glare_size();
+    const int2 size = base_ghost.domain().size;
     accumulated_ghosts_result.allocate_texture(size);
     parallel_for(size, [&](const int2 texel) {
       accumulated_ghosts_result.store_pixel(texel, float4(0.0f));
@@ -1186,11 +1298,10 @@ class GlareOperation : public NodeOperation {
     GPU_texture_extend_mode(big_ghost_result, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
     big_ghost_result.bind_as_texture(shader, "big_ghost_tx");
 
-    const int2 glare_size = get_glare_size();
-    base_ghost_result.allocate_texture(glare_size);
+    base_ghost_result.allocate_texture(small_ghost_result.domain());
     base_ghost_result.bind_as_image(shader, "combined_ghost_img");
 
-    compute_dispatch_threads_at_least(shader, glare_size);
+    compute_dispatch_threads_at_least(shader, base_ghost_result.domain().size);
 
     GPU_shader_unbind();
     small_ghost_result.unbind_as_texture();
@@ -1202,7 +1313,7 @@ class GlareOperation : public NodeOperation {
                               const Result &big_ghost_result,
                               Result &combined_ghost)
   {
-    const int2 size = get_glare_size();
+    const int2 size = small_ghost_result.domain().size;
     combined_ghost.allocate_texture(size);
 
     parallel_for(size, [&](const int2 texel) {
@@ -1357,11 +1468,9 @@ class GlareOperation : public NodeOperation {
      * smaller dimension of the size of the highlights.
      *
      * However, as users might want a smaller glare size, we reduce the chain length by the
-     * halving count supplied by the user. */
-    const int2 glare_size = get_glare_size();
-    const int smaller_glare_dimension = math::min(glare_size.x, glare_size.y);
-    const int chain_length = int(std::log2(smaller_glare_dimension)) -
-                             compute_bloom_size_halving_count();
+     * size supplied by the user. */
+    const int smaller_dimension = math::reduce_min(highlights.domain().size);
+    const int chain_length = int(std::log2(smaller_dimension * this->get_size()));
 
     /* If the chain length is less than 2, that means no down-sampling will happen, so we just
      * return a copy of the highlights. This is a sanitization of a corner case, so no need to
@@ -1660,21 +1769,6 @@ class GlareOperation : public NodeOperation {
            math::safe_rcp(math::reduce_add(weights));
   }
 
-  /* The bloom has a maximum possible size when the bloom size is equal to MAX_GLARE_SIZE and
-   * halves for every unit decrement of the bloom size. This method computes the number of halving
-   * that should take place, which is simply the difference to MAX_GLARE_SIZE. */
-  int compute_bloom_size_halving_count()
-  {
-    return MAX_GLARE_SIZE - get_bloom_size();
-  }
-
-  /* The size of the bloom relative to its maximum possible size, see the
-   * compute_bloom_size_halving_count() method for more information. */
-  int get_bloom_size()
-  {
-    return node_storage(bnode()).size;
-  }
-
   /* ---------------
    * Fog Glow Glare.
    * --------------- */
@@ -1684,7 +1778,7 @@ class GlareOperation : public NodeOperation {
 #if defined(WITH_FFTW3)
     fftw::initialize_float();
 
-    const int kernel_size = compute_fog_glow_kernel_size();
+    const int kernel_size = compute_fog_glow_kernel_size(highlights);
 
     /* Since we will be doing a circular convolution, we need to zero pad our input image by half
      * the kernel size to avoid the kernel affecting the pixels at the other side of image.
@@ -1850,11 +1944,11 @@ class GlareOperation : public NodeOperation {
 
   /* Computes the size of the fog glow kernel that will be convolved with the image, which is
    * essentially the extent of the glare in pixels. */
-  int compute_fog_glow_kernel_size()
+  int compute_fog_glow_kernel_size(const Result &highlights)
   {
-    /* We use an odd sized kernel since an even one will typically introduce a tiny offset as it
-     * has no exact center value. */
-    return (1 << node_storage(bnode()).size) + 1;
+    /* make sure the kernel size is odd since an even one will typically introduce a tiny offset as
+     * it has no exact center value. */
+    return (int(math::reduce_max(highlights.domain().size) * this->get_size()) / 2) * 2 + 1;
   }
 
   /* ----------
@@ -1863,6 +1957,17 @@ class GlareOperation : public NodeOperation {
 
   void execute_mix(const Result &glare_result)
   {
+    Result &image_output = this->get_result("Image");
+    if (!image_output.should_compute()) {
+      return;
+    }
+
+    Result &image_input = this->get_input("Image");
+    if (this->get_strength() == 0.0f) {
+      image_input.pass_through(image_output);
+      return;
+    }
+
     if (this->context().use_gpu()) {
       this->execute_mix_gpu(glare_result);
     }
@@ -1876,7 +1981,7 @@ class GlareOperation : public NodeOperation {
     GPUShader *shader = context().get_shader("compositor_glare_mix");
     GPU_shader_bind(shader);
 
-    GPU_shader_uniform_1f(shader, "mix_factor", node_storage(bnode()).mix);
+    GPU_shader_uniform_1f(shader, "strength", this->get_strength());
 
     const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_tx");
@@ -1899,7 +2004,7 @@ class GlareOperation : public NodeOperation {
 
   void execute_mix_cpu(const Result &glare_result)
   {
-    const float mix_factor = node_storage(bnode()).mix;
+    const float strength = this->get_strength();
 
     const Result &input = get_input("Image");
 
@@ -1910,22 +2015,13 @@ class GlareOperation : public NodeOperation {
     parallel_for(domain.size, [&](const int2 texel) {
       /* Add 0.5 to evaluate the input sampler at the center of the pixel and divide by the input
        * image size to get the relevant coordinates into the sampler's expected [0, 1] range.
-       * Make sure the input color is not negative to avoid a subtractive effect when mixing the
-       * glare.
-       */
+       * Make sure the input color is not negative to avoid a subtractive effect when adding the
+       * glare. */
       float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(input.domain().size);
       float4 glare_color = glare_result.sample_bilinear_extended(normalized_coordinates);
       float4 input_color = math::max(float4(0.0f), input.load_pixel<float4>(texel));
 
-      /* The mix factor is in the range [-1, 1] and linearly interpolate between the three values
-       * such that: 1 => Glare only. 0 => Input + Glare. -1 => Input only. We implement that as a
-       * weighted sum as follows. When the mix factor is 1, the glare weight should be 1 and the
-       * input weight should be 0. When the mix factor is -1, the glare weight should be 0 and
-       * the input weight should be 1. When the mix factor is 0, both weights should be 1. This
-       * can be expressed using the following compact min max expressions. */
-      float input_weight = 1.0f - math::max(0.0f, mix_factor);
-      float glare_weight = 1.0f + math::min(0.0f, mix_factor);
-      float3 highlights = input_weight * input_color.xyz() + glare_weight * glare_color.xyz();
+      float3 highlights = input_color.xyz() + glare_color.xyz() * strength;
 
       output.store_pixel(texel, float4(highlights, input_color.w));
     });
@@ -1935,11 +2031,19 @@ class GlareOperation : public NodeOperation {
    * Common.
    * ------- */
 
-  /* As a performance optimization, the operation can compute the glare on a fraction of the input
-   * image size, which is what this method returns. */
-  int2 get_glare_size()
+  float get_threshold()
   {
-    return compute_domain().size / get_quality_factor();
+    return math::max(0.0f, this->get_input("Threshold").get_single_value_default(1.0f));
+  }
+
+  float get_strength()
+  {
+    return math::max(0.0f, this->get_input("Strength").get_single_value_default(1.0f));
+  }
+
+  float get_size()
+  {
+    return math::clamp(this->get_input("Size").get_single_value_default(1.0f), 0.0f, 1.0f);
   }
 
   int get_number_of_iterations()
@@ -1985,6 +2089,7 @@ void register_node_type_cmp_glare()
   cmp_node_type_base(&ntype, CMP_NODE_GLARE, "Glare", NODE_CLASS_OP_FILTER);
   ntype.enum_name_legacy = "GLARE";
   ntype.declare = file_ns::cmp_node_glare_declare;
+  ntype.updatefunc = file_ns::node_update;
   ntype.draw_buttons = file_ns::node_composit_buts_glare;
   ntype.initfunc = file_ns::node_composit_init_glare;
   blender::bke::node_type_storage(
