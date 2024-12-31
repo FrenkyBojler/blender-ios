@@ -58,11 +58,11 @@ static void node_composit_buts_convert_colorspace(uiLayout *layout,
   uiItemL(layout, RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
 #endif
 
-  uiItemR(layout, ptr, "from_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "to_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "from_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "to_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ConvertColorSpaceOperation : public NodeOperation {
  public:
@@ -136,7 +136,7 @@ class ConvertColorSpaceOperation : public NodeOperation {
     output_image.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      output_image.store_pixel(texel, input_image.load_pixel(texel));
+      output_image.store_pixel(texel, input_image.load_pixel<float4>(texel));
     });
 
     IMB_colormanagement_processor_apply(color_processor,
@@ -198,6 +198,7 @@ void register_node_type_cmp_convert_color_space()
 
   cmp_node_type_base(
       &ntype, CMP_NODE_CONVERT_COLOR_SPACE, "Convert Colorspace", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "CONVERT_COLORSPACE";
   ntype.declare = file_ns::CMP_NODE_CONVERT_COLOR_SPACE_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_convert_colorspace;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
