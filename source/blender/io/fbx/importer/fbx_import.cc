@@ -10,6 +10,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_camera.h"
+#include "BKE_deform.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_light.h"
@@ -22,6 +23,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_ordered_edge.hh"
 #include "BLI_string.h"
 
 #include "DEG_depsgraph.hh"
@@ -31,6 +33,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_key_types.h"
 #include "DNA_light_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 
 #include "IO_fbx.hh"
@@ -100,6 +103,7 @@ void FbxImportContext::import_meshes()
     Mesh *mesh = BKE_mesh_new_nomain(
         fmesh->num_vertices, fmesh->num_edges, fmesh->num_faces, fmesh->num_indices);
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+    AttributeOwner attr_owner = AttributeOwner::from_id(&mesh->id);
 
     /* Vertex positions. */
     MutableSpan<float3> positions = mesh->vert_positions_for_write();
@@ -133,6 +137,15 @@ void FbxImportContext::import_meshes()
       }
       materials.finish();
     }
+    /* Face smoothing. */
+    if (fmesh->face_smoothing.count > 0 && fmesh->face_smoothing.count == fmesh->num_faces) {
+      bke::SpanAttributeWriter<bool> smooth = attributes.lookup_or_add_for_write_only_span<bool>(
+          "sharp_face", bke::AttrDomain::Face);
+      for (int i = 0; i < fmesh->face_smoothing.count; i++) {
+        smooth.span[i] = !fmesh->face_smoothing[i];
+      }
+      smooth.finish();
+    }
 
     /* Edges. */
     MutableSpan<int2> edges = mesh->edges_for_write();
@@ -143,12 +156,66 @@ void FbxImportContext::import_meshes()
       int vb = fmesh->vertex_indices[fedge.b];
       edges[edge_idx] = int2(va, vb);
     }
+
+    /* Calculate any remaining edges, and add them to explicitly imported ones.
+     * Note that this clears any per-edge data, so we have to setup edge creases etc.
+     * after that. */
     bke::mesh_calc_edges(*mesh, true, false);
+
+    const bool has_edge_creases = fmesh->edge_crease.count > 0 &&
+                                  fmesh->edge_crease.count == fmesh->num_edges;
+    const bool has_edge_smooth = fmesh->edge_smoothing.count > 0 &&
+                                 fmesh->edge_smoothing.count == fmesh->num_edges;
+    if (has_edge_creases || has_edge_smooth) {
+      /* The total number of edges in mesh now might be different from number of explicitly
+       * imported ones; we have to build mapping from vertex pairs to edge index. */
+      Span<int2> edges = mesh->edges();
+      Map<OrderedEdge, int> edge_map;
+      edge_map.reserve(edges.size());
+      for (const int i : edges.index_range()) {
+        edge_map.add(edges[i], i);
+      }
+
+      if (has_edge_creases) {
+        bke::SpanAttributeWriter<float> creases =
+            attributes.lookup_or_add_for_write_only_span<float>("crease_edge",
+                                                                bke::AttrDomain::Edge);
+        creases.span.fill(0.0f);
+        for (int i = 0; i < fmesh->num_edges; i++) {
+          const ufbx_edge &fedge = fmesh->edges[i];
+          int va = fmesh->vertex_indices[fedge.a];
+          int vb = fmesh->vertex_indices[fedge.b];
+          int edge_i = edge_map.lookup_default({va, vb}, -1);
+          if (edge_i >= 0) {
+            /* Python fbx importer was squaring the incoming crease values. */
+            creases.span[edge_i] = sqrtf(fmesh->edge_crease[i]);
+          }
+        }
+        creases.finish();
+      }
+
+      if (has_edge_smooth) {
+        bke::SpanAttributeWriter<bool> sharp = attributes.lookup_or_add_for_write_only_span<bool>(
+            "sharp_edge", bke::AttrDomain::Edge);
+        sharp.span.fill(false);
+        for (int i = 0; i < fmesh->num_edges; i++) {
+          const ufbx_edge &fedge = fmesh->edges[i];
+          int va = fmesh->vertex_indices[fedge.a];
+          int vb = fmesh->vertex_indices[fedge.b];
+          int edge_i = edge_map.lookup_default({va, vb}, -1);
+          if (edge_i >= 0) {
+            sharp.span[edge_i] = !fmesh->edge_smoothing[i];
+          }
+        }
+        sharp.finish();
+      }
+    }
 
     /* UVs. */
     for (const ufbx_uv_set &fuv_set : fmesh->uv_sets) {
+      std::string attr_name = BKE_attribute_calc_unique_name(attr_owner, fuv_set.name.data);
       bke::SpanAttributeWriter<float2> uvs = attributes.lookup_or_add_for_write_only_span<float2>(
-          fuv_set.name.data, bke::AttrDomain::Corner);
+          attr_name, bke::AttrDomain::Corner);
       BLI_assert(fuv_set.vertex_uv.indices.count == uvs.span.size());
       for (int i = 0; i < fuv_set.vertex_uv.indices.count; i++) {
         int val_idx = fuv_set.vertex_uv.indices[i];
@@ -159,13 +226,14 @@ void FbxImportContext::import_meshes()
     }
 
     /* Colors. */
-    const char *first_color_name = nullptr;
+    std::string first_color_name;
     for (const ufbx_color_set &fcol_set : fmesh->color_sets) {
-      if (first_color_name == nullptr) {
-        first_color_name = fcol_set.name.data;
+      std::string attr_name = BKE_attribute_calc_unique_name(attr_owner, fcol_set.name.data);
+      if (first_color_name.empty()) {
+        first_color_name = attr_name;
       }
       bke::SpanAttributeWriter<ColorGeometry4f> cols =
-          attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(fcol_set.name.data,
+          attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(attr_name,
                                                                         bke::AttrDomain::Corner);
       BLI_assert(fcol_set.vertex_color.indices.count == cols.span.size());
       for (int i = 0; i < fcol_set.vertex_color.indices.count; i++) {
@@ -176,9 +244,9 @@ void FbxImportContext::import_meshes()
       }
       cols.finish();
     }
-    if (first_color_name) {
-      mesh->active_color_attribute = BLI_strdup(first_color_name);
-      mesh->default_color_attribute = BLI_strdup(first_color_name);
+    if (!first_color_name.empty()) {
+      mesh->active_color_attribute = BLI_strdup(first_color_name.c_str());
+      mesh->default_color_attribute = BLI_strdup(first_color_name.c_str());
     }
 
     /* Normals. */
@@ -191,6 +259,30 @@ void FbxImportContext::import_meshes()
         normals[i] = float3(normal.x, normal.y, normal.z);
       }
       BKE_mesh_set_custom_normals(mesh, reinterpret_cast<float(*)[3]>(normals.data()));
+    }
+
+    /* Skinning (vertex group) information. */
+    if (fmesh->skin_deformers.count > 0) {
+      const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
+      if (skin != nullptr && fmesh->num_vertices > 0 &&
+          skin->vertices.count == fmesh->num_vertices)
+      {
+        MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
+        for (int i = 0; i < fmesh->num_vertices; i++) {
+          const ufbx_skin_vertex &fvertex = skin->vertices[i];
+          int num_weights = fvertex.num_weights;
+          if (num_weights > 0) {
+            dverts[i].dw = static_cast<MDeformWeight *>(
+                MEM_mallocN(sizeof(MDeformWeight) * num_weights, __func__));
+            dverts[i].totweight = num_weights;
+            for (int j = 0; j < num_weights; j++) {
+              const ufbx_skin_weight &fweight = skin->weights[fvertex.weight_begin + j];
+              dverts[i].dw[j].def_nr = fweight.cluster_index;
+              dverts[i].dw[j].weight = fweight.weight;
+            }
+          }
+        }
+      }
     }
 
     /* Validate if needed. */
