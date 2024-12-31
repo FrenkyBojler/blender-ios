@@ -835,124 +835,53 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
    * - The number of edges is a guess that doesn't include deduplication of new edges with
    *   existing edges. If those are found, the mesh will be resized later.
    * - Don't create attributes to facilitate implicit sharing of the positions array. */
-  Mesh *mesh = bke::mesh_new_no_attributes(src_mesh.verts_num,
-                                           src_edges.size() + tri_edges_range.size(),
-                                           distinct_tris.size() + distinct_unselected_faces.size(),
-                                           0);
+  Mesh *mesh = bke::mesh_new_no_attributes(src_mesh.verts_num, src_mesh.edges_num, distinct_tris.size() + distinct_unselected_faces.size(), 0);
   BKE_mesh_copy_parameters_for_eval(mesh, &src_mesh);
 
   /* Find the face corner ranges using the offsets array from the new mesh. That gives us the
    * final number of face corners. */
-  const OffsetIndices faces = calc_face_offsets(
-      src_faces, distinct_unselected_faces, mesh->face_offsets_for_write());
+  const OffsetIndices<int> faces = calc_face_offsets(src_faces, distinct_unselected_faces, mesh->face_offsets_for_write());
   mesh->corners_num = faces.total_size();
-  const OffsetIndices faces_unselected = faces.slice(unselected_range);
+  const OffsetIndices<int> faces_unselected = faces.slice(unselected_range);
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  attributes.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
   attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-  attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
 
-  MutableSpan<int2> edges_with_duplicates = mesh->edges_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  MutableSpan<int> corner_edges = mesh->corner_edges_for_write();
+  array_utils::gather(src_corner_verts, corner_tris.as_span().cast<int>(), corner_verts.slice(tri_corners_range));
 
-  array_utils::gather(
-      src_corner_verts, corner_tris.as_span().cast<int>(), corner_verts.slice(tri_corners_range));
 
-  if (!ngons.is_empty()) {
-    ngon::calc_edges(src_faces,
-                     src_corner_verts,
-                     src_corner_edges,
-                     ngons,
-                     tris_by_ngon,
-                     edges_by_ngon,
-                     ngon_edges_range,
-                     corner_tris.as_mutable_span().slice(ngon_tris_range),
-                     edges_with_duplicates,
-                     corner_edges.slice(ngon_corners_range));
-  }
-
-  if (!quads.is_empty()) {
-    quad::calc_edges(src_corner_edges,
-                     corner_tris.as_mutable_span().slice(quad_tris_range),
-                     corner_verts.slice(quad_corners_range),
-                     quad_edges_range.start(),
-                     edges_with_duplicates.slice(quad_edges_range),
-                     corner_edges.slice(quad_corners_range));
-  }
-
-  mesh->edges_num = deduplication::calc_new_edges(
-      src_mesh, src_edges, tri_edges_range, edges_with_duplicates, corner_edges);
-
-  edges_with_duplicates.take_front(src_edges.size()).copy_from(src_edges);
 
   /* Vertex attributes are totally unaffected and can be shared with implicit sharing.
    * Use the #CustomData API for simpler support for vertex groups. */
   CustomData_merge(&src_mesh.vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, mesh->verts_num);
+  /* Edge attributes are the same for original edges, new edges will be generated in #bke::mesh_calc_edges. */
+  CustomData_merge(&src_mesh.edge_data, &mesh->edge_data, CD_MASK_MESH.vmask, mesh->edges_num);
 
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes,
-           attributes,
-           ATTR_DOMAIN_MASK_EDGE,
-           bke::attribute_filter_with_skip_ref(attribute_filter, {".edge_verts"})))
-  {
-    attribute.dst.span.slice(src_edges_range).copy_from(attribute.src);
-    GMutableSpan new_data = attribute.dst.span.drop_front(src_edges.size());
-    /* It would be reasonable interpolate data from connected edges within each face.
-     * Currently the data from new edges is just set to the type's default value. */
-    const void *default_value = new_data.type().default_value();
-    new_data.type().fill_construct_n(default_value, new_data.data(), new_data.size());
-    attribute.dst.finish();
-  }
-  if (CustomData_has_layer(&src_mesh.edge_data, CD_ORIGINDEX)) {
-    const Span src(
-        static_cast<const int *>(CustomData_get_layer(&src_mesh.edge_data, CD_ORIGINDEX)),
-        src_mesh.edges_num);
-    MutableSpan dst(static_cast<int *>(CustomData_add_layer(
-                        &mesh->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->edges_num)),
-                    mesh->edges_num);
-    dst.drop_front(src_edges.size()).fill(ORIGINDEX_NONE);
-    array_utils::copy(src, dst.slice(src_edges_range));
-  }
+  bke::mesh_calc_edges(*mesh, false, false, true);
 
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
   {
-    bke::attribute_math::gather_to_groups(
-        tris_by_ngon, ngons, attribute.src, attribute.dst.span.slice(ngon_tris_range));
+    bke::attribute_math::gather_to_groups(tris_by_ngon, ngons, attribute.src, attribute.dst.span.slice(ngon_tris_range));
     quad::copy_quad_data_to_tris(attribute.src, quads, attribute.dst.span.slice(quad_tris_range));
     array_utils::gather(attribute.src, distinct_unselected_faces, attribute.dst.span.slice(unselected_range));
     attribute.dst.finish();
   }
+
   if (CustomData_has_layer(&src_mesh.face_data, CD_ORIGINDEX)) {
-    const Span src(
-        static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)),
-        src_mesh.faces_num);
-    MutableSpan dst(static_cast<int *>(CustomData_add_layer(
-                        &mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)),
-                    mesh->faces_num);
+    const Span src(static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)), src_mesh.faces_num);
+    MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)), mesh->faces_num);
     bke::attribute_math::gather_to_groups(tris_by_ngon, ngons, src, dst.slice(ngon_tris_range));
     quad::copy_quad_data_to_tris(src, quads, dst.slice(quad_tris_range));
     array_utils::gather(src, distinct_unselected_faces, dst.slice(unselected_range));
   }
 
-  array_utils::gather_group_to_group(
-      src_faces, faces_unselected, distinct_unselected_faces, src_corner_verts, corner_verts);
-  array_utils::gather_group_to_group(
-      src_faces, faces_unselected, distinct_unselected_faces, src_corner_edges, corner_edges);
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes,
-           attributes,
-           ATTR_DOMAIN_MASK_CORNER,
-           bke::attribute_filter_with_skip_ref(attribute_filter,
-                                               {".corner_vert", ".corner_edge"})))
+  array_utils::gather_group_to_group(src_faces, faces_unselected, distinct_unselected_faces, src_corner_verts, corner_verts);
+  array_utils::gather_group_to_group(src_faces, faces_unselected, distinct_unselected_faces, src_corner_edges, corner_edges);
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_CORNER, bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_vert", ".corner_edge"})))
   {
-    bke::attribute_math::gather_group_to_group(
-        src_faces, faces_unselected, distinct_unselected_faces, attribute.src, attribute.dst.span);
-    bke::attribute_math::gather(attribute.src,
-                                corner_tris.as_span().cast<int>(),
-                                attribute.dst.span.slice(tri_corners_range));
+    bke::attribute_math::gather_group_to_group(src_faces, faces_unselected, distinct_unselected_faces, attribute.src, attribute.dst.span);
+    bke::attribute_math::gather(attribute.src, corner_tris.as_span().cast<int>(), attribute.dst.span.slice(tri_corners_range));
     attribute.dst.finish();
   }
 
