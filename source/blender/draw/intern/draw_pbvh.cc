@@ -336,28 +336,6 @@ static GPUVertFormat attribute_format(const OrigMeshData &orig_mesh_data,
   return format;
 }
 
-static bool pbvh_attr_supported(const AttributeRequest &request)
-{
-  if (std::holds_alternative<CustomRequest>(request)) {
-    return true;
-  }
-  const GenericRequest &attr = std::get<GenericRequest>(request);
-  if (!ELEM(attr.domain, bke::AttrDomain::Point, bke::AttrDomain::Face, bke::AttrDomain::Corner)) {
-    /* blender::bke::pbvh::Tree drawing does not support edge domain attributes. */
-    return false;
-  }
-  bool type_supported = false;
-  bke::attribute_math::convert_to_static_type(attr.type, [&](auto dummy) {
-    using T = decltype(dummy);
-    using Converter = AttributeConverter<T>;
-    using VBOType = typename Converter::VBOType;
-    if constexpr (!std::is_void_v<VBOType>) {
-      type_supported = true;
-    }
-  });
-  return type_supported;
-}
-
 inline short4 normal_float_to_short(const float3 &value)
 {
   short3 result;
@@ -579,8 +557,8 @@ void DrawCacheImpl::free_nodes_with_changed_topology(const bke::pbvh::Tree &pbvh
   if (pbvh.type() == bke::pbvh::Type::BMesh) {
     /* For BMesh, VBOs are only filled with data for visible triangles, and topology can also
      * completely change due to dynamic topology, so VBOs must be rebuilt from scratch. For other
-     * types, actual topology doesn't change, and visibility changes are accounted for by the
-     * index buffers. */
+     * types, actual topology doesn't change, and visibility changes are accounted for by the index
+     * buffers. */
     for (AttributeData &data : attribute_vbos_.values()) {
       free_vbos(data.vbos, nodes_to_free);
     }
@@ -778,15 +756,13 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
   const Mesh &mesh = *static_cast<const Mesh *>(object.data);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
-  const StringRefNull name = attr.name;
-  const bke::AttrDomain domain = attr.domain;
-  const eCustomDataType data_type = attr.type;
   const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-  const GVArraySpan attribute = *attributes.lookup_or_default(name, domain, data_type);
+  const bke::GAttributeReader attribute = attributes.lookup(attr);
+  const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(attribute.varray.type());
   ensure_vbos_allocated_mesh(
-      object, attribute_format(orig_mesh_data, name, data_type), node_mask, vbos);
+      object, attribute_format(orig_mesh_data, attr, data_type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    bke::attribute_math::convert_to_static_type(attribute.type(), [&](auto dummy) {
+    bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
         const Span<T> src = attribute.typed<T>();
@@ -1139,12 +1115,11 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   const BMesh &bm = *object.sculpt->bm;
-  const bke::AttrDomain domain = attr.domain;
-  const eCustomDataType data_type = attr.type;
-  const CustomData &custom_data = *get_cdata(bm, domain);
-  const int offset = CustomData_get_offset_named(&custom_data, data_type, attr.name);
+  const auto &[layer, domain] = bmesh_attribute_lookup(bm, attr);
+  const int offset = layer->offset;
+  const eCustomDataType data_type = eCustomDataType(layer->type);
   ensure_vbos_allocated_bmesh(
-      object, attribute_format(orig_mesh_data, attr.name, data_type), node_mask, vbos);
+      object, attribute_format(orig_mesh_data, attr, data_type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
     bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
       using T = decltype(dummy);
@@ -1707,8 +1682,8 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
   vbos.resize(pbvh.nodes_num(), nullptr);
 
   /* The nodes we recompute here are a combination of:
-   *   1. null VBOs, which correspond to nodes that either haven't been drawn before, or have
-   * been cleared completely by #free_nodes_with_changed_topology.
+   *   1. null VBOs, which correspond to nodes that either haven't been drawn before, or have been
+   *      cleared completely by #free_nodes_with_changed_topology.
    *   2. Nodes that have been tagged dirty as their values are changed.
    * We also only process a subset of the nodes referenced by the caller, for example to only
    * recompute visible nodes. */
@@ -1761,16 +1736,14 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
         }
       }
       else {
-        const eCustomDataType type = std::get<GenericRequest>(attr).type;
+        ensure_vbos_allocated_grids(object,
+                                    attribute_format(orig_mesh_data, "dummy", CD_PROP_BYTE_COLOR),
+                                    use_flat_layout_,
+                                    node_mask,
+                                    vbos);
         node_mask.foreach_index(GrainSize(1), [&](const int i) {
-          bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-            using T = decltype(dummy);
-            using Converter = AttributeConverter<T>;
-            using VBOType = typename Converter::VBOType;
-            if constexpr (!std::is_void_v<VBOType>) {
-              vbos[i]->data<VBOType>().fill(Converter::convert(fallback_value_for_fill<T>()));
-            }
-          });
+          vbos[i]->data<ColorGeometry4b>().fill(
+              ColorGeometry4b(UCHAR_MAX, UCHAR_MAX, UCHAR_MAX, UCHAR_MAX));
         });
       }
       break;
