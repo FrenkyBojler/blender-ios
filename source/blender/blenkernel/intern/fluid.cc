@@ -3365,7 +3365,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   velocities.finish();
   material_indices.finish();
 
-  mesh_calc_edges(*mesh, false, false);
+  mesh_calc_edges(*mesh, false, false, false);
 
   return mesh;
 }
@@ -3491,7 +3491,7 @@ static Mesh *create_smoke_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obje
     }
   }
 
-  mesh_calc_edges(*result, false, false);
+  mesh_calc_edges(*result, false, false, false);
   return result;
 }
 

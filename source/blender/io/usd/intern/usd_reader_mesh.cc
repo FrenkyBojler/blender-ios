@@ -286,7 +286,7 @@ void USDMeshReader::read_mpolys(Mesh *mesh) const
     }
   }
 
-  bke::mesh_calc_edges(*mesh, false, false);
+  bke::mesh_calc_edges(*mesh, false, false, false);
 }
 
 void USDMeshReader::read_uv_data_primvar(Mesh *mesh,

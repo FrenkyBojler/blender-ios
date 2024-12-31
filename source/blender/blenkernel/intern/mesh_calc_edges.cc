@@ -13,6 +13,7 @@
 #include "BLI_vector_set.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 
@@ -242,16 +243,17 @@ void mesh_calc_edges(Mesh &mesh,
   }
 
   if (mesh_with_old_edges != nullptr) {
-    const AttributeAccessor old_edge_attributes = old_mesh_edges->attributes();
-
+    const AttributeAccessor old_edge_attributes = mesh_with_old_edges->attributes();
+    
+    const VArraySpan<int2> original_edges = *old_edge_attributes.lookup<int2>(".edge_verts", AttrDomain::Edge);
     Array<int, 0> src_to_dst_edges(original_edges.size());
-    calc_edges::known_edges_to_new(
-        edge_offsets, edge_maps, parallel_mask, original_edges, src_to_dst_edges);
 
-    if (array_utils::indices_are_range(src_to_dst_edges.as_span(), IndexRange(mesh.edge_data))) {
+    calc_edges::known_edges_to_new(edge_offsets, edge_maps, parallel_mask, original_edges, src_to_dst_edges);
+
+    if (array_utils::indices_are_range(src_to_dst_edges.as_span(), IndexRange(mesh.edges_num))) {
       if (select_new_edges) {
-        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
-            ".select_edge", AttrDomain::Edge);
+        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_for_write_span<bool>(
+            ".select_edge");
         select_edge.span.fill(false);
         select_edge.finish();
       }
@@ -260,21 +262,21 @@ void mesh_calc_edges(Mesh &mesh,
     }
     else {
       if (select_new_edges) {
-        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
-            ".select_edge", AttrDomain::Edge);
+        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_for_write_span<bool>(
+            ".select_edge");
         select_edge.span.fill_indices(src_to_dst_edges.as_span(), false);
         select_edge.finish();
       }
 
       old_edge_attributes.foreach_attribute([&](const bke::AttributeIter &src_attribute) {
         BLI_assert(src_attribute.domain == bke::AttrDomain::Edge);
-        GSpanAttributeWriter dst_atrtribute = lookup_or_add_for_write_span(
+        GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_span(
             src_attribute.name, src_attribute.domain, src_attribute.data_type);
 
-        bke::attribute_math::convert_to_static_type(dst_atrtribute.span.type(), [&](auto dummy) {
+        attribute_math::convert_to_static_type(dst_attribute.span.type(), [&](auto dummy) {
           using T = decltype(dummy);
           const VArraySpan<T> src = src_attribute.get<T>().varray;
-          MutableSpan<T> dst = dst_atrtribute.typed<T>();
+          MutableSpan<T> dst = dst_attribute.span.typed<T>();
           array_utils::scatter(Span<T>(src), src_to_dst_edges.as_span(), dst);
         });
       });
