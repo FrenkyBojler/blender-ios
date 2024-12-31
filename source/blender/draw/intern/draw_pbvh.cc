@@ -1094,6 +1094,7 @@ BLI_NOINLINE static void update_face_sets_bmesh(const Object &object,
   const int color_default = orig_mesh_data.face_set_default;
   const int color_seed = orig_mesh_data.face_set_seed;
   const int offset = CustomData_get_offset_named(&bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
+  ensure_vbos_allocated_bmesh(object, face_set_format(), node_mask, vbos);
   if (offset != -1) {
     node_mask.foreach_index(GrainSize(1), [&](const int i) {
       uchar4 *data = vbos[i]->data<uchar4>().data();
