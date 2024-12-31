@@ -431,9 +431,6 @@ static void copy_generic_attributes_to_result(
   threading::parallel_for(
       dst_attribute_writers.index_range(), 10, [&](const IndexRange attribute_range) {
         for (const int attribute_index : attribute_range) {
-          // if (dst_attribute_writers[attribute_index].span.is_empty()) {
-          //   continue;
-          // }
           const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
           const IndexRange element_slice = range_fn(domain);
 
@@ -1632,7 +1629,6 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     const eCustomDataType data_type = ordered_attributes.kinds[attribute_index].data_type;
     dst_attribute_writers.append(
         dst_attributes.lookup_or_add_for_write_only_span(attribute_id, domain, data_type));
-    // BLI_assert(bool(dst_attribute_writers.last()));
   }
   const char *active_layer = CustomData_get_active_layer_name(&first_mesh.corner_data,
                                                               CD_PROP_FLOAT2);
