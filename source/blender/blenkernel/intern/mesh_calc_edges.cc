@@ -244,11 +244,13 @@ void mesh_calc_edges(Mesh &mesh,
 
   if (mesh_with_old_edges != nullptr) {
     const AttributeAccessor old_edge_attributes = mesh_with_old_edges->attributes();
-    
-    const VArraySpan<int2> original_edges = *old_edge_attributes.lookup<int2>(".edge_verts", AttrDomain::Edge);
+
+    const VArraySpan<int2> original_edges = *old_edge_attributes.lookup<int2>(".edge_verts",
+                                                                              AttrDomain::Edge);
     Array<int, 0> src_to_dst_edges(original_edges.size());
 
-    calc_edges::known_edges_to_new(edge_offsets, edge_maps, parallel_mask, original_edges, src_to_dst_edges);
+    calc_edges::known_edges_to_new(
+        edge_offsets, edge_maps, parallel_mask, original_edges, src_to_dst_edges);
 
     if (array_utils::indices_are_range(src_to_dst_edges.as_span(), IndexRange(mesh.edges_num))) {
       if (select_new_edges) {
