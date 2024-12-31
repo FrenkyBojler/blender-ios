@@ -173,7 +173,10 @@ static void known_edges_to_new(const OffsetIndices<int> edge_offsets,
 
 }  // namespace calc_edges
 
-void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new_edges, const bool copy_edge_attributes)
+void mesh_calc_edges(Mesh &mesh,
+                     bool keep_existing_edges,
+                     const bool select_new_edges,
+                     const bool copy_edge_attributes)
 {
   /* Parallelization is achieved by having multiple hash tables for different subsets of edges.
    * Each edge is assigned to one of the hash maps based on the lower bits of a hash value. */
@@ -198,7 +201,12 @@ void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new
   {
     MutableAttributeAccessor attributes = mesh.attributes_for_write();
     attributes.add<int>(".corner_edge", AttrDomain::Corner, AttributeInitConstruct());
-    calc_edges::update_edge_indices_in_face_loops(mesh.faces(), mesh.corner_verts(), edge_maps, parallel_mask, edge_offsets, mesh.corner_edges_for_write());
+    calc_edges::update_edge_indices_in_face_loops(mesh.faces(),
+                                                  mesh.corner_verts(),
+                                                  edge_maps,
+                                                  parallel_mask,
+                                                  edge_offsets,
+                                                  mesh.corner_edges_for_write());
   }
 
   Mesh *mesh_with_old_edges = nullptr;
@@ -206,7 +214,8 @@ void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new
   if (keep_existing_edges && (select_new_edges || copy_edge_attributes)) {
     mesh_with_old_edges = mesh_new_no_attributes(0, 0, 0, 0);
     BLI_assert(mesh_with_old_edges != nullptr);
-    CustomData_init_from(&mesh.edge_data, &mesh_with_old_edges->edge_data, CD_MASK_ALL, mesh.edges_num);
+    CustomData_init_from(
+        &mesh.edge_data, &mesh_with_old_edges->edge_data, CD_MASK_ALL, mesh.edges_num);
     mesh_with_old_edges->edges_num = mesh.edges_num;
   }
 
@@ -216,15 +225,18 @@ void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new
 
   {
     MutableAttributeAccessor attributes = mesh.attributes_for_write();
-    MutableSpan<int2> new_edges(MEM_cnew_array<int2>(edge_offsets.total_size(), __func__), edge_offsets.total_size());
+    MutableSpan<int2> new_edges(MEM_cnew_array<int2>(edge_offsets.total_size(), __func__),
+                                edge_offsets.total_size());
     calc_edges::serialize_and_initialize_deduplicated_edges(edge_maps, edge_offsets, new_edges);
-    attributes.add<int2>(".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(new_edges.data()));
+    attributes.add<int2>(
+        ".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(new_edges.data()));
   }
 
   MutableAttributeAccessor dst_attributes = mesh.attributes_for_write();
 
   if (select_new_edges) {
-    SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(".select_edge", AttrDomain::Edge);
+    SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
+        ".select_edge", AttrDomain::Edge);
     select_edge.span.fill(true);
     select_edge.finish();
   }
@@ -233,27 +245,32 @@ void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new
     const AttributeAccessor old_edge_attributes = old_mesh_edges->attributes();
 
     Array<int, 0> src_to_dst_edges(original_edges.size());
-    calc_edges::known_edges_to_new(edge_offsets, edge_maps, parallel_mask, original_edges, src_to_dst_edges);
+    calc_edges::known_edges_to_new(
+        edge_offsets, edge_maps, parallel_mask, original_edges, src_to_dst_edges);
 
     if (array_utils::indices_are_range(src_to_dst_edges.as_span(), IndexRange(mesh.edge_data))) {
       if (select_new_edges) {
-        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(".select_edge", AttrDomain::Edge);
+        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
+            ".select_edge", AttrDomain::Edge);
         select_edge.span.fill(false);
         select_edge.finish();
       }
 
       copy_attributes(old_edge_attributes, AttrDomain::Edge, AttrDomain::Edge, {}, dst_attributes);
-    } else {
+    }
+    else {
       if (select_new_edges) {
-        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(".select_edge", AttrDomain::Edge);
+        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
+            ".select_edge", AttrDomain::Edge);
         select_edge.span.fill_indices(src_to_dst_edges.as_span(), false);
         select_edge.finish();
       }
 
       old_edge_attributes.foreach_attribute([&](const bke::AttributeIter &src_attribute) {
         BLI_assert(src_attribute.domain == bke::AttrDomain::Edge);
-        GSpanAttributeWriter dst_atrtribute = lookup_or_add_for_write_span(src_attribute.name, src_attribute.domain, src_attribute.data_type);
-        
+        GSpanAttributeWriter dst_atrtribute = lookup_or_add_for_write_span(
+            src_attribute.name, src_attribute.domain, src_attribute.data_type);
+
         bke::attribute_math::convert_to_static_type(dst_atrtribute.span.type(), [&](auto dummy) {
           using T = decltype(dummy);
           const VArraySpan<T> src = src_attribute.get<T>().varray;
