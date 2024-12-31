@@ -431,6 +431,9 @@ static void copy_generic_attributes_to_result(
   threading::parallel_for(
       dst_attribute_writers.index_range(), 10, [&](const IndexRange attribute_range) {
         for (const int attribute_index : attribute_range) {
+          // if (dst_attribute_writers[attribute_index].span.is_empty()) {
+          //   continue;
+          // }
           const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
           const IndexRange element_slice = range_fn(domain);
 
@@ -1524,7 +1527,9 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
       dst_attribute_writers);
 }
 
-static void copy_vertex_group_names(Mesh &dst_mesh, const Span<const Mesh *> src_meshes)
+static void copy_vertex_group_names(Mesh &dst_mesh,
+                                    const OrderedAttributes &ordered_attributes,
+                                    const Span<const Mesh *> src_meshes)
 {
   Set<StringRef> existing_names;
   LISTBASE_FOREACH (const bDeformGroup *, defgroup, &dst_mesh.vertex_group_names) {
@@ -1533,6 +1538,12 @@ static void copy_vertex_group_names(Mesh &dst_mesh, const Span<const Mesh *> src
   for (const Mesh *mesh : src_meshes) {
     LISTBASE_FOREACH (const bDeformGroup *, src, &mesh->vertex_group_names) {
       const StringRef src_name = src->name;
+      const int attribute_index = ordered_attributes.ids.index_of(src_name);
+      const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
+      if (kind.domain != bke::AttrDomain::Point || kind.data_type != CD_PROP_FLOAT) {
+        /* Prefer using the highest priority domain and type from all input meshes. */
+        continue;
+      }
       if (existing_names.contains(src_name)) {
         continue;
       }
@@ -1590,7 +1601,8 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
 
   BLI_assert(BLI_listbase_count(&dst_mesh->vertex_group_names) ==
              BLI_listbase_count(&first_mesh.vertex_group_names));
-  copy_vertex_group_names(*dst_mesh, all_meshes_info.order.as_span().drop_front(1));
+  copy_vertex_group_names(
+      *dst_mesh, ordered_attributes, all_meshes_info.order.as_span().drop_front(1));
   dst_mesh->vertex_group_active_index = first_mesh.vertex_group_active_index;
 
   /* Add materials. */
@@ -1620,6 +1632,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     const eCustomDataType data_type = ordered_attributes.kinds[attribute_index].data_type;
     dst_attribute_writers.append(
         dst_attributes.lookup_or_add_for_write_only_span(attribute_id, domain, data_type));
+    // BLI_assert(bool(dst_attribute_writers.last()));
   }
   const char *active_layer = CustomData_get_active_layer_name(&first_mesh.corner_data,
                                                               CD_PROP_FLOAT2);
