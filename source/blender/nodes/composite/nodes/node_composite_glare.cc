@@ -492,7 +492,8 @@ class GlareOperation : public NodeOperation {
           int2 texel = int2(x, y);
           float4 horizontal = horizontal_pass_result.load_pixel<float4>(texel);
           float4 vertical = output.load_pixel<float4>(texel);
-          output.store_pixel(texel, horizontal + vertical);
+          float4 combined = horizontal + vertical;
+          output.store_pixel(texel, float4(combined.xyz(), 1.0f));
         }
       }
     });
@@ -709,7 +710,8 @@ class GlareOperation : public NodeOperation {
           int2 texel = start + j * direction;
           float4 horizontal = diagonal_pass_result.load_pixel<float4>(texel);
           float4 vertical = output.load_pixel<float4>(texel);
-          output.store_pixel(texel, horizontal + vertical);
+          float4 combined = horizontal + vertical;
+          output.store_pixel(texel, float4(combined.xyz(), 1.0f));
         }
       }
     });
@@ -1023,7 +1025,8 @@ class GlareOperation : public NodeOperation {
     parallel_for(size, [&](const int2 texel) {
       float4 attenuated_streak = streak.load_pixel<float4>(texel) * attenuation_factor;
       float4 current_accumulated_streaks = accumulated_streaks.load_pixel<float4>(texel);
-      accumulated_streaks.store_pixel(texel, current_accumulated_streaks + attenuated_streak);
+      float4 combined_streaks = current_accumulated_streaks + attenuated_streak;
+      accumulated_streaks.store_pixel(texel, float4(combined_streaks.xyz(), 1.0f));
     });
   }
 
@@ -1232,8 +1235,8 @@ class GlareOperation : public NodeOperation {
         }
 
         float4 current_accumulated_ghost = accumulated_ghosts_result.load_pixel<float4>(texel);
-        accumulated_ghosts_result.store_pixel(texel,
-                                              current_accumulated_ghost + accumulated_ghost);
+        float4 combined_ghost = current_accumulated_ghost + accumulated_ghost;
+        accumulated_ghosts_result.store_pixel(texel, float4(combined_ghost.xyz(), 1.0f));
       });
 
       /* The accumulated result serves as the input for the next iteration, so copy the result to
@@ -1570,7 +1573,8 @@ class GlareOperation : public NodeOperation {
       upsampled += (1.0f / 16.0f) *
                    input.sample_bilinear_extended(coordinates + pixel_size * float2(1.0f, 1.0f));
 
-      output.store_pixel(texel, output.load_pixel<float4>(texel) + upsampled);
+      float4 combined = output.load_pixel<float4>(texel) + upsampled;
+      output.store_pixel(texel, float4(combined.xyz(), 1.0f));
     });
   }
 
