@@ -229,6 +229,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_texture_filter_mode(input, true);
+    GPU_texture_extend_mode(input, GPU_SAMPLER_EXTEND_MODE_EXTEND);
     input.bind_as_texture(shader, "input_tx");
 
     output.allocate_texture(original_input.domain());
