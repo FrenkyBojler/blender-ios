@@ -9,6 +9,8 @@
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_mask.hh"
+#include "BLI_index_mask_expression.hh"
+#include "BLI_index_ranges_builder.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_ordered_edge.hh"
@@ -17,7 +19,6 @@
 #include "BLI_vector_set.hh"
 
 #include "BLI_heap.h"
-#include "BLI_index_ranges_builder.hh"
 #include "BLI_memarena.h"
 
 #include "BKE_attribute.hh"
@@ -690,7 +691,7 @@ struct FaceKey {
   FaceKey(const int tri_index_value, Span<int3> tris)
       : tri_index(tri_index_value), tri_lower_vert(tris[tri_index_value][0])
   {
-    const int3 &tri_verts = tris[tri_index_value];
+    [[maybe_unused]] const int3 &tri_verts = tris[tri_index_value];
     BLI_assert(std::is_sorted(&tri_verts[0], &tri_verts[0] + 3));
   }
 };
@@ -700,6 +701,12 @@ struct FaceHash {
   {
     return uint64_t(value.tri_lower_vert);
   }
+
+  uint64_t operator()(const int3 value) const
+  {
+    BLI_assert(std::is_sorted(&value[0], &value[0] + 3));
+    return uint64_t(value[0]);
+  }
 };
 
 struct FacesEquality {
@@ -708,14 +715,99 @@ struct FacesEquality {
   {
     return a.tri_lower_vert == b.tri_lower_vert && tris[a.tri_index] == tris[b.tri_index];
   }
+
+  bool operator()(const int3 a, const FaceKey b) const
+  {
+    BLI_assert(std::is_sorted(&a[0], &a[0] + 3));
+    return b.tri_lower_vert == a[0] && tris[b.tri_index] == a;
+  }
 };
 
 static int3 tri_to_ordered(const int3 tri)
 {
-  res[0] = std::min({data[0], data[1], data[2]});
-  res[2] = std::max({data[0], data[1], data[2]});
-  res[1] = (data[0] - res[0]) + (data[2] - res[2]) + data[1];
+  int3 res;
+  res[0] = std::min({tri[0], tri[1], tri[2]});
+  res[2] = std::max({tri[0], tri[1], tri[2]});
+  res[1] = (tri[0] - res[0]) + (tri[2] - res[2]) + tri[1];
   return res;
+}
+
+static void tri_to_ordered_tri(MutableSpan<int3> tris)
+{
+  threading::parallel_for(tris.index_range(), 4096, [&](const IndexRange range) {
+    for (int3 &tri : tris.slice(range)) {
+      tri = tri_to_ordered(tri);
+    }
+  });
+}
+
+static IndexMask face_tris_mask(const OffsetIndices<int> faces, const IndexMask &mask, IndexMaskMemory &memory)
+{
+  return IndexMask::from_batch_predicate(
+      mask,
+      GrainSize(4096),
+      memory,
+      [&](const IndexMaskSegment universe_segment, IndexRangesBuilder<int16_t> &builder) {
+        if (unique_sorted_indices::non_empty_is_range(universe_segment.base_span())) {
+          const IndexRange universe_as_range = unique_sorted_indices::non_empty_as_range(universe_segment.base_span());
+          const IndexRange segment_range = universe_as_range.shift(universe_segment.offset());
+          const OffsetIndices<int> segment_faces = faces.slice(segment_range);
+          if (segment_faces.total_size() == segment_faces.size() * 3) {
+            /* All faces in segment are triangles. */
+            builder.add_range(universe_as_range.start(), universe_as_range.one_after_last());
+            return universe_segment.offset();
+          }
+        }
+
+        for (const int16_t i : universe_segment.base_span()) {
+          const int face = int(universe_segment.offset() + i);
+          if (faces[face].size() == 3) {
+            builder.add(i);
+          }
+        }
+        return universe_segment.offset();
+      });
+}
+
+static IndexMask unknown_tri_mask(const IndexMask &tri_mask,
+                                  const OffsetIndices<int> faces,
+                                  const Span<int> corner_verts,
+                                  const VectorSet<FaceKey, DefaultProbingStrategy, FaceHash, FacesEquality> &distinct_tris,
+                                  IndexMaskMemory &memory)
+{
+  return IndexMask::from_predicate(tri_mask, GrainSize(4096), memory, [&](const int face_i) {
+    BLI_assert(faces[face_i].size() == 3);
+    const int3 corner_tri(&corner_verts[faces[face_i].start()]);
+    return !distinct_tris.contains_as(tri_to_ordered(corner_tri));
+  });
+}
+
+static void face_keys_to_face_indices(const Span<FaceKey> faces, MutableSpan<int> indices)
+{
+  BLI_assert(faces.size() == indices.size());
+  threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
+    for (const int face_i : range) {
+      indices[face_i] = faces[face_i].tri_index;
+    }
+  });
+}
+
+static void quad_indices_of_tris(const IndexMask &quads, MutableSpan<int> indices)
+{
+  BLI_assert(quads.size() * 2 == indices.size());
+  quads.foreach_index_optimized<int>(GrainSize(4096), [&](const int index, const int pos) {
+    indices[2 * pos + 0] = index;
+    indices[2 * pos + 1] = index;
+  });
+}
+
+static void ngon_indices_of_tris(const IndexMask &ngons, const OffsetIndices<int> tris_by_ngon, MutableSpan<int> indices)
+{
+  BLI_assert(tris_by_ngon.size() == ngons.size());
+  BLI_assert(tris_by_ngon.total_size() == indices.size());
+  ngons.foreach_index_optimized<int>(GrainSize(4096), [&](const int index, const int pos) {
+    indices.slice(tris_by_ngon[pos]).fill(index);
+  });
 }
 
 std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
@@ -728,7 +820,6 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   const Span<int2> src_edges = src_mesh.edges();
   const OffsetIndices src_faces = src_mesh.faces();
   const Span<int> src_corner_verts = src_mesh.corner_verts();
-  const Span<int> src_corner_edges = src_mesh.corner_edges();
   const bke::AttributeAccessor src_attributes = src_mesh.attributes();
 
   /* Divide the input selection into separate selections for each face type. This isn't necessary
@@ -757,24 +848,6 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   const IndexRange tris_range(ngon_tris_num + quad_tris_num);
   const IndexRange ngon_tris_range = tris_range.take_front(ngon_tris_num);
   const IndexRange quad_tris_range = tris_range.take_back(quad_tris_num);
-
-  const int ngon_corners_num = tris_by_ngon.total_size() * 3;
-  const int quad_corners_num = quads.size() * 6;
-  const IndexRange tri_corners_range(quad_corners_num + ngon_corners_num);
-  const IndexRange ngon_corners_range = tri_corners_range.take_front(ngon_corners_num);
-  const IndexRange quad_corners_range = tri_corners_range.take_back(quad_corners_num);
-
-  /* Calculate groups of new inner edges for each selected Ngon so they can be filled in parallel
-   * later. */
-  Array<int> edge_offset_data(ngons.size() + 1);
-  const OffsetIndices edges_by_ngon = ngon::calc_edges_by_ngon(src_faces, ngons, edge_offset_data);
-  const int ngon_edges_num = edges_by_ngon.total_size();
-  const int quad_edges_num = quads.size();
-  const IndexRange src_edges_range(0, src_edges.size());
-  const IndexRange tri_edges_range(src_edges_range.one_after_last(),
-                                   ngon_edges_num + quad_edges_num);
-  const IndexRange ngon_edges_range = tri_edges_range.take_front(ngon_edges_num);
-  const IndexRange quad_edges_range = tri_edges_range.take_back(quad_edges_num);
 
   /* An index map that maps from newly created corners in `tri_corners_range` to original corner
    * indices. This is used to interpolate `corner_vert` indices and face corner attributes. If
@@ -806,28 +879,46 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
    * triangle can be mix of parts of multiple quads, contains original triangle, and even can be
    * concatenation of parts of multiple ngons. */
 
-  const VectorSet<FaceKey> distinct_tris = deduplication::corner_tris_to_set(src_corner_verts.as_span(), corner_tris.as_span());
+  Array<int3> vert_tris(tris_range.size());
+  array_utils::gather(src_corner_verts, corner_tris.as_span().cast<int>(), vert_tris.as_mutable_span().cast<int>());
+  tri_to_ordered_tri(vert_tris.as_mutable_span());
 
-  const IndexMask unselected_faces = IndexMask(src_mesh.faces_num) - (quads + ngons);//IndexMask::from_union(quads, ngons, memory);
+  /* Use ordered vertex triplets (a < b < c) to represent all new triangles.
+   * Face index point not only to array of ordered faces but also to array of corner tris. */
+  VectorSet<FaceKey, DefaultProbingStrategy, FaceHash, FacesEquality> distinct_tris(FaceHash{}, FacesEquality{vert_tris.as_span()});
+  
+  for (const int face_i : vert_tris.index_range()) {
+    const FaceKey face_key(face_i, vert_tris.as_span());
+    distinct_tris.add(face_key);
+  }
+
+  const int distinct_tri_num = distinct_tris.size();
+
+  Array<int> dst_tri_to_src_face(distinct_tri_num);
+  face_keys_to_face_indices(distinct_tris.as_span(), dst_tri_to_src_face.as_mutable_span());
+
+  Array<int3> distinct_corner_tris(distinct_tri_num);
+  array_utils::gather(corner_tris.as_span(), dst_tri_to_src_face.as_span(), distinct_corner_tris.as_mutable_span());
+
+  if (distinct_tri_num != tris_range.size()) {
+    Array<int> src_to_distinct_map(tris_range.size());
+    quad_indices_of_tris(quads, src_to_distinct_map.as_mutable_span().slice(quad_tris_range));
+    ngon_indices_of_tris(ngons, tris_by_ngon, src_to_distinct_map.as_mutable_span().slice(ngon_tris_range));
+    array_utils::gather(src_to_distinct_map.as_span(), dst_tri_to_src_face.as_span(), dst_tri_to_src_face.as_mutable_span());
+  } else {
+    BLI_assert(array_utils::indices_are_range(dst_tri_to_src_face.as_span(), tris_range.index_range()));
+  }
+
+  index_mask::ExprBuilder mask_builder;
+
+  const IndexMask unselected_faces = index_mask::evaluate_expression(mask_builder.subtract(IndexRange(src_mesh.faces_num), {&mask_builder.merge({&quads, &ngons})}), memory);
 
   const IndexMask unselected_tris = face_tris_mask(src_faces, unselected_faces, memory);
-  const IndexMask distinct_unselected_tris = deduplication::unknown_tri_mask(unselected_tris, src_faces, src_corner_verts, distinct_tris, corner_tris.as_span(), memory);
+  const IndexMask distinct_unselected_tris = unknown_tri_mask(unselected_tris, src_faces, src_corner_verts, distinct_tris, memory);
 
-  const IndexMask distinct_unselected_faces = unselected_faces - (unselected_tris - distinct_unselected_tris);
+  const IndexMask distinct_unselected_faces = index_mask::evaluate_expression(mask_builder.subtract(&unselected_faces, {&mask_builder.subtract(&unselected_tris, {&distinct_unselected_tris})}), memory);
 
-  const IndexRange unselected_range(distinct_tris.size(), distinct_unselected_faces.size());
-
-  Array<int> dst_tri_to_src_face(distinct_tris.size());
-  deduplication::face_keys_to_face_indices(distinct_tris.as_span(), dst_tri_to_src_face.as_mutable_span());
-
-  if (distinct_tris.size() != corner_tris.size()) {
-    Array<int> src_to_distinct_map(corner_tris.size());
-    quad_indices_of_tris(quads, src_to_distinct_map.as_mutable_span().slice(ngon_tris_range));
-    ngon_indices_of_tris(ngons, tris_by_ngon, src_to_distinct_map.as_mutable_span().slice(quad_tris_range));
-    array_utils::gather(src_to_distinct_map.as_span(), dst_tri_to_src_face.as_mutable_span(), dst_tri_to_src_face.as_span());
-  } else {
-    BLI_assert(array_utils::indices_are_range(dst_tri_to_src_face.as_span(), corner_tris.index_range()));
-  }
+  const IndexRange unselected_range(distinct_tri_num, distinct_unselected_faces.size());
 
   /* Create a mesh with no face corners.
    * - We haven't yet counted the number of corners from unselected faces. Creating the final face
@@ -835,22 +926,13 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
    * - The number of edges is a guess that doesn't include deduplication of new edges with
    *   existing edges. If those are found, the mesh will be resized later.
    * - Don't create attributes to facilitate implicit sharing of the positions array. */
-  Mesh *mesh = bke::mesh_new_no_attributes(src_mesh.verts_num, src_mesh.edges_num, distinct_tris.size() + distinct_unselected_faces.size(), 0);
+  Mesh *mesh = bke::mesh_new_no_attributes(src_mesh.verts_num, src_mesh.edges_num, distinct_tri_num + distinct_unselected_faces.size(), 0);
   BKE_mesh_copy_parameters_for_eval(mesh, &src_mesh);
 
   /* Find the face corner ranges using the offsets array from the new mesh. That gives us the
    * final number of face corners. */
   const OffsetIndices<int> faces = calc_face_offsets(src_faces, distinct_unselected_faces, mesh->face_offsets_for_write());
   mesh->corners_num = faces.total_size();
-  const OffsetIndices<int> faces_unselected = faces.slice(unselected_range);
-
-  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-
-  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  array_utils::gather(src_corner_verts, corner_tris.as_span().cast<int>(), corner_verts.slice(tri_corners_range));
-
-
 
   /* Vertex attributes are totally unaffected and can be shared with implicit sharing.
    * Use the #CustomData API for simpler support for vertex groups. */
@@ -858,36 +940,45 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   /* Edge attributes are the same for original edges, new edges will be generated in #bke::mesh_calc_edges. */
   CustomData_merge(&src_mesh.edge_data, &mesh->edge_data, CD_MASK_MESH.vmask, mesh->edges_num);
 
-  bke::mesh_calc_edges(*mesh, false, false, true);
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
 
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
-  {
-    bke::attribute_math::gather_to_groups(tris_by_ngon, ngons, attribute.src, attribute.dst.span.slice(ngon_tris_range));
-    quad::copy_quad_data_to_tris(attribute.src, quads, attribute.dst.span.slice(quad_tris_range));
-    array_utils::gather(attribute.src, distinct_unselected_faces, attribute.dst.span.slice(unselected_range));
-    attribute.dst.finish();
-  }
+//  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
+//  {
+//    bke::attribute_math::gather_to_groups(tris_by_ngon, ngons, attribute.src, attribute.dst.span.slice(ngon_tris_range));
+//    quad::copy_quad_data_to_tris(attribute.src, quads, attribute.dst.span.slice(quad_tris_range));
+//    array_utils::gather(attribute.src, distinct_unselected_faces, attribute.dst.span.slice(unselected_range));
+//    attribute.dst.finish();
+//  }
+//  if (CustomData_has_layer(&src_mesh.face_data, CD_ORIGINDEX)) {
+//    const Span src(static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)), src_mesh.faces_num);
+//    MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)), mesh->faces_num);
+//    bke::attribute_math::gather_to_groups(tris_by_ngon, ngons, src, dst.slice(ngon_tris_range));
+//    quad::copy_quad_data_to_tris(src, quads, dst.slice(quad_tris_range));
+//    array_utils::gather(src, distinct_unselected_faces, dst.slice(unselected_range));
+//  }
 
-  if (CustomData_has_layer(&src_mesh.face_data, CD_ORIGINDEX)) {
-    const Span src(static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)), src_mesh.faces_num);
-    MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)), mesh->faces_num);
-    bke::attribute_math::gather_to_groups(tris_by_ngon, ngons, src, dst.slice(ngon_tris_range));
-    quad::copy_quad_data_to_tris(src, quads, dst.slice(quad_tris_range));
-    array_utils::gather(src, distinct_unselected_faces, dst.slice(unselected_range));
-  }
+  attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
 
-  array_utils::gather_group_to_group(src_faces, faces_unselected, distinct_unselected_faces, src_corner_verts, corner_verts);
-  array_utils::gather_group_to_group(src_faces, faces_unselected, distinct_unselected_faces, src_corner_edges, corner_edges);
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_CORNER, bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_vert", ".corner_edge"})))
-  {
-    bke::attribute_math::gather_group_to_group(src_faces, faces_unselected, distinct_unselected_faces, attribute.src, attribute.dst.span);
-    bke::attribute_math::gather(attribute.src, corner_tris.as_span().cast<int>(), attribute.dst.span.slice(tri_corners_range));
-    attribute.dst.finish();
-  }
+  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
+  array_utils::gather(src_corner_verts, distinct_corner_tris.as_span().cast<int>(), corner_verts.take_front(distinct_tri_num * 3));
+  array_utils::gather_group_to_group(src_faces, faces.slice(IndexRange(distinct_tri_num, distinct_unselected_faces.size())), distinct_unselected_faces, src_corner_verts, corner_verts);
+
+  // for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_CORNER, bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_vert", ".corner_edge"})))
+  // {
+  //   bke::attribute_math::gather_group_to_group(src_faces, faces_unselected, distinct_unselected_faces, attribute.src, attribute.dst.span);
+  //   bke::attribute_math::gather(attribute.src, corner_tris.as_span().cast<int>(), attribute.dst.span.slice(tri_corners_range));
+  //   
+  //   // bke::attribute_math::gather(src_corner_verts, distinct_corner_tris.as_span().cast<int>(), corner_verts.take_front(distinct_tri_num * 3));
+  //   // bke::attribute_math::gather_group_to_group(src_faces, faces.slice(IndexRange(distinct_tri_num, distinct_unselected_faces.size())), distinct_unselected_faces, src_corner_verts, corner_verts);
+  //   
+  //   attribute.dst.finish();
+  // }
+
+  bke::mesh_calc_edges(*mesh, true, false, true);
 
   mesh->runtime->bounds_cache = src_mesh.runtime->bounds_cache;
   copy_loose_vert_hint(src_mesh, *mesh);
-  copy_loose_edge_hint(src_mesh, *mesh);
+  // copy_loose_edge_hint(src_mesh, *mesh);
   if (src_mesh.no_overlapping_topology()) {
     mesh->tag_overlapping_none();
   }
