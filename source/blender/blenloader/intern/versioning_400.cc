@@ -1156,7 +1156,7 @@ static void do_version_glare_node_threshold_strength_size(const Scene *scene,
     if (storage->type == CMP_NODE_GLARE_BLOOM) {
       return blender::math::pow(2.0f, float(size - 9));
     }
-    return blender::math::min(1.0f, float(max_render_size) / float((1 << size) + 1));
+    return blender::math::min(1.0f, float((1 << size) + 1) / float(max_render_size));
   };
 
   /* Assign the inputs the values from the old deprecated properties. */
