@@ -3825,7 +3825,8 @@ static void outliner_draw_tree(uiBlock *block,
 
   /* Move the tree a unit left in view layer mode */
   if ((space_outliner->outlinevis == SO_VIEW_LAYER) &&
-      !(space_outliner->filter & SO_FILTER_NO_COLLECTION))
+      !(space_outliner->filter & SO_FILTER_NO_COLLECTION) &&
+      (space_outliner->filter & SO_FILTER_NO_VIEW_LAYERS))
   {
     columns_offset -= UI_UNIT_X;
   }
