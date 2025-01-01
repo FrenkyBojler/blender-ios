@@ -36,11 +36,11 @@
 namespace blender::polygonboolean {
 
 enum class Operation : int8_t {
-  /* Intersection of A and B. */
+  /* Intersection of the Subject and the Clipping. */
   And,
-  /* Union of A and B. */
+  /* Union of Subject and Clipping. */
   Or,
-  /* Differences of A with B. */
+  /* Differences of Subject with Clipping. */
   Not,
 };
 
@@ -197,14 +197,14 @@ struct BooleanResult {
   Vector<int> point_offsets;
 };
 
-void calculate_positions(Span<float2> pos_a,
-                         Span<float2> pos_b,
+void calculate_positions(Span<float2> pos_subj,
+                         Span<float2> pos_clip,
                          const BooleanResult &result,
                          MutableSpan<float2> dst_pos);
 
 BooleanResult curve_boolean_calc(const Operation boolean_mode,
-                                 Span<float2> curve_a,
-                                 Span<float2> curve_b,
+                                 Span<float2> curve_subj,
+                                 Span<float2> curve_clip,
                                  Span<bool> is_fill,
                                  Span<bool> is_cyclic);
 

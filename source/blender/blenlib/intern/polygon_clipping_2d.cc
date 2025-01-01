@@ -279,8 +279,8 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
   offsets.last() = offset;
 }
 
-void calculate_positions(const Span<float2> pos_a,
-                         const Span<float2> pos_b,
+void calculate_positions(const Span<float2> pos_subj,
+                         const Span<float2> pos_clip,
                          const BooleanResult &result,
                          MutableSpan<float2> dst_pos)
 {
@@ -292,7 +292,7 @@ void calculate_positions(const Span<float2> pos_a,
     for (const int seg_i : segment_range) {
       const Segment &segment = result.segments[seg_i];
 
-      const Span<float2> current_curve = (segment.curve == 0) ? pos_a : pos_b;
+      const Span<float2> current_curve = (segment.curve == 0) ? pos_subj : pos_clip;
 
       if (segment.has_start_intersection()) {
         dst_pos[i++] = math::interpolate(current_curve[segment.start_edge().x],
@@ -317,13 +317,13 @@ void calculate_positions(const Span<float2> pos_a,
 }
 
 BooleanResult execute_boolean(const Operation boolean_mode,
-                              const Span<float2> curve_a,
-                              const Span<float2> curve_b,
+                              const Span<float2> curve_subj,
+                              const Span<float2> curve_clip,
                               const Span<bool> is_fill,
                               const Span<bool> is_cyclic)
 {
   const int num_curves = 2;
-  Array<IndexRange> points_per_curve({curve_a.index_range(), curve_b.index_range()});
+  Array<IndexRange> points_per_curve({curve_subj.index_range(), curve_clip.index_range()});
 
   Vector<ExtendedIntersectionPoint> intersections;
   Array<Vector<int>> inters_per_curves(num_curves);
@@ -342,10 +342,10 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
       for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
         float alpha_a, alpha_b;
-        const int val = intersect(curve_a[points_i[i]],
-                                  curve_a[points_i[(i + 1) % points_i.size()]],
-                                  curve_b[points_j[j]],
-                                  curve_b[points_j[(j + 1) % points_j.size()]],
+        const int val = intersect(curve_subj[points_i[i]],
+                                  curve_subj[points_i[(i + 1) % points_i.size()]],
+                                  curve_clip[points_j[j]],
+                                  curve_clip[points_j[(j + 1) % points_j.size()]],
                                   &alpha_a,
                                   &alpha_b);
         if (val == ISECT_LINE_LINE_CROSS) {
@@ -372,8 +372,8 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     int current_winding_order = 0;
 
     /* TODO */
-    const Span<float2> poly_this = (curve_i == 0) ? curve_a : curve_b;
-    const Span<float2> poly_other = (curve_i == 0) ? curve_b : curve_a;
+    const Span<float2> poly_this = (curve_i == 0) ? curve_subj : curve_clip;
+    const Span<float2> poly_other = (curve_i == 0) ? curve_clip : curve_subj;
 
     current_winding_order = point_in_polygon_winding_order(poly_this.first(), poly_other);
 
@@ -436,10 +436,10 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       if (is_fill[other_curve_i]) {
         current_winding_order++; /* TODO */
         // current_winding_order += seg_seg_winding(
-        //     curve_a[inter_first.point_a],
-        //     curve_a[(inter_first.point_a + 1) % curve_a.size()],
-        //     curve_b[inter_first.point_b],
-        //     curve_b[(inter_first.point_b + 1) % curve_b.size()]);
+        //     curve_subj[inter_first.point_a],
+        //     curve_subj[(inter_first.point_a + 1) % curve_subj.size()],
+        //     curve_clip[inter_first.point_b],
+        //     curve_clip[(inter_first.point_b + 1) % curve_clip.size()]);
       }
 
       if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
@@ -454,10 +454,10 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     // if (is_fill[other_curve_i]) {
     //     current_winding_order++; /* TODO */
     //     // current_winding_order += seg_seg_winding(
-    //     //     curve_a[inter_first.point_a],
-    //     //     curve_a[(inter_first.point_a + 1) % curve_a.size()],
-    //     //     curve_b[inter_first.point_b],
-    //     //     curve_b[(inter_first.point_b + 1) % curve_b.size()]);
+    //     //     curve_subj[inter_first.point_a],
+    //     //     curve_subj[(inter_first.point_a + 1) % curve_subj.size()],
+    //     //     curve_clip[inter_first.point_b],
+    //     //     curve_clip[(inter_first.point_b + 1) % curve_clip.size()]);
     //   }
 
     if (!is_cyclic[curve_i] && contributing_rule(current_winding_order, is_subj, boolean_mode)) {
@@ -532,12 +532,12 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 }
 
 BooleanResult curve_boolean_calc(const Operation boolean_mode,
-                                 const Span<float2> curve_a,
-                                 const Span<float2> curve_b,
+                                 const Span<float2> curve_subj,
+                                 const Span<float2> curve_clip,
                                  const Span<bool> is_fill,
                                  const Span<bool> is_cyclic)
 {
-  return execute_boolean(boolean_mode, curve_a, curve_b, is_fill, is_cyclic);
+  return execute_boolean(boolean_mode, curve_subj, curve_clip, is_fill, is_cyclic);
 }
 
 }  // namespace blender::polygonboolean
