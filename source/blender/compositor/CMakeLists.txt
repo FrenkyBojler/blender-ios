@@ -7,15 +7,7 @@ set(INC
   algorithms
   cached_resources
   utilities
-  ../blenkernel
-  ../blentranslation
-  ../functions
-  ../gpu
   ../gpu/intern
-  ../imbuf
-  ../makesrna
-  ../nodes
-  ../render
   ../render/intern
 )
 
@@ -148,14 +140,17 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
-  bf_functions
-  bf_gpu
-  bf_imbuf
-  bf_render
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blentranslation
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::nodes
+  PRIVATE bf::render
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::rna
 )
 
 set(GLSL_SRC

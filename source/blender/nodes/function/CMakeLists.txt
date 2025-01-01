@@ -6,12 +6,7 @@ set(INC
   .
   ..
   ../intern
-  ../../blenkernel
-  ../../blentranslation
   ../../editors/include
-  ../../functions
-  ../../makesrna
-  ../../windowmanager
 )
 
 set(INC_SYS
@@ -61,6 +56,7 @@ set(SRC
   nodes/node_fn_transform_point.cc
   nodes/node_fn_transpose_matrix.cc
   nodes/node_fn_value_to_string.cc
+  nodes/node_fn_find_in_string.cc
 
   node_function_util.cc
 
@@ -68,10 +64,14 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
-  bf_functions
+  PRIVATE bf::functions
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::rna
+  PRIVATE bf::windowmanager
 )
 
 add_node_discovery(
