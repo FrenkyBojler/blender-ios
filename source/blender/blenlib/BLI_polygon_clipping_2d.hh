@@ -16,6 +16,9 @@
  */
 
 /**
+ *
+ * TODO
+ *
  * Interface for Polygon Clipping in 2D use the Greiner-Hormann clipping algorithm.
  *
  * The input is two lists of positions describing the point in each polygon.
@@ -46,10 +49,6 @@ struct ExtendedIntersectionPoint {
   int point_b;
   float alpha_a;
   float alpha_b;
-  int sorted_id_a;
-  int sorted_id_b;
-  bool A_entry_exit;
-  bool B_entry_exit;
 };
 
 static const int NULL_INTERSECTION_ID = -1;
@@ -76,12 +75,12 @@ class Segment {
     return inter_index_1 == LOOPING_INTERSECTION_ID;
   }
 
-  float start_intersection() const
+  int start_intersection() const
   {
     return reversed ? inter_index_2 : inter_index_1;
   }
 
-  float end_intersection() const
+  int end_intersection() const
   {
     return reversed ? inter_index_1 : inter_index_2;
   }
