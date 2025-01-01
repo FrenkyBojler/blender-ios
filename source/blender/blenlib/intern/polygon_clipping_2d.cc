@@ -21,6 +21,121 @@
 
 namespace blender::polygonboolean {
 
+bool Segment::is_loop() const
+{
+  return inter_index_1 == LOOPING_INTERSECTION_ID;
+}
+
+int Segment::start_intersection() const
+{
+  return reversed ? inter_index_2 : inter_index_1;
+}
+
+int Segment::end_intersection() const
+{
+  return reversed ? inter_index_1 : inter_index_2;
+}
+
+bool Segment::has_start_intersection() const
+{
+  if (this->is_loop()) {
+    return false;
+  }
+
+  return this->start_intersection() != NULL_INTERSECTION_ID;
+}
+
+bool Segment::has_end_intersection() const
+{
+  if (this->is_loop()) {
+    return false;
+  }
+
+  return this->end_intersection() != NULL_INTERSECTION_ID;
+}
+
+float Segment::start_alpha() const
+{
+  return reversed ? alpha_2 : alpha_1;
+}
+
+float Segment::end_alpha() const
+{
+  return reversed ? alpha_1 : alpha_2;
+}
+
+int2 Segment::start_edge() const
+{
+  if (reversed) {
+    return int2(point_2, this->wrap_index(point_2 + 1));
+  }
+  return int2(point_1, this->wrap_index(point_1 + 1));
+}
+
+int2 Segment::end_edge() const
+{
+  if (reversed) {
+    return int2(point_1, this->wrap_index(point_1 + 1));
+  }
+  return int2(point_2, this->wrap_index(point_2 + 1));
+}
+
+int Segment::wrap_index(const int i) const
+{
+  return math::mod_periodic(i - points.first(), points.size()) + points.first();
+}
+
+IndexRange Segment::point_range() const
+{
+  if (this->is_loop()) {
+    return points;
+  }
+
+  if (!this->has_start_intersection() && this->has_end_intersection()) {
+    return IndexRange::from_begin_end_inclusive(points.first(), point_2);
+  }
+
+  /* If both intersection points are on the same edge, there's ether no points between or
+   * all of the points are. */
+  if (point_1 == point_2) {
+    if (alpha_1 > alpha_2) {
+      return points.shift(point_1 + 1);
+    }
+    return IndexRange(0);
+  }
+
+  if (point_1 > point_2) {
+    return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2 + points.size());
+  }
+
+  return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2);
+}
+
+template<typename Fn> inline void Segment::foreach_point(Fn &&fn) const
+{
+  const IndexRange point_range = this->point_range();
+
+  for (const int64_t pos : point_range.index_range()) {
+    const int i = this->wrap_index(point_range[reversed ? (point_range.size() - 1) - pos : pos]);
+
+    if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
+      fn(i, pos);
+    }
+    else {
+      fn(i);
+    }
+  }
+}
+
+int Segment::points_num() const
+{
+  return this->point_range().size();
+}
+
+/**
+ * -----------------------------------
+ */
+
 static int intersect(const float2 &P1,
                      const float2 &P2,
                      const float2 &Q1,
