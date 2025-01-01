@@ -34,7 +34,6 @@ static void init_vbo_for_attribute(const MeshRenderData &mr,
                                    gpu::VertBuf &vbo,
                                    const StringRef name,
                                    const eCustomDataType data_type,
-                                   const bke::AttrDomain domain,
                                    bool build_on_device,
                                    uint32_t len)
 {
@@ -175,39 +174,41 @@ static void extract_data_bmesh_loop(const BMesh &bm, const int cd_offset, gpu::V
   }
 }
 
-static const CustomData *get_custom_data_for_domain(const BMesh &bm, bke::AttrDomain domain)
+const CustomDataLayer *lookup_layer_by_name(const CustomData &data, const StringRef name)
 {
-  switch (domain) {
-    case bke::AttrDomain::Point:
-      return &bm.vdata;
-    case bke::AttrDomain::Corner:
-      return &bm.ldata;
-    case bke::AttrDomain::Face:
-      return &bm.pdata;
-    case bke::AttrDomain::Edge:
-      return &bm.edata;
-    default:
-      return nullptr;
+  const int index = CustomData_get_named_layer_index_notype(&data, name);
+  if (index == -1) {
+    return nullptr;
   }
+  return &data.layers[index];
+}
+
+static std::pair<const CustomDataLayer *, bke::AttrDomain> bmesh_attribute_lookup(
+    const BMesh &bm, const StringRef name)
+{
+  if (const CustomDataLayer *layer = lookup_layer_by_name(bm.vdata, name)) {
+    return {layer, bke::AttrDomain::Point};
+  }
+  if (const CustomDataLayer *layer = lookup_layer_by_name(bm.pdata, name)) {
+    return {layer, bke::AttrDomain::Face};
+  }
+  if (const CustomDataLayer *layer = lookup_layer_by_name(bm.ldata, name)) {
+    return {layer, bke::AttrDomain::Corner};
+  }
+  return {nullptr, bke::AttrDomain::Point};
 }
 
 static void extract_attribute(const MeshRenderData &mr, const StringRef name, gpu::VertBuf &vbo)
 {
   if (mr.extract_type == MeshExtractType::BMesh) {
-    const CustomData &custom_data = *get_custom_data_for_domain(*mr.bm, request.domain);
-    init_vbo_for_attribute(mr,
-                           vbo,
-                           name,
-                           bke::cpp_type_to_custom_data_type(attribute.varray.type()),
-                           attribute.domain,
-                           false,
-                           uint32_t(mr.corners_num));
-    const int cd_offset = CustomData_get_named_layer_index_notype(&custom_data, name);
+    const auto &[layer, domain] = bmesh_attribute_lookup(*mr.bm, name);
+    init_vbo_for_attribute(mr, vbo, name, eCustomDataType(layer->type), false, mr.corners_num);
+    const int cd_offset = layer->offset;
 
-    bke::attribute_math::convert_to_static_type(request.cd_type, [&](auto dummy) {
+    bke::attribute_math::convert_to_static_type(eCustomDataType(layer->type), [&](auto dummy) {
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
-        switch (request.domain) {
+        switch (domain) {
           case bke::AttrDomain::Point:
             extract_data_bmesh_vert<T>(*mr.bm, cd_offset, vbo);
             break;
@@ -233,7 +234,6 @@ static void extract_attribute(const MeshRenderData &mr, const StringRef name, gp
                            vbo,
                            name,
                            bke::cpp_type_to_custom_data_type(attribute.varray.type()),
-                           attribute.domain,
                            false,
                            uint32_t(mr.corners_num));
     bke::attribute_math::convert_to_static_type(attribute.varray.type(), [&](auto dummy) {
@@ -279,20 +279,22 @@ void extract_attributes_subdiv(const MeshRenderData &mr,
 {
   for (const int i : vbos.index_range()) {
     if (DRW_vbo_requested(vbos[i])) {
-      const StringRef &request = requests[i];
+      const StringRef request = requests[i];
 
       const Mesh *coarse_mesh = subdiv_cache.mesh;
 
       /* Prepare VBO for coarse data. The compute shader only expects floats. */
       gpu::VertBuf *src_data = GPU_vertbuf_calloc();
-      GPUVertFormat coarse_format = draw::init_format_for_attribute(request.cd_type, "data");
+      GPUVertFormat coarse_format = init_format_for_attribute(request.cd_type, "data");
       GPU_vertbuf_init_with_format_ex(*src_data, coarse_format, GPU_USAGE_STATIC);
       GPU_vertbuf_data_alloc(*src_data, uint32_t(coarse_mesh->corners_num));
+      init_vbo_for_attribute(mr, *src_data, request, data_type, false, coarse_mesh->corners_num);
 
       extract_attribute(mr, request, *src_data);
 
       gpu::VertBuf &dst_buffer = *vbos[i];
-      init_vbo_for_attribute(mr, dst_buffer, request, true, subdiv_cache.num_subdiv_loops);
+      init_vbo_for_attribute(
+          mr, dst_buffer, request, data_type, true, subdiv_cache.num_subdiv_loops);
 
       /* Ensure data is uploaded properly. */
       GPU_vertbuf_tag_dirty(src_data);
