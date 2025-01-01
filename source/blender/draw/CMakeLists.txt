@@ -9,7 +9,6 @@ set(INC
   ../editors/include
   ../editors/space_view3d
   ../gpu/intern
-  ../makesrna
   ../render/intern
   ../compositor
   ../compositor/algorithms
@@ -309,6 +308,7 @@ set(LIB
   bf_compositor
   PRIVATE bf::nodes
   PRIVATE bf::render
+  PRIVATE bf::rna
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
