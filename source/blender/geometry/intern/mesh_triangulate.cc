@@ -824,7 +824,8 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
 
   /* If there is a lot of triangles in a mesh they can be fast skipped for filtering. */
   const IndexMask tris_mask = face_tris_mask(src_faces, faces_range, memory);
-  const IndexMask selected_faces_mask = IndexMask::from_difference(selection_with_tris, tris_mask, memory);
+  const IndexMask selected_faces_mask = IndexMask::from_difference(
+      selection_with_tris, tris_mask, memory);
 
   /* Divide the input selection into separate selections for each face type. This isn't necessary
    * for correctness, but considering groups of each face type separately simplifies optimizing
@@ -877,7 +878,8 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   /* There is 3 separate set of triangles: original mesh triangles, new triangles from a quads and
    * triangles from a n-gons. Deduplication of them can end in the fact that one distinct result
    * triangle can be mix of parts of multiple quads, contains original triangle, and even can be
-   * concatenation of parts of multiple ngons. So we have to distinct each triplet of vertices in all sets at the same time. */
+   * concatenation of parts of multiple ngons. So we have to distinct each triplet of vertices in
+   * all sets at the same time. */
 
   Array<int3> vert_tris(corner_tris.size());
   array_utils::gather(src_corner_verts,
@@ -886,42 +888,51 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   tri_to_ordered_tri(vert_tris.as_mutable_span());
 
   /* Use ordered vertex triplets (a < b < c) to represent all new triangles.
-   * #FaceKey know indices of the face and points into #vert_tris, but probe can be done without #FaceKey but dirrectly with a triplet so probe not necessary to be a part of #vert_tris. */
+   * #FaceKey know indices of the face and points into #vert_tris, but probe can be done without
+   * #FaceKey but dirrectly with a triplet so probe not necessary to be a part of #vert_tris. */
   VectorSet<FaceKey, DefaultProbingStrategy, FaceHash, FacesEquality> distinct_tris(
       FaceHash{}, FacesEquality{vert_tris.as_span()});
 
-  /* Could be done parallel with use of grouping of faces by its lowest vertex and next linear deduplication, but right now this is just sequential hash-set. */
+  /* Could be done parallel with use of grouping of faces by its lowest vertex and next linear
+   * deduplication, but right now this is just sequential hash-set. */
   for (const int face_i : vert_tris.index_range()) {
     const FaceKey face_key(face_i, vert_tris.as_span());
     distinct_tris.add(face_key);
   }
   const int distinct_tri_num = distinct_tris.size();
 
-  /* Since currently deduplication is greedy there is no mix os data of deduplicated triangles, instead some of them are removed.
-   * Priority: Original triangles removed if any of new triangles are the same. For all new triangles here is direct order dependency. */
-  const IndexMask skip_tris_mask = tris_in_set(tris_mask, src_faces, src_corner_verts, distinct_tris, memory);
+  /* Since currently deduplication is greedy there is no mix os data of deduplicated triangles,
+   * instead some of them are removed. Priority: Original triangles removed if any of new triangles
+   * are the same. For all new triangles here is direct order dependency. */
+  const IndexMask skip_tris_mask = tris_in_set(
+      tris_mask, src_faces, src_corner_verts, distinct_tris, memory);
 
   index_mask::ExprBuilder mask_builder;
-  const IndexMask distinct_original_faces = index_mask::evaluate_expression(mask_builder.subtract(faces_range, {&quads, &ngons, &skip_tris_mask}), memory);
+  const IndexMask distinct_original_faces = index_mask::evaluate_expression(
+      mask_builder.subtract(faces_range, {&quads, &ngons, &skip_tris_mask}), memory);
 
   const IndexRange distinct_faces_range(distinct_tri_num + distinct_original_faces.size());
   const IndexRange distinct_tri_range = distinct_faces_range.take_front(distinct_tri_num);
-  const IndexRange distinct_src_faces_range = distinct_faces_range.take_back(distinct_original_faces.size());
+  const IndexRange distinct_src_faces_range = distinct_faces_range.take_back(
+      distinct_original_faces.size());
 
   /* Create a mesh with no face corners.
    * - We haven't yet counted the number of corners from unselected faces. Creating the final face
    *   offsets will give us that number anyway, so wait to create the edges.
    * - Don't create attributes to facilitate implicit sharing of the positions array. */
-  Mesh *mesh = bke::mesh_new_no_attributes(src_mesh.verts_num,
-                                           src_mesh.edges_num,
-                                           distinct_faces_range.size(),
-                                           0);
+  Mesh *mesh = bke::mesh_new_no_attributes(
+      src_mesh.verts_num, src_mesh.edges_num, distinct_faces_range.size(), 0);
   BKE_mesh_copy_parameters_for_eval(mesh, &src_mesh);
 
   MutableSpan<int> dst_offsets = mesh->face_offsets_for_write();
-  offset_indices::fill_constant_group_size(3, 0, dst_offsets.take_front(distinct_tri_range.size() + 1));
+  offset_indices::fill_constant_group_size(
+      3, 0, dst_offsets.take_front(distinct_tri_range.size() + 1));
   const int total_new_tri_corners = distinct_tri_range.size() * 3;
-  offset_indices::gather_selected_offsets(src_faces, distinct_original_faces, dst_offsets.take_front(distinct_tri_range.size() + 1).last(), dst_offsets.take_back(distinct_src_faces_range.size() + 1));
+  offset_indices::gather_selected_offsets(
+      src_faces,
+      distinct_original_faces,
+      dst_offsets.take_front(distinct_tri_range.size() + 1).last(),
+      dst_offsets.take_back(distinct_src_faces_range.size() + 1));
 
   const OffsetIndices<int> faces(dst_offsets);
   mesh->corners_num = faces.total_size();
@@ -945,29 +956,42 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
                         dst_tri_to_src_face.as_span(),
                         distinct_corner_tris_data.as_mutable_span());
   }
-  const Span<int3> distinct_corner_tris = distinct_tri_num != corner_tris.size() ? distinct_corner_tris_data.as_span() : corner_tris.as_span();
+  const Span<int3> distinct_corner_tris = distinct_tri_num != corner_tris.size() ?
+                                              distinct_corner_tris_data.as_span() :
+                                              corner_tris.as_span();
 
   {
-    /* In case there is no duplicates its possible to use other code path to avoid indices array and just copy quad-faces attributes into triangles linearly. */
+    /* In case there is no duplicates its possible to use other code path to avoid indices array
+     * and just copy quad-faces attributes into triangles linearly. */
     Array<int> src_to_distinct_map(tris_range.size());
     quad_indices_of_tris(quads, src_to_distinct_map.as_mutable_span().slice(quad_tris_range));
-    ngon_indices_of_tris(ngons, tris_by_ngon, src_to_distinct_map.as_mutable_span().slice(ngon_tris_range));
+    ngon_indices_of_tris(
+        ngons, tris_by_ngon, src_to_distinct_map.as_mutable_span().slice(ngon_tris_range));
 
     array_utils::gather(src_to_distinct_map.as_span(),
                         dst_tri_to_src_face.as_span(),
                         dst_tri_to_src_face.as_mutable_span());
   }
 
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
   {
-    bke::attribute_math::gather(attribute.src, dst_tri_to_src_face.as_span(), attribute.dst.span.slice(distinct_tri_range));
-    array_utils::gather(attribute.src, distinct_original_faces, attribute.dst.span.slice(distinct_src_faces_range));
+    bke::attribute_math::gather(attribute.src,
+                                dst_tri_to_src_face.as_span(),
+                                attribute.dst.span.slice(distinct_tri_range));
+    array_utils::gather(attribute.src,
+                        distinct_original_faces,
+                        attribute.dst.span.slice(distinct_src_faces_range));
     attribute.dst.finish();
   }
   if (CustomData_has_layer(&src_mesh.face_data, CD_ORIGINDEX)) {
-    const Span src(static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)), src_mesh.faces_num);
-    MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)), mesh->faces_num);
- 
+    const Span src(
+        static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)),
+        src_mesh.faces_num);
+    MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(
+                             &mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)),
+                         mesh->faces_num);
+
     array_utils::gather(src, dst_tri_to_src_face.as_span(), dst.slice(distinct_tri_range));
     array_utils::gather(src, distinct_original_faces, dst.slice(distinct_src_faces_range));
   }
@@ -975,8 +999,14 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
 
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  array_utils::gather_group_to_group(src_faces, faces.slice(distinct_src_faces_range), distinct_original_faces, src_corner_verts, corner_verts);
-  array_utils::gather(src_corner_verts, distinct_corner_tris.cast<int>(), corner_verts.take_front(total_new_tri_corners));
+  array_utils::gather_group_to_group(src_faces,
+                                     faces.slice(distinct_src_faces_range),
+                                     distinct_original_faces,
+                                     src_corner_verts,
+                                     corner_verts);
+  array_utils::gather(src_corner_verts,
+                      distinct_corner_tris.cast<int>(),
+                      corner_verts.take_front(total_new_tri_corners));
 
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
