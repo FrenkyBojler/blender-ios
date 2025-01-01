@@ -3,8 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
-  ../makesrna
+  PUBLIC .
   ../../../intern/eigen
 )
 
@@ -105,6 +104,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::rna
 )
 
 if(WITH_UV_SLIM)
@@ -141,6 +141,7 @@ if(WITH_GMP)
 endif()
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::geometry ALIAS bf_geometry)
 
 if(WITH_GTESTS)
   set(TEST_INC
