@@ -37,11 +37,11 @@ namespace blender::polygonboolean {
 
 enum class Operation : int8_t {
   /* Intersection of the Subject and the Clipping. */
-  And,
+  Intersect,
   /* Union of Subject and Clipping. */
-  Or,
+  Union,
   /* Differences of Subject with Clipping. */
-  Not,
+  Difference,
 };
 
 struct ExtendedIntersectionPoint {

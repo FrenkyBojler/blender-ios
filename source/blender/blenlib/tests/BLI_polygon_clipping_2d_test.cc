@@ -330,7 +330,7 @@ TEST(polygonboolean, Squares_A_And_B)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::And, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Intersect, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
   expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
@@ -345,7 +345,7 @@ TEST(polygonboolean, Squares_A_Or_B)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Or, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Union, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {
       {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2, 1}}};
@@ -361,7 +361,7 @@ TEST(polygonboolean, Squares_A_Not_B)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Not, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
   expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
@@ -381,7 +381,7 @@ TEST(polygonboolean, Simple_Intersection)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::And, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Intersect, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{5, 3}, {6, 4}, {6, 3}},
                                                  {{2, 3}, {2, 4}, {3, 3}}};
@@ -402,7 +402,7 @@ TEST(polygonboolean, Simple_Union)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Or, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Union, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {
       {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}}, {{3, 3}, {4, 2}, {5, 3}}};
@@ -423,7 +423,7 @@ TEST(polygonboolean, Complex_A_And_B)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::And, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Intersect, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {
       {{12.3455, 1.47273}, {12.2, 1.8}, {12.4851, 1.67327}, {12.5663, 1.40964}},
@@ -449,7 +449,7 @@ TEST(polygonboolean, Complex_A_Or_B)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Or, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Union, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {
       {{14, 1},
@@ -491,7 +491,7 @@ TEST(polygonboolean, Complex_A_Not_B)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Not, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {
       {{14, 1}, {12.4851, 1.67327}, {12.5663, 1.40964}},
@@ -528,7 +528,7 @@ TEST(polygonboolean, Last_Segment_Interection)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Not, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{0, 5},
                                                   {0, 0},
@@ -555,7 +555,7 @@ TEST(polygonboolean, Simple_Cut)
   const Array<bool> is_fill = {false, true};
   const Array<bool> is_cyclic = {false, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Not, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{5, 7}, {3, 6}, {2.14286, 4.85714}},
                                                  {{1.61538, 4.15385}, {1.09091, 3.45455}},
@@ -572,7 +572,7 @@ TEST(polygonboolean, Simple_Cut_2)
   const Array<bool> is_fill = {false, true};
   const Array<bool> is_cyclic = {false, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Not, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
   expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
@@ -588,7 +588,7 @@ TEST(polygonboolean, Simple_Cut_3)
   const Array<bool> is_fill = {false, true};
   const Array<bool> is_cyclic = {false, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Not, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{6, 8}, {4, 7}, {3.57143, 6.42857}},
                                                  {{3.4, 6.2}, {2.90909, 5.54545}},
@@ -607,7 +607,7 @@ TEST(polygonboolean, Simple_Cut_4)
   const Array<bool> is_fill = {false, true};
   const Array<bool> is_cyclic = {false, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Not, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{3.7, 5.6}, {3.45455, 5.27273}},
                                                  {{2.8, 4.4}, {2.63636, 4.18182}},
@@ -625,7 +625,7 @@ TEST(polygonboolean, Cyclical_Cut)
   const Array<bool> is_fill = {false, true};
   const Array<bool> is_cyclic = {true, true};
   BooleanResult result = curve_boolean_calc(
-      Operation::Not, points_subj, points_clip, is_fill, is_cyclic);
+      Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
 
   const Array<Vector<float2>> expected_points = {{{4.4, 3.4}, {6, 5}, {4, 5}, {3.2, 4.2}},
                                                  {{2.66667, 3.66667}, {2.33333, 3.33333}},

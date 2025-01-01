@@ -235,13 +235,13 @@ static bool contributing_rule(const int winding_order,
   const bool is_fill = winding_rule(winding_order);
 
   switch (boolean_mode) {
-    case Operation::And: {
+    case Operation::Intersect: {
       return !is_fill;
     }
-    case Operation::Not: {
+    case Operation::Difference: {
       return !is_fill ^ is_subj;
     }
-    case Operation::Or: {
+    case Operation::Union: {
       return is_fill;
     }
     default:
