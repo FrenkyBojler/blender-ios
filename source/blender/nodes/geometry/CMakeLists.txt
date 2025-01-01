@@ -8,16 +8,11 @@ set(INC
   include
   ../intern
   ../../editors/include
-  ../../geometry
-  ../../imbuf/movie
-  ../../makesrna
   ../../modifiers
   ../../io/common
   ../../io/ply
   ../../io/stl
   ../../io/wavefront_obj
-  # RNA_prototypes.hh
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -247,15 +242,17 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::functions
-  bf_geometry
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
+  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -355,5 +352,3 @@ target_link_libraries(bf_nodes_geometry_generated bf_nodes_geometry)
 
 blender_set_target_unity_build(bf_nodes_geometry 10)
 
-# RNA_prototypes.hh
-add_dependencies(bf_nodes_geometry bf_rna)

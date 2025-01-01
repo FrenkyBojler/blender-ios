@@ -3,13 +3,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   intern
 
   ../editors/include
   ../editors/space_view3d
   ../gpu/intern
-  ../makesrna
   ../render/intern
   ../compositor
   ../compositor/algorithms
@@ -310,6 +309,7 @@ set(LIB
   bf_compositor
   PRIVATE bf::nodes
   PRIVATE bf::render
+  PRIVATE bf::rna
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
@@ -845,6 +845,7 @@ if(WITH_TBB)
 endif()
 
 blender_add_lib(bf_draw "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::draw ALIAS bf_draw)
 
 
 if(WITH_GTESTS)
