@@ -13,8 +13,11 @@
 #include "BLI_vector_set.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_filter.hh"
+#include "BKE_attribute_filters.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
 namespace blender::bke {
@@ -211,6 +214,11 @@ void mesh_calc_edges(Mesh &mesh,
   }
 
   Mesh *mesh_with_old_edges = nullptr;
+  BLI_SCOPED_DEFER([&]() {
+    if (mesh_with_old_edges != nullptr) {
+      BKE_id_free(nullptr, mesh_with_old_edges);
+    }
+  });
 
   if (keep_existing_edges && (select_new_edges || copy_edge_attributes)) {
     mesh_with_old_edges = mesh_new_no_attributes(0, 0, 0, 0);
@@ -270,8 +278,12 @@ void mesh_calc_edges(Mesh &mesh,
         select_edge.finish();
       }
 
+      const auto filer = bke::attribute_filter_from_skip_ref({".edge_verts", ".select_edge"});
       old_edge_attributes.foreach_attribute([&](const bke::AttributeIter &src_attribute) {
         BLI_assert(src_attribute.domain == bke::AttrDomain::Edge);
+        if (filer.allow_skip(src_attribute.name)) {
+          return;
+        }
         GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_span(
             src_attribute.name, src_attribute.domain, src_attribute.data_type);
 
@@ -281,6 +293,7 @@ void mesh_calc_edges(Mesh &mesh,
           MutableSpan<T> dst = dst_attribute.span.typed<T>();
           array_utils::scatter(Span<T>(src), src_to_dst_edges.as_span(), dst);
         });
+        dst_attribute.finish();
       });
     }
   }
