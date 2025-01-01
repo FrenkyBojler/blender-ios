@@ -361,30 +361,20 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     }
   }
 
-  /* Create all segments that are not internal. */
-  Vector<Segment> unsorted_segments;
+  /* Create all segments. */
+  Vector<Segment> all_segments;
+  Vector<int> all_segment_offsets;
   for (const int curve_i : IndexRange(num_curves)) {
     const IndexRange points = points_per_curve[curve_i];
     const Vector<int> &inters_per_curve = inters_per_curves[curve_i];
+    all_segment_offsets.append(all_segments.size());
 
-    const bool is_subj = curve_i == 0;
-
-    int current_winding_order = 0;
-
-    /* TODO */
-    const Span<float2> poly_this = (curve_i == 0) ? curve_subj : curve_clip;
-    const Span<float2> poly_other = (curve_i == 0) ? curve_clip : curve_subj;
-
-    current_winding_order = point_in_polygon_winding_order(poly_this.first(), poly_other);
-
-    if (inters_per_curve.is_empty() &&
-        contributing_rule(current_winding_order, is_subj, boolean_mode))
-    {
+    if (inters_per_curve.is_empty()) {
       if (is_cyclic[curve_i]) {
-        unsorted_segments.append(Segment::from_loop(curve_i, points));
+        all_segments.append(Segment::from_loop(curve_i, points));
       }
       else {
-        unsorted_segments.append(Segment::from_start_to_end(curve_i, points));
+        all_segments.append(Segment::from_start_to_end(curve_i, points));
       }
       continue;
     }
@@ -404,25 +394,21 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     });
 
     if (is_cyclic[curve_i]) {
-      if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
-        const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
-        const int int_p_2 = inters_per_curve[inter_sorted_ids.last()];
+      const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
+      const int int_p_2 = inters_per_curve[inter_sorted_ids.last()];
 
-        const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
-        const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
+      const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
+      const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
 
-        unsorted_segments.append(Segment::from_intersections(
-            curve_i, points, inter_last, inter_first, int_p_2, int_p_1));
-      }
+      all_segments.append(
+          Segment::from_intersections(curve_i, points, inter_last, inter_first, int_p_2, int_p_1));
     }
     else {
-      if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
-        const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
-        const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
+      const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
+      const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
 
-        unsorted_segments.append(
-            Segment::from_start_to_intersection(curve_i, points, inter_first, int_p_1));
-      }
+      all_segments.append(
+          Segment::from_start_to_intersection(curve_i, points, inter_first, int_p_1));
     }
 
     for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
@@ -430,6 +416,51 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const int int_p_2 = inters_per_curve[inter_sorted_ids[inter_id + 1]];
 
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
+      const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
+
+      all_segments.append(
+          Segment::from_intersections(curve_i, points, inter_first, inter_last, int_p_1, int_p_2));
+    }
+
+    if (!is_cyclic[curve_i]) {
+      const int int_p_2 = inter_sorted_ids[inters_per_curve.last()];
+      const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
+
+      all_segments.append(Segment::from_intersection_to_end(curve_i, points, inter_last, int_p_2));
+    }
+  }
+  all_segment_offsets.append(all_segments.size());
+
+  /* -------------------- */
+
+  Vector<Segment> unsorted_segments;
+
+  // int current_winding_order = 0;
+
+  //     /* TODO */
+  //     const Span<float2> poly_this = (curve_i == 0) ? curve_subj : curve_clip;
+  //     const Span<float2> poly_other = (curve_i == 0) ? curve_clip : curve_subj;
+
+  //     current_winding_order = point_in_polygon_winding_order(poly_this.first(), poly_other);
+
+  const OffsetIndices<int> all_segments_by_curve = OffsetIndices<int>(all_segment_offsets);
+
+  /* Remove all segments that don't contribute. */
+  for (const int curve_i : all_segments_by_curve.index_range()) {
+    const IndexRange segments = all_segments_by_curve[curve_i];
+
+    /* TODO */
+    const bool is_subj = curve_i == 0;
+    const Span<float2> poly_this = is_subj ? curve_subj : curve_clip;
+    const Span<float2> poly_other = is_subj ? curve_clip : curve_subj;
+
+    const int first_point = all_segments[segments.first()].start_edge().y; /* ??? */
+    int current_winding_order = point_in_polygon_winding_order(poly_this[first_point], poly_other);
+
+    for (const int seg_i : segments) {
+      if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
+        unsorted_segments.append(all_segments[seg_i]);
+      }
 
       const int other_curve_i = 1 - curve_i; /* TODO */
 
@@ -441,38 +472,10 @@ BooleanResult execute_boolean(const Operation boolean_mode,
         //     curve_clip[inter_first.point_b],
         //     curve_clip[(inter_first.point_b + 1) % curve_clip.size()]);
       }
-
-      if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
-        const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
-
-        unsorted_segments.append(Segment::from_intersections(
-            curve_i, points, inter_first, inter_last, int_p_1, int_p_2));
-      }
-    }
-
-    current_winding_order++; /* TODO */
-    // if (is_fill[other_curve_i]) {
-    //     current_winding_order++; /* TODO */
-    //     // current_winding_order += seg_seg_winding(
-    //     //     curve_subj[inter_first.point_a],
-    //     //     curve_subj[(inter_first.point_a + 1) % curve_subj.size()],
-    //     //     curve_clip[inter_first.point_b],
-    //     //     curve_clip[(inter_first.point_b + 1) % curve_clip.size()]);
-    //   }
-
-    if (!is_cyclic[curve_i] && contributing_rule(current_winding_order, is_subj, boolean_mode)) {
-      const int int_p_2 = inter_sorted_ids[inters_per_curve.last()];
-      const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
-
-      unsorted_segments.append(
-          Segment::from_intersection_to_end(curve_i, points, inter_last, int_p_2));
     }
   }
 
-  /* Remove duplicate intersection points. */
-  {
-    /* TODO */
-  }
+  /* ----- */
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(unsorted_segments.size(), false);
