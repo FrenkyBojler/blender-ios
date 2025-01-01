@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+)
 
 
 class SPREADSHEET_HT_header(bpy.types.Header):
@@ -13,6 +16,44 @@ class SPREADSHEET_HT_header(bpy.types.Header):
         space = context.space_data
 
         layout.template_header()
+        layout.prop(space, "object_eval_state", text="")
+
+        SPREADSHEET_MT_editor_menus.draw_collapsible(context, layout)
+
+        layout.separator_spacer()
+
+        row = layout.row(align=True)
+        sub = row.row(align=True)
+        sub.active = self.selection_filter_available(space)
+        sub.prop(space, "show_only_selected", text="")
+        row.prop(space, "use_filter", toggle=True, icon='FILTER', icon_only=True)
+
+    def selection_filter_available(self, space):
+        root_context = space.viewer_path.path[0]
+        if root_context.type != 'ID':
+            return False
+        if not isinstance(root_context.id, bpy.types.Object):
+            return False
+        obj = root_context.id
+        if obj is None:
+            return False
+        if obj.type == 'MESH':
+            return obj.mode == 'EDIT'
+        if obj.type == 'CURVES':
+            return obj.mode in {'SCULPT_CURVES', 'EDIT'}
+        if obj.type == 'POINTCLOUD':
+            return obj.mode == 'EDIT'
+        return False
+
+
+class SPREADSHEET_HT_footer(bpy.types.Header):
+    bl_space_type = 'SPREADSHEET'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+        space = context.space_data
+
         viewer_path = space.viewer_path.path
 
         if len(viewer_path) == 0:
@@ -30,7 +71,6 @@ class SPREADSHEET_HT_header(bpy.types.Header):
             self.draw_without_viewer_path(layout)
             return
 
-        layout.prop(space, "object_eval_state", text="")
 
         if space.object_eval_state == 'ORIGINAL':
             # Only show first context.
@@ -47,12 +87,7 @@ class SPREADSHEET_HT_header(bpy.types.Header):
             layout.label(text="No active viewer node", icon='INFO')
 
         layout.separator_spacer()
-
-        row = layout.row(align=True)
-        sub = row.row(align=True)
-        sub.active = self.selection_filter_available(space)
-        sub.prop(space, "show_only_selected", text="")
-        row.prop(space, "use_filter", toggle=True, icon='FILTER', icon_only=True)
+        self.draw_row_and_column_count(layout, space)
 
     def draw_without_viewer_path(self, layout):
         layout.label(text="No active context")
@@ -99,26 +134,44 @@ class SPREADSHEET_HT_header(bpy.types.Header):
     def draw_spreadsheet_viewer_path_icon(self, layout, space, icon='RIGHTARROW_THIN'):
         layout.prop(space, "display_viewer_path_collapsed", icon_only=True, emboss=False, icon=icon)
 
-    def selection_filter_available(self, space):
-        root_context = space.viewer_path.path[0]
-        if root_context.type != 'ID':
-            return False
-        if not isinstance(root_context.id, bpy.types.Object):
-            return False
-        obj = root_context.id
-        if obj is None:
-            return False
-        if obj.type == 'MESH':
-            return obj.mode == 'EDIT'
-        if obj.type == 'CURVES':
-            return obj.mode in {'SCULPT_CURVES', 'EDIT'}
-        if obj.type == 'POINTCLOUD':
-            return obj.mode == 'EDIT'
-        return False
+    def draw_row_and_column_count(self, layout, space):
+        rows_num = space.rows_num
+        visible_rows_num = space.visible_rows_num
+        columns_num = space.columns_num
+
+        if rows_num == visible_rows_num:
+            text = iface_("Rows: {:,}   |   Columns: {:,}").format(rows_num, columns_num)
+        else:
+            text = iface_("Rows: {:,} / {:,}   |   Columns: {:,}").format(visible_rows_num, rows_num, columns_num)
+        layout.label(text=text)
+
+
+class SPREADSHEET_MT_editor_menus(bpy.types.Menu):
+    bl_idname = "SPREADSHEET_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.menu("SPREADSHEET_MT_view")
+
+
+class SPREADSHEET_MT_view(bpy.types.Menu):
+    bl_label = "View"
+
+    def draw(self, context):
+        layout = self.layout
+        space = context.space_data
+
+        layout.prop(space, "show_region_ui")
+        layout.separator()
+        layout.menu("INFO_MT_area")
 
 
 classes = (
+    SPREADSHEET_MT_editor_menus,
+    SPREADSHEET_MT_view,
     SPREADSHEET_HT_header,
+    SPREADSHEET_HT_footer,
 )
 
 if __name__ == "__main__":  # Only for live edit.

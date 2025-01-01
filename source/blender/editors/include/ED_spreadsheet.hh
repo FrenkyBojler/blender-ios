@@ -11,4 +11,8 @@ namespace blender::ed::spreadsheet {
 
 ID *get_current_id(const SpaceSpreadsheet *sspreadsheet);
 
-}
+int get_visible_rows_num(const SpaceSpreadsheet &sspreadsheet);
+int get_total_rows_num(const SpaceSpreadsheet &sspreadsheet);
+int get_columns_num(const SpaceSpreadsheet &sspreadsheet);
+
+}  // namespace blender::ed::spreadsheet

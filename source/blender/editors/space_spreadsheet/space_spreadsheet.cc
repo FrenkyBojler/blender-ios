@@ -206,6 +206,21 @@ ID *get_current_id(const SpaceSpreadsheet *sspreadsheet)
   return id_elem->id;
 }
 
+int get_visible_rows_num(const SpaceSpreadsheet &sspreadsheet)
+{
+  return sspreadsheet.runtime->visible_rows;
+}
+
+int get_total_rows_num(const SpaceSpreadsheet &sspreadsheet)
+{
+  return sspreadsheet.runtime->tot_rows;
+}
+
+int get_columns_num(const SpaceSpreadsheet &sspreadsheet)
+{
+  return sspreadsheet.runtime->tot_columns;
+}
+
 static void view_active_object(const bContext *C, SpaceSpreadsheet *sspreadsheet)
 {
   BKE_viewer_path_clear(&sspreadsheet->viewer_path);
@@ -588,44 +603,6 @@ static void spreadsheet_footer_region_init(wmWindowManager * /*wm*/, ARegion *re
   ED_region_header_init(region);
 }
 
-static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
-{
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-  SpaceSpreadsheet_Runtime *runtime = sspreadsheet->runtime;
-  std::stringstream ss;
-  ss << IFACE_("Rows:") << " ";
-  if (runtime->visible_rows != runtime->tot_rows) {
-    char visible_rows_str[BLI_STR_FORMAT_INT32_GROUPED_SIZE];
-    BLI_str_format_int_grouped(visible_rows_str, runtime->visible_rows);
-    ss << visible_rows_str << " / ";
-  }
-  char tot_rows_str[BLI_STR_FORMAT_INT32_GROUPED_SIZE];
-  BLI_str_format_int_grouped(tot_rows_str, runtime->tot_rows);
-  ss << tot_rows_str << "   |   " << IFACE_("Columns:") << " " << runtime->tot_columns;
-  std::string stats_str = ss.str();
-
-  UI_ThemeClearColor(TH_BACK);
-
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
-  const uiStyle *style = UI_style_get_dpi();
-  uiLayout *layout = UI_block_layout(block,
-                                     UI_LAYOUT_HORIZONTAL,
-                                     UI_LAYOUT_HEADER,
-                                     UI_HEADER_OFFSET,
-                                     region->winy - (region->winy - UI_UNIT_Y) / 2.0f,
-                                     region->winx,
-                                     1,
-                                     0,
-                                     style);
-  uiItemSpacer(layout);
-  uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
-  uiItemL(layout, stats_str, ICON_NONE);
-  UI_block_layout_resolve(block, nullptr, nullptr);
-  UI_block_align_end(block);
-  UI_block_end(C, block);
-  UI_block_draw(C, block);
-}
-
 static void spreadsheet_footer_region_free(ARegion * /*region*/) {}
 
 static void spreadsheet_footer_region_listener(const wmRegionListenerParams * /*params*/) {}
@@ -776,7 +753,7 @@ void register_spacetype()
   art->lock = 1;
 
   art->init = spreadsheet_footer_region_init;
-  art->draw = spreadsheet_footer_region_draw;
+  art->draw = ED_region_header;
   art->free = spreadsheet_footer_region_free;
   art->listener = spreadsheet_footer_region_listener;
   BLI_addhead(&st->regiontypes, art);

@@ -3506,6 +3506,24 @@ const EnumPropertyItem *rna_SpaceSpreadsheet_attribute_domain_itemf(bContext * /
   return item_array;
 }
 
+static int rna_SpaceSpreadsheet_rows_num_get(PointerRNA *ptr)
+{
+  using namespace blender;
+  return ed::spreadsheet::get_total_rows_num(*static_cast<const SpaceSpreadsheet *>(ptr->data));
+}
+
+static int rna_SpaceSpreadsheet_visible_rows_num_get(PointerRNA *ptr)
+{
+  using namespace blender;
+  return ed::spreadsheet::get_visible_rows_num(*static_cast<const SpaceSpreadsheet *>(ptr->data));
+}
+
+static int rna_SpaceSpreadsheet_columns_num_get(PointerRNA *ptr)
+{
+  using namespace blender;
+  return ed::spreadsheet::get_columns_num(*static_cast<const SpaceSpreadsheet *>(ptr->data));
+}
+
 static StructRNA *rna_viewer_path_elem_refine(PointerRNA *ptr)
 {
   ViewerPathElem *elem = static_cast<ViewerPathElem *>(ptr->data);
@@ -8632,6 +8650,21 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "SpreadsheetColumn");
   RNA_def_property_ui_text(prop, "Columns", "Persistent data associated with spreadsheet columns");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+
+  prop = RNA_def_property(srna, "rows_num", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Row Count", "The number of rows in the current view");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_int_funcs(prop, "rna_SpaceSpreadsheet_rows_num_get", nullptr, nullptr);
+
+  prop = RNA_def_property(srna, "visible_rows_num", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Row Count", "The number of rows not exluded by filters");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_int_funcs(prop, "rna_SpaceSpreadsheet_visible_rows_num_get", nullptr, nullptr);
+
+  prop = RNA_def_property(srna, "columns_num", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Column Count", "The number of columns in the current view");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_int_funcs(prop, "rna_SpaceSpreadsheet_columns_num_get", nullptr, nullptr);
 
   rna_def_spreadsheet_row_filter(brna);
 
