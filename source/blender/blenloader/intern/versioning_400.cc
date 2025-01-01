@@ -1125,9 +1125,9 @@ static void adjust_fcurve_key_frame_values(FCurve *fcurve,
  * pixels, where it is 2^size pixels in size. There is no way to version this accurately, since the
  * new size is relative to the input image size, which is runtime information. But we can assume
  * the render size as a guess and compute the size relative to that. */
-static void do_version_glare_node_threshold_strength_size(const Scene *scene,
-                                                          bNodeTree *node_tree,
-                                                          bNode *node)
+static void do_version_glare_node_options_to_inputs(const Scene *scene,
+                                                    bNodeTree *node_tree,
+                                                    bNode *node)
 {
   NodeGlare *storage = static_cast<NodeGlare *>(node->storage);
   if (!storage) {
@@ -1464,7 +1464,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
         if (node->type != CMP_NODE_GLARE) {
           continue;
         }
-        do_version_glare_node_threshold_strength_size(reinterpret_cast<Scene *>(id), ntree, node);
+        do_version_glare_node_options_to_inputs(reinterpret_cast<Scene *>(id), ntree, node);
       }
     }
     FOREACH_NODETREE_END;
