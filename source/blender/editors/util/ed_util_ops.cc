@@ -248,12 +248,11 @@ static bool lib_id_remove_preview_poll(bContext *C)
   if (!preview) {
     return false;
   }
-  /* Ensure preview data exists */
-  if (preview->flag[ICON_SIZE_PREVIEW]) {
-    return true;
+  if ((preview->flag[ICON_SIZE_PREVIEW] & PRV_USER_EDITED) == 0) {
+    CTX_wm_operator_poll_msg_set(C, "Only custom previews can be removed");
+    return false;
   }
-
-  return false;
+  return true;
 }
 
 static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
@@ -263,7 +262,7 @@ static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
 
   if (!id) {
     BKE_report(
-    op->reports, RPT_ERROR, "Failed to remove preview: no ID in context (incorrect context?)");
+    op->reports, RPT_ERROR, "Failed to remove custom preview: no ID in context (incorrect context?)");
     return OPERATOR_CANCELLED;
   }
 
@@ -277,8 +276,8 @@ static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
 static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Remove Preview";
-  ot->description = "Remove the preview image";
+  ot->name = "Remove Custom Preview";
+  ot->description = "Remove the custom preview image";
   ot->idname = "ED_OT_lib_id_remove_preview";
 
   /* api callbacks */
