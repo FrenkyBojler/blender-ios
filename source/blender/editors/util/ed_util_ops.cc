@@ -278,7 +278,7 @@ static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Remove Preview";
-  ot->description = "Remove the preview";
+  ot->description = "Remove the preview image";
   ot->idname = "ED_OT_lib_id_remove_preview";
 
   /* api callbacks */
