@@ -885,8 +885,9 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   const Span<int3> ordered_vert_tris = tri_to_ordered_tri(vert_tris.as_mutable_span());
 
   /* Use ordered vertex triplets (a < b < c) to represent all new triangles.
-   * #FaceKey know indices of the face and points into #ordered_vert_tris, but probe can be done without
-   * #FaceKey but dirrectly with a triplet so probe not necessary to be a part of #ordered_vert_tris. */
+   * #FaceKey know indices of the face and points into #ordered_vert_tris, but probe can be done
+   * without #FaceKey but dirrectly with a triplet so probe not necessary to be a part of
+   * #ordered_vert_tris. */
   VectorSet<FaceKey, DefaultProbingStrategy, FaceHash, FacesEquality> distinct_tris(
       FaceHash{}, FacesEquality{ordered_vert_tris});
 
@@ -906,7 +907,8 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
 
   index_mask::ExprBuilder mask_builder;
   const IndexMask distinct_original_faces = index_mask::evaluate_expression(
-      mask_builder.subtract(IndexRange(src_mesh.faces_num), {&quads, &ngons, &skip_tris_mask}), memory);
+      mask_builder.subtract(IndexRange(src_mesh.faces_num), {&quads, &ngons, &skip_tris_mask}),
+      memory);
 
   const IndexRange distinct_faces_range(distinct_tri_num + distinct_original_faces.size());
   const IndexRange distinct_tri_range = distinct_faces_range.take_front(distinct_tri_num);
@@ -967,17 +969,28 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
                         dst_tri_to_src_face.as_mutable_span());
   }
 
-  const Span<int3> distinct_corner_tris = has_duplicate_faces ? distinct_corner_tris_data.as_span() : corner_tris.as_span();
+  const Span<int3> distinct_corner_tris = has_duplicate_faces ?
+                                              distinct_corner_tris_data.as_span() :
+                                              corner_tris.as_span();
 
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
   {
-    bke::attribute_math::gather(attribute.src, dst_tri_to_src_face.as_span(), attribute.dst.span.slice(distinct_tri_range));
-    array_utils::gather(attribute.src, distinct_original_faces, attribute.dst.span.slice(distinct_src_faces_range));
+    bke::attribute_math::gather(attribute.src,
+                                dst_tri_to_src_face.as_span(),
+                                attribute.dst.span.slice(distinct_tri_range));
+    array_utils::gather(attribute.src,
+                        distinct_original_faces,
+                        attribute.dst.span.slice(distinct_src_faces_range));
     attribute.dst.finish();
   }
   if (CustomData_has_layer(&src_mesh.face_data, CD_ORIGINDEX)) {
-    const Span src(static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)), src_mesh.faces_num);
-    MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)), mesh->faces_num);
+    const Span src(
+        static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)),
+        src_mesh.faces_num);
+    MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(
+                             &mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)),
+                         mesh->faces_num);
 
     array_utils::gather(src, dst_tri_to_src_face.as_span(), dst.slice(distinct_tri_range));
     array_utils::gather(src, distinct_original_faces, dst.slice(distinct_src_faces_range));
