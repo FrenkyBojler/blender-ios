@@ -417,7 +417,7 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
   params.usdz_downscale_size = usdz_downscale_size;
   params.usdz_downscale_custom_size = usdz_downscale_custom_size;
   params.convert_scene_units = convert_scene_units;
-  params.meters_per_unit = meters_per_unit;
+  params.custom_meters_per_unit = meters_per_unit;
 
   params.merge_parent_xform = merge_parent_xform;
 
@@ -1109,8 +1109,8 @@ static void wm_usd_import_draw(bContext *C, wmOperator *op)
     uiItemR(col, ptr, "create_collection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "relative_path", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiItemR(col, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "apply_unit_conversion_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "light_intensity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "attr_import_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
@@ -1410,7 +1410,7 @@ void WM_OT_usd_import(wmOperatorType *ot)
       "apply_unit_conversion_scale",
       true,
       "Apply Unit Conversion Scale",
-      "Scale the scene objects by the USD stage's meters-per-unit value. "
+      "Scale the scene objects by the USD stage's meters per unit value. "
       "This scaling is applied in addition to the value specified in the Scale option");
 }
 

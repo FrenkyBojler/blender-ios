@@ -181,7 +181,7 @@ struct USDExportParams {
   char custom_properties_namespace[MAX_IDPROP_NAME] = "";
 
   eUSDSceneUnits convert_scene_units = eUSDSceneUnits::USD_SCENE_UNITS_METERS;
-  float meters_per_unit = 1.0f;
+  float custom_meters_per_unit = 1.0f;
 
   /** Communication structure between the wmJob management code and the worker code. Currently used
    * to generate safely reports from the worker thread. */

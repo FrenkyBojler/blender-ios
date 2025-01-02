@@ -1653,6 +1653,17 @@ class USDImportTest(AbstractUSDTest):
         root = bpy.data.objects["root"]
         self.assertEqual(self.round_vector(root.scale), [0.01, 0.01, 0.01])
 
+        # Reimport with unit conversion scale off.
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+
+        infile = str(self.testdir / "usd_curve_bezier_all.usda")
+        res = bpy.ops.wm.usd_import(filepath=infile, apply_unit_conversion_scale=False)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
+
+        # Ensure the root object has default scale 1.0.
+        root = bpy.data.objects["root"]
+        self.assertEqual(self.round_vector(root.scale), [1.0, 1.0, 1.0])
+
     def test_material_import_usd_hook(self):
         """Test importing color from an mtlx shader."""
 

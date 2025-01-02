@@ -765,7 +765,7 @@ double get_meters_per_unit(const struct USDExportParams *params)
       result = 0.9144;
       break;
     case USD_SCENE_UNITS_CUSTOM:
-      result = double(params->meters_per_unit);
+      result = double(params->custom_meters_per_unit);
       break;
     default:
       result = 1.0;
