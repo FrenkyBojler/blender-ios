@@ -53,6 +53,7 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   bf_compositor
+  PRIVATE bf_nodes_geometry
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::render
