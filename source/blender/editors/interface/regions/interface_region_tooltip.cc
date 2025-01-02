@@ -41,8 +41,10 @@
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
+#include "BKE_main.hh"
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
+#include "BKE_vfont.hh"
 
 #include "BIF_glutil.hh"
 
@@ -55,6 +57,8 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_thumbs.hh"
+
+#include "MOV_read.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -1616,9 +1620,9 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
   }
 
   if (BKE_image_has_anim(&ima)) {
-    ImBufAnim *anim = static_cast<ImBufAnim *>(ima.anims.first);
+    MovieReader *anim = static_cast<MovieReader *>(ima.anims.first);
     if (anim) {
-      int duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+      int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       UI_tooltip_text_field_add(
           data, fmt::format("Frames: {}", duration), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
     }
@@ -1668,24 +1672,23 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
   UI_tooltip_text_field_add(data, image_type, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
 
   if (clip.anim) {
-    ImBufAnim *anim = clip.anim;
-
-    UI_tooltip_text_field_add(data,
-                              fmt::format("{} \u00D7 {}",
-                                          IMB_anim_get_image_width(anim),
-                                          IMB_anim_get_image_height(anim)),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_NORMAL);
+    MovieReader *anim = clip.anim;
 
     UI_tooltip_text_field_add(
         data,
-        fmt::format("Frames: {}", IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN)),
+        fmt::format("{} \u00D7 {}", MOV_get_image_width(anim), MOV_get_image_height(anim)),
         {},
         UI_TIP_STYLE_NORMAL,
         UI_TIP_LC_NORMAL);
 
-    ImBuf *ibuf = IMB_anim_previewframe(anim);
+    UI_tooltip_text_field_add(
+        data,
+        fmt::format("Frames: {}", MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN)),
+        {},
+        UI_TIP_STYLE_NORMAL,
+        UI_TIP_LC_NORMAL);
+
+    ImBuf *ibuf = MOV_decode_preview_frame(anim);
 
     if (ibuf) {
       /* Resize. */
@@ -1710,12 +1713,21 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
 
 static void ui_tooltip_from_vfont(const VFont &font, uiTooltipData &data)
 {
+  if (BKE_vfont_is_builtin(&font)) {
+    /* In memory font previews are currently not supported,
+     *  don't attempt to handle as a file. */
+    return;
+  }
   if (!font.filepath[0]) {
-    /* Let's not bother with packed files _for now_. */
+    /* These may be packed files, currently not supported. */
     return;
   }
 
-  if (!BLI_exists(font.filepath)) {
+  char filepath_abs[FILE_MAX];
+  STRNCPY(filepath_abs, font.filepath);
+  BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&font.id));
+
+  if (!BLI_exists(filepath_abs)) {
     UI_tooltip_text_field_add(
         data, TIP_("File not found"), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_ALERT);
     return;
@@ -1724,7 +1736,7 @@ static void ui_tooltip_from_vfont(const VFont &font, uiTooltipData &data)
   float color[4];
   const uiWidgetColors *theme = ui_tooltip_get_theme();
   rgba_uchar_to_float(color, theme->text);
-  ImBuf *ibuf = IMB_font_preview(font.filepath, 200 * UI_SCALE_FAC, color);
+  ImBuf *ibuf = IMB_font_preview(filepath_abs, 200 * UI_SCALE_FAC, color);
   if (ibuf) {
     uiTooltipImage image_data;
     image_data.width = ibuf->x;

@@ -96,6 +96,7 @@
 #include "BLI_linklist.h"
 #include "BLI_math_base.h"
 #include "BLI_mempool.h"
+#include "BLI_multi_value_map.hh"
 #include "BLI_set.hh"
 #include "BLI_threads.h"
 
@@ -1026,81 +1027,82 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
 }
 
 /** Keep it last of `write_*_data` functions. */
-static void write_libraries(WriteData *wd, Main *main)
+static void write_libraries(WriteData *wd, Main *bmain)
 {
-  ListBase *lbarray[INDEX_ID_MAX];
-  ID *id;
-  int a, tot;
-  bool found_one;
+  /* Gather IDs coming from each library. */
+  blender::MultiValueMap<Library *, ID *> linked_ids_by_library;
+  {
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      if (!ID_IS_LINKED(id)) {
+        continue;
+      }
+      BLI_assert(id->lib);
+      linked_ids_by_library.add(id->lib, id);
+    }
+    FOREACH_MAIN_ID_END;
+  }
 
-  for (; main; main = main->next) {
-    a = tot = set_listbasepointers(main, lbarray);
+  LISTBASE_FOREACH (Library *, library_ptr, &bmain->libraries) {
+    Library &library = *library_ptr;
+    const blender::Span<ID *> ids = linked_ids_by_library.lookup(&library);
 
-    /* Test: is lib being used. */
-    if (main->curlib && main->curlib->packedfile) {
-      found_one = true;
+    /* Gather IDs that are somehow directly referenced by data in the current blend file. */
+    blender::Vector<ID *> ids_used_from_library;
+    for (ID *id : ids) {
+      if (id->us == 0) {
+        continue;
+      }
+      if (id->tag & ID_TAG_EXTERN) {
+        ids_used_from_library.append(id);
+        continue;
+      }
+      if ((id->tag & ID_TAG_INDIRECT) && (id->flag & ID_FLAG_INDIRECT_WEAK_LINK)) {
+        ids_used_from_library.append(id);
+        continue;
+      }
+    }
+
+    bool should_write_library = false;
+    if (library.packedfile) {
+      should_write_library = true;
     }
     else if (wd->use_memfile) {
-      /* When writing undo step we always write all existing libraries, makes reading undo step
-       * much easier when dealing with purely indirectly used libraries. */
-      found_one = true;
+      /* When writing undo step we always write all existing libraries. That makes reading undo
+       * step much easier when dealing with purely indirectly used libraries. */
+      should_write_library = true;
     }
     else {
-      found_one = false;
-      while (!found_one && tot--) {
-        for (id = static_cast<ID *>(lbarray[tot]->first); id; id = static_cast<ID *>(id->next)) {
-          if (id->us > 0 &&
-              ((id->tag & ID_TAG_EXTERN) ||
-               ((id->tag & ID_TAG_INDIRECT) && (id->flag & ID_FLAG_INDIRECT_WEAK_LINK))))
-          {
-            found_one = true;
-            break;
-          }
-        }
+      should_write_library = !ids_used_from_library.is_empty();
+    }
+
+    if (!should_write_library) {
+      /* Nothing from the library is used, so it does not have to be written. */
+      continue;
+    }
+
+    BlendWriter writer = {wd};
+    writestruct(wd, ID_LI, Library, 1, &library);
+    BKE_id_blend_write(&writer, &library.id);
+
+    /* Write packed file if necessary. */
+    if (library.packedfile) {
+      BKE_packedfile_blend_write(&writer, library.packedfile);
+      if (!wd->use_memfile) {
+        CLOG_INFO(&LOG, 2, "Write packed .blend: %s", library.filepath);
       }
     }
 
-    /* To be able to restore `quit.blend` and temp saves,
-     * the packed blend has to be in undo buffers... */
-    /* XXX needs rethink, just like save UI in undo files now -
-     * would be nice to append things only for the `quit.blend` and temp saves. */
-    if (found_one) {
-      /* Not overridable. */
-
-      void *runtime_name_data = main->curlib->runtime.name_map;
-      main->curlib->runtime.name_map = nullptr;
-
-      BlendWriter writer = {wd};
-      writestruct(wd, ID_LI, Library, 1, main->curlib);
-      BKE_id_blend_write(&writer, &main->curlib->id);
-
-      main->curlib->runtime.name_map = static_cast<UniqueName_Map *>(runtime_name_data);
-
-      if (main->curlib->packedfile) {
-        BKE_packedfile_blend_write(&writer, main->curlib->packedfile);
-        if (wd->use_memfile == false) {
-          CLOG_INFO(&LOG, 2, "Write packed .blend: %s", main->curlib->filepath);
-        }
+    /* Write placeholders for linked data-blocks that are used. */
+    for (const ID *id : ids_used_from_library) {
+      if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
+        CLOG_ERROR(&LOG,
+                   "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
+                   "directly linked",
+                   id->name,
+                   library.runtime.filepath_abs);
       }
-
-      /* Write link placeholders for all direct linked IDs. */
-      while (a--) {
-        for (id = static_cast<ID *>(lbarray[a]->first); id; id = static_cast<ID *>(id->next)) {
-          if (id->us > 0 &&
-              ((id->tag & ID_TAG_EXTERN) ||
-               ((id->tag & ID_TAG_INDIRECT) && (id->flag & ID_FLAG_INDIRECT_WEAK_LINK))))
-          {
-            if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
-              CLOG_ERROR(&LOG,
-                         "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
-                         "directly linked",
-                         id->name,
-                         main->curlib->runtime.filepath_abs);
-            }
-            writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
-          }
-        }
-      }
+      writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
     }
   }
 
@@ -1224,6 +1226,8 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
    * when we need to re-read the ID into its original address, this is currently cleared in
    * #direct_link_id_common in `readfile.cc` anyway. */
   temp_id->py_instance = nullptr;
+  /* Clear runtime data struct. */
+  memset(&temp_id->runtime, 0, sizeof(temp_id->runtime));
 
   DrawDataList *drawdata = DRW_drawdatalist_from_id(temp_id);
   if (drawdata) {
@@ -1242,7 +1246,7 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
 {
   ID *self_id = cb_data->self_id;
   ID *id = *cb_data->id_pointer;
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
 
   if (id == nullptr || !ID_IS_LINKED(id)) {
     return IDWALK_RET_NOP;
@@ -1311,6 +1315,10 @@ static blender::Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool i
       /* Libraries are handled separately below. */
       continue;
     }
+    if (ID_IS_LINKED(id)) {
+      /* Linked data-blocks are handled separately below. */
+      continue;
+    }
     const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
     UNUSED_VARS_NDEBUG(id_type);
     /* We should never attempt to write non-regular IDs
@@ -1377,7 +1385,6 @@ static bool write_file_handle(Main *mainvar,
                               const bool use_userdef,
                               const BlendThumbnail *thumb)
 {
-  ListBase mainlist;
   WriteData *wd;
 
   wd = mywrite_begin(ww, compare, current);
@@ -1428,8 +1435,6 @@ static bool write_file_handle(Main *mainvar,
     }
   }
 
-  blo_split_main(&mainlist, mainvar);
-
   write_blend_file_header(wd);
   write_renderinfo(wd, mainvar);
   write_thumb(wd, thumb);
@@ -1465,8 +1470,8 @@ static bool write_file_handle(Main *mainvar,
     write_id(wd, id);
   }
 
-  /* Special handling, operating over split Mains... */
-  write_libraries(wd, mainvar->next);
+  /* Write libraries about libraries and linked data-blocks. */
+  write_libraries(wd, mainvar);
 
   /* So changes above don't cause a 'DNA1' to be detected as changed on undo. */
   mywrite_flush(wd);
@@ -1485,8 +1490,6 @@ static bool write_file_handle(Main *mainvar,
   BHead bhead{};
   bhead.code = BLO_CODE_ENDB;
   write_bhead(wd, bhead);
-
-  blo_join_main(&mainlist);
 
   return mywrite_end(wd);
 }
@@ -1872,6 +1875,11 @@ void BLO_write_char_array(BlendWriter *writer, const int64_t num, const char *da
 void BLO_write_int8_array(BlendWriter *writer, const int64_t num, const int8_t *data_ptr)
 {
   BLO_write_raw(writer, sizeof(int8_t) * size_t(num), data_ptr);
+}
+
+void BLO_write_int16_array(BlendWriter *writer, const int64_t num, const int16_t *data_ptr)
+{
+  BLO_write_raw(writer, sizeof(int16_t) * size_t(num), data_ptr);
 }
 
 void BLO_write_uint8_array(BlendWriter *writer, const int64_t num, const uint8_t *data_ptr)

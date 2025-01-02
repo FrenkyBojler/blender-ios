@@ -115,6 +115,9 @@ using blender::Vector;
 #define TEMPLATE_SEARCH_TEXTBUT_MIN_WIDTH (UI_UNIT_X * 4)
 #define TEMPLATE_SEARCH_TEXTBUT_HEIGHT UI_UNIT_Y
 
+/* Maximum width for a Status Bar report */
+#define REPORT_BANNER_MAX_WIDTH (800.0f * UI_SCALE_FAC)
+
 /* -------------------------------------------------------------------- */
 /** \name Header Template
  * \{ */
@@ -3150,7 +3153,7 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   uiItemIntO(col, "", ICON_REMOVE, "COLLECTION_OT_exporter_remove", "index", index);
 
   col = uiLayoutColumn(layout, true);
-  uiItemO(col, nullptr, ICON_EXPORT, "COLLECTION_OT_export_all");
+  uiItemO(col, std::nullopt, ICON_EXPORT, "COLLECTION_OT_export_all");
   uiLayoutSetEnabled(col, !BLI_listbase_is_empty(exporters));
 
   /* Draw the active exporter. */
@@ -6443,6 +6446,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 
   UI_fontstyle_set(&style->widget);
   int width = BLF_width(style->widget.uifont_id, report->message, report->len);
+  width = min_ii(width, int(REPORT_BANNER_MAX_WIDTH));
   width = min_ii(int(rti->widthfac * width), width);
   width = max_ii(width, 10 * UI_SCALE_FAC);
 
@@ -7064,6 +7068,10 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
   if (icon != 0) {
     for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
       uiItemL(layout, "", icon_mod[j]);
+      const float offset = ui_event_icon_offset(icon_mod[j]);
+      if (offset != 0.0f) {
+        uiItemS_ex(layout, offset);
+      }
     }
 
     /* Icon and text separately is closer together with aligned layout. */
