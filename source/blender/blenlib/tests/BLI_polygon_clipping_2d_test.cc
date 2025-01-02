@@ -138,22 +138,6 @@ class SVGMapping {
   }
 };
 
-static void SVG_add_polygon(std::ofstream &f,
-                            const std::string &class_name,
-                            const Span<float2> points,
-                            const SVGMapping &mapping)
-{
-  f << "<polygon class = \"" << class_name << "\" points = \"";
-  for (const int i : points.index_range()) {
-    const float2 &point = points[i];
-    if (i != 0) {
-      f << ", ";
-    }
-    f << mapping.SX(point[0]) << "," << mapping.SY(point[1]);
-  }
-  f << "\"/>\n";
-}
-
 static void SVG_add_path(std::ofstream &f,
                          const std::string &class_name,
                          const Span<float2> points,
@@ -161,11 +145,6 @@ static void SVG_add_path(std::ofstream &f,
                          const Span<bool> cyclic,
                          const SVGMapping &mapping)
 {
-  if (points_by_polygon.size() == 1 && cyclic.first() == true) {
-    SVG_add_polygon(f, class_name, points, mapping);
-    return;
-  }
-
   f << "<path class = \"" << class_name << "\" d = \"";
   for (const int polygon_id : points_by_polygon.index_range()) {
     const IndexRange vert_ids = points_by_polygon[polygon_id];
