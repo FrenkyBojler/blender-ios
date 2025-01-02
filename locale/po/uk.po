@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'2eb53ba3b21b')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'eb39d81afa00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-16 09:31+0000\n"
+"POT-Creation-Date: 2024-12-30 14:46+0000\n"
 "PO-Revision-Date: 2024-03-13 11:04+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -34280,14 +34280,6 @@ msgid "Static Type"
 msgstr "Статичний тип"
 
 
-msgid "Node type (deprecated, use with care)"
-msgstr "Тип вузла (не рекомендовано, користуватись обережно)"
-
-
-msgid "Custom Node"
-msgstr "Власний вузол"
-
-
 msgid "Custom color of the node body"
 msgstr "Власний колір тіла вузла"
 
@@ -34338,10 +34330,6 @@ msgstr "Показати Передогляд"
 
 msgid "Show Texture"
 msgstr "Показ Текстур"
-
-
-msgid "Node type (deprecated, use bl_static_type or bl_idname for the actual identifier string)"
-msgstr "Тип вузла (застаріло; використовуйте bl_static_type або bl_idname, щоб отримати актуальний ідентифікатор)"
 
 
 msgid "Use custom color for the node"
@@ -35194,6 +35182,10 @@ msgstr "Масштабувати ввід Z, якщо не використов�
 
 msgid "Denoise"
 msgstr "Знешумити"
+
+
+msgid "High quality"
+msgstr "Висока якість"
 
 
 msgid "HDR"
@@ -58842,6 +58834,11 @@ msgstr "Обміняти вводи"
 
 
 msgctxt "Operator"
+msgid "Deselect All"
+msgstr "Зневибрати Все"
+
+
+msgctxt "Operator"
 msgid "Unlock Strips"
 msgstr "Розблокувати Смужки"
 
@@ -63803,6 +63800,26 @@ msgid "Panel containing UI elements"
 msgstr "Панель, що містить елементи Інтерфейсу Користувача"
 
 
+msgid "Shadow Settings"
+msgstr "Устави Тіні"
+
+
+msgid "SSAO Settings"
+msgstr "Устави Загороди Оточення Простору Екрану"
+
+
+msgid "Render Pass"
+msgstr "Прохід Рендера"
+
+
+msgid "Overlays"
+msgstr "Накладки"
+
+
+msgid "Guides"
+msgstr "Напрямні"
+
+
 msgid "Motion Tracking"
 msgstr "Відстеження руху"
 
@@ -63833,10 +63850,6 @@ msgstr "Розміщення Штриха"
 
 msgid "Drawing Plane"
 msgstr "Площина Рисування"
-
-
-msgid "Guides"
-msgstr "Напрямні"
 
 
 msgid "Quad View"
@@ -63873,22 +63886,6 @@ msgstr "Блокувати Огляд"
 
 msgid "Wire Color"
 msgstr "Колір зв'язку"
-
-
-msgid "Shadow Settings"
-msgstr "Устави Тіні"
-
-
-msgid "SSAO Settings"
-msgstr "Устави Загороди Оточення Простору Екрану"
-
-
-msgid "Render Pass"
-msgstr "Прохід Рендера"
-
-
-msgid "Overlays"
-msgstr "Накладки"
 
 
 msgid "Chain Scaling"
@@ -68609,10 +68606,6 @@ msgstr "Проходи, що використовуються знешумник
 
 msgid "Albedo"
 msgstr "Альбедо"
-
-
-msgid "High quality"
-msgstr "Висока якість"
 
 
 msgid "Device to use for rendering"
@@ -80567,11 +80560,6 @@ msgstr "Скинути Устави"
 
 
 msgctxt "Operator"
-msgid "Deselect All"
-msgstr "Зневибрати Все"
-
-
-msgctxt "Operator"
 msgid "Statistics"
 msgstr "Статистика"
 
@@ -86609,42 +86597,6 @@ msgid "Original Mode"
 msgstr "Оригінальний Режим"
 
 
-msgid "Error writing frame"
-msgstr "Помилка запису кадру"
-
-
-msgid "No valid formats found"
-msgstr "Правильні формати не знайдено."
-
-
-msgid "Render width has to be 720 pixels for DV!"
-msgstr "Для DV ширина рендера має бути 720 пікселів!"
-
-
-msgid "Render height has to be 480 pixels for DV-NTSC!"
-msgstr "Для DV-NTSC висота рендера має бути 480 пікселів!"
-
-
-msgid "Render height has to be 576 pixels for DV-PAL!"
-msgstr "Для DV-PAL висота рендера має бути 576 пікселів!"
-
-
-msgid "Error initializing video stream"
-msgstr "Помилка ініціалізації відеопотоку"
-
-
-msgid "Error initializing audio stream"
-msgstr "Помилка ініціалізації звукового потоку"
-
-
-msgid "Could not open file for writing"
-msgstr "Неможливо відкрити файл для запису"
-
-
-msgid "Could not initialize streams, probably unsupported codec combination"
-msgstr "Неможливо ініціалізувати потоки; можливо, непідтримувана комбінація кодеків"
-
-
 msgid "ID %s is in local database while being linked from library %s!"
 msgstr "Ідентифікатор %s є у локальній базі даних і водночас пов'язаний з бібліотеки %s!"
 
@@ -91876,6 +91828,42 @@ msgid "Freestyle: Stroke rendering"
 msgstr "Freestyle: Рендеринг штриха"
 
 
+msgid "Error writing frame"
+msgstr "Помилка запису кадру"
+
+
+msgid "No valid formats found"
+msgstr "Правильні формати не знайдено."
+
+
+msgid "Render width has to be 720 pixels for DV!"
+msgstr "Для DV ширина рендера має бути 720 пікселів!"
+
+
+msgid "Render height has to be 480 pixels for DV-NTSC!"
+msgstr "Для DV-NTSC висота рендера має бути 480 пікселів!"
+
+
+msgid "Render height has to be 576 pixels for DV-PAL!"
+msgstr "Для DV-PAL висота рендера має бути 576 пікселів!"
+
+
+msgid "Error initializing video stream"
+msgstr "Помилка ініціалізації відеопотоку"
+
+
+msgid "Error initializing audio stream"
+msgstr "Помилка ініціалізації звукового потоку"
+
+
+msgid "Could not open file for writing"
+msgstr "Неможливо відкрити файл для запису"
+
+
+msgid "Could not initialize streams, probably unsupported codec combination"
+msgstr "Неможливо ініціалізувати потоки; можливо, непідтримувана комбінація кодеків"
+
+
 msgid "Index out of range"
 msgstr "Індекс за межами діапазону"
 
@@ -93241,11 +93229,6 @@ msgstr "Колірний баланс"
 
 
 msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Баланс білого"
-
-
-msgctxt "Sequence"
 msgid "Curves"
 msgstr "Криві"
 
@@ -93253,6 +93236,11 @@ msgstr "Криві"
 msgctxt "Sequence"
 msgid "Hue Correct"
 msgstr "Корекція відтінку"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Баланс білого"
 
 
 msgctxt "Sequence"

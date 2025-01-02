@@ -5485,7 +5485,7 @@ static void ui_numedit_set_active(uiBut *but)
   if ((but->flag & UI_SELECT) == 0) {
     if ((but->drawflag & UI_BUT_HOVER_LEFT) || (but->drawflag & UI_BUT_HOVER_RIGHT)) {
       if (data->changed_cursor) {
-        WM_cursor_set(data->window, WM_CURSOR_DEFAULT);
+        data->window->tag_cursor_refresh = true;
         data->changed_cursor = false;
       }
     }
@@ -8925,7 +8925,7 @@ static void button_activate_exit(
 #endif
 
   if (data->changed_cursor) {
-    WM_cursor_set(data->window, WM_CURSOR_DEFAULT);
+    win->tag_cursor_refresh = true;
   }
 
   /* redraw and refresh (for popups) */
@@ -10679,12 +10679,11 @@ static int ui_handle_menu_event(bContext *C,
     else {
       if (event->type == MOUSEMOVE) {
         WM_cursor_set(win, PopupTitleDragCursor);
-        int mdiff[2];
+        blender::int2 mdiff = blender::int2(event->xy) - blender::int2(menu->grab_xy_prev);
 
-        sub_v2_v2v2_int(mdiff, event->xy, menu->grab_xy_prev);
         copy_v2_v2_int(menu->grab_xy_prev, event->xy);
 
-        add_v2_v2v2_int(menu->popup_create_vars.event_xy, menu->popup_create_vars.event_xy, mdiff);
+        menu->popup_create_vars.event_xy += mdiff;
 
         ui_popup_translate(region, mdiff);
       }
