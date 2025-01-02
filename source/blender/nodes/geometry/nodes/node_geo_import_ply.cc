@@ -29,11 +29,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_IO_PLY
-  const std::string path = params.extract_input<std::string>("Path");
-  if (path.empty()) {
+  const std::optional<std::string> abs_path = get_abs_file_path(
+      params.bmain(), params.extract_input<std::string>("Path"));
+
+  if (!abs_path.has_value()) {
     params.set_default_remaining_outputs();
     return;
   }
+
+  const std::string path = abs_path.value();
 
   std::shared_ptr<const geometry_import_cache::GeometryReadValue> output =
       geometry_import_cache::import_geometry_cached(
