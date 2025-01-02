@@ -232,9 +232,26 @@ static void ED_OT_lib_id_generate_preview_from_object(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL | OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static bool lib_id_remove_preview_poll(bContext *C)
+static bool lib_id_remove_preview_poll(bContext *C) 
 {
-  return lib_id_preview_editing_poll(C);
+  if (!lib_id_preview_editing_poll(C)) {
+    return false;
+  }
+
+  const PointerRNA idptr = CTX_data_pointer_get(C, "id");
+  const ID *id = (ID *)idptr.data;
+  /* Get the preview image pointer for this ID */
+  PreviewImage *prv = BKE_previewimg_id_get(id);
+  if (prv == nullptr) {
+    return false;
+  }
+
+  /* Check if preview size has data */
+  if (prv->rect[ICON_SIZE_PREVIEW]) {
+    return true;
+  }
+
+  return false;
 }
 
 static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
