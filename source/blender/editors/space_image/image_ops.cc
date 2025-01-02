@@ -3249,38 +3249,28 @@ static int image_scale_exec(bContext *C, wmOperator *op)
     RNA_property_int_set_array(op->ptr, prop, size);
   }
 
-  bool is_scaling_all = RNA_boolean_get(op->ptr, "scale_all_udims");
-
-  ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf, &iuser);
+  const bool is_scaling_all = RNA_boolean_get(op->ptr, "all_udims");
 
   if (!is_scaling_all) {
+    ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf, &iuser);
     ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
     IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
     BKE_image_mark_dirty(ima, ibuf);
     BKE_image_release_ibuf(ima, ibuf, nullptr);
+    ED_image_undo_push_end();
   }
   else {
-    const ImageTile *current_tile = (ImageTile *)ima->tiles.first;
-    bool is_last_tile_scaled = false;
-
-    while (!is_last_tile_scaled) {
+    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
       iuser.tile = current_tile->tile_number;
       ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
       ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+      ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf, &iuser);
       IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
       BKE_image_mark_dirty(ima, ibuf);
       BKE_image_release_ibuf(ima, ibuf, nullptr);
-
-      if (current_tile->next) {
-        current_tile = current_tile->next;
-      }
-      else {
-        is_last_tile_scaled = true;
-      }
+      ED_image_undo_push_end();
     }
   }
-
-  ED_image_undo_push_end();
 
   BKE_image_partial_update_mark_full_update(ima);
 
@@ -3304,11 +3294,8 @@ void IMAGE_OT_resize(wmOperatorType *ot)
 
   /* properties */
   RNA_def_int_vector(ot->srna, "size", 2, nullptr, 1, INT_MAX, "Size", "", 1, SHRT_MAX);
-  RNA_def_boolean(ot->srna,
-                  "scale_all_udims",
-                  false,
-                  "Scale All UDIM Tiles",
-                  "Scale all the image's UDIM tiles");
+  RNA_def_boolean(
+      ot->srna, "all_udims", false, "All UDIM Tiles", "Scale all the image's UDIM tiles");
 
   /* flags */
   ot->flag = OPTYPE_REGISTER;
