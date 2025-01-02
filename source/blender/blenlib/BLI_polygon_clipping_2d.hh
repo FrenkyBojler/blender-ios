@@ -86,6 +86,9 @@ class Segment {
   int2 start_edge() const;
   int2 end_edge() const;
 
+  int start_point() const;
+  int end_point() const;
+
   int wrap_index(const int i) const;
 
   /*

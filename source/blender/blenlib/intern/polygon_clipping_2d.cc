@@ -80,6 +80,22 @@ int2 Segment::end_edge() const
   return int2(point_2, this->wrap_index(point_2 + 1));
 }
 
+int Segment::start_point() const
+{
+  if (!this->has_start_intersection()) {
+    if (reversed) {
+      return point_2;
+    }
+    return point_1;
+  }
+  return this->start_edge().y;
+}
+
+int Segment::end_point() const
+{
+  return this->end_edge().x;
+}
+
 int Segment::wrap_index(const int i) const
 {
   return math::mod_periodic(i - points.first(), points.size()) + points.first();
@@ -433,17 +449,8 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 
   /* -------------------- */
 
-  Vector<Segment> unsorted_segments;
-
-  // int current_winding_order = 0;
-
-  //     /* TODO */
-  //     const Span<float2> poly_this = (curve_i == 0) ? curve_subj : curve_clip;
-  //     const Span<float2> poly_other = (curve_i == 0) ? curve_clip : curve_subj;
-
-  //     current_winding_order = point_in_polygon_winding_order(poly_this.first(), poly_other);
-
   const OffsetIndices<int> all_segments_by_curve = OffsetIndices<int>(all_segment_offsets);
+  Vector<Segment> unsorted_segments;
 
   /* Remove all segments that don't contribute. */
   for (const int curve_i : all_segments_by_curve.index_range()) {
@@ -454,7 +461,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     const Span<float2> poly_this = is_subj ? curve_subj : curve_clip;
     const Span<float2> poly_other = is_subj ? curve_clip : curve_subj;
 
-    const int first_point = all_segments[segments.first()].start_edge().y; /* ??? */
+    const int first_point = all_segments[segments.first()].start_point();
     int current_winding_order = point_in_polygon_winding_order(poly_this[first_point], poly_other);
 
     for (const int seg_i : segments) {
@@ -475,7 +482,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     }
   }
 
-  /* ----- */
+  /* -------------------- */
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(unsorted_segments.size(), false);
