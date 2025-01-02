@@ -43,18 +43,11 @@ endif()
 
 set(INC
   ../../../../intern/guardedalloc
-  ../../blenkernel
   ../../blenlib
-  ../../imbuf
   ../../makesdna
-  ../../makesrna
-  ../../nodes
   ../../io/usd
-  ../../gpu
   ../../gpu/intern
   ../../python/intern
-  # RNA_prototypes.hh
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna
   ..
 )
 
@@ -74,9 +67,14 @@ set(LIB
   ${BOOST_LIBRARIES}
   ${USD_LIBRARIES}
   ${TBB_LIBRARIES}
+  PRIVATE bf::blenkernel
   PRIVATE bf::depsgraph
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   bf_io_usd
+  PRIVATE bf::nodes
+  PRIVATE bf::rna
 )
 
 set(SRC
@@ -100,6 +98,3 @@ set(SRC
 )
 
 blender_add_lib(bf_render_hydra "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
-
-# RNA_prototypes.hh
-add_dependencies(bf_render_hydra bf_rna)

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'2eb53ba3b21b')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'eb39d81afa00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-16 09:31+0000\n"
+"POT-Creation-Date: 2024-12-30 14:46+0000\n"
 "PO-Revision-Date: 2024-07-05 18:56+0000\n"
 "Last-Translator: Isaac Gicheha <shwaky3@gmail.com>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -29492,6 +29492,11 @@ msgid "Parent"
 msgstr "Mzazi"
 
 
+msgctxt "Operator"
+msgid "Empty"
+msgstr "Tupu"
+
+
 msgid "Lightgroup Sync"
 msgstr "Usawazishaji wa Kikundi Nyepesi"
 
@@ -37666,14 +37671,6 @@ msgid "Static Type"
 msgstr "Aina Tuli"
 
 
-msgid "Node type (deprecated, use with care)"
-msgstr "Aina ya nodi (iliyoacha kutumika, tumia kwa uangalifu)"
-
-
-msgid "Custom Node"
-msgstr "Njia Maalum"
-
-
 msgid "Custom color of the node body"
 msgstr "Rangi maalum ya mwili wa nodi"
 
@@ -37728,10 +37725,6 @@ msgstr "Onyesha Umbile"
 
 msgid "Display node in viewport textured shading mode"
 msgstr "Onyesho nodi katika hali ya utiaji kivuli yenye muundo wa lango"
-
-
-msgid "Node type (deprecated, use bl_static_type or bl_idname for the actual identifier string)"
-msgstr "Aina ya nodi (iliyoacha kutumika, tumia bl_static_type au bl_idname kwa mfuatano halisi wa kitambulisho)"
 
 
 msgid "Use custom color for the node"
@@ -38659,6 +38652,10 @@ msgstr "Kichujio cha kuondosha sauti"
 
 msgid "No prefiltering, use when guiding passes are noise-free"
 msgstr "Hakuna uchujaji wa awali, tumia wakati wa kuelekeza pasi hauna kelele"
+
+
+msgid "High quality"
+msgstr "Ubora wa juu"
 
 
 msgid "Process HDR images"
@@ -70168,6 +70165,11 @@ msgstr "Badili Ingizo"
 
 
 msgctxt "Operator"
+msgid "Deselect All"
+msgstr "Ondoa Kuchagua Zote"
+
+
+msgctxt "Operator"
 msgid "Unlock Strips"
 msgstr "Fungua Vipande"
 
@@ -76297,6 +76299,18 @@ msgid "Panel containing UI elements"
 msgstr "Paneli iliyo na vipengele vya UI"
 
 
+msgid "Shadow Settings"
+msgstr "Mipangilio ya Kivuli"
+
+
+msgid "SSAO Settings"
+msgstr "Mipangilio ya SSAO"
+
+
+msgid "Compositor"
+msgstr "Mtunzi"
+
+
 msgid "Viewer Node"
 msgstr "Njia ya Mtazamaji"
 
@@ -76367,18 +76381,6 @@ msgstr "Uteuzi"
 
 msgid "Wire Color"
 msgstr "Rangi ya Waya"
-
-
-msgid "Shadow Settings"
-msgstr "Mipangilio ya Kivuli"
-
-
-msgid "SSAO Settings"
-msgstr "Mipangilio ya SSAO"
-
-
-msgid "Compositor"
-msgstr "Mtunzi"
 
 
 msgid "Fast GI Approximation"
@@ -78599,10 +78601,6 @@ msgstr "Sifa za majaribio"
 
 msgid "No Override Auto Resync"
 msgstr "Hakuna Kubatilisha Usawazishaji Kiotomatiki"
-
-
-msgid "Disable library overrides automatic resync detection and process on file load (can be useful to help fixing broken files)"
-msgstr "Zima maktaba hubatilisha ugunduzi wa kusawazisha kiotomatiki na kuchakata kwenye upakiaji wa faili (inaweza kusaidia kurekebisha faili zilizovunjika)"
 
 
 msgid "Asset Debug Info"
@@ -81296,10 +81294,6 @@ msgstr "Rangi ya denoise na pasi za mwongozo pamoja."
 
 msgid "Prefilter noisy guiding passes before denoising color. Improves quality when guiding passes are noisy using extra processing time"
 msgstr "Mwongozo wa kelele wa kichujio kabla ya kutoa rangi."
-
-
-msgid "High quality"
-msgstr "Ubora wa juu"
 
 
 msgid "Denoise on GPU"
@@ -97651,11 +97645,6 @@ msgstr "Weka upya Mipangilio"
 
 
 msgctxt "Operator"
-msgid "Deselect All"
-msgstr "Ondoa Kuchagua Zote"
-
-
-msgctxt "Operator"
 msgid "Update Work Repository"
 msgstr "Sasisha Hifadhi ya Kazi"
 
@@ -103426,11 +103415,6 @@ msgstr "Block Inayofuata"
 
 
 msgctxt "Operator"
-msgid "Empty"
-msgstr "Tupu"
-
-
-msgctxt "Operator"
 msgid "Point Cloud"
 msgstr "Wingu la uhakika"
 
@@ -105416,50 +105400,6 @@ msgstr "nafasi za kazi"
 
 msgid "worlds"
 msgstr "ulimwengu"
-
-
-msgid "Error writing frame"
-msgstr "Kosa la kuandika fremu"
-
-
-msgid "No valid formats found"
-msgstr "Hakuna umbizo halali lililopatikana"
-
-
-msgid "Can't allocate FFmpeg format context"
-msgstr "Haiwezi kutenga muktadha wa umbizo la FFmpeg"
-
-
-msgid "Render width has to be 720 pixels for DV!"
-msgstr "Upana wa kutoa lazima uwe pikseli 720 kwa DV!"
-
-
-msgid "Render height has to be 480 pixels for DV-NTSC!"
-msgstr "Urefu wa onyesho lazima uwe pikseli 480 kwa DV-NTSC!"
-
-
-msgid "Render height has to be 576 pixels for DV-PAL!"
-msgstr "Urefu wa onyesho lazima uwe pikseli 576 kwa DV-PAL!"
-
-
-msgid "FFmpeg only supports 48khz / stereo audio for DV!"
-msgstr "FFmpeg inaauni sauti ya 48khz / stereo kwa DV pekee!"
-
-
-msgid "Error initializing video stream"
-msgstr "Hitilafu katika kuanzisha mtiririko wa video"
-
-
-msgid "Error initializing audio stream"
-msgstr "Hitilafu katika kuanzisha mtiririko wa sauti"
-
-
-msgid "Could not open file for writing"
-msgstr "Haikuweza kufungua faili kwa ajili ya kuandikwa"
-
-
-msgid "Could not initialize streams, probably unsupported codec combination"
-msgstr "Haikuweza kuanzisha mitiririko, pengine mseto wa kodeki ambao hautumiki"
 
 
 msgid "Library database with null library data-block pointer!"
@@ -113011,6 +112951,50 @@ msgid "Freestyle: Stroke rendering"
 msgstr "Mtindo huru: Utoaji wa kiharusi"
 
 
+msgid "Error writing frame"
+msgstr "Kosa la kuandika fremu"
+
+
+msgid "No valid formats found"
+msgstr "Hakuna umbizo halali lililopatikana"
+
+
+msgid "Can't allocate FFmpeg format context"
+msgstr "Haiwezi kutenga muktadha wa umbizo la FFmpeg"
+
+
+msgid "Render width has to be 720 pixels for DV!"
+msgstr "Upana wa kutoa lazima uwe pikseli 720 kwa DV!"
+
+
+msgid "Render height has to be 480 pixels for DV-NTSC!"
+msgstr "Urefu wa onyesho lazima uwe pikseli 480 kwa DV-NTSC!"
+
+
+msgid "Render height has to be 576 pixels for DV-PAL!"
+msgstr "Urefu wa onyesho lazima uwe pikseli 576 kwa DV-PAL!"
+
+
+msgid "FFmpeg only supports 48khz / stereo audio for DV!"
+msgstr "FFmpeg inaauni sauti ya 48khz / stereo kwa DV pekee!"
+
+
+msgid "Error initializing video stream"
+msgstr "Hitilafu katika kuanzisha mtiririko wa video"
+
+
+msgid "Error initializing audio stream"
+msgstr "Hitilafu katika kuanzisha mtiririko wa sauti"
+
+
+msgid "Could not open file for writing"
+msgstr "Haikuweza kufungua faili kwa ajili ya kuandikwa"
+
+
+msgid "Could not initialize streams, probably unsupported codec combination"
+msgstr "Haikuweza kuanzisha mitiririko, pengine mseto wa kodeki ambao hautumiki"
+
+
 msgid "Object type mismatch, Alembic object path pointed to Camera when importing, but not any more"
 msgstr "Aina ya kitu hailingani, njia ya kitu cha Alembi ilielekeza kwenye Kamera wakati wa kuingiza, lakini sivyo zaidi."
 
@@ -114116,14 +114100,6 @@ msgstr "Imeshindwa kuunda paneli"
 
 msgid "Unable to copy item"
 msgstr "Haiwezi kunakili kipengee"
-
-
-msgid "Custom Group Node"
-msgstr "Njia Maalum ya Kikundi"
-
-
-msgid "UNDEFINED"
-msgstr "HAIJAFANIKIWA"
 
 
 msgctxt "NodeTree"
@@ -117833,11 +117809,6 @@ msgstr "Mizani ya Rangi"
 
 
 msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Mizani Nyeupe"
-
-
-msgctxt "Sequence"
 msgid "Curves"
 msgstr "Miviringo"
 
@@ -117850,6 +117821,11 @@ msgstr "Hue Sahihi"
 msgctxt "Sequence"
 msgid "Brightness/Contrast"
 msgstr "Mwangaza/Utofautishaji"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Mizani Nyeupe"
 
 
 msgctxt "Sequence"
