@@ -385,14 +385,16 @@ static GPUMaterialAttribute *gpu_node_graph_add_attribute(GPUNodeGraph *graph,
                                                           eCustomDataType type,
                                                           const char *name,
                                                           const bool is_default_color,
-                                                          const bool is_hair_length)
+                                                          const bool is_hair_length,
+                                                          const bool is_uv_map)
 {
   /* Find existing attribute. */
   int num_attributes = 0;
   GPUMaterialAttribute *attr = static_cast<GPUMaterialAttribute *>(graph->attributes.first);
   for (; attr; attr = attr->next) {
     if (attr->type == type && STREQ(attr->name, name) &&
-        attr->is_default_color == is_default_color && attr->is_hair_length == is_hair_length)
+        attr->is_default_color == is_default_color && attr->is_hair_length == is_hair_length &&
+        attr->is_uv_map == is_uv_map)
     {
       break;
     }
@@ -404,6 +406,7 @@ static GPUMaterialAttribute *gpu_node_graph_add_attribute(GPUNodeGraph *graph,
     attr = MEM_cnew<GPUMaterialAttribute>(__func__);
     attr->is_default_color = is_default_color;
     attr->is_hair_length = is_hair_length;
+    attr->is_uv_map = is_uv_map;
     attr->type = type;
     STRNCPY(attr->name, name);
     attr_input_name(attr);
@@ -527,7 +530,8 @@ static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
 GPUNodeLink *GPU_attribute(GPUMaterial *mat, const eCustomDataType type, const char *name)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
-  GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(graph, type, name, false, false);
+  GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(
+      graph, type, name, false, false, false);
 
   if (type == CD_ORCO) {
     /* OPTI: orco might be computed from local positions and needs object infos. */
@@ -550,7 +554,7 @@ GPUNodeLink *GPU_attribute_default_color(GPUMaterial *mat)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
   GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(
-      graph, CD_AUTO_FROM_NAME, "", true, false);
+      graph, CD_AUTO_FROM_NAME, "", true, false, false);
   if (attr == nullptr) {
     static const float zero_data[GPU_MAX_CONSTANT_DATA] = {0.0f};
     return GPU_constant(zero_data);
@@ -566,7 +570,7 @@ GPUNodeLink *GPU_attribute_hair_length(GPUMaterial *mat)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
   GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(
-      graph, CD_AUTO_FROM_NAME, "", false, true);
+      graph, CD_AUTO_FROM_NAME, "", false, true, false);
   if (attr == nullptr) {
     static const float zero_data[GPU_MAX_CONSTANT_DATA] = {0.0f};
     return GPU_constant(zero_data);

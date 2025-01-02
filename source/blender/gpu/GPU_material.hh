@@ -351,6 +351,10 @@ struct GPUMaterialAttribute {
    * If true, the attribute is the length of hair particles and curves.
    */
   bool is_hair_length;
+  /**
+   * If true, the attribtue should be extracted as a UV map (rather than a generic attribute).
+   */
+  bool is_uv_map;
 };
 
 struct GPUMaterialTexture {

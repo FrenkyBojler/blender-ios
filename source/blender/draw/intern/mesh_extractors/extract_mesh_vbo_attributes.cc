@@ -265,9 +265,18 @@ void extract_attributes(const MeshRenderData &mr,
                         const Span<StringRef> requests,
                         const Span<gpu::VertBuf *> vbos)
 {
-  for (const int i : vbos.index_range()) {
-    if (DRW_vbo_requested(vbos[i])) {
-      extract_attribute(mr, requests[i], *vbos[i]);
+  if (mr.extract_type == MeshExtractType::BMesh) {
+    for (const int i : vbos.index_range()) {
+      if (DRW_vbo_requested(vbos[i])) {
+        extract_attribute(mr, requests[i], *vbos[i]);
+      }
+    }
+  }
+  else {
+    for (const int i : vbos.index_range()) {
+      if (DRW_vbo_requested(vbos[i])) {
+        extract_attribute(mr, requests[i], *vbos[i]);
+      }
     }
   }
 }

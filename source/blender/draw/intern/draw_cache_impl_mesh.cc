@@ -273,20 +273,30 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
     }
     ListBase gpu_attrs = GPU_material_attributes(gpumat);
     LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
+      std::lock_guard lock(mutex);
       if (gpu_attr->type == CD_ORCO) {
-        std::lock_guard lock(mutex);
         r_attrs->orco = true;
       }
       else if (gpu_attr->type == CD_TANGENT) {
-        std::lock_guard lock(mutex);
-        r_attrs->tangents.add("TANGENT_NAME_TODO");
+        if (gpu_attr->name[0] == '\0') {
+          r_attrs->tangents.add_as(default_uv_map_name);
+        }
+        else {
+          r_attrs->tangents.add_as(gpu_attr->name);
+        }
       }
       else if (gpu_attr->is_default_color) {
-        std::lock_guard lock(mutex);
         r_attrs->generic_requests.add(default_color_name);
       }
+      else if (gpu_attr->is_uv_map) {
+        if (gpu_attr->name[0] == '\0') {
+          r_attrs->uv_maps.add_as(default_uv_map_name);
+        }
+        else {
+          r_attrs->uv_maps.add_as(gpu_attr->name);
+        }
+      }
       else {
-        std::lock_guard lock(mutex);
         r_attrs->generic_requests.add(gpu_attr->name);
       }
     }
