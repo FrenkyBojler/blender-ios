@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-class commit_info():
+class CommitInfo():
     def __init__(self, commit_line):
         split_message = commit_line.split()
 
@@ -211,7 +211,7 @@ def get_fix_commits():
         # Original non-multiprocessing method.
         list_of_commits = []
         for commit in git_log_output:
-            commit_information = commit_info(commit)
+            commit_information = CommitInfo(commit)
             if commit_information.fixed_reports:
                 list_of_commits.append(commit_information)
 
