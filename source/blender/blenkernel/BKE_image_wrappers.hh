@@ -49,7 +49,7 @@ struct ImageTileWrapper {
 };
 
 template<typename T, int Channels = 4> struct ImageBufferAccessor {
-  static_assert(std::is_same_v<T, int> || std::is_same_v<T, float4>);
+  static_assert(is_same_any_v<T, int, float4>);
 
   ImBuf &image_buffer;
 
