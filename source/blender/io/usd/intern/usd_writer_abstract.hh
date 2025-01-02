@@ -113,7 +113,7 @@ class USDAbstractWriter : public AbstractHierarchyWriter {
    * Author the `extent` attribute for a boundable prim given the Blender `bounds`.
    */
   void author_extent(const pxr::UsdGeomBoundable &boundable,
-                     const std::optional<Bounds<float3>> bounds,
+                     const std::optional<Bounds<float3>> &bounds,
                      const pxr::UsdTimeCode timecode);
 };
 

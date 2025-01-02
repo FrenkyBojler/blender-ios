@@ -425,7 +425,7 @@ void USDAbstractWriter::author_extent(const pxr::UsdGeomBoundable &boundable,
 }
 
 void USDAbstractWriter::author_extent(const pxr::UsdGeomBoundable &boundable,
-                                      const std::optional<Bounds<float3>> bounds,
+                                      const std::optional<Bounds<float3>> &bounds,
                                       const pxr::UsdTimeCode timecode)
 {
   pxr::VtArray<pxr::GfVec3f> extent(2);
