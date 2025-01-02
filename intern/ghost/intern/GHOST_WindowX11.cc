@@ -1276,6 +1276,7 @@ GHOST_TSuccess GHOST_WindowX11::getStandardCursor(GHOST_TStandardCursor g_cursor
       xcursor_id = XC_xterm;
       break;
     case GHOST_kStandardCursorCrosshair:
+    case GHOST_kStandardCursorCrosshairA:
       xcursor_id = XC_crosshair;
       break;
     case GHOST_kStandardCursorUpDown:
