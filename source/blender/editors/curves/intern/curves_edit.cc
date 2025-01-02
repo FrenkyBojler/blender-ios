@@ -443,6 +443,9 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
     attribute.dst.finish();
   };
 
+  new_curves.update_curve_types();
+  new_curves.tag_topology_changed();
+
   OffsetIndices<int> oi = new_offsets.as_span();
   remove_selection_attributes(dst_attributes);
   foreach_selection_attribute_writer(
@@ -451,9 +454,6 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
           fill_selection_false(selection.span.slice(oi[curve]));
         }
       });
-
-  new_curves.update_curve_types();
-  new_curves.tag_topology_changed();
 
   return new_curves;
 }
