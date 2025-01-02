@@ -3061,7 +3061,7 @@ static BHead *read_libblock(FileData *fd,
    * to be done still. */
   id_tag |= (ID_TAG_NEED_LINK | ID_TAG_NEW);
 
-  ID_Readfile_Data::Tags id_read_tags = {0};
+  ID_Readfile_Data::Tags id_read_tags{};
 
   if (bhead->code == ID_LINK_PLACEHOLDER) {
     /* Read placeholder for linked datablock. */
