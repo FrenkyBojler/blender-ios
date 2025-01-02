@@ -57,8 +57,7 @@ void pose_apply(Object *ob,
     return;
   }
 
-  Action &pose_data = action->wrap();
-  if (pose_data.slot_array_num == 0) {
+  if (action->wrap().slot_array_num == 0) {
     return;
   }
 
