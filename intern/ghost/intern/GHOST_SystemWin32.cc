@@ -1258,6 +1258,14 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
   GHOST_TKey key = system->hardKey(raw, &key_down);
   GHOST_EventKey *event;
 
+  /* If the keyboard layout includes AltGr and the virtual key is Control, yet the scancode
+   * is actually for Right Alt. Ignore these, so treating AltGR as regular Alt. #68256 */
+  if (system->m_hasAltGr && vk == VK_CONTROL && raw.data.keyboard.MakeCode == 56 &&
+      (raw.data.keyboard.Flags & RI_KEY_E0))
+  {
+    return nullptr;
+  }
+
   /* NOTE(@ideasman42): key repeat in WIN32 also applies to modifier-keys.
    * Check for this case and filter out modifier-repeat.
    * Typically keyboard events are *not* filtered as part of GHOST's event handling.
