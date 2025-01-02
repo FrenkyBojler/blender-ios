@@ -9,8 +9,6 @@ set(INC
   metal
   opengl
   vulkan
-  ../draw
-  ../makesrna
 
   # For theme color access.
   ../editors/include
@@ -380,12 +378,14 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
+  PRIVATE bf::rna
 )
 
 # Select Backend source based on availability
