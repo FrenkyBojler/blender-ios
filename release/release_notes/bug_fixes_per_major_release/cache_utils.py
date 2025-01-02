@@ -9,7 +9,7 @@ def load_cached_commits(list_of_commits):
     from shared_variables import path_to_cached_commits
 
     if use_caching and path_to_cached_commits.exists():
-        with open(str(path_to_cached_commits), 'r') as file:
+        with open(str(path_to_cached_commits), 'r', encoding='utf-8') as file:
             cached_data = json.load(file)
         for commit in list_of_commits:
             if commit.hash in cached_data:
@@ -35,5 +35,5 @@ def cache_commits(list_of_commits):
                 commit_hash, data = commit.prepare_for_cache()
                 data_to_cache[commit_hash] = data
 
-        with open(str(path_to_cached_commits), 'w') as file:
+        with open(str(path_to_cached_commits), 'w', encoding='utf-8') as file:
             json.dump(data_to_cache, file, indent=4)

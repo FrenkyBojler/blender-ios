@@ -8,7 +8,7 @@ def load_override():
 
     override_data = {}
     if path_to_overrides.exists():
-        with open(str(path_to_overrides), 'r') as file:
+        with open(str(path_to_overrides), 'r', encoding='utf-8') as file:
             override_data = json.load(file)
 
     return override_data
@@ -18,7 +18,7 @@ def save_override(override_data):
     import json
     from shared_variables import path_to_overrides
 
-    with open(str(path_to_overrides), 'w') as file:
+    with open(str(path_to_overrides), 'w', encoding='utf-8') as file:
         json.dump(override_data, file, indent=4)
 
 
