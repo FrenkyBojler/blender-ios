@@ -6,6 +6,28 @@
  * \ingroup bli
  */
 
+/**
+ * This is a heavily modified implementation of the Greiner-Hormann clipping algorithm.
+ *
+ * Greiner, Günther; Kai Hormann (1998). "Efficient clipping of arbitrary polygons". ACM
+ * Transactions on Graphics. 17 (2): 71-83.
+ *
+ * The original Greiner-Hormann algorithm works in three phases:
+ *  1: Find all intersections and sort them.
+ *  2: Set the direction of all intersection point (the paper call it `entry_exit`)
+ *  3: Create all polygons by following the direction of each intersection point until it
+ * loops.
+ *
+ * The original algorithm was only ever designed to work with one `subject` and one `clipping`
+ * polygon.
+ *
+ * This implementation also works in three phases:
+ *  1: Break all polygons into segments.
+ *  2: Remove all segments that are not contributing.
+ *  3: Create polygons by following each segment until it loops or ends.
+ *
+ */
+
 #include <algorithm>
 
 #include "BLI_array.hh"
