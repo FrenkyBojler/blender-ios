@@ -5361,7 +5361,8 @@ bool is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], 
 
     cross_v3_v3v3(plane, v13, v24);
 
-    if (len_squared_v3(plane) < DBL_EPSILON) {
+    static const float eps_squared = square_f(FLT_EPSILON);
+    if (len_squared_v3(plane) < eps_squared) {
       return false;
     }
   }
