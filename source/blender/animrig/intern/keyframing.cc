@@ -1095,7 +1095,7 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
     if (!rna_path_id_to_prop.has_value()) {
       /* In the case of nested RNA properties the path cannot be reconstructed in all cases. There
        * may be a system in place in the future, see #122427.*/
-      if (!RNA_struct_is_ID(struct_pointer->type)) {
+      if (struct_pointer->data != id) {
         continue;
       }
       /* However if the struct pointer happens to be an ID pointer we can use the path that was
