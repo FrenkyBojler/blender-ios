@@ -100,7 +100,7 @@ ConvertFloatToVectorOperation::ConvertFloatToVectorOperation(Context &context)
 
 void ConvertFloatToVectorOperation::execute_single(const Result &input, Result &output)
 {
-  output.set_vector_value(float4(float3(input.get_float_value()), 1.0f));
+  output.set_single_value(float4(float3(input.get_single_value<float>()), 1.0f));
 }
 
 void ConvertFloatToVectorOperation::execute_cpu(const Result &input, Result &output)
@@ -130,7 +130,7 @@ ConvertFloatToColorOperation::ConvertFloatToColorOperation(Context &context)
 
 void ConvertFloatToColorOperation::execute_single(const Result &input, Result &output)
 {
-  output.set_color_value(float4(float3(input.get_float_value()), 1.0f));
+  output.set_single_value(float4(float3(input.get_single_value<float>()), 1.0f));
 }
 
 void ConvertFloatToColorOperation::execute_cpu(const Result &input, Result &output)
@@ -160,8 +160,8 @@ ConvertColorToFloatOperation::ConvertColorToFloatOperation(Context &context)
 
 void ConvertColorToFloatOperation::execute_single(const Result &input, Result &output)
 {
-  float4 color = input.get_color_value();
-  output.set_float_value((color.x + color.y + color.z) / 3.0f);
+  float4 color = input.get_single_value<float4>();
+  output.set_single_value((color.x + color.y + color.z) / 3.0f);
 }
 
 void ConvertColorToFloatOperation::execute_cpu(const Result &input, Result &output)
@@ -192,8 +192,8 @@ ConvertColorToVectorOperation::ConvertColorToVectorOperation(Context &context)
 
 void ConvertColorToVectorOperation::execute_single(const Result &input, Result &output)
 {
-  float4 color = input.get_color_value();
-  output.set_vector_value(color);
+  float4 color = input.get_single_value<float4>();
+  output.set_single_value(color);
 }
 
 void ConvertColorToVectorOperation::execute_cpu(const Result &input, Result &output)
@@ -223,8 +223,8 @@ ConvertVectorToFloatOperation::ConvertVectorToFloatOperation(Context &context)
 
 void ConvertVectorToFloatOperation::execute_single(const Result &input, Result &output)
 {
-  float4 vector = input.get_vector_value();
-  output.set_float_value((vector[0] + vector[1] + vector[2]) / 3.0f);
+  float4 vector = input.get_single_value<float4>();
+  output.set_single_value((vector[0] + vector[1] + vector[2]) / 3.0f);
 }
 
 void ConvertVectorToFloatOperation::execute_cpu(const Result &input, Result &output)
@@ -255,7 +255,7 @@ ConvertVectorToColorOperation::ConvertVectorToColorOperation(Context &context)
 
 void ConvertVectorToColorOperation::execute_single(const Result &input, Result &output)
 {
-  output.set_color_value(float4(float3(input.get_vector_value()), 1.0f));
+  output.set_single_value(float4(float3(input.get_single_value<float4>()), 1.0f));
 }
 
 void ConvertVectorToColorOperation::execute_cpu(const Result &input, Result &output)
