@@ -6,21 +6,9 @@ set(INC
   .
   intern
   intern/lineart
-  ../blenkernel
-  ../blenloader
-  ../blentranslation
-  ../bmesh
   ../editors/include
-  ../functions
-  ../geometry
-  ../makesrna
-  ../nodes
-  ../render
-  ../windowmanager
   ../../../intern/eigen
 
-  # RNA_prototypes.hh
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -135,18 +123,27 @@ set(SRC
   intern/MOD_ui_common.hh
   intern/MOD_util.hh
   intern/MOD_weightvg_util.hh
-  intern/lineart/MOD_lineart.h
-  intern/lineart/lineart_intern.h
+  intern/lineart/MOD_lineart.hh
+  intern/lineart/lineart_intern.hh
 )
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PUBLIC bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::rna
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_ALEMBIC)
@@ -218,7 +215,7 @@ endif()
 if(WITH_TBB)
   if(WIN32)
     # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
 endif()
@@ -244,6 +241,3 @@ endif()
 # So we can have special tricks in modifier system.
 
 blender_add_lib(bf_modifiers "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
-
-# RNA_prototypes.hh
-add_dependencies(bf_modifiers bf_rna)

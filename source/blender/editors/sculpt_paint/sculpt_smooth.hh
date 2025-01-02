@@ -36,12 +36,9 @@ void neighbor_color_average(OffsetIndices<int> faces,
                             GroupedSpan<int> vert_to_face_map,
                             GSpan color_attribute,
                             bke::AttrDomain color_domain,
-                            Span<Vector<int>> vert_neighbors,
+                            GroupedSpan<int> vert_neighbors,
                             MutableSpan<float4> smooth_colors);
 
-void neighbor_position_average_grids(const SubdivCCG &subdiv_ccg,
-                                     Span<int> grids,
-                                     MutableSpan<float3> new_positions);
 void neighbor_position_average_interior_grids(OffsetIndices<int> faces,
                                               Span<int> corner_verts,
                                               BitSpan boundary_verts,
@@ -55,11 +52,12 @@ void neighbor_position_average_interior_bmesh(const Set<BMVert *, 0> &verts,
                                               MutableSpan<float3> new_positions);
 
 template<typename T>
-void neighbor_data_average_mesh(Span<T> src, Span<Vector<int>> vert_neighbors, MutableSpan<T> dst);
+void neighbor_data_average_mesh(Span<T> src, GroupedSpan<int> vert_neighbors, MutableSpan<T> dst);
+
 template<typename T>
 void neighbor_data_average_mesh_check_loose(Span<T> src,
                                             Span<int> verts,
-                                            Span<Vector<int>> vert_neighbors,
+                                            GroupedSpan<int> vert_neighbors,
                                             MutableSpan<T> dst);
 
 template<typename T>
@@ -93,30 +91,27 @@ void calc_relaxed_translations_faces(Span<float3> vert_positions,
                                      Span<int> corner_verts,
                                      GroupedSpan<int> vert_to_face_map,
                                      BitSpan boundary_verts,
-                                     const int *face_sets,
+                                     Span<int> face_sets,
                                      Span<bool> hide_poly,
                                      bool filter_boundary_face_sets,
                                      Span<int> verts,
                                      Span<float> factors,
-                                     Vector<Vector<int>> &neighbors,
                                      MutableSpan<float3> translations);
 void calc_relaxed_translations_grids(const SubdivCCG &subdiv_ccg,
                                      OffsetIndices<int> faces,
                                      Span<int> corner_verts,
-                                     const int *face_sets,
+                                     Span<int> face_sets,
                                      GroupedSpan<int> vert_to_face_map,
                                      BitSpan boundary_verts,
                                      Span<int> grids,
                                      bool filter_boundary_face_sets,
                                      Span<float> factors,
-                                     Span<float3> positions,
-                                     Vector<Vector<SubdivCCGCoord>> &neighbors,
                                      MutableSpan<float3> translations);
 void calc_relaxed_translations_bmesh(const Set<BMVert *, 0> &verts,
                                      Span<float3> positions,
+                                     const int face_set_offset,
                                      bool filter_boundary_face_sets,
                                      Span<float> factors,
-                                     Vector<Vector<BMVert *>> &neighbors,
                                      MutableSpan<float3> translations);
 
 }  // namespace blender::ed::sculpt_paint::smooth

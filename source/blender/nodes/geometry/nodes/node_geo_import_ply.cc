@@ -38,7 +38,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::shared_ptr<const geometry_import_cache::GeometryReadValue> output =
       geometry_import_cache::import_geometry_cached(
           geometry_import_cache::FileType::PLY, path, [&path]() {
-            PLYImportParams import_params{};
+            PLYImportParams import_params;
             STRNCPY(import_params.filepath, path.c_str());
             import_params.import_attributes = true;
 
@@ -47,7 +47,7 @@ static void node_geo_exec(GeoNodeExecParams params)
             BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); })
             import_params.reports = &reports;
 
-            Mesh *mesh = PLY_import_mesh(&import_params);
+            Mesh *mesh = PLY_import_mesh(import_params);
 
             GeometrySet geometry = GeometrySet::from_mesh(mesh);
 
@@ -83,7 +83,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_IMPORT_PLY, "Import PLY", NODE_CLASS_INPUT);
-
+  ntype.enum_name_legacy = "IMPORT_PLY";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = search_link_ops_for_import_node;

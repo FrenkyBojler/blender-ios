@@ -158,20 +158,26 @@ void CustomData_data_add(eCustomDataType type, void *data1, const void *data2);
  * Initializes a CustomData object with the same layer setup as source. `mask` is a bit-field where
  * `(mask & (1 << (layer type)))` indicates if a layer should be copied or not. Data layers using
  * implicit-sharing will not actually be copied but will be shared between source and destination.
+ *
+ * \warning Does not free or release any internal resources in `dest` CustomData, code must call
+ * #CustomData_free first if needed.
  */
-void CustomData_copy(const CustomData *source,
-                     CustomData *dest,
-                     eCustomDataMask mask,
-                     int totelem);
+void CustomData_init_from(const CustomData *source,
+                          CustomData *dest,
+                          eCustomDataMask mask,
+                          int totelem);
 /**
  * Initializes a CustomData object with the same layers as source. The data is not copied from the
  * source. Instead, the new layers are initialized using the given `alloctype`.
+ *
+ * \warning Does not free or release any internal resources in `dest` CustomData, code must call
+ * #CustomData_free first if needed.
  */
-void CustomData_copy_layout(const CustomData *source,
-                            CustomData *dest,
-                            eCustomDataMask mask,
-                            eCDAllocType alloctype,
-                            int totelem);
+void CustomData_init_layout_from(const CustomData *source,
+                                 CustomData *dest,
+                                 eCustomDataMask mask,
+                                 eCDAllocType alloctype,
+                                 int totelem);
 
 /* BMESH_TODO, not really a public function but `readfile.cc` needs it. */
 void CustomData_update_typemap(CustomData *data);
@@ -225,6 +231,8 @@ CustomData CustomData_shallow_copy_remove_non_bmesh_attributes(const CustomData 
 
 /**
  * NULL's all members and resets the #CustomData.typemap.
+ *
+ * \warning Does not free or release any internal resources.
  */
 void CustomData_reset(CustomData *data);
 
@@ -273,19 +281,6 @@ const void *CustomData_add_layer_named_with_data(CustomData *data,
                                                  int totelem,
                                                  blender::StringRef name,
                                                  const blender::ImplicitSharingInfo *sharing_info);
-
-void *CustomData_add_layer_anonymous(CustomData *data,
-                                     eCustomDataType type,
-                                     eCDAllocType alloctype,
-                                     int totelem,
-                                     const AnonymousAttributeIDHandle *anonymous_id);
-const void *CustomData_add_layer_anonymous_with_data(
-    CustomData *data,
-    eCustomDataType type,
-    const AnonymousAttributeIDHandle *anonymous_id,
-    int totelem,
-    void *layer_data,
-    const blender::ImplicitSharingInfo *sharing_info);
 
 /**
  * Frees the active or first data layer with the give type.
@@ -684,34 +679,6 @@ using cd_datatransfer_interp = void (*)(const CustomDataTransferLayerMap *laymap
                                         const float *weights,
                                         int count,
                                         float mix_factor);
-
-/**
- * Fake CD_LAYERS (those are actually 'real' data stored directly into elements' structs,
- * or otherwise not (directly) accessible to usual CDLayer system). */
-enum {
-  CD_FAKE = 1 << 8,
-
-  /* Vertices. */
-  CD_FAKE_MDEFORMVERT = CD_FAKE | CD_MDEFORMVERT, /* *sigh* due to how vgroups are stored :(. */
-  CD_FAKE_SHAPEKEY = CD_FAKE |
-                     CD_SHAPEKEY, /* Not available as real CD layer in non-bmesh context. */
-
-  /* Edges. */
-  CD_FAKE_SEAM = CD_FAKE | 100, /* UV seam flag for edges. */
-
-  /* Multiple types of mesh elements... */
-  CD_FAKE_UV =
-      CD_FAKE |
-      CD_PROP_FLOAT2, /* UV flag, because we handle both loop's UVs and face's textures. */
-
-  CD_FAKE_LNOR = CD_FAKE |
-                 CD_CUSTOMLOOPNORMAL, /* Because we play with clnor and temp lnor layers here. */
-
-  CD_FAKE_SHARP = CD_FAKE | 200, /* Sharp flag for edges, smooth flag for faces. */
-
-  CD_FAKE_BWEIGHT = CD_FAKE | 300,
-  CD_FAKE_CREASE = CD_FAKE | 400,
-};
 
 enum {
   ME_VERT = 1 << 0,

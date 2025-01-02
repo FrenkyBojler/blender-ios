@@ -22,7 +22,6 @@ enum class AttributeOwnerType;
 
 struct FreestyleSettings;
 struct ID;
-struct IDOverrideLibrary;
 struct IDProperty;
 struct FreestyleLineSet;
 struct FreestyleModuleConfig;
@@ -167,6 +166,7 @@ void RNA_def_key(BlenderRNA *brna);
 void RNA_def_light(BlenderRNA *brna);
 void RNA_def_lattice(BlenderRNA *brna);
 void RNA_def_linestyle(BlenderRNA *brna);
+void RNA_def_blendfile_import(BlenderRNA *brna);
 void RNA_def_main(BlenderRNA *brna);
 void RNA_def_material(BlenderRNA *brna);
 void RNA_def_mesh(BlenderRNA *brna);
@@ -224,6 +224,7 @@ void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter, Pointer
 void rna_AttributeGroup_iterator_next(CollectionPropertyIterator *iter);
 PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter);
 int rna_AttributeGroup_length(PointerRNA *ptr);
+bool rna_AttributeGroup_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);
 
 void rna_AttributeGroup_color_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr);
 void rna_AttributeGroup_color_iterator_next(CollectionPropertyIterator *iter);
@@ -406,6 +407,11 @@ void rna_userdef_is_dirty_update_impl();
  * So the preferences are saved when modified.
  */
 void rna_userdef_is_dirty_update(Main *bmain, Scene *scene, PointerRNA *ptr);
+
+const EnumPropertyItem *rna_WorkSpaceTool_brush_type_itemf(bContext *C,
+                                                           PointerRNA *ptr,
+                                                           PropertyRNA *prop,
+                                                           bool *r_free);
 
 /* API functions */
 
@@ -607,7 +613,7 @@ void rna_mtex_texture_slots_clear(ID *self, bContext *C, ReportList *reports, in
 
 bool rna_IDMaterials_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr);
 
-const char *rna_translate_ui_text(
+std::optional<blender::StringRefNull> rna_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, bool translate);
 
 /* Internal functions that cycles uses so we need to declare (not ideal!). */

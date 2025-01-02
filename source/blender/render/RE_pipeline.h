@@ -18,6 +18,7 @@ struct GPUTexture;
 struct ImBuf;
 struct Image;
 struct ImageFormatData;
+struct MovieWriter;
 struct Main;
 struct Object;
 struct RenderData;
@@ -26,7 +27,6 @@ struct ReportList;
 struct Scene;
 struct StampData;
 struct ViewLayer;
-struct bMovieHandle;
 
 #ifdef __cplusplus
 extern "C" {
@@ -314,7 +314,7 @@ void RE_InitState(struct Render *re,
                   struct ViewLayer *single_layer,
                   int winx,
                   int winy,
-                  rcti *disprect);
+                  const rcti *disprect);
 
 /**
  * Set up the view-plane/perspective matrix, three choices.
@@ -344,8 +344,7 @@ bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               struct RenderResult *rr,
                               struct Scene *scene,
                               struct RenderData *rd,
-                              struct bMovieHandle *mh,
-                              void **movie_ctx_arr,
+                              struct MovieWriter **movie_writers,
                               int totvideos,
                               bool preview);
 
