@@ -73,6 +73,8 @@ static void debug_flags_sync_from_scene(BL::Scene b_scene)
   flags.cpu.bvh_layout = (BVHLayout)get_enum(cscene, "debug_bvh_layout");
   /* Synchronize CUDA flags. */
   flags.cuda.adaptive_compile = get_boolean(cscene, "debug_use_cuda_adaptive_compile");
+  flags.hip.adaptive_compile = get_boolean(cscene, "debug_use_hip_adaptive_compile");
+  flags.metal.adaptive_compile = get_boolean(cscene, "debug_use_metal_adaptive_compile");
   /* Synchronize OptiX flags. */
   flags.optix.use_debug = get_boolean(cscene, "debug_use_optix_debug");
 }
@@ -641,7 +643,7 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
         set_float4(b_sock.ptr, "default_value", default_float4);
       }
       else if (data_type == BL::NodeSocket::type_VECTOR) {
-        set_float3(b_sock.ptr, "default_value", float4_to_float3(default_float4));
+        set_float3(b_sock.ptr, "default_value", make_float3(default_float4));
       }
       else if (data_type == BL::NodeSocket::type_STRING) {
         set_string(b_sock.ptr, "default_value", default_string);
