@@ -46,7 +46,7 @@ def get_backported_commits(issue_number):
         if len(matches) > 0:
             try:
                 dict_of_backports[current_version] += matches
-            except:
+            except KeyError:
                 dict_of_backports[current_version] = matches
 
     return dict_of_backports

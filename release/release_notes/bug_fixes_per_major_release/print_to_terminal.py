@@ -19,7 +19,7 @@ def prepare_for_print(list_of_commits):
             try:
                 # Try to append to a list. If it fails (The list doesn't exist), create the list.
                 dict_of_sorted_commits[commit_classification][commit_module].append(commit)
-            except:
+            except KeyError:
                 dict_of_sorted_commits[commit_classification][commit_module] = [commit]
 
     for item in valid_classifications:
