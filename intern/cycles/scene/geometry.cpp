@@ -741,10 +741,11 @@ void GeometryManager::device_update(Device *device,
           /* Test if we need tessellation and setup normals if required. */
           if (mesh->need_tesselation()) {
             total_tess_needed++;
-            /* OPENSUBDIV Catmull-Clark does not make use of input normals and will overwrite them. */
-            #ifdef WITH_OPENSUBDIV
+            /* OPENSUBDIV Catmull-Clark does not make use of input normals and will overwrite them.
+             */
+#ifdef WITH_OPENSUBDIV
             if (mesh->get_subdivision_type() != Mesh::SUBDIVISION_CATMULL_CLARK)
-            #endif
+#endif
             {
               mesh->add_face_normals();
               mesh->add_vertex_normals();
