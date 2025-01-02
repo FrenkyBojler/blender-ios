@@ -27,6 +27,7 @@
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
+#include "BKE_subdiv.hh"
 
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
@@ -558,7 +559,7 @@ static void get_edge_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
       continue;
     }
 
-    const float sharpness = crease >= 1.0f ? pxr::UsdGeomMesh::SHARPNESS_INFINITE : crease;
+    const float sharpness = crease >= 1.0f ? pxr::UsdGeomMesh::SHARPNESS_INFINITE : bke::subdiv::crease_to_sharpness(crease);
 
     usd_mesh_data.crease_vertex_indices.push_back(edges[i][0]);
     usd_mesh_data.crease_vertex_indices.push_back(edges[i][1]);
@@ -580,7 +581,7 @@ static void get_vert_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
     const float crease = creases[i];
 
     if (crease > 0.0f) {
-      const float sharpness = crease >= 1.0f ? pxr::UsdGeomMesh::SHARPNESS_INFINITE : crease;
+      const float sharpness = crease >= 1.0f ? pxr::UsdGeomMesh::SHARPNESS_INFINITE : bke::subdiv::crease_to_sharpness(crease);
       usd_mesh_data.corner_indices.push_back(i);
       usd_mesh_data.corner_sharpnesses.push_back(sharpness);
     }

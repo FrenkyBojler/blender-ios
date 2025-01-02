@@ -32,6 +32,7 @@
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
+#include "BKE_subdiv.hh"
 
 using Alembic::Abc::FloatArraySamplePtr;
 using Alembic::Abc::Int32ArraySamplePtr;
@@ -931,7 +932,7 @@ static void read_vertex_creases(Mesh *mesh,
       continue;
     }
 
-    vertex_crease_data[idx] = (*sharpnesses)[i];
+    vertex_crease_data[idx] = bke::subdiv::sharpness_to_crease((*sharpnesses)[i]);
   }
 }
 
@@ -961,8 +962,8 @@ static void read_edge_creases(Mesh *mesh,
     if (!index) {
       continue;
     }
-
-    creases.span[*index] = std::clamp((*sharpnesses)[s], 0.0f, 1.0f);
+    creases.span[*index] = std::clamp(
+      bke::subdiv::sharpness_to_crease((*sharpnesses)[s]), 0.0f, 1.0f);
   }
 }
 

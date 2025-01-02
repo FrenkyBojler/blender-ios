@@ -10,6 +10,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_compiler_compat.h"
+#include "BLI_math_base.h"
 
 #include "BKE_subdiv.hh"
 
@@ -93,6 +94,11 @@ BLI_INLINE void rotate_grid_to_quad(
 BLI_INLINE float crease_to_sharpness(float edge_crease)
 {
   return edge_crease * edge_crease * 10.0f;
+}
+
+BLI_INLINE float sharpness_to_crease(float edge_sharpness)
+{
+  return sqrt(edge_sharpness * 0.1);
 }
 
 }  // namespace blender::bke::subdiv
