@@ -1444,7 +1444,7 @@ class VIEW3D_MT_view(Menu):
 
         layout.separator()
 
-        if context.mode in ['PAINT_TEXTURE', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT']:
+        if context.mode in {'PAINT_TEXTURE', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT', 'SCULPT_CURVES'}:
             layout.operator("view3d.view_selected", text="Frame Last Stroke").use_all_regions = False
         else:
             layout.operator("view3d.view_selected", text="Frame Selected").use_all_regions = False
