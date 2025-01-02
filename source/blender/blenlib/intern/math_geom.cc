@@ -5361,7 +5361,9 @@ bool is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], 
 
     cross_v3_v3v3(plane, v13, v24);
 
-    static const float eps_squared = square_f(FLT_EPSILON);
+    /* Ignore planes that are small enough, threshold determined by the size of a quad with arms
+     * that are both reasonably short. */
+    const float eps_squared = square_f(1e-6f);
     if (len_squared_v3(plane) < eps_squared) {
       return false;
     }
