@@ -680,12 +680,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
 
     if (reroute_type == nullptr) {
-      /* Case of cycle of reroutes. Just use some _random_ reroute as a root, but there could be
-       * some more smart heuristic. */
-      const int root_in_cycle_i = reroute_nodes[reroute_root_i];
-      const bNode &root_reroute = *all_nodes[root_in_cycle_i];
-      const bNodeSocket *root_socket = static_cast<const bNodeSocket *>(root_reroute.inputs.first);
-      reroute_type = root_socket->typeinfo;
+      continue;
     }
 
     const int reroute_index = reroute_nodes[reroute_i];
