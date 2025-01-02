@@ -44,6 +44,7 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
     : b_engine(b_engine),
       b_data(b_data),
       b_scene(b_scene),
+      b_bake_target(PointerRNA_NULL),
       shader_map(scene),
       object_map(scene),
       procedural_map(scene),
@@ -82,6 +83,11 @@ void BlenderSync::reset(BL::BlendData &b_data, BL::Scene &b_scene)
 void BlenderSync::tag_update()
 {
   has_updates_ = true;
+}
+
+void BlenderSync::set_bake_target(BL::Object &b_object)
+{
+  b_bake_target = b_object;
 }
 
 /* Sync */
@@ -187,7 +193,8 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
           if (updated_geometry) {
             BL::Object::particle_systems_iterator b_psys;
             for (b_ob.particle_systems.begin(b_psys); b_psys != b_ob.particle_systems.end();
-                 ++b_psys) {
+                 ++b_psys)
+            {
               particle_system_map.set_recalc(b_ob);
             }
           }
@@ -399,7 +406,8 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer, bool background)
   /* Only use scrambling distance in the viewport if user wants to. */
   bool preview_scrambling_distance = get_boolean(cscene, "preview_scrambling_distance");
   if ((preview && !preview_scrambling_distance) ||
-      sampling_pattern == SAMPLING_PATTERN_SOBOL_BURLEY) {
+      sampling_pattern == SAMPLING_PATTERN_SOBOL_BURLEY)
+  {
     scrambling_distance = 1.0f;
   }
 
@@ -530,7 +538,7 @@ void BlenderSync::sync_view_layer(BL::ViewLayer &b_view_layer)
   /* Filter. */
   view_layer.use_background_shader = b_view_layer.use_sky();
   /* Always enable surfaces for baking, otherwise there is nothing to bake to. */
-  view_layer.use_surfaces = b_view_layer.use_solid() || scene->bake_manager->get_baking();
+  view_layer.use_surfaces = b_view_layer.use_solid() || b_bake_target;
   view_layer.use_hair = b_view_layer.use_strand();
   view_layer.use_volumes = b_view_layer.use_volumes();
   view_layer.use_motion_blur = b_view_layer.use_motion_blur() &&
@@ -761,7 +769,7 @@ void BlenderSync::free_data_after_sync(BL::Depsgraph &b_depsgraph)
       /* Baking re-uses the depsgraph multiple times, clearing crashes
        * reading un-evaluated mesh data which isn't aligned with the
        * geometry we're baking, see #71012. */
-      !scene->bake_manager->get_baking() &&
+      !b_bake_target &&
       /* Persistent data must main caches for performance and correctness. */
       !is_persistent_data;
 
