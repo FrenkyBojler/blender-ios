@@ -9,7 +9,14 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable, TextIO, Optional, Any, Union
+
+from typing import (
+    TextIO,
+    Any,
+    Union,
+    # Proxies for `collections.abc`
+    Iterable,
+)
 
 # This script can run from any location,
 # output is created in the $CWD
@@ -88,7 +95,7 @@ def manifest_path(tarball: Path) -> Path:
     return without_suffix.with_name(f"{name}-manifest.txt")
 
 
-def packages_path(current_directory: Path, cli_args: Any) -> Optional[Path]:
+def packages_path(current_directory: Path, cli_args: Any) -> Union[Path, None]:
     if not cli_args.include_packages:
         return None
 
@@ -109,7 +116,7 @@ def create_manifest(
     version: make_utils.BlenderVersion,
     outpath: Path,
     blender_srcdir: Path,
-    packages_dir: Optional[Path],
+    packages_dir: Union[Path, None],
 ) -> None:
     print(f'Building manifest of files:  "{outpath}"...', end="", flush=True)
     with outpath.open("w", encoding="utf-8") as outfile:
@@ -157,7 +164,7 @@ def create_tarball(
     tarball: Path,
     manifest: Path,
     blender_srcdir: Path,
-    packages_dir: Optional[Path],
+    packages_dir: Union[Path, None],
 ) -> None:
     print(f'Creating archive:            "{tarball}" ...', end="", flush=True)
 

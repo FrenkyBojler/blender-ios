@@ -17,10 +17,6 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_sort_utils.h"
-#ifndef NDEBUG
-#  include "BLI_array_utils.h" /* For #BLI_array_is_zeroed.  */
-#endif
 
 #include "BKE_customdata.hh"
 
@@ -589,7 +585,7 @@ static void rotate_to_plane(const JoinEdgesState &s,
 #endif
 
   for (int i = 0; i < 4; i++) {
-    if (quad_verts[i] == l_shared->v || quad_verts[i] == l_shared->next->v) {
+    if (ELEM(quad_verts[i], l_shared->v, l_shared->next->v)) {
       /* Two coordinates of the quad match the vector that defines the axis of rotation, so they
        * don't change. */
       copy_v3_v3(r_quad_coordinates[i], quad_verts[i]->co);
@@ -973,9 +969,6 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
   s.use_topo_influence = (s.topo_influnce != 0.0f);
   s.edge_queue = BLI_heap_new();
   s.select_tris_only = BMO_slot_bool_get(op->slots_in, "deselect_joined");
-#ifndef NDEBUG
-  const int edges_num_init = bm->totedge;
-#endif
   if (s.use_topo_influence) {
     s.edge_queue_nodes = static_cast<HeapNode **>(
         MEM_malloc_arrayN(bm->totedge, sizeof(HeapNode *), __func__));
@@ -1007,7 +1000,7 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
     BM_elem_index_set(e, i); /* set_inline */
 
     /* If the edge is manifold, has a tagged input triangle on both sides,
-     * and is *not* delimited, then it's a candidate to merge.*/
+     * and is *not* delimited, then it's a candidate to merge. */
     BMFace *f_a, *f_b;
     if (BM_edge_face_pair(e, &f_a, &f_b) && BMO_face_flag_test(bm, f_a, FACE_INPUT) &&
         BMO_face_flag_test(bm, f_b, FACE_INPUT) && !bm_edge_is_delimit(e, &delimit_data))
@@ -1065,13 +1058,9 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
   while (!BLI_heap_is_empty(s.edge_queue)) {
 
     /* Get the best merge from the priority queue.
-     * Remove it from the both priority queue and the index. */
+     * Remove it from the priority queue. */
     const float f_error = BLI_heap_top_value(s.edge_queue);
     BMEdge *e = reinterpret_cast<BMEdge *>(BLI_heap_pop_min(s.edge_queue));
-    if (s.use_topo_influence) {
-      BLI_assert(BM_elem_index_get(e) >= 0);
-      s.edge_queue_nodes[BM_elem_index_get(e)] = nullptr;
-    }
 
     /* Attempt the merge. */
     BMFace *f_new = bm_faces_join_pair_by_edge(bm,
@@ -1123,9 +1112,6 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
   {
     /* Expect a full processing to have occurred. */
     BLI_assert(BLI_heap_is_empty(s.edge_queue));
-    if (s.use_topo_influence) {
-      BLI_assert(BLI_array_is_zeroed(s.edge_queue_nodes, sizeof(HeapNode *) * edges_num_init));
-    }
   }
 
   /* Clean up. */
