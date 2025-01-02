@@ -4,16 +4,7 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blentranslation
-  ../../bmesh
-  ../../geometry
-  ../../gpu
-  ../../makesrna
-  ../../windowmanager
   ../../../../intern/eigen
-  # RNA_prototypes.hh
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -37,11 +28,17 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::rna
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_UV_SLIM)
@@ -53,6 +50,3 @@ endif()
 
 
 blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
-
-# RNA_prototypes.hh
-add_dependencies(bf_editor_uvedit bf_rna)
