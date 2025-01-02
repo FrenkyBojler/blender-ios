@@ -566,6 +566,19 @@ void register_node_type_reroute()
   blender::bke::node_register_type(ntype);
 }
 
+struct RerouteTargerPriority {
+  int node_i = std::numeric_limits<int>::max();
+  int socket_in_node_i = std::numeric_limits<int>::max();
+
+  bool operator<(const RerouteTargerPriority other)
+  {
+    if (this->node_i == other.node_i) {
+      return this->socket_in_node_i < other.socket_in_node_i;
+    }
+    return this->node_i < other.node_i;
+  }
+};
+
 void ntree_update_reroute_nodes(bNodeTree *ntree)
 {
   using namespace blender;
@@ -605,14 +618,15 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     reroute_groups.add(root_reroute_i);
   }
 
-  Array<const bke::bNodeSocketType *> reroute_group_dst_types(reroute_groups.size(), nullptr);
-  Array<const bke::bNodeSocketType *> reroute_group_src_types(reroute_groups.size(), nullptr);
+  /* Any reroute can has only one source and many destination targets. Type propagation consider
+   * source as target with highest priority. */
+  Array<const bke::bNodeSocketType *> dst_type_by_reroute_group(reroute_groups.size(), nullptr);
+  Array<const bke::bNodeSocketType *> src_type_by_reroute_group(reroute_groups.size(), nullptr);
 
   /* Reroute type priority based on the indices of target sockets in the node and the nodes in the
    * tree. */
-  Array<std::pair<int, int>> reroute_group_dst_type_priority(
-      reroute_groups.size(),
-      std::make_pair(std::numeric_limits<int>::min(), std::numeric_limits<int>::min()));
+  Array<RerouteTargerPriority> reroute_group_dst_type_priority(reroute_groups.size(),
+                                                               RerouteTargerPriority{});
 
   for (const bNodeLink *link : ntree->all_links()) {
     const bNode *src_node = link->fromnode;
@@ -627,10 +641,8 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
       const int src_reroute_root_i = reroutes_groups.find_root(src_reroute_i);
       const int src_reroute_group_i = reroute_groups.index_of(src_reroute_root_i);
 
-      /* Direct dependence on the nodes order, but sockets from top to bottom. */
-      const std::pair<int, int> type_priority = std::make_pair(dst_node->index(),
-                                                               -link->tosock->index());
-      if (reroute_group_dst_type_priority[src_reroute_group_i] > type_priority) {
+      const RerouteTargerPriority type_priority{dst_node->index(), link->tosock->index()};
+      if (reroute_group_dst_type_priority[src_reroute_group_i] < type_priority) {
         continue;
       }
 
@@ -638,8 +650,8 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
 
       const bNodeSocket *dst_socket = link->tosock;
       /* There could be a function which will choose best from
-       * #reroute_group_dst_types and #dst_socket, but right now this match behavior as-is. */
-      reroute_group_dst_types[src_reroute_group_i] = dst_socket->typeinfo;
+       * #dst_type_by_reroute_group and #dst_socket, but right now this match behavior as-is. */
+      dst_type_by_reroute_group[src_reroute_group_i] = dst_socket->typeinfo;
       continue;
     }
 
@@ -650,26 +662,26 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
 
     const bNodeSocket *src_socket = link->fromsock;
     /* There could be a function which will choose best from
-     * #reroute_group_src_types and #src_socket, but right now this match behavior as-is. */
-    reroute_group_src_types[dst_reroute_group_i] = src_socket->typeinfo;
+     * #src_type_by_reroute_group and #src_socket, but right now this match behavior as-is. */
+    src_type_by_reroute_group[dst_reroute_group_i] = src_socket->typeinfo;
   }
 
   const Span<bNode *> all_nodes = ntree->all_nodes();
   for (const int reroute_i : reroute_nodes.index_range()) {
     const int reroute_root_i = reroutes_groups.find_root(reroute_i);
-    const int reroute_root_index = reroute_groups.index_of(reroute_root_i);
+    const int reroute_group_i = reroute_groups.index_of(reroute_root_i);
 
     const bke::bNodeSocketType *reroute_type = nullptr;
-    if (reroute_group_dst_types[reroute_root_index] != nullptr) {
-      reroute_type = reroute_group_dst_types[reroute_root_index];
+    if (dst_type_by_reroute_group[reroute_group_i] != nullptr) {
+      reroute_type = dst_type_by_reroute_group[reroute_group_i];
     }
-    if (reroute_group_src_types[reroute_root_index] != nullptr) {
-      reroute_type = reroute_group_src_types[reroute_root_index];
+    if (src_type_by_reroute_group[reroute_group_i] != nullptr) {
+      reroute_type = src_type_by_reroute_group[reroute_group_i];
     }
 
     if (reroute_type == nullptr) {
       /* Case of cycle of reroutes. Just use some _random_ reroute as a root, but there could be
-       * some more smart statistic. */
+       * some more smart heuristic. */
       const int root_in_cycle_i = reroute_nodes[reroute_root_i];
       const bNode &root_reroute = *all_nodes[root_in_cycle_i];
       const bNodeSocket *root_socket = static_cast<const bNodeSocket *>(root_reroute.inputs.first);
@@ -677,10 +689,10 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
 
     const int reroute_index = reroute_nodes[reroute_i];
-    bNode &reoute_node = *all_nodes[reroute_index];
-    NodeReroute *storage = static_cast<NodeReroute *>(reoute_node.storage);
+    bNode &reroute_node = *all_nodes[reroute_index];
+    NodeReroute *storage = static_cast<NodeReroute *>(reroute_node.storage);
     STRNCPY(storage->type_idname, reroute_type->idname);
-    nodes::update_node_declaration_and_sockets(*ntree, reoute_node);
+    nodes::update_node_declaration_and_sockets(*ntree, reroute_node);
   }
 }
 
