@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_path_utils.hh"
+
 #include "node_geometry_import_cache.hh"
 
 namespace blender::nodes::geometry_import_cache {
@@ -42,6 +44,9 @@ std::shared_ptr<const GeometryReadValue> import_geometry_cached(
     const StringRef absolute_file_path,
     FunctionRef<std::unique_ptr<GeometryReadValue>()> compute_fn)
 {
+  BLI_assert_msg(!BLI_path_is_rel(absolute_file_path.data()),
+                 "File path is not absolute, try saving the blend file");
+
   GeometryReadKey cache_key;
   cache_key.file_type = file_type;
   cache_key.absolute_file_path = absolute_file_path;

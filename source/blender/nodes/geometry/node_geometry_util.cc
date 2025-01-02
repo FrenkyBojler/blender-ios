@@ -60,7 +60,8 @@ std::optional<std::string> get_abs_file_path(const Main *bmain, StringRef path)
   }
   const char *base_path = BKE_main_blendfile_path(bmain);
   if (StringRef(base_path).is_empty()) {
-    return std::nullopt;
+    // This can happen when the blend file is not saved
+    return path;
   }
   char absolute_path[FILE_MAX];
   STRNCPY(absolute_path, path.data());
