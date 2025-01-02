@@ -3,22 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
-  ../asset_system
-  ../blenloader
-  ../blentranslation
-  ../bmesh
-  ../draw
-  ../functions
-  ../gpu
+  PUBLIC .
   ../ikplugin
-  ../imbuf
-  ../makesrna
   ../modifiers
-  ../nodes
   ../nodes/geometry/include
-  ../render
-  ../sequencer
   ../shader_fx
   ../simulation
   ../../../intern/eigen
@@ -30,8 +18,6 @@ set(INC
   ../../../intern/mikktspace
   ../../../intern/opensubdiv
 
-  # RNA_prototypes.hh
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -543,7 +529,7 @@ set(SRC
   intern/CCGSubSurf_inline.h
   intern/CCGSubSurf_intern.h
   intern/attribute_access_intern.hh
-  intern/data_transfer_intern.h
+  intern/data_transfer_intern.hh
   intern/lib_intern.hh
   intern/multires_inline.hh
   intern/multires_reshape.hh
@@ -558,21 +544,21 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
-  bf_asset_system
+  PRIVATE bf::asset_system
   PRIVATE bf::blenfont
   PRIVATE bf::blenlib
-  bf_blenloader
-  bf_blentranslation
-  bf_bmesh
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_draw
+  PRIVATE bf::draw
   PRIVATE bf::extern::curve_fit_nd
-  bf_functions
-  bf_gpu
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
   bf_ikplugin
-  bf_imbuf
-  bf::imbuf_movie
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
@@ -580,8 +566,10 @@ set(LIB
   bf_intern_mikktspace
   bf_intern_opensubdiv  # Uses stub when disabled.
   bf_modifiers
-  bf_nodes
-  bf_rna
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::rna
+  PRIVATE bf::sequencer
   bf_shader_fx
   bf_simulation
   PRIVATE bf::extern::fmtlib
@@ -807,9 +795,8 @@ endif()
 # endif()
 
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::blenkernel ALIAS bf_blenkernel)
 
-# RNA_prototypes.hh
-add_dependencies(bf_blenkernel bf_rna)
 
 
 if(WITH_GTESTS)
