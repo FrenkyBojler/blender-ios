@@ -240,14 +240,16 @@ static bool lib_id_remove_preview_poll(bContext *C)
 
   const PointerRNA idptr = CTX_data_pointer_get(C, "id");
   const ID *id = (ID *)idptr.data;
-  /* Get the preview image pointer for this ID */
-  PreviewImage *prv = BKE_previewimg_id_get(id);
-  if (prv == nullptr) {
+  if (!id) {
     return false;
   }
 
-  /* Check if preview size has data */
-  if (prv->rect[ICON_SIZE_PREVIEW]) {
+  PreviewImage *preview = BKE_previewimg_id_get(id);
+  if (!preview) {
+    return false;
+  }
+  /* Ensure preview data exists */
+  if (preview->flag[ICON_SIZE_PREVIEW]) {
     return true;
   }
 
@@ -274,6 +276,7 @@ static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
 
 static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
 {
+  /* identifiers */
   ot->name = "Remove Preview";
   ot->description = "Remove the preview";
   ot->idname = "ED_OT_lib_id_remove_preview";
