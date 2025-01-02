@@ -1098,8 +1098,7 @@ def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_o
                     actions[key] = action = bpy.data.actions.new(action_name)
                     action.use_fake_user = True
 
-                    # Create & assign an Action Slot. Curves created via action.fcurves and
-                    # action.groups will automatically be assigned to that slot.
+                    # Create an Action Slot. Curves created via action.fcurves will automatically be assigned to it.
                     action.slots.new(id_data.id_type, action_name)
 
                 # If none yet assigned, assign this action to id_data.
