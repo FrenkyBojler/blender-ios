@@ -79,6 +79,10 @@ struct tSlider {
   /** Range of the slider without overshoot. */
   float factor_bounds[2];
 
+  /** The increment step. Change if the bounds change enough to make the default 10% increment
+   * meaningless.  */
+  float increment_step;
+
   /* How the factor number is drawn. When drawing percent it is factor*100. */
   SliderMode slider_mode;
 
@@ -99,11 +103,11 @@ struct tSlider {
    * This is set by the artist while using the slider. */
   bool overshoot;
 
-  /** Whether keeping CTRL pressed will snap to 10% increments.
+  /** Whether keeping CTRL pressed will snap to multiples of `increment_step`.
    * Default is true. Set to false if the CTRL key is needed for other means. */
   bool allow_increments;
 
-  /** Move factor in 10% steps. */
+  /** Move factor in multiples of `increment_step`. */
   bool increments;
 
   /** Reduces factor delta from mouse movement. */
@@ -409,7 +413,8 @@ static void slider_update_factor(tSlider *slider, const wmEvent *event)
   copy_v2fl_v2i(slider->last_cursor, event->xy);
 
   if (slider->increments) {
-    slider->factor = round(slider->factor * 10) / 10;
+    const float step = 1.0 / slider->increment_step;
+    slider->factor = round(slider->factor * step) / step;
   }
 
   if (!slider->overshoot) {
@@ -447,6 +452,8 @@ tSlider *ED_slider_create(bContext *C)
   /* Set initial factor. */
   slider->raw_factor = 0.5f;
   slider->factor = 0.5;
+
+  slider->increment_step = 0.1f;
 
   /* Add draw callback. Always in header. */
   if (slider->area) {
@@ -536,7 +543,7 @@ void ED_slider_status_string_get(const tSlider *slider,
       STRNCPY(increments_str, IFACE_(" | [Ctrl] - Increments active"));
     }
     else {
-      STRNCPY(increments_str, IFACE_(" | Ctrl - Hold for 10% increments"));
+      STRNCPY(increments_str, IFACE_(" | Ctrl - Hold for increments"));
     }
   }
   else {
@@ -576,6 +583,16 @@ void ED_slider_factor_set(tSlider *slider, const float factor)
   if (!slider->overshoot) {
     slider->factor = clamp_f(slider->factor, slider->factor_bounds[0], slider->factor_bounds[1]);
   }
+}
+
+void ED_slider_increment_step_set(tSlider *slider, const float increment_step)
+{
+  if (increment_step == 0) {
+    /* Because this value is used as a divisor, it cannot be 0. */
+    BLI_assert_unreachable();
+    return;
+  }
+  slider->increment_step = increment_step;
 }
 
 void ED_slider_allow_overshoot_set(tSlider *slider, const bool lower, const bool upper)
