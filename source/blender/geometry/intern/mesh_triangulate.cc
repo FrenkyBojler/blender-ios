@@ -945,17 +945,18 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
 
   const bool has_duplicate_faces = distinct_tri_num != (ngon_tris_num + quad_tris_num);
 
-  Array<int> dst_tri_to_src_face;
+  Array<int> dst_tri_to_src_face(distinct_tri_num);
+  face_keys_to_face_indices(distinct_tris.as_span(), dst_tri_to_src_face.as_mutable_span());
+
   Array<int3> distinct_corner_tris_data;
   if (has_duplicate_faces) {
-    dst_tri_to_src_face.reinitialize(distinct_tri_num);
-    face_keys_to_face_indices(distinct_tris.as_span(), dst_tri_to_src_face.as_mutable_span());
-
     distinct_corner_tris_data.reinitialize(distinct_tri_num);
     array_utils::gather(corner_tris.as_span(),
                         dst_tri_to_src_face.as_span(),
                         distinct_corner_tris_data.as_mutable_span());
+  }
 
+  {
     Array<int> src_to_distinct_map(tris_range.size());
     quad_indices_of_tris(quads, src_to_distinct_map.as_mutable_span().slice(quad_tris_range));
     ngon_indices_of_tris(
@@ -970,32 +971,16 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
 
   for (auto &attribute : bke::retrieve_attributes_for_transfer(src_attributes, attributes, ATTR_DOMAIN_MASK_FACE, attribute_filter))
   {
-    if (has_duplicate_faces) {
-      printf("Duplicate faces;\n");
-      bke::attribute_math::gather(attribute.src, dst_tri_to_src_face.as_span(), attribute.dst.span.slice(distinct_tri_range));
-      array_utils::gather(attribute.src, distinct_original_faces, attribute.dst.span.slice(distinct_src_faces_range));
-    } else {
-      printf("Original faces;\n");
-      bke::attribute_math::gather_to_groups(tris_by_ngon, ngons, attribute.src, attribute.dst.span.slice(ngon_tris_range));
-      quad::copy_quad_data_to_tris(attribute.src, quads, attribute.dst.span.slice(quad_tris_range));
-      array_utils::gather(attribute.src, distinct_original_faces, attribute.dst.span.take_back(distinct_original_faces.size()));
-    }
+    bke::attribute_math::gather(attribute.src, dst_tri_to_src_face.as_span(), attribute.dst.span.slice(distinct_tri_range));
+    array_utils::gather(attribute.src, distinct_original_faces, attribute.dst.span.slice(distinct_src_faces_range));
     attribute.dst.finish();
   }
   if (CustomData_has_layer(&src_mesh.face_data, CD_ORIGINDEX)) {
     const Span src(static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)), src_mesh.faces_num);
     MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)), mesh->faces_num);
 
-    if (has_duplicate_faces) {
-      printf("Duplicate faces;\n");
-      array_utils::gather(src, dst_tri_to_src_face.as_span(), dst.slice(distinct_tri_range));
-      array_utils::gather(src, distinct_original_faces, dst.slice(distinct_src_faces_range));
-    } else {
-      printf("Original faces;\n");
-      bke::attribute_math::gather_to_groups(tris_by_ngon, ngons, src, dst.slice(ngon_tris_range));
-      quad::copy_quad_data_to_tris(src, quads, dst.slice(quad_tris_range));
-      array_utils::gather(src, distinct_original_faces, dst.take_back(distinct_original_faces.size()));
-    }
+    array_utils::gather(src, dst_tri_to_src_face.as_span(), dst.slice(distinct_tri_range));
+    array_utils::gather(src, distinct_original_faces, dst.slice(distinct_src_faces_range));
   }
 
   attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
