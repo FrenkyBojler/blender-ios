@@ -540,15 +540,9 @@ short BLO_version_from_file(const char *filepath);
  * phase of versioning that should be used in a later stage of versioning.
  */
 struct ID_Readfile_Data {
-  union {
-    struct {
-      bool is_id_link_placeholder : 1;
-    };
-
-    /* Unified access to all tags, to make it easy to copy/replace all tags
-     * without having to mention them individually. */
-    uint8_t tags;
-  };
+  struct Tags {
+    bool is_id_link_placeholder : 1;
+  } tags;
 };
 
 /**
