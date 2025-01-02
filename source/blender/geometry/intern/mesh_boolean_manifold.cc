@@ -416,7 +416,7 @@ struct MeshAssembly {
 };
 
 /* Fill the MeshAssembly's out_to_in_vert_map.
- * Do this by fnding, for each output face, which verts of the corresponding
+ * Do this by finding, for each output face, which verts of the corresponding
  * input face match.
  */
 static void fill_vertex_map(MeshAssembly &ma,
@@ -566,7 +566,7 @@ static OutFace make_out_face(const MeshGL &mgl, int tri_index, int orig_face)
   return ans;
 }
 
-/* For face merging, there is this indexing spaces:
+/* For face merging, there is this indexing space:
  * "group edge" index:  linearized indices of edges in the
  * triangles in the group.
  * A SharedEdge has two such indices, with the assertion that
@@ -583,6 +583,13 @@ struct SharedEdge {
   int v2;
 
   SharedEdge(int e1, int e2, int v1, int v2) : e1(e1), e2(e2), v1(v1), v2(v2) {}
+
+  /* Return the indices (in the linearized triangle space of an OutFace group)
+   * corresponding to e1 and e2. */
+  int2 outface_group_face_indices() const
+  {
+    return int2(e1 / 3, e2 / 3);
+  }
 };
 
 /* Canonical SharedEdge has v1 < v2. */
@@ -594,43 +601,24 @@ static inline SharedEdge canon_shared_edge(int e1, int e2, int v1, int v2)
   return SharedEdge(e2, e1, v2, v1);
 }
 
-/* A pair of vertices in MeshGL output space. */
-struct VertPair {
-  int v1;
-  int v2;
-
-  VertPair(int v1, int v2) : v1(v1), v2(v2) {}
-
-  uint64_t hash() const
-  {
-    return this->v1 ^ this->v2;
-  }
-};
-
-static bool operator==(const VertPair &a, const VertPair &b)
-{
-  return a.v1 == b.v1 && a.v2 == b.v2;
-}
-
-struct FaceNode {
-  Vector<SharedEdge, 4> shared_edges;
-  int node_id;
-};
-
+/* Given a span of OutFaces, all triangles, find as many SharedEdge's as possible.
+ * A SharedEdge is one where it is in two triangles but with the vertices in opposite order.
+ * The edge ids are given as indexes into all the edges of \a faces in order.
+ */
 static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces)
 {
   Vector<SharedEdge> ans;
-  /* Map from two verts making an edge to where that edge appears
+  /* Map from two vert indices making an edge to where that edge appears
    * in list of group edges. */
-  Map<VertPair, int> edge_verts_to_tri;
+  Map<int2, int> edge_verts_to_tri;
   for (const int face_index : faces.index_range()) {
     const OutFace &f = faces[face_index];
     for (const int i : IndexRange(3)) {
       int v1 = f.verts[i];
       int v2 = f.verts[(i + 1) % 3];
       int this_e = face_index * 3 + i;
-      edge_verts_to_tri.add_new(VertPair(v1, v2), this_e);
-      int other_e = edge_verts_to_tri.lookup_default(VertPair(v2, v1), -1);
+      edge_verts_to_tri.add_new(int2(v1, v2), this_e);
+      int other_e = edge_verts_to_tri.lookup_default(int2(v2, v1), -1);
       if (other_e != -1) {
         std::cout << "found shared pair between verts " << v1 << " and " << v2 << "\n";
         ans.append(canon_shared_edge(this_e, other_e, v1, v2));
@@ -640,6 +628,10 @@ static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces)
   return ans;
 }
 
+/* Give a group of #OutFace's that are all from a same original mesh face,
+ * remove as many dissolvable edges as possible while still keeping the faces legal.
+ * A face is legal if it has no repeated vertices and has size at least 3.
+ */
 static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshGL & /*mgl*/)
 {
   constexpr int dbg_level = 1;
@@ -662,8 +654,49 @@ static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshG
     std::cout << "\n";
     // dump_span(shared_edges.as_span(), "shared edges");
   }
+  if (shared_edges.is_empty()) {
+    return;
+  }
+  /* `shared_edge_valid[i]` is true if both edges in shared_edges[i] are still alive. */
+  Array<bool> shared_edge_valid(shared_edges.size(), true);
+  /* If `merged_to_faces[i]` is not -1, then argument faces[i] has been merged to that other face.
+   */
+  Array<int> merged_to(faces.size(), -1);
+  /* Local function to follow merged_to mappings as far as possible. */
+  auto final_merged_to = [&](int f_orig) {
+    BLI_assert(f_orig != -1);
+    int f_mapped = f_orig;
+    do {
+      f_mapped = merged_to[f_mapped];
+    } while (merged_to[f_mapped] != -1);
+    return f_mapped;
+  };
+  /* TODO: sort shared_edges by decreasing length. */
+  for (const int i : shared_edges.index_range()) {
+    if (!shared_edge_valid[i]) {
+      continue;
+    }
+    const SharedEdge se = shared_edges[i];
+    const int2 orig_faces = se.outface_group_face_indices();
+    const int2 cur_faces = int2(final_merged_to(orig_faces[0]), final_merged_to(orig_faces[1]));
+    const int f1 = cur_faces[0];
+    const int f2 = cur_faces[1];
+    if (dbg_level > 0) {
+      std::cout << "try merge of SharedEdge "
+                << "(v" << se.v1 << ",v" << se.v2 << ")"
+                << " orig group faces " << f1 << " and " << f2 << "\n";
+    }
+  }
 }
 
+/* Build the MeshAssembly corresponding to \a mgl.
+ * This involves:
+ *  (1) Pointing at output vertices.
+ *  (2) Making a map from output vertices to input vertices (using -1 if no match).
+ *  (3) Making initial face_groups, where each face group is all the output triangles that
+ *      were part of the same input face.
+ *  (4) For each face group, remove as many shared edges as possible.
+ */
 static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
                                               Span<const Mesh *> meshes,
                                               const MeshOffsets &mesh_offsets)
