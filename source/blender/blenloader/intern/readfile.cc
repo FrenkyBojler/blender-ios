@@ -2234,12 +2234,14 @@ static void direct_link_id_common(BlendDataReader *reader,
     /* Reset the runtime data, as there were versions of Blender that did not do
      * this before writing to disk. */
     memset(&id->runtime, 0, sizeof(id->runtime));
+
+    /* Only track the readfile tags when loading from disk. During 'undo' there is no versioning,
+     * no linking, etc. so there is no need for these flags. */
+    readfile_id_runtime_data_ensure(*id);
+    id->runtime.readfile_data->tags = id_read_tags;
   }
 
-  readfile_id_runtime_data_ensure(*id);
-  id->runtime.readfile_data->tags = id_read_tags;
-
-  if (id->runtime.readfile_data->tags.is_id_link_placeholder) {
+  if (id->runtime.readfile_data && id->runtime.readfile_data->tags.is_id_link_placeholder) {
     /* For placeholder we only need to set the tag and properly initialize generic ID fields above,
      * no further data to read. */
     return;
@@ -2551,7 +2553,7 @@ static bool direct_link_id(FileData *fd,
   /* Read part of datablock that is common between real and embedded datablocks. */
   direct_link_id_common(&reader, main->curlib, id, id_old, tag, id_read_tags);
 
-  if (id->runtime.readfile_data->tags.is_id_link_placeholder) {
+  if (id->runtime.readfile_data && id->runtime.readfile_data->tags.is_id_link_placeholder) {
     /* For placeholder we only need to set the tag, no further data to read. */
     id->tag = tag;
     return true;

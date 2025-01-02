@@ -538,6 +538,9 @@ short BLO_version_from_file(const char *filepath);
  *
  * This is intended for short-lived data, for example for things that are detected in an early
  * phase of versioning that should be used in a later stage of versioning.
+ *
+ * \note This is NOT allocated when 'reading' an undo step, as that doesn't have to deal with
+ * versioning, linking, and the other stuff that this struct was meant for.
  */
 struct ID_Readfile_Data {
   struct Tags {
