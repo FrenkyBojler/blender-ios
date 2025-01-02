@@ -15,7 +15,7 @@ last_checked_time = None
 def url_json_get(url):
     global last_checked_time
 
-    if not (last_checked_time == None):
+    if last_checked_time is not None:
         time.sleep(max(crawl_delay - (time.time() - last_checked_time), 0))
     last_checked_time = time.time()
 

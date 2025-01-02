@@ -22,7 +22,7 @@ def get_backported_commits(issue_number):
     for line in lines:
         if line.startswith(blender_version_start):
             current_version = line.strip(blender_version_start)
-        if current_version == None:
+        if current_version is None:
             # We haven't got a Blender version yet.
             continue
         if not line.strip():
