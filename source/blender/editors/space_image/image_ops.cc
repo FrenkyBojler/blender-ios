@@ -3260,16 +3260,16 @@ static int image_scale_exec(bContext *C, wmOperator *op)
     ED_image_undo_push_end();
   }
   else {
+    ED_image_undo_push_begin_with_image_all_udims(op->type->name, ima, &iuser);
     LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
       iuser.tile = current_tile->tile_number;
       ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
       ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-      ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf, &iuser);
       IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
       BKE_image_mark_dirty(ima, ibuf);
       BKE_image_release_ibuf(ima, ibuf, nullptr);
-      ED_image_undo_push_end();
     }
+    ED_image_undo_push_end();
   }
 
   BKE_image_partial_update_mark_full_update(ima);
