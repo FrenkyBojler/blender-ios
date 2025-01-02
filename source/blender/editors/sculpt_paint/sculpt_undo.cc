@@ -2134,26 +2134,6 @@ static bool use_multires_mesh(bContext *C)
   return sculpt_session->multires.active;
 }
 
-static void push_all_grids(const Depsgraph &depsgraph, Object *object)
-{
-  /* It is possible that undo push is done from an object state where there is no tree. This
-   * happens, for example, when an operation which tagged for geometry update was performed prior
-   * to the current operation without making any stroke in between.
-   *
-   * Skip pushing nodes based on the following logic: on redo Type::Position will
-   * ensure pbvh::Tree for the new base geometry, which will have same coordinates as if we create
-   * pbvh::Tree here.
-   */
-  const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*object);
-  if (pbvh == nullptr) {
-    return;
-  }
-
-  IndexMaskMemory memory;
-  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(*pbvh, memory);
-  push_nodes(depsgraph, *object, node_mask, Type::Position);
-}
-
 void push_multires_mesh_begin(bContext *C, const char *str)
 {
   if (!use_multires_mesh(C)) {
@@ -2161,15 +2141,13 @@ void push_multires_mesh_begin(bContext *C, const char *str)
   }
 
   const Scene &scene = *CTX_data_scene(C);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object *object = CTX_data_active_object(C);
+
+  multires_flush_sculpt_updates(object);
 
   push_begin_ex(scene, *object, str);
 
   geometry_push(*object);
-  get_step_data()->geometry_clear_pbvh = false;
-
-  push_all_grids(depsgraph, object);
 }
 
 void push_multires_mesh_end(bContext *C, const char *str)
@@ -2182,7 +2160,6 @@ void push_multires_mesh_end(bContext *C, const char *str)
   Object *object = CTX_data_active_object(C);
 
   geometry_push(*object);
-  get_step_data()->geometry_clear_pbvh = false;
 
   push_end(*object);
 }
