@@ -232,7 +232,7 @@ static void ED_OT_lib_id_generate_preview_from_object(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL | OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static bool lib_id_remove_preview_poll(bContext *C)
+static bool lib_id_remove_custom_preview_poll(bContext *C)
 {
   if (!lib_id_preview_editing_poll(C)) {
     return false;
@@ -258,7 +258,7 @@ static bool lib_id_remove_preview_poll(bContext *C)
   return true;
 }
 
-static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
+static int lib_id_remove_custom_preview_exec(bContext *C, wmOperator *op)
 {
   PointerRNA idptr = CTX_data_pointer_get(C, "id");
   ID *id = (ID *)idptr.data;
@@ -277,16 +277,16 @@ static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
+static void ED_OT_lib_id_remove_custom_preview(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Remove Custom Preview";
   ot->description = "Remove the custom preview image";
-  ot->idname = "ED_OT_lib_id_remove_preview";
+  ot->idname = "ED_OT_lib_id_remove_custom_preview";
 
   /* api callbacks */
-  ot->poll = lib_id_remove_preview_poll;
-  ot->exec = lib_id_remove_preview_exec;
+  ot->poll = lib_id_remove_custom_preview_poll;
+  ot->exec = lib_id_remove_custom_preview_exec;
 
   /* flags */
   ot->flag = OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -467,7 +467,7 @@ void ED_operatortypes_edutils()
   WM_operatortype_append(ED_OT_lib_id_load_custom_preview);
   WM_operatortype_append(ED_OT_lib_id_generate_preview);
   WM_operatortype_append(ED_OT_lib_id_generate_preview_from_object);
-  WM_operatortype_append(ED_OT_lib_id_remove_preview);
+  WM_operatortype_append(ED_OT_lib_id_remove_custom_preview);
 
   WM_operatortype_append(ED_OT_lib_id_fake_user_toggle);
   WM_operatortype_append(ED_OT_lib_id_unlink);
