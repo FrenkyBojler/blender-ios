@@ -8,16 +8,14 @@
 
 #pragma once
 
-struct FBXImportParams;
+#include <string>
+
 struct Main;
-struct Scene;
-struct ViewLayer;
+struct Material;
+struct ufbx_material;
 
 namespace blender::io::fbx {
 
-void importer_main(Main *bmain,
-                   Scene *scene,
-                   ViewLayer *view_layer,
-                   const FBXImportParams &params);
+Material *import_material(Main *bmain, const std::string &base_dir, const ufbx_material &fmat);
 
 }  // namespace blender::io::fbx

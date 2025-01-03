@@ -38,6 +38,8 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   params.global_scale = RNA_float_get(op->ptr, "global_scale");
   params.use_custom_normals = RNA_boolean_get(op->ptr, "use_custom_normals");
+  params.use_custom_props = RNA_boolean_get(op->ptr, "use_custom_props");
+  params.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf");
   params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
 
   params.reports = op->reports;
@@ -90,6 +92,8 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
   if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_options", false, IFACE_("Options"))) {
     uiLayout *col = uiLayoutColumn(panel, false);
     uiItemR(col, ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "use_custom_props", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "use_subsurf", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
@@ -132,6 +136,16 @@ void WM_OT_fbx_import(wmOperatorType *ot)
                   true,
                   "Custom Normals",
                   "Import custom normals, if available (otherwise Blender will compute them)");
+  RNA_def_boolean(ot->srna,
+                  "use_custom_props",
+                  true,
+                  "Custom Properties",
+                  "Import user properties as custom properties");
+  RNA_def_boolean(ot->srna,
+                  "use_subsurf",
+                  false,
+                  "Subdivision Data",
+                  "Import FBX subdivision information as subdivision surface modifiers");
   RNA_def_boolean(
       ot->srna,
       "validate_meshes",

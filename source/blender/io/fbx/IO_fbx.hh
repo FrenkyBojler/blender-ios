@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -25,6 +25,8 @@ struct FBXImportParams {
   float global_scale = 1.0f;
   bool validate_meshes = true;
   bool use_custom_normals = true;
+  bool use_subsurf = false;
+  bool use_custom_props = true;
 
   ReportList *reports = nullptr;
 };

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,14 +8,18 @@
 
 #include <cstdio>
 
+#include "BKE_armature.hh"
 #include "BKE_attribute.hh"
 #include "BKE_camera.h"
 #include "BKE_deform.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_light.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_object_deform.h"
 #include "BKE_report.hh"
 
 #include "BLI_color.hh"
@@ -39,6 +43,7 @@
 #include "IO_fbx.hh"
 
 #include "fbx_import.hh"
+#include "fbx_import_material.hh"
 
 #include "ufbx.h"
 
@@ -51,16 +56,24 @@ struct FbxImportContext {
   Main *bmain;
   const ufbx_scene &fbx;
   const FBXImportParams &params;
-  Map<const ufbx_node *, Object *> node_to_object;
+  std::string base_dir;
+
+  Map<const ufbx_element *, Object *> element_to_object;
+  Map<const ufbx_material *, Material *> fmat_to_material;
 
   FbxImportContext(Main *main, const ufbx_scene *fbx, const FBXImportParams &params)
       : bmain(main), fbx(*fbx), params(params)
   {
+    char basedir[FILE_MAX];
+    BLI_path_split_dir_part(params.filepath, basedir, sizeof(basedir));
+    base_dir = basedir;
   }
 
+  void import_materials();
   void import_meshes();
   void import_cameras();
   void import_lights();
+  void import_armatures();
   void import_empties();
   void setup_hierarchy();
 };
@@ -92,9 +105,17 @@ static void node_matrix_to_obj(const ufbx_node *node, Object *obj)
   BKE_object_apply_mat4(obj, obmat, true, false);
 }
 
+void FbxImportContext::import_materials()
+{
+  for (const ufbx_material *fmat : this->fbx.materials) {
+    Material *mat = io::fbx::import_material(this->bmain, this->base_dir, *fmat);
+    fmat_to_material.add(fmat, mat);
+  }
+}
+
 void FbxImportContext::import_meshes()
 {
-  for (ufbx_mesh *fmesh : this->fbx.meshes) {
+  for (const ufbx_mesh *fmesh : this->fbx.meshes) {
     if (fmesh->instances.count == 0) {
       continue; /* Ignore if not used by any objects. */
     }
@@ -116,7 +137,8 @@ void FbxImportContext::import_meshes()
     /* Faces. */
     MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
     MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-    BLI_assert(face_offsets.size() == fmesh->num_faces + 1);
+    BLI_assert(face_offsets.size() == fmesh->num_faces + 1 ||
+               face_offsets.is_empty() && fmesh->num_faces == 0);
     for (int face_idx = 0; face_idx < fmesh->num_faces; face_idx++) {
       //@TODO: skip < 3 vertex faces?
       const ufbx_face &fface = fmesh->faces[face_idx];
@@ -258,7 +280,7 @@ void FbxImportContext::import_meshes()
         const ufbx_vec3 &normal = fmesh->vertex_normal.values[val_idx];
         normals[i] = float3(normal.x, normal.y, normal.z);
       }
-      BKE_mesh_set_custom_normals(mesh, reinterpret_cast<float(*)[3]>(normals.data()));
+      bke::mesh_set_custom_normals(*mesh, normals);
     }
 
     /* Skinning (vertex group) information. */
@@ -294,7 +316,8 @@ void FbxImportContext::import_meshes()
       BKE_mesh_validate(mesh, verbose_validate, false);
     }
 
-    /* Create object. */
+    /* Create object.
+     * Steps after this have to be done on the final object in Main. */
     const ufbx_node *node = fmesh->instances[0];
     const char *ob_name = get_node_name(node);
     const char *mesh_name = fmesh->name.length > 0 ? fmesh->name.data : ob_name;
@@ -302,6 +325,16 @@ void FbxImportContext::import_meshes()
     obj->data = BKE_object_obdata_add_from_type(this->bmain, OB_MESH, mesh_name);
     BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
     mesh = (Mesh *)obj->data;
+
+    /* Add vertex groups to object. */
+    if (fmesh->skin_deformers.count > 0) {
+      const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
+      if (skin != nullptr) {
+        for (const ufbx_skin_cluster *fcluster : skin->clusters) {
+          BKE_object_defgroup_add_name(obj, fcluster->name.data);
+        }
+      }
+    }
 
     /* Blend shapes. */
     Key *mesh_key = nullptr;
@@ -335,8 +368,41 @@ void FbxImportContext::import_meshes()
       }
     }
 
+    /* Assign materials. */
+    if (fmesh->materials.count > 0) {
+      for (const ufbx_material *fmat : fmesh->materials) {
+        Material *mat = this->fmat_to_material.lookup_default(fmat, nullptr);
+        if (mat != nullptr) {
+          BKE_object_material_assign_single_obdata(this->bmain, obj, mat, obj->totcol + 1);
+        }
+      }
+      if (obj->totcol > 0) {
+        obj->actcol = 1;
+      }
+    }
+
+    /* Subdivision. */
+    if (this->params.use_subsurf &&
+        fmesh->subdivision_display_mode != UFBX_SUBDIVISION_DISPLAY_DISABLED &&
+        (fmesh->subdivision_preview_levels > 0 || fmesh->subdivision_render_levels > 0))
+    {
+      ModifierData *md = BKE_modifier_new(eModifierType_Subsurf);
+      STRNCPY(md->name, "subsurf");
+      BLI_addtail(&obj->modifiers, md);
+      BKE_modifiers_persistent_uid_init(*obj, *md);
+
+      SubsurfModifierData *ssd = reinterpret_cast<SubsurfModifierData *>(md);
+      ssd->subdivType = SUBSURF_TYPE_CATMULL_CLARK;
+      ssd->levels = fmesh->subdivision_preview_levels;
+      ssd->renderLevels = fmesh->subdivision_render_levels;
+      ssd->boundary_smooth = fmesh->subdivision_boundary ==
+                                     UFBX_SUBDIVISION_BOUNDARY_SHARP_CORNERS ?
+                                 SUBSURF_BOUNDARY_SMOOTH_PRESERVE_CORNERS :
+                                 SUBSURF_BOUNDARY_SMOOTH_ALL;
+    }
+
     node_matrix_to_obj(node, obj);
-    this->node_to_object.add(node, obj);
+    this->element_to_object.add(&node->element, obj);
   }
 }
 
@@ -372,13 +438,13 @@ void FbxImportContext::import_cameras()
     obj->data = bcam;
 
     node_matrix_to_obj(node, obj);
-    this->node_to_object.add(node, obj);
+    this->element_to_object.add(&node->element, obj);
   }
 }
 
 void FbxImportContext::import_lights()
 {
-  for (ufbx_light *flight : this->fbx.lights) {
+  for (const ufbx_light *flight : this->fbx.lights) {
     if (flight->instances.count == 0) {
       continue; /* Ignore if not used by any objects. */
     }
@@ -415,7 +481,19 @@ void FbxImportContext::import_lights()
     obj->data = lamp;
 
     node_matrix_to_obj(node, obj);
-    this->node_to_object.add(node, obj);
+    this->element_to_object.add(&node->element, obj);
+  }
+}
+
+void FbxImportContext::import_armatures()
+{
+  for (const ufbx_skin_deformer *fskin : this->fbx.skin_deformers) {
+    const char *ob_name = fskin->name.data;
+    bArmature *arm = BKE_armature_add(bmain, ob_name);
+    Object *obj = BKE_object_add_only_object(this->bmain, OB_ARMATURE, ob_name);
+    obj->data = arm;
+
+    this->element_to_object.add(&fskin->element, obj);
   }
 }
 
@@ -423,10 +501,13 @@ void FbxImportContext::import_empties()
 {
   /* Ensure we have empties created for all the parent nodes. */
   Map<const ufbx_node *, Object *> node_to_empty;
-  for (const auto &item : this->node_to_object.items()) {
-    const ufbx_node *node = item.key->parent;
+  for (const auto &item : this->element_to_object.items()) {
+    if (item.key->type != UFBX_ELEMENT_NODE) {
+      continue;
+    }
+    const ufbx_node *node = ((const ufbx_node *)item.key)->parent;
     while (node != nullptr && !node->is_root) {
-      if (!this->node_to_object.contains(node) && !node_to_empty.contains(node)) {
+      if (!this->element_to_object.contains(&node->element) && !node_to_empty.contains(node)) {
         const char *ob_name = get_node_name(node);
         Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, ob_name);
         obj->data = nullptr;
@@ -439,16 +520,19 @@ void FbxImportContext::import_empties()
 
   /* Add all the created empties to the node->object map. */
   for (const auto &item : node_to_empty.items()) {
-    this->node_to_object.add(item.key, item.value);
+    this->element_to_object.add(&item.key->element, item.value);
   }
 }
 
 void FbxImportContext::setup_hierarchy()
 {
-  for (const auto &item : this->node_to_object.items()) {
-    const ufbx_node *node = item.key;
+  for (const auto &item : this->element_to_object.items()) {
+    if (item.key->type != UFBX_ELEMENT_NODE) {
+      continue;
+    }
+    const ufbx_node *node = (const ufbx_node *)item.key;
     if (node->parent) {
-      Object *obj_par = this->node_to_object.lookup_default(node->parent, nullptr);
+      Object *obj_par = this->element_to_object.lookup_default(&node->parent->element, nullptr);
       item.value->parent = obj_par;
     }
   }
@@ -466,11 +550,14 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   }
 
   ufbx_load_opts opts = {};
+  opts.filename.data = params.filepath;
+  opts.filename.length = strlen(params.filepath);
   opts.evaluate_skinning = false;
   opts.evaluate_caches = false;
   opts.load_external_files = false;
   opts.clean_skin_weights = true;
-  opts.use_blender_pbr_material = true;
+  opts.use_blender_pbr_material =
+      false;  // true; //@TODO: use this once/if we switch to PBR properties
   //@TODO: axes according to import settings
   opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
   opts.target_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Z;
@@ -505,23 +592,25 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   //@TODO: do we need to sort objects by name? (faster to create within blender)
 
   FbxImportContext ctx(bmain, fbx, params);
+  ctx.import_materials();
   ctx.import_meshes();
   ctx.import_cameras();
   ctx.import_lights();
+  ctx.import_armatures();
   ctx.import_empties();
   ctx.setup_hierarchy();
 
   ufbx_free_scene(fbx);
 
   /* Add objects to collection. */
-  for (Object *obj : ctx.node_to_object.values()) {
+  for (Object *obj : ctx.element_to_object.values()) {
     BKE_collection_object_add(bmain, lc->collection, obj);
   }
 
   /* Select objects, sync layers etc. */
   BKE_view_layer_base_deselect_all(scene, view_layer);
   BKE_view_layer_synced_ensure(scene, view_layer);
-  for (Object *obj : ctx.node_to_object.values()) {
+  for (Object *obj : ctx.element_to_object.values()) {
     Base *base = BKE_view_layer_base_find(view_layer, obj);
     BKE_view_layer_base_select_and_set_active(view_layer, base);
 

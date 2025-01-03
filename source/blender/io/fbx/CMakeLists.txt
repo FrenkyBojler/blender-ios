@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Blender Authors
+# SPDX-FileCopyrightText: 2025 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -16,9 +16,11 @@ set(INC_SYS
 set(SRC
   IO_fbx.cc
   importer/fbx_import.cc
+  importer/fbx_import_material.cc
 
   IO_fbx.hh
   importer/fbx_import.hh
+  importer/fbx_import_material.hh
 )
 
 set(LIB
@@ -27,6 +29,8 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::nodes
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
