@@ -27,10 +27,6 @@ previous_version_numer = '4.3'
 # Note: Should we add corrective releases tasks like the 4.3.1 task when processing 4.4 release notes?
 backport_tasks = ['124452', '109399']
 
-# Use caching to speed up the fetching of information for the reports that need manual sorting.
-# Turn this off when generating the final release notes as the cache may be out of date.
-use_caching = False
-
 # ----------
 
 # Constants used throughout the script
@@ -540,7 +536,7 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
 # Caching utilities
 
 def cached_commits_load(list_of_commits: list[CommitInfo]) -> None:
-    if use_caching and path_to_cached_commits.exists():
+    if args.cache and path_to_cached_commits.exists():
         with open(str(path_to_cached_commits), 'r', encoding='utf-8') as file:
             cached_data = json.load(file)
         for commit in list_of_commits:
@@ -554,7 +550,7 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
     # the "needs sorting" section, they don't have to wait for information requests to Gitea
     # on commits that are already sorted (and they're not interested in).
 
-    if use_caching:
+    if args.cache:
         data_to_cache = {}
         for commit in list_of_commits:
             if (commit.classification != NEEDS_MANUAL_SORTING) and not (commit.has_been_overwritten):
@@ -603,6 +599,7 @@ def argparse_create() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("-o", "--override", action="store_true", help="Create a override for a commit")
     parser.add_argument("-s", "--single-thread", action="store_true", help="Run one of the parts of this script in single threaded mode (Only really useful for debugging)")
+    parser.add_argument("-c", "--cache", action="store_true", help="Use caching to speed up re-runs on this script (WARNING: Leave caching off when collecting the final release notes)")
 
     return parser
 
