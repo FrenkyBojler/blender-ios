@@ -492,6 +492,7 @@ static void import_file(ImportJobData *data, const char *filepath, float progres
 
   data->archives.append(archive);
   data->settings.cache_file = cache_file;
+  data->settings.blender_archive_version_prior_44 = archive->is_blender_archive_version_prior_44();
 
   *data->do_update = true;
   *data->progress += 0.05f * progress_factor;
@@ -899,6 +900,7 @@ CacheReader *CacheReader_open_alembic_object(CacheArchiveHandle *handle,
 
   ImportSettings settings;
   settings.is_sequence = is_sequence;
+  settings.blender_archive_version_prior_44 = archive->is_blender_archive_version_prior_44();
   AbcObjectReader *abc_reader = create_reader(iobject, settings);
   if (abc_reader == nullptr) {
     /* This object is not supported */
