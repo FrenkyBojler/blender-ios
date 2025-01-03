@@ -55,10 +55,10 @@ struct PoseBackup {
 static void pose_backup_create(const Object *ob,
                                bAction *action,
                                const BoneNameSet &selected_bone_names,
-                               PoseBackup &pose_backup,
-                               const bool is_bone_selection_relevant)
+                               PoseBackup &pose_backup)
 {
   BoneNameSet backed_up_bone_names;
+  const bool is_bone_selection_relevant = pose_backup.is_bone_selection_relevant;
   /* Make a backup of the given pose channel. */
   auto store_animated_pchans = [&](const FCurve * /*unused*/, const char *bone_name) {
     if (backed_up_bone_names.contains(bone_name)) {
@@ -127,8 +127,9 @@ PoseBackup *BKE_pose_backup_create_all_bones(blender::Span<Object *> objects,
 {
   PoseBackup *pose_backup = static_cast<PoseBackup *>(MEM_callocN(sizeof(*pose_backup), __func__));
   pose_backup->backups = {nullptr, nullptr};
+  pose_backup->is_bone_selection_relevant = false;
   for (Object *ob : objects) {
-    pose_backup_create(ob, const_cast<bAction *>(action), BoneNameSet(), *pose_backup, false);
+    pose_backup_create(ob, const_cast<bAction *>(action), BoneNameSet(), *pose_backup);
   }
   return pose_backup;
 }
@@ -144,12 +145,7 @@ PoseBackup *BKE_pose_backup_create_selected_bones(blender::Span<Object *> object
   for (Object *ob : objects) {
     const bArmature *armature = static_cast<const bArmature *>(ob->data);
     const BoneNameSet selected_bone_names = BKE_armature_find_selected_bone_names(armature);
-
-    pose_backup_create(ob,
-                       const_cast<bAction *>(action),
-                       selected_bone_names,
-                       *pose_backup,
-                       pose_backup->is_bone_selection_relevant);
+    pose_backup_create(ob, const_cast<bAction *>(action), selected_bone_names, *pose_backup);
   }
 
   return pose_backup;
