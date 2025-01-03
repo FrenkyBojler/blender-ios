@@ -79,8 +79,7 @@ struct tSlider {
   /** Range of the slider without overshoot. */
   float factor_bounds[2];
 
-  /** The increment step. Change if the bounds change enough to make the default 10% increment
-   * meaningless.  */
+  /** Change if the slider range is so large/small that a 0.1 increment is meaningless. */
   float increment_step;
 
   /* How the factor number is drawn. When drawing percent it is factor*100. */
@@ -413,8 +412,7 @@ static void slider_update_factor(tSlider *slider, const wmEvent *event)
   copy_v2fl_v2i(slider->last_cursor, event->xy);
 
   if (slider->increments) {
-    const float step = 1.0 / slider->increment_step;
-    slider->factor = round(slider->factor * step) / step;
+    slider->factor = round(slider->factor / slider->increment_step) * slider->increment_step;
   }
 
   if (!slider->overshoot) {
