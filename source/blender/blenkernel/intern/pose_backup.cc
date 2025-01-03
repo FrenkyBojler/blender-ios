@@ -114,7 +114,7 @@ static blender::Set<bPoseChannel *> armature_find_selected_pose_bones(
     }
   }
 
-  /* If no bones are selected, act as if all are. */
+  /* If all bones are selected, act as if none are. */
   if (all_bones_selected) {
     return {};
   }
