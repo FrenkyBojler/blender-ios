@@ -195,7 +195,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, 
   bke::mesh_smooth_set(*result, rmd->flag & MOD_REMESH_SMOOTH_SHADING);
 
   BKE_mesh_copy_parameters_for_eval(result, mesh);
-  bke::mesh_calc_edges(*result, true, false, false);
+  bke::mesh_calc_edges(*result, true, false, {});
 
   blender::geometry::debug_randomize_mesh_order(result);
 

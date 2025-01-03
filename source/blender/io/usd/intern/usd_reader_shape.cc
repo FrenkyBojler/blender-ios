@@ -158,7 +158,7 @@ Mesh *USDShapeReader::read_mesh(Mesh *existing_mesh,
     corner_verts[i] = face_indices[i];
   }
 
-  bke::mesh_calc_edges(*active_mesh, false, false, false);
+  bke::mesh_calc_edges(*active_mesh, false, false, {});
   return active_mesh;
 }
 
