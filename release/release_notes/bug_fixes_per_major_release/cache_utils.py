@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-def load_cached_commits(list_of_commits):
+def cached_commits_load(list_of_commits):
     import json
 
     from parameters import use_caching
@@ -16,7 +16,7 @@ def load_cached_commits(list_of_commits):
                 commit.read_from_cache(cached_data[commit.hash])
 
 
-def cache_commits(list_of_commits):
+def cached_commits_store(list_of_commits):
     import json
 
     from parameters import use_caching
