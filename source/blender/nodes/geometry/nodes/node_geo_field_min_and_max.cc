@@ -26,23 +26,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
-    BaseSocketDeclarationBuilder *value_declaration = nullptr;
-    switch (data_type) {
-      case CD_PROP_FLOAT3:
-        value_declaration = &b.add_input<decl::Vector>("Value");
-        break;
-      case CD_PROP_FLOAT:
-        value_declaration = &b.add_input<decl::Float>("Value");
-        break;
-      case CD_PROP_INT32:
-        value_declaration = &b.add_input<decl::Int>("Value");
-        break;
-      default:
-        BLI_assert_unreachable();
-        break;
-    }
-    value_declaration->supports_field().description(
-        "The values the min and max will be calculated from");
+    b.add_input(data_type, "Value")
+        .supports_field()
+        .description("The values the min and max will be calculated from");
   }
 
   b.add_input<decl::Int>("Group ID", "Group Index")
@@ -133,7 +119,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 template<typename T> struct MinMaxInfo {
   static inline const T min_initial_value = []() {
     if constexpr (std::is_same_v<T, float3>) {
-      return float3{FLT_MAX, FLT_MAX, FLT_MAX};
+      return float3(std::numeric_limits<float>::max());
     }
     else {
       return std::numeric_limits<T>::max();
@@ -142,7 +128,7 @@ template<typename T> struct MinMaxInfo {
 
   static inline const T max_initial_value = []() {
     if constexpr (std::is_same_v<T, float3>) {
-      return float3{-FLT_MAX, -FLT_MAX, -FLT_MAX};
+      return float3(std::numeric_limits<float>::lowest());
     }
     else {
       return std::numeric_limits<T>::lowest();
