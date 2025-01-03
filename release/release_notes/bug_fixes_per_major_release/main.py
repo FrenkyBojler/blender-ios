@@ -15,10 +15,6 @@ from argparse import ArgumentParser
 
 # TODO: Remove these in favour of arguments
 
-# Release tags can be tags (like `v4.3.0`), commit hashes, or branches.
-current_release_tag = 'main'
-previous_release_tag = 'v4.3.0'
-
 # The numbers of the active backport tracking tasks.
 # The backport tasks can be found on the Blender milestones page: https://projects.blender.org/blender/blender/milestones
 # Note: Should we add corrective releases tasks like the 4.3.1 task when processing 4.4 release notes?
@@ -248,7 +244,7 @@ def get_fix_commits() -> list[CommitInfo]:
     # #+ = {one_or_more #}
     # \d+ = {number}
     # This captures the common `Fix #123`, but also the less common `Fixes #123`, `Fix for #123`, and `Fix ##123`.
-    command = ['git', '--no-pager', 'log', f'{previous_release_tag}..{current_release_tag}', '--oneline', '--no-abbrev-commit', '-i', '-P', '--grep', r'Fix.*#+\d+']
+    command = ['git', '--no-pager', 'log', f'{args.previous_release_version}..{args.current_release_tag}', '--oneline', '--no-abbrev-commit', '-i', '-P', '--grep', r'Fix.*#+\d+']
 
     git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
     git_log_output = git_log_command_output.splitlines()
@@ -600,6 +596,9 @@ def argparse_create() -> ArgumentParser:
 
     parser.add_argument("-cv", "--current-version", help="The common major.minor name of the current version of Blender (E.g. 4.2, 4.3, 4.4)")
     parser.add_argument("-pv", "--previous-version", help="The common major.minor name of the previous version of Blender (E.g. 4.2, 4.3, 4.4)")
+
+    parser.add_argument("-ct", "--current-release-tag", help="The tag for the current release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
+    parser.add_argument("-pt", "--previous-release-version", help="The tag for the previous release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
 
     return parser
 
