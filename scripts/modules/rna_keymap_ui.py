@@ -256,14 +256,16 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
         # Modifier {kmi.attribute: name} mapping
         key_mod = {
             "ctrl": "ctrl",
-            "control": "ctrl",
             "alt": "alt",
-            "option": "alt",
             "shift": "shift",
-            "cmd": "oskey",
-            "command": "oskey",
             "oskey": "oskey",
             "any": "any",
+
+            # macOS specific modifiers names
+            "control": "ctrl",
+            "option": "alt",
+            "cmd": "oskey",
+            "command": "oskey",
         }
         # KeyMapItem like dict, use for comparing against
         # attr: {states, ...}
