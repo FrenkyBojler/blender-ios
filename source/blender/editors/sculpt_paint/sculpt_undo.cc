@@ -234,7 +234,6 @@ struct StepData {
    * the object when undoing the operation
    *
    * Modified geometry is stored after the modification and is used to redo the modification. */
-  bool geometry_clear_pbvh;
   NodeGeometry geometry_original;
   NodeGeometry geometry_modified;
 
@@ -722,10 +721,8 @@ static void geometry_free_data(NodeGeometry *geometry)
 
 static void restore_geometry(StepData &step_data, Object &object)
 {
-  if (step_data.geometry_clear_pbvh) {
-    BKE_sculptsession_free_pbvh(object);
-    DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
-  }
+  BKE_sculptsession_free_pbvh(object);
+  DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
 
   Mesh *mesh = static_cast<Mesh *>(object.data);
 
@@ -1290,7 +1287,6 @@ static void geometry_push(const Object &object)
   step_data->type = Type::Geometry;
 
   step_data->applied = false;
-  step_data->geometry_clear_pbvh = true;
 
   NodeGeometry *geometry = geometry_get(*step_data);
   store_geometry_data(geometry, object);
