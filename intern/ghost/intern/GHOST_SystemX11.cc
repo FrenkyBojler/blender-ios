@@ -106,9 +106,10 @@ using namespace std;
 GHOST_SystemX11::GHOST_SystemX11()
     : GHOST_System(),
       m_xkb_descr(nullptr),
-      m_start_time(0),
-      m_start_time_monotonic(0),
       m_keyboard_vector{0},
+#ifdef WITH_X11_XINPUT
+      m_last_key_time(0),
+#endif
       m_keycode_last_repeat_key(uint(-1))
 {
   XInitThreads();
@@ -172,24 +173,6 @@ GHOST_SystemX11::GHOST_SystemX11()
   m_last_warp_y = 0;
   m_last_release_keycode = 0;
   m_last_release_time = 0;
-
-  /* Compute the initial times. */
-  {
-    timeval tv;
-    if (gettimeofday(&tv, nullptr) != 0) {
-      GHOST_ASSERT(false, "Could not instantiate timer!");
-    }
-    /* Taking care not to overflow the `tv.tv_sec * 1000`. */
-    m_start_time = uint64_t(tv.tv_sec) * 1000 + tv.tv_usec / 1000;
-  }
-
-  {
-    struct timespec ts = {0, 0};
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
-      GHOST_ASSERT(false, "Could not instantiate monotonic timer!");
-    }
-    m_start_time_monotonic = ((uint64_t(ts.tv_sec) * 1000) + (ts.tv_nsec / 1000000));
-  }
 
   /* Use detectable auto-repeat, mac and windows also do this. */
   int use_xkb;
@@ -280,24 +263,72 @@ GHOST_TSuccess GHOST_SystemX11::init()
 
 uint64_t GHOST_SystemX11::getMilliSeconds() const
 {
-  timeval tv;
-  if (gettimeofday(&tv, nullptr) != 0) {
-    GHOST_ASSERT(false, "Could not compute time!");
+  timespec ts = {0, 0};
+  if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+    GHOST_ASSERT(false, "Could not instantiate monotonic timer!");
   }
-
   /* Taking care not to overflow the tv.tv_sec * 1000 */
-  return uint64_t(tv.tv_sec) * 1000 + tv.tv_usec / 1000 - m_start_time;
+  const uint64_t time = (uint64_t(ts.tv_sec) * 1000) + uint64_t(ts.tv_nsec / 1000000);
+  return time;
 }
 
-uint64_t GHOST_SystemX11::ms_from_input_time(const Time timestamp) const
+uint64_t GHOST_SystemX11::ms_from_input_time(Time timestamp) const
 {
-  GHOST_ASSERT(timestamp >= m_start_time_monotonic, "Invalid time-stemp");
   /* NOTE(@ideasman42): Return a time compatible with `getMilliSeconds()`,
    * this is needed as X11 time-stamps use monotonic time.
    * The X11 implementation *could* use any basis, in practice though we are supporting
    * XORG/LIBINPUT which uses time-stamps based on the monotonic time,
    * Needed to resolve failure to detect double-clicking, see: #40009. */
-  return uint64_t(timestamp) - m_start_time_monotonic;
+
+  /* Accumulate time rollover (as well as store the initial delta from #getMilliSeconds). */
+  static uint64_t timestamp_offset = 0;
+
+  /* The last event time (to detect rollover). */
+  static uint32_t timestamp_prev = 0;
+  /* Causes the X11 time-stamp to be zero based. */
+  static uint32_t timestamp_start = 0;
+
+  static bool is_time_init = false;
+
+#if 0
+  /* Force rollover after 2 seconds (for testing). */
+  {
+    const uint32_t timestamp_wrap_ms = 2000;
+    static uint32_t timestamp_offset_fake = 0;
+    if (!is_time_init) {
+      timestamp_offset_fake = UINT32_MAX - (timestamp + timestamp_wrap_ms);
+    }
+    timestamp = uint32_t(timestamp + timestamp_offset_fake);
+  }
+#endif
+
+  if (!is_time_init) {
+    /* Store the initial delta in the rollover. */
+    const uint64_t current_time = getMilliSeconds();
+    timestamp_offset = current_time;
+    timestamp_start = timestamp;
+  }
+
+  /* Always remove the start time.
+   * This changes the point where `uint32_t` rolls over, but that's OK. */
+  timestamp = uint32_t(timestamp) - timestamp_start;
+
+  if (!is_time_init) {
+    is_time_init = true;
+    timestamp_prev = timestamp;
+  }
+
+  if (UNLIKELY(timestamp < timestamp_prev)) {
+    /* Only rollover if this is within a reasonable range. */
+    if (UNLIKELY(timestamp_prev - timestamp > UINT32_MAX / 2)) {
+      timestamp_offset += uint64_t(UINT32_MAX) + 1;
+    }
+  }
+  timestamp_prev = timestamp;
+
+  uint64_t timestamp_final = (uint64_t(timestamp) + timestamp_offset);
+
+  return timestamp_final;
 }
 
 uint8_t GHOST_SystemX11::getNumDisplays() const
@@ -353,7 +384,8 @@ GHOST_IWindow *GHOST_SystemX11::createWindow(const char *title,
                                is_dialog,
                                ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
                                exclusive,
-                               (gpuSettings.flags & GHOST_gpuDebugContext) != 0);
+                               (gpuSettings.flags & GHOST_gpuDebugContext) != 0,
+                               gpuSettings.preferred_device);
 
   if (window) {
     /* Both are now handle in GHOST_WindowX11.cc
@@ -388,7 +420,8 @@ GHOST_IContext *GHOST_SystemX11::createOffscreenContext(GHOST_GPUSettings gpuSet
                                                    nullptr,
                                                    1,
                                                    2,
-                                                   debug_context);
+                                                   debug_context,
+                                                   gpuSettings.preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -614,6 +647,13 @@ bool GHOST_SystemX11::processEvents(bool waitForEvent)
         }
       }
 
+      /* Ensure generated time-stamps are non-zero. */
+      if (ELEM(xevent.type, KeyPress, KeyRelease)) {
+        if (xevent.xkey.time != 0) {
+          m_last_key_time = xevent.xkey.time;
+        }
+      }
+
       /* dispatch event to XIM server */
       if (XFilterEvent(&xevent, (Window) nullptr) == True) {
         /* do nothing now, the event is consumed by XIM. */
@@ -628,7 +668,8 @@ bool GHOST_SystemX11::processEvents(bool waitForEvent)
       }
       else if (xevent.type == KeyPress) {
         if ((xevent.xkey.keycode == m_last_release_keycode) &&
-            (xevent.xkey.time <= m_last_release_time)) {
+            (xevent.xkey.time <= m_last_release_time))
+        {
           continue;
         }
       }
@@ -979,7 +1020,14 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
     case KeyPress:
     case KeyRelease: {
       XKeyEvent *xke = &(xe->xkey);
-      const uint64_t event_ms = ms_from_input_time(xke->time);
+#ifdef WITH_X11_XINPUT
+      /* Can be zero for XIM generated events. */
+      const Time time = xke->time ? xke->time : m_last_key_time;
+#else
+      const Time time = xke->time;
+#endif
+      const uint64_t event_ms = ms_from_input_time(time);
+
       KeySym key_sym;
       char *utf8_buf = nullptr;
       char ascii;
@@ -1132,7 +1180,8 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
 
           /* Use utf8 because its not locale repentant, from XORG docs. */
           if (!(len = Xutf8LookupString(
-                    xic, xke, utf8_buf, sizeof(utf8_array) - 5, &key_sym, &status))) {
+                    xic, xke, utf8_buf, sizeof(utf8_array) - 5, &key_sym, &status)))
+          {
             utf8_buf[0] = '\0';
           }
 
@@ -1416,14 +1465,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
       break;
     case SelectionRequest: {
       XEvent nxe;
-      Atom target, utf8_string, string, compound_text, c_string;
       XSelectionRequestEvent *xse = &xe->xselectionrequest;
-
-      target = XInternAtom(m_display, "TARGETS", False);
-      utf8_string = XInternAtom(m_display, "UTF8_STRING", False);
-      string = XInternAtom(m_display, "STRING", False);
-      compound_text = XInternAtom(m_display, "COMPOUND_TEXT", False);
-      c_string = XInternAtom(m_display, "C_STRING", False);
 
       /* support obsolete clients */
       if (xse->property == None) {
@@ -1439,7 +1481,12 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
       nxe.xselection.time = xse->time;
 
       /* Check to see if the requester is asking for String */
-      if (ELEM(xse->target, utf8_string, string, compound_text, c_string)) {
+      if (ELEM(xse->target,
+               m_atom.UTF8_STRING,
+               m_atom.STRING,
+               m_atom.COMPOUND_TEXT,
+               m_atom.C_STRING))
+      {
         if (xse->selection == XInternAtom(m_display, "PRIMARY", False)) {
           XChangeProperty(m_display,
                           xse->requestor,
@@ -1461,25 +1508,24 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
                           strlen(txt_cut_buffer));
         }
       }
-      else if (xse->target == target) {
-        Atom alist[5];
-        alist[0] = target;
-        alist[1] = utf8_string;
-        alist[2] = string;
-        alist[3] = compound_text;
-        alist[4] = c_string;
+      else if (xse->target == m_atom.TARGETS) {
+        const Atom atom_list[] = {m_atom.TARGETS,
+                                  m_atom.UTF8_STRING,
+                                  m_atom.STRING,
+                                  m_atom.COMPOUND_TEXT,
+                                  m_atom.C_STRING};
         XChangeProperty(m_display,
                         xse->requestor,
                         xse->property,
-                        xse->target,
+                        XA_ATOM,
                         32,
                         PropModeReplace,
-                        (uchar *)alist,
-                        5);
+                        reinterpret_cast<const uchar *>(atom_list),
+                        ARRAY_SIZE(atom_list));
         XFlush(m_display);
       }
       else {
-        /* Change property to None because we do not support anything but STRING */
+        /* Change property to None because we do not support the selection request target. */
         nxe.xselection.property = None;
       }
 
@@ -1768,8 +1814,6 @@ GHOST_TCapabilityFlag GHOST_SystemX11::getCapabilities() const
 {
   return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
                                ~(
-                                   /* No support yet for desktop sampling. */
-                                   GHOST_kCapabilityDesktopSample |
                                    /* No support yet for image copy/paste. */
                                    GHOST_kCapabilityClipboardImages |
                                    /* No support yet for IME input methods. */
@@ -1957,6 +2001,8 @@ static GHOST_TKey ghost_key_from_keycode(const XkbDescPtr xkb_descr, const KeyCo
     switch (id) {
       case MAKE_ID('T', 'L', 'D', 'E'):
         return GHOST_kKeyAccentGrave;
+      case MAKE_ID('L', 'S', 'G', 'T'):
+        return GHOST_kKeyGrLess;
 #ifdef WITH_GHOST_DEBUG
       default:
         printf("%s unhandled keycode: %.*s\n", __func__, XkbKeyNameLength, id_str);
@@ -2421,7 +2467,8 @@ class DialogData {
 
 static void split(const char *text, const char *seps, char ***str, int *count)
 {
-  char *tok, *data;
+  const char *tok;
+  char *data;
   int i;
   *count = 0;
 

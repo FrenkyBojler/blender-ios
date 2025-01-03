@@ -83,10 +83,13 @@ class ConstraintButtonsPanel:
             if con.target_space == 'CUSTOM' or con.owner_space == 'CUSTOM':
                 col = layout.column()
                 col.prop(con, "space_object")
-                if con.space_object and con.space_object.type == 'ARMATURE':
-                    col.prop_search(con, "space_subtarget", con.space_object.data, "bones", text="Bone")
-                elif con.space_object and con.space_object.type in {'MESH', 'LATTICE'}:
-                    col.prop_search(con, "space_subtarget", con.space_object, "vertex_groups", text="Vertex Group")
+                if space_object := con.space_object:
+                    match space_object.type:
+                        case 'ARMATURE':
+                            col.prop_search(con, "space_subtarget", con.space_object.data, "bones", text="Bone")
+                        case 'MESH', 'LATTICE':
+                            col.prop_search(con, "space_subtarget", con.space_object,
+                                            "vertex_groups", text="Vertex Group")
 
     @staticmethod
     def target_template(layout, con, subtargets=True):
@@ -233,6 +236,7 @@ class ConstraintButtonsPanel:
 
         layout.prop(con, "euler_order", text="Order")
         layout.prop(con, "use_transform_limit")
+        layout.prop(con, "use_legacy_behavior")
         self.space_template(layout, con, target=False, owner=True)
 
         self.draw_influence(layout, con)
@@ -658,6 +662,18 @@ class ConstraintButtonsPanel:
         if con.shrinkwrap_type == 'PROJECT':
             layout.prop(con, "project_axis", expand=True, text="Project Axis")
             layout.prop(con, "project_axis_space", text="Space")
+
+            if con.project_axis_space == 'CUSTOM':
+                col = layout.column()
+                col.prop(con, "space_object")
+                if space_object := con.space_object:
+                    match space_object.type:
+                        case 'ARMATURE':
+                            col.prop_search(con, "space_subtarget", con.space_object.data, "bones", text="Bone")
+                        case 'MESH', 'LATTICE':
+                            col.prop_search(con, "space_subtarget", con.space_object,
+                                            "vertex_groups", text="Vertex Group")
+
             layout.prop(con, "project_limit", text="Distance")
             layout.prop(con, "use_project_opposite")
 
@@ -1125,7 +1141,18 @@ class ConstraintButtonsSubPanel:
         layout.use_property_split = True
         layout.use_property_decorate = True
 
-        layout.prop(con, "action")
+        col = layout.column(align=True)
+        col.prop(con, "action")
+        if con.action and con.action.is_action_layered:
+            col.context_pointer_set("animated_id", con.id_data)
+            col.template_search(
+                con, "action_slot",
+                con, "action_suitable_slots",
+                new="",  # No use in making a new slot here.
+                unlink="anim.slot_unassign_from_constraint",
+                text="Slot",
+            )
+
         layout.prop(con, "use_bone_object_action")
 
         col = layout.column(align=True)

@@ -13,20 +13,12 @@
 
 #pragma once
 
-#include "GPU_shader.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "GPU_shader.hh"
 
 void gpu_shader_create_info_init();
 void gpu_shader_create_info_exit();
 
-bool gpu_shader_create_info_compile_all();
+bool gpu_shader_create_info_compile(const char *name_starts_with_filter);
 
 /** Runtime create infos are not registered in the dictionary and cannot be searched. */
 const GPUShaderCreateInfo *gpu_shader_create_info_get(const char *info_name);
-
-#ifdef __cplusplus
-}
-#endif

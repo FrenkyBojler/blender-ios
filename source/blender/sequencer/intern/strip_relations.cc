@@ -14,25 +14,25 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
-#include "BLI_session_uuid.h"
+#include "BLI_session_uid.h"
 
 #include "BKE_main.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_query.hh"
 
-#include "IMB_imbuf.h"
+#include "IMB_imbuf.hh"
+
+#include "MOV_read.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
-#include "SEQ_transform.hh"
+#include "SEQ_utils.hh"
 
-#include "effects.hh"
+#include "effects/effects.hh"
 #include "image_cache.hh"
 #include "utils.hh"
 
@@ -113,6 +113,7 @@ static void sequence_invalidate_cache(Scene *scene,
     seq_effect_speed_rebuild_map(scene, seq);
   }
 
+  blender::seq::media_presence_invalidate_strip(scene, seq);
   sequence_do_invalidate_dependent(scene, seq, &ed->seqbase);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   SEQ_prefetch_stop(scene);
@@ -257,7 +258,7 @@ void SEQ_relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
       continue;
     }
 
-    if (seq->strip) {
+    if (seq->data) {
       if (seq->type == SEQ_TYPE_MOVIE) {
         SEQ_relations_sequence_free_anim(seq);
       }
@@ -325,7 +326,9 @@ static Sequence *sequencer_check_scene_recursion(Scene *scene, ListBase *seqbase
     }
 
     if (seq->type == SEQ_TYPE_SCENE && (seq->flag & SEQ_SCENE_STRIPS)) {
-      if (sequencer_check_scene_recursion(scene, &seq->scene->ed->seqbase)) {
+      if (seq->scene && seq->scene->ed &&
+          sequencer_check_scene_recursion(scene, &seq->scene->ed->seqbase))
+      {
         return seq;
       }
     }
@@ -378,8 +381,7 @@ bool SEQ_relations_render_loop_check(Sequence *seq_main, Sequence *seq)
   }
 
   if ((seq_main->seq1 && SEQ_relations_render_loop_check(seq_main->seq1, seq)) ||
-      (seq_main->seq2 && SEQ_relations_render_loop_check(seq_main->seq2, seq)) ||
-      (seq_main->seq3 && SEQ_relations_render_loop_check(seq_main->seq3, seq)))
+      (seq_main->seq2 && SEQ_relations_render_loop_check(seq_main->seq2, seq)))
   {
     return true;
   }
@@ -399,7 +401,7 @@ void SEQ_relations_sequence_free_anim(Sequence *seq)
     StripAnim *sanim = static_cast<StripAnim *>(seq->anims.last);
 
     if (sanim->anim) {
-      IMB_free_anim(sanim->anim);
+      MOV_close(sanim->anim);
       sanim->anim = nullptr;
     }
 
@@ -408,41 +410,41 @@ void SEQ_relations_sequence_free_anim(Sequence *seq)
   BLI_listbase_clear(&seq->anims);
 }
 
-void SEQ_relations_session_uuid_generate(Sequence *sequence)
+void SEQ_relations_session_uid_generate(Sequence *sequence)
 {
-  sequence->runtime.session_uuid = BLI_session_uuid_generate();
+  sequence->runtime.session_uid = BLI_session_uid_generate();
 }
 
-static bool get_uuids_cb(Sequence *seq, void *user_data)
+static bool get_uids_cb(Sequence *seq, void *user_data)
 {
-  GSet *used_uuids = (GSet *)user_data;
-  const SessionUUID *session_uuid = &seq->runtime.session_uuid;
-  if (!BLI_session_uuid_is_generated(session_uuid)) {
-    printf("Sequence %s does not have UUID generated.\n", seq->name);
+  GSet *used_uids = (GSet *)user_data;
+  const SessionUID *session_uid = &seq->runtime.session_uid;
+  if (!BLI_session_uid_is_generated(session_uid)) {
+    printf("Sequence %s does not have UID generated.\n", seq->name);
     return true;
   }
 
-  if (BLI_gset_lookup(used_uuids, session_uuid) != nullptr) {
-    printf("Sequence %s has duplicate UUID generated.\n", seq->name);
+  if (BLI_gset_lookup(used_uids, session_uid) != nullptr) {
+    printf("Sequence %s has duplicate UID generated.\n", seq->name);
     return true;
   }
 
-  BLI_gset_insert(used_uuids, (void *)session_uuid);
+  BLI_gset_insert(used_uids, (void *)session_uid);
   return true;
 }
 
-void SEQ_relations_check_uuids_unique_and_report(const Scene *scene)
+void SEQ_relations_check_uids_unique_and_report(const Scene *scene)
 {
   if (scene->ed == nullptr) {
     return;
   }
 
-  GSet *used_uuids = BLI_gset_new(
-      BLI_session_uuid_ghash_hash, BLI_session_uuid_ghash_compare, "sequencer used uuids");
+  GSet *used_uids = BLI_gset_new(
+      BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
 
-  SEQ_for_each_callback(&scene->ed->seqbase, get_uuids_cb, used_uuids);
+  SEQ_for_each_callback(&scene->ed->seqbase, get_uids_cb, used_uids);
 
-  BLI_gset_free(used_uuids, nullptr);
+  BLI_gset_free(used_uids, nullptr);
 }
 
 Sequence *SEQ_find_metastrip_by_sequence(ListBase *seqbase, Sequence *meta, Sequence *seq)

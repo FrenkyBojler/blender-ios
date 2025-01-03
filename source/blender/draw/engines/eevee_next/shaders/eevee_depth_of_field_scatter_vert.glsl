@@ -9,11 +9,21 @@
  * invocations and overdraw.
  */
 
-#pragma BLENDER_REQUIRE(eevee_depth_of_field_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
+#include "infos/eevee_depth_of_field_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_depth_of_field_scatter)
+
+#include "eevee_depth_of_field_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 
 void main()
 {
+  if (uint(gl_InstanceID) >= dof_buf.scatter_max_rect) {
+    /* Very unlikely to happen but better avoid out of bound access. */
+    gl_Position = vec4(0.0);
+    return;
+  }
+
   ScatterRect rect = scatter_list_buf[gl_InstanceID];
 
   interp_flat.color_and_coc1 = rect.color_and_coc[0];

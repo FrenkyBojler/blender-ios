@@ -17,8 +17,6 @@ class NLA_HT_header(Header):
     def draw(self, context):
         layout = self.layout
 
-        st = context.space_data
-
         layout.template_header()
 
         NLA_MT_editor_menus.draw_collapsible(context, layout)
@@ -114,30 +112,33 @@ class NLA_MT_view(Menu):
 
         layout.prop(st, "show_region_ui")
         layout.prop(st, "show_region_hud")
+        layout.prop(st, "show_region_channels")
+        layout.separator()
+
+        layout.operator("nla.view_selected")
+        layout.operator("nla.view_all")
+        if context.scene.use_preview_range:
+            layout.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            layout.operator("anim.scene_range_frame", text="Frame Scene Range")
+        layout.operator("nla.view_frame")
         layout.separator()
 
         layout.prop(st, "use_realtime_update")
-
-        layout.prop(st, "show_seconds")
-        layout.prop(st, "show_locked_time")
-
         layout.prop(st, "show_strip_curves")
-
         layout.separator()
+
         layout.prop(st, "show_markers")
         layout.prop(st, "show_local_markers")
-
+        layout.prop(st, "show_seconds")
+        layout.prop(st, "show_locked_time")
         layout.separator()
+
         layout.operator("anim.previewrange_set")
         layout.operator("anim.previewrange_clear")
         layout.operator("nla.previewrange_set")
-
         layout.separator()
-        layout.operator("nla.view_all")
-        layout.operator("nla.view_selected")
-        layout.operator("nla.view_frame")
 
-        layout.separator()
         layout.menu("INFO_MT_area")
 
 
@@ -207,6 +208,7 @@ class NLA_MT_add(Menu):
 
 class NLA_MT_tracks(Menu):
     bl_label = "Track"
+    bl_translation_context = i18n_contexts.id_action
 
     def draw(self, _context):
         layout = self.layout
@@ -266,10 +268,14 @@ class NLA_MT_strips(Menu):
             layout.operator("nla.tweakmode_exit", text="Stop Tweaking Strip Actions")
         else:
             layout.operator("nla.tweakmode_enter", text="Start Editing Stashed Action").isolate_action = True
-            layout.operator("nla.tweakmode_enter",
-                            text="Start Tweaking Strip Actions (Full Stack)").use_upper_stack_evaluation = True
-            layout.operator("nla.tweakmode_enter",
-                            text="Start Tweaking Strip Actions (Lower Stack)").use_upper_stack_evaluation = False
+            layout.operator(
+                "nla.tweakmode_enter",
+                text="Start Tweaking Strip Actions (Full Stack)",
+            ).use_upper_stack_evaluation = True
+            layout.operator(
+                "nla.tweakmode_enter",
+                text="Start Tweaking Strip Actions (Lower Stack)",
+            ).use_upper_stack_evaluation = False
 
 
 class NLA_MT_strips_transform(Menu):
@@ -306,13 +312,17 @@ class NLA_MT_snap_pie(Menu):
 class NLA_MT_view_pie(Menu):
     bl_label = "View"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         pie = layout.menu_pie()
         pie.operator("nla.view_all")
         pie.operator("nla.view_selected", icon='ZOOM_SELECTED')
         pie.operator("nla.view_frame")
+        if context.scene.use_preview_range:
+            pie.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            pie.operator("anim.scene_range_frame", text="Frame Scene Range")
 
 
 class NLA_MT_context_menu(Menu):
@@ -327,10 +337,14 @@ class NLA_MT_context_menu(Menu):
             layout.operator("nla.tweakmode_exit", text="Stop Tweaking Strip Actions")
         else:
             layout.operator("nla.tweakmode_enter", text="Start Editing Stashed Action").isolate_action = True
-            layout.operator("nla.tweakmode_enter",
-                            text="Start Tweaking Strip Actions (Full Stack)").use_upper_stack_evaluation = True
-            layout.operator("nla.tweakmode_enter",
-                            text="Start Tweaking Strip Actions (Lower Stack)").use_upper_stack_evaluation = False
+            layout.operator(
+                "nla.tweakmode_enter",
+                text="Start Tweaking Strip Actions (Full Stack)",
+            ).use_upper_stack_evaluation = True
+            layout.operator(
+                "nla.tweakmode_enter",
+                text="Start Tweaking Strip Actions (Lower Stack)",
+            ).use_upper_stack_evaluation = False
 
         layout.separator()
 

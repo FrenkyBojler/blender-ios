@@ -44,7 +44,7 @@ find_library(JACK_LIBRARY
     ${_jack_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
-  )
+)
 
 # handle the QUIETLY and REQUIRED arguments and set JACK_FOUND to TRUE if
 # all listed variables are TRUE
@@ -61,3 +61,5 @@ mark_as_advanced(
   JACK_INCLUDE_DIR
   JACK_LIBRARY
 )
+
+unset(_jack_SEARCH_DIRS)

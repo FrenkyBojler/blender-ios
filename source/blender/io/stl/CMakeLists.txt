@@ -4,21 +4,16 @@
 
 set(INC
   .
-  importer
   exporter
+  importer
+  intern
   ../common
-  ../../blenkernel
-  ../../bmesh
-  ../../bmesh/intern
   ../../editors/include
   ../../makesrna
-  ../../nodes
-  ../../windowmanager
 )
 
 set(INC_SYS
   ../../../../extern/fast_float
-  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -30,23 +25,28 @@ set(SRC
   exporter/stl_export.cc
   exporter/stl_export_writer.cc
 
+  intern/stl_data.hh
+
   IO_stl.hh
   importer/stl_import.hh
   importer/stl_import_ascii_reader.hh
   importer/stl_import_binary_reader.hh
   importer/stl_import_mesh.hh
-  exporter/stl_export_writer.hh
   exporter/stl_export.hh
+  exporter/stl_export_writer.hh
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
-  extern_fmtlib
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::windowmanager
 )
 
 blender_add_lib(bf_io_stl "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
@@ -67,11 +67,9 @@ if(WITH_GTESTS)
   set(TEST_LIB
     ${LIB}
 
-    bf_blenloader_tests
+    bf_blenloader_test_util
     bf_io_stl
   )
 
-  include(GTestTesting)
-  blender_add_test_lib(bf_io_stl_tests "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
-  add_dependencies(bf_io_stl_tests bf_io_stl)
+  blender_add_test_suite_lib(io_stl "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

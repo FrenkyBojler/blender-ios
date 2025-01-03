@@ -10,12 +10,10 @@
 
 #include "BLI_fileops.h"
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "openjpeg.h"
 
@@ -357,7 +355,7 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
 
   uint i, i_next, w, h, planes;
   uint y;
-  int *r, *g, *b, *a; /* matching 'opj_image_comp.data' type */
+  const int *r, *g, *b, *a; /* matching 'opj_image_comp.data' type */
 
   opj_dparameters_t parameters; /* decompression parameters */
 
@@ -431,7 +429,7 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
     }
 
     if (image->comps[i].sgnd) {
-      signed_offsets[i] = 1 << (image->comps[i].prec - 1);
+      signed_offsets[i] = long(1) << (image->comps[i].prec - 1);
     }
 
     /* only needed for float images but doesn't hurt to calc this */
@@ -445,7 +443,7 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
   }
 
   ibuf->ftype = IMB_FTYPE_JP2;
-  if (true /* is_jp2 */) {
+  if (true /*is_jp2*/) {
     ibuf->foptions.flag |= JP2_JP2;
   }
   else {
@@ -457,7 +455,6 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
 
     if (image->numcomps < 3) {
       r = image->comps[0].data;
-      a = (use_alpha) ? image->comps[1].data : nullptr;
 
       /* Gray-scale 12bits+ */
       if (use_alpha) {
@@ -510,7 +507,6 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
 
     if (image->numcomps < 3) {
       r = image->comps[0].data;
-      a = (use_alpha) ? image->comps[1].data : nullptr;
 
       /* Gray-scale. */
       if (use_alpha) {

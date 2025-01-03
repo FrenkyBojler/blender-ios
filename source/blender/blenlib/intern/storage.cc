@@ -8,8 +8,8 @@
  * Some really low-level file operations.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/types.h>
 
 #include <sys/stat.h>
@@ -31,8 +31,8 @@
 #  include <sys/vfs.h>
 #endif
 
+#include <cstring>
 #include <fcntl.h>
-#include <string.h>
 
 #ifdef WIN32
 #  include "BLI_string_utf8.h"
@@ -53,7 +53,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_linklist.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -107,6 +107,30 @@ char *BLI_current_working_dir(char *dir, const size_t maxncpy)
 }
 #endif /* !defined (__APPLE__) */
 
+const char *BLI_dir_home()
+{
+  const char *home_dir;
+
+#ifdef WIN32
+  home_dir = BLI_getenv("userprofile");
+#else
+  /* Return the users home directory with a fallback when the environment variable isn't set.
+   * Failure to access `$HOME` is rare but possible, see: #2931.
+   *
+   * Any errors accessing home is likely caused by a broken/unsupported configuration,
+   * nevertheless, failing to null check would crash which makes the error difficult
+   * for users troubleshoot. */
+  home_dir = BLI_getenv("HOME");
+  if (home_dir == nullptr) {
+    if (const passwd *pwuser = getpwuid(getuid())) {
+      home_dir = pwuser->pw_dir;
+    }
+  }
+#endif
+
+  return home_dir;
+}
+
 double BLI_dir_free_space(const char *dir)
 {
 #ifdef WIN32
@@ -128,7 +152,7 @@ double BLI_dir_free_space(const char *dir)
 
   GetDiskFreeSpace(tmp, &sectorspc, &bytesps, &freec, &clusters);
 
-  return (double)(freec * bytesps * sectorspc);
+  return double(freec * bytesps * sectorspc);
 #else
 
 #  ifdef USE_STATFS_STATVFS
@@ -322,7 +346,7 @@ bool BLI_file_alias_target(const char *filepath,
       if (conv_utf_8_to_16(filepath, path_utf16, ARRAY_SIZE(path_utf16)) == 0) {
         hr = PersistFile->Load(path_utf16, STGM_READ);
         if (SUCCEEDED(hr)) {
-          hr = Shortcut->Resolve(0, SLR_NO_UI | SLR_UPDATE);
+          hr = Shortcut->Resolve(0, SLR_NO_UI | SLR_UPDATE | SLR_NOSEARCH);
           if (SUCCEEDED(hr)) {
             wchar_t target_utf16[FILE_MAXDIR] = {0};
             hr = Shortcut->GetPath(target_utf16, FILE_MAXDIR, NULL, 0);
@@ -430,9 +454,9 @@ int BLI_stat(const char *path, struct stat *buffer)
 }
 #endif
 
-bool BLI_is_dir(const char *file)
+bool BLI_is_dir(const char *path)
 {
-  return S_ISDIR(BLI_exists(file));
+  return S_ISDIR(BLI_exists(path));
 }
 
 bool BLI_is_file(const char *path)
@@ -441,14 +465,13 @@ bool BLI_is_file(const char *path)
   return (mode && !S_ISDIR(mode));
 }
 
-/**
- * Use for both text and binary file reading.
- */
 void *BLI_file_read_data_as_mem_from_handle(FILE *fp,
                                             bool read_size_exact,
                                             size_t pad_bytes,
                                             size_t *r_size)
 {
+  /* NOTE: Used for both text and binary file reading. */
+
   BLI_stat_t st;
   if (BLI_fstat(fileno(fp), &st) == -1) {
     return nullptr;

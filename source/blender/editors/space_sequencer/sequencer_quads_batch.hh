@@ -10,9 +10,11 @@
 
 #include "BLI_sys_types.h"
 
-struct GPUVertBuf;
-struct GPUIndexBuf;
-struct GPUBatch;
+namespace blender::gpu {
+class Batch;
+class IndexBuf;
+class VertBuf;
+}  // namespace blender::gpu
 struct ColorVertex;
 
 /**
@@ -28,14 +30,14 @@ class SeqQuadsBatch {
   SeqQuadsBatch();
   ~SeqQuadsBatch();
 
-  /** Draw all the previously added primitives.  */
+  /** Draw all the previously added primitives. */
   void draw();
   /** Add an axis-aligned quad. */
   void add_quad(float x1, float y1, float x2, float y2, const uchar color[4])
   {
-    add_quad(x1, y1, x1, y2, x2, y1, x2, y2, color);
+    add_quad(x1, y1, x1, y2, x2, y1, x2, y2, color, color, color, color);
   }
-  /** Add a quad. */
+  /** Add a quad with four arbitrary coordinates and one color. */
   void add_quad(float x1,
                 float y1,
                 float x2,
@@ -44,24 +46,46 @@ class SeqQuadsBatch {
                 float y3,
                 float x4,
                 float y4,
-                const uchar color[4]);
+                const uchar color[4])
+  {
+    add_quad(x1, y1, x2, y2, x3, y3, x4, y4, color, color, color, color);
+  }
+  /** Add a quad with four arbitrary coordinates and a color for each. */
+  void add_quad(float x1,
+                float y1,
+                float x2,
+                float y2,
+                float x3,
+                float y3,
+                float x4,
+                float y4,
+                const uchar color1[4],
+                const uchar color2[4],
+                const uchar color3[4],
+                const uchar color4[4]);
   /** Add four lines of an axis-aligned quad edges. */
   void add_wire_quad(float x1, float y1, float x2, float y2, const uchar color[4]);
-  /** Add a line. */
-  void add_line(float x1, float y1, float x2, float y2, const uchar color[4]);
+  /** Add a line with single color. */
+  void add_line(float x1, float y1, float x2, float y2, const uchar color[4])
+  {
+    add_line(x1, y1, x2, y2, color, color);
+  }
+  /** Add a line with two endpoint colors. */
+  void add_line(
+      float x1, float y1, float x2, float y2, const uchar color1[4], const uchar color2[4]);
 
  private:
   static constexpr int MAX_QUADS = 1024;
   static constexpr int MAX_LINES = 4096;
 
-  GPUVertBuf *vbo_quads = nullptr;
-  GPUIndexBuf *ibo_quads = nullptr;
-  GPUBatch *batch_quads = nullptr;
+  blender::gpu::VertBuf *vbo_quads = nullptr;
+  blender::gpu::IndexBuf *ibo_quads = nullptr;
+  blender::gpu::Batch *batch_quads = nullptr;
   ColorVertex *verts_quads = nullptr;
   int quads_num = 0;
 
-  GPUVertBuf *vbo_lines = nullptr;
-  GPUBatch *batch_lines = nullptr;
+  blender::gpu::VertBuf *vbo_lines = nullptr;
+  blender::gpu::Batch *batch_lines = nullptr;
   ColorVertex *verts_lines = nullptr;
   int lines_num = 0;
 };
