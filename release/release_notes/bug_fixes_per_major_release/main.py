@@ -237,7 +237,7 @@ def get_fix_commits() -> list[CommitInfo]:
     # #+ = {one_or_more #}
     # \d+ = {number}
     # This captures the common `Fix #123`, but also the less common `Fixes #123`, `Fix for #123`, and `Fix ##123`.
-    command = ['git', '--no-pager', 'log', f'{args.previous_release_version}..{args.current_release_tag}', '--oneline', '--no-abbrev-commit', '-i', '-P', '--grep', r'Fix.*#+\d+']
+    command = ['git', '--no-pager', 'log', f'{args.previous_release_tag}..{args.current_release_tag}', '--oneline', '--no-abbrev-commit', '-i', '-P', '--grep', r'Fix.*#+\d+']
 
     git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
     git_log_output = git_log_command_output.splitlines()
@@ -584,24 +584,60 @@ def create_override() -> None:
 def argparse_create() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("-o", "--override", action="store_true", help="Create a override for a commit.")
-    parser.add_argument("-s", "--single-thread", action="store_true", help="Run one of the parts of this script in single threaded mode (Only really useful for debugging).")
+    parser.add_argument("-st", "--single-thread", action="store_true", help="Run one of the parts of this script in single threaded mode (Only really useful for debugging).")
     parser.add_argument("-c", "--cache", action="store_true", help="Use caching to speed up re-runs on this script (WARNING: Leave caching off when collecting the final release notes).")
 
     parser.add_argument("-cv", "--current-version", help="The common major.minor name of the current version of Blender (E.g. 4.2, 4.3, 4.4).")
     parser.add_argument("-pv", "--previous-version", help="The common major.minor name of the previous version of Blender (E.g. 4.2, 4.3, 4.4).")
 
     parser.add_argument("-ct", "--current-release-tag", help="The tag for the current release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
-    parser.add_argument("-pt", "--previous-release-version", help="The tag for the previous release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
+    parser.add_argument("-pt", "--previous-release-tag", help="The tag for the previous release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
 
-    parser.add_argument("-bpt", "--backport-tasks", nargs='+', help="A list of backport tasks. Example: 123 456 789 for the tasks 123, 456, and 789.")
+    parser.add_argument("-bpt", "--backport-tasks", nargs='+', help="A list of backport tasks. Backport tasks can be found on the Blender milestones page: https://projects.blender.org/blender/blender/milestones", default=[])
+
+    parser.add_argument("-s", "--silence", action="store_true", help="Silence some warnings.")
 
     return parser
 
+def checkout_arguments(args: ArgumentParser) -> None:
+    def print_error(variable_name:str, argument_1: str, argument_2: str) -> None:
+        print(f"ERROR: {variable_name} (defined with '{argument_1}' or '{argument_2}') is not defined.")
+        print("This script can not proceed without this variable defined.\n")
+
+    should_quit = False
+    if args.cache and not args.silence:
+        print("WARNING: You are using a cache, this may lead to outdated information on some commits.")
+        print("Do not use the cache to generate the final release notes.\n")
+    if args.current_version is None:
+        print_error("Current version", "-cv", "--current-version")
+        should_quit = True
+    if args.previous_version is None:
+        print_error("Previous version", "-pv", "--previous-version")
+        should_quit = True
+    if args.current_release_tag is None:
+        print_error("Current Release Tag", "-ct", "--current-release-tag")
+        should_quit = True
+    if args.previous_release_tag is None:
+        print_error("Previous Release Tag", "-pt", "--previous-release-tag")
+        should_quit = True
+    if args.backport_tasks == []:
+        print("WARING: -bpt/--backport-tasks is not defined.")
+        if not args.silence:
+            yes_no = input("Do you want to proceeed without it? (y/n)")
+            if yes_no.lower() == "n":
+                should_quit = True
+
+    if should_quit:
+        quit()
+
 if __name__ == "__main__":
     args = argparse_create().parse_args()
+
     if args.override:
         create_override()
         quit()
+
+    checkout_arguments(args)
 
     list_of_commits = get_fix_commits()
 
