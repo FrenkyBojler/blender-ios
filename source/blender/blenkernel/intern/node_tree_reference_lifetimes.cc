@@ -604,6 +604,20 @@ static bool pass_right_to_left(const bNodeTree &tree,
         }
         break;
       }
+      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
+        const bNode *output_node = node;
+        const auto *storage = static_cast<NodeGeometryForeachGeometryElementOutput *>(
+            output_node->storage);
+
+        for (const int item_i : IndexRange(storage->generation_items.items_num)) {
+          const int src_index =
+              node->output_socket(1 + storage->main_items.items_num + item_i).index_in_tree();
+          const int dst_index =
+              node->input_socket(storage->main_items.items_num + item_i).index_in_tree();
+          r_required_data_by_socket[dst_index] |= r_required_data_by_socket[src_index];
+        }
+        break;
+      }
       case GEO_NODE_REPEAT_OUTPUT: {
         const bNodeTreeZone *zone = get_zone_of_node_if_full(zones, *node);
         if (!zone) {
