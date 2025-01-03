@@ -28,7 +28,6 @@ set(SRC
   importer/obj_import_mesh.cc
   importer/obj_import_mtl.cc
   importer/obj_import_nurbs.cc
-  importer/obj_import_string_utils.cc
   importer/obj_importer.cc
 
   IO_wavefront_obj.hh
@@ -44,7 +43,6 @@ set(SRC
   importer/obj_import_mtl.hh
   importer/obj_import_nurbs.hh
   importer/obj_import_objects.hh
-  importer/obj_import_string_utils.hh
   importer/obj_importer.hh
 )
 

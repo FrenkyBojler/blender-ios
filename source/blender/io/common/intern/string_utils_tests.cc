@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "obj_import_string_utils.hh"
+#include "IO_string_utils.hh"
 
 #include "testing/testing.h"
 

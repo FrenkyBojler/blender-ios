@@ -11,7 +11,7 @@
 #include "BLI_fileops.hh"
 
 #include "IO_csv.hh"
-#include "IO_string_util.hh"
+#include "IO_string_utils.hh"
 
 #include "csv_data.hh"
 
