@@ -7,12 +7,14 @@ import time
 import urllib.error
 import urllib.request
 
+from typing import Any
+
 # Conform to Blenders crawl delay request
 # https://projects.blender.org/robots.txt
 crawl_delay = 2
 last_checked_time = None
 
-def url_json_get(url):
+def url_json_get(url: str) -> Any:
     global last_checked_time
 
     if last_checked_time is not None:
