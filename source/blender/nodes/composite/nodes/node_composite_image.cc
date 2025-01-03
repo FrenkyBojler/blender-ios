@@ -410,45 +410,44 @@ const char *node_cmp_rlayers_sock_to_pass(int sock_index)
 
 namespace blender::nodes::node_composite_render_layer_cc {
 
-static void cmp_node_create_sockets(void *userdata,
-                                    Scene * /*scene*/,
-                                    ViewLayer * /*view_layer*/,
-                                    const char *name,
-                                    int /*channels*/,
-                                    const char * /*channel_id*/,
-                                    eNodeSocketDatatype type)
-{
-  NodeDeclarationBuilder *builder = static_cast<NodeDeclarationBuilder *>(userdata);
-  if (!STREQ(name, RE_PASSNAME_COMBINED)) {
-    builder->add_output(type, name);
-  }
-  else {
-    builder->add_output<decl::Color>("Image");
-    builder->add_output<decl::Float>("Alpha");
-  }
-}
-
 static void node_rlayer_declare(NodeDeclarationBuilder &builder)
 {
-
   const bNode *node = builder.node_or_null();
   if (node == nullptr || node->id == nullptr) {
     return;
   }
+
   Scene *scene = reinterpret_cast<Scene *>(node->id);
   RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
   RenderEngine *engine = RE_engine_create(engine_type);
-  ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&scene->view_layers, node->custom1);
+  ViewLayer *view_layer = static_cast<ViewLayer *>(BLI_findlink(&scene->view_layers, node->custom1));
   if (!view_layer) {
     return;
   }
+
   RE_engine_update_render_passes(
-      engine, scene, view_layer, cmp_node_create_sockets, (void *)&builder);
-  RE_engine_free(engine);
-  if ((scene->r.mode & R_EDGE_FRS) &&
-      (view_layer->freestyle_config.flags & FREESTYLE_AS_RENDER_PASS))
+      engine, scene, view_layer, [](void *userdata,
+                                    Scene * /*scene*/,
+                                    ViewLayer * /*view_layer*/,
+                                    const char *name,
+                                    const int channels,
+                                    const char *channel_id,
+                                    const eNodeSocketDatatype type)
   {
-    builder.add_output<decl::Color>(RE_PASSNAME_FREESTYLE, RE_PASSNAME_FREESTYLE);
+    NodeDeclarationBuilder &builder = *static_cast<NodeDeclarationBuilder *>(userdata);
+    if (STREQ(name, RE_PASSNAME_COMBINED)) {
+      builder.add_output<decl::Color>("Image");
+      builder.add_output<decl::Float>("Alpha");
+      return;
+    }
+
+    builder.add_output(type, name);
+  }, &builder);
+
+  RE_engine_free(engine);
+  if ((scene->r.mode & R_EDGE_FRS) && (view_layer->freestyle_config.flags & FREESTYLE_AS_RENDER_PASS))
+  {
+    builder.add_output<decl::Color>(RE_PASSNAME_FREESTYLE);
   }
 }
 
@@ -563,7 +562,7 @@ class RenderLayerOperation : public NodeOperation {
         continue;
       }
 
-      const char *pass_name = this->get_pass_name(output->identifier);
+      const char *pass_name = output->identifier;
       this->context().populate_meta_data_for_pass(scene, view_layer, pass_name, result.meta_data);
 
       const Result pass = this->context().get_pass(scene, view_layer, pass_name);
@@ -664,13 +663,6 @@ class RenderLayerOperation : public NodeOperation {
         result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
       });
     }
-  }
-
-  /* Get the name of the pass corresponding to the output with the given identifier. */
-  const char *get_pass_name(StringRef identifier)
-  {
-    DOutputSocket output = this->node().output_by_identifier(identifier);
-    return static_cast<NodeImageLayer *>(output->storage)->pass_name;
   }
 };
 
