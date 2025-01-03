@@ -2,13 +2,15 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-def prepare_for_print(list_of_commits):
+from commit_info import CommitInfo
+
+def prepare_for_print(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, list[CommitInfo]]]:
     from shared_variables import FIXED_OLD_ISSUE, NEEDS_MANUAL_SORTING, REVERT, FIXED_PR, FIXED_NEW_ISSUE
 
     # This function takes in a list of commits, and sorts them based on their classification and module.
 
+    dict_of_sorted_commits: dict[str, dict[str, list[CommitInfo]]] = {}
     valid_classifications = [FIXED_OLD_ISSUE, NEEDS_MANUAL_SORTING, REVERT, FIXED_PR, FIXED_NEW_ISSUE]
-    dict_of_sorted_commits = {}
     for item in valid_classifications:
         dict_of_sorted_commits[item] = {}
 
@@ -29,14 +31,14 @@ def prepare_for_print(list_of_commits):
     return dict_of_sorted_commits
 
 
-def print_list_of_commits(title, list_of_commits):
+def print_list_of_commits(title: str, dict_of_commits: dict[str, list[CommitInfo]]) -> None:
     from shared_variables import UNKNOWN
 
     commits_message = ""
     number_of_commits = 0
     unknown_module_commit_message = ""
-    for module in list_of_commits:
-        number_of_commits += len(list_of_commits[module])
+    for module in dict_of_commits:
+        number_of_commits += len(dict_of_commits[module])
         module_label = f"\n## {module}\n"
         module_is_unknown = (module == UNKNOWN)
         if module_is_unknown:
@@ -44,7 +46,7 @@ def print_list_of_commits(title, list_of_commits):
         else:
             commits_message += module_label
 
-        for commit in list_of_commits[module]:
+        for commit in dict_of_commits[module]:
             printed_line = commit.generate_release_note_ready_string()
 
             if module_is_unknown:
@@ -59,7 +61,7 @@ def print_list_of_commits(title, list_of_commits):
         print("\n\n\n")
 
 
-def print_release_notes(list_of_commits):
+def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
     from shared_variables import FIXED_OLD_ISSUE, REVERT, NEEDS_MANUAL_SORTING, FIXED_PR, FIXED_NEW_ISSUE
     dict_of_sorted_commits = prepare_for_print(list_of_commits)
 
