@@ -164,6 +164,7 @@ void remove_if(const FunctionRef<bool(const GenericKey &)> predicate)
     predicate_results[i] = ok_to_remove;
 
     if (!ok_to_remove) {
+      /* The value is kept, so count its memory. */
       CacheMap::ConstAccessor accessor;
       if (cache.map.lookup(accessor, key)) {
         accessor->second.value->count_memory(memory_counter);
@@ -171,10 +172,12 @@ void remove_if(const FunctionRef<bool(const GenericKey &)> predicate)
       }
       BLI_assert_unreachable();
     }
+    /* The value should be removed. */
     const bool success = cache.map.remove(key);
     BLI_assert(success);
     UNUSED_VARS_NDEBUG(success);
   }
+  /* Remove all removed keys from the vector too. */
   cache.keys.remove_if([&](const GenericKey *&key) {
     const int64_t index = &key - &cache.keys[0];
     return predicate_results[index];
