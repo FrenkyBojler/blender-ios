@@ -8,7 +8,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
@@ -20,6 +20,8 @@
 #include "DNA_sequence_types.h"
 
 #include "IMB_imbuf.hh"
+
+#include "MOV_read.hh"
 
 #include "SEQ_render.hh"
 #include "SEQ_thumbnail_cache.hh"
@@ -107,7 +109,6 @@ struct ThumbnailCache {
   Map<std::string, FileEntry> map_;
   Set<Request> requests_;
   int64_t logical_time_ = 0;
-  wmWindowManager *window_manager_ = nullptr;
 
   ~ThumbnailCache()
   {
@@ -121,8 +122,8 @@ struct ThumbnailCache {
         IMB_freeImBuf(thumb.thumb);
       }
     }
-    map_.clear_and_shrink();
-    requests_.clear_and_shrink();
+    map_.clear();
+    requests_.clear();
     logical_time_ = 0;
   }
 
@@ -156,7 +157,7 @@ static ThumbnailCache *query_thumbnail_cache(Scene *scene)
   return scene->ed->runtime.thumbnail_cache;
 }
 
-static bool can_have_thumbnail(Scene *scene, const Sequence *seq)
+bool strip_can_have_thumbnail(const Scene *scene, const Sequence *seq)
 {
   if (scene == nullptr || scene->ed == nullptr || seq == nullptr) {
     return false;
@@ -164,7 +165,7 @@ static bool can_have_thumbnail(Scene *scene, const Sequence *seq)
   if (!ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE)) {
     return false;
   }
-  const StripElem *se = seq->strip->stripdata;
+  const StripElem *se = seq->data->stripdata;
   if (se->orig_height == 0 || se->orig_width == 0) {
     return false;
   }
@@ -179,13 +180,13 @@ static std::string get_path_from_seq(Scene *scene, const Sequence *seq, float ti
     case SEQ_TYPE_IMAGE: {
       const StripElem *s_elem = SEQ_render_give_stripelem(scene, seq, timeline_frame);
       if (s_elem != nullptr) {
-        BLI_path_join(filepath, sizeof(filepath), seq->strip->dirpath, s_elem->filename);
+        BLI_path_join(filepath, sizeof(filepath), seq->data->dirpath, s_elem->filename);
         BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
       }
     } break;
     case SEQ_TYPE_MOVIE:
       BLI_path_join(
-          filepath, sizeof(filepath), seq->strip->dirpath, seq->strip->stripdata->filename);
+          filepath, sizeof(filepath), seq->data->dirpath, seq->data->stripdata->filename);
       BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
       break;
   }
@@ -205,7 +206,7 @@ static void image_size_to_thumb_size(int &r_width, int &r_height)
   }
 }
 
-static ImBuf *make_thumb_for_image(Scene *scene, const ThumbnailCache::Request &request)
+static ImBuf *make_thumb_for_image(const Scene *scene, const ThumbnailCache::Request &request)
 {
   ImBuf *ibuf = IMB_thumb_load_image(
       request.file_path.c_str(), SEQ_THUMB_SIZE, nullptr, IMBThumbLoadFlags::LoadLargeFiles);
@@ -251,22 +252,18 @@ class ThumbGenerationJob {
 
 void ThumbGenerationJob::ensure_job(const bContext *C, ThumbnailCache *cache)
 {
-  cache->window_manager_ = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = CTX_data_scene(C);
-  wmJob *wm_job = WM_jobs_get(cache->window_manager_,
-                              win,
-                              scene,
-                              "Strip Thumbnails",
-                              eWM_JobFlag(0),
-                              WM_JOB_TYPE_SEQ_DRAW_THUMBNAIL);
+  wmJob *wm_job = WM_jobs_get(
+      wm, win, scene, "Strip Thumbnails", eWM_JobFlag(0), WM_JOB_TYPE_SEQ_DRAW_THUMBNAIL);
   if (!WM_jobs_is_running(wm_job)) {
     ThumbGenerationJob *tj = MEM_new<ThumbGenerationJob>("ThumbGenerationJob", scene, cache);
     WM_jobs_customdata_set(wm_job, tj, free_fn);
     WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_SEQUENCER, NC_SCENE | ND_SEQUENCER);
     WM_jobs_callbacks(wm_job, run_fn, nullptr, nullptr, end_fn);
 
-    WM_jobs_start(cache->window_manager_, wm_job);
+    WM_jobs_start(wm, wm_job);
   }
 }
 
@@ -287,7 +284,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
   Vector<ThumbnailCache::Request> requests;
   while (!worker_status->stop) {
     /* Under cache mutex lock: copy all current requests into a vector for processing.
-     * Note: keep the requests set intact! We don't want to add new requests for same
+     * NOTE: keep the requests set intact! We don't want to add new requests for same
      * items while we are processing them. They will be removed from the set once
      * they are finished, one by one. */
     {
@@ -323,9 +320,9 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
     int64_t grain_size = math::max<int64_t>(8, requests.size() / 4);
     threading::parallel_for(requests.index_range(), grain_size, [&](IndexRange range) {
       /* Often the same movie file is chopped into multiple strips next to each other.
-       * Since the requests are sorted by file path and frame index, we can reuse ImBufAnim
+       * Since the requests are sorted by file path and frame index, we can reuse MovieReader
        * objects between them for performance. */
-      ImBufAnim *cur_anim = nullptr;
+      MovieReader *cur_anim = nullptr;
       std::string cur_anim_path;
       int cur_stream = 0;
       for (const int i : range) {
@@ -354,18 +351,18 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
           /* Are we switching to a different movie file / stream? */
           if (request.file_path != cur_anim_path || request.stream_index != cur_stream) {
             if (cur_anim != nullptr) {
-              IMB_free_anim(cur_anim);
+              MOV_close(cur_anim);
               cur_anim = nullptr;
             }
 
             cur_anim_path = request.file_path;
             cur_stream = request.stream_index;
-            cur_anim = IMB_open_anim(cur_anim_path.c_str(), IB_rect, cur_stream, nullptr);
+            cur_anim = MOV_open_file(cur_anim_path.c_str(), IB_rect, cur_stream, nullptr);
           }
 
           /* Decode the movie frame. */
           if (cur_anim != nullptr) {
-            thumb = IMB_anim_absolute(cur_anim, request.frame_index, IMB_TC_NONE, IMB_PROXY_NONE);
+            thumb = MOV_decode_frame(cur_anim, request.frame_index, IMB_TC_NONE, IMB_PROXY_NONE);
             if (thumb != nullptr) {
               seq_imbuf_assign_spaces(job->scene_, thumb);
             }
@@ -398,7 +395,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
         }
       }
       if (cur_anim != nullptr) {
-        IMB_free_anim(cur_anim);
+        MOV_close(cur_anim);
         cur_anim = nullptr;
       }
     });
@@ -458,7 +455,7 @@ static ImBuf *query_thumbnail(ThumbnailCache &cache,
 
   if (best_score > 0) {
     /* We do not have an exact frame match, add a thumb generation request. */
-    const StripElem *se = seq->strip->stripdata;
+    const StripElem *se = seq->data->stripdata;
     int img_width = se->orig_width;
     int img_height = se->orig_height;
     ThumbnailCache::Request request(key,
@@ -489,7 +486,7 @@ ImBuf *thumbnail_cache_get(const bContext *C,
                            const Sequence *seq,
                            float timeline_frame)
 {
-  if (!can_have_thumbnail(scene, seq)) {
+  if (!strip_can_have_thumbnail(scene, seq)) {
     return nullptr;
   }
 
@@ -516,7 +513,7 @@ ImBuf *thumbnail_cache_get(const bContext *C,
 
 void thumbnail_cache_invalidate_strip(Scene *scene, const Sequence *seq)
 {
-  if (!can_have_thumbnail(scene, seq)) {
+  if (!strip_can_have_thumbnail(scene, seq)) {
     return;
   }
 
@@ -524,7 +521,7 @@ void thumbnail_cache_invalidate_strip(Scene *scene, const Sequence *seq)
   ThumbnailCache *cache = query_thumbnail_cache(scene);
   if (cache != nullptr) {
     if (ELEM((seq)->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE)) {
-      const StripElem *elem = seq->strip->stripdata;
+      const StripElem *elem = seq->data->stripdata;
       if (elem != nullptr) {
         int paths_count = 1;
         if (seq->type == SEQ_TYPE_IMAGE) {
@@ -535,7 +532,7 @@ void thumbnail_cache_invalidate_strip(Scene *scene, const Sequence *seq)
         const char *basepath = seq->scene ? ID_BLEND_PATH_FROM_GLOBAL(&seq->scene->id) :
                                             BKE_main_blendfile_path_from_global();
         for (int i = 0; i < paths_count; i++, elem++) {
-          BLI_path_join(filepath, sizeof(filepath), seq->strip->dirpath, elem->filename);
+          BLI_path_join(filepath, sizeof(filepath), seq->data->dirpath, elem->filename);
           BLI_path_abs(filepath, basepath);
           cache->remove_entry(filepath);
         }
@@ -608,25 +605,8 @@ void thumbnail_cache_clear(Scene *scene)
   }
 }
 
-static wmWindowManager *get_cache_wm(Scene *scene)
-{
-  std::scoped_lock lock(thumb_cache_mutex);
-  ThumbnailCache *cache = query_thumbnail_cache(scene);
-  if (cache != nullptr) {
-    return cache->window_manager_;
-  }
-  return nullptr;
-}
-
 void thumbnail_cache_destroy(Scene *scene)
 {
-  /* Completely stop any in-flight thumbnail job. Important: do actual
-   * job stop outside of cache mutex lock! */
-  wmWindowManager *wm = get_cache_wm(scene);
-  if (wm != nullptr) {
-    WM_jobs_kill_type(wm, nullptr, WM_JOB_TYPE_SEQ_DRAW_THUMBNAIL);
-  }
-
   std::scoped_lock lock(thumb_cache_mutex);
   ThumbnailCache *cache = query_thumbnail_cache(scene);
   if (cache != nullptr) {

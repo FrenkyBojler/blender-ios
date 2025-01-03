@@ -371,6 +371,7 @@ static void register_node()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_INDEX_SWITCH, "Index Switch", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "INDEX_SWITCH";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;
@@ -399,17 +400,14 @@ std::unique_ptr<LazyFunction> get_index_switch_node_lazy_function(
 
 StructRNA *IndexSwitchItemsAccessor::item_srna = &RNA_IndexSwitchItem;
 int IndexSwitchItemsAccessor::node_type = GEO_NODE_INDEX_SWITCH;
+int IndexSwitchItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(IndexSwitchItem);
 
-void IndexSwitchItemsAccessor::blend_write(BlendWriter *writer, const bNode &node)
+void IndexSwitchItemsAccessor::blend_write_item(BlendWriter * /*writer*/, const ItemT & /*item*/)
 {
-  const auto &storage = *static_cast<const NodeIndexSwitch *>(node.storage);
-  BLO_write_struct_array(writer, IndexSwitchItem, storage.items_num, storage.items);
 }
 
-void IndexSwitchItemsAccessor::blend_read_data(BlendDataReader *reader, bNode &node)
+void IndexSwitchItemsAccessor::blend_read_data_item(BlendDataReader * /*reader*/, ItemT & /*item*/)
 {
-  auto &storage = *static_cast<NodeIndexSwitch *>(node.storage);
-  BLO_read_struct_array(reader, IndexSwitchItem, storage.items_num, &storage.items);
 }
 
 }  // namespace blender::nodes

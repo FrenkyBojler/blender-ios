@@ -282,19 +282,6 @@ const void *CustomData_add_layer_named_with_data(CustomData *data,
                                                  blender::StringRef name,
                                                  const blender::ImplicitSharingInfo *sharing_info);
 
-void *CustomData_add_layer_anonymous(CustomData *data,
-                                     eCustomDataType type,
-                                     eCDAllocType alloctype,
-                                     int totelem,
-                                     const AnonymousAttributeIDHandle *anonymous_id);
-const void *CustomData_add_layer_anonymous_with_data(
-    CustomData *data,
-    eCustomDataType type,
-    const AnonymousAttributeIDHandle *anonymous_id,
-    int totelem,
-    void *layer_data,
-    const blender::ImplicitSharingInfo *sharing_info);
-
 /**
  * Frees the active or first data layer with the give type.
  * returns 1 on success, 0 if no layer with the given type is found
@@ -692,34 +679,6 @@ using cd_datatransfer_interp = void (*)(const CustomDataTransferLayerMap *laymap
                                         const float *weights,
                                         int count,
                                         float mix_factor);
-
-/**
- * Fake CD_LAYERS (those are actually 'real' data stored directly into elements' structs,
- * or otherwise not (directly) accessible to usual CDLayer system). */
-enum {
-  CD_FAKE = 1 << 8,
-
-  /* Vertices. */
-  CD_FAKE_MDEFORMVERT = CD_FAKE | CD_MDEFORMVERT, /* *sigh* due to how vgroups are stored :(. */
-  CD_FAKE_SHAPEKEY = CD_FAKE |
-                     CD_SHAPEKEY, /* Not available as real CD layer in non-bmesh context. */
-
-  /* Edges. */
-  CD_FAKE_SEAM = CD_FAKE | 100, /* UV seam flag for edges. */
-
-  /* Multiple types of mesh elements... */
-  CD_FAKE_UV =
-      CD_FAKE |
-      CD_PROP_FLOAT2, /* UV flag, because we handle both loop's UVs and face's textures. */
-
-  CD_FAKE_LNOR = CD_FAKE |
-                 CD_CUSTOMLOOPNORMAL, /* Because we play with clnor and temp lnor layers here. */
-
-  CD_FAKE_SHARP = CD_FAKE | 200, /* Sharp flag for edges, smooth flag for faces. */
-
-  CD_FAKE_BWEIGHT = CD_FAKE | 300,
-  CD_FAKE_CREASE = CD_FAKE | 400,
-};
 
 enum {
   ME_VERT = 1 << 0,

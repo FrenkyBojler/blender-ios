@@ -243,8 +243,7 @@ ccl_device int bsdf_hair_huang_setup(ccl_private ShaderData *sd,
     bsdf->extra->Z = safe_normalize(cross(bsdf->N, sd->dPdu));
   }
 
-  const float3 I = make_float3(
-      dot(sd->wi, bsdf->N), dot(sd->wi, bsdf->extra->Y), dot(sd->wi, bsdf->extra->Z));
+  const float3 I = to_local(sd->wi, bsdf->N, bsdf->extra->Y, bsdf->extra->Z);
   bsdf->extra->wi = I;
   bsdf->extra->e2 = 1.0f - sqr(bsdf->aspect_ratio);
   bsdf->extra->radius = bsdf->extra->e2 == 0 ?
@@ -286,11 +285,9 @@ ccl_device_inline float3 sample_wh(
   float3 s, t;
   make_orthonormals(wm, &s, &t);
 
-  const float3 wi_wm = make_float3(dot(wi, s), dot(wi, t), dot(wi, wm));
-
+  const float3 wi_wm = to_local(wi, s, t, wm);
   const float3 wh_wm = microfacet_ggx_sample_vndf(wi_wm, roughness, roughness, rand);
-
-  const float3 wh = wh_wm.x * s + wh_wm.y * t + wh_wm.z * wm;
+  const float3 wh = to_global(wh_wm, s, t, wm);
   return wh;
 }
 
@@ -387,7 +384,7 @@ ccl_device Spectrum bsdf_hair_huang_eval_residual(KernelGlobals kg,
                                                   ccl_private const ShaderClosure *sc,
                                                   const float3 wi,
                                                   const float3 wo,
-                                                  uint rng_quadrature)
+                                                  ccl_private uint *rng_quadrature)
 {
   ccl_private HuangHairBSDF *bsdf = (ccl_private HuangHairBSDF *)sc;
 
@@ -423,8 +420,8 @@ ccl_device Spectrum bsdf_hair_huang_eval_residual(KernelGlobals kg,
     const float3 wmi_ = sphg_dir(0.0f, gamma_mi, b);
 
     /* Sample `wh1`. */
-    const float2 sample1 = make_float2(lcg_step_float(&rng_quadrature),
-                                       lcg_step_float(&rng_quadrature));
+    const float2 sample1 = make_float2(lcg_step_float(rng_quadrature),
+                                       lcg_step_float(rng_quadrature));
 
     const float3 wh1 = sample_wh(kg, roughness, wi, wmi, sample1);
     const float cos_hi1 = dot(wi, wh1);
@@ -489,8 +486,8 @@ ccl_device Spectrum bsdf_hair_huang_eval_residual(KernelGlobals kg,
     /* TRT and beyond. */
     if (bsdf->extra->TRT > 0.0f) {
       /* Sample `wh2`. */
-      const float2 sample2 = make_float2(lcg_step_float(&rng_quadrature),
-                                         lcg_step_float(&rng_quadrature));
+      const float2 sample2 = make_float2(lcg_step_float(rng_quadrature),
+                                         lcg_step_float(rng_quadrature));
       const float3 wh2 = sample_wh(kg, roughness, -wt, wmt, sample2);
       const float cos_hi2 = dot(-wt, wh2);
       if (!(cos_hi2 > 0.0f)) {
@@ -769,13 +766,8 @@ ccl_device int bsdf_hair_huang_sample(const KernelGlobals kg,
     *eval = TRRT / trrt * make_spectrum(total_energy);
   }
 
-  /* Get local coordinate system. */
-  const float3 X = bsdf->N;
-  const float3 Y = bsdf->extra->Y;
-  const float3 Z = bsdf->extra->Z;
-
   /* Transform `wo` to global coordinate system. */
-  *wo = local_O.x * X + local_O.y * Y + local_O.z * Z;
+  *wo = to_global(local_O, bsdf->N, bsdf->extra->Y, bsdf->extra->Z);
 
   /* Ensure the same pdf is returned for BSDF and emitter sampling. The importance sampling pdf is
    * already factored in the value so this value is only used for MIS. */
@@ -785,7 +777,7 @@ ccl_device int bsdf_hair_huang_sample(const KernelGlobals kg,
 }
 
 ccl_device Spectrum bsdf_hair_huang_eval(KernelGlobals kg,
-                                         ccl_private const ShaderData *sd,
+                                         ccl_private ShaderData *sd,
                                          ccl_private const ShaderClosure *sc,
                                          const float3 wo,
                                          ccl_private float *pdf)
@@ -794,14 +786,9 @@ ccl_device Spectrum bsdf_hair_huang_eval(KernelGlobals kg,
 
   kernel_assert(fabsf(bsdf->h) < bsdf->extra->radius);
 
-  /* Get local coordinate system. */
-  const float3 X = bsdf->N;
-  const float3 Y = bsdf->extra->Y;
-  const float3 Z = bsdf->extra->Z;
-
   /* Transform `wi`/`wo` from global coordinate system to local. */
   const float3 local_I = bsdf->extra->wi;
-  const float3 local_O = make_float3(dot(wo, X), dot(wo, Y), dot(wo, Z));
+  const float3 local_O = to_local(wo, bsdf->N, bsdf->extra->Y, bsdf->extra->Z);
 
   /* TODO: better estimation of the pdf */
   *pdf = 1.0f;
@@ -872,7 +859,7 @@ ccl_device Spectrum bsdf_hair_huang_eval(KernelGlobals kg,
   const float projected_area = cos_theta(local_I) * dh;
 
   return (bsdf_hair_huang_eval_r(kg, sc, local_I, local_O) +
-          bsdf_hair_huang_eval_residual(kg, sc, local_I, local_O, sd->lcg_state)) /
+          bsdf_hair_huang_eval_residual(kg, sc, local_I, local_O, &sd->lcg_state)) /
          projected_area;
 }
 

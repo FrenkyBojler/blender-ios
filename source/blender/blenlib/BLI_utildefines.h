@@ -235,31 +235,6 @@ inline constexpr int64_t power_of_2_max(const int64_t x)
   } \
   (void)0
 
-#define CLAMP3(vec, b, c) \
-  { \
-    CLAMP((vec)[0], b, c); \
-    CLAMP((vec)[1], b, c); \
-    CLAMP((vec)[2], b, c); \
-  } \
-  (void)0
-
-#define CLAMP3_MIN(vec, b) \
-  { \
-    CLAMP_MIN((vec)[0], b); \
-    CLAMP_MIN((vec)[1], b); \
-    CLAMP_MIN((vec)[2], b); \
-  } \
-  (void)0
-
-#define CLAMP4_MIN(vec, b) \
-  { \
-    CLAMP_MIN((vec)[0], b); \
-    CLAMP_MIN((vec)[1], b); \
-    CLAMP_MIN((vec)[2], b); \
-    CLAMP_MIN((vec)[3], b); \
-  } \
-  (void)0
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -283,7 +258,7 @@ inline constexpr int64_t power_of_2_max(const int64_t x)
 
 #define ARRAY_HAS_ITEM(arr_item, arr_start, arr_len) \
   (CHECK_TYPE_PAIR_INLINE(arr_start, arr_item), \
-   ((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(arr_len)))
+   ((size_t)((arr_item) - (arr_start)) < (size_t)(arr_len)))
 
 /* assuming a static array */
 #ifndef __cplusplus

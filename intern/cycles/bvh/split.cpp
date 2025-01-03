@@ -41,8 +41,6 @@ BVHObjectSplit::BVHObjectSplit(BVHBuild *builder,
   const BVHReference *ref_ptr = &references_->at(range.start());
   float min_sah = FLT_MAX;
 
-  storage_->right_bounds.resize(range.size());
-
   for (int dim = 0; dim < 3; dim++) {
     /* Sort references. */
     bvh_reference_sort(range.start(),
@@ -51,6 +49,11 @@ BVHObjectSplit::BVHObjectSplit(BVHBuild *builder,
                        dim,
                        unaligned_heuristic_,
                        aligned_space_);
+
+    // Resize must be called after every bvh_reference_sort, as sorting may use a task pool for
+    // large ranges. This may cause another BVHObjectSplit to use and resize the storage on the
+    // same thread.
+    storage_->right_bounds.resize(range.size());
 
     /* sweep right to left and determine bounds. */
     BoundBox right_bounds = BoundBox::empty;
@@ -492,14 +495,14 @@ void BVHSpatialSplit::split_object_reference(
 {
   Geometry *geom = object->get_geometry();
 
-  if (geom->geometry_type == Geometry::MESH || geom->geometry_type == Geometry::VOLUME) {
+  if (geom->is_mesh() || geom->is_volume()) {
     Mesh *mesh = static_cast<Mesh *>(geom);
     for (int tri_idx = 0; tri_idx < mesh->num_triangles(); ++tri_idx) {
       split_triangle_primitive(
           mesh, &object->get_tfm(), tri_idx, dim, pos, left_bounds, right_bounds);
     }
   }
-  else if (geom->geometry_type == Geometry::HAIR) {
+  else if (geom->is_hair()) {
     Hair *hair = static_cast<Hair *>(geom);
     for (int curve_idx = 0; curve_idx < hair->num_curves(); ++curve_idx) {
       Hair::Curve curve = hair->get_curve(curve_idx);
@@ -509,7 +512,7 @@ void BVHSpatialSplit::split_object_reference(
       }
     }
   }
-  else if (geom->geometry_type == Geometry::POINTCLOUD) {
+  else if (geom->is_pointcloud()) {
     PointCloud *pointcloud = static_cast<PointCloud *>(geom);
     for (int point_idx = 0; point_idx < pointcloud->num_points(); ++point_idx) {
       split_point_primitive(

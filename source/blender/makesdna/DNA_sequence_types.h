@@ -9,7 +9,7 @@
  * Note on terminology
  * - #Sequence: video/effect/audio data you can select and manipulate in the sequencer.
  * - #Sequence.machine: Strange name for the channel.
- * - #Strip: The data referenced by the #Sequence
+ * - #StripData: The data referenced by the #Sequence
  * - Meta Strip (SEQ_TYPE_META): Support for nesting Sequences.
  */
 
@@ -32,12 +32,15 @@ struct bSound;
 namespace blender::seq {
 struct MediaPresence;
 struct ThumbnailCache;
+struct TextVarsRuntime;
 }  // namespace blender::seq
 using MediaPresence = blender::seq::MediaPresence;
 using ThumbnailCache = blender::seq::ThumbnailCache;
+using TextVarsRuntime = blender::seq::TextVarsRuntime;
 #else
 typedef struct MediaPresence MediaPresence;
 typedef struct ThumbnailCache ThumbnailCache;
+typedef struct TextVarsRuntime TextVarsRuntime;
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -48,11 +51,11 @@ typedef struct ThumbnailCache ThumbnailCache;
 
 typedef struct StripAnim {
   struct StripAnim *next, *prev;
-  struct ImBufAnim *anim;
+  struct MovieReader *anim;
 } StripAnim;
 
 typedef struct StripElem {
-  /** File name concatenated onto #Strip::dirpath. */
+  /** File name concatenated onto #StripData::dirpath. */
   char filename[256];
   /** Ignore when zeroed. */
   int orig_width, orig_height;
@@ -96,7 +99,7 @@ typedef struct StripProxy {
   char dirpath[768];
   /** Custom file. */
   char filename[256];
-  struct ImBufAnim *anim; /* custom proxy anim file */
+  struct MovieReader *anim; /* custom proxy anim file */
 
   short tc; /* time code in use */
 
@@ -110,8 +113,8 @@ typedef struct StripProxy {
   char _pad[5];
 } StripProxy;
 
-typedef struct Strip {
-  struct Strip *next, *prev;
+typedef struct StripData {
+  struct StripData *next, *prev;
   int us, done;
   int startstill, endstill;
   /**
@@ -128,7 +131,7 @@ typedef struct Strip {
 
   /* color management */
   ColorManagedColorspaceSettings colorspace_settings;
-} Strip;
+} StripData;
 
 typedef enum eSeqRetimingKeyFlag {
   SEQ_SPEED_TRANSITION_IN = (1 << 0),
@@ -166,8 +169,7 @@ typedef struct SequenceRuntime {
  */
 typedef struct Sequence {
   struct Sequence *next, *prev;
-  /** Temp var for duplication, pointing to the newly duplicated Sequence. */
-  void *tmp;
+  void *_pad;
   /** Needed (to be like ipo), else it will raise libdata warnings, this should never be used. */
   void *lib;
   /** SEQ_NAME_MAXSTR - name, set by default and needs to be unique, for RNA paths. */
@@ -194,22 +196,20 @@ typedef struct Sequence {
   float startstill, endstill;
   /** Machine: the strip channel */
   int machine;
-  int _pad;
   /** Starting and ending points of the effect strip. Undefined for other strip types. */
   int startdisp, enddisp;
   float sat;
   float mul;
-  float _pad1;
 
-  short anim_preseek; /* UNUSED. */
   /** Stream-index for movie or sound files with several streams. */
   short streamindex;
+  short _pad1;
   /** For multi-camera source selection. */
   int multicam_source;
   /** MOVIECLIP render flags. */
   int clip_flag;
 
-  Strip *strip;
+  StripData *data;
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
@@ -231,7 +231,12 @@ typedef struct Sequence {
   float speed_fader;
 
   /* pointers for effects: */
-  struct Sequence *seq1, *seq2, *seq3;
+  struct Sequence *seq1, *seq2;
+
+  /* This strange padding is needed due to how `seqbasep` de-serialization is
+   * done right now in #scene_blend_read_data. */
+  void *_pad7;
+  int _pad8[2];
 
   /** List of strips for meta-strips. */
   ListBase seqbase;
@@ -444,13 +449,24 @@ typedef struct TextVars {
   float loc[2];
   float wrap_width;
   float box_margin;
+  float box_roundness;
   float shadow_angle;
   float shadow_offset;
   float shadow_blur;
   float outline_width;
   char flag;
-  char align, align_y;
-  char _pad[5];
+  char align;
+  char _pad[2];
+
+  /** Offsets in bytes relative to #TextVars::text. */
+  int cursor_offset;
+  int selection_start_offset;
+  int selection_end_offset;
+
+  char align_y DNA_DEPRECATED /* Only used for versioning. */;
+  char anchor_x, anchor_y;
+  char _pad1;
+  TextVarsRuntime *runtime;
 } TextVars;
 
 /** #TextVars.flag */
@@ -581,8 +597,6 @@ typedef struct SoundEqualizerModifierData {
 /** \name Flags & Types
  * \{ */
 
-#define MAXSEQ 128
-
 /** #Editor::overlay_frame_flag */
 enum {
   SEQ_EDIT_OVERLAY_FRAME_SHOW = 1,
@@ -624,7 +638,7 @@ enum {
   SEQ_OVERLAP = (1 << 3),
   SEQ_FILTERY = (1 << 4),
   SEQ_MUTE = (1 << 5),
-  /* SEQ_FLAG_SKIP_THUMBNAILS = (1 << 6), */ /* no longer used */
+  SEQ_FLAG_TEXT_EDITING_ACTIVE = (1 << 6),
   SEQ_REVERSE_FRAMES = (1 << 7),
   SEQ_IPO_FRAME_LOCKED = (1 << 8),
   SEQ_EFFECT_NOT_LOADED = (1 << 9),

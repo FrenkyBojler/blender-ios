@@ -27,7 +27,7 @@ static void set_material_index_in_grease_pencil(GreasePencil &grease_pencil,
 {
   using namespace blender::bke::greasepencil;
   for (const int layer_index : grease_pencil.layers().index_range()) {
-    Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index));
+    Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
     if (drawing == nullptr) {
       continue;
     }
@@ -69,6 +69,7 @@ static void node_register()
 
   geo_node_type_base(
       &ntype, GEO_NODE_SET_MATERIAL_INDEX, "Set Material Index", NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "SET_MATERIAL_INDEX";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

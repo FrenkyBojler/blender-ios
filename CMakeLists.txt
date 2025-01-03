@@ -12,7 +12,8 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   if(NOT DEFINED WITH_IN_SOURCE_BUILD)
     message(FATAL_ERROR
       "CMake generation for blender is not allowed within the source directory!"
-      "\n Remove \"${CMAKE_SOURCE_DIR}/CMakeCache.txt\" and try again from another folder, e.g.:"
+      "\n Remove \"${CMAKE_SOURCE_DIR}/CMakeCache.txt\""
+      "\n then try again from another directory, e.g.:"
       "\n "
       "\n rm -rf CMakeCache.txt CMakeFiles"
       "\n cd .."
@@ -94,6 +95,10 @@ if(POLICY CMP0087)
   cmake_policy(SET CMP0087 NEW)
 endif()
 
+# Allow to specify language per file.
+if(POLICY CMP0119)
+  cmake_policy(SET CMP0119 NEW)
+endif()
 
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
@@ -284,10 +289,10 @@ Use pre-compiled headers to speed up compilation."
   )
   mark_as_advanced(WITH_COMPILER_PRECOMPILED_HEADERS)
 
-  if(WITH_CLANG_TIDY AND CMAKE_COMPILER_IS_GNUCC)
+  if(WITH_CLANG_TIDY AND (CMAKE_COMPILER_IS_GNUCC OR APPLE))
     if(WITH_COMPILER_PRECOMPILED_HEADERS)
       message(STATUS
-        "Clang-Tidy and GCC precompiled headers are incompatible, disabling precompiled headers"
+        "Clang-Tidy and the current compiler's precompiled headers are incompatible, disabling precompiled headers."
       )
       set(WITH_COMPILER_PRECOMPILED_HEADERS OFF)
     endif()
@@ -330,8 +335,6 @@ unset(_option_default)
 
 option(WITH_GMP "Enable features depending on GMP (Exact Boolean)" ON)
 
-# Compositor
-option(WITH_COMPOSITOR_CPU "Enable the tile based CPU nodal compositor" ON)
 option(WITH_OPENIMAGEDENOISE "Enable the OpenImageDenoise compositing node" ON)
 
 option(WITH_OPENSUBDIV "Enable OpenSubdiv for surface subdivision" ON)
@@ -448,6 +451,9 @@ option(WITH_MOD_FLUID "Enable Mantaflow Fluid Simulation Framework" ON)
 option(WITH_MOD_REMESH "Enable Remesh Modifier" ON)
 option(WITH_MOD_OCEANSIM "Enable Ocean Modifier" ON)
 
+# UV solvers.
+option(WITH_UV_SLIM "SLIM UV unwrapping solver" ON)
+
 # Image format support
 option(WITH_IMAGE_OPENEXR "Enable OpenEXR Support (http://www.openexr.com)" ON)
 option(WITH_IMAGE_OPENJPEG "Enable OpenJpeg Support (http://www.openjpeg.org)" ON)
@@ -486,7 +492,7 @@ option(WITH_IO_GREASE_PENCIL "Enable grease-pencil file format IO (*.svg, *.pdf)
 option(WITH_IO_CSV "Enable CSV file format support (*.csv)" ON)
 
 # Sound output
-option(WITH_SDL "Enable SDL for sound" ON)
+option(WITH_SDL "Enable SDL for sound" OFF)
 option(WITH_OPENAL "Enable OpenAL Support (http://www.openal.org)" ON)
 if(APPLE)
   option(WITH_COREAUDIO "Enable CoreAudio for audio support on macOS" ON)
@@ -505,13 +511,13 @@ else()
   set(WITH_JACK OFF)
 endif()
 if(UNIX AND NOT APPLE)
-  option(WITH_SDL_DYNLOAD "Enable runtime dynamic SDL libraries loading" OFF)
-endif()
-if(UNIX AND NOT APPLE)
   option(WITH_PULSEAUDIO "Enable PulseAudio for audio support on Linux" ON)
   option(WITH_PULSEAUDIO_DYNLOAD "Enable runtime dynamic PulseAudio libraries loading" OFF)
+  option(WITH_PIPEWIRE "Enable Pipewire for audio support on Linux" ON)
+  option(WITH_PIPEWIRE_DYNLOAD "Enable runtime dynamic Pipewire libraries loading" OFF)
 else()
   set(WITH_PULSEAUDIO OFF)
+  set(WITH_PIPEWIRE OFF)
 endif()
 if(WIN32)
   option(WITH_WASAPI "Enable Windows Audio Sessions API for audio support on Windows" ON)
@@ -584,10 +590,10 @@ Install redistributable runtime, otherwise install into CMAKE_INSTALL_PREFIX"
   )
 endif()
 
-option(WITH_PYTHON_INSTALL "Copy system python into the blender install folder" ON)
+option(WITH_PYTHON_INSTALL "Copy system python into the blender install directory" ON)
 
 option(WITH_INSTALL_COPYRIGHT "\
-Copy the official Blender Authors's copyright.txt into the Blender install folder"
+Copy the official Blender Authors's copyright.txt into the Blender install directory"
   OFF
 )
 mark_as_advanced(WITH_INSTALL_COPYRIGHT)
@@ -607,17 +613,20 @@ Path to python site-packages or dist-packages containing 'numpy' module"
   mark_as_advanced(PYTHON_NUMPY_INCLUDE_DIRS)
 endif()
 if(WITH_PYTHON_INSTALL)
-  option(WITH_PYTHON_INSTALL_NUMPY "Copy system NumPy into the blender install folder" ON)
+  option(WITH_PYTHON_INSTALL_NUMPY "Copy system NumPy into the blender install directory" ON)
 
   if(UNIX AND NOT APPLE)
-    option(WITH_PYTHON_INSTALL_REQUESTS "Copy system requests into the blender install folder" ON)
+    option(WITH_PYTHON_INSTALL_REQUESTS "\
+Copy system requests into the blender install directory"
+      ON
+    )
     set(PYTHON_REQUESTS_PATH "" CACHE PATH "\
 Path to python site-packages or dist-packages containing 'requests' module"
     )
     mark_as_advanced(PYTHON_REQUESTS_PATH)
   endif()
 
-  option(WITH_PYTHON_INSTALL_ZSTANDARD "Copy zstandard into the blender install folder" ON)
+  option(WITH_PYTHON_INSTALL_ZSTANDARD "Copy zstandard into the blender install directory" ON)
   set(PYTHON_ZSTANDARD_PATH "" CACHE PATH "\
 Path to python site-packages or dist-packages containing 'zstandard' module"
   )
@@ -707,9 +716,8 @@ endif()
 if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
   option(WITH_CYCLES_DEVICE_HIP "Enable Cycles AMD HIP support" ON)
   option(WITH_CYCLES_HIP_BINARIES "Build Cycles AMD HIP binaries" OFF)
-  # Radeon VII (gfx906) not currently working with HIP SDK, so left out of the list.
+  # We only support RDNA1 (gfx101X) and newer. Vega and older generations have rendering artifacts and crashing issues.
   set(CYCLES_HIP_BINARIES_ARCH
-    gfx900 gfx90c gfx902
     gfx1010 gfx1011 gfx1012
     gfx1030 gfx1031 gfx1032 gfx1034 gfx1035 gfx1036
     gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151
@@ -718,11 +726,8 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
   mark_as_advanced(WITH_CYCLES_DEVICE_HIP)
   mark_as_advanced(CYCLES_HIP_BINARIES_ARCH)
 
-  # HIPRT is only available on Windows for now.
-  if(WIN32)
-    option(WITH_CYCLES_DEVICE_HIPRT "Enable Cycles AMD HIPRT support" OFF)
-    mark_as_advanced(WITH_CYCLES_DEVICE_HIPRT)
-  endif()
+  option(WITH_CYCLES_DEVICE_HIPRT "Enable Cycles AMD HIPRT support" OFF)
+  mark_as_advanced(WITH_CYCLES_DEVICE_HIPRT)
 endif()
 
 # Apple Metal
@@ -744,10 +749,9 @@ This option is only for debugging purposes."
   )
 
   # https://www.intel.com/content/www/us/en/develop/documentation/oneapi-dpcpp-cpp-compiler-dev-guide-and-reference/top/compilation/ahead-of-time-compilation.html
-  # The target architectures levels can be retrieved from `ocloc` output when running
-  # `ocloc compile -device {device_id} test.c` for given GPUs PCI device IDs.
-  # 12.55.8 is for Arc Alchemist GPUs. 12.70.4 for Meteor Lake iGPUs.
-  set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH 12.55.8 12.70.4 CACHE STRING "\
+  # The supported devices can be retrieved from `ocloc` output when running
+  # `ocloc compile --help`.
+  set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH dg2 mtl lnl bmg CACHE STRING "\
 oneAPI Intel GPU architectures to build binaries for"
   )
   set(CYCLES_ONEAPI_SYCL_TARGETS spir64 spir64_gen CACHE STRING "\
@@ -777,20 +781,13 @@ mark_as_advanced(WITH_MEM_JEMALLOC)
 option(WITH_MEM_VALGRIND "Enable extended valgrind support for better reporting" OFF)
 mark_as_advanced(WITH_MEM_VALGRIND)
 
-# Debug
-option(WITH_CXX_GUARDEDALLOC "\
-Enable GuardedAlloc for C++ memory allocation tracking (only enable for development)"
-  OFF
-)
-mark_as_advanced(WITH_CXX_GUARDEDALLOC)
-
 option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BLI_assert()" ON)
 mark_as_advanced(WITH_ASSERT_ABORT)
 
 option(WITH_ASSERT_RELEASE "Build with asserts enabled even for non-debug configurations" OFF)
 mark_as_advanced(WITH_ASSERT_RELEASE)
 
-if((UNIX AND NOT APPLE) OR (CMAKE_GENERATOR MATCHES "^Visual Studio.+"))
+if(UNIX OR (CMAKE_GENERATOR MATCHES "^Visual Studio.+"))
   option(WITH_CLANG_TIDY "\
 Use Clang Tidy to analyze the source code \
 (only enable for development on Linux using Clang, or Windows using the Visual Studio IDE)"
@@ -825,16 +822,25 @@ option(WITH_GPU_RENDER_TESTS "\
 Enable GPU render related unit testing (EEVEE, Workbench and Grease Pencil)"
   OFF
 )
+option(WITH_GPU_RENDER_TESTS_VULKAN "\
+Enable GPU render related unit testing using Vulkan"
+  OFF
+)
+mark_as_advanced(WITH_GPU_RENDER_TESTS_VULKAN)
 option(WITH_GPU_RENDER_TESTS_SILENT "\
 Run GPU render tests silently (finished tests will pass). \
 Generated report will show failing tests"
   ON
 )
-option(WITH_GPU_DRAW_TESTS "\
-Enable GPU drawing related unit testing (GPU backends and draw manager)"
+option(WITH_GPU_BACKEND_TESTS "\
+Enable GPU backend related unit testing"
   OFF
 )
-option(WITH_COMPOSITOR_REALTIME_TESTS "Enable regression testing for realtime compositor" OFF)
+option(WITH_GPU_DRAW_TESTS "\
+Enable GPU drawing related unit testing (draw manager)"
+  OFF
+)
+option(WITH_GPU_COMPOSITOR_TESTS "Enable regression testing for GPU compositor" OFF)
 if(UNIX AND NOT (APPLE OR HAIKU))
   option(WITH_UI_TESTS "\
 Enable user-interface tests using a headless display server. \
@@ -842,9 +848,17 @@ Currently this depends on WITH_GHOST_WAYLAND and the weston compositor \
 (Experimental)"
     OFF
   )
+  option(WITH_LINUX_OFFICIAL_RELEASE_TESTS "\
+Enable sanity check tests for the linux official release. \
+These test are only relevant for checking that our offical Linux releases are portable and \
+packaged properly. For example that we don't link to any unexpected system libraries."
+    OFF
+  )
 else()
   # TODO: support running GUI tests on other platforms.
   set(WITH_UI_TESTS OFF)
+  # TODO: We should probaby add more sanity checks for Windows and Mac as well
+  set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
 
 # Enabled by default for typical use cases to speed up development cycles. However, when looking
@@ -867,6 +881,24 @@ mark_as_advanced(WITH_TESTS_SINGLE_BINARY)
 set(TEST_PYTHON_EXE "" CACHE PATH "Python executable to run unit tests")
 mark_as_advanced(TEST_PYTHON_EXE)
 
+
+# System python tests.
+option(WITH_SYSTEM_PYTHON_TESTS "\
+Enable tests validating some build-related scripts against the 'system' version of Python \
+(buildbots currently can use significantly older versions of Python than Blender's)"
+  OFF
+)
+mark_as_advanced(WITH_SYSTEM_PYTHON_TESTS)
+# We could use `find_package (Python3 COMPONENTS Interpreter)` to set that value automatically.
+# However, on some buildbots this will give the default python version of the current virtual environment,
+# which may differ from the OS default python version.
+# And it would set that global 'python3 exec path' CMake value for all CMake scripts, which could have
+# unexpected and dangerous side effects.
+# So this has to be set explicitely for all builders.
+set(TEST_SYSTEM_PYTHON_EXE "" CACHE PATH "Python executable used to run 'system python' tests")
+mark_as_advanced(TEST_SYSTEM_PYTHON_EXE)
+
+
 # Documentation
 if(UNIX AND NOT APPLE)
   option(WITH_DOC_MANPAGE "Create a manual page (Unix manpage)" OFF)
@@ -874,16 +906,30 @@ endif()
 
 
 # GPU Module
-option(WITH_GPU_BUILDTIME_SHADER_BUILDER "\
-Shader builder is a developer option enabling linting on GLSL during compilation"
-  OFF
-)
 option(WITH_RENDERDOC "Use Renderdoc API to capture frames" OFF)
 
-mark_as_advanced(
-  WITH_GPU_BUILDTIME_SHADER_BUILDER
-  WITH_RENDERDOC
+option(WITH_GPU_SHADER_ASSERT "\
+Globally enable in-shader asserts.
+(Requires a debug build or setting GPU_FORCE_ENABLE_SHADER_PRINTF to 1)"
+  OFF
 )
+
+mark_as_advanced(
+  WITH_RENDERDOC
+  WITH_GPU_SHADER_ASSERT
+)
+
+if(POLICY CMP0119)
+  option(WITH_GPU_SHADER_CPP_COMPILATION "\
+  Compiler shaders using C++. \
+  Allows testing Metal compilation on other platform and enable C++ IDE support for shader code"
+  OFF
+  )
+  mark_as_advanced(WITH_GPU_SHADER_CPP_COMPILATION)
+else()
+  set(WITH_GPU_SHADER_CPP_COMPILATION OFF)
+endif()
+
 
 # OpenGL
 if(NOT APPLE)
@@ -895,19 +941,10 @@ endif()
 
 # Vulkan
 option(WITH_VULKAN_BACKEND "Enable Vulkan as graphics backend (experimental)" ON)
-option(WITH_VULKAN_GUARDEDALLOC "\
-Use guardedalloc for host allocations done inside Vulkan (development option)"
-  OFF
-)
-mark_as_advanced(
-  WITH_VULKAN_BACKEND
-  WITH_VULKAN_GUARDEDALLOC
-)
+mark_as_advanced(WITH_VULKAN_BACKEND)
 if(APPLE)
   option(WITH_VULKAN_MOLTENVK "Enable Vulkan over MoltenVK (development option)" OFF)
-  mark_as_advanced(
-    WITH_VULKAN_MOLTENVK
-  )
+  mark_as_advanced(WITH_VULKAN_MOLTENVK)
 endif()
 
 if(APPLE AND NOT WITH_VULKAN_MOLTENVK)
@@ -916,8 +953,8 @@ endif()
 if(NOT WITH_EXPERIMENTAL_FEATURES)
   if(APPLE)
     set(WITH_VULKAN_MOLTENVK OFF)
+    set(WITH_VULKAN_BACKEND OFF)
   endif()
-  set(WITH_VULKAN_BACKEND OFF)
 endif()
 
 # Metal
@@ -967,6 +1004,10 @@ Can cause linking issues due to too large binary size."
   OFF
 )
 mark_as_advanced(WITH_COMPILER_ASAN_EXTERN)
+set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_JEMALLOC OFF)
+set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_VALGRIND OFF)
+set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_JEMALLOC OFF)
+set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_VALGRIND OFF)
 
 option(WITH_COMPILER_CODE_COVERAGE "\
 Build and link with code coverage support (only for Debug targets)."
@@ -1106,13 +1147,13 @@ endif()
 
 if(WIN32 OR XCODE)
   option(IDE_GROUP_SOURCES_IN_FOLDERS "\
-Organize the source files in filters matching the source folders."
+Organize the source files in filters matching the source directory."
     ON
   )
   mark_as_advanced(IDE_GROUP_SOURCES_IN_FOLDERS)
 
   option(IDE_GROUP_PROJECTS_IN_FOLDERS "\
-Organize the projects according to source folder structure."
+Organize the projects according to source directory structure."
     ON
   )
   mark_as_advanced(IDE_GROUP_PROJECTS_IN_FOLDERS)
@@ -1174,7 +1215,7 @@ default install path"
   endif()
 endif()
 
-# Effective install path including config folder, as a generator expression.
+# Effective install path including config directory, as a generator expression.
 get_property(GENERATOR_IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(GENERATOR_IS_MULTI_CONFIG)
   string(
@@ -1231,11 +1272,6 @@ set_and_warn_dependency(WITH_PYTHON WITH_CYCLES        OFF)
 set_and_warn_dependency(WITH_PYTHON WITH_DRACO         OFF)
 set_and_warn_dependency(WITH_PYTHON WITH_MOD_FLUID     OFF)
 
-if(WITH_DRACO AND NOT WITH_PYTHON_INSTALL)
-  message(STATUS "WITH_DRACO requires WITH_PYTHON_INSTALL to be ON, disabling WITH_DRACO for now")
-  set(WITH_DRACO OFF)
-endif()
-
 # enable boost for cycles, audaspace or i18n
 # otherwise if the user disabled
 
@@ -1244,9 +1280,10 @@ set_and_warn_dependency(WITH_BOOST WITH_OPENVDB        OFF)
 set_and_warn_dependency(WITH_BOOST WITH_QUADRIFLOW     OFF)
 set_and_warn_dependency(WITH_BOOST WITH_USD            OFF)
 if(WITH_CYCLES)
-  set_and_warn_dependency(WITH_BOOST   WITH_CYCLES_OSL   OFF)
-  set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_OSL   OFF)
-  set_and_warn_dependency(WITH_CYCLES_OSL WITH_CYCLES_TEST_OSL   OFF)
+  set_and_warn_dependency(WITH_BOOST   WITH_CYCLES_OSL          OFF)
+  set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_OSL          OFF)
+  set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_STANDALONE   OFF)
+  set_and_warn_dependency(WITH_CYCLES_OSL WITH_CYCLES_TEST_OSL  OFF)
 endif()
 
 set_and_warn_dependency(WITH_TBB WITH_CYCLES            OFF)
@@ -1335,7 +1372,7 @@ endif()
 # Check if Sub-modules are Cloned
 
 if(WITH_PYTHON)
-  # While we have this as an '#error' in 'bpy_capi_utils.h',
+  # While we have this as an '#error' in 'bpy_capi_utils.hh',
   # upgrading Python tends to cause confusion for users who build.
   # Give the error message early to make this more obvious.
   #
@@ -2591,12 +2628,6 @@ mark_as_advanced(
 # -------------------------------------------------------------------------------
 # Global Defines
 
-# better not set includes here but this debugging option is off by default.
-if(WITH_CXX_GUARDEDALLOC)
-  include_directories(${CMAKE_SOURCE_DIR}/intern/guardedalloc)
-  add_definitions(-DWITH_CXX_GUARDEDALLOC)
-endif()
-
 if(WITH_ASSERT_ABORT)
   add_definitions(-DWITH_ASSERT_ABORT)
 endif()
@@ -2787,7 +2818,6 @@ if(FIRST_RUN)
   info_cfg_option(WITH_PULSEAUDIO)
   info_cfg_option(WITH_PULSEAUDIO_DYNLOAD)
   info_cfg_option(WITH_SDL)
-  info_cfg_option(WITH_SDL_DYNLOAD)
   info_cfg_option(WITH_WASAPI)
 
   info_cfg_text("Compression:")
@@ -2824,8 +2854,6 @@ if(FIRST_RUN)
       info_cfg_option(WITH_CYCLES_ONEAPI_BINARIES)
       info_cfg_option(WITH_CYCLES_DEVICE_HIP)
       info_cfg_option(WITH_CYCLES_HIP_BINARIES)
-    endif()
-    if(WIN32)
       info_cfg_option(WITH_CYCLES_DEVICE_HIPRT)
     endif()
   endif()

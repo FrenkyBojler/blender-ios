@@ -288,7 +288,7 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
   foreach (Geometry *geom, scene->geometry) {
     bool prim_offset_changed = false;
 
-    if (geom->geometry_type == Geometry::MESH || geom->geometry_type == Geometry::VOLUME) {
+    if (geom->is_mesh() || geom->is_volume()) {
       Mesh *mesh = static_cast<Mesh *>(geom);
 
       prim_offset_changed = (mesh->prim_offset != tri_size);
@@ -436,7 +436,7 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     /* Re-create volume mesh if we will rebuild or refit the BVH. Note we
      * should only do it in that case, otherwise the BVH and mesh can go
      * out of sync. */
-    if (geom->is_modified() && geom->geometry_type == Geometry::VOLUME) {
+    if (geom->is_modified() && geom->is_volume()) {
       /* Create volume meshes if there is voxel data. */
       if (!volume_images_updated) {
         progress.set_status("Updating Meshes Volume Bounds");
@@ -622,7 +622,7 @@ void GeometryManager::device_update_displacement_images(Device *device,
        * This matches the logic in the `Hair::update_shadow_transparency()`, avoiding access to
        * possible non-loaded images. */
       bool need_shadow_transparency = false;
-      if (geom->geometry_type == Geometry::HAIR) {
+      if (geom->is_hair()) {
         Hair *hair = static_cast<Hair *>(geom);
         need_shadow_transparency = hair->need_shadow_transparency();
       }
@@ -731,20 +731,29 @@ void GeometryManager::device_update(Device *device,
 
     foreach (Geometry *geom, scene->geometry) {
       if (geom->is_modified()) {
-        if ((geom->geometry_type == Geometry::MESH || geom->geometry_type == Geometry::VOLUME)) {
+        if (geom->is_mesh() || geom->is_volume()) {
           Mesh *mesh = static_cast<Mesh *>(geom);
-
-          /* Update normals. */
-          mesh->add_face_normals();
-          mesh->add_vertex_normals();
 
           if (mesh->need_attribute(scene, ATTR_STD_POSITION_UNDISPLACED)) {
             mesh->add_undisplaced();
           }
 
-          /* Test if we need tessellation. */
+          /* Test if we need tessellation and setup normals if required. */
           if (mesh->need_tesselation()) {
             total_tess_needed++;
+            /* OPENSUBDIV Catmull-Clark does not make use of input normals and will overwrite them.
+             */
+#ifdef WITH_OPENSUBDIV
+            if (mesh->get_subdivision_type() != Mesh::SUBDIVISION_CATMULL_CLARK)
+#endif
+            {
+              mesh->add_face_normals();
+              mesh->add_vertex_normals();
+            }
+          }
+          else {
+            mesh->add_face_normals();
+            mesh->add_vertex_normals();
           }
 
           /* Test if we need displacement. */
@@ -752,7 +761,7 @@ void GeometryManager::device_update(Device *device,
             true_displacement_used = true;
           }
         }
-        else if (geom->geometry_type == Geometry::HAIR) {
+        else if (geom->is_hair()) {
           Hair *hair = static_cast<Hair *>(geom);
           if (hair->need_shadow_transparency()) {
             curve_shadow_transparency_used = true;
@@ -886,7 +895,7 @@ void GeometryManager::device_update(Device *device,
             displacement_done = true;
           }
         }
-        else if (geom->geometry_type == Geometry::HAIR) {
+        else if (geom->is_hair()) {
           Hair *hair = static_cast<Hair *>(geom);
           if (hair->update_shadow_transparency(device, scene, progress)) {
             curve_shadow_transparency_done = true;

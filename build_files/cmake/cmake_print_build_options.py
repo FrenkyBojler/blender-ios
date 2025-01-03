@@ -8,7 +8,9 @@
 import re
 import sys
 
-from typing import Optional
+from typing import (
+    Union,
+)
 
 cmakelists_file = sys.argv[-1]
 
@@ -24,7 +26,7 @@ def count_backslashes_before_pos(file_data: str, pos: int) -> int:
     return slash_count
 
 
-def extract_cmake_string_at_pos(file_data: str, pos_beg: int) -> Optional[str]:
+def extract_cmake_string_at_pos(file_data: str, pos_beg: int) -> Union[str, None]:
     assert file_data[pos_beg - 1] == '"'
 
     pos = pos_beg

@@ -35,6 +35,10 @@
 #  include <OSL/oslquery.h>
 #endif
 
+#ifdef WITH_METAL
+#  include "device/metal/device.h"
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 namespace {
@@ -69,6 +73,8 @@ static void debug_flags_sync_from_scene(BL::Scene b_scene)
   flags.cpu.bvh_layout = (BVHLayout)get_enum(cscene, "debug_bvh_layout");
   /* Synchronize CUDA flags. */
   flags.cuda.adaptive_compile = get_boolean(cscene, "debug_use_cuda_adaptive_compile");
+  flags.hip.adaptive_compile = get_boolean(cscene, "debug_use_hip_adaptive_compile");
+  flags.metal.adaptive_compile = get_boolean(cscene, "debug_use_metal_adaptive_compile");
   /* Synchronize OptiX flags. */
   flags.optix.use_debug = get_boolean(cscene, "debug_use_optix_debug");
 }
@@ -144,6 +150,10 @@ static PyObject *init_func(PyObject * /*self*/, PyObject *args)
 
 static PyObject *exit_func(PyObject * /*self*/, PyObject * /*args*/)
 {
+#ifdef WITH_METAL
+  device_metal_exit();
+#endif
+
   ShaderManager::free_memory();
   TaskScheduler::free_memory();
   Device::free_memory();
@@ -633,7 +643,7 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
         set_float4(b_sock.ptr, "default_value", default_float4);
       }
       else if (data_type == BL::NodeSocket::type_VECTOR) {
-        set_float3(b_sock.ptr, "default_value", float4_to_float3(default_float4));
+        set_float3(b_sock.ptr, "default_value", make_float3(default_float4));
       }
       else if (data_type == BL::NodeSocket::type_STRING) {
         set_string(b_sock.ptr, "default_value", default_string);
@@ -1005,8 +1015,7 @@ void *CCL_python_module_init()
    *               might use to get version in runtime.
    */
   int curversion = OSL_LIBRARY_VERSION_CODE;
-  PyModule_AddObject(mod, "with_osl", Py_True);
-  Py_INCREF(Py_True);
+  PyModule_AddObjectRef(mod, "with_osl", Py_True);
   PyModule_AddObject(
       mod,
       "osl_version",
@@ -1017,52 +1026,41 @@ void *CCL_python_module_init()
       PyUnicode_FromFormat(
           "%2d, %2d, %2d", curversion / 10000, (curversion / 100) % 100, curversion % 100));
 #else
-  PyModule_AddObject(mod, "with_osl", Py_False);
-  Py_INCREF(Py_False);
+  PyModule_AddObjectRef(mod, "with_osl", Py_False);
   PyModule_AddStringConstant(mod, "osl_version", "unknown");
   PyModule_AddStringConstant(mod, "osl_version_string", "unknown");
 #endif
 
   if (ccl::guiding_supported()) {
-    PyModule_AddObject(mod, "with_path_guiding", Py_True);
-    Py_INCREF(Py_True);
+    PyModule_AddObjectRef(mod, "with_path_guiding", Py_True);
   }
   else {
-    PyModule_AddObject(mod, "with_path_guiding", Py_False);
-    Py_INCREF(Py_False);
+    PyModule_AddObjectRef(mod, "with_path_guiding", Py_False);
   }
 
 #ifdef WITH_EMBREE
-  PyModule_AddObject(mod, "with_embree", Py_True);
-  Py_INCREF(Py_True);
+  PyModule_AddObjectRef(mod, "with_embree", Py_True);
 #else  /* WITH_EMBREE */
-  PyModule_AddObject(mod, "with_embree", Py_False);
-  Py_INCREF(Py_False);
+  PyModule_AddObjectRef(mod, "with_embree", Py_False);
 #endif /* WITH_EMBREE */
 
 #ifdef WITH_EMBREE_GPU
-  PyModule_AddObject(mod, "with_embree_gpu", Py_True);
-  Py_INCREF(Py_True);
+  PyModule_AddObjectRef(mod, "with_embree_gpu", Py_True);
 #else  /* WITH_EMBREE_GPU */
-  PyModule_AddObject(mod, "with_embree_gpu", Py_False);
-  Py_INCREF(Py_False);
+  PyModule_AddObjectRef(mod, "with_embree_gpu", Py_False);
 #endif /* WITH_EMBREE_GPU */
 
   if (ccl::openimagedenoise_supported()) {
-    PyModule_AddObject(mod, "with_openimagedenoise", Py_True);
-    Py_INCREF(Py_True);
+    PyModule_AddObjectRef(mod, "with_openimagedenoise", Py_True);
   }
   else {
-    PyModule_AddObject(mod, "with_openimagedenoise", Py_False);
-    Py_INCREF(Py_False);
+    PyModule_AddObjectRef(mod, "with_openimagedenoise", Py_False);
   }
 
 #ifdef WITH_CYCLES_DEBUG
-  PyModule_AddObject(mod, "with_debug", Py_True);
-  Py_INCREF(Py_True);
+  PyModule_AddObjectRef(mod, "with_debug", Py_True);
 #else  /* WITH_CYCLES_DEBUG */
-  PyModule_AddObject(mod, "with_debug", Py_False);
-  Py_INCREF(Py_False);
+  PyModule_AddObjectRef(mod, "with_debug", Py_False);
 #endif /* WITH_CYCLES_DEBUG */
 
   return (void *)mod;

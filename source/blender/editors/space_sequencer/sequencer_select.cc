@@ -162,11 +162,11 @@ static void select_active_side(
 static void select_active_side_range(const Scene *scene,
                                      ListBase *seqbase,
                                      const int sel_side,
-                                     const int frame_ranges[MAXSEQ],
+                                     const int frame_ranges[SEQ_MAX_CHANNELS],
                                      const int frame_ignore)
 {
   LISTBASE_FOREACH (Sequence *, seq, seqbase) {
-    if (seq->machine < MAXSEQ) {
+    if (seq->machine < SEQ_MAX_CHANNELS) {
       const int frame = frame_ranges[seq->machine];
       if (frame == frame_ignore) {
         continue;
@@ -251,25 +251,25 @@ void ED_sequencer_select_sequence_single(Scene *scene, Sequence *seq, bool desel
   SEQ_select_active_set(scene, seq);
 
   if (ELEM(seq->type, SEQ_TYPE_IMAGE, SEQ_TYPE_MOVIE)) {
-    if (seq->strip) {
-      BLI_strncpy(ed->act_imagedir, seq->strip->dirpath, FILE_MAXDIR);
+    if (seq->data) {
+      BLI_strncpy(ed->act_imagedir, seq->data->dirpath, FILE_MAXDIR);
     }
   }
   else if (seq->type == SEQ_TYPE_SOUND_RAM) {
-    if (seq->strip) {
-      BLI_strncpy(ed->act_sounddir, seq->strip->dirpath, FILE_MAXDIR);
+    if (seq->data) {
+      BLI_strncpy(ed->act_sounddir, seq->data->dirpath, FILE_MAXDIR);
     }
   }
   seq->flag |= SELECT;
   recurs_sel_seq(seq);
 }
 
-void seq_rectf(const Scene *scene, const Sequence *seq, rctf *rect)
+void seq_rectf(const Scene *scene, const Sequence *seq, rctf *r_rect)
 {
-  rect->xmin = SEQ_time_left_handle_frame_get(scene, seq);
-  rect->xmax = SEQ_time_right_handle_frame_get(scene, seq);
-  rect->ymin = seq->machine + SEQ_STRIP_OFSBOTTOM;
-  rect->ymax = seq->machine + SEQ_STRIP_OFSTOP;
+  r_rect->xmin = SEQ_time_left_handle_frame_get(scene, seq);
+  r_rect->xmax = SEQ_time_right_handle_frame_get(scene, seq);
+  r_rect->ymin = seq->machine + SEQ_STRIP_OFSBOTTOM;
+  r_rect->ymax = seq->machine + SEQ_STRIP_OFSTOP;
 }
 
 Sequence *find_neighboring_sequence(Scene *scene, Sequence *test, int lr, int sel)
@@ -438,12 +438,12 @@ void recurs_sel_seq(Sequence *seq_meta)
   }
 }
 
-static bool seq_point_image_isect(const Scene *scene, const Sequence *seq, float point[2])
+bool seq_point_image_isect(const Scene *scene, const Sequence *seq, float point_view[2])
 {
   float seq_image_quad[4][2];
   SEQ_image_transform_final_quad_get(scene, seq, seq_image_quad);
   return isect_point_quad_v2(
-      point, seq_image_quad[0], seq_image_quad[1], seq_image_quad[2], seq_image_quad[3]);
+      point_view, seq_image_quad[0], seq_image_quad[1], seq_image_quad[2], seq_image_quad[3]);
 }
 
 static void sequencer_select_do_updates(bContext *C, Scene *scene)
@@ -587,13 +587,13 @@ static void sequencer_select_set_active(Scene *scene, Sequence *seq)
   SEQ_select_active_set(scene, seq);
 
   if (ELEM(seq->type, SEQ_TYPE_IMAGE, SEQ_TYPE_MOVIE)) {
-    if (seq->strip) {
-      BLI_strncpy(ed->act_imagedir, seq->strip->dirpath, FILE_MAXDIR);
+    if (seq->data) {
+      BLI_strncpy(ed->act_imagedir, seq->data->dirpath, FILE_MAXDIR);
     }
   }
   else if (seq->type == SEQ_TYPE_SOUND_RAM) {
-    if (seq->strip) {
-      BLI_strncpy(ed->act_sounddir, seq->strip->dirpath, FILE_MAXDIR);
+    if (seq->data) {
+      BLI_strncpy(ed->act_sounddir, seq->data->dirpath, FILE_MAXDIR);
     }
   }
   recurs_sel_seq(seq);
@@ -1058,14 +1058,10 @@ static blender::Vector<Sequence *> mouseover_strips_sorted_get(const Scene *scen
     strips.append(seq);
   }
 
-  BLI_assert(strips.size() <= 2);
-
-  /* Ensure that `strips[0]` is the strip closest to the mouse cursor. */
-  if (strips.size() == 2 && strip_to_frame_distance(scene, v2d, strips[0], mouse_co[0]) >
-                                strip_to_frame_distance(scene, v2d, strips[1], mouse_co[0]))
-  {
-    std::swap(strips[0], strips[1]);
-  }
+  std::sort(strips.begin(), strips.end(), [&](const Sequence *seq1, const Sequence *seq2) {
+    return strip_to_frame_distance(scene, v2d, seq1, mouse_co[0]) <
+           strip_to_frame_distance(scene, v2d, seq2, mouse_co[0]);
+  });
 
   return strips;
 }
@@ -1406,11 +1402,6 @@ static int sequencer_select_handle_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  if (sequencer_retiming_mode_is_active(C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)))
-  {
-    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
-  }
-
   MouseCoords mouse_co(v2d, RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y"));
 
   StripSelection selection = ED_sequencer_pick_strip_and_handle(scene, v2d, mouse_co.view);
@@ -1449,6 +1440,7 @@ static int sequencer_select_handle_exec(bContext *C, wmOperator *op)
     sequencer_select_connected_strips(selection);
   }
 
+  SEQ_retiming_selection_clear(ed);
   sequencer_select_do_updates(C, scene);
   sequencer_select_set_active(scene, selection.seq1);
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
@@ -1952,13 +1944,13 @@ static int sequencer_select_side_exec(bContext *C, wmOperator *op)
 
   const int sel_side = RNA_enum_get(op->ptr, "side");
   const int frame_init = sel_side == SEQ_SIDE_LEFT ? INT_MIN : INT_MAX;
-  int frame_ranges[MAXSEQ];
+  int frame_ranges[SEQ_MAX_CHANNELS];
   bool selected = false;
 
   copy_vn_i(frame_ranges, ARRAY_SIZE(frame_ranges), frame_init);
 
   LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-    if (UNLIKELY(seq->machine >= MAXSEQ)) {
+    if (UNLIKELY(seq->machine >= SEQ_MAX_CHANNELS)) {
       continue;
     }
     int *frame_limit_p = &frame_ranges[seq->machine];
@@ -2015,7 +2007,9 @@ void SEQUENCER_OT_select_side(wmOperatorType *ot)
 /** \name Box Select Operator
  * \{ */
 
-static bool seq_box_select_rect_image_isect(const Scene *scene, const Sequence *seq, rctf *rect)
+static bool seq_box_select_rect_image_isect(const Scene *scene,
+                                            const Sequence *seq,
+                                            const rctf *rect)
 {
   float seq_image_quad[4][2];
   SEQ_image_transform_final_quad_get(scene, seq, seq_image_quad);
@@ -2038,7 +2032,9 @@ static bool seq_box_select_rect_image_isect(const Scene *scene, const Sequence *
              seq_image_quad[3], rect_quad[0], rect_quad[1], rect_quad[2], rect_quad[3]);
 }
 
-static void seq_box_select_seq_from_preview(const bContext *C, rctf *rect, const eSelectOp mode)
+static void seq_box_select_seq_from_preview(const bContext *C,
+                                            const rctf *rect,
+                                            const eSelectOp mode)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_get(scene);
@@ -2222,8 +2218,13 @@ void SEQUENCER_OT_select_box(wmOperatorType *ot)
   WM_operator_properties_select_operation_simple(ot);
 
   prop = RNA_def_boolean(
-      ot->srna, "tweak", false, "Tweak", "Operator has been activated using a click-drag event");
+      ot->srna,
+      "tweak",
+      false,
+      "Tweak",
+      "Make box select pass through to sequence slide when the cursor is hovering on a strip");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
   prop = RNA_def_boolean(
       ot->srna, "include_handles", false, "Select Handles", "Select the strips and their handles");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -2346,7 +2347,7 @@ static bool select_grouped_data(blender::Span<Sequence *> strips,
                                 const int channel)
 {
   bool changed = false;
-  const char *dirpath = actseq->strip ? actseq->strip->dirpath : nullptr;
+  const char *dirpath = actseq->data ? actseq->data->dirpath : nullptr;
 
   if (!SEQ_USE_DATA(actseq)) {
     return changed;
@@ -2354,8 +2355,8 @@ static bool select_grouped_data(blender::Span<Sequence *> strips,
 
   if (SEQ_HAS_PATH(actseq) && dirpath) {
     for (Sequence *seq : strips) {
-      if (SEQ_CHANNEL_CHECK(seq, channel) && SEQ_HAS_PATH(seq) && seq->strip &&
-          STREQ(seq->strip->dirpath, dirpath))
+      if (SEQ_CHANNEL_CHECK(seq, channel) && SEQ_HAS_PATH(seq) && seq->data &&
+          STREQ(seq->data->dirpath, dirpath))
       {
         seq->flag |= SELECT;
         changed = true;
@@ -2421,9 +2422,6 @@ static bool select_grouped_effect(blender::Span<Sequence *> strips,
       }
       if (seq->seq2) {
         seq->seq2->flag |= SELECT;
-      }
-      if (seq->seq3) {
-        seq->seq3->flag |= SELECT;
       }
       changed = true;
     }

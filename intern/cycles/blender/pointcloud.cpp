@@ -49,7 +49,7 @@ static void attr_create_motion_from_velocity(PointCloud *pointcloud,
     for (int i = 0; i < num_points; i++) {
       float3 Pi = P[i] + make_float3(b_attribute[i][0], b_attribute[i][1], b_attribute[i][2]) *
                              relative_time;
-      mP[i] = make_float4(Pi.x, Pi.y, Pi.z, radius[i]);
+      mP[i] = make_float4(Pi, radius[i]);
     }
   }
 }
@@ -66,20 +66,19 @@ static void copy_attributes(PointCloud *pointcloud,
 
   AttributeSet &attributes = pointcloud->attributes;
   static const ustring u_velocity("velocity");
-  b_attributes.for_all([&](const blender::bke::AttributeIDRef &id,
-                           const blender::bke::AttributeMetaData /*meta_data*/) {
-    const ustring name{std::string_view(id.name())};
+  b_attributes.foreach_attribute([&](const blender::bke::AttributeIter &iter) {
+    const ustring name{std::string_view(iter.name)};
 
     if (need_motion && name == u_velocity) {
-      const blender::VArraySpan b_attr = *b_attributes.lookup<blender::float3>(id);
+      const blender::VArraySpan b_attr = *iter.get<blender::float3>();
       attr_create_motion_from_velocity(pointcloud, b_attr, motion_scale);
     }
 
     if (attributes.find(name)) {
-      return true;
+      return;
     }
 
-    const blender::bke::GAttributeReader b_attr = b_attributes.lookup(id);
+    const blender::bke::GAttributeReader b_attr = iter.get();
     blender::bke::attribute_math::convert_to_static_type(b_attr.varray.type(), [&](auto dummy) {
       using BlenderT = decltype(dummy);
       using Converter = typename ccl::AttributeConverter<BlenderT>;
@@ -94,8 +93,6 @@ static void copy_attributes(PointCloud *pointcloud,
         }
       }
     });
-
-    return true;
   });
 }
 
@@ -167,7 +164,7 @@ static void export_pointcloud_motion(PointCloud *pointcloud,
   for (int i = 0; i < std::min<int>(num_points, b_positions.size()); i++) {
     const float3 P = make_float3(b_positions[i][0], b_positions[i][1], b_positions[i][2]);
     const float radius = b_radius.is_empty() ? 0.01f : b_radius[i];
-    mP[i] = make_float4(P.x, P.y, P.z, radius);
+    mP[i] = make_float4(P, radius);
     have_motion = have_motion || (P != pointcloud_points[i]);
   }
 
