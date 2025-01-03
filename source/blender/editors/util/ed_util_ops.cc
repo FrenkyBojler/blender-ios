@@ -239,7 +239,7 @@ static bool lib_id_remove_custom_preview_poll(bContext *C)
   }
 
   const PointerRNA idptr = CTX_data_pointer_get(C, "id");
-  const ID *id = (ID *)idptr.data;
+  const ID *id = static_cast<const ID *>(idptr.data);
   if (!id) {
     return false;
   }
@@ -259,8 +259,8 @@ static bool lib_id_remove_custom_preview_poll(bContext *C)
 
 static int lib_id_remove_custom_preview_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA idptr = CTX_data_pointer_get(C, "id");
-  ID *id = (ID *)idptr.data;
+  const PointerRNA idptr = CTX_data_pointer_get(C, "id");
+  ID *id = static_cast<ID *>(idptr.data);
 
   if (!id) {
     BKE_report(op->reports,
