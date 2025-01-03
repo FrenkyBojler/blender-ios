@@ -2,10 +2,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-def get_version_numbers(broken_lines, working_lines):
+def get_version_numbers(broken_lines: str, working_lines: str) -> tuple[list[str], list[str]]:
     from parameters import list_of_official_blender_versions
 
-    def extract_numbers(string):
+    def extract_numbers(string: str) -> list[str]:
         import re
         return re.findall(r"(\d+\.\d+)", string)
 
@@ -28,7 +28,7 @@ def get_version_numbers(broken_lines, working_lines):
     return broken_versions, working_versions
 
 
-def version_extraction(report_body):
+def version_extraction(report_body: str) -> tuple[list[str], list[str]]:
     broken_lines = ''
     working_lines = ''
     for line in report_body.splitlines():
@@ -45,17 +45,17 @@ def version_extraction(report_body):
     return get_version_numbers(broken_lines, working_lines)
 
 
-def compare_versions(comparing_version, reference_version):
+def compare_versions(comparing_version: str, reference_version: str) -> str:
     from shared_variables import OLDER_VERION, NEWER_VERION, SAME_VERION
 
     # Compare two versions of Blender and return how they compare relative to each other.
 
-    comparing_version = str(comparing_version).split(".")
-    reference_version = str(reference_version).split(".")
-    comparing_major = int(comparing_version[0])
-    comparing_minor = int(comparing_version[1])
-    reference_major = int(reference_version[0])
-    reference_minor = int(reference_version[1])
+    comp_version = comparing_version.split(".")
+    ref_version = reference_version.split(".")
+    comparing_major = int(comp_version[0])
+    comparing_minor = int(comp_version[1])
+    reference_major = int(ref_version[0])
+    reference_minor = int(ref_version[1])
 
     if comparing_major < reference_major:
         return OLDER_VERION
@@ -73,7 +73,7 @@ def compare_versions(comparing_version, reference_version):
 # ----------
 
 
-def classify_based_on_report(report_body):
+def classify_based_on_report(report_body: str) -> str:
     from parameters import current_version_number, previous_version_numer
     from shared_variables import FIXED_OLD_ISSUE, FIXED_NEW_ISSUE, NEEDS_MANUAL_SORTING, OLDER_VERION, NEWER_VERION, SAME_VERION
 
