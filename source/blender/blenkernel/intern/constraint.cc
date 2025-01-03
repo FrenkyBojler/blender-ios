@@ -2671,7 +2671,7 @@ static void armdef_get_tarmat(Depsgraph * /*depsgraph*/,
 
   bPoseChannel *pchan = BKE_pose_channel_find_name(ct->tar->pose, ct->subtarget);
   if (pchan == nullptr) {
-    /* TODO: should this not call unit_m4(ct->matrix) ?*/
+    unit_m4(ct->matrix);
     return;
   }
 
@@ -4351,7 +4351,6 @@ static void shrinkwrap_get_tarmat(Depsgraph * /*depsgraph*/,
   bShrinkwrapConstraint *scon = (bShrinkwrapConstraint *)con->data;
 
   if (!VALID_CONS_TARGET(ct) || ct->tar->type != OB_MESH) {
-    unit_ct_matrix_nullsafe(ct);
     return;
   }
 
