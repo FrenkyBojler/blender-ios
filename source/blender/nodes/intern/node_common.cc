@@ -566,11 +566,11 @@ void register_node_type_reroute()
   blender::bke::node_register_type(ntype);
 }
 
-struct RerouteTargerPriority {
+struct RerouteTargetPriority {
   int node_i = std::numeric_limits<int>::max();
   int socket_in_node_i = std::numeric_limits<int>::max();
 
-  bool operator<(const RerouteTargerPriority other)
+  bool operator<(const RerouteTargetPriority other)
   {
     if (this->node_i == other.node_i) {
       return this->socket_in_node_i < other.socket_in_node_i;
@@ -625,8 +625,8 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
 
   /* Reroute type priority based on the indices of target sockets in the node and the nodes in the
    * tree. */
-  Array<RerouteTargerPriority> reroute_group_dst_type_priority(reroute_groups.size(),
-                                                               RerouteTargerPriority{});
+  Array<RerouteTargetPriority> reroute_group_dst_type_priority(reroute_groups.size(),
+                                                               RerouteTargetPriority{});
 
   for (const bNodeLink *link : ntree->all_links()) {
     const bNode *src_node = link->fromnode;
@@ -641,7 +641,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
       const int src_reroute_root_i = reroutes_groups.find_root(src_reroute_i);
       const int src_reroute_group_i = reroute_groups.index_of(src_reroute_root_i);
 
-      const RerouteTargerPriority type_priority{dst_node->index(), link->tosock->index()};
+      const RerouteTargetPriority type_priority{dst_node->index(), link->tosock->index()};
       if (reroute_group_dst_type_priority[src_reroute_group_i] < type_priority) {
         continue;
       }
