@@ -437,7 +437,8 @@ static IndexMask face_tris_mask(const OffsetIndices<int> faces,
           const IndexRange universe_as_range = unique_sorted_indices::non_empty_as_range(
               universe_segment.base_span());
           const IndexRange segment_range = universe_as_range.shift(universe_segment.offset());
-          const OffsetIndices<int> segment_faces = faces.slice(segment_range);
+          const OffsetIndices segment_faces = faces.slice(segment_range);
+
           if (segment_faces.total_size() == segment_faces.size() * 3) {
             /* All faces in segment are triangles. */
             builder.add_range(universe_as_range.start(), universe_as_range.one_after_last());
