@@ -351,6 +351,7 @@ DefNode(GeometryNode, GEO_NODE_EDGES_TO_FACE_GROUPS, 0, EdgesToFaceGroups, "Edge
 DefNode(GeometryNode, GEO_NODE_EVALUATE_AT_INDEX, 0, FieldAtIndex, "Evaluate at Index", "Retrieve data of other elements in the context's geometry")
 DefNode(GeometryNode, GEO_NODE_EVALUATE_ON_DOMAIN, 0, FieldOnDomain, "Evaluate on Domain", "Retrieve values from a field on a different domain besides the domain from the context")
 DefNode(GeometryNode, GEO_NODE_EXTRUDE_MESH, 0, ExtrudeMesh, "Extrude Mesh", "Generate new vertices, edges, or faces from selected elements and move them based on an offset while keeping them connected by their boundary")
+DefNode(GeometryNode, GEO_NODE_FIELD_MIN_AND_MAX, 0, FieldMinAndMax, "Field Min & Max", "Output the minimum and maximum value of an evaluated field for each group")
 DefNode(GeometryNode, GEO_NODE_FILL_CURVE, 0, FillCurve, "Fill Curve", "Generate a mesh on the XY plane with faces on the inside of input curves")
 DefNode(GeometryNode, GEO_NODE_FILLET_CURVE, 0, FilletCurve, "Fillet Curve", "Round corners by generating circular arcs on each control point")
 DefNode(GeometryNode, GEO_NODE_FLIP_FACES, 0, FlipFaces, "Flip Faces", "Reverse the order of the vertices and edges of selected faces, flipping their normal direction")
