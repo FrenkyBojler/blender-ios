@@ -37,8 +37,8 @@ static Vector<std::string> get_columns(const StringRef line)
     delim_index = line.find_first_of(delim, delim_index + 1);
   }
 
-  /* Handle last cell */
-  columns.append(std::string(cell_start, end));
+  /* Handle last cell, --end because the end in StringRef is one_after_ern */
+  columns.append(std::string(cell_start, --end));
 
   return columns;
 }
@@ -48,14 +48,14 @@ static std::optional<eCustomDataType> get_column_type(const char *start, const c
   bool success = false;
 
   int _val_int = 0;
-  parse_int(start, end, success, _val_int);
+  try_parse_int(start, end, success, _val_int);
 
   if (success) {
     return CD_PROP_INT32;
   }
 
   float _val_float = 0.0f;
-  parse_float(start, end, success, _val_float);
+  try_parse_float(start, end, success, _val_float);
 
   if (success) {
     return CD_PROP_FLOAT;
@@ -85,8 +85,8 @@ static bool get_column_types(const StringRef line, Vector<eCustomDataType> &colu
     delim_index = line.find_first_of(delim, delim_index + 1);
   }
 
-  /* Handle last cell */
-  std::optional<eCustomDataType> column_type = get_column_type(cell_start, end);
+  /* Handle last cell, --end because the end in StringRef is one_after_ern */
+  std::optional<eCustomDataType> column_type = get_column_type(cell_start, --end);
   if (!column_type.has_value()) {
     return false;
   }
@@ -119,7 +119,7 @@ static bool parse_csv_cell(CsvData &csv_data,
   switch (csv_data.get_column_type(col_index)) {
     case CD_PROP_INT32: {
       int value = 0;
-      parse_int(start, end, success, value);
+      try_parse_int(start, end, success, value);
       if (success) {
         csv_data.set_data(row_index, col_index, value);
       }
@@ -144,7 +144,7 @@ static bool parse_csv_cell(CsvData &csv_data,
     }
     case CD_PROP_FLOAT: {
       float value = 0.0f;
-      parse_float(start, end, success, value);
+      try_parse_float(start, end, success, value);
       if (success) {
         csv_data.set_data(row_index, col_index, value);
       }
@@ -200,8 +200,8 @@ static bool parse_csv_line(CsvData &csv_data,
     delim_index = line.find_first_of(delim, delim_index + 1);
   }
 
-  /* Handle last cell */
-  if (!parse_csv_cell(csv_data, row_index, col_index, cell_start, end, import_params)) {
+  /* Handle last cell, --end because the end in StringRef is one_after_ern */
+  if (!parse_csv_cell(csv_data, row_index, col_index, cell_start, --end, import_params)) {
     return false;
   }
 
