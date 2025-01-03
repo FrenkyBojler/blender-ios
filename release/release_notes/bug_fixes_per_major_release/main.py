@@ -1,8 +1,605 @@
-# SPDX-FileCopyrightText: 2024 Blender Authors
+# SPDX-FileCopyrightText: 2025 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import re
+import json
+import subprocess
+import urllib.error
+import urllib.request
+
+from time import time, sleep
+from typing import Any
+from pathlib import Path
 from argparse import ArgumentParser
+
+# TODO: Remove these in favour of arguments
+
+# Release tags can be tags (like `v4.3.0`), commit hashes, or branches.
+current_release_tag = 'main'
+previous_release_tag = 'v4.3.0'
+
+current_version_number = '4.4'
+previous_version_numer = '4.3'
+
+# The numbers of the active backport tracking tasks.
+# The backport tasks can be found on the Blender milestones page: https://projects.blender.org/blender/blender/milestones
+# Note: Should we add corrective releases tasks like the 4.3.1 task when processing 4.4 release notes?
+backport_tasks = ['124452', '109399']
+
+# Use caching to speed up the fetching of information for the reports that need manual sorting.
+# Turn this off when generating the final release notes as the cache may be out of date.
+use_caching = False
+
+single_threaded = False
+
+# ----------
+
+# Constants used throughout the script
+
+UNKNOWN = "UNKNOWN"
+
+FIXED_NEW_ISSUE = "FIXED NEW"
+NEEDS_MANUAL_SORTING = "MANUALLY SORT"
+FIXED_OLD_ISSUE = "FIXED OLD"
+FIXED_PR = "FIXED PR"
+REVERT = "REVERT"
+
+OLDER_VERION = "OLDER"
+NEWER_VERION = "NEWER"
+SAME_VERION = "SAME"
+
+dir_of_script = Path(__file__).parent.resolve()
+path_to_overrides = dir_of_script.joinpath('overrides.json')
+path_to_cached_commits = dir_of_script.joinpath('cached_commits.json')
+
+# Add recent Blender versions to this list, including indevelopment versions.
+# This list is used to identify if a version number found in a report is a valid version number.
+# This is to help elimintate dates and other weird information people put in their reports in the format of a version number.
+
+list_of_official_blender_versions = ['1.0', '1.60', '1.73', '1.80', '2.04', '2.26', '2.27', '2.27', '2.28', '2.28', '2.28', '2.30', '2.31', '2.31', '2.32', '2.33', '2.33', '2.34', '2.35', '2.36', '2.37', '2.37', '2.39', '2.40', '2.41', '2.42', '2.43', '2.44', '2.45', '2.46', '2.47', '2.48', '2.48', '2.49', '2.49', '2.49', '2.50', '2.53', '2.54', '2.55', '2.56', '2.56', '2.57', '2.58', '2.59', '2.60', '2.61', '2.62', '2.63', '2.64', '2.65', '2.66', '2.67', '2.68', '2.69', '2.70', '2.71', '2.72', '2.73', '2.74', '2.75', '2.76', '2.77', '2.78', '2.79', '2.80', '2.81', '2.82', '2.83', '2.90', '2.91', '2.92', '2.93', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '4.0', '4.1', '4.2', '4.3', '4.4']
+
+# ----------
+
+# Conform to Blenders crawl delay request
+# https://projects.blender.org/robots.txt
+crawl_delay = 2
+last_checked_time = None
+
+def url_json_get(url: str) -> Any:
+    global last_checked_time
+
+    if last_checked_time is not None:
+        sleep(max(crawl_delay - (time() - last_checked_time), 0))
+    last_checked_time = time()
+
+    try:
+        # Make the HTTP request and store the response in a 'response' object
+        response = urllib.request.urlopen(url)
+    except urllib.error.URLError as ex:
+        print(url)
+        print(f"Error making HTTP request: {ex}")
+        return None
+
+    # Convert the response content to a JSON object containing the user information.
+    result = json.loads(response.read())
+    assert result is None or isinstance(result, (dict, list))
+    return result
+
+# ----------
+
+class CommitInfo():
+    def __init__(self, commit_line: str) -> None:
+        split_message = commit_line.split()
+
+        # Commit line is in the format:
+        # COMMIT_HASH Title of commit
+        self.hash = split_message[0]
+        self.commit_title = " ".join(split_message[1:])
+
+        self.set_defaults()
+
+    def set_defaults(self) -> None:
+        self.is_revert = 'revert' in self.commit_title.lower()
+
+        self.fixed_reports: list[str] = []
+        self.check_full_commit_message_for_fixed_reports()
+
+        # Setup some "useful" empty defaults.
+        self.backport_list: list[str] = []
+        self.module = UNKNOWN
+        self.report_title = UNKNOWN
+        self.classification = UNKNOWN
+
+        # Varibales below this point should not be saved to the cache.
+        self.needs_update = True
+        self.has_been_overwritten = False
+
+    def check_full_commit_message_for_fixed_reports(self) -> None:
+        command = ['git', 'show', '-s', '--format=%B', self.hash]
+        command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
+        
+        # Find every instance of #NUMBER. These are the report that the commit claims to fix.
+        match = re.findall(r'#(\d+)', command_output)
+        if match:
+            self.fixed_reports = match
+
+    def get_backports(self, dict_of_backports: dict[str, list[str]]) -> None:
+        # Figures out if the commit was backported, and to what verion(s).
+        if self.needs_update:
+            for version_number in dict_of_backports:
+                for backported_commit in dict_of_backports[version_number]:
+                    if self.hash.startswith(backported_commit):
+                        self.backport_list.append(version_number)
+                        break
+
+        if len(self.backport_list) > 0:
+            # If the fix was backported to a old release, then it fixed a old issue.
+            self.classification = FIXED_OLD_ISSUE
+
+    def override_report_info(self, new_classification: str, new_title: str, new_module: str) -> None:
+        if new_classification in (FIXED_NEW_ISSUE, FIXED_OLD_ISSUE):
+            # Clear classifications are more important then any other. So always override in this case.
+            self.classification = new_classification
+            self.report_title = new_title
+            self.module = new_module
+            return
+
+        if new_classification in (NEEDS_MANUAL_SORTING, FIXED_PR):
+            if (self.classification == UNKNOWN) or ((new_classification == NEEDS_MANUAL_SORTING) and (self.classification == FIXED_PR)):
+                # Only replace information if the previous classification was the default (UNKNOWN)
+                # or the new classification is NEEDS_MANUAL_SORTING and the old one was FIXED_PR (NEEDS_MANUAL_SORTING is more useful than FIXED_PR).
+                self.classification = new_classification
+                self.report_title = new_title
+                self.module = new_module
+            return
+
+    def get_module(self, labels: list[dict[Any, Any]]) -> str:
+        # Figures out what module the report that was fixed belongs too.
+        for label in labels:
+            if "module" in label['name'].lower():
+                # Module labels are typically in the format Module/NAME.
+                return " ".join(label['name'].split("/")[1:])
+
+        return UNKNOWN
+
+    def classify(self) -> None:
+        if not self.needs_update:
+            # The data was loaded from cache, no need to reprocess it.
+            return
+
+        if self.is_revert:
+            self.classification = REVERT
+            # Give reverts commits their commit title so when it is printed to terminal, it has a useful name.
+            self.report_title = self.commit_title
+            return
+
+        sorted_classes = (FIXED_NEW_ISSUE, FIXED_OLD_ISSUE)
+
+        for report_number in self.fixed_reports:
+            report_information = url_json_get(f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
+
+            report_title = report_information['title']
+            module = self.get_module(report_information['labels'])
+
+            if "pull" in report_information['html_url']:
+                # The fixed issue turns out to be a pull request.
+                # This was probably a typo, but note it down away so we can check and fix it.
+                self.override_report_info(FIXED_PR, self.commit_title, UNKNOWN)
+            else:
+                classification = classify_based_on_report(report_information['body'])
+                self.override_report_info(classification, report_title, module)
+
+            if self.classification in sorted_classes:
+                # The commit has been sorted. No need to process more reports.
+                break
+
+    def generate_release_note_ready_string(self) -> str:
+        # Breakup report_title based on words, and remove `:` if it's at the end of the first word.
+        # This is because the website the release notes are being posted to applies some undesirable
+        # formatting to ` * Word:`.
+        title = self.report_title
+        split_title = title.split()
+        split_title[0] = split_title[0].strip(":")
+
+        # Capitalize the first letter of the issue title.
+        split_title[0] = split_title[0][0].upper() + split_title[0][1:]
+
+        title = " ".join(split_title)
+
+        formatted_string = f" * {title} [[{self.hash[:11]}](https://projects.blender.org/blender/blender/commit/{self.hash})]"
+        if len(self.backport_list) > 0:
+            formatted_string += f" - Backported to {' & '.join(self.backport_list)}"
+        formatted_string += "\n"
+
+        return formatted_string
+
+    def prepare_for_cache(self) -> tuple[str, dict[str, Any]]:
+        return self.hash, {'is_revert': self.is_revert,
+                           'fixed_reports': self.fixed_reports,
+                           'backport_list': self.backport_list,
+                           'module': self.module,
+                           'report_title': self.report_title,
+                           'classification': self.classification}
+
+    def read_from_cache(self, cache_data: dict[str, Any]) -> None:
+        self.is_revert = cache_data['is_revert']
+        self.fixed_reports = cache_data['fixed_reports']
+        self.backport_list = cache_data['backport_list']
+        self.module = cache_data['module']
+        self.report_title = cache_data['report_title']
+        self.classification = cache_data['classification']
+
+        self.needs_update = False
+
+    def read_from_override(self, override_data: list[str]) -> None:
+        self.set_defaults()
+        self.fixed_reports = override_data
+
+        self.has_been_overwritten = True
+
+# ---
+
+def setup_commit_info(commit: str) -> CommitInfo | None:
+    commit_information = CommitInfo(commit)
+    if commit_information.fixed_reports:
+        return commit_information
+    return None
+
+def get_fix_commits() -> list[CommitInfo]:
+    # --no-pager means it prints everything all at once rather than providing a interactive scrollable page.
+    # --no-abbrev-commit tells git to always show the full commit hash.
+    # -i tells grep to ignore case when searching through commits.
+    # -P tells grep to use a specific type of regular expression.
+
+    # This searches for Fix{anything}{one_or_more #}{number}.
+    # .* = {anything}
+    # #+ = {one_or_more #}
+    # \d+ = {number}
+    # This captures the common `Fix #123`, but also the less common `Fixes #123`, `Fix for #123`, and `Fix ##123`.
+    command = ['git', '--no-pager', 'log', f'{previous_release_tag}..{current_release_tag}', '--oneline', '--no-abbrev-commit', '-i', '-P', '--grep', r'Fix.*#+\d+']
+
+    git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
+    git_log_output = git_log_command_output.splitlines()
+
+    if single_threaded:
+        # Original non-multiprocessing method.
+        intial_list_of_commits = []
+        for commit in git_log_output:
+            intial_list_of_commits.append(setup_commit_info(commit))
+    else:
+        # Although setup_commit_info is not compute intensive, it is time consuming due to hundreds of git log calls.
+        # Multiprocessing can significantly reduce the time taken (E.g. 19s -> 4s on a 32 thread CPU).
+        import multiprocessing
+        pool = multiprocessing.Pool()
+
+        intial_list_of_commits = pool.map(setup_commit_info, git_log_output)
+
+        pool.close()
+        pool.join()
+
+    list_of_commits = [result for result in intial_list_of_commits if result]
+    return list_of_commits
+
+# ----------
+
+# Utility functions for classify_based_on_report()
+
+def get_version_numbers(broken_lines: str, working_lines: str) -> tuple[list[str], list[str]]:
+    def extract_numbers(string: str) -> list[str]:
+        return re.findall(r"(\d+\.\d+)", string)
+
+    # Extracts all version numbers from the broken and working fields (Sometimes including weird version numbers like dates).
+    temp_broken_versions = extract_numbers(broken_lines)
+    temp_working_versions = extract_numbers(working_lines)
+
+    broken_versions = []
+    working_versions = []
+
+    for version_number in temp_broken_versions:
+        # Filter out any numbers picked up in the previous step that aren't official Blender version numbers.
+        if version_number in list_of_official_blender_versions:
+            broken_versions.append(version_number)
+    for version_number in temp_working_versions:
+        # Filter out any numbers picked up in the previous step that aren't official Blender version numbers.
+        if version_number in list_of_official_blender_versions:
+            working_versions.append(version_number)
+
+    return broken_versions, working_versions
+
+def version_extraction(report_body: str) -> tuple[list[str], list[str]]:
+    broken_lines = ''
+    working_lines = ''
+    for line in report_body.splitlines():
+        lower_line = line.lower()
+        example_in_line = 'example' in lower_line
+        if lower_line.startswith('brok') and not example_in_line:
+            # Use "brok" to be able to detect different variations of "broken".
+            broken_lines += f'{line}\n'
+        if lower_line.startswith('work'):
+            # Use "work" to be able to detect both "worked" and "working".
+            if not example_in_line:
+                working_lines += f'{line}\n'
+
+    return get_version_numbers(broken_lines, working_lines)
+
+def compare_versions(comparing_version: str, reference_version: str) -> str:
+    # Compare two versions of Blender and return how they compare relative to each other.
+    comp_version = comparing_version.split(".")
+    ref_version = reference_version.split(".")
+    comparing_major = int(comp_version[0])
+    comparing_minor = int(comp_version[1])
+    reference_major = int(ref_version[0])
+    reference_minor = int(ref_version[1])
+
+    if comparing_major < reference_major:
+        return OLDER_VERION
+
+    if comparing_major == reference_major:
+        # The major version matches, so we must compare based on the minor version number.
+        if comparing_minor < reference_minor:
+            return OLDER_VERION
+        if comparing_minor == reference_minor:
+            return SAME_VERION
+
+    return NEWER_VERION
+
+# ---
+
+def classify_based_on_report(report_body: str) -> str:
+    # Get a list of broken and working versions of Blender according to the report that was fixed.
+    broken_versions, working_versions = version_extraction(report_body)
+
+    broken_is_current_or_newer = False
+
+    for broken_version in broken_versions:
+        relative_version = compare_versions(broken_version, current_version_number)
+        if relative_version == OLDER_VERION:
+            # Broken version is older than current release. So the issue is from a older version.
+            return FIXED_OLD_ISSUE
+        if relative_version in (SAME_VERION, NEWER_VERION):
+            broken_is_current_or_newer = True
+
+    for working_version in working_versions:
+        relative_version = compare_versions(working_version, current_version_number)
+        if relative_version in (SAME_VERION, NEWER_VERION):
+            # Working version is current version or newer. So the issue was introduced in this version.
+            return FIXED_NEW_ISSUE
+
+    if broken_is_current_or_newer and (previous_version_numer in working_versions):
+        # Issue is in current release, but wasn't in previous release. So it must of been introduced in the current release.
+        return FIXED_NEW_ISSUE
+
+    return NEEDS_MANUAL_SORTING
+
+# ----------
+
+# Utility functions for classify_commits()
+
+def get_backported_commits(issue_number: str) -> dict[str, list[str]]:
+    # Adapted from https://projects.blender.org/blender/blender/src/branch/main/release/lts/lts_issue.py
+
+    base_url = "https://projects.blender.org/api/v1/repos"
+    issues_url = base_url + "/blender/blender/issues/"
+
+    response = url_json_get(issues_url + issue_number)
+    description = response["body"]
+
+    lines = description.split("\n")
+    current_version = None
+
+    dict_of_backports: dict[str, list[str]] = {}
+
+    blender_version_start = "## Blender "
+    for line in lines:
+        if line.startswith(blender_version_start):
+            current_version = line.strip(blender_version_start)
+        if current_version is None:
+            # We haven't got a Blender version yet.
+            continue
+        if not line.strip():
+            continue
+        if not ("|" in line):
+            # Not part of the backports table.
+            continue
+        if line.startswith("| **Report**"):
+            continue
+        if line.find("| -- |") != -1:
+            continue
+
+        items = line.split("|")
+        commit_string = items[2].strip()
+        commit_string = commit_string.split(",")[0]
+        commit_string = commit_string.split("]")[0]
+        commit_string = commit_string.replace("[", "")
+
+        pattern = r"blender/blender@([a-zA-Z0-9]+)"
+        matches = re.findall(pattern, commit_string)
+        if len(matches) > 0:
+            try:
+                dict_of_backports[current_version] += matches
+            except KeyError:
+                dict_of_backports[current_version] = matches
+
+    return dict_of_backports
+
+def get_backports() -> dict[str, list[str]]:
+    dict_of_backports: dict[str, list[str]] = {}
+    for task in backport_tasks:
+        dict_of_backports.update(get_backported_commits(task))
+
+    return dict_of_backports
+
+# ---
+
+def classify_commits(list_of_commits: list[CommitInfo]) -> None:
+    number_of_commits = len(list_of_commits)
+
+    print("Identifying if fixes are for a bug introduced in this release, or if the bug was there in a previous release.")
+    print("This requires querying information from Gitea, and may take a while.\n")
+
+    dict_of_backports = get_backports()
+
+    i = 0
+    start_time = time()
+    for commit in list_of_commits:
+        # Simple progress bar.
+        i += 1
+        print(f"{i}/{number_of_commits} - Estimated time remaining: {(((time() - start_time) / i) * (number_of_commits - i))/60:.1f} minutes", end="\r", flush=True)
+
+        commit.classify()
+        commit.get_backports(dict_of_backports)
+
+    # Print so we're away from the progress bar.
+    print("\n\n\n")
+
+# ----------
+
+def prepare_for_print(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, list[CommitInfo]]]:
+    # This function takes in a list of commits, and sorts them based on their classification and module.
+
+    dict_of_sorted_commits: dict[str, dict[str, list[CommitInfo]]] = {}
+    valid_classifications = [FIXED_OLD_ISSUE, NEEDS_MANUAL_SORTING, REVERT, FIXED_PR, FIXED_NEW_ISSUE]
+    for item in valid_classifications:
+        dict_of_sorted_commits[item] = {}
+
+    for commit in list_of_commits:
+        commit_classification = commit.classification
+        if commit_classification in valid_classifications:
+            commit_module = commit.module
+            try:
+                # Try to append to a list. If it fails (The list doesn't exist), create the list.
+                dict_of_sorted_commits[commit_classification][commit_module].append(commit)
+            except KeyError:
+                dict_of_sorted_commits[commit_classification][commit_module] = [commit]
+
+    for item in valid_classifications:
+        # Sort modules alphabetically
+        dict_of_sorted_commits[item] = dict(sorted(dict_of_sorted_commits[item].items()))
+
+    return dict_of_sorted_commits
+
+
+def print_list_of_commits(title: str, dict_of_commits: dict[str, list[CommitInfo]]) -> None:
+    commits_message = ""
+    number_of_commits = 0
+    unknown_module_commit_message = ""
+    for module in dict_of_commits:
+        number_of_commits += len(dict_of_commits[module])
+        module_label = f"\n## {module}\n"
+        module_is_unknown = (module == UNKNOWN)
+        if module_is_unknown:
+            unknown_module_commit_message += module_label
+        else:
+            commits_message += module_label
+
+        for commit in dict_of_commits[module]:
+            printed_line = commit.generate_release_note_ready_string()
+
+            if module_is_unknown:
+                unknown_module_commit_message += printed_line
+            else:
+                commits_message += printed_line
+
+    if number_of_commits != 0:
+        print(f"{title} {number_of_commits}")
+        print(commits_message)
+        print(unknown_module_commit_message)
+        print("\n\n\n")
+
+# ----------
+
+def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
+    dict_of_sorted_commits = prepare_for_print(list_of_commits)
+
+    print_list_of_commits("Commits that fixed old issues:", dict_of_sorted_commits[FIXED_OLD_ISSUE])
+    
+    print_list_of_commits("Revert commits:", dict_of_sorted_commits[REVERT])
+
+    print_list_of_commits("Commits that need manual sorting:", dict_of_sorted_commits[NEEDS_MANUAL_SORTING])
+
+    print_list_of_commits("Commits that need a override (launch this script with -o) as they claim to fix a PR:", dict_of_sorted_commits[FIXED_PR])
+
+    # Currently disabled as this information isn't particularly useful.
+    # print_list_of_commits(dict_of_sorted_commits[FIXED_NEW_ISSUE])
+
+    print("""What to do with this output:
+    - Go through every commit in the "Commits that need manual sorting" section and:
+      - Find the corrisponding issue that was fixed (it will be in the commit message)
+      - Update the "Broken" and/or "Working" fields of the report with relevant information so this script can sort it.
+        - Add a module label if it's missing one.
+      - Rerun this script.
+    - Repeat the previous steps until there are no commits that need manual sorting.
+    - This should be done by the triaging module through out the release cycle, so the list should be quite small.
+
+    - Go through the "Revert commits" section and if needed, find the commit they reverted and remove them from the list of "Commits that fixed old issues" (This can be done manually or with the overrides feature).
+    - Double check if there are any obvious commits in the "Commits that fixed old issues" section that shouldn't be there and remove them (E.g. A fix for a feature that has been in development over a few releases, but was only enabled in this release).
+    - Add the output of the "Commits that fixed old issues" section to the release notes: https://projects.blender.org/blender/blender-developer-docs/src/branch/main/docs/release_notes
+      Here is the release notes for a previous release for reference: https://projects.blender.org/blender/blender-developer-docs/src/branch/main/docs/release_notes/4.3/bugfixes.md""")
+
+# ----------
+
+# Caching utilities
+
+def cached_commits_load(list_of_commits: list[CommitInfo]) -> None:
+    if use_caching and path_to_cached_commits.exists():
+        with open(str(path_to_cached_commits), 'r', encoding='utf-8') as file:
+            cached_data = json.load(file)
+        for commit in list_of_commits:
+            if commit.hash in cached_data:
+                commit.read_from_cache(cached_data[commit.hash])
+
+def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
+    # Cache information for commits that have been sorted.
+    # Commits that still need sorting are not cached.
+    # This is done so if a user is repeatably running this script so they can sort
+    # the "needs sorting" section, they don't have to wait for information requests to Gitea
+    # on commits that are already sorted (and they're not interested in).
+
+    if use_caching:
+        data_to_cache = {}
+        for commit in list_of_commits:
+            if (commit.classification != NEEDS_MANUAL_SORTING) and not (commit.has_been_overwritten):
+                commit_hash, data = commit.prepare_for_cache()
+                data_to_cache[commit_hash] = data
+
+        with open(str(path_to_cached_commits), 'w', encoding='utf-8') as file:
+            json.dump(data_to_cache, file, indent=4)
+
+# ----------
+
+# Override utilities
+
+def overrides_load() -> dict[str, list[str]]:
+    override_data = {}
+    if path_to_overrides.exists():
+        with open(str(path_to_overrides), 'r', encoding='utf-8') as file:
+            override_data = json.load(file)
+
+    return override_data
+
+def overrides_store(override_data: dict[str, list[str]]) -> None:
+    with open(str(path_to_overrides), 'w', encoding='utf-8') as file:
+        json.dump(override_data, file, indent=4)
+
+
+def overrides_apply(list_of_commits: list[CommitInfo]) -> None:
+    override_data = overrides_load()
+    if len(override_data) > 0:
+        for commit in list_of_commits:
+            if commit.hash in override_data:
+                commit.read_from_override(override_data[commit.hash])
+
+def create_override() -> None:
+    commit_hash = input("Please input the full hash of the commit you want to override: ")
+    issue_number = input("Please input the issue number you want to override it with: ")
+
+    override_data = overrides_load()
+    override_data[commit_hash] = [issue_number]
+
+    overrides_store(override_data)
+
+# ----------
 
 def argparse_create() -> ArgumentParser:
     parser = ArgumentParser()
@@ -11,12 +608,6 @@ def argparse_create() -> ArgumentParser:
     return parser
 
 if __name__ == "__main__":
-    from commit_info import get_fix_commits
-    from sort_commits import classify_commits
-    from print_to_terminal import print_release_notes
-    from overrides import overrides_apply, create_override
-    from cache_utils import cached_commits_store, cached_commits_load
-
     args = argparse_create().parse_args()
     if args.override:
         create_override()
