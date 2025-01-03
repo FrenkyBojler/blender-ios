@@ -7,13 +7,13 @@
 #include "BLI_string_ref.hh"
 
 /*
- * Various text parsing utilities used by CSV importer.
+ * Various text parsing utilities used by importers.
  *
  * Many of these functions take two pointers (p, end) indicating
  * which part of a string to operate on, and return a possibly
  * changed new start of the string. They could be taking a StringRef
  * as input and returning a new StringRef, but this is a hot path
- * in CSV parsing, and the StringRef approach does lose performance
+ * in CSV and OBJ parsing, and the StringRef approach does lose performance
  * (mostly due to return of StringRef being two register-size values
  * instead of just one pointer).
  */
