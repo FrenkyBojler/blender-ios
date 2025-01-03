@@ -13,13 +13,6 @@ from typing import Any
 from pathlib import Path
 from argparse import ArgumentParser
 
-# TODO: Remove these in favour of arguments
-
-# The numbers of the active backport tracking tasks.
-# The backport tasks can be found on the Blender milestones page: https://projects.blender.org/blender/blender/milestones
-# Note: Should we add corrective releases tasks like the 4.3.1 task when processing 4.4 release notes?
-backport_tasks = ['124452', '109399']
-
 # ----------
 
 # Constants used throughout the script
@@ -412,7 +405,7 @@ def get_backported_commits(issue_number: str) -> dict[str, list[str]]:
 
 def get_backports() -> dict[str, list[str]]:
     dict_of_backports: dict[str, list[str]] = {}
-    for task in backport_tasks:
+    for task in args.backport_tasks:
         dict_of_backports.update(get_backported_commits(task))
 
     return dict_of_backports
@@ -599,6 +592,8 @@ def argparse_create() -> ArgumentParser:
 
     parser.add_argument("-ct", "--current-release-tag", help="The tag for the current release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
     parser.add_argument("-pt", "--previous-release-version", help="The tag for the previous release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
+
+    parser.add_argument("-bpt", "--backport-tasks", nargs='+', help="A list of backport tasks. Example: 123 456 789 for the tasks 123, 456, and 789")
 
     return parser
 
