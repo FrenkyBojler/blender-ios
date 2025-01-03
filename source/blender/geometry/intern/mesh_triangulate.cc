@@ -540,7 +540,6 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   const OffsetIndices tris_by_ngon = ngon::calc_tris_by_ngon(src_faces, ngons, tris_by_ngon_data);
   const int ngon_tris_num = tris_by_ngon.total_size();
   const int quad_tris_num = quads.size() * 2;
-
   const IndexRange tris_range(ngon_tris_num + quad_tris_num);
   const IndexRange ngon_tris_range = tris_range.take_front(ngon_tris_num);
   const IndexRange quad_tris_range = tris_range.take_back(quad_tris_num);
@@ -555,7 +554,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
                            ngons,
                            tris_by_ngon,
                            ngon_mode,
-                           corner_tris.as_mutable_span().take_front(ngon_tris_num));
+                           corner_tris.as_mutable_span().slice(ngon_tris_range));
   }
   if (!quads.is_empty()) {
     quad::calc_corner_tris(positions,
@@ -563,7 +562,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
                            src_corner_verts,
                            quads,
                            quad_mode,
-                           corner_tris.as_mutable_span().take_back(quad_tris_num));
+                           corner_tris.as_mutable_span().slice(quad_tris_range));
   }
 
   /* There is 3 separate set of triangles: original mesh triangles, new triangles from a quads and
@@ -652,7 +651,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   }
 
   {
-    Array<int> src_to_distinct_map(tris_range.size());
+    Array<int> src_to_distinct_map(ngon_tris_num + quad_tris_num);
     quad_indices_of_tris(quads, src_to_distinct_map.as_mutable_span().slice(quad_tris_range));
     ngon_indices_of_tris(
         ngons, tris_by_ngon, src_to_distinct_map.as_mutable_span().slice(ngon_tris_range));
@@ -681,9 +680,9 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
     const Span src(
         static_cast<const int *>(CustomData_get_layer(&src_mesh.face_data, CD_ORIGINDEX)),
         src_mesh.faces_num);
-    MutableSpan<int> dst(static_cast<int *>(CustomData_add_layer(
-                             &mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)),
-                         mesh->faces_num);
+    MutableSpan dst(static_cast<int *>(CustomData_add_layer(
+                        &mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num)),
+                    mesh->faces_num);
 
     array_utils::gather(src, dst_tri_to_src_face.as_span(), dst.slice(distinct_tri_range));
     array_utils::gather(src, distinct_original_faces, dst.slice(distinct_src_faces_range));
