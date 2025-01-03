@@ -11,6 +11,7 @@
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 #include "BLI_vector_set.hh"
+#include "BLI_set.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_filter.hh"
@@ -201,6 +202,12 @@ void mesh_calc_edges(Mesh &mesh,
     edge_sizes[i] = edge_maps[i].size();
   }
   const OffsetIndices<int> edge_offsets = offset_indices::accumulate_counts_to_offsets(edge_sizes);
+  if (keep_existing_edges) {
+    const int new_edges = edge_offsets.total_size() - mesh.edges_num;
+    if (new_edges == 0) {
+      return;
+    }
+  }
 
   {
     MutableAttributeAccessor attributes = mesh.attributes_for_write();
@@ -221,7 +228,6 @@ void mesh_calc_edges(Mesh &mesh,
   });
 
   if (keep_existing_edges && select_new_edges) {
-    /* Mesh can not contains no vertices. */
     mesh_with_old_edges = mesh_new_no_attributes(0, 0, 0, 0);
     BLI_assert(mesh_with_old_edges != nullptr);
     CustomData_init_from(
@@ -254,42 +260,39 @@ void mesh_calc_edges(Mesh &mesh,
   if (mesh_with_old_edges != nullptr) {
     const AttributeAccessor old_edge_attributes = mesh_with_old_edges->attributes();
 
-    const VArraySpan<int2> original_edges = *old_edge_attributes.lookup<int2>(".edge_verts",
-                                                                              AttrDomain::Edge);
+    const VArraySpan<int2> original_edges = *old_edge_attributes.lookup<int2>(".edge_verts", AttrDomain::Edge);
+    /* TODO: Predict common case when there is no attributes to propagate. */
     Array<int, 0> src_to_dst_edges(original_edges.size());
 
     calc_edges::known_edges_to_new(
         edge_offsets, edge_maps, parallel_mask, original_edges, src_to_dst_edges);
 
-    if (array_utils::indices_are_range(src_to_dst_edges.as_span(), IndexRange(mesh.edges_num))) {
-      if (select_new_edges) {
-        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_for_write_span<bool>(
-            ".select_edge");
-        select_edge.span.fill(false);
-        select_edge.finish();
-      }
-
-      copy_attributes(old_edge_attributes, AttrDomain::Edge, AttrDomain::Edge, {}, dst_attributes);
+    if (select_new_edges) {
+      SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_for_write_span<bool>(
+          ".select_edge");
+      select_edge.span.fill_indices(src_to_dst_edges.as_span(), false);
+      select_edge.finish();
     }
-    else {
-      if (select_new_edges) {
-        SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_for_write_span<bool>(
-            ".select_edge");
-        select_edge.span.fill_indices(src_to_dst_edges.as_span(), false);
-        select_edge.finish();
+
+    /* Static storage to extend life-time of strings for reference filter. */
+    static const Set<std::string> skip = {".edge_verts", ".select_edge"};
+    const auto filer = bke::attribute_filter_with_skip_ref(attribute_filter, skip);
+    old_edge_attributes.foreach_attribute([&](const bke::AttributeIter &src_attribute) {
+      BLI_assert(src_attribute.domain == bke::AttrDomain::Edge);
+      if (filer.allow_skip(src_attribute.name)) {
+        return;
       }
+      GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_span(
+          src_attribute.name, src_attribute.domain, src_attribute.data_type);
 
-      /* Static storage to extend life-time of strings for reference filter. */
-      static const Set<std::string> skip = {".edge_verts", ".select_edge"};
-      const auto filer = bke::attribute_filter_with_skip_ref(attribute_filter, skip);
-      old_edge_attributes.foreach_attribute([&](const bke::AttributeIter &src_attribute) {
-        BLI_assert(src_attribute.domain == bke::AttrDomain::Edge);
-        if (filer.allow_skip(src_attribute.name)) {
-          return;
-        }
-
+      attribute_math::convert_to_static_type(dst_attribute.span.type(), [&](auto dummy) {
+        using T = decltype(dummy);
+        const VArraySpan<T> src = src_attribute.get<T>().varray;
+        MutableSpan<T> dst = dst_attribute.span.typed<T>();
+        array_utils::scatter(Span<T>(src), src_to_dst_edges.as_span(), dst);
       });
-    }
+      dst_attribute.finish();
+    });
   }
 
   if (!keep_existing_edges) {
