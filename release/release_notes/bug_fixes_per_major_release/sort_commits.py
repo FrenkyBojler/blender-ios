@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-def get_backported_commits(issue_number):
+from commit_info import CommitInfo
+
+def get_backported_commits(issue_number: str) -> dict[str, list[str]]:
     # Adapted from https://projects.blender.org/blender/blender/src/branch/main/release/lts/lts_issue.py
     import re
     from gitea_utils import url_json_get
@@ -16,7 +18,7 @@ def get_backported_commits(issue_number):
     lines = description.split("\n")
     current_version = None
 
-    dict_of_backports = {}
+    dict_of_backports: dict[str, list[str]] = {}
 
     blender_version_start = "## Blender "
     for line in lines:
@@ -52,18 +54,18 @@ def get_backported_commits(issue_number):
     return dict_of_backports
 
 
-def get_backports():
+def get_backports() -> dict[str, list[str]]:
     from parameters import backport_tasks
 
-    dict_of_backports = {}
-    for item in backport_tasks:
-        dict_of_backports.update(get_backported_commits(item))
+    dict_of_backports: dict[str, list[str]] = {}
+    for task in backport_tasks:
+        dict_of_backports.update(get_backported_commits(task))
 
     return dict_of_backports
 
 # ----------
 
-def classify_commits(list_of_commits):
+def classify_commits(list_of_commits: list[CommitInfo]) -> None:
     from time import time
     from gitea_utils import crawl_delay
 
