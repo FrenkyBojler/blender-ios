@@ -355,4 +355,40 @@ TEST_F(PoseTest, apply_action_multiple_objects)
   EXPECT_NEAR(arm_b_bone_b->loc[1], 0, 0.001);
 }
 
+TEST_F(PoseTest, apply_action_multiple_objects_single_slot)
+{
+  Slot &slot_a = pose_action->slot_add_for_id(obj_armature_a->id);
+
+  keyframe_data->keyframe_insert(
+      bmain, slot_a, {"pose.bones[\"BoneA\"].location", 0}, {1, 5}, key_settings);
+  keyframe_data->keyframe_insert(
+      bmain, slot_a, {"pose.bones[\"BoneB\"].location", 0}, {1, 5}, key_settings);
+
+  bPoseChannel *arm_a_bone_a = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneA");
+  bPoseChannel *arm_a_bone_b = BKE_pose_channel_find_name(obj_armature_a->pose, "BoneB");
+
+  bPoseChannel *arm_b_bone_a = BKE_pose_channel_find_name(obj_armature_b->pose, "BoneA");
+  bPoseChannel *arm_b_bone_b = BKE_pose_channel_find_name(obj_armature_b->pose, "BoneB");
+
+  blender::Vector<bPoseChannel *> all_bones = {
+      arm_a_bone_a, arm_a_bone_b, arm_b_bone_a, arm_b_bone_b};
+
+  for (bPoseChannel *pose_bone : all_bones) {
+    pose_bone->bone->flag &= ~BONE_SELECTED;
+    pose_bone->loc[0] = 0.0;
+    pose_bone->loc[1] = 0.0;
+  }
+
+  AnimationEvalContext eval_context = {nullptr, 1.0f};
+  blender::animrig::pose_apply_action(
+      {obj_armature_a, obj_armature_b}, *pose_action, &eval_context, 1.0);
+
+  /* No bones are selected, this should affect all bones. Armature B has no slot, it should fall
+   * back to slot 0. */
+  EXPECT_NEAR(arm_a_bone_a->loc[0], 5, 0.001);
+  EXPECT_NEAR(arm_a_bone_b->loc[0], 5, 0.001);
+  EXPECT_NEAR(arm_b_bone_a->loc[0], 5, 0.001);
+  EXPECT_NEAR(arm_b_bone_b->loc[0], 5, 0.001);
+}
+
 }  // namespace blender::animrig::tests

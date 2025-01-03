@@ -147,7 +147,7 @@ static void rna_Pose_blend_pose_from_action(ID *pose_owner,
   Object *pose_owner_ob = (Object *)pose_owner;
 
   AnimationEvalContext anim_eval_context = {CTX_data_depsgraph_pointer(C), evaluation_time};
-  animrig::pose_apply_action(pose_owner_ob, action->wrap(), &anim_eval_context, blend_factor);
+  animrig::pose_apply_action({pose_owner_ob}, action->wrap(), &anim_eval_context, blend_factor);
 
   /* Do NOT tag with ID_RECALC_ANIMATION, as that would overwrite the just-applied pose. */
   DEG_id_tag_update(pose_owner, ID_RECALC_GEOMETRY);
