@@ -4224,7 +4224,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
     else {
       /* Convert any previously read weak link to regular link
        * to signal that we want to read this data-block. */
-      if (id->runtime.readfile_data->tags.is_id_link_placeholder) {
+      if (readfile_id_runtime_tags(id).is_id_link_placeholder) {
         id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
       }
 
@@ -4758,7 +4758,7 @@ static void read_library_linked_ids(FileData *basefd,
 
     while (id) {
       ID *id_next = static_cast<ID *>(id->next);
-      if (id->runtime.readfile_data->tags.is_id_link_placeholder &&
+      if (readfile_id_runtime_tags(id).is_id_link_placeholder &&
           !(id->flag & ID_FLAG_INDIRECT_WEAK_LINK))
       {
         BLI_remlink(lbarray[a], id);
@@ -4793,10 +4793,10 @@ static void read_library_linked_ids(FileData *basefd,
           id->runtime.readfile_data = nullptr;
         }
 
-        /* The runtime data needs to be freed here, as this ID placeholder does not go through
-         * versioning (the usual place where this data is freed). Since `id` is not a real ID, this
-         * shouldn't follow any pointers to embedded IDs. */
-        BKE_libblock_free_runtime_data(id);
+        /* The 'readfile' runtime data needs to be freed here, as this ID placeholder does not go
+         * through versioning (the usual place where this data is freed). Since `id` is not a real
+         * ID, this shouldn't follow any pointers to embedded IDs. */
+        BLO_readfile_id_runtime_data_free(*id);
 
         MEM_freeN(id);
       }
