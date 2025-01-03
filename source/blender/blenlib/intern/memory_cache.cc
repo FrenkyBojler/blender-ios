@@ -138,7 +138,7 @@ void set_approximate_size_limit(const int64_t limit_in_bytes)
 
 void clear()
 {
-  remove_if([](const GenericKey &) { return true; });
+  memory_cache::remove_if([](const GenericKey &) { return true; });
 }
 
 void remove_if(const FunctionRef<bool(const GenericKey &)> predicate)
@@ -149,9 +149,6 @@ void remove_if(const FunctionRef<bool(const GenericKey &)> predicate)
   /* Store predicate results to avoid assuming that the predicate is cheap and without side effects
    * that must not happen more than once. */
   Array<bool> predicate_results(cache.keys.size());
-  for (const int64_t i : predicate_results.index_range()) {
-    predicate_results[i] = predicate(*cache.keys[i]);
-  }
 
   /* Recount memory of all elements that are not removed. */
   cache.memory.reset();
