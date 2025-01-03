@@ -425,7 +425,7 @@ static bool pass_left_to_right(const bNodeTree &tree,
         }
 
         /* Propagate references from the inside to the outside. Like in the repeat zone, new
-         * references created in the zone, stay local inside the zone and are not propagated to the
+         * references created in the zone stay local inside the zone and are not propagated to the
          * outside. Instead, the foreach-element output node creates new references. */
         const BitVector<> outside_references = get_references_coming_from_outside_zone(
             *zone, r_potential_data_by_socket, r_potential_reference_by_socket);
