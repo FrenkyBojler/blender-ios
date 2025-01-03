@@ -235,9 +235,20 @@ class Action : public ::bAction {
   /**
    * Create a new Slot.
    *
+   * This method should generally not be used outside of low-level code and
+   * legacy action versioning code, because it creates a Slot with an
+   * unspecified intended ID type, which should be avoided. Prefer
+   * `slot_add_for_id_type()` and `slot_add_for_id()` for adding new slots.
+   *
+   * TODO: we should probably rename this method to make it clear that it
+   * shouldn't be used as the standard way to add a slot.
+   *
    * The slot is given a default name and will be suitable for any ID type.
    * After assigning the slot to an ID, it will be changed to only be suitable
    * for that ID's type.
+   *
+   * \see slot_add_for_id_type()
+   * \see slot_add_for_id()
    */
   Slot &slot_add();
 
@@ -546,9 +557,12 @@ class Strip : public ::ActionStrip {
   /**
    * Set the start and end frame.
    *
-   * Note that this does not do anything else. There is no check whether the
-   * frame numbers are valid (i.e. frame_start <= frame_end). Infinite values
-   * (negative for frame_start, positive for frame_end) are supported.
+   * This directly sets the start/end frames to the values given. It is up to
+   * the caller to ensure the invariants of the strip itself and of the layer it
+   * belongs to.
+   *
+   * `frame_start` must be less than or equal to `frame_end`. Infinite values
+   * (negative for `frame_start`, positive for `frame_end`) are supported.
    */
   void resize(float frame_start, float frame_end);
 
@@ -557,6 +571,12 @@ class Strip : public ::ActionStrip {
    *
    * `T` *must* correspond to the strip's data type. In other words, this must
    * hold true: `T::TYPE == strip.type()`.
+   *
+   * For example, to get a keyframe strip's data:
+   *
+   * ```
+   * StripKeyframeData &strip_data = strip.data<StripKeyframeData>(action);
+   * ```
    */
   template<typename T> const T &data(const Action &owning_action) const;
   template<typename T> T &data(Action &owning_action);
@@ -581,6 +601,10 @@ static_assert(sizeof(Strip) == sizeof(::ActionStrip),
  *
  * Temporary limitation: at most one strip may exist on a layer, and it extends
  * from negative to positive infinity.
+ *
+ * Note: the invariants around multiple strips (such as strip overlap, ordering
+ * within the strip array, etc.) have not yet been decided. These will be
+ * decided and documented when support for multiple strips is added.
  */
 class Layer : public ::ActionLayer {
  public:
@@ -589,12 +613,12 @@ class Layer : public ::ActionLayer {
   ~Layer();
 
   /**
-   * Duplicate the `Layer` and its `Strip`s, but only make shallow copies of the
+   * Duplicate the layer and its strips, but only make shallow copies of the
    * strips.
    *
-   * Specifically, this doesn't duplicate the strip data that's stored in e.g.
-   * `Action::strip_keyframe_data_array`, and it leaves the fields of the strips
-   * themselves exactly as-is.
+   * Specifically, this doesn't duplicate the strip data that's stored in the
+   * layer's owning action, leaving the fields of the strips themselves
+   * exactly as-is.
    *
    * WARNING: this method is primarily used in the code that makes full
    * duplicates of actions, where the arrays of strip data are copied separately
@@ -632,7 +656,7 @@ class Layer : public ::ActionLayer {
     return static_cast<MixMode>(this->layer_mix_mode);
   }
 
-  /* Strip access. */
+  /* Strip array access. */
   blender::Span<const Strip *> strips() const;
   blender::Span<Strip *> strips();
   const Strip *strip(int64_t index) const;
@@ -640,6 +664,10 @@ class Layer : public ::ActionLayer {
 
   /**
    * Add a new Strip of the given type.
+   *
+   * This creates a new infinite strip and appends it to the end of the layer's
+   * strip array. It does no validation of invariants, and it is up to the
+   * caller to ensure that invariants hold.
    */
   Strip &strip_add(Action &owning_action, Strip::Type strip_type);
 
@@ -661,7 +689,10 @@ class Layer : public ::ActionLayer {
   void slot_data_remove(Action &owning_action, slot_handle_t slot_handle);
 
  protected:
-  /** Return the strip's index, or -1 if not found in this layer. */
+  /**
+   * Return the index of `strip` in this layer's strip array, or -1 if not found
+   * in this layer.
+   */
   int64_t find_strip_index(const Strip &strip) const;
 };
 static_assert(sizeof(Layer) == sizeof(::ActionLayer),
@@ -708,23 +739,27 @@ class Slot : public ::ActionSlot {
   static_assert(sizeof(NlaStrip::last_slot_identifier) == identifier_length_max);
 
   /**
-   * Return the identifier prefix for the Slot's type.
+   * Return the identifier prefix of this Slot's identifier.
    *
-   * This is the ID name prefix, so "OB" for objects, "CA" for cameras, etc.
+   * This corresponds to the intended ID type of the slot, e.g "OB" for object,
+   * "CA" for camera, etc.
    */
   std::string identifier_prefix_for_idtype() const;
 
   /**
-   * Return the identifier without the prefix, also known as the "display name".
+   * Return this Slot's identifier without the prefix, also known as the
+   * "display name".
+   *
+   * E.g. if the identifier is "OBCube", then "Cube" is returned.
    *
    * \see identifier_prefix_for_idtype
    */
   StringRefNull identifier_without_prefix() const;
 
-  /** Return whether this Slot is usable by this ID type. */
+  /** Return whether this Slot is intended to be used by this ID type. */
   bool is_suitable_for(const ID &animated_id) const;
 
-  /** Return whether this Slot has an `idtype` set. */
+  /** Return whether this Slot has an intended ID type (`idtype`) set. */
   bool has_idtype() const;
 
   /* Flags access. */
@@ -790,18 +825,25 @@ class Slot : public ::ActionSlot {
   static void users_invalidate(Main &bmain);
 
   /**
-   * Ensure the first two characters of the identifier match the ID type.
+   * Ensure the first two characters of this Slot's identifier match its
+   * intended ID type.
    *
-   * This typically should not be called directly. Prefer assigning to an ID to
-   * get the idtype and identifier prefix properly set. Prefer calling
-   * `Action::slot_identifier_set()` if you want to set the slot identifier. Both of those
-   * approaches take care of ensuring uniqueness and other invariants.
+   * This typically does not need to be called outside of some low-level
+   * functions. Aside from versioning code that upgrades legacy actions, Slots
+   * should always be created with a specific intended ID type and corresponding
+   * identifier prefix that never changes after creation, making this method
+   * unnecessary.
+   *
+   * In the rare cases that a Slot does not have a specified intended ID type,
+   * this method *still* should typically not be called directly. In those cases
+   * prefer assigning to an ID (e.g. via `Action::assign_action_slot()`), which
+   * will set the Slot's intended ID type and identifier prefix to match the
+   * given ID's type, as well as ensure identifier uniqueness within the Action.
    *
    * \note This does NOT ensure identifier uniqueness within the Action. That is the
    * responsibility of the caller.
    *
    * \see #assign_action_slot
-   * \see #Action::slot_identifier_set
    */
   void identifier_ensure_prefix();
 
@@ -818,7 +860,13 @@ static_assert(sizeof(Slot) == sizeof(::ActionSlot),
 ENUM_OPERATORS(Slot::Flags, Slot::Flags::Active);
 
 /**
- * Keyframe strips effectively contain a bag of F-Curves for each Slot.
+ * Keyframe animation data for a keyframe strip.
+ *
+ * This contains a set of Channelbags, up to one for each slot in the owning
+ * action. Each Channelbag contains the keyframe animation data for the slot it
+ * corresponds to.
+ *
+ * \see ChannelBag
  */
 class StripKeyframeData : public ::ActionStripKeyframeData {
  public:
@@ -836,9 +884,9 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
   Channelbag *channelbag(int64_t index);
 
   /**
-   * Find the animation channels for this slot.
+   * Find the channelbag for the given slot.
    *
-   * \return nullptr if there is none yet for this slot.
+   * \return nullptr if there is none yet for the given slot.
    */
   const Channelbag *channelbag_for_slot(const Slot &slot) const;
   Channelbag *channelbag_for_slot(const Slot &slot);
@@ -846,23 +894,23 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
   Channelbag *channelbag_for_slot(slot_handle_t slot_handle);
 
   /**
-   * Add the animation channels for this slot.
+   * Add a channelbag for the given slot.
    *
    * Should only be called when there is no `Channelbag` for this slot yet.
    */
   Channelbag &channelbag_for_slot_add(const Slot &slot);
 
   /**
-   * Find the Channelbag for `slot`, or if none exists, create it.
+   * Find the channelbag for the given slot, or if none exists, create it.
    */
   Channelbag &channelbag_for_slot_ensure(const Slot &slot);
 
   /**
-   * Remove the Channelbag from this slot.
+   * Remove the given channelbag from this strip data.
    *
    * After this call the reference is no longer valid, as the memory will have been freed.
    *
-   * \return true when the Channelbag was found & removed, false if it wasn't found.
+   * \return true when the channelbag was found & removed, false if it wasn't found.
    */
   bool channelbag_remove(Channelbag &channelbag_to_remove);
 
@@ -873,9 +921,15 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
    */
   void slot_data_remove(slot_handle_t slot_handle);
 
-  /** Return the channelbag's index, or -1 if there is none for this slot handle. */
+  /**
+   * Return the index of `channelbag` in this strip data's channelbag array, or
+   * -1 if `channelbag` doesn't exist in this strip data.
+   */
   int64_t find_channelbag_index(const Channelbag &channelbag) const;
 
+  /**
+   * TODO: document this.
+   */
   SingleKeyingResult keyframe_insert(Main *bmain,
                                      const Slot &slot,
                                      FCurveDescriptor fcurve_descriptor,
@@ -889,6 +943,9 @@ static_assert(sizeof(StripKeyframeData) == sizeof(::ActionStripKeyframeData),
 
 /**
  * Collection of F-Curves, intended for a specific Slot handle.
+ *
+ * The F-Curves can also be organized into groups (e.g. all F-Curves for a given
+ * bone can be put into a group with that bone's name).
  */
 class Channelbag : public ::ActionChannelbag {
  public:
@@ -938,8 +995,12 @@ class Channelbag : public ::ActionChannelbag {
   /**
    * Append an F-Curve to this Channelbag.
    *
-   * Ownership of the F-Curve is also transferred to the Channelbag. The F-Curve
-   * will not belong to any channel group after appending.
+   * Semantically this transfers ownership of the F-Curve this Channelbag, and
+   * it is up to the caller to ensure that this is valid (e.g. the F-Curve
+   * doesn't also belong to something else).
+   *
+   * The F-Curve will be ungrouped (i.e. not belong to any channel group) after
+   * appending.
    *
    * This is considered a low-level function. Things like depsgraph relations
    * tagging is left to the caller.
@@ -949,7 +1010,7 @@ class Channelbag : public ::ActionChannelbag {
   /**
    * Remove an F-Curve from the Channelbag.
    *
-   * Additionally, if the fcurve was the last fcurve in a channel group, that
+   * Additionally, if the F-Curve was the last F-Curve in a channel group, that
    * channel group is also deleted.
    *
    * After this call, if the F-Curve was found, the reference will no longer be
@@ -1009,6 +1070,9 @@ class Channelbag : public ::ActionChannelbag {
 
   /**
    * Remove all F-Curves from this Channelbag.
+   *
+   * Since all channel groups become empty, this also removes all channel
+   * groups.
    */
   void fcurves_clear();
 
@@ -1195,15 +1259,15 @@ static_assert(sizeof(Channelbag) == sizeof(::ActionChannelbag),
  * This does *not* own the fcurves--the Channelbag does. This just groups
  * fcurves for organizational purposes, e.g. for use in the channel list in the
  * animation editors.
- *
- * Usage of this wrapper typically indicates that the group is part of a layered
- * action. However, the underlying `bActionGroup` struct is also used by legacy
- * actions.
  */
 class ChannelGroup : public ::bActionGroup {
  public:
   /**
    * Determine whether this channel group is from a legacy action or a layered action.
+   *
+   * TODO: this should be removed, as it's currently only used by code that is
+   * no longer relevant and should also be removed due to legacy actions no
+   * longer being supported at runtime.
    *
    * \return True if it's from a legacy action, false if it's from a layered action.
    */

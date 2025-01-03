@@ -1137,8 +1137,8 @@ typedef struct ActionLayer {
   uint8_t _pad0[2];
 
   /**
-   * There is always at least one strip.
-   * If there is only one, it can be infinite. This is the default for new layers.
+   * The layer's array of strips. See the documentation of
+   * #blender::animrig::Layer for the invariants of this array.
    */
   struct ActionStrip **strip_array; /* Array of 'strip_array_num' strips. */
   int strip_array_num;
