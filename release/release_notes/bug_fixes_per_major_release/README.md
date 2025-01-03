@@ -13,11 +13,19 @@ some missing commits), but it's significantly better than nothing.
 ---
 
 ### How to use the script
-- Edit the variables in `parameters.py` to match the versions of Blender
-  you're interested in.
+- Make sure the list `list_of_official_blender_versions` is up to date.
 - Open a terminal in your Blender source code folder and make sure the
   branches you're interested in are up to date.
-- Run `main.py`
+- Launch `main.py` with relevant launch arguments. The required arguments
+are:
+  - --current-version (-cv)
+  - --previous-version (-pv)
+  - --current-release-tag (-ct)
+  - --previous-release-tag (-pt)
+  - --backport-tasks (-bpt) (Optional but highly recommended)
+- Here is an example if you wish to collect the list for Blender 4.4 during
+the development of 4.4:
+  - `python main.py -cv 4.4 -pv 4.3 -ct main -pt v4.3.2 -bpt 109399 124452 130221`
 - Wait for the script to finish (This usually takes 20 minutes).
 - Follow the guide printed to terminal.
 
@@ -38,9 +46,9 @@ issue number that commit actually fixes then will use that override
 
 ### How the script works
 - First the script gathers all commits that contain `Fix #NUMBER` that
-occured between between the two versions of Blender you're interested in.
+occured between the two versions of Blender you're interested in.
   - This is done using:
-  `git --no-pager log PREVIOUS_VERSION..CURRENT_VERSION --oneline -P -i --grep "Fix.*#+\d+"`
+  `git --no-pager log PREVIOUS_VERSION..CURRENT_VERSION --oneline -i -P --grep "Fix.*#+\d+"`
 - The script then extracts all report numbers (`#NUMBER`)
   from the commit message.
 - The script then iterates through those reports, checking the
