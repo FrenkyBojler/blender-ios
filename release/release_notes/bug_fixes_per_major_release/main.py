@@ -19,9 +19,6 @@ from argparse import ArgumentParser
 current_release_tag = 'main'
 previous_release_tag = 'v4.3.0'
 
-current_version_number = '4.4'
-previous_version_numer = '4.3'
-
 # The numbers of the active backport tracking tasks.
 # The backport tasks can be found on the Blender milestones page: https://projects.blender.org/blender/blender/milestones
 # Note: Should we add corrective releases tasks like the 4.3.1 task when processing 4.4 release notes?
@@ -347,7 +344,7 @@ def classify_based_on_report(report_body: str) -> str:
     broken_is_current_or_newer = False
 
     for broken_version in broken_versions:
-        relative_version = compare_versions(broken_version, current_version_number)
+        relative_version = compare_versions(broken_version, args.current_version)
         if relative_version == OLDER_VERION:
             # Broken version is older than current release. So the issue is from a older version.
             return FIXED_OLD_ISSUE
@@ -355,12 +352,12 @@ def classify_based_on_report(report_body: str) -> str:
             broken_is_current_or_newer = True
 
     for working_version in working_versions:
-        relative_version = compare_versions(working_version, current_version_number)
+        relative_version = compare_versions(working_version, args.current_version)
         if relative_version in (SAME_VERION, NEWER_VERION):
             # Working version is current version or newer. So the issue was introduced in this version.
             return FIXED_NEW_ISSUE
 
-    if broken_is_current_or_newer and (previous_version_numer in working_versions):
+    if broken_is_current_or_newer and (args.previous_version in working_versions):
         # Issue is in current release, but wasn't in previous release. So it must of been introduced in the current release.
         return FIXED_NEW_ISSUE
 
@@ -600,6 +597,9 @@ def argparse_create() -> ArgumentParser:
     parser.add_argument("-o", "--override", action="store_true", help="Create a override for a commit")
     parser.add_argument("-s", "--single-thread", action="store_true", help="Run one of the parts of this script in single threaded mode (Only really useful for debugging)")
     parser.add_argument("-c", "--cache", action="store_true", help="Use caching to speed up re-runs on this script (WARNING: Leave caching off when collecting the final release notes)")
+
+    parser.add_argument("-cv", "--current-version", help="The common major.minor name of the current version of Blender (E.g. 4.2, 4.3, 4.4)")
+    parser.add_argument("-pv", "--previous-version", help="The common major.minor name of the previous version of Blender (E.g. 4.2, 4.3, 4.4)")
 
     return parser
 
