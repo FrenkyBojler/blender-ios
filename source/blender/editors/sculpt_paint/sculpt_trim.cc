@@ -502,7 +502,7 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   }
 
   bke::mesh_smooth_set(*trim_operation->mesh, false);
-  bke::mesh_calc_edges(*trim_operation->mesh, false, false, false);
+  bke::mesh_calc_edges(*trim_operation->mesh, false, false, {});
   update_normals(gesture_data);
 }
 

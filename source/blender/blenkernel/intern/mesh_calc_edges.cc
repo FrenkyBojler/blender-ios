@@ -180,7 +180,7 @@ static void known_edges_to_new(const OffsetIndices<int> edge_offsets,
 void mesh_calc_edges(Mesh &mesh,
                      bool keep_existing_edges,
                      const bool select_new_edges,
-                     const bool copy_edge_attributes)
+                     const AttributeFilter &attribute_filter)
 {
   /* Parallelization is achieved by having multiple hash tables for different subsets of edges.
    * Each edge is assigned to one of the hash maps based on the lower bits of a hash value. */
@@ -220,11 +220,12 @@ void mesh_calc_edges(Mesh &mesh,
     }
   });
 
-  if (keep_existing_edges && (select_new_edges || copy_edge_attributes)) {
+  if (keep_existing_edges && select_new_edges) {
+    /* Mesh can not contains no vertices. */
     mesh_with_old_edges = mesh_new_no_attributes(0, 0, 0, 0);
     BLI_assert(mesh_with_old_edges != nullptr);
     CustomData_init_from(
-        &mesh.edge_data, &mesh_with_old_edges->edge_data, CD_MASK_ALL, mesh.edges_num);
+        &mesh.edge_data, &mesh_with_old_edges->edge_data, CD_MASK_MESH.emask, mesh.edges_num);
     mesh_with_old_edges->edges_num = mesh.edges_num;
   }
 
@@ -278,22 +279,14 @@ void mesh_calc_edges(Mesh &mesh,
         select_edge.finish();
       }
 
-      const auto filer = bke::attribute_filter_from_skip_ref({".edge_verts", ".select_edge"});
+      static const Set<std::string> skip = {".edge_verts", ".select_edge"};
+      const auto filer = bke::attribute_filter_with_skip_ref(attribute_filter, skip);
       old_edge_attributes.foreach_attribute([&](const bke::AttributeIter &src_attribute) {
         BLI_assert(src_attribute.domain == bke::AttrDomain::Edge);
         if (filer.allow_skip(src_attribute.name)) {
           return;
         }
-        GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_span(
-            src_attribute.name, src_attribute.domain, src_attribute.data_type);
 
-        attribute_math::convert_to_static_type(dst_attribute.span.type(), [&](auto dummy) {
-          using T = decltype(dummy);
-          const VArraySpan<T> src = src_attribute.get<T>().varray;
-          MutableSpan<T> dst = dst_attribute.span.typed<T>();
-          array_utils::scatter(Span<T>(src), src_to_dst_edges.as_span(), dst);
-        });
-        dst_attribute.finish();
       });
     }
   }

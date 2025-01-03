@@ -805,7 +805,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
     }
 
     if (recalc_flag.edges) {
-      mesh_calc_edges(*mesh, true, false, false);
+      mesh_calc_edges(*mesh, true, false, {});
     }
   }
 
