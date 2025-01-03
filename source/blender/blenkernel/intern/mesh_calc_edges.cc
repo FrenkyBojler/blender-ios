@@ -8,10 +8,10 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_ordered_edge.hh"
+#include "BLI_set.hh"
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 #include "BLI_vector_set.hh"
-#include "BLI_set.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_filter.hh"
@@ -260,7 +260,8 @@ void mesh_calc_edges(Mesh &mesh,
   if (mesh_with_old_edges != nullptr) {
     const AttributeAccessor old_edge_attributes = mesh_with_old_edges->attributes();
 
-    const VArraySpan<int2> original_edges = *old_edge_attributes.lookup<int2>(".edge_verts", AttrDomain::Edge);
+    const VArraySpan<int2> original_edges = *old_edge_attributes.lookup<int2>(".edge_verts",
+                                                                              AttrDomain::Edge);
     /* TODO: Predict common case when there is no attributes to propagate. */
     Array<int, 0> src_to_dst_edges(original_edges.size());
 
