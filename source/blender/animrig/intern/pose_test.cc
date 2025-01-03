@@ -353,6 +353,23 @@ TEST_F(PoseTest, apply_action_multiple_objects)
   EXPECT_NEAR(arm_a_bone_b->loc[0], 0, 0.001);
   EXPECT_NEAR(arm_b_bone_a->loc[1], 5, 0.001);
   EXPECT_NEAR(arm_b_bone_b->loc[1], 0, 0.001);
+
+  for (bPoseChannel *pose_bone : all_bones) {
+    pose_bone->loc[0] = 0.0;
+    pose_bone->loc[1] = 0.0;
+  }
+
+  arm_a_bone_a->bone->flag |= BONE_SELECTED;
+  arm_a_bone_b->bone->flag |= BONE_SELECTED;
+  arm_b_bone_a->bone->flag |= BONE_SELECTED;
+
+  blender::animrig::pose_apply_action(
+      {obj_armature_a, obj_armature_b}, *pose_action, &eval_context, 1.0);
+
+  EXPECT_NEAR(arm_a_bone_a->loc[0], 5, 0.001);
+  EXPECT_NEAR(arm_a_bone_b->loc[0], 5, 0.001);
+  EXPECT_NEAR(arm_b_bone_a->loc[1], 10, 0.001);
+  EXPECT_NEAR(arm_b_bone_b->loc[1], 0, 0.001);
 }
 
 TEST_F(PoseTest, apply_action_multiple_objects_single_slot)
