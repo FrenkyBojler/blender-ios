@@ -991,10 +991,8 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
   /* Apply the Action as pose, so that it can be rendered. This assumes the Action represents a
    * single pose, and that thus the evaluation time doesn't matter. */
   AnimationEvalContext anim_eval_context = {preview->depsgraph, 0.0f};
-  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
-      pose_action);
   blender::animrig::pose_apply_action_all_bones(
-      object, &pose_action, slot_handle, &anim_eval_context);
+      object, &pose_action, slot.handle, &anim_eval_context);
 
   /* Force evaluation of the new pose, before the preview is rendered. */
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);

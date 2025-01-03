@@ -206,12 +206,8 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
     return;
   }
 
-  for (Object *ob : *pbd->objects) {
-    blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(ob->id,
-                                                                               pose_action);
-    blender::animrig::pose_apply_action_blend(
-        ob, &pose_action, slot.handle, &anim_eval_context, pbd->blend_factor);
-  }
+  blender::animrig::pose_apply_action(
+      *pbd->objects, pose_action, &anim_eval_context, pbd->blend_factor);
 }
 
 /* ---------------------------- */
