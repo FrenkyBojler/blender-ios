@@ -2,10 +2,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-def argparse_create():
-    import argparse
+from argparse import ArgumentParser
 
-    parser = argparse.ArgumentParser()
+def argparse_create() -> ArgumentParser:
+    parser = ArgumentParser()
     parser.add_argument("-o", "--override", action="store_true", help="Create a override for a commit")
 
     return parser
