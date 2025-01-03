@@ -545,7 +545,7 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
     return;
   }
 
-  PointCloud *pointcloud = (PointCloud *)BKE_pointcloud_add(bmain, ob->id.name + 2);
+  PointCloud *pointcloud = BKE_pointcloud_add(bmain, ob->id.name + 2);
 
   CustomData_free(&pointcloud->pdata, pointcloud->totpoint);
   pointcloud->totpoint = mesh_eval->verts_num;
@@ -905,7 +905,7 @@ static int foreach_libblock_make_usercounts_callback(LibraryIDLinkCallbackData *
     return IDWALK_RET_NOP;
   }
 
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   if (cb_flag & IDWALK_CB_USER) {
     id_us_plus(*id_p);
   }

@@ -35,6 +35,25 @@ struct bPose;
 struct bPoseChannel;
 struct bPoseChannel_Runtime;
 
+namespace blender::animrig {
+
+/**
+ * Action slot handle type.
+ *
+ * An identifier of slots within an action that is guaranteed to be unique
+ * within that action and is guaranteed not to change for a slot.
+ *
+ * NOTE: keep this type in sync with `ActionSlot::handle` in the action DNA
+ * types. We redefine it here rather than making a type alias to avoid bringing
+ * in the entirety of DNA_action_types.h for everything that includes this
+ * header.
+ *
+ * \see `ActionSlot::handle`
+ */
+using slot_handle_t = int32_t;
+
+}  // namespace blender::animrig
+
 /* Action Lib Stuff ----------------- */
 
 /* Allocate a new bAction with the given name */
@@ -353,6 +372,19 @@ void BKE_action_flip_with_pose(bAction *act, Object *ob_arm) ATTR_NONNULL(1, 2);
 namespace blender::bke {
 
 using FoundFCurveCallback = blender::FunctionRef<void(FCurve *fcurve, const char *bone_name)>;
-void BKE_action_find_fcurves_with_bones(const bAction *action, FoundFCurveCallback callback);
+using FoundFCurveCallbackConst =
+    blender::FunctionRef<void(const FCurve *fcurve, const char *bone_name)>;
+
+/**
+ * Calls `callback` for every fcurve in an action slot that targets any bone.
+ *
+ * \param slot_handle only FCurves from the given action slot are visited.
+ */
+void BKE_action_find_fcurves_with_bones(bAction *action,
+                                        blender::animrig::slot_handle_t slot_handle,
+                                        FoundFCurveCallback callback);
+void BKE_action_find_fcurves_with_bones(const bAction *action,
+                                        blender::animrig::slot_handle_t slot_handle,
+                                        FoundFCurveCallbackConst callback);
 
 };  // namespace blender::bke

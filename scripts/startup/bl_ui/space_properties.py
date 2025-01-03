@@ -119,13 +119,10 @@ class PropertiesAnimationMixin:
             class_list = [c.__name__ for c in cls.mro()]
             print("PropertiesAnimationMixin: no animatable data-block, this is a bug "
                   "in one of these classes: {!r}".format(class_list))
-            layout.label(text='No animatable data-block, please report as bug', icon='ERROR')
+            layout.label(text="No animatable data-block, please report as bug", icon='ERROR')
             return
 
         layout.template_action(animated_id, new="action.new", unlink="action.unlink")
-
-        if not context.preferences.experimental.use_animation_baklava:
-            return
 
         adt = animated_id.animation_data
         if not adt or not adt.action:
@@ -136,7 +133,7 @@ class PropertiesAnimationMixin:
             layout.context_pointer_set("animated_id", animated_id)
             layout.template_search(
                 adt, "action_slot",
-                adt, "action_slots",
+                adt, "action_suitable_slots",
                 new="anim.slot_new_for_id",
                 unlink="anim.slot_unassign_from_id",
             )

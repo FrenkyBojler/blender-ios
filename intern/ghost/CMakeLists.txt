@@ -4,7 +4,7 @@
 
 set(INC
   PUBLIC .
-  ../../source/blender/imbuf
+  ../guardedalloc
 )
 
 set(INC_SYS
@@ -72,6 +72,8 @@ set(SRC
 set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
 )
 
@@ -182,12 +184,6 @@ elseif(APPLE AND NOT WITH_GHOST_X11)
     intern/GHOST_SystemCocoa.hh
     intern/GHOST_WindowCocoa.hh
     intern/GHOST_WindowViewCocoa.hh
-  )
-
-  list(APPEND SRC
-    intern/GHOST_ContextCGL.mm
-
-    intern/GHOST_ContextCGL.hh
   )
 
   if(WITH_INPUT_NDOF)
@@ -434,7 +430,7 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     )
     # Tablet.
     generate_protocol_bindings(
-      "${WAYLAND_PROTOCOLS_DIR}/unstable/tablet/tablet-unstable-v2.xml"
+      "${WAYLAND_PROTOCOLS_DIR}/stable/tablet/tablet-v2.xml"
     )
     # Primary-selection.
     generate_protocol_bindings(
@@ -526,6 +522,16 @@ if(UNIX AND NOT APPLE)
       intern/GHOST_ContextEGL.cc
 
       intern/GHOST_ContextEGL.hh
+    )
+  endif()
+endif()
+
+if(APPLE)
+  if(WITH_METAL_BACKEND)
+    list(APPEND SRC
+      intern/GHOST_ContextCGL.mm
+
+      intern/GHOST_ContextCGL.hh
     )
   endif()
 endif()

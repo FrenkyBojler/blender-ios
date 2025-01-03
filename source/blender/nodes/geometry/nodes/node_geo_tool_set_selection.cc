@@ -60,7 +60,7 @@ static GField clamp_selection(const GField &selection)
   return Field<bool>(FieldOperation::Create(clamp, {selection}));
 }
 
-static Field<float> invert_selection(const GField &selection)
+static GField invert_selection(const GField &selection)
 {
   if (selection.cpp_type().is<bool>()) {
     static auto invert = mf::build::SI1_SO<bool, bool>("Invert Selection",
@@ -202,6 +202,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_TOOL_SET_SELECTION, "Set Selection", NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "TOOL_SELECTION_SET";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
