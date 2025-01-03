@@ -720,7 +720,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   }
 
   /* Automatically generate new edges between new triangles, with necessary deduplication. */
-  bke::mesh_calc_edges(*mesh, true, false, true);
+  bke::mesh_calc_edges(*mesh, true, false, attribute_filter);
 
   mesh->runtime->bounds_cache = src_mesh.runtime->bounds_cache;
   copy_loose_vert_hint(src_mesh, *mesh);
