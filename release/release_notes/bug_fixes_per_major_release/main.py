@@ -31,8 +31,6 @@ backport_tasks = ['124452', '109399']
 # Turn this off when generating the final release notes as the cache may be out of date.
 use_caching = False
 
-single_threaded = False
-
 # ----------
 
 # Constants used throughout the script
@@ -262,7 +260,7 @@ def get_fix_commits() -> list[CommitInfo]:
     git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
     git_log_output = git_log_command_output.splitlines()
 
-    if single_threaded:
+    if args.single_thread:
         # Original non-multiprocessing method.
         intial_list_of_commits = []
         for commit in git_log_output:
@@ -604,6 +602,7 @@ def create_override() -> None:
 def argparse_create() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("-o", "--override", action="store_true", help="Create a override for a commit")
+    parser.add_argument("-s", "--single-thread", action="store_true", help="Run one of the parts of this script in single threaded mode (Only really useful for debugging)")
 
     return parser
 
