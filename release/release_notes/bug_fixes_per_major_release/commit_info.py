@@ -201,21 +201,19 @@ def get_fix_commits() -> list[CommitInfo]:
 
     if True:
         # Although setup_commit_info is not compute intensive, it is time consuming due to hundreds of git log calls.
-        # Multiprocessing can significantly reduce the time taken (E.g. 19s -> 4s on a 32 thread CPU for 4.3 release).
-
+        # Multiprocessing can significantly reduce the time taken (E.g. 19s -> 4s on a 32 thread CPU).
         import multiprocessing
         pool = multiprocessing.Pool()
 
-        results = pool.map(setup_commit_info, git_log_output)
-        list_of_commits = [result for result in results if result]
+        intial_list_of_commits = pool.map(setup_commit_info, git_log_output)
+
         pool.close()
         pool.join()
     else:
         # Original non-multiprocessing method.
-        list_of_commits = []
+        intial_list_of_commits = []
         for commit in git_log_output:
-            commit_information = CommitInfo(commit)
-            if commit_information.fixed_reports:
-                list_of_commits.append(commit_information)
+            intial_list_of_commits.append(setup_commit_info(commit))
 
+    list_of_commits = [result for result in intial_list_of_commits if result]
     return list_of_commits
