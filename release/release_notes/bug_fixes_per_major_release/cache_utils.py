@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-def cached_commits_load(list_of_commits: list) -> None:
+from commit_info import CommitInfo
+
+def cached_commits_load(list_of_commits: list[CommitInfo]) -> None:
     import json
 
     from parameters import use_caching
@@ -16,7 +18,7 @@ def cached_commits_load(list_of_commits: list) -> None:
                 commit.read_from_cache(cached_data[commit.hash])
 
 
-def cached_commits_store(list_of_commits: list) -> None:
+def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
     import json
 
     from parameters import use_caching
