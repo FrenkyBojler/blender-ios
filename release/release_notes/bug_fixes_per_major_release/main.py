@@ -30,8 +30,8 @@ NEWER_VERION = "NEWER"
 SAME_VERION = "SAME"
 
 dir_of_script = Path(__file__).parent.resolve()
-path_to_overrides = dir_of_script.joinpath('overrides.json')
-path_to_cached_commits = dir_of_script.joinpath('cached_commits.json')
+PATH_TO_OVERRIDES = dir_of_script.joinpath('overrides.json')
+PATH_TO_CACHED_COMMITS = dir_of_script.joinpath('cached_commits.json')
 
 # Add recent Blender versions to this list, including indevelopment versions.
 # This list is used to identify if a version number found in a report is a valid version number.
@@ -522,8 +522,8 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
 # Caching utilities
 
 def cached_commits_load(list_of_commits: list[CommitInfo]) -> None:
-    if args.cache and path_to_cached_commits.exists():
-        with open(str(path_to_cached_commits), 'r', encoding='utf-8') as file:
+    if args.cache and PATH_TO_CACHED_COMMITS.exists():
+        with open(str(PATH_TO_CACHED_COMMITS), 'r', encoding='utf-8') as file:
             cached_data = json.load(file)
         for commit in list_of_commits:
             if commit.hash in cached_data:
@@ -543,7 +543,7 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
                 commit_hash, data = commit.prepare_for_cache()
                 data_to_cache[commit_hash] = data
 
-        with open(str(path_to_cached_commits), 'w', encoding='utf-8') as file:
+        with open(str(PATH_TO_CACHED_COMMITS), 'w', encoding='utf-8') as file:
             json.dump(data_to_cache, file, indent=4)
 
 # ----------
@@ -552,14 +552,14 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
 
 def overrides_load() -> dict[str, list[str]]:
     override_data = {}
-    if path_to_overrides.exists():
-        with open(str(path_to_overrides), 'r', encoding='utf-8') as file:
+    if PATH_TO_OVERRIDES.exists():
+        with open(str(PATH_TO_OVERRIDES), 'r', encoding='utf-8') as file:
             override_data = json.load(file)
 
     return override_data
 
 def overrides_store(override_data: dict[str, list[str]]) -> None:
-    with open(str(path_to_overrides), 'w', encoding='utf-8') as file:
+    with open(str(PATH_TO_OVERRIDES), 'w', encoding='utf-8') as file:
         json.dump(override_data, file, indent=4)
 
 
@@ -583,17 +583,17 @@ def create_override() -> None:
 
 def argparse_create() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument("-o", "--override", action="store_true", help="Create a override for a commit")
-    parser.add_argument("-s", "--single-thread", action="store_true", help="Run one of the parts of this script in single threaded mode (Only really useful for debugging)")
-    parser.add_argument("-c", "--cache", action="store_true", help="Use caching to speed up re-runs on this script (WARNING: Leave caching off when collecting the final release notes)")
+    parser.add_argument("-o", "--override", action="store_true", help="Create a override for a commit.")
+    parser.add_argument("-s", "--single-thread", action="store_true", help="Run one of the parts of this script in single threaded mode (Only really useful for debugging).")
+    parser.add_argument("-c", "--cache", action="store_true", help="Use caching to speed up re-runs on this script (WARNING: Leave caching off when collecting the final release notes).")
 
-    parser.add_argument("-cv", "--current-version", help="The common major.minor name of the current version of Blender (E.g. 4.2, 4.3, 4.4)")
-    parser.add_argument("-pv", "--previous-version", help="The common major.minor name of the previous version of Blender (E.g. 4.2, 4.3, 4.4)")
+    parser.add_argument("-cv", "--current-version", help="The common major.minor name of the current version of Blender (E.g. 4.2, 4.3, 4.4).")
+    parser.add_argument("-pv", "--previous-version", help="The common major.minor name of the previous version of Blender (E.g. 4.2, 4.3, 4.4).")
 
     parser.add_argument("-ct", "--current-release-tag", help="The tag for the current release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
     parser.add_argument("-pt", "--previous-release-version", help="The tag for the previous release of Blender. These can be tags (like `v4.3.0`), commit hashes, or branches.")
 
-    parser.add_argument("-bpt", "--backport-tasks", nargs='+', help="A list of backport tasks. Example: 123 456 789 for the tasks 123, 456, and 789")
+    parser.add_argument("-bpt", "--backport-tasks", nargs='+', help="A list of backport tasks. Example: 123 456 789 for the tasks 123, 456, and 789.")
 
     return parser
 
