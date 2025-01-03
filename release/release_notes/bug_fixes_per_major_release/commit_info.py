@@ -2,8 +2,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from typing import Any
+
 class CommitInfo():
-    def __init__(self, commit_line):
+    def __init__(self, commit_line: str) -> None:
         split_message = commit_line.split()
 
         # Commit line is in the format:
@@ -13,16 +15,16 @@ class CommitInfo():
 
         self.set_defaults()
 
-    def set_defaults(self):
+    def set_defaults(self) -> None:
         from shared_variables import UNKNOWN
 
         self.is_revert = 'revert' in self.commit_title.lower()
 
-        self.fixed_reports = None
+        self.fixed_reports: list[str] = []
         self.check_full_commit_message_for_fixed_reports()
 
         # Setup some "useful" empty defaults.
-        self.backport_list = []
+        self.backport_list: list[str] = []
         self.module = UNKNOWN
         self.report_title = UNKNOWN
         self.classification = UNKNOWN
@@ -31,7 +33,7 @@ class CommitInfo():
         self.needs_update = True
         self.has_been_overwritten = False
 
-    def check_full_commit_message_for_fixed_reports(self):
+    def check_full_commit_message_for_fixed_reports(self) -> None:
         import re
         import subprocess
 
@@ -43,7 +45,7 @@ class CommitInfo():
         if match:
             self.fixed_reports = match
 
-    def get_backports(self, dict_of_backports):
+    def get_backports(self, dict_of_backports: dict[str, list[str]]) -> None:
         from shared_variables import FIXED_OLD_ISSUE
 
         # Figures out if the commit was backported, and to what verion(s).
@@ -58,7 +60,7 @@ class CommitInfo():
             # If the fix was backported to a old release, then it fixed a old issue.
             self.classification = FIXED_OLD_ISSUE
 
-    def override_report_info(self, new_classification, new_title, new_module):
+    def override_report_info(self, new_classification: str, new_title: str, new_module: str) -> None:
         from shared_variables import FIXED_NEW_ISSUE, FIXED_OLD_ISSUE, NEEDS_MANUAL_SORTING, FIXED_PR, UNKNOWN
 
         if new_classification in (FIXED_NEW_ISSUE, FIXED_OLD_ISSUE):
@@ -77,7 +79,7 @@ class CommitInfo():
                 self.module = new_module
             return
 
-    def get_module(self, labels):
+    def get_module(self, labels: list[dict[Any, Any]]) -> str:
         from shared_variables import UNKNOWN
 
         # Figures out what module the report that was fixed belongs too.
@@ -88,7 +90,7 @@ class CommitInfo():
 
         return UNKNOWN
 
-    def classify(self):
+    def classify(self) -> None:
         from gitea_utils import url_json_get
         from classify_report import classify_based_on_report
         from shared_variables import FIXED_NEW_ISSUE, FIXED_OLD_ISSUE, FIXED_PR, REVERT, UNKNOWN
@@ -123,18 +125,18 @@ class CommitInfo():
                 # The commit has been sorted. No need to process more reports.
                 break
 
-    def generate_release_note_ready_string(self):
+    def generate_release_note_ready_string(self) -> str:
         # Breakup report_title based on words, and remove `:` if it's at the end of the first word.
         # This is because the website the release notes are being posted to applies some undesirable
         # formatting to ` * Word:`.
         title = self.report_title
-        title = title.split()
-        title[0] = title[0].strip(":")
+        split_title = title.split()
+        split_title[0] = split_title[0].strip(":")
 
         # Capitalize the first letter of the issue title.
-        title[0] = title[0][0].upper() + title[0][1:]
+        split_title[0] = split_title[0][0].upper() + split_title[0][1:]
 
-        title = " ".join(title)
+        title = " ".join(split_title)
 
         formatted_string = f" * {title} [[{self.hash[:11]}](https://projects.blender.org/blender/blender/commit/{self.hash})]"
         if len(self.backport_list) > 0:
@@ -143,7 +145,7 @@ class CommitInfo():
 
         return formatted_string
 
-    def prepare_for_cache(self):
+    def prepare_for_cache(self) -> tuple[str, dict[str, Any]]:
         return self.hash, {'is_revert': self.is_revert,
                            'fixed_reports': self.fixed_reports,
                            'backport_list': self.backport_list,
@@ -151,7 +153,7 @@ class CommitInfo():
                            'report_title': self.report_title,
                            'classification': self.classification}
 
-    def read_from_cache(self, cache_data):
+    def read_from_cache(self, cache_data: dict[str, Any]) -> None:
         self.is_revert = cache_data['is_revert']
         self.fixed_reports = cache_data['fixed_reports']
         self.backport_list = cache_data['backport_list']
@@ -161,7 +163,7 @@ class CommitInfo():
 
         self.needs_update = False
 
-    def read_from_override(self, override_data):
+    def read_from_override(self, override_data: list[str]) -> None:
         self.set_defaults()
         self.fixed_reports = override_data
 
@@ -171,13 +173,14 @@ class CommitInfo():
 # ----------
 
 
-def setup_commit_info(commit):
+def setup_commit_info(commit: str) -> CommitInfo | None:
     commit_information = CommitInfo(commit)
     if commit_information.fixed_reports:
         return commit_information
+    return None
 
 
-def get_fix_commits():
+def get_fix_commits() -> list[CommitInfo]:
     import subprocess
     from parameters import previous_release_tag, current_release_tag
 
@@ -193,8 +196,8 @@ def get_fix_commits():
     # This captures the common `Fix #123`, but also the less common `Fixes #123`, `Fix for #123`, and `Fix ##123`.
     command = ['git', '--no-pager', 'log', f'{previous_release_tag}..{current_release_tag}', '--oneline', '--no-abbrev-commit', '-P', '-i', '--grep', r'Fix.*#+\d+']
 
-    git_log_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
-    git_log_output = git_log_output.splitlines()
+    git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
+    git_log_output = git_log_command_output.splitlines()
 
     if True:
         # Although setup_commit_info is not compute intensive, it is time consuming due to hundreds of git log calls.
@@ -214,6 +217,5 @@ def get_fix_commits():
             commit_information = CommitInfo(commit)
             if commit_information.fixed_reports:
                 list_of_commits.append(commit_information)
-
 
     return list_of_commits
