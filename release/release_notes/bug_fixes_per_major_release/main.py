@@ -599,7 +599,7 @@ def argparse_create() -> ArgumentParser:
 
     return parser
 
-def checkout_arguments(args: ArgumentParser) -> None:
+def checkout_arguments() -> None:
     def print_error(variable_name:str, argument_1: str, argument_2: str) -> None:
         print(f"ERROR: {variable_name} (defined with '{argument_1}' or '{argument_2}') is not defined.")
         print("This script can not proceed without this variable defined.\n")
@@ -637,7 +637,7 @@ if __name__ == "__main__":
         create_override()
         quit()
 
-    checkout_arguments(args)
+    checkout_arguments()
 
     list_of_commits = get_fix_commits()
 
