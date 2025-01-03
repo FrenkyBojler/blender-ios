@@ -219,7 +219,7 @@ static void cmp_node_image_create_outputs(bNodeTree *ntree,
 }
 
 /* XXX make this into a generic socket verification function for dynamic socket replacement
- * (multi-layer, groups, static templates) */
+ * (multi-layer, groups, static templates). */
 static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock, *sock_next;
