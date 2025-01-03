@@ -606,7 +606,8 @@ void ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
     const std::string type = glsl_type_from_result_type(input_descriptor.type);
     initialize_attributes << "var_attrs.v" << attribute->id << " = " << type << "("
                           << "texture_load(" << attribute->name
-                          << ", ivec2(gl_GlobalInvocationID.xy))." << swizzle << ")" << ";\n";
+                          << ", ivec2(gl_GlobalInvocationID.xy))." << swizzle << ")"
+                          << ";\n";
   }
   initialize_attributes << "\n";
 
