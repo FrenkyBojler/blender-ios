@@ -279,6 +279,7 @@ void mesh_calc_edges(Mesh &mesh,
         select_edge.finish();
       }
 
+      /* Static storage to extend life-time of strings for reference filter. */
       static const Set<std::string> skip = {".edge_verts", ".select_edge"};
       const auto filer = bke::attribute_filter_with_skip_ref(attribute_filter, skip);
       old_edge_attributes.foreach_attribute([&](const bke::AttributeIter &src_attribute) {
