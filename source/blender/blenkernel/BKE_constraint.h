@@ -115,8 +115,8 @@ typedef struct bConstraintTypeInfo {
    * \returns Whether the constraint has a valid target. This can be an explicitly-given target,
    * but can also be dynamically chosen (for example for auto-IK).
    *
-   * Note that ct->matrix will still be updated (typically to the identity matrix) even when there
-   * is no valid target.
+   * Note that ct->matrix may still be updated (typically to the identity matrix) even when this
+   * function returns false.
    */
   bool (*get_target_matrix)(struct Depsgraph *depsgraph,
                             struct bConstraint *con,
