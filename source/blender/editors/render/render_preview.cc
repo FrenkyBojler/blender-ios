@@ -986,7 +986,7 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
 
   blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(object->id,
                                                                              pose_action);
-  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(object, &pose_action, slot.handle);
+  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones({object}, &pose_action);
 
   /* Apply the Action as pose, so that it can be rendered. This assumes the Action represents a
    * single pose, and that thus the evaluation time doesn't matter. */

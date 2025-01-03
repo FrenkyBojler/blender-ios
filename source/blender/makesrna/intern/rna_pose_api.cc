@@ -169,10 +169,7 @@ static void rna_Pose_backup_create(ID *pose_owner, bAction *action)
     return;
   }
   Object *pose_owner_ob = (Object *)pose_owner;
-  blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(*pose_owner,
-                                                                             action->wrap());
-
-  BKE_pose_backup_create_on_object(pose_owner_ob, action, slot.handle);
+  BKE_pose_backup_create_on_object(pose_owner_ob, action);
 }
 
 static bool rna_Pose_backup_restore(ID *pose_owner, bContext *C)
