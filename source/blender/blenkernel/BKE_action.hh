@@ -368,6 +368,10 @@ void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose
 
 /* `action_mirror.cc` */
 
+/**
+ * Flip the action so it can be applied as a mirror. Only data of slots that are related to the
+ * given objects is mirrored.
+ */
 void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects) ATTR_NONNULL(1);
 
 namespace blender::bke {
