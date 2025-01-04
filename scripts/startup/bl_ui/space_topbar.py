@@ -149,6 +149,7 @@ class TOPBAR_MT_file_cleanup(Menu):
         layout = self.layout
         layout.separator()
 
+        layout.operator_context = 'INVOKE_AREA'
         layout.operator("outliner.orphans_purge", text="Purge Unused Data...")
         layout.operator("outliner.orphans_manage", text="Manage Unused Data...")
 
@@ -353,6 +354,8 @@ class TOPBAR_MT_file_import(Menu):
     bl_owner_use_filter = False
 
     def draw(self, _context):
+        self.layout.operator_context = 'INVOKE_AREA'
+
         if bpy.app.build_options.collada:
             self.layout.operator("wm.collada_import", text="Collada (.dae) (Legacy)")
         if bpy.app.build_options.alembic:
@@ -378,6 +381,8 @@ class TOPBAR_MT_file_export(Menu):
     bl_owner_use_filter = False
 
     def draw(self, _context):
+        self.layout.operator_context = 'INVOKE_AREA'
+
         if bpy.app.build_options.collada:
             self.layout.operator("wm.collada_export", text="Collada (.dae) (Legacy)")
         if bpy.app.build_options.alembic:
@@ -408,6 +413,7 @@ class TOPBAR_MT_file_external_data(Menu):
     def draw(self, _context):
         layout = self.layout
 
+        layout.operator_context = 'INVOKE_AREA'
         icon = 'CHECKBOX_HLT' if bpy.data.use_autopack else 'CHECKBOX_DEHLT'
         layout.operator("file.autopack_toggle", icon=icon)
 
@@ -441,6 +447,7 @@ class TOPBAR_MT_file_previews(Menu):
     def draw(self, _context):
         layout = self.layout
 
+        layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.previews_ensure")
         layout.operator("wm.previews_batch_generate", text="Batch-Generate Previews...")
 
