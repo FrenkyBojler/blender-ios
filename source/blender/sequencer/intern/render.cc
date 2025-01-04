@@ -47,6 +47,8 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
 
+#include "MOV_read.hh"
+
 #include "RNA_prototypes.hh"
 
 #include "RE_engine.h"
@@ -64,7 +66,7 @@
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
-#include "effects.hh"
+#include "effects/effects.hh"
 #include "image_cache.hh"
 #include "multiview.hh"
 #include "prefetch.hh"
@@ -247,7 +249,7 @@ void SEQ_render_new_render_data(Main *bmain,
 
 StripElem *SEQ_render_give_stripelem(const Scene *scene, const Sequence *seq, int timeline_frame)
 {
-  StripElem *se = seq->strip->stripdata;
+  StripElem *se = seq->data->stripdata;
 
   if (seq->type == SEQ_TYPE_IMAGE) {
     /* only IMAGE strips use the whole array, MOVIE strips use only the first element,
@@ -374,7 +376,7 @@ struct OpaqueQuadTracker {
 
 static bool sequencer_use_transform(const Sequence *seq)
 {
-  const StripTransform *transform = seq->strip->transform;
+  const StripTransform *transform = seq->data->transform;
 
   if (transform->xofs != 0 || transform->yofs != 0 || transform->scale_x != 1 ||
       transform->scale_y != 1 || transform->rotation != 0)
@@ -387,7 +389,7 @@ static bool sequencer_use_transform(const Sequence *seq)
 
 static bool sequencer_use_crop(const Sequence *seq)
 {
-  const StripCrop *crop = seq->strip->crop;
+  const StripCrop *crop = seq->data->crop;
   if (crop->left > 0 || crop->right > 0 || crop->top > 0 || crop->bottom > 0) {
     return true;
   }
@@ -459,7 +461,7 @@ static void sequencer_image_crop_transform_matrix(const Sequence *seq,
                                                   const float preview_scale_factor,
                                                   float r_transform_matrix[4][4])
 {
-  const StripTransform *transform = seq->strip->transform;
+  const StripTransform *transform = seq->data->transform;
   const float scale_x = transform->scale_x * image_scale_factor;
   const float scale_y = transform->scale_y * image_scale_factor;
   const float image_center_offs_x = (out->x - in->x) / 2;
@@ -483,7 +485,7 @@ static void sequencer_image_crop_init(const Sequence *seq,
                                       float crop_scale_factor,
                                       rctf *r_crop)
 {
-  const StripCrop *c = seq->strip->crop;
+  const StripCrop *c = seq->data->crop;
   const int left = c->left * crop_scale_factor;
   const int right = c->right * crop_scale_factor;
   const int top = c->top * crop_scale_factor;
@@ -558,11 +560,11 @@ static void sequencer_preprocess_transform_crop(
   const float crop_scale_factor = do_scale_to_render_size ? preview_scale_factor : 1.0f;
   sequencer_image_crop_init(seq, in, crop_scale_factor, &source_crop);
 
-  const StripTransform *transform = seq->strip->transform;
+  const StripTransform *transform = seq->data->transform;
   eIMBInterpolationFilterMode filter = IMB_FILTER_NEAREST;
   switch (transform->filter) {
     case SEQ_TRANSFORM_FILTER_AUTO:
-      filter = get_auto_filter(seq->strip->transform);
+      filter = get_auto_filter(seq->data->transform);
       break;
     case SEQ_TRANSFORM_FILTER_NEAREST:
       filter = IMB_FILTER_NEAREST;
@@ -595,6 +597,8 @@ static void sequencer_preprocess_transform_crop(
 
 static void multiply_ibuf(ImBuf *ibuf, const float fmul, const bool multiply_alpha)
 {
+  BLI_assert_msg(ibuf->channels == 0 || ibuf->channels == 4,
+                 "Sequencer only supports 4 channel images");
   const size_t pixel_count = IMB_get_rect_len(ibuf);
   if (ibuf->byte_buffer.data != nullptr) {
     threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
@@ -732,94 +736,6 @@ static ImBuf *seq_render_preprocess_ibuf(const SeqRenderData *context,
   return ibuf;
 }
 
-struct RenderEffectInitData {
-  SeqEffectHandle *sh;
-  const SeqRenderData *context;
-  Sequence *seq;
-  float timeline_frame, fac;
-  ImBuf *ibuf1, *ibuf2;
-
-  ImBuf *out;
-};
-
-struct RenderEffectThread {
-  SeqEffectHandle *sh;
-  const SeqRenderData *context;
-  Sequence *seq;
-  float timeline_frame, fac;
-  ImBuf *ibuf1, *ibuf2;
-
-  ImBuf *out;
-  int start_line, tot_line;
-};
-
-static void render_effect_execute_init_handle(void *handle_v,
-                                              int start_line,
-                                              int tot_line,
-                                              void *init_data_v)
-{
-  RenderEffectThread *handle = (RenderEffectThread *)handle_v;
-  RenderEffectInitData *init_data = (RenderEffectInitData *)init_data_v;
-
-  handle->sh = init_data->sh;
-  handle->context = init_data->context;
-  handle->seq = init_data->seq;
-  handle->timeline_frame = init_data->timeline_frame;
-  handle->fac = init_data->fac;
-  handle->ibuf1 = init_data->ibuf1;
-  handle->ibuf2 = init_data->ibuf2;
-  handle->out = init_data->out;
-
-  handle->start_line = start_line;
-  handle->tot_line = tot_line;
-}
-
-static void *render_effect_execute_do_thread(void *thread_data_v)
-{
-  RenderEffectThread *thread_data = (RenderEffectThread *)thread_data_v;
-
-  thread_data->sh->execute_slice(thread_data->context,
-                                 thread_data->seq,
-                                 thread_data->timeline_frame,
-                                 thread_data->fac,
-                                 thread_data->ibuf1,
-                                 thread_data->ibuf2,
-                                 thread_data->start_line,
-                                 thread_data->tot_line,
-                                 thread_data->out);
-
-  return nullptr;
-}
-
-ImBuf *seq_render_effect_execute_threaded(SeqEffectHandle *sh,
-                                          const SeqRenderData *context,
-                                          Sequence *seq,
-                                          float timeline_frame,
-                                          float fac,
-                                          ImBuf *ibuf1,
-                                          ImBuf *ibuf2)
-{
-  RenderEffectInitData init_data;
-  ImBuf *out = sh->init_execution(context, ibuf1, ibuf2);
-
-  init_data.sh = sh;
-  init_data.context = context;
-  init_data.seq = seq;
-  init_data.timeline_frame = timeline_frame;
-  init_data.fac = fac;
-  init_data.ibuf1 = ibuf1;
-  init_data.ibuf2 = ibuf2;
-  init_data.out = out;
-
-  IMB_processor_apply_threaded(out->y,
-                               sizeof(RenderEffectThread),
-                               &init_data,
-                               render_effect_execute_init_handle,
-                               render_effect_execute_do_thread);
-
-  return out;
-}
-
 static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
                                            SeqRenderState *state,
                                            Sequence *seq,
@@ -839,7 +755,7 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
   input[0] = seq->seq1;
   input[1] = seq->seq2;
 
-  if (!sh.execute && !(sh.execute_slice && sh.init_execution)) {
+  if (!sh.execute) {
     /* effect not supported in this version... */
     out = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
     return out;
@@ -886,13 +802,7 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
       }
 
       if (ibuf[0] && (ibuf[1] || SEQ_effect_get_num_inputs(seq->type) == 1)) {
-        if (sh.multithreaded) {
-          out = seq_render_effect_execute_threaded(
-              &sh, context, seq, timeline_frame, fac, ibuf[0], ibuf[1]);
-        }
-        else {
-          out = sh.execute(context, seq, timeline_frame, fac, ibuf[0], ibuf[1]);
-        }
+        out = sh.execute(context, seq, timeline_frame, fac, ibuf[0], ibuf[1]);
       }
       break;
     case StripEarlyOut::UseInput1:
@@ -942,13 +852,13 @@ static ImBuf *seq_render_image_strip_view(const SeqRenderData *context,
   }
 
   if (prefix[0] == '\0') {
-    ibuf = IMB_loadiffname(filepath, flag, seq->strip->colorspace_settings.name);
+    ibuf = IMB_loadiffname(filepath, flag, seq->data->colorspace_settings.name);
   }
   else {
     char filepath_view[FILE_MAX];
     BKE_scene_multiview_view_prefix_get(context->scene, filepath, prefix, &ext);
     seq_multiview_name(context->scene, view_id, prefix, ext, filepath_view, FILE_MAX);
-    ibuf = IMB_loadiffname(filepath_view, flag, seq->strip->colorspace_settings.name);
+    ibuf = IMB_loadiffname(filepath_view, flag, seq->data->colorspace_settings.name);
   }
 
   if (ibuf == nullptr) {
@@ -1018,7 +928,7 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context,
     return nullptr;
   }
 
-  BLI_path_join(filepath, sizeof(filepath), seq->strip->dirpath, s_elem->filename);
+  BLI_path_join(filepath, sizeof(filepath), seq->data->dirpath, s_elem->filename);
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&context->scene->id));
 
   /* Try to get a proxy image. */
@@ -1093,11 +1003,11 @@ static ImBuf *seq_render_movie_strip_custom_file_proxy(const SeqRenderData *cont
                                                        int timeline_frame)
 {
   char filepath[PROXY_MAXFILE];
-  StripProxy *proxy = seq->strip->proxy;
+  StripProxy *proxy = seq->data->proxy;
 
   if (proxy->anim == nullptr) {
     if (seq_proxy_get_custom_file_filepath(seq, filepath, context->view_id)) {
-      proxy->anim = openanim(filepath, IB_rect, 0, seq->strip->colorspace_settings.name);
+      proxy->anim = openanim(filepath, IB_rect, 0, seq->data->colorspace_settings.name);
     }
     if (proxy->anim == nullptr) {
       return nullptr;
@@ -1106,7 +1016,7 @@ static ImBuf *seq_render_movie_strip_custom_file_proxy(const SeqRenderData *cont
 
   int frameno = round_fl_to_int(SEQ_give_frame_index(context->scene, seq, timeline_frame)) +
                 seq->anim_startofs;
-  return IMB_anim_absolute(proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
+  return MOV_decode_frame(proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
 }
 
 static IMB_Timecode_Type seq_render_movie_strip_timecode_get(Sequence *seq)
@@ -1115,8 +1025,8 @@ static IMB_Timecode_Type seq_render_movie_strip_timecode_get(Sequence *seq)
   if (!use_timecodes) {
     return IMB_TC_NONE;
   }
-  return IMB_Timecode_Type(seq->strip->proxy ? IMB_Timecode_Type(seq->strip->proxy->tc) :
-                                               IMB_TC_NONE);
+  return IMB_Timecode_Type(seq->data->proxy ? IMB_Timecode_Type(seq->data->proxy->tc) :
+                                              IMB_TC_NONE);
 }
 
 /**
@@ -1137,15 +1047,15 @@ static ImBuf *seq_render_movie_strip_view(const SeqRenderData *context,
     /* Try to get a proxy image.
      * Movie proxies are handled by ImBuf module with exception of `custom file` setting. */
     if (context->scene->ed->proxy_storage != SEQ_EDIT_PROXY_DIR_STORAGE &&
-        seq->strip->proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE)
+        seq->data->proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE)
     {
       ibuf = seq_render_movie_strip_custom_file_proxy(context, seq, timeline_frame);
     }
     else {
-      ibuf = IMB_anim_absolute(sanim->anim,
-                               frame_index + seq->anim_startofs,
-                               seq_render_movie_strip_timecode_get(seq),
-                               psize);
+      ibuf = MOV_decode_frame(sanim->anim,
+                              frame_index + seq->anim_startofs,
+                              seq_render_movie_strip_timecode_get(seq),
+                              psize);
     }
 
     if (ibuf != nullptr) {
@@ -1155,10 +1065,10 @@ static ImBuf *seq_render_movie_strip_view(const SeqRenderData *context,
 
   /* Fetching for requested proxy size failed, try fetching the original instead. */
   if (ibuf == nullptr) {
-    ibuf = IMB_anim_absolute(sanim->anim,
-                             frame_index + seq->anim_startofs,
-                             seq_render_movie_strip_timecode_get(seq),
-                             IMB_PROXY_NONE);
+    ibuf = MOV_decode_frame(sanim->anim,
+                            frame_index + seq->anim_startofs,
+                            seq_render_movie_strip_timecode_get(seq),
+                            IMB_PROXY_NONE);
   }
   if (ibuf == nullptr) {
     return nullptr;
@@ -1244,18 +1154,15 @@ static ImBuf *seq_render_movie_strip(const SeqRenderData *context,
   blender::seq::media_presence_set_missing(context->scene, seq, ibuf == nullptr);
   if (ibuf == nullptr) {
     return create_missing_media_image(
-        context, seq->strip->stripdata->orig_width, seq->strip->stripdata->orig_height);
+        context, seq->data->stripdata->orig_width, seq->data->stripdata->orig_height);
   }
 
   if (*r_is_proxy_image == false) {
     if (sanim && sanim->anim) {
-      short fps_denom;
-      float fps_num;
-      IMB_anim_get_fps(sanim->anim, true, &fps_denom, &fps_num);
-      seq->strip->stripdata->orig_fps = fps_denom / fps_num;
+      seq->data->stripdata->orig_fps = MOV_get_fps(sanim->anim);
     }
-    seq->strip->stripdata->orig_width = ibuf->x;
-    seq->strip->stripdata->orig_height = ibuf->y;
+    seq->data->stripdata->orig_width = ibuf->x;
+    seq->data->stripdata->orig_height = ibuf->y;
   }
 
   return ibuf;
@@ -1904,22 +1811,10 @@ static ImBuf *seq_render_strip_stack_apply_effect(
   int swap_input = seq_must_swap_input_in_blend_mode(seq);
 
   if (swap_input) {
-    if (sh.multithreaded) {
-      out = seq_render_effect_execute_threaded(
-          &sh, context, seq, timeline_frame, fac, ibuf2, ibuf1);
-    }
-    else {
-      out = sh.execute(context, seq, timeline_frame, fac, ibuf2, ibuf1);
-    }
+    out = sh.execute(context, seq, timeline_frame, fac, ibuf2, ibuf1);
   }
   else {
-    if (sh.multithreaded) {
-      out = seq_render_effect_execute_threaded(
-          &sh, context, seq, timeline_frame, fac, ibuf1, ibuf2);
-    }
-    else {
-      out = sh.execute(context, seq, timeline_frame, fac, ibuf1, ibuf2);
-    }
+    out = sh.execute(context, seq, timeline_frame, fac, ibuf1, ibuf2);
   }
 
   return out;

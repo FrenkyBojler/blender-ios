@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'2eb53ba3b21b')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'eb39d81afa00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-16 09:31+0000\n"
-"PO-Revision-Date: 2024-12-09 18:56+0000\n"
+"POT-Creation-Date: 2024-12-30 14:46+0000\n"
+"PO-Revision-Date: 2024-12-26 17:56+0000\n"
 "Last-Translator: Damien Picard <dam.pic@free.fr>\n"
 "Language-Team: French <https://translate.blender.org/projects/blender-ui/ui/fr/>\n"
 "Language: fr\n"
@@ -9719,7 +9719,7 @@ msgstr "Orienter l’objet contraint vers la cible"
 
 
 msgid "Target Z"
-msgstr "Cible Z"
+msgstr "Cibler Z"
 
 
 msgid "Target's Z axis, not World Z axis, will constraint the Up direction"
@@ -17731,6 +17731,42 @@ msgid "Group of Grease Pencil layers"
 msgstr "Groupe de calques de Grease Pencil"
 
 
+msgid "Reset color tag"
+msgstr "Réinitialiser l’étiquette colorée"
+
+
+msgid "Color tag 1"
+msgstr "Étiquette colorée 1"
+
+
+msgid "Color tag 2"
+msgstr "Étiquette colorée 2"
+
+
+msgid "Color tag 3"
+msgstr "Étiquette colorée 3"
+
+
+msgid "Color tag 4"
+msgstr "Étiquette colorée 4"
+
+
+msgid "Color tag 5"
+msgstr "Étiquette colorée 5"
+
+
+msgid "Color tag 6"
+msgstr "Étiquette colorée 6"
+
+
+msgid "Color tag 7"
+msgstr "Étiquette colorée 7"
+
+
+msgid "Color tag 8"
+msgstr "Étiquette colorée 8"
+
+
 msgid "Set layer group visibility"
 msgstr "Définir la visibilité du groupe de calques"
 
@@ -21739,6 +21775,10 @@ msgid "Horizontal Alignment"
 msgstr "Alignement horizontal"
 
 
+msgid "Text horizontal alignment from the object or text box center"
+msgstr "Alignement horizontal du texte depuis le centre de l’objet ou de la boîte de texte"
+
+
 msgid "Align text to the left"
 msgstr "Aligner le texte à gauche"
 
@@ -24888,6 +24928,14 @@ msgstr "Arborescence de nœuds faite de nœuds liés, utilisée pour l’ombrage
 
 msgid "The node tree label"
 msgstr "Le libellé de l’arborescence de nœuds"
+
+
+msgid "Use Group Interface"
+msgstr "Utiliser l’interface de groupe"
+
+
+msgid "Determines the visibility of some UI elements related to node groups"
+msgstr "Détermine la visibilité de certains éléments d’interface liés aux groupes de nœuds"
 
 
 msgid "Color Tag"
@@ -34956,6 +35004,11 @@ msgid "Parent"
 msgstr "Parent"
 
 
+msgctxt "Operator"
+msgid "Empty"
+msgstr "Vide"
+
+
 msgctxt "Constraint"
 msgid "Track"
 msgstr "Suivi"
@@ -43855,12 +43908,8 @@ msgid "Static Type"
 msgstr "Type static"
 
 
-msgid "Node type (deprecated, use with care)"
-msgstr "Type de nœud (obsolète, à utiliser avec précaution)"
-
-
-msgid "Custom Node"
-msgstr "Nœud personnalisé"
+msgid "Legacy unique node type identifier, redundant with bl_idname property"
+msgstr "Ancient identifiant unique de type de node, redondant avec la propriété bl_idname"
 
 
 msgid "Custom color of the node body"
@@ -43889,6 +43938,18 @@ msgstr "Connexions internes entrée-vers-sortie, pour rendre muet"
 
 msgid "Optional custom node label"
 msgstr "Label de nœud optionnel personnalisé"
+
+
+msgid "Location of the node within its parent frame"
+msgstr "Position du nœud dans son cadre parent"
+
+
+msgid "Absolute Location"
+msgstr "Position absolue"
+
+
+msgid "Location of the node in the entire canvas"
+msgstr "Position du nœud par rapport à tout le canevas"
 
 
 msgid "Unique node identifier"
@@ -43921,10 +43982,6 @@ msgstr "Afficher la texture"
 
 msgid "Display node in viewport textured shading mode"
 msgstr "Afficher le nœud dans le mode texturé de la vue 3D"
-
-
-msgid "Node type (deprecated, use bl_static_type or bl_idname for the actual identifier string)"
-msgstr "Type de nœud (obsolète, utiliser bl_static_type ou bl_idname pour la vraie chaîne de l’identifiant)"
 
 
 msgid "Use custom color for the node"
@@ -45136,6 +45193,18 @@ msgstr "Débruiter l’image et les passes guides ensemble. Améliore la qualit�
 
 msgid "Prefilter noisy guiding passes before denoising image. Improves quality when guiding passes are noisy using extra processing time."
 msgstr "Préfiltrer les passes guides bruitées avant de débruiter l’image. Améliore la qualité quand les passes guides sont bruitées, en augmentant le temps de calcul."
+
+
+msgid "High quality"
+msgstr "Haute qualité"
+
+
+msgid "Balanced"
+msgstr "Équilibrée"
+
+
+msgid "Balanced between performance and quality"
+msgstr "Équilibrée entre performance et qualité"
 
 
 msgid "HDR"
@@ -62504,6 +62573,15 @@ msgstr "Fin de la liste"
 
 
 msgctxt "Operator"
+msgid "Cancel File Operation"
+msgstr "Annuler l’opération de fichier"
+
+
+msgid "Cancel file operation"
+msgstr "Annuler l’opération de fichier"
+
+
+msgctxt "Operator"
 msgid "Delete Selected Files"
 msgstr "Supprimer les fichiers sélectionnés"
 
@@ -64804,6 +64882,24 @@ msgstr "Créer des copies des traits de Grease Pencil sélectionnés et les dép
 
 
 msgctxt "Operator"
+msgid "Grease Pencil Box Erase"
+msgstr "Gomme carrée de Grease Pencil"
+
+
+msgid "Erase points in the box region"
+msgstr "Effacer des points dans la région rectangulaire"
+
+
+msgctxt "Operator"
+msgid "Grease Pencil Erase Lasso"
+msgstr "Gomme lasso de Grease Pencil"
+
+
+msgid "Erase points in the lasso region"
+msgstr "Effacer des points dans la région du lasso"
+
+
+msgctxt "Operator"
 msgid "Extrude Stroke Points"
 msgstr "Extruder points de trait"
 
@@ -65148,38 +65244,6 @@ msgstr "Changer l’icône du groupe de calques"
 
 msgid "Set Default icon"
 msgstr "Définir l’icône par défaut"
-
-
-msgid "Color tag 1"
-msgstr "Étiquette colorée 1"
-
-
-msgid "Color tag 2"
-msgstr "Étiquette colorée 2"
-
-
-msgid "Color tag 3"
-msgstr "Étiquette colorée 3"
-
-
-msgid "Color tag 4"
-msgstr "Étiquette colorée 4"
-
-
-msgid "Color tag 5"
-msgstr "Étiquette colorée 5"
-
-
-msgid "Color tag 6"
-msgstr "Étiquette colorée 6"
-
-
-msgid "Color tag 7"
-msgstr "Étiquette colorée 7"
-
-
-msgid "Color tag 8"
-msgstr "Étiquette colorée 8"
 
 
 msgctxt "Operator"
@@ -65763,6 +65827,15 @@ msgstr "Sélectionner tous les points du trait"
 
 msgid "Select all stroke points between other strokes"
 msgstr "Sélectionner tous les points des traits entre d’autres traits"
+
+
+msgctxt "Operator"
+msgid "Set Start Point"
+msgstr "Définir le point de départ"
+
+
+msgid "Select which point is the beginning of the curve"
+msgstr "Sélectionner sur quel point est le début de la courbe"
 
 
 msgctxt "Operator"
@@ -73194,6 +73267,11 @@ msgid "Maintain parent child relationships"
 msgstr "Maintenir les relations parent/enfant"
 
 
+msgctxt "Operator"
+msgid "Edit Mode"
+msgstr "Mode édition"
+
+
 msgid "Toggle object's edit mode"
 msgstr "(Dés)activer le mode édition de l’objet"
 
@@ -77349,6 +77427,11 @@ msgstr "Échantillonner la couleur finale"
 
 msgid "Add to Palette"
 msgstr "Ajouter à la palette"
+
+
+msgctxt "Operator"
+msgid "Texture Paint Mode"
+msgstr "Mode peinture de texture"
 
 
 msgid "Toggle texture paint mode in 3D view"
@@ -82658,6 +82741,84 @@ msgstr "Intervertir les entrées"
 
 msgid "Swap the two inputs of the effect strip"
 msgstr "Intervertir les deux entrées de la bande d’effet"
+
+
+msgctxt "Operator"
+msgid "Move cursor"
+msgstr "Déplacer le curseur"
+
+
+msgid "Move cursor in text"
+msgstr "Déplacer le curseur à l’intérieur du texte"
+
+
+msgid "Select Text"
+msgstr "Sélectionner du texte"
+
+
+msgid "Select text while moving cursor"
+msgstr "Sélectionner du texte en déplaçant le curseur"
+
+
+msgid "Set cursor position in text"
+msgstr "Définir la position du curseur dans le texte"
+
+
+msgctxt "Operator"
+msgid "Delete Character"
+msgstr "Supprimer un caractère"
+
+
+msgid "Delete text at cursor position"
+msgstr "Supprimer du texte à la position du curseur"
+
+
+msgctxt "Operator"
+msgid "Deselect All"
+msgstr "Tout désélectionner"
+
+
+msgid "Deselect all characters"
+msgstr "Désélectionner tous les caractères"
+
+
+msgid "Copy text to clipboard"
+msgstr "Copier le texte dans le presse-papier"
+
+
+msgid "Cut text to clipboard"
+msgstr "Couper le texte dans le presse-papier"
+
+
+msgctxt "Operator"
+msgid "Edit Text"
+msgstr "Éditer le texte"
+
+
+msgid "Toggle text editing"
+msgstr "(Dés)activer l’édition de texte"
+
+
+msgid "Paste text to clipboard"
+msgstr "Coller le texte depuis le presse-papier"
+
+
+msgctxt "Operator"
+msgid "Insert Character"
+msgstr "Insérer un caractère"
+
+
+msgid "String to be inserted at cursor position"
+msgstr "Texte à insérer à la position du curseur"
+
+
+msgctxt "Operator"
+msgid "Insert Line Break"
+msgstr "Insérer un retour à la ligne"
+
+
+msgid "Select all characters"
+msgstr "Sélectionner tous les caractères"
 
 
 msgctxt "Operator"
@@ -88708,6 +88869,10 @@ msgid "Merge parent Xform"
 msgstr "Fusionner Xform parent"
 
 
+msgid "Merge USD primitives with their Xform parent if possible. USD does not allow nested UsdGeomGprims, intermediary Xform prims will be defined to keep the USD file valid when encountering object hierarchies."
+msgstr "Fusionner les primitives USD avec leur Xform parent si possible. USD ne permet pas les UsdGeomGprim imbriquées. Des Xform intermédiaires seront définis pour que le fichier USD reste valide si des hiérarchies d’objets sont trouvées."
+
+
 msgid "Only export deform bones and their parents"
 msgstr "N’exporter que les os déformants et leurs parents"
 
@@ -90006,6 +90171,30 @@ msgid "Panel containing UI elements"
 msgstr "Panneau contenant des éléments d’interface"
 
 
+msgid "Shadow Settings"
+msgstr "Réglages d’ombre"
+
+
+msgid "SSAO Settings"
+msgstr "Réglages de SSAO"
+
+
+msgid "Render Pass"
+msgstr "Passe de rendu"
+
+
+msgid "Compositor"
+msgstr "Compositing"
+
+
+msgid "Overlays"
+msgstr "Surimpressions"
+
+
+msgid "Guides"
+msgstr "Guides"
+
+
 msgid "Viewer Node"
 msgstr "Nœud visualiseur"
 
@@ -90044,10 +90233,6 @@ msgstr "Placement de trait"
 
 msgid "Drawing Plane"
 msgstr "Plan de dessin"
-
-
-msgid "Guides"
-msgstr "Guides"
 
 
 msgid "Grease Pencil Options"
@@ -90128,26 +90313,6 @@ msgstr "Sélectionnabilité et visibilité"
 
 msgid "Wire Color"
 msgstr "Couleur des filaires"
-
-
-msgid "Shadow Settings"
-msgstr "Réglages d’ombre"
-
-
-msgid "SSAO Settings"
-msgstr "Réglages de SSAO"
-
-
-msgid "Render Pass"
-msgstr "Passe de rendu"
-
-
-msgid "Compositor"
-msgstr "Compositing"
-
-
-msgid "Overlays"
-msgstr "Surimpressions"
 
 
 msgid "Chain Scaling"
@@ -93586,8 +93751,8 @@ msgid "No Override Auto Resync"
 msgstr "Aucune resynchro auto des redéfinitions"
 
 
-msgid "Disable library overrides automatic resync detection and process on file load (can be useful to help fixing broken files)"
-msgstr "Désactiver la détection automatique de resynchro des redéfinitions de bibliothèque, et leur traitement au chargement du fichier (peut être utile pour réparer certains fichiers cassés)"
+msgid "Disable library overrides automatic resync detection and process on file load (can be useful to help fixing broken files). Also see the `--disable-liboverride-auto-resync` command line option"
+msgstr "Désactiver la détection automatique de resynchro des redéfinitions de bibliothèque, et leur traitement au chargement du fichier (peut être utile pour réparer certains fichiers cassés). Voir aussi l’option de la ligne de commande `--disable-liboverride-auto-resync`"
 
 
 msgid "Asset Debug Info"
@@ -96764,18 +96929,6 @@ msgstr "Qualité de débruitage"
 
 msgid "Overall denoising quality when using OpenImageDenoise"
 msgstr "Qualité globale du débruitage en utilisant OpenImageDenoise"
-
-
-msgid "High quality"
-msgstr "Haute qualité"
-
-
-msgid "Balanced"
-msgstr "Équilibrée"
-
-
-msgid "Balanced between performance and quality"
-msgstr "Équilibrée entre performance et qualité"
 
 
 msgid "High performance"
@@ -108472,8 +108625,24 @@ msgid "Selected Strips"
 msgstr "Bandes sélectionnées"
 
 
+msgid "Selected text"
+msgstr "Texte sélectionné"
+
+
+msgid "Text strip editing selection"
+msgstr "Sélection de texte de la bande"
+
+
 msgid "Text Strip"
 msgstr "Bande texte"
+
+
+msgid "Text Strip Cursor"
+msgstr "Curseur de la bande texte"
+
+
+msgid "Text strip editing cursor"
+msgstr "Curseur d’édition de bande texte"
 
 
 msgid "Transition Strip"
@@ -112895,19 +113064,19 @@ msgid "Action when 'Space' is pressed"
 msgstr "Action quand la barre d’espace est appuyée"
 
 
-msgid "Toggle animation playback ('Shift-Space' for Tools)"
-msgstr "Lancer ou arrêter l’animation (Maj + espace pour les outils)"
+msgid "Toggle animation playback ('Shift-Space' for Tools or brush asset popup)"
+msgstr "Lancer ou arrêter l’animation (Maj + espace pour les outils ou la fenêtre d’assets de brosses)"
 
 
 msgid ""
-"Open the popup tool-bar\n"
-"When 'Space' is held and used as a modifier:\n"
-"• Pressing the tools binding key switches to it immediately.\n"
+"Open the popup tool-bar or brush asset popup\n"
+"When holding 'Space' for the tool-bar popup:\n"
+"• Pressing the a tool shortcut switches to it immediately.\n"
 "• Dragging the cursor over a tool and releasing activates it (like a pie menu).\n"
 "For Play use 'Shift-Space'"
 msgstr ""
-"Ouvrir la barre d’outil surgissante\n"
-"Quand la barre d’espace est maintenue et utilisée comme modificateur :\n"
+"Ouvrir la barre d’outil surgissante ou la fenêtre d’assets de brosses\n"
+"Quand la barre d’espace est maintenue pour la barre d’outils :\n"
 "• Appuyer sur la touche correspondant à un outil pour l’activer immédiatement.\n"
 "• Glisser le curseur sur un outil et relâcher le bouton pour l’activer (comme un menu circulaire).\n"
 "Utiliser shift + barre d’espace pour la lecture"
@@ -115041,6 +115210,46 @@ msgstr "Éditeur de nœuds"
 msgctxt "WindowManager"
 msgid "Node Generic"
 msgstr "Nœuds, générique"
+
+
+msgctxt "WindowManager"
+msgid "Node Tool: Tweak"
+msgstr "Outil nodal : ajuster"
+
+
+msgctxt "WindowManager"
+msgid "Node Tool: Tweak (fallback)"
+msgstr "Outil nodal : ajuster (secondaire)"
+
+
+msgctxt "WindowManager"
+msgid "Node Tool: Select Box"
+msgstr "Outil nodal : sélection par rectangle"
+
+
+msgctxt "WindowManager"
+msgid "Node Tool: Select Box (fallback)"
+msgstr "Outil nodal : sélection par rectangle (secondaire)"
+
+
+msgctxt "WindowManager"
+msgid "Node Tool: Select Lasso"
+msgstr "Outil nodal : sélection par lasso"
+
+
+msgctxt "WindowManager"
+msgid "Node Tool: Select Lasso (fallback)"
+msgstr "Outil nodal : sélection par lasso (secondaire)"
+
+
+msgctxt "WindowManager"
+msgid "Node Tool: Select Circle"
+msgstr "Outil nodal : sélection par cercle"
+
+
+msgctxt "WindowManager"
+msgid "Node Tool: Select Circle (fallback)"
+msgstr "Outil nodal : sélection par cercle (secondaire)"
 
 
 msgctxt "WindowManager"
@@ -117726,11 +117935,6 @@ msgstr "Réinitialiser les réglages"
 
 
 msgctxt "Operator"
-msgid "Deselect All"
-msgstr "Tout désélectionner"
-
-
-msgctxt "Operator"
 msgid "Update Work Repository"
 msgstr "MÀJ le dépôt de travail"
 
@@ -119343,6 +119547,10 @@ msgstr "Images après"
 
 msgid "Stroke Thickness"
 msgstr "Épaisseur du trait"
+
+
+msgid "Channel Color"
+msgstr "Couleurs de canal"
 
 
 msgid "Autolock Inactive Layers"
@@ -125167,11 +125375,6 @@ msgstr "Bloc suivant"
 
 
 msgctxt "Operator"
-msgid "Empty"
-msgstr "Vide"
-
-
-msgctxt "Operator"
 msgid "Point Cloud"
 msgstr "Nuage de points"
 
@@ -126384,6 +126587,10 @@ msgid "Saved \"%s\""
 msgstr "Enregistré « %s »"
 
 
+msgid "Unable to create attribute in edit mode"
+msgstr "Impossible de créer un attribut en mode édition"
+
+
 msgid "Attribute name cannot be empty"
 msgstr "Le nom d’attribut ne peut pas être vide"
 
@@ -126402,6 +126609,14 @@ msgstr "Le nom d’attribut ne doit pas être vide"
 
 msgid "Attribute is required and can't be removed"
 msgstr "L’attribut est requis et ne peut pas être supprimé"
+
+
+msgid "Domain unsupported for \"%s\" attribute"
+msgstr "Domaine non pris en charge pour l’attribut « %s »"
+
+
+msgid "Type unsupported for \"%s\" attribute"
+msgstr "Type non pris en charge pour l’attribut « %s »"
 
 
 msgid "Layer '%s' could not be created"
@@ -127582,50 +127797,6 @@ msgstr "espaces de travail"
 
 msgid "worlds"
 msgstr "mondes"
-
-
-msgid "Error writing frame"
-msgstr "Erreur à l’écriture de la frame"
-
-
-msgid "No valid formats found"
-msgstr "Aucun format valide trouvé"
-
-
-msgid "Can't allocate FFmpeg format context"
-msgstr "Impossible d’allouer le contexte de format FFmpeg"
-
-
-msgid "Render width has to be 720 pixels for DV!"
-msgstr "La largeur de rendu doit être de 720 pixels pour le DV !"
-
-
-msgid "Render height has to be 480 pixels for DV-NTSC!"
-msgstr "La hauteur du rendu doit être de 480 pixels pour le DV NTSC !"
-
-
-msgid "Render height has to be 576 pixels for DV-PAL!"
-msgstr "La hauteur du rendu doit être de 576 pixels pour le DV PAL !"
-
-
-msgid "FFmpeg only supports 48khz / stereo audio for DV!"
-msgstr "FFmpeg ne prend en charge que l’audio 48kHz stéréo pour le DV !"
-
-
-msgid "Error initializing video stream"
-msgstr "Erreur à l’initialisation du flux vidéo"
-
-
-msgid "Error initializing audio stream"
-msgstr "Erreur à l’initialisation du flux audio"
-
-
-msgid "Could not open file for writing"
-msgstr "Impossible d’ouvrir le fichier en écriture"
-
-
-msgid "Could not initialize streams, probably unsupported codec combination"
-msgstr "Impossible d’initialiser les flux, probablement une combinaison de codecs non prise en charge"
 
 
 msgid "Library database with null library data-block pointer!"
@@ -131176,6 +131347,10 @@ msgid "SoundTrack"
 msgstr "PisteSon"
 
 
+msgid "Converted Layer"
+msgstr "Calque converti"
+
+
 msgctxt "Light"
 msgid "Volume"
 msgstr "Volume"
@@ -132019,6 +132194,10 @@ msgstr "Objet (sans inverse)"
 
 msgid "Object (Keep Transform Without Inverse)"
 msgstr "Objet (conserver transformation sans inverse)"
+
+
+msgid "Object (Attach Curves to Surface)"
+msgstr "Objet (attacher les courbes à la surface)"
 
 
 msgid "Make Selected Objects Single-User"
@@ -133967,6 +134146,10 @@ msgstr "Plus d’un élément est sélectionné"
 
 msgid "No items are selected"
 msgstr "Aucun élément n’est sélectionné"
+
+
+msgid "Copy Bundle to Asset Library..."
+msgstr "Copier le paquet dans la bibliothèque d’assets…"
 
 
 msgid "File name, overwrite existing"
@@ -137104,6 +137287,50 @@ msgid "Freestyle: Stroke rendering"
 msgstr "Freestyle : Rendu des traits"
 
 
+msgid "Error writing frame"
+msgstr "Erreur à l’écriture de la frame"
+
+
+msgid "No valid formats found"
+msgstr "Aucun format valide trouvé"
+
+
+msgid "Can't allocate FFmpeg format context"
+msgstr "Impossible d’allouer le contexte de format FFmpeg"
+
+
+msgid "Render width has to be 720 pixels for DV!"
+msgstr "La largeur de rendu doit être de 720 pixels pour le DV !"
+
+
+msgid "Render height has to be 480 pixels for DV-NTSC!"
+msgstr "La hauteur du rendu doit être de 480 pixels pour le DV NTSC !"
+
+
+msgid "Render height has to be 576 pixels for DV-PAL!"
+msgstr "La hauteur du rendu doit être de 576 pixels pour le DV PAL !"
+
+
+msgid "FFmpeg only supports 48khz / stereo audio for DV!"
+msgstr "FFmpeg ne prend en charge que l’audio 48kHz stéréo pour le DV !"
+
+
+msgid "Error initializing video stream"
+msgstr "Erreur à l’initialisation du flux vidéo"
+
+
+msgid "Error initializing audio stream"
+msgstr "Erreur à l’initialisation du flux audio"
+
+
+msgid "Could not open file for writing"
+msgstr "Impossible d’ouvrir le fichier en écriture"
+
+
+msgid "Could not initialize streams, probably unsupported codec combination"
+msgstr "Impossible d’initialiser les flux, probablement une combinaison de codecs non prise en charge"
+
+
 msgid "Alembic Export: Unable to find collection '%s'"
 msgstr "Export Alembic : collection « %s » introuvable"
 
@@ -138521,18 +138748,6 @@ msgstr "Impossible de créer le panneau"
 
 msgid "Unable to copy item"
 msgstr "Impossible de copier l’élément"
-
-
-msgid "CustomGroup"
-msgstr "GroupePersonnalisé"
-
-
-msgid "Custom Group Node"
-msgstr "Nœud de groupe personnalisé"
-
-
-msgid "UNDEFINED"
-msgstr "INDÉFINI"
 
 
 msgctxt "NodeTree"
@@ -143882,11 +144097,6 @@ msgstr "BalanceCouleurs"
 
 
 msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Balance des blancs"
-
-
-msgctxt "Sequence"
 msgid "Curves"
 msgstr "Courbes"
 
@@ -143899,6 +144109,11 @@ msgstr "Correction de teinte"
 msgctxt "Sequence"
 msgid "Brightness/Contrast"
 msgstr "Luminosité/contraste"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Balance des blancs"
 
 
 msgctxt "Sequence"

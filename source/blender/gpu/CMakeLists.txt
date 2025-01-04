@@ -3,16 +3,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   dummy
   intern
   metal
   opengl
   vulkan
-  ../blenkernel
-  ../bmesh
-  ../draw
-  ../imbuf
   ../makesrna
 
   # For theme color access.
@@ -35,8 +31,6 @@ set(INC
   metal/kernels
   shaders/infos
 
-  # For node muting stuff.
-  ../nodes
 
   # For shader includes
   shaders/common
@@ -381,12 +375,17 @@ set(METAL_SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::draw
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
 )
 
 # Select Backend source based on availability
@@ -745,6 +744,7 @@ if(WITH_GTESTS)
 endif()
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::gpu ALIAS bf_gpu)
 target_link_libraries(bf_gpu PUBLIC
   bf_compositor_shaders
   bf_draw_shaders
@@ -752,7 +752,7 @@ target_link_libraries(bf_gpu PUBLIC
 )
 
 if(WITH_OPENGL_BACKEND AND UNIX)
-target_link_libraries(bf_gpu PUBLIC rt)
+  target_link_libraries(bf_gpu PUBLIC rt)
 endif()
 
 if(WITH_OPENCOLORIO)
