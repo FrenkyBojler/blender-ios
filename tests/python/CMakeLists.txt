@@ -956,6 +956,16 @@ add_blender_test_io(
   --outdir "${TEST_OUT_DIR}/io_fbx"
 )
 
+if(WITH_IO_STL)
+  add_blender_test_io(
+    io_stl_import
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_stl_import_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/stl"
+    --outdir "${TEST_OUT_DIR}/io_stl"
+  )
+endif()
+
 if(WITH_CODEC_FFMPEG)
   add_python_test(
     ffmpeg
