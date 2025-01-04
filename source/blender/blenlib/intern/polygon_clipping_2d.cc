@@ -215,18 +215,40 @@ struct ExtendedIntersectionPoint {
   int point_b;
   float alpha_a;
   float alpha_b;
+  int curve_a;
+  int curve_b;
+
+  float parameter_a() const
+  {
+    return point_a + alpha_a;
+  }
+
+  float parameter_b() const
+  {
+    return point_b + alpha_b;
+  }
+
+  float parameter_curve(const int curve) const
+  {
+    BLI_assert(curve == curve_a || curve == curve_b);
+    return curve == curve_a ? this->parameter_a() : this->parameter_b();
+  }
 };
 
 static ExtendedIntersectionPoint create_intersection(const int point_a,
                                                      const int point_b,
                                                      const float alpha_a,
-                                                     const float alpha_b)
+                                                     const float alpha_b,
+                                                     const int curve_a,
+                                                     const int curve_b)
 {
   ExtendedIntersectionPoint inter_point;
   inter_point.point_a = point_a;
   inter_point.point_b = point_b;
   inter_point.alpha_a = alpha_a;
   inter_point.alpha_b = alpha_b;
+  inter_point.curve_a = curve_a;
+  inter_point.curve_b = curve_b;
 
   return inter_point;
 }
@@ -396,7 +418,8 @@ BooleanResult execute_boolean(const Operation boolean_mode,
         if (val == ISECT_LINE_LINE_CROSS) {
           inters_per_curves[curve_i].append(intersections.size());
           inters_per_curves[curve_j].append(intersections.size());
-          intersections.append(create_intersection(points_i[i], points_j[j], alpha_a, alpha_b));
+          intersections.append(
+              create_intersection(points_i[i], points_j[j], alpha_a, alpha_b, curve_i, curve_j));
         }
         else if (val == ISECT_LINE_LINE_EXACT) {
           /* TODO */
@@ -430,12 +453,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     parallel_sort(inter_sorted_ids.begin(), inter_sorted_ids.end(), [&](int i1, int i2) {
       const ExtendedIntersectionPoint &inter1 = intersections[inters_per_curve[i1]];
       const ExtendedIntersectionPoint &inter2 = intersections[inters_per_curve[i2]];
-      if (curve_i == 0) { /* TODO */
-        return inter1.point_a + inter1.alpha_a < inter2.point_a + inter2.alpha_a;
-      }
-      else {
-        return inter1.point_b + inter1.alpha_b < inter2.point_b + inter2.alpha_b;
-      }
+      return inter1.parameter_curve(curve_i) < inter2.parameter_curve(curve_i);
     });
 
     if (is_cyclic[curve_i]) {
