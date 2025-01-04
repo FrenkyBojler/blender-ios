@@ -125,12 +125,6 @@ static bool parse_csv_cell(CsvData &csv_data,
       }
       else {
         std::string column_name = csv_data.get_column_name(col_index);
-        fprintf(
-            stderr,
-            "CSV file: '%s', unexpected value found at row %lld for column %s of type Integer.\n",
-            import_params.filepath,
-            row_index,
-            column_name.c_str());
         BKE_reportf(import_params.reports,
                     RPT_ERROR,
                     "CSV Import: file '%s' has an unexpected value at row %lld for column %s of "
@@ -150,12 +144,6 @@ static bool parse_csv_cell(CsvData &csv_data,
       }
       else {
         std::string column_name = csv_data.get_column_name(col_index);
-        fprintf(
-            stderr,
-            "CSV file: '%s', unexpected value found at row %lld for column %s of type Float.\n",
-            import_params.filepath,
-            row_index,
-            column_name.c_str());
         BKE_reportf(import_params.reports,
                     RPT_ERROR,
                     "CSV Import: file '%s' has an unexpected value at row %lld for column %s of "
@@ -232,7 +220,6 @@ PointCloud *read_csv_file(const CSVImportParams &import_params)
   void *buffer = BLI_file_read_text_as_mem(import_params.filepath, 0, &buffer_len);
 
   if (buffer == nullptr) {
-    fprintf(stderr, "Failed to open CSV file:'%s'.\n", import_params.filepath);
     BKE_reportf(import_params.reports,
                 RPT_ERROR,
                 "CSV Import: Cannot open file '%s'",
@@ -246,7 +233,6 @@ PointCloud *read_csv_file(const CSVImportParams &import_params)
 
   /* Get row count and columns */
   if (buffer_str.is_empty()) {
-    fprintf(stderr, "CSV file: '%s', Is empty.\n", import_params.filepath);
     BKE_reportf(
         import_params.reports, RPT_ERROR, "CSV Import: empty file '%s'", import_params.filepath);
     return nullptr;
@@ -256,7 +242,6 @@ PointCloud *read_csv_file(const CSVImportParams &import_params)
   const Vector<std::string> columns = get_columns(header);
 
   if (buffer_str.is_empty()) {
-    fprintf(stderr, "CSV file: '%s', Has no rows.\n", import_params.filepath);
     BKE_reportf(import_params.reports,
                 RPT_ERROR,
                 "CSV Import: no rows in file '%s'",
@@ -272,10 +257,6 @@ PointCloud *read_csv_file(const CSVImportParams &import_params)
   Vector<eCustomDataType> column_types;
   if (!get_column_types(first_row, column_types)) {
     std::string column_name = columns[column_types.size()];
-    fprintf(stderr,
-            "CSV file: '%s', Column %s is of unsupported data type.\n",
-            import_params.filepath,
-            column_name.c_str());
     BKE_reportf(import_params.reports,
                 RPT_ERROR,
                 "CSV Import: file '%s', Column %s is of unsupported data type",

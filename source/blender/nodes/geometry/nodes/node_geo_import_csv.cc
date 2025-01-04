@@ -74,4 +74,5 @@ static void node_register()
   blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
+
 }  // namespace blender::nodes::node_geo_import_csv

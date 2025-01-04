@@ -37,7 +37,7 @@ PointCloud *CsvData::to_point_cloud() const
 
   /* Fill the attributes */
   for (int i = 0; i < columns_num; i++) {
-    const std::string column_name = column_names[i];
+    const StringRef column_name = column_names[i];
     const eCustomDataType column_type = column_types[i];
     void *column_data = get_data_of_garray(data[i], column_type);
     CustomData_add_layer_named_with_data(
