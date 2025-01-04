@@ -3142,7 +3142,7 @@ static void mesh_data_to_grease_pencil(Object &newob,
   drawing->strokes_for_write().resize(total_points, total_curves);
   bke::CurvesGeometry &curves = drawing->strokes_for_write();
 
-  MutableSpan<float3> positions = curves.positions_for_write();
+  MutableSpan<float3> point_positions = curves.positions_for_write();
   MutableSpan<int> offsets = curves.offsets_for_write();
   MutableSpan<bool> cyclic = curves.cyclic_for_write();
   MutableSpan<float> radii = drawing->radii_for_write();
@@ -3152,19 +3152,23 @@ static void mesh_data_to_grease_pencil(Object &newob,
 
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
+  const int face_mat_index = 1;
+  const int stroke_mat_index = 0;
+
   /* Fill faces first, so this way strokes can draw on top of the filled faces. */
   const int total_fills = total_curves - edge_num;
   IndexRange fills_range = IndexRange(total_fills);
   if (generate_faces) {
     const int faces_to_curves_num = mesh_eval.faces_num;
-    array_utils::gather(mesh_positions, corner_verts, positions.take_front(corner_verts.size()));
+    array_utils::gather(
+        mesh_positions, corner_verts, point_positions.take_front(corner_verts.size()));
     array_utils::copy(faces_span, offsets.take_front(faces_span.size()));
     cyclic.take_front(faces_to_curves_num).fill(true);
-    stroke_materials.span.take_front(faces_to_curves_num).fill(1);
+    stroke_materials.span.take_front(faces_to_curves_num).fill(face_mat_index);
   }
 
   array_utils::gather(
-      mesh_positions, edges.cast<int>(), positions.drop_front(corner_verts.size()));
+      mesh_positions, edges.cast<int>(), point_positions.drop_front(corner_verts.size()));
   radii.fill(stroke_radius);
 
   const int faces_size = faces_span.size();
@@ -3172,7 +3176,7 @@ static void mesh_data_to_grease_pencil(Object &newob,
       2, offsets.take_front(faces_size).last() + 2, offsets.drop_front(faces_size));
 
   const IndexRange edges_range = IndexRange(total_fills, edge_num);
-  stroke_materials.span.slice(edges_range).fill(0);
+  stroke_materials.span.slice(edges_range).fill(stroke_mat_index);
   stroke_materials.finish();
 
   drawing->tag_topology_changed();
