@@ -50,6 +50,7 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -74,9 +75,10 @@
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BKE_texture.h"
 #include "BKE_tracking.h"
 
-#include "IMB_movie_enums.hh"
+#include "MOV_enums.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
@@ -2973,7 +2975,7 @@ static void fix_geometry_nodes_object_info_scale(bNodeTree &ntree)
 
 static bool seq_filter_bilinear_to_auto(Sequence *seq, void * /*user_data*/)
 {
-  StripTransform *transform = seq->strip->transform;
+  StripTransform *transform = seq->data->transform;
   if (transform != nullptr && transform->filter == SEQ_TRANSFORM_FILTER_BILINEAR) {
     transform->filter = SEQ_TRANSFORM_FILTER_AUTO;
   }
@@ -3067,10 +3069,10 @@ static void versioning_update_timecode(short int *tc)
 
 static bool seq_proxies_timecode_update(Sequence *seq, void * /*user_data*/)
 {
-  if (seq->strip == nullptr || seq->strip->proxy == nullptr) {
+  if (seq->data == nullptr || seq->data->proxy == nullptr) {
     return true;
   }
-  StripProxy *proxy = seq->strip->proxy;
+  StripProxy *proxy = seq->data->proxy;
   versioning_update_timecode(&proxy->tc);
   return true;
 }
@@ -3294,6 +3296,55 @@ static void version_node_locations_to_global(bNodeTree &ntree)
     node->offsetx_legacy = 0.0f;
     node->offsety_legacy = 0.0f;
   }
+}
+
+static CustomDataLayer *find_old_seam_layer(CustomData &custom_data, const blender::StringRef name)
+{
+  for (CustomDataLayer &layer : blender::MutableSpan(custom_data.layers, custom_data.totlayer)) {
+    if (layer.name == name) {
+      return &layer;
+    }
+  }
+  return nullptr;
+}
+
+static void rename_mesh_uv_seam_attribute(Mesh &mesh)
+{
+  using namespace blender;
+  CustomDataLayer *old_seam_layer = find_old_seam_layer(mesh.edge_data, ".uv_seam");
+  if (!old_seam_layer) {
+    return;
+  }
+  Set<StringRef> names;
+  for (const CustomDataLayer &layer : Span(mesh.vert_data.layers, mesh.vert_data.totlayer)) {
+    if (layer.type & CD_MASK_PROP_ALL) {
+      names.add(layer.name);
+    }
+  }
+  for (const CustomDataLayer &layer : Span(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
+    if (layer.type & CD_MASK_PROP_ALL) {
+      names.add(layer.name);
+    }
+  }
+  for (const CustomDataLayer &layer : Span(mesh.face_data.layers, mesh.face_data.totlayer)) {
+    if (layer.type & CD_MASK_PROP_ALL) {
+      names.add(layer.name);
+    }
+  }
+  for (const CustomDataLayer &layer : Span(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
+    if (layer.type & CD_MASK_PROP_ALL) {
+      names.add(layer.name);
+    }
+  }
+  LISTBASE_FOREACH (const bDeformGroup *, vertex_group, &mesh.vertex_group_names) {
+    names.add(vertex_group->name);
+  }
+
+  /* If the new UV name is already taken, still rename the attribute so it becomes visible in the
+   * list. Then the user can deal with the name conflict themselves. */
+  const std::string new_name = BLI_uniquename_cb(
+      [&](const StringRef name) { return names.contains(name); }, '.', "uv_seam");
+  STRNCPY(old_seam_layer->name, new_name.c_str());
 }
 
 /**
@@ -3545,6 +3596,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type != NTREE_CUSTOM) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type == SH_NODE_TEX_NOISE) {
+            if (!node->storage) {
+              NodeTexNoise *tex = MEM_cnew<NodeTexNoise>(__func__);
+              BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
+              BKE_texture_colormapping_default(&tex->base.color_mapping);
+              tex->dimensions = 3;
+              tex->type = SHD_NOISE_FBM;
+              node->storage = tex;
+            }
             ((NodeTexNoise *)node->storage)->normalize = true;
           }
         }
@@ -5167,7 +5226,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         continue;
       }
       LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-        if (node->type == CMP_NODE_VIEWER || node->type == CMP_NODE_COMPOSITE) {
+        if (ELEM(node->type, CMP_NODE_VIEWER, CMP_NODE_COMPOSITE)) {
           node->flag &= ~NODE_PREVIEW;
         }
       }
@@ -5319,12 +5378,48 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  /* Fix incorrect identifier in the shader mix node. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 16)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type == SH_NODE_MIX_SHADER) {
+            LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+              if (STREQ(socket->identifier, "Shader.001")) {
+                STRNCPY(socket->identifier, "Shader_001");
+              }
+            }
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 17)) {
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_preview_quality"))
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->r.compositor_denoise_preview_quality = SCE_COMPOSITOR_DENOISE_BALANCED;
+      }
+    }
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_final_quality"))
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->r.compositor_denoise_final_quality = SCE_COMPOSITOR_DENOISE_HIGH;
+      }
+    }
+  }
+
   /* Always run this versioning; meshes are written with the legacy format which always needs to
    * be converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
+    rename_mesh_uv_seam_attribute(*mesh);
   }
 
   /**
