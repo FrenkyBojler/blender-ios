@@ -51,11 +51,40 @@ static std::ostream &operator<<(std::ostream &os, const glm::ivec3 &v)
 }
 #endif
 
-template<typename T>
-static void dump_vector(const std::vector<T> &vec, int stride, const std::string &name)
+
+template<typename T> static void dump_span(Span<T> span, const std::string &name)
 {
   std::cout << name << ":";
-  for (size_t i = 0; i < vec.size(); i++) {
+  for (const int i : span.index_range()) {
+    if (i % 10 == 0) {
+      std::cout << "\n[" << i << "] ";
+    }
+    std::cout << span[i] << " ";
+  }
+  std::cout << "\n";
+}
+
+template<typename T>
+static void dump_span_with_stride(Span<T> span, int stride, const std::string &name)
+{
+  std::cout << name << ":";
+  for (const int i : span.index_range()) {
+    if (i % 10 == 0) {
+      std::cout << "\n[" << i << "] ";
+    }
+    std::cout << span[i] << " ";
+    if (stride > 1 && (i % stride) == stride - 1) {
+      std::cout << "/ ";
+    }
+  }
+  std::cout << "\n";
+}
+
+template<typename T>
+static void dump_vector(std::vector<T> vec, int stride, const std::string &name)
+{
+  std::cout << name << ":";
+  for (int i = 0; i < vec.size(); i++) {
     if (i % 10 == 0) {
       std::cout << "\n[" << i << "] ";
     }
@@ -91,18 +120,6 @@ static void dump_manmesh(const manifold::Mesh &mmesh, const std::string &name)
   dump_vector(mmesh.triVerts, 1, "triVerts");
 }
 #endif
-
-template<typename T> static void dump_span(Span<T> span, const std::string &name)
-{
-  std::cout << name << ":";
-  for (const int i : span.index_range()) {
-    if (i % 10 == 0) {
-      std::cout << "\n[" << i << "] ";
-    }
-    std::cout << span[i] << " ";
-  }
-  std::cout << "\n";
-}
 
 static void dump_mesh(const Mesh *mesh, const std::string &name)
 {
@@ -735,10 +752,10 @@ static bool try_merge_out_face_pair(OutFace &f1,
  * remove as many dissolvable edges as possible while still keeping the faces legal.
  * A face is legal if it has no repeated vertices and has size at least 3.
  */
-static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshGL & /*mgl*/)
+static void merge_out_faces(Vector<OutFace> &faces)
 {
-  constexpr int dbg_level = 1;
-  if (group.size() <= 1) {
+  constexpr int dbg_level = 0;
+  if (faces.size() <= 1) {
     return;
   }
   if (dbg_level > 0) {
@@ -800,13 +817,31 @@ static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshG
       merged_to[f2] = f1;
     }
   }
+  /* Now compress the surviving faces. */
+  int move_from = 0;
+  int move_to = 0;
+  const int orig_num_faces = faces.size();
+  while (move_from < orig_num_faces) {
+    /* Don't move faces that have been merged elsewhere. */
+    while (move_from < orig_num_faces && merged_to[move_from] != -1) {
+      move_from++;
+    }
+    if (move_from >= orig_num_faces) {
+      break;
+    }
+    if (move_to < move_from) {
+      faces[move_to] = faces[move_from];
+    }
+    move_to++;
+    move_from++;
+  }
+  if (move_to < orig_num_faces) {
+    faces.resize(move_to);
+  }
   if (dbg_level > 0) {
     std::cout << "final faces:\n";
     for (const int i : faces.index_range()) {
-      if (merged_to[i] == -1) {
-        const OutFace &f = faces[i];
-        dump_span(f.verts.as_span(), std::to_string(i));
-      }
+      dump_span(faces[i].verts.as_span(), std::to_string(i));
     }
   }
 }
@@ -850,8 +885,21 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
       int tri_index = group[i];
       group_faces[i] = make_out_face(mgl, tri_index, gid);
     }
-    merge_out_faces(group_faces, group, mgl);
+    merge_out_faces(group_faces);
     ma.new_faces.extend(group_faces.as_span());
+  }
+  if (dbg_level > 0) {
+    std::cout << "mesh_assembly result:\n";
+    std::cout << "num_input_verts = " << ma.num_input_verts
+      << ", num_output_verts = " << ma.num_output_verts << "\n";
+    dump_span_with_stride(ma.vertpos, ma.vertpos_stride, "vertpos");
+    dump_span(ma.out_to_in_vert_map.as_span(), "out_to_in_vert_map");
+    dump_span(ma.input_faces_to_output.as_span(), "input_faces_to_output");
+    std::cout << "new_faces:\n";
+    for (const int i : ma.new_faces.index_range()) {
+      std::cout << i << ": face_id = " << ma.new_faces[i].face_id << "\nverts ";
+      dump_span(ma.new_faces[i].verts.as_span(), "");
+    }
   }
   return ma;
 }
@@ -866,7 +914,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<Array<short>> material_remaps,
                             const MeshOffsets &mesh_offsets)
 {
-  constexpr int dbg_level = 0;
+  constexpr int dbg_level = 2;
   if (dbg_level > 0) {
     std::cout << "\nMESHGL_TO_MESH\n";
     dump_meshgl(mgl, "meshgl_to_mesh argument");
@@ -876,8 +924,73 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     }
   }
   timeit::ScopedTimer timer("meshgl to mesh");
-  /* TODO: dissolve unnecessary triangle faces. */
+  if (mgl.mergeFromVert.size() > 0) {
+    /* TODO: handle vertex merging */
+    std::cout << "IMPLEMENT ME: handle vertex merging\n";
+  }
   MeshAssembly ma = assemble_mesh_from_meshgl(mgl, meshes, mesh_offsets);
+  const int tot_positions = ma.num_output_verts;
+  const int tot_faces = ma.new_faces.size();
+
+  /* Get total number of corners, and index of the start
+   * corner for each new face. */
+  int tot_corners = 0;
+  /* TODO: parallelize corner counting and offset calculation. */
+  Array<int> face_corner_start_index(tot_faces + 1);
+  for (const int i : ma.new_faces.index_range()) {
+    face_corner_start_index[i] = tot_corners;
+    tot_corners += ma.new_faces[i].verts.size();
+  }
+  face_corner_start_index[tot_faces] = tot_corners;
+
+  /* Make a new Mesh, now that we know the number of positions, faces, and corners.
+   * We will use Blender's parallelized function to calculate edges later.
+   */
+  Mesh *mesh = BKE_mesh_new_nomain_from_template(
+      meshes[0], tot_positions, 0, tot_faces, tot_corners);
+
+  /* Set the vertex positions. */
+  MutableSpan<float3> positions = mesh->vert_positions_for_write();
+  int grain_size = 100000;
+  threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
+    for (const int i : range) {
+      int offset = ma.vertpos_stride * i;
+      float3 pos(ma.vertpos[offset],
+                 ma.vertpos[offset + 1],
+                 ma.vertpos[offset + 2]);
+      positions[i] = pos;
+    }
+  });
+
+  /* Make the faces. */
+  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
+  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
+  grain_size = 50000;
+  threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
+    for (const int face_index : range) {
+      const int corner_index = face_corner_start_index[face_index];
+      face_offsets[face_index] = corner_index;
+      const OutFace &face = ma.new_faces[face_index];
+      for (const int i : face.verts.index_range()) {
+        corner_verts[corner_index + i] = face.verts[i];
+      }
+#if 0
+      std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, mesh_offsets.face_offsets);
+      int input_mesh_index = m_and_f.first;
+      int input_face_index = m_and_f.second;
+      copy_face_attrs(face_attrs,
+                      input_mesh_index,
+                      input_face_index,
+                      face_index,
+                      material_span_index,
+                      material_remaps);
+#endif
+    }
+  });
+  face_offsets[tot_faces] = tot_corners;
+
+#if 0
+  /* This is the old way, when just outputting the triangles of mgl. */
   int tot_positions = mgl.NumVert();
   int tot_faces = mgl.NumTri();
   int tot_corners = tot_faces * 3;
@@ -900,7 +1013,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       positions[i] = pos;
     }
   });
-#if 0
  GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
   int material_span_index = face_attrs.find_attr_index("material_index");
   /* TODO: following is very specific to all-triangle output, */
@@ -927,7 +1039,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   });
   face_offsets[tot_faces] = 3 * tot_faces;
 #endif
-  // bke::mesh_smooth_set(*mesh, false);
+  bke::mesh_smooth_set(*mesh, false);
   {
     timeit::ScopedTimer("calculating edges");
     bke::mesh_calc_edges(*mesh, false, false);
