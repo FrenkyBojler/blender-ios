@@ -44,13 +44,6 @@ enum class Operation : int8_t {
   Difference,
 };
 
-struct ExtendedIntersectionPoint {
-  int point_a;
-  int point_b;
-  float alpha_a;
-  float alpha_b;
-};
-
 class Segment {
  private:
   static const int NULL_INTERSECTION_ID = -1;
@@ -136,8 +129,10 @@ class Segment {
 
   constexpr static Segment from_intersections(const int curve_i,
                                               const IndexRange points,
-                                              const ExtendedIntersectionPoint &inter_first,
-                                              const ExtendedIntersectionPoint &inter_last,
+                                              const int point_first,
+                                              const float alpha_first,
+                                              const int point_last,
+                                              const float alpha_last,
                                               const int inter_index_1,
                                               const int inter_index_2)
   {
@@ -145,12 +140,12 @@ class Segment {
     segment.curve = curve_i;
     segment.points = points;
 
-    segment.point_1 = (curve_i == 0) ? inter_first.point_a : inter_first.point_b;
-    segment.alpha_1 = (curve_i == 0) ? inter_first.alpha_a : inter_first.alpha_b;
+    segment.point_1 = point_first;
+    segment.alpha_1 = alpha_first;
     segment.inter_index_1 = inter_index_1;
 
-    segment.point_2 = (curve_i == 0) ? inter_last.point_a : inter_last.point_b;
-    segment.alpha_2 = (curve_i == 0) ? inter_last.alpha_a : inter_last.alpha_b;
+    segment.point_2 = point_last;
+    segment.alpha_2 = alpha_last;
     segment.inter_index_2 = inter_index_2;
 
     return segment;
@@ -158,7 +153,8 @@ class Segment {
 
   constexpr static Segment from_start_to_intersection(const int curve_i,
                                                       const IndexRange points,
-                                                      const ExtendedIntersectionPoint &inter,
+                                                      const int point_2,
+                                                      const float alpha_2,
                                                       const int inter_index)
   {
     Segment segment;
@@ -167,8 +163,8 @@ class Segment {
 
     segment.point_1 = points.first();
 
-    segment.point_2 = (curve_i == 0) ? inter.point_a : inter.point_b;
-    segment.alpha_2 = (curve_i == 0) ? inter.alpha_a : inter.alpha_b;
+    segment.point_2 = point_2;
+    segment.alpha_2 = alpha_2;
     segment.inter_index_2 = inter_index;
 
     return segment;
@@ -176,15 +172,16 @@ class Segment {
 
   constexpr static Segment from_intersection_to_end(const int curve_i,
                                                     const IndexRange points,
-                                                    const ExtendedIntersectionPoint &inter,
+                                                    const int point_1,
+                                                    const float alpha_1,
                                                     const int inter_index)
   {
     Segment segment;
     segment.curve = curve_i;
     segment.points = points;
 
-    segment.point_1 = (curve_i == 0) ? inter.point_a : inter.point_b;
-    segment.alpha_1 = (curve_i == 0) ? inter.alpha_a : inter.alpha_b;
+    segment.point_1 = point_1;
+    segment.alpha_1 = alpha_1;
     segment.inter_index_1 = inter_index;
 
     segment.point_2 = points.last();
