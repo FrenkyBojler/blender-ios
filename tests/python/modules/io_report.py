@@ -16,6 +16,12 @@ from . import global_report
 from io import StringIO
 from typing import Callable
 
+def fmtf(f : float) -> str:
+    # ensure tiny numbers are 0.0,
+    # and not "-0.0" for example
+    if abs(f) < 0.0005:
+        return "0.000"
+    return f"{f:.3f}"
 
 class Report:
     __slots__ = (
@@ -437,9 +443,9 @@ class Report:
                 if obj.parent:
                     desc.write(f" par:'{obj.parent.name}'")
                 desc.write(f"\n")
-                desc.write(f"  - pos {obj.location[0]:.3f}, {obj.location[1]:.3f}, {obj.location[2]:.3f}\n")
+                desc.write(f"  - pos {fmtf(obj.location[0])}, {fmtf(obj.location[1])}, {fmtf(obj.location[2])}\n")
                 desc.write(
-                    f"  - rot {obj.rotation_euler[0]:.3f}, {obj.rotation_euler[1]:.3f}, {obj.rotation_euler[2]:.3f} ({obj.rotation_mode})\n")
+                    f"  - rot {fmtf(obj.rotation_euler[0])}, {fmtf(obj.rotation_euler[1])}, {fmtf(obj.rotation_euler[2])} ({obj.rotation_mode})\n")
                 desc.write(f"  - scl {obj.scale[0]:.3f}, {obj.scale[1]:.3f}, {obj.scale[2]:.3f}\n")
                 if obj.vertex_groups:
                     desc.write(f"  - {len(obj.vertex_groups)} vertex groups\n")
@@ -548,7 +554,7 @@ class Report:
                     if bone.parent:
                         desc.write(f" parent:'{bone.parent.name}'")
                     desc.write(
-                        f" h:({bone.head[0]:.3f}, {bone.head[1]:.3f}, {bone.head[2]:.3f}) t:({bone.tail[0]:.3f}, {bone.tail[1]:.3f}, {bone.tail[2]:.3f})")
+                        f" h:({fmtf(bone.head[0])}, {fmtf(bone.head[1])}, {fmtf(bone.head[2])}) t:({fmtf(bone.tail[0]):}, {fmtf(bone.tail[1])}, {fmtf(bone.tail[2])})")
                     if bone.head_radius > 0.0 or bone.tail_radius > 0.0:
                         desc.write(f" radius h:{bone.head_radius:.3f} t:{bone.tail_radius:.3f}")
                     desc.write(f"\n")
