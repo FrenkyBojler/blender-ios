@@ -536,7 +536,8 @@ static bool transform_snap_mixed_is_active(const TransInfo *t)
 
   return (t->tsnap.mode &
           (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_VOLUME |
-           SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_TO_GRID | SCE_SNAP_TO_ORIGIN)) != 0;
+           SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_TO_GRID |
+           SCE_SNAP_TO_ORIGIN)) != 0;
 }
 
 void transform_snap_mixed_apply(TransInfo *t, float *vec)

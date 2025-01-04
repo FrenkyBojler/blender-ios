@@ -918,9 +918,6 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
   }
 
   switch (ob_eval->type) {
-    case OB_CAMERA:
-      retval = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
-      break;
     case OB_ARMATURE:
       retval = snapArmature(sctx, ob_eval, obmat, is_object_active);
       break;
@@ -930,7 +927,10 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
         retval = snapCurve(sctx, ob_eval, obmat);
       }
       break;
-    // TODO: Add remaining object types (lattice, grease pencil, ...)
+    case OB_CAMERA:
+      retval = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+      break;
+      /* TODO: Add remaining object types (lattice, grease pencil, ...) */
   }
 
   if (retval == SCE_SNAP_TO_NONE) {
@@ -1388,7 +1388,8 @@ eSnapMode ED_transform_snap_object_project_view3d_ex(SnapObjectContext *sctx,
 
   snap_to_flag = sctx->runtime.snap_to_flag;
 
-  BLI_assert(snap_to_flag & (SCE_SNAP_TO_GEOM | SCE_SNAP_TO_GRID | SCE_SNAP_INDIVIDUAL_NEAREST | SCE_SNAP_TO_ORIGIN));
+  BLI_assert(snap_to_flag & (SCE_SNAP_TO_GEOM | SCE_SNAP_TO_GRID | SCE_SNAP_INDIVIDUAL_NEAREST |
+                             SCE_SNAP_TO_ORIGIN));
 
   bool has_hit = false;
 
