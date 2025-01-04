@@ -396,6 +396,12 @@ struct OutFace {
   /* The faceID input to manifold, i.e. original face id in combined input mesh indexing space.
    */
   int face_id;
+
+  /* Find the first index (should be only one) of verts that contains v, else -1. */
+  int find_vert_index(int v) const
+  {
+    return verts.first_index_of_try(v);
+  }
 };
 
 /* Data needed to build the final output Mesh. */
@@ -620,12 +626,109 @@ static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces)
       edge_verts_to_tri.add_new(int2(v1, v2), this_e);
       int other_e = edge_verts_to_tri.lookup_default(int2(v2, v1), -1);
       if (other_e != -1) {
-        std::cout << "found shared pair between verts " << v1 << " and " << v2 << "\n";
         ans.append(canon_shared_edge(this_e, other_e, v1, v2));
       }
     }
   }
   return ans;
+}
+
+/* Return true if the splice of faces \a f1 and \a f2 forms a legal face (no repeated verts).
+ * The splice will be between vertices \a v1 and \a v2, which are assumed to not be
+ * repeated in the other face (since incoming faces are assumed legal).
+ */
+static bool is_legal_merge(const OutFace &f1,
+                           const OutFace &f2,
+                           int v1,
+                           int v2)
+{
+  /* For now, just look for each non-splice-involved vertex of each face to see if
+   * it is in the other face.
+   * TODO: if the faces are big, sort both together and look for repeats after sorting.
+   */
+  for (const int v : f1.verts) {
+    if (v != v1 && v != v2) {
+      if (f2.find_vert_index(v) != -1) {
+        return false;
+      }
+    }
+  }
+  for (const int v : f2.verts) {
+    if (v != v1 && v != v2) {
+      if (f1.find_vert_index(v) != -1) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/* Try merging OutFaces \a f1 and \a f2, which should have a \a se as a shared edge.
+ * Assume the shared edge has v1,v2 in CCW order in f1, and in the opposite order in f2.
+ * This involves splicing the two faces together and checking that there
+ * is no repeated vertex if this is done.
+ * If the merge is successful, update f1 to be the merged face and return true,
+ * else leave the faces alone and return false.
+ */
+static bool try_merge_out_face_pair(OutFace &f1,
+                                    const OutFace &f2,
+                                    const SharedEdge &se)
+{
+  constexpr int dbg_level = 0;
+  if (dbg_level > 0) {
+    std::cout << "try_merge_out_face_pair\n";
+    dump_span(f1.verts.as_span(), "f1");
+    dump_span(f2.verts.as_span(), "f2");
+    std::cout << "shared edge: " << "(e" << se.e1 << ",e" << se.e2 << ";v" << se.v1 << ",v" << se.v2 << ")\n";
+  }
+  const int f1_len = f1.verts.size();
+  const int f2_len = f2.verts.size();
+  const int v1 = se.v1;
+  const int v2 = se.v2;
+  /* Find i1, the index of the earlier of v1 and v2 in f1,
+   * and i2, the index of the earlier of v1 and v2 in f2. */
+  const int i1 = f1.find_vert_index(v1);
+  BLI_assert(i1 != -1);
+  const int i1_next = (i1 + 1) % f1_len;
+  const int i2 = f2.find_vert_index(v2);
+  BLI_assert(i2 != -1);
+  const int i2_next = (i2 + 1) % f2_len;
+  BLI_assert(f1.verts[i1] == v1 && f1.verts[i1_next] == v2);
+  BLI_assert(f2.verts[i2] == v2 && f2.verts[i2_next] == v1);
+  const bool can_merge = is_legal_merge(f1, f2, v1, v2);
+  if (dbg_level > 0) {
+    std::cout << "i1 = " << i1 << ", i2 = " << i2 <<
+      ", can_merge = " << can_merge << "\n";
+  }
+  if (!can_merge) {
+    return false;
+  }
+  /* The merged face is the concatenation of these slices
+   * (giving inclusive indices, with implied wrap-around at end of faces):
+   * f1 : [0, i1]
+   * f2 : [i2_next+1, i2_prev]
+   * f1 : [i1_next, f1_len-1]
+   */
+  const int i2_prev = (i2 + f2_len - 1) % f2_len;
+  const int i2_next_next = (i2_next + 1) % f2_len;
+  auto f2_start_it = f2.verts.begin() + i2_next_next;
+  auto f2_end_it = f2.verts.begin() + i2_prev + 1;
+  if (f2_end_it > f2_start_it) {
+    f1.verts.insert(i1_next, f2_start_it, f2_end_it);
+  }
+  else {
+    const int n1 = std::distance(f2_start_it, f2.verts.end());
+    if (n1 > 0) {
+      f1.verts.insert(i1_next, f2_start_it, f2.verts.end());
+    }
+    if (n1 < f2_len - 2) {
+      f1.verts.insert(i1_next + n1, f2.verts.begin(), f2_end_it);
+    }
+  }
+  if (dbg_level > 0) {
+    dump_span(f1.verts.as_span(), "merge result");
+  }
+  return true;
 }
 
 /* Give a group of #OutFace's that are all from a same original mesh face,
@@ -667,7 +770,9 @@ static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshG
     BLI_assert(f_orig != -1);
     int f_mapped = f_orig;
     do {
-      f_mapped = merged_to[f_mapped];
+      if (merged_to[f_mapped] != -1) {
+        f_mapped = merged_to[f_mapped];
+      }
     } while (merged_to[f_mapped] != -1);
     return f_mapped;
   };
@@ -681,10 +786,27 @@ static void merge_out_faces(Vector<OutFace> &faces, Span<int> group, const MeshG
     const int2 cur_faces = int2(final_merged_to(orig_faces[0]), final_merged_to(orig_faces[1]));
     const int f1 = cur_faces[0];
     const int f2 = cur_faces[1];
+    if (f1 == -1 || f2 == -2) {
+      continue;
+    }
     if (dbg_level > 0) {
-      std::cout << "try merge of SharedEdge "
-                << "(v" << se.v1 << ",v" << se.v2 << ")"
-                << " orig group faces " << f1 << " and " << f2 << "\n";
+      std::cout << "try merge of faces " << f1 << " and " << f2 << "\n";
+    }
+    if (try_merge_out_face_pair(faces[f1], faces[f2], se)) {
+      if (dbg_level > 0) {
+        std::cout << "successful merge\n";
+        dump_span(faces[f1].verts.as_span(), "new f1");
+      }
+      merged_to[f2] = f1;
+    }
+  }
+  if (dbg_level > 0) {
+    std::cout << "final faces:\n";
+    for (const int i : faces.index_range()) {
+      if (merged_to[i] == -1) {
+        const OutFace &f = faces[i];
+        dump_span(f.verts.as_span(), std::to_string(i));
+      }
     }
   }
 }
