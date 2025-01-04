@@ -244,7 +244,7 @@ static bool lib_id_remove_custom_preview_poll(bContext *C)
     return false;
   }
 
-  PreviewImage *preview = BKE_previewimg_id_get(id);
+  const PreviewImage *preview = BKE_previewimg_id_get(id);
   if (!preview) {
     CTX_wm_operator_poll_msg_set(C, "No preview available to remove");
     return false;
