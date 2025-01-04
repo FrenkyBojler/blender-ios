@@ -233,8 +233,6 @@ struct StrokeCache {
 
   bool first_time; /* Beginning of stroke may do some things special */
 
-  bool plane_brush_fist_time;
-
   /* from ED_view3d_ob_project_mat_get() */
   float4x4 projection_mat;
 
@@ -268,8 +266,17 @@ struct StrokeCache {
   float3 sculpt_normal;
   float3 sculpt_normal_symm;
 
+  /* Plane Brush */
+  static constexpr int MAX_INDEX = 20;
   float3 last_plane_normal;
   float3 last_plane_center;
+  std::array<float3, MAX_INDEX> plane_normals;
+  std::array<float3, MAX_INDEX> plane_centers;
+  int plane_normal_index;
+  int plane_center_index;
+  int normal_max_index;
+  int center_max_index;
+  bool plane_brush_fist_time;
 
   /* Used for area texture mode, local_mat gets calculated by
    * calc_brush_local_mat() and used in sculpt_apply_texture().

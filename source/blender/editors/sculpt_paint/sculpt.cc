@@ -2082,29 +2082,62 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
 
   /* If it's the first step of the stroke, simply use the current center and normal. */
   if (ss.cache->plane_brush_fist_time) {
-    new_plane_center = plane_center;
+    ss.cache->normal_max_index = static_cast<int>(1 + normal_weight * (ss.cache->MAX_INDEX - 1));
+    ss.cache->center_max_index = static_cast<int>(1 + plane_weight * (ss.cache->MAX_INDEX - 1));
+
     new_plane_normal = plane_normal;
+    new_plane_center = plane_center;
+    ss.cache->plane_normals.fill(plane_normal);
+    ss.cache->plane_centers.fill(plane_center);
+
+    ss.cache->plane_normal_index = 0;
+    ss.cache->plane_center_index = 0;
     ss.cache->plane_brush_fist_time = false;
   }
   else {
     /* Interpolate between plane_normal and the last plane normal. */
     new_plane_normal = math::normalize(
-        math::interpolate(plane_normal, ss.cache->last_plane_normal, normal_weight));
+      math::interpolate(plane_normal, ss.cache->last_plane_normal, normal_weight));
 
     const float distance_to_last_plane = math::dot(plane_center - ss.cache->last_plane_center,
-                                                   ss.cache->last_plane_normal);
+                                                  ss.cache->last_plane_normal);
 
-    /* Interpolate between plane_center and its projection on the last plane. */
-    new_plane_center = plane_center -
-                       ss.cache->last_plane_normal *
-                       math::interpolate(0.0f, distance_to_last_plane, plane_weight);
+    /* Projection of plane center on the last plane. */
+    float3 projected_plane_center = plane_center -
+      ss.cache->last_plane_normal * distance_to_last_plane;
+
+    new_plane_center = math::interpolate(plane_center, projected_plane_center, plane_weight);
   }
 
-  copy_v3_v3(r_area_no, new_plane_normal);
-  ss.cache->last_plane_normal = new_plane_normal;
+  const int normal_index = ss.cache->plane_normal_index;
+  const int center_index = ss.cache->plane_center_index;
 
-  copy_v3_v3(r_area_co, new_plane_center);
-  ss.cache->last_plane_center = new_plane_center;
+  ss.cache->plane_normals[normal_index] = new_plane_normal;
+  ss.cache->plane_centers[center_index] = new_plane_center;
+
+  ss.cache->plane_normal_index = (normal_index + 1) % ss.cache->normal_max_index;
+  ss.cache->plane_center_index = (center_index + 1) % ss.cache->center_max_index;
+
+  float3 stable_normal = float3(0.0f);
+  float3 stable_center = float3(0.0f);
+
+  for (int i = 0; i < ss.cache->normal_max_index; i++) {
+    stable_normal += ss.cache->plane_normals[i];
+  }
+
+  stable_normal = math::normalize(stable_normal);
+
+  for (int i = 0; i < ss.cache->center_max_index; i++) {
+    stable_center += ss.cache->plane_centers[i];
+  }
+
+  stable_center /= ss.cache->center_max_index;
+
+  copy_v3_v3(r_area_no, stable_normal);
+  ss.cache->last_plane_normal = stable_normal;
+
+  copy_v3_v3(r_area_co, stable_center);
+  ss.cache->last_plane_center = stable_center;
 }
 }  // namespace blender::ed::sculpt_paint
 
