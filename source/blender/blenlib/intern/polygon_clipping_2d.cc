@@ -218,20 +218,10 @@ struct ExtendedIntersectionPoint {
   int curve_a;
   int curve_b;
 
-  float parameter_a() const
-  {
-    return point_a + alpha_a;
-  }
-
-  float parameter_b() const
-  {
-    return point_b + alpha_b;
-  }
-
   float parameter_curve(const int curve) const
   {
     BLI_assert(curve == curve_a || curve == curve_b);
-    return curve == curve_a ? this->parameter_a() : this->parameter_b();
+    return curve == curve_a ? point_a + alpha_a : point_b + alpha_b;
   }
 };
 
