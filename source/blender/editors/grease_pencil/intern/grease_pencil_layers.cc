@@ -1259,7 +1259,7 @@ static const EnumPropertyItem *geometry_attribute_domain_itemf(bContext *C,
     return rna_enum_dummy_NULL_items;
   }
 
-  Object *object = CTX_data_active_object(C);
+  const Object *object = CTX_data_active_object(C);
   if (object == nullptr) {
     return rna_enum_dummy_NULL_items;
   }
@@ -1279,11 +1279,11 @@ static int grease_pencil_layer_attribute_add_exec(bContext *C, wmOperator *op)
 
   char name[MAX_NAME];
   RNA_string_get(op->ptr, "name", name);
-  eCustomDataType type = (eCustomDataType)RNA_enum_get(op->ptr, "data_type");
-  bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
+  const eCustomDataType type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
+  const bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
 
   AttributeOwner owner = active_frame_get_attribute_owner(C);
-  CustomDataLayer *cd_layer = BKE_attribute_new(owner, name, type, domain, op->reports);
+  const CustomDataLayer *cd_layer = BKE_attribute_new(owner, name, type, domain, op->reports);
 
   if (cd_layer == nullptr) {
     return OPERATOR_CANCELLED;
