@@ -21,24 +21,24 @@ class GeometryReadValue : public memory_cache::CachedValue {
   bke::GeometrySet geometry;
   ReportList reports;
 
-  GeometryReadValue(bke::GeometrySet geometry, ReportList *reports) : geometry(geometry)
-  {
-    BKE_reports_init(&this->reports, RPT_STORE);
-    BKE_reports_move_to_reports(&this->reports, reports);
-  }
+  GeometryReadValue(bke::GeometrySet geometry, ReportList *reports);
 
-  ~GeometryReadValue()
-  {
-    BKE_reports_free(&this->reports);
-  }
+  ~GeometryReadValue();
 
-  void count_memory(MemoryCounter &memory) const override
-  {
-    geometry.count_memory(memory);
-  }
+  void count_memory(MemoryCounter &memory) const override;
 };
 
+/**
+ * Completely clears the memory cache
+ */
 void import_geometry_cache_clear_all();
+
+/**
+ * Imports geometry by first searching for it in the memory cache
+ * by absolute path and file type. If the cache key is not found
+ * the compute_fn is invoked to provide the geometry which is then
+ * cached and returned
+ */
 std::shared_ptr<const GeometryReadValue> import_geometry_cached(
     const FileType file_type,
     const StringRef absolute_file_path,

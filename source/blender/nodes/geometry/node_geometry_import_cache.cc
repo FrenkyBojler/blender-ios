@@ -34,6 +34,23 @@ class GeometryReadKey : public GenericKey {
   }
 };
 
+GeometryReadValue::GeometryReadValue(bke::GeometrySet geometry, ReportList *reports)
+    : geometry(geometry)
+{
+  BKE_reports_init(&this->reports, RPT_STORE);
+  BKE_reports_move_to_reports(&this->reports, reports);
+}
+
+GeometryReadValue::~GeometryReadValue()
+{
+  BKE_reports_free(&this->reports);
+}
+
+void GeometryReadValue::count_memory(MemoryCounter &memory) const
+{
+  geometry.count_memory(memory);
+}
+
 void import_geometry_cache_clear_all()
 {
   memory_cache::clear();
@@ -45,7 +62,7 @@ std::shared_ptr<const GeometryReadValue> import_geometry_cached(
     FunctionRef<std::unique_ptr<GeometryReadValue>()> compute_fn)
 {
   BLI_assert_msg(!BLI_path_is_rel(absolute_file_path.data()),
-                 "File path is not absolute, try saving the blend file");
+                 "The caller is responsible for making sure that this is an absolute path.");
 
   GeometryReadKey cache_key;
   cache_key.file_type = file_type;
