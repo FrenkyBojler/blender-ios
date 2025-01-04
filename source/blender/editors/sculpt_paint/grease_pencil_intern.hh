@@ -53,6 +53,17 @@ class GreasePencilStrokeOperation : public PaintModeData {
 
 namespace greasepencil {
 
+/* Array of visible drawings to use as borders for generating a stroke in the editable drawing on
+ * the active layer. This is provided for every frame in the multi-frame edit range. */
+struct MultiframeTargetInfo {
+  ed::greasepencil::MutableDrawingInfo target;
+  Vector<ed::greasepencil::DrawingInfo> sources;
+};
+
+Vector<MultiframeTargetInfo> ensure_editable_drawings(const Scene &scene,
+                                                      GreasePencil &grease_pencil,
+                                                      bke::greasepencil::Layer &target_layer);
+
 /* Get list of drawings the tool should be operating on. */
 Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_painting(const bContext &C);
 /* Get the brush radius accounting for pen pressure. */
@@ -202,7 +213,8 @@ class GreasePencilStrokeOperationCommon : public GreasePencilStrokeOperation {
 
 /* Operations */
 
-std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(bool temp_draw = false);
+std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(
+    bool temp_draw = false, const Vector<greasepencil::MultiframeTargetInfo> multiframe_info = {});
 std::unique_ptr<GreasePencilStrokeOperation> new_erase_operation(bool temp_eraser = false);
 std::unique_ptr<GreasePencilStrokeOperation> new_tint_operation();
 std::unique_ptr<GreasePencilStrokeOperation> new_weight_paint_draw_operation(

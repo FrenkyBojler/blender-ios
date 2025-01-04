@@ -271,6 +271,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /* Whether the operation was temporarily called from tools other than draw tool. */
   bool temp_draw_;
 
+  Vector<greasepencil::MultiframeTargetInfo> multiframe_info_;
+
   friend struct PaintOperationExecutor;
 
  public:
@@ -278,7 +280,11 @@ class PaintOperation : public GreasePencilStrokeOperation {
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
   void on_stroke_done(const bContext &C) override;
 
-  PaintOperation(const bool temp_draw = false) : temp_draw_(temp_draw) {}
+  PaintOperation(const bool temp_draw = false,
+                 const Vector<greasepencil::MultiframeTargetInfo> multiframe_info = {})
+      : temp_draw_(temp_draw), multiframe_info_(multiframe_info)
+  {
+  }
 };
 
 /**
@@ -301,7 +307,7 @@ struct PaintOperationExecutor {
 
   bke::greasepencil::Drawing *drawing_;
 
-  PaintOperationExecutor(const bContext &C)
+  PaintOperationExecutor(const bContext &C, bke::greasepencil::Drawing* target_drawing=nullptr)
   {
     scene_ = CTX_data_scene(&C);
     Object *object = CTX_data_active_object(&C);
@@ -326,10 +332,14 @@ struct PaintOperationExecutor {
     }
     softness_ = 1.0f - settings_->hardness;
 
-    BLI_assert(grease_pencil->has_active_layer());
-    drawing_ = grease_pencil->get_editable_drawing_at(*grease_pencil->get_active_layer(),
-                                                      scene_->r.cfra);
-    BLI_assert(drawing_ != nullptr);
+    if(target_drawing){
+      drawing_ = target_drawing;
+    }else{
+      BLI_assert(grease_pencil->has_active_layer());
+      drawing_ = grease_pencil->get_editable_drawing_at(*grease_pencil->get_active_layer(),
+                                                        scene_->r.cfra);
+      BLI_assert(drawing_ != nullptr);
+    }
   }
 
   float randomize_radius(PaintOperation &self,
@@ -943,7 +953,7 @@ struct PaintOperationExecutor {
     }
 
     /* Only start smoothing if there are enough points. */
-    constexpr int64_t min_active_smoothing_points_num = 8;
+    constexpr int64_t min_active_smoothing_points_num = 0;
     const IndexRange smooth_window = self.screen_space_coords_orig_.index_range().drop_front(
         self.active_smooth_start_index_);
     if (smooth_window.size() < min_active_smoothing_points_num) {
@@ -951,30 +961,30 @@ struct PaintOperationExecutor {
     }
     else {
       /* Active smoothing is done in a window at the end of the new stroke. */
-      this->active_smoothing(self, smooth_window);
+      //this->active_smoothing(self, smooth_window);
     }
 
-    MutableSpan<float3> curve_positions = positions.slice(curves.points_by_curve()[active_curve]);
-    if (use_settings_random_ && settings_->draw_jitter > 0.0f) {
-      this->active_jitter(self,
-                          new_points_num,
-                          brush_radius_px,
-                          extension_sample.pressure,
-                          smooth_window,
-                          curve_positions);
-    }
-    else {
-      MutableSpan<float2> smoothed_coords =
-          self.screen_space_smoothed_coords_.as_mutable_span().slice(smooth_window);
-      MutableSpan<float2> final_coords = self.screen_space_final_coords_.as_mutable_span().slice(
-          smooth_window);
-      /* Not jitter, so we just copy the positions over. */
-      final_coords.copy_from(smoothed_coords);
-      MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
-      for (const int64_t window_i : smooth_window.index_range()) {
-        curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
-      }
-    }
+    //MutableSpan<float3> curve_positions = positions.slice(curves.points_by_curve()[active_curve]);
+    //if (use_settings_random_ && settings_->draw_jitter > 0.0f) {
+    //  this->active_jitter(self,
+    //                      new_points_num,
+    //                      brush_radius_px,
+    //                      extension_sample.pressure,
+    //                      smooth_window,
+    //                      curve_positions);
+    //}
+    //else {
+    //  MutableSpan<float2> smoothed_coords =
+    //      self.screen_space_smoothed_coords_.as_mutable_span().slice(smooth_window);
+    //  MutableSpan<float2> final_coords = self.screen_space_final_coords_.as_mutable_span().slice(
+    //      smooth_window);
+    //  /* Not jitter, so we just copy the positions over. */
+    //  final_coords.copy_from(smoothed_coords);
+    //  MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
+    //  for (const int64_t window_i : smooth_window.index_range()) {
+    //    curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+    //  }
+    //}
 
     /* Initialize the rest of the attributes with default values. */
     bke::fill_attribute_range_default(
@@ -1071,8 +1081,15 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   /* Delta time starts at 0. */
   delta_time_ = 0.0f;
 
-  PaintOperationExecutor executor{C};
-  executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
+  if(multiframe_info_.is_empty()){
+    PaintOperationExecutor executor{C};
+    executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
+  }else{
+    for(greasepencil::MultiframeTargetInfo info:multiframe_info_){
+      PaintOperationExecutor executor(C, &info.target.drawing);
+      executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
+    }
+  }
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
@@ -1083,8 +1100,15 @@ void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &ex
   Object *object = CTX_data_active_object(&C);
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
 
-  PaintOperationExecutor executor{C};
-  executor.execute(*this, C, extension_sample);
+  if(multiframe_info_.is_empty()){
+    PaintOperationExecutor executor{C};
+    executor.execute(*this, C, extension_sample);
+  }else{
+    for(greasepencil::MultiframeTargetInfo info:multiframe_info_){
+      PaintOperationExecutor executor(C, &info.target.drawing);
+    executor.execute(*this, C, extension_sample);
+    }
+  }
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
@@ -1548,9 +1572,10 @@ void PaintOperation::on_stroke_done(const bContext &C)
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil.id);
 }
 
-std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(const bool temp_draw)
+std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(
+    const bool temp_draw, const Vector<greasepencil::MultiframeTargetInfo> multiframe_info)
 {
-  return std::make_unique<PaintOperation>(temp_draw);
+  return std::make_unique<PaintOperation>(temp_draw, multiframe_info);
 }
 
 }  // namespace blender::ed::sculpt_paint::greasepencil
