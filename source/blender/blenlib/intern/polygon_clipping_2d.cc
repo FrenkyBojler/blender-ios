@@ -218,7 +218,7 @@ struct ExtendedIntersectionPoint {
   int curve_a;
   int curve_b;
 
-  float parameter_curve(const int curve) const
+  float parameter_for_curve(const int curve) const
   {
     BLI_assert(curve == curve_a || curve == curve_b);
     return curve == curve_a ? point_a + alpha_a : point_b + alpha_b;
@@ -443,7 +443,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     parallel_sort(inter_sorted_ids.begin(), inter_sorted_ids.end(), [&](int i1, int i2) {
       const ExtendedIntersectionPoint &inter1 = intersections[inters_per_curve[i1]];
       const ExtendedIntersectionPoint &inter2 = intersections[inters_per_curve[i2]];
-      return inter1.parameter_curve(curve_i) < inter2.parameter_curve(curve_i);
+      return inter1.parameter_for_curve(curve_i) < inter2.parameter_for_curve(curve_i);
     });
 
     if (is_cyclic[curve_i]) {
@@ -455,8 +455,8 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 
       all_segments.append(Segment::from_intersections(curve_i,
                                                       points_i,
-                                                      inter_last.parameter_curve(curve_i),
-                                                      inter_first.parameter_curve(curve_i),
+                                                      inter_last.parameter_for_curve(curve_i),
+                                                      inter_first.parameter_for_curve(curve_i),
                                                       int_p_2,
                                                       int_p_1));
     }
@@ -465,7 +465,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
 
       all_segments.append(Segment::from_start_to_intersection(
-          curve_i, points_i, inter_first.parameter_curve(curve_i), int_p_1));
+          curve_i, points_i, inter_first.parameter_for_curve(curve_i), int_p_1));
     }
 
     for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
@@ -477,8 +477,8 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 
       all_segments.append(Segment::from_intersections(curve_i,
                                                       points_i,
-                                                      inter_first.parameter_curve(curve_i),
-                                                      inter_last.parameter_curve(curve_i),
+                                                      inter_first.parameter_for_curve(curve_i),
+                                                      inter_last.parameter_for_curve(curve_i),
                                                       int_p_1,
                                                       int_p_2));
     }
@@ -488,7 +488,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
 
       all_segments.append(Segment::from_intersection_to_end(
-          curve_i, points_i, inter_last.parameter_curve(curve_i), int_p_2));
+          curve_i, points_i, inter_last.parameter_for_curve(curve_i), int_p_2));
     }
   }
   all_segment_offsets.append(all_segments.size());
