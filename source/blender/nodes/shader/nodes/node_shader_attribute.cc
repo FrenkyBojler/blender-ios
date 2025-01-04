@@ -22,11 +22,14 @@ static void node_declare(NodeDeclarationBuilder &b)
     const NodeShaderAttribute *storage = static_cast<const NodeShaderAttribute *>(node->storage);
     const eCustomDataType data_type = eCustomDataType(storage->data_type);
     b.add_output(data_type, "Value");
+
+    b.add_output<decl::Float>("Alpha").available(data_type == CD_PROP_COLOR);
   }
 }
 
 static void node_shader_buts_attribute(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
+  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
   uiItemR(layout, ptr, "attribute_type", UI_ITEM_NONE, "", ICON_NONE);
   uiItemFullR(layout,
               ptr,
@@ -37,7 +40,6 @@ static void node_shader_buts_attribute(uiLayout *layout, bContext * /*C*/, Point
               "",
               ICON_NONE,
               "Name");
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_shader_init_attribute(bNodeTree * /*ntree*/, bNode *node)
@@ -89,7 +91,7 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
       GPU_stack_link(mat, node, "node_attribute_vector", in, out, cd_attr);
       break;
     case CD_PROP_COLOR:
-      GPU_stack_link(mat, node, "node_attribute_color_", in, out, cd_attr);
+      GPU_stack_link(mat, node, "node_attribute_color_and_alpha", in, out, cd_attr);
       break;
     default:
       BLI_assert_unreachable();
