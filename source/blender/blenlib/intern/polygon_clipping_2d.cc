@@ -439,10 +439,10 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 
     if (inters_per_curve.is_empty()) {
       if (is_cyclic[curve_i]) {
-        all_segments.append(Segment::from_loop(curve_i, points_i));
+        all_segments.append(Segment::from_points_cyclical(curve_i, points_i));
       }
       else {
-        all_segments.append(Segment::from_start_to_end(curve_i, points_i));
+        all_segments.append(Segment::from_points(curve_i, points_i));
       }
       continue;
     }
@@ -470,7 +470,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const float alpha_2 = (curve_i == 0) ? inter_last.alpha_a : inter_last.alpha_b;
 
       all_segments.append(Segment::from_intersections(
-          curve_i, points_i, point_2, alpha_2, point_1, alpha_1, int_p_2, int_p_1));
+          curve_i, points_i, point_2 + alpha_2, point_1 + alpha_1, int_p_2, int_p_1));
     }
     else {
       const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
@@ -480,7 +480,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const float alpha_2 = (curve_i == 0) ? inter_first.alpha_a : inter_first.alpha_b;
 
       all_segments.append(
-          Segment::from_start_to_intersection(curve_i, points_i, point_2, alpha_2, int_p_1));
+          Segment::from_start_to_intersection(curve_i, points_i, point_2 + alpha_2, int_p_1));
     }
 
     for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
@@ -497,7 +497,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const float alpha_2 = (curve_i == 0) ? inter_last.alpha_a : inter_last.alpha_b;
 
       all_segments.append(Segment::from_intersections(
-          curve_i, points_i, point_1, alpha_1, point_2, alpha_2, int_p_1, int_p_2));
+          curve_i, points_i, point_1 + alpha_1, point_2 + alpha_2, int_p_1, int_p_2));
     }
 
     if (!is_cyclic[curve_i]) {
@@ -508,7 +508,7 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const float alpha_1 = (curve_i == 0) ? inter_last.alpha_a : inter_last.alpha_b;
 
       all_segments.append(
-          Segment::from_intersection_to_end(curve_i, points_i, point_1, alpha_1, int_p_2));
+          Segment::from_intersection_to_end(curve_i, points_i, point_1 + alpha_1, int_p_2));
     }
   }
   all_segment_offsets.append(all_segments.size());

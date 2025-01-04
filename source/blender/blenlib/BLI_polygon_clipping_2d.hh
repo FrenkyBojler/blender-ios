@@ -100,7 +100,19 @@ class Segment {
   template<typename Fn> inline void foreach_point(Fn &&fn) const;
   int points_num() const;
 
-  constexpr static Segment from_loop(const int curve_i, const IndexRange points)
+  constexpr static Segment from_points(const int curve_i, const IndexRange points)
+  {
+    Segment segment;
+    segment.curve = curve_i;
+    segment.points = points;
+
+    segment.point_1 = points.first();
+    segment.point_2 = points.last();
+
+    return segment;
+  }
+
+  constexpr static Segment from_points_cyclical(const int curve_i, const IndexRange points)
   {
     Segment segment;
     segment.curve = curve_i;
@@ -115,47 +127,32 @@ class Segment {
     return segment;
   }
 
-  constexpr static Segment from_start_to_end(const int curve_i, const IndexRange points)
+  static Segment from_intersections(const int curve_i,
+                                    const IndexRange points,
+                                    const float parameter_first,
+                                    const float parameter_last,
+                                    const int inter_index_first,
+                                    const int inter_index_last)
   {
     Segment segment;
     segment.curve = curve_i;
     segment.points = points;
 
-    segment.point_1 = points.first();
-    segment.point_2 = points.last();
+    segment.point_1 = int(math::floor(parameter_first));
+    segment.alpha_1 = math::fract(parameter_first);
+    segment.inter_index_1 = inter_index_first;
+
+    segment.point_2 = int(math::floor(parameter_last));
+    segment.alpha_2 = math::fract(parameter_last);
+    segment.inter_index_2 = inter_index_last;
 
     return segment;
   }
 
-  constexpr static Segment from_intersections(const int curve_i,
-                                              const IndexRange points,
-                                              const int point_first,
-                                              const float alpha_first,
-                                              const int point_last,
-                                              const float alpha_last,
-                                              const int inter_index_1,
-                                              const int inter_index_2)
-  {
-    Segment segment;
-    segment.curve = curve_i;
-    segment.points = points;
-
-    segment.point_1 = point_first;
-    segment.alpha_1 = alpha_first;
-    segment.inter_index_1 = inter_index_1;
-
-    segment.point_2 = point_last;
-    segment.alpha_2 = alpha_last;
-    segment.inter_index_2 = inter_index_2;
-
-    return segment;
-  }
-
-  constexpr static Segment from_start_to_intersection(const int curve_i,
-                                                      const IndexRange points,
-                                                      const int point_2,
-                                                      const float alpha_2,
-                                                      const int inter_index)
+  static Segment from_start_to_intersection(const int curve_i,
+                                            const IndexRange points,
+                                            const float parameter_2,
+                                            const int inter_index)
   {
     Segment segment;
     segment.curve = curve_i;
@@ -163,25 +160,25 @@ class Segment {
 
     segment.point_1 = points.first();
 
-    segment.point_2 = point_2;
-    segment.alpha_2 = alpha_2;
+    segment.point_2 = int(math::floor(parameter_2));
+    segment.alpha_2 = math::fract(parameter_2);
     segment.inter_index_2 = inter_index;
 
     return segment;
   }
 
-  constexpr static Segment from_intersection_to_end(const int curve_i,
-                                                    const IndexRange points,
-                                                    const int point_1,
-                                                    const float alpha_1,
-                                                    const int inter_index)
+  static Segment from_intersection_to_end(const int curve_i,
+                                          const IndexRange points,
+                                          const float parameter_1,
+                                          const int inter_index)
   {
     Segment segment;
     segment.curve = curve_i;
     segment.points = points;
 
-    segment.point_1 = point_1;
-    segment.alpha_1 = alpha_1;
+    segment.point_1 = int(math::floor(parameter_1));
+    segment.alpha_1 = math::fract(parameter_1);
+
     segment.inter_index_1 = inter_index;
 
     segment.point_2 = points.last();
