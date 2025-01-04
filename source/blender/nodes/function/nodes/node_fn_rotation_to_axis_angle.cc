@@ -91,12 +91,13 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(
       &ntype, FN_NODE_ROTATION_TO_AXIS_ANGLE, "Rotation to Axis Angle", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "ROTATION_TO_AXIS_ANGLE";
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
   ntype.eval_elem = node_eval_elem;
   ntype.eval_inverse_elem = node_eval_inverse_elem;
   ntype.eval_inverse = node_eval_inverse;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

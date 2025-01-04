@@ -5,14 +5,7 @@
 set(INC
   ../include
   ../../blenfont
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../sequencer
-  ../../windowmanager
 
   ../../../../extern/fmtlib/include
 
@@ -74,8 +67,8 @@ set(SRC
   tree/tree_element_id_texture.cc
   tree/tree_element_label.cc
   tree/tree_element_layer_collection.cc
-  tree/tree_element_linked_object.cc
   tree/tree_element_linked_node_tree.cc
+  tree/tree_element_linked_object.cc
   tree/tree_element_modifier.cc
   tree/tree_element_nla.cc
   tree/tree_element_overrides.cc
@@ -118,8 +111,8 @@ set(SRC
   tree/tree_element_id_texture.hh
   tree/tree_element_label.hh
   tree/tree_element_layer_collection.hh
-  tree/tree_element_linked_object.hh
   tree/tree_element_linked_node_tree.hh
+  tree/tree_element_linked_object.hh
   tree/tree_element_modifier.hh
   tree/tree_element_nla.hh
   tree/tree_element_overrides.hh
@@ -135,13 +128,20 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  bf_editor_id_management
   bf_editor_undo
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
   extern_fmtlib
 )
 

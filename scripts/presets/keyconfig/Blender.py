@@ -40,12 +40,12 @@ class Prefs(bpy.types.KeyConfigPreferences):
         items=(
             ('PLAY', "Play",
              "Toggle animation playback "
-             "('Shift-Space' for Tools)",
+             "('Shift-Space' for Tools or brush asset popup)",
              1),
             ('TOOL', "Tools",
-             "Open the popup tool-bar\n"
-             "When 'Space' is held and used as a modifier:\n"
-             "\u2022 Pressing the tools binding key switches to it immediately.\n"
+             "Open the popup tool-bar or brush asset popup\n"
+             "When holding 'Space' for the tool-bar popup:\n"
+             "\u2022 Pressing the a tool shortcut switches to it immediately.\n"
              "\u2022 Dragging the cursor over a tool and releasing activates it (like a pie menu).\n"
              "For Play use 'Shift-Space'",
              0),
@@ -101,7 +101,8 @@ class Prefs(bpy.types.KeyConfigPreferences):
     use_alt_click_leader: BoolProperty(
         name="Alt Click Tool Prompt",
         description=(
-            "Tapping Alt (without pressing any other keys) shows a prompt in the status-bar, prompting a second keystroke to activate the tool"
+            "Tapping Alt (without pressing any other keys) shows a prompt in the status-bar, "
+            "prompting a second keystroke to activate the tool"
         ),
         default=False,
         update=update_fn,
@@ -244,7 +245,9 @@ class Prefs(bpy.types.KeyConfigPreferences):
         name="Transform Navigation with Alt",
         description=(
             "During transformations, use Alt to navigate in the 3D View. "
-            "Note that if disabled, hotkeys for Proportional Editing, Automatic Constraints, and Auto IK Chain Length will require holding Alt"),
+            "Note that if disabled, hotkeys for Proportional Editing, "
+            "Automatic Constraints, and Auto IK Chain Length will require holding Alt"
+        ),
         default=True,
         update=update_fn,
     )
@@ -369,7 +372,7 @@ def load():
         ),
     )
 
-    if platform == 'darwin':
+    if platform == "darwin":
         from bl_keymap_utils.platform_helpers import keyconfig_data_oskey_from_ctrl_for_macos
         keyconfig_data = keyconfig_data_oskey_from_ctrl_for_macos(keyconfig_data)
 

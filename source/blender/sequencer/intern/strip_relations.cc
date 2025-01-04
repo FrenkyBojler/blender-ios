@@ -23,6 +23,8 @@
 
 #include "IMB_imbuf.hh"
 
+#include "MOV_read.hh"
+
 #include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
@@ -30,7 +32,7 @@
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
-#include "effects.hh"
+#include "effects/effects.hh"
 #include "image_cache.hh"
 #include "utils.hh"
 
@@ -256,7 +258,7 @@ void SEQ_relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
       continue;
     }
 
-    if (seq->strip) {
+    if (seq->data) {
       if (seq->type == SEQ_TYPE_MOVIE) {
         SEQ_relations_sequence_free_anim(seq);
       }
@@ -379,8 +381,7 @@ bool SEQ_relations_render_loop_check(Sequence *seq_main, Sequence *seq)
   }
 
   if ((seq_main->seq1 && SEQ_relations_render_loop_check(seq_main->seq1, seq)) ||
-      (seq_main->seq2 && SEQ_relations_render_loop_check(seq_main->seq2, seq)) ||
-      (seq_main->seq3 && SEQ_relations_render_loop_check(seq_main->seq3, seq)))
+      (seq_main->seq2 && SEQ_relations_render_loop_check(seq_main->seq2, seq)))
   {
     return true;
   }
@@ -400,7 +401,7 @@ void SEQ_relations_sequence_free_anim(Sequence *seq)
     StripAnim *sanim = static_cast<StripAnim *>(seq->anims.last);
 
     if (sanim->anim) {
-      IMB_free_anim(sanim->anim);
+      MOV_close(sanim->anim);
       sanim->anim = nullptr;
     }
 

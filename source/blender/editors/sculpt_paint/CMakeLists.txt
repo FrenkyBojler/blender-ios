@@ -8,21 +8,8 @@ set(INC
   ../asset
   ../include
   ../uvedit
-  ../../asset_system
-  ../../blenkernel
   ../../blenlib
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../draw
-  ../../functions
-  ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../nodes
-  ../../render
-  ../../windowmanager
   ../../../../intern/eigen
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -52,8 +39,8 @@ set(SRC
   grease_pencil_fill.cc
   grease_pencil_interpolate.cc
   grease_pencil_paint.cc
+  grease_pencil_paint_common.cc
   grease_pencil_sculpt_clone.cc
-  grease_pencil_sculpt_common.cc
   grease_pencil_sculpt_grab.cc
   grease_pencil_sculpt_pinch.cc
   grease_pencil_sculpt_push.cc
@@ -65,6 +52,11 @@ set(SRC
   grease_pencil_tint.cc
   grease_pencil_trace.cc
   grease_pencil_trace_util.cc
+  grease_pencil_vertex_average.cc
+  grease_pencil_vertex_blur.cc
+  grease_pencil_vertex_paint.cc
+  grease_pencil_vertex_replace.cc
+  grease_pencil_vertex_smear.cc
   grease_pencil_weight_average.cc
   grease_pencil_weight_blur.cc
   grease_pencil_weight_draw.cc
@@ -92,7 +84,6 @@ set(SRC
   sculpt.cc
   sculpt_automasking.cc
   sculpt_boundary.cc
-  sculpt_brush_types.cc
   sculpt_cloth.cc
   sculpt_detail.cc
   sculpt_dyntopo.cc
@@ -104,6 +95,7 @@ set(SRC
   sculpt_flood_fill.cc
   sculpt_geodesic.cc
   sculpt_gesture.cc
+  sculpt_hide.cc
   sculpt_mask_init.cc
   sculpt_ops.cc
   sculpt_paint_color.cc
@@ -121,8 +113,26 @@ set(SRC
   grease_pencil_trace_util.hh
   grease_pencil_weight_paint.hh
   mesh_brush_common.hh
+  paint_hide.hh
   paint_intern.hh
+  paint_mask.hh
+  sculpt_automask.hh
+  sculpt_boundary.hh
+  sculpt_cloth.hh
+  sculpt_color.hh
+  sculpt_dyntopo.hh
+  sculpt_expand.hh
+  sculpt_face_set.hh
+  sculpt_filter.hh
+  sculpt_flood_fill.hh
+  sculpt_geodesic.hh
+  sculpt_gesture.hh
+  sculpt_hide.hh
   sculpt_intern.hh
+  sculpt_islands.hh
+  sculpt_pose.hh
+  sculpt_smooth.hh
+  sculpt_undo.hh
 
   brushes/bmesh_topology_rake.cc
   brushes/clay.cc
@@ -135,8 +145,6 @@ set(SRC
   brushes/draw_vector_displacement.cc
   brushes/elastic_deform.cc
   brushes/enhance_details.cc
-  brushes/fill.cc
-  brushes/flatten.cc
   brushes/grab.cc
   brushes/inflate.cc
   brushes/layer.cc
@@ -145,9 +153,9 @@ set(SRC
   brushes/multires_displacement_eraser.cc
   brushes/multires_displacement_smear.cc
   brushes/pinch.cc
+  brushes/plane.cc
   brushes/relax.cc
   brushes/rotate.cc
-  brushes/scrape.cc
   brushes/smooth.cc
   brushes/smooth_mask.cc
   brushes/snake_hook.cc
@@ -159,15 +167,27 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::asset_system
+  PRIVATE bf::blenkernel
   PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_POTRACE)
@@ -197,8 +217,8 @@ if(WITH_GTESTS)
   blender_add_test_suite_lib(editor_sculpt_paint "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()
 
-# If compiling with msvc clang we need to add the D_LIBCPP_VERSION define
-# so we don't run into tbb errors when compiling with lib
+# If compiling with MSVC clang we need to add the `D_LIBCPP_VERSION` define
+# so we don't run into TBB errors when compiling with lib.
 if(WITH_TBB AND MSVC_CLANG)
   string(APPEND CMAKE_CXX_FLAGS " /D_LIBCPP_VERSION")
 endif()

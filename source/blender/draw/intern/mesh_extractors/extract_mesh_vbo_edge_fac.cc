@@ -69,7 +69,12 @@ static void extract_edge_factor_mesh(const MeshRenderData &mr, MutableSpan<T> vb
     for (const int corner : faces[face]) {
       const int edge = corner_edges[corner];
       if (!optimal_display_edges.is_empty() && !optimal_display_edges[edge]) {
-        vbo_data[corner] = FORCE_HIDE;
+        if constexpr (std::is_same_v<T, float>) {
+          vbo_data[corner] = 1.0f;
+        }
+        else {
+          vbo_data[corner] = FORCE_HIDE;
+        }
         continue;
       }
 
@@ -141,7 +146,7 @@ void extract_edge_factor(const MeshRenderData &mr, gpu::VertBuf &vbo)
     GPU_vertbuf_init_with_format(vbo, format);
     GPU_vertbuf_data_alloc(vbo, mr.corners_num + mr.loose_indices_num);
     MutableSpan vbo_data = vbo.data<float>();
-    if (mr.extract_type == MR_EXTRACT_MESH) {
+    if (mr.extract_type == MeshExtractType::Mesh) {
       extract_edge_factor_mesh(mr, vbo_data);
     }
     else {
@@ -157,7 +162,7 @@ void extract_edge_factor(const MeshRenderData &mr, gpu::VertBuf &vbo)
     GPU_vertbuf_init_with_format(vbo, format);
     GPU_vertbuf_data_alloc(vbo, mr.corners_num + mr.loose_indices_num);
     MutableSpan vbo_data = vbo.data<uint8_t>();
-    if (mr.extract_type == MR_EXTRACT_MESH) {
+    if (mr.extract_type == MeshExtractType::Mesh) {
       extract_edge_factor_mesh(mr, vbo_data);
     }
     else {

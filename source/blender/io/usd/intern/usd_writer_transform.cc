@@ -26,8 +26,8 @@ pxr::UsdGeomXformable USDTransformWriter::create_xformable() const
 {
   pxr::UsdGeomXform xform;
 
-  // If prim exists, cast to UsdGeomXform (Solves merge transform and shape issue for animated
-  // exports)
+  /* If prim exists, cast to #UsdGeomXform
+   * (Solves merge transform and shape issue for animated exports). */
   pxr::UsdPrim existing_prim = usd_export_context_.stage->GetPrimAtPath(
       usd_export_context_.usd_path);
   if (existing_prim.IsValid() && existing_prim.IsA<pxr::UsdGeomXform>()) {
@@ -42,7 +42,9 @@ pxr::UsdGeomXformable USDTransformWriter::create_xformable() const
 
 bool USDTransformWriter::should_apply_root_xform(const HierarchyContext &context) const
 {
-  if (!usd_export_context_.export_params.convert_orientation) {
+  if (!(usd_export_context_.export_params.convert_orientation ||
+        usd_export_context_.export_params.convert_scene_units))
+  {
     return false;
   }
 
@@ -73,7 +75,7 @@ void USDTransformWriter::do_write(HierarchyContext &context)
     return;
   }
 
-  float parent_relative_matrix[4][4];  // The object matrix relative to the parent.
+  float parent_relative_matrix[4][4]; /* The object matrix relative to the parent. */
 
   if (should_apply_root_xform(context)) {
     float matrix_world[4][4];
@@ -90,6 +92,14 @@ void USDTransformWriter::do_write(HierarchyContext &context)
       transpose_m3(mrot);
       copy_m4_m3(mat, mrot);
       mul_m4_m4m4(matrix_world, mat, context.matrix_world);
+    }
+
+    if (usd_export_context_.export_params.convert_scene_units !=
+        eUSDSceneUnits::USD_SCENE_UNITS_METERS)
+    {
+      float scale_mat[4][4];
+      scale_m4_fl(scale_mat, float(1.0 / get_meters_per_unit(&usd_export_context_.export_params)));
+      mul_m4_m4m4(matrix_world, scale_mat, matrix_world);
     }
 
     mul_m4_m4m4(parent_relative_matrix, context.parent_matrix_inv_world, matrix_world);

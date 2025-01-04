@@ -197,8 +197,8 @@ GPUTexture *ShadingView::render_postfx(GPUTexture *input_tx)
   GPUTexture *output_tx = postfx_tx_;
 
   /* Swapping is done internally. Actual output is set to the next input. */
-  inst_.depth_of_field.render(render_view_, &input_tx, &output_tx, dof_buffer_);
   inst_.motion_blur.render(render_view_, &input_tx, &output_tx);
+  inst_.depth_of_field.render(render_view_, &input_tx, &output_tx, dof_buffer_);
 
   return input_tx;
 }
@@ -228,7 +228,7 @@ void ShadingView::update_view()
     if (overscan > 0.0f) {
       /* Size of overscan on the screen. */
       const float max_size_with_overscan = math::reduce_max(render_size);
-      const float max_size_original = max_size_with_overscan / (1.0f - 2.0f * overscan);
+      const float max_size_original = max_size_with_overscan / (1.0f + 2.0f * overscan);
       const float overscan_size = (max_size_with_overscan - max_size_original) / 2.0f;
       /* Undo overscan to get the initial dimension of the screen. */
       bottom_left = bottom_left_with_overscan + overscan_size;

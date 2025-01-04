@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 # SPDX-FileCopyrightText: 2024 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
@@ -62,10 +61,11 @@ def run_report(argv):
 
     coverage_dir = build_dir / "coverage"
     analysis_dir = coverage_dir / "analysis"
+    reference_dir = coverage_dir / "reference"
     report_dir = coverage_dir / "report"
 
     parse(build_dir, analysis_dir)
-    report_as_html(analysis_dir, report_dir)
+    report_as_html(analysis_dir, report_dir, reference_dir=reference_dir)
 
     if not args.no_browser:
         webbrowser.open("file://" + str(report_dir / "index.html"))

@@ -22,7 +22,7 @@
 
 #  include "BKE_animsys.h"
 #  include "BKE_context.hh"
-#  include "BKE_nla.h"
+#  include "BKE_nla.hh"
 #  include "BKE_report.hh"
 
 #  include "ANIM_keyingsets.hh"
@@ -32,7 +32,7 @@ static void rna_KeyingSet_context_refresh(KeyingSet *ks, bContext *C, ReportList
 {
   using namespace blender::animrig;
   /* TODO: enable access to providing a list of overrides (dsources)? */
-  const ModifyKeyReturn error = ANIM_validate_keyingset(C, nullptr, ks);
+  const ModifyKeyReturn error = validate_keyingset(C, nullptr, ks);
 
   if (error == ModifyKeyReturn::SUCCESS) {
     return;
@@ -59,7 +59,7 @@ static float rna_AnimData_nla_tweak_strip_time_to_scene(AnimData *adt, float fra
 }
 
 void rna_id_animdata_fix_paths_rename_all(ID *id,
-                                          AnimData * /* adt */,
+                                          AnimData * /*adt*/,
                                           Main *bmain,
                                           const char *prefix,
                                           const char *oldName,

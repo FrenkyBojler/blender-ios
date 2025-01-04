@@ -140,6 +140,7 @@ void register_node_type_sh_tex_checker()
   static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(&ntype, SH_NODE_TEX_CHECKER, "Checker Texture", NODE_CLASS_TEXTURE);
+  ntype.enum_name_legacy = "TEX_CHECKER";
   ntype.declare = file_ns::sh_node_tex_checker_declare;
   ntype.initfunc = file_ns::node_shader_init_tex_checker;
   blender::bke::node_type_storage(
@@ -148,5 +149,5 @@ void register_node_type_sh_tex_checker()
   ntype.build_multi_function = file_ns::sh_node_tex_checker_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -111,9 +111,10 @@ static void node_register()
                      GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE,
                      "Offset Corner in Face",
                      NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "OFFSET_CORNER_IN_FACE";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

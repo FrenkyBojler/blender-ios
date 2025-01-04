@@ -11,6 +11,8 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
+
 #include "DNA_modifier_types.h" /* Needed for all enum type definitions. */
 
 #include "DNA_customdata_types.h"
@@ -32,6 +34,8 @@ struct Main;
 struct Mesh;
 struct ModifierData;
 struct Object;
+struct PointerRNA;
+struct PropertyRNA;
 struct Scene;
 struct StructRNA;
 struct IDCacheKey;
@@ -126,8 +130,15 @@ enum ModifierTypeFlag {
 };
 ENUM_OPERATORS(ModifierTypeFlag, eModifierTypeFlag_AcceptsGreasePencil)
 
-using IDWalkFunc = void (*)(void *user_data, Object *ob, ID **idpoin, int cb_flag);
-using TexWalkFunc = void (*)(void *user_data, Object *ob, ModifierData *md, const char *propname);
+using IDWalkFunc = void (*)(void *user_data,
+                            Object *ob,
+                            ID **idpoin,
+                            LibraryForeachIDCallbackFlag cb_flag);
+using TexWalkFunc = void (*)(void *user_data,
+                             Object *ob,
+                             ModifierData *md,
+                             const PointerRNA *ptr,
+                             PropertyRNA *texture_prop);
 
 enum ModifierApplyFlag {
   /** Render time. */

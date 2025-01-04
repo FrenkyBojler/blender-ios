@@ -101,10 +101,10 @@ static eSpaceSeq_Proxy_RenderSize get_sequencer_render_size(Main *bmain)
 
 static bool can_use_proxy(const Sequence *seq, int psize)
 {
-  if (seq->strip->proxy == nullptr) {
+  if (seq->data->proxy == nullptr) {
     return false;
   }
-  short size_flags = seq->strip->proxy->build_size_flags;
+  short size_flags = seq->data->proxy->build_size_flags;
   return (seq->flag & SEQ_USE_PROXY) != 0 && psize != IMB_PROXY_NONE && (size_flags & psize) != 0;
 }
 
@@ -147,15 +147,15 @@ static void seq_convert_transform_crop(const Scene *scene,
                                        Sequence *seq,
                                        const eSpaceSeq_Proxy_RenderSize render_size)
 {
-  if (seq->strip->transform == nullptr) {
-    seq->strip->transform = MEM_cnew<StripTransform>(__func__);
+  if (seq->data->transform == nullptr) {
+    seq->data->transform = MEM_cnew<StripTransform>(__func__);
   }
-  if (seq->strip->crop == nullptr) {
-    seq->strip->crop = MEM_cnew<StripCrop>(__func__);
+  if (seq->data->crop == nullptr) {
+    seq->data->crop = MEM_cnew<StripCrop>(__func__);
   }
 
-  StripCrop *c = seq->strip->crop;
-  StripTransform *t = seq->strip->transform;
+  StripCrop *c = seq->data->crop;
+  StripTransform *t = seq->data->transform;
   int old_image_center_x = scene->r.xsch / 2;
   int old_image_center_y = scene->r.ysch / 2;
   int image_size_x = scene->r.xsch;
@@ -165,7 +165,7 @@ static void seq_convert_transform_crop(const Scene *scene,
   const uint32_t use_transform_flag = (1 << 16);
   const uint32_t use_crop_flag = (1 << 17);
 
-  const StripElem *s_elem = seq->strip->stripdata;
+  const StripElem *s_elem = seq->data->stripdata;
   if (s_elem != nullptr) {
     image_size_x = s_elem->orig_width;
     image_size_y = s_elem->orig_height;
@@ -290,13 +290,13 @@ static void seq_convert_transform_crop_2(const Scene *scene,
                                          Sequence *seq,
                                          const eSpaceSeq_Proxy_RenderSize render_size)
 {
-  const StripElem *s_elem = seq->strip->stripdata;
+  const StripElem *s_elem = seq->data->stripdata;
   if (s_elem == nullptr) {
     return;
   }
 
-  StripCrop *c = seq->strip->crop;
-  StripTransform *t = seq->strip->transform;
+  StripCrop *c = seq->data->crop;
+  StripTransform *t = seq->data->transform;
   int image_size_x = s_elem->orig_width;
   int image_size_y = s_elem->orig_height;
 
@@ -394,10 +394,10 @@ static void version_node_socket_duplicate(bNodeTree *ntree,
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
     if (link->tonode->type == node_type) {
       bNode *node = link->tonode;
-      bNodeSocket *dest_socket = blender::bke::nodeFindSocket(node, SOCK_IN, new_name);
+      bNodeSocket *dest_socket = blender::bke::node_find_socket(node, SOCK_IN, new_name);
       BLI_assert(dest_socket);
       if (STREQ(link->tosock->name, old_name)) {
-        blender::bke::nodeAddLink(ntree, link->fromnode, link->fromsock, node, dest_socket);
+        blender::bke::node_add_link(ntree, link->fromnode, link->fromsock, node, dest_socket);
       }
     }
   }
@@ -405,8 +405,8 @@ static void version_node_socket_duplicate(bNodeTree *ntree,
   /* Duplicate the default value from the old socket and assign it to the new socket. */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->type == node_type) {
-      bNodeSocket *source_socket = blender::bke::nodeFindSocket(node, SOCK_IN, old_name);
-      bNodeSocket *dest_socket = blender::bke::nodeFindSocket(node, SOCK_IN, new_name);
+      bNodeSocket *source_socket = blender::bke::node_find_socket(node, SOCK_IN, old_name);
+      bNodeSocket *dest_socket = blender::bke::node_find_socket(node, SOCK_IN, new_name);
       BLI_assert(source_socket && dest_socket);
       if (dest_socket->default_value) {
         MEM_freeN(dest_socket->default_value);
@@ -802,7 +802,7 @@ static void version_node_join_geometry_for_multi_input_socket(bNodeTree *ntree)
       bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
       socket->flag |= SOCK_MULTI_INPUT;
       socket->limit = 4095;
-      blender::bke::nodeRemoveSocket(ntree, node, socket->next);
+      blender::bke::node_remove_socket(ntree, node, socket->next);
     }
   }
 }
@@ -1773,7 +1773,6 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "bokeh_overblur")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->eevee.bokeh_neighbor_max = 10.0f;
-        scene->eevee.bokeh_denoise_fac = 0.75f;
         scene->eevee.bokeh_overblur = 5.0f;
       }
     }

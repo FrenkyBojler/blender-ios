@@ -2456,7 +2456,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
           int best_dir = -1;
           const BMLoop *l_edge = l_src->next->v == v_dst ? l_src : l_src->prev;
           const BMLoop *l_other = l_edge->radial_next;
-          while (l_other != l_edge) {
+          while (l_other->f != l_edge->f) {
             if (l_other->f == curr_side_other->fdata[0].f) {
               best_dir = 0;
               break;
@@ -2605,8 +2605,8 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
             float3 &dst2 = dst;
             float3 &dst3 = next.fdata[best_dir].dst;
             float3 isect0, isect1;
-            if (isect_line_line_epsilon_v3(dst0, dst1, dst2, dst3, isect0, isect1, FLT_EPSILON) ==
-                2)
+            if (isect_line_line_epsilon_v3(dst0, dst1, dst2, dst3, isect0, isect1, FLT_EPSILON) !=
+                0)
             {
               curr.fdata[best_dir].dst = math::midpoint(isect0, isect1);
             }

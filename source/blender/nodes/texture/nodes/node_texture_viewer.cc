@@ -37,11 +37,12 @@ void register_node_type_tex_viewer()
   static blender::bke::bNodeType ntype;
 
   tex_node_type_base(&ntype, TEX_NODE_VIEWER, "Viewer", NODE_CLASS_OUTPUT);
+  ntype.enum_name_legacy = "VIEWER";
   blender::bke::node_type_socket_templates(&ntype, inputs, nullptr);
   ntype.exec_fn = exec;
 
   ntype.no_muting = true;
   ntype.flag |= NODE_PREVIEW;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

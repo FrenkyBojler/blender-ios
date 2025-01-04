@@ -492,7 +492,7 @@ static void vicon_layergroup_color_draw(
 
   UI_icon_draw_ex(x,
                   y,
-                  ICON_FILE_FOLDER,
+                  ICON_GREASEPENCIL_LAYER_GROUP,
                   aspect,
                   1.0f,
                   0.0f,
@@ -799,7 +799,7 @@ static void icon_verify_datatoc(IconImage *iimg)
         iimg->datatoc_rect, iimg->datatoc_size, IB_rect, nullptr, "<matcap icon>");
     /* w and h were set on initialize */
     if (bbuf->x != iimg->h && bbuf->y != iimg->w) {
-      IMB_scaleImBuf(bbuf, iimg->w, iimg->h);
+      IMB_scale(bbuf, iimg->w, iimg->h, IMBScaleFilter::Box, false);
     }
 
     iimg->rect = IMB_steal_byte_buffer(bbuf);
@@ -1323,34 +1323,34 @@ static void svg_replace_color_attributes(std::string &svg,
     int colorid = TH_UNDEFINED;
     int spacetype = SPACE_TYPE_ANY;
   } items[] = {
-      {"blender.white", white},
-      {"blender.black", black},
-      {"blender.logo_orange", logo_orange},
-      {"blender.logo_blue", logo_blue},
-      {"blender.selected", btheme->tui.wcol_regular.inner},
-      {"blender.mesh_selected", btheme->space_view3d.vertex_select},
-      {"blender.back", nullptr, TH_BACK},
-      {"blender.text", nullptr, TH_TEXT},
-      {"blender.text_hi", nullptr, TH_TEXT_HI},
-      {"blender.red_alert", nullptr, TH_REDALERT},
-      {"blender.error", nullptr, TH_INFO_ERROR, SPACE_INFO},
-      {"blender.warning", nullptr, TH_INFO_WARNING, SPACE_INFO},
-      {"blender.info", nullptr, TH_INFO_INFO, SPACE_INFO},
-      {"blender.scene", nullptr, TH_ICON_SCENE},
-      {"blender.collection", nullptr, TH_ICON_COLLECTION},
-      {"blender.object", nullptr, TH_ICON_OBJECT},
-      {"blender.object_data", nullptr, TH_ICON_OBJECT_DATA},
-      {"blender.modifier", nullptr, TH_ICON_MODIFIER},
-      {"blender.shading", nullptr, TH_ICON_SHADING},
-      {"blender.folder", nullptr, TH_ICON_FOLDER},
-      {"blender.fund", nullptr, TH_ICON_FUND},
-      {"blender.autokey", nullptr, TH_ICON_AUTOKEY},
-      {"blender.tool_add", tool_add},
-      {"blender.tool_remove", tool_remove},
-      {"blender.tool_select", tool_select},
-      {"blender.tool_transform", tool_transform},
-      {"blender.tool_white", tool_white},
-      {"blender.tool_red", tool_red},
+      {"blender_white", white},
+      {"blender_black", black},
+      {"blender_logo_orange", logo_orange},
+      {"blender_logo_blue", logo_blue},
+      {"blender_selected", btheme->tui.wcol_regular.inner},
+      {"blender_mesh_selected", btheme->space_view3d.vertex_select},
+      {"blender_back", nullptr, TH_BACK},
+      {"blender_text", nullptr, TH_TEXT},
+      {"blender_text_hi", nullptr, TH_TEXT_HI},
+      {"blender_red_alert", nullptr, TH_REDALERT},
+      {"blender_error", nullptr, TH_INFO_ERROR, SPACE_INFO},
+      {"blender_warning", nullptr, TH_INFO_WARNING, SPACE_INFO},
+      {"blender_info", nullptr, TH_INFO_INFO, SPACE_INFO},
+      {"blender_scene", nullptr, TH_ICON_SCENE},
+      {"blender_collection", nullptr, TH_ICON_COLLECTION},
+      {"blender_object", nullptr, TH_ICON_OBJECT},
+      {"blender_object_data", nullptr, TH_ICON_OBJECT_DATA},
+      {"blender_modifier", nullptr, TH_ICON_MODIFIER},
+      {"blender_shading", nullptr, TH_ICON_SHADING},
+      {"blender_folder", nullptr, TH_ICON_FOLDER},
+      {"blender_fund", nullptr, TH_ICON_FUND},
+      {"blender_autokey", nullptr, TH_ICON_AUTOKEY},
+      {"blender_tool_add", tool_add},
+      {"blender_tool_remove", tool_remove},
+      {"blender_tool_select", tool_select},
+      {"blender_tool_transform", tool_transform},
+      {"blender_tool_white", tool_white},
+      {"blender_tool_red", tool_red},
   };
 
   for (const ColorItem &item : items) {
@@ -1378,7 +1378,7 @@ static void svg_replace_color_attributes(std::string &svg,
         "{:02x}{:02x}{:02x}{:02x}", color[0], color[1], color[2], color[3]);
 
     size_t att_start = start;
-    while (1) {
+    while (true) {
       constexpr static blender::StringRef key = "fill=\"";
       att_start = svg.find(key, att_start);
       if (att_start == std::string::npos || att_start > end) {
@@ -1392,7 +1392,7 @@ static void svg_replace_color_attributes(std::string &svg,
     }
 
     att_start = start;
-    while (1) {
+    while (true) {
       constexpr static blender::StringRef key = "fill:";
       att_start = svg.find(key, att_start);
       if (att_start == std::string::npos || att_start > end) {
@@ -1413,10 +1413,10 @@ static void icon_source_edit_cb(std::string &svg)
 
   /* Scan string, processing only groups with our keyword ids. */
 
-  while (1) {
+  while (true) {
     /* Look for a blender id, quick exit if not found. */
     constexpr static blender::StringRef key = "id=\"";
-    const size_t id_start = svg.find(key + "blender.", g_start);
+    const size_t id_start = svg.find(key + "blender_", g_start);
     if (id_start == std::string::npos) {
       return;
     }
@@ -1468,13 +1468,17 @@ static void icon_draw_size(float x,
   const float fdraw_size = float(draw_size);
 
   Icon *icon = BKE_icon_get(icon_id);
-  alpha *= btheme->tui.icon_alpha;
 
   if (icon == nullptr) {
     if (G.debug & G_DEBUG) {
       printf("%s: Internal error, no icon for icon ID: %d\n", __func__, icon_id);
     }
     return;
+  }
+
+  if (icon->obj_type != ICON_DATA_STUDIOLIGHT) {
+    /* Icon alpha should not apply to MatCap/Studio lighting. #80356. */
+    alpha *= btheme->tui.icon_alpha;
   }
 
   /* scale width and height according to aspect */
@@ -1539,7 +1543,7 @@ static void icon_draw_size(float x,
   else if (ELEM(di->type, ICON_TYPE_SVG_MONO, ICON_TYPE_SVG_COLOR)) {
     float outline_intensity = mono_border ? (btheme->tui.icon_border_intensity > 0.0f ?
                                                  btheme->tui.icon_border_intensity :
-                                                 0.5f) :
+                                                 0.3f) :
                                             0.0f;
     float color[4];
     if (mono_rgba) {
@@ -1921,14 +1925,14 @@ int UI_icon_from_object_mode(const int mode)
     case OB_MODE_EDIT_GPENCIL_LEGACY:
       return ICON_EDITMODE_HLT;
     case OB_MODE_SCULPT:
-    case OB_MODE_SCULPT_GPENCIL_LEGACY:
+    case OB_MODE_SCULPT_GREASE_PENCIL:
     case OB_MODE_SCULPT_CURVES:
       return ICON_SCULPTMODE_HLT;
     case OB_MODE_VERTEX_PAINT:
-    case OB_MODE_VERTEX_GPENCIL_LEGACY:
+    case OB_MODE_VERTEX_GREASE_PENCIL:
       return ICON_VPAINT_HLT;
     case OB_MODE_WEIGHT_PAINT:
-    case OB_MODE_WEIGHT_GPENCIL_LEGACY:
+    case OB_MODE_WEIGHT_GREASE_PENCIL:
       return ICON_WPAINT_HLT;
     case OB_MODE_TEXTURE_PAINT:
       return ICON_TPAINT_HLT;
@@ -1936,7 +1940,7 @@ int UI_icon_from_object_mode(const int mode)
       return ICON_PARTICLEMODE;
     case OB_MODE_POSE:
       return ICON_POSE_HLT;
-    case OB_MODE_PAINT_GPENCIL_LEGACY:
+    case OB_MODE_PAINT_GREASE_PENCIL:
       return ICON_GREASEPENCIL;
   }
   return ICON_NONE;

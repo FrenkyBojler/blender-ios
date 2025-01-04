@@ -6,6 +6,7 @@
  * \ingroup spseq
  */
 
+#include "BLI_map.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_set.hh"
@@ -20,6 +21,7 @@
 #include "ED_select_utils.hh"
 #include "ED_sequencer.hh"
 
+#include "SEQ_connect.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
@@ -177,6 +179,14 @@ void SEQUENCER_OT_retiming_reset(wmOperatorType *ot)
 
 /** \} */
 
+static SeqRetimingKey *ensure_left_and_right_keys(const bContext *C, Sequence *seq)
+{
+  Scene *scene = CTX_data_scene(C);
+  SEQ_retiming_data_ensure(seq);
+  SEQ_retiming_add_key(scene, seq, left_fake_key_frame_get(C, seq));
+  return SEQ_retiming_add_key(scene, seq, right_fake_key_frame_get(C, seq));
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Retiming Add Key
  * \{ */
@@ -187,7 +197,8 @@ static bool retiming_key_add_new_for_seq(bContext *C,
                                          const int timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
-  const int frame_index = BKE_scene_frame_get(scene) - SEQ_time_start_frame_get(seq);
+  const float frame_index = (BKE_scene_frame_get(scene) - SEQ_time_start_frame_get(seq)) *
+                            SEQ_time_media_playback_rate_factor_get(scene, seq);
   const SeqRetimingKey *key = SEQ_retiming_find_segment_start_key(seq, frame_index);
 
   if (key != nullptr && SEQ_retiming_key_is_transition_start(key)) {
@@ -200,7 +211,7 @@ static bool retiming_key_add_new_for_seq(bContext *C,
     return false;
   }
 
-  SEQ_retiming_data_ensure(seq);
+  ensure_left_and_right_keys(C, seq);
   SEQ_retiming_add_key(scene, seq, timeline_frame);
   return true;
 }
@@ -305,7 +316,8 @@ static bool freeze_frame_add_new_for_seq(const bContext *C,
                                          const int duration)
 {
   Scene *scene = CTX_data_scene(C);
-  SEQ_retiming_data_ensure(seq);
+  ensure_left_and_right_keys(C, seq);
+
   // ensure L+R key
   SeqRetimingKey *key = SEQ_retiming_add_key(scene, seq, timeline_frame);
 
@@ -357,7 +369,9 @@ static bool freeze_frame_add_from_retiming_selection(const bContext *C,
   Scene *scene = CTX_data_scene(C);
   bool success = false;
 
-  for (auto item : SEQ_retiming_selection_get(SEQ_editing_get(scene)).items()) {
+  blender::Map selection = SEQ_retiming_selection_get(SEQ_editing_get(scene));
+
+  for (auto item : selection.items()) {
     const int timeline_frame = SEQ_retiming_key_timeline_frame_get(scene, item.value, item.key);
     success |= freeze_frame_add_new_for_seq(C, op, item.value, timeline_frame, duration);
     SEQ_relations_invalidate_cache_raw(scene, item.value);
@@ -429,6 +443,7 @@ static bool transition_add_new_for_seq(const bContext *C,
   Scene *scene = CTX_data_scene(C);
 
   // ensure L+R key
+  ensure_left_and_right_keys(C, seq);
   SeqRetimingKey *key = SEQ_retiming_add_key(scene, seq, timeline_frame);
 
   if (key == nullptr) {
@@ -440,7 +455,7 @@ static bool transition_add_new_for_seq(const bContext *C,
     return false;
   }
 
-  SeqRetimingKey *transition = SEQ_retiming_add_transition(scene, seq, key, duration);
+  SeqRetimingKey *transition = SEQ_retiming_add_transition(seq, key, duration);
 
   if (transition == nullptr) {
     BKE_report(op->reports, RPT_WARNING, "Cannot create transition");
@@ -461,7 +476,9 @@ static bool transition_add_from_retiming_selection(const bContext *C,
   Scene *scene = CTX_data_scene(C);
   bool success = false;
 
-  for (auto item : SEQ_retiming_selection_get(SEQ_editing_get(scene)).items()) {
+  blender::Map selection = SEQ_retiming_selection_get(SEQ_editing_get(scene));
+
+  for (auto item : selection.items()) {
     const int timeline_frame = SEQ_retiming_key_timeline_frame_get(scene, item.value, item.key);
     success |= transition_add_new_for_seq(C, op, item.value, timeline_frame, duration);
   }
@@ -600,14 +617,6 @@ void SEQUENCER_OT_retiming_key_delete(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Retiming Set Segment Speed
  * \{ */
-
-static SeqRetimingKey *ensure_left_and_right_keys(const bContext *C, Sequence *seq)
-{
-  Scene *scene = CTX_data_scene(C);
-  SEQ_retiming_data_ensure(seq);
-  SEQ_retiming_add_key(scene, seq, left_fake_key_frame_get(C, seq));
-  return SEQ_retiming_add_key(scene, seq, right_fake_key_frame_get(C, seq));
-}
 
 /* Return speed of existing segment or strip. Assume 1 element is selected. */
 static float strip_speed_get(bContext *C, const wmOperator * /*op*/)
@@ -778,6 +787,28 @@ static bool select_key(const Editing *ed,
   return true;
 }
 
+static bool select_connected_keys(const Scene *scene,
+                                  const SeqRetimingKey *source,
+                                  const Sequence *source_owner)
+{
+  if (!SEQ_is_strip_connected(source_owner)) {
+    return false;
+  }
+
+  const int frame = SEQ_retiming_key_timeline_frame_get(scene, source_owner, source);
+  bool changed = false;
+  blender::VectorSet<Sequence *> connections = SEQ_get_connected_strips(source_owner);
+  for (Sequence *connection : connections) {
+    SeqRetimingKey *con_key = SEQ_retiming_key_get_by_timeline_frame(scene, connection, frame);
+
+    if (con_key) {
+      SEQ_retiming_selection_copy(con_key, source);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 int sequencer_retiming_select_linked_time(bContext *C,
                                           wmOperator *op,
                                           SeqRetimingKey *key,
@@ -791,6 +822,7 @@ int sequencer_retiming_select_linked_time(bContext *C,
   }
   for (; key <= SEQ_retiming_last_key_get(key_owner); key++) {
     select_key(ed, key, false, false);
+    select_connected_keys(scene, key, key_owner);
   }
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   return OPERATOR_FINISHED;
@@ -808,22 +840,28 @@ int sequencer_retiming_key_select_exec(bContext *C,
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_get(scene);
 
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
   const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
   const bool toggle = RNA_boolean_get(op->ptr, "toggle");
+  bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
+  deselect_all |= !toggle;
 
-  /* Click on unselected key. */
+  /* Clicked on an unselected key. */
   if (!SEQ_retiming_selection_contains(ed, key) && !toggle) {
     select_key(ed, key, false, deselect_all);
+    select_connected_keys(scene, key, key_owner);
   }
 
-  /* Clicked on any key, waiting to click release. */
+  /* Clicked on a key that is already selected, waiting to click release. */
   if (wait_to_deselect_others && !toggle) {
     return OPERATOR_RUNNING_MODAL;
   }
 
-  /* Selection after click is released. */
-  const bool changed = select_key(ed, key, toggle, deselect_all);
+  /* The key is already selected, but deselect other selected keys after click is released if no
+   * transform or toggle happened. */
+  bool changed = select_key(ed, key, toggle, deselect_all);
+  if (!toggle) {
+    changed |= select_connected_keys(scene, key, key_owner);
+  }
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
