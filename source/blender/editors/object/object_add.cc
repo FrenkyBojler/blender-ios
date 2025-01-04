@@ -35,6 +35,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -3089,13 +3090,13 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
 
 static int mesh_to_grease_pencil_add_material(Main &bmain,
                                               Object &ob_grease_pencil,
-                                              const char *name,
+                                              const StringRefNull name,
                                               std::optional<float4> stroke_color,
                                               std::optional<float4> fill_color)
 {
   int index;
   Material *ma = BKE_grease_pencil_object_material_ensure_by_name(
-      &bmain, &ob_grease_pencil, DATA_(name), &index);
+      &bmain, &ob_grease_pencil, DATA_(name.c_str()), &index);
 
   if (stroke_color.has_value()) {
     copy_v4_v4(ma->gp_style->stroke_rgba, stroke_color.value());
@@ -3111,6 +3112,76 @@ static int mesh_to_grease_pencil_add_material(Main &bmain,
   SET_FLAG_FROM_TEST(ma->gp_style->flag, fill_color.has_value(), GP_MATERIAL_FILL_SHOW);
 
   return index;
+}
+
+static void mesh_data_to_grease_pencil(Object &newob,
+                                       const Mesh &mesh_eval,
+                                       const int current_frame,
+                                       const bool generate_faces,
+                                       const float stroke_radius,
+                                       const float offset)
+{
+  GreasePencil grease_pencil = *static_cast<GreasePencil *>(newob.data);
+
+  /* Reset `ob->totcol` since currently the generic / grease pencil material functions still
+   * depends on this value being coherent (The same value as `GreasePencil::material_array_num`).
+   */
+  short *totcol = BKE_object_material_len_p(&newob);
+  newob.totcol = *totcol;
+
+  bke::greasepencil::Layer &layer = grease_pencil.add_layer(DATA_("Converted Layer"));
+  bke::greasepencil::Drawing *drawing = grease_pencil.insert_frame(layer, current_frame);
+
+  const int edge_num = mesh_eval.edges_num;
+  const Span<float3> mesh_positions = mesh_eval.vert_positions();
+  const Span<float3> vert_normals = mesh_eval.vert_normals();
+  const Span<int2> edges = mesh_eval.edges();
+  const OffsetIndices<int> faces = mesh_eval.faces();
+  Span<int> faces_span = faces.data();
+  const Span<int> corner_verts = mesh_eval.corner_verts();
+
+  const int edges_num = edges.size();
+  const int total_curves = edges_num + (generate_faces ? faces.size() : 0);
+  const int total_points = generate_faces ? (edges_num * 2 + faces.total_size()) :
+                                            total_curves * 2;
+
+  drawing->strokes_for_write().resize(total_points, total_curves);
+  bke::CurvesGeometry &curves = drawing->strokes_for_write();
+
+  MutableSpan<float3> positions = curves.positions_for_write();
+  MutableSpan<int> offsets = curves.offsets_for_write();
+  MutableSpan<bool> cyclic = curves.cyclic_for_write();
+  MutableSpan<float> radii = drawing->radii_for_write();
+  bke::SpanAttributeWriter<int> stroke_materials =
+      curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
+                                                                      bke::AttrDomain::Curve);
+
+  curves.fill_curve_types(CURVE_TYPE_POLY);
+
+  /* Fill faces first, so this way strokes can draw on top of the filled faces. */
+  const int total_fills = total_curves - edge_num;
+  IndexRange fills_range = IndexRange(total_fills);
+  int point_i = 0;
+  if (generate_faces) {
+    array_utils::gather(mesh_positions, corner_verts, positions.take_front(corner_verts.size()));
+    array_utils::copy(faces_span, offsets.take_front(faces_span.size()));
+    cyclic.slice(fills_range).fill(true);
+    stroke_materials.span.slice(fills_range).fill(1);
+  }
+
+  array_utils::gather(
+      mesh_positions, edges.cast<int>(), positions.drop_front(corner_verts.size()));
+  radii.fill(stroke_radius);
+
+  const int faces_size = faces_span.size();
+  offset_indices::fill_constant_group_size(
+      2, offsets.take_front(faces_size).last(), offsets.drop_front(faces_size));
+
+  IndexRange edges_range = IndexRange(total_fills, edge_num);
+  stroke_materials.span.slice(edges_range).fill(0);
+  stroke_materials.finish();
+
+  drawing->tag_topology_changed();
 }
 
 static Object *convert_mesh_to_grease_pencil(Base &base,
@@ -3138,90 +3209,14 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   newob->data = grease_pencil;
   newob->type = OB_GREASE_PENCIL;
 
-  /* Reset `ob->totcol` since currently the generic / grease pencil material functions still
-   * depends on this value being coherent (The same value as `GreasePencil::material_array_num`).
-   */
-  short *totcol = BKE_object_material_len_p(newob);
-  newob->totcol = *totcol;
-
   mesh_to_grease_pencil_add_material(
       *info.bmain, *newob, DATA_("Stroke"), float4(0.0f, 0.0f, 0.0f, 1.0f), {});
   if (generate_faces) {
     mesh_to_grease_pencil_add_material(*info.bmain, *newob, DATA_("Fill"), {}, float4(1.0f));
   }
 
-  bke::greasepencil::Layer &layer = grease_pencil->add_layer(DATA_("Converted Layer"));
-  const int current_frame = info.scene->r.cfra;
-  bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, current_frame);
-
-  const int edge_num = mesh_eval->edges_num;
-  const Span<float3> mesh_positions = mesh_eval->vert_positions();
-  const Span<float3> vert_normals = mesh_eval->vert_normals();
-  const Span<int2> edges = mesh_eval->edges();
-  const OffsetIndices<int> faces = mesh_eval->faces();
-  const Span<int> corner_verts = mesh_eval->corner_verts();
-
-  int total_points, total_curves;
-  const int edges_num = edges.size();
-  if (generate_faces) {
-    total_curves = edges_num + faces.size();
-    total_points = edges_num * 2 + faces.total_size();
-  }
-  else {
-    total_curves = edges_num;
-    total_points = total_curves * 2;
-  }
-
-  drawing->strokes_for_write().resize(total_points, total_curves);
-  bke::CurvesGeometry &curves = drawing->strokes_for_write();
-
-  MutableSpan<float3> positions = curves.positions_for_write();
-  MutableSpan<int> offsets = curves.offsets_for_write();
-  MutableSpan<bool> cyclic = curves.cyclic_for_write();
-  MutableSpan<float> radii = drawing->radii_for_write();
-  bke::SpanAttributeWriter<int> stroke_materials =
-      curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
-                                                                      bke::AttrDomain::Curve);
-
-  /* The default curve type is #CURVE_TYPE_CATMULL_ROM, but we need poly curves. */
-  curves.fill_curve_types(CURVE_TYPE_POLY);
-
-  /* Fill faces first, so this way strokes can draw on top of the filled faces. */
-
-  const int total_fills = total_curves - edge_num;
-  IndexRange fills_range = IndexRange(total_fills);
-  int point_i = 0;
-  if (generate_faces) {
-    for (const int face_i : faces.index_range()) {
-      const IndexRange face = faces[face_i];
-      /* Fill face point count into offset as well. They will be cyclic filled strokes so no need
-       * to add one more point. Later `offsets` will be accumulated to a proper offset array. */
-      offsets[face_i] = face.size();
-      for (const int corner_i : face) {
-        positions[point_i] = mesh_positions[corner_verts[corner_i]];
-        point_i++;
-      }
-    }
-    cyclic.slice(fills_range).fill(true);
-    stroke_materials.span.slice(fills_range).fill(1);
-  }
-
-  IndexRange edges_range = IndexRange(total_fills, edge_num);
-  for (const int edge_i : IndexRange(edge_num)) {
-    const int2 edge = edges[edge_i];
-    positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
-    positions[point_i + 1] = mesh_positions[edge[1]] + offset * vert_normals[edge[1]];
-    radii[point_i] = radii[point_i + 1] = stroke_radius;
-    point_i += 2;
-  }
-  offsets.slice(edges_range).fill(2);
-  stroke_materials.span.slice(edges_range).fill(0);
-
-  offset_indices::accumulate_counts_to_offsets(offsets);
-
-  stroke_materials.finish();
-
-  drawing->tag_topology_changed();
+  mesh_data_to_grease_pencil(
+      *newob, *mesh_eval, info.scene->r.cfra, generate_faces, stroke_radius, offset);
 
   return newob;
 }
