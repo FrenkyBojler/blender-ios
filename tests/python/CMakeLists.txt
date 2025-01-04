@@ -956,6 +956,16 @@ add_blender_test_io(
   --outdir "${TEST_OUT_DIR}/io_fbx"
 )
 
+if(WITH_IO_PLY)
+  add_blender_test_io(
+    io_ply_import
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_ply_import_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/ply"
+    --outdir "${TEST_OUT_DIR}/io_ply"
+  )
+endif()
+
 if(WITH_IO_STL)
   add_blender_test_io(
     io_stl_import
