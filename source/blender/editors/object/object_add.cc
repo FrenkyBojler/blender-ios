@@ -3121,7 +3121,7 @@ static void mesh_data_to_grease_pencil(Object &newob,
                                        const float stroke_radius,
                                        const float offset)
 {
-  GreasePencil grease_pencil = *static_cast<GreasePencil *>(newob.data);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(newob.data);
 
   bke::greasepencil::Layer &layer = grease_pencil.add_layer(DATA_("Converted Layer"));
   bke::greasepencil::Drawing *drawing = grease_pencil.insert_frame(layer, current_frame);
@@ -3137,7 +3137,7 @@ static void mesh_data_to_grease_pencil(Object &newob,
   const int edges_num = edges.size();
   const int total_curves = edges_num + (generate_faces ? faces.size() : 0);
   const int total_points = generate_faces ? (edges_num * 2 + faces.total_size()) :
-                                            total_curves * 2;
+                                            (total_curves * 2);
 
   drawing->strokes_for_write().resize(total_points, total_curves);
   bke::CurvesGeometry &curves = drawing->strokes_for_write();
@@ -3169,7 +3169,7 @@ static void mesh_data_to_grease_pencil(Object &newob,
 
   const int faces_size = faces_span.size();
   offset_indices::fill_constant_group_size(
-      2, offsets.take_front(faces_size).last(), offsets.drop_front(faces_size));
+      2, offsets.take_front(faces_size).last() + 2, offsets.drop_front(faces_size));
 
   const IndexRange edges_range = IndexRange(total_fills, edge_num);
   stroke_materials.span.slice(edges_range).fill(0);
