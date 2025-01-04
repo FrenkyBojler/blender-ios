@@ -13,6 +13,8 @@
 struct PointCloud;
 struct ReportList;
 
+namespace blender::io::csv {
+
 struct CSVImportParams {
   /** Full path to the source CSV file to import. */
   char filepath[FILE_MAX];
@@ -20,4 +22,6 @@ struct CSVImportParams {
   ReportList *reports = nullptr;
 };
 
-PointCloud *CSV_import_point_cloud(const CSVImportParams *import_params);
+PointCloud *import_csv_as_point_cloud(const CSVImportParams *import_params);
+
+}  // namespace blender::io::csv

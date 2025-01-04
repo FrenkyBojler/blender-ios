@@ -10,9 +10,13 @@
 
 #include "IO_csv.hh"
 
-#include "csv_import.hh"
+#include "csv_reader.hh"
 
-PointCloud *CSV_import_point_cloud(const CSVImportParams *import_params)
+namespace blender::io::csv {
+
+PointCloud *import_csv_as_point_cloud(const CSVImportParams *import_params)
 {
-  return blender::io::csv::importer_point_cloud(*import_params);
+  return read_csv_file(*import_params);
 }
+
+}  // namespace blender::io::csv

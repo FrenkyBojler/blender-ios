@@ -20,12 +20,10 @@ set(INC_SYS
 set(SRC
   IO_csv.cc
   importer/csv_data.cc
-  importer/csv_import.cc
   importer/csv_reader.cc
 
   IO_csv.hh
   importer/csv_data.hh
-  importer/csv_import.hh
   importer/csv_reader.hh
 )
 
