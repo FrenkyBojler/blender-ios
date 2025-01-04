@@ -3091,8 +3091,8 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
 static int mesh_to_grease_pencil_add_material(Main &bmain,
                                               Object &ob_grease_pencil,
                                               const StringRefNull name,
-                                              std::optional<float4> stroke_color,
-                                              std::optional<float4> fill_color)
+                                              const std::optional<float4> stroke_color,
+                                              const std::optional<float4> fill_color)
 {
   int index;
   Material *ma = BKE_grease_pencil_object_material_ensure_by_name(
