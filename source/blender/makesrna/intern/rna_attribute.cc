@@ -314,33 +314,35 @@ const EnumPropertyItem *rna_enum_attribute_domain_itemf(const AttributeOwner &ow
   const EnumPropertyItem *domain_item = nullptr;
   int totitem = 0, a;
 
+  const AttributeOwnerType &owner_type = owner.type();
+
   static EnumPropertyItem mesh_vertex_domain_item = {
       int(AttrDomain::Point), "POINT", 0, N_("Vertex"), N_("Attribute per point/vertex")};
 
   for (a = 0; rna_enum_attribute_domain_items[a].identifier; a++) {
     domain_item = &rna_enum_attribute_domain_items[a];
 
-    if (owner.type() == AttributeOwnerType::PointCloud &&
+    if (owner_type == AttributeOwnerType::PointCloud &&
         !ELEM(AttrDomain(domain_item->value), AttrDomain::Point))
     {
       continue;
     }
-    if (owner.type() == AttributeOwnerType::Curves &&
+    if (owner_type == AttributeOwnerType::Curves &&
         !ELEM(AttrDomain(domain_item->value), AttrDomain::Point, AttrDomain::Curve))
     {
       continue;
     }
-    if (owner.type() == AttributeOwnerType::Mesh &&
+    if (owner_type == AttributeOwnerType::Mesh &&
         ELEM(AttrDomain(domain_item->value), AttrDomain::Curve))
     {
       continue;
     }
-    if (owner.type() == AttributeOwnerType::GreasePencil &&
+    if (owner_type == AttributeOwnerType::GreasePencil &&
         !ELEM(AttrDomain(domain_item->value), AttrDomain::Layer))
     {
       continue;
     }
-    if (owner.type() == AttributeOwnerType::GreasePencilDrawing &&
+    if (owner_type == AttributeOwnerType::GreasePencilDrawing &&
         !ELEM(AttrDomain(domain_item->value), AttrDomain::Point, AttrDomain::Curve))
     {
       continue;
@@ -350,7 +352,7 @@ const EnumPropertyItem *rna_enum_attribute_domain_itemf(const AttributeOwner &ow
     }
 
     if (AttrDomain(domain_item->value) == AttrDomain::Point &&
-        owner.type() == AttributeOwnerType::Mesh)
+        owner_type == AttributeOwnerType::Mesh)
     {
       RNA_enum_item_add(&item, &totitem, &mesh_vertex_domain_item);
     }
