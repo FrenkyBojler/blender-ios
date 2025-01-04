@@ -463,24 +463,19 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
       const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
 
-      const int point_1 = (curve_i == 0) ? inter_first.point_a : inter_first.point_b;
-      const float alpha_1 = (curve_i == 0) ? inter_first.alpha_a : inter_first.alpha_b;
-
-      const int point_2 = (curve_i == 0) ? inter_last.point_a : inter_last.point_b;
-      const float alpha_2 = (curve_i == 0) ? inter_last.alpha_a : inter_last.alpha_b;
-
-      all_segments.append(Segment::from_intersections(
-          curve_i, points_i, point_2 + alpha_2, point_1 + alpha_1, int_p_2, int_p_1));
+      all_segments.append(Segment::from_intersections(curve_i,
+                                                      points_i,
+                                                      inter_last.parameter_curve(curve_i),
+                                                      inter_first.parameter_curve(curve_i),
+                                                      int_p_2,
+                                                      int_p_1));
     }
     else {
       const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
 
-      const int point_2 = (curve_i == 0) ? inter_first.point_a : inter_first.point_b;
-      const float alpha_2 = (curve_i == 0) ? inter_first.alpha_a : inter_first.alpha_b;
-
-      all_segments.append(
-          Segment::from_start_to_intersection(curve_i, points_i, point_2 + alpha_2, int_p_1));
+      all_segments.append(Segment::from_start_to_intersection(
+          curve_i, points_i, inter_first.parameter_curve(curve_i), int_p_1));
     }
 
     for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
@@ -490,25 +485,20 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
       const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
 
-      const int point_1 = (curve_i == 0) ? inter_first.point_a : inter_first.point_b;
-      const float alpha_1 = (curve_i == 0) ? inter_first.alpha_a : inter_first.alpha_b;
-
-      const int point_2 = (curve_i == 0) ? inter_last.point_a : inter_last.point_b;
-      const float alpha_2 = (curve_i == 0) ? inter_last.alpha_a : inter_last.alpha_b;
-
-      all_segments.append(Segment::from_intersections(
-          curve_i, points_i, point_1 + alpha_1, point_2 + alpha_2, int_p_1, int_p_2));
+      all_segments.append(Segment::from_intersections(curve_i,
+                                                      points_i,
+                                                      inter_first.parameter_curve(curve_i),
+                                                      inter_last.parameter_curve(curve_i),
+                                                      int_p_1,
+                                                      int_p_2));
     }
 
     if (!is_cyclic[curve_i]) {
       const int int_p_2 = inter_sorted_ids[inters_per_curve.last()];
       const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
 
-      const int point_1 = (curve_i == 0) ? inter_last.point_a : inter_last.point_b;
-      const float alpha_1 = (curve_i == 0) ? inter_last.alpha_a : inter_last.alpha_b;
-
-      all_segments.append(
-          Segment::from_intersection_to_end(curve_i, points_i, point_1 + alpha_1, int_p_2));
+      all_segments.append(Segment::from_intersection_to_end(
+          curve_i, points_i, inter_last.parameter_curve(curve_i), int_p_2));
     }
   }
   all_segment_offsets.append(all_segments.size());
