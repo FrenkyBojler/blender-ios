@@ -1236,8 +1236,7 @@ static AttributeOwner active_frame_get_attribute_owner(bContext *C)
 {
   using namespace blender::bke::greasepencil;
   Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
   if (!grease_pencil.has_active_layer()) {
     return AttributeOwner();
@@ -1272,8 +1271,7 @@ static const EnumPropertyItem *geometry_attribute_domain_itemf(bContext *C,
 static int grease_pencil_layer_attribute_add_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
   if (!grease_pencil.has_active_layer()) {
     return OPERATOR_CANCELLED;
