@@ -321,35 +321,37 @@ const EnumPropertyItem *rna_enum_attribute_domain_itemf(const AttributeOwner &ow
     domain_item = &rna_enum_attribute_domain_items[a];
 
     if (owner.type() == AttributeOwnerType::PointCloud &&
-        !ELEM(domain_item->value, int(AttrDomain::Point)))
+        !ELEM(AttrDomain(domain_item->value), AttrDomain::Point))
     {
       continue;
     }
     if (owner.type() == AttributeOwnerType::Curves &&
-        !ELEM(domain_item->value, int(AttrDomain::Point), int(AttrDomain::Curve)))
+        !ELEM(AttrDomain(domain_item->value), AttrDomain::Point, AttrDomain::Curve))
     {
       continue;
     }
     if (owner.type() == AttributeOwnerType::Mesh &&
-        ELEM(domain_item->value, int(AttrDomain::Curve)))
+        ELEM(AttrDomain(domain_item->value), AttrDomain::Curve))
     {
       continue;
     }
     if (owner.type() == AttributeOwnerType::GreasePencil &&
-        !ELEM(domain_item->value, int(AttrDomain::Layer)))
+        !ELEM(AttrDomain(domain_item->value), AttrDomain::Layer))
     {
       continue;
     }
     if (owner.type() == AttributeOwnerType::GreasePencilDrawing &&
-        !ELEM(domain_item->value, int(AttrDomain::Point), int(AttrDomain::Curve)))
+        !ELEM(AttrDomain(domain_item->value), AttrDomain::Point, AttrDomain::Curve))
     {
       continue;
     }
-    if (!include_instances && domain_item->value == int(AttrDomain::Instance)) {
+    if (!include_instances && AttrDomain(domain_item->value) == AttrDomain::Instance) {
       continue;
     }
 
-    if (domain_item->value == int(AttrDomain::Point) && owner.type() == AttributeOwnerType::Mesh) {
+    if (AttrDomain(domain_item->value) == AttrDomain::Point &&
+        owner.type() == AttributeOwnerType::Mesh)
+    {
       RNA_enum_item_add(&item, &totitem, &mesh_vertex_domain_item);
     }
     else {
