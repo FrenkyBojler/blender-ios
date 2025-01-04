@@ -481,11 +481,15 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 
     const bool is_subj = !clipping_shapes.contains(curve_i);
 
-    /* TODO: This assumes that the segment size is not zero which is not always true. */
-    const int first_point = all_segments[segments.first()].start_point();
-    const Span<float2> poly_this = points.slice(points_by_curve[curve_i]);
-    const Span<float2> poly_other = points.slice(points_by_curve[1 - curve_i]); /* TODO */
-    int current_winding_order = point_in_polygon_winding_order(poly_this[first_point], poly_other);
+    int current_winding_order = 0;
+
+    /* TODO */
+    if (is_fill[1 - curve_i]) {
+      /* TODO: This assumes that the segment size is not zero which is not always true. */
+      const int first_point = all_segments[segments.first()].start_point();
+      const Span<float2> poly_other = points.slice(points_by_curve[1 - curve_i]); /* TODO */
+      current_winding_order = point_in_polygon_winding_order(points[first_point], poly_other);
+    }
 
     for (const int seg_i : segments) {
       if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
