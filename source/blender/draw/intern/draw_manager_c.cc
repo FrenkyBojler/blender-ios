@@ -280,14 +280,6 @@ DupliObject *DRW_object_get_dupli(const Object * /*ob*/)
 /** \name Viewport (DRW_viewport)
  * \{ */
 
-void DRW_render_viewport_size_set(const int size[2])
-{
-  DST.size[0] = size[0];
-  DST.size[1] = size[1];
-  DST.inv_size[0] = 1.0f / size[0];
-  DST.inv_size[1] = 1.0f / size[1];
-}
-
 const float *DRW_viewport_size_get()
 {
   return DST.size;
@@ -490,15 +482,6 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
     ED_view3d_init_mats_rv3d(dst->draw_ctx.object_edit, rv3d);
   }
 
-  if (G_draw.view_ubo == nullptr) {
-    G_draw.view_ubo = GPU_uniformbuf_create_ex(sizeof(ViewMatrices), nullptr, "G_draw.view_ubo");
-  }
-
-  if (G_draw.clipping_ubo == nullptr) {
-    G_draw.clipping_ubo = GPU_uniformbuf_create_ex(
-        sizeof(float4) * 6, nullptr, "G_draw.clipping_ubo");
-  }
-
   memset(dst->object_instance_data, 0x0, sizeof(dst->object_instance_data));
 }
 
@@ -611,7 +594,9 @@ static void duplidata_key_free(void *key)
     drw_batch_cache_generate_requested(dupli_key->ob);
   }
   else {
+    /* Geometry instances shouldn't be rendered with edit mode overlays. */
     Object temp_object = blender::dna::shallow_copy(*dupli_key->ob);
+    temp_object.mode = OB_MODE_OBJECT;
     blender::bke::ObjectRuntime runtime = *dupli_key->ob->runtime;
     temp_object.runtime = &runtime;
 
@@ -2956,9 +2941,7 @@ void DRW_engines_free()
   drw_debug_module_free(DST.debug);
   DST.debug = nullptr;
 
-  DRW_UBO_FREE_SAFE(G_draw.block_ubo);
-  DRW_UBO_FREE_SAFE(G_draw.view_ubo);
-  DRW_UBO_FREE_SAFE(G_draw.clipping_ubo);
+  GPU_UBO_FREE_SAFE(G_draw.block_ubo);
   GPU_TEXTURE_FREE_SAFE(G_draw.ramp);
   GPU_TEXTURE_FREE_SAFE(G_draw.weight_ramp);
 
