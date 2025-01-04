@@ -106,9 +106,9 @@ int Segment::start_point() const
 {
   if (!this->has_start_intersection()) {
     if (reversed) {
-      return point_2;
+      return points.last();
     }
-    return point_1;
+    return points.first();
   }
   return this->start_edge().y;
 }
@@ -322,6 +322,12 @@ void calculate_positions(const Span<float2> pos_subj,
                          const BooleanResult &result,
                          MutableSpan<float2> dst_pos)
 {
+  /* TODO */
+  Array<float2> points(pos_subj.size() + pos_clip.size());
+  array_utils::copy(pos_subj, points.as_mutable_span().slice(IndexRange(pos_subj.size())));
+  array_utils::copy(pos_clip,
+                    points.as_mutable_span().slice(IndexRange(pos_subj.size(), pos_clip.size())));
+
   const OffsetIndices<int> segments_by_polygon = OffsetIndices<int>(result.segment_offsets);
   int i = 0;
 
@@ -330,49 +336,43 @@ void calculate_positions(const Span<float2> pos_subj,
     for (const int seg_i : segment_range) {
       const Segment &segment = result.segments[seg_i];
 
-      const Span<float2> current_curve = (segment.curve == 0) ? pos_subj : pos_clip;
-
       if (segment.has_start_intersection()) {
-        dst_pos[i++] = math::interpolate(current_curve[segment.start_edge().x],
-                                         current_curve[segment.start_edge().y],
-                                         segment.start_alpha());
+        dst_pos[i++] = math::interpolate(
+            points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
       }
 
       segment.foreach_point(
-          [&](const int index, const int pos) { dst_pos[pos + i] = current_curve[index]; });
+          [&](const int index, const int pos) { dst_pos[pos + i] = points[index]; });
 
       i += segment.points_num();
 
       if (seg_i == segment_range.last() && segment.has_end_intersection() &&
           !result.cyclic[curve_i])
       {
-        dst_pos[i++] = math::interpolate(current_curve[segment.end_edge().x],
-                                         current_curve[segment.end_edge().y],
-                                         segment.end_alpha());
+        dst_pos[i++] = math::interpolate(
+            points[segment.end_edge().x], points[segment.end_edge().y], segment.end_alpha());
       }
     }
   }
 }
 
 BooleanResult execute_boolean(const Operation boolean_mode,
-                              const Span<float2> curve_subj,
-                              const Span<float2> curve_clip,
+                              const Span<float2> points,
+                              const OffsetIndices<int> points_by_curve,
+                              const IndexRange clipping_shapes,
                               const Span<bool> is_fill,
                               const Span<bool> is_cyclic)
 {
-  const int num_curves = 2;
-  Array<IndexRange> points_per_curve({curve_subj.index_range(), curve_clip.index_range()});
-
   Vector<ExtendedIntersectionPoint> intersections;
-  Array<Vector<int>> inters_per_curves(num_curves);
+  Array<Vector<int>> inters_per_curves(points_by_curve.size());
 
   /* Calculate all intersections. */
   {
     const int curve_i = 0;
     const int curve_j = 1;
 
-    const IndexRange points_i = points_per_curve[curve_i];
-    const IndexRange points_j = points_per_curve[curve_j];
+    const IndexRange points_i = points_by_curve[curve_i];
+    const IndexRange points_j = points_by_curve[curve_j];
 
     const bool is_cyclic_i = is_cyclic[curve_i];
     const bool is_cyclic_j = is_cyclic[curve_j];
@@ -380,16 +380,16 @@ BooleanResult execute_boolean(const Operation boolean_mode,
     for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
       for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
         float alpha_a, alpha_b;
-        const int val = intersect(curve_subj[points_i[i]],
-                                  curve_subj[points_i[(i + 1) % points_i.size()]],
-                                  curve_clip[points_j[j]],
-                                  curve_clip[points_j[(j + 1) % points_j.size()]],
+        const int val = intersect(points[points_i[i]],
+                                  points[points_i[(i + 1) % points_i.size()]],
+                                  points[points_j[j]],
+                                  points[points_j[(j + 1) % points_j.size()]],
                                   &alpha_a,
                                   &alpha_b);
         if (val == ISECT_LINE_LINE_CROSS) {
           inters_per_curves[curve_i].append(intersections.size());
           inters_per_curves[curve_j].append(intersections.size());
-          intersections.append(create_intersection(i, j, alpha_a, alpha_b));
+          intersections.append(create_intersection(points_i[i], points_j[j], alpha_a, alpha_b));
         }
         else if (val == ISECT_LINE_LINE_EXACT) {
           /* TODO */
@@ -402,17 +402,17 @@ BooleanResult execute_boolean(const Operation boolean_mode,
   /* Create all segments. */
   Vector<Segment> all_segments;
   Vector<int> all_segment_offsets;
-  for (const int curve_i : IndexRange(num_curves)) {
-    const IndexRange points = points_per_curve[curve_i];
+  for (const int curve_i : points_by_curve.index_range()) {
+    const IndexRange points_i = points_by_curve[curve_i];
     const Vector<int> &inters_per_curve = inters_per_curves[curve_i];
     all_segment_offsets.append(all_segments.size());
 
     if (inters_per_curve.is_empty()) {
       if (is_cyclic[curve_i]) {
-        all_segments.append(Segment::from_loop(curve_i, points));
+        all_segments.append(Segment::from_loop(curve_i, points_i));
       }
       else {
-        all_segments.append(Segment::from_start_to_end(curve_i, points));
+        all_segments.append(Segment::from_start_to_end(curve_i, points_i));
       }
       continue;
     }
@@ -438,15 +438,15 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
       const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
 
-      all_segments.append(
-          Segment::from_intersections(curve_i, points, inter_last, inter_first, int_p_2, int_p_1));
+      all_segments.append(Segment::from_intersections(
+          curve_i, points_i, inter_last, inter_first, int_p_2, int_p_1));
     }
     else {
       const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
 
       all_segments.append(
-          Segment::from_start_to_intersection(curve_i, points, inter_first, int_p_1));
+          Segment::from_start_to_intersection(curve_i, points_i, inter_first, int_p_1));
     }
 
     for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
@@ -456,15 +456,16 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
       const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
 
-      all_segments.append(
-          Segment::from_intersections(curve_i, points, inter_first, inter_last, int_p_1, int_p_2));
+      all_segments.append(Segment::from_intersections(
+          curve_i, points_i, inter_first, inter_last, int_p_1, int_p_2));
     }
 
     if (!is_cyclic[curve_i]) {
       const int int_p_2 = inter_sorted_ids[inters_per_curve.last()];
       const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
 
-      all_segments.append(Segment::from_intersection_to_end(curve_i, points, inter_last, int_p_2));
+      all_segments.append(
+          Segment::from_intersection_to_end(curve_i, points_i, inter_last, int_p_2));
     }
   }
   all_segment_offsets.append(all_segments.size());
@@ -478,12 +479,12 @@ BooleanResult execute_boolean(const Operation boolean_mode,
   for (const int curve_i : all_segments_by_curve.index_range()) {
     const IndexRange segments = all_segments_by_curve[curve_i];
 
-    /* TODO */
-    const bool is_subj = curve_i == 0;
-    const Span<float2> poly_this = is_subj ? curve_subj : curve_clip;
-    const Span<float2> poly_other = is_subj ? curve_clip : curve_subj;
+    const bool is_subj = !clipping_shapes.contains(curve_i);
 
+    /* TODO: This assumes that the segment size is not zero which is not always true. */
     const int first_point = all_segments[segments.first()].start_point();
+    const Span<float2> poly_this = points.slice(points_by_curve[curve_i]);
+    const Span<float2> poly_other = points.slice(points_by_curve[1 - curve_i]); /* TODO */
     int current_winding_order = point_in_polygon_winding_order(poly_this[first_point], poly_other);
 
     for (const int seg_i : segments) {
@@ -569,7 +570,24 @@ BooleanResult curve_boolean_calc(const Operation boolean_mode,
                                  const Span<bool> is_fill,
                                  const Span<bool> is_cyclic)
 {
-  return execute_boolean(boolean_mode, curve_subj, curve_clip, is_fill, is_cyclic);
+  /* TODO */
+  const Array<int> points_by_curve(
+      {0, int(curve_subj.size()), int(curve_subj.size() + curve_clip.size())});
+
+  Array<float2> points(curve_subj.size() + curve_clip.size());
+  array_utils::copy(curve_subj, points.as_mutable_span().slice(IndexRange(curve_subj.size())));
+  array_utils::copy(
+      curve_clip,
+      points.as_mutable_span().slice(IndexRange(curve_subj.size(), curve_clip.size())));
+
+  const IndexRange clipping_shapes = IndexRange(1, 1);
+
+  return execute_boolean(boolean_mode,
+                         points,
+                         OffsetIndices<int>(points_by_curve),
+                         clipping_shapes,
+                         is_fill,
+                         is_cyclic);
 }
 
 }  // namespace blender::polygonboolean
