@@ -3123,12 +3123,6 @@ static void mesh_data_to_grease_pencil(Object &newob,
 {
   GreasePencil grease_pencil = *static_cast<GreasePencil *>(newob.data);
 
-  /* Reset `ob->totcol` since currently the generic / grease pencil material functions still
-   * depends on this value being coherent (The same value as `GreasePencil::material_array_num`).
-   */
-  short *totcol = BKE_object_material_len_p(&newob);
-  newob.totcol = *totcol;
-
   bke::greasepencil::Layer &layer = grease_pencil.add_layer(DATA_("Converted Layer"));
   bke::greasepencil::Drawing *drawing = grease_pencil.insert_frame(layer, current_frame);
 
@@ -3161,12 +3155,12 @@ static void mesh_data_to_grease_pencil(Object &newob,
   /* Fill faces first, so this way strokes can draw on top of the filled faces. */
   const int total_fills = total_curves - edge_num;
   IndexRange fills_range = IndexRange(total_fills);
-  int point_i = 0;
   if (generate_faces) {
+    const int faces_to_curves_num = mesh_eval.faces_num;
     array_utils::gather(mesh_positions, corner_verts, positions.take_front(corner_verts.size()));
     array_utils::copy(faces_span, offsets.take_front(faces_span.size()));
-    cyclic.slice(fills_range).fill(true);
-    stroke_materials.span.slice(fills_range).fill(1);
+    cyclic.take_front(faces_to_curves_num).fill(true);
+    stroke_materials.span.take_front(faces_to_curves_num).fill(1);
   }
 
   array_utils::gather(
@@ -3177,7 +3171,7 @@ static void mesh_data_to_grease_pencil(Object &newob,
   offset_indices::fill_constant_group_size(
       2, offsets.take_front(faces_size).last(), offsets.drop_front(faces_size));
 
-  IndexRange edges_range = IndexRange(total_fills, edge_num);
+  const IndexRange edges_range = IndexRange(total_fills, edge_num);
   stroke_materials.span.slice(edges_range).fill(0);
   stroke_materials.finish();
 
@@ -3208,6 +3202,12 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   GreasePencil *grease_pencil = BKE_grease_pencil_add(info.bmain, BKE_id_name(mesh_eval->id));
   newob->data = grease_pencil;
   newob->type = OB_GREASE_PENCIL;
+
+  /* Reset `ob->totcol` since currently the generic / grease pencil material functions still
+   * depends on this value being coherent (The same value as `GreasePencil::material_array_num`).
+   */
+  short *totcol = BKE_object_material_len_p(newob);
+  newob->totcol = *totcol;
 
   mesh_to_grease_pencil_add_material(
       *info.bmain, *newob, DATA_("Stroke"), float4(0.0f, 0.0f, 0.0f, 1.0f), {});
