@@ -3347,6 +3347,83 @@ static void rename_mesh_uv_seam_attribute(Mesh &mesh)
   STRNCPY(old_seam_layer->name, new_name.c_str());
 }
 
+void shader_tree_split_attribute_node_for_data_types(bNodeTree &ntree)
+{
+  blender::MultiValueMap<bNode *, eCustomDataType> node_to_attribute_type;
+  blender::MultiValueMap<std::pair<const bNode *, eCustomDataType>, bNodeLink *>
+      typed_socket_to_output_links;
+
+  const auto old_name_to_type = [](const blender::StringRef name) -> eCustomDataType {
+    if (ELEM(name, "Color", "Alpha")) {
+      return CD_PROP_COLOR;
+    }
+    else if (name == "Vector") {
+      return CD_PROP_FLOAT3;
+    }
+    BLI_assert(name == "Fac");
+    return CD_PROP_FLOAT;
+  };
+
+  const auto type_to_old_name = [](const eCustomDataType type) -> blender::StringRefNull {
+    switch (type) {
+      case CD_PROP_COLOR:
+        return "Color";
+      case CD_PROP_FLOAT3:
+        return "Vector";
+      case CD_PROP_FLOAT:
+        return "Fac";
+      default:
+        BLI_assert_unreachable();
+    }
+    return "";
+  };
+
+  LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
+    if (link->fromnode->type == SH_NODE_ATTRIBUTE) {
+      const eCustomDataType linked_data_type = old_name_to_type(link->fromsock->identifier);
+      node_to_attribute_type.add_non_duplicates(link->fromnode, linked_data_type);
+      typed_socket_to_output_links.add(std::make_pair(link->fromnode, linked_data_type), link);
+    }
+  }
+
+  for (bNode *node : node_to_attribute_type.keys()) {
+    blender::MutableSpan<eCustomDataType> used_types = node_to_attribute_type.lookup(node);
+
+    /* Color data type also requires linking of Alpha output, to avoid complication - use keep
+     * original node with Cocket data type and it original links if such data type is needed. */
+    if (const int color_i = used_types.as_span().first_index_try(CD_PROP_COLOR); color_i != -1) {
+      std::swap(used_types.first(), used_types[color_i]);
+    }
+
+    NodeShaderAttribute &storage = *static_cast<NodeShaderAttribute *>(node->storage);
+    storage.data_type = int(used_types.first());
+    bNodeSocket &socket = *blender::bke::node_find_socket(
+        node, SOCK_OUT, type_to_old_name(used_types.first()).c_str());
+    STRNCPY(socket.identifier, "Value");
+
+    int offset_i = 1;
+    for (const eCustomDataType other_type : used_types.drop_front(1)) {
+      bNode &new_node = *blender::bke::node_add_static_node(nullptr, &ntree, SH_NODE_ATTRIBUTE);
+      new_node.location[0] = node->location[0];
+      new_node.location[1] = node->location[1] - node->height * offset_i;
+      offset_i++;
+      new_node.parent = node->parent;
+      NodeShaderAttribute &new_storage = *static_cast<NodeShaderAttribute *>(new_node.storage);
+      new_storage.data_type = int(other_type);
+      new_storage.type = storage.type;
+      STRNCPY(new_storage.name, storage.name);
+      bNodeSocket &new_socket = *blender::bke::node_find_socket(&new_node, SOCK_OUT, "Value");
+      const std::pair<const bNode *, eCustomDataType> key_to_old_socket = std::make_pair(
+          node, other_type);
+      BLI_assert(!typed_socket_to_output_links.lookup(key_to_old_socket).is_empty());
+      for (bNodeLink *link : typed_socket_to_output_links.lookup(key_to_old_socket)) {
+        link->fromnode = &new_node;
+        link->fromsock = &new_socket;
+      }
+    }
+  }
+}
+
 /**
  * Clear unnecessary pointers to data blocks on output sockets group input nodes.
  * These values should never have been set in the first place. They are not harmful on their own,
@@ -5420,6 +5497,16 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
     rename_mesh_uv_seam_attribute(*mesh);
+  }
+
+  /* Shader Attribute node dynamic socket typing. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 18)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        shader_tree_split_attribute_node_for_data_types(*ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
