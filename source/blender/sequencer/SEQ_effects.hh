@@ -34,9 +34,6 @@ enum {
 };
 
 struct SeqEffectHandle {
-  bool multithreaded;
-  bool supports_mask;
-
   /* constructors & destructor */
   /* init is _only_ called on first creation */
   void (*init)(Sequence *seq);
@@ -63,39 +60,25 @@ struct SeqEffectHandle {
                           float timeline_frame,
                           float *fac);
 
-  /* execute the effect
-   * sequence effects are only required to either support
-   * float-rects or byte-rects
-   * (mixed cases are handled one layer up...) */
-
+  /* execute the effect */
   ImBuf *(*execute)(const SeqRenderData *context,
                     Sequence *seq,
                     float timeline_frame,
                     float fac,
                     ImBuf *ibuf1,
                     ImBuf *ibuf2);
-
-  ImBuf *(*init_execution)(const SeqRenderData *context, ImBuf *ibuf1, ImBuf *ibuf2);
-
-  void (*execute_slice)(const SeqRenderData *context,
-                        Sequence *seq,
-                        float timeline_frame,
-                        float fac,
-                        const ImBuf *ibuf1,
-                        const ImBuf *ibuf2,
-                        int start_line,
-                        int total_lines,
-                        ImBuf *out);
 };
 
 SeqEffectHandle SEQ_effect_handle_get(Sequence *seq);
 int SEQ_effect_get_num_inputs(int seq_type);
 void SEQ_effect_text_font_unload(TextVars *data, bool do_id_user);
 void SEQ_effect_text_font_load(TextVars *data, bool do_id_user);
+bool SEQ_effects_can_render_text(const Sequence *seq);
 
 namespace blender::seq {
 
 struct CharInfo {
+  int index = 0;
   const char *str_ptr = nullptr;
   int byte_length = 0;
   float2 position{0.0f, 0.0f};
@@ -111,11 +94,12 @@ struct LineInfo {
 struct TextVarsRuntime {
   Vector<LineInfo> lines;
 
-  rcti text_boundbox;
+  rcti text_boundbox; /* Bound-box used for box drawing and selection. */
   int line_height;
   int font_descender;
   int character_count;
   int font;
+  bool editing_is_active; /* UI uses this to differentiate behavior. */
 };
 
 }  // namespace blender::seq

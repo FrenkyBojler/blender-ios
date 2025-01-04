@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'62b2bb48e8bf')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'eb39d81afa00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-02 16:18+0000\n"
+"POT-Creation-Date: 2024-12-30 14:46+0000\n"
 "PO-Revision-Date: 2024-04-29 13:36+0000\n"
 "Last-Translator: Zdeněk Doležal <Griperis@outlook.cz>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -7646,10 +7646,6 @@ msgid "Adaptive Domain"
 msgstr "Adaptivní Doména"
 
 
-msgid "Use Adaptive Time Steps"
-msgstr "Použít Adaptivní Časové Kroky"
-
-
 msgid "Top"
 msgstr "Nahoře"
 
@@ -10134,12 +10130,16 @@ msgid "Shader"
 msgstr "Shader"
 
 
-msgid "Grease Pencil Data"
-msgstr "Kresba skicovací tužkou"
+msgid "Pattern"
+msgstr "Vzor"
 
 
 msgid "Interface"
 msgstr "Rozhraní"
+
+
+msgid "Grease Pencil Data"
+msgstr "Kresba skicovací tužkou"
 
 
 msgid "Links"
@@ -11837,10 +11837,6 @@ msgstr "Nelze uložit soubor"
 
 msgid "Marble Texture"
 msgstr "Textura"
-
-
-msgid "Pattern"
-msgstr "Vzor"
 
 
 msgid "Use soft marble"
@@ -13757,52 +13753,36 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
-msgid "Merge"
-msgstr "Sloučit"
-
-
-msgid "Show/Hide"
-msgstr "Zobrazit/skrýt"
-
-
-msgid "Local View"
-msgstr "Lokální pohled"
-
-
-msgid "Special Characters"
-msgstr "Speciální Znaky"
-
-
-msgid "Names"
-msgstr "Názvy"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Select Linked"
-msgstr "Vybrat Propojené"
-
-
-msgid "Mesh Select Mode"
-msgstr "Síťový mód výběru"
-
-
-msgid "Pivot Point"
-msgstr "Bod pro pivot"
+msgid "Mirror"
+msgstr "Zrcadlit"
 
 
 msgid "Snap"
 msgstr "Přichytit"
 
 
-msgid "Proportional Editing Falloff"
-msgstr "Způsob útlumu"
+msgid "UV Mapping"
+msgstr "UV mapování"
+
+
+msgid "Local View"
+msgstr "Lokální pohled"
+
+
+msgid "Navigation"
+msgstr "Navigace"
+
+
+msgid "Align View"
+msgstr "Zarovnat pohled"
+
+
+msgid "Select Linked"
+msgstr "Vybrat Propojené"
+
+
+msgid "Assign Material"
+msgstr "Přiřadit Materiál"
 
 
 msgid "Relations"
@@ -13821,32 +13801,24 @@ msgid "Track"
 msgstr "Sledování"
 
 
-msgid "Navigation"
-msgstr "Navigace"
-
-
 msgid "Quick Effects"
 msgstr "Rychlé Efekty"
+
+
+msgid "Show/Hide"
+msgstr "Zobrazit/skrýt"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
 
 
 msgid "Make Single User"
 msgstr "Přivlastnit"
 
 
-msgid "UV Mapping"
-msgstr "UV mapování"
-
-
 msgid "Hooks"
 msgstr "Háky"
-
-
-msgid "Mirror"
-msgstr "Zrcadlit"
-
-
-msgid "Assign Material"
-msgstr "Přiřadit Materiál"
 
 
 msgid "Clear Transform"
@@ -13857,12 +13829,36 @@ msgid "Propagate"
 msgstr "Vložit"
 
 
-msgid "Align View"
-msgstr "Zarovnat pohled"
+msgid "Names"
+msgstr "Názvy"
+
+
+msgid "Mesh Select Mode"
+msgstr "Síťový mód výběru"
 
 
 msgid "Face Data"
 msgstr "Data Ploch"
+
+
+msgid "Merge"
+msgstr "Sloučit"
+
+
+msgid "Special Characters"
+msgstr "Speciální Znaky"
+
+
+msgid "Bone Roll"
+msgstr "Kost"
+
+
+msgid "Pivot Point"
+msgstr "Bod pro pivot"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Způsob útlumu"
 
 
 msgid "Basic"
@@ -16641,10 +16637,6 @@ msgid "Node in a node tree"
 msgstr "Kompoziční uzly"
 
 
-msgid "Custom Node"
-msgstr "Vlastní Uzel"
-
-
 msgid "Custom color of the node body"
 msgstr "Vlastní barva těla uzlu"
 
@@ -17135,6 +17127,10 @@ msgstr "Z-Buffer"
 
 msgid "Z-Scale"
 msgstr "Z měřítko"
+
+
+msgid "High quality"
+msgstr "Vysoká kvalita"
 
 
 msgid "Despeckle"
@@ -22090,15 +22086,6 @@ msgstr "Přesunout Záložku"
 
 
 msgctxt "Operator"
-msgid "Cancel File Load"
-msgstr "Zrušit animaci"
-
-
-msgid "Cancel loading of selected file"
-msgstr "Odstranit označené"
-
-
-msgctxt "Operator"
 msgid "Delete Selected Files"
 msgstr "Odstranit Vybrané Soubory"
 
@@ -25624,11 +25611,6 @@ msgstr "Typ: Animace"
 
 
 msgctxt "Operator"
-msgid "Toggle Edit Mode"
-msgstr "Přepnout Editační Režim"
-
-
-msgctxt "Operator"
 msgid "Add Effector"
 msgstr "Efekt"
 
@@ -27196,11 +27178,6 @@ msgstr "Zobrazit nastaveni hran"
 
 msgid "Add to Palette"
 msgstr "Přidat do palety"
-
-
-msgctxt "Operator"
-msgid "Texture Paint Toggle"
-msgstr "Kresba na texturu"
 
 
 msgid "Change selection for all vertices"
@@ -28971,6 +28948,11 @@ msgstr "Jméno skriptu"
 msgctxt "Operator"
 msgid "Swap Inputs"
 msgstr "Vstupy"
+
+
+msgctxt "Operator"
+msgid "Deselect All"
+msgstr "O(d)značit vše"
 
 
 msgctxt "Operator"
@@ -31380,14 +31362,6 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Active Tool"
-msgstr "Aktivní nástroj"
-
-
-msgid "View Lock"
-msgstr "Zámek zobrazení"
-
-
 msgid "Shadow Settings"
 msgstr "Nastavení Stínů"
 
@@ -31434,6 +31408,14 @@ msgstr "Stereoskopie"
 
 msgid "Auto-Masking"
 msgstr "Auto-Maska"
+
+
+msgid "Active Tool"
+msgstr "Aktivní nástroj"
+
+
+msgid "View Lock"
+msgstr "Zámek zobrazení"
 
 
 msgid "Chain Scaling"
@@ -33920,10 +33902,6 @@ msgstr "Použít Prostorové Rozdělení"
 
 msgid "Denoiser"
 msgstr "Odšumění"
-
-
-msgid "High quality"
-msgstr "Vysoká kvalita"
 
 
 msgid "Device to use for rendering"
@@ -38650,11 +38628,6 @@ msgstr "Uložit uživatelské nastavení"
 
 
 msgctxt "Operator"
-msgid "Deselect All"
-msgstr "O(d)značit vše"
-
-
-msgctxt "Operator"
 msgid "Statistics"
 msgstr "Statistika"
 
@@ -41894,18 +41867,6 @@ msgid "Original Mode"
 msgstr "Původní Režim"
 
 
-msgid "Error writing frame"
-msgstr "Inkrementální"
-
-
-msgid "No valid formats found"
-msgstr "Orientace manipulátorů (Klávesová zkratka: Alt Space)"
-
-
-msgid "Could not open file for writing"
-msgstr "Nelze otevřít soubor pro psaní"
-
-
 msgid "ID %s not found in library %s anymore!"
 msgstr "ID %s se v knihovně %s už nenašlo!"
 
@@ -44185,6 +44146,18 @@ msgstr "vlastní"
 
 msgid "UV Vertex"
 msgstr "Vrchol"
+
+
+msgid "Error writing frame"
+msgstr "Inkrementální"
+
+
+msgid "No valid formats found"
+msgstr "Orientace manipulátorů (Klávesová zkratka: Alt Space)"
+
+
+msgid "Could not open file for writing"
+msgstr "Nelze otevřít soubor pro psaní"
 
 
 msgid "Keying set path could not be added"

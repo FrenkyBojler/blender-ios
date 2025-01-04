@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'62b2bb48e8bf')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'eb39d81afa00')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2024-12-02 16:18+0000\n"
+"POT-Creation-Date: 2024-12-30 14:46+0000\n"
 "PO-Revision-Date: 2024-04-15 06:56+0000\n"
 "Last-Translator: Ruan da Silva Andrade <ruanandrade818@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -9353,6 +9353,10 @@ msgid "Amount of fine level detail present in the noise"
 msgstr "Quantidade de nível de detalhes finos presentes no ruído."
 
 
+msgid "Lacunarity"
+msgstr "Frequência das lacunas"
+
+
 msgid "Time offset for the noise effect"
 msgstr "Deslocamento de tempo para o efeito de ruído."
 
@@ -9363,6 +9367,10 @@ msgstr "Fase"
 
 msgid "A random seed for the noise effect"
 msgstr "Um valor de semente aleatória para o efeito de ruído."
+
+
+msgid "Roughness"
+msgstr "Rugosidade"
 
 
 msgid "Scaling (in time) of the noise"
@@ -14497,10 +14505,6 @@ msgid "Cloth"
 msgstr "Tecido"
 
 
-msgid "Roughness"
-msgstr "Rugosidade"
-
-
 msgid "Roughness of the material"
 msgstr "Rugosidade do material"
 
@@ -14833,12 +14837,16 @@ msgid "Shader"
 msgstr "Sombreador"
 
 
-msgid "Grease Pencil Data"
-msgstr "Dados de lápis de cera"
+msgid "Pattern"
+msgstr "Padrão"
 
 
 msgid "Interface"
 msgstr "Interface"
+
+
+msgid "Grease Pencil Data"
+msgstr "Dados de lápis de cera"
 
 
 msgid "Links"
@@ -16573,10 +16581,6 @@ msgid "Show Subframe"
 msgstr "Mostrar sub-quadros"
 
 
-msgid "Show current scene subframe and allow set it using interface tools"
-msgstr "Mostra os sub-quadros da cena atual e permite que os mesmos sejam definidos usando as ferramentas de interface."
-
-
 msgid "Sync Mode"
 msgstr "Modo de sincronização"
 
@@ -17475,10 +17479,6 @@ msgid "Marble Texture"
 msgstr "Textura tipo mármore"
 
 
-msgid "Pattern"
-msgstr "Padrão"
-
-
 msgid "Use soft marble"
 msgstr "Usa um mármore suave."
 
@@ -17549,10 +17549,6 @@ msgstr "Ganho"
 
 msgid "The gain multiplier"
 msgstr "O multiplicador de ganho."
-
-
-msgid "Lacunarity"
-msgstr "Frequência das lacunas"
 
 
 msgid "Gap between successive frequencies"
@@ -21475,48 +21471,52 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Clean Up"
-msgstr "Limpeza"
+msgid "Mirror"
+msgstr "Espelhar"
 
 
-msgid "Merge"
-msgstr "Fundir"
+msgid "Snap"
+msgstr "Atrair"
 
 
-msgid "Show/Hide"
-msgstr "Mostrar ou ocultar"
+msgid "UV Mapping"
+msgstr "Mapeamento UV"
 
 
 msgid "Local View"
 msgstr "Visão local"
 
 
-msgid "Special Characters"
-msgstr "Caracteres especiais"
-
-
-msgid "Names"
-msgstr "Nomes"
-
-
 msgid "Viewpoint"
 msgstr "Ponto de visualização"
 
 
-msgid "Bone Roll"
-msgstr "Rolagem dos ossos"
+msgid "Navigation"
+msgstr "Navegação"
 
 
-msgid "Toggle Bone Options"
-msgstr "Alternar opções de ossos"
+msgid "Align View"
+msgstr "Alinhar visualização"
 
 
-msgid "Enable Bone Options"
-msgstr "Habilitar opções de ossos"
+msgid "Align View to Active"
+msgstr "Alinhar vista para o ativo"
 
 
-msgid "Disable Bone Options"
-msgstr "Desabilitar as opções de ossos"
+msgid "View Regions"
+msgstr "Visualizar Regiões"
+
+
+msgid "Select More/Less"
+msgstr "Selecionar mais ou menos"
+
+
+msgid "Select Similar"
+msgstr "Selecionar por similaridades"
+
+
+msgid "Select All by Trait"
+msgstr "Selecionar todos por características..."
 
 
 msgid "Select Linked"
@@ -21525,30 +21525,6 @@ msgstr "Selecionar vinculados(as)"
 
 msgid "Select Loops"
 msgstr "Selecionar anéis"
-
-
-msgid "Mesh Select Mode"
-msgstr "Modo de seleção de malhas"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
-
-
-msgid "Snap"
-msgstr "Atrair"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "Select More/Less"
-msgstr "Selecionar mais ou menos"
-
-
-msgid "View Regions"
-msgstr "Visualizar Regiões"
 
 
 msgid "Add Image"
@@ -21571,16 +21547,16 @@ msgid "Track"
 msgstr "Rastrear"
 
 
-msgid "Navigation"
-msgstr "Navegação"
-
-
-msgid "Select Similar"
-msgstr "Selecionar por similaridades"
-
-
 msgid "Quick Effects"
 msgstr "Efeitos instantâneos"
+
+
+msgid "Show/Hide"
+msgstr "Mostrar ou ocultar"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
 
 
 msgid "Make Single User"
@@ -21591,20 +21567,12 @@ msgid "Convert"
 msgstr "Converter"
 
 
-msgid "UV Mapping"
-msgstr "Mapeamento UV"
-
-
 msgid "Hooks"
 msgstr "Ganchos"
 
 
 msgid "Random Mask"
 msgstr "Máscara Aleatória"
-
-
-msgid "Mirror"
-msgstr "Espelhar"
 
 
 msgid "Clear Transform"
@@ -21615,24 +21583,52 @@ msgid "In-Betweens"
 msgstr "Entre as continuidades"
 
 
-msgid "Align View to Active"
-msgstr "Alinhar vista para o ativo"
-
-
 msgid "Propagate"
 msgstr "Propagar"
 
 
-msgid "Align View"
-msgstr "Alinhar visualização"
+msgid "Names"
+msgstr "Nomes"
 
 
-msgid "Select All by Trait"
-msgstr "Selecionar todos por características..."
+msgid "Toggle Bone Options"
+msgstr "Alternar opções de ossos"
+
+
+msgid "Enable Bone Options"
+msgstr "Habilitar opções de ossos"
+
+
+msgid "Disable Bone Options"
+msgstr "Desabilitar as opções de ossos"
+
+
+msgid "Mesh Select Mode"
+msgstr "Modo de seleção de malhas"
 
 
 msgid "Face Data"
 msgstr "Dados das faces"
+
+
+msgid "Merge"
+msgstr "Fundir"
+
+
+msgid "Special Characters"
+msgstr "Caracteres especiais"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem dos ossos"
+
+
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
 
 
 msgid "Basic"
@@ -27004,14 +27000,6 @@ msgid "Static Type"
 msgstr "Tipo estático"
 
 
-msgid "Node type (deprecated, use with care)"
-msgstr "Tipo de nó (função obsoleta, usar com cautela)."
-
-
-msgid "Custom Node"
-msgstr "Nós personalizados"
-
-
 msgid "Custom color of the node body"
 msgstr "Cor personalizada do corpo do nó."
 
@@ -27062,10 +27050,6 @@ msgstr "Mostrar "
 
 msgid "Show Texture"
 msgstr "Mostrar textura"
-
-
-msgid "Node type (deprecated, use bl_static_type or bl_idname for the actual identifier string)"
-msgstr "Tipo de nó (obsoleto, use bl_static_type ou bl_idname para a variável texto de identificação atual)."
 
 
 msgid "Use custom color for the node"
@@ -27794,6 +27778,10 @@ msgstr "Escala Z"
 
 msgid "Scale the Z input when not using a z-buffer, controls maximum blur designated by the color white or input value 1"
 msgstr "Escalona a entrada Z quando não estiver usando um buffer Z, controla o desfoque máximo projetado pela cor branca ou o valor de entrada equivalente a 1."
+
+
+msgid "High quality"
+msgstr "Alta qualidade."
 
 
 msgid "Process HDR images"
@@ -35431,15 +35419,6 @@ msgstr "Início da lista"
 
 msgid "Bottom of the list"
 msgstr "Fim da lista"
-
-
-msgctxt "Operator"
-msgid "Cancel File Load"
-msgstr "Cancelar carregamento de arquivo"
-
-
-msgid "Cancel loading of selected file"
-msgstr "Cancela o carregamento de um arquivo selecionado."
 
 
 msgctxt "Operator"
@@ -43689,11 +43668,6 @@ msgid "Add to Palette"
 msgstr "Adicionar para a paleta"
 
 
-msgctxt "Operator"
-msgid "Texture Paint Toggle"
-msgstr "Alternar para pintura de textura"
-
-
 msgid "Toggle texture paint mode in 3D view"
 msgstr "Alterna para a pintura de textura na janela de visualização 3D."
 
@@ -46467,6 +46441,11 @@ msgstr "Troca as posições de duas faixas selecionadas no editor de sequências
 msgctxt "Operator"
 msgid "Swap Inputs"
 msgstr "Trocar entradas"
+
+
+msgctxt "Operator"
+msgid "Deselect All"
+msgstr "(De)selecionar tudo"
 
 
 msgctxt "Operator"
@@ -50296,10 +50275,6 @@ msgid "Active Palette Color"
 msgstr "Cor ativa da paleta"
 
 
-msgid "Wire Color"
-msgstr "Cor dos cabos"
-
-
 msgid "Render Pass"
 msgstr "Passo de renderização"
 
@@ -50318,6 +50293,10 @@ msgstr "Exibição Quadrante"
 
 msgid "Stereoscopy"
 msgstr "Estereoscopia"
+
+
+msgid "Wire Color"
+msgstr "Cor dos cabos"
 
 
 msgid "Bone Constraints"
@@ -53903,10 +53882,6 @@ msgstr "Albedo"
 
 msgid "Albedo and Normal"
 msgstr "Albedo e Normal"
-
-
-msgid "High quality"
-msgstr "Alta qualidade."
 
 
 msgid "Device to use for rendering"
@@ -62150,11 +62125,6 @@ msgstr "Redefinir configurações"
 
 
 msgctxt "Operator"
-msgid "Deselect All"
-msgstr "(De)selecionar tudo"
-
-
-msgctxt "Operator"
 msgid "Statistics"
 msgstr "Estatísticas"
 
@@ -65748,42 +65718,6 @@ msgstr "Pelo menos 8 trilhas comuns em ambos os quadros-chave são necessárias 
 
 msgid "Blender is compiled without motion tracking library"
 msgstr "Blender está compilado sem suporte a biblioteca de captura de movimentos."
-
-
-msgid "Error writing frame"
-msgstr "Erro ao escrever quadro"
-
-
-msgid "No valid formats found"
-msgstr "Nenhum formato válido encontrado."
-
-
-msgid "Render width has to be 720 pixels for DV!"
-msgstr "Largura da renderização deve ser de 720 pixeis para DV !"
-
-
-msgid "Render height has to be 480 pixels for DV-NTSC!"
-msgstr "Altura da renderização deve ser de 480 pixeis para DV-NTSC !"
-
-
-msgid "Render height has to be 576 pixels for DV-PAL!"
-msgstr "Altura da renderização dele ser de 576 pixeis para DV-PAL !"
-
-
-msgid "Error initializing video stream"
-msgstr "Erro ao inicializar o fluxo de vídeo."
-
-
-msgid "Error initializing audio stream"
-msgstr "Erro ao inicializar o fluxo de áudio."
-
-
-msgid "Could not open file for writing"
-msgstr "Não é possível abrir o arquivo para escrita."
-
-
-msgid "Could not initialize streams, probably unsupported codec combination"
-msgstr "Não é possível inicializar fluxos, provavelmente uma combinação de codificador não suportada."
 
 
 msgid "unknown error reading file"
@@ -69741,6 +69675,42 @@ msgid "Freestyle: Stroke rendering"
 msgstr "Freestyle: Renderização de traços..."
 
 
+msgid "Error writing frame"
+msgstr "Erro ao escrever quadro"
+
+
+msgid "No valid formats found"
+msgstr "Nenhum formato válido encontrado."
+
+
+msgid "Render width has to be 720 pixels for DV!"
+msgstr "Largura da renderização deve ser de 720 pixeis para DV !"
+
+
+msgid "Render height has to be 480 pixels for DV-NTSC!"
+msgstr "Altura da renderização deve ser de 480 pixeis para DV-NTSC !"
+
+
+msgid "Render height has to be 576 pixels for DV-PAL!"
+msgstr "Altura da renderização dele ser de 576 pixeis para DV-PAL !"
+
+
+msgid "Error initializing video stream"
+msgstr "Erro ao inicializar o fluxo de vídeo."
+
+
+msgid "Error initializing audio stream"
+msgstr "Erro ao inicializar o fluxo de áudio."
+
+
+msgid "Could not open file for writing"
+msgstr "Não é possível abrir o arquivo para escrita."
+
+
+msgid "Could not initialize streams, probably unsupported codec combination"
+msgstr "Não é possível inicializar fluxos, provavelmente uma combinação de codificador não suportada."
+
+
 msgid "Index out of range"
 msgstr "Índice fora do intervalo"
 
@@ -70757,11 +70727,6 @@ msgstr "Balanço de cor"
 
 
 msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Balanço dos tons brancos"
-
-
-msgctxt "Sequence"
 msgid "Curves"
 msgstr "Curvas"
 
@@ -70769,6 +70734,11 @@ msgstr "Curvas"
 msgctxt "Sequence"
 msgid "Hue Correct"
 msgstr "Correção de matiz"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Balanço dos tons brancos"
 
 
 msgctxt "Sequence"
@@ -70983,10 +70953,6 @@ msgstr "Falha ao abrir a janela"
 
 msgid "Pose Library"
 msgstr "Biblioteca de poses"
-
-
-msgid "All Add-ons"
-msgstr "Todos os complementos"
 
 
 msgid "All Add-ons Installed by User"
