@@ -43,31 +43,40 @@ class WORKSPACE_PT_addons(WorkSpaceButtonsPanel, Panel):
     bl_parent_id = "WORKSPACE_PT_main"
     addon_map = {}
     owner_ids = set()
+    _initialized = False
+
+    @classmethod
+    def initialize(cls, context):
+        # Prevent user from having to manually check 49 boxes just to filter 1 add-on.
+        workspace = context.workspace
+        for addon in context.preferences.addons:
+            module = addon.module
+            is_enabled = module in cls.owner_ids
+            if is_enabled:
+                return
+            workspace.owner_ids.new(module)
+            
+        cls._initialized = True
 
     def draw_header(self, context):
         workspace = context.workspace
         self.layout.prop(workspace, "use_filter_by_owner", text="")
 
     def draw(self, context):
-        layout = self.layout
+        if not self.__class__._initialized:
+            self.__class__.initialize(context)
 
+        layout = self.layout
         workspace = context.workspace
         prefs = context.preferences
 
         import addon_utils
         WORKSPACE_PT_addons.addon_map = {mod.__name__: mod for mod in addon_utils.modules()}
         WORKSPACE_PT_addons.owner_ids = {owner_id.name for owner_id in workspace.owner_ids}
-        known_addons = set()
-        for addon in prefs.addons:
-            if addon.module in WORKSPACE_PT_addons.owner_ids:
-                known_addons.add(addon.module)
-        unknown_addons = WORKSPACE_PT_addons.owner_ids.difference(known_addons)
         
-        row = layout.row()
-        row.active = context.workspace.use_filter_by_owner
-        row.label(text="Select")
-        row.operator("wm.owner_set_all", text="All").mode = 'all'
-        row.operator("wm.owner_set_all", text="None").mode = 'none'
+        known_addons = {addon.module for addon in prefs.addons if addon.module in WORKSPACE_PT_addons.owner_ids}
+        unused_addons = WORKSPACE_PT_addons.owner_ids.difference(known_addons)
+        
         layout.template_list(
             "WORKSPACE_UL_addons_items",
             "",
@@ -77,19 +86,21 @@ class WORKSPACE_PT_addons(WorkSpaceButtonsPanel, Panel):
             "active_addon",
             rows=8,
         )
-        # Detect unused
-        if unknown_addons:
-            layout.label(text="Unknown add-ons", icon='ERROR')
-            col = layout.box().column(align=True)
-            for addon_module_name in sorted(unknown_addons):
-                row = col.row()
-                row.alignment = 'LEFT'
-                row.operator(
-                    "wm.owner_disable",
-                    icon='CHECKBOX_HLT',
-                    text=addon_module_name,
-                    emboss=False,
-                ).owner_id = addon_module_name
+        
+        if not unused_addons:
+            return
+        
+        layout.label(text="Unknown add-ons", icon='ERROR')
+        col = layout.box().column(align=True)
+        for addon_module_name in sorted(unused_addons):
+            row = col.row()
+            row.alignment = 'LEFT'
+            row.operator(
+                "wm.owner_disable",
+                icon='CHECKBOX_HLT',
+                text=addon_module_name,
+                emboss=False,
+            ).owner_id = addon_module_name
 
 
 class WORKSPACE_UL_addons_items(UIList):
