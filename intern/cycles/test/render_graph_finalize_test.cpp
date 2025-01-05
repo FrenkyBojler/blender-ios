@@ -113,20 +113,20 @@ class ShaderGraphBuilder {
   /* Common input/output boilerplate. */
   ShaderGraphBuilder &add_float_attribute(const string &name)
   {
-    return (*this).add_node(
-        ShaderNodeBuilder<FloatAttributeNode>(*graph_, name).set_param("attribute", ustring(name)));
+    return (*this).add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, name)
+                                .set_param("attribute", ustring(name)));
   }
 
   ShaderGraphBuilder &add_vector_attribute(const string &name)
   {
-    return (*this).add_node(
-        ShaderNodeBuilder<VectorAttributeNode>(*graph_, name).set_param("attribute", ustring(name)));
+    return (*this).add_node(ShaderNodeBuilder<VectorAttributeNode>(*graph_, name)
+                                .set_param("attribute", ustring(name)));
   }
 
   ShaderGraphBuilder &add_color_attribute(const string &name)
   {
-    return (*this).add_node(
-        ShaderNodeBuilder<ColorAttributeNode>(*graph_, name).set_param("attribute", ustring(name)));
+    return (*this).add_node(ShaderNodeBuilder<ColorAttributeNode>(*graph_, name)
+                                .set_param("attribute", ustring(name)));
   }
 
   ShaderGraphBuilder &output_closure(const string &from)
@@ -568,7 +568,8 @@ TEST_F(RenderGraph, constant_fold_part_mix_blend)
 
   builder.add_color_attribute("Attribute1")
       .add_color_attribute("Attribute2")
-      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute3").set_param("attribute", ustring("Attribute1")))
+      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute3")
+                    .set_param("attribute", ustring("Attribute1")))
       /* choose left */
       .add_node(ShaderNodeBuilder<MixNode>(graph, "MixBlend1")
                     .set_param("mix_type", NODE_MIX_BLEND)
@@ -645,9 +646,9 @@ static void build_mix_partial_test_graph(ShaderGraphBuilder &builder,
                                          NodeMix type,
                                          const float3 constval)
 {
-  builder
-      .add_color_attribute("Attribute")
-      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1").set_param("attribute", ustring("Attribute")))
+  builder.add_color_attribute("Attribute")
+      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1")
+                    .set_param("attribute", ustring("Attribute")))
       /* constant on the left */
       .add_node(ShaderNodeBuilder<MixNode>(builder.graph(), "Mix_Cx_Fx")
                     .set_param("mix_type", type)
@@ -902,9 +903,9 @@ TEST_F(RenderGraph, constant_fold_gamma_part_0)
   INVALID_INFO_MESSAGE(log, "Folding Gamma_Cx::");
   CORRECT_INFO_MESSAGE(log, "Folding Gamma_xC::Color to constant (1, 1, 1).");
 
-  builder
-      .add_attribute("Attribute")
-      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1").set_param("attribute", ustring("Attribute")))
+  builder.add_attribute("Attribute")
+      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1")
+                    .set_param("attribute", ustring("Attribute")))
       /* constant on the left */
       .add_node(ShaderNodeBuilder<GammaNode>(graph, "Gamma_Cx").set("Color", zero_float3()))
       .add_connection("Attribute1::Value", "Gamma_Cx::Gamma")
@@ -932,9 +933,9 @@ TEST_F(RenderGraph, constant_fold_gamma_part_1)
   CORRECT_INFO_MESSAGE(log, "Folding Gamma_Cx::Color to constant (1, 1, 1).");
   CORRECT_INFO_MESSAGE(log, "Folding Gamma_xC::Color to socket Attribute::Color.");
 
-  builder
-      .add_color_attribute("Attribute")
-      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1").set_param("attribute", ustring("Attribute")))
+  builder.add_color_attribute("Attribute")
+      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1")
+                    .set_param("attribute", ustring("Attribute")))
       /* constant on the left */
       .add_node(ShaderNodeBuilder<GammaNode>(graph, "Gamma_Cx").set("Color", one_float3()))
       .add_connection("Attribute::Value", "Gamma_Cx::Gamma")

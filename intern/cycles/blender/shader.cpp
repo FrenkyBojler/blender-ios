@@ -518,15 +518,15 @@ static ShaderNode *add_node(Scene *scene,
     AttributeNode *attr = nullptr;
     switch (b_attr_node.data_type()) {
       case BL::ShaderNodeAttribute::data_type_enum::data_type_FLOAT: {
-          attr = graph->create_node<FloatAttributeNode>();
+        attr = graph->create_node<FloatAttributeNode>();
         break;
       }
       case BL::ShaderNodeAttribute::data_type_enum::data_type_FLOAT_VECTOR: {
-          attr = graph->create_node<VectorAttributeNode>();
+        attr = graph->create_node<VectorAttributeNode>();
         break;
       }
       case BL::ShaderNodeAttribute::data_type_enum::data_type_FLOAT_COLOR: {
-          attr = graph->create_node<ColorAttributeNode>();
+        attr = graph->create_node<ColorAttributeNode>();
         break;
       }
       default:

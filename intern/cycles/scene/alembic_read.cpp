@@ -151,8 +151,8 @@ static void add_normals(const Int32ArraySamplePtr face_indices,
         return;
       }
 
-      CachedData::CachedAttribute &attr = cached_data.add_vector_attribute(ustring(normals.getName()),
-                                                                    *normals.getTimeSampling());
+      CachedData::CachedAttribute &attr = cached_data.add_vector_attribute(
+          ustring(normals.getName()), *normals.getTimeSampling());
       attr.std = ATTR_STD_VERTEX_NORMAL;
 
       const array<float3> *vertices =
@@ -187,8 +187,8 @@ static void add_normals(const Int32ArraySamplePtr face_indices,
         return;
       }
 
-      CachedData::CachedAttribute &attr = cached_data.add_vector_attribute(ustring(normals.getName()),
-                                                                    *normals.getTimeSampling());
+      CachedData::CachedAttribute &attr = cached_data.add_vector_attribute(
+          ustring(normals.getName()), *normals.getTimeSampling());
       attr.std = ATTR_STD_VERTEX_NORMAL;
 
       const array<float3> *vertices =
@@ -921,7 +921,7 @@ static void read_attribute_loop(AlembicProcedural *proc,
   }
 
   CachedData::CachedAttribute &attribute = cache.add_vector_attribute(ustring(name),
-                                                               *param.getTimeSampling());
+                                                                      *param.getTimeSampling());
 
   using abc_type = typename TRAIT::value_type;
 

@@ -6048,8 +6048,7 @@ void AttributeNode::attributes(Shader *shader, AttributeRequestSet *attributes)
     alpha_out = output("Alpha");
   }
 
-  if (!value_out->links.empty() || (alpha_out != nullptr && !alpha_out->links.empty()))
-  {
+  if (!value_out->links.empty() || (alpha_out != nullptr && !alpha_out->links.empty())) {
     attributes->add_standard(attribute);
   }
 
@@ -6081,15 +6080,20 @@ void AttributeNode::compile(SVMCompiler &compiler)
   if (!value_out->links.empty()) {
     if (dynamic_cast<const FloatAttributeNode *>(this) != nullptr) {
       compiler.add_node(attr_node, attr, compiler.stack_assign(value_out), NODE_ATTR_OUTPUT_FLOAT);
-    } else if (dynamic_cast<const VectorAttributeNode *>(this) != nullptr) {
-      compiler.add_node(attr_node, attr, compiler.stack_assign(value_out), NODE_ATTR_OUTPUT_FLOAT3);
-    } else if (dynamic_cast<const ColorAttributeNode *>(this) != nullptr) {
-      compiler.add_node(attr_node, attr, compiler.stack_assign(value_out), NODE_ATTR_OUTPUT_FLOAT3);
+    }
+    else if (dynamic_cast<const VectorAttributeNode *>(this) != nullptr) {
+      compiler.add_node(
+          attr_node, attr, compiler.stack_assign(value_out), NODE_ATTR_OUTPUT_FLOAT3);
+    }
+    else if (dynamic_cast<const ColorAttributeNode *>(this) != nullptr) {
+      compiler.add_node(
+          attr_node, attr, compiler.stack_assign(value_out), NODE_ATTR_OUTPUT_FLOAT3);
     }
   }
 
   if (alpha_out != nullptr && !alpha_out->links.empty()) {
-    compiler.add_node(attr_node, attr, compiler.stack_assign(alpha_out), NODE_ATTR_OUTPUT_FLOAT_ALPHA);
+    compiler.add_node(
+        attr_node, attr, compiler.stack_assign(alpha_out), NODE_ATTR_OUTPUT_FLOAT_ALPHA);
   }
 }
 

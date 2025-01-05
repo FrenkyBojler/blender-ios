@@ -332,11 +332,11 @@ struct CachedData {
   void clear();
 
   CachedAttribute &add_float_attribute(const ustring &name,
-                                 const Alembic::Abc::TimeSampling &time_sampling);
+                                       const Alembic::Abc::TimeSampling &time_sampling);
   CachedAttribute &add_vector_attribute(const ustring &name,
-                                 const Alembic::Abc::TimeSampling &time_sampling);
+                                        const Alembic::Abc::TimeSampling &time_sampling);
   CachedAttribute &add_color_attribute(const ustring &name,
-                                 const Alembic::Abc::TimeSampling &time_sampling);
+                                       const Alembic::Abc::TimeSampling &time_sampling);
 
   bool is_constant() const;
 
