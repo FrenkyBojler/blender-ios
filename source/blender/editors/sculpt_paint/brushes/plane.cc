@@ -378,7 +378,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
   SCULPT_tilt_apply_to_normal(plane_normal, ss.cache, brush.tilt_strength_factor);
 
   const float offset = SCULPT_brush_plane_offset_get(sd, ss);
-  const float displace = ss.cache->radius * offset;
+  const float displace = ss.cache->radius * offset * brush_flip(brush, *ss.cache);
   plane_center += plane_normal * ss.cache->scale * displace;
 
   float4x4 mat = float4x4::identity();
