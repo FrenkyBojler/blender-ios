@@ -249,7 +249,7 @@ static bool lib_id_remove_preview_poll(bContext *C)
     CTX_wm_operator_poll_msg_set(C, "No preview available to remove");
     return false;
   }
-  
+
   return true;
 }
 
@@ -259,9 +259,8 @@ static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
   ID *id = static_cast<ID *>(idptr.data);
 
   if (!id) {
-    BKE_report(op->reports,
-               RPT_ERROR,
-               "Failed to remove preview: no ID in context (incorrect context?)");
+    BKE_report(
+        op->reports, RPT_ERROR, "Failed to remove preview: no ID in context (incorrect context?)");
     return OPERATOR_CANCELLED;
   }
 
