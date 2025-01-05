@@ -2074,8 +2074,8 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
     }
   }
 
-  const float normal_weight = brush.stable_normal;
-  const float plane_weight = brush.stable_plane;
+  const float normal_weight = brush.stabilize_normal;
+  const float plane_weight = brush.stabilize_plane;
 
   float3 new_plane_normal;
   float3 new_plane_center;

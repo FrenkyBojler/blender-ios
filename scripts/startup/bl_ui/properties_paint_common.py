@@ -803,13 +803,13 @@ def brush_settings(layout, context, brush, popover=False):
         if capabilities.has_height:
             layout.prop(brush, "height", slider=True, text="Height")
 
-        # plane_depth
-        if capabilities.has_plane_depth:
-            layout.prop(brush, "plane_depth", slider=True, text="Depth")
-
         # plane_height
         if capabilities.has_plane_height:
             layout.prop(brush, "plane_height", slider=True, text="Height")
+
+        # plane_depth
+        if capabilities.has_plane_depth:
+            layout.prop(brush, "plane_depth", slider=True, text="Depth")
 
         # use_persistent, set_persistent_base
         if capabilities.has_persistence:
@@ -836,9 +836,6 @@ def brush_settings(layout, context, brush, popover=False):
 
             row = layout.row()
             row.prop(brush, "tip_scale_x")
-            
-            layout.prop(brush, "stable_normal")
-            layout.prop(brush, "stable_plane")
 
         elif sculpt_tool == 'ELASTIC_DEFORM':
             layout.separator()
@@ -896,8 +893,8 @@ def brush_settings(layout, context, brush, popover=False):
             row.prop(brush, "use_pressure_area_radius", text="")
             row = layout.row()
             layout.prop(brush, "plane_inversion_mode")
-            layout.prop(brush, "stable_normal")
-            layout.prop(brush, "stable_plane")
+            layout.prop(brush, "stabilize_normal")
+            layout.prop(brush, "stabilize_plane")
 
         elif sculpt_tool == 'GRAB':
             layout.prop(brush, "use_grab_active_vertex")
