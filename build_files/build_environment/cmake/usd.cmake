@@ -17,7 +17,6 @@ if(WIN32)
   set(USD_PLATFORM_FLAGS
     ${USD_OIIO_CMAKE_DEFINES}
     -DCMAKE_CXX_FLAGS=${USD_CXX_FLAGS}
-    -D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB
     -DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:${LIBDIR}/tbb/lib
     -DPython_FIND_REGISTRY=NEVER
     -DPython3_EXECUTABLE=${PYTHON_BINARY}
@@ -54,7 +53,6 @@ endif()
 string(REPLACE "." "_" USD_NAMESPACE "pxrBlender_v${USD_VERSION}")
 
 set(USD_EXTRA_ARGS
-  ${DEFAULT_BOOST_FLAGS}
   ${USD_PLATFORM_FLAGS}
   -DOPENSUBDIV_ROOT_DIR=${LIBDIR}/opensubdiv
   -DOpenImageIO_ROOT=${LIBDIR}/openimageio
@@ -136,13 +134,13 @@ ExternalProject_Add(external_usd
       ${PATCH_DIR}/usd_ctor.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
-      ${PATCH_DIR}/usd_3204.diff &&
+      ${PATCH_DIR}/usd_3243.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
-      ${PATCH_DIR}/usd_3243.diff  &&
+      ${PATCH_DIR}/usd_forward_compat.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
-      ${PATCH_DIR}/usd_3434.diff
+      ${PATCH_DIR}/usd_noboost.diff
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/usd
     -Wno-dev
@@ -155,7 +153,6 @@ ExternalProject_Add(external_usd
 add_dependencies(
   external_usd
   external_tbb
-  external_boost
   external_opensubdiv
   external_python
   external_openimageio

@@ -1944,7 +1944,7 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB AND WITH_MATERIALX)
   )
 endif()
 
-if(WIN32)
+if(WIN32 AND EXISTS ${BOOST_LIBPATH})
   set(BOOST_COMPONENTS atomic chrono date_time filesystem
     iostreams locale program_options regex
     serialization system thread wave wserialization

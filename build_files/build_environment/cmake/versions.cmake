@@ -92,20 +92,6 @@ Copyright (C)2009-2020 D. R. Commander. All Rights Reserved.
 Copyright (C)2015 Viktor Szathmáry. All Rights Reserved.
 ]=])
 
-set(BOOST_VERSION 1.85.0)
-set(BOOST_VERSION_SHORT 1.85)
-set(BOOST_VERSION_NODOTS 1_85_0)
-set(BOOST_VERSION_NODOTS_SHORT 1_85)
-set(BOOST_URI https://archives.boost.io/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_NODOTS}.tar.gz)
-set(BOOST_HASH 53aeccc3167909ee770e34469f8dd592)
-set(BOOST_HASH_TYPE MD5)
-set(BOOST_FILE boost_${BOOST_VERSION_NODOTS}.tar.gz)
-set(BOOST_CPE "cpe:2.3:a:boost:boost:${BOOST_VERSION}:*:*:*:*:*:*:*")
-set(BOOST_HOMEPAGE https://www.boost.org/)
-set(BOOST_NAME Boost)
-set(BOOST_LICENSE SPDX:BSL-1.0)
-set(BOOST_COPYRIGHT "The Boost license encourages both commercial and non-commercial use and does not require attribution for binary use.")
-
 set(BLOSC_VERSION 1.21.1)
 set(BLOSC_URI https://github.com/Blosc/c-blosc/archive/v${BLOSC_VERSION}.tar.gz)
 set(BLOSC_HASH 134b55813b1dca57019d2a2dc1f7a923)
@@ -301,10 +287,10 @@ set(OPENMP_URI https://github.com/llvm/llvm-project/releases/download/llvmorg-${
 set(OPENMP_HASH_TYPE MD5)
 set(OPENMP_FILE openmp-${OPENMP_VERSION}.src.tar.xz)
 
-set(OPENIMAGEIO_VERSION v2.5.11.0)
+set(OPENIMAGEIO_VERSION v3.0.3.1)
 set(OPENIMAGEIO_NAME OpenImageIO)
 set(OPENIMAGEIO_URI https://github.com/AcademySoftwareFoundation/OpenImageIO/archive/refs/tags/${OPENIMAGEIO_VERSION}.tar.gz)
-set(OPENIMAGEIO_HASH 691e9364d25e2878e042d48980fad593)
+set(OPENIMAGEIO_HASH d2d50bfe58e302c26dc7e24b86cb75fd)
 set(OPENIMAGEIO_HASH_TYPE MD5)
 set(OPENIMAGEIO_FILE OpenImageIO-${OPENIMAGEIO_VERSION}.tar.gz)
 set(OPENIMAGEIO_HOMEPAGE https://github.com/AcademySoftwareFoundation/OpenImageIO)
@@ -348,13 +334,12 @@ Copyright © 1988-1997 Sam Leffler.
 Copyright © 1991-1997 Silicon Graphics, Inc.
 ]=])
 
-# Recent commit from 1.13.5.0 under development, which includes string table
-# changes that make the Cycles OptiX implementation work. Official 1.12 OSL
-# releases should also build but without OptiX support.
-set(OSL_VERSION 1.13.7.0)
+# Latest 1.14 (beta) main, that is compatible with OIIO 3.0
+set(OSL_VERSION 1.14.3.0-beta)
+set(OSL_COMMIT "b795e3e92ae1f2c5da5024b61295b0eb41486a65")
 set(OSL_NAME "Open Shading Language")
-set(OSL_URI https://github.com/AcademySoftwareFoundation/OpenShadingLanguage/archive/refs/tags/v${OSL_VERSION}.tar.gz)
-set(OSL_HASH 769ae444a7df0e6561b3e745fd2eb50d)
+set(OSL_URI https://github.com/AcademySoftwareFoundation/OpenShadingLanguage/archive/${OSL_COMMIT}.tar.gz)
+set(OSL_HASH dbfe1a34249959f2d66296bf04317c1c)
 set(OSL_HASH_TYPE MD5)
 set(OSL_FILE OpenShadingLanguage-${OSL_VERSION}.tar.gz)
 set(OSL_HOMEPAGE https://github.com/AcademySoftwareFoundation/OpenShadingLanguage/)
@@ -809,10 +794,10 @@ set(EMBREE_HOMEPAGE https://github.com/embree/embree)
 set(EMBREE_LICENSE SPDX:Apache-2.0)
 set(EMBREE_COPYRIGHT "Copyright 2009-2020 Intel Corporation")
 
-set(USD_VERSION 24.11)
+set(USD_VERSION 25.02)
 set(USD_NAME USD)
 set(USD_URI https://github.com/PixarAnimationStudios/OpenUSD/archive/v${USD_VERSION}.tar.gz)
-set(USD_HASH f31b5a37817c5dd81be5b49ae819fc64)
+set(USD_HASH 76ee61270e67002ddb2fc76dda6a498d)
 set(USD_HASH_TYPE MD5)
 set(USD_FILE usd-v${USD_VERSION}.tar.gz)
 set(USD_HOMEPAGE https://openusd.org/)
@@ -825,10 +810,10 @@ This product includes software developed at:
 Pixar (http://www.pixar.com/).
 ]=])
 
-set(MATERIALX_VERSION 1.38.10)
+set(MATERIALX_VERSION 1.39.2)
 set(MATERIALX_NAME MaterialX)
 set(MATERIALX_URI https://github.com/AcademySoftwareFoundation/MaterialX/archive/refs/tags/v${MATERIALX_VERSION}.tar.gz)
-set(MATERIALX_HASH a25ab82be078cfc47c5237e9630615ca)
+set(MATERIALX_HASH e3e413755f525aec96c60af631753044)
 set(MATERIALX_HASH_TYPE MD5)
 set(MATERIALX_FILE materialx-v${MATERIALX_VERSION}.tar.gz)
 set(MATERIALX_HOMEPAGE https://github.com/AcademySoftwareFoundation/MaterialX)
@@ -1110,8 +1095,7 @@ set(ICDLOADER_LICENSE SPDX:Apache-2.0)
 set(ICDLOADER_COPYRIGHT " Copyright (c) 2020 The Khronos Group Inc.")
 
 # Source sycl/cmake/modules/AddBoostMp11Headers.cmake
-# Using external MP11 here, getting AddBoostMp11Headers.cmake to recognize
-# our copy in boost directly was more trouble than it was worth.
+# Using external MP11 here so we don't have to pull in all of Boost.
 set(MP11_VERSION 863d8b8d2b20f2acd0b5870f23e553df9ce90e6c)
 set(MP11_URI https://github.com/boostorg/mp11/archive/${MP11_VERSION}.tar.gz)
 set(MP11_HASH 525692267abb8086bb9cc2fe81fb96d73ac645dfa6825cb5114686aafe244e9f)

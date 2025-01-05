@@ -26,8 +26,6 @@ else()
 endif()
 
 set(OSL_EXTRA_ARGS
-  ${DEFAULT_BOOST_FLAGS}
-  -DOpenEXR_ROOT=${LIBDIR}/openexr/
   -DOpenImageIO_ROOT=${LIBDIR}/openimageio/
   -DOSL_BUILD_TESTS=OFF
   -DZLIB_LIBRARY=${LIBDIR}/zlib/lib/${ZLIB_LIBRARY}
@@ -53,6 +51,7 @@ set(OSL_EXTRA_ARGS
   -Dpybind11_ROOT=${LIBDIR}/pybind11
   -DPython_ROOT=${LIBDIR}/python
   -DPython_EXECUTABLE=${PYTHON_BINARY}
+  -DPython3_EXECUTABLE=${PYTHON_BINARY}
   -Dlibdeflate_DIR=${LIBDIR}/deflate/lib/cmake/libdeflate
 )
 
@@ -83,7 +82,6 @@ ExternalProject_Add(external_osl
 
 add_dependencies(
   external_osl
-  external_boost
   ll
   external_openexr
   external_zlib

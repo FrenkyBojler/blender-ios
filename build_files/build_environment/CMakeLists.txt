@@ -28,7 +28,6 @@ include(cmake/options.cmake)
 # `versions.cmake` needs to be included after `options.cmake`
 # due to the `BLENDER_PLATFORM_ARM` variable being needed.
 include(cmake/versions.cmake)
-include(cmake/boost_build_options.cmake)
 include(cmake/download.cmake)
 include(cmake/macros.cmake)
 # `setup_msys2.cmake` to install `perl`,
@@ -85,8 +84,6 @@ include(cmake/materialx.cmake)
 include(cmake/openvdb.cmake)
 include(cmake/potrace.cmake)
 include(cmake/haru.cmake)
-# Boost needs to be included after `python.cmake` due to the PYTHON_BINARY variable being needed.
-include(cmake/boost.cmake)
 include(cmake/pugixml.cmake)
 include(cmake/fribidi.cmake)
 include(cmake/harfbuzz.cmake)
