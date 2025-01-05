@@ -3389,8 +3389,8 @@ void shader_tree_split_attribute_node_for_data_types(bNodeTree &ntree)
   for (bNode *node : node_to_attribute_type.keys()) {
     blender::MutableSpan<eCustomDataType> used_types = node_to_attribute_type.lookup(node);
 
-    /* Color data type also requires linking of Alpha output, to avoid complication - use keep
-     * original node with Cocket data type and it original links if such data type is needed. */
+    /* Color data type also requires linking of Alpha output, to avoid complication - keep
+     * original node with Color data type and it original links if such data type is needed. */
     if (const int color_i = used_types.as_span().first_index_try(CD_PROP_COLOR); color_i != -1) {
       std::swap(used_types.first(), used_types[color_i]);
     }
