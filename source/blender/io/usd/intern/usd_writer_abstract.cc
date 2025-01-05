@@ -195,14 +195,28 @@ const pxr::SdfPath &USDAbstractWriter::usd_path() const
   return usd_export_context_.usd_path;
 }
 
-pxr::SdfPath USDAbstractWriter::get_material_library_path() const
+pxr::SdfPath USDAbstractWriter::get_material_library_path(const HierarchyContext& context) const
 {
   static std::string material_library_path("/_materials");
+
+  std::string path_prefix;
 
   const char *root_prim_path = usd_export_context_.export_params.root_prim_path;
 
   if (root_prim_path[0] != '\0') {
-    return pxr::SdfPath(root_prim_path + material_library_path);
+    path_prefix = root_prim_path;
+  }
+
+  /*
+   * For instance prototypes, create the material beneath the prototype prim.
+   * If the context has a duplicator, we know the object is a prototype.
+   */
+  if (context.duplicator && usd_export_context_.export_params.use_instancing) {
+    path_prefix += context.higher_up_export_path;
+  }
+
+  if (!path_prefix.empty()) {
+    return pxr::SdfPath(path_prefix + material_library_path);
   }
 
   return pxr::SdfPath(material_library_path);
@@ -216,7 +230,7 @@ pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(const HierarchyCont
   /* Construct the material. */
   pxr::TfToken material_name(
       make_safe_name(material->id.name + 2, usd_export_context_.export_params.allow_unicode));
-  pxr::SdfPath usd_path = pxr::UsdGeomScope::Define(stage, get_material_library_path())
+  pxr::SdfPath usd_path = pxr::UsdGeomScope::Define(stage, get_material_library_path(context))
                               .GetPath()
                               .AppendChild(material_name);
   pxr::UsdShadeMaterial usd_material = pxr::UsdShadeMaterial::Get(stage, usd_path);
