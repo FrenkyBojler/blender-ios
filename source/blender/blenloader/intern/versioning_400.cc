@@ -5398,19 +5398,24 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_FLATTEN) {
           brush->plane_height = 1.0f;
           brush->plane_depth = 1.0f;
+          brush->area_radius_factor = 1.0f;
           brush->plane_inversion_mode = BRUSH_PLANE_INVERT_DISPLACEMENT;
         }
 
         if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_FILL) {
           brush->plane_height = 0.0f;
           brush->plane_depth = 1.0f;
-          brush->plane_inversion_mode = BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH;
+          brush->plane_inversion_mode = brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL ?
+                                            BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH :
+                                            BRUSH_PLANE_INVERT_DISPLACEMENT;
         }
 
         if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_SCRAPE) {
           brush->plane_height = 1.0f;
           brush->plane_depth = 0.0f;
-          brush->plane_inversion_mode = BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH;
+          brush->plane_inversion_mode = brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL ?
+                                            BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH :
+                                            BRUSH_PLANE_INVERT_DISPLACEMENT;
         }
 
         if (brush->flag & BRUSH_PLANE_TRIM) {
