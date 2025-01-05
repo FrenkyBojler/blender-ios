@@ -3152,8 +3152,8 @@ static void mesh_data_to_grease_pencil(Object &newob,
 
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
-  const int face_mat_index = 1;
-  const int stroke_mat_index = 0;
+  constexpr int face_mat_index = 1;
+  constexpr int stroke_mat_index = 0;
 
   /* Fill faces first, so this way strokes can draw on top of the filled faces. */
   const int total_fills = total_curves - edge_num;
