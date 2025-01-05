@@ -250,7 +250,7 @@ static bool lib_id_remove_custom_preview_poll(bContext *C)
     return false;
   }
 
-  if (!(preview->flag[ICON_SIZE_PREVIEW] & PRV_USER_EDITED)) {
+  if (!PRV_USER_EDITED) {
     CTX_wm_operator_poll_msg_set(C, "No custom preview image available to remove");
     return false;
   }
