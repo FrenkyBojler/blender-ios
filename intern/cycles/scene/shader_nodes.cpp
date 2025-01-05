@@ -4776,30 +4776,30 @@ void VolumeInfoNode::expand(ShaderGraph *graph)
 {
   ShaderOutput *color_out = output("Color");
   if (!color_out->links.empty()) {
-    AttributeNode *attr = graph->create_node<AttributeNode>();
+    ColorAttributeNode *attr = graph->create_node<ColorAttributeNode>();
     attr->set_attribute(ustring("color"));
-    graph->relink(color_out, attr->output("Color"));
+    graph->relink(color_out, attr->output("Value"));
   }
 
   ShaderOutput *density_out = output("Density");
   if (!density_out->links.empty()) {
-    AttributeNode *attr = graph->create_node<AttributeNode>();
+    FloatAttributeNode *attr = graph->create_node<FloatAttributeNode>();
     attr->set_attribute(ustring("density"));
-    graph->relink(density_out, attr->output("Fac"));
+    graph->relink(density_out, attr->output("Value"));
   }
 
   ShaderOutput *flame_out = output("Flame");
   if (!flame_out->links.empty()) {
-    AttributeNode *attr = graph->create_node<AttributeNode>();
+    FloatAttributeNode *attr = graph->create_node<FloatAttributeNode>();
     attr->set_attribute(ustring("flame"));
-    graph->relink(flame_out, attr->output("Fac"));
+    graph->relink(flame_out, attr->output("Value"));
   }
 
   ShaderOutput *temperature_out = output("Temperature");
   if (!temperature_out->links.empty()) {
-    AttributeNode *attr = graph->create_node<AttributeNode>();
+    FloatAttributeNode *attr = graph->create_node<FloatAttributeNode>();
     attr->set_attribute(ustring("temperature"));
-    graph->relink(temperature_out, attr->output("Fac"));
+    graph->relink(temperature_out, attr->output("Value"));
   }
 }
 
@@ -5998,31 +5998,57 @@ void HSVNode::compile(OSLCompiler &compiler)
 
 /* Attribute */
 
-NODE_DEFINE(AttributeNode)
+NODE_DEFINE(FloatAttributeNode)
 {
-  NodeType *type = NodeType::add("attribute", create, NodeType::SHADER);
+  NodeType *type = NodeType::add("float attribute", create, NodeType::SHADER);
 
   SOCKET_STRING(attribute, "Attribute", ustring());
 
-  SOCKET_OUT_COLOR(color, "Color");
-  SOCKET_OUT_VECTOR(vector, "Vector");
-  SOCKET_OUT_FLOAT(fac, "Fac");
+  SOCKET_OUT_FLOAT(fac, "Value");
+
+  return type;
+}
+
+FloatAttributeNode::FloatAttributeNode() : AttributeNode(get_node_type()) {}
+
+NODE_DEFINE(VectorAttributeNode)
+{
+  NodeType *type = NodeType::add("vector attribute", create, NodeType::SHADER);
+
+  SOCKET_STRING(attribute, "Attribute", ustring());
+
+  SOCKET_OUT_VECTOR(vector, "Value");
+
+  return type;
+}
+
+VectorAttributeNode::VectorAttributeNode() : AttributeNode(get_node_type()) {}
+
+NODE_DEFINE(ColorAttributeNode)
+{
+  NodeType *type = NodeType::add("color attribute", create, NodeType::SHADER);
+
+  SOCKET_STRING(attribute, "Attribute", ustring());
+
+  SOCKET_OUT_COLOR(color, "Value");
   SOCKET_OUT_FLOAT(alpha, "Alpha");
 
   return type;
 }
 
-AttributeNode::AttributeNode() : ShaderNode(get_node_type()) {}
+ColorAttributeNode::ColorAttributeNode() : AttributeNode(get_node_type()) {}
+
+AttributeNode::AttributeNode(const NodeType *node_type) : ShaderNode(node_type) {}
 
 void AttributeNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-  ShaderOutput *color_out = output("Color");
-  ShaderOutput *vector_out = output("Vector");
-  ShaderOutput *fac_out = output("Fac");
-  ShaderOutput *alpha_out = output("Alpha");
+  ShaderOutput *value_out = output("Value");
+  ShaderOutput *alpha_out = nullptr;
+  if (dynamic_cast<const ColorAttributeNode *>(this) != nullptr) {
+    alpha_out = output("Alpha");
+  }
 
-  if (!color_out->links.empty() || !vector_out->links.empty() || !fac_out->links.empty() ||
-      !alpha_out->links.empty())
+  if (!value_out->links.empty() || (alpha_out != nullptr && !alpha_out->links.empty()))
   {
     attributes->add_standard(attribute);
   }
@@ -6036,10 +6062,12 @@ void AttributeNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 
 void AttributeNode::compile(SVMCompiler &compiler)
 {
-  ShaderOutput *color_out = output("Color");
-  ShaderOutput *vector_out = output("Vector");
-  ShaderOutput *fac_out = output("Fac");
-  ShaderOutput *alpha_out = output("Alpha");
+  ShaderOutput *value_out = output("Value");
+  ShaderOutput *alpha_out = nullptr;
+  if (dynamic_cast<const ColorAttributeNode *>(this) != nullptr) {
+    alpha_out = output("Alpha");
+  }
+
   ShaderNodeType attr_node = NODE_ATTR;
   const int attr = compiler.attribute_standard(attribute);
 
@@ -6050,24 +6078,18 @@ void AttributeNode::compile(SVMCompiler &compiler)
     attr_node = NODE_ATTR_BUMP_DY;
   }
 
-  if (!color_out->links.empty() || !vector_out->links.empty()) {
-    if (!color_out->links.empty()) {
-      compiler.add_node(
-          attr_node, attr, compiler.stack_assign(color_out), NODE_ATTR_OUTPUT_FLOAT3);
-    }
-    if (!vector_out->links.empty()) {
-      compiler.add_node(
-          attr_node, attr, compiler.stack_assign(vector_out), NODE_ATTR_OUTPUT_FLOAT3);
+  if (!value_out->links.empty()) {
+    if (dynamic_cast<const FloatAttributeNode *>(this) != nullptr) {
+      compiler.add_node(attr_node, attr, compiler.stack_assign(value_out), NODE_ATTR_OUTPUT_FLOAT);
+    } else if (dynamic_cast<const VectorAttributeNode *>(this) != nullptr) {
+      compiler.add_node(attr_node, attr, compiler.stack_assign(value_out), NODE_ATTR_OUTPUT_FLOAT3);
+    } else if (dynamic_cast<const ColorAttributeNode *>(this) != nullptr) {
+      compiler.add_node(attr_node, attr, compiler.stack_assign(value_out), NODE_ATTR_OUTPUT_FLOAT3);
     }
   }
 
-  if (!fac_out->links.empty()) {
-    compiler.add_node(attr_node, attr, compiler.stack_assign(fac_out), NODE_ATTR_OUTPUT_FLOAT);
-  }
-
-  if (!alpha_out->links.empty()) {
-    compiler.add_node(
-        attr_node, attr, compiler.stack_assign(alpha_out), NODE_ATTR_OUTPUT_FLOAT_ALPHA);
+  if (alpha_out != nullptr && !alpha_out->links.empty()) {
+    compiler.add_node(attr_node, attr, compiler.stack_assign(alpha_out), NODE_ATTR_OUTPUT_FLOAT_ALPHA);
   }
 }
 

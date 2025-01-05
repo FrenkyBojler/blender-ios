@@ -1294,7 +1294,8 @@ class HSVNode : public ShaderNode {
 
 class AttributeNode : public ShaderNode {
  public:
-  SHADER_NODE_CLASS(AttributeNode)
+  explicit AttributeNode(const NodeType *node_type);
+  SHADER_NODE_BASE_CLASS(AttributeNode)
   void attributes(Shader *shader, AttributeRequestSet *attributes) override;
   bool has_attribute_dependency() override
   {
@@ -1306,6 +1307,24 @@ class AttributeNode : public ShaderNode {
   }
 
   NODE_SOCKET_API(ustring, attribute)
+};
+
+class FloatAttributeNode : public AttributeNode {
+ public:
+  NODE_DECLARE
+  FloatAttributeNode();
+};
+
+class VectorAttributeNode : public AttributeNode {
+ public:
+  NODE_DECLARE
+  VectorAttributeNode();
+};
+
+class ColorAttributeNode : public AttributeNode {
+ public:
+  NODE_DECLARE
+  ColorAttributeNode();
 };
 
 class CameraNode : public ShaderNode {

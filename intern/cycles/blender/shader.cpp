@@ -515,7 +515,24 @@ static ShaderNode *add_node(Scene *scene,
   }
   else if (b_node.is_a(&RNA_ShaderNodeAttribute)) {
     BL::ShaderNodeAttribute b_attr_node(b_node);
-    AttributeNode *attr = graph->create_node<AttributeNode>();
+    AttributeNode *attr = nullptr;
+    switch (b_attr_node.data_type()) {
+      case BL::ShaderNodeAttribute::data_type_enum::data_type_FLOAT: {
+          attr = graph->create_node<FloatAttributeNode>();
+        break;
+      }
+      case BL::ShaderNodeAttribute::data_type_enum::data_type_FLOAT_VECTOR: {
+          attr = graph->create_node<VectorAttributeNode>();
+        break;
+      }
+      case BL::ShaderNodeAttribute::data_type_enum::data_type_FLOAT_COLOR: {
+          attr = graph->create_node<ColorAttributeNode>();
+        break;
+      }
+      default:
+        assert(0);
+    }
+
     attr->set_attribute(blender_attribute_name_add_type(b_attr_node.attribute_name(),
                                                         b_attr_node.attribute_type()));
     node = attr;
@@ -1475,7 +1492,7 @@ void BlenderSync::resolve_view_layer_attributes(Shader *shader,
   bool updated = false;
 
   for (ShaderNode *node : graph->nodes) {
-    if (node->is_a(AttributeNode::node_type)) {
+    if (node->is_a(FloatAttributeNode::node_type)) {
       AttributeNode *attr_node = static_cast<AttributeNode *>(node);
 
       std::string real_name;

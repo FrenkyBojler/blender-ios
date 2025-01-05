@@ -544,10 +544,10 @@ void HdCyclesMaterial::PopulateShaderGraph(const HdMaterialNetwork2 &networkMap)
     OutputAOVNode *aovNode = graph->create_node<OutputAOVNode>();
     aovNode->set_name(instanceId);
 
-    AttributeNode *instanceIdNode = graph->create_node<AttributeNode>();
+    AttributeNode *instanceIdNode = graph->create_node<FloatAttributeNode>();
     instanceIdNode->set_attribute(instanceId);
 
-    graph->connect(instanceIdNode->output("Fac"), aovNode->input("Value"));
+    graph->connect(instanceIdNode->output("Value"), aovNode->input("Value"));
   }
 
   _shader->set_graph(std::move(graph));

@@ -111,10 +111,22 @@ class ShaderGraphBuilder {
   }
 
   /* Common input/output boilerplate. */
-  ShaderGraphBuilder &add_attribute(const string &name)
+  ShaderGraphBuilder &add_float_attribute(const string &name)
   {
     return (*this).add_node(
-        ShaderNodeBuilder<AttributeNode>(*graph_, name).set_param("attribute", ustring(name)));
+        ShaderNodeBuilder<FloatAttributeNode>(*graph_, name).set_param("attribute", ustring(name)));
+  }
+
+  ShaderGraphBuilder &add_vector_attribute(const string &name)
+  {
+    return (*this).add_node(
+        ShaderNodeBuilder<VectorAttributeNode>(*graph_, name).set_param("attribute", ustring(name)));
+  }
+
+  ShaderGraphBuilder &add_color_attribute(const string &name)
+  {
+    return (*this).add_node(
+        ShaderNodeBuilder<ColorAttributeNode>(*graph_, name).set_param("attribute", ustring(name)));
   }
 
   ShaderGraphBuilder &output_closure(const string &from)
@@ -341,7 +353,7 @@ TEST_F(RenderGraph, constant_fold_shader_mix)
   CORRECT_INFO_MESSAGE(log, "Folding MixClosure2::Closure to socket Diffuse::BSDF.");
   CORRECT_INFO_MESSAGE(log, "Folding MixClosure3::Closure to socket Diffuse::BSDF.");
 
-  builder.add_attribute("Attribute")
+  builder.add_float_attribute("Attribute")
       .add_node(ShaderNodeBuilder<DiffuseBsdfNode>(graph, "Diffuse"))
       /* choose left */
       .add_node(ShaderNodeBuilder<MixClosureNode>(graph, "MixClosure1").set("Fac", 0.0f))
@@ -351,7 +363,7 @@ TEST_F(RenderGraph, constant_fold_shader_mix)
       .add_connection("Diffuse::BSDF", "MixClosure2::Closure2")
       /* both inputs folded the same */
       .add_node(ShaderNodeBuilder<MixClosureNode>(graph, "MixClosure3"))
-      .add_connection("Attribute::Fac", "MixClosure3::Fac")
+      .add_connection("Attribute::Value", "MixClosure3::Fac")
       .add_connection("MixClosure1::Closure", "MixClosure3::Closure1")
       .add_connection("MixClosure2::Closure", "MixClosure3::Closure2")
       .output_closure("MixClosure3::Closure");
@@ -386,9 +398,9 @@ TEST_F(RenderGraph, constant_fold_invert_fac_0)
   EXPECT_ANY_MESSAGE(log);
   CORRECT_INFO_MESSAGE(log, "Folding Invert::Color to socket Attribute::Color.");
 
-  builder.add_attribute("Attribute")
+  builder.add_color_attribute("Attribute")
       .add_node(ShaderNodeBuilder<InvertNode>(graph, "Invert").set("Fac", 0.0f))
-      .add_connection("Attribute::Color", "Invert::Color")
+      .add_connection("Attribute::Value", "Invert::Color")
       .output_color("Invert::Color");
 
   graph.finalize(scene.get());
@@ -463,14 +475,14 @@ TEST_F(RenderGraph, constant_fold_part_mix_dodge_no_fac_0)
   EXPECT_ANY_MESSAGE(log);
   INVALID_INFO_MESSAGE(log, "Folding ");
 
-  builder.add_attribute("Attribute1")
-      .add_attribute("Attribute2")
+  builder.add_color_attribute("Attribute1")
+      .add_color_attribute("Attribute2")
       .add_node(ShaderNodeBuilder<MixNode>(graph, "Mix")
                     .set_param("mix_type", NODE_MIX_DODGE)
                     .set_param("use_clamp", false)
                     .set("Fac", 0.0f))
-      .add_connection("Attribute1::Color", "Mix::Color1")
-      .add_connection("Attribute2::Color", "Mix::Color2")
+      .add_connection("Attribute1::Value", "Mix::Color1")
+      .add_connection("Attribute2::Value", "Mix::Color2")
       .output_color("Mix::Color");
 
   graph.finalize(scene.get());
@@ -485,14 +497,14 @@ TEST_F(RenderGraph, constant_fold_part_mix_light_no_fac_0)
   EXPECT_ANY_MESSAGE(log);
   INVALID_INFO_MESSAGE(log, "Folding ");
 
-  builder.add_attribute("Attribute1")
-      .add_attribute("Attribute2")
+  builder.add_color_attribute("Attribute1")
+      .add_color_attribute("Attribute2")
       .add_node(ShaderNodeBuilder<MixNode>(graph, "Mix")
                     .set_param("mix_type", NODE_MIX_LIGHT)
                     .set_param("use_clamp", false)
                     .set("Fac", 0.0f))
-      .add_connection("Attribute1::Color", "Mix::Color1")
-      .add_connection("Attribute2::Color", "Mix::Color2")
+      .add_connection("Attribute1::Value", "Mix::Color1")
+      .add_connection("Attribute2::Value", "Mix::Color2")
       .output_color("Mix::Color");
 
   graph.finalize(scene.get());
@@ -507,14 +519,14 @@ TEST_F(RenderGraph, constant_fold_part_mix_burn_no_fac_0)
   EXPECT_ANY_MESSAGE(log);
   INVALID_INFO_MESSAGE(log, "Folding ");
 
-  builder.add_attribute("Attribute1")
-      .add_attribute("Attribute2")
+  builder.add_color_attribute("Attribute1")
+      .add_color_attribute("Attribute2")
       .add_node(ShaderNodeBuilder<MixNode>(graph, "Mix")
                     .set_param("mix_type", NODE_MIX_BURN)
                     .set_param("use_clamp", false)
                     .set("Fac", 0.0f))
-      .add_connection("Attribute1::Color", "Mix::Color1")
-      .add_connection("Attribute2::Color", "Mix::Color2")
+      .add_connection("Attribute1::Value", "Mix::Color1")
+      .add_connection("Attribute2::Value", "Mix::Color2")
       .output_color("Mix::Color");
 
   graph.finalize(scene.get());
@@ -529,14 +541,14 @@ TEST_F(RenderGraph, constant_fold_part_mix_blend_clamped_no_fac_0)
   EXPECT_ANY_MESSAGE(log);
   INVALID_INFO_MESSAGE(log, "Folding ");
 
-  builder.add_attribute("Attribute1")
-      .add_attribute("Attribute2")
+  builder.add_color_attribute("Attribute1")
+      .add_color_attribute("Attribute2")
       .add_node(ShaderNodeBuilder<MixNode>(graph, "Mix")
                     .set_param("mix_type", NODE_MIX_BLEND)
                     .set_param("use_clamp", true)
                     .set("Fac", 0.0f))
-      .add_connection("Attribute1::Color", "Mix::Color1")
-      .add_connection("Attribute2::Color", "Mix::Color2")
+      .add_connection("Attribute1::Value", "Mix::Color1")
+      .add_connection("Attribute2::Value", "Mix::Color2")
       .output_color("Mix::Color");
 
   graph.finalize(scene.get());
@@ -554,27 +566,28 @@ TEST_F(RenderGraph, constant_fold_part_mix_blend)
   CORRECT_INFO_MESSAGE(log, "Folding MixBlend2::Color to socket Attribute1::Color.");
   CORRECT_INFO_MESSAGE(log, "Folding MixBlend3::Color to socket Attribute1::Color.");
 
-  builder.add_attribute("Attribute1")
-      .add_attribute("Attribute2")
+  builder.add_color_attribute("Attribute1")
+      .add_color_attribute("Attribute2")
+      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute3").set_param("attribute", ustring("Attribute1")))
       /* choose left */
       .add_node(ShaderNodeBuilder<MixNode>(graph, "MixBlend1")
                     .set_param("mix_type", NODE_MIX_BLEND)
                     .set_param("use_clamp", false)
                     .set("Fac", 0.0f))
-      .add_connection("Attribute1::Color", "MixBlend1::Color1")
-      .add_connection("Attribute2::Color", "MixBlend1::Color2")
+      .add_connection("Attribute1::Value", "MixBlend1::Color1")
+      .add_connection("Attribute2::Value", "MixBlend1::Color2")
       /* choose right */
       .add_node(ShaderNodeBuilder<MixNode>(graph, "MixBlend2")
                     .set_param("mix_type", NODE_MIX_BLEND)
                     .set_param("use_clamp", false)
                     .set("Fac", 1.0f))
-      .add_connection("Attribute1::Color", "MixBlend2::Color2")
-      .add_connection("Attribute2::Color", "MixBlend2::Color1")
+      .add_connection("Attribute1::Value", "MixBlend2::Color2")
+      .add_connection("Attribute2::Value", "MixBlend2::Color1")
       /* both inputs folded to Attribute1 */
       .add_node(ShaderNodeBuilder<MixNode>(graph, "MixBlend3")
                     .set_param("mix_type", NODE_MIX_BLEND)
                     .set_param("use_clamp", false))
-      .add_connection("Attribute1::Fac", "MixBlend3::Fac")
+      .add_connection("Attribute3::Value", "MixBlend3::Fac")
       .add_connection("MixBlend1::Color", "MixBlend3::Color1")
       .add_connection("MixBlend2::Color", "MixBlend3::Color2")
       .output_color("MixBlend3::Color");
@@ -591,13 +604,13 @@ TEST_F(RenderGraph, constant_fold_part_mix_sub_same_fac_bad)
   EXPECT_ANY_MESSAGE(log);
   INVALID_INFO_MESSAGE(log, "Folding Mix::");
 
-  builder.add_attribute("Attribute")
+  builder.add_color_attribute("Attribute")
       .add_node(ShaderNodeBuilder<MixNode>(graph, "Mix")
                     .set_param("mix_type", NODE_MIX_SUB)
                     .set_param("use_clamp", true)
                     .set("Fac", 0.5f))
-      .add_connection("Attribute::Color", "Mix::Color1")
-      .add_connection("Attribute::Color", "Mix::Color2")
+      .add_connection("Attribute::Value", "Mix::Color1")
+      .add_connection("Attribute::Value", "Mix::Color2")
       .output_color("Mix::Color");
 
   graph.finalize(scene.get());
@@ -612,13 +625,13 @@ TEST_F(RenderGraph, constant_fold_part_mix_sub_same_fac_1)
   EXPECT_ANY_MESSAGE(log);
   CORRECT_INFO_MESSAGE(log, "Folding Mix::Color to constant (0, 0, 0).");
 
-  builder.add_attribute("Attribute")
+  builder.add_color_attribute("Attribute")
       .add_node(ShaderNodeBuilder<MixNode>(graph, "Mix")
                     .set_param("mix_type", NODE_MIX_SUB)
                     .set_param("use_clamp", true)
                     .set("Fac", 1.0f))
-      .add_connection("Attribute::Color", "Mix::Color1")
-      .add_connection("Attribute::Color", "Mix::Color2")
+      .add_connection("Attribute::Value", "Mix::Color1")
+      .add_connection("Attribute::Value", "Mix::Color2")
       .output_color("Mix::Color");
 
   graph.finalize(scene.get());
@@ -633,7 +646,8 @@ static void build_mix_partial_test_graph(ShaderGraphBuilder &builder,
                                          const float3 constval)
 {
   builder
-      .add_attribute("Attribute")
+      .add_color_attribute("Attribute")
+      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1").set_param("attribute", ustring("Attribute")))
       /* constant on the left */
       .add_node(ShaderNodeBuilder<MixNode>(builder.graph(), "Mix_Cx_Fx")
                     .set_param("mix_type", type)
@@ -644,9 +658,9 @@ static void build_mix_partial_test_graph(ShaderGraphBuilder &builder,
                     .set_param("use_clamp", false)
                     .set("Color1", constval)
                     .set("Fac", 1.0f))
-      .add_connection("Attribute::Fac", "Mix_Cx_Fx::Fac")
-      .add_connection("Attribute::Color", "Mix_Cx_Fx::Color2")
-      .add_connection("Attribute::Color", "Mix_Cx_F1::Color2")
+      .add_connection("Attribute1::Value", "Mix_Cx_Fx::Fac")
+      .add_connection("Attribute::Value", "Mix_Cx_Fx::Color2")
+      .add_connection("Attribute::Value", "Mix_Cx_F1::Color2")
       /* constant on the right */
       .add_node(ShaderNodeBuilder<MixNode>(builder.graph(), "Mix_xC_Fx")
                     .set_param("mix_type", type)
@@ -657,9 +671,9 @@ static void build_mix_partial_test_graph(ShaderGraphBuilder &builder,
                     .set_param("use_clamp", false)
                     .set("Color2", constval)
                     .set("Fac", 1.0f))
-      .add_connection("Attribute::Fac", "Mix_xC_Fx::Fac")
-      .add_connection("Attribute::Color", "Mix_xC_Fx::Color1")
-      .add_connection("Attribute::Color", "Mix_xC_F1::Color1")
+      .add_connection("Attribute1::Value", "Mix_xC_Fx::Fac")
+      .add_connection("Attribute::Value", "Mix_xC_Fx::Color1")
+      .add_connection("Attribute::Value", "Mix_xC_F1::Color1")
       /* results of actual tests simply added up to connect to output */
       .add_node(ShaderNodeBuilder<MixNode>(builder.graph(), "Out12")
                     .set_param("mix_type", NODE_MIX_ADD)
@@ -890,12 +904,13 @@ TEST_F(RenderGraph, constant_fold_gamma_part_0)
 
   builder
       .add_attribute("Attribute")
+      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1").set_param("attribute", ustring("Attribute")))
       /* constant on the left */
       .add_node(ShaderNodeBuilder<GammaNode>(graph, "Gamma_Cx").set("Color", zero_float3()))
-      .add_connection("Attribute::Fac", "Gamma_Cx::Gamma")
+      .add_connection("Attribute1::Value", "Gamma_Cx::Gamma")
       /* constant on the right */
       .add_node(ShaderNodeBuilder<GammaNode>(graph, "Gamma_xC").set("Gamma", 0.0f))
-      .add_connection("Attribute::Color", "Gamma_xC::Color")
+      .add_connection("Attribute::Value", "Gamma_xC::Color")
       /* output sum */
       .add_node(ShaderNodeBuilder<MixNode>(graph, "Out")
                     .set_param("mix_type", NODE_MIX_ADD)
@@ -918,13 +933,14 @@ TEST_F(RenderGraph, constant_fold_gamma_part_1)
   CORRECT_INFO_MESSAGE(log, "Folding Gamma_xC::Color to socket Attribute::Color.");
 
   builder
-      .add_attribute("Attribute")
+      .add_color_attribute("Attribute")
+      .add_node(ShaderNodeBuilder<FloatAttributeNode>(*graph_, "Attribute1").set_param("attribute", ustring("Attribute")))
       /* constant on the left */
       .add_node(ShaderNodeBuilder<GammaNode>(graph, "Gamma_Cx").set("Color", one_float3()))
-      .add_connection("Attribute::Fac", "Gamma_Cx::Gamma")
+      .add_connection("Attribute::Value", "Gamma_Cx::Gamma")
       /* constant on the right */
       .add_node(ShaderNodeBuilder<GammaNode>(graph, "Gamma_xC").set("Gamma", 1.0f))
-      .add_connection("Attribute::Color", "Gamma_xC::Color")
+      .add_connection("Attribute::Value", "Gamma_xC::Color")
       /* output sum */
       .add_node(ShaderNodeBuilder<MixNode>(graph, "Out")
                     .set_param("mix_type", NODE_MIX_ADD)
@@ -1024,19 +1040,19 @@ static void build_math_partial_test_graph(ShaderGraphBuilder &builder,
                                           const float constval)
 {
   builder
-      .add_attribute("Attribute")
+      .add_float_attribute("Attribute")
       /* constant on the left */
       .add_node(ShaderNodeBuilder<MathNode>(builder.graph(), "Math_Cx")
                     .set_param("math_type", type)
                     .set_param("use_clamp", false)
                     .set("Value1", constval))
-      .add_connection("Attribute::Fac", "Math_Cx::Value2")
+      .add_connection("Attribute::Value", "Math_Cx::Value2")
       /* constant on the right */
       .add_node(ShaderNodeBuilder<MathNode>(builder.graph(), "Math_xC")
                     .set_param("math_type", type)
                     .set_param("use_clamp", false)
                     .set("Value2", constval))
-      .add_connection("Attribute::Fac", "Math_xC::Value1")
+      .add_connection("Attribute::Value", "Math_xC::Value1")
       /* output sum */
       .add_node(ShaderNodeBuilder<MathNode>(builder.graph(), "Out")
                     .set_param("math_type", NODE_MATH_ADD)
@@ -1194,17 +1210,17 @@ static void build_vecmath_partial_test_graph(ShaderGraphBuilder &builder,
                                              const float3 constval)
 {
   builder
-      .add_attribute("Attribute")
+      .add_vector_attribute("Attribute")
       /* constant on the left */
       .add_node(ShaderNodeBuilder<VectorMathNode>(builder.graph(), "Math_Cx")
                     .set_param("math_type", type)
                     .set("Vector1", constval))
-      .add_connection("Attribute::Vector", "Math_Cx::Vector2")
+      .add_connection("Attribute::Value", "Math_Cx::Vector2")
       /* constant on the right */
       .add_node(ShaderNodeBuilder<VectorMathNode>(builder.graph(), "Math_xC")
                     .set_param("math_type", type)
                     .set("Vector2", constval))
-      .add_connection("Attribute::Vector", "Math_xC::Vector1")
+      .add_connection("Attribute::Value", "Math_xC::Vector1")
       /* output sum */
       .add_node(ShaderNodeBuilder<VectorMathNode>(builder.graph(), "Out")
                     .set_param("math_type", NODE_VECTOR_MATH_ADD))
@@ -1333,13 +1349,13 @@ TEST_F(RenderGraph, constant_fold_rgb_curves_fac_0)
   array<float3> curve;
   init_test_curve(curve, make_float3(0.0f, 0.25f, 1.0f), make_float3(1.0f, 0.75f, 0.0f), 257);
 
-  builder.add_attribute("Attribute")
+  builder.add_color_attribute("Attribute")
       .add_node(ShaderNodeBuilder<RGBCurvesNode>(graph, "Curves")
                     .set_param("curves", curve)
                     .set_param("min_x", 0.1f)
                     .set_param("max_x", 0.9f)
                     .set("Fac", 0.0f))
-      .add_connection("Attribute::Color", "Curves::Color")
+      .add_connection("Attribute::Value", "Curves::Color")
       .output_color("Curves::Color");
 
   graph.finalize(scene.get());
@@ -1405,13 +1421,13 @@ TEST_F(RenderGraph, constant_fold_vector_curves_fac_0)
   array<float3> curve;
   init_test_curve(curve, make_float3(0.0f, 0.25f, 1.0f), make_float3(1.0f, 0.75f, 0.0f), 257);
 
-  builder.add_attribute("Attribute")
+  builder.add_vector_attribute("Attribute")
       .add_node(ShaderNodeBuilder<VectorCurvesNode>(graph, "Curves")
                     .set_param("curves", curve)
                     .set_param("min_x", 0.1f)
                     .set_param("max_x", 0.9f)
                     .set("Fac", 0.0f))
-      .add_connection("Attribute::Vector", "Curves::Vector")
+      .add_connection("Attribute::Value", "Curves::Vector")
       .output_color("Curves::Vector");
 
   graph.finalize(scene.get());
@@ -1487,9 +1503,9 @@ TEST_F(RenderGraph, constant_fold_convert_float_color_float)
   CORRECT_INFO_MESSAGE(log,
                        "Folding convert_color_to_float::value_float to socket Attribute::Fac.");
 
-  builder.add_attribute("Attribute")
+  builder.add_float_attribute("Attribute")
       .add_node(ShaderNodeBuilder<InvertNode>(graph, "Invert").set("Fac", 0.0f))
-      .add_connection("Attribute::Fac", "Invert::Color")
+      .add_connection("Attribute::Value", "Invert::Color")
       .output_value("Invert::Color");
 
   graph.finalize(scene.get());
@@ -1507,11 +1523,11 @@ TEST_F(RenderGraph, constant_fold_convert_color_vector_color)
   CORRECT_INFO_MESSAGE(log,
                        "Folding convert_vector_to_color::value_color to socket Attribute::Color.");
 
-  builder.add_attribute("Attribute")
+  builder.add_color_attribute("Attribute")
       .add_node(ShaderNodeBuilder<VectorMathNode>(graph, "VecAdd")
                     .set_param("math_type", NODE_VECTOR_MATH_ADD)
                     .set("Vector2", make_float3(0, 0, 0)))
-      .add_connection("Attribute::Color", "VecAdd::Vector1")
+      .add_connection("Attribute::Value", "VecAdd::Vector1")
       .output_color("VecAdd::Vector");
 
   graph.finalize(scene.get());
@@ -1528,11 +1544,11 @@ TEST_F(RenderGraph, constant_fold_convert_color_float_color)
                        "Folding MathAdd::Value to socket convert_color_to_float::value_float.");
   INVALID_INFO_MESSAGE(log, "Folding convert_float_to_color::");
 
-  builder.add_attribute("Attribute")
+  builder.add_color_attribute("Attribute")
       .add_node(ShaderNodeBuilder<MathNode>(graph, "MathAdd")
                     .set_param("math_type", NODE_MATH_ADD)
                     .set("Value2", 0.0f))
-      .add_connection("Attribute::Color", "MathAdd::Value1")
+      .add_connection("Attribute::Value", "MathAdd::Value1")
       .output_color("MathAdd::Value");
 
   graph.finalize(scene.get());
