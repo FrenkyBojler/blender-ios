@@ -2281,32 +2281,6 @@ class WM_OT_owner_disable(Operator):
         owner_id = workspace.owner_ids[self.owner_id]
         workspace.owner_ids.remove(owner_id)
         return {'FINISHED'}
-    
-
-class WM_OT_owner_set_all(Operator):
-    """Set the value of all add-ons"""
-    bl_idname = "wm.owner_set_all"
-    bl_label = "Set All Add-ons"
-    
-    mode: StringProperty(
-        name="Mode",
-    )
-
-    def execute(self, context):
-        workspace = context.workspace
-        from bl_ui.properties_workspace import WORKSPACE_PT_addons
-        
-        for addon in context.preferences.addons:
-            id = addon.module
-            is_enabled = id in WORKSPACE_PT_addons.owner_ids
-            if self.mode == 'all':
-                if not is_enabled:
-                    workspace.owner_ids.new(id)
-            elif self.mode == 'none':
-                if is_enabled:
-                    full_id = workspace.owner_ids[id]
-                    workspace.owner_ids.remove(full_id)
-        return {'FINISHED'}
 
 
 class WM_OT_tool_set_by_id(Operator):
@@ -3616,7 +3590,6 @@ classes = (
     WM_OT_sysinfo,
     WM_OT_owner_disable,
     WM_OT_owner_enable,
-    WM_OT_owner_set_all,
     WM_OT_url_open,
     WM_OT_url_open_preset,
     WM_OT_tool_set_by_id,
