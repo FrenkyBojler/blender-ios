@@ -1492,59 +1492,60 @@ void BlenderSync::resolve_view_layer_attributes(Shader *shader,
   bool updated = false;
 
   for (ShaderNode *node : graph->nodes) {
-    if (node->is_a(FloatAttributeNode::node_type)) {
-      AttributeNode *attr_node = static_cast<AttributeNode *>(node);
+    if (node->is_a(FloatAttributeNode::node_type)) || node->is_a(VectorAttributeNode::node_type)) || node->is_a(ColorAttributeNode::node_type))
+      {
+        AttributeNode *attr_node = static_cast<AttributeNode *>(node);
 
-      std::string real_name;
-      const BlenderAttributeType type = blender_attribute_name_split_type(
-          attr_node->get_attribute(), &real_name);
+        std::string real_name;
+        const BlenderAttributeType type = blender_attribute_name_split_type(
+            attr_node->get_attribute(), &real_name);
 
-      if (type == BL::ShaderNodeAttribute::attribute_type_VIEW_LAYER) {
-        /* Look up the value. */
-        const BL::ViewLayer b_layer = b_depsgraph.view_layer_eval();
-        const BL::Scene b_scene = b_depsgraph.scene_eval();
-        float4 value;
+        if (type == BL::ShaderNodeAttribute::attribute_type_VIEW_LAYER) {
+          /* Look up the value. */
+          const BL::ViewLayer b_layer = b_depsgraph.view_layer_eval();
+          const BL::Scene b_scene = b_depsgraph.scene_eval();
+          float4 value;
 
-        BKE_view_layer_find_rgba_attribute((::Scene *)b_scene.ptr.data,
-                                           (::ViewLayer *)b_layer.ptr.data,
-                                           real_name.c_str(),
-                                           &value.x);
+          BKE_view_layer_find_rgba_attribute((::Scene *)b_scene.ptr.data,
+                                             (::ViewLayer *)b_layer.ptr.data,
+                                             real_name.c_str(),
+                                             &value.x);
 
-        /* Replace all outgoing links, using appropriate output types. */
-        const float val_avg = (value.x + value.y + value.z) / 3.0f;
+          /* Replace all outgoing links, using appropriate output types. */
+          const float val_avg = (value.x + value.y + value.z) / 3.0f;
 
-        for (ShaderOutput *output : node->outputs) {
-          float val_float;
-          float3 val_float3;
+          for (ShaderOutput *output : node->outputs) {
+            float val_float;
+            float3 val_float3;
 
-          if (output->type() == SocketType::FLOAT) {
-            val_float = (output->name() == "Alpha") ? value.w : val_avg;
-            val_float3 = make_float3(val_float);
-          }
-          else {
-            val_float = val_avg;
-            val_float3 = make_float3(value);
-          }
-
-          for (ShaderInput *sock : output->links) {
-            if (sock->type() == SocketType::FLOAT) {
-              sock->set(val_float);
+            if (output->type() == SocketType::FLOAT) {
+              val_float = (output->name() == "Alpha") ? value.w : val_avg;
+              val_float3 = make_float3(val_float);
             }
-            else if (SocketType::is_float3(sock->type())) {
-              sock->set(val_float3);
+            else {
+              val_float = val_avg;
+              val_float3 = make_float3(value);
             }
 
-            sock->constant_folded_in = true;
+            for (ShaderInput *sock : output->links) {
+              if (sock->type() == SocketType::FLOAT) {
+                sock->set(val_float);
+              }
+              else if (SocketType::is_float3(sock->type())) {
+                sock->set(val_float3);
+              }
+
+              sock->constant_folded_in = true;
+            }
+
+            graph->disconnect(output);
           }
 
-          graph->disconnect(output);
+          /* Clear the attribute name to avoid further attempts to look up. */
+          attr_node->set_attribute(ustring());
+          updated = true;
         }
-
-        /* Clear the attribute name to avoid further attempts to look up. */
-        attr_node->set_attribute(ustring());
-        updated = true;
       }
-    }
   }
 
   if (updated) {
