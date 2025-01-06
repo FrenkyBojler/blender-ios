@@ -426,6 +426,19 @@ void GPU_vertformat_from_shader(GPUVertFormat *format, const GPUShader *shader)
 {
   GPU_vertformat_clear(format);
 
+  if (unwrap(shader)->is_polyline) {
+    /* Polyline shaders binds the vertex buffers as SSBO. This is a workaround for Python shaders
+     * to retrieve the correct vertex format, that are not part of the ShaderCreateInfo.
+     *
+     * Keep in sync with `gpu_shader_3D_polyline_info.hh`.
+     */
+    GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    if (GPU_shader_get_ssbo_input_len(shader) > 1) {
+      GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    }
+    return;
+  }
+
   uint attr_len = GPU_shader_get_attribute_len(shader);
   int location_test = 0, attrs_added = 0;
   while (attrs_added < attr_len) {
