@@ -1082,8 +1082,6 @@ void PaintOperation::reproject_samples_on_strokes(const bContext &C)
   const int active_curve = on_back ? drawing.strokes().curves_range().first() :
                                      drawing.strokes().curves_range().last();
   const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
-  MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write();
-
   const IndexRange all_points = points_by_curve[active_curve];
   if (all_points.is_empty()) {
     return;
@@ -1093,9 +1091,16 @@ void PaintOperation::reproject_samples_on_strokes(const bContext &C)
                                        all_points :
                                        IndexRange::from_begin_end_inclusive(
                                            last_stroke_placement_point_, all_points.last());
+  /* Point slice relative to the curve, valid for 2D coordinate array. */
+  const IndexRange active_curve_points = active_points.shift(-all_points.start());
 
-  MutableSpan<float3> active_positions = positions.slice(active_points);
-  placement_.reproject(active_positions, active_positions);
+  MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write().slice(
+      active_points);
+  const Span<float2> final_coords = this->screen_space_final_coords_.as_span().slice(
+      active_curve_points);
+  for (const int i : positions.index_range()) {
+    positions[i] = this->placement_.project(final_coords[i]);
+  }
 
   last_stroke_placement_point_ = all_points.one_after_last();
 }
