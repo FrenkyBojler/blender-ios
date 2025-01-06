@@ -75,6 +75,7 @@
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BKE_texture.h"
 #include "BKE_tracking.h"
 
 #include "MOV_enums.hh"
@@ -3595,6 +3596,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type != NTREE_CUSTOM) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type == SH_NODE_TEX_NOISE) {
+            if (!node->storage) {
+              NodeTexNoise *tex = MEM_cnew<NodeTexNoise>(__func__);
+              BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
+              BKE_texture_colormapping_default(&tex->base.color_mapping);
+              tex->dimensions = 3;
+              tex->type = SHD_NOISE_FBM;
+              node->storage = tex;
+            }
             ((NodeTexNoise *)node->storage)->normalize = true;
           }
         }
@@ -5217,7 +5226,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         continue;
       }
       LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-        if (node->type == CMP_NODE_VIEWER || node->type == CMP_NODE_COMPOSITE) {
+        if (ELEM(node->type, CMP_NODE_VIEWER, CMP_NODE_COMPOSITE)) {
           node->flag &= ~NODE_PREVIEW;
         }
       }
@@ -5388,13 +5397,29 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 17)) {
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if (ELEM(brush->sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_FLATTEN,
-               SCULPT_BRUSH_TYPE_FILL,
-               SCULPT_BRUSH_TYPE_SCRAPE))
-      {
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_preview_quality"))
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->r.compositor_denoise_preview_quality = SCE_COMPOSITOR_DENOISE_BALANCED;
+      }
+    }
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_final_quality"))
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->r.compositor_denoise_final_quality = SCE_COMPOSITOR_DENOISE_HIGH;
+      }
+    }
+  }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 18)) {
+    LISTBASE_FOREACH(Brush*, brush, &bmain->brushes) {
+      if (ELEM(brush->sculpt_brush_type,
+        SCULPT_BRUSH_TYPE_FLATTEN,
+        SCULPT_BRUSH_TYPE_FILL,
+        SCULPT_BRUSH_TYPE_SCRAPE))
+      {
         if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_FLATTEN) {
           brush->plane_height = 1.0f;
           brush->plane_depth = 1.0f;
@@ -5406,16 +5431,16 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           brush->plane_height = 0.0f;
           brush->plane_depth = 1.0f;
           brush->plane_inversion_mode = brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL ?
-                                            BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH :
-                                            BRUSH_PLANE_INVERT_DISPLACEMENT;
+            BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH :
+            BRUSH_PLANE_INVERT_DISPLACEMENT;
         }
 
         if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_SCRAPE) {
           brush->plane_height = 1.0f;
           brush->plane_depth = 0.0f;
           brush->plane_inversion_mode = brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL ?
-                                            BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH :
-                                            BRUSH_PLANE_INVERT_DISPLACEMENT;
+            BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH :
+            BRUSH_PLANE_INVERT_DISPLACEMENT;
         }
 
         if (brush->flag & BRUSH_PLANE_TRIM) {
