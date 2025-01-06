@@ -84,7 +84,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value(4)
       .min(1)
       .max(16)
-      .description("The number of steaks")
+      .description("The number of streaks")
       .compositor_expects_single_value();
   b.add_input<decl::Float>("Streaks Angle")
       .default_value(0.0f)
@@ -210,9 +210,10 @@ class GlareOperation : public NodeOperation {
 
     if (highlights_output.should_compute()) {
       if (highlights.domain().size != image_input.domain().size) {
-        /* The highlights were computed on a fraction of the image size, so we need to upsample
-         * them to the image original size. See the get_quality_factor method. */
-        this->upsample_result(highlights, image_input, highlights_output);
+        /* The highlights were computed on a fraction of the image size, see the get_quality_factor
+         * method. So we need to upsample them while writing as opposed to just stealing the
+         * existing data. */
+        this->write_highlights_output(highlights);
       }
       else {
         highlights_output.steal_data(highlights);
@@ -224,58 +225,9 @@ class GlareOperation : public NodeOperation {
     execute_mix(glare);
 
     if (glare_output.should_compute()) {
-      if (glare.domain().size != image_input.domain().size) {
-        /* The glare was computed on a fraction of the image size, so we need to upsample it to the
-         * image original size. See the get_quality_factor method. */
-        this->upsample_result(glare, image_input, glare_output);
-      }
-      else {
-        glare_output.steal_data(glare);
-      }
+      this->write_glare_output(glare);
     }
     glare.release();
-  }
-
-  /* Upsamples the given input using bilinear interpolation to match the size of the given original
-   * input. The output is allocated and the result is written to it. */
-  void upsample_result(const Result &input, const Result &original_input, Result &output)
-  {
-    if (this->context().use_gpu()) {
-      this->upsample_result_gpu(input, original_input, output);
-    }
-    else {
-      this->upsample_result_cpu(input, original_input, output);
-    }
-  }
-
-  void upsample_result_gpu(const Result &input, const Result &original_input, Result &output)
-  {
-    GPUShader *shader = this->context().get_shader("compositor_glare_upsample");
-    GPU_shader_bind(shader);
-
-    GPU_texture_filter_mode(input, true);
-    GPU_texture_extend_mode(input, GPU_SAMPLER_EXTEND_MODE_EXTEND);
-    input.bind_as_texture(shader, "input_tx");
-
-    output.allocate_texture(original_input.domain());
-    output.bind_as_image(shader, "output_img");
-
-    compute_dispatch_threads_at_least(shader, output.domain().size);
-
-    GPU_shader_unbind();
-    output.unbind_as_image();
-    input.unbind_as_texture();
-  }
-
-  void upsample_result_cpu(const Result &input, const Result &original_input, Result &output)
-  {
-    output.allocate_texture(original_input.domain());
-
-    const int2 size = original_input.domain().size;
-    parallel_for(size, [&](const int2 texel) {
-      float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(size);
-      output.store_pixel(texel, input.sample_bilinear_extended(normalized_coordinates));
-    });
   }
 
   /* -----------------
@@ -356,6 +308,52 @@ class GlareOperation : public NodeOperation {
   int2 get_highlights_size()
   {
     return this->compute_domain().size / this->get_quality_factor();
+  }
+
+  /* Writes the given input highlights by upsampling it using bilinear interpolation to match the
+   * size of the original input, allocating the highlights output and writing the result to it. */
+  void write_highlights_output(const Result &highlights)
+  {
+    if (this->context().use_gpu()) {
+      this->write_highlights_output_gpu(highlights);
+    }
+    else {
+      this->write_highlights_output_cpu(highlights);
+    }
+  }
+
+  void write_highlights_output_gpu(const Result &highlights)
+  {
+    GPUShader *shader = this->context().get_shader("compositor_glare_write_highlights_output");
+    GPU_shader_bind(shader);
+
+    GPU_texture_filter_mode(highlights, true);
+    GPU_texture_extend_mode(highlights, GPU_SAMPLER_EXTEND_MODE_EXTEND);
+    highlights.bind_as_texture(shader, "input_tx");
+
+    const Result &image_input = this->get_input("Image");
+    Result &output = this->get_result("Highlights");
+    output.allocate_texture(image_input.domain());
+    output.bind_as_image(shader, "output_img");
+
+    compute_dispatch_threads_at_least(shader, output.domain().size);
+
+    GPU_shader_unbind();
+    output.unbind_as_image();
+    highlights.unbind_as_texture();
+  }
+
+  void write_highlights_output_cpu(const Result &highlights)
+  {
+    const Result &image_input = this->get_input("Image");
+    Result &output = this->get_result("Highlights");
+    output.allocate_texture(image_input.domain());
+
+    const int2 size = output.domain().size;
+    parallel_for(size, [&](const int2 texel) {
+      float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(size);
+      output.store_pixel(texel, highlights.sample_bilinear_extended(normalized_coordinates));
+    });
   }
 
   /* ------
@@ -2054,6 +2052,59 @@ class GlareOperation : public NodeOperation {
       float3 highlights = input_color.xyz() + glare_color.xyz() * strength;
 
       output.store_pixel(texel, float4(highlights, input_color.w));
+    });
+  }
+
+  /* Writes the given input glare by adjusting it as needed and upsampling it using bilinear
+   * interpolation to match the size of the original input, allocating the glare output and writing
+   * the result to it. */
+  void write_glare_output(const Result &glare)
+  {
+    if (this->context().use_gpu()) {
+      this->write_glare_output_gpu(glare);
+    }
+    else {
+      this->write_glare_output_cpu(glare);
+    }
+  }
+
+  void write_glare_output_gpu(const Result &glare)
+  {
+    GPUShader *shader = this->context().get_shader("compositor_glare_write_glare_output");
+    GPU_shader_bind(shader);
+
+    GPU_shader_uniform_1f(shader, "strength", this->get_strength());
+
+    GPU_texture_filter_mode(glare, true);
+    GPU_texture_extend_mode(glare, GPU_SAMPLER_EXTEND_MODE_EXTEND);
+    glare.bind_as_texture(shader, "input_tx");
+
+    const Result &image_input = this->get_input("Image");
+    Result &output = this->get_result("Glare");
+    output.allocate_texture(image_input.domain());
+    output.bind_as_image(shader, "output_img");
+
+    compute_dispatch_threads_at_least(shader, output.domain().size);
+
+    GPU_shader_unbind();
+    output.unbind_as_image();
+    glare.unbind_as_texture();
+  }
+
+  void write_glare_output_cpu(const Result &glare)
+  {
+    const float strength = this->get_strength();
+
+    const Result &image_input = this->get_input("Image");
+    Result &output = this->get_result("Glare");
+    output.allocate_texture(image_input.domain());
+
+    const int2 size = output.domain().size;
+    parallel_for(size, [&](const int2 texel) {
+      float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(size);
+      float4 glare_value = glare.sample_bilinear_extended(normalized_coordinates);
+      float4 adjusted_glare_value = glare_value * strength;
+      output.store_pixel(texel, float4(adjusted_glare_value.xyz(), 1.0f));
     });
   }
 
