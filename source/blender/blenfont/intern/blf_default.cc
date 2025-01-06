@@ -1,5 +1,4 @@
 /* SPDX-FileCopyrightText: 2009 Blender Authors
- drfo9iusdf098u s
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
