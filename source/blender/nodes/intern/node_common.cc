@@ -624,7 +624,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     reroute_groups.add(root_reroute_i);
   }
 
-  /* Any reroute can has only one source and many destination targets. Type propagation consider
+  /* Any reroute can have only one source and many destination targets. Type propagation considers
    * source as target with highest priority. */
   Array<const bke::bNodeSocketType *> dst_type_by_reroute_group(reroute_groups.size(), nullptr);
   Array<const bke::bNodeSocketType *> src_type_by_reroute_group(reroute_groups.size(), nullptr);
