@@ -4,7 +4,6 @@
 
 set(INC
   .
-  ../../source/blender/gpu
   ../../source/blender/gpu/intern
 )
 
@@ -24,6 +23,7 @@ set(SRC
 set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
 )
 
@@ -66,7 +66,7 @@ if(WITH_OPENCOLORIO)
 
   set(GLSL_C)
   foreach(GLSL_FILE ${GLSL_SRC})
-    data_to_c_simple(${GLSL_FILE} GLSL_C STRIP_LEADING_C_COMMENTS)
+    glsl_to_c(${GLSL_FILE} GLSL_C)
   endforeach()
 
   blender_add_lib(bf_ocio_shaders "${GLSL_C}" "" "" "")

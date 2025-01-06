@@ -24,6 +24,7 @@ void register_node_type_cmp_group()
    * to the shared NODE_GROUP integer type id. */
   blender::bke::node_type_base_custom(
       &ntype, "CompositorNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
+  ntype.enum_name_legacy = "GROUP";
   ntype.type = NODE_GROUP;
   ntype.poll = cmp_node_poll_default;
   ntype.poll_instance = node_group_poll_instance;
@@ -38,7 +39,7 @@ void register_node_type_cmp_group()
   ntype.labelfunc = node_group_label;
   ntype.declare = blender::nodes::node_group_declare;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 
 void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype)

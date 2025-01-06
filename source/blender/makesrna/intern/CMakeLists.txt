@@ -27,9 +27,11 @@ set(DEFSRC
   rna_action.cc
   rna_animation.cc
   rna_animviz.cc
+  rna_annotations.cc
   rna_armature.cc
   rna_asset.cc
   rna_attribute.cc
+  rna_blendfile_import.cc
   rna_boid.cc
   rna_brush.cc
   rna_cachefile.cc
@@ -46,8 +48,6 @@ set(DEFSRC
   rna_dynamicpaint.cc
   rna_fcurve.cc
   rna_fluid.cc
-  rna_gpencil_legacy.cc
-  rna_gpencil_legacy_modifier.cc
   rna_grease_pencil.cc
   rna_image.cc
   rna_key.cc
@@ -110,7 +110,6 @@ endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
-  add_definitions(-DWITH_ANIM_BAKLAVA)
 endif()
 
 set(APISRC
@@ -119,7 +118,9 @@ set(APISRC
   rna_armature_api.cc
   rna_camera_api.cc
   rna_curve_api.cc
+  rna_curves_api.cc
   rna_fcurve_api.cc
+  rna_grease_pencil_api.cc
   rna_image_api.cc
   rna_lattice_api.cc
   rna_main_api.cc
@@ -216,6 +217,8 @@ set(SRC_RNA_INC
   ../RNA_enum_types.hh
   ../RNA_path.hh
   ../RNA_types.hh
+
+  rna_action_tools.hh
 )
 
 set(SRC
@@ -242,9 +245,11 @@ set(INC
   ../../bmesh
   ../../depsgraph
   ../../draw
+  ../../functions
   ../../gpu
   ../../ikplugin
   ../../imbuf
+  ../../imbuf/movie
   ../../io/usd
   ../../modifiers
   ../../nodes
@@ -311,15 +316,6 @@ if(WITH_AUDASPACE)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-  list(APPEND INC
-    ../../../../intern/ffmpeg
-  )
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-  )
   add_definitions(-DWITH_FFMPEG)
 endif()
 
@@ -336,12 +332,6 @@ if(WITH_MOD_OCEANSIM)
 endif()
 
 if(WITH_SDL)
-  if(WITH_SDL_DYNLOAD)
-    add_definitions(-DWITH_SDL_DYNLOAD)
-    list(APPEND INC
-      ../../../../extern/sdlew/include
-    )
-  endif()
   add_definitions(-DWITH_SDL)
 endif()
 
@@ -442,7 +432,7 @@ if(WITH_GMP)
   add_definitions(-DWITH_GMP)
 endif()
 
-# Build makesrna executable
+# Build `makesrna` executable.
 add_cc_flags_custom_test(makesrna)
 
 add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
@@ -483,6 +473,7 @@ set(SRC
 
   ${SRC_RNA_INC}
   rna_access_internal.hh
+  rna_curves_utils.hh
   rna_internal.hh
   rna_internal_types.hh
   rna_mesh_utils.hh

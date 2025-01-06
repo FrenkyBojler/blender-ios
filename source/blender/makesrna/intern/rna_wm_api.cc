@@ -45,7 +45,9 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
     {WM_CURSOR_PAINT, "PAINT_CROSS", 0, "Paint Cross", ""},
     {WM_CURSOR_DOT, "DOT", 0, "Dot Cursor", ""},
     {WM_CURSOR_ERASER, "ERASER", 0, "Eraser", ""},
-    {WM_CURSOR_HAND, "HAND", 0, "Hand", ""},
+    {WM_CURSOR_HAND, "HAND", 0, "Open Hand", ""},
+    {WM_CURSOR_HAND_POINT, "HAND_POINT", 0, "Pointing Hand", ""},
+    {WM_CURSOR_HAND_CLOSED, "HAND_CLOSED", 0, "Closed Hand", ""},
     {WM_CURSOR_EW_SCROLL, "SCROLL_X", 0, "Scroll-X", ""},
     {WM_CURSOR_NS_SCROLL, "SCROLL_Y", 0, "Scroll-Y", ""},
     {WM_CURSOR_NSEW_SCROLL, "SCROLL_XY", 0, "Scroll-XY", ""},
@@ -220,10 +222,18 @@ static int rna_Operator_confirm(bContext *C,
                                 const char *text_ctxt,
                                 const bool translate)
 {
-  title = RNA_translate_ui_text(title, text_ctxt, nullptr, nullptr, translate);
-  message = RNA_translate_ui_text(message, text_ctxt, nullptr, nullptr, translate);
-  confirm_text = RNA_translate_ui_text(confirm_text, text_ctxt, nullptr, nullptr, translate);
-  return WM_operator_confirm_ex(C, op, title, message, confirm_text, icon);
+  std::optional<blender::StringRefNull> title_str = RNA_translate_ui_text(
+      title, text_ctxt, nullptr, nullptr, translate);
+  std::optional<blender::StringRefNull> message_str = RNA_translate_ui_text(
+      message, text_ctxt, nullptr, nullptr, translate);
+  std::optional<blender::StringRefNull> confirm_text_str = RNA_translate_ui_text(
+      confirm_text, text_ctxt, nullptr, nullptr, translate);
+  return WM_operator_confirm_ex(C,
+                                op,
+                                title_str ? title_str->c_str() : nullptr,
+                                message_str ? message_str->c_str() : nullptr,
+                                confirm_text_str ? confirm_text_str->c_str() : nullptr,
+                                icon);
 }
 
 static int rna_Operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
@@ -240,14 +250,16 @@ static int rna_Operator_props_dialog_popup(bContext *C,
                                            const char *text_ctxt,
                                            const bool translate)
 {
-  title = RNA_translate_ui_text(title, text_ctxt, nullptr, nullptr, translate);
-  confirm_text = RNA_translate_ui_text(confirm_text, text_ctxt, nullptr, nullptr, translate);
+  std::optional<blender::StringRefNull> title_str = RNA_translate_ui_text(
+      title, text_ctxt, nullptr, nullptr, translate);
+  std::optional<blender::StringRefNull> confirm_text_str = RNA_translate_ui_text(
+      confirm_text, text_ctxt, nullptr, nullptr, translate);
   return WM_operator_props_dialog_popup(
       C,
       op,
       width,
-      title ? std::make_optional<std::string>(title) : std::nullopt,
-      confirm_text ? std::make_optional<std::string>(confirm_text) : std::nullopt,
+      title_str ? std::make_optional<std::string>(*title_str) : std::nullopt,
+      confirm_text_str ? std::make_optional<std::string>(*confirm_text_str) : std::nullopt,
       cancel_default);
 }
 
@@ -577,13 +589,27 @@ static void rna_KeyConfig_update(wmWindowManager *wm, bool keep_properties)
   WM_keyconfig_update_ex(wm, keep_properties);
 }
 
-/* popup menu wrapper */
-static PointerRNA rna_PopMenuBegin(bContext *C, const char *title, int icon)
+/** Check the context that popup is can be used. */
+static bool rna_popup_context_ok_or_report(bContext *C, ReportList *reports)
 {
-  void *data;
+  if (CTX_wm_window(C) == nullptr) {
+    BKE_report(reports, RPT_ERROR, "context \"window\" is None");
+    return false;
+  }
+  return true;
+}
 
-  data = (void *)UI_popup_menu_begin(C, title, icon);
+/* popup menu wrapper */
+static PointerRNA rna_PopMenuBegin(bContext *C,
+                                   ReportList *reports,
+                                   const char *title,
+                                   const int icon)
+{
+  if (!rna_popup_context_ok_or_report(C, reports)) {
+    return PointerRNA_NULL;
+  }
 
+  void *data = (void *)UI_popup_menu_begin(C, title, icon);
   PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPopupMenu, data);
   return r_ptr;
 }
@@ -594,12 +620,16 @@ static void rna_PopMenuEnd(bContext *C, PointerRNA *handle)
 }
 
 /* popover wrapper */
-static PointerRNA rna_PopoverBegin(bContext *C, int ui_units_x, bool from_active_button)
+static PointerRNA rna_PopoverBegin(bContext *C,
+                                   ReportList *reports,
+                                   const int ui_units_x,
+                                   const bool from_active_button)
 {
-  void *data;
+  if (!rna_popup_context_ok_or_report(C, reports)) {
+    return PointerRNA_NULL;
+  }
 
-  data = (void *)UI_popover_begin(C, U.widget_unit * ui_units_x, from_active_button);
-
+  void *data = (void *)UI_popover_begin(C, U.widget_unit * ui_units_x, from_active_button);
   PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPopover, data);
   return r_ptr;
 }
@@ -610,11 +640,15 @@ static void rna_PopoverEnd(bContext *C, PointerRNA *handle, wmKeyMap *keymap)
 }
 
 /* pie menu wrapper */
-static PointerRNA rna_PieMenuBegin(bContext *C, const char *title, int icon, PointerRNA *event)
+static PointerRNA rna_PieMenuBegin(
+    bContext *C, ReportList *reports, const char *title, const int icon, PointerRNA *event)
 {
-  void *data;
+  if (!rna_popup_context_ok_or_report(C, reports)) {
+    return PointerRNA_NULL;
+  }
 
-  data = (void *)UI_pie_menu_begin(C, title, icon, static_cast<const wmEvent *>(event->data));
+  void *data = (void *)UI_pie_menu_begin(
+      C, title, icon, static_cast<const wmEvent *>(event->data));
 
   PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPieMenu, data);
   return r_ptr;
@@ -783,7 +817,7 @@ void RNA_api_window(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_function_ui_description(func, "Set the cursor, so the previous cursor can be restored");
 
-  RNA_def_function(srna, "cursor_modal_restore", "WM_cursor_modal_restore");
+  func = RNA_def_function(srna, "cursor_modal_restore", "WM_cursor_modal_restore");
   RNA_def_function_ui_description(
       func, "Restore the previous cursor after calling ``cursor_modal_set``");
 
@@ -827,7 +861,7 @@ void RNA_api_wm(StructRNA *srna)
       func,
       "Opens a file selector with an operator. "
       "The string properties 'filepath', 'filename', 'directory' and a 'files' "
-      "collection are assigned when present in the operator");
+      "collection are assigned when present in the operator.");
   rna_generic_op_invoke(func, 0);
 
   func = RNA_def_function(srna, "modal_handler_add", "rna_event_modal_handler_add");
@@ -962,7 +996,7 @@ void RNA_api_wm(StructRNA *srna)
 
   /* wrap UI_popup_menu_begin */
   func = RNA_def_function(srna, "popmenu_begin__internal", "rna_PopMenuBegin");
-  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
@@ -980,7 +1014,7 @@ void RNA_api_wm(StructRNA *srna)
 
   /* wrap UI_popover_begin */
   func = RNA_def_function(srna, "popover_begin__internal", "rna_PopoverBegin");
-  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_property(func, "ui_units_x", PROP_INT, PROP_UNSIGNED);
   /* return */
   parm = RNA_def_pointer(func, "menu", "UIPopover", "", "");
@@ -998,7 +1032,7 @@ void RNA_api_wm(StructRNA *srna)
 
   /* wrap uiPieMenuBegin */
   func = RNA_def_function(srna, "piemenu_begin__internal", "rna_PieMenuBegin");
-  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
@@ -1042,7 +1076,7 @@ void RNA_api_wm(StructRNA *srna)
       "Is Interface Locked",
       "If true, the interface is currently locked by a running job and data shouldn't be modified "
       "from application timers. Otherwise, the running job might conflict with the handler "
-      "causing unexpected results or even crashes");
+      "causing unexpected results or even crashes.");
   RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 }
 
@@ -1071,7 +1105,7 @@ void RNA_api_operator(StructRNA *srna)
   func = RNA_def_function(srna, "poll", nullptr);
   RNA_def_function_ui_description(func, "Test if the operator can be called or not");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER_OPTIONAL);
-  RNA_def_function_return(func, RNA_def_boolean(func, "visible", true, "", ""));
+  RNA_def_function_return(func, RNA_def_boolean(func, "visible", false, "", ""));
   parm = RNA_def_pointer(func, "context", "Context", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
@@ -1171,7 +1205,7 @@ void RNA_api_macro(StructRNA *srna)
   func = RNA_def_function(srna, "poll", nullptr);
   RNA_def_function_ui_description(func, "Test if the operator can be called or not");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER_OPTIONAL);
-  RNA_def_function_return(func, RNA_def_boolean(func, "visible", true, "", ""));
+  RNA_def_function_return(func, RNA_def_boolean(func, "visible", false, "", ""));
   parm = RNA_def_pointer(func, "context", "Context", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 

@@ -2,7 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
+#include "infos/eevee_film_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_film_cryptomatte_post)
+
+#include "gpu_shader_math_base_lib.glsl"
 
 #define CRYPTOMATTE_LEVELS_MAX 16
 
@@ -42,12 +46,6 @@ void cryptomatte_sort_samples(inout vec2 samples[CRYPTOMATTE_LEVELS_MAX])
     }
   }
 }
-void cryptomatte_normalize_weight(float total_weight, inout vec2 samples[CRYPTOMATTE_LEVELS_MAX])
-{
-  for (int i = 0; i < CRYPTOMATTE_LEVELS_MAX; i++) {
-    samples[i].y /= total_weight;
-  }
-}
 
 void cryptomatte_store_samples(ivec2 texel, int layer, vec2 samples[CRYPTOMATTE_LEVELS_MAX])
 {
@@ -77,12 +75,6 @@ void main()
     vec2 samples[CRYPTOMATTE_LEVELS_MAX];
     cryptomatte_load_samples(texel, layer, samples);
     cryptomatte_sort_samples(samples);
-    /* Repeat texture coordinates as the weight can be optimized to a small portion of the film. */
-    float weight = imageLoadFast(
-                       weight_img,
-                       ivec3(texel % imageSize(weight_img).xy, FILM_WEIGHT_LAYER_ACCUMULATION))
-                       .x;
-    cryptomatte_normalize_weight(weight, samples);
     cryptomatte_store_samples(texel, layer, samples);
   }
 }

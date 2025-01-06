@@ -54,7 +54,7 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 
 #  include "BKE_colorband.hh"
 #  include "BKE_colortools.hh"
-#  include "BKE_image.h"
+#  include "BKE_image.hh"
 #  include "BKE_linestyle.h"
 #  include "BKE_movieclip.h"
 #  include "BKE_node.hh"
@@ -66,8 +66,11 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 #  include "IMB_colormanagement.hh"
 #  include "IMB_imbuf.hh"
 
+#  include "MOV_read.hh"
+
 #  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
+#  include "SEQ_thumbnail_cache.hh"
 
 static int rna_CurveMapping_curves_length(PointerRNA *ptr)
 {
@@ -619,7 +622,7 @@ static const EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_ite
 
 struct Seq_colorspace_cb_data {
   ColorManagedColorspaceSettings *colorspace_settings;
-  Sequence *r_seq;
+  Strip *r_seq;
 };
 
 /**
@@ -627,10 +630,10 @@ struct Seq_colorspace_cb_data {
  * If property pointer matches one of strip, set `r_seq`,
  * so not all cached images have to be invalidated.
  */
-static bool seq_find_colorspace_settings_cb(Sequence *seq, void *user_data)
+static bool seq_find_colorspace_settings_cb(Strip *seq, void *user_data)
 {
   Seq_colorspace_cb_data *cd = (Seq_colorspace_cb_data *)user_data;
-  if (seq->strip && &seq->strip->colorspace_settings == cd->colorspace_settings) {
+  if (seq->data && &seq->data->colorspace_settings == cd->colorspace_settings) {
     cd->r_seq = seq;
     return false;
   }
@@ -680,18 +683,19 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       if (&scene->sequencer_colorspace_settings == colorspace_settings) {
         /* Scene colorspace was changed. */
         SEQ_cache_cleanup(scene);
+        blender::seq::thumbnail_cache_clear(scene);
       }
       else {
         /* Strip colorspace was likely changed. */
         SEQ_for_each_callback(&scene->ed->seqbase, seq_find_colorspace_settings_cb, &cb_data);
-        Sequence *seq = cb_data.r_seq;
+        Strip *seq = cb_data.r_seq;
 
         if (seq) {
           SEQ_relations_sequence_free_anim(seq);
 
-          if (seq->strip->proxy && seq->strip->proxy->anim) {
-            IMB_free_anim(seq->strip->proxy->anim);
-            seq->strip->proxy->anim = nullptr;
+          if (seq->data->proxy && seq->data->proxy->anim) {
+            MOV_close(seq->data->proxy->anim);
+            seq->data->proxy->anim = nullptr;
           }
 
           SEQ_relations_invalidate_cache_raw(scene, seq);
@@ -1363,7 +1367,7 @@ static void rna_def_colormanage(BlenderRNA *brna)
       "High Dynamic Range",
       "Enable high dynamic range display in rendered viewport, uncapping display brightness. This "
       "requires a monitor with HDR support and a view transform designed for HDR. "
-      "'Filmic' and 'AgX' do not generate HDR colors");
+      "'Filmic' and 'AgX' do not generate HDR colors.");
   RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagedColorspaceSettings_reload_update");
 
   /* ** Color-space ** */

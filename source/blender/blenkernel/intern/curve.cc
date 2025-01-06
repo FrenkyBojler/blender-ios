@@ -175,7 +175,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BLO_write_pointer_array(writer, cu->totcol, cu->mat);
 
   if (cu->vfont) {
-    BLO_write_raw(writer, cu->len + 1, cu->str);
+    BLO_write_string(writer, cu->str);
     BLO_write_struct_array(writer, CharInfo, cu->len_char32 + 1, cu->strinfo);
     BLO_write_struct_array(writer, TextBox, cu->totbox, cu->tb);
   }
@@ -212,7 +212,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   /* Protect against integer overflow vulnerability. */
   CLAMP(cu->len_char32, 0, INT_MAX - 4);
 
-  BLO_read_pointer_array(reader, (void **)&cu->mat);
+  BLO_read_pointer_array(reader, cu->totcol, (void **)&cu->mat);
 
   BLO_read_string(reader, &cu->str);
   BLO_read_struct_array(reader, CharInfo, cu->len_char32 + 1, &cu->strinfo);
@@ -352,7 +352,7 @@ void BKE_curve_init(Curve *cu, const short curve_type)
 
   if (cu->type == OB_FONT) {
     cu->flag |= CU_FRONT | CU_BACK;
-    cu->vfont = cu->vfontb = cu->vfonti = cu->vfontbi = BKE_vfont_builtin_get();
+    cu->vfont = cu->vfontb = cu->vfonti = cu->vfontbi = BKE_vfont_builtin_ensure();
     cu->vfont->id.us += 4;
 
     const char *str = DATA_("Text");
@@ -588,7 +588,6 @@ void BKE_nurb_free(Nurb *nu)
     MEM_freeN(nu->knotsv);
   }
   nu->knotsv = nullptr;
-  // if (nu->trim.first) freeNurblist(&(nu->trim));
 
   MEM_freeN(nu);
 }

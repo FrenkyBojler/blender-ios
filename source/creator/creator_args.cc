@@ -24,7 +24,7 @@
 #  include "BLI_dynstr.h"
 #  include "BLI_fileops.h"
 #  include "BLI_listbase.h"
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
 #  include "BLI_system.h"
@@ -41,7 +41,7 @@
 #  include "BKE_context.hh"
 
 #  include "BKE_global.hh"
-#  include "BKE_image_format.h"
+#  include "BKE_image_format.hh"
 #  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
@@ -52,8 +52,8 @@
 #  include "GPU_context.hh"
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern_python.h"
-#    include "BPY_extern_run.h"
+#    include "BPY_extern_python.hh"
+#    include "BPY_extern_run.hh"
 #  endif
 
 #  include "RE_engine.h"
@@ -754,6 +754,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-gpu-compile-shaders");
   if (defs.with_renderdoc) {
+    BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
     BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
   }
   BLI_args_print_arg_doc(ba, "--debug-wm");
@@ -774,6 +775,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--disable-abort-handler");
 
   BLI_args_print_arg_doc(ba, "--verbose");
+  BLI_args_print_arg_doc(ba, "--quiet");
 
   PRINT("\n");
   PRINT("GPU Options:\n");
@@ -1016,6 +1018,15 @@ static int arg_handle_debug_exit_on_error(int /*argc*/, const char ** /*argv*/, 
   return 0;
 }
 
+static const char arg_handle_quiet_set_doc[] =
+    "\n\t"
+    "Suppress status printing (warnings & errors are still printed).";
+static int arg_handle_quiet_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  G.quiet = true;
+  return 0;
+}
+
 /** Shared by `--background` & `--command`. */
 static void background_mode_set()
 {
@@ -1044,10 +1055,12 @@ static const char arg_handle_background_mode_set_doc[] =
     "\tRun in background (often used for UI-less rendering).\n"
     "\n"
     "\tThe audio device is disabled in background-mode by default\n"
-    "\tand can be re-enabled by passing in '-setaudo Default' afterwards.";
+    "\tand can be re-enabled by passing in '-setaudio Default' afterwards.";
 static int arg_handle_background_mode_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  print_version_short();
+  if (!G.quiet) {
+    print_version_short();
+  }
   background_mode_set();
   return 0;
 }
@@ -1090,6 +1103,39 @@ static int arg_handle_command_set(int argc, const char **argv, void *data)
 
   /* Consume remaining arguments. */
   return argc - 1;
+}
+
+static const char arg_handle_disable_depsgraph_on_file_load_doc[] =
+    "\n"
+    "\tBackround mode: Do not systematically build and evaluate ViewLayers' dependency graphs\n"
+    "\twhen loading a blendfile in background mode (`-b` or `-c` options).\n"
+    "\n"
+    "\tScripts requiring evaluated data then need to explicitly ensure that\n"
+    "\tan evaluated depsgraph is available\n"
+    "\t(e.g. by calling `depsgraph = context.evaluated_depsgraph_get()`).\n"
+    "\n"
+    "\tNOTE: this is a temporary option, in the future depsgraph will never be\n"
+    "\tautomatically generated on file load in background mode.";
+static int arg_handle_disable_depsgraph_on_file_load(int /*argc*/,
+                                                     const char ** /*argv*/,
+                                                     void * /*data*/)
+{
+  G.fileflags |= G_BACKGROUND_NO_DEPSGRAPH;
+  return 0;
+}
+
+static const char arg_handle_disable_liboverride_auto_resync_doc[] =
+    "\n"
+    "\tDo not perform library override automatic resync when loading a new blendfile.\n"
+    "\n"
+    "\tNOTE: this is an alternative way to get the same effect as when setting the\n"
+    "\t`No Override Auto Resync` User Preferences Debug option.";
+static int arg_handle_disable_liboverride_auto_resync(int /*argc*/,
+                                                      const char ** /*argv*/,
+                                                      void * /*data*/)
+{
+  G.fileflags |= G_LIBOVERRIDE_NO_AUTO_RESYNC;
+  return 0;
 }
 
 static const char arg_handle_log_level_set_doc[] =
@@ -1408,9 +1454,22 @@ static int arg_handle_debug_gpu_compile_shaders_set(int /*argc*/,
   return 0;
 }
 
+static const char arg_handle_debug_gpu_scope_capture_set_doc[] =
+    "\n"
+    "\tCapture the GPU commands issued inside the give scope name.";
+static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, void * /*data*/)
+{
+  if (argc > 1) {
+    STRNCPY(G.gpu_debug_scope_name, argv[1]);
+    return 1;
+  }
+  fprintf(stderr, "\nError: you must specify a scope name to capture.\n");
+  return 0;
+}
+
 static const char arg_handle_debug_gpu_renderdoc_set_doc[] =
     "\n"
-    "\tEnable Renderdoc integration for GPU frame grabbing and debugging.";
+    "\tEnable RenderDoc integration for GPU frame grabbing and debugging.";
 static int arg_handle_debug_gpu_renderdoc_set(int /*argc*/,
                                               const char ** /*argv*/,
                                               void * /*data*/)
@@ -2637,9 +2696,22 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(
       ba, nullptr, "--disable-abort-handler", CB(arg_handle_abort_handler_disable), nullptr);
 
+  BLI_args_add(ba, "-q", "--quiet", CB(arg_handle_quiet_set), nullptr);
   BLI_args_add(ba, "-b", "--background", CB(arg_handle_background_mode_set), nullptr);
   /* Command implies background mode (defers execution). */
   BLI_args_add(ba, "-c", "--command", CB(arg_handle_command_set), C);
+
+  BLI_args_add(ba,
+               nullptr,
+               "--disable-depsgraph-on-file-load",
+               CB(arg_handle_disable_depsgraph_on_file_load),
+               nullptr);
+
+  BLI_args_add(ba,
+               nullptr,
+               "--disable-liboverride-auto-resync",
+               CB(arg_handle_disable_liboverride_auto_resync),
+               nullptr);
 
   BLI_args_add(ba, "-a", nullptr, CB(arg_handle_playback_mode), nullptr);
 
@@ -2726,6 +2798,11 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                CB(arg_handle_debug_gpu_compile_shaders_set),
                nullptr);
   if (defs.with_renderdoc) {
+    BLI_args_add(ba,
+                 nullptr,
+                 "--debug-gpu-scope-capture",
+                 CB(arg_handle_debug_gpu_scope_capture_set),
+                 nullptr);
     BLI_args_add(
         ba, nullptr, "--debug-gpu-renderdoc", CB(arg_handle_debug_gpu_renderdoc_set), nullptr);
   }

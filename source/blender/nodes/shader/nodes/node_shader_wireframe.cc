@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_wireframe(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "use_pixel_size", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_pixel_size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static int node_shader_gpu_wireframe(GPUMaterial *mat,
@@ -59,10 +59,11 @@ void register_node_type_sh_wireframe()
   static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_WIREFRAME, "Wireframe", NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "WIREFRAME";
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_wireframe;
   ntype.gpu_fn = file_ns::node_shader_gpu_wireframe;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

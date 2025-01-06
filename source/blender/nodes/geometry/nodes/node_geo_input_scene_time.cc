@@ -29,9 +29,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_INPUT_SCENE_TIME, "Scene Time", NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "INPUT_SCENE_TIME";
   ntype.geometry_node_execute = node_exec;
   ntype.declare = node_declare;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

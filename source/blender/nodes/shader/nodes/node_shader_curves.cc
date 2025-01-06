@@ -133,6 +133,7 @@ void register_node_type_sh_curve_vec()
   static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(&ntype, SH_NODE_CURVE_VEC, "Vector Curves", NODE_CLASS_OP_VECTOR);
+  ntype.enum_name_legacy = "CURVE_VEC";
   ntype.declare = file_ns::sh_node_curve_vec_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_vec;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
@@ -141,7 +142,7 @@ void register_node_type_sh_curve_vec()
   ntype.build_multi_function = file_ns::sh_node_curve_vec_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 
 /* **************** CURVE RGB  ******************** */
@@ -293,6 +294,7 @@ void register_node_type_sh_curve_rgb()
   static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(&ntype, SH_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR);
+  ntype.enum_name_legacy = "CURVE_RGB";
   ntype.declare = file_ns::sh_node_curve_rgb_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_rgb;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
@@ -301,7 +303,7 @@ void register_node_type_sh_curve_rgb()
   ntype.build_multi_function = file_ns::sh_node_curve_rgb_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 
 /* **************** CURVE FLOAT  ******************** */
@@ -421,6 +423,7 @@ void register_node_type_sh_curve_float()
   static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(&ntype, SH_NODE_CURVE_FLOAT, "Float Curve", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "CURVE_FLOAT";
   ntype.declare = file_ns::sh_node_curve_float_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_float;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
@@ -429,5 +432,5 @@ void register_node_type_sh_curve_float()
   ntype.build_multi_function = file_ns::sh_node_curve_float_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

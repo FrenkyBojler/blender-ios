@@ -1619,7 +1619,7 @@ static char *rna_def_property_begin_func(
     rna_print_data_get(f, dp);
   }
 
-  fprintf(f, "\n    memset(iter, 0, sizeof(*iter));\n");
+  fprintf(f, "\n    *iter = {};\n");
   fprintf(f, "    iter->parent = *ptr;\n");
   fprintf(f, "    iter->prop = &rna_%s_%s;\n", srna->identifier, prop->identifier);
 
@@ -3417,17 +3417,28 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 
     if (func->c_ret) {
       dparm = rna_find_parameter_def(func->c_ret);
-      ptrstr = (((dparm->prop->type == PROP_POINTER) &&
-                 !(dparm->prop->flag_parameter & PARM_RNAPTR)) ||
-                (dparm->prop->arraydimension)) ?
-                   "*" :
-                   "";
-      fprintf(f,
-              "\t*((%s%s %s*)_retdata) = %s;\n",
-              rna_type_struct(dparm->prop),
-              rna_parameter_type_name(dparm->prop),
-              ptrstr,
-              func->c_ret->identifier);
+      if ((dparm->prop->type == PROP_POINTER) && (dparm->prop->flag_parameter & PARM_RNAPTR) &&
+          (dparm->prop->flag & PROP_THICK_WRAP))
+      {
+        const char *parameter_type_name = rna_parameter_type_name(dparm->prop);
+        fprintf(f,
+                "\t*reinterpret_cast<%s *>(_retdata) = %s;\n",
+                parameter_type_name,
+                func->c_ret->identifier);
+      }
+      else {
+        ptrstr = (((dparm->prop->type == PROP_POINTER) &&
+                   !(dparm->prop->flag_parameter & PARM_RNAPTR)) ||
+                  (dparm->prop->arraydimension)) ?
+                     "*" :
+                     "";
+        fprintf(f,
+                "\t*((%s%s %s*)_retdata) = %s;\n",
+                rna_type_struct(dparm->prop),
+                rna_parameter_type_name(dparm->prop),
+                ptrstr,
+                func->c_ret->identifier);
+      }
     }
   }
 
@@ -3630,6 +3641,8 @@ static const char *rna_property_subtypename(PropertySubType type)
       return "PROP_WAVELENGTH";
     case PROP_COLOR_TEMPERATURE:
       return "PROP_COLOR_TEMPERATURE";
+    case PROP_FREQUENCY:
+      return "PROP_FREQUENCY";
     default: {
       /* in case we don't have a type preset that includes the subtype */
       if (RNA_SUBTYPE_UNIT(type)) {
@@ -3673,6 +3686,8 @@ static const char *rna_property_subtype_unit(PropertySubType type)
       return "PROP_UNIT_WAVELENGTH";
     case PROP_UNIT_COLOR_TEMPERATURE:
       return "PROP_UNIT_COLOR_TEMPERATURE";
+    case PROP_UNIT_FREQUENCY:
+      return "PROP_UNIT_FREQUENCY";
     default:
       return "PROP_UNIT_UNKNOWN";
   }
@@ -4814,22 +4829,22 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_curve.cc", "rna_curve_api.cc", RNA_def_curve},
     {"rna_dynamicpaint.cc", nullptr, RNA_def_dynamic_paint},
     {"rna_fcurve.cc", "rna_fcurve_api.cc", RNA_def_fcurve},
-    {"rna_gpencil_legacy.cc", nullptr, RNA_def_gpencil},
-    {"rna_grease_pencil.cc", nullptr, RNA_def_grease_pencil},
-    {"rna_curves.cc", nullptr, RNA_def_curves},
+    {"rna_annotations.cc", nullptr, RNA_def_annotations},
+    {"rna_grease_pencil.cc", "rna_grease_pencil_api.cc", RNA_def_grease_pencil},
+    {"rna_curves.cc", "rna_curves_api.cc", RNA_def_curves},
     {"rna_image.cc", "rna_image_api.cc", RNA_def_image},
     {"rna_key.cc", nullptr, RNA_def_key},
     {"rna_light.cc", nullptr, RNA_def_light},
     {"rna_lattice.cc", "rna_lattice_api.cc", RNA_def_lattice},
     {"rna_layer.cc", nullptr, RNA_def_view_layer},
     {"rna_linestyle.cc", nullptr, RNA_def_linestyle},
+    {"rna_blendfile_import.cc", nullptr, RNA_def_blendfile_import},
     {"rna_main.cc", "rna_main_api.cc", RNA_def_main},
     {"rna_fluid.cc", nullptr, RNA_def_fluid},
     {"rna_material.cc", "rna_material_api.cc", RNA_def_material},
     {"rna_mesh.cc", "rna_mesh_api.cc", RNA_def_mesh},
     {"rna_meta.cc", "rna_meta_api.cc", RNA_def_meta},
     {"rna_modifier.cc", nullptr, RNA_def_modifier},
-    {"rna_gpencil_legacy_modifier.cc", nullptr, RNA_def_greasepencil_modifier},
     {"rna_shader_fx.cc", nullptr, RNA_def_shader_fx},
     {"rna_nla.cc", nullptr, RNA_def_nla},
     {"rna_nodetree.cc", nullptr, RNA_def_nodetree},
@@ -5184,7 +5199,7 @@ static const char *cpp_classes =
     "        } \\\n"
     "        sname##_##identifier##_end(&iter); \\\n"
     "        if (!found) { \\\n"
-    "            memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+    "            *r_ptr = {}; \\\n"
     "        } \\\n"
     "        return found; \\\n"
     "    } \n"
@@ -5194,7 +5209,7 @@ static const char *cpp_classes =
     "    { \\\n"
     "        bool found = sname##_##identifier##_lookup_int(ptr, key, r_ptr); \\\n"
     "        if (!found) { \\\n"
-    "            memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+    "            *r_ptr = {}; \\\n"
     "        } \\\n"
     "        return found; \\\n"
     "    } \n"
@@ -5223,7 +5238,7 @@ static const char *cpp_classes =
     "        } \\\n"
     "        sname##_##identifier##_end(&iter); \\\n"
     "        if (!found) { \\\n"
-    "            memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+    "            *r_ptr = {}; \\\n"
     "        } \\\n"
     "        return found; \\\n"
     "    } \n"
@@ -5233,7 +5248,7 @@ static const char *cpp_classes =
     "    { \\\n"
     "        bool found = sname##_##identifier##_lookup_string(ptr, key, r_ptr); \\\n"
     "        if (!found) { \\\n"
-    "            memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+    "            *r_ptr = {}; \\\n"
     "        } \\\n"
     "        return found; \\\n"
     "    } \n"

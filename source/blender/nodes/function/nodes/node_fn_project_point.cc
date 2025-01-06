@@ -28,9 +28,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, FN_NODE_PROJECT_POINT, "Project Point", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "PROJECT_POINT";
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

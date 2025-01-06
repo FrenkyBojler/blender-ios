@@ -61,8 +61,6 @@
  * User can exclude caching of some images. Such entries will have is_temp_cache set.
  */
 
-#define THUMB_CACHE_LIMIT 5000
-
 struct SeqCache {
   Main *bmain;
   GHash *hash;
@@ -71,7 +69,6 @@ struct SeqCache {
   BLI_mempool *items_pool;
   SeqCacheKey *last_key;
   SeqDiskCache *disk_cache;
-  int thumbnail_count;
 };
 
 struct SeqCacheItem {
@@ -125,23 +122,23 @@ static bool seq_cache_hashcmp(const void *a_, const void *b_)
           seq_cmp_render_data(&a->context, &b->context));
 }
 
-static float seq_cache_timeline_frame_to_frame_index(Scene *scene,
-                                                     Sequence *seq,
-                                                     float timeline_frame,
-                                                     int type)
+static float seq_cache_timeline_frame_to_frame_index(const Scene *scene,
+                                                     const Strip *seq,
+                                                     const float timeline_frame,
+                                                     const int type)
 {
   /* With raw images, map timeline_frame to strip input media frame range. This means that static
    * images or extended frame range of movies will only generate one cache entry. No special
    * treatment in converting frame index to timeline_frame is needed. */
   bool is_effect = seq->type & SEQ_TYPE_EFFECT;
-  if (!is_effect && ELEM(type, SEQ_CACHE_STORE_RAW, SEQ_CACHE_STORE_THUMBNAIL)) {
+  if (!is_effect && type == SEQ_CACHE_STORE_RAW) {
     return SEQ_give_frame_index(scene, seq, timeline_frame);
   }
 
   return timeline_frame - SEQ_time_start_frame_get(seq);
 }
 
-float seq_cache_frame_index_to_timeline_frame(Sequence *seq, float frame_index)
+float seq_cache_frame_index_to_timeline_frame(Strip *seq, float frame_index)
 {
   return frame_index + SEQ_time_start_frame_get(seq);
 }
@@ -233,10 +230,7 @@ static void seq_cache_put_ex(Scene *scene, SeqCacheKey *key, ImBuf *ibuf)
 
   /* Store pointer to last cached key. */
   SeqCacheKey *temp_last_key = cache->last_key;
-
-  if (!key->is_temp_cache || key->type != SEQ_CACHE_STORE_THUMBNAIL) {
-    cache->last_key = key;
-  }
+  cache->last_key = key;
 
   /* Set last_key's reference to this key so we can look up chain backwards.
    * Item is already put in cache, so cache->last_key points to current key.
@@ -502,7 +496,6 @@ static void seq_cache_create(Main *bmain, Scene *scene)
     cache->hash = BLI_ghash_new(seq_cache_hashhash, seq_cache_hashcmp, "SeqCache hash");
     cache->last_key = nullptr;
     cache->bmain = bmain;
-    cache->thumbnail_count = 0;
     BLI_mutex_init(&cache->iterator_mutex);
     scene->ed->cache = cache;
 
@@ -515,7 +508,7 @@ static void seq_cache_create(Main *bmain, Scene *scene)
 
 static void seq_cache_populate_key(SeqCacheKey *key,
                                    const SeqRenderData *context,
-                                   Sequence *seq,
+                                   Strip *seq,
                                    const float timeline_frame,
                                    const int type)
 {
@@ -534,7 +527,7 @@ static void seq_cache_populate_key(SeqCacheKey *key,
 
 static SeqCacheKey *seq_cache_allocate_key(SeqCache *cache,
                                            const SeqRenderData *context,
-                                           Sequence *seq,
+                                           Strip *seq,
                                            const float timeline_frame,
                                            const int type)
 {
@@ -561,7 +554,7 @@ void seq_cache_free_temp_cache(Scene *scene, short id, int timeline_frame)
     BLI_ghashIterator_step(&gh_iter);
     BLI_assert(key->cache_owner == cache);
 
-    if (key->is_temp_cache && key->task_id == id && key->type != SEQ_CACHE_STORE_THUMBNAIL) {
+    if (key->is_temp_cache && key->task_id == id) {
       /* Use frame_index here to avoid freeing raw images if they are used for multiple frames. */
       float frame_index = seq_cache_timeline_frame_to_frame_index(
           scene, key->seq, timeline_frame, key->type);
@@ -600,14 +593,6 @@ void seq_cache_destruct(Scene *scene)
   scene->ed->cache = nullptr;
 }
 
-void seq_cache_cleanup_all(Main *bmain)
-{
-  for (Scene *scene = static_cast<Scene *>(bmain->scenes.first); scene != nullptr;
-       scene = static_cast<Scene *>(scene->id.next))
-  {
-    SEQ_cache_cleanup(scene);
-  }
-}
 void SEQ_cache_cleanup(Scene *scene)
 {
   SEQ_prefetch_stop(scene);
@@ -631,13 +616,12 @@ void SEQ_cache_cleanup(Scene *scene)
     BLI_ghash_remove(cache->hash, key, seq_cache_keyfree, seq_cache_valfree);
   }
   cache->last_key = nullptr;
-  cache->thumbnail_count = 0;
   seq_cache_unlock(scene);
 }
 
 void seq_cache_cleanup_sequence(Scene *scene,
-                                Sequence *seq,
-                                Sequence *seq_changed,
+                                Strip *seq,
+                                Strip *seq_changed,
                                 int invalidate_types,
                                 bool force_seq_changed_range)
 {
@@ -700,50 +684,7 @@ void seq_cache_cleanup_sequence(Scene *scene,
   seq_cache_unlock(scene);
 }
 
-void seq_cache_thumbnail_cleanup(Scene *scene, rctf *view_area_safe)
-{
-  /* Add offsets to the left and right end to keep some frames in cache. */
-  view_area_safe->xmax += 200;
-  view_area_safe->xmin -= 200;
-  view_area_safe->ymin -= 1;
-  view_area_safe->ymax += 1;
-
-  SeqCache *cache = seq_cache_get_from_scene(scene);
-  if (!cache) {
-    return;
-  }
-
-  GHashIterator gh_iter;
-  BLI_ghashIterator_init(&gh_iter, cache->hash);
-  while (!BLI_ghashIterator_done(&gh_iter)) {
-    SeqCacheKey *key = static_cast<SeqCacheKey *>(BLI_ghashIterator_getKey(&gh_iter));
-    BLI_ghashIterator_step(&gh_iter);
-    BLI_assert(key->cache_owner == cache);
-
-    const int frame_index = key->timeline_frame - SEQ_time_left_handle_frame_get(scene, key->seq);
-    const int frame_step = SEQ_render_thumbnails_guaranteed_set_frame_step_get(scene, key->seq);
-    const int relative_base_frame = round_fl_to_int(frame_index / float(frame_step)) * frame_step;
-    const int nearest_guaranted_absolute_frame = relative_base_frame +
-                                                 SEQ_time_left_handle_frame_get(scene, key->seq);
-
-    if (nearest_guaranted_absolute_frame == key->timeline_frame) {
-      continue;
-    }
-
-    if ((key->type & SEQ_CACHE_STORE_THUMBNAIL) &&
-        (key->timeline_frame > view_area_safe->xmax ||
-         key->timeline_frame < view_area_safe->xmin || key->seq->machine > view_area_safe->ymax ||
-         key->seq->machine < view_area_safe->ymin))
-    {
-      seq_cache_key_unlink(key);
-      BLI_ghash_remove(cache->hash, key, seq_cache_keyfree, seq_cache_valfree);
-      cache->thumbnail_count--;
-    }
-  }
-  cache->last_key = nullptr;
-}
-
-ImBuf *seq_cache_get(const SeqRenderData *context, Sequence *seq, float timeline_frame, int type)
+ImBuf *seq_cache_get(const SeqRenderData *context, Strip *seq, float timeline_frame, int type)
 {
 
   if (context->skip_cache || context->is_proxy_render || !seq) {
@@ -782,6 +723,10 @@ ImBuf *seq_cache_get(const SeqRenderData *context, Sequence *seq, float timeline
     return ibuf;
   }
 
+  if (context->for_render) {
+    return nullptr;
+  }
+
   /* Try disk cache: */
   if (seq_disk_cache_is_enabled(context->bmain)) {
     if (cache->disk_cache == nullptr) {
@@ -805,7 +750,7 @@ ImBuf *seq_cache_get(const SeqRenderData *context, Sequence *seq, float timeline
 }
 
 bool seq_cache_put_if_possible(
-    const SeqRenderData *context, Sequence *seq, float timeline_frame, int type, ImBuf *ibuf)
+    const SeqRenderData *context, Strip *seq, float timeline_frame, int type, ImBuf *ibuf)
 {
   Scene *scene = context->scene;
 
@@ -824,47 +769,16 @@ bool seq_cache_put_if_possible(
     return true;
   }
 
-  seq_cache_set_temp_cache_linked(scene, scene->ed->cache->last_key);
-  scene->ed->cache->last_key = nullptr;
+  if (scene->ed->cache) {
+    seq_cache_set_temp_cache_linked(scene, scene->ed->cache->last_key);
+    scene->ed->cache->last_key = nullptr;
+  }
+
   return false;
 }
 
-void seq_cache_thumbnail_put(const SeqRenderData *context,
-                             Sequence *seq,
-                             float timeline_frame,
-                             ImBuf *i,
-                             const rctf *view_area)
-{
-  Scene *scene = context->scene;
-
-  if (!scene->ed->cache) {
-    seq_cache_create(context->bmain, scene);
-  }
-
-  seq_cache_lock(scene);
-  SeqCache *cache = seq_cache_get_from_scene(scene);
-  SeqCacheKey *key = seq_cache_allocate_key(
-      cache, context, seq, timeline_frame, SEQ_CACHE_STORE_THUMBNAIL);
-
-  /* Prevent reinserting, it breaks cache key linking. */
-  if (BLI_ghash_haskey(cache->hash, key)) {
-    seq_cache_unlock(scene);
-    return;
-  }
-
-  /* Limit cache to THUMB_CACHE_LIMIT (5000) images stored. */
-  if (cache->thumbnail_count >= THUMB_CACHE_LIMIT) {
-    rctf view_area_safe = *view_area;
-    seq_cache_thumbnail_cleanup(scene, &view_area_safe);
-  }
-
-  seq_cache_put_ex(scene, key, i);
-  cache->thumbnail_count++;
-  seq_cache_unlock(scene);
-}
-
 void seq_cache_put(
-    const SeqRenderData *context, Sequence *seq, float timeline_frame, int type, ImBuf *i)
+    const SeqRenderData *context, Strip *seq, float timeline_frame, int type, ImBuf *i)
 {
   if (i == nullptr || context->skip_cache || context->is_proxy_render || !seq) {
     return;
@@ -896,6 +810,10 @@ void seq_cache_put(
   seq_cache_put_ex(scene, key, i);
   seq_cache_unlock(scene);
 
+  if (context->for_render) {
+    key->is_temp_cache = true;
+  }
+
   if (!key->is_temp_cache) {
     if (seq_disk_cache_is_enabled(context->bmain)) {
       if (cache->disk_cache == nullptr) {
@@ -912,7 +830,7 @@ void SEQ_cache_iterate(
     Scene *scene,
     void *userdata,
     bool callback_init(void *userdata, size_t item_count),
-    bool callback_iter(void *userdata, Sequence *seq, int timeline_frame, int cache_type))
+    bool callback_iter(void *userdata, Strip *seq, int timeline_frame, int cache_type))
 {
   SeqCache *cache = seq_cache_get_from_scene(scene);
   if (!cache) {

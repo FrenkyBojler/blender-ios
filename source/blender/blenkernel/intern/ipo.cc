@@ -43,7 +43,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
@@ -54,7 +54,9 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
+
+#include "ANIM_action.hh"
 
 #include "CLG_log.h"
 
@@ -69,6 +71,8 @@
 #endif
 
 static CLG_LogRef LOG = {"bke.ipo"};
+
+using namespace blender;
 
 static void ipo_free_data(ID *id)
 {
@@ -1024,7 +1028,7 @@ static char *get_rna_access(ID *id,
                             int adrcode,
                             const char actname[],
                             const char constname[],
-                            Sequence *seq,
+                            Strip *seq,
                             int *r_array_index)
 {
   DynStr *path = BLI_dynstr_new();
@@ -1264,7 +1268,7 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
     /* this should be ok for all types here... */
     cdriver->type = DRIVER_TYPE_AVERAGE;
 
-    /* what to store depends on the 'blocktype' - object or posechannel */
+    /* What to store depends on the `blocktype` - object or pose-channel. */
     if (idriver->blocktype == ID_AR) { /* PoseChannel */
       if (idriver->adrcode == OB_ROT_DIFF) {
         /* Rotational Difference requires a special type of variable */
@@ -1401,7 +1405,7 @@ static void icu_to_fcurves(ID *id,
                            IpoCurve *icu,
                            char *actname,
                            char *constname,
-                           Sequence *seq,
+                           Strip *seq,
                            int muteipo)
 {
   AdrBit2Path *abp;
@@ -1621,10 +1625,10 @@ static void icu_to_fcurves(ID *id,
          * - their values were 0-1
          * - we now need as 'frames'
          */
-        if ((id) && (icu->blocktype == GS(id->name)) &&
+        if ((id) && (icu->blocktype == GS(id->name)) && (GS(id->name) == ID_CU_LEGACY) &&
             (fcu->rna_path && STREQ(fcu->rna_path, "eval_time")))
         {
-          Curve *cu = (Curve *)id;
+          const Curve *cu = (const Curve *)id;
 
           dst->vec[0][1] *= cu->pathlen;
           dst->vec[1][1] *= cu->pathlen;
@@ -1637,8 +1641,8 @@ static void icu_to_fcurves(ID *id,
          * - were also degrees/10
          */
         if (fcu->driver && fcu->driver->variables.first) {
-          DriverVar *dvar = static_cast<DriverVar *>(fcu->driver->variables.first);
-          DriverTarget *dtar = &dvar->targets[0];
+          const DriverVar *dvar = static_cast<const DriverVar *>(fcu->driver->variables.first);
+          const DriverTarget *dtar = &dvar->targets[0];
 
           if (ELEM(dtar->transChan, DTAR_TRANSCHAN_ROTX, DTAR_TRANSCHAN_ROTY, DTAR_TRANSCHAN_ROTZ))
           {
@@ -1688,7 +1692,7 @@ static void ipo_to_animato(ID *id,
                            Ipo *ipo,
                            char actname[],
                            char constname[],
-                           Sequence *seq,
+                           Strip *seq,
                            ListBase *animgroups,
                            ListBase *anim,
                            ListBase *drivers)
@@ -1778,6 +1782,10 @@ static void action_to_animato(
   bActionChannel *achan, *achann;
   bConstraintChannel *conchan, *conchann;
 
+  BLI_assert_msg(
+      act->wrap().is_action_legacy(),
+      "Conversion from pre-2.5 animation data should happen before conversion to layered Actions");
+
   /* only continue if there are Action Channels (indicating unconverted data) */
   if (BLI_listbase_is_empty(&act->chanbase)) {
     return;
@@ -1832,7 +1840,7 @@ static void action_to_animato(
  * from animation data is accomplished here too...
  */
 static void ipo_to_animdata(
-    Main *bmain, ID *id, Ipo *ipo, char actname[], char constname[], Sequence *seq)
+    Main *bmain, ID *id, Ipo *ipo, char actname[], char constname[], Strip *seq)
 {
   AnimData *adt = BKE_animdata_from_id(id);
   ListBase anim = {nullptr, nullptr};
@@ -1874,7 +1882,12 @@ static void ipo_to_animdata(
 
       SNPRINTF(nameBuf, "CDA:%s", ipo->id.name + 2);
 
-      adt->action = BKE_action_add(bmain, nameBuf);
+      bAction *action = BKE_action_add(bmain, nameBuf);
+      id_us_min(&action->id);
+      const bool assign_ok = animrig::assign_action(action, {*id, *adt});
+      BLI_assert_msg(assign_ok, "Expecting the assignment of a new Action to always work");
+      UNUSED_VARS_NDEBUG(assign_ok);
+
       if (G.debug & G_DEBUG) {
         printf("\t\tadded new action - '%s'\n", nameBuf);
       }
@@ -1912,7 +1925,9 @@ static void action_to_animdata(ID *id, bAction *act)
     if (G.debug & G_DEBUG) {
       printf("act_to_adt - set adt action to act\n");
     }
-    adt->action = act;
+    const bool assign_ok = animrig::assign_action(act, {*id, *adt});
+    BLI_assert_msg(assign_ok, "Expecting the assignment of a just-converted Action to work");
+    UNUSED_VARS_NDEBUG(assign_ok);
   }
 
   /* convert Action data */
@@ -2027,7 +2042,7 @@ struct Seq_callback_data {
   AnimData *adt;
 };
 
-static bool seq_convert_callback(Sequence *seq, void *userdata)
+static bool seq_convert_callback(Strip *seq, void *userdata)
 {
   IpoCurve *icu = static_cast<IpoCurve *>((seq->ipo) ? seq->ipo->curve.first : nullptr);
   short adrcode = SEQ_FAC1;
@@ -2127,18 +2142,14 @@ void do_versions_ipos_to_animato(Main *bmain)
       nlastrips_to_animdata(id, &ob->nlastrips);
     }
     else if ((ob->ipo) || (ob->action)) {
-      /* Add AnimData block */
-      AnimData *adt = BKE_animdata_ensure_id(id);
+      BKE_animdata_ensure_id(id);
 
       /* Action first - so that Action name get conserved */
       if (ob->action) {
         action_to_animdata(id, ob->action);
 
-        /* Only decrease user-count if this Action isn't now being used by AnimData. */
-        if (ob->action != adt->action) {
-          id_us_min(&ob->action->id);
-          ob->action = nullptr;
-        }
+        id_us_min(&ob->action->id);
+        ob->action = nullptr;
       }
 
       /* IPO second... */
@@ -2460,7 +2471,7 @@ void do_versions_ipos_to_animato(Main *bmain)
 
     /* clear fake-users, and set user-count to zero to make sure it is cleared on file-save */
     ipo->id.us = 0;
-    ipo->id.flag &= ~LIB_FAKEUSER;
+    ipo->id.flag &= ~ID_FLAG_FAKEUSER;
   }
 
   /* free unused drivers from actions + ipos */
