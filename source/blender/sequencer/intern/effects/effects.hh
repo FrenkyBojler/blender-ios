@@ -17,19 +17,19 @@
 
 struct ImBuf;
 struct Scene;
-struct Sequence;
+struct Strip;
 
-SeqEffectHandle seq_effect_get_sequence_blend(Sequence *seq);
+SeqEffectHandle seq_effect_get_sequence_blend(Strip *seq);
 /**
  * Build frame map when speed in mode #SEQ_SPEED_MULTIPLY is animated.
  * This is, because `target_frame` value is integrated over time.
  */
-void seq_effect_speed_rebuild_map(Scene *scene, Sequence *seq);
+void seq_effect_speed_rebuild_map(Scene *scene, Strip *seq);
 /**
  * Override timeline_frame when rendering speed effect input.
  */
 float seq_speed_effect_target_frame_get(Scene *scene,
-                                        Sequence *seq_speed,
+                                        Strip *seq_speed,
                                         float timeline_frame,
                                         int input);
 
@@ -78,13 +78,10 @@ inline void store_opaque_black_pixel(float *dst)
   dst[3] = 1.0f;
 }
 
-StripEarlyOut early_out_mul_input1(const Sequence * /*seq*/, float fac);
-StripEarlyOut early_out_mul_input2(const Sequence * /*seq*/, float fac);
-StripEarlyOut early_out_fade(const Sequence * /*seq*/, float fac);
-void get_default_fac_fade(const Scene *scene,
-                          const Sequence *seq,
-                          float timeline_frame,
-                          float *fac);
+StripEarlyOut early_out_mul_input1(const Strip * /*seq*/, float fac);
+StripEarlyOut early_out_mul_input2(const Strip * /*seq*/, float fac);
+StripEarlyOut early_out_fade(const Strip * /*seq*/, float fac);
+void get_default_fac_fade(const Scene *scene, const Strip *seq, float timeline_frame, float *fac);
 
 SeqEffectHandle get_sequence_effect_impl(int seq_type);
 
@@ -119,6 +116,12 @@ void wipe_effect_get_handle(SeqEffectHandle &rval);
 template<typename OpT>
 static void apply_effect_op(const OpT &op, const ImBuf *src1, const ImBuf *src2, ImBuf *dst)
 {
+  BLI_assert_msg(src1->channels == 0 || src1->channels == 4,
+                 "Sequencer only supports 4 channel images");
+  BLI_assert_msg(src2->channels == 0 || src2->channels == 4,
+                 "Sequencer only supports 4 channel images");
+  BLI_assert_msg(dst->channels == 0 || dst->channels == 4,
+                 "Sequencer only supports 4 channel images");
   blender::threading::parallel_for(
       blender::IndexRange(size_t(dst->x) * dst->y), 32 * 1024, [&](blender::IndexRange range) {
         int64_t offset = range.first() * 4;
