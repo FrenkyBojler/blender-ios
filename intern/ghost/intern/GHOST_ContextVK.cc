@@ -607,7 +607,6 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
   VK_CHECK(vkWaitForFences(device, 1, &m_fence, VK_TRUE, UINT64_MAX));
   VK_CHECK(vkResetFences(device, 1, &m_fence));
-  // printf("%d\n", image_index);
 
   GHOST_VulkanBinarySemaphore &present_wait_semaphore =
       m_images_present_wait_semaphores_[image_index];
