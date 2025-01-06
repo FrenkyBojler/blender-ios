@@ -76,7 +76,7 @@ static void node_composit_buts_lensdist(uiLayout *layout, bContext * /*C*/, Poin
   uiItemR(col, ptr, "use_fit", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 /* --------------------------------------------------------------------
  * Screen Lens Distortion
@@ -417,13 +417,13 @@ class LensDistortionOperation : public NodeOperation {
   float get_distortion()
   {
     const Result &input = get_input("Distortion");
-    return clamp_f(input.get_float_value_default(0.0f), MINIMUM_DISTORTION, 1.0f);
+    return clamp_f(input.get_single_value_default(0.0f), MINIMUM_DISTORTION, 1.0f);
   }
 
   float get_dispersion()
   {
     const Result &input = get_input("Dispersion");
-    return clamp_f(input.get_float_value_default(0.0f), 0.0f, 1.0f);
+    return clamp_f(input.get_single_value_default(0.0f), 0.0f, 1.0f);
   }
 
   /* Get the distortion amount for each channel. The green channel has a distortion amount that
@@ -506,6 +506,7 @@ void register_node_type_cmp_lensdist()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_LENSDIST, "Lens Distortion", NODE_CLASS_DISTORT);
+  ntype.enum_name_legacy = "LENSDIST";
   ntype.declare = file_ns::cmp_node_lensdist_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_lensdist;
   ntype.initfunc = file_ns::node_composit_init_lensdist;

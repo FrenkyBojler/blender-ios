@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'cfa63bfefa5b')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'eb39d81afa00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-09 09:50+0000\n"
+"POT-Creation-Date: 2024-12-30 14:46+0000\n"
 "PO-Revision-Date: 2012-09-07 22:32+0100\n"
 "Last-Translator: Nikola Radovanovic <cobisimo@gmail.com>\n"
 "Language-Team: Nikola Radovanovic\n"
@@ -10738,10 +10738,6 @@ msgid "Static Type"
 msgstr "Статичка врста"
 
 
-msgid "Node type (deprecated, use with care)"
-msgstr "Врста чвора (застарело, користите пажљиво)"
-
-
 msgid "Outputs"
 msgstr "Излази"
 
@@ -11028,6 +11024,10 @@ msgstr "Користи Z-Бафер"
 
 msgid "Z-Scale"
 msgstr "Z-увећање"
+
+
+msgid "High quality"
+msgstr "Висок квалитет"
 
 
 msgid "Neighbor"
@@ -14189,15 +14189,6 @@ msgstr "Додај обележивач"
 msgctxt "Operator"
 msgid "Delete Bookmark"
 msgstr "Уклони обележивач"
-
-
-msgctxt "Operator"
-msgid "Cancel File Load"
-msgstr "Прекини учитавање слике"
-
-
-msgid "Cancel loading of selected file"
-msgstr "Прекини учитавање изабране датотеке"
 
 
 msgctxt "Operator"
@@ -17376,11 +17367,6 @@ msgid "Project Image"
 msgstr "Пројектуј слику"
 
 
-msgctxt "Operator"
-msgid "Texture Paint Toggle"
-msgstr "Бојење текстуре"
-
-
 msgid "Blur Iterations"
 msgstr "Итерација замућења"
 
@@ -18507,6 +18493,11 @@ msgstr "Замењује 2 траке секвенцера"
 msgctxt "Operator"
 msgid "Swap Inputs"
 msgstr "Замени улаз"
+
+
+msgctxt "Operator"
+msgid "Deselect All"
+msgstr "Поништи цео изабор"
 
 
 msgid "Zoom preview to fit in the area"
@@ -21286,10 +21277,6 @@ msgid "Use BVH spatial splits: longer builder time, faster render"
 msgstr "Користи BVH просторне поделе: дуже траје припрема али је бржи рендеринг"
 
 
-msgid "High quality"
-msgstr "Висок квалитет"
-
-
 msgid "Device to use for rendering"
 msgstr "Уређај коришћен за рендеринг"
 
@@ -23827,11 +23814,6 @@ msgstr "Запамти корисничке поставке"
 
 
 msgctxt "Operator"
-msgid "Deselect All"
-msgstr "Поништи цео изабор"
-
-
-msgctxt "Operator"
 msgid "Statistics"
 msgstr "Статистика"
 
@@ -25119,14 +25101,6 @@ msgid "Plane Track"
 msgstr "Праћење плоче"
 
 
-msgid "Error writing frame"
-msgstr "Грешка при упису кадра"
-
-
-msgid "No valid formats found"
-msgstr "Није пронађен исправан формат"
-
-
 msgid "unknown error reading file"
 msgstr "непозната грешака приликом читања датотеке"
 
@@ -26295,6 +26269,14 @@ msgstr "Препиши %s"
 
 msgid "UV Vertex"
 msgstr "UV теме"
+
+
+msgid "Error writing frame"
+msgstr "Грешка при упису кадра"
+
+
+msgid "No valid formats found"
+msgstr "Није пронађен исправан формат"
 
 
 msgid "Index out of range"

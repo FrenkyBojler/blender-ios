@@ -95,7 +95,7 @@ static void node_composit_buts_blur(uiLayout *layout, bContext * /*C*/, PointerR
   uiItemR(col, ptr, "use_extended_bounds", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class BlurOperation : public NodeOperation {
  public:
@@ -422,7 +422,7 @@ class BlurOperation : public NodeOperation {
 
   float2 compute_blur_radius()
   {
-    const float size = math::clamp(get_input("Size").get_float_value_default(1.0f), 0.0f, 1.0f);
+    const float size = math::clamp(get_input("Size").get_single_value_default(1.0f), 0.0f, 1.0f);
 
     if (!node_storage(bnode()).relative) {
       return float2(node_storage(bnode()).sizex, node_storage(bnode()).sizey) * size;
@@ -524,6 +524,7 @@ void register_node_type_cmp_blur()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_BLUR, "Blur", NODE_CLASS_OP_FILTER);
+  ntype.enum_name_legacy = "BLUR";
   ntype.declare = file_ns::cmp_node_blur_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_blur;
   ntype.flag |= NODE_PREVIEW;
