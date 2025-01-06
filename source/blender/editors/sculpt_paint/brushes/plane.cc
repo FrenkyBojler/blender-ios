@@ -374,6 +374,22 @@ void do_plane_brush(const Depsgraph &depsgraph,
   float3 plane_normal;
   float3 plane_center;
   calc_brush_plane(depsgraph, brush, object, node_mask, plane_normal, plane_center);
+
+  IndexMaskMemory memory;
+
+  /* Recompute the node mask using `plane_center` as the center. */
+  IndexMask final_node_mask = bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node& node) {
+    if (node_fully_masked_or_hidden(node)) {
+      return false;
+    }
+    return node_in_sphere(node,
+      plane_center,
+      pow2f(ss.cache->radius),
+      !ss.cache->accum);
+    });
+
+  push_undo_nodes(depsgraph, object, brush, final_node_mask);
+
   SCULPT_tilt_apply_to_normal(plane_normal, ss.cache, brush.tilt_strength_factor);
 
   const float offset = SCULPT_brush_plane_offset_get(sd, ss);
@@ -419,7 +435,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
       const PositionDeformData position_data(depsgraph, object);
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
+      final_node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         calc_faces(depsgraph,
                    sd,
@@ -443,7 +459,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
       SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
       MutableSpan<float3> positions = subdiv_ccg.positions;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
+      final_node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         calc_grids(depsgraph,
                    sd,
@@ -462,7 +478,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
+      final_node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         calc_bmesh(depsgraph,
                    sd,
@@ -480,7 +496,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
       break;
     }
   }
-  pbvh.tag_positions_changed(node_mask);
+  pbvh.tag_positions_changed(final_node_mask);
   bke::pbvh::flush_bounds_to_parents(pbvh);
 }
 
