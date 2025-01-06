@@ -4,7 +4,7 @@
 
 #include <fmt/format.h>
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "BLT_translation.hh"
 
@@ -22,7 +22,7 @@
 
 namespace blender::ed::io {
 
-int filesel_drop_import_invoke(bContext *C, wmOperator *op, const wmEvent * /* event */)
+int filesel_drop_import_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
 
   PropertyRNA *filepath_prop = RNA_struct_find_property(op->ptr, "filepath");
@@ -38,7 +38,7 @@ int filesel_drop_import_invoke(bContext *C, wmOperator *op, const wmEvent * /* e
         title = files[0];
       }
       else {
-        title = fmt::format(TIP_("Import {} files"), files.size());
+        title = fmt::format(fmt::runtime(TIP_("Import {} files")), files.size());
       }
     }
     else {

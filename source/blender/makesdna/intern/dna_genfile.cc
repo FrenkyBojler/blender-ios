@@ -504,7 +504,7 @@ static bool init_structDNA(SDNA *sdna, bool do_endian_swap, const char **r_error
 
   /* Calculate 'sdna->pointer_size'.
    *
-   * NOTE: Cannot just do `sizeof(void *)` here, since the current DNA may come from a blendfile
+   * NOTE: Cannot just do `sizeof(void *)` here, since the current DNA may come from a blend-file
    * saved on a different system, using a different pointer size. So instead, use half the size of
    * the #ListBase struct (only made of two pointers).
    */
@@ -520,8 +520,8 @@ static bool init_structDNA(SDNA *sdna, bool do_endian_swap, const char **r_error
     const SDNA_Struct *struct_info = sdna->structs[struct_index];
     sdna->pointer_size = sdna->types_size[struct_info->type_index] / 2;
 
-    /* Should never fail, double-check that #ListBase struct is still what is should be (akak a
-     * couple of pointers and nothing else). */
+    /* Should never fail, double-check that #ListBase struct is still what is should be
+     * (a couple of pointers and nothing else). */
     if (UNLIKELY(struct_info->members_num != 2 || !ELEM(sdna->pointer_size, 4, 8))) {
       *r_error_message = "ListBase struct error: invalid computed pointer-size.";
       return false;
@@ -549,14 +549,10 @@ static bool init_structDNA(SDNA *sdna, bool do_endian_swap, const char **r_error
     uint dummy_index = 0;
     const int mat4x4f_struct_index = DNA_struct_find_index_without_alias_ex(
         sdna, "mat4x4f", &dummy_index);
-    if (mat4x4f_struct_index >= 0) {
-#if 0 /* FIXME: This is using the wrong index. Code should be: */
-      SDNA_Struct *struct_info = sdna->structs[mat4x4f_struct_index];
+    if (mat4x4f_struct_index > 0) {
+      const SDNA_Struct *struct_info = sdna->structs[mat4x4f_struct_index];
       const int mat4x4f_type_index = struct_info->type_index;
       sdna->types_alignment[mat4x4f_type_index] = alignof(blender::float4x4);
-#else
-      sdna->types_alignment[mat4x4f_struct_index] = alignof(blender::float4x4);
-#endif
     }
   }
 
@@ -728,9 +724,30 @@ const char *DNA_struct_get_compareflags(const SDNA *oldsdna, const SDNA *newsdna
     BLI_assert(compare_flags[old_struct_index] != SDNA_CMP_UNKNOWN);
   }
 
-  /* First struct is `struct Link`, this is skipped in compare_flags (at index `0`).
-   * was a bug, and this way dirty patched! Solve this later. */
-  compare_flags[0] = SDNA_CMP_EQUAL;
+  /* First struct is the fake 'raw data' one (see the #SDNA_TYPE_RAW_DATA 'basic type' definition
+   * and its usages). By definition, it is always 'equal'.
+   *
+   * NOTE: Bugs History (pre-4.3).
+   *
+   * It used to be `struct Link`, it was skipped in compare_flags (at index `0`). This was a bug,
+   * and was dirty-patched by setting `compare_flags[0]` to `SDNA_CMP_EQUAL` unconditionally.
+   *
+   * Then the `0` struct became `struct DrawDataList`, which was never actually written in
+   * blend-files.
+   *
+   * Write and read blend-file code also has had implicit assumptions that a `0` value in the
+   * #BHead.SDNAnr (aka DNA struct index) meant 'raw data', and therefore was not representing any
+   * real DNA struct. This assumption has been false for years. By luck, this bug seems to have
+   * been fully harmless, for at least the following reasons:
+   *   - Read code always ignored DNA struct info in BHead blocks with a `0` value.
+   *   - `DrawDataList` data was never actually written in blend-files.
+   *   - `struct Link` never needed DNA-versioning.
+   *
+   * NOTE: This may have been broken in BE/LE conversion cases, however this endianness handling
+   * code have likely been dead/never used in practice for many years now.
+   */
+  BLI_STATIC_ASSERT(SDNA_RAW_DATA_STRUCT_INDEX == 0, "'raw data' SDNA struct index should be 0")
+  compare_flags[SDNA_RAW_DATA_STRUCT_INDEX] = SDNA_CMP_EQUAL;
 
 /* This code can be enabled to see which structs have changed. */
 #if 0
@@ -834,7 +851,11 @@ static void cast_primitive_type(const eSDNA_Type old_type,
         const int8_t value = *reinterpret_cast<const int8_t *>(old_data);
         old_value_i = uint64_t(value);
         old_value_f = double(value);
+        break;
       }
+      case SDNA_TYPE_RAW_DATA:
+        BLI_assert_msg(false, "Conversion from SDNA_TYPE_RAW_DATA is not supported");
+        break;
     }
 
     switch (new_type) {
@@ -873,6 +894,9 @@ static void cast_primitive_type(const eSDNA_Type old_type,
         break;
       case SDNA_TYPE_INT8:
         *reinterpret_cast<int8_t *>(new_data) = int8_t(old_value_i);
+        break;
+      case SDNA_TYPE_RAW_DATA:
+        BLI_assert_msg(false, "Conversion to SDNA_TYPE_RAW_DATA is not supported");
         break;
     }
 
@@ -1198,8 +1222,8 @@ struct DNA_ReconstructInfo {
 
 static void reconstruct_structs(const DNA_ReconstructInfo *reconstruct_info,
                                 const int blocks,
-                                const int old_struct_nr,
-                                const int new_struct_nr,
+                                const int old_struct_index,
+                                const int new_struct_index,
                                 const char *old_blocks,
                                 char *new_blocks);
 
@@ -1738,6 +1762,9 @@ int DNA_elem_type_size(const eSDNA_Type elem_nr)
     case SDNA_TYPE_INT64:
     case SDNA_TYPE_UINT64:
       return 8;
+    case SDNA_TYPE_RAW_DATA:
+      BLI_assert_msg(false, "Operations on the size of SDNA_TYPE_RAW_DATA is not supported");
+      return 0;
   }
 
   /* weak */
@@ -1749,7 +1776,7 @@ int DNA_struct_alignment(const SDNA *sdna, const int struct_index)
   return sdna->types_alignment[struct_index];
 }
 
-const char *DNA_struct_identifier(struct SDNA *sdna, const int struct_index)
+const char *DNA_struct_identifier(SDNA *sdna, const int struct_index)
 {
   DNA_sdna_alias_data_ensure(sdna);
   const SDNA_Struct *struct_info = sdna->structs[struct_index];

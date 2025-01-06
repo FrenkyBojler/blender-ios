@@ -23,6 +23,7 @@ struct BlendDataReader;
 struct BlendWriter;
 struct Collection;
 struct ID;
+struct CollectionChild;
 struct CollectionExport;
 struct Main;
 struct Object;
@@ -69,7 +70,14 @@ void BKE_collection_add_from_collection(Main *bmain,
 void BKE_collection_free_data(Collection *collection);
 
 /**
- * Free any data used by the IO handler (does not free the IO handler itself).
+ * Assigns a unique name to the collection exporter.
+ */
+void BKE_collection_exporter_name_set(const ListBase *exporters,
+                                      CollectionExport *data,
+                                      const char *newname);
+
+/**
+ * Free all data owned by the collection exporter.
  */
 void BKE_collection_exporter_free_data(CollectionExport *data);
 
@@ -89,6 +97,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy);
  */
 Collection *BKE_collection_duplicate(Main *bmain,
                                      Collection *parent,
+                                     CollectionChild *child_old,
                                      Collection *collection,
                                      uint duplicate_flags,
                                      uint duplicate_options);
@@ -113,6 +122,9 @@ Collection *BKE_collection_object_find(Main *bmain,
                                        Scene *scene,
                                        Collection *collection,
                                        Object *ob);
+
+CollectionChild *BKE_collection_child_find(Collection *parent, Collection *collection);
+
 bool BKE_collection_is_empty(const Collection *collection);
 
 /**
@@ -146,12 +158,9 @@ bool BKE_collection_object_add_notest(Main *bmain, Collection *collection, Objec
  */
 void BKE_collection_object_add_from(Main *bmain, Scene *scene, Object *ob_src, Object *ob_dst);
 /**
- * Remove object from collection.
+ * Remove ob from collection.
  */
-bool BKE_collection_object_remove(Main *bmain,
-                                  Collection *collection,
-                                  Object *object,
-                                  bool free_us);
+bool BKE_collection_object_remove(Main *bmain, Collection *collection, Object *ob, bool free_us);
 /**
  * Replace one object with another in a collection (managing user counts).
  */

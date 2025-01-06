@@ -13,7 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -27,7 +27,7 @@
 #include "BKE_material.h"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -121,23 +121,6 @@ void ED_editors_init(bContext *C)
       /* For multi-edit mode we may already have mode data. */
       continue;
     }
-    if (ob->type == OB_GPENCIL_LEGACY) {
-      /* Grease pencil does not need a toggle of mode. However we may have a non-active object
-       * stuck in a grease-pencil edit mode. */
-      if (ob != obact) {
-        bGPdata *gpd = (bGPdata *)ob->data;
-        gpd->flag &= ~(GP_DATA_STROKE_PAINTMODE | GP_DATA_STROKE_EDITMODE |
-                       GP_DATA_STROKE_SCULPTMODE | GP_DATA_STROKE_WEIGHTMODE |
-                       GP_DATA_STROKE_VERTEXMODE);
-        ob->mode = OB_MODE_OBJECT;
-        DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
-      }
-      else if (mode & OB_MODE_ALL_PAINT_GPENCIL) {
-        ED_gpencil_toggle_brush_cursor(C, true, nullptr);
-        BKE_paint_ensure_from_paintmode(bmain, scene, BKE_paintmode_get_active_from_context(C));
-      }
-      continue;
-    }
 
     /* Reset object to Object mode, so that code below can properly re-switch it to its
      * previous mode if possible, re-creating its mode data, etc. */
@@ -179,7 +162,8 @@ void ED_editors_init(bContext *C)
     else if (mode & OB_MODE_ALL_SCULPT) {
       if (obact == ob) {
         if (mode == OB_MODE_SCULPT) {
-          ED_object_sculptmode_enter_ex(*bmain, *depsgraph, *scene, *ob, true, reports);
+          blender::ed::sculpt_paint::object_sculpt_mode_enter(
+              *bmain, *depsgraph, *scene, *ob, true, reports);
         }
         else if (mode == OB_MODE_VERTEX_PAINT) {
           ED_object_vpaintmode_enter_ex(*bmain, *depsgraph, *scene, *ob);

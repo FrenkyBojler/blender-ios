@@ -168,7 +168,7 @@ IDTypeInfo IDType_ID_CV = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-void *BKE_curves_add(Main *bmain, const char *name)
+Curves *BKE_curves_add(Main *bmain, const char *name)
 {
   Curves *curves = static_cast<Curves *>(BKE_id_new(bmain, ID_CV, name));
 
@@ -233,7 +233,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
   /* Evaluate modifiers. */
   Curves *curves = static_cast<Curves *>(object->data);
   GeometrySet geometry_set = GeometrySet::from_curves(curves, GeometryOwnershipType::ReadOnly);
-  if (object->mode == OB_MODE_SCULPT_CURVES) {
+  if (ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_CURVES)) {
     /* Try to propagate deformation data through modifier evaluation, so that sculpt mode can work
      * on evaluated curves. */
     GeometryComponentEditData &edit_component =
@@ -370,7 +370,7 @@ std::optional<MutableSpan<float3>> CurvesEditHints::positions_for_write()
   }
   else {
     auto *new_sharing_info = new ImplicitSharedValue<Array<float3>>(*this->positions());
-    data.sharing_info = ImplicitSharingPtr<ImplicitSharingInfo>(new_sharing_info);
+    data.sharing_info = ImplicitSharingPtr<>(new_sharing_info);
     data.data = new_sharing_info->data.data();
   }
 

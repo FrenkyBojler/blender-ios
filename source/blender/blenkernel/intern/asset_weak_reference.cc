@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "AS_asset_library.hh"
@@ -159,7 +159,7 @@ void BKE_asset_catalog_path_list_blend_read_data(BlendDataReader *reader,
 {
   BLO_read_struct_list(reader, AssetCatalogPathLink, &catalog_path_list);
   LISTBASE_FOREACH (AssetCatalogPathLink *, catalog_path, &catalog_path_list) {
-    BLO_read_data_address(reader, &catalog_path->path);
+    BLO_read_string(reader, &catalog_path->path);
   }
 }
 

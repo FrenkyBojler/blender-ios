@@ -71,7 +71,7 @@ Scene *ED_scene_sequencer_add(Main *bmain,
                               eSceneCopyMethod method,
                               const bool assign_strip)
 {
-  Sequence *seq = nullptr;
+  Strip *seq = nullptr;
   Scene *scene_active = CTX_data_scene(C);
   Scene *scene_strip = nullptr;
   /* Sequencer need to use as base the scene defined in the strip, not the main scene. */
@@ -192,7 +192,7 @@ static void view_layer_remove_unset_nodetrees(const Main *bmain, Scene *scene, V
        sce = static_cast<Scene *>(sce->id.next))
   {
     if (sce->nodetree) {
-      blender::bke::BKE_nodetree_remove_layer_n(sce->nodetree, scene, act_layer_index);
+      blender::bke::node_tree_remove_layer_n(sce->nodetree, scene, act_layer_index);
     }
   }
 }
@@ -311,7 +311,7 @@ static int scene_new_sequencer_exec(bContext *C, wmOperator *op)
 static bool scene_new_sequencer_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
-  const Sequence *seq = SEQ_select_active_get(scene);
+  const Strip *seq = SEQ_select_active_get(scene);
   return (seq && (seq->type == SEQ_TYPE_SCENE));
 }
 
@@ -334,7 +334,7 @@ static const EnumPropertyItem *scene_new_sequencer_enum_itemf(bContext *C,
   }
   else {
     Scene *scene = CTX_data_scene(C);
-    Sequence *seq = SEQ_select_active_get(scene);
+    Strip *seq = SEQ_select_active_get(scene);
     if (seq && (seq->type == SEQ_TYPE_SCENE) && (seq->scene != nullptr)) {
       has_scene_or_no_context = true;
     }

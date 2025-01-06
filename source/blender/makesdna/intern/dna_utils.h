@@ -43,7 +43,7 @@ uint DNA_member_id_offset_end(const char *member_full_trimmed);
 /**
  * Copy the member id part (the bare name) of the full source member into \a member_id_dst.
  *
- * \param member_id_dst destination char buffer, must be at least the size of \a member_src_full.
+ * \param member_id_dst: destination char buffer, must be at least the size of \a member_src_full.
  */
 uint DNA_member_id_strip_copy(char *member_id_dst, const char *member_full_src);
 /**
@@ -80,9 +80,9 @@ char *DNA_member_id_rename(struct MemArena *mem_arena,
 /**
  * When requesting version info, support both directions.
  *
- *  - 'Static' is the original name of the data, the one that is still stored in blendfiles DNA
- *    info (to avoid breaking forward compatibility).
- *  - 'Alias' is the current name of the data, the one used in current DNA definition code.
+ * - 'Static' is the original name of the data, the one that is still stored in blend-files
+ *   DNA info (to avoid breaking forward compatibility).
+ * - 'Alias' is the current name of the data, the one used in current DNA definition code.
  */
 enum eDNA_RenameDir {
   DNA_RENAME_STATIC_FROM_ALIAS = -1,

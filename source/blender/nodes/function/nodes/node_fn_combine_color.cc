@@ -98,6 +98,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   fn_node_type_base(&ntype, FN_NODE_COMBINE_COLOR, "Combine Color", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "COMBINE_COLOR";
   ntype.declare = node_declare;
   ntype.updatefunc = node_update;
   ntype.initfunc = node_init;
@@ -106,7 +107,7 @@ static void node_register()
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

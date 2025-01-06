@@ -68,6 +68,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_GIZMO_TRANSFORM, "Transform Gizmo", NODE_CLASS_INTERFACE);
+  ntype.enum_name_legacy = "GIZMO_TRANSFORM";
   bke::node_type_storage(&ntype,
                          "NodeGeometryTransformGizmo",
                          node_free_standard_storage,
@@ -75,7 +76,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.initfunc = node_init;
-  bke::nodeRegisterType(&ntype);
+  bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

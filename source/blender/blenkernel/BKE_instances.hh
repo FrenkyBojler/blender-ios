@@ -25,6 +25,7 @@
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_memory_counter_fwd.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -32,10 +33,11 @@
 
 #include "DNA_customdata_types.h"
 
+#include "BKE_attribute_filter.hh"
+
 struct Object;
 struct Collection;
 namespace blender::bke {
-class AnonymousAttributePropagationInfo;
 class AttributeAccessor;
 class MutableAttributeAccessor;
 }  // namespace blender::bke
@@ -43,6 +45,7 @@ class MutableAttributeAccessor;
 namespace blender::bke {
 
 struct GeometrySet;
+struct AttributeAccessorFunctions;
 
 /**
  * Holds a reference to conceptually unique geometry or a pointer to object/collection data
@@ -100,7 +103,11 @@ class InstanceReference {
   bool owns_direct_data() const;
   void ensure_owns_direct_data();
 
+  void count_memory(MemoryCounter &memory) const;
+
   friend bool operator==(const InstanceReference &a, const InstanceReference &b);
+
+  uint64_t hash() const;
 };
 
 class Instances {
@@ -149,6 +156,10 @@ class Instances {
    * Otherwise a new handle is added.
    */
   int add_reference(const InstanceReference &reference);
+  /**
+   * Same as above, but does not deduplicate with existing references.
+   */
+  int add_new_reference(const InstanceReference &reference);
   std::optional<int> find_reference_handle(const InstanceReference &query);
   /**
    * Add a reference to the instance reference with an index specified by the #instance_handle
@@ -185,7 +196,7 @@ class Instances {
    * Remove the indices that are not contained in the mask input, and remove unused instance
    * references afterwards.
    */
-  void remove(const IndexMask &mask, const AnonymousAttributePropagationInfo &propagation_info);
+  void remove(const IndexMask &mask, const AttributeFilter &attribute_filter);
   /**
    * Get an id for every instance. These can be used for e.g. motion blur.
    */
@@ -208,6 +219,8 @@ class Instances {
   bool owns_direct_data() const;
   void ensure_owns_direct_data();
 
+  void count_memory(MemoryCounter &memory) const;
+
   void tag_reference_handles_changed()
   {
     reference_user_counts_.tag_dirty();
@@ -217,6 +230,7 @@ class Instances {
 
 VArray<float3> instance_position_varray(const Instances &instances);
 VMutableArray<float3> instance_position_varray_for_write(Instances &instances);
+const AttributeAccessorFunctions &instance_attribute_accessor_functions();
 
 /* -------------------------------------------------------------------- */
 /** \name #InstanceReference Inline Methods

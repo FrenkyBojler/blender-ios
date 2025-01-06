@@ -1056,11 +1056,26 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default='EMBREE',
     )
 
-    debug_use_cuda_adaptive_compile: BoolProperty(name="Adaptive Compile", default=False)
+    adaptive_compile_description = "Compile the Cycles GPU kernel with only the feature set required for the current scene"
+
+    debug_use_cuda_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
+        default=False)
 
     debug_use_optix_debug: BoolProperty(
         name="OptiX Module Debug",
         description="Load OptiX module in debug mode: lower logging verbosity level, enable validations, and lower optimization level",
+        default=False)
+
+    debug_use_hip_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
+        default=False)
+
+    debug_use_metal_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
         default=False)
 
     @classmethod
@@ -1743,15 +1758,15 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 if sys.platform[:3] == "win":
                     driver_version = "21.Q4"
                     col.label(
-                        text=rpt_("Requires AMD GPU with Vega or RDNA architecture"),
+                        text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
                     col.label(text=rpt_("and AMD Radeon Pro %s driver or newer") % driver_version,
                               icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    driver_version = "22.10"
+                    driver_version = "23.40"
                     col.label(
-                        text=rpt_("Requires AMD GPU with Vega or RDNA architecture"),
+                        text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
                     col.label(text=rpt_("and AMD driver version %s or newer") % driver_version, icon='BLANK1',
@@ -1759,12 +1774,12 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
-                    driver_version = "XX.X.101.5518"
+                    driver_version = "XX.X.101.5730"
                     col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
                     col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,
                               icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    driver_version = "XX.XX.27642.38"
+                    driver_version = "XX.XX.29735.20"
                     col.label(
                         text=rpt_("Requires Intel GPU with Xe-HPG architecture and"),
                         icon='BLANK1',
@@ -1831,10 +1846,9 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         if compute_device_type == 'HIP':
             import platform
-            if platform.system() == "Windows":  # HIP-RT is currently only supported on Windows
-                row = layout.row()
-                row.active = has_rt_api_support['HIP']
-                row.prop(self, "use_hiprt")
+            row = layout.row()
+            row.active = has_rt_api_support['HIP']
+            row.prop(self, "use_hiprt")
 
         elif compute_device_type == 'ONEAPI' and _cycles.with_embree_gpu:
             row = layout.row()
