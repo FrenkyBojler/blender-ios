@@ -26,7 +26,7 @@ namespace blender::ed::sculpt_paint::flood_fill {
 struct FillDataMesh {
   std::queue<int> queue;
   BitVector<> visited_verts;
-  Span<int> fake_neighbors = {};
+  Span<int> fake_neighbors;
 
   FillDataMesh(int size) : visited_verts(size) {}
   FillDataMesh(int size, Span<int> fake_neighbors)
@@ -46,7 +46,7 @@ struct FillDataMesh {
 struct FillDataGrids {
   std::queue<SubdivCCGCoord> queue;
   BitVector<> visited_verts;
-  Span<int> fake_neighbors = {};
+  Span<int> fake_neighbors;
 
   FillDataGrids(int size) : visited_verts(size) {}
   FillDataGrids(int size, Span<int> fake_neighbors)
@@ -67,7 +67,7 @@ struct FillDataGrids {
 struct FillDataBMesh {
   std::queue<BMVert *> queue;
   BitVector<> visited_verts;
-  Span<int> fake_neighbors = {};
+  Span<int> fake_neighbors;
 
   FillDataBMesh(int size) : visited_verts(size) {}
   FillDataBMesh(int size, Span<int> fake_neighbors)
