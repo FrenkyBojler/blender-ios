@@ -957,10 +957,13 @@ struct PaintOperationExecutor {
       self.placement_.project(new_screen_space_coords, new_positions);
     }
     else {
-      /* Active smoothing is done in a window at the end of the new stroke. */
+      /* Active smoothing is done in a window at the end of the new stroke.
+       * Final positions are written below. */
       this->active_smoothing(self, smooth_window);
     }
 
+    /* Jitter uses smoothed coordinates as input. In case smoothing is not applied these are the
+     * unsmoothed original coordinates. */
     MutableSpan<float3> curve_positions = positions.slice(curves.points_by_curve()[active_curve]);
     if (use_settings_random_ && settings_->draw_jitter > 0.0f) {
       this->active_jitter(self,
