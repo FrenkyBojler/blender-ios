@@ -108,10 +108,10 @@ bool should_import_asset(const std::string &path);
 bool paths_equal(const char *p1, const char *p2);
 
 /**
- * Returns path to temporary folder for saving imported textures prior to packing.
- * CAUTION: this directory is recursively deleted after material import.
+ * Returns a unique, per-thread, path to a temporary folder suitable for saving imported textures
+ * prior to packing. CAUTION: this directory is recursively deleted after material import.
  */
-const char *temp_textures_dir();
+std::string temp_textures_dir();
 
 /**
  * Invokes the USD asset resolver to write data to the given path.

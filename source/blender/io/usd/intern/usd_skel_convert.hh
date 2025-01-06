@@ -9,6 +9,8 @@
 #include <pxr/usd/usdGeom/xformCache.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
 
+#include <mutex>
+
 struct Depsgraph;
 struct Main;
 struct Mesh;
@@ -43,6 +45,7 @@ namespace blender::io::usd {
 void import_blendshapes(Main *bmain,
                         Object *mesh_obj,
                         const pxr::UsdPrim &prim,
+                        std::mutex &reader_mutex,
                         ReportList *reports,
                         bool import_anim = true);
 
@@ -62,6 +65,7 @@ void import_blendshapes(Main *bmain,
 void import_skeleton(Main *bmain,
                      Object *arm_obj,
                      const pxr::UsdSkelSkeleton &skel,
+                     std::mutex &reader_mutex,
                      ReportList *reports,
                      bool import_anim = true);
 /**

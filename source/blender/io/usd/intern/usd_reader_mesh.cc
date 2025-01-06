@@ -106,11 +106,16 @@ static void assign_materials(Main *bmain,
     return;
   }
 
-  USDMaterialReader mat_reader(params, bmain);
+  USDMaterialReader mat_reader(params, bmain, settings.reader_mutex);
 
   for (const auto item : mat_index_map.items()) {
-    Material *assigned_mat = find_existing_material(
-        item.key, params, settings.mat_name_to_mat, settings.usd_path_to_mat);
+    Material *assigned_mat = nullptr;
+    {
+      std::scoped_lock lock{settings.reader_mutex};
+      assigned_mat = find_existing_material(
+          item.key, params, settings.mat_name_to_mat, settings.usd_path_to_mat);
+    }
+
     if (!assigned_mat) {
       /* Blender material doesn't exist, so create it now. */
 
@@ -139,6 +144,10 @@ static void assign_materials(Main *bmain,
       }
 
       const std::string mat_name = make_safe_name(assigned_mat->id.name + 2, true);
+
+      /* Book-keeping for our various name-to-Material maps needs to be threadsafe. */
+      std::scoped_lock lock{settings.reader_mutex};
+
       settings.mat_name_to_mat.lookup_or_add_default(mat_name) = assigned_mat;
 
       if (params.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
@@ -155,6 +164,7 @@ static void assign_materials(Main *bmain,
     }
 
     if (assigned_mat) {
+      std::scoped_lock lock{settings.reader_mutex};
       BKE_object_material_assign_single_obdata(bmain, ob, assigned_mat, item.value);
     }
     else {
@@ -215,7 +225,7 @@ void USDMeshReader::read_object_data(Main *bmain, const double motionSampleTime)
   }
 
   if (import_params_.import_blendshapes) {
-    import_blendshapes(bmain, object_, prim_, reports());
+    import_blendshapes(bmain, object_, prim_, settings_->reader_mutex, reports());
   }
 
   if (import_params_.import_skeletons) {
@@ -845,10 +855,15 @@ void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const double mot
       "material_index", bke::AttrDomain::Face);
   this->assign_facesets_to_material_indices(motionSampleTime, material_indices.span, &mat_map);
   material_indices.finish();
+
   /* Build material name map if it's not built yet. */
-  if (this->settings_->mat_name_to_mat.is_empty()) {
-    build_material_map(bmain, &this->settings_->mat_name_to_mat);
+  {
+    std::scoped_lock lock{settings_->reader_mutex};
+    if (this->settings_->mat_name_to_mat.is_empty()) {
+      build_material_map(bmain, &this->settings_->mat_name_to_mat);
+    }
   }
+
   utils::assign_materials(
       bmain, object_, mat_map, this->import_params_, this->prim_.GetStage(), *this->settings_);
 }

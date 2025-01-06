@@ -12,6 +12,7 @@
 
 #include <pxr/usd/usdShade/material.h>
 
+#include <mutex>
 #include <string>
 
 struct Main;
@@ -92,9 +93,10 @@ class USDMaterialReader {
   USDImportParams params_;
 
   Main *bmain_;
+  std::mutex &reader_mutex_;
 
  public:
-  USDMaterialReader(const USDImportParams &params, Main *bmain);
+  USDMaterialReader(const USDImportParams &params, Main *bmain, std::mutex &reader_mutex);
 
   Material *add_material(const pxr::UsdShadeMaterial &usd_material,
                          bool read_usd_preview = true) const;

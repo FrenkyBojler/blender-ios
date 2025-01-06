@@ -136,20 +136,20 @@ static Image *load_image(std::string tex_path, Main *bmain, const USDImportParam
                                should_import_asset(tex_path);
 
   std::string imported_file_source_path = tex_path;
+  std::string temp_dir = params.import_textures_mode == USD_TEX_IMPORT_PACK ?
+                             temp_textures_dir() :
+                             params.import_textures_dir;
 
   if (import_textures) {
     /* If we are packing the imported textures, we first write them
      * to a temporary directory. */
-    const char *textures_dir = params.import_textures_mode == USD_TEX_IMPORT_PACK ?
-                                   temp_textures_dir() :
-                                   params.import_textures_dir;
 
     const eUSDTexNameCollisionMode name_collision_mode = params.import_textures_mode ==
                                                                  USD_TEX_IMPORT_PACK ?
                                                              USD_TEX_NAME_COLLISION_OVERWRITE :
                                                              params.tex_name_collision_mode;
 
-    tex_path = import_asset(tex_path.c_str(), textures_dir, name_collision_mode, nullptr);
+    tex_path = import_asset(tex_path.c_str(), temp_dir.c_str(), name_collision_mode, nullptr);
   }
 
   Image *image = BKE_image_load_exists(bmain, tex_path.c_str());
@@ -165,9 +165,7 @@ static Image *load_image(std::string tex_path, Main *bmain, const USDImportParam
       !BKE_image_has_packedfile(image))
   {
     BKE_image_packfiles(nullptr, image, ID_BLEND_PATH(bmain, &image->id));
-    if (BLI_is_dir(temp_textures_dir())) {
-      BLI_delete(temp_textures_dir(), true, true);
-    }
+    BLI_delete(temp_dir.c_str(), true, true);
   }
 
   return image;

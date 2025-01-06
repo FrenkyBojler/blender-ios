@@ -44,6 +44,7 @@
 
 #include "ANIM_animdata.hh"
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -134,6 +135,7 @@ void import_skeleton_curves(Main *bmain,
                             Object *arm_obj,
                             const pxr::UsdSkelSkeletonQuery &skel_query,
                             const blender::Map<pxr::TfToken, std::string> &joint_to_bone_map,
+                            std::mutex &reader_mutex,
                             ReportList *reports)
 
 {
@@ -162,8 +164,12 @@ void import_skeleton_curves(Main *bmain,
   const size_t num_samples = samples.size();
 
   /* Create the action on the armature. */
-  bAction *act = blender::animrig::id_action_ensure(bmain, &arm_obj->id);
-  BKE_id_rename(*bmain, act->id, anim_query.GetPrim().GetName().GetText());
+  bAction *act;
+  {
+    std::scoped_lock lock{reader_mutex};
+    act = blender::animrig::id_action_ensure(bmain, &arm_obj->id);
+    BKE_id_rename(*bmain, act->id, anim_query.GetPrim().GetName().GetText());
+  }
 
   /* Create the curves. */
 
@@ -400,6 +406,7 @@ namespace blender::io::usd {
 void import_blendshapes(Main *bmain,
                         Object *mesh_obj,
                         const pxr::UsdPrim &prim,
+                        std::mutex &reader_mutex,
                         ReportList *reports,
                         const bool import_anim)
 {
@@ -475,7 +482,11 @@ void import_blendshapes(Main *bmain,
   Mesh *mesh = static_cast<Mesh *>(mesh_obj->data);
 
   /* Insert key to source mesh. */
-  Key *key = BKE_key_add(bmain, (ID *)mesh);
+  Key *key;
+  {
+    std::scoped_lock lock{reader_mutex};
+    key = BKE_key_add(bmain, (ID *)mesh);
+  }
   key->type = KEY_RELATIVE;
 
   mesh->key = key;
@@ -645,7 +656,11 @@ void import_blendshapes(Main *bmain,
   }
 
   /* Create the animation and curves. */
-  bAction *act = blender::animrig::id_action_ensure(bmain, &key->id);
+  bAction *act;
+  {
+    std::scoped_lock lock{reader_mutex};
+    act = blender::animrig::id_action_ensure(bmain, &key->id);
+  }
   blender::Vector<FCurve *> curves;
   curves.reserve(blendshapes.size());
 
@@ -701,6 +716,7 @@ void import_blendshapes(Main *bmain,
 void import_skeleton(Main *bmain,
                      Object *arm_obj,
                      const pxr::UsdSkelSkeleton &skel,
+                     std::mutex &reader_mutex,
                      ReportList *reports,
                      const bool import_anim)
 {
@@ -956,11 +972,14 @@ void import_skeleton(Main *bmain,
   }
 
   /* Get out of edit mode. */
-  ED_armature_from_edit(bmain, arm);
+  {
+    std::scoped_lock lock{reader_mutex};
+    ED_armature_from_edit(bmain, arm);
+  }
   ED_armature_edit_free(arm);
 
   if (import_anim && valid_skeleton) {
-    import_skeleton_curves(bmain, arm_obj, skel_query, joint_to_bone_map, reports);
+    import_skeleton_curves(bmain, arm_obj, skel_query, joint_to_bone_map, reader_mutex, reports);
   }
 }
 

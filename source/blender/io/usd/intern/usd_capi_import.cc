@@ -24,6 +24,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_task.hh"
 #include "BLI_timeit.hh"
 
 #include "BLT_translation.hh"
@@ -251,7 +252,6 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   *data->progress = 0.2f;
 
   const float size = float(archive->readers().size());
-  size_t i = 0;
 
   /* Sort readers by name: when creating a lot of objects in Blender,
    * it is much faster if the order is sorted by name. */
@@ -260,6 +260,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   *data->progress = 0.25f;
 
   /* Create blender objects. */
+  size_t i = 0;
   for (USDPrimReader *reader : archive->readers()) {
     if (!reader) {
       continue;
@@ -272,30 +273,45 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   }
 
   /* Setup parenthood and read actual object data. */
-  i = 0;
-  for (USDPrimReader *reader : archive->readers()) {
-    if (!reader) {
-      continue;
-    }
-
-    Object *ob = reader->object();
-    reader->read_object_data(data->bmain, 0.0);
-
-    USDPrimReader *parent = reader->parent();
-    if (parent == nullptr) {
-      ob->parent = nullptr;
-    }
-    else {
-      ob->parent = parent->object();
-    }
-
-    *data->progress = 0.5f + 0.5f * (++i / size);
-    *data->do_update = true;
-
+  std::atomic<int> progress_count;
+  const Vector<USDPrimReader *> &readers = archive->readers();
+  blender::threading::parallel_for(readers.index_range(), 1, [&](const IndexRange range) {
+    /* Quickly drain the parallel loop if cancelation was requested. */
     if (G.is_break) {
       data->was_canceled = true;
       return;
     }
+
+    for (const int reader_i : range) {
+      USDPrimReader *reader = readers[reader_i];
+      if (!reader) {
+        continue;
+      }
+
+      Object *ob = reader->object();
+      reader->read_object_data(data->bmain, 0.0);
+
+      const USDPrimReader *parent = reader->parent();
+      if (parent == nullptr) {
+        ob->parent = nullptr;
+      }
+      else {
+        ob->parent = parent->object();
+      }
+
+      *data->progress = 0.5f + 0.5f * (progress_count.fetch_add(1) / size);
+      *data->do_update = true;
+
+      if (G.is_break) {
+        data->was_canceled = true;
+        break;
+      }
+    }
+  });
+
+  if (G.is_break) {
+    data->was_canceled = true;
+    return;
   }
 
   if (data->params.import_skeletons) {

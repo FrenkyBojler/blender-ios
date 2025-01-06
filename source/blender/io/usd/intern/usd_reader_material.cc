@@ -32,6 +32,8 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/shader.h>
 
+#include <mutex>
+
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.usd"};
 
@@ -451,8 +453,10 @@ void compute_node_loc(const int column, float *r_locx, float *r_locy, NodePlacem
 
 }  // namespace
 
-USDMaterialReader::USDMaterialReader(const USDImportParams &params, Main *bmain)
-    : params_(params), bmain_(bmain)
+USDMaterialReader::USDMaterialReader(const USDImportParams &params,
+                                     Main *bmain,
+                                     std::mutex &reader_mutex)
+    : params_(params), bmain_(bmain), reader_mutex_(reader_mutex)
 {
 }
 
@@ -466,8 +470,12 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
   std::string mtl_name = usd_material.GetPrim().GetName().GetString();
 
   /* Create the material. */
-  Material *mtl = BKE_material_add(bmain_, mtl_name.c_str());
-  id_us_min(&mtl->id);
+  Material *mtl;
+  {
+    std::scoped_lock lock{reader_mutex_};
+    mtl = BKE_material_add(bmain_, mtl_name.c_str());
+    id_us_min(&mtl->id);
+  }
 
   if (read_usd_preview) {
     import_usd_preview(mtl, usd_material);
@@ -543,7 +551,10 @@ void USDMaterialReader::import_usd_preview_nodes(Material *mtl,
 
   blender::bke::node_set_active(ntree, output);
 
-  BKE_ntree_update_after_single_tree_change(*bmain_, *ntree);
+  {
+    std::scoped_lock lock{reader_mutex_};
+    BKE_ntree_update_after_single_tree_change(*bmain_, *ntree);
+  }
 
   /* Optionally, set the material blend mode. */
   if (params_.set_material_blend) {
@@ -1329,22 +1340,23 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   const bool import_textures = params_.import_textures_mode != USD_TEX_IMPORT_NONE && is_relative;
 
   std::string imported_file_source_path;
+  std::string temp_dir = params_.import_textures_mode == USD_TEX_IMPORT_PACK ?
+                             temp_textures_dir() :
+                             params_.import_textures_dir;
 
   if (import_textures) {
     imported_file_source_path = file_path;
 
     /* If we are packing the imported textures, we first write them
      * to a temporary directory. */
-    const char *textures_dir = params_.import_textures_mode == USD_TEX_IMPORT_PACK ?
-                                   temp_textures_dir() :
-                                   params_.import_textures_dir;
-
     const eUSDTexNameCollisionMode name_collision_mode = params_.import_textures_mode ==
                                                                  USD_TEX_IMPORT_PACK ?
                                                              USD_TEX_NAME_COLLISION_OVERWRITE :
                                                              params_.tex_name_collision_mode;
 
-    file_path = import_asset(file_path.c_str(), textures_dir, name_collision_mode, reports());
+    /* For correct name collision handling and AssetResolver writing, the lock is needed. */
+    std::scoped_lock lock{reader_mutex_};
+    file_path = import_asset(file_path.c_str(), temp_dir.c_str(), name_collision_mode, reports());
   }
 
   /* If this is a UDIM texture, this will store the
@@ -1354,6 +1366,11 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   if (is_udim_path(file_path)) {
     udim_tiles = get_udim_tiles(file_path);
   }
+
+  /* TODO: This lock is held for much too long due to 2 reasons:
+   * 1) BKE_image_load_exists is duplicating work and hitting the filesystem when loading UDIMs
+   * 2) Manipulation of Image properties, when the Image has already been created. */
+  std::scoped_lock lock{reader_mutex_};
 
   const char *im_file = file_path.c_str();
   Image *image = BKE_image_load_exists(bmain_, im_file);
@@ -1414,9 +1431,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
       !BKE_image_has_packedfile(image))
   {
     BKE_image_packfiles(nullptr, image, ID_BLEND_PATH(bmain_, &image->id));
-    if (BLI_is_dir(temp_textures_dir())) {
-      BLI_delete(temp_textures_dir(), true, true);
-    }
+    BLI_delete(temp_dir.c_str(), true, true);
   }
 }
 

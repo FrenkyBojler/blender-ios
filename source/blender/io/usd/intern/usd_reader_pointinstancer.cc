@@ -161,7 +161,10 @@ void USDPointInstancerReader::read_object_data(Main *bmain, const double motionS
   BKE_modifiers_persistent_uid_init(*object_, *md);
 
   NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(md);
-  nmd.node_group = bke::node_tree_add_tree(bmain, "Instances", "GeometryNodeTree");
+  {
+    std::scoped_lock lock{settings_->reader_mutex};
+    nmd.node_group = bke::node_tree_add_tree(bmain, "Instances", "GeometryNodeTree");
+  }
 
   bNodeTree *ntree = nmd.node_group;
 
@@ -247,7 +250,10 @@ void USDPointInstancerReader::read_object_data(Main *bmain, const double motionS
                      group_output,
                      static_cast<bNodeSocket *>(group_output->inputs.first));
 
-  BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
+  {
+    std::scoped_lock lock{settings_->reader_mutex};
+    BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
+  }
 
   BKE_object_modifier_set_active(object_, md);
 

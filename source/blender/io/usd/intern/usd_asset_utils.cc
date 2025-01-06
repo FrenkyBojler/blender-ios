@@ -22,7 +22,10 @@
 
 #include "WM_api.hh"
 
+#include <atomic>
 #include <string_view>
+
+#include <fmt/core.h>
 
 namespace blender::io::usd {
 
@@ -413,18 +416,12 @@ bool paths_equal(const char *p1, const char *p2)
   return resolved_p1 == resolved_p2;
 }
 
-const char *temp_textures_dir()
+std::string temp_textures_dir()
 {
-  static bool inited = false;
+  static std::atomic<uint32_t> id{};
 
-  static char temp_dir[FILE_MAXDIR] = {'\0'};
-
-  if (!inited) {
-    BLI_path_join(temp_dir, sizeof(temp_dir), BKE_tempdir_session(), "usd_textures_tmp", SEP_STR);
-    inited = true;
-  }
-
-  return temp_dir;
+  const uint32_t temp_id = id.fetch_add(1);
+  return fmt::format("{}usd_tex{:08X}{}", BKE_tempdir_session(), temp_id, SEP);
 }
 
 bool write_to_path(const void *data, size_t size, const char *path, ReportList *reports)

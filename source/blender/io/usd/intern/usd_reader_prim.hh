@@ -57,6 +57,8 @@ struct ImportSettings {
    * be populated prior to stage traversal. */
   mutable blender::Set<std::string> mat_import_hook_sources{};
 
+  mutable std::mutex reader_mutex;
+
   /* We use the stage metersPerUnit to convert camera properties from USD scene units to the
    * correct millimeter scale that Blender uses for camera parameters. */
   double stage_meters_per_unit = 1.0;

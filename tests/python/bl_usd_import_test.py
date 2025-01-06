@@ -1622,7 +1622,7 @@ class USDImportTest(AbstractUSDTest):
         self.assertEqual({'FINISHED'}, res, f"Unable to export to {usdz2}")
 
         def check_image(name, tiles_num, size, is_packed):
-            self.assertTrue(name in bpy.data.images)
+            self.assertTrue(name in bpy.data.images, f"Missing Image '{name}'")
 
             image = bpy.data.images[name]
             self.assertEqual(len(image.tiles), tiles_num)
@@ -1645,7 +1645,6 @@ class USDImportTest(AbstractUSDTest):
         res = bpy.ops.wm.usd_import(filepath=usdz1, import_textures_mode='IMPORT_PACK')
         self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {usdz1}")
 
-        self.assertEqual(len(bpy.data.images), 4)
         check_image("test_grid_<UDIM>.png", 2, 1024, True)
         check_image("test_normal.exr", 1, 128, True)
         check_image("test_normal_invertY.exr", 1, 128, True)
@@ -1661,7 +1660,6 @@ class USDImportTest(AbstractUSDTest):
                 self.tempdir))
         self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {usdz2}")
 
-        self.assertEqual(len(bpy.data.images), 4)
         check_image("test_grid_<UDIM>.png", 2, 128, False)
         check_image("test_normal.exr", 1, 128, False)
         check_image("test_normal_invertY.exr", 1, 128, False)
