@@ -1209,34 +1209,32 @@ int seq_effect_find_selected(Scene *scene,
 
   *r_error_str = nullptr;
 
-  if (!activeseq) {
-    seq1 = SEQ_select_active_get(scene);
-  }
-
   if (SEQ_effect_get_num_inputs(type) == 0) {
     *r_selseq1 = *r_selseq2 = nullptr;
     return 1;
   }
 
-  LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-    if (seq->flag & SELECT) {
-      if (seq->type == SEQ_TYPE_SOUND_RAM) {
+  for (Sequence *strip : SEQ_query_selected_strips(ed->seqbasep)) {
+    if (strip->flag & SELECT) {
+      if (strip->type == SEQ_TYPE_SOUND_RAM) {
         // Ignore sound strips for now (avoids unnecessary errors when connected strips are
         // selected together, and the intent to operate on strips with video content is clear).
         continue;
       }
-      if (!ELEM(seq, activeseq, seq1)) {
-        if (seq1 == nullptr) {
-          seq1 = seq;
-        }
-        else if (seq2 == nullptr) {
-          seq2 = seq;
-        }
-        else {
-          *r_error_str = N_(
-              "Cannot apply effect to more than 2 sequence strips with video content");
-          return 0;
-        }
+      if (strip == activeseq) {
+        // If `activeseq` is set, this function is being called from the reassign inputs operator.
+        // Ignore the active strip, since it is the effect strip.
+        continue;
+      }
+      if (seq1 == nullptr) {
+        seq1 = strip;
+      }
+      else if (seq2 == nullptr) {
+        seq2 = strip;
+      }
+      else {
+        *r_error_str = N_("Cannot apply effect to more than 2 sequence strips with video content");
+        return 0;
       }
     }
   }
