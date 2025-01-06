@@ -221,7 +221,7 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
     const int order = std::min(orders[curve], int8_t(points.size() + 1));
     const int first_index = intervals_by_curve[curve].start();
     const int first_value = copy_intervals[first_index].start();
-    bool is_selected = is_first_selected[curve];
+    const bool is_first_interval_selected = is_first_selected[curve];
     Array<float> curve_knots_buff(points.size());
 
     Span<float> curve_knot_spans = knot_spans.slice(points);
@@ -244,11 +244,10 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
       const IndexRange src = shift_end_by(copy_intervals[i], 1);
       const IndexRange dst = src.shift(new_offsets[curve] - first_value + i - first_index);
       new_knot_spans.slice(dst).copy_from(curve_knot_spans.slice(src.shift(-first_value)));
-      if (is_selected) {
+      if (bool(i % 2) != is_first_interval_selected) {
         new_knot_spans[dst.first()] = new_span;
         new_knot_spans[dst.last()] = new_span;
       }
-      is_selected = !is_selected;
     }
 
     if (!cyclic[curve]) {
@@ -336,11 +335,12 @@ static void extrude_curves(Curves &curves_id)
     for (const int curve : curves_range) {
       const int first_index = intervals_by_curve[curve].start();
       const int first_value = copy_intervals[first_index].start();
-      bool is_selected = is_first_selected[curve];
+      const bool is_first_interval_selected = is_first_selected[curve];
 
       for (const int i : intervals_by_curve[curve].drop_back(1)) {
         const IndexRange src = shift_end_by(copy_intervals[i], 1);
         const IndexRange dst = src.shift(new_offsets[curve] - first_value + i - first_index);
+        const bool is_selected = bool(i % 2) != is_first_interval_selected;
 
         for (const int selection_i : selection_attr_names.index_range()) {
           GMutableSpan dst_span = dst_selections[selection_i].span.slice(dst);
@@ -353,8 +353,6 @@ static void extrude_curves(Curves &curves_id)
             fill_selection(dst_span, false);
           }
         }
-
-        is_selected = !is_selected;
       }
     }
   });
