@@ -38,7 +38,7 @@ ListBase TreeDisplaySequencer::build_tree(const TreeSourceData &source_data)
     return tree;
   }
 
-  for (Sequence *seq : List<Sequence>(ed->seqbasep)) {
+  for (Strip *seq : List<Strip>(ed->seqbasep)) {
     SequenceAddOp op = need_add_seq_dup(seq);
     if (op == SEQUENCE_DUPLICATE_NONE) {
       add_element(&tree, nullptr, seq, nullptr, TSE_SEQUENCE, 0);
@@ -52,9 +52,9 @@ ListBase TreeDisplaySequencer::build_tree(const TreeSourceData &source_data)
   return tree;
 }
 
-SequenceAddOp TreeDisplaySequencer::need_add_seq_dup(Sequence *seq) const
+SequenceAddOp TreeDisplaySequencer::need_add_seq_dup(Strip *seq) const
 {
-  if ((!seq->strip) || (!seq->strip->stripdata)) {
+  if ((!seq->data) || (!seq->data->stripdata)) {
     return SEQUENCE_DUPLICATE_NONE;
   }
 
@@ -62,14 +62,14 @@ SequenceAddOp TreeDisplaySequencer::need_add_seq_dup(Sequence *seq) const
    * First check backward, if we found a duplicate
    * sequence before this, don't need it, just return.
    */
-  Sequence *p = seq->prev;
+  Strip *p = seq->prev;
   while (p) {
-    if ((!p->strip) || (!p->strip->stripdata)) {
+    if ((!p->data) || (!p->data->stripdata)) {
       p = p->prev;
       continue;
     }
 
-    if (STREQ(p->strip->stripdata->filename, seq->strip->stripdata->filename)) {
+    if (STREQ(p->data->stripdata->filename, seq->data->stripdata->filename)) {
       return SEQUENCE_DUPLICATE_NOOP;
     }
     p = p->prev;
@@ -77,12 +77,12 @@ SequenceAddOp TreeDisplaySequencer::need_add_seq_dup(Sequence *seq) const
 
   p = seq->next;
   while (p) {
-    if ((!p->strip) || (!p->strip->stripdata)) {
+    if ((!p->data) || (!p->data->stripdata)) {
       p = p->next;
       continue;
     }
 
-    if (STREQ(p->strip->stripdata->filename, seq->strip->stripdata->filename)) {
+    if (STREQ(p->data->stripdata->filename, seq->data->stripdata->filename)) {
       return SEQUENCE_DUPLICATE_ADD;
     }
     p = p->next;
@@ -91,16 +91,16 @@ SequenceAddOp TreeDisplaySequencer::need_add_seq_dup(Sequence *seq) const
   return SEQUENCE_DUPLICATE_NONE;
 }
 
-void TreeDisplaySequencer::add_seq_dup(Sequence *seq, TreeElement *te, short index)
+void TreeDisplaySequencer::add_seq_dup(Strip *seq, TreeElement *te, short index)
 {
-  Sequence *p = seq;
+  Strip *p = seq;
   while (p) {
-    if ((!p->strip) || (!p->strip->stripdata) || (p->strip->stripdata->filename[0] == '\0')) {
+    if ((!p->data) || (!p->data->stripdata) || (p->data->stripdata->filename[0] == '\0')) {
       p = p->next;
       continue;
     }
 
-    if (STREQ(p->strip->stripdata->filename, seq->strip->stripdata->filename)) {
+    if (STREQ(p->data->stripdata->filename, seq->data->stripdata->filename)) {
       add_element(&te->subtree, nullptr, (void *)p, te, TSE_SEQUENCE, index);
     }
     p = p->next;

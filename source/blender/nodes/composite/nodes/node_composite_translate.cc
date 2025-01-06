@@ -53,7 +53,7 @@ static void node_composit_buts_translate(uiLayout *layout, bContext * /*C*/, Poi
   uiItemR(layout, ptr, "wrap_axis", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class TranslateOperation : public NodeOperation {
  public:
@@ -64,8 +64,8 @@ class TranslateOperation : public NodeOperation {
     Result &input = get_input("Image");
     Result &result = get_result("Image");
 
-    float x = get_input("X").get_float_value_default(0.0f);
-    float y = get_input("Y").get_float_value_default(0.0f);
+    float x = get_input("X").get_single_value_default(0.0f);
+    float y = get_input("Y").get_single_value_default(0.0f);
     if (get_use_relative()) {
       x *= input.domain().size.x;
       y *= input.domain().size.y;
@@ -127,6 +127,7 @@ void register_node_type_cmp_translate()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_TRANSLATE, "Translate", NODE_CLASS_DISTORT);
+  ntype.enum_name_legacy = "TRANSLATE";
   ntype.declare = file_ns::cmp_node_translate_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_translate;
   ntype.initfunc = file_ns::node_composit_init_translate;

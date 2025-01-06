@@ -12,21 +12,21 @@
 
 #include "tree_element.hh"
 
-struct Sequence;
 struct Strip;
+struct StripData;
 
 namespace blender::ed::outliner {
 
 class TreeElementSequence : public AbstractTreeElement {
-  Sequence &sequence_;
+  Strip &sequence_;
 
  public:
-  TreeElementSequence(TreeElement &legacy_te, Sequence &sequence);
+  TreeElementSequence(TreeElement &legacy_te, Strip &sequence);
 
   bool expand_poll(const SpaceOutliner &) const override;
   void expand(SpaceOutliner &) const override;
 
-  Sequence &get_sequence() const;
+  Strip &get_sequence() const;
   SequenceType get_sequence_type() const;
 };
 
@@ -34,18 +34,18 @@ class TreeElementSequence : public AbstractTreeElement {
 
 class TreeElementSequenceStrip : public AbstractTreeElement {
  public:
-  TreeElementSequenceStrip(TreeElement &legacy_te, Strip &strip);
+  TreeElementSequenceStrip(TreeElement &legacy_te, StripData &strip);
 };
 
 /* -------------------------------------------------------------------- */
 
 class TreeElementSequenceStripDuplicate : public AbstractTreeElement {
-  Sequence &sequence_;
+  Strip &sequence_;
 
  public:
-  TreeElementSequenceStripDuplicate(TreeElement &legacy_te, Sequence &sequence);
+  TreeElementSequenceStripDuplicate(TreeElement &legacy_te, Strip &sequence);
 
-  Sequence &get_sequence() const;
+  Strip &get_sequence() const;
 };
 
 }  // namespace blender::ed::outliner
