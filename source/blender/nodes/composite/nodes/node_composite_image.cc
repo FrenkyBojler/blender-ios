@@ -434,8 +434,8 @@ static void node_rlayer_declare(NodeDeclarationBuilder &builder)
          Scene * /*scene*/,
          ViewLayer * /*view_layer*/,
          const char *name,
-         const int channels,
-         const char *channel_id,
+         const int /*channels*/,
+         const char * /*channel_id*/,
          const eNodeSocketDatatype type) {
         NodeDeclarationBuilder &builder = *static_cast<NodeDeclarationBuilder *>(userdata);
         if (STREQ(name, RE_PASSNAME_COMBINED)) {
