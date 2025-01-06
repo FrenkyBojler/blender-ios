@@ -1222,7 +1222,6 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
    * them too. */
   temp_id->orig_id = nullptr;
   temp_id->newid = nullptr;
-  temp_id->runtime.readfile_data = nullptr;
   /* Even though in theory we could be able to preserve this python instance across undo even
    * when we need to re-read the ID into its original address, this is currently cleared in
    * #direct_link_id_common in `readfile.cc` anyway. */
