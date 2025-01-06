@@ -1505,7 +1505,7 @@ static void copy_new_curve_to(const bke::CurvesGeometry &from_curves,
     });
   }
   else {
-    to_curves.offsets_for_write().last(1) = to_curves.points_num();
+    to_curves.offsets_for_write().last(1) = to_curves.points_num() - new_points;
 
     /* Shift old attributes to make room for the new stroke. */
     bke::AttributeAccessor from_attributes = from_curves.attributes();
@@ -1515,11 +1515,11 @@ static void copy_new_curve_to(const bke::CurvesGeometry &from_curves,
       GMutableSpan to_attribute_data = dst.span;
 
       const bool point_domain = (dst.domain == bke::AttrDomain::Point);
-      const int from_offset = point_domain ? from_curves.offsets()[from_curves_num - 2] :
-                                             from_curves_num - 2;
+      const int from_offset = point_domain ? from_curves.offsets()[from_curves_num - 1] :
+                                             from_curves_num - 1;
       const int segment_length = point_domain ? new_points : 1;
-      const int to_offset = point_domain ? to_curves.offsets()[to_curves_num - 2] :
-                                           to_curves_num - 2;
+      const int to_offset = point_domain ? to_curves.offsets()[to_curves_num - 1] :
+                                           to_curves_num - 1;
 
       bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
         using T = decltype(dummy);
@@ -1623,12 +1623,17 @@ void PaintOperation::on_stroke_done(const bContext &C)
   if (!multiframe_info_.is_empty()) {
     CurvesGeometry &from_strokes = drawing.strokes_for_write();
     const Span<int> from_offsets = from_strokes.offsets();
-    const int add_points = from_offsets.last(1);
     for (MultiframeTargetInfo &info : multiframe_info_) {
       bke::greasepencil::Drawing &to_drawing = info.target.drawing;
 
+      if (&to_drawing == &drawing) {
+        continue;
+      }
+
       CurvesGeometry &to_strokes = to_drawing.strokes_for_write();
       copy_new_curve_to(drawing.strokes(), to_strokes, on_back);
+
+      to_drawing.tag_topology_changed();
     }
   }
 
