@@ -1053,7 +1053,7 @@ bool PaintOperation::update_stroke_depth_placement(const bContext &C, const Inpu
   else {
     /* Use view direction as the normal when there is no previous depth yet. */
     const float3 origin = *new_stroke_placement_loc;
-    const float3 normal = rv3d.viewmat[2];
+    const float3 normal = rv3d.viewinv[2];
     placement_.set_stroke_projection_plane(origin, normal);
   }
 
