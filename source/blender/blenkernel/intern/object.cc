@@ -3840,6 +3840,29 @@ void BKE_object_foreach_display_point(Object *ob,
       func_cb(co, user_data);
     }
   }
+  else if (ob->type == OB_GREASE_PENCIL) {
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+    const Span<const blender::bke::greasepencil::Layer *> layers = grease_pencil.layers();
+    for (const int layer_i : layers.index_range()) {
+      const blender::bke::greasepencil::Layer &layer = *layers[layer_i];
+      if (!layer.is_visible()) {
+        continue;
+      }
+      const float4x4 layer_to_world = layer.to_world_space(*ob);
+      if (const blender::bke::greasepencil::Drawing *drawing = grease_pencil.get_drawing_at(
+              layer, grease_pencil.runtime->eval_frame))
+      {
+        const blender::bke::CurvesGeometry &curves = drawing->strokes();
+        const Span<float3> positions = curves.evaluated_positions();
+        blender::threading::parallel_for(
+            positions.index_range(), 4096, [&](const blender::IndexRange range) {
+              for (const int i : range) {
+                func_cb(blender::math::transform_point(layer_to_world, positions[i]), user_data);
+              }
+            });
+      }
+    }
+  }
   else if (ob->runtime->curve_cache && ob->runtime->curve_cache->disp.first) {
     LISTBASE_FOREACH (DispList *, dl, &ob->runtime->curve_cache->disp) {
       const float *v3 = dl->verts;
