@@ -985,10 +985,6 @@ void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index);
 /** \name Composite Nodes
  * \{ */
 
-/* output socket defines */
-#define RRES_OUT_IMAGE 0
-#define RRES_OUT_ALPHA 1
-
 /* NOTE: types are needed to restore callbacks, don't change values. */
 #define CMP_NODE_VIEWER 201
 #define CMP_NODE_RGB 202
