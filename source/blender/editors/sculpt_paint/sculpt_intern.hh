@@ -266,18 +266,6 @@ struct StrokeCache {
   float3 sculpt_normal;
   float3 sculpt_normal_symm;
 
-  /* Plane Brush */
-  static constexpr int MAX_INDEX = 20;
-  float3 last_plane_normal;
-  float3 last_plane_center;
-  std::array<float3, MAX_INDEX> plane_normals;
-  std::array<float3, MAX_INDEX> plane_centers;
-  int plane_normal_index;
-  int plane_center_index;
-  int normal_max_index;
-  int center_max_index;
-  bool plane_brush_fist_time;
-
   /* Used for area texture mode, local_mat gets calculated by
    * calc_brush_local_mat() and used in sculpt_apply_texture().
    * Transforms from model-space coords to local area coords.
@@ -335,6 +323,29 @@ struct StrokeCache {
     int stabilizer_index;
 
   } clay_thumb_brush;
+
+  /* Plane Brush */
+  struct {
+    static constexpr int MAX_INDEX = 20;
+    float3 last_normal;
+    float3 last_center;
+    std::array<float3, MAX_INDEX> normals;
+    std::array<float3, MAX_INDEX> centers;
+    int normal_index;
+    int center_index;
+    int max_normal_index;
+    int max_center_index;
+
+    /**
+    * True if the current step is the first time the Plane brush is being evaluated.
+    * 
+    * We cannot use the generic `first_time` variable used by other brushes because
+    * the Plane brush uses `grab_delta` to compute its local matrix. Since `grab_delta` requires at least
+    * two stroke steps, the first step (and successive steps if the user does not move the cursor)
+    * of the Plane brush is always skipped.
+    */
+    bool first_time;
+  } plane_brush;
 
   /* Cloth brush */
   std::unique_ptr<cloth::SimulationData> cloth_sim;

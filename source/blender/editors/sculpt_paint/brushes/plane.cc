@@ -5,7 +5,7 @@
 /** \file
  * \ingroup edsculpt
  *
- * The "Plane" brush translates the vertices towards the brush plane.
+ * The Plane brush translates the vertices towards the brush plane.
  * The vertices are displaced along the direction parallel to the normal of the plane.
  *
  * The z-distances of the vertices are affected by two parameters:
@@ -66,8 +66,6 @@ static void calc_local_positions(const float4x4 &mat,
   }
 }
 
-
-
 static void calc_local_positions(const float4x4 &mat,
                                  const Span<float3> positions,
                                  const MutableSpan<float3> local_positions)
@@ -81,7 +79,7 @@ static void calc_local_positions(const float4x4 &mat,
  * Computes the local distances. For vertices above the plane,
  * the z-distances are divided by `height`, effectively scaling the
  * z-distances so that a vertex of local coordinates
- * (0, 0, height) has a z-distance of 1.
+ * `(0, 0, height)` has a z-distance of 1.
  .
  * When `height` is 0, the local distances are set to 1. In object space, this is
  * equivalent to setting the distances equal to the radius, resulting in
@@ -135,8 +133,8 @@ static void calc_local_distances(const float height,
 * Scales factors by `height` (if local z > 0) or `depth` (if local z < 0).
 * This is necessary to "normalize" the strength contribute given by the local z distance.
 * 
-* Note that if `height` = 0, the falloff strength of the vertices
-* above the plane is 0 (see `calc_local_distances`), hence
+* Note that if `height = 0`, the falloff strength of the vertices
+* above the plane is 0 (see #calc_local_distances), hence
 * the factor for such vertices is already 0.
 * 
 * The same is true for vertices below the plane if `depth` = 0.
@@ -164,25 +162,26 @@ static void scale_factors_by_height_and_depth(const float height,
 }
 
 /*
- * Computes the translation vectors for the "Plane" brush.
+ * Computes the translation vectors for the Plane brush.
  *
- * The translation of a vertex with index i, position P, and plane projection P'
- * is determined by the vector PP' scaled by `factors[i]` and `strength`.
+ * The translation of a vertex with index `i`, position `P`, and plane projection `Q`
+ * is determined by the vector `PQ` scaled by `factors[i]` and `strength`.
  *
- * In local (brush) space, PQ is given by:
- *    PP' = P' - P = (x, y, 0) - (x, y, z) = (0, 0, -z).
+ * In local (brush) space, `PQ` is given by:
+ *    `PQ = Q - P = (x, y, 0) - (x, y, z) = (0, 0, -z)`
  *
  * Therefore, the translation in object space is:
- *    T = A * (0, 0, -z) * factors[i] * strength
+ *    `T = A * (0, 0, -z) * factors[i] * strength`
  *
  * where `A` is the 3x3 local-to-object transformation matrix.
  *
- * Given how the local space is defined, A * (0, 0, -z) simplifies to
- *    -z * radius * plane_normal
+ * Given how the local space is defined, `A * (0, 0, -z)` simplifies to:
+ *    `-z * radius * plane_normal`
  *
  * Substituting this back, the translation becomes:
- *    T = -z * radius * plane_normal * factors[i] * strength
- *  = (factors[i] * z) * (-plane_normal * radius * strength).
+ *    `T = -z * radius * plane_normal * factors[i] * strength`
+ * which is equal to:
+*     `(factors[i] * z) * (-plane_normal * radius * strength)`
  */
 static void calc_translations(const float3 &plane_normal,
                               const float radius,
