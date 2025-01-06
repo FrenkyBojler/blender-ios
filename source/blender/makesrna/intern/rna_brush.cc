@@ -2410,7 +2410,6 @@ static void rna_def_brush(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  /* TODO: add descriptions */
   static const EnumPropertyItem brush_plane_inversion_mode_items[] = {
       {BRUSH_PLANE_INVERT_DISPLACEMENT,
        "INVERT_DISPLACEMENT",
