@@ -46,27 +46,27 @@ class Slot;
  *
  * An Action broadly consists of four things:
  *
- * 1. Layers. Layers contain Strips.
- * 2. Strips. Strips reference StripData.
- * 3. StripData. Strip<Type>Data contains animation data of the given type. For
+ * 1. Layers, which contain Strips.
+ * 2. Strips, which reference StripData.
+ * 3. StripData: Strip{TYPE}Data contains animation data of the given type. For
  *    example, StripKeyframeData (currently the only StripData type) contains
  *    keyframes.
- * 4. Slots. Slots are identifiers, used to index subsets of animation data
+ * 4. Slots, which are used as identifiers for subsets of animation data
  *    within StripData items.
  *
  * StripData is not stored in the Strips themselves, but rather is stored
  * separately at the top level of the Action, and each Strip *references* a
- * StripData item. In the future this may be used for Strip instancing by having
- * more than one Strip reference the same StripData item.
+ * StripData item. This allows Strip instancing by having more than one Strip
+ * reference the same StripData item.
  *
- * Each Action has a single set of Slots defined at its top level. The animation
- * data within a StripData item is organized into one or more subsets, each of
- * which is marked as being for a different Slot.
+ * Each Action has a set of Slots defined at its top level. The animation data
+ * within a StripData item is organized into one or more subsets, each of which
+ * is marked as being for a different Slot.
  *
  * For an ID to be animated by an Action, the ID must specify both an Action and
- * a Slot within that Action to be animated by. The Slot that the ID uses
- * determines which subsets of the animation data throughout the Action it is
- * animated by.
+ * a Slot within that Action. The Slot that the ID uses determines which subset
+ * of the animation data throughout the Action it is animated by. If an Action
+ * but no Slot is specified, the ID is simply not animated.
  *
  * \note Temporary limitations: each Action can only contain one Layer, and each
  * Layer can only contain one infinite Strip with no time offset. These
@@ -130,14 +130,16 @@ class Action : public ::bAction {
    * The new layer is added to the end of the layer array, and will be empty (no
    * strips).
    *
-   * \note At the time of writing this comment (in Baklava phase 1) only a
-   * single layer per Action is supported in Blender, but this function does NOT
-   * enforce that. Be careful!
+   * \note At the time of writing this comment only a single layer per Action is
+   * supported in Blender, but this function does NOT enforce that. Be careful!
    *
    * \param name The name to give the new layer. If no name is given, a default
-   * name is used.
+   * name is used. The name may be altered (e.g. appending ".001") to enforce
+   * uniqueness within the Action.
    *
    * \return A reference to the newly created layer.
+   *
+   * \see assert_baklava_phase_1_invariants()
    */
   Layer &layer_add(std::optional<StringRefNull> name);
 
@@ -739,7 +741,7 @@ class Slot : public ::ActionSlot {
   static_assert(sizeof(NlaStrip::last_slot_identifier) == identifier_length_max);
 
   /**
-   * Return the identifier prefix of this Slot's identifier.
+   * Return the prefix of this Slot's identifier.
    *
    * This corresponds to the intended ID type of the slot, e.g "OB" for object,
    * "CA" for camera, etc.
@@ -927,9 +929,6 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
    */
   int64_t find_channelbag_index(const Channelbag &channelbag) const;
 
-  /**
-   * TODO: document this.
-   */
   SingleKeyingResult keyframe_insert(Main *bmain,
                                      const Slot &slot,
                                      FCurveDescriptor fcurve_descriptor,
@@ -944,8 +943,8 @@ static_assert(sizeof(StripKeyframeData) == sizeof(::ActionStripKeyframeData),
 /**
  * Collection of F-Curves, intended for a specific Slot handle.
  *
- * The F-Curves can also be organized into groups (e.g. all F-Curves for a given
- * bone can be put into a group with that bone's name).
+ * The F-Curves can be organized into groups (e.g. all F-Curves for a given bone
+ * can be put into a group with that bone's name).
  */
 class Channelbag : public ::ActionChannelbag {
  public:
@@ -995,12 +994,11 @@ class Channelbag : public ::ActionChannelbag {
   /**
    * Append an F-Curve to this Channelbag.
    *
-   * Semantically this transfers ownership of the F-Curve this Channelbag, and
-   * it is up to the caller to ensure that this is valid (e.g. the F-Curve
-   * doesn't also belong to something else).
+   * This transfers ownership of the F-Curve this Channelbag, and it is up to
+   * the caller to ensure that this is valid (e.g. the F-Curve doesn't also
+   * belong to something else).
    *
-   * The F-Curve will be ungrouped (i.e. not belong to any channel group) after
-   * appending.
+   * The F-Curve will not be member of any group after appending.
    *
    * This is considered a low-level function. Things like depsgraph relations
    * tagging is left to the caller.

@@ -755,7 +755,7 @@ typedef enum eActionGroup_Flag {
 /**
  * Container of animation data.
  *
- * \see animrig::Action for more detailed documentation.
+ * \see blender::animrig::Action for more detailed documentation.
  */
 typedef struct bAction {
   /** ID-serialization for relinking. */
