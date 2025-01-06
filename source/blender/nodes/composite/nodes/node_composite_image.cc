@@ -418,34 +418,39 @@ static void node_rlayer_declare(NodeDeclarationBuilder &builder)
   }
 
   Scene *scene = reinterpret_cast<Scene *>(node->id);
-  RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
-  RenderEngine *engine = RE_engine_create(engine_type);
-  ViewLayer *view_layer = static_cast<ViewLayer *>(BLI_findlink(&scene->view_layers, node->custom1));
+  ViewLayer *view_layer = static_cast<ViewLayer *>(
+      BLI_findlink(&scene->view_layers, node->custom1));
   if (!view_layer) {
     return;
   }
 
+  RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
+  RenderEngine *engine = RE_engine_create(engine_type);
   RE_engine_update_render_passes(
-      engine, scene, view_layer, [](void *userdata,
-                                    Scene * /*scene*/,
-                                    ViewLayer * /*view_layer*/,
-                                    const char *name,
-                                    const int channels,
-                                    const char *channel_id,
-                                    const eNodeSocketDatatype type)
-  {
-    NodeDeclarationBuilder &builder = *static_cast<NodeDeclarationBuilder *>(userdata);
-    if (STREQ(name, RE_PASSNAME_COMBINED)) {
-      builder.add_output<decl::Color>("Image");
-      builder.add_output<decl::Float>("Alpha");
-      return;
-    }
+      engine,
+      scene,
+      view_layer,
+      [](void *userdata,
+         Scene * /*scene*/,
+         ViewLayer * /*view_layer*/,
+         const char *name,
+         const int channels,
+         const char *channel_id,
+         const eNodeSocketDatatype type) {
+        NodeDeclarationBuilder &builder = *static_cast<NodeDeclarationBuilder *>(userdata);
+        if (STREQ(name, RE_PASSNAME_COMBINED)) {
+          builder.add_output<decl::Color>("Image");
+          builder.add_output<decl::Float>("Alpha");
+          return;
+        }
 
-    builder.add_output(type, name);
-  }, &builder);
-
+        builder.add_output(type, name);
+      },
+      &builder);
   RE_engine_free(engine);
-  if ((scene->r.mode & R_EDGE_FRS) && (view_layer->freestyle_config.flags & FREESTYLE_AS_RENDER_PASS))
+
+  if ((scene->r.mode & R_EDGE_FRS) &&
+      (view_layer->freestyle_config.flags & FREESTYLE_AS_RENDER_PASS))
   {
     builder.add_output<decl::Color>(RE_PASSNAME_FREESTYLE);
   }
@@ -686,7 +691,8 @@ void register_node_type_cmp_rlayers()
   ntype.initfunc_api = file_ns::node_composit_init_rlayers;
   ntype.poll = file_ns::node_composit_poll_rlayers;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  ntype.compositor_unsupported_message = N_("Render passes not supported in the Viewport compositor");
+  ntype.compositor_unsupported_message = N_(
+      "Render passes not supported in the Viewport compositor");
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
 
