@@ -154,7 +154,6 @@ void remove_if(const FunctionRef<bool(const GenericKey &)> predicate)
   cache.memory.reset();
   MemoryCounter memory_counter{cache.memory};
 
-  /* It's not possible to just call a map.clear() method because that is not thread-safe. */
   for (const int64_t i : cache.keys.index_range()) {
     const GenericKey &key = *cache.keys[i];
     const bool ok_to_remove = predicate(key);
