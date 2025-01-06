@@ -37,21 +37,6 @@ namespace blender::geometry::boolean {
 
 /* Some debug output functions. */
 
-#if 0
-static std::ostream &operator<<(std::ostream &os, const glm::vec3 &v)
-{
-  os << "(" << v[0] << "," << v[1] << "," << v[2] << ")";
-  return os;
-}
-
-static std::ostream &operator<<(std::ostream &os, const glm::ivec3 &v)
-{
-  os << "(" << v[0] << "," << v[1] << "," << v[2] << ")";
-  return os;
-}
-#endif
-
-
 template<typename T> static void dump_span(Span<T> span, const std::string &name)
 {
   std::cout << name << ":";
@@ -112,15 +97,6 @@ static void dump_meshgl(const MeshGL &mgl, const std::string &name)
   dump_vector(mgl.runOriginalID, 1, "runOrigiinalID");
 }
 
-#if 0
-static void dump_manmesh(const manifold::Mesh &mmesh, const std::string &name)
-{
-  std::cout << "\nmanifold::Mesh " << name << ":\n";
-  dump_vector(mmesh.vertPos, 1, "vertPos");
-  dump_vector(mmesh.triVerts, 1, "triVerts");
-}
-#endif
-
 static void dump_mesh(const Mesh *mesh, const std::string &name)
 {
   std::cout << "\nMesh " << name << ":\n"
@@ -177,7 +153,7 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
 
 static Manifold manifold_from_mesh_via_meshgl(const Mesh *mesh, int mesh_index, int faceID_offset)
 {
-  constexpr int dbg_level = 1;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMANIFOLD_FRON_MESH_VIA_MESHGL\n";
     dump_mesh(mesh, "mesh " + std::to_string(mesh_index));
@@ -246,30 +222,18 @@ template<typename T> static int which_offset_index(T x, Span<T> offset_indices)
   return -1;
 }
 
-#if 0
-/* Given an output triangle index \a output_tri in \a output_mesh_gl,
- * what is the corresponding input mesh index and face index? */
-static std::pair<int, int> mesh_and_face(int output_tri,
-                                         const MeshGL &output_meshgl,
-                                         Span<int> mesh_face_offsets)
-
-{
-  /* First find the index for the original input_mesh that contains the output_tri. */
-  int output_run_index = which_offset_index(uint32_t(3 * output_tri),
-                                            Span<uint32_t>(output_meshgl.runIndex));
-  BLI_assert(output_run_index != -1);
-  int input_mesh_index = output_meshgl.runOriginalID[output_run_index];
-  BLI_assert(input_mesh_index >= 0 && input_mesh_index < mesh_face_offsets.size());
-
-  /* Now find the face index in the input mesh, given the triangle index in the output meshgl. */
-  int tri_faceid = output_meshgl.faceID[output_tri];
-  int face_in_input_mesh = tri_faceid - mesh_face_offsets[input_mesh_index];
-  return {input_mesh_index, face_in_input_mesh};
-}
-#endif
-
+/* Holds data needed to readn and write attributes of a number of input #Meshes
+ * and write it to a destination #Mesh. */
 class GAttributeReadWriteSpans {
  public:
+  /* The underlying output Mesh. */
+  Mesh *output_mesh;
+  /* The corresponding write attribute accessor. */
+  bke::MutableAttributeAccessor output_accessor;
+  /* The underlying input Meshes. */
+  Span<const Mesh *> input_meshes;
+  /* Read attribute accessor for each input Mesh. */
+  Vector<bke::AttributeAccessor> input_accessors;
   /* A set of attributes we want copied. */
   Vector<StringRef> attrs;
   /* Parallel array of data_type. */
@@ -286,37 +250,50 @@ class GAttributeReadWriteSpans {
                            bke::AttrDomain domain);
   ~GAttributeReadWriteSpans();
 
+  int add_attribute(StringRefNull name, bke::AttrDomain domain, eCustomDataType data_type);
+
   int find_attr_index(const char *name) const;
 };
 
+int GAttributeReadWriteSpans::add_attribute(StringRefNull name, bke::AttrDomain domain, eCustomDataType data_type)
+{
+  this->attrs.append(name);
+  this->data_types.append(data_type);
+  this->dest_writers.append(
+      this->output_accessor.lookup_or_add_for_write_only_span(name, domain, data_type));
+  this->dest.append(this->dest_writers.last().span);
+  for (int i : this->input_meshes.index_range()) {
+    this->sources[i].append(
+        *this->input_accessors[i].lookup_or_default(name, domain, data_type));
+  }
+  return this->dest_writers.size() - 1;
+}
+
+/* Construct the #GAttributeReadWriteSpans to read from attribuytes of
+ * \a input_meshes and write to the attributes of \a output_mesh.
+ * Restrict attribtes to those of the given \a domain. */
 GAttributeReadWriteSpans::GAttributeReadWriteSpans(Span<const Mesh *> input_meshes,
                                                    Mesh *output_mesh,
                                                    bke::AttrDomain domain)
+  : output_mesh(output_mesh),
+    output_accessor(output_mesh->attributes_for_write()),
+    input_meshes(input_meshes)
 {
   const int num_mesh = input_meshes.size();
-  Vector<bke::AttributeAccessor> input_accessors;
   this->sources.reinitialize(num_mesh);
   for (int i : IndexRange(num_mesh)) {
-    input_accessors.append(input_meshes[i]->attributes());
+    this->input_accessors.append(input_meshes[i]->attributes());
   }
-  bke::MutableAttributeAccessor output_accessor = output_mesh->attributes_for_write();
-  output_accessor.foreach_attribute([&](const bke::AttributeIter &iter) {
+  this->output_accessor.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != domain) {
       return;
     }
-    this->attrs.append(iter.name);
-    this->data_types.append(iter.data_type);
-    this->dest_writers.append(
-        output_accessor.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
-    this->dest.append(this->dest_writers.last().span);
-    for (int i : IndexRange(num_mesh)) {
-      this->sources[i].append(
-          *input_accessors[i].lookup_or_default(iter.name, domain, iter.data_type));
-    }
+    this->add_attribute(iter.name, iter.domain, iter.data_type);
     return;
   });
 }
 
+/* Destruct a #GAttributeReadWriteSpans : finsish off the writers. */
 GAttributeReadWriteSpans::~GAttributeReadWriteSpans()
 {
   for (bke::GSpanAttributeWriter &w : dest_writers) {
@@ -324,6 +301,7 @@ GAttributeReadWriteSpans::~GAttributeReadWriteSpans()
   }
 }
 
+/* Find the attribute index of the given named attribute in the #GAttributeReadWriteSpans. */
 int GAttributeReadWriteSpans::find_attr_index(const char *name) const
 {
   for (int i : this->attrs.index_range()) {
@@ -334,7 +312,13 @@ int GAttributeReadWriteSpans::find_attr_index(const char *name) const
   return -1;
 }
 
-#if 0
+/* Given an \a input_face index, along with its \a input_mesh_index, copy the attributes
+ * in the #GAttributeReadWriteSpans \a rw_spans to attributes in the destination mesh
+ * as recorded in \a rw_spans.
+ * The "material_index" attribute, which should have index \a material_span_index,
+ * gets special treatment: apply the material remap from `matrial_remaps[input_face]`
+ * to the value of that attribute.
+ */
 static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
                             int input_mesh_index,
                             int input_face,
@@ -351,6 +335,11 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
     std::optional<GVArraySpan> &src = rw_spans.sources[input_mesh_index][i];
     GMutableSpan &dst = rw_spans.dest[i];
     if (src.has_value()) {
+      if (dbg_level > 0) {
+        std::cout << "attribute index " << i << ", name = " << rw_spans.attrs[i]
+        << ", value = " << src->type().to_string(src.value()[input_face])
+        << "\n";
+      }
       /* rw_spans.dest[output_face] = src[input_face] */
       dst.type().copy_assign(src.value()[input_face], dst[output_face]);
       /* Special additional handling for maetrial_index property. */
@@ -369,7 +358,6 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
     }
   }
 }
-#endif
 
 /* Holds cumulative offsets for the given elements of a number
  * of concatenated Meshes. The sizes are one greater than the
@@ -447,7 +435,7 @@ static void fill_vertex_map(MeshAssembly &ma,
                             Span<const Mesh *> meshes,
                             const MeshOffsets &mesh_offsets)
 {
-  constexpr int dbg_level = 1;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "fill_vertex_map\n";
   }
@@ -858,7 +846,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
                                               Span<const Mesh *> meshes,
                                               const MeshOffsets &mesh_offsets)
 {
-  constexpr int dbg_level = 2;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "assemble_mesh_from_meshgl\n";
   }
@@ -904,6 +892,22 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
   return ma;
 }
 
+/* Return true if we need a "material_index" face attribute.
+ * We need it if any of the material_reamps maps a slot to non-zero
+ * (because mapping to zero means just use the result mesh's default slot).
+ */
+static bool need_material_attribute(Span<Array<short>> material_remaps)
+{
+  for (const Array<short> remap : material_remaps) {
+    for (const int remap_val : remap) {
+      if (remap_val > 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
  * Note: the caller of mesh_boolean_manifold will fix the returned
@@ -914,7 +918,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<Array<short>> material_remaps,
                             const MeshOffsets &mesh_offsets)
 {
-  constexpr int dbg_level = 2;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMESHGL_TO_MESH\n";
     dump_meshgl(mgl, "meshgl_to_mesh argument");
@@ -965,6 +969,11 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   /* Make the faces. */
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
+  GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
+  int material_span_index = face_attrs.find_attr_index("material_index");
+  if (material_span_index == -1 && need_material_attribute(material_remaps)) {
+    material_span_index = face_attrs.add_attribute("material_index", bke::AttrDomain::Face, CD_PROP_INT32);
+  }
   grain_size = 50000;
   threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
     for (const int face_index : range) {
@@ -974,72 +983,20 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       for (const int i : face.verts.index_range()) {
         corner_verts[corner_index + i] = face.verts[i];
       }
-#if 0
-      std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, mesh_offsets.face_offsets);
-      int input_mesh_index = m_and_f.first;
-      int input_face_index = m_and_f.second;
+      const int input_mesh_index = which_offset_index<int>(face.face_id, mesh_offsets.face_offsets);
+      BLI_assert(input_mesh_index >= 0);
+      const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
       copy_face_attrs(face_attrs,
                       input_mesh_index,
                       input_face_index,
                       face_index,
                       material_span_index,
                       material_remaps);
-#endif
     }
   });
   face_offsets[tot_faces] = tot_corners;
 
-#if 0
-  /* This is the old way, when just outputting the triangles of mgl. */
-  int tot_positions = mgl.NumVert();
-  int tot_faces = mgl.NumTri();
-  int tot_corners = tot_faces * 3;
-  if (mgl.mergeFromVert.size() > 0) {
-    /* TODO: handle vertex merging */
-    std::cout << "IMPLEMENT ME: handle vertex merging\n";
-  }
-  /* We will use Blender's parallelized function to calculate edges later. */
-  Mesh *mesh = BKE_mesh_new_nomain_from_template(
-      meshes[0], tot_positions, 0, tot_faces, tot_corners);
-  int num_props = mgl.numProp;
-  MutableSpan<float3> positions = mesh->vert_positions_for_write();
-  int grain_size = 100000;
-  threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
-    for (const int i : range) {
-      int offset = num_props * i;
-      float3 pos(mgl.vertProperties[offset],
-                 mgl.vertProperties[offset + 1],
-                 mgl.vertProperties[offset + 2]);
-      positions[i] = pos;
-    }
-  });
- GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
-  int material_span_index = face_attrs.find_attr_index("material_index");
-  /* TODO: following is very specific to all-triangle output, */
-  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
-  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  grain_size = 50000;
-  threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
-    for (const int face_index : range) {
-      int corner_index = 3 * face_index;
-      face_offsets[face_index] = corner_index;
-      corner_verts[corner_index] = mgl.triVerts[corner_index];
-      corner_verts[corner_index + 1] = mgl.triVerts[corner_index + 1];
-      corner_verts[corner_index + 2] = mgl.triVerts[corner_index + 2];
-      std::pair<int, int> m_and_f = mesh_and_face(face_index, mgl, mesh_offsets.face_offsets);
-      int input_mesh_index = m_and_f.first;
-      int input_face_index = m_and_f.second;
-      copy_face_attrs(face_attrs,
-                      input_mesh_index,
-                      input_face_index,
-                      face_index,
-                      material_span_index,
-                      material_remaps);
-    }
-  });
-  face_offsets[tot_faces] = 3 * tot_faces;
-#endif
-  bke::mesh_smooth_set(*mesh, false);
+  // bke::mesh_smooth_set(*mesh, false);
   {
     timeit::ScopedTimer("calculating edges");
     bke::mesh_calc_edges(*mesh, false, false);
@@ -1059,7 +1016,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps,
                             BooleanOpParameters op_params)
 {
-  constexpr int dbg_level = 1;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMESH_BOOLEAN_MANIFOLD with " << meshes.size() << " args\n";
   }
