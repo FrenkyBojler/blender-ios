@@ -113,7 +113,8 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
   }
 
   if (plane_ != DrawingPlacementPlane::View) {
-    plane_from_point_normal_v3(placement_plane_, placement_loc_, placement_normal_);
+    BLI_assert(placement_plane_.has_value());
+    plane_from_point_normal_v3(*placement_plane_, placement_loc_, placement_normal_);
   }
 }
 
@@ -190,7 +191,8 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
   }
 
   if (plane_ != DrawingPlacementPlane::View) {
-    plane_from_point_normal_v3(placement_plane_, placement_loc_, placement_normal_);
+    BLI_assert(placement_plane_.has_value());
+    plane_from_point_normal_v3(*placement_plane_, placement_loc_, placement_normal_);
   }
 }
 
@@ -296,7 +298,8 @@ void DrawingPlacement::set_stroke_projection_plane(const float3 &origin, const f
   BLI_assert(use_project_to_stroke());
   placement_loc_ = origin;
   placement_normal_ = normal;
-  plane_from_point_normal_v3(placement_plane_, placement_loc_, placement_normal_);
+  placement_plane_ = float4();
+  plane_from_point_normal_v3(*placement_plane_, placement_loc_, placement_normal_);
 }
 
 std::optional<float3> DrawingPlacement::project_depth(const float2 co) const
@@ -334,11 +337,11 @@ float3 DrawingPlacement::project(const float2 co) const
     proj_point = this->project_depth_or_view(co);
   }
   else {
-    if (plane_ == DrawingPlacementPlane::View) {
-      ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
+    if (placement_plane_) {
+      ED_view3d_win_to_3d_on_plane(region_, *placement_plane_, co, false, proj_point);
     }
     else {
-      ED_view3d_win_to_3d_on_plane(region_, placement_plane_, co, false, proj_point);
+      ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
     }
   }
   return math::transform_point(world_space_to_layer_space_, proj_point);
@@ -352,11 +355,11 @@ float3 DrawingPlacement::project_with_shift(const float2 co) const
     proj_point = this->project_depth_or_view(co);
   }
   else {
-    if (plane_ == DrawingPlacementPlane::View) {
-      ED_view3d_win_to_3d_with_shift(view3d_, region_, placement_loc_, co, proj_point);
+    if (placement_plane_) {
+      ED_view3d_win_to_3d_on_plane(region_, *placement_plane_, co, false, proj_point);
     }
     else {
-      ED_view3d_win_to_3d_on_plane(region_, placement_plane_, co, false, proj_point);
+      ED_view3d_win_to_3d_with_shift(view3d_, region_, placement_loc_, co, proj_point);
     }
   }
   return math::transform_point(world_space_to_layer_space_, proj_point);
@@ -397,12 +400,11 @@ float3 DrawingPlacement::reproject(const float3 pos) const
       ray_no = -float3(rv3d->viewinv[2]);
     }
     float4 plane;
-    /* Note: in stroke depth mode the plane is defined explicitly. */
-    if (plane_ == DrawingPlacementPlane::View && depth_ != DrawingPlacementDepth::Stroke) {
-      plane_from_point_normal_v3(plane, placement_loc_, rv3d->viewinv[2]);
+    if (placement_plane_) {
+      plane = *placement_plane_;
     }
     else {
-      plane = placement_plane_;
+      plane_from_point_normal_v3(plane, placement_loc_, rv3d->viewinv[2]);
     }
 
     float lambda;

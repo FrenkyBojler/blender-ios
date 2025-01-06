@@ -129,7 +129,8 @@ class DrawingPlacement {
 
   float3 placement_loc_;
   float3 placement_normal_;
-  float4 placement_plane_;
+  /* Optional explicit placement plane. */
+  std::optional<float4> placement_plane_;
 
   float4x4 layer_space_to_world_space_;
   float4x4 world_space_to_layer_space_;
