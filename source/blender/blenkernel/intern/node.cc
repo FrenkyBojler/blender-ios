@@ -888,7 +888,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
         BKE_image_format_blend_write(writer, &sockdata->format);
       }
     }
-    if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
+    if (ELEM(node->type, CMP_NODE_IMAGE)) {
       /* Write extra socket info. */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
         BLO_write_struct(writer, NodeImageLayer, sock->storage);
@@ -1151,7 +1151,6 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
           break;
         }
         case CMP_NODE_IMAGE:
-        case CMP_NODE_R_LAYERS:
         case CMP_NODE_VIEWER: {
           ImageUser *iuser = static_cast<ImageUser *>(node->storage);
           iuser->scene = nullptr;
