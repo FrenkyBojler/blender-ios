@@ -1289,31 +1289,29 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
   IndexMaskMemory memory;
   const IndexMask points_to_copy = points_to_delete.complement(this->points_range(), memory);
   *this = curves_copy_point_selection(*this, points_to_copy, attribute_filter);
-  ensure_non_cyclic_clamped(this->curves_range(), *this, memory);
+  ensure_non_cyclic_clamped(this->curves_range(), *this);
 }
 
-void ensure_non_cyclic_clamped(const IndexMask selection,
-                               bke::CurvesGeometry &curves,
-                               IndexMaskMemory &memory)
+void ensure_non_cyclic_clamped(const IndexMask selection, bke::CurvesGeometry &curves)
 {
-  if (curves.attributes().contains(ATTR_NURBS_KNOT_SPAN)) {
-    const VArray<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes();
-    const VArray<bool> cyclic = curves.cyclic();
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-    const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
-    MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
-
-    IndexMask must_be_clamped = IndexMask::from_predicate(
-        selection, GrainSize(4096), memory, [&](const int64_t i) {
-          return !cyclic[i] && nurbs_knots_modes[i] == NURBS_KNOT_MODE_CUSTOM;
-        });
-
-    must_be_clamped.foreach_index(GrainSize(256), [&](const int curve) {
-      MutableSpan<float> curve_knot_spans = knot_spans.slice(points_by_curve[curve]);
-      curve_knot_spans[0] = 0.0f;
-      curve_knot_spans.take_back(nurbs_orders[curve] - 2).fill(0.0f);
-    });
+  if (!curves.attributes().contains(ATTR_NURBS_KNOT_SPAN)) {
+    return;
   }
+  const VArray<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes();
+  const VArray<bool> cyclic = curves.cyclic();
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
+  MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
+
+  threading::parallel_for(curves.curves_range(), 128, [&](const IndexRange range) {
+    for (const int curve : range) {
+      if (cyclic[curve] && nurbs_knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
+        MutableSpan<float> curve_knot_spans = knot_spans.slice(points_by_curve[curve]);
+        curve_knot_spans[0] = 0.0f;
+        curve_knot_spans.take_back(nurbs_orders[curve] - 2).fill(0.0f);
+      }
+    }
+  });
 }
 
 CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,

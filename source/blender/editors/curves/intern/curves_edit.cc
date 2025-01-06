@@ -156,8 +156,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
     array_utils::copy(dst_cyclic.as_span(), curves.cyclic_for_write().drop_front(old_curves_num));
   }
 
-  IndexMaskMemory memory;
-  ensure_non_cyclic_clamped(curves.curves_range().drop_front(old_curves_num), curves, memory);
+  ensure_non_cyclic_clamped(curves.curves_range().drop_front(old_curves_num), curves);
 
   curves.update_curve_types();
   curves.tag_topology_changed();
