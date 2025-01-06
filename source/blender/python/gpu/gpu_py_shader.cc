@@ -13,6 +13,7 @@
 
 #include "BLI_utildefines.h"
 
+#include "GPU_capabilities.hh"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
@@ -685,7 +686,31 @@ PyDoc_STRVAR(
 static PyObject *pygpu_shader_format_calc(BPyGPUShader *self, PyObject * /*arg*/)
 {
   BPyGPUVertFormat *ret = (BPyGPUVertFormat *)BPyGPUVertFormat_CreatePyObject(nullptr);
-  GPU_vertformat_from_shader(&ret->fmt, self->shader);
+  if (bpygpu_shader_is_polyline(self->shader)) {
+    GPU_vertformat_clear(&ret->fmt);
+
+    /* WORKAROUND: Special case for POLYLINE shader. Check the SSBO inputs as attributes.
+     * Upto the first 7 bindings are tested as modern platforms have MAX_UINT bind slots.
+     */
+    char name[256];
+    for (int location_test = 0;
+         location_test < max_ii(GPU_max_shader_storage_buffer_bindings(), 7);
+         location_test++)
+    {
+      if (!GPU_shader_get_ssbo_input_info(self->shader, location_test++, name)) {
+        continue;
+      }
+      if (STREQ(name, "pos")) {
+        GPU_vertformat_attr_add(&ret->fmt, name, GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      }
+      if (STREQ(name, "color")) {
+        GPU_vertformat_attr_add(&ret->fmt, name, GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      }
+    }
+  }
+  else {
+    GPU_vertformat_from_shader(&ret->fmt, self->shader);
+  }
   return (PyObject *)ret;
 }
 
