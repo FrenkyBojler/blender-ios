@@ -26,6 +26,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BPY_extern.hh"
 #include "BPY_extern_clog.hh"
@@ -5029,6 +5030,28 @@ static PyObject *pyrna_struct_get_id_data(BPy_DummyPointerRNA *self, void * /*cl
 
 PyDoc_STRVAR(
     /* Wrap. */
+    pyrna_struct_get_ancestors_doc,
+    "The chain of data containing this struct, if known. May be empty. *type* "
+    ":class:`bpy.types.bpy_struct`");
+static PyObject *pyrna_struct_get_ancestors(BPy_DummyPointerRNA *self, void * /*closure*/)
+{
+  PyObject *ret;
+
+  /* Include this in case this instance is a subtype of a Python class
+   * In these instances we may want to return a function or variable provided by the subtype. */
+  ret = PyList_New(0);
+
+  for (int ancestor_idx = 0; ancestor_idx < self->ptr->ancestors.size(); ancestor_idx++) {
+    PointerRNA ancestor_ptr = RNA_pointer_create_from_ancestor(self->ptr.value(), ancestor_idx);
+    PyObject *ancestor = pyrna_struct_CreatePyObject(&ancestor_ptr);
+    PyList_APPEND(ret, ancestor);
+  }
+
+  return ret;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     pyrna_struct_get_data_doc,
     "The data this property is using, *type* :class:`bpy.types.bpy_struct`");
 static PyObject *pyrna_struct_get_data(BPy_DummyPointerRNA *self, void * /*closure*/)
@@ -5056,6 +5079,11 @@ static PyGetSetDef pyrna_prop_getseters[] = {
      (setter) nullptr,
      pyrna_struct_get_id_data_doc,
      nullptr},
+    {"rna_ancestors",
+     (getter)pyrna_struct_get_ancestors,
+     (setter) nullptr,
+     pyrna_struct_get_ancestors_doc,
+     nullptr},
     {"data", (getter)pyrna_struct_get_data, (setter) nullptr, pyrna_struct_get_data_doc, nullptr},
     {"rna_type",
      (getter)pyrna_struct_get_rna_type,
@@ -5070,6 +5098,11 @@ static PyGetSetDef pyrna_struct_getseters[] = {
      (getter)pyrna_struct_get_id_data,
      (setter) nullptr,
      pyrna_struct_get_id_data_doc,
+     nullptr},
+    {"rna_ancestors",
+     (getter)pyrna_struct_get_ancestors,
+     (setter) nullptr,
+     pyrna_struct_get_ancestors_doc,
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };

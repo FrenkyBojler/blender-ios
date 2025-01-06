@@ -137,15 +137,19 @@ static animrig::Channelbag &rna_data_channelbag(const PointerRNA *ptr)
 }
 
 template<typename T>
-static void rna_iterator_array_begin(CollectionPropertyIterator *iter, Span<T *> items)
+static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
+                                     PointerRNA *ptr,
+                                     Span<T *> items)
 {
-  rna_iterator_array_begin(iter, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
+  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
 }
 
 template<typename T>
-static void rna_iterator_array_begin(CollectionPropertyIterator *iter, MutableSpan<T *> items)
+static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
+                                     PointerRNA *ptr,
+                                     MutableSpan<T *> items)
 {
-  rna_iterator_array_begin(iter, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
+  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
 }
 
 static PointerRNA rna_ActionSlots_active_get(PointerRNA *ptr)
@@ -219,7 +223,7 @@ void rna_Action_slots_remove(bAction *dna_action,
 static void rna_iterator_action_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   animrig::Action &action = rna_action(ptr);
-  rna_iterator_array_begin(iter, action.layers());
+  rna_iterator_array_begin(iter, ptr, action.layers());
 }
 
 static int rna_iterator_action_layers_length(PointerRNA *ptr)
@@ -276,7 +280,7 @@ void rna_Action_layers_remove(bAction *dna_action,
 static void rna_iterator_animation_slots_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   animrig::Action &action = rna_action(ptr);
-  rna_iterator_array_begin(iter, action.slots());
+  rna_iterator_array_begin(iter, ptr, action.slots());
 }
 
 static int rna_iterator_animation_slots_length(PointerRNA *ptr)
@@ -400,7 +404,7 @@ static void rna_iterator_ActionLayer_strips_begin(CollectionPropertyIterator *it
                                                   PointerRNA *ptr)
 {
   animrig::Layer &layer = rna_data_layer(ptr);
-  rna_iterator_array_begin(iter, layer.strips());
+  rna_iterator_array_begin(iter, ptr, layer.strips());
 }
 
 static int rna_iterator_ActionLayer_strips_length(PointerRNA *ptr)
@@ -484,7 +488,8 @@ static void rna_iterator_keyframestrip_channelbags_begin(CollectionPropertyItera
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
   animrig::Strip &strip = rna_data_strip(ptr);
-  rna_iterator_array_begin(iter, strip.data<animrig::StripKeyframeData>(action).channelbags());
+  rna_iterator_array_begin(
+      iter, ptr, strip.data<animrig::StripKeyframeData>(action).channelbags());
 }
 
 static int rna_iterator_keyframestrip_channelbags_length(PointerRNA *ptr)
@@ -604,7 +609,7 @@ static void rna_iterator_Channelbag_fcurves_begin(CollectionPropertyIterator *it
                                                   PointerRNA *ptr)
 {
   animrig::Channelbag &bag = rna_data_channelbag(ptr);
-  rna_iterator_array_begin(iter, bag.fcurves());
+  rna_iterator_array_begin(iter, ptr, bag.fcurves());
 }
 
 static int rna_iterator_Channelbag_fcurves_length(PointerRNA *ptr)
@@ -682,7 +687,7 @@ static void rna_Channelbag_fcurve_clear(ID *dna_action_id,
 static void rna_iterator_Channelbag_groups_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   animrig::Channelbag &bag = rna_data_channelbag(ptr);
-  rna_iterator_array_begin(iter, bag.channel_groups());
+  rna_iterator_array_begin(iter, ptr, bag.channel_groups());
 }
 
 static int rna_iterator_Channelbag_groups_length(PointerRNA *ptr)
@@ -843,7 +848,7 @@ static PointerRNA rna_ActionGroup_channels_get(CollectionPropertyIterator *iter)
       break;
   }
 
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_FCurve, fcurve);
+  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_FCurve, fcurve);
 }
 
 /* Use the backward-compatible API only when we're working with the action as a
@@ -862,10 +867,10 @@ static void rna_iterator_Action_groups_begin(CollectionPropertyIterator *iter, P
     if (!channelbag) {
       return;
     }
-    rna_iterator_array_begin(iter, channelbag->channel_groups());
+    rna_iterator_array_begin(iter, ptr, channelbag->channel_groups());
   }
   else {
-    rna_iterator_listbase_begin(iter, &action.groups, nullptr);
+    rna_iterator_listbase_begin(iter, ptr, &action.groups, nullptr);
   }
 }
 static void rna_iterator_Action_groups_next(CollectionPropertyIterator *iter)
@@ -899,7 +904,7 @@ static PointerRNA rna_iterator_Action_groups_get(CollectionPropertyIterator *ite
     group = static_cast<bActionGroup *>(rna_iterator_listbase_get(iter));
   }
 
-  return RNA_pointer_create_discrete(&action.id, &RNA_ActionGroup, group);
+  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_ActionGroup, group);
 }
 static int rna_iterator_Action_groups_length(PointerRNA *ptr)
 {
@@ -999,10 +1004,10 @@ static void rna_iterator_Action_fcurves_begin(CollectionPropertyIterator *iter, 
     if (!channelbag) {
       return;
     }
-    rna_iterator_array_begin(iter, channelbag->fcurves());
+    rna_iterator_array_begin(iter, ptr, channelbag->fcurves());
   }
   else {
-    rna_iterator_listbase_begin(iter, &action.curves, nullptr);
+    rna_iterator_listbase_begin(iter, ptr, &action.curves, nullptr);
   }
 }
 static void rna_iterator_Action_fcurves_next(CollectionPropertyIterator *iter)
@@ -1036,7 +1041,7 @@ static PointerRNA rna_iterator_Action_fcurves_get(CollectionPropertyIterator *it
     fcurve = static_cast<FCurve *>(rna_iterator_listbase_get(iter));
   }
 
-  return RNA_pointer_create_discrete(&action.id, &RNA_FCurve, fcurve);
+  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_FCurve, fcurve);
 }
 static int rna_iterator_Action_fcurves_length(PointerRNA *ptr)
 {
@@ -1233,8 +1238,8 @@ static void rna_Action_pose_markers_remove(bAction *act,
 static PointerRNA rna_Action_active_pose_marker_get(PointerRNA *ptr)
 {
   bAction *act = (bAction *)ptr->data;
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_TimelineMarker, BLI_findlink(&act->markers, act->active_marker - 1));
+  return RNA_pointer_create_with_ancestors(
+      *ptr, &RNA_TimelineMarker, BLI_findlink(&act->markers, act->active_marker - 1));
 }
 
 static void rna_Action_active_pose_marker_set(PointerRNA *ptr,

@@ -888,7 +888,7 @@ static void rna_UVProject_projectors_begin(CollectionPropertyIterator *iter, Poi
 {
   UVProjectModifierData *uvp = (UVProjectModifierData *)ptr->data;
   rna_iterator_array_begin(
-      iter, (void *)uvp->projectors, sizeof(Object *), uvp->projectors_num, 0, nullptr);
+      iter, ptr, (void *)uvp->projectors, sizeof(Object *), uvp->projectors_num, 0, nullptr);
 }
 
 static StructRNA *rna_Modifier_refine(PointerRNA *ptr)
@@ -1254,7 +1254,7 @@ static void rna_HookModifier_vertex_indices_set(HookModifierData *hmd,
 static PointerRNA rna_UVProjector_object_get(PointerRNA *ptr)
 {
   Object **ob = (Object **)ptr->data;
-  return rna_pointer_inherit_refine(ptr, &RNA_Object, *ob);
+  return RNA_pointer_create_with_ancestors(*ptr, &RNA_Object, *ob);
 }
 
 static void rna_UVProjector_object_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -1363,19 +1363,19 @@ static bool rna_MeshDeformModifier_is_bound_get(PointerRNA *ptr)
 static PointerRNA rna_SoftBodyModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return rna_pointer_inherit_refine(ptr, &RNA_SoftBodySettings, ob->soft);
+  return RNA_pointer_create_with_ancestors(*ptr, &RNA_SoftBodySettings, ob->soft);
 }
 
 static PointerRNA rna_SoftBodyModifier_point_cache_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return rna_pointer_inherit_refine(ptr, &RNA_PointCache, ob->soft->shared->pointcache);
+  return RNA_pointer_create_with_ancestors(*ptr, &RNA_PointCache, ob->soft->shared->pointcache);
 }
 
 static PointerRNA rna_CollisionModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return rna_pointer_inherit_refine(ptr, &RNA_CollisionSettings, ob->pd);
+  return RNA_pointer_create_with_ancestors(*ptr, &RNA_CollisionSettings, ob->pd);
 }
 
 /* Special update function for setting the number of segments of the modifier that also resamples
@@ -2001,9 +2001,8 @@ static PointerRNA rna_NodesModifier_node_warnings_iterator_get(CollectionPropert
 {
   NodesModifierData *nmd = static_cast<NodesModifierData *>(iter->parent.data);
   blender::Span warnings = get_node_modifier_warnings(*nmd);
-  return RNA_pointer_create_discrete(iter->parent.owner_id,
-                                     &RNA_NodesModifierWarning,
-                                     (void *)&warnings[iter->internal.count.item]);
+  return RNA_pointer_create_with_ancestors(
+      iter->parent, &RNA_NodesModifierWarning, (void *)&warnings[iter->internal.count.item]);
 }
 
 static int rna_NodesModifier_node_warnings_length(PointerRNA *ptr)
@@ -2280,6 +2279,7 @@ static void rna_GreasePencilDashModifier_segments_begin(CollectionPropertyIterat
 {
   auto *dmd = static_cast<GreasePencilDashModifierData *>(ptr->data);
   rna_iterator_array_begin(iter,
+                           ptr,
                            dmd->segments_array,
                            sizeof(GreasePencilDashModifierSegment),
                            dmd->segments_num,
@@ -2383,6 +2383,7 @@ static void rna_GreasePencilTimeModifier_segments_begin(CollectionPropertyIterat
 {
   auto *tmd = static_cast<GreasePencilTimeModifierData *>(ptr->data);
   rna_iterator_array_begin(iter,
+                           ptr,
                            tmd->segments_array,
                            sizeof(GreasePencilTimeModifierSegment),
                            tmd->segments_num,

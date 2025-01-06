@@ -262,6 +262,11 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_rna_accessors.py
 )
 
+add_blender_test(
+  pointerrna_performance
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pointerrna_performance_test.py
+)
+
 # ------------------------------------------------------------------------------
 # BLEND IO & LINKING
 

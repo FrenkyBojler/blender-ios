@@ -370,17 +370,19 @@ bool rna_iterator_generic_action_suitable_slots_skip(CollectionPropertyIterator 
 }
 
 void rna_iterator_generic_action_suitable_slots_begin(CollectionPropertyIterator *iter,
+                                                      PointerRNA *owner_ptr,
                                                       bAction *assigned_action)
 {
   if (!assigned_action) {
     /* No action means no slots. */
-    rna_iterator_array_begin(iter, nullptr, 0, 0, 0, nullptr);
+    rna_iterator_array_begin(iter, owner_ptr, nullptr, 0, 0, 0, nullptr);
     return;
   }
 
   animrig::Action &action = assigned_action->wrap();
   Span<animrig::Slot *> slots = action.slots();
   rna_iterator_array_begin(iter,
+                           owner_ptr,
                            (void *)slots.data(),
                            sizeof(animrig::Slot *),
                            slots.size(),
@@ -391,7 +393,7 @@ void rna_iterator_generic_action_suitable_slots_begin(CollectionPropertyIterator
 static void rna_iterator_animdata_action_suitable_slots_begin(CollectionPropertyIterator *iter,
                                                               PointerRNA *ptr)
 {
-  rna_iterator_generic_action_suitable_slots_begin(iter, rna_animdata(ptr).action);
+  rna_iterator_generic_action_suitable_slots_begin(iter, ptr, rna_animdata(ptr).action);
 }
 
 /* ****************************** */
@@ -697,8 +699,8 @@ static int rna_KeyingSet_active_ksPath_editable(const PointerRNA *ptr, const cha
 static PointerRNA rna_KeyingSet_active_ksPath_get(PointerRNA *ptr)
 {
   KeyingSet *ks = (KeyingSet *)ptr->data;
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_KeyingSetPath, BLI_findlink(&ks->paths, ks->active_path - 1));
+  return RNA_pointer_create_with_ancestors(
+      *ptr, &RNA_KeyingSetPath, BLI_findlink(&ks->paths, ks->active_path - 1));
 }
 
 static void rna_KeyingSet_active_ksPath_set(PointerRNA *ptr,
@@ -740,7 +742,7 @@ static PointerRNA rna_KeyingSet_typeinfo_get(PointerRNA *ptr)
   if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
     ksi = blender::animrig::keyingset_info_find_name(ks->typeinfo);
   }
-  return rna_pointer_inherit_refine(ptr, &RNA_KeyingSetInfo, ksi);
+  return RNA_pointer_create_with_ancestors(*ptr, &RNA_KeyingSetInfo, ksi);
 }
 
 static KS_Path *rna_KeyingSet_paths_add(KeyingSet *keyingset,
@@ -861,7 +863,7 @@ static PointerRNA rna_NlaTrack_active_get(PointerRNA *ptr)
 {
   AnimData *adt = (AnimData *)ptr->data;
   NlaTrack *track = BKE_nlatrack_find_active(&adt->nla_tracks);
-  return rna_pointer_inherit_refine(ptr, &RNA_NlaTrack, track);
+  return RNA_pointer_create_with_ancestors(*ptr, &RNA_NlaTrack, track);
 }
 
 static void rna_NlaTrack_active_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
