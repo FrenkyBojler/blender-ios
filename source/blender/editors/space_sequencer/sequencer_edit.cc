@@ -1210,7 +1210,7 @@ int seq_effect_find_selected(Scene *scene,
   *r_error_str = nullptr;
 
   if (!activeseq) {
-    seq2 = SEQ_select_active_get(scene);
+    seq1 = SEQ_select_active_get(scene);
   }
 
   if (SEQ_effect_get_num_inputs(type) == 0) {
@@ -1225,12 +1225,12 @@ int seq_effect_find_selected(Scene *scene,
         // selected together, and the intent to operate on strips with video content is clear).
         continue;
       }
-      if (!ELEM(seq, activeseq, seq2)) {
-        if (seq2 == nullptr) {
-          seq2 = seq;
-        }
-        else if (seq1 == nullptr) {
+      if (!ELEM(seq, activeseq, seq1)) {
+        if (seq1 == nullptr) {
           seq1 = seq;
+        }
+        else if (seq2 == nullptr) {
+          seq2 = seq;
         }
         else {
           *r_error_str = N_(
@@ -1244,7 +1244,7 @@ int seq_effect_find_selected(Scene *scene,
   switch (SEQ_effect_get_num_inputs(type)) {
     case 1:
       // Error if there are zero or two selected strips with video content.
-      if (seq2 == nullptr || seq1) {
+      if (seq1 == nullptr || seq2) {
         *r_error_str = N_("Exactly one selected sequence strip with video content is needed");
         return 0;
       }
@@ -1275,9 +1275,7 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!seq_effect_find_selected(scene, last_seq, last_seq->type, &seq1, &seq2, &error_msg) ||
-      SEQ_effect_get_num_inputs(last_seq->type) == 0)
-  {
+  if (!seq_effect_find_selected(scene, last_seq, last_seq->type, &seq1, &seq2, &error_msg)) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
