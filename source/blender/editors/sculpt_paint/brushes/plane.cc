@@ -130,19 +130,19 @@ static void calc_local_distances(const float height,
 }
 
 /*
-* Scales factors by `height` (if local z > 0) or `depth` (if local z < 0).
-* This is necessary to "normalize" the strength contribute given by the local z distance.
-* 
-* Note that if `height = 0`, the falloff strength of the vertices
-* above the plane is 0 (see #calc_local_distances), hence
-* the factor for such vertices is already 0.
-* 
-* The same is true for vertices below the plane if `depth` = 0.
-*/
+ * Scales factors by `height` (if local z > 0) or `depth` (if local z < 0).
+ * This is necessary to "normalize" the strength contribute given by the local z distance.
+ *
+ * Note that if `height = 0`, the falloff strength of the vertices
+ * above the plane is 0 (see #calc_local_distances), hence
+ * the factor for such vertices is already 0.
+ *
+ * The same is true for vertices below the plane if `depth` = 0.
+ */
 static void scale_factors_by_height_and_depth(const float height,
-  const float depth,
-  const MutableSpan<float3> local_positions,
-  const MutableSpan<float> factors)
+                                              const float depth,
+                                              const MutableSpan<float3> local_positions,
+                                              const MutableSpan<float> factors)
 {
   if (height != 1.0f && height != 0.0f) {
     for (const int i : factors.index_range()) {
@@ -181,7 +181,7 @@ static void scale_factors_by_height_and_depth(const float height,
  * Substituting this back, the translation becomes:
  *    `T = -z * radius * plane_normal * factors[i] * strength`
  * which is equal to:
-*     `(factors[i] * z) * (-plane_normal * radius * strength)`
+ *     `(factors[i] * z) * (-plane_normal * radius * strength)`
  */
 static void calc_translations(const float3 &plane_normal,
                               const float radius,
@@ -378,15 +378,13 @@ void do_plane_brush(const Depsgraph &depsgraph,
   IndexMaskMemory memory;
 
   /* Recompute the node mask using `plane_center` as the center. */
-  IndexMask final_node_mask = bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node& node) {
-    if (node_fully_masked_or_hidden(node)) {
-      return false;
-    }
-    return node_in_sphere(node,
-      plane_center,
-      pow2f(ss.cache->radius),
-      !ss.cache->accum);
-    });
+  IndexMask final_node_mask = bke::pbvh::search_nodes(
+      pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        return node_in_sphere(node, plane_center, pow2f(ss.cache->radius), !ss.cache->accum);
+      });
 
   push_undo_nodes(depsgraph, object, brush, final_node_mask);
 

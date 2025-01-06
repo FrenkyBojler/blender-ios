@@ -789,7 +789,7 @@ def brush_settings(layout, context, brush, popover=False):
                 pressure_name="use_offset_pressure",
                 slider=True,
             )
-            
+
             if sculpt_tool != 'PLANE':
                 row = layout.row(heading="Plane Trim")
                 row.prop(brush, "use_plane_trim", text="")

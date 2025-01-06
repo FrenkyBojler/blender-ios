@@ -1978,9 +1978,9 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
  * Implements a smoothing mechanism based on a weighted moving average.
  *
  * The stabilized normal is computed as the average of the last `normal_max_index`
- * plane normals, where `max_normal_index` is determined by the `stabilize_normal` parameter of the brush.
- * Each new plane normal is interpolated with the previous plane normal,
- * with `stabilize_normal` controlling the interpolation factor.
+ * plane normals, where `max_normal_index` is determined by the `stabilize_normal` parameter of the
+ * brush. Each new plane normal is interpolated with the previous plane normal, with
+ * `stabilize_normal` controlling the interpolation factor.
  *
  * Similarly, the stabilized center is computed as the average of the last `max_center_index`
  * plane centers, where `max_center_index` is determined by `stabilize_plane`.
@@ -1988,15 +1988,14 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
  * between the new, not-yet-stabilized plane center and its projection onto the
  * plane of the previous stroke step.
  */
-static void calc_stabilized_plane(const Brush& brush,
-  StrokeCache& cache,
-  const float3& plane_normal,
-  const float3& plane_center,
-  float3& r_stabilized_normal,
-  float3& r_stabilized_center
-)
+static void calc_stabilized_plane(const Brush &brush,
+                                  StrokeCache &cache,
+                                  const float3 &plane_normal,
+                                  const float3 &plane_center,
+                                  float3 &r_stabilized_normal,
+                                  float3 &r_stabilized_center)
 {
-  auto& plane_cache = cache.plane_brush;
+  auto &plane_cache = cache.plane_brush;
 
   const float normal_weight = brush.stabilize_normal;
   const float center_weight = brush.stabilize_plane;
@@ -2005,8 +2004,10 @@ static void calc_stabilized_plane(const Brush& brush,
   float3 new_plane_center;
 
   if (plane_cache.first_time) {
-    plane_cache.max_normal_index = static_cast<int>(1 + normal_weight * (plane_cache.MAX_INDEX - 1));
-    plane_cache.max_center_index = static_cast<int>(1 + center_weight * (plane_cache.MAX_INDEX - 1));
+    plane_cache.max_normal_index = static_cast<int>(1 +
+                                                    normal_weight * (plane_cache.MAX_INDEX - 1));
+    plane_cache.max_center_index = static_cast<int>(1 +
+                                                    center_weight * (plane_cache.MAX_INDEX - 1));
 
     new_plane_normal = plane_normal;
     new_plane_center = plane_center;
@@ -2020,19 +2021,16 @@ static void calc_stabilized_plane(const Brush& brush,
   else {
     /* Interpolate between `plane_normal` and the last plane normal. */
     new_plane_normal = math::normalize(
-      math::interpolate(plane_normal, plane_cache.last_normal, normal_weight));
+        math::interpolate(plane_normal, plane_cache.last_normal, normal_weight));
 
     float4 last_plane;
     plane_from_point_normal_v3(last_plane, plane_cache.last_center, plane_cache.last_normal);
 
     /* Projection of `plane_center` on the last plane. */
     float3 projected_plane_center;
-    closest_to_plane_normalized_v3(projected_plane_center,
-      last_plane,
-      plane_center);
+    closest_to_plane_normalized_v3(projected_plane_center, last_plane, plane_center);
 
     new_plane_center = math::interpolate(plane_center, projected_plane_center, center_weight);
-
   }
 
   plane_cache.normals[plane_cache.normal_index] = new_plane_normal;
@@ -2161,7 +2159,8 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
 
   float3 stabilized_normal;
   float3 stabilized_center;
-  calc_stabilized_plane(brush, *ss.cache, plane_normal, plane_center, stabilized_normal, stabilized_center);
+  calc_stabilized_plane(
+      brush, *ss.cache, plane_normal, plane_center, stabilized_normal, stabilized_center);
 
   copy_v3_v3(r_area_no, stabilized_normal);
   copy_v3_v3(r_area_co, stabilized_center);
@@ -3110,9 +3109,9 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
 }
 
 void push_undo_nodes(const Depsgraph &depsgraph,
-                            Object &ob,
-                            const Brush &brush,
-                            const IndexMask &node_mask)
+                     Object &ob,
+                     const Brush &brush,
+                     const IndexMask &node_mask)
 {
   SculptSession &ss = *ob.sculpt;
   bool need_coords = ss.cache->supports_gravity;
@@ -3239,15 +3238,15 @@ static void do_brush_action(const Depsgraph &depsgraph,
 
   if (!use_pixels) {
     /**
-    * The indices of the nodes in `node_mask` have been calculated based on the cursor position.
-    * However, for the Plane brush, its effective center often deviates from the
-    * cursor's location. Calculating the affected nodes using the cursor as the center for the Plane
-    * brush can lead to incorrect results (see, for example, #123768).
-    *
-    * To address this, the specific nodes affected by the Plane brush are accurately determined
-    * within the #do_plane_brush function. Consequently, #push_undo_nodes for the Plane brush
-    * is called directly from #do_plane_brush, ensuring the correct nodes are used for undo.
-    */
+     * The indices of the nodes in `node_mask` have been calculated based on the cursor position.
+     * However, for the Plane brush, its effective center often deviates from the
+     * cursor's location. Calculating the affected nodes using the cursor as the center for the
+     * Plane brush can lead to incorrect results (see, for example, #123768).
+     *
+     * To address this, the specific nodes affected by the Plane brush are accurately determined
+     * within the #do_plane_brush function. Consequently, #push_undo_nodes for the Plane brush
+     * is called directly from #do_plane_brush, ensuring the correct nodes are used for undo.
+     */
     if (brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_PLANE) {
       push_undo_nodes(depsgraph, ob, brush, node_mask);
     }

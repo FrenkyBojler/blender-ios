@@ -337,13 +337,13 @@ struct StrokeCache {
     int max_center_index;
 
     /**
-    * True if the current step is the first time the Plane brush is being evaluated.
-    * 
-    * We cannot use the generic `first_time` variable used by other brushes because
-    * the Plane brush uses `grab_delta` to compute its local matrix. Since `grab_delta` requires at least
-    * two stroke steps, the first step (and successive steps if the user does not move the cursor)
-    * of the Plane brush is always skipped.
-    */
+     * True if the current step is the first time the Plane brush is being evaluated.
+     *
+     * We cannot use the generic `first_time` variable used by other brushes because
+     * the Plane brush uses `grab_delta` to compute its local matrix. Since `grab_delta` requires
+     * at least two stroke steps, the first step (and successive steps if the user does not move
+     * the cursor) of the Plane brush is always skipped.
+     */
     bool first_time;
   } plane_brush;
 
@@ -591,10 +591,10 @@ bool SCULPT_brush_type_needs_all_pbvh_nodes(const Brush &brush);
 
 namespace blender::ed::sculpt_paint {
 
-void push_undo_nodes(const Depsgraph& depsgraph,
-  Object& ob,
-  const Brush& brush,
-  const IndexMask& node_mask);
+void push_undo_nodes(const Depsgraph &depsgraph,
+                     Object &ob,
+                     const Brush &brush,
+                     const IndexMask &node_mask);
 
 void calc_brush_plane(const Depsgraph &depsgraph,
                       const Brush &brush,

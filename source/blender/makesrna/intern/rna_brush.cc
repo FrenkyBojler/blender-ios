@@ -423,9 +423,9 @@ static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
   return br->sculpt_brush_type == SCULPT_BRUSH_TYPE_LAYER;
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA* ptr)
+static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA *ptr)
 {
-  Brush* br = (Brush*)ptr->data;
+  Brush *br = (Brush *)ptr->data;
   return ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_PLANE);
 }
 
@@ -3038,8 +3038,10 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(prop, "Depth",
-                           "Limit the brush effect on vertices below the plane. Only affect those within this distance.");
+  RNA_def_property_ui_text(prop,
+                           "Depth",
+                           "Limit the brush effect on vertices below the plane. Only affect those "
+                           "within this distance.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "plane_height", PROP_FLOAT, PROP_DISTANCE);
@@ -3047,8 +3049,10 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(prop, "Height",
-                           "Limit the brush effect on vertices above the plane. Only affect those within this distance.");
+  RNA_def_property_ui_text(prop,
+                           "Height",
+                           "Limit the brush effect on vertices above the plane. Only affect those "
+                           "within this distance.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "stabilize_normal", PROP_FLOAT, PROP_DISTANCE);
@@ -3056,8 +3060,8 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(prop, "Stabilize Normal",
-                           "Stabilize the orientation of the brush plane.");
+  RNA_def_property_ui_text(
+      prop, "Stabilize Normal", "Stabilize the orientation of the brush plane.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "stabilize_plane", PROP_FLOAT, PROP_DISTANCE);
@@ -3065,8 +3069,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(prop, "Stabilize Plane",
-                           "Stabilize the center of the brush plane.");
+  RNA_def_property_ui_text(prop, "Stabilize Plane", "Stabilize the center of the brush plane.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);
