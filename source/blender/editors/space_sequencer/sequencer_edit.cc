@@ -1221,8 +1221,9 @@ int seq_effect_find_selected(Scene *scene,
   LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
     if (seq->flag & SELECT) {
       if (seq->type == SEQ_TYPE_SOUND_RAM) {
-        *r_error_str = N_("Cannot apply effects to audio sequence strips");
-        return 0;
+        // Ignore sound strips for now (avoids unnecessary errors when connected strips are
+        // selected together, and the intent to operate on strips with video content is clear).
+        continue;
       }
       if (!ELEM(seq, activeseq, seq2)) {
         if (seq2 == nullptr) {
@@ -1232,7 +1233,8 @@ int seq_effect_find_selected(Scene *scene,
           seq1 = seq;
         }
         else {
-          *r_error_str = N_("Cannot apply effect to more than 2 sequence strips");
+          *r_error_str = N_(
+              "Cannot apply effect to more than 2 sequence strips with video content");
           return 0;
         }
       }
@@ -1241,34 +1243,23 @@ int seq_effect_find_selected(Scene *scene,
 
   switch (SEQ_effect_get_num_inputs(type)) {
     case 1:
-      if (seq2 == nullptr) {
-        *r_error_str = N_("At least one selected sequence strip is needed");
+      // Error if there are zero or two selected strips with video content.
+      if (seq2 == nullptr || seq1) {
+        *r_error_str = N_("Exactly one selected sequence strip with video content is needed");
         return 0;
       }
-      if (seq1 == nullptr) {
-        seq1 = seq2;
-      }
-      ATTR_FALLTHROUGH;
+      break;
     case 2:
+      // Error if there aren't two strips with video content.
       if (seq1 == nullptr || seq2 == nullptr) {
-        *r_error_str = N_("2 selected sequence strips are needed");
+        *r_error_str = N_("Exactly 2 selected sequence strips with video content are needed");
         return 0;
       }
       break;
   }
 
-  if (seq1 == nullptr && seq2 == nullptr) {
-    *r_error_str = N_("TODO: in what cases does this happen?");
-    return 0;
-  }
-
   *r_selseq1 = seq1;
   *r_selseq2 = seq2;
-
-  /* TODO(Richard): This function needs some refactoring, this is just quick hack for #73828. */
-  if (SEQ_effect_get_num_inputs(type) < 2) {
-    *r_selseq2 = nullptr;
-  }
 
   return 1;
 }

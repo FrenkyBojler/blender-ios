@@ -1535,37 +1535,44 @@ static std::string sequencer_add_effect_strip_get_description(bContext * /*C*/,
 
   switch (type) {
     case SEQ_TYPE_CROSS:
-      return TIP_("Add a crossfade transition to the sequencer");
+      return TIP_("Add a crossfade transition strip for two selected strips with video content");
     case SEQ_TYPE_ADD:
-      return TIP_("Add an add effect strip to the sequencer");
+      return TIP_("Add an add blend mode effect strip for two selected strips with video content");
     case SEQ_TYPE_SUB:
-      return TIP_("Add a subtract effect strip to the sequencer");
+      return TIP_(
+          "Add a subtract blend mode effect strip for two selected strips with video content");
     case SEQ_TYPE_ALPHAOVER:
-      return TIP_("Add an alpha over effect strip to the sequencer");
+      return TIP_(
+          "Add an alpha over blend mode effect strip for two selected strips with video content");
     case SEQ_TYPE_ALPHAUNDER:
-      return TIP_("Add an alpha under effect strip to the sequencer");
+      return TIP_(
+          "Add an alpha under blend mode effect strip for two selected strips with video content");
     case SEQ_TYPE_GAMCROSS:
-      return TIP_("Add a gamma cross transition to the sequencer");
+      return TIP_("Add a gamma cross transition strip for two selected strips with video content");
     case SEQ_TYPE_MUL:
-      return TIP_("Add a multiply effect strip to the sequencer");
+      return TIP_(
+          "Add a multiply blend mode effect strip for two selected strips with video content");
     case SEQ_TYPE_OVERDROP:
-      return TIP_("Add an alpha over drop effect strip to the sequencer");
+      return TIP_(
+          "Add an alpha over drop blend mode effect strip for two selected strips with video "
+          "content");
     case SEQ_TYPE_WIPE:
-      return TIP_("Add a wipe transition to the sequencer");
+      return TIP_("Add a wipe transition strip for two selected strips with video content");
     case SEQ_TYPE_GLOW:
-      return TIP_("Add a glow effect strip to the sequencer");
+      return TIP_("Add a glow effect strip for a single selected strip with video content");
     case SEQ_TYPE_TRANSFORM:
-      return TIP_("Add a transform effect strip to the sequencer");
+      return TIP_("Add a transform effect strip for a single selected strip with video content");
     case SEQ_TYPE_COLOR:
       return TIP_("Add a color strip to the sequencer");
     case SEQ_TYPE_SPEED:
-      return TIP_("Add a speed effect strip to the sequencer");
+      return TIP_("Add a video speed effect strip for a single selected strip with video content");
     case SEQ_TYPE_MULTICAM:
       return TIP_("Add a multicam selector effect strip to the sequencer");
     case SEQ_TYPE_ADJUSTMENT:
       return TIP_("Add an adjustment layer effect strip to the sequencer");
     case SEQ_TYPE_GAUSSIAN_BLUR:
-      return TIP_("Add a gaussian blur effect strip to the sequencer");
+      return TIP_(
+          "Add a gaussian blur effect strip for a single selected strip with video content");
     case SEQ_TYPE_TEXT:
       return TIP_("Add a text strip to the sequencer");
     case SEQ_TYPE_COLORMIX:
