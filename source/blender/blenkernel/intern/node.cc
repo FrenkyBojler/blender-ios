@@ -888,7 +888,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
         BKE_image_format_blend_write(writer, &sockdata->format);
       }
     }
-    if (ELEM(node->type, CMP_NODE_IMAGE)) {
+    if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
       /* Write extra socket info. */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
         BLO_write_struct(writer, NodeImageLayer, sock->storage);
