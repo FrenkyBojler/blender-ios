@@ -4144,7 +4144,7 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
 
   if (srna_base == &RNA_Node) {
     /* If the given idname is an alias, translate it to the proper idname. */
-    id = blender::bke::node_type_find_alias(id);
+    id = blender::bke::node_type_find_alias(id).c_str();
 
     blender::bke::bNodeType *nt = blender::bke::node_type_find(id);
     if (nt) {
@@ -4446,14 +4446,15 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
       PropertyRNA *newprop;
       int newindex;
       blender::StringRef newstr;
+      std::optional<int64_t> newint;
       short newtype;
 
       /* An empty string is used to implement #CTX_data_dir_get,
        * without this check `getattr(context, "")` succeeds. */
       eContextResult done;
       if (name[0]) {
-        done = eContextResult(
-            CTX_data_get(C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newtype));
+        done = eContextResult(CTX_data_get(
+            C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newint, &newtype));
       }
       else {
         /* Fall through to built-in `getattr`. */
@@ -4478,6 +4479,16 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
             }
             else {
               ret = PyUnicode_FromStringAndSize(newstr.data(), newstr.size());
+            }
+            break;
+          }
+          case CTX_DATA_TYPE_INT64: {
+            if (!newint.has_value()) {
+              ret = Py_None;
+              Py_INCREF(ret);
+            }
+            else {
+              ret = PyLong_FromLong(*newint);
             }
             break;
           }
@@ -4721,10 +4732,11 @@ static int pyrna_struct_setattro(BPy_StructRNA *self, PyObject *pyname, PyObject
     PropertyRNA *newprop;
     int newindex;
     blender::StringRef newstr;
+    std::optional<int64_t> newint;
     short newtype;
 
     const eContextResult done = eContextResult(
-        CTX_data_get(C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newtype));
+        CTX_data_get(C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newint, &newtype));
 
     if (done == CTX_RESULT_OK) {
       PyErr_Format(
@@ -4885,6 +4897,15 @@ static int pyrna_prop_collection_setattro(BPy_PropertyRNA *self, PyObject *pynam
 /**
  * Odd case, we need to be able return a Python method from a #PyTypeObject.tp_getset.
  */
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_collection_idprop_add_doc,
+    ".. method:: add()\n"
+    "\n"
+    "   This is a function to add a new item to a collection.\n"
+    "\n"
+    "   :return: A newly created item.\n"
+    "   :rtype: Any\n");
 static PyObject *pyrna_prop_collection_idprop_add(BPy_PropertyRNA *self)
 {
   PointerRNA r_ptr;
@@ -4905,6 +4926,15 @@ static PyObject *pyrna_prop_collection_idprop_add(BPy_PropertyRNA *self)
   return pyrna_struct_CreatePyObject(&r_ptr);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_collection_idprop_remove_doc,
+    ".. method:: remove(index)\n"
+    "\n"
+    "   This is a function to remove an item from a collection.\n"
+    "\n"
+    "   :arg index: Index of the item to be removed.\n"
+    "   :type index: int\n");
 static PyObject *pyrna_prop_collection_idprop_remove(BPy_PropertyRNA *self, PyObject *value)
 {
   const int key = PyLong_AsLong(value);
@@ -4929,6 +4959,12 @@ static PyObject *pyrna_prop_collection_idprop_remove(BPy_PropertyRNA *self, PyOb
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_collection_idprop_clear_doc,
+    ".. method:: clear()\n"
+    "\n"
+    "   This is a function to remove all items from a collection.\n");
 static PyObject *pyrna_prop_collection_idprop_clear(BPy_PropertyRNA *self)
 {
 #ifdef USE_PEDANTIC_WRITE
@@ -4942,6 +4978,17 @@ static PyObject *pyrna_prop_collection_idprop_clear(BPy_PropertyRNA *self)
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_collection_idprop_move_doc,
+    ".. method:: move(src_index, dst_index)\n"
+    "\n"
+    "   This is a function to move an item in a collection.\n"
+    "\n"
+    "   :arg src_index: Source item index.\n"
+    "   :type src_index: int\n"
+    "   :arg dst_index: Destination item index.\n"
+    "   :type dst_index: int\n");
 static PyObject *pyrna_prop_collection_idprop_move(BPy_PropertyRNA *self, PyObject *args)
 {
   int key = 0, pos = 0;
@@ -6172,10 +6219,22 @@ static PyMethodDef pyrna_prop_collection_methods[] = {
 };
 
 static PyMethodDef pyrna_prop_collection_idprop_methods[] = {
-    {"add", (PyCFunction)pyrna_prop_collection_idprop_add, METH_NOARGS, nullptr},
-    {"remove", (PyCFunction)pyrna_prop_collection_idprop_remove, METH_O, nullptr},
-    {"clear", (PyCFunction)pyrna_prop_collection_idprop_clear, METH_NOARGS, nullptr},
-    {"move", (PyCFunction)pyrna_prop_collection_idprop_move, METH_VARARGS, nullptr},
+    {"add",
+     (PyCFunction)pyrna_prop_collection_idprop_add,
+     METH_NOARGS,
+     pyrna_prop_collection_idprop_add_doc},
+    {"remove",
+     (PyCFunction)pyrna_prop_collection_idprop_remove,
+     METH_O,
+     pyrna_prop_collection_idprop_remove_doc},
+    {"clear",
+     (PyCFunction)pyrna_prop_collection_idprop_clear,
+     METH_NOARGS,
+     pyrna_prop_collection_idprop_clear_doc},
+    {"move",
+     (PyCFunction)pyrna_prop_collection_idprop_move,
+     METH_VARARGS,
+     pyrna_prop_collection_idprop_move_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -6812,8 +6871,8 @@ PyTypeObject pyrna_struct_meta_idprop_Type = {
 
 /*-----------------------BPy_StructRNA method def------------------------------*/
 
-/**
- * \defgroup BPY RNA Struct Type
+/* -------------------------------------------------------------------- */
+/** \name BPY RNA Struct Type
  *
  * These BPy_StructRNA objects should be created the standard way (calling their type objects
  * using #PyObject_CallOneArg or similar). One and only one arg is expected currently.
@@ -6825,19 +6884,20 @@ PyTypeObject pyrna_struct_meta_idprop_Type = {
  * create property objects without initializing them, which avoids double-initialization from
  * functions like #pyrna_struct_CreatePyObject etc.
  *
- * \note: Subclassingfrom python isn't common since it's NOT related to registerable subclasses.
+ * \note: Subclassing from Python isn't common since it's NOT related to registerable sub-classes.
  * eg:
  *
- *  >>> class MyObSubclass(bpy.types.Object):
- *  ...     def test_func(self):
- *  ...         print(100)
- *  ...
- *  >>> myob = MyObSubclass(bpy.context.object)
- *  >>> myob.test_func()
- *  100
+ * \code{.unparsed}
+ * >>> class MyObSubclass(bpy.types.Object):
+ * ...     def test_func(self):
+ * ...         print(100)
+ * ...
+ * >>> myob = MyObSubclass(bpy.context.object)
+ * >>> myob.test_func()
+ * 100
+ * \endcode
  *
- * @{
- */
+ * \{ */
 
 static PyObject *pyrna_struct_new(PyTypeObject *type, PyObject *args, PyObject * /*kwds*/);
 static int pyrna_struct_init(PyObject *self, PyObject *args, PyObject * /*kwds*/);
@@ -6938,7 +6998,7 @@ static PyObject *pyrna_struct_new(PyTypeObject *type, PyObject *args, PyObject *
      * #pyrna_struct_init. */
   }
 
-  /* Only allocate the pyobject data, do not construct/initialize anything else. */
+  /* Only allocate the #PyObject data, do not construct/initialize anything else. */
   PyObject *self = type->tp_alloc(type, 0);
   BPy_StructRNA *self_struct = reinterpret_cast<BPy_StructRNA *>(self);
   if (self) {
@@ -7054,12 +7114,12 @@ static void pyrna_struct_dealloc(PyObject *self)
   PyErr_Restore(error_type, error_value, error_traceback);
 }
 
-/** @} */
+/** \} */
 
 /*-----------------------BPy_PropertyRNA method def------------------------------*/
 
-/**
- * \defgroup BPY RNA Property Types
+/* -------------------------------------------------------------------- */
+/** \name BPY RNA Property Types
  *
  * These BPy_PropertyRNA objects should be created the standard way (calling their type objects
  * using #PyObject_CallOneArg or similar). One and only one arg is expected currently.
@@ -7075,8 +7135,7 @@ static void pyrna_struct_dealloc(PyObject *self)
  *
  * TODO Add python code example of using this overriding feature.
  *
- * @{
- */
+ * \{ */
 
 static PyObject *pyrna_property_new(PyTypeObject *type, PyObject *args, PyObject * /*kwds*/);
 static int pyrna_property_init(PyObject *self, PyObject *args, PyObject * /*kwds*/);
@@ -7338,7 +7397,7 @@ static PyObject *pyrna_property_new(PyTypeObject *type, PyObject *args, PyObject
      * #pyrna_property_init. */
   }
 
-  /* Only allocate the pyobject data, do not construct/initialize anything else. */
+  /* Only allocate the #PyObject data, do not construct/initialize anything else. */
   PyObject *self = type->tp_alloc(type, 0);
   BPy_PropertyRNA *self_property = reinterpret_cast<BPy_PropertyRNA *>(self);
   if (self) {
@@ -7565,7 +7624,7 @@ static PyObject *pyrna_prop_collection_iter_new(PyTypeObject *type,
     return nullptr;
   }
 
-  /* Only allocate the pyobject data, do not construct/initialize anything else. */
+  /* Only allocate the #PyObject data, do not construct/initialize anything else. */
   PyObject *self = type->tp_alloc(type, 0);
   BPy_PropertyCollectionIterRNA *self_prop_iter =
       reinterpret_cast<BPy_PropertyCollectionIterRNA *>(self);
@@ -7710,15 +7769,13 @@ static PyObject *pyrna_prop_collection_iter_next(PyObject *self)
 /* --- collection iterator: end --- */
 #endif /* !USE_PYRNA_ITER */
 
-/** @} */
+/** \} */
 
 /*-----------------------BPy_PropertyRNA method def------------------------------*/
 
-/**
- * \defgroup BPY RNA Function
- *
- * @{
- */
+/* -------------------------------------------------------------------- */
+/** \name BPY RNA Function
+ * \{ */
 
 static PyObject *pyrna_function_new(PyTypeObject *type, PyObject *args, PyObject * /*kwds*/);
 static int pyrna_function_init(PyObject *self, PyObject *args, PyObject * /*kwds*/);
@@ -7797,7 +7854,7 @@ static PyObject *pyrna_function_new(PyTypeObject *type, PyObject *args, PyObject
     return nullptr;
   }
 
-  /* Only allocate the pyobject data, do not construct/initialize anything else. */
+  /* Only allocate the #PyObject data, do not construct/initialize anything else. */
   PyObject *self = type->tp_alloc(type, 0);
   BPy_FunctionRNA *self_function = reinterpret_cast<BPy_FunctionRNA *>(self);
   if (self_function) {
@@ -7866,7 +7923,7 @@ static void pyrna_function_dealloc(PyObject *self)
   PyErr_Restore(error_type, error_value, error_traceback);
 }
 
-/** @} */
+/** \} */
 
 static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
 {

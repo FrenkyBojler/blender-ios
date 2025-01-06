@@ -115,9 +115,7 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
     rv3d->rflag &= ~RV3D_GPULIGHT_UPDATE;
   }
 
-  float4x4 matrix;
-  /* TODO(@pragma37): New API? */
-  DRW_view_persmat_get(nullptr, matrix.ptr(), false);
+  float4x4 matrix = View::default_get().persmat();
   if (matrix != view_projection_matrix) {
     view_projection_matrix = matrix;
     reset_taa = true;
@@ -177,7 +175,16 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
   draw_dof = camera && camera->dof.flag & CAM_DOF_ENABLED &&
              shading.flag & V3D_SHADING_DEPTH_OF_FIELD;
 
-  draw_object_id = draw_outline || draw_curvature;
+  draw_object_id = (draw_outline || draw_curvature);
+
+  /* Legacy Vulkan devices don't support gaps between color attachments. We disable outline
+   * drawing on these devices. There are situations outline drawing can just work, but we need to
+   * be sure transparency depth drawing isn't used. */
+  /* TODO(jbakker): Add support on legacy Vulkan devices by introducing specific depth shaders. */
+  if ((shading.type < OB_SOLID || xray_mode) && GPU_vulkan_render_pass_workaround()) {
+    draw_object_id = false;
+    draw_outline = false;
+  }
 };
 
 static const CustomData *get_loop_custom_data(const Mesh *mesh)

@@ -765,7 +765,7 @@ static int new_material_exec(bContext *C, wmOperator * /*op*/)
   }
   else {
     const char *name = DATA_("Material");
-    if (!(ob != nullptr && ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL))) {
+    if (!(ob != nullptr && ob->type == OB_GREASE_PENCIL)) {
       ma = BKE_material_add(bmain, name);
     }
     else {
@@ -1239,19 +1239,19 @@ void SCENE_OT_view_layer_remove_lightgroup(wmOperatorType *ot)
 /** \name View Layer Add Used Lightgroups Operator
  * \{ */
 
-static GSet *get_used_lightgroups(Scene *scene)
+static blender::Set<blender::StringRefNull> get_used_lightgroups(Scene *scene)
 {
-  GSet *used_lightgroups = BLI_gset_str_new(__func__);
+  blender::Set<blender::StringRefNull> used_lightgroups;
 
   FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
     if (ob->lightgroup && ob->lightgroup->name[0]) {
-      BLI_gset_add(used_lightgroups, ob->lightgroup->name);
+      used_lightgroups.add_as(ob->lightgroup->name);
     }
   }
   FOREACH_SCENE_OBJECT_END;
 
   if (scene->world && scene->world->lightgroup && scene->world->lightgroup->name[0]) {
-    BLI_gset_add(used_lightgroups, scene->world->lightgroup->name);
+    used_lightgroups.add_as(scene->world->lightgroup->name);
   }
 
   return used_lightgroups;
@@ -1262,16 +1262,15 @@ static int view_layer_add_used_lightgroups_exec(bContext *C, wmOperator * /*op*/
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  GSet *used_lightgroups = get_used_lightgroups(scene);
-  GSET_FOREACH_BEGIN (const char *, used_lightgroup, used_lightgroups) {
-    if (!BLI_findstring(
-            &view_layer->lightgroups, used_lightgroup, offsetof(ViewLayerLightgroup, name)))
+  blender::Set<blender::StringRefNull> used_lightgroups = get_used_lightgroups(scene);
+  for (const blender::StringRefNull used_lightgroup : used_lightgroups) {
+    if (!BLI_findstring(&view_layer->lightgroups,
+                        used_lightgroup.c_str(),
+                        offsetof(ViewLayerLightgroup, name)))
     {
-      BKE_view_layer_add_lightgroup(view_layer, used_lightgroup);
+      BKE_view_layer_add_lightgroup(view_layer, used_lightgroup.c_str());
     }
   }
-  GSET_FOREACH_END();
-  BLI_gset_free(used_lightgroups, nullptr);
 
   if (scene->nodetree) {
     ntreeCompositUpdateRLayers(scene->nodetree);
@@ -1309,13 +1308,12 @@ static int view_layer_remove_unused_lightgroups_exec(bContext *C, wmOperator * /
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  GSet *used_lightgroups = get_used_lightgroups(scene);
+  blender::Set<blender::StringRefNull> used_lightgroups = get_used_lightgroups(scene);
   LISTBASE_FOREACH_MUTABLE (ViewLayerLightgroup *, lightgroup, &view_layer->lightgroups) {
-    if (!BLI_gset_haskey(used_lightgroups, lightgroup->name)) {
+    if (!used_lightgroups.contains_as(lightgroup->name)) {
       BKE_view_layer_remove_lightgroup(view_layer, lightgroup);
     }
   }
-  BLI_gset_free(used_lightgroups, nullptr);
 
   if (scene->nodetree) {
     ntreeCompositUpdateRLayers(scene->nodetree);
@@ -2617,12 +2615,12 @@ static int copy_material_exec(bContext *C, wmOperator *op)
   PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
 
   /* Add the material to the copybuffer (and all of its dependencies). */
-  copybuffer.id_add(&ma->id,
-                    PartialWriteContext::IDAddOptions{PartialWriteContext::IDAddOperations(
-                        PartialWriteContext::IDAddOperations::SET_FAKE_USER |
-                        PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
-                        PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
-                    nullptr);
+  copybuffer.id_add(
+      &ma->id,
+      PartialWriteContext::IDAddOptions{(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                                         PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
+                                         PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
+      nullptr);
 
   char filepath[FILE_MAX];
   material_copybuffer_filepath_get(filepath, sizeof(filepath));

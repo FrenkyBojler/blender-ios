@@ -347,6 +347,12 @@ const CurvesEditHints *GeometrySet::get_curve_edit_hints() const
   return (component == nullptr) ? nullptr : component->curves_edit_hints_.get();
 }
 
+const GreasePencilEditHints *GeometrySet::get_grease_pencil_edit_hints() const
+{
+  const GeometryComponentEditData *component = this->get_component<GeometryComponentEditData>();
+  return (component == nullptr) ? nullptr : component->grease_pencil_edit_hints_.get();
+}
+
 const GizmoEditHints *GeometrySet::get_gizmo_edit_hints() const
 {
   const GeometryComponentEditData *component = this->get_component<GeometryComponentEditData>();
@@ -576,6 +582,16 @@ CurvesEditHints *GeometrySet::get_curve_edit_hints_for_write()
   return component.curves_edit_hints_.get();
 }
 
+GreasePencilEditHints *GeometrySet::get_grease_pencil_edit_hints_for_write()
+{
+  if (!this->has<GeometryComponentEditData>()) {
+    return nullptr;
+  }
+  GeometryComponentEditData &component =
+      this->get_component_for_write<GeometryComponentEditData>();
+  return component.grease_pencil_edit_hints_.get();
+}
+
 GizmoEditHints *GeometrySet::get_gizmo_edit_hints_for_write()
 {
   if (!this->has<GeometryComponentEditData>()) {
@@ -668,7 +684,7 @@ void GeometrySet::gather_attributes_for_propagation(
     const GeometryComponent::Type dst_component_type,
     bool include_instances,
     const AttributeFilter &attribute_filter,
-    Map<StringRef, AttributeKind> &r_attributes) const
+    Map<StringRef, AttributeDomainAndType> &r_attributes) const
 {
   this->attribute_foreach(
       component_types,
@@ -697,11 +713,11 @@ void GeometrySet::gather_attributes_for_propagation(
           domain = AttrDomain::Point;
         }
 
-        auto add_info = [&](AttributeKind *attribute_kind) {
+        auto add_info = [&](AttributeDomainAndType *attribute_kind) {
           attribute_kind->domain = domain;
           attribute_kind->data_type = meta_data.data_type;
         };
-        auto modify_info = [&](AttributeKind *attribute_kind) {
+        auto modify_info = [&](AttributeDomainAndType *attribute_kind) {
           attribute_kind->domain = bke::attribute_domain_highest_priority(
               {attribute_kind->domain, domain});
           attribute_kind->data_type = bke::attribute_data_type_highest_complexity(

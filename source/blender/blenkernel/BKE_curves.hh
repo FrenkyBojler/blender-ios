@@ -32,6 +32,7 @@ namespace blender::bke {
 class AttributeAccessor;
 class MutableAttributeAccessor;
 enum class AttrDomain : int8_t;
+struct AttributeAccessorFunctions;
 }  // namespace blender::bke
 namespace blender::bke::bake {
 struct BakeMaterialsList;
@@ -212,6 +213,9 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   Span<float3> positions() const;
   MutableSpan<float3> positions_for_write();
+
+  VArray<float> radius() const;
+  MutableSpan<float> radius_for_write();
 
   /** Whether the curve loops around to connect to itself, on the curve domain. */
   VArray<bool> cyclic() const;
@@ -1021,6 +1025,8 @@ inline float3 calculate_vector_handle(const float3 &point, const float3 &next_po
 }  // namespace bezier
 
 /** \} */
+
+const AttributeAccessorFunctions &get_attribute_accessor_functions();
 
 }  // namespace curves
 

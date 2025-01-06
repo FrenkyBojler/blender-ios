@@ -31,6 +31,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -90,6 +91,7 @@
 #include "RNA_prototypes.hh"
 
 #include "ED_armature.hh"
+#include "ED_node.hh"
 #include "ED_object.hh"
 #include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
@@ -694,19 +696,7 @@ bool convert_psys_to_mesh(ReportList * /*reports*/,
     return false;
   }
 
-  /* add new mesh */
-  Object *obn = BKE_object_add(bmain, scene, view_layer, OB_MESH, nullptr);
-  Mesh *mesh = static_cast<Mesh *>(obn->data);
-
-  mesh->verts_num = verts_num;
-  mesh->edges_num = edges_num;
-
-  CustomData_add_layer_named(
-      &mesh->vert_data, CD_PROP_FLOAT3, CD_CONSTRUCT, verts_num, "position");
-  CustomData_add_layer_named(
-      &mesh->edge_data, CD_PROP_INT32_2D, CD_CONSTRUCT, mesh->edges_num, ".edge_verts");
-  CustomData_add_layer(&mesh->fdata_legacy, CD_MFACE, CD_SET_DEFAULT, 0);
-
+  Mesh *mesh = BKE_mesh_new_nomain(verts_num, edges_num, 0, 0);
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   MutableSpan<int2> edges = mesh->edges_for_write();
 
@@ -753,6 +743,9 @@ bool convert_psys_to_mesh(ReportList * /*reports*/,
   }
 
   select_vert.finish();
+
+  Object *obn = BKE_object_add(bmain, scene, view_layer, OB_MESH, nullptr);
+  BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obn->data), obn);
 
   DEG_relations_tag_update(bmain);
 
@@ -1050,7 +1043,7 @@ static void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
           layer_orig.opacity = layer_eval.opacity;
           layer_orig.set_local_transform(layer_eval.local_transform());
 
-          /* Add new mapping for layer_eval -> layer_orig*/
+          /* Add new mapping for `layer_eval` -> `layer_orig`. */
           eval_to_orig_layer_map.add_new(&layer_eval, &layer_orig);
         }
       }
@@ -2608,9 +2601,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = edit_modifier_liboverride_allowed_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
 }
@@ -2701,12 +2692,14 @@ static bool modifier_copy_to_selected_poll(bContext *C)
       continue;
     }
 
-    if (!md && BKE_object_supports_modifiers(ob)) {
+    if (!md) {
       /* Skip type check if modifier could not be found ("modifier" context variable not set). */
-      found_supported_objects = true;
-      break;
+      if (BKE_object_supports_modifiers(ob)) {
+        found_supported_objects = true;
+        break;
+      }
     }
-    if (BKE_object_support_modifier_type_check(ob, md->type)) {
+    else if (BKE_object_support_modifier_type_check(ob, md->type)) {
       found_supported_objects = true;
       break;
     }
@@ -3768,7 +3761,7 @@ void OBJECT_OT_geometry_nodes_input_attribute_toggle(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_geometry_nodes_input_attribute_toggle";
 
   ot->exec = geometry_nodes_input_attribute_toggle_exec;
-  ot->poll = ED_operator_object_active;
+  ot->poll = ED_operator_object_active_editable;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
@@ -3809,6 +3802,7 @@ static int geometry_node_tree_copy_assign_exec(bContext *C, wmOperator * /*op*/)
   nmd->node_group = new_tree;
   id_us_min(&tree->id);
 
+  ED_node_tree_propagate_change(C, bmain, new_tree);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
