@@ -1468,7 +1468,7 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
    *     Data have their own translation option!
    *     This solution may be a bit rougher than nodeLabel()'s returned string, but it's simpler
    *     than adding "do_translate" flags to this func (and labelfunc() as well). */
-  STRNCPY_UTF8(node->name, DATA_(ntype->ui_name));
+  STRNCPY_UTF8(node->name, DATA_(ntype->ui_name.c_str()));
   node_unique_name(ntree, node);
 
   /* Generally sockets should be added after the initialization, because the set of sockets might
@@ -1589,7 +1589,7 @@ static void update_typeinfo(Main *bmain,
 
     /* initialize nodes */
     for (bNode *node : ntree->all_nodes()) {
-      if (nodetype && STREQ(node->idname, nodetype->idname)) {
+      if (nodetype && node->idname == nodetype->idname) {
         node_set_typeinfo(C, ntree, node, unregister ? nullptr : nodetype);
       }
 
@@ -1641,7 +1641,7 @@ template<typename T> struct StructPointerIDNameHash {
 template<typename T> struct StructPointerNameEqual {
   bool operator()(const T *a, const T *b) const
   {
-    return STREQ(a->idname, b->idname);
+    return StringRef(a->idname) == StringRef(b->idname);
   }
   bool operator()(const StringRef idname, const T *a) const
   {
@@ -1767,12 +1767,14 @@ static void node_free_type(void *nodetype_v)
 void node_register_type(bNodeType *nt)
 {
   /* debug only: basic verification of registered types */
-  BLI_assert(nt->idname[0] != '\0');
+  BLI_assert(!nt->idname.empty());
   BLI_assert(nt->poll != nullptr);
+
+  RNA_def_struct_ui_text(nt->rna_ext.srna, nt->ui_name.c_str(), nt->ui_description.c_str());
 
   if (!nt->enum_name_legacy) {
     /* For new nodes, use the idname as a unique identifier. */
-    nt->enum_name_legacy = nt->idname;
+    nt->enum_name_legacy = nt->idname.c_str();
   }
 
   if (nt->declare) {
@@ -2696,7 +2698,7 @@ bNode *node_add_node(const bContext *C, bNodeTree *ntree, const StringRefNull id
 
 bNode *node_add_static_node(const bContext *C, bNodeTree *ntree, const int type)
 {
-  const char *idname = nullptr;
+  StringRefNull idname;
 
   for (bNodeType *ntype : node_types_get()) {
     /* Do an extra poll here, because some int types are used
@@ -2711,7 +2713,7 @@ bNode *node_add_static_node(const bContext *C, bNodeTree *ntree, const int type)
       break;
     }
   }
-  if (!idname) {
+  if (idname.is_empty()) {
     CLOG_ERROR(&LOG, "static node type %d undefined", type);
     return nullptr;
   }
@@ -4290,7 +4292,7 @@ void nodeLabel(const bNodeTree *ntree, const bNode *node, char *label, const int
     return;
   }
 
-  BLI_strncpy(label, IFACE_(node->typeinfo->ui_name), label_maxncpy);
+  BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
 }
 
 std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock)
@@ -4333,7 +4335,7 @@ static bool node_poll_instance_default(const bNode *node,
   return node->typeinfo->poll(node->typeinfo, ntree, r_disabled_hint);
 }
 
-void node_type_base(bNodeType *ntype, const int type, const StringRefNull name, const short nclass)
+void node_type_base(bNodeType *ntype, const int type, const short nclass)
 {
   /* Use static type info header to map static int type to identifier string and RNA struct type.
    * Associate the RNA struct type with the bNodeType.
@@ -4342,15 +4344,13 @@ void node_type_base(bNodeType *ntype, const int type, const StringRefNull name, 
    * created in makesrna, which can not be associated to a bNodeType immediately,
    * since bNodeTypes are registered afterward ...
    */
-#define DefNode(Category, ID, DefFunc, StructName, UIName, UIDesc) \
+#define DefNode(Category, ID, DefFunc, StructName) \
   case ID: { \
-    STRNCPY(ntype->idname, #Category #StructName); \
+    ntype->idname = (#Category #StructName); \
     StructRNA *srna = RNA_struct_find(#Category #StructName); \
     BLI_assert(srna != nullptr); \
     ntype->rna_ext.srna = srna; \
     RNA_struct_blender_type_set(srna, ntype); \
-    RNA_def_struct_ui_text(srna, UIName, UIDesc); \
-    STRNCPY(ntype->ui_description, UIDesc); \
     break; \
   }
 
@@ -4362,7 +4362,6 @@ void node_type_base(bNodeType *ntype, const int type, const StringRefNull name, 
   BLI_assert(ntype->idname[0] != '\0');
 
   ntype->type = type;
-  name.copy(ntype->ui_name);
   ntype->nclass = nclass;
 
   node_type_base_defaults(ntype);
@@ -4377,9 +4376,9 @@ void node_type_base_custom(bNodeType *ntype,
                            const StringRefNull enum_name,
                            const short nclass)
 {
-  idname.copy(ntype->idname);
+  ntype->idname = idname;
   ntype->type = NODE_CUSTOM;
-  name.copy(ntype->ui_name);
+  ntype->ui_name = name;
   ntype->nclass = nclass;
   ntype->enum_name_legacy = enum_name.c_str();
 

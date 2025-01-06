@@ -216,11 +216,11 @@ using NodeMaterialXFunction = void (*)(void *data, bNode *node, bNodeSocket *out
  * implementing the node behavior.
  */
 struct bNodeType {
-  char idname[64]; /* identifier name */
+  std::string idname;
   int type;
 
-  char ui_name[64]; /* MAX_NAME */
-  char ui_description[256];
+  std::string ui_name;
+  std::string ui_description;
   int ui_icon;
   /** Should usually use the idname instead, but this enum type is still exposed in Python. */
   const char *enum_name_legacy;
@@ -1698,7 +1698,7 @@ std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock);
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(bNodeType *ntype, int type, StringRefNull name, short nclass);
+void node_type_base(bNodeType *ntype, int type, short nclass);
 
 void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,
