@@ -16,6 +16,7 @@
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_color.hh"
 #include "BLI_length_parameterize.hh"
@@ -307,7 +308,7 @@ struct PaintOperationExecutor {
 
   bke::greasepencil::Drawing *drawing_;
 
-  PaintOperationExecutor(const bContext &C, bke::greasepencil::Drawing* target_drawing=nullptr)
+  PaintOperationExecutor(const bContext &C)
   {
     scene_ = CTX_data_scene(&C);
     Object *object = CTX_data_active_object(&C);
@@ -332,14 +333,10 @@ struct PaintOperationExecutor {
     }
     softness_ = 1.0f - settings_->hardness;
 
-    if(target_drawing){
-      drawing_ = target_drawing;
-    }else{
-      BLI_assert(grease_pencil->has_active_layer());
-      drawing_ = grease_pencil->get_editable_drawing_at(*grease_pencil->get_active_layer(),
-                                                        scene_->r.cfra);
-      BLI_assert(drawing_ != nullptr);
-    }
+    BLI_assert(grease_pencil->has_active_layer());
+    drawing_ = grease_pencil->get_editable_drawing_at(*grease_pencil->get_active_layer(),
+                                                      scene_->r.cfra);
+    BLI_assert(drawing_ != nullptr);
   }
 
   float randomize_radius(PaintOperation &self,
@@ -953,7 +950,7 @@ struct PaintOperationExecutor {
     }
 
     /* Only start smoothing if there are enough points. */
-    constexpr int64_t min_active_smoothing_points_num = 0;
+    constexpr int64_t min_active_smoothing_points_num = 8;
     const IndexRange smooth_window = self.screen_space_coords_orig_.index_range().drop_front(
         self.active_smooth_start_index_);
     if (smooth_window.size() < min_active_smoothing_points_num) {
@@ -961,30 +958,30 @@ struct PaintOperationExecutor {
     }
     else {
       /* Active smoothing is done in a window at the end of the new stroke. */
-      //this->active_smoothing(self, smooth_window);
+      this->active_smoothing(self, smooth_window);
     }
 
-    //MutableSpan<float3> curve_positions = positions.slice(curves.points_by_curve()[active_curve]);
-    //if (use_settings_random_ && settings_->draw_jitter > 0.0f) {
-    //  this->active_jitter(self,
-    //                      new_points_num,
-    //                      brush_radius_px,
-    //                      extension_sample.pressure,
-    //                      smooth_window,
-    //                      curve_positions);
-    //}
-    //else {
-    //  MutableSpan<float2> smoothed_coords =
-    //      self.screen_space_smoothed_coords_.as_mutable_span().slice(smooth_window);
-    //  MutableSpan<float2> final_coords = self.screen_space_final_coords_.as_mutable_span().slice(
-    //      smooth_window);
-    //  /* Not jitter, so we just copy the positions over. */
-    //  final_coords.copy_from(smoothed_coords);
-    //  MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
-    //  for (const int64_t window_i : smooth_window.index_range()) {
-    //    curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
-    //  }
-    //}
+    MutableSpan<float3> curve_positions = positions.slice(curves.points_by_curve()[active_curve]);
+    if (use_settings_random_ && settings_->draw_jitter > 0.0f) {
+      this->active_jitter(self,
+                          new_points_num,
+                          brush_radius_px,
+                          extension_sample.pressure,
+                          smooth_window,
+                          curve_positions);
+    }
+    else {
+      MutableSpan<float2> smoothed_coords =
+          self.screen_space_smoothed_coords_.as_mutable_span().slice(smooth_window);
+      MutableSpan<float2> final_coords = self.screen_space_final_coords_.as_mutable_span().slice(
+          smooth_window);
+      /* Not jitter, so we just copy the positions over. */
+      final_coords.copy_from(smoothed_coords);
+      MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
+      for (const int64_t window_i : smooth_window.index_range()) {
+        curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+      }
+    }
 
     /* Initialize the rest of the attributes with default values. */
     bke::fill_attribute_range_default(
@@ -1081,15 +1078,8 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   /* Delta time starts at 0. */
   delta_time_ = 0.0f;
 
-  if(multiframe_info_.is_empty()){
-    PaintOperationExecutor executor{C};
-    executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
-  }else{
-    for(greasepencil::MultiframeTargetInfo info:multiframe_info_){
-      PaintOperationExecutor executor(C, &info.target.drawing);
-      executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
-    }
-  }
+  PaintOperationExecutor executor{C};
+  executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
@@ -1100,15 +1090,8 @@ void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &ex
   Object *object = CTX_data_active_object(&C);
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
 
-  if(multiframe_info_.is_empty()){
-    PaintOperationExecutor executor{C};
-    executor.execute(*this, C, extension_sample);
-  }else{
-    for(greasepencil::MultiframeTargetInfo info:multiframe_info_){
-      PaintOperationExecutor executor(C, &info.target.drawing);
-    executor.execute(*this, C, extension_sample);
-    }
-  }
+  PaintOperationExecutor executor{C};
+  executor.execute(*this, C, extension_sample);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
@@ -1473,6 +1456,87 @@ static void process_stroke_weights(const Scene &scene,
   });
 }
 
+static void copy_new_curve_to(const bke::CurvesGeometry &from_curves,
+                              bke::CurvesGeometry &to_curves,
+                              const bool on_back)
+{
+  const int from_curves_num = from_curves.curves_num();
+  const OffsetIndices<int> from_points_by_curve = from_curves.points_by_curve();
+  const int new_points = on_back ? from_points_by_curve[0].size() :
+                                   from_points_by_curve[from_curves_num - 1].size();
+
+  const int to_curves_num = to_curves.curves_num() + 1;
+  to_curves.resize(to_curves.points_num() + new_points, to_curves_num);
+
+  if (on_back) {
+    MutableSpan<int> to_offsets = to_curves.offsets_for_write();
+    /* Loop through backwards to not overwrite the data. */
+    for (int i = to_curves.curves_num() - 2; i >= 0; i--) {
+      to_offsets[i + 1] = to_offsets[i] + 1;
+    }
+    to_offsets.first() = 0;
+
+    bke::AttributeAccessor from_attributes = from_curves.attributes();
+    bke::MutableAttributeAccessor to_attributes = to_curves.attributes_for_write();
+
+    to_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      bke::GSpanAttributeWriter dst = to_attributes.lookup_for_write_span(iter.name);
+      GMutableSpan to_attribute_data = dst.span;
+
+      const int shift_offsets = (dst.domain == bke::AttrDomain::Point) ? new_points : 1;
+
+      bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
+        using T = decltype(dummy);
+        MutableSpan<T> span_data = to_attribute_data.typed<T>();
+
+        /* Loop through backwards to not overwrite the data. */
+        for (int i = span_data.size() - 1 - new_points; i >= 0; i--) {
+          span_data[i + new_points] = span_data[i];
+        }
+
+        /* Write the new segment's attribute to the space we just made. */
+        GVArray from_data = from_attributes.lookup(iter.name).varray;
+        if (!from_data.is_empty()) {
+          array_utils::copy(from_data.slice(IndexRange(shift_offsets)),
+                            span_data.take_front(shift_offsets));
+        }
+      });
+      dst.finish();
+    });
+  }
+  else {
+    to_curves.offsets_for_write().last(1) = to_curves.points_num();
+
+    /* Shift old attributes to make room for the new stroke. */
+    bke::AttributeAccessor from_attributes = from_curves.attributes();
+    bke::MutableAttributeAccessor to_attributes = to_curves.attributes_for_write();
+    to_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      bke::GSpanAttributeWriter dst = to_attributes.lookup_for_write_span(iter.name);
+      GMutableSpan to_attribute_data = dst.span;
+
+      const bool point_domain = (dst.domain == bke::AttrDomain::Point);
+      const int from_offset = point_domain ? from_curves.offsets()[from_curves_num - 2] :
+                                             from_curves_num - 2;
+      const int segment_length = point_domain ? new_points : 1;
+      const int to_offset = point_domain ? to_curves.offsets()[to_curves_num - 2] :
+                                           to_curves_num - 2;
+
+      bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
+        using T = decltype(dummy);
+        MutableSpan<T> span_data = to_attribute_data.typed<T>();
+
+        /* Write the new segment's attribute to the trailing empty space. */
+        GVArray from_data = from_attributes.lookup(iter.name).varray;
+        if (!from_data.is_empty()) {
+          array_utils::copy(from_data.slice(IndexRange(from_offset, segment_length)),
+                            span_data.slice(IndexRange(to_offset, segment_length)));
+        }
+      });
+      dst.finish();
+    });
+  }
+}
+
 void PaintOperation::on_stroke_done(const bContext &C)
 {
   using namespace blender::bke;
@@ -1554,6 +1618,19 @@ void PaintOperation::on_stroke_done(const bContext &C)
   attributes.remove(".draw_tool_screen_space_positions");
 
   drawing.set_texture_matrices({texture_space_}, IndexRange::from_single(active_curve));
+
+  /* Copy the newly drawn stroke to other frames. */
+  if (!multiframe_info_.is_empty()) {
+    CurvesGeometry &from_strokes = drawing.strokes_for_write();
+    const Span<int> from_offsets = from_strokes.offsets();
+    const int add_points = from_offsets.last(1);
+    for (MultiframeTargetInfo &info : multiframe_info_) {
+      bke::greasepencil::Drawing &to_drawing = info.target.drawing;
+
+      CurvesGeometry &to_strokes = to_drawing.strokes_for_write();
+      copy_new_curve_to(drawing.strokes(), to_strokes, on_back);
+    }
+  }
 
   if (do_automerge_endpoints) {
     constexpr float merge_distance = 20.0f;
