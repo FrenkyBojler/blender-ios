@@ -1258,9 +1258,14 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
   GHOST_TKey key = system->hardKey(raw, &key_down);
   GHOST_EventKey *event;
 
-  /* If the keyboard layout includes AltGr and the virtual key is Control, yet the scancode
-   * is actually for Right Alt. Ignore these, so treating AltGR as regular Alt. #68256 */
-  if (system->m_hasAltGr && vk == VK_CONTROL && raw.data.keyboard.MakeCode == 56 &&
+  /* Scan code (device-dependent identifier for the key on the keyboard) for the Alt key.
+   * https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#scan-codes */
+  constexpr USHORT ALTGR_MAKE_CODE = 0x38;
+
+  /* If the keyboard layout includes AltGr and the virtual key is Control, yet the
+   * scancode is actually for Right Alt (ALTGR_MAKE_CODE scan code with E0 prefix).
+   * Ignore these, so treating AltGR as regular Alt. #68256 */
+  if (system->m_hasAltGr && vk == VK_CONTROL && raw.data.keyboard.MakeCode == ALTGR_MAKE_CODE &&
       (raw.data.keyboard.Flags & RI_KEY_E0))
   {
     return nullptr;
