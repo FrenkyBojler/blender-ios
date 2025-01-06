@@ -446,10 +446,10 @@ struct ResultBLF {
 namespace blender::blf::icon {
 
 /** Overwrites the icon svg source. */
-void set(StringRefNull icon_name, StringRefNull filepath);
+void set(const StringRefNull icon_name, const StringRefNull filepath);
 
 /** Reset the icon svg source. */
-void reset(StringRefNull icon_name);
+void reset(const StringRefNull icon_name);
 
 }  // namespace blender::blf::icon
 #endif

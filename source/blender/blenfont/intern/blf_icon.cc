@@ -15,24 +15,24 @@
 
 namespace blender::blf::icon {
 
-static blender::Vector<SVG_Icon> &icons_storage()
+static Vector<SVG_Icon> &icons_storage()
 {
-  static blender::Vector<SVG_Icon> icons = blender_default_icons();
+  static Vector<SVG_Icon> icons = blender_default_icons();
   return icons;
 }
 
-const char *get_icon_svg(int icon)
+StringRef get_icon_svg(int icon)
 {
-  blender::Span<SVG_Icon> icons = icons_storage();
+  const Span<SVG_Icon> icons = icons_storage();
   if (icons.size() <= icon) {
     return datatoc_none_svg;
   }
   return icons[icon].svg.c_str();
 }
 
-void set(blender::StringRefNull name, blender::StringRefNull filepath)
+void set(const StringRefNull name, const StringRefNull filepath)
 {
-  blender::Vector<SVG_Icon> &icons = icons_storage();
+  Vector<SVG_Icon> &icons = icons_storage();
   SVG_Icon *icon = std::find_if(
       icons.begin(), icons.end(), [name](const SVG_Icon &icon) { return name == icon.name; });
   if (icon == icons.end()) {
@@ -48,9 +48,9 @@ void set(blender::StringRefNull name, blender::StringRefNull filepath)
   icon->svg = ss.str();
 }
 
-void reset(blender::StringRefNull name)
+void reset(const StringRefNull name)
 {
-  blender::Vector<SVG_Icon> &icons = icons_storage();
+  Vector<SVG_Icon> &icons = icons_storage();
   SVG_Icon *icon = std::find_if(
       icons.begin(), icons.end(), [name](const SVG_Icon &icon) { return name == icon.name; });
   if (icon == icons.end()) {
