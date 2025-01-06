@@ -570,7 +570,13 @@ struct RerouteTargetPriority {
   int node_i = std::numeric_limits<int>::max();
   int socket_in_node_i = std::numeric_limits<int>::max();
 
-  bool operator<(const RerouteTargetPriority other)
+  RerouteTargetPriority() = default;
+  RerouteTargetPriority(const bNodeSocket &socket)
+      : node_i(socket.owner_node().index()), socket_in_node_i(socket.index())
+  {
+  }
+
+  bool operator>(const RerouteTargetPriority other)
   {
     if (this->node_i == other.node_i) {
       return this->socket_in_node_i < other.socket_in_node_i;
@@ -641,8 +647,8 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
       const int src_reroute_root_i = reroutes_groups.find_root(src_reroute_i);
       const int src_reroute_group_i = reroute_groups.index_of(src_reroute_root_i);
 
-      const RerouteTargetPriority type_priority{dst_node->index(), link->tosock->index()};
-      if (reroute_group_dst_type_priority[src_reroute_group_i] < type_priority) {
+      const RerouteTargetPriority type_priority(*link->tosock);
+      if (reroute_group_dst_type_priority[src_reroute_group_i] > type_priority) {
         continue;
       }
 
