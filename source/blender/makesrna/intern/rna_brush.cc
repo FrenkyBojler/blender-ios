@@ -2416,12 +2416,12 @@ static void rna_def_brush(BlenderRNA *brna)
        "INVERT_DISPLACEMENT",
        0,
        "Invert Displacement",
-       "Invert Displacement"},
+       "Displace the vertices away from the plane."},
       {BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH,
        "SWAP_DEPTH_AND_HEIGHT",
        0,
        "Swap Height and Depth",
-       "Swap Height and Depth"},
+       "Swap the roles of Height and Depth."},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
