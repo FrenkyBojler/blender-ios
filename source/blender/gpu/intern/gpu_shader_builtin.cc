@@ -127,7 +127,7 @@ static const char *builtin_shader_create_info_name_clipped(eGPUBuiltinShader sha
     case GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR:
       return "gpu_shader_3D_polyline_uniform_color_clipped";
     default:
-      BLI_assert_msg(0, "Clipped shader configuration not available");
+      BLI_assert_msg(false, "Clipped shader configuration not available.");
       return "";
   }
 }
