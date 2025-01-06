@@ -61,15 +61,15 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value(1.0f)
       .min(0.0f)
       .description(
-          "Defines the luminance at which the pixels start to be considered part of the "
-          "highlights that will produce a glare")
+          "Defines the luminance at which pixels start to be considered part of the highlights "
+          "that will produce a glare")
       .compositor_expects_single_value();
   b.add_input<decl::Float>("Strength")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .description("The strength the glare that will be added to the image")
+      .description("The strength of the glare that will be added to the image")
       .compositor_expects_single_value();
   b.add_input<decl::Float>("Size")
       .default_value(0.5f)
@@ -79,6 +79,39 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The size of the glare relative to the image. 1 means the glare covers the entire "
           "image, 0.5 means the glare covers half the image, and so on")
+      .compositor_expects_single_value();
+  b.add_input<decl::Int>("Streaks")
+      .default_value(4)
+      .min(1)
+      .max(16)
+      .description("The number of steaks")
+      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Streaks Angle")
+      .default_value(0.0f)
+      .subtype(PROP_ANGLE)
+      .description("The angle that the first streak makes with the horizontal axis")
+      .compositor_expects_single_value();
+  b.add_input<decl::Int>("Iterations")
+      .default_value(3)
+      .min(2)
+      .max(5)
+      .description(
+          "The number of ghosts for Ghost glare or the spread of Glare for Streaks and Simple "
+          "Star")
+      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Fade")
+      .default_value(0.9f)
+      .min(0.75f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description("Streak fade-out factor")
+      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Color Modulation")
+      .default_value(0.25)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description("Modulates colors of streaks and ghosts for a spectral dispersion effect")
       .compositor_expects_single_value();
 
   b.add_output<decl::Color>("Image").description("The image with the generated glare added");
@@ -92,12 +125,7 @@ static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
   NodeGlare *ndg = MEM_cnew<NodeGlare>(__func__);
   ndg->quality = 1;
   ndg->type = CMP_NODE_GLARE_STREAKS;
-  ndg->iter = 3;
-  ndg->colmod = 0.25;
   ndg->star_45 = true;
-  ndg->streaks = 4;
-  ndg->angle_ofs = 0.0f;
-  ndg->fade = 0.9;
   node->storage = ndg;
 }
 
@@ -113,33 +141,6 @@ static void node_composit_buts_glare(uiLayout *layout, bContext * /*C*/, Pointer
   uiItemR(layout, ptr, "glare_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   uiItemR(layout, ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
-  if (ELEM(glare_type, CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS)) {
-    uiItemR(layout, ptr, "iterations", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  }
-
-  if (ELEM(glare_type, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS)) {
-    uiItemR(layout,
-            ptr,
-            "color_modulation",
-            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-            std::nullopt,
-            ICON_NONE);
-  }
-
-  if (glare_type == CMP_NODE_GLARE_STREAKS) {
-    uiItemR(layout, ptr, "streaks", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    uiItemR(layout, ptr, "angle_offset", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  }
-
-  if (ELEM(glare_type, CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_STREAKS)) {
-    uiItemR(layout,
-            ptr,
-            "fade",
-            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-            std::nullopt,
-            ICON_NONE);
-  }
-
   if (glare_type == CMP_NODE_GLARE_SIMPLE_STAR) {
     uiItemR(layout, ptr, "use_rotate_45", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
@@ -147,11 +148,35 @@ static void node_composit_buts_glare(uiLayout *layout, bContext * /*C*/, Pointer
 
 static void node_update(bNodeTree *ntree, bNode *node)
 {
+  const CMPNodeGlareType glare_type = static_cast<CMPNodeGlareType>(node_storage(*node).type);
+
   bNodeSocket *size_input = bke::node_find_socket(node, SOCK_IN, "Size");
   blender::bke::node_set_socket_availability(
+      ntree, size_input, ELEM(glare_type, CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM));
+
+  bNodeSocket *iterations_input = bke::node_find_socket(node, SOCK_IN, "Iterations");
+  blender::bke::node_set_socket_availability(
       ntree,
-      size_input,
-      ELEM(node_storage(*node).type, CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM));
+      iterations_input,
+      ELEM(glare_type, CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS));
+
+  bNodeSocket *fade_input = bke::node_find_socket(node, SOCK_IN, "Fade");
+  blender::bke::node_set_socket_availability(
+      ntree, fade_input, ELEM(glare_type, CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_STREAKS));
+
+  bNodeSocket *color_modulation_input = bke::node_find_socket(node, SOCK_IN, "Color Modulation");
+  blender::bke::node_set_socket_availability(
+      ntree,
+      color_modulation_input,
+      ELEM(glare_type, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS));
+
+  bNodeSocket *streaks_input = bke::node_find_socket(node, SOCK_IN, "Streaks");
+  blender::bke::node_set_socket_availability(
+      ntree, streaks_input, glare_type == CMP_NODE_GLARE_STREAKS);
+
+  bNodeSocket *streaks_angle_input = bke::node_find_socket(node, SOCK_IN, "Streaks Angle");
+  blender::bke::node_set_socket_availability(
+      ntree, streaks_angle_input, glare_type == CMP_NODE_GLARE_STREAKS);
 }
 
 using namespace blender::compositor;
@@ -413,7 +438,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "iterations", get_number_of_iterations());
-    GPU_shader_uniform_1f(shader, "fade_factor", node_storage(bnode()).fade);
+    GPU_shader_uniform_1f(shader, "fade_factor", this->get_fade());
 
     horizontal_pass_result.bind_as_texture(shader, "horizontal_tx");
 
@@ -443,7 +468,7 @@ class GlareOperation : public NodeOperation {
     });
 
     const int iterations = this->get_number_of_iterations();
-    const float fade_factor = node_storage(this->bnode()).fade;
+    const float fade_factor = this->get_fade();
 
     /* Dispatch a thread for each column in the image. */
     const int width = size.x;
@@ -523,7 +548,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "iterations", get_number_of_iterations());
-    GPU_shader_uniform_1f(shader, "fade_factor", node_storage(bnode()).fade);
+    GPU_shader_uniform_1f(shader, "fade_factor", this->get_fade());
 
     horizontal_pass_result.bind_as_image(shader, "horizontal_img");
 
@@ -548,7 +573,7 @@ class GlareOperation : public NodeOperation {
     });
 
     const int iterations = this->get_number_of_iterations();
-    const float fade_factor = node_storage(this->bnode()).fade;
+    const float fade_factor = this->get_fade();
 
     /* Dispatch a thread for each row in the image. */
     const int width = size.x;
@@ -629,7 +654,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "iterations", get_number_of_iterations());
-    GPU_shader_uniform_1f(shader, "fade_factor", node_storage(bnode()).fade);
+    GPU_shader_uniform_1f(shader, "fade_factor", this->get_fade());
 
     diagonal_pass_result.bind_as_texture(shader, "diagonal_tx");
 
@@ -658,7 +683,7 @@ class GlareOperation : public NodeOperation {
     });
 
     const int iterations = this->get_number_of_iterations();
-    const float fade_factor = node_storage(this->bnode()).fade;
+    const float fade_factor = this->get_fade();
 
     /* Dispatch a thread for each diagonal in the image. */
     const int diagonals_count = compute_number_of_diagonals(size);
@@ -741,7 +766,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "iterations", get_number_of_iterations());
-    GPU_shader_uniform_1f(shader, "fade_factor", node_storage(bnode()).fade);
+    GPU_shader_uniform_1f(shader, "fade_factor", this->get_fade());
 
     diagonal_pass_result.bind_as_image(shader, "diagonal_img");
 
@@ -766,7 +791,7 @@ class GlareOperation : public NodeOperation {
     });
 
     const int iterations = this->get_number_of_iterations();
-    const float fade_factor = node_storage(this->bnode()).fade;
+    const float fade_factor = this->get_fade();
 
     /* Dispatch a thread for each diagonal in the image. */
     const int diagonals_count = compute_number_of_diagonals(size);
@@ -1048,7 +1073,7 @@ class GlareOperation : public NodeOperation {
   float2 compute_streak_direction(int streak_index)
   {
     const int number_of_streaks = get_number_of_streaks();
-    const float start_angle = get_streaks_start_angle();
+    const float start_angle = this->get_streaks_angle();
     const float angle = start_angle + (float(streak_index) / number_of_streaks) * (M_PI * 2.0f);
     return float2(math::cos(angle), math::sin(angle));
   }
@@ -1064,7 +1089,7 @@ class GlareOperation : public NodeOperation {
    * one makes sure the power starts at one. */
   float compute_streak_color_modulator(int iteration)
   {
-    return 1.0f - std::pow(get_color_modulation_factor(), iteration + 1);
+    return 1.0f - std::pow(this->get_color_modulation(), iteration + 1);
   }
 
   /* Streaks are computed by iteratively applying a filter that samples 3 neighboring pixels in the
@@ -1080,7 +1105,7 @@ class GlareOperation : public NodeOperation {
    * fade factors for those farther neighbors. */
   float3 compute_streak_fade_factors(float iteration_magnitude)
   {
-    const float fade_factor = std::pow(node_storage(bnode()).fade, iteration_magnitude);
+    const float fade_factor = std::pow(this->get_fade(), iteration_magnitude);
     return float3(fade_factor, std::pow(fade_factor, 2.0f), std::pow(fade_factor, 3.0f));
   }
 
@@ -1095,14 +1120,14 @@ class GlareOperation : public NodeOperation {
     return std::pow(4.0f, iteration);
   }
 
-  float get_streaks_start_angle()
-  {
-    return node_storage(bnode()).angle_ofs;
-  }
-
   int get_number_of_streaks()
   {
-    return node_storage(bnode()).streaks;
+    return math::clamp(this->get_input("Streaks").get_single_value_default(4), 1, 16);
+  }
+
+  float get_streaks_angle()
+  {
+    return this->get_input("Streaks Angle").get_single_value_default(0.0f);
   }
 
   /* ------------
@@ -1435,7 +1460,7 @@ class GlareOperation : public NodeOperation {
    * subtract from one. */
   float get_ghost_color_modulation_factor()
   {
-    return 1.0f - get_color_modulation_factor();
+    return 1.0f - this->get_color_modulation();
   }
 
   /* ------------
@@ -2048,17 +2073,23 @@ class GlareOperation : public NodeOperation {
 
   float get_size()
   {
-    return math::clamp(this->get_input("Size").get_single_value_default(1.0f), 0.0f, 1.0f);
+    return math::clamp(this->get_input("Size").get_single_value_default(0.5f), 0.0f, 1.0f);
   }
 
   int get_number_of_iterations()
   {
-    return node_storage(bnode()).iter;
+    return math::clamp(this->get_input("Iterations").get_single_value_default(3), 2, 5);
   }
 
-  float get_color_modulation_factor()
+  float get_fade()
   {
-    return node_storage(bnode()).colmod;
+    return math::clamp(this->get_input("Fade").get_single_value_default(0.9f), 0.75f, 1.0f);
+  }
+
+  float get_color_modulation()
+  {
+    return math::clamp(
+        this->get_input("Color Modulation").get_single_value_default(0.25f), 0.0f, 1.0f);
   }
 
   /* The glare node can compute the glare on a fraction of the input image size to improve

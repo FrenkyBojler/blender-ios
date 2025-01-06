@@ -1104,8 +1104,9 @@ static void adjust_fcurve_key_frame_values(FCurve *fcurve,
  * A new Glare output was added to expose just the generated glare without the input image itself.
  * this relevant for versioning the Mix property as will be shown.
  *
- * The Threshold property was converted into a node input, maintaining its type and range, so we
- * just transfer its value as is.
+ * The Threshold, Iterations, Fade, Color Modulation, Streaks, and Streaks Angle Offset properties
+ * were converted into node inputs, maintaining its type and range, so we just transfer its value
+ * as is.
  *
  * The Mix property was converted into a Strength input, but its range changed from [-1, 1] to [0,
  * 1]. For the [-1, 0] sub-range, -1 used to mean zero strength and 0 used to mean full strength,
@@ -1142,6 +1143,16 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
       node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Strength", "Strength");
   bNodeSocket *size = version_node_add_socket_if_not_exist(
       node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Size", "Size");
+  bNodeSocket *streaks = version_node_add_socket_if_not_exist(
+      node_tree, node, SOCK_IN, SOCK_INT, PROP_NONE, "Streaks", "Streaks");
+  bNodeSocket *streaks_angle = version_node_add_socket_if_not_exist(
+      node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_ANGLE, "Streaks Angle", "Streaks Angle");
+  bNodeSocket *iterations = version_node_add_socket_if_not_exist(
+      node_tree, node, SOCK_IN, SOCK_INT, PROP_NONE, "Iterations", "Iterations");
+  bNodeSocket *fade = version_node_add_socket_if_not_exist(
+      node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Fade", "Fade");
+  bNodeSocket *color_modulation = version_node_add_socket_if_not_exist(
+      node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Color Modulation", "Color Modulation");
 
   /* Function to remap the Mix property to the range of the new Strength input. See function
    * description. */
@@ -1164,6 +1175,11 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
   threshold->default_value_typed<bNodeSocketValueFloat>()->value = storage->threshold;
   strength->default_value_typed<bNodeSocketValueFloat>()->value = mix_to_strength(storage->mix);
   size->default_value_typed<bNodeSocketValueFloat>()->value = size_to_linear(storage->size);
+  streaks->default_value_typed<bNodeSocketValueInt>()->value = storage->streaks;
+  streaks_angle->default_value_typed<bNodeSocketValueFloat>()->value = storage->angle_ofs;
+  iterations->default_value_typed<bNodeSocketValueInt>()->value = storage->iter;
+  fade->default_value_typed<bNodeSocketValueFloat>()->value = storage->fade;
+  color_modulation->default_value_typed<bNodeSocketValueFloat>()->value = storage->colmod;
 
   /* Compute the RNA path of the node. */
   char escaped_node_name[sizeof(node->name) * 2 + 1];
@@ -1192,6 +1208,21 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
       fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
       adjust_fcurve_key_frame_values(
           fcurve, PROP_FLOAT, [&](const float value) { return size_to_linear(value); });
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "streaks")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "angle_offset")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "iterations")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "fade")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "color_modulation")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[8].default_value");
     }
 
     /* The RNA path was changed, free the old path. */
