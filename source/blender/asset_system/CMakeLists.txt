@@ -3,10 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   intern
   intern/library_types
-  ../blenkernel
   ../imbuf
 )
 
@@ -47,7 +46,7 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   bf_imbuf
@@ -57,6 +56,7 @@ set(LIB
 
 
 blender_add_lib(bf_asset_system "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::asset_system ALIAS bf_asset_system)
 
 if(WITH_GTESTS)
   set(TEST_INC

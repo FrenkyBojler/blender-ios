@@ -68,7 +68,8 @@
 #include "SEQ_utils.hh"
 
 #include "IMB_imbuf_enums.h"
-#include "IMB_movie_enums.hh"
+
+#include "MOV_enums.hh"
 
 #include "NOD_common.h"
 #include "NOD_composite.hh"
@@ -991,15 +992,15 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
   }
 }
 
-static bool seq_colorbalance_update_cb(Sequence *seq, void * /*user_data*/)
+static bool seq_colorbalance_update_cb(Strip *seq, void * /*user_data*/)
 {
-  Strip *strip = seq->strip;
+  StripData *data = seq->data;
 
-  if (strip && strip->color_balance) {
+  if (data && data->color_balance) {
     SequenceModifierData *smd = SEQ_modifier_new(seq, nullptr, seqModifierType_ColorBalance);
     ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
 
-    cbmd->color_balance = *strip->color_balance;
+    cbmd->color_balance = *data->color_balance;
 
     /* multiplication with color balance used is handled differently,
      * so we need to move multiplication to modifier so files would be
@@ -1008,13 +1009,13 @@ static bool seq_colorbalance_update_cb(Sequence *seq, void * /*user_data*/)
     cbmd->color_multiply = seq->mul;
     seq->mul = 1.0f;
 
-    MEM_freeN(strip->color_balance);
-    strip->color_balance = nullptr;
+    MEM_freeN(data->color_balance);
+    data->color_balance = nullptr;
   }
   return true;
 }
 
-static bool seq_set_alpha_mode_cb(Sequence *seq, void * /*user_data*/)
+static bool seq_set_alpha_mode_cb(Strip *seq, void * /*user_data*/)
 {
   enum { SEQ_MAKE_PREMUL = (1 << 6) };
   if (seq->flag & SEQ_MAKE_PREMUL) {
@@ -1026,7 +1027,7 @@ static bool seq_set_alpha_mode_cb(Sequence *seq, void * /*user_data*/)
   return true;
 }
 
-static bool seq_set_wipe_angle_cb(Sequence *seq, void * /*user_data*/)
+static bool seq_set_wipe_angle_cb(Strip *seq, void * /*user_data*/)
 {
   if (seq->type == SEQ_TYPE_WIPE) {
     WipeVars *wv = static_cast<WipeVars *>(seq->effectdata);
