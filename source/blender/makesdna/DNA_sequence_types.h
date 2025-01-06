@@ -44,7 +44,7 @@ typedef struct TextVarsRuntime TextVarsRuntime;
 #endif
 
 /* -------------------------------------------------------------------- */
-/** \name Sequence & Editing Structs
+/** \name Strip & Editing Structs
  * \{ */
 
 /* strlens; 256= FILE_MAXFILE, 768= FILE_MAXDIR */
@@ -456,7 +456,7 @@ typedef struct TextVars {
   char align;
   char _pad[2];
 
-  /* Ofssets in bytes relative to #TextVars::text. */
+  /** Offsets in bytes relative to #TextVars::text. */
   int cursor_offset;
   int selection_start_offset;
   int selection_end_offset;

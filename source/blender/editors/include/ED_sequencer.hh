@@ -68,7 +68,7 @@ bool sequencer_retiming_mode_is_active(const bContext *C);
  * frame.
  *
  * \param C: context
- * \return collection of strips (`Sequence`)
+ * \return collection of strips (`Strip`)
  */
 blender::VectorSet<Strip *> ED_sequencer_selected_strips_from_context(bContext *C);
 StripSelection ED_sequencer_pick_strip_and_handle(const struct Scene *scene,

@@ -43,7 +43,7 @@
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *seq;
-  /** A copy of #Sequence.flag that may be modified for nested strips. */
+  /** A copy of #Strip.flag that may be modified for nested strips. */
   int flag;
   /** Use this so we can have transform data at the strips start,
    * but apply correctly to the start frame. */

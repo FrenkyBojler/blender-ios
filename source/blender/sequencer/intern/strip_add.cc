@@ -357,15 +357,15 @@ Strip *SEQ_add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
 
 void SEQ_add_sound_av_sync(Main * /*bmain*/,
                            Scene * /*scene*/,
-                           Sequence * /*seq*/,
+                           Strip * /*seq*/,
                            SeqLoadData * /*load_data*/)
 {
 }
 
-Sequence *SEQ_add_sound_strip(Main * /*bmain*/,
-                              Scene * /*scene*/,
-                              ListBase * /*seqbase*/,
-                              SeqLoadData * /*load_data*/)
+Strip *SEQ_add_sound_strip(Main * /*bmain*/,
+                           Scene * /*scene*/,
+                           ListBase * /*seqbase*/,
+                           SeqLoadData * /*load_data*/)
 {
   return nullptr;
 }

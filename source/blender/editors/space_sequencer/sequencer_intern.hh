@@ -201,7 +201,7 @@ bool sequencer_view_strips_poll(bContext *C);
  * collection is limited to all presented strips that can produce image output.
  *
  * \param C: context
- * \return collection of strips (`Sequence`)
+ * \return collection of strips (`Strip`)
  */
 blender::VectorSet<Strip *> all_strips_from_context(bContext *C);
 

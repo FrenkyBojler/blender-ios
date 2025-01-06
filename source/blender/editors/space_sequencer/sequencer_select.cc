@@ -230,7 +230,7 @@ static void select_linked_time_seq(const Scene *scene,
 #if 0 /* BRING BACK */
 void select_surround_from_last(Scene *scene)
 {
-  Sequence *seq = get_last_seq(scene);
+  Strip *seq = get_last_seq(scene);
 
   if (seq == nullptr) {
     return;
@@ -383,8 +383,8 @@ Strip *find_nearest_seq(const Scene *scene,
 #if 0
 static void select_neighbor_from_last(Scene *scene, int lr)
 {
-  Sequence *seq = SEQ_select_active_get(scene);
-  Sequence *neighbor;
+  Strip *seq = SEQ_select_active_get(scene);
+  Strip *neighbor;
   bool changed = false;
   if (seq) {
     neighbor = find_neighboring_sequence(scene, seq, lr, -1);

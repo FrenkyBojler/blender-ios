@@ -183,7 +183,7 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
     {
       /* TODO: other methods to get the mask. */
 #if 0
-      Sequence *seq = SEQ_select_active_get(ac->scene);
+      Strip *seq = SEQ_select_active_get(ac->scene);
       MovieClip *clip = ac->scene->clip;
       struct Mask *mask = seq ? seq->mask : nullptr;
 #endif

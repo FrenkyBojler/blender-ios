@@ -1339,26 +1339,26 @@ void BKE_sound_unlock() {}
 void BKE_sound_reset_scene_specs(Scene * /*scene*/) {}
 void BKE_sound_mute_scene(Scene * /*scene*/, int /*muted*/) {}
 void *BKE_sound_scene_add_scene_sound(Scene * /*scene*/,
-                                      Sequence * /*sequence*/,
+                                      Strip * /*sequence*/,
                                       int /*startframe*/,
                                       int /*endframe*/,
                                       int /*frameskip*/)
 {
   return nullptr;
 }
-void *BKE_sound_scene_add_scene_sound_defaults(Scene * /*scene*/, Sequence * /*sequence*/)
+void *BKE_sound_scene_add_scene_sound_defaults(Scene * /*scene*/, Strip * /*sequence*/)
 {
   return nullptr;
 }
 void *BKE_sound_add_scene_sound(Scene * /*scene*/,
-                                Sequence * /*sequence*/,
+                                Strip * /*sequence*/,
                                 int /*startframe*/,
                                 int /*endframe*/,
                                 int /*frameskip*/)
 {
   return nullptr;
 }
-void *BKE_sound_add_scene_sound_defaults(Scene * /*scene*/, Sequence * /*sequence*/)
+void *BKE_sound_add_scene_sound_defaults(Scene * /*scene*/, Strip * /*sequence*/)
 {
   return nullptr;
 }
