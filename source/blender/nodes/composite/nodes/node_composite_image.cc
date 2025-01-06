@@ -412,8 +412,14 @@ namespace blender::nodes::node_composite_render_layer_cc {
 
 static void node_rlayer_declare(NodeDeclarationBuilder &builder)
 {
+  const auto default_outputs = [&]() {
+    builder.add_output<decl::Color>("Image");
+    builder.add_output<decl::Float>("Alpha");
+  };
+
   const bNode *node = builder.node_or_null();
   if (node == nullptr || node->id == nullptr) {
+    default_outputs();
     return;
   }
 
@@ -421,10 +427,16 @@ static void node_rlayer_declare(NodeDeclarationBuilder &builder)
   ViewLayer *view_layer = static_cast<ViewLayer *>(
       BLI_findlink(&scene->view_layers, node->custom1));
   if (!view_layer) {
+    default_outputs();
     return;
   }
 
   RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
+  if (engine_type == nullptr || engine_type->update_render_passes == nullptr) {
+    default_outputs();
+    return;
+  }
+
   RenderEngine *engine = RE_engine_create(engine_type);
   RE_engine_update_render_passes(
       engine,
