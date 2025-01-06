@@ -243,8 +243,9 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
     for (const int i : intervals_by_curve[curve].drop_back(1)) {
       const IndexRange src = shift_end_by(copy_intervals[i], 1);
       const IndexRange dst = src.shift(new_offsets[curve] - first_value + i - first_index);
+      const bool is_selected = bool(i % 2) != is_first_interval_selected;
       new_knot_spans.slice(dst).copy_from(curve_knot_spans.slice(src.shift(-first_value)));
-      if (bool(i % 2) != is_first_interval_selected) {
+      if (is_selected) {
         new_knot_spans[dst.first()] = new_span;
         new_knot_spans[dst.last()] = new_span;
       }
