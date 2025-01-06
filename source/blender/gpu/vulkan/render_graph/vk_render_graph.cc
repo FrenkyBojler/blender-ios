@@ -70,7 +70,7 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
   Span<NodeHandle> node_handles = scheduler_.select_nodes_for_buffer(*this, vk_buffer);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
   VKTimelineSemaphoreWaitInfo wait_signal_semaphore =
-      command_buffer_->submit_with_cpu_synchronization(VK_NULL_HANDLE);
+      command_buffer_->submit_with_cpu_synchronization();
   submission_id.next();
   remove_nodes(node_handles);
   command_buffer_->wait_for_cpu_synchronization(wait_signal_semaphore);
@@ -78,11 +78,9 @@ void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
 
 void VKRenderGraph::submit(bool sync)
 {
+  VKTimelineSemaphoreWaitInfo wait_signal_semaphore = submit_synchronization_event(VK_NULL_HANDLE);
   if (sync) {
-    wait_synchronization_event(submit_synchronization_event(VK_NULL_HANDLE));
-  }
-  else {
-    submit_synchronization_event(VK_NULL_HANDLE);
+    wait_synchronization_event(wait_signal_semaphore);
   }
 }
 

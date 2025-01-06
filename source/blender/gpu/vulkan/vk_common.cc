@@ -1037,4 +1037,5 @@ VKTimelineSemaphore VKTimelineSemaphore::create_timeline_semaphore(VkDevice devi
   vkCreateSemaphore(device, &semaphore_info, nullptr, &timeline_semaphore.semaphore_);
   return timeline_semaphore;
 }
+
 }  // namespace blender::gpu

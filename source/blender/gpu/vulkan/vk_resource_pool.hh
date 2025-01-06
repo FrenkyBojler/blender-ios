@@ -80,8 +80,7 @@ class VKDiscardPool {
    *
    * Each submission must signal to the provided semaphore with the following signal value, and
    * submit for present must use previous submissions in the frame as wait semaphores. After
-   * submiting, caller can use this info for wait in the provided semaphore, if no blocking
-   * preconditions applies.
+   * submiting, caller can use this info for wait in the provided semaphore.
    */
   VKTimelineSemaphoreSignalInfo submit_signal_info(VKDevice &device);
 };
