@@ -51,8 +51,8 @@ class Slot;
  * 3. StripData: Strip{TYPE}Data contains animation data of the given type. For
  *    example, StripKeyframeData (currently the only StripData type) contains
  *    keyframes.
- * 4. Slots, which are used as identifiers for subsets of animation data
- *    within StripData items.
+ * 4. Slots, which are used as identifiers for subsets of animation data within
+ *    StripData items.
  *
  * StripData is not stored in the Strips themselves, but rather is stored
  * separately at the top level of the Action, and each Strip *references* a
@@ -71,10 +71,12 @@ class Slot;
  * \note Temporary limitations: each Action can only contain one Layer, and each
  * Layer can only contain one infinite Strip with no time offset. These
  * limitations will be progressively lifted as we implement layered animation
- * and non-linear animation functionality for Actions in the future.
+ * and non-linear animation functionality for Actions in the future. (See:
+ * `assert_baklava_phase_1_invariants()`.)
  *
  * \see #AnimData::action
  * \see #AnimData::slot_handle
+ * \see assert_baklava_phase_1_invariants()
  */
 class Action : public ::bAction {
  public:
