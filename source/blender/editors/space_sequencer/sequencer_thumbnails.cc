@@ -59,7 +59,8 @@ static float thumb_calc_first_timeline_frame(const Strip *strip,
     return left_handle;
   }
 
-  float aligned_frame_offset = int((first_drawable_frame - strip->start) / frame_step) * frame_step;
+  float aligned_frame_offset = int((first_drawable_frame - strip->start) / frame_step) *
+                               frame_step;
   return strip->start + aligned_frame_offset;
 }
 

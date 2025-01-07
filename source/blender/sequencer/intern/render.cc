@@ -1033,7 +1033,7 @@ static IMB_Timecode_Type seq_render_movie_strip_timecode_get(Strip *strip)
     return IMB_TC_NONE;
   }
   return IMB_Timecode_Type(strip->data->proxy ? IMB_Timecode_Type(strip->data->proxy->tc) :
-                                              IMB_TC_NONE);
+                                                IMB_TC_NONE);
 }
 
 /**
@@ -1183,7 +1183,8 @@ static ImBuf *seq_get_movieclip_ibuf(Strip *strip, MovieClipUser user)
     ibuf = BKE_movieclip_get_stable_ibuf(strip->clip, &user, 0, tloc, &tscale, &tangle);
   }
   else {
-    ibuf = BKE_movieclip_get_ibuf_flag(strip->clip, &user, strip->clip->flag, MOVIECLIP_CACHE_SKIP);
+    ibuf = BKE_movieclip_get_ibuf_flag(
+        strip->clip, &user, strip->clip->flag, MOVIECLIP_CACHE_SKIP);
   }
   return ibuf;
 }
@@ -1201,7 +1202,8 @@ static ImBuf *seq_render_movieclip_strip(const SeqRenderData *context,
     return nullptr;
   }
 
-  BKE_movieclip_user_set_frame(&user, frame_index + strip->anim_startofs + strip->clip->start_frame);
+  BKE_movieclip_user_set_frame(&user,
+                               frame_index + strip->anim_startofs + strip->clip->start_frame);
 
   user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
   switch (psize) {
@@ -1566,7 +1568,8 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
       }
 
       if (view_id != context->view_id) {
-        seq_cache_put(&localcontext, strip, timeline_frame, SEQ_CACHE_STORE_RAW, ibufs_arr[view_id]);
+        seq_cache_put(
+            &localcontext, strip, timeline_frame, SEQ_CACHE_STORE_RAW, ibufs_arr[view_id]);
       }
 
       RE_ReleaseResultImage(re);
@@ -1751,7 +1754,8 @@ ImBuf *seq_render_strip(const SeqRenderData *context,
   }
 
   /* Proxies are not stored in cache. */
-  if (!SEQ_can_use_proxy(context, strip, SEQ_rendersize_to_proxysize(context->preview_render_size)))
+  if (!SEQ_can_use_proxy(
+          context, strip, SEQ_rendersize_to_proxysize(context->preview_render_size)))
   {
     ibuf = seq_cache_get(context, strip, timeline_frame, SEQ_CACHE_STORE_RAW);
   }

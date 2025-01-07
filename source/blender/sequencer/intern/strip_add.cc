@@ -205,7 +205,8 @@ void SEQ_add_image_init_alpha_mode(Strip *strip)
     char filepath[FILE_MAX];
     ImBuf *ibuf;
 
-    BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
+    BLI_path_join(
+        filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
     BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
     /* Initialize input color space. */
@@ -626,7 +627,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
       strip->len = MOV_get_duration_frames(
           sanim->anim,
           IMB_Timecode_Type(strip->data->proxy ? IMB_Timecode_Type(strip->data->proxy->tc) :
-                                               IMB_TC_RECORD_RUN));
+                                                 IMB_TC_RECORD_RUN));
 
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;

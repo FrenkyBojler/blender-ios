@@ -834,7 +834,8 @@ static void seq_build_proxy(bContext *C, blender::Span<Strip *> movie_strips)
     SEQ_proxy_set(strip, true);
     strip->data->proxy->build_size_flags = seq_get_proxy_size_flags(C);
     strip->data->proxy->build_flags |= SEQ_PROXY_SKIP_EXISTING;
-    SEQ_proxy_rebuild_context(pj->main, pj->depsgraph, pj->scene, strip, nullptr, &pj->queue, true);
+    SEQ_proxy_rebuild_context(
+        pj->main, pj->depsgraph, pj->scene, strip, nullptr, &pj->queue, true);
   }
 
   if (!WM_jobs_is_running(wm_job)) {

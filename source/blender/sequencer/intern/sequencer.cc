@@ -932,8 +932,10 @@ static bool seq_doversion_250_sound_proxy_update_cb(Strip *strip, void *user_dat
   Main *bmain = static_cast<Main *>(user_data);
   if (strip->type == SEQ_TYPE_SOUND_HD) {
     char filepath_abs[FILE_MAX];
-    BLI_path_join(
-        filepath_abs, sizeof(filepath_abs), strip->data->dirpath, strip->data->stripdata->filename);
+    BLI_path_join(filepath_abs,
+                  sizeof(filepath_abs),
+                  strip->data->dirpath,
+                  strip->data->stripdata->filename);
     BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
     strip->sound = BKE_sound_new_file(bmain, filepath_abs);
     strip->type = SEQ_TYPE_SOUND_RAM;
@@ -1038,7 +1040,8 @@ static void seq_update_scene_strip_sound(const Scene *scene, Strip *strip)
 
   /* Set `strip->scene` volume.
    * NOTE: Currently this doesn't work well, when this property is animated. Scene strip volume is
-   * also controlled by `seq_update_sound_properties()` via `strip->volume` which works if animated.
+   * also controlled by `seq_update_sound_properties()` via `strip->volume` which works if
+   * animated.
    *
    * Ideally, the entire `BKE_scene_update_sound()` will happen from a dependency graph, so
    * then it is no longer needed to do such manual forced updates. */

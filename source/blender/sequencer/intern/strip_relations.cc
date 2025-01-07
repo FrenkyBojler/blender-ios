@@ -196,7 +196,8 @@ void SEQ_relations_invalidate_dependent(Scene *scene, Strip *strip)
 
 static void invalidate_scene_strips(Scene *scene, Scene *scene_target, ListBase *seqbase)
 {
-  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next) {
+  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next)
+  {
     if (strip->scene == scene_target) {
       SEQ_relations_invalidate_cache_raw(scene, strip);
     }
@@ -220,7 +221,8 @@ void SEQ_relations_invalidate_scene_strips(Main *bmain, Scene *scene_target)
 
 static void invalidate_movieclip_strips(Scene *scene, MovieClip *clip_target, ListBase *seqbase)
 {
-  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next) {
+  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next)
+  {
     if (strip->clip == clip_target) {
       SEQ_relations_invalidate_cache_raw(scene, strip);
     }
@@ -280,7 +282,8 @@ static void sequencer_all_free_anim_ibufs(const Scene *scene,
                                           const int frame_range[2])
 {
   Editing *ed = SEQ_editing_get(scene);
-  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next) {
+  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next)
+  {
     if (!SEQ_time_strip_intersects_frame(scene, strip, timeline_frame) ||
         !((frame_range[0] <= timeline_frame) && (frame_range[1] > timeline_frame)))
     {
@@ -453,7 +456,8 @@ Strip *SEQ_find_metastrip_by_sequence(ListBase *seqbase, Strip *meta, Strip *str
     if (strip == iseq) {
       return meta;
     }
-    if (iseq->seqbase.first && (rval = SEQ_find_metastrip_by_sequence(&iseq->seqbase, iseq, strip)))
+    if (iseq->seqbase.first &&
+        (rval = SEQ_find_metastrip_by_sequence(&iseq->seqbase, iseq, strip)))
     {
       return rval;
     }

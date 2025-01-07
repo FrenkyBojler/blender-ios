@@ -24,7 +24,7 @@ static ThreadMutex presence_lock = BLI_MUTEX_INITIALIZER;
 static const char *get_seq_base_path(const Strip *strip)
 {
   return strip->scene ? ID_BLEND_PATH_FROM_GLOBAL(&strip->scene->id) :
-                      BKE_main_blendfile_path_from_global();
+                        BKE_main_blendfile_path_from_global();
 }
 
 static bool check_sound_media_missing(const bSound *sound, const Strip *strip)

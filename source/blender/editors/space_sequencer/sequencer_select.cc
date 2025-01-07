@@ -286,7 +286,8 @@ Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel)
   }
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
     if ((strip != test) && (test->machine == strip->machine) &&
-        ((sel == -1) || (sel && (strip->flag & SELECT)) || (sel == 0 && (strip->flag & SELECT) == 0)))
+        ((sel == -1) || (sel && (strip->flag & SELECT)) ||
+         (sel == 0 && (strip->flag & SELECT) == 0)))
     {
       switch (lr) {
         case SEQ_SIDE_LEFT:
@@ -703,8 +704,11 @@ static void sequencer_select_linked_handle(const bContext *C,
     }
     else {
 
-      select_active_side(
-          scene, ed->seqbasep, sel_side, strip->machine, SEQ_time_left_handle_frame_get(scene, strip));
+      select_active_side(scene,
+                         ed->seqbasep,
+                         sel_side,
+                         strip->machine,
+                         SEQ_time_left_handle_frame_get(scene, strip));
     }
   }
 }
@@ -2007,7 +2011,9 @@ void SEQUENCER_OT_select_side(wmOperatorType *ot)
 /** \name Box Select Operator
  * \{ */
 
-static bool seq_box_select_rect_image_isect(const Scene *scene, const Strip *strip, const rctf *rect)
+static bool seq_box_select_rect_image_isect(const Scene *scene,
+                                            const Strip *strip,
+                                            const rctf *rect)
 {
   float seq_image_quad[4][2];
   SEQ_image_transform_final_quad_get(scene, strip, seq_image_quad);
@@ -2311,7 +2317,9 @@ static bool select_grouped_type_basic(blender::Span<Strip *> strips,
   const bool is_sound = SEQ_IS_SOUND(actseq);
 
   for (Strip *strip : strips) {
-    if (SEQ_CHANNEL_CHECK(strip, channel) && (is_sound ? SEQ_IS_SOUND(strip) : !SEQ_IS_SOUND(strip))) {
+    if (SEQ_CHANNEL_CHECK(strip, channel) &&
+        (is_sound ? SEQ_IS_SOUND(strip) : !SEQ_IS_SOUND(strip)))
+    {
       strip->flag |= SELECT;
       changed = true;
     }
@@ -2329,7 +2337,8 @@ static bool select_grouped_type_effect(blender::Span<Strip *> strips,
   const bool is_effect = SEQ_IS_EFFECT(actseq);
 
   for (Strip *strip : strips) {
-    if (SEQ_CHANNEL_CHECK(strip, channel) && (is_effect ? SEQ_IS_EFFECT(strip) : !SEQ_IS_EFFECT(strip)))
+    if (SEQ_CHANNEL_CHECK(strip, channel) &&
+        (is_effect ? SEQ_IS_EFFECT(strip) : !SEQ_IS_EFFECT(strip)))
     {
       strip->flag |= SELECT;
       changed = true;
@@ -2364,7 +2373,9 @@ static bool select_grouped_data(blender::Span<Strip *> strips,
   else if (actseq->type == SEQ_TYPE_SCENE) {
     Scene *sce = actseq->scene;
     for (Strip *strip : strips) {
-      if (SEQ_CHANNEL_CHECK(strip, channel) && strip->type == SEQ_TYPE_SCENE && strip->scene == sce) {
+      if (SEQ_CHANNEL_CHECK(strip, channel) && strip->type == SEQ_TYPE_SCENE &&
+          strip->scene == sce)
+      {
         strip->flag |= SELECT;
         changed = true;
       }
@@ -2373,7 +2384,8 @@ static bool select_grouped_data(blender::Span<Strip *> strips,
   else if (actseq->type == SEQ_TYPE_MOVIECLIP) {
     MovieClip *clip = actseq->clip;
     for (Strip *strip : strips) {
-      if (SEQ_CHANNEL_CHECK(strip, channel) && strip->type == SEQ_TYPE_MOVIECLIP && strip->clip == clip)
+      if (SEQ_CHANNEL_CHECK(strip, channel) && strip->type == SEQ_TYPE_MOVIECLIP &&
+          strip->clip == clip)
       {
         strip->flag |= SELECT;
         changed = true;
@@ -2383,7 +2395,8 @@ static bool select_grouped_data(blender::Span<Strip *> strips,
   else if (actseq->type == SEQ_TYPE_MASK) {
     Mask *mask = actseq->mask;
     for (Strip *strip : strips) {
-      if (SEQ_CHANNEL_CHECK(strip, channel) && strip->type == SEQ_TYPE_MASK && strip->mask == mask) {
+      if (SEQ_CHANNEL_CHECK(strip, channel) && strip->type == SEQ_TYPE_MASK && strip->mask == mask)
+      {
         strip->flag |= SELECT;
         changed = true;
       }

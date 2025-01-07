@@ -202,9 +202,9 @@ void seq_time_effect_range_set(const Scene *scene, Strip *strip)
 
   if (strip->seq1 && strip->seq2) { /* 2 - input effect. */
     strip->startdisp = max_ii(SEQ_time_left_handle_frame_get(scene, strip->seq1),
-                            SEQ_time_left_handle_frame_get(scene, strip->seq2));
+                              SEQ_time_left_handle_frame_get(scene, strip->seq2));
     strip->enddisp = min_ii(SEQ_time_right_handle_frame_get(scene, strip->seq1),
-                          SEQ_time_right_handle_frame_get(scene, strip->seq2));
+                            SEQ_time_right_handle_frame_get(scene, strip->seq2));
   }
   else if (strip->seq1) { /* Single input effect. */
     strip->startdisp = SEQ_time_right_handle_frame_get(scene, strip->seq1);
@@ -451,12 +451,14 @@ bool SEQ_time_has_left_still_frames(const Scene *scene, const Strip *strip)
 
 bool SEQ_time_has_right_still_frames(const Scene *scene, const Strip *strip)
 {
-  return SEQ_time_right_handle_frame_get(scene, strip) > SEQ_time_content_end_frame_get(scene, strip);
+  return SEQ_time_right_handle_frame_get(scene, strip) >
+         SEQ_time_content_end_frame_get(scene, strip);
 }
 
 bool SEQ_time_has_still_frames(const Scene *scene, const Strip *strip)
 {
-  return SEQ_time_has_right_still_frames(scene, strip) || SEQ_time_has_left_still_frames(scene, strip);
+  return SEQ_time_has_right_still_frames(scene, strip) ||
+         SEQ_time_has_left_still_frames(scene, strip);
 }
 
 int SEQ_time_strip_length_get(const Scene *scene, const Strip *strip)

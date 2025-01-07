@@ -65,7 +65,8 @@ static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, 
       old = strip->startofs;
       strip->startofs *= fac;
       strip->endofs *= fac;
-      strip->start += (old - strip->startofs); /* So that visual/"real" start frame does not change! */
+      strip->start += (old -
+                       strip->startofs); /* So that visual/"real" start frame does not change! */
 
       changed = true;
     }

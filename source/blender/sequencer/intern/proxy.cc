@@ -193,7 +193,8 @@ bool SEQ_can_use_proxy(const SeqRenderData *context, const Strip *strip, int psi
   }
 
   short size_flags = strip->data->proxy->build_size_flags;
-  return (strip->flag & SEQ_USE_PROXY) != 0 && psize != IMB_PROXY_NONE && (size_flags & psize) != 0;
+  return (strip->flag & SEQ_USE_PROXY) != 0 && psize != IMB_PROXY_NONE &&
+         (size_flags & psize) != 0;
 }
 
 ImBuf *seq_proxy_fetch(const SeqRenderData *context, Strip *strip, int timeline_frame)
@@ -563,7 +564,8 @@ void SEQ_proxy_rebuild(SeqIndexBuildContext *context, wmJobWorkerStatus *worker_
       seq_proxy_build_frame(&render_context, &state, strip, timeline_frame, 100, overwrite);
     }
 
-    worker_status->progress = float(timeline_frame - SEQ_time_left_handle_frame_get(scene, strip)) /
+    worker_status->progress = float(timeline_frame -
+                                    SEQ_time_left_handle_frame_get(scene, strip)) /
                               (SEQ_time_right_handle_frame_get(scene, strip) -
                                SEQ_time_left_handle_frame_get(scene, strip));
     worker_status->do_update = true;

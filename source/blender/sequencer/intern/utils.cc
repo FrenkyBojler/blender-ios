@@ -306,7 +306,8 @@ void seq_open_anim_file(Scene *scene, Strip *strip, bool openfile)
 
   Editing *ed = scene->ed;
   char filepath[FILE_MAX];
-  BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
+  BLI_path_join(
+      filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
 
   bool is_multiview = (strip->flag & SEQ_USE_VIEWS) != 0 && (scene->r.scemode & R_MULTIVIEW) != 0;
@@ -337,7 +338,8 @@ const Strip *SEQ_get_topmost_sequence(const Scene *scene, int frame)
   int best_machine = -1;
 
   LISTBASE_FOREACH (const Strip *, strip, ed->seqbasep) {
-    if (SEQ_render_is_muted(channels, strip) || !SEQ_time_strip_intersects_frame(scene, strip, frame))
+    if (SEQ_render_is_muted(channels, strip) ||
+        !SEQ_time_strip_intersects_frame(scene, strip, frame))
     {
       continue;
     }

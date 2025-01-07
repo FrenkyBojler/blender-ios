@@ -83,7 +83,8 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData * 
 
   blender::VectorSet<Strip *> dependant;
   dependant.add_multiple(transformed_strips);
-  dependant.remove_if([&](Strip *strip) { return SEQ_transform_sequence_can_be_translated(strip); });
+  dependant.remove_if(
+      [&](Strip *strip) { return SEQ_transform_sequence_can_be_translated(strip); });
 
   if (seq_transform_check_overlap(transformed_strips)) {
     const bool use_sync_markers = (((SpaceSeq *)t->area->spacedata.first)->flag &

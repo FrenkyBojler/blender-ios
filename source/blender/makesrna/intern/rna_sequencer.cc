@@ -572,7 +572,8 @@ static void rna_Sequence_frame_length_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  SEQ_time_right_handle_frame_set(scene, strip, SEQ_time_left_handle_frame_get(scene, strip) + value);
+  SEQ_time_right_handle_frame_set(
+      scene, strip, SEQ_time_left_handle_frame_get(scene, strip) + value);
   do_sequence_frame_change_update(scene, strip);
   SEQ_relations_invalidate_cache_composite(scene, strip);
 }
@@ -581,7 +582,8 @@ static int rna_Sequence_frame_length_get(PointerRNA *ptr)
 {
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
-  return SEQ_time_right_handle_frame_get(scene, strip) - SEQ_time_left_handle_frame_get(scene, strip);
+  return SEQ_time_right_handle_frame_get(scene, strip) -
+         SEQ_time_left_handle_frame_get(scene, strip);
 }
 
 static int rna_Sequence_frame_duration_get(PointerRNA *ptr)
@@ -922,7 +924,8 @@ static void rna_Sequence_filepath_get(PointerRNA *ptr, char *value)
   Strip *strip = (Strip *)(ptr->data);
   char filepath[FILE_MAX];
 
-  BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
+  BLI_path_join(
+      filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
   strcpy(value, filepath);
 }
 
@@ -931,7 +934,8 @@ static int rna_Sequence_filepath_length(PointerRNA *ptr)
   Strip *strip = (Strip *)(ptr->data);
   char filepath[FILE_MAX];
 
-  BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
+  BLI_path_join(
+      filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
   return strlen(filepath);
 }
 
@@ -1135,7 +1139,8 @@ static bool colbalance_seq_cmp_fn(Strip *strip, void *arg_pt)
 {
   SequenceSearchData *data = static_cast<SequenceSearchData *>(arg_pt);
 
-  for (SequenceModifierData *smd = static_cast<SequenceModifierData *>(strip->modifiers.first); smd;
+  for (SequenceModifierData *smd = static_cast<SequenceModifierData *>(strip->modifiers.first);
+       smd;
        smd = smd->next)
   {
     if (smd->type == seqModifierType_ColorBalance) {

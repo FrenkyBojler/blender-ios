@@ -2873,7 +2873,8 @@ static int sequencer_change_path_invoke(bContext *C, wmOperator *op, const wmEve
   Strip *strip = SEQ_select_active_get(scene);
   char filepath[FILE_MAX];
 
-  BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
+  BLI_path_join(
+      filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
 
   RNA_string_set(op->ptr, "directory", strip->data->dirpath);
   RNA_string_set(op->ptr, "filepath", filepath);

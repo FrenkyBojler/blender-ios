@@ -40,7 +40,8 @@
 #include "sequencer_quads_batch.hh"
 
 #define KEY_SIZE (10 * U.pixelsize)
-#define KEY_CENTER (UI_view2d_view_to_region_y(v2d, strip_y_rescale(strip, 0.0f)) + 4 + KEY_SIZE / 2)
+#define KEY_CENTER \
+  (UI_view2d_view_to_region_y(v2d, strip_y_rescale(strip, 0.0f)) + 4 + KEY_SIZE / 2)
 
 bool retiming_keys_can_be_displayed(const SpaceSeq *sseq)
 {
@@ -143,7 +144,9 @@ static bool retiming_fake_key_frame_clicked(const bContext *C,
   int right_x = right_frame;
   /* `key_x_get()` compensates 1 frame offset of last key, however this can not
    * be conveyed via `fake_key` alone. Therefore the same offset must be emulated. */
-  if (SEQ_time_right_handle_frame_get(scene, strip) >= SEQ_time_content_end_frame_get(scene, strip)) {
+  if (SEQ_time_right_handle_frame_get(scene, strip) >=
+      SEQ_time_content_end_frame_get(scene, strip))
+  {
     right_x += 1;
   }
   const float right_distance = fabs(UI_view2d_view_to_region_x(v2d, right_x) - mval[0]);
@@ -304,7 +307,8 @@ static void retime_key_draw(const TimelineDrawContext *timeline_ctx,
 void sequencer_retiming_draw_continuity(const TimelineDrawContext *timeline_ctx,
                                         const StripDrawContext &strip_ctx)
 {
-  if (!can_draw_retiming(timeline_ctx, strip_ctx) || SEQ_retiming_keys_count(strip_ctx.strip) == 0) {
+  if (!can_draw_retiming(timeline_ctx, strip_ctx) || SEQ_retiming_keys_count(strip_ctx.strip) == 0)
+  {
     return;
   }
 

@@ -65,7 +65,9 @@ bool SEQ_transform_seqbase_isolated_sel_check(ListBase *seqbase)
       }
     }
     else {
-      if ((strip->seq1 && (strip->seq1->flag & SELECT)) || (strip->seq2 && (strip->seq2->flag & SELECT))) {
+      if ((strip->seq1 && (strip->seq1->flag & SELECT)) ||
+          (strip->seq2 && (strip->seq2->flag & SELECT)))
+      {
         return false;
       }
     }
