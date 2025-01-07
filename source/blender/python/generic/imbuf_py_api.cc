@@ -27,7 +27,7 @@
 #include <cerrno>
 #include <fcntl.h>
 
-static PyObject *BPyInit_imbuf_types(void);
+static PyObject *BPyInit_imbuf_types();
 
 static PyObject *Py_ImBuf_CreatePyObject(ImBuf *ibuf);
 

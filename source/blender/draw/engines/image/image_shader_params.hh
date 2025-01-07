@@ -25,7 +25,7 @@ namespace blender::image_engine {
 
 struct ShaderParameters {
   ImageDrawFlags flags = ImageDrawFlags::DEFAULT;
-  float shuffle[4];
+  float4 shuffle;
   float far_near[2];
   bool use_premul_alpha = false;
 
@@ -35,7 +35,7 @@ struct ShaderParameters {
               ImBuf *image_buffer)
   {
     flags = ImageDrawFlags::DEFAULT;
-    copy_v4_fl(shuffle, 1.0f);
+    shuffle = float4(1.0f);
     copy_v2_fl2(far_near, 100.0f, 0.0f);
 
     use_premul_alpha = BKE_image_has_gpu_texture_premultiplied_alpha(image, image_buffer);
