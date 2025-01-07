@@ -20,14 +20,13 @@
 
 #include <string.h>
 
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "WM_types.hh"
 
@@ -38,18 +37,16 @@
 /** \name Public API
  * \{ */
 
-
-
 struct wmOpHandlers *WM_op_handlers_create(void)
 {
 
-  struct wmOpHandlers *op_handlers = (wmOpHandlers*) MEM_callocN(sizeof(*op_handlers), __func__);
+  struct wmOpHandlers *op_handlers = (wmOpHandlers *)MEM_callocN(sizeof(*op_handlers), __func__);
   return op_handlers;
 }
 
 void WM_op_handlers_destroy(struct wmOpHandlers *op_handlers)
 {
-  LISTBASE_FOREACH (wmOpHandlerData *, opHandlers, &op_handlers->handlers ) {
+  LISTBASE_FOREACH (wmOpHandlerData *, opHandlers, &op_handlers->handlers) {
     BLI_freelistN(&opHandlers->pre_invoke);
     BLI_freelistN(&opHandlers->post_invoke);
     BLI_freelistN(&opHandlers->modal);
@@ -84,25 +81,27 @@ ListBase *WM_op_handlers_get_handler_list(wmOpHandlerData *opHandlers, int id)
 
 wmOpHandlerData *WM_get_op_handlers(struct wmOpHandlers *op_handlers, const char *op_name)
 {
-  return (wmOpHandlerData*) BLI_findstring(&op_handlers->handlers, op_name, offsetof(wmOpHandlerData, id_name));
+  return (wmOpHandlerData *)BLI_findstring(
+      &op_handlers->handlers, op_name, offsetof(wmOpHandlerData, id_name));
 }
 
-
-void WM_op_handlers_append(struct wmOpHandlers *op_handlers,
-                           int id,
-                           void *py_handle,
-                           const char *op_name,
-                           bool (*cb)(struct bContext *, const struct wmEvent *event, void *, PointerRNA *properties, int),
-                           int (*check)(void *, void*, void*),
-                           bool (*poll)(struct bContext *, const struct wmEvent *event, void *, PointerRNA *properties),
-                           void *py_data)
+void WM_op_handlers_append(
+    struct wmOpHandlers *op_handlers,
+    int id,
+    void *py_handle,
+    const char *op_name,
+    bool (*cb)(
+        struct bContext *, const struct wmEvent *event, void *, PointerRNA *properties, int),
+    int (*check)(void *, void *, void *),
+    bool (*poll)(struct bContext *, const struct wmEvent *event, void *, PointerRNA *properties),
+    void *py_data)
 {
   wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, op_name);
   wmHandlerData *data = (wmHandlerData *)MEM_mallocN(sizeof(wmHandlerData), "wmHandlerData");
-  
+
   if (opHandlers == NULL) {
     // Create
-    opHandlers = (wmOpHandlerData *) MEM_callocN(sizeof(wmOpHandlerData), "wmOpHandlerData");
+    opHandlers = (wmOpHandlerData *)MEM_callocN(sizeof(wmOpHandlerData), "wmOpHandlerData");
     BLI_strncpy(opHandlers->id_name, op_name, OP_MAX_TYPENAME);
     BLI_addtail(&op_handlers->handlers, opHandlers);
   }
@@ -122,10 +121,13 @@ int WM_op_handlers_remove_all(struct wmOpHandlers *op_handlers, void *cb, void *
 {
   int ret = 0;
   LISTBASE_FOREACH (wmOpHandlerData *, opHandlers, &op_handlers->handlers) {
-    ret += WM_op_handlers_remove(op_handlers, HANDLER_TYPE_PRE_INVOKE, opHandlers->id_name, cb, owner);
-    ret += WM_op_handlers_remove(op_handlers, HANDLER_TYPE_POST_INVOKE, opHandlers->id_name, cb, owner);
+    ret += WM_op_handlers_remove(
+        op_handlers, HANDLER_TYPE_PRE_INVOKE, opHandlers->id_name, cb, owner);
+    ret += WM_op_handlers_remove(
+        op_handlers, HANDLER_TYPE_POST_INVOKE, opHandlers->id_name, cb, owner);
     ret += WM_op_handlers_remove(op_handlers, HANDLER_TYPE_MODAL, opHandlers->id_name, cb, owner);
-    ret += WM_op_handlers_remove(op_handlers, HANDLER_TYPE_MODAL_END, opHandlers->id_name, cb, owner);
+    ret += WM_op_handlers_remove(
+        op_handlers, HANDLER_TYPE_MODAL_END, opHandlers->id_name, cb, owner);
   }
   return ret;
 }
@@ -143,7 +145,7 @@ int WM_op_handlers_remove(
     if (opHandlers != NULL) {
       ListBase *list = WM_op_handlers_get_handler_list(opHandlers, id);
       wmHandlerData *next;
-      for (wmHandlerData *data = (wmHandlerData*) list->first; data; data = next) {
+      for (wmHandlerData *data = (wmHandlerData *)list->first; data; data = next) {
         next = data->next;
         if (data->check(data->py_data, owner, cb)) {
           BLI_freelinkN(list, data);
@@ -154,7 +156,6 @@ int WM_op_handlers_remove(
   }
   return ret;
 }
-
 
 bool WM_op_handlers_operator_exec(struct bContext *C,
                                   const wmEvent *event,
@@ -171,7 +172,6 @@ bool WM_op_handlers_operator_exec(struct bContext *C,
   }
   return ret;
 }
-
 
 // Previous to invoke
 bool WM_op_handlers_operator_pre_invoke(struct bContext *C,
@@ -191,14 +191,13 @@ bool WM_op_handlers_operator_pre_invoke(struct bContext *C,
   return ret;
 }
 
-
 // Post To invoke
 void WM_op_handlers_operator_post_invoke(struct bContext *C,
                                          const wmEvent *event,
                                          struct wmOpHandlers *op_handlers,
-                                     struct wmOperatorType *ot,
-                                     struct PointerRNA *properties,
-                                     int retval)
+                                         struct wmOperatorType *ot,
+                                         struct PointerRNA *properties,
+                                         int retval)
 {
   if (op_handlers != NULL) {
     wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
@@ -213,8 +212,7 @@ bool WM_op_handlers_operator_modal(struct bContext *C,
                                    const wmEvent *event,
                                    struct wmOpHandlers *op_handlers,
                                    struct wmOperatorType *ot,
-                                   int retval
-                                   )
+                                   int retval)
 {
   bool ret = true;
   if (op_handlers != NULL) {
@@ -228,10 +226,10 @@ bool WM_op_handlers_operator_modal(struct bContext *C,
 }
 
 void WM_op_handlers_operator_modal_end(struct bContext *C,
-                                   const wmEvent *event,
-                                   struct wmOpHandlers *op_handlers,
-                                   struct wmOperatorType *ot,
-                                   int retval)
+                                       const wmEvent *event,
+                                       struct wmOpHandlers *op_handlers,
+                                       struct wmOperatorType *ot,
+                                       int retval)
 {
   if (op_handlers != NULL) {
     wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
@@ -241,6 +239,5 @@ void WM_op_handlers_operator_modal_end(struct bContext *C,
     }
   }
 }
-
 
 /** \} */

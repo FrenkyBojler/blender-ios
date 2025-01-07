@@ -609,7 +609,6 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
     WM_op_handlers_destroy(wm->op_handlers);
   }
 
-
 #ifdef WITH_PYTHON
   BPY_callback_wm_free(wm);
 #endif

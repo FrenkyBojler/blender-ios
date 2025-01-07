@@ -1320,7 +1320,6 @@ PyObject *pyrna_enum_bitfield_to_py(const EnumPropertyItem *items, int value)
   return ret;
 }
 
-
 static PyObject *pyrna_enum_to_py(PointerRNA *ptr, PropertyRNA *prop, int val)
 {
   PyObject *item, *ret = nullptr;

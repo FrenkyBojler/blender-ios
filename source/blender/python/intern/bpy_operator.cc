@@ -463,18 +463,17 @@ static PyModuleDef bpy_ops_module = {
     /*m_free*/ nullptr,
 };
 
-static int bpy_op_handler_check(void *py_data, void* owner, void *callback)
+static int bpy_op_handler_check(void *py_data, void *owner, void *callback)
 {
   PyObject *py_owner = PyTuple_GET_ITEM(py_data, 0);
   PyObject *py_callback = PyTuple_GET_ITEM(py_data, 2);
   if (owner != NULL && callback != NULL) {
     return (py_owner == owner && py_callback == callback);
   }
-  else if (owner != NULL)
-  {
+  else if (owner != NULL) {
     return (py_owner == owner);
   }
-  else {  //callback != NULL
+  else {  // callback != NULL
     return (py_callback == callback);
   }
 }
@@ -508,7 +507,7 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
           data = PyLong_FromLong(val);
         }
         else {
-          int *values = (int*) MEM_callocN(sizeof(int) * prop_array_length, __func__);
+          int *values = (int *)MEM_callocN(sizeof(int) * prop_array_length, __func__);
           RNA_property_int_get_array(properties, prop, values);
           data = PyTuple_New(prop_array_length);
           for (int i = 0; i < prop_array_length; i++) {
@@ -527,7 +526,7 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
           data = PyFloat_FromDouble(val);
         }
         else {
-          float *values = (float*) MEM_callocN(sizeof(float) * prop_array_length, __func__);
+          float *values = (float *)MEM_callocN(sizeof(float) * prop_array_length, __func__);
           RNA_property_float_get_array(properties, prop, values);
           data = PyTuple_New(prop_array_length);
           for (int i = 0; i < prop_array_length; i++) {
@@ -571,10 +570,9 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
   return py_dict;
 }
 
-
 static bool bpy_op_callback_get_return_value(PyObject *callback, PyObject *py_ret)
 {
-  bool ret = true; // Do not interrump on error
+  bool ret = true;  // Do not interrump on error
   if (py_ret == NULL) {
     PyC_Err_PrintWithFunc(callback);
   }
@@ -585,9 +583,10 @@ static bool bpy_op_callback_get_return_value(PyObject *callback, PyObject *py_re
     else if (py_ret == Py_True) {
       // pass
     }
-    else if (py_ret == Py_False){
+    else if (py_ret == Py_False) {
       ret = false;
-    } else {
+    }
+    else {
       PyErr_SetString(PyExc_ValueError, "the return value must be None or boolean");
       PyC_Err_PrintWithFunc(callback);
     }
@@ -596,9 +595,12 @@ static bool bpy_op_callback_get_return_value(PyObject *callback, PyObject *py_re
   return ret;
 }
 
-
 static PyObject *bpy_op_get_callback_call(PyObject *callback,
-    bContext *C, const wmEvent *event, int *operator_ret, PyObject *params, PyObject *callback_args)
+                                          bContext *C,
+                                          const wmEvent *event,
+                                          int *operator_ret,
+                                          PyObject *params,
+                                          PyObject *callback_args)
 {
   PointerRNA ctx_ptr;
   PointerRNA event_ptr;
@@ -610,8 +612,8 @@ static PyObject *bpy_op_get_callback_call(PyObject *callback,
   ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
   bpy_ctx = pyrna_struct_CreatePyObject(&ctx_ptr);
 
-    if (event != NULL) {
-    event_ptr = RNA_pointer_create(NULL, &RNA_Event, (void*) event);
+  if (event != NULL) {
+    event_ptr = RNA_pointer_create(NULL, &RNA_Event, (void *)event);
     bpy_event = pyrna_struct_CreatePyObject(&event_ptr);
   }
   else {
@@ -640,9 +642,9 @@ static PyObject *bpy_op_get_callback_call(PyObject *callback,
   return py_ret;
 }
 
-
 static bool bpy_op_handler_poll(struct bContext *C,
-                               const wmEvent *event, void *py_data,
+                                const wmEvent *event,
+                                void *py_data,
                                 PointerRNA *properties)
 {
   bool ret = true;
@@ -652,7 +654,7 @@ static bool bpy_op_handler_poll(struct bContext *C,
     PyObject *callback_args = PyTuple_GET_ITEM(py_data, 3);
     PyObject *py_poll = PyTuple_GET_ITEM(py_data, 4);
 
-      // Properties get null on modall poll, params are not bypassed to Py poll function
+    // Properties get null on modall poll, params are not bypassed to Py poll function
     PyObject *params = (properties == NULL) ? Py_None : bpy_op_get_operator_params(properties);
     if (py_poll != Py_None) {
       PyObject *py_ret = bpy_op_get_callback_call(py_poll, C, event, NULL, params, callback_args);
@@ -683,7 +685,11 @@ static bool bpy_op_handler_poll(struct bContext *C,
   return ret;
 }
 
-static bool bpy_op_handler_modal (bContext *C, const wmEvent *event, void *py_data, PointerRNA* /* properties */, int operator_ret)
+static bool bpy_op_handler_modal(bContext *C,
+                                 const wmEvent *event,
+                                 void *py_data,
+                                 PointerRNA * /* properties */,
+                                 int operator_ret)
 {
   // this is because is not thread safe
   bool ret = true;
@@ -692,39 +698,34 @@ static bool bpy_op_handler_modal (bContext *C, const wmEvent *event, void *py_da
   {
     PyObject *callback = PyTuple_GET_ITEM(py_data, 2);
     PyObject *callback_args = PyTuple_GET_ITEM(py_data, 3);
-    PyObject *py_ret = bpy_op_get_callback_call(callback, C, event, &operator_ret, Py_None, callback_args);
+    PyObject *py_ret = bpy_op_get_callback_call(
+        callback, C, event, &operator_ret, Py_None, callback_args);
     ret = bpy_op_callback_get_return_value(callback, py_ret);
   }
   bpy_context_clear(C, &gilstate);
   return ret;
 }
 
-
-static bool bpy_op_handler_invoke(bContext *C,
-                                  const wmEvent *event,
-                                  void *py_data,
-                                  PointerRNA *properties,
-                                  int operator_ret)
+static bool bpy_op_handler_invoke(
+    bContext *C, const wmEvent *event, void *py_data, PointerRNA *properties, int operator_ret)
 {
   bool ret = true;
   // this is because is not thread safe
   PyGILState_STATE gilstate;
-   bpy_context_set(C, &gilstate);
+  bpy_context_set(C, &gilstate);
   {
     PyObject *callback = PyTuple_GET_ITEM(py_data, 2);
     PyObject *callback_args = PyTuple_GET_ITEM(py_data, 3);
     PyObject *params = bpy_op_get_operator_params(properties);
-    PyObject *py_ret =  bpy_op_get_callback_call(callback, C, event, operator_ret ? &operator_ret : NULL , params, callback_args);
+    PyObject *py_ret = bpy_op_get_callback_call(
+        callback, C, event, operator_ret ? &operator_ret : NULL, params, callback_args);
     ret = bpy_op_callback_get_return_value(callback, py_ret);
   }
   bpy_context_clear(C, &gilstate);
   return ret;
 }
 
-
-static PyObject *bpy_op_handler_proc(
-                                 PyObject *args,
-                                 PyObject *kw)
+static PyObject *bpy_op_handler_proc(PyObject *args, PyObject *kw)
 {
   const char *error_prefix = "op_handler_proc";
 
@@ -732,7 +733,6 @@ static PyObject *bpy_op_handler_proc(
   PyObject *py_owner = NULL;  // Object who creates the handler
   PyObject *callback = NULL, *py_poll = NULL;
   PyObject *callback_args = NULL;
-
 
   if (PyTuple_GET_SIZE(args) != 0) {
     PyErr_Format(PyExc_TypeError, "%s: only keyword arguments are supported", error_prefix);
@@ -742,9 +742,10 @@ static PyObject *bpy_op_handler_proc(
   static const char *_keywords[] = {"owner", "op", "cb", "args", "poll", NULL};
   static _PyArg_Parser _parser = {"OOOOO|:handler_proc", _keywords, 0};
 
-  if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &py_owner, &py_op, &callback, &callback_args, &py_poll)) {
-    PyErr_SetString(
-        PyExc_TypeError, "Cannot set arguments, or types does not match");
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kw, &_parser, &py_owner, &py_op, &callback, &callback_args, &py_poll))
+  {
+    PyErr_SetString(PyExc_TypeError, "Cannot set arguments, or types does not match");
   }
 
   if (callback != Py_None && !PyFunction_Check(callback)) {
@@ -759,9 +760,8 @@ static PyObject *bpy_op_handler_proc(
         PyExc_TypeError, "poll expects a function, found %.200s", Py_TYPE(callback)->tp_name);
   }
 
-  if (py_op != Py_None  && !PyUnicode_Check(py_op)) {
-    PyErr_Format(
-        PyExc_TypeError, "op expects an astring, found %.200s", Py_TYPE(py_op)->tp_name);
+  if (py_op != Py_None && !PyUnicode_Check(py_op)) {
+    PyErr_Format(PyExc_TypeError, "op expects an astring, found %.200s", Py_TYPE(py_op)->tp_name);
   }
 
   if (PyErr_Occurred() != NULL) {
@@ -769,26 +769,25 @@ static PyObject *bpy_op_handler_proc(
     return NULL;
   }
 
-
   PyObject *py_data = PyTuple_New(5);
   PyTuple_SET_ITEMS(py_data,
-                    Py_NewRef(py_owner),   // 0
-                    Py_NewRef(py_op),      // 1
-                    Py_NewRef(callback),   // 2
-                    Py_NewRef(callback_args), // 3
-                    Py_NewRef(py_poll));  // 4
+                    Py_NewRef(py_owner),       // 0
+                    Py_NewRef(py_op),          // 1
+                    Py_NewRef(callback),       // 2
+                    Py_NewRef(callback_args),  // 3
+                    Py_NewRef(py_poll));       // 4
 
   return Py_NewRef(py_data);
 }
 
-static PyObject *op_handler_append(int handler_id , PyObject *args, PyObject *kw)
+static PyObject *op_handler_append(int handler_id, PyObject *args, PyObject *kw)
 {
   bContext *C = BPY_context_get();
   struct wmOpHandlers *op_handlers = CTX_wm_op_handlers(C);
 
   PyObject *py_data = bpy_op_handler_proc(args, kw);
 
-  bool (*func)(bContext * C,const wmEvent * event, void *, PointerRNA *, int) = nullptr;
+  bool (*func)(bContext *C, const wmEvent *event, void *, PointerRNA *, int) = nullptr;
 
   switch (handler_id) {
     case HANDLER_TYPE_PRE_INVOKE:
@@ -811,7 +810,8 @@ static PyObject *op_handler_append(int handler_id , PyObject *args, PyObject *kw
     }
     else if (py_callback == Py_None) {
       PyErr_Format(PyExc_TypeError, "callback expects a function");
-    } else {
+    }
+    else {
       WM_op_handlers_append(op_handlers,
                             handler_id,
                             py_owner,
@@ -842,12 +842,14 @@ static PyObject *op_handler_remove(int handler_id, PyObject *args, PyObject *kw)
     PyObject *py_cb = PyTuple_GET_ITEM(py_data, 2);
     if (py_owner == Py_None && py_cb == Py_None) {
       PyErr_Format(PyExc_TypeError, "missing owner or callback");
-    } else {
+    }
+    else {
       if (WM_op_handlers_remove(op_handlers,
                                 handler_id,
                                 (py_op == Py_None ? NULL : PyUnicode_AsUTF8(py_op)),
                                 (py_cb == Py_None ? NULL : py_cb),
-                                (py_owner == Py_None ? NULL : py_owner)) == 0) {
+                                (py_owner == Py_None ? NULL : py_owner)) == 0)
+      {
         PyErr_Format(PyExc_NameError, "data not found on %s", PyUnicode_AsUTF8(py_op));
       }
     }
@@ -860,65 +862,73 @@ static PyObject *op_handler_remove(int handler_id, PyObject *args, PyObject *kw)
   Py_RETURN_NONE;
 }
 
-static PyObject *op_handler_append_pre_invoke(PyObject* /* self */, PyObject *args, PyObject *kw)
+static PyObject *op_handler_append_pre_invoke(PyObject * /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_append(HANDLER_TYPE_PRE_INVOKE, args, kw);
 }
 
-static PyObject *op_handler_append_post_invoke(PyObject* /* self */, PyObject *args, PyObject *kw)
+static PyObject *op_handler_append_post_invoke(PyObject * /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_append(HANDLER_TYPE_POST_INVOKE, args, kw);
 }
 
-static PyObject *op_handler_append_modal(PyObject* /* self */, PyObject *args, PyObject *kw)
+static PyObject *op_handler_append_modal(PyObject * /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_append(HANDLER_TYPE_MODAL, args, kw);
 }
 
-static PyObject *op_handler_append_modal_end(PyObject* /* self */, PyObject *args, PyObject *kw)
+static PyObject *op_handler_append_modal_end(PyObject * /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_append(HANDLER_TYPE_MODAL_END, args, kw);
 }
 
-
-
-static PyObject *op_handler_remove_pre_invoke(PyObject* /* self */, PyObject *args, PyObject *kw)
+static PyObject *op_handler_remove_pre_invoke(PyObject * /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_PRE_INVOKE, args, kw);
 }
 
-static PyObject *op_handler_remove_post_invoke(PyObject* /* self */, PyObject *args, PyObject *kw)
+static PyObject *op_handler_remove_post_invoke(PyObject * /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_POST_INVOKE, args, kw);
 }
 
-static PyObject *op_handler_remove_modal(PyObject* /* self */, PyObject *args, PyObject *kw)
+static PyObject *op_handler_remove_modal(PyObject * /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_MODAL, args, kw);
 }
 
-static PyObject *op_handler_remove_modal_end(PyObject* /*self */, PyObject *args, PyObject *kw)
+static PyObject *op_handler_remove_modal_end(PyObject * /*self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_MODAL_END, args, kw);
 }
 
-
-static PyObject *op_handlers_remove(PyObject* /* self */, PyObject *args, PyObject *kw)
+static PyObject *op_handlers_remove(PyObject * /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_ALL, args, kw);
 }
 
-
 static struct PyMethodDef bpy_ops_handlers_methods[] = {
     {"pre_invoke", (PyCFunction)op_handler_append_pre_invoke, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"post_invoke", (PyCFunction)op_handler_append_post_invoke, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"post_invoke",
+     (PyCFunction)op_handler_append_post_invoke,
+     METH_VARARGS | METH_KEYWORDS,
+     NULL},
     {"modal", (PyCFunction)op_handler_append_modal, METH_VARARGS | METH_KEYWORDS, NULL},
     {"modal_end", (PyCFunction)op_handler_append_modal_end, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"pre_invoke_remove", (PyCFunction)op_handler_remove_pre_invoke, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"post_invoke_remove", (PyCFunction)op_handler_remove_post_invoke, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"modal_remove",(PyCFunction)op_handler_remove_modal, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"modal_end_remove", (PyCFunction)op_handler_remove_modal_end, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"remove", (PyCFunction)op_handlers_remove,  METH_VARARGS | METH_KEYWORDS,  NULL},
+    {"pre_invoke_remove",
+     (PyCFunction)op_handler_remove_pre_invoke,
+     METH_VARARGS | METH_KEYWORDS,
+     NULL},
+    {"post_invoke_remove",
+     (PyCFunction)op_handler_remove_post_invoke,
+     METH_VARARGS | METH_KEYWORDS,
+     NULL},
+    {"modal_remove", (PyCFunction)op_handler_remove_modal, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"modal_end_remove",
+     (PyCFunction)op_handler_remove_modal_end,
+     METH_VARARGS | METH_KEYWORDS,
+     NULL},
+    {"remove", (PyCFunction)op_handlers_remove, METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL},
 };
 
@@ -933,8 +943,6 @@ static struct PyModuleDef bpy_ops_handlers = {
     NULL,
     NULL,
 };
-
-
 
 PyObject *BPY_operator_module()
 {
