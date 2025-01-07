@@ -968,8 +968,11 @@ static_assert(sizeof(StripKeyframeData) == sizeof(::ActionStripKeyframeData),
 /**
  * Collection of F-Curves, intended for a specific Slot handle.
  *
- * The F-Curves can be organized into groups (e.g. all F-Curves for a given bone
- * can be put into a group with that bone's name).
+ * In addition to F-Curves, Channelbags can also contain ChannelGroups, which
+ * are used to organize F-Curves within the Channelbag (e.g. all F-Curves for a
+ * given bone can be put into a ChannelGroup with that bone's name).
+ *
+ * \see ChannelGroup
  */
 class Channelbag : public ::ActionChannelbag {
  public:
