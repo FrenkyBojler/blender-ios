@@ -3841,16 +3841,15 @@ void BKE_object_foreach_display_point(Object *ob,
     }
   }
   else if (ob->type == OB_GREASE_PENCIL) {
+    using namespace blender::bke::greasepencil;
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
-    const Span<const blender::bke::greasepencil::Layer *> layers = grease_pencil.layers();
-    for (const int layer_i : layers.index_range()) {
-      const blender::bke::greasepencil::Layer &layer = *layers[layer_i];
-      if (!layer.is_visible()) {
+    for (const Layer *layer : grease_pencil.layers()) {
+      if (!layer->is_visible()) {
         continue;
       }
-      const float4x4 layer_to_world = layer.to_world_space(*ob);
-      if (const blender::bke::greasepencil::Drawing *drawing = grease_pencil.get_drawing_at(
-              layer, grease_pencil.runtime->eval_frame))
+      const float4x4 layer_to_world = layer->to_world_space(*ob);
+      if (const Drawing *drawing = grease_pencil.get_drawing_at(*layer,
+                                                                grease_pencil.runtime->eval_frame))
       {
         const blender::bke::CurvesGeometry &curves = drawing->strokes();
         const Span<float3> positions = curves.evaluated_positions();
