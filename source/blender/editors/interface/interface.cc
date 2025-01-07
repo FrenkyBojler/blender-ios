@@ -1421,6 +1421,12 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
           prop = RNA_struct_find_property(ptr, prop_id);
           prop_index = -1;
 
+          if (prop_enum_value == -1) {
+            /* Get the current value for Editor menu. #100652 */
+            prop_enum_value = RNA_property_enum_get(ptr, prop);
+            prop_enum_value_ok = (prop_enum_value != -1);
+          }
+
           opnames = ctx_enum_opnames_for_Area_ui_type;
           opnames_len = ARRAY_SIZE(ctx_enum_opnames_for_Area_ui_type);
           prop_enum_value_id = "space_type";
@@ -3751,7 +3757,7 @@ void UI_blocklist_free(const bContext *C, ARegion *region)
   while (uiBlock *block = static_cast<uiBlock *>(BLI_pophead(lb))) {
     UI_block_free(C, block);
   }
-  region->runtime->block_name_map.clear_and_shrink();
+  region->runtime->block_name_map.clear();
 }
 
 void UI_blocklist_free_inactive(const bContext *C, ARegion *region)
@@ -4721,8 +4727,12 @@ void ui_but_rna_menu_convert_to_menu_type(uiBut *but, const char *menu_type)
   BLI_assert(but->menu_create_func == ui_def_but_rna__menu);
   BLI_assert((void *)but->poin == but);
   but->menu_create_func = ui_def_but_rna__menu_type;
-  BLI_assert(but->func_argN_free_fn == MEM_freeN);
-  BLI_assert(but->func_argN_copy_fn == MEM_dupallocN);
+
+  if (but->func_argN && but->func_argN_free_fn) {
+    but->func_argN_free_fn(but->func_argN);
+  }
+  but->func_argN_free_fn = MEM_freeN;
+  but->func_argN_copy_fn = MEM_dupallocN;
   but->func_argN = BLI_strdup(menu_type);
 }
 
@@ -6184,6 +6194,11 @@ void UI_but_func_complete_set(uiBut *but, uiButCompleteFunc func, void *arg)
 void UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func)
 {
   but->menu_step_func = func;
+}
+
+void UI_but_menu_disable_hover_open(uiBut *but)
+{
+  but->menu_no_hover_open = true;
 }
 
 void UI_but_func_tooltip_label_set(uiBut *but, std::function<std::string(const uiBut *but)> func)

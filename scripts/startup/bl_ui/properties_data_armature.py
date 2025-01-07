@@ -374,7 +374,7 @@ class POSE_PT_selection_sets(Panel):
         sub.operator("pose.selection_set_unassign", text="Remove")
 
         sub = row.row(align=True)
-        sub.operator("pose.selection_set_select", text="Select")
+        sub.operator("pose.selection_set_select", text="Select").selection_set_index = -1
         sub.operator("pose.selection_set_deselect", text="Deselect")
 
 
@@ -382,7 +382,7 @@ class POSE_UL_selection_set(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         row = layout.row()
         row.prop(item, "name", text="", emboss=False)
-        if self.layout_type in ('DEFAULT', 'COMPACT'):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row.prop(item, "is_selected", text="")
 
 

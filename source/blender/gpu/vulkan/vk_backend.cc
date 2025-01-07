@@ -96,8 +96,11 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
 {
   Vector<StringRefNull> missing_capabilities;
   /* Check device features. */
-  VkPhysicalDeviceFeatures2 features = {};
-  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  VkPhysicalDeviceVulkan12Features features_12 = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
+  VkPhysicalDeviceFeatures2 features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+                                        &features_12};
+
   vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
 
 #ifndef __APPLE__
@@ -129,6 +132,9 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.fragmentStoresAndAtomics == VK_FALSE) {
     missing_capabilities.append("fragment stores and atomics");
   }
+  if (features_12.timelineSemaphore == VK_FALSE) {
+    missing_capabilities.append("timeline semaphores");
+  }
 
   /* Check device extensions. */
   uint32_t vk_extension_count;
@@ -145,9 +151,12 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (!extensions.contains(VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
     missing_capabilities.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
+#ifndef __APPLE__
+  /* Metal doesn't support provoking vertex. */
   if (!extensions.contains(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME)) {
     missing_capabilities.append(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
   }
+#endif
 
   return missing_capabilities;
 }
@@ -388,6 +397,15 @@ void VKBackend::detect_workarounds(VKDevice &device)
   workarounds.dynamic_rendering_unused_attachments = !device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
 
+#ifdef __APPLE__
+  /* Due to a limitation in MoltenVK, attachments should be sequential even when using
+   * dynamic rendering. MoltenVK internally uses render passes to simulate dynamic rendering and
+   * same limitations apply. */
+  if (GPU_type_matches(GPU_DEVICE_APPLE, GPU_OS_MAC, GPU_DRIVER_ANY)) {
+    GCaps.render_pass_workaround = true;
+  }
+#endif
+
   device.workarounds_ = workarounds;
 }
 
@@ -548,7 +566,7 @@ void VKBackend::render_end()
   }
 }
 
-void VKBackend::render_step() {}
+void VKBackend::render_step(bool /*force_resource_release*/) {}
 
 void VKBackend::capabilities_init(VKDevice &device)
 {

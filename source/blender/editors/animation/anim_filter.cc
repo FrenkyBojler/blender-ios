@@ -183,7 +183,7 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
     {
       /* TODO: other methods to get the mask. */
 #if 0
-      Sequence *seq = SEQ_select_active_get(ac->scene);
+      Strip *seq = SEQ_select_active_get(ac->scene);
       MovieClip *clip = ac->scene->clip;
       struct Mask *mask = seq ? seq->mask : nullptr;
 #endif
@@ -1009,7 +1009,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
   }
   else if (GS(owner_id->name) == ID_SCE) {
     Scene *scene = (Scene *)owner_id;
-    Sequence *seq = nullptr;
+    Strip *seq = nullptr;
     char seq_name[sizeof(seq->name)];
 
     /* Only consider if F-Curve involves `sequence_editor.sequences`. */
@@ -2770,7 +2770,10 @@ struct tAnimFilterModifiersContext {
 };
 
 /* dependency walker callback for modifier dependencies */
-static void animfilter_modifier_idpoin_cb(void *afm_ptr, Object *ob, ID **idpoin, int /*cb_flag*/)
+static void animfilter_modifier_idpoin_cb(void *afm_ptr,
+                                          Object *ob,
+                                          ID **idpoin,
+                                          LibraryForeachIDCallbackFlag /*cb_flag*/)
 {
   tAnimFilterModifiersContext *afm = (tAnimFilterModifiersContext *)afm_ptr;
   ID *owner_id = &ob->id;

@@ -3349,7 +3349,7 @@ struct Seq_build_prop_cb_data {
   bool has_audio_strips;
 };
 
-static bool seq_build_prop_cb(Sequence *seq, void *user_data)
+static bool seq_build_prop_cb(Strip *seq, void *user_data)
 {
   Seq_build_prop_cb_data *cd = (Seq_build_prop_cb_data *)user_data;
 
@@ -3633,7 +3633,7 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
 void DepsgraphRelationBuilder::modifier_walk(void *user_data,
                                              Object * /*object*/,
                                              ID **idpoin,
-                                             int /*cb_flag*/)
+                                             LibraryForeachIDCallbackFlag /*cb_flag*/)
 {
   BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
   ID *id = *idpoin;

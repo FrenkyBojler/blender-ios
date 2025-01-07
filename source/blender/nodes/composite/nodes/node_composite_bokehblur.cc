@@ -60,7 +60,7 @@ static void node_composit_buts_bokehblur(uiLayout *layout, bContext * /*C*/, Poi
   uiItemR(layout, ptr, "use_extended_bounds", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class BokehBlurOperation : public NodeOperation {
  public:
@@ -159,7 +159,7 @@ class BokehBlurOperation : public NodeOperation {
     parallel_for(domain.size, [&](const int2 texel) {
       /* The mask input is treated as a boolean. If it is zero, then no blurring happens for this
        * pixel. Otherwise, the pixel is blurred normally and the mask value is irrelevant. */
-      float mask = mask_image.load_pixel<float>(texel);
+      float mask = mask_image.load_pixel<float, true>(texel);
       if (mask == 0.0f) {
         output.store_pixel(texel, input.load_pixel<float4>(texel));
         return;
@@ -276,7 +276,7 @@ class BokehBlurOperation : public NodeOperation {
     parallel_for(domain.size, [&](const int2 texel) {
       /* The mask input is treated as a boolean. If it is zero, then no blurring happens for this
        * pixel. Otherwise, the pixel is blurred normally and the mask value is irrelevant. */
-      float mask = mask_image.load_pixel<float>(texel);
+      float mask = mask_image.load_pixel<float, true>(texel);
       if (mask == 0.0f) {
         output.store_pixel(texel, input.load_pixel<float4>(texel));
         return;
@@ -359,7 +359,7 @@ class BokehBlurOperation : public NodeOperation {
 
     /* The [0, 10] range of the size is arbitrary and is merely in place to avoid very long
      * computations of the bokeh blur. */
-    const float size = math::clamp(get_input("Size").get_float_value_default(1.0f), 0.0f, 10.0f);
+    const float size = math::clamp(get_input("Size").get_single_value_default(1.0f), 0.0f, 10.0f);
 
     /* The 100 divisor is arbitrary and was chosen using visual judgment. */
     return size * (max_size / 100.0f);
@@ -379,7 +379,7 @@ class BokehBlurOperation : public NodeOperation {
     /* This input is, in fact, a boolean mask. If it is zero, no blurring will take place.
      * Otherwise, the blurring will take place ignoring the value of the input entirely. */
     const Result &bounding_box = get_input("Bounding box");
-    if (bounding_box.is_single_value() && bounding_box.get_float_value() == 0.0) {
+    if (bounding_box.is_single_value() && bounding_box.get_single_value<float>() == 0.0) {
       return true;
     }
 
@@ -416,6 +416,7 @@ void register_node_type_cmp_bokehblur()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_BOKEHBLUR, "Bokeh Blur", NODE_CLASS_OP_FILTER);
+  ntype.enum_name_legacy = "BOKEHBLUR";
   ntype.declare = file_ns::cmp_node_bokehblur_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_bokehblur;
   ntype.initfunc = file_ns::node_composit_init_bokehblur;
