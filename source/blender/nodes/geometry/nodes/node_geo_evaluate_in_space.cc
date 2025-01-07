@@ -168,15 +168,20 @@ static void for_each_to_bottom_skip(const OffsetIndices<int> buckets_offsets,
     const int joint_i = item.joint_i;
     const MutableSpan<int> to_visit = indices.as_mutable_span().take_front(item.prefix_to_visit);
     const IndexRange joints_range = geometry::akdbh::joints_range_at_depth(depth_i);
-    const IndexRange joint_buckets = geometry::akdbh::joint_buckets_range_at_depth(total_depth, depth_i, joint_i);
+    const IndexRange joint_buckets = geometry::akdbh::joint_buckets_range_at_depth(
+        total_depth, depth_i, joint_i);
 
-    const auto end_of_prefix = std::stable_partition(to_visit.begin(), to_visit.end(),
-      [&](const int i) -> bool { return joint_predicate(int(joints_range[joint_i]), i); });
+    const auto end_of_prefix = std::stable_partition(
+        to_visit.begin(), to_visit.end(), [&](const int i) -> bool {
+          return joint_predicate(int(joints_range[joint_i]), i);
+        });
 
-    const Span<int> finished_indices = to_visit.drop_front(std::distance(to_visit.begin(), end_of_prefix));
+    const Span<int> finished_indices = to_visit.drop_front(
+        std::distance(to_visit.begin(), end_of_prefix));
     joint_func(buckets_offsets[joint_buckets], int(joints_range[joint_i]), finished_indices);
 
-    const Span<int> next_indices = to_visit.take_front(std::distance(to_visit.begin(), end_of_prefix));
+    const Span<int> next_indices = to_visit.take_front(
+        std::distance(to_visit.begin(), end_of_prefix));
     if (next_indices.is_empty()) {
       continue;
     }
@@ -214,57 +219,68 @@ static void sample_mean_average(const OffsetIndices<int> buckets_offsets,
 
   geometry::akdbh::to_static_type(src_joints_value.type(), [&](auto dummy) {
     using T = decltype(dummy);
-    
+
     const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
     const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
     MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
-    
-    threading::parallel_for(src_bucket_position.index_range(), 1024 * 8, [&](const IndexRange range) {
-      Vector<float, 0> buffer;
-      buffer.reserve(range.size());
 
-      for_each_to_bottom_skip(
-          buckets_offsets,
-          total_depth,
-          range,
-          [&](const int joint_index, const int value_i) -> bool {
-            return (math::distance(src_joints_centre[joint_index], src_bucket_position[value_i]) + offset_value) <= src_joints_min_distance[joint_index];
-          },
-          [&](const IndexRange buckets_range, const int joint_index, const Span<int> value_indices) {
-            buffer.resize(value_indices.size());
-            for (const int value_i : value_indices.index_range()) {
-              const int value_index = value_indices[value_i];
-              buffer[value_i] = math::square(math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) + offset_value);
-            }
+    threading::parallel_for(
+        src_bucket_position.index_range(), 1024 * 8, [&](const IndexRange range) {
+          Vector<float, 0> buffer;
+          buffer.reserve(range.size());
 
-            squared_distance_invertion(power_value, buffer.as_mutable_span());
+          for_each_to_bottom_skip(
+              buckets_offsets,
+              total_depth,
+              range,
+              [&](const int joint_index, const int value_i) -> bool {
+                return (math::distance(src_joints_centre[joint_index],
+                                       src_bucket_position[value_i]) +
+                        offset_value) <= src_joints_min_distance[joint_index];
+              },
+              [&](const IndexRange buckets_range,
+                  const int joint_index,
+                  const Span<int> value_indices) {
+                buffer.resize(value_indices.size());
+                for (const int value_i : value_indices.index_range()) {
+                  const int value_index = value_indices[value_i];
+                  buffer[value_i] = math::square(math::distance(src_joints_centre[joint_index],
+                                                                src_bucket_position[value_index]) +
+                                                 offset_value);
+                }
 
-            const float total_factor = buckets_range.size();
-            for (const int value_i : value_indices.index_range()) {
-              const int value_index = value_indices[value_i];
-              typed_dst_buckets_data[value_index] += typed_src_joints_value[joint_index] * buffer[value_i] * total_factor;
-            }
-          },
-          [&](const IndexRange bucket_range, const Span<int> value_indices) {
-            buffer.resize(bucket_range.size());
-            for (const int value_i : value_indices) {
-              const float3 position = src_bucket_position[value_i];
+                squared_distance_invertion(power_value, buffer.as_mutable_span());
 
-              for (const int index : bucket_range.index_range()) {
-                buffer[index] = math::square(math::distance(src_bucket_position[bucket_range[index]], position) + offset_value);
-              }
+                const float total_factor = buckets_range.size();
+                for (const int value_i : value_indices.index_range()) {
+                  const int value_index = value_indices[value_i];
+                  typed_dst_buckets_data[value_index] += typed_src_joints_value[joint_index] *
+                                                         buffer[value_i] * total_factor;
+                }
+              },
+              [&](const IndexRange bucket_range, const Span<int> value_indices) {
+                buffer.resize(bucket_range.size());
+                for (const int value_i : value_indices) {
+                  const float3 position = src_bucket_position[value_i];
 
-              squared_distance_invertion(power_value, buffer.as_mutable_span());
+                  for (const int index : bucket_range.index_range()) {
+                    buffer[index] = math::square(
+                        math::distance(src_bucket_position[bucket_range[index]], position) +
+                        offset_value);
+                  }
 
-              for (const int i : bucket_range.index_range()) {
-                const int index = bucket_range[i];
-                const float relation_factor = buffer[i];
-                const float safe_relation_factor = index == value_i ? 0.0f : relation_factor;
-                typed_dst_buckets_data[value_i] += typed_src_bucket_value[index] * safe_relation_factor;
-              }
-            }
-          });
-    });
+                  squared_distance_invertion(power_value, buffer.as_mutable_span());
+
+                  for (const int i : bucket_range.index_range()) {
+                    const int index = bucket_range[i];
+                    const float relation_factor = buffer[i];
+                    const float safe_relation_factor = index == value_i ? 0.0f : relation_factor;
+                    typed_dst_buckets_data[value_i] += typed_src_bucket_value[index] *
+                                                       safe_relation_factor;
+                  }
+                }
+              });
+        });
   });
 }
 
@@ -365,17 +381,17 @@ static void packing_spheres_exact(const OffsetIndices<int> buckets_offsets,
       });
 
   geometry::akdbh::for_each_to_top(buckets_offsets,
-                         total_depth,
-                         GrainSize(4096),
-                         [&](const IndexRange buckets_range,
-                             const int joint_index,
-                             const int2 /*sub_joints*/,
-                             const int /*depth_i*/) {
-                           const auto [centre, radius] = min_packing_sphere(
-                               src_bucket_points.slice(buckets_range));
-                           dst_joints_centre[joint_index] = centre;
-                           dst_joints_radii[joint_index] = radius;
-                         });
+                                   total_depth,
+                                   GrainSize(4096),
+                                   [&](const IndexRange buckets_range,
+                                       const int joint_index,
+                                       const int2 /*sub_joints*/,
+                                       const int /*depth_i*/) {
+                                     const auto [centre, radius] = min_packing_sphere(
+                                         src_bucket_points.slice(buckets_range));
+                                     dst_joints_centre[joint_index] = centre;
+                                     dst_joints_radii[joint_index] = radius;
+                                   });
 }
 
 static void packing_spheres(const OffsetIndices<int> buckets_offsets,
@@ -395,20 +411,20 @@ static void packing_spheres(const OffsetIndices<int> buckets_offsets,
       });
 
   geometry::akdbh::for_each_to_top(buckets_offsets,
-                         total_depth,
-                         GrainSize(4096),
-                         [&](const IndexRange /*buckets_range*/,
-                             const int joint_index,
-                             const int2 sub_joints,
-                             const int /*depth_i*/) {
-                           const auto [centre, radius] = concatenate_spheres(
-                               dst_joints_centre[sub_joints[0]],
-                               dst_joints_centre[sub_joints[1]],
-                               dst_joints_radii[sub_joints[0]],
-                               dst_joints_radii[sub_joints[1]]);
-                           dst_joints_centre[joint_index] = centre;
-                           dst_joints_radii[joint_index] = radius;
-                         });
+                                   total_depth,
+                                   GrainSize(4096),
+                                   [&](const IndexRange /*buckets_range*/,
+                                       const int joint_index,
+                                       const int2 sub_joints,
+                                       const int /*depth_i*/) {
+                                     const auto [centre, radius] = concatenate_spheres(
+                                         dst_joints_centre[sub_joints[0]],
+                                         dst_joints_centre[sub_joints[1]],
+                                         dst_joints_radii[sub_joints[0]],
+                                         dst_joints_radii[sub_joints[1]]);
+                                     dst_joints_centre[joint_index] = centre;
+                                     dst_joints_radii[joint_index] = radius;
+                                   });
 }
 
 class SpaceValueFieldInput final : public bke::GeometryFieldInput {
@@ -421,10 +437,10 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
 
  public:
   SpaceValueFieldInput(Field<float3> positions_field,
-                    GField value_field,
-                    const int distance_power,
-                    const float precision,
-                    const float offset_value)
+                       GField value_field,
+                       const int distance_power,
+                       const float precision,
+                       const float offset_value)
       : bke::GeometryFieldInput(value_field.cpp_type(), "Space Value"),
         positions_field_(std::move(positions_field)),
         value_field_(std::move(value_field)),
@@ -447,7 +463,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     evaluator.evaluate();
     const VArraySpan<float3> positions = evaluator.get_evaluated<float3>(0);
     const GVArray src_values = evaluator.get_evaluated(1);
-    
+
     const CPPType &data_type = src_values.type();
 
     using namespace blender::geometry;
@@ -457,7 +473,8 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     const int total_joints = akdbh::total_joints_for_depth(total_depth);
 
     Array<int, 0> start_indices(total_buckets + 1);
-    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size, start_indices);
+    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size,
+                                                                               start_indices);
 
     Array<int, 0> indices(domain_size);
     akdbh::from_positions(positions, base_offsets, total_depth, indices);
@@ -465,7 +482,8 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     Array<float3, 0> bucket_positions(domain_size);
     GArray<> bucket_values(data_type, domain_size);
 
-    array_utils::gather(Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
+    array_utils::gather(
+        Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
     bke::attribute_math::gather(src_values, indices.as_span(), bucket_values.as_mutable_span());
 
     GArray<> joints_values(data_type, total_joints);
@@ -475,10 +493,12 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
 
     Array<float3, 0> joints_positions(total_joints);
     Array<float, 0> joints_min_radii(total_joints);
-    packing_spheres(base_offsets, total_depth, bucket_positions, joints_positions, joints_min_radii);
+    packing_spheres(
+        base_offsets, total_depth, bucket_positions, joints_positions, joints_min_radii);
 
     Array<float, 0> joints_min_distance(total_joints);
-    cloud_radii_to_min_distance(joints_min_radii, distance_power_, precision_, joints_min_distance);
+    cloud_radii_to_min_distance(
+        joints_min_radii, distance_power_, precision_, joints_min_distance);
 
     GArray<> sampled_bucket_values(data_type, domain_size);
     data_type.value_initialize_n(sampled_bucket_values.data(), sampled_bucket_values.size());
@@ -496,7 +516,9 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     GArray<> dst_values(data_type, domain_size);
     geometry::akdbh::to_static_type(data_type, [&](auto dummy) {
       using T = decltype(dummy);
-      array_utils::scatter<T>(sampled_bucket_values.as_span().typed<T>(), indices.as_span(), dst_values.as_mutable_span().typed<T>());
+      array_utils::scatter<T>(sampled_bucket_values.as_span().typed<T>(),
+                              indices.as_span(),
+                              dst_values.as_mutable_span().typed<T>());
     });
 
     return GVArray::ForGArray(std::move(dst_values));
@@ -519,7 +541,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float precision_value = params.extract_input<float>("Error");
   const float offset_value = params.extract_input<float>("Offset");
 
-  params.set_output("Value", GField(std::make_shared<SpaceValueFieldInput>(std::move(position_field), std::move(value_field), power_value, precision_value, offset_value)));
+  params.set_output("Value",
+                    GField(std::make_shared<SpaceValueFieldInput>(std::move(position_field),
+                                                                  std::move(value_field),
+                                                                  power_value,
+                                                                  precision_value,
+                                                                  offset_value)));
 }
 
 static void node_rna(StructRNA *srna)

@@ -274,4 +274,4 @@ static void test5(const OffsetIndices<int> base_offsets,
 }
 */
 
-}  // namespace blender::geometry::tests
+}  // namespace blender::geometry::akdbh::tests

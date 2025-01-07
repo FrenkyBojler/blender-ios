@@ -433,7 +433,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float offset_value = params.extract_input<float>("Offset");
 
   std::shared_ptr<FieldOperation> sample_op = FieldOperation::Create(
-      std::make_unique<GradientSumFunction>(geometry, std::move(position_field), std::move(value_field), precision_value, power_value, offset_value), {std::move(sample_position_field)});
+      std::make_unique<GradientSumFunction>(geometry,
+                                            std::move(position_field),
+                                            std::move(value_field),
+                                            precision_value,
+                                            power_value,
+                                            offset_value),
+      {std::move(sample_position_field)});
 
   params.set_output("Sample Gradient", GField(sample_op, 0));
 }

@@ -7,14 +7,13 @@
 #include "BLI_cpp_type.hh"
 
 #include "BLI_generic_span.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task_size_hints.hh"
-#include "BLI_math_vector_types.hh"
 
 namespace blender::geometry::akdbh {
 
-template<typename Func>
-inline void to_static_type(const CPPType &type, const Func &func)
+template<typename Func> inline void to_static_type(const CPPType &type, const Func &func)
 {
   type.to_static_type_tag<float, float3>([&](auto type_tag) {
     using T = typename decltype(type_tag)::type;
@@ -119,13 +118,23 @@ inline void for_each_leaf(const OffsetIndices<int> buckets_offsets,
       });
 }
 
-void from_positions(Span<float3> positions, OffsetIndices<int> buckets_offsets, int total_depth, MutableSpan<int> indices);
+void from_positions(Span<float3> positions,
+                    OffsetIndices<int> buckets_offsets,
+                    int total_depth,
+                    MutableSpan<int> indices);
 
-void mean_sums(OffsetIndices<int> buckets_offsets, int total_depth, GSpan src_buckets_data, GMutableSpan dst_joints_data);
+void mean_sums(OffsetIndices<int> buckets_offsets,
+               int total_depth,
+               GSpan src_buckets_data,
+               GMutableSpan dst_joints_data);
 
-void normalize_for_size(OffsetIndices<int> buckets_offsets, int total_depth, GMutableSpan dst_joints_data);
+void normalize_for_size(OffsetIndices<int> buckets_offsets,
+                        int total_depth,
+                        GMutableSpan dst_joints_data);
 
-void accumulate_size(OffsetIndices<int> buckets_offsets, int total_depth, MutableSpan<int> dst_joints_data);
+void accumulate_size(OffsetIndices<int> buckets_offsets,
+                     int total_depth,
+                     MutableSpan<int> dst_joints_data);
 
 static constexpr int32_t x_axis_stack_mask = 0b10010010'01001001'00100100'10010010;
 static constexpr int32_t y_axis_stack_mask = 0b01001001'00100100'10010010'01001001;

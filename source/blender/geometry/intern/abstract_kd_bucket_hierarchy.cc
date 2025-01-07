@@ -89,15 +89,16 @@ IndexRange joints_range_at_depth(const int depth_i)
 }
 
 IndexRange joint_buckets_range_at_depth(const int total_depth,
-                                               const int depth_i,
-                                               const int joint_i)
+                                        const int depth_i,
+                                        const int joint_i)
 {
   BLI_assert(total_depth > 0);
   const int joint_size = joint_size_at_depth(total_depth, depth_i);
   return IndexRange::from_begin_size(joint_size * joint_i, joint_size);
 }
 
-OffsetIndices<int> fill_bucket_offsets_trivial(const int total_elements, MutableSpan<int> r_offsets)
+OffsetIndices<int> fill_bucket_offsets_trivial(const int total_elements,
+                                               MutableSpan<int> r_offsets)
 {
   for (const int64_t i : r_offsets.index_range().drop_back(1)) {
     r_offsets[i] = i * int64_t(total_elements) / (r_offsets.size() - 1);
@@ -107,9 +108,9 @@ OffsetIndices<int> fill_bucket_offsets_trivial(const int total_elements, Mutable
 }
 
 void from_positions(const Span<float3> positions,
-                           const OffsetIndices<int> buckets_offsets,
-                           const int total_depth,
-                           MutableSpan<int> indices)
+                    const OffsetIndices<int> buckets_offsets,
+                    const int total_depth,
+                    MutableSpan<int> indices)
 {
   array_utils::fill_index_range<int>(indices);
 
@@ -130,9 +131,9 @@ void from_positions(const Span<float3> positions,
 }
 
 void mean_sums(const OffsetIndices<int> buckets_offsets,
-                      const int total_depth,
-                      const GSpan src_buckets_data,
-                      GMutableSpan dst_joints_data)
+               const int total_depth,
+               const GSpan src_buckets_data,
+               GMutableSpan dst_joints_data)
 {
   BLI_assert(src_buckets_data.type() == dst_joints_data.type());
   blender::geometry::akdbh::to_static_type(src_buckets_data.type(), [&](auto dummy) {
@@ -140,14 +141,14 @@ void mean_sums(const OffsetIndices<int> buckets_offsets,
 
     const Span<T> typed_src_buckets_data = src_buckets_data.typed<T>();
     MutableSpan<T> typed_dst_joints_data = dst_joints_data.typed<T>();
-    for_each_leaf(buckets_offsets,
-                  total_depth,
-                  GrainSize(4096),
-                  [&](const IndexRange bucket_range, const int joint_index, const int /*depth_i*/) {
-                    const Span<T> bucket = typed_src_buckets_data.slice(bucket_range);
-                    typed_dst_joints_data[joint_index] = std::accumulate(
-                        bucket.begin(), bucket.end(), T(0));
-                  });
+    for_each_leaf(
+        buckets_offsets,
+        total_depth,
+        GrainSize(4096),
+        [&](const IndexRange bucket_range, const int joint_index, const int /*depth_i*/) {
+          const Span<T> bucket = typed_src_buckets_data.slice(bucket_range);
+          typed_dst_joints_data[joint_index] = std::accumulate(bucket.begin(), bucket.end(), T(0));
+        });
 
     for_each_to_top(buckets_offsets,
                     total_depth,
@@ -156,24 +157,26 @@ void mean_sums(const OffsetIndices<int> buckets_offsets,
                         const int joint_index,
                         const int2 sub_joints,
                         const int /*depth_i*/) {
-                      typed_dst_joints_data[joint_index] = typed_dst_joints_data[sub_joints[0]] + typed_dst_joints_data[sub_joints[1]];
+                      typed_dst_joints_data[joint_index] = typed_dst_joints_data[sub_joints[0]] +
+                                                           typed_dst_joints_data[sub_joints[1]];
                     });
   });
 }
 
 void normalize_for_size(const OffsetIndices<int> buckets_offsets,
-                               const int total_depth,
-                               GMutableSpan dst_joints_data)
+                        const int total_depth,
+                        GMutableSpan dst_joints_data)
 {
   blender::geometry::akdbh::to_static_type(dst_joints_data.type(), [&](auto dummy) {
     using T = decltype(dummy);
     MutableSpan<T> typed_dst_joints_data = dst_joints_data.typed<T>();
-    for_each_leaf(buckets_offsets,
-                  total_depth,
-                  GrainSize(4096),
-                  [&](const IndexRange bucket_range, const int joint_index, const int /*depth_i*/) {
-                    typed_dst_joints_data[joint_index] *= math::rcp(double(bucket_range.size()));
-                  });
+    for_each_leaf(
+        buckets_offsets,
+        total_depth,
+        GrainSize(4096),
+        [&](const IndexRange bucket_range, const int joint_index, const int /*depth_i*/) {
+          typed_dst_joints_data[joint_index] *= math::rcp(double(bucket_range.size()));
+        });
     for_each_to_bottom(
         buckets_offsets,
         total_depth,
@@ -185,8 +188,8 @@ void normalize_for_size(const OffsetIndices<int> buckets_offsets,
 }
 
 void accumulate_size(const OffsetIndices<int> buckets_offsets,
-                            const int total_depth,
-                            MutableSpan<int> dst_joints_data)
+                     const int total_depth,
+                     MutableSpan<int> dst_joints_data)
 {
   for_each_leaf(buckets_offsets,
                 total_depth,
@@ -1497,4 +1500,4 @@ static void sample_average_latest_linear(const OffsetIndices<int> buckets_offset
 
 #endif
 
-}  // namespace blender::akdbh
+}  // namespace blender::geometry::akdbh
