@@ -683,7 +683,7 @@ static bool bpy_op_handler_poll(struct bContext *C,
   return ret;
 }
 
-static bool bpy_op_handler_modal (bContext *C, const wmEvent *event, void *py_data, PointerRNA *properties, int operator_ret)
+static bool bpy_op_handler_modal (bContext *C, const wmEvent *event, void *py_data, PointerRNA* /* properties */, int operator_ret)
 {
   // this is because is not thread safe
   bool ret = true;
@@ -860,50 +860,50 @@ static PyObject *op_handler_remove(int handler_id, PyObject *args, PyObject *kw)
   Py_RETURN_NONE;
 }
 
-static PyObject *op_handler_append_pre_invoke(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handler_append_pre_invoke(PyObject* /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_append(HANDLER_TYPE_PRE_INVOKE, args, kw);
 }
 
-static PyObject *op_handler_append_post_invoke(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handler_append_post_invoke(PyObject* /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_append(HANDLER_TYPE_POST_INVOKE, args, kw);
 }
 
-static PyObject *op_handler_append_modal(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handler_append_modal(PyObject* /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_append(HANDLER_TYPE_MODAL, args, kw);
 }
 
-static PyObject *op_handler_append_modal_end(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handler_append_modal_end(PyObject* /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_append(HANDLER_TYPE_MODAL_END, args, kw);
 }
 
 
 
-static PyObject *op_handler_remove_pre_invoke(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handler_remove_pre_invoke(PyObject* /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_PRE_INVOKE, args, kw);
 }
 
-static PyObject *op_handler_remove_post_invoke(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handler_remove_post_invoke(PyObject* /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_POST_INVOKE, args, kw);
 }
 
-static PyObject *op_handler_remove_modal(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handler_remove_modal(PyObject* /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_MODAL, args, kw);
 }
 
-static PyObject *op_handler_remove_modal_end(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handler_remove_modal_end(PyObject* /*self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_MODAL_END, args, kw);
 }
 
 
-static PyObject *op_handlers_remove(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *op_handlers_remove(PyObject* /* self */, PyObject *args, PyObject *kw)
 {
   return op_handler_remove(HANDLER_TYPE_ALL, args, kw);
 }
@@ -916,7 +916,7 @@ static struct PyMethodDef bpy_ops_handlers_methods[] = {
     {"modal_end", (PyCFunction)op_handler_append_modal_end, METH_VARARGS | METH_KEYWORDS, NULL},
     {"pre_invoke_remove", (PyCFunction)op_handler_remove_pre_invoke, METH_VARARGS | METH_KEYWORDS, NULL},
     {"post_invoke_remove", (PyCFunction)op_handler_remove_post_invoke, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"modal_remove",(PyCFunction)op_handler_remove_post_invoke, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"modal_remove",(PyCFunction)op_handler_remove_modal, METH_VARARGS | METH_KEYWORDS, NULL},
     {"modal_end_remove", (PyCFunction)op_handler_remove_modal_end, METH_VARARGS | METH_KEYWORDS, NULL},
     {"remove", (PyCFunction)op_handlers_remove,  METH_VARARGS | METH_KEYWORDS,  NULL},
     {NULL, NULL, 0, NULL},
