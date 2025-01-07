@@ -203,6 +203,7 @@ static void node_register()
                      GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT,
                      "For Each Geometry Element Input",
                      NODE_CLASS_INTERFACE);
+  ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_INPUT";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
@@ -234,8 +235,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "The original input geometry with potentially new attributes that are output by the "
           "zone");
-
-  aal::RelationsInNode &relations = b.get_anonymous_attribute_relations();
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
@@ -283,10 +282,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       if (socket_type == SOCK_GEOMETRY) {
         previous_input_geometry_index = input_decl.index();
         previous_output_geometry_index = output_decl.index();
-        aal::PropagateRelation relation;
-        relation.from_geometry_input = input_decl.index();
-        relation.to_geometry_output = output_decl.index();
-        relations.propagate_relations.append(relation);
 
         input_decl.description(
             "Geometry generated in the current iteration. Will be joined with geometries from all "
@@ -381,6 +376,7 @@ static void node_register()
                      GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
                      "For Each Geometry Element Output",
                      NODE_CLASS_INTERFACE);
+  ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_OUTPUT";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = input_node::node_label;

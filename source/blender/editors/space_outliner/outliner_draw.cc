@@ -506,7 +506,7 @@ void outliner_collection_isolate_flag(Scene *scene,
                                       const bool value)
 {
   PointerRNA ptr;
-  const bool is_hide = strstr(propname, "hide_") || (strcmp(propname, "exclude") == 0);
+  const bool is_hide = strstr(propname, "hide_") || STREQ(propname, "exclude");
 
   LayerCollection *top_layer_collection = layer_collection ?
                                               static_cast<LayerCollection *>(
@@ -2777,9 +2777,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
       case TSE_BONE_COLLECTION:
         data.icon = ICON_GROUP_BONE;
         break;
-      case TSE_SEQUENCE: {
-        const TreeElementSequence *te_seq = tree_element_cast<TreeElementSequence>(te);
-        switch (te_seq->get_sequence_type()) {
+      case TSE_STRIP: {
+        const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
+        switch (te_strip->get_strip_type()) {
           case SEQ_TYPE_SCENE:
             data.icon = ICON_SCENE_DATA;
             break;
@@ -2833,10 +2833,10 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         }
         break;
       }
-      case TSE_SEQ_STRIP:
+      case TSE_STRIP_DATA:
         data.icon = ICON_LIBRARY_DATA_DIRECT;
         break;
-      case TSE_SEQUENCE_DUP:
+      case TSE_STRIP_DUP:
         data.icon = ICON_SEQ_STRIP_DUPLICATE;
         break;
       case TSE_RNA_STRUCT: {
@@ -3821,11 +3821,13 @@ static void outliner_draw_tree(uiBlock *block,
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 
+  short columns_offset = use_mode_column ? UI_UNIT_X : 0;
+
   /* Move the tree a unit left in view layer mode */
-  short columns_offset = (use_mode_column && (space_outliner->outlinevis == SO_SCENES)) ?
-                             UI_UNIT_X :
-                             0;
-  if (!use_mode_column && (space_outliner->outlinevis == SO_VIEW_LAYER)) {
+  if ((space_outliner->outlinevis == SO_VIEW_LAYER) &&
+      !(space_outliner->filter & SO_FILTER_NO_COLLECTION) &&
+      (space_outliner->filter & SO_FILTER_NO_VIEW_LAYERS))
+  {
     columns_offset -= UI_UNIT_X;
   }
 
