@@ -944,14 +944,10 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
       changed_triangle_offsets_data);
 
   Array<int> all_src_sizes(shapes.size());
-  for (const int i : src_triangle_offsets.index_range()) {
-    all_src_sizes[i] = src_triangle_offsets[i].size();
-  }
-
   Array<int> changed_sizes(changed_shapes.size());
-  for (const int i : changed_triangle_offsets.index_range()) {
-    changed_sizes[i] = changed_triangle_offsets[i].size();
-  }
+  copy_group_sizes(src_triangle_offsets, src_triangle_offsets.index_range(), all_src_sizes);
+  copy_group_sizes(
+      changed_triangle_offsets, changed_triangle_offsets.index_range(), changed_sizes);
 
   Array<int> src_sizes(unchanged_shapes.size());
   array_utils::gather(all_src_sizes.as_span(), unchanged_shapes, src_sizes.as_mutable_span());
