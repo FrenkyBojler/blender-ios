@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2006 Blender Authors
+# SPDX-FileCopyrightText: 2006 Blender Authors - Extra comment
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
