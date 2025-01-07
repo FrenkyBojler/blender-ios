@@ -13,6 +13,7 @@ set(INC_SYS
 )
 
 set(SRC_KERNEL_DEVICE_CPU
+  device/cpu/globals.cpp
   device/cpu/kernel.cpp
   device/cpu/kernel_sse42.cpp
   device/cpu/kernel_avx2.cpp
@@ -219,6 +220,7 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/tex_coord.h
   svm/fractal_noise.h
   svm/types.h
+  svm/util.h
   svm/value.h
   svm/vector_rotate.h
   svm/vector_transform.h
@@ -240,7 +242,6 @@ if(WITH_CYCLES_OSL)
 endif()
 
 set(SRC_KERNEL_GEOM_HEADERS
-  geom/geom.h
   geom/attribute.h
   geom/curve.h
   geom/curve_intersect.h
@@ -352,17 +353,19 @@ set(SRC_KERNEL_SAMPLE_HEADERS
 )
 
 set(SRC_KERNEL_UTIL_HEADERS
-  util/color.h
+  util/colorspace.h
   util/differential.h
   util/ies.h
   util/lookup_table.h
   util/nanovdb.h
-  util/profiling.h
+  util/profiler.h
 )
 
 set(SRC_KERNEL_TYPES_HEADERS
   data_arrays.h
   data_template.h
+  globals.h
+  image.h
   tables.h
   types.h
 )
@@ -390,6 +393,7 @@ set(SRC_UTIL_HEADERS
   ../util/half.h
   ../util/hash.h
   ../util/math.h
+  ../util/math_base.h
   ../util/math_fast.h
   ../util/math_intersect.h
   ../util/math_float2.h
@@ -400,44 +404,29 @@ set(SRC_UTIL_HEADERS
   ../util/math_int3.h
   ../util/math_int4.h
   ../util/math_int8.h
-  ../util/math_matrix.h
   ../util/projection.h
   ../util/projection_inverse.h
   ../util/rect.h
   ../util/static_assert.h
   ../util/transform.h
-  ../util/transform_inverse.h
   ../util/texture.h
   ../util/types.h
+  ../util/types_base.h
   ../util/types_float2.h
-  ../util/types_float2_impl.h
   ../util/types_float3.h
-  ../util/types_float3_impl.h
   ../util/types_float4.h
-  ../util/types_float4_impl.h
   ../util/types_float8.h
-  ../util/types_float8_impl.h
   ../util/types_int2.h
-  ../util/types_int2_impl.h
   ../util/types_int3.h
-  ../util/types_int3_impl.h
   ../util/types_int4.h
-  ../util/types_int4_impl.h
   ../util/types_int8.h
-  ../util/types_int8_impl.h
   ../util/types_spectrum.h
   ../util/types_uchar2.h
-  ../util/types_uchar2_impl.h
   ../util/types_uchar3.h
-  ../util/types_uchar3_impl.h
   ../util/types_uchar4.h
-  ../util/types_uchar4_impl.h
   ../util/types_uint2.h
-  ../util/types_uint2_impl.h
   ../util/types_uint3.h
-  ../util/types_uint3_impl.h
   ../util/types_uint4.h
-  ../util/types_uint4_impl.h
   ../util/types_ushort4.h
 )
 
@@ -448,7 +437,11 @@ set(LIB
 # `Zstd` compressor for kernels.
 add_executable(zstd_compress ../cmake/zstd_compress.cpp)
 target_include_directories(zstd_compress SYSTEM PRIVATE ${ZSTD_INCLUDE_DIRS})
-target_link_libraries(zstd_compress ${ZSTD_LIBRARIES} ${PTHREADS_LIBRARIES})
+
+target_link_libraries(zstd_compress ${ZSTD_LIBRARIES})
+if(DEFINED PTHREADS_LIBRARIES)
+  target_link_libraries(zstd_compress ${PTHREADS_LIBRARIES})
+endif()
 
 if(NOT WITH_BLENDER)
   # For the Cycles standalone put libraries next to the Cycles application.
@@ -737,7 +730,7 @@ endif()
 # HIP RT module
 
 if(WITH_CYCLES_DEVICE_HIPRT)
-  set(HIPRT_COMPILER_PARALLEL_JOBS 1 CACHE STRING "Number of parallel compiler instances to use for for HIP-RT kernels")
+  set(HIPRT_COMPILER_PARALLEL_JOBS 1 CACHE STRING "Number of parallel compiler instances to use for HIP-RT kernels")
   mark_as_advanced(HIPRT_COMPILER_PARALLEL_JOBS)
 
   set(bvh_file ${CMAKE_CURRENT_BINARY_DIR}/hiprt${HIPRT_VERSION}_${HIP_VERSION_SHORT}_amd.hipfb)
@@ -1351,7 +1344,9 @@ if(WITH_COMPILER_ASAN)
   endif()
 endif()
 
-set_source_files_properties(device/cpu/kernel.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_KERNEL_FLAGS}")
+if(DEFINED CYCLES_KERNEL_FLAGS)
+  set_source_files_properties(device/cpu/kernel.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_KERNEL_FLAGS}")
+endif()
 
 if(CXX_HAS_SSE42)
   set_source_files_properties(device/cpu/kernel_sse42.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE42_FLAGS}")
