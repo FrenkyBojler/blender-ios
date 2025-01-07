@@ -9,8 +9,6 @@
 #include <cstddef>
 #include <cstdio>
 
-#include <fmt/format.h>
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -18,10 +16,8 @@
 #include "BLT_translation.hh"
 
 #include "DNA_ID.h"
-#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_action.hh"
@@ -65,7 +61,6 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
 #include "anim_intern.hh"

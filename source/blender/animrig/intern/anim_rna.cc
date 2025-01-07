@@ -9,11 +9,13 @@
 #include <fmt/format.h>
 
 #include "ANIM_rna.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_vector.hh"
-#include "DNA_action_types.h"
+
 #include "DNA_object_types.h"
+
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"

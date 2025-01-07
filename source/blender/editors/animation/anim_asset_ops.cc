@@ -2,11 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_animsys.h"
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_lib_id.hh"
 #include "BKE_preferences.h"
@@ -14,7 +12,6 @@
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
-#include "WM_types.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -29,7 +26,6 @@
 
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
-#include "UI_view2d.hh"
 
 #include "BLT_translation.hh"
 
