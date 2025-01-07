@@ -16,7 +16,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -271,7 +271,7 @@ static void rna_Curve_texspace_set(Main * /*bmain*/, Scene * /*scene*/, PointerR
   }
 }
 
-static int rna_Curve_texspace_editable(PointerRNA *ptr, const char ** /*r_info*/)
+static int rna_Curve_texspace_editable(const PointerRNA *ptr, const char ** /*r_info*/)
 {
   Curve *cu = static_cast<Curve *>(ptr->data);
   return (cu->texspace_flag & CU_TEXSPACE_FLAG_AUTO) ? PropertyFlag(0) : PROP_EDITABLE;
@@ -1149,8 +1149,9 @@ static void rna_def_font(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "align_x", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "spacemode");
   RNA_def_property_enum_items(prop, prop_align_items);
-  RNA_def_property_ui_text(
-      prop, "Horizontal Alignment", "Text horizontal alignment from the object center");
+  RNA_def_property_ui_text(prop,
+                           "Horizontal Alignment",
+                           "Text horizontal alignment from the object or text box center");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "align_y", PROP_ENUM, PROP_NONE);
@@ -2025,7 +2026,7 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Order U",
                            "NURBS order in the U direction. Higher values make each point "
-                           "influence a greater area, but have worse performance");
+                           "influence a greater area, but have worse performance.");
   RNA_def_property_update(prop, 0, "rna_Nurb_update_knot_u");
 
   prop = RNA_def_property(srna, "order_v", PROP_INT, PROP_NONE);
@@ -2036,7 +2037,7 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Order V",
                            "NURBS order in the V direction. Higher values make each point "
-                           "influence a greater area, but have worse performance");
+                           "influence a greater area, but have worse performance.");
   RNA_def_property_update(prop, 0, "rna_Nurb_update_knot_v");
 
   prop = RNA_def_property(srna, "resolution_u", PROP_INT, PROP_NONE);

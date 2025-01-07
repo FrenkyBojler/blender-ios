@@ -2,20 +2,20 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "volume_modifier.h"
+#include "volume_modifier.hh"
 
 #include <pxr/usdImaging/usdVolImaging/tokens.h>
 
 #include "DNA_scene_types.h"
 #include "DNA_volume_types.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BKE_mesh.h"
 #include "BKE_modifier.hh"
 
-#include "hydra_scene_delegate.h"
+#include "hydra_scene_delegate.hh"
 
 namespace blender::io::hydra {
 
@@ -120,10 +120,10 @@ void VolumeModifierData::write_transform()
                pxr::GfMatrix4d(1.0f).SetTranslate(pxr::GfVec3d(texspace_loc));
 
   /* applying object transform */
-  transform *= gf_matrix_from_transform(object->object_to_world);
+  transform *= gf_matrix_from_transform(object->object_to_world().ptr());
 }
 
-std::string VolumeModifierData::get_cached_file_path(std::string directory, int frame)
+std::string VolumeModifierData::get_cached_file_path(const std::string &directory, int frame)
 {
   char file_path[FILE_MAX];
   char file_name[32];

@@ -12,11 +12,11 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_task.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_volume_types.h"
 
-#include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 #include "BKE_volume_render.hh"
@@ -36,8 +36,10 @@ static void extract_dense_voxels(const openvdb::GridBase &grid,
                                  VoxelType *r_voxels)
 {
   BLI_assert(grid.isType<GridType>());
-  openvdb::tools::Dense<VoxelType, openvdb::tools::LayoutXYZ> dense(bbox, r_voxels);
-  openvdb::tools::copyToDense(static_cast<const GridType &>(grid), dense);
+  blender::threading::memory_bandwidth_bound_task(bbox.volume() * sizeof(VoxelType), [&]() {
+    openvdb::tools::Dense<VoxelType, openvdb::tools::LayoutXYZ> dense(bbox, r_voxels);
+    openvdb::tools::copyToDense(static_cast<const GridType &>(grid), dense);
+  });
 }
 
 static void extract_dense_float_voxels(const VolumeGridType grid_type,
@@ -103,6 +105,14 @@ bool BKE_volume_grid_dense_floats(const Volume *volume,
 
   const openvdb::CoordBBox bbox = grid.evalActiveVoxelBoundingBox();
   if (bbox.empty()) {
+    return false;
+  }
+  const std::array<int64_t, 6> bbox_indices = {UNPACK3(openvdb::math::Abs(bbox.min())),
+                                               UNPACK3(openvdb::math::Abs(bbox.max()))};
+  const int64_t max_bbox_index = *std::max_element(bbox_indices.begin(), bbox_indices.end());
+  if (max_bbox_index > (1 << 30)) {
+    /* There is an integer overflow when trying to extract dense voxels when the indices are very
+     * large. */
     return false;
   }
 

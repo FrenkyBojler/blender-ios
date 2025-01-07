@@ -8,7 +8,7 @@
 
 #include "BLI_blenlib.h"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "DNA_ID.h" /* ID property definitions. */
 
 #include "IMB_allocimbuf.hh"
@@ -100,7 +100,7 @@ static ImBuf *load_pixels(
 {
   /* Allocate the ImBuf for the image. */
   constexpr bool is_float = sizeof(T) > 1;
-  const uint format_flag = is_float ? IB_rectfloat : IB_rect;
+  const uint format_flag = (is_float ? IB_rectfloat : IB_rect) | IB_uninitialized_pixels;
   const uint ibuf_flags = (flags & IB_test) ? 0 : format_flag;
   const int planes = use_all_planes ? 32 : 8 * channels;
   ImBuf *ibuf = IMB_allocImBuf(width, height, planes, ibuf_flags);
@@ -303,8 +303,13 @@ bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSp
    * using a single channel from the source. */
   if (ctx.ibuf->channels > 1 && file_spec.nchannels == 1) {
     float weights[4] = {};
+#if OIIO_VERSION_MAJOR >= 3
+    const size_t nchannels = orig_buf.nchannels();
+#else
+    const int nchannels = orig_buf.nchannels();
+#endif
     IMB_colormanagement_get_luminance_coefficients(weights);
-    ImageBufAlgo::channel_sum(final_buf, orig_buf, {weights, orig_buf.nchannels()});
+    ImageBufAlgo::channel_sum(final_buf, orig_buf, {weights, nchannels});
   }
   else {
     /* If we are moving from an 1-channel format to n-channel we need to

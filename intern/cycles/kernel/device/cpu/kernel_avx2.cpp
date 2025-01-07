@@ -17,12 +17,13 @@
 #    define __KERNEL_SSE2__
 #    define __KERNEL_SSE3__
 #    define __KERNEL_SSSE3__
-#    define __KERNEL_SSE41__
+#    define __KERNEL_SSE42__
 #    define __KERNEL_AVX__
 #    define __KERNEL_AVX2__
 #  endif
 #endif /* WITH_CYCLES_OPTIMIZED_KERNEL_AVX2 */
 
+#include "kernel/device/cpu/globals.h"
 #include "kernel/device/cpu/kernel.h"
 #define KERNEL_ARCH cpu_avx2
 #include "kernel/device/cpu/kernel_arch_impl.h"

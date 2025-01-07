@@ -8,16 +8,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_anim_visualization.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
-#include "GPU_batch.h"
+#include "GPU_batch.hh"
 
 #include "BLO_read_write.hh"
 
@@ -119,7 +117,7 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
 
   /* get destination data */
   if (pchan) {
-    /* paths for posechannel - assume that posechannel belongs to the object */
+    /* Paths for pose-channel - assume that pose-channel belongs to the object. */
     avs = &ob->pose->avs;
     dst = &pchan->mpath;
   }
@@ -141,18 +139,26 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
     return nullptr;
   }
 
-  const int expected_length = avs->path_ef - avs->path_sf;
-  BLI_assert(expected_length > 0); /* Because the `if` above. */
+  /* Adding 1 because the avs range is inclusive on both ends. */
+  const int expected_length = (avs->path_ef - avs->path_sf) + 1;
+  BLI_assert(expected_length > 1); /* Because the `if` above. */
 
   /* If there is already a motionpath, just return that, provided its settings
    * are ok (saves extra free+alloc). */
   if (*dst != nullptr) {
     mpath = *dst;
 
+    if (avs->path_bakeflag & MOTIONPATH_BAKE_CAMERA_SPACE) {
+      mpath->flag |= MOTIONPATH_FLAG_BAKE_CAMERA;
+    }
+    else {
+      mpath->flag &= ~MOTIONPATH_FLAG_BAKE_CAMERA;
+    }
+
     /* Only reuse a path if it was already a valid path, and of the expected length. */
     if (mpath->start_frame != mpath->end_frame && mpath->length == expected_length) {
       mpath->start_frame = avs->path_sf;
-      mpath->end_frame = avs->path_ef;
+      mpath->end_frame = avs->path_ef + 1;
       return mpath;
     }
 
@@ -166,7 +172,7 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
 
   /* Copy mpath settings from the viz settings. */
   mpath->start_frame = avs->path_sf;
-  mpath->end_frame = avs->path_ef;
+  mpath->end_frame = avs->path_ef + 1;
   mpath->length = expected_length;
 
   if (avs->path_bakeflag & MOTIONPATH_BAKE_HEADS) {
@@ -176,10 +182,21 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
     mpath->flag &= ~MOTIONPATH_FLAG_BHEAD;
   }
 
+  if (avs->path_bakeflag & MOTIONPATH_BAKE_CAMERA_SPACE) {
+    mpath->flag |= MOTIONPATH_FLAG_BAKE_CAMERA;
+  }
+  else {
+    mpath->flag &= ~MOTIONPATH_FLAG_BAKE_CAMERA;
+  }
+
   /* Set default custom values (RGB). */
   mpath->color[0] = 1.0;
   mpath->color[1] = 0.0;
   mpath->color[2] = 0.0;
+
+  mpath->color_post[0] = 0.1;
+  mpath->color_post[1] = 1.0;
+  mpath->color_post[2] = 0.1;
 
   mpath->line_thickness = 2;
   mpath->flag |= MOTIONPATH_FLAG_LINES;
@@ -216,7 +233,7 @@ void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mp
   }
 
   /* relink points cache */
-  BLO_read_data_address(reader, &mpath->points);
+  BLO_read_struct_array(reader, bMotionPathVert, mpath->length, &mpath->points);
 
   mpath->points_vbo = nullptr;
   mpath->batch_line = nullptr;

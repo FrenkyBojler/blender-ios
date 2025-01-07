@@ -12,24 +12,21 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_remesh_voxel.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -225,29 +222,29 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int mode = RNA_enum_get(ptr, "mode");
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
   if (mode == MOD_REMESH_VOXEL) {
-    uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "adaptivity", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "adaptivity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(col, ptr, "octree_depth", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "scale", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "octree_depth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (mode == MOD_REMESH_SHARP_FEATURES) {
-      uiItemR(col, ptr, "sharpness", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, ptr, "sharpness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
 
-    uiItemR(layout, ptr, "use_remove_disconnected", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "use_remove_disconnected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     row = uiLayoutRow(layout, false);
     uiLayoutSetActive(row, RNA_boolean_get(ptr, "use_remove_disconnected"));
-    uiItemR(layout, ptr, "threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  uiItemR(layout, ptr, "use_smooth_shade", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 

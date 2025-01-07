@@ -21,6 +21,8 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
+
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_key.h"
 #include "intern/builder/deg_builder_map.h"
@@ -165,10 +167,20 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                  RootPChanMap *root_map);
   virtual void build_animdata(ID *id);
   virtual void build_animdata_curves(ID *id);
+  virtual void build_animdata_fcurve_target(ID *id,
+                                            PointerRNA id_ptr,
+                                            ComponentKey &adt_key,
+                                            OperationNode *operation_from,
+                                            FCurve *fcu);
   virtual void build_animdata_curves_targets(ID *id,
                                              ComponentKey &adt_key,
                                              OperationNode *operation_from,
                                              ListBase *curves);
+  virtual void build_animdata_action_targets(ID *id,
+                                             int32_t slot_handle,
+                                             ComponentKey &adt_key,
+                                             OperationNode *operation_from,
+                                             bAction *action);
   virtual void build_animdata_nlastrip_targets(ID *id,
                                                ComponentKey &adt_key,
                                                OperationNode *operation_from,
@@ -326,7 +338,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   static void modifier_walk(void *user_data,
                             struct Object *object,
                             struct ID **idpoin,
-                            int cb_flag);
+                            LibraryForeachIDCallbackFlag cb_flag);
 
   static void constraint_walk(bConstraint *con, ID **idpoin, bool is_reference, void *user_data);
 

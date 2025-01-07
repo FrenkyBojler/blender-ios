@@ -16,20 +16,19 @@
 #include "DNA_sequence_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_node.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_node.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "ED_object.hh"
 #include "ED_render.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
@@ -40,7 +39,6 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -73,7 +71,7 @@ Scene *ED_scene_sequencer_add(Main *bmain,
                               eSceneCopyMethod method,
                               const bool assign_strip)
 {
-  Sequence *seq = nullptr;
+  Strip *seq = nullptr;
   Scene *scene_active = CTX_data_scene(C);
   Scene *scene_strip = nullptr;
   /* Sequencer need to use as base the scene defined in the strip, not the main scene. */
@@ -132,7 +130,7 @@ bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
 
   /* kill running jobs */
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_ANY);
+  WM_jobs_kill_all_from_owner(wm, scene);
 
   if (scene->id.prev) {
     scene_new = static_cast<Scene *>(scene->id.prev);
@@ -194,7 +192,7 @@ static void view_layer_remove_unset_nodetrees(const Main *bmain, Scene *scene, V
        sce = static_cast<Scene *>(sce->id.next))
   {
     if (sce->nodetree) {
-      BKE_nodetree_remove_layer_n(sce->nodetree, scene, act_layer_index);
+      blender::bke::node_tree_remove_layer_n(sce->nodetree, scene, act_layer_index);
     }
   }
 }
@@ -313,7 +311,7 @@ static int scene_new_sequencer_exec(bContext *C, wmOperator *op)
 static bool scene_new_sequencer_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
-  const Sequence *seq = SEQ_select_active_get(scene);
+  const Strip *seq = SEQ_select_active_get(scene);
   return (seq && (seq->type == SEQ_TYPE_SCENE));
 }
 
@@ -336,7 +334,7 @@ static const EnumPropertyItem *scene_new_sequencer_enum_itemf(bContext *C,
   }
   else {
     Scene *scene = CTX_data_scene(C);
-    Sequence *seq = SEQ_select_active_get(scene);
+    Strip *seq = SEQ_select_active_get(scene);
     if (seq && (seq->type == SEQ_TYPE_SCENE) && (seq->scene != nullptr)) {
       has_scene_or_no_context = true;
     }

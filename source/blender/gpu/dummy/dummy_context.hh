@@ -20,6 +20,10 @@ class DummyContext : public Context {
   {
     back_left = active_fb = new DummyFrameBuffer("DummyFramebuffer");
   }
+  ~DummyContext()
+  {
+    free_framebuffers();
+  }
   void activate() override {}
   void deactivate() override {}
   void begin_frame() override {}
@@ -32,7 +36,7 @@ class DummyContext : public Context {
 
   void debug_group_begin(const char *, int) override {}
   void debug_group_end() override {}
-  bool debug_capture_begin() override
+  bool debug_capture_begin(const char * /*title*/) override
   {
     return false;
   }
@@ -46,6 +50,9 @@ class DummyContext : public Context {
     return false;
   }
   void debug_capture_scope_end(void * /*scope*/) override {}
+
+  void debug_unbind_all_ubo() override {}
+  void debug_unbind_all_ssbo() override {}
 };
 
 }  // namespace blender::gpu

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# This Makefile does an out-of-source CMake build in ../build_`OS`_`CPU`
+# This Makefile does an out-of-source CMake build in ../build_`OS`
 # eg:
 #   ../build_linux_i386
 # This is for users who like to configure & build blender with a single command.
@@ -35,13 +35,12 @@ Other Convenience Targets
    * deps:          Build library dependencies (intended only for platform maintainers).
 
                     The existence of locally build dependencies overrides the pre-built dependencies from subversion.
-                    These must be manually removed from '../lib/' to go back to using the pre-compiled libraries.
+                    These must be manually removed from 'lib/' to go back to using the pre-compiled libraries.
 
 Project Files
    Generate project files for development environments.
 
    * project_qtcreator:     QtCreator Project Files.
-   * project_netbeans:      NetBeans Project Files.
    * project_eclipse:       Eclipse CDT4 Project Files.
 
 Package Targets
@@ -84,6 +83,7 @@ Spell Checkers
    * check_spelling_c:       Check for spelling errors (C/C++ only),
    * check_spelling_py:      Check for spelling errors (Python only).
    * check_spelling_shaders: Check for spelling errors (GLSL,OSL & MSL only).
+   * check_spelling_cmake:   Check for spelling errors (CMake only).
 
    Note: an additional word-list is maintained at: 'tools/check_source/check_spelling_c_config.py'
 
@@ -95,15 +95,6 @@ Spell Checkers
 
 Utilities
    Not associated with building Blender.
-
-   * icons:
-     Updates PNG icons from SVG files.
-
-     Optionally pass in variables: 'BLENDER_BIN', 'INKSCAPE_BIN'
-     otherwise default paths are used.
-
-     Example
-        make icons INKSCAPE_BIN=/path/to/inkscape
 
    * icons_geom:
      Updates Geometry icons from BLEND file.
@@ -130,6 +121,10 @@ Utilities
      Format source code using clang-format & autopep8 (uses PATHS if passed in). For example::
 
         make format PATHS="source/blender/blenlib source/blender/blenkernel"
+
+   * license:
+     Create a combined file with all the license information relative to the libraries and other
+     code depedencies.
 
 Environment Variables
 
@@ -165,6 +160,19 @@ OS:=$(shell uname -s)
 OS_NCASE:=$(shell uname -s | tr '[A-Z]' '[a-z]')
 CPU:=$(shell uname -m)
 
+# Use our OS and CPU architecture naming conventions.
+ifeq ($(CPU),x86_64)
+	CPU:=x64
+endif
+ifeq ($(CPU),aarch64)
+	CPU:=arm64
+endif
+ifeq ($(OS_NCASE),darwin)
+	OS_LIBDIR:=macos
+else
+	OS_LIBDIR:=$(OS_NCASE)
+endif
+
 
 # Source and Build DIR's
 BLENDER_DIR:=$(shell pwd -P)
@@ -182,30 +190,17 @@ endif
 DEPS_SOURCE_DIR:=$(BLENDER_DIR)/build_files/build_environment
 
 ifndef DEPS_BUILD_DIR
-	DEPS_BUILD_DIR:=$(BUILD_DIR)/deps
+	DEPS_BUILD_DIR:=$(BUILD_DIR)/deps_$(CPU)
 endif
 
 ifndef DEPS_INSTALL_DIR
-	DEPS_INSTALL_DIR:=$(shell dirname "$(BLENDER_DIR)")/lib/$(OS_NCASE)
-
-	# Add processor type to directory name, except for darwin x86_64
-	# which by convention does not have it.
-	ifeq ($(OS_NCASE),darwin)
-		ifneq ($(CPU),x86_64)
-			DEPS_INSTALL_DIR:=$(DEPS_INSTALL_DIR)_$(CPU)
-		endif
-	else
-		DEPS_INSTALL_DIR:=$(DEPS_INSTALL_DIR)_$(CPU)
-	endif
+	DEPS_INSTALL_DIR:=$(BLENDER_DIR)/lib/$(OS_LIBDIR)_$(CPU)
 endif
 
 # Set the LIBDIR, an empty string when not found.
-LIBDIR:=$(wildcard ../lib/${OS_NCASE}_${CPU})
+LIBDIR:=$(wildcard $(BLENDER_DIR)/lib/${OS_LIBDIR}_${CPU})
 ifeq (, $(LIBDIR))
-	LIBDIR:=$(wildcard ../lib/${OS_NCASE}_${CPU}_glibc_228)
-endif
-ifeq (, $(LIBDIR))
-	LIBDIR:=$(wildcard ../lib/${OS_NCASE})
+	LIBDIR:=$(wildcard $(BLENDER_DIR)/lib/${OS_LIBDIR})
 endif
 
 # Find the newest Python version bundled in `LIBDIR`.
@@ -467,10 +462,7 @@ test: .FORCE
 #
 
 project_qtcreator: .FORCE
-	$(PYTHON) build_files/cmake/cmake_qtcreator_project.py --build-dir "$(BUILD_DIR)"
-
-project_netbeans: .FORCE
-	$(PYTHON) build_files/cmake/cmake_netbeans_project.py "$(BUILD_DIR)"
+	$(PYTHON) tools/utils_ide/cmake_qtcreator_project.py --build-dir "$(BUILD_DIR)"
 
 project_eclipse: .FORCE
 	cmake -G"Eclipse CDT4 - Unix Makefiles" -H"$(BLENDER_DIR)" -B"$(BUILD_DIR)"
@@ -484,21 +476,19 @@ check_cppcheck: .FORCE
 	@$(CMAKE_CONFIG)
 	@cd "$(BUILD_DIR)" ; \
 	$(PYTHON) \
-	    "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_cppcheck.py" 2> \
-	    "$(BLENDER_DIR)/check_cppcheck.txt"
-	@echo "written: check_cppcheck.txt"
+	    "$(BLENDER_DIR)/tools/check_source/static_check_cppcheck.py"
 
 check_struct_comments: .FORCE
 	@$(CMAKE_CONFIG)
 	@cd "$(BUILD_DIR)" ; \
 	$(PYTHON) \
-	    "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_clang.py" \
+	    "$(BLENDER_DIR)/tools/check_source/static_check_clang.py" \
 	    --checks=struct_comments --match=".*" --jobs=$(NPROCS)
 
 check_clang_array: .FORCE
 	@$(CMAKE_CONFIG)
 	@cd "$(BUILD_DIR)" ; \
-	$(PYTHON) "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_clang_array.py"
+	$(PYTHON) "$(BLENDER_DIR)/tools/check_source/static_check_clang_array.py"
 
 check_mypy: .FORCE
 	@$(PYTHON) "$(BLENDER_DIR)/tools/check_source/check_mypy.py"
@@ -534,8 +524,18 @@ check_spelling_shaders: .FORCE
 	    "$(BLENDER_DIR)/intern/" \
 	    "$(BLENDER_DIR)/source/"
 
+check_spelling_cmake: .FORCE
+	@PYTHONIOENCODING=utf_8 $(PYTHON) \
+	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
+	    --cache-file=$(CHECK_SPELLING_CACHE) \
+	    --match=".*\.(cmake)$$" \
+	    --match=".*\bCMakeLists\.(txt)$$" \
+	    "$(BLENDER_DIR)/build_files/" \
+	    "$(BLENDER_DIR)/intern/" \
+	    "$(BLENDER_DIR)/source/"
+
 check_descriptions: .FORCE
-	@$(BLENDER_BIN) --background -noaudio --factory-startup --python \
+	@$(BLENDER_BIN) --background --factory-startup --python \
 	    "$(BLENDER_DIR)/tools/check_source/check_descriptions.py"
 
 check_deprecated: .FORCE
@@ -570,11 +570,6 @@ source_archive_complete: .FORCE
 # This assumes CMake is still using a default `PACKAGE_DIR` variable:
 	@$(PYTHON) ./build_files/utils/make_source_archive.py --include-packages "$(BUILD_DIR)/source_archive/packages"
 
-icons: .FORCE
-	@BLENDER_BIN=$(BLENDER_BIN) "$(BLENDER_DIR)/release/datafiles/blender_icons_update.py"
-	"$(BLENDER_DIR)/release/datafiles/prvicons_update.py"
-	"$(BLENDER_DIR)/release/datafiles/alert_icons_update.py"
-
 icons_geom: .FORCE
 	@BLENDER_BIN=$(BLENDER_BIN) \
 	    "$(BLENDER_DIR)/release/datafiles/blender_icons_geom_update.py"
@@ -589,6 +584,8 @@ format: .FORCE
 	@PATH="${LIBDIR}/llvm/bin/:$(PATH)" $(PYTHON) tools/utils_maintenance/clang_format_paths.py $(PATHS)
 	@$(PYTHON) tools/utils_maintenance/autopep8_format_paths.py --autopep8-command="$(AUTOPEP8)" $(PATHS)
 
+license: .FORCE
+	@$(PYTHON) tools/utils_maintenance/make_license.py
 
 # -----------------------------------------------------------------------------
 # Documentation
@@ -598,7 +595,7 @@ format: .FORCE
 doc_py: .FORCE
 	@ASAN_OPTIONS=halt_on_error=0:${ASAN_OPTIONS} \
 	$(BLENDER_BIN) \
-	    --background -noaudio --factory-startup \
+	    --background --factory-startup \
 	    --python doc/python_api/sphinx_doc_gen.py
 	@sphinx-build -b html -j $(NPROCS) doc/python_api/sphinx-in doc/python_api/sphinx-out
 	@echo "docs written into: '$(BLENDER_DIR)/doc/python_api/sphinx-out/index.html'"
@@ -609,7 +606,7 @@ doc_doxy: .FORCE
 
 doc_dna: .FORCE
 	@$(BLENDER_BIN) \
-	    --background -noaudio --factory-startup \
+	    --background --factory-startup \
 	    --python doc/blender_file_format/BlendFileDnaExporter_25.py
 	@echo "docs written into: '$(BLENDER_DIR)/doc/blender_file_format/dna.html'"
 

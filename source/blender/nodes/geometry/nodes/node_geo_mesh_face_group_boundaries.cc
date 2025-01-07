@@ -124,13 +124,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_MESH_FACE_GROUP_BOUNDARIES, "Face Group Boundaries", NODE_CLASS_INPUT);
-  bke::node_type_size_preset(&ntype, bke::eNodeSizePreset::MIDDLE);
+  ntype.enum_name_legacy = "MESH_FACE_SET_BOUNDARIES";
+  bke::node_type_size_preset(&ntype, bke::eNodeSizePreset::Middle);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

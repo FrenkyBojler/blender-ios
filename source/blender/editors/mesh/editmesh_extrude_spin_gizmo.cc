@@ -13,7 +13,8 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -367,7 +368,7 @@ static void gizmo_mesh_spin_init_refresh(const bContext *C, wmGizmoGroup *gzgrou
     }
     if (totsel) {
       mul_v3_fl(select_center, 1.0f / totsel);
-      mul_m4_v3(obedit->object_to_world, select_center);
+      mul_m4_v3(obedit->object_to_world().ptr(), select_center);
       copy_v3_v3(ggd->data.select_center, select_center);
       ggd->data.use_select_center = true;
     }
@@ -902,7 +903,7 @@ static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
    */
   {
     ARegion *region = CTX_wm_region(C);
-    wmGizmoMap *gzmap = region->gizmo_map;
+    wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup_init = WM_gizmomap_group_find(gzmap, "MESH_GGT_spin");
     if (gzgroup_init) {
       GizmoGroupData_SpinInit *ggd_init = static_cast<GizmoGroupData_SpinInit *>(

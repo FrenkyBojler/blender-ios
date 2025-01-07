@@ -207,6 +207,7 @@ void MESH_OT_shortest_path_pick(wmOperatorType *ot);
 void MESH_OT_select_linked(wmOperatorType *ot);
 void MESH_OT_select_linked_pick(wmOperatorType *ot);
 void MESH_OT_select_face_by_sides(wmOperatorType *ot);
+void MESH_OT_select_by_pole_count(wmOperatorType *ot);
 void MESH_OT_select_loose(wmOperatorType *ot);
 void MESH_OT_select_mirror(wmOperatorType *ot);
 void MESH_OT_select_more(wmOperatorType *ot);
@@ -256,6 +257,9 @@ void MESH_OT_delete_loose(wmOperatorType *ot);
 void MESH_OT_edge_collapse(wmOperatorType *ot);
 void MESH_OT_faces_shade_smooth(wmOperatorType *ot);
 void MESH_OT_faces_shade_flat(wmOperatorType *ot);
+namespace blender::ed::mesh {
+void MESH_OT_set_sharpness_by_angle(wmOperatorType *ot);
+}
 void MESH_OT_split(wmOperatorType *ot);
 void MESH_OT_edge_rotate(wmOperatorType *ot);
 void MESH_OT_hide(wmOperatorType *ot);
@@ -264,7 +268,6 @@ void MESH_OT_mark_seam(wmOperatorType *ot);
 void MESH_OT_mark_sharp(wmOperatorType *ot);
 void MESH_OT_flip_normals(wmOperatorType *ot);
 void MESH_OT_solidify(wmOperatorType *ot);
-void MESH_OT_knife_cut(wmOperatorType *ot);
 void MESH_OT_separate(wmOperatorType *ot);
 void MESH_OT_fill(wmOperatorType *ot);
 void MESH_OT_fill_grid(wmOperatorType *ot);

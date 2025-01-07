@@ -11,11 +11,18 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_map.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_rect.h"
 #include "BLI_vector.hh"
 
 #include "RNA_types.hh"
 
 #include "BKE_context.hh"
+
+namespace blender::bke::id {
+class IDRemapper;
+}
 
 namespace blender::asset_system {
 class AssetRepresentation;
@@ -28,7 +35,6 @@ struct BlendLibReader;
 struct BlendWriter;
 struct Header;
 struct ID;
-struct IDRemapper;
 struct LayoutPanelState;
 struct LibraryForeachIDData;
 struct ListBase;
@@ -48,10 +54,12 @@ struct bScreen;
 struct uiBlock;
 struct uiLayout;
 struct uiList;
+struct wmDrawBuffer;
 struct wmGizmoMap;
 struct wmKeyConfig;
 struct wmMsgBus;
 struct wmNotifier;
+struct wmTimer;
 struct wmWindow;
 struct wmWindowManager;
 
@@ -109,7 +117,7 @@ struct SpaceType {
   bContextDataCallback context;
 
   /* Used when we want to replace an ID by another (or NULL). */
-  void (*id_remap)(ScrArea *area, SpaceLink *sl, const IDRemapper *mappings);
+  void (*id_remap)(ScrArea *area, SpaceLink *sl, const blender::bke::id::IDRemapper &mappings);
 
   /**
    * foreach_id callback to process all ID pointers of the editor. Used indirectly by lib_query's
@@ -121,6 +129,11 @@ struct SpaceType {
   int (*space_subtype_get)(ScrArea *area);
   void (*space_subtype_set)(ScrArea *area, int value);
   void (*space_subtype_item_extend)(bContext *C, EnumPropertyItem **item, int *totitem);
+
+  /* Return a custom name, based on subtype or other reason. */
+  blender::StringRefNull (*space_name_get)(const ScrArea *area);
+  /* Return a custom icon, based on subtype or other reason. */
+  int (*space_icon_get)(const ScrArea *area);
 
   /**
    * Update pointers for all structs directly owned by this space.
@@ -139,9 +152,6 @@ struct SpaceType {
 
   /* region type definitions */
   ListBase regiontypes;
-
-  /** Asset shelf type definitions. */
-  blender::Vector<std::unique_ptr<AssetShelfType>> asset_shelf_types;
 
   /* read and write... */
 
@@ -222,13 +232,19 @@ struct ARegionType {
 
   /* register operator types on startup */
   void (*operatortypes)();
-  /* add own items to keymap */
+  /* add items to keymap */
   void (*keymap)(wmKeyConfig *keyconf);
   /* allows default cursor per region */
   void (*cursor)(wmWindow *win, ScrArea *area, ARegion *region);
 
   /* return context data */
   bContextDataCallback context;
+
+  /**
+   * Called on every frame in which the region's poll succeeds, regardless of visibility, before
+   * drawing, visibility evaluation and initialization. Allows the region to override visibility.
+   */
+  void (*on_poll_success)(const bContext *C, ARegion *region);
 
   /**
    * Called whenever the user changes the region's size. Not called when the size is changed
@@ -280,14 +296,18 @@ struct PanelType {
   char translation_context[BKE_ST_MAXNAME];
   char context[BKE_ST_MAXNAME];   /* for buttons window */
   char category[BKE_ST_MAXNAME];  /* for category tabs */
-  char owner_id[BKE_ST_MAXNAME];  /* for work-spaces to selectively show. */
+  char owner_id[128];             /* for work-spaces to selectively show. */
   char parent_id[BKE_ST_MAXNAME]; /* parent idname for sub-panels */
   /** Boolean property identifier of the panel custom data. Used to draw a highlighted border. */
   char active_property[BKE_ST_MAXNAME];
+  char pin_to_last_property[BKE_ST_MAXNAME];
   short space_type;
   short region_type;
   /* For popovers, 0 for default. */
   int ui_units_x;
+  /** For popovers, position the popover at the given offset (multiplied by #UI_UNIT_X/#UI_UNIT_Y)
+   * relative to the top left corner, if it's not attached to a button. */
+  blender::float2 offset_units_xy;
   int order;
 
   int flag;
@@ -401,6 +421,67 @@ struct Panel_Runtime {
   LayoutPanels layout_panels;
 };
 
+namespace blender::bke {
+
+struct ARegionRuntime {
+  /** Callbacks for this region type. */
+  struct ARegionType *type;
+
+  /** Runtime for partial redraw, same or smaller than #ARegion::winrct. */
+  rcti drawrct = {};
+
+  /**
+   * The visible part of the region, use with region overlap not to draw
+   * on top of the overlapping regions.
+   *
+   * Lazy initialize, zeroed when unset, relative to #ARegion.winrct x/y min.
+   */
+  rcti visible_rect = {};
+
+  /* The offset needed to not overlap with window scroll-bars. Only used by HUD regions for now. */
+  int offset_x = 0;
+  int offset_y = 0;
+
+  /** Panel category to use between 'layout' and 'draw'. */
+  const char *category = nullptr;
+
+  /** Maps #uiBlock::name to uiBlock for faster lookups. */
+  Map<std::string, uiBlock *> block_name_map;
+  /** #uiBlock. */
+  ListBase uiblocks = {};
+
+  /** #wmEventHandler. */
+  ListBase handlers = {};
+
+  /** Use this string to draw info. */
+  char *headerstr = nullptr;
+
+  /** Gizmo-map of this region. */
+  wmGizmoMap *gizmo_map = nullptr;
+
+  /** Blend in/out. */
+  wmTimer *regiontimer = nullptr;
+
+  wmDrawBuffer *draw_buffer = nullptr;
+
+  /** Panel categories runtime. */
+  ListBase panels_category = {};
+
+  /** Region is currently visible on screen. */
+  short visible = 0;
+
+  /** Private, cached notifier events. */
+  short do_draw = 0;
+
+  /** Private, cached notifier events. */
+  short do_draw_paintcursor;
+
+  /* Dummy panel used in popups so they can support layout panels. */
+  Panel *popup_block_panel = nullptr;
+};
+
+}  // namespace blender::bke
+
 /* #uiList types. */
 
 /** Draw an item in the `ui_list`. */
@@ -486,7 +567,7 @@ struct MenuType {
   char idname[BKE_ST_MAXNAME]; /* unique name */
   char label[BKE_ST_MAXNAME];  /* for button text */
   char translation_context[BKE_ST_MAXNAME];
-  char owner_id[BKE_ST_MAXNAME]; /* optional, see: #wmOwnerID */
+  char owner_id[128]; /* optional, see: #wmOwnerID */
   const char *description;
 
   /* verify if the menu should draw or not */
@@ -513,17 +594,26 @@ enum AssetShelfTypeFlag {
   /** Do not trigger asset dragging on drag events. Drag events can be overridden with custom
    * keymap items then. */
   ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG = (1 << 0),
+  ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE = (1 << 1),
+  ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS = (1 << 2),
 
   ASSET_SHELF_TYPE_FLAG_MAX
 };
 ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_MAX);
+
+#define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 64
 
 struct AssetShelfType {
   char idname[BKE_ST_MAXNAME]; /* unique name */
 
   int space_type;
 
+  /** Operator to call when activating a grid view item. */
+  std::string activate_operator;
+
   AssetShelfTypeFlag flag;
+
+  short default_preview_size;
 
   /** Determine if asset shelves of this type should be available in current context or not. */
   bool (*poll)(const bContext *C, const AssetShelfType *shelf_type);
@@ -538,6 +628,8 @@ struct AssetShelfType {
                             const AssetShelfType *shelf_type,
                             const blender::asset_system::AssetRepresentation *asset,
                             uiLayout *layout);
+
+  const AssetWeakReference *(*get_active_asset)(const AssetShelfType *shelf_type);
 
   /* RNA integration */
   ExtensionRNA rna_ext;
@@ -586,6 +678,9 @@ void BKE_spacedata_id_unref(ScrArea *area, SpaceLink *sl, ID *id);
 /* Area/regions. */
 
 ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region);
+
+ARegion *BKE_area_region_new();
+
 /**
  * Doesn't free the region itself.
  */
@@ -628,7 +723,7 @@ ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const i
  * \note This does _not_ work if the region to look up is not in the active space.
  * Use #BKE_spacedata_find_region_type if that may be the case.
  */
-ARegion *BKE_area_find_region_type(const ScrArea *area, int type);
+ARegion *BKE_area_find_region_type(const ScrArea *area, int region_type);
 ARegion *BKE_area_find_region_active_win(const ScrArea *area);
 ARegion *BKE_area_find_region_xy(const ScrArea *area, int regiontype, const int xy[2])
     ATTR_NONNULL(3);
@@ -649,6 +744,10 @@ ScrArea *BKE_screen_find_area_from_space(const bScreen *screen,
                                          const SpaceLink *sl) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1, 2);
 /**
+ * \note used to get proper RNA paths for spaces (editors).
+ */
+std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA *ptr);
+/**
  * \note Using this function is generally a last resort, you really want to be
  * using the context when you can - campbell
  */
@@ -660,6 +759,12 @@ ScrArea *BKE_screen_find_area_xy(const bScreen *screen, int spacetype, const int
     ATTR_NONNULL(1, 3);
 
 void BKE_screen_gizmo_tag_refresh(bScreen *screen);
+
+/**
+ * Refresh any screen data that should be set on file-load
+ * with "Load UI" disabled.
+ */
+void BKE_screen_runtime_refresh_for_blendfile(bScreen *screen);
 
 void BKE_screen_view3d_sync(View3D *v3d, Scene *scene);
 void BKE_screen_view3d_scene_sync(bScreen *screen, Scene *scene);

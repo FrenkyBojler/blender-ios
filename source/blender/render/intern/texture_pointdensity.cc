@@ -13,7 +13,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_color.hh"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -21,28 +22,23 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
-
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
-#include "BKE_lattice.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_particle.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-
-#include "texture_common.h"
 
 #include "RE_texture.h"
 
@@ -187,7 +183,7 @@ static void pointdensity_cache_psys(
   sim.psmd = psys_get_modifier(ob, psys);
 
   /* in case ob->world_to_object isn't up-to-date */
-  invert_m4_m4(ob->world_to_object, ob->object_to_world);
+  invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
   total_particles = psys->totpart + psys->totchild;
   psys_sim_data_init(&sim);
@@ -247,7 +243,7 @@ static void pointdensity_cache_psys(
     copy_v3_v3(partco, state.co);
 
     if (pd->psys_cache_space == TEX_PD_OBJECTSPACE) {
-      mul_m4_v3(ob->world_to_object, partco);
+      mul_m4_v3(ob->world_to_object().ptr(), partco);
     }
     else if (pd->psys_cache_space == TEX_PD_OBJECTLOC) {
       sub_v3_v3(partco, ob->loc);
@@ -278,20 +274,19 @@ static void pointdensity_cache_vertex_color(PointDensity *pd,
                                             Mesh *mesh,
                                             float *data_color)
 {
+  using namespace blender;
   const blender::Span<int> corner_verts = mesh->corner_verts();
   const int totloop = mesh->corners_num;
-  char layername[MAX_CUSTOMDATA_LAYER_NAME];
   int i;
 
   BLI_assert(data_color);
 
-  if (!CustomData_has_layer(&mesh->corner_data, CD_PROP_BYTE_COLOR)) {
-    return;
-  }
-  CustomData_validate_layer_name(
-      &mesh->corner_data, CD_PROP_BYTE_COLOR, pd->vertex_attribute_name, layername);
-  const MLoopCol *mcol = static_cast<const MLoopCol *>(
-      CustomData_get_layer_named(&mesh->corner_data, CD_PROP_BYTE_COLOR, layername));
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const StringRef name = attributes.contains(pd->vertex_attribute_name) ?
+                             pd->vertex_attribute_name :
+                             (mesh->active_color_attribute ? mesh->active_color_attribute : "");
+
+  const VArray mcol = *attributes.lookup<ColorGeometry4b>(name, bke::AttrDomain::Corner);
   if (!mcol) {
     return;
   }
@@ -304,11 +299,11 @@ static void pointdensity_cache_vertex_color(PointDensity *pd,
     int v = corner_verts[i];
 
     if (mcorners[v] == 0) {
-      rgb_uchar_to_float(&data_color[v * 3], &mcol[i].r);
+      rgb_uchar_to_float(&data_color[v * 3], mcol[i]);
     }
     else {
       float col[3];
-      rgb_uchar_to_float(col, &mcol[i].r);
+      rgb_uchar_to_float(col, mcol[i]);
       add_v3_v3(&data_color[v * 3], col);
     }
 
@@ -410,12 +405,12 @@ static void pointdensity_cache_object(PointDensity *pd, Object *ob)
       case TEX_PD_OBJECTSPACE:
         break;
       case TEX_PD_OBJECTLOC:
-        mul_m4_v3(ob->object_to_world, co);
+        mul_m4_v3(ob->object_to_world().ptr(), co);
         sub_v3_v3(co, ob->loc);
         break;
       case TEX_PD_WORLDSPACE:
       default:
-        mul_m4_v3(ob->object_to_world, co);
+        mul_m4_v3(ob->object_to_world().ptr(), co);
         break;
     }
 
@@ -791,7 +786,7 @@ static void particle_system_minmax(Depsgraph *depsgraph,
   sim.psys = psys;
   sim.psmd = psys_get_modifier(object, psys);
 
-  invert_m4_m4(imat, object->object_to_world);
+  invert_m4_m4(imat, object->object_to_world().ptr());
   total_particles = psys->totpart + psys->totchild;
   psys_sim_data_init(&sim);
 

@@ -19,13 +19,10 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
-#include "RNA_access.hh"
-
 #include "UI_interface.hh"
 
 #include "BLO_read_write.hh"
 
-#include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
 
@@ -40,7 +37,7 @@ static SpaceLink *statusbar_create(const ScrArea * /*area*/, const Scene * /*sce
   sstatusbar->spacetype = SPACE_STATUSBAR;
 
   /* header region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(*region), "header for statusbar"));
+  region = BKE_area_region_new();
   BLI_addtail(&sstatusbar->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = RGN_ALIGN_NONE;

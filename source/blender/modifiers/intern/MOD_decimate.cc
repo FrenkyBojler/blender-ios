@@ -9,7 +9,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
@@ -19,16 +19,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -230,12 +228,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   char count_info[64];
   SNPRINTF(count_info, RPT_("Face Count: %d"), RNA_int_get(ptr, "face_count"));
 
-  uiItemR(layout, ptr, "decimate_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "decimate_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
   if (decimate_type == MOD_DECIM_MODE_COLLAPSE) {
-    uiItemR(layout, ptr, "ratio", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "ratio", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
     row = uiLayoutRowWithHeading(layout, true, IFACE_("Symmetry"));
     uiLayoutSetPropDecorate(row, false);
@@ -243,25 +241,25 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     uiItemR(sub, ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
     sub = uiLayoutRow(sub, true);
     uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_symmetry"));
-    uiItemR(sub, ptr, "symmetry_axis", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+    uiItemR(sub, ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
     uiItemDecoratorR(row, ptr, "symmetry_axis", 0);
 
-    uiItemR(layout, ptr, "use_collapse_triangulate", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "use_collapse_triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+    modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
     sub = uiLayoutRow(layout, true);
     bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
     uiLayoutSetActive(sub, has_vertex_group);
-    uiItemR(sub, ptr, "vertex_group_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(sub, ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (decimate_type == MOD_DECIM_MODE_UNSUBDIV) {
-    uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else { /* decimate_type == MOD_DECIM_MODE_DISSOLVE. */
-    uiItemR(layout, ptr, "angle_limit", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "angle_limit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "delimit", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(layout, ptr, "use_dissolve_boundaries", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "delimit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(layout, ptr, "use_dissolve_boundaries", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   uiItemL(layout, count_info, ICON_NONE);
 

@@ -49,7 +49,7 @@ struct BLI_mempool;
  * 4: some elements for internal record keeping.
  */
 typedef struct BMHeader {
-  /** Customdata layers. */
+  /** CustomData layers. */
   void *data;
 
   /**
@@ -463,11 +463,7 @@ enum {
 /* Assignment from a void* to a typed pointer is not allowed in C++,
  * casting the LHS to void works fine though.
  */
-#ifdef __cplusplus
-#  define BM_CHECK_TYPE_ELEM_ASSIGN(ele) (BM_CHECK_TYPE_ELEM(ele)), *((void **)&ele)
-#else
-#  define BM_CHECK_TYPE_ELEM_ASSIGN(ele) (BM_CHECK_TYPE_ELEM(ele)), ele
-#endif
+#define BM_CHECK_TYPE_ELEM_ASSIGN(ele) (BM_CHECK_TYPE_ELEM(ele)), *((void **)&ele)
 
 /** #BMHeader.hflag (char) */
 enum {

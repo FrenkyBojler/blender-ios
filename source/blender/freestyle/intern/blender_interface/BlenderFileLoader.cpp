@@ -17,7 +17,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 
@@ -93,7 +93,7 @@ NodeGroup *BlenderFileLoader::Load()
       continue;
     }
 
-    /* Evaluated metaballs will appear as mesh objects in the iterator. */
+    /* Evaluated meta-balls will appear as mesh objects in the iterator. */
     if (ob->type == OB_MBALL) {
       continue;
     }
@@ -444,7 +444,7 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *mesh, int id)
 
   // Compute matrix including camera transform
   float obmat[4][4], nmat[4][4];
-  mul_m4_m4m4(obmat, viewmat, ob->object_to_world);
+  mul_m4_m4m4(obmat, viewmat, ob->object_to_world().ptr());
   invert_m4_m4(nmat, obmat);
   transpose_m4(nmat);
 

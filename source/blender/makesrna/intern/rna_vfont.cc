@@ -26,7 +26,7 @@
 #  include "WM_api.hh"
 
 /* Matching function in rna_ID.cc */
-static int rna_VectorFont_filepath_editable(PointerRNA *ptr, const char ** /*r_info*/)
+static int rna_VectorFont_filepath_editable(const PointerRNA *ptr, const char ** /*r_info*/)
 {
   VFont *vfont = (VFont *)ptr->owner_id;
   if (BKE_vfont_is_builtin(vfont)) {
@@ -38,7 +38,7 @@ static int rna_VectorFont_filepath_editable(PointerRNA *ptr, const char ** /*r_i
 static void rna_VectorFont_reload_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   VFont *vf = (VFont *)ptr->owner_id;
-  BKE_vfont_free_data(vf);
+  BKE_vfont_data_free(vf);
 
   /* update */
   WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);

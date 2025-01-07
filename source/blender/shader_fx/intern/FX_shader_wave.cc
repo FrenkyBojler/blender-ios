@@ -18,7 +18,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -50,10 +50,10 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "orientation", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "amplitude", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "period", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "phase", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "orientation", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "amplitude", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "period", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "phase", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   shaderfx_panel_end(layout, ptr);
 }

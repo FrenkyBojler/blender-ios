@@ -2,24 +2,24 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "final_engine.h"
-#include "preview_engine.h"
-#include "viewport_engine.h"
+#include "final_engine.hh"
+#include "preview_engine.hh"
+#include "viewport_engine.hh"
 
 #include <Python.h>
 
 #include "RE_engine.h"
 
-#include "../generic/py_capi_utils.h"
-#include "bpy_rna.h"
+#include "../generic/py_capi_utils.hh"
+#include "bpy_rna.hh"
 
 #include "BKE_context.hh"
 
 #include "RE_engine.h"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "hydra/image.h"
+#include "hydra/image.hh"
 
 namespace blender::render::hydra {
 

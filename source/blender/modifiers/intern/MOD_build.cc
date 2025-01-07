@@ -14,31 +14,26 @@
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
 #include "DEG_depsgraph_query.hh"
 
-#include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
-#include "BKE_particle.h"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
+#include "BKE_scene.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 static void init_data(ModifierData *md)
@@ -262,9 +257,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "frame_start", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "frame_duration", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "use_reverse", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "frame_duration", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "use_reverse", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
@@ -275,7 +270,7 @@ static void random_panel_header_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_random_order", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_random_order", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void random_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -287,7 +282,7 @@ static void random_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_random_order"));
-  uiItemR(layout, ptr, "seed", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

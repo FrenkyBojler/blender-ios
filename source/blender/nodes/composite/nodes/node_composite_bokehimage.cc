@@ -12,11 +12,10 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.h"
+#include "GPU_shader.hh"
 
 #include "COM_bokeh_kernel.hh"
 #include "COM_node_operation.hh"
-#include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
@@ -44,20 +43,29 @@ static void node_composit_init_bokehimage(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_bokehimage(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "flaps", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "angle", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(
-      layout, ptr, "rounding", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "flaps", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "angle", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout,
+          ptr,
+          "rounding",
+          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+          std::nullopt,
+          ICON_NONE);
   uiItemR(layout,
           ptr,
           "catadioptric",
           UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-          nullptr,
+          std::nullopt,
           ICON_NONE);
-  uiItemR(layout, ptr, "shift", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout,
+          ptr,
+          "shift",
+          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+          std::nullopt,
+          ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class BokehImageOperation : public NodeOperation {
  public:
@@ -67,7 +75,7 @@ class BokehImageOperation : public NodeOperation {
   {
     const Domain domain = compute_domain();
 
-    const BokehKernel &bokeh_kernel = context().cache_manager().bokeh_kernels.get(
+    const Result &bokeh_kernel = context().cache_manager().bokeh_kernels.get(
         context(),
         domain.size,
         node_storage(bnode()).flaps,
@@ -77,7 +85,7 @@ class BokehImageOperation : public NodeOperation {
         node_storage(bnode()).lensshift);
 
     Result &output = get_result("Image");
-    output.wrap_external(bokeh_kernel.texture());
+    output.wrap_external(bokeh_kernel);
   }
 
   Domain compute_domain() override
@@ -97,16 +105,17 @@ void register_node_type_cmp_bokehimage()
 {
   namespace file_ns = blender::nodes::node_composite_bokehimage_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_BOKEHIMAGE, "Bokeh Image", NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "BOKEHIMAGE";
   ntype.declare = file_ns::cmp_node_bokehimage_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_bokehimage;
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_bokehimage;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeBokehImage", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

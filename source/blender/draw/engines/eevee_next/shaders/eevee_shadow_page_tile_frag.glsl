@@ -35,8 +35,12 @@
  * belong to shadow pages not being updated in this pass are discarded.
  **/
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_shadow_page_tile_clear)
+
+#include "eevee_shadow_tilemap_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 #if defined(PASS_CLEAR)
 
@@ -53,8 +57,6 @@ void main()
 {
   /* For storing pass, we store the result from depth in tile memory. */
   uint u_depth = floatBitsToUint(in_tile_depth);
-  /* Quantization bias. Equivalent to `nextafter` in C without all the safety. 1 is not enough. */
-  u_depth += 2;
 
   /* Write result to atlas. */
 #  ifdef GPU_METAL

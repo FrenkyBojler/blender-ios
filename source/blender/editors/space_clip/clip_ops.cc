@@ -24,21 +24,21 @@
 
 #include "BLI_fileops.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_movieclip.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_tracking.h"
 
 #include "WM_api.hh"
@@ -46,6 +46,8 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+#include "MOV_read.hh"
 
 #include "ED_clip.hh"
 #include "ED_screen.hh"
@@ -61,7 +63,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name View Navigation Utilities
@@ -166,14 +168,17 @@ static void open_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = MEM_cnew<PropertyPointerRNA>("OpenPropertyPointerRNA");
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
-  op->customdata = nullptr;
+  if (op->customdata) {
+    PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+    op->customdata = nullptr;
+    MEM_delete(pprop);
+  }
 }
 
 static int open_exec(bContext *C, wmOperator *op)
@@ -216,7 +221,9 @@ static int open_exec(bContext *C, wmOperator *op)
 
   if (!clip) {
     if (op->customdata) {
-      MEM_freeN(op->customdata);
+      pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+      op->customdata = nullptr;
+      MEM_delete(pprop);
     }
 
     BKE_reportf(op->reports,
@@ -251,7 +258,8 @@ static int open_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_ADDED, clip);
 
   DEG_relations_tag_update(bmain);
-  MEM_freeN(op->customdata);
+  op->customdata = nullptr;
+  MEM_delete(pprop);
 
   return OPERATOR_FINISHED;
 }
@@ -556,7 +564,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     /* needs a timer to continue redrawing */
     vpd->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
-    vpd->timer_lastdraw = BLI_check_seconds_timer();
+    vpd->timer_lastdraw = BLI_time_now_seconds();
   }
 
   vpd->x = event->xy[0];
@@ -648,7 +656,7 @@ static void view_zoom_apply(
 
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     SpaceClip *sclip = CTX_wm_space_clip(C);
-    double time = BLI_check_seconds_timer();
+    double time = BLI_time_now_seconds();
     float time_step = float(time - vpd->timer_lastdraw);
     float zfac;
 
@@ -1172,7 +1180,7 @@ struct ProxyJob {
   MovieClip *clip;
   int clip_flag;
   bool stop;
-  IndexBuildContext *index_context;
+  MovieProxyBuilder *proxy_builder;
 };
 
 static void proxy_freejob(void *pjv)
@@ -1216,7 +1224,7 @@ static int proxy_bitflag_to_array(int size_flag, int build_sizes[4], int undisto
 static void do_movie_proxy(void *pjv,
                            int * /*build_sizes*/,
                            int /*build_count*/,
-                           int *build_undistort_sizes,
+                           const int *build_undistort_sizes,
                            int build_undistort_count,
                            bool *stop,
                            bool *do_update,
@@ -1226,8 +1234,8 @@ static void do_movie_proxy(void *pjv,
   MovieClip *clip = pj->clip;
   MovieDistortion *distortion = nullptr;
 
-  if (pj->index_context) {
-    IMB_anim_index_rebuild(pj->index_context, stop, do_update, progress);
+  if (pj->proxy_builder) {
+    MOV_proxy_builder_process(pj->proxy_builder, stop, do_update, progress);
   }
 
   if (!build_undistort_count) {
@@ -1491,11 +1499,11 @@ static void proxy_endjob(void *pjv)
   ProxyJob *pj = static_cast<ProxyJob *>(pjv);
 
   if (pj->clip->anim) {
-    IMB_close_anim_proxies(pj->clip->anim);
+    MOV_close_proxies(pj->clip->anim);
   }
 
-  if (pj->index_context) {
-    IMB_anim_index_rebuild_finish(pj->index_context, pj->stop);
+  if (pj->proxy_builder) {
+    MOV_proxy_builder_finish(pj->proxy_builder, pj->stop);
   }
 
   if (pj->clip->source == MCLIP_SRC_MOVIE) {
@@ -1537,14 +1545,13 @@ static int clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/)
   pj->clip_flag = clip->flag & MCLIP_TIMECODE_FLAGS;
 
   if (clip->anim) {
-    pj->index_context = IMB_anim_index_rebuild_context(
-        clip->anim,
-        IMB_Timecode_Type(clip->proxy.build_tc_flag),
-        IMB_Proxy_Size(clip->proxy.build_size_flag),
-        clip->proxy.quality,
-        true,
-        nullptr,
-        false);
+    pj->proxy_builder = MOV_proxy_builder_start(clip->anim,
+                                                IMB_Timecode_Type(clip->proxy.build_tc_flag),
+                                                IMB_Proxy_Size(clip->proxy.build_size_flag),
+                                                clip->proxy.quality,
+                                                true,
+                                                nullptr,
+                                                false);
   }
 
   WM_jobs_customdata_set(wm_job, pj, proxy_freejob);

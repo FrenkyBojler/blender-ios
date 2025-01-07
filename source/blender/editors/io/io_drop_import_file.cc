@@ -2,10 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_file_handler.hh"
 
@@ -15,7 +15,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -23,30 +23,9 @@
 #include "UI_interface.hh"
 
 #include "io_drop_import_file.hh"
+#include "io_utils.hh"
 
 static CLG_LogRef LOG = {"io.drop_import_file"};
-
-/** Returns the list of file paths stored in #WM_OT_drop_import_file operator properties. */
-static blender::Vector<std::string> drop_import_file_paths(const wmOperator *op)
-{
-  blender::Vector<std::string> result;
-  char dir[FILE_MAX], file[FILE_MAX];
-
-  RNA_string_get(op->ptr, "directory", dir);
-
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "files");
-  int files_len = RNA_property_collection_length(op->ptr, prop);
-
-  for (int i = 0; i < files_len; i++) {
-    PointerRNA fileptr;
-    RNA_property_collection_lookup_int(op->ptr, prop, i, &fileptr);
-    RNA_string_get(&fileptr, "name", file);
-    char file_path[FILE_MAX];
-    BLI_path_join(file_path, sizeof(file_path), dir, file);
-    result.append(file_path);
-  }
-  return result;
-}
 
 /**
  * Return a vector of file handlers that support any file path in `paths` and the call to
@@ -121,7 +100,7 @@ static PointerRNA file_handler_import_operator_create_ptr(
 
 static int wm_drop_import_file_exec(bContext *C, wmOperator *op)
 {
-  auto paths = drop_import_file_paths(op);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
   if (paths.is_empty()) {
     return OPERATOR_CANCELLED;
   }
@@ -141,7 +120,7 @@ static int wm_drop_import_file_exec(bContext *C, wmOperator *op)
 
 static int wm_drop_import_file_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  const auto paths = drop_import_file_paths(op);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
   if (paths.is_empty()) {
     return OPERATOR_CANCELLED;
   }
@@ -164,7 +143,7 @@ static int wm_drop_import_file_invoke(bContext *C, wmOperator *op, const wmEvent
     wmOperatorType *ot = WM_operatortype_find(file_handler->import_operator, false);
     uiItemFullO_ptr(layout,
                     ot,
-                    TIP_(ot->name),
+                    CTX_TIP_(ot->translation_context, ot->name),
                     ICON_NONE,
                     static_cast<IDProperty *>(file_props.data),
                     WM_OP_INVOKE_DEFAULT,

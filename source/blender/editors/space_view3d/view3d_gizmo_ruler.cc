@@ -11,21 +11,15 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
-
 #include "BKE_context.hh"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_main.hh"
-#include "BKE_report.h"
-
 #include "BKE_layer.hh"
-#include "BKE_material.h"
-#include "BKE_object.hh"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
+#include "BKE_screen.hh"
 #include "BKE_unit.hh"
 
 #include "DNA_gpencil_legacy_types.h"
@@ -34,7 +28,6 @@
 
 #include "ED_gizmo_library.hh"
 #include "ED_gizmo_utils.hh"
-#include "ED_gpencil_legacy.hh"
 #include "ED_screen.hh"
 #include "ED_transform.hh"
 #include "ED_transform_snap_object_context.hh"
@@ -53,12 +46,12 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "BLF_api.hh"
 
@@ -298,6 +291,7 @@ static bool view3d_ruler_pick(wmGizmoGroup *gzgroup,
       }
     }
   }
+  UNUSED_VARS(dist_best);
 
   *r_co_index = co_index_best;
   return found;
@@ -525,7 +519,7 @@ static void view3d_ruler_gpencil_ensure(bContext *C)
   Scene *scene = CTX_data_scene(C);
   if (scene->gpd == nullptr) {
     scene->gpd = BKE_gpencil_data_addnew(bmain, "Annotations");
-    DEG_id_tag_update_ex(bmain, &scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update_ex(bmain, &scene->id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(bmain);
   }
 }
@@ -1338,7 +1332,7 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
     return OPERATOR_CANCELLED;
   }
 
-  wmGizmoMap *gzmap = region->gizmo_map;
+  wmGizmoMap *gzmap = region->runtime->gizmo_map;
   wmGizmoGroup *gzgroup = WM_gizmomap_group_find(gzmap, view3d_gzgt_ruler_id);
 
   if (!gizmo_ruler_check_for_operator(gzgroup)) {
@@ -1412,10 +1406,10 @@ static int view3d_ruler_remove_invoke(bContext *C, wmOperator *op, const wmEvent
 
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL)) {
     BKE_report(op->reports, RPT_WARNING, "Gizmos hidden in this view");
-    return OPERATOR_CANCELLED;
+    return OPERATOR_PASS_THROUGH;
   }
 
-  wmGizmoMap *gzmap = region->gizmo_map;
+  wmGizmoMap *gzmap = region->runtime->gizmo_map;
   wmGizmoGroup *gzgroup = WM_gizmomap_group_find(gzmap, view3d_gzgt_ruler_id);
   if (gzgroup) {
     if (!gizmo_ruler_check_for_operator(gzgroup)) {

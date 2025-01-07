@@ -14,7 +14,7 @@
 
 #include "BLI_listbase.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -58,10 +58,7 @@ void ObjectRuntimeBackup::backup_modifier_runtime_data(Object *object)
       continue;
     }
 
-    const SessionUID &session_uid = modifier_data->session_uid;
-    BLI_assert(BLI_session_uid_is_generated(&session_uid));
-
-    modifier_runtime_data.add(session_uid, ModifierDataBackup(modifier_data));
+    modifier_runtime_data.add(modifier_data->persistent_uid, ModifierDataBackup(modifier_data));
     modifier_data->runtime = nullptr;
   }
 }
@@ -113,7 +110,7 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
       if (object->type == OB_MESH) {
         Mesh *mesh_eval = (Mesh *)data_eval;
         Mesh *mesh_orig = (Mesh *)data_orig;
-        mesh_eval->edit_mesh = mesh_orig->edit_mesh;
+        mesh_eval->runtime->edit_mesh = mesh_orig->runtime->edit_mesh;
       }
     }
   }
@@ -149,10 +146,8 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
 void ObjectRuntimeBackup::restore_modifier_runtime_data(Object *object)
 {
   LISTBASE_FOREACH (ModifierData *, modifier_data, &object->modifiers) {
-    const SessionUID &session_uid = modifier_data->session_uid;
-    BLI_assert(BLI_session_uid_is_generated(&session_uid));
-
-    optional<ModifierDataBackup> backup = modifier_runtime_data.pop_try(session_uid);
+    optional<ModifierDataBackup> backup = modifier_runtime_data.pop_try(
+        modifier_data->persistent_uid);
     if (backup.has_value()) {
       modifier_data->runtime = backup->runtime;
     }

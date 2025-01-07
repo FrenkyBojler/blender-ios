@@ -18,39 +18,35 @@
 #include "BLI_math_vector.h"
 #include "BLI_span.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_build.hh"
-#include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "BLI_strict_flags.h"
-
 #include "GEO_mesh_merge_by_distance.hh"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 using namespace blender;
 
@@ -290,8 +286,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   if (ob_axis != nullptr) {
     /* Calculate the matrix relative to the axis object. */
-    invert_m4_m4(mtx_tmp_a, ctx->object->object_to_world);
-    copy_m4_m4(mtx_tx_inv, ob_axis->object_to_world);
+    invert_m4_m4(mtx_tmp_a, ctx->object->object_to_world().ptr());
+    copy_m4_m4(mtx_tx_inv, ob_axis->object_to_world().ptr());
     mul_m4_m4m4(mtx_tx, mtx_tmp_a, mtx_tx_inv);
 
     /* Calculate the axis vector. */
@@ -1078,22 +1074,22 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "angle", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row = uiLayoutRow(col, false);
   uiLayoutSetActive(row,
                     RNA_pointer_is_null(&screw_obj_ptr) ||
                         !RNA_boolean_get(ptr, "use_object_screw_offset"));
-  uiItemR(row, ptr, "screw_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "iterations", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemS(layout);
   col = uiLayoutColumn(layout, false);
   row = uiLayoutRow(col, false);
-  uiItemR(row, ptr, "axis", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "object", UI_ITEM_NONE, IFACE_("Axis Object"), ICON_NONE);
   sub = uiLayoutColumn(col, false);
   uiLayoutSetActive(sub, !RNA_pointer_is_null(&screw_obj_ptr));
-  uiItemR(sub, ptr, "use_object_screw_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(sub, ptr, "use_object_screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemS(layout);
 
@@ -1128,9 +1124,9 @@ static void normals_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_smooth_shade", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_normal_calculate", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_normal_flip", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "use_normal_calculate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "use_normal_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

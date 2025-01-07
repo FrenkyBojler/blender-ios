@@ -4,8 +4,11 @@
 
 #ifdef WITH_METAL
 
-#  include "device/metal/device_impl.h"
+#  include <map>
+#  include <mutex>
+
 #  include "device/metal/device.h"
+#  include "device/metal/device_impl.h"
 
 #  include "scene/scene.h"
 
@@ -14,6 +17,7 @@
 #  include "util/path.h"
 #  include "util/time.h"
 
+#  include <TargetConditionals.h>
 #  include <crt_externs.h>
 
 CCL_NAMESPACE_BEGIN
@@ -25,7 +29,7 @@ std::map<int, MetalDevice *> MetalDevice::active_device_ids;
 
 /* Thread-safe device access for async work. Calling code must pass an appropriately scoped lock
  * to existing_devices_mutex to safeguard against destruction of the returned instance. */
-MetalDevice *MetalDevice::get_device_by_ID(int ID,
+MetalDevice *MetalDevice::get_device_by_ID(const int ID,
                                            thread_scoped_lock & /*existing_devices_mutex_lock*/)
 {
   auto it = active_device_ids.find(ID);
@@ -35,7 +39,7 @@ MetalDevice *MetalDevice::get_device_by_ID(int ID,
   return nullptr;
 }
 
-bool MetalDevice::is_device_cancelled(int ID)
+bool MetalDevice::is_device_cancelled(const int ID)
 {
   thread_scoped_lock lock(existing_devices_mutex);
   return get_device_by_ID(ID, lock) == nullptr;
@@ -61,8 +65,8 @@ void MetalDevice::set_error(const string &error)
   }
 }
 
-MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler)
-    : Device(info, stats, profiler), texture_info(this, "texture_info", MEM_GLOBAL)
+MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless)
+    : Device(info, stats, profiler, headless), texture_info(this, "texture_info", MEM_GLOBAL)
 {
   @autoreleasepool {
     {
@@ -80,39 +84,22 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     auto usable_devices = MetalInfo::get_usable_devices();
     assert(mtlDevId < usable_devices.size());
     mtlDevice = usable_devices[mtlDevId];
-    device_vendor = MetalInfo::get_device_vendor(mtlDevice);
-    assert(device_vendor != METAL_GPU_UNKNOWN);
     metal_printf("Creating new Cycles Metal device: %s\n", info.description.c_str());
 
     /* determine default storage mode based on whether UMA is supported */
 
     default_storage_mode = MTLResourceStorageModeManaged;
 
-    if (@available(macos 11.0, *)) {
-      if ([mtlDevice hasUnifiedMemory]) {
-        default_storage_mode = MTLResourceStorageModeShared;
-      }
+    /* We only support Apple Silicon which hasUnifiedMemory support. But leave this check here
+     * just in case a future GPU comes out that doesn't. */
+    if ([mtlDevice hasUnifiedMemory]) {
+      default_storage_mode = MTLResourceStorageModeShared;
     }
 
-    switch (device_vendor) {
-      default:
-        break;
-      case METAL_GPU_INTEL: {
-        max_threads_per_threadgroup = 64;
-        break;
-      }
-      case METAL_GPU_AMD: {
-        max_threads_per_threadgroup = 128;
-        break;
-      }
-      case METAL_GPU_APPLE: {
-        max_threads_per_threadgroup = 512;
-        break;
-      }
-    }
+    max_threads_per_threadgroup = 512;
 
     use_metalrt = info.use_hardware_raytracing;
-    if (auto metalrt = getenv("CYCLES_METALRT")) {
+    if (auto *metalrt = getenv("CYCLES_METALRT")) {
       use_metalrt = (atoi(metalrt) != 0);
     }
 
@@ -120,23 +107,21 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
       capture_enabled = true;
     }
 
-    if (device_vendor == METAL_GPU_APPLE) {
-      /* Set kernel_specialization_level based on user preferences. */
-      switch (info.kernel_optimization_level) {
-        case KERNEL_OPTIMIZATION_LEVEL_OFF:
-          kernel_specialization_level = PSO_GENERIC;
-          break;
-        default:
-        case KERNEL_OPTIMIZATION_LEVEL_INTERSECT:
-          kernel_specialization_level = PSO_SPECIALIZED_INTERSECT;
-          break;
-        case KERNEL_OPTIMIZATION_LEVEL_FULL:
-          kernel_specialization_level = PSO_SPECIALIZED_SHADE;
-          break;
-      }
+    /* Set kernel_specialization_level based on user preferences. */
+    switch (info.kernel_optimization_level) {
+      case KERNEL_OPTIMIZATION_LEVEL_OFF:
+        kernel_specialization_level = PSO_GENERIC;
+        break;
+      default:
+      case KERNEL_OPTIMIZATION_LEVEL_INTERSECT:
+        kernel_specialization_level = PSO_SPECIALIZED_INTERSECT;
+        break;
+      case KERNEL_OPTIMIZATION_LEVEL_FULL:
+        kernel_specialization_level = PSO_SPECIALIZED_SHADE;
+        break;
     }
 
-    if (auto envstr = getenv("CYCLES_METAL_SPECIALIZATION_LEVEL")) {
+    if (auto *envstr = getenv("CYCLES_METAL_SPECIALIZATION_LEVEL")) {
       kernel_specialization_level = (MetalPipelineType)atoi(envstr);
     }
     metal_printf("kernel_specialization_level = %s\n",
@@ -219,20 +204,27 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
 
           arg_desc_as.index = index++;
           [ancillary_desc addObject:[arg_desc_as copy]]; /* accel_struct */
+
+          /* Intersection function tables */
           arg_desc_ift.index = index++;
           [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_default */
           arg_desc_ift.index = index++;
           [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_shadow */
           arg_desc_ift.index = index++;
+          [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_shadow_all */
+          arg_desc_ift.index = index++;
           [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_volume */
           arg_desc_ift.index = index++;
           [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_local */
           arg_desc_ift.index = index++;
-          [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_local_prim */
+          [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_local_mblur */
+          arg_desc_ift.index = index++;
+          [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_local_single_hit */
+          arg_desc_ift.index = index++;
+          [ancillary_desc addObject:[arg_desc_ift copy]]; /* ift_local_single_hit_mblur */
+
           arg_desc_ptrs.index = index++;
-          [ancillary_desc addObject:[arg_desc_ptrs copy]]; /* blas array */
-          arg_desc_ptrs.index = index++;
-          [ancillary_desc addObject:[arg_desc_ptrs copy]]; /* look up table for blas */
+          [ancillary_desc addObject:[arg_desc_ptrs copy]]; /* blas_accel_structs */
 
           [arg_desc_ift release];
           [arg_desc_as release];
@@ -243,14 +235,13 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
       mtlAncillaryArgEncoder = [mtlDevice newArgumentEncoderWithArguments:ancillary_desc];
 
       // preparing the blas arg encoder
-      if (@available(macos 11.0, *)) {
-        if (use_metalrt) {
-          MTLArgumentDescriptor *arg_desc_blas = [[MTLArgumentDescriptor alloc] init];
-          arg_desc_blas.dataType = MTLDataTypeInstanceAccelerationStructure;
-          arg_desc_blas.access = MTLArgumentAccessReadOnly;
-          mtlBlasArgEncoder = [mtlDevice newArgumentEncoderWithArguments:@[ arg_desc_blas ]];
-          [arg_desc_blas release];
-        }
+
+      if (use_metalrt) {
+        MTLArgumentDescriptor *arg_desc_blas = [[MTLArgumentDescriptor alloc] init];
+        arg_desc_blas.dataType = MTLDataTypeInstanceAccelerationStructure;
+        arg_desc_blas.access = MTLArgumentAccessReadOnly;
+        mtlBlasArgEncoder = [mtlDevice newArgumentEncoderWithArguments:@[ arg_desc_blas ]];
+        [arg_desc_blas release];
       }
 
       for (int i = 0; i < ancillary_desc.count; i++) {
@@ -280,6 +271,7 @@ MetalDevice::~MetalDevice()
     }
   }
 
+  free_bvh();
   flush_delayed_free_list();
 
   if (texture_bindings_2d) {
@@ -343,45 +335,30 @@ string MetalDevice::preprocess_source(MetalPipelineType pso_type,
     }
   }
 
+#  ifdef WITH_CYCLES_DEBUG
+  global_defines += "#define WITH_CYCLES_DEBUG\n";
+#  endif
+
+  global_defines += "#define __KERNEL_METAL_APPLE__\n";
   if (@available(macos 14.0, *)) {
     /* Use Program Scope Global Built-ins, when available. */
     global_defines += "#define __METAL_GLOBAL_BUILTINS__\n";
   }
-
-#  ifdef WITH_CYCLES_DEBUG
-  global_defines += "#define __KERNEL_DEBUG__\n";
-#  endif
-
-  switch (device_vendor) {
-    default:
-      break;
-    case METAL_GPU_INTEL:
-      global_defines += "#define __KERNEL_METAL_INTEL__\n";
-      break;
-    case METAL_GPU_AMD:
-      global_defines += "#define __KERNEL_METAL_AMD__\n";
-      /* The increased amount of BSDF code leads to a big performance regression
-       * on AMD. There is currently no workaround to fix this general. Instead
-       * disable Principled Hair. */
-      if (kernel_features & KERNEL_FEATURE_NODE_PRINCIPLED_HAIR) {
-        global_defines += "#define WITH_PRINCIPLED_HAIR\n";
-      }
-      break;
-    case METAL_GPU_APPLE:
-      global_defines += "#define __KERNEL_METAL_APPLE__\n";
 #  ifdef WITH_NANOVDB
-      /* Compiling in NanoVDB results in a marginal drop in render performance,
-       * so disable it for specialized PSOs when no textures are using it. */
-      if ((pso_type == PSO_GENERIC || using_nanovdb) && DebugFlags().metal.use_nanovdb) {
-        global_defines += "#define WITH_NANOVDB\n";
-      }
-#  endif
-      break;
+  /* Compiling in NanoVDB results in a marginal drop in render performance,
+   * so disable it for specialized PSOs when no textures are using it. */
+  if ((pso_type == PSO_GENERIC || using_nanovdb) && DebugFlags().metal.use_nanovdb) {
+    global_defines += "#define WITH_NANOVDB\n";
   }
+#  endif
 
   NSProcessInfo *processInfo = [NSProcessInfo processInfo];
   NSOperatingSystemVersion macos_ver = [processInfo operatingSystemVersion];
   global_defines += "#define __KERNEL_METAL_MACOS__ " + to_string(macos_ver.majorVersion) + "\n";
+
+#  if TARGET_CPU_ARM64
+  global_defines += "#define __KERNEL_METAL_TARGET_CPU_ARM64__\n";
+#  endif
 
   /* Replace specific KernelData "dot" dereferences with a Metal function_constant identifier of
    * the same character length. Build a string of all active constant values which is then hashed
@@ -422,11 +399,6 @@ string MetalDevice::preprocess_source(MetalPipelineType pso_type,
     global_defines += "#define __KERNEL_USE_DATA_CONSTANTS__\n";
   }
 
-#  if 0
-  metal_printf("================\n%s================\n",
-               global_defines.c_str());
-#  endif
-
   if (source) {
     *source = global_defines + *source;
   }
@@ -452,17 +424,18 @@ void MetalDevice::make_source(MetalPipelineType pso_type, const uint kernel_feat
 bool MetalDevice::load_kernels(const uint _kernel_features)
 {
   @autoreleasepool {
-    kernel_features = _kernel_features;
+    kernel_features |= _kernel_features;
 
     /* check if GPU is supported */
-    if (!support_device(kernel_features))
+    if (!support_device(kernel_features)) {
       return false;
+    }
 
     /* Keep track of whether motion blur is enabled, so to enable/disable motion in BVH builds
      * This is necessary since objects may be reported to have motion if the Vector pass is
      * active, but may still need to be rendered without motion blur if that isn't active as well.
      */
-    motion_blur = kernel_features & KERNEL_FEATURE_OBJECT_MOTION;
+    motion_blur |= kernel_features & KERNEL_FEATURE_OBJECT_MOTION;
 
     /* Only request generic kernels if they aren't cached in memory. */
     refresh_source_and_kernels_md5(PSO_GENERIC);
@@ -511,11 +484,6 @@ void MetalDevice::refresh_source_and_kernels_md5(MetalPipelineType pso_type)
 
 #  undef KERNEL_STRUCT_MEMBER
 #  undef KERNEL_STRUCT_MEMBER_DONT_SPECIALIZE
-
-#  if 0
-    metal_printf("================\n%s================\n",
-                constant_values.c_str());
-#  endif
   }
 
   MD5Hash md5;
@@ -527,7 +495,7 @@ void MetalDevice::refresh_source_and_kernels_md5(MetalPipelineType pso_type)
   kernels_md5[pso_type] = md5.get_hex();
 }
 
-void MetalDevice::compile_and_load(int device_id, MetalPipelineType pso_type)
+void MetalDevice::compile_and_load(const int device_id, MetalPipelineType pso_type)
 {
   @autoreleasepool {
     /* Thread-safe front-end compilation. Typically the MSL->AIR compilation can take a few
@@ -535,7 +503,6 @@ void MetalDevice::compile_and_load(int device_id, MetalPipelineType pso_type)
 
     id<MTLDevice> mtlDevice;
     string source;
-    MetalGPUVendor device_vendor;
 
     /* Safely gather any state required for the MSL->AIR compilation. */
     {
@@ -558,7 +525,6 @@ void MetalDevice::compile_and_load(int device_id, MetalPipelineType pso_type)
       }
 
       mtlDevice = instance->mtlDevice;
-      device_vendor = instance->device_vendor;
       source = instance->source[pso_type];
     }
 
@@ -566,14 +532,6 @@ void MetalDevice::compile_and_load(int device_id, MetalPipelineType pso_type)
      * in this time. */
 
     MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
-
-#  if defined(MAC_OS_VERSION_13_0)
-    if (@available(macos 13.0, *)) {
-      if (device_vendor == METAL_GPU_INTEL) {
-        [options setOptimizationLevel:MTLLibraryOptimizationLevelSize];
-      }
-    }
-#  endif
 
     options.fastMathEnabled = YES;
     if (@available(macos 12.0, *)) {
@@ -597,7 +555,7 @@ void MetalDevice::compile_and_load(int device_id, MetalPipelineType pso_type)
 
     double starttime = time_dt();
 
-    NSError *error = NULL;
+    NSError *error = nullptr;
     id<MTLLibrary> mtlLibrary = [mtlDevice newLibraryWithSource:@(source.c_str())
                                                         options:options
                                                           error:&error];
@@ -705,7 +663,7 @@ void MetalDevice::erase_allocation(device_memory &mem)
   }
 }
 
-bool MetalDevice::max_working_set_exceeded(size_t safety_margin) const
+bool MetalDevice::max_working_set_exceeded(const size_t safety_margin) const
 {
   /* We're allowed to allocate beyond the safe working set size, but then if all resources are made
    * resident we will get command buffer failures at render time. */
@@ -745,13 +703,12 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
     mem.device_size = metal_buffer.allocatedSize;
     stats.mem_alloc(mem.device_size);
 
-    metal_buffer.label = [[NSString alloc] initWithFormat:@"%s", mem.name];
+    metal_buffer.label = [NSString stringWithFormat:@"%s", mem.name];
 
     std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
 
     assert(metal_mem_map.count(&mem) == 0); /* assert against double-alloc */
-    MetalMem *mmem = new MetalMem;
-    metal_mem_map[&mem] = std::unique_ptr<MetalMem>(mmem);
+    unique_ptr<MetalMem> mmem = make_unique<MetalMem>();
 
     mmem->mem = &mem;
     mmem->mtlBuffer = metal_buffer;
@@ -766,7 +723,7 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
 
     /* encode device_pointer as (MetalMem*) in order to handle resource relocation and device
      * pointer recalculation */
-    mem.device_pointer = device_ptr(mmem);
+    mem.device_pointer = device_ptr(mmem.get());
 
     if (metal_buffer.storageMode == MTLResourceStorageModeShared) {
       /* Replace host pointer with our host allocation. */
@@ -785,12 +742,15 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
       mmem->use_UMA = false;
     }
 
+    MetalMem *mmem_ptr = mmem.get();
+    metal_mem_map[&mem] = std::move(mmem);
+
     if (max_working_set_exceeded()) {
       set_error("System is out of GPU memory");
       return nullptr;
     }
 
-    return mmem;
+    return mmem_ptr;
   }
 }
 
@@ -843,7 +803,7 @@ void MetalDevice::generic_free(device_memory &mem)
         mmem.use_UMA = false;
       }
 
-      mem.shared_pointer = 0;
+      mem.shared_pointer = nullptr;
 
       /* Free device memory. */
       delayed_free_list.push_back(mmem.mtlBuffer);
@@ -885,7 +845,8 @@ void MetalDevice::mem_copy_to(device_memory &mem)
   }
 }
 
-void MetalDevice::mem_copy_from(device_memory &mem, size_t y, size_t w, size_t h, size_t elem)
+void MetalDevice::mem_copy_from(
+    device_memory &mem, const size_t y, size_t w, const size_t h, size_t elem)
 {
   @autoreleasepool {
     if (mem.host_pointer) {
@@ -1044,7 +1005,7 @@ void MetalDevice::optimize_for_scene(Scene *scene)
   }
 }
 
-void MetalDevice::const_copy_to(const char *name, void *host, size_t size)
+void MetalDevice::const_copy_to(const char *name, void *host, const size_t size)
 {
   if (strcmp(name, "data") == 0) {
     assert(size == sizeof(KernelData));
@@ -1058,7 +1019,7 @@ void MetalDevice::const_copy_to(const char *name, void *host, size_t size)
   }
 
   auto update_launch_pointers =
-      [&](size_t offset, void *data, size_t data_size, size_t pointers_size) {
+      [&](size_t offset, void *data, const size_t data_size, const size_t pointers_size) {
         memcpy((uint8_t *)&launch_params + offset, data, data_size);
 
         MetalMem **mmem = (MetalMem **)data;
@@ -1150,15 +1111,11 @@ void MetalDevice::tex_alloc(device_texture &mem)
       }
     }
     MTLStorageMode storage_mode = MTLStorageModeManaged;
-    if (@available(macos 10.15, *)) {
-      /* Intel GPUs don't support MTLStorageModeShared for MTLTextures. */
-      if ([mtlDevice hasUnifiedMemory] && device_vendor != METAL_GPU_INTEL) {
-        storage_mode = MTLStorageModeShared;
-      }
+    if ([mtlDevice hasUnifiedMemory]) {
+      storage_mode = MTLStorageModeShared;
     }
 
     /* General variables for both architectures */
-    string bind_name = mem.name;
     size_t dsize = datatype_size(mem.data_type);
     size_t size = mem.memory_size();
 
@@ -1297,10 +1254,10 @@ void MetalDevice::tex_alloc(device_texture &mem)
     stats.mem_alloc(size);
 
     std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
-    MetalMem *mmem = new MetalMem;
-    metal_mem_map[&mem] = std::unique_ptr<MetalMem>(mmem);
+    unique_ptr<MetalMem> mmem = make_unique<MetalMem>();
     mmem->mem = &mem;
     mmem->mtlTexture = mtlTexture;
+    metal_mem_map[&mem] = std::move(mmem);
 
     /* Resize once */
     const uint slot = mem.slot;
@@ -1332,14 +1289,12 @@ void MetalDevice::tex_alloc(device_texture &mem)
       }
     }
 
-    if (@available(macos 10.14, *)) {
-      /* Optimize the texture for GPU access. */
-      id<MTLCommandBuffer> commandBuffer = [mtlGeneralCommandQueue commandBuffer];
-      id<MTLBlitCommandEncoder> blitCommandEncoder = [commandBuffer blitCommandEncoder];
-      [blitCommandEncoder optimizeContentsForGPUAccess:mtlTexture];
-      [blitCommandEncoder endEncoding];
-      [commandBuffer commit];
-    }
+    /* Optimize the texture for GPU access. */
+    id<MTLCommandBuffer> commandBuffer = [mtlGeneralCommandQueue commandBuffer];
+    id<MTLBlitCommandEncoder> blitCommandEncoder = [commandBuffer blitCommandEncoder];
+    [blitCommandEncoder optimizeContentsForGPUAccess:mtlTexture];
+    [blitCommandEncoder endEncoding];
+    [commandBuffer commit];
 
     /* Set Mapping and tag that we need to (re-)upload to device */
     texture_slot_map[slot] = mtlTexture;
@@ -1366,8 +1321,9 @@ void MetalDevice::tex_free(device_texture &mem)
     MetalMem &mmem = *metal_mem_map.at(&mem);
 
     assert(texture_slot_map[mem.slot] == mmem.mtlTexture);
-    if (texture_slot_map[mem.slot] == mmem.mtlTexture)
+    if (texture_slot_map[mem.slot] == mmem.mtlTexture) {
       texture_slot_map[mem.slot] = nil;
+    }
 
     if (mmem.mtlTexture) {
       /* Free bindless texture. */
@@ -1387,6 +1343,11 @@ bool MetalDevice::should_use_graphics_interop()
 {
   /* METAL_WIP - provide fast interop */
   return false;
+}
+
+void *MetalDevice::get_native_buffer(device_ptr ptr)
+{
+  return ((MetalMem *)ptr)->mtlBuffer;
 }
 
 void MetalDevice::flush_delayed_free_list()
@@ -1413,33 +1374,65 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
     bvh_metal->motion_blur = motion_blur;
     if (bvh_metal->build(progress, mtlDevice, mtlGeneralCommandQueue, refit)) {
 
-      if (@available(macos 11.0, *)) {
-        if (bvh->params.top_level) {
-          bvhMetalRT = bvh_metal;
-
-          // allocate required buffers for BLAS array
-          uint64_t count = bvhMetalRT->blas_array.size();
-          uint64_t bufferSize = mtlBlasArgEncoder.encodedLength * count;
-          blas_buffer = [mtlDevice newBufferWithLength:bufferSize options:default_storage_mode];
-          stats.mem_alloc(blas_buffer.allocatedSize);
-
-          for (uint64_t i = 0; i < count; ++i) {
-            if (bvhMetalRT->blas_array[i]) {
-              [mtlBlasArgEncoder setArgumentBuffer:blas_buffer
-                                            offset:i * mtlBlasArgEncoder.encodedLength];
-              [mtlBlasArgEncoder setAccelerationStructure:bvhMetalRT->blas_array[i] atIndex:0];
-            }
-          }
-          if (default_storage_mode == MTLResourceStorageModeManaged) {
-            [blas_buffer didModifyRange:NSMakeRange(0, blas_buffer.length)];
-          }
-        }
+      if (bvh->params.top_level) {
+        update_bvh(bvh_metal);
       }
     }
 
     if (max_working_set_exceeded()) {
       set_error("System is out of GPU memory");
     }
+  }
+}
+
+void MetalDevice::free_bvh()
+{
+  for (id<MTLAccelerationStructure> &blas : unique_blas_array) {
+    [blas release];
+  }
+  unique_blas_array.clear();
+
+  if (blas_buffer) {
+    [blas_buffer release];
+    blas_buffer = nil;
+  }
+
+  if (accel_struct) {
+    [accel_struct release];
+    accel_struct = nil;
+  }
+}
+
+void MetalDevice::update_bvh(BVHMetal *bvh_metal)
+{
+  free_bvh();
+
+  if (!bvh_metal) {
+    return;
+  }
+
+  accel_struct = bvh_metal->accel_struct;
+  unique_blas_array = bvh_metal->unique_blas_array;
+
+  [accel_struct retain];
+  for (id<MTLAccelerationStructure> &blas : unique_blas_array) {
+    [blas retain];
+  }
+
+  // Allocate required buffers for BLAS array.
+  uint64_t count = bvh_metal->blas_array.size();
+  uint64_t buffer_size = mtlBlasArgEncoder.encodedLength * count;
+  blas_buffer = [mtlDevice newBufferWithLength:buffer_size options:default_storage_mode];
+  stats.mem_alloc(blas_buffer.allocatedSize);
+
+  for (uint64_t i = 0; i < count; ++i) {
+    if (bvh_metal->blas_array[i]) {
+      [mtlBlasArgEncoder setArgumentBuffer:blas_buffer offset:i * mtlBlasArgEncoder.encodedLength];
+      [mtlBlasArgEncoder setAccelerationStructure:bvh_metal->blas_array[i] atIndex:0];
+    }
+  }
+  if (default_storage_mode == MTLResourceStorageModeManaged) {
+    [blas_buffer didModifyRange:NSMakeRange(0, blas_buffer.length)];
   }
 }
 

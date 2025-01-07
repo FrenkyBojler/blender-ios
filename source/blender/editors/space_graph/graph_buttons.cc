@@ -23,15 +23,14 @@
 #include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
-#include "BKE_global.h"
-#include "BKE_main.hh"
+#include "BKE_global.hh"
 #include "BKE_screen.hh"
 #include "BKE_unit.hh"
 
@@ -43,17 +42,16 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_anim_api.hh"
-#include "ED_keyframing.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "graph_intern.h" /* own include */
+#include "graph_intern.hh" /* own include */
 
 #define B_REDR 1
 
@@ -189,7 +187,16 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
   col = uiLayoutColumn(layout, false);
   if (ale->type == ANIMTYPE_FCURVE) {
     /* get user-friendly name for F-Curve */
-    icon = getname_anim_fcurve(name, ale->id, fcu);
+    const std::optional<int> optional_icon = getname_anim_fcurve(name, ale->id, fcu);
+    if (optional_icon) {
+      icon = *optional_icon;
+    }
+    else if (ale->id) {
+      icon = RNA_struct_ui_icon(ID_code_to_RNA_type(GS(ale->id->name)));
+    }
+    else {
+      icon = ICON_NONE;
+    }
   }
   else {
     /* NLA Control Curve, etc. */
@@ -218,7 +225,7 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
   col = uiLayoutColumn(layout, false);
   uiLayoutSetEnabled(col, (fcu->flag & FCURVE_DISABLED) != 0);
   uiItemR(col, &fcu_ptr, "data_path", UI_ITEM_NONE, "", ICON_RNA);
-  uiItemR(col, &fcu_ptr, "array_index", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, &fcu_ptr, "array_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   /* color settings */
   col = uiLayoutColumn(layout, true);
@@ -387,24 +394,24 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       uiItemL(split, IFACE_("None for Enum/Boolean"), ICON_IPO_CONSTANT);
     }
     else {
-      uiItemR(col, &bezt_ptr, "interpolation", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, &bezt_ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
 
     /* easing type */
     if (bezt->ipo > BEZT_IPO_BEZ) {
-      uiItemR(col, &bezt_ptr, "easing", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, &bezt_ptr, "easing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
 
     /* easing extra */
     switch (bezt->ipo) {
       case BEZT_IPO_BACK:
         col = uiLayoutColumn(layout, true);
-        uiItemR(col, &bezt_ptr, "back", UI_ITEM_NONE, nullptr, ICON_NONE);
+        uiItemR(col, &bezt_ptr, "back", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         break;
       case BEZT_IPO_ELASTIC:
         col = uiLayoutColumn(layout, true);
-        uiItemR(col, &bezt_ptr, "amplitude", UI_ITEM_NONE, nullptr, ICON_NONE);
-        uiItemR(col, &bezt_ptr, "period", UI_ITEM_NONE, nullptr, ICON_NONE);
+        uiItemR(col, &bezt_ptr, "amplitude", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        uiItemR(col, &bezt_ptr, "period", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         break;
       default:
         break;
@@ -461,7 +468,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       but = uiDefButR(block,
                       UI_BTYPE_MENU,
                       B_REDR,
-                      nullptr,
+                      std::nullopt,
                       0,
                       0,
                       but_max_width,
@@ -519,7 +526,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       but = uiDefButR(block,
                       UI_BTYPE_MENU,
                       B_REDR,
-                      nullptr,
+                      std::nullopt,
                       0,
                       0,
                       but_max_width,
@@ -619,15 +626,15 @@ static void do_graph_region_driver_buttons(bContext *C, void *id_v, int event)
       ID *id = static_cast<ID *>(id_v);
       AnimData *adt = BKE_animdata_from_id(id);
 
-      /* Rebuild depsgraph for the new dependencies, and ensure COW copies get flushed. */
+      /* Rebuild depsgraph for the new dependencies, and ensure evaluated copies get flushed. */
       DEG_relations_tag_update(bmain);
-      DEG_id_tag_update_ex(bmain, id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update_ex(bmain, id, ID_RECALC_SYNC_TO_EVAL);
       if (adt != nullptr) {
         if (adt->action != nullptr) {
-          DEG_id_tag_update_ex(bmain, &adt->action->id, ID_RECALC_COPY_ON_WRITE);
+          DEG_id_tag_update_ex(bmain, &adt->action->id, ID_RECALC_SYNC_TO_EVAL);
         }
         if (adt->tmpact != nullptr) {
-          DEG_id_tag_update_ex(bmain, &adt->tmpact->id, ID_RECALC_COPY_ON_WRITE);
+          DEG_id_tag_update_ex(bmain, &adt->tmpact->id, ID_RECALC_SYNC_TO_EVAL);
         }
       }
 
@@ -731,10 +738,10 @@ static void graph_panel_driverVar_fallback(uiLayout *layout,
   if (dtar->options & DTAR_OPTION_USE_FALLBACK) {
     uiLayout *row = uiLayoutRow(layout, true);
     uiItemR(row, dtar_ptr, "use_fallback_value", UI_ITEM_NONE, "", ICON_NONE);
-    uiItemR(row, dtar_ptr, "fallback_value", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(row, dtar_ptr, "fallback_value", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(layout, dtar_ptr, "use_fallback_value", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, dtar_ptr, "use_fallback_value", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -833,7 +840,7 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
   /* we can clear it again now - it's only needed when creating the ID/Bone fields */
   uiLayoutSetRedAlert(col, false);
 
-  uiItemR(col, &dtar_ptr, "transform_space", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, &dtar_ptr, "transform_space", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   /* Object 2 */
   col = uiLayoutColumn(layout, true);
@@ -849,7 +856,7 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
   /* we can clear it again now - it's only needed when creating the ID/Bone fields */
   uiLayoutSetRedAlert(col, false);
 
-  uiItemR(col, &dtar2_ptr, "transform_space", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, &dtar2_ptr, "transform_space", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 /* settings for 'transform channel' driver variable type */
@@ -874,7 +881,7 @@ static void graph_panel_driverVar__transChan(uiLayout *layout, ID *id, DriverVar
   }
 
   sub = uiLayoutColumn(layout, true);
-  uiItemR(sub, &dtar_ptr, "transform_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(sub, &dtar_ptr, "transform_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (ELEM(dtar->transChan,
            DTAR_TRANSCHAN_ROTX,
@@ -899,7 +906,7 @@ static void graph_panel_driverVar__contextProp(uiLayout *layout, ID *id, DriverV
   /* Target Property. */
   {
     uiLayout *row = uiLayoutRow(layout, false);
-    uiItemR(row, &dtar_ptr, "context_property", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(row, &dtar_ptr, "context_property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   /* Target Path */
@@ -964,7 +971,13 @@ static void graph_draw_driven_property_panel(uiLayout *layout, ID *id, FCurve *f
   int icon = 0;
 
   /* get user-friendly 'name' for F-Curve */
-  icon = getname_anim_fcurve(name, id, fcu);
+  const std::optional<int> optional_icon = getname_anim_fcurve(name, id, fcu);
+  if (optional_icon) {
+    icon = *optional_icon;
+  }
+  else {
+    icon = RNA_struct_ui_icon(ID_code_to_RNA_type(GS(id->name)));
+  }
 
   /* panel layout... */
   row = uiLayoutRow(layout, true);
@@ -1001,7 +1014,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
 
   col = uiLayoutColumn(layout, true);
   block = uiLayoutGetBlock(col);
-  uiItemR(col, &driver_ptr, "type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, &driver_ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   {
     char valBuf[32];
@@ -1029,23 +1042,22 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
 
     uiItemL(col, IFACE_("Expression:"), ICON_NONE);
     uiItemR(col, &driver_ptr, "expression", UI_ITEM_NONE, "", ICON_NONE);
-    uiItemR(col, &driver_ptr, "use_self", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, &driver_ptr, "use_self", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     /* errors? */
     col = uiLayoutColumn(layout, true);
     block = uiLayoutGetBlock(col);
 
-    if (driver->flag & DRIVER_FLAG_INVALID) {
+    if (driver->flag & DRIVER_FLAG_PYTHON_BLOCKED) {
+      /* TODO: Add button to enable? */
+      uiItemL(col, RPT_("Python restricted for security"), ICON_ERROR);
+      uiItemL(col, RPT_("Slow Python expression"), ICON_INFO);
+    }
+    else if (driver->flag & DRIVER_FLAG_INVALID) {
       uiItemL(col, RPT_("ERROR: Invalid Python expression"), ICON_CANCEL);
     }
     else if (!BKE_driver_has_simple_expression(driver)) {
-      if ((G.f & G_FLAG_SCRIPT_AUTOEXEC) == 0) {
-        /* TODO: Add button to enable? */
-        uiItemL(col, RPT_("Python restricted for security"), ICON_ERROR);
-      }
-      else {
-        uiItemL(col, RPT_("Slow Python expression"), ICON_INFO);
-      }
+      uiItemL(col, RPT_("Slow Python expression"), ICON_INFO);
     }
 
     /* Explicit bpy-references are evil. Warn about these to prevent errors */
@@ -1107,8 +1119,6 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
       nullptr,
       0.0,
       0.0,
-      0,
-      0,
       TIP_("Add a Driver Variable to keep track of an input used by the driver"));
   UI_but_func_set(but, driver_add_var_cb, driver, nullptr);
 
@@ -1178,8 +1188,6 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
                          nullptr,
                          0.0,
                          0.0,
-                         0.0,
-                         0.0,
                          TIP_("Invalid variable name, click here for details"));
       UI_but_func_set(but, driver_dvar_invalid_name_query_cb, dvar, nullptr); /* XXX: reports? */
     }
@@ -1194,8 +1202,6 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
                        UI_UNIT_X,
                        UI_UNIT_Y,
                        nullptr,
-                       0.0,
-                       0.0,
                        0.0,
                        0.0,
                        TIP_("Delete target variable"));
@@ -1252,6 +1258,8 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
       uiItemL(row, valBuf, ICON_NONE);
     }
   }
+  /* Quiet warning about old value being unused before re-assigned. */
+  UNUSED_VARS(block);
 
   uiItemS(layout);
   uiItemS(layout);
@@ -1273,8 +1281,6 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
       nullptr,
       0.0,
       0.0,
-      0,
-      0,
       TIP_("Force updates of dependencies - Only use this if drivers are not updating correctly"));
   UI_but_func_set(but, driver_update_flags_cb, fcu, nullptr);
 }
@@ -1329,7 +1335,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
 {
   uiLayout *layout = panel->layout;
 
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index = -1;
   uiBut *but = nullptr;

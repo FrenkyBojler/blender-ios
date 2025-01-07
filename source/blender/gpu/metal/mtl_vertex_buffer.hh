@@ -8,15 +8,14 @@
 
 #pragma once
 
+#include "GPU_vertex_buffer.hh"
+#include "MEM_guardedalloc.h"
+
+#include "mtl_context.hh"
+
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
-
-#include "MEM_guardedalloc.h"
-
-#include "GPU_vertex_buffer.h"
-#include "gpu_vertex_buffer_private.hh"
-#include "mtl_context.hh"
 
 namespace blender::gpu {
 
@@ -54,7 +53,7 @@ class MTLVertBuf : public VertBuf {
 
  public:
   MTLVertBuf();
-  ~MTLVertBuf();
+  ~MTLVertBuf() override;
 
   void bind();
   void flag_used();
