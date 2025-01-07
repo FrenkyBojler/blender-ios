@@ -473,7 +473,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
           Array<double2> verts(num_points);
           Array<Vector<int>> faces(shape.size());
-          Array<int> vert_to_point_map(num_points);
+          Array<int> og_vert_to_point_map(num_points);
 
           for (const int i : IndexRange(num_points)) {
             verts[i] = double2(projverts[i]);
@@ -485,7 +485,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             const IndexRange points = points_by_curve[curve_i];
             faces[i].resize(points.size());
             for (const int p_id : points.index_range()) {
-              vert_to_point_map[cur_p] = points[p_id];
+              og_vert_to_point_map[cur_p] = points[p_id];
               faces[i][p_id] = cur_p;
               cur_p++;
             }
@@ -494,55 +494,30 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           meshintersect::CDT_input<double> input;
           input.vert = verts;
           input.face = faces;
-          input.need_ids = false;
+          input.need_ids = true;
 
           meshintersect::CDT_result<double> result = delaunay_2d_calc(input,
                                                                       CDT_INSIDE_WITH_HOLES);
 
-          /* If the geometry can not meshed then use simple poly fill for all curves in the shape.
-           */
-          if (result.vert.size() != num_points) {
-            int offset_tris = 0;
-            shape.foreach_index([&](const int64_t curve_i) {
-              const IndexRange points = points_by_curve[curve_i];
-              offset_tris += std::max(int(points.size() - 2), 0);
-            });
-            triangle_results[pos].resize(offset_tris);
-
-            offset_tris = 0; /* Reuse. */
-
-            shape.foreach_index([&](const int64_t curve_i) {
-              const IndexRange points = points_by_curve[curve_i];
-              const int tri_num = std::max(int(points.size() - 2), 0);
-
-              MutableSpan<int3> r_tris = triangle_results[pos].as_mutable_span().slice(
-                  IndexRange(offset_tris, tri_num));
-              offset_tris += tri_num;
-
-              BLI_polyfill_calc_arena(projverts,
-                                      points.size(),
-                                      0,
-                                      reinterpret_cast<uint32_t(*)[3]>(r_tris.data()),
-                                      pf_arena);
-              for (const int i : r_tris.index_range()) {
-                r_tris[i] += points.first();
-              }
-              BLI_memarena_clear(pf_arena);
-            });
-            continue;
-          }
-
-          triangle_results[pos].resize(result.face.size());
-
-          MutableSpan<int3> r_tris = triangle_results[pos];
-          threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
-            for (const int i : range) {
-              BLI_assert(result.face[i].size() == 3);
-              r_tris[i] = int3(vert_to_point_map[result.face[i][0]],
-                               vert_to_point_map[result.face[i][1]],
-                               vert_to_point_map[result.face[i][2]]);
+          auto vert_to_point = [&](const int vert) {
+            /* If the points is a newly added intersection point return invalid. */
+            if (result.vert_orig[vert].is_empty()) {
+              return -1;
             }
-          });
+            /* Just get the first point if there are multiple at the same position. */
+            const int og_vert = result.vert_orig[vert].first();
+            return og_vert_to_point_map[og_vert];
+          };
+
+          for (const int i : result.face.index_range()) {
+            BLI_assert(result.face[i].size() == 3);
+            const int3 tri = int3(vert_to_point(result.face[i][0]),
+                                  vert_to_point(result.face[i][1]),
+                                  vert_to_point(result.face[i][2]));
+            if (tri.x != -1 && tri.y != -1 && tri.z != -1) {
+              triangle_results[pos].append(tri);
+            }
+          }
 
           BLI_memarena_clear(pf_arena);
         }
@@ -556,8 +531,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
   r_triangles.resize(r_triangle_offsets.last());
 
   for (const int pos : shape_mask.index_range()) {
-    IndexRange range = IndexRange::from_begin_end(r_triangle_offsets[pos],
-                                                  r_triangle_offsets[pos + 1]);
+    const IndexRange range = IndexRange::from_begin_end(r_triangle_offsets[pos],
+                                                        r_triangle_offsets[pos + 1]);
     MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(range);
     array_utils::copy(triangle_results[pos].as_span(), r_tris);
   }
