@@ -4974,7 +4974,6 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
     uiLayoutItemPanelHeader *header_litem = MEM_new<uiLayoutItemPanelHeader>(__func__);
     ui_litem_init_from_parent(header_litem, layout, false);
     header_litem->type = ITEM_LAYOUT_PANEL_HEADER;
-
     header_litem->open_prop_owner = *open_prop_owner;
     STRNCPY(header_litem->open_prop_name, open_prop_name);
 
@@ -5013,6 +5012,20 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
   PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
   uiItemL(panel.header, label, ICON_NONE);
 
+  return panel.body;
+}
+
+uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                          uiLayout *layout,
+                                          PointerRNA *open_prop_owner,
+                                          const char *open_prop_name,
+                                          const char *bool_prop_name,
+                                          const std::optional<const char *> label)
+{
+  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
+  uiLayout *panel_header = panel.header;
+  panel_header->flag &= ~(UI_ITEM_PROP_SEP | UI_ITEM_PROP_DECORATE | UI_ITEM_INSIDE_PROP_SEP);
+  uiItemR(panel_header, open_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
   return panel.body;
 }
 
