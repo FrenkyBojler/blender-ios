@@ -48,7 +48,35 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
 {
-  const EnumPropertyItem *items = asset::library_reference_to_rna_enum_itemf(false);
+  EnumPropertyItem *items;
+  int totitem = 0;
+  EnumPropertyItem tmp;
+
+  tmp = {
+      ASSET_LIBRARY_LOCAL, "LOCAL", 0, "Current File", "Save the pose asset to the current file"};
+  RNA_enum_item_add(&items, &totitem, &tmp);
+
+  int i;
+  LISTBASE_FOREACH_INDEX (bUserAssetLibrary *, user_library, &U.asset_libraries, i) {
+    /* Note that the path itself isn't checked for validity here. If an invalid library path is
+     * used, the Asset Browser can give a nice hint on what's wrong. */
+    const bool is_valid = (user_library->name[0] && user_library->dirpath[0]);
+    if (!is_valid) {
+      continue;
+    }
+
+    AssetLibraryReference library_reference;
+    library_reference.type = ASSET_LIBRARY_CUSTOM;
+    library_reference.custom_library_index = i;
+
+    const int enum_value = blender::ed::asset::library_reference_to_enum_value(&library_reference);
+    /* Use library path as description, it's a nice hint for users. */
+    tmp = {enum_value, user_library->name, ICON_NONE, user_library->name, user_library->dirpath};
+    RNA_enum_item_add(&items, &totitem, &tmp);
+  }
+
+  RNA_enum_item_end(&items, &totitem);
+
   if (!items) {
     *r_free = false;
     return nullptr;
@@ -148,32 +176,8 @@ static void ensure_asset_ui_visible(bContext &C)
   ED_region_visibility_change_update(&C, CTX_wm_area(&C), shelf_region);
 }
 
-static int pose_asset_create_exec(bContext *C, wmOperator *op)
+static blender::Vector<Object *> get_selected_pose_objects(bContext *C)
 {
-  char name[MAX_NAME] = "";
-  PropertyRNA *name_prop = RNA_struct_find_property(op->ptr, "name");
-  if (RNA_property_is_set(op->ptr, name_prop)) {
-    RNA_property_string_get(op->ptr, name_prop, name);
-  }
-  if (name[0] == '\0') {
-    BKE_report(op->reports, RPT_ERROR, "No name set");
-    return OPERATOR_CANCELLED;
-  }
-
-  const bUserAssetLibrary *user_library = blender::ed::asset::get_asset_library_from_prop(
-      *op->ptr);
-  if (!user_library) {
-    return OPERATOR_CANCELLED;
-  }
-
-  Main *bmain = CTX_data_main(C);
-  asset_system::AssetLibrary *library = AS_asset_library_load(
-      bmain, blender::ed::asset::user_library_to_library_ref(*user_library));
-  if (!library) {
-    BKE_report(op->reports, RPT_ERROR, "Failed to load asset library");
-    return OPERATOR_CANCELLED;
-  }
-
   blender::Vector<PointerRNA> selected_objects;
   CTX_data_selected_objects(C, &selected_objects);
 
@@ -185,12 +189,80 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
     }
     selected_pose_objects.append(object);
   }
+
   Object *active_object = CTX_data_active_object(C);
   /* The active object may not be selected, it should be added because you can still switch to pose
    * mode. */
   if (active_object && active_object->pose && !selected_pose_objects.contains(active_object)) {
     selected_pose_objects.append(active_object);
   }
+  return selected_pose_objects;
+}
+
+static int create_pose_asset_local(bContext *C,
+                                   wmOperator *op,
+                                   const char name[MAX_NAME],
+                                   const AssetLibraryReference lib_ref)
+{
+  blender::Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
+
+  if (selected_pose_objects.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Main *bmain = CTX_data_main(C);
+  /* Extract the pose into a new action. */
+  blender::animrig::Action &pose_action = extract_pose(*bmain, selected_pose_objects);
+  asset::mark_id(&pose_action.id);
+  asset::generate_preview(C, &pose_action.id);
+  BKE_id_rename(*bmain, pose_action.id, name);
+
+  /* Add asset to catalog. */
+  char catalog_path[MAX_NAME];
+  RNA_string_get(op->ptr, "catalog_path", catalog_path);
+
+  AssetMetaData &meta_data = *pose_action.id.asset_data;
+  asset_system::AssetLibrary *library = AS_asset_library_load(bmain, lib_ref);
+  /* I (christoph) don't know if a local library can fail to load. Just being defensive here */
+  BLI_assert(library);
+  if (catalog_path[0] && library) {
+    const asset_system::AssetCatalog &catalog =
+        blender::ed::asset::library_ensure_catalogs_in_path(*library, catalog_path);
+    BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
+  }
+
+  ensure_asset_ui_visible(*C);
+  blender::ed::asset::show_catalog_in_asset_shelf(*C, catalog_path);
+
+  blender::ed::asset::refresh_asset_library(C, lib_ref);
+
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static int create_pose_asset_user_library(bContext *C,
+                                          wmOperator *op,
+                                          const char name[MAX_NAME],
+                                          const AssetLibraryReference lib_ref)
+{
+  BLI_assert(lib_ref.type == ASSET_LIBRARY_CUSTOM);
+  Main *bmain = CTX_data_main(C);
+
+  const bUserAssetLibrary *user_library = BKE_preferences_asset_library_find_index(
+      &U, lib_ref.custom_library_index);
+  if (!user_library) {
+    return OPERATOR_CANCELLED;
+  }
+
+  asset_system::AssetLibrary *library = AS_asset_library_load(
+      bmain, blender::ed::asset::user_library_to_library_ref(*user_library));
+  if (!library) {
+    BKE_report(op->reports, RPT_ERROR, "Failed to load asset library");
+    return OPERATOR_CANCELLED;
+  }
+
+  blender::Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
 
   if (selected_pose_objects.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -222,13 +294,42 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
 
   BKE_id_free(bmain, &pose_action.id);
 
-  // TODO uncomment this once it no longer triggers an assert.
-#ifdef NDEBUG
   blender::ed::asset::refresh_asset_library(
       C, blender::ed::asset::user_library_to_library_ref(*user_library));
-#endif
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+static int pose_asset_create_exec(bContext *C, wmOperator *op)
+{
+  char name[MAX_NAME] = "";
+  PropertyRNA *name_prop = RNA_struct_find_property(op->ptr, "name");
+  if (RNA_property_is_set(op->ptr, name_prop)) {
+    RNA_property_string_get(op->ptr, name_prop, name);
+  }
+  if (name[0] == '\0') {
+    BKE_report(op->reports, RPT_ERROR, "No name set");
+    return OPERATOR_CANCELLED;
+  }
+
+  const int enum_value = RNA_enum_get(op->ptr, "asset_library_reference");
+  const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
+
+  switch (lib_ref.type) {
+    case ASSET_LIBRARY_LOCAL:
+      return create_pose_asset_local(C, op, name, lib_ref);
+
+    case ASSET_LIBRARY_CUSTOM:
+      return create_pose_asset_user_library(C, op, name, lib_ref);
+
+    default:
+      /* Only local and custom libraries should be exposed in the enum. */
+      BLI_assert_unreachable();
+      break;
+  }
+
+  BKE_report(op->reports, RPT_ERROR, "Unexpected library type. Failed to create pose asset");
 
   return OPERATOR_FINISHED;
 }
