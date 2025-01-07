@@ -3781,7 +3781,7 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
 
   if (wm->paintcursors.first) {
     const bScreen *screen = CTX_wm_screen(C);
-    ARegion *region = screen->active_region;
+    ARegion *region = screen ? screen->active_region : nullptr;
 
     if (region) {
       ARegion *prev_region = CTX_wm_region(C);
@@ -3793,8 +3793,8 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
 
     /* If previous position was not in current region, we have to set a temp new context. */
     if (region == nullptr || !BLI_rcti_isect_pt_v(&region->winrct, event->prev_xy)) {
-      ARegion *prev_region = CTX_wm_region(C);
       ScrArea *prev_area = CTX_wm_area(C);
+      ARegion *prev_region = CTX_wm_region(C);
 
       CTX_wm_area_set(C, area_event_inside(C, event->prev_xy));
       CTX_wm_region_set(C, region_event_inside(C, event->prev_xy));
