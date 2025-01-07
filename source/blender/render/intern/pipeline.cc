@@ -66,6 +66,7 @@
 
 #include "NOD_composite.hh"
 
+#include "COM_compositor.hh"
 #include "COM_render_context.hh"
 
 #include "DEG_depsgraph.hh"
@@ -1372,13 +1373,13 @@ static void do_render_compositor(Render *re)
 
         blender::compositor::RenderContext compositor_render_context;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
-          ntreeCompositExecTree(re,
-                                re->pipeline_scene_eval,
-                                ntree,
-                                &re->r,
-                                rv->name,
-                                &compositor_render_context,
-                                nullptr);
+          COM_execute(re,
+                      &re->r,
+                      re->pipeline_scene_eval,
+                      ntree,
+                      rv->name,
+                      &compositor_render_context,
+                      nullptr);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
 
@@ -1445,8 +1446,8 @@ bool RE_seq_render_active(Scene *scene, RenderData *rd)
     return false;
   }
 
-  LISTBASE_FOREACH (Sequence *, seq, &ed->seqbase) {
-    if (seq->type != SEQ_TYPE_SOUND_RAM && !SEQ_render_is_muted(&ed->channels, seq)) {
+  LISTBASE_FOREACH (Strip *, seq, &ed->seqbase) {
+    if (seq->type != STRIP_TYPE_SOUND_RAM && !SEQ_render_is_muted(&ed->channels, seq)) {
       return true;
     }
   }
@@ -1704,8 +1705,8 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
 
   if (RE_seq_render_active(scene, &scene->r)) {
     if (scene->ed) {
-      LISTBASE_FOREACH (Sequence *, seq, &scene->ed->seqbase) {
-        if ((seq->type == SEQ_TYPE_SCENE) && ((seq->flag & SEQ_SCENE_STRIPS) == 0) &&
+      LISTBASE_FOREACH (Strip *, seq, &scene->ed->seqbase) {
+        if ((seq->type == STRIP_TYPE_SCENE) && ((seq->flag & SEQ_SCENE_STRIPS) == 0) &&
             (seq->scene != nullptr))
         {
           if (!seq->scene_camera) {
