@@ -43,46 +43,6 @@
 
 namespace blender::ed::animrig {
 
-static asset_system::AssetCatalog &asset_library_ensure_catalog(
-    asset_system::AssetLibrary &library, const asset_system::AssetCatalogPath &path)
-{
-  if (asset_system::AssetCatalog *catalog = library.catalog_service().find_catalog_by_path(path)) {
-    return *catalog;
-  }
-  return *library.catalog_service().create_catalog(path);
-}
-
-static asset_system::AssetCatalog &asset_library_ensure_catalogs_in_path(
-    asset_system::AssetLibrary &library, const asset_system::AssetCatalogPath &path)
-{
-  /* Adding multiple catalogs in a path at a time with #AssetCatalogService::create_catalog()
-   * doesn't work; add each potentially new catalog in the hierarchy manually here. */
-  asset_system::AssetCatalogPath parent = "";
-  path.iterate_components([&](StringRef component_name, bool /*is_last_component*/) {
-    asset_library_ensure_catalog(library, parent / component_name);
-    parent = parent / component_name;
-  });
-  return *library.catalog_service().find_catalog_by_path(path);
-}
-
-static AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library)
-{
-  AssetLibraryReference library_ref{};
-  library_ref.custom_library_index = BLI_findindex(&U.asset_libraries, &user_library);
-  library_ref.type = ASSET_LIBRARY_CUSTOM;
-  return library_ref;
-}
-
-static const bUserAssetLibrary *library_ref_to_user_library(
-    const AssetLibraryReference &library_ref)
-{
-  if (library_ref.type != ASSET_LIBRARY_CUSTOM) {
-    return nullptr;
-  }
-  return static_cast<const bUserAssetLibrary *>(
-      BLI_findlink(&U.asset_libraries, library_ref.custom_library_index));
-}
-
 static void visit_library_catalogs_catalog_for_search(
     const Main &bmain,
     const bUserAssetLibrary &user_library,
@@ -90,7 +50,7 @@ static void visit_library_catalogs_catalog_for_search(
     const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   const asset_system::AssetLibrary *library = AS_asset_library_load(
-      &bmain, user_library_to_library_ref(user_library));
+      &bmain, blender::ed::asset::user_library_to_library_ref(user_library));
   if (!library) {
     return;
   }
@@ -278,7 +238,7 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
 
   Main *bmain = CTX_data_main(C);
   asset_system::AssetLibrary *library = AS_asset_library_load(
-      bmain, user_library_to_library_ref(*user_library));
+      bmain, blender::ed::asset::user_library_to_library_ref(*user_library));
   if (!library) {
     BKE_report(op->reports, RPT_ERROR, "Failed to load asset library");
     return OPERATOR_CANCELLED;
@@ -317,8 +277,8 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
 
   AssetMetaData &meta_data = *pose_action.id.asset_data;
   if (catalog_path[0]) {
-    const asset_system::AssetCatalog &catalog = asset_library_ensure_catalogs_in_path(
-        *library, catalog_path);
+    const asset_system::AssetCatalog &catalog =
+        blender::ed::asset::library_ensure_catalogs_in_path(*library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
@@ -334,7 +294,7 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
 
   // TODO uncomment this once it no longer triggers an assert.
 #ifdef NDEBUG
-  refresh_asset_library(C, user_library_to_library_ref(*user_library));
+  refresh_asset_library(C, blender::ed::asset::user_library_to_library_ref(*user_library));
 #endif
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
@@ -346,7 +306,7 @@ static int pose_asset_create_invoke(bContext *C, wmOperator *op, const wmEvent *
 {
   /* If the library isn't saved from the operator's last execution, use the first library. */
   if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
-    const AssetLibraryReference first_library = user_library_to_library_ref(
+    const AssetLibraryReference first_library = blender::ed::asset::user_library_to_library_ref(
         *static_cast<const bUserAssetLibrary *>(U.asset_libraries.first));
     RNA_enum_set(op->ptr,
                  "asset_library_reference",
@@ -551,7 +511,7 @@ static void update_things(bContext *C)
   AssetWeakReference asset_reference = asset_handle->make_weak_reference();
   bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
       &U, asset_reference.asset_library_identifier);
-  refresh_asset_library(C, user_library_to_library_ref(*library));
+  refresh_asset_library(C, blender::ed::asset::user_library_to_library_ref(*library));
 #endif
 }
 

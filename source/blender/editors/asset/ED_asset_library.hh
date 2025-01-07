@@ -10,6 +10,15 @@
 
 #include "DNA_asset_types.h"
 
+struct bUserAssetLibrary;
+struct AssetLibraryReference;
+struct EnumPropertyItem;
+
+namespace blender::asset_system {
+class AssetCatalog;
+class AssetCatalogPath;
+}  // namespace blender::asset_system
+
 namespace blender::ed::asset {
 
 /**
@@ -35,5 +44,22 @@ AssetLibraryReference library_reference_from_enum_value(int value);
  *                           thus have a well defined location that can be written to.
  */
 const EnumPropertyItem *library_reference_to_rna_enum_itemf(bool include_generated);
+
+/**
+ *
+ */
+blender::asset_system::AssetCatalog &library_ensure_catalogs_in_path(
+    blender::asset_system::AssetLibrary &library,
+    const blender::asset_system::AssetCatalogPath &path);
+
+/**
+ *
+ */
+AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library);
+
+/**
+ *
+ */
+const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference &library_ref);
 
 }  // namespace blender::ed::asset

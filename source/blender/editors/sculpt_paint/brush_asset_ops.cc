@@ -165,38 +165,6 @@ static const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr)
   return BKE_preferences_asset_library_find_index(&U, lib_ref.custom_library_index);
 }
 
-static asset_system::AssetCatalog &asset_library_ensure_catalog(
-    asset_system::AssetLibrary &library, const asset_system::AssetCatalogPath &path)
-{
-  if (asset_system::AssetCatalog *catalog = library.catalog_service().find_catalog_by_path(path)) {
-    return *catalog;
-  }
-  return *library.catalog_service().create_catalog(path);
-}
-
-/* Suppress warning for GCC-14.2. This isn't a dangling reference
- * because the #asset_system::AssetLibrary owns the returned value. */
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdangling-reference"
-#endif
-
-static asset_system::AssetCatalog &asset_library_ensure_catalogs_in_path(
-    asset_system::AssetLibrary &library, const asset_system::AssetCatalogPath &path)
-{
-  /* Adding multiple catalogs in a path at a time with #AssetCatalogService::create_catalog()
-   * doesn't work; add each potentially new catalog in the hierarchy manually here. */
-  asset_system::AssetCatalogPath parent = "";
-  path.iterate_components([&](StringRef component_name, bool /*is_last_component*/) {
-    asset_library_ensure_catalog(library, parent / component_name);
-    parent = parent / component_name;
-  });
-  return *library.catalog_service().find_catalog_by_path(path);
-}
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic pop
-#endif
-
 static void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path)
 {
   /* Enable catalog in all visible asset shelves. */
@@ -255,8 +223,8 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
 
   AssetMetaData &meta_data = *brush->id.asset_data;
   if (catalog_path[0]) {
-    const asset_system::AssetCatalog &catalog = asset_library_ensure_catalogs_in_path(
-        *library, catalog_path);
+    const asset_system::AssetCatalog &catalog =
+        blender::ed::asset::library_ensure_catalogs_in_path(*library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
@@ -445,8 +413,8 @@ static int brush_asset_edit_metadata_exec(bContext *C, wmOperator *op)
   meta_data.description = RNA_string_get_alloc(op->ptr, "description", nullptr, 0, nullptr);
 
   if (catalog_path[0]) {
-    const asset_system::AssetCatalog &catalog = asset_library_ensure_catalogs_in_path(
-        *library, catalog_path);
+    const asset_system::AssetCatalog &catalog =
+        blender::ed::asset::library_ensure_catalogs_in_path(*library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
