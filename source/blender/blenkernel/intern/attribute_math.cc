@@ -256,6 +256,47 @@ void float4x4Mixer::finalize(const IndexMask &mask)
   });
 }
 
+MStringPropertyMixer::MStringPropertyMixer(MutableSpan<MStringProperty> buffer)
+    : MStringPropertyMixer(buffer, buffer.index_range())
+{
+}
+
+MStringPropertyMixer::MStringPropertyMixer(MutableSpan<MStringProperty> buffer,
+                                           const IndexMask & /*mask*/)
+    : buffer_(buffer), total_weights_(buffer.size(), 0.0f)
+{
+}
+
+void MStringPropertyMixer::MStringPropertyMixer::set(int64_t index,
+                                                     const MStringProperty &value,
+                                                     const float weight)
+{
+  buffer_[index] = value;
+  total_weights_[index] = weight;
+}
+
+void MStringPropertyMixer::mix_in(int64_t index, const MStringProperty &value, float weight)
+{
+  if (weight > total_weights_[index]) {
+    buffer_[index] = value;
+    total_weights_[index] = weight;
+  }
+}
+
+void MStringPropertyMixer::finalize()
+{
+  this->finalize(buffer_.index_range());
+}
+
+void MStringPropertyMixer::finalize(const IndexMask &mask)
+{
+  mask.foreach_index([&](const int64_t i) {
+    if (total_weights_[i] == 0.0f) {
+      buffer_[i] = MStringProperty{};
+    }
+  });
+}
+
 void gather(const GSpan src, const Span<int> map, GMutableSpan dst)
 {
   attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {

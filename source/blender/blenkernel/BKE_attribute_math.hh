@@ -18,6 +18,8 @@
 
 #include "BKE_attribute.hh"
 
+#include "DNA_meshdata_types.h"
+
 namespace blender::bke::attribute_math {
 
 /**
@@ -37,7 +39,8 @@ inline void convert_to_static_type(const CPPType &cpp_type, const Func &func)
                               ColorGeometry4f,
                               ColorGeometry4b,
                               math::Quaternion,
-                              float4x4>([&](auto type_tag) {
+                              float4x4,
+                              MStringProperty>([&](auto type_tag) {
     using T = typename decltype(type_tag)::type;
     if constexpr (std::is_same_v<T, void>) {
       /* It's expected that the given cpp type is one of the supported ones. */
@@ -114,6 +117,12 @@ template<>
 inline ColorGeometry4b mix2(const float factor, const ColorGeometry4b &a, const ColorGeometry4b &b)
 {
   return math::interpolate(a, b, factor);
+}
+
+template<>
+inline MStringProperty mix2(const float factor, const MStringProperty &a, const MStringProperty &b)
+{
+  return (factor < 0.5f) ? a : b;
 }
 
 /** \} */
@@ -194,6 +203,18 @@ inline ColorGeometry4b mix3(const float3 &weights,
   const float4 mixed = v0_f * weights[0] + v1_f * weights[1] + v2_f * weights[2];
   return ColorGeometry4b{
       uint8_t(mixed[0]), uint8_t(mixed[1]), uint8_t(mixed[2]), uint8_t(mixed[3])};
+}
+
+template<>
+inline MStringProperty mix3(const float3 &weights,
+                            const MStringProperty &v0,
+                            const MStringProperty &v1,
+                            const MStringProperty &v2)
+{
+  if (weights.x >= weights.y && weights.x >= weights.z) {
+    return v0;
+  }
+  return (weights.y >= weights.z) ? v1 : v2;
 }
 
 /** \} */
@@ -290,6 +311,22 @@ inline ColorGeometry4b mix4(const float4 &weights,
   interp_v4_v4v4v4v4(mixed, v0_f, v1_f, v2_f, v3_f, weights);
   return ColorGeometry4b{
       uint8_t(mixed[0]), uint8_t(mixed[1]), uint8_t(mixed[2]), uint8_t(mixed[3])};
+}
+
+template<>
+inline MStringProperty mix4(const float4 &weights,
+                            const MStringProperty &v0,
+                            const MStringProperty &v1,
+                            const MStringProperty &v2,
+                            const MStringProperty &v3)
+{
+  if (weights.x >= weights.y && weights.x >= weights.z && weights.x > weights.w) {
+    return v0;
+  }
+  if (weights.y >= weights.z && weights.y >= weights.w) {
+    return v1;
+  }
+  return (weights.z >= weights.w) ? v2 : v3;
 }
 
 /** \} */
@@ -558,6 +595,23 @@ class float4x4Mixer {
   void finalize(const IndexMask &mask);
 };
 
+class MStringPropertyMixer {
+ private:
+  MutableSpan<MStringProperty> buffer_;
+  Array<float> total_weights_;
+
+ public:
+  MStringPropertyMixer(MutableSpan<MStringProperty> buffer);
+  /**
+   * \param mask: Only initialize these indices. Other indices in the buffer will be invalid.
+   */
+  MStringPropertyMixer(MutableSpan<MStringProperty> buffer, const IndexMask &mask);
+  void set(int64_t index, const MStringProperty &value, float weight = 1.0f);
+  void mix_in(int64_t index, const MStringProperty &value, float weight = 1.0f);
+  void finalize();
+  void finalize(const IndexMask &mask);
+};
+
 template<typename T> struct DefaultMixerStruct {
   /* Use void by default. This can be checked for in `if constexpr` statements. */
   using type = void;
@@ -581,6 +635,9 @@ template<> struct DefaultMixerStruct<ColorGeometry4b> {
 };
 template<> struct DefaultMixerStruct<float4x4> {
   using type = float4x4Mixer;
+};
+template<> struct DefaultMixerStruct<MStringProperty> {
+  using type = MStringPropertyMixer;
 };
 template<> struct DefaultMixerStruct<int> {
   static double int_to_double(const int &value)
@@ -703,3 +760,20 @@ void gather_to_groups(OffsetIndices<int> dst_offsets,
 /** \} */
 
 }  // namespace blender::bke::attribute_math
+
+namespace blender::math {
+
+template<>
+inline MStringProperty interpolate(const MStringProperty &a,
+                                   const MStringProperty &b,
+                                   const float &t)
+{
+  return (t < 0.5f) ? a : b;
+}
+
+}  // namespace blender::math
+
+inline bool operator==(const MStringProperty &a, const MStringProperty &b)
+{
+  return a.s_len == b.s_len && memcmp(a.s, b.s, sizeof(*a.s) * a.s_len) == 0;
+}

@@ -264,6 +264,10 @@ static bool values_different(const T value1,
     return compare_threshold_relative(
         value1.base_ptr()[component_i], value2.base_ptr()[component_i], threshold);
   }
+  if constexpr (std::is_same_v<T, MStringProperty>) {
+    return value1.s_len == value2.s_len &&
+           memcmp(value1.s, value2.s, sizeof(*value1.s) * value1.s_len) == 0;
+  }
   BLI_assert_unreachable();
 }
 
