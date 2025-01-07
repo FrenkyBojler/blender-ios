@@ -669,9 +669,15 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
   MEM_SAFE_FREE(ob->matbits);
   MEM_SAFE_FREE(mesh->mat);
 
+  /* If the object had no slots, don't add an empty one. */
+  if (ob->totcol == 0 && matar.size() == 1 && matar[0] == nullptr) {
+    matar.clear();
+  }
+
   const int totcol = matar.size();
   if (totcol) {
-    mesh->mat = matar.release().data;
+    mesh->mat = static_cast<Material **>(MEM_callocN(sizeof(*mesh->mat) * totcol, __func__));
+    std::copy_n(matar.data(), totcol, mesh->mat);
     ob->mat = static_cast<Material **>(MEM_callocN(sizeof(*ob->mat) * totcol, __func__));
     ob->matbits = static_cast<char *>(MEM_callocN(sizeof(*ob->matbits) * totcol, __func__));
   }
