@@ -60,10 +60,6 @@ class DrawingRuntime {
    * Triangle cache for all the strokes in the drawing.
    */
   mutable SharedCache<Vector<int3>> triangles_cache;
-  /**
-   * Shape cache for the drawing.
-   */
-  mutable SharedCache<Vector<int>> shapes_cache;
 
   /**
    * Normal vector cache for every stroke. Computed using Newell's method.
@@ -102,9 +98,9 @@ class Drawing : public ::GreasePencilDrawing {
   OffsetIndices<int> triangle_offsets() const;
 
   /**
-   * The index of the first curve in every shape.
+   * The all curve in each shape.
    */
-  OffsetIndices<int> shapes() const;
+  Vector<IndexMask, 4> shapes(IndexMaskMemory &memory) const;
 
   /**
    * The triangles for fill geometry. Grouped by each shape.

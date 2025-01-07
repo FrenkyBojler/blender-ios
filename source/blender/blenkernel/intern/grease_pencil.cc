@@ -331,7 +331,6 @@ Drawing::Drawing(const Drawing &other)
 
   this->runtime->triangle_offsets_cache = other.runtime->triangle_offsets_cache;
   this->runtime->triangles_cache = other.runtime->triangles_cache;
-  this->runtime->shapes_cache = other.runtime->shapes_cache;
   this->runtime->curve_plane_normals_cache = other.runtime->curve_plane_normals_cache;
   this->runtime->curve_texture_matrices = other.runtime->curve_texture_matrices;
 }
@@ -376,44 +375,34 @@ Drawing::~Drawing()
   this->runtime = nullptr;
 }
 
-OffsetIndices<int> Drawing::shapes() const
+Vector<IndexMask, 4> Drawing::shapes(IndexMaskMemory &memory) const
 {
-  this->runtime->shapes_cache.ensure([&](Vector<int> &r_offsets) {
-    const CurvesGeometry &curves = this->strokes();
-    const bke::AttributeAccessor attributes = curves.attributes();
+  const CurvesGeometry &curves = this->strokes();
+  const bke::AttributeAccessor attributes = curves.attributes();
 
-    const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
+  const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
 
-    if (!shape_ids) {
-      /* If the attribute does not exist then the default is each shape containing one curve. */
-      r_offsets.resize(curves.curves_num() + 1);
-      array_utils::fill_index_range(r_offsets.as_mutable_span());
-
-      return;
+  if (!shape_ids) {
+    /* If the attribute does not exist then the default is each shape containing one curve. */
+    Vector<IndexMask> shapes;
+    for (const int i : curves.curves_range()) {
+      shapes.append(IndexRange::from_single(i));
     }
 
-    r_offsets.clear();
-    /* Just set to something that is not the first element. */
-    int last = shape_ids[0] - 1;
+    return shapes;
+  }
 
-    /* Group all consecutive elements into shapes. */
-    for (const int curve_i : curves.curves_range()) {
-      if (shape_ids[curve_i] != last) {
-        r_offsets.append(curve_i);
-        last = shape_ids[curve_i];
-      }
-    }
+  VectorSet<int> shape_indexing;
+  const Vector<IndexMask> shapes = IndexMask::from_group_ids(shape_ids, memory, shape_indexing);
 
-    r_offsets.append(curves.curves_num());
-  });
-  return this->runtime->shapes_cache.data().as_span();
+  return shapes;
 }
 
 static void update_triangle_and_offsets_cache(const Span<float3> positions,
                                               const Span<float3> normals,
                                               const OffsetIndices<int> points_by_curve,
                                               const IndexMask &shape_mask,
-                                              const OffsetIndices<int> shapes,
+                                              const Span<IndexMask> &shapes,
                                               Vector<int3> &r_triangles,
                                               MutableSpan<int> r_triangle_offsets)
 {
@@ -437,13 +426,17 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
         for (const int index : mask_segment.index_range()) {
           const int shape_index = mask_segment[index];
           const int pos = segment_pos + index;
-          const IndexRange shape = shapes[shape_index];
+          const IndexMask &shape = shapes[shape_index];
 
           float3x3 axis_mat;
           axis_dominant_v3_to_m3(axis_mat.ptr(), normals[shape.first()]);
 
-          const IndexRange all_points = points_by_curve[shape];
-          const int num_points = all_points.size();
+          int num_points = 0;
+          shape.foreach_index([&](const int64_t curve_i) {
+            const IndexRange points = points_by_curve[curve_i];
+            num_points += points.size();
+          });
+
           if (num_points < 3) {
             continue;
           }
@@ -451,22 +444,28 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           float(*projverts)[2] = static_cast<float(*)[2]>(
               BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
 
-          for (const int i : all_points.index_range()) {
-            mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[all_points[i]]);
-          }
+          int cur_p = 0;
+
+          shape.foreach_index([&](const int64_t curve_i) {
+            const IndexRange points = points_by_curve[curve_i];
+            for (const int p : points) {
+              mul_v2_m3v3(projverts[cur_p], axis_mat.ptr(), positions[p]);
+              cur_p++;
+            }
+          });
 
           /* If there is only one stroke then simple poly fill will be used. */
           if (shape.size() == 1) {
-            triangle_results[pos].resize(std::max(int(all_points.size() - 2), 0));
+            triangle_results[pos].resize(num_points - 2);
             MutableSpan<int3> r_tris = triangle_results[pos];
 
             BLI_polyfill_calc_arena(projverts,
-                                    all_points.size(),
+                                    num_points,
                                     0,
                                     reinterpret_cast<uint32_t(*)[3]>(r_tris.data()),
                                     pf_arena);
             for (const int i : r_tris.index_range()) {
-              r_tris[i] += all_points.first();
+              r_tris[i] += points_by_curve[shape.first()].first();
             }
             BLI_memarena_clear(pf_arena);
             continue;
@@ -474,20 +473,23 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
           Array<double2> verts(num_points);
           Array<Vector<int>> faces(shape.size());
+          Array<int> vert_to_point_map(num_points);
 
-          for (const int i : all_points.index_range()) {
+          for (const int i : IndexRange(num_points)) {
             verts[i] = double2(projverts[i]);
           }
 
-          int cur_p = 0;
-          for (const int i : shape.index_range()) {
-            const IndexRange points = points_by_curve[shape[i]];
+          cur_p = 0; /* Reuse. */
+
+          shape.foreach_index([&](const int64_t curve_i, const int64_t i) {
+            const IndexRange points = points_by_curve[curve_i];
             faces[i].resize(points.size());
             for (const int p_id : points.index_range()) {
+              vert_to_point_map[cur_p] = points[p_id];
               faces[i][p_id] = cur_p;
               cur_p++;
             }
-          }
+          });
 
           meshintersect::CDT_input<double> input;
           input.vert = verts;
@@ -501,16 +503,16 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
            */
           if (result.vert.size() != num_points) {
             int offset_tris = 0;
-            for (const int i : shape.index_range()) {
-              const IndexRange points = points_by_curve[shape[i]];
+            shape.foreach_index([&](const int64_t curve_i) {
+              const IndexRange points = points_by_curve[curve_i];
               offset_tris += std::max(int(points.size() - 2), 0);
-            }
+            });
             triangle_results[pos].resize(offset_tris);
 
             offset_tris = 0; /* Reuse. */
 
-            for (const int i : shape.index_range()) {
-              const IndexRange points = points_by_curve[shape[i]];
+            shape.foreach_index([&](const int64_t curve_i) {
+              const IndexRange points = points_by_curve[curve_i];
               const int tri_num = std::max(int(points.size() - 2), 0);
 
               MutableSpan<int3> r_tris = triangle_results[pos].as_mutable_span().slice(
@@ -526,20 +528,19 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                 r_tris[i] += points.first();
               }
               BLI_memarena_clear(pf_arena);
-            }
+            });
             continue;
           }
 
           triangle_results[pos].resize(result.face.size());
 
           MutableSpan<int3> r_tris = triangle_results[pos];
-
-          const int first_point = points_by_curve[shape.first()].first();
           threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
             for (const int i : range) {
               BLI_assert(result.face[i].size() == 3);
-              r_tris[i] = int3(result.face[i][0], result.face[i][1], result.face[i][2]) +
-                          first_point;
+              r_tris[i] = int3(vert_to_point_map[result.face[i][0]],
+                               vert_to_point_map[result.face[i][1]],
+                               vert_to_point_map[result.face[i][2]]);
             }
           });
 
@@ -570,15 +571,18 @@ static void ensure_triangle_and_offset_cache(const Drawing &drawing)
     return;
   }
 
+  IndexMaskMemory memory;
+  const Vector<IndexMask> shapes = drawing.shapes(memory);
+
   Vector<int3> r_triangle;
-  Vector<int> r_triangle_offsets(drawing.shapes().size() + 1);
+  Vector<int> r_triangle_offsets(shapes.size() + 1);
 
   const CurvesGeometry &curves = drawing.strokes();
   update_triangle_and_offsets_cache(curves.evaluated_positions(),
                                     drawing.curve_plane_normals(),
                                     curves.evaluated_points_by_curve(),
-                                    drawing.shapes().index_range(),
-                                    drawing.shapes(),
+                                    shapes.index_range(),
+                                    shapes,
                                     r_triangle,
                                     r_triangle_offsets.as_mutable_span());
 
@@ -931,13 +935,13 @@ void Drawing::tag_positions_changed()
 }
 
 static IndexMask curves_to_shapes_mask(const IndexMask &changed_curves,
-                                       const OffsetIndices<int> shapes,
+                                       const Span<IndexMask> shapes,
                                        IndexMaskMemory &memory)
 {
   return IndexMask::from_predicate(
       shapes.index_range(), GrainSize(4096), memory, [&](const int64_t shape_index) {
-        const IndexRange shape = shapes[shape_index];
-        return !changed_curves.slice_content(shape).is_empty();
+        const IndexMask &shape = shapes[shape_index];
+        return !IndexMask::from_intersection(changed_curves, shape, memory).is_empty();
       });
 }
 
@@ -945,7 +949,7 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                                 const Span<float3> normals,
                                                 const OffsetIndices<int> points_by_curve,
                                                 const IndexMask &changed_curves,
-                                                const OffsetIndices<int> shapes,
+                                                const Span<IndexMask> shapes,
                                                 const Span<int3> src_triangles,
                                                 const OffsetIndices<int> src_triangle_offsets,
                                                 Vector<int3> &r_triangles,
@@ -1032,14 +1036,17 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
         curves.positions(), curves.points_by_curve(), changed_curves, normals);
   });
 
-  Vector<int> triangle_offsets_data(this->shapes().size() + 1);
+  IndexMaskMemory memory;
+  const Vector<IndexMask> shapes = this->shapes(memory);
+
+  Vector<int> triangle_offsets_data(shapes.size() + 1);
   Vector<int3> triangles_data;
 
   update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                       this->curve_plane_normals(),
                                       this->strokes().evaluated_points_by_curve(),
                                       changed_curves,
-                                      this->shapes(),
+                                      shapes,
                                       this->triangles(),
                                       this->triangle_offsets().data(),
                                       triangles_data,
@@ -1055,7 +1062,6 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
 
 void Drawing::tag_topology_changed()
 {
-  this->runtime->shapes_cache.tag_dirty();
   this->tag_positions_changed();
   this->strokes_for_write().tag_topology_changed();
 }
@@ -1089,18 +1095,20 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
     update_curve_plane_normal_cache(
         curves.positions(), curves.points_by_curve(), changed_curves, normals);
   });
-  this->runtime->shapes_cache.tag_dirty();
+
+  IndexMaskMemory memory;
+  const Vector<IndexMask> shapes = this->shapes(memory);
 
   /* Make sure the number of shapes has not changed. */
-  if (this->shapes().size() == this->triangle_offsets().size()) {
-    Vector<int> triangle_offsets(this->shapes().size() + 1);
+  if (shapes.size() == this->triangle_offsets().size()) {
+    Vector<int> triangle_offsets(shapes.size() + 1);
     Vector<int3> triangles;
 
     update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                         this->curve_plane_normals(),
                                         this->strokes().evaluated_points_by_curve(),
                                         changed_curves,
-                                        this->shapes(),
+                                        shapes,
                                         this->triangles(),
                                         this->triangle_offsets().data(),
                                         triangles,

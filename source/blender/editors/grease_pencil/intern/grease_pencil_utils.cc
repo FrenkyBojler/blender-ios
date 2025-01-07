@@ -1157,7 +1157,7 @@ IndexMask retrieve_visible_shapes(Object &object,
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
-  const OffsetIndices<int> shapes = drawing.shapes();
+  const Vector<IndexMask> shapes = drawing.shapes(memory);
   if (hidden_material_indices.is_empty()) {
     return shapes.index_range();
   }
@@ -1170,7 +1170,7 @@ IndexMask retrieve_visible_shapes(Object &object,
       "material_index", bke::AttrDomain::Curve, 0);
   return IndexMask::from_predicate(
       shapes.index_range(), GrainSize(4096), memory, [&](const int64_t shape_index) {
-        const IndexRange shape = shapes[shape_index];
+        const IndexMask &shape = shapes[shape_index];
         const int curve_i = shape.first();
         const int material_index = materials[curve_i];
         return !hidden_material_indices.contains(material_index);

@@ -322,12 +322,12 @@ class GreasePencil : Overlay {
       IndexMaskMemory memory;
       const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
           *ob, info.drawing, memory);
-      const OffsetIndices shapes = info.drawing.shapes();
+      const Vector<IndexMask> shapes = info.drawing.shapes(memory);
 
       const bool hide_onion = info.onion_id != 0;
 
       visible_shapes.foreach_index([&](const int shape_index) {
-        const IndexRange shape = shapes[shape_index];
+        const IndexMask &shape = shapes[shape_index];
 
         const int material_index = stroke_materials[shape.first()];
         MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
@@ -355,7 +355,7 @@ class GreasePencil : Overlay {
 
         t_offset += num_stroke_triangles;
 
-        for (const int curve_i : shape) {
+        shape.foreach_index([&](const int curve_i) {
           const IndexRange points = points_by_curve[curve_i];
 
           const int num_stroke_vertices = (points.size() +
@@ -363,7 +363,7 @@ class GreasePencil : Overlay {
 
           if (hide_material || hide_onion) {
             t_offset += num_stroke_vertices * 2;
-            continue;
+            return;
           }
 
           if (show_stroke) {
@@ -372,7 +372,7 @@ class GreasePencil : Overlay {
             pass.draw(geom, 1, v_count, v_first, res_handle, select_id.get());
           }
           t_offset += num_stroke_vertices * 2;
-        };
+        });
       });
     }
   }
