@@ -89,4 +89,10 @@ void visit_library_prop_catalogs_catalog_for_search_fn(
     const char *edit_text,
     FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
+/**
+ *
+ */
+void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref);
+void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library);
+
 }  // namespace blender::ed::asset

@@ -58,14 +58,6 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
   return items;
 }
 
-static void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref)
-{
-  asset::list::clear(&library_ref, C);
-  /* TODO: Should the all library reference be automatically cleared? */
-  AssetLibraryReference all_lib_ref = asset_system::all_library_reference();
-  asset::list::clear(&all_lib_ref, C);
-}
-
 static void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path)
 {
   /* Enable catalog in all visible asset shelves. */
@@ -249,7 +241,8 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
 
   // TODO uncomment this once it no longer triggers an assert.
 #ifdef NDEBUG
-  refresh_asset_library(C, blender::ed::asset::user_library_to_library_ref(*user_library));
+  blender::ed::asset::refresh_asset_library(
+      C, blender::ed::asset::user_library_to_library_ref(*user_library));
 #endif
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
@@ -468,7 +461,7 @@ static void update_things(bContext *C)
   AssetWeakReference asset_reference = asset_handle->make_weak_reference();
   bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
       &U, asset_reference.asset_library_identifier);
-  refresh_asset_library(C, blender::ed::asset::user_library_to_library_ref(*library));
+  blender::ed::asset::refresh_asset_library(C, *library);
 #endif
 }
 

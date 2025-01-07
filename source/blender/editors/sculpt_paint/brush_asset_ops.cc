@@ -124,19 +124,6 @@ static const bUserAssetLibrary *library_ref_to_user_library(
       BLI_findlink(&U.asset_libraries, library_ref.custom_library_index));
 }
 
-static void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref)
-{
-  asset::list::clear(&library_ref, C);
-  /* TODO: Should the all library reference be automatically cleared? */
-  AssetLibraryReference all_lib_ref = asset_system::all_library_reference();
-  asset::list::clear(&all_lib_ref, C);
-}
-
-static void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library)
-{
-  refresh_asset_library(C, user_library_to_library_ref(user_library));
-}
-
 static bool brush_asset_save_as_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -241,7 +228,7 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_WARNING, "Unable to activate just-saved brush asset");
   }
 
-  refresh_asset_library(C, *user_library);
+  blender::ed::asset::refresh_asset_library(C, *user_library);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
 
@@ -390,7 +377,7 @@ static int brush_asset_edit_metadata_exec(bContext *C, wmOperator *op)
 
   library->catalog_service().write_to_disk(file_path);
 
-  refresh_asset_library(C, library_ref);
+  blender::ed::asset::refresh_asset_library(C, library_ref);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -532,7 +519,7 @@ static int brush_asset_load_preview_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  refresh_asset_library(C, library_ref);
+  blender::ed::asset::refresh_asset_library(C, library_ref);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -600,7 +587,7 @@ static int brush_asset_delete_exec(bContext *C, wmOperator *op)
   BKE_paint_brush_set_default(bmain, paint);
 
   if (library) {
-    refresh_asset_library(C, *library);
+    blender::ed::asset::refresh_asset_library(C, *library);
   }
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
@@ -679,7 +666,7 @@ static int brush_asset_save_exec(bContext *C, wmOperator *op)
   bke::asset_edit_id_save(*bmain, brush->id, *op->reports);
   brush->has_unsaved_changes = false;
 
-  refresh_asset_library(C, *user_library);
+  blender::ed::asset::refresh_asset_library(C, *user_library);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
 

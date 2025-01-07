@@ -10,6 +10,7 @@
 #include "BKE_preferences.h"
 
 #include "ED_asset_library.hh"
+#include "ED_asset_list.hh"
 
 #include "DNA_userdef_types.h"
 
@@ -119,6 +120,19 @@ void visit_library_prop_catalogs_catalog_for_search_fn(
     visit_library_catalogs_catalog_for_search(
         *CTX_data_main(C), *user_library, edit_text, visit_fn);
   }
+}
+
+void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref)
+{
+  asset::list::clear(&library_ref, C);
+  /* TODO: Should the all library reference be automatically cleared? */
+  AssetLibraryReference all_lib_ref = asset_system::all_library_reference();
+  asset::list::clear(&all_lib_ref, C);
+}
+
+void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library)
+{
+  refresh_asset_library(C, user_library_to_library_ref(user_library));
 }
 
 }  // namespace blender::ed::asset
