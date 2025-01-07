@@ -73,11 +73,7 @@ class Instance {
   void image_sync()
   {
     state.image = space_->get_image(main_);
-    if (state.image == nullptr) {
-      /* Early exit, nothing to draw. */
-      return;
-    }
-    state.flags.do_tile_drawing = state.image->source != IMA_SRC_TILED &&
+    state.flags.do_tile_drawing = state.image && state.image->source != IMA_SRC_TILED &&
                                   space_->use_tile_drawing();
     void *lock;
     ImBuf *image_buffer = space_->acquire_image_buffer(state.image, &lock);
@@ -85,19 +81,21 @@ class Instance {
     /* Setup the matrix to go from screen UV coordinates to UV texture space coordinates. */
     float image_resolution[2] = {image_buffer ? image_buffer->x : 1024.0f,
                                  image_buffer ? image_buffer->y : 1024.0f};
-    space_->init_ss_to_texture_matrix(
-        region, state.image->runtime.backdrop_offset, image_resolution, state.ss_to_texture);
+    float2 image_offset = state.image ? state.image->runtime.backdrop_offset : float2(0.0);
+    space_->init_ss_to_texture_matrix(region, image_offset, image_resolution, state.ss_to_texture);
 
     const Scene *scene = DRW_context_state_get()->scene;
     state.sh_params.update(space_.get(), scene, state.image, image_buffer);
     space_->release_buffer(state.image, image_buffer, lock);
 
     ImageUser *iuser = space_->get_image_user();
-    if (state.image->rr != nullptr) {
-      BKE_image_multilayer_index(state.image->rr, iuser);
-    }
-    else {
-      BKE_image_multiview_index(state.image, iuser);
+    if (state.image) {
+      if (state.image->rr != nullptr) {
+        BKE_image_multilayer_index(state.image->rr, iuser);
+      }
+      else {
+        BKE_image_multiview_index(state.image, iuser);
+      }
     }
     drawing_mode_.image_sync(state.image, iuser);
   }

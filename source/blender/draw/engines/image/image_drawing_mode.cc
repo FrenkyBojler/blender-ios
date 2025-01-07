@@ -345,8 +345,9 @@ void ScreenSpaceDrawingMode::begin_sync() const
 void ScreenSpaceDrawingMode::image_sync(::Image *image, ImageUser *iuser) const
 {
   State &state = instance_.state;
-
-  state.partial_update.ensure_image(image);
+  if (image) {
+    state.partial_update.ensure_image(image);
+  }
   state.clear_need_full_update_flag();
   state.float_buffers.reset_usage_flags();
 
@@ -357,15 +358,19 @@ void ScreenSpaceDrawingMode::image_sync(::Image *image, ImageUser *iuser) const
   method.update_bounds(instance_.region);
 
   /* Step: Check for changes in the image user compared to the last time. */
-  state.update_image_usage(iuser);
+  if (image) {
+    state.update_image_usage(iuser);
+  }
 
   /* Step: Update the GPU textures based on the changes in the image. */
   method.ensure_gpu_textures_allocation();
-  update_textures(image, iuser);
+  if (image) {
+    update_textures(image, iuser);
+  }
 
   /* Step: Add the GPU textures to the shgroup. */
   state.update_batches();
-  if (!state.flags.do_tile_drawing) {
+  if (image && !state.flags.do_tile_drawing) {
     add_depth_shgroups(image, iuser);
   }
   add_shgroups();
