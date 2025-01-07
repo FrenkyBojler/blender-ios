@@ -60,8 +60,6 @@ void GLIndexBuf::bind_as_ssbo(uint binding)
     bind();
   }
 
-  /* TODO(Miguel Pozo): Uncomment? */
-  // BLI_assert(index_base_ == 0);
   if (!is_subrange_) {
     BLI_assert(ibo_id_ != 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, ibo_id_);
@@ -71,7 +69,8 @@ void GLIndexBuf::bind_as_ssbo(uint binding)
     BLI_assert(src_ibo_id != 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, src_ibo_id);
 #if 0
-    /* TODO(Miguel Pozo): I think this would be the correct behavior, but
+    /* TODO(pragma37): Check with @fclem.
+     * I think this would be the correct behavior, but
      * overlay::Prepass::use_material_slot_selection_ seems to rely on binding the full index
      * buffer? */
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
