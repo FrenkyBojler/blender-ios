@@ -791,7 +791,8 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
       for (i = 0; i < 2; i++) {
         /* Speed effect requires time remapping of `timeline_frame` for input(s). */
         if (input[0] && strip->type == SEQ_TYPE_SPEED) {
-          float target_frame = strip_speed_effect_target_frame_get(scene, strip, timeline_frame, i);
+          float target_frame = strip_speed_effect_target_frame_get(
+              scene, strip, timeline_frame, i);
 
           /* Only convert to int when interpolation is not used. */
           SpeedControlVars *s = reinterpret_cast<SpeedControlVars *>(strip->effectdata);
