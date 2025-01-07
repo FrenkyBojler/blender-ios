@@ -103,7 +103,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 template<typename T> static T compute_sum(const Span<T> data)
 {
-  /* Explicitly splittomg work into chunks for a couple of reasons:
+  /* Explicitly splitting work into chunks for a couple of reasons:
    * - Improve numerical stability. While there are even more stable algorithms (e.g. Kahan
    *   summation), they also add more complexity to the hot code path. So far, this simple approach
    *   seems to solve the common issues people run into.
