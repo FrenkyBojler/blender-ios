@@ -743,8 +743,8 @@ class Slot : public ::ActionSlot {
   /**
    * Return the prefix of this Slot's identifier.
    *
-   * This corresponds to the intended ID type of the slot, e.g "OB" for object,
-   * "CA" for camera, etc.
+   * This corresponds to the intended ID type (`idtype`) of the slot, e.g "OB"
+   * for object, "CA" for camera, etc.
    */
   std::string identifier_prefix_for_idtype() const;
 
@@ -758,10 +758,33 @@ class Slot : public ::ActionSlot {
    */
   StringRefNull identifier_without_prefix() const;
 
-  /** Return whether this Slot is intended to be used by this ID type. */
+  /**
+   * Return whether this Slot is suitable to be used by the given ID.
+   *
+   * "Suitable" means that one of the following is true:
+   *
+   * - The Slot's intended ID type (`idtype`) matches the given ID's type.
+   * - The Slot's intended ID type is unspecified (see `has_idtype()`).
+   *
+   * If either of those hold true, the Slot is considered suitable for the ID.
+   * Otherwise it is considered unsuitable.
+   *
+   * Note that it is possible, but odd, for an ID to use a Slot that is not
+   * suitable for it. This is discouraged, and a best effort is made to prevent
+   * this in typical cases, but it is not possible to completely prevent.
+   * Therefore this method returning `false` should NOT be taken as a guarantee
+   * that this Slot will never be used by the given ID.
+   *
+   * \see identifier_prefix_for_idtype() \see has_idtype()
+   */
   bool is_suitable_for(const ID &animated_id) const;
 
-  /** Return whether this Slot has an intended ID type (`idtype`) set. */
+  /**
+   * Return whether this Slot has a specified intended ID type (`idtype`) set.
+   *
+   * \see identifier_prefix_for_idtype()
+   * \see is_suitable_for()
+   */
   bool has_idtype() const;
 
   /* Flags access. */
