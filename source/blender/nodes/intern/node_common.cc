@@ -13,8 +13,6 @@
 #include "DNA_node_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_bit_span_ops.hh"
-#include "BLI_bit_vector.hh"
 #include "BLI_disjoint_set.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
