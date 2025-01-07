@@ -25,7 +25,7 @@ def gather_action_sk_sampled(object_uuid: str,
     if not channels:
         return None
 
-    # TODOSLOT
+    # TODOSLOT hook
     # blender_object = export_settings['vtree'].nodes[object_uuid].blender_object
     # export_user_extensions(
     #     'animation_action_sk_sampled',
