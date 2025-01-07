@@ -506,8 +506,8 @@ static void node_frame_init(bNodeTree * /*ntree*/, bNode *node)
 void register_node_type_frame()
 {
   /* frame type is used for all tree types, needs dynamic allocation */
-  blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("frame node type");
-  ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
+  blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("frame node type");
+  ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
   blender::bke::node_type_base(ntype, NODE_FRAME, "Frame", NODE_CLASS_LAYOUT);
   ntype->enum_name_legacy = "FRAME";
@@ -549,8 +549,8 @@ static void node_reroute_init(bNodeTree * /*ntree*/, bNode *node)
 void register_node_type_reroute()
 {
   /* frame type is used for all tree types, needs dynamic allocation */
-  blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("frame node type");
-  ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
+  blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("frame node type");
+  ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
   blender::bke::node_type_base(ntype, NODE_REROUTE, "Reroute", NODE_CLASS_LAYOUT);
   ntype->enum_name_legacy = "REROUTE";
@@ -641,7 +641,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     bNode *reroute_node = item.key;
     const blender::bke::bNodeSocketType *socket_type = item.value;
     NodeReroute *storage = static_cast<NodeReroute *>(reroute_node->storage);
-    STRNCPY(storage->type_idname, socket_type->idname);
+    STRNCPY(storage->type_idname, socket_type->idname.c_str());
     blender::nodes::update_node_declaration_and_sockets(*ntree, *reroute_node);
   }
 }
@@ -781,8 +781,8 @@ static bool group_output_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *l
 void register_node_type_group_input()
 {
   /* used for all tree types, needs dynamic allocation */
-  blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("node type");
-  ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
+  blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("node type");
+  ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
   blender::bke::node_type_base(ntype, NODE_GROUP_INPUT, "Group Input", NODE_CLASS_INTERFACE);
   ntype->enum_name_legacy = "GROUP_INPUT";
@@ -806,8 +806,8 @@ bNodeSocket *node_group_output_find_socket(bNode *node, const char *identifier)
 void register_node_type_group_output()
 {
   /* used for all tree types, needs dynamic allocation */
-  blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("node type");
-  ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
+  blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("node type");
+  ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
   blender::bke::node_type_base(ntype, NODE_GROUP_OUTPUT, "Group Output", NODE_CLASS_INTERFACE);
   ntype->enum_name_legacy = "GROUP_OUTPUT";

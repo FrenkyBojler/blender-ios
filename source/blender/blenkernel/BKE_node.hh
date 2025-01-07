@@ -147,11 +147,11 @@ using NodeInverseEvalFunction = void (*)(blender::nodes::inverse_eval::InverseEv
  */
 struct bNodeSocketType {
   /** Identifier name. */
-  char idname[64];
+  std::string idname;
   /** Type label. */
-  char label[64];
+  std::string label;
   /** Sub-type label. */
-  char subtype_label[64];
+  std::string subtype_label;
 
   void (*draw)(
       bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, StringRefNull text);
@@ -213,11 +213,11 @@ using NodeMaterialXFunction = void (*)(void *data, bNode *node, bNodeSocket *out
  * implementing the node behavior.
  */
 struct bNodeType {
-  char idname[64]; /* identifier name */
+  std::string idname;
   int type;
 
-  char ui_name[64]; /* MAX_NAME */
-  char ui_description[256];
+  std::string ui_name;
+  std::string ui_description;
   int ui_icon;
   /** Should usually use the idname instead, but this enum type is still exposed in Python. */
   const char *enum_name_legacy;
@@ -229,7 +229,7 @@ struct bNodeType {
   /* templates for static sockets */
   bNodeSocketTemplate *inputs, *outputs;
 
-  char storagename[64]; /* struct name for DNA */
+  std::string storagename; /* struct name for DNA */
 
   /* Draw the option buttons on the node */
   void (*draw_buttons)(uiLayout *, bContext *C, PointerRNA *ptr);
@@ -446,14 +446,14 @@ enum class NodeColorTag {
 using bNodeClassCallback = void (*)(void *calldata, int nclass, StringRefNull name);
 
 struct bNodeTreeType {
-  int type;        /* type identifier */
-  char idname[64]; /* identifier name */
+  int type;           /* type identifier */
+  std::string idname; /* identifier name */
 
   /* The ID name of group nodes for this type. */
-  char group_idname[64];
+  std::string group_idname;
 
-  char ui_name[64];
-  char ui_description[256];
+  std::string ui_name;
+  std::string ui_description;
   int ui_icon;
 
   /* callbacks */
