@@ -154,6 +154,8 @@ enum class TransformDisplacementMode {
 
 namespace blender::ed::sculpt_paint {
 
+static constexpr int PLANE_BRUSH_MAX_INDEX = 20;
+
 /**
  * This structure contains all the temporary data
  * needed for individual brush strokes.
@@ -326,11 +328,10 @@ struct StrokeCache {
 
   /* Plane Brush */
   struct {
-    static constexpr int MAX_INDEX = 20;
     float3 last_normal;
     float3 last_center;
-    std::array<float3, MAX_INDEX> normals;
-    std::array<float3, MAX_INDEX> centers;
+    std::array<float3, PLANE_BRUSH_MAX_INDEX> normals;
+    std::array<float3, PLANE_BRUSH_MAX_INDEX> centers;
     int normal_index;
     int center_index;
     int max_normal_index;
