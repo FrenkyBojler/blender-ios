@@ -12,6 +12,7 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/abstract_kd_bucket_hierarchy.cc
   intern/add_curves_on_mesh.cc
   intern/curve_constraints.cc
   intern/extend_curves.cc
@@ -149,6 +150,7 @@ if(WITH_GTESTS)
   )
   set(TEST_SRC
     tests/GEO_merge_curves_test.cc
+    tests/GEO_abstract_kd_bucket_hierarchy_test.cc
   )
   set(TEST_LIB
   )
