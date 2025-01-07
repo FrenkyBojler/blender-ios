@@ -806,7 +806,6 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         default=False
     )
 
-    # TODOSLOT slot-2-E make ACTION by default, but need to change some tests?
     export_merge_animation: EnumProperty(
         name='Merge Animation',
         items=(('NLA_TRACK', 'NLA Track Names', 'Merge by NLA Track Names'),
@@ -814,7 +813,7 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
                 ('NONE', 'No Merge', 'Do not merge animations'),
                 ),
         description='Merge animations',
-        default='NLA_TRACK'
+        default='ACTION'
     )
 
     export_anim_single_armature: BoolProperty(
