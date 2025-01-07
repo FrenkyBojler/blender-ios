@@ -11,14 +11,15 @@
 
 #include "ED_asset_library.hh"
 #include "ED_asset_list.hh"
-
-#include "DNA_userdef_types.h"
+#include "ED_asset_shelf.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string_ref.hh"
 
+#include "DNA_userdef_types.h"
 #include "RNA_access.hh"
-
 #include "UI_resources.hh"
+#include "WM_api.hh"
 
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_tree.hh"
@@ -133,6 +134,23 @@ void refresh_asset_library(const bContext *C, const AssetLibraryReference &libra
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library)
 {
   refresh_asset_library(C, user_library_to_library_ref(user_library));
+}
+
+void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path)
+{
+  /* Enable catalog in all visible asset shelves. */
+  wmWindowManager *wm = CTX_wm_manager(&C);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(win);
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      const AssetShelf *shelf = asset::shelf::active_shelf_from_area(area);
+      if (shelf && BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+                       &U, shelf->idname, catalog_path.c_str()))
+      {
+        U.runtime.is_dirty = true;
+      }
+    }
+  }
 }
 
 }  // namespace blender::ed::asset

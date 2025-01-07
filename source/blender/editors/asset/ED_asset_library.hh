@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_string_ref.hh"
 #include "DNA_asset_types.h"
 
 struct bUserAssetLibrary;
@@ -94,5 +95,10 @@ void visit_library_prop_catalogs_catalog_for_search_fn(
  */
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref);
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library);
+
+/**
+ *
+ */
+void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path);
 
 }  // namespace blender::ed::asset

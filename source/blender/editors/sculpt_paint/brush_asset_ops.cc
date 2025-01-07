@@ -145,23 +145,6 @@ static bool brush_asset_save_as_poll(bContext *C)
   return true;
 }
 
-static void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path)
-{
-  /* Enable catalog in all visible asset shelves. */
-  wmWindowManager *wm = CTX_wm_manager(&C);
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    const bScreen *screen = WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      const AssetShelf *shelf = asset::shelf::active_shelf_from_area(area);
-      if (shelf && BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
-                       &U, shelf->idname, catalog_path.c_str()))
-      {
-        U.runtime.is_dirty = true;
-      }
-    }
-  }
-}
-
 static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -217,7 +200,7 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
   }
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
-  show_catalog_in_asset_shelf(*C, catalog_path);
+  blender::ed::asset::show_catalog_in_asset_shelf(*C, catalog_path);
 
   brush = reinterpret_cast<Brush *>(
       bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));

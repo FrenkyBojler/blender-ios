@@ -58,23 +58,6 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
   return items;
 }
 
-static void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path)
-{
-  /* Enable catalog in all visible asset shelves. */
-  wmWindowManager *wm = CTX_wm_manager(&C);
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    const bScreen *screen = WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      const AssetShelf *shelf = asset::shelf::active_shelf_from_area(area);
-      if (shelf && BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
-                       &U, shelf->idname, catalog_path.c_str()))
-      {
-        U.runtime.is_dirty = true;
-      }
-    }
-  }
-}
-
 static blender::animrig::Action &extract_pose(Main &bmain, blender::Span<Object *> pose_objects)
 {
   /* This currently only looks at the pose and not other things that could go onto different
@@ -235,7 +218,7 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
   ensure_asset_ui_visible(*C);
-  show_catalog_in_asset_shelf(*C, catalog_path);
+  blender::ed::asset::show_catalog_in_asset_shelf(*C, catalog_path);
 
   BKE_id_free(bmain, &pose_action.id);
 
