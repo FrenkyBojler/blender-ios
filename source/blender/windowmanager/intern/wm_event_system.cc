@@ -3793,15 +3793,16 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
 
     /* If previous position was not in current region, we have to set a temp new context. */
     if (region == nullptr || !BLI_rcti_isect_pt_v(&region->winrct, event->prev_xy)) {
-      ScrArea *area = CTX_wm_area(C);
+      ARegion *prv_region = CTX_wm_region(C);
+      ScrArea *prv_area = CTX_wm_area(C);
 
       CTX_wm_area_set(C, area_event_inside(C, event->prev_xy));
       CTX_wm_region_set(C, region_event_inside(C, event->prev_xy));
 
       wm_paintcursor_tag(C, wm, CTX_wm_region(C));
 
-      CTX_wm_area_set(C, area);
-      CTX_wm_region_set(C, region);
+      CTX_wm_area_set(C, prv_area);
+      CTX_wm_region_set(C, prv_region);
     }
   }
 }
