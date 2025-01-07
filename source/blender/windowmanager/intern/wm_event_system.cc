@@ -3749,11 +3749,7 @@ static ARegion *region_event_inside(bContext *C, const int xy[2])
   ScrArea *area = CTX_wm_area(C);
 
   if (screen && area) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (BLI_rcti_isect_pt_v(&region->winrct, xy)) {
-        return region;
-      }
-    }
+    return ED_area_find_region_xy_visual(area, RGN_TYPE_ANY, xy);
   }
   return nullptr;
 }

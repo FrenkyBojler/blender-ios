@@ -1049,18 +1049,9 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
       }
     }
   }
-  if (area) {
-    /* Make overlap active when mouse over. */
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (ED_region_contains_xy(region, xy)) {
-        screen->active_region = region;
-        break;
-      }
-    }
-  }
-  else {
-    screen->active_region = nullptr;
-  }
+
+  /* Make overlap active when mouse over. */
+  screen->active_region = area ? ED_area_find_region_xy_visual(area, RGN_TYPE_ANY, xy) : nullptr;
 
   if (region_prev != screen->active_region || !screen->active_region) {
     WM_window_status_area_tag_redraw(win);
