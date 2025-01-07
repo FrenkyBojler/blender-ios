@@ -18,7 +18,6 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 
-#include "BLI_math_vector.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -856,7 +855,7 @@ class Channelbag : public ::ActionChannelbag {
   /**
    * Create an F-Curve, but only if it doesn't exist yet in this Channelbag.
    *
-   * \return the F-Curve it it was created, or nullptr if it already existed.
+   * \return the F-Curve was created, or nullptr if it already existed.
    *
    * \param bmain: Used to tag the dependency graph(s) for relationship
    * rebuilding. This is necessary when adding a new F-Curve, as a
@@ -1026,7 +1025,7 @@ class Channelbag : public ::ActionChannelbag {
   bool fcurve_assign_to_channel_group(FCurve &fcurve, bActionGroup &to_group);
 
   /**
-   * Removes the the given FCurve from the channel group it's in, if any.
+   * Removes the given FCurve from the channel group it's in, if any.
    *
    * As part of removing `fcurve` from its group, `fcurve` is moved to the end
    * of the fcurve array. However, if `fcurve` is already ungrouped then this
