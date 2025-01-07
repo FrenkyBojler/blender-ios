@@ -66,7 +66,7 @@ void pose_apply_action(blender::Span<Object *> objects,
  * Return true if any bone is selected. This is useful to decide if all bones should be affected
  * or not.
  */
-bool any_bone_selected(blender::Span<Object *> objects);
+bool any_bone_selected(blender::Span<const Object *> objects);
 
 /**
  * Get the best slot to read pose data from for the given ID.

@@ -465,7 +465,7 @@ void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
     if (!slot) {
       slot = action.slot(0);
     }
-    if (flipped_slots.contains(slot)) {
+    if (!flipped_slots.add(slot)) {
       continue;
     }
     Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, slot->handle);
@@ -474,7 +474,6 @@ void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
       action_flip_pchan(object, pchan, fcache);
     }
     BKE_fcurve_pathcache_destroy(fcache);
-    flipped_slots.add(slot);
   }
 
   action_flip_pchan_rna_paths(act);

@@ -24,7 +24,7 @@ namespace {
 using ActionApplier = blender::FunctionRef<void(
     PointerRNA *, bAction *, slot_handle_t, const AnimationEvalContext *)>;
 
-void pose_apply_restore_fcurves(Span<FCurve *> fcurves)
+void pose_apply_restore_fcurves(const Span<FCurve *> fcurves)
 {
   for (FCurve *fcu : fcurves) {
     fcu->flag &= ~FCURVE_DISABLED;
@@ -136,9 +136,9 @@ void pose_apply_action_blend_all_bones(Object *ob,
   animsys_blend_in_action(&pose_owner_ptr, action, slot_handle, anim_eval_context, blend_factor);
 }
 
-bool any_bone_selected(blender::Span<Object *> objects)
+bool any_bone_selected(const blender::Span<const Object *> objects)
 {
-  for (Object *obj : objects) {
+  for (const Object *obj : objects) {
     if (!obj->pose) {
       continue;
     }
@@ -151,7 +151,7 @@ bool any_bone_selected(blender::Span<Object *> objects)
   return false;
 }
 
-void pose_apply_action(blender::Span<Object *> objects,
+void pose_apply_action(const blender::Span<Object *> objects,
                        Action &pose_action,
                        const AnimationEvalContext *anim_eval_context,
                        const float blend_factor)
