@@ -208,9 +208,9 @@ class PoseActionCreator:
             bone_path, enum_property_name = data_path.rsplit("[", 1)
             unescaped_property_name = bpy.utils.unescape_identifier(enum_property_name)
             # unescaped_property_name still has the quotes and a bracket at the end hence the [1:-2].
-            value_or_array = cls._path_resolve(datablock, bone_path).get(unescaped_property_name[1:-2])
-            assert isinstance(value_or_array, (int, float))
-            return cast(FCurveValue, value_or_array)
+            value = cls._path_resolve(datablock, bone_path).get(unescaped_property_name[1:-2])
+            assert isinstance(value, (int, float))
+            return cast(FCurveValue, value)
 
         # Both indices -1 and 0 are used for non-array properties.
         # -1 cannot be used in arrays, whereas 0 can be used in both arrays and non-arrays.
