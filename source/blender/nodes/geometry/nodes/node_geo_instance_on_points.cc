@@ -7,7 +7,6 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
@@ -291,6 +290,7 @@ static void node_register()
 
   geo_node_type_base(
       &ntype, GEO_NODE_INSTANCE_ON_POINTS, "Instance on Points", NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "INSTANCE_ON_POINTS";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

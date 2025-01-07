@@ -22,6 +22,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_base.h"
+#include "BLI_math_rotation.h"
+
 #include "BLT_translation.hh"
 
 #include "BKE_animsys.h"
@@ -273,7 +276,7 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      "Simplify stroke reducing number of points"},
     {eModifierType_GreasePencilSubdiv,
      "GREASE_PENCIL_SUBDIV",
-     ICON_MOD_SMOOTH,
+     ICON_MOD_SUBSURF,
      "Subdivide",
      "Grease Pencil subdivide modifier"},
     {eModifierType_GreasePencilEnvelope,
@@ -1395,6 +1398,9 @@ static void rna_BevelModifier_weight_attribute_visit_for_search(
     blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   Object *ob = (Object *)ptr->owner_id;
+  if (ob->type != OB_MESH) {
+    return;
+  }
   PointerRNA mesh_ptr = RNA_id_pointer_create(static_cast<ID *>(ob->data));
   PropertyRNA *attributes_prop = RNA_struct_find_property(&mesh_ptr, "attributes");
   RNA_PROP_BEGIN (&mesh_ptr, itemptr, attributes_prop) {

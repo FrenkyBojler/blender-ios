@@ -12,6 +12,7 @@
 #include "DNA_volume_types.h"
 
 #include "draw_common.hh"
+#include "draw_sculpt.hh"
 
 #include "overlay_next_base.hh"
 #include "overlay_next_mesh.hh"
@@ -111,7 +112,8 @@ class Wireframe : Overlay {
                       const ObjectRef &ob_ref,
                       Resources &res,
                       const State &state,
-                      const bool in_edit_paint_mode)
+                      const bool in_edit_paint_mode,
+                      const bool in_edit_mode)
   {
     if (!enabled_) {
       return;
@@ -157,7 +159,9 @@ class Wireframe : Overlay {
         }
         break;
       }
-      case OB_MESH:
+      case OB_MESH: {
+        bool has_edit_cage = Meshes::mesh_has_edit_cage(ob_ref.object);
+
         if (show_surface_wire) {
           if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
             ResourceHandle handle = manager.unique_handle(ob_ref);
@@ -166,7 +170,10 @@ class Wireframe : Overlay {
               coloring.mesh_all_edges_ps_->draw(batch.batch, handle);
             }
           }
-          else {
+          else if (!in_edit_mode || has_edit_cage) {
+            /* Only draw the wireframe in edit mode if object has edit cage.
+             * Otherwise the wireframe will conflict with the edit cage drawing and produce
+             * unpleasant aliasing. */
             gpu::Batch *geom = DRW_cache_mesh_face_wireframe_get(ob_ref.object);
             (all_edges ? coloring.mesh_all_edges_ps_ : coloring.mesh_ps_)
                 ->draw(geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
@@ -174,7 +181,7 @@ class Wireframe : Overlay {
         }
 
         /* Draw loose geometry. */
-        if (!in_edit_paint_mode || Meshes::mesh_has_edit_cage(ob_ref.object)) {
+        if (!in_edit_paint_mode || has_edit_cage) {
           const Mesh *mesh = static_cast<const Mesh *>(ob_ref.object->data);
           gpu::Batch *geom;
           if ((mesh->edges_num == 0) && (mesh->verts_num > 0)) {
@@ -188,6 +195,7 @@ class Wireframe : Overlay {
           }
         }
         break;
+      }
       case OB_POINTCLOUD: {
         if (show_surface_wire) {
           gpu::Batch *geom = DRW_pointcloud_batch_cache_get_dots(ob_ref.object);
@@ -197,19 +205,21 @@ class Wireframe : Overlay {
         break;
       }
       case OB_VOLUME: {
-        gpu::Batch *geom = DRW_cache_volume_face_wireframe_get(ob_ref.object);
-        if (geom == nullptr) {
-          break;
-        }
-        if (static_cast<Volume *>(ob_ref.object->data)->display.wireframe_type ==
-            VOLUME_WIREFRAME_POINTS)
-        {
-          coloring.pointcloud_ps_->draw(
-              geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
-        }
-        else {
-          coloring.mesh_ps_->draw(
-              geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+        if (show_surface_wire) {
+          gpu::Batch *geom = DRW_cache_volume_face_wireframe_get(ob_ref.object);
+          if (geom == nullptr) {
+            break;
+          }
+          if (static_cast<Volume *>(ob_ref.object->data)->display.wireframe_type ==
+              VOLUME_WIREFRAME_POINTS)
+          {
+            coloring.pointcloud_ps_->draw(
+                geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+          }
+          else {
+            coloring.mesh_ps_->draw(
+                geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+          }
         }
         break;
       }
