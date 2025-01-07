@@ -430,12 +430,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
           float3x3 axis_mat;
           axis_dominant_v3_to_m3(axis_mat.ptr(), normals[shape.first()]);
-
-          int num_points = 0;
-          shape.foreach_index([&](const int64_t curve_i) {
-            const IndexRange points = points_by_curve[curve_i];
-            num_points += points.size();
-          });
+          const int num_points = offset_indices::sum_group_sizes(points_by_curve, shape);
 
           if (num_points < 3) {
             continue;
