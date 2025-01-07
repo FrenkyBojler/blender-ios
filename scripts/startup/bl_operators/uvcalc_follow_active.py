@@ -200,7 +200,7 @@ def extend(obj, EXTEND_MODE, use_uv_selection):
             l_pair_b = (l_quad[1], l_quad[3])
 
             for l_pair in (l_pair_a, l_pair_b):
-                if edge_lengths[l_pair[0].edge.index] is None:
+                if edge_lengths[l_pair[0].edge.index] is None or edge_lengths[l_pair[1].edge.index] is None:
 
                     edge_length_store = [-1.0]
                     edge_length_accum = 0.0
