@@ -54,7 +54,7 @@ void convert_legacy_animato_actions(Main &bmain)
        * expected to have any layered/slotted Actions.
        *
        * Empty Actions, even though they are valid "layered" Actions, should still get through
-       * versioning, though, to ensure they have the default "Legacy Slot". */
+       * versioning, though, to ensure they have the default "Legacy Slot" and a zero idroot. */
       continue;
     }
 
