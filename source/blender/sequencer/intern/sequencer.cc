@@ -302,7 +302,7 @@ void SEQ_editing_free(Scene *scene, const bool do_id_user)
   }
 
   BLI_freelistN(&ed->metastack);
-  SEQ_sequence_lookup_free(scene);
+  SEQ_strip_lookup_free(scene);
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_destroy(scene);
   SEQ_channels_free(&ed->channels);
@@ -433,7 +433,7 @@ static MetaStack *seq_meta_stack_alloc(const Scene *scene, Strip *strip_meta)
   ms->parseq = strip_meta;
 
   /* Reference to previously displayed timeline data. */
-  Strip *higher_level_meta = seq_sequence_lookup_meta_by_seq(scene, strip_meta);
+  Strip *higher_level_meta = SEQ_lookup_meta_by_strip(scene, strip_meta);
   ms->oldbasep = higher_level_meta ? &higher_level_meta->seqbase : &ed->seqbase;
   ms->old_channels = higher_level_meta ? &higher_level_meta->channels : &ed->channels;
 
@@ -461,7 +461,7 @@ void SEQ_meta_stack_set(const Scene *scene, Strip *dst_seq)
     /* Allocate meta stack in a way, that represents meta hierarchy in timeline. */
     seq_meta_stack_alloc(scene, dst_seq);
     Strip *meta_parent = dst_seq;
-    while ((meta_parent = seq_sequence_lookup_meta_by_seq(scene, meta_parent))) {
+    while ((meta_parent = SEQ_lookup_meta_by_strip(scene, meta_parent))) {
       seq_meta_stack_alloc(scene, meta_parent);
     }
 
@@ -588,7 +588,7 @@ static Strip *strip_dupli(const Scene *scene_src,
     BLI_assert_unreachable();
   }
 
-  /* When using #SEQ_DUPE_UNIQUE_NAME, it is mandatory to add new sequences in relevant container
+  /* When using #STRIP_DUPE_UNIQUE_NAME, it is mandatory to add new sequences in relevant container
    * (scene or meta's one), *before* checking for unique names. Otherwise the meta's list is empty
    * and hence we miss all sequence-strips in that meta that have already been duplicated,
    * (see #55668). Note that unique name check itself could be done at a later step in calling
@@ -599,7 +599,7 @@ static Strip *strip_dupli(const Scene *scene_src,
   }
 
   if (scene_src == scene_dst) {
-    if (dupe_flag & SEQ_DUPE_UNIQUE_NAME) {
+    if (dupe_flag & STRIP_DUPE_UNIQUE_NAME) {
       SEQ_sequence_base_unique_name_recursive(scene_dst, &scene_dst->ed->seqbase, seqn);
     }
   }
@@ -653,7 +653,7 @@ static void seqbase_dupli_recursive(const Scene *scene_src,
                                     blender::Map<Strip *, Strip *> &strip_map)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) == 0 && (dupe_flag & SEQ_DUPE_ALL) == 0) {
+    if ((strip->flag & SELECT) == 0 && (dupe_flag & STRIP_DUPE_ALL) == 0) {
       continue;
     }
 
@@ -662,7 +662,7 @@ static void seqbase_dupli_recursive(const Scene *scene_src,
 
     if (strip->type == STRIP_TYPE_META) {
       /* Always include meta all strip children. */
-      int dupe_flag_recursive = dupe_flag | SEQ_DUPE_ALL;
+      int dupe_flag_recursive = dupe_flag | STRIP_DUPE_ALL;
       seqbase_dupli_recursive(scene_src,
                               scene_dst,
                               &seqn->seqbase,
@@ -865,7 +865,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 
   if (strip->type == STRIP_TYPE_TEXT) {
     TextVars *t = static_cast<TextVars *>(strip->effectdata);
-    t->text_blf_id = SEQ_FONT_NOT_LOADED;
+    t->text_blf_id = STRIP_FONT_NOT_LOADED;
     t->runtime = nullptr;
   }
 

@@ -185,7 +185,7 @@ void SEQ_edit_remove_flagged_sequences(Scene *scene, ListBase *seqbase)
       SEQ_free_animdata(scene, strip);
       BLI_remlink(seqbase, strip);
       SEQ_sequence_free(scene, strip);
-      SEQ_sequence_lookup_invalidate(scene);
+      SEQ_strip_lookup_invalidate(scene);
     }
   }
 }
@@ -450,7 +450,7 @@ Strip *SEQ_edit_strip_split(Main *bmain,
 
   /* Duplicate ListBase. */
   ListBase right_strips = {nullptr, nullptr};
-  SEQ_sequence_base_dupli_recursive(scene, scene, &right_strips, &left_strips, SEQ_DUPE_ALL, 0);
+  SEQ_sequence_base_dupli_recursive(scene, scene, &right_strips, &left_strips, STRIP_DUPE_ALL, 0);
 
   Strip *left_seq = static_cast<Strip *>(left_strips.first);
   Strip *right_seq = static_cast<Strip *>(right_strips.first);
@@ -521,5 +521,5 @@ void SEQ_edit_sequence_name_set(Scene *scene, Strip *strip, const char *new_name
 {
   BLI_strncpy_utf8(strip->name + 2, new_name, MAX_NAME - 2);
   BLI_str_utf8_invalid_strip(strip->name + 2, strlen(strip->name + 2));
-  SEQ_sequence_lookup_invalidate(scene);
+  SEQ_strip_lookup_invalidate(scene);
 }
