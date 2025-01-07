@@ -6,9 +6,11 @@
 Compare textual dump of imported scene against reference versions and generate
 a HTML report showing the differences, for regression testing.
 """
+
 import bpy
 import bpy_extras.node_shader_utils
 import difflib
+import json
 import os
 import pathlib
 
@@ -16,12 +18,14 @@ from . import global_report
 from io import StringIO
 from typing import Callable
 
-def fmtf(f : float) -> str:
+
+def fmtf(f: float) -> str:
     # ensure tiny numbers are 0.0,
     # and not "-0.0" for example
     if abs(f) < 0.0005:
         return "0.000"
     return f"{f:.3f}"
+
 
 class Report:
     __slots__ = (
@@ -572,11 +576,14 @@ class Report:
         desc.close()
         return text
 
-    def import_and_check(self, input_file: pathlib.Path, import_func: Callable[[str], None]) -> bool:
+    def import_and_check(self, input_file: pathlib.Path, import_func: Callable[[str, dict], None]) -> bool:
         """
         Imports a single file using the provided import function, and
         checks whether it matches with expected template, returns
         comparison result.
+
+        If there is a .json file next to the input file, the parameters from
+        that one file will be passed as extra parameters to the import function.
 
         When working in template update mode (environment variable
         BLENDER_TEST_UPDATE=1), updates the template with new result
@@ -586,8 +593,19 @@ class Report:
         input_basename = pathlib.Path(input_file).stem
         print(f"Importing {input_file}...", flush=True)
 
+        # load json parameters if they exist
+        params = {}
+        input_params_file = input_file.with_suffix(".json")
+        if input_params_file.exists():
+            try:
+                with input_params_file.open('r', encoding='utf-8') as file:
+                    params = json.load(file)
+            except:
+                pass
+
+        # import
         try:
-            import_func(str(input_file))
+            import_func(str(input_file), params)
             got_desc = self.generate_scene_desc()
         except RuntimeError as ex:
             got_desc = f"Error during import: {ex}"

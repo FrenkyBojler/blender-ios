@@ -18,21 +18,6 @@ class OBJImportTest(unittest.TestCase):
         cls.testdir = args.testdir
         cls.output_dir = args.outdir
 
-    @staticmethod
-    def do_obj_import(filepath: str) -> None:
-        split_objects = True
-        split_groups = False
-        if filepath.endswith('split_options_by_group.obj'):
-            split_objects = False
-            split_groups = True
-        if filepath.endswith('split_options_by_object_and_group.obj'):
-            split_objects = True
-            split_groups = True
-        if filepath.endswith('split_options_none.obj'):
-            split_objects = False
-            split_groups = False
-        bpy.ops.wm.obj_import(filepath=str(filepath), use_split_objects=split_objects, use_split_groups=split_groups)
-
     def test_import_obj(self):
         input_files = sorted(pathlib.Path(self.testdir).glob("*.obj"))
         self.passed_tests = []
@@ -46,7 +31,7 @@ class OBJImportTest(unittest.TestCase):
             with self.subTest(pathlib.Path(input_file).stem):
                 bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "../empty.blend"))
                 ok = report.import_and_check(
-                    input_file, OBJImportTest.do_obj_import)
+                    input_file, lambda filepath, params: bpy.ops.wm.obj_import(filepath=str(input_file), **params))
                 if not ok:
                     self.fail(f"{input_file.stem} import result does not match expectations")
 
