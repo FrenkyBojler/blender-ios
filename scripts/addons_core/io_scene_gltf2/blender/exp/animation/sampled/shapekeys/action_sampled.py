@@ -27,9 +27,9 @@ def gather_action_sk_sampled(object_uuid: str,
 
     blender_object = export_settings['vtree'].nodes[object_uuid].blender_object
     export_user_extensions(
-        'animation_action_sk_sampled',
+        'animation_channels_sk_sampled',
         export_settings,
-        animation,
+        channels,
         blender_object,
         blender_action,
         slot_handle,
