@@ -50,48 +50,35 @@ AssetLibraryReference library_reference_from_enum_value(int value);
 const EnumPropertyItem *library_reference_to_rna_enum_itemf(bool include_generated);
 
 /**
- *
+ * Find the catalog with the given path in the library. Creates it in case it doesn't exist.
  */
 blender::asset_system::AssetCatalog &library_ensure_catalogs_in_path(
     blender::asset_system::AssetLibrary &library,
     const blender::asset_system::AssetCatalogPath &path);
 
-/**
- *
- */
 AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library);
 
 /**
- *
+ * May return a nullptr if the given AssetLibraryReference is not a user library.
  */
 const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference &library_ref);
 
 /**
- *
+ * The PointerRNA is expected to have an enum called "asset_library_reference".
  */
 const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr);
 
 /**
- *
+ * For earch catalog of the given bUserAssetLibrary call `visit_fn`.
  */
 void visit_library_catalogs_catalog_for_search(
     const Main &bmain,
-    const bUserAssetLibrary &user_library,
+    const AssetLibraryReference lib,
     const StringRef edit_text,
     const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
 /**
- *
- */
-void visit_library_prop_catalogs_catalog_for_search_fn(
-    const bContext *C,
-    PointerRNA *ptr,
-    PropertyRNA * /*prop*/,
-    const char *edit_text,
-    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
-
-/**
- *
+ * Call after changes to an asset library have been made to reflect the changes in the UI.
  */
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref);
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library);

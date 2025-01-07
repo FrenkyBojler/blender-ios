@@ -86,12 +86,11 @@ const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr)
 
 void visit_library_catalogs_catalog_for_search(
     const Main &bmain,
-    const bUserAssetLibrary &user_library,
+    const AssetLibraryReference lib,
     const StringRef edit_text,
     const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
-  const asset_system::AssetLibrary *library = AS_asset_library_load(
-      &bmain, blender::ed::asset::user_library_to_library_ref(user_library));
+  const asset_system::AssetLibrary *library = AS_asset_library_load(&bmain, lib);
   if (!library) {
     return;
   }
@@ -107,20 +106,6 @@ void visit_library_catalogs_catalog_for_search(
   full_tree.foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
     visit_fn(StringPropertySearchVisitParams{item.catalog_path().str(), std::nullopt});
   });
-}
-
-void visit_library_prop_catalogs_catalog_for_search_fn(
-    const bContext *C,
-    PointerRNA *ptr,
-    PropertyRNA * /*prop*/,
-    const char *edit_text,
-    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
-{
-  /* NOTE: Using the all library would also be a valid choice. */
-  if (const bUserAssetLibrary *user_library = get_asset_library_from_prop(*ptr)) {
-    visit_library_catalogs_catalog_for_search(
-        *CTX_data_main(C), *user_library, edit_text, visit_fn);
-  }
 }
 
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref)

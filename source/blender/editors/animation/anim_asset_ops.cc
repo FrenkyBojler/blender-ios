@@ -360,6 +360,20 @@ static bool pose_asset_create_poll(bContext *C)
   return true;
 }
 
+static void visit_library_prop_catalogs_catalog_for_search_fn(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA * /*prop*/,
+    const char *edit_text,
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+{
+  const int enum_value = RNA_enum_get(ptr, "asset_library_reference");
+  const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
+
+  blender::ed::asset::visit_library_catalogs_catalog_for_search(
+      *CTX_data_main(C), lib_ref, edit_text, visit_fn);
+}
+
 void POSELIB_OT_asset_create(wmOperatorType *ot)
 {
   ot->name = "Create Pose Asset";
@@ -380,9 +394,7 @@ void POSELIB_OT_asset_create(wmOperatorType *ot)
   prop = RNA_def_string(
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "Catalog to use for the new asset");
   RNA_def_property_string_search_func_runtime(
-      prop,
-      blender::ed::asset::visit_library_prop_catalogs_catalog_for_search_fn,
-      PROP_STRING_SEARCH_SUGGESTION);
+      prop, visit_library_prop_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
 }
 
 enum AssetOverwriteMode {

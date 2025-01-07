@@ -106,24 +106,6 @@ static std::optional<AssetLibraryReference> library_to_library_ref(
   return std::nullopt;
 }
 
-static AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library)
-{
-  AssetLibraryReference library_ref{};
-  library_ref.custom_library_index = BLI_findindex(&U.asset_libraries, &user_library);
-  library_ref.type = ASSET_LIBRARY_CUSTOM;
-  return library_ref;
-}
-
-static const bUserAssetLibrary *library_ref_to_user_library(
-    const AssetLibraryReference &library_ref)
-{
-  if (library_ref.type != ASSET_LIBRARY_CUSTOM) {
-    return nullptr;
-  }
-  return static_cast<const bUserAssetLibrary *>(
-      BLI_findlink(&U.asset_libraries, library_ref.custom_library_index));
-}
-
 static bool brush_asset_save_as_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -168,7 +150,7 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
   }
 
   asset_system::AssetLibrary *library = AS_asset_library_load(
-      bmain, user_library_to_library_ref(*user_library));
+      bmain, blender::ed::asset::user_library_to_library_ref(*user_library));
   if (!library) {
     BKE_report(op->reports, RPT_ERROR, "Failed to load asset library");
     return OPERATOR_CANCELLED;
@@ -253,7 +235,7 @@ static int brush_asset_save_as_invoke(bContext *C, wmOperator *op, const wmEvent
                    asset::library_reference_to_enum_value(&*library_ref));
     }
     else {
-      const AssetLibraryReference first_library = user_library_to_library_ref(
+      const AssetLibraryReference first_library = blender::ed::asset::user_library_to_library_ref(
           *static_cast<const bUserAssetLibrary *>(U.asset_libraries.first));
       RNA_enum_set(op->ptr,
                    "asset_library_reference",
@@ -287,6 +269,25 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
   return items;
 }
 
+static void visit_library_prop_catalogs_catalog_for_search_fn(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA * /*prop*/,
+    const char *edit_text,
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+{
+  /* NOTE: Using the all library would also be a valid choice. */
+  if (const bUserAssetLibrary *user_library = blender::ed::asset::get_asset_library_from_prop(
+          *ptr))
+  {
+    blender::ed::asset::visit_library_catalogs_catalog_for_search(
+        *CTX_data_main(C),
+        blender::ed::asset::user_library_to_library_ref(*user_library),
+        edit_text,
+        visit_fn);
+  }
+}
+
 void BRUSH_OT_asset_save_as(wmOperatorType *ot)
 {
   ot->name = "Save as Brush Asset";
@@ -309,9 +310,7 @@ void BRUSH_OT_asset_save_as(wmOperatorType *ot)
   prop = RNA_def_string(
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "Catalog to use for the new asset");
   RNA_def_property_string_search_func_runtime(
-      prop,
-      blender::ed::asset::visit_library_prop_catalogs_catalog_for_search_fn,
-      PROP_STRING_SEARCH_SUGGESTION);
+      prop, visit_library_prop_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
 }
 
 static int brush_asset_edit_metadata_exec(bContext *C, wmOperator *op)
@@ -412,10 +411,7 @@ static void visit_active_library_catalogs_catalog_for_search_fn(
 
   /* NOTE: Using the all library would also be a valid choice. */
   blender::ed::asset::visit_library_catalogs_catalog_for_search(
-      *CTX_data_main(C),
-      *library_ref_to_user_library(*library_to_library_ref(library)),
-      edit_text,
-      visit_fn);
+      *CTX_data_main(C), *library_to_library_ref(library), edit_text, visit_fn);
 }
 
 static bool brush_asset_edit_metadata_poll(bContext *C)
