@@ -772,13 +772,13 @@ static PyObject *bpy_op_handler_proc(
 
   PyObject *py_data = PyTuple_New(5);
   PyTuple_SET_ITEMS(py_data,
-                    Py_INCREF_RET(py_owner),   // 0
-                    Py_INCREF_RET(py_op),      // 1
-                    Py_INCREF_RET(callback),   // 2
-                    Py_INCREF_RET(callback_args), // 3
-                    Py_INCREF_RET(py_poll));  // 4
+                    Py_NewRef(py_owner),   // 0
+                    Py_NewRef(py_op),      // 1
+                    Py_NewRef(callback),   // 2
+                    Py_NewRef(callback_args), // 3
+                    Py_NewRef(py_poll));  // 4
 
-  return Py_INCREF_RET(py_data);
+  return Py_NewRef(py_data);
 }
 
 static PyObject *op_handler_append(int handler_id , PyObject *args, PyObject *kw)
