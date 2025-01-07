@@ -266,8 +266,12 @@ static void sample_node_surface_bmesh(const Depsgraph &depsgraph,
   accumulate_samples(positions, local_positions, normals, factors, sample);
 }
 
-/* Samples the underlyign mesh data to calculate the position and normal of the associated planes,
- * returns an empty optional to indicate that no samples were taken. */
+/**
+ * Samples and partitions the underlying mesh data to aggregate position and normal data based on
+ * positive and negative brush local x-axis positions.
+ *
+ * \returns an empty optional to indicate that no samples were taken.
+ */
 static std::optional<ScrapeSampleData> sample_surface(const Depsgraph &depsgraph,
                                                       const Object &object,
                                                       const Brush &brush,
