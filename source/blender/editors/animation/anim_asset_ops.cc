@@ -43,31 +43,6 @@
 
 namespace blender::ed::animrig {
 
-static void visit_library_catalogs_catalog_for_search(
-    const Main &bmain,
-    const bUserAssetLibrary &user_library,
-    const StringRef edit_text,
-    const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
-{
-  const asset_system::AssetLibrary *library = AS_asset_library_load(
-      &bmain, blender::ed::asset::user_library_to_library_ref(user_library));
-  if (!library) {
-    return;
-  }
-
-  if (!edit_text.is_empty()) {
-    const asset_system::AssetCatalogPath edit_path = edit_text;
-    if (!library->catalog_service().find_catalog_by_path(edit_path)) {
-      visit_fn(StringPropertySearchVisitParams{edit_path.str(), std::nullopt, ICON_ADD});
-    }
-  }
-
-  const asset_system::AssetCatalogTree &full_tree = library->catalog_service().catalog_tree();
-  full_tree.foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
-    visit_fn(StringPropertySearchVisitParams{item.catalog_path().str(), std::nullopt});
-  });
-}
-
 static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*/,
                                                                  PointerRNA * /*ptr*/,
                                                                  PropertyRNA * /*prop*/,
@@ -81,27 +56,6 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
 
   *r_free = true;
   return items;
-}
-
-static const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr)
-{
-  const int enum_value = RNA_enum_get(&ptr, "asset_library_reference");
-  const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
-  return BKE_preferences_asset_library_find_index(&U, lib_ref.custom_library_index);
-}
-
-static void visit_library_prop_catalogs_catalog_for_search_fn(
-    const bContext *C,
-    PointerRNA *ptr,
-    PropertyRNA * /*prop*/,
-    const char *edit_text,
-    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
-{
-  /* NOTE: Using the all library would also be a valid choice. */
-  if (const bUserAssetLibrary *user_library = get_asset_library_from_prop(*ptr)) {
-    visit_library_catalogs_catalog_for_search(
-        *CTX_data_main(C), *user_library, edit_text, visit_fn);
-  }
 }
 
 static void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref)
@@ -231,7 +185,8 @@ static int pose_asset_create_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const bUserAssetLibrary *user_library = get_asset_library_from_prop(*op->ptr);
+  const bUserAssetLibrary *user_library = blender::ed::asset::get_asset_library_from_prop(
+      *op->ptr);
   if (!user_library) {
     return OPERATOR_CANCELLED;
   }
@@ -348,7 +303,9 @@ void POSELIB_OT_asset_create(wmOperatorType *ot)
   prop = RNA_def_string(
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "Catalog to use for the new asset");
   RNA_def_property_string_search_func_runtime(
-      prop, visit_library_prop_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
+      prop,
+      blender::ed::asset::visit_library_prop_catalogs_catalog_for_search_fn,
+      PROP_STRING_SEARCH_SUGGESTION);
 }
 
 enum AssetOverwriteMode {

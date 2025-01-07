@@ -11,8 +11,11 @@
 #include "DNA_asset_types.h"
 
 struct bUserAssetLibrary;
+struct bContext;
 struct AssetLibraryReference;
 struct EnumPropertyItem;
+struct PointerRNA;
+struct PropertyRNA;
 
 namespace blender::asset_system {
 class AssetCatalog;
@@ -61,5 +64,29 @@ AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_
  *
  */
 const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference &library_ref);
+
+/**
+ *
+ */
+const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr);
+
+/**
+ *
+ */
+void visit_library_catalogs_catalog_for_search(
+    const Main &bmain,
+    const bUserAssetLibrary &user_library,
+    const StringRef edit_text,
+    const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
+
+/**
+ *
+ */
+void visit_library_prop_catalogs_catalog_for_search_fn(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA * /*prop*/,
+    const char *edit_text,
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
 }  // namespace blender::ed::asset

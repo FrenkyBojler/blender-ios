@@ -6,13 +6,21 @@
  * \ingroup edasset
  */
 
+#include "BKE_context.hh"
+#include "BKE_preferences.h"
+
 #include "ED_asset_library.hh"
 
 #include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
 
+#include "RNA_access.hh"
+
+#include "UI_resources.hh"
+
 #include "AS_asset_catalog.hh"
+#include "AS_asset_catalog_tree.hh"
 #include "AS_asset_library.hh"
 
 namespace blender::ed::asset {
@@ -65,6 +73,52 @@ const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference
   }
   return static_cast<const bUserAssetLibrary *>(
       BLI_findlink(&U.asset_libraries, library_ref.custom_library_index));
+}
+
+const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr)
+{
+  const int enum_value = RNA_enum_get(&ptr, "asset_library_reference");
+  const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
+  return BKE_preferences_asset_library_find_index(&U, lib_ref.custom_library_index);
+}
+
+void visit_library_catalogs_catalog_for_search(
+    const Main &bmain,
+    const bUserAssetLibrary &user_library,
+    const StringRef edit_text,
+    const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+{
+  const asset_system::AssetLibrary *library = AS_asset_library_load(
+      &bmain, blender::ed::asset::user_library_to_library_ref(user_library));
+  if (!library) {
+    return;
+  }
+
+  if (!edit_text.is_empty()) {
+    const asset_system::AssetCatalogPath edit_path = edit_text;
+    if (!library->catalog_service().find_catalog_by_path(edit_path)) {
+      visit_fn(StringPropertySearchVisitParams{edit_path.str(), std::nullopt, ICON_ADD});
+    }
+  }
+
+  const asset_system::AssetCatalogTree &full_tree = library->catalog_service().catalog_tree();
+  full_tree.foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
+    visit_fn(StringPropertySearchVisitParams{item.catalog_path().str(), std::nullopt});
+  });
+}
+
+void visit_library_prop_catalogs_catalog_for_search_fn(
+    const bContext *C,
+    PointerRNA *ptr,
+    PropertyRNA * /*prop*/,
+    const char *edit_text,
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+{
+  /* NOTE: Using the all library would also be a valid choice. */
+  if (const bUserAssetLibrary *user_library = get_asset_library_from_prop(*ptr)) {
+    visit_library_catalogs_catalog_for_search(
+        *CTX_data_main(C), *user_library, edit_text, visit_fn);
+  }
 }
 
 }  // namespace blender::ed::asset
