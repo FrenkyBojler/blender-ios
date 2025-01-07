@@ -35,6 +35,7 @@ set(SRC
   intern/nla.cc
   intern/pose.cc
   intern/versioning.cc
+  intern/versioning_iterators.cc
   intern/visualkey.cc
 
   ANIM_action.hh
@@ -57,6 +58,7 @@ set(SRC
   intern/action_runtime.hh
   intern/bone_collections_internal.hh
   intern/evaluation_internal.hh
+  intern/versioning_iterators.hh
 )
 
 set(LIB

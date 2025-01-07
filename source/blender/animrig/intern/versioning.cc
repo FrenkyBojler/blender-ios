@@ -17,6 +17,7 @@
 #include "DNA_action_defaults.h"
 #include "DNA_action_types.h"
 
+#include "BKE_lib_override.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
@@ -27,6 +28,8 @@
 #include "BLT_translation.hh"
 
 #include "BLO_readfile.hh"
+
+#include "intern/versioning_iterators.hh"
 
 namespace blender::animrig::versioning {
 
@@ -184,8 +187,9 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
   auto version_slot_assignment = [&](ID &animated_id,
                                      bAction *&action_ptr_ref,
                                      slot_handle_t &slot_handle_ref,
-                                     char *last_used_slot_identifier) {
-    BLI_assert(action_ptr_ref); /* Ensured by the foreach loop. */
+                                     char *last_used_slot_identifier,
+                                     const blender::StringRefNull slot_handle_prop_rna_path) {
+    BLI_assert(action_ptr_ref); /* Ensured by foreach_action_slot_with_rna_path(). */
     Action &action = action_ptr_ref->wrap();
 
     if (action.slot_array_num == 0) {
@@ -199,7 +203,7 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
       BLI_assert_msg(BLI_listbase_is_empty(&action.chanbase),
                      "Did not expect pre-2.5 Action at this stage of the versioning code");
 
-      return true;
+      return;
     }
 
     /* Reset the "last used slot identifier" to the default "Legacy Slot". That way
@@ -232,7 +236,7 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
                   last_used_slot_identifier,
                   animated_id.name,
                   animated_id.name + 2);
-      return true;
+      return;
     }
 
     const ActionSlotAssignmentResult result = generic_assign_action_slot(
@@ -277,14 +281,45 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
         break;
     }
 
-    return true;
+    /* If this Action is set on a library overridden structure, it's not enough to assign the
+     * Action slot here. An override should be added to the action slot as well.
+     *
+     * Note: these library overrides will likely be removed by Blender again. All slots created on
+     * just-versioned legacy Actions are named "Legacy Slot", and the versioning code ensures that
+     * these are auto-assigned even without override. The code for the auto-slot-assignment of NLA
+     * strips and Action Constraints (see `blender::animrig::nla::assign_action` and
+     * `rna_ActionConstraint_action_set`) is even more eager to auto-select a slot whenever there
+     * is one that's suitable, and so it already picks up on the Legacy Slot without the library
+     * overrides. And because this makes the data the same as what is set in the library override,
+     * the liboverride isn't necessary, and Blender removes it again.
+     *
+     * To make this versioning code semantically correct without relying on the specific
+     * implementation of code somewhere else in Blender, these overrides are still created here
+     * anyway. */
+    if (ID_IS_OVERRIDE_LIBRARY(&animated_id)) {
+      IDOverrideLibrary *liboverride = BKE_lib_override_library_get(
+          &bmain, &animated_id, nullptr, nullptr);
+      IDOverrideLibraryProperty *liboverride_property = BKE_lib_override_library_property_get(
+          liboverride, slot_handle_prop_rna_path.c_str(), nullptr);
+      BKE_lib_override_library_property_operation_get(liboverride_property,
+                                                      LIBOVERRIDE_OP_REPLACE,
+                                                      nullptr,
+                                                      nullptr,
+                                                      {},
+                                                      {},
+                                                      0,
+                                                      0,
+                                                      true,
+                                                      nullptr,
+                                                      nullptr);
+    }
   };
 
   ID *id;
   FOREACH_MAIN_ID_BEGIN (&bmain, id) {
     /* Process the ID itself. */
     if (BLO_readfile_id_runtime_tags(*id).action_assignment_needs_slot) {
-      foreach_action_slot_use_with_references(*id, version_slot_assignment);
+      foreach_action_slot_with_rna_path(*id, version_slot_assignment);
       id->runtime.readfile_data->tags.action_assignment_needs_slot = false;
     }
 
@@ -294,7 +329,7 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
      * node tree. */
     bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
     if (node_tree && BLO_readfile_id_runtime_tags(node_tree->id).action_assignment_needs_slot) {
-      foreach_action_slot_use_with_references(node_tree->id, version_slot_assignment);
+      foreach_action_slot_with_rna_path(node_tree->id, version_slot_assignment);
       node_tree->id.runtime.readfile_data->tags.action_assignment_needs_slot = false;
     }
   }
