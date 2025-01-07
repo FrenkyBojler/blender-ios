@@ -448,6 +448,7 @@ static void toolsystem_sync_brush_toolref_runtime(const bToolRef &src, bToolRef 
   dst.runtime->flag = src.runtime->flag;
 }
 
+/** Syncs active texture paint tool between the 3D View and Image Editor. */
 static void toolsystem_sync_texture_paint_tools(Main * /*bmain*/,
                                                 WorkSpace *workspace,
                                                 const bToolRef *tref)
@@ -455,12 +456,14 @@ static void toolsystem_sync_texture_paint_tools(Main * /*bmain*/,
   BLI_assert(tref->runtime->flag & TOOLREF_FLAG_USE_BRUSHES);
   bToolRef *sync_tref;
   bToolKey tkey{};
+  /* Synchronize active tool from 3D View to Image Editor. */
   if (tref->space_type == SPACE_VIEW3D && tref->mode == CTX_MODE_PAINT_TEXTURE) {
     tkey.space_type = SPACE_IMAGE;
     tkey.mode = SI_MODE_PAINT;
     WM_toolsystem_ref_ensure(workspace, &tkey, &sync_tref);
     toolsystem_sync_brush_toolref_runtime(*tref, *sync_tref);
   }
+  /* Synchronize active tool from Image Editor to 3D View. */
   else if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
     tkey.space_type = SPACE_VIEW3D;
     tkey.mode = CTX_MODE_PAINT_TEXTURE;
