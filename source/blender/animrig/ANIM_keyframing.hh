@@ -11,12 +11,8 @@
 #pragma once
 
 #include <array>
-#include <string>
 
-#include "BLI_array.hh"
-#include "BLI_bit_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_vector.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_windowmanager_types.h"
@@ -247,7 +243,7 @@ bool autokeyframe_cfra_can_key(const Scene *scene, ID *id);
  *
  * \param rna_paths: Only inserts keys on those RNA paths.
  */
-void autokeyframe_object(bContext *C, Scene *scene, Object *ob, Span<RNAPath> rna_paths);
+void autokeyframe_object(bContext *C, const Scene *scene, Object *ob, Span<RNAPath> rna_paths);
 /**
  * Auto-keyframing feature - for objects
  *

@@ -52,16 +52,16 @@
 
 #  include "WM_api.hh"
 
-static StripElem *rna_Sequence_strip_elem_from_frame(ID *id, Sequence *self, int timeline_frame)
+static StripElem *rna_Sequence_strip_elem_from_frame(ID *id, Strip *self, int timeline_frame)
 {
   Scene *scene = (Scene *)id;
   return SEQ_render_give_stripelem(scene, self, timeline_frame);
 }
 
 static void rna_Sequence_swap_internal(ID *id,
-                                       Sequence *seq_self,
+                                       Strip *seq_self,
                                        ReportList *reports,
-                                       Sequence *seq_other)
+                                       Strip *seq_other)
 {
   const char *error_msg;
   Scene *scene = (Scene *)id;
@@ -72,7 +72,7 @@ static void rna_Sequence_swap_internal(ID *id,
 }
 
 static void rna_Sequences_move_strip_to_meta(
-    ID *id, Sequence *seq_self, Main *bmain, ReportList *reports, Sequence *meta_dst)
+    ID *id, Strip *seq_self, Main *bmain, ReportList *reports, Strip *meta_dst)
 {
   Scene *scene = (Scene *)id;
   const char *error_msg;
@@ -91,15 +91,15 @@ static void rna_Sequences_move_strip_to_meta(
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 }
 
-static Sequence *rna_Sequence_split(
-    ID *id, Sequence *seq, Main *bmain, ReportList *reports, int frame, int split_method)
+static Strip *rna_Sequence_split(
+    ID *id, Strip *strip, Main *bmain, ReportList *reports, int frame, int split_method)
 {
   Scene *scene = (Scene *)id;
-  ListBase *seqbase = SEQ_get_seqbase_by_seq(scene, seq);
+  ListBase *seqbase = SEQ_get_seqbase_by_seq(scene, strip);
 
   const char *error_msg = nullptr;
-  Sequence *r_seq = SEQ_edit_strip_split(
-      bmain, scene, seqbase, seq, frame, eSeqSplitMethod(split_method), &error_msg);
+  Strip *r_seq = SEQ_edit_strip_split(
+      bmain, scene, seqbase, strip, frame, eSeqSplitMethod(split_method), &error_msg);
   if (error_msg != nullptr) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
@@ -113,7 +113,7 @@ static Sequence *rna_Sequence_split(
   return r_seq;
 }
 
-static Sequence *rna_Sequence_parent_meta(ID *id, Sequence *seq_self)
+static Strip *rna_Sequence_parent_meta(ID *id, Strip *seq_self)
 {
   Scene *scene = (Scene *)id;
   Editing *ed = SEQ_editing_get(scene);
@@ -121,133 +121,133 @@ static Sequence *rna_Sequence_parent_meta(ID *id, Sequence *seq_self)
   return SEQ_find_metastrip_by_sequence(&ed->seqbase, nullptr, seq_self);
 }
 
-static Sequence *rna_Sequences_new_clip(ID *id,
-                                        ListBase *seqbase,
-                                        Main *bmain,
-                                        const char *name,
-                                        MovieClip *clip,
-                                        int channel,
-                                        int frame_start)
+static Strip *rna_Sequences_new_clip(ID *id,
+                                     ListBase *seqbase,
+                                     Main *bmain,
+                                     const char *name,
+                                     MovieClip *clip,
+                                     int channel,
+                                     int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
   SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.clip = clip;
-  Sequence *seq = SEQ_add_movieclip_strip(scene, seqbase, &load_data);
+  Strip *strip = SEQ_add_movieclip_strip(scene, seqbase, &load_data);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return seq;
+  return strip;
 }
 
-static Sequence *rna_Sequences_editing_new_clip(ID *id,
-                                                Editing *ed,
-                                                Main *bmain,
-                                                const char *name,
-                                                MovieClip *clip,
-                                                int channel,
-                                                int frame_start)
-{
-  return rna_Sequences_new_clip(id, &ed->seqbase, bmain, name, clip, channel, frame_start);
-}
-
-static Sequence *rna_Sequences_meta_new_clip(ID *id,
-                                             Sequence *seq,
+static Strip *rna_Sequences_editing_new_clip(ID *id,
+                                             Editing *ed,
                                              Main *bmain,
                                              const char *name,
                                              MovieClip *clip,
                                              int channel,
                                              int frame_start)
 {
-  return rna_Sequences_new_clip(id, &seq->seqbase, bmain, name, clip, channel, frame_start);
+  return rna_Sequences_new_clip(id, &ed->seqbase, bmain, name, clip, channel, frame_start);
 }
 
-static Sequence *rna_Sequences_new_mask(ID *id,
-                                        ListBase *seqbase,
-                                        Main *bmain,
-                                        const char *name,
-                                        Mask *mask,
-                                        int channel,
-                                        int frame_start)
+static Strip *rna_Sequences_meta_new_clip(ID *id,
+                                          Strip *strip,
+                                          Main *bmain,
+                                          const char *name,
+                                          MovieClip *clip,
+                                          int channel,
+                                          int frame_start)
+{
+  return rna_Sequences_new_clip(id, &strip->seqbase, bmain, name, clip, channel, frame_start);
+}
+
+static Strip *rna_Sequences_new_mask(ID *id,
+                                     ListBase *seqbase,
+                                     Main *bmain,
+                                     const char *name,
+                                     Mask *mask,
+                                     int channel,
+                                     int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
   SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.mask = mask;
-  Sequence *seq = SEQ_add_mask_strip(scene, seqbase, &load_data);
+  Strip *strip = SEQ_add_mask_strip(scene, seqbase, &load_data);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return seq;
+  return strip;
 }
-static Sequence *rna_Sequences_editing_new_mask(
+static Strip *rna_Sequences_editing_new_mask(
     ID *id, Editing *ed, Main *bmain, const char *name, Mask *mask, int channel, int frame_start)
 {
   return rna_Sequences_new_mask(id, &ed->seqbase, bmain, name, mask, channel, frame_start);
 }
 
-static Sequence *rna_Sequences_meta_new_mask(
-    ID *id, Sequence *seq, Main *bmain, const char *name, Mask *mask, int channel, int frame_start)
+static Strip *rna_Sequences_meta_new_mask(
+    ID *id, Strip *strip, Main *bmain, const char *name, Mask *mask, int channel, int frame_start)
 {
-  return rna_Sequences_new_mask(id, &seq->seqbase, bmain, name, mask, channel, frame_start);
+  return rna_Sequences_new_mask(id, &strip->seqbase, bmain, name, mask, channel, frame_start);
 }
 
-static Sequence *rna_Sequences_new_scene(ID *id,
-                                         ListBase *seqbase,
-                                         Main *bmain,
-                                         const char *name,
-                                         Scene *sce_seq,
-                                         int channel,
-                                         int frame_start)
+static Strip *rna_Sequences_new_scene(ID *id,
+                                      ListBase *seqbase,
+                                      Main *bmain,
+                                      const char *name,
+                                      Scene *sce_seq,
+                                      int channel,
+                                      int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
   SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.scene = sce_seq;
-  Sequence *seq = SEQ_add_scene_strip(scene, seqbase, &load_data);
+  Strip *strip = SEQ_add_scene_strip(scene, seqbase, &load_data);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return seq;
+  return strip;
 }
 
-static Sequence *rna_Sequences_editing_new_scene(ID *id,
-                                                 Editing *ed,
-                                                 Main *bmain,
-                                                 const char *name,
-                                                 Scene *sce_seq,
-                                                 int channel,
-                                                 int frame_start)
-{
-  return rna_Sequences_new_scene(id, &ed->seqbase, bmain, name, sce_seq, channel, frame_start);
-}
-
-static Sequence *rna_Sequences_meta_new_scene(ID *id,
-                                              Sequence *seq,
+static Strip *rna_Sequences_editing_new_scene(ID *id,
+                                              Editing *ed,
                                               Main *bmain,
                                               const char *name,
                                               Scene *sce_seq,
                                               int channel,
                                               int frame_start)
 {
-  return rna_Sequences_new_scene(id, &seq->seqbase, bmain, name, sce_seq, channel, frame_start);
+  return rna_Sequences_new_scene(id, &ed->seqbase, bmain, name, sce_seq, channel, frame_start);
 }
 
-static Sequence *rna_Sequences_new_image(ID *id,
-                                         ListBase *seqbase,
-                                         Main *bmain,
-                                         ReportList * /*reports*/,
-                                         const char *name,
-                                         const char *file,
-                                         int channel,
-                                         int frame_start,
-                                         int fit_method)
+static Strip *rna_Sequences_meta_new_scene(ID *id,
+                                           Strip *strip,
+                                           Main *bmain,
+                                           const char *name,
+                                           Scene *sce_seq,
+                                           int channel,
+                                           int frame_start)
+{
+  return rna_Sequences_new_scene(id, &strip->seqbase, bmain, name, sce_seq, channel, frame_start);
+}
+
+static Strip *rna_Sequences_new_image(ID *id,
+                                      ListBase *seqbase,
+                                      Main *bmain,
+                                      ReportList * /*reports*/,
+                                      const char *name,
+                                      const char *file,
+                                      int channel,
+                                      int frame_start,
+                                      int fit_method)
 {
   Scene *scene = (Scene *)id;
 
@@ -255,37 +255,23 @@ static Sequence *rna_Sequences_new_image(ID *id,
   SEQ_add_load_data_init(&load_data, name, file, frame_start, channel);
   load_data.image.len = 1;
   load_data.fit_method = eSeqImageFitMethod(fit_method);
-  Sequence *seq = SEQ_add_image_strip(bmain, scene, seqbase, &load_data);
+  Strip *strip = SEQ_add_image_strip(bmain, scene, seqbase, &load_data);
 
   char dirpath[FILE_MAX], filename[FILE_MAXFILE];
   BLI_path_split_dir_file(file, dirpath, sizeof(dirpath), filename, sizeof(filename));
-  SEQ_add_image_set_directory(seq, dirpath);
-  SEQ_add_image_load_file(scene, seq, 0, filename);
-  SEQ_add_image_init_alpha_mode(seq);
+  SEQ_add_image_set_directory(strip, dirpath);
+  SEQ_add_image_load_file(scene, strip, 0, filename);
+  SEQ_add_image_init_alpha_mode(strip);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return seq;
+  return strip;
 }
 
-static Sequence *rna_Sequences_editing_new_image(ID *id,
-                                                 Editing *ed,
-                                                 Main *bmain,
-                                                 ReportList *reports,
-                                                 const char *name,
-                                                 const char *file,
-                                                 int channel,
-                                                 int frame_start,
-                                                 int fit_method)
-{
-  return rna_Sequences_new_image(
-      id, &ed->seqbase, bmain, reports, name, file, channel, frame_start, fit_method);
-}
-
-static Sequence *rna_Sequences_meta_new_image(ID *id,
-                                              Sequence *seq,
+static Strip *rna_Sequences_editing_new_image(ID *id,
+                                              Editing *ed,
                                               Main *bmain,
                                               ReportList *reports,
                                               const char *name,
@@ -295,47 +281,48 @@ static Sequence *rna_Sequences_meta_new_image(ID *id,
                                               int fit_method)
 {
   return rna_Sequences_new_image(
-      id, &seq->seqbase, bmain, reports, name, file, channel, frame_start, fit_method);
+      id, &ed->seqbase, bmain, reports, name, file, channel, frame_start, fit_method);
 }
 
-static Sequence *rna_Sequences_new_movie(ID *id,
-                                         ListBase *seqbase,
-                                         Main *bmain,
-                                         const char *name,
-                                         const char *file,
-                                         int channel,
-                                         int frame_start,
-                                         int fit_method)
+static Strip *rna_Sequences_meta_new_image(ID *id,
+                                           Strip *strip,
+                                           Main *bmain,
+                                           ReportList *reports,
+                                           const char *name,
+                                           const char *file,
+                                           int channel,
+                                           int frame_start,
+                                           int fit_method)
+{
+  return rna_Sequences_new_image(
+      id, &strip->seqbase, bmain, reports, name, file, channel, frame_start, fit_method);
+}
+
+static Strip *rna_Sequences_new_movie(ID *id,
+                                      ListBase *seqbase,
+                                      Main *bmain,
+                                      const char *name,
+                                      const char *file,
+                                      int channel,
+                                      int frame_start,
+                                      int fit_method)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
   SEQ_add_load_data_init(&load_data, name, file, frame_start, channel);
   load_data.fit_method = eSeqImageFitMethod(fit_method);
   load_data.allow_invalid_file = true;
-  Sequence *seq = SEQ_add_movie_strip(bmain, scene, seqbase, &load_data);
+  Strip *strip = SEQ_add_movie_strip(bmain, scene, seqbase, &load_data);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return seq;
+  return strip;
 }
 
-static Sequence *rna_Sequences_editing_new_movie(ID *id,
-                                                 Editing *ed,
-                                                 Main *bmain,
-                                                 const char *name,
-                                                 const char *file,
-                                                 int channel,
-                                                 int frame_start,
-                                                 int fit_method)
-{
-  return rna_Sequences_new_movie(
-      id, &ed->seqbase, bmain, name, file, channel, frame_start, fit_method);
-}
-
-static Sequence *rna_Sequences_meta_new_movie(ID *id,
-                                              Sequence *seq,
+static Strip *rna_Sequences_editing_new_movie(ID *id,
+                                              Editing *ed,
                                               Main *bmain,
                                               const char *name,
                                               const char *file,
@@ -344,26 +331,39 @@ static Sequence *rna_Sequences_meta_new_movie(ID *id,
                                               int fit_method)
 {
   return rna_Sequences_new_movie(
-      id, &seq->seqbase, bmain, name, file, channel, frame_start, fit_method);
+      id, &ed->seqbase, bmain, name, file, channel, frame_start, fit_method);
+}
+
+static Strip *rna_Sequences_meta_new_movie(ID *id,
+                                           Strip *strip,
+                                           Main *bmain,
+                                           const char *name,
+                                           const char *file,
+                                           int channel,
+                                           int frame_start,
+                                           int fit_method)
+{
+  return rna_Sequences_new_movie(
+      id, &strip->seqbase, bmain, name, file, channel, frame_start, fit_method);
 }
 
 #  ifdef WITH_AUDASPACE
-static Sequence *rna_Sequences_new_sound(ID *id,
-                                         ListBase *seqbase,
-                                         Main *bmain,
-                                         ReportList *reports,
-                                         const char *name,
-                                         const char *file,
-                                         int channel,
-                                         int frame_start)
+static Strip *rna_Sequences_new_sound(ID *id,
+                                      ListBase *seqbase,
+                                      Main *bmain,
+                                      ReportList *reports,
+                                      const char *name,
+                                      const char *file,
+                                      int channel,
+                                      int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
   SEQ_add_load_data_init(&load_data, name, file, frame_start, channel);
   load_data.allow_invalid_file = true;
-  Sequence *seq = SEQ_add_sound_strip(bmain, scene, seqbase, &load_data);
+  Strip *strip = SEQ_add_sound_strip(bmain, scene, seqbase, &load_data);
 
-  if (seq == nullptr) {
+  if (strip == nullptr) {
     BKE_report(reports, RPT_ERROR, "Sequences.new_sound: unable to open sound file");
     return nullptr;
   }
@@ -372,38 +372,25 @@ static Sequence *rna_Sequences_new_sound(ID *id,
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return seq;
+  return strip;
 }
 #  else  /* WITH_AUDASPACE */
-static Sequence *rna_Sequences_new_sound(ID * /*id*/,
-                                         ListBase * /*seqbase*/,
-                                         Main * /*bmain*/,
-                                         ReportList *reports,
-                                         const char * /*name*/,
-                                         const char * /*file*/,
-                                         int /*channel*/,
-                                         int /*frame_start*/)
+static Strip *rna_Sequences_new_sound(ID * /*id*/,
+                                      ListBase * /*seqbase*/,
+                                      Main * /*bmain*/,
+                                      ReportList *reports,
+                                      const char * /*name*/,
+                                      const char * /*file*/,
+                                      int /*channel*/,
+                                      int /*frame_start*/)
 {
   BKE_report(reports, RPT_ERROR, "Blender compiled without Audaspace support");
   return nullptr;
 }
 #  endif /* WITH_AUDASPACE */
 
-static Sequence *rna_Sequences_editing_new_sound(ID *id,
-                                                 Editing *ed,
-                                                 Main *bmain,
-                                                 ReportList *reports,
-                                                 const char *name,
-                                                 const char *file,
-                                                 int channel,
-                                                 int frame_start)
-{
-  return rna_Sequences_new_sound(
-      id, &ed->seqbase, bmain, reports, name, file, channel, frame_start);
-}
-
-static Sequence *rna_Sequences_meta_new_sound(ID *id,
-                                              Sequence *seq,
+static Strip *rna_Sequences_editing_new_sound(ID *id,
+                                              Editing *ed,
                                               Main *bmain,
                                               ReportList *reports,
                                               const char *name,
@@ -412,48 +399,61 @@ static Sequence *rna_Sequences_meta_new_sound(ID *id,
                                               int frame_start)
 {
   return rna_Sequences_new_sound(
-      id, &seq->seqbase, bmain, reports, name, file, channel, frame_start);
+      id, &ed->seqbase, bmain, reports, name, file, channel, frame_start);
+}
+
+static Strip *rna_Sequences_meta_new_sound(ID *id,
+                                           Strip *strip,
+                                           Main *bmain,
+                                           ReportList *reports,
+                                           const char *name,
+                                           const char *file,
+                                           int channel,
+                                           int frame_start)
+{
+  return rna_Sequences_new_sound(
+      id, &strip->seqbase, bmain, reports, name, file, channel, frame_start);
 }
 
 /* Meta sequence
  * Possibility to create an empty meta to avoid plenty of meta toggling
  * Created meta have a length equal to 1, must be set through the API. */
-static Sequence *rna_Sequences_new_meta(
+static Strip *rna_Sequences_new_meta(
     ID *id, ListBase *seqbase, const char *name, int channel, int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
   SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
-  Sequence *seqm = SEQ_add_meta_strip(scene, seqbase, &load_data);
+  Strip *seqm = SEQ_add_meta_strip(scene, seqbase, &load_data);
 
   return seqm;
 }
 
-static Sequence *rna_Sequences_editing_new_meta(
+static Strip *rna_Sequences_editing_new_meta(
     ID *id, Editing *ed, const char *name, int channel, int frame_start)
 {
   return rna_Sequences_new_meta(id, &ed->seqbase, name, channel, frame_start);
 }
 
-static Sequence *rna_Sequences_meta_new_meta(
-    ID *id, Sequence *seq, const char *name, int channel, int frame_start)
+static Strip *rna_Sequences_meta_new_meta(
+    ID *id, Strip *strip, const char *name, int channel, int frame_start)
 {
-  return rna_Sequences_new_meta(id, &seq->seqbase, name, channel, frame_start);
+  return rna_Sequences_new_meta(id, &strip->seqbase, name, channel, frame_start);
 }
 
-static Sequence *rna_Sequences_new_effect(ID *id,
-                                          ListBase *seqbase,
-                                          ReportList *reports,
-                                          const char *name,
-                                          int type,
-                                          int channel,
-                                          int frame_start,
-                                          int frame_end,
-                                          Sequence *seq1,
-                                          Sequence *seq2)
+static Strip *rna_Sequences_new_effect(ID *id,
+                                       ListBase *seqbase,
+                                       ReportList *reports,
+                                       const char *name,
+                                       int type,
+                                       int channel,
+                                       int frame_start,
+                                       int frame_end,
+                                       Strip *seq1,
+                                       Strip *seq2)
 {
   Scene *scene = (Scene *)id;
-  Sequence *seq;
+  Strip *strip;
   const int num_inputs = SEQ_effect_get_num_inputs(type);
 
   switch (num_inputs) {
@@ -490,57 +490,57 @@ static Sequence *rna_Sequences_new_effect(ID *id,
   load_data.effect.type = type;
   load_data.effect.seq1 = seq1;
   load_data.effect.seq2 = seq2;
-  seq = SEQ_add_effect_strip(scene, seqbase, &load_data);
+  strip = SEQ_add_effect_strip(scene, seqbase, &load_data);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return seq;
+  return strip;
 }
 
-static Sequence *rna_Sequences_editing_new_effect(ID *id,
-                                                  Editing *ed,
-                                                  ReportList *reports,
-                                                  const char *name,
-                                                  int type,
-                                                  int channel,
-                                                  int frame_start,
-                                                  int frame_end,
-                                                  Sequence *seq1,
-                                                  Sequence *seq2)
-{
-  return rna_Sequences_new_effect(
-      id, &ed->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
-}
-
-static Sequence *rna_Sequences_meta_new_effect(ID *id,
-                                               Sequence *seq,
+static Strip *rna_Sequences_editing_new_effect(ID *id,
+                                               Editing *ed,
                                                ReportList *reports,
                                                const char *name,
                                                int type,
                                                int channel,
                                                int frame_start,
                                                int frame_end,
-                                               Sequence *seq1,
-                                               Sequence *seq2)
+                                               Strip *seq1,
+                                               Strip *seq2)
 {
   return rna_Sequences_new_effect(
-      id, &seq->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
+      id, &ed->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
+}
+
+static Strip *rna_Sequences_meta_new_effect(ID *id,
+                                            Strip *strip,
+                                            ReportList *reports,
+                                            const char *name,
+                                            int type,
+                                            int channel,
+                                            int frame_start,
+                                            int frame_end,
+                                            Strip *seq1,
+                                            Strip *seq2)
+{
+  return rna_Sequences_new_effect(
+      id, &strip->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
 }
 
 static void rna_Sequences_remove(
     ID *id, ListBase *seqbase, Main *bmain, ReportList *reports, PointerRNA *seq_ptr)
 {
-  Sequence *seq = static_cast<Sequence *>(seq_ptr->data);
+  Strip *strip = static_cast<Strip *>(seq_ptr->data);
   Scene *scene = (Scene *)id;
 
-  if (BLI_findindex(seqbase, seq) == -1) {
+  if (BLI_findindex(seqbase, strip) == -1) {
     BKE_reportf(
-        reports, RPT_ERROR, "Sequence '%s' not in scene '%s'", seq->name + 2, scene->id.name + 2);
+        reports, RPT_ERROR, "Strip '%s' not in scene '%s'", strip->name + 2, scene->id.name + 2);
     return;
   }
 
-  SEQ_edit_flag_for_removal(scene, seqbase, seq);
+  SEQ_edit_flag_for_removal(scene, seqbase, strip);
   SEQ_edit_remove_flagged_sequences(scene, seqbase);
   RNA_POINTER_INVALIDATE(seq_ptr);
 
@@ -556,73 +556,73 @@ static void rna_Sequences_editing_remove(
 }
 
 static void rna_Sequences_meta_remove(
-    ID *id, Sequence *seq, Main *bmain, ReportList *reports, PointerRNA *seq_ptr)
+    ID *id, Strip *strip, Main *bmain, ReportList *reports, PointerRNA *seq_ptr)
 {
-  rna_Sequences_remove(id, &seq->seqbase, bmain, reports, seq_ptr);
+  rna_Sequences_remove(id, &strip->seqbase, bmain, reports, seq_ptr);
 }
 
-static StripElem *rna_SequenceElements_append(ID *id, Sequence *seq, const char *filename)
+static StripElem *rna_SequenceElements_append(ID *id, Strip *strip, const char *filename)
 {
   Scene *scene = (Scene *)id;
   StripElem *se;
 
-  seq->strip->stripdata = se = static_cast<StripElem *>(
-      MEM_reallocN(seq->strip->stripdata, sizeof(StripElem) * (seq->len + 1)));
-  se += seq->len;
+  strip->data->stripdata = se = static_cast<StripElem *>(
+      MEM_reallocN(strip->data->stripdata, sizeof(StripElem) * (strip->len + 1)));
+  se += strip->len;
   STRNCPY(se->filename, filename);
-  seq->len++;
+  strip->len++;
 
-  seq->flag &= ~SEQ_SINGLE_FRAME_CONTENT;
+  strip->flag &= ~SEQ_SINGLE_FRAME_CONTENT;
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
   return se;
 }
 
-static void rna_SequenceElements_pop(ID *id, Sequence *seq, ReportList *reports, int index)
+static void rna_SequenceElements_pop(ID *id, Strip *strip, ReportList *reports, int index)
 {
   Scene *scene = (Scene *)id;
   StripElem *new_seq, *se;
 
-  if (seq->len == 1) {
+  if (strip->len == 1) {
     BKE_report(reports, RPT_ERROR, "SequenceElements.pop: cannot pop the last element");
     return;
   }
 
   /* python style negative indexing */
   if (index < 0) {
-    index += seq->len;
+    index += strip->len;
   }
 
-  if (seq->len <= index || index < 0) {
+  if (strip->len <= index || index < 0) {
     BKE_report(reports, RPT_ERROR, "SequenceElements.pop: index out of range");
     return;
   }
 
   new_seq = static_cast<StripElem *>(
-      MEM_callocN(sizeof(StripElem) * (seq->len - 1), "SequenceElements_pop"));
-  seq->len--;
+      MEM_callocN(sizeof(StripElem) * (strip->len - 1), "SequenceElements_pop"));
+  strip->len--;
 
-  if (seq->len == 1) {
-    seq->flag |= SEQ_SINGLE_FRAME_CONTENT;
+  if (strip->len == 1) {
+    strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
   }
 
-  se = seq->strip->stripdata;
+  se = strip->data->stripdata;
   if (index > 0) {
     memcpy(new_seq, se, sizeof(StripElem) * index);
   }
 
-  if (index < seq->len) {
-    memcpy(&new_seq[index], &se[index + 1], sizeof(StripElem) * (seq->len - index));
+  if (index < strip->len) {
+    memcpy(&new_seq[index], &se[index + 1], sizeof(StripElem) * (strip->len - index));
   }
 
-  MEM_freeN(seq->strip->stripdata);
-  seq->strip->stripdata = new_seq;
+  MEM_freeN(strip->data->stripdata);
+  strip->data->stripdata = new_seq;
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 }
 
-static void rna_Sequence_invalidate_cache_rnafunc(ID *id, Sequence *self, int type)
+static void rna_Sequence_invalidate_cache_rnafunc(ID *id, Strip *self, int type)
 {
   switch (type) {
     case SEQ_CACHE_STORE_RAW:
@@ -637,24 +637,24 @@ static void rna_Sequence_invalidate_cache_rnafunc(ID *id, Sequence *self, int ty
   }
 }
 
-static SeqRetimingKey *rna_Sequence_retiming_keys_add(ID *id, Sequence *seq, int timeline_frame)
+static SeqRetimingKey *rna_Sequence_retiming_keys_add(ID *id, Strip *strip, int timeline_frame)
 {
   Scene *scene = (Scene *)id;
 
-  SeqRetimingKey *key = SEQ_retiming_add_key(scene, seq, timeline_frame);
+  SeqRetimingKey *key = SEQ_retiming_add_key(scene, strip, timeline_frame);
 
-  SEQ_relations_invalidate_cache_raw(scene, seq);
+  SEQ_relations_invalidate_cache_raw(scene, strip);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
   return key;
 }
 
-static void rna_Sequence_retiming_keys_reset(ID *id, Sequence *seq)
+static void rna_Sequence_retiming_keys_reset(ID *id, Strip *strip)
 {
   Scene *scene = (Scene *)id;
 
-  SEQ_retiming_data_clear(seq);
+  SEQ_retiming_data_clear(strip);
 
-  SEQ_relations_invalidate_cache_raw(scene, seq);
+  SEQ_relations_invalidate_cache_raw(scene, strip);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 }
 
@@ -698,23 +698,20 @@ void RNA_api_sequence_strip(StructRNA *srna)
   func = RNA_def_function(srna, "swap", "rna_Sequence_swap_internal");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
-  parm = RNA_def_pointer(func, "other", "Sequence", "Other", "");
+  parm = RNA_def_pointer(func, "other", "Strip", "Other", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "move_to_meta", "rna_Sequences_move_strip_to_meta");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID | FUNC_USE_MAIN);
-  parm = RNA_def_pointer(func,
-                         "meta_sequence",
-                         "Sequence",
-                         "Destination Meta Sequence",
-                         "Meta to move the strip into");
+  parm = RNA_def_pointer(
+      func, "meta_sequence", "Strip", "Destination Meta Sequence", "Meta to move the strip into");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "parent_meta", "rna_Sequence_parent_meta");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID);
   RNA_def_function_ui_description(func, "Parent meta");
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "Parent Meta");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "Parent Meta");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "invalidate_cache", "rna_Sequence_invalidate_cache_rnafunc");
@@ -733,7 +730,7 @@ void RNA_api_sequence_strip(StructRNA *srna)
   parm = RNA_def_enum(func, "split_method", seq_split_method_items, 0, "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   /* Return type. */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "Right side Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "Right side Sequence");
   RNA_def_function_return(func, parm);
 }
 
@@ -745,7 +742,7 @@ void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop)
 
   RNA_def_property_srna(cprop, "SequenceElements");
   srna = RNA_def_struct(brna, "SequenceElements", nullptr);
-  RNA_def_struct_sdna(srna, "Sequence");
+  RNA_def_struct_sdna(srna, "Strip");
   RNA_def_struct_ui_text(srna, "SequenceElements", "Collection of SequenceElement");
 
   func = RNA_def_function(srna, "append", "rna_SequenceElements_append");
@@ -771,7 +768,7 @@ void RNA_api_sequence_retiming_keys(BlenderRNA *brna, PropertyRNA *cprop)
 
   RNA_def_property_srna(cprop, "RetimingKeys");
   srna = RNA_def_struct(brna, "RetimingKeys", nullptr);
-  RNA_def_struct_sdna(srna, "Sequence");
+  RNA_def_struct_sdna(srna, "Strip");
   RNA_def_struct_ui_text(srna, "RetimingKeys", "Collection of RetimingKey");
 
   FunctionRNA *func = RNA_def_function(srna, "add", "rna_Sequence_retiming_keys_add");
@@ -841,7 +838,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
   if (metastrip) {
     RNA_def_property_srna(cprop, "SequencesMeta");
     srna = RNA_def_struct(brna, "SequencesMeta", nullptr);
-    RNA_def_struct_sdna(srna, "Sequence");
+    RNA_def_struct_sdna(srna, "Strip");
 
     new_clip_func_name = "rna_Sequences_meta_new_clip";
     new_mask_func_name = "rna_Sequences_meta_new_mask";
@@ -889,7 +886,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
                      MAXFRAME);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "New Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Sequence");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "new_mask", new_mask_func_name);
@@ -920,7 +917,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
                      MAXFRAME);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "New Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Sequence");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "new_scene", new_scene_func_name);
@@ -951,7 +948,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
                      MAXFRAME);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "New Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Sequence");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "new_image", new_image_func_name);
@@ -985,7 +982,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
       func, "fit_method", scale_fit_methods, SEQ_USE_ORIGINAL_SIZE, "Image Fit Method", nullptr);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_PYFUNC_OPTIONAL);
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "New Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Sequence");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "new_movie", new_movie_func_name);
@@ -1019,7 +1016,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
       func, "fit_method", scale_fit_methods, SEQ_USE_ORIGINAL_SIZE, "Image Fit Method", nullptr);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_PYFUNC_OPTIONAL);
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "New Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Sequence");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "new_sound", new_sound_func_name);
@@ -1050,7 +1047,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
                      MAXFRAME);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "New Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Sequence");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "new_meta", new_meta_func_name);
@@ -1079,7 +1076,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
                      MAXFRAME);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "New Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Sequence");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "new_effect", new_effect_func_name);
@@ -1119,16 +1116,16 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastri
               "The end frame for the new sequence",
               INT_MIN,
               INT_MAX);
-  RNA_def_pointer(func, "seq1", "Sequence", "", "Sequence 1 for effect");
-  RNA_def_pointer(func, "seq2", "Sequence", "", "Sequence 2 for effect");
+  RNA_def_pointer(func, "seq1", "Strip", "", "Sequence 1 for effect");
+  RNA_def_pointer(func, "seq2", "Strip", "", "Sequence 2 for effect");
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "New Sequence");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Sequence");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "remove", remove_func_name);
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS | FUNC_USE_MAIN);
   RNA_def_function_ui_description(func, "Remove a Sequence");
-  parm = RNA_def_pointer(func, "sequence", "Sequence", "", "Sequence to remove");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "Sequence to remove");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
 }

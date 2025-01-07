@@ -253,8 +253,17 @@ class GHOST_DeviceVK {
     vulkan_12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan_12_features.shaderOutputLayer = features_12.shaderOutputLayer;
     vulkan_12_features.shaderOutputViewportIndex = features_12.shaderOutputViewportIndex;
+    vulkan_12_features.timelineSemaphore = VK_TRUE;
     vulkan_12_features.pNext = device_create_info_p_next;
     device_create_info_p_next = &vulkan_12_features;
+
+    /* Enable provoking vertex. */
+    VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_features = {};
+    provoking_vertex_features.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT;
+    provoking_vertex_features.provokingVertexLast = VK_TRUE;
+    provoking_vertex_features.pNext = device_create_info_p_next;
+    device_create_info_p_next = &provoking_vertex_features;
 
     /* Enable dynamic rendering. */
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
@@ -959,6 +968,8 @@ const char *GHOST_ContextVK::getPlatformSpecificSurfaceExtension() const
       return VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
       break;
 #  endif
+    case GHOST_kVulkanPlatformHeadless:
+      break;
   }
 #endif
   return nullptr;
@@ -983,6 +994,9 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
       use_window_surface = (m_wayland_display != nullptr) && (m_wayland_surface != nullptr);
       break;
 #  endif
+    case GHOST_kVulkanPlatformHeadless:
+      use_window_surface = false;
+      break;
   }
 #endif
 
@@ -1002,6 +1016,11 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
+#ifdef __APPLE__
+  optional_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+#else
+  required_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+#endif
   optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
@@ -1089,6 +1108,10 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
         break;
       }
 #  endif
+      case GHOST_kVulkanPlatformHeadless: {
+        m_surface = VK_NULL_HANDLE;
+        break;
+      }
     }
 
 #endif

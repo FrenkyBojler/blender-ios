@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'62b2bb48e8bf')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'96c6f543ecc7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-02 16:18+0000\n"
+"POT-Creation-Date: 2025-01-06 10:26+0000\n"
 "PO-Revision-Date: 2024-04-14 09:42+0000\n"
 "Last-Translator: தமிழ்நேரம் <anishprabu.t@gmail.com>\n"
 "Language-Team: Tamil <https://translate.blender.org/projects/blender-ui/ui/ta/>\n"
@@ -12238,6 +12238,10 @@ msgid "Amount of fine level detail present in the noise"
 msgstr "சத்தத்தில் இருக்கும் சிறந்த நிலை விவரங்களின் அளவு"
 
 
+msgid "Lacunarity"
+msgstr "லாகுனாரிட்டி"
+
+
 msgid "Time offset for the noise effect"
 msgstr "ஒலி விளைவுக்கு நேரம் ஆஃப்செட்"
 
@@ -12248,6 +12252,10 @@ msgstr "கட்டம்"
 
 msgid "A random seed for the noise effect"
 msgstr "ஒலி விளைவுக்கு ஒரு சீரற்ற விதை"
+
+
+msgid "Roughness"
+msgstr "கடினத்தன்மை"
 
 
 msgid "Scaling (in time) of the noise"
@@ -13566,6 +13574,30 @@ msgid "Select the file format to be used for caching volumetric data"
 msgstr "வால்யூமெட்ரிக் தரவை கேச் செய்ய பயன்படுத்த வேண்டிய கோப்பு வடிவமைப்பைத் தேர்ந்தெடுக்கவும்"
 
 
+msgid "Uni Cache"
+msgstr "யூனி கேச்"
+
+
+msgid "Uni file format (.uni)"
+msgstr "uni கோப்பு வடிவம் (.uni)"
+
+
+msgid "OpenVDB"
+msgstr "திறந்தவிடிபி"
+
+
+msgid "OpenVDB file format (.vdb)"
+msgstr "திறந்தவிடிபி கோப்பு வடிவம் (.vdb)"
+
+
+msgid "Raw Cache"
+msgstr "மூல கேச்"
+
+
+msgid "Raw file format (.raw)"
+msgstr "மூல கோப்பு வடிவம் (.raw)"
+
+
 msgid "Cache directory"
 msgstr "கேச் அடைவு"
 
@@ -14441,10 +14473,6 @@ msgstr "தகவமைப்பு டொமைன்"
 
 msgid "Adapt simulation resolution and size to fluid"
 msgstr "உருவகப்படுத்துதல் தீர்மானம் மற்றும் அளவை திரவத்திற்கு மாற்றியமைக்கவும்"
-
-
-msgid "Use Adaptive Time Steps"
-msgstr "தகவமைப்பு நேர படிகளைப் பயன்படுத்தவும்"
 
 
 msgid "Bubble"
@@ -19963,10 +19991,6 @@ msgid "Horizontal Alignment"
 msgstr "கிடைமட்ட சீரமைப்பு"
 
 
-msgid "Text horizontal alignment from the object center"
-msgstr "பொருள் மையத்திலிருந்து கிடைமட்ட சீரமைப்பு உரை"
-
-
 msgid "Align text to the left"
 msgstr "உரையை இடதுபுறமாக சீரமைக்கவும்"
 
@@ -22307,10 +22331,6 @@ msgid "Refraction Depth"
 msgstr "ஒளிவிலகல் ஆழம்"
 
 
-msgid "Roughness"
-msgstr "கடினத்தன்மை"
-
-
 msgid "Roughness of the material"
 msgstr "மூலப்பொருளின் கடினத்தன்மை"
 
@@ -22851,12 +22871,16 @@ msgid "Shader"
 msgstr "சேடர்"
 
 
-msgid "Grease Pencil Data"
-msgstr "பசை எழுதுகோல் தரவு"
+msgid "Pattern"
+msgstr "முறை"
 
 
 msgid "Interface"
 msgstr "இடைமுகம்"
+
+
+msgid "Grease Pencil Data"
+msgstr "பசை எழுதுகோல் தரவு"
 
 
 msgid "Interface declaration for this node tree"
@@ -25394,10 +25418,6 @@ msgid "Show Subframe"
 msgstr "சப்ஃப்ரேமைக் காட்டு"
 
 
-msgid "Show current scene subframe and allow set it using interface tools"
-msgstr "தற்போதைய காட்சி சப்ஃப்ரேமைக் காண்பி, இடைமுக கருவிகளைப் பயன்படுத்தி அமைக்க அனுமதிக்கவும்"
-
-
 msgid "Simulation Frame End"
 msgstr "உருவகப்படுத்துதல் பிரேம் முடிவு"
 
@@ -26536,10 +26556,6 @@ msgid "Marble Texture"
 msgstr "பளிங்கு அமைப்பு"
 
 
-msgid "Pattern"
-msgstr "முறை"
-
-
 msgid "Use soft marble"
 msgstr "மென்மையான பளிங்கு பயன்படுத்தவும்"
 
@@ -26610,10 +26626,6 @@ msgstr "ஆதாயம்"
 
 msgid "The gain multiplier"
 msgstr "ஆதாய பெருக்கி"
-
-
-msgid "Lacunarity"
-msgstr "லாகுனாரிட்டி"
 
 
 msgid "Gap between successive frequencies"
@@ -31690,52 +31702,52 @@ msgid "Editor menu containing buttons"
 msgstr "பொத்தான்களைக் கொண்ட திருத்தி பட்டியல்"
 
 
-msgid "Clean Up"
-msgstr "தூய்மை செய்"
+msgid "Mirror"
+msgstr "கண்ணாடி"
 
 
-msgid "Merge"
-msgstr "ஒன்றிணைக்கவும்"
+msgid "Snap"
+msgstr "ச்னாப்"
 
 
-msgid "Show/Hide"
-msgstr "காட்டு/மறைக்க"
+msgid "UV Mapping"
+msgstr "புறஊதா மேப்பிங்"
 
 
 msgid "Local View"
 msgstr "உள்ளக பார்வை"
 
 
-msgid "Special Characters"
-msgstr "சிறப்பு எழுத்துக்கள்"
-
-
-msgid "Kerning"
-msgstr "கெர்னிங்"
-
-
-msgid "Names"
-msgstr "பெயர்கள்"
-
-
 msgid "Viewpoint"
 msgstr "பார்வை"
 
 
-msgid "Bone Roll"
-msgstr "எலும்பு ரோல்"
+msgid "Navigation"
+msgstr "வழிசெலுத்தல்"
 
 
-msgid "Toggle Bone Options"
-msgstr "எலும்பு விருப்பங்களை மாற்றவும்"
+msgid "Align View"
+msgstr "பார்வையை சீரமைக்கவும்"
 
 
-msgid "Enable Bone Options"
-msgstr "எலும்பு விருப்பங்களை இயக்கவும்"
+msgid "Align View to Active"
+msgstr "செயலில் பார்வையை சீரமைக்கவும்"
 
 
-msgid "Disable Bone Options"
-msgstr "எலும்பு விருப்பங்களை முடக்கு"
+msgid "View Regions"
+msgstr "மண்டலங்களைக் காண்க"
+
+
+msgid "Select More/Less"
+msgstr "மேலும்/குறைவாக தேர்ந்தெடுக்கவும்"
+
+
+msgid "Select Similar"
+msgstr "ஒத்ததைத் தேர்ந்தெடுக்கவும்"
+
+
+msgid "Select All by Trait"
+msgstr "அனைத்தையும் பண்பின் மூலம் தேர்ந்தெடுக்கவும்"
 
 
 msgid "Select Linked"
@@ -31746,44 +31758,8 @@ msgid "Select Loops"
 msgstr "சுழல்களைத் தேர்ந்தெடுக்கவும்"
 
 
-msgid "Mesh Select Mode"
-msgstr "கண்ணி தேர்ந்தெடுக்கப்பட்ட பயன்முறையைத் தேர்ந்தெடுக்கவும்"
-
-
-msgid "Pivot Point"
-msgstr "பிவோட் புள்ளி"
-
-
-msgid "Snap"
-msgstr "ச்னாப்"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "விகிதாசார திருத்துதல் வீழ்ச்சி"
-
-
-msgid "Mask Edit"
-msgstr "முகமூடி திருத்து"
-
-
-msgid "Automasking"
-msgstr "ஆட்டோமேச்கிங்"
-
-
-msgid "Face Sets Edit"
-msgstr "முகம் தொகுப்புகள் திருத்து"
-
-
-msgid "Vertex Group Locks"
-msgstr "வெர்டெக்ச் குழு பூட்டுகள்"
-
-
-msgid "Select More/Less"
-msgstr "மேலும்/குறைவாக தேர்ந்தெடுக்கவும்"
-
-
-msgid "View Regions"
-msgstr "மண்டலங்களைக் காண்க"
+msgid "Assign Material"
+msgstr "மூலப்பொருள் ஒதுக்க"
 
 
 msgid "Add Image"
@@ -31806,16 +31782,16 @@ msgid "Track"
 msgstr "டிராக்"
 
 
-msgid "Navigation"
-msgstr "வழிசெலுத்தல்"
-
-
-msgid "Select Similar"
-msgstr "ஒத்ததைத் தேர்ந்தெடுக்கவும்"
-
-
 msgid "Quick Effects"
 msgstr "விரைவான விளைவுகள்"
+
+
+msgid "Show/Hide"
+msgstr "காட்டு/மறைக்க"
+
+
+msgid "Clean Up"
+msgstr "தூய்மை செய்"
 
 
 msgid "Asset"
@@ -31834,12 +31810,12 @@ msgid "Link/Transfer Data"
 msgstr "இணைப்பு/பரிமாற்ற தரவு"
 
 
-msgid "UV Mapping"
-msgstr "புறஊதா மேப்பிங்"
-
-
 msgid "Hooks"
 msgstr "கொக்கிகள்"
+
+
+msgid "Vertex Group Locks"
+msgstr "வெர்டெக்ச் குழு பூட்டுகள்"
 
 
 msgid "Sculpt Set Pivot"
@@ -31854,24 +31830,12 @@ msgid "Random Mask"
 msgstr "சீரற்ற முகமூடி"
 
 
-msgid "Mirror"
-msgstr "கண்ணாடி"
-
-
-msgid "Assign Material"
-msgstr "மூலப்பொருள் ஒதுக்க"
-
-
 msgid "Clear Transform"
 msgstr "தெளிவான உருமாற்றம்"
 
 
 msgid "In-Betweens"
 msgstr "இன்-பெட்வீன்ச்"
-
-
-msgid "Align View to Active"
-msgstr "செயலில் பார்வையை சீரமைக்கவும்"
 
 
 msgid "Propagate"
@@ -31882,12 +31846,24 @@ msgid "Bone Collections"
 msgstr "எலும்பு வசூல்"
 
 
-msgid "Align View"
-msgstr "பார்வையை சீரமைக்கவும்"
+msgid "Names"
+msgstr "பெயர்கள்"
 
 
-msgid "Select All by Trait"
-msgstr "அனைத்தையும் பண்பின் மூலம் தேர்ந்தெடுக்கவும்"
+msgid "Toggle Bone Options"
+msgstr "எலும்பு விருப்பங்களை மாற்றவும்"
+
+
+msgid "Enable Bone Options"
+msgstr "எலும்பு விருப்பங்களை இயக்கவும்"
+
+
+msgid "Disable Bone Options"
+msgstr "எலும்பு விருப்பங்களை முடக்கு"
+
+
+msgid "Mesh Select Mode"
+msgstr "கண்ணி தேர்ந்தெடுக்கப்பட்ட பயன்முறையைத் தேர்ந்தெடுக்கவும்"
 
 
 msgid "Face Data"
@@ -31900,6 +31876,42 @@ msgstr "முக வலிமையால் தேர்ந்தெடுக�
 
 msgid "Set Face Strength"
 msgstr "முக வலிமையை அமைக்கவும்"
+
+
+msgid "Merge"
+msgstr "ஒன்றிணைக்கவும்"
+
+
+msgid "Special Characters"
+msgstr "சிறப்பு எழுத்துக்கள்"
+
+
+msgid "Kerning"
+msgstr "கெர்னிங்"
+
+
+msgid "Bone Roll"
+msgstr "எலும்பு ரோல்"
+
+
+msgid "Pivot Point"
+msgstr "பிவோட் புள்ளி"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "விகிதாசார திருத்துதல் வீழ்ச்சி"
+
+
+msgid "Mask Edit"
+msgstr "முகமூடி திருத்து"
+
+
+msgid "Automasking"
+msgstr "ஆட்டோமேச்கிங்"
+
+
+msgid "Face Sets Edit"
+msgstr "முகம் தொகுப்புகள் திருத்து"
 
 
 msgid "Keyframe Insert Pie"
@@ -32364,6 +32376,11 @@ msgstr "தூரிகை சிறப்பு"
 msgctxt "Operator"
 msgid "Parent"
 msgstr "பெற்றோர்"
+
+
+msgctxt "Operator"
+msgid "Empty"
+msgstr "வெறுமை"
 
 
 msgctxt "Constraint"
@@ -40933,14 +40950,6 @@ msgid "Static Type"
 msgstr "நிலையான வகை"
 
 
-msgid "Node type (deprecated, use with care)"
-msgstr "முனை வகை (நீக்கப்பட்டது, கவனத்துடன் பயன்படுத்தவும்)"
-
-
-msgid "Custom Node"
-msgstr "தனிப்பயன் முனை"
-
-
 msgid "Custom color of the node body"
 msgstr "முனை உடலின் தனிப்பயன் நிறம்"
 
@@ -40995,10 +41004,6 @@ msgstr "அமைப்பைக் காட்டு"
 
 msgid "Display node in viewport textured shading mode"
 msgstr "கட்ச்போர்ட் கடினமான நிழல் பயன்முறையில் முனையைக் காண்பி"
-
-
-msgid "Node type (deprecated, use bl_static_type or bl_idname for the actual identifier string)"
-msgstr "முனை வகை (நீக்கப்பட்டது, உண்மையான அடையாளங்காட்டி சரத்திற்கு bl_static_type அல்லது bl_idname ஐப் பயன்படுத்தவும்)"
 
 
 msgid "Use custom color for the node"
@@ -42020,6 +42025,10 @@ msgstr "முன்னுரிமை"
 
 msgid "No prefiltering, use when guiding passes are noise-free"
 msgstr "முன்னுரிமை இல்லை, பாச்கள் வழிகாட்டும் போது பயன்படுத்தவும் ஒலி இல்லாதது"
+
+
+msgid "High quality"
+msgstr "உயர் தகுதி"
 
 
 msgid "HDR"
@@ -44090,10 +44099,6 @@ msgstr "பெசியர் வளைவின் கட்டுப்பா�
 
 msgid "Whether to update left and right handles"
 msgstr "இடது மற்றும் வலது கைப்பிடிகளைப் புதுப்பிக்க வேண்டுமா"
-
-
-msgid "Curve Spiral"
-msgstr "வளைவு சுழல்"
 
 
 msgid "Generate a poly spline in a spiral shape"
@@ -48516,26 +48521,6 @@ msgstr "பொருள் சேடர் விளைவுகள்"
 
 msgid "Collection of object effects"
 msgstr "பொருள் விளைவுகளின் சேகரிப்பு"
-
-
-msgctxt "Operator"
-msgid "Display Variant"
-msgstr "காட்சி மாறுபாடு"
-
-
-msgctxt "Operator"
-msgid "Assign To Variant"
-msgstr "மாறுபாட்டிற்கு ஒதுக்குங்கள்"
-
-
-msgctxt "Operator"
-msgid "Assign as Original"
-msgstr "அசலாக ஒதுக்கவும்"
-
-
-msgctxt "Operator"
-msgid "Add Material Variant"
-msgstr "மூலப்பொருள் மாறுபாடு சேர்க்கவும்"
 
 
 msgid "Mark actions with no F-Curves for deletion after save and reload of file preserving \"action libraries\""
@@ -56855,15 +56840,6 @@ msgstr "பட்டியலில் முதலிடம்"
 
 msgid "Bottom of the list"
 msgstr "பட்டியலின் கீழே"
-
-
-msgctxt "Operator"
-msgid "Cancel File Load"
-msgstr "கோப்பு சுமை ரத்துசெய்"
-
-
-msgid "Cancel loading of selected file"
-msgstr "தேர்ந்தெடுக்கப்பட்ட கோப்பை ஏற்றுவதை ரத்துசெய்"
 
 
 msgctxt "Operator"
@@ -66111,11 +66087,6 @@ msgid "Maintain parent child relationships"
 msgstr "பெற்றோர் குழந்தை உறவுகளை பராமரிக்கவும்"
 
 
-msgctxt "Operator"
-msgid "Toggle Edit Mode"
-msgstr "திருத்து பயன்முறையை மாற்றவும்"
-
-
 msgid "Toggle object's edit mode"
 msgstr "பொருளின் திருத்து பயன்முறையை மாற்றவும்"
 
@@ -70012,11 +69983,6 @@ msgstr "வெளியீட்டு காட்சி நிறத்தை 
 
 msgid "Add to Palette"
 msgstr "தட்டில் சேர்க்கவும்"
-
-
-msgctxt "Operator"
-msgid "Texture Paint Toggle"
-msgstr "அமைப்பு வண்ணப்பூச்சு மாற்று"
 
 
 msgid "Toggle texture paint mode in 3D view"
@@ -74838,6 +74804,11 @@ msgstr "2 சீக்வென்சர் கீற்றுகளை மா�
 msgctxt "Operator"
 msgid "Swap Inputs"
 msgstr "உள்ளீடுகளை மாற்றவும்"
+
+
+msgctxt "Operator"
+msgid "Deselect All"
+msgstr "அனைத்து தெரிவுகளையும் நிராகரி"
 
 
 msgctxt "Operator"
@@ -80430,6 +80401,30 @@ msgid "Export current scene in a USD archive"
 msgstr "தற்போதைய காட்சியை அமெரிக்க டாலர் காப்பகத்தில் ஏற்றுமதி செய்யுங்கள்"
 
 
+msgid "Meters"
+msgstr "மீட்டர்"
+
+
+msgid "Kilometers"
+msgstr "கிலோமீட்டர்"
+
+
+msgid "Centimeters"
+msgstr "சென்டிமீட்டர்"
+
+
+msgid "Inches"
+msgstr "அங்குலங்கள்"
+
+
+msgid "Feet"
+msgstr "அடி"
+
+
+msgid "Yards"
+msgstr "கெசம்"
+
+
 msgid "Use Settings for"
 msgstr "அமைப்புகளைப் பயன்படுத்தவும்"
 
@@ -81604,26 +81599,6 @@ msgid "Panel containing UI elements"
 msgstr "இடைமுகம் கூறுகளைக் கொண்ட குழு"
 
 
-msgid "VR"
-msgstr "வி.ஆர்"
-
-
-msgid "Active Tool"
-msgstr "செயலில் உள்ள கருவி"
-
-
-msgid "View Lock"
-msgstr "பூட்டைக் காண்க"
-
-
-msgid "Selectability & Visibility"
-msgstr "தேர்ந்தெடுக்கும் தன்மை மற்றும் தெரிவுநிலை"
-
-
-msgid "Wire Color"
-msgstr "கம்பி நிறம்"
-
-
 msgid "Shadow Settings"
 msgstr "நிழல் அமைப்புகள்"
 
@@ -81718,6 +81693,26 @@ msgstr "வளைவுகள் வளரும்/சுருக்கவு�
 
 msgid "Viewport Debug"
 msgstr "வியூபோர்ட் பிழைத்திருத்தம்"
+
+
+msgid "VR"
+msgstr "வி.ஆர்"
+
+
+msgid "Active Tool"
+msgstr "செயலில் உள்ள கருவி"
+
+
+msgid "View Lock"
+msgstr "பூட்டைக் காண்க"
+
+
+msgid "Selectability & Visibility"
+msgstr "தேர்ந்தெடுக்கும் தன்மை மற்றும் தெரிவுநிலை"
+
+
+msgid "Wire Color"
+msgstr "கம்பி நிறம்"
 
 
 msgid "Chain Scaling"
@@ -84922,10 +84917,6 @@ msgid "No Override Auto Resync"
 msgstr "ஆட்டோ மறுசீரமைப்பு இல்லை"
 
 
-msgid "Disable library overrides automatic resync detection and process on file load (can be useful to help fixing broken files)"
-msgstr "நூலகத்தை முடக்கு தானியங்கி மறுசீரமைப்பு கண்டறிதல் மற்றும் கோப்பு சுமைகளில் செயல்முறை (உடைந்த கோப்புகளை சரிசெய்ய உதவும் வகையில் பயனுள்ளதாக இருக்கும்)"
-
-
 msgid "Asset Debug Info"
 msgstr "சொத்து பிழைத்திருத்த செய்தி"
 
@@ -87812,10 +87803,6 @@ msgstr "வண்ணம் மற்றும் வழிகாட்டுத�
 
 msgid "Prefilter noisy guiding passes before denoising color. Improves quality when guiding passes are noisy using extra processing time"
 msgstr "ப்ரீஃபில்டர் ஒலி வழிகாட்டும் முன் கடந்து செல்கிறது. வழிகாட்டும் பாச்கள் கூடுதல் செயலாக்க நேரத்தைப் பயன்படுத்தி சத்தமாக இருக்கும்போது தரத்தை மேம்படுத்துகிறது"
-
-
-msgid "High quality"
-msgstr "உயர் தகுதி"
 
 
 msgid "Denoise on GPU"
@@ -102317,24 +102304,6 @@ msgid "Action when 'Space' is pressed"
 msgstr "'இடம்' அழுத்தும் போது செயல்"
 
 
-msgid "Toggle animation playback ('Shift-Space' for Tools)"
-msgstr "அனிமேசன் பிளேபேக்கை மாற்றவும் (கருவிகளுக்கு 'சிப்ட்-ச்பேச்')"
-
-
-msgid ""
-"Open the popup tool-bar\n"
-"When 'Space' is held and used as a modifier:\n"
-"• Pressing the tools binding key switches to it immediately.\n"
-"• Dragging the cursor over a tool and releasing activates it (like a pie menu).\n"
-"For Play use 'Shift-Space'"
-msgstr ""
-"பாப்அப் கருவி-பட்டியைத் திறக்கவும் \n"
-" 'இடம்' பிடிக்கப்பட்டு மாற்றியமைப்பாளராகப் பயன்படுத்தப்படும்போது: \n"
-" key கருவிகளை பிணைக்கும் விசையை உடனடியாக அதை அழுத்துகிறது. \n"
-" tool ஒரு கருவி மீது கர்சரை இழுத்து வெளியிடுவது அதை செயல்படுத்துகிறது (பை பட்டியல் போன்றது). \n"
-" விளையாட்டுக்கு 'சிப்ட்-ச்பேச்'"
-
-
 msgid "Search"
 msgstr "தேடல்"
 
@@ -105045,10 +105014,6 @@ msgid "BVH"
 msgstr "பி.வி.எச்"
 
 
-msgid "Module Debug"
-msgstr "தொகுதி பிழைத்திருத்தம்"
-
-
 msgid "Viewport BVH"
 msgstr "வியூபோர்ட் பி.வி.எச்"
 
@@ -105123,6 +105088,10 @@ msgstr "வெளியேற்றம்"
 
 msgid "Clear Image"
 msgstr "படத்தை அழிக்கவும்"
+
+
+msgid "Module Debug"
+msgstr "தொகுதி பிழைத்திருத்தம்"
 
 
 msgid "Cycles built without Embree support"
@@ -105328,8 +105297,28 @@ msgstr "செயல் வடிகட்டி"
 
 
 msgctxt "Operator"
+msgid "Display Variant"
+msgstr "காட்சி மாறுபாடு"
+
+
+msgctxt "Operator"
+msgid "Assign To Variant"
+msgstr "மாறுபாட்டிற்கு ஒதுக்குங்கள்"
+
+
+msgctxt "Operator"
 msgid "Reset To Original"
 msgstr "அசல் மீட்டமை"
+
+
+msgctxt "Operator"
+msgid "Assign as Original"
+msgstr "அசலாக ஒதுக்கவும்"
+
+
+msgctxt "Operator"
+msgid "Add Material Variant"
+msgstr "மூலப்பொருள் மாறுபாடு சேர்க்கவும்"
 
 
 msgid "No glTF Animation"
@@ -105552,11 +105541,6 @@ msgstr "துவக்க அமைப்புகள்"
 msgctxt "Operator"
 msgid "Reset Settings"
 msgstr "அமைப்புகளை மீட்டமைக்கவும்"
-
-
-msgctxt "Operator"
-msgid "Deselect All"
-msgstr "அனைத்து தெரிவுகளையும் நிராகரி"
 
 
 msgctxt "Operator"
@@ -109340,11 +109324,6 @@ msgstr "சட்டகத்திலிருந்து அகற்று"
 
 
 msgctxt "Operator"
-msgid "Insert Into Group"
-msgstr "குழுவில் நுழைக்கவும்"
-
-
-msgctxt "Operator"
 msgid "Mute"
 msgstr "ஊமையான"
 
@@ -109411,6 +109390,11 @@ msgstr "இணைப்புகளை உருவாக்கி மாற்�
 
 
 msgctxt "Operator"
+msgid "Insert Into Group"
+msgstr "குழுவில் நுழைக்கவும்"
+
+
+msgctxt "Operator"
 msgid "Node Preview"
 msgstr "முனை முன்னோட்டம்"
 
@@ -109428,11 +109412,6 @@ msgstr "கண்டுபிடி..."
 msgctxt "Operator"
 msgid "Link to Viewer"
 msgstr "பார்வையாளருக்கான இணைப்பு"
-
-
-msgctxt "Operator"
-msgid "Exit Group"
-msgstr "குழுவிலிருந்து வெளியேறு"
 
 
 msgctxt "Operator"
@@ -109460,6 +109439,11 @@ msgstr "பின்னணி பெரிதாக்கு"
 msgctxt "Operator"
 msgid "Backdrop Zoom Out"
 msgstr "பின்னணி பெரிதாக்கு"
+
+
+msgctxt "Operator"
+msgid "Exit Group"
+msgstr "குழுவிலிருந்து வெளியேறு"
 
 
 msgid "Closed by Default"
@@ -112036,11 +112020,6 @@ msgstr "அடுத்த தொகுதி"
 
 
 msgctxt "Operator"
-msgid "Empty"
-msgstr "வெறுமை"
-
-
-msgctxt "Operator"
 msgid "Point Cloud"
 msgstr "புள்ளி முகில்"
 
@@ -113818,10 +113797,6 @@ msgid "Original Mode"
 msgstr "அசல் பயன்முறை"
 
 
-msgid "Kilometers"
-msgstr "கிலோமீட்டர்"
-
-
 msgid "100 Meters"
 msgstr "100 மீட்டர்"
 
@@ -113830,16 +113805,8 @@ msgid "10 Meters"
 msgstr "10 மீட்டர்"
 
 
-msgid "Meters"
-msgstr "மீட்டர்"
-
-
 msgid "10 Centimeters"
 msgstr "10 சென்டிமீட்டர்"
-
-
-msgid "Centimeters"
-msgstr "சென்டிமீட்டர்"
 
 
 msgid "Micrometers"
@@ -113864,18 +113831,6 @@ msgstr "ஃபர்லாங்ச்"
 
 msgid "Chains"
 msgstr "சங்கிலிகள்"
-
-
-msgid "Yards"
-msgstr "கெசம்"
-
-
-msgid "Feet"
-msgstr "அடி"
-
-
-msgid "Inches"
-msgstr "அங்குலங்கள்"
 
 
 msgid "Thou"
@@ -114170,50 +114125,6 @@ msgid "worlds"
 msgstr "உலகங்கள்"
 
 
-msgid "Error writing frame"
-msgstr "பிழை எழுதும் சட்டகம்"
-
-
-msgid "No valid formats found"
-msgstr "சரியான வடிவங்கள் எதுவும் கிடைக்கவில்லை"
-
-
-msgid "Can't allocate FFmpeg format context"
-msgstr "ffmpeg வடிவமைப்பு சூழலை ஒதுக்க முடியாது"
-
-
-msgid "Render width has to be 720 pixels for DV!"
-msgstr "வழங்குதல் அகலம் டி.வி.க்கு 720 படப்புள்ளிகள் இருக்க வேண்டும்!"
-
-
-msgid "Render height has to be 480 pixels for DV-NTSC!"
-msgstr "வழங்குதல் உயரம் டி.வி-என்.டி.எச்.சிக்கு 480 படப்புள்ளிகள் இருக்க வேண்டும்!"
-
-
-msgid "Render height has to be 576 pixels for DV-PAL!"
-msgstr "வழங்குதல் உயரம் டி.வி-பாலுக்கு 576 படப்புள்ளிகள் இருக்க வேண்டும்!"
-
-
-msgid "FFmpeg only supports 48khz / stereo audio for DV!"
-msgstr "ffmpeg டி.வி.க்கு 48khz / ச்டீரியோ ஆடியோவை மட்டுமே ஆதரிக்கிறது!"
-
-
-msgid "Error initializing video stream"
-msgstr "வீடியோ ச்ட்ரீமைத் தொடங்குவதில் பிழை"
-
-
-msgid "Error initializing audio stream"
-msgstr "ஆடியோ ச்ட்ரீமைத் தொடங்குவதில் பிழை"
-
-
-msgid "Could not open file for writing"
-msgstr "எழுதுவதற்கு கோப்பைத் திறக்க முடியவில்லை"
-
-
-msgid "Could not initialize streams, probably unsupported codec combination"
-msgstr "ச்ட்ரீம்களைத் தொடங்க முடியவில்லை, அநேகமாக ஆதரிக்கப்படாத கோடெக் சேர்க்கை"
-
-
 msgid "Library database with null library data-block pointer!"
 msgstr "சுழிய நூலக தரவு-தொகுதி சுட்டிக்காட்டி கொண்ட நூலக தரவுத்தளம்!"
 
@@ -114428,14 +114339,6 @@ msgstr "எட்ச்-மோதிரங்கள் இணைக்கப்�
 
 msgid "color_index is invalid"
 msgstr "color_index தவறானது"
-
-
-msgid "Compositing | Initializing execution"
-msgstr "கலப்பு | சாவுஒறுப்பு துவக்குதல்"
-
-
-msgid "Compositing | Operation %i-%li"
-msgstr "கலப்பு | செயல்பாடு %i- %li"
 
 
 msgid "Compositor node tree has cyclic links!"
@@ -118254,10 +118157,6 @@ msgid "Fluid: Could not use default cache directory '%s', please define a valid 
 msgstr "திரவம்: இயல்புநிலை கேச் அடைவு '%s' ஐப் பயன்படுத்த முடியவில்லை, தயவுசெய்து செல்லுபடியாகும் கேச் பாதையை கைமுறையாக வரையறுக்கவும்"
 
 
-msgid "Fluid: %s complete! (%.2f)"
-msgstr "திரவம்: %s முடிந்தது! (%.2f)"
-
-
 msgid "Fluid: %s failed: %s"
 msgstr "திரவம்: %s தோல்வியுற்றன: %s"
 
@@ -122000,10 +121899,6 @@ msgid " | [Ctrl] - Increments active"
 msgstr " | [ctrl] - செயலில் அதிகரிக்கிறது"
 
 
-msgid " | Ctrl - Hold for 10% increments"
-msgstr " | கட்டுப்பாடு - 10% அதிகரிப்புகளை வைத்திருங்கள்"
-
-
 msgid "Unpack File"
 msgstr "கோப்பைத் திறக்கவும்"
 
@@ -122139,6 +122034,50 @@ msgstr "ஃப்ரீபாணி: வரைபடத்தை உருவா
 
 msgid "Freestyle: Stroke rendering"
 msgstr "ஃப்ரீபாணி: ச்ட்ரோக் வழங்குதல்"
+
+
+msgid "Error writing frame"
+msgstr "பிழை எழுதும் சட்டகம்"
+
+
+msgid "No valid formats found"
+msgstr "சரியான வடிவங்கள் எதுவும் கிடைக்கவில்லை"
+
+
+msgid "Can't allocate FFmpeg format context"
+msgstr "ffmpeg வடிவமைப்பு சூழலை ஒதுக்க முடியாது"
+
+
+msgid "Render width has to be 720 pixels for DV!"
+msgstr "வழங்குதல் அகலம் டி.வி.க்கு 720 படப்புள்ளிகள் இருக்க வேண்டும்!"
+
+
+msgid "Render height has to be 480 pixels for DV-NTSC!"
+msgstr "வழங்குதல் உயரம் டி.வி-என்.டி.எச்.சிக்கு 480 படப்புள்ளிகள் இருக்க வேண்டும்!"
+
+
+msgid "Render height has to be 576 pixels for DV-PAL!"
+msgstr "வழங்குதல் உயரம் டி.வி-பாலுக்கு 576 படப்புள்ளிகள் இருக்க வேண்டும்!"
+
+
+msgid "FFmpeg only supports 48khz / stereo audio for DV!"
+msgstr "ffmpeg டி.வி.க்கு 48khz / ச்டீரியோ ஆடியோவை மட்டுமே ஆதரிக்கிறது!"
+
+
+msgid "Error initializing video stream"
+msgstr "வீடியோ ச்ட்ரீமைத் தொடங்குவதில் பிழை"
+
+
+msgid "Error initializing audio stream"
+msgstr "ஆடியோ ச்ட்ரீமைத் தொடங்குவதில் பிழை"
+
+
+msgid "Could not open file for writing"
+msgstr "எழுதுவதற்கு கோப்பைத் திறக்க முடியவில்லை"
+
+
+msgid "Could not initialize streams, probably unsupported codec combination"
+msgstr "ச்ட்ரீம்களைத் தொடங்க முடியவில்லை, அநேகமாக ஆதரிக்கப்படாத கோடெக் சேர்க்கை"
 
 
 msgid "Object type mismatch, Alembic object path pointed to Camera when importing, but not any more"
@@ -122843,30 +122782,6 @@ msgid "Object file format (.obj)"
 msgstr "பொருள் கோப்பு வடிவம் (.obj)"
 
 
-msgid "Uni Cache"
-msgstr "யூனி கேச்"
-
-
-msgid "Uni file format (.uni)"
-msgstr "uni கோப்பு வடிவம் (.uni)"
-
-
-msgid "OpenVDB"
-msgstr "திறந்தவிடிபி"
-
-
-msgid "OpenVDB file format (.vdb)"
-msgstr "திறந்தவிடிபி கோப்பு வடிவம் (.vdb)"
-
-
-msgid "Raw Cache"
-msgstr "மூல கேச்"
-
-
-msgid "Raw file format (.raw)"
-msgstr "மூல கோப்பு வடிவம் (.raw)"
-
-
 msgid "Uni file format"
 msgstr "uni கோப்பு வடிவம்"
 
@@ -123218,18 +123133,6 @@ msgstr "பேனலை உருவாக்க முடியவில்ல�
 
 msgid "Unable to copy item"
 msgstr "உருப்படியை நகலெடுக்க முடியவில்லை"
-
-
-msgid "CustomGroup"
-msgstr "தனிப்பயன் குழு"
-
-
-msgid "Custom Group Node"
-msgstr "தனிப்பயன் குழு முனை"
-
-
-msgid "UNDEFINED"
-msgstr "வரையறுக்கப்படவில்லை"
 
 
 msgctxt "NodeTree"
@@ -127137,11 +127040,6 @@ msgstr "வண்ண சமநிலை"
 
 
 msgctxt "Sequence"
-msgid "White Balance"
-msgstr "வெள்ளை இருப்பு"
-
-
-msgctxt "Sequence"
 msgid "Curves"
 msgstr "வளைவுகள்"
 
@@ -127154,6 +127052,11 @@ msgstr "சாயல் சரியானது"
 msgctxt "Sequence"
 msgid "Brightness/Contrast"
 msgstr "பிரகாசம்/மாறுபாடு"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "வெள்ளை இருப்பு"
 
 
 msgctxt "Sequence"
@@ -128133,10 +128036,6 @@ msgstr "வி.ஆர் காட்சி ஆய்வு"
 
 msgid "View the viewport with virtual reality glasses (head-mounted displays)"
 msgstr "மெய்நிகர் ரியாலிட்டி கண்ணாடிகளுடன் (தலையில் பொருத்தப்பட்ட காட்சிகள்) காட்சியைக் காண்க"
-
-
-msgid "All Add-ons"
-msgstr "அனைத்து துணை நிரல்களும்"
 
 
 msgid "All Add-ons Installed by User"

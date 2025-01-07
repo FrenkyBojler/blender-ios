@@ -18,7 +18,6 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 
-#include "BLI_math_vector.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -54,14 +53,20 @@ class Slot;
  *
  * \note This wrapper class for the `bAction` DNA struct only has functionality
  * for the layered animation data. The legacy F-Curves (in `bAction::curves`)
- * and their groups (in `bAction::groups`) are not managed here. To see whether
- * an Action uses this legacy data, or has been converted to the current layered
- * structure, use `Action::is_action_legacy()` and
- * `Action::is_action_layered()`. Note that an empty Action is considered valid
- * for both.
+ * and their groups (in `bAction::groups`) are not managed here.
+ *
+ * To continue supporting legacy actions at runtime, there are
+ * `Action::is_action_legacy()` and `Action::is_action_layered()` that report
+ * whether an Action uses that legacy F-Curve data or is instead a layered
+ * Action. These methods will eventually be removed when runtime support for
+ * legacy actions is fully removed. For code in blend file loading and
+ * versioning, which will stick around for the long-term, use
+ * `animrig::versioning::action_is_layered()` instead. (Note that an empty
+ * Action is considered both a valid legacy *and* layered action.)
  *
  * \see #AnimData::action
  * \see #AnimData::slot_handle
+ * \see #animrig::versioning::action_is_layered()
  */
 class Action : public ::bAction {
  public:
@@ -89,6 +94,13 @@ class Action : public ::bAction {
    *
    * \note An empty Action is valid as both a legacy and layered Action. Code that only supports
    * layered Actions should assert on `is_action_layered()`.
+   *
+   * \note This method will be removed when runtime support for legacy Actions
+   * is removed, so only use it in such runtime code. See
+   * `BKE_action_is_layered()` for uses that should stick around for the long
+   * term, such as blend file loading and versioning.
+   *
+   * \see #BKE_action_is_layered
    */
   bool is_action_legacy() const;
   /**
@@ -98,6 +110,13 @@ class Action : public ::bAction {
    * - Evaluated for data-blocks based on their slot handle.
    *
    * \note An empty Action is valid as both a legacy and layered Action.
+   *
+   * \note This method will be removed when runtime support for legacy Actions
+   * is removed, so only use it in such runtime code. See
+   * `BKE_action_is_layered()` for uses that should stick around for the long
+   * term, such as blend file loading and versioning.
+   *
+   * \see #BKE_action_is_layered
    */
   bool is_action_layered() const;
 
@@ -210,7 +229,11 @@ class Action : public ::bAction {
   Slot &slot_add_for_id_type(ID_Type idtype);
 
   /**
-   * Create a new slot, named after the given ID, and limited to the ID's type.
+   * Create a new slot suitable for the ID's type.
+   *
+   * The slot will be named after `animated_id.adt.last_slot_identifier`, defaulting to the ID's
+   * name when that is not set. This is done so that toggling Actions works transparently, when
+   * toggling between `this` and the Action last assigned to the ID.
    *
    * Note that this assigns neither this Action nor the new Slot to the ID. This function
    * merely initializes the Slot itself to suitable values to start animating this ID.
@@ -256,20 +279,6 @@ class Action : public ::bAction {
    */
   Span<const StripKeyframeData *> strip_keyframe_data() const;
   Span<StripKeyframeData *> strip_keyframe_data();
-
-  /**
-   * Find the slot that best matches the animated ID.
-   *
-   * If the ID is already animated by this Action, by matching this
-   * Action's slots with (in order):
-   *
-   * - `animated_id.adt->slot_handle`,
-   * - `animated_id.adt->last_slot_identifier`,
-   * - `animated_id.name`.
-   *
-   * Note that this is different from #slot_for_id, which does not use the
-   * slot identifier, and only works when this Action is already assigned. */
-  Slot *find_suitable_slot_for(const ID &animated_id);
 
   /**
    * Return whether this Action actually has any animation data for the given slot.
@@ -725,6 +734,8 @@ class Slot : public ::ActionSlot {
    * \note This static method invalidates all user caches of all Action Slots.
    *
    * \see #blender::animrig::internal::rebuild_slot_user_cache()
+   * \see #blender::bke::animdata::action_slots_user_cache_invalidate(), which is an alternative to
+   *      calling this static method in case the caller only wants to depend on BKE headers.
    */
   static void users_invalidate(Main &bmain);
 
@@ -864,7 +875,7 @@ class Channelbag : public ::ActionChannelbag {
   /**
    * Create an F-Curve, but only if it doesn't exist yet in this Channelbag.
    *
-   * \return the F-Curve it it was created, or nullptr if it already existed.
+   * \return the F-Curve was created, or nullptr if it already existed.
    *
    * \param bmain: Used to tag the dependency graph(s) for relationship
    * rebuilding. This is necessary when adding a new F-Curve, as a
@@ -1034,7 +1045,7 @@ class Channelbag : public ::ActionChannelbag {
   bool fcurve_assign_to_channel_group(FCurve &fcurve, bActionGroup &to_group);
 
   /**
-   * Removes the the given FCurve from the channel group it's in, if any.
+   * Removes the given FCurve from the channel group it's in, if any.
    *
    * As part of removing `fcurve` from its group, `fcurve` is moved to the end
    * of the fcurve array. However, if `fcurve` is already ungrouped then this
@@ -1281,6 +1292,8 @@ ActionSlotAssignmentResult assign_action_and_slot(Action *action,
  * This is a low-level function, intended as a building block for higher-level Action assignment
  * functions.
  *
+ * The function is named "generic" as it is independent of whether this is for
+ * direct assignment to the ID, or to an NLA strip, or an Action Constraint.
  */
 [[nodiscard]] bool generic_assign_action(ID &animated_id,
                                          bAction *action_to_assign,
@@ -1293,6 +1306,9 @@ ActionSlotAssignmentResult assign_action_and_slot(Action *action,
  *
  * This is a low-level function, intended as a building block for higher-level slot assignment
  * functions.
+ *
+ * The function is named "generic" as it is independent of whether this is for
+ * direct assignment to the ID, or to an NLA strip, or an Action Constraint.
  */
 [[nodiscard]] ActionSlotAssignmentResult generic_assign_action_slot(Slot *slot_to_assign,
                                                                     ID &animated_id,
@@ -1305,6 +1321,9 @@ ActionSlotAssignmentResult assign_action_and_slot(Action *action,
  *
  * This is a low-level function, intended as a building block for higher-level slot handle
  * assignment functions.
+ *
+ * The function is named "generic" as it is independent of whether this is for
+ * direct assignment to the ID, or to an NLA strip, or an Action Constraint.
  */
 [[nodiscard]] ActionSlotAssignmentResult generic_assign_action_slot_handle(
     slot_handle_t slot_handle_to_assign,
@@ -1312,6 +1331,23 @@ ActionSlotAssignmentResult assign_action_and_slot(Action *action,
     bAction *&action_ptr_ref,
     slot_handle_t &slot_handle_ref,
     char *slot_identifier);
+
+/**
+ * Generic function for finding the slot to auto-assign when the Action is assigned.
+ *
+ * This is a low-level function, used by generic_assign_action() to pick a slot.
+ * It's declared here so that unit tests can reach it.
+ *
+ * The function is named "generic" as it is independent of whether this is for
+ * direct assignment to the ID, or to an NLA strip, or an Action Constraint.
+ *
+ * \see #generic_assign_action()
+ * \see #generic_assign_action_slot()
+ * \see #generic_assign_action_slot_handle()
+ */
+[[nodiscard]] Slot *generic_slot_for_autoassign(const ID &animated_id,
+                                                Action &action,
+                                                StringRefNull last_slot_identifier);
 
 /* --------------- Accessors --------------------- */
 
@@ -1532,7 +1568,7 @@ void action_fcurve_move(Action &action_dst,
  *
  * If the F-Curves belonged to channel groups, the group membership also carries
  * over to the destination Channelbag. If groups with the same names don't
- * exist, they are created. \see blender::animrig::action_fcurve_detach
+ * exist, they are created. \see #blender::animrig::action_fcurve_detach
  *
  * The order of existing channel groups in the destination Channelbag are not
  * changed, and any new groups are placed after those in the order they appeared

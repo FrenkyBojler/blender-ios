@@ -4,20 +4,20 @@
 
 #pragma once
 
-#include "BLI_vector_set.hh"
-
 /** \file
  * \ingroup sequencer
  */
 
+#include "BLI_span.hh"
+
 struct Scene;
-struct Sequence;
+struct Strip;
 struct StripProxy;
 /**
  * Cache must be freed before calling this function
  * since it leaves the #Editing::seqbase in an invalid state.
  */
-void seq_free_sequence_recurse(Scene *scene, Sequence *seq, bool do_id_user);
+void seq_free_sequence_recurse(Scene *scene, Strip *strip, bool do_id_user);
 StripProxy *seq_strip_proxy_alloc();
 /**
  * Find meta strip, that contains strip `key`.
@@ -29,9 +29,9 @@ StripProxy *seq_strip_proxy_alloc();
  *
  * \return pointer to meta strip
  */
-Sequence *seq_sequence_lookup_meta_by_seq(const Scene *scene, const Sequence *key);
+Strip *seq_sequence_lookup_meta_by_seq(const Scene *scene, const Strip *key);
 /**
- * Find effect strips, that use strip `seq` as one of inputs.
+ * Find effect strips, that use strip `strip` as one of inputs.
  * If lookup hash doesn't exist, it will be created. If hash is tagged as invalid, it will be
  * rebuilt.
  *
@@ -40,5 +40,4 @@ Sequence *seq_sequence_lookup_meta_by_seq(const Scene *scene, const Sequence *ke
  *
  * \return collection of effect strips
  */
-blender::Span<Sequence *> seq_sequence_lookup_effects_by_seq(const Scene *scene,
-                                                             const Sequence *key);
+blender::Span<Strip *> seq_sequence_lookup_effects_by_seq(const Scene *scene, const Strip *key);

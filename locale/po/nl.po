@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'62b2bb48e8bf')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'96c6f543ecc7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-02 16:18+0000\n"
-"PO-Revision-Date: 2023-12-21 01:55+0000\n"
-"Last-Translator: Lisa <blendergirl@tutanota.com>\n"
+"POT-Creation-Date: 2025-01-06 10:26+0000\n"
+"PO-Revision-Date: 2024-12-30 14:39+0000\n"
+"Last-Translator: Sander Spolspoel <sander@sworl.be>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
 "Language: nl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.0.1"
+"X-Generator: Weblate 5.9.2"
 
 
 msgid "Shader AOV"
@@ -57,6 +57,14 @@ msgstr "Lijst van AOV's"
 
 msgid "Collection of AOVs"
 msgstr "Collectie van AOV's"
+
+
+msgid "F-Curves"
+msgstr "F-Curves"
+
+
+msgid "F-Curve Groups"
+msgstr "F-Curve groepen"
 
 
 msgid "Action F-Curves"
@@ -235,24 +243,88 @@ msgid "Influence"
 msgstr "Invloed"
 
 
+msgid "How much of this layer is used when blending into the lower layers"
+msgstr "Hoeveel wordt van deze laag getoond wanneer je'm mengt met lagen eronder"
+
+
 msgid "Mix Mode"
 msgstr "Mixmodus"
+
+
+msgid "How animation of this layer is blended into the lower layers"
+msgstr "Hoe de animatie van deze laag gemengd wordt met lagen eronder"
 
 
 msgid "Replace"
 msgstr "Vervangen"
 
 
+msgid "Channels in this layer override the same channels from underlying layers"
+msgstr "Kanalen in deze laag overschrijven dezelfde kanalen van onderliggende lagen"
+
+
+msgid "Channels in this layer are added to underlying layers as sequential operations"
+msgstr "Kanalen in deze laag worden toegevoegd aan onderliggende lagen als opeenvolgende operaties"
+
+
 msgid "Add"
 msgstr "Toevoegen"
+
+
+msgid "Channels in this layer are added to underlying layers on a per-channel basis"
+msgstr "Kanalen in deze laag worden per kanaal toegevoegd aan onderliggende lagen"
 
 
 msgid "Subtract"
 msgstr "Aftrekken"
 
 
+msgid "Channels in this layer are subtracted to underlying layers on a per-channel basis"
+msgstr "Kanalen in deze laag worden per kanaal afgetrokken van onderliggende lagen"
+
+
 msgid "Multiply"
 msgstr "Vermenigvuldigen"
+
+
+msgid "Channels in this layer are multiplied with underlying layers on a per-channel basis"
+msgstr "Kanalen in deze laag worden per kanaal vermenigvuldigd met onderliggende lagen"
+
+
+msgid "Strips"
+msgstr "Strook"
+
+
+msgid "The list of strips that are on this animation layer"
+msgstr "De lijst met stroken van deze animatielaag"
+
+
+msgid "Action Pose Markers"
+msgstr "Actieve Pose Markeerpunt"
+
+
+msgid "Collection of timeline markers"
+msgstr "Verzameling van tijdlijn markeerpunten"
+
+
+msgid "Active Pose Marker"
+msgstr "Actieve Markeerpunt"
+
+
+msgid "Active pose marker for this action"
+msgstr "Actief pose markeerpunt voor deze actie"
+
+
+msgid "Active Pose Marker Index"
+msgstr "Index van de actieve Pose Marker"
+
+
+msgid "Index of active pose marker"
+msgstr "Index van actieve pose markeerpunt"
+
+
+msgid "Identifier for a set of channels in this Action, that can be used by a data-block to specify what it gets animated by"
+msgstr "Aanduiding voor een reeks kanalen in deze actie, die kan worden gebruikt door een gegevensblok om aan te geven waar het door wordt geanimeerd"
 
 
 msgid "Active"
@@ -260,8 +332,23 @@ msgstr "Actief"
 
 
 msgctxt "ID"
+msgid "Brush"
+msgstr "Penseel"
+
+
+msgctxt "ID"
+msgid "Cache File"
+msgstr "Cachebestand"
+
+
+msgctxt "ID"
 msgid "Collection"
 msgstr "Collectie"
+
+
+msgctxt "ID"
+msgid "Library"
+msgstr "Bibliotheek"
 
 
 msgctxt "ID"
@@ -1493,6 +1580,10 @@ msgid "Value Offset"
 msgstr "Waardeverschuiving"
 
 
+msgid "Roughness"
+msgstr "Ruwheid"
+
+
 msgid "Maximum Distance"
 msgstr "Maximale Afstand"
 
@@ -2189,10 +2280,6 @@ msgid "Cloth"
 msgstr "Kleding"
 
 
-msgid "Roughness"
-msgstr "Ruwheid"
-
-
 msgid "Roughness of the material"
 msgstr "Ruwheid van het materiaal"
 
@@ -2674,16 +2761,20 @@ msgid "Active Point"
 msgstr "Actieve Punt"
 
 
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
+msgid "Mirror"
+msgstr "Spiegel"
 
 
 msgid "Local View"
 msgstr "Lokale Scherm"
 
 
-msgid "Names"
-msgstr "Namen"
+msgid "Navigation"
+msgstr "Navigatie"
+
+
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
 
 
 msgid "Select Linked"
@@ -2702,16 +2793,12 @@ msgid "Rigid Body"
 msgstr "Star Lichaam"
 
 
-msgid "Navigation"
-msgstr "Navigatie"
-
-
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
-
-
 msgid "Quick Effects"
 msgstr "Snelle Effecten"
+
+
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
 
 
 msgid "Convert"
@@ -2722,12 +2809,12 @@ msgid "Hooks"
 msgstr "Haken"
 
 
-msgid "Mirror"
-msgstr "Spiegel"
-
-
 msgid "Clear Transform"
 msgstr "Maak Transformatie Leeg"
+
+
+msgid "Names"
+msgstr "Namen"
 
 
 msgctxt "MovieClip"
@@ -3039,10 +3126,6 @@ msgstr "Meta"
 
 msgid "Sound Clip"
 msgstr "Geluidsclip"
-
-
-msgid "Custom Node"
-msgstr "Eigen Node"
 
 
 msgid "Show Texture"
@@ -4058,15 +4141,6 @@ msgstr "Verwijder Boekenlegger"
 msgctxt "Operator"
 msgid "Move Bookmark"
 msgstr "Verplaats Boekenlegger"
-
-
-msgctxt "Operator"
-msgid "Cancel File Load"
-msgstr "Annuleer Bestand Laden"
-
-
-msgid "Cancel loading of selected file"
-msgstr "Annulerer Landen van geslecteerd bestand"
 
 
 msgctxt "Operator"

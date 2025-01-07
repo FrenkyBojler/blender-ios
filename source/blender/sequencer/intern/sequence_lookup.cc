@@ -15,7 +15,6 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
-#include "BLI_sys_types.h"
 #include "BLI_vector_set.hh"
 
 #include <cstring>
@@ -26,37 +25,37 @@
 static std::mutex lookup_lock;
 
 struct SequenceLookup {
-  blender::Map<std::string, Sequence *> seq_by_name;
-  blender::Map<const Sequence *, Sequence *> meta_by_seq;
-  blender::Map<const Sequence *, blender::VectorSet<Sequence *>> effects_by_seq;
-  blender::Map<const SeqTimelineChannel *, Sequence *> owner_by_channel;
+  blender::Map<std::string, Strip *> seq_by_name;
+  blender::Map<const Strip *, Strip *> meta_by_seq;
+  blender::Map<const Strip *, blender::VectorSet<Strip *>> effects_by_seq;
+  blender::Map<const SeqTimelineChannel *, Strip *> owner_by_channel;
   bool is_valid = false;
 };
 
-static void seq_sequence_lookup_append_effect(const Sequence *input,
-                                              Sequence *effect,
+static void seq_sequence_lookup_append_effect(const Strip *input,
+                                              Strip *effect,
                                               SequenceLookup *lookup)
 {
   if (input == nullptr) {
     return;
   }
 
-  blender::VectorSet<Sequence *> &effects = lookup->effects_by_seq.lookup_or_add_default(input);
+  blender::VectorSet<Strip *> &effects = lookup->effects_by_seq.lookup_or_add_default(input);
 
   effects.add(effect);
 }
 
-static void seq_sequence_lookup_build_effect(Sequence *seq, SequenceLookup *lookup)
+static void seq_sequence_lookup_build_effect(Strip *strip, SequenceLookup *lookup)
 {
-  if ((seq->type & SEQ_TYPE_EFFECT) == 0) {
+  if ((strip->type & SEQ_TYPE_EFFECT) == 0) {
     return;
   }
 
-  seq_sequence_lookup_append_effect(seq->seq1, seq, lookup);
-  seq_sequence_lookup_append_effect(seq->seq2, seq, lookup);
+  seq_sequence_lookup_append_effect(strip->seq1, strip, lookup);
+  seq_sequence_lookup_append_effect(strip->seq2, strip, lookup);
 }
 
-static void seq_sequence_lookup_build_from_seqbase(Sequence *parent_meta,
+static void seq_sequence_lookup_build_from_seqbase(Strip *parent_meta,
                                                    const ListBase *seqbase,
                                                    SequenceLookup *lookup)
 {
@@ -66,13 +65,13 @@ static void seq_sequence_lookup_build_from_seqbase(Sequence *parent_meta,
     }
   }
 
-  LISTBASE_FOREACH (Sequence *, seq, seqbase) {
-    lookup->seq_by_name.add(seq->name + 2, seq);
-    lookup->meta_by_seq.add(seq, parent_meta);
-    seq_sequence_lookup_build_effect(seq, lookup);
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    lookup->seq_by_name.add(strip->name + 2, strip);
+    lookup->meta_by_seq.add(strip, parent_meta);
+    seq_sequence_lookup_build_effect(strip, lookup);
 
-    if (seq->type == SEQ_TYPE_META) {
-      seq_sequence_lookup_build_from_seqbase(seq, &seq->seqbase, lookup);
+    if (strip->type == SEQ_TYPE_META) {
+      seq_sequence_lookup_build_from_seqbase(strip, &strip->seqbase, lookup);
     }
   }
 }
@@ -123,7 +122,7 @@ void SEQ_sequence_lookup_free(const Scene *scene)
   seq_sequence_lookup_free(&lookup);
 }
 
-Sequence *SEQ_sequence_lookup_seq_by_name(const Scene *scene, const char *key)
+Strip *SEQ_sequence_lookup_seq_by_name(const Scene *scene, const char *key)
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);
@@ -132,7 +131,7 @@ Sequence *SEQ_sequence_lookup_seq_by_name(const Scene *scene, const char *key)
   return lookup->seq_by_name.lookup_default(key, nullptr);
 }
 
-Sequence *seq_sequence_lookup_meta_by_seq(const Scene *scene, const Sequence *key)
+Strip *seq_sequence_lookup_meta_by_seq(const Scene *scene, const Strip *key)
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);
@@ -141,19 +140,17 @@ Sequence *seq_sequence_lookup_meta_by_seq(const Scene *scene, const Sequence *ke
   return lookup->meta_by_seq.lookup_default(key, nullptr);
 }
 
-blender::Span<Sequence *> seq_sequence_lookup_effects_by_seq(const Scene *scene,
-                                                             const Sequence *key)
+blender::Span<Strip *> seq_sequence_lookup_effects_by_seq(const Scene *scene, const Strip *key)
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);
   seq_sequence_lookup_update_if_needed(scene, &scene->ed->runtime.sequence_lookup);
   SequenceLookup *lookup = scene->ed->runtime.sequence_lookup;
-  blender::VectorSet<Sequence *> &effects = lookup->effects_by_seq.lookup_or_add_default(key);
+  blender::VectorSet<Strip *> &effects = lookup->effects_by_seq.lookup_or_add_default(key);
   return effects.as_span();
 }
 
-Sequence *SEQ_sequence_lookup_owner_by_channel(const Scene *scene,
-                                               const SeqTimelineChannel *channel)
+Strip *SEQ_sequence_lookup_owner_by_channel(const Scene *scene, const SeqTimelineChannel *channel)
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'62b2bb48e8bf')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'96c6f543ecc7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-02 16:18+0000\n"
+"POT-Creation-Date: 2025-01-06 10:26+0000\n"
 "PO-Revision-Date: 2024-11-23 15:56+0000\n"
 "Last-Translator: Kacper Madej <cacperkacper@yahoo.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -8261,6 +8261,10 @@ msgid "Method of modifying the existing F-Curve"
 msgstr "Metoda modyfikacji istniejącej krzywej-F"
 
 
+msgid "Roughness"
+msgstr "Szorstkość"
+
+
 msgid "Scaling (in time) of the noise"
 msgstr "Skalowanie (w czasie) szumu"
 
@@ -9747,10 +9751,6 @@ msgid "Cloth"
 msgstr "Tkanina"
 
 
-msgid "Roughness"
-msgstr "Szorstkość"
-
-
 msgid "Roughness of the material"
 msgstr "Szorstkość materiału"
 
@@ -9831,12 +9831,12 @@ msgid "Filter"
 msgstr "Filtr"
 
 
-msgid "Grease Pencil Data"
-msgstr "Dane narzędzia Grease Pencil"
-
-
 msgid "Interface"
 msgstr "Interfejs"
+
+
+msgid "Grease Pencil Data"
+msgstr "Dane narzędzia Grease Pencil"
 
 
 msgid "Nodes"
@@ -11259,16 +11259,12 @@ msgid "Use Material Mask"
 msgstr "Używa maski materiału"
 
 
-msgid "Clean Up"
-msgstr "Sprzątanie"
+msgid "Mirror"
+msgstr "Odbicie lustrzane"
 
 
-msgid "Merge"
-msgstr "Scal"
-
-
-msgid "Show/Hide"
-msgstr "Pokaż/Ukryj"
+msgid "Snap"
+msgstr "Przyciągnij"
 
 
 msgid "Local View"
@@ -11279,16 +11275,16 @@ msgid "Viewpoint"
 msgstr "Punkt obserwacji"
 
 
+msgid "Navigation"
+msgstr "Nawigacja"
+
+
 msgid "Select Linked"
 msgstr "Zaznacz powiązane"
 
 
-msgid "Snap"
-msgstr "Przyciągnij"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proporcjonalne edytowanie spadku"
+msgid "Assign Material"
+msgstr "Przypisanie materiału"
 
 
 msgid "Rigid Body"
@@ -11303,12 +11299,16 @@ msgid "Track"
 msgstr "Ścieżka"
 
 
-msgid "Navigation"
-msgstr "Nawigacja"
-
-
 msgid "Quick Effects"
 msgstr "Szybkie efekty"
+
+
+msgid "Show/Hide"
+msgstr "Pokaż/Ukryj"
+
+
+msgid "Clean Up"
+msgstr "Sprzątanie"
 
 
 msgid "Asset"
@@ -11319,20 +11319,20 @@ msgid "Convert"
 msgstr "Konwertuj"
 
 
-msgid "Mirror"
-msgstr "Odbicie lustrzane"
-
-
-msgid "Assign Material"
-msgstr "Przypisanie materiału"
-
-
 msgid "Bone Collections"
 msgstr "Kolekcja kości"
 
 
 msgid "Face Data"
 msgstr "Dane ściany"
+
+
+msgid "Merge"
+msgstr "Scal"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proporcjonalne edytowanie spadku"
 
 
 msgid "Catalog"
@@ -11509,6 +11509,11 @@ msgstr "Zapis i odczyt"
 msgctxt "Operator"
 msgid "Parent"
 msgstr "Rodzic"
+
+
+msgctxt "Operator"
+msgid "Empty"
+msgstr "Pusty"
 
 
 msgid "Quick Setup"
@@ -15383,11 +15388,6 @@ msgid "Hide/Show"
 msgstr "Ukryj/Pokaż"
 
 
-msgctxt "Operator"
-msgid "Texture Paint Toggle"
-msgstr "Przełącz malowanie tekstury"
-
-
 msgid "Toggle texture paint mode in 3D view"
 msgstr "Przełącza tryb malowania tekstury w widoku 3D"
 
@@ -15761,6 +15761,11 @@ msgstr "Kolor 09"
 
 msgid "Property"
 msgstr "Właściwość"
+
+
+msgctxt "Operator"
+msgid "Deselect All"
+msgstr "Usuń zaznaczenie wszystkiego"
 
 
 msgctxt "Operator"
@@ -16476,6 +16481,30 @@ msgid "Export USD"
 msgstr "Eksportuj USD"
 
 
+msgid "Meters"
+msgstr "Metry"
+
+
+msgid "Kilometers"
+msgstr "Kilometry"
+
+
+msgid "Centimeters"
+msgstr "Centymetry"
+
+
+msgid "Inches"
+msgstr "Cale"
+
+
+msgid "Feet"
+msgstr "Stopy"
+
+
+msgid "Yards"
+msgstr "Jardy"
+
+
 msgid "Subdivision"
 msgstr "Podział"
 
@@ -16633,10 +16662,6 @@ msgid "Palette Color"
 msgstr "Kolor palety"
 
 
-msgid "Active Tool"
-msgstr "Aktywne narzędzie"
-
-
 msgid "Shadow Settings"
 msgstr "Ustawienia cienia"
 
@@ -16667,6 +16692,10 @@ msgstr "Przyciąganie"
 
 msgid "Transform Orientations"
 msgstr "Orientacje przekształcenia"
+
+
+msgid "Active Tool"
+msgstr "Aktywne narzędzie"
 
 
 msgid "Aperture"
@@ -19422,11 +19451,6 @@ msgid "Load"
 msgstr "Wczytaj"
 
 
-msgctxt "Operator"
-msgid "Deselect All"
-msgstr "Usuń zaznaczenie wszystkiego"
-
-
 msgid "Add-ons:"
 msgstr "Wtyczki:"
 
@@ -20202,11 +20226,6 @@ msgstr "Znajdź węzeł..."
 
 
 msgctxt "Operator"
-msgid "Insert Into Group"
-msgstr "Wstaw do grupy"
-
-
-msgctxt "Operator"
 msgid "Mute"
 msgstr "Wycisz"
 
@@ -20229,6 +20248,11 @@ msgstr "Zwiń"
 msgctxt "Operator"
 msgid "Fit"
 msgstr "Dopasuj"
+
+
+msgctxt "Operator"
+msgid "Insert Into Group"
+msgstr "Wstaw do grupy"
 
 
 msgctxt "Operator"
@@ -21530,11 +21554,6 @@ msgstr "Renderuj animację rzutni"
 
 
 msgctxt "Operator"
-msgid "Empty"
-msgstr "Pusty"
-
-
-msgctxt "Operator"
 msgid "Point Cloud"
 msgstr "Chmura punktów"
 
@@ -22030,10 +22049,6 @@ msgid "Original Mode"
 msgstr "Tryb oryginalny"
 
 
-msgid "Kilometers"
-msgstr "Kilometry"
-
-
 msgid "100 Meters"
 msgstr "100 metrów"
 
@@ -22042,16 +22057,8 @@ msgid "10 Meters"
 msgstr "10 metrów"
 
 
-msgid "Meters"
-msgstr "Metry"
-
-
 msgid "10 Centimeters"
 msgstr "10 centymetrów"
-
-
-msgid "Centimeters"
-msgstr "Centymetry"
 
 
 msgid "Micrometers"
@@ -22076,18 +22083,6 @@ msgstr "Furlongi"
 
 msgid "Chains"
 msgstr "Łańcuchy"
-
-
-msgid "Yards"
-msgstr "Jardy"
-
-
-msgid "Feet"
-msgstr "Stopy"
-
-
-msgid "Inches"
-msgstr "Cale"
 
 
 msgid "Square Kilometers"
@@ -22148,42 +22143,6 @@ msgstr "Tony"
 
 msgid "worlds"
 msgstr "światy"
-
-
-msgid "Error writing frame"
-msgstr "Błąd zapisu klatki"
-
-
-msgid "No valid formats found"
-msgstr "Nie odnaleziono poprawnych formatów"
-
-
-msgid "Render width has to be 720 pixels for DV!"
-msgstr "Szerokość renderu musi wynosić 720 pikseli dla DV!"
-
-
-msgid "Render height has to be 480 pixels for DV-NTSC!"
-msgstr "Wysokość renderu musi wynosić 480 pikseli dla DV-NTSC!"
-
-
-msgid "Render height has to be 576 pixels for DV-PAL!"
-msgstr "Wysokość renderu musi wynosić 576 pikseli dla DV-PAL!"
-
-
-msgid "Error initializing video stream"
-msgstr "Błąd inicjacji strumienia filmowego"
-
-
-msgid "Error initializing audio stream"
-msgstr "Błąd inicjacji strumienia dźwiękowego"
-
-
-msgid "Could not open file for writing"
-msgstr "Nie można było otworzyć pliku do zapisu"
-
-
-msgid "Could not initialize streams, probably unsupported codec combination"
-msgstr "Nie można było zainicjować strumieni, prawdopodobnie nieobsługiwana kombinacja kodeków"
 
 
 msgid "unknown error reading file"
@@ -26114,6 +26073,42 @@ msgid "Object has negative scale, unwrap will operate on a non-flipped version o
 msgstr "Obiekt posiada ujemną skalę, odwijanie (unwrap) będzie używało nie odwróconej wersji siatki"
 
 
+msgid "Error writing frame"
+msgstr "Błąd zapisu klatki"
+
+
+msgid "No valid formats found"
+msgstr "Nie odnaleziono poprawnych formatów"
+
+
+msgid "Render width has to be 720 pixels for DV!"
+msgstr "Szerokość renderu musi wynosić 720 pikseli dla DV!"
+
+
+msgid "Render height has to be 480 pixels for DV-NTSC!"
+msgstr "Wysokość renderu musi wynosić 480 pikseli dla DV-NTSC!"
+
+
+msgid "Render height has to be 576 pixels for DV-PAL!"
+msgstr "Wysokość renderu musi wynosić 576 pikseli dla DV-PAL!"
+
+
+msgid "Error initializing video stream"
+msgstr "Błąd inicjacji strumienia filmowego"
+
+
+msgid "Error initializing audio stream"
+msgstr "Błąd inicjacji strumienia dźwiękowego"
+
+
+msgid "Could not open file for writing"
+msgstr "Nie można było otworzyć pliku do zapisu"
+
+
+msgid "Could not initialize streams, probably unsupported codec combination"
+msgstr "Nie można było zainicjować strumieni, prawdopodobnie nieobsługiwana kombinacja kodeków"
+
+
 msgid "Index out of range"
 msgstr "Indeks poza zakresem"
 
@@ -27184,11 +27179,6 @@ msgstr "Balans koloru"
 
 
 msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Balans bieli"
-
-
-msgctxt "Sequence"
 msgid "Curves"
 msgstr "Krzywe"
 
@@ -27196,6 +27186,11 @@ msgstr "Krzywe"
 msgctxt "Sequence"
 msgid "Hue Correct"
 msgstr "Korekta barwy"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Balans bieli"
 
 
 msgid "Strips must be the same length"
@@ -27429,10 +27424,6 @@ msgstr "Edycja wideo"
 
 msgid "Cycles Render Engine"
 msgstr "Silnik renderowania Cycles"
-
-
-msgid "All Add-ons"
-msgstr "Wszystkie wtyczki"
 
 
 msgid "All Add-ons Installed by User"

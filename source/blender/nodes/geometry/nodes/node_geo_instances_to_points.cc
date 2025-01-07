@@ -6,7 +6,6 @@
 
 #include "DNA_pointcloud_types.h"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_instances.hh"
 #include "BKE_pointcloud.hh"
 
@@ -113,6 +112,7 @@ static void node_register()
 
   geo_node_type_base(
       &ntype, GEO_NODE_INSTANCES_TO_POINTS, "Instances to Points", NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "INSTANCES_TO_POINTS";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

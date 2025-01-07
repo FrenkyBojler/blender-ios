@@ -624,7 +624,7 @@ static void sequencer_main_region_message_subscribe(const wmRegionMessageSubscri
     StructRNA *type_array[] = {
         &RNA_SequenceEditor,
 
-        &RNA_Sequence,
+        &RNA_Strip,
         /* Members of 'Sequence'. */
         &RNA_SequenceCrop,
         &RNA_SequenceTransform,
@@ -641,18 +641,18 @@ static void sequencer_main_region_message_subscribe(const wmRegionMessageSubscri
 }
 
 static bool is_mouse_over_retiming_key(const Scene *scene,
-                                       const Sequence *seq,
+                                       const Strip *strip,
                                        const View2D *v2d,
                                        const ScrArea *area,
                                        float mouse_co_region[2])
 {
   const SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
 
-  if (!SEQ_retiming_data_is_editable(seq) || !retiming_keys_can_be_displayed(sseq)) {
+  if (!SEQ_retiming_data_is_editable(strip) || !retiming_keys_can_be_displayed(sseq)) {
     return false;
   }
 
-  rctf retiming_keys_box = seq_retiming_keys_box_get(scene, v2d, seq);
+  rctf retiming_keys_box = seq_retiming_keys_box_get(scene, v2d, strip);
   return BLI_rctf_isect_pt_v(&retiming_keys_box, mouse_co_region);
 }
 
@@ -661,7 +661,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   int wmcursor = WM_CURSOR_DEFAULT;
 
   const bToolRef *tref = area->runtime.tool;
-  if (!STRPREFIX(tref->idname, "builtin.select")) {
+  if (tref == nullptr || !STRPREFIX(tref->idname, "builtin.select")) {
     WM_cursor_set(win, wmcursor);
     return;
   }
@@ -788,11 +788,16 @@ static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 #endif
 
+  /* Own keymap. */
+  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerPreview", SPACE_SEQ, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
+
   keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  /* Own keymap. */
-  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerPreview", SPACE_SEQ, RGN_TYPE_WINDOW);
+  /* Do this instead of adding V2D keymap flag to `art->keymapflag` text editing keymap conflicts
+   * with V2D keymap. This seems to be only way to define order of evaluation. */
+  keymap = WM_keymap_ensure(wm->defaultconf, "View2D", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   ListBase *lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_PREVIEW);
@@ -1122,8 +1127,7 @@ void ED_spacetype_sequencer()
   art->on_view2d_changed = sequencer_preview_region_view2d_changed;
   art->draw = sequencer_preview_region_draw;
   art->listener = sequencer_preview_region_listener;
-  art->keymapflag = ED_KEYMAP_TOOL | ED_KEYMAP_GIZMO | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES |
-                    ED_KEYMAP_GPENCIL;
+  art->keymapflag = ED_KEYMAP_TOOL | ED_KEYMAP_GIZMO | ED_KEYMAP_GPENCIL;
   BLI_addhead(&st->regiontypes, art);
 
   /* List-view/buttons. */
