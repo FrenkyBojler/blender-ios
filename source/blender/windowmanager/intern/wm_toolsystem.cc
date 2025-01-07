@@ -429,6 +429,13 @@ static void toolsystem_brush_activate_from_toolref(Main *bmain,
   }
 }
 
+/**
+ * Performs the minimal set of changes to manually sync bToolRef data.
+ *
+ * For context, this method exists to avoid calling methods like #WM_toolsystem_ref_set_by_id and
+ * #WM_toolsystem_ref_set_from_runtime which can lead to infinite recursion via
+ * #toolsystem_ref_link.
+ */
 static void toolsystem_sync_brush_toolref_runtime(const bToolRef &src, bToolRef &dst)
 {
   STRNCPY(dst.idname, src.idname);
