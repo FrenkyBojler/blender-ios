@@ -7,15 +7,8 @@ set(INC
   algorithms
   cached_resources
   utilities
-  ../blenkernel
-  ../blentranslation
-  ../functions
-  ../gpu
   ../gpu/intern
-  ../imbuf
   ../makesrna
-  ../nodes
-  ../render
   ../render/intern
 )
 
@@ -48,7 +41,7 @@ set(SRC
   COM_simple_operation.hh
   COM_static_cache_manager.hh
   COM_texture_pool.hh
-  COM_utilities.hh  
+  COM_utilities.hh
 
   intern/COM_compositor.cc
   intern/compile_state.cc
@@ -144,15 +137,18 @@ set(SRC
   cached_resources/COM_symmetric_separable_blur_weights.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
 
-  utilities/COM_utilities_diagonals.hh  
+  utilities/COM_utilities_diagonals.hh
+  utilities/COM_utilities_type_conversion.hh
 )
 
 set(LIB
-  bf_blenkernel
-  bf_functions
-  bf_gpu
-  bf_imbuf
-  bf_render
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blentranslation
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::nodes
+  PRIVATE bf::render
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc

@@ -33,7 +33,7 @@ class ValueOperation : public NodeOperation {
     const bNodeSocket *socket = static_cast<bNodeSocket *>(bnode().outputs.first);
     float value = static_cast<bNodeSocketValueFloat *>(socket->default_value)->value;
 
-    result.set_float_value(value);
+    result.set_single_value(value);
   }
 };
 
@@ -51,6 +51,7 @@ void register_node_type_cmp_value()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_VALUE, "Value", NODE_CLASS_INPUT);
+  ntype.enum_name_legacy = "VALUE";
   ntype.declare = file_ns::cmp_node_value_declare;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
