@@ -1019,7 +1019,7 @@ class Channelbag : public ::ActionChannelbag {
   /**
    * Append an F-Curve to this Channelbag.
    *
-   * This transfers ownership of the F-Curve this Channelbag, and it is up to
+   * This transfers ownership of the F-Curve to this Channelbag, and it is up to
    * the caller to ensure that this is valid (e.g. the F-Curve doesn't also
    * belong to something else).
    *
