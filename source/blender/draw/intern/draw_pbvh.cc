@@ -495,21 +495,6 @@ static std::pair<const CustomDataLayer *, bke::AttrDomain> bmesh_attribute_looku
   return {nullptr, bke::AttrDomain::Point};
 }
 
-template<typename T> T fallback_value_for_fill()
-{
-  return T();
-}
-
-template<> ColorGeometry4f fallback_value_for_fill()
-{
-  return ColorGeometry4f(1.0f, 1.0f, 1.0f, 1.0f);
-}
-
-template<> ColorGeometry4b fallback_value_for_fill()
-{
-  return fallback_value_for_fill<ColorGeometry4f>().encode();
-}
-
 static int count_visible_tris_bmesh(const Set<BMFace *, 0> &faces)
 {
   return std::count_if(faces.begin(), faces.end(), [&](const BMFace *face) {
@@ -599,8 +584,8 @@ BLI_NOINLINE static void ensure_vbos_allocated_grids(const Object &object,
     if (!vbos[i]) {
       vbos[i] = GPU_vertbuf_create_with_format(format);
     }
-    const int verts_per_grid = use_flat_layout[i] ? square_i(subdiv_ccg.grid_area - 1) * 4 :
-                                                    square_i(subdiv_ccg.grid_area);
+    const int verts_per_grid = use_flat_layout[i] ? square_i(subdiv_ccg.grid_size - 1) * 4 :
+                                                    square_i(subdiv_ccg.grid_size);
     const int verts_num = nodes[i].grids().size() * verts_per_grid;
     GPU_vertbuf_data_alloc(*vbos[i], verts_num);
   });
@@ -1737,14 +1722,12 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
       }
       else {
         ensure_vbos_allocated_grids(object,
-                                    attribute_format(orig_mesh_data, "dummy", CD_PROP_BYTE_COLOR),
+                                    attribute_format(orig_mesh_data, "Dummy", CD_PROP_FLOAT3),
                                     use_flat_layout_,
-                                    node_mask,
+                                    mask,
                                     vbos);
-        node_mask.foreach_index(GrainSize(1), [&](const int i) {
-          vbos[i]->data<ColorGeometry4b>().fill(
-              ColorGeometry4b(UCHAR_MAX, UCHAR_MAX, UCHAR_MAX, UCHAR_MAX));
-        });
+        mask.foreach_index(GrainSize(1),
+                           [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
       }
       break;
     }

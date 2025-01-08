@@ -1123,7 +1123,7 @@ Image *BKE_image_load_exists_in_lib(Main *bmain,
       if (BLI_path_cmp(filepath_test, filepath_abs) != 0) {
         continue;
       }
-      if ((BKE_image_has_anim(ima)) && (ima->id.us != 0)) {
+      if (BKE_image_has_anim(ima) && (ima->id.us != 0)) {
         /* TODO explain why animated images with already one or more users are skipped? */
         continue;
       }
@@ -1865,10 +1865,10 @@ static void stampdata(
   }
 
   if (use_dynamic && scene->r.stamp & R_STAMP_SEQSTRIP) {
-    const Sequence *seq = SEQ_get_topmost_sequence(scene, scene->r.cfra);
+    const Strip *strip = SEQ_get_topmost_sequence(scene, scene->r.cfra);
 
-    if (seq) {
-      STRNCPY(text, seq->name + 2);
+    if (strip) {
+      STRNCPY(text, strip->name + 2);
     }
     else {
       STRNCPY(text, "<none>");
