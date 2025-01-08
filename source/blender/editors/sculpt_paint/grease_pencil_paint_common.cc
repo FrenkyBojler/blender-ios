@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "ANIM_keyframing.hh"
+
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
@@ -55,6 +57,154 @@ Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_painting(const bCo
 
   /* Apply to all editable drawings. */
   return ed::greasepencil::retrieve_editable_drawings_with_falloff(scene, grease_pencil);
+}
+
+Vector<greasepencil::MultiframeTargetInfo> ensure_editable_multiframe_drawings(
+    const Scene &scene, GreasePencil &grease_pencil, bke::greasepencil::Layer &target_layer)
+{
+  using namespace bke::greasepencil;
+  using ed::greasepencil::DrawingInfo;
+  using ed::greasepencil::MutableDrawingInfo;
+
+  const ToolSettings *toolsettings = scene.toolsettings;
+  const bool use_multi_frame_editing = (toolsettings->gpencil_flags &
+                                        GP_USE_MULTI_FRAME_EDITING) != 0;
+  const bool use_autokey = blender::animrig::is_autokey_on(&scene);
+  const bool use_duplicate_frame = (scene.toolsettings->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST);
+  const int target_layer_index = *grease_pencil.get_layer_index(target_layer);
+
+  VectorSet<int> target_frames;
+  /* Add drawing on the current frame. */
+  target_frames.add(scene.r.cfra);
+  /* Multi-frame edit: Add drawing on frames that are selected in any layer. */
+  if (use_multi_frame_editing) {
+    for (const Layer *layer : grease_pencil.layers()) {
+      for (const auto [frame_number, frame] : layer->frames().items()) {
+        if (frame.is_selected()) {
+          target_frames.add(frame_number);
+        }
+      }
+    }
+  }
+
+  /* Create new drawings when autokey is enabled. */
+  if (use_autokey) {
+    for (const int frame_number : target_frames) {
+      if (!target_layer.frames().contains(frame_number)) {
+        if (use_duplicate_frame) {
+          grease_pencil.insert_duplicate_frame(
+              target_layer, *target_layer.start_frame_at(frame_number), frame_number, false);
+        }
+        else {
+          grease_pencil.insert_frame(target_layer, frame_number);
+        }
+      }
+    }
+  }
+
+  Vector<greasepencil::MultiframeTargetInfo> drawings;
+  for (const int frame_number : target_frames) {
+    if (Drawing *target_drawing = grease_pencil.get_editable_drawing_at(target_layer,
+                                                                        frame_number))
+    {
+      MutableDrawingInfo target = {*target_drawing, target_layer_index, frame_number, 1.0f};
+
+      Vector<DrawingInfo> sources;
+      for (const Layer *source_layer : grease_pencil.layers()) {
+        if (const Drawing *source_drawing = grease_pencil.get_drawing_at(*source_layer,
+                                                                         frame_number))
+        {
+          const int source_layer_index = *grease_pencil.get_layer_index(*source_layer);
+          sources.append({*source_drawing, source_layer_index, frame_number, 0});
+        }
+      }
+
+      drawings.append({std::move(target), std::move(sources)});
+    }
+  }
+
+  return drawings;
+}
+
+void copy_new_curve_to(const bke::CurvesGeometry &from_curves,
+                       bke::CurvesGeometry &to_curves,
+                       const bool on_back)
+{
+  const int from_curves_num = from_curves.curves_num();
+  const OffsetIndices<int> from_points_by_curve = from_curves.points_by_curve();
+  const int new_points = on_back ? from_points_by_curve[0].size() :
+                                   from_points_by_curve[from_curves_num - 1].size();
+
+  const int to_curves_num = to_curves.curves_num() + 1;
+  to_curves.resize(to_curves.points_num() + new_points, to_curves_num);
+
+  if (on_back) {
+    MutableSpan<int> to_offsets = to_curves.offsets_for_write();
+    /* Loop through backwards to not overwrite the data. */
+    for (int i = to_curves.curves_num() - 2; i >= 0; i--) {
+      to_offsets[i + 1] = to_offsets[i] + 1;
+    }
+    to_offsets.first() = 0;
+
+    bke::AttributeAccessor from_attributes = from_curves.attributes();
+    bke::MutableAttributeAccessor to_attributes = to_curves.attributes_for_write();
+
+    to_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      bke::GSpanAttributeWriter dst = to_attributes.lookup_for_write_span(iter.name);
+      GMutableSpan to_attribute_data = dst.span;
+
+      const int shift_offsets = (dst.domain == bke::AttrDomain::Point) ? new_points : 1;
+
+      bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
+        using T = decltype(dummy);
+        MutableSpan<T> span_data = to_attribute_data.typed<T>();
+
+        /* Loop through backwards to not overwrite the data. */
+        for (int i = span_data.size() - 1 - shift_offsets; i >= 0; i--) {
+          span_data[i + shift_offsets] = span_data[i];
+        }
+
+        /* Write the new segment's attribute to the space we just made. */
+        GVArray from_data = from_attributes.lookup(iter.name).varray;
+        if (!from_data.is_empty()) {
+          array_utils::copy(from_data.slice(IndexRange(shift_offsets)),
+                            span_data.take_front(shift_offsets));
+        }
+      });
+      dst.finish();
+    });
+  }
+  else {
+    to_curves.offsets_for_write().last(1) = to_curves.points_num() - new_points;
+
+    /* Shift old attributes to make room for the new stroke. */
+    bke::AttributeAccessor from_attributes = from_curves.attributes();
+    bke::MutableAttributeAccessor to_attributes = to_curves.attributes_for_write();
+    to_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      bke::GSpanAttributeWriter dst = to_attributes.lookup_for_write_span(iter.name);
+      GMutableSpan to_attribute_data = dst.span;
+
+      const bool point_domain = (dst.domain == bke::AttrDomain::Point);
+      const int from_offset = point_domain ? from_curves.offsets()[from_curves_num - 1] :
+                                             from_curves_num - 1;
+      const int segment_length = point_domain ? new_points : 1;
+      const int to_offset = point_domain ? to_curves.offsets()[to_curves_num - 1] :
+                                           to_curves_num - 1;
+
+      bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
+        using T = decltype(dummy);
+        MutableSpan<T> span_data = to_attribute_data.typed<T>();
+
+        /* Write the new segment's attribute to the trailing empty space. */
+        GVArray from_data = from_attributes.lookup(iter.name).varray;
+        if (!from_data.is_empty()) {
+          array_utils::copy(from_data.slice(IndexRange(from_offset, segment_length)),
+                            span_data.slice(IndexRange(to_offset, segment_length)));
+        }
+      });
+      dst.finish();
+    });
+  }
 }
 
 void init_brush(Brush &brush)

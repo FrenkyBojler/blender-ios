@@ -60,9 +60,13 @@ struct MultiframeTargetInfo {
   Vector<ed::greasepencil::DrawingInfo> sources;
 };
 
-Vector<MultiframeTargetInfo> ensure_editable_drawings(const Scene &scene,
-                                                      GreasePencil &grease_pencil,
-                                                      bke::greasepencil::Layer &target_layer);
+Vector<MultiframeTargetInfo> ensure_editable_multiframe_drawings(
+    const Scene &scene, GreasePencil &grease_pencil, bke::greasepencil::Layer &target_layer);
+
+/* For multi-frame drawing, copy the first or last curve segment to another CurvesGeometry. */
+void copy_new_curve_to(const bke::CurvesGeometry &from_curves,
+                       bke::CurvesGeometry &to_curves,
+                       const bool on_back);
 
 /* Get list of drawings the tool should be operating on. */
 Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_painting(const bContext &C);

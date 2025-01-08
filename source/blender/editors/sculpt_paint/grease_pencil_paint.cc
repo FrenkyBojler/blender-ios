@@ -1456,87 +1456,6 @@ static void process_stroke_weights(const Scene &scene,
   });
 }
 
-static void copy_new_curve_to(const bke::CurvesGeometry &from_curves,
-                              bke::CurvesGeometry &to_curves,
-                              const bool on_back)
-{
-  const int from_curves_num = from_curves.curves_num();
-  const OffsetIndices<int> from_points_by_curve = from_curves.points_by_curve();
-  const int new_points = on_back ? from_points_by_curve[0].size() :
-                                   from_points_by_curve[from_curves_num - 1].size();
-
-  const int to_curves_num = to_curves.curves_num() + 1;
-  to_curves.resize(to_curves.points_num() + new_points, to_curves_num);
-
-  if (on_back) {
-    MutableSpan<int> to_offsets = to_curves.offsets_for_write();
-    /* Loop through backwards to not overwrite the data. */
-    for (int i = to_curves.curves_num() - 2; i >= 0; i--) {
-      to_offsets[i + 1] = to_offsets[i] + 1;
-    }
-    to_offsets.first() = 0;
-
-    bke::AttributeAccessor from_attributes = from_curves.attributes();
-    bke::MutableAttributeAccessor to_attributes = to_curves.attributes_for_write();
-
-    to_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-      bke::GSpanAttributeWriter dst = to_attributes.lookup_for_write_span(iter.name);
-      GMutableSpan to_attribute_data = dst.span;
-
-      const int shift_offsets = (dst.domain == bke::AttrDomain::Point) ? new_points : 1;
-
-      bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
-        using T = decltype(dummy);
-        MutableSpan<T> span_data = to_attribute_data.typed<T>();
-
-        /* Loop through backwards to not overwrite the data. */
-        for (int i = span_data.size() - 1 - shift_offsets; i >= 0; i--) {
-          span_data[i + shift_offsets] = span_data[i];
-        }
-
-        /* Write the new segment's attribute to the space we just made. */
-        GVArray from_data = from_attributes.lookup(iter.name).varray;
-        if (!from_data.is_empty()) {
-          array_utils::copy(from_data.slice(IndexRange(shift_offsets)),
-                            span_data.take_front(shift_offsets));
-        }
-      });
-      dst.finish();
-    });
-  }
-  else {
-    to_curves.offsets_for_write().last(1) = to_curves.points_num() - new_points;
-
-    /* Shift old attributes to make room for the new stroke. */
-    bke::AttributeAccessor from_attributes = from_curves.attributes();
-    bke::MutableAttributeAccessor to_attributes = to_curves.attributes_for_write();
-    to_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-      bke::GSpanAttributeWriter dst = to_attributes.lookup_for_write_span(iter.name);
-      GMutableSpan to_attribute_data = dst.span;
-
-      const bool point_domain = (dst.domain == bke::AttrDomain::Point);
-      const int from_offset = point_domain ? from_curves.offsets()[from_curves_num - 1] :
-                                             from_curves_num - 1;
-      const int segment_length = point_domain ? new_points : 1;
-      const int to_offset = point_domain ? to_curves.offsets()[to_curves_num - 1] :
-                                           to_curves_num - 1;
-
-      bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
-        using T = decltype(dummy);
-        MutableSpan<T> span_data = to_attribute_data.typed<T>();
-
-        /* Write the new segment's attribute to the trailing empty space. */
-        GVArray from_data = from_attributes.lookup(iter.name).varray;
-        if (!from_data.is_empty()) {
-          array_utils::copy(from_data.slice(IndexRange(from_offset, segment_length)),
-                            span_data.slice(IndexRange(to_offset, segment_length)));
-        }
-      });
-      dst.finish();
-    });
-  }
-}
-
 void PaintOperation::on_stroke_done(const bContext &C)
 {
   using namespace blender::bke;
@@ -1621,8 +1540,6 @@ void PaintOperation::on_stroke_done(const bContext &C)
 
   /* Copy the newly drawn stroke to other frames. */
   if (!multiframe_info_.is_empty()) {
-    CurvesGeometry &from_strokes = drawing.strokes_for_write();
-    const Span<int> from_offsets = from_strokes.offsets();
     for (MultiframeTargetInfo &info : multiframe_info_) {
       bke::greasepencil::Drawing &to_drawing = info.target.drawing;
 
@@ -1631,7 +1548,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
       }
 
       CurvesGeometry &to_strokes = to_drawing.strokes_for_write();
-      copy_new_curve_to(drawing.strokes(), to_strokes, on_back);
+      ed::sculpt_paint::greasepencil::copy_new_curve_to(drawing.strokes(), to_strokes, on_back);
 
       to_drawing.tag_topology_changed();
     }

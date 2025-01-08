@@ -50,6 +50,8 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "grease_pencil_intern.hh"
+
 namespace blender::ed::greasepencil {
 
 enum class PrimitiveType : int8_t {
@@ -106,6 +108,8 @@ static constexpr int control_point_first = 0;
 static constexpr int control_point_center = 1;
 static constexpr int control_point_last = 2;
 
+using ed::sculpt_paint::greasepencil::MultiframeTargetInfo;
+
 struct PrimitiveToolOperation {
   ARegion *region;
   /* For drawing preview loop. */
@@ -140,6 +144,8 @@ struct PrimitiveToolOperation {
   OperatorMode mode;
   float2 start_position_2d;
   int active_control_point_index;
+
+  Vector<MultiframeTargetInfo> multiframe_info;
 
   ViewOpsData *vod;
 };
@@ -777,12 +783,15 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
       vc.scene, ptd.region, ptd.start_position_2d, ptd.placement);
 
   BLI_assert(grease_pencil->has_active_layer());
-  ptd.local_transform = grease_pencil->get_active_layer()->local_transform();
-  ptd.drawing = grease_pencil->get_editable_drawing_at(*grease_pencil->get_active_layer(),
-                                                       vc.scene->r.cfra);
+  bke::greasepencil::Layer *active_layer = grease_pencil->get_active_layer();
+  ptd.local_transform = active_layer->local_transform();
+  ptd.drawing = grease_pencil->get_editable_drawing_at(*active_layer, vc.scene->r.cfra);
 
   grease_pencil_primitive_init_curves(ptd);
   grease_pencil_primitive_update_view(C, ptd);
+
+  ptd.multiframe_info = ed::sculpt_paint::greasepencil::ensure_editable_multiframe_drawings(
+      *vc.scene, *grease_pencil, *active_layer);
 
   ptd.draw_handle = ED_region_draw_cb_activate(
       ptd.region->runtime->type, grease_pencil_primitive_draw, ptd_pointer, REGION_DRAW_POST_VIEW);
@@ -796,10 +805,35 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
   return OPERATOR_RUNNING_MODAL;
 }
 
+static void grease_pencil_end_multiframe_primitive(PrimitiveToolOperation &ptd)
+{
+  if (!ptd.multiframe_info.is_empty()) {
+    bke::greasepencil::Drawing &drawing = *ptd.drawing;
+    bke::CurvesGeometry &from_strokes = drawing.strokes_for_write();
+    const Span<int> from_offsets = from_strokes.offsets();
+    for (MultiframeTargetInfo &info : ptd.multiframe_info) {
+      bke::greasepencil::Drawing &to_drawing = info.target.drawing;
+
+      if (&to_drawing == &drawing) {
+        continue;
+      }
+
+      bke::CurvesGeometry &to_strokes = to_drawing.strokes_for_write();
+      ed::sculpt_paint::greasepencil::copy_new_curve_to(drawing.strokes(), to_strokes, false);
+
+      to_drawing.tag_topology_changed();
+    }
+  }
+}
+
 /* Exit and free memory. */
 static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
 {
   PrimitiveToolOperation *ptd = static_cast<PrimitiveToolOperation *>(op->customdata);
+  BLI_assert(ptd != nullptr);
+
+  /* Copy stroke to other frames. */
+  grease_pencil_end_multiframe_primitive(*ptd);
 
   /* Clear status message area. */
   ED_workspace_status_text(C, nullptr);

@@ -76,73 +76,6 @@ namespace blender::ed::sculpt_paint {
 /** \name Common Paint Operator Functions
  * \{ */
 
-Vector<greasepencil::MultiframeTargetInfo> ensure_editable_drawings(
-    const Scene &scene, GreasePencil &grease_pencil, bke::greasepencil::Layer &target_layer)
-{
-  using namespace bke::greasepencil;
-  using ed::greasepencil::DrawingInfo;
-  using ed::greasepencil::MutableDrawingInfo;
-
-  const ToolSettings *toolsettings = scene.toolsettings;
-  const bool use_multi_frame_editing = (toolsettings->gpencil_flags &
-                                        GP_USE_MULTI_FRAME_EDITING) != 0;
-  const bool use_autokey = blender::animrig::is_autokey_on(&scene);
-  const bool use_duplicate_frame = (scene.toolsettings->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST);
-  const int target_layer_index = *grease_pencil.get_layer_index(target_layer);
-
-  VectorSet<int> target_frames;
-  /* Add drawing on the current frame. */
-  target_frames.add(scene.r.cfra);
-  /* Multi-frame edit: Add drawing on frames that are selected in any layer. */
-  if (use_multi_frame_editing) {
-    for (const Layer *layer : grease_pencil.layers()) {
-      for (const auto [frame_number, frame] : layer->frames().items()) {
-        if (frame.is_selected()) {
-          target_frames.add(frame_number);
-        }
-      }
-    }
-  }
-
-  /* Create new drawings when autokey is enabled. */
-  if (use_autokey) {
-    for (const int frame_number : target_frames) {
-      if (!target_layer.frames().contains(frame_number)) {
-        if (use_duplicate_frame) {
-          grease_pencil.insert_duplicate_frame(
-              target_layer, *target_layer.start_frame_at(frame_number), frame_number, false);
-        }
-        else {
-          grease_pencil.insert_frame(target_layer, frame_number);
-        }
-      }
-    }
-  }
-
-  Vector<greasepencil::MultiframeTargetInfo> drawings;
-  for (const int frame_number : target_frames) {
-    if (Drawing *target_drawing = grease_pencil.get_editable_drawing_at(target_layer,
-                                                                        frame_number))
-    {
-      MutableDrawingInfo target = {*target_drawing, target_layer_index, frame_number, 1.0f};
-
-      Vector<DrawingInfo> sources;
-      for (const Layer *source_layer : grease_pencil.layers()) {
-        if (const Drawing *source_drawing = grease_pencil.get_drawing_at(*source_layer,
-                                                                         frame_number))
-        {
-          const int source_layer_index = *grease_pencil.get_layer_index(*source_layer);
-          sources.append({*source_drawing, source_layer_index, frame_number, 0});
-        }
-      }
-
-      drawings.append({std::move(target), std::move(sources)});
-    }
-  }
-
-  return drawings;
-}
-
 static bool stroke_get_location(bContext * /*C*/,
                                 float out[3],
                                 const float mouse[2],
@@ -165,8 +98,9 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
   Object &object = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
-  Vector<greasepencil::MultiframeTargetInfo> target_drawings = ensure_editable_drawings(
-      *scene, grease_pencil, *grease_pencil.get_active_layer());
+  Vector<greasepencil::MultiframeTargetInfo> target_drawings =
+      greasepencil::ensure_editable_multiframe_drawings(
+          *scene, grease_pencil, *grease_pencil.get_active_layer());
 
   if (mode == PaintMode::GPencil) {
     if (eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
@@ -1370,8 +1304,9 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     return false;
   }
   /* Add drawings in the active layer if autokey is enabled. */
-  Vector<greasepencil::MultiframeTargetInfo> target_drawings = ensure_editable_drawings(
-      scene, grease_pencil, *grease_pencil.get_active_layer());
+  Vector<greasepencil::MultiframeTargetInfo> target_drawings =
+      greasepencil::ensure_editable_multiframe_drawings(
+          scene, grease_pencil, *grease_pencil.get_active_layer());
 
   const VArray<bool> boundary_layers = get_fill_boundary_layers(
       grease_pencil, eGP_FillLayerModes(brush.gpencil_settings->fill_layer_mode));
