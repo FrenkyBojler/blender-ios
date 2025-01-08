@@ -17,6 +17,7 @@ namespace blender::draw::overlay {
 /**
  * Displays extra object axes.
  * It is toggled by Object Panel > Viewport Display > Axes.
+ * Also visible if Options > Affect Only > Origins is enabled.
  */
 class Axes : Overlay {
   using EmptyInstanceBuf = ShapeInstanceBuf<ExtraInstanceData>;
@@ -53,11 +54,20 @@ class Axes : Overlay {
       return;
     }
 
-    if ((ob->dtx & OB_AXIS) == 0) {
+    const bool use_display_axis = (ob->dtx & OB_AXIS) != 0;
+    const bool use_xform_origins_axis = state.ctx_mode == CTX_MODE_OBJECT &&
+                                        (state.scene->toolsettings->transform_flag &
+                                         SCE_XFORM_DATA_ORIGIN) &&
+                                        (ob->base_flag & BASE_SELECTED);
+    if (!use_display_axis && !use_xform_origins_axis) {
       return;
     }
 
     ExtraInstanceData data(ob->object_to_world(), res.object_wire_color(ob_ref, state), 1.0f);
+    if (use_xform_origins_axis) {
+      data.color_ = float4(0.15f, 0.15f, 0.15f, 0.7f);
+    }
+
     axes_buf.append(data, res.select_id(ob_ref));
   }
 
