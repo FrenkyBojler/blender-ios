@@ -10,6 +10,7 @@ set(INC
   ../nodes/geometry/include
   ../shader_fx
   ../simulation
+  ../windowmanager
   ../../../intern/eigen
   ../../../intern/ghost
   ../../../intern/iksolver/extern
