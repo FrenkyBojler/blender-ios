@@ -1797,9 +1797,9 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
     }
     case bke::pbvh::Type::Grids: {
       /* Unlike the other geometry types, multires grids use indexed vertex buffers because when
-       * there are no flat faces, vertices can be shared between neighboring quads. This results
-       * in a 4x decrease in the amount of data uploaded. Theoretically it also means freeing
-       * VBOs because of visibility changes is unnecessary.
+       * there are no flat faces, vertices can be shared between neighboring quads. This results in
+       * a 4x decrease in the amount of data uploaded. Theoretically it also means freeing VBOs
+       * because of visibility changes is unnecessary.
        *
        * TODO: With the "flat layout" and no hidden faces, the index buffers are unnecessary, we
        * should avoid creating them in that case. */
@@ -1849,8 +1849,8 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
     this->ensure_attribute_data(object, orig_mesh_data, attr, nodes_to_update);
   }
 
-  /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the
-   * allocated arrays when its map is changed. */
+  /* Collect VBO spans in a different loop because #ensure_attribute_data invalidates the allocated
+   * arrays when its map is changed. */
   Vector<Span<gpu::VertBuf *>> attr_vbos;
   for (const AttributeRequest &attr : request.attributes) {
     if (const AttributeData *attr_data = attribute_vbos_.lookup_ptr(attr)) {
