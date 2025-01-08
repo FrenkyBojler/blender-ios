@@ -24,6 +24,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
@@ -5985,8 +5986,8 @@ static bConstraint *add_new_constraint(Object *ob,
   /* TODO: does action constraint need anything here - i.e. spaceonce? */
   switch (type) {
     case CONSTRAINT_TYPE_CHILDOF: {
-      /* if this constraint is being added to a posechannel, make sure
-       * the constraint gets evaluated in pose-space */
+      /* If this constraint is being added to a pose-channel, make sure
+       * the constraint gets evaluated in pose-space. */
       if (pchan) {
         con->ownspace = CONSTRAINT_SPACE_POSE;
       }
