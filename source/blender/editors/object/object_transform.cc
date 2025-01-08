@@ -71,6 +71,7 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_armature.hh"
@@ -343,7 +344,7 @@ static int object_clear_transform_generic_exec(bContext *C,
   }
 
   /* get KeyingSet to use */
-  ks = ANIM_get_keyingset_for_autokeying(scene, default_ksName);
+  ks = blender::animrig::get_keyingset_for_autokeying(scene, default_ksName);
 
   if (blender::animrig::is_autokey_on(scene)) {
     ANIM_deselect_keys_in_animation_editors(C);
@@ -1407,7 +1408,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
             /* done */
           }
           else {
-            float min[3], max[3];
+            float3 min, max;
             /* only bounds support */
             INIT_MINMAX(min, max);
             BKE_object_minmax_dupli(depsgraph, scene, ob, min, max, true);
@@ -2088,7 +2089,7 @@ static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, cons
 
   ViewDepths *depths = nullptr;
   ED_view3d_depth_override(
-      vc.depsgraph, vc.region, vc.v3d, nullptr, V3D_DEPTH_NO_GPENCIL, &depths);
+      vc.depsgraph, vc.region, vc.v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &depths);
 
 #ifdef USE_RENDER_OVERRIDE
   vc.v3d->flag2 = flag2_prev;

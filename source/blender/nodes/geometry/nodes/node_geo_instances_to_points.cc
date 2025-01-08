@@ -6,7 +6,6 @@
 
 #include "DNA_pointcloud_types.h"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_instances.hh"
 #include "BKE_pointcloud.hh"
 
@@ -59,7 +58,7 @@ static void convert_instances_to_points(GeometrySet &geometry_set,
   point_radii.finish();
 
   const bke::AttributeAccessor src_attributes = instances.attributes();
-  Map<StringRef, AttributeKind> attributes_to_propagate;
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Instance},
                                                  GeometryComponent::Type::PointCloud,
                                                  false,
@@ -113,6 +112,7 @@ static void node_register()
 
   geo_node_type_base(
       &ntype, GEO_NODE_INSTANCES_TO_POINTS, "Instances to Points", NODE_CLASS_GEOMETRY);
+  ntype.enum_name_legacy = "INSTANCES_TO_POINTS";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

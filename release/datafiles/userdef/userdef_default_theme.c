@@ -332,7 +332,7 @@ const bTheme U_theme_default = {
     .face_mode_select = RGBA(0xffb70033),
     .face_retopology = RGBA(0x50c8ff0f),
     .face_back = RGBA(0xff0000b3),
-    .face_front = RGBA(0x0000ffb3),
+    .face_front = RGBA(0x0000ff00),
     .face_dot = RGBA(0xff8a00ff),
     .extra_edge_len = RGBA(0x150806ff),
     .extra_edge_angle = RGBA(0x4d4d00ff),
@@ -702,6 +702,8 @@ const bTheme U_theme_default = {
     .row_alternate = RGBA(0xffffff05),
     .anim_preview_range = RGBA(0xa14d0066),
     .metadatatext = RGBA(0xffffffff),
+    .text_strip_cursor = RGBA(0x71a8ffff),
+    .selected_text = RGBA(0xffffff4d),
   },
   .space_image = {
     .back = RGBA(0x30303000),

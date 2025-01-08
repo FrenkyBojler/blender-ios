@@ -53,6 +53,11 @@ float (*point_normals_array_create(const Curves *curves_id))[3];
  */
 Span<StringRef> get_curves_selection_attribute_names(const bke::CurvesGeometry &curves);
 
+/**
+ * Get writable positions per selection attribute for given curve.
+ */
+Vector<MutableSpan<float3>> get_curves_positions_for_write(bke::CurvesGeometry &curves);
+
 /* Get all possible curve selection attribute names. */
 Span<StringRef> get_curves_all_selection_attribute_names();
 
@@ -448,6 +453,12 @@ void add_curves(bke::CurvesGeometry &curves, Span<int> new_sizes);
 void resize_curves(bke::CurvesGeometry &curves,
                    const IndexMask &curves_to_resize,
                    Span<int> new_sizes);
+/**
+ * Reorders the curves in \a curves.
+ * \param old_by_new_indices_map: An index mapping where each value is the target index for the
+ * reorder curves.
+ */
+void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_map);
 
 /** \} */
 

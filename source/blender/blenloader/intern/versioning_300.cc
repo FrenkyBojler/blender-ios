@@ -70,7 +70,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_main.hh"
@@ -289,10 +289,10 @@ static void do_versions_idproperty_bones_recursive(Bone *bone)
 
 static void do_versions_idproperty_seq_recursive(ListBase *seqbase)
 {
-  LISTBASE_FOREACH (Sequence *, seq, seqbase) {
-    version_idproperty_ui_data(seq->prop);
-    if (seq->type == SEQ_TYPE_META) {
-      do_versions_idproperty_seq_recursive(&seq->seqbase);
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    version_idproperty_ui_data(strip->prop);
+    if (strip->type == STRIP_TYPE_META) {
+      do_versions_idproperty_seq_recursive(&strip->seqbase);
     }
   }
 }
@@ -422,48 +422,48 @@ static void move_vertex_group_names_to_object_data(Main *bmain)
 static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const ListBase *seqbase)
 {
   /* Old SpeedControlVars->flags. */
-#define SEQ_SPEED_INTEGRATE (1 << 0)
-#define SEQ_SPEED_COMPRESS_IPO_Y (1 << 2)
+#define STRIP_SPEED_INTEGRATE (1 << 0)
+#define STRIP_SPEED_COMPRESS_IPO_Y (1 << 2)
 
-  LISTBASE_FOREACH (Sequence *, seq, seqbase) {
-    if (seq->type == SEQ_TYPE_SPEED) {
-      SpeedControlVars *v = (SpeedControlVars *)seq->effectdata;
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (strip->type == STRIP_TYPE_SPEED) {
+      SpeedControlVars *v = (SpeedControlVars *)strip->effectdata;
       const char *substr = nullptr;
       float globalSpeed = v->globalSpeed;
-      if (seq->flag & SEQ_USE_EFFECT_DEFAULT_FADE) {
+      if (strip->flag & SEQ_USE_EFFECT_DEFAULT_FADE) {
         if (globalSpeed == 1.0f) {
           v->speed_control_type = SEQ_SPEED_STRETCH;
         }
         else {
           v->speed_control_type = SEQ_SPEED_MULTIPLY;
           v->speed_fader = globalSpeed *
-                           (float(seq->seq1->len) /
-                            max_ff(float(SEQ_time_right_handle_frame_get(scene, seq->seq1) -
-                                         seq->seq1->start),
+                           (float(strip->seq1->len) /
+                            max_ff(float(SEQ_time_right_handle_frame_get(scene, strip->seq1) -
+                                         strip->seq1->start),
                                    1.0f));
         }
       }
-      else if (v->flags & SEQ_SPEED_INTEGRATE) {
+      else if (v->flags & STRIP_SPEED_INTEGRATE) {
         v->speed_control_type = SEQ_SPEED_MULTIPLY;
-        v->speed_fader = seq->speed_fader * globalSpeed;
+        v->speed_fader = strip->speed_fader * globalSpeed;
       }
-      else if (v->flags & SEQ_SPEED_COMPRESS_IPO_Y) {
+      else if (v->flags & STRIP_SPEED_COMPRESS_IPO_Y) {
         globalSpeed *= 100.0f;
         v->speed_control_type = SEQ_SPEED_LENGTH;
-        v->speed_fader_length = seq->speed_fader * globalSpeed;
+        v->speed_fader_length = strip->speed_fader * globalSpeed;
         substr = "speed_length";
       }
       else {
         v->speed_control_type = SEQ_SPEED_FRAME_NUMBER;
-        v->speed_fader_frame_number = int(seq->speed_fader * globalSpeed);
+        v->speed_fader_frame_number = int(strip->speed_fader * globalSpeed);
         substr = "speed_frame_number";
       }
 
-      v->flags &= ~(SEQ_SPEED_INTEGRATE | SEQ_SPEED_COMPRESS_IPO_Y);
+      v->flags &= ~(STRIP_SPEED_INTEGRATE | STRIP_SPEED_COMPRESS_IPO_Y);
 
       if (substr || globalSpeed != 1.0f) {
         FCurve *fcu = id_data_find_fcurve(
-            &scene->id, seq, &RNA_Sequence, "speed_factor", 0, nullptr);
+            &scene->id, strip, &RNA_Strip, "speed_factor", 0, nullptr);
         if (fcu) {
           if (globalSpeed != 1.0f) {
             for (int i = 0; i < fcu->totvert; i++) {
@@ -481,24 +481,24 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const Lis
         }
       }
     }
-    else if (seq->type == SEQ_TYPE_META) {
-      do_versions_sequencer_speed_effect_recursive(scene, &seq->seqbase);
+    else if (strip->type == STRIP_TYPE_META) {
+      do_versions_sequencer_speed_effect_recursive(scene, &strip->seqbase);
     }
   }
 
-#undef SEQ_SPEED_INTEGRATE
-#undef SEQ_SPEED_COMPRESS_IPO_Y
+#undef STRIP_SPEED_INTEGRATE
+#undef STRIP_SPEED_COMPRESS_IPO_Y
 }
 
-static bool do_versions_sequencer_color_tags(Sequence *seq, void * /*user_data*/)
+static bool do_versions_sequencer_color_tags(Strip *strip, void * /*user_data*/)
 {
-  seq->color_tag = SEQUENCE_COLOR_NONE;
+  strip->color_tag = STRIP_COLOR_NONE;
   return true;
 }
 
-static bool do_versions_sequencer_color_balance_sop(Sequence *seq, void * /*user_data*/)
+static bool do_versions_sequencer_color_balance_sop(Strip *strip, void * /*user_data*/)
 {
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
+  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
     if (smd->type == seqModifierType_ColorBalance) {
       StripColorBalance *cb = &((ColorBalanceModifierData *)smd)->color_balance;
       cb->method = SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN;
@@ -561,26 +561,26 @@ static bNodeTree *add_realize_node_tree(Main *bmain)
       "Geometry", "", "NodeSocketGeometry", NODE_INTERFACE_SOCKET_INPUT, nullptr);
 
   bNode *group_input = blender::bke::node_add_static_node(nullptr, node_tree, NODE_GROUP_INPUT);
-  group_input->locx = -400.0f;
+  group_input->locx_legacy = -400.0f;
   bNode *group_output = blender::bke::node_add_static_node(nullptr, node_tree, NODE_GROUP_OUTPUT);
-  group_output->locx = 500.0f;
+  group_output->locx_legacy = 500.0f;
   group_output->flag |= NODE_DO_OUTPUT;
 
   bNode *join = blender::bke::node_add_static_node(nullptr, node_tree, GEO_NODE_JOIN_GEOMETRY);
-  join->locx = group_output->locx - 175.0f;
-  join->locy = group_output->locy;
+  join->locx_legacy = group_output->locx_legacy - 175.0f;
+  join->locy_legacy = group_output->locy_legacy;
   bNode *conv = blender::bke::node_add_static_node(
       nullptr, node_tree, GEO_NODE_POINTS_TO_VERTICES);
-  conv->locx = join->locx - 175.0f;
-  conv->locy = join->locy - 70.0;
+  conv->locx_legacy = join->locx_legacy - 175.0f;
+  conv->locy_legacy = join->locy_legacy - 70.0;
   bNode *separate = blender::bke::node_add_static_node(
       nullptr, node_tree, GEO_NODE_SEPARATE_COMPONENTS);
-  separate->locx = join->locx - 350.0f;
-  separate->locy = join->locy + 50.0f;
+  separate->locx_legacy = join->locx_legacy - 350.0f;
+  separate->locy_legacy = join->locy_legacy + 50.0f;
   bNode *realize = blender::bke::node_add_static_node(
       nullptr, node_tree, GEO_NODE_REALIZE_INSTANCES);
-  realize->locx = separate->locx - 200.0f;
-  realize->locy = join->locy;
+  realize->locx_legacy = separate->locx_legacy - 200.0f;
+  realize->locy_legacy = join->locy_legacy;
 
   blender::bke::node_add_link(node_tree,
                               group_input,
@@ -631,10 +631,10 @@ static bNodeTree *add_realize_node_tree(Main *bmain)
   return node_tree;
 }
 
-static void seq_speed_factor_fix_rna_path(Sequence *seq, ListBase *fcurves)
+static void strip_speed_factor_fix_rna_path(Strip *strip, ListBase *fcurves)
 {
-  char name_esc[(sizeof(seq->name) - 2) * 2];
-  BLI_str_escape(name_esc, seq->name + 2, sizeof(name_esc));
+  char name_esc[(sizeof(strip->name) - 2) * 2];
+  BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
   char *path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].pitch", name_esc);
   FCurve *fcu = BKE_fcurve_find(fcurves, path, 0);
   if (fcu != nullptr) {
@@ -644,36 +644,36 @@ static void seq_speed_factor_fix_rna_path(Sequence *seq, ListBase *fcurves)
   MEM_freeN(path);
 }
 
-static bool version_fix_seq_meta_range(Sequence *seq, void *user_data)
+static bool version_fix_seq_meta_range(Strip *strip, void *user_data)
 {
   Scene *scene = (Scene *)user_data;
-  if (seq->type == SEQ_TYPE_META) {
-    SEQ_time_update_meta_strip_range(scene, seq);
+  if (strip->type == STRIP_TYPE_META) {
+    SEQ_time_update_meta_strip_range(scene, strip);
   }
   return true;
 }
 
-static bool seq_speed_factor_set(Sequence *seq, void *user_data)
+static bool strip_speed_factor_set(Strip *strip, void *user_data)
 {
   const Scene *scene = static_cast<const Scene *>(user_data);
-  if (seq->type == SEQ_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND_RAM) {
     /* Move `pitch` animation to `speed_factor` */
     if (scene->adt && scene->adt->action) {
-      seq_speed_factor_fix_rna_path(seq, &scene->adt->action->curves);
+      strip_speed_factor_fix_rna_path(strip, &scene->adt->action->curves);
     }
     if (scene->adt && !BLI_listbase_is_empty(&scene->adt->drivers)) {
-      seq_speed_factor_fix_rna_path(seq, &scene->adt->drivers);
+      strip_speed_factor_fix_rna_path(strip, &scene->adt->drivers);
     }
 
     /* Pitch value of 0 has been found in some files. This would cause problems. */
-    if (seq->pitch <= 0.0f) {
-      seq->pitch = 1.0f;
+    if (strip->pitch <= 0.0f) {
+      strip->pitch = 1.0f;
     }
 
-    seq->speed_factor = seq->pitch;
+    strip->speed_factor = strip->pitch;
   }
   else {
-    seq->speed_factor = 1.0f;
+    strip->speed_factor = 1.0f;
   }
   return true;
 }
@@ -697,8 +697,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
             nullptr, ntree, GEO_NODE_SAMPLE_NEAREST_SURFACE);
         sample_nearest_surface->parent = node->parent;
         sample_nearest_surface->custom1 = storage->data_type;
-        sample_nearest_surface->locx = node->locx;
-        sample_nearest_surface->locy = node->locy;
+        sample_nearest_surface->locx_legacy = node->locx_legacy;
+        sample_nearest_surface->locy_legacy = node->locy_legacy;
         static auto socket_remap = []() {
           Map<std::string, std::string> map;
           map.add_new("Attribute", "Value");
@@ -729,8 +729,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         sample_storage->data_type = storage->data_type;
         sample_storage->domain = int8_t(domain);
         sample_index->parent = node->parent;
-        sample_index->locx = node->locx + 25.0f;
-        sample_index->locy = node->locy;
+        sample_index->locx_legacy = node->locx_legacy + 25.0f;
+        sample_index->locy_legacy = node->locy_legacy;
         if (old_geometry_socket->link) {
           blender::bke::node_add_link(
               ntree,
@@ -745,8 +745,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         sample_nearest->parent = node->parent;
         sample_nearest->custom1 = storage->data_type;
         sample_nearest->custom2 = int8_t(domain);
-        sample_nearest->locx = node->locx - 25.0f;
-        sample_nearest->locy = node->locy;
+        sample_nearest->locx_legacy = node->locx_legacy - 25.0f;
+        sample_nearest->locy_legacy = node->locy_legacy;
         if (old_geometry_socket->link) {
           blender::bke::node_add_link(
               ntree,
@@ -791,8 +791,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         sample_storage->domain = storage->domain;
         sample_storage->clamp = 1;
         sample_index->parent = node->parent;
-        sample_index->locx = node->locx;
-        sample_index->locy = node->locy;
+        sample_index->locx_legacy = node->locx_legacy;
+        sample_index->locy_legacy = node->locy_legacy;
         const bool index_was_linked =
             blender::bke::node_find_socket(node, SOCK_IN, "Index")->link != nullptr;
         static auto socket_remap = []() {
@@ -812,8 +812,8 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
           /* Add an index input node, since the new node doesn't use an implicit input. */
           bNode *index = blender::bke::node_add_static_node(nullptr, ntree, GEO_NODE_INPUT_INDEX);
           index->parent = node->parent;
-          index->locx = node->locx - 25.0f;
-          index->locy = node->locy - 25.0f;
+          index->locx_legacy = node->locx_legacy - 25.0f;
+          index->locy_legacy = node->locy_legacy - 25.0f;
           blender::bke::node_add_link(
               ntree,
               index,
@@ -869,10 +869,8 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
                                                           "GeometryNodeStoreNamedAttribute");
     new_nodes.append(store_attribute_node);
     store_attribute_node->parent = node->parent;
-    store_attribute_node->locx = node->locx + 25;
-    store_attribute_node->locy = node->locy;
-    store_attribute_node->offsetx = node->offsetx;
-    store_attribute_node->offsety = node->offsety;
+    store_attribute_node->locx_legacy = node->locx_legacy + 25;
+    store_attribute_node->locy_legacy = node->locy_legacy;
     auto &storage = *MEM_cnew<NodeGeometryStoreNamedAttribute>(__func__);
     store_attribute_node->storage = &storage;
     storage.domain = int8_t(blender::bke::AttrDomain::Corner);
@@ -1000,8 +998,8 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
 
     bNode &capture_node = version_node_add_empty(ntree, "GeometryNodeCaptureAttribute");
     capture_node.parent = node->parent;
-    capture_node.locx = node->locx - 25;
-    capture_node.locy = node->locy;
+    capture_node.locx_legacy = node->locx_legacy - 25;
+    capture_node.locy_legacy = node->locy_legacy;
     new_nodes.append(&capture_node);
     auto *capture_node_storage = MEM_cnew<NodeGeometryAttributeCapture>(__func__);
     capture_node.storage = capture_node_storage;
@@ -1018,8 +1016,8 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
 
     bNode &is_smooth_node = version_node_add_empty(ntree, "GeometryNodeInputShadeSmooth");
     is_smooth_node.parent = node->parent;
-    is_smooth_node.locx = capture_node.locx - 25;
-    is_smooth_node.locy = capture_node.locy;
+    is_smooth_node.locx_legacy = capture_node.locx_legacy - 25;
+    is_smooth_node.locy_legacy = capture_node.locy_legacy;
     bNodeSocket &is_smooth_out = version_node_add_socket(
         ntree, is_smooth_node, SOCK_OUT, "NodeSocketBool", "Smooth");
     new_nodes.append(&is_smooth_node);
@@ -1032,8 +1030,8 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
     bNode &set_smooth_node = version_node_add_empty(ntree, "GeometryNodeSetShadeSmooth");
     set_smooth_node.custom1 = int16_t(blender::bke::AttrDomain::Face);
     set_smooth_node.parent = node->parent;
-    set_smooth_node.locx = node->locx + 25;
-    set_smooth_node.locy = node->locy;
+    set_smooth_node.locx_legacy = node->locx_legacy + 25;
+    set_smooth_node.locy_legacy = node->locy_legacy;
     new_nodes.append(&set_smooth_node);
     bNodeSocket &set_smooth_node_geo_in = version_node_add_socket(
         ntree, set_smooth_node, SOCK_IN, "NodeSocketGeometry", "Geometry");
@@ -1322,7 +1320,7 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
       if (ed == nullptr) {
         continue;
       }
-      SEQ_for_each_callback(&ed->seqbase, seq_speed_factor_set, scene);
+      SEQ_for_each_callback(&ed->seqbase, strip_speed_factor_set, scene);
       SEQ_for_each_callback(&ed->seqbase, version_fix_seq_meta_range, scene);
     }
   }
@@ -1497,7 +1495,7 @@ static bNodeSocket *do_version_replace_float_size_with_vector(bNodeTree *ntree,
       ntree,
       node,
       SOCK_IN,
-      blender::bke::node_static_socket_type(SOCK_VECTOR, PROP_TRANSLATION),
+      *blender::bke::node_static_socket_type(SOCK_VECTOR, PROP_TRANSLATION),
       "Size",
       "Size");
   bNodeSocketValueVector *value_vector = (bNodeSocketValueVector *)new_socket->default_value;
@@ -1505,28 +1503,28 @@ static bNodeSocket *do_version_replace_float_size_with_vector(bNodeTree *ntree,
   return new_socket;
 }
 
-static bool seq_transform_origin_set(Sequence *seq, void * /*user_data*/)
+static bool strip_transform_origin_set(Strip *strip, void * /*user_data*/)
 {
-  StripTransform *transform = seq->strip->transform;
-  if (seq->strip->transform != nullptr) {
+  StripTransform *transform = strip->data->transform;
+  if (strip->data->transform != nullptr) {
     transform->origin[0] = transform->origin[1] = 0.5f;
   }
   return true;
 }
 
-static bool seq_transform_filter_set(Sequence *seq, void * /*user_data*/)
+static bool strip_transform_filter_set(Strip *strip, void * /*user_data*/)
 {
-  StripTransform *transform = seq->strip->transform;
-  if (seq->strip->transform != nullptr) {
+  StripTransform *transform = strip->data->transform;
+  if (strip->data->transform != nullptr) {
     transform->filter = SEQ_TRANSFORM_FILTER_BILINEAR;
   }
   return true;
 }
 
-static bool seq_meta_channels_ensure(Sequence *seq, void * /*user_data*/)
+static bool strip_meta_channels_ensure(Strip *strip, void * /*user_data*/)
 {
-  if (seq->type == SEQ_TYPE_META) {
-    SEQ_channels_ensure(&seq->channels);
+  if (strip->type == STRIP_TYPE_META) {
+    SEQ_channels_ensure(&strip->channels);
   }
   return true;
 }
@@ -1752,44 +1750,44 @@ static void version_node_tree_socket_id_delim(bNodeTree *ntree)
   }
 }
 
-static bool version_merge_still_offsets(Sequence *seq, void * /*user_data*/)
+static bool version_merge_still_offsets(Strip *strip, void * /*user_data*/)
 {
-  seq->startofs -= seq->startstill;
-  seq->endofs -= seq->endstill;
-  seq->startstill = 0;
-  seq->endstill = 0;
+  strip->startofs -= strip->startstill;
+  strip->endofs -= strip->endstill;
+  strip->startstill = 0;
+  strip->endstill = 0;
   return true;
 }
 
-static bool version_fix_delete_flag(Sequence *seq, void * /*user_data*/)
+static bool version_fix_delete_flag(Strip *strip, void * /*user_data*/)
 {
-  seq->flag &= ~SEQ_FLAG_DELETE;
+  strip->flag &= ~SEQ_FLAG_DELETE;
   return true;
 }
 
-static bool version_set_seq_single_frame_content(Sequence *seq, void * /*user_data*/)
+static bool version_set_seq_single_frame_content(Strip *strip, void * /*user_data*/)
 {
-  if ((seq->len == 1) &&
-      (seq->type == SEQ_TYPE_IMAGE ||
-       ((seq->type & SEQ_TYPE_EFFECT) && SEQ_effect_get_num_inputs(seq->type) == 0)))
+  if ((strip->len == 1) &&
+      (strip->type == STRIP_TYPE_IMAGE ||
+       ((strip->type & STRIP_TYPE_EFFECT) && SEQ_effect_get_num_inputs(strip->type) == 0)))
   {
-    seq->flag |= SEQ_SINGLE_FRAME_CONTENT;
+    strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
   }
   return true;
 }
 
-static bool version_seq_fix_broken_sound_strips(Sequence *seq, void * /*user_data*/)
+static bool version_seq_fix_broken_sound_strips(Strip *strip, void * /*user_data*/)
 {
-  if (seq->type != SEQ_TYPE_SOUND_RAM || seq->speed_factor != 0.0f) {
+  if (strip->type != STRIP_TYPE_SOUND_RAM || strip->speed_factor != 0.0f) {
     return true;
   }
 
-  seq->speed_factor = 1.0f;
-  SEQ_retiming_data_clear(seq);
+  strip->speed_factor = 1.0f;
+  SEQ_retiming_data_clear(strip);
 
   /* Broken files do have negative start offset, which should not be present in sound strips. */
-  if (seq->startofs < 0) {
-    seq->startofs = 0.0f;
+  if (strip->startofs < 0) {
+    strip->startofs = 0.0f;
   }
 
   return true;
@@ -2941,7 +2939,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       sequencer_tool_settings->pivot_point = V3D_AROUND_CENTER_MEDIAN;
 
       if (scene->ed != nullptr) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_transform_origin_set, nullptr);
+        SEQ_for_each_callback(&scene->ed->seqbase, strip_transform_origin_set, nullptr);
       }
     }
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
@@ -3090,7 +3088,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    /* Set strip color tags to SEQUENCE_COLOR_NONE. */
+    /* Set strip color tags to STRIP_COLOR_NONE. */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
         SEQ_for_each_callback(&scene->ed->seqbase, do_versions_sequencer_color_tags, nullptr);
@@ -3476,7 +3474,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 302, 2)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_transform_filter_set, nullptr);
+        SEQ_for_each_callback(&scene->ed->seqbase, strip_transform_filter_set, nullptr);
       }
     }
   }
@@ -3685,7 +3683,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         continue;
       }
       SEQ_channels_ensure(&ed->channels);
-      SEQ_for_each_callback(&scene->ed->seqbase, seq_meta_channels_ensure, nullptr);
+      SEQ_for_each_callback(&scene->ed->seqbase, strip_meta_channels_ensure, nullptr);
 
       ed->displayed_channels = &ed->channels;
 
@@ -4007,6 +4005,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
           ARegion *channels_region = BKE_region_find_in_listbase_by_type(regionbase,
                                                                          RGN_TYPE_CHANNELS);
           if (channels_region) {
+            MEM_delete(channels_region->runtime);
             BLI_freelinkN(regionbase, channels_region);
           }
         }
