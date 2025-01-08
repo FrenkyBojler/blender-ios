@@ -2832,12 +2832,12 @@ static double ui_get_but_scale_unit(uiBut *but, double value)
   const UnitSettings *unit = but->block->unit;
   const int unit_type = UI_but_unit_type_get(but);
 
-  /* Time unit is a bit special, not handled by BKE_scene_unit_scale() for now. */
+  /* Time unit is a bit special, not handled by #BKE_unit_value_scale() for now. */
   if (unit_type == PROP_UNIT_TIME) { /* WARNING: using evil_C :| */
     Scene *scene = CTX_data_scene(static_cast<const bContext *>(but->block->evil_C));
     return FRA2TIME(value);
   }
-  return BKE_scene_unit_scale(unit, RNA_SUBTYPE_UNIT_VALUE(unit_type), value);
+  return BKE_unit_value_scale(*unit, RNA_SUBTYPE_UNIT_VALUE(unit_type), value);
 }
 
 void ui_but_convert_to_unit_alt_name(uiBut *but, char *str, size_t str_maxncpy)
@@ -2890,7 +2890,7 @@ static void ui_get_but_string_unit(
                            ui_get_but_scale_unit(but, value),
                            precision,
                            RNA_SUBTYPE_UNIT_VALUE(unit_type),
-                           unit,
+                           *unit,
                            pad);
 }
 
@@ -3128,7 +3128,7 @@ static bool ui_number_from_string_units(
     bContext *C, const char *str, const int unit_type, const UnitSettings *unit, double *r_value)
 {
   char *error = nullptr;
-  const bool ok = user_string_to_number(C, str, unit, unit_type, r_value, true, &error);
+  const bool ok = user_string_to_number(C, str, *unit, unit_type, r_value, true, &error);
   if (error) {
     ReportList *reports = CTX_wm_reports(C);
     BKE_reportf(reports, RPT_ERROR, "%s: %s", UI_NUMBER_EVAL_ERROR_PREFIX, error);
@@ -6194,6 +6194,11 @@ void UI_but_func_complete_set(uiBut *but, uiButCompleteFunc func, void *arg)
 void UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func)
 {
   but->menu_step_func = func;
+}
+
+void UI_but_menu_disable_hover_open(uiBut *but)
+{
+  but->menu_no_hover_open = true;
 }
 
 void UI_but_func_tooltip_label_set(uiBut *but, std::function<std::string(const uiBut *but)> func)
