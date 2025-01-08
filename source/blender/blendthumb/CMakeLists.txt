@@ -58,6 +58,7 @@ elseif(APPLE)
     --timestamp=none $<TARGET_BUNDLE_DIR:blender-thumbnailer>
   )
   setup_platform_linker_flags(blender-thumbnailer)
+  set_target_properties(blender-thumbnailer PROPERTIES SKIP_BUILD_RPATH TRUE)
   target_link_libraries(blender-thumbnailer
     bf_blenlib
     # Avoid linker error about undefined _main symbol.
