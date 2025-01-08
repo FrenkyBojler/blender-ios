@@ -2588,7 +2588,7 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
         wm->op_undo_depth++;
       }
 
-      if ((WM_get_op_handlers(CTX_wm_op_handlers(C), ot->idname) != NULL) && !ot->poll(C)) {
+      if ((WM_get_op_handlers(CTX_wm_op_handlers(C), ot->idname) != nullptr) && !ot->poll(C)) {
         // Py Handler, changing poll conditions
         retval = OPERATOR_CANCELLED;
       }

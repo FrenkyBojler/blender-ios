@@ -467,14 +467,14 @@ static int bpy_op_handler_check(void *py_data, void *owner, void *callback)
 {
   PyObject *py_owner = PyTuple_GET_ITEM(py_data, 0);
   PyObject *py_callback = PyTuple_GET_ITEM(py_data, 2);
-  if (owner != NULL && callback != NULL) {
+  if (owner != nullptr && callback != nullptr) {
     return (py_owner == owner && py_callback == callback);
   }
-  else if (owner != NULL) {
+  else if (owner != nullptr) {
     return (py_owner == owner);
   }
   else {
-    // callback != NULL
+    // callback != nullptr
     return (py_callback == callback);
   }
 }
@@ -484,12 +484,12 @@ static int bpy_op_handler_check(void *py_data, void *owner, void *callback)
  */
 static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
 {
-  const char *arg_name = NULL;
+  const char *arg_name = nullptr;
   PyObject *py_dict = PyDict_New();
   PyObject *data;
   RNA_STRUCT_BEGIN (properties, prop) {
     arg_name = RNA_property_identifier(prop);
-    data = NULL;
+    data = nullptr;
     if (STREQ(arg_name, "rna_type")) {
       continue;
     }
@@ -540,7 +540,7 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
       }
       case PROP_STRING: {
         char buff[256];
-        char *value = RNA_property_string_get_alloc(properties, prop, buff, sizeof(buff), NULL);
+        char *value = RNA_property_string_get_alloc(properties, prop, buff, sizeof(buff), nullptr);
         data = PyUnicode_FromString(value);
         if (value != buff) {
           MEM_freeN(value);
@@ -563,7 +563,7 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
       default:
         BLI_assert(false);
     }
-    if (data != NULL) {
+    if (data != nullptr) {
       PyDict_SetItemString(py_dict, arg_name, data);
     }
   }
@@ -574,7 +574,7 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
 static bool bpy_op_callback_get_return_value(PyObject *callback, PyObject *py_ret)
 {
   bool ret = true;
-  if (py_ret == NULL) {
+  if (py_ret == nullptr) {
     // Do not interrump on error
     PyC_Err_PrintWithFunc(callback);
   }
@@ -614,15 +614,15 @@ static PyObject *bpy_op_get_callback_call(PyObject *callback,
   ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
   bpy_ctx = pyrna_struct_CreatePyObject(&ctx_ptr);
 
-  if (event != NULL) {
-    event_ptr = RNA_pointer_create(NULL, &RNA_Event, (void *)event);
+  if (event != nullptr) {
+    event_ptr = RNA_pointer_create(nullptr, &RNA_Event, (void *)event);
     bpy_event = pyrna_struct_CreatePyObject(&event_ptr);
   }
   else {
     bpy_event = Py_None;
   }
 
-  int s = (operator_ret == NULL) ? 3 : 4;
+  int s = (operator_ret == nullptr) ? 3 : 4;
   int c = (callback_args == Py_None) ? s : PyTuple_GET_SIZE(callback_args) + s;
   PyObject *func_args = PyTuple_New(c);
 
@@ -630,7 +630,7 @@ static PyObject *bpy_op_get_callback_call(PyObject *callback,
   PyTuple_SET_ITEM(func_args, 1, bpy_event);
   PyTuple_SET_ITEM(func_args, 2, params);
 
-  if (operator_ret != NULL) {
+  if (operator_ret != nullptr) {
     PyObject *op_ret = pyrna_enum_bitfield_to_py(rna_enum_operator_return_items, *operator_ret);
     PyTuple_SET_ITEM(func_args, 3, op_ret);
   }
@@ -658,11 +658,12 @@ static bool bpy_op_handler_poll(struct bContext *C,
     PyObject *py_poll = PyTuple_GET_ITEM(py_data, 4);
 
     // Properties get null on modall poll, params are not bypassed to Py poll function
-    PyObject *params = (properties == NULL) ? Py_None : bpy_op_get_operator_params(properties);
+    PyObject *params = (properties == nullptr) ? Py_None : bpy_op_get_operator_params(properties);
     if (py_poll != Py_None) {
-      PyObject *py_ret = bpy_op_get_callback_call(py_poll, C, event, NULL, params, callback_args);
+      PyObject *py_ret = bpy_op_get_callback_call(
+          py_poll, C, event, nullptr, params, callback_args);
 
-      if (py_ret == NULL) {
+      if (py_ret == nullptr) {
         // Error
         PyErr_Print();
         return false;
@@ -721,7 +722,7 @@ static bool bpy_op_handler_invoke(
     PyObject *callback_args = PyTuple_GET_ITEM(py_data, 3);
     PyObject *params = bpy_op_get_operator_params(properties);
     PyObject *py_ret = bpy_op_get_callback_call(
-        callback, C, event, operator_ret ? &operator_ret : NULL, params, callback_args);
+        callback, C, event, operator_ret ? &operator_ret : nullptr, params, callback_args);
     ret = bpy_op_callback_get_return_value(callback, py_ret);
   }
   bpy_context_clear(C, &gilstate);
@@ -732,17 +733,17 @@ static PyObject *bpy_op_handler_proc(PyObject *args, PyObject *kw)
 {
   const char *error_prefix = "op_handler_proc";
 
-  PyObject *py_op = NULL;
-  PyObject *py_owner = NULL;  // Object who creates the handler
-  PyObject *callback = NULL, *py_poll = NULL;
-  PyObject *callback_args = NULL;
+  PyObject *py_op = nullptr;
+  PyObject *py_owner = nullptr;  // Object who creates the handler
+  PyObject *callback = nullptr, *py_poll = nullptr;
+  PyObject *callback_args = nullptr;
 
   if (PyTuple_GET_SIZE(args) != 0) {
     PyErr_Format(PyExc_TypeError, "%s: only keyword arguments are supported", error_prefix);
   }
 
   // see https://docs.python.org/3/c-api/arg.html
-  static const char *_keywords[] = {"owner", "op", "cb", "args", "poll", NULL};
+  static const char *_keywords[] = {"owner", "op", "cb", "args", "poll", nullptr};
   static _PyArg_Parser _parser = {"OOOOO|:handler_proc", _keywords, 0};
 
   if (!_PyArg_ParseTupleAndKeywordsFast(
@@ -767,9 +768,9 @@ static PyObject *bpy_op_handler_proc(PyObject *args, PyObject *kw)
     PyErr_Format(PyExc_TypeError, "op expects an astring, found %.200s", Py_TYPE(py_op)->tp_name);
   }
 
-  if (PyErr_Occurred() != NULL) {
+  if (PyErr_Occurred() != nullptr) {
     PyErr_Print();
-    return NULL;
+    return nullptr;
   }
 
   PyObject *py_data = PyTuple_New(5);
@@ -803,7 +804,7 @@ static PyObject *op_handler_append(int handler_id, PyObject *args, PyObject *kw)
       break;
   }
 
-  if (py_data != NULL) {
+  if (py_data != nullptr) {
     PyObject *py_owner = PyTuple_GET_ITEM(py_data, 0);
     PyObject *py_op = PyTuple_GET_ITEM(py_data, 1);
     PyObject *py_callback = PyTuple_GET_ITEM(py_data, 2);
@@ -821,12 +822,12 @@ static PyObject *op_handler_append(int handler_id, PyObject *args, PyObject *kw)
                             PyUnicode_AsUTF8(py_op),
                             func,
                             bpy_op_handler_check,
-                            py_poll == Py_None ? NULL : bpy_op_handler_poll,
+                            py_poll == Py_None ? nullptr : bpy_op_handler_poll,
                             py_data);
     }
   }
 
-  if (PyErr_Occurred() != NULL) {
+  if (PyErr_Occurred() != nullptr) {
     PyErr_Print();
   }
   Py_RETURN_NONE;
@@ -839,7 +840,7 @@ static PyObject *op_handler_remove(int handler_id, PyObject *args, PyObject *kw)
 
   PyObject *py_data = bpy_op_handler_proc(args, kw);
 
-  if (py_data != NULL) {
+  if (py_data != nullptr) {
     PyObject *py_owner = PyTuple_GET_ITEM(py_data, 0);
     PyObject *py_op = PyTuple_GET_ITEM(py_data, 1);
     PyObject *py_cb = PyTuple_GET_ITEM(py_data, 2);
@@ -849,16 +850,16 @@ static PyObject *op_handler_remove(int handler_id, PyObject *args, PyObject *kw)
     else {
       if (WM_op_handlers_remove(op_handlers,
                                 handler_id,
-                                (py_op == Py_None ? NULL : PyUnicode_AsUTF8(py_op)),
-                                (py_cb == Py_None ? NULL : py_cb),
-                                (py_owner == Py_None ? NULL : py_owner)) == 0)
+                                (py_op == Py_None ? nullptr : PyUnicode_AsUTF8(py_op)),
+                                (py_cb == Py_None ? nullptr : py_cb),
+                                (py_owner == Py_None ? nullptr : py_owner)) == 0)
       {
         PyErr_Format(PyExc_NameError, "data not found on %s", PyUnicode_AsUTF8(py_op));
       }
     }
   }
 
-  if (PyErr_Occurred() != NULL) {
+  if (PyErr_Occurred() != nullptr) {
     PyErr_Print();
   }
 
@@ -911,40 +912,43 @@ static PyObject *op_handlers_remove(PyObject * /* self */, PyObject *args, PyObj
 }
 
 static struct PyMethodDef bpy_ops_handlers_methods[] = {
-    {"pre_invoke", (PyCFunction)op_handler_append_pre_invoke, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"pre_invoke",
+     (PyCFunction)op_handler_append_pre_invoke,
+     METH_VARARGS | METH_KEYWORDS,
+     nullptr},
     {"post_invoke",
      (PyCFunction)op_handler_append_post_invoke,
      METH_VARARGS | METH_KEYWORDS,
-     NULL},
-    {"modal", (PyCFunction)op_handler_append_modal, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"modal_end", (PyCFunction)op_handler_append_modal_end, METH_VARARGS | METH_KEYWORDS, NULL},
+     nullptr},
+    {"modal", (PyCFunction)op_handler_append_modal, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"modal_end", (PyCFunction)op_handler_append_modal_end, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"pre_invoke_remove",
      (PyCFunction)op_handler_remove_pre_invoke,
      METH_VARARGS | METH_KEYWORDS,
-     NULL},
+     nullptr},
     {"post_invoke_remove",
      (PyCFunction)op_handler_remove_post_invoke,
      METH_VARARGS | METH_KEYWORDS,
-     NULL},
-    {"modal_remove", (PyCFunction)op_handler_remove_modal, METH_VARARGS | METH_KEYWORDS, NULL},
+     nullptr},
+    {"modal_remove", (PyCFunction)op_handler_remove_modal, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"modal_end_remove",
      (PyCFunction)op_handler_remove_modal_end,
      METH_VARARGS | METH_KEYWORDS,
-     NULL},
-    {"remove", (PyCFunction)op_handlers_remove, METH_VARARGS | METH_KEYWORDS, NULL},
-    {NULL, NULL, 0, NULL},
+     nullptr},
+    {"remove", (PyCFunction)op_handlers_remove, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {nullptr, nullptr, 0, nullptr},
 };
 
 static struct PyModuleDef bpy_ops_handlers = {
     PyModuleDef_HEAD_INIT,
     "_bpy.ops.handlers",
-    NULL,
+    nullptr,
     -1, /* multiple "initialization" just copies the module dict. */
     bpy_ops_handlers_methods,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
 };
 
 PyObject *BPY_operator_module()
@@ -959,7 +963,7 @@ PyObject *BPY_operator_module()
   if (PyModule_AddObject(submodule, "handlers", handlers) < 0) {
     Py_DECREF(submodule);
     Py_DECREF(handlers);
-    return NULL;
+    return nullptr;
   }
 
   return submodule;

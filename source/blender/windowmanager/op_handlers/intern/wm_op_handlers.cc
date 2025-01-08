@@ -54,12 +54,12 @@ void WM_op_handlers_destroy(struct wmOpHandlers *op_handlers)
   }
   BLI_freelistN(&op_handlers->handlers);
   MEM_freeN(op_handlers);
-  op_handlers = NULL;
+  op_handlers = nullptr;
 }
 
 ListBase *WM_op_handlers_get_handler_list(wmOpHandlerData *opHandlers, int id)
 {
-  ListBase *list = NULL;
+  ListBase *list = nullptr;
   switch (id) {
     case HANDLER_TYPE_PRE_INVOKE:
       list = &opHandlers->pre_invoke;
@@ -99,7 +99,7 @@ void WM_op_handlers_append(
   wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, op_name);
   wmHandlerData *data = (wmHandlerData *)MEM_mallocN(sizeof(wmHandlerData), "wmHandlerData");
 
-  if (opHandlers == NULL) {
+  if (opHandlers == nullptr) {
     // Create
     opHandlers = (wmOpHandlerData *)MEM_callocN(sizeof(wmOpHandlerData), "wmOpHandlerData");
     BLI_strncpy(opHandlers->id_name, op_name, OP_MAX_TYPENAME);
@@ -142,7 +142,7 @@ int WM_op_handlers_remove(
   else {
     wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, op_name);
 
-    if (opHandlers != NULL) {
+    if (opHandlers != nullptr) {
       ListBase *list = WM_op_handlers_get_handler_list(opHandlers, id);
       wmHandlerData *next;
       for (wmHandlerData *data = (wmHandlerData *)list->first; data; data = next) {
@@ -181,9 +181,9 @@ bool WM_op_handlers_operator_pre_invoke(struct bContext *C,
                                         PointerRNA *properties)
 {
   bool ret = true;
-  if (op_handlers != NULL) {
+  if (op_handlers != nullptr) {
     wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
-    if (opHandlers != NULL) {
+    if (opHandlers != nullptr) {
       ListBase *list = WM_op_handlers_get_handler_list(opHandlers, HANDLER_TYPE_PRE_INVOKE);
       ret = ret && WM_op_handlers_operator_exec(C, event, list, ot, properties, 0);
     }
@@ -199,9 +199,9 @@ void WM_op_handlers_operator_post_invoke(struct bContext *C,
                                          struct PointerRNA *properties,
                                          int retval)
 {
-  if (op_handlers != NULL) {
+  if (op_handlers != nullptr) {
     wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
-    if (opHandlers != NULL) {
+    if (opHandlers != nullptr) {
       ListBase *list = WM_op_handlers_get_handler_list(opHandlers, HANDLER_TYPE_POST_INVOKE);
       WM_op_handlers_operator_exec(C, event, list, ot, properties, retval);
     }
@@ -215,11 +215,11 @@ bool WM_op_handlers_operator_modal(struct bContext *C,
                                    int retval)
 {
   bool ret = true;
-  if (op_handlers != NULL) {
+  if (op_handlers != nullptr) {
     wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
-    if (opHandlers != NULL) {
+    if (opHandlers != nullptr) {
       ListBase *list = WM_op_handlers_get_handler_list(opHandlers, HANDLER_TYPE_MODAL);
-      ret = ret && WM_op_handlers_operator_exec(C, event, list, ot, NULL, retval);
+      ret = ret && WM_op_handlers_operator_exec(C, event, list, ot, nullptr, retval);
     }
   }
   return ret;
@@ -231,11 +231,11 @@ void WM_op_handlers_operator_modal_end(struct bContext *C,
                                        struct wmOperatorType *ot,
                                        int retval)
 {
-  if (op_handlers != NULL) {
+  if (op_handlers != nullptr) {
     wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
-    if (opHandlers != NULL) {
+    if (opHandlers != nullptr) {
       ListBase *list = WM_op_handlers_get_handler_list(opHandlers, HANDLER_TYPE_MODAL_END);
-      WM_op_handlers_operator_exec(C, event, list, ot, NULL, retval);
+      WM_op_handlers_operator_exec(C, event, list, ot, nullptr, retval);
     }
   }
 }

@@ -498,7 +498,7 @@ void WM_check(bContext *C)
     wm->message_bus = WM_msgbus_create();
   }
 
-  if (wm->op_handlers == NULL) {
+  if (wm->op_handlers == nullptr) {
     wm->op_handlers = WM_op_handlers_create();
   }
 

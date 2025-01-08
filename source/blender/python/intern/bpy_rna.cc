@@ -1304,7 +1304,7 @@ static int pyrna_prop_to_enum_bitfield(
 
 PyObject *pyrna_enum_bitfield_to_py(const EnumPropertyItem *items, int value)
 {
-  PyObject *ret = PySet_New(NULL);
+  PyObject *ret = PySet_New(nullptr);
   const char *identifier[RNA_ENUM_BITFLAG_SIZE + 1];
 
   if (RNA_enum_bitflag_identifiers(items, value, identifier)) {
