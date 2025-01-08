@@ -462,7 +462,8 @@ void WM_cursor_time(wmWindow *win, int nr)
     win->lastcursor = win->cursor;
   }
 
-  if (UI_SCALE_FAC < 1.45f || !wm_cursor_time_large(win, nr)) {
+  /* Use `U.ui_scale` instead of `UI_SCALE_FAC` here to ignore HiDPI/Retina scaling. */
+  if (U.ui_scale < 1.45f || !wm_cursor_time_large(win, nr)) {
     wm_cursor_time_small(win, nr);
   }
 
