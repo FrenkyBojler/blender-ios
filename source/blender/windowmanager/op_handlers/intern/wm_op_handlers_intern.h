@@ -24,7 +24,8 @@
 
 typedef struct wmHandlerData {
   struct wmHandlerData *next, *prev;
-  char *id_name;  // Pointer to wmOpHandlerData.id_name
+  // Pointer to wmOpHandlerData.id_name
+  char *id_name;
   void *py_handle;
   void *py_data;
   bool (*cb)(

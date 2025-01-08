@@ -473,7 +473,8 @@ static int bpy_op_handler_check(void *py_data, void *owner, void *callback)
   else if (owner != NULL) {
     return (py_owner == owner);
   }
-  else {  // callback != NULL
+  else {
+    // callback != NULL
     return (py_callback == callback);
   }
 }
@@ -495,8 +496,8 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
     switch (RNA_property_type(prop)) {
       case PROP_BOOLEAN: {
         bool val = RNA_property_boolean_get(properties, prop);
-        // from Py Docs, Py_False and Py_truee needs to be treated just like any other object with
-        // respect to reference counts.
+        /* From Py Docs, Py_False and Py_truee needs to be treated just like any other object with
+        respect to reference counts. */
         data = val ? Py_False : Py_True;
         break;
       }
@@ -572,8 +573,9 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
 
 static bool bpy_op_callback_get_return_value(PyObject *callback, PyObject *py_ret)
 {
-  bool ret = true;  // Do not interrump on error
+  bool ret = true;
   if (py_ret == NULL) {
+    // Do not interrump on error
     PyC_Err_PrintWithFunc(callback);
   }
   else {
@@ -648,7 +650,8 @@ static bool bpy_op_handler_poll(struct bContext *C,
                                 PointerRNA *properties)
 {
   bool ret = true;
-  PyGILState_STATE gilstate;  // this is because is not thread safe
+  // Python Global Interperter Lock
+  PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
   {
     PyObject *callback_args = PyTuple_GET_ITEM(py_data, 3);
@@ -691,8 +694,8 @@ static bool bpy_op_handler_modal(bContext *C,
                                  PointerRNA * /* properties */,
                                  int operator_ret)
 {
-  // this is because is not thread safe
   bool ret = true;
+  // Python Global Interperter Lock
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
   {
@@ -710,7 +713,7 @@ static bool bpy_op_handler_invoke(
     bContext *C, const wmEvent *event, void *py_data, PointerRNA *properties, int operator_ret)
 {
   bool ret = true;
-  // this is because is not thread safe
+  // Python Global Interperter Lock
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
   {
