@@ -1444,7 +1444,6 @@ CurvesGeometry curves_new_no_attributes(int point_num, int curve_num)
   CurvesGeometry curves(0, curve_num);
   curves.point_num = point_num;
   CustomData_free_layer_named(&curves.point_data, "position", 0);
-
   return curves;
 }
 
