@@ -2,13 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <algorithm>
-
 #include "node_geometry_util.hh"
 
 #include "DNA_node_types.h"
-
-#include "BLI_string.h"
 
 #include "FN_multi_function.hh"
 
@@ -412,6 +408,7 @@ static void register_node()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_MENU_SWITCH, "Menu Switch", NODE_CLASS_CONVERTER);
+  ntype.enum_name_legacy = "MENU_SWITCH";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(&ntype, "NodeMenuSwitch", node_free_storage, node_copy_storage);

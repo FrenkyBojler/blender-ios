@@ -325,24 +325,13 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
 {
   Vector<NodeLinkItem> items;
 
-  /* XXX this should become a callback for node types! */
   if (arg->node_type->type == NODE_GROUP) {
-    bNodeTree *ngroup;
-
-    for (ngroup = (bNodeTree *)arg->bmain->nodetrees.first; ngroup;
-         ngroup = (bNodeTree *)ngroup->id.next)
-    {
-      const char *disabled_hint;
-      if ((ngroup->type != arg->ntree->type) ||
-          !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
-      {
+    LISTBASE_FOREACH (bNodeTree *, ngroup, &arg->bmain->nodetrees) {
+      if (BKE_id_name(ngroup->id)[0] == '.') {
+        /* Don't display hidden node groups, just like the add menu. */
         continue;
       }
-    }
 
-    for (ngroup = (bNodeTree *)arg->bmain->nodetrees.first; ngroup;
-         ngroup = (bNodeTree *)ngroup->id.next)
-    {
       const char *disabled_hint;
       if ((ngroup->type != arg->ntree->type) ||
           !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
@@ -388,7 +377,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
       item.socket_index = index++;
       item.socket_type = socket_decl.socket_type;
       item.socket_name = socket_decl.name.c_str();
-      item.node_name = arg->node_type->ui_name;
+      item.node_name = arg->node_type->ui_name.c_str();
       items.append(item);
     }
   }
@@ -405,7 +394,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
       item.socket_index = i;
       item.socket_type = stemp->type;
       item.socket_name = stemp->name;
-      item.node_name = arg->node_type->ui_name;
+      item.node_name = arg->node_type->ui_name.c_str();
       items.append(item);
     }
   }
@@ -470,12 +459,12 @@ static int ui_node_item_name_compare(const void *a, const void *b)
 {
   const bke::bNodeType *type_a = *(const bke::bNodeType **)a;
   const bke::bNodeType *type_b = *(const bke::bNodeType **)b;
-  return BLI_strcasecmp_natural(type_a->ui_name, type_b->ui_name);
+  return BLI_strcasecmp_natural(type_a->ui_name.c_str(), type_b->ui_name.c_str());
 }
 
 static bool ui_node_item_special_poll(const bNodeTree * /*ntree*/, const bke::bNodeType *ntype)
 {
-  if (STREQ(ntype->idname, "ShaderNodeUVAlongStroke")) {
+  if (ntype->idname == "ShaderNodeUVAlongStroke") {
     /* TODO(sergey): Currently we don't have Freestyle nodes edited from
      * the buttons context, so can ignore its nodes completely.
      *
@@ -500,7 +489,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   /* generate array of node types sorted by UI name */
   blender::Vector<bke::bNodeType *> sorted_ntypes;
 
-  NODE_TYPES_BEGIN (ntype) {
+  for (blender::bke::bNodeType *ntype : blender::bke::node_types_get()) {
     const char *disabled_hint;
     if (!(ntype->poll && ntype->poll(ntype, ntree, &disabled_hint))) {
       continue;
@@ -516,7 +505,6 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 
     sorted_ntypes.append(ntype);
   }
-  NODE_TYPES_END;
 
   qsort(sorted_ntypes.data(),
         sorted_ntypes.size(),

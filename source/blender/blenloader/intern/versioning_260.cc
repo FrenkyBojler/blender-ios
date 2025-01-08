@@ -67,11 +67,9 @@
 #include "SEQ_modifier.hh"
 #include "SEQ_utils.hh"
 
-#ifdef WITH_FFMPEG
-#  include "BKE_writeffmpeg.hh"
-#endif
+#include "IMB_imbuf_enums.h"
 
-#include "IMB_imbuf.hh" /* for proxy / time-code versioning stuff. */
+#include "MOV_enums.hh"
 
 #include "NOD_common.h"
 #include "NOD_composite.hh"
@@ -994,45 +992,45 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
   }
 }
 
-static bool seq_colorbalance_update_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
 {
-  Strip *strip = seq->strip;
+  StripData *data = strip->data;
 
-  if (strip && strip->color_balance) {
-    SequenceModifierData *smd = SEQ_modifier_new(seq, nullptr, seqModifierType_ColorBalance);
+  if (data && data->color_balance) {
+    SequenceModifierData *smd = SEQ_modifier_new(strip, nullptr, seqModifierType_ColorBalance);
     ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
 
-    cbmd->color_balance = *strip->color_balance;
+    cbmd->color_balance = *data->color_balance;
 
     /* multiplication with color balance used is handled differently,
      * so we need to move multiplication to modifier so files would be
      * compatible
      */
-    cbmd->color_multiply = seq->mul;
-    seq->mul = 1.0f;
+    cbmd->color_multiply = strip->mul;
+    strip->mul = 1.0f;
 
-    MEM_freeN(strip->color_balance);
-    strip->color_balance = nullptr;
+    MEM_freeN(data->color_balance);
+    data->color_balance = nullptr;
   }
   return true;
 }
 
-static bool seq_set_alpha_mode_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_set_alpha_mode_cb(Strip *strip, void * /*user_data*/)
 {
   enum { SEQ_MAKE_PREMUL = (1 << 6) };
-  if (seq->flag & SEQ_MAKE_PREMUL) {
-    seq->alpha_mode = SEQ_ALPHA_STRAIGHT;
+  if (strip->flag & SEQ_MAKE_PREMUL) {
+    strip->alpha_mode = SEQ_ALPHA_STRAIGHT;
   }
   else {
-    SEQ_alpha_mode_from_file_extension(seq);
+    SEQ_alpha_mode_from_file_extension(strip);
   }
   return true;
 }
 
-static bool seq_set_wipe_angle_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_set_wipe_angle_cb(Strip *strip, void * /*user_data*/)
 {
-  if (seq->type == SEQ_TYPE_WIPE) {
-    WipeVars *wv = static_cast<WipeVars *>(seq->effectdata);
+  if (strip->type == STRIP_TYPE_WIPE) {
+    WipeVars *wv = static_cast<WipeVars *>(strip->effectdata);
     wv->angle = DEG2RADF(wv->angle);
   }
   return true;
@@ -1844,7 +1842,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 263, 18)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_colorbalance_update_cb, nullptr);
+        SEQ_for_each_callback(&scene->ed->seqbase, strip_colorbalance_update_cb, nullptr);
       }
     }
   }
@@ -2083,7 +2081,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 265, 5)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_set_alpha_mode_cb, nullptr);
+        SEQ_for_each_callback(&scene->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
 
       if (scene->r.bake_samples == 0) {
@@ -2754,12 +2752,10 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         scene->toolsettings->snap_node_mode = 8;      /* SCE_SNAP_TO_GRID */
       }
 
-#ifdef WITH_FFMPEG
       /* Update for removed "sound-only" option in FFMPEG export settings. */
       if (scene->r.ffcodecdata.type >= FFMPEG_INVALID) {
         scene->r.ffcodecdata.type = FFMPEG_AVI;
       }
-#endif
     }
   }
 
@@ -2785,7 +2781,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         if (scene->ed) {
-          SEQ_for_each_callback(&scene->ed->seqbase, seq_set_wipe_angle_cb, nullptr);
+          SEQ_for_each_callback(&scene->ed->seqbase, strip_set_wipe_angle_cb, nullptr);
         }
       }
 

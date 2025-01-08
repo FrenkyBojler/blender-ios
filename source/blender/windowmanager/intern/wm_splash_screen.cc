@@ -14,16 +14,11 @@
  * - Links to web sites.
  */
 
-#include <algorithm>
 #include <cstring>
 
-#include "DNA_ID.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
-
-#include "BLF_api.hh"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -31,6 +26,7 @@
 #include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
+#include "BKE_preferences.h"
 
 #include "BLT_translation.hh"
 
@@ -267,18 +263,9 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
                                      style);
 
   MenuType *mt;
-  char userpref[FILE_MAX];
-  const std::optional<std::string> cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
-
-  if (cfgdir.has_value()) {
-    BLI_path_join(userpref, sizeof(userpref), cfgdir->c_str(), BLENDER_USERPREF_FILE);
-  }
-  else {
-    userpref[0] = '\0';
-  }
 
   /* Draw setup screen if no preferences have been saved yet. */
-  if (!(userpref[0] && BLI_exists(userpref))) {
+  if (!blender::bke::preferences::exists()) {
     mt = WM_menutype_find("WM_MT_splash_quick_setup", true);
 
     /* The #UI_BLOCK_QUICK_SETUP flag prevents the button text from being left-aligned,

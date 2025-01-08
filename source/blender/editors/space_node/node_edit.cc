@@ -70,6 +70,7 @@
 #include "NOD_texture.h"
 #include "node_intern.hh" /* own include */
 
+#include "COM_compositor.hh"
 #include "COM_profiler.hh"
 
 namespace blender::ed::space_node {
@@ -303,14 +304,14 @@ static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
   BKE_callback_exec_id(cj->bmain, &cj->scene->id, BKE_CB_EVT_COMPOSITE_PRE);
 
   if ((scene->r.scemode & R_MULTIVIEW) == 0) {
-    ntreeCompositExecTree(cj->re, scene, ntree, &scene->r, "", nullptr, &cj->profiler);
+    COM_execute(cj->re, &scene->r, scene, ntree, "", nullptr, &cj->profiler);
   }
   else {
     LISTBASE_FOREACH (SceneRenderView *, srv, &scene->r.views) {
       if (BKE_scene_multiview_is_render_view_active(&scene->r, srv) == false) {
         continue;
       }
-      ntreeCompositExecTree(cj->re, scene, ntree, &scene->r, srv->name, nullptr, &cj->profiler);
+      COM_execute(cj->re, &scene->r, scene, ntree, srv->name, nullptr, &cj->profiler);
     }
   }
 
@@ -514,7 +515,7 @@ void ED_node_tree_propagate_change(const bContext *C, Main *bmain, bNodeTree *ro
 void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo)
 {
   if (typeinfo) {
-    STRNCPY(snode->tree_idname, typeinfo->idname);
+    STRNCPY(snode->tree_idname, typeinfo->idname.c_str());
   }
   else {
     snode->tree_idname[0] = '\0';
@@ -523,22 +524,22 @@ void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typein
 
 bool ED_node_is_compositor(const SpaceNode *snode)
 {
-  return STREQ(snode->tree_idname, ntreeType_Composite->idname);
+  return snode->tree_idname == ntreeType_Composite->idname;
 }
 
 bool ED_node_is_shader(SpaceNode *snode)
 {
-  return STREQ(snode->tree_idname, ntreeType_Shader->idname);
+  return snode->tree_idname == ntreeType_Shader->idname;
 }
 
 bool ED_node_is_texture(SpaceNode *snode)
 {
-  return STREQ(snode->tree_idname, ntreeType_Texture->idname);
+  return snode->tree_idname == ntreeType_Texture->idname;
 }
 
 bool ED_node_is_geometry(SpaceNode *snode)
 {
-  return STREQ(snode->tree_idname, ntreeType_Geometry->idname);
+  return snode->tree_idname == ntreeType_Geometry->idname;
 }
 
 bool ED_node_supports_preview(SpaceNode *snode)
