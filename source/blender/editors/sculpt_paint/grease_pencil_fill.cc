@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_bounds.hh"
 #include "BLI_color.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_base.hh"
@@ -850,29 +851,26 @@ static VArray<ColorGeometry4f> get_stroke_colors(const Object &object,
   return VArray<ColorGeometry4f>::ForContainer(colors);
 }
 
-static rctf get_region_bounds(const ARegion &region)
+static Bounds<float2> get_region_bounds(const ARegion &region)
 {
   /* Initialize maximum bound-box size. */
-  rctf region_bounds;
-  BLI_rctf_init(&region_bounds, 0, region.winx, 0, region.winy);
-  return region_bounds;
+  return {float2(0), float2(region.winx, region.winy)};
 }
 
 /* Helper: Calc the maximum bounding box size of strokes to get the zoom level of the viewport.
  * For each stroke, the 2D projected bounding box is calculated and using this data, the total
  * object bounding box (all strokes) is calculated. */
-static rctf get_boundary_bounds(const ARegion &region,
-                                const RegionView3D &rv3d,
-                                const Object &object,
-                                const Object &object_eval,
-                                const VArray<bool> &boundary_layers,
-                                const Span<DrawingInfo> src_drawings)
+static std::optional<Bounds<float2>> get_boundary_bounds(const ARegion &region,
+                                                         const RegionView3D &rv3d,
+                                                         const Object &object,
+                                                         const Object &object_eval,
+                                                         const VArray<bool> &boundary_layers,
+                                                         const Span<DrawingInfo> src_drawings)
 {
   using bke::greasepencil::Drawing;
   using bke::greasepencil::Layer;
 
-  rctf bounds;
-  BLI_rctf_init_minmax(&bounds);
+  std::optional<Bounds<float2>> boundary_bounds;
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
@@ -924,15 +922,14 @@ static rctf get_boundary_bounds(const ARegion &region,
             &region, pos_world, pos_view, V3D_PROJ_TEST_NOP);
         if (result == V3D_PROJ_RET_OK) {
           const float pixels = radii[point_i] / ED_view3d_pixel_size(&rv3d, pos_world);
-          rctf point_rect;
-          BLI_rctf_init_pt_radius(&point_rect, pos_view, pixels);
-          BLI_rctf_union(&bounds, &point_rect);
+          Bounds<float2> point_bounds = {pos_view - float2(pixels), pos_view + float2(pixels)};
+          boundary_bounds = bounds::merge(boundary_bounds, {point_bounds});
         }
       }
     });
   }
 
-  return bounds;
+  return boundary_bounds;
 }
 
 static auto fit_strokes_to_view(const ViewContext &view_context,
@@ -955,55 +952,43 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
       const Object &object_eval = *DEG_get_evaluated_object(view_context.depsgraph,
                                                             view_context.obact);
       /* Zoom and offset based on bounds, to fit all strokes within the render. */
-      const rctf bounds = get_boundary_bounds(*view_context.region,
-                                              *view_context.rv3d,
-                                              *view_context.obact,
-                                              object_eval,
-                                              boundary_layers,
-                                              src_drawings);
-      const rctf region_bounds = get_region_bounds(*view_context.region);
-      UNUSED_VARS(bounds, region_bounds);
-      const float2 bounds_max = float2(bounds.xmax, bounds.ymax);
-      const float2 bounds_min = float2(bounds.xmin, bounds.ymin);
+      const std::optional<Bounds<float2>> boundary_bounds = get_boundary_bounds(
+          *view_context.region,
+          *view_context.rv3d,
+          *view_context.obact,
+          object_eval,
+          boundary_layers,
+          src_drawings);
+      if (!boundary_bounds) {
+        return std::make_tuple(float2(1.0f), float2(0.0f), float3x3::identity());
+      }
+
       /* Include fill point for computing zoom. */
-      const float2 fill_bounds_min = math::min(bounds_min, fill_point) - margin;
-      const float2 fill_bounds_max = math::max(bounds_max, fill_point) + margin;
-      const float2 fill_bounds_center = 0.5f * (fill_bounds_min + fill_bounds_max);
-      const float2 fill_bounds_extent = fill_bounds_max - fill_bounds_min;
+      const Bounds<float2> fill_bounds = [&]() {
+        Bounds<float2> result = bounds::merge(*boundary_bounds, Bounds<float2>(fill_point));
+        result.pad(margin);
+        return result;
+      }();
 
-      const float2 region_max = float2(region_bounds.xmax, region_bounds.ymax);
-      const float2 region_min = float2(region_bounds.xmin, region_bounds.ymin);
-      const float2 region_center = 0.5f * (region_min + region_max);
-      const float2 region_extent = region_max - region_min;
-
-      const float2 zoom_factors = math::clamp(math::safe_divide(fill_bounds_extent, region_extent),
-                                              float2(min_zoom_factor),
-                                              float2(max_zoom_factor));
-      /* Use the most zoomed out factor for uniform scale. */
-      const float2 zoom = uniform_zoom ? float2(math::reduce_max(zoom_factors)) : zoom_factors;
-
-      /* Clamp offset to always include the center point. */
-      const float2 offset_center = fill_bounds_center - region_center;
-      const float2 offset_min = fill_point + 0.5f * fill_bounds_extent - region_center;
-      const float2 offset_max = fill_point - 0.5f * fill_bounds_extent - region_center;
-      const float2 region_offset = float2(
-          fill_point.x < bounds_min.x ?
-              offset_min.x :
-              (fill_point.x > bounds_max.x ? offset_max.x : offset_center.x),
-          fill_point.y < bounds_min.y ?
-              offset_min.y :
-              (fill_point.y > bounds_max.y ? offset_max.y : offset_center.y));
-      const float2 offset = math::safe_divide(region_offset, region_extent);
-
-      const float2 scale_factors = math::clamp(
-          math::safe_divide(region_extent, fill_bounds_extent),
+      const Bounds<float2> region_bounds = get_region_bounds(*view_context.region);
+      const float2 zoom_factors = math::clamp(
+          math::safe_divide(fill_bounds.size(), region_bounds.size()),
           float2(min_zoom_factor),
           float2(max_zoom_factor));
       /* Use the most zoomed out factor for uniform scale. */
-      const float2 scale = uniform_zoom ? float2(math::reduce_max(scale_factors)) : scale_factors;
+      const float2 zoom = uniform_zoom ? float2(math::reduce_max(zoom_factors)) : zoom_factors;
 
-      /* Center transform. */
-      const float3x3 image_to_region = math::from_loc_scale<float3x3>(region_offset, zoom);
+      /* Actual rendered bounds based on the final zoom factor. */
+      const Bounds<float2> render_bounds = {
+          fill_bounds.center() - 0.5f * region_bounds.size() * zoom.x,
+          fill_bounds.center() + 0.5f * region_bounds.size() * zoom.y};
+
+      /* Center offset for View3d matrices (strokes to pixels). */
+      const float2 offset = math::safe_divide(render_bounds.center() - region_bounds.center(),
+                                              region_bounds.size());
+      /* Corner offset for boundary transform (pixels to strokes). */
+      const float3x3 image_to_region = math::from_loc_scale<float3x3>(
+          render_bounds.min - region_bounds.min, zoom);
 
       return std::make_tuple(zoom, offset, image_to_region);
     }
