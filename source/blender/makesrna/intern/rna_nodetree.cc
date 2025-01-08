@@ -11969,8 +11969,7 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
 
 static StructRNA *define_specific_node(BlenderRNA *brna,
                                        const char *struct_name,
-                                       const char *base_name,
-                                       void (*def_func)(StructRNA *))
+                                       const char *base_name)
 {
   StructRNA *srna;
   FunctionRNA *func;
@@ -12016,10 +12015,6 @@ static StructRNA *define_specific_node(BlenderRNA *brna,
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  if (def_func) {
-    def_func(srna);
-  }
-
   return srna;
 }
 
@@ -12038,8 +12033,6 @@ static void rna_def_node_instance_hash(BlenderRNA *brna)
 
 void RNA_def_nodetree(BlenderRNA *brna)
 {
-  StructRNA *srna;
-
   rna_def_node(brna);
   rna_def_node_link(brna);
 
@@ -12069,7 +12062,11 @@ void RNA_def_nodetree(BlenderRNA *brna)
 
 #  define DefNode(Category, ID, DefFunc, StructName) \
     { \
-      srna = define_specific_node(brna, #Category #StructName, #Category, DefFunc); \
+      StructRNA *srna = define_specific_node(brna, #Category #StructName, #Category); \
+      void (*def_func)(StructRNA *) = DefFunc; \
+      if (def_func) { \
+        def_func(srna); \
+      } \
       if (ID == CMP_NODE_OUTPUT_FILE) { \
         /* needs brna argument, can't use NOD_static_types.h */ \
         def_cmp_output_file(brna, srna); \
@@ -12084,10 +12081,23 @@ void RNA_def_nodetree(BlenderRNA *brna)
   /* Node group types need to be defined for shader, compositor, texture, geometry nodes
    * individually. Cannot use the static types header for this, since they share the same int id.
    */
-  define_specific_node(brna, "ShaderNodeGroup", "ShaderNode", def_group);
-  define_specific_node(brna, "CompositorNodeGroup", "CompositorNode", def_group);
-  define_specific_node(brna, "TextureNodeGroup", "TextureNode", def_group);
-  define_specific_node(brna, "GeometryNodeGroup", "GeometryNode", def_group);
+  {
+    StructRNA *srna = define_specific_node(brna, "ShaderNodeGroup", "ShaderNode");
+    def_group(srna);
+  }
+  {
+    StructRNA *srna = define_specific_node(brna, "CompositorNodeGroup", "CompositorNode");
+    def_group(srna);
+  }
+  {
+    StructRNA *srna = define_specific_node(brna, "TextureNodeGroup", "TextureNode");
+    def_group(srna);
+  }
+  {
+    StructRNA *srna = define_specific_node(brna, "GeometryNodeGroup", "GeometryNode");
+    def_group(srna);
+  }
+
   def_custom_group(brna,
                    "ShaderNodeCustomGroup",
                    "ShaderNode",
