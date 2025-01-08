@@ -22,6 +22,10 @@ BLOCKLIST_ALL = [
     "visibility_particles.blend",
 ]
 
+if platform.system() == "Windows":
+    # Blocked due to random crashes on the build bot
+    BLOCKLIST_ALL += ["image_non_color.blend"]
+
 # Blocklist that disables OSL specific tests for configurations that do not support OSL backend.
 BLOCKLIST_EXPLICIT_OSL = [
     '.*_osl.blend',
