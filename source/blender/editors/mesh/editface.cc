@@ -468,14 +468,16 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   ED_view3d_init_mats_rv3d(ob_eval, rv3d);
 
   Mesh *mesh = BKE_mesh_from_object(ob);
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   const Span<int> corner_edges = mesh->corner_edges();
-  const Span<float3> verts = mesh->vert_positions();
+  const Span<float3> vert_positions = mesh_eval ? mesh_eval->vert_positions() :
+                                                  mesh->vert_positions();
   const OffsetIndices faces = mesh->faces();
   const Span<int2> edges = mesh->edges();
 
   const IndexRange face = faces[poly_pick_index];
   const int closest_edge_index = find_closest_edge_in_poly(
-      region, edges, corner_edges.slice(face), verts, mval);
+      region, edges, corner_edges.slice(face), vert_positions, mval);
   if (closest_edge_index == -1) {
     return;
   }
