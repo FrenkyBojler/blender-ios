@@ -15,14 +15,18 @@
  * https://www.ea.com/seed/news/seed-dd18-presentation-slides-raytracing
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_codegen_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_closure_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_filter_lib.glsl)
+#include "infos/eevee_tracing_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_ray_denoise_bilateral)
+
+#include "draw_view_lib.glsl"
+#include "eevee_closure_lib.glsl"
+#include "eevee_filter_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "gpu_shader_codegen_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 /* In order to remove some more fireflies, "tone-map" the color samples during the accumulation. */
 vec3 to_accumulation_space(vec3 color)
@@ -53,8 +57,8 @@ void main()
   }
 
   float roughness = closure_apparent_roughness_get(center_closure);
-  float variance = imageLoad(in_variance_img, texel_fullres).r;
-  vec3 in_radiance = imageLoad(in_radiance_img, texel_fullres).rgb;
+  float variance = imageLoadFast(in_variance_img, texel_fullres).r;
+  vec3 in_radiance = imageLoadFast(in_radiance_img, texel_fullres).rgb;
 
   bool is_background = (center_depth == 0.0);
   bool is_smooth = (roughness < 0.05);
@@ -68,7 +72,7 @@ void main()
 
   if (is_smooth || is_background || is_low_variance) {
     /* Early out cases. */
-    imageStore(out_radiance_img, texel_fullres, vec4(in_radiance, 0.0));
+    imageStoreFast(out_radiance_img, texel_fullres, vec4(in_radiance, 0.0));
     return;
   }
 
@@ -100,7 +104,7 @@ void main()
       continue;
     }
 
-    vec3 radiance = imageLoad(in_radiance_img, sample_texel).rgb;
+    vec3 radiance = imageLoadFast(in_radiance_img, sample_texel).rgb;
 
     /* Do not gather unprocessed pixels. */
     if (all(equal(radiance, FLT_11_11_10_MAX))) {
@@ -129,5 +133,5 @@ void main()
   vec3 out_radiance = accum_radiance * safe_rcp(accum_weight);
   out_radiance = from_accumulation_space(out_radiance);
 
-  imageStore(out_radiance_img, texel_fullres, vec4(out_radiance, 0.0));
+  imageStoreFast(out_radiance_img, texel_fullres, vec4(out_radiance, 0.0));
 }

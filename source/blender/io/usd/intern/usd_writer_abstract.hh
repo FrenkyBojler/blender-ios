@@ -65,11 +65,19 @@ class USDAbstractWriter : public AbstractHierarchyWriter {
 
   /* Returns the parent path of exported materials. */
   pxr::SdfPath get_material_library_path() const;
-  pxr::UsdShadeMaterial ensure_usd_material(const HierarchyContext &context, Material *material);
+  pxr::UsdShadeMaterial ensure_usd_material(const HierarchyContext &context,
+                                            Material *material) const;
+
+  void write_id_properties(const pxr::UsdPrim &prim,
+                           const ID &id,
+                           pxr::UsdTimeCode = pxr::UsdTimeCode::Default()) const;
+  void write_user_properties(const pxr::UsdPrim &prim,
+                             IDProperty *properties,
+                             pxr::UsdTimeCode = pxr::UsdTimeCode::Default()) const;
 
   void write_visibility(const HierarchyContext &context,
                         const pxr::UsdTimeCode timecode,
-                        pxr::UsdGeomImageable &usd_geometry);
+                        const pxr::UsdGeomImageable &usd_geometry);
 
   /**
    * Turn `prim` into an instance referencing `context.original_export_path`.

@@ -17,7 +17,7 @@
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_armature.hh"
 #include "ED_undo.hh"
@@ -141,11 +141,11 @@ class BoneCollectionDropTarget : public TreeViewItemDropTarget {
 
     switch (drag_info.drop_location) {
       case DropLocation::Into:
-        return fmt::format(TIP_("Move {} into {}"), drag_name, drop_name);
+        return fmt::format(fmt::runtime(TIP_("Move {} into {}")), drag_name, drop_name);
       case DropLocation::Before:
-        return fmt::format(TIP_("Move {} above {}"), drag_name, drop_name);
+        return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
       case DropLocation::After:
-        return fmt::format(TIP_("Move {} below {}"), drag_name, drop_name);
+        return fmt::format(fmt::runtime(TIP_("Move {} below {}")), drag_name, drop_name);
     }
 
     return "";
@@ -445,7 +445,7 @@ eWM_DragDataType BoneCollectionDragController::get_drag_type() const
 
 void *BoneCollectionDragController::create_drag_data() const
 {
-  ArmatureBoneCollection *drag_data = MEM_new<ArmatureBoneCollection>(__func__);
+  ArmatureBoneCollection *drag_data = MEM_cnew<ArmatureBoneCollection>(__func__);
   *drag_data = drag_arm_bcoll_;
   return drag_data;
 }
@@ -473,7 +473,8 @@ void uiTemplateBoneCollectionTree(uiLayout *layout, bContext *C)
       *block,
       "Bone Collection Tree View",
       std::make_unique<blender::ui::bonecollections::BoneCollectionTreeView>(*armature));
-  tree_view->set_min_rows(3);
+  tree_view->set_context_menu_title("Bone Collection");
+  tree_view->set_default_rows(3);
 
-  ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
+  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

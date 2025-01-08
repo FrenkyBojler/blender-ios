@@ -30,12 +30,17 @@
  *
  */
 
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_velocity_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_volume_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_occupancy_lib.glsl)
+#include "infos/eevee_material_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_occupancy)
+
+#include "eevee_nodetree_lib.glsl"
+#include "eevee_occupancy_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_surf_lib.glsl"
+#include "eevee_velocity_lib.glsl"
+#include "eevee_volume_lib.glsl"
 
 vec4 closure_to_rgba(Closure cl)
 {
@@ -64,10 +69,12 @@ void main()
     }
   }
   else {
-    uint hit_id = imageAtomicAdd(hit_count_img, texel, 1u);
-    if (hit_id < VOLUME_HIT_DEPTH_MAX) {
-      float value = gl_FrontFacing ? volume_z : -volume_z;
-      imageStore(hit_depth_img, ivec3(texel, hit_id), vec4(value));
+    if (volume_z > 0.0) {
+      uint hit_id = imageAtomicAdd(hit_count_img, texel, 1u);
+      if (hit_id < VOLUME_HIT_DEPTH_MAX) {
+        float value = gl_FrontFacing ? volume_z : -volume_z;
+        imageStore(hit_depth_img, ivec3(texel, hit_id), vec4(value));
+      }
     }
   }
 }

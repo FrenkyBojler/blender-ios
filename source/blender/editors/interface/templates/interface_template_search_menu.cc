@@ -39,7 +39,7 @@
 #include "ED_screen.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -84,6 +84,7 @@ struct MenuSearch_Item {
   const char *drawwstr_full;
   int icon;
   int state;
+  float weight;
 
   MenuSearch_Parent *menu_parent;
   MenuType *mt;
@@ -175,6 +176,7 @@ static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
 
     item = (MenuSearch_Item *)BLI_memarena_calloc(memarena, sizeof(*item));
     item->type = MenuSearch_Item::Type::Operator;
+    item->weight = but->search_weight;
 
     item->op.type = but->optype;
     item->op.opcontext = but->opcontext;
@@ -218,6 +220,7 @@ static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
     else {
       item = (MenuSearch_Item *)BLI_memarena_calloc(memarena, sizeof(*item));
       item->type = MenuSearch_Item::Type::RNA;
+      item->weight = but->search_weight;
 
       item->rna.ptr = but->rnapoin;
       item->rna.prop = but->rnaprop;
@@ -322,7 +325,7 @@ static void menu_types_add_from_keymap_items(bContext *C,
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   ListBase *handlers[] = {
-      region ? &region->handlers : nullptr,
+      region ? &region->runtime->handlers : nullptr,
       area ? &area->handlers : nullptr,
       &win->handlers,
   };
@@ -340,7 +343,8 @@ static void menu_types_add_from_keymap_items(bContext *C,
         continue;
       }
 
-      if (handler_base->poll == nullptr || handler_base->poll(region, win->eventstate)) {
+      if (handler_base->poll == nullptr || handler_base->poll(win, area, region, win->eventstate))
+      {
         wmEventHandler_Keymap *handler = (wmEventHandler_Keymap *)handler_base;
         wmEventHandler_KeymapResult km_result;
         WM_event_get_keymaps_from_handler(wm, win, handler, &km_result);
@@ -379,11 +383,7 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
   ListBase operator_items = {nullptr, nullptr};
 
   MemArena *memarena = data->memarena;
-  GHashIterator iter;
-  for (WM_operatortype_iter(&iter); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter))
-  {
-    wmOperatorType *ot = (wmOperatorType *)BLI_ghashIterator_getValue(&iter);
-
+  for (wmOperatorType *ot : WM_operatortype_map().values()) {
     if ((ot->flag & OPTYPE_INTERNAL) && (G.debug & G_DEBUG_WM) == 0) {
       continue;
     }
@@ -784,31 +784,47 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
 
           uiLayoutSetOperatorContext(sub_layout, WM_OP_INVOKE_REGION_WIN);
 
-          but->menu_create_func(C, sub_layout, but->poin);
+          /* If this is a panel, check it's poll function succeeds before drawing.
+           * otherwise draw(..) may be called in an unsupported context and crash, see: #130744.
+           *
+           * NOTE(@ideasman42): it would be good if the buttons #UI_BUT_DISABLED flag
+           * could be used as a more general way to know if poll succeeded,
+           * at this point it's not set - this could be further investigated. */
+          bool poll_success = true;
+          if (PanelType *pt = UI_but_paneltype_get(but)) {
+            if (pt->poll && (pt->poll(C, pt) == false)) {
+              poll_success = false;
+            }
+          }
+
+          if (poll_success) {
+            but->menu_create_func(C, sub_layout, but->poin);
+          }
 
           UI_block_end(C, sub_block);
 
-          MenuSearch_Parent *menu_parent = (MenuSearch_Parent *)BLI_memarena_calloc(
-              memarena, sizeof(*menu_parent));
-          menu_parent->drawstr = strdup_memarena(memarena, but->drawstr.c_str());
-          menu_parent->parent = current_menu.self_as_parent;
+          if (poll_success) {
+            MenuSearch_Parent *menu_parent = (MenuSearch_Parent *)BLI_memarena_calloc(
+                memarena, sizeof(*menu_parent));
+            menu_parent->drawstr = strdup_memarena(memarena, but->drawstr.c_str());
+            menu_parent->parent = current_menu.self_as_parent;
 
-          LISTBASE_FOREACH (uiBut *, sub_but, &sub_block->buttons) {
-            menu_items_from_ui_create_item_from_button(
-                data, memarena, mt, sub_but, wm_context, menu_parent);
+            LISTBASE_FOREACH (uiBut *, sub_but, &sub_block->buttons) {
+              menu_items_from_ui_create_item_from_button(
+                  data, memarena, mt, sub_but, wm_context, menu_parent);
+            }
           }
 
           if (region) {
-            BLI_ghash_remove(
-                region->runtime.block_name_map, sub_block->name.c_str(), nullptr, nullptr);
-            BLI_remlink(&region->uiblocks, sub_block);
+            region->runtime->block_name_map.remove(sub_block->name);
+            BLI_remlink(&region->runtime->uiblocks, sub_block);
           }
           UI_block_free(nullptr, sub_block);
         }
       }
       if (region) {
-        BLI_ghash_remove(region->runtime.block_name_map, block->name.c_str(), nullptr, nullptr);
-        BLI_remlink(&region->uiblocks, block);
+        region->runtime->block_name_map.remove(block->name);
+        BLI_remlink(&region->runtime->uiblocks, block);
       }
       UI_block_free(nullptr, block);
 
@@ -917,7 +933,7 @@ static void menu_search_arg_free_fn(void *data_v)
       case MenuSearch_Item::Type::Operator: {
         if (item->op.opptr != nullptr) {
           WM_operator_properties_free(item->op.opptr);
-          MEM_freeN(item->op.opptr);
+          MEM_delete(item->op.opptr);
         }
         MEM_delete(item->op.context);
         break;
@@ -930,7 +946,7 @@ static void menu_search_arg_free_fn(void *data_v)
 
   BLI_memarena_free(data->memarena);
 
-  MEM_freeN(data);
+  MEM_delete(data);
 }
 
 static void menu_search_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
@@ -1007,7 +1023,7 @@ static void menu_search_update_fn(const bContext * /*C*/,
   blender::ui::string_search::StringSearch<MenuSearch_Item> search;
 
   LISTBASE_FOREACH (MenuSearch_Item *, item, &data->items) {
-    search.add(item->drawwstr_full, item);
+    search.add(item->drawwstr_full, item, item->weight);
   }
 
   const blender::Vector<MenuSearch_Item *> filtered_items = search.query(str);

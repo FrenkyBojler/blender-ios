@@ -6,6 +6,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
 #include "BLI_alloca.h"
@@ -1074,7 +1075,7 @@ static Mesh *mesh_boolean_float(Span<const Mesh *> meshes,
   if (meshes.size() == 1) {
     /* The float solver doesn't do self union. Just return nullptr, which will
      * cause geometry nodes to leave the input as is. */
-    return BKE_mesh_copy_for_eval(meshes[0]);
+    return BKE_mesh_copy_for_eval(*meshes[0]);
   }
 
   Array<std::array<BMLoop *, 3>> looptris;
@@ -1122,7 +1123,7 @@ static Mesh *mesh_boolean_float(Span<const Mesh *> meshes,
     if (prev_result_mesh != nullptr) {
       /* Except in the first iteration, two_meshes[0] holds the intermediate
        * mesh result from the previous iteration. */
-      BKE_mesh_eval_delete(prev_result_mesh);
+      BKE_id_free(nullptr, prev_result_mesh);
     }
     if (i < meshes.size() - 2) {
       two_meshes[0] = result_i_mesh;

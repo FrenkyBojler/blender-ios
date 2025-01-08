@@ -102,9 +102,12 @@ static void curve_copy_data(Main *bmain,
   curve_dst->bevel_profile = BKE_curveprofile_copy(curve_src->bevel_profile);
 
   if (curve_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-    BKE_id_copy_in_lib(bmain, owner_library, &curve_src->key->id, (ID **)&curve_dst->key, flag);
-    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
-    curve_dst->key->from = &curve_dst->id;
+    BKE_id_copy_in_lib(bmain,
+                       owner_library,
+                       &curve_src->key->id,
+                       &curve_dst->id,
+                       reinterpret_cast<ID **>(&curve_dst->key),
+                       flag);
   }
 
   curve_dst->editnurb = nullptr;
@@ -172,7 +175,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BLO_write_pointer_array(writer, cu->totcol, cu->mat);
 
   if (cu->vfont) {
-    BLO_write_raw(writer, cu->len + 1, cu->str);
+    BLO_write_string(writer, cu->str);
     BLO_write_struct_array(writer, CharInfo, cu->len_char32 + 1, cu->strinfo);
     BLO_write_struct_array(writer, TextBox, cu->totbox, cu->tb);
   }
@@ -202,16 +205,6 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 }
 
-static void switch_endian_knots(Nurb *nu)
-{
-  if (nu->knotsu) {
-    BLI_endian_switch_float_array(nu->knotsu, KNOTSU(nu));
-  }
-  if (nu->knotsv) {
-    BLI_endian_switch_float_array(nu->knotsv, KNOTSV(nu));
-  }
-}
-
 static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Curve *cu = (Curve *)id;
@@ -219,14 +212,14 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   /* Protect against integer overflow vulnerability. */
   CLAMP(cu->len_char32, 0, INT_MAX - 4);
 
-  BLO_read_pointer_array(reader, (void **)&cu->mat);
+  BLO_read_pointer_array(reader, cu->totcol, (void **)&cu->mat);
 
-  BLO_read_data_address(reader, &cu->str);
-  BLO_read_data_address(reader, &cu->strinfo);
-  BLO_read_data_address(reader, &cu->tb);
+  BLO_read_string(reader, &cu->str);
+  BLO_read_struct_array(reader, CharInfo, cu->len_char32 + 1, &cu->strinfo);
+  BLO_read_struct_array(reader, TextBox, cu->totbox, &cu->tb);
 
   if (cu->vfont == nullptr) {
-    BLO_read_list(reader, &(cu->nurb));
+    BLO_read_struct_list(reader, Nurb, &(cu->nurb));
   }
   else {
     cu->nurb.first = cu->nurb.last = nullptr;
@@ -253,21 +246,17 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   cu->batch_cache = nullptr;
 
   LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
-    BLO_read_data_address(reader, &nu->bezt);
-    BLO_read_data_address(reader, &nu->bp);
-    BLO_read_data_address(reader, &nu->knotsu);
-    BLO_read_data_address(reader, &nu->knotsv);
+    BLO_read_struct_array(reader, BezTriple, nu->pntsu, &nu->bezt);
+    BLO_read_struct_array(reader, BPoint, nu->pntsu * nu->pntsv, &nu->bp);
+    BLO_read_float_array(reader, KNOTSU(nu), &nu->knotsu);
+    BLO_read_float_array(reader, KNOTSV(nu), &nu->knotsv);
     if (cu->vfont == nullptr) {
       nu->charidx = 0;
-    }
-
-    if (BLO_read_requires_endian_switch(reader)) {
-      switch_endian_knots(nu);
     }
   }
   cu->texspace_flag &= ~CU_TEXSPACE_FLAG_AUTO_EVALUATED;
 
-  BLO_read_data_address(reader, &cu->bevel_profile);
+  BLO_read_struct(reader, CurveProfile, &cu->bevel_profile);
   if (cu->bevel_profile != nullptr) {
     BKE_curveprofile_blend_read(reader, cu->bevel_profile);
   }
@@ -363,7 +352,7 @@ void BKE_curve_init(Curve *cu, const short curve_type)
 
   if (cu->type == OB_FONT) {
     cu->flag |= CU_FRONT | CU_BACK;
-    cu->vfont = cu->vfontb = cu->vfonti = cu->vfontbi = BKE_vfont_builtin_get();
+    cu->vfont = cu->vfontb = cu->vfonti = cu->vfontbi = BKE_vfont_builtin_ensure();
     cu->vfont->id.us += 4;
 
     const char *str = DATA_("Text");
@@ -599,7 +588,6 @@ void BKE_nurb_free(Nurb *nu)
     MEM_freeN(nu->knotsv);
   }
   nu->knotsv = nullptr;
-  // if (nu->trim.first) freeNurblist(&(nu->trim));
 
   MEM_freeN(nu);
 }

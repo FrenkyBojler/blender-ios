@@ -669,6 +669,16 @@ VkFormat to_vk_format(const shader::Type type)
   return VK_FORMAT_R32G32B32A32_SFLOAT;
 }
 
+VkQueryType to_vk_query_type(const GPUQueryType query_type)
+{
+  switch (query_type) {
+    case GPU_QUERY_OCCLUSION:
+      return VK_QUERY_TYPE_OCCLUSION;
+  }
+  BLI_assert_unreachable();
+  return VK_QUERY_TYPE_OCCLUSION;
+}
+
 VkImageType to_vk_image_type(const eGPUTextureType type)
 {
   /* See
@@ -698,34 +708,67 @@ VkImageType to_vk_image_type(const eGPUTextureType type)
   return VK_IMAGE_TYPE_1D;
 }
 
-VkImageViewType to_vk_image_view_type(const eGPUTextureType type, const eImageViewUsage view_type)
+VkImageViewType to_vk_image_view_type(const eGPUTextureType type,
+                                      const eImageViewUsage view_type,
+                                      VKImageViewArrayed arrayed)
 {
+  VkImageViewType result = VK_IMAGE_VIEW_TYPE_1D;
+
   switch (type) {
     case GPU_TEXTURE_1D:
     case GPU_TEXTURE_BUFFER:
-      return VK_IMAGE_VIEW_TYPE_1D;
+      result = VK_IMAGE_VIEW_TYPE_1D;
+      break;
     case GPU_TEXTURE_2D:
-      return VK_IMAGE_VIEW_TYPE_2D;
+      result = VK_IMAGE_VIEW_TYPE_2D;
+      break;
     case GPU_TEXTURE_3D:
-      return VK_IMAGE_VIEW_TYPE_3D;
+      result = VK_IMAGE_VIEW_TYPE_3D;
+      break;
     case GPU_TEXTURE_CUBE:
-      return view_type == eImageViewUsage::Attachment ? VK_IMAGE_VIEW_TYPE_2D_ARRAY :
-                                                        VK_IMAGE_VIEW_TYPE_CUBE;
+      result = view_type == eImageViewUsage::Attachment ? VK_IMAGE_VIEW_TYPE_2D_ARRAY :
+                                                          VK_IMAGE_VIEW_TYPE_CUBE;
+      break;
     case GPU_TEXTURE_1D_ARRAY:
-      return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+      result = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+      break;
     case GPU_TEXTURE_2D_ARRAY:
-      return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+      result = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+      break;
     case GPU_TEXTURE_CUBE_ARRAY:
-      return view_type == eImageViewUsage::Attachment ? VK_IMAGE_VIEW_TYPE_2D_ARRAY :
-                                                        VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+      result = view_type == eImageViewUsage::Attachment ? VK_IMAGE_VIEW_TYPE_2D_ARRAY :
+                                                          VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+      break;
 
     case GPU_TEXTURE_ARRAY:
       /* GPU_TEXTURE_ARRAY should always be used together with 1D, 2D, or CUBE. */
       break;
   }
 
-  BLI_assert_unreachable();
-  return VK_IMAGE_VIEW_TYPE_1D;
+  if (arrayed == VKImageViewArrayed::NOT_ARRAYED) {
+    if (result == VK_IMAGE_VIEW_TYPE_1D_ARRAY) {
+      result = VK_IMAGE_VIEW_TYPE_1D;
+    }
+    else if (result == VK_IMAGE_VIEW_TYPE_2D_ARRAY) {
+      result = VK_IMAGE_VIEW_TYPE_2D;
+    }
+    else if (result == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) {
+      result = VK_IMAGE_VIEW_TYPE_CUBE;
+    }
+  }
+  else if (arrayed == VKImageViewArrayed::ARRAYED) {
+    if (result == VK_IMAGE_VIEW_TYPE_1D) {
+      result = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+    }
+    else if (result == VK_IMAGE_VIEW_TYPE_2D) {
+      result = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+    }
+    else if (result == VK_IMAGE_VIEW_TYPE_CUBE) {
+      result = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+    }
+  }
+
+  return result;
 }
 
 VkComponentSwizzle to_vk_component_swizzle(const char swizzle)
@@ -763,8 +806,13 @@ VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const voi
 {
   VkClearColorValue result = {{0.0f}};
   switch (format) {
+    /* All float-like formats (i.e. everything except literal int/uint go
+     * into VkClearColorValue float color fields. */
     case GPU_DATA_FLOAT:
-    case GPU_DATA_10_11_11_REV: {
+    case GPU_DATA_HALF_FLOAT:
+    case GPU_DATA_UBYTE:
+    case GPU_DATA_10_11_11_REV:
+    case GPU_DATA_2_10_10_10_REV: {
       const float *float_data = static_cast<const float *>(data);
       copy_color<float>(result.float32, float_data);
       break;
@@ -781,11 +829,7 @@ VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const voi
       copy_color<uint32_t>(result.uint32, uint_data);
       break;
     }
-
-    case GPU_DATA_HALF_FLOAT:
-    case GPU_DATA_UBYTE:
-    case GPU_DATA_UINT_24_8:
-    case GPU_DATA_2_10_10_10_REV: {
+    case GPU_DATA_UINT_24_8: {
       BLI_assert_unreachable();
       break;
     }
@@ -857,7 +901,7 @@ VkSamplerAddressMode to_vk_sampler_address_mode(const GPUSamplerExtendMode exten
 {
   switch (extend_mode) {
     case GPU_SAMPLER_EXTEND_MODE_EXTEND:
-      return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+      return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     case GPU_SAMPLER_EXTEND_MODE_REPEAT:
       return VK_SAMPLER_ADDRESS_MODE_REPEAT;
     case GPU_SAMPLER_EXTEND_MODE_MIRRORED_REPEAT:
@@ -868,6 +912,115 @@ VkSamplerAddressMode to_vk_sampler_address_mode(const GPUSamplerExtendMode exten
 
   BLI_assert_unreachable();
   return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+}
+
+static VkDescriptorType to_vk_descriptor_type_image(const shader::ImageType &image_type)
+{
+  switch (image_type) {
+    case shader::ImageType::FLOAT_1D:
+    case shader::ImageType::FLOAT_1D_ARRAY:
+    case shader::ImageType::FLOAT_2D:
+    case shader::ImageType::FLOAT_2D_ARRAY:
+    case shader::ImageType::FLOAT_3D:
+    case shader::ImageType::FLOAT_CUBE:
+    case shader::ImageType::FLOAT_CUBE_ARRAY:
+    case shader::ImageType::INT_1D:
+    case shader::ImageType::INT_1D_ARRAY:
+    case shader::ImageType::INT_2D:
+    case shader::ImageType::INT_2D_ARRAY:
+    case shader::ImageType::INT_3D:
+    case shader::ImageType::INT_CUBE:
+    case shader::ImageType::INT_CUBE_ARRAY:
+    case shader::ImageType::INT_2D_ATOMIC:
+    case shader::ImageType::INT_2D_ARRAY_ATOMIC:
+    case shader::ImageType::INT_3D_ATOMIC:
+    case shader::ImageType::UINT_1D:
+    case shader::ImageType::UINT_1D_ARRAY:
+    case shader::ImageType::UINT_2D:
+    case shader::ImageType::UINT_2D_ARRAY:
+    case shader::ImageType::UINT_3D:
+    case shader::ImageType::UINT_CUBE:
+    case shader::ImageType::UINT_CUBE_ARRAY:
+    case shader::ImageType::UINT_2D_ATOMIC:
+    case shader::ImageType::UINT_2D_ARRAY_ATOMIC:
+    case shader::ImageType::UINT_3D_ATOMIC:
+      return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+
+    case shader::ImageType::FLOAT_BUFFER:
+    case shader::ImageType::INT_BUFFER:
+    case shader::ImageType::UINT_BUFFER:
+      return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+
+    default:
+      BLI_assert_msg(false, "ImageType not supported.");
+  }
+
+  return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+}
+
+static VkDescriptorType to_vk_descriptor_type_sampler(const shader::ImageType &image_type)
+{
+  switch (image_type) {
+    case shader::ImageType::FLOAT_1D:
+    case shader::ImageType::FLOAT_1D_ARRAY:
+    case shader::ImageType::FLOAT_2D:
+    case shader::ImageType::FLOAT_2D_ARRAY:
+    case shader::ImageType::FLOAT_3D:
+    case shader::ImageType::FLOAT_CUBE:
+    case shader::ImageType::FLOAT_CUBE_ARRAY:
+    case shader::ImageType::INT_1D:
+    case shader::ImageType::INT_1D_ARRAY:
+    case shader::ImageType::INT_2D:
+    case shader::ImageType::INT_2D_ARRAY:
+    case shader::ImageType::INT_3D:
+    case shader::ImageType::INT_CUBE:
+    case shader::ImageType::INT_CUBE_ARRAY:
+    case shader::ImageType::INT_2D_ATOMIC:
+    case shader::ImageType::INT_2D_ARRAY_ATOMIC:
+    case shader::ImageType::INT_3D_ATOMIC:
+    case shader::ImageType::UINT_1D:
+    case shader::ImageType::UINT_1D_ARRAY:
+    case shader::ImageType::UINT_2D:
+    case shader::ImageType::UINT_2D_ARRAY:
+    case shader::ImageType::UINT_3D:
+    case shader::ImageType::UINT_CUBE:
+    case shader::ImageType::UINT_CUBE_ARRAY:
+    case shader::ImageType::UINT_2D_ATOMIC:
+    case shader::ImageType::UINT_2D_ARRAY_ATOMIC:
+    case shader::ImageType::UINT_3D_ATOMIC:
+    case shader::ImageType::SHADOW_2D:
+    case shader::ImageType::SHADOW_2D_ARRAY:
+    case shader::ImageType::SHADOW_CUBE:
+    case shader::ImageType::SHADOW_CUBE_ARRAY:
+    case shader::ImageType::DEPTH_2D:
+    case shader::ImageType::DEPTH_2D_ARRAY:
+    case shader::ImageType::DEPTH_CUBE:
+    case shader::ImageType::DEPTH_CUBE_ARRAY:
+      return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+    case shader::ImageType::FLOAT_BUFFER:
+    case shader::ImageType::INT_BUFFER:
+    case shader::ImageType::UINT_BUFFER:
+      return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+  }
+
+  return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+}
+
+VkDescriptorType to_vk_descriptor_type(const shader::ShaderCreateInfo::Resource &resource)
+{
+  switch (resource.bind_type) {
+    case shader::ShaderCreateInfo::Resource::BindType::IMAGE:
+      return to_vk_descriptor_type_image(resource.image.type);
+    case shader::ShaderCreateInfo::Resource::BindType::SAMPLER:
+      return to_vk_descriptor_type_sampler(resource.sampler.type);
+    case shader::ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
+      return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    case shader::ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
+      return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  }
+  BLI_assert_unreachable();
+  return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 }
 
 }  // namespace blender::gpu

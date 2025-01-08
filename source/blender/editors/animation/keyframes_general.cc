@@ -24,7 +24,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_curve.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_main.hh"
@@ -92,8 +92,7 @@ bool duplicate_fcurve_keys(FCurve *fcu)
 /** \name Various Tools
  * \{ */
 
-void clean_fcurve(bAnimContext *ac,
-                  bAnimListElem *ale,
+void clean_fcurve(bAnimListElem *ale,
                   float thresh,
                   bool cleardefault,
                   const bool only_selected_keys)
@@ -228,7 +227,7 @@ void clean_fcurve(bAnimContext *ac,
       /* check if curve is really unused and if it is, return signal for deletion */
       if (BKE_fcurve_is_empty(fcu)) {
         AnimData *adt = ale->adt;
-        blender::animrig::animdata_fcurve_delete(ac, adt, fcu);
+        blender::animrig::animdata_fcurve_delete(adt, fcu);
         ale->key_data = nullptr;
       }
     }
@@ -333,7 +332,7 @@ void blend_to_neighbor_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const
 
 /* ---------------- */
 
-float get_default_rna_value(FCurve *fcu, PropertyRNA *prop, PointerRNA *ptr)
+float get_default_rna_value(const FCurve *fcu, PropertyRNA *prop, PointerRNA *ptr)
 {
   const int len = RNA_property_array_length(ptr, prop);
 
@@ -1224,209 +1223,6 @@ void smooth_fcurve(FCurve *fcu)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name FCurve Sample
- * \{ */
-
-/* little cache for values... */
-struct TempFrameValCache {
-  float frame, val;
-};
-
-void sample_fcurve_segment(FCurve *fcu,
-                           const float start_frame,
-                           const float sample_rate,
-                           float *samples,
-                           const int sample_count)
-{
-  for (int i = 0; i < sample_count; i++) {
-    const float evaluation_time = start_frame + (float(i) / sample_rate);
-    samples[i] = evaluate_fcurve(fcu, evaluation_time);
-  }
-}
-
-static void remove_fcurve_key_range(FCurve *fcu,
-                                    const blender::int2 range,
-                                    const BakeCurveRemove removal_mode)
-{
-  switch (removal_mode) {
-
-    case BakeCurveRemove::REMOVE_ALL: {
-      BKE_fcurve_delete_keys_all(fcu);
-      break;
-    }
-
-    case BakeCurveRemove::REMOVE_OUT_RANGE: {
-      bool replace;
-
-      int before_index = BKE_fcurve_bezt_binarysearch_index(
-          fcu->bezt, range[0], fcu->totvert, &replace);
-
-      if (before_index > 0) {
-        BKE_fcurve_delete_keys(fcu, {0, uint(before_index)});
-      }
-
-      int after_index = BKE_fcurve_bezt_binarysearch_index(
-          fcu->bezt, range[1], fcu->totvert, &replace);
-      /* #REMOVE_OUT_RANGE is treated as exclusive on both ends. */
-      if (replace) {
-        after_index++;
-      }
-      if (after_index < fcu->totvert) {
-        BKE_fcurve_delete_keys(fcu, {uint(after_index), fcu->totvert});
-      }
-      break;
-    }
-
-    case BakeCurveRemove::REMOVE_IN_RANGE: {
-      bool replace;
-      const int range_start_index = BKE_fcurve_bezt_binarysearch_index(
-          fcu->bezt, range[0], fcu->totvert, &replace);
-      int range_end_index = BKE_fcurve_bezt_binarysearch_index(
-          fcu->bezt, range[1], fcu->totvert, &replace);
-      if (replace) {
-        range_end_index++;
-      }
-
-      if (range_end_index > range_start_index) {
-        BKE_fcurve_delete_keys(fcu, {uint(range_start_index), uint(range_end_index)});
-      }
-      break;
-    }
-
-    default:
-      break;
-  }
-}
-
-void bake_fcurve(FCurve *fcu,
-                 const blender::int2 range,
-                 const float step,
-                 const BakeCurveRemove remove_existing)
-{
-  using namespace blender::animrig;
-  BLI_assert(step > 0);
-  const int sample_count = (range[1] - range[0]) / step + 1;
-  float *samples = static_cast<float *>(
-      MEM_callocN(sample_count * sizeof(float), "Channel Bake Samples"));
-  const float sample_rate = 1.0f / step;
-  sample_fcurve_segment(fcu, range[0], sample_rate, samples, sample_count);
-
-  if (remove_existing != BakeCurveRemove::REMOVE_NONE) {
-    remove_fcurve_key_range(fcu, range, remove_existing);
-  }
-
-  BezTriple *baked_keys = static_cast<BezTriple *>(
-      MEM_callocN(sample_count * sizeof(BezTriple), "beztriple"));
-
-  const KeyframeSettings settings = get_keyframe_settings(true);
-
-  for (int i = 0; i < sample_count; i++) {
-    BezTriple *key = &baked_keys[i];
-    blender::float2 key_position = {range[0] + i * step, samples[i]};
-    initialize_bezt(key, key_position, settings, eFCurve_Flags(fcu->flag));
-  }
-
-  int merged_size;
-  BezTriple *merged_bezt = BKE_bezier_array_merge(
-      baked_keys, sample_count, fcu->bezt, fcu->totvert, &merged_size);
-
-  if (fcu->bezt != nullptr) {
-    /* Can happen if we removed all keys beforehand. */
-    MEM_freeN(fcu->bezt);
-  }
-  MEM_freeN(baked_keys);
-  fcu->bezt = merged_bezt;
-  fcu->totvert = merged_size;
-
-  MEM_freeN(samples);
-  BKE_fcurve_handles_recalc(fcu);
-}
-
-void bake_fcurve_segments(FCurve *fcu)
-{
-  using namespace blender::animrig;
-  BezTriple *bezt, *start = nullptr, *end = nullptr;
-  TempFrameValCache *value_cache, *fp;
-  int sfra, range;
-  int i, n;
-
-  if (fcu->bezt == nullptr) { /* ignore baked */
-    return;
-  }
-
-  KeyframeSettings settings = get_keyframe_settings(true);
-  settings.keyframe_type = BEZT_KEYTYPE_BREAKDOWN;
-
-  /* Find selected keyframes... once pair has been found, add keyframes. */
-  for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
-    /* check if selected, and which end this is */
-    if (BEZT_ISSEL_ANY(bezt)) {
-      if (start) {
-        /* If next bezt is also selected, don't start sampling yet,
-         * but instead wait for that one to reconsider, to avoid
-         * changing the curve when sampling consecutive segments
-         * (#53229)
-         */
-        if (i < fcu->totvert - 1) {
-          BezTriple *next = &fcu->bezt[i + 1];
-          if (BEZT_ISSEL_ANY(next)) {
-            continue;
-          }
-        }
-
-        /* set end */
-        end = bezt;
-
-        /* cache values then add keyframes using these values, as adding
-         * keyframes while sampling will affect the outcome...
-         * - only start sampling+adding from index=1, so that we don't overwrite original keyframe
-         */
-        range = int(ceil(end->vec[1][0] - start->vec[1][0]));
-        sfra = int(floor(start->vec[1][0]));
-
-        if (range) {
-          value_cache = static_cast<TempFrameValCache *>(
-              MEM_callocN(sizeof(TempFrameValCache) * range, "IcuFrameValCache"));
-
-          /* sample values */
-          for (n = 1, fp = value_cache; n < range && fp; n++, fp++) {
-            fp->frame = float(sfra + n);
-            fp->val = evaluate_fcurve(fcu, fp->frame);
-          }
-
-          /* add keyframes with these, tagging as 'breakdowns' */
-          for (n = 1, fp = value_cache; n < range && fp; n++, fp++) {
-            blender::animrig::insert_vert_fcurve(
-                fcu, {fp->frame, fp->val}, settings, eInsertKeyFlags(1));
-          }
-
-          /* free temp cache */
-          MEM_freeN(value_cache);
-
-          /* as we added keyframes, we need to compensate so that bezt is at the right place */
-          bezt = fcu->bezt + i + range - 1;
-          i += (range - 1);
-        }
-
-        /* the current selection island has ended, so start again from scratch */
-        start = nullptr;
-        end = nullptr;
-      }
-      else {
-        /* just set start keyframe */
-        start = bezt;
-        end = nullptr;
-      }
-    }
-  }
-
-  /* recalculate channel's handles? */
-  BKE_fcurve_handles_recalc(fcu);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Copy/Paste Tools
  *
  * - The copy/paste buffer currently stores a set of temporary F-Curves containing only the
@@ -1636,7 +1432,7 @@ static void flip_names(tAnimCopybufItem *aci, char **r_name)
 /* ------------------- */
 
 /* most strict method: exact matches only */
-static tAnimCopybufItem *pastebuf_match_path_full(FCurve *fcu,
+static tAnimCopybufItem *pastebuf_match_path_full(const FCurve *fcu,
                                                   const short from_single,
                                                   const short to_simple,
                                                   bool flip)
@@ -1669,7 +1465,7 @@ static tAnimCopybufItem *pastebuf_match_path_full(FCurve *fcu,
 
 /* medium match strictness: path match only (i.e. ignore ID) */
 static tAnimCopybufItem *pastebuf_match_path_property(Main *bmain,
-                                                      FCurve *fcu,
+                                                      const FCurve *fcu,
                                                       const short from_single,
                                                       const short /*to_simple*/)
 {
@@ -1720,7 +1516,7 @@ static tAnimCopybufItem *pastebuf_match_path_property(Main *bmain,
 }
 
 /* least strict matching heuristic: indices only */
-static tAnimCopybufItem *pastebuf_match_index_only(FCurve *fcu,
+static tAnimCopybufItem *pastebuf_match_index_only(const FCurve *fcu,
                                                    const short from_single,
                                                    const short /*to_simple*/)
 {
@@ -2032,7 +1828,6 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
          *   (group check is not that important).
          * - Most importantly, rna-paths should match (array indices are unimportant for now)
          */
-        AnimData *adt = ANIM_nla_mapping_get(ac, ale);
         FCurve *fcu = (FCurve *)ale->data; /* destination F-Curve */
         tAnimCopybufItem *aci = nullptr;
 
@@ -2058,14 +1853,12 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
           totmatch++;
 
           offset[1] = paste_get_y_offset(ac, aci, ale, value_offset_mode);
-          if (adt) {
-            ANIM_nla_mapping_apply_fcurve(adt, static_cast<FCurve *>(ale->key_data), false, false);
-            paste_animedit_keys_fcurve(fcu, aci, offset, merge_mode, flip);
-            ANIM_nla_mapping_apply_fcurve(adt, static_cast<FCurve *>(ale->key_data), true, false);
-          }
-          else {
-            paste_animedit_keys_fcurve(fcu, aci, offset, merge_mode, flip);
-          }
+
+          ANIM_nla_mapping_apply_if_needed_fcurve(
+              ale, static_cast<FCurve *>(ale->key_data), false, false);
+          paste_animedit_keys_fcurve(fcu, aci, offset, merge_mode, flip);
+          ANIM_nla_mapping_apply_if_needed_fcurve(
+              ale, static_cast<FCurve *>(ale->key_data), true, false);
         }
 
         ale->update |= ANIM_UPDATE_DEFAULT;

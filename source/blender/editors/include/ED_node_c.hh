@@ -17,18 +17,12 @@ struct Tex;
 struct View2D;
 struct bContext;
 struct bNode;
-struct bNodeSocketType;
 struct bNodeTree;
+namespace blender::bke {
 struct bNodeTreeType;
 struct bNodeType;
-
-enum NodeBorder {
-  NODE_TOP = 1,
-  NODE_BOTTOM = 2,
-  NODE_LEFT = 4,
-  NODE_RIGHT = 8,
-};
-ENUM_OPERATORS(NodeBorder, NODE_RIGHT)
+struct bNodeSocketType;
+}  // namespace blender::bke
 
 #define NODE_GRID_STEP_SIZE (20.0f * UI_SCALE_FAC) /* Based on the grid nodes snap to. */
 #define NODE_EDGE_PAN_INSIDE_PAD 2
@@ -64,13 +58,11 @@ void ED_node_set_active_viewer_key(SpaceNode *snode);
 /* `drawnode.cc` */
 
 void ED_node_init_butfuncs();
-void ED_init_custom_node_type(bNodeType *ntype);
-void ED_init_custom_node_socket_type(bNodeSocketType *stype);
-void ED_init_standard_node_socket_type(bNodeSocketType *stype);
-void ED_init_node_socket_type_virtual(bNodeSocketType *stype);
+void ED_init_custom_node_type(blender::bke::bNodeType *ntype);
+void ED_init_custom_node_socket_type(blender::bke::bNodeSocketType *stype);
+void ED_init_standard_node_socket_type(blender::bke::bNodeSocketType *stype);
+void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype);
 void ED_node_sample_set(const float col[4]);
-void ED_node_draw_snap(
-    View2D *v2d, const float cent[2], float size, NodeBorder border, unsigned int pos);
 void ED_node_type_draw_color(const char *idname, float *r_color);
 
 /* `node_draw.cc` */
@@ -82,8 +74,8 @@ float ED_node_grid_size();
 
 /* `node_edit.cc` */
 
-void ED_node_set_tree_type(SpaceNode *snode, bNodeTreeType *typeinfo);
-bool ED_node_is_compositor(SpaceNode *snode);
+void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo);
+bool ED_node_is_compositor(const SpaceNode *snode);
 bool ED_node_is_shader(SpaceNode *snode);
 bool ED_node_is_texture(SpaceNode *snode);
 bool ED_node_is_geometry(SpaceNode *snode);

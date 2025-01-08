@@ -11,11 +11,20 @@
  * the destination texel.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
+#include "infos/eevee_material_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_shadow_atomic)
+
+#ifdef GLSL_CPP_STUBS
+#  define MAT_SHADOW
+#endif
+
+#include "draw_view_lib.glsl"
+#include "eevee_nodetree_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_shadow_tilemap_lib.glsl"
+#include "eevee_surf_lib.glsl"
 
 vec4 closure_to_rgba(Closure cl)
 {
@@ -24,7 +33,24 @@ vec4 closure_to_rgba(Closure cl)
 
 void main()
 {
-  float f_depth = gl_FragCoord.z + fwidth(gl_FragCoord.z);
+  float linear_depth = length(shadow_clip.position);
+
+#ifdef SHADOW_UPDATE_TBDR
+  float ndc_depth = gl_FragCoord.z;
+/* We need to write to `gl_FragDepth` un-conditionally. So we cannot early exit or use discard. */
+#  define discard_result \
+    linear_depth = FLT_MAX; \
+    ndc_depth = 1.0;
+#else
+#  define discard_result \
+    discard; \
+    return;
+#endif
+
+  /* Clip to light shape. */
+  if (length_squared(shadow_clip.vector) < 1.0) {
+    discard_result;
+  }
 
 #ifdef MAT_TRANSPARENT
   init_globals();
@@ -36,8 +62,7 @@ void main()
 
   float transparency = average(g_transmittance);
   if (transparency > random_threshold) {
-    discard;
-    return;
+    discard_result;
   }
 #endif
 
@@ -65,15 +90,12 @@ void main()
 
   ivec3 out_texel = ivec3((page.xy << page_shift) | texel_page, page.z);
 
-  uint u_depth = floatBitsToUint(f_depth);
-  /* Quantization bias. Equivalent to `nextafter()` in C without all the safety. */
-  u_depth += 2;
+  uint u_depth = floatBitsToUint(linear_depth);
   imageAtomicMin(shadow_atlas_img, out_texel, u_depth);
 #endif
 
 #ifdef SHADOW_UPDATE_TBDR
-  /* Store output depth in tile memory using F32 attachment. NOTE: As depth testing is enabled,
-   * only the closest fragment will store the result. */
-  out_depth = f_depth;
+  gl_FragDepth = ndc_depth;
+  out_depth = linear_depth;
 #endif
 }

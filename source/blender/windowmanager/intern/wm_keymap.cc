@@ -11,7 +11,6 @@
 #include <cstring>
 #include <fmt/format.h>
 
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -22,7 +21,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLF_api.hh"
@@ -34,7 +32,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "BLT_translation.hh"
 
@@ -67,7 +65,7 @@ static wmKeyMapItem *wm_keymap_item_copy(wmKeyMapItem *kmi)
   kmin->flag &= ~KMI_UPDATE;
 
   if (kmin->properties) {
-    kmin->ptr = static_cast<PointerRNA *>(MEM_callocN(sizeof(PointerRNA), "UserKeyMapItemPtr"));
+    kmin->ptr = MEM_new<PointerRNA>("UserKeyMapItemPtr");
     WM_operator_properties_create(kmin->ptr, kmin->idname);
 
     /* Signal for no context, see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
@@ -89,7 +87,7 @@ static void wm_keymap_item_free_data(wmKeyMapItem *kmi)
   /* Not the `kmi` itself. */
   if (kmi->ptr) {
     WM_operator_properties_free(kmi->ptr);
-    MEM_freeN(kmi->ptr);
+    MEM_delete(kmi->ptr);
     kmi->ptr = nullptr;
     kmi->properties = nullptr;
   }
@@ -205,7 +203,7 @@ void WM_keymap_item_properties_reset(wmKeyMapItem *kmi, IDProperty *properties)
 {
   if (LIKELY(kmi->ptr)) {
     WM_operator_properties_free(kmi->ptr);
-    MEM_freeN(kmi->ptr);
+    MEM_delete(kmi->ptr);
 
     kmi->ptr = nullptr;
   }
@@ -581,7 +579,7 @@ void WM_keymap_remove_item(wmKeyMap *keymap, wmKeyMapItem *kmi)
   BLI_assert(BLI_findindex(&keymap->items, kmi) != -1);
   if (kmi->ptr) {
     WM_operator_properties_free(kmi->ptr);
-    MEM_freeN(kmi->ptr);
+    MEM_delete(kmi->ptr);
   }
   else if (kmi->properties) {
     IDP_FreeProperty(kmi->properties);
@@ -1244,7 +1242,7 @@ std::optional<std::string> WM_keymap_item_raw_to_string(const short shift,
     result_array.append(WM_key_event_string(type, compact));
   }
 
-  if (result_array.last() == space) {
+  if (!result_array.is_empty() && (result_array.last() == space)) {
     result_array.remove_last();
   }
 
@@ -1464,7 +1462,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
           found = wm_keymap_item_find_handlers(C,
                                                wm,
                                                win,
-                                               &region->handlers,
+                                               &region->runtime->handlers,
                                                opname,
                                                opcontext,
                                                properties,
@@ -1483,7 +1481,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1501,7 +1499,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1515,7 +1513,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1980,7 +1978,6 @@ void WM_keyconfig_update_ex(wmWindowManager *wm, bool keep_properties)
    *
    * In practice both cases are quite unlikely though. */
   if (U.space_data.section_active == USER_SECTION_KEYMAP) {
-    wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       bScreen *screen = WM_window_get_active_screen(win);
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {

@@ -38,7 +38,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_bump(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "invert", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "invert", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static int gpu_shader_bump(GPUMaterial *mat,
@@ -114,13 +114,14 @@ void register_node_type_sh_bump()
 {
   namespace file_ns = blender::nodes::node_shader_bump_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_BUMP, "Bump", NODE_CLASS_OP_VECTOR);
+  ntype.enum_name_legacy = "BUMP";
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_bump;
   ntype.gpu_fn = file_ns::gpu_shader_bump;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

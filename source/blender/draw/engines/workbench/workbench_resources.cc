@@ -44,11 +44,10 @@ static bool get_matcap_tx(Texture &matcap_tx, StudioLight &studio_light)
 
 static float4x4 get_world_shading_rotation_matrix(float studiolight_rot_z)
 {
-  /* TODO(@pragma37): C++ API? */
-  float V[4][4], R[4][4];
-  DRW_view_viewmat_get(nullptr, V, false);
+  float4x4 V = blender::draw::View::default_get().viewmat();
+  float R[4][4];
   axis_angle_to_mat4_single(R, 'Z', -studiolight_rot_z);
-  mul_m4_m4m4(R, V, R);
+  mul_m4_m4m4(R, V.ptr(), R);
   swap_v3_v3(R[2], R[1]);
   negate_v3(R[2]);
   return float4x4(R);
@@ -174,6 +173,18 @@ void SceneResources::init(const SceneState &scene_state)
   }
 
   clip_planes_buf.push_update();
+
+  missing_tx.ensure_2d(
+      GPU_RGBA8, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(1.0f, 0.0f, 1.0f, 1.0f));
+  missing_texture.gpu.texture = missing_tx;
+  missing_texture.name = "Missing Texture";
+
+  dummy_texture_tx.ensure_2d(
+      GPU_RGBA8, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(0.0f, 0.0f, 0.0f, 0.0f));
+  dummy_tile_array_tx.ensure_2d_array(
+      GPU_RGBA8, int2(1), 1, GPU_TEXTURE_USAGE_SHADER_READ, float4(0.0f, 0.0f, 0.0f, 0.0f));
+  dummy_tile_data_tx.ensure_1d_array(
+      GPU_RGBA8, 1, 1, GPU_TEXTURE_USAGE_SHADER_READ, float4(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 }  // namespace blender::workbench

@@ -17,7 +17,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_cursor_utf8.h"
 #include "BLI_string_utf8.h"
@@ -38,7 +38,7 @@
 #include "BLO_read_write.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -187,7 +187,7 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
     }
 
     LISTBASE_FOREACH (TextLine *, tmp, &text->lines) {
-      BLO_write_raw(writer, tmp->len + 1, tmp->line);
+      BLO_write_string(writer, tmp->line);
     }
   }
 }
@@ -195,7 +195,7 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
 static void text_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Text *text = (Text *)id;
-  BLO_read_data_address(reader, &text->filepath);
+  BLO_read_string(reader, &text->filepath);
 
   text->compiled = nullptr;
 
@@ -206,13 +206,13 @@ static void text_blend_read_data(BlendDataReader *reader, ID *id)
 /* else { */
 #endif
 
-  BLO_read_list(reader, &text->lines);
+  BLO_read_struct_list(reader, TextLine, &text->lines);
 
-  BLO_read_data_address(reader, &text->curl);
-  BLO_read_data_address(reader, &text->sell);
+  BLO_read_struct(reader, TextLine, &text->curl);
+  BLO_read_struct(reader, TextLine, &text->sell);
 
   LISTBASE_FOREACH (TextLine *, ln, &text->lines) {
-    BLO_read_data_address(reader, &ln->line);
+    BLO_read_string(reader, &ln->line);
     ln->format = nullptr;
 
     if (ln->len != int(strlen(ln->line))) {

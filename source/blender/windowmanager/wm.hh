@@ -8,7 +8,11 @@
 
 #pragma once
 
+struct wmOperator;
+struct wmTimer;
 struct wmWindow;
+struct wmWindowManager;
+struct Main;
 
 #include "gizmo/wm_gizmo_wmapi.hh"
 
@@ -53,10 +57,6 @@ void wm_operator_register(bContext *C, wmOperator *op);
 /* `wm_operator.cc`, for init/exit. */
 
 void wm_operatortype_free();
-/**
- * Called on initialize #WM_init().
- */
-void wm_operatortype_init();
 /**
  * Default key-map for windows and screens, only call once per WM.
  */

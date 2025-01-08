@@ -14,6 +14,7 @@
 #include "DNA_listBase.h"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_types.hh"
 
 struct BlenderRNA;
@@ -91,13 +92,13 @@ using PropCollectionNextFunc = void (*)(CollectionPropertyIterator *iter);
 using PropCollectionEndFunc = void (*)(CollectionPropertyIterator *iter);
 using PropCollectionGetFunc = PointerRNA (*)(CollectionPropertyIterator *iter);
 using PropCollectionLengthFunc = int (*)(PointerRNA *ptr);
-using PropCollectionLookupIntFunc = int (*)(PointerRNA *ptr, int key, PointerRNA *r_ptr);
-using PropCollectionLookupStringFunc = int (*)(PointerRNA *ptr,
-                                               const char *key,
-                                               PointerRNA *r_ptr);
-using PropCollectionAssignIntFunc = int (*)(PointerRNA *ptr,
-                                            int key,
-                                            const PointerRNA *assign_ptr);
+using PropCollectionLookupIntFunc = bool (*)(PointerRNA *ptr, int key, PointerRNA *r_ptr);
+using PropCollectionLookupStringFunc = bool (*)(PointerRNA *ptr,
+                                                const char *key,
+                                                PointerRNA *r_ptr);
+using PropCollectionAssignIntFunc = bool (*)(PointerRNA *ptr,
+                                             int key,
+                                             const PointerRNA *assign_ptr);
 
 /* extended versions with PropertyRNA argument */
 using PropBooleanGetFuncEx = bool (*)(PointerRNA *ptr, PropertyRNA *prop);
@@ -126,7 +127,7 @@ using PropEnumSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value
 
 /** Structure storing all needed data to process all three kinds of RNA properties. */
 struct PropertyRNAOrID {
-  PointerRNA ptr;
+  PointerRNA *ptr;
 
   /**
    * The PropertyRNA passed as parameter, used to generate that structure's content:
@@ -153,12 +154,29 @@ struct PropertyRNAOrID {
   /** The name of the property. */
   const char *identifier;
 
-  /** Whether this property is a 'pure' IDProperty or not. */
+  /**
+   * Whether this property is a 'pure' IDProperty or not.
+   *
+   * \note Mutually exclusive with #is_rna_storage_idprop.
+   */
   bool is_idprop;
   /**
-   * For runtime RNA properties, whether it is set, defined, or not.
-   * WARNING: This DOES take into account the `IDP_FLAG_GHOST` flag, i.e. it matches result of
-   *          `RNA_property_is_set`. */
+   * Whether this property is defined as a RNA one, but uses an #IDProperty to store its value
+   * (aka Python-defined runtime RNA properties).
+   *
+   * \note In that case, the IDProperty itself may very well not exist (yet), when it has never
+   * been set.
+   *
+   * \note Mutually exclusive with #is_idprop.
+   */
+  bool is_rna_storage_idprop;
+  /**
+   * For runtime RNA properties (i.e. when #is_rna_storage_idprop is true), whether it is set,
+   * defined, or not.
+   *
+   * \warning This DOES take into account the `IDP_FLAG_GHOST` flag, i.e. it matches result of
+   * `RNA_property_is_set`.
+   */
   bool is_set;
 
   bool is_array;
@@ -243,9 +261,9 @@ struct RNAPropertyOverrideApplyContext {
   bool do_insert = false;
 
   /** Main RNA data and property pointers. */
-  PointerRNA ptr_dst = {0};
-  PointerRNA ptr_src = {0};
-  PointerRNA ptr_storage = {0};
+  PointerRNA ptr_dst = {};
+  PointerRNA ptr_src = {};
+  PointerRNA ptr_storage = {};
   PropertyRNA *prop_dst = nullptr;
   PropertyRNA *prop_src = nullptr;
   PropertyRNA *prop_storage = nullptr;
@@ -256,9 +274,9 @@ struct RNAPropertyOverrideApplyContext {
   int len_storage = 0;
 
   /** Items, for RNA collections. */
-  PointerRNA ptr_item_dst = {0};
-  PointerRNA ptr_item_src = {0};
-  PointerRNA ptr_item_storage = {0};
+  PointerRNA ptr_item_dst = {};
+  PointerRNA ptr_item_src = {};
+  PointerRNA ptr_item_storage = {};
 
   /** LibOverride data. */
   IDOverrideLibrary *liboverride = nullptr;
@@ -394,6 +412,8 @@ struct BoolPropertyRNA {
   PropBooleanArrayGetFuncEx getarray_ex;
   PropBooleanArraySetFuncEx setarray_ex;
 
+  PropBooleanGetFuncEx get_default;
+  PropBooleanArrayGetFuncEx get_default_array;
   bool defaultvalue;
   const bool *defaultarray;
 };
@@ -418,6 +438,8 @@ struct IntPropertyRNA {
   int hardmin, hardmax;
   int step;
 
+  PropIntGetFuncEx get_default;
+  PropIntArrayGetFuncEx get_default_array;
   int defaultvalue;
   const int *defaultarray;
 };
@@ -442,6 +464,9 @@ struct FloatPropertyRNA {
   float hardmin, hardmax;
   float step;
   int precision;
+
+  PropFloatGetFuncEx get_default;
+  PropFloatArrayGetFuncEx get_default_array;
 
   float defaultvalue;
   const float *defaultarray;

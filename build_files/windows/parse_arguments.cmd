@@ -18,7 +18,7 @@ if NOT "%1" == "" (
 	) else if "%1" == "with_tests" (
 		set TESTS_CMAKE_ARGS=%TESTS_CMAKE_ARGS% -DWITH_GTESTS=On
 	) else if "%1" == "with_gpu_tests" (
-		set TESTS_CMAKE_ARGS=%TESTS_CMAKE_ARGS% -DWITH_GPU_DRAW_TESTS=On -DWITH_GPU_RENDER_TESTS=On -DWITH_GPU_RENDER_TESTS_SILENT=Off
+		set TESTS_CMAKE_ARGS=%TESTS_CMAKE_ARGS% -DWITH_GPU_BACKEND_TESTS=On -DWITH_GPU_DRAW_TESTS=On -DWITH_GPU_RENDER_TESTS=On -DWITH_GPU_RENDER_TESTS_SILENT=Off
 	) else if "%1" == "full" (
 		set TARGET=Full
 		set BUILD_CMAKE_ARGS=%BUILD_CMAKE_ARGS% ^
@@ -99,12 +99,12 @@ if NOT "%1" == "" (
 	) else if "%1" == "test" (
 		set TEST=1
 		set NOBUILD=1
+	) else if "%1" == "license" (
+		set LICENSE=1
+		goto EOF
 	) else if "%1" == "format" (
 		set FORMAT=1
 		set FORMAT_ARGS=%2 %3 %4 %5 %6 %7 %8 %9
-		goto EOF
-	) else if "%1" == "icons" (
-		set ICONS=1
 		goto EOF
 	) else if "%1" == "icons_geom" (
 		set ICONS_GEOM=1

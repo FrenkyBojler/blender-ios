@@ -14,7 +14,6 @@
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_multi_value_map.hh"
-#include "BLI_string_ref.hh"
 
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
@@ -42,43 +41,36 @@ components_supported_reordering()
   return supported_types_and_domains;
 }
 
-static void reorder_attributes_group_to_group(
-    const bke::AttributeAccessor src_attributes,
-    const bke::AttrDomain domain,
-    const bke::AnonymousAttributePropagationInfo &propagation_info,
-    const OffsetIndices<int> src_offsets,
-    const OffsetIndices<int> dst_offsets,
-    const Span<int> old_by_new_map,
-    bke::MutableAttributeAccessor dst_attributes)
+static void reorder_attributes_group_to_group(const bke::AttributeAccessor src_attributes,
+                                              const bke::AttrDomain domain,
+                                              const OffsetIndices<int> src_offsets,
+                                              const OffsetIndices<int> dst_offsets,
+                                              const Span<int> old_by_new_map,
+                                              bke::MutableAttributeAccessor dst_attributes)
 {
-  src_attributes.for_all(
-      [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData meta_data) {
-        if (id.is_anonymous() && !propagation_info.propagate(id.anonymous_id())) {
-          return true;
-        }
-        if (meta_data.domain != domain) {
-          return true;
-        }
-        if (meta_data.data_type == CD_PROP_STRING) {
-          return true;
-        }
-        const GVArray src = *src_attributes.lookup(id, domain);
-        bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-            id, domain, meta_data.data_type);
-        if (!dst) {
-          return true;
-        }
+  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain != domain) {
+      return;
+    }
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
+    }
+    const GVArray src = *iter.get(domain);
+    bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+        iter.name, domain, iter.data_type);
+    if (!dst) {
+      return;
+    }
 
-        threading::parallel_for(old_by_new_map.index_range(), 1024, [&](const IndexRange range) {
-          for (const int new_i : range) {
-            const int old_i = old_by_new_map[new_i];
-            array_utils::copy(src.slice(src_offsets[old_i]), dst.span.slice(dst_offsets[new_i]));
-          }
-        });
+    threading::parallel_for(old_by_new_map.index_range(), 1024, [&](const IndexRange range) {
+      for (const int new_i : range) {
+        const int old_i = old_by_new_map[new_i];
+        array_utils::copy(src.slice(src_offsets[old_i]), dst.span.slice(dst_offsets[new_i]));
+      }
+    });
 
-        dst.finish();
-        return true;
-      });
+    dst.finish();
+  });
 }
 
 static Array<int> invert_permutation(const Span<int> permutation)
@@ -92,34 +84,16 @@ static Array<int> invert_permutation(const Span<int> permutation)
   return data;
 }
 
-static void copy_and_reorder_mesh_verts(
-    const Mesh &src_mesh,
-    const Span<int> old_by_new_map,
-    const bke::AnonymousAttributePropagationInfo &propagation_info,
-    Mesh &dst_mesh)
+static void reorder_mesh_verts_exec(const Mesh &src_mesh,
+                                    const Span<int> old_by_new_map,
+                                    Mesh &dst_mesh)
 {
-  const bke::AttributeAccessor src_attributes = src_mesh.attributes();
-  bke::MutableAttributeAccessor dst_attributes = dst_mesh.attributes_for_write();
-
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Edge, propagation_info, {}, dst_attributes);
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Face, propagation_info, {}, dst_attributes);
-  implicit_sharing::free_shared_data(&dst_mesh.face_offset_indices,
-                                     &dst_mesh.runtime->face_offsets_sharing_info);
-  implicit_sharing::copy_shared_pointer(src_mesh.face_offset_indices,
-                                        src_mesh.runtime->face_offsets_sharing_info,
-                                        &dst_mesh.face_offset_indices,
-                                        &dst_mesh.runtime->face_offsets_sharing_info);
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Corner, propagation_info, {}, dst_attributes);
-
-  bke::gather_attributes(src_attributes,
+  bke::gather_attributes(src_mesh.attributes(),
                          bke::AttrDomain::Point,
-                         propagation_info,
+                         bke::AttrDomain::Point,
                          {},
                          old_by_new_map,
-                         dst_attributes);
+                         dst_mesh.attributes_for_write());
   const Array<int> new_by_old_map = invert_permutation(old_by_new_map);
   array_utils::gather(new_by_old_map.as_span(),
                       dst_mesh.edges().cast<int>(),
@@ -128,79 +102,57 @@ static void copy_and_reorder_mesh_verts(
       new_by_old_map.as_span(), dst_mesh.corner_verts(), dst_mesh.corner_verts_for_write());
 }
 
-static void copy_and_reorder_mesh_edges(
-    const Mesh &src_mesh,
-    const Span<int> old_by_new_map,
-    const bke::AnonymousAttributePropagationInfo &propagation_info,
-    Mesh &dst_mesh)
+static void reorder_mesh_edges_exec(const Mesh &src_mesh,
+                                    const Span<int> old_by_new_map,
+                                    Mesh &dst_mesh)
 {
-  const bke::AttributeAccessor src_attributes = src_mesh.attributes();
-  bke::MutableAttributeAccessor dst_attributes = dst_mesh.attributes_for_write();
-
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Point, propagation_info, {}, dst_attributes);
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Face, propagation_info, {}, dst_attributes);
-  implicit_sharing::free_shared_data(&dst_mesh.face_offset_indices,
-                                     &dst_mesh.runtime->face_offsets_sharing_info);
-  implicit_sharing::copy_shared_pointer(src_mesh.face_offset_indices,
-                                        src_mesh.runtime->face_offsets_sharing_info,
-                                        &dst_mesh.face_offset_indices,
-                                        &dst_mesh.runtime->face_offsets_sharing_info);
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Corner, propagation_info, {}, dst_attributes);
-
-  bke::gather_attributes(
-      src_attributes, bke::AttrDomain::Edge, propagation_info, {}, old_by_new_map, dst_attributes);
+  bke::gather_attributes(src_mesh.attributes(),
+                         bke::AttrDomain::Edge,
+                         bke::AttrDomain::Edge,
+                         {},
+                         old_by_new_map,
+                         dst_mesh.attributes_for_write());
   const Array<int> new_by_old_map = invert_permutation(old_by_new_map);
   array_utils::gather(
       new_by_old_map.as_span(), dst_mesh.corner_edges(), dst_mesh.corner_edges_for_write());
 }
 
-static void copy_and_reorder_mesh_faces(
-    const Mesh &src_mesh,
-    const Span<int> old_by_new_map,
-    const bke::AnonymousAttributePropagationInfo &propagation_info,
-    Mesh &dst_mesh)
+static void reorder_mesh_faces_exec(const Mesh &src_mesh,
+                                    const Span<int> old_by_new_map,
+                                    Mesh &dst_mesh)
 {
-  const bke::AttributeAccessor src_attributes = src_mesh.attributes();
-  bke::MutableAttributeAccessor dst_attributes = dst_mesh.attributes_for_write();
-
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Point, propagation_info, {}, dst_attributes);
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Edge, propagation_info, {}, dst_attributes);
-
-  bke::gather_attributes(
-      src_attributes, bke::AttrDomain::Face, propagation_info, {}, old_by_new_map, dst_attributes);
+  bke::gather_attributes(src_mesh.attributes(),
+                         bke::AttrDomain::Face,
+                         bke::AttrDomain::Face,
+                         {},
+                         old_by_new_map,
+                         dst_mesh.attributes_for_write());
   const Span<int> old_offsets = src_mesh.face_offsets();
   MutableSpan<int> new_offsets = dst_mesh.face_offsets_for_write();
   offset_indices::gather_group_sizes(old_offsets, old_by_new_map, new_offsets);
   offset_indices::accumulate_counts_to_offsets(new_offsets);
-  reorder_attributes_group_to_group(src_attributes,
+  reorder_attributes_group_to_group(src_mesh.attributes(),
                                     bke::AttrDomain::Corner,
-                                    propagation_info,
                                     old_offsets,
                                     new_offsets.as_span(),
                                     old_by_new_map,
-                                    dst_attributes);
+                                    dst_mesh.attributes_for_write());
 }
 
-static void copy_and_reorder_mesh(const Mesh &src_mesh,
-                                  const Span<int> old_by_new_map,
-                                  const bke::AttrDomain domain,
-                                  const bke::AnonymousAttributePropagationInfo &propagation_info,
-                                  Mesh &dst_mesh)
+static void reorder_mesh_exec(const Mesh &src_mesh,
+                              const Span<int> old_by_new_map,
+                              const bke::AttrDomain domain,
+                              Mesh &dst_mesh)
 {
   switch (domain) {
     case bke::AttrDomain::Point:
-      copy_and_reorder_mesh_verts(src_mesh, old_by_new_map, propagation_info, dst_mesh);
+      reorder_mesh_verts_exec(src_mesh, old_by_new_map, dst_mesh);
       break;
     case bke::AttrDomain::Edge:
-      copy_and_reorder_mesh_edges(src_mesh, old_by_new_map, propagation_info, dst_mesh);
+      reorder_mesh_edges_exec(src_mesh, old_by_new_map, dst_mesh);
       break;
     case bke::AttrDomain::Face:
-      copy_and_reorder_mesh_faces(src_mesh, old_by_new_map, propagation_info, dst_mesh);
+      reorder_mesh_faces_exec(src_mesh, old_by_new_map, dst_mesh);
       break;
     default:
       break;
@@ -209,14 +161,13 @@ static void copy_and_reorder_mesh(const Mesh &src_mesh,
   dst_mesh.tag_topology_changed();
 }
 
-static void copy_and_reorder_points(const PointCloud &src_pointcloud,
-                                    const Span<int> old_by_new_map,
-                                    const bke::AnonymousAttributePropagationInfo &propagation_info,
-                                    PointCloud &dst_pointcloud)
+static void reorder_points_exec(const PointCloud &src_pointcloud,
+                                const Span<int> old_by_new_map,
+                                PointCloud &dst_pointcloud)
 {
   bke::gather_attributes(src_pointcloud.attributes(),
                          bke::AttrDomain::Point,
-                         propagation_info,
+                         bke::AttrDomain::Point,
                          {},
                          old_by_new_map,
                          dst_pointcloud.attributes_for_write());
@@ -224,118 +175,121 @@ static void copy_and_reorder_points(const PointCloud &src_pointcloud,
   dst_pointcloud.tag_radii_changed();
 }
 
-static void copy_and_reorder_curves(const bke::CurvesGeometry &src_curves,
-                                    const Span<int> old_by_new_map,
-                                    const bke::AnonymousAttributePropagationInfo &propagation_info,
-                                    bke::CurvesGeometry &dst_curves)
+static void reorder_curves_exec(const bke::CurvesGeometry &src_curves,
+                                const Span<int> old_by_new_map,
+                                bke::CurvesGeometry &dst_curves)
 {
-  const bke::AttributeAccessor src_attributes = src_curves.attributes();
-  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-
-  bke::gather_attributes(src_attributes,
+  bke::gather_attributes(src_curves.attributes(),
                          bke::AttrDomain::Curve,
-                         propagation_info,
+                         bke::AttrDomain::Curve,
                          {},
                          old_by_new_map,
-                         dst_attributes);
+                         dst_curves.attributes_for_write());
 
   const Span<int> old_offsets = src_curves.offsets();
   MutableSpan<int> new_offsets = dst_curves.offsets_for_write();
   offset_indices::gather_group_sizes(old_offsets, old_by_new_map, new_offsets);
   offset_indices::accumulate_counts_to_offsets(new_offsets);
 
-  reorder_attributes_group_to_group(src_attributes,
+  reorder_attributes_group_to_group(src_curves.attributes(),
                                     bke::AttrDomain::Point,
-                                    propagation_info,
                                     old_offsets,
                                     new_offsets.as_span(),
                                     old_by_new_map,
-                                    dst_attributes);
+                                    dst_curves.attributes_for_write());
   dst_curves.tag_topology_changed();
 }
 
-static void copy_and_reorder_instaces(
-    const bke::Instances &src_instances,
-    const Span<int> old_by_new_map,
-    const bke::AnonymousAttributePropagationInfo &propagation_info,
-    bke::Instances &dst_instances)
+static void reorder_instaces_exec(const bke::Instances &src_instances,
+                                  const Span<int> old_by_new_map,
+                                  bke::Instances &dst_instances)
 {
-  dst_instances.resize(src_instances.instances_num());
   bke::gather_attributes(src_instances.attributes(),
                          bke::AttrDomain::Instance,
-                         propagation_info,
+                         bke::AttrDomain::Instance,
                          {},
                          old_by_new_map,
                          dst_instances.attributes_for_write());
+}
 
-  for (const bke::InstanceReference &reference : src_instances.references()) {
-    dst_instances.add_reference(reference);
+static void clean_unused_attributes(const bke::AttributeFilter &attribute_filter,
+                                    bke::MutableAttributeAccessor attributes)
+{
+  Vector<std::string> unused_ids;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (!bke::attribute_name_is_anonymous(iter.name)) {
+      return;
+    }
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
+    }
+    if (!attribute_filter.allow_skip(iter.name)) {
+      return;
+    }
+    unused_ids.append(iter.name);
+  });
+
+  for (const std::string &unused_id : unused_ids) {
+    attributes.remove(unused_id);
   }
-  BLI_assert(src_instances.references() == dst_instances.references());
-
-  const Span<float4x4> old_transforms = src_instances.transforms();
-  MutableSpan<float4x4> new_transforms = dst_instances.transforms_for_write();
-  array_utils::gather(old_transforms, old_by_new_map, new_transforms);
 }
 
 Mesh *reorder_mesh(const Mesh &src_mesh,
-                   const Span<int> old_by_new_map,
-                   const bke::AttrDomain domain,
-                   const bke::AnonymousAttributePropagationInfo &propagation_info)
+                   Span<int> old_by_new_map,
+                   bke::AttrDomain domain,
+                   const bke::AttributeFilter &attribute_filter)
 {
-  Mesh *dst_mesh = bke::mesh_new_no_attributes(
-      src_mesh.verts_num, src_mesh.edges_num, src_mesh.faces_num, src_mesh.corners_num);
-  BKE_mesh_copy_parameters(dst_mesh, &src_mesh);
-  copy_and_reorder_mesh(src_mesh, old_by_new_map, domain, propagation_info, *dst_mesh);
+  Mesh *dst_mesh = BKE_mesh_copy_for_eval(src_mesh);
+  clean_unused_attributes(attribute_filter, dst_mesh->attributes_for_write());
+  reorder_mesh_exec(src_mesh, old_by_new_map, domain, *dst_mesh);
   return dst_mesh;
 }
 
 PointCloud *reorder_points(const PointCloud &src_pointcloud,
-                           const Span<int> old_by_new_map,
-                           const bke::AnonymousAttributePropagationInfo &propagation_info)
+                           Span<int> old_by_new_map,
+                           const bke::AttributeFilter &attribute_filter)
 {
-  PointCloud *dst_pointcloud = bke::pointcloud_new_no_attributes(src_pointcloud.totpoint);
-  copy_and_reorder_points(src_pointcloud, old_by_new_map, propagation_info, *dst_pointcloud);
+  PointCloud *dst_pointcloud = BKE_pointcloud_copy_for_eval(&src_pointcloud);
+  clean_unused_attributes(attribute_filter, dst_pointcloud->attributes_for_write());
+  reorder_points_exec(src_pointcloud, old_by_new_map, *dst_pointcloud);
   return dst_pointcloud;
 }
 
-bke::CurvesGeometry reorder_curves_geometry(
-    const bke::CurvesGeometry &src_curves,
-    const Span<int> old_by_new_map,
-    const bke::AnonymousAttributePropagationInfo &propagation_info)
+bke::CurvesGeometry reorder_curves_geometry(const bke::CurvesGeometry &src_curves,
+                                            Span<int> old_by_new_map,
+                                            const bke::AttributeFilter &attribute_filter)
 {
-  bke::CurvesGeometry dst_curves = bke::curves_new_no_attributes(src_curves.points_num(),
-                                                                 src_curves.curves_num());
-  copy_and_reorder_curves(src_curves, old_by_new_map, propagation_info, dst_curves);
+  bke::CurvesGeometry dst_curves = bke::CurvesGeometry(src_curves);
+  clean_unused_attributes(attribute_filter, dst_curves.attributes_for_write());
+  reorder_curves_exec(src_curves, old_by_new_map, dst_curves);
   return dst_curves;
 }
 
 Curves *reorder_curves(const Curves &src_curves,
                        Span<int> old_by_new_map,
-                       const bke::AnonymousAttributePropagationInfo &propagation_info)
+                       const bke::AttributeFilter &attribute_filter)
 {
   const bke::CurvesGeometry src_curve_geometry = src_curves.geometry.wrap();
-  Curves *dst_curves = bke::curves_new_nomain(src_curve_geometry.points_num(),
-                                              src_curve_geometry.curves_num());
+  Curves *dst_curves = BKE_curves_copy_for_eval(&src_curves);
   dst_curves->geometry.wrap() = reorder_curves_geometry(
-      src_curve_geometry, old_by_new_map, propagation_info);
+      src_curve_geometry, old_by_new_map, attribute_filter);
   return dst_curves;
 }
 
 bke::Instances *reorder_instaces(const bke::Instances &src_instances,
-                                 const Span<int> old_by_new_map,
-                                 const bke::AnonymousAttributePropagationInfo &propagation_info)
+                                 Span<int> old_by_new_map,
+                                 const bke::AttributeFilter &attribute_filter)
 {
-  bke::Instances *dst_instances = new bke::Instances();
-  copy_and_reorder_instaces(src_instances, old_by_new_map, propagation_info, *dst_instances);
+  bke::Instances *dst_instances = new bke::Instances(src_instances);
+  clean_unused_attributes(attribute_filter, dst_instances->attributes_for_write());
+  reorder_instaces_exec(src_instances, old_by_new_map, *dst_instances);
   return dst_instances;
 }
 
-bke::GeometryComponentPtr reordered_component(
-    const bke::GeometryComponent &src_component,
-    const Span<int> old_by_new_map,
-    const bke::AttrDomain domain,
-    const bke::AnonymousAttributePropagationInfo &propagation_info)
+bke::GeometryComponentPtr reordered_component(const bke::GeometryComponent &src_component,
+                                              const Span<int> old_by_new_map,
+                                              const bke::AttrDomain domain,
+                                              const bke::AttributeFilter &attribute_filter)
 {
   BLI_assert(!src_component.is_empty());
 
@@ -343,28 +297,28 @@ bke::GeometryComponentPtr reordered_component(
           &src_component))
   {
     Mesh *result_mesh = reorder_mesh(
-        *src_mesh_component->get(), old_by_new_map, domain, propagation_info);
+        *src_mesh_component->get(), old_by_new_map, domain, attribute_filter);
     return bke::GeometryComponentPtr(new bke::MeshComponent(result_mesh));
   }
   else if (const bke::PointCloudComponent *src_points_component =
                dynamic_cast<const bke::PointCloudComponent *>(&src_component))
   {
     PointCloud *result_point_cloud = reorder_points(
-        *src_points_component->get(), old_by_new_map, propagation_info);
+        *src_points_component->get(), old_by_new_map, attribute_filter);
     return bke::GeometryComponentPtr(new bke::PointCloudComponent(result_point_cloud));
   }
   else if (const bke::CurveComponent *src_curves_component =
                dynamic_cast<const bke::CurveComponent *>(&src_component))
   {
     Curves *result_curves = reorder_curves(
-        *src_curves_component->get(), old_by_new_map, propagation_info);
+        *src_curves_component->get(), old_by_new_map, attribute_filter);
     return bke::GeometryComponentPtr(new bke::CurveComponent(result_curves));
   }
   else if (const bke::InstancesComponent *src_instances_component =
                dynamic_cast<const bke::InstancesComponent *>(&src_component))
   {
     bke::Instances *result_instances = reorder_instaces(
-        *src_instances_component->get(), old_by_new_map, propagation_info);
+        *src_instances_component->get(), old_by_new_map, attribute_filter);
     return bke::GeometryComponentPtr(new bke::InstancesComponent(result_instances));
   }
 

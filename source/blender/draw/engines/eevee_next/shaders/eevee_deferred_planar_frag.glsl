@@ -6,10 +6,14 @@
  * Compute light objects lighting contribution using captured Gbuffer data.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_eval_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_lightprobe_eval_lib.glsl)
+#include "infos/eevee_deferred_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_planar_eval)
+
+#include "draw_view_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_light_eval_lib.glsl"
+#include "eevee_lightprobe_eval_lib.glsl"
 
 void main()
 {
@@ -19,32 +23,10 @@ void main()
 
   GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
 
-  vec3 P = drw_point_screen_to_world(vec3(uvcoordsvar.xy, depth));
-  vec3 Ng = gbuf.surface_N;
-  vec3 V = drw_world_incident_vector(P);
-  float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
-
-  ClosureLightStack stack;
-  stack.cl[0].N = gbuf.surface_N;
-  stack.cl[0].ltc_mat = LTC_LAMBERT_MAT;
-  stack.cl[0].type = LIGHT_DIFFUSE;
-
-  stack.cl[1].N = -gbuf.surface_N;
-  stack.cl[1].ltc_mat = LTC_LAMBERT_MAT;
-  stack.cl[1].type = LIGHT_DIFFUSE;
-
-  /* Direct light. */
-  light_eval(stack, P, Ng, V, vPz, gbuf.thickness);
-  /* Indirect light. */
-  SphericalHarmonicL1 sh = lightprobe_irradiance_sample(P, V, Ng);
-
-  vec3 radiance_front = stack.cl[0].light_shadowed + spherical_harmonics_evaluate_lambert(Ng, sh);
-  vec3 radiance_back = stack.cl[1].light_shadowed + spherical_harmonics_evaluate_lambert(-Ng, sh);
-
   vec3 albedo_front = vec3(0.0);
   vec3 albedo_back = vec3(0.0);
 
-  for (int i = 0; i < GBUFFER_LAYER_MAX && i < gbuf.closure_count; i++) {
+  for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < gbuf.closure_count; i++) {
     ClosureUndetermined cl = gbuffer_closure_get(gbuf, i);
     switch (cl.type) {
       case CLOSURE_BSSRDF_BURLEY_ID:
@@ -54,13 +36,45 @@ void main()
         break;
       case CLOSURE_BSDF_TRANSLUCENT_ID:
       case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
-        albedo_back += cl.color;
+        albedo_back += (gbuf.thickness != 0.0) ? square(cl.color) : cl.color;
         break;
       case CLOSURE_NONE_ID:
         /* TODO(fclem): Assert. */
         break;
     }
   }
+
+  vec3 P = drw_point_screen_to_world(vec3(uvcoordsvar.xy, depth));
+  vec3 Ng = gbuf.surface_N;
+  vec3 V = drw_world_incident_vector(P);
+  float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
+
+  ClosureUndetermined cl;
+  cl.N = gbuf.surface_N;
+  cl.type = CLOSURE_BSDF_DIFFUSE_ID;
+
+  ClosureUndetermined cl_transmit;
+  cl_transmit.N = gbuf.surface_N;
+  cl_transmit.type = CLOSURE_BSDF_TRANSLUCENT_ID;
+
+  /* Direct light. */
+  ClosureLightStack stack;
+  stack.cl[0] = closure_light_new(cl, V);
+  uchar receiver_light_set = gbuffer_light_link_receiver_unpack(gbuf.header);
+  light_eval_reflection(stack, P, Ng, V, vPz, receiver_light_set);
+
+  vec3 radiance_front = stack.cl[0].light_shadowed;
+
+  stack.cl[0] = closure_light_new(cl_transmit, V, gbuf.thickness);
+  light_eval_transmission(stack, P, Ng, V, vPz, gbuf.thickness, receiver_light_set);
+
+  vec3 radiance_back = stack.cl[0].light_shadowed;
+
+  /* Indirect light. */
+  SphericalHarmonicL1 sh = lightprobe_volume_sample(P, V, Ng);
+
+  radiance_front += spherical_harmonics_evaluate_lambert(Ng, sh);
+  radiance_back += spherical_harmonics_evaluate_lambert(-Ng, sh);
 
   out_radiance = vec4(radiance_front * albedo_front + radiance_back * albedo_back, 0.0);
 }

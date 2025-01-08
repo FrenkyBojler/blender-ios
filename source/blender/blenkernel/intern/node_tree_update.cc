@@ -2,12 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
+#include "BLI_string_utf8_symbols.h"
 #include "BLI_vector_set.hh"
 
 #include "DNA_anim_types.h"
@@ -15,20 +18,26 @@
 #include "DNA_node_types.h"
 
 #include "BKE_anim_data.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_anonymous_attributes.hh"
+#include "BKE_node_tree_reference_lifetimes.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "MOD_nodes.hh"
 
+#include "NOD_geometry_nodes_dependencies.hh"
+#include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 #include "NOD_texture.h"
+
+#include "DEG_depsgraph_build.hh"
+
+#include "BLT_translation.hh"
 
 using namespace blender::nodes;
 
@@ -278,10 +287,10 @@ struct NodeTreeRelations {
     return group_node_users_->lookup(ntree);
   }
 
-  ID *get_owner_id(bNodeTree *ntree)
+  ID &get_owner_id(bNodeTree *ntree)
   {
     BLI_assert(owner_ids_.has_value());
-    return owner_ids_->lookup_default(ntree, &ntree->id);
+    return *owner_ids_->lookup_default(ntree, &ntree->id);
   }
 };
 
@@ -296,6 +305,7 @@ class NodeTreeMainUpdater {
   NodeTreeUpdateExtraParams *params_;
   Map<bNodeTree *, TreeUpdateResult> update_result_by_tree_;
   NodeTreeRelations relations_;
+  bool needs_relations_update_ = false;
 
  public:
   NodeTreeMainUpdater(Main *bmain, NodeTreeUpdateExtraParams *params)
@@ -386,13 +396,19 @@ class NodeTreeMainUpdater {
 
       if (params_) {
         relations_.ensure_owner_ids();
-        ID *id = relations_.get_owner_id(ntree);
+        ID &owner_id = relations_.get_owner_id(ntree);
         if (params_->tree_changed_fn) {
-          params_->tree_changed_fn(id, ntree, params_->user_data);
+          params_->tree_changed_fn(*ntree, owner_id);
         }
         if (params_->tree_output_changed_fn && result.output_changed) {
-          params_->tree_output_changed_fn(id, ntree, params_->user_data);
+          params_->tree_output_changed_fn(*ntree, owner_id);
         }
+      }
+    }
+
+    if (needs_relations_update_) {
+      if (bmain_) {
+        DEG_relations_tag_update(bmain_);
       }
     }
   }
@@ -484,6 +500,8 @@ class NodeTreeMainUpdater {
   {
     TreeUpdateResult result;
 
+    ntree.runtime->link_errors_by_target_node.clear();
+
     this->update_socket_link_and_use(ntree);
     this->update_individual_nodes(ntree);
     this->update_internal_links(ntree);
@@ -500,9 +518,14 @@ class NodeTreeMainUpdater {
         result.interface_changed = true;
       }
       this->update_from_field_inference(ntree);
-      if (anonymous_attribute_inferencing::update_anonymous_attribute_relations(ntree)) {
+      if (node_tree_reference_lifetimes::analyse_reference_lifetimes(ntree)) {
         result.interface_changed = true;
       }
+      if (nodes::gizmos::update_tree_gizmo_propagation(ntree)) {
+        result.interface_changed = true;
+      }
+      this->update_socket_shapes(ntree);
+      this->update_eval_dependencies(ntree);
     }
 
     result.output_changed = this->check_if_output_changed(ntree);
@@ -564,9 +587,9 @@ class NodeTreeMainUpdater {
   void update_individual_nodes(bNodeTree &ntree)
   {
     for (bNode *node : ntree.all_nodes()) {
-      blender::bke::nodeDeclarationEnsure(&ntree, node);
+      bke::node_declaration_ensure(&ntree, node);
       if (this->should_update_individual_node(ntree, *node)) {
-        bNodeType &ntype = *node->typeinfo;
+        bke::bNodeType &ntype = *node->typeinfo;
         if (ntype.group_update_func) {
           ntype.group_update_func(&ntree, node);
         }
@@ -621,11 +644,11 @@ class NodeTreeMainUpdater {
     BLI_STRUCT_EQUALITY_OPERATORS_3(InternalLink, from, to, multi_input_sort_id);
   };
 
-  const bNodeLink *first_non_dangling_link(const bNodeTree &ntree,
+  const bNodeLink *first_non_dangling_link(const bNodeTree & /*ntree*/,
                                            const Span<const bNodeLink *> links) const
   {
     for (const bNodeLink *link : links) {
-      if (!bke::nodeIsDanglingReroute(&ntree, link->fromnode)) {
+      if (!link->fromnode->is_dangling_reroute()) {
         return link;
       }
     }
@@ -698,6 +721,9 @@ class NodeTreeMainUpdater {
     if (node.type == GEO_NODE_BAKE) {
       /* Internal links should always map corresponding input and output sockets. */
       return &node.input_by_identifier(output_socket->identifier);
+    }
+    if (node.type == GEO_NODE_CAPTURE_ATTRIBUTE) {
+      return &node.input_socket(output_socket->index());
     }
     for (const bNodeSocket *input_socket : node.input_sockets()) {
       if (!input_socket->is_available()) {
@@ -824,15 +850,51 @@ class NodeTreeMainUpdater {
     /* Automatically tag a bake item as attribute when the input is a field. The flag should not be
      * removed automatically even when the field input is disconnected because the baked data may
      * still contain attribute data instead of a single value. */
+    const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
     for (bNode *node : ntree.nodes_by_type("GeometryNodeBake")) {
       NodeGeometryBake &storage = *static_cast<NodeGeometryBake *>(node->storage);
       for (const int i : IndexRange(storage.items_num)) {
         const bNodeSocket &socket = node->input_socket(i);
         NodeGeometryBakeItem &item = storage.items[i];
-        if (socket.display_shape == SOCK_DISPLAY_SHAPE_DIAMOND) {
+        if (field_states[socket.index_in_tree()] == FieldSocketState::IsField) {
           item.flag |= GEO_NODE_BAKE_ITEM_IS_ATTRIBUTE;
         }
       }
+    }
+  }
+
+  void update_socket_shapes(bNodeTree &ntree)
+  {
+    ntree.ensure_topology_cache();
+    const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
+    for (bNodeSocket *socket : ntree.all_sockets()) {
+      switch (field_states[socket->index_in_tree()]) {
+        case bke::FieldSocketState::RequiresSingle:
+          socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+          break;
+        case bke::FieldSocketState::CanBeField:
+          socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND_DOT;
+          break;
+        case bke::FieldSocketState::IsField:
+          socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND;
+          break;
+      }
+    }
+  }
+
+  void update_eval_dependencies(bNodeTree &ntree)
+  {
+    ntree.ensure_topology_cache();
+    nodes::GeometryNodesEvalDependencies new_deps =
+        nodes::gather_geometry_nodes_eval_dependencies_with_cache(ntree);
+
+    /* Check if the dependencies have changed. */
+    if (!ntree.runtime->geometry_nodes_eval_dependencies ||
+        new_deps != *ntree.runtime->geometry_nodes_eval_dependencies)
+    {
+      needs_relations_update_ = true;
+      ntree.runtime->geometry_nodes_eval_dependencies =
+          std::make_unique<nodes::GeometryNodesEvalDependencies>(std::move(new_deps));
     }
   }
 
@@ -913,6 +975,23 @@ class NodeTreeMainUpdater {
         const bNodeSocket *output = node->output_sockets().first();
         for (bNodeSocket *input : node->input_sockets().drop_front(1)) {
           if (input->is_available() && input->type == SOCK_MENU) {
+            this->update_socket_enum_definition(
+                *input->default_value_typed<bNodeSocketValueMenu>(),
+                *output->default_value_typed<bNodeSocketValueMenu>());
+          }
+        }
+      }
+      else if (node->type == GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT) {
+        /* Propagate menu from element inputs to field inputs. */
+        BLI_assert(node->input_sockets().size() == node->output_sockets().size());
+        /* Inputs Geometry, Selection and outputs Index, Element are ignored. */
+        const IndexRange sockets = node->input_sockets().index_range().drop_front(2);
+        for (const int socket_i : sockets) {
+          bNodeSocket *input = node->input_sockets()[socket_i];
+          bNodeSocket *output = node->output_sockets()[socket_i];
+          if (input->is_available() && input->type == SOCK_MENU && output->is_available() &&
+              output->type == SOCK_MENU)
+          {
             this->update_socket_enum_definition(
                 *input->default_value_typed<bNodeSocketValueMenu>(),
                 *output->default_value_typed<bNodeSocketValueMenu>());
@@ -1098,15 +1177,6 @@ class NodeTreeMainUpdater {
 
   void update_link_validation(bNodeTree &ntree)
   {
-    const Span<const bNode *> toposort = ntree.toposort_left_to_right();
-
-    /* Build an array of toposort indices to allow retrieving the "depth" for each node. */
-    Array<int> toposort_indices(toposort.size());
-    for (const int i : toposort.index_range()) {
-      const bNode &node = *toposort[i];
-      toposort_indices[node.index()] = i;
-    }
-
     /* Tests if enum references are undefined. */
     const auto is_invalid_enum_ref = [](const bNodeSocket &socket) -> bool {
       if (socket.type == SOCK_MENU) {
@@ -1123,12 +1193,32 @@ class NodeTreeMainUpdater {
       }
       if (is_invalid_enum_ref(*link->fromsock) || is_invalid_enum_ref(*link->tosock)) {
         link->flag &= ~NODE_LINK_VALID;
+        ntree.runtime->link_errors_by_target_node.add(
+            link->tonode->identifier,
+            NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
         continue;
+      }
+      if (ntree.type == NTREE_GEOMETRY) {
+        const Span<FieldSocketState> field_states = ntree.runtime->field_states;
+        if (field_states[link->fromsock->index_in_tree()] == FieldSocketState::IsField &&
+            field_states[link->tosock->index_in_tree()] != FieldSocketState::IsField)
+        {
+          link->flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors_by_target_node.add(
+              link->tonode->identifier,
+              NodeLinkError{TIP_("The node input does not support fields")});
+          continue;
+        }
       }
       const bNode &from_node = *link->fromnode;
       const bNode &to_node = *link->tonode;
-      if (toposort_indices[from_node.index()] > toposort_indices[to_node.index()]) {
+      if (from_node.runtime->toposort_left_to_right_index >
+          to_node.runtime->toposort_left_to_right_index)
+      {
         link->flag &= ~NODE_LINK_VALID;
+        ntree.runtime->link_errors_by_target_node.add(
+            link->tonode->identifier,
+            NodeLinkError{TIP_("The links form a cycle which is not supported")});
         continue;
       }
       if (ntree.typeinfo->validate_link) {
@@ -1136,6 +1226,13 @@ class NodeTreeMainUpdater {
         const eNodeSocketDatatype to_type = eNodeSocketDatatype(link->tosock->type);
         if (!ntree.typeinfo->validate_link(from_type, to_type)) {
           link->flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors_by_target_node.add(
+              link->tonode->identifier,
+              NodeLinkError{fmt::format("{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
+                                        " {}",
+                                        TIP_("Conversion is not supported"),
+                                        TIP_(link->fromsock->typeinfo->label),
+                                        TIP_(link->tosock->typeinfo->label))});
           continue;
         }
       }
@@ -1224,6 +1321,12 @@ class NodeTreeMainUpdater {
       return true;
     }
     if (node.type == NODE_GROUP_OUTPUT) {
+      return true;
+    }
+    if (node.type == GEO_NODE_WARNING) {
+      return true;
+    }
+    if (nodes::gizmos::is_builtin_gizmo_node(node)) {
       return true;
     }
     /* Assume node groups without output sockets are outputs. */
@@ -1431,6 +1534,32 @@ class NodeTreeMainUpdater {
             }
           }
         }
+        /* Zones may propagate changes from the input node to the output node even though there is
+         * no explicit link. */
+        switch (node.type) {
+          case GEO_NODE_REPEAT_OUTPUT:
+          case GEO_NODE_SIMULATION_OUTPUT:
+          case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
+            const bNodeTreeZones *zones = tree.zones();
+            if (!zones) {
+              break;
+            }
+            const bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
+            if (!zone->input_node) {
+              break;
+            }
+            for (const bNodeSocket *input_socket : zone->input_node->input_sockets()) {
+              if (input_socket->is_available()) {
+                bool &pushed = pushed_by_socket_id[input_socket->index_in_tree()];
+                if (!pushed) {
+                  sockets_to_check.push(input_socket);
+                  pushed = true;
+                }
+              }
+            }
+            break;
+          }
+        }
         /* The Normal node has a special case, because the value stored in the first output
          * socket is used as input in the node. */
         if (node.type == SH_NODE_NORMAL && socket.index() == 1) {
@@ -1470,7 +1599,7 @@ class NodeTreeMainUpdater {
     for (const bNestedNodePath &path : old_id_by_path.keys()) {
       const bNode *node = ntree.node_by_id(path.node_id);
       if (node && node->is_group() && node->id) {
-        if (node->id->tag & LIB_TAG_MISSING) {
+        if (node->id->tag & ID_TAG_MISSING) {
           nested_node_paths.append(path);
         }
       }

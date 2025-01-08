@@ -34,7 +34,7 @@
 #include "IMB_moviecache.hh"
 
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_paint.hh"
 
 #include "BIF_glutil.hh"
@@ -79,7 +79,7 @@ static void draw_render_info(
     ED_region_info_draw(region, rr->text, fill_color, true);
   }
 
-  BKE_image_release_renderresult(stats_scene, ima);
+  BKE_image_release_renderresult(stats_scene, ima, rr);
 
   if (re) {
     int total_tiles;

@@ -27,7 +27,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -141,7 +141,7 @@ static void deform_verts(ModifierData *md,
   }
 
   /* make new mesh */
-  psmd->mesh_final = BKE_mesh_copy_for_eval(mesh);
+  psmd->mesh_final = BKE_mesh_copy_for_eval(*mesh);
   psmd->mesh_final->vert_positions_for_write().copy_from(positions);
   psmd->mesh_final->tag_positions_changed();
 
@@ -173,7 +173,7 @@ static void deform_verts(ModifierData *md,
       /* Make a persistent copy of the mesh. We don't actually need
        * all this data, just some topology for remapping. Could be
        * optimized once. */
-      psmd->mesh_original = BKE_mesh_copy_for_eval(mesh_original);
+      psmd->mesh_original = BKE_mesh_copy_for_eval(*mesh_original);
     }
 
     BKE_mesh_tessface_ensure(psmd->mesh_original);
@@ -253,7 +253,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   psmd->mesh_final = nullptr;
   psmd->mesh_original = nullptr;
   /* This is written as part of ob->particlesystem. */
-  BLO_read_data_address(reader, &psmd->psys);
+  BLO_read_struct(reader, ParticleSystem, &psmd->psys);
   psmd->flag &= ~eParticleSystemFlag_psys_updated;
   psmd->flag |= eParticleSystemFlag_file_loaded;
 }

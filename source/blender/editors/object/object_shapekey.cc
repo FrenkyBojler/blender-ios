@@ -229,7 +229,7 @@ static bool object_shape_key_mirror(
       ED_mesh_mirror_spatial_table_end(ob);
     }
     else if (ob->type == OB_LATTICE) {
-      Lattice *lt = static_cast<Lattice *>(ob->data);
+      const Lattice *lt = static_cast<const Lattice *>(ob->data);
       int i1, i2;
       float *fp1, *fp2;
       int u, v, w;
@@ -296,8 +296,8 @@ static bool shape_key_poll(bContext *C)
   Object *ob = context_object(C);
   ID *data = static_cast<ID *>((ob) ? ob->data : nullptr);
 
-  return (ob != nullptr && !ID_IS_LINKED(ob) && !ID_IS_OVERRIDE_LIBRARY(ob) && data != nullptr &&
-          !ID_IS_LINKED(data) && !ID_IS_OVERRIDE_LIBRARY(data));
+  return (ob != nullptr && ID_IS_EDITABLE(ob) && !ID_IS_OVERRIDE_LIBRARY(ob) && data != nullptr &&
+          ID_IS_EDITABLE(data) && !ID_IS_OVERRIDE_LIBRARY(data));
 }
 
 static bool shape_key_exists_poll(bContext *C)
@@ -484,7 +484,7 @@ static int shape_key_clear_exec(bContext *C, wmOperator * /*op*/)
   }
 
   LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
-    kb->curval = 0.0f;
+    kb->curval = clamp_f(0.0f, kb->slidermin, kb->slidermax);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -497,7 +497,8 @@ void OBJECT_OT_shape_key_clear(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Clear Shape Keys";
-  ot->description = "Clear weights for all shape keys";
+  ot->description =
+      "Reset the weights of all shape keys to 0 or to the closest value respecting the limits";
   ot->idname = "OBJECT_OT_shape_key_clear";
 
   /* api callbacks */
@@ -704,11 +705,11 @@ static int shape_key_lock_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static std::string shape_key_lock_description(bContext * /*C*/,
-                                              wmOperatorType * /*op*/,
-                                              PointerRNA *params)
+static std::string shape_key_lock_get_description(bContext * /*C*/,
+                                                  wmOperatorType * /*op*/,
+                                                  PointerRNA *ptr)
 {
-  const int action = RNA_enum_get(params, "action");
+  const int action = RNA_enum_get(ptr, "action");
 
   switch (action) {
     case SHAPE_KEY_LOCK:
@@ -738,7 +739,7 @@ void OBJECT_OT_shape_key_lock(wmOperatorType *ot)
   /* api callbacks */
   ot->poll = shape_key_exists_poll;
   ot->exec = shape_key_lock_exec;
-  ot->get_description = shape_key_lock_description;
+  ot->get_description = shape_key_lock_get_description;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

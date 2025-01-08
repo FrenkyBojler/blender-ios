@@ -18,7 +18,10 @@
 #include "draw_shader_shared.hh"
 
 #include "eevee_lut.hh"
+#include "eevee_raytrace.hh"
 #include "eevee_subsurface.hh"
+
+struct Camera;
 
 namespace blender::eevee {
 
@@ -35,13 +38,15 @@ class BackgroundPipeline {
  private:
   Instance &inst_;
 
+  PassSimple clear_ps_ = {"World.Background.Clear"};
   PassSimple world_ps_ = {"World.Background"};
 
  public:
   BackgroundPipeline(Instance &inst) : inst_(inst){};
 
   void sync(GPUMaterial *gpumat, float background_opacity, float background_blur);
-  void render(View &view);
+  void clear(View &view);
+  void render(View &view, Framebuffer &combined_fb);
 };
 
 /** \} */
@@ -163,7 +168,7 @@ class ForwardPipeline {
                                           ::Material *blender_mat,
                                           GPUMaterial *gpumat);
 
-  void render(View &view, Framebuffer &prepass_fb, Framebuffer &combined_fb);
+  void render(View &view, Framebuffer &prepass_fb, Framebuffer &combined_fb, int2 extent);
 };
 
 /** \} */
@@ -191,6 +196,22 @@ struct DeferredLayerBase {
   eClosureBits closure_bits_ = CLOSURE_NONE;
   /* Maximum closure count considering all material in this pass. */
   int closure_count_ = 0;
+
+  /* Stencil values used during the deferred pipeline. */
+  enum class StencilBits : uint8_t {
+    /* Bits 0 to 1 are reserved for closure count [0..3]. */
+    CLOSURE_COUNT_0 = (1u << 0u),
+    CLOSURE_COUNT_1 = (1u << 1u),
+    /* Set for pixels have a transmission closure. */
+    TRANSMISSION = (1u << 2u),
+    /** Bits set by the StencilClassify pass. Set per pixel from gbuffer header data. */
+    HEADER_BITS = CLOSURE_COUNT_0 | CLOSURE_COUNT_1 | TRANSMISSION,
+
+    /* Set for materials that uses the shadow amend pass. */
+    THICKNESS_FROM_SHADOW = (1u << 3u),
+    /** Bits set by the material gbuffer pass. Set per materials. */
+    MATERIAL_BITS = THICKNESS_FROM_SHADOW,
+  };
 
   /* Return the amount of gbuffer layer needed. */
   int closure_layer_count() const
@@ -248,9 +269,13 @@ class DeferredLayer : DeferredLayerBase {
    */
   TextureFromPool direct_radiance_txs_[3] = {
       {"direct_radiance_1"}, {"direct_radiance_2"}, {"direct_radiance_3"}};
-  Texture dummy_black_tx = {"dummy_black_tx"};
+  /* NOTE: Only used when `use_split_radiance` is true. */
+  TextureFromPool indirect_radiance_txs_[3] = {
+      {"indirect_radiance_1"}, {"indirect_radiance_2"}, {"indirect_radiance_3"}};
+  /* Used when there is no indirect radiance buffer. */
+  Texture dummy_black = {"dummy_black"};
   /* Reference to ray-tracing results. */
-  GPUTexture *indirect_radiance_txs_[3] = {nullptr};
+  GPUTexture *radiance_feedback_tx_ = nullptr;
 
   /**
    * Tile texture containing several bool per tile indicating presence of feature.
@@ -258,34 +283,57 @@ class DeferredLayer : DeferredLayerBase {
    */
   Texture tile_mask_tx_ = {"tile_mask_tx_"};
 
-  /* TODO(fclem): This should be a TextureFromPool. */
-  Texture radiance_behind_tx_ = {"radiance_behind_tx"};
-  /* TODO(fclem): This shouldn't be part of the pipeline but of the view. */
-  Texture radiance_feedback_tx_ = {"radiance_feedback_tx"};
-  float4x4 radiance_feedback_persmat_;
+  RayTraceResult indirect_result_;
 
-  bool use_combined_lightprobe_eval = true;
+  bool use_split_radiance_ = true;
+  /* Output radiance from the combine shader instead of copy. Allow passing unclamped result. */
+  bool use_feedback_output_ = false;
+  bool use_raytracing_ = false;
+  bool use_screen_transmission_ = false;
+  bool use_screen_reflection_ = false;
+  bool use_clamp_direct_ = false;
+  bool use_clamp_indirect_ = false;
 
  public:
-  DeferredLayer(Instance &inst) : inst_(inst){};
+  DeferredLayer(Instance &inst) : inst_(inst)
+  {
+    float4 data(0.0f);
+    dummy_black.ensure_2d(RAYTRACE_RADIANCE_FORMAT,
+                          int2(1),
+                          GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE,
+                          data);
+  }
 
   void begin_sync();
-  void end_sync();
+  void end_sync(bool is_first_pass, bool is_last_pass, bool next_layer_has_transmission);
 
   PassMain::Sub *prepass_add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
   PassMain::Sub *material_add(::Material *blender_mat, GPUMaterial *gpumat);
 
-  void render(View &main_view,
-              View &render_view,
-              Framebuffer &prepass_fb,
-              Framebuffer &gbuffer_fb,
-              Framebuffer &combined_fb,
-              int2 extent,
-              RayTraceBuffer &rt_buffer,
-              bool is_first_pass);
+  bool is_empty() const
+  {
+    return closure_count_ == 0;
+  }
+
+  bool has_transmission() const
+  {
+    return closure_bits_ & CLOSURE_TRANSMISSION;
+  }
+
+  /* Returns the radiance buffer to feed the next layer. */
+  GPUTexture *render(View &main_view,
+                     View &render_view,
+                     Framebuffer &prepass_fb,
+                     Framebuffer &combined_fb,
+                     Framebuffer &gbuffer_fb,
+                     int2 extent,
+                     RayTraceBuffer &rt_buffer,
+                     GPUTexture *radiance_behind_tx);
 };
 
 class DeferredPipeline {
+  friend DeferredLayer;
+
  private:
   /* Gbuffer filling passes. We could have an arbitrary number of them but for now we just have
    * a hardcoded number of them. */
@@ -329,6 +377,11 @@ class DeferredPipeline {
   }
 
   void debug_draw(draw::View &view, GPUFrameBuffer *combined_fb);
+
+  bool is_empty() const
+  {
+    return opaque_layer_.is_empty() && refraction_layer_.is_empty();
+  }
 
  private:
   void debug_pass_sync();
@@ -403,8 +456,6 @@ class VolumePipeline {
 
   /* Combined bounds in Z. Allow tighter integration bounds. */
   std::optional<Bounds<float>> object_integration_range_;
-  /* True if any volume (any object type) creates a volume draw-call. Enables the volume module. */
-  bool enabled_ = false;
   /* Aggregated properties of all volume objects. */
   bool has_scatter_ = false;
   bool has_absorption_ = false;
@@ -423,10 +474,6 @@ class VolumePipeline {
 
   std::optional<Bounds<float>> object_integration_range() const;
 
-  bool is_enabled() const
-  {
-    return enabled_;
-  }
   bool has_scatter() const
   {
     for (auto &layer : layers_) {
@@ -660,7 +707,7 @@ class PipelineModule {
 
   void begin_sync()
   {
-    data.is_probe_reflection = false;
+    data.is_sphere_probe = false;
     probe.begin_sync();
     planar.begin_sync();
     deferred.begin_sync();

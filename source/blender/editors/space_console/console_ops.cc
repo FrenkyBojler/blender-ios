@@ -1378,15 +1378,15 @@ void CONSOLE_OT_select_set(wmOperatorType *ot)
 }
 
 static int console_modal_select_all_invoke(bContext *C,
-                                           wmOperator * /* op */,
-                                           const wmEvent * /* event */)
+                                           wmOperator * /*op*/,
+                                           const wmEvent * /*event*/)
 {
   ScrArea *area = CTX_wm_area(C);
   SpaceConsole *sc = CTX_wm_space_console(C);
 
   int offset = strlen(sc->prompt);
 
-  for (ConsoleLine *cl = static_cast<ConsoleLine *>(sc->scrollback.first); cl; cl = cl->next) {
+  LISTBASE_FOREACH (ConsoleLine *, cl, &sc->scrollback) {
     offset += cl->len + 1;
   }
 

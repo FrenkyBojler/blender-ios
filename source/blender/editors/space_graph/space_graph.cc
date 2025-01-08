@@ -70,14 +70,14 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   sipo->flag |= SIPO_SHOW_MARKERS;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* channels */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "channels region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_CHANNELS;
@@ -86,14 +86,14 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
 
   /* ui buttons */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "buttons region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_RIGHT;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -176,9 +176,10 @@ static void graph_main_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_poll(
+      &region->runtime->handlers, keymap, WM_event_handler_region_v2d_mask_no_marker_poll);
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 /* Draw a darker area above 1 and below -1. */
@@ -242,8 +243,10 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
     graph_draw_curves(&ac, sipo, region, 1);
 
     /* XXX(ton): the slow way to set tot rect... but for nice sliders needed. */
+    /* Excluding handles from the calculation to save performance. This cuts the time it takes for
+     * this function to run in half which is a major performance bottleneck on heavy scenes.  */
     get_graph_keyframe_extents(
-        &ac, &v2d->tot.xmin, &v2d->tot.xmax, &v2d->tot.ymin, &v2d->tot.ymax, false, true);
+        &ac, &v2d->tot.xmin, &v2d->tot.xmax, &v2d->tot.ymin, &v2d->tot.ymax, false, false);
     /* extra offset so that these items are visible */
     v2d->tot.xmin -= 10.0f;
     v2d->tot.xmax += 10.0f;
@@ -331,17 +334,23 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
     ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME);
   }
 
-  /* scrollers */
-  const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
-  /* FIXME: args for scrollers depend on the type of data being shown. */
-  UI_view2d_scrollers_draw(v2d, &scroller_mask);
+  if (region->winy > HEADERY * UI_SCALE_FAC) {
+    /* scrollers */
+    const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
+    /* FIXME: args for scrollers depend on the type of data being shown. */
+    region->v2d.scroll |= V2D_SCROLL_BOTTOM;
+    UI_view2d_scrollers_draw(v2d, &scroller_mask);
 
-  /* scale numbers */
-  {
-    rcti rect;
-    BLI_rcti_init(
-        &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-    UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
+    /* scale numbers */
+    {
+      rcti rect;
+      BLI_rcti_init(
+          &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
+      UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
+    }
+  }
+  else {
+    region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
   }
 }
 
@@ -362,9 +371,9 @@ static void graph_channel_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void set_v2d_height(View2D *v2d, const size_t item_count)
@@ -427,7 +436,7 @@ static void graph_buttons_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void graph_buttons_region_draw(const bContext *C, ARegion *region)
@@ -534,7 +543,7 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
    * so just whitelist the entire structs for updates
    */
   {
-    wmMsgParams_RNA msg_key_params = {{nullptr}};
+    wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
         &RNA_DopeSheet, /* dopesheet filters */
 
@@ -551,7 +560,6 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
         &RNA_FModifierGenerator,
         &RNA_FModifierLimits,
         &RNA_FModifierNoise,
-        &RNA_FModifierPython,
         &RNA_FModifierStepped,
     };
 
@@ -670,6 +678,8 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 
   /* loop over F-Curves, assigning colors */
   for (ale = static_cast<bAnimListElem *>(anim_data.first), i = 0; ale; ale = ale->next, i++) {
+    BLI_assert_msg(ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE),
+                   "Expecting only FCurves when using the ANIMFILTER_FCURVESONLY filter");
     FCurve *fcu = (FCurve *)ale->data;
 
     /* set color of curve here */
@@ -836,8 +846,8 @@ static void graph_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
     return;
   }
 
-  BKE_LIB_FOREACHID_PROCESS_ID(data, sgraph->ads->source, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sgraph->ads->filter_grp, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, sgraph->ads->source, IDWALK_CB_DIRECT_WEAK_LINK);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sgraph->ads->filter_grp, IDWALK_CB_DIRECT_WEAK_LINK);
 
   if (!is_readonly) {
     /* Force recalc of list of channels (i.e. including calculating F-Curve colors) to
@@ -865,11 +875,27 @@ static void graph_space_subtype_item_extend(bContext * /*C*/,
   RNA_enum_items_add(item, totitem, rna_enum_space_graph_mode_items);
 }
 
+static blender::StringRefNull graph_space_name_get(const ScrArea *area)
+{
+  SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_graph_mode_items, sgraph->mode);
+  const EnumPropertyItem item = rna_enum_space_graph_mode_items[index];
+  return item.name;
+}
+
+static int graph_space_icon_get(const ScrArea *area)
+{
+  SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_graph_mode_items, sgraph->mode);
+  const EnumPropertyItem item = rna_enum_space_graph_mode_items[index];
+  return item.icon;
+}
+
 static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceGraph *sipo = (SpaceGraph *)sl;
 
-  BLO_read_data_address(reader, &sipo->ads);
+  BLO_read_struct(reader, bDopeSheet, &sipo->ads);
   memset(&sipo->runtime, 0x0, sizeof(sipo->runtime));
 }
 
@@ -911,6 +937,8 @@ void ED_spacetype_ipo()
   st->space_subtype_item_extend = graph_space_subtype_item_extend;
   st->space_subtype_get = graph_space_subtype_get;
   st->space_subtype_set = graph_space_subtype_set;
+  st->space_name_get = graph_space_name_get;
+  st->space_icon_get = graph_space_icon_get;
   st->blend_read_data = graph_space_blend_read_data;
   st->blend_read_after_liblink = nullptr;
   st->blend_write = graph_space_blend_write;

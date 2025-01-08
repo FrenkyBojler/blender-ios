@@ -43,8 +43,8 @@
 #include "RNA_define.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "text_format.hh"
@@ -861,6 +861,7 @@ static int text_run_script(bContext *C, ReportList *reports)
   /* only for comparison */
   void *curl_prev = text->curl;
   int curc_prev = text->curc;
+  int selc_prev = text->selc;
 
   if (BPY_run_text(C, text, reports, !is_live)) {
     if (is_live) {
@@ -874,7 +875,7 @@ static int text_run_script(bContext *C, ReportList *reports)
   if (!is_live) {
     /* text may have freed itself */
     if (CTX_data_edit_text(C) == text) {
-      if (text->curl != curl_prev || curc_prev != text->curc) {
+      if (text->curl != curl_prev || curc_prev != text->curc || selc_prev != text->selc) {
         space_text_update_cursor_moved(C);
         WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
       }
@@ -2684,7 +2685,7 @@ static void space_text_screen_skip(SpaceText *st, ARegion *region, int lines)
   space_text_screen_clamp(st, region);
 }
 
-/* quick enum for tsc->zone (scroller handles) */
+/** Enum for #TextScroll::zone (scroll-bar handles). */
 enum eScrollZone {
   SCROLLHANDLE_INVALID_OUTSIDE = -1,
   SCROLLHANDLE_BAR,
@@ -3841,7 +3842,7 @@ static int text_find_and_replace(bContext *C, wmOperator *op, short mode)
   }
   else {
     if (!found) {
-      BKE_reportf(op->reports, RPT_WARNING, "Text not found: %s", st->findstr);
+      BKE_reportf(op->reports, RPT_INFO, "Text not found: %s", st->findstr);
     }
   }
 

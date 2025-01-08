@@ -2,14 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_lightprobe_eval_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_closure_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_filter_lib.glsl)
+#include "infos/eevee_tracing_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_horizon_resolve)
+
+#include "draw_view_lib.glsl"
+#include "eevee_closure_lib.glsl"
+#include "eevee_filter_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_lightprobe_eval_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 vec3 sample_normal_get(ivec2 texel, out bool is_processed)
 {
@@ -38,8 +42,12 @@ float sample_weight_get(vec3 center_N, vec3 center_P, ivec2 center_texel, ivec2 
   /* TODO(fclem): Scene parameter. 10000.0 is dependent on scene scale. */
   float depth_weight = filter_planar_weight(center_N, center_P, sample_P, 10000.0);
   float normal_weight = filter_angle_weight(center_N, sample_N);
+  /* Some pixels might have no correct weight (depth & normal weights being very small).
+   * To avoid them have invalid energy (because of float precision),
+   * we weight all valid samples by a very small amount. */
+  float epsilon_weight = 1e-4;
 
-  return depth_weight * normal_weight;
+  return max(epsilon_weight, depth_weight * normal_weight);
 }
 
 SphericalHarmonicL1 load_spherical_harmonic(ivec2 texel, bool valid)
@@ -122,7 +130,10 @@ void main()
 
   LightProbeSample samp = lightprobe_load(P, Ng, V);
 
-  for (int i = 0; i < GBUFFER_LAYER_MAX && i < gbuf.closure_count; i++) {
+  float clamp_indirect = uniform_buf.clamp.surface_indirect;
+  samp.volume_irradiance = spherical_harmonics_clamp(samp.volume_irradiance, clamp_indirect);
+
+  for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < gbuf.closure_count; i++) {
     ClosureUndetermined cl = gbuffer_closure_get(gbuf, i);
 
     float roughness = closure_apparent_roughness_get(cl);
@@ -136,27 +147,12 @@ void main()
       continue;
     }
 
-    vec3 N = cl.N;
+    LightProbeRay ray = bxdf_lightprobe_ray(cl, P, V, gbuf.thickness);
 
-    vec3 L;
-    switch (cl.type) {
-      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-        L = lightprobe_reflection_dominant_dir(cl.N, V, roughness);
-        break;
-      case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
-        L = lightprobe_refraction_dominant_dir(cl.N, V, to_closure_refraction(cl).ior, roughness);
-        break;
-      case CLOSURE_BSDF_TRANSLUCENT_ID:
-        L = -N;
-        break;
-      default:
-        L = N;
-        break;
-    }
+    vec3 L = ray.dominant_direction;
     vec3 vL = drw_normal_world_to_view(L);
 
     /* Evaluate lighting from horizon scan. */
-    /* TODO(fclem): Evaluate depending on BSDF. */
     vec3 radiance = spherical_harmonics_evaluate_lambert(vL, accum_sh);
 
     /* Evaluate visibility from horizon scan. */
@@ -173,32 +169,32 @@ void main()
     vec3 radiance_probe = spherical_harmonics_evaluate_lambert(L, samp.volume_irradiance);
     radiance += visibility * radiance_probe;
 
-    int layer_index = gbuffer_closure_get_bin_index(gbuf, i);
+    uchar layer_index = gbuffer_closure_get_bin_index(gbuf, i);
 
     vec4 radiance_horizon = vec4(radiance, 0.0);
     vec4 radiance_raytrace = vec4(0.0);
     if (use_raytrace) {
       /* TODO(fclem): Layered texture. */
-      if (layer_index == 0) {
+      if (layer_index == 0u) {
         radiance_raytrace = imageLoad(closure0_img, texel_fullres);
       }
-      else if (layer_index == 1) {
+      else if (layer_index == 1u) {
         radiance_raytrace = imageLoad(closure1_img, texel_fullres);
       }
-      else if (layer_index == 2) {
+      else if (layer_index == 2u) {
         radiance_raytrace = imageLoad(closure2_img, texel_fullres);
       }
     }
     vec4 radiance_mixed = mix(radiance_raytrace, radiance_horizon, mix_fac);
 
     /* TODO(fclem): Layered texture. */
-    if (layer_index == 0) {
+    if (layer_index == 0u) {
       imageStore(closure0_img, texel_fullres, radiance_mixed);
     }
-    else if (layer_index == 1) {
+    else if (layer_index == 1u) {
       imageStore(closure1_img, texel_fullres, radiance_mixed);
     }
-    else if (layer_index == 2) {
+    else if (layer_index == 2u) {
       imageStore(closure2_img, texel_fullres, radiance_mixed);
     }
   }

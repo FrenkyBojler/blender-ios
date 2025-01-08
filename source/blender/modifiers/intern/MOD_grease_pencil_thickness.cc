@@ -30,7 +30,7 @@
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_ui_common.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 namespace blender {
 
@@ -90,7 +90,7 @@ static void deform_drawing(const ModifierData &md,
   const auto &mmd = reinterpret_cast<const GreasePencilThickModifierData &>(md);
 
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
-  if (curves.points_num() == 0) {
+  if (curves.is_empty()) {
     return;
   }
 
@@ -131,7 +131,7 @@ static void deform_drawing(const ModifierData &md,
             (mmd.influence.custom_curve))
         {
           /* Normalize value to evaluate curve. */
-          const float value = float(i) / (points.size() - 1);
+          const float value = math::safe_divide(float(i), float(points.size() - 1));
           return BKE_curvemapping_evaluateF(mmd.influence.custom_curve, 0, value);
         }
         return 1.0f;
@@ -181,22 +181,22 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "use_uniform_thickness", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_uniform_thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_boolean_get(ptr, "use_uniform_thickness")) {
-    uiItemR(layout, ptr, "thickness", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
     const bool is_weighted = !RNA_boolean_get(ptr, "use_weight_factor");
     uiLayout *row = uiLayoutRow(layout, true);
     uiLayoutSetActive(row, is_weighted);
-    uiItemR(row, ptr, "thickness_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(row, ptr, "thickness_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayout *sub = uiLayoutRow(row, true);
     uiLayoutSetActive(sub, true);
     uiItemR(row, ptr, "use_weight_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

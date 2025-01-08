@@ -66,13 +66,13 @@ ListBase TreeDisplayLibraries::build_tree(const TreeSourceData &source_data)
     TreeStoreElem *tselem = TREESTORE(ten);
     Library *lib = (Library *)tselem->id;
     BLI_assert(!lib || (GS(lib->id.name) == ID_LI));
-    if (!lib || !lib->parent) {
+    if (!lib || !lib->runtime.parent) {
       continue;
     }
 
-    TreeElement *parent = (TreeElement *)lib->parent->id.newid;
+    TreeElement *parent = (TreeElement *)lib->runtime.parent->id.newid;
 
-    if (tselem->id->tag & LIB_TAG_INDIRECT) {
+    if (tselem->id->tag & ID_TAG_INDIRECT) {
       /* Only remove from 'first level' if lib is not also directly used. */
       BLI_remlink(&tree, ten);
       BLI_addtail(&parent->subtree, ten);

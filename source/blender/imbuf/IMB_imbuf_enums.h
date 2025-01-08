@@ -14,6 +14,8 @@ extern "C" {
  * \ingroup imbuf
  */
 
+#define IM_MAX_SPACE 64
+
 /* WARNING: Keep explicit value assignments here,
  * this file is included in areas where not all format defines are set
  * (e.g. intern/dds only get WITH_DDS, even if TIFF, HDR etc are also defined).
@@ -44,30 +46,6 @@ enum eImbFileType {
   IMB_FTYPE_WEBP = 14,
 #endif
 };
-
-typedef enum IMB_Timecode_Type {
-  /** Don't use time-code files at all. */
-  IMB_TC_NONE = 0,
-  /**
-   * Use images in the order as they are recorded
-   * (currently, this is the only one implemented
-   * and is a sane default).
-   */
-  IMB_TC_RECORD_RUN = 1,
-  /**
-   * Use global timestamp written by recording
-   * device (prosumer camcorders e.g. can do that).
-   */
-  IMB_TC_FREE_RUN = 2,
-  /**
-   * Interpolate a global timestamp using the
-   * record date and time written by recording
-   * device (*every* consumer camcorder can do that).
-   */
-  IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN = 4,
-  IMB_TC_RECORD_RUN_NO_GAPS = 8,
-  IMB_TC_MAX_SLOT = 4,
-} IMB_Timecode_Type;
 
 typedef enum IMB_Proxy_Size {
   IMB_PROXY_NONE = 0,

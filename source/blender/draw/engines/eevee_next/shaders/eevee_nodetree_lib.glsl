@@ -2,21 +2,28 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_codegen_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_renderpass_lib.glsl)
+#pragma once
 
-#define filmScalingFactor float(uniform_buf.film.scaling_factor)
+#include "infos/eevee_common_info.hh"
 
-vec3 g_emission;
-vec3 g_transmittance;
+SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
+SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
+
+#include "draw_model_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "eevee_renderpass_lib.glsl"
+#include "gpu_shader_codegen_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
+
+packed_float3 g_emission;
+packed_float3 g_transmittance;
 float g_holdout;
 
-vec3 g_volume_scattering;
+packed_float3 g_volume_scattering;
 float g_volume_anisotropy;
-vec3 g_volume_absorption;
+packed_float3 g_volume_absorption;
 
 /* The Closure type is never used. Use float as dummy type. */
 #define Closure float
@@ -31,10 +38,9 @@ ClosureUndetermined g_closure_bins[CLOSURE_BIN_COUNT];
 /* Random number per sampled closure type. */
 float g_closure_rand[CLOSURE_BIN_COUNT];
 
-ClosureUndetermined g_closure_get(int i)
+ClosureUndetermined g_closure_get(uchar i)
 {
   switch (i) {
-    default:
     case 0:
       return g_closure_bins[0];
 #if CLOSURE_BIN_COUNT > 1
@@ -46,9 +52,12 @@ ClosureUndetermined g_closure_get(int i)
       return g_closure_bins[2];
 #endif
   }
+  /* TODO: this should be unreachable, better to have an assert. */
+  ClosureUndetermined cl_empty;
+  return cl_empty;
 }
 
-ClosureUndetermined g_closure_get_resolved(int i, float weight_fac)
+ClosureUndetermined g_closure_get_resolved(uchar i, float weight_fac)
 {
   ClosureUndetermined cl = g_closure_get(i);
   cl.color *= cl.weight * weight_fac;
@@ -104,10 +113,13 @@ void closure_select(inout ClosureUndetermined destination,
                     inout float random,
                     ClosureUndetermined candidate)
 {
-  if (closure_select_check(candidate.weight, destination.weight, random)) {
-    float tmp = destination.weight;
+  float candidate_color_weight = average(abs(candidate.color));
+  if (closure_select_check(candidate.weight * candidate_color_weight, destination.weight, random))
+  {
+    float total_weight = destination.weight;
     destination = candidate;
-    destination.weight = tmp;
+    destination.color /= candidate_color_weight;
+    destination.weight = total_weight;
   }
 }
 
@@ -146,8 +158,13 @@ Closure closure_eval(ClosureDiffuse diffuse)
 {
   ClosureUndetermined cl;
   closure_base_copy(cl, diffuse);
-  /* Diffuse & SSS always use the first closure. */
+#if (CLOSURE_BIN_COUNT > 1) && defined(MAT_TRANSLUCENT) && !defined(MAT_CLEARCOAT)
+  /* Use second slot so we can have diffuse + translucent without noise. */
+  closure_select(g_closure_bins[1], g_closure_rand[1], cl);
+#else
+  /* Either is single closure or use same bin as transmission bin. */
   closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+#endif
   return Closure(0);
 }
 
@@ -156,7 +173,7 @@ Closure closure_eval(ClosureSubsurface diffuse)
   ClosureUndetermined cl;
   closure_base_copy(cl, diffuse);
   cl.data.rgb = diffuse.sss_radius;
-  /* Diffuse & SSS always use the first closure. */
+  /* Transmission Closures are always in first bin. */
   closure_select(g_closure_bins[0], g_closure_rand[0], cl);
   return Closure(0);
 }
@@ -165,13 +182,8 @@ Closure closure_eval(ClosureTranslucent translucent)
 {
   ClosureUndetermined cl;
   closure_base_copy(cl, translucent);
-#if CLOSURE_BIN_COUNT == 1
-  /* Only one closure type is present in the whole tree. */
+  /* Transmission Closures are always in first bin. */
   closure_select(g_closure_bins[0], g_closure_rand[0], cl);
-#else
-  /* Use second slot so we can have diffuse + translucent without noise. */
-  closure_select(g_closure_bins[1], g_closure_rand[1], cl);
-#endif
   return Closure(0);
 }
 
@@ -198,16 +210,27 @@ Closure closure_eval(ClosureReflection reflection)
   closure_base_copy(cl, reflection);
   cl.data.r = reflection.roughness;
 
-#if CLOSURE_BIN_COUNT == 1
+#ifdef MAT_CLEARCOAT
+#  if CLOSURE_BIN_COUNT == 2
+  /* Multiple reflection closures. */
+  CHOOSE_MIN_WEIGHT_CLOSURE_BIN(0, 1);
+#  elif CLOSURE_BIN_COUNT == 3
+  /* Multiple reflection closures and one other closure. */
+  CHOOSE_MIN_WEIGHT_CLOSURE_BIN(1, 2);
+#  else
+#    error Clearcoat should always have at least 2 bins
+#  endif
+#else
+#  if CLOSURE_BIN_COUNT == 1
   /* Only one reflection closure is present in the whole tree. */
   closure_select(g_closure_bins[0], g_closure_rand[0], cl);
-#elif CLOSURE_BIN_COUNT == 2
-  /* Case with either only one reflection and one other closure
-   * or only multiple reflection closures. */
-  CHOOSE_MIN_WEIGHT_CLOSURE_BIN(0, 1);
-#elif CLOSURE_BIN_COUNT == 3
-  /* Case with multiple reflection closures and one other closure. */
-  CHOOSE_MIN_WEIGHT_CLOSURE_BIN(1, 2);
+#  elif CLOSURE_BIN_COUNT == 2
+  /* Only one reflection and one other closure. */
+  closure_select(g_closure_bins[1], g_closure_rand[1], cl);
+#  elif CLOSURE_BIN_COUNT == 3
+  /* Only one reflection and two other closures. */
+  closure_select(g_closure_bins[2], g_closure_rand[2], cl);
+#  endif
 #endif
 
 #undef CHOOSE_MIN_WEIGHT_CLOSURE_BIN
@@ -221,8 +244,7 @@ Closure closure_eval(ClosureRefraction refraction)
   closure_base_copy(cl, refraction);
   cl.data.r = refraction.roughness;
   cl.data.g = refraction.ior;
-  /* Use same slot as diffuse as mixed diffuse/refraction are not common.
-   * Allow glass material with clearcoat without noise. */
+  /* Transmission Closures are always in first bin. */
   closure_select(g_closure_bins[0], g_closure_rand[0], cl);
   return Closure(0);
 }
@@ -359,10 +381,13 @@ float ambient_occlusion_eval(vec3 normal,
                     noise,
                     uniform_buf.ao.pixel_size,
                     max_distance,
-                    uniform_buf.ao.thickness,
+                    uniform_buf.ao.thickness_near,
+                    uniform_buf.ao.thickness_far,
                     uniform_buf.ao.angle_bias,
+                    2,
                     10,
-                    inverted != 0.0);
+                    inverted != 0.0,
+                    true);
 
   return saturate(ctx.occlusion_result.r);
 #  else
@@ -576,6 +601,7 @@ vec2 bsdf_lut(float cos_theta, float roughness, float ior, bool do_multiscatter)
 #  define nodetree_surface(closure_rand) Closure(0)
 #  define nodetree_volume() Closure(0)
 #  define nodetree_thickness() 0.1
+#  define thickness_mode 1.0
 #endif
 
 #ifdef GPU_VERTEX_SHADER
@@ -621,7 +647,7 @@ vec3 displacement_bump()
 void fragment_displacement()
 {
 #ifdef MAT_DISPLACEMENT_BUMP
-  g_data.N = displacement_bump();
+  g_data.N = g_data.Ni = displacement_bump();
 #endif
 }
 
@@ -698,9 +724,9 @@ vec3 coordinate_incoming(vec3 P)
  *
  * \{ */
 
-float film_scaling_factor_get()
+float texture_lod_bias_get()
 {
-  return float(uniform_buf.film.scaling_factor);
+  return uniform_buf.film.texture_lod_bias;
 }
 
 /** \} */
@@ -716,7 +742,7 @@ float film_scaling_factor_get()
 /* Point clouds and curves are not compatible with volume grids.
  * They will fallback to their own attributes loading. */
 #if defined(MAT_VOLUME) && !defined(MAT_GEOM_CURVES) && !defined(MAT_GEOM_POINT_CLOUD)
-#  if defined(OBINFO_LIB) && !defined(MAT_GEOM_WORLD)
+#  if defined(VOLUME_INFO_LIB) && !defined(MAT_GEOM_WORLD)
 /* We could just check for GRID_ATTRIBUTES but this avoids for header dependency. */
 #    define GRID_ATTRIBUTES_LOAD_POST
 #  endif
@@ -725,7 +751,7 @@ float film_scaling_factor_get()
 float attr_load_temperature_post(float attr)
 {
 #ifdef GRID_ATTRIBUTES_LOAD_POST
-  /* Bring the into standard range without having to modify the grid values */
+  /* Bring the value into standard range without having to modify the grid values */
   attr = (attr > 0.01) ? (attr * drw_volume.temperature_mul + drw_volume.temperature_bias) : 0.0;
 #endif
   return attr;

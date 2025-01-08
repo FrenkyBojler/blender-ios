@@ -8,13 +8,17 @@
 
 #pragma once
 
+#include "DNA_node_types.h"
+
 struct bNode;
+namespace blender::bke {
 struct bNodeInstanceHash;
+}
 struct bNodeTree;
 
 /* data for initializing node execution */
 struct bNodeExecContext {
-  bNodeInstanceHash *previews;
+  blender::bke::bNodeInstanceHash *previews;
 };
 
 struct bNodeExecData {
