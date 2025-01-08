@@ -2,13 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <algorithm>
-
 #include "node_geometry_util.hh"
 
 #include "DNA_node_types.h"
-
-#include "BLI_string.h"
 
 #include "FN_multi_function.hh"
 
@@ -237,7 +233,7 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
     can_be_field_ = socket_type_supports_fields(data_type);
     const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(
-        bke::node_static_socket_type(data_type, PROP_NONE));
+        *bke::node_static_socket_type(data_type, PROP_NONE));
     BLI_assert(socket_type != nullptr);
     cpp_type_ = socket_type->geometry_nodes_cpp_type;
     field_base_type_ = socket_type->base_cpp_type;
@@ -372,7 +368,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         tree, node, [&](PointerRNA *item_ptr) {
           uiLayoutSetPropSep(panel, true);
           uiLayoutSetPropDecorate(panel, false);
-          uiItemR(panel, item_ptr, "description", UI_ITEM_NONE, nullptr, ICON_NONE);
+          uiItemR(panel, item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 }
@@ -411,7 +407,10 @@ static void register_node()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_MENU_SWITCH, "Menu Switch", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, GEO_NODE_MENU_SWITCH, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Menu Switch";
+  ntype.ui_description = "Select from multiple inputs by name";
+  ntype.enum_name_legacy = "MENU_SWITCH";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(&ntype, "NodeMenuSwitch", node_free_storage, node_copy_storage);

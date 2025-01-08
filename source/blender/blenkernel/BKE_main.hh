@@ -25,6 +25,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
+
 struct BLI_mempool;
 struct BlendThumbnail;
 struct GHash;
@@ -59,7 +61,7 @@ struct MainIDRelationsEntryItem {
   /* Session uid of the `id_pointer`. */
   uint session_uid;
 
-  int usage_flag; /* Using IDWALK_ enums, defined in BKE_lib_query.hh */
+  LibraryForeachIDCallbackFlag usage_flag; /* Using IDWALK_ enums, defined in BKE_lib_query.hh */
 };
 
 struct MainIDRelationsEntry {
@@ -205,17 +207,17 @@ struct Main {
   bool is_action_slot_to_id_map_dirty;
 
   /**
-   * The blendfile thumbnail. If set, it will show as image preview of the blendfile in the
-   * system's filebrowser.
+   * The blend-file thumbnail. If set, it will show as image preview of the blend-file in the
+   * system's file-browser.
    */
   BlendThumbnail *blen_thumb;
 
   /**
    * The library matching the current Main.
    *
-   * Typically `nullptr` (for the `G_MAIN` representing the currently opened blendfile).
+   * Typically `nullptr` (for the `G_MAIN` representing the currently opened blend-file).
    *
-   * Mainly set and used during the blendfile read/write process when 'split' Mains are used to
+   * Mainly set and used during the blend-file read/write process when 'split' Mains are used to
    * isolate and process all linked IDs from a single library.
    */
   Library *curlib;
