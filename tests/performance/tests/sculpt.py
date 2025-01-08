@@ -107,7 +107,7 @@ def generate_stroke(context):
     }
 
     version = bpy.app.version
-    if version[0] <= 4 and version [1] <= 3:
+    if version[0] <= 4 and version[1] <= 3:
         template["pen_flip"] = False
 
     num_steps = 100
