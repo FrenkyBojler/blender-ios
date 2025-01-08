@@ -33,7 +33,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def prepare_sculpt_scene(context: any, mode: int):
+def prepare_sculpt_scene(context: any, mode: SculptMode):
     import bpy
     """
     Prepare a clean state of the scene suitable for benchmarking
@@ -149,6 +149,10 @@ class SculptBrushTest(api.Test):
         self.mode = mode
 
     def name(self):
+        # To preserve historical data, avoid adding the prefix for the mesh tests.
+        if self.mode == SculptMode.MESH:
+            return self.filepath.stem
+
         return "{}_{}".format(self.mode.name.lower(), self.filepath.stem)
 
     def category(self):
@@ -164,6 +168,4 @@ class SculptBrushTest(api.Test):
 
 def generate(env):
     filepaths = env.find_blend_files('sculpt/*')
-    tests = [(filepath, mode) for filepath in filepaths for mode in SculptMode]
-    print(tests)
     return [SculptBrushTest(filepath, mode) for filepath in filepaths for mode in SculptMode]
