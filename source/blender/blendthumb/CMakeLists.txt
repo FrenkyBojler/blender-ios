@@ -50,15 +50,8 @@ elseif(APPLE)
   )
 
   add_executable(blender-thumbnailer MACOSX_BUNDLE ${SRC} ${SRC_APPEX})
-  # It needs to be codesigned (ad-hoc in this case) even on developer machine to generate thumbnails.
-  # Command taken from XCode build process.
-  add_custom_command(
-    TARGET blender-thumbnailer POST_BUILD
-    COMMAND codesign --deep --force --sign - --entitlements "${CMAKE_SOURCE_DIR}/release/darwin/thumbnailer_entitlements.plist"
-    --timestamp=none $<TARGET_BUNDLE_DIR:blender-thumbnailer>
-  )
   setup_platform_linker_flags(blender-thumbnailer)
-  set_target_properties(blender-thumbnailer PROPERTIES SKIP_BUILD_RPATH TRUE)
+  setup_platform_linker_libs(blender-thumbnailer)
   target_link_libraries(blender-thumbnailer
     bf_blenlib
     # Avoid linker error about undefined _main symbol.

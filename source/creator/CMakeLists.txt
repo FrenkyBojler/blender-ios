@@ -437,6 +437,7 @@ elseif(APPLE)
   endif()
   # Skip re-linking on CPACK / install.
   set_target_properties(blender PROPERTIES BUILD_WITH_INSTALL_RPATH true)
+  set_target_properties(blender-thumbnailer PROPERTIES BUILD_WITH_INSTALL_RPATH true)
 endif()
 
 
@@ -1616,11 +1617,9 @@ elseif(APPLE)
   )
 
   if(WITH_BLENDER_THUMBNAILER)
-    # Install TARGET breaks the signature so copy it instead. It's ad-hoc codesigned by the build step.
     install(
-      FILES $<TARGET_BUNDLE_DIR:blender-thumbnailer>
+      TARGETS blender-thumbnailer
       DESTINATION "./Blender.app/Contents/PlugIns"
-      PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
     )
   endif()
 
@@ -1637,6 +1636,21 @@ elseif(APPLE)
       DESTINATION ${TARGETDIR_LIB}
     )
   endif()
+
+  # CMake needs the target defined in the same file as add_custom_command. So depend on blender, not thumbnailer.
+  # The rpath here points to the main Blender Resources/lib directory. Avoid duplicating the large dylibs (~300MB).
+  add_custom_command(
+    TARGET blender
+    POST_BUILD
+    COMMAND install_name_tool -add_rpath @loader_path/../../../../Resources/lib $<TARGET_FILE:blender-thumbnailer>
+  )
+  # It needs to be codesigned (ad-hoc in this case) even on developer machine to generate thumbnails.
+  # Command taken from XCode build process. This step is done after all installs.
+  add_custom_command(
+    TARGET blender POST_BUILD
+    COMMAND codesign --deep --force --sign - --entitlements "${CMAKE_SOURCE_DIR}/release/darwin/thumbnailer_entitlements.plist"
+    --timestamp=none $<TARGET_BUNDLE_DIR:blender-thumbnailer>
+  )
 
   # Python.
   if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
