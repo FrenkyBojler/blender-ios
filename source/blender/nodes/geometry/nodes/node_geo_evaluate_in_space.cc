@@ -572,8 +572,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_EVALUATE_IN_SPACE, "Field in Space", NODE_CLASS_CONVERTER);
-  ntype.enum_name_legacy = "EVALUATE_IN_SPACE";
+  geo_node_type_base(&ntype, GEO_NODE_EVALUATE_IN_SPACE, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Field in Space";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

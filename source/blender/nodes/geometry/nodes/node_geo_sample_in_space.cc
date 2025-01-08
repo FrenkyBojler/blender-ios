@@ -476,8 +476,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SAMPLE_IN_SPACE, "Sample in Space", NODE_CLASS_CONVERTER);
-  ntype.enum_name_legacy = "SAMPLE_IN_SPACE";
+  geo_node_type_base(&ntype, GEO_NODE_SAMPLE_IN_SPACE, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Sample in Space";
   // ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
