@@ -12265,11 +12265,22 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("TextureNode", "TextureNodeRotate");
   define("TextureNode", "TextureNodeScale");
   define("TextureNode", "TextureNodeSeparateColor", def_tex_combsep_color);
+  define("TextureNode", "TextureNodeTexBlend");
+  define("TextureNode", "TextureNodeTexClouds");
+  define("TextureNode", "TextureNodeTexDistNoise");
+  define("TextureNode", "TextureNodeTexMagic");
+  define("TextureNode", "TextureNodeTexMarble");
+  define("TextureNode", "TextureNodeTexMusgrave");
+  define("TextureNode", "TextureNodeTexNoise");
+  define("TextureNode", "TextureNodeTexStucci");
   define("TextureNode", "TextureNodeTexture", def_texture);
+  define("TextureNode", "TextureNodeTexVoronoi");
+  define("TextureNode", "TextureNodeTexWood");
   define("TextureNode", "TextureNodeTranslate");
   define("TextureNode", "TextureNodeValToNor");
   define("TextureNode", "TextureNodeValToRGB", def_colorramp);
   define("TextureNode", "TextureNodeViewer");
+
 
   define("FunctionNode", "FunctionNodeAlignEulerToVector");
   define("FunctionNode", "FunctionNodeAlignRotationToVector");
