@@ -282,7 +282,7 @@ NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
   /* TODO: implement */
-  return get_input_value("Color", NodeItem::Type::Color4);
+  return get_input_value("Color", NodeItem::Type::Color3);
 }
 #endif
 NODE_SHADER_MATERIALX_END

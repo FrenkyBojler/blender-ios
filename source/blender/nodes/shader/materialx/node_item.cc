@@ -484,6 +484,19 @@ NodeItem NodeItem::convert(Type to_type) const
   if (from_type == Type::Empty || from_type == to_type || to_type == Type::Any) {
     return *this;
   }
+
+  if (is_arithmetic(from_type)) {
+    /* Link arithmetic types to shader as EDF, without BSDF and fully opaque. */
+    if (to_type == Type::EDF) {
+      return create_node(
+          "uniform_edf", NodeItem::Type::EDF, {{"color", this->convert(Type::Color3)}});
+    }
+    if (to_type == Type::SurfaceShader || to_type == Type::BSDF || to_type == Type::SurfaceOpacity)
+    {
+      return empty();
+    }
+  }
+
   if (!is_arithmetic(from_type) || !is_arithmetic(to_type)) {
     CLOG_WARN(LOG_MATERIALX_SHADER,
               "Cannot convert: %s -> %s",

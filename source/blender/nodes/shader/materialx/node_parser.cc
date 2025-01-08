@@ -56,10 +56,7 @@ NodeItem NodeParser::compute_full()
       res.node->setName(node_name());
     }
   }
-  if (NodeItem::is_arithmetic(to_type_)) {
-    res = res.convert(to_type_);
-  }
-  return res;
+  return res.convert(to_type_);
 }
 
 std::string NodeParser::node_name(bool with_out_socket) const
