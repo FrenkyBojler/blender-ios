@@ -219,9 +219,9 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
 
         IndexMaskMemory memory;
         drawing_weight_data.point_positions.reinitialize(deformation.positions.size());
-        IndexMask selection = ed::greasepencil::retrieve_editable_points(
+        IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
             *this->object, drawing_info.drawing, drawing_info.layer_index, memory);
-        selection.foreach_index([&](const int point) {
+        editable_points.foreach_index([&](const int point) {
           drawing_weight_data.point_positions[point] = ED_view3d_project_float_v2_m4(
               region, deformation.positions[point], projection);
         });
