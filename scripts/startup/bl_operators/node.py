@@ -410,7 +410,7 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
 
 
 class NODE_OT_viewer_shortcut_set(Operator):
-    """Create a viewer shortcut for the selected node by pressingctrl+1,2,..9"""
+    """Create a compositor viewer shortcut for the selected node by pressingctrl+1,2,..9"""
     bl_idname = "node.viewer_shortcut_set"
     bl_label = "Fast Preview"
     bl_options = {'REGISTER', 'UNDO'}
@@ -443,7 +443,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
 
     @classmethod
     def poll(self, context):
-        return bpy.ops.node.link_viewer.poll()
+        return context.space_data.tree_type == 'CompositorNodeTree'
 
     def execute(self, context):
         nodes = context.space_data.edit_tree.nodes
@@ -463,11 +463,8 @@ class NODE_OT_viewer_shortcut_set(Operator):
         elif self.check_viewer_connected(fav_node):
             viewer_node = self.get_connected_viewer(fav_node)
         else:
-            # todo: support all node types
-            viewer_node = nodes.new("CompositorNodeViewer")
-            links.new(fav_node.outputs[0], viewer_node.inputs[0])
-            viewer_node.location = fav_node.location
-            viewer_node.location.x += fav_node.width + 50
+            bpy.ops.node.link_viewer()
+            viewer_node = self.get_connected_viewer(fav_node)
 
         nodes.active = viewer_node
         viewer_node.ui_shortcut = self.viewer_index
@@ -477,7 +474,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
 
 
 class NODE_OT_viewer_shortcut_get(Operator):
-    """Get favorite viewer and set it to active using 1,2,..,9 keys"""
+    """Get favorite viewer in compositor and set it to active using 1,2,..,9 keys"""
     bl_idname = "node.viewer_shortcut_get"
     bl_label = "Fast Preview"
     bl_options = {'REGISTER', 'UNDO'}
@@ -488,7 +485,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
 
     @classmethod
     def poll(self, context):
-        return bpy.ops.node.link_viewer.poll()
+        return context.space_data.tree_type == 'CompositorNodeTree'
 
     def execute(self, context):
         nodes = context.space_data.edit_tree.nodes
