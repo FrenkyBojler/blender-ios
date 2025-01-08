@@ -637,7 +637,7 @@ static void sequencer_slip_update_header(Scene *scene, ScrArea *area, SlipData *
   char msg[UI_MAX_DRAW_STR];
   if (hasNumInput(&data->num_input)) {
     char num_str[NUM_STR_REP_LEN];
-    outputNumInput(&data->num_input, num_str, &scene->unit);
+    outputNumInput(&data->num_input, num_str, scene->unit);
     SNPRINTF(msg, IFACE_("Slip offset: %s"), num_str);
   }
   else {
@@ -3423,8 +3423,7 @@ void SEQUENCER_OT_strip_color_tag_set(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_enum(
-      ot->srna, "color", rna_enum_strip_color_items, SEQUENCE_COLOR_NONE, "Color Tag", "");
+  RNA_def_enum(ot->srna, "color", rna_enum_strip_color_items, STRIP_COLOR_NONE, "Color Tag", "");
 }
 
 /** \} */

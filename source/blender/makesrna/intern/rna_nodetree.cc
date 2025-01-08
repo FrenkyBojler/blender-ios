@@ -695,7 +695,7 @@ int rna_node_tree_idname_to_enum(const char *idname)
   Span<const bke::bNodeTreeType *> types = bke::node_tree_types_get();
   for (const int i : types.index_range()) {
     const bke::bNodeTreeType *nt = types[i];
-    if (STREQ(nt->idname, idname)) {
+    if (nt->idname == idname) {
       return i;
     }
   }
@@ -724,10 +724,10 @@ const EnumPropertyItem *rna_node_tree_type_itemf(
     }
 
     tmp.value = i;
-    tmp.identifier = nt->idname;
+    tmp.identifier = nt->idname.c_str();
     tmp.icon = nt->ui_icon;
-    tmp.name = nt->ui_name;
-    tmp.description = nt->ui_description;
+    tmp.name = nt->ui_name.c_str();
+    tmp.description = nt->ui_description.c_str();
 
     RNA_enum_item_add(&item, &totitem, &tmp);
   }
@@ -749,7 +749,7 @@ int rna_node_socket_idname_to_enum(const char *idname)
   Span<const bke::bNodeSocketType *> types = bke::node_socket_types_get();
   for (const int i : types.index_range()) {
     const bke::bNodeSocketType *nt = types[i];
-    if (STREQ(nt->idname, idname)) {
+    if (nt->idname == idname) {
       return i;
     }
   }
@@ -780,7 +780,7 @@ const EnumPropertyItem *rna_node_socket_type_itemf(
 
     srna = stype->ext_socket.srna;
     tmp.value = i;
-    tmp.identifier = stype->idname;
+    tmp.identifier = stype->idname.c_str();
     tmp.icon = RNA_struct_ui_icon(srna);
     tmp.name = blender::bke::node_socket_type_label(stype).c_str();
     tmp.description = RNA_struct_ui_description(srna);
@@ -815,7 +815,7 @@ static const char *get_legacy_node_type(const PointerRNA *ptr)
   if (ntype->enum_name_legacy) {
     return ntype->enum_name_legacy;
   }
-  return ntype->idname;
+  return ntype->idname.c_str();
 }
 
 static int rna_node_type_length(PointerRNA *ptr)
@@ -830,6 +830,69 @@ static void rna_node_type_get(PointerRNA *ptr, char *value)
   const char *legacy_type = get_legacy_node_type(ptr);
   BLI_assert(legacy_type);
   strcpy(value, legacy_type);
+}
+
+static void rna_Node_bl_idname_get(PointerRNA *ptr, char *value)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const blender::bke::bNodeType *ntype = node->typeinfo;
+  blender::StringRef(ntype->idname).unsafe_copy(value);
+}
+
+static int rna_Node_bl_idname_length(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const blender::bke::bNodeType *ntype = node->typeinfo;
+  return ntype->idname.size();
+}
+
+static void rna_Node_bl_idname_set(PointerRNA *ptr, const char *value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  blender::bke::bNodeType *ntype = node->typeinfo;
+  ntype->idname = value;
+}
+
+static void rna_Node_bl_label_get(PointerRNA *ptr, char *value)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const blender::bke::bNodeType *ntype = node->typeinfo;
+  blender::StringRef(ntype->ui_name).unsafe_copy(value);
+}
+
+static int rna_Node_bl_label_length(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const blender::bke::bNodeType *ntype = node->typeinfo;
+  return ntype->ui_name.size();
+}
+
+static void rna_Node_bl_label_set(PointerRNA *ptr, const char *value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  blender::bke::bNodeType *ntype = node->typeinfo;
+  ntype->ui_name = value;
+}
+
+static void rna_Node_bl_description_get(PointerRNA *ptr, char *value)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const blender::bke::bNodeType *ntype = node->typeinfo;
+  blender::StringRef(ntype->ui_description).unsafe_copy(value);
+}
+
+static int rna_Node_bl_description_length(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const blender::bke::bNodeType *ntype = node->typeinfo;
+  return ntype->ui_description.size();
+}
+
+static void rna_Node_bl_description_set(PointerRNA *ptr, const char *value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  blender::bke::bNodeType *ntype = node->typeinfo;
+  ntype->ui_description = value;
 }
 
 static float2 node_parent_offset(const bNode &node)
@@ -993,12 +1056,12 @@ static StructRNA *rna_NodeTree_register(Main *bmain,
                                         StructCallbackFunc call,
                                         StructFreeFunc free)
 {
-  blender::bke::bNodeTreeType *nt, dummy_nt;
+  blender::bke::bNodeTreeType *nt;
   bNodeTree dummy_ntree;
   bool have_function[4];
 
   /* setup dummy tree & tree type to store static properties in */
-  memset(&dummy_nt, 0, sizeof(blender::bke::bNodeTreeType));
+  blender::bke::bNodeTreeType dummy_nt = {};
   memset(&dummy_ntree, 0, sizeof(bNodeTree));
   dummy_ntree.typeinfo = &dummy_nt;
   PointerRNA dummy_ntree_ptr = RNA_pointer_create(nullptr, &RNA_NodeTree, &dummy_ntree);
@@ -1008,12 +1071,12 @@ static StructRNA *rna_NodeTree_register(Main *bmain,
     return nullptr;
   }
 
-  if (strlen(identifier) >= sizeof(dummy_nt.idname)) {
+  if (strlen(identifier) >= sizeof(dummy_ntree.idname)) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Registering node tree class: '%s' is too long, maximum length is %d",
                 identifier,
-                int(sizeof(dummy_nt.idname)));
+                int(sizeof(dummy_ntree.idname)));
     return nullptr;
   }
 
@@ -1025,7 +1088,7 @@ static StructRNA *rna_NodeTree_register(Main *bmain,
                 "Registering node tree class: '%s', bl_idname '%s' has been registered before, "
                 "unregistering previous",
                 identifier,
-                dummy_nt.idname);
+                dummy_nt.idname.c_str());
 
     /* NOTE: unlike most types `nt->rna_ext.srna` doesn't need to be checked for nullptr. */
     if (!rna_NodeTree_unregister(bmain, nt->rna_ext.srna)) {
@@ -1033,25 +1096,23 @@ static StructRNA *rna_NodeTree_register(Main *bmain,
                   RPT_ERROR,
                   "Registering node tree class: '%s', bl_idname '%s' could not be unregistered",
                   identifier,
-                  dummy_nt.idname);
+                  dummy_nt.idname.c_str());
       return nullptr;
     }
   }
 
   /* create a new node tree type */
-  nt = static_cast<blender::bke::bNodeTreeType *>(
-      MEM_mallocN(sizeof(blender::bke::bNodeTreeType), "node tree type"));
-  memcpy(nt, &dummy_nt, sizeof(dummy_nt));
+  nt = MEM_new<blender::bke::bNodeTreeType>(__func__, dummy_nt);
 
   nt->type = NTREE_CUSTOM;
 
-  nt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, nt->idname, &RNA_NodeTree);
+  nt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, nt->idname.c_str(), &RNA_NodeTree);
   nt->rna_ext.data = data;
   nt->rna_ext.call = call;
   nt->rna_ext.free = free;
   RNA_struct_blender_type_set(nt->rna_ext.srna, nt);
 
-  RNA_def_struct_ui_text(nt->rna_ext.srna, nt->ui_name, nt->ui_description);
+  RNA_def_struct_ui_text(nt->rna_ext.srna, nt->ui_name.c_str(), nt->ui_description.c_str());
   RNA_def_struct_ui_icon(nt->rna_ext.srna, nt->ui_icon);
 
   nt->poll = (have_function[0]) ? rna_NodeTree_poll : nullptr;
@@ -1422,6 +1483,69 @@ static void rna_NodeTree_link_clear(bNodeTree *ntree, Main *bmain, ReportList *r
 static bool rna_NodeTree_contains_tree(bNodeTree *tree, bNodeTree *sub_tree)
 {
   return blender::bke::node_tree_contains_tree(tree, sub_tree);
+}
+
+static void rna_NodeTree_bl_idname_get(PointerRNA *ptr, char *value)
+{
+  const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
+  const blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  blender::StringRef(ntype->idname).unsafe_copy(value);
+}
+
+static int rna_NodeTree_bl_idname_length(PointerRNA *ptr)
+{
+  const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
+  const blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  return ntype->idname.size();
+}
+
+static void rna_NodeTree_bl_idname_set(PointerRNA *ptr, const char *value)
+{
+  bNodeTree *node = static_cast<bNodeTree *>(ptr->data);
+  blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  ntype->idname = value;
+}
+
+static void rna_NodeTree_bl_label_get(PointerRNA *ptr, char *value)
+{
+  const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
+  const blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  blender::StringRef(ntype->ui_name).unsafe_copy(value);
+}
+
+static int rna_NodeTree_bl_label_length(PointerRNA *ptr)
+{
+  const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
+  const blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  return ntype->ui_name.size();
+}
+
+static void rna_NodeTree_bl_label_set(PointerRNA *ptr, const char *value)
+{
+  bNodeTree *node = static_cast<bNodeTree *>(ptr->data);
+  blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  ntype->ui_name = value;
+}
+
+static void rna_NodeTree_bl_description_get(PointerRNA *ptr, char *value)
+{
+  const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
+  const blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  blender::StringRef(ntype->ui_description).unsafe_copy(value);
+}
+
+static int rna_NodeTree_bl_description_length(PointerRNA *ptr)
+{
+  const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
+  const blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  return ntype->ui_description.size();
+}
+
+static void rna_NodeTree_bl_description_set(PointerRNA *ptr, const char *value)
+{
+  bNodeTree *node = static_cast<bNodeTree *>(ptr->data);
+  blender::bke::bNodeTreeType *ntype = node->typeinfo;
+  ntype->ui_description = value;
 }
 
 static void rna_NodeTree_debug_lazy_function_graph(bNodeTree *tree,
@@ -1833,14 +1957,14 @@ static blender::bke::bNodeType *rna_Node_register_base(Main *bmain,
                                                        StructCallbackFunc call,
                                                        StructFreeFunc free)
 {
-  blender::bke::bNodeType *nt, dummy_nt;
+  blender::bke::bNodeType *nt;
   bNode dummy_node;
   FunctionRNA *func;
   PropertyRNA *parm;
   bool have_function[10];
 
   /* setup dummy node & node type to store static properties in */
-  memset(&dummy_nt, 0, sizeof(blender::bke::bNodeType));
+  blender::bke::bNodeType dummy_nt = {};
   /* this does some additional initialization of default values */
   blender::bke::node_type_base_custom(&dummy_nt, identifier, "", "CUSTOM", 0);
 
@@ -1853,12 +1977,12 @@ static blender::bke::bNodeType *rna_Node_register_base(Main *bmain,
     return nullptr;
   }
 
-  if (strlen(identifier) >= sizeof(dummy_nt.idname)) {
+  if (strlen(identifier) >= sizeof(dummy_node.idname)) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Registering node class: '%s' is too long, maximum length is %d",
                 identifier,
-                int(sizeof(dummy_nt.idname)));
+                int(sizeof(dummy_node.idname)));
     return nullptr;
   }
 
@@ -1871,7 +1995,7 @@ static blender::bke::bNodeType *rna_Node_register_base(Main *bmain,
                   RPT_ERROR,
                   "Registering node class: '%s', bl_idname '%s' is a builtin node",
                   identifier,
-                  dummy_nt.idname);
+                  dummy_nt.idname.c_str());
       return nullptr;
     }
 
@@ -1880,7 +2004,7 @@ static blender::bke::bNodeType *rna_Node_register_base(Main *bmain,
                 "Registering node class: '%s', bl_idname '%s' has been registered before, "
                 "unregistering previous",
                 identifier,
-                dummy_nt.idname);
+                dummy_nt.idname.c_str());
 
     /* NOTE: unlike most types `nt->rna_ext.srna` doesn't need to be checked for nullptr. */
     if (!rna_Node_unregister(bmain, nt->rna_ext.srna)) {
@@ -1888,24 +2012,22 @@ static blender::bke::bNodeType *rna_Node_register_base(Main *bmain,
                   RPT_ERROR,
                   "Registering node class: '%s', bl_idname '%s' could not be unregistered",
                   identifier,
-                  dummy_nt.idname);
+                  dummy_nt.idname.c_str());
       return nullptr;
     }
   }
 
   /* create a new node type */
-  nt = static_cast<blender::bke::bNodeType *>(
-      MEM_mallocN(sizeof(blender::bke::bNodeType), "node type"));
-  memcpy(nt, &dummy_nt, sizeof(dummy_nt));
-  nt->free_self = reinterpret_cast<void (*)(blender::bke::bNodeType *)>(MEM_freeN);
+  nt = MEM_new<blender::bke::bNodeType>(__func__, dummy_nt);
+  nt->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  nt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, nt->idname, basetype);
+  nt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, nt->idname.c_str(), basetype);
   nt->rna_ext.data = data;
   nt->rna_ext.call = call;
   nt->rna_ext.free = free;
   RNA_struct_blender_type_set(nt->rna_ext.srna, nt);
 
-  RNA_def_struct_ui_text(nt->rna_ext.srna, nt->ui_name, nt->ui_description);
+  RNA_def_struct_ui_text(nt->rna_ext.srna, nt->ui_name.c_str(), nt->ui_description.c_str());
   RNA_def_struct_ui_icon(nt->rna_ext.srna, nt->ui_icon);
 
   func = RNA_def_function_runtime(
@@ -2379,6 +2501,70 @@ void rna_Node_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   bNode *node = static_cast<bNode *>(ptr->data);
   BKE_ntree_update_tag_node_property(ntree, node);
   ED_node_tree_propagate_change(nullptr, bmain, ntree);
+}
+
+static void rna_NodeCrop_min_x_set(PointerRNA *ptr, int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeTwoXYs *data = static_cast<NodeTwoXYs *>(node->storage);
+  data->x1 = value;
+  CLAMP_MAX(data->x1, data->x2);
+}
+
+static void rna_NodeCrop_max_x_set(PointerRNA *ptr, int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeTwoXYs *data = static_cast<NodeTwoXYs *>(node->storage);
+  data->x2 = value;
+  CLAMP_MIN(data->x2, data->x1);
+}
+
+static void rna_NodeCrop_min_y_set(PointerRNA *ptr, int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeTwoXYs *data = static_cast<NodeTwoXYs *>(node->storage);
+  data->y1 = value;
+  CLAMP_MIN(data->y1, data->y2);
+}
+
+static void rna_NodeCrop_max_y_set(PointerRNA *ptr, int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeTwoXYs *data = static_cast<NodeTwoXYs *>(node->storage);
+  data->y2 = value;
+  CLAMP_MAX(data->y2, data->y1);
+}
+
+static void rna_NodeCrop_rel_min_x_set(PointerRNA *ptr, float value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeTwoXYs *data = static_cast<NodeTwoXYs *>(node->storage);
+  data->fac_x1 = value;
+  CLAMP_MAX(data->fac_x1, data->fac_x2);
+}
+
+static void rna_NodeCrop_rel_max_x_set(PointerRNA *ptr, float value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeTwoXYs *data = static_cast<NodeTwoXYs *>(node->storage);
+  data->fac_x2 = value;
+  CLAMP_MIN(data->fac_x2, data->fac_x1);
+}
+
+static void rna_NodeCrop_rel_min_y_set(PointerRNA *ptr, float value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeTwoXYs *data = static_cast<NodeTwoXYs *>(node->storage);
+  data->fac_y1 = value;
+  CLAMP_MIN(data->fac_y1, data->fac_y2);
+}
+
+static void rna_NodeCrop_rel_max_y_set(PointerRNA *ptr, float value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeTwoXYs *data = static_cast<NodeTwoXYs *>(node->storage);
+  data->fac_y2 = value;
+  CLAMP_MAX(data->fac_y2, data->fac_y1);
 }
 
 void rna_Node_update_relations(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -7805,48 +7991,56 @@ static void def_cmp_crop(StructRNA *srna)
 
   prop = RNA_def_property(srna, "min_x", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "x1");
+  RNA_def_property_int_funcs(prop, nullptr, "rna_NodeCrop_min_x_set", nullptr);
   RNA_def_property_range(prop, 0, 10000);
   RNA_def_property_ui_text(prop, "X1", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "max_x", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "x2");
+  RNA_def_property_int_funcs(prop, nullptr, "rna_NodeCrop_max_x_set", nullptr);
   RNA_def_property_range(prop, 0, 10000);
   RNA_def_property_ui_text(prop, "X2", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "min_y", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "y1");
+  RNA_def_property_int_funcs(prop, nullptr, "rna_NodeCrop_min_y_set", nullptr);
   RNA_def_property_range(prop, 0, 10000);
   RNA_def_property_ui_text(prop, "Y1", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "max_y", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "y2");
+  RNA_def_property_int_funcs(prop, nullptr, "rna_NodeCrop_max_y_set", nullptr);
   RNA_def_property_range(prop, 0, 10000);
   RNA_def_property_ui_text(prop, "Y2", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_min_x", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fac_x1");
+  RNA_def_property_float_funcs(prop, nullptr, "rna_NodeCrop_rel_min_x_set", nullptr);
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(prop, "X1", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_max_x", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fac_x2");
+  RNA_def_property_float_funcs(prop, nullptr, "rna_NodeCrop_rel_max_x_set", nullptr);
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(prop, "X2", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_min_y", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fac_y1");
+  RNA_def_property_float_funcs(prop, nullptr, "rna_NodeCrop_rel_min_y_set", nullptr);
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(prop, "Y1", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_max_y", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fac_y2");
+  RNA_def_property_float_funcs(prop, nullptr, "rna_NodeCrop_rel_max_y_set", nullptr);
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(prop, "Y2", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -11098,17 +11292,22 @@ static void rna_def_node(BlenderRNA *brna)
 
   /* registration */
   prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "typeinfo->idname");
+  RNA_def_property_string_funcs(
+      prop, "rna_Node_bl_idname_get", "rna_Node_bl_idname_length", "rna_Node_bl_idname_set");
   RNA_def_property_flag(prop, PROP_REGISTER);
   RNA_def_property_ui_text(prop, "ID Name", "");
 
   prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "typeinfo->ui_name");
+  RNA_def_property_string_funcs(
+      prop, "rna_Node_bl_label_get", "rna_Node_bl_label_length", "rna_Node_bl_label_set");
   RNA_def_property_flag(prop, PROP_REGISTER);
   RNA_def_property_ui_text(prop, "Label", "The node label");
 
   prop = RNA_def_property(srna, "bl_description", PROP_STRING, PROP_TRANSLATION);
-  RNA_def_property_string_sdna(prop, nullptr, "typeinfo->ui_description");
+  RNA_def_property_string_funcs(prop,
+                                "rna_Node_bl_description_get",
+                                "rna_Node_bl_description_length",
+                                "rna_Node_bl_description_set");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 
   prop = RNA_def_property(srna, "bl_icon", PROP_ENUM, PROP_NONE);
@@ -11542,17 +11741,26 @@ static void rna_def_nodetree(BlenderRNA *brna)
 
   /* registration */
   prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "typeinfo->idname");
+  RNA_def_property_string_funcs(prop,
+                                "rna_NodeTree_bl_idname_get",
+                                "rna_NodeTree_bl_idname_length",
+                                "rna_NodeTree_bl_idname_set");
   RNA_def_property_flag(prop, PROP_REGISTER);
   RNA_def_property_ui_text(prop, "ID Name", "");
 
   prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "typeinfo->ui_name");
+  RNA_def_property_string_funcs(prop,
+                                "rna_NodeTree_bl_label_get",
+                                "rna_NodeTree_bl_label_length",
+                                "rna_NodeTree_bl_label_set");
   RNA_def_property_flag(prop, PROP_REGISTER);
   RNA_def_property_ui_text(prop, "Label", "The node tree label");
 
   prop = RNA_def_property(srna, "bl_description", PROP_STRING, PROP_TRANSLATION);
-  RNA_def_property_string_sdna(prop, nullptr, "typeinfo->ui_description");
+  RNA_def_property_string_funcs(prop,
+                                "rna_NodeTree_bl_description_get",
+                                "rna_NodeTree_bl_description_length",
+                                "rna_NodeTree_bl_description_set");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 
   prop = RNA_def_property(srna, "bl_icon", PROP_ENUM, PROP_NONE);
@@ -11859,7 +12067,7 @@ void RNA_def_nodetree(BlenderRNA *brna)
   rna_def_geo_bake_item(brna);
   rna_def_geo_capture_attribute_item(brna);
 
-#  define DefNode(Category, ID, DefFunc, StructName, UIName, UIDesc) \
+#  define DefNode(Category, ID, DefFunc, StructName) \
     { \
       srna = define_specific_node(brna, #Category #StructName, #Category, DefFunc); \
       if (ID == CMP_NODE_OUTPUT_FILE) { \
