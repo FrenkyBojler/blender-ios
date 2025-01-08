@@ -12036,6 +12036,7 @@ static void rna_def_nodes(BlenderRNA *brna)
     }
   };
 
+  /* Disable clang-format to improve readability. */
   /* clang-format off */
 
   define("NodeInternal", "NodeFrame", def_frame);
@@ -12280,7 +12281,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("TextureNode", "TextureNodeValToNor");
   define("TextureNode", "TextureNodeValToRGB", def_colorramp);
   define("TextureNode", "TextureNodeViewer");
-
 
   define("FunctionNode", "FunctionNodeAlignEulerToVector");
   define("FunctionNode", "FunctionNodeAlignRotationToVector");
