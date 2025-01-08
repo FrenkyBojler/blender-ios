@@ -12036,7 +12036,11 @@ static void rna_def_nodes(BlenderRNA *brna)
     }
   };
 
-  /* Disable clang-format to improve readability. */
+  /* Disabling clang-format because:
+   * - It's more readable when the lines are aligned.
+   * - It's easier to sort the lines alphabetically with automated tools. Keeping the lines sorted
+   *   avoids merge conflicts in many cases when multiple people add nodes at the same time.
+   */
   /* clang-format off */
 
   define("NodeInternal", "NodeFrame", def_frame);
