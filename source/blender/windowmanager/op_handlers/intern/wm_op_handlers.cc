@@ -37,6 +37,20 @@
 /** \name Public API
  * \{ */
 
+// Avoid Wmissing-declarations
+bool WM_op_handlers_operator_exec(struct bContext *C,
+                                  const wmEvent *event,
+                                  ListBase *list,
+                                  struct wmOperatorType *ot,
+                                  struct PointerRNA *properties,
+                                  int retval);
+
+// Avoid Wmissing-declarations
+int WM_op_handlers_remove_all(struct wmOpHandlers *op_handlers, void *cb, void *owner);
+
+// Avoid Wmissing-declarations
+ListBase *WM_op_handlers_get_handler_list(wmOpHandlerData *opHandlers, int id);
+
 struct wmOpHandlers *WM_op_handlers_create(void)
 {
 
@@ -160,7 +174,7 @@ int WM_op_handlers_remove(
 bool WM_op_handlers_operator_exec(struct bContext *C,
                                   const wmEvent *event,
                                   ListBase *list,
-                                  struct wmOperatorType *ot,
+                                  struct wmOperatorType * /* ot */,
                                   struct PointerRNA *properties,
                                   int retval)
 {
