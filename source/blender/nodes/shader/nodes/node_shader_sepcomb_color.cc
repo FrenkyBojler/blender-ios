@@ -102,7 +102,8 @@ void register_node_type_sh_sepcolor()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeSeparateColor", SH_NODE_SEPARATE_COLOR, NODE_CLASS_CONVERTER);
+  sh_node_type_base(
+      &ntype, "ShaderNodeSeparateColor", SH_NODE_SEPARATE_COLOR, NODE_CLASS_CONVERTER);
   ntype.ui_name = "Separate Color";
   ntype.ui_description = "Split a color into its individual components using multiple models";
   ntype.enum_name_legacy = "SEPARATE_COLOR";
