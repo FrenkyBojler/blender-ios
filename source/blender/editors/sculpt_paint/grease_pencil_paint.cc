@@ -1490,8 +1490,8 @@ static void copy_new_curve_to(const bke::CurvesGeometry &from_curves,
         MutableSpan<T> span_data = to_attribute_data.typed<T>();
 
         /* Loop through backwards to not overwrite the data. */
-        for (int i = span_data.size() - 1 - new_points; i >= 0; i--) {
-          span_data[i + new_points] = span_data[i];
+        for (int i = span_data.size() - 1 - shift_offsets; i >= 0; i--) {
+          span_data[i + shift_offsets] = span_data[i];
         }
 
         /* Write the new segment's attribute to the space we just made. */
