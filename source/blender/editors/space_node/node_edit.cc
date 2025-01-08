@@ -1017,19 +1017,16 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
-      case int(NodeResizeAction::Begin):
-      {
+      case int(NodeResizeAction::Begin): {
         return OPERATOR_RUNNING_MODAL;
       }
-      case int(NodeResizeAction::Cancel):
-      {
+      case int(NodeResizeAction::Cancel): {
         node_resize_exit(C, op, true);
         ED_region_tag_redraw(region);
         return OPERATOR_CANCELLED;
       }
       case int(NodeResizeAction::SnapInvertOn):
-      case int(NodeResizeAction::SnapInvertOff):
-      {
+      case int(NodeResizeAction::SnapInvertOff): {
         nsw->snap_to_grid = !nsw->snap_to_grid;
         return OPERATOR_RUNNING_MODAL;
       }
