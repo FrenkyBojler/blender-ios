@@ -123,12 +123,12 @@ struct wmWindowManager;
 #include "RNA_types.hh"
 
 /* Exported types for WM. */
-#include "gizmo/WM_gizmo_types.hh"
-#include "wm_cursors.hh"
-#include "wm_event_types.hh"
+#include "gizmo/WM_gizmo_types.hh"  // IWYU pragma: export
+#include "wm_cursors.hh"            // IWYU pragma: export
+#include "wm_event_types.hh"        // IWYU pragma: export
 
 /* Include external gizmo API's. */
-#include "gizmo/WM_gizmo_api.hh"
+#include "gizmo/WM_gizmo_api.hh"  // IWYU pragma: export
 
 namespace blender::asset_system {
 class AssetRepresentation;
@@ -465,6 +465,7 @@ struct wmNotifier {
 #define ND_NLA_ACTCHANGE (74 << 16)
 #define ND_FCURVES_ORDER (75 << 16)
 #define ND_NLA_ORDER (76 << 16)
+#define ND_KEYFRAME_AUTO (77 << 16)
 
 /* NC_GPENCIL. */
 #define ND_GPENCIL_EDITMODE (85 << 16)
@@ -594,7 +595,7 @@ struct wmGesture {
   int modal_state;
   /** Optional, draw the active side of the straight-line gesture. */
   bool draw_active_side;
-  /** Latest mouse position relative to area. Currently only used by lasso drawing code.*/
+  /** Latest mouse position relative to area. Currently only used by lasso drawing code. */
   blender::int2 mval;
 
   /**
@@ -1271,6 +1272,8 @@ struct wmDragActiveDropState {
    */
   const char *disabled_info;
   bool free_disabled_info;
+
+  std::string tooltip;
 };
 
 struct wmDrag {

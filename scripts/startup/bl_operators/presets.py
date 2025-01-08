@@ -190,20 +190,21 @@ class AddPresetBase:
 
                             file_preset.write("{:s} = {!r}\n".format(rna_path_step, value))
 
-                    file_preset = open(filepath, "w", encoding="utf-8")
-                    file_preset.write("import bpy\n")
+                    with open(filepath, "w", encoding="utf-8") as file_preset:
+                        file_preset.write("import bpy\n")
 
-                    if hasattr(self, "preset_defines"):
-                        for rna_path in self.preset_defines:
-                            exec(rna_path)
-                            file_preset.write("{:s}\n".format(rna_path))
-                        file_preset.write("\n")
+                        namespace_globals = {"bpy": bpy}
+                        namespace_locals = {}
 
-                    for rna_path in self.preset_values:
-                        value = eval(rna_path)
-                        rna_recursive_attr_expand(value, rna_path, 1)
+                        if hasattr(self, "preset_defines"):
+                            for rna_path in self.preset_defines:
+                                exec(rna_path, namespace_globals, namespace_locals)
+                                file_preset.write("{:s}\n".format(rna_path))
+                            file_preset.write("\n")
 
-                    file_preset.close()
+                        for rna_path in self.preset_values:
+                            value = eval(rna_path, namespace_globals, namespace_locals)
+                            rna_recursive_attr_expand(value, rna_path, 1)
 
             preset_menu_class.bl_label = bpy.path.display_name(filename)
 
@@ -949,7 +950,7 @@ class AddPresetGpencilBrush(AddPresetBase, Operator):
 
 
 class AddPresetGpencilMaterial(AddPresetBase, Operator):
-    """Add or remove grease pencil material preset"""
+    """Add or remove Grease Pencil material preset"""
     bl_idname = "scene.gpencil_material_preset_add"
     bl_label = "Add Grease Pencil Material Preset"
     preset_menu = "MATERIAL_PT_gpencil_material_presets"

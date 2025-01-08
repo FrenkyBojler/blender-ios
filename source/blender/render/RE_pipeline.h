@@ -12,12 +12,11 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
-#include "BLI_implicit_sharing.h"
-
 struct GPUTexture;
 struct ImBuf;
 struct Image;
 struct ImageFormatData;
+struct MovieWriter;
 struct Main;
 struct Object;
 struct RenderData;
@@ -26,7 +25,6 @@ struct ReportList;
 struct Scene;
 struct StampData;
 struct ViewLayer;
-struct bMovieHandle;
 
 #ifdef __cplusplus
 extern "C" {
@@ -344,8 +342,7 @@ bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               struct RenderResult *rr,
                               struct Scene *scene,
                               struct RenderData *rd,
-                              struct bMovieHandle *mh,
-                              void **movie_ctx_arr,
+                              struct MovieWriter **movie_writers,
                               int totvideos,
                               bool preview);
 

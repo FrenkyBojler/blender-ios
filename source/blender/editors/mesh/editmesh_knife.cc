@@ -40,6 +40,7 @@
 #include "BKE_layer.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 #include "BKE_unit.hh"
 
 #include "GPU_immediate.hh"
@@ -508,18 +509,13 @@ static void knifetool_draw_visible_distances(const KnifeTool_OpData *kcd)
   /* Calculate distance and convert to string. */
   const float cut_len = len_v3v3(kcd->prev.cage, kcd->curr.cage);
 
-  const UnitSettings *unit = &kcd->scene->unit;
-  if (unit->system == USER_UNIT_NONE) {
+  const UnitSettings &unit = kcd->scene->unit;
+  if (unit.system == USER_UNIT_NONE) {
     SNPRINTF(numstr, "%.*f", distance_precision, cut_len);
   }
   else {
-    BKE_unit_value_as_string(numstr,
-                             sizeof(numstr),
-                             double(cut_len * unit->scale_length),
-                             distance_precision,
-                             B_UNIT_LENGTH,
-                             unit,
-                             false);
+    BKE_unit_value_as_string_scaled(
+        numstr, sizeof(numstr), cut_len, distance_precision, B_UNIT_LENGTH, unit, false);
   }
 
   BLF_enable(blf_mono_font, BLF_ROTATION);
@@ -644,8 +640,8 @@ static void knifetool_draw_angle(const KnifeTool_OpData *kcd,
   float numstr_size[2];
   float posit[2];
 
-  const UnitSettings *unit = &kcd->scene->unit;
-  if (unit->system == USER_UNIT_NONE) {
+  const UnitSettings &unit = kcd->scene->unit;
+  if (unit.system == USER_UNIT_NONE) {
     SNPRINTF(numstr, "%.*f" BLI_STR_UTF8_DEGREE_SIGN, angle_precision, RAD2DEGF(angle));
   }
   else {
@@ -4019,7 +4015,7 @@ static void knifetool_init(ViewContext *vc,
 
   if (is_interactive) {
     kcd->draw_handle = ED_region_draw_cb_activate(
-        kcd->region->type, knifetool_draw, kcd, REGION_DRAW_POST_VIEW);
+        kcd->region->runtime->type, knifetool_draw, kcd, REGION_DRAW_POST_VIEW);
 
     knife_init_colors(&kcd->colors);
   }
@@ -4048,7 +4044,7 @@ static void knifetool_exit_ex(KnifeTool_OpData *kcd)
     WM_cursor_modal_restore(kcd->vc.win);
 
     /* Deactivate the extra drawing stuff in 3D-View. */
-    ED_region_draw_cb_exit(kcd->region->type, kcd->draw_handle);
+    ED_region_draw_cb_exit(kcd->region->runtime->type, kcd->draw_handle);
   }
 
   /* Free the custom data. */

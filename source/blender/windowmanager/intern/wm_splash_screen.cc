@@ -14,16 +14,11 @@
  * - Links to web sites.
  */
 
-#include <algorithm>
 #include <cstring>
 
-#include "DNA_ID.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
-
-#include "BLF_api.hh"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -31,6 +26,7 @@
 #include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
+#include "BKE_preferences.h"
 
 #include "BLT_translation.hh"
 
@@ -267,18 +263,9 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
                                      style);
 
   MenuType *mt;
-  char userpref[FILE_MAX];
-  const std::optional<std::string> cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
-
-  if (cfgdir.has_value()) {
-    BLI_path_join(userpref, sizeof(userpref), cfgdir->c_str(), BLENDER_USERPREF_FILE);
-  }
-  else {
-    userpref[0] = '\0';
-  }
 
   /* Draw setup screen if no preferences have been saved yet. */
-  if (!(userpref[0] && BLI_exists(userpref))) {
+  if (!blender::bke::preferences::exists()) {
     mt = WM_menutype_find("WM_MT_splash_quick_setup", true);
 
     /* The #UI_BLOCK_QUICK_SETUP flag prevents the button text from being left-aligned,
@@ -295,8 +282,14 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
     UI_menutype_draw(C, mt, layout);
   }
 
-#if defined(__APPLE__)
-  if (is_using_macos_rosetta() > 0) {
+/* Displays a warning if blender is being emulated via Rosetta (macOS) or XTA (Windows) */
+#if defined(__APPLE__) || defined(_M_X64)
+#  if defined(__APPLE__)
+  if (is_using_macos_rosetta() > 0)
+#  elif defined(_M_X64)
+  if (strncmp(BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0)
+#  endif
+  {
     uiItemS_ex(layout, 2.0f, LayoutSeparatorType::Line);
 
     uiLayout *split = uiLayoutSplit(layout, 0.725, true);
@@ -314,10 +307,17 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
                 WM_OP_INVOKE_DEFAULT,
                 UI_ITEM_NONE,
                 &op_ptr);
+#  if defined(__APPLE__)
     RNA_string_set(
         &op_ptr,
         "url",
         "https://docs.blender.org/manual/en/latest/getting_started/installing/macos.html");
+#  elif defined(_M_X64)
+    RNA_string_set(
+        &op_ptr,
+        "url",
+        "https://docs.blender.org/manual/en/latest/getting_started/installing/windows.html");
+#  endif
 
     uiItemS(layout);
   }

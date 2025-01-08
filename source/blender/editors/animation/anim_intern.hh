@@ -9,13 +9,14 @@
 #pragma once
 
 struct ListBase;
+struct wmOperatorType;
 
 /* size of string buffers used for animation channel displayed names */
 #define ANIM_CHAN_NAME_SIZE 256
 
 /* KeyingSets/Keyframing Interface ------------- */
 
-/** List of builtin KeyingSets (defined in `keyingsets.cc`). */
+/** List of builtin KeyingSets (defined in `blender/animrig/keyingsets.cc`). */
 extern ListBase builtin_keyingsets;
 
 /* Operator Define Prototypes ------------------- */

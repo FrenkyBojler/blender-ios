@@ -453,7 +453,7 @@ static bool curves_geometry_is_equal(const bke::CurvesGeometry &curves_a,
 {
   using namespace blender::bke;
 
-  if (curves_a.points_num() == 0 && curves_b.points_num() == 0) {
+  if (curves_a.is_empty() && curves_b.is_empty()) {
     return true;
   }
 
@@ -842,7 +842,7 @@ static int grease_pencil_frame_duplicate_exec(bContext *C, wmOperator *op)
 static void GREASE_PENCIL_OT_frame_duplicate(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Duplicate active Frame(s)";
+  ot->name = "Duplicate Active Frame(s)";
   ot->idname = "GREASE_PENCIL_OT_frame_duplicate";
   ot->description = "Make a copy of the active Grease Pencil frame(s)";
 
@@ -868,17 +868,19 @@ static int grease_pencil_active_frame_delete_exec(bContext *C, wmOperator *op)
   bool changed = false;
 
   if (only_active) {
-    if (!grease_pencil.has_active_layer()) {
+    Layer *active_layer = grease_pencil.get_active_layer();
+    if ((active_layer == nullptr) || active_layer->is_locked()) {
       return OPERATOR_CANCELLED;
     }
-
-    Layer &active_layer = *grease_pencil.get_active_layer();
-    if (std::optional<int> active_frame_number = active_layer.start_frame_at(current_frame)) {
-      changed |= grease_pencil.remove_frames(active_layer, {active_frame_number.value()});
+    if (std::optional<int> active_frame_number = active_layer->start_frame_at(current_frame)) {
+      changed |= grease_pencil.remove_frames(*active_layer, {active_frame_number.value()});
     }
   }
   else {
     for (Layer *layer : grease_pencil.layers_for_write()) {
+      if (layer->is_locked()) {
+        continue;
+      }
       if (std::optional<int> active_frame_number = layer->start_frame_at(current_frame)) {
         changed |= grease_pencil.remove_frames(*layer, {active_frame_number.value()});
       }
@@ -898,7 +900,7 @@ static int grease_pencil_active_frame_delete_exec(bContext *C, wmOperator *op)
 static void GREASE_PENCIL_OT_active_frame_delete(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Delete active Frame(s)";
+  ot->name = "Delete Active Frame(s)";
   ot->idname = "GREASE_PENCIL_OT_active_frame_delete";
   ot->description = "Delete the active Grease Pencil frame(s)";
 
@@ -909,7 +911,7 @@ static void GREASE_PENCIL_OT_active_frame_delete(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_boolean(ot->srna, "all", false, "Delete all", "Delete active keyframes of all layer");
+  RNA_def_boolean(ot->srna, "all", false, "Delete all", "Delete active keyframes of all layers");
 }
 
 }  // namespace blender::ed::greasepencil

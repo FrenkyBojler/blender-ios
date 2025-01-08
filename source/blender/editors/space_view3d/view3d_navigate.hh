@@ -8,6 +8,9 @@
 
 #pragma once
 
+#include "MEM_guardedalloc.h"
+
+#include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
 /**
@@ -23,6 +26,7 @@ struct RegionView3D;
 struct Scene;
 struct ScrArea;
 struct View3D;
+struct ViewOpsData;
 struct bContext;
 struct Object;
 struct PointerRNA;
@@ -126,10 +130,10 @@ struct ViewOpsData {
     /** The ones below are unrelated to the state of the 3D view. */
 
     /** #wmEvent.xy. */
-    int event_xy[2];
+    blender::int2 event_xy;
     /* Offset used when "use_cursor_init" is false to simulate pressing in the middle of the
      * region. */
-    int event_xy_offset[2];
+    blender::int2 event_xy_offset;
     /** #wmEvent.type that triggered the operator. */
     int event_type;
 
@@ -189,9 +193,7 @@ struct ViewOpsData {
                        const bool use_cursor_init = false);
   void end_navigation(bContext *C);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("ViewOpsData")
-#endif
 };
 
 /* view3d_navigate.cc */

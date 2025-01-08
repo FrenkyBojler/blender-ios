@@ -54,7 +54,7 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 
 #  include "BKE_colorband.hh"
 #  include "BKE_colortools.hh"
-#  include "BKE_image.h"
+#  include "BKE_image.hh"
 #  include "BKE_linestyle.h"
 #  include "BKE_movieclip.h"
 #  include "BKE_node.hh"
@@ -66,9 +66,43 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 #  include "IMB_colormanagement.hh"
 #  include "IMB_imbuf.hh"
 
+#  include "MOV_read.hh"
+
 #  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_thumbnail_cache.hh"
+
+struct SeqCurveMappingUpdateData {
+  Scene *scene;
+  CurveMapping *curve;
+};
+
+static bool seq_update_modifier_curve(Strip *strip, void *user_data)
+{
+  /* Invalidate cache of any strips that have modifiers using this
+   * curve mapping. */
+  SeqCurveMappingUpdateData *data = static_cast<SeqCurveMappingUpdateData *>(user_data);
+  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
+    if (smd->type == seqModifierType_Curves) {
+      CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
+      if (&cmd->curve_mapping == data->curve) {
+        SEQ_relations_invalidate_cache_preprocessed(data->scene, strip);
+      }
+    }
+  }
+  return true;
+}
+
+static void seq_notify_curve_update(CurveMapping *curve, ID *id)
+{
+  if (id && GS(id->name) == ID_SCE) {
+    Scene *scene = (Scene *)id;
+    if (scene->ed) {
+      SeqCurveMappingUpdateData data{scene, curve};
+      SEQ_for_each_callback(&scene->ed->seqbase, seq_update_modifier_curve, &data);
+    }
+  }
+}
 
 static int rna_CurveMapping_curves_length(PointerRNA *ptr)
 {
@@ -139,6 +173,7 @@ static void rna_CurveMapping_tone_update(Main * /*bmain*/, Scene * /*scene*/, Po
     curve_mapping->cur = 3;
   }
 
+  seq_notify_curve_update(curve_mapping, ptr->owner_id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 }
@@ -620,7 +655,7 @@ static const EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_ite
 
 struct Seq_colorspace_cb_data {
   ColorManagedColorspaceSettings *colorspace_settings;
-  Sequence *r_seq;
+  Strip *r_seq;
 };
 
 /**
@@ -628,11 +663,11 @@ struct Seq_colorspace_cb_data {
  * If property pointer matches one of strip, set `r_seq`,
  * so not all cached images have to be invalidated.
  */
-static bool seq_find_colorspace_settings_cb(Sequence *seq, void *user_data)
+static bool strip_find_colorspace_settings_cb(Strip *strip, void *user_data)
 {
   Seq_colorspace_cb_data *cd = (Seq_colorspace_cb_data *)user_data;
-  if (seq->strip && &seq->strip->colorspace_settings == cd->colorspace_settings) {
-    cd->r_seq = seq;
+  if (strip->data && &strip->data->colorspace_settings == cd->colorspace_settings) {
+    cd->r_seq = strip;
     return false;
   }
   return true;
@@ -685,18 +720,18 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       }
       else {
         /* Strip colorspace was likely changed. */
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_find_colorspace_settings_cb, &cb_data);
-        Sequence *seq = cb_data.r_seq;
+        SEQ_for_each_callback(&scene->ed->seqbase, strip_find_colorspace_settings_cb, &cb_data);
+        Strip *strip = cb_data.r_seq;
 
-        if (seq) {
-          SEQ_relations_sequence_free_anim(seq);
+        if (strip) {
+          SEQ_relations_sequence_free_anim(strip);
 
-          if (seq->strip->proxy && seq->strip->proxy->anim) {
-            IMB_free_anim(seq->strip->proxy->anim);
-            seq->strip->proxy->anim = nullptr;
+          if (strip->data->proxy && strip->data->proxy->anim) {
+            MOV_close(strip->data->proxy->anim);
+            strip->data->proxy->anim = nullptr;
           }
 
-          SEQ_relations_invalidate_cache_raw(scene, seq);
+          SEQ_relations_invalidate_cache_raw(scene, strip);
         }
       }
 

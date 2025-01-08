@@ -8,7 +8,10 @@
 
 #pragma once
 
+#include <atomic>
 #include <mutex>
+
+#include "DNA_vec_types.h"
 
 #include "BLF_api.hh"
 
@@ -18,8 +21,13 @@
 #include "GPU_texture.hh"
 #include "GPU_vertex_buffer.hh"
 
+#include <ft2build.h>
+
 struct ColorManagedDisplay;
 struct FontBLF;
+struct GlyphCacheBLF;
+struct GlyphBLF;
+
 namespace blender::gpu {
 class Batch;
 class VertBuf;
@@ -310,8 +318,8 @@ struct FontBLF {
    */
   uint unicode_ranges[4];
 
-  /** Number of times this font was loaded. */
-  unsigned int reference_count;
+  /** Number of references to this font object. When it reaches zero, font is unloaded. */
+  std::atomic<uint32_t> reference_count;
 
   /** Aspect ratio or scale. */
   float aspect[3];

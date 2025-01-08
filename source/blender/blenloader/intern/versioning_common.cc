@@ -31,6 +31,9 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_screen.hh"
+
+#include "ANIM_versioning.hh"
 
 #include "NOD_socket.hh"
 
@@ -47,9 +50,20 @@
 using blender::Map;
 using blender::StringRef;
 
+short do_versions_new_to_old_idcode_get(const short id_code_new)
+{
+  switch (id_code_new) {
+    case ID_GP:
+      /* ID_GD_LEGACY (Grease Pencil v2) is now converted to ID_GP (Grease Pencil v3). */
+      return ID_GD_LEGACY;
+    default:
+      return ID_LINK_PLACEHOLDER;
+  }
+}
+
 ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
                                              int region_type,
-                                             const char *allocname,
+                                             const char * /*allocname*/,
                                              int link_after_region_type)
 {
   ARegion *link_after_region = nullptr;
@@ -62,7 +76,7 @@ ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
     }
   }
 
-  ARegion *new_region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), allocname));
+  ARegion *new_region = BKE_area_region_new();
   new_region->regiontype = region_type;
   BLI_insertlinkafter(regionbase, link_after_region, new_region);
   return new_region;
@@ -70,7 +84,7 @@ ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
 
 ARegion *do_versions_ensure_region(ListBase *regionbase,
                                    int region_type,
-                                   const char *allocname,
+                                   const char * /*allocname*/,
                                    int link_after_region_type)
 {
   ARegion *link_after_region = nullptr;
@@ -83,7 +97,7 @@ ARegion *do_versions_ensure_region(ListBase *regionbase,
     }
   }
 
-  ARegion *new_region = MEM_cnew<ARegion>(allocname);
+  ARegion *new_region = BKE_area_region_new();
   new_region->regiontype = region_type;
   BLI_insertlinkafter(regionbase, link_after_region, new_region);
   return new_region;
@@ -198,7 +212,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   blender::bke::node_unique_id(&ntree, node);
 
   STRNCPY(node->idname, idname);
-  STRNCPY_UTF8(node->name, DATA_(ntype->ui_name));
+  STRNCPY_UTF8(node->name, DATA_(ntype->ui_name.c_str()));
   blender::bke::node_unique_name(&ntree, node);
 
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
@@ -353,9 +367,9 @@ void version_socket_update_is_used(bNodeTree *ntree)
   }
 }
 
-ARegion *do_versions_add_region(int regiontype, const char *name)
+ARegion *do_versions_add_region(int regiontype, const char * /*name*/)
 {
-  ARegion *region = (ARegion *)MEM_callocN(sizeof(ARegion), name);
+  ARegion *region = BKE_area_region_new();
   region->regiontype = regiontype;
   return region;
 }
@@ -419,8 +433,8 @@ void add_realize_instances_before_socket(bNodeTree *ntree,
     bNode *realize_node = blender::bke::node_add_static_node(
         nullptr, ntree, GEO_NODE_REALIZE_INSTANCES);
     realize_node->parent = node->parent;
-    realize_node->locx = node->locx - 100;
-    realize_node->locy = node->locy;
+    realize_node->locx_legacy = node->locx_legacy - 100;
+    realize_node->locy_legacy = node->locy_legacy;
     blender::bke::node_add_link(ntree,
                                 link->fromnode,
                                 link->fromsock,
@@ -633,7 +647,7 @@ void do_versions_after_setup(Main *new_bmain,
    * the versions of all the linked libraries. */
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
-    do_versions_ipos_to_animato(new_bmain);
+    do_versions_ipos_to_layered_actions(new_bmain);
   }
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
@@ -666,5 +680,10 @@ void do_versions_after_setup(Main *new_bmain,
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 403, 3)) {
     /* Convert all the legacy grease pencil objects. This does not touch annotations. */
     blender::bke::greasepencil::convert::legacy_main(*new_bmain, lapp_context, *reports);
+  }
+
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 404, 2)) {
+    /* Version all the action assignments of just-versioned datablocks. */
+    blender::animrig::versioning::convert_legacy_action_assignments(*new_bmain, reports->reports);
   }
 }

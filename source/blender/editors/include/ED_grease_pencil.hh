@@ -11,10 +11,10 @@
 #include "BKE_grease_pencil.hh"
 
 #include "BKE_attribute_filter.hh"
-#include "BLI_generic_span.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_set.hh"
+#include "BLI_task.hh"
 
 #include "ED_keyframes_edit.hh"
 #include "ED_select_utils.hh"
@@ -22,9 +22,11 @@
 #include "WM_api.hh"
 
 struct bContext;
+struct BrushGpencilSettings;
 struct Main;
 struct Object;
 struct KeyframeEditData;
+struct MDeformVert;
 struct wmKeyConfig;
 struct wmOperator;
 struct GPUOffScreen;
@@ -169,6 +171,10 @@ class DrawingPlacement {
    */
   float3 project(float2 co) const;
   void project(Span<float2> src, MutableSpan<float3> dst) const;
+  /**
+   * Projects a screen space coordinate to the local drawing space including camera shift.
+   */
+  float3 project_with_shift(float2 co) const;
 
   /**
    * Projects a 3D position (in local space) to the drawing plane.
@@ -234,6 +240,13 @@ struct KeyframeClipboard {
     cfra = 0;
   }
 };
+
+bool grease_pencil_layer_parent_set(bke::greasepencil::Layer &layer,
+                                    Object *parent,
+                                    StringRefNull bone,
+                                    bool keep_transform);
+
+void grease_pencil_layer_parent_clear(bke::greasepencil::Layer &layer, bool keep_transform);
 
 bool grease_pencil_copy_keyframes(bAnimContext *ac, KeyframeClipboard &clipboard);
 
@@ -884,9 +897,17 @@ struct LineartLimitInfo {
 void get_lineart_modifier_limits(const Object &ob, LineartLimitInfo &info);
 void set_lineart_modifier_limits(GreasePencilLineartModifierData &lmd,
                                  const LineartLimitInfo &info,
-                                 const bool is_first_lineart);
+                                 const bool cache_is_ready);
 
 GreasePencilLineartModifierData *get_first_lineart_modifier(const Object &ob);
 
 GreasePencil *from_context(bContext &C);
+
+/**
+ * Remove the points in the \a point_mask and split each curve at the points that are removed (if
+ * necessary).
+ */
+bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
+                                            const IndexMask &point_mask);
+
 }  // namespace blender::ed::greasepencil
