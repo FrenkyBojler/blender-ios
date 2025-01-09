@@ -99,7 +99,7 @@ void BKE_ntree_update_after_single_tree_change(Main &bmain,
                                                const NodeTreeUpdateExtraParams &params = {});
 
 /**
- * Can be used to update trees locally, without affecting other trees. This can be used when e.g.
- * building a temporary node tree that is not in bmain.
+ * Can be used to update trees locally, without affecting other trees. For example, when building a
+ * temporary node tree that is not in bmain.
  */
 void BKE_ntree_update_without_main(bNodeTree &tree);
