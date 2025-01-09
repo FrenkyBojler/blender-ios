@@ -89,11 +89,9 @@ bool VKCommandBuilder::node_has_input_attachments(const VKRenderGraph &render_gr
 {
   const VKRenderGraphNodeLinks &links = render_graph.links_[node];
   const Vector<VKRenderGraphLink> &inputs = links.inputs;
-  return std::any_of(inputs.begin(),
-    inputs.end(),
-    [](const VKRenderGraphLink& input) {
-      return input.vk_access_flags & VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-    });
+  return std::any_of(inputs.begin(), inputs.end(), [](const VKRenderGraphLink &input) {
+    return input.vk_access_flags & VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+  });
 }
 
 void VKCommandBuilder::build_node_group(VKRenderGraph &render_graph,
