@@ -2441,8 +2441,13 @@ Material *BKE_grease_pencil_object_material_ensure_from_brush(Main *bmain,
 
     /* check if the material is already on object material slots and add it if missing */
     if (ma && BKE_object_material_index_get(ob, ma) < 0) {
+      const int actcol_old = ob->actcol;
+
       BKE_object_material_slot_add(bmain, ob);
       BKE_object_material_assign(bmain, ob, ma, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
+      /* #BKE_object_material_slot_add() changes the active material to the new one, which is the
+       * unpinned material. We don't want to touch that, so set it back to what it was. */
+      ob->actcol = actcol_old;
     }
 
     return ma;
