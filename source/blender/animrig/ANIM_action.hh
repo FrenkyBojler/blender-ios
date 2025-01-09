@@ -102,8 +102,9 @@ class Action : public ::bAction {
 
   /* Discriminators for 'legacy' and 'layered' Actions.
    *
-   * Note: these are transitional APIs, and should eventually be relegated to
-   * only being used in versioning code.
+   * Note: `is_action_legacy()` and `is_action_layered()` are transitional APIs,
+   * and should eventually be removed. See their documentation below for
+   * details.
    */
   /**
    * Return whether this Action has any data at all.
@@ -124,8 +125,8 @@ class Action : public ::bAction {
    *
    * \note This method will be removed when runtime support for legacy Actions
    * is removed, so only use it in such runtime code. See
-   * `animrig::versioning::action_is_layered()` for uses that should stick around for the long
-   * term, such as blend file loading and versioning.
+   * `animrig::versioning::action_is_layered()` for uses that should stick
+   * around for the long term, such as blend file loading and versioning.
    *
    * \see #animrig::versioning::action_is_layered()
    */
@@ -140,8 +141,8 @@ class Action : public ::bAction {
    *
    * \note This method will be removed when runtime support for legacy Actions
    * is removed, so only use it in such runtime code. See
-   * `animrig::versioning::action_is_layered()` for uses that should stick around for the long
-   * term, such as blend file loading and versioning.
+   * `animrig::versioning::action_is_layered()` for uses that should stick
+   * around for the long term, such as blend file loading and versioning.
    *
    * \see #animrig::versioning::action_is_layered()
    */
