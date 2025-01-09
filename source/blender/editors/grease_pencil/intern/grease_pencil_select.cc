@@ -892,7 +892,7 @@ static int select_shape_exec(bContext *C, wmOperator * /*op*/)
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
         curves, selection_domain, CD_PROP_BOOL);
 
-    const Vector<IndexMask> shapes = info.drawing.shapes();
+    const Vector<IndexMask> shapes = info.drawing.shapes(memory);
     const IndexMask selected_shapes = curves_to_shapes_mask(selected_strokes, shapes, memory);
 
     selected_shapes.foreach_index(GrainSize(256), [&](const int64_t shape_i) {
