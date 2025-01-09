@@ -28,6 +28,7 @@ class Axes : Overlay {
   PassSimple ps_ = {"Axes"};
 
   EmptyInstanceBuf axes_buf = {selection_type_, "object_axes"};
+  EmptyInstanceBuf xform_origins_buf = {selection_type_, "xform_origins"};
 
  public:
   Axes(const SelectionType selection_type) : selection_type_{selection_type} {};
@@ -38,6 +39,7 @@ class Axes : Overlay {
 
     ps_.init();
     axes_buf.clear();
+    xform_origins_buf.clear();
   }
 
   void object_sync(Manager & /*manager*/,
@@ -66,9 +68,11 @@ class Axes : Overlay {
     ExtraInstanceData data(ob->object_to_world(), res.object_wire_color(ob_ref, state), 1.0f);
     if (use_xform_origins_axis) {
       data.color_ = float4(0.15f, 0.15f, 0.15f, 0.7f);
+      xform_origins_buf.append(data, select::SelectMap::select_invalid_id());
     }
-
-    axes_buf.append(data, res.select_id(ob_ref));
+    else {
+      axes_buf.append(data, res.select_id(ob_ref));
+    }
   }
 
   void end_sync(Resources &res, const State &state) final
@@ -76,12 +80,18 @@ class Axes : Overlay {
     if (!enabled_) {
       return;
     }
-    ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
-                  state.clipping_plane_count);
+    DRWState state_common = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH;
+    ps_.state_set(state_common | DRW_STATE_DEPTH_LESS_EQUAL, state.clipping_plane_count);
     ps_.shader_set(res.shaders.extra_shape.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     res.select_bind(ps_);
+
     axes_buf.end_sync(ps_, res.shapes.arrows.get());
+
+    PassSimple::Sub &xform_origins_ps = ps_.sub("XForm Origins");
+    xform_origins_ps.state_set(state_common | DRW_STATE_DEPTH_ALWAYS, state.clipping_plane_count);
+
+    xform_origins_buf.end_sync(xform_origins_ps, res.shapes.arrows.get());
   }
 
   void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
