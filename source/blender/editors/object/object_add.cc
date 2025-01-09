@@ -3114,15 +3114,13 @@ static int mesh_to_grease_pencil_add_material(Main &bmain,
   return index;
 }
 
-static void mesh_data_to_grease_pencil(Object &newob,
-                                       const Mesh &mesh_eval,
+static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
+                                       GreasePencil &grease_pencil,
                                        const int current_frame,
                                        const bool generate_faces,
                                        const float stroke_radius,
                                        const float offset)
 {
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(newob.data);
-
   grease_pencil.flag |= GREASE_PENCIL_STROKE_ORDER_3D;
 
   bke::greasepencil::Layer &layer_line = grease_pencil.add_layer(DATA_("Lines"));
@@ -3176,13 +3174,12 @@ static void mesh_data_to_grease_pencil(Object &newob,
                                                                       bke::AttrDomain::Curve);
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
-  int point_i = 0;
   for (const int edge_i : IndexRange(edge_num)) {
     const int2 edge = edges[edge_i];
+    const int point_i = edge_i * 2;
     point_positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
     point_positions[point_i + 1] = mesh_positions[edge[1]] + offset * vert_normals[edge[1]];
     radii[point_i] = radii[point_i + 1] = stroke_radius;
-    point_i += 2;
   }
   radii.fill(stroke_radius);
 
@@ -3230,7 +3227,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   }
 
   mesh_data_to_grease_pencil(
-      *newob, *mesh_eval, info.scene->r.cfra, generate_faces, stroke_radius, offset);
+      *mesh_eval, *grease_pencil, info.scene->r.cfra, generate_faces, stroke_radius, offset);
 
   return newob;
 }
