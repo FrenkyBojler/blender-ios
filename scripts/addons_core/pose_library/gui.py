@@ -70,7 +70,6 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
         layout.separator()
         layout.operator("poselib.asset_overwrite")
         layout.menu("VIEW3D_MT_pose_modify")
-        layout.operator("poselib.screenshot_preview")
         layout.operator("poselib.asset_delete")
 
         layout.separator()
@@ -93,10 +92,6 @@ def pose_library_asset_browser_context_menu(self: UIList, context: Context) -> N
     layout = self.layout
 
     layout.separator()
-    layout.operator("poselib.asset_overwrite")
-    layout.operator("poselib.asset_delete")
-    layout.operator("poselib.screenshot_preview")
-    layout.separator()
 
     layout.operator("poselib.apply_pose_asset", text="Apply Pose").flipped = False
     layout.operator("poselib.apply_pose_asset", text="Apply Pose Flipped").flipped = True
@@ -110,6 +105,10 @@ def pose_library_asset_browser_context_menu(self: UIList, context: Context) -> N
     props.select = True
     props = layout.operator("poselib.pose_asset_select_bones", text="Deselect Pose Bones")
     props.select = False
+
+    layout.separator()
+    layout.operator("poselib.asset_overwrite")
+    layout.operator("poselib.asset_delete")
 
     layout.separator()
     layout.operator("asset.assign_action")
@@ -201,6 +200,7 @@ def _on_blendfile_load_post(none, other_none) -> None:
 classes = (
     DOPESHEET_PT_asset_panel,
     ASSETBROWSER_MT_asset,
+    VIEW3D_MT_pose_modify,
     VIEW3D_AST_pose_library,
 )
 

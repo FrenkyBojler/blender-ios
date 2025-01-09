@@ -635,6 +635,14 @@ static const EnumPropertyItem prop_asset_overwrite_modes[] = {
      "Remove channels of the selection from the pose asset"},
 };
 
+static std::string pose_asset_overwrite_description(bContext * /* C */,
+                                                    wmOperatorType * /* ot */,
+                                                    PointerRNA *ptr)
+{
+  const int mode = RNA_enum_get(ptr, "mode");
+  return std::string(prop_asset_overwrite_modes[mode].description);
+}
+
 /* Calling it overwrite instead of save because we aren't actually saving an opened asset. */
 void POSELIB_OT_asset_overwrite(wmOperatorType *ot)
 {
@@ -646,6 +654,7 @@ void POSELIB_OT_asset_overwrite(wmOperatorType *ot)
 
   ot->exec = pose_asset_overwrite_exec;
   ot->poll = pose_asset_overwrite_poll;
+  ot->get_description = pose_asset_overwrite_description;
 
   RNA_def_enum(ot->srna,
                "mode",
