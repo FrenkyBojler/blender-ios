@@ -12,7 +12,7 @@ _attribute_value_string = {
   'BYTE_COLOR': "color",
   'STRING': "value",
   'BOOLEAN': "value",
-  'FLOAT2': "value",
+  'FLOAT2': "vector",
   'INT8': "value",
   'INT32_2D': "value",
   'QUATERNION': "value",
