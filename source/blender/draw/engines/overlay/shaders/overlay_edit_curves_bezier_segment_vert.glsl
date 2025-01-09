@@ -29,8 +29,8 @@ VertIn input_assembly(uint vertex_id)
   vert_in.p[1] = gpu_attr_load_float3(pos, gpu_attr_3, start_index + right_handle_offset);
   vert_in.p[2] = gpu_attr_load_float3(pos, gpu_attr_3, end_index + left_handle_offset);
   vert_in.p[3] = gpu_attr_load_float3(pos, gpu_attr_3, end_index);
-  vert_in.first_vertex_id = first_id[gpu_attr_load_index(segment_i, gpu_attr_1)];
-  vert_in.resolution = first_id[gpu_attr_load_index(segment_i + 1, gpu_attr_1)] -
+  vert_in.first_vertex_id = evaluated_points_offset[gpu_attr_load_index(segment_i, gpu_attr_1)];
+  vert_in.resolution = evaluated_points_offset[gpu_attr_load_index(segment_i + 1, gpu_attr_1)] -
                        vert_in.first_vertex_id;
   vert_in.radius = vec2(radius[gpu_attr_load_index(segment_i, gpu_attr_2)],
                         radius[gpu_attr_load_index(segment_i + 1, gpu_attr_2)]);

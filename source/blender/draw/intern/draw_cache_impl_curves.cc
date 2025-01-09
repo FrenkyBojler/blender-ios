@@ -1094,10 +1094,12 @@ static void create_edit_points_position_vbo(
 
 /* MUST match the format below. */
 struct BezierSegmentVert {
-  /** Indices of [point, point's right handle, next point's left handle, next point]. */
+  /** Curve segment's left control point index in `CurvesBatchCache.edit_points_pos`. */
   int32_t point_index;
 
-  int32_t first_vertex_id;
+  int32_t evaluated_points_offset;
+
+  /** Curve segment's left control point radius. */
   float radius;
 };
 
@@ -1109,7 +1111,7 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
   static GPUVertFormat format_segments = []() {
     GPUVertFormat format{};
     GPU_vertformat_attr_add(&format, "point_index", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "first_id", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "evaluated_points_offset", GPU_COMP_I32, 1, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "radius", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     return format;
   }();
