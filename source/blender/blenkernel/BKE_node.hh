@@ -220,6 +220,7 @@ using NodeMaterialXFunction = void (*)(void *data, bNode *node, bNodeSocket *out
  */
 struct bNodeType {
   std::string idname;
+  /** See bNode::type_legacy. */
   int type_legacy;
 
   std::string ui_name;
