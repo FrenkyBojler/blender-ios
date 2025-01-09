@@ -89,6 +89,8 @@ enum eGPUBuiltinShader {
   GPU_SHADER_INDEXBUF_LINES,
   GPU_SHADER_INDEXBUF_TRIS,
 
+  GPU_SHADER_INDEXBUF_CURVES_SEGMENT_POINTS,
+
   /**
    * ----------------------- Shaders exposed through pyGPU module -----------------------
    *

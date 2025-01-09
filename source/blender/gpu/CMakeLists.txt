@@ -648,6 +648,7 @@ set(GLSL_SRC
   shaders/gpu_shader_index_2d_array_points.glsl
   shaders/gpu_shader_index_2d_array_lines.glsl
   shaders/gpu_shader_index_2d_array_tris.glsl
+  shaders/gpu_shader_index_curve_segment_points.glsl
 
   GPU_shader_shared_utils.hh
 )

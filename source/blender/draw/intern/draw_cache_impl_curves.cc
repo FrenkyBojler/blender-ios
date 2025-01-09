@@ -35,8 +35,11 @@
 #include "BKE_geometry_set.hh"
 
 #include "GPU_batch.hh"
+#include "GPU_capabilities.hh"
+#include "GPU_compute.hh"
 #include "GPU_context.hh"
 #include "GPU_material.hh"
+#include "GPU_shader_shared.hh"
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
 
@@ -1092,16 +1095,39 @@ static void create_edit_points_position_vbo(
   GPU_vertbuf_attr_fill(cache.edit_curves_lines_pos, attr_id, positions.data());
 }
 
-/* MUST match the format below. */
-struct BezierSegmentVert {
-  /** Curve segment's left control point index in `CurvesBatchCache.edit_points_pos`. */
-  int32_t point_index;
+static void GPU_indexbuf_build_curve_segments_on_device(const uint segments_num,
+                                                        const uint indices_num,
+                                                        const uint verts_per_segment,
+                                                        gpu::IndexBuf *ibo,
+                                                        gpu::VertBuf *segments)
+{
+  uint64_t dispatch_x_dim = verts_per_segment;
+  uint64_t grid_x, grid_y, grid_z;
+  uint64_t max_grid_x = GPU_max_work_group_count(0), max_grid_y = GPU_max_work_group_count(1),
+           max_grid_z = GPU_max_work_group_count(2);
+  grid_x = min_uu(max_grid_x, (dispatch_x_dim + 15) / 16);
+  grid_y = (segments_num + 15) / 16;
+  if (grid_y <= max_grid_y) {
+    grid_z = 1;
+  }
+  else {
+    grid_y = grid_z = uint64_t(ceil(sqrt(double(grid_y))));
+    grid_y = min_uu(grid_y, max_grid_y);
+    grid_z = min_uu(grid_z, max_grid_z);
+  }
 
-  int32_t evaluated_points_offset;
+  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_INDEXBUF_CURVES_SEGMENT_POINTS);
+  GPU_shader_bind(shader);
+  GPU_indexbuf_init_build_on_device(ibo, indices_num);
 
-  /** Curve segment's left control point radius. */
-  float radius;
-};
+  GPU_shader_uniform_1i(shader, "segments_num", segments_num);
+  GPU_vertbuf_bind_as_ssbo(segments, GPU_shader_get_ssbo_binding(shader, "segments"));
+  GPU_indexbuf_bind_as_ssbo(ibo, GPU_shader_get_ssbo_binding(shader, "out_indices"));
+  GPU_compute_dispatch(shader, grid_x, grid_y, grid_z);
+
+  GPU_memory_barrier(GPU_BARRIER_ELEMENT_ARRAY);
+  GPU_shader_unbind();
+}
 
 static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves,
                                                const IndexMask &bezier_curves,
@@ -1113,6 +1139,7 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
     GPU_vertformat_attr_add(&format, "point_index", GPU_COMP_I32, 1, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "evaluated_points_offset", GPU_COMP_I32, 1, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "radius", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "_pad", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     return format;
   }();
 
@@ -1127,57 +1154,44 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
   const VArray<float> radius = curves.radius();
   const VArray<int> resolution = curves.resolution();
 
-  Vector<int> segment_line_offsets({0});
-  Vector<BezierSegmentVert> segment_data;
+  int max_resolution = 0;
+  int next_segment_offset = 0;
+  Vector<CurveSegment> segment_data;
 
   bezier_curves.foreach_index([&](const int64_t curve) {
     const IndexRange points = points_by_curve[curve];
+    max_resolution = math::max(max_resolution, resolution[curve]);
 
     if (points.size() == 0) {
       return;
     }
 
     for (const int point : points.index_range()) {
-      BezierSegmentVert seg_data{
-          int32_t(points[point]), segment_line_offsets.last(), radius[points[point]]};
+      CurveSegment seg_data{int32_t(points[point]), next_segment_offset, radius[points[point]]};
       segment_data.append(seg_data);
-      segment_line_offsets.append(segment_line_offsets.last() + resolution[curve]);
+      next_segment_offset += resolution[curve];
     }
 
     if (cyclic[curve] || points.size() == 1) {
-      BezierSegmentVert seg_data{
-          int32_t(points[0]), segment_line_offsets.last(), radius[points[0]]};
+      CurveSegment seg_data{int32_t(points[0]), next_segment_offset, radius[points[0]]};
       segment_data.append(seg_data);
-      segment_line_offsets.append(segment_line_offsets.last() + 0);
     }
     else {
-      segment_line_offsets.last() = segment_line_offsets.last(1);
+      next_segment_offset -= resolution[curve];
     }
   });
-  Array<int> vertex_to_segment(segment_line_offsets.last());
-  Array<int> seq(segment_line_offsets.size() - 1);
-  array_utils::fill_index_range(seq.as_mutable_span());
-  array_utils::gather_to_groups(segment_line_offsets.as_span(),
-                                seq.index_range(),
-                                seq.as_span(),
-                                vertex_to_segment.as_mutable_span());
 
   GPU_vertbuf_init_with_format(*cache.edit_bezier_segment_data, format_segments);
   GPU_vertbuf_data_alloc(*cache.edit_bezier_segment_data, segment_data.size());
   std::copy_n(segment_data.data(),
               segment_data.size(),
-              cache.edit_bezier_segment_data->data<BezierSegmentVert>().data());
+              cache.edit_bezier_segment_data->data<CurveSegment>().data());
 
-  GPUIndexBufBuilder elb;
-  GPU_indexbuf_init_ex(&elb,
-                       GPU_PRIM_POINTS,
-                       vertex_to_segment.size(),
-                       points_by_curve.total_size() + 2 * bezier_offsets.total_size());
-
-  for (const int i : vertex_to_segment) {
-    GPU_indexbuf_add_generic_vert(&elb, i);
-  }
-  GPU_indexbuf_build_in_place(&elb, cache.edit_bezier_segment_ibo);
+  GPU_indexbuf_build_curve_segments_on_device(segment_data.size() - 1,
+                                              segment_data.last().evaluated_points_offset,
+                                              max_resolution,
+                                              cache.edit_bezier_segment_ibo,
+                                              cache.edit_bezier_segment_data);
 }
 
 void DRW_curves_batch_cache_create_requested(Object *ob)

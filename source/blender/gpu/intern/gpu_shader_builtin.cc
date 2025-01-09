@@ -103,6 +103,8 @@ static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
       return "gpu_shader_index_2d_array_lines";
     case GPU_SHADER_INDEXBUF_TRIS:
       return "gpu_shader_index_2d_array_tris";
+    case GPU_SHADER_INDEXBUF_CURVES_SEGMENT_POINTS:
+      return "gpu_shader_index_curve_segment_points";
     default:
       BLI_assert_unreachable();
       return "";

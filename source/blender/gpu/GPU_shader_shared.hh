@@ -72,6 +72,18 @@ struct NodeLinkInstanceData {
 };
 BLI_STATIC_ASSERT_ALIGN(NodeLinkInstanceData, 16)
 
+struct CurveSegment {
+  /** Curve segment's left control point index in `CurvesBatchCache.edit_points_pos`. */
+  int32_t point_index;
+
+  int32_t evaluated_points_offset;
+
+  /** Curve segment's left control point radius. */
+  float radius;
+  float _pad;
+};
+BLI_STATIC_ASSERT_ALIGN(CurveSegment, 16)
+
 struct GPencilStrokeData {
   float2 viewport;
   float pixsize;
