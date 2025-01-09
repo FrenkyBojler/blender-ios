@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <complex>
+#include <limits>
 #include <memory>
 
 #include "MEM_guardedalloc.h"
@@ -39,6 +40,7 @@
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
 
+#include "COM_algorithm_parallel_reduction.hh"
 #include "COM_algorithm_symmetric_separable_blur.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -63,6 +65,22 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "Defines the luminance at which pixels start to be considered part of the highlights "
           "that will produce a glare")
+      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Smoothness", "Highlights Smoothness")
+      .default_value(0.1f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description("The smoothness of the extracted highlights")
+      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Suppression", "Highlights Suppression")
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description(
+          "Suppresses very bright highlights. 0.5 means the maximum highlights will be half the "
+          "brightness of the brightest pixel in the input")
       .compositor_expects_single_value();
   b.add_input<decl::Float>("Strength")
       .default_value(1.0f)
@@ -255,10 +273,14 @@ class GlareOperation : public NodeOperation {
 
   Result execute_highlights_gpu()
   {
+    const float max_brightness = this->get_maximum_brightness();
+
     GPUShader *shader = context().get_shader("compositor_glare_highlights");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "threshold", this->get_threshold());
+    GPU_shader_uniform_1f(shader, "highlights_smoothness", this->get_highlights_smoothness());
+    GPU_shader_uniform_1f(shader, "max_brightness", max_brightness);
 
     const Result &input_image = get_input("Image");
     GPU_texture_filter_mode(input_image, true);
@@ -281,6 +303,8 @@ class GlareOperation : public NodeOperation {
   Result execute_highlights_cpu()
   {
     const float threshold = this->get_threshold();
+    const float highlights_smoothness = this->get_highlights_smoothness();
+    const float max_brightness = this->get_maximum_brightness();
 
     const Result &input = get_input("Image");
 
@@ -288,21 +312,26 @@ class GlareOperation : public NodeOperation {
     Result output = context().create_result(ResultType::Color);
     output.allocate_texture(highlights_size);
 
-    /* The dispatch domain covers the output image size, which might be a fraction of the input
-     * image size, so you will notice the glare size used throughout the code instead of the input
-     * one. */
     parallel_for(highlights_size, [&](const int2 texel) {
-      /* Add 0.5 to evaluate the input sampler at the center of the pixel and divide by the image
-       * size to get the coordinates into the sampler's expected [0, 1] range. */
       float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(highlights_size);
 
       float4 hsva;
       rgb_to_hsv_v(input.sample_bilinear_extended(normalized_coordinates), hsva);
 
-      /* The pixel whose luminance value is less than the threshold luminance is not considered
-       * part of the highlights and is given a value of zero. Otherwise, the pixel is considered
-       * part of the highlights, whose luminance value is the difference to the threshold. */
-      hsva.z = math::max(0.0f, hsva.z - threshold);
+      /* Clamp the brightness of the highlights such that pixels whose brightness are less than the
+       * threshold will be equal to the threshold and will become zero once threshold is subtracted
+       * later. We also clamp by the specified max brightness to suppress very bright highlights.
+       *
+       * We use a smooth clamping function such that highlights do not become very sharp but use
+       * the adaptive variant such that we guarantee that zero highlights remain zero even after
+       * smoothing. Notice that when we mention zero, we mean zero after subtracting the threshold,
+       * so we actually mean the minimum bound, the threshold. See the adaptive_smooth_clamp
+       * function for more information. */
+      const float clamped_brightness = this->adaptive_smooth_clamp(
+          hsva.z, threshold, max_brightness, highlights_smoothness);
+
+      /* The final brightness is relative to the threshold. */
+      hsva.z = clamped_brightness - threshold;
 
       float4 rgba;
       hsv_to_rgb_v(hsva, rgba);
@@ -311,6 +340,87 @@ class GlareOperation : public NodeOperation {
     });
 
     return output;
+  }
+
+  float get_maximum_brightness()
+  {
+    const float suppression = this->get_highlights_suppression();
+    if (suppression == 0.0f) {
+      return std::numeric_limits<float>::max();
+    }
+    const float max_brightness = maximum_brightness(this->context(), this->get_input("Image"));
+    const float suppressed_max_brightness = (1.0f - suppression) * max_brightness;
+    return math::max(suppressed_max_brightness, this->get_threshold());
+  }
+
+  /* A Quadratic Polynomial smooth minimum function *without* normalization, based on:
+   *
+   *   https://iquilezles.org/articles/smin/
+   *
+   * This should not be converted into a common utility function in BLI because the glare code is
+   * specifically designed for it as can be seen in the adaptive_smooth_clamp method, and it is
+   * intentionally not normalized. */
+  float smooth_min(const float a, const float b, const float smoothness)
+  {
+    if (smoothness == 0.0f) {
+      return math::min(a, b);
+    }
+    const float h = math::max(smoothness - math::abs(a - b), 0.0f) / smoothness;
+    return math::min(a, b) - h * h * smoothness * (1.0f / 4.0f);
+  }
+
+  float smooth_max(const float a, const float b, const float smoothness)
+  {
+    return -this->smooth_min(-a, -b, smoothness);
+  }
+
+  /* Clamps the input x within min and max using smooth minimum and maximum functions. */
+  float smooth_clamp(const float x,
+                     const float min_value,
+                     const float max_value,
+                     const float min_smoothness,
+                     const float max_smoothness)
+  {
+    return this->smooth_min(
+        max_value, this->smooth_max(min_value, x, min_smoothness), max_smoothness);
+  }
+
+  /* A variant of smooth_clamp that adapts the smoothness by potentially reducing it such that the
+   * function evaluates to the given min for x <= 0 assuming min/max are not negative. The
+   * aforementioned guarantee holds for the standard clamp function by definition, but since the
+   * smooth clamp function gradually increases before the specified min/max, if min/max are
+   * sufficiently close to zero, it will not evaluate to min at zero, since zero will be at the
+   * region of gradual increase.
+   *
+   * It can be shown that the width of the gradual increase region is equivalent to the smoothness
+   * parameter, so smoothness can't be larger than the difference between the bounds and zero, that
+   * is, the bounds themselves, otherwise, zero will lies inside the gradual increase region of
+   * that bound. So take the minimum of the bound with its smoothness parameter. */
+  float adaptive_smooth_clamp(const float x,
+                              const float min_value,
+                              const float max_value,
+                              const float smoothness)
+  {
+    const float min_smoothness = math::min(smoothness, min_value);
+    const float max_smoothness = math::min(smoothness, max_value);
+    return this->smooth_clamp(x, min_value, max_value, min_smoothness, max_smoothness);
+  }
+
+  float get_threshold()
+  {
+    return math::max(0.0f, this->get_input("Threshold").get_single_value_default(1.0f));
+  }
+
+  float get_highlights_smoothness()
+  {
+    return math::max(0.0f,
+                     this->get_input("Highlights Smoothness").get_single_value_default(0.1f));
+  }
+
+  float get_highlights_suppression()
+  {
+    return math::clamp(
+        this->get_input("Highlights Suppression").get_single_value_default(0.0f), 0.0f, 1.0f);
   }
 
   /* As a performance optimization, the operation can compute the glare on a fraction of the input
@@ -2144,11 +2254,6 @@ class GlareOperation : public NodeOperation {
   /* -------
    * Common.
    * ------- */
-
-  float get_threshold()
-  {
-    return math::max(0.0f, this->get_input("Threshold").get_single_value_default(1.0f));
-  }
 
   float get_strength()
   {

@@ -580,6 +580,44 @@ float maximum_luminance(Context &context,
   return maximum_luminance_cpu(result, luminance_coefficients);
 }
 
+static float maximum_brightness_gpu(Context &context, const Result &result)
+{
+  GPUShader *shader = context.get_shader("compositor_maximum_brightness", ResultPrecision::Full);
+  GPU_shader_bind(shader);
+
+  float *reduced_value = parallel_reduction_dispatch(
+      context,
+      result,
+      shader,
+      Result::gpu_texture_format(ResultType::Float, ResultPrecision::Full));
+  const float maximum = *reduced_value;
+  MEM_freeN(reduced_value);
+  GPU_shader_unbind();
+
+  return maximum;
+}
+
+static float maximum_brightness_cpu(const Result &result)
+{
+  return float(parallel_reduce(
+      result.domain().size,
+      std::numeric_limits<float>::lowest(),
+      [&](const int2 texel, float &accumulated_value) {
+        const float brightness = math::reduce_max(result.load_pixel<float4>(texel).xyz());
+        accumulated_value = math::max(accumulated_value, brightness);
+      },
+      [&](const float &a, const float &b) { return math::max(a, b); }));
+}
+
+float maximum_brightness(Context &context, const Result &result)
+{
+  if (context.use_gpu()) {
+    return maximum_brightness_gpu(context, result);
+  }
+
+  return maximum_brightness_cpu(result);
+}
+
 static float maximum_float_gpu(Context &context, const Result &result)
 {
   GPUShader *shader = context.get_shader("compositor_maximum_float", ResultPrecision::Full);
