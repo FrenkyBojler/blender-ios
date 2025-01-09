@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+#include <optional>
+
 struct Main;
+struct ID;
 
 /**
  * Makes sure that invariants in original DNA data are maintained after changes.
@@ -25,4 +29,5 @@ struct Main;
  * - Group nodes need to have the correct sockets based on the referenced node group.
  * - The geometry nodes modifier needs to have the correct inputs based on the referenced group.
  */
-void BKE_main_ensure_invariants(Main &bmain);
+void BKE_main_ensure_invariants(Main &bmain,
+                                std::optional<blender::Span<ID *>> modified_ids = std::nullopt);

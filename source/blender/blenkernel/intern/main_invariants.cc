@@ -38,7 +38,8 @@ static void send_notifiers_after_node_tree_change(ID *id, bNodeTree *ntree)
   }
 }
 
-static void propagate_node_tree_changes(Main &bmain)
+static void propagate_node_tree_changes(Main &bmain,
+                                        const std::optional<blender::Span<ID *>> modified_ids)
 {
   NodeTreeUpdateExtraParams params;
   params.tree_changed_fn = [](bNodeTree &ntree, ID &owner_id) {
@@ -52,7 +53,7 @@ static void propagate_node_tree_changes(Main &bmain)
   BKE_ntree_update_main(&bmain, &params);
 }
 
-void BKE_main_ensure_invariants(Main &bmain)
+void BKE_main_ensure_invariants(Main &bmain, const std::optional<blender::Span<ID *>> modified_ids)
 {
-  propagate_node_tree_changes(bmain);
+  propagate_node_tree_changes(bmain, modified_ids);
 }
