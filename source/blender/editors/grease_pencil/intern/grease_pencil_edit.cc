@@ -126,6 +126,9 @@ static int grease_pencil_stroke_smooth_exec(bContext *C, wmOperator *op)
     const IndexMask cyclic_mask = IndexMask::from_bools(cyclic, memory);
     const IndexMask unselected_mask =
         IndexMask::from_bools(point_selection, memory).complement(curves.points_range(), memory);
+
+    /* If a cyclic stroke is not fully selected, we should not enable cyclic smoothing otherwise
+     * the end points from selection segments will be smoothed as if they are connected. */
     const IndexMask cyclic_mask_ensured = cyclic_mask.from_predicate(
         curves.curves_range(), GrainSize(4096), memory, [&](const int curve_i) {
           if (!unselected_mask.slice_content(points_by_curve[curve_i].index_range()).is_empty()) {
