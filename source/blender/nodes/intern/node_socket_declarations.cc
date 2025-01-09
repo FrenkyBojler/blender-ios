@@ -62,8 +62,8 @@ static bool basic_types_can_connect(const SocketDeclaration & /*socket_decl*/,
 
 static void modify_subtype_except_for_storage(bNodeSocket &socket, int new_subtype)
 {
-  const char *idname = bke::node_static_socket_type(socket.type, new_subtype);
-  STRNCPY(socket.idname, idname);
+  const StringRefNull idname = *bke::node_static_socket_type(socket.type, new_subtype);
+  STRNCPY(socket.idname, idname.c_str());
   bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
   socket.typeinfo = socktype;
 }
@@ -810,7 +810,7 @@ bool Custom::matches(const bNodeSocket &socket) const
   if (socket.type != SOCK_CUSTOM) {
     return false;
   }
-  if (!STREQ(socket.typeinfo->idname, idname_)) {
+  if (socket.typeinfo->idname != idname_) {
     return false;
   }
   return true;
@@ -823,7 +823,7 @@ bool Custom::can_connect(const bNodeSocket &socket) const
 
 bNodeSocket &Custom::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
-  if (!STREQ(socket.typeinfo->idname, idname_)) {
+  if (socket.typeinfo->idname != idname_) {
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);

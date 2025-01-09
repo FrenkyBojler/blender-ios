@@ -88,7 +88,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "use_legacy_normal", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_legacy_normal", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 /**
@@ -607,9 +607,12 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype,
+                     "GeometryNodeDistributePointsOnFaces",
                      GEO_NODE_DISTRIBUTE_POINTS_ON_FACES,
-                     "Distribute Points on Faces",
                      NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Distribute Points on Faces";
+  ntype.ui_description = "Generate points spread out on the surface of a mesh";
+  ntype.enum_name_legacy = "DISTRIBUTE_POINTS_ON_FACES";
   blender::bke::node_type_size(&ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

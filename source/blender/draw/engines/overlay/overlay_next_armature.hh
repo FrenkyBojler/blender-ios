@@ -56,6 +56,7 @@ class Armatures : Overlay {
     PassSimple::Sub *shape_outline = nullptr;
     /* Custom bone wire-frame. */
     PassSimple::Sub *shape_wire = nullptr;
+    PassSimple::Sub *shape_wire_strip = nullptr;
     /* Envelopes. */
     PassSimple::Sub *envelope_fill = nullptr;
     PassSimple::Sub *envelope_outline = nullptr;
@@ -102,6 +103,7 @@ class Armatures : Overlay {
     Map<gpu::Batch *, std::unique_ptr<BoneInstanceBuf>> custom_shape_fill;
     Map<gpu::Batch *, std::unique_ptr<BoneInstanceBuf>> custom_shape_outline;
     Map<gpu::Batch *, std::unique_ptr<BoneInstanceBuf>> custom_shape_wire;
+    Map<gpu::Batch *, std::unique_ptr<BoneInstanceBuf>> custom_shape_wire_strip;
 
     BoneInstanceBuf &custom_shape_fill_get_buffer(gpu::Batch *geom)
     {
@@ -119,9 +121,16 @@ class Armatures : Overlay {
 
     BoneInstanceBuf &custom_shape_wire_get_buffer(gpu::Batch *geom)
     {
-      return *custom_shape_wire.lookup_or_add_cb(geom, [this]() {
-        return std::make_unique<BoneInstanceBuf>(this->selection_type_, "CustomBoneWire");
-      });
+      if (geom->prim_type == GPU_PRIM_LINE_STRIP) {
+        return *custom_shape_wire_strip.lookup_or_add_cb(geom, [this]() {
+          return std::make_unique<BoneInstanceBuf>(this->selection_type_, "CustomBoneWireStrip");
+        });
+      }
+      else {
+        return *custom_shape_wire.lookup_or_add_cb(geom, [this]() {
+          return std::make_unique<BoneInstanceBuf>(this->selection_type_, "CustomBoneWire");
+        });
+      }
     }
 
     BoneBuffers(const SelectionType selection_type) : selection_type_(selection_type){};
@@ -130,11 +139,8 @@ class Armatures : Overlay {
   BoneBuffers opaque_ = {selection_type_};
   BoneBuffers transparent_ = {selection_type_};
 
-  const ShapeCache &shapes_;
-
  public:
-  Armatures(const SelectionType selection_type, const ShapeCache &shapes)
-      : selection_type_(selection_type), shapes_(shapes){};
+  Armatures(const SelectionType selection_type) : selection_type_(selection_type){};
 
   void begin_sync(Resources &res, const State &state) final
   {
@@ -298,6 +304,27 @@ class Armatures : Overlay {
       else {
         transparent_.shape_wire = opaque_.shape_wire;
       }
+
+      {
+        auto &sub = armature_ps_.sub("opaque.shape_wire_strip");
+        sub.state_set(default_state | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
+        sub.shader_set(res.shaders.armature_shape_wire_strip.get());
+        sub.push_constant("alpha", 1.0f);
+        sub.push_constant("do_smooth_wire", do_smooth_wire);
+        opaque_.shape_wire_strip = &sub;
+      }
+      if (use_wire_alpha) {
+        auto &sub = armature_ps_.sub("transparent.shape_wire_strip");
+        sub.state_set(default_state | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
+        sub.shader_set(res.shaders.armature_shape_wire_strip.get());
+        sub.bind_texture("depthTex", depth_tex);
+        sub.push_constant("alpha", wire_alpha * 0.6f);
+        sub.push_constant("do_smooth_wire", do_smooth_wire);
+        transparent_.shape_wire_strip = &sub;
+      }
+      else {
+        transparent_.shape_wire_strip = opaque_.shape_wire_strip;
+      }
     }
     /* Degrees of freedom. */
     {
@@ -430,6 +457,7 @@ class Armatures : Overlay {
       bb.custom_shape_fill.clear();
       bb.custom_shape_outline.clear();
       bb.custom_shape_wire.clear();
+      bb.custom_shape_wire_strip.clear();
     };
 
     shape_instance_bufs_begin_sync(transparent_);
@@ -447,25 +475,7 @@ class Armatures : Overlay {
 
     Armatures::BoneBuffers *bone_buf = nullptr;
     Resources *res = nullptr;
-    const ShapeCache *shapes = nullptr;
-
-    /* TODO: Legacy structures to be removed after overlay next is shipped. */
-    DRWCallBuffer *outline = nullptr;
-    DRWCallBuffer *solid = nullptr;
-    DRWCallBuffer *wire = nullptr;
-    DRWCallBuffer *envelope_outline = nullptr;
-    DRWCallBuffer *envelope_solid = nullptr;
-    DRWCallBuffer *envelope_distance = nullptr;
-    DRWCallBuffer *stick = nullptr;
-    DRWCallBuffer *dof_lines = nullptr;
-    DRWCallBuffer *dof_sphere = nullptr;
-    DRWCallBuffer *point_solid = nullptr;
-    DRWCallBuffer *point_outline = nullptr;
-    DRWShadingGroup *custom_solid = nullptr;
-    DRWShadingGroup *custom_outline = nullptr;
-    DRWShadingGroup *custom_wire = nullptr;
-    GHash *custom_shapes_ghash = nullptr;
-    OVERLAY_ExtraCallBuffers *extras = nullptr;
+    DRWTextStore *dt = nullptr;
 
     /* Not a theme, this is an override. */
     const float *const_color = nullptr;
@@ -483,13 +493,6 @@ class Armatures : Overlay {
     const ThemeWireColor *bcolor = nullptr; /* pchan color */
 
     DrawContext() = default;
-
-    /* Runtime switch between legacy and new overlay code-base.
-     * Should be removed once the legacy code is removed. */
-    bool is_overlay_next() const
-    {
-      return this->bone_buf != nullptr;
-    }
   };
 
   DrawContext create_draw_context(const ObjectRef &ob_ref,
@@ -503,7 +506,7 @@ class Armatures : Overlay {
     ctx.ob = ob_ref.object;
     ctx.ob_ref = &ob_ref;
     ctx.res = &res;
-    ctx.shapes = &shapes_;
+    ctx.dt = state.dt;
     ctx.draw_mode = draw_mode;
     ctx.drawtype = eArmature_Drawtype(arm->drawtype);
 
@@ -555,38 +558,38 @@ class Armatures : Overlay {
     draw_armature_pose(&ctx);
   }
 
-  void end_sync(Resources & /*res*/, const ShapeCache &shapes, const State & /*state*/) final
+  void end_sync(Resources &res, const State & /*state*/) final
   {
     if (!enabled_) {
       return;
     }
 
     auto end_sync = [&](BoneBuffers &bb) {
-      bb.sphere_fill_buf.end_sync(*bb.sphere_fill, shapes.bone_sphere.get());
-      bb.sphere_outline_buf.end_sync(*bb.sphere_outline, shapes.bone_sphere_wire.get());
+      bb.sphere_fill_buf.end_sync(*bb.sphere_fill, res.shapes.bone_sphere.get());
+      bb.sphere_outline_buf.end_sync(*bb.sphere_outline, res.shapes.bone_sphere_wire.get());
 
-      bb.octahedral_fill_buf.end_sync(*bb.shape_fill, shapes.bone_octahedron.get());
+      bb.octahedral_fill_buf.end_sync(*bb.shape_fill, res.shapes.bone_octahedron.get());
       bb.octahedral_outline_buf.end_sync(
-          *bb.shape_outline, shapes.bone_octahedron_wire.get(), GPU_PRIM_LINES, 1);
+          *bb.shape_outline, res.shapes.bone_octahedron_wire.get(), GPU_PRIM_LINES, 1);
 
-      bb.bbones_fill_buf.end_sync(*bb.shape_fill, shapes.bone_box.get());
+      bb.bbones_fill_buf.end_sync(*bb.shape_fill, res.shapes.bone_box.get());
       bb.bbones_outline_buf.end_sync(
-          *bb.shape_outline, shapes.bone_box_wire.get(), GPU_PRIM_LINES, 1);
+          *bb.shape_outline, res.shapes.bone_box_wire.get(), GPU_PRIM_LINES, 1);
 
-      bb.envelope_fill_buf.end_sync(*bb.envelope_fill, shapes.bone_envelope.get());
-      bb.envelope_outline_buf.end_sync(*bb.envelope_outline, shapes.bone_envelope_wire.get());
-      bb.envelope_distance_buf.end_sync(*bb.envelope_distance, shapes.bone_envelope.get());
+      bb.envelope_fill_buf.end_sync(*bb.envelope_fill, res.shapes.bone_envelope.get());
+      bb.envelope_outline_buf.end_sync(*bb.envelope_outline, res.shapes.bone_envelope_wire.get());
+      bb.envelope_distance_buf.end_sync(*bb.envelope_distance, res.shapes.bone_envelope.get());
 
-      bb.stick_buf.end_sync(*bb.stick, shapes.bone_stick.get());
+      bb.stick_buf.end_sync(*bb.stick, res.shapes.bone_stick.get());
 
       bb.wire_buf.end_sync(*bb.wire);
 
-      bb.arrows_buf.end_sync(*bb.arrows, shapes.arrows.get());
+      bb.arrows_buf.end_sync(*bb.arrows, res.shapes.arrows.get());
 
       bb.degrees_of_freedom_fill_buf.end_sync(*bb.degrees_of_freedom_fill,
-                                              shapes.bone_degrees_of_freedom.get());
+                                              res.shapes.bone_degrees_of_freedom.get());
       bb.degrees_of_freedom_wire_buf.end_sync(*bb.degrees_of_freedom_wire,
-                                              shapes.bone_degrees_of_freedom_wire.get());
+                                              res.shapes.bone_degrees_of_freedom_wire.get());
 
       bb.relations_buf.end_sync(*bb.relations);
 
@@ -600,6 +603,9 @@ class Armatures : Overlay {
       }
       for (CustomShapeBuf item : bb.custom_shape_wire.items()) {
         item.value->end_sync(*bb.shape_wire, item.key, GPU_PRIM_TRIS, 2);
+      }
+      for (CustomShapeBuf item : bb.custom_shape_wire_strip.items()) {
+        item.value->end_sync(*bb.shape_wire_strip, item.key, GPU_PRIM_TRIS, 2);
       }
     };
 
@@ -624,7 +630,7 @@ class Armatures : Overlay {
 
   static bool is_pose_mode(const Object *armature_ob, const State &state)
   {
-    Object *active_ob = state.active_base->object;
+    const Object *active_ob = state.object_active;
 
     /* Armature is in pose mode. */
     if (((armature_ob == active_ob) || (armature_ob->mode & OB_MODE_POSE)) &&
@@ -635,7 +641,7 @@ class Armatures : Overlay {
 
     /* Active object is in weight paint and the associated armature is in pose mode. */
     if ((active_ob != nullptr) && (state.object_mode & OB_MODE_ALL_WEIGHT_PAINT)) {
-      if (armature_ob == BKE_object_pose_armature_get(active_ob)) {
+      if (armature_ob == BKE_object_pose_armature_get(const_cast<Object *>(active_ob))) {
         return true;
       }
     }

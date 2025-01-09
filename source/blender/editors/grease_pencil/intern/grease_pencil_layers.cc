@@ -33,6 +33,28 @@
 
 namespace blender::ed::greasepencil {
 
+/* This utility function is modified from `BKE_object_get_parent_matrix()`. */
+static void get_bone_mat(const Object *parent, const char *parsubstr, float4x4 &r_mat)
+{
+  if (parent->type != OB_ARMATURE) {
+    r_mat = float4x4::identity();
+    return;
+  }
+
+  const bPoseChannel *pchan = BKE_pose_channel_find_name(parent->pose, parsubstr);
+  if (!pchan || !pchan->bone) {
+    r_mat = float4x4::identity();
+    return;
+  }
+
+  if (pchan->bone->flag & BONE_RELATIVE_PARENTING) {
+    r_mat = float4x4(pchan->chan_mat);
+  }
+  else {
+    r_mat = float4x4(pchan->pose_mat);
+  }
+}
+
 bool grease_pencil_layer_parent_set(bke::greasepencil::Layer &layer,
                                     Object *parent,
                                     StringRefNull bone,
@@ -47,6 +69,12 @@ bool grease_pencil_layer_parent_set(bke::greasepencil::Layer &layer,
   /* Calculate inverse parent matrix. */
   if (parent) {
     copy_m4_m4(layer.parentinv, parent->world_to_object().ptr());
+    if (layer.parsubstr) {
+      float4x4 bone_mat;
+      get_bone_mat(parent, layer.parsubstr, bone_mat);
+      float4x4 bone_inverse = math::invert(bone_mat) * float4x4(layer.parentinv);
+      copy_m4_m4(layer.parentinv, bone_inverse.ptr());
+    }
   }
   else {
     unit_m4(layer.parentinv);
@@ -186,89 +214,6 @@ static void GREASE_PENCIL_OT_layer_remove(wmOperatorType *ot)
   ot->poll = active_grease_pencil_layer_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-static const EnumPropertyItem prop_layer_reorder_location[] = {
-    {LAYER_REORDER_ABOVE, "ABOVE", 0, "Above", ""},
-    {LAYER_REORDER_BELOW, "BELOW", 0, "Below", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
-static int grease_pencil_layer_reorder_exec(bContext *C, wmOperator *op)
-{
-  using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-
-  if (!grease_pencil.has_active_layer()) {
-    return OPERATOR_CANCELLED;
-  }
-
-  int target_layer_name_length;
-  char *target_layer_name = RNA_string_get_alloc(
-      op->ptr, "target_layer_name", nullptr, 0, &target_layer_name_length);
-  const int reorder_location = RNA_enum_get(op->ptr, "location");
-
-  TreeNode *target_node = grease_pencil.find_node_by_name(target_layer_name);
-  if (!target_node || !target_node->is_layer()) {
-    MEM_SAFE_FREE(target_layer_name);
-    return OPERATOR_CANCELLED;
-  }
-
-  Layer &active_layer = *grease_pencil.get_active_layer();
-  switch (reorder_location) {
-    case LAYER_REORDER_ABOVE: {
-      /* NOTE: The layers are stored from bottom to top, so inserting above (visually), means
-       * inserting the link after the target. */
-      grease_pencil.move_node_after(active_layer.as_node(), *target_node);
-      break;
-    }
-    case LAYER_REORDER_BELOW: {
-      /* NOTE: The layers are stored from bottom to top, so inserting below (visually), means
-       * inserting the link before the target. */
-      grease_pencil.move_node_before(active_layer.as_node(), *target_node);
-      break;
-    }
-    default:
-      BLI_assert_unreachable();
-  }
-
-  MEM_SAFE_FREE(target_layer_name);
-
-  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
-
-  WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layers);
-  WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layer_groups);
-
-  return OPERATOR_FINISHED;
-}
-
-static void GREASE_PENCIL_OT_layer_reorder(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Reorder Layer";
-  ot->idname = "GREASE_PENCIL_OT_layer_reorder";
-  ot->description = "Reorder the active Grease Pencil layer";
-
-  /* callbacks */
-  ot->exec = grease_pencil_layer_reorder_exec;
-  ot->poll = grease_pencil_context_poll;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  PropertyRNA *prop = RNA_def_string(ot->srna,
-                                     "target_layer_name",
-                                     "Layer",
-                                     INT16_MAX,
-                                     "Target Name",
-                                     "Name of the target layer");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-
-  RNA_def_enum(
-      ot->srna, "location", prop_layer_reorder_location, LAYER_REORDER_ABOVE, "Location", "");
 }
 
 enum class LayerMoveDirection : int8_t { Up = -1, Down = 1 };
@@ -453,9 +398,8 @@ static void GREASE_PENCIL_OT_layer_group_add(wmOperatorType *ot)
 static int grease_pencil_layer_group_remove_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(C);
   const bool keep_children = RNA_boolean_get(op->ptr, "keep_children");
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
   if (!grease_pencil.has_active_group()) {
     return OPERATOR_CANCELLED;
@@ -1210,7 +1154,6 @@ void ED_operatortypes_grease_pencil_layers()
   using namespace blender::ed::greasepencil;
   WM_operatortype_append(GREASE_PENCIL_OT_layer_add);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_remove);
-  WM_operatortype_append(GREASE_PENCIL_OT_layer_reorder);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_move);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_active);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_hide);

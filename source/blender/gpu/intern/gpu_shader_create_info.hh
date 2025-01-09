@@ -38,6 +38,9 @@
 
 /* Used for primitive expansion. */
 #define GPU_SSBO_INDEX_BUF_SLOT 7
+/* Used for polylines. */
+#define GPU_SSBO_POLYLINE_POS_BUF_SLOT 0
+#define GPU_SSBO_POLYLINE_COL_BUF_SLOT 1
 
 #if defined(GLSL_CPP_STUBS)
 #  define GPU_SHADER_NAMED_INTERFACE_INFO(_interface, _inst_name) \
@@ -78,18 +81,30 @@
 #elif !defined(GPU_SHADER_CREATE_INFO)
 /* Helps intellisense / auto-completion inside info files. */
 #  define GPU_SHADER_NAMED_INTERFACE_INFO(_interface, _inst_name) \
-    StageInterfaceInfo _interface(#_interface, _inst_name); \
-    _interface
+    static inline void autocomplete_helper_interface_##_interface() \
+    { \
+      StageInterfaceInfo _interface(#_interface, _inst_name); \
+      _interface
 #  define GPU_SHADER_INTERFACE_INFO(_interface) \
-    StageInterfaceInfo _interface(#_interface); \
-    _interface
+    static inline void autocomplete_helper_interface_##_interface() \
+    { \
+      StageInterfaceInfo _interface(#_interface); \
+      _interface
 #  define GPU_SHADER_CREATE_INFO(_info) \
-    ShaderCreateInfo _info(#_info); \
-    _info
+    static inline void autocomplete_helper_info_##_info() \
+    { \
+      ShaderCreateInfo _info(#_info); \
+      _info
 
-#  define GPU_SHADER_NAMED_INTERFACE_END(_inst_name) ;
-#  define GPU_SHADER_INTERFACE_END() ;
-#  define GPU_SHADER_CREATE_END() ;
+#  define GPU_SHADER_NAMED_INTERFACE_END(_inst_name) \
+    ; \
+    }
+#  define GPU_SHADER_INTERFACE_END() \
+    ; \
+    }
+#  define GPU_SHADER_CREATE_END() \
+    ; \
+    }
 
 #endif
 
@@ -182,16 +197,22 @@
 #  define _INT_1D(T) i##T##1D
 #  define _INT_1D_ARRAY(T) i##T##1DArray
 #  define _INT_2D(T) i##T##2D
+#  define _INT_2D_ATOMIC(T) i##T##2D
 #  define _INT_2D_ARRAY(T) i##T##2DArray
+#  define _INT_2D_ARRAY_ATOMIC(T) i##T##2DArray
 #  define _INT_3D(T) i##T##3D
+#  define _INT_3D_ATOMIC(T) i##T##3D
 #  define _INT_CUBE(T) i##T##Cube
 #  define _INT_CUBE_ARRAY(T) i##T##CubeArray
 #  define _UINT_BUFFER(T) u##T##Buffer
 #  define _UINT_1D(T) u##T##1D
 #  define _UINT_1D_ARRAY(T) u##T##1DArray
 #  define _UINT_2D(T) u##T##2D
+#  define _UINT_2D_ATOMIC(T) u##T##2D
 #  define _UINT_2D_ARRAY(T) u##T##2DArray
+#  define _UINT_2D_ARRAY_ATOMIC(T) u##T##2DArray
 #  define _UINT_3D(T) u##T##3D
+#  define _UINT_3D_ATOMIC(T) u##T##3D
 #  define _UINT_CUBE(T) u##T##Cube
 #  define _UINT_CUBE_ARRAY(T) u##T##CubeArray
 #  define _SHADOW_2D(T) T##2DShadow
@@ -237,17 +258,18 @@
 #  define EARLY_FRAGMENT_TEST(enable)
 #  define DEPTH_WRITE(value)
 
-#  define SPECIALIZATION_CONSTANT(type, name, default_value) constexpr type name = type(1);
+#  define SPECIALIZATION_CONSTANT(type, name, default_value) \
+    constexpr type name = type(default_value);
 
-#  define PUSH_CONSTANT(type, name) const type name = type(1);
-#  define PUSH_CONSTANT_ARRAY(type, name, array_size) const type name[array_size] = {type(1)};
+#  define PUSH_CONSTANT(type, name) extern const type name;
+#  define PUSH_CONSTANT_ARRAY(type, name, array_size) extern const type name[array_size];
 
-#  define UNIFORM_BUF(slot, type_name, name) const type_name name = {type_name()};
-#  define UNIFORM_BUF_FREQ(slot, type_name, name, freq) const type_name name = {type_name()};
+#  define UNIFORM_BUF(slot, type_name, name) extern const type_name name;
+#  define UNIFORM_BUF_FREQ(slot, type_name, name, freq) extern const type_name name;
 
-#  define STORAGE_BUF(slot, qualifiers, type_name, name) qualifiers type_name name = {type_name()};
+#  define STORAGE_BUF(slot, qualifiers, type_name, name) extern qualifiers type_name name;
 #  define STORAGE_BUF_FREQ(slot, qualifiers, type_name, name, freq) \
-    qualifiers type_name name = {type_name()};
+    extern qualifiers type_name name;
 
 #  define SAMPLER(slot, type, name) _##type(sampler) name;
 #  define SAMPLER_FREQ(slot, type, name, freq) _##type(sampler) name;
@@ -278,8 +300,7 @@
 
 #  define TYPEDEF_SOURCE(filename)
 
-#  define MTL_MAX_TOTAL_THREADS_PER_THREADGROUP(value) \
-    .mtl_max_total_threads_per_threadgroup(value)
+#  define MTL_MAX_TOTAL_THREADS_PER_THREADGROUP(value)
 #endif
 
 #define _INFO_EXPAND2(a, b) ADDITIONAL_INFO(a) ADDITIONAL_INFO(b)

@@ -136,8 +136,8 @@ static bNode *add_node(
   bNode *new_node = blender::bke::node_add_static_node(C, ntree, type);
 
   if (new_node) {
-    new_node->locx = locx;
-    new_node->locy = locy;
+    new_node->location[0] = locx;
+    new_node->location[1] = locy;
   }
 
   return new_node;
@@ -455,7 +455,8 @@ USDMaterialReader::USDMaterialReader(const USDImportParams &params, Main *bmain)
 {
 }
 
-Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_material) const
+Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_material,
+                                          const bool read_usd_preview) const
 {
   if (!(bmain_ && usd_material)) {
     return nullptr;
@@ -467,17 +468,8 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
   Material *mtl = BKE_material_add(bmain_, mtl_name.c_str());
   id_us_min(&mtl->id);
 
-  /* Get the UsdPreviewSurface shader source for the material,
-   * if there is one. */
-  pxr::UsdShadeShader usd_preview;
-  if (get_usd_preview_surface(usd_material, usd_preview)) {
-
-    set_viewport_material_props(mtl, usd_preview);
-
-    /* Optionally, create shader nodes to represent a UsdPreviewSurface. */
-    if (params_.import_usd_preview) {
-      import_usd_preview(mtl, usd_preview);
-    }
+  if (read_usd_preview) {
+    import_usd_preview(mtl, usd_material);
   }
 
   /* Load custom properties directly from the Material's prim. */
@@ -487,7 +479,24 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
 }
 
 void USDMaterialReader::import_usd_preview(Material *mtl,
-                                           const pxr::UsdShadeShader &usd_shader) const
+                                           const pxr::UsdShadeMaterial &usd_material) const
+{
+  /* Get the UsdPreviewSurface shader source for the material,
+   * if there is one. */
+  pxr::UsdShadeShader usd_preview;
+  if (get_usd_preview_surface(usd_material, usd_preview)) {
+
+    set_viewport_material_props(mtl, usd_preview);
+
+    /* Optionally, create shader nodes to represent a UsdPreviewSurface. */
+    if (params_.import_usd_preview) {
+      import_usd_preview_nodes(mtl, usd_preview);
+    }
+  }
+}
+
+void USDMaterialReader::import_usd_preview_nodes(Material *mtl,
+                                                 const pxr::UsdShadeShader &usd_shader) const
 {
   if (!(bmain_ && mtl && usd_shader)) {
     return;
@@ -1486,22 +1495,14 @@ void build_material_map(const Main *bmain, blender::Map<std::string, Material *>
   }
 }
 
-Material *find_existing_material(
-    const pxr::SdfPath &usd_mat_path,
-    const USDImportParams &params,
-    const blender::Map<std::string, Material *> &mat_map,
-    const blender::Map<std::string, std::string> &usd_path_to_mat_name)
+Material *find_existing_material(const pxr::SdfPath &usd_mat_path,
+                                 const USDImportParams &params,
+                                 const blender::Map<std::string, Material *> &mat_map,
+                                 const blender::Map<std::string, Material *> &usd_path_to_mat)
 {
   if (params.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
     /* Check if we've already created the Blender material with a modified name. */
-    const std::string *mat_name = usd_path_to_mat_name.lookup_ptr(usd_mat_path.GetAsString());
-    if (mat_name == nullptr) {
-      return nullptr;
-    }
-
-    Material *mat = mat_map.lookup_default(*mat_name, nullptr);
-    BLI_assert_msg(mat != nullptr, "Previously created material cannot be found any more");
-    return mat;
+    return usd_path_to_mat.lookup_default(usd_mat_path.GetAsString(), nullptr);
   }
 
   return mat_map.lookup_default(usd_mat_path.GetName(), nullptr);
