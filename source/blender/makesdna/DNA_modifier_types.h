@@ -2053,7 +2053,7 @@ typedef struct MeshCacheModifierData {
   /* axis conversion */
   char forward_axis;
   char up_axis;
-  char flip_axis;
+  int8_t flip_axis;
 
   char interp;
 
@@ -2106,6 +2106,12 @@ enum {
 enum {
   MOD_MESHCACHE_PLAY_CFEA = 0,
   MOD_MESHCACHE_PLAY_EVAL = 1,
+};
+
+enum {
+  MOD_MESHCACHE_FLIP_AXIS_X = 0,
+  MOD_MESHCACHE_FLIP_AXIS_Y,
+  MOD_MESHCACHE_FLIP_AXIS_Z,
 };
 
 typedef struct LaplacianDeformModifierData {
