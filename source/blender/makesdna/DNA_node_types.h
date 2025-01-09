@@ -394,7 +394,7 @@ typedef struct bNode {
    *
    * A main benefit of this integer type over using idnames currently is that integer comparison is
    * much cheaper than string comparison, especially if many idnames have the same prefix (e.g.
-   * "GeometryNode"). Eventually, we should introduce cheap-to-compare runtime identifier for node
+   * "GeometryNode"). Eventually, we could introduce cheap-to-compare runtime identifier for node
    * types. That could mean e.g. using `ustring` for idnames (where string comparison is just
    * pointer comparison), or using a run-time generated integer that is automatically assigned when
    * node types are registered.
